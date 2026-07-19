@@ -644,6 +644,7 @@ from voice_typer.server.handlers.microphone_test_handlers import (  # noqa: E402
 )
 from voice_typer.server.handlers.model_handlers import ModelHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.onboarding_handlers import OnboardingHandlersMixin  # noqa: E402
+from voice_typer.server.handlers.repaste_handlers import RepasteHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.status_handlers import StatusHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.system_handlers import SystemHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.templates_handlers import TemplatesHandlersMixin  # noqa: E402
@@ -667,6 +668,7 @@ class IPCServer(
     ModelHandlersMixin,
     SystemHandlersMixin,
     VocabularyAutomationHandlersMixin,
+    RepasteHandlersMixin,
 ):
     """Reads JSON commands from stdin or TCP, dispatches, writes responses.
 
@@ -1883,6 +1885,9 @@ class IPCServer(
         "get_status": "_handle_get_status",
         "toggle_dictation": "_handle_toggle_dictation",
         "undo_last": "_handle_undo_last",
+        "force_cancel_transcription": "_handle_force_cancel_transcription",
+        # UX-23: re-paste the last transcription (repaste_handlers mixin).
+        "repaste_last": "_handle_repaste_last",
         "get_config": "_handle_get_config",
         "get_defaults": "_handle_get_defaults",
         "set_config": "_handle_set_config",
@@ -1930,6 +1935,10 @@ class IPCServer(
         "onboarding_get_microphones": "_handle_onboarding_get_microphones",
         "onboarding_get_model_options": "_handle_onboarding_get_model_options",
         "onboarding_get_hotkey_presets": "_handle_onboarding_get_hotkey_presets",
+        # UX-4 / UX-27: platform-conditional permission probe
+        # (macOS Accessibility / Linux input group + udev rule) used by
+        # the Permissions step.
+        "onboarding_check_permissions": "_handle_onboarding_check_permissions",
         "microphone_test_start": "_handle_microphone_test_start",
         "microphone_test_stop": "_handle_microphone_test_stop",
         "microphone_test_cancel": "_handle_microphone_test_cancel",
@@ -1978,7 +1987,43 @@ class IPCServer(
         # so restart_app can drop its fixed 300ms sleep in favour of an
         # event-driven wait (bounded by a 2s timeout).
         "relaunch_ack": "_handle_relaunch_ack",
+        # ADR-0020 §6.5 / §16: Tauri sidecar tray-menu click dispatch.
+        # The Tauri host forwards a clicked menu item id; the backend looks
+        # it up in the tray's id→callback map and invokes the action. Unknown
+        # ids return a structured ``unknown_tray_item`` error (distinct from
+        # ``unknown_command``) so the host can surface "missing item" vs
+        # "unknown command" differently.
+        "tray_click": "_handle_tray_click",
     }
+
+    def _handle_tray_click(self, data, resp) -> dict:
+        """ADR-0020 §6.5 / §16: dispatch a Tauri tray-menu click by item id.
+
+        Looks the clicked ``id`` up via the tray's ``dispatch_tray_action``
+        and returns ``{"ok": True}`` on success.  A missing ``id`` yields a
+        ``missing_field`` error; an id the tray doesn't recognise yields a
+        distinct ``unknown_tray_item`` error (so the host can tell "malformed
+        request" from "item not found").
+        """
+        if not isinstance(data, dict) or "id" not in data:
+            resp["type"] = "error"
+            resp["data"] = {"code": "missing_field", "field": "id"}
+            return resp
+
+        item_id = data["id"]
+        tray = getattr(self.app, "tray", None)
+        if tray is None or not hasattr(tray, "dispatch_tray_action"):
+            resp["type"] = "error"
+            resp["data"] = {"code": "unknown_tray_item", "id": item_id}
+            return resp
+
+        handled = tray.dispatch_tray_action(item_id)
+        if not handled:
+            resp["type"] = "error"
+            resp["data"] = {"code": "unknown_tray_item", "id": item_id}
+            return resp
+
+        return {"type": "result", "data": {"ok": True}}
 
     def _handle_unknown_command(self, cmd, data, resp) -> dict | None:
         """Handle the ``__unknown__`` IPC command."""
