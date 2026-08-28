@@ -1,13 +1,16 @@
 // Bulk action bar — appears when 1+ rows are selected.
 //
-// Sticky at the bottom of the viewport (position: sticky, rendered as
-// a DIRECT child of the page column in Vocabulary.tsx — NOT wrapped in
-// an absolute container, which used to anchor it to the bottom of the
-// content and made it scroll away with the page). sticky bottom-4 pins
-// it near the viewport bottom while the column is in view, and
-// ``mx-auto w-fit`` centers it on the column — which is itself
-// centered (max-w-4xl mx-auto) in the main content area — so it stays
-// centered relative to the CONTENT in both sidebar states.
+// Sticky at the bottom of the viewport. The bar is a DIRECT child of
+// the page column (a full-height flex column) and uses ``mt-auto`` to
+// push itself to the column's bottom edge, plus ``sticky bottom-4`` to
+// pin it 16px above the viewport bottom while scrolling:
+//   - Short table: the column is min-h-full (viewport height), so
+//     ``mt-auto`` plants the bar at the very bottom of the screen.
+//   - Long table: the column outgrows the viewport; ``sticky bottom-4``
+//     keeps the bar pinned while the content scrolls underneath.
+// Because the bar stays inside the column's flex flow, it stays centered
+// on the CONTENT (``mx-auto``) in both sidebar states — it shifts right
+// with the content when the sidebar opens, exactly like the table.
 //
 // Contains the selected count, "Delete selected", "Export selected"
 // (JSON/CSV format menu), and an explicit "Deselect all" (X) button —
@@ -49,16 +52,12 @@ export function VocabBulkBar({
 			data-testid="vocab-bulk-bar"
 			// Border is exactly 1px — the old `ring-1 ring-foreground/5`
 			// stacked a second outline on top of the border and read as a
-			// thicker/inconsistent stroke. sticky bottom-4 (as a direct
-			// child of the page column, which is centered in the main
-			// content area) keeps the bar pinned near the viewport bottom
-			// AND centered on the content in both sidebar states — see the
-			// module docstring.
+			// thicker/inconsistent stroke.
 			// Background matches the search input / table container
 			// surface (--bg-subtle) so the bar reads as part of the same
 			// design system — bg-popover was a separate, floating-element
 			// tone that didn't belong to any other surface on this page.
-			className="sticky bottom-4 z-20 mx-auto flex w-fit max-w-full flex-wrap items-center gap-2 rounded-2xl border border-border/10 bg-(--bg-subtle) px-3 py-2 shadow-lg"
+			className="sticky bottom-4 z-20 mx-auto mt-auto flex w-fit max-w-full flex-wrap items-center gap-2 rounded-2xl border border-border/5 bg-(--bg-subtle) px-3 py-2 shadow-lg"
 		>
 			<span className="px-1 text-xs font-medium text-(--text-muted)">
 				{t("vocabulary.selectedCount", { count: String(selectedCount) })}
