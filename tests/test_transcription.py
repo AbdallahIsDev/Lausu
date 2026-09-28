@@ -28,11 +28,11 @@ def mock_faster_whisper(monkeypatch):
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "voice_typer.server.transcription.TranscriptionEngine._require_model_downloaded",
+        "voice_typer.worker.whisper.TranscriptionEngine._require_model_downloaded",
         lambda self, model_size, progress_callback=None: None,
     )
     monkeypatch.setattr(
-        "voice_typer.server.transcription.TranscriptionEngine._whisper_size_cached",
+        "voice_typer.worker.whisper.TranscriptionEngine._whisper_size_cached",
         lambda self, model_size: True,
     )
 
@@ -50,7 +50,7 @@ class TestFallbackChain:
 
     def test_chain_includes_float32_last_resort(self):
         """The fallback chain must include CPU/float32/tiny as the last resort."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="large-v3-turbo", device="auto")
         # Force all WhisperModel calls to fail
@@ -71,7 +71,7 @@ class TestFallbackChain:
 
     def test_chain_tries_preferred_device_first(self):
         """First attempt should use the configured device/compute type."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="large-v3-turbo", device="cuda")
         mod_obj = sys.modules.get("faster_whisper")
@@ -87,7 +87,7 @@ class TestFallbackChain:
 
     def test_chain_falls_through_to_cpu_int8(self):
         """After CUDA fails, should try CPU/int8 with same model."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="large-v3-turbo", device="cuda")
         mod_obj = sys.modules.get("faster_whisper")
@@ -106,7 +106,7 @@ class TestFallbackChain:
 
     def test_chain_tries_tiny_before_float32(self):
         """Should try CPU/int8/tiny before CPU/float32/tiny."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="large-v3-turbo", device="cuda")
         mod_obj = sys.modules.get("faster_whisper")
@@ -126,7 +126,7 @@ class TestFallbackChain:
 
     def test_succeeds_on_fallback(self):
         """If preferred fails but fallback succeeds, load() should succeed."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="large-v3-turbo", device="cuda")
         mock_model = MagicMock()
@@ -147,7 +147,7 @@ class TestFallbackChain:
 
     def test_float32_success_updates_device_info(self):
         """If only float32 succeeds, device_info should reflect that."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="large-v3-turbo", device="cuda")
         mock_model = MagicMock()
@@ -172,7 +172,7 @@ class TestFallbackChain:
 
     def test_loaded_via_reflects_actual_path(self):
         """loaded_via should show which fallback path was used."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="large-v3-turbo", device="auto")
         mock_model = MagicMock()
@@ -232,7 +232,7 @@ class TestLoadIdempotent:
     """Calling load() twice should not re-download or re-initialize."""
 
     def test_second_load_is_noop(self):
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         mock_model = MagicMock()
@@ -250,7 +250,7 @@ class TestTranscribeWithFallback:
     """Verify transcribe_with_fallback handles GPU errors and retries on CPU."""
 
     def _make_engine_with_model(self):
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cuda")
         engine._device = "cuda"
@@ -281,7 +281,7 @@ class TestTranscribeWithFallback:
     def test_custom_decode_settings_are_passed_to_model(self):
         """Configurable decode settings should reach faster-whisper."""
         import numpy as np
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(
             model_size="small.en",
@@ -445,7 +445,7 @@ class TestTranscribeWords:
     def test_transcribe_words_passes_timestamp_options_and_applies_offset(self):
         import numpy as np
         from voice_typer.server.streaming import WordTiming
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         mock_model = MagicMock()
@@ -474,7 +474,7 @@ class TestTranscribeWords:
 
     def test_transcribe_words_empty_audio_returns_empty_without_calling_model(self):
         import numpy as np
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         mock_model = MagicMock()
@@ -485,7 +485,7 @@ class TestTranscribeWords:
 
     def test_model_operations_are_guarded_by_engine_lock(self, monkeypatch):
         import numpy as np
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         class TrackingLock:
             """A lock that tracks depth + entry count."""
@@ -559,7 +559,7 @@ class TestGpuMemoryFree:
         import gc as real_gc
 
         import numpy as np
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cuda")
         engine._device = "cuda"
@@ -587,7 +587,7 @@ class TestGpuMemoryFree:
         import gc as real_gc
 
         import numpy as np
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cuda")
         engine._device = "cuda"
@@ -615,7 +615,7 @@ class TestGpuRuntimeErrorTypeCheck:
 
     def test_detects_cublas_exception_type(self):
         """Exceptions with cuBLAS in their type name should be detected."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cuda")
         engine._device = "cuda"
@@ -627,7 +627,7 @@ class TestGpuRuntimeErrorTypeCheck:
 
     def test_detects_cuda_string_in_message(self):
         """String 'cuda' in error message should still be detected."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cuda")
         engine._device = "cuda"
@@ -636,7 +636,7 @@ class TestGpuRuntimeErrorTypeCheck:
 
     def test_cpu_device_never_gpu_error(self):
         """When device is CPU, no error should be treated as GPU error."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
 
@@ -669,7 +669,7 @@ The fix:
 
 from voice_typer.server.config import Config  # noqa: E402
 from voice_typer.server.recording import Recorder  # noqa: E402
-from voice_typer.server.transcription import TranscriptionEngine  # noqa: E402
+from voice_typer.worker.whisper import TranscriptionEngine  # noqa: E402
 
 
 def _make_recorder() -> Recorder:
@@ -807,13 +807,13 @@ class TestWarmUpInference:
 
     def test_warm_up_method_exists(self):
         """TranscriptionEngine should have a _warm_up_model method."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         assert hasattr(TranscriptionEngine, "_warm_up_model")
 
     def test_warm_up_no_model(self):
         """Warm-up should be a no-op when no model is loaded."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
         engine._model = None
@@ -823,7 +823,7 @@ class TestWarmUpInference:
 
     def test_warm_up_cpu_model(self):
         """Warm-up should be skipped for CPU models."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
         engine._model = MagicMock()
@@ -834,7 +834,7 @@ class TestWarmUpInference:
 
     def test_warm_up_cuda_model(self):
         """Warm-up should call transcribe for CUDA models."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
         engine._model = MagicMock()
@@ -847,7 +847,7 @@ class TestWarmUpInference:
 
     def test_warm_up_failure_non_critical(self):
         """Warm-up failure should not propagate exceptions."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
         engine._model = MagicMock()

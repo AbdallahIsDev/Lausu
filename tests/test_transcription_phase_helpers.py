@@ -89,7 +89,7 @@ class TestWithLockAndDeferredGc:
     """lock is released (RACE-023)."""
 
     def _make_engine(self):
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
         engine._lock = threading.Lock()
@@ -138,7 +138,7 @@ class TestWithGpuFallback:
     """The unified helper retries on GPU runtime errors and re-raises"""
 
     def _make_engine(self, device="cuda"):
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
         engine._device = device
@@ -212,7 +212,7 @@ class TestLoadPathCacheGate:
     """The load path NEVER downloads or deletes models automatically."""
 
     def _make_engine(self):
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
         engine.model_size = "small.en"

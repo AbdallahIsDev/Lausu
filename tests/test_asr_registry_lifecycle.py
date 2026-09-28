@@ -10,13 +10,13 @@ class TestAsrRegistryCreatesEngines:
     """ARCH-007: AsrBackendRegistry.create() owns engine construction."""
 
     def test_create_whisper_constructs_and_registers(self, monkeypatch):
-        """create('whisper', ...) constructs TranscriptionEngine and registers it."""
+        """create('whisper', ...) constructs WorkerBackedAsr and registers it."""
         fake_engine = MagicMock()
         fake_cls = MagicMock(return_value=fake_engine)
-        fake_mod = MagicMock(TranscriptionEngine=fake_cls)
+        fake_mod = MagicMock(WorkerBackedAsr=fake_cls)
         monkeypatch.setattr(
             "importlib.import_module",
-            lambda name: fake_mod if name == "voice_typer.server.transcription" else __import__(name),
+            lambda name: fake_mod if name == "voice_typer.server.worker_backed_asr" else __import__(name),
         )
         registry = AsrBackendRegistry(MagicMock())
         result = registry.create(
@@ -94,10 +94,10 @@ class TestAsrRegistryCreatesEngines:
     def test_create_handles_construction_error_gracefully(self, monkeypatch):
         """If the engine constructor raises, return None (not propagate)."""
         fake_cls = MagicMock(side_effect=RuntimeError("bad config"))
-        fake_mod = MagicMock(TranscriptionEngine=fake_cls)
+        fake_mod = MagicMock(WorkerBackedAsr=fake_cls)
         monkeypatch.setattr(
             "importlib.import_module",
-            lambda name: fake_mod if name == "voice_typer.server.transcription" else __import__(name),
+            lambda name: fake_mod if name == "voice_typer.server.worker_backed_asr" else __import__(name),
         )
         registry = AsrBackendRegistry(MagicMock())
         result = registry.create("whisper", whisper_kwargs={})
@@ -412,7 +412,7 @@ class TestWhisperFallbackConstructsOnColdBoot:
         fake_whisper_engine = MagicMock()
         fake_whisper_engine.is_loaded = False  # not yet loaded
         fake_whisper_cls = MagicMock(return_value=fake_whisper_engine)
-        fake_whisper_mod = MagicMock(TranscriptionEngine=fake_whisper_cls)
+        fake_whisper_mod = MagicMock(WorkerBackedAsr=fake_whisper_cls)
         # Primary backend module, its engine raises on load().
         failing_engine = MagicMock()
         failing_engine.is_loaded = False
@@ -421,7 +421,7 @@ class TestWhisperFallbackConstructsOnColdBoot:
         failing_parakeet_mod = MagicMock(ParakeetEngine=failing_parakeet_cls)
 
         def fake_import(name, *a, **kw):
-            if name == "voice_typer.server.transcription":
+            if name == "voice_typer.server.worker_backed_asr":
                 return fake_whisper_mod
             if name == "voice_typer.server.parakeet_engine":
                 return failing_parakeet_mod

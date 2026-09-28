@@ -12,7 +12,7 @@ import pytest
 class TestWhisperCpuThreads:
     def test_capped_at_ceiling(self, monkeypatch):
         """A 64-core machine must not hand every core to the decoder."""
-        import voice_typer.server.transcription_device as td
+        import voice_typer.worker.whisper.device as td
 
         psutil_mock = MagicMock()
         psutil_mock.cpu_count.return_value = 64
@@ -22,7 +22,7 @@ class TestWhisperCpuThreads:
         psutil_mock.cpu_count.assert_called_once_with(logical=False)
 
     def test_physical_cores_under_cap_used_directly(self, monkeypatch):
-        import voice_typer.server.transcription_device as td
+        import voice_typer.worker.whisper.device as td
 
         psutil_mock = MagicMock()
         psutil_mock.cpu_count.return_value = 4
@@ -32,7 +32,7 @@ class TestWhisperCpuThreads:
 
     def test_falls_back_to_sched_getaffinity_when_physical_unknown(self, monkeypatch):
         """psutil reporting None → affinity-aware logical count."""
-        import voice_typer.server.transcription_device as td
+        import voice_typer.worker.whisper.device as td
 
         psutil_mock = MagicMock()
         psutil_mock.cpu_count.return_value = None
@@ -43,7 +43,7 @@ class TestWhisperCpuThreads:
 
     def test_falls_back_to_cpu_count_without_sched_getaffinity(self, monkeypatch):
         """Windows/macOS have no ``os.sched_getaffinity`` → ``os.cpu_count``."""
-        import voice_typer.server.transcription_device as td
+        import voice_typer.worker.whisper.device as td
 
         psutil_mock = MagicMock()
         psutil_mock.cpu_count.return_value = None
@@ -59,7 +59,7 @@ class TestWhisperCpuThreads:
 
     def test_falls_back_when_psutil_missing(self, monkeypatch):
         """psutil import failure (sys.modules entry None → ImportError)."""
-        import voice_typer.server.transcription_device as td
+        import voice_typer.worker.whisper.device as td
 
         monkeypatch.setitem(sys.modules, "psutil", None)
         monkeypatch.setattr(td.os, "sched_getaffinity", lambda pid: {0, 1}, raising=False)
@@ -68,7 +68,7 @@ class TestWhisperCpuThreads:
 
     def test_floor_of_one(self, monkeypatch):
         """Degenerate probing (everything None / empty affinity) → 1."""
-        import voice_typer.server.transcription_device as td
+        import voice_typer.worker.whisper.device as td
 
         psutil_mock = MagicMock()
         psutil_mock.cpu_count.return_value = None
@@ -80,7 +80,7 @@ class TestWhisperCpuThreads:
 
 def _make_engine_for_load():
     """Bare TranscriptionEngine with the state ``_load_transcriber_impl`` needs."""
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     engine = TranscriptionEngine.__new__(TranscriptionEngine)
     engine._model = None
@@ -111,7 +111,7 @@ class TestWhisperModelConstructorKwargs:
         The ctor kwargs pin: budget from the helper + num_workers=1.
         ``inter_threads``, pinned to 1 so the inter-op contract is
         """
-        import voice_typer.server.transcription as transcription
+        import voice_typer.worker.whisper.engine as transcription
 
         monkeypatch.setattr(transcription, "_whisper_cpu_threads_impl", lambda: 6)
 
@@ -129,7 +129,7 @@ class TestWhisperModelConstructorKwargs:
 
     def test_budget_applies_to_cpu_fallback_entries_too(self, monkeypatch):
         """Every chain entry (incl. GPU→CPU fallback) gets the budget."""
-        import voice_typer.server.transcription as transcription
+        import voice_typer.worker.whisper.engine as transcription
 
         monkeypatch.setattr(transcription, "_whisper_cpu_threads_impl", lambda: 8)
         self.fw_module.WhisperModel.side_effect = [

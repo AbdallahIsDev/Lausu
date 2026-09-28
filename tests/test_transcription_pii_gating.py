@@ -24,7 +24,7 @@ def mock_faster_whisper(monkeypatch):
 
 def _make_engine_with_model(config: object | None = None):
     """Build a TranscriptionEngine with a mocked whisper model."""
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     engine = TranscriptionEngine(model_size="small.en", device="cuda", config=config)
     engine._device = "cuda"

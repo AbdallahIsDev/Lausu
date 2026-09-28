@@ -1,4 +1,4 @@
-"""Transcription input-device helpers."""
+"""Transcription input-device helpers (worker-only, moved from server)."""
 
 from __future__ import annotations
 

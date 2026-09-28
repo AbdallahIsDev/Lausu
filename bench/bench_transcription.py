@@ -191,7 +191,7 @@ def _resolve_fixture(fixture_arg: str | None) -> tuple[np.ndarray, str]:
 
 def bench_model_load(model_size: str, device: str) -> dict:
     """Benchmark model loading time. Returns dict with seconds + peak RSS."""
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     proc = _try_psutil()
     rss_before = _peak_rss_mb(proc)
@@ -258,7 +258,7 @@ def bench_transcription(
     regression, no improvement) so a missing model on a CI runner does
     not break the build.
     """
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     proc = _try_psutil()
     rss_before = _peak_rss_mb(proc)

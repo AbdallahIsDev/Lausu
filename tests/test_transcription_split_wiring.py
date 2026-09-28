@@ -1,4 +1,8 @@
-"""Wiring pins for the ``transcription.py`` split into focused sibling modules."""
+"""Wiring pins for the ``transcription.py`` split into focused sibling modules.
+
+C7: the engine + device/fallback bodies moved to ``voice_typer.worker.whisper``;
+the facade keeps download helpers, beam defaults, and re-exports only.
+"""
 
 from __future__ import annotations
 
@@ -23,22 +27,22 @@ class TestDelegateResolutionIdentity:
     """The facade's ``*_impl`` bindings must BE the canonical functions."""
 
     def test_cuda_probe_delegates(self):
-        import voice_typer.server.transcription as facade
+        from voice_typer.worker.whisper import engine as facade
         from voice_typer.server import transcription_cuda_probe as mod
 
         assert facade._probe_cuda_runtime_impl is mod.probe_cuda_runtime
         assert facade._warm_up_model_impl is mod.warm_up_model
 
     def test_device_delegates(self):
-        import voice_typer.server.transcription as facade
-        from voice_typer.server import transcription_device as mod
+        from voice_typer.worker.whisper import engine as facade
+        from voice_typer.worker.whisper import device as mod
 
         assert facade._resolve_device_impl is mod.resolve_device
         assert facade._resolve_device_once_impl is mod.resolve_device_once
         assert facade._apply_auto_beam_size_impl is mod.apply_auto_beam_size
 
     def test_download_delegates(self):
-        import voice_typer.server.transcription as facade
+        from voice_typer.worker.whisper import engine as facade
         from voice_typer.server import transcription_download as mod
 
         assert facade._probe_cache_impl is mod.probe_cache
@@ -46,8 +50,8 @@ class TestDelegateResolutionIdentity:
         assert facade._whisper_size_cached_impl is mod.whisper_size_cached
 
     def test_fallback_delegates(self):
-        import voice_typer.server.transcription as facade
-        from voice_typer.server import transcription_fallback as mod
+        from voice_typer.worker.whisper import engine as facade
+        from voice_typer.worker.whisper import fallback as mod
 
         assert facade._with_gpu_fallback_impl is mod.with_gpu_fallback
         assert facade._is_gpu_runtime_error_impl is mod.is_gpu_runtime_error
@@ -55,8 +59,8 @@ class TestDelegateResolutionIdentity:
 
     def test_engine_methods_call_the_extracted_bodies(self, monkeypatch):
         """Calling the engine method dispatches into the extracted module."""
-        import voice_typer.server.transcription as facade
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import engine as facade
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         seen = []
         monkeypatch.setattr(
@@ -76,7 +80,7 @@ class TestLateBindingThroughFacade:
 
     def test_resolve_device_reads_patched_cuda_runtime_gate(self, monkeypatch):
         """``_cuda_runtime_available`` patched on the facade path is honored"""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         monkeypatch.setattr(
             "voice_typer.server.transcription._cuda_runtime_available",
@@ -89,7 +93,7 @@ class TestLateBindingThroughFacade:
     def test_apply_auto_beam_size_reads_facade_auto_beam(self, monkeypatch):
         """``_auto_beam_size`` stays canonical in the facade module, the"""
         import voice_typer.server.transcription as facade
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         monkeypatch.setattr(facade, "_auto_beam_size", lambda model_size, device: 7)
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
@@ -105,11 +109,8 @@ class TestFacadeReExports:
     """Back-compat import surface pinned (no behavior assertions)."""
 
     def test_beam_size_symbols_importable_from_facade(self):
-        from voice_typer.server.transcription import (  # noqa: F401
-            AUTO_CUDA_BEAM_SIZE,
-            TranscriptionEngine,
-            _auto_beam_size,
-        )
+        from voice_typer.server.transcription import AUTO_CUDA_BEAM_SIZE, _auto_beam_size  # noqa: F401
+        from voice_typer.worker.whisper import TranscriptionEngine  # noqa: F401
 
         assert AUTO_CUDA_BEAM_SIZE == 5
         assert _auto_beam_size("large-v3-turbo", "cuda") == AUTO_CUDA_BEAM_SIZE

@@ -1,4 +1,4 @@
-"""Verify the ``TranscriptionEngine`` re-export"""
+"""Verify the ``TranscriptionEngine`` canonical location (C7: worker)."""
 
 from __future__ import annotations
 
@@ -18,34 +18,34 @@ class TestTranscriptionEngineReExportRemoved:
         assert not hasattr(app_mod, "TranscriptionEngine"), (
             "Regression: voice_typer.server.app still re-exports "
             "TranscriptionEngine. The re-export should be removed, "
-            "tests should patch voice_typer.server.transcription.TranscriptionEngine "
+            "tests should patch voice_typer.worker.whisper.TranscriptionEngine "
             "(the canonical location) instead."
         )
 
     def test_canonical_transcription_engine_class_exists(self) -> None:
-        """The canonical ``voice_typer.server.transcription.TranscriptionEngine``"""
+        """The canonical ``voice_typer.worker.whisper.TranscriptionEngine``"""
         import inspect
 
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         assert inspect.isclass(TranscriptionEngine), (
-            "voice_typer.server.transcription.TranscriptionEngine must be a "
+            "voice_typer.worker.whisper.TranscriptionEngine must be a "
             "class, migrated monkeypatch sites rely on patching it with a "
             "MagicMock."
         )
 
     def test_canonical_path_is_monkeypatchable(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """``monkeypatch.setattr(\"voice_typer.server.transcription.TranscriptionEngine\", ...)``"""
+        """``monkeypatch.setattr("voice_typer.worker.whisper.TranscriptionEngine", ...)``"""
         from unittest.mock import MagicMock
 
         # This must not raise AttributeError, the canonical path exists.
         monkeypatch.setattr(
-            "voice_typer.server.transcription.TranscriptionEngine",
+            "voice_typer.worker.whisper.TranscriptionEngine",
             MagicMock(),
         )
 
         # Verify the patch took effect.
-        import voice_typer.server.transcription as transcription_mod
+        import voice_typer.worker.whisper as transcription_mod
 
         assert (
             not isinstance(transcription_mod.TranscriptionEngine, type)

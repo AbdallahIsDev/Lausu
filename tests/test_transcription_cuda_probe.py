@@ -10,7 +10,7 @@ import pytest
 @pytest.fixture()
 def cuda_engine():
     """Construct a TranscriptionEngine on CPU then force the CUDA path."""
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     engine = TranscriptionEngine(model_size="small.en", device="cpu")
     engine._device = "cuda"

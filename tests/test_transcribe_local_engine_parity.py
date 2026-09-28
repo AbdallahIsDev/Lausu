@@ -18,7 +18,7 @@ class TestLocalEngineKwargSignatures:
     @pytest.mark.parametrize(
         "import_path,class_name",
         [
-            ("voice_typer.server.transcription", "TranscriptionEngine"),
+            ("voice_typer.worker.whisper", "TranscriptionEngine"),
             ("voice_typer.server.parakeet_engine", "ParakeetEngine"),
             ("voice_typer.server.qwen_engine", "QwenEngine"),
             ("voice_typer.server.cloud_engines", "CloudEngine"),
@@ -40,7 +40,7 @@ class TestLocalEngineKwargSignatures:
 
 class TestLocalEnginesIgnoreLocalEngine:
     def test_whisper_unloaded_raises_runtime_error_not_type_error(self) -> None:
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine()
         with pytest.raises(RuntimeError, match="Model not loaded"):
@@ -65,7 +65,7 @@ class TestLocalEnginesIgnoreLocalEngine:
 class TestStreamingFinalizeWithLocalEngine:
     def test_finalize_forwards_local_engine_to_whisper_backend(self) -> None:
         """Reproduces the reported finalize crash chain."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         session = StreamingTranscriptionSession(
             recorder=MagicMock(),

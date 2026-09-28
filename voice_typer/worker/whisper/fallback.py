@@ -1,4 +1,4 @@
-"""Transcription fallback engines."""
+"""Transcription fallback engines (worker-only, moved from server)."""
 
 from __future__ import annotations
 
