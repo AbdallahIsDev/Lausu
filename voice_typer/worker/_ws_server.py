@@ -15,6 +15,12 @@ from voice_typer.server._paths import LOOPBACK_HOST
 from voice_typer.server.duration import format_duration
 from voice_typer.server.ipc.protocol_version import PROTOCOL_VERSION
 from voice_typer.worker._auth import _authenticate, _send_auth_failed_and_close
+from voice_typer.worker.streaming import (
+    SessionConfig,
+    StreamingSession,
+    to_16k_array,
+    transcribe_window_words,
+)
 
 if TYPE_CHECKING:
     import asyncio
@@ -269,6 +275,87 @@ def _install_sigterm_handler(stop_event: asyncio.Event, shutdown_timer: _Shutdow
 # ─── Connection handler ───────────────────────────────────────────────
 
 
+# ─── In-memory sample reassembly (ADR-0025 C3) ──────────────────────────
+
+
+# Bound the per-request reassembly state: 64 chunks × ~720 KiB raw keeps
+# one request under ~46 MiB before inference (a 30 s window needs ~3).
+_SAMPLES_MAX_CHUNKS = 64
+# Base64 of one chunk must itself respect the frame cap (ADR-0020 §10).
+_SAMPLES_MAX_PAYLOAD_B64 = 1_400_000
+_SAMPLES_MIN_RATE = 1000
+_SAMPLES_MAX_RATE = 192000
+
+
+def _valid_request_id(value: object) -> int | None:
+    """Numeric request id, or ``None`` (E8; JSON true/false never pass)."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value
+
+
+class _SamplesBuffer:
+    """Accumulates one ``transcribe_samples`` request's base64 chunks.
+
+    Pure reassembly (no IO, no inference): ``add_chunk`` validates and
+    stores, ``audio_bytes`` returns the concatenated raw float32 PCM once
+    every declared chunk has arrived, regardless of arrival order.
+    """
+
+    def __init__(self, total: int, sample_rate: int, language: object) -> None:
+        self.total = total
+        self.sample_rate = sample_rate
+        self.language = str(language) if language is not None else None
+        self._chunks: dict[int, bytes] = {}
+
+    def add_chunk(self, index: int, payload_b64: str) -> str | None:
+        """Store one chunk; return an error string, or ``None`` on success."""
+        if not isinstance(index, int) or isinstance(index, bool):
+            return "chunk index must be an integer"
+        if not 0 <= index < self.total:
+            return f"chunk index {index} out of range for total={self.total}"
+        if index in self._chunks:
+            return f"duplicate chunk index {index}"
+        if not isinstance(payload_b64, str) or len(payload_b64) > _SAMPLES_MAX_PAYLOAD_B64:
+            return "chunk payload too large"
+        try:
+            import base64
+
+            raw = base64.b64decode(payload_b64, validate=True)
+        except Exception:
+            return "chunk payload is not valid base64"
+        self._chunks[index] = raw
+        return None
+
+    def is_complete(self) -> bool:
+        """True once every declared chunk has arrived (any order)."""
+        return len(self._chunks) == self.total
+
+    def audio_bytes(self) -> bytes:
+        """Concatenated raw float32 PCM in index order (call when complete)."""
+        return b"".join(self._chunks[i] for i in range(self.total))
+
+
+def _valid_samples_header(data: dict) -> tuple[int, int, int, object, str | None]:
+    """Validate a ``transcribe_samples`` chunk header.
+
+    Returns ``(total, index, sample_rate, language, error)``; ``error``
+    is ``None`` when the header is usable.
+    """
+    total = data.get("total")
+    index = data.get("index")
+    sample_rate = data.get("sample_rate")
+    if isinstance(total, bool) or not isinstance(total, int) or not 1 <= total <= _SAMPLES_MAX_CHUNKS:
+        return (0, 0, 0, None, f"total must be an integer in 1..{_SAMPLES_MAX_CHUNKS}")
+    if isinstance(index, bool) or not isinstance(index, int):
+        return (0, 0, 0, None, "index must be an integer")
+    if isinstance(sample_rate, bool) or not isinstance(sample_rate, int):
+        return (0, 0, 0, None, "sample_rate must be an integer")
+    if not _SAMPLES_MIN_RATE <= sample_rate <= _SAMPLES_MAX_RATE:
+        return (0, 0, 0, None, f"sample_rate {sample_rate} out of range")
+    return (total, index, sample_rate, data.get("language"), None)
+
+
 async def _handle_connection(  # noqa: ANN001 - websockets type is imported lazily
     websocket,
     *,
@@ -310,6 +397,115 @@ async def _handle_connection(  # noqa: ANN001 - websockets type is imported lazi
     peer = getattr(websocket, "remote_address", None) or ("?", 0)
     log.info("[WORKER] slim-core sidecar connected from %s:%s (prewarm_ran=%s)", peer[0], peer[1], prewarm_ran)
 
+    import asyncio as _asyncio
+
+    # Per-connection C3/C4 state (ADR-0025): partial sample buffers keyed
+    # by request id, plus ids the sidecar aborted. Both die with the
+    # connection; a reconnect starts clean rather than inheriting stale
+    # buffers.
+    samples: dict[int, _SamplesBuffer] = {}
+    aborted: set[int] = set()
+    # Per-connection C6 streaming sessions (ADR-0025): live PCM buffer +
+    # planner cursor + assembler per open session id. Dies with the
+    # connection like samples/aborted; a reconnect starts clean.
+    streams: dict[int, StreamingSession] = {}
+    # Serializes inference while keeping the frame loop responsive: an
+    # abort arriving mid-inference must be processed NOW, not after the
+    # model finishes (the handler previously awaited inference inline,
+    # so an abort queued behind it always lost the race).
+    inference_gate = _asyncio.Lock()
+    in_flight: set = set()
+
+    async def _complete(transcribe_fn, request_id: int | None) -> None:
+        """Run blocking inference, then send the id-echoed result event.
+
+        Shared tail for the file and samples paths (E7: one completion
+        path). An id aborted while inference ran resolves to NOTHING on
+        purpose — that silence IS the abort — but the mapping is
+        discarded so a later reuse of the id starts clean. Never drops
+        a non-aborted result.
+        """
+        try:
+            result = await _asyncio.to_thread(transcribe_fn)
+        except Exception as exc:  # noqa: BLE001, never drop a result event
+            log.exception("[WORKER] transcription thread raised: %s", exc)
+            result = {"text": "", "error": f"internal error: {exc}"}
+        if request_id is not None and request_id in aborted:
+            aborted.discard(request_id)
+            log.info("[WORKER] dropping result for aborted request id=%s", request_id)
+            return
+        # ADR-0025 C1: echo the request id so the sidecar can
+        # correlate a result with the request that asked for it.
+        # The id is a SIBLING of `type` (like every other frame on
+        # this hop), so the frozen `transcribe_offline_result`
+        # `data` payload is untouched and a client that ignores
+        # the id keeps working unchanged.
+        out: dict = {"type": "transcribe_offline_result", "data": result}
+        if request_id is not None:
+            out["id"] = request_id
+        with contextlib.suppress(Exception):
+            await websocket.send(json.dumps(out))
+
+    def _launch(transcribe_fn, request_id: int | None) -> None:
+        """Start inference in the background, serialized by the gate.
+
+        The frame loop keeps reading (so abort/shutdown land mid-work)
+        while inference runs one at a time behind ``inference_gate`` —
+        the shared engine is built for serialized requests, not
+        concurrent ones.
+        """
+
+        async def _guarded() -> None:
+            async with inference_gate:
+                await _complete(transcribe_fn, request_id)
+
+        task = _asyncio.ensure_future(_guarded())
+        in_flight.add(task)
+        task.add_done_callback(in_flight.discard)
+
+    def _launch_stream(coro_fn) -> None:
+        """Run an async streaming completion serialized by the inference gate.
+
+        Sibling of :func:`_launch` for completions that send their own
+        frames (partials / finalize results) instead of the shared
+        ``transcribe_offline_result`` tail.
+        """
+
+        async def _guarded() -> None:
+            async with inference_gate:
+                await coro_fn()
+
+        task = _asyncio.ensure_future(_guarded())
+        in_flight.add(task)
+        task.add_done_callback(in_flight.discard)
+
+    async def _send_stream_result(request_id: int, text: str, error: str | None) -> None:
+        """Structured streaming result (C1 id echo as sibling of type, never silence)."""
+        with contextlib.suppress(Exception):
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "streaming_session_result",
+                        "id": request_id,
+                        "data": {"text": text, "error": error},
+                    }
+                )
+            )
+
+    def _word_to_dict(word: object) -> dict:
+        """Serialize a window word (local Word or engine-shaped mapping/object)."""
+        if isinstance(word, dict):
+            return {
+                "word": word.get("word"),
+                "start_seconds": word.get("start_seconds"),
+                "end_seconds": word.get("end_seconds"),
+            }
+        return {
+            "word": getattr(word, "word", None),
+            "start_seconds": getattr(word, "start_seconds", None),
+            "end_seconds": getattr(word, "end_seconds", None),
+        }
+
     try:
         async for raw in websocket:
             try:
@@ -345,6 +541,13 @@ async def _handle_connection(  # noqa: ANN001 - websockets type is imported lazi
                 # Trigger loop cancellation by closing the socket.
                 with contextlib.suppress(Exception):
                     await websocket.close()
+                # Let in-flight inference finish first (bounded model
+                # work, same exposure the inline await always had) so a
+                # shutdown mid-transcription does not orphan a thread
+                # writing to a dead loop.
+                if in_flight:
+                    with contextlib.suppress(Exception):
+                        await _asyncio.gather(*in_flight, return_exceptions=True)
                 return
             if cmd == "transcribe_offline":
                 # Master plan §7.4: real offline ASR in the worker.
@@ -364,7 +567,6 @@ async def _handle_connection(  # noqa: ANN001 - websockets type is imported lazi
                     sample_rate,
                     language,
                 )
-                import asyncio as _asyncio
 
                 # Bind the loop variables into the closure's defaults so
                 # the thread function does not capture the loop variables
@@ -383,13 +585,249 @@ async def _handle_connection(  # noqa: ANN001 - websockets type is imported lazi
                         str(_lang) if _lang is not None else None,
                     )
 
-                try:
-                    result = await _asyncio.to_thread(_run)
-                except Exception as exc:  # noqa: BLE001, never drop a result event
-                    log.exception("[WORKER] transcribe_offline thread raised: %s", exc)
-                    result = {"text": "", "error": f"internal error: {exc}"}
+                _launch(_run, _valid_request_id(frame.get("id")))
+                continue
+            if cmd == "transcribe_samples":
+                # ADR-0025 C3: in-memory float32 PCM in base64 chunks.
+                # Each chunk carries (id, index, total) so reassembly
+                # needs no ordering assumption; the final chunk's
+                # arrival triggers inference in a thread (heartbeats +
+                # shutdown stay responsive, same as the file path).
+                # Malformed input resolves to a structured error RESULT
+                # (with the id) rather than silence, so a client Future
+                # never hangs on a corrupt chunk.
+                request_id = _valid_request_id(frame.get("id"))
+                data = frame.get("data") if isinstance(frame.get("data"), dict) else {}
+                if request_id is None:
+                    log.warning("[WORKER] transcribe_samples without a numeric id: ignoring")
+                    continue
+                if request_id in aborted:
+                    aborted.discard(request_id)
+                    samples.pop(request_id, None)
+                    await _complete(lambda: {"text": "", "error": "request aborted"}, request_id)
+                    continue
+                total, index, sample_rate, language, header_error = _valid_samples_header(data)
+                if header_error is not None:
+                    await _complete(lambda _e=header_error: {"text": "", "error": _e}, request_id)
+                    samples.pop(request_id, None)
+                    continue
+                buffer = samples.get(request_id)
+                if buffer is None:
+                    buffer = _SamplesBuffer(total, sample_rate, language)
+                    samples[request_id] = buffer
+                elif buffer.total != total:
+                    samples.pop(request_id, None)
+                    await _complete(lambda: {"text": "", "error": "chunk total mismatch"}, request_id)
+                    continue
+                chunk_error = buffer.add_chunk(index, data.get("payload_b64"))
+                if chunk_error is not None:
+                    samples.pop(request_id, None)
+                    await _complete(lambda _e=chunk_error: {"text": "", "error": _e}, request_id)
+                    continue
+                if not buffer.is_complete():
+                    continue
+                raw = buffer.audio_bytes()
+                samples.pop(request_id, None)
+                log.info(
+                    "[WORKER] transcribe_samples request id=%s complete (%d bytes, sr=%s): running in thread",
+                    request_id,
+                    len(raw),
+                    buffer.sample_rate,
+                )
+
+                def _run_samples(
+                    _raw: bytes = raw,
+                    _sr: int = buffer.sample_rate,
+                    _lang: object = buffer.language,
+                ) -> dict:
+                    import numpy as _np
+
+                    from voice_typer.worker._transcribe import get_transcriber
+
+                    audio = _np.frombuffer(_raw, dtype=_np.float32).copy()
+                    return get_transcriber().transcribe_array(audio, _sr, str(_lang) if _lang is not None else None)
+
+                _launch(_run_samples, request_id)
+                continue
+            if cmd == "abort_request":
+                # ADR-0025 C4: best-effort cooperative abort. Signals the
+                # loaded backend (never builds one), drops any partial
+                # sample buffer, and marks the id so a result that is
+                # already past the point of no return is discarded
+                # instead of sent. Idempotent: unknown ids still ack.
+                request_id = _valid_request_id(frame.get("id"))
+                if request_id is None:
+                    log.warning("[WORKER] abort_request without a numeric id: ignoring")
+                    continue
+                aborted.add(request_id)
+                samples.pop(request_id, None)
+                # C6: an abort also tears down live streaming state for the id.
+                streams.pop(request_id, None)
+                from voice_typer.worker._transcribe import get_transcriber
+
+                signalled = get_transcriber().request_abort()
+                log.info("[WORKER] abort_request id=%s (backend signalled=%s)", request_id, signalled)
                 with contextlib.suppress(Exception):
-                    await websocket.send(json.dumps({"type": "transcribe_offline_result", "data": result}))
+                    await websocket.send(json.dumps({"type": "abort_ack", "id": request_id, "data": {"aborted": True}}))
+                continue
+            if cmd == "streaming_session_open":
+                # ADR-0025 C6: additive open; ack carries the id echo.
+                request_id = _valid_request_id(frame.get("id"))
+                data = frame.get("data") if isinstance(frame.get("data"), dict) else {}
+                if request_id is None:
+                    log.warning("[WORKER] streaming_session_open without a numeric id: ignoring")
+                    continue
+                try:
+                    config = SessionConfig.from_dict(data.get("config"))
+                except ValueError as exc:
+                    await _send_stream_result(request_id, "", f"invalid streaming config: {exc}")
+                    continue
+                streams[request_id] = StreamingSession(request_id, config)
+                log.info(
+                    "[WORKER] streaming session opened id=%s (sr=%s, cycle=%s)",
+                    request_id,
+                    config.sample_rate,
+                    config.cycle_id,
+                )
+                with contextlib.suppress(Exception):
+                    await websocket.send(
+                        json.dumps({"type": "streaming_session_opened", "id": request_id, "data": {"opened": True}})
+                    )
+                continue
+            if cmd == "streaming_session_push":
+                # Append live PCM; when a window is due, transcribe it in a
+                # thread (frame loop stays responsive) and push the slim
+                # partial shape the renderer already consumes.
+                request_id = _valid_request_id(frame.get("id"))
+                data = frame.get("data") if isinstance(frame.get("data"), dict) else {}
+                if request_id is None:
+                    log.warning("[WORKER] streaming_session_push without a numeric id: ignoring")
+                    continue
+                if request_id in aborted:
+                    aborted.discard(request_id)
+                    streams.pop(request_id, None)
+                    await _send_stream_result(request_id, "", "request aborted")
+                    continue
+                session = streams.get(request_id)
+                if session is None:
+                    await _send_stream_result(request_id, "", "unknown streaming session")
+                    continue
+                chunk_error = session.append_chunk(data.get("index"), data.get("payload_b64"))
+                if chunk_error is not None:
+                    await _send_stream_result(request_id, "", chunk_error)
+                    continue
+                due = session.due_window()
+                if due is None:
+                    continue
+                start_seconds, end_seconds, _horizon = due
+                window_raw = session.window_bytes(start_seconds, end_seconds)
+
+                def _run_window(
+                    _raw: bytes = window_raw,
+                    _sr: int = session.config.sample_rate,
+                    _offset: float = start_seconds,
+                    _lang: object = session.config.language,
+                ) -> list:
+                    return transcribe_window_words(_raw, _sr, _offset, str(_lang) if _lang is not None else None)
+
+                async def _finish_window(
+                    _session: StreamingSession = session,
+                    _sid: int = request_id,
+                    _end: float = end_seconds,
+                ) -> None:
+                    try:
+                        words = await _asyncio.to_thread(_run_window)
+                    except Exception as exc:  # noqa: BLE001, window errors must not kill the session
+                        log.warning("[WORKER] streaming window failed id=%s: %s", _sid, exc)
+                        return
+                    live = streams.get(_sid)
+                    if live is not _session:
+                        return
+                    try:
+                        new_text, committed_words = _session.commit_window(words, _end)
+                    except (TypeError, ValueError) as exc:
+                        log.warning("[WORKER] streaming window words invalid id=%s: %s", _sid, exc)
+                        return
+                    if not new_text:
+                        return
+                    with contextlib.suppress(Exception):
+                        await websocket.send(
+                            json.dumps(
+                                {
+                                    "type": "transcription_partial",
+                                    "id": _sid,
+                                    "data": {
+                                        "text": _session.committed_text,
+                                        "cycle_id": _session.config.cycle_id,
+                                        "is_final": False,
+                                        "words": [_word_to_dict(w) for w in committed_words],
+                                    },
+                                }
+                            )
+                        )
+
+                _launch_stream(_finish_window)
+                continue
+            if cmd == "streaming_session_finalize":
+                # Tail merge (or whole-buffer batch when nothing committed),
+                # then the final result plus session teardown.
+                request_id = _valid_request_id(frame.get("id"))
+                if request_id is None:
+                    log.warning("[WORKER] streaming_session_finalize without a numeric id: ignoring")
+                    continue
+                if request_id in aborted:
+                    aborted.discard(request_id)
+                    streams.pop(request_id, None)
+                    await _send_stream_result(request_id, "", "request aborted")
+                    continue
+                session = streams.pop(request_id, None)
+                if session is None:
+                    await _send_stream_result(request_id, "", "unknown streaming session")
+                    continue
+                mode, tail_offset, tail_raw = session.finalize_plan()
+                full_raw = session.window_bytes(0.0, session.duration_seconds)
+
+                def _run_final(
+                    _mode: str = mode,
+                    _tail: bytes = tail_raw,
+                    _offset: float = tail_offset,
+                    _full: bytes = full_raw,
+                    _sr: int = session.config.sample_rate,
+                    _lang: object = session.config.language,
+                    _session: StreamingSession = session,
+                    _sid: int = request_id,
+                ) -> dict:
+                    t0 = time.perf_counter()
+                    language = str(_lang) if _lang is not None else None
+                    if _mode == "batch":
+                        from voice_typer.worker._transcribe import _ASR_SAMPLE_RATE, get_transcriber
+
+                        out = get_transcriber().transcribe_array(to_16k_array(_full, _sr), _ASR_SAMPLE_RATE, language)
+                        return {"text": str(out.get("text") or ""), "error": out.get("error")}
+                    try:
+                        tail_words = transcribe_window_words(_tail, _sr, _offset, language)
+                        text = _session.commit_tail(tail_words)
+                        result: dict = {"text": text, "error": None}
+                    except Exception as exc:  # noqa: BLE001, tail merge falls back to batch
+                        log.warning("[WORKER] streaming tail merge failed id=%s: %s", _sid, exc)
+                        from voice_typer.worker._transcribe import _ASR_SAMPLE_RATE, get_transcriber
+
+                        out = get_transcriber().transcribe_array(to_16k_array(_full, _sr), _ASR_SAMPLE_RATE, language)
+                        result = {"text": str(out.get("text") or ""), "error": out.get("error")}
+                    result["latency_ms"] = int((time.perf_counter() - t0) * 1000)
+                    return result
+
+                async def _finish_final(
+                    _sid: int = request_id,
+                ) -> None:
+                    try:
+                        final = await _asyncio.to_thread(_run_final)
+                    except Exception as exc:  # noqa: BLE001, finalize always resolves to a result
+                        log.warning("[WORKER] streaming finalize failed id=%s: %s", _sid, exc)
+                        final = {"text": "", "error": f"finalize failed: {exc}"}
+                    await _send_stream_result(_sid, str(final.get("text") or ""), final.get("error"))
+
+                _launch_stream(_finish_final)
                 continue
             # Unknown command.
             log.debug("[WORKER] unknown command %r", cmd)

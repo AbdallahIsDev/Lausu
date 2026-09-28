@@ -116,6 +116,72 @@ async def test_transcribe_offline_dispatch_emits_result_event(monkeypatch) -> No
     fake.transcribe_file.assert_called_once_with("/tmp/test.wav", 16000, None)
 
 
+async def test_transcribe_offline_result_echoes_request_id(monkeypatch) -> None:
+    """ADR-0025 C1: the result frame echoes the request id.
+
+    Without the echo a client can only route by frame ``type``
+    (``route_frame``), so two in-flight requests are indistinguishable.
+    The echo is a SIBLING of ``type``; the frozen ``data`` payload must
+    be byte-identical to the pre-C1 shape.
+    """
+    monkeypatch.setenv("VOICE_TYPER_IPC_TOKEN", _TEST_TOKEN)
+
+    fake = MagicMock()
+    fake.transcribe_file.return_value = {"text": "hello world", "error": None, "latency_ms": 12}
+    with patch("voice_typer.worker._transcribe.get_transcriber", return_value=fake):
+        ws = _make_fake_websocket(
+            [
+                {
+                    "cmd": "transcribe_offline",
+                    "id": 4242,
+                    "data": {"audio_path": "/tmp/test.wav", "sample_rate": 16000, "language": None},
+                },
+                {"cmd": "shutdown"},
+            ]
+        )
+        await worker_main._handle_connection(
+            ws,
+            prewarm_ran=True,
+            stop_event=asyncio.Event(),
+            shutdown_timer=worker_main._ShutdownTimer(),
+        )
+
+    frames = [json.loads(f) for f in ws._sent_frames]
+    result_frames = [f for f in frames if f.get("type") == "transcribe_offline_result"]
+    assert len(result_frames) == 1, f"expected one result event, got {frames}"
+    assert result_frames[0]["id"] == 4242, "the request id must be echoed for correlation"
+    # The frozen payload shape is unchanged (E9: additive only).
+    assert result_frames[0]["data"] == {"text": "hello world", "error": None, "latency_ms": 12}
+
+
+async def test_transcribe_offline_result_omits_absent_id(monkeypatch) -> None:
+    """A request with no id must not gain a spurious ``id: null``."""
+    monkeypatch.setenv("VOICE_TYPER_IPC_TOKEN", _TEST_TOKEN)
+
+    fake = MagicMock()
+    fake.transcribe_file.return_value = {"text": "x", "error": None, "latency_ms": 1}
+    with patch("voice_typer.worker._transcribe.get_transcriber", return_value=fake):
+        ws = _make_fake_websocket(
+            [
+                {
+                    "cmd": "transcribe_offline",
+                    "data": {"audio_path": "/tmp/test.wav", "sample_rate": 16000, "language": None},
+                },
+                {"cmd": "shutdown"},
+            ]
+        )
+        await worker_main._handle_connection(
+            ws,
+            prewarm_ran=True,
+            stop_event=asyncio.Event(),
+            shutdown_timer=worker_main._ShutdownTimer(),
+        )
+
+    frames = [json.loads(f) for f in ws._sent_frames]
+    result_frames = [f for f in frames if f.get("type") == "transcribe_offline_result"]
+    assert "id" not in result_frames[0], "no id was sent, so none must be echoed"
+
+
 async def test_transcribe_offline_dispatch_string_sample_rate(monkeypatch) -> None:
     """String sample_rate in the frame is coerced to int before the transcriber."""
     monkeypatch.setenv("VOICE_TYPER_IPC_TOKEN", _TEST_TOKEN)
@@ -152,8 +218,17 @@ async def test_transcribe_offline_dispatch_engine_error_still_emits_result(monke
         stop_event = asyncio.Event()
         shutdown_timer = worker_main._ShutdownTimer()
         await worker_main._handle_connection(ws, prewarm_ran=True, stop_event=stop_event, shutdown_timer=shutdown_timer)
+        # Inference completes in the background behind the gate, so poll
+        # for the result instead of asserting synchronously (C4).
+        deadline = asyncio.get_running_loop().time() + 5.0
+        frames: list = []
+        while asyncio.get_running_loop().time() < deadline:
+            frames = [json.loads(f) for f in ws._sent_frames]
+            if any(f.get("type") == "transcribe_offline_result" for f in frames):
+                break
+            await asyncio.sleep(0.05)
 
-    frames = [json.loads(f) for f in ws._sent_frames]
+    result_frames = [f for f in frames if f.get("type") == "transcribe_offline_result"]
     result_frames = [f for f in frames if f.get("type") == "transcribe_offline_result"]
     assert len(result_frames) == 1, f"expected a result event even on error, got {frames}"
     assert result_frames[0]["data"]["text"] == ""
