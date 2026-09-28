@@ -72,8 +72,8 @@ class TestRuntimeProofImports:
         assert "from voice_typer.server.config import" in source, (
             "runtime_proof.py must import Config from voice_typer.server.config"
         )
-        assert "from voice_typer.server.transcription import" in source, (
-            "runtime_proof.py must import TranscriptionEngine from voice_typer.server.transcription"
+        assert "from voice_typer.worker.whisper import" in source, (
+            "runtime_proof.py must import TranscriptionEngine from voice_typer.worker.whisper"
         )
         assert "from voice_typer.server.tray_types import" in source, (
             "runtime_proof.py must import AppState from voice_typer.server.tray_types"

@@ -58,7 +58,7 @@ class TestEnginesCallReleaseGpuMemory:
         """TranscriptionEngine.unload() must invoke release_gpu_memory()."""
         import inspect
 
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         source = inspect.getsource(TranscriptionEngine.unload)
         assert "release_gpu_memory()" in source, (
@@ -95,7 +95,7 @@ class TestEnginesCallReleaseGpuMemory:
         """The GPU→CPU fallback paths in TranscriptionEngine must release"""
         import inspect
 
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         # The batch and streaming GPU→CPU fallbacks both route through
         src1 = inspect.getsource(TranscriptionEngine._transcribe_with_fallback_unlocked)
@@ -107,7 +107,7 @@ class TestEnginesCallReleaseGpuMemory:
             "_transcribe_words_with_fallback_unlocked must delegate to _with_gpu_fallback (NEW-MEM-001)"
         )
         # The unified fallback helper arms the deferred release.
-        from voice_typer.server.transcription_fallback import with_gpu_fallback
+        from voice_typer.worker.whisper.fallback import with_gpu_fallback
 
         src_fb = inspect.getsource(with_gpu_fallback)
         assert "_pending_gc_collect = True" in src_fb, (

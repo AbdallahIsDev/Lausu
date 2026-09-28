@@ -74,7 +74,7 @@ class MockTrayIcon:
 def run_runtime_proof():
     """Run the actual runtime verification cycle."""
     from voice_typer.server.config import Config
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
     from voice_typer.server.tray_types import AppState
 
     log.info("=" * 70)

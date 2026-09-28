@@ -630,14 +630,14 @@ class TestLoadTranscriberImplExists:
     """_load_transcriber_impl is the shared load body."""
 
     def test_method_exists(self):
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         assert hasattr(TranscriptionEngine, "_load_transcriber_impl")
 
     def test_reload_under_lock_delegates(self):
         from unittest.mock import MagicMock
 
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
         engine._build_fallback_chain = MagicMock(return_value=[])
@@ -698,7 +698,7 @@ class TestIsGpuRuntimeErrorClassHierarchy:
     """GPU error detection uses isinstance, not just substring."""
 
     def test_returns_false_on_cpu_device(self):
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
         engine._device = "cpu"
@@ -706,7 +706,7 @@ class TestIsGpuRuntimeErrorClassHierarchy:
         assert engine._is_gpu_runtime_error(cuda_exc) is False
 
     def test_substring_fallback_for_wrapped_errors(self):
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
         engine._device = "cuda"
@@ -720,7 +720,7 @@ class TestResolveDeviceNarrowExcept:
     def test_resolve_device_returns_cpu_on_cuda_unavailable(self):
         from unittest.mock import MagicMock
 
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
         fake_ct2 = MagicMock()

@@ -136,6 +136,22 @@ def winfunctype_alias(monkeypatch):
         )
 
 
+@pytest.fixture(autouse=True)
+def default_text_field_focus(monkeypatch):
+    """Auto-paste's text-field gate defaults to "text focused" in tests.
+
+    Real detection inspects whichever window holds OS focus at paste
+    time, which is nondeterministic under a test runner. Tests that
+    exercise the gate patch
+    ``voice_typer.server.clipboard._is_text_field_focused`` themselves;
+    platform detectors are unit-tested directly.
+    """
+    monkeypatch.setattr(
+        "voice_typer.server.clipboard._is_text_field_focused",
+        lambda: True,
+    )
+
+
 # Originally a single autouse ``mock_heavy_imports`` fixture ran at
 
 

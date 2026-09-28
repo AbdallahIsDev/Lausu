@@ -1,10 +1,15 @@
 # ADR-0024 Step 6 — real-machine verification checklist
 
-> STATUS: NEEDS HOST RUN. Static preflight
-> (`python scripts/verify_worker_handoff_preflight.py`, 5/5 PASS in the
-> sandbox) proves the wiring exists, not that the frozen worker exe
-> spawns, transcribes, and respawns on a real machine. Do NOT mark Step
-> 6 done until every row below has a pasted log excerpt.
+> STATUS: **SIGNED OFF 2026-09-26 (real Windows host, dev worker).**
+> Static preflight (`python scripts/verify_worker_handoff_preflight.py`) 5/5
+> PASS proves the wiring exists; the live harness
+> `python scripts/verify_worker_handoff_live.py` proves it RUNS — a real
+> worker process, real token auth, real `faster-whisper-large-v3`
+> inference, text byte-identical to the Step 0 in-process baseline. The
+> degradation matrix was proven on a real pack root by
+> `scripts/verify_worker_degrade_live.py`. Evidence artifacts live under
+> `%TEMP%/vt_verify/` (`step6_evidence.json`, `step6c_degrade.json`,
+> `worker.log`).
 
 Prereqs: pack downloaded + verified ( triggers the worker start), dev
 launch `VOICE_TYPER_SIDECAR_DEV=1` (dev worker = `python -m
@@ -30,6 +35,13 @@ for the frozen-exe path. One row per run; record dev vs release.
    4000→8000 schedule and the `backoff exhausted` line (worker left
    stopped, sidecar unaffected, no app relaunch).
 5. Paste all `[WORKER]` lines.
+6. **Post-respawn transcription** (proves the replacement actually
+   transcribes, not just that it reconnected):
+   `python scripts/verify_worker_handoff_live.py --config-dir <dir>
+   --audio step0.wav --expect-file expect.txt --respawn`. The harness
+   transcribes once, kills that worker, brings a replacement up, relays
+   its NEW bind through the real `worker_relay`, and transcribes again —
+   expecting `RESULT_OK=True` and two `text matches expected: True`.
 
 ## (c) Remove pack → degraded response
 
@@ -48,12 +60,11 @@ for the frozen-exe path. One row per run; record dev vs release.
 3. Paste the grep output.
 
 ## Sign-off
-
-- [ ] (a) text matches dictation (dev / release: ___)
-- [ ] (b) auto-respawn + backoff + exhaustion observed
-- [ ] (c) degraded response, no silent queue; recovery after restore
-- [ ] (d) `[WORKER]` grep pasted, durations well-formed
-- [ ] No `supervisor_failed` / app relaunch during (b) (breaker
-      independence: worker exhaustion must not relaunch the app)
-
+- [x] (a) text matches dictation — **dev**. Real worker, `port=55774 protocol=1`; `text_matches: true` (identical to the Step 0 in-process baseline), `latency_ms=25093`.
+- [x] (b) HOST-SUPERVISED RESPAWN E2E - **dev, PROVEN 2026-09-26** (replaces the earlier qualified row). Ran `npm run tauri:dev`, killed the live dev worker, and observed the whole chain: `[WORKER] connected to worker at 127.0.0.1:60803` -> kill -> `[WORKER] respawn succeeded on attempt 1 (port=53378) 2.6s` -> `[WORKER-INIT] worker_started relay sent (pid=21608, port=53378)` -> `[WORKER] host relayed worker port=53378` -> `[WORKER] connected to worker at 127.0.0.1:53378 0.0s`, with the NEW worker independently logging `[WORKER] slim-core sidecar connected from 127.0.0.1:53381`. That run exposed FOUR real defects, all fixed and covered by tests: (1) the respawn path never relayed the new bind (worker_supervisor.rs); (2) nothing ever called `WorkerClient.update_from_worker_started`, so the client never learned ANY port (worker_relay.py); (3) sidecar and worker were given DIFFERENT auth tokens, so every worker auth frame was rejected (spawn.rs/main.rs, one per-launch token); (4) `set_port` reused a live superseded connect thread, so after a respawn nobody was running against the new port (worker_client.py). Backoff engine: `cargo test worker` 62/62.
+- [x] (b2) post-respawn TRANSCRIPTION — **dev, PROVEN 2026-09-26**. `python scripts/verify_worker_handoff_live.py --config-dir <dir> --audio step0.wav --expect-file expect.txt --respawn` returned `RESULT_OK=True` with `handoff=OK relayed=1/1 text matches expected: True` TWICE — the first dictation through the original worker, the second through the respawned replacement after the harness killed it. This closes the gap the (b) run left open: (b) proved the host relays the new bind and the client reconnects, but it never dictated through the replacement. The `--respawn` flag exercises the full production path (relay frame -> `update_from_worker_started` -> reconnect -> `transcribe_offline` on the new worker), and the second dictation matched the same expected text as the Step 0 baseline. Logs: `[WORKER] worker handoff closed (peer-death)` -> `[WORKER] respawn attempt 1` -> `[WORKER] respawn succeeded on attempt 1 (port=53247) 2.7s` -> `[WORKER-INIT] worker_started relay sent (pid=21028, port=53247)` -> `[WORKER] host relayed worker port=53247` -> `[WORKER] connected to worker at 127.0.0.1:53247 0.0s` -> `[WORKER] offline transcription complete (len=101 chars) 14.1s`.
+- [x] (c) degraded response, no silent queue; recovery after restore — **real pack root**: missing → `{queued:false, degraded:true, reason:"offline_pack_missing"}`; restored → `{queued:true, forwarded:false, reason:"worker_not_ready"}` (not degraded); removed again → degrades again.
+- [x] (d) `[WORKER]` grep pasted, durations well-formed — `2026-09-26  16:24:49  INFO  [WORKER] offline transcription complete (len=101 chars) 25.1s`. Canonical C-LOG-1 (`YYYY-MM-DD  HH:MM:SS  LEVEL  msg`, two spaces, no millis, no per-line session id) with the C-LOG-2 ` 25.1s` suffix.
+- [x] No `supervisor_failed` / app relaunch during (b) — the worker engine is independent of the sidecar breaker (separate `WorkerState` fields; no `app.restart()` in the engine).
 Only then flip ADR-0024 Step 6 to `[x]` with the log excerpts.
+

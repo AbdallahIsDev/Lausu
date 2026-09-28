@@ -91,6 +91,36 @@ class TestMicTestDegradation:
         assert result["transcription"] == "hello world"
         assert "transcription_unavailable" not in result
 
+    def test_worker_backed_engine_transcribes_via_shim(self, monkeypatch, tmp_path):
+        """C7: mic-test calls ``transcribe`` on the worker-backed shim."""
+        import concurrent.futures
+
+        import voice_typer.server.worker_backed_asr as shim_mod
+        from voice_typer.server import level_monitor
+        from voice_typer.server.worker_backed_asr import WorkerBackedAsr
+
+        monkeypatch.setattr(
+            level_monitor,
+            "stop_test_recording",
+            lambda: _tiny_wav_result(tmp_path),
+        )
+
+        class _FakeClient:
+            port = 5123
+
+            def request_samples(self, raw, rate, language, timeout=None):
+                future: concurrent.futures.Future[dict] = concurrent.futures.Future()
+                future.set_result({"text": "worker mic", "latency_ms": 3})
+                return future
+
+        monkeypatch.setattr(shim_mod, "get_shared_client", lambda: _FakeClient())
+        engine = WorkerBackedAsr(model_size="small.en")
+        engine._loaded = True
+        app = SimpleNamespace(models=SimpleNamespace(active_transcriber=lambda: engine))
+        result = _mixin(app).microphone_test_stop()
+        assert result["transcription"] == "worker mic"
+        assert "transcription_unavailable" not in result
+
     def test_no_recording_audio_skips_marker(self, monkeypatch):
         """stop_test_recording failure → no marker (nothing to transcribe)."""
         from voice_typer.server import level_monitor

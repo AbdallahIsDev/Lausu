@@ -29,6 +29,7 @@ Tooling note: `adr-tools` and similar expect unique `NNNN-*.md` names; this dire
 | 0021 | `rest-encryption.md` | At-Rest Encryption for User Data (Design-Gated) | Proposed (design-only: no production code changes; implementation tracked under the "Phased rollout" section of the ADR). |
 | 0022 | `0022-ws-tcp-protocol-version-asymmetry.md` | Sidecar WS Protocol-Version Check Stays Advisory While TCP Rejects | Accepted: deliberate asymmetry (WS warns-and-continues, TCP rejects with `server.protocol_version_mismatch`); revisit at the ADR-0020 single-transport cutover. |
 | 0024 | `0024-runtime-pack-worker-handoff.md` | Runtime-pack worker handoff end-to-end | Accepted (execution plan): Step-2 `worker_started {pid, version, port}` contract + Steps 0-7 build order; slimming gated on verified handoff. |
+| 0025 | `0025-dictation-worker-cutover.md` | Dictation cutover to the runtime-pack worker | Accepted (design + implementation plan): the four `active_transcriber()` slim-core consumers, a C1-C7 sequence (id correlation, sync bridge, in-memory audio, abort, per-site cutover, streaming session commands, engine removal). Closes the ADR-0024 Step-7 SCOPE FINDING; ITEM 3 slimming stays blocked until C7. |
 
 ## Template
 

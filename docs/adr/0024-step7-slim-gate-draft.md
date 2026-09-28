@@ -1,70 +1,58 @@
-# ADR-0024 Step 7 — slim-build gate DRAFT (DO NOT APPLY)
+# ADR-0024 Step 7 - slim-build gate
 
-> DRAFT ONLY. Applying any of this before Step 6 verifies on a real
-> machine reproduces the ADR trap: the app still imports ML in-process,
-> so excluding the libs = `ModuleNotFoundError` on launch / silent VAD
-> death. Flip to real changes only after the Step 6 sign-off exists.
+> **PARTIALLY APPLIED 2026-09-26.** Step 6 is signed off (real host), so the
+> "DO NOT APPLY" hold is lifted. What landed: the ownership decision below +
+> the ML-import ratchet gate (`scripts/slim_core_ml_ratchet_check.py` +
+> `slim-core-ml-baseline.json`, wired into `tauri-windows-build.yml`). What
+> is still NOT applied: the `--nofollow-import-to` ASR exclusions, which
+> remain gated on cutting the dictation engine off the in-process
+> `TranscriptionEngine` onto the worker hop. The onnxruntime half of the
+> original grep sketch is now **permanently out of scope** (VAD + GTCRN stay
+> in the slim core); the ratchet counts only the ASR libs.
 
-## Grep gate (zero ML imports in the slim-core closure)
+## Ownership decision (resolves the plan 5.3 vs 4.1 conflict)
 
-Slim-core closure = `voice_typer/server` minus the pack-owned
-subtrees (engines + VAD + filters move to `voice_typer/worker` or
-behind the worker hop first). Gate sketch (CI, after the sidecar
-build, failing the job):
+VAD (`vad.py`) and the GTCRN noise filter (`audio_filters/gtcrn_backend.py`)
+run on the real-time audio processing path in the slim core (`RT-SAFE-001`:
+the PortAudio callback must not call them, but `audio_pipeline.py:343` runs
+`compute_vad_prob` on the processing thread). Streaming them to the worker
+would put a network round-trip on the audio path. **Decision: they stay
+in-process; `onnxruntime` remains a declared slim-core dependency** (plan
+5.3). Only the ASR libraries (`faster_whisper`, `ctranslate2`) are the
+worker's and are counted by the ratchet.
 
-```bash
-# Slim-core must not import ML runtimes in-process. torch/transformers
-# already scan clean (removed Phase 1d); the live hits are onnxruntime
-# (vad.py, asr_utils.py, gtcrn_backend.py, parakeet/_load.py,
-# qwen_onnx_model.py, resource_probe.py), ctranslate2
-# (transcription_device.py, transcription_fallback.py), faster_whisper
-# (transcription.py, qwen_onnx_model.py).
-grep -rEn "import onnxruntime|import ctranslate2|from faster_whisper|import faster_whisper|import torch|import transformers" \
-  voice_typer/server --include='*.py' \
-  | grep -v 'voice_typer/server/prewarm/' && exit 1
-echo "Slim core is ML-import-free."
-```
+## Grep gate - implemented as a ratchet
 
-The exact include/exclude list must be recomputed at apply time
-against the post-handoff tree (files move during Steps 3-4).
+`scripts/slim_core_ml_ratchet_check.py` scans the slim-core closure
+(`voice_typer/server`, worker excluded) for `faster_whisper` / `ctranslate2`
+imports and refuses to let the count grow, mirroring the existing
+`ruff`/`mypy` ratchet idiom. Baseline committed at
+`slim-core-ml-baseline.json` (current total=4). The ratchet runs as an
+additive fail-fast step in `tauri-windows-build.yml`, placed after the
+config-drift pytest and before stub generation (C-CI-7 order preserved).
+Covered by `tests/test_slim_core_ml_ratchet.py`.
 
-## Size gate (sketch against current Write-Host lines)
+## Size gate - already enforced (no change needed)
 
-Anchor: `.github/workflows/tauri-windows-build.yml:508-510`
-(`Write-Host "NSIS: …" / "MSI: …" / "Standalone: …"` — observability
-only today). Insert AFTER the artifacts step, BEFORE signing, per
-plan §11.4:
+`tauri-windows-build.yml` already hard-fails the 185 MB sidecar and the
+200 MB worker pack, and warns on the 45 MB NSIS informational gate. These
+are plan 11.4; the original "insert these steps" instruction is obsolete.
 
-```yaml
-- name: Assert sidecar size ≤ 185 MB (plan §11.4 — enforce post-handoff)
-  shell: pwsh
-  run: |
-    $size = (Get-Item python-sidecar-<triple>.exe).Length / 1MB
-    Write-Host "Sidecar size: $([math]::Round($size,2)) MB"
-    if ($size -gt 185) { Write-Error "Sidecar exceeds 185 MB"; exit 1 }
-```
+## Still NOT applied (the real slimming work)
 
-Companion: tighten the existing informational ≤45 MB installer gate
-(`tauri-windows-build.yml:554`, `continue-on-error: true` today) to
-enforcing in the same commit.
-
-## Files to touch (at apply time, same commit)
-
-1. `.github/workflows/tauri-windows-build.yml` — add both gates;
-   extend the signing foreach with the worker exe (5th binary,
-   C-CI-11 notes the 4-binary enumeration).
-2. `scripts/build/build_sidecar_{windows,macos,linux}.sh` + the inline
-   Nuitka invocation in the workflow — add the ML
-   `--nofollow-import-to` exclusions (NEVER before Step 6).
+1. Cut the dictation engine off in-process `TranscriptionEngine`
+   (`dictation_pipeline/transcribe_step.py:98` -> `active_transcriber()`)
+   onto the worker hop.
+2. Only then add `--nofollow-import-to=faster_whisper` and
+   `--nofollow-import-to=ctranslate2` to the **sidecar** Nuitka invocation
+   (`scripts/build/build_sidecar_*.sh` + the inline step in
+   `tauri-windows-build.yml`). Keep `nuitka==2.8.10` (C-CI-6), the torch
+   exclusions and `torch-disable-jit=no` (C-CI-8), and
+   `--include-package-data` / `--windows-console-mode` /
+   `--onefile-tempdir-spec` (C-CI-9) untouched.
 3. `tests/tauri/test_config_script_drift.py::
-   TestNuitkaSidecarBuildsDoNotExcludeTorchDistributed` — this class
-   HARD-FORBIDS the exclusions today (plan §11.2); update/delete it in
-   the same commit or CI fails by design.
-4. `pyproject.toml` / `requirements-lock.txt` — move ML deps to the
-   worker/pack dependency set.
-5. Ratchet baselines (`coverage/mypy/pyrefly/ruff`, plan §11.7).
-
-## Apply precondition
-
-Step 6 sign-off (log excerpts in the checklist) + `worker_client.py`
-round-trip green. Until then this file stays a draft.
+   TestNuitkaSidecarBuildsDoNotExcludeTorchDistributed` currently HARD-FORBIDS
+   the exclusions (plan 11.2); update it in the same commit that adds the
+   ASR exclusions or CI fails by design.
+4. `pyproject.toml` / `requirements-lock.txt` - move ASR deps to the worker
+   dependency set (onnxruntime STAYS in slim core).
