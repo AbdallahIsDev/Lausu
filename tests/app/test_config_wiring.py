@@ -70,7 +70,7 @@ class TestConfigWiring:
         monkeypatch.setattr("voice_typer.server.server_platform.microphone_list.list_microphones", lambda: [])
 
         transcriber_cls = MagicMock()
-        monkeypatch.setattr("voice_typer.server.transcription.TranscriptionEngine", transcriber_cls)
+        monkeypatch.setattr("voice_typer.server.worker_backed_asr.WorkerBackedAsr", transcriber_cls)
 
         from voice_typer.server.app import LausuApp
 
@@ -296,7 +296,7 @@ class TestSettingsWindowIntegration:
     def test_model_change_uses_config_device(self, app, monkeypatch):
         """_change_model should use self.config.device, not hardcoded cuda."""
         transcriber_cls = MagicMock()
-        monkeypatch.setattr("voice_typer.server.transcription.TranscriptionEngine", transcriber_cls)
+        monkeypatch.setattr("voice_typer.server.worker_backed_asr.WorkerBackedAsr", transcriber_cls)
 
         app.config.device = "cpu"
         app.models._change_model_blocking("medium.en")

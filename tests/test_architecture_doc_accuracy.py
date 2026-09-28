@@ -219,16 +219,16 @@ def test_gp94_tauri_command_count_in_doc_matches_code():
     assert "ONE generic `dispatch`" not in body, "stale 'ONE generic `dispatch`' phrase must be removed."
 
 
-def test_gp94_main_rs_line_count_is_246():
+def test_gp94_main_rs_line_count_is_259():
     """
-    Doc claims 246 lines; main.rs must actually be 246 lines.
+    Doc claims 259 lines; main.rs must actually be 259 lines.
     C-ARCH-1 / C-TOKIO-1 / C-TAURI-2 anchors kept). Still wiring-only.
     """
     doc = _read(ARCH_DOC)
-    assert "246 lines" in doc, "Doc must claim '246 lines' for main.rs."
+    assert "259 lines" in doc, "Doc must claim '259 lines' for main.rs."
     actual = sum(1 for _ in _read(MAIN_RS).splitlines())
-    assert actual == 246, (
-        f"src-tauri/src/main.rs must be 246 lines (actual: {actual}). Update the doc + this test together."
+    assert actual == 259, (
+        f"src-tauri/src/main.rs must be 259 lines (actual: {actual}). Update the doc + this test together."
     )
     # Stale counts must NOT be in the doc.
     assert "240 lines" not in doc, "Stale '240 lines' must be removed from doc."
@@ -250,6 +250,7 @@ def test_gp94_main_rs_line_count_is_246():
     assert "434 lines" not in doc, "Stale '434 lines' must be removed from doc."
     assert "342 lines" not in doc, "Stale '342 lines' must be removed from doc."
     assert "330 lines" not in doc, "Stale '330 lines' must be removed from doc."
+    assert "246 lines" not in doc, "Stale '246 lines' must be removed from doc."
 
 
 def test_gp95_module_paths_use_package_form():
@@ -275,7 +276,7 @@ def test_gp95_module_paths_use_package_form():
     level_files = list((ROOT / "voice_typer/server/level_monitor").glob("*.py"))
     assert len(level_files) == 5, f"level_monitor/ must be a 5-file package (actual: {len(level_files)})."
     cts_files = list((ROOT / "voice_typer/server/clipboard_target_safety").glob("*.py"))
-    assert len(cts_files) == 4, f"clipboard_target_safety/ must be a 4-file package (actual: {len(cts_files)})."
+    assert len(cts_files) == 5, f"clipboard_target_safety/ must be a 5-file package (actual: {len(cts_files)})."
 
 
 def test_gp96_shutdown_controller_entry_points_match_code():

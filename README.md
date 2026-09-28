@@ -510,7 +510,7 @@ Lausu is **cross-platform**: Windows, macOS, and Linux (X11 and Wayland) are all
 - **Linux (X11 and Wayland)**: native C key listener reads `/dev/input/event*` (evdev), which works on both X11 and Wayland. Requires the user to be in the `input` group (see [Troubleshooting](#troubleshooting)). Autostart uses a `.desktop` file in `~/.config/autostart/`.
 - Autostart uses `pythonw.exe` for background execution on Windows (no console window).
 - Global hotkey uses the out-of-process native binary on every platform; legacy `RegisterHotKey`/`GetAsyncKeyState` polling (Windows) and `pynput` (macOS/Linux X11) remain as fallbacks.
-- Focus detection for safe auto-paste is Windows-only; on macOS/Linux the text is always copied to the clipboard (auto-paste is skipped).
+- Focus detection for safe auto-paste runs on every platform (Windows UIA control types, macOS AX roles via pyobjc, Linux AT-SPI roles via pyatspi). Auto-paste fires only when a text input is confirmed focused; if focus cannot be determined the paste is allowed (fail-open) so the behavior never regresses below "paste when unsure".
 - Win32 console control handler keeps the tray app alive when the console is closed (Windows-only).
 - GPU acceleration via CUDA if available (NVIDIA wheel DLL paths configured automatically on Windows).
 - Composite hotkeys with modifiers supported on all platforms via the native binary, and via `RegisterHotKey`/`pynput` fallbacks.
@@ -573,7 +573,7 @@ Key design decisions:
 - **Text cleanup pipeline**: High-confidence adjacent duplicate removal, self-correction cleanup, misspelling correction, phrase substitutions, extra-word removal, sentence capitalization, pronoun-I capitalization with Roman numeral awareness, and case-preserving phrase corrections.
 - **Low-audio hallucination guard**: Rejects known boilerplate phrases only when audio evidence indicates near-silence.
 - **Fast default decoding**: Greedy decoding with VAD filter and no timestamp decoding for low latency.
-- **Safe auto-paste**: Paste keystrokes only sent when a text input is confirmed focused. Terminal emulators get Shift+Insert. Clipboard always populated.
+- **Safe auto-paste**: Paste keystrokes only sent when a text input is confirmed focused (Windows UIA, macOS AX, Linux AT-SPI). Terminals get Shift+Insert. When no text field is focused the keystroke is skipped and the text stays on the clipboard. Detection failures fail open. `force=True` (repaste) bypasses the text-field gate but still runs the password/secure-input checks. Clipboard always populated.
 - **Composite hotkey support**: Hotkeys with modifiers via both Win32 RegisterHotKey and pynput fallback. Custom hotkey input via dialog.
 - **Microphone fallback chain**: Same-name candidate discovery across host APIs, ranked by reliability. Falls back further to all available input devices if the configured mic fails.
 - **Silence detection**: Variance-based mic disconnect detection with repeating warnings (exponential backoff). Auto-stop on prolonged silence.
@@ -760,7 +760,7 @@ The Windows native binary **does** suppress the Caps Lock keydown event so the O
 
 ## Known Limitations
 
-- Focus detection (for safe auto-paste) only works on Windows; on macOS/Linux the transcription is always copied to the clipboard (auto-paste is skipped, you Ctrl+V manually)
+- If focus detection is unavailable (pyobjc / pyatspi / comtypes missing, Accessibility permission not granted on macOS, or an unrecognized control), auto-paste fails open and the keystroke is sent anyway; when a non-text control is confirmed focused the keystroke is skipped and the transcription stays on the clipboard (a toast tells you). Password fields and Secure Input always block paste.
 - Key suppression (so a `Caps Lock` hotkey doesn't toggle caps state) only works on Windows and macOS; on Linux the hotkey press reaches the foreground app and should be neutralized at the OS level via `setxkbmap -option caps:none`
 - The `Fn` key is supported only on macOS; on Windows/Linux it is firmware-only and never reaches the OS
 - First model download requires internet (model sizes vary by backend: Whisper `tiny.en` is ~75 MB, `small.en` ~466 MB, `medium.en` ~1.5 GB; Parakeet TDT v3 is ~2.5 GB; Qwen3-ASR is configured by path)

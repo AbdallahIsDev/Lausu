@@ -34,7 +34,7 @@ class TestTranscriptionEngineAbort:
     """Whisper engine (``transcription.py``) abort API."""
 
     def test_engine_has_abort_event_in_init(self):
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine()
         assert hasattr(engine, "_abort_event")
@@ -42,7 +42,7 @@ class TestTranscriptionEngineAbort:
         assert not engine._abort_event.is_set()
 
     def test_request_abort_sets_event(self):
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine()
         assert not engine._abort_event.is_set()
@@ -50,7 +50,7 @@ class TestTranscriptionEngineAbort:
         assert engine._abort_event.is_set()
 
     def test_clear_abort_clears_event(self):
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine()
         engine.request_abort()
@@ -60,7 +60,7 @@ class TestTranscriptionEngineAbort:
 
     def test_request_abort_calls_ctranslate2_interrupt_when_available(self):
         """When the underlying ctranslate2 Translator exposes"""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine()
         inner_translator = MagicMock()
@@ -71,7 +71,7 @@ class TestTranscriptionEngineAbort:
 
     def test_request_abort_does_not_raise_when_interrupt_missing(self):
         """Older ctranslate2 / mock models may not expose"""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine()
         engine._model = MagicMock()
@@ -82,7 +82,7 @@ class TestTranscriptionEngineAbort:
 
     def test_transcribe_breaks_segment_loop_on_abort(self):
         """When ``_abort_event`` is set, the segment loop breaks early"""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine()
         # Mock the model so transcribe returns a generator of 5 segments.

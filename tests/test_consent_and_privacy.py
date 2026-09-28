@@ -253,7 +253,7 @@ class TestWhisperLoadRefusesUncachedModel:
 
     @staticmethod
     def _make_engine():
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
         engine.model_size = "small.en"
@@ -387,7 +387,7 @@ class TestEngineAcceptsConfigInRealConstructionPath:
 
     def test_engine_accepts_config_kwarg(self, tmp_config_dir):
         from voice_typer.server.config import Config
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         cfg = Config()
         cfg.huggingface_consent = True
@@ -396,7 +396,7 @@ class TestEngineAcceptsConfigInRealConstructionPath:
         assert engine.config.huggingface_consent is True
 
     def test_engine_defaults_config_to_none(self, tmp_config_dir):
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en")
         assert engine.config is None
@@ -416,7 +416,7 @@ class TestEngineAcceptsConfigInRealConstructionPath:
         monkeypatch.setitem(sys.modules, "huggingface_hub", fake_module)
 
         from voice_typer.server.asr_errors import ModelNotDownloadedError
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en")
         with pytest.raises(ModelNotDownloadedError):
@@ -441,7 +441,7 @@ class TestEngineAcceptsConfigInRealConstructionPath:
         monkeypatch.setitem(sys.modules, "huggingface_hub", fake_module)
 
         from voice_typer.server.asr_errors import ModelNotDownloadedError
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         cfg = Config()
         cfg.huggingface_consent = True
