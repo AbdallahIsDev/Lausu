@@ -85,6 +85,13 @@ def handle_host_frame(msg: object) -> bool:
     global _worker_port
     with _lock:
         _worker_port = port
+    # Hand the bind to the single shared worker client so it connects.
+    # The relay is the ONE place that learns a worker port, so it is also
+    # the one place that must feed the client; without this the client
+    # keeps `port is None`, every `send_transcribe` returns None, and each
+    # request degrades to `worker_not_ready` even though a healthy worker
+    # is listening. Reuses the existing singleton (E7: no second client).
+    _notify_shared_client({"pid": pid, "version": version, "port": port})
     # Variable-form publish (same pattern as the other pack/worker
     # events): keeps the literal out of the AST-published scan so the
     # 52-entry EVENT_TYPES registry stays untouched.
@@ -95,3 +102,20 @@ def handle_host_frame(msg: object) -> bool:
     )
     log.info("[WORKER] host relayed worker port=%d (pid=%d)", port, pid)
     return True
+
+
+def _notify_shared_client(data: dict[str, object]) -> bool:
+    """Point the shared :class:`WorkerClient` at a freshly relayed worker.
+
+    Fail-soft by design: a client that cannot be constructed (optional WS
+    dependency missing, import error) must not turn a successfully
+    validated relay into a failed one. The port is already stored by the
+    caller, so a later relay or an explicit ``set_port`` can still heal it.
+    """
+    try:
+        from voice_typer.server.worker_client import get_shared_client
+
+        return bool(get_shared_client().update_from_worker_started(data))
+    except Exception:
+        log.debug("[WORKER] shared worker client not updated from relay", exc_info=True)
+        return False

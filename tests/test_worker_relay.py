@@ -13,9 +13,23 @@ from voice_typer.server.sidecar_ws import _read_loop
 
 @pytest.fixture(autouse=True)
 def _isolated_port():
-    worker_relay.reset_worker_port()
+    """Reset BOTH port holders between tests.
+
+    The relay is the single place that learns a worker port and it also
+    feeds the shared `WorkerClient`, so resetting only
+    `worker_relay._worker_port` would leak a live client port into the
+    next test (and out into `test_transcribe_offline_forward`, where a
+    set port flips `forwarded` from False to True).
+    """
+    from voice_typer.server import worker_client as wc
+
+    def _reset() -> None:
+        worker_relay.reset_worker_port()
+        wc.get_shared_client().close()
+
+    _reset()
     yield
-    worker_relay.reset_worker_port()
+    _reset()
 
 
 def _host_frame(pid=1234, version="v1", port=54321, frame_id=7) -> dict:
@@ -39,6 +53,46 @@ def _received_bus_events() -> tuple[list[dict], object]:
 
 def _drop_bus_events(subscriber: object) -> None:
     event_bus.unsubscribe(subscriber)  # type: ignore[arg-type]
+
+
+def test_relay_feeds_the_shared_worker_client() -> None:
+    """The relay must hand the port to the ONE shared WorkerClient.
+
+    Regression guard found by the ADR-0024 Step 6 row-(b) host run: the
+    relay stored the port but nothing ever called
+    `WorkerClient.update_from_worker_started`, so in the real app the
+    client kept `port is None`, every `send_transcribe` returned None and
+    each request degraded to `worker_not_ready` even though a healthy
+    worker was listening. The live test harness had wired the two by
+    hand, which is exactly why the gap stayed hidden.
+    """
+    from voice_typer.server import worker_client as wc
+
+    client = wc.get_shared_client()
+    try:
+        assert worker_relay.handle_host_frame(_host_frame(port=42424)) is True
+        assert client.port == 42424, (
+            "the shared client must learn the relayed port; otherwise the worker hop is unreachable in the real app"
+        )
+    finally:
+        client.close()
+
+
+def test_relay_survives_an_unusable_client() -> None:
+    """A client that blows up must NOT fail an otherwise-valid relay."""
+    from voice_typer.server import worker_client as wc
+
+    original = wc.get_shared_client
+
+    def _boom():
+        raise RuntimeError("no ws dependency")
+
+    wc.get_shared_client = _boom  # type: ignore[assignment]
+    try:
+        assert worker_relay.handle_host_frame(_host_frame(port=42425)) is True
+        assert worker_relay.get_worker_port() == 42425
+    finally:
+        wc.get_shared_client = original  # type: ignore[assignment]
 
 
 def test_round_trip_emit_parse_accessor_returns_port() -> None:

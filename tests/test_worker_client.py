@@ -113,6 +113,49 @@ class TestRouteFrame:
         assert route_frame({"type": "error", "data": {"code": "x"}}, published.append) == "error"
         assert published == []
 
+    def test_echoed_id_reaches_the_resolver(self):
+        """ADR-0025 C1: a numeric echoed id is handed to ``on_result``."""
+        published: list = []
+        seen: list = []
+        frame = {
+            "type": "transcribe_offline_result",
+            "id": 77,
+            "data": {"text": "hi", "latency_ms": 12, "error": None},
+        }
+        assert route_frame(frame, published.append, lambda i, r: seen.append((i, r))) == "result"
+        assert seen == [(77, {"text": "hi", "latency_ms": 12})]
+        # The bus publish is UNCHANGED: no id leaks into the event shape.
+        assert published == [{"type": "transcribe_offline_result", "data": {"text": "hi", "latency_ms": 12}}]
+
+    def test_missing_or_non_numeric_id_skips_the_resolver(self):
+        """An older worker (or a bool id) must not reach the resolver."""
+        cases = (
+            {"type": "transcribe_offline_result", "data": {"text": "hi"}},
+            {"type": "transcribe_offline_result", "id": "77", "data": {"text": "hi"}},
+            {"type": "transcribe_offline_result", "id": True, "data": {"text": "hi"}},
+        )
+        for frame in cases:
+            published: list = []
+            seen: list = []
+
+            def _record(request_id, result, _seen=seen):
+                _seen.append((request_id, result))
+
+            assert route_frame(frame, published.append, _record) == "result"
+            assert seen == [], f"resolver must be skipped for {frame}"
+            assert published, "the bus publish must still happen"
+
+    def test_resolver_failure_never_drops_the_result(self):
+        """A raising resolver must not swallow the event-bus publish."""
+        published: list = []
+        frame = {"type": "transcribe_offline_result", "id": 5, "data": {"text": "hi", "latency_ms": 1}}
+
+        def _boom(_i, _r):
+            raise RuntimeError("bad resolver")
+
+        assert route_frame(frame, published.append, _boom) == "result"
+        assert published == [{"type": "transcribe_offline_result", "data": {"text": "hi", "latency_ms": 1}}]
+
 
 class TestBackoff:
     def test_exponential_then_capped(self):
@@ -141,6 +184,34 @@ class TestPortRelay:
             assert client.port == 5123
             assert client.update_from_worker_started({"port": "nope"}) is False
             assert client.port == 5123
+        finally:
+            client.close()
+
+    def test_new_port_starts_a_fresh_thread_even_if_old_one_lives(self) -> None:
+        """A new port MUST get its own thread, not inherit a live one.
+
+        Regression guard found by the ADR-0024 Step 6 row-(b) host run.
+        `set_port` used to start a thread only when the previous one was
+        dead, but a superseded generation's thread is still alive inside
+        its reconnect backoff and exits a moment later on the generation
+        check. The result was that after a respawn relay NOBODY was
+        running against the new port, so the client never reconnected.
+        """
+        client = WorkerClient(publish=lambda _e: None)
+        try:
+            client.set_port(60999)
+            first = client._thread
+            assert first is not None
+            # Force the old thread to still look alive: the real-world case
+            # is a superseded generation parked in its reconnect backoff.
+            first.start = lambda: None  # type: ignore[method-assign]
+            client.set_port(61000)
+            second = client._thread
+            assert second is not None
+            assert second is not first, (
+                "a new port must get its own connect thread; reusing a live "
+                "superseded thread leaves the new port unconnected"
+            )
         finally:
             client.close()
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import threading
 import time
@@ -84,6 +85,14 @@ class WorkerTranscriber:
         from voice_typer.server.asr_registry import AsrBackendRegistry
 
         registry = AsrBackendRegistry(config)
+        # C7: the slim registry maps "whisper" to the worker-backed shim
+        # (no faster_whisper in the sidecar). The worker process owns the
+        # real engine, so repoint this instance's spec at the moved class
+        # (instance attribute shadow: the class-level slim mapping is
+        # untouched, no other process sees this).
+        specs = dict(type(registry)._BACKEND_SPECS)
+        specs["whisper"] = ("voice_typer.worker.whisper", "TranscriptionEngine")
+        registry._BACKEND_SPECS = specs
         name = getattr(config, "asr_backend", "whisper")
         if name == "parakeet":
             registry.create(
@@ -146,7 +155,8 @@ class WorkerTranscriber:
     def transcribe_file(self, audio_path: str, sample_rate: int | None, language: str | None) -> dict:
         """Transcribe a WAV file; return the ``transcribe_offline_result`` payload.
 
-        Returns ``{"text": str, "latency_ms": int, "error": str|None}``.
+        Returns ``{"text": str, "latency_ms": int, "error": str|None}``
+        plus optional ``device_info`` (the loaded backend's description).
         Never raises, errors are captured into the payload so the
         caller can always emit a result event.
         """
@@ -165,9 +175,38 @@ class WorkerTranscriber:
         except Exception as exc:  # noqa: BLE001, structured error result
             log.warning("[WORKER] failed to decode %s: %s", audio_path, exc)
             return _done({"text": "", "error": f"failed to decode audio: {exc}"})
-        audio = _resample_to_16k(audio, file_rate)
+        return self.transcribe_array(audio, file_rate, language, _t0=t0)
+
+    def transcribe_array(self, audio: object, sample_rate: int, language: str | None, _t0: float | None = None) -> dict:
+        """Transcribe in-memory float32 PCM; same payload shape as file.
+
+        Shared inference tail for the file path above and the C3
+        ``transcribe_samples`` chunk path (E7: one inference path, not
+        two). Zero-length audio is not an error: it yields empty text.
+        """
+        t0 = _t0 if _t0 is not None else time.perf_counter()
+
+        def _done(result: dict) -> dict:
+            result["latency_ms"] = int((time.perf_counter() - t0) * 1000)
+            return result
+
+        try:
+            import numpy as _np
+
+            audio = _np.asarray(audio, dtype=_np.float32).reshape(-1)
+        except Exception as exc:  # noqa: BLE001, structured error result
+            return _done({"text": "", "error": f"invalid audio array: {exc}"})
+        if len(audio) == 0:
+            return _done({"text": "", "error": None})
+        audio = _resample_to_16k(audio, int(sample_rate))
         try:
             engine = self._ensure_engine(language)
+            # A stale abort token from a previous C4 abort would kill
+            # this inference instantly; every inference starts clean.
+            clear_abort = getattr(engine, "clear_abort", None)
+            if callable(clear_abort):
+                with contextlib.suppress(Exception):
+                    clear_abort()
             # Run inference directly on the loaded backend (the
             # registry's busy-flag wrapper is for the slim-core
             # sidecar's concurrent dictation flow; the worker has a
@@ -178,10 +217,40 @@ class WorkerTranscriber:
                 len(text),
                 format_duration(time.perf_counter() - t0),
             )
-            return _done({"text": text, "error": None})
+            result: dict = {"text": text, "error": None}
+            device_info = self._backend_device_info(engine)
+            if device_info is not None:
+                result["device_info"] = device_info
+            return _done(result)
         except Exception as exc:  # noqa: BLE001, structured error result
             log.exception("[WORKER] offline transcription failed: %s", exc)
             return _done({"text": "", "error": f"transcription failed: {exc}"})
+
+    def request_abort(self) -> bool:
+        """Signal the loaded backend to abort in-flight inference (C4).
+
+        Best-effort and side-effect free when idle: never BUILDS the
+        engine (an abort with nothing loaded is a no-op ``False``).
+        The next inference clears the token at start (see
+        :meth:`transcribe_array`), so one abort cannot poison later work.
+        """
+        with self._lock:
+            engine = self._engine
+        abort = getattr(engine, "request_abort", None)
+        if engine is None or not callable(abort):
+            return False
+        with contextlib.suppress(Exception):
+            abort()
+        return True
+
+    @staticmethod
+    def _backend_device_info(engine: Any) -> str | None:
+        """Best-effort backend description for the C4 optional field."""
+        try:
+            info = engine.device_info
+        except Exception:
+            return None
+        return info if isinstance(info, str) and info else None
 
 
 # Module-level singleton so the engine survives across WS connections
