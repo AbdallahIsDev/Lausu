@@ -190,6 +190,13 @@ async fn respawn_worker_inner(
         match spawn_worker_and_get_port_with_shutdown(app, state.clone(), &state.shutting_down).await
         {
             Ok((port, child, exit_rx)) => {
+                // Capture the fresh pid BEFORE the child is moved into the
+                // state, so the respawn can relay the NEW bind to the
+                // sidecar. Without this the sidecar keeps the dead port
+                // after every crash and the worker hop is unreachable
+                // until the app restarts. `child.pid()` is already an
+                // `Option<u32>`, which is exactly the relay's signature.
+                let fresh_pid: Option<u32> = child.pid();
                 let mut child_opt = Some(child);
                 let old_handle = {
                     let mut guard = mutex_lock(&state.child);
@@ -224,6 +231,13 @@ async fn respawn_worker_inner(
                     port,
                     format_duration_suffix(started.elapsed())
                 );
+                // Relay the NEW bind to the sidecar. The initial spawn does
+                // this in `spawn.rs::initialize_worker`; without the mirror
+                // here the sidecar would keep targeting the dead worker's
+                // port after every crash, so the worker hop stays
+                // unreachable until the app restarts.
+                // NOTE: see docs/code-notes/worker-port-relay.md#host-emit
+                super::spawn::worker::relay_worker_started_to_sidecar(app, fresh_pid, port);
                 state.respawn_in_progress.store(false, Ordering::SeqCst);
                 return Ok(());
             }

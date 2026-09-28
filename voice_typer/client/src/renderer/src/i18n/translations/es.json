@@ -1996,7 +1996,10 @@
 	},
 	"pack": {
 		"preparingOfflineEngine": "Preparando motor sin conexión…",
-		"preparingOfflineEngineAria": "Preparando motor sin conexión. Estado: {status}"
+		"preparingOfflineEngineAria": "Preparando motor sin conexión. Estado: {status}",
+		"downloadOfflineEngine": "Descargar motor sin conexión",
+		"downloadOfflineEngineBusy": "Descargando…",
+		"downloadOfflineEngineAria": "Descargar el paquete del motor de voz sin conexión"
 	},
 	"consentDialog": {
 		"title": "Se requiere consentimiento",
@@ -2034,7 +2037,8 @@
 		"pasteDeferred": "Se omitió el pegado automático: la transcripción está en tu portapapeles",
 		"pasteDeferredHint": "No se pudo enviar la pulsación de pegar a la aplicación de destino. Pega el texto tú mismo con tu atajo de pegar habitual.",
 		"pasteDeferredHintSecureInput": "La aplicación de destino tiene la entrada segura activada (por ejemplo, un campo de contraseña), lo que bloquea las pulsaciones sintéticas. Pega el texto tú mismo con tu atajo de pegar habitual.",
-		"pasteDeferredHintIme": "Había una composición de IME en curso, por lo que se omitió la pulsación de pegar. Pega el texto tú mismo con tu atajo de pegar habitual."
+		"pasteDeferredHintIme": "Había una composición de IME en curso, por lo que se omitió la pulsación de pegar. Pega el texto tú mismo con tu atajo de pegar habitual.",
+		"pasteDeferredHintNoTextField": "No había ningún campo de texto enfocado, por lo que se omitió la pulsación de pegar. Enfoca un campo de texto y pega el texto tú mismo con tu atajo de pegar habitual."
 	},
 	"trayState": {
 		"idle": "inactivo",

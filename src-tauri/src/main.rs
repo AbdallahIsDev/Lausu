@@ -210,6 +210,19 @@ fn main() {
             // C-TOKIO-1: task runs ON the runtime, so panic capture is
             // `AssertUnwindSafe(fut).catch_unwind().await` (inside the
             // module), NEVER `block_on` on a runtime worker.
+            //
+            // Mint the per-launch bearer token SYNCHRONOUSLY, before either
+            // background task starts. The sidecar and the runtime-pack
+            // worker must present the SAME token (ADR-0020 §3), and both
+            // are spawned concurrently here, so a token generated inside
+            // either task races the other (observed: the worker read an
+            // empty slot, minted its own, and every worker auth frame was
+            // rejected as a mismatch).
+            let _ = app
+                .state::<Arc<SidecarState>>()
+                .auth_token
+                .set(crate::util::generate_token());
+
             tauri::async_runtime::spawn(sidecar::spawn::initialize_sidecar_guarded(app_handle));
             // Worker cold start: no-ops quietly without the pack binary
             // (the pack-verified trigger starts it after download).

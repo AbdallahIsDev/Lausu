@@ -73,6 +73,7 @@ def reset_platform_unavailable_warnings() -> None:
     """Reset the once-only warning guards (test helper)."""
     _pkg._PYOBJC_UNAVAILABLE_WARNED = False
     _pkg._PYATSPI_UNAVAILABLE_WARNED = False
+    _pkg._TEXT_FOCUS_UNAVAILABLE_WARNED = False
 
 
 def _ax_result_value(result: Any) -> Any:

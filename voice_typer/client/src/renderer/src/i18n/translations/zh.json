@@ -1996,7 +1996,10 @@
 	},
 	"pack": {
 		"preparingOfflineEngine": "正在准备离线引擎…",
-		"preparingOfflineEngineAria": "正在准备离线引擎。状态：{status}"
+		"preparingOfflineEngineAria": "正在准备离线引擎。状态：{status}",
+		"downloadOfflineEngine": "下载离线引擎",
+		"downloadOfflineEngineBusy": "下载中…",
+		"downloadOfflineEngineAria": "下载离线语音引擎包"
 	},
 	"consentDialog": {
 		"title": "需要同意",
@@ -2034,7 +2037,8 @@
 		"pasteDeferred": "已跳过自动粘贴——转写文本已复制到剪贴板",
 		"pasteDeferredHint": "无法向目标应用发送粘贴按键。请自行使用惯用的粘贴快捷键粘贴文本。",
 		"pasteDeferredHintSecureInput": "目标应用启用了安全输入（例如密码输入框），会阻止模拟按键。请自行使用惯用的粘贴快捷键粘贴文本。",
-		"pasteDeferredHintIme": "输入法正在组词，因此跳过了粘贴按键。请自行使用惯用的粘贴快捷键粘贴文本。"
+		"pasteDeferredHintIme": "输入法正在组词，因此跳过了粘贴按键。请自行使用惯用的粘贴快捷键粘贴文本。",
+		"pasteDeferredHintNoTextField": "当前未聚焦文本输入框，因此跳过了粘贴按键。请先聚焦文本输入框，再自行使用惯用的粘贴快捷键粘贴文本。"
 	},
 	"trayState": {
 		"idle": "空闲",

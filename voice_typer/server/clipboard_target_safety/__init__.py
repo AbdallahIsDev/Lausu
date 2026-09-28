@@ -25,6 +25,11 @@ def is_macos() -> bool:
     return _get_clipboard_module().is_macos()
 
 
+def is_linux() -> bool:
+    """Delegate to ``clipboard.is_linux`` so test patches propagate."""
+    return _get_clipboard_module().is_linux()
+
+
 # Keep the SAME log object as clipboard.py. Resolved dynamically via the
 def _log():
     return _get_clipboard_module().log
@@ -65,6 +70,10 @@ _CRED_DIALOG_CLASSES: set[str] = {
 _PYOBJC_UNAVAILABLE_WARNED: bool = False
 _PYATSPI_UNAVAILABLE_WARNED: bool = False
 
+# Once-only warning for text-focus detection unavailability (fail OPEN,
+# distinct from the password checks above which fail closed).
+_TEXT_FOCUS_UNAVAILABLE_WARNED: bool = False
+
 # The ``_PYATSPI_STATE_FOCUSED`` module-level global is a BACKWARD-COMPAT
 _PYATSPI_STATE_FOCUSED: Any = None
 
@@ -74,6 +83,12 @@ _MACOS_SECURE_INPUT_WARNED: bool = False
 
 # Import order: each submodule is self-contained (no inter-submodule
 
+from .focused_text import (  # noqa: E402,F401
+    _is_text_field_focused,
+    _is_text_field_focused_linux,
+    _is_text_field_focused_macos,
+    _is_text_field_focused_windows,
+)
 from .injection import (  # noqa: E402,F401
     UiaUnavailableError,
     _get_uia_focused_element,
@@ -100,6 +115,7 @@ __all__ = [
     # Helpers
     "is_windows",
     "is_macos",
+    "is_linux",
     "_log",
     # Mutable globals (also accessible via PEP 562 __getattr__ in
     "_WE_ELEVATED",
@@ -111,6 +127,7 @@ __all__ = [
     "_UIA_SINGLETON_LOCK",
     "_PYOBJC_UNAVAILABLE_WARNED",
     "_PYATSPI_UNAVAILABLE_WARNED",
+    "_TEXT_FOCUS_UNAVAILABLE_WARNED",
     "_PYATSPI_STATE_FOCUSED",
     "_CRED_DIALOG_CLASSES",
     # Target detection (targets.py)
@@ -123,6 +140,11 @@ __all__ = [
     "UiaUnavailableError",
     "_get_uia_focused_element",
     "_get_uia_singleton",
+    # Focused text-input detection (focused_text.py)
+    "_is_text_field_focused",
+    "_is_text_field_focused_linux",
+    "_is_text_field_focused_macos",
+    "_is_text_field_focused_windows",
     # Safety validation (validation.py)
     "_ax_result_value",
     "_is_password_field",

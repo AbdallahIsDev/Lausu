@@ -35,6 +35,7 @@ const PASTE_DEFERRED_TOAST_COOLDOWN_MS = 10_000;
 const PASTE_DEFERRED_HINT_KEYS: Record<string, string> = {
 	secure_input: "degradation.pasteDeferredHintSecureInput",
 	ime_composition: "degradation.pasteDeferredHintIme",
+	no_text_field: "degradation.pasteDeferredHintNoTextField",
 };
 
 export function usePasteDeferredToast(t: TranslateFn): void {

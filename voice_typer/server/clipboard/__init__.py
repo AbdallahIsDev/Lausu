@@ -51,6 +51,10 @@ from voice_typer.server.clipboard_target_safety import (  # noqa: E402,F401
     _is_password_field_linux,
     _is_password_field_macos,
     _is_secure_input_enabled,
+    _is_text_field_focused,
+    _is_text_field_focused_linux,
+    _is_text_field_focused_macos,
+    _is_text_field_focused_windows,
     reset_platform_unavailable_warnings,
 )
 
@@ -142,6 +146,10 @@ __all__ = [
     "_is_password_field_linux",
     "_is_password_field_macos",
     "_is_secure_input_enabled",
+    "_is_text_field_focused",
+    "_is_text_field_focused_linux",
+    "_is_text_field_focused_macos",
+    "_is_text_field_focused_windows",
     "reset_platform_unavailable_warnings",
     # Platform utils (re-exported so tests can patch via clip_mod.is_windows etc.)
     "is_linux",
