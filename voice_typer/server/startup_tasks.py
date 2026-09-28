@@ -157,6 +157,10 @@ def check_offline_pack_on_launch(app: AppProtocol, shutdown_event: threading.Eve
        (``check_offline_pack_update`` with ``trigger_download=True``).
     3. Pack missing → ``offline_pack_missing`` event + remote update
        check (silent re-download). Always-on: no consent gate.
+    4. ``installer-state.json`` can suppress the download: full-offline
+       installs set ``pack_bundled`` (pack already on disk) and the
+       Components-page checkbox can set ``include_offline_engine_pack``
+       false (user opted out of the silent download).
 
     Remote fetch uses ``LAUNCH_MANIFEST_TIMEOUT_S`` so a stalled logon
     network cannot pin the thread. Best-effort: never raises.
@@ -210,6 +214,31 @@ def check_offline_pack_on_launch(app: AppProtocol, shutdown_event: threading.Eve
                 "checked": False,
                 "reason": "shutdown",
                 "installed_version": local_version,
+            }
+
+        from voice_typer.server.installer_state import load_installer_state, pack_download_allowed
+
+        installer = load_installer_state()
+        allow_download = pack_download_allowed(installer, pack_present=local_version is not None)
+        if not allow_download:
+            if installer.pack_bundled and local_version is not None:
+                reason = "pack_bundled"
+            elif not installer.include_offline_engine_pack:
+                reason = "user_opted_out"
+            else:
+                reason = "download_not_needed"
+            log.info(
+                "[PACK] skipping remote pack download (%s); include=%s bundled=%s present=%s",
+                reason,
+                installer.include_offline_engine_pack,
+                installer.pack_bundled,
+                local_version is not None,
+            )
+            return {
+                "checked": True,
+                "reason": reason,
+                "installed_version": local_version,
+                "missing_event": missing_event,
             }
 
         # Always-on: remote check on every launch (present or missing).
