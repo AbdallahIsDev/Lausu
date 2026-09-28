@@ -264,6 +264,7 @@ jobs:
           & $PYBS -m nuitka `
               --standalone --onefile `
               --assume-yes-for-downloads `
+              --show-progress `
               --jobs=3 `
               --nofollow-import-to=transformers `
               --nofollow-import-to=scipy._lib.cobyqa `
