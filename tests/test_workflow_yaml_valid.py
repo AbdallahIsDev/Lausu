@@ -96,13 +96,14 @@ def test_workflow_files_exist() -> None:
         f"no .yml files found under {WORKFLOWS_DIR}, the test "
         "environment is misconfigured (wrong cwd or missing checkout)."
     )
-    # The project ships at least these 9 workflow files today; if any
+    # The project ships at least these 10 workflow files today; if any
     expected = {
         "build.yml",
         "client-ci.yml",
         "codeql.yml",
         "mutation.yml",
         "populate-hashes.yml",
+        "runtime-pack-publish.yml",
         "tauri-build.yml",
         "tauri-linux-build.yml",
         "tauri-macos-build.yml",

@@ -1,0 +1,399 @@
+# Runtime-pack publish (ADR-0024 Step 8).
+#
+# Freezes the ML worker per target triple, zips it as
+# `lausu-runtime-pack-<pack_version>-<triple>.zip` (plan §11.9 /
+# scripts/build/artifact_names.py), writes `pack-manifest.json`
+# (OfflinePackManifest schema, plan §4.6), and uploads everything via
+# scripts/release/publish_pack_release.py. This is the job that gives the
+# silent always-on pack downloader (voice_typer/server/service/update_check.py)
+# something to fetch at
+#   https://github.com/<repo>/releases/latest/download/pack-manifest.json
+#
+# C-CI-2: this is a NEW workflow. It never edits the tauri-*.yml family.
+# C-CI-4: manual `workflow_dispatch` ONLY — no push/PR triggers until
+#         Phase 0-W host validation passes (ADR-0020 §15).
+#
+# Asset contract (read before renaming anything):
+#   * `lausu-runtime-pack-<n>-<triple>.zip` per triple — the canonical §11.9
+#     name (C-CI-13: additive, never renames the protected existing set).
+#   * `pack-manifest.json` — NOT versioned, NOT per-triple. Its top-level
+#     `sha256` / `files` describe the PRIMARY triple's zip (see
+#     `primary_triple` below).
+#   * `pack-<n>.zip` — byte-identical alias of the primary triple's zip.
+#     This is the exact asset name update_check.py constructs from the
+#     manifest (`pack-{version}.zip`), so the existing download→verify→install
+#     path works without touching the downloader's URL contract (E7).
+#     Per-triple auto-update selection would need an update_check.py change
+#     plus a matching test and is deliberately out of scope here.
+#
+# Draft note: `/releases/latest/download/...` only resolves to a release once
+# it is published (not draft, not prerelease). Dispatch with draft=true to
+# validate, then publish the release (or re-dispatch with draft=false).
+# The release tag must be the repo's latest release for the silent downloader
+# to resolve the manifest URL.
+
+name: runtime-pack-publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      pack_version:
+        description: "Pack version (plain integer, e.g. 3 — must match artifact_names)"
+        required: true
+        type: string
+      tag:
+        description: "Release tag to create/upload assets to (e.g. pack-v3)"
+        required: true
+        type: string
+      primary_triple:
+        description: "Triple whose zip is hashed in pack-manifest.json and aliased as pack-<version>.zip"
+        required: true
+        type: choice
+        options:
+          - x86_64-pc-windows-msvc
+          - x86_64-unknown-linux-gnu
+          - aarch64-apple-darwin
+          - x86_64-apple-darwin
+        default: x86_64-pc-windows-msvc
+      draft:
+        description: "Create as a draft release (invisible to /releases/latest until published)"
+        required: false
+        type: boolean
+        default: true
+      sign:
+        description: "Code-sign the Windows/macOS worker (requires signing secrets)"
+        required: false
+        type: boolean
+        default: true
+      pybs_date:
+        description: "python-build-standalone release date (YYYYMMDD)"
+        required: false
+        type: string
+        default: "20241219"
+      pybs_version:
+        description: "python-build-standalone CPython version"
+        required: false
+        type: string
+        default: "3.12.8"
+
+permissions:
+  contents: write
+
+env:
+  # Mirrors tauri-windows-build.yml: pin per-dispatch so a bump needs no file edit.
+  PYBS_DATE: ${{ inputs.pybs_date || '20241219' }}
+  PYBS_VERSION: ${{ inputs.pybs_version || '3.12.8' }}
+  PACK_VERSION: ${{ inputs.pack_version }}
+  RELEASE_TAG: ${{ inputs.tag }}
+  PRIMARY_TRIPLE: ${{ inputs.primary_triple }}
+  # TX-23 / CRIT-7 pattern: normalize the boolean once at job env level so the
+  # signing gates work identically on workflow_call and direct dispatch.
+  SIGN_ENABLED: ${{ inputs.sign == true || inputs.sign == 'true' }}
+
+jobs:
+  build-pack:
+    name: Build pack (${{ matrix.triple }})
+    strategy:
+      fail-fast: false
+      # Deliberate matrix (cf. C-CI-4): windows-aarch64 is omitted (no public
+      # runner), linux-aarch64 is omitted (qemu cross-build is fragile); both
+      # can be added later in lockstep with the PYBS asset. Windows x86_64 is
+      # the primary_triple default because that is the platform with the
+      # real-machine download-install-verify path (ADR-0024 Step 8 acceptance).
+      matrix:
+        include:
+          - os: windows-latest
+            triple: x86_64-pc-windows-msvc
+            arch: x86_64
+            script: build_worker_windows.sh
+          - os: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+            arch: x86_64
+            script: build_worker_linux.sh
+          - os: macos-latest
+            triple: aarch64-apple-darwin
+            arch: aarch64
+            script: build_worker_macos.sh
+          - os: macos-latest
+            triple: x86_64-apple-darwin
+            arch: x86_64
+            script: build_worker_macos.sh
+    runs-on: ${{ matrix.os }}
+    # C-CI-3: the Nuitka worker freeze is C-compilation-bound (90-110 min on the
+    # sidecar; the worker is smaller but same toolchain). 240 min, never cut.
+    timeout-minutes: 240
+    env:
+      # C-CI-12: CLCACHE_DISABLE must be job-level — step-level never reaches
+      # the Nuitka/SCons C-compiler subprocess and torch-era compiles hang.
+      CLCACHE_DISABLE: "1"
+      PYBS_TRIPLE: ${{ matrix.triple }}
+      # CRIT-7 / C-CI-11: secrets.* is NOT available in step `if:` — map to job
+      # env first (empty on forks → signing steps skip).
+      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+      MAC_SIGNING_IDENTITY: ${{ secrets.MAC_SIGNING_IDENTITY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+
+      # C-CI-6: nuitka pinned at 2.8.10 — <2.8.0 crashes compiling numpy 2.5
+      # PEP 695 type aliases (NU-105). Never downgrade; bump forward instead.
+      - name: Install Python build deps (nuitka==2.8.10)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install "nuitka==2.8.10" zstandard ordered-set
+          python -m nuitka --version
+
+      - name: Download + verify python-build-standalone (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $date = $env:PYBS_DATE
+          $pyver = $env:PYBS_VERSION
+          $triple = $env:PYBS_TRIPLE
+          $archive = "cpython-$pyver+$date-$triple-install_only.tar.gz"
+          $url = "https://github.com/astral-sh/python-build-standalone/releases/download/$date/$archive"
+          Write-Host "Downloading $url"
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          # PYBS releases ship a per-archive .sha256 ("<sha256>  <filename>").
+          $shaUrl = "$url.sha256"
+          Invoke-WebRequest -Uri $shaUrl -OutFile "$archive.sha256"
+          $expected = (Get-Content "$archive.sha256" -Raw).Split(' ', 2)[0].Trim().ToLower()
+          $actual = (Get-FileHash -Algorithm SHA256 -Path $archive).Hash.ToLower()
+          if ($expected -ne $actual) {
+            Write-Error "SHA-256 mismatch for $archive`nexpected=$expected`nactual=$actual"
+            exit 1
+          }
+          New-Item -ItemType Directory -Force -Path C:\tools\pybs | Out-Null
+          tar -xzf $archive -C C:\tools\pybs
+          C:\tools\pybs\python\python.exe --version
+          C:\tools\pybs\python\python.exe -m pip install --upgrade --no-warn-script-location pip
+          C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location "nuitka==2.8.10" zstandard ordered-set
+          C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location -e ".[dev,test]"
+          C:\tools\pybs\python\python.exe -c "import voice_typer.worker, onnxruntime, numpy, scipy, websockets; print('worker deps ok')"
+
+      - name: Download + verify python-build-standalone (POSIX)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="cpython-${PYBS_VERSION}+${PYBS_DATE}-${PYBS_TRIPLE}-install_only.tar.gz"
+          url="https://github.com/astral-sh/python-build-standalone/releases/download/${PYBS_DATE}/${archive}"
+          echo "Downloading $url"
+          curl -fsSL "$url" -o "$archive"
+          curl -fsSL "$url.sha256" -o "$archive.sha256"
+          expected="$(cut -d' ' -f1 "$archive.sha256" | tr '[:upper:]' '[:lower:]')"
+          actual="$(sha256sum "$archive" | cut -d' ' -f1 | tr '[:upper:]' '[:lower:]')"
+          if [ "$expected" != "$actual" ]; then
+            echo "SHA-256 mismatch for $archive" >&2
+            echo "expected=$expected actual=$actual" >&2
+            exit 1
+          fi
+          PYBS_DIR="${GITHUB_WORKSPACE}/.python-build-standalone"
+          mkdir -p "$PYBS_DIR"
+          tar -xzf "$archive" -C "$PYBS_DIR"
+          PYBS_PY="$PYBS_DIR/python/bin/python3"
+          "$PYBS_PY" --version
+          "$PYBS_PY" -m pip install --quiet --upgrade pip
+          "$PYBS_PY" -m pip install --quiet "nuitka==2.8.10" zstandard ordered-set
+          "$PYBS_PY" -m pip install --quiet -e ".[dev,test]"
+          "$PYBS_PY" -c "import voice_typer.worker, onnxruntime, numpy, scipy, websockets; print('worker deps ok')"
+
+      - name: Build the worker with Nuitka (plan §4.4)
+        shell: bash
+        env:
+          VOICE_TYPER_PYBS_DIR: ${{ runner.os == 'Windows' && 'C:\tools\pybs' || format('{0}/.python-build-standalone', github.workspace) }}
+        run: |
+          set -euo pipefail
+          bash "scripts/build/${{ matrix.script }}" "${{ matrix.arch }}"
+          WORKER="src-tauri/bin/lausu-worker-${{ matrix.triple }}$( [ "${{ runner.os }}" = "Windows" ] && echo .exe )"
+          test -f "$WORKER" || { echo "ERROR: worker binary not built at $WORKER"; exit 1; }
+          ls -lh "$WORKER"
+
+      # plan §11.4: 200 MB hard cap on the worker onefile (same gate the
+      # tauri-* workflows run on the same binary).
+      - name: Assert worker size <= 200 MB (plan §11.4)
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKER="src-tauri/bin/lausu-worker-${{ matrix.triple }}$( [ "${{ runner.os }}" = "Windows" ] && echo .exe )"
+          SIZE_MB=$(du -m "$WORKER" | cut -f1)
+          echo "Worker onefile size: ${SIZE_MB} MB (limit: 200 MB)"
+          if [ "$SIZE_MB" -gt 200 ]; then
+            echo "::error::Worker exceeds 200 MB limit (got ${SIZE_MB} MB)."
+            exit 1
+          fi
+
+      # C-CI-11: the worker exe is a signing target. Mirrors the signtool
+      # invocation in tauri-windows-build.yml (fd SHA256 + RFC-3161 timestamp).
+      # sign=true + missing secrets hard-fails; a misconfigured release must
+      # never silently ship unsigned (TX-23).
+      - name: Fail fast — sign=true but Windows signing secrets missing
+        if: runner.os == 'Windows' && env.SIGN_ENABLED == 'true' && (env.WIN_CSC_LINK == '' || env.WIN_CSC_KEY_PASSWORD == '')
+        shell: pwsh
+        run: |
+          Write-Error "sign=true was requested but WIN_CSC_LINK / WIN_CSC_KEY_PASSWORD are missing. Add the secrets, or dispatch with sign=false."
+          exit 1
+
+      - name: Sign the worker exe (Windows)
+        if: runner.os == 'Windows' && env.SIGN_ENABLED == 'true' && env.WIN_CSC_LINK != '' && env.WIN_CSC_KEY_PASSWORD != ''
+        shell: pwsh
+        run: |
+          $workerExe = "src-tauri\bin\lausu-worker-${{ matrix.triple }}.exe"
+          if (-not (Test-Path $workerExe)) { Write-Error "worker exe missing: $workerExe"; exit 1 }
+          $pfxPath = "$env:RUNNER_TEMP\codesign.pfx"
+          [System.IO.File]::WriteAllBytes($pfxPath, [System.Convert]::FromBase64String($env:WIN_CSC_LINK))
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Select-Object -First 1 -ExpandProperty FullName
+          Write-Host "Using signtool: $signtool"
+          # C-BRAND-1: derive the Authenticode description from the branding
+          $sigDescMatch = Select-String -Path voice_typer/server/branding.py -Pattern '^APP_NAME\s*=\s*"([^"]+)"' -ErrorAction SilentlyContinue
+          if (-not $sigDescMatch) { Write-Error "branding.py APP_NAME not found in workspace"; exit 1 }
+          $sigDescription = $sigDescMatch.Matches[0].Groups[1].Value
+          & $signtool sign /f $pfxPath /p $env:WIN_CSC_KEY_PASSWORD `
+              /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "$sigDescription" /du "https://Lausu.app" $workerExe
+          if ($LASTEXITCODE -ne 0) { Write-Error "signtool failed for $workerExe"; exit 1 }
+          & $signtool verify /pa /v $workerExe
+
+      # macOS: build_worker_macos.sh already codesigns (Developer ID when
+      # MAC_SIGNING_IDENTITY is set, ad-hoc otherwise). Linux worker is
+      # UNSIGNED by design (ADR-0020 §13.3, no Linux signing secrets exist).
+      - name: Verify macOS worker codesign
+        if: runner.os == 'macOS' && env.SIGN_ENABLED == 'true' && env.MAC_SIGNING_IDENTITY != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKER="src-tauri/bin/lausu-worker-${{ matrix.triple }}"
+          codesign --verify --strict --verbose=2 "$WORKER"
+
+      - name: Resolve canonical zip name + pack the worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP_NAME="$(python scripts/build/artifact_names.py --runtime-pack --pack-version "$PACK_VERSION" --triple "${{ matrix.triple }}")"
+          echo "ZIP_NAME=$ZIP_NAME" >> "$GITHUB_ENV"
+          WORKER_NAME="lausu-worker-${{ matrix.triple }}$( [ "${{ runner.os }}" = "Windows" ] && echo .exe )"
+          python - "$ZIP_NAME" "src-tauri/bin/$WORKER_NAME" "$WORKER_NAME" <<'PY'
+          import sys, zipfile
+          from pathlib import Path
+          zip_name, src, arcname = sys.argv[1], Path(sys.argv[2]), sys.argv[3]
+          if not src.is_file():
+              raise SystemExit(f"worker binary missing: {src}")
+          with zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED) as zf:
+              zf.write(src, arcname=arcname)
+          print(f"wrote {zip_name} ({Path(zip_name).stat().st_size} bytes) containing {arcname}")
+          PY
+          ls -lh "$ZIP_NAME"
+
+      - name: Upload pack zip
+        uses: actions/upload-artifact@v6
+        with:
+          name: runtime-pack-${{ matrix.triple }}
+          path: ${{ env.ZIP_NAME }}
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Write manifest + publish release
+    needs: build-pack
+    runs-on: ubuntu-latest
+    # Upload is small; the 240-min budget belongs to the Nuitka freeze (C-CI-3).
+    timeout-minutes: 60
+    env:
+      # CRIT-7: map secrets to job env so step `if:` can see them.
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Download all pack zips
+        uses: actions/download-artifact@v6
+        with:
+          pattern: runtime-pack-*
+          path: dist
+          merge-multiple: true
+
+      - name: Build pack-manifest.json + downloader alias
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls -la dist/
+          PRIMARY_ZIP="dist/lausu-runtime-pack-${PACK_VERSION}-${PRIMARY_TRIPLE}.zip"
+          test -f "$PRIMARY_ZIP" || { echo "ERROR: primary pack zip missing: $PRIMARY_ZIP"; ls -la dist/; exit 1; }
+          # pack-manifest.json describes the PRIMARY zip (single top-level sha256
+          # in the OfflinePackManifest schema).
+          python scripts/release/build_pack_manifest.py \
+            --zip "$PRIMARY_ZIP" \
+            --pack-version "$PACK_VERSION" \
+            --output dist/pack-manifest.json
+          # pack-<n>.zip — the exact asset name update_check.py builds from the
+          # manifest version, so the silent downloader finds an asset.
+          cp "$PRIMARY_ZIP" "dist/pack-${PACK_VERSION}.zip"
+          python -m json.tool dist/pack-manifest.json
+          ls -la dist/
+
+      - name: Publish release assets via publish_pack_release.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          ASSET_ARGS=()
+          for z in dist/lausu-runtime-pack-*.zip; do
+            ASSET_ARGS+=(--asset "$z")
+          done
+          # --pack-onefile carries the downloader alias (what update_check.py
+          # fetches as pack-<version>.zip); --pack-manifest the schema manifest.
+          python scripts/release/publish_pack_release.py \
+            --tag "$RELEASE_TAG" \
+            --pack-onefile "dist/pack-${PACK_VERSION}.zip" \
+            --pack-manifest dist/pack-manifest.json \
+            "${ASSET_ARGS[@]}" \
+            --notes "Runtime pack ${PACK_VERSION} (worker onefile per triple). Manifest: pack-manifest.json." \
+            ${{ inputs.draft == true && '--draft' || '' }} \
+            --json
+
+      - name: Publish rolling offline-pack tag (stable manifest URL)
+        # `releases/latest` moves when ANY release is cut (including app-only
+        # releases without a pack), so the latest/download URL 404s after an
+        # app release. update_check.py falls back to this rolling tag.
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Reuse the same publisher against a pack-only rolling tag.
+          # Assets are re-uploaded under `offline-pack` so
+          # .../releases/download/offline-pack/pack-manifest.json stays valid.
+          python scripts/release/publish_pack_release.py \
+            --tag "offline-pack" \
+            --pack-onefile "dist/pack-${PACK_VERSION}.zip" \
+            --pack-manifest dist/pack-manifest.json \
+            --asset "dist/pack-manifest.json" \
+            --notes "Rolling runtime-pack channel (pack-manifest.json + pack-${PACK_VERSION}.zip). Updated by runtime-pack-publish.yml." \
+            ${{ inputs.draft == true && '--draft' || '' }} \
+            --json
+
+      - name: Upload pack-manifest.json as a build artifact
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: pack-manifest
+          path: dist/pack-manifest.json
+          if-no-files-found: ignore
+          retention-days: 7

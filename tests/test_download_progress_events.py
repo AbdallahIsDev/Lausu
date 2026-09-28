@@ -97,7 +97,7 @@ class TestWhisperDownloadWithProgressEvents:
         fake_engine.load = MagicMock()
         fake_engine.unload = MagicMock()
         monkeypatch.setattr(
-            "voice_typer.server.transcription.TranscriptionEngine",
+            "voice_typer.worker.whisper.TranscriptionEngine",
             lambda **kw: fake_engine,
         )
 

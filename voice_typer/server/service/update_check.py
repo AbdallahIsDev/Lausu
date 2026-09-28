@@ -31,15 +31,30 @@ log = logging.getLogger(__name__)
 # Stable GitHub Releases URL for the pack manifest. GitHub serves the
 DEFAULT_OFFLINE_PACK_MANIFEST_URL = f"https://github.com/{APP_REPO}/releases/latest/download/pack-manifest.json"
 
+# Rolling tag the publish workflow also updates. `releases/latest` moves
+# whenever ANY release (including app releases without a pack) is cut, so
+# the latest/download URL 404s after an app-only release. The `offline-pack`
+# tag is pack-only and stays valid across app releases.
+ROLLING_OFFLINE_PACK_MANIFEST_URL = f"https://github.com/{APP_REPO}/releases/download/offline-pack/pack-manifest.json"
 
-def _resolve_manifest_url(manifest_url: str | None) -> str:
-    """Return the manifest URL, honoring the ``VT_PACK_MANIFEST_URL`` env override."""
+
+def pack_manifest_url_candidates(manifest_url: str | None = None) -> list[str]:
+    """Ordered candidate URLs for ``pack-manifest.json`` (first success wins).
+
+    Explicit ``manifest_url`` / ``VT_PACK_MANIFEST_URL`` still win as a
+    single candidate (opt-in override, no fallback surprise).
+    """
     if manifest_url is not None:
-        return manifest_url
+        return [manifest_url]
     env = _os.environ.get("VT_PACK_MANIFEST_URL")
     if env:
-        return env
-    return DEFAULT_OFFLINE_PACK_MANIFEST_URL
+        return [env]
+    return [DEFAULT_OFFLINE_PACK_MANIFEST_URL, ROLLING_OFFLINE_PACK_MANIFEST_URL]
+
+
+def _resolve_manifest_url(manifest_url: str | None) -> str:
+    """Return the primary manifest URL (kept for call sites that need one)."""
+    return pack_manifest_url_candidates(manifest_url)[0]
 
 
 # 1 MiB cap on the remote manifest. Real pack-manifest.json is <2 KB
@@ -221,6 +236,31 @@ def fetch_remote_manifest(
     return manifest
 
 
+def fetch_remote_manifest_first_success(
+    urls: list[str] | None = None,
+    *,
+    http_get: Callable[..., str] | None = None,
+    max_bytes: int = MAX_MANIFEST_BYTES,
+    timeout: float = 30.0,
+) -> tuple[OfflinePackManifest | None, str | None]:
+    """Try each candidate URL until one returns a valid manifest.
+
+    Returns ``(manifest, url)`` or ``(None, None)``. Stops at the first
+    schema-valid hit so a stale rolling-tag copy cannot override a fresher
+    ``latest`` manifest that is actually present.
+    """
+    candidates = urls if urls is not None else pack_manifest_url_candidates()
+    for url in candidates:
+        try:
+            manifest = fetch_remote_manifest(url, http_get=http_get, max_bytes=max_bytes, timeout=timeout)
+        except Exception:  # defensive: one bad candidate must not abort the list
+            log.debug("[UPDATE] candidate %s raised", url, exc_info=True)
+            continue
+        if manifest is not None:
+            return manifest, url
+    return None, None
+
+
 def _local_offline_pack_version(root: Path | None = None) -> str | None:
     """Return the locally-installed pack version, or ``None`` if none."""
     base = offline_pack._default_offline_pack_root() if root is None else root
@@ -369,12 +409,11 @@ def check_offline_pack_update(
     fetch or the background download (user product decision).
 
     Steps:
-      1. Resolve the manifest URL (param > ``VT_PACK_MANIFEST_URL`` env >
-         :data:`DEFAULT_OFFLINE_PACK_MANIFEST_URL`).
+      1. Resolve candidate manifest URLs (param > ``VT_PACK_MANIFEST_URL`` env >
+         :func:`pack_manifest_url_candidates`).
       2. Resolve the local pack version (param > scan the pack root).
-      3. Fetch + validate the remote manifest via
-         :func:`fetch_remote_manifest` (SSRF-gated, max-bytes-capped,
-         ``manifest_timeout``-bounded).
+      3. Fetch + validate via :func:`fetch_remote_manifest_first_success`
+         (SSRF-gated, max-bytes-capped, ``manifest_timeout``-bounded).
       4. Compare versions via :func:`is_newer_version`.
       5. If a newer version is available AND ``trigger_download=True``,
          call :func:`_trigger_background_download`.
@@ -384,7 +423,8 @@ def check_offline_pack_update(
     """
     import time
 
-    url = _resolve_manifest_url(manifest_url)
+    candidates = pack_manifest_url_candidates(manifest_url)
+    url = candidates[0]
 
     # Default local_version to a scan of the pack root.
     if local_version is None:
@@ -395,12 +435,14 @@ def check_offline_pack_update(
             local_version = None
 
     try:
-        remote_manifest = fetch_remote_manifest(url, http_get=http_get, timeout=manifest_timeout)
-    except Exception:  # fetch_remote_manifest is supposed to return None on failure, but catch defensively
+        remote_manifest, fetched_url = fetch_remote_manifest_first_success(
+            candidates, http_get=http_get, timeout=manifest_timeout
+        )
+    except Exception:  # fetch is supposed to return None on failure, but catch defensively
         log.exception("[UPDATE] unexpected error fetching remote manifest")
-        remote_manifest = None
+        remote_manifest, fetched_url = None, None
 
-    if remote_manifest is None:
+    if remote_manifest is None or not fetched_url:
         return {
             "success": False,
             "checked_at": int(time.time() * 1000),
@@ -411,6 +453,7 @@ def check_offline_pack_update(
             "error": "failed to fetch remote manifest",
             "reason": "fetch_failed",
         }
+    url = fetched_url
 
     remote_version = remote_manifest["version"]
     update_available = local_version is None or is_newer_version(remote_version, local_version)
@@ -499,6 +542,9 @@ def handle_check_offline_pack_update_ipc(
 
 __all__ = [
     "DEFAULT_OFFLINE_PACK_MANIFEST_URL",
+    "ROLLING_OFFLINE_PACK_MANIFEST_URL",
+    "pack_manifest_url_candidates",
+    "fetch_remote_manifest_first_success",
     "MAX_MANIFEST_BYTES",
     "UpdateCheckResult",
     "check_offline_pack_update",
