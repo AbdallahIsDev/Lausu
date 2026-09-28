@@ -10,11 +10,18 @@ import contextlib
 import logging
 import threading
 from collections import OrderedDict
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from voice_typer.server import i18n
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.streaming import StreamingConfig, StreamingTranscriptionSession
+
+if TYPE_CHECKING:
+    from voice_typer.server.worker_streaming import WorkerStreamingSession as _WorkerStreamingSession
+
+    _AnyStreamingSession = StreamingTranscriptionSession | _WorkerStreamingSession
+else:
+    _AnyStreamingSession = StreamingTranscriptionSession  # type: ignore[assignment]
 
 log = logging.getLogger(__name__)
 
@@ -24,9 +31,9 @@ class RecordingController:
 
     def __init__(self, app: Any) -> None:
         self._app = app
-        self._streaming_session: StreamingTranscriptionSession | None = None
+        self._streaming_session: _AnyStreamingSession | None = None
         # Stash for the streaming session that ``_stop_impl``'s
-        self._pending_finalize_session: StreamingTranscriptionSession | None = None
+        self._pending_finalize_session: _AnyStreamingSession | None = None
         self._transcription_thread: threading.Thread | None = None
         # RACE-025: lifecycle serialization lock. Prevents concurrent
         self._toggle_lock = threading.RLock()
@@ -127,7 +134,7 @@ class RecordingController:
         """1-line delegator → :meth:`StreamingSessionCoordinator.start_streaming_session_if_enabled`."""
         return self._streaming_coordinator.start_streaming_session_if_enabled(self)
 
-    def get_streaming_session(self) -> StreamingTranscriptionSession | None:
+    def get_streaming_session(self) -> _AnyStreamingSession | None:
         """Thread-safe accessor for the active streaming session.
 
         Guarded by ``_streaming_session_lock``.
@@ -135,7 +142,7 @@ class RecordingController:
         with self._streaming_session_lock:
             return self._streaming_session
 
-    def set_streaming_session(self, session_or_none: StreamingTranscriptionSession | None) -> None:
+    def set_streaming_session(self, session_or_none: _AnyStreamingSession | None) -> None:
         """Thread-safe setter for the active streaming session.
 
         Guarded by ``_streaming_session_lock``.
@@ -143,7 +150,7 @@ class RecordingController:
         with self._streaming_session_lock:
             self._streaming_session = session_or_none
 
-    def pop_streaming_session(self) -> StreamingTranscriptionSession | None:
+    def pop_streaming_session(self) -> _AnyStreamingSession | None:
         """Atomically get AND clear the streaming session."""
         with self._streaming_session_lock:
             session = self._streaming_session
