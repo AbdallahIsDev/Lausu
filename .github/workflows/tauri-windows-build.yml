@@ -227,8 +227,11 @@ jobs:
         shell: pwsh
         run: |
           $env:CLCACHE_DISABLE = "1"
+          # PYBS arrives as the full exe path (setup step exports
+          # C:\tools\pybs\python\python.exe). Accept a directory too.
           $PYBS = $env:PYBS
-          $SITE = & $PYBS\python.exe -c "import site; print(site.getsitepackages()[-1])"
+          if ($PYBS -notmatch 'python\.exe$') { $PYBS = "$PYBS\python.exe" }
+          $SITE = & $PYBS -c "import site; print(site.getsitepackages()[-1])"
           Write-Host "PYBS=$PYBS  SITE=$SITE"
           # ADR-0025 C7: ASR lives in the pack worker — the ctranslate2
           # DLL/data-dir plumbing below was deleted in the same change
@@ -258,7 +261,7 @@ jobs:
           # backtick-continued flag lines below: pwsh cannot continue a
           # statement through `#` comment lines (ParserError "Missing
           # expression after unary operator").
-          & $PYBS\python.exe -m nuitka `
+          & $PYBS -m nuitka `
               --standalone --onefile `
               --assume-yes-for-downloads `
               --jobs=3 `
