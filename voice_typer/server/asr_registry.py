@@ -28,8 +28,10 @@ class AsrBackendRegistry(RegistryCore):
     _MAX_CONSECUTIVE_FAILURES = 3
 
     # Maps backend name -> (module_path, class_name) for lazy import.
+    # C7: "whisper" is worker-backed (no faster_whisper in this process);
+    # parakeet/qwen keep their in-process ONNX engines.
     _BACKEND_SPECS: dict[str, tuple[str, str]] = {
-        "whisper": ("voice_typer.server.transcription", "TranscriptionEngine"),
+        "whisper": ("voice_typer.server.worker_backed_asr", "WorkerBackedAsr"),
         "qwen": ("voice_typer.server.qwen_engine", "QwenEngine"),
         "parakeet": ("voice_typer.server.parakeet_engine", "ParakeetEngine"),
     }

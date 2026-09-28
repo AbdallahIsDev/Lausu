@@ -56,7 +56,7 @@ def recorded_publish(monkeypatch):
 class TestFallbackPublishesBeforeReload:
     def test_event_published_before_reload_with_parakeet_payload_shape(self, monkeypatch):
         from voice_typer.server import event_bus
-        from voice_typer.server.transcription_fallback import with_gpu_fallback
+        from voice_typer.worker.whisper.fallback import with_gpu_fallback
 
         order: list[str] = []
         published: list[dict] = []
@@ -82,7 +82,7 @@ class TestFallbackPublishesBeforeReload:
         assert len(reason) <= 200
 
     def test_reason_truncated_to_200_chars(self, recorded_publish):
-        from voice_typer.server.transcription_fallback import with_gpu_fallback
+        from voice_typer.worker.whisper.fallback import with_gpu_fallback
 
         long_message = "CUDA error: " + "x" * 500
 
@@ -102,7 +102,7 @@ class TestFallbackPublishesBeforeReload:
         assert recorded_publish[0]["data"]["reason"] == long_message[:200]
 
     def test_non_gpu_error_never_publishes(self, recorded_publish):
-        from voice_typer.server.transcription_fallback import with_gpu_fallback
+        from voice_typer.worker.whisper.fallback import with_gpu_fallback
 
         engine = _RecordingEngine()
 
@@ -119,7 +119,7 @@ class TestFallbackPublishesBeforeReload:
 class TestPublishFailureSuppressed:
     def test_raising_publish_does_not_break_fallback(self, monkeypatch):
         from voice_typer.server import event_bus
-        from voice_typer.server.transcription_fallback import with_gpu_fallback
+        from voice_typer.worker.whisper.fallback import with_gpu_fallback
 
         def exploding_publish(event):
             raise RuntimeError("event bus down")

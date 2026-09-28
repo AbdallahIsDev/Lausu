@@ -99,34 +99,64 @@ def _audio_pad_range(prompt_ids: list[int]) -> tuple[int, int]:
     return start, end
 
 
+# Vendored from faster_whisper.feature_extractor (Slaney mel + numpy
+# STFT), so this module stays importable without faster_whisper (C7:
+# the slim core must not import it). Verified element-wise against the
+# reference in tests/test_qwen_mel_parity.py; do not "simplify" without
+# re-running that parity test.
+_MEL_FILTERS: np.ndarray | None = None
+
+
+def _whisper_mel_filters() -> np.ndarray:
+    """128-bin Slaney mel filterbank, cached (constants for our params)."""
+    global _MEL_FILTERS
+    if _MEL_FILTERS is None:
+        n_fft, n_mels, sr = _MEL_N_FFT, _MEL_N_BINS, _MEL_SAMPLE_RATE
+        fftfreqs = np.fft.rfftfreq(n=n_fft, d=1.0 / sr)
+        min_mel, max_mel = 0.0, 45.245640471924965
+        mels = np.linspace(min_mel, max_mel, n_mels + 2)
+        f_sp = 200.0 / 3
+        freqs = f_sp * mels
+        min_log_mel = 1000.0 / f_sp
+        logstep = np.log(6.4) / 27.0
+        log_t = mels >= min_log_mel
+        freqs[log_t] = 1000.0 * np.exp(logstep * (mels[log_t] - min_log_mel))
+        fdiff = np.diff(freqs)
+        ramps = freqs.reshape(-1, 1) - fftfreqs.reshape(1, -1)
+        lower = -ramps[:-2] / np.expand_dims(fdiff[:-1], axis=1)
+        upper = ramps[2:] / np.expand_dims(fdiff[1:], axis=1)
+        weights = np.maximum(np.zeros_like(lower), np.minimum(lower, upper))
+        enorm = 2.0 / (freqs[2 : n_mels + 2] - freqs[:n_mels])
+        weights *= np.expand_dims(enorm, axis=1)
+        _MEL_FILTERS = weights.astype("float32")
+    return _MEL_FILTERS
+
+
+def _whisper_stft(audio: np.ndarray, window: np.ndarray) -> np.ndarray:
+    """Center-padded complex STFT matching the reference call shape."""
+    n_fft, hop_length = _MEL_N_FFT, _MEL_HOP
+    frames = np.pad(audio, (n_fft // 2, n_fft // 2), mode="reflect")
+    frames = np.lib.stride_tricks.as_strided(
+        frames[np.newaxis, :],
+        (1, 1 + (len(frames) - n_fft) // hop_length, n_fft),
+        (frames.strides[0], hop_length * frames.strides[0], frames.strides[0]),
+    )
+    return np.fft.rfft(frames * window, n=n_fft, axis=-1).transpose((0, 2, 1)).squeeze(0)
+
+
 def _log_mel_spectrogram(audio: np.ndarray) -> np.ndarray:
-    """Whisper-compatible log-mel ``[1, 128, T]`` (numpy/scipy only)."""
+    """Whisper-compatible log-mel ``[1, 128, T]`` (numpy only)."""
     if audio.dtype != np.float32:
         audio = audio.astype(np.float32)
     if audio.ndim != 1:
         audio = audio.reshape(-1)
 
-    from faster_whisper.feature_extractor import FeatureExtractor
-
-    # feature_size=128 + Whisper defaults gives exactly the Qwen3-ASR
-    extractor = FeatureExtractor(
-        feature_size=_MEL_N_BINS,
-        sampling_rate=_MEL_SAMPLE_RATE,
-        hop_length=_MEL_HOP,
-        n_fft=_MEL_N_FFT,
-    )
     # Reuse the static helpers so we control the frame drop ourselves
     window = np.hanning(_MEL_N_FFT + 1)[:-1].astype("float32")  # periodic Hann
-    stft = FeatureExtractor.stft(
-        audio,
-        _MEL_N_FFT,
-        hop_length=_MEL_HOP,
-        window=window,
-        return_complex=True,
-    )
+    stft = _whisper_stft(audio, window)
     magnitudes = (np.abs(stft) ** 2).astype(np.float32)  # match reference float32
 
-    mel_spec = extractor.mel_filters @ magnitudes
+    mel_spec = _whisper_mel_filters() @ magnitudes
     log_spec = np.log10(np.clip(mel_spec, a_min=1e-10, a_max=None))
     log_spec = np.maximum(log_spec, log_spec.max() - 8.0)
     log_spec = (log_spec + 4.0) / 4.0

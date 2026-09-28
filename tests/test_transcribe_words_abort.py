@@ -43,7 +43,7 @@ class TestTranscribeWordsAbort:
 
     def test_abort_set_before_loop_breaks_immediately(self):
         """When ``_abort_event`` is already set when the loop starts,"""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         mock_model = MagicMock()
@@ -63,7 +63,7 @@ class TestTranscribeWordsAbort:
 
     def test_abort_set_mid_loop_breaks_early(self):
         """loop breaks early: only the words from segments consumed BEFORE"""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         mock_model = MagicMock()
@@ -99,7 +99,7 @@ class TestTranscribeWordsAbort:
     def test_abort_not_set_processes_all_segments(self):
         """Happy path: when ``_abort_event`` is never set, all segments"""
         from voice_typer.server.streaming import WordTiming
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         mock_model = MagicMock()
@@ -128,14 +128,14 @@ class TestTranscribeWordsAbort:
 
     def test_abort_event_is_threading_event_instance(self):
         """Guard against accidental refactors that change the abort"""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine()
         assert isinstance(engine._abort_event, threading.Event)
 
     def test_abort_set_via_request_abort_method(self):
         """End-to-end: ``request_abort()`` (called by the dictation"""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         mock_model = MagicMock()

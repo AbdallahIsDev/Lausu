@@ -55,8 +55,8 @@ def test_word_level_capability_is_separate_protocol() -> None:
 
 def test_real_whisper_engine_satisfies_capability() -> None:
     """The local Whisper engine implements the optional capability."""
-    from voice_typer.server import transcription as transcription_module
     from voice_typer.server.transcription_load import WordLevelTranscriber
+    from voice_typer.worker import whisper as transcription_module
 
     engine = transcription_module.TranscriptionEngine.__new__(transcription_module.TranscriptionEngine)
     assert isinstance(engine, WordLevelTranscriber)

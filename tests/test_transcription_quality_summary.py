@@ -52,7 +52,7 @@ class TestBuildQualitySummary:
 
 def _make_loaded_engine(config=None):
     """Build a TranscriptionEngine with a mocked loaded model."""
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     engine = TranscriptionEngine(model_size="tiny.en", device="cpu", config=config)
     engine._model = MagicMock()

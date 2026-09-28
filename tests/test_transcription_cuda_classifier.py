@@ -21,7 +21,7 @@ def _mock_heavy_imports_for_classifier(monkeypatch):
 @pytest.fixture()
 def cuda_engine():
     """classifier's ``if self._device == \"cpu\": return False`` early-exit"""
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     engine = TranscriptionEngine(model_size="small.en", device="cpu")
     engine._device = "cuda"

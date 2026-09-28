@@ -24,7 +24,7 @@ class TestRuntimeErrorNotMisclassified:
 
     def _make_engine(self, device: str = "cuda"):
         """Construct a bare ``TranscriptionEngine`` (skip ``__init__``)."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine.__new__(TranscriptionEngine)
         engine._device = device
@@ -100,7 +100,7 @@ class TestRuntimeErrorNotMisclassified:
         """source level so a future refactor that re-adds RuntimeError"""
         import inspect
 
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         src = inspect.getsource(TranscriptionEngine._is_gpu_runtime_error)
         # The OLD buggy form must NOT appear in the source.

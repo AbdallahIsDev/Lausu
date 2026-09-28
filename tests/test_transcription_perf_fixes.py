@@ -27,7 +27,7 @@ class TestInferenceCounterReleasesLockDuringInference:
 
     def test_init_creates_active_inference_counter(self):
         """``__init__`` must initialise ``_active_inference = 0``."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         assert engine._active_inference == 0, (
@@ -36,7 +36,7 @@ class TestInferenceCounterReleasesLockDuringInference:
 
     def test_init_creates_inference_cond_wrapping_lock(self):
         """``_inference_cond`` must be a Condition wrapping ``_lock``."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         assert isinstance(engine._inference_cond, threading.Condition), "_inference_cond must be a threading.Condition."
@@ -47,7 +47,7 @@ class TestInferenceCounterReleasesLockDuringInference:
 
     def test_transcribe_increments_counter_under_lock(self):
         """``transcribe()`` must increment ``_active_inference`` under"""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         engine._device = "cpu"
@@ -77,7 +77,7 @@ class TestInferenceCounterReleasesLockDuringInference:
 
     def test_transcribe_with_fallback_increments_counter(self):
         """``transcribe_with_fallback()`` must also use the counter"""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         engine._device = "cpu"
@@ -102,7 +102,7 @@ class TestInferenceCounterReleasesLockDuringInference:
 
     def test_transcribe_words_increments_counter(self):
         """``transcribe_words()`` must also use the counter pattern."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         engine._device = "cpu"
@@ -129,7 +129,7 @@ class TestInferenceCounterReleasesLockDuringInference:
 
     def test_lock_not_held_during_model_transcribe(self):
         """The lock MUST NOT be held during ``model.transcribe()``."""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         engine._device = "cpu"
@@ -160,7 +160,7 @@ class TestUnloadWaitsForInference:
 
     def test_unload_waits_for_active_inference_to_drain(self):
         """When ``_active_inference > 0``, ``unload()`` must block until"""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         engine._model = MagicMock()
@@ -200,7 +200,7 @@ class TestUnloadWaitsForInference:
 
     def test_unload_source_uses_inference_cond(self):
         """Source guard: ``unload()`` must use ``_inference_cond`` (NOT"""
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         src = inspect.getsource(TranscriptionEngine.unload)
         assert "_inference_cond" in src, (
@@ -217,7 +217,7 @@ class TestTranscribeSourceReleasesLockDuringInference:
     """Source-level guards: the transcribe methods must acquire the lock"""
 
     def test_transcribe_source_uses_counter_pattern(self):
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         src = inspect.getsource(TranscriptionEngine.transcribe)
         assert "self._active_inference += 1" in src, "transcribe() must increment _active_inference under the lock."
@@ -226,8 +226,8 @@ class TestTranscribeSourceReleasesLockDuringInference:
         )
 
     def test_transcribe_with_fallback_source_uses_counter_pattern(self):
-        """``voice_typer.server.transcription_fallback.transcribe_with_fallback``"""
-        from voice_typer.server.transcription_fallback import (
+        """``voice_typer.worker.whisper.fallback.transcribe_with_fallback``"""
+        from voice_typer.worker.whisper.fallback import (
             transcribe_with_fallback as fallback_body,
         )
 
@@ -236,7 +236,7 @@ class TestTranscribeSourceReleasesLockDuringInference:
         assert "engine._inference_cond" in src, "transcribe_with_fallback() must decrement under _inference_cond."
 
     def test_transcribe_words_source_uses_counter_pattern(self):
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         src = inspect.getsource(TranscriptionEngine.transcribe_words)
         assert "self._active_inference += 1" in src, "transcribe_words() must increment _active_inference."

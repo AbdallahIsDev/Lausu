@@ -30,7 +30,7 @@ class TestAllBackendsAcceptAudioStatsKwarg:
     def test_whisper_transcribe_with_fallback_accepts_audio_stats(self):
         import inspect
 
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         sig = inspect.signature(TranscriptionEngine.transcribe_with_fallback)
         assert "audio_stats" in sig.parameters

@@ -169,7 +169,7 @@ def _bench_transcription_stage(model_size: str, device: str) -> dict:
     degrades to a ``skipped`` note instead of failing the bench.
     """
     try:
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
     except Exception as exc:  # pragma: no cover - environment-dependent
         return {"skipped": f"engine import failed: {exc}"}
     try:

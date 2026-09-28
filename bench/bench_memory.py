@@ -161,7 +161,7 @@ def bench_model_load(model_size: str = "small.en", device: str = "cpu") -> dict:
     """
     rss_before = _peak_rss_mb()
     try:
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size=model_size, device=device)
         engine.load()
@@ -210,7 +210,7 @@ def bench_sustained_transcription(duration_seconds: float) -> dict:
     engine = None
     audio = None
     try:
-        from voice_typer.server.transcription import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine
 
         engine = TranscriptionEngine(model_size="small.en", device="cpu")
         engine.load()

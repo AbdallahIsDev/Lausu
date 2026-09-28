@@ -3,9 +3,9 @@
 import pytest
 from voice_typer.server.transcription import (
     AUTO_CUDA_BEAM_SIZE,
-    TranscriptionEngine,
     _auto_beam_size,
 )
+from voice_typer.worker.whisper import TranscriptionEngine
 
 
 def _engine_with_device(model_size: str, device: str, **kwargs) -> TranscriptionEngine:
