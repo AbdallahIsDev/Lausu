@@ -110,6 +110,8 @@ class _TranscribeStepMixin:
                 abort_watcher = _abort_watcher_cls(self._app, self._cycle_id, active)
                 abort_watcher.start()
 
+        # WHY: the worker device description is produced in the batch branch but consumed below.
+        _worker_device_info: str | None = None
         try:
             #  sibling: pop_streaming_session() atomically owns the
             session = self._app.recording.pop_streaming_session()
@@ -168,21 +170,66 @@ class _TranscribeStepMixin:
                 # pass the pre-computed audio stats so the
 
                 # a-review Finding 8: previously this call was wrapped in a
+                from voice_typer.server.worker_backed_asr import WorkerBackedAsr as _WorkerBackedAsr
 
-                # When the active backend is a CloudEngine, look
-                local_engine = None
                 if isinstance(active, CloudEngine):
+                    # When the active backend is a CloudEngine, look
                     local_engine = _lookup_local_whisper(self._app)
-                # Route through the registry's busy-flag wrapper so
-                registry = self._app.models.registry
-                with registry.busy_context(registry.active_name):
-                    text = active.transcribe_with_fallback(
-                        self._audio,
-                        audio_stats=self._audio_stats,
-                        local_engine=local_engine,
-                    )
-                    # Capture the engine's compact quality summary (mean /
-                    self._quality_summary = getattr(active, "last_quality_summary", None)
+                    # Route through the registry's busy-flag wrapper so
+                    registry = self._app.models.registry
+                    with registry.busy_context(registry.active_name):
+                        text = active.transcribe_with_fallback(
+                            self._audio,
+                            audio_stats=self._audio_stats,
+                            local_engine=local_engine,
+                        )
+                        # Capture the engine's compact quality summary (mean /
+                        self._quality_summary = getattr(active, "last_quality_summary", None)
+                elif isinstance(active, _WorkerBackedAsr):
+                    # C7: whisper runs in the pack worker; there is no
+                    # in-process engine left to fall back to. A worker
+                    # failure degrades the cycle (never silently empty).
+                    # isinstance (not a worker_backed flag read): a plain
+                    # MagicMock auto-creates any attribute, so a flag read
+                    # would misroute mocked in-process engines here.
+                    from voice_typer.server import worker_client as _worker_client_mod
+                    from voice_typer.server.worker_backed_asr import WorkerTranscriptionError
+
+                    # Route through the registry's busy-flag wrapper so
+                    registry = self._app.models.registry
+                    with registry.busy_context(registry.active_name):
+                        try:
+                            _rate = int(getattr(self._app.config, "sample_rate", 16000) or 16000)
+                            _lang = str(getattr(self._app.config, "language", None) or "en")
+                            text = active.transcribe_with_fallback(
+                                self._audio,
+                                audio_stats=self._audio_stats,
+                                local_engine=None,
+                                sample_rate=_rate,
+                                language=_lang,
+                            )
+                            _worker_device_info = active.device_info
+                            self._quality_summary = getattr(active, "last_quality_summary", None)
+                        except _worker_client_mod.WorkerAbortedError:
+                            # WHY: the cancelled-cycle path below owns ESC UX, no misleading message.
+                            return ""
+                        except WorkerTranscriptionError as _wexc:
+                            raise BackendNotLoadedError(
+                                "Offline transcription is unavailable (worker hop failed and no "
+                                f"in-process engine remains): {_wexc}",
+                                engine_name=type(active).__name__,
+                            ) from _wexc
+                else:
+                    # Route through the registry's busy-flag wrapper so
+                    registry = self._app.models.registry
+                    with registry.busy_context(registry.active_name):
+                        text = active.transcribe_with_fallback(
+                            self._audio,
+                            audio_stats=self._audio_stats,
+                            local_engine=None,
+                        )
+                        # Capture the engine's compact quality summary (mean /
+                        self._quality_summary = getattr(active, "last_quality_summary", None)
         finally:
             if abort_watcher is not None:
                 with contextlib.suppress(Exception):
@@ -193,7 +240,8 @@ class _TranscribeStepMixin:
             self._app.models.touch_active_model()
 
         # reuse the captured ``active`` local for device_info
-        self._device_info = (
+        # WHY: a worker result carries its own device description, prefer it over the local one.
+        self._device_info = _worker_device_info or (
             active.device_info if active is not None and hasattr(active, "device_info") else "Parakeet ASR"
         )
 

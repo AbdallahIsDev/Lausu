@@ -64,6 +64,13 @@ class _OrchestratorMixin:
     def request_abort(self) -> None:
         """watchdog's ``_busy_event.set()``) is independent."""
         try:
+            from voice_typer.server.worker_client import get_shared_client
+
+            # WHY: the in-flight worker request outlives the engine call, abort both paths.
+            get_shared_client().abort_all_outstanding()
+        except Exception:
+            log.debug("[PIPELINE] request_abort: worker abort_all_outstanding raised (non-fatal)", exc_info=True)
+        try:
             active = self._app.models.active_transcriber()
         except Exception:
             log.debug("[PIPELINE] request_abort: could not read active transcriber", exc_info=True)
