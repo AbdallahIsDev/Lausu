@@ -142,7 +142,7 @@ def test_workflow_runs_codesign_deep_entitlements(workflow_text: str):
         "tauri-macos-build.yml invokes 'codesign' but NOT with the "
         "'--entitlements' flag. The src-tauri/entitlements.plist file "
         "(ADR-0020 §13.2 'Hardened runtime entitlements') must be passed "
-        "to codesign for the sidecar + prewarm + .app bundle."
+        "to codesign for the sidecar + .app bundle."
     )
     assert has_entitlements_path, (
         "tauri-macos-build.yml invokes 'codesign --entitlements' but "

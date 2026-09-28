@@ -15,7 +15,6 @@ from tests.fixtures.bash_utils import bash_usable
 # Path from file → root:
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SIDECAR_SCRIPT = PROJECT_ROOT / "scripts" / "build" / "build_sidecar_linux.sh"
-PREWARM_SCRIPT = PROJECT_ROOT / "scripts" / "build" / "build_prewarm_linux.sh"
 MACOS_SIDECAR_SCRIPT = PROJECT_ROOT / "scripts" / "build" / "build_sidecar_macos.sh"
 WINDOWS_SIDECAR_SCRIPT = PROJECT_ROOT / "scripts" / "build" / "build_sidecar_windows.sh"
 
@@ -29,15 +28,6 @@ def sidecar_text() -> str:
     return SIDECAR_SCRIPT.read_text(encoding="utf-8")
 
 
-@pytest.fixture(scope="module")
-def prewarm_text() -> str:
-    """Read the prewarm build script once per module; fail fast if missing."""
-    assert PREWARM_SCRIPT.is_file(), (
-        f"build_prewarm_linux.sh not found at {PREWARM_SCRIPT}. Did the project layout change?"
-    )
-    return PREWARM_SCRIPT.read_text(encoding="utf-8")
-
-
 def test_sidecar_build_script_exists():
     """The Linux sidecar build script must exist at the canonical path."""
     assert SIDECAR_SCRIPT.is_file(), f"missing: {SIDECAR_SCRIPT}"
@@ -45,15 +35,6 @@ def test_sidecar_build_script_exists():
     assert SIDECAR_SCRIPT.stat().st_size > 1000, (
         f"{SIDECAR_SCRIPT} is suspiciously small ({SIDECAR_SCRIPT.stat().st_size} bytes); "
         "expected a full Nuitka invocation script (~6-10 KB)."
-    )
-
-
-def test_prewarm_build_script_exists():
-    """The Linux prewarm build script must exist at the canonical path."""
-    assert PREWARM_SCRIPT.is_file(), f"missing: {PREWARM_SCRIPT}"
-    assert PREWARM_SCRIPT.stat().st_size > 1000, (
-        f"{PREWARM_SCRIPT} is suspiciously small ({PREWARM_SCRIPT.stat().st_size} bytes); "
-        "expected a full Nuitka invocation script (~3-5 KB)."
     )
 
 
@@ -69,21 +50,6 @@ def test_sidecar_script_is_bash_syntax_valid():
     )
     assert result.returncode == 0, (
         f"bash -n failed on {SIDECAR_SCRIPT}:\n--- stderr ---\n{result.stderr}\n--- stdout ---\n{result.stdout}"
-    )
-
-
-def test_prewarm_script_is_bash_syntax_valid():
-    """``bash -n`` must parse the prewarm script without syntax errors."""
-    if not bash_usable():
-        pytest.skip("bash not available or not usable on this host, cannot run `bash -n`.")
-    result = subprocess.run(
-        ["bash", "-n", str(PREWARM_SCRIPT)],
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
-    assert result.returncode == 0, (
-        f"bash -n failed on {PREWARM_SCRIPT}:\n--- stderr ---\n{result.stderr}\n--- stdout ---\n{result.stdout}"
     )
 
 
@@ -408,71 +374,6 @@ def test_sidecar_script_smoke_runs_help_after_build(sidecar_text: str):
     assert "smoke" in sidecar_text.lower(), "build_sidecar_linux.sh must label the --help invocation as a smoke test."
 
 
-def test_prewarm_script_uses_triple_variable_construction(prewarm_text: str):
-    """The prewarm script must build TRIPLE from ARCH via ``${ARCH}-unknown-linux-gnu``."""
-    assert "${ARCH}-unknown-linux-gnu" in prewarm_text, (
-        'build_prewarm_linux.sh must construct TRIPLE dynamically: TRIPLE="${ARCH}-unknown-linux-gnu"'
-    )
-
-
-def test_prewarm_script_output_filename_pattern(prewarm_text: str):
-    """The prewarm output filename must match ``prewarm-<triple>``."""
-    assert "prewarm-" in prewarm_text
-    assert (
-        "prewarm-${TRIPLE}" in prewarm_text
-        or "prewarm-$TRIPLE" in prewarm_text
-        or 'OUTPUT_NAME="prewarm-${TRIPLE}"' in prewarm_text
-    ), "build_prewarm_linux.sh must construct OUTPUT_NAME as prewarm-${TRIPLE} (or equivalent)."
-
-
-def test_prewarm_script_documents_both_arch_output_filenames(prewarm_text: str):
-    """The prewarm script header must document BOTH arch output filenames."""
-    assert "prewarm-x86_64-unknown-linux-gnu" in prewarm_text, (
-        "build_prewarm_linux.sh header must document the x86_64-unknown-linux-gnu output filename."
-    )
-    assert "prewarm-aarch64-unknown-linux-gnu" in prewarm_text, (
-        "build_prewarm_linux.sh header must document the aarch64-unknown-linux-gnu output filename."
-    )
-
-
-def test_prewarm_script_outputs_to_resources_dir(prewarm_text: str):
-    """The prewarm output dir must be ``src-tauri/resources`` (bundle.resource)."""
-    assert "src-tauri/resources" in prewarm_text, (
-        "build_prewarm_linux.sh must output to src-tauri/resources/ (Tauri "
-        "bundle.resource location, NOT src-tauri/bin, since prewarm is "
-        "launched by the systemd user timer, not as a Tauri externalBin)."
-    )
-
-
-def test_prewarm_script_supports_both_arches_via_arg(prewarm_text: str):
-    """The prewarm script must accept ``aarch64`` OR ``x86_64`` as ``$1``."""
-    assert 'ARCH="${1:-}"' in prewarm_text
-    assert "x86_64|aarch64)" in prewarm_text or ("x86_64)" in prewarm_text and "aarch64)" in prewarm_text), (
-        "build_prewarm_linux.sh must accept both x86_64 + aarch64 arches."
-    )
-
-
-def test_prewarm_script_defaults_to_host_arch(prewarm_text: str):
-    """When no arg is given, the prewarm script must default to ``uname -m``."""
-    assert "uname -m" in prewarm_text, (
-        "build_prewarm_linux.sh must default ARCH via `uname -m` when no positional arg is given."
-    )
-
-
-def test_prewarm_script_entry_point_is_prewarm_py(prewarm_text: str):
-    """The Nuitka entry point must be ``voice_typer/server/prewarm/__main__.py``."""
-    assert "voice_typer/server/prewarm/__main__.py" in prewarm_text, (
-        "build_prewarm_linux.sh entry point must be voice_typer/server/prewarm/__main__.py (ADR-0011 + ADR-0020 §5)."
-    )
-
-
-def test_prewarm_script_has_xplat3_ctranslate2_libs_guard(prewarm_text: str):
-    """The prewarm script must also have the XPLAT-3 ctranslate2/libs guard."""
-    assert "CT2_LIBS_DIR" in prewarm_text
-    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' in prewarm_text
-    assert '--include-data-dir="$CT2_LIBS_DIR=$CT2_LIBS_DIR"' in prewarm_text
-
-
 # 9. Sibling parity (macOS + Windows siblings have the  guard) ────
 def test_macos_sibling_has_xplat3_ctranslate2_libs_guard():
     """Sanity check: the macOS sibling MUST have the XPLAT-3 guard."""
@@ -524,21 +425,6 @@ def test_known_gap_no_python_import_sanity_check(sidecar_text: str):
         "build_sidecar_linux.sh must still check the faster_whisper dir "
         "exists (partial mitigation for GAP-2, directory check, not "
         "Python import)."
-    )
-
-
-def test_known_gap_prewarm_check_is_stub(prewarm_text: str):
-    """
-    KNOWN GAP (GAP-3): ``build_prewarm_linux.sh --check`` is a stub.
-    This test ASSERTS the gap is present. DO NOT fix this gap as part
-    """
-    assert "build_sidecar_linux.sh" in prewarm_text and "--check" in prewarm_text, (
-        "build_prewarm_linux.sh --check must delegate to build_sidecar_linux.sh --check "
-        "so the prewarm build env is actually verified (WR-18 fixed the stub)."
-    )
-    assert "import nuitka" not in prewarm_text, (
-        "build_prewarm_linux.sh --check should delegate (not independently import nuitka) "
-        "— the sidecar check covers the shared Nuitka toolchain."
     )
 
 

@@ -71,8 +71,8 @@ EXPECTED_NUITKA_FLAGS = [
     "--onefile",
     "--assume-yes-for-downloads",
     "--enable-plugin=numpy",
-    "--include-package=faster_whisper",
-    "--include-package=ctranslate2",
+    "--nofollow-import-to=faster_whisper",
+    "--nofollow-import-to=ctranslate2",
     "--include-package=voice_typer",
     "--include-package=websockets",
     "--windows-disable-console",
@@ -92,20 +92,18 @@ def test_script_contains_expected_nuitka_flag(script_text: str, flag: str):
 
 
 def test_script_includes_ctranslate2_data_dir(script_text: str):
-    """The script must ``--include-data-dir`` the ctranslate2/lib folder."""
-    assert "--include-data-dir" in script_text
-    assert "ctranslate2/lib" in script_text, (
-        "build_sidecar_windows.sh must include --include-data-dir for "
-        "$SITE/ctranslate2/lib (captures libiomp5md.dll + MKL/OpenMP DLLs)."
-    )
+    """C7: no ctranslate2 data-dir/DLL plumbing may remain (worker owns it)."""
+    assert "CT2_DATA_DIR_SRC" not in script_text
+    assert "CT2_DLL" not in script_text
+    assert "CT2_LIBS_DIR" not in script_text
+    assert "CT2_LIB_DIR" not in script_text
+    assert "CT2_DIR" not in script_text
+    assert "ctranslate2/lib" not in script_text
 
 
 def test_script_includes_ctranslate2_dll(script_text: str):
-    """The script must ``--include-dll`` the ctranslate2.dll explicitly."""
-    assert "--include-dll" in script_text
-    assert "ctranslate2.dll" in script_text, (
-        "build_sidecar_windows.sh must --include-dll ctranslate2.dll explicitly (Nuitka does not glob *.dll)."
-    )
+    """C7: no explicit ctranslate2.dll bundling may remain."""
+    assert "ctranslate2.dll" not in script_text
 
 
 def test_script_onefile_tempdir_uses_supported_cache_dir_token(script_text: str):
@@ -165,50 +163,24 @@ def test_script_outputs_to_src_tauri_bin(script_text: str):
 
 
 def test_script_has_ctranslate2_lib_guard(script_text: str):
-    """The script must bundle ctranslate2's native DLLs from EITHER layout."""
-    # The script must define the lib/ path and resolve the native-DLL
-    assert 'CT2_LIB_DIR="$CT2_DIR/lib"' in script_text, (
-        "build_sidecar_windows.sh must define CT2_LIB_DIR as $CT2_DIR/lib (the ctranslate2/lib path)."
-    )
-    assert 'CT2_DATA_DIR_SRC="$CT2_LIB_DIR"' in script_text, (
-        "build_sidecar_windows.sh must prefer the ctranslate2/lib layout when present."
-    )
-    assert 'CT2_DATA_DIR_SRC="$CT2_DIR"' in script_text, (
-        "build_sidecar_windows.sh must fall back to the ctranslate2 package dir "
-        "(modern wheels ship DLLs without a lib/ subdir)."
-    )
-    assert '! -f "$CT2_DLL"' in script_text, (
-        'build_sidecar_windows.sh must guard: `if [[ ! -f "$CT2_DLL" ]]; then echo ERROR ...; exit 1; fi`'
-    )
+    """C7: the CT2 layout-resolution guards are deleted with the plumbing."""
+    assert "CT2_LIB_DIR" not in script_text
+    assert "CT2_DATA_DIR_SRC" not in script_text
 
 
 def test_script_has_ctranslate2_dll_guard(script_text: str):
-    """The script must hard-fail if ``ctranslate2.dll`` is missing."""
-    assert '! -f "$CT2_DLL"' in script_text or '! -f "$CT2_LIB_DIR/ctranslate2.dll"' in script_text, (
-        'build_sidecar_windows.sh must guard: `if [[ ! -f "$CT2_DLL" ]]; then echo ERROR ...; exit 1; fi`'
-    )
+    """C7: the ctranslate2.dll hard-fail guard is deleted with the plumbing."""
+    assert "CT2_DLL" not in script_text
 
 
 def test_known_gap_no_ctranslate2_libs_guard(script_text: str):
-    """``ctranslate2/libs`` (plural) existence guard like the Linux + macOS"""
-    # The Linux + macOS siblings MUST have the libs guard (sanity check
+    """C7: the BUILD-2/XPLAT-3 libs guards are deleted on all siblings."""
     linux_text = LINUX_BUILD_SCRIPT.read_text(encoding="utf-8")
     macos_text = MACOS_BUILD_SCRIPT.read_text(encoding="utf-8")
-    assert "CT2_LIBS_DIR" in linux_text, (
-        "Reference pattern broken: build_sidecar_linux.sh should have CT2_LIBS_DIR (XPLAT-3 guard)."
-    )
-    assert "CT2_LIBS_DIR" in macos_text, (
-        "Reference pattern broken: build_sidecar_macos.sh should have CT2_LIBS_DIR guard."
-    )
-
-    # BUILD-2 fix: the Windows script now HAS the libs guard.
-    assert "CT2_LIBS_DIR" in script_text, "build_sidecar_windows.sh should have CT2_LIBS_DIR guard (BUILD-2 fix)."
-    assert "ctranslate2/libs" in script_text, (
-        "build_sidecar_windows.sh should reference ctranslate2/libs (BUILD-2 fix)."
-    )
-    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' in script_text, (
-        "build_sidecar_windows.sh should guard the libs include with if [[ -d (BUILD-2 fix)."
-    )
+    assert "CT2_LIBS_DIR" not in linux_text
+    assert "CT2_LIBS_DIR" not in macos_text
+    assert "CT2_LIBS_DIR" not in script_text
+    assert "ctranslate2/libs" not in script_text
 
 
 def test_script_supports_check_mode(script_text: str):
@@ -217,9 +189,10 @@ def test_script_supports_check_mode(script_text: str):
         "build_sidecar_windows.sh must support a --check arg (toolchain verification without invoking Nuitka)."
     )
     assert "import nuitka" in script_text, "build_sidecar_windows.sh --check must verify nuitka is importable."
-    assert "import faster_whisper, ctranslate2" in script_text or (
-        "import faster_whisper" in script_text and "import ctranslate2" in script_text
-    ), "build_sidecar_windows.sh --check must verify faster_whisper + ctranslate2."
+    assert "import websockets" in script_text, "build_sidecar_windows.sh --check must verify websockets."
+    assert "import faster_whisper, ctranslate2" not in script_text, (
+        "C7: --check must not require the worker-owned ASR libs."
+    )
 
 
 def test_script_validates_python_interpreter(script_text: str):
@@ -243,15 +216,11 @@ def test_script_validates_python_build_standalone_layout(script_text: str):
 
 
 def test_script_sanity_checks_ctranslate2_import(script_text: str):
-    """The script must run an ``import faster_whisper, ctranslate2, websockets``"""
-    assert "import faster_whisper, ctranslate2, websockets" in script_text, (
-        "build_sidecar_windows.sh must sanity-check that "
-        "faster_whisper + ctranslate2 + websockets all import in the build env."
+    """C7: the pre-Nuitka sanity check covers websockets only."""
+    assert "import faster_whisper, ctranslate2, websockets" not in script_text, (
+        "C7: the sanity check must not require the worker-owned ASR libs."
     )
-    assert "ctranslate2.__version__" in script_text, (
-        "build_sidecar_windows.sh must print ctranslate2.__version__ on the "
-        "sanity-check line (proves the wheel is the real one, not a stub)."
-    )
+    assert "ctranslate2.__version__" not in script_text
 
 
 def test_script_resolves_site_packages(script_text: str):
@@ -286,21 +255,17 @@ def test_script_documents_signing_next_step(script_text: str):
     )
 
 
-# 7. Sibling parity (Linux + macOS scripts have the  guard) ───────
+# 7. Sibling parity (no CT2 plumbing anywhere) ───────
 def test_linux_sibling_has_xplat3_ctranslate2_libs_guard():
-    """Sanity check: the Linux sibling MUST have the XPLAT-3 guard."""
+    """C7: the Linux sibling must not carry the XPLAT-3 guard anymore."""
     linux_text = LINUX_BUILD_SCRIPT.read_text(encoding="utf-8")
-    assert "CT2_LIBS_DIR" in linux_text
-    assert '--include-data-dir="$CT2_LIBS_DIR=$CT2_LIBS_DIR"' in linux_text
-    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' in linux_text
+    assert "CT2_LIBS_DIR" not in linux_text
 
 
 def test_macos_sibling_has_xplat3_ctranslate2_libs_guard():
-    """Sanity check: the macOS sibling MUST have the XPLAT-3 guard."""
+    """C7: the macOS sibling must not carry the XPLAT-3 guard anymore."""
     macos_text = MACOS_BUILD_SCRIPT.read_text(encoding="utf-8")
-    assert "CT2_LIBS_DIR" in macos_text
-    assert '--include-data-dir="$CT2_LIBS_DIR=$CT2_LIBS_DIR"' in macos_text
-    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' in macos_text
+    assert "CT2_LIBS_DIR" not in macos_text
 
 
 def test_macos_sibling_uses_nuitka_args_array():

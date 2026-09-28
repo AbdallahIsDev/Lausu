@@ -137,21 +137,24 @@ binding: full rationale for each is in the `Hard "Don'ts"` section of this file 
 - **Never remove `--include-package-data=voice_typer.server`,
   `--windows-console-mode=disable`, or `--onefile-tempdir-spec`** (C-CI-9,
   IPD-1): missing package data = FileNotFoundError at launch that builds
-  fine in CI.
+  fine in CI. Applies to every remaining Nuitka freeze (sidecar + worker);
+  the standalone prewarm binary is retired (see C-CI-13).
 - **Never widen the Windows `bundle.resources` narrowing or drop
   `--target`/`--config tauri.windows-x86_64.conf.json`** (C-CI-10, XS-28) —
   loses the no-non-Windows-binaries assertion; base config hard-fails the
   resource copy and the installer would bloat 50-100 MB.
-- **Never change the signing gates or drop any of the 4 signing steps**
-  (C-CI-11, TX-23/S1-CR-99/CRIT-7), `sign=true` + missing secrets must
+- **Never change the signing gates or drop any of the remaining signing
+  steps** (C-CI-11, TX-23/S1-CR-99/CRIT-7), `sign=true` + missing secrets must
   hard-fail; secrets must stay mapped to job-level env (unusable in step
-  `if:`); MSI/native/standalone exe must be signed too (SmartScreen).
+  `if:`); MSI/native/standalone exe/worker must be signed too (SmartScreen).
+  Prewarm is not a signing target (binary retired).
 - **Keep `CLCACHE_DISABLE: "1"` at job level** (C-CI-12, S10-CC-1) —
   step-level does not propagate to the SCons subprocess; torch C compilation
   hangs indefinitely.
 - **Never rename the artifact/binary names** (C-CI-13), `tauri-build.yml`
   downloads `tauri-windows-installer` by literal; `mig18` tests grep the
-  default binary names.
+  default binary names. Prewarm filenames are retired — do not reintroduce
+  `prewarm-<triple>.exe` as a build output or bundle resource.
 - **Never revert the sidecar smoke test to `& $exe --version`** (C-CI-14) —
   GUI-subsystem PEs must be launched via .NET Process + WaitForExit.
 - **Never remove the tauri-binaries.json record/check gates or change the
@@ -980,28 +983,28 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-CI-8
-Rule: Do NOT add `--nofollow-import-to` for `torch.utils.data.distributed`, `torch.export`, `torch._functorch`, `torch.testing`, or `torch.package` to the sidecar Nuitka invocation, and do NOT remove `--module-parameter=torch-disable-jit=no`.
-Rationale: torch 2.13 imports those modules UNCONDITIONALLY at `import torch` time (torch/utils/data/__init__.py:32, torch/__init__.py:2869/:2324, torch/_jit_internal.py:47); excluding any of them makes `import torch` raise ModuleNotFoundError inside the frozen exe. `vad.py` catches that as ImportError and SILENTLY DISABLES Silero VAD in the shipped binary (verified on-host with a minimal frozen probe reproducing the exact traceback). `torch-disable-jit=no` is REQUIRED because Nuitka's torch plugin disables torch.jit by default in standalone mode, and VAD loads the bundled model via `torch.jit.load(silero_vad.jit)`. Without the flag VAD fails with "module 'torch' has no attribute 'jit'" and silently degrades to the RMS fallback. The ONLY safe exclusions are the lazily-imported modules already listed in the file (`torch._dynamo`, `torch._inductor`, `torch.onnx`, `torch.utils.benchmark`, `transformers`, `scipy.*`, `psutil._ps*`, `sympy`, `mpmath`, `pytest`, `PIL.*` non-UI modules). (Tag: NU-106.)
+Rule: Do NOT add `--nofollow-import-to` for `torch.utils.data.distributed`, `torch.export`, `torch._functorch`, `torch.testing`, or `torch.package` to the sidecar Nuitka invocation, and do NOT remove `--module-parameter=torch-disable-jit=no`. The top-level `--nofollow-import-to=torch` (whole-tree exclusion, every sidecar/worker invocation) is ALLOWED and REQUIRED while Phase 1c holds (verified zero `import torch` sites; only onnxruntime's try/except-guarded probe, never called).
+Rationale: torch 2.13 imports those modules UNCONDITIONALLY at `import torch` time (torch/utils/data/__init__.py:32, torch/__init__.py:2869/:2324, torch/_jit_internal.py:47); excluding any of them makes `import torch` raise ModuleNotFoundError inside the frozen exe. `vad.py` catches that as ImportError and SILENTLY DISABLES Silero VAD in the shipped binary (verified on-host with a minimal frozen probe reproducing the exact traceback). `torch-disable-jit=no` is REQUIRED because Nuitka's torch plugin disables torch.jit by default in standalone mode, and VAD loads the bundled model via `torch.jit.load(silero_vad.jit)`. Without the flag VAD fails with "module 'torch' has no attribute 'jit'" and silently degrades to the RMS fallback. The ONLY safe exclusions are the lazily-imported modules already listed in the file (`torch._dynamo`, `torch._inductor`, `torch.onnx`, `torch.utils.benchmark`, `transformers`, `scipy.*`, `psutil._ps*`, `sympy`, `mpmath`, `pytest`, `PIL.*` non-UI modules), plus whole-tree `torch` now that Phase 1c removed every runtime `import torch`: compiling any present torch (e.g. a stray install pulled in via onnxruntime's guarded probe import) crashes the Nuitka optimizer (torch 2.13 `torch._dynamo.pgo`, verified 2026-09-28). (Tag: NU-106.)
 Applies to: All agents, all modes, all sub-agents.
 ```
 
 ```
 C-CI-9
-Rule: Do NOT remove `--include-package-data=voice_typer.server` from EITHER Nuitka invocation (sidecar AND prewarm), and do NOT remove `--windows-console-mode=disable` or `--onefile-tempdir-spec="..."` from either invocation.
-Rationale: The frozen sidecar reads package data at import time (`voice_typer/server/hotkey_reserved.json` via a __file__-relative path in config_validators/hotkey.py, plus corrections.json, model_hashes.json, native/binaries.json, silero_vad.jit). Without `--include-package-data` the onefile payload is missing them and the exe crashes on launch with FileNotFoundError, even though it BUILDS fine, so no CI existence check catches it (IPD-1). The console-mode flag is what makes the sidecar a GUI-subsystem PE (the smoke-test step depends on that behavior); the tempdir spec keeps onefile extraction in a predictable per-user cache dir instead of %TEMP%.
+Rule: Do NOT remove `--include-package-data=voice_typer.server` from any remaining Nuitka invocation (sidecar AND the runtime-pack worker), and do NOT remove `--windows-console-mode=disable` or `--onefile-tempdir-spec="..."` from those invocations. The standalone prewarm freeze is retired (2026-09-27, plan-runtime-pack-split §6.2 P-1): do NOT re-add a `build_prewarm_*.sh` Nuitka invocation.
+Rationale: The frozen sidecar reads package data at import time (`voice_typer/server/hotkey_reserved.json` via a __file__-relative path in config_validators/hotkey.py, plus corrections.json, model_hashes.json, native/binaries.json, silero_vad.jit). Without `--include-package-data` the onefile payload is missing them and the exe crashes on launch with FileNotFoundError, even though it BUILDS fine, so no CI existence check catches it (IPD-1). The console-mode flag is what makes the sidecar a GUI-subsystem PE (the smoke-test step depends on that behavior); the tempdir spec keeps onefile extraction in a predictable per-user cache dir instead of %TEMP%. The worker keeps the same flags because it is also a Nuitka onefile of `voice_typer`.
 Applies to: All agents, all modes, all sub-agents.
 ```
 
 ```
 C-CI-10
 Rule: Do NOT remove the "Post-build assertion, bundle has no non-Windows binaries" step, do NOT widen `src-tauri/tauri.windows-x86_64.conf.json` `bundle.resources` beyond Windows-only files, and do NOT remove `--target <matrix.target>` / `--config <matrix.tauri_config>` from the `cargo tauri build` step.
-Rationale: The per-arch config narrows the base `tauri.conf.json`'s all-platform `bundle.resources` superset. If the narrowing is lost (or `--config` silently stops being applied), the NSIS installer bundles ~5 unnecessary prewarm binaries + 2 native key-listeners from macOS/Linux, bloating it by ~50-100 MB. The assertion fails the build if any forbidden non-Windows binary appears in the bundle directory. Building against the base config hard-fails at the tauri-build resource-copy step on a Windows host because the macOS/Linux-only files don't exist here. (Tag: XS-28.)
+Rationale: The per-arch config narrows the base `tauri.conf.json`'s all-platform `bundle.resources` superset. If the narrowing is lost (or `--config` silently stops being applied), the NSIS installer bundles macOS/Linux native key-listeners (and historically the prewarm binaries) that do not belong on Windows, bloating it. The assertion fails the build if any forbidden non-Windows binary appears in the bundle directory. Building against the base config hard-fails at the tauri-build resource-copy step on a Windows host because the macOS/Linux-only files don't exist here. (Tag: XS-28.)
 Applies to: All agents, all modes, all sub-agents.
 ```
 
 ```
 C-CI-11
-Rule: Do NOT change the code-signing gates in `tauri-windows-build.yml`: `sign=true` + missing secrets MUST hard-fail the build; `sign=false` MUST skip signing even when secrets exist. Do NOT drop or merge any of the signing steps (sidecar + prewarm + native listener; NSIS; MSI; standalone `lausu-tauri.exe`; **the runtime-pack worker `lausu-worker-<triple>.exe`, added 2026-08-15 as the 5th binary per plan-runtime-pack-split §11.5**; and the full-offline installer when present). Do NOT remove the job-level `env:` mapping of `WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`, and do NOT replace it with a `secrets.*` reference inside a step `if:` condition.
+Rule: Do NOT change the code-signing gates in `tauri-windows-build.yml`: `sign=true` + missing secrets MUST hard-fail the build; `sign=false` MUST skip signing even when secrets exist. Do NOT drop or merge any of the signing steps (sidecar + native listener; NSIS; MSI; standalone `lausu-tauri.exe`; **the runtime-pack worker `lausu-worker-<triple>.exe`, added 2026-08-15 per plan-runtime-pack-split §11.5**; and the full-offline installer when present). The standalone prewarm binary is retired (2026-09-27) and is NOT a signing target — do not reintroduce prewarm into the sign list. Do NOT remove the job-level `env:` mapping of `WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`, and do NOT replace it with a `secrets.*` reference inside a step `if:` condition.
 Rationale: TX-23, a misconfigured release must not silently ship unsigned (that's why sign=true + missing secrets hard-fails). S1-CR-99, before the fix, the native listener, the MSI, and the standalone exe shipped UNSIGNED inside a signed installer; SmartScreen on Windows 11 flags unsigned binaries inside a signed installer ("Windows protected your PC" on first launch) and MSI/standalone users hit it on every install/launch. CRIT-7. The `secrets` context is NOT populated in step `if:` conditions, so a gate on `secrets.X != ''` NEVER matches and signing is silently skipped; secrets must be mapped to job-level env first (empty on PR/fork builds → steps skip).
 Applies to: All agents, all modes, all sub-agents.
 ```
@@ -1015,8 +1018,8 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-CI-13
-Rule: Do NOT rename the artifact names produced by `tauri-windows-build.yml` (`tauri-windows-installer`, `Lausu-Tauri-MSI`, `Lausu-Tauri-Sidecar-Binaries`, `Lausu-Tauri-SHA256SUMS`, `tauri-binaries-manifest-windows`), and do NOT change the default binary filenames (`python-sidecar-<triple>.exe`, `prewarm-<triple>.exe`, `windows-key-listener.exe`, `lausu-worker-<triple>.exe`. The runtime-pack worker added by the pack split). New artifact names (e.g. `lausu-slim-core-<version>-<triple>.exe`, `lausu-runtime-pack-<pack-version>-<triple>.zip`, `pack-manifest.json` per plan §11.9) may be ADDED, but only if `tauri-build.yml`'s download steps are updated in the same commit.
-Rationale: `tauri-build.yml`'s aggregate job downloads `name: tauri-windows-installer` by exact literal, and `tests/tauri/mig18/test_windows_signing.py` greps the default binary names, renaming breaks aggregation and/or the signing tests. If the aarch64 leg is ever enabled, arch-suffix the artifact names AND update tauri-build.yml's download steps in the same commit.
+Rule: Do NOT rename the artifact names produced by `tauri-windows-build.yml` (`tauri-windows-installer`, `Lausu-Tauri-MSI`, `Lausu-Tauri-Sidecar-Binaries`, `Lausu-Tauri-SHA256SUMS`, `tauri-binaries-manifest-windows`), and do NOT change the default binary filenames (`python-sidecar-<triple>.exe`, `windows-key-listener.exe`, `lausu-worker-<triple>.exe` — the runtime-pack worker from the pack split). The standalone prewarm binary is RETIRED (2026-09-27, plan-runtime-pack-split §6.2 P-1; `build_prewarm_*.sh` deleted): do NOT reintroduce `prewarm-<triple>.exe` as a build output, bundle.resources entry, artifact path, or codesign target. New artifact names (e.g. `lausu-slim-core-<version>-<triple>.exe`, `lausu-runtime-pack-<pack-version>-<triple>.zip`, `pack-manifest.json` per plan §11.9) may be ADDED, but only if `tauri-build.yml`'s download steps are updated in the same commit.
+Rationale: `tauri-build.yml`'s aggregate job downloads `name: tauri-windows-installer` by exact literal, and `tests/tauri/mig18/test_windows_signing.py` greps the default binary names, renaming breaks aggregation and/or the signing tests. Prewarm steps in the macOS/Linux workflows froze a deleted module and failed every dispatch (FV-39); re-adding them re-breaks release. If the aarch64 leg is ever enabled, arch-suffix the artifact names AND update tauri-build.yml's download steps in the same commit.
 Applies to: All agents, all modes, all sub-agents.
 ```
 

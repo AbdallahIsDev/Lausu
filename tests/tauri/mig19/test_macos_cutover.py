@@ -52,7 +52,7 @@ def test_workflow_builds_universal_dmg(workflow_text: str):
     assert "cargo tauri build" in workflow_text, (
         "tauri-macos-build.yml does NOT invoke 'cargo tauri build'. "
         "This is the command that produces the .app + .dmg bundle from "
-        "the sidecar + prewarm + native-listener binaries."
+        "the sidecar + native-listener binaries."
     )
 
 

@@ -374,11 +374,10 @@ test = [
     # passes ``-n auto`` explicitly (see .github/workflows/build.yml).
     "pytest-xdist>=3.5,<4",
 ]
-# PyInstaller spec file lives at scripts/build/lausu.spec
-# but the tool itself wasn't declared. Make it an optional extra so
-# `pip install .[build]` produces a buildable environment.
+# Build extras for packaging tooling. PyInstaller fallback (scripts/build/
+# lausu.spec) was deleted with the dead prewarm packaging path; Nuitka is
+# the only freeze tool (ADR-0020 §4).
 build = [
-    "pyinstaller>=6.0,<7",
     "setuptools>=68.0,<84",
     # Explicit floor so `pip install .[build]` never resolves an
     # unbounded `wheel` (which has no upper bound anyway, but a floor

@@ -15,7 +15,6 @@ from tests.fixtures.bash_utils import bash_usable
 # Path from file → root:
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SIDECAR_SCRIPT = PROJECT_ROOT / "scripts" / "build" / "build_sidecar_macos.sh"
-PREWARM_SCRIPT = PROJECT_ROOT / "scripts" / "build" / "build_prewarm_macos.sh"
 LINUX_SIDECAR_SCRIPT = PROJECT_ROOT / "scripts" / "build" / "build_sidecar_linux.sh"
 
 
@@ -28,30 +27,12 @@ def sidecar_text() -> str:
     return SIDECAR_SCRIPT.read_text(encoding="utf-8")
 
 
-@pytest.fixture(scope="module")
-def prewarm_text() -> str:
-    """Read the prewarm build script once per module; fail fast if missing."""
-    assert PREWARM_SCRIPT.is_file(), (
-        f"build_prewarm_macos.sh not found at {PREWARM_SCRIPT}. Did the project layout change?"
-    )
-    return PREWARM_SCRIPT.read_text(encoding="utf-8")
-
-
 def test_sidecar_build_script_exists():
     """The macOS sidecar build script must exist at the canonical path."""
     assert SIDECAR_SCRIPT.is_file(), f"missing: {SIDECAR_SCRIPT}"
     # Also assert it's non-empty (a stub would be a regression).
     assert SIDECAR_SCRIPT.stat().st_size > 1000, (
         f"{SIDECAR_SCRIPT} is suspiciously small ({SIDECAR_SCRIPT.stat().st_size} bytes); "
-        "expected a full Nuitka invocation script (~3-5 KB)."
-    )
-
-
-def test_prewarm_build_script_exists():
-    """The macOS prewarm build script must exist at the canonical path."""
-    assert PREWARM_SCRIPT.is_file(), f"missing: {PREWARM_SCRIPT}"
-    assert PREWARM_SCRIPT.stat().st_size > 1000, (
-        f"{PREWARM_SCRIPT} is suspiciously small ({PREWARM_SCRIPT.stat().st_size} bytes); "
         "expected a full Nuitka invocation script (~3-5 KB)."
     )
 
@@ -68,21 +49,6 @@ def test_sidecar_script_is_bash_syntax_valid():
     )
     assert result.returncode == 0, (
         f"bash -n failed on {SIDECAR_SCRIPT}:\n--- stderr ---\n{result.stderr}\n--- stdout ---\n{result.stdout}"
-    )
-
-
-def test_prewarm_script_is_bash_syntax_valid():
-    """``bash -n`` must parse the prewarm script without syntax errors."""
-    if not bash_usable():
-        pytest.skip("bash not available or not usable on this host, cannot run `bash -n`.")
-    result = subprocess.run(
-        ["bash", "-n", str(PREWARM_SCRIPT)],
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
-    assert result.returncode == 0, (
-        f"bash -n failed on {PREWARM_SCRIPT}:\n--- stderr ---\n{result.stderr}\n--- stdout ---\n{result.stdout}"
     )
 
 
@@ -309,70 +275,6 @@ def test_sidecar_script_onefile_tempdir_uses_app_support(sidecar_text: str):
     )
 
 
-def test_prewarm_script_uses_triple_variable_construction(prewarm_text: str):
-    """The prewarm script must build TRIPLE from ARCH via ``${ARCH}-apple-darwin``."""
-    assert "${ARCH}-apple-darwin" in prewarm_text, (
-        'build_prewarm_macos.sh must construct TRIPLE dynamically: TRIPLE="${ARCH}-apple-darwin"'
-    )
-
-
-def test_prewarm_script_output_filename_pattern(prewarm_text: str):
-    """The prewarm output filename must match ``prewarm-<triple>``."""
-    assert "prewarm-" in prewarm_text
-    assert "prewarm-${TRIPLE}" in prewarm_text, (
-        "build_prewarm_macos.sh must construct OUTPUT_NAME as prewarm-${TRIPLE} (or equivalent)."
-    )
-
-
-def test_prewarm_script_documents_both_arch_output_filenames(prewarm_text: str):
-    """The prewarm script header must document BOTH arch output filenames."""
-    assert "prewarm-x86_64-apple-darwin" in prewarm_text, (
-        "build_prewarm_macos.sh header must document the x86_64-apple-darwin output filename."
-    )
-    assert "prewarm-aarch64-apple-darwin" in prewarm_text, (
-        "build_prewarm_macos.sh header must document the aarch64-apple-darwin output filename."
-    )
-
-
-def test_prewarm_script_outputs_to_resources_dir(prewarm_text: str):
-    """The prewarm output dir must be ``src-tauri/resources`` (bundle.resource)."""
-    assert "src-tauri/resources" in prewarm_text, (
-        "build_prewarm_macos.sh must output to src-tauri/resources/ (Tauri "
-        "bundle.resource location, NOT src-tauri/bin, since prewarm is "
-        "launched by the LaunchAgent, not as a Tauri externalBin)."
-    )
-
-
-def test_prewarm_script_supports_both_arches_via_arg(prewarm_text: str):
-    """The prewarm script must accept ``aarch64`` OR ``x86_64`` as ``$1``."""
-    assert 'ARCH="${1:-}"' in prewarm_text
-    assert "x86_64|aarch64)" in prewarm_text or ("x86_64)" in prewarm_text and "aarch64)" in prewarm_text), (
-        "build_prewarm_macos.sh must accept both x86_64 + aarch64 arches."
-    )
-
-
-def test_prewarm_script_uses_macos_app_mode_background(prewarm_text: str):
-    """The prewarm script must also pass ``--macos-app-mode=background``."""
-    assert "--macos-app-mode=background" in prewarm_text, (
-        "build_prewarm_macos.sh must pass --macos-app-mode=background "
-        "(prewarm runs with no Dock icon, LSUIElement=true)."
-    )
-
-
-def test_prewarm_script_entry_point_is_prewarm_py(prewarm_text: str):
-    """The Nuitka entry point must be ``voice_typer/server/prewarm/__main__.py``."""
-    assert "voice_typer/server/prewarm/__main__.py" in prewarm_text, (
-        "build_prewarm_macos.sh entry point must be voice_typer/server/prewarm/__main__.py (ADR-0011 + ADR-0020 §5)."
-    )
-
-
-def test_prewarm_script_has_xplat3_ctranslate2_libs_guard(prewarm_text: str):
-    """The prewarm script must also have the XPLAT-3 ctranslate2/libs guard."""
-    assert "CT2_LIBS_DIR" in prewarm_text
-    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' in prewarm_text
-    assert '--include-data-dir="$CT2_LIBS_DIR=$CT2_LIBS_DIR"' in prewarm_text
-
-
 def test_sidecar_script_supports_check_mode(sidecar_text: str):
     """The sidecar script must support a ``--check`` arg to verify the toolchain."""
     assert '"--check"' in sidecar_text or "--check" in sidecar_text
@@ -473,18 +375,3 @@ def test_known_gap_no_pyobjc_include_flag(sidecar_text: str):
     )
 
 
-def test_prewarm_check_delegates_to_sidecar_check(prewarm_text: str):
-    """real toolchain probe: nuitka + faster_whisper + ctranslate2 +"""
-    assert "build_sidecar_macos.sh" in prewarm_text, (
-        "build_prewarm_macos.sh --check must delegate to "
-        "build_sidecar_macos.sh --check (WR-18) instead of the old "
-        "no-op stub."
-    )
-    assert "OK if that passes" not in prewarm_text, (
-        "build_prewarm_macos.sh must NOT contain the old 'OK if that "
-        "passes' stub, the WR-18 fix replaced it with a real delegation."
-    )
-    assert "import nuitka" not in prewarm_text, (
-        "build_prewarm_macos.sh must not import nuitka directly, the "
-        "toolchain probe is delegated to build_sidecar_macos.sh --check."
-    )

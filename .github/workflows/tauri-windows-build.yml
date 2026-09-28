@@ -230,18 +230,20 @@ jobs:
           $PYBS = $env:PYBS
           $SITE = & $PYBS\python.exe -c "import site; print(site.getsitepackages()[-1])"
           Write-Host "PYBS=$PYBS  SITE=$SITE"
-          # ctranslate2 ships DLLs directly in ctranslate2/ (not ctranslate2/lib/).
-          $ct2Dir = "$SITE\ctranslate2"
+          # ADR-0025 C7: ASR lives in the pack worker — the ctranslate2
+          # DLL/data-dir plumbing below was deleted in the same change
+          # (mirrors scripts/build/build_sidecar_windows.sh); the WORKER
+          # build owns those flags now.
           $dataDirFlag = @()
-          if (Test-Path "$ct2Dir\lib") {
-            $dataDirFlag = @("--include-data-dir=$ct2Dir\lib=ctranslate2/lib")
-          } elseif (Test-Path $ct2Dir) {
-            $dataDirFlag = @("--include-data-dir=$ct2Dir=ctranslate2")
-          }
           # S4-CR-25 / nu-opt-1: psutil imports ALL platform submodules
           # NU-106 / C-CI-8: torch removed runtime-wide (VAD on ONNX). Never re-add
           # --nofollow-import-to for torch.utils.data.distributed / torch.export /
-          # torch._functorch / torch.testing / torch.package if torch returns.
+          # torch._functorch / torch.testing / torch.package if torch returns
+          # (those leave a broken half-compiled torch behind). The top-level
+          # --nofollow-import-to=torch below is different and safe: our code
+          # never imports torch (only onnxruntime/transformers/machine_info.py
+          # has a guarded probe import nobody calls), and compiling torch 2.13
+          # crashes the Nuitka optimizer (torch._dynamo.pgo).
           # IPD-1 / C-CI-9: keep --include-package-data=voice_typer.server,
           # --windows-console-mode=disable, --onefile-tempdir-spec (missing package
           # data = launch FileNotFoundError that builds fine in CI).
@@ -271,8 +273,9 @@ jobs:
               --nofollow-import-to=psutil._psbsd `
               --nofollow-import-to=psutil._pssunos `
               --nofollow-import-to=psutil._psaix `
-              --include-package=faster_whisper `
-              --include-package=ctranslate2 `
+              --nofollow-import-to=faster_whisper `
+              --nofollow-import-to=ctranslate2 `
+              --nofollow-import-to=torch `
               --include-package=voice_typer `
               --include-package=websockets `
               # ADR-0023 packaging: media ingest lazily imports yt_dlp /
@@ -441,6 +444,17 @@ jobs:
             tests/tauri/test_gen_tauri_icons_stub.py::test_per_arch_configs_do_not_override_bundle_icon \
             tests/tauri/test_config_script_drift.py \
             -q --no-cov
+
+      # ADR-0024 Step 7 slim-core ML-import ratchet: the slim core must not
+      # GROW its faster_whisper / ctranslate2 import footprint (they are the
+      # worker's, not the slim core's). onnxruntime is intentionally NOT
+      # counted — VAD + the GTCRN filter stay in the slim core on the real-time
+      # audio path (ADR-0024 Step-7 ownership decision, plan §5.3). Pure
+      # source-level check; runs AFTER the drift pytest and BEFORE stub gen so
+      # C-CI-7's ordering (drift -> [this] -> stub-gen -> --check-icons) holds.
+      - name: Assert slim-core ML-import ratchet (Step 7 fail-fast gate)
+        shell: bash
+        run: python scripts/slim_core_ml_ratchet_check.py
 
       # C-CI-7: generate placeholder BINARY stubs (icons are real committed files).
       - name: Generate Tauri binary stubs

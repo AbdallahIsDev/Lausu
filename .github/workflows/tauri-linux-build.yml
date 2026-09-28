@@ -10,7 +10,7 @@
 #   [ ] 4. enigo types on X11; clipboard + Ctrl+V fallback (wl-copy) on Wayland
 #   [ ] 5. tauri-plugin-notification posts via libnotify on X11 + Wayland
 #   [ ] 6. Cooperative {"type":"shutdown"} exits; kill_children cleans
-#   [ ] 7. Prewarm exe registered as systemd user timer
+#   [ ] 7. Prewarm (startup warm phase via worker) works; no orphan systemd timer spam
 #   [ ] 8. Native linux-key-listener toggles dictation on X11 (XRecord) + Wayland
 #   [ ] 9. Single-instance (lockfile) — second launch focuses first
 # Display smoke is NOT run in CI (no display server); runbook:
@@ -18,7 +18,7 @@
 
 name: Build Linux
 
-# Phase 0-L: Nuitka sidecar + prewarm + native listener + Tauri bundle.
+# Phase 0-L: Nuitka sidecar + native listener + Tauri bundle.
 # ENABLED for Phase 0-L validation — workflow_dispatch / workflow_call ONLY
 # (never push/PR). aarch64 cross-compiles via qemu-user-static (binfmt_misc
 # registers qemu-aarch64-static on the x86_64 runner). sign stays false —
@@ -160,17 +160,7 @@ jobs:
           echo 'placeholder' > resources/native/windows-key-listener.exe
           echo 'placeholder' > resources/native/macos-key-listener
           echo 'placeholder' > resources/native/linux-key-listener
-          # 3. Prewarm binaries (one per target triple).
-          for p in \
-            prewarm-x86_64-pc-windows-msvc.exe \
-            prewarm-aarch64-pc-windows-msvc.exe \
-            prewarm-x86_64-apple-darwin \
-            prewarm-aarch64-apple-darwin \
-            prewarm-x86_64-unknown-linux-gnu \
-            prewarm-aarch64-unknown-linux-gnu; do
-            echo 'placeholder' > "resources/${p}"
-          done
-          # 4. Linux install scripts (real files, checked in — but stub
+          # 3. Linux install scripts (real files, checked in — but stub
           # here in case the checkout is shallow and they're missing).
           for f in \
             install_permissions.py \
@@ -180,7 +170,7 @@ jobs:
             lausu.polkit; do
             [ -f "resources/linux-scripts/${f}" ] || echo 'placeholder' > "resources/linux-scripts/${f}"
           done
-          # 5. Tauri icon files (not tracked in git — tauri.conf.json
+          # 4. Tauri icon files (not tracked in git — tauri.conf.json
           mkdir -p icons
           for icon in 32x32.png 128x128.png 128x128@2x.png icon.png; do
             [ -f "icons/${icon}" ] || python3 -c "
@@ -205,7 +195,7 @@ jobs:
                   f.write(sig + ihdr + idat + iend)
           _png1x1('icons/${icon}')"
           done
-          echo "[smoke] Placeholder stubs created for sidecar + native listeners + prewarm + linux-scripts + icons"
+          echo "[smoke] Placeholder stubs created for sidecar + native listeners + linux-scripts + icons"
 
       - name: cargo check (Tauri Rust host)
         working-directory: src-tauri
@@ -466,20 +456,16 @@ jobs:
           fi
           echo "Runtime pack size within 200 MB limit (size gate passed)."
 
-      - name: Build Nuitka prewarm (${{ env.BUILD_ARCH }})
-        run: bash scripts/build/build_prewarm_linux.sh "$BUILD_ARCH"
-        env:
-          VOICE_TYPER_PYBS_DIR: ${{ github.workspace }}/.python-build-standalone
+      # NOTE: standalone prewarm binary REMOVED (plan-runtime-pack-split §6.2 P-1).
+      # build_prewarm_linux.sh targeted a deleted module and failed every dispatch.
 
-      - name: Verify sidecar + prewarm binaries
+      - name: Verify sidecar binary
         run: |
           set -euo pipefail
           TRIPLE="${BUILD_ARCH}-unknown-linux-gnu"
           BIN="src-tauri/bin/python-sidecar-${TRIPLE}"
-          PREWARM="src-tauri/resources/prewarm-${TRIPLE}"
           LISTENER="src-tauri/resources/native/linux-key-listener"
           test -x "$BIN"      || { echo "MISSING: $BIN";      exit 1; }
-          test -x "$PREWARM"  || { echo "MISSING: $PREWARM";  exit 1; }
           # S2-CR-67: native listener is now built for BOTH arches (x86_64
           test -x "$LISTENER" || { echo "MISSING: $LISTENER"; exit 1; }
           # Use objdump -p for cross binaries (ldd can't run aarch64 ELF on
@@ -491,10 +477,8 @@ jobs:
           fi
           echo "=== $LDD $BIN ==="
           $LDD "$BIN" | head -20
-          echo "=== $LDD $PREWARM ==="
-          $LDD "$PREWARM" | head -20
           # Verify glibc baseline (≤ 2.35 for Ubuntu 22.04 compat).
-          for f in "$BIN" "$PREWARM"; do
+          for f in "$BIN"; do
             MAX_GLIBC=$($LDD "$f" 2>/dev/null | grep -oE 'GLIBC_[0-9]+\.[0-9]+' | sort -V | tail -1 || true)
             echo "$f → $MAX_GLIBC"
             if [[ -n "$MAX_GLIBC" ]]; then
@@ -554,7 +538,7 @@ jobs:
             tests/tauri/test_config_script_drift.py \
             -q --no-cov
 
-      # generate placeholder BINARY stubs (sidecar / native / prewarm) if
+      # generate placeholder BINARY stubs (sidecar / native) if
       - name: Generate Tauri binary stubs
         run: |
           python3 scripts/gen_tauri_icons_stub.py --check || python3 scripts/gen_tauri_icons_stub.py
@@ -660,7 +644,7 @@ jobs:
           name: lausu-${{ env.BUILD_ARCH }}-build-logs
           path: |
             src-tauri/bin/.build-sidecar-*.log
-            src-tauri/resources/.build-prewarm-*.log
+            src-tauri/resources/.build-sidecar-*.log
             src-tauri/target/*/release/.frozen/Cargo.lock
           if-no-files-found: warn
 

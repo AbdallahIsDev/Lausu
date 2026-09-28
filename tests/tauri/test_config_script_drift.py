@@ -205,9 +205,6 @@ BUILD_SCRIPTS = [
     "scripts/build/build_sidecar_windows.sh",
     "scripts/build/build_sidecar_linux.sh",
     "scripts/build/build_sidecar_macos.sh",
-    "scripts/build/build_prewarm_windows.sh",
-    "scripts/build/build_prewarm_linux.sh",
-    "scripts/build/build_prewarm_macos.sh",
 ]
 WINDOWS_WORKFLOW = PROJECT_ROOT / ".github" / "workflows" / "tauri-windows-build.yml"
 
@@ -250,7 +247,7 @@ class TestNuitkaBuildsIncludeLausuPackageData:
             )
 
     def test_windows_workflow_every_nuitka_invocation_has_the_flag(self) -> None:
-        """Both inline Nuitka commands (sidecar + prewarm) carry the flag."""
+        """Every Nuitka command (sidecar) carries the flag."""
         text = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
         flag = "--include-package-data=voice_typer.server"
         nuitka_count = text.count("-m nuitka")
@@ -274,31 +271,26 @@ WORKER_SCRIPTS = [
     "scripts/build/build_worker_macos.sh",
 ]
 
-PREWARM_SCRIPTS = [
-    "scripts/build/build_prewarm_windows.sh",
-    "scripts/build/build_prewarm_linux.sh",
-    "scripts/build/build_prewarm_macos.sh",
-]
 
 # Every Nuitka build script that freezes ``voice_typer``. The torch-free
-TORCH_FREE_SCRIPTS = SIDECAR_SCRIPTS + WORKER_SCRIPTS + PREWARM_SCRIPTS
-
-PYINSTALLER_SPEC = PROJECT_ROOT / "scripts" / "build" / "lausu.spec"
+TORCH_FREE_SCRIPTS = SIDECAR_SCRIPTS + WORKER_SCRIPTS
 
 
 class TestNuitkaSidecarBuildsDoNotExcludeTorchDistributed:
-    """
-    Nuitka build scripts must stay torch-free (Phase 1c retirement of C-CI-8/NU-106).
-    Sanctioned C-CI-8 retirement, why the old contract is gone: torch is
-    """
+    """Nuitka build scripts must stay torch-free (Phase 1c retirement of C-CI-8/NU-106)."""
 
     def test_no_sidecar_build_excludes_unconditionally_imported_torch_modules(
         self,
     ) -> None:
-        """No build script may carry any torch Nuitka flag."""
+        """No build script may carry dead torch Nuitka flags.
+
+        The top-level ``--nofollow-import-to=torch`` is NOT forbidden here:
+        it keeps torch out entirely (a stray torch in a build env crashes
+        Nuitka via onnxruntime's guarded probe import) and is pinned where
+        added by tests/test_nuitka_asr_exclusions.py.
+        """
         forbidden = [
             "torch-disable-jit",
-            "nofollow-import-to=torch",
         ]
         for rel in TORCH_FREE_SCRIPTS:
             text = (PROJECT_ROOT / rel).read_text(encoding="utf-8")
@@ -311,8 +303,18 @@ class TestNuitkaSidecarBuildsDoNotExcludeTorchDistributed:
                     "that check_bundle_torch_free.sh forbids."
                 )
 
+    def test_all_build_scripts_nofollow_torch(self) -> None:
+        """Every freeze script must carry the top-level torch exclusion."""
+        for rel in TORCH_FREE_SCRIPTS:
+            text = (PROJECT_ROOT / rel).read_text(encoding="utf-8")
+            assert "--nofollow-import-to=torch" in text, (
+                f"{rel} must exclude torch (C-CI-8): a stray torch in any "
+                "build env crashes Nuitka via onnxruntime's guarded probe "
+                "import, even though our code never imports torch."
+            )
+
     def test_no_build_script_carries_torch_jit_flag(self) -> None:
-        """All nine builds must be free of the torch JIT module-parameter."""
+        """All freeze builds must be free of the torch JIT module-parameter."""
         required_absent = "torch-disable-jit"
         for rel in TORCH_FREE_SCRIPTS:
             text = (PROJECT_ROOT / rel).read_text(encoding="utf-8")
@@ -322,18 +324,6 @@ class TestNuitkaSidecarBuildsDoNotExcludeTorchDistributed:
                 "torch.jit.load left to protect (Phase 1c retirement of "
                 "the NU-106 keep-JIT guard)."
             )
-
-    def test_spec_bundles_onnx_not_jit(self) -> None:
-        """The PyInstaller fallback spec must bundle ``silero_vad.onnx``."""
-        text = PYINSTALLER_SPEC.read_text(encoding="utf-8")
-        assert "silero_vad.onnx" in text, (
-            "scripts/build/lausu.spec must reference silero_vad.onnx (the ORT-loaded VAD model)."
-        )
-        assert "silero_vad.jit" not in text, (
-            "scripts/build/lausu.spec must NOT reference "
-            "silero_vad.jit (legacy torch JIT model, forbidden by the "
-            "Phase 1c torch-free gate)."
-        )
 
 
 class TestTauriNsisInstallerHooks:

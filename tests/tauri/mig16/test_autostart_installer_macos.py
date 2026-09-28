@@ -526,9 +526,9 @@ def test_ci_workflow_runs_codesign_notarytool_stapler():
     assert "universal-apple-darwin" in yaml_text, (
         "CI workflow must build a universal .app + .dmg (--target universal-apple-darwin, combines x86_64 + aarch64)"
     )
-    assert "aarch64-apple-darwin" in yaml_text, "CI workflow must build the aarch64 (Apple Silicon) sidecar + prewarm"
+    assert "aarch64-apple-darwin" in yaml_text, "CI workflow must build the aarch64 (Apple Silicon) sidecar"
     assert "x86_64-apple-darwin" in yaml_text, (
-        "CI workflow must build the x86_64 (Intel, via Rosetta 2) sidecar + prewarm"
+        "CI workflow must build the x86_64 (Intel, via Rosetta 2) sidecar"
     )
 
     # 6. The workflow jobs are enabled (`if: true`, GAP-3 closed, ):

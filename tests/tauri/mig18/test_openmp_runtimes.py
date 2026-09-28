@@ -1,6 +1,10 @@
 """
-OpenMP runtimes bundling validation (Win + macOS + Linux).
-Gaps documented (report, do NOT fix, out of scope for MIG-1.8):
+OpenMP / ctranslate2 bundling validation (Win + macOS + Linux).
+
+C7 (ADR-0025): ASR lives in the pack worker — the slim sidecar bundles
+no ctranslate2 native libs and needs no OpenMP runtime of its own. The
+old bundling pins below were inverted to absence pins: re-adding CT2
+plumbing fails loudly here (and in test_nuitka_asr_exclusions.py).
 """
 
 from __future__ import annotations
@@ -76,177 +80,33 @@ def test_build_script_is_bash_syntax_valid(script: Path):
     )
 
 
-def test_windows_bundles_libiomp5md_dll_via_include_data_dir(windows_text: str):
-    """Windows must ``--include-data-dir`` the ctranslate2 native-DLL folder."""
-    assert "--include-data-dir" in windows_text, (
-        "build_sidecar_windows.sh must use --include-data-dir for the "
-        "ctranslate2 native-DLL folder (captures libiomp5md.dll + MKL/OpenMP DLLs)."
-    )
-    assert '--include-data-dir="$CT2_DATA_DIR_SRC=$CT2_DATA_DIR_DEST"' in windows_text, (
-        "build_sidecar_windows.sh must --include-data-dir the layout-resolved "
-        "ctranslate2 native-DLL folder ($CT2_DATA_DIR_SRC=$CT2_DATA_DIR_DEST)."
-    )
-    # Both layouts must resolve a RELATIVE dest (absolute dests are silently
-    assert 'CT2_DATA_DIR_DEST="ctranslate2/lib"' in windows_text, (
-        "the lib/ layout must map to a RELATIVE dest (ctranslate2/lib)."
-    )
-    assert 'CT2_DATA_DIR_DEST="ctranslate2"' in windows_text, (
-        "the package-root layout must map to a RELATIVE dest (ctranslate2)."
-    )
-    assert '--include-dll="$CT2_DLL"' in windows_text, (
-        "build_sidecar_windows.sh must also --include-dll ctranslate2.dll explicitly."
-    )
+def test_windows_has_no_ct2_native_lib_plumbing(windows_text: str):
+    """C7: no ctranslate2 data-dir/DLL plumbing may remain (worker owns it)."""
+    for token in ("CT2_DATA_DIR_SRC", "CT2_DLL", "CT2_LIBS_DIR", "CT2_LIB_DIR", "CT2_DIR"):
+        assert token not in windows_text, f"build_sidecar_windows.sh still references {token}"
+    assert "--include-data-dir" not in windows_text, "slim Windows build must not --include-data-dir anything"
 
 
-def test_windows_bundles_ctranslate2_dll_explicitly(windows_text: str):
-    """Windows must also ``--include-dll`` the ``ctranslate2.dll`` explicitly."""
-    assert "--include-dll" in windows_text, (
-        "build_sidecar_windows.sh must use --include-dll for ctranslate2.dll (Nuitka does not glob *.dll)."
-    )
-    assert "ctranslate2.dll" in windows_text, "build_sidecar_windows.sh must --include-dll ctranslate2.dll explicitly."
+def test_macos_has_no_ct2_native_lib_plumbing(macos_text: str):
+    """C7: no ctranslate2 data-dir plumbing may remain (worker owns it)."""
+    for token in ("CT2_DATA_DIR_SRC", "CT2_DLL", "CT2_LIBS_DIR", "CT2_LIB_DIR", "CT2_DIR"):
+        assert token not in macos_text, f"build_sidecar_macos.sh still references {token}"
+    assert "ctranslate2/lib" not in macos_text, "slim macOS build must not reference ctranslate2/lib"
 
 
-def test_windows_documents_libiomp5md_dll_in_header(windows_text: str):
-    """The Windows script header must mention ``libiomp5md.dll`` by name."""
-    assert "libiomp5md.dll" in windows_text, (
-        "build_sidecar_windows.sh must document libiomp5md.dll in its header "
-        "comment (ADR-0020 §4.2 + §11 'easy to miss, instant crash if absent')."
-    )
-
-
-def test_macos_bundles_libiomp5_dylib_via_include_data_dir(macos_text: str):
-    """macOS must ``--include-data-dir`` the ``ctranslate2/lib`` folder."""
-    assert "--include-data-dir" in macos_text, (
-        "build_sidecar_macos.sh must use --include-data-dir for the "
-        "ctranslate2/lib folder (captures libiomp5.dylib OpenMP runtime)."
-    )
-    assert "ctranslate2/lib" in macos_text, (
-        "build_sidecar_macos.sh must reference ctranslate2/lib in its --include-data-dir flag."
-    )
-    assert '--include-data-dir="$CT2_LIB_DIR=$CT2_LIB_DIR"' in macos_text, (
-        "build_sidecar_macos.sh must have the unconditional "
-        '--include-data-dir="$CT2_LIB_DIR=$CT2_LIB_DIR" flag in the main '
-        "Nuitka invocation (ctranslate2/lib is mandatory, not optional)."
-    )
-
-
-def test_macos_documents_libiomp5_dylib_in_header(macos_text: str):
-    """The macOS script header must mention ``libiomp5.dylib`` by name."""
-    assert "libiomp5.dylib" in macos_text, (
-        "build_sidecar_macos.sh must document libiomp5.dylib in its header "
-        "comment (ADR-0020 §4.3, the macOS OpenMP runtime)."
-    )
-
-
-def test_linux_bundles_openmp_runtime_via_include_data_dir(linux_text: str):
-    """Linux must ``--include-data-dir`` the ``ctranslate2/lib`` folder."""
-    assert "--include-data-dir" in linux_text, (
-        "build_sidecar_linux.sh must use --include-data-dir for the "
-        "ctranslate2/lib folder (captures libgomp.so / libiomp5.so OpenMP runtime)."
-    )
-    assert "ctranslate2/lib" in linux_text, (
-        "build_sidecar_linux.sh must reference ctranslate2/lib in its --include-data-dir flag."
-    )
-    assert '--include-data-dir="$SITE/ctranslate2/lib=$SITE/ctranslate2/lib"' in linux_text, (
-        "build_sidecar_linux.sh must have the unconditional "
-        '--include-data-dir="$SITE/ctranslate2/lib=$SITE/ctranslate2/lib" '
-        "flag in the main Nuitka invocation (ctranslate2/lib is mandatory, "
-        "not optional)."
-    )
-
-
-def test_linux_documents_both_libgomp_and_libiomp5_in_header(linux_text: str):
-    """The Linux script header must mention BOTH ``libgomp.so`` AND ``libiomp5.so``."""
-    assert "libgomp.so" in linux_text or "libgomp" in linux_text, (
-        "build_sidecar_linux.sh must document libgomp.so (GNU OpenMP) in its "
-        "header comment (ADR-0020 §4.4, Linux OpenMP runtime)."
-    )
-    assert "libiomp5.so" in linux_text or "libiomp5" in linux_text, (
-        "build_sidecar_linux.sh must document libiomp5.so (Intel OpenMP) in "
-        "its header comment (ADR-0020 §4.4, Linux OpenMP runtime)."
-    )
+def test_linux_has_no_ct2_native_lib_plumbing(linux_text: str):
+    """C7: no ctranslate2 data-dir plumbing may remain (worker owns it)."""
+    for token in ("CT2_DATA_DIR_SRC", "CT2_DLL", "CT2_LIBS_DIR", "CT2_DIR"):
+        assert token not in linux_text, f"build_sidecar_linux.sh still references {token}"
+    assert "ctranslate2/lib" not in linux_text, "slim Linux build must not reference ctranslate2/lib"
 
 
 @pytest.mark.parametrize("script", ALL_BUILD_SCRIPTS)
-def test_ctranslate2_lib_data_dir_is_unconditional(script: Path):
-    """``ctranslate2/lib`` (singular) must be bundled unconditionally."""
+def test_no_ct2_data_dir_guards_remain(script: Path):
+    """C7: the XPLAT-3/BUILD-2 CT2 guard blocks are gone with the plumbing."""
     text = script.read_text(encoding="utf-8")
-    # Sanity: the script must reference ctranslate2/lib somewhere.
-    assert "ctranslate2/lib" in text, (
-        f"{script.name} must reference ctranslate2/lib (the mandatory dir containing the OpenMP runtime)."
-    )
-    # Find every --include-data-dir line that references ctranslate2/lib.
-    lines = text.splitlines()
-    in_guard_block = False
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-        # Track entry into the `if [[ -d "$CT2_LIBS_DIR" ]]` guard block.
-        if 'if [[ -d "$CT2_LIBS_DIR"' in stripped or ("CT2_LIBS_DIR" in stripped and stripped.startswith("if ")):
-            in_guard_block = True
-        # The guard block ends at the matching `fi`.
-        if in_guard_block and stripped == "fi":
-            in_guard_block = False
-        # (but NOT ctranslate2/libs plural) must NOT be in the guard block.
-        if "--include-data-dir" in stripped and "ctranslate2/lib" in stripped:
-            # Skip plural form (ctranslate2/libs).
-            if "ctranslate2/libs" in stripped:
-                continue
-            # This is a singular ctranslate2/lib include-data-dir line.
-            assert not in_guard_block, (
-                f"{script.name} line {i + 1}: --include-data-dir for "
-                "ctranslate2/lib (singular, mandatory) is INSIDE an "
-                "`if [[ -d ... ]]` guard block. The ctranslate2/lib "
-                "folder must be bundled UNCONDITIONALLY, it contains "
-                "the OpenMP runtime (libiomp5md.dll / libiomp5.dylib / "
-                "libgomp.so). See ADR-0020 §11."
-            )
-
-
-# 6. ctranslate2/libs data-dir is GUARDED ( pattern) ───────────────
-def test_macos_has_xplat3_ctranslate2_libs_guard(macos_text: str):
-    """macOS must guard ``ctranslate2/libs`` (plural) with ``if [[ -d ... ]]``."""
-    assert "CT2_LIBS_DIR" in macos_text, "build_sidecar_macos.sh must define CT2_LIBS_DIR (XPLAT-3 pattern)."
-    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' in macos_text, (
-        "build_sidecar_macos.sh must guard the ctranslate2/libs include with "
-        '`if [[ -d "$CT2_LIBS_DIR" ]]; then ... fi` (XPLAT-3 pattern).'
-    )
-    assert '--include-data-dir="$CT2_LIBS_DIR=$CT2_LIBS_DIR"' in macos_text, (
-        "build_sidecar_macos.sh must --include-data-dir for $CT2_LIBS_DIR inside the guard block."
-    )
-
-
-def test_linux_has_xplat3_ctranslate2_libs_guard(linux_text: str):
-    """Linux must guard ``ctranslate2/libs`` (plural) with ``if [[ -d ... ]]``."""
-    assert "CT2_LIBS_DIR" in linux_text, "build_sidecar_linux.sh must define CT2_LIBS_DIR (XPLAT-3 pattern)."
-    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' in linux_text, (
-        "build_sidecar_linux.sh must guard the ctranslate2/libs include with "
-        '`if [[ -d "$CT2_LIBS_DIR" ]]; then ... fi` (XPLAT-3 pattern).'
-    )
-    assert '--include-data-dir="$CT2_LIBS_DIR=$CT2_LIBS_DIR"' in linux_text, (
-        "build_sidecar_linux.sh must --include-data-dir for $CT2_LIBS_DIR inside the guard block."
-    )
-
-
-def test_windows_known_gap_no_ctranslate2_libs_guard(windows_text: str):
-    """BUILD-2 fix: the Windows script now HAS the ctranslate2/libs guard."""
-    # The Linux + macOS siblings MUST have the libs guard (sanity check
-    linux_text = LINUX_SCRIPT.read_text(encoding="utf-8")
-    macos_text = MACOS_SCRIPT.read_text(encoding="utf-8")
-    assert "CT2_LIBS_DIR" in linux_text, (
-        "Reference pattern broken: build_sidecar_linux.sh should have CT2_LIBS_DIR (XPLAT-3 guard)."
-    )
-    assert "CT2_LIBS_DIR" in macos_text, (
-        "Reference pattern broken: build_sidecar_macos.sh should have CT2_LIBS_DIR guard."
-    )
-
-    # BUILD-2 fix: the Windows script now HAS the libs guard.
-    assert "CT2_LIBS_DIR" in windows_text, "build_sidecar_windows.sh should have CT2_LIBS_DIR guard (BUILD-2 fix)."
-    assert "ctranslate2/libs" in windows_text, (
-        "build_sidecar_windows.sh should reference ctranslate2/libs (BUILD-2 fix)."
-    )
-    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' in windows_text, (
-        "build_sidecar_windows.sh should guard the libs include with if [[ -d (BUILD-2 fix)."
-    )
+    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' not in text, f"{script.name} still guards a removed CT2 dir"
+    assert "CT2_LIBS_DIR" not in text, f"{script.name} still defines CT2_LIBS_DIR"
 
 
 def test_macos_sibling_uses_nuitka_args_array_pattern(macos_text: str):
@@ -261,20 +121,17 @@ def test_linux_sibling_uses_nuitka_args_array_pattern(linux_text: str):
     assert '"${NUITKA_ARGS[@]}"' in linux_text
 
 
-def test_all_three_scripts_reference_ctranslate2_package(windows_text: str, macos_text: str, linux_text: str):
-    """All 3 scripts must ``--include-package=ctranslate2``."""
+def test_all_three_scripts_exclude_ctranslate2_package(windows_text: str, macos_text: str, linux_text: str):
+    """C7: all 3 scripts must ``--nofollow-import-to=ctranslate2``."""
     for label, text in (("windows", windows_text), ("macos", macos_text), ("linux", linux_text)):
-        assert "--include-package=ctranslate2" in text, (
-            f"build_sidecar_{label}.sh must --include-package=ctranslate2 "
-            "(the Python package, distinct from the data-dir that bundles "
-            "the native DLLs)."
-        )
+        assert "--nofollow-import-to=ctranslate2" in text, f"build_sidecar_{label}.sh must exclude ctranslate2"
+        assert "--include-package=ctranslate2" not in text, f"build_sidecar_{label}.sh must not bundle ctranslate2"
 
 
-def test_all_three_scripts_reference_faster_whisper_package(windows_text: str, macos_text: str, linux_text: str):
-    """All 3 scripts must ``--include-package=faster_whisper``."""
+def test_all_three_scripts_exclude_faster_whisper_package(windows_text: str, macos_text: str, linux_text: str):
+    """C7: all 3 scripts must ``--nofollow-import-to=faster_whisper``."""
     for label, text in (("windows", windows_text), ("macos", macos_text), ("linux", linux_text)):
-        assert "--include-package=faster_whisper" in text, (
-            f"build_sidecar_{label}.sh must --include-package=faster_whisper "
-            "(the consumer of ctranslate2 that loads the OpenMP runtime)."
+        assert "--nofollow-import-to=faster_whisper" in text, f"build_sidecar_{label}.sh must exclude faster_whisper"
+        assert "--include-package=faster_whisper" not in text, (
+            f"build_sidecar_{label}.sh must not bundle faster_whisper"
         )

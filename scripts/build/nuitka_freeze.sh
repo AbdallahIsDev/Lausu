@@ -60,7 +60,7 @@
 #   docs/adr/0020-desktop-runtime-migration-analysis.md   §4 (Nuitka freeze spec)
 #   docs/migration/{windows,macos,linux}-validation-runbook.md   Phase 0 gates
 #   scripts/build/build_tauri_all.sh                       Full build orchestrator
-#   scripts/build/lausu.spec                         PyInstaller fallback (ADR §4.5)
+#   (PyInstaller fallback lausu.spec deleted — Nuitka only)
 # =============================================================================
 set -euo pipefail
 
