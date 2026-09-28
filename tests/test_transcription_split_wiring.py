@@ -27,31 +27,29 @@ class TestDelegateResolutionIdentity:
     """The facade's ``*_impl`` bindings must BE the canonical functions."""
 
     def test_cuda_probe_delegates(self):
-        from voice_typer.worker.whisper import engine as facade
         from voice_typer.server import transcription_cuda_probe as mod
+        from voice_typer.worker.whisper import engine as facade
 
         assert facade._probe_cuda_runtime_impl is mod.probe_cuda_runtime
         assert facade._warm_up_model_impl is mod.warm_up_model
 
     def test_device_delegates(self):
-        from voice_typer.worker.whisper import engine as facade
-        from voice_typer.worker.whisper import device as mod
+        from voice_typer.worker.whisper import device as mod, engine as facade
 
         assert facade._resolve_device_impl is mod.resolve_device
         assert facade._resolve_device_once_impl is mod.resolve_device_once
         assert facade._apply_auto_beam_size_impl is mod.apply_auto_beam_size
 
     def test_download_delegates(self):
-        from voice_typer.worker.whisper import engine as facade
         from voice_typer.server import transcription_download as mod
+        from voice_typer.worker.whisper import engine as facade
 
         assert facade._probe_cache_impl is mod.probe_cache
         assert facade._require_model_downloaded_impl is mod.require_model_downloaded
         assert facade._whisper_size_cached_impl is mod.whisper_size_cached
 
     def test_fallback_delegates(self):
-        from voice_typer.worker.whisper import engine as facade
-        from voice_typer.worker.whisper import fallback as mod
+        from voice_typer.worker.whisper import engine as facade, fallback as mod
 
         assert facade._with_gpu_fallback_impl is mod.with_gpu_fallback
         assert facade._is_gpu_runtime_error_impl is mod.is_gpu_runtime_error
@@ -59,8 +57,7 @@ class TestDelegateResolutionIdentity:
 
     def test_engine_methods_call_the_extracted_bodies(self, monkeypatch):
         """Calling the engine method dispatches into the extracted module."""
-        from voice_typer.worker.whisper import engine as facade
-        from voice_typer.worker.whisper import TranscriptionEngine
+        from voice_typer.worker.whisper import TranscriptionEngine, engine as facade
 
         seen = []
         monkeypatch.setattr(
