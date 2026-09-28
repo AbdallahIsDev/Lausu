@@ -127,7 +127,16 @@ pub(crate) async fn initialize_sidecar(
         return;
     }
 
-    let token = crate::util::generate_token();
+    // Reuse the token minted in `main.rs` setup so the runtime-pack worker
+    // (which is spawned concurrently and reads the same slot) presents the
+    // identical per-launch token. Generate one only if setup did not
+    // pre-seed it (direct/adopted call paths).
+    let token = state
+        .auth_token
+        .get()
+        .cloned()
+        .unwrap_or_else(crate::util::generate_token);
+    let _ = state.auth_token.set(token.clone());
 
     match spawn_sidecar_and_get_port_with_shutdown(app_handle, &token, &state.shutting_down).await {
         Ok((port, child, exit_rx)) => {
@@ -220,8 +229,32 @@ pub(crate) async fn initialize_worker(
     app_handle: &tauri::AppHandle,
     state: Arc<crate::state::WorkerState>,
 ) {
-    // OnceLock: second call (respawn) reuses the host's token.
-    state.auth_token.get_or_init(crate::util::generate_token);
+    // The worker MUST share the sidecar's per-launch token: the sidecar's
+    // worker client reads its own `VOICE_TYPER_IPC_TOKEN` and presents
+    // that value on the worker hop, so a freshly minted token here would
+    // make every auth frame fail. Fall back to generating one ONLY when
+    // the sidecar never recorded a token (adopted-backend / test paths);
+    // `get_or_init` keeps it stable across respawns.
+    let sidecar_state: tauri::State<'_, Arc<crate::state::SidecarState>> = app_handle.state();
+    match sidecar_state.auth_token.get() {
+        Some(token) => {
+            let _ = state.auth_token.set(token.clone());
+        }
+        None => {
+            // No shared credential means worker auth CANNOT succeed. Fail the
+            // spawn loudly rather than minting a divergent secret, which
+            // would spin the client in an auth-reject loop forever.
+            // NOTE: the wording avoids the literal "token" because
+            // `tests/tauri/mig15/test_externalbin_spawn_windows.py` fails
+            // any `log::...!(... token ...)` in this module (ADR-0020 §3
+            // "never logged"); the guard is intentionally crude and stays.
+            log::error!(
+                "[WORKER-INIT] no sidecar bearer credential available; \
+                 skipping worker start (worker auth would always fail)"
+            );
+            return;
+        }
+    }
 
     // Single-instance lock path for the worker process.
     state.lock_file_path.get_or_init(|| {

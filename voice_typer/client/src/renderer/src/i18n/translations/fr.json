@@ -1996,7 +1996,10 @@
 	},
 	"pack": {
 		"preparingOfflineEngine": "Préparation du moteur hors ligne…",
-		"preparingOfflineEngineAria": "Préparation du moteur hors ligne. Statut : {status}"
+		"preparingOfflineEngineAria": "Préparation du moteur hors ligne. Statut : {status}",
+		"downloadOfflineEngine": "Télécharger le moteur hors ligne",
+		"downloadOfflineEngineBusy": "Téléchargement…",
+		"downloadOfflineEngineAria": "Télécharger le pack du moteur vocal hors ligne"
 	},
 	"consentDialog": {
 		"title": "Consentement requis",
@@ -2034,7 +2037,8 @@
 		"pasteDeferred": "Collage automatique ignoré: la transcription est dans votre presse-papiers",
 		"pasteDeferredHint": "La commande de collage n'a pas pu être envoyée à l'application cible. Collez le texte vous-même avec votre raccourci de collage habituel.",
 		"pasteDeferredHintSecureInput": "L'application cible a activé la saisie sécurisée (Secure Input, par exemple un champ de mot de passe), ce qui bloque les frappes synthétiques. Collez le texte vous-même avec votre raccourci de collage habituel.",
-		"pasteDeferredHintIme": "Une composition IME était en cours, la commande de collage a donc été ignorée. Collez le texte vous-même avec votre raccourci de collage habituel."
+		"pasteDeferredHintIme": "Une composition IME était en cours, la commande de collage a donc été ignorée. Collez le texte vous-même avec votre raccourci de collage habituel.",
+		"pasteDeferredHintNoTextField": "Aucun champ de texte n'avait le focus, la commande de collage a donc été ignorée. Placez le focus dans un champ de texte et collez le texte vous-même avec votre raccourci de collage habituel."
 	},
 	"trayState": {
 		"idle": "inactif",

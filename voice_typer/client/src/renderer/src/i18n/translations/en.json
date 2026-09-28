@@ -1996,7 +1996,10 @@
 	},
 	"pack": {
 		"preparingOfflineEngine": "Preparing offline engine…",
-		"preparingOfflineEngineAria": "Preparing offline engine. Status: {status}"
+		"preparingOfflineEngineAria": "Preparing offline engine. Status: {status}",
+		"downloadOfflineEngine": "Download offline engine",
+		"downloadOfflineEngineBusy": "Downloading…",
+		"downloadOfflineEngineAria": "Download the offline speech engine pack"
 	},
 	"consentDialog": {
 		"title": "Consent required",
@@ -2034,7 +2037,8 @@
 		"pasteDeferred": "Auto-paste was skipped: the transcription is on your clipboard",
 		"pasteDeferredHint": "The paste keystroke could not be sent to the target app. Paste the text yourself with your usual paste shortcut.",
 		"pasteDeferredHintSecureInput": "The target app has Secure Input enabled (for example a password field), which blocks synthesized keystrokes. Paste the text yourself with your usual paste shortcut.",
-		"pasteDeferredHintIme": "An IME text composition was in progress, so the paste keystroke was skipped. Paste the text yourself with your usual paste shortcut."
+		"pasteDeferredHintIme": "An IME text composition was in progress, so the paste keystroke was skipped. Paste the text yourself with your usual paste shortcut.",
+		"pasteDeferredHintNoTextField": "No text field was focused, so the paste keystroke was skipped. Focus a text field and paste the text yourself with your usual paste shortcut."
 	},
 	"trayState": {
 		"idle": "idle",

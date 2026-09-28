@@ -1996,7 +1996,10 @@
 	},
 	"pack": {
 		"preparingOfflineEngine": "Offline-Engine wird vorbereitet…",
-		"preparingOfflineEngineAria": "Offline-Engine wird vorbereitet. Status: {status}"
+		"preparingOfflineEngineAria": "Offline-Engine wird vorbereitet. Status: {status}",
+		"downloadOfflineEngine": "Offline-Engine herunterladen",
+		"downloadOfflineEngineBusy": "Wird geladen…",
+		"downloadOfflineEngineAria": "Offline-Sprachengine-Paket herunterladen"
 	},
 	"consentDialog": {
 		"title": "Zustimmung erforderlich",
@@ -2034,7 +2037,8 @@
 		"pasteDeferred": "Automatisches Einfügen übersprungen: die Transkription liegt in Ihrer Zwischenablage",
 		"pasteDeferredHint": "Die Einfügen-Tastatureingabe konnte nicht an die Ziel-App gesendet werden. Fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein.",
 		"pasteDeferredHintSecureInput": "In der Ziel-App ist Secure Input aktiviert (z. B. ein Passwortfeld), was synthetische Tastatureingaben blockiert. Fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein.",
-		"pasteDeferredHintIme": "Eine IME-Texteingabe war in Bearbeitung, daher wurde die Einfügen-Tastatureingabe übersprungen. Fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein."
+		"pasteDeferredHintIme": "Eine IME-Texteingabe war in Bearbeitung, daher wurde die Einfügen-Tastatureingabe übersprungen. Fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein.",
+		"pasteDeferredHintNoTextField": "Es war kein Textfeld fokussiert, daher wurde die Einfügen-Tastatureingabe übersprungen. Fokussieren Sie ein Textfeld und fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein."
 	},
 	"trayState": {
 		"idle": "bereit",

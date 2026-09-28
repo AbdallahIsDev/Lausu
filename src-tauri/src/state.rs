@@ -85,6 +85,12 @@ pub(crate) struct SidecarState {
     /// Used by the bubble-dismiss accelerator so an idle dismiss never
     /// Fire-and-forgets a recording START via toggle_dictation.
     pub(crate) last_tray_icon: Mutex<String>,
+    /// The per-launch bearer token handed to the sidecar. The runtime-pack
+    /// worker MUST receive this SAME token: the sidecar's worker client
+    /// reads it from its own environment and presents it on the worker
+    /// hop, so a second, independently generated token can never
+    /// authenticate (ADR-0020 §3 - one token per host launch).
+    pub(crate) auth_token: OnceLock<String>,
 }
 
 impl SidecarState {
@@ -109,6 +115,8 @@ impl SidecarState {
             // Idle until Python publishes tray_state; dismiss must not
             // assume recording when the host has never seen a state.
             last_tray_icon: Mutex::new("idle".to_string()),
+            // Set once the sidecar is spawned; the worker reuses it.
+            auth_token: OnceLock::new(),
         }
     }
 

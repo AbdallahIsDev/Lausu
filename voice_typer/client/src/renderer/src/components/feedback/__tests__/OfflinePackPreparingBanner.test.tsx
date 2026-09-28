@@ -1,8 +1,19 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { OfflinePackPreparingBanner } from "@/components/feedback/OfflinePackPreparingBanner";
 import type { OfflinePackStatus } from "@/hooks/useOfflinePackDownload";
+
+const callMock = vi.fn();
+vi.mock("@/hooks/usePython", () => ({
+	usePython: () => ({ call: callMock }),
+}));
 
 // Mock i18n so we don't load the real locale chunks in unit tests.
 // The mock returns the key as the translated string (with `: key=value`
@@ -31,6 +42,86 @@ vi.mock("@/i18n/i18n", () => ({
 
 afterEach(() => {
 	cleanup();
+	callMock.mockReset();
+});
+
+describe("OfflinePackPreparingBanner, recovery action", () => {
+	const recoveryStatuses: OfflinePackStatus[] = [
+		"missing",
+		"failed",
+		"corrupt",
+	];
+	const passiveStatuses: OfflinePackStatus[] = [
+		"idle",
+		"downloading",
+		"verifying",
+		"ready",
+		"worker-starting",
+		"worker-crashed",
+		"worker-unloaded",
+	];
+
+	for (const status of recoveryStatuses) {
+		it(`shows Download offline engine when status=${status}`, () => {
+			render(<OfflinePackPreparingBanner visible={true} status={status} />);
+			expect(
+				screen.getByRole("button", { name: "pack.downloadOfflineEngineAria" }),
+			).toBeInTheDocument();
+		});
+	}
+
+	for (const status of passiveStatuses) {
+		it(`hides recovery button when status=${status}`, () => {
+			render(<OfflinePackPreparingBanner visible={true} status={status} />);
+			expect(screen.queryByRole("button")).toBeNull();
+		});
+	}
+
+	it("clicking Download calls check_offline_pack_update", async () => {
+		callMock.mockResolvedValue({});
+		render(<OfflinePackPreparingBanner visible={true} status="missing" />);
+		fireEvent.click(
+			screen.getByRole("button", { name: "pack.downloadOfflineEngineAria" }),
+		);
+		await waitFor(() => {
+			expect(callMock).toHaveBeenCalledWith("check_offline_pack_update", {});
+		});
+	});
+
+	it("ignores double-click while a download call is in flight", async () => {
+		let resolveCall: (() => void) | undefined;
+		callMock.mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					resolveCall = () => resolve({});
+				}),
+		);
+		render(<OfflinePackPreparingBanner visible={true} status="failed" />);
+		const btn = screen.getByRole("button", {
+			name: "pack.downloadOfflineEngineAria",
+		});
+		fireEvent.click(btn);
+		fireEvent.click(btn);
+		expect(callMock).toHaveBeenCalledTimes(1);
+		expect(btn).toBeDisabled();
+		expect(btn).toHaveTextContent("pack.downloadOfflineEngineBusy");
+		resolveCall?.();
+		await waitFor(() => {
+			expect(btn).not.toBeDisabled();
+		});
+	});
+
+	it("recovers after a rejected IPC call (button re-enabled)", async () => {
+		callMock.mockRejectedValueOnce(new Error("bridge down"));
+		render(<OfflinePackPreparingBanner visible={true} status="corrupt" />);
+		const btn = screen.getByRole("button", {
+			name: "pack.downloadOfflineEngineAria",
+		});
+		fireEvent.click(btn);
+		await waitFor(() => {
+			expect(btn).not.toBeDisabled();
+		});
+	});
 });
 
 describe("OfflinePackPreparingBanner, visibility", () => {

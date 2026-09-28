@@ -70,6 +70,10 @@ class PasteMixin:
         process_name = self._detect_focused_process()
         is_terminal = self._is_terminal_process(process_name)
         self._log_rich_editor(process_name)
+        # force (repaste) and terminals bypass the text-field gate;
+        # password / elevated / Secure Input checks above stay fail-closed.
+        if not force and not is_terminal and not self._check_text_field_focus()[0]:
+            return False
         if not self._dispatch_keystroke(is_terminal, safe_hwnd, safe_macos_pid, pasted_text):
             return False
         return self._finalize_paste(is_terminal, process_name, snapshot)
@@ -242,6 +246,39 @@ class PasteMixin:
             _cb.log.info("[CLIPBOARD] Paste blocked: security-sensitive window in foreground")
             return (False, None)
         return (True, None)
+
+    def _check_text_field_focus(self) -> tuple[bool, str | None]:
+        """Return ``(False, reason)`` when no text input is confirmed focused.
+
+        Fails open when focus cannot be determined (the transcription
+        stays on the clipboard when we skip). ``force`` callers bypass
+        this gate entirely (see ``_attempt_paste_dispatch``).
+        """
+        try:
+            if _cb._is_text_field_focused():
+                return (True, None)
+        except Exception:
+            _cb.log.debug("[CLIPBOARD] text-field focus check failed, failing open", exc_info=True)
+            return (True, None)
+        _cb.log.info("[CLIPBOARD] Paste skipped, no text field focused")
+        try:
+            from voice_typer.server import event_bus
+
+            event_bus.publish(
+                {
+                    "type": "paste_deferred",
+                    "data": {
+                        # ``reason`` only. The renderer maps it to a
+                        "reason": "no_text_field",
+                    },
+                }
+            )
+        except Exception:
+            _cb.log.debug(
+                "[CLIPBOARD] could not publish paste_deferred event",
+                exc_info=True,
+            )
+        return (False, "[CLIPBOARD] Paste skipped, no text field focused")
 
     def _check_ime_composition(self) -> bool:
         """Return False (and publish a toast) if an IME composition is in progress."""
