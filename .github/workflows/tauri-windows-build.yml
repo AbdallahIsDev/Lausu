@@ -249,6 +249,15 @@ jobs:
           # data = launch FileNotFoundError that builds fine in CI).
           # TX-40: output filename carries matrix.target so aarch64 does not overwrite
           # x86_64 (python-sidecar-aarch64-pc-windows-msvc.exe).
+          # ADR-0023 packaging: media ingest lazily imports yt_dlp /
+          # yt_dlp_ejs / av (decoder.py, downloader.py, subtitles.py,
+          # mini_update.py); static follow-imports alone misses nothing
+          # but the package-data flag guarantees yt-dlp's non-code
+          # assets ride along. av wheels bundle FFmpeg DLLs.
+          # NOTE: keep this comment ABOVE the invocation, never between the
+          # backtick-continued flag lines below: pwsh cannot continue a
+          # statement through `#` comment lines (ParserError "Missing
+          # expression after unary operator").
           & $PYBS\python.exe -m nuitka `
               --standalone --onefile `
               --assume-yes-for-downloads `
@@ -278,11 +287,6 @@ jobs:
               --nofollow-import-to=torch `
               --include-package=voice_typer `
               --include-package=websockets `
-              # ADR-0023 packaging: media ingest lazily imports yt_dlp /
-              # yt_dlp_ejs / av (decoder.py, downloader.py, subtitles.py,
-              # mini_update.py); static follow-imports alone misses nothing
-              # but the package-data flag guarantees yt-dlp's non-code
-              # assets ride along. av wheels bundle FFmpeg DLLs.
               --include-package=yt_dlp `
               --include-package=yt_dlp_ejs `
               --include-package=av `
