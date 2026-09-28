@@ -174,10 +174,9 @@ jobs:
           fi
           echo "Runtime pack size within 200 MB limit (size gate passed)."
 
-      - name: Build prewarm (aarch64)
-        run: |
-          scripts/build/build_prewarm_macos.sh aarch64
-          file src-tauri/resources/prewarm-aarch64-apple-darwin
+      # NOTE: standalone prewarm binary REMOVED (plan-runtime-pack-split §6.2 P-1).
+      # The worker exe absorbed prewarm; build_prewarm_macos.sh targeted a deleted
+      # module and made every dispatch fail. Mirror of the Windows removal.
 
       - name: Build native listener (aarch64)
         # S4-CR-31: pre-fix this step called the wrapper
@@ -201,7 +200,6 @@ jobs:
           # worker path glob matches nothing and upload-artifact@v6 silently
           path: |
             src-tauri/bin/python-sidecar-aarch64-apple-darwin
-            src-tauri/resources/prewarm-aarch64-apple-darwin
             src-tauri/resources/native/macos-key-listener-arm64
             src-tauri/bin/lausu-worker-aarch64-apple-darwin
           if-no-files-found: error
@@ -338,10 +336,7 @@ jobs:
           fi
           echo "Runtime pack size within 200 MB limit (size gate passed)."
 
-      - name: Build prewarm (x86_64 via Rosetta 2)
-        run: |
-          scripts/build/build_prewarm_macos.sh x86_64
-          file src-tauri/resources/prewarm-x86_64-apple-darwin
+      # NOTE: standalone prewarm binary REMOVED (plan-runtime-pack-split §6.2 P-1).
 
       # S4-CR-31: pre-fix the x86_64 leg did NOT build the native listener
       - name: Build native listener (x86_64)
@@ -361,7 +356,6 @@ jobs:
           # upload-artifact@v6 silently omits it (no error).
           path: |
             src-tauri/bin/python-sidecar-x86_64-apple-darwin
-            src-tauri/resources/prewarm-x86_64-apple-darwin
             src-tauri/resources/native/macos-key-listener-x86_64
             src-tauri/bin/lausu-worker-x86_64-apple-darwin
           if-no-files-found: error
@@ -464,8 +458,6 @@ jobs:
           mkdir -p src-tauri/bin src-tauri/resources src-tauri/resources/native
           mv /tmp/macos-aarch64/python-sidecar-aarch64-apple-darwin src-tauri/bin/
           mv /tmp/macos-x86_64/python-sidecar-x86_64-apple-darwin src-tauri/bin/
-          mv /tmp/macos-aarch64/prewarm-aarch64-apple-darwin src-tauri/resources/
-          mv /tmp/macos-x86_64/prewarm-x86_64-apple-darwin src-tauri/resources/
           # S4-CR-31: lipo-create the per-arch listener slices into a
           ARM_LISTENER=/tmp/macos-aarch64/macos-key-listener-arm64
           X86_LISTENER=/tmp/macos-x86_64/macos-key-listener-x86_64
@@ -637,8 +629,6 @@ jobs:
           BINARIES=(
             "$APP_PATH/Contents/Resources/python-sidecar-aarch64-apple-darwin"
             "$APP_PATH/Contents/Resources/python-sidecar-x86_64-apple-darwin"
-            "$APP_PATH/Contents/Resources/prewarm-aarch64-apple-darwin"
-            "$APP_PATH/Contents/Resources/prewarm-x86_64-apple-darwin"
             "$APP_PATH/Contents/Resources/native/macos-key-listener"
           )
           for bin in "${BINARIES[@]}"; do

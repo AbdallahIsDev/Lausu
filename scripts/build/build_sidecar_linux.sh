@@ -28,11 +28,13 @@
 # ADR-0020 §4.4 mandates:
 #   - python-build-standalone cpython-3.12.x built against glibc 2.35 (Ubuntu 22.04)
 #     so the resulting binary runs on Ubuntu 22.04+ / Debian 12+ / Fedora 36+.
-#   - --include-package=faster_whisper + ctranslate2 + websockets + voice_typer.
-#   - --include-data-dir for $SITE/ctranslate2/{lib,libs} (libiomp5.so, libgomp.so).
+#   - --nofollow-import-to=faster_whisper + ctranslate2 (ADR-0025 C7: ASR
+#     lives in the pack worker; the CT2 data-dir copies below were deleted
+#     in the same change, the WORKER build owns them now) + websockets +
+#     voice_typer.
 #   - --onefile-tempdir-spec pinned to $XDG_CACHE_HOME/lausu/onefile-tmp
 #     so the onefile extraction is deterministic + cleanable.
-#   - --enable-plugin=numpy for hidden numpy imports used by faster-whisper.
+#   - --enable-plugin=numpy for hidden numpy imports.
 #
 # Cross-arch (aarch64 on x86_64 host):
 #   Nuitka does NOT cross-compile. To build aarch64 on an x86_64 host we
@@ -72,8 +74,8 @@ if [[ "$ARCH" == "--check" ]]; then
     fi
     "$PYBS_PYTHON" -c "import nuitka" 2>/dev/null \
         || { echo "MISSING: nuitka (pip install nuitka)" >&2; exit 1; }
-    "$PYBS_PYTHON" -c "import faster_whisper, ctranslate2" 2>/dev/null \
-        || { echo "MISSING: faster_whisper/ctranslate2" >&2; exit 1; }
+    "$PYBS_PYTHON" -c "import websockets" 2>/dev/null \
+        || { echo "MISSING: websockets" >&2; exit 1; }
     echo "[build_sidecar_linux] OK: toolchain ready"
     exit 0
 fi
@@ -164,18 +166,10 @@ fi
 
 # ─── Locate python-build-standalone site-packages ───────────────────────────
 SITE="$("$PYBS_PYTHON" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"
-if [[ ! -d "$SITE/faster_whisper" ]]; then
-    echo "[build_sidecar_linux] ERROR: faster_whisper not found in $SITE" >&2
-    echo "  Install into the python-build-standalone env first:" >&2
-    echo "    $PYBS_PYTHON -m pip install faster-whisper ctranslate2 websockets numpy" >&2
-    exit 1
-fi
-if [[ ! -d "$SITE/ctranslate2" ]]; then
-    echo "[build_sidecar_linux] ERROR: ctranslate2 not found in $SITE" >&2
-    exit 1
-fi
 if [[ ! -d "$SITE/websockets" ]]; then
     echo "[build_sidecar_linux] ERROR: websockets not found in $SITE" >&2
+    echo "  Install into the python-build-standalone env first:" >&2
+    echo "    $PYBS_PYTHON -m pip install websockets numpy" >&2
     exit 1
 fi
 
@@ -231,20 +225,11 @@ NUITKA_ENV=(
 #   --standalone --onefile
 #   --assume-yes-for-downloads
 #   --enable-plugin=numpy
-#   --include-package=faster_whisper --include-package=ctranslate2
+#   --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2
 #   --include-package=voice_typer   --include-package=websockets
-#   --include-data-dir=$SITE/ctranslate2/lib=$SITE/ctranslate2/lib   (always present)
-#   --include-data-dir=$SITE/ctranslate2/libs=$SITE/ctranslate2/libs (optional, guarded)
 #   --onefile-tempdir-spec=$XDG_CACHE_HOME/lausu/onefile-tmp
 #   --output-filename=python-sidecar-<triple>
 #   voice_typer/server/ipc_server.py
-#
-# XPLAT-3: ctranslate2/libs is OPTIONAL. CPU-only wheels (e.g. aarch64)
-# ship libctranslate2.so + libiomp5.so under ctranslate2/lib/ only, with no
-# ctranslate2/libs/ directory. Nuitka's --include-data-dir fails hard if the
-# source path is missing, so guard it (mirrors build_sidecar_macos.sh and
-# build_prewarm_linux.sh: see ADR-0020 §4.4 + XPLAT-3).
-CT2_LIBS_DIR="$SITE/ctranslate2/libs"
 
 # Parallel C compilation: Nuitka invokes gcc/clang per Python module.
 # --jobs=N lets Nuitka fan those out (default: 1 = sequential).
@@ -263,10 +248,13 @@ NUITKA_ARGS=(
     --jobs="$NUITKA_JOBS"
     --enable-plugin=numpy
     --enable-plugin=anti-bloat
-    # NU-106 retired (Phase 1c torch-free): runtime is ONNX-only, no torch flags.
+    # Phase 1c torch-free: our code never imports torch. Still nofollow it:
+    # onnxruntime's guarded probe import drags torch into Nuitka, which
+    # crashes on torch 2.13 (full story in build_sidecar_windows.sh).
     --nofollow-import-to=transformers
-    --include-package=faster_whisper
-    --include-package=ctranslate2
+    --nofollow-import-to=faster_whisper
+    --nofollow-import-to=ctranslate2
+    --nofollow-import-to=torch
     --include-package=voice_typer
     --include-package=websockets
     # ADR-0023 packaging: media ingest lazily imports yt_dlp / yt_dlp_ejs /
@@ -277,17 +265,11 @@ NUITKA_ARGS=(
     --include-package-data=yt_dlp
     --include-package-data=voice_typer.server
     --include-package=numpy
-    --include-data-dir="$SITE/ctranslate2/lib=$SITE/ctranslate2/lib"
     --onefile-tempdir-spec="$ONEFILE_TEMPDIR"
     --output-dir="$OUTPUT_DIR"
     --output-filename="python-sidecar-$TRIPLE"
     voice_typer/server/ipc_server.py
 )
-if [[ -d "$CT2_LIBS_DIR" ]]; then
-    NUITKA_ARGS+=(--include-data-dir="$CT2_LIBS_DIR=$CT2_LIBS_DIR")
-else
-    echo "[build_sidecar_linux] NOTE: ctranslate2/libs not found at $CT2_LIBS_DIR, skipping (optional on CPU-only wheels)"
-fi
 set +e
 "${NUITKA_ENV[@]}" "$PYBS_PYTHON" -m nuitka "${NUITKA_ARGS[@]}" 2>&1 | tee "$BUILD_LOG"
 NUITKA_RC=${PIPESTATUS[0]}
@@ -344,11 +326,12 @@ verify_glibc() {
 verify_glibc "$OUTPUT_BIN"
 
 # ─── Quick smoke (help text only; no display server required) ───────────────
-# ADR-0020 §4.5 Phase 0 gate: run the sidecar binary with a one-shot command
-# that loads faster_whisper to prove CTranslate2 + DLLs + model load all work
-# inside Nuitka. That requires a tiny model file, skip here and defer to the
-# runbook's Step 7. Just verify --help works (proves the Python interpreter +
-# faster_whisper + ctranslate2 + websockets all loaded).
+# ADR-0020 §4.5 Phase 0 gate: verify --help works (proves the frozen
+# interpreter boots). C7: the slim sidecar must NOT load faster_whisper /
+# ctranslate2 at all — ASR lives in the pack worker, so the old "prove the
+# model loads inside Nuitka" smoke is retired with the includes that fed
+# it. Exclusion is pinned statically by tests/test_nuitka_asr_exclusions.py
+# (flag text in all four invocations) and enforced by the 185 MB size gate.
 echo "[build_sidecar_linux] smoke: $OUTPUT_BIN --help"
 if [[ "$CROSS_BUILD" == "true" ]]; then
     # Use qemu explicitly for the help check (binfmt_misc may not be active).

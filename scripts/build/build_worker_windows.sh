@@ -33,10 +33,12 @@
 # CI gate contract (binding, C-CI-6/9/13):
 #   - nuitka==2.8.10 (C-CI-6, NU-105). Nuitka <2.8.0 crashes on numpy 2.5
 #     PEP 695 type-generic aliases. We verify the installed version below.
-#   - C-CI-8 / NU-106 retired (Phase 1c torch-free): runtime is ONNX-only, no torch flags.
+#   - C-CI-8 / NU-106 retired (Phase 1c torch-free): runtime is ONNX-only.
 #   - --nofollow-import-to ONLY for the lazily-imported safe modules
 #     (transformers, scipy.*, psutil._ps*, sympy, mpmath, pytest,
-#     PIL.* non-UI).
+#     PIL.* non-UI) PLUS top-level torch: zero `import torch` sites in our
+#     code, but onnxruntime's guarded probe import drags torch into Nuitka,
+#     which crashes on torch 2.13 (full story in build_sidecar_windows.sh).
 #   - --include-package-data=voice_typer.server (C-CI-9, IPD-1), the
 #     frozen worker reads package data at import time (hotkey_reserved.json,
 #     corrections.json, model_hashes.json, native/binaries.json,
@@ -187,9 +189,11 @@ mkdir -p "$WORKER_DIR"
 # so its self-extraction doesn't collide with the sidecar's or the prewarm's.
 # Different temp dir, different binary, different process.
 #
-# NU-106 retired (Phase 1c torch-free): runtime is ONNX-only, no torch flags.
+# NU-106 retired (Phase 1c torch-free): runtime is ONNX-only.
 #
-# --nofollow-import-to ONLY for the lazily-imported safe non-torch modules.
+# --nofollow-import-to ONLY for the lazily-imported safe modules, PLUS
+# top-level torch (zero `import torch` sites; onnxruntime's guarded probe
+# drags it into Nuitka, which crashes on torch 2.13).
 NUITKA_ARGS=(
     --standalone --onefile
     --assume-yes-for-downloads
@@ -211,6 +215,7 @@ NUITKA_ARGS=(
     --nofollow-import-to=psutil._psbsd
     --nofollow-import-to=psutil._pssunos
     --nofollow-import-to=psutil._psaix
+    --nofollow-import-to=torch
     --include-package=voice_typer
     --include-package=onnxruntime
     --include-package=websockets

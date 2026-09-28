@@ -42,11 +42,6 @@ SIDECAR_SCRIPTS = {
     "macos": BUILD_DIR / "build_sidecar_macos.sh",
     "linux": BUILD_DIR / "build_sidecar_linux.sh",
 }
-PREWARM_SCRIPTS = {
-    "windows": BUILD_DIR / "build_prewarm_windows.sh",
-    "macos": BUILD_DIR / "build_prewarm_macos.sh",
-    "linux": BUILD_DIR / "build_prewarm_linux.sh",
-}
 NATIVE_LISTENER_SCRIPTS = {
     "windows": BUILD_DIR / "build_native_listener_windows.sh",
     "macos": BUILD_DIR / "build_native_listener_macos.sh",
@@ -133,22 +128,6 @@ def test_orchestrator_runs_per_platform_sidecar_builds(orchestrator_text: str, p
 
 
 @pytest.mark.parametrize("platform", ["windows", "macos", "linux"])
-def test_orchestrator_runs_per_platform_prewarm_builds(orchestrator_text: str, platform: str):
-    """The orchestrator must invoke ``build_prewarm_<platform>.sh`` for each platform."""
-    script_name = f"build_prewarm_{platform}.sh"
-    assert script_name in orchestrator_text, (
-        f"build_tauri_all.sh must invoke `{script_name}` for the {platform} "
-        f"platform (ADR-0020 §5). Missing reference in orchestrator."
-    )
-    assert f'bash "$SCRIPT_DIR/{script_name}"' in orchestrator_text, (
-        f'build_tauri_all.sh must invoke {script_name} via `bash "$SCRIPT_DIR/{script_name}"`.'
-    )
-    assert PREWARM_SCRIPTS[platform].is_file(), (
-        f"{script_name} referenced by orchestrator but not found at {PREWARM_SCRIPTS[platform]}."
-    )
-
-
-@pytest.mark.parametrize("platform", ["windows", "macos", "linux"])
 def test_orchestrator_runs_native_listener_builds(orchestrator_text: str, platform: str):
     """The orchestrator must invoke ``build_native_listener_<platform>.sh``."""
     script_name = f"build_native_listener_{platform}.sh"
@@ -228,7 +207,7 @@ def test_orchestrator_runs_cargo_tauri_build(orchestrator_text: str):
 def test_orchestrator_runs_cargo_tauri_build_after_sidecar_phase(
     orchestrator_text: str,
 ):
-    """``cargo tauri build`` must run AFTER the sidecar + prewarm + native phase."""
+    """``cargo tauri build`` must run AFTER the sidecar + native phase."""
     cargo_idx = orchestrator_text.find("cargo tauri build")
     sidecar_idx = orchestrator_text.find("build_sidecar_")
     assert cargo_idx > 0 and sidecar_idx > 0, (

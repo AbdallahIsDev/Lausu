@@ -6,13 +6,12 @@
 # It dispatches to the per-platform build scripts in this directory:
 #
 #   build_sidecar_<platform>.sh. Nuitka freeze of voice_typer.server.ipc_server
-#   build_prewarm_<platform>.sh. Nuitka freeze of voice_typer.server.prewarm
 #   build_native_listener_<platform>.sh, compiles the native hotkey binary
 #
 # Then runs `cargo tauri build` against the host triple (or the triple passed
 # via --target).
 #
-# ADR-0020 §4 (Nuitka freeze) + §5 (prewarm) + §6.4 (native listener) + §7
+# ADR-0020 §4 (Nuitka freeze) + §6.4 (native listener) + §7
 # (Tauri config) + §13 (signing) + §15 (no auto-update) are the authoritative
 # spec.
 #
@@ -47,9 +46,8 @@ SRC_TAURI="$PROJECT_ROOT/src-tauri"
 DO_SIGN=0
 SKIP_SIDECAR=0
 CHECK_ONLY=0
-DO_PARALLEL=0  # parallel Phase 1a (sidecar+prewarm+native).
-                # Default OFF. Nuitka is RAM-heavy; 3 parallel Nuitka
-                # builds × NUITKA_JOBS each can OOM-kill the box. See
+DO_PARALLEL=0  # parallel Phase 1a (sidecar+native).
+                # Default OFF. Nuitka is RAM-heavy. See
                 # --parallel docs below + the RAM note in Phase 1a.
 TARGET_TRIPLE=""
 
@@ -59,18 +57,17 @@ Usage: $0 [--sign] [--skip-sidecar] [--check] [--target TRIPLE] [--parallel]
 
   --sign                Code-sign + notarize the bundle (requires platform
                         secrets: see docs/migration/signing-guide.md).
-  --skip-sidecar        Skip the Nuitka sidecar + prewarm + native builds;
+  --skip-sidecar        Skip the Nuitka sidecar + native builds;
                         only run cargo tauri build (use after the binaries are
                         already in place from a prior run).
   --check               Dry-run: print the build plan + exit 0.
   --target TRIPLE       Rust target triple (e.g. aarch64-apple-darwin).
                         Defaults to the host triple.
-  --parallel            Run the 3 Phase 1a builds (sidecar + prewarm +
+  --parallel            Run the 2 Phase 1a builds (sidecar +
                         native listener) in parallel via backgrounded
                         shell jobs + \`wait -n\`. Default OFF, Nuitka is
                         RAM-heavy: each build forks NUITKA_JOBS (default
-                        \`nproc\`) gcc processes at ~300-500 MB each. 3
-                        builds × 8 jobs ≈ 7-12 GB just for compilers.
+                        \`nproc\`) gcc processes at ~300-500 MB each.
                         RECOMMENDED ≥ 16 GB RAM; on < 32 GB also export
                         NUITKA_JOBS=2 to cap per-build parallelism.
 EOF
@@ -140,7 +137,7 @@ fi
 
 # ─── Phase 0: ensure Tauri binary stubs are present ─────────────────────────
 # BUILD-4: src-tauri/tauri.conf.json references 6 sidecar binaries (externalBin)
-# + 3 native + 6 prewarm resources. On a clean checkout NONE of these exist, so
+# + 3 native resources. On a clean checkout NONE of these exist, so
 # `cargo tauri build` (Phase 1c) fails immediately with
 # "resource path ... doesn't exist". (The icons under src-tauri/icons/ are
 # committed real files, no icon generation needed.)
@@ -158,20 +155,19 @@ if ! python3 "$ICON_STUB" --check; then
 fi
 echo "::endgroup::"
 
-# ─── Phase 1a: build the Nuitka sidecar + prewarm + native listener ──────────
+# ─── Phase 1a: build the Nuitka sidecar + native listener ────────────────────
 #
-# Phase 1a runs 3 per-platform builds, sidecar (Nuitka), prewarm
-# (Nuitka), native listener (gcc/clang on a single .c file, fast). In
-# sequential mode (default) they run back-to-back (~30-45 min total on a
-# warm cache). In --parallel mode they run as backgrounded shell jobs and
-# drain via `wait -n` (bash 4.3+), reducing wall-clock to ~max of the 3
-# (~15 min). The default is OFF because Nuitka is RAM-heavy: each build
+# Phase 1a runs 2 per-platform builds, sidecar (Nuitka) and native
+# listener (gcc/clang on a single .c file, fast). Standalone prewarm was
+# removed (plan-runtime-pack-split §6.2 P-1); the worker exe absorbed it.
+# In sequential mode (default) they run back-to-back. In --parallel mode
+# they run as backgrounded shell jobs and drain via `wait -n` (bash 4.3+).
+# The default is OFF because Nuitka is RAM-heavy: each build
 # forks NUITKA_JOBS (default `nproc`) C compiler processes at ~300-500 MB
-# RSS each, so 3 parallel builds × 8 cores ≈ 7-12 GB just for compilers.
-# RECOMMENDED: ≥ 16 GB RAM for --parallel; on < 32 GB also export
+# RSS each. RECOMMENDED: ≥ 16 GB RAM for --parallel; on < 32 GB also export
 # NUITKA_JOBS=2 to cap per-build parallelism.
 if [[ "$SKIP_SIDECAR" -eq 0 ]]; then
-    echo "::group::Phase 1a, per-platform sidecar + prewarm + native"
+    echo "::group::Phase 1a, per-platform sidecar + native"
 
     # Define per-platform invocations as functions so the parallel /
     # sequential dispatch below is platform-agnostic.
@@ -182,17 +178,14 @@ if [[ "$SKIP_SIDECAR" -eq 0 ]]; then
             # actual Nuitka build (Nuitka on Windows works best from
             # PowerShell).
             build_sidecar() { bash "$SCRIPT_DIR/build_sidecar_windows.sh" "$HOST_ARCH"; }
-            build_prewarm() { bash "$SCRIPT_DIR/build_prewarm_windows.sh" "$HOST_ARCH"; }
             build_native()  { bash "$SCRIPT_DIR/build_native_listener_windows.sh"; }
             ;;
         macos)
             build_sidecar() { bash "$SCRIPT_DIR/build_sidecar_macos.sh" "$HOST_ARCH"; }
-            build_prewarm() { bash "$SCRIPT_DIR/build_prewarm_macos.sh" "$HOST_ARCH"; }
             build_native()  { bash "$SCRIPT_DIR/build_native_listener_macos.sh"; }
             ;;
         linux)
             build_sidecar() { bash "$SCRIPT_DIR/build_sidecar_linux.sh" "$HOST_ARCH"; }
-            build_prewarm() { bash "$SCRIPT_DIR/build_prewarm_linux.sh" "$HOST_ARCH"; }
             build_native()  { bash "$SCRIPT_DIR/build_native_listener_linux.sh"; }
             ;;
     esac
@@ -205,7 +198,7 @@ if [[ "$SKIP_SIDECAR" -eq 0 ]]; then
         #
         # We do NOT kill siblings on first failure, killing Nuitka
         # mid-build can leave a corrupt .bin artifact in src-tauri/bin/
-        # that the next run would pick up. Let all 3 drain, then report.
+        # that the next run would pick up. Let all children drain, then report.
         LOG_DIR_BASE="$SRC_TAURI/target/build-logs"
         LOG_DIR="$LOG_DIR_BASE/phase1a-$$"
         mkdir -p "$LOG_DIR"
@@ -213,34 +206,30 @@ if [[ "$SKIP_SIDECAR" -eq 0 ]]; then
 
         build_sidecar >"$LOG_DIR/sidecar.log" 2>&1 &
         SIDECAR_PID=$!
-        build_prewarm >"$LOG_DIR/prewarm.log" 2>&1 &
-        PREWARM_PID=$!
         build_native  >"$LOG_DIR/native.log"  2>&1 &
         NATIVE_PID=$!
 
         # wait -n (bash 4.3+) returns the exit code of the next child
-        # to terminate. Loop 3 times to drain all 3 children. ANY_FAIL
+        # to terminate. Loop to drain all children. ANY_FAIL
         # is set if any returned non-zero; we keep draining so siblings
         # don't get orphaned.
         ANY_FAIL=0
-        for _ in 1 2 3; do
+        for _ in 1 2; do
             wait -n || ANY_FAIL=1
         done
 
         # Drain complete, collect each PID's cached exit code for
         # diagnostics. wait $PID on an already-finished child is a
         # no-op that surfaces the cached code.
-        SIDECAR_RC=0; PREWARM_RC=0; NATIVE_RC=0
+        SIDECAR_RC=0; NATIVE_RC=0
         wait "$SIDECAR_PID" 2>/dev/null || SIDECAR_RC=$?
-        wait "$PREWARM_PID" 2>/dev/null || PREWARM_RC=$?
         wait "$NATIVE_PID"  2>/dev/null || NATIVE_RC=$?
 
         if [[ "$ANY_FAIL" -ne 0 ]]; then
             echo "ERROR: parallel Phase 1a build failed:" >&2
             echo "  sidecar: exit $SIDECAR_RC (log: $LOG_DIR/sidecar.log)" >&2
-            echo "  prewarm: exit $PREWARM_RC (log: $LOG_DIR/prewarm.log)" >&2
             echo "  native:  exit $NATIVE_RC  (log: $LOG_DIR/native.log)"  >&2
-            for _pair in "sidecar:$SIDECAR_RC" "prewarm:$PREWARM_RC" "native:$NATIVE_RC"; do
+            for _pair in "sidecar:$SIDECAR_RC" "native:$NATIVE_RC"; do
                 _name="${_pair%%:*}"; _rc="${_pair##*:}"
                 if [[ "$_rc" -ne 0 ]]; then
                     echo "  ----- tail $_name.log -----" >&2
@@ -249,12 +238,11 @@ if [[ "$SKIP_SIDECAR" -eq 0 ]]; then
             done
             exit 2
         fi
-        echo "[build_tauri_all] --parallel: all 3 Phase 1a builds succeeded"
+        echo "[build_tauri_all] --parallel: both Phase 1a builds succeeded"
     else
         # Sequential mode (default). Safe on any host; the
         # --parallel flag is opt-in because Nuitka is RAM-heavy.
         build_sidecar || { echo "ERROR: sidecar build failed ($HOST_PLATFORM)" >&2; exit 2; }
-        build_prewarm || { echo "ERROR: prewarm build failed ($HOST_PLATFORM)" >&2; exit 2; }
         build_native  || { echo "ERROR: native listener build failed ($HOST_PLATFORM)" >&2; exit 2; }
     fi
     echo "::endgroup::"
@@ -288,24 +276,22 @@ echo "::group::Phase 1c, cargo tauri build --target $TARGET_TRIPLE"
     # --target universal-apple-darwin`.
 
     # XPLAT-17 / XS-28: the base tauri.conf.json `bundle.resources` lists
-    # every platform's native binaries + both prewarm arches (a documented
+    # every platform's native binaries (a documented
     # superset so the Windows/macOS source-inspection tests keep passing).
-    # On any host only the CURRENT arch's prewarm + native key-listener
-    # exist, so we override `resources` per-arch with a --config file whose
+    # On any host only the CURRENT arch's native key-listener
+    # exists, so we override `resources` per-arch with a --config file whose
     # array REPLACES the base (Tauri overwrites conflicting values, including
     # arrays, verified against tauri-cli 2.11.4). Without this override
     # `cargo tauri build` hard-fails at resource-copy because the base list
     # references cross-platform binaries that don't exist on the host (e.g.
-    # `prewarm-x86_64-apple-darwin` on a Windows runner). The CI workflows
+    # `macos-key-listener` on a Windows runner). The CI workflows
     # (`.github/workflows/tauri-{macos,windows}-build.yml`) apply the same
     # `--config` overrides; this bash script mirrors them for local builds.
     #
     # Linux aarch64 omits `linux-key-listener` because compile_native.sh
     # can't cross-compile it (ADR-0020).
     #
-    # macOS: `tauri.macos.conf.json` lists BOTH arches' prewarm binaries
-    # because the CI workflow builds universal (`universal-apple-darwin`).
-    # This script only builds host-arch sidecar, so a single-arch local
+    # macOS: this script only builds host-arch sidecar, so a single-arch local
     # build would still fail with the universal config, local macOS dev
     # should use `cargo tauri dev` or run the CI workflow. We DO NOT add
     # the macOS --config here for that reason (silently breaking local
@@ -316,12 +302,9 @@ echo "::group::Phase 1c, cargo tauri build --target $TARGET_TRIPLE"
         echo "[build_tauri_all] Linux: applying per-arch resource override tauri.linux-${HOST_ARCH}.conf.json"
     elif [[ "$HOST_PLATFORM" == "windows" && -f "tauri.windows-${HOST_ARCH}.conf.json" ]]; then
         # TC-35: mirror the Linux branch's per-arch selection instead of
-        # hardcoding x86_64. A Windows-on-ARM (aarch64) host now applies
-        # `tauri.windows-aarch64.conf.json` (which lists the aarch64
-        # prewarm binary) instead of silently breaking on the x86_64
-        # resource path. XS-28: Windows host, apply the Windows-only
+        # hardcoding x86_64. XS-28: Windows host, apply the Windows-only
         # resource override so `cargo tauri build` doesn't try to copy
-        # macOS/Linux prewarm binaries that don't exist on a Windows
+        # macOS/Linux native binaries that don't exist on a Windows
         # runner. (CI's `tauri-windows-build.yml` stays on the x86_64
         # config because its TX-40 matrix is x86_64-only; this script is
         # arch-aware for local/dev builds on any Windows host.)

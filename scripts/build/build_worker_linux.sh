@@ -241,7 +241,9 @@ if [[ -z "${NUITKA_JOBS:-}" ]]; then
 fi
 echo "[build_worker_linux] Nuitka --jobs=$NUITKA_JOBS"
 
-# NU-106 retired (Phase 1c torch-free): runtime is ONNX-only, no torch flags.
+    # Phase 1c torch-free: our code never imports torch. Still nofollow it:
+    # onnxruntime's guarded probe import drags torch into Nuitka, which
+    # crashes on torch 2.13 (full story in build_sidecar_windows.sh).
 NUITKA_ARGS=(
     --standalone --onefile
     --assume-yes-for-downloads
@@ -264,6 +266,7 @@ NUITKA_ARGS=(
     --nofollow-import-to=psutil._psbsd
     --nofollow-import-to=psutil._pssunos
     --nofollow-import-to=psutil._psaix
+    --nofollow-import-to=torch
     --include-package=voice_typer
     --include-package=onnxruntime
     --include-package=websockets

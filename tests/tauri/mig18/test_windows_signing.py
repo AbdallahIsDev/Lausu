@@ -14,7 +14,6 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 WORKFLOW_FILE = PROJECT_ROOT / ".github" / "workflows" / "tauri-windows-build.yml"
 SIDECAR_BUILD_SCRIPT = PROJECT_ROOT / "scripts" / "build" / "build_sidecar_windows.sh"
-PREWARM_BUILD_SCRIPT = PROJECT_ROOT / "scripts" / "build" / "build_prewarm_windows.sh"
 TAURI_CONF_FILE = PROJECT_ROOT / "src-tauri" / "tauri.conf.json"
 SIGNING_GUIDE = PROJECT_ROOT / "docs" / "migration" / "signing-guide.md"
 ADR_0020 = PROJECT_ROOT / "docs" / "adr" / "0020-desktop-runtime-migration-analysis.md"
@@ -40,13 +39,6 @@ def sidecar_script_text() -> str:
 
 
 @pytest.fixture(scope="module")
-def prewarm_script_text() -> str:
-    """Read the prewarm build script once per module."""
-    assert PREWARM_BUILD_SCRIPT.is_file(), f"build_prewarm_windows.sh not found at {PREWARM_BUILD_SCRIPT}."
-    return PREWARM_BUILD_SCRIPT.read_text(encoding="utf-8")
-
-
-@pytest.fixture(scope="module")
 def tauri_conf_json() -> dict:
     """Parse tauri.conf.json once per module."""
     assert TAURI_CONF_FILE.is_file(), f"tauri.conf.json not found at {TAURI_CONF_FILE}."
@@ -57,20 +49,11 @@ def test_workflow_runs_signtool_sign_on_sidecar(workflow_text: str):
     """The CI workflow must run ``signtool sign`` on the sidecar exe."""
     assert "signtool sign" in workflow_text, (
         "tauri-windows-build.yml must invoke `signtool sign` to "
-        "Authenticode-sign the sidecar + prewarm + NSIS (ADR-0020 §13.1)."
+        "Authenticode-sign the sidecar + NSIS (ADR-0020 §13.1)."
     )
     assert "python-sidecar-x86_64-pc-windows-msvc.exe" in workflow_text, (
         "tauri-windows-build.yml must sign python-sidecar-x86_64-pc-windows-msvc.exe "
         "(the Nuitka-produced sidecar binary)."
-    )
-
-
-def test_workflow_does_not_sign_prewarm(workflow_text: str):
-    """The CI workflow must NOT reference the prewarm exe."""
-    assert "prewarm-x86_64-pc-windows-msvc.exe" not in workflow_text, (
-        "tauri-windows-build.yml must NOT reference prewarm-*.exe, the "
-        "standalone prewarm binary was removed per plan-runtime-pack-split "
-        "§6.2 P-1."
     )
 
 
@@ -190,21 +173,6 @@ def test_sidecar_build_script_documents_signing_next_step(
     )
 
 
-def test_prewarm_build_script_documents_signing_next_step(
-    prewarm_script_text: str,
-):
-    """``build_prewarm_windows.sh`` must document the signtool next-step."""
-    assert "signtool" in prewarm_script_text.lower() or ("signing-guide.md" in prewarm_script_text), (
-        "build_prewarm_windows.sh must document the signing next-step "
-        "(reference signtool and/or signing-guide.md §13.1) at the end "
-        "of the script so a developer running it locally knows to sign."
-    )
-    assert "signing-guide.md" in prewarm_script_text, (
-        "build_prewarm_windows.sh must reference signing-guide.md in its "
-        "NEXT-step echo (the authoritative signing reference)."
-    )
-
-
 def test_sidecar_build_script_signing_is_ci_only(
     sidecar_script_text: str,
 ):
@@ -212,17 +180,6 @@ def test_sidecar_build_script_signing_is_ci_only(
     # The script's only signtool reference is in the final echo line:
     assert "signtool sign" not in sidecar_script_text, (
         "build_sidecar_windows.sh now invokes `signtool sign` directly, "
-        "update this test to assert the script DOES sign (and remove "
-        "GAP-3 from the module docstring)."
-    )
-
-
-def test_prewarm_build_script_signing_is_ci_only(
-    prewarm_script_text: str,
-):
-    """GAP-3 (documented): the prewarm build script does NOT invoke signtool."""
-    assert "signtool sign" not in prewarm_script_text, (
-        "build_prewarm_windows.sh now invokes `signtool sign` directly, "
         "update this test to assert the script DOES sign (and remove "
         "GAP-3 from the module docstring)."
     )

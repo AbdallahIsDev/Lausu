@@ -150,7 +150,7 @@ def test_transcription_engine_defaults_to_int8_cpu_on_macos(monkeypatch):
         lambda: None,
     )
 
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     engine = TranscriptionEngine(model_size="small.en", device="cpu")
     # Defaults before _resolve_device_once: int8 / cpu.
@@ -198,7 +198,7 @@ def test_engine_does_not_consult_torch_backends_mps_for_device_resolution(monkey
     monkeypatch.setitem(sys.modules, "torch.backends", torch_backends)
     monkeypatch.setitem(sys.modules, "torch.backends.mps", torch_mps)
 
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     engine = TranscriptionEngine(model_size="small.en", device="auto")
     device, compute_type = engine._resolve_device("auto")
@@ -224,7 +224,7 @@ def test_engine_surfaces_helpful_error_when_model_not_loaded(monkeypatch):
         lambda: None,
     )
 
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     engine = TranscriptionEngine(model_size="small.en", device="cpu")
     # Engine has NOT had load() called, _model is None.
@@ -254,7 +254,7 @@ def test_engine_handles_short_audio_without_crashing(monkeypatch):
         lambda: None,
     )
 
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     engine = TranscriptionEngine(model_size="small.en", device="cpu")
 
@@ -294,7 +294,7 @@ def test_engine_handles_short_audio_with_one_segment(monkeypatch):
         lambda: None,
     )
 
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     engine = TranscriptionEngine(model_size="small.en", device="cpu")
 

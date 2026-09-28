@@ -40,17 +40,12 @@ def _install_fake_ct2_modules(monkeypatch) -> tuple[types.ModuleType, types.Modu
     return fw, ct2
 
 
-def test_build_script_check_flag_validates_ct2_backend_importable():
-    """The build script's ``--check`` flag must assert ``faster_whisper``"""
+def test_build_script_check_flag_validates_websockets_only():
+    """C7: the slim sidecar needs websockets only (ASR is worker-owned)."""
     text = _read_build_script()
-    # The --check branch imports both packages in a single python -c call.
-    assert "import faster_whisper, ctranslate2" in text, (
-        "build script's --check branch must validate that both "
-        "faster_whisper AND ctranslate2 are importable in the build env"
-    )
-    # And the same gate is enforced again at line ~98 before Nuitka runs,
-    assert "import faster_whisper, ctranslate2, websockets" in text, (
-        "build script must re-validate CT2 import right before invoking Nuitka"
+    assert "import websockets" in text, "build script's --check branch must validate websockets"
+    assert "import faster_whisper, ctranslate2" not in text, (
+        "build script must not require faster_whisper/ctranslate2 in the slim build env"
     )
 
 
@@ -69,38 +64,23 @@ def test_asr_setup_module_loads_with_ct2_stubs(monkeypatch):
     assert importlib.util.find_spec("faster_whisper") is not None
 
 
-def test_build_script_includes_faster_whisper_and_ctranslate2_packages():
-    """Nuitka must freeze both packages into the standalone exe."""
+def test_build_script_excludes_faster_whisper_and_ctranslate2_packages():
+    """C7: Nuitka must exclude both ASR packages from the slim sidecar."""
     text = _read_build_script()
-    assert "--include-package=faster_whisper" in text, "Nuitka must include the faster_whisper Python package"
-    assert "--include-package=ctranslate2" in text, "Nuitka must include the ctranslate2 Python package (CT2 backend)"
+    assert "--nofollow-import-to=faster_whisper" in text, "Nuitka must exclude faster_whisper"
+    assert "--nofollow-import-to=ctranslate2" in text, "Nuitka must exclude ctranslate2"
+    assert "--include-package=faster_whisper" not in text, "slim sidecar must not bundle faster_whisper"
+    assert "--include-package=ctranslate2" not in text, "slim sidecar must not bundle ctranslate2"
 
 
-def test_build_script_includes_ct2_native_libs_via_include_data_dir():
-    """Nuitka must bundle the entire ``ctranslate2/lib`` directory."""
+def test_build_script_has_no_ct2_native_lib_plumbing():
+    """C7: no ctranslate2 data-dir/DLL copies remain (worker owns them)."""
     text = _read_build_script()
-    # The data-dir include maps <SITE>/ctranslate2/lib → <SITE>/ctranslate2/lib
-    assert "ctranslate2/lib" in text and "--include-data-dir" in text, (
-        "build script must include --include-data-dir for ctranslate2/lib "
-        "(the directory holding ctranslate2.dll + libiomp5md.dll + MKL DLLs)"
-    )
-    assert "--include-dll" in text and "ctranslate2.dll" in text, (
-        "build script must include --include-dll for ctranslate2.dll"
-    )
-
-
-def test_build_script_handles_ct2_libs_plural_guarded():
-    """Some CTranslate2 wheel variants ship native DLLs under"""
-    text = _read_build_script()
-    # Mandatory: singular layout (the pinned Windows wheel layout).
-    assert "ctranslate2/lib" in text
-    plural_present = "ctranslate2/libs" in text
-    if plural_present:
-        # If someone adds the plural form, the script MUST also include
-        assert "[[ ! -d" in text or "if [[ ! -d" in text, (
-            "build script includes ctranslate2/libs (plural) but lacks a "
-            "guard, a singular-only wheel install would fail the build"
-        )
+    assert "CT2_DATA_DIR_SRC" not in text
+    assert "CT2_DLL" not in text
+    assert "CT2_LIBS_DIR" not in text
+    assert "CT2_LIB_DIR" not in text
+    assert "CT2_DIR" not in text
 
 
 @pytest.mark.real_config_dir  # asserts the REAL resolver (APPDATA branch); resolves paths only, never writes
@@ -149,7 +129,7 @@ def test_transcription_engine_defaults_to_int8_cpu(monkeypatch):
         lambda: None,
     )
 
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     engine = TranscriptionEngine(model_size="small.en", device="cpu")
     # Defaults before _resolve_device_once: int8 / cpu.
@@ -179,7 +159,7 @@ def test_engine_surfaces_helpful_error_when_model_not_loaded(monkeypatch):
         lambda: None,
     )
 
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     engine = TranscriptionEngine(model_size="small.en", device="cpu")
     # Engine has NOT had load() called, _model is None.
@@ -209,7 +189,7 @@ def test_engine_handles_short_audio_without_crashing(monkeypatch):
         lambda: None,
     )
 
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     engine = TranscriptionEngine(model_size="small.en", device="cpu")
 
@@ -249,7 +229,7 @@ def test_engine_handles_short_audio_with_one_segment(monkeypatch):
         lambda: None,
     )
 
-    from voice_typer.server.transcription import TranscriptionEngine
+    from voice_typer.worker.whisper import TranscriptionEngine
 
     engine = TranscriptionEngine(model_size="small.en", device="cpu")
 
