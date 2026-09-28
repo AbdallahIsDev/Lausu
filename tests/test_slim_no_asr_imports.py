@@ -28,8 +28,14 @@ class _Blocker:
     def load_module(self, name):
         raise ImportError(f"slim-core probe blocks {name}")
 
+def _is_asr_module(name: str) -> bool:
+    return name == "faster_whisper" or name.startswith(
+        ("faster_whisper.", "ctranslate2", "ctranslate2.")
+    )
+
+
 sys.meta_path.insert(0, _Blocker())
-for stale in [m for m in sys.modules if m == "faster_whisper" or m.startswith(("faster_whisper.", "ctranslate2", "ctranslate2."))]:
+for stale in [m for m in sys.modules if _is_asr_module(m)]:
     del sys.modules[stale]
 
 import voice_typer.server.worker_backed_asr as shim_mod
@@ -50,7 +56,7 @@ backend = registry.create("whisper", whisper_kwargs={"model_size": "tiny.en"})
 assert isinstance(backend, shim_mod.WorkerBackedAsr), type(backend)
 assert not hasattr(backend, "transcribe_words")
 
-leaked = sorted(m for m in sys.modules if m == "faster_whisper" or m.startswith(("faster_whisper.", "ctranslate2", "ctranslate2.")))
+leaked = sorted(m for m in sys.modules if _is_asr_module(m))
 assert leaked == [], f"slim import pulled ASR libs: {leaked}"
 print("SLIM-IMPORT-PROBE-OK")
 """
