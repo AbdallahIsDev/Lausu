@@ -390,6 +390,25 @@ class TestBinaryLabelShield:
         assert "f" * 20 not in out
 
 
+class TestTeardownLabelShield:
+    """Bare ``teardown_*`` helper names are internal identifiers, not secrets."""
+
+    def test_teardown_names_survive(self):
+        line = (
+            "11/11 parallel teardown helpers degraded: "
+            "teardown_asr_models (raised: X), teardown_restore_volume (raised: Y)"
+        )
+        assert redact_secret(line) == line
+
+    def test_teardown_submit_shape_survives(self):
+        line = "teardown_waveform_wiring: pool.submit rejected (boom), running inline"
+        assert redact_secret(line) == line
+
+    def test_teardown_hash_shaped_value_still_redacted(self):
+        out = redact_secret("teardown_" + "e" * 64)
+        assert "e" * 20 not in out
+
+
 class TestRedactUrl:
     def test_strips_userinfo(self):
         url = "https://user:pass@api.example.com/v1/audio"

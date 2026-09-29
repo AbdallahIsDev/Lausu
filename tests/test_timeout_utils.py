@@ -423,7 +423,7 @@ class TestAllCleanup:
 class TestRunParallelSubmitShutdownRace:
     """``RuntimeError('cannot schedule new futures after interpreter"""
 
-    def test_submit_runtime_error_recorded_as_item_failure(self, monkeypatch):
+    def test_submit_runtime_error_runs_inline(self, monkeypatch):
         """When ``pool.submit`` raises ``RuntimeError`` (interpreter"""
         import concurrent.futures
 
@@ -443,11 +443,10 @@ class TestRunParallelSubmitShutdownRace:
         finally:
             monkeypatch.setattr(concurrent.futures.ThreadPoolExecutor, "submit", real_submit)
         by_desc = dict(results)
-        assert isinstance(by_desc["a"], RuntimeError), f"expected RuntimeError result; got {by_desc['a']!r}"
-        assert isinstance(by_desc["b"], RuntimeError), f"expected RuntimeError result; got {by_desc['b']!r}"
-        assert "interpreter shutdown" in str(by_desc["a"])
+        assert by_desc["a"] == 1, f"expected inline result; got {by_desc['a']!r}"
+        assert by_desc["b"] == 2, f"expected inline result; got {by_desc['b']!r}"
 
-    def test_partial_submit_failure_records_only_failed_items(self, monkeypatch):
+    def test_partial_submit_failure_runs_rejected_inline(self, monkeypatch):
         """exception - order is preserved."""
         import concurrent.futures
 
@@ -471,7 +470,7 @@ class TestRunParallelSubmitShutdownRace:
             monkeypatch.setattr(concurrent.futures.ThreadPoolExecutor, "submit", real_submit)
         by_desc = dict(results)
         assert by_desc["ok"] == "done"
-        assert isinstance(by_desc["rejected"], RuntimeError)
+        assert by_desc["rejected"] == "never"
 
 
 class TestLeakedWorkerRegistryCap:

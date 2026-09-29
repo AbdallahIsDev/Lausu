@@ -168,6 +168,19 @@ class TestQuitCallsDoCleanupAndExits:
 
         fake_app._thread_registry.shutdown_all.assert_called_once_with()
 
+    def test_quit_sets_shutting_down_event(self, controller, fake_app, monkeypatch):
+        """``quit()`` must set ``_shutting_down_event`` (``atexit_log``"""
+        fake_app._do_cleanup = MagicMock()
+        fake_app._shutting_down_event.clear()
+        monkeypatch.setattr(sys, "exit", lambda code=0: None)
+
+        controller.quit()
+
+        assert fake_app._shutting_down_event.is_set(), (
+            "quit() must set _shutting_down_event, otherwise atexit_log "
+            "warns 'exiting without quit()' after a clean quit"
+        )
+
     def test_quit_publishes_quit_app_event_when_not_published(self, controller, fake_app, monkeypatch):
         """``quit()`` must publish the ``quit_app`` event over the TCP"""
         fake_app._do_cleanup = MagicMock()

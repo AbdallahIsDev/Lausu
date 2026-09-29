@@ -317,17 +317,19 @@ async def _handle_connection_inner(websocket, server: IPCServer, dispatch, peer)
 
     from voice_typer.server import event_bus
 
+    close_note = ""
     try:
         await _read_loop_mod._read_loop(websocket, server, dispatch)
     except ConnectionClosedOK:
-        # Clean WebSocket close (1000/1001 normal close), log at DEBUG.
-        log.debug("[SIDECAR-WS] client disconnected cleanly")
+        # Clean WebSocket close (1000/1001 normal close).
+        close_note = "clean"
     except ConnectionClosedError as exc:
-        # Abnormal WebSocket close (1006 / 1011, etc.), log at DEBUG.
-        log.debug("[SIDECAR-WS] connection closed with error: %s", exc)
+        # Abnormal WebSocket close (1006 / 1011, etc.).
+        close_note = f"error: {exc}"
     except Exception:
         # Genuinely unexpected error, log at WARNING with traceback.
         log.warning("[SIDECAR-WS] connection ended unexpectedly", exc_info=True)
+        close_note = "unexpected error"
     finally:
         event_bus.unsubscribe(_push_to_ws)
         writer_task.cancel()
@@ -342,7 +344,7 @@ async def _handle_connection_inner(websocket, server: IPCServer, dispatch, peer)
         with server._lock:
             if getattr(server, "_active_ws_connection", None) is websocket:
                 server._active_ws_connection = None
-        log.info("[SIDECAR-WS] connection closed (peer=%s)", peer)
+        log.info("[SIDECAR-WS] connection closed (peer=%s, %s)", peer, close_note)
 
 
 # and the C-WS-1 ready-first ordering is entirely untouched: the

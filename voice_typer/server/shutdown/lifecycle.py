@@ -35,6 +35,9 @@ def quit(controller: ShutdownController) -> None:  # noqa: A001, mirrors the met
         log.debug("[SHUTDOWN] Shutting down")
         app._shutting_down = True
         # also set the Event version so executor tasks can check it
+        # (atexit_log keys off this Event: without it every clean quit
+        # would warn "exiting without quit()").
+        app._shutting_down_event.set()
 
     # NOTIFY-HOST: publish ``quit_app`` so the predecessor frontend
     if not getattr(app, "_quit_app_published", False):

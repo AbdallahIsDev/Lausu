@@ -100,11 +100,7 @@ def drain_ws_dispatch_pool(controller, app) -> None:
                 # Skip the 2s wait when the WS pool is already idle
                 ws_inflight = getattr(ipc_server, "_ws_inflight_count", 0)
                 if ws_inflight == 0:
-                    log.debug(
-                        "[SHUTDOWN] ws_drained_event.wait skipped "
-                        "(_ws_inflight_count=0, no in-flight WS handler "
-                        "can race DB teardown)"
-                    )
+                    log.debug("[SHUTDOWN] ws_drained_event.wait skipped (no in-flight WS handlers)")
                 else:
                     drained = ws_drained_event.wait(timeout=2.0)
                     if not drained:

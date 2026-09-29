@@ -358,3 +358,37 @@ class TestBarrierEndToEnd:
         assert "_teardown_sounddevice" in order, (
             "_teardown_sounddevice must run when _teardown_recorder succeeded (barrier does not fire)"
         )
+
+
+class TestCompletionLineHonesty:
+    """The completion line must reflect timeouts, not always claim success."""
+
+    def test_timed_out_parallel_step_reported_not_successful(self, controller, caplog) -> None:
+        """A parallel timeout must surface as timed-out in the completion"""
+        import logging
+
+        real_run_plan = controller._run_plan
+
+        def _timed_out_run_plan(plan, prior):
+            out = real_run_plan(plan, prior)
+            if plan.phase == "parallel":
+                out = frozenset(out) | {"teardown_hotkeys"}
+            return out
+
+        controller._run_plan = _timed_out_run_plan  # type: ignore[method-assign]
+        with caplog.at_level(logging.INFO, logger="voice_typer.server.shutdown_controller"):
+            controller._do_cleanup()
+        messages = [r.message for r in caplog.records if "Shutdown complete" in r.message]
+        assert messages, "expected a Shutdown complete line"
+        assert "timed out" in messages[-1], f"completion must report timeouts, got: {messages[-1]!r}"
+        assert "successfully" not in messages[-1]
+
+    def test_clean_shutdown_still_reports_success(self, controller, caplog) -> None:
+        """No timeouts/skips: the completion line keeps the success wording."""
+        import logging
+
+        with caplog.at_level(logging.INFO, logger="voice_typer.server.shutdown_controller"):
+            controller._do_cleanup()
+        messages = [r.message for r in caplog.records if "Shutdown complete" in r.message]
+        assert messages, "expected a Shutdown complete line"
+        assert "successfully" in messages[-1]

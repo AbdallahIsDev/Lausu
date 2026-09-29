@@ -212,16 +212,23 @@ def _run_parallel_with_timeout(
     ) as pool:
         future_map: dict = {}
         for desc, func, timeout in items:
-            # RACE: ``pool.submit`` can raise ``RuntimeError('cannot
             try:
                 fut = pool.submit(_run_with_timeout, desc, func, timeout)
             except RuntimeError as exc:
+                # The pool is function-local and fresh, so a rejection
+                # means interpreter finalization is underway: run the
+                # teardown inline on this thread (no new threads or
+                # executors, both refused at this stage) instead of
+                # recording a failure for work that never ran.
                 log.debug(
-                    "[TIMEOUT-UTILS] %s: pool.submit rejected during interpreter shutdown (%s) - recording failure",
+                    "[TIMEOUT-UTILS] %s: pool.submit rejected (%s), running inline",
                     desc,
                     exc,
                 )
-                results.append((desc, exc))
+                try:
+                    results.append((desc, func()))
+                except BaseException as bexc:  # noqa: BLE001, captured per-call
+                    results.append((desc, bexc))
                 continue
             future_map[fut] = (desc, func, timeout)
         for fut in concurrent.futures.as_completed(future_map):
