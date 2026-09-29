@@ -103,9 +103,12 @@ jobs:
     env:
       # TX-40: target triple from matrix (x86_64 or aarch64 template); job-level env.
       PYBS_TRIPLE: ${{ matrix.target }}
-      # S10-CC-1 / C-CI-12: CLCACHE_DISABLE must be job-level — step-level does not
-      # reach Nuitka/SCons.
-      CLCACHE_DISABLE: "1"
+      # Caching is INTENTIONALLY on in this job (no CLCACHE_DISABLE):
+      # Nuitka wraps cl with its inline clcache copy and stores objects
+      # under its own cache dir, which the ccache step above persists
+      # across runs, so repeat builds skip unchanged TUs. The old torch
+      # C-compile hang that motivated the disable is gone with torch
+      # nofollowed out of every freeze (NU-106 / C-CI-8).
 
     steps:
       - name: Checkout
@@ -119,6 +122,17 @@ jobs:
           key: tauri-windows-nuitka-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'requirements-lock.txt') }}
           restore-keys: |
             tauri-windows-nuitka-${{ runner.os }}-
+
+      # Scons build dir: when it survives between runs, scons skips
+      # up-to-date objects (checksum-based) instead of recompiling ~800
+      # TUs from scratch. Keyed on deps so a dependency bump rebuilds.
+      - name: Cache Nuitka scons build dir (incremental C builds)
+        uses: actions/cache@v5
+        with:
+          path: src-tauri/bin/*.build
+          key: tauri-windows-scons-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('pyproject.toml', 'requirements-lock.txt') }}
+          restore-keys: |
+            tauri-windows-scons-${{ runner.os }}-${{ matrix.target }}-
 
       - name: Download + verify python-build-standalone
         shell: pwsh
@@ -158,7 +172,6 @@ jobs:
       - name: Build the sidecar with Nuitka (ADR-0020 §4.2)
         shell: pwsh
         run: |
-          $env:CLCACHE_DISABLE = "1"
           # PYBS arrives as the full exe path (setup step exports
           # C:\tools\pybs\python\python.exe). Accept a directory too.
           $PYBS = $env:PYBS
@@ -312,9 +325,12 @@ jobs:
     env:
       # TX-40: target triple from matrix (x86_64 or aarch64 template); job-level env.
       PYBS_TRIPLE: ${{ matrix.target }}
-      # S10-CC-1 / C-CI-12: CLCACHE_DISABLE must be job-level — step-level does not
-      # reach Nuitka/SCons.
-      CLCACHE_DISABLE: "1"
+      # Caching is INTENTIONALLY on in this job (no CLCACHE_DISABLE):
+      # Nuitka wraps cl with its inline clcache copy and stores objects
+      # under its own cache dir, which the ccache step above persists
+      # across runs, so repeat builds skip unchanged TUs. The old torch
+      # C-compile hang that motivated the disable is gone with torch
+      # nofollowed out of every freeze (NU-106 / C-CI-8).
 
     steps:
       - name: Checkout
@@ -328,6 +344,17 @@ jobs:
           key: tauri-windows-nuitka-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'requirements-lock.txt') }}
           restore-keys: |
             tauri-windows-nuitka-${{ runner.os }}-
+
+      # Scons build dir: when it survives between runs, scons skips
+      # up-to-date objects (checksum-based) instead of recompiling ~800
+      # TUs from scratch. Keyed on deps so a dependency bump rebuilds.
+      - name: Cache Nuitka scons build dir (incremental C builds)
+        uses: actions/cache@v5
+        with:
+          path: src-tauri/bin/*.build
+          key: tauri-windows-scons-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('pyproject.toml', 'requirements-lock.txt') }}
+          restore-keys: |
+            tauri-windows-scons-${{ runner.os }}-${{ matrix.target }}-
 
       - name: Download + verify python-build-standalone
         shell: pwsh
