@@ -195,6 +195,12 @@ def launch() -> int:
         return 0
 
     # Fresh start: Tauri path only (predecessor removed).
+    if "--dev" in sys.argv[1:]:
+        from voice_typer.server.autostart.dev_console import launch_dev_console
+
+        log.info("[AUTOSTART] --dev: opening console for `npm run dev`")
+        return launch_dev_console("dev")
+
     tauri_mode = _is_tauri_mode()
     tauri_bin = _tauri_binary() if tauri_mode else None
     log.info(
@@ -217,7 +223,17 @@ def launch() -> int:
         log.error("[AUTOSTART] Tauri mode detected but no binary resolvable; exiting 1")
         return 1
 
-    log.error("[AUTOSTART] No Tauri binary found; exiting 1 (predecessor launch path removed)")
+    # Source checkout without an installed host: open the dev console so
+    # the shortcut does not fail silently (pythonw has no UI on error).
+    from voice_typer.server.autostart.dev_console import client_dir, launch_dev_console
+
+    if client_dir().is_dir():
+        log.warning(
+            "[AUTOSTART] no installed Tauri binary; falling back to dev console (npm run tauri:dev)"
+        )
+        return launch_dev_console("tauri:dev")
+
+    log.error("[AUTOSTART] No Tauri binary and no client dir; exiting 1")
     return 1
 
 
