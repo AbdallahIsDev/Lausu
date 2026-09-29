@@ -12,6 +12,18 @@ from voice_typer.server.sidecar_ws_internals.encode_pool import shutdown_encode_
 log = logging.getLogger("voice_typer.server.shutdown_controller")
 
 
+def _on_own_pool_worker(prefix: str) -> bool:
+    """True when this thread is a worker of the pool being drained.
+
+    ``ThreadPoolExecutor.shutdown(wait=True)`` never returns while the
+    calling thread is one of the pool's own workers (quit() runs on a
+    dispatch-pool worker for tray-menu/``shutdown`` commands); the join
+    would burn its whole timeout and always warn. Callers skip the
+    blocking join in that case (pending futures were already cancelled).
+    """
+    return threading.current_thread().name.startswith(prefix)
+
+
 def drain_ws_dispatch_pool(controller, app) -> None:
     """Early bookend: stop the IPC server + drain the WS dispatch + encode pools."""
     try:
@@ -29,6 +41,12 @@ def drain_ws_dispatch_pool(controller, app) -> None:
                 # ``shutdown(wait=False, cancel_futures=True)`` only
                 ws_pool.shutdown(wait=False, cancel_futures=True)
                 log.debug("[SHUTDOWN] WS dispatch pool shut down (cancel_futures=True)")
+                if _on_own_pool_worker("sidecar-ws-dispatch"):
+                    log.debug(
+                        "[SHUTDOWN] WS dispatch drain skipping blocking join "
+                        "(shutdown runs on a pool worker; the join could only time out)"
+                    )
+                    return
                 join_thread = threading.Thread(
                     target=ws_pool.shutdown,
                     kwargs={"wait": True},
@@ -54,6 +72,12 @@ def drain_ws_dispatch_pool(controller, app) -> None:
                 # workers are short-lived status reads, so a tight budget.
                 readonly_pool.shutdown(wait=False, cancel_futures=True)
                 log.debug("[SHUTDOWN] WS readonly pool shut down (cancel_futures=True)")
+                if _on_own_pool_worker("sidecar-ws-readonly"):
+                    log.debug(
+                        "[SHUTDOWN] WS readonly drain skipping blocking join "
+                        "(shutdown runs on a pool worker; the join could only time out)"
+                    )
+                    return
                 join_thread = threading.Thread(
                     target=readonly_pool.shutdown,
                     kwargs={"wait": True},
@@ -73,6 +97,12 @@ def drain_ws_dispatch_pool(controller, app) -> None:
                 # The WS frame-encode pool must be drained for the same
                 shutdown_encode_pool(ipc_server)
                 log.debug("[SHUTDOWN] WS encode pool shut down (cancel_futures=True)")
+                if _on_own_pool_worker("sidecar-ws-encode"):
+                    log.debug(
+                        "[SHUTDOWN] WS encode drain skipping blocking join "
+                        "(shutdown runs on a pool worker; the join could only time out)"
+                    )
+                    return
                 join_thread = threading.Thread(
                     target=encode_pool.shutdown,
                     kwargs={"wait": True},

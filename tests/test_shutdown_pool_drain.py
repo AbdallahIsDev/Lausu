@@ -274,4 +274,91 @@ class TestDoCleanupDrainsWsPoolViaProductionPath:
         for step in ("recorder.stop", "crash_recovery.flush", "history_db.flush"):
             assert step in call_times, f"YJ-20: {step} must be called exactly once by _do_cleanup"
 
+
+class TestDrainSkipsSelfJoinOnPoolWorker:
+    """Draining a pool from one of its own workers can never complete."""
+
+    def test_on_own_pool_worker_matches_prefix(self):
+        """The guard fires only for worker threads of the drained pool."""
+        from voice_typer.server.shutdown.ws_drain import _on_own_pool_worker
+
+        assert _on_own_pool_worker("sidecar-ws-nope") is False
+        seen: list[bool] = []
+
+        def _probe():
+            seen.append(_on_own_pool_worker("sidecar-ws-dispatch"))
+
+        t = threading.Thread(target=_probe, name="sidecar-ws-dispatch_3", daemon=True)
+        t.start()
+        t.join(timeout=5.0)
+        assert seen == [True]
+
+    def test_drain_returns_fast_on_own_worker(self):
+        """A blocking ``shutdown(wait=True)`` is skipped when draining from"""
+        import time
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from voice_typer.server.shutdown.ws_drain import drain_ws_dispatch_pool
+
+        def _blocking_shutdown(*args, **kwargs):
+            if kwargs.get("wait"):
+                time.sleep(30.0)
+
+        pool = MagicMock()
+        pool.shutdown = MagicMock(side_effect=_blocking_shutdown)
+        ipc = SimpleNamespace(
+            stop=MagicMock(),
+            _ws_dispatch_pool=pool,
+            _ws_readonly_pool=None,
+            _ws_encode_pool=None,
+            _ws_drained_event=None,
+        )
+        app = SimpleNamespace(_ipc_server=ipc)
+
+        errors: list[BaseException] = []
+
+        def _run():
+            try:
+                drain_ws_dispatch_pool(MagicMock(), app)
+            except BaseException as exc:  # noqa: BLE001, surfaced below
+                errors.append(exc)
+
+        t = threading.Thread(target=_run, name="sidecar-ws-dispatch_0", daemon=True)
+        start = time.monotonic()
+        t.start()
+        t.join(timeout=10.0)
+        elapsed = time.monotonic() - start
+
+        assert not errors, f"drain raised: {errors!r}"
+        assert not t.is_alive(), "drain must not block on a worker of the drained pool"
+        assert elapsed < 10.0, f"drain took {elapsed:.2f}s on its own worker, must skip the join"
+        assert pool.shutdown.called
+
+    def test_drain_joins_from_other_threads(self):
+        """Off-worker drains keep the blocking join so in-flight work still drains."""
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from voice_typer.server.shutdown.ws_drain import drain_ws_dispatch_pool
+
+        calls: list[dict] = []
+
+        def _fast_shutdown(*args, **kwargs):
+            calls.append(kwargs)
+
+        pool = MagicMock()
+        pool.shutdown = MagicMock(side_effect=_fast_shutdown)
+        ipc = SimpleNamespace(
+            stop=MagicMock(),
+            _ws_dispatch_pool=pool,
+            _ws_readonly_pool=None,
+            _ws_encode_pool=None,
+            _ws_drained_event=None,
+        )
+        drain_ws_dispatch_pool(MagicMock(), SimpleNamespace(_ipc_server=ipc))
+        waits = [c.get("wait") for c in calls]
+        assert False in waits, "dispatch drain must shut down without waiting first"
+        assert True in waits, "off-worker drain must still join for in-flight work"
+
         # NOTE: the sleepy_handler's worker thread is still alive after
