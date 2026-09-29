@@ -204,6 +204,12 @@ NUITKA_ARGS=(
     --standalone --onefile
     --assume-yes-for-downloads
     --enable-plugin=anti-bloat
+    # yt-dlp extractors (~940 modules + the 781KB lazy_extractors hub,
+    # reached here via follow-imports from media_ingest) ship as bytecode:
+    # compiling them OOMs the C compiler (MSVC C1060/C1002) and bloats the
+    # binary; yt-dlp lazy-loads them via importlib at runtime, which
+    # resolves bytecode modules fine (Nuitka anti-bloat "bytecode" mode).
+    --noinclude-custom-mode=yt_dlp.extractor:bytecode
     --nofollow-import-to=transformers
     --nofollow-import-to=scipy._lib.cobyqa
     --nofollow-import-to=scipy._lib.array_api_extra.testing
