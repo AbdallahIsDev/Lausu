@@ -357,6 +357,38 @@ class TestThreadLabelShield:
         out = redact_secret("thread=" + "f" * 70)
         assert "f" * 20 not in out
 
+    def test_reaped_join_shape_survives_labeled(self):
+        """The reaped-entries join shape (``thread=a, thread=b``) must"""
+        line = "Reaped 2 dead thread entries: thread=crash-recovery-saver, thread=startup-post-ready-sweep"
+        assert redact_secret(line) == line
+
+    def test_exit_and_stop_event_shapes_survive_labeled(self):
+        assert redact_secret("thread=history-periodic-retention exited cleanly after join") == (
+            "thread=history-periodic-retention exited cleanly after join"
+        )
+        line = "thread=bubble-level-pusher has no stop_event and did not exit within 0.50s"
+        assert redact_secret(line) == line
+
+
+class TestBinaryLabelShield:
+    """``binary=<name>`` keeps long binary names readable: same anchored-shield deal as ``thread=``."""
+
+    def test_binary_name_survives(self):
+        line = "Checksum OK for binary=windows-key-listener-x86_64.exe (sha256=%s)" % ("a" * 64)
+        assert redact_secret(line) == line
+
+    def test_bare_long_name_still_redacted(self):
+        """Fail-closed: the exemption is label-anchored, a bare long"""
+        assert redact_secret("windows-key-listener-x86_64") == "***"
+
+    def test_binary_hash_shaped_value_still_redacted(self):
+        out = redact_secret("binary=" + "e" * 64)
+        assert "e" * 20 not in out
+
+    def test_binary_overlong_value_still_redacted(self):
+        out = redact_secret("binary=" + "f" * 70)
+        assert "f" * 20 not in out
+
 
 class TestRedactUrl:
     def test_strips_userinfo(self):

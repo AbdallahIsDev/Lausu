@@ -245,6 +245,40 @@ class TestJsRuntime:
 
 
 class TestMiniUpdate:
+    def test_installed_versions_prefer_dunder_version(self, monkeypatch):
+        """``yt_dlp.version`` is a MODULE: only real version strings"""
+        import sys
+        import types
+
+        from voice_typer.server.media_ingest import mini_update as extractor_update
+
+        fake_pkg = types.ModuleType("yt_dlp")
+        fake_sub = types.ModuleType("yt_dlp.version")  # no __version__ here
+        fake_pkg.version = fake_sub
+        fake_pkg.__version__ = "2026.8.19"
+        fake_ejs = types.ModuleType("yt_dlp_ejs")
+        fake_ejs.__version__ = "0.8.0"
+        monkeypatch.setitem(sys.modules, "yt_dlp", fake_pkg)
+        monkeypatch.setitem(sys.modules, "yt_dlp_ejs", fake_ejs)
+        assert extractor_update.installed_extractor_versions() == ("2026.8.19", "0.8.0")
+
+    def test_installed_versions_fall_back_to_submodule(self, monkeypatch):
+        """A package exposing its version only via ``<pkg>.version``"""
+        import sys
+        import types
+
+        from voice_typer.server.media_ingest import mini_update as extractor_update
+
+        fake_pkg = types.ModuleType("yt_dlp")
+        fake_sub = types.ModuleType("yt_dlp.version")
+        fake_sub.__version__ = "2026.1.1"
+        fake_pkg.version = fake_sub
+        monkeypatch.setitem(sys.modules, "yt_dlp", fake_pkg)
+        monkeypatch.delitem(sys.modules, "yt_dlp_ejs", raising=False)
+        backend, _solver = extractor_update.installed_extractor_versions()
+        assert backend == "2026.1.1"
+        assert "module" not in backend
+
     def test_newer_remote_marks_update(self, tmp_path):
         from voice_typer.server.media_ingest import mini_update as extractor_update
 

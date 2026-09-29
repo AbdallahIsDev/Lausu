@@ -33,6 +33,21 @@ class ExtractorRefreshState:
     remote_solver_version: str | None = None
 
 
+def _mod_version(mod: object) -> str | None:
+    """Best-effort ``__version__`` string for an imported module.
+
+    ``yt_dlp.version`` is itself a MODULE (``yt_dlp/version.py``), so a
+    naive ``getattr(mod, "version")`` str() dumps a module repr with a
+    full local path. Only real version strings are returned.
+    """
+    direct = getattr(mod, "__version__", None)
+    if isinstance(direct, str) and direct:
+        return direct
+    sub = getattr(mod, "version", None)
+    nested = getattr(sub, "__version__", None)
+    return nested if isinstance(nested, str) and nested else None
+
+
 def installed_extractor_versions() -> tuple[str | None, str | None]:
     """Return installed ``(yt-dlp, solver)`` versions, or Nones if absent."""
     try:
@@ -40,15 +55,15 @@ def installed_extractor_versions() -> tuple[str | None, str | None]:
     except ImportError:
         return (None, None)
 
-    version = getattr(yt_dlp, "version", None) or getattr(yt_dlp, "__version__", None)
+    version = _mod_version(yt_dlp)
     solver = None
     try:
         import yt_dlp_ejs  # type: ignore
 
-        solver = getattr(yt_dlp_ejs, "version", None) or getattr(yt_dlp_ejs, "__version__", None)
+        solver = _mod_version(yt_dlp_ejs)
     except ImportError:
         solver = None
-    return (str(version) if version else None, str(solver) if solver else None)
+    return (version, solver)
 
 
 def state_path(root: Path | str | None = None) -> Path:

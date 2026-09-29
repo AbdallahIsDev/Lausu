@@ -55,6 +55,15 @@ class TestVerifyNativeBinary:
         with caplog.at_level("DEBUG"):
             assert verify_native_binary(fake_binary, expected) is True
 
+    def test_ok_line_uses_labeled_redaction_safe_shape(self, fake_binary, caplog):
+        """The OK line must use ``binary=``/``sha256=`` labels so the"""
+        expected = _sha256(fake_binary)
+        with caplog.at_level("DEBUG"):
+            assert verify_native_binary(fake_binary, expected) is True
+        msgs = [r.getMessage() for r in caplog.records if "Checksum OK" in r.getMessage()]
+        assert msgs, "expected a 'Checksum OK' debug line"
+        assert "binary=" in msgs[0] and "sha256=" in msgs[0]
+
     def test_rejects_tampered_binary(self, fake_binary, tampered_binary, caplog):
         """A tampered binary (different content → different hash) is rejected."""
         expected = _sha256(fake_binary)  # hash of the LEGITIMATE binary

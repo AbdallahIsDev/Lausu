@@ -71,7 +71,7 @@ class ThreadRegistry:
             existing = self._entries.get(name)
             if existing is not None and existing.thread is not thread:
                 log.warning(
-                    "[THREAD-REGISTRY] Re-registering name %r "
+                    "[THREAD-REGISTRY] Re-registering thread=%s "
                     "(old thread alive=%s, new thread alive=%s). "
                     "Caller should ensure the old thread is properly "
                     "stopped before re-registering.",
@@ -86,7 +86,7 @@ class ThreadRegistry:
                             existing.stop_event.set()
                         except Exception:
                             log.debug(
-                                "[THREAD-REGISTRY] Failed to set stop_event for previous %r during re-register",
+                                "[THREAD-REGISTRY] Failed to set stop_event for previous thread=%s during re-register",
                                 name,
                                 exc_info=True,
                             )
@@ -94,13 +94,13 @@ class ThreadRegistry:
                         existing.thread.join(timeout=join_previous_timeout)
                     except Exception:
                         log.debug(
-                            "[THREAD-REGISTRY] join() raised for previous %r during re-register",
+                            "[THREAD-REGISTRY] join() raised for previous thread=%s during re-register",
                             name,
                             exc_info=True,
                         )
                     if existing.thread.is_alive():
                         log.warning(
-                            "[THREAD-REGISTRY] Previous thread %r did "
+                            "[THREAD-REGISTRY] Previous thread=%s did "
                             "not exit within %.2fs during re-register "
                             "— overwriting anyway (daemon will be "
                             "reaped on process exit)",
@@ -161,7 +161,7 @@ class ThreadRegistry:
             log.debug(
                 "[THREAD-REGISTRY] Reaped %d dead thread entries: %s",
                 len(dead_names),
-                dead_names,
+                ", ".join(f"thread={name}" for name in dead_names),
             )
         return len(dead_names)
 
@@ -210,7 +210,7 @@ class ThreadRegistry:
                     entry.stop_event.set()
                 except Exception:
                     log.debug(
-                        "[THREAD-REGISTRY] Failed to set stop_event for %r",
+                        "[THREAD-REGISTRY] Failed to set stop_event for thread=%s",
                         entry.name,
                         exc_info=True,
                     )
@@ -264,7 +264,7 @@ class ThreadRegistry:
                     entry.thread.join(timeout=join_slice)
                 except Exception:
                     log.debug(
-                        "[THREAD-REGISTRY] join() raised for %r",
+                        "[THREAD-REGISTRY] join() raised for thread=%s",
                         entry.name,
                         exc_info=True,
                     )
@@ -273,14 +273,14 @@ class ThreadRegistry:
         for entry in entries:
             if not entry.thread.is_alive():
                 log.debug(
-                    "[THREAD-REGISTRY] Thread %r exited cleanly after join",
+                    "[THREAD-REGISTRY] thread=%s exited cleanly after join",
                     entry.name,
                 )
                 continue
             if entry.stop_event is not None:
                 # We signaled the thread but it didn't exit. This is a
                 log.warning(
-                    "[THREAD-REGISTRY] Thread %r did not exit within "
+                    "[THREAD-REGISTRY] thread=%s did not exit within "
                     "%.2fs after stop_event was set (it will exit as a "
                     "daemon on its next iteration boundary)",
                     entry.name,
@@ -289,7 +289,7 @@ class ThreadRegistry:
             else:
                 # No stop_event was provided, so we couldn't signal
                 log.debug(
-                    "[THREAD-REGISTRY] Thread %r has no stop_event and "
+                    "[THREAD-REGISTRY] thread=%s has no stop_event and "
                     "did not exit within %.2fs (existing per-site "
                     "cleanup should handle it)",
                     entry.name,

@@ -79,21 +79,28 @@ static volatile sig_atomic_t g_should_exit = 0;
 
 /* ─── Diagnostic logger ────────────────────────────────────────── */
 
+/* File shape follows C-LOG-1 (``YYYY-MM-DD  HH:MM:SS  LEVEL  msg``);
+ * the LEVEL is derived from the message's embedded severity prefix.
+ * Message text is otherwise byte-identical, so the Python
+ * wire-parser markers keep matching. */
 static void log_diag(const char *fmt, ...) {
     char ts[32];
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
+    time_t now = time(NULL);
     struct tm tm_buf;
-    gmtime_r(&tv.tv_sec, &tm_buf);
-    strftime(ts, sizeof(ts), "%Y-%m-%dT%H:%M:%S", &tm_buf);
+    gmtime_r(&now, &tm_buf);
+    strftime(ts, sizeof(ts), "%Y-%m-%d  %H:%M:%S", &tm_buf);
     char msg[512];
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(msg, sizeof(msg), fmt, ap);
     va_end(ap);
+    const char *level = "INFO";
+    const char *text = msg;
+    if (strncmp(msg, "ERROR:", 6) == 0) { level = "ERROR"; text = msg + 6; }
+    else if (strncmp(msg, "WARN:", 5) == 0) { level = "WARN"; text = msg + 5; }
+    if (*text == ' ') text++;
     char line[640];
-    int n = snprintf(line, sizeof(line), "%s.%03ld [%d] %s\n",
-                     ts, (long)(tv.tv_usec / 1000), (int)getpid(), msg);
+    int n = snprintf(line, sizeof(line), "%s  %s  %s\n", ts, level, text);
     if (n > 0 && g_log_file != NULL) {
         fputs(line, g_log_file);
         fflush(g_log_file);
