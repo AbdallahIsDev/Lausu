@@ -92,13 +92,9 @@ pub(crate) async fn spawn_worker_dev_mode(
     token: &str,
     shutting_down: Option<&AtomicBool>,
 ) -> Result<(u16, SidecarHandle), String> {
-    let python_bin = if cfg!(target_os = "windows") {
-        "python.exe"
-    } else {
-        "python3"
-    };
+    let python_bin = super::dev_python::resolve_dev_python();
 
-    let mut cmd = tokio::process::Command::new(python_bin);
+    let mut cmd = tokio::process::Command::new(&python_bin);
     cmd.args(["-m", "voice_typer.worker"])
         .env_clear()
         .envs(passthrough_env_allowlist())

@@ -7,6 +7,8 @@
 
 // `pub(crate)` so lifecycle can consult `is_dev_mode()` for tray-Restart.
 pub(crate) mod dev_mode;
+// Dev interpreter discovery (python.exe often missing from GUI PATH).
+pub(crate) mod dev_python;
 mod env_allowlist;
 mod handshake;
 mod handshake_loop;
