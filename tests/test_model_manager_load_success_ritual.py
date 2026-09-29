@@ -53,13 +53,13 @@ def _idle_messages(app: MagicMock) -> list[str]:
 
 class TestOnLoadSuccessRitual:
     def test_helper_emits_localized_ready_message_for_non_whisper(self):
-        """A non-whisper engine must get ``ready_other`` (localized key)"""
+        """A non-whisper engine gets plain Ready; the model name rides in the tooltip segment."""
         from voice_typer.server import i18n
 
         mm, app, _engine, _registry = _make_manager(backend_name="parakeet")
         mm._on_load_success("parakeet")
 
-        expected = i18n.t("state.model_manager.ready_other", name="Parakeet")
+        expected = i18n.t("state.ready")
         idle = _idle_messages(app)
         assert idle == [expected], f"unexpected IDLE tray messages: {idle}"
 
@@ -97,7 +97,7 @@ class TestOnLoadSuccessRitual:
 
         mm._on_load_success("parakeet")
 
-        expected = i18n.t("state.model_manager.ready_other", name="Parakeet")
+        expected = i18n.t("state.ready")
         assert expected in _idle_messages(app)
 
 
@@ -165,7 +165,7 @@ class TestChangeModelLoadPhaseLocalizedSuccess:
         failure_reason = mm._change_model_load_phase("parakeet", "parakeet")
 
         assert failure_reason is None, f"expected success, got failure reason: {failure_reason}"
-        expected = i18n.t("state.model_manager.ready_other", name="Parakeet")
+        expected = i18n.t("state.ready")
         assert expected in _idle_messages(app), (
             f"localized ready message missing from tray transitions: {app.tray.set_state.call_args_list}"
         )
@@ -183,7 +183,7 @@ class TestEnsureActiveEngineReloadLocalizedSuccess:
 
         mm.ensure_active_engine_loaded()
 
-        expected = i18n.t("state.model_manager.ready_other", name="Parakeet")
+        expected = i18n.t("state.ready")
         assert expected in _idle_messages(app), (
             f"localized ready message missing from tray transitions: {app.tray.set_state.call_args_list}"
         )

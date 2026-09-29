@@ -72,9 +72,10 @@ class LoadingMixin:
                 ),
             )
         else:
+            # Non-whisper backends report plain readiness here; the
             self._app.tray.set_state(
                 AppState.IDLE,
-                i18n.t("state.model_manager.ready_other", name=name.title()),
+                i18n.t("state.ready"),
             )
 
     def load_background(self) -> None:
@@ -390,6 +391,9 @@ class LoadingMixin:
                     self._registry.load_active(progress_callback=on_progress)
                     # Successful reload → backend healthy; clear any
                     self._clear_deliberately_unloaded(backend)
+                except (ModelNotDownloadedError, ModelIntegrityError) as exc:
+                    # Expected when the offline pack / model is not installed.
+                    log.warning("[MODEL] reload after idle-unload refused: %s", exc)
                 except Exception:
                     log.warning(
                         "[MODEL] reload after idle-unload failed (non-fatal)",

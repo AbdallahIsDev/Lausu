@@ -55,6 +55,22 @@ _APP_STATE_TO_ICON_NAME: dict[AppState, str] = {
 }
 
 
+def _idle_tooltip_label(tray: TrayIcon) -> str:
+    """State word for a bare IDLE (no message): ``Ready`` only when an ASR
+    model is actually usable, otherwise the no-model reason, so the
+    tooltip never claims readiness it doesn't have."""
+    from voice_typer.server.tray_models import is_active_model_downloaded
+
+    config = tray._config
+    if config is not None and is_active_model_downloaded(config):
+        return _i18n_t("state.ready")
+    from voice_typer.server.model_registry import NO_MODEL_SIZE
+
+    if config is not None and getattr(config, "model_size", "") != NO_MODEL_SIZE:
+        return _i18n_t("state.model_manager.model_not_downloaded")
+    return _i18n_t("state.model_manager.no_model_selected")
+
+
 def compute_tooltip(tray: TrayIcon, state: AppState, message: str) -> str:
     """Compute the tray tooltip: ``<APP_NAME> | <msg|state> [(CPU fallback)]
     [(mm:ss)] [<model>] (<hotkey>)``. Shared by _apply_state +
@@ -62,7 +78,9 @@ def compute_tooltip(tray: TrayIcon, state: AppState, message: str) -> str:
     title = APP_NAME
     if message:
         title += f" | {message}"
-    elif state != AppState.IDLE:
+    elif state == AppState.IDLE:
+        title += f" | {_idle_tooltip_label(tray)}"
+    else:
         # Localized AppState label (``state.recording`` etc.) so the
         title += f" | {_i18n_t('state.' + state.value)}"
     if tray._cpu_fallback_active:
@@ -72,11 +90,11 @@ def compute_tooltip(tray: TrayIcon, state: AppState, message: str) -> str:
         title += f" ({tray._format_elapsed(elapsed)})"
     # Model name suffix, only when the configured model is ACTUALLY
     if tray._config:  # model name
-        from voice_typer.server.tray_models import is_active_model_downloaded
+        from voice_typer.server.tray_models import is_active_model_downloaded, tooltip_model_label
 
-        model = getattr(tray._config, "model_size", "")
-        if model and is_active_model_downloaded(tray._config):
-            title += f" [{model}]"
+        label = tooltip_model_label(tray._config)
+        if label and is_active_model_downloaded(tray._config):
+            title += f" [{label}]"
     hotkey = tray._display_hotkey()  # hotkey
     if hotkey:
         title += f" ({hotkey})"

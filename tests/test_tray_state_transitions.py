@@ -326,6 +326,9 @@ class TestComputeTooltipTruncation:
             pytest.skip(
                 f"Base tooltip is already {base_len} chars, cannot construct a 127-char boundary case with this config."
             )
+        # The bare-IDLE base carries a state word the message replaces
+        # rather than extends, so calibrate the length empirically.
+        delta += 127 - len(tray._compute_tooltip(AppState.IDLE, "y" * delta))
         message = "y" * delta
 
         tooltip = tray._compute_tooltip(AppState.IDLE, message)
@@ -346,6 +349,8 @@ class TestComputeTooltipTruncation:
             pytest.skip(
                 f"Base tooltip is already {base_len} chars, cannot construct a 128-char boundary case with this config."
             )
+        # See above: calibrate for the state word the message replaces.
+        delta += 128 - len(tray._compute_tooltip(AppState.IDLE, "z" * delta))
         message = "z" * delta
 
         tooltip = tray._compute_tooltip(AppState.IDLE, message)

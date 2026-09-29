@@ -2071,7 +2071,6 @@
 		"modelManager": {
 			"loading": "Chargement du modèle | appuyez sur votre raccourci clavier pour le mettre en file...",
 			"readyWhisper": "Prêt | {device_info}",
-			"readyOther": "Prêt | {name} ASR",
 			"loadFailedRetry": "Échec du chargement du modèle | appuyez sur votre raccourci clavier pour réessayer",
 			"backendFailed": "Échec du chargement du modèle {backend}",
 			"modelFailed": "Erreur du modèle | {error}",

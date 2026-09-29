@@ -22,6 +22,8 @@ _INITIAL_LABELS: dict[str, str] = {
     "state.loading": "loading",
     "state.error": "error",
     "state.cancelling": "cancelling",
+    # Steady-state idle label for the tray tooltip (bare IDLE carries no
+    "state.ready": "Ready",
     "state.recording_controller.loading_queued": ("Loading model | your dictation will start automatically…"),
     "state.recording_controller.starting_up": "Starting up | please wait...",
     "state.recording_controller.consent_required": "Voice biometric consent required",
@@ -43,7 +45,6 @@ _INITIAL_LABELS: dict[str, str] = {
     "state.recording_controller.still_transcribing": "Still transcribing...",
     "state.model_manager.loading": "Loading model | press your hotkey to queue...",
     "state.model_manager.ready_whisper": "Ready | {device_info}",
-    "state.model_manager.ready_other": "Ready | {name} ASR",
     "state.model_manager.load_failed_retry": "Model load failed | press your hotkey to retry",
     "state.model_manager.backend_failed": "{backend} model failed to load",
     "state.model_manager.model_failed": "Model failed | {error}",

@@ -2071,7 +2071,6 @@
 		"modelManager": {
 			"loading": "मॉडल लोड हो रहा है | कतार में लाने के लिए अपनी हॉटकी दबाएँ...",
 			"readyWhisper": "तैयार | {device_info}",
-			"readyOther": "तैयार | {name} ASR",
 			"loadFailedRetry": "मॉडल लोड विफल | पुनः प्रयास के लिए अपनी हॉटकी दबाएँ",
 			"backendFailed": "{backend} मॉडल लोड नहीं हो सका",
 			"modelFailed": "मॉडल विफल | {error}",

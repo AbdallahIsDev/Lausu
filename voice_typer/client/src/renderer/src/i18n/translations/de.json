@@ -2071,7 +2071,6 @@
 		"modelManager": {
 			"loading": "Modell wird geladen | drücken Sie Ihre Tastenkombination zum Einreihen...",
 			"readyWhisper": "Bereit | {device_info}",
-			"readyOther": "Bereit | {name} ASR",
 			"loadFailedRetry": "Modell laden fehlgeschlagen | drücken Sie Ihre Tastenkombination zum Wiederholen",
 			"backendFailed": "{backend}-Modell konnte nicht geladen werden",
 			"modelFailed": "Modellfehler | {error}",
