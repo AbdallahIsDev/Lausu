@@ -181,6 +181,12 @@ echo "[build_worker_windows] nuitka=$NUITKA_VER"
 "$PY" -c 'import voice_typer.worker; import onnxruntime, numpy, scipy, websockets; print("worker imports ok")' \
     || { echo "ERROR: build env missing voice_typer.worker / onnxruntime / numpy / scipy / websockets" >&2; exit 1; }
 
+# Nuitka optimizer crashes on av's Cython .py shims
+# (assert micro_passes == 0, upstream issue 3970); voice_typer follows
+# av lazily, so the worker needs the same strip as the sidecar.
+"$PY" "$PROJECT_ROOT/scripts/build/strip_av_cython_shims.py" \
+    || { echo "ERROR: av shim strip failed" >&2; exit 1; }
+
 # ─── Prepare output dir ──────────────────────────────────────────────────────
 mkdir -p "$WORKER_DIR"
 

@@ -95,6 +95,12 @@ echo "[build_sidecar_windows] SITE=$SITE"
 "$PY" -c 'import websockets' \
     || { echo "ERROR: build env is missing websockets" >&2; exit 1; }
 
+# Nuitka optimizer crashes on av's Cython .py shims
+# (assert micro_passes == 0, upstream issue 3970); each has a
+# precompiled twin Python prefers, so the helper deletes only those.
+"$PY" "$PROJECT_ROOT/scripts/build/strip_av_cython_shims.py" \
+    || { echo "ERROR: av shim strip failed" >&2; exit 1; }
+
 # ─── Prepare output dir ──────────────────────────────────────────────────────
 mkdir -p "$SIDECAR_DIR"
 
