@@ -723,14 +723,13 @@ class TestLastResortWarningLogOncePerTransition:
                 registry.get_active()
 
         records = self._records(caplog)
-        assert len(records) == 10, "all 10 calls must produce a log record (first WARNING, rest DEBUG)"
+        # First call warns; the 9 repeats stay silent (no DEBUG spam).
+        assert len(records) == 1, "only the first call logs (WARNING), repeats are silent"
         warnings = [r for r in records if r.levelno == logging.WARNING]
         assert len(warnings) == 1, (
             "the WARNING must fire exactly ONCE per last-resort "
             f"transition, not on every call. Got {len(warnings)} WARNING records."
         )
-        debugs = [r for r in records if r.levelno == logging.DEBUG]
-        assert len(debugs) == 9, "the 9 repeat calls must log at DEBUG, not WARNING"
 
     def test_warning_refires_after_recovery(self, caplog):
         """After the backend becomes ready (latch cleared), a new"""

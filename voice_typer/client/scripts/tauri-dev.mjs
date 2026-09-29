@@ -126,6 +126,47 @@ async function waitForVite() {
 	);
 }
 
+/** Kill whatever is bound to the Vite port (leftover from a prior run). */
+function freeVitePort(port) {
+	if (process.platform === "win32") {
+		const out = spawnSync(
+			"powershell",
+			[
+				"-NoProfile",
+				"-Command",
+				`Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess`,
+			],
+			{ encoding: "utf8", windowsHide: true },
+		);
+		const pids = String(out.stdout || "")
+			.split(/\s+/)
+			.map((s) => Number.parseInt(s, 10))
+			.filter((n) => Number.isFinite(n) && n > 0 && n !== process.pid);
+		for (const pid of pids) {
+			console.log(`[tauri-dev] port ${port} busy (pid=${pid}), killing leftover process`);
+			spawnSync("taskkill", ["/T", "/F", "/PID", String(pid)], {
+				windowsHide: true,
+				stdio: "ignore",
+			});
+		}
+		return;
+	}
+	const out = spawnSync("bash", ["-lc", `lsof -ti tcp:${port} || true`], {
+		encoding: "utf8",
+	});
+	for (const pid of String(out.stdout || "")
+		.split(/\s+/)
+		.map((s) => Number.parseInt(s, 10))
+		.filter((n) => Number.isFinite(n) && n > 0 && n !== process.pid)) {
+		console.log(`[tauri-dev] port ${port} busy (pid=${pid}), killing leftover process`);
+		try {
+			process.kill(pid, "SIGKILL");
+		} catch {
+			/* already gone */
+		}
+	}
+}
+
 /** Resolve a Python that can run repo scripts (bare `python` is often absent). */
 function resolvePython() {
 	const candidates = [];
@@ -174,6 +215,9 @@ function runStubGen(args) {
 }
 
 // ── 1. Vite dev server (HMR) ─────────────────────────────────────────
+// Leftover Vite from a crashed prior run often still holds 1420
+// (strictPort) — clear it so this launch can bind.
+freeVitePort(1420);
 console.log("[tauri-dev] starting Vite (http://localhost:1420)...");
 viteChild = spawn("cmd", ["/c", "npx", "vite", "--config", "vite.tauri.config.ts"], {
 	cwd: clientDir,

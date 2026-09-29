@@ -170,7 +170,6 @@ class _ReaderMixin:
         """Handle a ``PONG`` wire-protocol line ()."""
         self._last_pong_received_at = time.time()
         self._pong_supported = True
-        log.debug("[NATIVE-HOTKEY] %s binary sent PONG", self.platform_name)
 
     def _on_ready_event(self) -> None:
         """Handle a ``READY`` wire-protocol line."""
