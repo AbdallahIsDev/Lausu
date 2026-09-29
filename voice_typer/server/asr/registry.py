@@ -143,11 +143,7 @@ class RegistryCore:
                                     "returning None, transcription not attempted",
                                     name,
                                 )
-                            else:
-                                log.debug(
-                                    "[ASR_REGISTRY] unloaded backend %s last-resort (repeat)",
-                                    name,
-                                )
+                            # Subsequent polls stay silent (first warning covers it).
                             return None
                         return b
             return None

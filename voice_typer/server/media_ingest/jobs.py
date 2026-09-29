@@ -56,7 +56,20 @@ class MediaJobManager:
             except Exception as exc:  # noqa: BLE001, captured into job state
                 job.status = "failed"
                 job.error = str(exc)
-                code = getattr(exc, "code", "internal_error")
+                code = getattr(exc, "code", None)
+                if code is None:
+                    # ASR "pack/model missing" surfaces as RuntimeError
+                    # subclasses without .code — map to the renderer's
+                    # no_model action instead of a generic internal_error.
+                    from voice_typer.server.asr_errors import (
+                        ModelIntegrityError,
+                        ModelNotDownloadedError,
+                    )
+
+                    if isinstance(exc, (ModelNotDownloadedError, ModelIntegrityError)):
+                        code = "no_engine_loaded"
+                    else:
+                        code = "internal_error"
                 with suppress(Exception):
                     self._on_event(
                         {
@@ -108,10 +121,15 @@ _MANAGER_LOCK = threading.Lock()
 
 
 def get_job_manager() -> MediaJobManager:
-    """Process-wide job manager singleton."""
+    """Process-wide job manager singleton (errors/complete → event_bus)."""
     global _MANAGER
     if _MANAGER is None:
         with _MANAGER_LOCK:
             if _MANAGER is None:
-                _MANAGER = MediaJobManager()
+                from voice_typer.server import event_bus
+
+                def _publish(event: dict) -> None:
+                    event_bus.publish(event)
+
+                _MANAGER = MediaJobManager(on_event=_publish)
     return _MANAGER

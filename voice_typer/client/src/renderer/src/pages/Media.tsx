@@ -14,7 +14,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeading from "@/components/common/PageHeading";
 import { SettingRow } from "@/components/common/SettingRow";
-import { SettingsSection } from "@/components/common/SettingsSection";
 import { Spinner } from "@/components/feedback/Spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,10 +92,7 @@ export default function MediaPage() {
 				}}
 			/>
 
-			<SettingsSection
-				title={t("media.sourceLabel")}
-				description={t("media.dropHint")}
-			>
+			<div className="flex flex-col gap-3 rounded-lg border border-border/10 bg-surface-subtle">
 				{/* Drop zone + link field share one clean row stack. */}
 				<div className="flex flex-col gap-3 p-4">
 					<button
@@ -186,7 +182,7 @@ export default function MediaPage() {
 						aria-label={t("media.useSubtitlesLabel")}
 					/>
 				</SettingRow>
-			</SettingsSection>
+			</div>
 
 			{/* Same progress card for link and local file sources. */}
 			{running && (

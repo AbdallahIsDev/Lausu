@@ -651,14 +651,16 @@
 	color: var(--muted-foreground);
 }
 
-/* Action button (Undo/Retry): primary surface, radius untouched. */
+/* Action button (Undo/Retry/Open Models): muted outline like collection
+   toolbar buttons (Import), not primary blue. */
 .toaster [data-sonner-toast][data-styled="true"] [data-button] {
-	background: var(--primary);
-	color: var(--primary-foreground);
+	background: var(--surface);
+	color: var(--foreground);
+	border: 1px solid color-mix(in srgb, var(--border) 10%, transparent);
 }
 
 .toaster [data-sonner-toast][data-styled="true"] [data-button]:hover {
-	opacity: 0.9;
+	background: color-mix(in srgb, var(--foreground) 5%, transparent);
 }
 
 /* Cancel button: secondary surface. The .toaster[data-sonner-toaster]
