@@ -27,7 +27,7 @@ class MediaHandlersMixin(HandlerBase):
                     "export_path": {"type": (str, type(None)), "required": False, "default": None},
                     "export_format": {"type": (str, type(None)), "required": False, "default": None},
                     # ADR-0023 E13: subtitle fast-path is OPT-IN (default off).
-                    "use_subtitles": {"type": bool, "required": False, "default": False},
+                    "use_subtitles": {"type": bool, "required": False, "default": True},
                 },
             )
             if error:

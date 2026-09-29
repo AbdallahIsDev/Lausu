@@ -23,6 +23,22 @@ log = logging.getLogger("voice_typer.server.sidecar_ws")
 _HEARTBEAT_RATE_WINDOW_SECONDS = 10.0
 _HEARTBEAT_RATE_MAX_PER_WINDOW = 100
 
+# High-frequency poll/heartbeat frames. Still handled normally, but not
+# wire-traced at DEBUG (they drown every other signal in the log).
+_QUIET_FRAME_TYPES = frozenset(
+    {
+        "heartbeat",
+        "heartbeat_ack",
+        "get_config",
+        "get_status",
+        "get_microphones",
+        "get_model_status",
+        "get_model_catalog",
+        "get_download_queue",
+        "media_transcribe_status",
+    }
+)
+
 
 async def _read_loop(websocket, server: IPCServer, dispatch) -> None:
     """Read/dispatch loop body (extraction from ``_handle_connection_inner``)."""
@@ -67,12 +83,14 @@ async def _read_loop(websocket, server: IPCServer, dispatch) -> None:
 
         # The frame may carry an optional "id" for request/response
         request_id = msg.get("id")
-        # DEBUG wire-trace (C-TAURI-3 diagnosis aid): one line per
-        log.debug(
-            "[SIDECAR-WS] RX frame type=%s id=%s",
-            msg.get("type"),
-            request_id,
-        )
+        frame_type = msg.get("type")
+        # DEBUG wire-trace for non-routine frames only (C-TAURI-3 aid).
+        if frame_type not in _QUIET_FRAME_TYPES:
+            log.debug(
+                "[SIDECAR-WS] RX frame type=%s id=%s",
+                frame_type,
+                request_id,
+            )
         # heartbeat fast-path. Handle heartbeat INLINE in
         if msg.get("type") == "heartbeat":
             # Cheap heartbeat-specific rate cap. The fast-path bypasses
@@ -136,11 +154,13 @@ async def _dispatch_and_respond(msg: dict, request_id, websocket, dispatch) -> N
             result = {**result, "id": request_id}
         # Route the dispatch response through ``_safe_send`` so it
         send_status = await _outbound_mod._safe_send(websocket, result)
-        log.debug(
-            "[SIDECAR-WS] TX response id=%s status=%s",
-            request_id,
-            send_status,
-        )
+        # Only trace responses for non-routine requests; always log failures.
+        if send_status != "sent" or msg.get("type") not in _QUIET_FRAME_TYPES:
+            log.debug(
+                "[SIDECAR-WS] TX response id=%s status=%s",
+                request_id,
+                send_status,
+            )
         if send_status != "sent":
             # ``"dropped"`` (oversized) or ``"failed"`` (timeout /
             with contextlib.suppress(Exception):

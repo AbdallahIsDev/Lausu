@@ -138,8 +138,14 @@ def check_refresh(
     try:
         body = get(url, max_bytes=64 * 1024, timeout=30.0)
         data = json.loads(body)
-    except Exception:  # noqa: BLE001, freshness is advisory
-        log.debug("[MEDIA] extractor refresh check failed", exc_info=True)
+    except Exception as exc:  # noqa: BLE001, freshness is advisory
+        # 404 is the normal pre-publish state (no manifest on Releases yet).
+        # One clean line, no stack dump — this check is advisory.
+        msg = str(exc)
+        if "404" in msg or "Not Found" in msg:
+            log.debug("[MEDIA] extractor refresh manifest not published yet")
+        else:
+            log.debug("[MEDIA] extractor refresh check failed: %s", msg)
         save_state(state, state_file)
         return state
     if not isinstance(data, dict):
