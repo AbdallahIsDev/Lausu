@@ -54,7 +54,11 @@
 		"errorDownloadFailed": "Le téléchargement de l'audio a échoué. Vérifiez votre connexion et réessayez.",
 		"errorNoModel": "Aucun modèle de reconnaissance n'est chargé. Ouvrez Modèles pour en choisir un.",
 		"errorBusy": "Une autre transcription est déjà en cours. Annulez-la d'abord.",
-		"noModelAction": "Ouvrir les modèles"
+		"noModelAction": "Ouvrir les modèles",
+		"dropZoneTitle": "Déposez un fichier vidéo ou audio",
+		"dropZoneAria": "Choisir un fichier média, ou le déposer ici",
+		"browseFile": "Parcourir les fichiers",
+		"orLink": "ou collez un lien"
 	},
 	"nav": {
 		"home": "Accueil",

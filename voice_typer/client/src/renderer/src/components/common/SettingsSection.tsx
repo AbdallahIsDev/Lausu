@@ -1,9 +1,15 @@
-import { type ReactNode, useId } from "react";
+import type { ReactNode } from "react";
+import { useId } from "react";
+import { InfoTooltip } from "@/components/feedback/InfoTooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface SettingsSectionProps {
 	title: string;
+	/** Card help: ? tooltip beside the title. Page-level headings can
+	 *  pass `descriptionMode="text"` to keep the subtitle as body copy. */
 	description?: string;
+	descriptionMode?: "tooltip" | "text";
 	children: ReactNode;
 	/** Optional action rendered at the end of the heading row (e.g. a
 	 *  header button like "Copy diagnostics"). */
@@ -16,37 +22,38 @@ interface SettingsSectionProps {
 export function SettingsSection({
 	title,
 	description,
+	descriptionMode = "tooltip",
 	children,
 	action,
 	cardClassName,
 }: SettingsSectionProps) {
-	// `<section>` is an ARIA landmark. WCAG 2.4.6 / SC 1.3.1 / SC 4.1.2
-	// require each landmark to expose a programmatically-determinable
-	// name. We generate a stable id for the visible `<h2>` and reference
-	// it via `aria-labelledby` so SR users can navigate to this section
-	// by name (e.g. "Microphone settings, region") rather than hearing
-	// a generic "region" announcement.
+	// Named landmark for SR navigation (WCAG 2.4.6 / 1.3.1 / 4.1.2).
 	const headingId = useId();
 	return (
 		<section aria-labelledby={headingId} className="flex flex-col gap-4">
 			<div className="flex items-start justify-between gap-4">
 				<div className="flex flex-col gap-1">
-					<h2
-						id={headingId}
-						className="font-sans text-lg font-semibold text-foreground"
-					>
-						{title}
-					</h2>
-					{description && (
+					<div className="flex items-center gap-2">
+						<h2
+							id={headingId}
+							className="font-sans text-lg font-semibold text-foreground"
+						>
+							{title}
+						</h2>
+						{description && descriptionMode === "tooltip" && (
+							// Own provider so SettingsSection works standalone (tests
+							// and About) without requiring a page-level TooltipProvider.
+							<TooltipProvider delayDuration={200}>
+								<InfoTooltip text={description} contextLabel={title} />
+							</TooltipProvider>
+						)}
+					</div>
+					{description && descriptionMode === "text" && (
 						<p className="text-sm text-muted-foreground">{description}</p>
 					)}
 				</div>
 				{action}
 			</div>
-			{/* Section card: soft background + row dividers + a subtle
-			    border so every section reads as a consistent card (About
-			    and Settings share this component, so the border treatment
-			    is uniform across the app). */}
 			<div
 				className={cn(
 					"rounded-lg border border-border/5 bg-surface-subtle divide-y divide-border/5",

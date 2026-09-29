@@ -95,20 +95,15 @@ export const GlobalSearchBar = memo(function GlobalSearchBar({
 		// -webkit-app-region: drag. A full-width no-drag wrapper around
 		// the field would cover the entire middle strip and kill window
 		// dragging there, the surrounding flex-1 spacer stays draggable.
-		<div className="no-drag w-72">
-			<SearchField
-				value={query}
-				onChange={setQuery}
-				placeholder={placeholder}
-				ariaLabel={placeholder}
-				inputRef={inputRef}
-				// Compact for the 36px title bar: Input defaults to h-7
-				// (full bar height) + text-base; h-6.5 (26px) leaves ~5px of
-				// breathing room above and below, and text-xs keeps the
-				// placeholder/label from overflowing the small field. The
-				// parent's items-center vertically centers it.
-				className="h-6.5 rounded-lg text-xs md:text-xs"
-			/>
-		</div>
+		// <div className=" w-72c">
+		<SearchField
+			value={query}
+			onChange={setQuery}
+			placeholder={placeholder}
+			ariaLabel={placeholder}
+			inputRef={inputRef}
+			className="no-drag h-7 rounded-lg text-xs md:text-xs bg-background"
+		/>
+		// </div>
 	);
 });

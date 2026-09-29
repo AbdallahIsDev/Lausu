@@ -75,7 +75,11 @@
 		"errorDownloadFailed": "Das Herunterladen des Audios ist fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.",
 		"errorNoModel": "Kein Sprachmodell geladen. Öffne Modelle, um eines auszuwählen.",
 		"errorBusy": "Eine andere Transkription läuft bereits. Breche sie zuerst ab.",
-		"noModelAction": "Modelle öffnen"
+		"noModelAction": "Modelle öffnen",
+		"dropZoneTitle": "Video- oder Audiodatei hier ablegen",
+		"dropZoneAria": "Mediendatei wählen oder hier ablegen",
+		"browseFile": "Dateien durchsuchen",
+		"orLink": "oder Link einfügen"
 	},
 	"nav": {
 		"home": "Startseite",

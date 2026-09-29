@@ -33,6 +33,8 @@
  * automatically. Renderer file changes: Vite HMR pushes instantly.
  */
 import { spawn, spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -40,6 +42,36 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(clientDir, "..", "..");
 const devOverride = path.join(repoRoot, "src-tauri", "tauri.dev.conf.json");
+
+// rustup installs cargo under ~/.cargo/bin but GUI-launched cmd.exe often
+// has a PATH without it (`cargo metadata` → "program not found"). The GNU
+// Windows toolchain (tauri-winres / windres, x86_64-w64-mingw32-gcc-ar)
+// lives in MSYS2 mingw64\bin and is likewise often missing from GUI PATH.
+function withBuildToolsOnPath(env) {
+	const extraDirs = [
+		path.join(os.homedir(), ".cargo", "bin"),
+		"C:\\msys64\\mingw64\\bin",
+		"C:\\msys64\\ucrt64\\bin",
+		"C:\\msys64\\usr\\bin",
+		// Dev sidecar/worker: `python.exe` for `python -m voice_typer...`
+		path.join(repoRoot, ".venv", "Scripts"),
+		path.join(repoRoot, ".venv", "bin"),
+	];
+	const next = { ...env };
+	const key = process.platform === "win32" ? "Path" : "PATH";
+	let cur = next[key] ?? next.PATH ?? "";
+	const parts = cur ? cur.split(path.delimiter) : [];
+	const lower = new Set(parts.map((p) => p.toLowerCase()));
+	for (const dir of extraDirs) {
+		if (!existsSync(dir)) continue;
+		if (lower.has(dir.toLowerCase())) continue;
+		parts.unshift(dir);
+		lower.add(dir.toLowerCase());
+	}
+	next[key] = parts.join(path.delimiter);
+	return next;
+}
+const childEnv = withBuildToolsOnPath(process.env);
 
 // NOTE: `localhost`, not 127.0.0.1, Vite binds whichever stack
 // `localhost` resolves to (::1 on this machine) and the tauri CLI's
@@ -94,10 +126,58 @@ async function waitForVite() {
 	);
 }
 
+/** Resolve a Python that can run repo scripts (bare `python` is often absent). */
+function resolvePython() {
+	const candidates = [];
+	if (process.env.MIMO_PYTHON) candidates.push(process.env.MIMO_PYTHON);
+	if (process.env.VOICE_TYPER_PYTHON) candidates.push(process.env.VOICE_TYPER_PYTHON);
+	candidates.push(path.join(repoRoot, ".venv", "Scripts", "python.exe"));
+	candidates.push(path.join(repoRoot, ".venv", "bin", "python"));
+	candidates.push("python3");
+	candidates.push("python");
+	candidates.push("py");
+	for (const cand of candidates) {
+		if (!cand) continue;
+		// Absolute paths must exist; bare names are resolved by PATH.
+		if (path.isAbsolute(cand) && !existsSync(cand)) continue;
+		const probe = spawnSync(cand, ["--version"], {
+			windowsHide: true,
+			env: childEnv,
+		});
+		if (probe.status === 0) return cand;
+	}
+	return null;
+}
+
+const stubScriptPath = path.join(repoRoot, "scripts", "gen_tauri_icons_stub.py");
+
+function runStubGen(args) {
+	const py = resolvePython();
+	if (!py) {
+		console.error(
+			"[tauri-dev] no Python found (tried .venv, python3, python, py). " +
+				"Install Python or create .venv, then re-run.",
+		);
+		return { status: 1, error: new Error("python not found") };
+	}
+	const extra = py === "py" ? ["-3"] : [];
+	const res = spawnSync(py, [...extra, stubScriptPath, ...args], {
+		cwd: repoRoot,
+		env: childEnv,
+		stdio: "inherit",
+		windowsHide: true,
+	});
+	if (res.error) {
+		console.error(`[tauri-dev] failed to spawn ${py}: ${res.error.message}`);
+	}
+	return res;
+}
+
 // ── 1. Vite dev server (HMR) ─────────────────────────────────────────
 console.log("[tauri-dev] starting Vite (http://localhost:1420)...");
 viteChild = spawn("cmd", ["/c", "npx", "vite", "--config", "vite.tauri.config.ts"], {
 	cwd: clientDir,
+	env: childEnv,
 	stdio: ["ignore", "inherit", "inherit"],
 	windowsHide: true,
 });
@@ -127,18 +207,10 @@ try {
 // must run before EVERY `tauri dev`, otherwise pytest (often running
 // concurrently in another terminal) breaks the next dev launch.
 console.log("[tauri-dev] checking Tauri stub binaries...");
-const stubScript = path.join(repoRoot, "scripts", "gen_tauri_icons_stub.py");
-const stubCheck = spawnSync("python", [stubScript, "--check"], {
-	cwd: repoRoot,
-	windowsHide: true,
-});
+const stubCheck = runStubGen(["--check"]);
 if (stubCheck.status !== 0) {
 	console.log("[tauri-dev] stubs missing, regenerating...");
-	const gen = spawnSync("python", [stubScript], {
-		cwd: repoRoot,
-		stdio: "inherit",
-		windowsHide: true,
-	});
+	const gen = runStubGen([]);
 	if (gen.status !== 0) {
 		console.error(
 			"[tauri-dev] stub generation failed, aborting (see output above)",
@@ -149,23 +221,44 @@ if (stubCheck.status !== 0) {
 }
 
 // ── 3. Tauri CLI (Rust host + sidecar supervisor) ────────────────────
+// Prefer the LOCAL @tauri-apps/cli from voice_typer/client/node_modules.
+// Bare `npx @tauri-apps/cli` with cwd=repoRoot does not see the client
+// package, re-downloads the CLI into the npx cache every run, and prompts
+// "Ok to proceed? (y)" — which also vanishes when the cache is cleaned.
 console.log("[tauri-dev] starting tauri dev (debug host + source sidecar)...");
-cliChild = spawn(
-	"cmd",
-	[
-		"/c",
-		"npx",
-		"@tauri-apps/cli",
-		"dev",
-		"--config",
-		devOverride,
-	],
-	{
-		cwd: repoRoot,
-		stdio: ["inherit", "inherit", "inherit"],
-		windowsHide: true,
-	},
-);
+const localTauriWin = path.join(clientDir, "node_modules", ".bin", "tauri.cmd");
+const localTauriPosix = path.join(clientDir, "node_modules", ".bin", "tauri");
+const localTauri = existsSync(localTauriWin)
+	? localTauriWin
+	: existsSync(localTauriPosix)
+		? localTauriPosix
+		: null;
+
+let cliCmd;
+let cliArgs;
+if (localTauri) {
+	// Windows .cmd needs cmd.exe; POSIX bin is directly executable.
+	cliCmd = process.platform === "win32" ? "cmd" : localTauri;
+	cliArgs =
+		process.platform === "win32"
+			? ["/c", localTauri, "dev", "--config", devOverride]
+			: ["dev", "--config", devOverride];
+} else {
+	console.warn(
+		"[tauri-dev] local @tauri-apps/cli missing; using npx --yes (run `npm install` in voice_typer/client to pin it)",
+	);
+	cliCmd = process.platform === "win32" ? "cmd" : "npx";
+	cliArgs =
+		process.platform === "win32"
+			? ["/c", "npx", "--yes", "@tauri-apps/cli", "dev", "--config", devOverride]
+			: ["--yes", "@tauri-apps/cli", "dev", "--config", devOverride];
+}
+cliChild = spawn(cliCmd, cliArgs, {
+	cwd: repoRoot,
+	env: childEnv,
+	stdio: ["inherit", "inherit", "inherit"],
+	windowsHide: true,
+});
 cliChild.on("exit", (code) => {
 	// The CLI owns the Rust host; when it exits (app closed / Ctrl+C in
 	// the CLI's console), the whole dev session is done.

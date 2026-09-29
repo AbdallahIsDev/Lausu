@@ -5,6 +5,7 @@ import { HotkeyTooltip } from "@/components/hotkey/HotkeyTooltip";
 import { IS_LINUX, IS_MAC, IS_WIN } from "@/components/hotkey/hotkey-utils";
 import { SHORTCUTS } from "@/components/hotkey/shortcuts";
 import { GlobalSearchBar } from "@/components/layout/GlobalSearchBar";
+import { ModelsTabSwitcher } from "@/components/layout/ModelsTabSwitcher";
 import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
 import { Button } from "@/components/ui/button";
 import { t } from "@/i18n/i18n";
@@ -608,11 +609,12 @@ function TitleBarInner({
 
 			{/* Global search bar, centered in the middle of the title bar.
                             Only rendered on searchable pages (history, templates,
-                            vocabulary, settings*). On non-searchable pages the flex-1
-                            spacer keeps the toolbar pushed left and controls on the
-                            right, exactly as before. */}
-			<div className="flex min-w-0 flex-1 items-center justify-center px-2">
+                            vocabulary, settings*). Models swaps in the Local/Cloud
+                            segmented control (same middle strip). On other pages
+                            the flex-1 spacer keeps the toolbar left + controls right. */}
+			<div className="flex min-w-0 flex-1 items-center justify-center p-1 h-full">
 				{currentPage ? <GlobalSearchBar currentPage={currentPage} /> : null}
+				{currentPage ? <ModelsTabSwitcher currentPage={currentPage} /> : null}
 			</div>
 
 			{/* Theme control, icon-only, in its OWN p-1 (4px) padded
