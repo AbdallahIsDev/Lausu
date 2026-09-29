@@ -233,6 +233,11 @@ jobs:
           if ($PYBS -notmatch 'python\.exe$') { $PYBS = "$PYBS\python.exe" }
           $SITE = & $PYBS -c "import site; print(site.getsitepackages()[-1])"
           Write-Host "PYBS=$PYBS  SITE=$SITE"
+          # Nuitka optimizer crashes on av's Cython .py shims
+          # (assert micro_passes == 0, upstream issue 3970); each has a
+          # .pyd twin Python prefers, so the helper deletes only those.
+          & $PYBS scripts/build/strip_av_cython_shims.py
+          if ($LASTEXITCODE -ne 0) { Write-Error "av shim strip failed"; exit 1 }
           # ADR-0025 C7: ASR lives in the pack worker — the ctranslate2
           # DLL/data-dir plumbing below was deleted in the same change
           # (mirrors scripts/build/build_sidecar_windows.sh); the WORKER
