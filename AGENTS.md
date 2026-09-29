@@ -1011,8 +1011,8 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-CI-12
-Rule: Do NOT remove `CLCACHE_DISABLE: "1"` from the job-level `env:` block of the `tauri-windows-build` job, and do NOT move it into a step-level `$env:CLCACHE_DISABLE = "1"` assignment only.
-Rationale: S10-CC-1, a step-level env var does NOT propagate to the Nuitka/SCons C compiler subprocess; with clcache enabled, torch module C compilation hangs indefinitely and the job times out (~90 min wasted). Job-level env is inherited by every subprocess and fixes the hang.
+Rule: Do NOT set `CLCACHE_DISABLE` in the `build-sidecar-exe` / `build-worker-exe` jobs, and do NOT remove their scons build-dir cache steps; repeat freezes must reuse prior compilation work.
+Rationale: Compiler caching (Nuitka's inline clcache copy, persisted by the ccache step, plus the persisted scons `.build` dir) is what keeps repeat freezes to minutes instead of ~2.5h from scratch. The old S10-CC-1 torch C-compile hang that motivated the disable is gone with torch nofollowed out of every freeze (NU-106 / C-CI-8); if a hang ever returns, re-disable per-job and record the culprit module here, never silently. Step-level env does NOT propagate to the Nuitka/SCons subprocess, so any future disable must be job-level to take effect. The leftover entry in `tauri-windows-build` is dead (no compiler runs there) — leave it.
 Applies to: All agents, all modes, all sub-agents.
 ```
 
