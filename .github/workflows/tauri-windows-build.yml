@@ -74,17 +74,15 @@ env:
   PYBS_VERSION: ${{ inputs.pybs_version || github.event.inputs.pybs_version || '3.12.8' }}
 
 jobs:
-  tauri-windows-build:
-    # MIG-1.5: enabled for manual workflow_dispatch triggers.
-    # MIG-1.5 / TX-40: active matrix is x86_64-only (windows-2022). aarch64 stays a
-    # commented template (C-CI-4: no public windows-11-arm runner; matrix not in
-    # jobs.<id>.if). Default binary names grepped by mig18 signing tests:
-    #   python-sidecar-x86_64-pc-windows-msvc.exe
-    #   python-sidecar-aarch64-pc-windows-msvc.exe  (aarch64 template, commented)
-    # Artifact names (C-CI-13): tauri-windows-installer, Lausu-Tauri-MSI,
-    # Lausu-Tauri-Sidecar-Binaries, Lausu-Tauri-SHA256SUMS.
-    # If enabling aarch64, also add tauri.windows-aarch64.conf.json + arch-suffix
-    # those artifact names (TX-40 GATE STATUS / docs/code-notes/ci-workflows.md).
+  build-sidecar-exe:
+    # JOB SPLIT (2026-09-29): the sidecar Nuitka freeze gets its own job so
+    # it holds a full 240min budget in parallel with the worker freeze.
+    # Previously sidecar + worker + Tauri shared one job and hit the 240min
+    # ceiling mid-worker-build. This job needs nothing from other jobs; the
+    # tauri-windows-build job downloads its binary via artifacts.
+    # Matrix mirrors tauri-windows-build (x86_64 active, aarch64 commented
+    # template per C-CI-4); keep all job matrices in lockstep. If enabling
+    # aarch64, arch-suffix the intermediate artifact name below (TX-40).
     strategy:
       fail-fast: false
       matrix:
@@ -99,63 +97,19 @@ jobs:
           #   tauri_config: tauri.windows-aarch64.conf.json
     # No job-level if: — matrix.* is illegal in jobs.<id>.if (C-CI-4 / TX-40).
     runs-on: ${{ matrix.runner }}
-    # C-CI-3: timeout-minutes 240 — real build 90-110 min; 120 cancelled mid-build.
-    # Never cut this; if a run hits 240, cut C compilation, not the timeout.
     timeout-minutes: 240
     permissions:
       contents: read
-      id-token: write   # required for actions/attest-build-provenance
-      attestations: write
     env:
       # TX-40: target triple from matrix (x86_64 or aarch64 template); job-level env.
       PYBS_TRIPLE: ${{ matrix.target }}
-      RUST_TARGET: ${{ matrix.target }}
-      # CRIT-7 / C-CI-11: secrets.* is NOT available in step if: — map to job env first.
-      # (sign=true + missing secrets hard-fail; empty on forks → signing steps skip.)
-      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-      # Normalized sign flag. Required because GitHub compares a boolean input
-      # differently per event (actions/runner#3571): workflow_call (tauri-build.yml
-      # passes `fromJSON(...)` → a real boolean) matches TRUE, direct dispatch
-      # (string 'true') matches 'true'. A single form leaves the whole TX-23/S1-CR-99
-      # signing gate set inert on the other path. env context is available in step
-      # if: (the secrets rule above), so gate on this string instead of inputs.sign.
-      SIGN_ENABLED: ${{ inputs.sign == true || inputs.sign == 'true' }}
       # S10-CC-1 / C-CI-12: CLCACHE_DISABLE must be job-level — step-level does not
-      # reach Nuitka/SCons; torch C compile hangs indefinitely without it.
+      # reach Nuitka/SCons.
       CLCACHE_DISABLE: "1"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Set up Python 3.12 (dev env)
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-          cache-dependency-glob: "**/pyproject.toml"
-
-      - name: Install Rust toolchain (${{ env.RUST_TARGET }})
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
-          targets: ${{ env.RUST_TARGET }}
-
-      - name: Cache cargo registry + target
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src-tauri/target
-          key: tauri-windows-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: |
-            tauri-windows-${{ runner.os }}-
 
       # Nuitka ccache: persist compiled C objects between builds.
       - name: Cache Nuitka build artifacts (ccache)
@@ -165,28 +119,6 @@ jobs:
           key: tauri-windows-nuitka-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'requirements-lock.txt') }}
           restore-keys: |
             tauri-windows-nuitka-${{ runner.os }}-
-
-      - name: Set up Node.js 24
-        uses: actions/setup-node@v7
-        with:
-          # Node 24 — CURRENT TARGET. Do NOT downgrade to Node 20 (deprecated on GitHub Actions 2025-09-19).
-          # If a newer LTS is available, bump this comment AND the version below together.
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: voice_typer/client/package-lock.json
-
-      - name: Install npm dependencies
-        working-directory: voice_typer/client
-        run: npm ci
-
-      # do NOT downgrade below 2.8.10. numpy 2.5.x ships PEP 695
-      - name: Install Python dev deps (uv)
-        shell: pwsh
-        run: |
-          $env:UV_LINK_MODE = "copy"
-          uv pip install --system ".[dev,test]"
-          uv pip install --system nuitka==2.8.10 zstandard ordered-set
-          pip list
 
       - name: Download + verify python-build-standalone
         shell: pwsh
@@ -346,6 +278,92 @@ jobs:
           test -f "$BIN" || { echo "ERROR: sidecar binary missing at $BIN"; exit 1; }
           bash scripts/build/check_bundle_torch_free.sh "$BIN"
 
+      - name: Upload sidecar binary (intermediate)
+        uses: actions/upload-artifact@v6
+        with:
+          # TX-40: arch-suffix this name when enabling the aarch64 leg.
+          name: windows-sidecar-exe
+          path: src-tauri/bin/python-sidecar-${{ matrix.target }}.exe
+          if-no-files-found: error
+
+  build-worker-exe:
+    # JOB SPLIT (2026-09-29): the worker Nuitka freeze gets its own job so
+    # it holds a full 240min budget in parallel with the sidecar freeze
+    # (plan-runtime-pack-split.md §4.4 / §11.5). The tauri-windows-build job
+    # downloads its binary via artifacts. Matrix mirrors tauri-windows-build;
+    # keep all job matrices in lockstep (C-CI-4, TX-40).
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            target: x86_64-pc-windows-msvc
+            runner: windows-2022
+            tauri_config: tauri.windows-x86_64.conf.json
+          # - arch: aarch64
+          #   target: aarch64-pc-windows-msvc
+          #   runner: windows-11-arm
+          #   tauri_config: tauri.windows-aarch64.conf.json
+    # No job-level if: — matrix.* is illegal in jobs.<id>.if (C-CI-4 / TX-40).
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 240
+    permissions:
+      contents: read
+    env:
+      # TX-40: target triple from matrix (x86_64 or aarch64 template); job-level env.
+      PYBS_TRIPLE: ${{ matrix.target }}
+      # S10-CC-1 / C-CI-12: CLCACHE_DISABLE must be job-level — step-level does not
+      # reach Nuitka/SCons.
+      CLCACHE_DISABLE: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Nuitka ccache: persist compiled C objects between builds.
+      - name: Cache Nuitka build artifacts (ccache)
+        uses: actions/cache@v5
+        with:
+          path: C:\Users\runner\AppData\Local\nuitka\cache
+          key: tauri-windows-nuitka-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'requirements-lock.txt') }}
+          restore-keys: |
+            tauri-windows-nuitka-${{ runner.os }}-
+
+      - name: Download + verify python-build-standalone
+        shell: pwsh
+        run: |
+          $date = $env:PYBS_DATE
+          $pyver = $env:PYBS_VERSION
+          $triple = $env:PYBS_TRIPLE
+          $archive = "cpython-$pyver+$date-$triple-install_only.tar.gz"
+          $url = "https://github.com/astral-sh/python-build-standalone/releases/download/$date/$archive"
+          Write-Host "Downloading $url"
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          # The python-build-standalone releases do NOT have a SHA256SUMS.txt aggregate.
+          $shaUrl = "https://github.com/astral-sh/python-build-standalone/releases/download/$date/$archive.sha256"
+          Write-Host "Downloading checksum: $shaUrl"
+          Invoke-WebRequest -Uri $shaUrl -OutFile "$archive.sha256"
+          # The .sha256 file contains: "<sha256>  <filename>"
+          $expected = (Get-Content "$archive.sha256" -Raw).Split(' ', 2)[0].Trim().ToLower()
+          $actual = (Get-FileHash -Algorithm SHA256 -Path $archive).Hash.ToLower()
+          if ($expected -ne $actual) {
+            Write-Error "SHA-256 mismatch for $archive`nexpected=$expected`nactual=$actual"
+            exit 1
+          }
+          Write-Host "SHA-256 OK: $actual"
+          # Extract to C:\tools\pybs\python (matches runbook §0.7)
+          New-Item -ItemType Directory -Force -Path C:\tools\pybs | Out-Null
+          tar -xzf $archive -C C:\tools\pybs
+          Write-Host "PYBS python:"
+          C:\tools\pybs\python\python.exe --version
+          # Add PYBS to GITHUB_ENV so subsequent steps can use it.
+          echo "PYBS=C:\tools\pybs\python\python.exe" >> $env:GITHUB_ENV
+          # Install the project + Nuitka into the PYBS env (the env that
+          C:\tools\pybs\python\python.exe -m pip install --upgrade --no-warn-script-location pip
+          C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location nuitka==2.8.10 zstandard ordered-set
+          C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location -e ".[dev,test]"
+          C:\tools\pybs\python\python.exe -c "import faster_whisper, ctranslate2; print('ctranslate2', ctranslate2.__version__)"
+
       # plan-runtime-pack-split.md §4.4 / §11.5 — Worker exe build.
       # FV-58: PYBS extracts to C:\tools\pybs\python\python.exe; the script
       # expects VOICE_TYPER_PYBS_DIR to be that tree's PARENT (C:\tools\pybs)
@@ -380,6 +398,145 @@ jobs:
             exit 1
           }
           Write-Host "Runtime pack size within 200 MB limit (size gate passed)."
+
+      - name: Upload worker binary (intermediate)
+        uses: actions/upload-artifact@v6
+        with:
+          # TX-40: arch-suffix this name when enabling the aarch64 leg.
+          name: windows-worker-exe
+          path: src-tauri/bin/lausu-worker-${{ matrix.target }}.exe
+          if-no-files-found: error
+
+  tauri-windows-build:
+    # JOB SPLIT (2026-09-29): this job no longer freezes anything itself.
+    # It downloads the sidecar + worker binaries from the build-sidecar-exe
+    # / build-worker-exe jobs (which hold their own 240min budgets in
+    # parallel) and runs native build + gates + Tauri packaging + signing.
+    # MIG-1.5: enabled for manual workflow_dispatch triggers.
+    needs: [build-sidecar-exe, build-worker-exe]
+    # MIG-1.5 / TX-40: active matrix is x86_64-only (windows-2022). aarch64 stays a
+    # commented template (C-CI-4: no public windows-11-arm runner; matrix not in
+    # jobs.<id>.if). Default binary names grepped by mig18 signing tests:
+    #   python-sidecar-x86_64-pc-windows-msvc.exe
+    #   python-sidecar-aarch64-pc-windows-msvc.exe  (aarch64 template, commented)
+    # Artifact names (C-CI-13): tauri-windows-installer, Lausu-Tauri-MSI,
+    # Lausu-Tauri-Sidecar-Binaries, Lausu-Tauri-SHA256SUMS.
+    # If enabling aarch64, also add tauri.windows-aarch64.conf.json + arch-suffix
+    # those artifact names (TX-40 GATE STATUS / docs/code-notes/ci-workflows.md).
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            target: x86_64-pc-windows-msvc
+            runner: windows-2022
+            tauri_config: tauri.windows-x86_64.conf.json
+          # - arch: aarch64
+          #   target: aarch64-pc-windows-msvc
+          #   runner: windows-11-arm
+          #   tauri_config: tauri.windows-aarch64.conf.json
+    # No job-level if: — matrix.* is illegal in jobs.<id>.if (C-CI-4 / TX-40).
+    runs-on: ${{ matrix.runner }}
+    # C-CI-3: timeout-minutes 240 — real build 90-110 min; 120 cancelled mid-build.
+    # Never cut this; if a run hits 240, cut C compilation, not the timeout.
+    timeout-minutes: 240
+    permissions:
+      contents: read
+      id-token: write   # required for actions/attest-build-provenance
+      attestations: write
+    env:
+      # TX-40: target triple from matrix (x86_64 or aarch64 template); job-level env.
+      PYBS_TRIPLE: ${{ matrix.target }}
+      RUST_TARGET: ${{ matrix.target }}
+      # CRIT-7 / C-CI-11: secrets.* is NOT available in step if: — map to job env first.
+      # (sign=true + missing secrets hard-fail; empty on forks → signing steps skip.)
+      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+      # Normalized sign flag. Required because GitHub compares a boolean input
+      # differently per event (actions/runner#3571): workflow_call (tauri-build.yml
+      # passes `fromJSON(...)` → a real boolean) matches TRUE, direct dispatch
+      # (string 'true') matches 'true'. A single form leaves the whole TX-23/S1-CR-99
+      # signing gate set inert on the other path. env context is available in step
+      # if: (the secrets rule above), so gate on this string instead of inputs.sign.
+      SIGN_ENABLED: ${{ inputs.sign == true || inputs.sign == 'true' }}
+      # S10-CC-1 / C-CI-12: CLCACHE_DISABLE must be job-level — step-level does not
+      # reach Nuitka/SCons; torch C compile hangs indefinitely without it.
+      CLCACHE_DISABLE: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python 3.12 (dev env)
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+
+      - name: Install Rust toolchain (${{ env.RUST_TARGET }})
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+          targets: ${{ env.RUST_TARGET }}
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: tauri-windows-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            tauri-windows-${{ runner.os }}-
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          # Node 24 — CURRENT TARGET. Do NOT downgrade to Node 20 (deprecated on GitHub Actions 2025-09-19).
+          # If a newer LTS is available, bump this comment AND the version below together.
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: voice_typer/client/package-lock.json
+
+      - name: Install npm dependencies
+        working-directory: voice_typer/client
+        run: npm ci
+
+      # Nuitka freezes moved to the build-sidecar-exe / build-worker-exe
+      # jobs (JOB SPLIT): this job downloads their binaries below, so the
+      # Nuitka ccache restore and the python-build-standalone download that
+      # used to live here are gone (nothing in this job runs Nuitka).
+
+      # do NOT downgrade below 2.8.10. numpy 2.5.x ships PEP 695
+      - name: Install Python dev deps (uv)
+        shell: pwsh
+        run: |
+          $env:UV_LINK_MODE = "copy"
+          uv pip install --system ".[dev,test]"
+          uv pip install --system nuitka==2.8.10 zstandard ordered-set
+          pip list
+
+      # JOB SPLIT: the Nuitka freezes (sidecar + worker) now run in the
+      # build-sidecar-exe / build-worker-exe jobs; their binaries arrive
+      # via artifacts below. Nothing is compiled in this job anymore.
+
+      - name: Download sidecar binary
+        uses: actions/download-artifact@v6
+        with:
+          name: windows-sidecar-exe
+          path: src-tauri/bin
+
+      - name: Download worker binary
+        uses: actions/download-artifact@v6
+        with:
+          name: windows-worker-exe
+          path: src-tauri/bin
 
       # NOTE: the standalone prewarm binary was REMOVED per
 
