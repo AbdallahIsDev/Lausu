@@ -103,8 +103,9 @@ dependencies = [
     # + remote HTTP(S) decode to 16 kHz mono PCM). It was previously only a
     # transitive dep of faster-whisper; the direct import must be declared.
     # The <19 cap guards against PyAV's FFmpeg-major upgrade waves.
-    # <18: av 18.x (18.1.0) trips Nuitka 2.8.10's optimizer
-    # (assert micro_passes == 0 on av.video.stream, verified 2026-09-28).
+    # <18: av 17/18 Cython .py shims trip Nuitka's optimizer
+    # (assert micro_passes == 0 on av.video.stream); the build scripts
+    # strip those shims pre-freeze (each has a .pyd/.so twin).
     "av>=17,<18",
     # ADR-0023: yt-dlp is the URL resolver/downloader for media ingest
     # (~1000 sites). The >=2026.8.19 floor is the current release at
