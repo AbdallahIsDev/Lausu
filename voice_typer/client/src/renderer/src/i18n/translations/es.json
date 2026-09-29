@@ -75,7 +75,11 @@
 		"errorDownloadFailed": "Falló la descarga del audio. Comprueba tu conexión e inténtalo de nuevo.",
 		"errorNoModel": "No hay ningún modelo de voz cargado. Abre Modelos para elegir uno.",
 		"errorBusy": "Ya hay otra transcripción en marcha. Cancela primero esa.",
-		"noModelAction": "Abrir Modelos"
+		"noModelAction": "Abrir Modelos",
+		"dropZoneTitle": "Suelta un archivo de vídeo o audio",
+		"dropZoneAria": "Elige un archivo multimedia o suéltalo aquí",
+		"browseFile": "Examinar archivos",
+		"orLink": "o pega un enlace"
 	},
 	"nav": {
 		"home": "Inicio",

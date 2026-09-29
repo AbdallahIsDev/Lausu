@@ -59,31 +59,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
 	return (
 		<Sonner
 			theme={theme}
-			// Pin a canonical configuration so every toast
-			// looks the same regardless of where it was raised.
-			//   - Neutral popover surface: toasts render on the
-			//     popover tokens (see the --normal-* style vars
-			//     below); the per-type signal comes from the icon
-			//     color only (see the .toaster overrides in
-			//     index.css).
-			//   - closeButton: lets users dismiss a sticky toast
-			//     (errors stay 8s; some users want them gone now)
-			//     without waiting for the timer or hunting for the
-			//     action button.
-			//   - position: reactive to the active locale (see
-			//     useRtlLocale above), flipping to Arabic at runtime
-			//     re-renders the Toaster with the mirrored corner.
-			//   - duration={4000}: fallback for toasts raised via
-			//     ``toast.*`` directly (bypassing ``useSnackbar``).
-			//     The hook applies its own per-type durations
-			//     (success=3000, info=4000, warning=6000, error=8000)
-			//     which override this default.
 			closeButton
 			position={rtl ? "bottom-left" : "bottom-right"}
-			// Localized accessible names for the toast container and its
-			// close button, sonner's built-ins are hard-coded English
-			// ("Notifications" / "Close"), which leaked untranslated text
-			// to screen-reader users in every non-English locale.
 			containerAriaLabel={t("a11y.notifications")}
 			toastOptions={{
 				closeButtonAriaLabel: t("a11y.close"),
@@ -133,7 +110,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
 				{
 					"--normal-bg": "var(--surface)",
 					"--normal-text": "var(--foreground)",
-					"--normal-border": "var(--border)",
+					// Match settings/cards: 1px border at the same faded
+					// opacity as `border-border/10` (full --border is too loud).
+					"--normal-border":
+						"color-mix(in srgb, var(--border) 10%, transparent)",
 					"--border-radius": "var(--radius)",
 				} as React.CSSProperties
 			}

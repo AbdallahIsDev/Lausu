@@ -1,36 +1,3 @@
-// Shared loading spinner.
-// Replaces the duplicated `<div className="h-4 w-4 animate-spin rounded-full
-// border-2 border-accent border-t-transparent" />` pattern that was
-// copy-pasted across 9 pages.
-// Usage: `<Spinner />` (default 16px), `<Spinner size={24} />` (24px),
-// `<Spinner className="border-current" />` (uses current text color).
-// Tailwind class ladder (``h-4 w-4`` / ``h-5 w-5`` / ``h-6 w-6``) and
-// fell back to a dynamic ``h-[${size}px]`` string for any other value.
-// Tailwind's JIT only generates classes it can statically see, so the
-// dynamic interpolation silently produced NO class and the spinner
-// collapsed to 0×0.  We now drive the size from an inline ``style``
-// (which always wins regardless of Tailwind's purge step) and merge
-// classes with ``cn()`` so consumer overrides like ``border-current``
-// properly override the default ``border-accent`` via tailwind-merge.
-// ``decorative`` prop renders a plain ``<div aria-hidden>``
-// (no ``<output>``, no aria-label) for cases where the spinner sits
-// inside an already-labeled button/region, avoids the nested live
-// region announcing "Loading…" on top of the parent's accessible name.
-// (implicit ARIA role of ``status``, which carries an implicit
-// ``aria-live="polite"``). That meant every page that rendered a
-// Spinner, History, Vocabulary, Templates, Microphone, Models,
-// Settings, Onboarding, etc., caused screen readers to announce
-// "Loading" the moment the spinner appeared, even though in those
-// contexts the spinner is incidental (not a primary status message).
-// The default root is now a ``<span role="img" aria-label=...>`` —
-// still has an accessible name (so AT users hear "Loading" when they
-// focus it), but does NOT carry an implicit live region. Pages that
-// want a status announcement (e.g. ConnectionStatusScreen while the
-// backend is starting) wrap the Spinner in their own
-// ``<output aria-live="polite">``. The ``decorative`` prop is
-// unchanged (still renders ``<div aria-hidden>`` for nested cases
-// where the parent element already supplies the accessible name).
-
 import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 

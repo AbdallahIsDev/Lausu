@@ -142,7 +142,7 @@
 	   ``border-border/5``). This ensures consistent black-at-10% (light)
 	   / white-at-10% (dark) borders across every theme. */
 	--border: oklch(0 0 0);
-	--input: oklch(0.62 0.004 286.32);
+	--input: oklch(85% 0 0);
 	/* Focus ring uses the brand blue (~4.5:1 on white) so the
 	   indicator stays above WCAG 1.4.11's 3:1 with alpha modifiers. */
 	--ring: var(--brand-500);
@@ -186,7 +186,7 @@
 	--border: oklch(1 0 0);
 	/* Opaque mid-grey (WCAG 1.4.11 ≥3:1 against the dark background);
 	   matches the opaque values the per-preset dark themes use. */
-	--input: oklch(0.52 0.004 286.32);
+	--input: oklch(25% 0 0);
 	--ring: oklch(0.552 0.016 285.938);
 }
 
@@ -213,25 +213,18 @@
 		text-wrap: balance;
 	}
 
+	/* App shell canvas (matches App.tsx wrapper `bg-surface-subtle`). */
+	#root {
+		@apply min-h-full bg-surface-subtle;
+	}
+
 	body {
 		@apply text-foreground;
 	}
 
 	html {
 		@apply font-sans;
-		/* persistent border-radius on the root html element.
-       The wrapper div in App.tsx applies rounded-lg via React className,
-       but that border-radius can flicker on close/hide because React
-       re-renders remove the class.  Applying border-radius directly to
-       html ensures the rounded window corners persist regardless of
-       React state, preventing the sharp-corner white flash.
-       When maximized, the .is-maximized class removes the radius
-       (mirrors the wrapper div's !isMaximized && 'rounded-lg' logic). */
-		border-radius: var(--radius-lg);
-	}
-
-	html.is-maximized {
-		border-radius: 0;
+		/* Window corner radius is owned by the Tauri shell, not the DOM. */
 	}
 
 	svg {
@@ -617,6 +610,13 @@
    <head> at runtime (after this file), so each selector keeps
    [data-styled="true"] to stay strictly above sonner's specificity;
    no !important is used anywhere. */
+/* Card border parity (settings cards use border-border/10): force a
+   1px faded border even if sonner's theme CSS paints a hard edge. */
+.toaster [data-sonner-toast][data-styled="true"] {
+	border-width: 1px;
+	border-style: solid;
+	border-color: color-mix(in srgb, var(--border) 10%, transparent);
+}
 .toaster
 	[data-sonner-toast][data-styled="true"][data-type="success"]
 	[data-icon] {
@@ -672,9 +672,10 @@
 	background: var(--muted);
 }
 
+/* Close button: same 1px faded border as the toast card (border-border/10). */
 .toaster [data-sonner-toast][data-styled="true"] [data-close-button] {
 	background: var(--surface);
-	border-color: var(--border);
+	border-color: color-mix(in srgb, var(--border) 10%, transparent);
 	color: var(--foreground);
 }
 

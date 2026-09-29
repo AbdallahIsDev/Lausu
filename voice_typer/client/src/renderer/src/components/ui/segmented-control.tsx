@@ -55,10 +55,6 @@ export function SegmentedControl<T extends string>({
 	getPanelId,
 }: SegmentedControlProps<T>) {
 	const isTabs = variant === "tabs";
-
-	// Dev-mode a11y warnings: a radiogroup/tablist with no accessible name
-	// and an icon-only option without a title are invisible to screen
-	// readers. Surfaces the gaps during development only.
 	if (process.env.NODE_ENV !== "production") {
 		if (!ariaLabel) {
 			console.warn("[renderer:SegmentedControl] `ariaLabel` is missing");
@@ -282,13 +278,9 @@ export function SegmentedControl<T extends string>({
 			className={cn(
 				"relative inline-flex items-center",
 				variant === "default" &&
-					// SURFACE-FIX: use the standard card/surface token
-					// (bg-surface-subtle) instead of bg-input/50, the input
-					// wash rendered visibly different from the stat cards
-					// on the Analytics page.
 					(radius === "sm"
-						? "rounded-lg border border-border/5 bg-surface-subtle p-0.5"
-						: "rounded-full border border-border/5 bg-surface-subtle p-0.75"),
+						? "rounded-lg border border-border/5 bg-background p-0.5"
+						: "rounded-full border border-border/5 bg-background p-0.75"),
 				variant === "tabs" && "bg-transparent rounded-none p-1",
 				className,
 			)}
@@ -298,11 +290,15 @@ export function SegmentedControl<T extends string>({
 				<div
 					className={cn(
 						"pointer-events-none absolute z-0 transition-all duration-200 ease-out",
+						// Radius = parent corner − inset, so the pill's outer
+						// curve matches the container's (rounded-lg − p-1 ⇒
+						// calc(--radius - inset)), never the same rounded-lg.
 						variant === "default" &&
 							(radius === "sm"
-								? "inset-y-0.5 rounded-lg bg-primary shadow-xs"
+								? "inset-y-0.5 rounded-[calc(var(--radius)-0.125rem)] bg-primary shadow-xs"
 								: "inset-y-0.75 rounded-full bg-primary shadow-xs"),
-						variant === "tabs" && "inset-y-1 rounded-lg bg-input",
+						variant === "tabs" &&
+							"inset-y-1 rounded-[calc(var(--radius)-0.25rem)] bg-input",
 						indicatorClassName,
 					)}
 					style={{

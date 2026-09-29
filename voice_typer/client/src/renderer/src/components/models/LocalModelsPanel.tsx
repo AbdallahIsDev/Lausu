@@ -13,7 +13,6 @@ import {
 	ModelGroupTrigger,
 	ModelVariantRow,
 } from "@/components/models/ModelGroupList";
-import { ModelStorageCard } from "@/components/models/ModelStorageCard";
 import { useModelDownloadQueue } from "@/components/models/useModelDownloadQueue";
 import { Button } from "@/components/ui/button";
 import { t } from "@/i18n/i18n";
@@ -29,7 +28,6 @@ import {
 	type ModelInfo,
 	type ModelMetadata,
 } from "@/lib/utils/models";
-import type { ModelStorageSummary } from "@/types/ipc";
 
 // Minimum free-disk threshold for the global warning banner. Picked to
 // catch "disk almost full" states without false-positiving on systems
@@ -76,9 +74,6 @@ export interface LocalModelsPanelProps {
 	diskInfo: DiskInfo | null;
 	modelsFolderSupported: boolean;
 	onOpenModelsFolder: () => void;
-	// Shared-hub storage summary (from `get_model_status._storage`).
-	// Optional so direct mounts / tests can omit it; null hides the card.
-	storage?: ModelStorageSummary | null;
 	//      optional initial open-accordion state (the active family), seeds
 	// INTERNAL state only (uncontrolled mode).
 	initialAccordionValue?: string[];
@@ -120,7 +115,6 @@ export const LocalModelsPanel = memo(function LocalModelsPanel({
 	diskInfo,
 	modelsFolderSupported,
 	onOpenModelsFolder,
-	storage,
 	initialAccordionValue,
 	accordionValue: accordionValueProp,
 	onAccordionValueChange,
@@ -149,10 +143,6 @@ export const LocalModelsPanel = memo(function LocalModelsPanel({
 			>
 				{t("models.localModelsDescription")}
 			</p>
-
-			{/* Shared-hub storage card (bytes + path + Open Data Folder).
-                            Hidden while unknown (older backends omit `_storage`). */}
-			<ModelStorageCard storage={storage ?? null} />
 
 			{/* low-disk warning banner. Only shown when the backend
                             exposes `get_disk_info` AND free space is below the threshold. */}

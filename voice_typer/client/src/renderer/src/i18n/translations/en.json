@@ -75,7 +75,11 @@
 		"errorDownloadFailed": "Downloading the audio failed. Check your connection and try again.",
 		"errorNoModel": "No speech model is loaded. Open Models to choose one.",
 		"errorBusy": "Another transcription is already running. Cancel it first.",
-		"noModelAction": "Open Models"
+		"noModelAction": "Open Models",
+		"dropZoneTitle": "Drop a video or audio file",
+		"dropZoneAria": "Choose a media file, or drop one here",
+		"browseFile": "Browse files",
+		"orLink": "or paste a link"
 	},
 	"nav": {
 		"home": "Home",

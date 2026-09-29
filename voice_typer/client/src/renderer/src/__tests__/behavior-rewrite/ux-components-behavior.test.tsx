@@ -1064,6 +1064,8 @@ describe("App routing + chrome, rewrite of routing + ErrorBoundary tests", () =>
 		});
 
 		expect(screen.getByText(/This usually takes a few seconds/u)).toBeTruthy();
+		// Boot card is the whole chrome: no nav until the backend is up.
+		expect(screen.queryByTestId("sidebar")).toBeNull();
 	});
 });
 

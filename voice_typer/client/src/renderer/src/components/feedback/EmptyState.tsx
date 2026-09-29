@@ -46,11 +46,15 @@ export function EmptyState({
 		<div
 			role={isError ? "alert" : "status"}
 			className={cn(
-				"flex flex-col items-center justify-center gap-4 py-16",
-				// Error variant: tinted ring + soft destructive wash so
-				// load failures don't masquerade as "no data yet".
-				isError &&
-					"rounded-lg border border-destructive/40 bg-destructive/5 px-6",
+				// Match data-page cards (Media/Settings): rounded surface
+				// panel + generous vertical rhythm so empty states breathe
+				// like the rest of the page instead of floating in a void.
+				"flex w-full flex-col items-center justify-center gap-5 rounded-lg border px-8 py-16",
+				isError
+					? // Error variant: tinted ring + soft destructive wash so
+						// load failures don't masquerade as "no data yet".
+						"border-destructive/40 bg-destructive/5"
+					: "border-border/10 bg-surface-subtle",
 			)}
 		>
 			<HugeiconsIcon
@@ -77,12 +81,14 @@ export function EmptyState({
 			    users can navigate empty-state cards by heading. The heading
 			    level (h3) is chosen to sit below the typical page <h1>/<h2>
 			    hierarchy used across the app. */}
-			<h3 className="text-sm text-muted-foreground">{title}</h3>
+			<h3 className="text-center text-sm text-muted-foreground">{title}</h3>
 			{/* Dropped opacity-70, text-muted-foreground is already a
 			    low-contrast token, and stacking opacity on top pushed the
 			    effective contrast below WCAG AA for body text. */}
 			{description && (
-				<p className="text-xs text-muted-foreground">{description}</p>
+				<p className="max-w-lg text-center text-xs leading-relaxed text-muted-foreground">
+					{description}
+				</p>
 			)}
 			{children}
 			{actionLabel && onAction && (

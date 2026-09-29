@@ -119,6 +119,9 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 		<SettingsSection
 			title={generalSectionTitle}
 			description={t("settings.generalDescription")}
+			// Page-level heading (like PageHeading): keep the subtitle as
+			// body copy. Nested settings cards use the ? tooltip instead.
+			descriptionMode="text"
 		>
 			{isVisible(
 				LAUNCH_AT_LOGIN_LABEL,

@@ -75,7 +75,11 @@
 		"errorDownloadFailed": "下载音频失败。请检查网络连接后重试。",
 		"errorNoModel": "未加载语音模型。打开“模型”页面选择一个。",
 		"errorBusy": "已有另一个转写任务在运行。请先取消它。",
-		"noModelAction": "打开模型"
+		"noModelAction": "打开模型",
+		"dropZoneTitle": "拖入视频或音频文件",
+		"dropZoneAria": "选择媒体文件，或拖放到此处",
+		"browseFile": "浏览文件",
+		"orLink": "或粘贴链接"
 	},
 	"nav": {
 		"home": "首页",
