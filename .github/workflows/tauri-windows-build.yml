@@ -266,11 +266,17 @@ jobs:
           # backtick-continued flag lines below: pwsh cannot continue a
           # statement through `#` comment lines (ParserError "Missing
           # expression after unary operator").
+          # yt-dlp extractors (~940 modules + the 781KB lazy_extractors hub)
+          # ship as bytecode: compiling them OOMs MSVC (C1060/C1002) and
+          # bloats the binary; yt-dlp lazy-loads them via importlib at
+          # runtime, which resolves bytecode modules fine (Nuitka anti-bloat
+          # "bytecode" mode, same mechanism as its eventlet/matplotlib rules).
           & $PYBS -m nuitka `
               --standalone --onefile `
               --assume-yes-for-downloads `
               --show-progress `
               --jobs=3 `
+              --noinclude-custom-mode=yt_dlp.extractor:bytecode `
               --nofollow-import-to=transformers `
               --nofollow-import-to=scipy._lib.cobyqa `
               --nofollow-import-to=scipy._lib.array_api_extra.testing `

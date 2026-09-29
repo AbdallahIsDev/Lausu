@@ -129,6 +129,12 @@ NUITKA_ARGS=(
     --assume-yes-for-downloads
     --jobs="$NUITKA_JOBS"
     --enable-plugin=anti-bloat
+    # yt-dlp extractors (~940 modules + the 781KB lazy_extractors hub)
+    # ship as bytecode: compiling them OOMs the C compiler (MSVC
+    # C1060/C1002) and bloats the binary; yt-dlp lazy-loads them via
+    # importlib at runtime, which resolves bytecode modules fine
+    # (Nuitka anti-bloat "bytecode" mode, same as its eventlet rules).
+    --noinclude-custom-mode=yt_dlp.extractor:bytecode
     # NU-106 retired (Phase 1c torch-free): runtime is ONNX-only, our code
     # never imports torch. Still nofollow it: onnxruntime/transformers/
     # machine_info.py has a function-level `import torch` (GPU probe,
