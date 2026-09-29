@@ -142,8 +142,37 @@ _CLOG2_DURATION_RE = re.compile(r" \d+(m \d+)?\.\ds$")
 class TestCacheProbeLogLinesUseFormatDuration:
     """``cache_probe`` MUST end with the canonical space-separated"""
 
-    def test_warm_package_files_log_line_carries_duration_suffix(self, tmp_path, caplog, monkeypatch):
-        """``_warm_package_files`` emits ``[PREWARM] file-warmed <pkg>:"""
+    def test_combined_file_warmed_line_carries_duration_suffix(self, caplog, monkeypatch):
+        """``_warm_imports`` emits ONE ``[PREWARM] file-warmed`` rollup line."""
+        monkeypatch.setattr(cache_probe, "_WORKER_WARM_PACKAGES", ("fakepkg", "otherpkg"))
+        monkeypatch.setattr(cache_probe, "_warm_package_files", lambda pkg: 1024 * 1024)
+        monkeypatch.setattr(cache_probe, "_active_model_cache_dirs", lambda: [])
+        monkeypatch.setattr(cache_probe, "_warm_model_weights", lambda dirs: 0)
+
+        with caplog.at_level(logging.INFO, logger="voice_typer.server.prewarm"):
+            cache_probe._warm_imports()
+
+        # Find the lifecycle-completion log line: exactly one rollup.
+        matching = [r.getMessage() for r in caplog.records if "file-warmed" in r.getMessage()]
+        assert len(matching) == 1, (
+            "expected exactly ONE 'file-warmed' rollup line from "
+            f"_warm_imports(); got records: {[r.getMessage() for r in caplog.records]}"
+        )
+        msg = matching[-1]
+        assert "fakepkg: 1 MB" in msg and "otherpkg: 1 MB" in msg, (
+            f"rollup must name every warmed package with its size, got: {msg!r}"
+        )
+        # C-LOG-2: the log line MUST end with the canonical
+        assert _CLOG2_DURATION_RE.search(msg), (
+            f"C-LOG-2 violation: {msg!r} does NOT end with the canonical "
+            f"space-separated `<duration>` suffix (pattern "
+            f"{_CLOG2_DURATION_RE.pattern!r}). "
+            f"A revert to ad-hoc `%.1fs` formatting (e.g. '... in %.1fs') "
+            f"would strip the space separator and break this assertion."
+        )
+
+    def test_direct_warm_package_files_stays_silent(self, tmp_path, caplog, monkeypatch):
+        """``_warm_package_files`` returns the byte total without its own"""
         pkg_dir = tmp_path / "fakepkg"
         pkg_dir.mkdir()
         (pkg_dir / "module.pyc").write_bytes(b"\x00" * 1024)
@@ -170,21 +199,11 @@ class TestCacheProbeLogLinesUseFormatDuration:
             f"expected 1 MiB total from stubbed _warm_file, got {total}, the stub may not have been called."
         )
 
-        # Find the lifecycle-completion log line.
+        # The per-package INFO line is gone (rolled up by the caller).
         matching = [r.getMessage() for r in caplog.records if "file-warmed" in r.getMessage()]
-        assert matching, (
-            "expected an INFO log line containing 'file-warmed' from "
-            "_warm_package_files(); got records: "
-            f"{[r.getMessage() for r in caplog.records]}"
-        )
-        msg = matching[-1]
-        # C-LOG-2: the log line MUST end with the canonical
-        assert _CLOG2_DURATION_RE.search(msg), (
-            f"C-LOG-2 violation: {msg!r} does NOT end with the canonical "
-            f"space-separated `<duration>` suffix (pattern "
-            f"{_CLOG2_DURATION_RE.pattern!r}). "
-            f"A revert to ad-hoc `%.1fs` formatting (e.g. '... in %.1fs') "
-            f"would strip the space separator and break this assertion."
+        assert not matching, (
+            "_warm_package_files() must not log its own 'file-warmed' line, "
+            f"the rollup belongs to _warm_imports(); got: {[r.getMessage() for r in caplog.records]}"
         )
 
     def test_warm_imports_log_line_carries_duration_suffix(self, caplog, monkeypatch):

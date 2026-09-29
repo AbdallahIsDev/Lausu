@@ -108,7 +108,6 @@ def _warm_package_files(pkg_name: str) -> int:
         return 0
 
     total = 0
-    t0 = time.perf_counter()
     for root in roots:
         # Single shared walker: os.scandir-based (no per-file stat),
         for path in _iter_warmable_files(root):
@@ -116,16 +115,9 @@ def _warm_package_files(pkg_name: str) -> int:
                 total += _warm_file(path)
             except OSError as exc:
                 log.debug("[PREWARM] skip %s: %s", path, exc)
-    elapsed = time.perf_counter() - t0
     # Defensive: file warmup must never have imported the package.
     assert pkg_name not in sys.modules, f"{pkg_name} was imported during file warmup, must stay unimported"
-    # C-LOG-2: lifecycle-completion log line carries the canonical
-    log.info(
-        "[PREWARM] file-warmed %s: %.0f MB%s",
-        pkg_name,
-        total / (1024 * 1024),
-        format_duration(elapsed),
-    )
+    # No per-package INFO line: the caller rolls every package into one
     return total
 
 
@@ -155,7 +147,9 @@ def _warm_imports() -> None:
     """Page the runtime-pack libraries' files into the OS cache (no import)."""
     t0 = time.perf_counter()
     warmed: list[str] = []
+    segments: list[str] = []
     for pkg in _WORKER_WARM_PACKAGES:
+        pt0 = time.perf_counter()
         try:
             bytes_read = _warm_package_files(pkg)
         except Exception as exc:
@@ -164,6 +158,14 @@ def _warm_imports() -> None:
             continue
         if bytes_read > 0:
             warmed.append(pkg)
+            segments.append(
+                f"{pkg}: {bytes_read / (1024 * 1024):.0f} MB{format_duration(time.perf_counter() - pt0)}"
+            )
+    # One rollup line for all libraries (C-LOG-2: each segment ends with
+    if segments:
+        log.info("[PREWARM] file-warmed %s", " | ".join(segments))
+    else:
+        log.info("[PREWARM] file-warmed: nothing to warm%s", format_duration(time.perf_counter() - t0))
     # Warm the active model's WEIGHT files too (the multi-GB payload
     try:
         weight_bytes = _warm_model_weights(_active_model_cache_dirs())
