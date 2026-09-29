@@ -45,14 +45,31 @@ private let nativeBinaryVersion = "1.0.0"
 /// stderr only, which the Python parent merges into stdout).
 private var diagLogHandle: FileHandle? = nil
 
-/// Write a timestamped diagnostic line to ``diagLogHandle`` (if set)
-/// AND echo to stderr. Uses the emit queue so writes are serialized.
+/// Write a canonical diagnostic line to ``diagLogHandle`` (if set)
+/// AND echo to stderr. File shape follows C-LOG-1
+/// (``YYYY-MM-DD  HH:MM:SS  LEVEL  msg``); the LEVEL is derived from
+/// the message's embedded severity prefix. Message text is otherwise
+/// unchanged, so the Python wire-parser markers keep matching. Uses
+/// the emit queue so writes are serialized.
 private func logDiag(_ message: String) {
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    var level = "INFO"
+    var text = message
+    for prefix in ["ERROR:", "WARN:"] {
+        if text.hasPrefix(prefix) {
+            level = String(prefix.dropLast())
+            text = String(text.dropFirst(prefix.count))
+            if text.hasPrefix(" ") {
+                text = String(text.dropFirst())
+            }
+            break
+        }
+    }
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd  HH:mm:ss"
+    formatter.timeZone = TimeZone(identifier: "UTC")
+    formatter.locale = Locale(identifier: "en_US_POSIX")
     let ts = formatter.string(from: Date())
-    let pid = ProcessInfo.processInfo.processIdentifier
-    let line = "\(ts) [\(pid)] \(message)\n"
+    let line = "\(ts)  \(level)  \(text)\n"
     emitQueue.sync {
         if let h = diagLogHandle {
             if let data = line.data(using: .utf8) {

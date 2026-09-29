@@ -250,8 +250,12 @@ static void emit(const char* line) {
     if (g_emit_lock_inited) LeaveCriticalSection(&g_emit_lock);
 }
 
-/* write a timestamped diagnostic line to g_diag_log (if set)
- * AND echo to stderr. Mirrors the Linux log_diag helper. */
+/* write a canonical diagnostic line to g_diag_log (if set)
+ * AND echo to stderr. Mirrors the Linux log_diag helper. File shape
+ * follows C-LOG-1 (``YYYY-MM-DD  HH:MM:SS  LEVEL  msg``); the LEVEL is
+ * derived from the message's embedded severity prefix. Message text is
+ * otherwise byte-identical, so the Python wire-parser markers keep
+ * matching. */
 static void log_diag(const char* fmt, ...) {
     SYSTEMTIME st;
     GetSystemTime(&st);
@@ -260,12 +264,16 @@ static void log_diag(const char* fmt, ...) {
     va_start(ap, fmt);
     vsnprintf(msg, sizeof(msg), fmt, ap);
     va_end(ap);
+    const char* level = "INFO";
+    const char* text = msg;
+    if (strncmp(msg, "ERROR:", 6) == 0) { level = "ERROR"; text = msg + 6; }
+    else if (strncmp(msg, "WARN:", 5) == 0) { level = "WARN"; text = msg + 5; }
+    if (*text == ' ') text++;
     char line[640];
     int n = snprintf(line, sizeof(line),
-                     "%04d-%02d-%02dT%02d:%02d:%02d.%03d [%lu] %s\n",
+                     "%04d-%02d-%02d  %02d:%02d:%02d  %s  %s\n",
                      st.wYear, st.wMonth, st.wDay,
-                     st.wHour, st.wMinute, st.wSecond, st.wMilliseconds,
-                     GetCurrentProcessId(), msg);
+                     st.wHour, st.wMinute, st.wSecond, level, text);
     if (n > 0 && g_diag_log != NULL) {
         if (g_emit_lock_inited) EnterCriticalSection(&g_emit_lock);
         fputs(line, g_diag_log);

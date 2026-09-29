@@ -42,10 +42,10 @@ def _make_windows_backend():
 
 
 _STARTUP_LINES = [
-    "2026-09-18T12:00:00.000 [1234] windows-key-listener starting; spec=<f2>; log_file=C:\\logs\\native-windows.log",
-    "2026-09-18T12:00:00.010 [1234] stdin reader thread started (PING/PONG enabled)",
-    "2026-09-18T12:00:00.020 [1234] keyboard hook installed",
-    "2026-09-18T12:00:00.030 [1234] READY emitted; version=1.0.0",
+    "2026-09-18  12:00:00  INFO  windows-key-listener starting; spec=<f2>; log_file=C:\\logs\\native-windows.log",
+    "2026-09-18  12:00:00  INFO  stdin reader thread started (PING/PONG enabled)",
+    "2026-09-18  12:00:00  INFO  keyboard hook installed",
+    "2026-09-18  12:00:00  INFO  READY emitted; version=1.0.0",
 ]
 
 

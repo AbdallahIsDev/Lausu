@@ -191,13 +191,39 @@ class TestLogStartupBanner:
 
         assert any(
             record.message.startswith(f"{APP_NAME} starting -- model=")
-            and "hotkey=ctrl+shift+d" in record.message
+            and "hotkey=Ctrl+Shift+D" in record.message
             and "mic=default" in record.message
             and "sample_rate=16000" in record.message
             for record in caplog.records
             if record.name == "voice_typer.server.app"
         )
         assert banners == [1]
+
+    def test_banner_names_friendly_model_and_hotkey(self, monkeypatch, caplog):
+        """The banner must show the user-facing model/hotkey, not raw ids."""
+        from voice_typer.server.branding import APP_NAME
+
+        host = _Host()
+        host.config.model_size = "large-v3"
+        host.config.asr_backend = "whisper"
+        host.config.hotkey = "<caps_lock>"
+        host.config.microphone = None
+        host.config.sample_rate = 16000
+        monkeypatch.setattr("voice_typer.server.tray_models.is_active_model_downloaded", lambda config: True)
+        monkeypatch.setattr("voice_typer.server.startup_timeline.log_launch_timeline", lambda log: None)
+        monkeypatch.setattr(app_construction, "_emit_startup_banner", lambda: None)
+
+        with caplog.at_level(logging.INFO, logger="voice_typer.server.app"):
+            host._log_startup_banner()
+
+        assert any(
+            record.message.startswith(f"{APP_NAME} starting -- model=Whisper Large V3")
+            and "hotkey=Caps Lock" in record.message
+            and "large-v3 |" not in record.message
+            and "<caps_lock>" not in record.message
+            for record in caplog.records
+            if record.name == "voice_typer.server.app"
+        )
 
     def test_no_model_selection_reports_none_honestly(self, monkeypatch, caplog):
         from voice_typer.server.model_registry import NO_MODEL_SIZE

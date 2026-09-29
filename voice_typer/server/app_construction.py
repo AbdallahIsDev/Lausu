@@ -204,18 +204,21 @@ class AppConstruction:
         except Exception:
             _model_installed = True
         from voice_typer.server.model_registry import NO_MODEL_SIZE
+        from voice_typer.server.tray_models import tooltip_model_label
 
-        _model_desc = str(self.config.model_size)
-        if _model_desc == NO_MODEL_SIZE:
+        _model_desc = tooltip_model_label(self.config) or str(self.config.model_size)
+        if _model_desc == NO_MODEL_SIZE or not _model_desc:
             # Genuine "no model selected": report it honestly instead
             _model_desc = "none"
         elif not _model_installed:
             _model_desc = f"{_model_desc} (not installed)"
+        from voice_typer.server.tray_menu import display_hotkey
+
         log.info(
             "%s starting -- model=%s | hotkey=%s | mic=%s | sample_rate=%s",
             APP_NAME,
             _model_desc,
-            self.config.hotkey,
+            display_hotkey(self.config.hotkey),
             self.config.microphone or "default",
             self.config.sample_rate,
         )

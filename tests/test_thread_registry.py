@@ -800,7 +800,7 @@ class TestJoinPreviousTimeout:
                 timeout_warnings = [
                     r
                     for r in caplog.records
-                    if r.levelno >= logging.WARNING and "did not exit within" in r.message and "'w'" in r.message
+                    if r.levelno >= logging.WARNING and "did not exit within" in r.message and "thread=w" in r.message
                 ]
                 assert len(timeout_warnings) >= 1, (
                     f"expected a warning about t1 not exiting; got: {[r.message for r in caplog.records]}"

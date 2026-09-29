@@ -427,7 +427,7 @@ def verify_native_binary(path: Path, expected_sha256: str) -> bool:
             actual,
         )
         return False
-    log.debug("[NATIVE-BINARY] Checksum OK for %s (%s)", path.name, actual)
+    log.debug("[NATIVE-BINARY] Checksum OK for binary=%s (sha256=%s)", path.name, actual)
     return True
 
 
