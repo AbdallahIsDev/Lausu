@@ -199,7 +199,10 @@ async fn dispatch_frame(
     let ws_tx = match ws_tx_opt {
         Some(tx) => tx,
         None => {
-            log::warn!(
+            // Expected during sidecar boot (renderer fires get_config
+            // before the WS handshake). Debug, not warn — otherwise every
+            // cold start dumps a reject storm into the host log.
+            log::debug!(
                 "[dispatch] id={} cmd={} rejected: sidecar not connected (ws_tx is None)",
                 id,
                 cmd
