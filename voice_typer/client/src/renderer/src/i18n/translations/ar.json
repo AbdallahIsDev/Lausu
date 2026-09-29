@@ -2071,7 +2071,6 @@
 		"modelManager": {
 			"loading": "جارٍ تحميل النموذج | اضغط مفتاح الاختصار للانتظار في قائمة الانتظار...",
 			"readyWhisper": "جاهز | {device_info}",
-			"readyOther": "جاهز | {name} ASR",
 			"loadFailedRetry": "فشل تحميل النموذج | اضغط مفتاح الاختصار لإعادة المحاولة",
 			"backendFailed": "تعذّر تحميل نموذج {backend}",
 			"modelFailed": "فشل النموذج | {error}",

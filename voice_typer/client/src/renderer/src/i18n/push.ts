@@ -122,7 +122,6 @@ export function trayLabelsForLocale(): Record<string, string> {
 			"state.model_manager.ready_whisper",
 			"trayState.modelManager.readyWhisper",
 		],
-		["state.model_manager.ready_other", "trayState.modelManager.readyOther"],
 		[
 			"state.model_manager.load_failed_retry",
 			"trayState.modelManager.loadFailedRetry",

@@ -2071,7 +2071,6 @@
 		"modelManager": {
 			"loading": "Загрузка модели | нажмите свою горячую клавишу, чтобы встать в очередь...",
 			"readyWhisper": "Готово | {device_info}",
-			"readyOther": "Готово | {name} ASR",
 			"loadFailedRetry": "Не удалось загрузить модель | нажмите свою горячую клавишу, чтобы повторить",
 			"backendFailed": "Не удалось загрузить модель {backend}",
 			"modelFailed": "Ошибка модели | {error}",

@@ -2071,7 +2071,6 @@
 		"modelManager": {
 			"loading": "Loading model | press your hotkey to queue...",
 			"readyWhisper": "Ready | {device_info}",
-			"readyOther": "Ready | {name} ASR",
 			"loadFailedRetry": "Model load failed | press your hotkey to retry",
 			"backendFailed": "{backend} model failed to load",
 			"modelFailed": "Model failed | {error}",

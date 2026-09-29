@@ -2071,7 +2071,6 @@
 		"modelManager": {
 			"loading": "Cargando el modelo | pulse su atajo de teclado para ponerlo en cola...",
 			"readyWhisper": "Listo | {device_info}",
-			"readyOther": "Listo | {name} ASR",
 			"loadFailedRetry": "No se pudo cargar el modelo | pulse su atajo de teclado para reintentar",
 			"backendFailed": "No se pudo cargar el modelo {backend}",
 			"modelFailed": "Error del modelo | {error}",

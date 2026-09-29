@@ -2071,7 +2071,6 @@
 		"modelManager": {
 			"loading": "正在加载模型 | 按你的快捷键排队...",
 			"readyWhisper": "就绪 | {device_info}",
-			"readyOther": "就绪 | {name} ASR",
 			"loadFailedRetry": "模型加载失败 | 按你的快捷键重试",
 			"backendFailed": "{backend} 模型加载失败",
 			"modelFailed": "模型错误 | {error}",

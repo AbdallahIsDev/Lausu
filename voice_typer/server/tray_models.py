@@ -39,6 +39,38 @@ def _menu_label(name: str) -> str:
     return f"{glyph} {name}" if glyph else name
 
 
+def _title_case_slug(slug: str) -> str:
+    """Title-case a hyphenated model id (``large-v3-turbo`` → ``Large V3 Turbo``)."""
+    return " ".join(part[:1].upper() + part[1:] for part in slug.split("-") if part)
+
+
+def tooltip_model_label(config) -> str:
+    """User-facing ASR model name for the tray tooltip.
+
+    Mirrors the renderer's ``getModelVariantDisplayName`` (family prefix +
+    ``display_name`` priority): whisper sizes become ``Whisper Large V3``,
+    never the raw ``large-v3`` id. Returns ``""`` when no model applies
+    (none selected, unknown backend), so the tooltip shows no segment.
+    """
+    from voice_typer.server.model_registry import NO_MODEL_SIZE, get_model_metadata
+
+    backend = getattr(config, "asr_backend", "whisper") or "whisper"
+    if backend in ("qwen", "parakeet"):
+        meta = get_model_metadata(backend)
+        if meta is not None:
+            return meta.display_name or _title_case_slug(backend)
+        return _title_case_slug(backend)
+    if backend in ("whisper", "distil-whisper"):
+        size = getattr(config, "model_size", "") or ""
+        if size == NO_MODEL_SIZE:
+            return ""
+        meta = get_model_metadata(size)
+        if meta is None:
+            return size
+        return meta.display_name or f"Whisper {_title_case_slug(size)}"
+    return ""
+
+
 def more_models_label(localize=None) -> str:
     """Return the label for the trailing "More models..." submenu item."""
     fallback = "More models..."
