@@ -1037,6 +1037,13 @@ Rationale: `tauri-binaries.json` is the integrity manifest the autostart launche
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-CI-16
+Rule: Do NOT compile `yt_dlp.extractor` to C in any Nuitka freeze; it must always ship via `--noinclude-custom-mode=yt_dlp.extractor:bytecode` in every Nuitka invocation.
+Rationale: The extractor namespace holds ~940 modules plus the 781KB lazy_extractors hub (2,032 lazy classes); compiling them OOMs MSVC (C1060/C1002 on the 7GB runner, verified 2026-09-29) and bloats the binary. yt-dlp lazy-loads extractors via importlib at runtime, which resolves bytecode modules identically (Nuitka anti-bloat "bytecode" mode, same mechanism as its eventlet rules).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Data & Privacy
