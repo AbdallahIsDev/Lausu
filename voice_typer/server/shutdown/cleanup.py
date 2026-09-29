@@ -53,7 +53,7 @@ def do_cleanup(controller) -> None:
     # Each helper is isolated, a failure in one does NOT propagate
     parallel_plan = controller._build_parallel_plan(_shutdown_deadline, _timed_out, _shutdown_skipped)
     if parallel_plan is not None:
-        controller._run_plan(parallel_plan, _timed_out)
+        _timed_out = controller._run_plan(parallel_plan, _timed_out)
 
     # Overall-deadline summary: emit a single WARNING listing every
     if _shutdown_skipped:
@@ -63,9 +63,10 @@ def do_cleanup(controller) -> None:
             ", ".join(_shutdown_skipped),
         )
 
-    if _shutdown_skipped:
+    if _shutdown_skipped or _timed_out:
         log.info(
-            "[SHUTDOWN] Shutdown complete, exiting with %d teardowns skipped%s",
+            "[SHUTDOWN] Shutdown complete, exiting with %d timed out, %d skipped%s",
+            len(_timed_out),
             len(_shutdown_skipped),
             format_duration(time.perf_counter() - _cleanup_t0),
         )

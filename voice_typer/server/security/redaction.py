@@ -49,6 +49,7 @@ _KEY_PATTERNS = [
 _HASH_LABEL_RE = re.compile(r"sha256=[0-9a-fA-F]{64}(?![0-9a-fA-F])")
 _THREAD_LABEL_RE = re.compile(r"thread=(?![0-9a-fA-F]{64}(?![0-9a-fA-F]))([A-Za-z0-9_.\-]{1,64})(?![A-Za-z0-9_.\-])")
 _BINARY_LABEL_RE = re.compile(r"binary=(?![0-9a-fA-F]{64}(?![0-9a-fA-F]))([A-Za-z0-9_.\-]{1,64})(?![A-Za-z0-9_.\-])")
+_TEARDOWN_LABEL_RE = re.compile(r"\bteardown_[A-Za-z0-9_\-]{1,55}(?![A-Za-z0-9_\-])")
 
 
 # Caches for the public-vocabulary sets (see
@@ -339,6 +340,7 @@ def redact_api_keys(text: str, *, replacement: str = "***") -> str:
     text = _HASH_LABEL_RE.sub(_shield, text)
     text = _THREAD_LABEL_RE.sub(_shield, text)
     text = _BINARY_LABEL_RE.sub(_shield, text)
+    text = _TEARDOWN_LABEL_RE.sub(_shield, text)
 
     # Generic 20+ char alphanumeric pattern (last entry in
     generic_pat = _KEY_PATTERNS[-1]
