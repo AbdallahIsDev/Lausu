@@ -258,7 +258,8 @@ static void emit(const char* line) {
  * matching. */
 static void log_diag(const char* fmt, ...) {
     SYSTEMTIME st;
-    GetSystemTime(&st);
+    /* Local time — matches Python ``time.localtime`` / Rust ``GetLocalTime``. */
+    GetLocalTime(&st);
     char msg[512];
     va_list ap;
     va_start(ap, fmt);

@@ -87,7 +87,8 @@ static void log_diag(const char *fmt, ...) {
     char ts[32];
     time_t now = time(NULL);
     struct tm tm_buf;
-    gmtime_r(&now, &tm_buf);
+    /* Local time — matches Python ``time.localtime`` / Rust ``GetLocalTime``. */
+    localtime_r(&now, &tm_buf);
     strftime(ts, sizeof(ts), "%Y-%m-%d  %H:%M:%S", &tm_buf);
     char msg[512];
     va_list ap;
