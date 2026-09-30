@@ -752,20 +752,22 @@ describe("generate-icons.mjs renames root → clientDir (rewrite of TestIconScri
 	});
 });
 
-// Section 8: lausu.spec (PyInstaller)
+// Section 8: voice-typer.spec (PyInstaller fallback)
 // Ports:
 //   - TestPyinstallerSpecHasAsrHiddenImports (5 tests)
 //   - TestPyinstallerSpecExcludesTkinter (1 test)
-// Reads `scripts/build/lausu.spec` (PyInstaller spec) as plain
-// text and asserts on substring presence.
+// The PyInstaller spec was renamed to `scripts/build/voice-typer.spec`
+// (the `lausu.spec` name is gone). Nuitka is the primary freeze path;
+// this spec is the documented fallback and still declares the ASR
+// hiddenimports + tkinter excludes.
 
-const SPEC_PATH = resolve(REPO_ROOT, "scripts", "build", "lausu.spec");
+const SPEC_PATH = resolve(REPO_ROOT, "scripts", "build", "voice-typer.spec");
 
 function readPyinstallerSpec(): string {
 	return readFileSync(SPEC_PATH, "utf-8");
 }
 
-describe("lausu.spec declares ASR hiddenimports (rewrite of TestPyinstallerSpecHasAsrHiddenImports)", () => {
+describe("voice-typer.spec declares ASR hiddenimports (rewrite of TestPyinstallerSpecHasAsrHiddenImports)", () => {
 	it("includes parakeet_engine", () => {
 		expect(readPyinstallerSpec()).toContain("parakeet_engine");
 	});
@@ -787,7 +789,7 @@ describe("lausu.spec declares ASR hiddenimports (rewrite of TestPyinstallerSpecH
 	});
 });
 
-describe("lausu.spec excludes tkinter (rewrite of TestPyinstallerSpecExcludesTkinter)", () => {
+describe("voice-typer.spec excludes tkinter (rewrite of TestPyinstallerSpecExcludesTkinter)", () => {
 	it('lists "tkinter" in the excludes array', () => {
 		expect(readPyinstallerSpec()).toContain('"tkinter"');
 	});
@@ -837,10 +839,14 @@ describe("pyproject.toml does not blanket-ignore ResourceWarning (rewrite of Tes
 	});
 });
 
-describe("pyproject.toml entry-point points to ipc_server:main (rewrite of test_pyproject_entry_point_points_to_ipc_server)", () => {
-	it('declares lausu = "voice_typer.server.ipc_server:main"', () => {
+describe("pyproject.toml entry-point points at the production CLI (rewrite of test_pyproject_entry_point_points_to_ipc_server)", () => {
+	it('declares lausu = "voice_typer.server.cli:main"', () => {
+		// `lausu` starts the production desktop app (never the dev
+		// environment). The bare backend is the secondary `lausu-server`
+		// entry.
+		expect(readPyproject()).toContain('lausu = "voice_typer.server.cli:main"');
 		expect(readPyproject()).toContain(
-			'lausu = "voice_typer.server.ipc_server:main"',
+			'lausu-server = "voice_typer.server.ipc_server:main"',
 		);
 	});
 });

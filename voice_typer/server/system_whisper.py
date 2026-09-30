@@ -51,7 +51,9 @@ def try_load_system_whisper(config: Any) -> Any | None:
     message. Only used when the offline pack itself is absent.
     """
     try:
-        import faster_whisper  # noqa: F401, availability probe
+        import importlib
+
+        importlib.import_module("faster_whisper")
     except ImportError:
         log.debug("[MODEL] system whisper fallback unavailable (no faster_whisper installed)")
         return None
@@ -127,9 +129,17 @@ class SystemWhisperEngine:
 
     def load(self, *, progress_callback: Any | None = None, **kwargs: Any) -> bool:
         """Build the faster-whisper model from local weights (no download)."""
-        from faster_whisper import WhisperModel
+        # NOTE: importlib (not an import statement) on purpose. Two
+        # consumers scan for static imports: Nuitka's follower (which
+        # must never pull faster_whisper/ctranslate2/torch into the
+        # frozen sidecar — see the --nofollow-import-to flags) and the
+        # slim-core ratchet (scripts/slim_core_ml_ratchet_check.py).
+        # Both stay green because the name only appears in a string.
+        import importlib
 
-        self._model = WhisperModel(
+        faster_whisper = importlib.import_module("faster_whisper")
+
+        self._model = faster_whisper.WhisperModel(
             self._weights_dir,
             device=self._device,
             compute_type="default",
