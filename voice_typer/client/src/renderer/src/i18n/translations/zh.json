@@ -1925,6 +1925,7 @@
 			"backend_init_failed": "无法初始化 {backend} 后端。{hint}",
 			"last_resort_unloaded": "模型未加载。\n打开模型页面下载模型。",
 			"model_not_downloaded": "未选择语音模型。打开模型以选择一个。",
+			"offline_pack_missing": "离线包未安装。\n打开设置以下载。",
 			"no_model_selected": "未选择模型。\n前往模型页面选择模型。",
 			"load_failed_critical": "无法加载语音模型。\n应用将继续运行。按 {hotkey} 重试加载。"
 		},
@@ -2075,6 +2076,7 @@
 			"backendFailed": "{backend} 模型加载失败",
 			"modelFailed": "模型错误 | {error}",
 			"modelNotDownloaded": "未选择语音模型。打开模型以选择一个。",
+			"offlinePackMissing": "离线包未安装。打开设置以下载。",
 			"modelIntegrityFailed": "{backend} 模型未通过完整性验证。请删除并从模型页面重新下载。"
 		},
 		"pipeline": {

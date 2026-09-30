@@ -1925,6 +1925,7 @@
 			"backend_init_failed": "Could not initialize the {backend} backend.{hint}",
 			"last_resort_unloaded": "The model is not loaded.\nOpen the models page to download a model.",
 			"model_not_downloaded": "No speech model is selected. Open Models to choose one.",
+			"offline_pack_missing": "Offline pack is not installed.\nOpen Settings to download it.",
 			"no_model_selected": "No model selected.\nGo to the models page to select a model.",
 			"load_failed_critical": "Could not load the speech model.\nThe app will keep running. Press {hotkey} to retry loading."
 		},
@@ -2075,6 +2076,7 @@
 			"backendFailed": "{backend} model failed to load",
 			"modelFailed": "Model failed | {error}",
 			"modelNotDownloaded": "No speech model is selected. Open Models to choose one.",
+			"offlinePackMissing": "Offline pack is not installed. Open Settings to download it.",
 			"modelIntegrityFailed": "{backend} model failed integrity verification. Delete and re-download it from the Models page."
 		},
 		"pipeline": {

@@ -136,6 +136,10 @@ export function trayLabelsForLocale(): Record<string, string> {
 			"trayState.modelManager.modelNotDownloaded",
 		],
 		[
+			"state.model_manager.offline_pack_missing",
+			"trayState.modelManager.offlinePackMissing",
+		],
+		[
 			"state.model_manager.model_integrity_failed",
 			"trayState.modelManager.modelIntegrityFailed",
 		],
@@ -256,6 +260,10 @@ export function trayLabelsForLocale(): Record<string, string> {
 		[
 			"notify.model_manager.model_not_downloaded",
 			"notify.model_manager.model_not_downloaded",
+		],
+		[
+			"notify.model_manager.offline_pack_missing",
+			"notify.model_manager.offline_pack_missing",
 		],
 		[
 			"notify.model_manager.no_model_selected",

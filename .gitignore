@@ -28,11 +28,13 @@ voice_typer_stderr.log
 PROBLEMS.md
 PROMPT.md
 
-# Local clippy toolchain workaround (MSYS2 response-file bug):
-# src-tauri/.cargo-tmp holds a linker wrapper + build-script helper
-# needed to run `cargo clippy` on this machine. Never commit.
-.cargo-tmp/
-src-tauri/.cargo-tmp/
+# MSYS2/mingw-w64 GNU linker shim (x86_64-pc-windows-gnu, Windows-without-MSVC
+# hosts). The SOURCE (src-tauri/toolchain/linker_wrap.c) and its generator
+# (scripts/build/ensure_gnu_linkchain.py) ARE tracked, so a deleted or
+# AV-quarantined wrapper is always rebuildable with one command. Only the
+# build outputs are ignored. Never add src-tauri/toolchain/ here.
+src-tauri/.toolchain/
+src-tauri/.cargo/
 REPORT.md
 nul
 # Local test/debug
@@ -105,7 +107,6 @@ instructions.md
 src-tauri/bin/
 src-tauri/resources/native/
 src-tauri/resources/prewarm-*
-src-tauri/.cargo/
 # cargo check run logs (any suffix variant: cargo-check-log.txt, -vv, -vv-full)
 cargo-check-*.txt
 src-tauri/gen/

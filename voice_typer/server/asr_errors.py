@@ -143,6 +143,15 @@ class ModelNotDownloadedError(RuntimeError):
         self.repo_id = repo_id
 
 
+class OfflinePackMissingError(ModelNotDownloadedError):
+    """The model weights are on disk but the offline runtime pack is not.
+
+    Subclass (not sibling) so every existing ``except
+    ModelNotDownloadedError`` handler keeps working; callers that need
+    the pack-specific message/recovery branch on this type.
+    """
+
+
 class ModelIntegrityError(RuntimeError):
     """Raised when a cached local model fails integrity verification on"""
 

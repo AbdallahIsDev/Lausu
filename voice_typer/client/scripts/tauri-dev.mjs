@@ -191,6 +191,12 @@ function resolvePython() {
 }
 
 const stubScriptPath = path.join(repoRoot, "scripts", "gen_tauri_icons_stub.py");
+const linkchainScriptPath = path.join(
+	repoRoot,
+	"scripts",
+	"build",
+	"ensure_gnu_linkchain.py",
+);
 
 function runStubGen(args) {
 	const py = resolvePython();
@@ -203,6 +209,22 @@ function runStubGen(args) {
 	}
 	const extra = py === "py" ? ["-3"] : [];
 	const res = spawnSync(py, [...extra, stubScriptPath, ...args], {
+		cwd: repoRoot,
+		env: childEnv,
+		stdio: "inherit",
+		windowsHide: true,
+	});
+	if (res.error) {
+		console.error(`[tauri-dev] failed to spawn ${py}: ${res.error.message}`);
+	}
+	return res;
+}
+
+function runLinkchain(args) {
+	const py = resolvePython();
+	if (!py) return { status: 0 }; // non-fatal: stub step reports missing Python
+	const extra = py === "py" ? ["-3"] : [];
+	const res = spawnSync(py, [...extra, linkchainScriptPath, ...args], {
 		cwd: repoRoot,
 		env: childEnv,
 		stdio: "inherit",
@@ -258,6 +280,27 @@ if (stubCheck.status !== 0) {
 	if (gen.status !== 0) {
 		console.error(
 			"[tauri-dev] stub generation failed, aborting (see output above)",
+		);
+		teardown(1);
+		await new Promise(() => {});
+	}
+}
+
+// ── 2c. Ensure the GNU linker shim exists ────────────────────────────
+//
+// On Windows-without-MSVC hosts the Rust host links through a generated
+// MSYS2/mingw-w64 shim (src-tauri/.toolchain/linker-wrap.exe, built from the
+// tracked src-tauri/toolchain/linker_wrap.c). It is gitignored build scratch,
+// so a stray delete, an AV quarantine, or a fresh clone removes it — and the
+// only symptom is a misleading "error: linker ... not found" plus dozens of
+// unrelated "could not compile" lines. Same check-then-regenerate shape as the
+// stub step above, so the dev loop self-heals instead of failing cryptically.
+console.log("[tauri-dev] checking GNU linker shim...");
+if (runLinkchain(["--check"]).status !== 0) {
+	console.log("[tauri-dev] linker shim missing, regenerating...");
+	if (runLinkchain([]).status !== 0) {
+		console.error(
+			"[tauri-dev] GNU linker shim setup failed, aborting (see output above)",
 		);
 		teardown(1);
 		await new Promise(() => {});

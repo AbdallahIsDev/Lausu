@@ -1925,6 +1925,7 @@
 			"backend_init_failed": "No se pudo inicializar el backend {backend}.{hint}",
 			"last_resort_unloaded": "El modelo no está cargado.\nAbre la página de modelos para descargar un modelo.",
 			"model_not_downloaded": "No hay ningún modelo de voz seleccionado. Abre Modelos para elegir uno.",
+			"offline_pack_missing": "El paquete sin conexión no está instalado.\nAbre Configuración para descargarlo.",
 			"no_model_selected": "No hay ningún modelo seleccionado.\nVe a la página de modelos para seleccionar uno.",
 			"load_failed_critical": "No se pudo cargar el modelo de voz.\nLa aplicación seguirá funcionando. Pulse {hotkey} para reintentar la carga."
 		},
@@ -2075,6 +2076,7 @@
 			"backendFailed": "No se pudo cargar el modelo {backend}",
 			"modelFailed": "Error del modelo | {error}",
 			"modelNotDownloaded": "No hay ningún modelo de voz seleccionado. Abre Modelos para elegir uno.",
+			"offlinePackMissing": "El paquete sin conexión no está instalado. Abre Configuración para descargarlo.",
 			"modelIntegrityFailed": "El modelo {backend} no superó la verificación de integridad. Elimínelo y descárguélo de nuevo desde la página de modelos."
 		},
 		"pipeline": {

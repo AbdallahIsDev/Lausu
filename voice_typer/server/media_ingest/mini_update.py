@@ -34,7 +34,7 @@ class ExtractorRefreshState:
 
 
 def _mod_version(mod: object) -> str | None:
-    """Best-effort ``__version__`` string for an imported module.
+    """Best-effort version string for an imported module.
 
     ``yt_dlp.version`` is itself a MODULE (``yt_dlp/version.py``), so a
     naive ``getattr(mod, "version")`` str() dumps a module repr with a
@@ -44,6 +44,8 @@ def _mod_version(mod: object) -> str | None:
     if isinstance(direct, str) and direct:
         return direct
     sub = getattr(mod, "version", None)
+    if isinstance(sub, str) and sub:
+        return sub
     nested = getattr(sub, "__version__", None)
     return nested if isinstance(nested, str) and nested else None
 

@@ -279,6 +279,21 @@ class TestMiniUpdate:
         assert backend == "2026.1.1"
         assert "module" not in backend
 
+    def test_installed_versions_accept_plain_version_string(self, monkeypatch):
+        """``yt_dlp_ejs.version`` is a plain string (not a module)."""
+        import sys
+        import types
+
+        from voice_typer.server.media_ingest import mini_update as extractor_update
+
+        fake_pkg = types.ModuleType("yt_dlp")
+        fake_pkg.__version__ = "2026.08.19"
+        fake_ejs = types.ModuleType("yt_dlp_ejs")
+        fake_ejs.version = "0.8.0"
+        monkeypatch.setitem(sys.modules, "yt_dlp", fake_pkg)
+        monkeypatch.setitem(sys.modules, "yt_dlp_ejs", fake_ejs)
+        assert extractor_update.installed_extractor_versions() == ("2026.08.19", "0.8.0")
+
     def test_newer_remote_marks_update(self, tmp_path):
         from voice_typer.server.media_ingest import mini_update as extractor_update
 

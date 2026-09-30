@@ -1925,6 +1925,7 @@
 			"backend_init_failed": "Das {backend}-Backend konnte nicht initialisiert werden.{hint}",
 			"last_resort_unloaded": "Das Modell ist nicht geladen.\nÖffnen Sie die Modellseite, um ein Modell herunterzuladen.",
 			"model_not_downloaded": "Kein Sprachmodell ist ausgewählt. Öffnen Sie „Modelle“, um eines auszuwählen.",
+			"offline_pack_missing": "Offline-Paket ist nicht installiert.\nÖffnen Sie die Einstellungen, um es herunterzuladen.",
 			"no_model_selected": "Kein Modell ausgewählt.\nGehen Sie zur Modellseite, um ein Modell auszuwählen.",
 			"load_failed_critical": "Das Sprachmodell konnte nicht geladen werden.\nDie App läuft weiter. Drücken Sie {hotkey}, um das Laden erneut zu versuchen."
 		},
@@ -2075,6 +2076,7 @@
 			"backendFailed": "{backend}-Modell konnte nicht geladen werden",
 			"modelFailed": "Modellfehler | {error}",
 			"modelNotDownloaded": "Kein Sprachmodell ist ausgewählt. Öffnen Sie „Modelle“, um eines auszuwählen.",
+			"offlinePackMissing": "Offline-Paket ist nicht installiert. Öffnen Sie die Einstellungen, um es herunterzuladen.",
 			"modelIntegrityFailed": "{backend}-Modell hat die Integritätsprüfung nicht bestanden. Löschen Sie es und laden Sie es von der Modelle-Seite erneut herunter."
 		},
 		"pipeline": {
