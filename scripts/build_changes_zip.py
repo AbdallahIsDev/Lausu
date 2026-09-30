@@ -73,16 +73,16 @@ def excluded(p):
 
 final_files = [f for f in files if not excluded(f)]
 
-# 5. Validate every file exists (for deleted files, we skip, they are recorded
-# in archive/deleted_files.txt but not in the zip)
+# 5. Validate every file exists (deleted files are skipped: they appear as
+# deleted in `git diff` and are not zipped)
 missing = [f for f in final_files if not (REPO / f).exists() and not (REPO / f).is_symlink()]
 # Deleted files will appear in git diff --name-only HEAD as deleted; exclude them
-# from the zip (they're listed in archive/deleted_files.txt)
+# from the zip (git is the record of what was removed)
 deleted = [f for f in final_files if not (REPO / f).exists()]
 final_files = [f for f in final_files if (REPO / f).exists() or (REPO / f).is_symlink()]
 print(f"Tracked modified: {len(tracked)}")
 print(f"Untracked new: {len(expanded_untracked)}")
-print(f"Deleted (in archive/deleted_files.txt, not zipped): {len(deleted)}: {deleted}")
+print(f"Deleted (not zipped): {len(deleted)}: {deleted}")
 print(f"Missing (should not happen): {missing}")
 print(f"Final zip contents: {len(final_files)} files")
 

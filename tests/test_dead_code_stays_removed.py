@@ -750,8 +750,7 @@ class TestHistoryDbInternalsRecoveryModuleStaysRemoved:
         assert not recovery_py.exists(), (
             "regression: voice_typer/server/history_db_internals/"
             "recovery.py exists on disk. This file was deleted as 519 LOC "
-            "of dead code. Re-delete it (and check the archive/"
-            "deleted_files.txt entry)."
+            "of dead code. Re-delete it (and check the commit that removed it)."
         )
 
     def test_no_source_file_imports_the_recovery_module(self) -> None:

@@ -7,7 +7,7 @@
 // so saved data stays well-formed for the backend.
 // ``getCategoryLabels`` / ``CATEGORY_META`` were removed when the
 // category UI (badges, group headers, filter, picker, bulk move) was
-// deleted, see archive/deleted_files.txt.
+// deleted.
 
 import { normalizeWrongPhrase, type VocabRow } from "./transform";
 

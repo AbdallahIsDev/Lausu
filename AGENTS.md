@@ -487,8 +487,8 @@ is complete if it breaks something that previously worked.
 
 **E15: Technical debt.** When a production-quality implementation replaces an
 older one: remove the obsolete/dead code, unused helpers, stale tests, unused
-imports, deprecated paths: deleted, not commented out or `# noqa`'d. Every
-removal/move/rename recorded in `archive/deleted_files.txt`.
+imports, deprecated paths: deleted, not commented out or `# noqa`'d. Record
+each removal/move/rename in the commit message that performs it.
 
 **E16: Big-task policy, never skip, never defer.** Task size is never a reason
 to skip, defer, or mark "too big." Split into 2+ disjoint sub-agents (different
@@ -1444,7 +1444,7 @@ Applies to: All agents, all modes, all sub-agents.
 ```
 C-HOME-2
 Rule: Do NOT reintroduce a transcription preview surface on the Home page (or anywhere else as a substitute): no card/panel/toast rendering the last dictated text with Copy / Undo / Re-paste / Discard actions, no `LastTranscriptionPreview` component, no `useLastTranscriptionPreview` hook, no `home/lib/quality.ts` low-confidence detector, no `LAST_TEXT_AUTO_CLEAR_MS` timer, and no `home.copy/copyAria/undo/undoAria/undoFailed/repaste/repasteAria/repasteFailed/discard/discardAria/lowConfidenceWarning/redictate/redictateAria` i18n keys. Transcriptions live in History (and the clipboard when paste is blocked); Home shows the mic button, status line, and stats only. The `transcription_final` push event MUST NOT render raw text on Home (its handler celebrates first runs + refreshes stats). The `undo_last` / `repaste_last` IPC commands, their hotkeys, and the `TranscriptionQualitySummary` type STAY (backend + History behavior, not the preview card); removing or renaming them under the guise of this rule is a violation in the other direction.
-Rationale: User decision 2026-09-13, the preview card (deleted files recorded in `archive/deleted_files.txt`) duplicated History, exposed dictated text on screen, and invited scope creep (low-confidence warnings, re-dictate affordances). Every reintroduction attempt must be skipped with a `SKIPPED: ... Conflicts with AGENTS.md Hard "Don'ts": C-HOME-2` record.
+Rationale: User decision 2026-09-13, the preview card duplicated History, exposed dictated text on screen, and invited scope creep (low-confidence warnings, re-dictate affordances). Every reintroduction attempt must be skipped with a `SKIPPED: ... Conflicts with AGENTS.md Hard "Don'ts": C-HOME-2` record.
 Applies to: All agents, all modes, all sub-agents.
 ```
 
