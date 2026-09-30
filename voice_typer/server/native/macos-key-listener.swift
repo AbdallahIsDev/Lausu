@@ -66,7 +66,8 @@ private func logDiag(_ message: String) {
     }
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy-MM-dd  HH:mm:ss"
-    formatter.timeZone = TimeZone(identifier: "UTC")
+    // Local time — matches Python `time.localtime` / Rust `GetLocalTime`.
+    formatter.timeZone = TimeZone.current
     formatter.locale = Locale(identifier: "en_US_POSIX")
     let ts = formatter.string(from: Date())
     let line = "\(ts)  \(level)  \(text)\n"

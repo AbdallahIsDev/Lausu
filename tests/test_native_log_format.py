@@ -82,3 +82,16 @@ class TestNativeSourcesEmitCanonicalShape:
             assert 'strncmp(msg, "WARN:", 5)' in src
         swift = _read("macos-key-listener.swift")
         assert '["ERROR:", "WARN:"]' in swift
+
+    def test_timestamps_use_local_time(self):
+        """Native log timestamps must match Python ``time.localtime`` / Rust
+        ``GetLocalTime`` so cross-file correlation lines up."""
+        win = _read("windows-key-listener.c")
+        assert "GetLocalTime(&st)" in win
+        assert "GetSystemTime(&st)" not in win
+        linux = _read("linux-key-listener.c")
+        assert "localtime_r(&now, &tm_buf)" in linux
+        assert "gmtime_r(&now, &tm_buf)" not in linux
+        swift = _read("macos-key-listener.swift")
+        assert "TimeZone.current" in swift
+        assert 'TimeZone(identifier: "UTC")' not in swift
