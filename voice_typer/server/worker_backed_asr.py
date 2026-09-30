@@ -67,11 +67,11 @@ class WorkerBackedAsr:
         raises when there is no model, so the manager's refused-load UX
         is unchanged.
         """
-        from voice_typer.server.asr_errors import ModelNotDownloadedError
+        from voice_typer.server.asr_errors import OfflinePackMissingError
         from voice_typer.server.service import update_check
 
         if update_check._local_offline_pack_version() is None:
-            raise ModelNotDownloadedError(
+            raise OfflinePackMissingError(
                 "The offline pack is not installed. Open Settings to download it.",
                 model_size=str(self._kwargs.get("model_size", "")),
                 backend="whisper",

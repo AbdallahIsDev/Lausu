@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 from voice_typer.server._timeout_utils import TIMEOUT, _run_with_timeout
 from voice_typer.server.asr.busy_flag import BusyFlag
 from voice_typer.server.asr.circuit_breaker import CircuitBreaker
-from voice_typer.server.asr_errors import ModelIntegrityError, ModelNotDownloadedError
+from voice_typer.server.asr_errors import ModelIntegrityError, ModelNotDownloadedError, OfflinePackMissingError
 
 log = logging.getLogger(__name__)
 
@@ -180,6 +180,25 @@ class RegistryCore:
             log.exception("[ASR_REGISTRY] failed to unload %s after load timeout", label)
         return None
 
+    def _try_system_whisper_fallback(self) -> AsrBackend | None:
+        """Serve whisper from system libraries when the pack is absent.
+
+        Registers the system engine under ``"whisper"`` (replacing the
+        worker shim) so every downstream consumer keeps working
+        unchanged. Returns ``None`` when system libraries or weights
+        are unavailable; the caller then propagates the original
+        pack-missing refusal.
+        """
+        from voice_typer.server.system_whisper import try_load_system_whisper
+
+        engine = try_load_system_whisper(self._config)
+        if engine is None:
+            return None
+        self.register("whisper", engine)
+        self._record_success("whisper")
+        log.info("[ASR_REGISTRY] serving whisper from system libraries (offline pack absent)")
+        return engine
+
     def load_with_fallback(self, progress_callback: ProgressCallback | None = None) -> AsrBackend | None:
         """Load the configured backend; on failure, fall back to whisper."""
         _cb = progress_callback or (lambda msg: None)
@@ -202,11 +221,23 @@ class RegistryCore:
                         return backend
                     # TIMEOUT, helper already unloaded; fall through.
                 except (ModelNotDownloadedError, ModelIntegrityError) as exc:
+                    # Pack-missing whisper gets one more chance: a dev
+                    # checkout may serve system libraries instead (the
+                    # frozen app has none, so this is a silent no-op
+                    # there and the original refusal propagates).
+                    if isinstance(exc, OfflinePackMissingError):
+                        fallback = self._try_system_whisper_fallback()
+                        if fallback is not None:
+                            return fallback
                     # Not a transient failure, the user hasn't downloaded
+                    if name == "whisper":
+                        suffix = "no further fallback."
+                    else:
+                        suffix = "no whisper fallback."
                     log.warning(
                         "[ASR_REGISTRY] %s backend refused to load: %s, "
                         "model not downloaded / integrity check failed. "
-                        "No circuit-breaker record, no whisper fallback.",
+                        "No circuit-breaker record, " + suffix,
                         name,
                         exc,
                     )

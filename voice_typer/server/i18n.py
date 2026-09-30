@@ -49,6 +49,10 @@ _INITIAL_LABELS: dict[str, str] = {
     "state.model_manager.backend_failed": "{backend} model failed to load",
     "state.model_manager.model_failed": "Model failed | {error}",
     "state.model_manager.model_not_downloaded": ("No speech model is selected. Open Models to choose one."),
+    # pack_missing: weights are on disk but the offline runtime pack
+    "state.model_manager.offline_pack_missing": (
+        "Offline pack is not installed. Open Settings to download it."
+    ),
     # no_model_selected: genuine "no model selected" state
     "state.model_manager.no_model_selected": ("No model selected. Go to the models page to select a model."),
     "state.model_manager.model_integrity_failed": (
@@ -239,6 +243,9 @@ _INITIAL_LABELS: dict[str, str] = {
     "notify.model_manager.change_deferred": "Model will change to {model} after current recording",
     "notify.model_manager.backend_change_deferred": "Backend will change to {backend} after current recording.",
     "notify.model_manager.model_not_downloaded": ("No speech model is selected. Open Models to choose one."),
+    "notify.model_manager.offline_pack_missing": (
+        "Offline pack is not installed.\nOpen Settings to download it."
+    ),
     # no_model_selected: notification twin of the state message above —
     "notify.model_manager.no_model_selected": ("No model selected.\nGo to the models page to select a model."),
     # last_resort_unloaded: fired by get_active()'s last-resort branch

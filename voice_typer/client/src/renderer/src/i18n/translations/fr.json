@@ -1925,6 +1925,7 @@
 			"backend_init_failed": "Impossible d'initialiser le backend {backend}.{hint}",
 			"last_resort_unloaded": "Le modèle n'est pas chargé.\nOuvrez la page des modèles pour télécharger un modèle.",
 			"model_not_downloaded": "Aucun modèle vocal n'est sélectionné. Ouvrez Modèles pour en choisir un.",
+			"offline_pack_missing": "Le pack hors ligne n'est pas installé.\nOuvrez Paramètres pour le télécharger.",
 			"no_model_selected": "Aucun modèle sélectionné.\nAccédez à la page des modèles pour en sélectionner un.",
 			"load_failed_critical": "Impossible de charger le modèle vocal.\nL'application continuera de fonctionner. Appuyez sur {hotkey} pour réessayer le chargement."
 		},
@@ -2075,6 +2076,7 @@
 			"backendFailed": "Échec du chargement du modèle {backend}",
 			"modelFailed": "Erreur du modèle | {error}",
 			"modelNotDownloaded": "Aucun modèle vocal n'est sélectionné. Ouvrez Modèles pour en choisir un.",
+			"offlinePackMissing": "Le pack hors ligne n'est pas installé. Ouvrez Paramètres pour le télécharger.",
 			"modelIntegrityFailed": "Le modèle {backend} a échoué à la vérification d'intégrité. Supprimez-le et téléchargez-le à nouveau depuis la page des modèles."
 		},
 		"pipeline": {

@@ -20,13 +20,18 @@ class LastResortNotifyMixin:
         Returns a short human-readable ``failure_reason`` string for
         """
         backend_name = (backend or getattr(self._app.config, "asr_backend", "unknown")).title()
-        # Distinguish the two load-refusal flavors so the tray surfaces
+        # Distinguish the three load-refusal flavors so the tray surfaces
+        from voice_typer.server.asr_errors import OfflinePackMissingError
+
+        pack_missing = isinstance(exc, OfflinePackMissingError)
         no_model_selected = isinstance(exc, ModelNotDownloadedError) and exc.model_size == NO_MODEL_SIZE
         if isinstance(exc, ModelIntegrityError):
             reason = i18n.t(
                 "state.model_manager.model_integrity_failed",
                 backend=backend_name,
             )
+        elif pack_missing:
+            reason = i18n.t("state.model_manager.offline_pack_missing")
         elif no_model_selected:
             reason = i18n.t("state.model_manager.no_model_selected")
         else:
@@ -41,9 +46,13 @@ class LastResortNotifyMixin:
             self._app.tray.notify(
                 APP_NAME,
                 i18n.t(
-                    "notify.model_manager.no_model_selected"
-                    if no_model_selected
-                    else "notify.model_manager.model_not_downloaded",
+                    "notify.model_manager.offline_pack_missing"
+                    if pack_missing
+                    else (
+                        "notify.model_manager.no_model_selected"
+                        if no_model_selected
+                        else "notify.model_manager.model_not_downloaded"
+                    ),
                     backend=backend_name,
                 ),
             )
