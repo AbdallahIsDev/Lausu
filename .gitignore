@@ -18,6 +18,21 @@ voice_typer/client/src/renderer/dist/
 *.log
 runtime_log*.txt
 
+# MSYS2/mingw-w64 GNU linker shim (x86_64-pc-windows-gnu, Windows-without-MSVC
+# hosts). The SOURCE (src-tauri/toolchain/linker_wrap.c) and its generator
+# (scripts/build/ensure_gnu_linkchain.py) ARE tracked, so a deleted or
+# AV-quarantined wrapper is always rebuildable with one command. Only the
+# build outputs are ignored. Never add src-tauri/toolchain/ here.
+src-tauri/.toolchain/
+src-tauri/.cargo/
+%SystemDrive%/
+REPORT.md
+nul
+# Local test/debug
+_cuda_test.py
+# ruff ratchet CI artifact — produced by `ruff check ... --output-format=json`
+# and consumed by scripts/ruff_ratchet_check.py. Never commit; regenerate locally
+# with the same ruff invocation if you need it.
 ruff-current.json
 pyrefly-current.json
 # Local editor/OS files
