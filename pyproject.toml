@@ -337,7 +337,11 @@ Issues = "https://github.com/AbdallahIsDev/voice-typer/issues"
 Changelog = "https://github.com/AbdallahIsDev/voice-typer/blob/main/CHANGELOG.md"
 
 [project.scripts]
-lausu = "voice_typer.server.ipc_server:main"
+# Production desktop entry (`lausu` starts the app; `lausu --dev` is the
+# explicit development environment). Do not point this at ipc_server:main —
+# that starts a bare backend without the UI.
+lausu = "voice_typer.server.cli:main"
+lausu-server = "voice_typer.server.ipc_server:main"
 
 [project.optional-dependencies]
 # include modern test deps so CI is brittle-free.
