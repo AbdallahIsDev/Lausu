@@ -7,54 +7,18 @@ node_modules/
 .agents/*
 .claude/*
 
-# Vite/Tauri client build outputs — never commit these.
-# They're regenerated on every `npm run build` and bloat the repo.
 # NOTE: `csp-plugin.ts` at the client root is a SOURCE file (tracked,
 # imported by vite.tauri.config.ts), NOT a build output — do not add
 # it here. It is covered by tsconfig.node.json explicitly.
 voice_typer/client/out/
 voice_typer/client/src/renderer/dist/
-# also ignore the root build/ and dist/ dirs used by
-# setuptools and PyInstaller.  Note: the leading slash anchors these
-# to the repo root so they don't accidentally match subdirectories
-# like scripts/build/ (which contains tracked build scripts).
 /build/
 /dist/
 *.tsbuildinfo
-# Runtime/debug output
 *.log
 runtime_log*.txt
-voice_typer_stderr.log
-PROBLEMS.md
-PROMPT.md
 
-# MSYS2/mingw-w64 GNU linker shim (x86_64-pc-windows-gnu, Windows-without-MSVC
-# hosts). The SOURCE (src-tauri/toolchain/linker_wrap.c) and its generator
-# (scripts/build/ensure_gnu_linkchain.py) ARE tracked, so a deleted or
-# AV-quarantined wrapper is always rebuildable with one command. Only the
-# build outputs are ignored. Never add src-tauri/toolchain/ here.
-src-tauri/.toolchain/
-src-tauri/.cargo/
-%SystemDrive%/
-REPORT.md
-nul
-# Local test/debug
-_cuda_test.py
-# OWNER-ONLY PLUGIN (never ships, never commits to this repo).
-# tools/owner is its OWN git repository, backed up to a private remote;
-# see tools/owner/README.md for attach/detach/backup. The folder still
-# has files tracked in the parent repo until the owner runs
-# `git rm -r --cached tools/owner` (E18: agents must not run `git rm`);
-# tests/tauri/test_owner_tools_absent.py::TestOwnerToolsNotInMainRepo
-# fails while any remain tracked.
-tools/owner/
-# ruff ratchet CI artifact — produced by `ruff check ... --output-format=json`
-# and consumed by scripts/ruff_ratchet_check.py. Never commit; regenerate locally
-# with the same ruff invocation if you need it.
 ruff-current.json
-# pyrefly ratchet CI artifact — produced by `pyrefly check ... --output-format=json`
-# and consumed by the "Audit pyrefly baseline changes" CI step. Never commit;
-# regenerate locally with the same pyrefly invocation if you need it.
 pyrefly-current.json
 # Local editor/OS files
 .idea/
@@ -64,16 +28,10 @@ pyrefly-current.json
 Thumbs.db
 artifacts/
 audit/
-# docs/*
-FORENSIC_REVIEW.md
-docs/Qwen_integation.md
-FORENSIC_REVIEW_2026-06-17.md
 rebuild-and-launch.ps1
 voice_typer/server/assets/
 .opencode/
-# Python coverage / type-checker caches that should never
-# ship in the repo. Without these patterns a single `pytest --cov` or
-# `mypy voice_typer` run leaves dozens of cache files in the tree.
+
 .coverage
 .coverage.*
 htmlcov/
@@ -84,64 +42,45 @@ coverage.xml
 .pyrefly_cache/
 .tox/
 .pytype/
-# environment files — local secrets / API keys must never
-# be committed. The `.env` file is loaded by the test suite only when
-# present, but should never appear in `git status`.
+
 .env
 .env.*
 !.env.example
-# Tauri / Rust build artifacts — never commit the Cargo build cache.
-# src-tauri/target/ is the multi-GB output of `cargo check`/`cargo build`
-# (rlibs, rmetas, .rcgu.o, .fingerprint, build/ intermediates). It is
-# regenerated on every build and must not enter git.
-src-tauri/target/
-# Custom --target-dir variants used by verification runs (NOT gitignored by
-# the default target/ rule — must be listed explicitly so they never appear
-# in `git status`).
-src-tauri/target-gnu*/
-# Tauri v2 build output (bundles/binaries/resources copied by `tauri build`).
-src-tauri/src-tauri/
+
 # NOTE: src-tauri/Cargo.lock IS intentionally committed (Tauri is a binary
 # app, not a library — reproducible builds require the lockfile in git).
 # Workspace Manager
 .workspace/
 .freebuff/
-# Git worktrees — sibling worktree roots live under .worktree/
 .worktree/
-README.ws.md
-bubble.md
-DONE.md
 instructions.md
-# Verification-only stubs (cargo check on GNU target without MSVC) — do NOT commit
+
+# MSYS2/mingw-w64 GNU linker shim (x86_64-pc-windows-gnu, Windows-without-MSVC
+# hosts). The SOURCE (src-tauri/toolchain/linker_wrap.c) and its generator
+# (scripts/build/ensure_gnu_linkchain.py) ARE tracked, so a deleted or
+# AV-quarantined wrapper is always rebuildable with one command. Only the
+# build outputs are ignored. Never add src-tauri/toolchain/ here.
+src-tauri/.toolchain/
+src-tauri/.cargo/
+src-tauri/target/
+src-tauri/target-gnu*/
 src-tauri/bin/
 src-tauri/resources/native/
 src-tauri/resources/prewarm-*
-# cargo check run logs (any suffix variant: cargo-check-log.txt, -vv, -vv-full)
 cargo-check-*.txt
 src-tauri/gen/
-.sessions/
-MERGE_CONTEXT_BRIEF.md
 -*
-changes/
-# Local downloads (not committed)
-downloads/
-merged-output/
-status.md
-sub-worklog-*.md
-WINDOWS_PIPELINE_LOCAL_RUN_STATUS.md
-archive/deleted_files.txt
+%SystemDrive%/
+nul
+archive/*
 
 ruff_base_snap.json
 ruff_now_snap.json
-
-# Temp test output files
 vitest-failures.json
 wip-failures.json
-# Compiled icon (build artifact)
-icon.ico
+
 # Agent skill metadata
 skills-lock.json
-# Local agent directory
 agent/
 
 # Session metadata (not source)
@@ -149,8 +88,18 @@ BP-SESSION-CONTEXT.md
 worklog.md
 SUMMARY.md
 sub-worklog-*.md
-changes/
 
 # Session evidence artifacts (browser-mode walkthrough) — working
 # files, not deliverables; referenced from worklog.md by path.
 .tmp-evidence/
+.workbuddy-ai/
+
+# INTERNAL PLUGINS (experimental, still in development; never ship).
+# tools/internal-plugins is its OWN git repository, backed up to a
+# private remote; see tools/internal-plugins/README.md. The folder still
+# has files tracked in the parent repo until it is untracked with
+# `git rm -r --cached tools/internal-plugins` (E18: agents must not run
+# `git rm`);
+# tests/tauri/test_internal_plugin_tools_absent.py::TestInternalPluginToolsNotInMainRepo
+# fails while any remain tracked.
+tools/internal-plugins/

@@ -1,9 +1,0 @@
-{
-  "locale": "en",
-  "note": "Discovered live in Phase 1. Never hardcode guesses. Null = not discovered yet.",
-  "loginChip": null,
-  "micButton": null,
-  "recordingIndicator": null,
-  "promptBox": null,
-  "stopButton": null
-}

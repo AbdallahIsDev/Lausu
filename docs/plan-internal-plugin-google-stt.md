@@ -1,8 +1,8 @@
-# Owner-only spike: Gemini web STT via Playwright
+# Internal plugin (experimental): Google STT via Playwright
 
 **Status:** Phase 0 exit passed (24h survival) — Phase 1 live probing
-**Audience:** owner (private). **Never ship to users.**
-**Date:** 2026-09-28 (rev 2) + owner update 2026-09-29 (Phase 1 note + §14 future owner settings)
+**Audience:** in-house testing. **Experimental plugin — never ship to users.**
+**Date:** 2026-09-28 (rev 2) + plugin update 2026-09-29 (Phase 1 note + §14 future plugin settings)
 
 ## 1. Goal
 
@@ -20,13 +20,13 @@ hotkey #2  → stop mic → wait for stable transcript → restore focus → pas
 | Non-goal | Why |
 |---|---|
 | Ship in any release / CI artifact / installer | Account-ban + ToS risk for end users |
-| UI, Settings, tray, i18n for this feature | Must be invisible outside owner builds |
-| Replace local/cloud dictation | Optional owner experiment only |
+| UI, Settings, tray, i18n for this feature | Must be invisible outside internal test builds |
+| Replace local/cloud dictation | Optional internal-plugin experiment only |
 | Tiny/consumer mini-browsers | Not programmable |
 | Attach to daily Chrome (CDP) | Must be isolated from daily browser |
 | Clipboard `Ctrl+C` from the Gemini page | Racy; scrape DOM text |
 | Toast/email body containing transcript | Privacy — speech is sensitive |
-| `tools/owner` in any repo `package.json` script | Discoverability leak |
+| `tools/internal-plugins` in any repo `package.json` script | Discoverability leak |
 
 **Release rule:** accidental ship = P0 incident.
 
@@ -38,32 +38,32 @@ hotkey #2  → stop mic → wait for stable transcript → restore focus → pas
 | Account | Burner Gmail only (ban = that account). |
 | Paste | **Import product paste** (`voice_typer.server.clipboard` manager path — snapshot/restore, target gates, RDP delay, UIPI fail-closed). No reimplementation. |
 | Alerts | **Desktop toast + local log only.** No email/webhook. Toasts never include dictated text. |
-| Isolation | `tools/owner/` process; not wired into Tauri until spike passes §11. |
+| Isolation | `tools/internal-plugins/` process; not wired into Tauri until spike passes §11. |
 | Toolchain | Node deps **outside repo** (see §4). |
 
 ## 4. Hard ship gates (must all hold)
 
-1. Code lives under `tools/owner/` — **not** in `voice_typer/`, **not** in Nuitka inputs, **not** in `tauri.conf.json` bundle/externalBin/resources.
+1. Code lives under `tools/internal-plugins/` — **not** in `voice_typer/`, **not** in Nuitka inputs, **not** in `tauri.conf.json` bundle/externalBin/resources.
 2. Enabled only when **all** of:
-   - env `VOICE_TYPER_OWNER_TOOLS=1`, **and**
-   - gitignored `tools/owner/OWNER_ENABLED` exists, **and**
+   - env `VOICE_TYPER_INTERNAL_PLUGINS=1`, **and**
+   - gitignored `tools/internal-plugins/PLUGINS_ENABLED` exists, **and**
    - process is not a frozen/release sidecar.
 3. No new `IPC_CONFIG_ALLOWLIST` / `set_config` / renderer / i18n / tray surface.
-4. **Proof-of-absence test** `tests/tauri/test_owner_tools_absent.py` (wired into the C-CI-7 drift set) asserts:
-   - `tools/owner` appears in no Nuitka `--include` / package list
+4. **Proof-of-absence test** `tests/tauri/test_internal_plugin_tools_absent.py` (wired into the C-CI-7 drift set) asserts:
+   - `tools/internal-plugins` appears in no Nuitka `--include` / package list
    - not in `tauri.conf.json` externalBin/resources
    - not in NSIS/MSI file lists
-   - gitignore covers `OWNER_ENABLED`, `gemini-profile/`, `debug/`, `last_error.json`
-   - no root/client `package.json` script references `owner`
-5. Node/Playwright deps install to `%LOCALAPPDATA%/voice-typer-owner/node-deps` — **never** repo-root `node_modules`.
-6. Profile dir: `%LOCALAPPDATA%/voice-typer-owner/gemini-profile` — never `~/.lausu`.
-7. Network egress is **C-DATA-1**-justified: owner-configured, owner-initiated, owner-only gated, browser navigation to Google only (not product code paths). Documented here so future agents do not “clean it up” as telemetry.
+   - gitignore covers `PLUGINS_ENABLED`, `google-stt-profile/`, `debug/`, `last_error.json`
+   - no root/client `package.json` script references `internal-plugins`
+5. Node/Playwright deps install to `%LOCALAPPDATA%/voice-typer-internal-plugins/node-deps` — **never** repo-root `node_modules`.
+6. Profile dir: `%LOCALAPPDATA%/voice-typer-internal-plugins/google-stt-profile` — never `~/.lausu`.
+7. Network egress is **C-DATA-1**-justified: plugin-configured, plugin-initiated, gated to internal test builds, browser navigation to Google only (not product code paths). Documented here so future agents do not “clean it up” as telemetry.
 
 ## 5. Architecture
 
 ```
-tools/owner/gemini_stt/     (never packaged)
-  run.js                    entry (node, NODE_PATH → %LOCALAPPDATA%/voice-typer-owner/node-deps)
+tools/internal-plugins/google_stt/     (never packaged)
+  run.js                    entry (node, NODE_PATH → %LOCALAPPDATA%/voice-typer-internal-plugins/node-deps)
   playwright_runner.js      persistent Chrome channel, selectors.json, scrape
   controller.py             hotkey, hwnd capture/restore, product paste import
   breakwatch.py             toast (no transcript) + last_error.json + screenshot
@@ -71,7 +71,7 @@ tools/owner/gemini_stt/     (never packaged)
   config.example.json
 ```
 
-**Paste (owner decision: import product):**
+**Paste (plugin decision: import product):**
 `controller.py` imports the existing clipboard manager paste path
 (`voice_typer.server.clipboard` / `ClipboardSnapshot` borrow + restore,
 target-safety, IME, RDP `paste_delay`, elevated/UIPI fail-closed).
@@ -103,7 +103,7 @@ const ctx = await chromium.launchPersistentContext(profileDir, {
 
 **STOP rules (fail-closed):**
 - “This browser or app may not be secure” / OTP loop / captcha → **stop the spike** (§11 checkpoint 2). One fallback allowed only: retry once with `channel: 'chrome'` after clearing profile if first attempt used bundled Chromium. No further bypass.
-- Phone-verify demand on burner → stop; owner may switch burner account once, then stop if it recurs.
+- Phone-verify demand on burner → stop; the developer may switch burner account once, then stop if it recurs.
 
 **Exit:** logged-in Gemini in isolated Chrome profile; mic permission granted; 24h relaunch OK.
 
@@ -138,12 +138,12 @@ Rules: prefer role/aria-label/visible text; on failure dump screenshot + aria sn
 2. **Hotkey #1:** record foreground hwnd (`GetForegroundWindow`) as `paste_target`; then start mic (page already off-screen from Phase 0).
 3. **Hotkey #2:** stop mic → scrape (Phase 2) → `SetForegroundWindow(paste_target)` → product paste.
 4. **Fail-closed paste target** (mirror `_paste.py` gates): if target hwnd died / is elevated / is unsafe / IME composing / not a text field → **do not paste**; leave text on clipboard and toast “paste blocked” (no transcript in toast). Import path already implements these — call it, don’t duplicate.
-5. Clipboard: product `ClipboardSnapshot` borrow/restore around the paste (owner accepted product paste import). Owner clipboard is **not** permanently clobbered.
-6. Mic contention: if product recording session is active (lockfile / product state the sidecar already owns), **refuse** owner hotkey + toast. Do not open the same input device.
+5. Clipboard: product `ClipboardSnapshot` borrow/restore around the paste (product paste import accepted). The system clipboard is **not** permanently clobbered.
+6. Mic contention: if product recording session is active (lockfile / product state the sidecar already owns), **refuse** the plugin hotkey + toast. Do not open the same input device.
 
 **Exit:** Notepad/WhatsApp receive text; hwnd before #1 == successful paste target; clipboard restored.
 
-### Phase 4 — Break detection + owner alert
+### Phase 4 — Break detection + plugin alert
 
 Toast (no transcript text) + `last_error.json` + screenshot in `debug/` when:
 - mic button / login chip / prompt box selector missing
@@ -173,27 +173,27 @@ Toast (no transcript text) + `last_error.json` + screenshot in `debug/` when:
   box, stop-square + Send rendered, burner chip stayed, no challenge.
   Verdict: idle survival + safe-under-use both hold for clicks.
   `selectors.json` now pins all 5 (mic/stop = same toggle).
-- **Profile free:** no `voice-typer-owner` Chrome process alive; no
+- **Profile free:** no `voice-typer-internal-plugins` Chrome process alive; no
   `Default/Singleton*` lock; `check.js` headless SESSION-ALIVE earlier
   same day. Safe to launch Playwright clicking (Phase 1 rule:
   idle survival ≠ safe-under-use; verdict comes from clicks).
 
-### Phase 5 — Owner packaging + hygiene
+### Phase 5 — Plugin packaging + hygiene
 
-1. Single entry `tools/owner/gemini_stt/run.js`.
-2. `tools/owner/README.md`: burner-account warning, ToS gray area, **do not ship**, re-login, profile reset, selector update procedure.
+1. Single entry `tools/internal-plugins/google_stt/run.js`.
+2. `tools/internal-plugins/README.md`: burner-account warning, ToS gray area, **do not ship**, re-login, profile reset, selector update procedure.
 3. Gitignore as in §4.4 (enforced by test, not just documented).
-4. No root `package.json` `owner:gemini-stt` script — use a machine-local alias.
+4. No root `package.json` `plugin:google-stt` script — use a machine-local alias.
 5. Daily-use log template (§11 appendix).
 
-## 7. Config (owner-only, gitignored)
+## 7. Config (internal plugin only, gitignored)
 
-`tools/owner/gemini_stt/config.example.json`:
+`tools/internal-plugins/google_stt/config.example.json`:
 
 ```json
 {
   "hotkey": "ctrl+shift+space",
-  "profileDir": "C:/Users/11/AppData/Local/voice-typer-owner/gemini-profile",
+  "profileDir": "C:/Users/11/AppData/Local/voice-typer-internal-plugins/google-stt-profile",
   "chromeChannel": "chrome",
   "locale": "en",
   "stableMs": 800,
@@ -206,17 +206,17 @@ Toast (no transcript text) + `last_error.json` + screenshot in `debug/` when:
 
 No secrets in git. Session lives only in the Playwright profile.
 
-## 8. Mic ownership
+## 8. Mic exclusivity
 
 While Gemini records, product recorder must not open the same device.
 Spike **refuses** to start if product recording is active (Phase 3.6). Product wins.
 
-## 9. Residual risks (owner accepts in writing)
+## 9. Residual risks (accepted in writing for in-house testing)
 
 - Burner ban/lockout; possible phone-verification demand.
-- Google redesign / captcha / rate-limit downtime; no SLA; owner labor.
-- ToS gray area of automating the web UI (personal, never shipped).
-- Transcript bytes at rest in profile + `debug/` on the owner machine.
+- Google redesign / captcha / rate-limit downtime; no SLA; maintenance labor.
+- ToS gray area of automating the web UI (internal test builds, never shipped).
+- Transcript bytes at rest in profile + `debug/` on the test machine.
 - Chrome channel may still be fingerprint-flagged; isolation ≠ invisibility.
 
 ## 10. Acceptance criteria
@@ -226,10 +226,10 @@ Spike **refuses** to start if product recording is active (Phase 3.6). Product w
 - [ ] Hotkey #1 records `paste_target` hwnd and starts mic (UI confirms).
 - [ ] Hotkey #2 stops; text in focused app; focus round-trip OK; clipboard restored.
 - [ ] Works with daily Chrome **closed**.
-- [ ] Product dictation unaffected when owner tool idle; owner tool refuses while product records.
+- [ ] Product dictation unaffected when the plugin is idle; the plugin refuses while product records.
 - [ ] Forced selector failure → toast without transcript text.
 - [ ] Elevated/unsafe target → paste blocked, text on clipboard (product gates).
-- [ ] `test_owner_tools_absent.py` green; `tools/owner` absent from release/CI lists.
+- [ ] `test_internal_plugin_tools_absent.py` green; `tools/internal-plugins` absent from release/CI lists.
 - [ ] No i18n / Settings / tray / `set_config` changes.
 
 ## 11. Decision checkpoints + trial log
@@ -238,9 +238,9 @@ Spike **refuses** to start if product recording is active (Phase 3.6). Product w
 2. Any Google challenge/captcha/lock? **One unexpected challenge during trial week → log and continue. Account lockout or second challenge → stop spike.**
 3. Selector maintenance cheaper than Deepgram Live / local interim text? If no → stop.
 
-**Policy on login failure (owner):** real Chrome + isolated profile first; if Google still refuses, **stop**. No long bypass campaign.
+**Policy on login failure (internal plugin):** real Chrome + isolated profile first; if Google still refuses, **stop**. No long bypass campaign.
 
-### Daily-use log template (append to `tools/owner/gemini_stt/trial_log.md`)
+### Daily-use log template (append to `tools/internal-plugins/google_stt/trial_log.md`)
 
 | Date | Dictations | OK | Fail mode | Selector change? | Notes |
 |---|---|---|---|---|---|
@@ -250,7 +250,7 @@ Spike **refuses** to start if product recording is active (Phase 3.6). Product w
 
 Even if the spike is perfect:
 
-> This feature stays owner-only forever unless the user explicitly reverses that decision in writing in this file and `AGENTS.md` Hard Don'ts.
+> This feature stays internal-plugin-only forever unless the user explicitly reverses that decision in writing in this file and `AGENTS.md` Hard Don'ts.
 
 No public experimental toggle. Not in README/CHANGELOG.
 
@@ -261,8 +261,8 @@ No public experimental toggle. Not in README/CHANGELOG.
 | B1 Google login in automation Chromium | Taken. Phase 0 uses `channel: "chrome"` + isolated profile + stop rules. |
 | B2 Focus choreography | Taken. hwnd capture / off-screen / SetForegroundWindow / fail-closed. |
 | B3 Clipboard restore | Taken. Import product `ClipboardSnapshot` path. |
-| B4 Node deps leak | Taken. `%LOCALAPPDATA%/voice-typer-owner/node-deps`. |
-| B5 Absence test | Taken. `tests/tauri/test_owner_tools_absent.py` in drift set. |
+| B4 Node deps leak | Taken. `%LOCALAPPDATA%/voice-typer-internal-plugins/node-deps`. |
+| B5 Absence test | Taken. `tests/tauri/test_internal_plugin_tools_absent.py` in drift set. |
 | H1 Interim text | Taken. two stability windows + length floor. |
 | H2 Mic contention | Taken. refuse while product recording. |
 | H3 UIPI/elevated | Taken via product paste gates. |
@@ -270,14 +270,14 @@ No public experimental toggle. Not in README/CHANGELOG.
 | H5 Artifact hygiene | Taken. gitignore test; no transcript in toasts. |
 | H6 C-DATA-1 | Taken. §4.7. |
 | Nits (hotkey, login chip, locale, no diagnostics tail, no npm script) | Taken. |
-| Q2 clipboard | Owner: use product restore. |
-| Q3 alerts | Owner: toast + local log only. |
-| Q1/Q5 login/challenge policy | Owner: chrome channel; stop if still blocked; one challenge log-and-continue; lockout = stop. |
-| Q4 paste coupling | Owner: **import product paste** (overrides reviewer’s standalone preference). |
+| Q2 clipboard | Decision: use product restore. |
+| Q3 alerts | Decision: toast + local log only. |
+| Q1/Q5 login/challenge policy | Decision: chrome channel; stop if still blocked; one challenge log-and-continue; lockout = stop. |
+| Q4 paste coupling | Decision: **import product paste** (overrides reviewer’s standalone preference). |
 
-## 14. Future owner-only settings (NOT implemented — main feature first)
+## 14. Future internal-plugin settings (NOT implemented — main feature first)
 
-Owner request 2026-09-29. Documented so any dev/agent can pick up later.
+Requested 2026-09-29. Documented so any dev/agent can pick up later.
 None of this changes the spike gates (§4) or the non-rollout (§12).
 
 ### 14.1 Product-parity behavior (main feature scope, not future)
@@ -289,16 +289,16 @@ None of this changes the spike gates (§4) or the non-rollout (§12).
   History/copy/repaste behave like any standard model.
 - Dictation widget renders normally (`bubble_show` + start/stop audio cues
   via the product paths); static visualizer (no PCM routed) is accepted.
-- No renderer/i18n/tray/`set_config` surface: owner config stays a
+- No renderer/i18n/tray/`set_config` surface: plugin config stays a
   gitignored file (`config.json`, see §7 + 14.2).
 
-### 14.2 Owner-only settings surface (gitignored, owner machine only)
+### 14.2 Internal-plugin settings surface (gitignored, test machine only)
 
-- Dedicated owner settings file only (e.g. `config.json` next to
+- Dedicated plugin settings file only (e.g. `config.json` next to
   `config.example.json`, gitignored): **never** `config.json` product
   store, never `IPC_CONFIG_ALLOWLIST`, never renderer Settings.
 - First setting: `headless` / `visible` profile toggle —
-  `visible:true` = headed window the owner can watch/click;
+  `visible:true` = headed window the developer can watch/click;
   `visible:false` = silent background (`--window-position=32000,32000`,
   still headed so mic works; true headless kills mic).
 - Future keys slot in here without touching product config.
@@ -318,9 +318,10 @@ None of this changes the spike gates (§4) or the non-rollout (§12).
   session's output language; the instruction itself lands at the head of
   the transcript and is removed with a prefix-strip.
 - Future: `prefix_strip` (remove N chars/verbatim instruction head) +
-  `audio_clip_path` (1–2s owner-recorded WAV of the command phrase)
-  auto-played into the mic at session start via virtual audio routing,
-  with `audio_clip_enabled` toggle. Owner speaks freely (AR/EN/mixed),
-  gets back the target language without saying the command each time.
+  `audio_clip_path` (1–2s WAV recorded by the developer for the command
+  phrase) auto-played into the mic at session start via virtual audio
+  routing, with `audio_clip_enabled` toggle. The developer speaks freely
+  (AR/EN/mixed), gets back the target language without saying the command
+  each time.
 - Requires virtual-mic plumbing + prefix-strip tests; explicitly out of
   main-feature scope.
