@@ -184,10 +184,6 @@ class MicrophoneDeviceWatcher(_LinuxMixin, _MacOSMixin, _WindowsMixin):
         now = time.monotonic()
         last = getattr(self, "_last_callback_time", 0.0)
         if now - last < self._DEBOUNCE_SECONDS:
-            log.debug(
-                "[MIC-WATCHER] Skipping duplicate invalidation (%.0fms since last)",
-                (now - last) * 1000,
-            )
             return
         self._last_callback_time = now
 

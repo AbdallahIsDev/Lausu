@@ -101,10 +101,7 @@ class _WindowsMixin:
 
         def _wnd_proc(hwnd, msg, wparam, lparam):
             if msg == wm_devicechange:
-                log.debug(
-                    "[MIC-WATCHER] WM_DEVICECHANGE received (wparam=0x%x)",
-                    wparam,
-                )
+                # Routine device-churn (USB enumerate storms) — no per-event log.
                 self._invoke_callback()
             return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 

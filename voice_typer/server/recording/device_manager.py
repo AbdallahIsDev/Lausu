@@ -138,7 +138,7 @@ class DeviceManager:
         """Reset the device-list cache so the next ``_refresh_device_list``"""
         self._device_list_cache = None
         self._device_list_cache_time = 0.0
-        log.debug("[RECORDING] Device cache invalidated by OS-event watcher")
+        # Device churn is routine; keep the log free of per-event noise.
 
         # fire the service-layer cache invalidator (best-effort).
         service_cb = self._service_cache_invalidator
