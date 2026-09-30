@@ -222,7 +222,7 @@ export const LlmPolishingSettingsSection = memo(
 									variant="ghost"
 									size="xs"
 									onClick={handleToggleLlmKey}
-									className="absolute end-1 top-1/2 -translate-y-1/2 text-xs"
+									className="absolute inset-e-1 top-1/2 -translate-y-1/2 text-xs"
 									aria-label={
 										llmKeyVisible ? t("settings.hide") : t("settings.show")
 									}

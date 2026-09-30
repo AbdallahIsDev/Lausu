@@ -564,7 +564,7 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 						type="button"
 						disabled={customDraftIsDefault}
 						onClick={handleResetCustomColors}
-						className="w-full rounded-lg border border-border/5 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-(--surface-hover) hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+						className="w-full rounded-lg border border-border/5 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
 					>
 						{t("settings.appearance.resetToDefaultColors")}
 					</button>
