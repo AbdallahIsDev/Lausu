@@ -3,7 +3,7 @@
 
 Reads `git status --porcelain` to get the exact list of modified/added/deleted
 files, then builds a ZIP archive preserving the original directory structure.
-Includes SUMMARY.md, worklog.md, review.md, archive/deleted_files.txt.
+Includes SUMMARY.md, worklog.md, review.md.
 Excludes node_modules, .venv, __pycache__, build artifacts, .git, etc.
 """
 
@@ -45,7 +45,6 @@ metadata_files = [
     "SUMMARY.md",
     "worklog.md",
     "review.md",
-    "archive/deleted_files.txt",
 ]
 
 # Excluded patterns

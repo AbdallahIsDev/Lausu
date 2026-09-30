@@ -61,8 +61,8 @@ file per domain. The split rule is:
 3. **Move each class verbatim** into the new per-domain file. No
    edits to the test body. Add a header docstring to the new file
    that names the findings it pins (PERF-004, PERF-PIPE, etc.).
-4. **Delete the original catch-all.** Record the deletion in
-   `archive/deleted_files.txt` per the close-out protocol.
+4. **Delete the original catch-all.** Record the deletion in the commit
+   message that removes it, per the close-out protocol.
 5. **Verify the test count is preserved.** `pytest --collect-only`
    before and after must produce the same number of tests.
 6. **Verify the tests still pass.** `pytest <new files>` must produce
@@ -129,8 +129,8 @@ $ python -m pytest tests/test_perf_text_cleanup.py tests/test_perf_hotkey_pollin
 
 Baseline before the split: 34 tests collected / 34 passed.
 
-Original catch-all deleted; deletion recorded in
-`archive/deleted_files.txt`:
+Original catch-all deleted (recorded in the then-current
+`archive/deleted_files.txt`, since retired; git history is the record now):
 
 ```
 DELETE  |  tests/test_perf_review_fixes.py  |  W1-A12 (EC-25): split into 4 per-domain files ...
@@ -293,7 +293,7 @@ private factory definitions that are candidates for future migration:
 
 - review.md entry #6 (EC-25, lines 264-277), original finding.
 - review.md entry #12 (XS-42, lines 382-420), related factory-dedup finding.
-- `archive/deleted_files.txt` Records the deletion of `tests/test_perf_review_fixes.py`.
+- git history Records the deletion of `tests/test_perf_review_fixes.py`.
 - `tests/fixtures/ipc_test_helpers.py` Extended with the new factory exports.
 - `tests/fixtures/app_helpers.py` Pre-existing, docstring updated.
 - `tests/fixtures/recorder_test_helpers.py` Pre-existing, docstring updated.
