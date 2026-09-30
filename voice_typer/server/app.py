@@ -87,14 +87,15 @@ class LausuApp(AppLazyHub, AppDictation, AppAdmin, AppRecordingInit, AppConstruc
         self._init_state_flags()
         self._init_history_crash_volume()
         self._init_misc_backings()
-        # Owner-only Gemini web-STT seam. No-op unless the owner gate is
-        # open (env flag + tools/owner/OWNER_ENABLED + not frozen): a
-        # frozen build never reaches the import. Must run before
+        # Internal-plugin STT seam (Google STT, in development). No-op
+        # unless the plugin gate is open (env flag +
+        # tools/internal-plugins/PLUGINS_ENABLED + not frozen): a frozen
+        # build never reaches the import. Must run before
         # `hotkeys.register()` (startup_sequence/_phases_late.py) so the
         # PTT release callback captures the wrapped bound method.
-        from voice_typer.server import owner_hook
+        from voice_typer.server import internal_plugin_hook
 
-        owner_hook.install(self)
+        internal_plugin_hook.install(self)
 
     # _init_threading_and_crash / _log_startup_banner / _init_audio /
 

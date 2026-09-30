@@ -80,25 +80,3 @@ observations before marking anything done.
 **Simplified Fix:** Old tests reach into the app's front-door modules to swap out internals. Migrating them to the modules that own those internals — one file at a time, only when already editing it — keeps the front doors thin.
 **Implementation Difficulty:** 🟡 Medium
 **Severity:** 🟢 Low
-
----
-
-### FV-39 — macOS/Linux release pipelines build a deleted prewarm module: any dispatch fails mid-job (plus dead prewarm scripts)
-**Status:** ✅ Fixed (2026-09-27 FV session, user-authorized): prewarm build/verify/artifact/codesign steps removed from `tauri-macos-build.yml` + `tauri-linux-build.yml`; `build_tauri_all.sh` no longer dispatches prewarm; deleted `scripts/build/build_prewarm_{windows,macos,linux}.sh` + `scripts/build/lausu.spec` + `pyinstaller` from the `[build]` extra (ledger in `archive/deleted_files.txt`). Dead pins removed from `test_config_script_drift.py`, `mig17/16` nuitka tests, `mig18` glue/signing/per-triple, `test_platform_fix_regressions.py`, `regressions/test_platform_win32.py`. Focused suite green (205 passed). **Still required:** full CI re-run of the edited macOS/Linux workflows (C-CI-2) + user-owned AGENTS.md C-CI-9/11/13 wording update (prewarm artifacts/signing no longer exist).
-**Description:** The prewarm pipeline was migrated to the slim-core worker (commit 46cf40fa deleted `voice_typer/server/prewarm/__main__.py`; the directory now holds only `__init__.py`, `cache_probe.py`, `status.py`), and the Windows workflow removed its prewarm step after a FATAL on main (noted at tauri-windows-build.yml:563-570). But the macOS workflow still runs `scripts/build/build_prewarm_macos.sh` (steps at :250, :447) and Linux runs `build_prewarm_linux.sh` (:647) — both scripts' Nuitka invocations target the deleted module, and macOS lists `prewarm-<triple>` artifact uploads with `if-no-files-found: error` (:297). The three build_prewarm_*.sh scripts and the retired PyInstaller packaging (lausu.spec + the `pyinstaller` build extra in pyproject.toml) are dead-but-invokable.
-**User Impact:** Any dispatch of the release pipeline (tauri-build.yml all/macos/linux) at HEAD fails mid-job after the expensive sidecar build — macOS/Linux release builds are red, and the all-platforms manifest gate can never pass. No user-facing impact in the shipped app (releases are manual-dispatch only), but the release capability is silently broken.
-**Root Cause:** Verified — plan-runtime-pack-split §6.2 P-1 removal was applied to the Windows workflow only; the sibling workflows, the build scripts, and the legacy packaging extra were never swept.
-**Gain vs Trade-off:** Mirroring the Windows removal (drop prewarm steps + artifact paths, delete the three scripts + spec + extra, record in archive/deleted_files.txt) un-breaks the pipelines; the risk is that these are the repo's most fragile CI files and any edit must be validated by a full re-run.
-**If We Do It:** macOS/Linux release dispatches proceed past prewarm to the worker-based path; dead scripts stop inviting invocation.
-**If We Don't:** The release pipeline for two platforms is broken until someone dispatches and debugs it live.
-**My Recommendation:** 🟡 Defer to user — the fix edits C-CI-2-protected workflows, so it requires user confirmation and a full validated re-run per the rule. Would conflict with AGENTS.md: C-CI-2 (protected workflow files; the change is genuinely required but must be user-validated).
-**Progress:** `None yet.`
-**Related Files:**
-- `.github/workflows/tauri-macos-build.yml:250,297,447`
-- `.github/workflows/tauri-linux-build.yml:647`
-- `scripts/build/build_prewarm_macos.sh:176`, `build_prewarm_linux.sh:166`, `build_prewarm_windows.sh:190`
-- `scripts/build/lausu.spec`, `pyproject.toml` ([build] extra `pyinstaller`)
-**Fix:** Mirror the Windows removal in the macOS/Linux workflows (drop prewarm build steps + prewarm artifact paths — note Linux :652-660 carries a second uncited hard-fail `test -x $PREWARM` site, per Review Wave 4), delete the three build_prewarm_*.sh scripts, the lausu.spec, and the pyinstaller extra; record all deletions in archive/deleted_files.txt per E15 (the ledger does not currently exist on disk — deleted at ebce5598 — so RECREATE it). USER MUST CONFIRM + validate with a full re-run (C-CI-2), and the AGENTS.md update is user-owned: the fix also conflicts with the letter of C-CI-9, C-CI-11, and C-CI-13 — a coordinated user-owned AGENTS.md edit is required alongside (per Review Wave 4).
-**Simplified Fix:** The Mac and Linux build recipes still try to compile a helper program that was deleted weeks ago, so those builds fail every time they run. Removing the dead steps and leftover scripts — with the owner's approval, since these recipes are deliberately protected — makes the builds work again.
-**Implementation Difficulty:** 🟡 Medium
-**Severity:** 🔴 Critical
