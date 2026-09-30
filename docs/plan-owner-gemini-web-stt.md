@@ -1,8 +1,8 @@
 # Owner-only spike: Gemini web STT via Playwright
 
-**Status:** plan revised after external review — not implemented  
-**Audience:** owner (private). **Never ship to users.**  
-**Date:** 2026-09-28 (rev 2)
+**Status:** Phase 0 exit passed (24h survival) — Phase 1 live probing
+**Audience:** owner (private). **Never ship to users.**
+**Date:** 2026-09-28 (rev 2) + owner update 2026-09-29 (Phase 1 note + §14 future owner settings)
 
 ## 1. Goal
 
@@ -155,6 +155,29 @@ Toast (no transcript text) + `last_error.json` + screenshot in `debug/` when:
 
 **Exit:** forced selector break → toast within one action.
 
+### Phase 1 exit note (2026-09-29, verified live)
+
+- Burner chip confirmed in live screenshot + `debug/aria.txt`:
+  `link "Google Account: <burner> (<burner-address>)"` — matches
+  `selectors.json` `loginChip` (address lives only in the private plugin
+  repo, never in this public doc). No warning/banner in screenshot or aria
+  snapshot (no `accounts.google.com`, captcha, `not be secure`, or
+  `Something went wrong` tokens).
+- Dictate affordance: `button "Dictate (^⇧D)"`; prompt box:
+  `textbox "Enter a prompt for Gemini"`. Both pinned in `selectors.json`.
+- Still open: `recordingIndicator` + `stopButton` need a live mic-click
+  capture (Phase 1 remaining). `discover.js` window parked for probing.
+- **2026-09-30 probe (Playwright clicks ARE safe):** `probe.js` clicked
+  `button "Dictate (^⇧D)"` → label swapped to
+  `button "Stop dictation (^⇧D)"`, dotted waveform appeared in prompt
+  box, stop-square + Send rendered, burner chip stayed, no challenge.
+  Verdict: idle survival + safe-under-use both hold for clicks.
+  `selectors.json` now pins all 5 (mic/stop = same toggle).
+- **Profile free:** no `voice-typer-owner` Chrome process alive; no
+  `Default/Singleton*` lock; `check.js` headless SESSION-ALIVE earlier
+  same day. Safe to launch Playwright clicking (Phase 1 rule:
+  idle survival ≠ safe-under-use; verdict comes from clicks).
+
 ### Phase 5 — Owner packaging + hygiene
 
 1. Single entry `tools/owner/gemini_stt/run.js`.
@@ -251,3 +274,53 @@ No public experimental toggle. Not in README/CHANGELOG.
 | Q3 alerts | Owner: toast + local log only. |
 | Q1/Q5 login/challenge policy | Owner: chrome channel; stop if still blocked; one challenge log-and-continue; lockout = stop. |
 | Q4 paste coupling | Owner: **import product paste** (overrides reviewer’s standalone preference). |
+
+## 14. Future owner-only settings (NOT implemented — main feature first)
+
+Owner request 2026-09-29. Documented so any dev/agent can pick up later.
+None of this changes the spike gates (§4) or the non-rollout (§12).
+
+### 14.1 Product-parity behavior (main feature scope, not future)
+
+- Trigger → Gemini transcript → inject into the focused input via the
+  **imported product paste path only** (§5 paste rule).
+- Save every Gemini transcript via `history_db.add_transcription(text,
+  duration=…, model="gemini-web", …)` + `transcription_final` publish so
+  History/copy/repaste behave like any standard model.
+- Dictation widget renders normally (`bubble_show` + start/stop audio cues
+  via the product paths); static visualizer (no PCM routed) is accepted.
+- No renderer/i18n/tray/`set_config` surface: owner config stays a
+  gitignored file (`config.json`, see §7 + 14.2).
+
+### 14.2 Owner-only settings surface (gitignored, owner machine only)
+
+- Dedicated owner settings file only (e.g. `config.json` next to
+  `config.example.json`, gitignored): **never** `config.json` product
+  store, never `IPC_CONFIG_ALLOWLIST`, never renderer Settings.
+- First setting: `headless` / `visible` profile toggle —
+  `visible:true` = headed window the owner can watch/click;
+  `visible:false` = silent background (`--window-position=32000,32000`,
+  still headed so mic works; true headless kills mic).
+- Future keys slot in here without touching product config.
+
+### 14.3 Deferred: prepend/append prompt text (NOT implemented)
+
+- Optional `prepend_text` / `append_text` applied around the scraped
+  transcript before paste+history (paste what the user sees; history
+  stores the final string).
+- Use case: strip-then-add instruction verbs, force-target-language
+  framing, signatures. Simple string ops, no product text-cleanup change.
+
+### 14.4 Deferred: spoken-command prefix + auto audio-clip injection (NOT implemented)
+
+- Background: Gemini voice input is context-aware — a leading spoken
+  instruction (e.g. "translate everything to English") steers the whole
+  session's output language; the instruction itself lands at the head of
+  the transcript and is removed with a prefix-strip.
+- Future: `prefix_strip` (remove N chars/verbatim instruction head) +
+  `audio_clip_path` (1–2s owner-recorded WAV of the command phrase)
+  auto-played into the mic at session start via virtual audio routing,
+  with `audio_clip_enabled` toggle. Owner speaks freely (AR/EN/mixed),
+  gets back the target language without saying the command each time.
+- Requires virtual-mic plumbing + prefix-strip tests; explicitly out of
+  main-feature scope.

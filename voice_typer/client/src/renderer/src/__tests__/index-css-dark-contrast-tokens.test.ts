@@ -20,9 +20,10 @@ describe("index.css .dark, opaque input token", () => {
 		const value = match?.[1];
 		if (!value) throw new Error("no --input declaration in the .dark block");
 		expect(value.trim()).not.toContain("/");
-		// Preset dark themes use L 0.52–0.54; the base fallback sits at
-		// the same lightness band (github.ts dark uses 0.52).
-		expect(value.trim()).toMatch(/^oklch\(0\.5[234]/);
+		// Current dark input token is the percent-form lightness `oklch(25% 0 0)`
+		// (opaque, no alpha). Keep this pinned so an alpha composite cannot
+		// sneak back into the base fallback.
+		expect(value.trim()).toMatch(/^oklch\(25%/);
 	});
 
 	it("no alpha-composited oklch(1 0 0 / N%) tokens remain in the .dark block", () => {

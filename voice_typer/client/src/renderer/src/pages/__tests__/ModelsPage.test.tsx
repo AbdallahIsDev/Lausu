@@ -989,19 +989,20 @@ describe("ModelsPage, segmented control card border treatment (2026-08-21)", () 
 			).toBeTruthy();
 		});
 
-		// The tablist is the title-bar ModelsTabSwitcher; it must carry
-		// the model-card border treatment (`border border-border/5`
-		// `rounded-lg bg-surface-subtle`, the app-wide page-card token)
-		// so the control reads as one card among the model cards, NOT
-		// a borderless strip. The tabs
-		// tailwind-merge treats `border` (width) and `border-none`
-		// (style) as different groups, so `border-style: none` silently
-		// killed the container border, guard against it returning.
+		// The tablist is the title-bar ModelsTabSwitcher; it must keep
+		// the card border treatment (`border border-border/5`
+		// `rounded-lg`) so the control reads as one card among the
+		// model cards, NOT a borderless strip. Background is the
+		// title-bar surface (`bg-background`), not the page-card
+		// `bg-surface-subtle`. tailwind-merge treats `border` (width)
+		// and `border-none` (style) as different groups, so
+		// `border-style: none` silently killed the container border,
+		// guard against it returning.
 		const tablist = screen.getByRole("tablist");
 		const cls = tablist.className;
 		expect(cls).toContain("border-border/5");
 		expect(cls).toContain("rounded-lg");
-		expect(cls).toContain("bg-surface-subtle");
+		expect(cls).toContain("bg-background");
 		expect(cls).not.toContain("border-none");
 
 		// The active segment indicator carries the SAME border token.

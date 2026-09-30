@@ -35,10 +35,19 @@ PROMPT.md
 # build outputs are ignored. Never add src-tauri/toolchain/ here.
 src-tauri/.toolchain/
 src-tauri/.cargo/
+%SystemDrive%/
 REPORT.md
 nul
 # Local test/debug
 _cuda_test.py
+# OWNER-ONLY PLUGIN (never ships, never commits to this repo).
+# tools/owner is its OWN git repository, backed up to a private remote;
+# see tools/owner/README.md for attach/detach/backup. The folder still
+# has files tracked in the parent repo until the owner runs
+# `git rm -r --cached tools/owner` (E18: agents must not run `git rm`);
+# tests/tauri/test_owner_tools_absent.py::TestOwnerToolsNotInMainRepo
+# fails while any remain tracked.
+tools/owner/
 # ruff ratchet CI artifact — produced by `ruff check ... --output-format=json`
 # and consumed by scripts/ruff_ratchet_check.py. Never commit; regenerate locally
 # with the same ruff invocation if you need it.

@@ -230,10 +230,7 @@ class RegistryCore:
                         if fallback is not None:
                             return fallback
                     # Not a transient failure, the user hasn't downloaded
-                    if name == "whisper":
-                        suffix = "no further fallback."
-                    else:
-                        suffix = "no whisper fallback."
+                    suffix = "no further fallback." if name == "whisper" else "no whisper fallback."
                     log.warning(
                         "[ASR_REGISTRY] %s backend refused to load: %s, "
                         "model not downloaded / integrity check failed. "
