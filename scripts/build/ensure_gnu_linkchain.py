@@ -94,6 +94,10 @@ ar = "{ar}"
 # the binutils archiver, not gcc itself.
 AR_NAME = "x86_64-w64-mingw32-gcc-ar.exe"
 
+# Compiler output is echoed into the dev loop, so cap it: a noisy toolchain
+# build must not bury the output the developer is actually reading.
+MAX_COMPILER_OUTPUT_LINES = 10
+
 
 def log(msg: str) -> None:
     print(f"[gnu-linkchain] {msg}", flush=True)
@@ -161,7 +165,23 @@ def compile_wrapper(gcc: Path) -> None:
     """
     TOOLCHAIN_DIR.mkdir(parents=True, exist_ok=True)
     staging = TOOLCHAIN_DIR / "linker-wrap.exe.new"
-    cmd = [str(gcc), "-O2", "-Wall", "-o", str(staging), str(WRAPPER_SRC)]
+    # -Wno-format-truncation: the wrapper composes Windows paths into MAX_PATH
+    # buffers, and gcc's analysis is pessimistic (it assumes every %s fills the
+    # whole buffer, so every snprintf warns). These are false positives here: a
+    # working Windows path is bounded by MAX_PATH by definition, which is
+    # exactly the buffer size used. Left on, they buried the real dev-loop
+    # output under ~80 lines of noise on every rebuild. -Wextra is kept so
+    # genuine defects (unused vars, bad signatures) still surface.
+    cmd = [
+        str(gcc),
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Wno-format-truncation",
+        "-o",
+        str(staging),
+        str(WRAPPER_SRC),
+    ]
 
     env = dict(os.environ)
     prefix_root = gcc.parent.parent  # .../mingw64 from .../mingw64/bin
@@ -177,10 +197,18 @@ def compile_wrapper(gcc: Path) -> None:
     # a truncated wrapper that cargo would then invoke.
     staging.replace(WRAPPER_EXE)
     if proc.stderr.strip():
-        # Warnings are expected (snprintf truncation notes); surface, don't fail.
-        log("compiler warnings:")
-        for line in proc.stderr.strip().splitlines():
+        # Never let compiler noise flood the dev loop; it buries the build
+        # output and trains the reader to ignore the log. Show a bounded
+        # sample plus the real count so nothing is silently hidden.
+        lines = [ln for ln in proc.stderr.strip().splitlines() if ln.strip()]
+        log(f"compiler warnings: {len(lines)} line(s)")
+        for line in lines[:MAX_COMPILER_OUTPUT_LINES]:
             log(f"  {line}")
+        if len(lines) > MAX_COMPILER_OUTPUT_LINES:
+            log(
+                f"  ... {len(lines) - MAX_COMPILER_OUTPUT_LINES} more line(s) "
+                "suppressed; recompile manually for the full output"
+            )
 
 
 def purge_stale_scratch() -> None:
