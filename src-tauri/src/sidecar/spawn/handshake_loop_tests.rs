@@ -112,7 +112,10 @@ fn spawn_scripted_child(lines: &[&str]) -> DevChild {
         c.args(["-NoProfile", "-NonInteractive", "-Command", &script]);
         c
     } else {
-        let joined = lines.join("\\n");
+        // Real newlines: `printf '%s\n'` with an embedded literal `\n`
+        // would emit ONE line, and the handshake reader would never see
+        // the JSON that follows the banner.
+        let joined = lines.join("\n");
         let mut c = tokio::process::Command::new("sh");
         c.args(["-c", &format!("printf '%s\\n' '{joined}'; sleep 30")]);
         c
