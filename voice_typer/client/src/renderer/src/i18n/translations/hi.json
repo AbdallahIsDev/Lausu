@@ -1624,7 +1624,6 @@
 		"stopRecordingAria": "रिकॉर्डिंग रोकें",
 		"dismissAria": "बुलबुला हटाएं",
 		"transcriptPreviewAria": "लाइव ट्रांसक्रिप्ट पूर्वावलोकन",
-		"livePreviewUnavailable": "इस इंजन के लिए लाइव पूर्वावलोकन उपलब्ध नहीं है",
 		"recordingTimerAria": "रिकॉर्डिंग अवधि"
 	},
 	"errorBoundary": {

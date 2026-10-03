@@ -18,7 +18,6 @@ export interface BubbleModeContentProps {
 	mode: BubbleMode;
 	errorMessage?: string | null;
 	transcript?: string | null;
-	livePreviewUnsupported?: boolean;
 	showTimer: boolean;
 	dotRefs: RefObject<(HTMLSpanElement | null)[]>;
 }
@@ -27,7 +26,6 @@ export function BubbleModeContent({
 	mode,
 	errorMessage,
 	transcript,
-	livePreviewUnsupported,
 	showTimer,
 	dotRefs,
 }: BubbleModeContentProps) {
@@ -176,17 +174,14 @@ export function BubbleModeContent({
 				</div>
 			);
 		case "recording":
+			// Recording shows the pulsing dot + level bars only. A
+			// "no live preview" notice used to sit here for engines
+			// without word streaming; it widened the always-on-top
+			// pill and wrapped to two lines. The bars already say
+			// "listening".
 			return (
 				<div className="flex items-center gap-2">
 					<BubbleVisualizer dotRefs={dotRefs} showTimer={showTimer} />
-					{livePreviewUnsupported && (
-						<span className="text-[0.625rem] font-medium text-muted-foreground">
-							{tf(
-								"bubble.livePreviewUnavailable",
-								"No live preview for this engine",
-							)}
-						</span>
-					)}
 				</div>
 			);
 		default: {

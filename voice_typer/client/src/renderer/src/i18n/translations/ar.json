@@ -1624,7 +1624,6 @@
 		"stopRecordingAria": "إيقاف التسجيل",
 		"dismissAria": "إخفاء الفقاعة",
 		"transcriptPreviewAria": "معاينة النص المباشر",
-		"livePreviewUnavailable": "لا توجد معاينة مباشرة لهذا المحرك",
 		"recordingTimerAria": "مدة التسجيل"
 	},
 	"errorBoundary": {

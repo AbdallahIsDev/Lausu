@@ -1624,7 +1624,6 @@
 		"stopRecordingAria": "停止录音",
 		"dismissAria": "关闭气泡",
 		"transcriptPreviewAria": "实时转录预览",
-		"livePreviewUnavailable": "当前引擎不支持实时预览",
 		"recordingTimerAria": "录音时长"
 	},
 	"errorBoundary": {

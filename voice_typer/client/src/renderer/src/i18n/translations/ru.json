@@ -1624,7 +1624,6 @@
 		"stopRecordingAria": "Остановить запись",
 		"dismissAria": "Закрыть пузырёк",
 		"transcriptPreviewAria": "Предпросмотр транскрипции в реальном времени",
-		"livePreviewUnavailable": "Живой предпросмотр недоступен для этого движка",
 		"recordingTimerAria": "Длительность записи"
 	},
 	"errorBoundary": {

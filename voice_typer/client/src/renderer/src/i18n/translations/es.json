@@ -1624,7 +1624,6 @@
 		"stopRecordingAria": "Detener grabación",
 		"dismissAria": "Descartar burbuja",
 		"transcriptPreviewAria": "Vista previa de transcripción en vivo",
-		"livePreviewUnavailable": "Sin vista previa en vivo para este motor",
 		"recordingTimerAria": "Duración de la grabación"
 	},
 	"errorBoundary": {
