@@ -9,6 +9,15 @@ import time
 import typing
 from typing import Any
 
+from voice_typer.server.asr_errors import (
+    CloudAuthError,
+    CloudConfigError,
+    CloudEmptyResponseError,
+    CloudNetworkError,
+    CloudRateLimitError,
+    CloudServerError,
+)
+
 # vocabulary-automation analyzer degrade-gracefully defaults
 _EMPTY_SEGMENTS: tuple = ()
 _NO_TRANSCRIPT_CONFIDENCE: float = 0.0
@@ -34,6 +43,27 @@ def _friendly_transcription_error(exc: BaseException) -> str:
             "The speech model was not loaded when dictation finished. "
             "Wait for it to finish loading, or open Settings to verify "
             "the model is available."
+        )
+    # Cloud failures with NO local fallback (the cloud error propagated
+    # because no local model is installed). Distinct, actionable messages
+    # so this notice reads differently from the silent-switch toast.
+    if isinstance(exc, (CloudAuthError, CloudConfigError)):
+        return (
+            "The cloud provider rejected the API key and no local speech "
+            "model was available to fall back to. Check the API key in "
+            "Settings, or install a local model to keep dictating offline."
+        )
+    if isinstance(exc, (CloudServerError, CloudRateLimitError, CloudEmptyResponseError)):
+        return (
+            "The cloud transcription provider failed and no local speech "
+            "model was available to fall back to. Try again later, or "
+            "install a local model to keep dictating offline."
+        )
+    if isinstance(exc, CloudNetworkError):
+        return (
+            "The cloud transcription service could not be reached and no "
+            "local speech model was available to fall back to. Check the "
+            "internet connection, or install a local model to dictate offline."
         )
     msg = str(exc).lower()
     name = type(exc).__name__

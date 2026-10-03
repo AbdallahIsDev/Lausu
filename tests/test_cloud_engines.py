@@ -906,3 +906,80 @@ class TestCloudEngineTestConnectionBranches:
             f"the user knows transcriptions will fail until the provider "
             f"recovers, got {msg!r}"
         )
+
+
+class TestFallbackKindClassification:
+    """Fallback events carry a ``kind`` so the toast can name the cause."""
+
+    def _fallback_event_for(self, exc):
+        import numpy as np
+
+        from voice_typer.server import event_bus
+        from voice_typer.server.cloud_engines import CloudEngine
+
+        engine = CloudEngine(provider="openai", api_key="test-key", consent_given=True)
+        audio = np.zeros(16000, dtype=np.float32)
+        local_engine = MagicMock()
+        local_engine.transcribe.return_value = "local fallback text"
+        received = []
+        event_bus.subscribe(received.append)
+        try:
+            with patch.object(engine, "transcribe", side_effect=exc):
+                engine.transcribe_with_fallback(audio, local_engine=local_engine)
+        finally:
+            event_bus.unsubscribe(received.append)
+        kinds = [e["data"].get("kind") for e in received if e.get("type") == "cloud_fallback_used"]
+        assert len(kinds) == 1
+        return kinds[0]
+
+    def test_auth_error_classified_as_key(self):
+        from voice_typer.server.asr_errors import CloudAuthError
+
+        assert self._fallback_event_for(CloudAuthError("HTTP 401")) == "key"
+
+    def test_config_error_classified_as_key(self):
+        from voice_typer.server.asr_errors import CloudConfigError
+
+        assert self._fallback_event_for(CloudConfigError("missing key")) == "key"
+
+    def test_server_error_classified_as_provider(self):
+        from voice_typer.server.asr_errors import CloudServerError
+
+        assert self._fallback_event_for(CloudServerError("HTTP 503")) == "provider"
+
+    def test_rate_limit_classified_as_provider(self):
+        from voice_typer.server.asr_errors import CloudRateLimitError
+
+        assert self._fallback_event_for(CloudRateLimitError("HTTP 429")) == "provider"
+
+    def test_network_error_classified_as_network(self):
+        from voice_typer.server.asr_errors import CloudNetworkError
+
+        assert self._fallback_event_for(CloudNetworkError("timeout")) == "network"
+
+    def test_generic_error_classified_as_network(self):
+        assert self._fallback_event_for(RuntimeError("boom")) == "network"
+
+    def test_abort_skips_fallback_and_returns_empty(self):
+        """ESC mid-request must not burn a local decode on a dead cycle."""
+        import numpy as np
+
+        from voice_typer.server import event_bus
+        from voice_typer.server.cloud_engines import CloudEngine
+
+        engine = CloudEngine(provider="openai", api_key="test-key", consent_given=True)
+        engine.request_abort()
+        audio = np.zeros(16000, dtype=np.float32)
+        local_engine = MagicMock()
+        received = []
+        event_bus.subscribe(received.append)
+        try:
+            with patch.object(
+                engine, "transcribe", side_effect=RuntimeError("cloud down")
+            ):
+                result = engine.transcribe_with_fallback(audio, local_engine=local_engine)
+        finally:
+            event_bus.unsubscribe(received.append)
+        assert result == ""
+        local_engine.transcribe.assert_not_called()
+        assert not [e for e in received if e.get("type") == "cloud_fallback_used"]

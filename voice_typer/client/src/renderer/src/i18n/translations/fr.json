@@ -2043,6 +2043,7 @@
 		"asrBackendDisabledHint": "La transcription utilise un autre moteur. Ouvrez Modèles pour en choisir un différent.",
 		"cloudFallbackUsed": "Transcription cloud échouée, le moteur vocal local a été utilisé à la place",
 		"cloudFallbackUsedHint": "Le fournisseur cloud {provider} n'a pas répondu. La dictée continue avec le moteur local ; vérifiez votre connexion ou les paramètres du fournisseur.",
+		"cloudFallbackKeyUsedHint": "Le fournisseur cloud {provider} a rejeté la clé API. La dictée continue avec le moteur local ; vérifiez la clé dans les paramètres.",
 		"historyCorrupted": "Base de données d'historique corrompue, reconstruite à partir d'une copie de sauvegarde",
 		"historyCorruptedHint": "{count} entrées ont été récupérées. Les entrées les plus récentes peuvent manquer ; le fichier corrompu a été conservé à côté de la base de données pour inspection.",
 		"historyFtsRebuildFailed": "Suppression de l'historique inachevée: les entrées supprimées peuvent rester recherchables",

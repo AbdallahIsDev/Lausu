@@ -2043,6 +2043,7 @@
 		"asrBackendDisabledHint": "Die Transkription fällt auf eine andere Engine zurück. Öffnen Sie „Modelle“, um eine andere zu wählen.",
 		"cloudFallbackUsed": "Cloud-Transkription fehlgeschlagen, es wurde die lokale Sprach-Engine verwendet",
 		"cloudFallbackUsedHint": "Der Cloud-Anbieter {provider} hat nicht geantwortet. Das Diktat läuft mit der lokalen Engine weiter; prüfen Sie Ihre Verbindung oder die Anbieter-Einstellungen.",
+		"cloudFallbackKeyUsedHint": "Der Cloud-Anbieter {provider} hat den API-Schlüssel abgelehnt. Das Diktat läuft mit der lokalen Engine weiter; prüfen Sie den Schlüssel in den Einstellungen.",
 		"historyCorrupted": "Verlaufsdatenbank war beschädigt, aus einer Sicherungskopie neu aufgebaut",
 		"historyCorruptedHint": "{count} Einträge wurden wiederhergestellt. Die neuesten Einträge können fehlen; die beschädigte Datei wurde zu Inspektionszwecken neben der Datenbank aufbewahrt.",
 		"historyFtsRebuildFailed": "Löschen des Verlaufs nicht abgeschlossen: gelöschte Einträge sind möglicherweise noch durchsuchbar",

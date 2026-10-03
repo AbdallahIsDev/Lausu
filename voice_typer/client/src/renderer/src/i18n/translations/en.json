@@ -2043,6 +2043,7 @@
 		"asrBackendDisabledHint": "Transcription falls back to another engine. Open Models to pick a different one.",
 		"cloudFallbackUsed": "Cloud transcription failed, used the local speech engine instead",
 		"cloudFallbackUsedHint": "The {provider} cloud provider did not respond. Dictation keeps working with the local engine; check your connection or provider settings.",
+		"cloudFallbackKeyUsedHint": "The {provider} cloud provider rejected the API key. Dictation keeps working with the local engine; check the key in Settings.",
 		"historyCorrupted": "History database was corrupted, rebuilt from a backup copy",
 		"historyCorruptedHint": "{count} entries were recovered. The newest entries may be missing; the corrupt file was kept next to the database for inspection.",
 		"historyFtsRebuildFailed": "History deletion did not finish: deleted entries may still be searchable",
