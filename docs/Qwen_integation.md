@@ -81,7 +81,7 @@ class ASRTranscription:
 def mock_qwen_engine(monkeypatch):
     mock_model = MagicMock()
     mock_model.transcribe.return_value = [MagicMock(text="hello world")]
-    monkeypatch.setattr("qwen_asr.Qwen3ASRModel.from_pretrained", 
+    monkeypatch.setattr("qwen_asr.Qwen3ASRModel.from_pretrained",
                         lambda *a, **kw: mock_model)
     yield
 ```
