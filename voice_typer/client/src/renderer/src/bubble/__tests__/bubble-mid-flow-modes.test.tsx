@@ -166,6 +166,26 @@ describe("bubble mid-flow modes (blocked / cancelling / permission_revoked / pas
 		expect(screen.queryByText("Blocked")).toBeNull();
 	});
 
+	it("renders recording with bars and no notice text even when live preview is unsupported", () => {
+		render(<Bubble />);
+
+		// Object payload as published by the backend (not a bare string).
+		const cbs = mockBubble._listeners.setState ?? [];
+		act(() => {
+			for (const cb of cbs) {
+				(cb as unknown as (s: unknown) => void)({
+					state: "recording",
+					live_preview_supported: false,
+				});
+			}
+		});
+
+		// Visualizer bars present…
+		expect(document.querySelectorAll(".gap-0\\.75 > span").length).toBe(7);
+		// …and no "No live preview" notice text anywhere in the pill.
+		expect(screen.queryByText(/live preview/i)).toBeNull();
+	});
+
 	it("does NOT render bars in any of the new mid-flow modes", () => {
 		render(<Bubble />);
 

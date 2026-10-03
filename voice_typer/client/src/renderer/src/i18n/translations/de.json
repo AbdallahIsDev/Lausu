@@ -1624,7 +1624,6 @@
 		"stopRecordingAria": "Aufnahme beenden",
 		"dismissAria": "Blase schließen",
 		"transcriptPreviewAria": "Live-Transkript-Vorschau",
-		"livePreviewUnavailable": "Keine Live-Vorschau für diese Engine",
 		"recordingTimerAria": "Aufnahmedauer"
 	},
 	"errorBoundary": {

@@ -1560,7 +1560,6 @@
 		"stopRecordingAria": "Arrêter l'enregistrement",
 		"dismissAria": "Fermer la bulle",
 		"transcriptPreviewAria": "Aperçu de la transcription en direct",
-		"livePreviewUnavailable": "Pas d'aperçu en direct pour ce moteur",
 		"recordingTimerAria": "Durée d'enregistrement"
 	},
 	"errorBoundary": {

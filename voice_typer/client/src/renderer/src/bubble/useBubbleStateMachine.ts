@@ -22,7 +22,6 @@ export interface BubbleStateMachine {
 	/** Short reason string for the current error mode, or `null`. */
 	errorMessage: string | null;
 	transcript: string | null;
-	livePreviewUnsupported: boolean;
 }
 
 export function useBubbleStateMachine(): BubbleStateMachine {
@@ -37,13 +36,6 @@ export function useBubbleStateMachine(): BubbleStateMachine {
 	// transition so the partial text fades out smoothly with the pill.
 	// Cleared on transition to any other mode.
 	const [transcript, setTranscript] = useState<string | null>(null);
-	// Engine-capability signal from the backend's one-time
-	// live-preview publish: true = the active engine cannot stream
-	// partials. Kept while recording continues (legacy bare payloads
-	// carry no opinion); cleared on leaving recording so the next
-	// session with a different engine starts clean.
-	const [livePreviewUnsupported, setLivePreviewUnsupported] = useState(false);
-
 	// Latest-mode ref so the `onSetState` callback can read the current
 	// mode synchronously without re-subscribing on every mode change
 	// (which would cancel + re-arm the rAF loop in `useAudioLevels`,
@@ -93,21 +85,7 @@ export function useBubbleStateMachine(): BubbleStateMachine {
 				state,
 				message,
 				transcript: newTranscript,
-				livePreviewSupported,
 			} = parseSetStatePayload(stateArg);
-
-			// Engine-capability hint (live preview unavailable). An
-			// explicit boolean updates the flag; an absent field keeps
-			// the previous value so legacy bare payloads and the
-			// per-partial mirrors don't clear the hint mid-recording.
-			// Preserved across fading; cleared on every other mode.
-			if (state === "fading") {
-				// no-op: preserve across the fade-out transition.
-			} else if (livePreviewSupported !== null) {
-				setLivePreviewUnsupported(livePreviewSupported === false);
-			} else if (state !== "recording") {
-				setLivePreviewUnsupported(false);
-			}
 
 			// Recording interrupts the fading→exit transition (e.g.
 			// user starts a new dictation while the previous
@@ -171,6 +149,5 @@ export function useBubbleStateMachine(): BubbleStateMachine {
 		setExitTick,
 		errorMessage,
 		transcript,
-		livePreviewUnsupported,
 	};
 }

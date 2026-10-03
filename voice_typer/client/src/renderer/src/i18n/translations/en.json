@@ -1466,7 +1466,6 @@
 		"stopRecordingAria": "Stop recording",
 		"dismissAria": "Dismiss bubble",
 		"transcriptPreviewAria": "Live transcript preview",
-		"livePreviewUnavailable": "No live preview for this engine",
 		"recordingTimerAria": "Recording duration"
 	},
 	"help": {
