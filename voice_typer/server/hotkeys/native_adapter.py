@@ -335,6 +335,10 @@ class _NativeBackendAdapter(HotkeyBackend):
         log.info("[HOTKEY] Retrying native backend...")
         # snapshot the legacy reference and stop it (frees any
         warm_spare = self._legacy
+        # Bound before the try: if native.stop() raises, the fallback
+        # path below still needs a defined callback instead of a
+        # NameError that would mask the restart.
+        cb = None
         try:
             if warm_spare is not None:
                 with contextlib.suppress(Exception):
