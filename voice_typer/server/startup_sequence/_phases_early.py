@@ -311,10 +311,8 @@ class EarlyPhases:
                     count = len(unpasted)
                     log.info("[STARTUP] Found %d unpasted transcriptions from previous session", count)
                     body = f"Found {count} unpasted transcriptions from previous session. Open History to review them."
-                    try:
-                        app.tray.notify_safety(APP_NAME, body)
-                    except Exception:
-                        log.debug("[STARTUP] Could not show recovery notification")
+                    # No OS toast here (owner decision): the in-app
+                    # notification below is enough, recovery stays silent.
                     try:
                         from voice_typer.server import event_bus
 

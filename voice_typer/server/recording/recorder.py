@@ -265,7 +265,7 @@ class Recorder(RecorderInitMixin):
         on ``DeviceManager.stop_device_health_checker``)."""
         self._devices.stop_device_health_checker(timeout)
 
-    # PERF-02 (c-review): max age (s) before cached ``_vad_enabled`` is
+    # PERF-02 (c-review): max age s before cached ``_vad_enabled`` is
     _VAD_ENABLED_CACHE_TTL_S: float = 5.0
 
     def on_config_changed(self) -> None:

@@ -249,7 +249,7 @@ class ConfigEditorLauncher:
                         try:
                             self.app.tray.notify(
                                 APP_NAME,
-                                f"Config loaded with {len(reload_warnings)} warning(s): {first}",
+                                f"Config loaded with {len(reload_warnings)} warnings: {first}",
                             )
                         except Exception:
                             # ``tray.notify`` is best-effort, a

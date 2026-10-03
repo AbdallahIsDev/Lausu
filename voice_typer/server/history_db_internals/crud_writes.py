@@ -343,14 +343,18 @@ def submit_restore(db: HistoryDB, record: dict) -> int:
     return int(result)
 
 
-def submit_checkpoint(db: HistoryDB, truncate: bool) -> bool:
+def submit_checkpoint(db: HistoryDB, truncate: bool, *, allow_after_shutdown: bool = False) -> bool:
     """Submit a ``wal_checkpoint`` closure; map failures to ``False``."""
     from voice_typer.server import history_db as _hd
 
     HistoryDBError = _hd.HistoryDBError  # noqa: N806
 
     try:
-        result = db._submit_write(lambda conn: checkpoint_wal(db, conn, truncate), wait=True)
+        result = db._submit_write(
+            lambda conn: checkpoint_wal(db, conn, truncate),
+            wait=True,
+            allow_after_shutdown=allow_after_shutdown,
+        )
         if result is None:
             # Writer shut down, can't checkpoint.
             return False

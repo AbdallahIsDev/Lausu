@@ -12,9 +12,12 @@ message instead).
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from pathlib import Path
 from typing import Any
+
+from voice_typer.server.branding import APP_NAME
 
 log = logging.getLogger(__name__)
 
@@ -70,11 +73,24 @@ def try_load_system_whisper(config: Any) -> Any | None:
     if weights is None:
         log.debug("[MODEL] system whisper fallback unavailable (no local weights for %r)", model_size)
         return None
+    device = getattr(config, "device", "auto") or "auto"
+    try:
+        from voice_typer.server.nvidia_dll_paths import (
+            _configure_nvidia_dll_paths,
+            _cuda_runtime_available,
+        )
+
+        _configure_nvidia_dll_paths()
+        if device == "auto" and not _cuda_runtime_available():
+            device = "cpu"
+            log.info("[MODEL] CUDA runtime DLLs missing, loading system whisper on CPU")
+    except Exception:
+        log.debug("[MODEL] CUDA availability probe failed, keeping device=%r", device, exc_info=True)
     try:
         engine = SystemWhisperEngine(
             model_size=model_size,
             weights_dir=weights,
-            device=getattr(config, "device", "auto"),
+            device=device,
             language=getattr(config, "language", "en") or "en",
             beam_size=int(getattr(config, "beam_size", 5) or 5),
         )
@@ -111,6 +127,7 @@ class SystemWhisperEngine:
         self._beam_size = beam_size
         self._model: Any | None = None
         self._loaded = False
+        self._cpu_fallback_notified = False
 
     @property
     def is_loaded(self) -> bool:
@@ -160,6 +177,15 @@ class SystemWhisperEngine:
     def clear_abort(self) -> None:
         """No abort token exists; best-effort no-op."""
 
+    def _transcribe_inner(self, samples: Any, language: str) -> str:
+        """Single faster-whisper transcribe pass over *samples*."""
+        segments, _info = self._model.transcribe(
+            samples,
+            language=language,
+            beam_size=self._beam_size,
+        )
+        return " ".join(seg.text.strip() for seg in segments).strip()
+
     def transcribe_with_fallback(self, audio: Any, *args: object, **kwargs: object) -> str:
         """Transcribe float PCM samples to text (possibly empty)."""
         if self._model is None:
@@ -168,9 +194,66 @@ class SystemWhisperEngine:
 
         samples = _np.asarray(audio, dtype=_np.float32).reshape(-1)
         language = kwargs.get("language", self._language)
-        segments, _info = self._model.transcribe(
-            samples,
-            language=language,
-            beam_size=self._beam_size,
+        try:
+            return self._transcribe_inner(samples, language)
+        except Exception as exc:
+            from voice_typer.server.asr_utils import is_cuda_error
+
+            if self._device != "cpu" and is_cuda_error(exc):
+                log.warning("[MODEL] system whisper CUDA error, retrying on CPU: %s", exc)
+                log.debug("[MODEL] system whisper CUDA traceback", exc_info=True)
+                try:
+                    self._rebuild_on_cpu()
+                except Exception as rebuild_exc:
+                    raise RuntimeError(
+                        f"system whisper CUDA failed ({exc}) and CPU rebuild also failed ({rebuild_exc})"
+                    ) from rebuild_exc
+                if not self._cpu_fallback_notified:
+                    self._cpu_fallback_notified = True
+                    with contextlib.suppress(Exception):
+                        from voice_typer.server import device_caps as _device_caps
+
+                        _device_caps.publish_device_cpu_fallback(str(exc)[:200])
+                    with contextlib.suppress(Exception):
+                        from voice_typer.server import event_bus as _event_bus
+
+                        _event_bus.publish(
+                            {
+                                "type": "notification",
+                                "data": {
+                                    "title": APP_NAME,
+                                    "message": (
+                                        "GPU transcription failed, switched to CPU. "
+                                        "Transcription will be slower until restart."
+                                    ),
+                                    "duration_ms": 10000,
+                                },
+                            }
+                        )
+                try:
+                    return self._transcribe_inner(samples, language)
+                except Exception as cpu_exc:
+                    raise RuntimeError(
+                        f"system whisper CUDA failed ({exc}) and CPU retry also failed ({cpu_exc})"
+                    ) from cpu_exc
+            raise
+
+    def _rebuild_on_cpu(self) -> None:
+        """Drop the CUDA model and rebuild it on CPU."""
+        import gc
+        import importlib
+
+        with contextlib.suppress(Exception):
+            del self._model
+        self._model = None
+        gc.collect()
+        faster_whisper = importlib.import_module("faster_whisper")
+        self._model = faster_whisper.WhisperModel(
+            self._weights_dir,
+            device="cpu",
+            compute_type="default",
+            local_files_only=True,
         )
-        return " ".join(seg.text.strip() for seg in segments).strip()
+        self._device = "cpu"
+        self._loaded = True
+        log.warning("[MODEL] system whisper rebuilt on CPU after CUDA failure")

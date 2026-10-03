@@ -13,8 +13,8 @@
       "min_proto_version": 1
     },
     "windows-key-listener-x86_64.exe": {
-      "sha256": "b53c0241ef6715cf20275b481522a211068a73ef72e8c1cc97b200f30896146a",
-      "version": "1.0.0",
+      "sha256": "0b879e09d9191928b6bca4bd43a6a1b9100aa8f16de9a9b2196630acc9722c0d",
+      "version": "1.0.1",
       "min_proto_version": 1
     },
     "windows-key-listener-aarch64.exe": {
@@ -38,12 +38,12 @@
       "_note": "legacy alias (compile_native.sh emits this name on Linux). sha256_by_arch is the canonical per-arch field; the flat sha256 field is a backward-compat default (x86_64 sha256) retained until binary_path.get_expected_sha256 is made arch-aware. aarch64 sha256 is left empty pending the update_native_manifests.py script from aarch64 builds are new)."
     },
     "windows-key-listener.exe": {
-      "sha256": "b53c0241ef6715cf20275b481522a211068a73ef72e8c1cc97b200f30896146a",
+      "sha256": "0b879e09d9191928b6bca4bd43a6a1b9100aa8f16de9a9b2196630acc9722c0d",
       "sha256_by_arch": {
-        "x86_64": "b53c0241ef6715cf20275b481522a211068a73ef72e8c1cc97b200f30896146a",
+        "x86_64": "0b879e09d9191928b6bca4bd43a6a1b9100aa8f16de9a9b2196630acc9722c0d",
         "aarch64": ""
       },
-      "version": "1.0.0",
+      "version": "1.0.1",
       "min_proto_version": 1,
       "_note": "legacy alias (compile_native.sh emits this name on Windows). sha256_by_arch is the canonical per-arch field; the flat sha256 field is a backward-compat default (x86_64 sha256) retained until binary_path.get_expected_sha256 is made arch-aware. aarch64 sha256 is left empty pending the update_native_manifests.py script."
     }

@@ -30,6 +30,7 @@ from voice_typer.server.log.formatters import (  # noqa: F401
     _infer_topic,
     _iso_timestamp,
     _JsonFormatter,
+    _TerminalFormatter,
 )
 from voice_typer.server.log.handlers import (  # noqa: F401
     _BubbleLevelExclusionFilter,

@@ -183,11 +183,25 @@ def _run_with_timeout(description: str, func, timeout: float = 5.0):
     return result_holder.get("value")
 
 
+def _run_inline(desc: str, func: Callable[[], object], timeout: float) -> object:
+    """Run one teardown inline with its timeout (finalization fallback).
+
+    Separated so both the per-item rejection path and the
+    whole-batch fast path below share the exact pool-path contract:
+    value, raised exception, or the TIMEOUT sentinel, never leaked.
+    """
+    try:
+        return _run_with_timeout(desc, func, timeout)
+    except BaseException as bexc:  # noqa: BLE001, captured per-call
+        return bexc
+
+
 def _run_parallel_with_timeout(
     items: Sequence[tuple[str, Callable[[], object], float]],
 ) -> list[tuple[str, object]]:
     """run several independent teardowns concurrently."""
     import concurrent.futures
+    import sys as _sys
 
     if not items:
         return []
@@ -205,7 +219,22 @@ def _run_parallel_with_timeout(
             f"items (results would be silently dropped during "
             f"reorder). Duplicates: {duplicates}"
         )
+    if _sys.is_finalizing():
+        # Interpreter teardown is already underway: EVERY pool.submit
+        # would raise "cannot schedule new futures after interpreter
+        # shutdown", one identical DEBUG line per item. Skip the pool
+        # entirely and run everything inline (still timeout-bounded per
+        # item) with a SINGLE summary line instead of per-item noise.
+        log.debug(
+            "[TIMEOUT-UTILS] interpreter finalizing: running %d teardowns inline (no pool)",
+            len(items),
+        )
+        return [(desc, _run_inline(desc, func, timeout)) for desc, func, timeout in items]
     results: list[tuple[str, object]] = []
+    # Rejections that arrive with the interpreter already finalizing
+    # (the entry check above passed, then finalization won the race)
+    # collapse into ONE summary line below, not one line per item.
+    finalizing_rejected: list[str] = []
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=min(len(items), 8),
         thread_name_prefix="cleanup-parallel",
@@ -215,22 +244,31 @@ def _run_parallel_with_timeout(
             try:
                 fut = pool.submit(_run_with_timeout, desc, func, timeout)
             except RuntimeError as exc:
-                # The pool is function-local and fresh, so a rejection
-                # means interpreter finalization is underway: run the
-                # teardown inline on this thread (no new threads or
-                # executors, both refused at this stage) instead of
-                # recording a failure for work that never ran.
+                # Rejection on a fresh pool outside finalization is
+                # unexpected but handled the same way: same timeout
+                # wrapper (a bare ``func()`` runs with NO timeout, so
+                # one stuck teardown stalls shutdown silently), same
+                # per-call capture. Threads can still be created at
+                # this stage (only executors refuse), and the
+                # wrapper's TIMEOUT sentinel flows to callers exactly
+                # like the pool path.
+                if "shutdown" in str(exc).lower():
+                    finalizing_rejected.append(desc)
+                    results.append((desc, _run_inline(desc, func, timeout)))
+                    continue
                 log.debug(
                     "[TIMEOUT-UTILS] %s: pool.submit rejected (%s), running inline",
                     desc,
                     exc,
                 )
-                try:
-                    results.append((desc, func()))
-                except BaseException as bexc:  # noqa: BLE001, captured per-call
-                    results.append((desc, bexc))
+                results.append((desc, _run_inline(desc, func, timeout)))
                 continue
             future_map[fut] = (desc, func, timeout)
+        if finalizing_rejected:
+            log.debug(
+                "[TIMEOUT-UTILS] interpreter finalizing: %d pool.submit rejected, ran inline (no pool)",
+                len(finalizing_rejected),
+            )
         for fut in concurrent.futures.as_completed(future_map):
             desc, _func, _timeout = future_map[fut]
             try:

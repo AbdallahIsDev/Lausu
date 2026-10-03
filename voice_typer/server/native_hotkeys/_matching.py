@@ -149,6 +149,16 @@ class _MatchingMixin:
 
         toggle_on_keyup = bool(matcher.get("toggle_on_keyup", False))
         on_release = matcher.get("on_release_callback")
+        # Caps Lock alone: native listeners historically swallowed KEY_UP
+        # after suppressing KEY_DOWN (OS Caps toggle). Fire the toggle on
+        # KEY_DOWN so recording starts even when KEY_UP never arrives; when
+        # KEY_UP does arrive (patched listener), ignore it so one press is
+        # one toggle. Autorepeat is already filtered by _main_key_down.
+        is_caps_only = bool(parsed.get("is_caps_lock")) and not parsed.get("modifiers")
+        if is_caps_only and toggle_on_keyup and on_release is None:
+            if down:
+                self._fire_callback_for(matcher)
+            return True
         if down:
             if on_release is not None:
                 # Push-to-talk: start recording on press.

@@ -524,9 +524,10 @@ class HistoryDB:
         fn: Callable[[sqlite3.Connection], Any],
         *,
         wait: bool = True,
+        allow_after_shutdown: bool = False,
     ) -> Any | None:
         """submit a write closure to the writer thread, delegates to internals.writer._submit_write."""
-        return writer._submit_write(self, fn, wait=wait)
+        return writer._submit_write(self, fn, wait=wait, allow_after_shutdown=allow_after_shutdown)
 
     def flush(self) -> None:
         """block until all queued writes have been processed, delegates to internals.writer.flush."""

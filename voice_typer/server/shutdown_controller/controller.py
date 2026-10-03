@@ -63,3 +63,8 @@ class ShutdownController(CleanupMixin, SequencingMixin, TeardownsMixin, SignalsM
         self._shutdown_deadline: float | None = None
         # Published by ``_do_cleanup`` alongside ``_shutdown_deadline``
         self._shutdown_skipped: list[str] | None = None
+        # Thread that initiated quit() (set in shutdown/lifecycle.quit).
+        # Pool drains consult it: when quit runs ON a pool worker, that
+        # worker is the drain's own blocker, so the blocking join (and
+        # the drained-event wait it can never satisfy) are skipped.
+        self._quit_initiator: threading.Thread | None = None

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import subprocess
 import threading
 import time
@@ -23,6 +24,12 @@ _KNOWN_DIAGNOSTIC_MARKERS: tuple[str, ...] = (
     "keyboard hook installed",
     "READY emitted; version=",
 )
+
+_CANONICAL_DIAG_TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}  \d{2}:\d{2}:\d{2}  (?:DEBUG|INFO|WARN|ERROR|CRITICAL) {1,2}")
+
+
+def _strip_canonical_diag_timestamp(line: str) -> str:
+    return _CANONICAL_DIAG_TS_RE.sub("", line, count=1)
 
 
 class _ReaderMixin:
@@ -161,7 +168,11 @@ class _ReaderMixin:
 
         for marker in _KNOWN_DIAGNOSTIC_MARKERS:
             if marker in line:
-                log.debug("[NATIVE-HOTKEY] %s binary diagnostic: %s", self.platform_name, line)
+                log.debug(
+                    "[NATIVE-HOTKEY] %s binary diagnostic: %s",
+                    self.platform_name,
+                    _strip_canonical_diag_timestamp(line),
+                )
                 return
 
         log.debug("[NATIVE-HOTKEY] Unrecognized line from %s: %r", self.platform_name, line)
@@ -188,7 +199,9 @@ class _ReaderMixin:
             )
             return
         self._binary_version = version
-        log.info(
+        # DEBUG, not INFO: the READY/registration lines already announce
+        # the backend; the version string only matters on mismatch (WARN).
+        log.debug(
             "[NATIVE-HOTKEY] %s binary reported VERSION: %s",
             self.platform_name,
             version,

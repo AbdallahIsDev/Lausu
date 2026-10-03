@@ -264,6 +264,7 @@ def _resolve_send_input():
 
 def _send_ctrl_v_win32(
     fallback: Callable[[], None] | None = None,
+    probe: list[int] | None = None,
 ) -> bool:
     """Send Ctrl+V via a single atomic SendInput batch.
 
@@ -303,6 +304,11 @@ def _send_ctrl_v_win32(
             events delivered, so no double-paste risk). Typically
             ``lambda: self._safe_key_press(_Key.ctrl, "v")`` for the
             pynput Controller fallback path.
+        probe : list, optional
+            Appended with the raw SendInput event count (0..4) so the
+            caller can distinguish "partial (1..3)" from "nothing
+            delivered, fallback dispatched" — the two have different
+            delivery semantics and must not share one log message.
     """
     # structs are defined inline at the top of this module
     send_input = _resolve_send_input()
@@ -330,13 +336,24 @@ def _send_ctrl_v_win32(
     )
 
     result = send_input(4, ctypes.byref(events), ctypes.sizeof(INPUT))
+    if probe is not None:
+        probe.append(result)
     if result != 4:
         # (revised): SendInput returns the number of events
-        _cb.log.warning(
-            "[CLIPBOARD] SendInput returned %d (expected 4), "
-            "this may be caused by UIPI blocking if the target is elevated.",
-            result,
-        )
+        # Total failure (0) gets its own detailed WARN below with the
+        # fallback outcome; keep this one at DEBUG to avoid triple
+        # warnings for a single paste attempt.
+        if result == 0:
+            _cb.log.debug(
+                "[CLIPBOARD] SendInput returned 0 (expected 4), "
+                "this may be caused by UIPI blocking if the target is elevated.",
+            )
+        else:
+            _cb.log.warning(
+                "[CLIPBOARD] SendInput returned %d (expected 4), "
+                "this may be caused by UIPI blocking if the target is elevated.",
+                result,
+            )
         if 1 <= result <= 3:
             # Partial success, synthesize KEYUP for any keys that may
             _cb.log.error(

@@ -103,6 +103,28 @@ class CircuitBreaker:
         """Install/clear the last-resort suppression gate."""
         self._last_resort_event_gate = gate
 
+    def last_resort_expected(self, name: str) -> bool:
+        """True when the gate marks this unloaded state as expected.
+
+        Silent and read-only, unlike :meth:`_fan_out_suppressed` which logs, so
+        a caller can pick a log severity without emitting a second "fan-out
+        suppressed" line. A raising gate fails CLOSED: the caller keeps the
+        louder level, so a broken gate cannot hide a genuine alert. The raise is
+        still logged, matching the ``event gate raised`` diagnostic the fan-out
+        path emits.
+        """
+        gate = self._last_resort_event_gate
+        if gate is None:
+            return False
+        try:
+            return bool(gate(name))
+        except Exception:
+            log.warning(
+                "[ASR_REGISTRY] last-resort event gate raised, treating as not-suppressed",
+                exc_info=True,
+            )
+            return False
+
     def set_backend_disabled_event_gate(self, gate: BackendDisabledEventGate | None) -> None:
         """Install/clear the backend-disabled suppression gate."""
         self._backend_disabled_event_gate = gate
@@ -241,10 +263,21 @@ class CircuitBreaker:
         with self._lock:
             self._last_resort_notified = False
 
-    def fire_last_resort_subscribers(self, name: str) -> None:
-        """Fire per-registry subscribers + publish the event_bus event"""
-        # Fail-open suppression gate: ModelManager mirrors the tray
-        if self._fan_out_suppressed(self._last_resort_event_gate, name, "last-resort"):
+    def fire_last_resort_subscribers(self, name: str, *, gate_suppressed: bool | None = None) -> None:
+        """Fire per-registry subscribers + publish the event_bus event.
+
+        ``gate_suppressed`` lets a caller that already evaluated the gate reuse
+        that answer, so the gate is consulted once per episode instead of twice.
+        ``None`` (the default) keeps the standalone behaviour.
+        """
+        if gate_suppressed is None:
+            if self._fan_out_suppressed(self._last_resort_event_gate, name, "last-resort"):
+                return
+        elif gate_suppressed:
+            log.debug(
+                "[ASR_REGISTRY] last-resort fan-out suppressed by event gate (backend=%s)",
+                name,
+            )
             return
 
         # Snapshot subscribers under the lock so a subscriber that calls

@@ -61,7 +61,7 @@
 /* Wire protocol version reported via ``VERSION:<x.y.z>`` immediately
  * after READY. The Python side records this and the factory
  * compares it against the manifest's ``version`` field. */
-#define NATIVE_BINARY_VERSION "1.0.0"
+#define NATIVE_BINARY_VERSION "1.0.1"
 
 /* optional diagnostic log file. NULL when no --log-file was
  * passed (diagnostics go to stderr only). */
@@ -638,13 +638,10 @@ static LRESULT CALLBACK LowLevelKeyboardProc(int nCode,
                 return 1;   /* swallow, do not call CallNextHookEx */
             }
         } else if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP) {
-            /* If we swallowed the matching keyDown, swallow its keyUp too so
-             * the foreground app doesn't see an orphan key-up. */
-            if (g_suppressed_vk == vk) {
-                g_suppressed_vk = 0;
-                return 1;   /* swallow */
-            }
-
+            /* Always emit the wire event FIRST so Python can complete
+             * toggle-on-keyup / PTT-release even when the matching keyDown
+             * was suppressed (Caps Lock). Swallowing KEY_UP without emitting
+             * left recording stuck (no stop, no toggle). */
             const char* mod_name = mod_name_for_vk(vk);
             if (mod_name != NULL) {
                 char buf[64];
@@ -657,6 +654,13 @@ static LRESULT CALLBACK LowLevelKeyboardProc(int nCode,
                     snprintf(buf, sizeof(buf), "KEY_UP:%s", name);
                     emit(buf);
                 }
+            }
+
+            /* If we swallowed the matching keyDown, swallow its keyUp too so
+             * the foreground app doesn't see an orphan key-up. */
+            if (g_suppressed_vk == vk) {
+                g_suppressed_vk = 0;
+                return 1;   /* swallow */
             }
         }
     }

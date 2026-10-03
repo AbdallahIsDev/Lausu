@@ -119,14 +119,8 @@ class AudioProcessor:
         self._resample_degraded_reason: str = ""
         # Zero-frame prewarm: run a short silence buffer through the
         self._prewarm_chain()
-        if not quiet:
-            # Single choke-point is ``build_chain``'s ``[AUDIO-CHAIN]``
-            log.debug(
-                "[AUDIO-PROC] chain built: %s (latency=%.1fms, degraded=%s)",
-                self._chain.filter_names or "none",
-                self._chain.total_latency_ms,
-                self._chain.is_degraded,
-            )
+        # No duplicate line here: the single choke-point is
+        # ``build_chain``'s ``[AUDIO-CHAIN]`` INFO above.
 
     def _prewarm_chain(self) -> None:
         """Feed one RNNoise frame of silence through the chain."""

@@ -62,8 +62,14 @@ def is_cuda_error(exc: Exception) -> bool:
     if any(kw in err_str for kw in ("cuda", "cublas", "cudnn")):
         return True
 
-    # Layer 4: DLL-load failures (Windows).
-    return any(kw in err_str for kw in ("dll", "not found", "cannot be loaded", "load library"))
+    # Layer 4: DLL-load failures (Windows). A bare "not found" /
+    # "cannot be loaded" without a GPU/DLL token is NOT a CUDA error
+    # (e.g. "model file not found" must not trigger a CPU rebuild).
+    if "dll" in err_str:
+        return True
+    _gpu_token = any(kw in err_str for kw in ("cuda", "cublas", "cudnn", "nvidia", "nvrtc"))
+    _load_token = any(kw in err_str for kw in ("not found", "cannot be loaded", "load library"))
+    return bool(_gpu_token and _load_token)
 
 
 def is_oom_error(exc: Exception) -> bool:

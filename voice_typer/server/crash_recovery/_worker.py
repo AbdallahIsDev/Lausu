@@ -99,14 +99,14 @@ class _SaveWorker:
     def _start_save_thread(self) -> None:
         """Start (or restart) the background save worker thread.
 
-        THREAD-REGISTRY: when a registry was provided to ``__init__``,
-        the worker thread is registered so ``shutdown_all()`` can join
-        it during ``LausuApp.quit()``. We register with
-        ``stop_event=None`` because the existing ``shutdown()`` method
-        handles the actual stop via the ``_stopped`` boolean + None
-        sentinel on the queue. The registry's ``shutdown_all()`` just
-        verifies the thread is tracked; the existing per-site cleanup
-        (``flush()`` + ``shutdown()``) handles the actual shutdown.
+        The worker is deliberately NOT registered with the thread
+        registry: it blocks in ``queue.get(timeout=30)`` with no stop
+        event, so a registry join could never wake it and every quit
+        burned the full join timeout for nothing. Lifecycle is owned
+        end-to-end by the sequenced ``teardown_crash_recovery`` step
+        (a critical step, never deadline-skipped): ``flush()`` drains
+        pending saves, then ``shutdown()`` sends the None sentinel +
+        joins + performs the final synchronous save.
         """
         if self._save_thread is not None and self._save_thread.is_alive():
             return
@@ -117,14 +117,6 @@ class _SaveWorker:
             daemon=True,
         )
         self._save_thread.start()
-        if self._thread_registry is not None:
-            self._thread_registry.register(
-                name="crash-recovery-saver",
-                thread=self._save_thread,
-                stop_event=None,
-                # Short timeout: shutdown_all() can't actually stop this
-                join_timeout=0.5,
-            )
 
     def _save_loop(self) -> None:
         """Background worker: drain the save queue, writing to disk."""

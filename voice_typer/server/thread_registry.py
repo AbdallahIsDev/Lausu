@@ -158,9 +158,11 @@ class ThreadRegistry:
         for name in dead_names:
             del self._entries[name]
         if dead_names:
+            noun = "entry" if len(dead_names) == 1 else "entries"
             log.debug(
-                "[THREAD-REGISTRY] Reaped %d dead thread entries: %s",
+                "[THREAD-REGISTRY] Reaped %d dead thread %s: %s",
                 len(dead_names),
+                noun,
                 ", ".join(f"thread={name}" for name in dead_names),
             )
         return len(dead_names)
@@ -230,8 +232,20 @@ class ThreadRegistry:
             # join_timeout (the pre-existing PERF-23 contract).
             max_join_iterations = int(max((e.join_timeout for e in entries), default=0.0) / join_slice) + 2
         max_join_iterations = max(1, min(max_join_iterations, 1_000_000))
+        # A thread can never join itself (``Thread.join()`` on the
+        # current thread raises ``RuntimeError``). Shutdown is often
+        # initiated FROM a registered thread (the WS ``shutdown``
+        # command runs ``quit()`` on ``ipc-shutdown-cleanup``), so
+        # exclude the caller from the join set up front instead of
+        # burning its whole timeout in 0.1s slices.
+        caller = threading.current_thread()
+        if any(e.thread is caller for e in entries):
+            log.debug(
+                "[THREAD-REGISTRY] shutdown_all called from registered thread=%s, skipping self-join",
+                caller.name,
+            )
         # work on a mutable ``pending`` list so we can prune
-        pending = list(entries)
+        pending = [e for e in entries if e.thread is not caller]
         join_iterations = 0
         while True:
             join_iterations += 1
@@ -270,12 +284,18 @@ class ThreadRegistry:
                     )
 
         # Step 3: log final state of each entry (exit / still alive).
+        # The calling thread was excluded from the join set above, so
+        # it is excluded here too (it is alive by definition). Clean
+        # exits collapse into ONE summary line (a per-thread line for
+        # every quit is pure noise); stuck threads still get their own
+        # warning below. The ``thread=`` tokens are kept so the names
+        # stay greppable (and unredacted, see test_secrets.py).
+        cleaned: list[str] = []
         for entry in entries:
+            if entry.thread is caller:
+                continue
             if not entry.thread.is_alive():
-                log.debug(
-                    "[THREAD-REGISTRY] thread=%s exited cleanly after join",
-                    entry.name,
-                )
+                cleaned.append(entry.name)
                 continue
             if entry.stop_event is not None:
                 # We signaled the thread but it didn't exit. This is a
@@ -295,6 +315,14 @@ class ThreadRegistry:
                     entry.name,
                     entry.join_timeout,
                 )
+        if cleaned:
+            joined = [e for e in entries if e.thread is not caller]
+            log.debug(
+                "[THREAD-REGISTRY] %d/%d threads exited cleanly: %s",
+                len(cleaned),
+                len(joined),
+                ", ".join(f"thread={name}" for name in cleaned),
+            )
 
         # auto-prune dead entries from self._entries so the
         with self._lock:

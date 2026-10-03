@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from voice_typer.server._audio_constants import WHISPER_SAMPLE_RATE
 from voice_typer.server.worker_client import WorkerAbortedError, get_shared_client
 
 log = logging.getLogger(__name__)
@@ -119,11 +120,11 @@ class WorkerBackedAsr:
         if client.port is None:
             raise WorkerTranscriptionError("worker not connected")
         language = kwargs.get("language", self._kwargs.get("language"))
-        sample_rate = kwargs.get("sample_rate", 16000)
+        sample_rate = kwargs.get("sample_rate", WHISPER_SAMPLE_RATE)
         try:
             sample_rate = int(sample_rate)
         except (TypeError, ValueError):
-            sample_rate = 16000
+            sample_rate = WHISPER_SAMPLE_RATE
         try:
             future = client.request_samples(raw, sample_rate, language, timeout=_TRANSCRIBE_TIMEOUT_SECONDS)
         except Exception as exc:

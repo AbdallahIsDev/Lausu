@@ -6,6 +6,7 @@ import contextlib
 import logging
 from typing import TYPE_CHECKING, Any  # noqa: F401  # re-exported for tests (transcribe_step.Any)
 
+from voice_typer.server._audio_constants import WHISPER_SAMPLE_RATE
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.cloud_engines import CloudEngine
 from voice_typer.server.dictation_pipeline.helpers import (
@@ -89,6 +90,40 @@ class _TranscribeStepMixin:
 
         check_resources(logger=log)
 
+    def _await_model_ready(self) -> Any | None:
+        """Block until an in-flight model load finishes, then return the engine.
+
+        Returns None when no load is running (the model is genuinely absent, so
+        the caller raises ``BackendNotLoadedError``) or the wait times out. The
+        recording stays buffered in memory for the duration, which is why this
+        is safe: the hotkey thread and the UI are never blocked, only this
+        transcription worker.
+        """
+        log.info(
+            "[TRANSCRIBE] No engine loaded yet; holding the recording while the "
+            "model finishes loading (cycle=%s)",
+            self._cycle_id,
+        )
+        with contextlib.suppress(Exception):
+            self._app.tray.set_state(
+                AppState.LOADING,
+                _i18n_t("state.recording_controller.awaiting_model"),
+            )
+        engine = self._app.models.wait_for_active_engine_loaded()
+        if engine is None:
+            return None
+
+        # The wait can consume most of the watchdog window; reset it so the
+        # transcription itself is judged on its own time, not the load time.
+        with contextlib.suppress(Exception):
+            self._app.recording._reset_watchdog()
+        with contextlib.suppress(Exception):
+            self._app.tray.set_state(
+                AppState.TRANSCRIBING,
+                _i18n_t("state.recording_controller.transcribing"),
+            )
+        return engine
+
     def _transcribe(self) -> str:
         """Step 1: Get transcription via streaming finalize or direct.
 
@@ -96,6 +131,12 @@ class _TranscribeStepMixin:
         """
         #  capture the active transcriber ONCE, the
         active = self._app.models.active_transcriber()
+        if active is None:
+            # The engine may still be loading: the app is warming up at
+            # startup, or this hotkey press kicked off an idle-unload reload.
+            # Wait for it instead of discarding the audio, which the pipeline
+            # zeroes in its finally block. No-ops when nothing is loading.
+            active = self._await_model_ready()
         backend_was_loaded = bool(getattr(active, "is_loaded", False))
 
         # Clear any stale abort from a previous cycle before starting
@@ -199,7 +240,12 @@ class _TranscribeStepMixin:
                     registry = self._app.models.registry
                     with registry.busy_context(registry.active_name):
                         try:
-                            _rate = int(getattr(self._app.config, "sample_rate", 16000) or 16000)
+                            _rate = int(
+                                getattr(
+                                    self._app.config, "sample_rate", WHISPER_SAMPLE_RATE
+                                )
+                                or WHISPER_SAMPLE_RATE
+                            )
                             _lang = str(getattr(self._app.config, "language", None) or "en")
                             text = active.transcribe_with_fallback(
                                 self._audio,

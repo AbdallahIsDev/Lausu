@@ -158,9 +158,7 @@ def _warm_imports() -> None:
             continue
         if bytes_read > 0:
             warmed.append(pkg)
-            segments.append(
-                f"{pkg}: {bytes_read / (1024 * 1024):.0f} MB{format_duration(time.perf_counter() - pt0)}"
-            )
+            segments.append(f"{pkg}: {bytes_read / (1024 * 1024):.0f} MB{format_duration(time.perf_counter() - pt0)}")
     # One rollup line for all libraries (C-LOG-2: each segment ends with
     if segments:
         log.info("[PREWARM] file-warmed %s", " | ".join(segments))
@@ -336,7 +334,7 @@ def _warm_model_weights(active_dirs: list[Path]) -> int:
             log.debug("[PREWARM] skip weight %s: %s", path, exc)
     elapsed = time.perf_counter() - t0
     log.info(
-        "[PREWARM] model weights warm pass: %d file(s), %d already hot, %.1f MB read%s",
+        "[PREWARM] model weights warm pass: %d files, %d already hot, %.1f MB read%s",
         len(weight_files),
         skipped_hot,
         total / (1024 * 1024),

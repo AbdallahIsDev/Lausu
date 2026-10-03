@@ -29,17 +29,21 @@ import functools
 import json
 import logging
 
+from voice_typer.server.ipc.protocol_version import MAX_WS_FRAME_BYTES
 from voice_typer.server.sidecar_ws_internals.encode_pool import _get_ws_encode_pool
 
 # Same logger object as the canonical module (``logging.getLogger`` is
 log = logging.getLogger("voice_typer.server.sidecar_ws")
 
 
-# ADR-0020 §10: 1 MiB WS frame cap. download_progress and
-_MAX_FRAME_BYTES = 1 * 1024 * 1024
+# ADR-0020 §10: 1 MiB WS frame cap, shared with the worker transport.
+# Imported (not redefined) so the two sides cannot drift apart.
+_MAX_FRAME_BYTES = MAX_WS_FRAME_BYTES
 
 # Outbound ``websocket.send`` timeout (seconds). A send that has not
-_WS_SEND_TIMEOUT_SECONDS = 5.0
+# Healthy loopback sends finish in milliseconds; the timeout only
+# bounds dead-peer stalls (dispatch latency, shutdown drains).
+_WS_SEND_TIMEOUT_SECONDS = 2.0
 
 
 def _encode_ws_frame(event: dict) -> bytes:

@@ -53,6 +53,13 @@ class ConfigMutationMixin(ServiceMixinBase):
                 exc_info=True,
             )
             sanitized["linux_window_buttons_system"] = None
+        try:
+            from voice_typer.server import device_caps
+
+            sanitized["gpu_available"] = device_caps.gpu_available()
+        except Exception:  # snapshot must never break get_config
+            log.debug("[SERVICE] get_config: gpu_available probe failed", exc_info=True)
+            sanitized["gpu_available"] = False
         return sanitized
 
     def get_defaults(self) -> dict[str, object]:

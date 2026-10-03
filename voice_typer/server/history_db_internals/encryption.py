@@ -143,7 +143,7 @@ def _encrypt_backfill_step(db: HistoryDB, conn: sqlite3.Connection) -> int:
     encrypted = len(rows)
     if encrypted > 0:
         log.debug(
-            "[HISTORY] encrypted %d existing history row(s) at rest",
+            "[HISTORY] encrypted %d existing history rows at rest",
             encrypted,
         )
     if encrypted >= batch_size:

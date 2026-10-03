@@ -5,7 +5,7 @@ points (toggle / stop / cancel) so the in-development Google STT plugin
 reuses the product hotkey, bubble, sound cues, clipboard and history
 paths. Every call returns immediately unless
 ``internal_plugin_hook.plugins_enabled()`` is true (env flag +
-tools/internal-plugins/PLUGINS_ENABLED + not frozen), so the shipped
+tools/internal_plugins/PLUGINS_ENABLED + not frozen), so the shipped
 build behaves exactly as before.
 
 Why instance-level wrapping: the hotkey backends capture bound methods
@@ -30,7 +30,7 @@ def plugins_enabled() -> bool:
     """Cheap pre-check, then defer to the plugin's own gate.
 
     The env + frozen test runs first so a shipped build never imports
-    tools/internal-plugins at all; the PLUGINS_ENABLED marker is judged
+    tools/internal_plugins at all; the PLUGINS_ENABLED marker is judged
     by the plugin so the gate has exactly one source of truth.
     """
     import os
@@ -63,6 +63,10 @@ def install(app: Any) -> bool:
     """Wrap product dictation entry points when the plugin gate is open."""
     if not plugins_enabled():
         return False
+    if getattr(app, "_internal_plugin_wrapped", False):
+        # Already wrapped: a second pass would nest the wrappers and handle
+        # one key press twice.
+        return False
     plugin = _plugin()
     if plugin is None:
         return False
@@ -91,5 +95,6 @@ def install(app: Any) -> bool:
     app.toggle_dictation = toggle_dictation
     app._stop_dictation = stop_dictation
     app._cancel_dictation = cancel_dictation
+    app._internal_plugin_wrapped = True
     log.info("[PLUGIN] dictation entry points routed to Google STT")
     return True
