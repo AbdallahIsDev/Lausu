@@ -463,7 +463,7 @@ describe("ActivityList inline masked reveal", () => {
 		expect(moreBtn.tagName).toBe("BUTTON");
 		expect(moreBtn.getAttribute("aria-expanded")).toBe("false");
 		// The button floats on its own (no wrapper element),
-		// absolute bottom-center of the text block, not as a
+		// absolute bottom-center below the text block, not as a
 		// separate row below the text. The fade itself is a mask
 		// on the clamped paragraph: full-height fade (0% to 100%).
 		// out over the last line.
@@ -559,11 +559,11 @@ describe("ActivityList inline masked reveal", () => {
 			).toBe("true");
 		});
 		const lessBtn = screen.getByRole("button", { name: t("home.showLess") });
-		// SAME button, same spot: still absolute bottom-center inside
+		// SAME button, same spot: still absolute bottom-center below
 		// the toggle block, only the label flipped. No inline button
 		// inside the paragraph. Expanded text renders unmasked.
 		expect(lessBtn.className).toContain("absolute");
-		expect(lessBtn.className).toContain("bottom-0");
+		expect(lessBtn.className).toContain("-bottom-6.5");
 		expect(lessBtn.parentElement?.getAttribute("data-testid")).toBe(
 			"activity-row-text-toggle",
 		);
