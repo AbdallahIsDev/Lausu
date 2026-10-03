@@ -32,7 +32,13 @@ _SENSITIVE_ENV_NAMES = frozenset(
 def _validate_env_vars() -> None:
     """Validate all consumed environment variables."""
 
-    _bool_vars = {"VOICE_TYPER_QUIET", "VOICE_TYPER_DEBUG", "VOICE_TYPER_NO_TRAY", "VOICE_TYPER_STREAMING"}
+    _bool_vars = {
+        "VOICE_TYPER_QUIET",
+        "VOICE_TYPER_DEBUG",
+        "VOICE_TYPER_NO_TRAY",
+        "VOICE_TYPER_STREAMING",
+        "VOICE_TYPER_DEFER_MODEL_LOAD",
+    }
 
     for var in _bool_vars:
         val = os.environ.get(var)

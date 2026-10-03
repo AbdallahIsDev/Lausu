@@ -311,7 +311,12 @@ class LatePhases:
                 "[STARTUP] model reconciliation failed (non-fatal, load precheck still guards)",
                 exc_info=True,
             )
-        app.models.start_background_load()
+        if os.environ.get("VOICE_TYPER_DEFER_MODEL_LOAD") == "1":
+            # Dev-bridge sidecars skip the multi-GB background model load;
+            # first dictation lazy-loads via ensure_active_engine_loaded.
+            log.info("[STARTUP] VOICE_TYPER_DEFER_MODEL_LOAD=1, skipping background model load")
+        else:
+            app.models.start_background_load()
 
         # RACE-020: check for shutdown after background model load start
         if app._shutting_down:

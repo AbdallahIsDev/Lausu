@@ -20,9 +20,11 @@
 // `apply: "serve"`, so it never reaches a production build.
 
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -64,11 +66,28 @@ class DevSidecar {
 	private stdoutBuf = "";
 	private onPort: ((port: number) => void) | null = null;
 	private ready: Promise<void> | null = null;
+	// One attempt per dev-server lifetime. NEVER respawn after a failure:
+	// every sidecar loads the full Whisper model (~700 MB), and the
+	// request-driven respawn of an earlier revision of this file is what
+	// leaked ~7 GB of RAM. Restart the dev server to retry.
+	private failed = false;
 
 	/** Spawn (once) and complete the auth handshake. Idempotent. */
-	ensureStarted() {
-		if (!this.ready) this.ready = this.#start();
-		return this.ready;
+	ensureStarted(): Promise<void> {
+		if (!this.ready && !this.failed) {
+			this.ready = this.#start();
+			this.ready.catch(() => {
+				this.failed = true;
+			});
+		}
+		return (
+			this.ready ??
+			Promise.reject(
+				new Error(
+					"dev sidecar failed to start; restart the dev server (npm run tauri:dev)",
+				),
+			)
+		);
 	}
 
 	async #start() {
@@ -92,11 +111,17 @@ class DevSidecar {
 					// while the real app is running.
 					TAURI_SIDECAR: "1",
 					PYTHONUNBUFFERED: "1",
+					// UI inspection needs no ASR: skip the ~6 GB background
+					// model load; first dictation lazy-loads instead.
+					VOICE_TYPER_DEFER_MODEL_LOAD: "1",
 				},
 				stdio: ["pipe", "pipe", "pipe"],
 			},
 		);
-		console.log(`${LOG} sidecar pid=${this.child.pid}`);
+		// `spawn` always assigns a pid here; the optional type is noise.
+		const pid = this.child.pid ?? 0;
+		console.log(`${LOG} sidecar pid=${pid}`);
+		if (pid > 0) recordSidecarPid(pid);
 
 		this.child.stdout.setEncoding("utf8");
 		this.child.stdout.on("data", (c) => this.#onStdout(c));
@@ -109,7 +134,9 @@ class DevSidecar {
 			this.#failAll(`sidecar exited (code ${code})`);
 			this.child = null;
 			this.ws = null;
-			this.ready = null; // allow a later request to respawn
+			// Latch the failure: a dead sidecar is never silently replaced
+			// by a fresh Whisper-loading one behind the user's back.
+			this.failed = true;
 			this.#pushEvent({
 				type: "error",
 				data: { message: "dev sidecar exited" },
@@ -284,15 +311,81 @@ class DevSidecar {
 		} catch {
 			// already closing
 		}
-		if (this.child && this.child.exitCode === null) this.child.kill();
+		if (this.child) {
+			if (this.child.exitCode === null) this.child.kill();
+			const pid = this.child.pid ?? 0;
+			if (pid > 0) clearRecordedSidecar(pid);
+		}
 		this.child = null;
 		this.ws = null;
 		this.ready = null;
+		this.failed = true;
+	}
+}
+
+// Records the live dev-sidecar PID across dev-server restarts. A Vite
+// config change restarts the server WITHOUT running our exit hooks, which
+// is how an earlier revision leaked a full Whisper model (~700 MB) per
+// restart. Reading this file on startup makes the new instance adopt-kill
+// whatever the previous one left behind, so exactly one sidecar can ever
+// exist for this project.
+const PID_FILE = path.join(os.tmpdir(), "voice-typer-dev-bridge.pid");
+
+function killPid(pid: number): void {
+	try {
+		if (process.platform === "win32") {
+			execFileSync("taskkill", ["/pid", String(pid), "/f"], {
+				stdio: "ignore",
+			});
+		} else {
+			process.kill(pid, "SIGKILL");
+		}
+		console.log(`${LOG} killed orphaned dev sidecar pid=${pid}`);
+	} catch {
+		// Already gone, or not ours to kill.
+	}
+}
+
+function killRecordedSidecar(): void {
+	try {
+		const raw = fs.readFileSync(PID_FILE, "utf8").trim();
+		const pid = Number.parseInt(raw, 10);
+		if (Number.isInteger(pid) && pid > 0 && pid !== process.pid) {
+			killPid(pid);
+		}
+	} catch {
+		// No record, or unreadable: nothing to clean up.
+	}
+}
+
+function recordSidecarPid(pid: number): void {
+	try {
+		fs.writeFileSync(PID_FILE, String(pid));
+	} catch {
+		// Non-fatal: the exit hook still kills the child with us.
+	}
+}
+
+function clearRecordedSidecar(pid: number): void {
+	try {
+		if (fs.readFileSync(PID_FILE, "utf8").trim() === String(pid)) {
+			fs.unlinkSync(PID_FILE);
+		}
+	} catch {
+		// Already removed.
 	}
 }
 
 export function devBridgeMiddleware() {
+	// Adopt-orphan: a sidecar from a previous dev-server process is
+	// unreachable from here and would hold a full model in RAM forever.
+	killRecordedSidecar();
+
 	const sidecar = new DevSidecar();
+	const reap = () => sidecar.stop();
+	process.once("exit", reap);
+	process.once("SIGINT", reap);
+	process.once("SIGTERM", reap);
 
 	const handler = async (
 		req: IncomingMessage,
