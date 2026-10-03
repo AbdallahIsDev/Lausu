@@ -52,7 +52,11 @@ class DevSidecar {
 	private readonly token: string = randomBytes(32).toString("hex");
 	private pending = new Map<
 		number,
-		{ resolve: (v: unknown) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }
+		{
+			resolve: (v: unknown) => void;
+			reject: (e: Error) => void;
+			timer: NodeJS.Timeout;
+		}
 	>();
 	private nextId = 1;
 	private events: Record<string, unknown>[] = [];
@@ -255,9 +259,11 @@ class DevSidecar {
 	}
 
 	/** Long-poll for the next unsolicited server event. */
-	async nextEvent(
-		{ timeoutMs = 25_000 }: { timeoutMs?: number } = {},
-	): Promise<Record<string, unknown> | null> {
+	async nextEvent({
+		timeoutMs = 25_000,
+	}: {
+		timeoutMs?: number;
+	} = {}): Promise<Record<string, unknown> | null> {
 		if (this.events.length) return this.events.shift() ?? null;
 		return new Promise((resolve) => {
 			const done = (msg: Record<string, unknown> | null) => {
@@ -310,10 +316,7 @@ export function devBridgeMiddleware() {
 					return;
 				}
 				try {
-					const data = await sidecar.request(
-						String(msg.type),
-						msg.data,
-					);
+					const data = await sidecar.request(String(msg.type), msg.data);
 					res.setHeader("content-type", "application/json");
 					res.end(JSON.stringify({ ok: true, data }));
 				} catch (err) {
@@ -321,9 +324,7 @@ export function devBridgeMiddleware() {
 					res.end(
 						JSON.stringify({
 							ok: false,
-							error: String(
-								err instanceof Error ? err.message : err,
-							),
+							error: String(err instanceof Error ? err.message : err),
 						}),
 					);
 				}
