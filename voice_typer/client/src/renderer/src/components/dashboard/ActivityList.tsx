@@ -208,7 +208,7 @@ const ActivityListRow = memo(function ActivityListRow({
 									void toggleExpanded();
 								}}
 								onKeyDown={(e) => e.stopPropagation()}
-								className="absolute -bottom-6.5 left-1/2 -translate-x-1/2 cursor-pointer whitespace-nowrap text-sm leading-snug text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden rounded-lg"
+								className="absolute bottom-0 left-1/2 -translate-x-1/2 cursor-pointer whitespace-nowrap text-sm leading-snug text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden rounded-lg"
 							>
 								{loadingText
 									? t("history.loading")
