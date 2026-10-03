@@ -112,7 +112,7 @@
 		"transcribingHint": "Transcription… veuillez patienter"
 	},
 	"settings": {
-		"apiUrlInvalid": "Saisissez une URL http(s) valide",
+		"apiUrlInvalid": "Saisissez une URL https valide",
 		"otherTabsResults": "Résultats des autres onglets",
 		"title": "Paramètres",
 		"searchPlaceholder": "Rechercher des paramètres…",
@@ -257,6 +257,14 @@
 		"bubblePositionBottom": "En bas au centre",
 		"bubbleBehaviorShowOnRecord": "Afficher lors de l'enregistrement",
 		"bubbleBehaviorAlwaysVisible": "Toujours visible",
+		"bubbleBehaviorHidden": "Masquée",
+		"bubbleShowRecordingTimer": "Minuteur d'enregistrement",
+		"bubbleShowRecordingTimerInfo": "Affiche la durée d'enregistrement (mm:ss) à côté du point rouge pendant l'enregistrement. Désactivé par défaut.",
+		"bubblePreview": "Aperçu de la bulle",
+		"bubblePreviewInfo": "Voici l'apparence de la bulle dans chaque état. Le minuteur tourne en direct ici.",
+		"bubblePreviewIdle": "Inactive",
+		"bubblePreviewRecording": "Enregistrement",
+		"bubblePreviewTranscribing": "Transcription",
 		"languageAutoDetect": "Détection automatique",
 		"languageEnglish": "Anglais",
 		"languageChinese": "Chinois",
@@ -1552,7 +1560,8 @@
 		"stopRecordingAria": "Arrêter l'enregistrement",
 		"dismissAria": "Fermer la bulle",
 		"transcriptPreviewAria": "Aperçu de la transcription en direct",
-		"livePreviewUnavailable": "Pas d'aperçu en direct pour ce moteur"
+		"livePreviewUnavailable": "Pas d'aperçu en direct pour ce moteur",
+		"recordingTimerAria": "Durée d'enregistrement"
 	},
 	"errorBoundary": {
 		"title": "Une erreur s'est produite",
@@ -2088,5 +2097,10 @@
 			"doneInDb": "Terminé | {count} caractères (en BD, utilisez le raccourci de recollement)",
 			"doneInClipboard": "Terminé | {count} caractères (dans le presse-papiers)"
 		}
+	},
+	"computeDevice": {
+		"cpu": "CPU",
+		"gpu": "GPU",
+		"ariaLabel": "Unité de calcul"
 	}
 }

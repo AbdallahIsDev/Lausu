@@ -607,7 +607,7 @@
 		"loadedViaHint": "How the speech model was loaded (bundled, downloaded, or a custom path)."
 	},
 	"settings": {
-		"apiUrlInvalid": "Enter a valid http(s) URL",
+		"apiUrlInvalid": "Enter a valid https URL",
 		"otherTabsResults": "Results from other tabs",
 		"title": "Settings",
 		"searchPlaceholder": "Search settings…",
@@ -777,6 +777,14 @@
 		"bubblePositionBottom": "Bottom Center",
 		"bubbleBehaviorShowOnRecord": "Show on Record",
 		"bubbleBehaviorAlwaysVisible": "Always Visible",
+		"bubbleBehaviorHidden": "Hidden",
+		"bubbleShowRecordingTimer": "Recording Timer",
+		"bubbleShowRecordingTimerInfo": "Show the recording duration (mm:ss) next to the red dot while recording. Off by default.",
+		"bubblePreview": "Bubble Preview",
+		"bubblePreviewInfo": "How the bubble looks in each state. The recording timer ticks live here.",
+		"bubblePreviewIdle": "Idle",
+		"bubblePreviewRecording": "Recording",
+		"bubblePreviewTranscribing": "Transcribing",
 		"description": "Adjust {appName} to your preferences.",
 		"loading": "Loading settings…",
 		"saveFailedToast": "Failed to save setting",
@@ -1299,7 +1307,7 @@
 			"title": "Import Model",
 			"importModel": "Import Model",
 			"importing": "Importing...",
-			"success": "Imported {count} model(s): {models}",
+			"success": "Imported {count} models: {models}",
 			"noModelsFound": "No recognized model folders found in that directory. Select the HuggingFace hub cache folder (contains 'models--*' directories).",
 			"failedAll": "Failed to import any models from that directory.",
 			"failed": "Failed to import model: {error}"
@@ -1458,7 +1466,8 @@
 		"stopRecordingAria": "Stop recording",
 		"dismissAria": "Dismiss bubble",
 		"transcriptPreviewAria": "Live transcript preview",
-		"livePreviewUnavailable": "No live preview for this engine"
+		"livePreviewUnavailable": "No live preview for this engine",
+		"recordingTimerAria": "Recording duration"
 	},
 	"help": {
 		"title": "Keyboard Shortcuts",
@@ -2088,5 +2097,10 @@
 			"doneInDb": "Done | {count} chars (in DB, use repaste hotkey)",
 			"doneInClipboard": "Done | {count} chars (in clipboard)"
 		}
+	},
+	"computeDevice": {
+		"cpu": "CPU",
+		"gpu": "GPU",
+		"ariaLabel": "Compute device"
 	}
 }

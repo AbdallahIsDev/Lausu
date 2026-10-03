@@ -96,6 +96,12 @@ function showBubble() {
 	});
 }
 
+function startRecording() {
+	act(() => {
+		for (const cb of mockBubble._listeners.setState) cb("recording");
+	});
+}
+
 function hideBubble() {
 	act(() => {
 		for (const cb of mockBubble._listeners.hide) cb();
@@ -118,7 +124,9 @@ describe("DJ-90: useAudioLevels rAF loop pauses when bubble is hidden", () => {
 
 		render(<Bubble />);
 
-		// Trigger an initial show so the loop starts.
+		// Enter recording mode so the loop starts (show is
+		// visibility-only and no longer implies recording).
+		startRecording();
 		showBubble();
 		await tickFrames(3);
 
@@ -148,6 +156,7 @@ describe("DJ-90: useAudioLevels rAF loop pauses when bubble is hidden", () => {
 		const rafSpy = vi.spyOn(window, "requestAnimationFrame");
 
 		render(<Bubble />);
+		startRecording();
 		showBubble();
 		await tickFrames(3);
 

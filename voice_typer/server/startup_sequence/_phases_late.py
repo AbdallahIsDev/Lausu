@@ -304,6 +304,7 @@ class LatePhases:
         try:
             from voice_typer.server import startup_tasks
 
+            startup_tasks.reconcile_configured_device(app)
             startup_tasks.reconcile_configured_model(app)
         except Exception:
             log.debug(
@@ -330,10 +331,24 @@ class LatePhases:
             except Exception as e:
                 log.warning("[STARTUP] Failed to open app window after restart: %s", e)
 
+        # Session-local positioning: drags are never persisted, so a
+        # stale bubble_x/bubble_y pair from an older build must not
+        # leak into this session. Clear once; startup placement below
+        # always uses the configured default edge.
+        try:
+            if app.config.bubble_x is not None or app.config.bubble_y is not None:
+                app.config.bubble_x = None
+                app.config.bubble_y = None
+                app.config.save()
+                log.info("[STARTUP] Cleared stale bubble drag position, using default edge")
+        except Exception:
+            log.debug("[STARTUP] Stale bubble position reset failed", exc_info=True)
+
         # Show the bubble at startup if always_visible mode is enabled AND
         if app.config.bubble_behavior == "always_visible" and app.config.bubble_show_on_startup:
             try:
                 app._waveform_bubble.show()
+                app._waveform_bubble.set_state("idle")
                 log.info("[STARTUP] Bubble shown at startup (always_visible mode)")
             except Exception as e:
                 log.warning("[STARTUP] Failed to show bubble at startup: %s", e)

@@ -600,7 +600,7 @@
 		"loadedViaHint": "语音模型是如何加载的（内置、下载或自定义路径）。"
 	},
 	"settings": {
-		"apiUrlInvalid": "请输入有效的 http(s) URL",
+		"apiUrlInvalid": "请输入有效的 https URL",
 		"otherTabsResults": "其他标签页的结果",
 		"title": "设置",
 		"searchPlaceholder": "搜索设置…",
@@ -750,6 +750,14 @@
 		"bubblePositionBottom": "底部居中",
 		"bubbleBehaviorShowOnRecord": "录音时显示",
 		"bubbleBehaviorAlwaysVisible": "始终可见",
+		"bubbleBehaviorHidden": "隐藏",
+		"bubbleShowRecordingTimer": "录音计时器",
+		"bubbleShowRecordingTimerInfo": "在录音时于红点旁显示录音时长（mm:ss）。默认关闭。",
+		"bubblePreview": "气泡预览",
+		"bubblePreviewInfo": "气泡在每种状态下的外观。录音计时器在此实时跳动。",
+		"bubblePreviewIdle": "空闲",
+		"bubblePreviewRecording": "录音中",
+		"bubblePreviewTranscribing": "转写中",
 		"description": "根据您的偏好调整 {appName}。",
 		"loading": "正在加载设置…",
 		"saveFailedToast": "保存设置失败",
@@ -1616,7 +1624,8 @@
 		"stopRecordingAria": "停止录音",
 		"dismissAria": "关闭气泡",
 		"transcriptPreviewAria": "实时转录预览",
-		"livePreviewUnavailable": "当前引擎不支持实时预览"
+		"livePreviewUnavailable": "当前引擎不支持实时预览",
+		"recordingTimerAria": "录音时长"
 	},
 	"errorBoundary": {
 		"title": "出错了",
@@ -2088,5 +2097,10 @@
 			"doneInDb": "完成 | {count} 个字符（已存入数据库，请按重新粘贴快捷键）",
 			"doneInClipboard": "完成 | {count} 个字符（已在剪贴板）"
 		}
+	},
+	"computeDevice": {
+		"cpu": "CPU",
+		"gpu": "GPU",
+		"ariaLabel": "计算设备"
 	}
 }

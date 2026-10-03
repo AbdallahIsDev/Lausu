@@ -117,14 +117,15 @@ describe("TY-3: useAudioLevels rAF loop is gated on mode === recording", () => {
 		);
 
 		render(<Bubble />);
+		setBubbleState("recording");
 
 		// Drain the initial mount + a few rAF ticks. In recording mode
-		// (the default), the loop runs per-frame and calls
-		// getComputedStyle on the first frame (via refreshBarColor),
-		// then again only on theme changes. The MutationObserver also
-		// calls refreshBarColor once on mount. So the spy IS called
-		// during recording mode, we record the count and assert it
-		// does NOT increase after we switch to idle.
+		// the loop runs per-frame and calls getComputedStyle on the
+		// first frame (via refreshBarColor), then again only on theme
+		// changes. The MutationObserver also calls refreshBarColor
+		// once on mount. So the spy IS called during recording mode,
+		// we record the count and assert it does NOT increase after
+		// we switch to idle.
 		await tickFrames(3);
 		const callsDuringRecording = gcsSpy.mock.calls.length;
 		expect(callsDuringRecording).toBeGreaterThan(0);
@@ -175,6 +176,7 @@ describe("TY-3: useAudioLevels rAF loop is gated on mode === recording", () => {
 		};
 
 		render(<Bubble />);
+		setBubbleState("recording");
 		flushFrames(2);
 		gcsSpy.mockClear();
 

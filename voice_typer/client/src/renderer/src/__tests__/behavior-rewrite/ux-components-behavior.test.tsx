@@ -215,6 +215,7 @@ const baseConfig: LausuConfig = {
 	bubble_show_on_startup: false,
 	bubble_click_to_toggle: true,
 	bubble_mic_button: true,
+	bubble_show_recording_timer: false,
 	history_retention_days: 30,
 	history_retention_count: 100,
 	history_max_entries: 1000,

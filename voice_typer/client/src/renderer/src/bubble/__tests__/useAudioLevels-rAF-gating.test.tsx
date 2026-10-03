@@ -100,6 +100,12 @@ function showBubble() {
 	});
 }
 
+function startRecording() {
+	act(() => {
+		for (const cb of mockBubble._listeners.setState) cb("recording");
+	});
+}
+
 function hideBubble() {
 	act(() => {
 		for (const cb of mockBubble._listeners.hide) cb();
@@ -123,8 +129,9 @@ describe("AB-39: useAudioLevels rAF scheduling gate", () => {
 
 		render(<Bubble />);
 
-		// Show the bubble so the rAF loop starts.
-		showBubble();
+		// Enter recording mode so the rAF loop starts (show is
+		// visibility-only and no longer implies recording).
+		startRecording();
 		await tickFrames(3);
 
 		// Reset the spy so we count ONLY post-hide calls.
@@ -151,7 +158,7 @@ describe("AB-39: useAudioLevels rAF scheduling gate", () => {
 		const rafSpy = vi.spyOn(window, "requestAnimationFrame");
 
 		render(<Bubble />);
-		showBubble();
+		startRecording();
 		await tickFrames(3);
 
 		// Reset the spy so we count ONLY post-hide calls.
@@ -183,7 +190,7 @@ describe("AB-39: useAudioLevels rAF scheduling gate", () => {
 		const rafSpy = vi.spyOn(window, "requestAnimationFrame");
 
 		render(<Bubble />);
-		showBubble();
+		startRecording();
 		await tickFrames(3);
 
 		// Hide, then verify the loop stops.
@@ -211,11 +218,11 @@ describe("AB-39: useAudioLevels rAF scheduling gate", () => {
 		const rafSpy = vi.spyOn(window, "requestAnimationFrame");
 
 		render(<Bubble />);
-		showBubble();
+		startRecording();
 		await tickFrames(3);
 
-		// Recording mode (default) → the dynamic onLevel IPC
-		// subscription is active.
+		// Recording mode → the dynamic onLevel IPC subscription
+		// is active.
 		expect(mockBubble._listeners.level.length).toBe(1);
 
 		// mode tracker silently ignored (it only knew transcribing /
@@ -240,14 +247,14 @@ describe("AB-39: useAudioLevels rAF scheduling gate", () => {
 	it("still animates when visible AND in recording mode (no regression)", async () => {
 		//critical rule: the bubble MUST still animate when
 		// visible AND recording. This test verifies the loop runs
-		// per-frame in the default state (visible + recording).
+		// per-frame once recording state arrives.
 		const rafSpy = vi.spyOn(window, "requestAnimationFrame");
 
 		render(<Bubble />);
-		showBubble();
+		startRecording();
 		await tickFrames(5);
 
-		// In recording mode (default) + visible, the loop should be
+		// In recording mode + visible, the loop should be
 		// scheduling rAF frames continuously.
 		expect(rafSpy.mock.calls.length).toBeGreaterThan(0);
 

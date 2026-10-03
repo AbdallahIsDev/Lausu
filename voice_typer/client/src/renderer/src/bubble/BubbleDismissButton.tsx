@@ -7,14 +7,24 @@
 import { t } from "@/i18n/i18n";
 import { BUBBLE_BUTTON_CLASS } from "./constants";
 
-export function BubbleDismissButton({ onClick }: { onClick: () => void }) {
+export function BubbleDismissButton({
+	onClick,
+	disabled,
+	disabledLabel,
+}: {
+	onClick: () => void;
+	disabled?: boolean;
+	disabledLabel?: string;
+}) {
 	const label = t("bubble.dismissAria");
 	return (
 		<button
 			type="button"
 			onClick={onClick}
-			aria-label={label}
-			title={label}
+			disabled={disabled}
+			aria-label={disabled && disabledLabel ? disabledLabel : label}
+			title={disabled && disabledLabel ? disabledLabel : label}
+			aria-disabled={disabled}
 			// Matches the BubbleMicButton sizing/styling so the two
 			// affordances look like siblings.
 			className={BUBBLE_BUTTON_CLASS}

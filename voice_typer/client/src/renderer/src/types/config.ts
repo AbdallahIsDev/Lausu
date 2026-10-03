@@ -46,6 +46,13 @@ export interface LausuConfig {
 	model_size: ModelSize;
 	language: string;
 	device: "cuda" | "cpu";
+	/**
+	 * READ-ONLY computed flag attached to every `get_config` response
+	 * (NOT persisted): true when the backend probe found a
+	 * CUDA-capable GPU. Absent on older sidecars; the sidebar toggle
+	 * treats absence as GPU-less and stays hidden.
+	 */
+	gpu_available?: boolean;
 	beam_size: number;
 	best_of: number;
 	/**
@@ -117,7 +124,7 @@ export interface LausuConfig {
 
 	bubble_position: "top" | "bottom";
 
-	bubble_behavior: "show_on_record" | "always_visible";
+	bubble_behavior: "show_on_record" | "always_visible" | "hidden";
 
 	bubble_draggable: boolean;
 
@@ -127,6 +134,9 @@ export interface LausuConfig {
 
 	//explicit mic-button visibility toggle. Default ON. When OFF
 	bubble_mic_button: boolean;
+
+	//show the recording duration (mm:ss) next to the red dot. Default OFF.
+	bubble_show_recording_timer: boolean;
 
 	bubble_x: number | null;
 	bubble_y: number | null;

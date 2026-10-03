@@ -419,13 +419,15 @@ class _BubbleBehaviorHandler:
                 try:
                     if hasattr(app, "_waveform_bubble"):
                         app._waveform_bubble.show()
+                        is_recording = bool(getattr(getattr(app, "recorder", None), "recording", False))
+                        app._waveform_bubble.set_state("recording" if is_recording else "idle")
                 except Exception:
                     # previously `except Exception: pass`
                     log.debug(
                         "[SERVICE] Failed to show waveform bubble after bubble_behavior change",
                         exc_info=True,
                     )
-            elif behavior == "show_on_record":
+            elif behavior in ("show_on_record", "hidden"):
                 # Hide bubble immediately when switching away from always_visible
                 try:
                     if hasattr(app, "_waveform_bubble") and app._waveform_bubble.visible:

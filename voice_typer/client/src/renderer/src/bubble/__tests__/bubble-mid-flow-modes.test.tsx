@@ -87,7 +87,7 @@ describe("bubble mid-flow modes (blocked / cancelling / permission_revoked / pas
 	it("renders the 'Blocked' label when state becomes 'blocked'", () => {
 		render(<Bubble />);
 
-		// Default mode is recording (visualizer bars), no Blocked label.
+		// Default mode is idle (Ready), no Blocked label.
 		expect(screen.queryByText("Blocked")).toBeNull();
 
 		setBubbleState("blocked");
@@ -169,7 +169,7 @@ describe("bubble mid-flow modes (blocked / cancelling / permission_revoked / pas
 	it("does NOT render bars in any of the new mid-flow modes", () => {
 		render(<Bubble />);
 
-		// Default recording mode → 7 bars visible.
+		setBubbleState("recording");
 		expect(document.querySelectorAll(".gap-0\\.75 > span").length).toBe(7);
 
 		// Each new mode should hide the bars (no visualizer in mid-flow).

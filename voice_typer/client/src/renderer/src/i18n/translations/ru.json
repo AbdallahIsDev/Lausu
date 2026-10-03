@@ -600,7 +600,7 @@
 		"loadedViaHint": "Как была загружена модель речи (встроенная, скачанная или пользовательский путь)."
 	},
 	"settings": {
-		"apiUrlInvalid": "Введите корректный URL http(s)",
+		"apiUrlInvalid": "Введите корректный URL https",
 		"otherTabsResults": "Результаты из других вкладок",
 		"title": "Настройки",
 		"searchPlaceholder": "Поиск в настройках…",
@@ -750,6 +750,14 @@
 		"bubblePositionBottom": "Внизу по центру",
 		"bubbleBehaviorShowOnRecord": "Показывать при записи",
 		"bubbleBehaviorAlwaysVisible": "Всегда видим",
+		"bubbleBehaviorHidden": "Скрыт",
+		"bubbleShowRecordingTimer": "Таймер записи",
+		"bubbleShowRecordingTimerInfo": "Показывает длительность записи (мм:сс) рядом с красной точкой во время записи. По умолчанию выключено.",
+		"bubblePreview": "Предпросмотр пузырька",
+		"bubblePreviewInfo": "Как пузырёк выглядит в каждом состоянии. Таймер записи идёт здесь в реальном времени.",
+		"bubblePreviewIdle": "Ожидание",
+		"bubblePreviewRecording": "Запись",
+		"bubblePreviewTranscribing": "Транскрибация",
 		"description": "Настройте {appName} под свои предпочтения.",
 		"loading": "Загрузка настроек…",
 		"saveFailedToast": "Не удалось сохранить настройку",
@@ -1616,7 +1624,8 @@
 		"stopRecordingAria": "Остановить запись",
 		"dismissAria": "Закрыть пузырёк",
 		"transcriptPreviewAria": "Предпросмотр транскрипции в реальном времени",
-		"livePreviewUnavailable": "Живой предпросмотр недоступен для этого движка"
+		"livePreviewUnavailable": "Живой предпросмотр недоступен для этого движка",
+		"recordingTimerAria": "Длительность записи"
 	},
 	"errorBoundary": {
 		"title": "Что-то пошло не так",
@@ -2088,5 +2097,10 @@
 			"doneInDb": "Готово | {count} симв. (в БД, используйте комбинацию повторной вставки)",
 			"doneInClipboard": "Готово | {count} симв. (в буфере обмена)"
 		}
+	},
+	"computeDevice": {
+		"cpu": "CPU",
+		"gpu": "GPU",
+		"ariaLabel": "Вычислительное устройство"
 	}
 }

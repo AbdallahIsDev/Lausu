@@ -600,7 +600,7 @@
 		"loadedViaHint": "كيف تم تحميل نموذج الكلام (مدمج، أو مُنزَّل، أو مسار مخصص)."
 	},
 	"settings": {
-		"apiUrlInvalid": "أدخل عنوان http(s) صالحًا",
+		"apiUrlInvalid": "أدخل عنوان https صالحًا",
 		"otherTabsResults": "نتائج من علامات تبويب أخرى",
 		"title": "الإعدادات",
 		"searchPlaceholder": "ابحث في الإعدادات…",
@@ -756,6 +756,14 @@
 		"bubblePositionBottom": "أسفل المنتصف",
 		"bubbleBehaviorShowOnRecord": "عرض عند التسجيل",
 		"bubbleBehaviorAlwaysVisible": "مرئية دائمًا",
+		"bubbleBehaviorHidden": "مخفية",
+		"bubbleShowRecordingTimer": "مؤقت التسجيل",
+		"bubbleShowRecordingTimerInfo": "يعرض مدة التسجيل (mm:ss) بجانب النقطة الحمراء أثناء التسجيل. متوقف افتراضيًا.",
+		"bubblePreview": "معاينة الفقاعة",
+		"bubblePreviewInfo": "هكذا تبدو الفقاعة في كل حالة. مؤقت التسجيل يعمل مباشرة هنا.",
+		"bubblePreviewIdle": "خامل",
+		"bubblePreviewRecording": "تسجيل",
+		"bubblePreviewTranscribing": "تدوين",
 		"description": "اضبط {appName} حسب تفضيلاتك.",
 		"loading": "جارٍ تحميل الإعدادات…",
 		"saveFailedToast": "فشل حفظ الإعداد",
@@ -1616,7 +1624,8 @@
 		"stopRecordingAria": "إيقاف التسجيل",
 		"dismissAria": "إخفاء الفقاعة",
 		"transcriptPreviewAria": "معاينة النص المباشر",
-		"livePreviewUnavailable": "لا توجد معاينة مباشرة لهذا المحرك"
+		"livePreviewUnavailable": "لا توجد معاينة مباشرة لهذا المحرك",
+		"recordingTimerAria": "مدة التسجيل"
 	},
 	"errorBoundary": {
 		"title": "حدث خطأ ما",
@@ -2088,5 +2097,10 @@
 			"doneInDb": "تم | {count} حرفًا (في قاعدة البيانات، استخدم مفتاح إعادة اللصق)",
 			"doneInClipboard": "تم | {count} حرفًا (في الحافظة)"
 		}
+	},
+	"computeDevice": {
+		"cpu": "CPU",
+		"gpu": "GPU",
+		"ariaLabel": "جهاز الحوسبة"
 	}
 }

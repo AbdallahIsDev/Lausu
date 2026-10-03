@@ -1,11 +1,13 @@
 import { type RefObject, useMemo } from "react";
 import { DOT_COUNT, DOT_INDICES, MIN_HEIGHT } from "./constants";
-import { tf } from "./helpers";
+import { RecordingTimer } from "./RecordingTimer";
 
 export function BubbleVisualizer({
 	dotRefs,
+	showTimer,
 }: {
 	dotRefs: RefObject<(HTMLSpanElement | null)[]>;
+	showTimer: boolean;
 }) {
 	// Build the 7 stable ref setters once per `dotRefs` instance.
 	// The array identity is stable across renders (only changes if
@@ -24,14 +26,16 @@ export function BubbleVisualizer({
 	);
 	return (
 		<div className="flex h-6 items-center gap-2">
-			{/* REC indicator, destructive token, not hardcoded red. */}
+			{/* The recording indicator is the dot alone, no text label. Red +
+			    pulsing means "capturing audio right now"; this component is
+			    only rendered in the recording mode (see BubbleModeContent),
+			    so the red pulse can never appear while nothing is recording. */}
 			<span
+				data-slot="bubble-recording-dot"
 				className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse"
 				aria-hidden
 			/>
-			<span className="text-[10px] font-medium text-destructive">
-				{tf("bubble.recordingLabel", "REC")}
-			</span>
+			{showTimer && <RecordingTimer />}
 			{/* `ms-1` is the RTL-safe logical replacement for the old
 		    physical `ml-1`. In LTR it renders as margin-left; in RTL
 		    (ar locale) it flips to margin-right automatically. */}

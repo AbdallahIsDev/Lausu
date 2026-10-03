@@ -27,7 +27,7 @@ export interface BubbleStateMachine {
 
 export function useBubbleStateMachine(): BubbleStateMachine {
 	const bridge = useBubbleBridge();
-	const [mode, setMode] = useState<BubbleMode>("recording");
+	const [mode, setMode] = useState<BubbleMode>("idle");
 	const [animState, setAnimState] = useState<AnimState>("enter");
 	const [exitTick, setExitTick] = useState(0);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export function useBubbleStateMachine(): BubbleStateMachine {
 	// (which would cancel + re-arm the rAF loop in `useAudioLevels`,
 	// causing visible stutter). Updated inline on every render, this
 	// is the same pattern `useAudioLevels` uses for `visibleRef`.
-	const modeRef = useRef<BubbleMode>("recording");
+	const modeRef = useRef<BubbleMode>("idle");
 	modeRef.current = mode;
 
 	useEffect(() => {
@@ -58,14 +58,10 @@ export function useBubbleStateMachine(): BubbleStateMachine {
 		const offShow = bridge.on("show", () => {
 			setExitTick(0); // Cancel any pending exit
 			setAnimState("enter");
-			// Don't override transcribing/fading mode if a state change
-			// arrived before our show() event. This prevents a race
-			// where the backend calls set_state("transcribing") and
-			// then show() is re-triggered. The transition table is the
-			// shared `nextBubbleMode` reducer (single source of
-			// truth), the bridge's authoritative mode ref applies the
-			// same function to the same event, so the two stay in
-			// lockstep by construction.
+			// Show is visibility-only: the mode comes from the
+			// backend's explicit set_state, which can arrive before
+			// or after show. Both orders converge via the shared
+			// `nextBubbleMode` reducer (single source of truth).
 			setMode((prev) => nextBubbleMode(prev, { type: "show" }));
 		});
 

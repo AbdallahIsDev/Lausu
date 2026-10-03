@@ -1451,6 +1451,7 @@ class TestPushBubbleConfigGetattrDefault:
             assert data["bubble_behavior"] == "show_on_record"
             assert data["bubble_click_to_toggle"] is True
             assert data["bubble_mic_button"] is True
+            assert data["bubble_show_recording_timer"] is False
             assert data["theme_mode"] == "system"
             assert data["theme_preset"] == "default"
             assert data["custom_theme"] is None
@@ -1466,6 +1467,7 @@ class TestPushBubbleConfigGetattrDefault:
                 bubble_behavior = "always_visible"
                 bubble_click_to_toggle = True
                 bubble_mic_button = True
+                bubble_show_recording_timer = True
                 theme_mode = "dark"
                 theme_preset = "nord"
                 custom_theme = {"light": {"--bg": "#fff"}, "dark": {"--bg": "#000"}}
@@ -1477,6 +1479,7 @@ class TestPushBubbleConfigGetattrDefault:
             assert data["bubble_behavior"] == "always_visible"
             assert data["bubble_click_to_toggle"] is True
             assert data["bubble_mic_button"] is True
+            assert data["bubble_show_recording_timer"] is True
             assert data["theme_mode"] == "dark"
             assert data["theme_preset"] == "nord"
             assert data["custom_theme"] == {"light": {"--bg": "#fff"}, "dark": {"--bg": "#000"}}

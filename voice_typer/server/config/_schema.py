@@ -194,8 +194,8 @@ class _ConfigSchema:
     # Bubble screen position (top / bottom).  Default "bottom", the
     bubble_position: Literal["top", "bottom"] = "bottom"
 
-    # Bubble behavior: show on record, or always visible
-    bubble_behavior: Literal["show_on_record", "always_visible"] = "show_on_record"
+    # Bubble behavior: show on record, always visible, or never
+    bubble_behavior: Literal["show_on_record", "always_visible", "hidden"] = "show_on_record"
 
     # Whether the bubble can be dragged by the user
     bubble_draggable: bool = True
@@ -208,6 +208,9 @@ class _ConfigSchema:
 
     # explicit mic-button visibility toggle (independent of
     bubble_mic_button: bool = True
+
+    # Show the recording duration (mm:ss) next to the red dot
+    bubble_show_recording_timer: bool = False
 
     # Persisted bubble window position (screen-space pixel coords) and
     bubble_x: int | None = None

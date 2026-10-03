@@ -154,10 +154,9 @@ describe("bubble: prefers-reduced-motion", () => {
 			await new Promise<void>((resolve) => setTimeout(resolve, 0));
 		});
 
-		// The wake() call on mount enters the reduced-motion branch and
-		// does NOT schedule a rAF. So rafSpy should have ZERO calls
-		// after mount (the wake()'s internal requestAnimationFrame is
-		// never reached because the early-return fires first).
+		// Mount is idle, so wake() schedules no frame at all (the
+		// recording gate is closed before reduced-motion even
+		// matters). rafSpy should have ZERO calls after mount.
 		const callsAfterMount = rafSpy.mock.calls.length;
 
 		// Tick more frames to be sure no further rAFs are scheduled.
@@ -173,11 +172,20 @@ describe("bubble: prefers-reduced-motion", () => {
 		reducedMotionMatches = true;
 
 		render(<Bubble />);
+		setBubbleState("recording");
 
 		// Drain pending rAF callbacks so renderReducedMotion() runs.
-		await act(async () => {
-			await new Promise<void>((resolve) => setTimeout(resolve, 0));
-		});
+		// Flush in a loop: the scheduled frame can land a tick later
+		// depending on what earlier tests left on the jsdom clock.
+		for (let i = 0; i < 10; i++) {
+			const ready = Array.from(
+				document.querySelectorAll(".gap-0\\.75 > span"),
+			).every((bar) => (bar as HTMLElement).style.height === `${MAX_HEIGHT}px`);
+			if (ready) break;
+			await act(async () => {
+				await new Promise<void>((resolve) => setTimeout(resolve, 0));
+			});
+		}
 
 		// The visualizer bars are the 7 spans inside .gap-0.75. They
 		// should all be at the fixed mid-height (13.5px visual, the

@@ -484,7 +484,9 @@ class RecordingLifecycle:
         except Exception:
             log.exception("[DICTATION] Failed to apply pending model change; continuing")
 
-        # ``ensure_active_engine_loaded()`` is deferred to AFTER
+        # The model load is deferred until AFTER recorder.start() and runs on a
+        # daemon worker, so the mic captures speech during the 5-30s reload
+        # instead of losing the first words. See _start_dictation_worker_entry.
 
         log.info("[DICTATION] Starting recording... (cycle=%s)", app._cycle_id)
         try:
@@ -493,8 +495,11 @@ class RecordingLifecycle:
             app.recorder.start()
             self._notify_mic_watcher_of_active_device(app)
             app.tray.set_state(AppState.RECORDING, i18n.t("state.recording_controller.recording"))
-            # Show the floating bubble once we know the stream is open
-            app._waveform_bubble.show()
+            # Show the floating bubble once we know the stream is open,
+            # unless the user hid it entirely ("hidden" behavior).
+            if getattr(app.config, "bubble_behavior", "show_on_record") != "hidden":
+                app._waveform_bubble.show()
+                app._waveform_bubble.set_state("recording")
             # System-volume ducking moved OFF this thread: it now runs at
             log.info("[DICTATION] Recording started OK (cycle=%s)", app._cycle_id)
             self._claim_keyboard_ownership_for_recording(app)

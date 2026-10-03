@@ -157,8 +157,11 @@ afterEach(() => {
 });
 
 function showBubble() {
+	// Mirrors the backend pairing: show() plus an explicit recording
+	// set_state (show alone is visibility-only and implies nothing).
 	act(() => {
 		for (const cb of mockBubble._listeners.show) cb();
+		for (const cb of mockBubble._listeners.setState) cb("recording");
 	});
 }
 
@@ -405,6 +408,9 @@ describe("useAudioLevels reduced-motion direct path", () => {
 		const rafSpy = vi.spyOn(window, "requestAnimationFrame");
 		renderHook(() => useAudioLevels(dotRefs, true), {
 			wrapper: directWrapper,
+		});
+		act(() => {
+			for (const cb of mockBubble._listeners.setState) cb("recording");
 		});
 		await flushDirectMacrotasks(3);
 		const callsAfterInitial = rafSpy.mock.calls.length;
