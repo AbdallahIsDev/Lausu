@@ -13,7 +13,10 @@ fn candidate_paths() -> Vec<PathBuf> {
     }
     // Repo-root .venv (tauri dev runs with cwd = repo root or src-tauri/).
     if let Ok(cwd) = std::env::current_dir() {
-        let roots = [cwd.clone(), cwd.parent().map(|p| p.to_path_buf()).unwrap_or(cwd)];
+        let roots = [
+            cwd.clone(),
+            cwd.parent().map(|p| p.to_path_buf()).unwrap_or(cwd),
+        ];
         for root in roots {
             if cfg!(target_os = "windows") {
                 out.push(root.join(".venv").join("Scripts").join("python.exe"));

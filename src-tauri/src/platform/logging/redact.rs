@@ -1,6 +1,5 @@
 //! PII redaction engine for log output (std-only, no `regex` dep).
 
-
 pub(crate) fn redact_pii(input: &str) -> String {
     if !has_any_fast_trigger(input) {
         return input.to_string();

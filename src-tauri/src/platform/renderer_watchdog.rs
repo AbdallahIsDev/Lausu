@@ -1,4 +1,3 @@
-
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -32,7 +31,10 @@ impl HeartbeatState {
 
     /// Snapshot of (last heartbeat, already-stalled flag).
     fn snapshot(&self) -> (Option<Instant>, bool) {
-        (*crate::state::lock(&self.last), *crate::state::lock(&self.stalled))
+        (
+            *crate::state::lock(&self.last),
+            *crate::state::lock(&self.stalled),
+        )
     }
 
     fn mark_stalled(&self) {
@@ -98,7 +100,10 @@ pub(crate) fn watchdog_decision(
 pub(crate) fn spawn_watchdog(app: &tauri::AppHandle) {
     use tauri::Manager;
 
-    let state = app.state::<std::sync::Arc<HeartbeatState>>().inner().clone();
+    let state = app
+        .state::<std::sync::Arc<HeartbeatState>>()
+        .inner()
+        .clone();
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let threshold = Duration::from_secs(STALL_THRESHOLD_SECS);

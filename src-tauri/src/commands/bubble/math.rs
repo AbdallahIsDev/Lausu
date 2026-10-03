@@ -1,4 +1,3 @@
-
 pub(super) const MIN_BUBBLE_W: u32 = 40;
 pub(super) const MIN_BUBBLE_H: u32 = 24;
 pub(super) const MAX_BUBBLE_W: u32 = 400;

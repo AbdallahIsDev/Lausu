@@ -1,4 +1,3 @@
-
 use crate::state::{lock, SidecarState};
 use crate::util::EXIT_SHUTDOWN_ACK_TIMEOUT_MS;
 use std::sync::Arc;

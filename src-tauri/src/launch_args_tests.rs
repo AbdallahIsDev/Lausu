@@ -15,10 +15,7 @@ fn argv(items: &[&str]) -> Vec<String> {
 fn test_hidden_absent_by_default() {
     let parsed = parse(&argv(&[]));
     assert!(!parsed.hidden, "--hidden absent must leave hidden=false");
-    assert_eq!(
-        parsed.delay_secs, 0.0,
-        "no argv must leave delay_secs=0.0"
-    );
+    assert_eq!(parsed.delay_secs, 0.0, "no argv must leave delay_secs=0.0");
 }
 
 #[test]
@@ -35,7 +32,13 @@ fn test_hidden_present_sets_flag() {
 fn test_hidden_ignores_near_matches() {
     // Prefix/substring matches must not count: exact match only, so a
     // future `--hidden-on-close` style flag can't trip autostart hiding.
-    for near in ["--hidden=true", "--Hidden", "--hiddenx", "-hidden", "hidden"] {
+    for near in [
+        "--hidden=true",
+        "--Hidden",
+        "--hiddenx",
+        "-hidden",
+        "hidden",
+    ] {
         let parsed = parse(&argv(&[near]));
         assert!(
             !parsed.hidden,
@@ -138,7 +141,10 @@ fn test_combined_hidden_and_delay() {
 
     let parsed = parse(&argv(&["--delay=1.5", "--hidden"]));
     assert!(parsed.hidden, "flag order must not matter for hidden");
-    assert_eq!(parsed.delay_secs, 1.5, "flag order must not matter for delay");
+    assert_eq!(
+        parsed.delay_secs, 1.5,
+        "flag order must not matter for delay"
+    );
 }
 
 #[test]

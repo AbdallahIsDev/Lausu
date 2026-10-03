@@ -35,7 +35,6 @@ pub(crate) fn register_kill_on_parent_exit(pid: u32) -> Result<(), String> {
     }
 }
 
-
 #[cfg(target_os = "windows")]
 #[path = "windows.rs"]
 mod windows_impl;
@@ -43,14 +42,12 @@ mod windows_impl;
 #[cfg(target_os = "windows")]
 use windows_impl::register_kill_on_parent_exit_windows;
 
-
 #[cfg(unix)]
 #[path = "posix.rs"]
 mod posix_impl;
 
 #[cfg(unix)]
 use posix_impl::register_kill_on_parent_exit_posix;
-
 
 /// Kill the process tree rooted at `pid` (the sidecar and its
 /// descendants). Platform-native, best-effort: never panics.

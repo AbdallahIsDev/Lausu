@@ -1,4 +1,3 @@
-
 use crate::state::SidecarHandle;
 use crate::util::SERVER_STARTED_TIMEOUT_MS;
 use std::sync::atomic::AtomicBool;

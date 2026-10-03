@@ -1,4 +1,3 @@
-
 use std::sync::Mutex;
 
 use windows::core::PCWSTR;

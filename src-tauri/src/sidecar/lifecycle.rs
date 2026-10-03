@@ -1,4 +1,3 @@
-
 use crate::sidecar::shutdown::shutdown_sidecar_for_exit_with_budget;
 use crate::sidecar::supervisor::clear_restart_counter_for_user_restart;
 use crate::sidecar::{send_fire_and_forget_frame, shutdown_sidecar_for_exit};

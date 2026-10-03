@@ -1,4 +1,3 @@
-
 use crate::platform::logging::redact_pii;
 use crate::platform::logging::RotatingFileWriter;
 use crate::util::now_timestamps;

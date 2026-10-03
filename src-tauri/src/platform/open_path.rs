@@ -1,4 +1,3 @@
-
 use std::path::Path;
 
 pub(crate) fn open_path_in_file_manager(path: &Path) -> Result<(), String> {
@@ -187,7 +186,10 @@ pub(crate) fn reveal_path_in_file_manager(path: &Path) -> Result<(), String> {
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     {
         let _ = path;
-        Err("unsupported platform: reveal is only implemented for Windows / macOS / Linux".to_string())
+        Err(
+            "unsupported platform: reveal is only implemented for Windows / macOS / Linux"
+                .to_string(),
+        )
     }
 }
 

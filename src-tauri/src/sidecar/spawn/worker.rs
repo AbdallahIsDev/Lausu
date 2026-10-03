@@ -1,4 +1,3 @@
-
 use crate::state::SidecarHandle;
 use crate::state::WorkerState;
 use crate::state::{lock as state_lock, SidecarState};
@@ -158,7 +157,6 @@ pub(crate) async fn spawn_worker_dev_mode(
     Ok((port, SidecarHandle::DevMode(child)))
 }
 
-
 pub(crate) fn try_claim_restart_slot(flag: &AtomicBool) -> bool {
     flag.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_ok()
@@ -267,11 +265,7 @@ const RELAY_RETRY_INTERVAL_MS: u64 = 500;
 /// Relay the worker bind to the sidecar. Skips (warn) when the pid is
 /// unknown rather than sending a garbage pid; retries briefly when the
 /// sidecar link is not up yet.
-pub(crate) fn relay_worker_started_to_sidecar(
-    app: &tauri::AppHandle,
-    pid: Option<u32>,
-    port: u16,
-) {
+pub(crate) fn relay_worker_started_to_sidecar(app: &tauri::AppHandle, pid: Option<u32>, port: u16) {
     let pid = match pid {
         Some(pid) => pid,
         None => {

@@ -4,8 +4,8 @@
 //! it, not here.
 
 use super::worker_supervisor::{
-    respawn_worker, should_keep_worker_running, spawn_worker_exit_watcher,
-    worker_backoff_delay_ms, worker_generation_is_stale,
+    respawn_worker, should_keep_worker_running, spawn_worker_exit_watcher, worker_backoff_delay_ms,
+    worker_generation_is_stale,
 };
 use crate::util::SUPERVISOR_BACKOFF_MS;
 
