@@ -17,11 +17,10 @@
 // path byte-identical instead of forking on a URL parameter.
 
 import fs from "node:fs";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
 import type { Plugin, ViteDevServer } from "vite";
-import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { devBridgeMiddleware } from "./dev-bridge-middleware";
 

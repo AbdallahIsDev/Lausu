@@ -19,11 +19,11 @@
 // DEV ONLY. Imported exclusively by `vite-browser-bridge.ts` under
 // `apply: "serve"`, so it never reaches a production build.
 
-import { spawn } from "node:child_process";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
-import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const LOG = "[dev-bridge]";
@@ -136,18 +136,20 @@ class DevSidecar {
 
 	#onStdout(chunk: string) {
 		this.stdoutBuf += chunk;
-		let idx;
-		while ((idx = this.stdoutBuf.indexOf("\n")) !== -1) {
+		let idx: number = this.stdoutBuf.indexOf("\n");
+		while (idx !== -1) {
 			const line = this.stdoutBuf.slice(0, idx).trim();
 			this.stdoutBuf = this.stdoutBuf.slice(idx + 1);
-			if (!line || !line.startsWith("{")) continue; // plain logging
-			let msg;
+			if (!line.startsWith("{")) continue; // plain logging
+			let msg: Record<string, unknown>;
 			try {
 				msg = JSON.parse(line);
 			} catch {
 				continue;
 			}
-			if (msg.event === "server_started") this.onPort?.(msg.port);
+			if (msg.event === "server_started" && typeof msg.port === "number")
+				this.onPort?.(msg.port);
+			idx = this.stdoutBuf.indexOf("\n");
 		}
 	}
 
@@ -172,7 +174,7 @@ class DevSidecar {
 			});
 
 			ws.addEventListener("message", (ev) => {
-				let msg;
+				let msg: Record<string, unknown>;
 				try {
 					msg = JSON.parse(ev.data);
 				} catch {
@@ -243,7 +245,7 @@ class DevSidecar {
 	): Promise<unknown> {
 		await this.ensureStarted();
 		const ws = this.ws;
-		if (!ws || ws.readyState !== 1 /* OPEN */) {
+		if (ws?.readyState !== 1 /* OPEN */) {
 			throw new Error("dev sidecar not connected");
 		}
 		const id = this.nextId++;
