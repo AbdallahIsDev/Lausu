@@ -493,6 +493,10 @@ jobs:
       - uses: rustsec/audit-check@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          # The workspace lockfile lives in src-tauri/, not the repo
+          # root; without this the action fails with "Couldn't load
+          # ./Cargo.lock".
+          working-directory: src-tauri
 
       # Every lint in Cargo.toml [lints.clippy] is `warn`, so this reports
       # without failing. It is an advisory gate that makes the existing
