@@ -405,7 +405,7 @@ export const TroubleshootingSettingsSection = memo(
                                                 button from the 5 non-destructive buttons above with a
                                                 top border + padding so users don't click it by accident. */}
 					{isVisible(resetToDefaultsLabel, undefined, title) && (
-						<div className="flex w-full flex-col gap-1 border-t border-border/5 pt-3">
+						<div className="flex w-full flex-col gap-1 border-t border-border/8 pt-3">
 							<Button
 								variant="destructive"
 								className="gap-2 self-start"

@@ -18,10 +18,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { NumberInputStepper } from "@/components/ui/number-input-stepper";
 import {
-	SegmentedControl,
-	type SegmentedControlOption,
-} from "@/components/ui/segmented-control";
-import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -29,6 +25,10 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import {
+	ToggleGroup,
+	type ToggleGroupOption,
+} from "@/components/ui/toggle-group";
 import { useT } from "@/i18n/i18n";
 import {
 	playSoundCue,
@@ -278,12 +278,11 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 	const maxRecordingMinutes = Math.round(
 		config.max_recording_time_seconds / 60,
 	);
-	const recordingModeOptions: SegmentedControlOption<
-		"toggle" | "push_to_talk"
-	>[] = RECORDING_MODE_OPTION_KEYS.map((opt) => ({
-		value: opt.value,
-		label: t(opt.labelKey),
-	}));
+	const recordingModeOptions: ToggleGroupOption<"toggle" | "push_to_talk">[] =
+		RECORDING_MODE_OPTION_KEYS.map((opt) => ({
+			value: opt.value,
+			label: t(opt.labelKey),
+		}));
 	const autoStopOptions = STOP_ON_SILENCE_OPTION_KEYS.map((opt) => ({
 		value: opt.value,
 		label: t(opt.labelKey),
@@ -352,12 +351,12 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 						sectionTitle={recordingTitle}
 						label={recordingModeLabel}
 						//use the corrected tooltip text that
-						// names the visible SegmentedControl labels
+						// names the visible ToggleGroup labels
 						// ("Tap to Record" / "Push to Talk") instead of
 						// the legacy "Toggle" wording that didn't match.
 						info={t("settings.hotkeySection.recordingModeInfoSearch")}
 					>
-						<SegmentedControl
+						<ToggleGroup
 							options={recordingModeOptions}
 							value={config.recording_mode ?? "toggle"}
 							onChange={handleRecordingModeChange}

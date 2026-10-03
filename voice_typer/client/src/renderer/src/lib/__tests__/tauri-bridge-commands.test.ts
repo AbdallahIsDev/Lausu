@@ -439,6 +439,57 @@ describe("tauri-bridge commands (MIG-1.1 + MIG-1.2)", () => {
 		off?.();
 	});
 
+	it("bubble.onSetState forwards the object payload verbatim (never String())", async () => {
+		// The backend publishes `{state, message?, transcript?,
+		// live_preview_supported?}` objects. String()-ing the payload
+		// collapses it to "[object Object]", which the state machine
+		// reducer maps to no-op, freezing the pill on idle forever.
+		const stub = makeTauriStub();
+		stub.window.getCurrentWindow = vi.fn(() => ({
+			label: "bubble",
+			minimize: vi.fn(() => Promise.resolve()),
+			toggleMaximize: vi.fn(() => Promise.resolve()),
+			close: vi.fn(() => Promise.resolve()),
+			isMaximized: vi.fn(() => Promise.resolve(false)),
+			onResized: vi.fn(() => Promise.resolve(() => {})),
+		}));
+		(window as unknown as WindowBridgeState).__TAURI__ = stub;
+
+		await import("@/lib/tauri-bridge");
+		await import("@/lib/tauri-bridge/install");
+
+		const bubble = (
+			window as unknown as {
+				bubble?: {
+					onSetState?: (cb: (payload: unknown) => void) => () => void;
+				};
+			}
+		).bubble;
+		expect(bubble?.onSetState).toBeDefined();
+
+		const received: unknown[] = [];
+		const dispatchRef: { current: ((e: { payload: unknown }) => void) | null } =
+			{ current: null };
+		(
+			stub.event.listen as unknown as ReturnType<typeof vi.fn>
+		).mockImplementationOnce(
+			(_name: string, handler: (e: { payload: unknown }) => void) => {
+				dispatchRef.current = handler;
+				return Promise.resolve(() => {});
+			},
+		);
+		const off = bubble?.onSetState?.((payload) => received.push(payload));
+		expect(stub.event.listen).toHaveBeenCalledWith(
+			"bubble:set-state",
+			expect.any(Function),
+		);
+		await Promise.resolve();
+		const obj = { state: "recording", transcript: "hello" };
+		dispatchRef.current?.({ payload: obj });
+		expect(received).toEqual([obj]);
+		off?.();
+	});
+
 	//locale push ─────────────────────────────────────
 
 	it("window_.setLocale invokes 'set_host_locale' with { locale } and passes the envelope through", async () => {

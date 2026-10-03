@@ -56,7 +56,7 @@ export function SettingsSection({
 			</div>
 			<div
 				className={cn(
-					"rounded-lg border border-border/5 bg-surface-subtle divide-y divide-border/5",
+					"rounded-lg border border-border/8 bg-surface-subtle divide-y divide-border/8",
 					cardClassName,
 				)}
 			>

@@ -63,7 +63,7 @@ export function VocabInlineForm({
 				// The in-list edit row (withBottomBorder=false) is
 				// already framed by the table card, so it keeps the
 				// matching surface without a second border box.
-				withBottomBorder && "rounded-lg border border-border/5",
+				withBottomBorder && "rounded-lg border border-border/8",
 			)}
 		>
 			<Input
@@ -71,14 +71,14 @@ export function VocabInlineForm({
 				onChange={(e) => onTriggerChange(e.target.value)}
 				placeholder={t("vocabulary.triggerPlaceholder")}
 				aria-label={t("vocabulary.whatYouSay")}
-				className="w-full rounded-lg bg-surface-subtle border-border/5"
+				className="w-full rounded-lg bg-surface-subtle border-border/8"
 			/>
 			<Input
 				value={replacement}
 				onChange={(e) => onReplacementChange(e.target.value)}
 				placeholder={t("vocabulary.replacementPlaceholder")}
 				aria-label={t("vocabulary.whatGetsTyped")}
-				className="w-full rounded-lg bg-surface-subtle border-border/5"
+				className="w-full rounded-lg bg-surface-subtle border-border/8"
 			/>
 			<div className="flex items-center gap-2">
 				<Button

@@ -70,14 +70,30 @@ describe("glowPulse, compositor-only glow animation contract", () => {
 	});
 
 	it("prefers-reduced-motion still covers the pseudo-element (pulse stops)", () => {
-		const reduceIdx = css.indexOf("@media (prefers-reduced-motion: reduce)");
-		expect(reduceIdx).toBeGreaterThanOrEqual(0);
-		const reduceBlock = css.slice(reduceIdx, css.indexOf("}", reduceIdx) + 200);
+		// Do NOT take the FIRST `@media (prefers-reduced-motion: reduce)`:
+		// component-scoped blocks (bubble shimmer) may precede the global
+		// one. Find the block that actually declares the global
+		// `*` / `*::before` / `*::after` clamp.
+		const anchor = css.indexOf("*::after");
+		expect(anchor).toBeGreaterThanOrEqual(0);
+		const start = css.lastIndexOf(
+			"@media (prefers-reduced-motion: reduce)",
+			anchor,
+		);
+		expect(start).toBeGreaterThanOrEqual(0);
+		const reduceBlock = css.slice(start, css.indexOf("}", start) + 400);
 		// The global selector list includes *::after, which matches the
 		// glow pseudo-element, the 0.01ms/1-iteration clamp settles it
 		// onto its base (static, dim) opacity instead of looping.
 		expect(reduceBlock).toContain("*::after");
 		expect(reduceBlock).toContain("animation-duration: 0.01ms");
 		expect(reduceBlock).toContain("animation-iteration-count: 1");
+	});
+
+	it("glows in the brand accent, not destructive (C-UI-12 reserves red for recording)", () => {
+		const rule = extractRule(".animate-glow-pulse::after");
+		expect(rule).toContain("var(--primary)");
+		// The idle mic button must not emit a red halo while NOT recording.
+		expect(rule).not.toContain("var(--destructive)");
 	});
 });

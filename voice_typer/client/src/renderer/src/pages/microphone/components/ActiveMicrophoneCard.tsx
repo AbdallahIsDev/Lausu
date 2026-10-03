@@ -118,7 +118,7 @@ export function ActiveMicrophoneCard({
 				// `LiveQualityFeedback`), the test controls row, the
 				// filter-invalidation notice, `TestReviewPanel` and the
 				// preset-selector wrapper.
-				"flex flex-col gap-3 rounded-lg border border-border/5 p-4 transition-colors",
+				"flex flex-col gap-3 rounded-lg border border-border/8 p-4 transition-colors",
 				"bg-surface-subtle",
 			)}
 		>

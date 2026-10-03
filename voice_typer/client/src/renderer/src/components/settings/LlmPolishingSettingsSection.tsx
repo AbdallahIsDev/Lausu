@@ -182,7 +182,7 @@ export const LlmPolishingSettingsSection = memo(
 				</GatedSettingRow>
 
 				{config.llm_polish && (
-					<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/5">
+					<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/8">
 						<GatedSettingRow
 							isVisible={isVisible}
 							sectionTitle={llmPolishingTitle}

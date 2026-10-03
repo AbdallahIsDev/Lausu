@@ -30,7 +30,7 @@
 //     the shared primitives: ``rounded-lg`` (matches the lg panel; the
 //     default rounded-lg read too round) + ``bg-input/25`` (the 50%
 //     wash was too visible on the bg panel). Match mode is the shared
-//     two-option ``SegmentedControl`` stacked vertically (label above,
+//     two-option ``ToggleGroup`` stacked vertically (label above,
 //     control below), same row layout as the trigger and output fields.
 //   - All spacing uses ``flex gap-`` instead of ``space-y-`` / margin
 //     utilities: each field group is a ``flex-col gap-2`` container,
@@ -47,8 +47,8 @@ import {
 import { InfoTooltip } from "@/components/feedback/InfoTooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 
@@ -218,7 +218,7 @@ export function TemplateDialog({
 					<span className="text-sm font-medium text-foreground">
 						{t("templates.matchMode")}
 					</span>
-					<SegmentedControl
+					<ToggleGroup
 						options={[
 							{ value: "exact", label: t("templates.exactMatch") },
 							{ value: "contains", label: t("templates.contains") },

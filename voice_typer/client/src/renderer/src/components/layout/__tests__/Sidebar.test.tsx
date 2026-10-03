@@ -72,9 +72,10 @@ describe("Sidebar", () => {
 		const activeButton = findNavButton("Home");
 		expect(activeButton).toBeTruthy();
 		const cls = activeButton?.className ?? "";
-		// Active leaf = the standard card treatment: the shared card
-		// border token at ~7% opacity (the border every card uses).
-		expect(cls).toContain("border-border/5");
+		// Active leaf = the standard card treatment: the shared border
+		// token at 10% (2026-10-02: #FFFFFF/10 in dark, #000000/10 in
+		// light — `border-border` carries both).
+		expect(cls).toContain("border-border/10");
 		// The legacy left-accent-bar borders are gone from ALL nav buttons.
 		expect(cls).not.toContain("border-s-2");
 		expect(cls).not.toContain("border-s-transparent");
@@ -106,7 +107,7 @@ describe("Sidebar", () => {
 		// ("settings") satisfies, section pages (e.g. "settingsPrivacy")
 		// render the leaf inactive-by-style with the tab stop only (see
 		// Sidebar.settings-leaf.test.tsx).
-		expect(cls).toContain("border-border/5");
+		expect(cls).toContain("border-border/10");
 		expect(cls).toContain("bg-surface");
 		expect(cls).toContain("text-foreground");
 		expect(cls).toContain("font-medium");
@@ -121,11 +122,12 @@ describe("Sidebar", () => {
 		const inactiveButton = findNavButton("History");
 		expect(inactiveButton).toBeTruthy();
 		const cls = inactiveButton?.className ?? "";
-		// Inactive leaves carry NO border token beyond the Button base's
-		// transparent border, the legacy border-s-2 alignment bar is gone.
+		// Inactive leaves carry the border at 0% (#FFFFFF/0 = transparent)
+		// and nothing else; the legacy border-s-2 alignment bar is gone.
+		expect(cls).toContain("border-transparent");
 		expect(cls).not.toContain("border-s-2");
 		expect(cls).not.toContain("border-s-transparent");
-		expect(cls).not.toContain("border-border/5");
+		expect(cls).not.toContain("border-border/10");
 		expect(cls).not.toContain("border-s-(--accent)");
 		expect(cls).not.toContain("bg-(--accent-soft)");
 		expect(cls).not.toContain("bg-surface");

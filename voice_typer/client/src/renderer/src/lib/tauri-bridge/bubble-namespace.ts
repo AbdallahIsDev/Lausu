@@ -154,11 +154,17 @@ export function createBubbleNamespace(
 				callback,
 			),
 
-		onSetState: (callback: (payload: string) => void) =>
-			makeListener<string>(
+		onSetState: (callback: (payload: unknown) => void) =>
+			makeListener<unknown>(
 				(handler) =>
-					tauri.event.listen<string>("bubble:set-state", (e) => {
-						handler(String(e.payload));
+					tauri.event.listen<unknown>("bubble:set-state", (e) => {
+						// Pass the payload through verbatim: it is the
+						// `{state, message?, transcript?,
+						// live_preview_supported?}` object the backend
+						// published. String() would collapse it to
+						// "[object Object]" and every setState would be
+						// ignored downstream.
+						handler(e.payload);
 					}),
 				callback,
 			),

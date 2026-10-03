@@ -80,13 +80,12 @@ describe("EC-12: Home.tsx extraction (subcomponents moved to ./home/)", () => {
 		expect(src).toContain("export function persistStats");
 	});
 
-	it("extracted status module declares normalizeHotkey / statusLabelFor / statusKeyFor", async () => {
+	it("extracted status module declares statusLabelFor / statusKeyFor", async () => {
 		const fs = await import("node:fs");
 		const src = fs.readFileSync(
 			"src/renderer/src/pages/home/lib/status.ts",
 			"utf8",
 		);
-		expect(src).toContain("export function normalizeHotkey");
 		expect(src).toContain("export function statusLabelFor");
 		expect(src).toContain("export function statusKeyFor");
 	});

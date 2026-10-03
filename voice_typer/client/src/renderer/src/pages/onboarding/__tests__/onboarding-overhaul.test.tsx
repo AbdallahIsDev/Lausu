@@ -352,7 +352,7 @@ describe("Model step rebuild (ONB-5)", () => {
 		});
 	});
 
-	it("direct ModelStep render shows the family accordion + SegmentedControl (Models-page parity)", () => {
+	it("direct ModelStep render shows the family accordion + ToggleGroup (Models-page parity)", () => {
 		renderWithProviders(
 			<ModelStep
 				headingRef={{ current: null }}
@@ -374,7 +374,7 @@ describe("Model step rebuild (ONB-5)", () => {
 			/>,
 		);
 
-		// SegmentedControl (Local / Cloud tabs).
+		// ToggleGroup (Local / Cloud tabs).
 		expect(screen.getByRole("tab", { name: "Local model" })).toBeTruthy();
 		expect(screen.getByRole("tab", { name: "Cloud API" })).toBeTruthy();
 

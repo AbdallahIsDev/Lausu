@@ -106,7 +106,7 @@ if (lsDesc === undefined || lsIsStub || ssDesc === undefined || ssIsStub) {
 }
 
 // Polyfill ResizeObserver for jsdom (used by
-// SegmentedControl to position the animated indicator).
+// ToggleGroup to position the animated indicator).
 // jsdom doesn't implement ResizeObserver, so we provide a minimal stub.
 if (typeof globalThis.ResizeObserver === "undefined") {
 	class ResizeObserverStub {

@@ -68,6 +68,24 @@ describe("Home page", () => {
 		expect(screen.getByText("F2")).toBeTruthy();
 	});
 
+	it("renders the config hotkey via formatHotkey (Caps Lock, not CAPS_LOCK)", async () => {
+		mockCall.mockImplementation((cmd: string) => {
+			if (cmd === "get_config") {
+				return Promise.resolve({ hotkey: "<caps_lock>", model_size: "tiny" });
+			}
+			return new Promise(() => {});
+		});
+		const { default: Home } = await import("@/pages/Home");
+		render(<TooltipProvider>{<Home />}</TooltipProvider>);
+
+		// formatHotkey maps <caps_lock> to the localized "Caps Lock"
+		// label (same as Settings / Help / tray). The old uppercase
+		// underscore form must not appear.
+		expect(await screen.findByText("Caps Lock")).toBeTruthy();
+		expect(screen.queryByText("CAPS_LOCK")).toBeNull();
+		expect(screen.queryByText("caps_lock")).toBeNull();
+	});
+
 	it("shows a spinner while initial data is loading", async () => {
 		// A never-resolving promise keeps `initialLoading` true forever,
 		// so the spinner sections stay mounted.

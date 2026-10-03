@@ -19,7 +19,6 @@ import { SettingRow } from "@/components/common/SettingRow";
 import { SettingsSection } from "@/components/common/SettingsSection";
 import { SunMoonIcon } from "@/components/common/SunMoonIcon";
 import { Input } from "@/components/ui/input";
-import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
 	Select,
 	SelectContent,
@@ -27,6 +26,7 @@ import {
 	SelectTrigger,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 import {
 	Tooltip,
 	TooltipContent,
@@ -280,7 +280,7 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 					label={colorSchemeLabel}
 					info={t("settings.appearance.colorSchemeInfo")}
 				>
-					<SegmentedControl
+					<ToggleGroup
 						options={themeOptions}
 						value={themeModeProp ?? config.theme_mode}
 						onChange={handleColorSchemeChange}
@@ -437,7 +437,7 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 							return (
 								<div
 									key={varName}
-									className="flex items-center gap-2.5 rounded-lg border border-border/5 bg-surface p-2"
+									className="flex items-center gap-2.5 rounded-lg border border-border/8 bg-surface p-2"
 								>
 									<div className="relative shrink-0">
 										<Input
@@ -448,7 +448,7 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 											aria-label={t("settings.appearance.colorAria", { label })}
 										/>
 										<div
-											className="h-8 w-8 rounded-lg border border-border/5 shadow-xs"
+											className="h-8 w-8 rounded-lg border border-border/8 shadow-xs"
 											style={{ backgroundColor: currentHex }}
 										/>
 									</div>
@@ -564,7 +564,7 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 						type="button"
 						disabled={customDraftIsDefault}
 						onClick={handleResetCustomColors}
-						className="w-full rounded-lg border border-border/5 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+						className="w-full rounded-lg border border-border/8 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
 					>
 						{t("settings.appearance.resetToDefaultColors")}
 					</button>

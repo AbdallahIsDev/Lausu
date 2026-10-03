@@ -145,7 +145,7 @@ export const AiEnhancementSettingsSection = memo(
 						title={aiSectionTitle}
 						description={t("settings.aiEnhancement.description")}
 					>
-						<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/5">
+						<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/8">
 							{/* ── Master toggle ── */}
 							<GatedSettingRow
 								isVisible={isVisible}
@@ -216,7 +216,7 @@ export const AiEnhancementSettingsSection = memo(
 						title={vocabSectionTitle}
 						description={t("settings.vocabAutomation.description")}
 					>
-						<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/5">
+						<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/8">
 							{/* ── Master toggle ── */}
 							<GatedSettingRow
 								isVisible={isVisible}

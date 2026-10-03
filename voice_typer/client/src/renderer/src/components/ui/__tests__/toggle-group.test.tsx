@@ -1,14 +1,14 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SegmentedControl } from "../segmented-control";
+import { ToggleGroup } from "../toggle-group";
 
 afterEach(() => {
 	cleanup();
 });
 
 // ── Shared test options (mutable arrays, don't use `as const` since
-// SegmentedControlOption<T>[] is mutable, and `as const` makes readonly tuples) ──
+// ToggleGroupOption<T>[] is mutable, and `as const` makes readonly tuples) ──
 
 const TWO_OPTIONS = [
 	{ value: "left", label: "Left" },
@@ -33,10 +33,10 @@ const SIX_OPTIONS = [
 
 // ── Default variant ──────────────────────────────────────────────────────────
 
-describe("SegmentedControl (default variant)", () => {
+describe("ToggleGroup (default variant)", () => {
 	it("renders all option labels", () => {
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={TWO_OPTIONS}
 				value="left"
 				onChange={() => {}}
@@ -50,7 +50,7 @@ describe("SegmentedControl (default variant)", () => {
 
 	it("marks the active option as checked", () => {
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={TWO_OPTIONS}
 				value="left"
 				onChange={() => {}}
@@ -71,7 +71,7 @@ describe("SegmentedControl (default variant)", () => {
 		const onChange = vi.fn();
 
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={TWO_OPTIONS}
 				value="left"
 				onChange={onChange}
@@ -89,7 +89,7 @@ describe("SegmentedControl (default variant)", () => {
 		const onChange = vi.fn();
 
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={TWO_OPTIONS}
 				value="left"
 				onChange={onChange}
@@ -104,10 +104,10 @@ describe("SegmentedControl (default variant)", () => {
 
 // ── Accessibility ────────────────────────────────────────────────────────────
 
-describe("SegmentedControl accessibility", () => {
+describe("ToggleGroup accessibility", () => {
 	it("has role radiogroup on the container", () => {
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={TWO_OPTIONS}
 				value="left"
 				onChange={() => {}}
@@ -124,7 +124,7 @@ describe("SegmentedControl accessibility", () => {
 		// Native <input type="radio"> uses the `checked` DOM property,
 		// not aria-checked. The `toBeChecked()` matcher tests this.
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={TWO_OPTIONS}
 				value="left"
 				onChange={() => {}}
@@ -141,7 +141,7 @@ describe("SegmentedControl accessibility", () => {
 
 	it("uses ariaLabel as the radio group name", () => {
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={TWO_OPTIONS}
 				value="left"
 				onChange={() => {}}
@@ -150,7 +150,7 @@ describe("SegmentedControl accessibility", () => {
 		);
 
 		const radios = screen.getAllByRole("radio");
-		// Each radio input has name={ariaLabel || \"segmented-control\"}
+		// Each radio input has name={ariaLabel || \"toggle-group\"}
 		for (const radio of radios) {
 			expect(radio).toHaveAttribute("name", "recording-mode");
 		}
@@ -159,7 +159,7 @@ describe("SegmentedControl accessibility", () => {
 
 // ── Generic type parameter ───────────────────────────────────────────────────
 
-describe("SegmentedControl generic type", () => {
+describe("ToggleGroup generic type", () => {
 	it("accepts a union type for value/onChange", () => {
 		// This is a compile-time check wrapped in a runtime assertion.
 		// If the generic type parameter didn't flow through correctly,
@@ -168,7 +168,7 @@ describe("SegmentedControl generic type", () => {
 
 		const onChange = vi.fn();
 		const { container } = render(
-			<SegmentedControl<MyValue>
+			<ToggleGroup<MyValue>
 				options={[
 					{ value: "foo", label: "Foo" },
 					{ value: "bar", label: "Bar" },
@@ -187,12 +187,12 @@ describe("SegmentedControl generic type", () => {
 
 // ── Variable number of options ───────────────────────────────────────────────
 
-describe("SegmentedControl with many options", () => {
+describe("ToggleGroup with many options", () => {
 	it("renders 6 options without issue", () => {
 		const onChange = vi.fn();
 
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={SIX_OPTIONS}
 				value="c"
 				onChange={onChange}
@@ -212,7 +212,7 @@ describe("SegmentedControl with many options", () => {
 		const onChange = vi.fn();
 
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={SIX_OPTIONS}
 				value="a"
 				onChange={onChange}
@@ -239,13 +239,13 @@ describe("SegmentedControl with many options", () => {
 // - ArrowLeft on the FIRST option is a no-op (no wrapping)
 // - Works identically in the tabs variant
 
-describe("SegmentedControl keyboard navigation", () => {
+describe("ToggleGroup keyboard navigation", () => {
 	it("moves forward with ArrowRight from the first option", async () => {
 		const user = userEvent.setup();
 		const onChange = vi.fn();
 
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={FOUR_OPTIONS}
 				value="one"
 				onChange={onChange}
@@ -266,7 +266,7 @@ describe("SegmentedControl keyboard navigation", () => {
 		const onChange = vi.fn();
 
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={FOUR_OPTIONS}
 				value="three"
 				onChange={onChange}
@@ -287,7 +287,7 @@ describe("SegmentedControl keyboard navigation", () => {
 		const onChange = vi.fn();
 
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={FOUR_OPTIONS}
 				value="four"
 				onChange={onChange}
@@ -308,7 +308,7 @@ describe("SegmentedControl keyboard navigation", () => {
 		const onChange = vi.fn();
 
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={FOUR_OPTIONS}
 				value="one"
 				onChange={onChange}
@@ -327,10 +327,10 @@ describe("SegmentedControl keyboard navigation", () => {
 
 // ── Tabs variant ────────────────────────────────────────────────────────────
 
-describe("SegmentedControl tabs variant", () => {
+describe("ToggleGroup tabs variant", () => {
 	it("active label uses text-foreground instead of text-primary-foreground", () => {
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				variant="tabs"
 				options={TWO_OPTIONS}
 				value="left"
@@ -353,7 +353,7 @@ describe("SegmentedControl tabs variant", () => {
 		// active tab is reachable via Tab; inactive tabs require
 		// ArrowLeft/ArrowRight to focus.
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				variant="tabs"
 				options={FOUR_OPTIONS}
 				value="two"
@@ -374,7 +374,7 @@ describe("SegmentedControl tabs variant", () => {
 		// aria-controls pointing at the matching panel id (so
 		// screen readers can jump from tab → panel).
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				variant="tabs"
 				options={TWO_OPTIONS}
 				value="left"
@@ -395,7 +395,7 @@ describe("SegmentedControl tabs variant", () => {
 		const onChange = vi.fn();
 
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				variant="tabs"
 				options={TWO_OPTIONS}
 				value="left"
@@ -409,7 +409,7 @@ describe("SegmentedControl tabs variant", () => {
 	});
 	it("appends extra className to the container", () => {
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={TWO_OPTIONS}
 				value="left"
 				onChange={() => {}}

@@ -8,10 +8,6 @@
 import { t } from "@/i18n/i18n";
 import type { RecordingState } from "@/types/ipc";
 
-export function normalizeHotkey(raw: string): string {
-	return raw.replace(/[<>]/g, "").toUpperCase();
-}
-
 export function statusLabelFor(key: string): string {
 	switch (key) {
 		case "recording":

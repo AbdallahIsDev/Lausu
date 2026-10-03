@@ -92,7 +92,7 @@ export function PunctuationCheatSheet({
 			data-testid="punctuation-cheat-sheet"
 			aria-labelledby="punctuation-cheat-sheet-title"
 			className={cn(
-				"flex flex-col gap-3 border-t border-border/5 pt-4",
+				"flex flex-col gap-3 border-t border-border/8 pt-4",
 				className,
 			)}
 		>

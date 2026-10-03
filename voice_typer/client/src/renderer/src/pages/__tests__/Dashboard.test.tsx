@@ -281,7 +281,7 @@ describe("Dashboard noDataDescription interpolates {hotkey} from config", () => 
 		// so the shortcut renders as keycaps (C-UI-1) rather than raw
 		// config syntax (`<caps_lock>`).
 		expect(DASHBOARD_SRC).toMatch(
-			/noDataDescription",\s*\{\s*hotkey:\s*NO_DATA_HOTKEY_MARKER\s*\}\)[\s\S]*?configRaw\?\.hotkey\s*\|\|\s*"F2"/,
+			/noDataDescription",\s*\{\s*hotkey:\s*NO_DATA_HOTKEY_MARKER\s*\}\)[\s\S]*?formatHotkey\(configRaw\?\.hotkey\s*\|\|\s*"F2"\)/,
 		);
 		// The marker is rendered through HotkeyChips, not as plain text.
 		expect(DASHBOARD_SRC).toMatch(/renderNoDataDescription\(/);

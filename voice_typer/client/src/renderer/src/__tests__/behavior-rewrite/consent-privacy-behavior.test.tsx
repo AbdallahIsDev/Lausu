@@ -762,7 +762,7 @@ describe("Models page, cloud consent toggles", () => {
 
 		// Switch to the Cloud Models tab, the cloud consent
 		// Switches (apiKeys[provider.key] gate) only render there.
-		// The SegmentedControl renders each option as a radio with
+		// The ToggleGroup renders each option as a radio with
 		// a clickable label.
 		if (switchToCloudTab) {
 			// Query the TAB by role, the panel heading inside the

@@ -134,7 +134,7 @@ export default function TemplatesPage() {
 	// backend connectivity problem.
 	if (loadError && templates.length === 0) {
 		return (
-			<div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-28 pb-6">
+			<div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
 				<PageHeading
 					title={t("templates.title")}
 					description={t("templates.description")}
@@ -153,7 +153,7 @@ export default function TemplatesPage() {
 
 	return (
 		<>
-			<div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-28 pb-6">
+			<div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
 				{/* Heading, then the toolbar on its OWN full-width row BELOW
                                     it (not inside PageHeading's children slot), mirrors
                                     the Vocabulary page layout exactly. */}
@@ -213,7 +213,7 @@ export default function TemplatesPage() {
 							/>
 						) : (
 							<>
-								<div className="overflow-clip rounded-lg border border-border/5 bg-surface-subtle">
+								<div className="overflow-clip rounded-lg border border-border/8 bg-surface-subtle">
 									{/* Shared column-header shell, keys + the
                                                                                 page-unique testid are injected.
                                                                                 visibleIds is capped at displayCount to
@@ -230,7 +230,7 @@ export default function TemplatesPage() {
 										secondaryColumnKey="templates.columnOutput"
 										actionsColumnKey="templates.columnActions"
 									/>
-									<div className="divide-y divide-border/5">
+									<div className="divide-y divide-border/8">
 										{filteredSortedTemplates
 											.slice(0, displayCount)
 											.map((row) => (

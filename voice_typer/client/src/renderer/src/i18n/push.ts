@@ -61,6 +61,10 @@ export function trayLabelsForLocale(): Record<string, string> {
 			"trayState.recordingController.loadingQueued",
 		],
 		[
+			"state.recording_controller.awaiting_model",
+			"trayState.recordingController.awaitingModel",
+		],
+		[
 			"state.recording_controller.starting_up",
 			"trayState.recordingController.startingUp",
 		],

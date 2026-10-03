@@ -156,8 +156,8 @@ describe("useStatsShare.ts: every console.info must be DEV-gated", () => {
 		const ungated = analysis.filter((entry) => !entry.gated);
 		if (ungated.length > 0) {
 			throw new Error(
-				`found ${ungated.length} ungated console.info call(s) ` +
-					`in useStatsShare.ts at line(s): ${ungated.map((u) => u.line).join(", ")}. ` +
+				`found ${ungated.length} ungated console.info calls ` +
+					`in useStatsShare.ts at lines: ${ungated.map((u) => u.line).join(", ")}. ` +
 					`Every console.info must be wrapped in \`if (import.meta.env.DEV) { ... }\` ` +
 					`so user-data shape (offsetWidth / dimensions / dataUrl prefix) is not leaked ` +
 					`to the renderer DevTools console of the packaged app.`,

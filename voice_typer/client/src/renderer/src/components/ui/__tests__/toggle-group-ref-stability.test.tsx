@@ -1,6 +1,6 @@
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SegmentedControl } from "../segmented-control";
+import { ToggleGroup } from "../toggle-group";
 
 // Spy-backed ResizeObserver mock. We track `.observe()` and `.disconnect()`
 // calls so we can assert the ref callback is stable. The constructor also
@@ -66,10 +66,10 @@ function mockMeasureRects(
 	}
 }
 
-describe("SegmentedControl container ref callback stability", () => {
+describe("ToggleGroup container ref callback stability", () => {
 	it("calls ResizeObserver.observe exactly once on mount", () => {
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={OPTIONS}
 				value="a"
 				onChange={() => {}}
@@ -91,7 +91,7 @@ describe("SegmentedControl container ref callback stability", () => {
 		// keeps the identity stable across value-stable re-renders, so
 		// neither `disconnect()` nor `observe()` should fire.
 		const { rerender } = render(
-			<SegmentedControl
+			<ToggleGroup
 				options={OPTIONS}
 				value="a"
 				onChange={() => {}}
@@ -104,7 +104,7 @@ describe("SegmentedControl container ref callback stability", () => {
 		// Re-render with the same value and same props. Parent re-rendered
 		// for some unrelated reason (e.g. its own state changed).
 		rerender(
-			<SegmentedControl
+			<ToggleGroup
 				options={OPTIONS}
 				value="a"
 				onChange={() => {}}
@@ -118,7 +118,7 @@ describe("SegmentedControl container ref callback stability", () => {
 
 		// A second value-stable re-render should also not trigger observe().
 		rerender(
-			<SegmentedControl
+			<ToggleGroup
 				options={OPTIONS}
 				value="a"
 				onChange={() => {}}
@@ -137,7 +137,7 @@ describe("SegmentedControl container ref callback stability", () => {
 		// is what caused the thrash). On unmount, React runs the effect
 		// cleanup → `disconnect()` is called exactly once.
 		const { unmount } = render(
-			<SegmentedControl
+			<ToggleGroup
 				options={OPTIONS}
 				value="a"
 				onChange={() => {}}
@@ -156,7 +156,7 @@ describe("SegmentedControl container ref callback stability", () => {
 		// Same behaviour must hold for variant="tabs", the container
 		// <div> is the same element, just with role="tablist".
 		const { rerender } = render(
-			<SegmentedControl
+			<ToggleGroup
 				variant="tabs"
 				options={OPTIONS}
 				value="a"
@@ -168,7 +168,7 @@ describe("SegmentedControl container ref callback stability", () => {
 		expect(observeSpy).toHaveBeenCalledTimes(1);
 
 		rerender(
-			<SegmentedControl
+			<ToggleGroup
 				variant="tabs"
 				options={OPTIONS}
 				value="a"
@@ -182,7 +182,7 @@ describe("SegmentedControl container ref callback stability", () => {
 	});
 });
 
-describe("SegmentedControl per-option label ref stability + value-change behaviour", () => {
+describe("ToggleGroup per-option label ref stability + value-change behaviour", () => {
 	it("keeps per-option label ref callbacks stable across re-renders (no ref attach/detach churn)", () => {
 		// A fresh inline closure per option per render (what an
 		// un-memoized `getLabelRef(opt.value)` produces) makes React call
@@ -191,7 +191,7 @@ describe("SegmentedControl per-option label ref stability + value-change behavio
 		// callbacks, React does not re-invoke the refs at all, so the
 		// label Map performs ZERO writes during a re-render.
 		const { rerender } = render(
-			<SegmentedControl
+			<ToggleGroup
 				options={OPTIONS}
 				value="a"
 				onChange={() => {}}
@@ -202,7 +202,7 @@ describe("SegmentedControl per-option label ref stability + value-change behavio
 		const setSpy = vi.spyOn(Map.prototype, "set");
 		try {
 			rerender(
-				<SegmentedControl
+				<ToggleGroup
 					options={OPTIONS}
 					value="a"
 					onChange={() => {}}
@@ -228,7 +228,7 @@ describe("SegmentedControl per-option label ref stability + value-change behavio
 		// `value` closure (reading it from a ref inside the observer) keeps
 		// the container ref identity stable across value changes.
 		const { rerender } = render(
-			<SegmentedControl
+			<ToggleGroup
 				options={OPTIONS}
 				value="a"
 				onChange={() => {}}
@@ -238,7 +238,7 @@ describe("SegmentedControl per-option label ref stability + value-change behavio
 		expect(observeSpy).toHaveBeenCalledTimes(1);
 
 		rerender(
-			<SegmentedControl
+			<ToggleGroup
 				options={OPTIONS}
 				value="b"
 				onChange={() => {}}
@@ -255,7 +255,7 @@ describe("SegmentedControl per-option label ref stability + value-change behavio
 		// re-measure must not be lost when the container ref stops churning.
 		// Distinct rects: option "a" at left 0, option "b" at left 48.
 		const { rerender, container } = render(
-			<SegmentedControl
+			<ToggleGroup
 				options={OPTIONS}
 				value="a"
 				onChange={() => {}}
@@ -266,14 +266,14 @@ describe("SegmentedControl per-option label ref stability + value-change behavio
 		// The indicator element only mounts once the first measurement
 		// lands (async rAF), wait for it before asserting positions.
 		await waitFor(() =>
-			expect(container.querySelector(".bg-primary")).toBeTruthy(),
+			expect(container.querySelector(".bg-surface")).toBeTruthy(),
 		);
-		const indicator = container.querySelector<HTMLElement>(".bg-primary");
+		const indicator = container.querySelector<HTMLElement>(".bg-surface");
 		expect(indicator).toBeTruthy();
 		await waitFor(() => expect(indicator?.style.left).toBe("0px"));
 
 		rerender(
-			<SegmentedControl
+			<ToggleGroup
 				options={OPTIONS}
 				value="b"
 				onChange={() => {}}
@@ -292,7 +292,7 @@ describe("SegmentedControl per-option label ref stability + value-change behavio
 		// on the STALE (initial) option. Reading the latest value from a
 		// ref keeps the observer correct for the component's whole life.
 		const { rerender, container } = render(
-			<SegmentedControl
+			<ToggleGroup
 				options={OPTIONS}
 				value="a"
 				onChange={() => {}}
@@ -301,15 +301,15 @@ describe("SegmentedControl per-option label ref stability + value-change behavio
 		);
 		mockMeasureRects(container, { 0: 0, 1: 48 });
 		await waitFor(() =>
-			expect(container.querySelector(".bg-primary")).toBeTruthy(),
+			expect(container.querySelector(".bg-surface")).toBeTruthy(),
 		);
-		const indicator = container.querySelector<HTMLElement>(".bg-primary");
+		const indicator = container.querySelector<HTMLElement>(".bg-surface");
 		expect(indicator).toBeTruthy();
 
 		// Move to "b" (external value change), then fire the observer
 		// callback as a real resize would.
 		rerender(
-			<SegmentedControl
+			<ToggleGroup
 				options={OPTIONS}
 				value="b"
 				onChange={() => {}}
@@ -345,20 +345,20 @@ describe("SegmentedControl per-option label ref stability + value-change behavio
 			onChange: () => {},
 			ariaLabel: "dynamic-options",
 		};
-		const { rerender, container } = render(<SegmentedControl {...props} />);
+		const { rerender, container } = render(<ToggleGroup {...props} />);
 		await waitFor(() =>
-			expect(container.querySelector(".bg-primary")).toBeTruthy(),
+			expect(container.querySelector(".bg-surface")).toBeTruthy(),
 		);
 		mockMeasureRects(container, { 0: 0, 1: 48 });
 
 		// Add option "c" (left 96), select it, then remove it again.
-		rerender(<SegmentedControl {...props} options={threeOptions} value="c" />);
+		rerender(<ToggleGroup {...props} options={threeOptions} value="c" />);
 		mockMeasureRects(container, { 0: 0, 1: 48, 2: 96 });
-		const indicator = container.querySelector<HTMLElement>(".bg-primary");
+		const indicator = container.querySelector<HTMLElement>(".bg-surface");
 		expect(indicator).toBeTruthy();
 		await waitFor(() => expect(indicator?.style.left).toBe("96px"));
 
-		rerender(<SegmentedControl {...props} options={OPTIONS} value="a" />);
+		rerender(<ToggleGroup {...props} options={OPTIONS} value="a" />);
 		await waitFor(() => expect(indicator?.style.left).toBe("0px"));
 	});
 });

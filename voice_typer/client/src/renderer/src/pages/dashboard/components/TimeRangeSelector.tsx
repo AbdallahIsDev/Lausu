@@ -2,10 +2,10 @@
 // A single control (Today / 7 Days / 30 Days / All Time) that drives
 // the stat cards AND the activity chart together, no more "each card
 // silently uses a different fixed window". Built on the shared
-// SegmentedControl (role="radiogroup", keyboard accessible, animated
+// ToggleGroup (role="radiogroup", keyboard accessible, animated
 // indicator).
 
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 import { t } from "@/i18n/i18n";
 
 import type { RangeId } from "../lib/streaks";
@@ -19,7 +19,7 @@ interface TimeRangeSelectorProps {
 
 export function TimeRangeSelector({ value, onChange }: TimeRangeSelectorProps) {
 	return (
-		<SegmentedControl
+		<ToggleGroup
 			options={RANGES.map((r) => ({
 				value: r,
 				label: t(`analytics.range.${r}`),
@@ -29,7 +29,7 @@ export function TimeRangeSelector({ value, onChange }: TimeRangeSelectorProps) {
 			ariaLabel={t("analytics.rangeAria")}
 			// Fully rounded (pill), container AND active segment use
 			// full radius so the control reads as one soft capsule
-			// (SegmentedControl `radius` prop default).
+			// (ToggleGroup `radius` prop default).
 			radius="pill"
 		/>
 	);

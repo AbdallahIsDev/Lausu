@@ -133,8 +133,10 @@ export interface BubbleWindowExtras {
 	onConfig: (cb: (cfg: Record<string, unknown>) => void) => () => void;
 	//bubble renderer listens for `bubble:set-state` events
 	// pushed by the Rust WS reader task (see sidecar/ws.rs
-	// `translate_event_name`).
-	onSetState: (cb: (state: string) => void) => () => void;
+	// `translate_event_name`). Payload is the published object
+	// (`{state, message?, transcript?, live_preview_supported?}`),
+	// passed through verbatim, never stringified.
+	onSetState: (cb: (payload: unknown) => void) => () => void;
 	// eliminating the transparent dead zone around the bubble.
 	resizeTo: (width: number, height: number) => void;
 	// notify the host that the bubble's exit animation has

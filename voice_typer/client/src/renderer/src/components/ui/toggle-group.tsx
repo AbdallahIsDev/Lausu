@@ -4,11 +4,25 @@ import { cn } from "#utils";
 import { getLocale, isRtlLocale } from "@/i18n/i18n";
 
 /**
- * Single-select pill/tabs control with sliding active indicator.
+ * ToggleGroup, the single-select pill control (formerly
+ * `SegmentedControl`; renamed 2026-10-02 because "segmented" described
+ * the implementation, not the job: it is one setting with two or three
+ * mutually exclusive values). Used site-wide for exactly that, e.g.
+ * Bubble Behavior / Bubble Position / Local-Cloud.
+ *
+ * Visual language (2026-10-02, adopted from the settings explorations
+ * mockup): a recessed track at 10% — `bg-border/10` is #000000/10 in
+ * light and #FFFFFF/10 in dark, because the border token flips with the
+ * scheme — and the selected option is a *raised surface* pill
+ * (`bg-surface` + `shadow-xs` + `text-foreground`), NOT an
+ * accent-filled pill. Keeping the selection neutral leaves the accent
+ * colour for committed actions (buttons, links) instead of spending it
+ * on a resting control state.
+ *
  * role="radiogroup"; options are role="radio". C-MODELS-1: tabs variant
  * must NOT re-add border-none (cancels container border).
  */
-export interface SegmentedControlOption<T extends string> {
+export interface ToggleGroupOption<T extends string> {
 	/** Stored value (e.g. ``"toggle"``). */
 	value: T;
 	/** Visible label. */
@@ -21,9 +35,9 @@ export interface SegmentedControlOption<T extends string> {
 	title?: string;
 }
 
-export interface SegmentedControlProps<T extends string> {
+export interface ToggleGroupProps<T extends string> {
 	/** Array of options to render. */
-	options: SegmentedControlOption<T>[];
+	options: ToggleGroupOption<T>[];
 	/** Currently-selected value. */
 	value: T;
 	/** Called with the new value when the user clicks an option. */
@@ -40,7 +54,7 @@ export interface SegmentedControlProps<T extends string> {
 	getTabId?: (value: T) => string;
 	getPanelId?: (value: T) => string;
 }
-export function SegmentedControl<T extends string>({
+export function ToggleGroup<T extends string>({
 	options,
 	value,
 	onChange,
@@ -53,17 +67,15 @@ export function SegmentedControl<T extends string>({
 	labelClassName,
 	getTabId,
 	getPanelId,
-}: SegmentedControlProps<T>) {
+}: ToggleGroupProps<T>) {
 	const isTabs = variant === "tabs";
 	if (process.env.NODE_ENV !== "production") {
 		if (!ariaLabel) {
-			console.warn("[renderer:SegmentedControl] `ariaLabel` is missing");
+			console.warn("[renderer:ToggleGroup] `ariaLabel` is missing");
 		}
 		for (const opt of options) {
 			if (!opt.label && !opt.title) {
-				console.warn(
-					"[renderer:SegmentedControl] icon-only option missing `title`",
-				);
+				console.warn("[renderer:ToggleGroup] icon-only option missing `title`");
 				break;
 			}
 		}
@@ -279,8 +291,8 @@ export function SegmentedControl<T extends string>({
 				"relative inline-flex items-center",
 				variant === "default" &&
 					(radius === "sm"
-						? "rounded-lg border border-border/5 bg-background p-0.5"
-						: "rounded-full border border-border/5 bg-background p-0.75"),
+						? "rounded-lg border border-border/8 bg-border/10 p-0.5"
+						: "rounded-full border border-border/8 bg-border/10 p-0.75"),
 				variant === "tabs" && "bg-transparent rounded-none p-1",
 				className,
 			)}
@@ -295,8 +307,8 @@ export function SegmentedControl<T extends string>({
 						// calc(--radius - inset)), never the same rounded-lg.
 						variant === "default" &&
 							(radius === "sm"
-								? "inset-y-0.5 rounded-[calc(var(--radius)-0.125rem)] bg-primary shadow-xs"
-								: "inset-y-0.75 rounded-full bg-primary shadow-xs"),
+								? "inset-y-0.5 rounded-[calc(var(--radius)-0.125rem)] bg-surface shadow-xs"
+								: "inset-y-0.75 rounded-full bg-surface shadow-xs"),
 						variant === "tabs" &&
 							"inset-y-1 rounded-[calc(var(--radius)-0.25rem)] bg-input",
 						indicatorClassName,
@@ -389,7 +401,7 @@ export function SegmentedControl<T extends string>({
 							"relative z-10 cursor-pointer font-normal outline-hidden transition-colors duration-150",
 							"select-none whitespace-nowrap inline-flex items-center justify-center gap-1",
 							// A11Y-1: visible focus indicator on the wrapping label so keyboard
-							// users see which segmented-control option has focus (the inner
+							// users see which toggle-group option has focus (the inner
 							// <input type="radio" class="sr-only"> owns the focus, so we use
 							// has-[:focus-visible] to style the parent label).
 							"has-focus-visible:ring-1has-focus-visible:ring-ring has-focus-visible:outline-hidden",
@@ -398,7 +410,7 @@ export function SegmentedControl<T extends string>({
 									? "rounded-lg px-2.5 py-1 text-[0.6875rem] tracking-wider"
 									: "rounded-full px-2 py-1 text-[0.6875rem] tracking-wider"),
 							labelClassName,
-							active && ["text-primary-foreground", activeClassName],
+							active && ["text-foreground", activeClassName],
 							!active && "text-muted-foreground hover:text-foreground",
 						)}
 					>
@@ -406,10 +418,10 @@ export function SegmentedControl<T extends string>({
 							type="radio"
 							// Stable useId-derived name so radio inputs within the
 							// same control toggle as a group without the legacy
-							// collision-prone literal "segmented-control".
+							// collision-prone literal "toggle-group".
 							name={
 								ariaLabel ||
-								`segmented-control-${baseId.replace(/[^a-zA-Z0-9]/g, "")}`
+								`toggle-group-${baseId.replace(/[^a-zA-Z0-9]/g, "")}`
 							}
 							checked={active}
 							onChange={handleRadioChange}
