@@ -516,6 +516,13 @@ jobs:
           # ./Cargo.lock".
           working-directory: src-tauri
 
+      # The tauri build script rejects missing externalBin + resource files
+      # (`src-tauri/bin/` + `src-tauri/resources/native/` are gitignored).
+      # Without stubs `cargo clippy` fails with `resource path ... doesn't
+      # exist` instead of reporting lints.
+      - name: Stub sidecar + native binaries (for clippy)
+        run: python3 scripts/gen_tauri_icons_stub.py
+
       # Every lint in Cargo.toml [lints.clippy] is `warn`, so this reports
       # without failing. It is an advisory gate that makes the existing
       # configuration visible; promoting it to a hard gate needs a measured
