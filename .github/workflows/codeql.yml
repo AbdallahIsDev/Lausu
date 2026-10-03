@@ -98,6 +98,21 @@ jobs:
           # Required input (newer v1 errors without it).
           toolchain: stable
 
+      # The tauri build script rejects missing externalBin files, and
+      # `bin/` is gitignored (real binaries are built at release).
+      # Stub just the host-triple pair so `cargo check` gets past the
+      # manifest gate (resources/ + icons/ are tracked, nothing to do).
+      - name: Stub sidecar binaries (for cargo check)
+        if: matrix.language == 'rust'
+        working-directory: src-tauri
+        run: |
+          set -euo pipefail
+          TRIPLE="$(rustc -vV | sed -n 's/^host: //p')"
+          mkdir -p bin
+          for f in "bin/python-sidecar-${TRIPLE}" "bin/lausu-worker-${TRIPLE}"; do
+            [ -f "$f" ] || { echo '#!/bin/sh' > "$f"; chmod +x "$f"; }
+          done
+
       # The Tauri host links GTK sys crates; without headers the
       # CodeQL `cargo check` build dies on gdk-3.0. Same list as the
       # Linux smoke job; other languages skip it.
