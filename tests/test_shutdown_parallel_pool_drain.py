@@ -193,17 +193,20 @@ class TestParallelPoolDrain:
             f"early-bookend batch must contain 'ws_readonly_pool.drain'; got {descs}"
         )
         assert "ws_encode_pool.drain" in descs, f"early-bookend batch must contain 'ws_encode_pool.drain'; got {descs}"
-        # Timeouts: ipc_server.stop has a 2.0s hard ceiling (PERF-
+        # Timeouts: ipc_server.stop outer (4.0s) must exceed the inner
+        # graceful-close bound (~3s) so a slow close warns only on real
+        # overruns; readonly outer (3.0s) must exceed its inner 2.5s join
+        # (which itself exceeds a 2s dead-peer send stall).
         timeouts = {desc: timeout for desc, _func, timeout in early_bookend}
-        assert timeouts["ipc_server.stop"] == 2.0, (
-            f"ipc_server.stop must have timeout=2.0 (hard ceiling after PERF-SHUTDOWN-002); "
+        assert timeouts["ipc_server.stop"] == 4.0, (
+            f"ipc_server.stop must have timeout=4.0 (outer must exceed the ~3s graceful-close bound); "
             f"got {timeouts['ipc_server.stop']}"
         )
         assert timeouts["ws_dispatch_pool.drain"] == 5.0, (
             f"ws_dispatch_pool.drain must have timeout=5.0; got {timeouts['ws_dispatch_pool.drain']}"
         )
-        assert timeouts["ws_readonly_pool.drain"] == 2.5, (
-            f"ws_readonly_pool.drain must have timeout=2.5 (tight budget, short-lived status reads); "
+        assert timeouts["ws_readonly_pool.drain"] == 3.0, (
+            f"ws_readonly_pool.drain must have timeout=3.0 (outer must exceed the 2.5s inner join); "
             f"got {timeouts['ws_readonly_pool.drain']}"
         )
         assert timeouts["ws_encode_pool.drain"] == 2.0, (

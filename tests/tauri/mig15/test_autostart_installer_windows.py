@@ -86,7 +86,7 @@ def test_task_scheduler_xml_uses_logon_trigger_no_elevation():
         "'UserId incorrectly formatted'"
     )
 
-    # Action: the app launcher directly (no cmd.exe wrapper).
+    # the app launcher directly (no cmd.exe wrapper).
     command = root.find("ms:Actions/ms:Exec/ms:Command", _TASK_NS)
     assert command is not None, "must have an Exec/Command action"
     assert command.text, "Command must be non-empty"

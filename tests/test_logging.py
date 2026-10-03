@@ -94,7 +94,7 @@ def test_file_formatter_exact_line_shape_is_timestamp_level_message() -> None:
         level=logging.INFO,
         pathname=__file__,
         lineno=1,
-        msg="Lausu starting -- model=small.en",
+        msg="Lausu starting | model=small.en",
         args=(),
         exc_info=None,
     )
@@ -115,7 +115,7 @@ def test_file_formatter_exact_line_shape_is_timestamp_level_message() -> None:
     assert "voice_typer.server.app" not in line
     assert "main" not in line
     # 3) The message text is preserved verbatim at the end of the line.
-    assert line.endswith("Lausu starting -- model=small.en")
+    assert line.endswith("Lausu starting | model=small.en")
     # 4) Clean timestamp: space-separated, no T separator, no tz offset.
     ts, _, _ = line.partition("  ")
     assert "T" not in ts and "+" not in ts and not ts.endswith("Z")

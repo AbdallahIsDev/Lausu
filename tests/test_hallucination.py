@@ -32,7 +32,7 @@ LOGGER_NAME = "voice_typer.server.hallucination"
     ],
     ids=["email", "phone", "ssn", "credit-card"],
 )
-def test_cr87_log_transcriptions_true_applies_same_redaction_as_filter(caplog, text, marker):
+def test_log_transcriptions_true_applies_same_redaction_as_filter(caplog, text, marker):
     """when ``log_transcriptions=True``, the rejected text is"""
     with caplog.at_level(logging.WARNING, logger=LOGGER_NAME):
         log_hallucination_rejection("[TEST]", text, reason="hallucination", log_transcriptions=True)
@@ -47,7 +47,7 @@ def test_cr87_log_transcriptions_true_applies_same_redaction_as_filter(caplog, t
             )
 
 
-def test_cr87_uses_redact_pii_helper_not_logrecord(caplog):
+def test_uses_redact_pii_helper_not_logrecord(caplog):
     """must NOT construct a ``logging.LogRecord`` + ``PIIRedactionFilter``"""
     with (
         patch("voice_typer.server.security.redact_pii", return_value="[REDACTED]") as mock_redact,
@@ -66,7 +66,7 @@ def test_cr87_uses_redact_pii_helper_not_logrecord(caplog):
     assert "[REDACTED]" in caplog.text
 
 
-def test_cr87_truncation_to_40_chars_after_redaction(caplog):
+def test_truncation_to_40_chars_after_redaction(caplog):
     """``_HALLUCINATION_LOG_MAX_CHARS`` (40) AFTER redaction. The redaction"""
     # 225 chars (45-char phrase × 5), no PII, no 20+ char bare-token run.
     long_text = "the quick brown fox jumps over the lazy dog. " * 5
@@ -96,7 +96,7 @@ def test_cr87_truncation_to_40_chars_after_redaction(caplog):
     )
 
 
-def test_cr87_pii_at_truncation_boundary_is_fully_redacted(caplog):
+def test_pii_at_truncation_boundary_is_fully_redacted(caplog):
     """regression guard: if a PII pattern straddles the 40-char"""
     # Position the email so that char 40 falls in the middle of it.
     text = "x" * 30 + "user@example.com"
@@ -111,7 +111,7 @@ def test_cr87_pii_at_truncation_boundary_is_fully_redacted(caplog):
     assert "[EMAIL]" in msg, f"redaction token [EMAIL] must appear for input email; got: {msg!r}"
 
 
-def test_cr87_fallback_to_sentinel_if_redact_pii_raises(caplog):
+def test_fallback_to_sentinel_if_redact_pii_raises(caplog):
     """/ HU-14: if ``security.redact_pii`` raises at runtime"""
     # Patch redact_pii to raise, simulates a broken security module.
     secret_text = "user@example.com with secret content"

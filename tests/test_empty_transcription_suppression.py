@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from unittest.mock import MagicMock
 
 from voice_typer.server.dictation_pipeline import DictationPipeline
@@ -227,6 +228,182 @@ class TestAsrRegistryUnloadedBackendDiagnostic:
         assert result is loaded_backend
         unload_warnings = [r for r in caplog.records if "no loaded backend available" in r.getMessage()]
         assert not unload_warnings, "Loaded backend must NOT trigger the no-loaded-backend warning"
+
+
+class TestAsrRegistryUnloadedBackendSeverity:
+    """An unloaded backend is only a WARNING when it is genuinely unexpected.
+
+    ``get_active()`` runs on passive status polls as well as real transcription,
+    so an unconditional WARN made every app launch (model still warming in the
+    background) and every deliberate idle-unload look like a failure.
+    """
+
+    # ``voice_typer/server/asr/registry.py`` uses ``getLogger(__name__)``, so the
+    # emitting logger is ``voice_typer.server.asr.registry``. Naming the facade
+    # module instead leaves DEBUG filtered out by the parent logger's level.
+    LOGGER = "voice_typer.server.asr.registry"
+
+    @staticmethod
+    def _registry_with_unloaded_whisper():
+        from voice_typer.server.asr_registry import AsrBackendRegistry
+
+        class _Config:
+            asr_backend = "whisper"
+
+        registry = AsrBackendRegistry(_Config())
+        backend = MagicMock()
+        backend.is_loaded = False
+        registry.register("whisper", backend)
+        return registry
+
+    def test_expected_unload_logs_debug_not_warning(self, caplog):
+        """Gate says the unload was deliberate -> quiet, no WARN."""
+        registry = self._registry_with_unloaded_whisper()
+        registry.set_last_resort_event_gate(lambda name: True)
+
+        with caplog.at_level(logging.DEBUG, logger=self.LOGGER):
+            result = registry.get_active()
+
+        assert result is None, "Fail-loud contract is unchanged"
+        warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
+        assert not warnings, (
+            f"an expected (deliberately unloaded) backend must not warn: "
+            f"{[r.getMessage() for r in warnings]}"
+        )
+        assert any("expected" in r.getMessage() for r in caplog.records), (
+            "the expected-unload case should still be traceable at DEBUG"
+        )
+
+    def test_expected_unload_does_not_notify(self, caplog):
+        """No tray notification for an expected unload (gate suppresses it)."""
+        registry = self._registry_with_unloaded_whisper()
+        seen: list[str] = []
+        registry.add_last_resort_subscriber(seen.append)
+        registry.set_last_resort_event_gate(lambda name: True)
+
+        with caplog.at_level(logging.DEBUG, logger=self.LOGGER):
+            registry.get_active()
+
+        assert not seen, f"expected unload must not raise a notification, got {seen}"
+
+    def test_unexpected_unload_still_warns(self, caplog):
+        """No gate (a real, unexplained unload) must keep the loud warning."""
+        registry = self._registry_with_unloaded_whisper()
+
+        with caplog.at_level(logging.WARNING, logger=self.LOGGER):
+            registry.get_active()
+
+        assert any(
+            "no loaded backend available" in r.getMessage() for r in caplog.records
+        ), "an unexpected unload must still warn so a genuine failure stands out"
+
+    def test_warning_does_not_claim_transcription_was_attempted(self, caplog):
+        """The old wording claimed a dictation failed; the caller may be a poll."""
+        registry = self._registry_with_unloaded_whisper()
+
+        with caplog.at_level(logging.WARNING, logger=self.LOGGER):
+            registry.get_active()
+
+        messages = [r.getMessage() for r in caplog.records]
+        assert not any("transcription not attempted" in m for m in messages), (
+            "the message must not assert a transcription attempt that a passive "
+            "status poll never made"
+        )
+
+    def test_raising_gate_fails_closed_and_warns(self, caplog):
+        """A broken gate must not be able to hide a genuine alert."""
+        registry = self._registry_with_unloaded_whisper()
+
+        def boom(name):
+            raise RuntimeError("gate exploded")
+
+        registry.set_last_resort_event_gate(boom)
+
+        with caplog.at_level(logging.WARNING, logger=self.LOGGER):
+            registry.get_active()
+
+        assert any(
+            "no loaded backend available" in r.getMessage() for r in caplog.records
+        ), "a raising gate must fail closed (keep the warning)"
+
+
+class TestWaitForActiveEngineLoaded:
+    """The transcribe path must WAIT for an in-flight load, not give up.
+
+    Dictation that ends while the model is still loading (app warm-up, or an
+    idle-unload reload started by the hotkey press) used to discard the
+    recording. ``_lazy_init_lock`` is the single serialization point for every
+    engine load, so waiting on it recovers the engine.
+    """
+
+    @staticmethod
+    def _manager(lock: threading.Lock, engine: object | None):
+        from voice_typer.server.model_manager import ModelManager
+
+        mgr = object.__new__(ModelManager)
+        mgr._lazy_init_lock = lock
+        mgr._registry = MagicMock()
+        mgr._registry.get_active.return_value = engine
+        return mgr
+
+    def test_returns_immediately_when_already_loaded(self):
+        engine = MagicMock()
+        engine.is_loaded = True
+        mgr = self._manager(threading.Lock(), engine)
+
+        assert mgr.wait_for_active_engine_loaded(timeout=5.0) is engine
+        # Never blocks: the lock was free and must still be free afterwards.
+        assert mgr._lazy_init_lock.acquire(blocking=False)
+
+    def test_returns_none_when_nothing_is_loading(self):
+        """No load in flight -> None at once, so the caller still errors fast."""
+        engine = MagicMock()
+        engine.is_loaded = False
+        mgr = self._manager(threading.Lock(), engine)
+
+        assert mgr.wait_for_active_engine_loaded(timeout=5.0) is None
+
+    def test_waits_for_in_flight_load_then_returns_engine(self):
+        """The regression: the lock is held by a loader; the wait must block
+        until it releases, then hand back the freshly loaded engine."""
+        lock = threading.Lock()
+        engine = MagicMock()
+        engine.is_loaded = False
+        mgr = self._manager(lock, engine)
+
+        def _loader() -> None:
+            # Mimic ensure_active_engine_loaded: hold the lock across the load.
+            with lock:
+                time.sleep(0.4)
+                engine.is_loaded = True
+
+        thread = threading.Thread(target=_loader, daemon=True)
+        thread.start()
+        time.sleep(0.05)  # let the loader take the lock
+        assert not lock.acquire(blocking=False), "loader should hold the lock"
+
+        start = time.monotonic()
+        result = mgr.wait_for_active_engine_loaded(timeout=5.0)
+        elapsed = time.monotonic() - start
+
+        assert result is engine, "must return the engine once the load lands"
+        assert elapsed >= 0.2, f"must actually block for the load, waited {elapsed:.2f}s"
+        thread.join(timeout=5)
+
+    def test_wait_timeout_is_bounded(self):
+        """A permanently held lock must not hang the transcription worker."""
+        lock = threading.Lock()
+        engine = MagicMock()
+        engine.is_loaded = False
+        mgr = self._manager(lock, engine)
+
+        assert lock.acquire(blocking=False)
+        try:
+            start = time.monotonic()
+            assert mgr.wait_for_active_engine_loaded(timeout=0.2) is None
+            assert time.monotonic() - start < 3.0
+        finally:
+            lock.release()
 
 
 class TestCancelledCycleEmptyHandling:

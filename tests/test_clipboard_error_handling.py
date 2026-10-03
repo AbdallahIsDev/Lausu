@@ -34,7 +34,7 @@ def fake_win32_empty():
 
 
 class TestWin32EmptyNarrowedException:
-    """AP-27: ``empty()`` narrows to ``(OSError, AttributeError)`` + DEBUG log."""
+    """``empty()`` narrows to ``(OSError, AttributeError)`` + DEBUG log."""
 
     def test_empty_returns_false_and_logs_debug_on_oserror(self, fake_win32_empty):
         """logs at DEBUG with ``exc_info=True``."""
@@ -264,7 +264,7 @@ class TestSignalRegistrationBroadExceptLogs:
 
 
 class TestLinuxTimeoutExpiredReraise:
-    """AP-31: ``_linux_wayland_copy`` / ``_linux_wayland_paste`` /"""
+    """``_linux_wayland_copy`` / ``_linux_wayland_paste`` /"""
 
     def test_linux_wayland_copy_reraises_timeout_expired(self):
         """When subprocess.run raises TimeoutExpired, _linux_wayland_copy"""
@@ -332,7 +332,7 @@ class TestLinuxTimeoutExpiredReraise:
         mock_run.assert_not_called()
 
     def test_caller_linux_copy_still_catches_timeout_via_exception(self):
-        """Integration: ``_linux_copy`` catches the re-raised"""
+        """``_linux_copy`` catches the re-raised"""
         timeout_exc = subprocess.TimeoutExpired(cmd="wl-copy", timeout=5)
 
         # Force the Wayland path: _is_wayland_session True + _have_wl_clipboard True.

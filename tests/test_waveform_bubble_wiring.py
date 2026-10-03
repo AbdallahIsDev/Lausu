@@ -183,6 +183,29 @@ class TestWorkerLifecycle:
         worker.join(timeout=2.0)
         assert not worker.is_alive(), "worker did not exit within 2s after sentinel was enqueued"
 
+    def test_stop_drops_queued_levels(self, wiring):
+        """Levels queued at stop time must NOT be published (stale UI
+        state; delivering them burns time on a dying transport)."""
+        import uuid
+
+        from voice_typer.server import event_bus
+
+        sent: list = []
+        event_bus.subscribe(sent.append)
+        wiring._wire_waveform_bubble()
+        # Stop FIRST so every wake path below lands on a stopping worker.
+        wiring._bubble_level_worker_stop.set()
+        probe = {"type": "bubble_level", "data": {"probe": uuid.uuid4().hex}}
+        wiring._bubble_level_queue.put_nowait(probe)
+        with contextlib.suppress(queue.Full):
+            wiring._bubble_level_queue.put_nowait(None)
+        wiring.stop()
+        assert not wiring._bubble_level_worker.is_alive()
+        assert all(
+            not isinstance(m, dict) or m.get("data", {}).get("probe") != probe["data"]["probe"]
+            for m in sent
+        ), "queued level must be dropped on stop, not published"
+
 
 class TestBoundedQueue:
     """The ``on_level`` callback must drop samples when the queue is full."""

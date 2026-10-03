@@ -59,7 +59,7 @@ def _make_service(tmp_path: Path):
 
 
 class TestGetVocabularyReusesLiveManager:
-    """IN-31: ``get_vocabulary`` must reuse the live"""
+    """``get_vocabulary`` must reuse the live"""
 
     def test_get_vocabulary_uses_live_vocabulary_manager(self, tmp_path):
         """The returned data must reflect mutations made to the LIVE"""

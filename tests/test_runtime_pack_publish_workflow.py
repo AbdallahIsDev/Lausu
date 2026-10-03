@@ -220,3 +220,112 @@ class TestSigningContract:
         assert "UNSIGNED by design" in workflow_text, (
             "the Linux worker is intentionally unsigned (ADR-0020 §13.3) — keep the comment"
         )
+
+
+class TestFetchableAssetContract:
+    """The workflow's release assets must match what update_check.py fetches.
+
+    A published pack is only useful if the silent downloader can construct
+    its URL from the manifest. These pins keep the two sides in lockstep.
+    """
+
+    def test_workflow_emits_pack_manifest_and_alias(self, workflow_text: str):
+        assert "pack-manifest.json" in workflow_text
+        assert "pack-${PACK_VERSION}.zip" in workflow_text, (
+            "the publish job must upload pack-<version>.zip — the exact asset "
+            "name update_check.py builds from the manifest version"
+        )
+
+    def test_workflow_publishes_rolling_offline_pack_tag(self, workflow_text: str):
+        """releases/latest moves on any app release; the rolling tag is the
+        stable fallback the downloader also probes."""
+        assert "offline-pack" in workflow_text, (
+            "the workflow must also publish the rolling `offline-pack` tag so "
+            "update_check.py's ROLLING_OFFLINE_PACK_MANIFEST_URL stays valid "
+            "after app-only releases"
+        )
+        assert "publish_pack_release.py" in workflow_text
+
+    def test_downloader_pack_asset_name_matches_workflow_alias(self, workflow_text: str):
+        import re as _re
+
+        from voice_typer.server.service import update_check
+
+        # update_check builds pack-{manifest['version']}.zip from the
+        # manifest URL's directory. The workflow must emit the same name.
+        assert _re.search(r"pack-\$\{PACK_VERSION\}\.zip", workflow_text), (
+            "workflow alias name must be pack-${PACK_VERSION}.zip to match "
+            "update_check.py's pack-{version}.zip construction"
+        )
+        # The manifest URL path ends in pack-manifest.json; the downloader
+        # strips that filename and appends the pack asset name.
+        for url in (
+            update_check.DEFAULT_OFFLINE_PACK_MANIFEST_URL,
+            update_check.ROLLING_OFFLINE_PACK_MANIFEST_URL,
+        ):
+            assert url.endswith("/pack-manifest.json"), url
+
+    def test_local_pipeline_produces_fetchable_names(self, tmp_path):
+        """Dry-run artifact_names + build_pack_manifest end-to-end.
+
+        Proves the publish path can produce a fetchable pack artifact
+        locally (no GitHub write). The names must match §11.9 and the
+        manifest must be loadable by the downloader's schema.
+        """
+        import importlib.util
+        import zipfile
+
+        root = Path(__file__).resolve().parents[1]
+
+        def _load(name: str, rel: str):
+            spec = importlib.util.spec_from_file_location(name, root / rel)
+            assert spec is not None and spec.loader is not None
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+
+        artifact_names = _load("_vt_an", "scripts/build/artifact_names.py")
+        bpm = _load("_vt_bpm", "scripts/release/build_pack_manifest.py")
+
+        pack_version = "3"
+        triple = "x86_64-pc-windows-msvc"
+        zip_name = artifact_names.runtime_pack_name(pack_version, triple)
+        assert zip_name == f"lausu-runtime-pack-{pack_version}-{triple}.zip"
+
+        worker_name = f"lausu-worker-{triple}.exe"
+        worker = tmp_path / worker_name
+        worker.write_bytes(b"fake-worker-binary")
+        zip_path = tmp_path / zip_name
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.write(worker, arcname=worker_name)
+
+        manifest_path = tmp_path / "pack-manifest.json"
+        manifest = bpm.build_pack_manifest(zip_path, version=pack_version)
+        bpm.write_pack_manifest(manifest, manifest_path)
+        assert manifest_path.is_file()
+
+        # The downloader's schema must accept this manifest.
+        from voice_typer.server.service import offline_pack
+
+        loaded = offline_pack.load_offline_pack_manifest(manifest_path)
+        assert loaded is not None, "publisher-emitted manifest failed client validation"
+        assert loaded["version"] == pack_version
+
+        # Alias the workflow copies: pack-<version>.zip
+        alias = tmp_path / f"pack-{pack_version}.zip"
+        alias.write_bytes(zip_path.read_bytes())
+        assert alias.is_file()
+
+        # URL construction the downloader performs after fetching the
+        # manifest from .../download/pack-manifest.json.
+        from urllib.parse import urlparse
+
+        from voice_typer.server.service import update_check
+
+        manifest_url = update_check.DEFAULT_OFFLINE_PACK_MANIFEST_URL
+        parsed = urlparse(manifest_url)
+        dir_path = parsed.path.rsplit("/", 1)[0]
+        pack_url = f"{parsed.scheme}://{parsed.netloc}{dir_path}/pack-{loaded['version']}.zip"
+        assert pack_url.endswith(f"/pack-{pack_version}.zip")
+        assert pack_url.startswith("https://github.com/")
+

@@ -100,7 +100,7 @@ def _init_rs_source() -> str:
     return LOGGING_INIT_RS.read_text(encoding="utf-8")
 
 
-def test_pi7_openoptions_mode_0o600_present_in_write_line_level() -> None:
+def test_openoptions_mode_0o600_present_in_write_line_level():
     """``mode(0o600)`` must be present in the file's file-open path."""
     src = _rotating_rs_source()
     assert re.search(r"\.mode\(0o600\)", src), (
@@ -110,7 +110,7 @@ def test_pi7_openoptions_mode_0o600_present_in_write_line_level() -> None:
     )
 
 
-def test_pi7_chmod_0o600_belt_and_suspenders_in_write_line_level() -> None:
+def test_chmod_0o600_belt_and_suspenders_in_write_line_level():
     """The rotating writer must chmod the log file to ``0o600`` (belt-and-suspenders)."""
     src = _rotating_rs_source()
     # The belt-and-suspenders `set_permissions(..., 0o600)` call must be
@@ -126,7 +126,7 @@ def test_pi7_chmod_0o600_belt_and_suspenders_in_write_line_level() -> None:
     )
 
 
-def test_pi7_chmod_0o700_on_logs_dir_in_init_file_logger() -> None:
+def test_chmod_0o700_on_logs_dir_in_init_file_logger():
     """``init_file_logger`` must chmod the ``<config_dir>/logs/`` dir to ``0o700``."""
     src = _init_rs_source()
     # Slice the init_file_logger function body.
@@ -154,7 +154,7 @@ def test_pi7_chmod_0o700_on_logs_dir_in_init_file_logger() -> None:
     )
 
 
-def test_pi7_unix_cfg_gates_present() -> None:
+def test_unix_cfg_gates_present():
     """All ``mode(...)`` + ``set_permissions(... 0o6XX)`` calls must be ``#[cfg(unix)]``-gated."""
     src = _rotating_rs_source() + "\n" + _init_rs_source()
     # Count `#[cfg(unix)]` attribute lines (allow indented forms).
@@ -197,7 +197,7 @@ def _cargo_available() -> bool:
     not _cargo_available(),
     reason="cargo not available, source-parsing layer (above) is the only guard",
 )
-def test_pi7_rust_unit_test_log_file_mode_0o600_passes() -> None:
+def test_rust_unit_test_log_file_mode_0o600_passes():
     """Run the Rust unit test ``test_rotating_file_writer_log_file_mode_is_0o600_on_posix``."""
     cargo = shutil.which("cargo")
     assert cargo is not None  # belt-and-suspenders (skipif above)

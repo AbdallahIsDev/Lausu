@@ -72,7 +72,7 @@ class TestForceCancelTranscription:
 
 
 class TestCloudErrorMapping:
-    """PI-17: when the service raises a typed ``CloudEngineError``"""
+    """when the service raises a typed ``CloudEngineError``"""
 
     def test_cloud_auth_error_maps_to_specific_code(self, ipc_server, fake_service):
         """A ``CloudAuthError`` from the service produces"""

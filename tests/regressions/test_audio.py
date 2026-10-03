@@ -45,7 +45,7 @@ class TestAudioCallbackUsesMinimalLockScope:
                 with rec._audio_pipeline._lock:
                     rec._audio_pipeline._buffer.append(indata.copy())
                     rec._audio_pipeline._chunk_count += 1
-                    # RACE-003: snapshot _recent_rms_values inside the lock
+                    # snapshot _recent_rms_values inside the lock
                     _ = list(rec._recent_rms_values)
             except Exception as e:
                 errors.append(e)
@@ -75,7 +75,7 @@ class TestAudioCallbackUsesMinimalLockScope:
         # The lock block must include buffer.append and _chunk_count.
         assert "_buf.append(filtered)" in src
         assert "self._chunk_count" in src
-        # RACE-003: the recent_rms snapshot is now read inside
+        # the recent_rms snapshot is now read inside
 
 
 class TestRecentRmsSingleWordStore:

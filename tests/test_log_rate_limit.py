@@ -367,7 +367,7 @@ def test_integration_with_real_logger_and_caplog(caplog):
 # 8. : periodic INFO summary for chronic suppressed conditions ──
 
 
-class TestGt66PeriodicInfoSummary:
+class TestPeriodicInfoSummaryWhenCountersChange:
     """wall-clock time, if any counter incremented >0 since the last"""
 
     def test_first_suppressed_occurrence_does_not_emit_summary(self, caplog):
@@ -691,7 +691,7 @@ class TestEviction:
 # 10. : summary severity tracks caller's configured level ──────
 
 
-class TestUe16SummarySeverity:
+class TestSummarySeverity:
     """UE-16: the GT-66 summary severity is ``max(logging.INFO, level)``"""
 
     def _force_summary(self, monkeypatch, caplog, level: int, msg: str):

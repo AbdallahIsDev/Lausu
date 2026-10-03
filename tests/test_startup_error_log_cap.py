@@ -108,7 +108,7 @@ class TestStartupErrorLogOverwrite:
             "diagnostics through write_startup_diagnostic(...) (EC-8): "
             "one construction call (the shared helper) + one for the "
             "ws-startup thread's app.start()-failure site. "
-            f"Found {_ENTRYPOINT_MODULE_DIAGNOSTIC_CALLS} occurrence(s)."
+            f"Found {_ENTRYPOINT_MODULE_DIAGNOSTIC_CALLS} occurrences."
         )
 
 

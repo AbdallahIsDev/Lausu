@@ -301,7 +301,7 @@ class TestApplyConfigStepExtraction:
             "SEC-002 regression: apply_config contains no raise statement; the unknown-key hard fail was removed."
         )
 
-    def test_race011_lock_acquisition_stays_on_outer_method(self):
+    def test_lock_acquisition_stays_on_outer_method(self):
         """``apply_config``, not delegated to a helper that a caller could"""
         import inspect
         import textwrap

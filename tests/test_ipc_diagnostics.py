@@ -28,7 +28,7 @@ def diag_dir(tmp_path: Path) -> Path:
     return tmp_path / "config"
 
 
-class TestGt14CriticalLevel:
+class TestDiagnosticWriteUsesCriticalLevel:
     """diagnostic-write logs must use ``CRITICAL``, not ``ERROR``,"""
 
     def test_successful_write_logs_at_critical(self, diag_dir: Path, caplog: pytest.LogCaptureFixture) -> None:
@@ -416,11 +416,11 @@ class TestHeaderPreservation:
         assert "--- custom-phase failed at" in written_payloads[0]
 
 
-class TestPi12TmpFallbackOverwrite:
+class TestTmpFallbackOverwrite:
     """create, refuses to clobber an existing file). With ``O_EXCL``, if"""
 
     def test_second_consecutive_crash_dump_overwrites_first(self, diag_dir: Path, tmp_path: Path, monkeypatch) -> None:
-        """PI-12: two consecutive calls to ``write_startup_diagnostic``"""
+        """two consecutive calls to ``write_startup_diagnostic``"""
         # Redirect tempfile.gettempdir to tmp_path so the fallback file
         monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
 

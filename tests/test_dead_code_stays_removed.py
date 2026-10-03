@@ -675,7 +675,7 @@ class TestExtendUrlAllowlistIsWired:
         offender_files: set[str] = set()
 
         for py_file in voice_typer_dir.rglob("*.py"):
-            # Skip the function's own definition file(s): the former
+            # Skip the function's own definition files: the former
             if py_file.name == "_secrets.py" or py_file.name == "url_allowlist.py":
                 continue
             try:

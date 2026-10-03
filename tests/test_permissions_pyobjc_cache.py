@@ -113,7 +113,7 @@ class TestPyobjcCacheAvailablePath:
         with patch.object(permissions, "_PYOBJC_AVAILABLE", True):
             # Simulate AVFoundation missing despite cache saying available.
             with patch("builtins.__import__", side_effect=__import__):
-                # Actually: we need to make the AVFoundation import fail.
+                # we need to make the AVFoundation import fail.
                 import sys
 
                 original = sys.modules.get("AVFoundation")

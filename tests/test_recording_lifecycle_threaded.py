@@ -79,7 +79,7 @@ def _wire_public_entry_chain(app: MagicMock, controller: MagicMock) -> None:
     app.models._model_load_thread = None
 
 
-class TestFastF2ReturnDuringModelReload:
+class TestDispatchThreadReturnsDuringModelReload:
     """The F2 dispatch thread returns long before the simulated reload"""
 
     def test_f2_returns_before_load_completes_when_model_reload_in_flight(self) -> None:

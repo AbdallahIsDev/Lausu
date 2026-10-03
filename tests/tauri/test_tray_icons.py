@@ -145,7 +145,7 @@ def test_python_icon_map_matches_rust_whitelist() -> None:
     whitelist = _rust_whitelist()
     unknown = set(_APP_STATE_TO_ICON_NAME.values()) - whitelist
     assert not unknown, (
-        f"tray_publish._APP_STATE_TO_ICON_NAME sends icon name(s) {sorted(unknown)} "
+        f"tray_publish._APP_STATE_TO_ICON_NAME sends icon names {sorted(unknown)} "
         f"that the Rust host whitelist ({sorted(whitelist)}) does not accept, "
         "the tray icon would freeze at its last state. Add the name to "
         "ALLOWED_ICON_NAMES (tray_tests.rs / icon_cache.rs) + commit a tray PNG."

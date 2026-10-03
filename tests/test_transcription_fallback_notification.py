@@ -72,9 +72,12 @@ class TestFallbackPublishesBeforeReload:
 
         assert result == "transcribed"
         # Publish must land AFTER classification and BEFORE the model
-        assert order == ["inner", "classify", "publish", "beam", "reload", "inner"], f"unexpected call order: {order}"
-        assert len(published) == 1
-        event = published[0]
+        assert order == ["inner", "classify", "publish", "publish", "beam", "reload", "inner"], (
+            f"unexpected call order: {order}"
+        )
+        assert len(published) == 2
+        assert published[0] == {"type": "config_changed", "data": {"device": "cpu"}}
+        event = published[1]
         assert event["type"] == "gpu_cpu_fallback"
         assert event["data"]["device"] == "cpu"
         reason = event["data"]["reason"]
@@ -98,8 +101,9 @@ class TestFallbackPublishesBeforeReload:
         with pytest.raises(RuntimeError):
             with_gpu_fallback(engine, always_failing, b"audio")
 
-        assert len(recorded_publish) == 1
-        assert recorded_publish[0]["data"]["reason"] == long_message[:200]
+        assert len(recorded_publish) == 2
+        assert recorded_publish[0] == {"type": "config_changed", "data": {"device": "cpu"}}
+        assert recorded_publish[1]["data"]["reason"] == long_message[:200]
 
     def test_non_gpu_error_never_publishes(self, recorded_publish):
         from voice_typer.worker.whisper.fallback import with_gpu_fallback

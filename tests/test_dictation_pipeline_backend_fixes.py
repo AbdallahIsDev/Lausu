@@ -342,6 +342,9 @@ class TestCaptureActiveOnce:
         app = _TestApp()
         app.recording.pop_streaming_session.return_value = None
         app.models.active_transcriber.return_value = None
+        # The transcribe path now waits out an in-flight load before giving up,
+        # so "no engine" means BOTH probes come back empty.
+        app.models.wait_for_active_engine_loaded.return_value = None
 
         pipeline = _new_pipeline(app)
         fake_session = MagicMock()

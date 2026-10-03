@@ -22,7 +22,7 @@ def _miss_records(caplog: pytest.LogCaptureFixture) -> list:
 class TestProbeCacheQuietMiss:
     def test_incomplete_snapshot_logs_concise_line_without_traceback(self, caplog):
         def fake_snapshot(**kwargs):
-            raise IncompleteSnapshotError("cached snapshot is incomplete: 1 file(s) missing", snapshot_path="/x")
+            raise IncompleteSnapshotError("cached snapshot is incomplete: 1 files missing", snapshot_path="/x")
 
         with caplog.at_level(logging.DEBUG, logger=_LOGGER):
             local_dir, integrity_failed = td.probe_cache(object(), fake_snapshot, "org/repo", "main", [], "tiny")
@@ -63,7 +63,7 @@ class TestSnapshotCompleteQuietMiss:
 
         def fake_snapshot(**kwargs):
             raise IncompleteSnapshotError(
-                "The cached snapshot is incomplete: 1 file(s) are missing "
+                "The cached snapshot is incomplete: 1 files are missing "
                 "(vocabulary.json). Outgoing traffic is disabled ('local_files_only=True').",
                 snapshot_path=str(repo_dir),
             )

@@ -78,7 +78,7 @@ async def test_authenticate_refuses_when_ipc_token_env_unset(monkeypatch):
     accepted = await sw._authenticate(ws)
 
     assert accepted is False, "must reject when VOICE_TYPER_IPC_TOKEN is unset"
-    # Critical: the sidecar must NOT read a frame off the wire when the
+    # the sidecar must NOT read a frame off the wire when the
     ws.recv.assert_not_awaited()
 
 

@@ -101,7 +101,7 @@ class TestProbeCudaRuntime:
         assert cuda_engine._reload_under_lock.call_count == 1, (
             "_reload_under_lock must be called exactly once on cuBLAS fallback."
         )
-        # HU-25: the RACE-023 deferred release must be armed so the next
+        # the RACE-023 deferred release must be armed so the next
         assert cuda_engine._pending_gc_collect is True, "cuBLAS fallback must set _pending_gc_collect = True (HU-25)"
 
     def test_probe_cuda_runtime_non_cuda_error_propagates(self, cuda_engine):

@@ -132,7 +132,7 @@ def test_disable_autostart_linux_removes_desktop_file(linux_platform):
     assert sp.enable_autostart() is True
     assert linux_platform.desktop_path.is_file()
 
-    # Act: disable.
+    # disable.
     result = sp.disable_autostart()
 
     # Assert.

@@ -144,8 +144,8 @@ def test_read_loop_uses_rate_cap() -> None:
 def test_writer_send_timeout_constant_exists() -> None:
     """The WS send timeout constant must exist on the module."""
     assert hasattr(sidecar_ws, "_WS_SEND_TIMEOUT_SECONDS"), "_WS_SEND_TIMEOUT_SECONDS constant must exist on sidecar_ws"
-    assert sidecar_ws._WS_SEND_TIMEOUT_SECONDS == 5.0, (
-        f"_WS_SEND_TIMEOUT_SECONDS must be 5.0; got {sidecar_ws._WS_SEND_TIMEOUT_SECONDS}"
+    assert sidecar_ws._WS_SEND_TIMEOUT_SECONDS == 2.0, (
+        f"_WS_SEND_TIMEOUT_SECONDS must be 2.0; got {sidecar_ws._WS_SEND_TIMEOUT_SECONDS}"
     )
 
 

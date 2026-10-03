@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 
-class TestValidatePathSafetyCr17:
+class TestValidatePathSafetyRejectsTraversal:
     """Pin the fix: prefix-match bug must not regress."""
 
     def test_sibling_prefix_is_rejected(self):

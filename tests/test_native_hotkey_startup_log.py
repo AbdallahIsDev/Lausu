@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from voice_typer.server import native_hotkeys
 from voice_typer.server.native_hotkeys import binary_path
+from voice_typer.server.native_hotkeys._reader import _strip_canonical_diag_timestamp
 
 
 @pytest.fixture(autouse=True)
@@ -78,6 +79,24 @@ class TestDiagnosticLinesRecognized:
         backend = _make_windows_backend()
         backend._handle_line("READY")
         assert backend._ready_event.is_set() is True
+
+    def test_diag_timestamp_stripped_from_logged_diagnostic(self, caplog):
+        backend = _make_windows_backend()
+        with caplog.at_level(logging.DEBUG):
+            caplog.clear()
+            backend._handle_line(_STARTUP_LINES[0])
+        diag = [r for r in caplog.records if "binary diagnostic" in r.getMessage()]
+        assert diag, "diagnostic line must be logged"
+        logged = diag[0].getMessage()
+        assert _STARTUP_LINES[0].split("  INFO  ")[1] in logged
+        assert "2026-09-18" not in logged
+
+    def test_strip_canonical_diag_timestamp_only_strips_canonical_prefix(self):
+        assert (
+            _strip_canonical_diag_timestamp("2026-09-18  12:00:00  INFO  keyboard hook installed")
+            == "keyboard hook installed"
+        )
+        assert _strip_canonical_diag_timestamp("keyboard hook installed") == "keyboard hook installed"
 
     def test_truly_unknown_lines_still_logged(self, caplog):
         backend = _make_windows_backend()

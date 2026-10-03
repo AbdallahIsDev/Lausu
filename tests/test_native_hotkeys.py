@@ -841,7 +841,7 @@ class TestWatchdogRespawnRace:
         b.stop = tracking_stop
         b.start = lambda cb: start_calls.append(cb)
 
-        # Race simulation: the main thread called stop() (shutdown=True)
+        # the main thread called stop() (shutdown=True)
         b._shutdown_requested = True
 
         # Run the watchdog loop inline (deterministic, no real thread).

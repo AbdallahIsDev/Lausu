@@ -36,6 +36,7 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "bubble_position",
         "bubble_scale",
         "bubble_show_on_startup",
+        "bubble_show_recording_timer",
         "bubble_x",
         "bubble_y",
         "clipboard_restore_delay_ms",
@@ -153,15 +154,14 @@ class TestAllowlistSnapshot:
     """SEC-002 byte-for-byte parity for ``IPC_CONFIG_ALLOWLIST``."""
 
     def test_allowlist_size_unchanged(self) -> None:
-        """The allowlist must still contain exactly 127 keys."""
-        assert len(IPC_CONFIG_ALLOWLIST) == 127, (
-            f"IPC_CONFIG_ALLOWLIST size drifted: expected 127, got {len(IPC_CONFIG_ALLOWLIST)}. "
+        """The allowlist must still contain exactly 128 keys."""
+        assert len(IPC_CONFIG_ALLOWLIST) == 128, (
+            f"IPC_CONFIG_ALLOWLIST size drifted: expected 128, got {len(IPC_CONFIG_ALLOWLIST)}. "
             "SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a "
             "security-sensitive change that must be reviewed explicitly. "
-            "Latest reviewed growth: 126 → 127, `media_url_consent` "
-            "(ADR-0023 media-to-text URL consent gate; the renderer's "
-            "ConsentGateDialog / C-MIC-3 point-of-use flow toggles exactly "
-            "this key)."
+            "Latest reviewed growth: 127 → 128, `bubble_show_recording_timer` "
+            "(user-approved bubble timer toggle; OverlaySettingsSection switch "
+            "writes it, Bubble.tsx reads it)."
         )
 
     def test_allowlist_keys_match_frozen_snapshot(self) -> None:

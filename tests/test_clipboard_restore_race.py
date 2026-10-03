@@ -112,7 +112,7 @@ class TestAtexitVsDaemonSameSnapshot:
         assert mock_restore.call_count == 1
 
     def test_concurrent_atexit_and_daemon_never_double_restore(self):
-        """Race ordering (C): atexit and the daemon contend on the lock."""
+        """atexit and the daemon contend on the lock."""
         cm = make_clipboard_manager()
         snap = make_clipboard_snapshot()
         entry = (cm, snap, "the dictation", 0.0)

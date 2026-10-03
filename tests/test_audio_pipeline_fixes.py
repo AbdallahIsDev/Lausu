@@ -90,6 +90,69 @@ def _make_vad_recorder_stub() -> MagicMock:
     return recorder
 
 
+def _make_autostop_pipeline(stop_on_silence: float) -> AudioPipeline:
+    """Pipeline whose recorder has a live silence run in progress."""
+    recorder = _make_vad_recorder_stub()
+    recorder._cached_stop_on_silence = stop_on_silence
+    # A silence run already in progress, so the elapsed timer is real.
+    recorder._silence_start_time = 50.0
+    return AudioPipeline(recorder)
+
+
+def _run_autostop(stop_on_silence: float, monkeypatch: pytest.MonkeyPatch) -> list[bool]:
+    """Drive the real state machine in sustained silence; report auto-stop."""
+    from voice_typer.server.recording import audio_pipeline as ap_mod
+
+    # Sustained silence is vad_update's job (covered by its own tests); stub
+    # only that so this exercises the auto-stop threshold, not the hysteresis.
+    monkeypatch.setattr(ap_mod, "vad_update", lambda *a, **k: ap_mod.VadState.SILENCE)
+
+    pipeline = _make_autostop_pipeline(stop_on_silence)
+    fired: list[bool] = []
+    pipeline.run_vad_state_machine(
+        filtered=np.zeros(4, dtype=np.float32),
+        chunk_rms=0.0,
+        chunk_duration=0.01,
+        perf_ts=100.0,
+        chunk_count=1,
+        buffer_len=1000,
+        recording_start=0.0,
+        silence_warning_cb=None,
+        silence_auto_stop_cb=lambda: fired.append(True),
+        max_duration_cb=None,
+    )
+    return fired
+
+
+class TestSilenceAutoStopThreshold:
+    """``stop_on_silence_seconds`` semantics.
+
+    VAD now always runs, so auto-stop is reachable regardless of the audio
+    preset and ``0`` is the way to opt out of it. ``0`` previously compared
+    ``>=`` against a ``0`` timer and stopped recording on the first chunk.
+    """
+
+    def test_zero_disables_auto_stop(self, monkeypatch):
+        assert _run_autostop(0.0, monkeypatch) == [], (
+            "stop_on_silence_seconds=0 must disable auto-stop, not fire instantly"
+        )
+
+    def test_negative_disables_auto_stop(self, monkeypatch):
+        assert _run_autostop(-1.0, monkeypatch) == [], (
+            "a negative threshold must never fire"
+        )
+
+    def test_elapsed_silence_fires_auto_stop(self, monkeypatch):
+        # 50s of silence elapsed against a 60s threshold: not yet.
+        assert _run_autostop(60.0, monkeypatch) == [], (
+            "must not fire before the threshold elapses"
+        )
+        # Same elapsed silence against a 10s threshold: must fire.
+        assert _run_autostop(10.0, monkeypatch) == [True], (
+            "a threshold below the elapsed silence must trigger auto-stop"
+        )
+
+
 def _make_process_chunk_pipeline_stub() -> AudioPipeline:
     """``process_audio_chunk`` tests."""
     recorder = MagicMock(name="RecorderStub")

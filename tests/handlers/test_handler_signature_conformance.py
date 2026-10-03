@@ -162,7 +162,7 @@ class TestNoLegacyHandlerAnnotation:
                 if "data: dict | None" in signature or "resp: dict) -> dict | None" in signature:
                     offenders.append(f"{path.name}:{index + 1}")
         assert not offenders, (
-            "handler signature(s) still use the legacy `dict` annotation style "
+            "handler signatures still use the legacy `dict` annotation style "
             f"(use `object | None` / `ResponseEnvelope`): {offenders}"
         )
 

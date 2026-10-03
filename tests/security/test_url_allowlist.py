@@ -83,7 +83,7 @@ class TestExtendUrlAllowlistAuditLog:
             _secrets._user_extensions.discard("auto-caller.example.com")
 
     def test_info_emitted_for_empty_input(self, caplog):
-        """YJ-44: a no-op call (empty hosts iterable) emits an INFO"""
+        """a no-op call (empty hosts iterable) emits an INFO"""
         with caplog.at_level("INFO", logger="voice_typer.server.security.url_allowlist"):
             extend_url_allowlist([], caller="test-empty-input")
         # An INFO record with the URL-Allowlist tag must be emitted.
@@ -162,7 +162,7 @@ class TestAssertUrlAllowedLoopbackOptIn:
 
 
 class TestAssertUrlAllowedSsrfDefense:
-    """HU-35: the SSRF defense layers of ``assert_url_allowed`` MUST"""
+    """the SSRF defense layers of ``assert_url_allowed`` MUST"""
 
     def test_rejects_private_ip_literal(self):
         """RFC 1918 private IP literals are rejected even when"""

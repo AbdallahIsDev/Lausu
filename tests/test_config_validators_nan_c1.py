@@ -13,7 +13,7 @@ from voice_typer.server.config_validators import (
 
 
 class TestFloatValidatorRejectsNaNAndInf:
-    """AP-23: NaN / Inf must be rejected for any float field."""
+    """NaN / Inf must be rejected for any float field."""
 
     def setup_method(self) -> None:
         self.validate = _make_float_validator(lo=0.0, hi=1.0)
@@ -67,7 +67,7 @@ class TestFloatValidatorRejectsNaNAndInf:
 
 
 class TestStrValidatorRejectsC1ControlChars:
-    """AP-24: ``_make_str_validator`` must reject C1 control chars (0x80-0x9F)."""
+    """``_make_str_validator`` must reject C1 control chars (0x80-0x9F)."""
 
     def setup_method(self) -> None:
         self.validate = _make_str_validator()
@@ -99,7 +99,7 @@ class TestStrValidatorRejectsC1ControlChars:
 
 
 class TestURLValidatorStripsWhitespaceAndRejectsC1:
-    """AP-24: ``_make_url_validator`` strips whitespace and rejects C1 controls."""
+    """``_make_url_validator`` strips whitespace and rejects C1 controls."""
 
     def setup_method(self) -> None:
         self.validate = _make_url_validator(require_https=True)

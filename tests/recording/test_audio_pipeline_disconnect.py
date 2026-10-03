@@ -94,7 +94,7 @@ class TestDisconnectHandlerSpawnedOnce:
 
         # The flag stays set for the entire window (the handler
         assert recorder._devices._device_disconnected is True
-        # CRITICAL: the handler is spawned exactly ONCE, not 89
+        # the handler is spawned exactly ONCE, not 89
         assert recorder._spawn_device_thread.call_count == 1
 
     def test_first_zero_after_warmup_window_only_triggers(self) -> None:

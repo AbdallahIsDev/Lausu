@@ -287,9 +287,9 @@ class TestStopRecordingZerosCounter:
     def test_empty_buffer_path_zeros_counter(self) -> None:
         """When ``_buffer`` is empty inside the locked block, the"""
         # Reuse the mock factory from the stop tests, it sets up all
-        from tests.test_recorder_split_stop import _build_mock_recorder
+        from tests.fixtures.ipc_test_helpers import build_mock_recorder
 
-        recorder = _build_mock_recorder(buffer_chunks=[])
+        recorder = build_mock_recorder(buffer_chunks=[])
         # Simulate a prior session's stale counter.
         recorder._audio_pipeline._total_buffered_samples = 99999
 
@@ -299,10 +299,10 @@ class TestStopRecordingZerosCounter:
 
     def test_main_path_zeros_counter_after_swap(self) -> None:
         """When ``_buffer`` has chunks, the main path swaps in a"""
-        from tests.test_recorder_split_stop import _build_mock_recorder
+        from tests.fixtures.ipc_test_helpers import build_mock_recorder
 
         chunk = np.ones(100, dtype=np.float32)
-        recorder = _build_mock_recorder(buffer_chunks=[chunk])
+        recorder = build_mock_recorder(buffer_chunks=[chunk])
         # Simulate the session's accumulated samples.
         recorder._audio_pipeline._total_buffered_samples = 100
 
@@ -316,10 +316,10 @@ class TestDiscardRecordingZerosCounter:
     """``discard_recording`` must zero ``_total_buffered_samples``"""
 
     def test_discard_zeros_counter(self) -> None:
-        from tests.test_recorder_split_stop import _build_mock_recorder
+        from tests.fixtures.ipc_test_helpers import build_mock_recorder
 
         chunk = np.ones(50, dtype=np.float32)
-        recorder = _build_mock_recorder(buffer_chunks=[chunk])
+        recorder = build_mock_recorder(buffer_chunks=[chunk])
         recorder._audio_pipeline._total_buffered_samples = 50
 
         discard_recording(recorder)
@@ -333,14 +333,14 @@ class TestStopRecordingStatsSingleAbsAllocation:
 
     def test_peak_silence_pct_values_unchanged(self) -> None:
         """The peak and silence_pct values must be IDENTICAL to the"""
-        from tests.test_recorder_split_stop import _build_mock_recorder
+        from tests.fixtures.ipc_test_helpers import build_mock_recorder
 
         # 4 silent + 6 loud samples, max abs = 0.5.
         chunk = np.array(
             [0.0, 0.0, 0.0005, 0.0009, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
             dtype=np.float32,
         )
-        recorder = _build_mock_recorder(buffer_chunks=[chunk])
+        recorder = build_mock_recorder(buffer_chunks=[chunk])
 
         stop_recording(recorder)
 
@@ -351,10 +351,10 @@ class TestStopRecordingStatsSingleAbsAllocation:
 
     def test_peak_handles_negative_amplitude(self) -> None:
         """``max(|x|) == max(max(x), -min(x))`` must handle a signal"""
-        from tests.test_recorder_split_stop import _build_mock_recorder
+        from tests.fixtures.ipc_test_helpers import build_mock_recorder
 
         chunk = np.array([-0.9, 0.1, -0.5, 0.3], dtype=np.float32)
-        recorder = _build_mock_recorder(buffer_chunks=[chunk])
+        recorder = build_mock_recorder(buffer_chunks=[chunk])
 
         stop_recording(recorder)
 
@@ -363,10 +363,10 @@ class TestStopRecordingStatsSingleAbsAllocation:
 
     def test_np_abs_called_once_per_stop(self) -> None:
         """``np.abs`` must be called at most ONCE on the full audio"""
-        from tests.test_recorder_split_stop import _build_mock_recorder
+        from tests.fixtures.ipc_test_helpers import build_mock_recorder
 
         chunk = np.ones(100, dtype=np.float32) * 0.5
-        recorder = _build_mock_recorder(buffer_chunks=[chunk])
+        recorder = build_mock_recorder(buffer_chunks=[chunk])
 
         # Patch np.abs at the module where stop_recording looks it up.
         real_abs = np.abs

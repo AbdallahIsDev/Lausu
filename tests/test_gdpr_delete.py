@@ -281,7 +281,7 @@ def test_delete_all_personal_data_truncates_log(tmp_path) -> None:
 
 
 def test_delete_all_personal_data_erases_rotated_log_backups(tmp_path) -> None:
-    """PI-4: lausu.log.{1,2} rotated backups must be unlinked."""
+    """lausu.log.{1,2} rotated backups must be unlinked."""
     svc, mp = _build_service(tmp_path)
     try:
         if not hasattr(svc, "delete_all_personal_data"):
@@ -304,7 +304,7 @@ def test_delete_all_personal_data_erases_rotated_log_backups(tmp_path) -> None:
 
 
 def test_delete_all_personal_data_erases_crash_dumps(tmp_path) -> None:
-    """PI-5: crash_diagnostics.<PID>.txt + python_crash.<PID>.txt must"""
+    """crash_diagnostics.<PID>.txt + python_crash.<PID>.txt must"""
     svc, mp = _build_service(tmp_path)
     try:
         if not hasattr(svc, "delete_all_personal_data"):
@@ -328,7 +328,7 @@ def test_delete_all_personal_data_erases_crash_dumps(tmp_path) -> None:
 
 
 def test_delete_all_personal_data_erases_prewarm_log(tmp_path) -> None:
-    """PI-6: prewarm.log + rotated backups must be deleted."""
+    """prewarm.log + rotated backups must be deleted."""
     svc, mp = _build_service(tmp_path)
     try:
         if not hasattr(svc, "delete_all_personal_data"):
@@ -346,7 +346,7 @@ def test_delete_all_personal_data_erases_prewarm_log(tmp_path) -> None:
 
 
 def test_delete_all_personal_data_erases_rust_logs_subdir(tmp_path) -> None:
-    """PI-6: ``<config_dir>/logs/`` (Rust host rotating log) must be"""
+    """``<config_dir>/logs/`` (Rust host rotating log) must be"""
     svc, mp = _build_service(tmp_path)
     try:
         if not hasattr(svc, "delete_all_personal_data"):

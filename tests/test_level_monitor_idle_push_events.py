@@ -87,25 +87,30 @@ def _wire_stream_with_callback_capture(monkeypatch):
 
 
 class TestIdleTimeoutPushEventAwareness:
-    """``_idle_timeout_auto_stop`` considers both the ``get_level`` poll"""
+    """``_idle_timeout_auto_stop`` considers ONLY ``get_level`` polls.
 
-    def test_does_not_fire_when_push_event_is_recent(self):
-        """When ``_mic_level_last_push_ts`` is within the idle window"""
+    Push timestamps self-perpetuate (every push refreshes the clock),
+    so counting them kept the mic open 24/7 and defeated the timeout.
+    Consumers that need the stream keep it alive by polling (the mic
+    page heartbeats while visible).
+    """
+
+    def test_fires_when_only_push_is_recent(self):
+        """A recent push must NOT prevent auto-stop without polls."""
         import voice_typer.server.level_monitor as lm
 
-        # Simulate: monitoring is active, no get_level poll has ever
+        # Simulate: monitoring is active, last poll is stale, pushes flow
         lm._monitor_active = True
         lm._monitor_stream = None  # no real stream needed for the no-op path
-        lm._last_get_level_poll_ts = 0.0
+        lm._last_get_level_poll_ts = time.monotonic() - 120.0
         lm._mic_level_last_push_ts = time.monotonic()
 
         result = lm._idle_timeout_auto_stop()
 
-        assert result is False, (
-            "idle-timeout must NOT fire when _mic_level_last_push_ts is recent "
-            "(frontend actively listening via push events)"
+        assert result is True, (
+            "idle-timeout MUST fire on push activity alone; otherwise the "
+            "stream self-perpetuates and the mic stays open forever"
         )
-        assert lm._monitor_active is True, "stream must stay alive when push events are recent"
 
     def test_fires_when_both_timestamps_are_old(self, monkeypatch):
         """``_mic_level_last_push_ts`` are older than the idle window,"""
@@ -135,8 +140,8 @@ class TestIdleTimeoutPushEventAwareness:
         assert lm._last_get_level_poll_ts == 0.0
         assert lm._mic_level_last_push_ts == 0.0
 
-    def test_does_not_fire_when_poll_is_recent_even_if_push_is_stale(self):
-        """The MORE RECENT of the two timestamps governs. If the poll"""
+    def test_does_not_fire_when_poll_is_recent(self):
+        """A recent poll keeps the stream alive regardless of pushes."""
         import voice_typer.server.level_monitor as lm
 
         lm._monitor_active = True
@@ -146,7 +151,7 @@ class TestIdleTimeoutPushEventAwareness:
 
         result = lm._idle_timeout_auto_stop()
 
-        assert result is False, "idle-timeout must NOT fire when EITHER timestamp is recent"
+        assert result is False, "idle-timeout must NOT fire when a poll is recent"
         assert lm._monitor_active is True
 
 

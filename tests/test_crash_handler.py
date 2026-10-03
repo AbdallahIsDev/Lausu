@@ -116,8 +116,8 @@ class TestCrashHandlerConfigDir:
         crash_handler.set_crash_handler_config_dir(BadPath())  # type: ignore[arg-type]
         assert crash_handler._crash_file_path == ""
 
-    def test_yj47_crash_file_path_in_archive_subdir(self, tmp_path):
-        """YJ-47: the VEH crash file path is INSIDE"""
+    def test_crash_file_path_in_archive_subdir(self, tmp_path):
+        """the VEH crash file path is INSIDE"""
         crash_handler.set_crash_handler_config_dir(tmp_path)
         path = crash_handler._crash_file_path
         assert path, "YJ-47: _crash_file_path must be non-empty after set_crash_handler_config_dir"
@@ -130,13 +130,13 @@ class TestCrashHandlerConfigDir:
         archive_dir = tmp_path / "crash_diagnostics"
         assert archive_dir.is_dir(), "YJ-47: set_crash_handler_config_dir must pre-create the archive dir"
 
-    def test_yj47_header_max_modules_is_100(self):
-        """YJ-47: ``_HEADER_MAX_MODULES`` is capped at 100 (was 500)."""
+    def test_header_max_modules_is_100(self):
+        """``_HEADER_MAX_MODULES`` is capped at 100 (was 500)."""
         assert crash_handler._HEADER_MAX_MODULES == 100, (
             f"YJ-47: _HEADER_MAX_MODULES must be 100 (was 500); got {crash_handler._HEADER_MAX_MODULES}"
         )
 
-    def test_yj47_report_pending_crash_surfaces_archive_subdir_file(self, tmp_path):
+    def test_report_pending_crash_surfaces_archive_subdir_file(self, tmp_path):
         """surfaces a VEH-written crash file (no longer in the root)."""
         archive_dir = tmp_path / "crash_diagnostics"
         archive_dir.mkdir(parents=True)
@@ -156,8 +156,8 @@ class TestCrashHandlerConfigDir:
         sidecar = archive_dir / "crash_diagnostics.1234.txt.reported"
         assert sidecar.exists(), "YJ-47: report_pending_crash must create a .reported sidecar marker"
 
-    def test_yj47_report_pending_crash_skips_files_with_sidecar(self, tmp_path):
-        """YJ-47: ``report_pending_crash`` does NOT re-surface crash"""
+    def test_report_pending_crash_skips_files_with_sidecar(self, tmp_path):
+        """``report_pending_crash`` does NOT re-surface crash"""
         archive_dir = tmp_path / "crash_diagnostics"
         archive_dir.mkdir(parents=True)
         crash_file = archive_dir / "crash_diagnostics.1234.txt"
@@ -236,8 +236,8 @@ class TestCrashHandlerReportPending:
         assert result is not None
         assert "Fatal exit" in result
 
-    def test_yj42_reads_file_with_illegal_instruction(self, tmp_path):
-        """YJ-42: ``report_pending_crash`` recognises STATUS_ILLEGAL_INSTRUCTION"""
+    def test_reads_file_with_illegal_instruction(self, tmp_path):
+        """``report_pending_crash`` recognises STATUS_ILLEGAL_INSTRUCTION"""
         crash_file = tmp_path / "crash_diagnostics.1234.txt"
         crash_file.write_text(
             "STATUS_ILLEGAL_INSTRUCTION: the CPU tried to execute an invalid opcode.\r\n",
@@ -248,8 +248,8 @@ class TestCrashHandlerReportPending:
         assert "Illegal instruction" in result
         assert "0xC000001D" in result
 
-    def test_yj42_reads_file_with_stack_overflow(self, tmp_path):
-        """YJ-42: ``report_pending_crash`` recognises STATUS_STACK_OVERFLOW."""
+    def test_reads_file_with_stack_overflow(self, tmp_path):
+        """``report_pending_crash`` recognises STATUS_STACK_OVERFLOW."""
         crash_file = tmp_path / "crash_diagnostics.1234.txt"
         crash_file.write_text(
             "STATUS_STACK_OVERFLOW: the thread exhausted its stack.\r\n",
@@ -260,8 +260,8 @@ class TestCrashHandlerReportPending:
         assert "Stack overflow" in result
         assert "0xC00000FD" in result
 
-    def test_yj42_reads_file_with_in_page_error(self, tmp_path):
-        """YJ-42: ``report_pending_crash`` recognises STATUS_IN_PAGE_ERROR."""
+    def test_reads_file_with_in_page_error(self, tmp_path):
+        """``report_pending_crash`` recognises STATUS_IN_PAGE_ERROR."""
         crash_file = tmp_path / "crash_diagnostics.1234.txt"
         crash_file.write_text(
             "STATUS_IN_PAGE_ERROR: a memory page could not be loaded.\r\n",
@@ -597,7 +597,7 @@ class TestCrashHandlerConstants:
         )
 
     def test_crash_codes_set_contains_extended_codes(self):
-        """YJ-42: ``_CRASH_CODES`` covers 8 additional fatal Windows"""
+        """``_CRASH_CODES`` covers 8 additional fatal Windows"""
         extended_codes = frozenset(
             {
                 crash_handler.STATUS_ILLEGAL_INSTRUCTION,
@@ -622,7 +622,7 @@ class TestCrashHandlerConstants:
         )
 
     def test_crash_codes_excludes_breakpoint_and_single_step(self):
-        """YJ-42: STATUS_BREAKPOINT (0x80000003) and STATUS_SINGLE_STEP"""
+        """STATUS_BREAKPOINT (0x80000003) and STATUS_SINGLE_STEP"""
         assert 0x80000003 not in crash_handler._CRASH_CODES
         assert 0x80000004 not in crash_handler._CRASH_CODES
 
@@ -630,7 +630,7 @@ class TestCrashHandlerConstants:
         """VEH callbacks return ``EXCEPTION_CONTINUE_SEARCH`` (=0) to let"""
         assert crash_handler.EXCEPTION_CONTINUE_SEARCH == 0x0
 
-    def test_yj42_extended_codes_have_friendly_names(self):
+    def test_extended_codes_have_friendly_names(self):
         """corresponding pre-encoded ``_NAME_*`` byte string for the VEH"""
         # Map each extended STATUS_* code to its expected _NAME_* bytes.
         yj42_mapping = {

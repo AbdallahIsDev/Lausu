@@ -204,7 +204,7 @@ class TestCompareLogic:
         _baseline = json.loads(_baseline_path().read_text(encoding="utf-8"))
         _b007 = _baseline["by_rule"].get("B007", 3)
         _up007 = _baseline["by_rule"].get("UP007", 1)
-        # Input: (_b007 + 1) B007 + max(0, _up007 - 1) UP007
+        # (_b007 + 1) B007 + max(0, _up007 - 1) UP007
         stdin = json.dumps([{"code": "B007"}] * (_b007 + 1) + [{"code": "UP007"}] * max(0, _up007 - 1))
         result = _run_script(["--stdin"], stdin=stdin)
         assert result.returncode == 1, (

@@ -52,7 +52,7 @@ class TestClearAllFtsRebuild:
         assert pre_size > 0, "expected non-empty FTS5 segment data after inserts"
         assert _fts5_row_count(db) == 20
 
-        # Act: clear_all should rebuild FTS5.
+        # clear_all should rebuild FTS5.
         assert db.clear_all() is True
 
         # Force a checkpoint so the WAL is flushed (helps the size
@@ -188,7 +188,7 @@ class TestApplyRetentionFtsRebuild:
         assert pre_size > 0
         assert _fts5_row_count(db) == 25
 
-        # Act: retention_days=1 deletes the 20 old rows.
+        # retention_days=1 deletes the 20 old rows.
         deleted = db.apply_retention(retention_days=1)
         assert deleted == 20
 

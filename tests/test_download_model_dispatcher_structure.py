@@ -242,7 +242,7 @@ def test_no_type_ignore_return_value_in_model_py() -> None:
                 bad_ignores.append(f"{leaf.name}:{tok.start[0]}: {comment_text}")
     assert not bad_ignores, (
         "Found ``# type: ignore[return-value]`` comments in the service/model package "
-        f"({len(bad_ignores)} occurrence(s)). These hide real shape mismatches "
+        f"({len(bad_ignores)} occurrences). These hide real shape mismatches "
         "between the consent-gate dict and the DownloadOutcome TypedDict. "
         "Fix: change _require_huggingface_consent's return type to "
         "DownloadOutcome | None. Occurrences: " + "; ".join(bad_ignores)

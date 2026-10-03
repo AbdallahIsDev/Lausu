@@ -123,10 +123,17 @@ class TestVadProcessorOwnerSurface:
 class TestVadEnabledProperty:
     """``VadProcessor.vad_enabled`` is the cached read-only property"""
 
-    def test_vad_enabled_reflects_config(self):
+    def test_vad_enabled_always_true_regardless_of_audio_filters(self):
+        """Silence detection is independent of the audio-enhancement filters.
+
+        The old VAD-GATE tied the two together, so picking the "Off" preset
+        silently removed auto-stop and silence warnings.
+        """
         vad = _real_vad()
-        # A config with no filters + "none" suppression method → VAD off.
-        assert vad.vad_enabled is False
+        # No filters + "none" suppression method used to mean VAD off.
+        assert vad.vad_enabled is True
+        vad.on_config_changed()
+        assert vad.vad_enabled is True
         vad._config.noise_filter_highpass = True
         vad.on_config_changed()
         assert vad.vad_enabled is True

@@ -221,8 +221,8 @@ class TestSetCrashHandlerConfigDirInstallsBuffer:
             _ch._crash_header_bytes = b""
 
 
-class TestHu8PiiFilterFailClosed:
-    """HU-8: the crash-buffer MemoryHandler attaches ``PIIRedactionFilter``"""
+class TestPiiFilterAttachedToCrashBuffer:
+    """the crash-buffer MemoryHandler attaches ``PIIRedactionFilter``"""
 
     @staticmethod
     def _reset_flags() -> None:

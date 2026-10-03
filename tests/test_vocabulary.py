@@ -300,10 +300,10 @@ class TestVocabularyImportValidation:
 
 
 class TestVocabularyBackupAndQuarantine:
-    """PI-8: vocabulary.py now routes persistence through PersistedJSON,"""
+    """vocabulary.py now routes persistence through PersistedJSON,"""
 
     def test_vocabulary_creates_bak_on_overwrite(self, vocab_dir, bundled):
-        """PI-8: save vocab A, save vocab B, assert .bak file contains A."""
+        """save vocab A, save vocab B, assert .bak file contains A."""
         from voice_typer.server.vocabulary import VOCAB_FILENAME, VocabularyManager
 
         user_file = vocab_dir / VOCAB_FILENAME
@@ -337,7 +337,7 @@ class TestVocabularyBackupAndQuarantine:
         assert '"whitespace"' not in bak_content
 
     def test_vocabulary_quarantines_corrupt_file(self, vocab_dir, bundled):
-        """PI-8: write corrupt JSON to the vocab file, call load, assert"""
+        """write corrupt JSON to the vocab file, call load, assert"""
         from voice_typer.server.vocabulary import VOCAB_FILENAME, VocabularyManager
 
         user_file = vocab_dir / VOCAB_FILENAME

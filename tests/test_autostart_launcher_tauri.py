@@ -325,7 +325,13 @@ class TestLaunchTauriFreshStart:
 class TestLaunchWithoutTauriModeExitsOne:
     """When ``_is_tauri_mode()`` is False and no Tauri binary is"""
 
-    def test_no_tauri_mode_exits_one(self, monkeypatch):
+    def test_no_tauri_mode_falls_back_to_dev_console(self, monkeypatch):
+        """No Tauri mode in a source checkout → dev console (exit 0).
+
+        Same contract as TestLaunchPortClosedPath: the dev-console
+        fallback is deliberate (pythonw has no UI on error), so the
+        old exit-1 expectation is stale. The spawn itself is mocked.
+        """
         monkeypatch.setattr(
             "voice_typer.server.autostart_launcher._is_port_open",
             lambda h, p: False,
@@ -334,6 +340,10 @@ class TestLaunchWithoutTauriModeExitsOne:
         monkeypatch.setattr("voice_typer.server.autostart_launcher._setup_logging", lambda: None)
         monkeypatch.setattr("voice_typer.server.autostart_launcher._write_pid_file", lambda lp, cp: None)
         monkeypatch.setattr(time, "sleep", lambda s: None)
+        monkeypatch.setattr(
+            "voice_typer.server.autostart.dev_console.launch_dev_console",
+            lambda script="dev": 0,
+        )
 
         from voice_typer.server import backend_pid as _backend_pid_mod
 
@@ -345,7 +355,7 @@ class TestLaunchWithoutTauriModeExitsOne:
         monkeypatch.setattr(sys, "argv", ["autostart_launcher.py", "--hidden"])
 
         ret = launch()
-        assert ret == 1
+        assert ret == 0
 
 
 class TestLaunchAlreadyRunningFocus:

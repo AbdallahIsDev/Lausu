@@ -63,7 +63,7 @@ def controller(fake_app):
 
 
 class TestPosixMutexHandleRelease:
-    """YJ-2: ``_do_cleanup`` MUST release the POSIX single-instance handle."""
+    """``_do_cleanup`` MUST release the POSIX single-instance handle."""
 
     def test_posix_release_called_when_handle_present(self, controller, fake_app, monkeypatch):
         """On POSIX, when ``app._mutex_handle`` is a handle-like object"""

@@ -69,17 +69,33 @@ class TestKeyAutoRepeatFilter:
 
     def test_toggle_on_keyup_only_fires_on_release(self, monkeypatch):
         """In toggle-on-keyup mode, KEY_DOWN never fires; only KEY_UP"""
-        b = _make_linux_backend(monkeypatch, "<caps_lock>")
+        b = _make_linux_backend(monkeypatch, "<f2>")
         b.set_toggle_on_keyup(True)
         fired: list[str] = []
         b._callback = lambda: fired.append("toggle")  # noqa: E731
         # KEY_DOWN in toggle-on-keyup mode does nothing (deferred to key-up).
-        b._handle_line("KEY_DOWN:CapsLock")
+        b._handle_line("KEY_DOWN:F2")
         assert fired == []
         # Auto-repeat KEY_DOWN also does nothing.
-        b._handle_line("KEY_DOWN:CapsLock")
+        b._handle_line("KEY_DOWN:F2")
         assert fired == []
         # KEY_UP fires the toggle exactly once.
+        b._handle_line("KEY_UP:F2")
+        assert fired == ["toggle"]
+
+    def test_caps_lock_toggle_on_keyup_fires_on_keydown(self, monkeypatch):
+        """Caps Lock alone fires on KEY_DOWN even with toggle_on_keyup.
+
+        Native listeners swallow KEY_UP after suppressing KEY_DOWN (OS
+        Caps toggle), so waiting for KEY_UP would never start recording.
+        """
+        b = _make_linux_backend(monkeypatch, "<caps_lock>")
+        b.set_toggle_on_keyup(True)
+        fired: list[str] = []
+        b._callback = lambda: fired.append("toggle")  # noqa: E731
+        b._handle_line("KEY_DOWN:CapsLock")
+        assert fired == ["toggle"]
+        # KEY_UP must NOT fire a second toggle (would start+stop).
         b._handle_line("KEY_UP:CapsLock")
         assert fired == ["toggle"]
 

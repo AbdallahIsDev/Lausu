@@ -183,10 +183,10 @@ class TestTemplateImportExport:
 
 
 class TestTemplatesBackupAndQuarantine:
-    """PI-8: templates.py now routes persistence through PersistedJSON,"""
+    """templates.py now routes persistence through PersistedJSON,"""
 
     def test_templates_creates_bak_on_overwrite(self, template_dir):
-        """PI-8: save template A, save template B, assert .bak file"""
+        """save template A, save template B, assert .bak file"""
         from voice_typer.server.templates import TEMPLATES_FILENAME, TemplateManager
 
         templates_file = template_dir / TEMPLATES_FILENAME
@@ -220,7 +220,7 @@ class TestTemplatesBackupAndQuarantine:
         assert '"goodbye"' not in bak_content
 
     def test_templates_quarantines_corrupt_file(self, template_dir):
-        """PI-8: write corrupt JSON to the templates file, call load,"""
+        """write corrupt JSON to the templates file, call load,"""
         from voice_typer.server.templates import TEMPLATES_FILENAME, TemplateManager
 
         templates_file = template_dir / TEMPLATES_FILENAME

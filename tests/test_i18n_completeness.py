@@ -18,6 +18,8 @@ NON_ENGLISH_LOCALES = ["ar", "de", "es", "fr", "hi", "ru", "zh"]
 ALLOWED_UNTRANSLATED = {
     "app.name",  # "Lausu", brand name
     "settings.apiUrl",  # "API URL", technical acronym, kept as-is
+    "computeDevice.cpu",  # "CPU", universal hardware acronym
+    "computeDevice.gpu",  # "GPU", universal hardware acronym
     "settings.languageHindi",  # "Hindi", proper noun
     "nav.microphone",  # "Microphone", technical term
     "settings.overlay",  # "Overlay", technical term
@@ -397,7 +399,7 @@ def en_flat(en_data: dict) -> dict[str, str]:
 
 
 @pytest.mark.parametrize("locale", NON_ENGLISH_LOCALES)
-class Test8nCompleteness:
+class TestLocaleCompleteness:
     """Per-locale completeness tests."""
 
     def test_locale_file_exists(self, locale: str) -> None:
@@ -552,7 +554,7 @@ class TestBackfillSetIsMinimal:
         )
 
 
-class Test8nGateSummary:
+class TestGateSummary:
     """per-locale missing-key count summary."""
 
     def test_all_locales_have_full_key_parity(self, en_flat: dict[str, str]) -> None:

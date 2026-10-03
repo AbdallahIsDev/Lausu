@@ -174,8 +174,15 @@ class TestLaunchPortOpenPath:
 class TestLaunchPortClosedPath:
     """When the backend port is closed, launch starts a fresh Tauri instance."""
 
-    def test_fails_gracefully_without_tauri_mode(self, monkeypatch, tmp_path):
-        """No Tauri mode + no Tauri binary → exit 1 (predecessor path removed)."""
+    def test_falls_back_to_dev_console_without_tauri_mode(self, monkeypatch, tmp_path):
+        """No Tauri mode in a source checkout → dev console (exit 0).
+
+        The exit-1 contract dates from the predecessor-path removal;
+        commit 1570d9ee3 deliberately added the dev-console fallback so
+        a logon shortcut in a source checkout does not fail silently
+        (pythonw has no UI on error). Mock the spawn itself: the real
+        Popen must never run in tests.
+        """
         monkeypatch.setattr(
             "voice_typer.server.autostart_launcher._is_port_open",
             lambda h, p: False,
@@ -192,6 +199,34 @@ class TestLaunchPortClosedPath:
             "voice_typer.server.autostart_launcher._setup_logging",
             lambda: None,
         )
+        monkeypatch.setattr(
+            "voice_typer.server.autostart.dev_console.launch_dev_console",
+            lambda script="dev": 0,
+        )
+        ret = launch()
+        assert ret == 0
+
+    def test_exits_one_without_tauri_mode_or_client_dir(self, monkeypatch, tmp_path):
+        """No Tauri mode AND no client checkout → exit 1 (nothing to run)."""
+        import voice_typer.server.autostart.dev_console as _dev_console
+
+        monkeypatch.setattr(
+            "voice_typer.server.autostart_launcher._is_port_open",
+            lambda h, p: False,
+        )
+        monkeypatch.setattr(
+            "voice_typer.server.backend_pid._backend_pid_file",
+            lambda: tmp_path / "nonexistent.pid",
+        )
+        monkeypatch.setattr(
+            "voice_typer.server.autostart_launcher._is_tauri_mode",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            "voice_typer.server.autostart_launcher._setup_logging",
+            lambda: None,
+        )
+        monkeypatch.setattr(_dev_console, "client_dir", lambda: tmp_path / "no-client-here")
         ret = launch()
         assert ret == 1
 

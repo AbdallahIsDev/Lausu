@@ -215,7 +215,7 @@ def xdg_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
 
 
 class TestWaylandSocketPathPerInstance:
-    """IN-24: each ``WaylandHotkey`` instance gets its own socket path."""
+    """each ``WaylandHotkey`` instance gets its own socket path."""
 
     def test_no_role_uses_historical_path(self, xdg_runtime: str) -> None:
         """A backend constructed without ``role`` uses the historical"""
@@ -339,7 +339,7 @@ class TestWaylandSocketPathPerInstance:
 
 
 class TestFactoryRolePropagation:
-    """IN-24: ``create_hotkey_backend(hotkey_str, role=...)`` passes"""
+    """``create_hotkey_backend(hotkey_str, role=...)`` passes"""
 
     def test_factory_passes_role_to_wayland(self, monkeypatch, tmp_path):
         """On a Wayland session, ``create_hotkey_backend(hotkey, role='esc')``"""
@@ -495,7 +495,7 @@ def _make_mock_legacy_backend(hotkey_str: str = "<f2>"):
 
 
 class TestPermissionGrantedStopsLegacy:
-    """IN-27: ``_on_permission_granted`` must stop the legacy backend"""
+    """``_on_permission_granted`` must stop the legacy backend"""
 
     def test_permission_granted_stops_legacy_before_native_restart(self, monkeypatch):
         """When ``_on_permission_granted`` is called and the adapter"""
@@ -593,7 +593,7 @@ class TestPermissionGrantedStopsLegacy:
 
 
 class TestLLHookCallbackWorker:
-    """IN-25: the LL hook proc dispatches callbacks to a dedicated"""
+    """the LL hook proc dispatches callbacks to a dedicated"""
 
     def test_hook_callback_queue_initialized_in_init(self):
         """``_hook_callback_thread`` so attribute access before"""
@@ -662,7 +662,7 @@ class TestLLHookCallbackWorker:
 
 
 class TestModifierOnlyLLHook:
-    """IN-26: modifier-only hotkeys (e.g. ``<alt>``) use the LL hook"""
+    """modifier-only hotkeys (e.g. ``<alt>``) use the LL hook"""
 
     def test_compute_modifier_vks_alt(self):
         """``_compute_modifier_vks(_MOD_ALT)`` returns ``[VK_MENU]``."""
@@ -752,7 +752,7 @@ class TestModifierOnlyLLHook:
 
 
 class TestFactoryDocstringCadence:
-    """AB-52: ``hotkeys/factory.py``'s ``create_hotkey_backend`` docstring"""
+    """``hotkeys/factory.py``'s ``create_hotkey_backend`` docstring"""
 
     def test_factory_docstring_does_not_claim_1khz(self):
         """Windows polling fallback runs at \"1 kHz\", that was the stale"""

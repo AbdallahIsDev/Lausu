@@ -69,6 +69,19 @@ class TestSendCtrlVWin32ReturnValue:
             f"partial success (SendInput returned 1..3); got {result!r}."
         )
 
+    def test_zero_events_records_probe_count(self, fake_win32_for_return_value):
+        """returning 0 → the raw event count is captured for the caller."""
+        cm = self._make_cm()
+        fake_win32_for_return_value["user32"].SendInput.return_value = 0
+        with patch.object(clip_mod, "_Key") as mock_key:
+            mock_key.ctrl = "ctrl_key"
+            cm._send_ctrl_v_win32()
+        assert cm._last_sendinput_events == 0, (
+            "the manager must record the raw SendInput count so the 0-event "
+            "case (fallback dispatched) is not reported as a partial-send failure; "
+            f"got {getattr(cm, '_last_sendinput_events', '<unset>')!r}"
+        )
+
     def test_returns_true_on_zero_with_fallback(self, fake_win32_for_return_value):
         """returning 0 → fallback invoked, return False."""
         cm = self._make_cm()

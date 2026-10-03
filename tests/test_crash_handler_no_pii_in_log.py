@@ -54,7 +54,7 @@ def restore_excepthook():
 
 
 class TestCrashExcepthookNoPIIInLog:
-    """YJ-19: the CRITICAL log line must contain ONLY ``exc_type.__name__``,"""
+    """the CRITICAL log line must contain ONLY ``exc_type.__name__``,"""
 
     def test_critical_log_contains_only_exc_type_name(self, restore_excepthook, caplog):
         """Trigger the excepthook with ``ValueError(\"my name is John"""
@@ -121,7 +121,7 @@ class TestCrashExcepthookNoPIIInLog:
         assert "123-45-6789" not in msg, f"YJ-19: exc_value's SSN must NOT appear in CRITICAL log; got: {msg!r}"
 
     def test_redacted_traceback_emitted_unconditionally(self, restore_excepthook, caplog):
-        """YJ-14: the PII-safe redacted traceback must be emitted"""
+        """the PII-safe redacted traceback must be emitted"""
         crash_handler.install_python_excepthook()
 
         try:
@@ -139,7 +139,7 @@ class TestCrashExcepthookNoPIIInLog:
 
 
 class TestCrashDumpFileContentRedacted:
-    """HU-38: the ON-DISK crash marker file (``python_crash.<PID>.txt``)"""
+    """the ON-DISK crash marker file (``python_crash.<PID>.txt``)"""
 
     def _trigger_crash(self, tmp_path: Path) -> Path:
         """Install the excepthook, raise a PII-bearing exception through"""

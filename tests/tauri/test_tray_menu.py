@@ -773,7 +773,7 @@ def test_microphones_submenu_rows_keep_separator_before_actions():
 
 
 def test_maybe_publish_registers_models_and_mic_dispatch(monkeypatch):
-    """Integration: the published Tauri menu carries dispatchable ids."""
+    """the published Tauri menu carries dispatchable ids."""
     changes = []
     opened = []
 

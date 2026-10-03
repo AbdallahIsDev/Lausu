@@ -472,6 +472,110 @@ class TestRunParallelSubmitShutdownRace:
         assert by_desc["ok"] == "done"
         assert by_desc["rejected"] == "never"
 
+    def test_finalizing_race_collapses_to_single_summary(self, monkeypatch, caplog):
+        """Entry check passes, then finalization wins the race: N rejects
+        must produce ONE summary line, not N per-item lines."""
+        import concurrent.futures
+        import logging
+
+        real_submit = concurrent.futures.ThreadPoolExecutor.submit
+
+        def _rejecting_submit(self, fn, *args, **kwargs):
+            raise RuntimeError("cannot schedule new futures after interpreter shutdown")
+
+        monkeypatch.setattr(concurrent.futures.ThreadPoolExecutor, "submit", _rejecting_submit)
+        try:
+            with caplog.at_level(logging.DEBUG, logger="voice_typer.server._timeout_utils"):
+                results = _run_parallel_with_timeout([(f"t{i}", lambda i=i: i, 1.0) for i in range(5)])
+        finally:
+            monkeypatch.setattr(concurrent.futures.ThreadPoolExecutor, "submit", real_submit)
+        assert [v for _, v in results] == [0, 1, 2, 3, 4]
+        per_item = [r for r in caplog.records if "pool.submit rejected (" in r.message]
+        assert not per_item, f"expected no per-item lines, got {len(per_item)}"
+        summary = [r for r in caplog.records if "ran inline (no pool)" in r.message]
+        assert len(summary) == 1, f"expected one summary line, got {len(summary)}"
+        assert "5 pool.submit rejected" in summary[0].message
+
+    def test_inline_fallback_applies_item_timeout(self, monkeypatch):
+        """A stuck teardown on the inline path must time out, not hang.
+
+        Before the fix the finalization fallback called ``func()`` bare,
+        so one wedged stop (observed: 15s hotkey stop) stalled shutdown
+        silently. Now the item timeout applies and the TIMEOUT sentinel
+        flows to the caller like the pool path.
+        """
+        import concurrent.futures
+        import time
+
+        from voice_typer.server._timeout_utils import TIMEOUT
+
+        real_submit = concurrent.futures.ThreadPoolExecutor.submit
+
+        def _rejecting_submit(self, fn, *args, **kwargs):
+            raise RuntimeError("cannot schedule new futures after interpreter shutdown")
+
+        def _stuck() -> str:
+            time.sleep(30.0)
+            return "never"
+
+        monkeypatch.setattr(concurrent.futures.ThreadPoolExecutor, "submit", _rejecting_submit)
+        try:
+            start = time.monotonic()
+            results = _run_parallel_with_timeout([("stuck", _stuck, 0.5)])
+            elapsed = time.monotonic() - start
+        finally:
+            monkeypatch.setattr(concurrent.futures.ThreadPoolExecutor, "submit", real_submit)
+        assert dict(results)["stuck"] is TIMEOUT
+        assert elapsed < 5.0, f"inline fallback took {elapsed:.2f}s, item timeout was 0.5s"
+
+    def test_finalizing_runs_all_inline_with_single_summary(self, monkeypatch, caplog):
+        """During interpreter finalization there is ONE summary line, not N rejections."""
+        import concurrent.futures
+        import logging
+        import sys
+
+        submits: list[bool] = []
+        real_submit = concurrent.futures.ThreadPoolExecutor.submit
+
+        def _counting_submit(self, fn, *args, **kwargs):
+            submits.append(True)
+            return real_submit(self, fn, *args, **kwargs)
+
+        monkeypatch.setattr(concurrent.futures.ThreadPoolExecutor, "submit", _counting_submit)
+        monkeypatch.setattr(sys, "is_finalizing", lambda: True)
+        try:
+            with caplog.at_level(logging.DEBUG, logger="voice_typer.server._timeout_utils"):
+                results = _run_parallel_with_timeout(
+                    [("a", lambda: 1, 1.0), ("b", lambda: 2, 1.0)]
+                )
+        finally:
+            monkeypatch.setattr(concurrent.futures.ThreadPoolExecutor, "submit", real_submit)
+        assert dict(results) == {"a": 1, "b": 2}
+        assert submits == [], "finalizing path must not touch the pool at all"
+        summary = [r for r in caplog.records if "running 2 teardowns inline" in r.message]
+        assert len(summary) == 1, f"expected exactly one summary line, got {len(summary)}"
+        assert not any("pool.submit rejected" in r.message for r in caplog.records)
+
+    def test_inline_fallback_captures_exception(self, monkeypatch):
+        """A raising func on the inline path is captured, not propagated."""
+        import concurrent.futures
+
+        real_submit = concurrent.futures.ThreadPoolExecutor.submit
+
+        def _rejecting_submit(self, fn, *args, **kwargs):
+            raise RuntimeError("cannot schedule new futures after interpreter shutdown")
+
+        def _boom() -> str:
+            raise ValueError("boom")
+
+        monkeypatch.setattr(concurrent.futures.ThreadPoolExecutor, "submit", _rejecting_submit)
+        try:
+            results = _run_parallel_with_timeout([("bad", _boom, 1.0)])
+        finally:
+            monkeypatch.setattr(concurrent.futures.ThreadPoolExecutor, "submit", real_submit)
+        result = dict(results)["bad"]
+        assert isinstance(result, ValueError)
+
 
 class TestLeakedWorkerRegistryCap:
     """The ``_LEAKED_WORKERS`` registry is bounded."""

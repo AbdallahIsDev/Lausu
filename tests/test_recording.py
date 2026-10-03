@@ -991,7 +991,7 @@ class TestScipyPreloaderDeferredSpawn:
         )
 
 
-class TestRec1StaleWorkerGuard:
+class TestStaleWorkerGuardOnJoinTimeout:
     """when ``_stop_audio_worker``'s join times out (worker still"""
 
     def test_stop_audio_worker_keeps_stop_event_when_still_alive(self, monkeypatch):
@@ -1086,7 +1086,7 @@ class TestRec1StaleWorkerGuard:
         assert r._worker_thread is None, "thread ref should be None when worker is dead (normal path)."
 
 
-class TestRec2StartRollbackOnWorkerFailure:
+class TestStartRollbackOnWorkerStartFailure:
     """if ``_start_audio_worker`` (or any worker starter) raises"""
 
     def test_start_rolls_back_stream_when_audio_worker_raises(self, monkeypatch):
@@ -1153,7 +1153,7 @@ class TestRec2StartRollbackOnWorkerFailure:
         assert r._stream_lifecycle._stream is None
 
 
-class TestRec3DeadNoOpRemoved:
+class TestDeadNoOpExpressionRemoved:
     """the dead no-op expression"""
 
     def test_analyze_chunk_has_no_bare_rms_expression(self):
@@ -1174,7 +1174,7 @@ class TestRec3DeadNoOpRemoved:
             )
 
 
-class TestRec4CounterReset:
+class TestDroppedChunkCountersReset:
     """``_dropped_chunks`` and ``_rms_callback_error_count`` must"""
 
     def test_counters_declared_in_init(self):
@@ -1228,7 +1228,7 @@ class TestRec4CounterReset:
             r.stop()
 
 
-class TestRec5StartLock:
+class TestStartLockSerializesStartAndDiscard:
     """``_start_lock`` serializes ``start()`` vs ``discard()`` so"""
 
     def test_start_lock_exists(self):
@@ -1312,7 +1312,7 @@ class TestRec5StartLock:
         r.stop()
 
 
-class TestRec6FallbackHostRank:
+class TestFallbackHostRankPrefersNativeHost:
     """``_fallback_host_rank`` must rank macOS and Linux host"""
 
     def test_windows_hosts_unchanged(self):
@@ -1374,7 +1374,7 @@ class TestRec6FallbackHostRank:
         )
 
 
-class TestRec7DelCleanup:
+class TestRecorderDelClearsThreadingState:
     """``__del__`` must defensively clear ``_recording_event``,"""
 
     def test_del_clears_recording_event(self):
@@ -1430,7 +1430,7 @@ class TestRec7DelCleanup:
         r.__del__()
 
 
-class TestRec8BufferOpsLocked:
+class TestBufferOperationsRunUnderLock:
     """``_buffer.clear()`` and the ``_buffer`` rebind in ``start()``"""
 
     def test_buffer_clear_under_lock(self):
@@ -1480,7 +1480,7 @@ class TestRec8BufferOpsLocked:
             )
 
 
-class TestAudio69RebuildOnSampleRateMismatch:
+class TestAudioChainRebuildOnSampleRateMismatch:
     """AudioProcessor chain when the device's native sample rate"""
 
     def test_rebuild_called_when_sample_rate_mismatches(self, monkeypatch):
@@ -1619,7 +1619,7 @@ class TestAudio69RebuildOnSampleRateMismatch:
             r.stop()
 
 
-class TestRec2StartFailurePathCoverage:
+class TestStartRollbackFiresForEveryWorkerStarter:
     """Additional coverage: rollback also fires when"""
 
     def test_start_rolls_back_when_event_worker_raises(self, monkeypatch):

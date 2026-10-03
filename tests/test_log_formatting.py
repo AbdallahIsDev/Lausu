@@ -18,6 +18,7 @@ from voice_typer.server.log import (
     _FlushingStreamHandler,
     _JsonFormatter,
     _module_level_overrides,
+    _TerminalFormatter,
     get_module_levels,
     reset,
     set_module_level,
@@ -178,8 +179,9 @@ def test_port_mode_with_redirected_stderr_uses_plain_formatter(tmp_path: Path, m
     try:
         root = logging.getLogger("voice_typer")
         stream = next(h for h in root.handlers if isinstance(h, _FlushingStreamHandler))
-        assert isinstance(stream.formatter, _FileFormatter), (
-            f"port mode + non-TTY stderr must use _FileFormatter (no ANSI), got {type(stream.formatter).__name__}"
+        got = type(stream.formatter).__name__
+        assert isinstance(stream.formatter, _TerminalFormatter), (
+            f"port mode + non-TTY stderr must use _TerminalFormatter (no ANSI, no date), got {got}"
         )
     finally:
         reset()
@@ -423,6 +425,79 @@ def test_color_formatter_clean_timestamp_time_only() -> None:
     assert not re.search(r"\d{4}-\d{2}-\d{2}", plain), f"date must not appear on terminal lines: {plain!r}"
     # No millis / tz on the terminal either.
     assert not re.search(r"\.\d{3}", plain), f"no millis expected on terminal: {plain!r}"
+
+
+def test_terminal_formatter_plain_time_only_no_date_no_ansi() -> None:
+    """``_TerminalFormatter`` (piped stderr) emits plain time-only lines."""
+    for level in (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR):
+        record = logging.LogRecord(
+            name="voice_typer.server.fake",
+            level=level,
+            pathname=__file__,
+            lineno=1,
+            msg="ts check",
+            args=(),
+            exc_info=None,
+        )
+        record.session_id = "deadbeef"
+        line = _TerminalFormatter().format(record)
+        assert _TS_RE_TERM.search(line), f"terminal line missing HH:MM:SS:\n{line!r}"
+        assert not re.search(r"\d{4}-\d{2}-\d{2}", line), f"date must not appear on terminal lines: {line!r}"
+        assert "\033[" not in line
+        assert not re.search(r"\.\d{3}", line), f"no millis expected on terminal: {line!r}"
+
+
+def test_terminal_formatter_level_column_alignment() -> None:
+    """Terminal lines share the Rust host's column layout, two-space sep.
+
+    Regression guard: the Rust terminal sink rendered ``HH:MM:SS LEVEL  msg``
+    (one space) while Python rendered two, so the two streams sharing one
+    console never lined up. Python's side is pinned here so the pair cannot
+    drift apart again.
+    """
+    for level, padded in [
+        (logging.INFO, "INFO "),
+        (logging.WARNING, "WARN "),
+        (logging.ERROR, "ERROR"),
+        (logging.DEBUG, "DEBUG"),
+    ]:
+        record = logging.LogRecord(
+            name="voice_typer.server.fake",
+            level=level,
+            pathname=__file__,
+            lineno=1,
+            msg="column check",
+            args=(),
+            exc_info=None,
+        )
+        record.session_id = "deadbeef"
+        # `_TerminalFormatter` (piped stderr) renders the full level column.
+        line = _TerminalFormatter().format(record)
+        assert line[8:10] == "  ", f"two spaces after the time: {line!r}"
+        assert line[10:15] == padded, f"5-wide level column: {line!r}"
+        assert line[15] == " ", f"one space before the message: {line!r}"
+        assert line[16:] == "column check", f"message at byte 16: {line!r}"
+        # `_ColorFormatter` (TTY) omits the INFO/DEBUG level label by design
+        # (see `single_instance._startup_line`), but the two-space gap after
+        # the time is the same contract and must be pinned too.
+        color = re.sub(r"\033\[[0-9;]*m", "", _ColorFormatter().format(record))
+        assert color[8:10] == "  ", f"_ColorFormatter two spaces after the time: {color!r}"
+
+
+def test_startup_line_warn_uses_the_canonical_level_column() -> None:
+    """``_startup_line`` (pre-logging stderr) must not use a 1-space column."""
+    import io
+    from contextlib import redirect_stderr
+
+    from voice_typer.server.single_instance import _startup_line
+
+    buf = io.StringIO()
+    with redirect_stderr(buf):
+        _startup_line("WARN", "duplicate launch blocked")
+    line = buf.getvalue().rstrip("\n")
+    assert re.fullmatch(r"\d{2}:\d{2}:\d{2}  WARN {2}duplicate launch blocked", line), (
+        f"startup WARN line must use the canonical `ts  WARN  msg` shape: {line!r}"
+    )
 
 
 def test_json_formatter_iso_timestamp_utc_z_suffix() -> None:

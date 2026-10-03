@@ -36,7 +36,12 @@ def _config_with_vad_enabled() -> MagicMock:
 
 
 def _config_with_vad_disabled() -> MagicMock:
-    """Return a MagicMock config matching the 'Off' audio preset."""
+    """Return a MagicMock config matching the 'Off' audio preset.
+
+    Named for historical reasons: it can no longer actually disable VAD, which
+    is now unconditional. Kept so the many call sites below keep reading
+    clearly while asserting the always-on contract.
+    """
     cfg = MagicMock()
     cfg.use_silero_vad = True
     cfg.vad_speech_threshold = 0.5
@@ -193,17 +198,17 @@ class TestStateTransitions:
         vp.update_frame(-20.0)
         assert vp.state == VadState.SPEECH
 
-    def test_returns_unknown_when_vad_disabled(self) -> None:
-        """VAD-GATE: returns UNKNOWN without updating any state when VAD"""
+    def test_update_frame_runs_with_off_audio_preset(self) -> None:
+        """VAD is unconditional, so the state machine runs on the "Off" preset."""
         vp = VadProcessor(_config_with_vad_disabled())
-        # The vad_enabled cache may already be set from __init__'s
-        assert vp.vad_enabled is False
-        result = vp.update_frame(-20.0)
-        assert result == VadState.UNKNOWN
-        # Counters must not have changed
-        assert vp.consecutive_speech_frames == 0
-        assert vp.consecutive_silence_frames == 0
-        assert vp.state == VadState.UNKNOWN
+        assert vp.vad_enabled is True
+        # Hysteresis needs consecutive frames, so drive past the first frame
+        # and assert the gate no longer parks the state machine at UNKNOWN.
+        for _ in range(3):
+            result = vp.update_frame(-20.0)
+        assert result != VadState.UNKNOWN, (
+            "VAD must not short-circuit to UNKNOWN now that it always runs"
+        )
 
 
 # Grey-zone decay () ─────────────────────────────────────────
@@ -347,13 +352,14 @@ class TestAutoCalibration:
         assert vp.silence_threshold_db == silence_after_first
         assert vp.speech_threshold_db == speech_after_first
 
-    def test_calibration_skipped_when_vad_disabled(self) -> None:
-        """VAD-GATE: auto_calibrate is a no-op when VAD is disabled."""
+    def test_calibration_runs_regardless_of_audio_preset(self) -> None:
+        """VAD is always on, so auto-calibration is never gated by the filters."""
         vp = VadProcessor(_config_with_vad_disabled())
-        assert vp.vad_enabled is False
+        assert vp.vad_enabled is True
         vp.auto_calibrate(0.01, elapsed_seconds=10.0)
-        assert vp.calibrated is False
-        assert vp.calibration_rms_values == []
+        assert vp.calibration_status != "skipped_disabled", (
+            "the disabled-skip must no longer trigger now that VAD always runs"
+        )
 
     def test_calibration_handles_zero_rms(self) -> None:
         """Zero RMS would cause log10(0), must fall back to -90 dB, then CLAMP to the floors."""
@@ -438,7 +444,7 @@ def _config_with_silero_and_auto_calibrate() -> MagicMock:
     return cfg
 
 
-class TestSileroAutoCalibrationEr42:
+class TestSileroAutoCalibration:
     """When vad_auto_calibrate=True and Silero is the active"""
 
     def test_flag_defaults_off(self) -> None:
@@ -618,13 +624,12 @@ class TestCalibrationStatus:
         assert vp.calibration_status == "skipped_silero"
         assert vp.calibrated is True
 
-    def test_status_skipped_disabled(self) -> None:
+    def test_status_not_skipped_disabled(self) -> None:
+        """VAD always runs, so calibration is never skipped as 'disabled'."""
         vp = VadProcessor(_config_with_vad_disabled())
-        assert vp.vad_enabled is False
+        assert vp.vad_enabled is True
         vp.auto_calibrate(0.01, elapsed_seconds=10.0)
-        assert vp.calibration_status == "skipped_disabled"
-        assert vp.calibrated is False
-        assert vp.calibration_rms_values == []
+        assert vp.calibration_status != "skipped_disabled"
 
     def test_status_calibrated(self) -> None:
         vp = VadProcessor(_config_with_vad_enabled())
@@ -682,9 +687,10 @@ class TestVadEnabledCache:
         vp = VadProcessor(_config_with_vad_enabled())
         assert vp.vad_enabled is True
 
-    def test_vad_enabled_false_when_all_filters_off(self) -> None:
+    def test_vad_enabled_true_even_when_all_filters_off(self) -> None:
+        """Silence detection no longer depends on the audio filters."""
         vp = VadProcessor(_config_with_vad_disabled())
-        assert vp.vad_enabled is False
+        assert vp.vad_enabled is True
 
     def test_vad_enabled_true_when_suppression_method_not_none(self) -> None:
         cfg = _config_with_vad_disabled()
@@ -708,7 +714,10 @@ class TestVadEnabledCache:
         cfg.noise_filter_highpass = False
         cfg.noise_suppression_method = "none"
         vp.on_config_changed()
-        assert vp.vad_enabled is False
+        assert vp.vad_enabled is True, (
+            "on_config_changed must still refresh the cache, and the refreshed "
+            "value stays True because VAD no longer depends on the filters"
+        )
 
     def test_vad_enabled_ttl_safety_net(self) -> None:
         """If on_config_changed() is not called, the 5s TTL forces a"""
@@ -720,7 +729,10 @@ class TestVadEnabledCache:
         cfg.noise_suppression_method = "none"
         # Backdate the cache timestamp so the TTL triggers
         vp.vad_enabled_cache_ts = time.perf_counter() - 10.0
-        assert vp.vad_enabled is False
+        assert vp.vad_enabled is True, (
+            "the TTL must still refresh the cache, and the refreshed value is "
+            "always True now that VAD is unconditional"
+        )
 
 
 class TestComputeVadEnabled:
@@ -750,7 +762,8 @@ class TestComputeVadEnabled:
         )
         assert vp.compute_vad_enabled(cfg) is True
 
-    def test_returns_false_for_off_preset(self) -> None:
+    def test_returns_true_for_off_preset(self) -> None:
+        """VAD is unconditional: the "Off" audio preset no longer disables it."""
         vp = VadProcessor(_config_with_vad_disabled())
         cfg = MagicMock(
             noise_filter_highpass=False,
@@ -761,7 +774,7 @@ class TestComputeVadEnabled:
             noise_filter_notch=False,
             noise_suppression_method="none",
         )
-        assert vp.compute_vad_enabled(cfg) is False
+        assert vp.compute_vad_enabled(cfg) is True
 
     def test_use_silero_vad_does_not_force_vad_enabled(self) -> None:
         """VAD-GATE: use_silero_vad controls WHICH path (Silero vs RMS),"""
@@ -776,7 +789,10 @@ class TestComputeVadEnabled:
             noise_suppression_method="none",
             use_silero_vad=True,
         )
-        assert vp.compute_vad_enabled(cfg) is False
+        assert vp.compute_vad_enabled(cfg) is True, (
+            "use_silero_vad selects WHICH detector; it cannot change whether "
+            "VAD runs, and VAD is now always on"
+        )
 
 
 class TestPropertyDelegation:

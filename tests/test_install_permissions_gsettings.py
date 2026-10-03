@@ -631,7 +631,7 @@ class TestManifestSchema:
         assert manifest["caps_lock_originals"]["sway_xkb_options_line"] == ""
 
 
-class TestGp131NoTargetUserFails:
+class TestNoTargetUserFails:
     """``install()`` must ``fail(5, ...)`` when no target user is detected."""
 
     def test_install_fails_with_code_5_when_no_user(self, ip_module, monkeypatch):

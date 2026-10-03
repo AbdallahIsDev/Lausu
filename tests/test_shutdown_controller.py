@@ -181,6 +181,54 @@ class TestQuitCallsDoCleanupAndExits:
             "warns 'exiting without quit()' after a clean quit"
         )
 
+    def test_quit_closes_worker_client_before_thread_shutdown(self, controller, fake_app, monkeypatch):
+        """``quit()`` must stop the worker reconnect loop BEFORE joining
+        threads, or it retries a dead worker through teardown."""
+        from voice_typer.server import worker_client as _wc
+
+        order: list[str] = []
+        monkeypatch.setattr(_wc, "close_shared_client", lambda: order.append("close") or True)
+        fake_app._thread_registry.shutdown_all = lambda *a, **k: order.append("threads")
+        fake_app._do_cleanup = MagicMock(side_effect=lambda: order.append("cleanup"))
+        monkeypatch.setattr(sys, "exit", lambda code=0: None)
+
+        controller.quit()
+
+        assert order.index("close") < order.index("threads"), (
+            f"worker close must precede thread shutdown; got {order}"
+        )
+        assert order.index("threads") < order.index("cleanup"), (
+            f"thread shutdown must precede cleanup; got {order}"
+        )
+
+
+class TestQuitAppArmsShutdownEventEarly:
+    """``quit_app`` must arm ``_shutting_down_event`` BEFORE the recorder
+    check so lazy getters fail fast instead of blocking on builds."""
+
+    def test_recorder_check_sees_armed_event(self, monkeypatch):
+        from voice_typer.server.app_lifecycle import LifecycleController
+
+        seen: dict = {}
+        app = MagicMock()
+        app._shutting_down_event = threading.Event()
+
+        class _Rec:
+            @property
+            def recording(self):
+                seen["armed"] = app._shutting_down_event.is_set()
+                return False
+
+        app.recorder = _Rec()
+        app.quit = MagicMock()
+
+        LifecycleController(app).quit_app()
+
+        assert seen.get("armed") is True, (
+            "recorder check must run with _shutting_down_event already set"
+        )
+        app.quit.assert_called_once_with()
+
     def test_quit_publishes_quit_app_event_when_not_published(self, controller, fake_app, monkeypatch):
         """``quit()`` must publish the ``quit_app`` event over the TCP"""
         fake_app._do_cleanup = MagicMock()

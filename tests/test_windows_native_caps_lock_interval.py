@@ -50,7 +50,7 @@ def _drive_n_iterations(backend, mock_kernel32, n):
 
 
 def test_caps_lock_check_fires_within_30_iterations(mock_win32, monkeypatch):
-    """AB-36: with ``% 25`` (fixed), the periodic caps-lock backup"""
+    """with ``% 25`` (fixed), the periodic caps-lock backup"""
     mock_user32, mock_kernel32, _ = mock_win32
     from voice_typer.server.hotkeys import WindowsNativeHotkey
 

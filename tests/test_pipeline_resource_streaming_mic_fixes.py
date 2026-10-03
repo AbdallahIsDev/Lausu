@@ -213,7 +213,7 @@ class TestStreamingEmptyBatchRetry:
         assert not long_runs, f"warning contains redactable runs: {long_runs}"
 
 
-def _build_mock_recorder(*, device, open_success=True):
+def build_mock_recorder(*, device, open_success=True):
     recorder = MagicMock(name="recorder")
     recorder.config = MagicMock(name="config")
     recorder.config.sample_rate = 16000
@@ -242,7 +242,7 @@ class TestMicrophoneFallbackWording:
     def test_system_default_resolution_logs_debug_not_failure(self, caplog):
         from voice_typer.server.recording.recording_lifecycle import start_recording
 
-        recorder = _build_mock_recorder(device=None)
+        recorder = build_mock_recorder(device=None)
         recorder._devices._resolve_device.return_value = None
         recorder._devices._same_physical_microphone_candidates.return_value = [27]
         recorder._stream_lifecycle.open_stream_for_candidates.return_value = (27, 16000, None)
@@ -261,7 +261,7 @@ class TestMicrophoneFallbackWording:
     def test_system_default_genuine_fallback_names_default(self, caplog):
         from voice_typer.server.recording.recording_lifecycle import start_recording
 
-        recorder = _build_mock_recorder(device=None, open_success=False)
+        recorder = build_mock_recorder(device=None, open_success=False)
         recorder._devices._resolve_device.return_value = None
         recorder._devices._same_physical_microphone_candidates.return_value = [None]
         recorder._stream_lifecycle.open_stream_for_candidates.return_value = (
@@ -276,24 +276,105 @@ class TestMicrophoneFallbackWording:
 
         recorder._stream_lifecycle.open_stream_fallback.side_effect = _fallback_side_effect
 
-        with caplog.at_level(logging.INFO, logger="voice_typer.server.recording"):
+        with caplog.at_level(logging.WARNING, logger="voice_typer.server.recording"):
             start_recording(recorder)
 
         infos = [rec for rec in caplog.records if "saved selection unchanged" in rec.message]
-        assert infos, "genuine fallback must keep the saved-selection INFO"
+        assert infos, "genuine fallback must keep the saved-selection WARNING"
         assert "System Default" in infos[0].getMessage()
         assert "[None]" not in infos[0].getMessage()
+
+    def test_same_mic_fallback_is_info_and_silent(self, caplog, monkeypatch):
+        """Same physical mic on another host API: INFO, no tray toast.
+
+        A WASAPI flake failing over to the same Realtek mic via MME is
+        routine. A popup reading like breakage trains users to fear a
+        working app; average users must never need Windows settings
+        archaeology for a case that already works.
+        """
+        from voice_typer.server import event_bus as _event_bus
+        from voice_typer.server.recording.recording_lifecycle import start_recording
+
+        recorder = build_mock_recorder(device=None, open_success=False)
+        recorder._devices._resolve_device.return_value = None
+        recorder._devices._same_physical_microphone_candidates.return_value = [27]
+        recorder._stream_lifecycle.open_stream_for_candidates.return_value = (
+            None,
+            16000,
+            RuntimeError("Error starting stream: Unanticipated host error"),
+        )
+        by_index = {
+            27: {"index": 27, "name": "Microphone (Realtek(R) Audio)"},
+            1: {"index": 1, "name": "Microphone (Realtek(R) Audio)"},
+        }
+        recorder._devices._cached_device_info.side_effect = by_index.get
+
+        def _fallback_side_effect(rec, candidates, callback, eff_sr, last_err):
+            recorder._stream_lifecycle._stream = MagicMock(name="fallback-stream")
+            return (1, 16000, True, None)
+
+        recorder._stream_lifecycle.open_stream_fallback.side_effect = _fallback_side_effect
+        published: list[dict] = []
+        monkeypatch.setattr(_event_bus, "publish", published.append)
+
+        with caplog.at_level(logging.DEBUG, logger="voice_typer.server.recording"):
+            start_recording(recorder)
+
+        infos = [r for r in caplog.records if "saved selection unchanged" in r.message]
+        assert infos, "same-mic fallback must still note the saved selection"
+        assert all(r.levelno == logging.INFO for r in infos)
+        assert not any(
+            "saved selection unchanged" in r.message and r.levelno == logging.WARNING
+            for r in caplog.records
+        )
+        assert published == [], "same-mic fallback must not pop a tray notification"
+
+    def test_different_mic_fallback_stays_loud(self, caplog, monkeypatch):
+        """Falling over to a DIFFERENT mic keeps WARNING + notification."""
+        from voice_typer.server import event_bus as _event_bus
+        from voice_typer.server.recording.recording_lifecycle import start_recording
+
+        recorder = build_mock_recorder(device=None, open_success=False)
+        recorder._devices._resolve_device.return_value = None
+        recorder._devices._same_physical_microphone_candidates.return_value = [27]
+        recorder._stream_lifecycle.open_stream_for_candidates.return_value = (
+            None,
+            16000,
+            RuntimeError("Error starting stream: Unanticipated host error"),
+        )
+        by_index = {
+            27: {"index": 27, "name": "Microphone (Realtek(R) Audio)"},
+            5: {"index": 5, "name": "USB Headset Mic"},
+        }
+        recorder._devices._cached_device_info.side_effect = by_index.get
+
+        def _fallback_side_effect(rec, candidates, callback, eff_sr, last_err):
+            recorder._stream_lifecycle._stream = MagicMock(name="fallback-stream")
+            return (5, 16000, True, None)
+
+        recorder._stream_lifecycle.open_stream_fallback.side_effect = _fallback_side_effect
+        published: list[dict] = []
+        monkeypatch.setattr(_event_bus, "publish", published.append)
+
+        with caplog.at_level(logging.DEBUG, logger="voice_typer.server.recording"):
+            start_recording(recorder)
+
+        assert any(
+            "saved selection unchanged" in r.message and r.levelno == logging.WARNING
+            for r in caplog.records
+        )
+        assert len(published) == 1
 
     def test_concrete_fallback_keeps_saved_selection_notice(self, caplog):
         from voice_typer.server.recording.recording_lifecycle import start_recording
 
-        recorder = _build_mock_recorder(device=5)
+        recorder = build_mock_recorder(device=5)
         recorder._devices._resolve_device.return_value = 5
         recorder._devices._same_physical_microphone_candidates.return_value = [5]
         recorder._stream_lifecycle.open_stream_for_candidates.return_value = (7, 16000, None)
         recorder._stream_lifecycle._stream = MagicMock(name="opened-stream")
 
-        with caplog.at_level(logging.INFO, logger="voice_typer.server.recording"):
+        with caplog.at_level(logging.WARNING, logger="voice_typer.server.recording"):
             start_recording(recorder)
 
         assert any("saved selection unchanged" in rec.message for rec in caplog.records)

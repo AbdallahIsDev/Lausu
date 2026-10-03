@@ -235,6 +235,9 @@ class TestNoneCheckOnBatchPath:
         app = _TestApp()
         app.recording.pop_streaming_session.return_value = None
         app.models.active_transcriber.return_value = None
+        # The transcribe path waits out an in-flight load before giving up, so
+        # "no engine available" means both probes come back empty.
+        app.models.wait_for_active_engine_loaded.return_value = None
 
         pipeline = _new_pipeline(app)
         with pytest.raises(BackendNotLoadedError) as exc_info:
@@ -258,6 +261,7 @@ class TestNoneCheckOnBatchPath:
         app = _TestApp()
         app.recording.pop_streaming_session.return_value = None
         app.models.active_transcriber.return_value = None
+        app.models.wait_for_active_engine_loaded.return_value = None
 
         pipeline = _new_pipeline(app)
         with pytest.raises(BackendNotLoadedError):
@@ -268,6 +272,7 @@ class TestNoneCheckOnBatchPath:
         """FR-15 doesn't break the streaming path: when a streaming"""
         app = _TestApp()
         app.models.active_transcriber.return_value = None
+        app.models.wait_for_active_engine_loaded.return_value = None
         fake_session = MagicMock()
         fake_session.finalize.return_value = "streaming text"
         app.recording.pop_streaming_session.return_value = fake_session

@@ -34,7 +34,7 @@ class TestConfigSchemaVersion:
         assert loaded.hotkey == "<f3>"
 
 
-class TestCfg8DeprecatedFieldsRemoved:
+class TestDeprecatedFieldsRemoved:
     """the deprecated noise-filter and volume-duck fields"""
 
     DEPRECATED_REMOVED = [

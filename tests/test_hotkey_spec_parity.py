@@ -20,7 +20,7 @@ def _collapse_modifier(name: str) -> str:
 
 
 def _collapse_modifiers(modifiers: frozenset[str] | set[str] | tuple[str, ...]) -> frozenset[str]:
-    """Apply :func:`_collapse_modifier` to a collection of modifiers."""
+    """func:`_collapse_modifier` to a collection of modifiers."""
     return frozenset(_collapse_modifier(m) for m in modifiers)
 
 

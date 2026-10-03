@@ -21,7 +21,7 @@ def _override_integrity_cache_path(tmp_path, monkeypatch):
 
 
 class TestVerifyModelIntegrityRecordsUnhashableFile:
-    """AP-30: when ``compute_file_sha256`` raises, ``details[\"failed_file\"]``"""
+    """when ``compute_file_sha256`` raises, ``details[\"failed_file\"]``"""
 
     def test_failed_file_recorded_and_actual_hash_none(self, tmp_path):
         repo_id = "test-org/ap30-unhashable-repo"
@@ -73,7 +73,7 @@ class TestVerifyModelIntegrityRecordsUnhashableFile:
         assert details["expected_hash"] == pinned_files["config.json"]
 
     def test_breaks_on_first_unhashable_file(self, tmp_path):
-        """AP-30: the loop must ``break`` (not ``continue``) on the first"""
+        """the loop must ``break`` (not ``continue``) on the first"""
         repo_id = "test-org/ap30-break-on-first"
         local_dir = tmp_path / "model"
         local_dir.mkdir()
@@ -126,7 +126,7 @@ class TestVerifyModelIntegrityRecordsUnhashableFile:
         )
 
     def test_log_escalated_to_warning(self, tmp_path, caplog):
-        """AP-30: the diagnostic must be logged at WARNING (not DEBUG)"""
+        """the diagnostic must be logged at WARNING (not DEBUG)"""
         repo_id = "test-org/ap30-warning-log"
         local_dir = tmp_path / "model"
         local_dir.mkdir()
@@ -162,7 +162,7 @@ class TestVerifyModelIntegrityRecordsUnhashableFile:
 
 
 class TestModelSizeMbIncludesParakeet:
-    """AP-43: ``_MODEL_SIZE_MB`` must include a ``\"parakeet\"`` entry so"""
+    """``_MODEL_SIZE_MB`` must include a ``\"parakeet\"`` entry so"""
 
     def test_parakeet_key_exists(self):
         """The ``\"parakeet\"`` key must exist in ``_MODEL_SIZE_MB``."""

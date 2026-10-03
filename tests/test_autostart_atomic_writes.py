@@ -1,4 +1,4 @@
-"""AP-18: regression tests for atomic writes in autostart / prewarm /"""
+"""regression tests for atomic writes in autostart / prewarm /"""
 
 from __future__ import annotations
 

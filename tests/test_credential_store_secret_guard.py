@@ -88,7 +88,7 @@ class TestPreserveNonDictConfig:
         original_content = '["not", "a", "dict"]'
         config_file.write_text(original_content)
 
-        # Act: try to write the plaintext fallback. Pre-fix, this would
+        # try to write the plaintext fallback. Pre-fix, this would
         result = credential_store._write_plaintext_fallback("openai", "sk-test-12345")
 
         assert result is False, (

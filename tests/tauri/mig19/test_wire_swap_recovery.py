@@ -511,15 +511,34 @@ def test_python_ws_server_enforces_max_size(sidecar_ws_source: str) -> None:
     assert "serve(" in sidecar_ws_source, "Python WS server must call websockets.serve() (the async server)"
 
 
-def test_python_sidecar_max_frame_bytes_constant_is_1_mib(sidecar_ws_source: str) -> None:
-    """The Python ``_MAX_FRAME_BYTES`` constant must also be 1 MiB,"""
-    match = re.search(
-        r"_MAX_FRAME_BYTES\s*=\s*(?P<expr>[\d\s*()+]+)",
-        sidecar_ws_source,
+def test_python_sidecar_max_frame_bytes_constant_is_1_mib() -> None:
+    """The Python ``_MAX_FRAME_BYTES`` constant must also be 1 MiB.
+
+    Asserts the resolved VALUE by import rather than regex-evaluating a
+    literal in the source: the cap is defined once in
+    ``voice_typer.server.ipc.protocol_version`` and re-exported by each
+    transport, so a spelling pin would break every legitimate refactor
+    without testing the actual contract (ADR-0020 §10).
+    """
+    from voice_typer.server.ipc.protocol_version import MAX_WS_FRAME_BYTES
+    from voice_typer.server.sidecar_ws_internals.outbound import (
+        _MAX_FRAME_BYTES as OUTBOUND_CAP,
     )
-    assert match is not None, "_MAX_FRAME_BYTES const not found in sidecar_ws.py"
-    expr = match.group("expr").strip()
-    assert eval(expr) == 1024 * 1024, f"_MAX_FRAME_BYTES must be 1 MiB (1048576), got '{expr}' = {eval(expr)}"
+    from voice_typer.server.worker_client import _MAX_FRAME_BYTES as CLIENT_CAP
+    from voice_typer.worker._ws_server import _MAX_FRAME_BYTES as SERVER_CAP
+
+    assert MAX_WS_FRAME_BYTES == 1024 * 1024, (
+        "MAX_WS_FRAME_BYTES must be 1 MiB (1048576), got "
+        f"{MAX_WS_FRAME_BYTES}"
+    )
+    # Every transport must expose the SAME cap: a mismatch silently drops
+    # frames the other side refuses to read.
+    for name, cap in (
+        ("sidecar outbound", OUTBOUND_CAP),
+        ("worker client", CLIENT_CAP),
+        ("worker ws server", SERVER_CAP),
+    ):
+        assert cap == 1024 * 1024, f"{name} frame cap must be 1 MiB, got {cap}"
 
 
 def test_python_sidecar_outbound_frame_cap(sidecar_ws_source: str) -> None:
@@ -709,10 +728,10 @@ def test_ws_reader_forwards_event_names_unchanged(ws_source: str, ws_event_proto
     )
 
 
-def test_yj21_respawn_inner_acquires_child_lock_before_shutting_down_recheck(
+def test_respawn_inner_acquires_child_lock_before_shutting_down_recheck(
     supervisor_source: str,
 ) -> None:
-    """YJ-21 / CR-81: ``respawn_inner`` must acquire the ``state.child``"""
+    """``respawn_inner`` must acquire the ``state.child``"""
     # Locate the post-spawn install block. The pattern: the Ok((port,
     install_block_re = re.compile(
         r"Ok\(\(\s*port\s*,\s*child\s*,\s*exit_rx\s*\)\)\s*=>\s*\{",
