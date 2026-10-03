@@ -48,7 +48,12 @@ const buttonVariants = cva(
 				warning:
 					"bg-warning/15 text-warning hover:bg-warning/25 focus-visible:border-warning/40 focus-visible:ring-warning/20",
 				// No border/box: `link` is a text affordance, not a control.
-				link: "border-transparent text-primary underline-offset-4 hover:underline",
+				// `dark:border-transparent` is REQUIRED alongside
+				// `border-transparent`: the Button base carries
+				// `dark:border-border/10`, and a class-variant dark rule
+				// outranks a plain utility, so in dark mode the border came
+				// back and link buttons rendered as outlined boxes.
+				link: "border-transparent dark:border-transparent px-0 text-primary underline-offset-4 hover:underline",
 			},
 			size: {
 				default:

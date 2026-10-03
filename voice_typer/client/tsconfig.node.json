@@ -10,7 +10,8 @@
 		"outDir": "./out",
 		"strict": true,
 		"target": "ESNext",
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"types": ["node"]
 	},
 	"include": [
 		"vitest.config.ts",
@@ -18,6 +19,8 @@
 		"vite.tauri.config.ts",
 		"csp-plugin.ts",
 		"aliases.ts",
+		"scripts/vite-browser-bridge.ts",
+		"scripts/dev-bridge-middleware.ts",
 		"src/shared/**/*"
 	]
 }

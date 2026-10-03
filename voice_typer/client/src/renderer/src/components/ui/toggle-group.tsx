@@ -406,14 +406,19 @@ export function ToggleGroup<T extends string>({
 							// has-[:focus-visible] to style the parent label).
 							"has-focus-visible:ring-1has-focus-visible:ring-ring has-focus-visible:outline-hidden",
 							variant === "default" &&
-								(radius === "sm"
-									? "rounded-lg px-2.5 py-1 text-[0.6875rem] tracking-wider"
-									: "rounded-full px-2 py-1 text-[0.6875rem] tracking-wider"),
-							labelClassName,
-							active && ["text-foreground", activeClassName],
-							!active && "text-muted-foreground hover:text-foreground",
-						)}
-					>
+													(radius === "sm"
+														? "rounded-lg px-2.5 py-1 text-[0.6875rem] tracking-wider"
+														: "rounded-full px-2 py-1 text-[0.6875rem] tracking-wider"),
+													// Full-width options: an option that only fits its
+													// label leaves the group looking ragged whenever the
+													// container is wider than the sum of the labels
+													// (sidebar `w-full` toggles). `flex-1` lets every
+													// option share the row equally instead.
+													labelClassName ?? "flex-1",
+													active && ["text-foreground", activeClassName],
+													!active && "text-muted-foreground hover:text-foreground",
+												)}
+											>
 						<input
 							type="radio"
 							// Stable useId-derived name so radio inputs within the

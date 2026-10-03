@@ -87,7 +87,7 @@ export function AvailableMicrophonesList({
 						    in MicrophoneListItem. */}
 						<SelectableRow
 							className={
-								"flex items-center gap-3 px-4 py-2 transition-colors" +
+								"flex items-center gap-3 p-4 transition-colors" +
 								(testRunning || activeMicId === null
 									? ""
 									: " cursor-pointer hover:bg-foreground/5")

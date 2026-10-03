@@ -29,7 +29,7 @@ const ROW_IDS = [
 
 function VocabularyRow() {
 	return (
-		<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-2 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_6.25rem]">
+		<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 p-4 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_6.25rem]">
 			<CheckboxSkeleton className="self-start pt-0.5 sm:self-center sm:pt-0" />
 			<Skeleton className="h-5 w-1/3" />
 			<div className="col-start-2 flex min-w-0 items-center sm:col-start-auto">
