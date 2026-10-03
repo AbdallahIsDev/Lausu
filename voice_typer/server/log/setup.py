@@ -39,6 +39,7 @@ from voice_typer.server.log.formatters import (
     _ColorFormatter,
     _FileFormatter,
     _JsonFormatter,
+    _TerminalFormatter,
 )
 from voice_typer.server.log.handlers import (
     _BubbleLevelExclusionFilter,
@@ -577,7 +578,9 @@ def setup_logging(
                 stream.setFormatter(_JsonFormatter() if json_mode else _ColorFormatter())
             else:
                 # Non-TTY (Tauri sidecar, piped stderr, log redirection):
-                stream.setFormatter(_JsonFormatter() if json_mode else _FileFormatter())
+                # plain time-only terminal shape (no date, no ANSI);
+                # the dated shape stays file-only.
+                stream.setFormatter(_JsonFormatter() if json_mode else _TerminalFormatter())
             # attach the same PII / API-key redaction filter to the
             stream.addFilter(_pii_filter)
             # Same reasoning as the file handler, attach

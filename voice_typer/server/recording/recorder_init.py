@@ -263,13 +263,13 @@ class RecorderInitMixin:
         self._rms_callback_error_count: int = 0
 
     def _init_vad(self, config: Config) -> None:
-        """Construct the ``VadProcessor`` and log raw-recording mode."""
+        """Construct the ``VadProcessor``."""
         from voice_typer.server.vad_processor import VadProcessor
 
-        # VAD state machine with hysteresis.
+        # VAD state machine with hysteresis. It always runs: silence detection
+        # (auto-stop, silence warnings) is independent of the audio-enhancement
+        # filters, so the "Off" preset no longer disables it.
         self._vad: VadProcessor = VadProcessor(config)
-        if not self._vad.vad_enabled:
-            log.info("[RECORDING] VAD disabled, all audio enhancements off (raw recording mode).")
 
     def _init_preroll_state(self, config: Config) -> None:
         """Pre-roll circular buffer sizing + the in-flight-callback guard."""

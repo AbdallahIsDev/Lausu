@@ -131,7 +131,7 @@ def _delete_test_recording_paths(paths) -> None:
             except OSError:
                 log.debug("[LEVEL-MON] could not unlink expired test WAV: %s", p)
         log.debug(
-            "[LEVEL-MON] expired mic-test WAV delete: %d/%d file(s) removed",
+            "[LEVEL-MON] expired mic-test WAV delete: %d/%d files removed",
             deleted,
             len(targets),
         )
@@ -163,7 +163,7 @@ def _schedule_test_recording_expiry(paths, ttl_sec: float = MIC_TEST_RECORDING_T
         _test_recording_expiry_timers.add(timer)
         timer.start()
         log.debug(
-            "[LEVEL-MON] scheduled mic-test WAV expiry in %ss for %d file(s)",
+            "[LEVEL-MON] scheduled mic-test WAV expiry in %ss for %d files",
             ttl_sec,
             len(targets),
         )
@@ -198,7 +198,7 @@ def _delete_expired_recordings(max_age_sec: float = MIC_TEST_RECORDING_TTL_SEC) 
                 except OSError:
                     log.debug("[LEVEL-MON] could not unlink expired test WAV: %s", f)
         if deleted:
-            log.debug("[LEVEL-MON] expired mic-test WAV sweep removed %d file(s)", deleted)
+            log.debug("[LEVEL-MON] expired mic-test WAV sweep removed %d files", deleted)
         _remove_recordings_dir_if_empty()
         return deleted
     except Exception:

@@ -49,8 +49,9 @@ def _startup_line(level: str, msg: str) -> None:
     handlers, so ``log.info``/``log.warning`` would be silently dropped
     (or hit the ugly ``logging.lastResort`` fallback formatter). Write a
     clean terminal-style line to stderr instead, the same
-    ``HH:MM:SS  [WARN ]msg`` shape the terminal formatter produces
-    (C-LOG-1: time-only on the terminal, INFO level label omitted).
+    ``HH:MM:SS  LEVEL  msg`` shape the terminal formatter produces
+    (C-LOG-1: time-only on the terminal; the INFO level label is omitted
+    on purpose, matching ``_ColorFormatter``).
     Harmless under ``pythonw.exe`` where stderr is devnull, the line is
     simply invisible there, exactly as before.
     """
@@ -59,7 +60,9 @@ def _startup_line(level: str, msg: str) -> None:
         if sys.stderr is None or sys.stderr.closed:
             return
         if level == "WARN":
-            print(f"{stamp}  WARN {msg}", file=sys.stderr, flush=True)
+            # 5-char level column + one space = `WARN  msg`, same as
+            # `_TerminalFormatter` / the Rust host's `format_terminal_line`.
+            print(f"{stamp}  WARN  {msg}", file=sys.stderr, flush=True)
         else:
             print(f"{stamp}  {msg}", file=sys.stderr, flush=True)
     except (OSError, ValueError):

@@ -71,15 +71,24 @@ _LEVEL_WORKER_ERROR_RATE_THRESHOLD: float = 10.0
 # ``_state._dropped_level_chunks`` is a per-burst delta: the RT callback
 _total_dropped_level_chunks: int = 0
 
+# PortAudio status-flag log throttle. Overflow flags arrive per-chunk
+# while the callback misses deadlines (chronic on loaded machines),
+# so each one gets no line of its own; a 30s summary names the count.
+_overflow_count_since_log: int = 0
+_last_overflow_log_time: float = 0.0
+_OVERFLOW_LOG_THROTTLE_SEC: float = 30.0
+
 
 def _reset_worker_error_state_for_tests() -> None:
     """Reset the  per-burst error counter to its post-import defaults."""
     global _level_worker_errors, _last_worker_error_log_time, _level_worker_error_window_start
-    global _total_dropped_level_chunks
+    global _total_dropped_level_chunks, _overflow_count_since_log, _last_overflow_log_time
     _level_worker_errors = 0
     _last_worker_error_log_time = 0.0
     _level_worker_error_window_start = 0.0
     _total_dropped_level_chunks = 0
+    _overflow_count_since_log = 0
+    _last_overflow_log_time = 0.0
 
 
 def _ensure_level_worker_running() -> None:
@@ -243,6 +252,31 @@ def _level_worker_loop() -> None:
             return
 
 
+def _log_portaudio_status_throttled(status: Any) -> None:
+    """Log a PortAudio callback status flag without per-chunk spam.
+
+    Overflow flags mean deadlined-missed callbacks with discarded
+    samples; on a loaded box they arrive every second for hours.
+    Non-overflow flags are rare and keep their own line.
+    """
+    global _overflow_count_since_log, _last_overflow_log_time
+    text = str(status)
+    if "overflow" not in text.lower():
+        log.debug("[LEVEL-MON] PortAudio status: %s", text)
+        return
+    _overflow_count_since_log += 1
+    now = time.monotonic()
+    if (now - _last_overflow_log_time) >= _OVERFLOW_LOG_THROTTLE_SEC:
+        count = _overflow_count_since_log
+        _overflow_count_since_log = 0
+        _last_overflow_log_time = now
+        log.debug(
+            "[LEVEL-MON] PortAudio input overflow x%d in last ~%.0fs (samples discarded)",
+            count,
+            _OVERFLOW_LOG_THROTTLE_SEC,
+        )
+
+
 def _process_level_chunk(indata: np.ndarray, status: Any) -> None:
     """Process a single audio chunk on the level worker thread.
 
@@ -275,7 +309,7 @@ def _process_level_chunk(indata: np.ndarray, status: Any) -> None:
     ``raw_audio.copy()`` + post-hoc filter (existing behavior).
     """
     if status:
-        log.debug("[LEVEL-MON] PortAudio status: %s", status)
+        _log_portaudio_status_throttled(status)
 
     # snapshot shared state under the lock (quick). The heavy
     with _state._monitor_lock:

@@ -21,6 +21,11 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("voice_typer.server.model_manager")
 
+# Bounded wait used by the transcribe path. Must stay well under the 90s
+# transcription watchdog window so the wait can never be mistaken for a stuck
+# transcription and trip force-recovery.
+MODEL_WAIT_FOR_READY_SECONDS = 60.0
+
 
 class LoadingMixin:
     # Members provided by the composed ``ModelManager`` (manager.py):
@@ -333,6 +338,41 @@ class LoadingMixin:
                         hotkey=notification_hotkey_label(self._app.config.hotkey),
                     ),
                 )
+
+    def wait_for_active_engine_loaded(
+        self, timeout: float = MODEL_WAIT_FOR_READY_SECONDS
+    ) -> Any | None:
+        """Wait for an in-flight engine load to finish; return the ready engine.
+
+        Used by the transcribe path when ``active_transcriber()`` is None: the
+        app may still be warming up at startup, or the hotkey press may have
+        kicked off an idle-unload reload. Waiting keeps the user's audio
+        instead of discarding it.
+
+        ``_lazy_init_lock`` is the single serialization point for every engine
+        load, so acquiring it blocks exactly until the in-flight load releases
+        it. When nothing is loading the lock is free, so this returns None
+        immediately rather than starting a load of its own — the transcribe
+        path must never become a second loader.
+        """
+        engine = self.active_transcriber()
+        if engine is not None and getattr(engine, "is_loaded", False):
+            return engine
+
+        if not self._lazy_init_lock.acquire(timeout=timeout):
+            log.warning(
+                "[MODEL] gave up after %.0fs waiting for the model to finish loading",
+                timeout,
+            )
+            return None
+        try:
+            engine = self.active_transcriber()
+            if engine is not None and getattr(engine, "is_loaded", False):
+                log.info("[MODEL] model became ready while waiting; transcription resumes")
+                return engine
+            return None
+        finally:
+            self._lazy_init_lock.release()
 
     def ensure_active_engine_loaded(self) -> Any | None:
         """Called from LausuApp._start_dictation to handle the case"""

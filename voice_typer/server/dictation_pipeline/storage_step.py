@@ -55,7 +55,9 @@ class _StorageStepMixin:
                 # Correlate this entry with the dictation cycle so a
                 self._app._crash_recovery.add(text, pasted=False, cycle_id=self._cycle_id)
                 # CRASH-SAFE-GAP-B: flush the crash recovery file immediately
-                self._app._crash_recovery.flush(timeout=0.5)
+                # 2s, not 0.5s: post-inference the disk is often still busy
+                # (page cache churn), and a tight timeout warns falsely.
+                self._app._crash_recovery.flush(timeout=2.0)
             except Exception:
                 log.exception("[PIPELINE] Crash recovery add failed")
                 # a-review Finding 2: notify-once flag lives on ``self._app``

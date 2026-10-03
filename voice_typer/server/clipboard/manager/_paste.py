@@ -92,7 +92,11 @@ class PasteMixin:
             return
         with _pending_restores_lock, contextlib.suppress(ValueError):
             _pending_restores.remove(pending_entry)
-        _cb.log.info("[CLIPBOARD] Paste not delivered, keeping dictated text in clipboard for manual paste")
+        # Delivery is unconfirmed, not known-failed: SendInput may have
+        # delivered nothing while the fallback keystroke still landed.
+        _cb.log.info(
+            "[CLIPBOARD] Paste delivery unconfirmed; keeping dictated text in clipboard for manual paste"
+        )
 
     # Each helper has an explicit error contract: returns a result tuple
 
@@ -449,7 +453,20 @@ class PasteMixin:
             self._safe_key_press(_cb._Key.ctrl, "v")
 
         if not paste_succeeded:
-            _cb.log.warning("[CLIPBOARD] Auto-paste failed (SendInput partial success, UIPI may have blocked)")
+            # SendInput 0 and SendInput 1..3 are different outcomes: 0 means
+            # nothing was delivered AND the fallback keystroke was dispatched
+            # (it may still land), while 1..3 is a partial send with no
+            # fallback. Reporting both as "partial success"/"not delivered"
+            # mislabels a paste that actually succeeded.
+            if getattr(self, "_last_sendinput_events", None) == 0:
+                _cb.log.warning(
+                    "[CLIPBOARD] SendInput delivered 0 events; fallback Ctrl+V "
+                    "dispatched, delivery unverified (clipboard keeps the text)"
+                )
+            else:
+                _cb.log.warning(
+                    "[CLIPBOARD] Auto-paste failed (SendInput partial success, UIPI may have blocked)"
+                )
         return paste_succeeded
 
     def _finalize_paste(
@@ -470,8 +487,16 @@ class PasteMixin:
 
     def _send_ctrl_v_win32(self) -> bool:
         """Send Ctrl+V via a single atomic SendInput batch."""
-        # Delegate to the package-level _send_ctrl_v_win32 helper
-        return _cb._send_ctrl_v_win32(fallback=lambda: self._safe_key_press(_cb._Key.ctrl, "v"))
+        # Delegate to the package-level _send_ctrl_v_win32 helper. The probe
+        # captures the raw event count so the caller can report the 0-event
+        # (fallback-dispatched) case honestly instead of calling it a failure.
+        probe: list[int] = []
+        ok = _cb._send_ctrl_v_win32(
+            fallback=lambda: self._safe_key_press(_cb._Key.ctrl, "v"),
+            probe=probe,
+        )
+        self._last_sendinput_events = probe[0] if probe else None
+        return ok
 
     def _send_shift_insert_win32(self) -> bool:
         """Send Shift+Insert via a single atomic SendInput batch."""

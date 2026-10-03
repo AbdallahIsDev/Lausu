@@ -43,14 +43,6 @@ class LifecycleController:
             _quit_line_logged = True
             log.info("[QUIT] Quitting %s", APP_NAME)
 
-        # Item 12: If recording, discard the recording before quitting
-        try:
-            if app.recorder and app.recorder.recording:
-                log.info("[QUIT] Recording in progress, discarding before quit")
-                app.recorder.discard()
-        except Exception:
-            log.debug("[QUIT] Could not discard recording", exc_info=True)
-
         # 0. Notify the Tauri host so it can quit cleanly.
         from voice_typer.server import event_bus
 
@@ -62,6 +54,20 @@ class LifecycleController:
         if app._shutting_down_event.is_set():
             log.debug("[QUIT] Already shutting down, ignoring duplicate quit_app call")
             return
+
+        # Arm the shutdown event BEFORE the recorder check below so
+        # lazy getters (recorder, history_db) fail fast instead of
+        # blocking on background builds that teardown is about to
+        # abandon.
+        app._shutting_down_event.set()
+
+        # Item 12: If recording, discard the recording before quitting
+        try:
+            if app.recorder and app.recorder.recording:
+                log.info("[QUIT] Recording in progress, discarding before quit")
+                app.recorder.discard()
+        except Exception:
+            log.debug("[QUIT] Could not discard recording", exc_info=True)
 
         # 1. Delegate to the audited cleanup path. self._app.quit()
         app.quit()

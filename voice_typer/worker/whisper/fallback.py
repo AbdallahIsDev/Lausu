@@ -25,6 +25,10 @@ def with_gpu_fallback(engine, inner, audio, *args, **kwargs):
         )
         # Surface a user-facing notification BEFORE the synchronous CPU
         with contextlib.suppress(Exception):
+            from voice_typer.server import device_caps as _device_caps
+
+            _device_caps.publish_device_cpu_fallback(str(first_err)[:200])
+        with contextlib.suppress(Exception):
             from voice_typer.server import event_bus
 
             event_bus.publish(

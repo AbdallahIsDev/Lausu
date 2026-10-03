@@ -349,6 +349,20 @@ class _FileFormatter(logging.Formatter):
         return line
 
 
+class _TerminalFormatter(logging.Formatter):
+    """Plain-text time-only formatter for piped stderr (no date, no ANSI)."""
+
+    _LVL_LABEL = dict(_FileFormatter._LVL_LABEL)
+
+    def format(self, record: logging.LogRecord) -> str:
+        ts = _iso_timestamp(record, include_date=False)
+        msg = record.getMessage()
+        label = self._LVL_LABEL.get(record.levelno, "INFO")
+        line = f"{ts}  {label:<5} {msg}"
+        line = _append_exception_text(self, record, line)
+        return line
+
+
 class _JsonFormatter(logging.Formatter):
     """Structured JSON formatter , opt-in via ``VOICE_TYPER_LOG_JSON=1``."""
 
@@ -390,6 +404,7 @@ __all__ = [
     "_ColorFormatter",
     "_FileFormatter",
     "_JsonFormatter",
+    "_TerminalFormatter",
     "_TOPIC_COLOR",
     "_TOPIC_KEYWORDS",
     "_TOPIC_KEYWORDS_REGEX",

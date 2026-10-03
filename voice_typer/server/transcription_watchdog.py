@@ -89,9 +89,12 @@ class TranscriptionWatchdog:
             transcription_thread = controller._transcription_thread
             firings = controller._watchdog_firings
         if not force and transcription_thread is not None and transcription_thread.is_alive():
-            log.warning(
-                "Transcription watchdog fired (%d/%d), but worker is still "
-                "alive; leaving app busy to avoid overlapping model calls",
+            # Routine on slow hardware (large model on CPU): the worker
+            # is making progress, just slower than the watchdog
+            # interval. Not a fault, so INFO, not WARNING.
+            log.info(
+                "Transcription still running after %d/%d watchdog intervals; "
+                "worker alive, leaving app busy to avoid overlapping model calls",
                 firings,
                 controller._watchdog_max_firings,
             )

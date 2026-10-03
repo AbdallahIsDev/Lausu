@@ -86,14 +86,16 @@ class StreamingSessionCoordinator:
 
         active = app.models.active_transcriber()
         if active is not None:
-            log.info(
+            # DEBUG, not INFO: transcriber capability is static per
+            # engine, re-announcing it every recording is pure noise.
+            log.debug(
                 "[STREAMING] Checking transcriber: %s has transcribe_words=%s worker_backed=%s",
                 type(active).__name__,
                 hasattr(active, "transcribe_words"),
                 isinstance(active, _WorkerBackedAsr),
             )
         else:
-            log.info("[STREAMING] No active transcriber, skipping streaming (cycle=%s)", app._cycle_id)
+            log.debug("[STREAMING] No active transcriber, skipping streaming (cycle=%s)", app._cycle_id)
             return
 
         # ADR-0025 C6/C7: prefer the worker session when the hop can serve
@@ -102,7 +104,7 @@ class StreamingSessionCoordinator:
         if self._try_start_worker_session(controller, active):
             return
         if active is not None and not hasattr(active, "transcribe_words"):
-            log.info(
+            log.debug(
                 "[STREAMING] Transcriber lacks transcribe_words, skipping streaming (cycle=%s)",
                 app._cycle_id,
             )

@@ -54,7 +54,7 @@ def drain_pending(send_fn: typing.Callable[[dict[str, object]], bool]) -> int:
     if failed:
         with _lock:
             _pending[0:0] = failed
-    log.info("[WORKER] drained %d queued transcribe request(s)%s", sent, format_duration(time.perf_counter() - t0))
+    log.info("[WORKER] drained %d queued transcribe requests%s", sent, format_duration(time.perf_counter() - t0))
     return sent
 
 

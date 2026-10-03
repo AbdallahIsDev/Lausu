@@ -441,16 +441,19 @@ let eventTapCallback: CGEventTapCallBack = { _, type, cgEvent, userInfo in
         }
 
     case .keyUp:
+        // Always emit KEY_UP first so Python can complete toggle-on-keyup /
+        // PTT-release even when the matching keyDown was suppressed (Caps
+        // Lock). Swallowing KEY_UP without emitting left recording stuck.
+        // NSEvent global monitors MISS keyUp, so the CGEventTap is the only
+        // reliable source for key-up delivery.
+        if let name = nameForCGEvent(cgEvent) {
+            emit("KEY_UP:\(name)")
+        }
         // If we swallowed the matching keyDown, swallow its keyUp too so the
         // foreground app doesn't see an orphan key-up.
         if ctx.suppressedKeyCode == keyCode {
             ctx.suppressedKeyCode = nil
             return nil
-        }
-        // Otherwise emit KEY_UP:<Name>. NSEvent global monitors MISS keyUp,
-        // so the CGEventTap is the only reliable source for key-up delivery.
-        if let name = nameForCGEvent(cgEvent) {
-            emit("KEY_UP:\(name)")
         }
 
     default:

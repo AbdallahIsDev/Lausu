@@ -8,6 +8,7 @@ import threading
 import time
 from typing import Any
 
+from voice_typer.server._audio_constants import SILERO_VAD_SAMPLE_RATES
 from voice_typer.server._lazy_import import lazy_module
 
 # PERF-COLDSTART-001: lazy import, sounddevice loads the PortAudio C
@@ -553,7 +554,7 @@ class DeviceManager:
             sr = int(device_info.get("default_samplerate", 0))
         except (ValueError, TypeError):
             sr = 0
-        if sr in (8000, 16000):
+        if sr in SILERO_VAD_SAMPLE_RATES:
             return 6
         return 3
 

@@ -33,11 +33,25 @@ def quit(controller: ShutdownController) -> None:  # noqa: A001, mirrors the met
         is_main = threading.current_thread() is threading.main_thread()
         # DEBUG: the caller's "[QUIT] Quitting <app>" line already
         log.debug("[SHUTDOWN] Shutting down")
+        # Record the initiating thread so pool drains can detect the
+        # self-deadlock shape (quit running ON a pool worker) and skip
+        # joins that could only time out.
+        controller._quit_initiator = threading.current_thread()
         app._shutting_down = True
         # also set the Event version so executor tasks can check it
         # (atexit_log keys off this Event: without it every clean quit
         # would warn "exiting without quit()").
         app._shutting_down_event.set()
+
+    # Stop the worker-hop reconnect loop FIRST so it does not retry
+    # a dead worker through the whole teardown (WARN spam + futile
+    # connection attempts). Idempotent: the drain bookend re-closes.
+    try:
+        from voice_typer.server import worker_client as _worker_client_mod
+
+        _worker_client_mod.close_shared_client()
+    except Exception:
+        log.debug("[SHUTDOWN] worker client early close failed", exc_info=True)
 
     # NOTIFY-HOST: publish ``quit_app`` so the predecessor frontend
     if not getattr(app, "_quit_app_published", False):

@@ -58,7 +58,8 @@ class CrashRecovery(_SaveWorker, _RecoveryIO):
         self._dir_ensured = False
         # ``_final_save_done`` deduplicates the final
         self._final_save_done = False
-        # THREAD-REGISTRY: optional central registry for shutdown
+        # Retained for constructor compatibility only; the saver
+        # thread is intentionally NOT registered (see _start_save_thread).
         self._thread_registry = thread_registry
         # ``_load()`` is deferred out of ``__init__`` (which runs
         self._loaded = False
@@ -153,7 +154,9 @@ class CrashRecovery(_SaveWorker, _RecoveryIO):
         self._detect_and_notify_lost_dictation()
         unpasted = self.get_unpasted()
         if unpasted:
-            log.info("[RECOVERY] Found %d unpasted transcriptions from previous session", len(unpasted))
+            # DEBUG, not INFO: the startup sequence logs + notifies for
+            # these same entries right after; one announcement is enough.
+            log.debug("[RECOVERY] Found %d unpasted transcriptions from previous session", len(unpasted))
             return unpasted
         return None
 

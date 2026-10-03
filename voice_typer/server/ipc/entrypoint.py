@@ -353,6 +353,15 @@ def main() -> None:
     # ``setup_logging`` is idempotent; it emits the ``[STARTUP] logging
     # initialized`` banner (C-LOG-1) at most once per process.
     _setup_logging()
+    # C-LOG-4: app-identity banner FIRST, before the heavy LausuApp import
+    # (that import alone is multi-second) and before any IPC chatter.
+    try:
+        from voice_typer.server.config import Config
+        from voice_typer.server.startup_banner import emit_app_starting_banner
+
+        emit_app_starting_banner(Config.load())
+    except Exception:
+        log.debug("[STARTUP] early app-starting banner failed", exc_info=True)
     if _tauri_sidecar:
         log.info("[IPC] TAURI_SIDECAR=1, skipping Python-side single-instance mutex (Tauri host owns it)")
 

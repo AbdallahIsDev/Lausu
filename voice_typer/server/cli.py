@@ -18,9 +18,11 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _host_binary_name() -> str:
-    if sys.platform == "darwin":
+    from voice_typer.server.platform_utils import is_macos, is_windows
+
+    if is_macos():
         return "lausu-tauri"
-    if sys.platform == "win32":
+    if is_windows():
         return "lausu-tauri.exe"
     return "lausu-tauri"
 
@@ -116,6 +118,30 @@ def launch_dev() -> int:
     log.info("[CLI] --dev: opening the development environment")
     return launch_dev_console("tauri:dev")
 
+def _configure_launcher_logging() -> None:
+    """Route the launcher's own records through the canonical terminal shape.
+
+    ``logging.basicConfig`` cannot express C-LOG-1: ``%(levelname)s`` emits
+    ``WARNING`` (7 chars) unpadded, so the message column shifts per level
+    and the line does not match the app's own terminal output. Reuse the
+    shared formatter instead of hand-rolling a format string (E7).
+
+    Mirrors ``basicConfig``'s "do nothing if already configured" contract so
+    a caller that configured logging first keeps its own handlers.
+    """
+    from voice_typer.server.log import _FlushingStreamHandler, _TerminalFormatter
+
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    if root.handlers:
+        return
+    handler = _FlushingStreamHandler()
+    handler.setLevel(logging.INFO)
+    handler.setFormatter(_TerminalFormatter())
+    root.addHandler(handler)
+
+
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
@@ -134,11 +160,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s  %(levelname)s  %(message)s",
-        datefmt="%Y-%m-%d  %H:%M:%S",
-    )
+    _configure_launcher_logging()
 
     if args.dev:
         return launch_dev()

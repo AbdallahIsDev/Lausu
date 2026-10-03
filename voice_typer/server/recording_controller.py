@@ -316,6 +316,24 @@ class RecordingController:
             if level_monitor.is_monitoring():
                 # Already running (e.g. the frontend restarted it via
                 return
+            # Only restart for a live consumer. The idle bubble ignores
+            # levels (its meter subscribes in recording mode only) and
+            # the recorder opens its own stream, so an unconditional
+            # restart just pins the OS mic indicator for another idle
+            # window for nobody. A consumer proves itself with polls:
+            # the mic page heartbeats every 30s while visible.
+            import time as _time
+
+            try:
+                _window = float(getattr(level_monitor, "_LEVEL_IDLE_TIMEOUT_SEC", 60.0))
+                _last_poll = float(getattr(level_monitor, "_last_get_level_poll_ts", 0.0) or 0.0)
+            except Exception:
+                _window, _last_poll = 60.0, 0.0
+            if _last_poll <= 0.0 or (_time.monotonic() - _last_poll) >= _window:
+                log.debug(
+                    "[DICTATION] level_monitor restart skipped (no poller; bubble idle needs no levels)"
+                )
+                return
             # Use the configured microphone if set; otherwise default.
             mic_id = getattr(app.config, "microphone", None)
             if not isinstance(mic_id, str):

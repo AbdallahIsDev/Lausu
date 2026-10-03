@@ -59,6 +59,30 @@ if TYPE_CHECKING:
     pass
 
 
+def _wasapi_auto_convert_settings(dev_info_extra: Any | None) -> Any | None:
+    """Build shared-mode-tolerant settings for WASAPI opens, else ``None``.
+
+    PortAudio opens WASAPI devices with the EXACT requested format and
+    no conversion, so the open is refused whenever the engine's mix
+    format currently differs (e.g. another app just used the mic at a
+    different rate) even though shared mode could serve both. Browsers
+    never hit this because they always allow conversion.
+    ``auto_convert`` lets the system insert its mixer/resampler instead
+    of failing, shared-mode only, ignored on other host APIs.
+    """
+    try:
+        host = ""
+        if isinstance(dev_info_extra, dict):
+            raw_host = dev_info_extra.get("host_api_name", "")
+            host = raw_host if isinstance(raw_host, str) else ""
+        if "wasapi" not in host.lower():
+            return None
+        return sd.WasapiSettings(auto_convert=True)
+    except Exception:
+        log.debug("[RECORDING] WASAPI auto_convert settings unavailable", exc_info=True)
+        return None
+
+
 class StreamLifecycle:
     """PortAudio stream open/teardown for :class:`Recorder`.
 
@@ -147,6 +171,7 @@ class StreamLifecycle:
                     latency="low",
                     # AUDIO-HOT: finished_callback detects unexpected stream termination
                     finished_callback=recorder._stream_finished_callback,
+                    extra_settings=_wasapi_auto_convert_settings(dev_info_extra),
                 )
                 stream.start()
 
@@ -224,6 +249,48 @@ class StreamLifecycle:
         # Remove already-tried devices
         tried_set = set(str(c) for c in candidates)
         all_candidates = [c for c in all_candidates if str(c) not in tried_set]
+        # Prefer the same physical mic on another host API (e.g. WASAPI
+        # Realtek failed with WDM-KS GLE 0x492 -> retry Realtek via MME)
+        # before an unrelated device such as the MME mapper.
+        try:
+            tried_names = set()
+            for _tried in candidates:
+                try:
+                    _info = recorder._devices._cached_device_info(_tried)
+                except Exception:
+                    _info = None
+                if isinstance(_info, dict):
+                    _n = str(_info.get("name", "")).strip().lower()
+                    if _n:
+                        tried_names.add(_n)
+
+            def _fallback_sort_key(_c: Any) -> tuple[int, int, int]:
+                try:
+                    _info = recorder._devices._cached_device_info(_c)
+                except Exception:
+                    _info = None
+                _name = ""
+                _host = ""
+                if isinstance(_info, dict):
+                    _name = str(_info.get("name", "")).strip().lower()
+                    try:
+                        _host = recorder._devices._host_api_name(int(_info.get("hostapi", 0)))
+                    except Exception:
+                        _host = ""
+                _same = 0 if _name and _name in tried_names else 1
+                try:
+                    _rank = int(recorder._devices._fallback_host_rank(_host))
+                except Exception:
+                    _rank = 5
+                try:
+                    _idx = int(_c)
+                except Exception:
+                    _idx = 1 << 30
+                return (_same, _rank, _idx)
+
+            all_candidates.sort(key=_fallback_sort_key)
+        except Exception:
+            log.debug("[RECORDING] fallback sort failed, using enumeration order", exc_info=True)
 
         for candidate in all_candidates:
             candidate_sr, dev_info_extra = recorder._devices._resolve_effective_sample_rate(candidate)
@@ -266,6 +333,7 @@ class StreamLifecycle:
                     latency="low",
                     # AUDIO-HOT: finished_callback detects unexpected stream termination
                     finished_callback=recorder._stream_finished_callback,
+                    extra_settings=_wasapi_auto_convert_settings(dev_info_extra),
                 )
                 stream.start()
             except Exception as e:

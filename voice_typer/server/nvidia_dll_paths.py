@@ -124,6 +124,12 @@ class _NvidiaDllPathManager:
         """Inner implementation, called under ``lock``."""
         if self.configured or not is_windows():
             return
+        # The scan below extends the DLL search path, which can turn a
+        # previously-unloadable runtime into a loadable one. Reset the
+        # availability cache first so the post-configure probe (and any
+        # later caller) re-checks instead of trusting a stale False
+        # recorded before the directories existed.
+        _invalidate_cuda_availability_cache()
         # C-LOG-2: report the DLL scan + prepend duration on the
         _t0 = time.perf_counter()
 
@@ -166,11 +172,12 @@ class _NvidiaDllPathManager:
         ]
         existing_paths = os.environ.get("PATH", "").split(os.pathsep)
         new_paths: list[str] = []
+        missing = 0
         for root in roots:
             for parts in candidate_parts:
                 path = os.path.join(root, *parts)
                 if not os.path.isdir(path):
-                    log.debug("[CUDA-DLL] Path not found: %s", path)
+                    missing += 1
                     continue
                 dll_names = [n for n in os.listdir(path) if n.lower().endswith(".dll")]
                 if not dll_names:
@@ -202,6 +209,8 @@ class _NvidiaDllPathManager:
                             exc,
                         )
 
+        if missing:
+            log.debug("[CUDA-DLL] %d candidate DLL dirs absent (no NVIDIA wheels there)", missing)
         if new_paths:
             os.environ["PATH"] = os.pathsep.join(new_paths + existing_paths)
             log.info(
@@ -258,6 +267,17 @@ def _configure_nvidia_dll_paths_locked():
     from voice_typer.server import transcription as _t
 
     _t._nvidia_dll_paths._configure_locked()
+
+
+def _invalidate_cuda_availability_cache() -> None:
+    """Forget the cached ``_cuda_runtime_available()`` verdict.
+
+    Called when the DLL search path changes (configure step above) so
+    the next probe re-checks instead of trusting a verdict recorded
+    against the old path. Tests use it to reset probe state.
+    """
+    global _cuda_availability_checked
+    _cuda_availability_checked = False
 
 
 # The CUDA runtime DLLs (cuBLAS / cuLt / cuDNN) ship with the

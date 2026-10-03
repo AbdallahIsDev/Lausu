@@ -81,7 +81,7 @@ def sync_autostart(app: AppProtocol) -> dict:
             _total = sum(len(v) for v in _removed.values())
             if _total:
                 log.info(
-                    "[AUTOSTART] Legacy autostart sweep removed %s duplicate entry(s): %s",
+                    "[AUTOSTART] Legacy autostart sweep removed %s duplicate entrys: %s",
                     _total,
                     _removed,
                 )
@@ -395,7 +395,7 @@ def _reconcile_configured_microphone(app: AppProtocol, mics: list[dict]) -> None
     if saved:
         log.warning(
             "[MIC] Configured microphone %r is not available on this machine "
-            "(%d input device(s) found), recovered to System Default and "
+            "(%d input devices found), recovered to System Default and "
             "persisted null.",
             mic_id,
             len(mics),
@@ -440,6 +440,48 @@ def reconcile_configured_model(app: AppProtocol) -> bool:
         "[MODEL] configured %s model is not installed, cleared model_size to 'no model selected' (NO_MODEL_SIZE)",
         backend,
     )
+    return True
+
+
+def reconcile_configured_device(app: AppProtocol) -> bool:
+    """Force ``config.device`` to CPU when no CUDA GPU is present.
+
+    Self-healing guard: a persisted GPU value on a CPU-only machine
+    (fresh-install default, stale config, hand-edited ``config.json``)
+    would fail every transcription at runtime. The probe is cached
+    and sub-second; the overwrite is persisted so the next launch
+    starts clean, and a ``config_changed`` push moves the sidebar
+    toggle without a reconnect. Returns True when a change persisted.
+    """
+    try:
+        from voice_typer.server import device_caps
+    except ImportError:
+        log.debug("[DEVICE] device_caps unavailable, skipping reconcile", exc_info=True)
+        return False
+    if device_caps.gpu_available():
+        return False
+    try:
+        current = app.config.device
+    except AttributeError:
+        return False
+    if not isinstance(current, str):
+        return False
+    if current.lower() == "cpu":
+        return False
+    lock = getattr(app, "_config_mutation_lock", None)
+    with contextlib.ExitStack() as stack:
+        if lock is not None:
+            stack.enter_context(lock)
+        app.config.device = "cpu"
+        try:
+            saved = app.config.save()
+        except Exception:
+            saved = False
+    if not saved:
+        log.error("[DEVICE] No GPU detected but persisting the CPU fallback FAILED")
+        return False
+    log.warning("[DEVICE] No GPU detected, device %r overwritten to CPU and persisted", current)
+    _publish_mic_reconciled(app, {"device": "cpu"})
     return True
 
 

@@ -58,7 +58,7 @@ config-load-failure ``[INIT]`` lines and the startup banner) route to
 the same logger as the original LausuApp methods.
 
 A note on patch paths (C-ARCH-2): the module-top imports below
-(``Config``, ``ThreadRegistry``, ``_crash_handler``, ``APP_NAME``,
+(``Config``, ``ThreadRegistry``, ``_crash_handler``,
 ``_emit_startup_banner``, ``AudioQualityAnalyzer``, ``TrayIcon``,
 ``CrashRecovery``, ``i18n``) have NO app-module patch seams, verified
 by grepping the tests tree for ``setattr("voice_typer.server.app.X"``
@@ -83,7 +83,6 @@ if TYPE_CHECKING:
 
 from voice_typer.server import crash_handler as _crash_handler, i18n
 from voice_typer.server.audio_quality import AudioQualityAnalyzer
-from voice_typer.server.branding import APP_NAME
 from voice_typer.server.config import Config
 from voice_typer.server.crash_recovery import CrashRecovery
 from voice_typer.server.logging_setup import _emit_startup_banner
@@ -195,33 +194,15 @@ class AppConstruction:
             log.debug("[INIT] excepthook install failed", exc_info=True)
 
     def _log_startup_banner(self) -> None:
-        """Emit the first visible startup log lines + launch timeline."""
-        # Startup banner -- first visible log, before any subsystem init.
-        try:
-            from voice_typer.server.tray_models import is_active_model_downloaded
+        """Emit the app-starting line + launch timeline + logging banner.
 
-            _model_installed = is_active_model_downloaded(self.config)
-        except Exception:
-            _model_installed = True
-        from voice_typer.server.model_registry import NO_MODEL_SIZE
-        from voice_typer.server.tray_models import tooltip_model_label
+        The starting line itself is owned by ``startup_banner`` (C-LOG-4)
+        and is normally already on disk from the entrypoint's early call
+        before this heavy construction path ran.
+        """
+        from voice_typer.server.startup_banner import emit_app_starting_banner
 
-        _model_desc = tooltip_model_label(self.config) or str(self.config.model_size)
-        if _model_desc == NO_MODEL_SIZE or not _model_desc:
-            # Genuine "no model selected": report it honestly instead
-            _model_desc = "none"
-        elif not _model_installed:
-            _model_desc = f"{_model_desc} (not installed)"
-        from voice_typer.server.tray_menu import display_hotkey
-
-        log.info(
-            "%s starting -- model=%s | hotkey=%s | mic=%s | sample_rate=%s",
-            APP_NAME,
-            _model_desc,
-            display_hotkey(self.config.hotkey),
-            self.config.microphone or "default",
-            self.config.sample_rate,
-        )
+        emit_app_starting_banner(self.config)
         # One-line attribution of the spawn→first-log gap (predecessor
         from voice_typer.server.startup_timeline import log_launch_timeline
 

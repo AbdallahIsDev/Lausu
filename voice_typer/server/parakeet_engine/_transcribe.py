@@ -191,6 +191,12 @@ class TranscribeMixin:
                     if not self._cpu_fallback_notified:
                         self._cpu_fallback_notified = True
                         try:
+                            from voice_typer.server import device_caps as _device_caps
+
+                            _device_caps.publish_device_cpu_fallback(str(exc)[:200])
+                        except Exception:
+                            log.debug("[PARAKEET] device fallback broadcast failed", exc_info=True)
+                        try:
                             from voice_typer.server import event_bus
 
                             event_bus.publish(

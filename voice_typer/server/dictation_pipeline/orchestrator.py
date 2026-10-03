@@ -285,12 +285,11 @@ class _OrchestratorMixin:
             if recording is not None:
                 recording._reset_watchdog()
                 recording._stop_watchdog_thread()
-                # discard this cycle from the cancelled set so
-                _cancelled_lock = getattr(recording, "_cancelled_cycle_ids_lock", None)
-                _cancelled_set = getattr(recording, "_cancelled_cycle_ids", None)
-                if _cancelled_lock is not None and _cancelled_set is not None:
-                    with _cancelled_lock:
-                        _cancelled_set.discard(self._cycle_id)
+                # WHY: prod keeps an OrderedDict (bounded LRU), test
+                # doubles a set; the helper owns the dual-type removal.
+                from voice_typer.server.transcription_watchdog import TranscriptionWatchdog
+
+                TranscriptionWatchdog().discard_cancelled_cycle_id(recording, self._cycle_id)
         except Exception:
             log.debug(
                 "[PIPELINE] finally cleanup step watchdog_reset failed",

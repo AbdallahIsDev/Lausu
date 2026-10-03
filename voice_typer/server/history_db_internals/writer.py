@@ -468,9 +468,16 @@ def _submit_write(
     fn: Callable[[sqlite3.Connection], Any],
     *,
     wait: bool = True,
+    allow_after_shutdown: bool = False,
 ) -> Any | None:
     """Parameters
     ----------
+
+    ``allow_after_shutdown`` is the close-path escape hatch, used ONLY
+    by the WAL checkpoint inside ``_close_writer``: the writer is
+    verified alive and the exit sentinel unsent, so the write is safe
+    even though ``_shutdown`` is already set. Every other caller keeps
+    the default refusal.
     """
     from voice_typer.server import history_db as _hd
 
@@ -478,7 +485,7 @@ def _submit_write(
     _WRITE_FUTURE_TOTAL_TIMEOUT = _hd._WRITE_FUTURE_TOTAL_TIMEOUT  # noqa: N806
     HistoryDBError = _hd.HistoryDBError  # noqa: N806
 
-    if db._shutdown.is_set():
+    if db._shutdown.is_set() and not allow_after_shutdown:
         log.debug("[HISTORY_DB] Write submitted after shutdown, dropped.")
         return None
     # early-return guard, if the writer thread never
@@ -576,10 +583,17 @@ def _close_writer(db: HistoryDB) -> None:
     _BatchableInsert = _hd._BatchableInsert  # noqa: N806
     HistoryDBError = _hd.HistoryDBError  # noqa: N806
 
-    # Best-effort wal_checkpoint(TRUNCATE) before shutdown.
+    # Best-effort wal_checkpoint(TRUNCATE) before shutdown. Submitted
+    # with the close-path escape hatch: ``close_db`` sets ``_shutdown``
+    # before reaching here, so the plain ``checkpoint()`` would always
+    # refuse and every quit logged a phantom "dropped" write while the
+    # WAL went uncheckpointed (relying on implicit connection-close
+    # checkpointing instead).
     if db._writer_thread.is_alive() and db._init_error is None:
+        from voice_typer.server.history_db_internals import crud_writes as _crud_writes
+
         with contextlib.suppress(sqlite3.Error, HistoryDBError):
-            db.checkpoint(truncate=True)
+            _crud_writes.submit_checkpoint(db, True, allow_after_shutdown=True)
     # before exiting. PERF-5: the queue is now bounded
     try:
         db._queue.put_nowait(_SHUTDOWN_SENTINEL)

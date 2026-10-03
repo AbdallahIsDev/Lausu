@@ -25,6 +25,9 @@ _INITIAL_LABELS: dict[str, str] = {
     # Steady-state idle label for the tray tooltip (bare IDLE carries no
     "state.ready": "Ready",
     "state.recording_controller.loading_queued": ("Loading model | your dictation will start automatically…"),
+    "state.recording_controller.awaiting_model": (
+        "Finishing model load | your recording is saved and will transcribe shortly"
+    ),
     "state.recording_controller.starting_up": "Starting up | please wait...",
     "state.recording_controller.consent_required": "Voice biometric consent required",
     "state.recording_controller.model_failed_retry": "Model failed to load | press your hotkey to retry",

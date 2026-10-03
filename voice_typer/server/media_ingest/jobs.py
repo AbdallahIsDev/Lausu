@@ -67,7 +67,14 @@ class MediaJobManager:
                     )
 
                     if isinstance(exc, (ModelNotDownloadedError, ModelIntegrityError)):
-                        code = "no_engine_loaded"
+                        from voice_typer.server.ipc.validation import ErrorCodes
+
+                        # Namespaced code (the registry test rejects bare
+                        # literals). ``isNoModelError()`` in the renderer
+                        # accepts both this and the old ``no_engine_loaded``
+                        # alias, and it is checked BEFORE ``mediaErrorKey()``,
+                        # so the localized copy is unchanged.
+                        code = ErrorCodes.NO_MODEL
                     else:
                         code = "internal_error"
                 with suppress(Exception):

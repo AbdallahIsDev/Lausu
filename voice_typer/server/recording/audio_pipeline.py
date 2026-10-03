@@ -376,7 +376,15 @@ class AudioPipeline:
                     with contextlib.suppress(Exception):
                         silence_warning_cb()
 
-        if recorder._silence_timer >= stop_on_silence_seconds and silence_auto_stop_cb is not None:
+        # ``stop_on_silence_seconds <= 0`` disables auto-stop. Without this
+        # guard a 0 setting compared ``>=`` against a 0 timer and stopped
+        # recording on the very first chunk; 0 is the documented way to opt
+        # out now that VAD always runs.
+        if (
+            stop_on_silence_seconds > 0
+            and recorder._silence_timer >= stop_on_silence_seconds
+            and silence_auto_stop_cb is not None
+        ):
             with contextlib.suppress(Exception):
                 silence_auto_stop_cb()
 

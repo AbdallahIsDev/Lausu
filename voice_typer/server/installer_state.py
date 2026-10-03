@@ -18,7 +18,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -55,7 +54,9 @@ def installer_state_path() -> Path:
     Windows honours ``LOCALAPPDATA`` (folder redirection / roaming setups)
     instead of assuming ``%USERPROFILE%\\AppData\\Local``.
     """
-    if sys.platform == "win32":
+    from voice_typer.server.platform_utils import is_windows
+
+    if is_windows():
         local = os.environ.get("LOCALAPPDATA")
         base = Path(local) if local else (Path.home() / "AppData" / "Local")
         base = base / "lausu"

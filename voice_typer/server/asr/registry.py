@@ -116,6 +116,8 @@ class RegistryCore:
         """Return the ready configured backend, else whisper, else None"""
         name = getattr(self._config, "asr_backend", "whisper")
         notify_last_resort = False
+        # Gate answer reused by the fan-out below so the gate is consulted once.
+        last_resort_gate_result: bool | None = None
         try:
             with self._lock:
                 backend = self._backends.get(name)
@@ -136,21 +138,36 @@ class RegistryCore:
                             # Fail-loud: None so callers take not-ready
                             first = self._breaker.should_notify_last_resort()
                             if first:
-                                notify_last_resort = True
-                                log.warning(
-                                    "[ASR_REGISTRY] no loaded backend available "
-                                    "(last-resort %s is_loaded=False), "
-                                    "returning None, transcription not attempted",
-                                    name,
-                                )
-                            # Subsequent polls stay silent (first warning covers it).
+                                if self._breaker.last_resort_expected(name):
+                                    # Expected state (deliberate idle-unload,
+                                    # background load, shutdown). Logging it at
+                                    # WARN made every launch and every idle-unload
+                                    # look like a failure.
+                                    log.debug(
+                                        "[ASR_REGISTRY] no loaded backend (%s); "
+                                        "expected (deliberate unload, load in "
+                                        "progress, or shutdown)",
+                                        name,
+                                    )
+                                else:
+                                    log.warning(
+                                        "[ASR_REGISTRY] no loaded backend available "
+                                        "(last-resort %s is_loaded=False), returning "
+                                        "None; callers must handle a not-ready backend",
+                                        name,
+                                    )
+                                    notify_last_resort = True
+                                    last_resort_gate_result = False
+                            # Subsequent polls stay silent (first record covers it).
                             return None
                         return b
             return None
         finally:
             # Fire subscribers OUTSIDE the lock so a subscriber callback
             if notify_last_resort:
-                self._breaker.fire_last_resort_subscribers(name)
+                self._breaker.fire_last_resort_subscribers(
+                    name, gate_suppressed=last_resort_gate_result
+                )
 
     # ``load_active`` lives on the facade (patched via
 

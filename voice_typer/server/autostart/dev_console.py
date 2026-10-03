@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
-import sys
 from pathlib import Path
 
 log = logging.getLogger("voice_typer.server.autostart_launcher")
@@ -30,7 +29,9 @@ def launch_dev_console(npm_script: str = "dev") -> int:
         log.error("[DEV] client dir missing package.json: %s", cwd)
         return 1
 
-    if sys.platform == "win32":
+    from voice_typer.server.platform_utils import is_windows
+
+    if is_windows():
         # CREATE_NEW_CONSOLE: pythonw has no console, the user needs one
         # to see vite/tauri output and Ctrl+C the dev server.
         try:

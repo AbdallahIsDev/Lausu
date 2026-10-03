@@ -166,7 +166,15 @@ def install_memory_buffer(config_dir: Path) -> None:
 
             target_handler.setFormatter(_FileFormatter())
         except Exception:
-            target_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+            # Degraded path only (the shared formatter failed to import):
+            # keep the canonical C-LOG-1 file shape (two spaces after the
+            # timestamp, 5-wide level column, no component name).
+            target_handler.setFormatter(
+                logging.Formatter(
+                    "%(asctime)s  %(levelname)-5s %(message)s",
+                    datefmt="%Y-%m-%d  %H:%M:%S",
+                )
+            )
         target_handler.setLevel(logging.DEBUG)
         # Close the previous target (if any) to release its file handle.
         previous_target = getattr(_ch, "_crash_buffer_handler", None)

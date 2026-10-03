@@ -13,8 +13,9 @@ from typing import TYPE_CHECKING
 
 from voice_typer.server._paths import LOOPBACK_HOST
 from voice_typer.server.duration import format_duration
-from voice_typer.server.ipc.protocol_version import PROTOCOL_VERSION
+from voice_typer.server.ipc.protocol_version import MAX_WS_FRAME_BYTES, PROTOCOL_VERSION
 from voice_typer.worker._auth import _authenticate, _send_auth_failed_and_close
+from voice_typer.worker._parent_watch import start_parent_watch
 from voice_typer.worker.streaming import (
     SessionConfig,
     StreamingSession,
@@ -27,10 +28,10 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("voice_typer.worker")
 
-# ADR-0020 §10: 1 MiB WS frame cap. Matches the slim-core sidecar's
-# ``sidecar_ws._MAX_FRAME_BYTES`` so the two transports agree on the
-# maximum envelope size.
-_MAX_FRAME_BYTES = 1 * 1024 * 1024
+# ADR-0020 §10: 1 MiB WS frame cap. Shared with the slim-core sidecar's
+# outbound sender through a dependency-free module so the two transports
+# cannot drift apart on the maximum envelope size.
+_MAX_FRAME_BYTES = MAX_WS_FRAME_BYTES
 
 # Protocol version: imported from the shared
 # ``voice_typer.server.ipc.protocol_version`` module (single source of
@@ -865,7 +866,8 @@ async def run_worker_server(  # noqa: ANN001 - websockets type is imported lazil
 
     Sequence (master plan §7.3):
 
-    1. Install the SIGTERM handler (POSIX), sets ``stop_event`` on signal.
+    1. Install the SIGTERM handler (POSIX) + the parent-watch (both
+       set ``stop_event``: signal vs. dead spawning host).
     2. Bind ``127.0.0.1:0`` (loopback-only, ADR-0020 §1) via
        ``websockets.asyncio.server.serve`` with the 1 MiB frame cap.
     3. Print ``{"event":"worker_started","port":N,"protocol":P}`` to stdout.
@@ -880,6 +882,21 @@ async def run_worker_server(  # noqa: ANN001 - websockets type is imported lazil
     from websockets.asyncio.server import serve
 
     _install_sigterm_handler(stop_event, shutdown_timer)
+
+    # Orphan self-exit: a hard-killed host never reaps us, and the
+    # live orphan would hold the single-instance lock forever (every
+    # later spawn fails as a duplicate). When the host is gone the
+    # watcher routes through the same graceful path as SIGTERM.
+    import asyncio as _asyncio
+
+    def _on_parent_gone() -> None:
+        # INFO, not WARN: routine on every clean quit (see _parent_watch).
+        log.info("[WORKER] parent process gone: initiating graceful shutdown")
+        shutdown_timer.start()
+        stop_event.set()
+
+    _parent_loop = _asyncio.get_running_loop()
+    start_parent_watch(on_gone=lambda: _parent_loop.call_soon_threadsafe(_on_parent_gone))
 
     # bind on 127.0.0.1:0 → OS assigns an ephemeral port. max_size
     # enforces the 1 MiB frame cap (ADR-0020 §10). The handler is a

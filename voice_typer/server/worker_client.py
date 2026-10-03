@@ -22,14 +22,15 @@ from typing import Any
 from voice_typer.server import event_bus
 from voice_typer.server._paths import IPC_TOKEN_ENV_VAR, LOOPBACK_HOST
 from voice_typer.server.duration import format_duration
+from voice_typer.server.ipc.protocol_version import MAX_WS_FRAME_BYTES
 
 log = logging.getLogger("voice_typer.server.worker_client")
 
-# 1 MiB frame cap, matches the worker's ``_ws_server._MAX_FRAME_BYTES``
-# (ADR-0020 §10). Local constant, not an import: the slim-core build
-# must not depend on the ``voice_typer.worker`` package (Step 7 slims
-# it out); parity pinned by ``tests/test_worker_client.py``.
-_MAX_FRAME_BYTES = 1 * 1024 * 1024
+# 1 MiB frame cap (ADR-0020 §10), shared with the worker's WS server via
+# a dependency-free module. Imported rather than redefined: the slim-core
+# build must not depend on the ``voice_typer.worker`` package (Step 7
+# slims it out), so the constant lives under ``voice_typer.server.ipc``.
+_MAX_FRAME_BYTES = MAX_WS_FRAME_BYTES
 
 _HEARTBEAT_SECONDS = 15.0
 _MAX_MISSED_HEARTBEATS = 3
@@ -400,7 +401,7 @@ class WorkerClient:
             for frame in frames:
                 self._outbound.put_nowait(frame)
         except queue.Full:
-            log.warning("[WORKER] outbound queue full: dropping %d streaming frame(s)", len(frames))
+            log.warning("[WORKER] outbound queue full: dropping %d streaming frames", len(frames))
             return False
         self._notify_outbound()
         return True
@@ -668,3 +669,24 @@ def get_shared_client() -> WorkerClient:
             if _shared_client is None:
                 _shared_client = WorkerClient()
     return _shared_client
+
+
+def close_shared_client() -> bool:
+    """Stop the shared client's reconnect loop if one exists.
+
+    Called once from the shutdown early bookend so the backoff loop
+    does not retry a dead worker through the whole teardown (WARN
+    spam + futile connection attempts). Never creates the client:
+    ``False`` when there was nothing to stop. Best-effort, never
+    raises.
+    """
+    with _lock:
+        client = _shared_client
+    if client is None:
+        return False
+    try:
+        client.close()
+    except Exception:
+        log.debug("[WORKER] shared client close failed", exc_info=True)
+        return False
+    return True

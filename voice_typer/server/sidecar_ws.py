@@ -272,6 +272,18 @@ async def _handle_connection(websocket, server: IPCServer, dispatch) -> None:
         sem.release()
 
 
+def _abnormal_close_note(exc: BaseException, *, shutting_down: bool) -> str:
+    """Render a ``ConnectionClosedError`` for the disconnect log line.
+
+    A dead socket without a close handshake mid-session is worth the
+    alarming ``error:`` prefix; the same drop during teardown (the host
+    exits without handshaking) is routine and must not read as one.
+    """
+    if shutting_down:
+        return f"closed during shutdown ({exc})"
+    return f"error: {exc}"
+
+
 async def _handle_connection_inner(websocket, server: IPCServer, dispatch, peer) -> None:
     """Auth + read/dispatch loop body ( extraction)."""
     from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
@@ -324,8 +336,11 @@ async def _handle_connection_inner(websocket, server: IPCServer, dispatch, peer)
         # Clean WebSocket close (1000/1001 normal close).
         close_note = "clean"
     except ConnectionClosedError as exc:
-        # Abnormal WebSocket close (1006 / 1011, etc.).
-        close_note = f"error: {exc}"
+        # Abnormal WebSocket close (1006 / 1011, etc.). During shutdown
+        # the host just goes away without a close handshake, which is
+        # routine, so drop the alarming "error:" prefix there.
+        _shutting_down = getattr(getattr(server, "app", None), "_shutting_down", False)
+        close_note = _abnormal_close_note(exc, shutting_down=bool(_shutting_down))
     except Exception:
         # Genuinely unexpected error, log at WARNING with traceback.
         log.warning("[SIDECAR-WS] connection ended unexpectedly", exc_info=True)
@@ -344,7 +359,12 @@ async def _handle_connection_inner(websocket, server: IPCServer, dispatch, peer)
         with server._lock:
             if getattr(server, "_active_ws_connection", None) is websocket:
                 server._active_ws_connection = None
-        log.info("[SIDECAR-WS] connection closed (peer=%s, %s)", peer, close_note)
+        # Routine during teardown (the host exits without handshaking):
+        # keep it out of the file log at INFO, still visible at DEBUG.
+        if bool(getattr(getattr(server, "app", None), "_shutting_down", False)):
+            log.debug("[SIDECAR-WS] connection closed (peer=%s, %s)", peer, close_note)
+        else:
+            log.info("[SIDECAR-WS] connection closed (peer=%s, %s)", peer, close_note)
 
 
 # and the C-WS-1 ready-first ordering is entirely untouched: the
