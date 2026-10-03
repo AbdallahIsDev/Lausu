@@ -94,6 +94,9 @@ jobs:
       - name: Setup Rust
         if: matrix.language == 'rust'
         uses: dtolnay/rust-toolchain@v1
+        with:
+          # Required input (newer v1 errors without it).
+          toolchain: stable
 
       - name: Cargo check (CodeQL build)
         if: matrix.language == 'rust'
