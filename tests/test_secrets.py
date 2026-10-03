@@ -149,6 +149,17 @@ class TestRedactApiKeys:
         # End to end through the log path (flag patterns run first).
         assert redact_secret(s) == s
 
+    def test_propset_guid_survives(self):
+        """A WDM-KS ``prop_set = {GUID}`` is a diagnostic constant, not
+        a secret: it must survive verbatim so support can read it."""
+        line = (
+            "Error starting stream: Unanticipated host error [PaErrorCode -9999]: "
+            "'WdmSyncIoctl: DeviceIoControl GLE = 0x00000492 "
+            "(prop_set = {3a8e340d-12bc-4d5e-8f67-9a0b1c2d3e4f}, prop_id = 0)'"
+        )
+        assert redact_secret(line) == line
+        assert redact_api_keys(line) == line
+
     def test_bare_64hex_still_redacted(self):
         """Same 64 hex chars WITHOUT the label still redact (fail"""
         h = "b" * 64
@@ -349,6 +360,14 @@ class TestThreadLabelShield:
         """Fail-closed: the exemption is label-anchored, a bare long"""
         assert redact_secret("startup-desktop-shortcut") == "***"
 
+    def test_dash_name_inside_sentence_survives(self):
+        """Embedded dash-joined names are identifiers (binary names),
+        not secrets: only a whole-string token redacts."""
+        line = "windows-key-listener starting; spec=<caps_lock>"
+        assert redact_secret(line) == line
+        dll_line = "(first: nvrtc-builtins64_129.dll)"
+        assert redact_secret(dll_line) == dll_line
+
     def test_thread_hash_shaped_value_still_redacted(self):
         out = redact_secret("thread=" + "e" * 64)
         assert "e" * 20 not in out
@@ -388,7 +407,6 @@ class TestBinaryLabelShield:
     def test_binary_overlong_value_still_redacted(self):
         out = redact_secret("binary=" + "f" * 70)
         assert "f" * 20 not in out
-
 
 class TestTeardownLabelShield:
     """Bare ``teardown_*`` helper names are internal identifiers, not secrets."""

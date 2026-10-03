@@ -41,12 +41,22 @@ _KEY_PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9_\-]+"),
     # Groq-style keys: gsk- followed by 8+ word chars.  Added back
     re.compile(r"gsk_[A-Za-z0-9_\-]+"),
-    # Generic long alphanumeric run (>= 20 chars).  This catches
-    re.compile(r"(?<![/\\])\b[A-Za-z0-9_\-]{20,}\b(?![/\\])"),
+    # Generic long alphanumeric run (>= 20 chars).  Dashes are
+    # deliberately excluded: dash-joined names (e.g. Hugging Face hub
+    # dirs like ``models--org--name-large-v3``) must survive verbatim,
+    # and dashed secrets already have dedicated patterns (``sk-`` /
+    # ``gsk_`` / ``Bearer`` / ``Token`` / SEC-9 flag forms above).
+    re.compile(r"(?<![/\\])\b[A-Za-z0-9_]{20,}\b(?![/\\])"),
 ]
 
 # Labeled-value shield patterns (see ``redact_api_keys``): exact
+# Bare dash-joined names fail closed ONLY as a whole string (a line
+# that is nothing but the token). Embedded occurrences are legitimate
+# identifiers (binary names, DLL names, model dirs); labeled forms stay
+# shielded above regardless of position.
+_DASH_JOINED_FULL_RE = re.compile(r"[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)+")
 _HASH_LABEL_RE = re.compile(r"sha256=[0-9a-fA-F]{64}(?![0-9a-fA-F])")
+_PROPSET_LABEL_RE = re.compile(r"prop_set\s*=\s*\{[0-9a-fA-F\-]{32,40}\}")
 _THREAD_LABEL_RE = re.compile(r"thread=(?![0-9a-fA-F]{64}(?![0-9a-fA-F]))([A-Za-z0-9_.\-]{1,64})(?![A-Za-z0-9_.\-])")
 _BINARY_LABEL_RE = re.compile(r"binary=(?![0-9a-fA-F]{64}(?![0-9a-fA-F]))([A-Za-z0-9_.\-]{1,64})(?![A-Za-z0-9_.\-])")
 _TEARDOWN_LABEL_RE = re.compile(r"\bteardown_[A-Za-z0-9_\-]{1,55}(?![A-Za-z0-9_\-])")
@@ -128,6 +138,11 @@ _PUBLIC_ENV_VAR_NAMES: frozenset[str] = frozenset(
         "HF_HOME",
         "HF_ENDPOINT",
         "HF_TOKEN",
+        # NVIDIA CUDA visibility (public documented names;
+        # CUDA_VISIBLE_DEVICES is exactly 20 chars and tripped the
+        # generic catch-all, rendering log lines as ``Set ***=''``).
+        "CUDA_VISIBLE_DEVICES",
+        "CUDA_MODULE_LOADING",
         # Tauri host contract
         "TAURI_SIDECAR",
         # Cloud-provider API key env-var names (the NAMES are public —
@@ -338,6 +353,7 @@ def redact_api_keys(text: str, *, replacement: str = "***") -> str:
         return f"KEPT{len(shields) - 1:04d}X"
 
     text = _HASH_LABEL_RE.sub(_shield, text)
+    text = _PROPSET_LABEL_RE.sub(_shield, text)
     text = _THREAD_LABEL_RE.sub(_shield, text)
     text = _BINARY_LABEL_RE.sub(_shield, text)
     text = _TEARDOWN_LABEL_RE.sub(_shield, text)
@@ -359,6 +375,9 @@ def redact_api_keys(text: str, *, replacement: str = "***") -> str:
     for pat in _KEY_PATTERNS[:-1]:
         text = pat.sub(_sub, text)
     text = generic_pat.sub(_generic_sub, text)
+    stripped = text.strip()
+    if len(stripped) >= _MIN_REDACT_LEN and _DASH_JOINED_FULL_RE.fullmatch(stripped):
+        text = replacement
     for i, original in enumerate(shields):
         text = text.replace(f"KEPT{i:04d}X", original, 1)
     return text
