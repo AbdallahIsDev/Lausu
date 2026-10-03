@@ -67,4 +67,3 @@ for the frozen-exe path. One row per run; record dev vs release.
 - [x] (d) `[WORKER]` grep pasted, durations well-formed — `2026-09-26  16:24:49  INFO  [WORKER] offline transcription complete (len=101 chars) 25.1s`. Canonical C-LOG-1 (`YYYY-MM-DD  HH:MM:SS  LEVEL  msg`, two spaces, no millis, no per-line session id) with the C-LOG-2 ` 25.1s` suffix.
 - [x] No `supervisor_failed` / app relaunch during (b) — the worker engine is independent of the sidecar breaker (separate `WorkerState` fields; no `app.restart()` in the engine).
 Only then flip ADR-0024 Step 6 to `[x]` with the log excerpts.
-

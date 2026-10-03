@@ -4,21 +4,114 @@ These items are the highest-priority remaining work for the project. They block 
 
 > **Won't Fix tasks live in `WONT_FIX.md`**: deliberately not solved. Do NOT fix them (AGENTS.md C-REVIEW-1). See that file for the full list.
 
-### AUD-14 — 42 production files exceed the 500-line C-STRUCT-3 threshold (27% of the package)
-**Status:** NOT DONE (2026-02-10) - re-verified as real (42 files >500 lines, recording_lifecycle.py still 27 broad `except Exception`, hotkey_dispatcher.py 1094) but deliberately NOT started: splitting god files is a multi-session create-first effort (E1/E16), and a partial split in this session would be exactly the churn-for-churn the rule warns about. Needs its own dedicated pass with a green suite.
-**Description:** Rule C-STRUCT-3 sets ~500 lines as the refactor trigger. **42 files exceed it, totaling 29,574 lines — 27% of the Python package in 8.4% of its files.** Top offenders:
-
-| File | Lines | Concerns |
-|---|---|---|
-| `server/hotkey_dispatcher.py` | 1,094 | native backend pool lifecycle, registration, matching, dispatch — 25 methods on 1 class |
-| `service/model/_downloads.py` | 934 | 4 concerns; 16-method `DownloadsMixin` |
-| `worker/_ws_server.py` | 952 | `_handle_connection` alone is ~494 lines |
-| `recording_lifecycle.py` | 874 | **27 broad `except Exception`** in the recording hot path (lines 86-979) |
-| `event_bus.py` | 863 | 570-line docstring event catalogue (`:1-375`) — violates C-COMMENT-6 |
+### AUD-14 — 30 production files exceed the 500-line C-STRUCT-3 threshold (21% of the package)
+**Status:** SPLIT INTO 5 TASKS (2026-10-03) — AUD-14a…e below. The aggregate figures in the original entry were stale and have been re-measured: **30** production files ≥500 lines totalling **19,933 lines = 21.1% of the package's 94,349 lines, in 6.0% of its 496 files.** (The old "42 files / 29,574 lines / 27% / 8.4%" counted non-production paths — `tests/`, `scripts/`, and `src-tauri/resources/` copies — which are excluded by C-STRUCT-3's "production file" wording and C-TEST-5's test-file rules.) Each task below owns a DISJOINT file set, so the five can run as parallel agents without conflict (E16).
 **User Impact:** None directly. The cost is change risk: each edit touches a file with several unrelated reasons to change, so unrelated behavior is coupled to unrelated edits.
 **Root Cause:** Verified by line count — organic growth without the create-first split (E1) that C-STRUCT-3 requires.
-**Gain vs Trade-off:** Large, mechanical, regression-prone work. Best done incrementally, never as a batch.
-**If We Do It:** Each concern becomes independently testable and reviewable.
+**Gain vs Trade-off:** Large, mechanical, regression-prone work. Best done incrementally, never as a batch. Split by subsystem so no two tasks touch the same file.
+**Related Files:** `scripts/comment_ratio_metrics.py` (re-measure after each task)
+
+**Measured inventory (git-tracked `voice_typer/**/*.py` ≥500 lines):**
+
+| Subsystem | Files | Lines |
+|---|---|---|
+| `server/` root modules (in AUD-14a + AUD-14e) | 14 | 9,737 |
+| `server/recording/` | 3 | 1,901 |
+| `server/history_db*` | 3 | 1,776 |
+| `server/security/` | 2 | 1,429 |
+| `server/{service,cloud,ipc,log,text_cleanup,level_monitor,handlers}/` | 6 | 3,325 |
+| `worker/` | 1 | 823 |
+| **Total** | **30** | **19,933** |
+
+**Split into 5 independently-runnable tasks (disjoint file sets, E16):**
+
+| Task | Scope | Files | Lines |
+|---|---|---|---|
+| **AUD-14a** | Four largest god files (P2) | 4 | 3,733 |
+| **AUD-14b** | `server/recording/` package | 3 | 1,901 |
+| **AUD-14c** | `server/history_db*` | 3 | 1,776 |
+| **AUD-14d** | `server/security/` | 2 | 1,429 |
+| **AUD-14e** | Remaining `server/` root + docstring bloat | 18 | 11,094 |
+
+---
+
+### AUD-14a — Split the four largest god files (E1/C-STRUCT-3 create-first)
+**Status:** NOT DONE (2026-10-03, split from AUD-14)
+**Description:** The four worst offenders are single-class files with 20-29 methods each and multiple unrelated reasons to change. Each violates C-STRUCT-1 (one concern per file) and C-STRUCT-2 (SRP):
+
+| File | Lines | Classes | defs | Concern to extract |
+|---|---|---|---|---|
+| `server/hotkey_dispatcher.py` | 1,094 | 1 | 29 | native backend pool lifecycle / registration / matching / dispatch |
+| `service/model/_downloads.py` | 942 | 1 | 20 | split the 4 concerns behind the `DownloadsMixin` |
+| `recording_lifecycle.py` | 874 | 1 | 25 | **27 broad `except Exception`** in the recording hot path (lines 86-979) |
+| `worker/_ws_server.py` | 823 | 2 | 24 | `_handle_connection` alone is ~494 lines |
+
+**Why first:** Highest change-risk density in the package. `recording_lifecycle.py` carries real behavioral risk — 27 catch-alls in the recording hot path make a failure in any stage indistinguishable in logs from every other (undercuts C-LOG-1's diagnostic-value rule).
+**Fix:** Create-first (E1): add the new focused modules complete + green, keep re-exports so existing import paths resolve, THEN trim the original. Never delete before the replacement exists. Narrow a broad `except Exception` only where its intended behavior is already pinned by a test — do NOT blanket-convert (E13: fixing blind changes behavior).
+**Related Files:** the four files above + `tests/test_hotkeys*.py`, `tests/test_recorder_*.py`, `tests/test_worker_*.py`
+**Success:** no file >500 lines; full suite green; the `except Exception` count drops with each narrowed handler traceable to a test.
+**Implementation Difficulty:** 🟠 Medium
+**Severity:** 🟡 Medium
+**Priority:** P2
+
+---
+
+### AUD-14b — Recording subsystem: `server/recording/` (3 files, 1,901 lines)
+**Status:** NOT DONE (2026-10-03, split from AUD-14)
+**Description:** 3 files over the threshold: `device_manager.py` (746), `capture.py` (623), `recording_lifecycle.py` (532). Note `recording_lifecycle.py` ALSO appears in AUD-14a — **this task owns only the `server/recording/` package copy; AUD-14a owns the `server/` root copy (874 lines).** Do not run both against the same file.
+**Why separate:** Device enumeration, capture, and lifecycle each change for different reasons, so a mic-driver fix currently risks the capture path.
+**Fix:** Create-first split per C-STRUCT-4: when touching any of these, split first, then land the fix on the clean structure.
+**Related Files:** `server/recording/{device_manager,capture,recording_lifecycle}.py`, `tests/recording/`
+**Success:** no file >500 lines; `pytest tests/recording/` green.
+**Implementation Difficulty:** 🟠 Medium
+**Severity:** 🟡 Medium
+**Priority:** P3
+
+---
+
+### AUD-14c — History DB subsystem: `server/history_db*` (3 files, 1,776 lines)
+**Status:** NOT DONE (2026-10-03, split from AUD-14)
+**Description:** `history_db.py` (647), `history_db_internals/writer.py` (580), `history_db_internals/search.py` (549). Read/write/search are three reasons to change, so an encryption or FTS5 change currently touches the same files as a schema change.
+**Why separate:** Self-contained subsystem with a clean boundary — the lowest-coupling split in the set, so it is the safest place to establish the create-first pattern the other tasks copy.
+**Fix:** Create-first. Watch AUD-15 (stale `coverage-baseline.json` claim) — do NOT regenerate the coverage baseline to tidy up a refactor; the floor only rises on a real measurement.
+**Related Files:** `server/history_db.py`, `server/history_db_internals/{writer,search}.py`, `tests/test_history_db*.py`
+**Success:** no file >500 lines; history + FTS5 tests green.
+**Implementation Difficulty:** 🟡 Low-Medium
+**Severity:** 🟡 Medium
+**Priority:** P3
+
+---
+
+### AUD-14d — Security subsystem: `server/security/` (2 files, 1,429 lines)
+**Status:** NOT DONE (2026-10-03, split from AUD-14)
+**Description:** `redaction.py` (768) and `file_io.py` (661). Redaction carries many independent rules (PII patterns, API keys, URL scrubbing); file_io carries atomic-write/permission logic. Both are SEC-sensitive — a split must not weaken a filter or change a redaction rule's behavior.
+**Why separate:** Highest blast radius per line of any task here. A "cosmetic" split that reorders a redaction branch could silently un-redact output.
+**Fix:** Create-first split ONLY. Pure module reorganization: move functions to focused modules and re-export; **do not alter any pattern, ordering, or fallback** while splitting. Behavior-preserving by construction, verified by the existing redaction suites.
+**Related Files:** `server/security/{redaction,file_io}.py`, `tests/security/`, `tests/test_hallucination.py`
+**Success:** no file >500 lines; `pytest tests/security/ tests/test_hallucination.py` green with NO assertion edits — editing those tests means the split changed behavior, so stop and re-scope.
+**Implementation Difficulty:** 🟡 Low-Medium
+**Severity:** 🟠 High (blast radius, not likelihood)
+**Priority:** P3
+
+---
+
+### AUD-14e — Remaining `server/` root modules (18 files, 11,094 lines)
+**Status:** NOT DONE (2026-10-03, split from AUD-14)
+**Description:** The long tail, largest by line count. Work these clusters one at a time:
+
+- **Docstring/narrative bloat (do this one first):** `event_bus.py` (863) — a 570-line docstring event catalogue at `:1-375` violates **C-COMMENT-6** (deep explanations belong in `docs/`, not inline). Cheapest, highest-value item in all of AUD-14: no logic changes. **But it is NOT a pure relocation** — `tests/test_event_bus.py::TestCanonicalCatalogue` parses `event_bus.__doc__` and pins four event names (`` ``tray_menu`` ``, `` ``tray_state`` ``, `` ``consent_required`` ``, `` ``parakeet_cpu_fallback`` ``) plus an exact `Total: N events` line that must equal `len(EVENT_TYPES)` (C-COMMENT-9). So: move the prose/architecture narrative to `docs/code-notes/event-catalogue.md` and **keep a canonical event-name list plus the `Total: {len(EVENT_TYPES)} events` line in the module docstring**. The docstring shrinks from ~570 lines to roughly a name list; the pinned contract survives. Verify with `pytest tests/test_event_bus.py`.
+- **IPC/app surface:** `config_applier.py` (645), `onboarding.py` (605), `ipc/validation.py` (527), `handlers/system_handlers.py` (510)
+- **Data/text services:** `clipboard_snapshot.py` (617), `vocabulary.py` (613), `templates.py` (561), `text_cleanup/_engine.py` (503)
+- **Download/network:** `segmented_download.py` (669)
+- **Remaining root modules:** `startup_tasks.py` (686), `streaming.py` (806), `qwen_engine.py` (514), `vad_processor.py` (577), `worker_client.py` (613), `cloud/_engine.py` (583), `log/setup.py` (527), `level_monitor/test_recording.py` (675)
+
+**Fix:** Create-first throughout. `log/setup.py` and `ipc/validation.py` interact with C-LOG-1 and the SEC-002 allowlist — moving code there must not alter log format or the validation allowlist. `qwen_engine.py` carries RACE-032 (lock release during inference) and `startup_tasks.py` carries C-CONF-2's startup mic reconciliation — re-verify both pins after any move.
+**Related Files:** the modules listed above; `docs/code-notes/event-catalogue.md`
+**Success:** no file >500 lines; `tests/test_event_bus.py`, `tests/test_log_formatting.py`, `tests/test_logging.py` green unchanged.
+**Implementation Difficulty:** 🟠 Medium
+**Severity:** 🟡 Medium
+**Priority:** P3
+
 
 ## 🚫 E. Cannot Verify (needs real host)
 **19 findings require Windows / macOS / Linux desktop runtime.** The
