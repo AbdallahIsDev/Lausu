@@ -31,6 +31,9 @@ jobs:
   dependency-review:
     name: Dependency review
     runs-on: ubuntu-22.04
+    # The action needs PR base/head refs; on push/schedule it errors
+    # ("Both a base ref and head ref must be provided"). PR-only.
+    if: github.event_name == 'pull_request'
     # Fail closed on newly-introduced advisories. pip-audit covers Python
     # (build.yml); this covers the npm + Rust dependency trees, which were
     # previously unguarded.

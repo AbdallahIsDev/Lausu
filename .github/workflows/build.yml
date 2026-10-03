@@ -90,12 +90,17 @@ jobs:
         run: |
           python -m ruff check voice_typer/ tests/ scripts/ conftest.py --output-format=json > ruff-current.json || true
           python scripts/ruff_ratchet_check.py
-# Type-debt ratchet: mirrors the ruff ratchet above. mypy lives in the
+      # Type-debt ratchet: mirrors the ruff ratchet above. mypy lives in the
       # [dev] extra (not [test]), so install it explicitly. The gate is
       # "no new errors", not "zero errors" — see docs/mypy-ratchet.md.
       - name: mypy (ratchet compare against baseline)
+        # Baseline (mypy-baseline.json) is Windows-flavored: ctypes.windll /
+        # winreg / msvcrt resolve only on Windows, so ubuntu/macos legs can
+        # never match it. Pinned mypy==2.3.0 for the same reason: a floating
+        # range lets a new major re-bucket counts (2.4.0 did).
+        if: matrix.os == 'windows-2022'
         run: |
-          uv pip install --system "mypy>=1.10,<3"
+          uv pip install --system "mypy==2.3.0"
           python scripts/mypy_ratchet_check.py
 
       # .deb/.rpm bundles must stay LF: .gitattributes enforces
