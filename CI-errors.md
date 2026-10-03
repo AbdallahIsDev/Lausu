@@ -2,7 +2,7 @@
 
 > Auto-generated from the latest GitHub Actions run via `scripts/ci/write_ci_errors.py`. Do not edit by hand, it is overwritten on every CI run.
 
-**145 failing/errored tests** across 10 matrix legs.
+**146 failing/errored tests** across 10 matrix legs.
 
 ### 1. `tests.handlers.test_handler_signature_conformance`
 
@@ -2307,7 +2307,37 @@ voice_typer/server/service/_download_helpers.py:9: in <module>
 E   ImportError: cannot import name 'NotRequired' from 'typing' (/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/typing.py)
 ```
 
-### 77. `tests.app.test_lifecycle.TestMainWrapsIpcMain.test_main_logs_warning_when_faulthandler_enable_raises`
+### 77. `tests.app.test_lifecycle.TestMainWrapsIpcMain.test_main_logs_warning_when_faulthandler_import_fails`
+
+- Legs: macos-14-3.10, windows-2022-3.10
+- Location: `tests/app/test_lifecycle.py:1377`
+
+```
+ImportError: cannot import name 'NotRequired' from 'typing' (/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/typing.py)
+
+ImportError: cannot import name 'NotRequired' from 'typing' (/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/typing.py)
+tests/app/test_lifecycle.py:1377: in test_main_logs_warning_when_faulthandler_import_fails
+    import voice_typer.server.ipc_server as ipc_server_module
+voice_typer/server/ipc_server.py:136: in <module>
+    from voice_typer.server.handlers.vocabulary_handlers import VocabularyHandlersMixin  # noqa: E402
+voice_typer/server/handlers/__init__.py:27: in <module>
+    from voice_typer.server.handlers.vocabulary_handlers import VocabularyHandlersMixin
+voice_typer/server/handlers/vocabulary_handlers.py:12: in <module>
+    from voice_typer.server.service.vocabulary import VocabularyDuplicateError
+voice_typer/server/service/__init__.py:11: in <module>
+    from voice_typer.server.service.model import _MODEL_STATUS_CACHE_TTL_S, ModelMixin
+voice_typer/server/service/model/__init__.py:4: in <module>
+    from .mixin import ModelMixin
+voice_typer/server/service/model/mixin.py:7: in <module>
+    from ._downloads import DownloadsMixin
+voice_typer/server/service/model/_downloads.py:12: in <module>
+    from voice_typer.server.service._download_helpers import DownloadOutcome
+voice_typer/server/service/_download_helpers.py:9: in <module>
+    from typing import NotRequired, TypedDict
+E   ImportError: cannot import name 'NotRequired' from 'typing' (/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/typing.py)
+```
+
+### 78. `tests.app.test_lifecycle.TestMainWrapsIpcMain.test_main_logs_warning_when_faulthandler_enable_raises`
 
 - Legs: macos-14-3.10, ubuntu-22.04-3.10
 - Location: `tests/app/test_lifecycle.py:1351`
@@ -2337,7 +2367,7 @@ voice_typer/server/service/_download_helpers.py:9: in <module>
 E   ImportError: cannot import name 'NotRequired' from 'typing' (/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/typing.py)
 ```
 
-### 78. `pytest.internal`
+### 79. `pytest.internal`
 
 - Legs: macos-14-3.10, ubuntu-22.04-3.10, windows-2022-3.10
 - Location: `(pytest internal error, no test location)`
@@ -2385,9 +2415,9 @@ E                 result = yield
 E               File "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/pluggy/_callers.py", line 121, in _multicall
 ```
 
-### 79. `tests.model_download.test_segmented_download_helpers.test_resolve_within_rejects_escapes[C:/windows/system32/x.dll]`
+### 80. `tests.model_download.test_segmented_download_helpers.test_resolve_within_rejects_escapes[C:/windows/system32/x.dll]`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/model_download/test_segmented_download_helpers.py:139`
 
 ```
@@ -2400,9 +2430,9 @@ tests/model_download/test_segmented_download_helpers.py:139: in test_resolve_wit
 E   Failed: DID NOT RAISE SegmentedDownloadError
 ```
 
-### 80. `tests.model_download.test_segmented_download_helpers.test_install_blob_places_nested_snapshot_file`
+### 81. `tests.model_download.test_segmented_download_helpers.test_install_blob_places_nested_snapshot_file`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
 - Location: `tests/model_download/test_segmented_download_helpers.py:175`
 
 ```
@@ -2418,9 +2448,9 @@ E    +  where PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/
 E    +    where resolve = ((((PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw0/test_install_blob_places_neste0/hf-cache') / 'snapshots') / 'abc123') / 'model') / 'weights.bin').resolve
 ```
 
-### 81. `tests.tauri.mig16.test_autostart_installer_macos.test_single_instance_plugin_enforced`
+### 82. `tests.tauri.mig16.test_autostart_installer_macos.test_single_instance_plugin_enforced`
 
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_autostart_installer_macos.py:463`
 
 ```
@@ -2431,62 +2461,49 @@ assert ('get_webview_window' in '//! Tauri v2 host (ADR-0020). Wiring-only (C-AR
 … (truncated)
 ```
 
-### 82. `tests.tauri.mig16.test_externalbin_spawn_macos.test_spawn_rs_server_started_log_line_format`
+### 83. `tests.tauri.mig16.test_externalbin_spawn_macos.test_spawn_rs_server_started_log_line_format`
 
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_externalbin_spawn_macos.py:270`
 
 ```
-+    where <built-in method search of re.Pattern object at 0x135111190> = re.compile('\\[SIDECAR\\]\\s*server_started\\s*port=\\{[^}]*\\}').search
++    where <built-in method search of re.Pattern object at 0x131677fd0> = re.compile('\\[SIDECAR\\]\\s*server_started\\s*port=\\{[^}]*\\}').search
 
 AssertionError: spawn.rs must log '[SIDECAR] server_started port={}' on success (runbook §5 pass criteria greps for this line on macOS)
 assert None
- +  where None = <built-in method search of re.Pattern object at 0x135111190>('//! Sidecar spawn + stdout handshake (ADR-0020 §1 + §4.1 + §14).\n//! Submodules own the actual process spawn; this file is orchestration.\n//! Both spawn paths `.env_clear()` then re-add only the OS-required allowlist.\n//! C-TOKIO-1: panic capture is `AssertUnwindSafe(fut).catch_unwind().await`,\n//! never `block_on` on a runtime worker.\n//! Layout: docs/code-notes/tauri-host.md#module-layout\n\n// `pub(crate)` so lifecycle can consult `is_dev_mode()` for tray-Restart.\npub(crate) mod dev_mode;\n// Dev interpreter discovery (python.exe often missing from GUI PATH).\npub(crate) mod dev_python;\nmod env_allowlist;\nmod handshake;\nmod handshake_loop;\n// Permanent child-event drain: keeps the bounded shell event channel\n// drained post-handshake so child stderr can never block its writers.\npub(crate) mod event_drain;\nmod release_mode;\n// Worker exe spawn (runtime-pack split). Sidecar is the worker\'s WS client.\npub(crate) mod worker;\n// `pub(crate)` so platform::worker_path can resolve the per-platform worker name.\npub(crate) mod target_triple;\n\n// Test-only re-exports for spawn_tests.rs (`use super::*`).\n#[cfg(test)]\npub(crate) use dev_mode::is_dev_mode_for;\n#[cfg(...ng worker_started relay (port={})",\n        port\n    );\n    tauri::async_runtime::spawn(async move {\n        for _ in 0..RELAY_RETRY_ATTEMPTS {\n            tokio::time::sleep(std::time::Duration::from_millis(RELAY_RETRY_INTERVAL_MS)).await;\n            if state.shutting_down.load(Ordering::SeqCst) {\n                return;\n            }\n            if send_worker_started_frame(&state, pid, &version, port).is_some() {\n                return;\n            }\n        }\n        log::warn!(\n            "[WORKER-INIT] worker_started relay undelivered after retries (port={})",\n            port\n        );\n    });\n}\n\n/// `offline_pack_verified` trigger (called from the WS reader, sync\n/// context: the async work runs on a spawned task, never `block_on`:\n/// C-TOKIO-1). Delegates to the shared start sequence so a bad pack\n/// can never trip a respawn loop (no supervisor yet, plan §7.2).\npub(crate) fn on_pack_verified(app: &tauri::AppHandle) {\n    let app_handle = app.clone();\n    tauri::async_runtime::spawn(async move {\n        let state = app_handle.state::<Arc<WorkerState>>().inner().clone();\n        start_worker_if_ready(&app_handle, state).await;\n    });\n}\n')
- +    where <built-in method search of re.Pattern object at 0x135111190> = re.compile('\\[SIDECAR\\]\\s*server_started\\s*port=\\{[^}]*\\}').search
+ +  where None = <built-in method search of re.Pattern object at 0x131677fd0>('//! Sidecar spawn + stdout handshake (ADR-0020 §1 + §4.1 + §14).\n//! Submodules own the actual process spawn; this file is orchestration.\n//! Both spawn paths `.env_clear()` then re-add only the OS-required allowlist.\n//! C-TOKIO-1: panic capture is `AssertUnwindSafe(fut).catch_unwind().await`,\n//! never `block_on` on a runtime worker.\n//! Layout: docs/code-notes/tauri-host.md#module-layout\n\n// `pub(crate)` so lifecycle can consult `is_dev_mode()` for tray-Restart.\npub(crate) mod dev_mode;\n// Dev interpreter discovery (python.exe often missing from GUI PATH).\npub(crate) mod dev_python;\nmod env_allowlist;\nmod handshake;\nmod handshake_loop;\n// Permanent child-event drain: keeps the bounded shell event channel\n// drained post-handshake so child stderr can never block its writers.\npub(crate) mod event_drain;\nmod release_mode;\n// Worker exe spawn (runtime-pack split). Sidecar is the worker\'s WS client.\npub(crate) mod worker;\n// `pub(crate)` so platform::worker_path can resolve the per-platform worker name.\npub(crate) mod target_triple;\n\n// Test-only re-exports for spawn_tests.rs (`use super::*`).\n#[cfg(test)]\npub(crate) use dev_mode::is_dev_mode_for;\n#[cfg(...ng worker_started relay (port={})",\n        port\n    );\n    tauri::async_runtime::spawn(async move {\n        for _ in 0..RELAY_RETRY_ATTEMPTS {\n            tokio::time::sleep(std::time::Duration::from_millis(RELAY_RETRY_INTERVAL_MS)).await;\n            if state.shutting_down.load(Ordering::SeqCst) {\n                return;\n            }\n            if send_worker_started_frame(&state, pid, &version, port).is_some() {\n                return;\n            }\n        }\n        log::warn!(\n            "[WORKER-INIT] worker_started relay undelivered after retries (port={})",\n            port\n        );\n    });\n}\n\n/// `offline_pack_verified` trigger (called from the WS reader, sync\n/// context: the async work runs on a spawned task, never `block_on`:\n/// C-TOKIO-1). Delegates to the shared start sequence so a bad pack\n/// can never trip a respawn loop (no supervisor yet, plan §7.2).\npub(crate) fn on_pack_verified(app: &tauri::AppHandle) {\n    let app_handle = app.clone();\n    tauri::async_runtime::spawn(async move {\n        let state = app_handle.state::<Arc<WorkerState>>().inner().clone();\n        start_worker_if_ready(&app_handle, state).await;\n    });\n}\n')
+ +    where <built-in method search of re.Pattern object at 0x131677fd0> = re.compile('\\[SIDECAR\\]\\s*server_started\\s*port=\\{[^}]*\\}').search
 tests/tauri/mig16/test_externalbin_spawn_macos.py:270: in test_spawn_rs_server_started_log_line_format
     assert port_log_re.search(spawn_rs_source), (
 E   AssertionError: spawn.rs must log '[SIDECAR] server_started port={}' on success (runbook §5 pass criteria greps for this line on macOS)
 E   assert None
-E    +  where None = <built-in method search of re.Pattern object at 0x135111190>('//! Sidecar spawn + stdout handshake (ADR-0020 §1 + §4.1 + §14).\n//! Submodules own the actual process spawn; this file is orchestration.\n//! Both spawn paths `.env_clear()` then re-add only the OS-required allowlist.\n//! C-TOKIO-1: panic capture is `AssertUnwindSafe(fut).catch_unwind().await`,\n//! never `block_on` on a runtime worker.\n//! Layout: docs/code-notes/tauri-host.md#module-layout\n\n// `pub(crate)` so lifecycle can consult `is_dev_mode()` for tray-Restart.\npub(crate) mod dev_mode;\n// Dev interpreter discovery (python.exe often missing from GUI PATH).\npub(crate) mod dev_python;\nmod env_allowlist;\nmod handshake;\nmod handshake_loop;\n// Permanent child-even
+E    +  where None = <built-in method search of re.Pattern object at 0x131677fd0>('//! Sidecar spawn + stdout handshake (ADR-0020 §1 + §4.1 + §14).\n//! Submodules own the actual process spawn; this file is orchestration.\n//! Both spawn paths `.env_clear()` then re-add only the OS-required allowlist.\n//! C-TOKIO-1: panic capture is `AssertUnwindSafe(fut).catch_unwind().await`,\n//! never `block_on` on a runtime worker.\n//! Layout: docs/code-notes/tauri-host.md#module-layout\n\n// `pub(crate)` so lifecycle can consult `is_dev_mode()` for tray-Restart.\npub(crate) mod dev_mode;\n// Dev interpreter discovery (python.exe often missing from GUI PATH).\npub(crate) mod dev_python;\nmod env_allowlist;\nmod handshake;\nmod handshake_loop;\n// Permanent child-even
 … (truncated)
 ```
 
-### 83. `tests.tauri.mig16.test_externalbin_spawn_macos.test_sidecar_ws_binds_loopback_ephemeral_port`
+### 84. `tests.tauri.mig16.test_externalbin_spawn_macos.test_sidecar_ws_binds_loopback_ephemeral_port`
 
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_externalbin_spawn_macos.py:402`
 
 ```
-+    where <function search at 0x10247de40> = re.search
++    where <function search at 0x10092a340> = re.search
 
 AssertionError: sidecar_ws.py must define _LOOPBACK_HOST = '127.0.0.1' (hard loopback, no 0.0.0.0/:: bind, ADR-0020 §1)
 assert None
- +  where None = <function search at 0x10247de40>('_LOOPBACK_HOST\\s*=\\s*"127\\.0\\.0\\.1"', '"""Tauri sidecar WebSocket transport, server side.\n\nADR-0020 §1 + §2: this module turns the existing :class:`IPCServer`\ndispatch layer into a localhost WebSocket server so the Tauri Rust\nhost can connect to it as a WS client.\n\nArchitecture\n------------\n::\n\n    Tauri host (Rust)\n        │  spawns sidecar via externalBin\n        │  passes VOICE_TYPER_IPC_TOKEN env\n        ▼\n    sidecar_main.py (this module\'s run() entrypoint)\n        │  binds websockets.serve on 127.0.0.1:0\n        │  OS assigns an ephemeral port\n        │  writes ONE structured line to stdout:\n        │     {"event":"server_started","port":<n>}\n        ▼\n    Rust reads stdout, parses the JSON, opens a WS client to\n    ws://127.0.0.1:<n>, sends the bearer-token auth frame, then forwards\n    invoke(\'dispatch\', {cmd, data}) envelopes over the WS.\n\n    Auth model (ADR-0020 §3)\n    -----------------------------------------------\n    The handshake is a **one-shot bearer-token** check, NOT an HMAC\n    scheme. The Rust host generates a 256-bit bearer token via\n    ``secrets.token_bytes(32)`` and the Python sidecar compares it with\n    :func:`hmac.compare_digest` (constant-time *comparison ...d`` module-object read at call\n  ``PROTOCOL_VERSION``.\n"""\n\nfrom __future__ import annotations\n\nimport contextlib\nimport json\nimport sys\n\n\ndef _force_line_buffered_stdout() -> None:\n    """so this is always available, but the guard is defensive)."""\n    try:\n        sys.stdout.reconfigure(line_buffering=True)  # type: ignore[attr-defined, union-attr]\n    except (AttributeError, ValueError):\n        # Fallback: reopen stdout with buffering=1 (line-buffered).\n        with contextlib.suppress(Exception):\n            sys.stdout = open(  # noqa: SIM115 - intentional reopen\n                sys.stdout.fileno(),\n                "w",\n                buffering=1,\n                encoding="utf-8",\n                closefd=False,\n            )\n\n\ndef _emit_server_started(port: int, protocol: int | None = None) -> None:\n    """Write the one structured stdout line the host is parsing for."""\n    if protocol is not None:\n        print(\n            json.dumps({"event": "server_started", "port": int(port), "protocol": int(protocol)}),\n            flush=True,\n        )\n    else:\n        print(json.dumps({"event": "server_started", "port": int(port)}), flush=True)\n')
- +    where <function search at 0x10247de40> = re.search
+ +  where None = <function search at 0x10092a340>('_LOOPBACK_HOST\\s*=\\s*"127\\.0\\.0\\.1"', '"""Tauri sidecar WebSocket transport, server side.\n\nADR-0020 §1 + §2: this module turns the existing :class:`IPCServer`\ndispatch layer into a localhost WebSocket server so the Tauri Rust\nhost can connect to it as a WS client.\n\nArchitecture\n------------\n::\n\n    Tauri host (Rust)\n        │  spawns sidecar via externalBin\n        │  passes VOICE_TYPER_IPC_TOKEN env\n        ▼\n    sidecar_main.py (this module\'s run() entrypoint)\n        │  binds websockets.serve on 127.0.0.1:0\n        │  OS assigns an ephemeral port\n        │  writes ONE structured line to stdout:\n        │     {"event":"server_started","port":<n>}\n        ▼\n    Rust reads stdout, parses the JSON, opens a WS client to\n    ws://127.0.0.1:<n>, sends the bearer-token auth frame, then forwards\n    invoke(\'dispatch\', {cmd, data}) envelopes over the WS.\n\n    Auth model (ADR-0020 §3)\n    -----------------------------------------------\n    The handshake is a **one-shot bearer-token** check, NOT an HMAC\n    scheme. The Rust host generates a 256-bit bearer token via\n    ``secrets.token_bytes(32)`` and the Python sidecar compares it with\n    :func:`hmac.compare_digest` (constant-time *comparison ...d`` module-object read at call\n  ``PROTOCOL_VERSION``.\n"""\n\nfrom __future__ import annotations\n\nimport contextlib\nimport json\nimport sys\n\n\ndef _force_line_buffered_stdout() -> None:\n    """so this is always available, but the guard is defensive)."""\n    try:\n        sys.stdout.reconfigure(line_buffering=True)  # type: ignore[attr-defined, union-attr]\n    except (AttributeError, ValueError):\n        # Fallback: reopen stdout with buffering=1 (line-buffered).\n        with contextlib.suppress(Exception):\n            sys.stdout = open(  # noqa: SIM115 - intentional reopen\n                sys.stdout.fileno(),\n                "w",\n                buffering=1,\n                encoding="utf-8",\n                closefd=False,\n            )\n\n\ndef _emit_server_started(port: int, protocol: int | None = None) -> None:\n    """Write the one structured stdout line the host is parsing for."""\n    if protocol is not None:\n        print(\n            json.dumps({"event": "server_started", "port": int(port), "protocol": int(protocol)}),\n            flush=True,\n        )\n    else:\n        print(json.dumps({"event": "server_started", "port": int(port)}), flush=True)\n')
+ +    where <function search at 0x10092a340> = re.search
 tests/tauri/mig16/test_externalbin_spawn_macos.py:402: in test_sidecar_ws_binds_loopback_ephemeral_port
     assert re.search(
 E   AssertionError: sidecar_ws.py must define _LOOPBACK_HOST = '127.0.0.1' (hard loopback, no 0.0.0.0/:: bind, ADR-0020 §1)
 E   assert None
-E    +  where None = <function search at 0x10247de40>('_LOOPBACK_HOST\\s*=\\s*"127\\.0\\.0\\.1"', '"""Tauri sidecar WebSocket transport, server side.\n\nADR-0020 §1 + §2: this module turns the existing :class:`IPCServer`\ndispatch layer into a localhost WebSocket server so the Tauri Rust\nhost can connect to it as a WS client.\n\nArchitecture\n------------\n::\n\n    Tauri host (Rust)\n        │  spawns sidecar via externalBin\n        │  passes VOICE_TYPER_IPC_TOKEN env\n        ▼\n    sidecar_main.py (this module\'s run() entrypoint)\n        │  binds websockets.serve on 127.0.0.1:0\n        │  OS assigns an ephemeral port\n        │  writes ONE structured line to stdout:\n        │     {"event":"server_started","port":<n>}\n        ▼\n    Rust reads stdout, parses the JSON, opens a WS client to\n    ws://127.0.0.1:<n>, sends the bearer-token auth frame, then forwards\n    invoke(\'dispatch\', {cmd, data}) envelopes over the WS.\n\n    Auth model (ADR-0020 §3)\n    ----------
-… (truncated)
-```
-
-### 84. `tests.tauri.mig16.test_faster_whisper_macos.test_build_script_check_flag_validates_ct2_backend_importable`
-
-- Legs: macos-14-3.12
-- Location: `tests/tauri/mig16/test_faster_whisper_macos.py:46`
-
-```
-assert 'import faster_whisper, ctranslate2' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not invoke codesign.\n    NUITKA_ARGS+=(--macos-sign-identity="$MAC_SIGNING_IDENTITY")\nfi\n"$PY" -m nuitka "${NUITKA_ARGS[@]}"\n\n# ─── Verify ──────────────────────────────────────────────────────────────────\nif [[ ! -f "$OUTPUT_PATH" ]]; then\n    echo "ERROR: $OUTPUT_PATH not built" >&2\n    exit 1\nfi\nchmod +x "$OUTPUT_PATH"\nSIZE_MB=$(du -m "$OUTPUT_PATH" | cut -f1)\necho "[build_sidecar_macos] OK: $OUTPUT_PATH (${SIZE_MB} MB)"\n\n# S5-CR-56: ad-hoc codesign fallback when no Developer ID identity is set.\n# Mirrors `build_native_listener_macos.sh`. When MAC_SIGNING_IDENTITY is set,\n# Nuitka already signed the binary at build time via --macos-sign-identity\n# (see above), skip the ad-hoc fallback in that case.\nif [[ -z "${MAC_SIGNING_IDENTITY:-}" ]] && command -v codesign >/dev/null; then\n    echo "[build_sidecar_macos] Ad-hoc codesign (parent .app will re-sign --deep)..."\n    codesign --force --sign - "$OUTPUT_PATH" || true\nfi\n\necho "[build_sidecar_macos] NEXT: codesign + notarize (see docs/migration/signing-guide.md §13.2)."\n'
-
-AssertionError: build script's --check branch must validate that both faster_whisper AND ctranslate2 are importable in the build env
-assert 'import faster_whisper, ctranslate2' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not invoke codesign.\n    NUIT
+E    +  where None = <function search at 0x10092a340>('_LOOPBACK_HOST\\s*=\\s*"127\\.0\\.0\\.1"', '"""Tauri sidecar WebSocket transport, server side.\n\nADR-0020 §1 + §2: this module turns the existing :class:`IPCServer`\ndispatch layer into a localhost WebSocket server so the Tauri Rust\nhost can connect to it as a WS client.\n\nArchitecture\n------------\n::\n\n    Tauri host (Rust)\n        │  spawns sidecar via externalBin\n        │  passes VOICE_TYPER_IPC_TOKEN env\n        ▼\n    sidecar_main.py (this module\'s run() entrypoint)\n        │  binds websockets.serve on 127.0.0.1:0\n        │  OS assigns an ephemeral port\n        │  writes ONE structured line to stdout:\n        │     {"event":"server_started","port":<n>}\n        ▼\n    Rust reads stdout, parses the JSON, opens a WS client to\n    ws://127.0.0.1:<n>, sends the bearer-token auth frame, then forwards\n    invoke(\'dispatch\', {cmd, data}) envelopes over the WS.\n\n    Auth model (ADR-0020 §3)\n    ----------
 … (truncated)
 ```
 
 ### 85. `tests.tauri.mig16.test_faster_whisper_macos.test_build_script_includes_faster_whisper_and_ctranslate2_packages`
 
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_faster_whisper_macos.py:74`
 
 ```
@@ -2497,22 +2514,9 @@ assert '--include-package=faster_whisper' in '#!/usr/bin/env bash\n# ===========
 … (truncated)
 ```
 
-### 86. `tests.tauri.mig16.test_faster_whisper_macos.test_build_script_includes_ct2_native_libs_singular_layout`
+### 86. `tests.tauri.mig16.test_faster_whisper_macos.test_build_script_includes_ct2_libs_plural_layout_guarded`
 
-- Legs: macos-14-3.12
-- Location: `tests/tauri/mig16/test_faster_whisper_macos.py:82`
-
-```
-assert ('ctranslate2/lib' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not invoke codesign.\n    NUITKA_ARGS+=(--macos-sign-identity="$MAC_SIGNING_IDENTITY")\nfi\n"$PY" -m nuitka "${NUITKA_ARGS[@]}"\n\n# ─── Verify ──────────────────────────────────────────────────────────────────\nif [[ ! -f "$OUTPUT_PATH" ]]; then\n    echo "ERROR: $OUTPUT_PATH not built" >&2\n    exit 1\nfi\nchmod +x "$OUTPUT_PATH"\nSIZE_MB=$(du -m "$OUTPUT_PATH" | cut -f1)\necho "[build_sidecar_macos] OK: $OUTPUT_PATH (${SIZE_MB} MB)"\n\n# S5-CR-56: ad-hoc codesign fallback when no Developer ID identity is set.\n# Mirrors `build_native_listener_macos.sh`. When MAC_SIGNING_IDENTITY is set,\n# Nuitka already signed the binary at build time via --macos-sign-identity\n# (see above), skip the ad-hoc fallback in that case.\nif [[ -z "${MAC_SIGNING_IDENTITY:-}" ]] && command -v codesign >/dev/null; then\n    echo "[build_sidecar_macos] Ad-hoc codesign (parent .app will re-sign --deep)..."\n    codesign --force --sign - "$OUTPUT_PATH" || true\nfi\n\necho "[build_sidecar_macos] NEXT: codesign + notarize (see docs/migration/signing-guide.md §13.2)."\n')
-
-AssertionError: build script must include --include-data-dir for ctranslate2/lib (the directory holding libctranslate2.dylib + libiomp5.dylib)
-assert ('ctranslate2/lib' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not invoke codesign.\n    NUITKA_ARGS+=(--macos-sign-id
-… (truncated)
-```
-
-### 87. `tests.tauri.mig16.test_faster_whisper_macos.test_build_script_includes_ct2_libs_plural_layout_guarded`
-
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_faster_whisper_macos.py:96`
 
 ```
@@ -2523,22 +2527,35 @@ assert 'ctranslate2/libs' in '#!/usr/bin/env bash\n# ===========================
 … (truncated)
 ```
 
-### 88. `tests.tauri.mig16.test_nuitka_macos_build.test_sidecar_script_contains_expected_nuitka_flag[--include-package=ctranslate2]`
+### 87. `tests.tauri.mig16.test_faster_whisper_macos.test_build_script_check_flag_validates_ct2_backend_importable`
 
-- Legs: macos-14-3.12
-- Location: `tests/tauri/mig16/test_nuitka_macos_build.py:120`
+- Legs: macos-14-3.13
+- Location: `tests/tauri/mig16/test_faster_whisper_macos.py:46`
 
 ```
-assert '--include-package=ctranslate2' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not invoke codesign.\n    NUITKA_ARGS+=(--macos-sign-identity="$MAC_SIGNING_IDENTITY")\nfi\n"$PY" -m nuitka "${NUITKA_ARGS[@]}"\n\n# ─── Verify ──────────────────────────────────────────────────────────────────\nif [[ ! -f "$OUTPUT_PATH" ]]; then\n    echo "ERROR: $OUTPUT_PATH not built" >&2\n    exit 1\nfi\nchmod +x "$OUTPUT_PATH"\nSIZE_MB=$(du -m "$OUTPUT_PATH" | cut -f1)\necho "[build_sidecar_macos] OK: $OUTPUT_PATH (${SIZE_MB} MB)"\n\n# S5-CR-56: ad-hoc codesign fallback when no Developer ID identity is set.\n# Mirrors `build_native_listener_macos.sh`. When MAC_SIGNING_IDENTITY is set,\n# Nuitka already signed the binary at build time via --macos-sign-identity\n# (see above), skip the ad-hoc fallback in that case.\nif [[ -z "${MAC_SIGNING_IDENTITY:-}" ]] && command -v codesign >/dev/null; then\n    echo "[build_sidecar_macos] Ad-hoc codesign (parent .app will re-sign --deep)..."\n    codesign --force --sign - "$OUTPUT_PATH" || true\nfi\n\necho "[build_sidecar_macos] NEXT: codesign + notarize (see docs/migration/signing-guide.md §13.2)."\n'
+assert 'import faster_whisper, ctranslate2' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not invoke codesign.\n    NUITKA_ARGS+=(--macos-sign-identity="$MAC_SIGNING_IDENTITY")\nfi\n"$PY" -m nuitka "${NUITKA_ARGS[@]}"\n\n# ─── Verify ──────────────────────────────────────────────────────────────────\nif [[ ! -f "$OUTPUT_PATH" ]]; then\n    echo "ERROR: $OUTPUT_PATH not built" >&2\n    exit 1\nfi\nchmod +x "$OUTPUT_PATH"\nSIZE_MB=$(du -m "$OUTPUT_PATH" | cut -f1)\necho "[build_sidecar_macos] OK: $OUTPUT_PATH (${SIZE_MB} MB)"\n\n# S5-CR-56: ad-hoc codesign fallback when no Developer ID identity is set.\n# Mirrors `build_native_listener_macos.sh`. When MAC_SIGNING_IDENTITY is set,\n# Nuitka already signed the binary at build time via --macos-sign-identity\n# (see above), skip the ad-hoc fallback in that case.\nif [[ -z "${MAC_SIGNING_IDENTITY:-}" ]] && command -v codesign >/dev/null; then\n    echo "[build_sidecar_macos] Ad-hoc codesign (parent .app will re-sign --deep)..."\n    codesign --force --sign - "$OUTPUT_PATH" || true\nfi\n\necho "[build_sidecar_macos] NEXT: codesign + notarize (see docs/migration/signing-guide.md §13.2)."\n'
 
-AssertionError: build_sidecar_macos.sh is missing required Nuitka flag `--include-package=ctranslate2`. ADR-0020 §4.3 mandates this flag for the macOS sidecar freeze.
-assert '--include-package=ctranslate2' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not in
+AssertionError: build script's --check branch must validate that both faster_whisper AND ctranslate2 are importable in the build env
+assert 'import faster_whisper, ctranslate2' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not invoke codesign.\n    NUIT
+… (truncated)
+```
+
+### 88. `tests.tauri.mig16.test_faster_whisper_macos.test_build_script_includes_ct2_native_libs_singular_layout`
+
+- Legs: macos-14-3.13
+- Location: `tests/tauri/mig16/test_faster_whisper_macos.py:82`
+
+```
+assert ('ctranslate2/lib' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not invoke codesign.\n    NUITKA_ARGS+=(--macos-sign-identity="$MAC_SIGNING_IDENTITY")\nfi\n"$PY" -m nuitka "${NUITKA_ARGS[@]}"\n\n# ─── Verify ──────────────────────────────────────────────────────────────────\nif [[ ! -f "$OUTPUT_PATH" ]]; then\n    echo "ERROR: $OUTPUT_PATH not built" >&2\n    exit 1\nfi\nchmod +x "$OUTPUT_PATH"\nSIZE_MB=$(du -m "$OUTPUT_PATH" | cut -f1)\necho "[build_sidecar_macos] OK: $OUTPUT_PATH (${SIZE_MB} MB)"\n\n# S5-CR-56: ad-hoc codesign fallback when no Developer ID identity is set.\n# Mirrors `build_native_listener_macos.sh`. When MAC_SIGNING_IDENTITY is set,\n# Nuitka already signed the binary at build time via --macos-sign-identity\n# (see above), skip the ad-hoc fallback in that case.\nif [[ -z "${MAC_SIGNING_IDENTITY:-}" ]] && command -v codesign >/dev/null; then\n    echo "[build_sidecar_macos] Ad-hoc codesign (parent .app will re-sign --deep)..."\n    codesign --force --sign - "$OUTPUT_PATH" || true\nfi\n\necho "[build_sidecar_macos] NEXT: codesign + notarize (see docs/migration/signing-guide.md §13.2)."\n')
+
+AssertionError: build script must include --include-data-dir for ctranslate2/lib (the directory holding libctranslate2.dylib + libiomp5.dylib)
+assert ('ctranslate2/lib' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not invoke codesign.\n    NUITKA_ARGS+=(--macos-sign-id
 … (truncated)
 ```
 
 ### 89. `tests.tauri.mig16.test_nuitka_macos_build.test_sidecar_script_contains_expected_nuitka_flag[--include-package=faster_whisper]`
 
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_nuitka_macos_build.py:120`
 
 ```
@@ -2551,7 +2568,7 @@ assert '--include-package=faster_whisper' in '#!/usr/bin/env bash\n# ===========
 
 ### 90. `tests.tauri.mig16.test_nuitka_macos_build.test_sidecar_script_includes_ctranslate2_data_dir`
 
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_nuitka_macos_build.py:128`
 
 ```
@@ -2561,9 +2578,22 @@ assert '--include-data-dir' in '#!/usr/bin/env bash\n# =========================
 … (truncated)
 ```
 
-### 91. `tests.tauri.mig16.test_nuitka_macos_build.test_sidecar_script_has_xplat3_ctranslate2_libs_guard`
+### 91. `tests.tauri.mig16.test_nuitka_macos_build.test_sidecar_script_contains_expected_nuitka_flag[--include-package=ctranslate2]`
 
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
+- Location: `tests/tauri/mig16/test_nuitka_macos_build.py:120`
+
+```
+assert '--include-package=ctranslate2' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not invoke codesign.\n    NUITKA_ARGS+=(--macos-sign-identity="$MAC_SIGNING_IDENTITY")\nfi\n"$PY" -m nuitka "${NUITKA_ARGS[@]}"\n\n# ─── Verify ──────────────────────────────────────────────────────────────────\nif [[ ! -f "$OUTPUT_PATH" ]]; then\n    echo "ERROR: $OUTPUT_PATH not built" >&2\n    exit 1\nfi\nchmod +x "$OUTPUT_PATH"\nSIZE_MB=$(du -m "$OUTPUT_PATH" | cut -f1)\necho "[build_sidecar_macos] OK: $OUTPUT_PATH (${SIZE_MB} MB)"\n\n# S5-CR-56: ad-hoc codesign fallback when no Developer ID identity is set.\n# Mirrors `build_native_listener_macos.sh`. When MAC_SIGNING_IDENTITY is set,\n# Nuitka already signed the binary at build time via --macos-sign-identity\n# (see above), skip the ad-hoc fallback in that case.\nif [[ -z "${MAC_SIGNING_IDENTITY:-}" ]] && command -v codesign >/dev/null; then\n    echo "[build_sidecar_macos] Ad-hoc codesign (parent .app will re-sign --deep)..."\n    codesign --force --sign - "$OUTPUT_PATH" || true\nfi\n\necho "[build_sidecar_macos] NEXT: codesign + notarize (see docs/migration/signing-guide.md §13.2)."\n'
+
+AssertionError: build_sidecar_macos.sh is missing required Nuitka flag `--include-package=ctranslate2`. ADR-0020 §4.3 mandates this flag for the macOS sidecar freeze.
+assert '--include-package=ctranslate2' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not in
+… (truncated)
+```
+
+### 92. `tests.tauri.mig16.test_nuitka_macos_build.test_sidecar_script_has_xplat3_ctranslate2_libs_guard`
+
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_nuitka_macos_build.py:138`
 
 ```
@@ -2574,9 +2604,9 @@ assert 'CT2_LIBS_DIR=' in '#!/usr/bin/env bash\n# ==============================
 … (truncated)
 ```
 
-### 92. `tests.tauri.mig16.test_nuitka_macos_build.test_sidecar_script_has_ctranslate2_lib_guard_singular`
+### 93. `tests.tauri.mig16.test_nuitka_macos_build.test_sidecar_script_has_ctranslate2_lib_guard_singular`
 
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_nuitka_macos_build.py:152`
 
 ```
@@ -2586,19 +2616,9 @@ assert 'CT2_LIB_DIR=' in '#!/usr/bin/env bash\n# ===============================
 … (truncated)
 ```
 
-### 93. `tests.tauri.mig16.test_nuitka_macos_build.test_sidecar_script_supports_check_mode`
-
-- Legs: macos-14-3.12
-- Location: `tests/tauri/mig16/test_nuitka_macos_build.py:282`
-
-```
-assert ('import faster_whisper, ctranslate2' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not invoke codesign.\n    NUITKA_ARGS+=(--macos-sign-identity="$MAC_SIGNING_IDENTITY")\nfi\n"$PY" -m nuitka "${NUITKA_ARGS[@]}"\n\n# ─── Verify ──────────────────────────────────────────────────────────────────\nif [[ ! -f "$OUTPUT_PATH" ]]; then\n    echo "ERROR: $OUTPUT_PATH not built" >&2\n    exit 1\nfi\nchmod +x "$OUTPUT_PATH"\nSIZE_MB=$(du -m "$OUTPUT_PATH" | cut -f1)\necho "[build_sidecar_macos] OK: $OUTPUT_PATH (${SIZE_MB} MB)"\n\n# S5-CR-56: ad-hoc codesign fallback when no Developer ID identity is set.\n# Mirrors `build_native_listener_macos.sh`. When MAC_SIGNING_IDENTITY is set,\n# Nuitka already signed the binary at build time via --macos-sign-identity\n# (see above), skip the ad-hoc fallback in that case.\nif [[ -z "${MAC_SIGNING_IDENTITY:-}" ]] && command -v codesign >/dev/null; then\n    echo "[build_sidecar_macos] Ad-hoc codesign (parent .app will re-sign --deep)..."\n    codesign --force --sign - "$OUTPUT_PATH" || true\nfi\n\necho "[build_sidecar_macos] NEXT: codesign + notarize (see docs/migration/signing-guide.md §13.2)."\n' or ('import faster_whisper' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not invoke codesign.\n    NUITKA_ARGS+=(--macos-sign-identity="$MAC_SIGNING_IDENTITY")\nfi\n"$PY" -m nuitka "${NUITKA_ARGS[@]}"\n\n# ─── Verify ───────────────────────────────────
-… (truncated)
-```
-
 ### 94. `tests.tauri.mig16.test_nuitka_macos_build.test_sidecar_script_sanity_checks_ctranslate2_import`
 
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_nuitka_macos_build.py:296`
 
 ```
@@ -2609,9 +2629,19 @@ assert 'import faster_whisper, ctranslate2, websockets' in '#!/usr/bin/env bash\
 … (truncated)
 ```
 
-### 95. `tests.tauri.mig16.test_nuitka_macos_build.test_sidecar_script_runs_otool_verify`
+### 95. `tests.tauri.mig16.test_nuitka_macos_build.test_sidecar_script_supports_check_mode`
 
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
+- Location: `tests/tauri/mig16/test_nuitka_macos_build.py:282`
+
+```
+assert ('import faster_whisper, ctranslate2' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not invoke codesign.\n    NUITKA_ARGS+=(--macos-sign-identity="$MAC_SIGNING_IDENTITY")\nfi\n"$PY" -m nuitka "${NUITKA_ARGS[@]}"\n\n# ─── Verify ──────────────────────────────────────────────────────────────────\nif [[ ! -f "$OUTPUT_PATH" ]]; then\n    echo "ERROR: $OUTPUT_PATH not built" >&2\n    exit 1\nfi\nchmod +x "$OUTPUT_PATH"\nSIZE_MB=$(du -m "$OUTPUT_PATH" | cut -f1)\necho "[build_sidecar_macos] OK: $OUTPUT_PATH (${SIZE_MB} MB)"\n\n# S5-CR-56: ad-hoc codesign fallback when no Developer ID identity is set.\n# Mirrors `build_native_listener_macos.sh`. When MAC_SIGNING_IDENTITY is set,\n# Nuitka already signed the binary at build time via --macos-sign-identity\n# (see above), skip the ad-hoc fallback in that case.\nif [[ -z "${MAC_SIGNING_IDENTITY:-}" ]] && command -v codesign >/dev/null; then\n    echo "[build_sidecar_macos] Ad-hoc codesign (parent .app will re-sign --deep)..."\n    codesign --force --sign - "$OUTPUT_PATH" || true\nfi\n\necho "[build_sidecar_macos] NEXT: codesign + notarize (see docs/migration/signing-guide.md §13.2)."\n' or ('import faster_whisper' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka sidecar build (macOS x86_64 + aarch64)\n# ADR-0020 §4.3. Nuitka freeze of voice_typer/server/ipc_server.py into\n# python-sidecar-<triple>, using python-build-standalone as the base\n# interpreter.\n#\n# Output:\n#   src-tauri/bin/python-sidecar-x86_64-apple-darwin\n#   src-tauri/bin/python-sidecar-aarch64-apple-darwin\n#\n# This script is designed to run on a macOS host. For x86_64 on an Apple\n# Silicon host, the script relies on Rosetta 2 being installed (the CI\n# workflow installs it explicitly).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_macos.sh aarch64   # default (host arch)\n#   bash scripts/build/build_sidecar_macos.sh x86_64    # Intel (via Rosetta)\n#   bash scripts/build/build_sidecar_macos.sh --check   # verify toolchain\n#\n# ADR-0020 §4.3 mandates:\n#   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin\n#   - --standalone --onefile\n#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2\n#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir\n#     copies below were deleted in the same ch...entity to Nuitka so it\n    # signs the binary at build time. `--macos-signed-app-name` only sets\n    # the bundle\'s signed name; it does not invoke codesign.\n    NUITKA_ARGS+=(--macos-sign-identity="$MAC_SIGNING_IDENTITY")\nfi\n"$PY" -m nuitka "${NUITKA_ARGS[@]}"\n\n# ─── Verify ───────────────────────────────────
+… (truncated)
+```
+
+### 96. `tests.tauri.mig16.test_nuitka_macos_build.test_sidecar_script_runs_otool_verify`
+
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_nuitka_macos_build.py:327`
 
 ```
@@ -2619,9 +2649,9 @@ assert ('otool -L' in '#!/usr/bin/env bash\n# ==================================
 … (truncated)
 ```
 
-### 96. `tests.tauri.mig16.test_nuitka_macos_build.test_linux_sibling_has_xplat3_ctranslate2_libs_guard`
+### 97. `tests.tauri.mig16.test_nuitka_macos_build.test_linux_sibling_has_xplat3_ctranslate2_libs_guard`
 
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_nuitka_macos_build.py:347`
 
 ```
@@ -2631,9 +2661,9 @@ assert 'CT2_LIBS_DIR' in '#!/usr/bin/env bash\n# ===============================
 … (truncated)
 ```
 
-### 97. `tests.tauri.mig16.test_toast_macos.TestWsRsNotificationEventName.test_ws_rs_emits_canonical_notification_event`
+### 98. `tests.tauri.mig16.test_toast_macos.TestWsRsNotificationEventName.test_ws_rs_emits_canonical_notification_event`
 
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_toast_macos.py:137`
 
 ```
@@ -2641,41 +2671,9 @@ assert ('emit("notification"' in '//! WebSocket reconnect + reader/writer tasks 
 … (truncated)
 ```
 
-### 98. `tests.tauri.mig16.test_toast_macos.TestValidateOnMacOSHostBlock.test_docstring_documents_signing_prerequisite`
+### 99. `tests.tauri.mig16.test_toast_macos.TestValidateOnMacOSHostBlock.test_docstring_contains_validate_on_macos_host_header`
 
-- Legs: macos-14-3.12
-- Location: `tests/tauri/mig16/test_toast_macos.py:465`
-
-```
-assert 'Developer ID' in 'toast notification wiring validation (macOS).'
-
-AssertionError: VALIDATE ON MACOS HOST block MUST mention 'Developer ID', unsigned dev builds silently fail to post notifications on macOS.
-assert 'Developer ID' in 'toast notification wiring validation (macOS).'
-tests/tauri/mig16/test_toast_macos.py:465: in test_docstring_documents_signing_prerequisite
-    assert "Developer ID" in doc, (
-E   AssertionError: VALIDATE ON MACOS HOST block MUST mention 'Developer ID', unsigned dev builds silently fail to post notifications on macOS.
-E   assert 'Developer ID' in 'toast notification wiring validation (macOS).'
-```
-
-### 99. `tests.tauri.mig16.test_toast_macos.TestValidateOnMacOSHostBlock.test_docstring_documents_log_path`
-
-- Legs: macos-14-3.12
-- Location: `tests/tauri/mig16/test_toast_macos.py:489`
-
-```
-assert '~/Library/Logs/lausu/lausu.log' in 'toast notification wiring validation (macOS).'
-
-AssertionError: VALIDATE ON MACOS HOST block MUST document the macOS log path (~/Library/Logs/lausu/lausu.log) so the validator can confirm the notification event was emitted.
-assert '~/Library/Logs/lausu/lausu.log' in 'toast notification wiring validation (macOS).'
-tests/tauri/mig16/test_toast_macos.py:489: in test_docstring_documents_log_path
-    assert "~/Library/Logs/lausu/lausu.log" in doc, (
-E   AssertionError: VALIDATE ON MACOS HOST block MUST document the macOS log path (~/Library/Logs/lausu/lausu.log) so the validator can confirm the notification event was emitted.
-E   assert '~/Library/Logs/lausu/lausu.log' in 'toast notification wiring validation (macOS).'
-```
-
-### 100. `tests.tauri.mig16.test_toast_macos.TestValidateOnMacOSHostBlock.test_docstring_contains_validate_on_macos_host_header`
-
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_toast_macos.py:457`
 
 ```
@@ -2689,41 +2687,41 @@ E   AssertionError: Module docstring MUST contain 'VALIDATE ON MACOS HOST:' head
 E   assert 'VALIDATE ON MACOS HOST:' in 'toast notification wiring validation (macOS).'
 ```
 
-### 101. `tests.tauri.mig16.test_toast_macos.TestValidateOnMacOSHostBlock.test_docstring_documents_system_settings_fallback`
+### 100. `tests.tauri.mig16.test_toast_macos.TestValidateOnMacOSHostBlock.test_docstring_documents_log_path`
 
-- Legs: macos-14-3.12
-- Location: `tests/tauri/mig16/test_toast_macos.py:476`
-
-```
-assert 'System Settings' in 'toast notification wiring validation (macOS).'
-
-AssertionError: VALIDATE ON MACOS HOST block MUST mention 'System Settings', the macOS UI path where the user manually grants notification permission if the TCC prompt was dismissed.
-assert 'System Settings' in 'toast notification wiring validation (macOS).'
-tests/tauri/mig16/test_toast_macos.py:476: in test_docstring_documents_system_settings_fallback
-    assert "System Settings" in doc, (
-E   AssertionError: VALIDATE ON MACOS HOST block MUST mention 'System Settings', the macOS UI path where the user manually grants notification permission if the TCC prompt was dismissed.
-E   assert 'System Settings' in 'toast notification wiring validation (macOS).'
-```
-
-### 102. `tests.tauri.mig16.test_toast_macos.TestValidateOnMacOSHostBlock.test_docstring_documents_expected_timing`
-
-- Legs: macos-14-3.12
-- Location: `tests/tauri/mig16/test_toast_macos.py:508`
+- Legs: macos-14-3.13
+- Location: `tests/tauri/mig16/test_toast_macos.py:489`
 
 ```
-assert 'within 1s' in 'toast notification wiring validation (macOS).'
+assert '~/Library/Logs/lausu/lausu.log' in 'toast notification wiring validation (macOS).'
 
-AssertionError: VALIDATE ON MACOS HOST block MUST document the expected timing ('within 1s'), the upper bound for how long the validator should wait for the banner before declaring the gate failed.
-assert 'within 1s' in 'toast notification wiring validation (macOS).'
-tests/tauri/mig16/test_toast_macos.py:508: in test_docstring_documents_expected_timing
-    assert "within 1s" in doc, (
-E   AssertionError: VALIDATE ON MACOS HOST block MUST document the expected timing ('within 1s'), the upper bound for how long the validator should wait for the banner before declaring the gate failed.
-E   assert 'within 1s' in 'toast notification wiring validation (macOS).'
+AssertionError: VALIDATE ON MACOS HOST block MUST document the macOS log path (~/Library/Logs/lausu/lausu.log) so the validator can confirm the notification event was emitted.
+assert '~/Library/Logs/lausu/lausu.log' in 'toast notification wiring validation (macOS).'
+tests/tauri/mig16/test_toast_macos.py:489: in test_docstring_documents_log_path
+    assert "~/Library/Logs/lausu/lausu.log" in doc, (
+E   AssertionError: VALIDATE ON MACOS HOST block MUST document the macOS log path (~/Library/Logs/lausu/lausu.log) so the validator can confirm the notification event was emitted.
+E   assert '~/Library/Logs/lausu/lausu.log' in 'toast notification wiring validation (macOS).'
 ```
 
-### 103. `tests.tauri.mig16.test_toast_macos.TestValidateOnMacOSHostBlock.test_docstring_documents_unsigned_dev_build_caveat`
+### 101. `tests.tauri.mig16.test_toast_macos.TestValidateOnMacOSHostBlock.test_docstring_documents_signing_prerequisite`
 
-- Legs: macos-14-3.12
+- Legs: macos-14-3.13
+- Location: `tests/tauri/mig16/test_toast_macos.py:465`
+
+```
+assert 'Developer ID' in 'toast notification wiring validation (macOS).'
+
+AssertionError: VALIDATE ON MACOS HOST block MUST mention 'Developer ID', unsigned dev builds silently fail to post notifications on macOS.
+assert 'Developer ID' in 'toast notification wiring validation (macOS).'
+tests/tauri/mig16/test_toast_macos.py:465: in test_docstring_documents_signing_prerequisite
+    assert "Developer ID" in doc, (
+E   AssertionError: VALIDATE ON MACOS HOST block MUST mention 'Developer ID', unsigned dev builds silently fail to post notifications on macOS.
+E   assert 'Developer ID' in 'toast notification wiring validation (macOS).'
+```
+
+### 102. `tests.tauri.mig16.test_toast_macos.TestValidateOnMacOSHostBlock.test_docstring_documents_unsigned_dev_build_caveat`
+
+- Legs: macos-14-3.13
 - Location: `tests/tauri/mig16/test_toast_macos.py:498`
 
 ```
@@ -2737,9 +2735,41 @@ E   AssertionError: VALIDATE ON MACOS HOST block MUST document the unsigned-dev-
 E   assert 'Unsigned dev builds' in 'toast notification wiring validation (macOS).'
 ```
 
-### 104. `tests.tauri.test_installer_naming.TestFullOfflineBuildScript.test_script_exists_and_is_executable`
+### 103. `tests.tauri.mig16.test_toast_macos.TestValidateOnMacOSHostBlock.test_docstring_documents_system_settings_fallback`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: macos-14-3.13
+- Location: `tests/tauri/mig16/test_toast_macos.py:476`
+
+```
+assert 'System Settings' in 'toast notification wiring validation (macOS).'
+
+AssertionError: VALIDATE ON MACOS HOST block MUST mention 'System Settings', the macOS UI path where the user manually grants notification permission if the TCC prompt was dismissed.
+assert 'System Settings' in 'toast notification wiring validation (macOS).'
+tests/tauri/mig16/test_toast_macos.py:476: in test_docstring_documents_system_settings_fallback
+    assert "System Settings" in doc, (
+E   AssertionError: VALIDATE ON MACOS HOST block MUST mention 'System Settings', the macOS UI path where the user manually grants notification permission if the TCC prompt was dismissed.
+E   assert 'System Settings' in 'toast notification wiring validation (macOS).'
+```
+
+### 104. `tests.tauri.mig16.test_toast_macos.TestValidateOnMacOSHostBlock.test_docstring_documents_expected_timing`
+
+- Legs: macos-14-3.13
+- Location: `tests/tauri/mig16/test_toast_macos.py:508`
+
+```
+assert 'within 1s' in 'toast notification wiring validation (macOS).'
+
+AssertionError: VALIDATE ON MACOS HOST block MUST document the expected timing ('within 1s'), the upper bound for how long the validator should wait for the banner before declaring the gate failed.
+assert 'within 1s' in 'toast notification wiring validation (macOS).'
+tests/tauri/mig16/test_toast_macos.py:508: in test_docstring_documents_expected_timing
+    assert "within 1s" in doc, (
+E   AssertionError: VALIDATE ON MACOS HOST block MUST document the expected timing ('within 1s'), the upper bound for how long the validator should wait for the banner before declaring the gate failed.
+E   assert 'within 1s' in 'toast notification wiring validation (macOS).'
+```
+
+### 105. `tests.tauri.test_installer_naming.TestFullOfflineBuildScript.test_script_exists_and_is_executable`
+
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/test_installer_naming.py:462`
 
 ```
@@ -2755,9 +2785,9 @@ E   assert (33188 & 64)
 E    +  where 64 = stat.S_IXUSR
 ```
 
-### 105. `tests.tauri.test_internal_plugin_tools_absent.TestInternalPluginToolsAbsentFromPackaging.test_gitignore_covers_plugin_artifacts`
+### 106. `tests.tauri.test_internal_plugin_tools_absent.TestInternalPluginToolsAbsentFromPackaging.test_gitignore_covers_plugin_artifacts`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
 - Location: `tests/tauri/test_internal_plugin_tools_absent.py:61`
 
 ```
@@ -2767,18 +2797,21 @@ FileNotFoundError: [Errno 2] No such file or directory: '/Users/runner/work/voic
 tests/tauri/test_internal_plugin_tools_absent.py:61: in test_gitignore_covers_plugin_artifacts
     gi = (_PLUGINS_DIR / ".gitignore").read_text(encoding="utf-8")
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py:1027: in read_text
-    with self.open(mode='r', encoding=encoding, errors=errors) as f:
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py:1013: in open
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py:546: in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_abc.py:632: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py:537: in open
     return io.open(self, mode, buffering, encoding, errors, newline)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 E   FileNotFoundError: [Errno 2] No such file or directory: '/Users/runner/work/voice-typer/voice-typer/tools/internal_plugins/.gitignore'
 ```
 
-### 106. `tests.tauri.test_internal_plugin_tools_absent.TestInternalPluginToolsNotInMainRepo.test_root_gitignore_covers_plugin_tools`
+### 107. `tests.tauri.test_internal_plugin_tools_absent.TestInternalPluginToolsNotInMainRepo.test_root_gitignore_covers_plugin_tools`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
 - Location: `tests/tauri/test_internal_plugin_tools_absent.py:133`
 
 ```
@@ -2792,29 +2825,9 @@ E   AssertionError: tools/internal_plugins must be listed in the root .gitignore
 E   assert 1 == 0
 ```
 
-### 107. `tests.tauri.test_internal_plugin_tools_absent.test_plugin_js_files_stay_inside_the_plugin_workspace[playwright_runner.js]`
-
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
-- Location: `tests/tauri/test_internal_plugin_tools_absent.py:153`
-
-```
-+    where exists = PosixPath('/Users/runner/work/voice-typer/voice-typer/tools/internal_plugins/google_stt/playwright_runner.js').exists
-
-AssertionError: playwright_runner.js must live under tools/internal_plugins/google_stt
-assert False
- +  where False = exists()
- +    where exists = PosixPath('/Users/runner/work/voice-typer/voice-typer/tools/internal_plugins/google_stt/playwright_runner.js').exists
-tests/tauri/test_internal_plugin_tools_absent.py:153: in test_plugin_js_files_stay_inside_the_plugin_workspace
-    assert target.exists(), f"{js_file} must live under tools/internal_plugins/google_stt"
-E   AssertionError: playwright_runner.js must live under tools/internal_plugins/google_stt
-E   assert False
-E    +  where False = exists()
-E    +    where exists = PosixPath('/Users/runner/work/voice-typer/voice-typer/tools/internal_plugins/google_stt/playwright_runner.js').exists
-```
-
 ### 108. `tests.tauri.test_internal_plugin_tools_absent.test_plugin_js_files_stay_inside_the_plugin_workspace[run.js]`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
 - Location: `tests/tauri/test_internal_plugin_tools_absent.py:153`
 
 ```
@@ -2832,9 +2845,29 @@ E    +  where False = exists()
 E    +    where exists = PosixPath('/Users/runner/work/voice-typer/voice-typer/tools/internal_plugins/google_stt/run.js').exists
 ```
 
-### 109. `tests.tauri.test_window_lifecycle_parity.test_main_runtime_grants_the_window_queries_the_bridge_calls`
+### 109. `tests.tauri.test_internal_plugin_tools_absent.test_plugin_js_files_stay_inside_the_plugin_workspace[playwright_runner.js]`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
+- Location: `tests/tauri/test_internal_plugin_tools_absent.py:153`
+
+```
++    where exists = PosixPath('/Users/runner/work/voice-typer/voice-typer/tools/internal_plugins/google_stt/playwright_runner.js').exists
+
+AssertionError: playwright_runner.js must live under tools/internal_plugins/google_stt
+assert False
+ +  where False = exists()
+ +    where exists = PosixPath('/Users/runner/work/voice-typer/voice-typer/tools/internal_plugins/google_stt/playwright_runner.js').exists
+tests/tauri/test_internal_plugin_tools_absent.py:153: in test_plugin_js_files_stay_inside_the_plugin_workspace
+    assert target.exists(), f"{js_file} must live under tools/internal_plugins/google_stt"
+E   AssertionError: playwright_runner.js must live under tools/internal_plugins/google_stt
+E   assert False
+E    +  where False = exists()
+E    +    where exists = PosixPath('/Users/runner/work/voice-typer/voice-typer/tools/internal_plugins/google_stt/playwright_runner.js').exists
+```
+
+### 110. `tests.tauri.test_window_lifecycle_parity.test_main_runtime_grants_the_window_queries_the_bridge_calls`
+
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
 - Location: `tests/tauri/test_window_lifecycle_parity.py:59`
 
 ```
@@ -2847,18 +2880,21 @@ tests/tauri/test_window_lifecycle_parity.py:59: in test_main_runtime_grants_the_
 tests/tauri/test_window_lifecycle_parity.py:49: in _capability_permissions
     manifest = json.loads(ACL_MANIFESTS.read_text(encoding="utf-8"))
                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py:1027: in read_text
-    with self.open(mode='r', encoding=encoding, errors=errors) as f:
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py:1013: in open
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py:546: in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_abc.py:632: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py:537: in open
     return io.open(self, mode, buffering, encoding, errors, newline)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 E   FileNotFoundError: [Errno 2] No such file or directory: '/Users/runner/work/voice-typer/voice-typer/src-tauri/gen/schemas/acl-manifests.json'
 ```
 
-### 110. `tests.tauri.test_window_lifecycle_parity.test_main_runtime_grants_on_resized_via_event_listen`
+### 111. `tests.tauri.test_window_lifecycle_parity.test_main_runtime_grants_on_resized_via_event_listen`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
 - Location: `tests/tauri/test_window_lifecycle_parity.py:88`
 
 ```
@@ -2871,18 +2907,21 @@ tests/tauri/test_window_lifecycle_parity.py:88: in test_main_runtime_grants_on_r
 tests/tauri/test_window_lifecycle_parity.py:49: in _capability_permissions
     manifest = json.loads(ACL_MANIFESTS.read_text(encoding="utf-8"))
                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py:1027: in read_text
-    with self.open(mode='r', encoding=encoding, errors=errors) as f:
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py:1013: in open
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py:546: in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_abc.py:632: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py:537: in open
     return io.open(self, mode, buffering, encoding, errors, newline)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 E   FileNotFoundError: [Errno 2] No such file or directory: '/Users/runner/work/voice-typer/voice-typer/src-tauri/gen/schemas/acl-manifests.json'
 ```
 
-### 111. `tests.test_dev_console_launcher.test_launch_dev_console_windows_spawns_cmd`
+### 112. `tests.test_dev_console_launcher.test_launch_dev_console_windows_spawns_cmd`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
 - Location: `tests/test_dev_console_launcher.py:15`
 
 ```
@@ -2895,9 +2934,27 @@ tests/test_dev_console_launcher.py:15: in test_launch_dev_console_windows_spawns
 E   AttributeError: module 'voice_typer.server.autostart.dev_console' has no attribute 'sys'
 ```
 
-### 112. `tests.test_import_model_security.TestImportModelSymlinkRejection.test_mixed_symlink_and_clean_models`
+### 113. `tests.test_import_model_security.TestImportModelSymlinkRejection.test_legitimate_model_dir_imports_successfully`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Location: `tests/test_import_model_security.py:401`
+
+```
++    where exists = PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw1/test_legitimate_model_dir_impo0/app_hf/huggingface/hub/models--Systran--faster-whisper-tiny').exists
+
+AssertionError: assert False
+ +  where False = exists()
+ +    where exists = PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw1/test_legitimate_model_dir_impo0/app_hf/huggingface/hub/models--Systran--faster-whisper-tiny').exists
+tests/test_import_model_security.py:401: in test_legitimate_model_dir_imports_successfully
+    assert dest.exists()
+E   AssertionError: assert False
+E    +  where False = exists()
+E    +    where exists = PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw1/test_legitimate_model_dir_impo0/app_hf/huggingface/hub/models--Systran--faster-whisper-tiny').exists
+```
+
+### 114. `tests.test_import_model_security.TestImportModelSymlinkRejection.test_mixed_symlink_and_clean_models`
+
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_import_model_security.py:441`
 
 ```
@@ -2915,34 +2972,16 @@ E    +    where exists = (PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0
 E    +      where 'models--Systran--faster-whisper-tiny' = PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw1/test_mixed_symlink_and_clean_m0/source/models--Systran--faster-whisper-tiny').name
 ```
 
-### 113. `tests.test_import_model_security.TestImportModelSymlinkRejection.test_legitimate_model_dir_imports_successfully`
+### 115. `tests.test_installer_state.test_installer_state_path_respects_localappdata`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
-- Location: `tests/test_import_model_security.py:401`
-
-```
-+    where exists = PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw0/test_legitimate_model_dir_impo0/app_hf/huggingface/hub/models--Systran--faster-whisper-tiny').exists
-
-AssertionError: assert False
- +  where False = exists()
- +    where exists = PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw0/test_legitimate_model_dir_impo0/app_hf/huggingface/hub/models--Systran--faster-whisper-tiny').exists
-tests/test_import_model_security.py:401: in test_legitimate_model_dir_imports_successfully
-    assert dest.exists()
-E   AssertionError: assert False
-E    +  where False = exists()
-E    +    where exists = PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw0/test_legitimate_model_dir_impo0/app_hf/huggingface/hub/models--Systran--faster-whisper-tiny').exists
-```
-
-### 114. `tests.test_installer_state.test_installer_state_path_respects_localappdata`
-
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
 - Location: `tests/test_installer_state.py:123`
 
 ```
 ImportError: import error in voice_typer.server.installer_state.sys: No module named 'voice_typer.server.installer_state.sys'; 'voice_typer.server.installer_state' is not a package
 
 ImportError: import error in voice_typer.server.installer_state.sys: No module named 'voice_typer.server.installer_state.sys'; 'voice_typer.server.installer_state' is not a package
-/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py:90: in import_module
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/importlib/__init__.py:88: in import_module
     return _bootstrap._gcd_import(name[level:], package, level)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 E   ModuleNotFoundError: No module named 'voice_typer.server.installer_state.sys'; 'voice_typer.server.installer_state' is not a package
@@ -2950,17 +2989,17 @@ E   ModuleNotFoundError: No module named 'voice_typer.server.installer_state.sys
 The above exception was the direct cause of the following exception:
 tests/test_installer_state.py:123: in test_installer_state_path_respects_localappdata
     monkeypatch.setattr("voice_typer.server.installer_state.sys.platform", "win32")
-/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/_pytest/monkeypatch.py:107: in derive_importpath
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/_pytest/monkeypatch.py:107: in derive_importpath
     target = resolve(module)
              ^^^^^^^^^^^^^^^
-/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/_pytest/monkeypatch.py:88: in resolve
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/_pytest/monkeypatch.py:88: in resolve
     raise ImportError(f"import error in {used}: {ex}") from ex
 E   ImportError: import error in voice_typer.server.installer_state.sys: No module named 'voice_typer.server.installer_state.sys'; 'voice_typer.server.installer_state' is not a package
 ```
 
-### 115. `tests.test_recovery_startup_notify.TestRecoveryStartupNotify.test_unpasted_entries_notify_through_tray_safety`
+### 116. `tests.test_recovery_startup_notify.TestRecoveryStartupNotify.test_unpasted_entries_notify_through_tray_safety`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
 - Location: `tests/test_recovery_startup_notify.py:41`
 
 ```
@@ -2969,14 +3008,28 @@ AssertionError: Expected 'notify_safety' to have been called once. Called 0 time
 AssertionError: Expected 'notify_safety' to have been called once. Called 0 times.
 tests/test_recovery_startup_notify.py:41: in test_unpasted_entries_notify_through_tray_safety
     fake_app.tray.notify_safety.assert_called_once()
-/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/unittest/mock.py:928: in assert_called_once
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/mock.py:958: in assert_called_once
     raise AssertionError(msg)
 E   AssertionError: Expected 'notify_safety' to have been called once. Called 0 times.
 ```
 
-### 116. `tests.test_slice3_log_hygiene.TestResourceProbeSingleDrive.test_three_paths_same_drive_emit_one_disk_info`
+### 117. `tests.test_recovery_startup_notify.TestRecoveryStartupNotify.test_recovery_notice_uses_tauri_notification_event`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
+- Location: `tests/test_recovery_startup_notify.py:92`
+
+```
+assert []
+
+assert []
+tests/test_recovery_startup_notify.py:92: in test_recovery_notice_uses_tauri_notification_event
+    assert notifications
+E   assert []
+```
+
+### 118. `tests.test_slice3_log_hygiene.TestResourceProbeSingleDrive.test_three_paths_same_drive_emit_one_disk_info`
+
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_slice3_log_hygiene.py:137`
 
 ```
@@ -2992,43 +3045,43 @@ E   assert 2 == 1
 E    +  where 2 = len([<LogRecord: voice_typer.server.resource_probe, 20, /Users/runner/work/voice-typer/voice-typer/voice_typer/server/resource_probe.py, 308, "[RESOURCE] Disk free on %s: %.1f GB">, <LogRecord: voice_typer.server.resource_probe, 20, /Users/runner/work/voice-typer/voice-typer/voice_typer/server/resource_probe.py, 308, "[RESOURCE] Disk free on %s: %.1f GB">])
 ```
 
-### 117. `tests.test_strip_av_cython_shims.test_removes_only_py_with_compiled_twin`
+### 119. `tests.test_strip_av_cython_shims.test_removes_only_py_with_compiled_twin`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_strip_av_cython_shims.py:43`
 
 ```
-+    where <function strip_av_shims at 0x120596de0> = <module 'strip_av_cython_shims' from '/Users/runner/work/voice-typer/voice-typer/scripts/build/strip_av_cython_shims.py'>.strip_av_shims
++    where <function strip_av_shims at 0x149fe0f40> = <module 'strip_av_cython_shims' from '/Users/runner/work/voice-typer/voice-typer/scripts/build/strip_av_cython_shims.py'>.strip_av_shims
 
 AssertionError: assert 0 == 2
- +  where 0 = <function strip_av_shims at 0x120596de0>(PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw2/test_removes_only_py_with_comp0'))
- +    where <function strip_av_shims at 0x120596de0> = <module 'strip_av_cython_shims' from '/Users/runner/work/voice-typer/voice-typer/scripts/build/strip_av_cython_shims.py'>.strip_av_shims
+ +  where 0 = <function strip_av_shims at 0x149fe0f40>(PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw0/test_removes_only_py_with_comp0'))
+ +    where <function strip_av_shims at 0x149fe0f40> = <module 'strip_av_cython_shims' from '/Users/runner/work/voice-typer/voice-typer/scripts/build/strip_av_cython_shims.py'>.strip_av_shims
 tests/test_strip_av_cython_shims.py:43: in test_removes_only_py_with_compiled_twin
     assert mod.strip_av_shims(site) == 2
 E   AssertionError: assert 0 == 2
-E    +  where 0 = <function strip_av_shims at 0x120596de0>(PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw2/test_removes_only_py_with_comp0'))
-E    +    where <function strip_av_shims at 0x120596de0> = <module 'strip_av_cython_shims' from '/Users/runner/work/voice-typer/voice-typer/scripts/build/strip_av_cython_shims.py'>.strip_av_shims
+E    +  where 0 = <function strip_av_shims at 0x149fe0f40>(PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw0/test_removes_only_py_with_comp0'))
+E    +    where <function strip_av_shims at 0x149fe0f40> = <module 'strip_av_cython_shims' from '/Users/runner/work/voice-typer/voice-typer/scripts/build/strip_av_cython_shims.py'>.strip_av_shims
 ```
 
-### 118. `tests.test_strip_av_cython_shims.test_second_run_is_noop`
+### 120. `tests.test_strip_av_cython_shims.test_second_run_is_noop`
 
-- Legs: macos-14-3.12, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: macos-14-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_strip_av_cython_shims.py:56`
 
 ```
-+    where <function strip_av_shims at 0x1205f0040> = <module 'strip_av_cython_shims' from '/Users/runner/work/voice-typer/voice-typer/scripts/build/strip_av_cython_shims.py'>.strip_av_shims
++    where <function strip_av_shims at 0x11cda72e0> = <module 'strip_av_cython_shims' from '/Users/runner/work/voice-typer/voice-typer/scripts/build/strip_av_cython_shims.py'>.strip_av_shims
 
 AssertionError: assert 0 == 2
- +  where 0 = <function strip_av_shims at 0x1205f0040>(PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw2/test_second_run_is_noop0'))
- +    where <function strip_av_shims at 0x1205f0040> = <module 'strip_av_cython_shims' from '/Users/runner/work/voice-typer/voice-typer/scripts/build/strip_av_cython_shims.py'>.strip_av_shims
+ +  where 0 = <function strip_av_shims at 0x11cda72e0>(PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw1/test_second_run_is_noop0'))
+ +    where <function strip_av_shims at 0x11cda72e0> = <module 'strip_av_cython_shims' from '/Users/runner/work/voice-typer/voice-typer/scripts/build/strip_av_cython_shims.py'>.strip_av_shims
 tests/test_strip_av_cython_shims.py:56: in test_second_run_is_noop
     assert mod.strip_av_shims(site) == 2
 E   AssertionError: assert 0 == 2
-E    +  where 0 = <function strip_av_shims at 0x1205f0040>(PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw2/test_second_run_is_noop0'))
-E    +    where <function strip_av_shims at 0x1205f0040> = <module 'strip_av_cython_shims' from '/Users/runner/work/voice-typer/voice-typer/scripts/build/strip_av_cython_shims.py'>.strip_av_shims
+E    +  where 0 = <function strip_av_shims at 0x11cda72e0>(PosixPath('/private/var/folders/s6/5hzmn6lx4dz5nxs7k_0slzph0000gn/T/pytest-of-runner/pytest-1/popen-gw1/test_second_run_is_noop0'))
+E    +    where <function strip_av_shims at 0x11cda72e0> = <module 'strip_av_cython_shims' from '/Users/runner/work/voice-typer/voice-typer/scripts/build/strip_av_cython_shims.py'>.strip_av_shims
 ```
 
-### 119. `tests.tauri.mig17.test_faster_whisper_linux.test_build_script_pre_nuitka_check_validates_ct2_backend_importable@faster_whisper_linux`
+### 121. `tests.tauri.mig17.test_faster_whisper_linux.test_build_script_pre_nuitka_check_validates_ct2_backend_importable@faster_whisper_linux`
 
 - Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_faster_whisper_linux.py:49`
@@ -3041,7 +3094,7 @@ assert '"$SITE/faster_whisper"' in '#!/usr/bin/env bash\n# =====================
 … (truncated)
 ```
 
-### 120. `tests.tauri.mig17.test_faster_whisper_linux.test_build_script_includes_faster_whisper_and_ctranslate2_packages@faster_whisper_linux`
+### 122. `tests.tauri.mig17.test_faster_whisper_linux.test_build_script_includes_faster_whisper_and_ctranslate2_packages@faster_whisper_linux`
 
 - Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_faster_whisper_linux.py:83`
@@ -3054,7 +3107,7 @@ assert '--include-package=faster_whisper' in '#!/usr/bin/env bash\n# ===========
 … (truncated)
 ```
 
-### 121. `tests.tauri.mig17.test_faster_whisper_linux.test_build_script_includes_ct2_native_libs_singular_layout@faster_whisper_linux`
+### 123. `tests.tauri.mig17.test_faster_whisper_linux.test_build_script_includes_ct2_native_libs_singular_layout@faster_whisper_linux`
 
 - Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_faster_whisper_linux.py:91`
@@ -3067,7 +3120,7 @@ assert ('ctranslate2/lib' in '#!/usr/bin/env bash\n# ===========================
 … (truncated)
 ```
 
-### 122. `tests.tauri.mig17.test_faster_whisper_linux.test_build_script_includes_ct2_libs_plural_layout_guarded@faster_whisper_linux`
+### 124. `tests.tauri.mig17.test_faster_whisper_linux.test_build_script_includes_ct2_libs_plural_layout_guarded@faster_whisper_linux`
 
 - Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_faster_whisper_linux.py:105`
@@ -3080,7 +3133,7 @@ assert 'ctranslate2/libs' in '#!/usr/bin/env bash\n# ===========================
 … (truncated)
 ```
 
-### 123. `tests.tauri.mig17.test_faster_whisper_linux.test_build_script_bundles_openmp_runtime_libs@faster_whisper_linux`
+### 125. `tests.tauri.mig17.test_faster_whisper_linux.test_build_script_bundles_openmp_runtime_libs@faster_whisper_linux`
 
 - Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_faster_whisper_linux.py:351`
@@ -3093,40 +3146,27 @@ assert ('libiomp5.so' in '#!/usr/bin/env bash\n# ===============================
 … (truncated)
 ```
 
-### 124. `tests.tauri.mig17.test_externalbin_spawn_linux.test_sidecar_ws_binds_loopback_ephemeral_port`
+### 126. `tests.tauri.mig17.test_externalbin_spawn_linux.test_sidecar_ws_binds_loopback_ephemeral_port`
 
 - Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_externalbin_spawn_linux.py:487`
 
 ```
-+    where <function search at 0x7fe5b92762a0> = re.search
++    where <function search at 0x7f5a2f37a2a0> = re.search
 
 AssertionError: sidecar_ws.py must define _LOOPBACK_HOST = '127.0.0.1' (hard loopback, no 0.0.0.0/:: bind, ADR-0020 §1)
 assert None
- +  where None = <function search at 0x7fe5b92762a0>('_LOOPBACK_HOST\\s*=\\s*"127\\.0\\.0\\.1"', '"""Tauri sidecar WebSocket transport, server side.\n\nADR-0020 §1 + §2: this module turns the existing :class:`IPCServer`\ndispatch layer into a localhost WebSocket server so the Tauri Rust\nhost can connect to it as a WS client.\n\nArchitecture\n------------\n::\n\n    Tauri host (Rust)\n        │  spawns sidecar via externalBin\n        │  passes VOICE_TYPER_IPC_TOKEN env\n        ▼\n    sidecar_main.py (this module\'s run() entrypoint)\n        │  binds websockets.serve on 127.0.0.1:0\n        │  OS assigns an ephemeral port\n        │  writes ONE structured line to stdout:\n        │     {"event":"server_started","port":<n>}\n        ▼\n    Rust reads stdout, parses the JSON, opens a WS client to\n    ws://127.0.0.1:<n>, sends the bearer-token auth frame, then forwards\n    invoke(\'dispatch\', {cmd, data}) envelopes over the WS.\n\n    Auth model (ADR-0020 §3)\n    -----------------------------------------------\n    The handshake is a **one-shot bearer-token** check, NOT an HMAC\n    scheme. The Rust host generates a 256-bit bearer token via\n    ``secrets.token_bytes(32)`` and the Python sidecar compares it with\n    :func:`hmac.compare_digest` (constant-time *comparison ...d`` module-object read at call\n  ``PROTOCOL_VERSION``.\n"""\n\nfrom __future__ import annotations\n\nimport contextlib\nimport json\nimport sys\n\n\ndef _force_line_buffered_stdout() -> None:\n    """so this is always available, but the guard is defensive)."""\n    try:\n        sys.stdout.reconfigure(line_buffering=True)  # type: ignore[attr-defined, union-attr]\n    except (AttributeError, ValueError):\n        # Fallback: reopen stdout with buffering=1 (line-buffered).\n        with contextlib.suppress(Exception):\n            sys.stdout = open(  # noqa: SIM115 - intentional reopen\n                sys.stdout.fileno(),\n                "w",\n                buffering=1,\n                encoding="utf-8",\n                closefd=False,\n            )\n\n\ndef _emit_server_started(port: int, protocol: int | None = None) -> None:\n    """Write the one structured stdout line the host is parsing for."""\n    if protocol is not None:\n        print(\n            json.dumps({"event": "server_started", "port": int(port), "protocol": int(protocol)}),\n            flush=True,\n        )\n    else:\n        print(json.dumps({"event": "server_started", "port": int(port)}), flush=True)\n')
- +    where <function search at 0x7fe5b92762a0> = re.search
+ +  where None = <function search at 0x7f5a2f37a2a0>('_LOOPBACK_HOST\\s*=\\s*"127\\.0\\.0\\.1"', '"""Tauri sidecar WebSocket transport, server side.\n\nADR-0020 §1 + §2: this module turns the existing :class:`IPCServer`\ndispatch layer into a localhost WebSocket server so the Tauri Rust\nhost can connect to it as a WS client.\n\nArchitecture\n------------\n::\n\n    Tauri host (Rust)\n        │  spawns sidecar via externalBin\n        │  passes VOICE_TYPER_IPC_TOKEN env\n        ▼\n    sidecar_main.py (this module\'s run() entrypoint)\n        │  binds websockets.serve on 127.0.0.1:0\n        │  OS assigns an ephemeral port\n        │  writes ONE structured line to stdout:\n        │     {"event":"server_started","port":<n>}\n        ▼\n    Rust reads stdout, parses the JSON, opens a WS client to\n    ws://127.0.0.1:<n>, sends the bearer-token auth frame, then forwards\n    invoke(\'dispatch\', {cmd, data}) envelopes over the WS.\n\n    Auth model (ADR-0020 §3)\n    -----------------------------------------------\n    The handshake is a **one-shot bearer-token** check, NOT an HMAC\n    scheme. The Rust host generates a 256-bit bearer token via\n    ``secrets.token_bytes(32)`` and the Python sidecar compares it with\n    :func:`hmac.compare_digest` (constant-time *comparison ...d`` module-object read at call\n  ``PROTOCOL_VERSION``.\n"""\n\nfrom __future__ import annotations\n\nimport contextlib\nimport json\nimport sys\n\n\ndef _force_line_buffered_stdout() -> None:\n    """so this is always available, but the guard is defensive)."""\n    try:\n        sys.stdout.reconfigure(line_buffering=True)  # type: ignore[attr-defined, union-attr]\n    except (AttributeError, ValueError):\n        # Fallback: reopen stdout with buffering=1 (line-buffered).\n        with contextlib.suppress(Exception):\n            sys.stdout = open(  # noqa: SIM115 - intentional reopen\n                sys.stdout.fileno(),\n                "w",\n                buffering=1,\n                encoding="utf-8",\n                closefd=False,\n            )\n\n\ndef _emit_server_started(port: int, protocol: int | None = None) -> None:\n    """Write the one structured stdout line the host is parsing for."""\n    if protocol is not None:\n        print(\n            json.dumps({"event": "server_started", "port": int(port), "protocol": int(protocol)}),\n            flush=True,\n        )\n    else:\n        print(json.dumps({"event": "server_started", "port": int(port)}), flush=True)\n')
+ +    where <function search at 0x7f5a2f37a2a0> = re.search
 tests/tauri/mig17/test_externalbin_spawn_linux.py:487: in test_sidecar_ws_binds_loopback_ephemeral_port
     assert re.search(
 E   AssertionError: sidecar_ws.py must define _LOOPBACK_HOST = '127.0.0.1' (hard loopback, no 0.0.0.0/:: bind, ADR-0020 §1)
 E   assert None
-E    +  where None = <function search at 0x7fe5b92762a0>('_LOOPBACK_HOST\\s*=\\s*"127\\.0\\.0\\.1"', '"""Tauri sidecar WebSocket transport, server side.\n\nADR-0020 §1 + §2: this module turns the existing :class:`IPCServer`\ndispatch layer into a localhost WebSocket server so the Tauri Rust\nhost can connect to it as a WS client.\n\nArchitecture\n------------\n::\n\n    Tauri host (Rust)\n        │  spawns sidecar via externalBin\n        │  passes VOICE_TYPER_IPC_TOKEN env\n        ▼\n    sidecar_main.py (this module\'s run() entrypoint)\n        │  binds websockets.serve on 127.0.0.1:0\n        │  OS assigns an ephemeral port\n        │  writes ONE structured line to stdout:\n        │     {"event":"server_started","port":<n>}\n        ▼\n    Rust reads stdout, parses the JSON, opens a WS client to\n    ws://127.0.0.1:<n>, sends the bearer-token auth frame, then forwards\n    invoke(\'dispatch\', {cmd, data}) envelopes over the WS.\n\n    Auth model (ADR-0020 §3)\n
+E    +  where None = <function search at 0x7f5a2f37a2a0>('_LOOPBACK_HOST\\s*=\\s*"127\\.0\\.0\\.1"', '"""Tauri sidecar WebSocket transport, server side.\n\nADR-0020 §1 + §2: this module turns the existing :class:`IPCServer`\ndispatch layer into a localhost WebSocket server so the Tauri Rust\nhost can connect to it as a WS client.\n\nArchitecture\n------------\n::\n\n    Tauri host (Rust)\n        │  spawns sidecar via externalBin\n        │  passes VOICE_TYPER_IPC_TOKEN env\n        ▼\n    sidecar_main.py (this module\'s run() entrypoint)\n        │  binds websockets.serve on 127.0.0.1:0\n        │  OS assigns an ephemeral port\n        │  writes ONE structured line to stdout:\n        │     {"event":"server_started","port":<n>}\n        ▼\n    Rust reads stdout, parses the JSON, opens a WS client to\n    ws://127.0.0.1:<n>, sends the bearer-token auth frame, then forwards\n    invoke(\'dispatch\', {cmd, data}) envelopes over the WS.\n\n    Auth model (ADR-0020 §3)\n
 … (truncated)
 ```
 
-### 125. `tests.tauri.mig17.test_nuitka_linux_build.test_sidecar_script_contains_expected_nuitka_flag[--include-package=faster_whisper]`
-
-- Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
-- Location: `tests/tauri/mig17/test_nuitka_linux_build.py:124`
-
-```
-assert '--include-package=faster_whisper' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka Linux sidecar build (Phase 0-L, ADR-0020 §4.4)\n#\n# Builds the frozen Python sidecar (`python-sidecar-<triple>`) for Linux,\n# for both x86_64-unknown-linux-gnu and aarch64-unknown-linux-gnu.\n#\n# The resulting binary is dropped at:\n#   src-tauri/bin/python-sidecar-<triple>\n# which is where Tauri\'s `externalBin` mechanism expects it (Tauri v2\n# appends the Rust target triple to the base name `bin/python-sidecar`\n# at runtime; see ADR-0020 §4.1 + §7).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_linux.sh x86_64    # native x86_64 build\n#   bash scripts/build/build_sidecar_linux.sh aarch64   # native aarch64 build\n#                                                       # (requires aarch64 host)\n#                                                       # OR cross-build on x86_64\n#                                                       # via qemu-user-static\n#   bash scripts/build/build_sidecar_linux.sh --check   # verify toolchain (BUILD-1)\n#\n# Required env (override defaults with these):\n#   VOICE_TYPER_PYBS_DIR  Directory containing the extracted...ibc 2.35." >&2\n        exit 1\n    fi\n    echo "[build_sidecar_linux] OK: glibc baseline (≤ 2.35) verified"\n}\nverify_glibc "$OUTPUT_BIN"\n\n# ─── Quick smoke (help text only; no display server required) ───────────────\n# ADR-0020 §4.5 Phase 0 gate: verify --help works (proves the frozen\n# interpreter boots). C7: the slim sidecar must NOT load faster_whisper /\n# ctranslate2 at all — ASR lives in the pack worker, so the old "prove the\n# model loads inside Nuitka" smoke is retired with the includes that fed\n# it. Exclusion is pinned statically by tests/test_nuitka_asr_exclusions.py\n# (flag text in all four invocations) and enforced by the 185 MB size gate.\necho "[build_sidecar_linux] smoke: $OUTPUT_BIN --help"\nif [[ "$CROSS_BUILD" == "true" ]]; then\n    # Use qemu explicitly for the help check (binfmt_misc may not be active).\n    qemu-aarch64-static "$OUTPUT_BIN" --help 2>&1 | head -20 \\\n        || echo "[build_sidecar_linux] (cross-build --help skipped, verify on aarch64 host)"\nelse\n    "$OUTPUT_BIN" --help 2>&1 | head -20 \\\n        || echo "[build_sidecar_linux] (—help returned non-zero; check $BUILD_LOG)"\nfi\n\necho "[build_sidecar_linux] DONE: $OUTPUT_BIN"\n'
-
-AssertionError: build_sidecar_linux.sh is missing required Nuitka flag `--include-package=faster_whisper`. ADR-0020 §4.4 mandates this flag for the Linux sidecar freeze.
-assert '--include-package=faster_whisper' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka Linux sidecar build (Phase 0-L, ADR-0020 §4.4)\n#\n# Builds the frozen Python sidecar (`python-sidecar-<triple>`) for Linux,\n# for both x86_64-unknown-linux-gnu and aarch64-unknown-linux-gnu.\n#\n# The resulting binary is dropped at:\n#   src-tauri/bin/python-sidecar-<triple>\n# which is where Tauri\'s `externalBin` mechanism expects it (Tauri v2\n# appends the Rust target triple to the base name `bin/python-sidecar`\n# at runtime; see ADR-0020 §4.1 + §7).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_linux.sh x86_64    # native x86_64 build\n#   bash scripts/build/build_sidecar_linux.sh aarch64   # native aarch64 build\n#                                                       # (requires aarch64 host)\n#                                                       # OR cross-build on x86_64\n#                                                       # via qemu-user-static\n#   bash scripts/build/build_sidecar_linux.sh --check   # verify toolchain (BUILD-1)\n#\n# Required env (override defaults with these):\n#   VOICE_TYPER_PYBS_DIR  Directory containing the extracted...ibc 2.35." >&2\n        exit 1\n    fi\n    echo "[build_sidecar_linux] OK: glibc baseline (≤ 2.35) verified"\n}\nverify_glibc "$OUTPUT_B
-… (truncated)
-```
-
-### 126. `tests.tauri.mig17.test_nuitka_linux_build.test_sidecar_script_contains_expected_nuitka_flag[--include-package=ctranslate2]`
+### 127. `tests.tauri.mig17.test_nuitka_linux_build.test_sidecar_script_contains_expected_nuitka_flag[--include-package=ctranslate2]`
 
 - Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_nuitka_linux_build.py:124`
@@ -3139,7 +3179,20 @@ assert '--include-package=ctranslate2' in '#!/usr/bin/env bash\n# ==============
 … (truncated)
 ```
 
-### 127. `tests.tauri.mig17.test_nuitka_linux_build.test_sidecar_script_includes_ctranslate2_data_dir`
+### 128. `tests.tauri.mig17.test_nuitka_linux_build.test_sidecar_script_contains_expected_nuitka_flag[--include-package=faster_whisper]`
+
+- Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Location: `tests/tauri/mig17/test_nuitka_linux_build.py:124`
+
+```
+assert '--include-package=faster_whisper' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka Linux sidecar build (Phase 0-L, ADR-0020 §4.4)\n#\n# Builds the frozen Python sidecar (`python-sidecar-<triple>`) for Linux,\n# for both x86_64-unknown-linux-gnu and aarch64-unknown-linux-gnu.\n#\n# The resulting binary is dropped at:\n#   src-tauri/bin/python-sidecar-<triple>\n# which is where Tauri\'s `externalBin` mechanism expects it (Tauri v2\n# appends the Rust target triple to the base name `bin/python-sidecar`\n# at runtime; see ADR-0020 §4.1 + §7).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_linux.sh x86_64    # native x86_64 build\n#   bash scripts/build/build_sidecar_linux.sh aarch64   # native aarch64 build\n#                                                       # (requires aarch64 host)\n#                                                       # OR cross-build on x86_64\n#                                                       # via qemu-user-static\n#   bash scripts/build/build_sidecar_linux.sh --check   # verify toolchain (BUILD-1)\n#\n# Required env (override defaults with these):\n#   VOICE_TYPER_PYBS_DIR  Directory containing the extracted...ibc 2.35." >&2\n        exit 1\n    fi\n    echo "[build_sidecar_linux] OK: glibc baseline (≤ 2.35) verified"\n}\nverify_glibc "$OUTPUT_BIN"\n\n# ─── Quick smoke (help text only; no display server required) ───────────────\n# ADR-0020 §4.5 Phase 0 gate: verify --help works (proves the frozen\n# interpreter boots). C7: the slim sidecar must NOT load faster_whisper /\n# ctranslate2 at all — ASR lives in the pack worker, so the old "prove the\n# model loads inside Nuitka" smoke is retired with the includes that fed\n# it. Exclusion is pinned statically by tests/test_nuitka_asr_exclusions.py\n# (flag text in all four invocations) and enforced by the 185 MB size gate.\necho "[build_sidecar_linux] smoke: $OUTPUT_BIN --help"\nif [[ "$CROSS_BUILD" == "true" ]]; then\n    # Use qemu explicitly for the help check (binfmt_misc may not be active).\n    qemu-aarch64-static "$OUTPUT_BIN" --help 2>&1 | head -20 \\\n        || echo "[build_sidecar_linux] (cross-build --help skipped, verify on aarch64 host)"\nelse\n    "$OUTPUT_BIN" --help 2>&1 | head -20 \\\n        || echo "[build_sidecar_linux] (—help returned non-zero; check $BUILD_LOG)"\nfi\n\necho "[build_sidecar_linux] DONE: $OUTPUT_BIN"\n'
+
+AssertionError: build_sidecar_linux.sh is missing required Nuitka flag `--include-package=faster_whisper`. ADR-0020 §4.4 mandates this flag for the Linux sidecar freeze.
+assert '--include-package=faster_whisper' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka Linux sidecar build (Phase 0-L, ADR-0020 §4.4)\n#\n# Builds the frozen Python sidecar (`python-sidecar-<triple>`) for Linux,\n# for both x86_64-unknown-linux-gnu and aarch64-unknown-linux-gnu.\n#\n# The resulting binary is dropped at:\n#   src-tauri/bin/python-sidecar-<triple>\n# which is where Tauri\'s `externalBin` mechanism expects it (Tauri v2\n# appends the Rust target triple to the base name `bin/python-sidecar`\n# at runtime; see ADR-0020 §4.1 + §7).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_linux.sh x86_64    # native x86_64 build\n#   bash scripts/build/build_sidecar_linux.sh aarch64   # native aarch64 build\n#                                                       # (requires aarch64 host)\n#                                                       # OR cross-build on x86_64\n#                                                       # via qemu-user-static\n#   bash scripts/build/build_sidecar_linux.sh --check   # verify toolchain (BUILD-1)\n#\n# Required env (override defaults with these):\n#   VOICE_TYPER_PYBS_DIR  Directory containing the extracted...ibc 2.35." >&2\n        exit 1\n    fi\n    echo "[build_sidecar_linux] OK: glibc baseline (≤ 2.35) verified"\n}\nverify_glibc "$OUTPUT_B
+… (truncated)
+```
+
+### 129. `tests.tauri.mig17.test_nuitka_linux_build.test_sidecar_script_includes_ctranslate2_data_dir`
 
 - Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_nuitka_linux_build.py:132`
@@ -3151,20 +3204,7 @@ assert '--include-data-dir' in '#!/usr/bin/env bash\n# =========================
 … (truncated)
 ```
 
-### 128. `tests.tauri.mig17.test_nuitka_linux_build.test_sidecar_script_uses_nuitka_args_array`
-
-- Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
-- Location: `tests/tauri/mig17/test_nuitka_linux_build.py:174`
-
-```
-assert 'NUITKA_ARGS+=' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka Linux sidecar build (Phase 0-L, ADR-0020 §4.4)\n#\n# Builds the frozen Python sidecar (`python-sidecar-<triple>`) for Linux,\n# for both x86_64-unknown-linux-gnu and aarch64-unknown-linux-gnu.\n#\n# The resulting binary is dropped at:\n#   src-tauri/bin/python-sidecar-<triple>\n# which is where Tauri\'s `externalBin` mechanism expects it (Tauri v2\n# appends the Rust target triple to the base name `bin/python-sidecar`\n# at runtime; see ADR-0020 §4.1 + §7).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_linux.sh x86_64    # native x86_64 build\n#   bash scripts/build/build_sidecar_linux.sh aarch64   # native aarch64 build\n#                                                       # (requires aarch64 host)\n#                                                       # OR cross-build on x86_64\n#                                                       # via qemu-user-static\n#   bash scripts/build/build_sidecar_linux.sh --check   # verify toolchain (BUILD-1)\n#\n# Required env (override defaults with these):\n#   VOICE_TYPER_PYBS_DIR  Directory containing the extracted...ibc 2.35." >&2\n        exit 1\n    fi\n    echo "[build_sidecar_linux] OK: glibc baseline (≤ 2.35) verified"\n}\nverify_glibc "$OUTPUT_BIN"\n\n# ─── Quick smoke (help text only; no display server required) ───────────────\n# ADR-0020 §4.5 Phase 0 gate: verify --help works (proves the frozen\n# interpreter boots). C7: the slim sidecar must NOT load faster_whisper /\n# ctranslate2 at all — ASR lives in the pack worker, so the old "prove the\n# model loads inside Nuitka" smoke is retired with the includes that fed\n# it. Exclusion is pinned statically by tests/test_nuitka_asr_exclusions.py\n# (flag text in all four invocations) and enforced by the 185 MB size gate.\necho "[build_sidecar_linux] smoke: $OUTPUT_BIN --help"\nif [[ "$CROSS_BUILD" == "true" ]]; then\n    # Use qemu explicitly for the help check (binfmt_misc may not be active).\n    qemu-aarch64-static "$OUTPUT_BIN" --help 2>&1 | head -20 \\\n        || echo "[build_sidecar_linux] (cross-build --help skipped, verify on aarch64 host)"\nelse\n    "$OUTPUT_BIN" --help 2>&1 | head -20 \\\n        || echo "[build_sidecar_linux] (—help returned non-zero; check $BUILD_LOG)"\nfi\n\necho "[build_sidecar_linux] DONE: $OUTPUT_BIN"\n'
-
-AssertionError: build_sidecar_linux.sh must use `NUITKA_ARGS+=(...)` to conditionally append the XPLAT-3 libs/ flag inside the guard block.
-assert 'NUITKA_ARGS+=' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka Linux sidecar build (Phase 0-L, ADR-0020 §4.4)\n#\n# Builds the frozen Python sidecar (`python-sidecar-<triple>`) for Linux,\n# for both x86_64-unknown-linux-gnu and aarch64-unknown-linux-gnu.\n#\n# The resulting binary is dropped at:\n#   src-tauri/bin/python-sidecar-<triple>\n# which is where Tauri\'s `externalBin` mechanism expects it (Tauri v2\n# appends the Rust target triple to the base name `bin/python-sidecar`\n# at runtime; see ADR-0020 §4.1 + §7).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_linux.sh x86_64    # native x86_64 build\n#   bash scripts/build/build_sidecar_linux.sh aarch64   # native aarch64 build\n#                                                       # (requires aarch64 host)\n#                                                       # OR cross-build on x86_64\n#                                                       # via qemu-user-static\n#   bash scripts/build/build_sidecar_linux.sh --check   # verify toolchain (BUILD-1)\n#\n# Required env (override defaults with these):\n#   VOICE_TYPER_PYBS_DIR  Directory containing the extracted...ibc 2.35." >&2\n        exit 1\n    fi\n    echo "[build_sidecar_linux] OK: glibc baseline (≤ 2.35) verified"\n}\nverify_glibc "$OUTPUT_BIN"\n\n# ─── Quick smoke (help text only; no display server required
-… (truncated)
-```
-
-### 129. `tests.tauri.mig17.test_nuitka_linux_build.test_sidecar_script_has_xplat3_ctranslate2_libs_guard`
+### 130. `tests.tauri.mig17.test_nuitka_linux_build.test_sidecar_script_has_xplat3_ctranslate2_libs_guard`
 
 - Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_nuitka_linux_build.py:156`
@@ -3177,7 +3217,20 @@ assert 'CT2_LIBS_DIR=' in '#!/usr/bin/env bash\n# ==============================
 … (truncated)
 ```
 
-### 130. `tests.tauri.mig17.test_nuitka_linux_build.test_sidecar_script_documents_xplat3_guard_rationale`
+### 131. `tests.tauri.mig17.test_nuitka_linux_build.test_sidecar_script_uses_nuitka_args_array`
+
+- Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Location: `tests/tauri/mig17/test_nuitka_linux_build.py:174`
+
+```
+assert 'NUITKA_ARGS+=' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka Linux sidecar build (Phase 0-L, ADR-0020 §4.4)\n#\n# Builds the frozen Python sidecar (`python-sidecar-<triple>`) for Linux,\n# for both x86_64-unknown-linux-gnu and aarch64-unknown-linux-gnu.\n#\n# The resulting binary is dropped at:\n#   src-tauri/bin/python-sidecar-<triple>\n# which is where Tauri\'s `externalBin` mechanism expects it (Tauri v2\n# appends the Rust target triple to the base name `bin/python-sidecar`\n# at runtime; see ADR-0020 §4.1 + §7).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_linux.sh x86_64    # native x86_64 build\n#   bash scripts/build/build_sidecar_linux.sh aarch64   # native aarch64 build\n#                                                       # (requires aarch64 host)\n#                                                       # OR cross-build on x86_64\n#                                                       # via qemu-user-static\n#   bash scripts/build/build_sidecar_linux.sh --check   # verify toolchain (BUILD-1)\n#\n# Required env (override defaults with these):\n#   VOICE_TYPER_PYBS_DIR  Directory containing the extracted...ibc 2.35." >&2\n        exit 1\n    fi\n    echo "[build_sidecar_linux] OK: glibc baseline (≤ 2.35) verified"\n}\nverify_glibc "$OUTPUT_BIN"\n\n# ─── Quick smoke (help text only; no display server required) ───────────────\n# ADR-0020 §4.5 Phase 0 gate: verify --help works (proves the frozen\n# interpreter boots). C7: the slim sidecar must NOT load faster_whisper /\n# ctranslate2 at all — ASR lives in the pack worker, so the old "prove the\n# model loads inside Nuitka" smoke is retired with the includes that fed\n# it. Exclusion is pinned statically by tests/test_nuitka_asr_exclusions.py\n# (flag text in all four invocations) and enforced by the 185 MB size gate.\necho "[build_sidecar_linux] smoke: $OUTPUT_BIN --help"\nif [[ "$CROSS_BUILD" == "true" ]]; then\n    # Use qemu explicitly for the help check (binfmt_misc may not be active).\n    qemu-aarch64-static "$OUTPUT_BIN" --help 2>&1 | head -20 \\\n        || echo "[build_sidecar_linux] (cross-build --help skipped, verify on aarch64 host)"\nelse\n    "$OUTPUT_BIN" --help 2>&1 | head -20 \\\n        || echo "[build_sidecar_linux] (—help returned non-zero; check $BUILD_LOG)"\nfi\n\necho "[build_sidecar_linux] DONE: $OUTPUT_BIN"\n'
+
+AssertionError: build_sidecar_linux.sh must use `NUITKA_ARGS+=(...)` to conditionally append the XPLAT-3 libs/ flag inside the guard block.
+assert 'NUITKA_ARGS+=' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka Linux sidecar build (Phase 0-L, ADR-0020 §4.4)\n#\n# Builds the frozen Python sidecar (`python-sidecar-<triple>`) for Linux,\n# for both x86_64-unknown-linux-gnu and aarch64-unknown-linux-gnu.\n#\n# The resulting binary is dropped at:\n#   src-tauri/bin/python-sidecar-<triple>\n# which is where Tauri\'s `externalBin` mechanism expects it (Tauri v2\n# appends the Rust target triple to the base name `bin/python-sidecar`\n# at runtime; see ADR-0020 §4.1 + §7).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_linux.sh x86_64    # native x86_64 build\n#   bash scripts/build/build_sidecar_linux.sh aarch64   # native aarch64 build\n#                                                       # (requires aarch64 host)\n#                                                       # OR cross-build on x86_64\n#                                                       # via qemu-user-static\n#   bash scripts/build/build_sidecar_linux.sh --check   # verify toolchain (BUILD-1)\n#\n# Required env (override defaults with these):\n#   VOICE_TYPER_PYBS_DIR  Directory containing the extracted...ibc 2.35." >&2\n        exit 1\n    fi\n    echo "[build_sidecar_linux] OK: glibc baseline (≤ 2.35) verified"\n}\nverify_glibc "$OUTPUT_BIN"\n\n# ─── Quick smoke (help text only; no display server required
+… (truncated)
+```
+
+### 132. `tests.tauri.mig17.test_nuitka_linux_build.test_sidecar_script_documents_xplat3_guard_rationale`
 
 - Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_nuitka_linux_build.py:183`
@@ -3189,7 +3242,7 @@ assert 'ctranslate2/libs' in '#!/usr/bin/env bash\n# ===========================
 … (truncated)
 ```
 
-### 131. `tests.tauri.mig17.test_nuitka_linux_build.test_macos_sibling_has_xplat3_ctranslate2_libs_guard`
+### 133. `tests.tauri.mig17.test_nuitka_linux_build.test_macos_sibling_has_xplat3_ctranslate2_libs_guard`
 
 - Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_nuitka_linux_build.py:383`
@@ -3201,20 +3254,7 @@ assert 'CT2_LIBS_DIR' in '#!/usr/bin/env bash\n# ===============================
 … (truncated)
 ```
 
-### 132. `tests.tauri.mig17.test_nuitka_linux_build.test_known_gap_no_python_import_sanity_check`
-
-- Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
-- Location: `tests/tauri/mig17/test_nuitka_linux_build.py:424`
-
-```
-assert '! -d "$SITE/faster_whisper"' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka Linux sidecar build (Phase 0-L, ADR-0020 §4.4)\n#\n# Builds the frozen Python sidecar (`python-sidecar-<triple>`) for Linux,\n# for both x86_64-unknown-linux-gnu and aarch64-unknown-linux-gnu.\n#\n# The resulting binary is dropped at:\n#   src-tauri/bin/python-sidecar-<triple>\n# which is where Tauri\'s `externalBin` mechanism expects it (Tauri v2\n# appends the Rust target triple to the base name `bin/python-sidecar`\n# at runtime; see ADR-0020 §4.1 + §7).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_linux.sh x86_64    # native x86_64 build\n#   bash scripts/build/build_sidecar_linux.sh aarch64   # native aarch64 build\n#                                                       # (requires aarch64 host)\n#                                                       # OR cross-build on x86_64\n#                                                       # via qemu-user-static\n#   bash scripts/build/build_sidecar_linux.sh --check   # verify toolchain (BUILD-1)\n#\n# Required env (override defaults with these):\n#   VOICE_TYPER_PYBS_DIR  Directory containing the extracted...ibc 2.35." >&2\n        exit 1\n    fi\n    echo "[build_sidecar_linux] OK: glibc baseline (≤ 2.35) verified"\n}\nverify_glibc "$OUTPUT_BIN"\n\n# ─── Quick smoke (help text only; no display server required) ───────────────\n# ADR-0020 §4.5 Phase 0 gate: verify --help works (proves the frozen\n# interpreter boots). C7: the slim sidecar must NOT load faster_whisper /\n# ctranslate2 at all — ASR lives in the pack worker, so the old "prove the\n# model loads inside Nuitka" smoke is retired with the includes that fed\n# it. Exclusion is pinned statically by tests/test_nuitka_asr_exclusions.py\n# (flag text in all four invocations) and enforced by the 185 MB size gate.\necho "[build_sidecar_linux] smoke: $OUTPUT_BIN --help"\nif [[ "$CROSS_BUILD" == "true" ]]; then\n    # Use qemu explicitly for the help check (binfmt_misc may not be active).\n    qemu-aarch64-static "$OUTPUT_BIN" --help 2>&1 | head -20 \\\n        || echo "[build_sidecar_linux] (cross-build --help skipped, verify on aarch64 host)"\nelse\n    "$OUTPUT_BIN" --help 2>&1 | head -20 \\\n        || echo "[build_sidecar_linux] (—help returned non-zero; check $BUILD_LOG)"\nfi\n\necho "[build_sidecar_linux] DONE: $OUTPUT_BIN"\n'
-
-AssertionError: build_sidecar_linux.sh must still check the faster_whisper dir exists (partial mitigation for GAP-2, directory check, not Python import).
-assert '! -d "$SITE/faster_whisper"' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka Linux sidecar build (Phase 0-L, ADR-0020 §4.4)\n#\n# Builds the frozen Python sidecar (`python-sidecar-<triple>`) for Linux,\n# for both x86_64-unknown-linux-gnu and aarch64-unknown-linux-gnu.\n#\n# The resulting binary is dropped at:\n#   src-tauri/bin/python-sidecar-<triple>\n# which is where Tauri\'s `externalBin` mechanism expects it (Tauri v2\n# appends the Rust target triple to the base name `bin/python-sidecar`\n# at runtime; see ADR-0020 §4.1 + §7).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_linux.sh x86_64    # native x86_64 build\n#   bash scripts/build/build_sidecar_linux.sh aarch64   # native aarch64 build\n#                                                       # (requires aarch64 host)\n#                                                       # OR cross-build on x86_64\n#                                                       # via qemu-user-static\n#   bash scripts/build/build_sidecar_linux.sh --check   # verify toolchain (BUILD-1)\n#\n# Required env (override defaults with these):\n#   VOICE_TYPER_PYBS_DIR  Directory containing the extracted...ibc 2.35." >&2\n        exit 1\n    fi\n    echo "[build_sidecar_linux] OK: glibc baseline (≤ 2.35) verified"\n}\nverify_glibc "$OUTPUT_BIN"\n\n# ─── Quick smoke (
-… (truncated)
-```
-
-### 133. `tests.tauri.mig17.test_nuitka_linux_build.test_windows_sibling_known_gap_no_xplat3_ctranslate2_libs_guard`
+### 134. `tests.tauri.mig17.test_nuitka_linux_build.test_windows_sibling_known_gap_no_xplat3_ctranslate2_libs_guard`
 
 - Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_nuitka_linux_build.py:395`
@@ -3227,23 +3267,20 @@ assert 'CT2_LIB_DIR=' in '#!/usr/bin/env bash\n# ===============================
 … (truncated)
 ```
 
-### 134. `tests.tauri.mig17.test_toast_linux.TestValidateOnLinuxHostBlock.test_docstring_documents_libnotify_install_step`
+### 135. `tests.tauri.mig17.test_nuitka_linux_build.test_known_gap_no_python_import_sanity_check`
 
 - Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
-- Location: `tests/tauri/mig17/test_toast_linux.py:459`
+- Location: `tests/tauri/mig17/test_nuitka_linux_build.py:424`
 
 ```
-assert 'sudo apt install libnotify4' in 'toast notification wiring validation (Linux).'
+assert '! -d "$SITE/faster_whisper"' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka Linux sidecar build (Phase 0-L, ADR-0020 §4.4)\n#\n# Builds the frozen Python sidecar (`python-sidecar-<triple>`) for Linux,\n# for both x86_64-unknown-linux-gnu and aarch64-unknown-linux-gnu.\n#\n# The resulting binary is dropped at:\n#   src-tauri/bin/python-sidecar-<triple>\n# which is where Tauri\'s `externalBin` mechanism expects it (Tauri v2\n# appends the Rust target triple to the base name `bin/python-sidecar`\n# at runtime; see ADR-0020 §4.1 + §7).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_linux.sh x86_64    # native x86_64 build\n#   bash scripts/build/build_sidecar_linux.sh aarch64   # native aarch64 build\n#                                                       # (requires aarch64 host)\n#                                                       # OR cross-build on x86_64\n#                                                       # via qemu-user-static\n#   bash scripts/build/build_sidecar_linux.sh --check   # verify toolchain (BUILD-1)\n#\n# Required env (override defaults with these):\n#   VOICE_TYPER_PYBS_DIR  Directory containing the extracted...ibc 2.35." >&2\n        exit 1\n    fi\n    echo "[build_sidecar_linux] OK: glibc baseline (≤ 2.35) verified"\n}\nverify_glibc "$OUTPUT_BIN"\n\n# ─── Quick smoke (help text only; no display server required) ───────────────\n# ADR-0020 §4.5 Phase 0 gate: verify --help works (proves the frozen\n# interpreter boots). C7: the slim sidecar must NOT load faster_whisper /\n# ctranslate2 at all — ASR lives in the pack worker, so the old "prove the\n# model loads inside Nuitka" smoke is retired with the includes that fed\n# it. Exclusion is pinned statically by tests/test_nuitka_asr_exclusions.py\n# (flag text in all four invocations) and enforced by the 185 MB size gate.\necho "[build_sidecar_linux] smoke: $OUTPUT_BIN --help"\nif [[ "$CROSS_BUILD" == "true" ]]; then\n    # Use qemu explicitly for the help check (binfmt_misc may not be active).\n    qemu-aarch64-static "$OUTPUT_BIN" --help 2>&1 | head -20 \\\n        || echo "[build_sidecar_linux] (cross-build --help skipped, verify on aarch64 host)"\nelse\n    "$OUTPUT_BIN" --help 2>&1 | head -20 \\\n        || echo "[build_sidecar_linux] (—help returned non-zero; check $BUILD_LOG)"\nfi\n\necho "[build_sidecar_linux] DONE: $OUTPUT_BIN"\n'
 
-AssertionError: VALIDATE ON LINUX HOST block MUST mention 'sudo apt install libnotify4', without libnotify4, the notify() call silently fails (D-Bus message never sent).
-assert 'sudo apt install libnotify4' in 'toast notification wiring validation (Linux).'
-tests/tauri/mig17/test_toast_linux.py:459: in test_docstring_documents_libnotify_install_step
-    assert "sudo apt install libnotify4" in doc, (
-E   AssertionError: VALIDATE ON LINUX HOST block MUST mention 'sudo apt install libnotify4', without libnotify4, the notify() call silently fails (D-Bus message never sent).
-E   assert 'sudo apt install libnotify4' in 'toast notification wiring validation (Linux).'
+AssertionError: build_sidecar_linux.sh must still check the faster_whisper dir exists (partial mitigation for GAP-2, directory check, not Python import).
+assert '! -d "$SITE/faster_whisper"' in '#!/usr/bin/env bash\n# =============================================================================\n# Lausu. Nuitka Linux sidecar build (Phase 0-L, ADR-0020 §4.4)\n#\n# Builds the frozen Python sidecar (`python-sidecar-<triple>`) for Linux,\n# for both x86_64-unknown-linux-gnu and aarch64-unknown-linux-gnu.\n#\n# The resulting binary is dropped at:\n#   src-tauri/bin/python-sidecar-<triple>\n# which is where Tauri\'s `externalBin` mechanism expects it (Tauri v2\n# appends the Rust target triple to the base name `bin/python-sidecar`\n# at runtime; see ADR-0020 §4.1 + §7).\n#\n# Usage:\n#   bash scripts/build/build_sidecar_linux.sh x86_64    # native x86_64 build\n#   bash scripts/build/build_sidecar_linux.sh aarch64   # native aarch64 build\n#                                                       # (requires aarch64 host)\n#                                                       # OR cross-build on x86_64\n#                                                       # via qemu-user-static\n#   bash scripts/build/build_sidecar_linux.sh --check   # verify toolchain (BUILD-1)\n#\n# Required env (override defaults with these):\n#   VOICE_TYPER_PYBS_DIR  Directory containing the extracted...ibc 2.35." >&2\n        exit 1\n    fi\n    echo "[build_sidecar_linux] OK: glibc baseline (≤ 2.35) verified"\n}\nverify_glibc "$OUTPUT_BIN"\n\n# ─── Quick smoke (
+… (truncated)
 ```
 
-### 135. `tests.tauri.mig17.test_toast_linux.TestValidateOnLinuxHostBlock.test_docstring_contains_validate_on_linux_host_header`
+### 136. `tests.tauri.mig17.test_toast_linux.TestValidateOnLinuxHostBlock.test_docstring_contains_validate_on_linux_host_header`
 
 - Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_toast_linux.py:451`
@@ -3259,7 +3296,23 @@ E   AssertionError: Module docstring MUST contain 'VALIDATE ON LINUX HOST:' head
 E   assert 'VALIDATE ON LINUX HOST:' in 'toast notification wiring validation (Linux).'
 ```
 
-### 136. `tests.tauri.mig17.test_toast_linux.TestValidateOnLinuxHostBlock.test_docstring_documents_dbus_troubleshooting`
+### 137. `tests.tauri.mig17.test_toast_linux.TestValidateOnLinuxHostBlock.test_docstring_documents_libnotify_install_step`
+
+- Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Location: `tests/tauri/mig17/test_toast_linux.py:459`
+
+```
+assert 'sudo apt install libnotify4' in 'toast notification wiring validation (Linux).'
+
+AssertionError: VALIDATE ON LINUX HOST block MUST mention 'sudo apt install libnotify4', without libnotify4, the notify() call silently fails (D-Bus message never sent).
+assert 'sudo apt install libnotify4' in 'toast notification wiring validation (Linux).'
+tests/tauri/mig17/test_toast_linux.py:459: in test_docstring_documents_libnotify_install_step
+    assert "sudo apt install libnotify4" in doc, (
+E   AssertionError: VALIDATE ON LINUX HOST block MUST mention 'sudo apt install libnotify4', without libnotify4, the notify() call silently fails (D-Bus message never sent).
+E   assert 'sudo apt install libnotify4' in 'toast notification wiring validation (Linux).'
+```
+
+### 138. `tests.tauri.mig17.test_toast_linux.TestValidateOnLinuxHostBlock.test_docstring_documents_dbus_troubleshooting`
 
 - Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_toast_linux.py:475`
@@ -3275,23 +3328,7 @@ E   AssertionError: VALIDATE ON LINUX HOST block MUST mention 'D-Bus', the troub
 E   assert 'D-Bus' in 'toast notification wiring validation (Linux).'
 ```
 
-### 137. `tests.tauri.mig17.test_toast_linux.TestValidateOnLinuxHostBlock.test_docstring_documents_expected_timing`
-
-- Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
-- Location: `tests/tauri/mig17/test_toast_linux.py:497`
-
-```
-assert 'within 1s' in 'toast notification wiring validation (Linux).'
-
-AssertionError: VALIDATE ON LINUX HOST block MUST document the expected timing ('within 1s'), the upper bound for how long the validator should wait for the banner before declaring the gate failed.
-assert 'within 1s' in 'toast notification wiring validation (Linux).'
-tests/tauri/mig17/test_toast_linux.py:497: in test_docstring_documents_expected_timing
-    assert "within 1s" in doc, (
-E   AssertionError: VALIDATE ON LINUX HOST block MUST document the expected timing ('within 1s'), the upper bound for how long the validator should wait for the banner before declaring the gate failed.
-E   assert 'within 1s' in 'toast notification wiring validation (Linux).'
-```
-
-### 138. `tests.tauri.mig17.test_toast_linux.TestValidateOnLinuxHostBlock.test_docstring_documents_log_path`
+### 139. `tests.tauri.mig17.test_toast_linux.TestValidateOnLinuxHostBlock.test_docstring_documents_log_path`
 
 - Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig17/test_toast_linux.py:488`
@@ -3307,7 +3344,23 @@ E   AssertionError: VALIDATE ON LINUX HOST block MUST document the Linux log pat
 E   assert '~/.local/share/lausu/logs/lausu.log' in 'toast notification wiring validation (Linux).'
 ```
 
-### 139. `tests.test_clipboard.TestPaste.test_paste_sends_keystroke`
+### 140. `tests.tauri.mig17.test_toast_linux.TestValidateOnLinuxHostBlock.test_docstring_documents_expected_timing`
+
+- Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Location: `tests/tauri/mig17/test_toast_linux.py:497`
+
+```
+assert 'within 1s' in 'toast notification wiring validation (Linux).'
+
+AssertionError: VALIDATE ON LINUX HOST block MUST document the expected timing ('within 1s'), the upper bound for how long the validator should wait for the banner before declaring the gate failed.
+assert 'within 1s' in 'toast notification wiring validation (Linux).'
+tests/tauri/mig17/test_toast_linux.py:497: in test_docstring_documents_expected_timing
+    assert "within 1s" in doc, (
+E   AssertionError: VALIDATE ON LINUX HOST block MUST document the expected timing ('within 1s'), the upper bound for how long the validator should wait for the banner before declaring the gate failed.
+E   assert 'within 1s' in 'toast notification wiring validation (Linux).'
+```
+
+### 141. `tests.test_clipboard.TestPaste.test_paste_sends_keystroke`
 
 - Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_clipboard.py:72`
@@ -3321,7 +3374,7 @@ tests/test_clipboard.py:72: in test_paste_sends_keystroke
 E   assert False is True
 ```
 
-### 140. `tests.test_clipboard_coverage.TestIsSafePasteTarget.test_returns_true_on_non_windows`
+### 142. `tests.test_clipboard_coverage.TestIsSafePasteTarget.test_returns_true_on_non_windows`
 
 - Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_clipboard_coverage.py:297`
@@ -3335,126 +3388,98 @@ tests/test_clipboard_coverage.py:297: in test_returns_true_on_non_windows
 E   assert False is True
 ```
 
-### 141. `tests.test_clipboard_security.test_safe_paste_target_non_windows`
+### 143. `tests.test_clipboard_security.test_safe_paste_target_non_windows`
 
 - Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_clipboard_security.py:31`
 
 ```
-+    where <function ClipboardManager._is_safe_paste_target at 0x7f7996af84a0> = <voice_typer.server.clipboard.manager.ClipboardManager object at 0x7f7960785210>._is_safe_paste_target
++    where <function ClipboardManager._is_safe_paste_target at 0x7f5a27dd4400> = <voice_typer.server.clipboard.manager.ClipboardManager object at 0x7f59f1549ad0>._is_safe_paste_target
 
 assert False is True
- +  where False = <function ClipboardManager._is_safe_paste_target at 0x7f7996af84a0>()
- +    where <function ClipboardManager._is_safe_paste_target at 0x7f7996af84a0> = <voice_typer.server.clipboard.manager.ClipboardManager object at 0x7f7960785210>._is_safe_paste_target
+ +  where False = <function ClipboardManager._is_safe_paste_target at 0x7f5a27dd4400>()
+ +    where <function ClipboardManager._is_safe_paste_target at 0x7f5a27dd4400> = <voice_typer.server.clipboard.manager.ClipboardManager object at 0x7f59f1549ad0>._is_safe_paste_target
 tests/test_clipboard_security.py:31: in test_safe_paste_target_non_windows
     assert clipboard._is_safe_paste_target() is True
 E   assert False is True
-E    +  where False = <function ClipboardManager._is_safe_paste_target at 0x7f7996af84a0>()
-E    +    where <function ClipboardManager._is_safe_paste_target at 0x7f7996af84a0> = <voice_typer.server.clipboard.manager.ClipboardManager object at 0x7f7960785210>._is_safe_paste_target
+E    +  where False = <function ClipboardManager._is_safe_paste_target at 0x7f5a27dd4400>()
+E    +    where <function ClipboardManager._is_safe_paste_target at 0x7f5a27dd4400> = <voice_typer.server.clipboard.manager.ClipboardManager object at 0x7f59f1549ad0>._is_safe_paste_target
 ```
 
-### 142. `tests.test_hotkeys_win32.TestModifierOnlyHotkeys.test_modifier_only_polling_loop_suppresses_on_non_modifier_combo`
+### 144. `tests.test_recording.TestStopAudioPrep.test_start_falls_back_to_same_microphone_on_another_host_api`
 
-- Legs: ubuntu-22.04-3.12
-- Location: `tests/test_hotkeys_win32.py:461`
-
-```
-+  where True = wait_for(<function TestModifierOnlyHotkeys.test_modifier_only_polling_loop_suppresses_on_non_modifier_combo.<locals>.<lambda> at 0x7fac2ce70b80>, timeout=0.12)
-
-AssertionError: Callback fired 1 times after Alt+C combo, should be suppressed (user was doing Alt+C, not invoking bare Alt hotkey)
-assert not True
- +  where True = wait_for(<function TestModifierOnlyHotkeys.test_modifier_only_polling_loop_suppresses_on_non_modifier_combo.<locals>.<lambda> at 0x7fac2ce70b80>, timeout=0.12)
-tests/test_hotkeys_win32.py:461: in test_modifier_only_polling_loop_suppresses_on_non_modifier_combo
-    assert not wait_for(lambda: callback.call_count > 0, timeout=0.12), (
-E   AssertionError: Callback fired 1 times after Alt+C combo, should be suppressed (user was doing Alt+C, not invoking bare Alt hotkey)
-E   assert not True
-E    +  where True = wait_for(<function TestModifierOnlyHotkeys.test_modifier_only_polling_loop_suppresses_on_non_modifier_combo.<locals>.<lambda> at 0x7fac2ce70b80>, timeout=0.12)
-```
-
-### 143. `tests.app.test_lifecycle.TestMainWrapsIpcMain.test_main_logs_warning_when_faulthandler_import_fails`
-
-- Legs: windows-2022-3.10
-- Location: `tests/app/test_lifecycle.py:1377`
+- Legs: ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13, windows-2022-3.12
+- Location: `tests/test_recording.py:237`
 
 ```
-ImportError: cannot import name 'NotRequired' from 'typing' (C:\hostedtoolcache\windows\Python\3.10.11\x64\lib\typing.py)
+]
 
-ImportError: cannot import name 'NotRequired' from 'typing' (C:\hostedtoolcache\windows\Python\3.10.11\x64\lib\typing.py)
-tests\app\test_lifecycle.py:1377: in test_main_logs_warning_when_faulthandler_import_fails
-    import voice_typer.server.ipc_server as ipc_server_module
-voice_typer\server\ipc_server.py:136: in <module>
-    from voice_typer.server.handlers.vocabulary_handlers import VocabularyHandlersMixin  # noqa: E402
-voice_typer\server\handlers\__init__.py:27: in <module>
-    from voice_typer.server.handlers.vocabulary_handlers import VocabularyHandlersMixin
-voice_typer\server\handlers\vocabulary_handlers.py:12: in <module>
-    from voice_typer.server.service.vocabulary import VocabularyDuplicateError
-voice_typer\server\service\__init__.py:11: in <module>
-    from voice_typer.server.service.model import _MODEL_STATUS_CACHE_TTL_S, ModelMixin
-voice_typer\server\service\model\__init__.py:4: in <module>
-    from .mixin import ModelMixin
-voice_typer\server\service\model\mixin.py:7: in <module>
-    from ._downloads import DownloadsMixin
-voice_typer\server\service\model\_downloads.py:12: in <module>
-    from voice_typer.server.service._download_helpers import DownloadOutcome
-voice_typer\server\service\_download_helpers.py:9: in <module>
-    from typing import NotRequired, TypedDict
-E   ImportError: cannot import name 'NotRequired' from 'typing' (C:\hostedtoolcache\windows\Python\3.10.11\x64\lib\typing.py)
+assert [0] == [9, 1]
+  
+  At index 0 diff: 0 != 9
+  Right contains one more item: 1
+  
+  Full diff:
+    [
+  -     9,
+  ?     ^
+  +     0,
+  ?     ^
+  -     1,
+    ]
+tests/test_recording.py:237: in test_start_falls_back_to_same_microphone_on_another_host_api
+    assert opened_devices == [9, 1]
+E   assert [0] == [9, 1]
+E     
+E     At index 0 diff: 0 != 9
+E     Right contains one more item: 1
+E     
+E     Full diff:
+E       [
+E     -     9,
+E     ?     ^
+E     +     0,
+E     ?     ^
+E     -     1,
+E       ]
 ```
 
-### 144. `tests.tauri.test_gnu_linkchain_toolchain.test_bootstrap_check_passes_after_provisioning`
+### 145. `tests.tauri.test_gnu_linkchain_toolchain.test_bootstrap_check_passes_after_provisioning`
 
 - Legs: windows-2022-3.11, windows-2022-3.12, windows-2022-3.13
 - Location: `tests/tauri/test_gnu_linkchain_toolchain.py:103`
 
 ```
-+    where <function check at 0x0000013E91CC56C0> = <module 'ensure_gnu_linkchain' from 'D:\\a\\voice-typer\\voice-typer\\scripts\\build\\ensure_gnu_linkchain.py'>.check
++    where <function check at 0x0000020AC406E480> = <module 'ensure_gnu_linkchain' from 'D:\\a\\voice-typer\\voice-typer\\scripts\\build\\ensure_gnu_linkchain.py'>.check
 
 AssertionError: shim reported as missing/broken. Run: python scripts/build/ensure_gnu_linkchain.py
 assert 1 == 0
- +  where 1 = <function check at 0x0000013E91CC56C0>()
- +    where <function check at 0x0000013E91CC56C0> = <module 'ensure_gnu_linkchain' from 'D:\\a\\voice-typer\\voice-typer\\scripts\\build\\ensure_gnu_linkchain.py'>.check
+ +  where 1 = <function check at 0x0000020AC406E480>()
+ +    where <function check at 0x0000020AC406E480> = <module 'ensure_gnu_linkchain' from 'D:\\a\\voice-typer\\voice-typer\\scripts\\build\\ensure_gnu_linkchain.py'>.check
 tests\tauri\test_gnu_linkchain_toolchain.py:103: in test_bootstrap_check_passes_after_provisioning
     assert bootstrap.check() == 0, (
 E   AssertionError: shim reported as missing/broken. Run: python scripts/build/ensure_gnu_linkchain.py
 E   assert 1 == 0
-E    +  where 1 = <function check at 0x0000013E91CC56C0>()
-E    +    where <function check at 0x0000013E91CC56C0> = <module 'ensure_gnu_linkchain' from 'D:\\a\\voice-typer\\voice-typer\\scripts\\build\\ensure_gnu_linkchain.py'>.check
+E    +  where 1 = <function check at 0x0000020AC406E480>()
+E    +    where <function check at 0x0000020AC406E480> = <module 'ensure_gnu_linkchain' from 'D:\\a\\voice-typer\\voice-typer\\scripts\\build\\ensure_gnu_linkchain.py'>.check
 ```
 
-### 145. `tests.test_recording.TestStopAudioPrep.test_start_falls_back_to_same_microphone_on_another_host_api`
+### 146. `tests.test_recording_lifecycle_threaded.TestDispatchThreadReturnsDuringModelReload.test_f2_returns_before_load_completes_when_model_reload_in_flight`
 
-- Legs: windows-2022-3.12
-- Location: `tests/test_recording.py:237`
+- Legs: windows-2022-3.11
+- Location: `tests/test_recording_lifecycle_threaded.py:115`
 
 ```
-#x1B[90m #x1B[39;49;00m ]#x1B[90m#x1B[39;49;00m
++    where is_set = <threading.Event at 0x1b9e46ecf10: unset>.is_set
 
-assert [0] == [9, 1]
-  
-  At index 0 diff: #x1B[0m#x1B[94m0#x1B[39;49;00m#x1B[90m#x1B[39;49;00m != #x1B[0m#x1B[94m9#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
-  Right contains one more item: #x1B[0m#x1B[94m1#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
-  
-  Full diff:
-  #x1B[0m#x1B[90m #x1B[39;49;00m [#x1B[90m#x1B[39;49;00m
-  #x1B[91m-     9,#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
-  ?     ^#x1B[90m#x1B[39;49;00m
-  #x1B[92m+     0,#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
-  ?     ^#x1B[90m#x1B[39;49;00m
-  #x1B[91m-     1,#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
-  #x1B[90m #x1B[39;49;00m ]#x1B[90m#x1B[39;49;00m
-tests\test_recording.py:237: in test_start_falls_back_to_same_microphone_on_another_host_api
-    assert opened_devices == [9, 1]
-E   assert [0] == [9, 1]
-E     
-E     At index 0 diff: #x1B[0m#x1B[94m0#x1B[39;49;00m#x1B[90m#x1B[39;49;00m != #x1B[0m#x1B[94m9#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
-E     Right contains one more item: #x1B[0m#x1B[94m1#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
-E     
-E     Full diff:
-E     #x1B[0m#x1B[90m #x1B[39;49;00m [#x1B[90m#x1B[39;49;00m
-E     #x1B[91m-     9,#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
-E     ?     ^#x1B[90m#x1B[39;49;00m
-E     #x1B[92m+     0,#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
-E     ?     ^#x1B[90m#x1B[39;49;00m
-E     #x1B[91m-     1,#x1B[39;49;00m#x1B[90m#x1B[39;49;00m
-E     #x1B[90m #x1B[39;49;00m ]#x1B[90m#x1B[39;49;00m
+AssertionError: ensure_active_engine_loaded() must have been called by the worker
+assert False
+ +  where False = is_set()
+ +    where is_set = <threading.Event at 0x1b9e46ecf10: unset>.is_set
+tests\test_recording_lifecycle_threaded.py:115: in test_f2_returns_before_load_completes_when_model_reload_in_flight
+    assert load_started.is_set(), "ensure_active_engine_loaded() must have been called by the worker"
+E   AssertionError: ensure_active_engine_loaded() must have been called by the worker
+E   assert False
+E    +  where False = is_set()
+E    +    where is_set = <threading.Event at 0x1b9e46ecf10: unset>.is_set
 ```
