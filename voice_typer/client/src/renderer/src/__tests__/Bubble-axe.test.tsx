@@ -102,8 +102,8 @@ async function expectNoAxeViolations(container: HTMLElement): Promise<void> {
 
 describe("F-17: axe-core WCAG scan, Bubble overlay (all five modes)", () => {
 	it("recording mode: no axe violations", async () => {
-		// Default mode after mount is "recording", no state change needed.
 		const { container } = render(<Bubble />);
+		setBubbleState("recording");
 		await expectNoAxeViolations(container);
 	});
 

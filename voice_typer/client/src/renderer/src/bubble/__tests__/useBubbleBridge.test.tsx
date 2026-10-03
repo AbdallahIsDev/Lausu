@@ -264,19 +264,20 @@ describe("useBubbleBridge: centralised IPC subscriptions", () => {
 			</BubbleBridgeProvider>,
 		);
 
-		// Default mode is "recording", a setState handler observes the
-		// NEW mode ("idle"), proving the ref updates before fan-out
+		// Default mode is "idle"; show is visibility-only so the mode
+		// is unchanged, proving the ref updates before fan-out
 		// (no registration-order dependence).
 		act(() => {
 			for (const cb of mockBubble._listeners.setState) cb("idle");
 		});
 		expect(seen).toEqual(["setState:idle"]);
 
-		// show() → recording when not transcribing.
+		// show() preserves the mode in both orders: set_state can
+		// overtake show on the IPC path, both orders converge on idle.
 		act(() => {
 			for (const cb of mockBubble._listeners.show) cb();
 		});
-		expect(seen).toEqual(["setState:idle", "show:recording"]);
+		expect(seen).toEqual(["setState:idle", "show:idle"]);
 
 		// transcribing survives a show() (the backend may push the state
 		// before re-showing), same reducer `useBubbleStateMachine` uses.
@@ -288,7 +289,7 @@ describe("useBubbleBridge: centralised IPC subscriptions", () => {
 		});
 		expect(seen).toEqual([
 			"setState:idle",
-			"show:recording",
+			"show:idle",
 			"setState:transcribing",
 			"show:transcribing",
 		]);

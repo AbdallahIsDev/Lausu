@@ -136,12 +136,9 @@ class BubbleBridgeImpl implements BubbleBridge {
 	private levelOff: BubbleBridgeOff | null = null;
 	private levelActive = false;
 	// Authoritative bubble mode (single source of truth).
-	// Defaults to `recording`, the bubble's initial mode, and tracks
-	// the show / hide / setState event stream via `nextBubbleMode`,
-	// updated in `emit()` BEFORE handlers fan out. Persists across
-	// attach/detach cycles (mirroring `useBubbleStateMachine`'s React
-	// state, which also survives re-attach).
-	private mode: BubbleMode = "recording";
+	// Defaults to `idle`, the bubble is not recording until the
+	// backend pushes show/setState for a real recording session.
+	private mode: BubbleMode = "idle";
 
 	constructor(api: BubbleWindowBubble | undefined) {
 		this.api = api;

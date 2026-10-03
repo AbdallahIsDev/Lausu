@@ -146,7 +146,8 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "clipboard_restore_delay_ms": (int, _make_int_validator(lo=0, hi=2000)),
     # User-configured URL-allowlist extensions for self-hosted
     "trusted_extra_hosts": (list, _VALIDATOR_TRUSTED_HOSTS),
-    # idle-unload timer for the active ASR backend. 0 (default)
+    # idle-unload timer for the active ASR backend, in minutes. 0 disables
+    # unloading entirely; the shipped default is 30 (schema + test pinned).
     "model_idle_unload_minutes": (int, _make_int_validator(lo=0, hi=1440)),
     "asr_backend": (str, _make_enum_validator(frozenset({"whisper", "qwen", "parakeet"}))),
     "text_cleanup_enabled": (bool, _bool_validator),
@@ -196,12 +197,13 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "vocabulary_auto_apply_threshold": (float, _make_float_validator(lo=0.0, hi=1.0)),
     "waveform_bubble": (bool, _bool_validator),
     "bubble_position": (str, _make_enum_validator(frozenset({"top", "bottom"}))),
-    "bubble_behavior": (str, _make_enum_validator(frozenset({"show_on_record", "always_visible"}))),
+    "bubble_behavior": (str, _make_enum_validator(frozenset({"show_on_record", "always_visible", "hidden"}))),
     "bubble_draggable": (bool, _bool_validator),
     "bubble_show_on_startup": (bool, _bool_validator),
     # mic button + click-to-toggle for the always-visible bubble.
     "bubble_click_to_toggle": (bool, _bool_validator),
     "bubble_mic_button": (bool, _bool_validator),
+    "bubble_show_recording_timer": (bool, _bool_validator),
     # Persisted bubble window position (screen-space pixel coords).
     "bubble_x": ((int, type(None)), _make_optional_int_validator(lo=-100_000, hi=100_000)),
     "bubble_y": ((int, type(None)), _make_optional_int_validator(lo=-100_000, hi=100_000)),

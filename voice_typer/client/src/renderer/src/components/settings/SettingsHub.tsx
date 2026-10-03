@@ -56,7 +56,9 @@ function sectionSummary(
 			return t(
 				config.bubble_behavior === "always_visible"
 					? "settings.bubbleBehaviorAlwaysVisible"
-					: "settings.bubbleBehaviorShowOnRecord",
+					: config.bubble_behavior === "hidden"
+						? "settings.bubbleBehaviorHidden"
+						: "settings.bubbleBehaviorShowOnRecord",
 			);
 		case "settingsHotkeys":
 			return formatHotkey(config.hotkey);
@@ -158,7 +160,7 @@ export function SettingsHub({ config, onNavigateSection }: SettingsHubProps) {
 			    SettingsSection card in the app (border + subtle bg + row
 			    dividers), rows as full-width buttons. overflow-hidden keeps
 			    the hover highlight inside the rounded corners. */}
-			<div className="overflow-hidden rounded-lg border border-border/5 bg-surface-subtle divide-y divide-border/5">
+			<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle divide-y divide-border/8">
 				{rows.map((row) => (
 					<button
 						key={row.def.page}

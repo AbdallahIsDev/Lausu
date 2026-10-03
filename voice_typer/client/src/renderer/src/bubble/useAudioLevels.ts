@@ -69,7 +69,7 @@ export function useAudioLevels(
 	const frameRef = useRef<number | null>(null);
 	const visibleRef = useRef(isVisible);
 	visibleRef.current = isVisible;
-	const recordingRef = useRef(true);
+	const recordingRef = useRef(false);
 	const barColorRef = useRef<string | null>(null);
 	// Per-dot easing state: the last visual height (px) written for each
 	// bar. The loop reads/writes this instead of parsing the DOM style
@@ -351,9 +351,8 @@ export function useAudioLevels(
 		reducedMotionMql?.addEventListener("change", handleReducedMotionChange);
 
 		const offShow = bridge.on("show", () => {
-			// The bridge's mode ref is already updated for this event
-			// (show → recording, unless transcribing), just re-sync
-			// the recording gate + level subscription.
+			// Show is visibility-only (never changes the mode), just
+			// re-sync the recording gate + level subscription.
 			sync();
 			wake();
 		});
@@ -366,10 +365,8 @@ export function useAudioLevels(
 		});
 
 		// Establish the initial subscription state for `onLevel`.
-		// The default `mode` is `"recording"`, so on mount this
-		// subscribes immediately, preserving the pre-refactor
-		// behavior where `onLevel` was always subscribed while the
-		// bubble was visible.
+		// Default mode is `idle`, so this stays unsubscribed until
+		// a real recording session drives the mode to `recording`.
 		sync();
 
 		wake();

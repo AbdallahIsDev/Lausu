@@ -600,7 +600,7 @@
 		"loadedViaHint": "Cómo se cargó el modelo de voz (integrado, descargado o una ruta personalizada)."
 	},
 	"settings": {
-		"apiUrlInvalid": "Introduce una URL http(s) válida",
+		"apiUrlInvalid": "Introduce una URL https válida",
 		"otherTabsResults": "Resultados de otras pestañas",
 		"title": "Configuración",
 		"searchPlaceholder": "Buscar configuración…",
@@ -757,6 +757,14 @@
 		"bubblePositionBottom": "Centro inferior",
 		"bubbleBehaviorShowOnRecord": "Mostrar al grabar",
 		"bubbleBehaviorAlwaysVisible": "Siempre visible",
+		"bubbleBehaviorHidden": "Oculta",
+		"bubbleShowRecordingTimer": "Temporizador de grabación",
+		"bubbleShowRecordingTimerInfo": "Muestra la duración de la grabación (mm:ss) junto al punto rojo durante la grabación. Desactivado por defecto.",
+		"bubblePreview": "Vista previa de la burbuja",
+		"bubblePreviewInfo": "Así se ve la burbuja en cada estado. El temporizador avanza en directo aquí.",
+		"bubblePreviewIdle": "Inactiva",
+		"bubblePreviewRecording": "Grabación",
+		"bubblePreviewTranscribing": "Transcripción",
 		"description": "Ajusta {appName} a tus preferencias.",
 		"loading": "Cargando configuración…",
 		"saveFailedToast": "No se pudo guardar la configuración",
@@ -1292,7 +1300,7 @@
 			"title": "Importar modelo",
 			"importModel": "Importar modelo",
 			"importing": "Importando...",
-			"success": "{count} modelos importado(s): {models}",
+			"success": "{count} modelos importados: {models}",
 			"noModelsFound": "No se encontraron carpetas de modelo conocidas en ese directorio. Seleccione la carpeta de caché de HuggingFace (contiene directorios 'models--*').",
 			"failedAll": "No se pudo importar ningún modelo desde ese directorio.",
 			"failed": "Error al importar el modelo: {error}"
@@ -1616,7 +1624,8 @@
 		"stopRecordingAria": "Detener grabación",
 		"dismissAria": "Descartar burbuja",
 		"transcriptPreviewAria": "Vista previa de transcripción en vivo",
-		"livePreviewUnavailable": "Sin vista previa en vivo para este motor"
+		"livePreviewUnavailable": "Sin vista previa en vivo para este motor",
+		"recordingTimerAria": "Duración de la grabación"
 	},
 	"errorBoundary": {
 		"title": "Algo salió mal",
@@ -2088,5 +2097,10 @@
 			"doneInDb": "Hecho | {count} caracteres (en BD, use el atajo de re-pegado)",
 			"doneInClipboard": "Hecho | {count} caracteres (en el portapapeles)"
 		}
+	},
+	"computeDevice": {
+		"cpu": "CPU",
+		"gpu": "GPU",
+		"ariaLabel": "Dispositivo de cálculo"
 	}
 }

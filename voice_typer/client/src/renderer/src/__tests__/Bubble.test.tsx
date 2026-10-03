@@ -124,21 +124,62 @@ describe("Bubble", () => {
 		expect(output).toBeTruthy();
 	});
 
-	it("renders recording visualizer bars by default", () => {
+	it("renders idle Ready label by default, no recording bars", () => {
 		render(<Bubble />);
-		// Default mode is "recording", which shows 7 visualizer bar <span>s
-		// inside a flex container with gap-0.75 (the Tailwind utility, was gap-[3px])
+		// Default mode is "idle": Ready label visible, no visualizer bars,
+		// no red recording dot. Recording UI appears only after a real
+		// show/setState recording event from the backend.
+		expect(screen.getByText("Ready")).toBeTruthy();
+		expect(document.querySelectorAll(".gap-0\\.75 > span").length).toBe(0);
+		expect(
+			document.querySelectorAll('[data-slot="bubble-recording-dot"]'),
+		).toHaveLength(0);
+	});
+
+	it("renders recording visualizer bars after recording state", () => {
+		render(<Bubble />);
+		setBubbleState("recording");
 		const bars = document.querySelectorAll(".gap-0\\.75 > span");
 		expect(bars.length).toBe(7);
 	});
 
 	it("renders no stray text in recording mode (comment-corpse guard)", () => {
 		render(<Bubble />);
-		// A mangled JSX comment once leaked a literal "*/" text node
-		// between the REC label and the level dots. The recording row
-		// must contain exactly the REC label text and nothing else.
+		setBubbleState("recording");
 		expect(document.body.textContent).not.toContain("*/");
-		expect(screen.getByText("REC")).toBeTruthy();
+		expect(document.body.textContent).not.toContain("REC");
+	});
+
+	it("renders the recording dot only while recording", () => {
+		render(<Bubble />);
+
+		// Default mode is "idle", no red pulsing dot while not recording.
+		expect(
+			document.querySelectorAll('[data-slot="bubble-recording-dot"]'),
+		).toHaveLength(0);
+
+		setBubbleState("recording");
+		expect(
+			document.querySelectorAll('[data-slot="bubble-recording-dot"]'),
+		).toHaveLength(1);
+
+		// Every other mode owns its own indicator and must NOT show the
+		// recording dot: red + pulsing means "capturing audio right now".
+		for (const state of [
+			"transcribing",
+			"idle",
+			"error",
+			"blocked",
+			"cancelling",
+			"permission_revoked",
+			"paste_failed",
+		]) {
+			setBubbleState(state);
+			expect(
+				document.querySelectorAll('[data-slot="bubble-recording-dot"]'),
+				`recording dot leaked into ${state} mode`,
+			).toHaveLength(0);
+		}
 	});
 
 	it("shows transcribing state with text and animated dots when onSetState fires", () => {
@@ -148,15 +189,16 @@ describe("Bubble", () => {
 
 		expect(screen.getByText("Transcribing")).toBeTruthy();
 
-		// Should show 3 animated bouncing dots
-		const dots = document.querySelectorAll(".animate-bounce");
+		// Shimmer label with 3 merged blinking dots (no separate text)
+		expect(document.querySelectorAll(".bubble-shimmer-text")).toHaveLength(1);
+		const dots = document.querySelectorAll(".bubble-blink-dot");
 		expect(dots.length).toBe(3);
 	});
 
 	it("hides visualizer bars when in transcribing mode", () => {
 		render(<Bubble />);
 
-		// Bars should be visible initially
+		setBubbleState("recording");
 		const barsBefore = document.querySelectorAll(".gap-0\\.75 > span");
 		expect(barsBefore.length).toBe(7);
 
@@ -167,15 +209,15 @@ describe("Bubble", () => {
 		expect(barsAfter.length).toBe(0);
 	});
 
-	it("renders idle state as empty div", () => {
+	it("renders idle Ready label, no bars, no recording dot", () => {
 		render(<Bubble />);
 
 		setBubbleState("idle");
 
-		// Should render an empty flex container (h-6) but no bars and no text
-		const emptyContainer = document.querySelector(".flex.h-6.items-center");
-		expect(emptyContainer).toBeTruthy();
-		expect(emptyContainer?.textContent?.trim()).toBe("");
+		expect(screen.getByText("Ready")).toBeTruthy();
+		expect(
+			document.querySelectorAll('[data-slot="bubble-recording-dot"]'),
+		).toHaveLength(0);
 
 		// No bars
 		const bars = document.querySelectorAll(".gap-0\\.75 > span");
@@ -188,7 +230,12 @@ describe("Bubble", () => {
 	it("transitions through all three modes in sequence", () => {
 		render(<Bubble />);
 
-		// Start: recording mode (bars visible)
+		// Start: idle (Ready, no bars)
+		expect(screen.getByText("Ready")).toBeTruthy();
+		expect(document.querySelectorAll(".gap-0\\.75 > span").length).toBe(0);
+
+		// Recording: bars visible
+		setBubbleState("recording");
 		expect(document.querySelectorAll(".gap-0\\.75 > span").length).toBe(7);
 
 		// Transcribing: text visible, bars hidden
@@ -196,22 +243,16 @@ describe("Bubble", () => {
 		expect(screen.getByText("Transcribing")).toBeTruthy();
 		expect(document.querySelectorAll(".gap-0\\.75 > span").length).toBe(0);
 
-		// Idle: nothing visible
+		// Idle: Ready visible again
 		setBubbleState("idle");
-		expect(screen.queryByText("Transcribing")).toBeNull();
+		expect(screen.getByText("Ready")).toBeTruthy();
 		expect(document.querySelectorAll(".gap-0\\.75 > span").length).toBe(0);
-
-		// Back to recording: bars visible again
-		setBubbleState("recording");
-		expect(document.querySelectorAll(".gap-0\\.75 > span").length).toBe(7);
 	});
 
 	it("has accessible aria-label", () => {
 		render(<Bubble />);
 		const output = document.querySelector('output[aria-live="polite"]');
-		expect(output?.getAttribute("aria-label")).toBe(
-			"Lausu recording indicator",
-		);
+		expect(output?.getAttribute("aria-label")).toBe("Lausu idle indicator");
 	});
 
 	it("transcribing dots have staggered animation delays", () => {
@@ -219,7 +260,7 @@ describe("Bubble", () => {
 
 		setBubbleState("transcribing");
 
-		const dots = document.querySelectorAll(".animate-bounce");
+		const dots = document.querySelectorAll(".bubble-blink-dot");
 		expect(dots.length).toBe(3);
 
 		// Each dot should have a different animation-delay
@@ -275,8 +316,8 @@ describe("Bubble", () => {
 			bubble_mic_button: true,
 		});
 
-		// Default mode is "recording", so the stop affordance shows.
-		const btn = screen.getByLabelText("Stop dictation");
+		// Default mode is "idle", so the start affordance shows.
+		const btn = screen.getByLabelText("Start dictation");
 		expect(btn).toBeTruthy();
 		// It is clickable (not a dead pill).
 		expect(btn.tagName).toBe("BUTTON");
@@ -317,7 +358,7 @@ describe("Bubble", () => {
 			bubble_mic_button: true,
 		});
 
-		const btn = screen.getByLabelText("Stop dictation");
+		const btn = screen.getByLabelText("Start dictation");
 		act(() => {
 			btn.click();
 		});
@@ -325,7 +366,7 @@ describe("Bubble", () => {
 		expect(mockBubble.toggleDictation).toHaveBeenCalledTimes(1);
 	});
 
-	it("toggles the aria label between start/stop as recording state changes", () => {
+	it("toggles the action slot between mic and stop as recording state changes", () => {
 		render(<Bubble />);
 
 		pushBubbleConfig({
@@ -334,24 +375,126 @@ describe("Bubble", () => {
 			bubble_mic_button: true,
 		});
 
-		// Recording → stop affordance.
-		expect(screen.getByLabelText("Stop dictation")).toBeTruthy();
-
-		// Go idle (not recording) → start affordance.
-		setBubbleState("idle");
+		// Idle → mic affordance.
 		expect(screen.getByLabelText("Start dictation")).toBeTruthy();
+
+		// Go recording → single stop affordance, mic unmounted.
+		setBubbleState("recording");
+		expect(screen.getByLabelText("Stop recording")).toBeTruthy();
+		expect(screen.queryByLabelText("Start dictation")).toBeNull();
 		expect(screen.queryByLabelText("Stop dictation")).toBeNull();
+	});
+
+	it("shows exactly one filled stop affordance while recording", () => {
+		render(<Bubble />);
+
+		setBubbleState("recording");
+		pushBubbleConfig({
+			bubble_behavior: "always_visible",
+			bubble_click_to_toggle: true,
+			bubble_mic_button: true,
+			bubble_show_recording_timer: false,
+		});
+
+		// Recording renders a single action: the stop button. The mic
+		// toggle is unmounted so the pill never shows two competing
+		// actions. Only `BubbleStopButton` may render the filled
+		// (solid) stop glyph.
+		const filledIcons = document.querySelectorAll(
+			'button svg[fill="currentColor"]',
+		);
+		expect(filledIcons).toHaveLength(1);
+	});
+
+	it("hides the dismiss button while recording, shows it when idle", () => {
+		render(<Bubble />);
+
+		pushBubbleConfig({
+			bubble_behavior: "always_visible",
+			bubble_click_to_toggle: true,
+			bubble_mic_button: true,
+		});
+
+		setBubbleState("recording");
+		expect(screen.queryByLabelText("Dismiss bubble")).toBeNull();
+
+		setBubbleState("idle");
+		expect(screen.getByLabelText("Dismiss bubble")).toBeTruthy();
+	});
+
+	it("hides the recording timer by default, shows it when enabled", () => {
+		render(<Bubble />);
+
+		setBubbleState("recording");
+		expect(
+			document.querySelector('[data-slot="bubble-recording-timer"]'),
+		).toBeNull();
+
+		pushBubbleConfig({ bubble_show_recording_timer: true });
+		const timer = document.querySelector(
+			'[data-slot="bubble-recording-timer"]',
+		);
+		expect(timer).toBeTruthy();
+		expect(timer?.textContent).toBe("00:00");
+	});
+
+	it("keeps the transcribing dismiss disabled for 5s, then arms it", () => {
+		vi.useFakeTimers();
+		render(<Bubble />);
+
+		pushBubbleConfig({
+			bubble_behavior: "always_visible",
+			bubble_click_to_toggle: true,
+			bubble_mic_button: true,
+		});
+		setBubbleState("transcribing");
+
+		const btn = screen.getByLabelText("Dismiss bubble");
+		expect(btn).toBeDisabled();
+
+		act(() => {
+			vi.advanceTimersByTime(5000);
+		});
+		expect(screen.getByLabelText("Dismiss bubble")).not.toBeDisabled();
+
+		vi.useRealTimers();
+	});
+
+	it("stays idle when idle set_state overtakes show (either order)", () => {
+		render(<Bubble />);
+
+		pushBubbleConfig({
+			bubble_behavior: "always_visible",
+			bubble_click_to_toggle: true,
+			bubble_mic_button: true,
+		});
+
+		// set_state first, show second: the overtaking order seen when
+		// switching back to always_visible (show travels the slow
+		// window-show path). Must converge on idle, never recording.
+		setBubbleState("idle");
+		triggerCallback("show");
+		expect(screen.getByText("Ready")).toBeTruthy();
+		expect(
+			document.querySelectorAll('[data-slot="bubble-recording-dot"]'),
+		).toHaveLength(0);
+		expect(screen.queryByLabelText("Stop recording")).toBeNull();
+
+		// Reverse order converges too.
+		triggerCallback("show");
+		setBubbleState("idle");
+		expect(screen.getByText("Ready")).toBeTruthy();
+		expect(
+			document.querySelectorAll('[data-slot="bubble-recording-dot"]'),
+		).toHaveLength(0);
 	});
 
 	//state-aware aria-label on outer <output> ──────────
 
-	it("BG-95: aria-label reflects recording mode by default", () => {
+	it("BG-95: aria-label reflects idle mode by default", () => {
 		render(<Bubble />);
 		const output = document.querySelector('output[aria-live="polite"]');
-		// Default mode is "recording".
-		expect(output?.getAttribute("aria-label")).toBe(
-			"Lausu recording indicator",
-		);
+		expect(output?.getAttribute("aria-label")).toBe("Lausu idle indicator");
 	});
 
 	it("BG-95: aria-label switches to transcribing indicator when mode changes", () => {

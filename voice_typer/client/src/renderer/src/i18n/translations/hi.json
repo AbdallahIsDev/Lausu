@@ -600,7 +600,7 @@
 		"loadedViaHint": "वाक् मॉडल कैसे लोड हुआ (बंडल, डाउनलोड किया हुआ, या कस्टम पथ)।"
 	},
 	"settings": {
-		"apiUrlInvalid": "मान्य http(s) URL दर्ज करें",
+		"apiUrlInvalid": "मान्य https URL दर्ज करें",
 		"otherTabsResults": "अन्य टैब के परिणाम",
 		"title": "सेटिंग्स",
 		"searchPlaceholder": "सेटिंग्स खोजें…",
@@ -750,6 +750,14 @@
 		"bubblePositionBottom": "नीचे केंद्र",
 		"bubbleBehaviorShowOnRecord": "रिकॉर्ड पर दिखाएं",
 		"bubbleBehaviorAlwaysVisible": "हमेशा दृश्य",
+		"bubbleBehaviorHidden": "छिपा हुआ",
+		"bubbleShowRecordingTimer": "रिकॉर्डिंग टाइमर",
+		"bubbleShowRecordingTimerInfo": "रिकॉर्डिंग के दौरान लाल बिंदु के बगल में रिकॉर्डिंग अवधि (mm:ss) दिखाएँ। डिफ़ॉल्ट रूप से बंद।",
+		"bubblePreview": "बबल पूर्वावलोकन",
+		"bubblePreviewInfo": "बबल प्रत्येक स्थिति में कैसा दिखता है। रिकॉर्डिंग टाइमर यहाँ लाइव चलता है।",
+		"bubblePreviewIdle": "निष्क्रिय",
+		"bubblePreviewRecording": "रिकॉर्डिंग",
+		"bubblePreviewTranscribing": "ट्रांसक्रिप्शन",
 		"description": "{appName} को अपनी प्राथमिकताओं के अनुसार समायोजित करें।",
 		"loading": "सेटिंग्स लोड हो रही हैं…",
 		"saveFailedToast": "सेटिंग सहेजने में विफल",
@@ -1616,7 +1624,8 @@
 		"stopRecordingAria": "रिकॉर्डिंग रोकें",
 		"dismissAria": "बुलबुला हटाएं",
 		"transcriptPreviewAria": "लाइव ट्रांसक्रिप्ट पूर्वावलोकन",
-		"livePreviewUnavailable": "इस इंजन के लिए लाइव पूर्वावलोकन उपलब्ध नहीं है"
+		"livePreviewUnavailable": "इस इंजन के लिए लाइव पूर्वावलोकन उपलब्ध नहीं है",
+		"recordingTimerAria": "रिकॉर्डिंग अवधि"
 	},
 	"errorBoundary": {
 		"title": "कुछ गलत हो गया",
@@ -2088,5 +2097,10 @@
 			"doneInDb": "पूर्ण | {count} अक्षर (डेटाबेस में, फिर से पेस्ट हॉटकी का उपयोग करें)",
 			"doneInClipboard": "पूर्ण | {count} अक्षर (क्लिपबोर्ड में)"
 		}
+	},
+	"computeDevice": {
+		"cpu": "CPU",
+		"gpu": "GPU",
+		"ariaLabel": "कंप्यूट डिवाइस"
 	}
 }

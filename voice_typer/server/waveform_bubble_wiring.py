@@ -118,13 +118,17 @@ class WaveformBubbleWiring:
                     except queue.Empty:
                         break
                     if newer is None:
-                        # Shutdown sentinel arrived during drain —
-                        event_bus.publish(item)
+                        # Shutdown sentinel arrived during drain — drop
                         q.task_done()
                         return
                     # Drop the older item; promote the newer one.
                     q.task_done()
                     item = newer
+                if stop.is_set():
+                    # Stopping: levels are stale UI state, delivering
+                    # them burns time on a dying transport. Drop it.
+                    q.task_done()
+                    return
                 event_bus.publish(item)
                 q.task_done()
 
@@ -162,6 +166,7 @@ class WaveformBubbleWiring:
                         "bubble_behavior": getattr(cfg, "bubble_behavior", None) or "show_on_record",
                         "bubble_click_to_toggle": getattr(cfg, "bubble_click_to_toggle", None) or True,
                         "bubble_mic_button": getattr(cfg, "bubble_mic_button", None) or True,
+                        "bubble_show_recording_timer": bool(getattr(cfg, "bubble_show_recording_timer", False)),
                         # theme sync. The renderer's useThemeSync hook
                         "theme_mode": getattr(cfg, "theme_mode", None) or "system",
                         "theme_preset": getattr(cfg, "theme_preset", None) or "default",

@@ -217,11 +217,10 @@ describe("bubble: live transcript preview (XA-6-2)", () => {
 // ── Stop button (XA-6-1) ────────────────────────────────────────────
 
 describe("bubble: in-bubble stop button (XA-6-1)", () => {
-	it("renders a stop button in recording mode by default", () => {
+	it("renders a stop button in recording mode", () => {
 		render(<Bubble />);
+		setBubbleState("recording");
 
-		// Default mode is "recording", the stop affordance renders
-		// independent of `always_visible` config.
 		const btn = screen.getByLabelText("Stop recording");
 		expect(btn).toBeTruthy();
 		expect(btn.tagName).toBe("BUTTON");
@@ -229,6 +228,7 @@ describe("bubble: in-bubble stop button (XA-6-1)", () => {
 
 	it("clicking the stop button calls toggleDictation IPC", () => {
 		render(<Bubble />);
+		setBubbleState("recording");
 
 		const btn = screen.getByLabelText("Stop recording");
 		act(() => {

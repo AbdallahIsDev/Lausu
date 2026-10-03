@@ -12,11 +12,13 @@ def test_new_bubble_fields_validate():
         {
             "bubble_click_to_toggle": True,
             "bubble_mic_button": False,
+            "bubble_show_recording_timer": True,
         }
     )
     assert errors == []
     assert validated.get("bubble_click_to_toggle") is True
     assert validated.get("bubble_mic_button") is False
+    assert validated.get("bubble_show_recording_timer") is True
 
 
 def test_new_bubble_fields_in_allowlist():
@@ -24,6 +26,7 @@ def test_new_bubble_fields_in_allowlist():
 
     assert "bubble_click_to_toggle" in IPC_CONFIG_ALLOWLIST
     assert "bubble_mic_button" in IPC_CONFIG_ALLOWLIST
+    assert "bubble_show_recording_timer" in IPC_CONFIG_ALLOWLIST
 
 
 def test_bubble_config_event_carries_relevant_subset():
@@ -52,6 +55,9 @@ def test_bubble_config_event_carries_relevant_subset():
                     "bubble_behavior": getattr(cfg, "bubble_behavior", "show_on_record"),
                     "bubble_click_to_toggle": getattr(cfg, "bubble_click_to_toggle", True),
                     "bubble_mic_button": getattr(cfg, "bubble_mic_button", True),
+                    "bubble_show_recording_timer": bool(
+                        getattr(cfg, "bubble_show_recording_timer", False)
+                    ),
                 },
             }
         )
@@ -62,6 +68,7 @@ def test_bubble_config_event_carries_relevant_subset():
         bubble_behavior = "always_visible"
         bubble_click_to_toggle = True
         bubble_mic_button = True
+        bubble_show_recording_timer = True
 
     bubble.on_config(_Cfg())
 
@@ -71,6 +78,8 @@ def test_bubble_config_event_carries_relevant_subset():
         "bubble_behavior",
         "bubble_click_to_toggle",
         "bubble_mic_button",
+        "bubble_show_recording_timer",
     }
     assert data["bubble_behavior"] == "always_visible"
     assert data["bubble_mic_button"] is True
+    assert data["bubble_show_recording_timer"] is True

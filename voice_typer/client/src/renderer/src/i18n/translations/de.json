@@ -600,7 +600,7 @@
 		"loadedViaHint": "Wie das Spracherkennungsmodell geladen wurde (gebündelt, heruntergeladen oder ein benutzerdefinierter Pfad)."
 	},
 	"settings": {
-		"apiUrlInvalid": "Gültige http(s)-URL eingeben",
+		"apiUrlInvalid": "Gültige https-URL eingeben",
 		"otherTabsResults": "Ergebnisse aus anderen Tabs",
 		"title": "Einstellungen",
 		"searchPlaceholder": "Einstellungen durchsuchen…",
@@ -756,6 +756,14 @@
 		"bubblePositionBottom": "Unten mittig",
 		"bubbleBehaviorShowOnRecord": "Bei Aufnahme anzeigen",
 		"bubbleBehaviorAlwaysVisible": "Immer sichtbar",
+		"bubbleBehaviorHidden": "Ausgeblendet",
+		"bubbleShowRecordingTimer": "Aufnahme-Timer",
+		"bubbleShowRecordingTimerInfo": "Zeigt die Aufnahmedauer (mm:ss) neben dem roten Punkt während der Aufnahme. Standardmäßig aus.",
+		"bubblePreview": "Blasen-Vorschau",
+		"bubblePreviewInfo": "So sieht die Blase in jedem Zustand aus. Der Aufnahme-Timer läuft hier live.",
+		"bubblePreviewIdle": "Inaktiv",
+		"bubblePreviewRecording": "Aufnahme",
+		"bubblePreviewTranscribing": "Transkription",
 		"description": "Passen Sie {appName} an Ihre Vorlieben an.",
 		"loading": "Einstellungen werden geladen…",
 		"saveFailedToast": "Einstellung konnte nicht gespeichert werden",
@@ -1616,7 +1624,8 @@
 		"stopRecordingAria": "Aufnahme beenden",
 		"dismissAria": "Blase schließen",
 		"transcriptPreviewAria": "Live-Transkript-Vorschau",
-		"livePreviewUnavailable": "Keine Live-Vorschau für diese Engine"
+		"livePreviewUnavailable": "Keine Live-Vorschau für diese Engine",
+		"recordingTimerAria": "Aufnahmedauer"
 	},
 	"errorBoundary": {
 		"title": "Etwas ist schiefgegangen",
@@ -2088,5 +2097,10 @@
 			"doneInDb": "Fertig | {count} Zeichen (in DB, Einfüge-Hotkey verwenden)",
 			"doneInClipboard": "Fertig | {count} Zeichen (in Zwischenablage)"
 		}
+	},
+	"computeDevice": {
+		"cpu": "CPU",
+		"gpu": "GPU",
+		"ariaLabel": "Rechengerät"
 	}
 }

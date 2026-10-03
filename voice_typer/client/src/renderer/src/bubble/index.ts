@@ -22,6 +22,8 @@ export {
 } from "./constants";
 // helpers, pure functions
 export { getBubbleAriaLabel, rmsToNorm, tf } from "./helpers";
+export { RecordingTimer } from "./RecordingTimer";
+export { TranscribingLabel } from "./TranscribingLabel";
 export { useAudioLevels } from "./useAudioLevels";
 export type { BubbleBridge, BubbleBridgeOff } from "./useBubbleBridge";
 // bridge, centralises all window.bubble IPC subscriptions into one

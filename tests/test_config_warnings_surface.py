@@ -225,7 +225,7 @@ class TestLoadResetsInvalidEnumFields:
         )
 
     def test_invalid_bubble_behavior_reset_to_default(self, isolated_config_dir: Path) -> None:
-        """Literal ``[\"show_on_record\", \"always_visible\"]``) must be"""
+        """Literal ``["show_on_record", "always_visible", "hidden"]``) must be"""
         config_file = isolated_config_dir / "config.json"
         config_file.write_text(
             json.dumps({"schema_version": 3, "bubble_behavior": "hover_only"}),
@@ -445,7 +445,7 @@ class TestEditorReloadFeedback:
             f"AP-25: tray.notify must fire when last_load_warnings is non-empty. Got calls: {tray.calls!r}"
         )
         title, message = tray.calls[0]
-        assert "warning" in message.lower(), f"AP-25: the tray notification must mention 'warning(s)'. Got: {message!r}"
+        assert "warning" in message.lower(), f"AP-25: the tray notification must mention 'warnings'. Got: {message!r}"
         assert "asr_backend" in message, (
             "AP-25: the tray notification must include the first warning "
             f"text (which should mention 'asr_backend'). Got: {message!r}"
