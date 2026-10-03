@@ -2,7 +2,11 @@
 # (checkout@v5, cache@v5, setup-node@v7, upload-artifact@v6, setup-uv@v7).
 # See docs/code-notes/ci-workflows.md
 
-# GATE STATUS — ENABLED (Phase 0-L validation via workflow_dispatch / workflow_call ONLY)
+# GATE STATUS — ENABLED
+# Trigger scope: push/PR runs ONLY the lightweight `smoke-cargo-check` job
+# (cargo fmt --check + cargo test). The 30-60 min bundle `build` job runs on
+# workflow_dispatch / workflow_call ONLY (gated at its own `if:`), so Phase
+# 0-L display-host validation stays a manual precondition before release.
 # PHASE 0-L 9-POINT GATE STATUS (all 9 must pass on BOTH X11 AND Wayland, both arches):
 #   [ ] 1. externalBin sidecar spawns via Tauri on X11 + Wayland
 #   [ ] 2. WS + bearer-token handshake works on X11 + Wayland
@@ -19,10 +23,12 @@
 name: Build Linux
 
 # Phase 0-L: Nuitka sidecar + native listener + Tauri bundle.
-# ENABLED for Phase 0-L validation — workflow_dispatch / workflow_call ONLY
-# (never push/PR). aarch64 cross-compiles via qemu-user-static (binfmt_misc
-# registers qemu-aarch64-static on the x86_64 runner). sign stays false —
-# Linux unsigned by design (ADR-0020 §13.3). See docs/code-notes/ci-workflows.md
+# ENABLED for Phase 0-L validation. The heavy bundle build runs on
+# workflow_dispatch / workflow_call ONLY (see the `build:` job `if:` below);
+# push/PR triggers exist solely to run the cheap smoke job. aarch64
+# cross-compiles via qemu-user-static (binfmt_misc registers
+# qemu-aarch64-static on the x86_64 runner). sign stays false - Linux
+# unsigned by design (ADR-0020 §13.3). See docs/code-notes/ci-workflows.md
 on:
   workflow_call:
     inputs:
@@ -53,7 +59,12 @@ on:
         required: false
         default: false
         type: boolean
-  # C-CI-4: NEVER enable push/PR triggers (if: true would fire 30-60 min builds).
+  # The push/PR triggers exist to run the cheap `smoke-cargo-check` job
+  # (cargo fmt --check + cargo test, see line 83). The expensive 30-60 min
+  # `build` job is gated OFF push/PR (line 232), so a PR touching the Rust
+  # host still gets its formatting + unit-test gate without triggering a
+  # bundle build. (C-CI-4's original harm — "would fire 30-60 min builds" —
+  # does not apply; that job never runs here.)
   push:
     branches: [main]
     paths:

@@ -321,7 +321,7 @@ def main(argv: list[str]) -> int:
         for violation in violations:
             log.error("violation: %s", violation)
         log.error(
-            "manifest integrity check FAILED (%d violation(s)), refusing to mark the build as release-ready.",
+            "manifest integrity check FAILED (%d violations), refusing to mark the build as release-ready.",
             len(violations),
         )
         return 1

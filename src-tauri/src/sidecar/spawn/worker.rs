@@ -21,9 +21,31 @@ use super::handshake_loop::{
 };
 use super::initialize_worker;
 
+/// Exit code the worker (`python -m voice_typer.worker` in dev, the
+/// frozen `lausu-worker` binary in release) uses when another worker
+/// already holds the single-instance lock. Mirrors
+/// `EXIT_DUPLICATE_INSTANCE` in `voice_typer/worker/__main__.py`; keep
+/// the two in lockstep.
+pub(crate) const WORKER_EXIT_DUPLICATE_INSTANCE: i32 = 3;
+
+/// True when a spawn error means "another worker is already running".
+/// Matches the dev-loop EOF spelling (`... (exit=3)`) and the release
+/// `Terminated` spelling (`... (code=Some(3))`); anything else (real
+/// crash, timeout, the `"shutdown"` sentinel) is a genuine failure.
+pub(crate) fn is_worker_duplicate_exit(err: &str) -> bool {
+    err.contains(&format!("(exit={WORKER_EXIT_DUPLICATE_INSTANCE})"))
+        || err.contains(&format!("(code=Some({WORKER_EXIT_DUPLICATE_INSTANCE}))"))
+}
+
 pub(crate) fn worker_shared_env(token: &str) -> Vec<(&'static str, String)> {
     vec![
         ("VOICE_TYPER_IPC_TOKEN", token.to_string()),
+        // Parent PID for the worker's orphan self-exit (if this host
+        // dies without reaping the worker, the worker notices the dead
+        // parent and shuts down instead of squatting the
+        // single-instance lock forever). Mirrors
+        // `PARENT_PID_ENV_VAR` in `voice_typer/worker/_parent_watch.py`.
+        ("VOICE_TYPER_PARENT_PID", std::process::id().to_string()),
         // Share the host's per-process session ID so the
         // worker's log lines correlate with the host + sidecar.
         (

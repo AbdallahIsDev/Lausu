@@ -351,6 +351,18 @@
 **Severity:** 🟢 Low
 
 ### BP-WF-13: volume restore() holds its lock through the fade (~150-200 ms ESC serialization)
+
+### GQ-L7: redundant memory fill in noise suppressor
+
+**What it is:** The noise suppressor (a filter that removes background noise) fills a memory buffer with zeros on every chunk of audio. This fill is unnecessary. The buffer is already zeroed. The wasted operation is so small (< 0.001ms) that no user would ever notice.
+
+**Gain vs trade-off:** Removing the redundant fill saves a tiny CPU operation per audio chunk. The code is clearer. But it is a trivial change that requires touching a working audio filter, risking a bug.
+
+**If we do it:** The audio pipeline runs 0.001ms faster per chunk. No user would notice. The code is slightly cleaner.
+
+**If we don't:** The audio pipeline wastes 0.001ms per chunk filling memory that's already zeroed. No user would notice.
+
+**My recommendation:** Leave as Won't Fix. The cost to fix approaches zero, but the benefit also approaches zero. If someone is already editing the noise suppressor for another reason, they can clean this up as a drive-by fix.
 **Status:** 🚫 Won't Fix (acknowledged in-code trade-off; ESC path serialization is bounded and rare)
 **Description:** `voice_typer/server/volume_ducker.py` Restore() runs the fade subprocess while holding self._lock, serializing concurrent volume operations for the fade duration. Partially documented in-code.
 **Fix (if reversed):** release before fade, re-acquire to publish state. Found by: W3-A5 (2026-09-04 BP session, Wave 3).

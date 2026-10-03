@@ -100,7 +100,7 @@ dependencies = [
     # `padtype='even'` fix we use in noise_suppressor.py.
     "scipy>=1.10,<2.0",
     # ADR-0023: PyAV is imported directly by media_ingest/decoder.py (local
-    # + remote HTTP(S) decode to 16 kHz mono PCM). It was previously only a
+    # + remote HTTPS decode to 16 kHz mono PCM). It was previously only a
     # transitive dep of faster-whisper; the direct import must be declared.
     # The <19 cap guards against PyAV's FFmpeg-major upgrade waves.
     # <18: av 17/18 Cython .py shims trip Nuitka's optimizer

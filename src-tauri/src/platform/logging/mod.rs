@@ -24,7 +24,7 @@ pub(crate) use rotating::RotatingFileWriter;
 // `redact_pii` / `RotatingFileWriter` are production re-exports above.
 #[cfg(test)]
 pub(crate) use combined::{
-    is_debug_env_truthy, is_truthy_env_var, is_truthy_value, CombinedLogger,
+    format_terminal_line, is_debug_env_truthy, is_truthy_env_var, is_truthy_value, CombinedLogger,
 };
 #[cfg(test)]
 pub(crate) use early::{EarlyLogger, EARLY_LOGGER_HANDLE};

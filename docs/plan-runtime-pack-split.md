@@ -830,7 +830,7 @@ them and corrected the claims:
 | Code-signing pipeline | `tauri-windows-build.yml` (4 steps) | Extend to sign the worker exe (5th binary). | ✅ exists, needs extension |
 | Cloud engines | `cloud_engines.py`, `llm_polish.py` | Core works without the pack (verified: zero torch/ctranslate2/onnxruntime imports). | ✅ verified |
 | Mic test service | `service/microphone_test.py` | Degraded mode when pack is absent (RMS only, no VAD). | ✅ verified |
-| NSIS installer config | `tauri.windows-x86_64.conf.json` | "Include offline engine pack" checkbox requires a CUSTOM .nsi template, Tauri v2's `bundle.windows.nsis` config has no checkbox option. | ⚠️ needs custom .nsi |
+| NSIS installer config | `tauri.windows-x86_64.conf.json` + `scripts/windows/installer-hooks.nsh` | "Include offline engine pack" checkbox via custom `Page custom` + nsDialogs (Tauri has no Components page; a Section would expose Tauri's Install section). Wired as `NSIS_HOOK_POSTINSTALL` → `installer-state.json`. | ✅ done 2026-09-30 |
 
 ### 9.1 The "three allowlists in lockstep" claim is understated
 
@@ -1057,15 +1057,19 @@ Update `tauri-build.yml` download steps in lockstep.
 > in ``transcribe_offline`` + mic-test auto-transcribe). Phase 2c CI
 > gates are PRE-WIRED (worker build + signing + torch-free + size gates +
 > artifact uploads: all conditional on ``build_worker_*.sh``). The
-> slim-core BUILD (sidecar without ML libs) + custom .nsi pack checkbox
-> + full-offline artifact remain BLOCKED: the slim-core server still
-> imports the ML stack in 10 files (vad.py, transcription.py,
-> parakeet_engine.py, qwen_onnx_model.py, …), so slimming the sidecar
-> before the runtime handoff is verified would break the running app —
-> complete the main.rs worker-spawn trigger + transcribe_offline
-> forwarding first (see "Remaining work" below). C-CI-11 (5th binary)
-> + C-CI-13 (worker binary name) updated 2026-08-15 by the user's
-> direction; (d) the C-DATA-1 rule-text extension, DONE
+> slim-core BUILD (sidecar without ML libs) + full-offline artifact remain
+> BLOCKED on the runtime handoff: the slim-core server still imports the
+> ML stack in 10 files (vad.py, transcription.py, parakeet_engine.py,
+> qwen_onnx_model.py, …), so slimming the sidecar before the runtime
+> handoff is verified would break the running app — complete the main.rs
+> worker-spawn trigger + transcribe_offline forwarding first (see
+> "Remaining work" below). The custom installer checkbox is DONE
+> 2026-09-30: `scripts/windows/installer-hooks.nsh` shows a custom-page
+> "Include offline engine pack" checkbox (default ticked) and writes
+> `installer-state.json` via Tauri's real `NSIS_HOOK_POSTINSTALL` hook
+> (the previous `customInstall`-only name was never invoked by Tauri v2).
+> C-CI-11 (5th binary) + C-CI-13 (worker binary name) updated 2026-08-15
+> by the user's direction; (d) the C-DATA-1 rule-text extension, DONE
 > 2026-08-15: the USER added category (4) "offline-pack download from
 > GitHub Releases" to C-DATA-1 in AGENTS.md, so the pack download is
 > explicitly permitted whether or not it is consent-gated (see
@@ -1120,12 +1124,18 @@ Update `tauri-build.yml` download steps in lockstep.
    - **USER action (DONE 2026-08-15):** C-DATA-1 in AGENTS.md extended
      with category (4): offline-pack download from GitHub Releases.
 6. **Phase 2c: slim core build.** See §4, §11.
-   - Sidecar build without ML libraries.
-   - Custom .nsi template for "Include offline engine pack" checkbox.
-   - Full-offline artifact (slim core + pack bundled).
+   - Sidecar build without ML libraries. (still open)
+   - Custom installer checkbox for "Include offline engine pack" —
+     **DONE 2026-09-30** (`scripts/windows/installer-hooks.nsh` custom
+     page + `NSIS_HOOK_POSTINSTALL` → `installer-state.json`).
+   - Full-offline artifact (slim core + pack bundled). (still open)
    - Worker exe signing added to CI (Windows + macOS).
    - New artifact names (C-CI-13).
    - **USER action:** update C-CI-11 in AGENTS.md (5th binary).
+   - Publish path: `.github/workflows/runtime-pack-publish.yml` is wired
+     (manual dispatch, draft default). **No pack asset exists on Releases
+     yet** (verified 2026-09-30: only v1.0.0 / v1.1.0 installers). First
+     real pack requires a live dispatch (build ~90–110 min).
 7. **Phase 2d: launch-time existence check + degradation matrix.** See §8.10.
    - Cheap existence check on launch.
    - Background checksum check.

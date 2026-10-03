@@ -153,3 +153,10 @@
   RMDir /r "$APPDATA\lausu"
   DetailPrint "[lausu-uninstall] Removed user data directory: $APPDATA\lausu"
 !macroend
+
+; Tauri v2 invokes ONLY NSIS_HOOK_POSTUNINSTALL (crates/tauri-bundler
+; installer.nsi). customUnInstall is the implementation body kept as a
+; thin alias so older references keep resolving.
+!macro NSIS_HOOK_POSTUNINSTALL
+  !insertmacro customUnInstall
+!macroend

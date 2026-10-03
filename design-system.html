@@ -24,17 +24,17 @@
 --gray-800:oklch(0.187 0 271.152);
 --gray-900:oklch(0.168 0 0);
 --gray-950:oklch(0.141 0.005 285.823);
---brand-50:oklch(0.97 0.014 254.604);
---brand-100:oklch(0.94 0.05 264);
---brand-200:oklch(0.87 0.11 264);
---brand-300:oklch(0.76 0.16 264);
---brand-400:oklch(0.63 0.21 264);
---brand-500:oklch(0.488 0.243 264.376);
---brand-600:oklch(0.424 0.199 265.638);
---brand-700:oklch(0.36 0.17 266);
---brand-800:oklch(0.3 0.14 266);
---brand-900:oklch(0.25 0.11 266);
---brand-950:oklch(0.2 0.09 266);
+--accent-50:oklch(0.97 0.014 254.604);
+--accent-100:oklch(0.94 0.05 264);
+--accent-200:oklch(0.87 0.11 264);
+--accent-300:oklch(0.76 0.16 264);
+--accent-400:oklch(0.63 0.21 264);
+--accent-500:oklch(0.488 0.243 264.376);
+--accent-600:oklch(0.424 0.199 265.638);
+--accent-700:oklch(0.36 0.17 266);
+--accent-800:oklch(0.3 0.14 266);
+--accent-900:oklch(0.25 0.11 266);
+--accent-950:oklch(0.2 0.09 266);
 }
 /* ── Semantic tokens — light scheme (mirrors index.css :root).
    Generic, location-free names; no aliases, no duplicate values. ── */
@@ -47,10 +47,10 @@
 --foreground:var(--gray-950);
 --text-secondary:var(--gray-500);
 --muted-foreground:var(--gray-500);
---primary:var(--brand-500);
---primary-foreground:var(--brand-50);
---accent:var(--brand-500);
---accent-foreground:var(--brand-50);
+--primary:var(--accent-500);
+--primary-foreground:var(--accent-50);
+--accent:var(--accent-500);
+--accent-foreground:var(--accent-50);
 --accent-soft:oklch(0.424 0.199 265.638 / 0.1);
 --accent-muted:oklch(0.546 0.245 262.881 / 0.4);
 --destructive:oklch(0.55 0.25 27);
@@ -60,12 +60,12 @@
 --info:oklch(0.62 0.14 240);
 --border:oklch(0 0 0);
 --input:oklch(0.62 0.004 286.32);
---ring:var(--brand-500);
+--ring:var(--accent-500);
 --chart-1:oklch(0.809 0.105 251.813);
 --chart-2:oklch(0.623 0.214 259.815);
 --chart-3:oklch(0.546 0.245 262.881);
---chart-4:var(--brand-500);
---chart-5:var(--brand-600);
+--chart-4:var(--accent-500);
+--chart-5:var(--accent-600);
 --radius:0.625rem;
 }
 /* ── Semantic tokens — dark scheme (mirrors index.css .dark). Surfaces
@@ -79,10 +79,10 @@
 --foreground:var(--gray-50);
 --text-secondary:var(--gray-300);
 --muted-foreground:var(--gray-400);
---primary:var(--brand-600);
---primary-foreground:var(--brand-50);
---accent:var(--brand-600);
---accent-foreground:var(--brand-50);
+--primary:var(--accent-600);
+--primary-foreground:var(--accent-50);
+--accent:var(--accent-600);
+--accent-foreground:var(--accent-50);
 --accent-soft:oklch(0.424 0.199 265.638 / 0.15);
 --accent-muted:oklch(0.546 0.245 262.881 / 0.6);
 --success:oklch(0.7 0.16 149);
@@ -111,7 +111,7 @@ a{color:var(--primary)}
 
 header.topbar{position:sticky;top:0;z-index:20;
  background:color-mix(in oklch,var(--background) 92%,transparent);
- backdrop-filter:blur(8px);border-bottom:1px solid color-mix(in oklch,var(--border) 10%,transparent)}
+ backdrop-filter:blur(8px);border-bottom:1px solid color-mix(in oklch,var(--border) 8%,transparent)}
 .topbar-inner{max-width:1160px;margin:0 auto;padding:14px 24px;
  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .brand{display:flex;flex-direction:column;gap:2px}
@@ -122,13 +122,13 @@ section.doc{margin-top:40px;display:flex;flex-direction:column;gap:16px}
 .sec-head{display:flex;flex-direction:column;gap:4px}
 .sec-head h2{font-size:1rem;font-weight:650}
 .sec-head p{font-size:.8125rem;color:var(--text-secondary)}
-.hr{height:1px;background:color-mix(in oklch,var(--border) 10%,transparent);border:0;margin:0}
+.hr{height:1px;background:color-mix(in oklch,var(--border) 8%,transparent);border:0;margin:0}
 .note{font-size:.75rem;color:var(--muted-foreground)}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 
 /* ── Mode switch (reuse segmented look) ── */
 .mode-switch{display:inline-flex;position:relative;gap:0;
- border:1px solid color-mix(in oklch,var(--border) 10%,transparent);
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
  background:var(--surface-subtle);border-radius:9999px;padding:3px}
 .mode-switch button{border:0;background:transparent;color:var(--muted-foreground);
  font:inherit;font-size:.75rem;font-weight:550;padding:6px 14px;border-radius:9999px;
@@ -141,12 +141,12 @@ section.doc{margin-top:40px;display:flex;flex-direction:column;gap:16px}
 #compare{display:none}
 body.compare #single{display:none}
 body.compare #compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
-.scope{min-width:0;border:1px solid color-mix(in oklch,var(--border) 10%,transparent);
+.scope{min-width:0;border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
  border-radius:var(--radius-lg);padding:20px;background:var(--background);color:var(--foreground)}
 .scope-label{position:sticky;top:64px;z-index:5;display:inline-flex;align-items:center;gap:6px;
  font-size:.7rem;font-weight:650;letter-spacing:.08em;text-transform:uppercase;
  color:var(--muted-foreground);background:var(--surface-subtle);
- border:1px solid color-mix(in oklch,var(--border) 10%,transparent);
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
  border-radius:9999px;padding:4px 12px;margin-bottom:12px}
 .scope-label::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--primary)}
 @media (max-width:960px){body.compare #compare{grid-template-columns:1fr}}
@@ -155,7 +155,7 @@ body.compare #compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-
 .tok-group h3{font-size:.75rem;font-weight:650;letter-spacing:.07em;text-transform:uppercase;color:var(--muted-foreground)}
 .tok-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
 .tok{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:var(--radius-lg);
- border:1px solid color-mix(in oklch,var(--border) 10%,transparent);background:var(--surface-subtle)}
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);background:var(--surface-subtle)}
 .chip{height:44px;border-radius:var(--radius-lg);border:1px solid color-mix(in oklch,var(--border) 12%,transparent)}
 .tok-name{font-size:.78rem;font-weight:600}
 .tok-val{font-size:.68rem;color:var(--muted-foreground);word-break:break-all;
@@ -164,7 +164,7 @@ body.compare #compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-
 
 /* ── Typography ── */
 .type-card{display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:var(--radius-lg);
- border:1px solid color-mix(in oklch,var(--border) 10%,transparent);background:var(--surface-subtle)}
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);background:var(--surface-subtle)}
 .type-row{display:grid;grid-template-columns:180px 1fr;gap:16px;align-items:baseline}
 .type-row .meta{font-size:.7rem;color:var(--muted-foreground);
  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
@@ -179,7 +179,7 @@ body.compare #compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-
 /* ── Radius + border scale ── */
 .radius-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
 .radius-item{display:flex;flex-direction:column;gap:8px;align-items:center;padding:14px 8px;
- border:1px solid color-mix(in oklch,var(--border) 10%,transparent);
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
  background:var(--surface-subtle);font-size:.7rem;color:var(--muted-foreground);text-align:center}
 .radius-box{width:64px;height:44px;background:var(--primary);opacity:.9}
 .borders{display:flex;gap:12px;flex-wrap:wrap}
@@ -200,7 +200,7 @@ body.compare #compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-
 .btn-default:hover{background:color-mix(in oklch,var(--primary) 80%,transparent)}
 .btn-secondary{background:var(--muted);color:var(--foreground)}
 .btn-secondary:hover{background:color-mix(in oklch,var(--muted),var(--foreground) 5%)}
-.btn-outline{border-color:color-mix(in oklch,var(--border) 5%,transparent);background:var(--background)}
+.btn-outline{border-color:color-mix(in oklch,var(--border) 8%,transparent);background:var(--background)}
 .btn-outline:hover{background:var(--muted);color:var(--foreground)}
 :is(.dark,.tokens-dark) .btn-outline{background:transparent}
 :is(.dark,.tokens-dark) .btn-outline:hover{background:color-mix(in oklch,var(--input) 30%,transparent)}
@@ -225,7 +225,7 @@ body.compare #compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-
 .btn-icon-xs{width:24px;height:24px;padding:0}
 .btn-icon-sm{width:32px;height:32px;padding:0}
 .btn-icon-lg{width:40px;height:40px;padding:0}
-.btn-clearall{background:transparent;border-color:color-mix(in oklch,var(--border) 5%,transparent);color:var(--muted-foreground);gap:8px}
+.btn-clearall{background:transparent;border-color:color-mix(in oklch,var(--border) 8%,transparent);color:var(--muted-foreground);gap:8px}
 .btn-clearall:hover{background:var(--destructive);color:var(--destructive-foreground);border-color:var(--destructive)}
 .btn .glyph{font-size:.9em;line-height:1}
 /* ── Input / textarea ── */
@@ -241,7 +241,7 @@ body.compare #compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-
  box-shadow:0 0 0 1px color-mix(in oklch,var(--destructive) 20%,transparent)}
 .textarea{height:auto;min-height:84px;padding:10px 12px;resize:vertical}
 .select-trigger{display:inline-flex;align-items:center;justify-content:space-between;gap:8px;
- height:32px;min-width:150px;border-radius:9999px;border:1px solid color-mix(in oklch,var(--border) 5%,transparent);
+ height:32px;min-width:150px;border-radius:9999px;border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
  background:var(--background);padding:0 12px;font-size:.8125rem;color:var(--muted-foreground);cursor:pointer}
 .select-trigger:hover{color:var(--foreground)}
 
@@ -288,10 +288,10 @@ kbd.in-tooltip{background:color-mix(in oklch,var(--foreground) 10%,transparent);
 
 /* ── SegmentedControl ── */
 .seg{position:relative;display:inline-flex;align-items:center;
- border:1px solid color-mix(in oklch,var(--border) 10%,transparent);
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
  background:var(--surface-subtle);border-radius:var(--radius-lg);padding:2px}
 .seg-ind{position:absolute;top:2px;bottom:2px;left:0;width:0;z-index:0;
- background:var(--background);border:1px solid color-mix(in oklch,var(--border) 10%,transparent);
+ background:var(--background);border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
  border-radius:var(--radius-lg);transition:left .15s ease,width .15s ease;box-sizing:border-box}
 .seg-btn{position:relative;z-index:1;border:0;background:transparent;cursor:pointer;
  color:var(--muted-foreground);font-family:inherit;font-size:.8125rem;font-weight:500;
@@ -304,13 +304,13 @@ kbd.in-tooltip{background:color-mix(in oklch,var(--foreground) 10%,transparent);
 .seg.pill .seg-btn[aria-checked="true"]{background:var(--primary);color:var(--primary-foreground)}
 
 /* ── Cards / banner / skeleton ── */
-.card{border:1px solid color-mix(in oklch,var(--border) 10%,transparent);
+.card{border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
  background:var(--surface-subtle);border-radius:var(--radius-lg);padding:16px;
  display:flex;flex-direction:column;gap:8px}
 .card h4{margin:0;font-size:.875rem;font-weight:600;color:var(--foreground)}
 .card p{font-size:.8125rem;color:var(--text-secondary)}
 .banner{display:flex;align-items:center;gap:12px;
- border:1px solid color-mix(in oklch,var(--border) 10%,transparent);
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
  background:var(--surface-subtle);border-radius:var(--radius-lg);padding:12px 14px}
 .banner .b-icon{flex-shrink:0;color:var(--muted-foreground);font-size:1rem}
 .banner .b-text{flex:1;font-size:.8125rem;color:var(--foreground)}
@@ -368,7 +368,7 @@ kbd.in-tooltip{background:color-mix(in oklch,var(--foreground) 10%,transparent);
  background:color-mix(in oklch,#000 45%,transparent);padding:28px 16px;
  display:flex;align-items:center;justify-content:center}
 .dlg{width:min(400px,100%);background:var(--surface);color:var(--foreground);
- border:1px solid color-mix(in oklch,var(--border) 10%,transparent);
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
  border-radius:var(--radius-lg);padding:22px;box-shadow:0 16px 48px rgb(0 0 0 / .3);
  display:flex;flex-direction:column;gap:16px;animation:scaleIn .16s cubic-bezier(.16,1,.3,1) both}
 .dlg h3{font-size:1rem;font-weight:650}
@@ -378,14 +378,14 @@ kbd.in-tooltip{background:color-mix(in oklch,var(--foreground) 10%,transparent);
 .btn-dialog-cancel:hover{background:color-mix(in oklch,var(--foreground) 5%,transparent);color:var(--foreground)}
 /* ── Focus demos ── */
 .focus-card{display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:var(--radius-lg);
- border:1px solid color-mix(in oklch,var(--border) 10%,transparent);background:var(--surface-subtle)}
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);background:var(--surface-subtle)}
 .focus-card .lbl{font-size:.7rem;font-weight:650;letter-spacing:.06em;
  text-transform:uppercase;color:var(--muted-foreground)}
 
 /* ── Motion ── */
 .motion-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
 .motion-item{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:var(--radius-lg);
- border:1px solid color-mix(in oklch,var(--border) 10%,transparent);background:var(--surface-subtle)}
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);background:var(--surface-subtle)}
 .motion-item .m-name{font-size:.78rem;font-weight:600}
 .motion-item .m-meta{font-size:.66rem;color:var(--muted-foreground);
  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all}
@@ -401,7 +401,7 @@ kbd.in-tooltip{background:color-mix(in oklch,var(--foreground) 10%,transparent);
 .anim-scale-in{animation:scaleIn .16s cubic-bezier(.16,1,.3,1) both}
 .glow-demo{position:relative}
 .glow-demo::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
- opacity:.5;box-shadow:0 0 32px color-mix(in oklch,var(--destructive) 40%,transparent);
+ opacity:.5;box-shadow:0 0 32px color-mix(in oklch,var(--primary) 40%,transparent);
  animation:glowPulse 2.5s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){
  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
@@ -410,13 +410,13 @@ kbd.in-tooltip{background:color-mix(in oklch,var(--foreground) 10%,transparent);
 /* ── Theme presets ── */
 .preset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
 .preset{display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--radius-lg);
- border:1px solid color-mix(in oklch,var(--border) 10%,transparent);background:var(--surface-subtle);
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);background:var(--surface-subtle);
  font-size:.8rem}
 .preset .sw{width:26px;height:26px;border-radius:50%;flex-shrink:0;
  border:1px solid color-mix(in oklch,var(--border) 15%,transparent)}
 
 footer.doc-footer{margin-top:56px;padding-top:20px;
- border-top:1px solid color-mix(in oklch,var(--border) 10%,transparent);
+ border-top:1px solid color-mix(in oklch,var(--border) 8%,transparent);
  display:flex;flex-direction:column;gap:6px;font-size:.72rem;color:var(--muted-foreground)}
 footer.doc-footer code{color:var(--text-secondary)}
 </style>
@@ -460,17 +460,17 @@ const GROUPS=[
 ["--gray-950","oklch(0.141 0.005 285.823)","oklch(0.141 0.005 285.823)","950 darkest — primary text (light)"]
 ]],
 ["Palette — brand (brand 50→950)",[
-["--brand-50","oklch(0.97 0.014 254.604)","oklch(0.97 0.014 254.604)","50 — text on brand fills"],
-["--brand-100","oklch(0.94 0.05 264)","oklch(0.94 0.05 264)","100 — tint"],
-["--brand-200","oklch(0.87 0.11 264)","oklch(0.87 0.11 264)","200 — tint"],
-["--brand-300","oklch(0.76 0.16 264)","oklch(0.76 0.16 264)","300 — tint"],
-["--brand-400","oklch(0.63 0.21 264)","oklch(0.63 0.21 264)","400 — tint"],
-["--brand-500","oklch(0.488 0.243 264.376)","oklch(0.488 0.243 264.376)","500 — brand, light scheme"],
-["--brand-600","oklch(0.424 0.199 265.638)","oklch(0.424 0.199 265.638)","600 — brand, dark scheme"],
-["--brand-700","oklch(0.36 0.17 266)","oklch(0.36 0.17 266)","700 — shade"],
-["--brand-800","oklch(0.3 0.14 266)","oklch(0.3 0.14 266)","800 — shade"],
-["--brand-900","oklch(0.25 0.11 266)","oklch(0.25 0.11 266)","900 — shade"],
-["--brand-950","oklch(0.2 0.09 266)","oklch(0.2 0.09 266)","950 — shade"]
+["--accent-50","oklch(0.97 0.014 254.604)","oklch(0.97 0.014 254.604)","50 — text on brand fills"],
+["--accent-100","oklch(0.94 0.05 264)","oklch(0.94 0.05 264)","100 — tint"],
+["--accent-200","oklch(0.87 0.11 264)","oklch(0.87 0.11 264)","200 — tint"],
+["--accent-300","oklch(0.76 0.16 264)","oklch(0.76 0.16 264)","300 — tint"],
+["--accent-400","oklch(0.63 0.21 264)","oklch(0.63 0.21 264)","400 — tint"],
+["--accent-500","oklch(0.488 0.243 264.376)","oklch(0.488 0.243 264.376)","500 — brand, light scheme"],
+["--accent-600","oklch(0.424 0.199 265.638)","oklch(0.424 0.199 265.638)","600 — brand, dark scheme"],
+["--accent-700","oklch(0.36 0.17 266)","oklch(0.36 0.17 266)","700 — shade"],
+["--accent-800","oklch(0.3 0.14 266)","oklch(0.3 0.14 266)","800 — shade"],
+["--accent-900","oklch(0.25 0.11 266)","oklch(0.25 0.11 266)","900 — shade"],
+["--accent-950","oklch(0.2 0.09 266)","oklch(0.2 0.09 266)","950 — shade"]
 ]],
 ["Surfaces",[
 ["--background","oklch(1 0 0)","oklch(0.187 0 271.152)","Page canvas (merges old --bg / --surface-page)"],
@@ -492,7 +492,7 @@ const GROUPS=[
 ["--accent-muted","oklch(0.546 0.245 262.881 / 0.4)","oklch(0.546 0.245 262.881 / 0.6)","Stronger brand wash"],
 ["--ring","oklch(0.488 0.243 264.376)","oklch(0.552 0.016 285.938)","Focus ring: ring-1, full opacity (C-FOCUS-2/5)"],
 ["--input","oklch(0.62 0.004 286.32)","oklch(0.52 0.004 286.32)","Input fills, switch track"],
-["--border","oklch(0 0 0)","oklch(1 0 0)","Pure b/w; consumers add alpha (/5,/10,/15)"]
+["--border","oklch(0 0 0)","oklch(1 0 0)","Pure b/w; consumers add alpha (/8 default, /10 toasts + active nav, /15 keycaps)"],
 ]],
 ["Status",[
 ["--success","oklch(0.62 0.17 149)","oklch(0.7 0.16 149)","bg-success, toast icons"],
@@ -541,13 +541,14 @@ function renderRadius(){
   ["sm","4px","compact exemption: 16px checkbox only (rounded-lg would render it circular)"]];
  const boxes=radii.map(([n,px,note])=>`<div class="radius-item"><span class="radius-box" style="border-radius:${n==="full"?"9999px":n==="sm"?"4px":px}"></span>
   <span><strong>rounded-${n}</strong> · ${px}<br>${note}</span></div>`).join("");
- const borders=[[ "/5","color-mix(in oklch,var(--border) 5%,transparent)","button outlines, Clear All"],
-  ["/10","color-mix(in oklch,var(--border) 10%,transparent)","cards, dialogs, segmented control"],
+ const borders=[[ "/5","color-mix(in oklch,var(--border) 5%,transparent)","control FILLS only (bg-border/5) — never a border"],
+  ["/8","color-mix(in oklch,var(--border) 8%,transparent)","DEFAULT: cards, panels, dividers, chips, dialogs, track borders"],
+  ["/10","color-mix(in oklch,var(--border) 10%,transparent)","exceptions: toasts, active sidebar row"],
   ["/15","color-mix(in oklch,var(--border) 15%,transparent)","keycaps, checkboxes"]]
   .map(([n,v,use])=>`<div class="border-swatch" style="border:1px solid ${v}">border-border${n} · ${use}</div>`).join("");
  return sec(`<h2>Radius & borders</h2><p>STANDARDIZED: every non-circular control and panel uses <code>rounded-lg</code> (10px, <code>--radius: 0.625rem</code>),
   including buttons and inputs. Naturally circular elements (radio, switch, pills, icon discs) keep <code>rounded-full</code>; the 16px checkbox keeps <code>rounded-sm</code>.
-  Border token is pure black/white — alpha always comes from the consumer, never the token.</p>`,
+  Border token is pure black/white — alpha always comes from the consumer, never the token. Weight is a fixed scale by ROLE (C-DESIGN-2): <strong>8%</strong> default (cards, panels, dividers, chips, dialogs, control-track borders) · <strong>10%</strong> toasts + the active sidebar row · <strong>15%</strong> keycaps/checkboxes · <strong>20%</strong> dashed frames; <strong>5% is a FILL only</strong> (<code>bg-border/5</code> buttons, <code>bg-border/10</code> tracks).</p>`,
  `<div class="radius-grid">${boxes}</div><div class="borders">${borders}</div>`);
 }
 function renderButtons(){
@@ -636,7 +637,7 @@ function renderSegmented(){
  <p class="note">Left: tabs variant (click to switch). Right: pill variant (fixed width/height indicator).</p></div>`);
 }
 function renderCards(){
- return sec(`<h2>Cards, banners & skeletons</h2><p>Card = <code>rounded-lg border border-border/10 bg-surface-subtle</code>.
+ return sec(`<h2>Cards, banners & skeletons</h2><p>Card = <code>rounded-lg border border-border/8 bg-surface-subtle</code>.
   The "no model" state is a compact in-flow banner, not a centered empty block (C-MODELS-5). Skeletons mirror real layout (C-SKELETON-1).</p>`,
  `<div class="stack">
   <div class="banner" role="status" data-banner>
@@ -657,7 +658,7 @@ function renderCards(){
 function renderNav(){
  const row=(cls,label,tag)=>`<button type="button" class="nav-row ${cls}"><span class="dot" aria-hidden="true"></span>${label}<span class="nav-state-tag">${tag}</span></button>`;
  return sec(`<h2>Sidebar nav states</h2><p>Consistent hierarchy (C-UI-3 / C-SIDEBAR-9): idle = muted text only · hover = <code>foreground/5</code> + primary text ·
-  active <em>leaf</em> = <code>bg-surface</code> + border/10 · active <em>parent</em> = stronger text only, never a background.</p>`,
+  active <em>leaf</em> = <code>bg-surface</code> + <code>border-border/10</code> (deliberately one step above the 8% card border) · active <em>parent</em> = stronger text only, never a background.</p>`,
  `<div class="nav-demo">
   ${row("","Home","idle")}
   ${row("is-hover","History","hover")}
@@ -684,7 +685,7 @@ function renderStatus(){
   </div></div>`);
 }
 function renderDialog(){
- return sec(`<h2>Dialog (ConfirmDialog)</h2><p>Surface = <code>--surface</code> + <code>border-border/10</code>, enters with scaleIn 160ms.
+ return sec(`<h2>Dialog (ConfirmDialog)</h2><p>Surface = <code>--surface</code> + <code>border-border/8</code>, enters with scaleIn 160ms.
   Cancel is tertiary: <code>text-muted-foreground</code> → hover foreground/5 + primary text. Confirm (destructive) is solid red + near-white label.</p>`,
  `<div class="dlg-demo"><div class="dlg" role="alertdialog" aria-label="Demo confirm dialog">
   <h3>Delete history?</h3>
@@ -716,7 +717,7 @@ function renderMotion(){
   ["fadeIn","animate-fade-in","180ms ease-out","In-place content swap","anim-fade-in"],
   ["scaleIn","animate-scale-in","160ms cubic-bezier(.16,1,.3,1)","Modal/dialog enter","anim-scale-in"],
   ["slideUp","animate-slide-up","220ms cubic-bezier(.16,1,.3,1)","Snackbar slide-up","anim-fade-in"],
-  ["glowPulse","animate-glow-pulse","2.5s ease-in-out infinite","Mic idle glow (compositor-only)","glow-demo"],
+  ["glowPulse","animate-glow-pulse","2.5s ease-in-out infinite","Mic idle glow in brand accent (compositor-only)","glow-demo"],
   ["pulse / skeleton","animate-pulse","2s ease-in-out infinite","Skeleton shimmer",""]
  ].map(([name,cls,meta,why,extra])=>`<div class="motion-item">
   <span class="m-name">${name}</span><span class="m-meta">${cls} · ${meta}</span>

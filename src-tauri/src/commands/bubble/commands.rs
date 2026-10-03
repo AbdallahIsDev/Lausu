@@ -56,8 +56,6 @@ pub async fn bubble_set_position(
         .get_webview_window("bubble")
         .ok_or(LausuError::Host("bubble window not found".into()))?;
     let monitor = resolve_cursor_monitor(&app)?;
-    // Programmatic placement: suppress Moved-event persistence before the move.
-    crate::commands::bubble::suppress_persist_for_window();
     // Physical work area (bounds minus taskbar/dock).
     let wa = monitor.work_area();
     let wa_rect = RectPx::new(wa.position.x, wa.position.y, wa.size.width, wa.size.height);

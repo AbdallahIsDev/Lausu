@@ -28,7 +28,7 @@ EN_FILE = TRANSLATIONS_DIR / "en.json"
 # Brand/product names used ONLY for actual Settings/Models labels
 # (e.g. a provider toggle for a currently supported backend) stay as-is.
 # Generic disclosure/license copy must use "cloud speech recognition
-# provider(s)" and must NOT enumerate vendor names (dynamic providers).
+# providers" and must NOT enumerate vendor names (dynamic providers).
 # Technical terms (API, URL, GPU, VRAM) stay as-is in most locales.
 TRANSLATIONS: dict[str, dict[str, str]] = {
     "ar": {

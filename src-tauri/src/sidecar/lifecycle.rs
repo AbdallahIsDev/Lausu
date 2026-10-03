@@ -151,6 +151,20 @@ pub(crate) fn on_quit_app(app_handle: &tauri::AppHandle) {
             "[QUIT] quit_app event received: setting shutting_down + exiting host (tray Quit → app.exit)"
         );
     }
+    // Chromium logs `Failed to unregister class Chrome_WidgetWin_0
+    // (Error 1412)` when the process exits with live HWNDs: AtExit
+    // class-unregistration then races still-alive windows (upstream
+    // Chromium noise, harmless but alarming). Destroying the webview
+    // windows first leaves no window of that class alive at exit.
+    for (label, window) in app_handle.webview_windows() {
+        if let Err(e) = window.destroy() {
+            log::debug!(
+                "[QUIT] webview window destroy failed on quit (label={}, best-effort): {}",
+                label,
+                e
+            );
+        }
+    }
     app_handle.exit(0);
 }
 

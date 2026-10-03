@@ -692,16 +692,16 @@ fn test_worker_started_relay_frame_port_u16_max() {
 
 // ── worker_shared_env (worker env contract) ────────────────────────
 //
-// BOTH worker spawn paths (release + dev) pass the same three explicit
+// BOTH worker spawn paths (release + dev) pass the same four explicit
 // env pairs after `.env_clear()` + the OS-required allowlist. A missing
 // or renamed pair breaks the worker SILENTLY from the host's view (the
 // Python side refuses to start without the token, EXIT_NO_TOKEN; a
 // wrong config dir changes which `fast_startup` / log location the
-// worker reads).
+// worker reads; a missing parent pid disables the orphan self-exit).
 
-/// The worker env contract is exactly the bearer token + the session
-/// id + the config dir, in the documented order, with the token
-/// forwarded verbatim.
+/// The worker env contract is exactly the bearer token + the parent
+/// pid + the session id + the config dir, in the documented order,
+/// with the token forwarded verbatim.
 #[test]
 fn test_worker_shared_env_carries_the_worker_contract() {
     let envs = worker_shared_env("vt-test-token");
@@ -710,10 +710,11 @@ fn test_worker_shared_env_carries_the_worker_contract() {
         names,
         vec![
             "VOICE_TYPER_IPC_TOKEN",
+            "VOICE_TYPER_PARENT_PID",
             "VOICE_TYPER_SESSION_ID",
             "VOICE_TYPER_CONFIG_DIR"
         ],
-        "the worker env contract is exactly token + session id + config dir, in order"
+        "the worker env contract is exactly token + parent pid + session id + config dir, in order"
     );
     let token = envs
         .iter()
@@ -723,6 +724,24 @@ fn test_worker_shared_env_carries_the_worker_contract() {
         token,
         Some("vt-test-token"),
         "the per-launch bearer token must be forwarded verbatim"
+    );
+}
+
+/// The parent-pid pair must be this process's own pid (the worker
+/// watches it and self-exits when it dies, freeing the
+/// single-instance lock for the next session).
+#[test]
+fn test_worker_shared_env_parent_pid_is_own_pid() {
+    let envs = worker_shared_env("vt-test-token");
+    let parent = envs
+        .iter()
+        .find(|(k, _)| *k == "VOICE_TYPER_PARENT_PID")
+        .map(|(_, v)| v.as_str())
+        .unwrap_or_default();
+    assert_eq!(
+        parent,
+        std::process::id().to_string(),
+        "VOICE_TYPER_PARENT_PID must be the spawning host's pid"
     );
 }
 
@@ -1039,5 +1058,31 @@ fn test_adopted_backend_env_port_u16_max_is_accepted() {
     assert_eq!(
         parse_adopted_backend_env(Some("65535"), Some("tok")),
         Some((65535, "tok".to_string()))
+    );
+}
+
+#[test]
+fn test_is_worker_duplicate_exit_matches_both_spellings() {
+    assert!(
+        worker::is_worker_duplicate_exit("dev worker stdout closed before worker_started (exit=3)"),
+        "dev-loop duplicate refusal must classify as duplicate"
+    );
+    assert!(
+        worker::is_worker_duplicate_exit("worker terminated before worker_started (code=Some(3))"),
+        "release-loop duplicate refusal must classify as duplicate"
+    );
+    assert!(
+        !worker::is_worker_duplicate_exit(
+            "dev worker stdout closed before worker_started (exit=1)"
+        ),
+        "crash exit must NOT classify as duplicate"
+    );
+    assert!(
+        !worker::is_worker_duplicate_exit("dev worker stdout closed before worker_started"),
+        "codeless EOF (unknown exit) must NOT classify as duplicate"
+    );
+    assert!(
+        !worker::is_worker_duplicate_exit("shutdown"),
+        "shutdown sentinel must NOT classify as duplicate"
     );
 }

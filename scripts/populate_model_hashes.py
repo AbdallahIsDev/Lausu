@@ -323,7 +323,7 @@ def populate_manifest(
             if added:
                 print(f"        + {len(added)} new files")
             if removed:
-                print(f"        - {len(removed)} removed file(s): {sorted(removed)}")
+                print(f"        - {len(removed)} removed files: {sorted(removed)}")
             if changed:
                 print(f"        ~ {len(changed)} changed hash(es): {sorted(changed)}")
         else:

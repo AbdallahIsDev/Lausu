@@ -137,14 +137,16 @@ pub(super) fn spawn_reader_task(
                         // snake_case → bubble:* kebab-case renames live in one place.
                         let emit_name = translate_event_name(event_type);
 
-                        // Cache bubble_config before emit so later bubble_show
-                        // restores the freshest persisted position.
-                        if event_type == "bubble_config" {
-                            crate::commands::bubble::update_persisted_pos_from_config(&payload);
-                        }
-
                         // Recording start: show the (hidden) bubble OS window.
-                        if crate::commands::bubble::wants_bubble_show(event_type) {
+                        // Active states re-show too: a host-side dismiss
+                        // hides the window without touching the sidecar
+                        // coordinator, so without this a post-dismiss
+                        // recording would never bring the bubble back.
+                        if crate::commands::bubble::wants_bubble_show(event_type)
+                            || crate::commands::bubble::is_active_bubble_state(
+                                event_type, &payload,
+                            )
+                        {
                             if let Err(e) = crate::commands::bubble::show_bubble_window(
                                 &app_for_reader,
                             ) {

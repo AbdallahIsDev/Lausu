@@ -1,6 +1,8 @@
 # Internal plugin (experimental): Google STT via Playwright
 
-**Status:** Phase 0 exit passed (24h survival) — Phase 1 live probing
+**Status:** Phase 0 exit passed (24h survival) — Phase 3 core loop verified
+live 2026-10-02 (record → transcribe → clipboard → paste into the focused app).
+Phase 4 (break detection) not started.
 **Audience:** in-house testing. **Experimental plugin — never ship to users.**
 **Date:** 2026-09-28 (rev 2) + plugin update 2026-09-29 (Phase 1 note + §14 future plugin settings)
 
@@ -26,7 +28,7 @@ hotkey #2  → stop mic → wait for stable transcript → restore focus → pas
 | Attach to daily Chrome (CDP) | Must be isolated from daily browser |
 | Clipboard `Ctrl+C` from the Gemini page | Racy; scrape DOM text |
 | Toast/email body containing transcript | Privacy — speech is sensitive |
-| `tools/internal-plugins` in any repo `package.json` script | Discoverability leak |
+| `tools/internal_plugins` in any repo `package.json` script | Discoverability leak |
 
 **Release rule:** accidental ship = P0 incident.
 
@@ -38,23 +40,23 @@ hotkey #2  → stop mic → wait for stable transcript → restore focus → pas
 | Account | Burner Gmail only (ban = that account). |
 | Paste | **Import product paste** (`voice_typer.server.clipboard` manager path — snapshot/restore, target gates, RDP delay, UIPI fail-closed). No reimplementation. |
 | Alerts | **Desktop toast + local log only.** No email/webhook. Toasts never include dictated text. |
-| Isolation | `tools/internal-plugins/` process; not wired into Tauri until spike passes §11. |
+| Isolation | `tools/internal_plugins/` process; not wired into Tauri until spike passes §11. |
 | Toolchain | Node deps **outside repo** (see §4). |
 
 ## 4. Hard ship gates (must all hold)
 
-1. Code lives under `tools/internal-plugins/` — **not** in `voice_typer/`, **not** in Nuitka inputs, **not** in `tauri.conf.json` bundle/externalBin/resources.
+1. Code lives under `tools/internal_plugins/` — **not** in `voice_typer/`, **not** in Nuitka inputs, **not** in `tauri.conf.json` bundle/externalBin/resources.
 2. Enabled only when **all** of:
    - env `VOICE_TYPER_INTERNAL_PLUGINS=1`, **and**
-   - gitignored `tools/internal-plugins/PLUGINS_ENABLED` exists, **and**
+   - gitignored `tools/internal_plugins/PLUGINS_ENABLED` exists, **and**
    - process is not a frozen/release sidecar.
 3. No new `IPC_CONFIG_ALLOWLIST` / `set_config` / renderer / i18n / tray surface.
 4. **Proof-of-absence test** `tests/tauri/test_internal_plugin_tools_absent.py` (wired into the C-CI-7 drift set) asserts:
-   - `tools/internal-plugins` appears in no Nuitka `--include` / package list
+   - `tools/internal_plugins` appears in no Nuitka `--include` / package list
    - not in `tauri.conf.json` externalBin/resources
    - not in NSIS/MSI file lists
    - gitignore covers `PLUGINS_ENABLED`, `google-stt-profile/`, `debug/`, `last_error.json`
-   - no root/client `package.json` script references `internal-plugins`
+   - no root/client `package.json` script references `internal_plugins`
 5. Node/Playwright deps install to `%LOCALAPPDATA%/voice-typer-internal-plugins/node-deps` — **never** repo-root `node_modules`.
 6. Profile dir: `%LOCALAPPDATA%/voice-typer-internal-plugins/google-stt-profile` — never `~/.lausu`.
 7. Network egress is **C-DATA-1**-justified: plugin-configured, plugin-initiated, gated to internal test builds, browser navigation to Google only (not product code paths). Documented here so future agents do not “clean it up” as telemetry.
@@ -62,7 +64,7 @@ hotkey #2  → stop mic → wait for stable transcript → restore focus → pas
 ## 5. Architecture
 
 ```
-tools/internal-plugins/google_stt/     (never packaged)
+tools/internal_plugins/google_stt/     (never packaged)
   run.js                    entry (node, NODE_PATH → %LOCALAPPDATA%/voice-typer-internal-plugins/node-deps)
   playwright_runner.js      persistent Chrome channel, selectors.json, scrape
   controller.py             hotkey, hwnd capture/restore, product paste import
@@ -178,17 +180,52 @@ Toast (no transcript text) + `last_error.json` + screenshot in `debug/` when:
   same day. Safe to launch Playwright clicking (Phase 1 rule:
   idle survival ≠ safe-under-use; verdict comes from clicks).
 
+### Phase 3 exit note (2026-10-02, verified live)
+
+Post-rename re-verification, end to end:
+
+- Workspace is `tools/internal_plugins/` — underscore, **not** a hyphen. The
+  hook imports `tools.internal_plugins.google_stt.plugin` as a dotted module
+  and a hyphen can never be a Python package name; the hyphen spelling made
+  `gate=False` and the plugin unreachable.
+- Gate: env `VOICE_TYPER_INTERNAL_PLUGINS=1` + `PLUGINS_ENABLED`. Boot smoke
+  test reports `gate=True`, `installed=True`, entry point wrapped.
+- `check.js` headless: `SESSION-ALIVE` — the relocated profile
+  (`%LOCALAPPDATA%/voice-typer-internal-plugins/google-stt-profile`) still
+  authenticates after the move.
+- `probe.js` (added — the doc referenced a probe that was never saved)
+  re-verifies every pinned selector against the live UI: **7/7**, including
+  the idle → recording → idle label swap.
+- Live dictation: **297 characters** transcribed and pasted into the focused
+  Notepad window (`[CLIPBOARD-AUDIT] Copied 297 chars`, `snapshot=captured`).
+
+Open defects found in the same run:
+
+1. **Transcript not persisted.** `history.db` was never created in the
+   profile dir; the plugin's history add did not land. Likely the async
+   writer does not flush before the short-lived harness exits — re-check
+   inside a long-lived app session before treating it as a real bug.
+2. **The paste warning is a false alarm.** SendInput logs "Auto-paste failed
+   (UIPI may have blocked)" yet the pynput fallback delivers the text (the
+   log itself says "delivery unverified"). Do not read it as a paste failure
+   without checking the target window.
+3. **Plugin log lines are invisible from the harness.** `[PLUGIN]` lines do
+   not reach stderr under `app_test.py` even with root logging at INFO, while
+   `voice_typer.server.clipboard` lines do. Cause not yet identified; an
+   observability gap for detached runs. The logger name itself is correct
+   (`voice_typer.internal_plugin.google_stt`).
+
 ### Phase 5 — Plugin packaging + hygiene
 
-1. Single entry `tools/internal-plugins/google_stt/run.js`.
-2. `tools/internal-plugins/README.md`: burner-account warning, ToS gray area, **do not ship**, re-login, profile reset, selector update procedure.
+1. Single entry `tools/internal_plugins/google_stt/run.js`.
+2. `tools/internal_plugins/README.md`: burner-account warning, ToS gray area, **do not ship**, re-login, profile reset, selector update procedure.
 3. Gitignore as in §4.4 (enforced by test, not just documented).
 4. No root `package.json` `plugin:google-stt` script — use a machine-local alias.
 5. Daily-use log template (§11 appendix).
 
 ## 7. Config (internal plugin only, gitignored)
 
-`tools/internal-plugins/google_stt/config.example.json`:
+`tools/internal_plugins/google_stt/config.example.json`:
 
 ```json
 {
@@ -221,16 +258,21 @@ Spike **refuses** to start if product recording is active (Phase 3.6). Product w
 
 ## 10. Acceptance criteria
 
-- [ ] Cold start → Gemini logged in (burner) via `channel: "chrome"` isolated profile.
-- [ ] 24h relaunch still authenticated (manual Phase 0 exit).
-- [ ] Hotkey #1 records `paste_target` hwnd and starts mic (UI confirms).
+- [x] Cold start → Gemini logged in (burner) via `channel: "chrome"` isolated profile.
+- [x] 24h relaunch still authenticated (manual Phase 0 exit).
+- [x] Hotkey #1 records `paste_target` hwnd and starts mic (UI confirms).
 - [ ] Hotkey #2 stops; text in focused app; focus round-trip OK; clipboard restored.
-- [ ] Works with daily Chrome **closed**.
+      Text + paste verified 2026-10-02; the **clipboard was not restored** — the
+      product kept the dictated text for manual paste after its SendInput warning.
+- [ ] Works with daily Chrome **closed**. (Not exercised: daily Chrome was open.)
 - [ ] Product dictation unaffected when the plugin is idle; the plugin refuses while product records.
+      Gate-closed behaviour is covered by tests; the concurrent-recording refusal is untested live.
 - [ ] Forced selector failure → toast without transcript text.
 - [ ] Elevated/unsafe target → paste blocked, text on clipboard (product gates).
-- [ ] `test_internal_plugin_tools_absent.py` green; `tools/internal-plugins` absent from release/CI lists.
-- [ ] No i18n / Settings / tray / `set_config` changes.
+      Not cleanly exercised: see the 2026-10-02 note — SendInput warned "failed" yet the
+      pynput fallback actually delivered the paste.
+- [x] `test_internal_plugin_tools_absent.py` green; `tools/internal_plugins` absent from release/CI lists.
+- [x] No i18n / Settings / tray / `set_config` changes.
 
 ## 11. Decision checkpoints + trial log
 
@@ -240,7 +282,7 @@ Spike **refuses** to start if product recording is active (Phase 3.6). Product w
 
 **Policy on login failure (internal plugin):** real Chrome + isolated profile first; if Google still refuses, **stop**. No long bypass campaign.
 
-### Daily-use log template (append to `tools/internal-plugins/google_stt/trial_log.md`)
+### Daily-use log template (append to `tools/internal_plugins/google_stt/trial_log.md`)
 
 | Date | Dictations | OK | Fail mode | Selector change? | Notes |
 |---|---|---|---|---|---|

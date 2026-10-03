@@ -816,6 +816,64 @@ fn test_combined_logger_file_line_matches_canonical_shape() {
 }
 
 #[test]
+fn test_format_terminal_line_shape_is_ts_two_spaces_level_message() {
+    // Regression guard: the TERMINAL line drifted to a ONE-space
+    // `HH:MM:SS LEVEL  msg` while the file line and
+    // `docs/code-notes/tauri-host.md#logging-format-c-log-1` both specify
+    // TWO spaces, so the Rust and Python terminals misaligned. Every
+    // terminal sink now builds through `format_terminal_line`, so pinning
+    // the column layout here pins all of them.
+    //   [0..8)   time `HH:MM:SS`  [8..10)  two spaces
+    //   [10..15) level + pad      [15]     one space
+    //   [16..)   message
+    let cases: [(log::Level, &str); 4] = [
+        (log::Level::Info, "INFO "),
+        (log::Level::Warn, "WARN "),
+        (log::Level::Error, "ERROR"),
+        (log::Level::Debug, "DEBUG"),
+    ];
+    for (level, padded) in cases {
+        let line = format_terminal_line("17:24:06", level, "shape check message");
+        assert_eq!(&line[0..8], "17:24:06", "time first 8 bytes: {}", line);
+        assert_eq!(
+            &line[8..10],
+            "  ",
+            "time/level separator must be TWO spaces (C-LOG-1): {}",
+            line
+        );
+        assert_eq!(
+            &line[10..15],
+            padded,
+            "level must sit in the same 5-char column for every level: {}",
+            line
+        );
+        assert_eq!(
+            line.as_bytes()[15],
+            b' ',
+            "level/message separator must be one space: {}",
+            line
+        );
+        assert_eq!(
+            &line[16..],
+            "shape check message",
+            "message must start at byte 16: {}",
+            line
+        );
+    }
+    // A 4-char label is padded, a 5-char label is not, so every terminal
+    // line is 16 + len(msg) bytes and the message column never shifts.
+    let info = format_terminal_line("17:24:06", log::Level::Info, "m");
+    let err = format_terminal_line("17:24:06", log::Level::Error, "m");
+    assert_eq!(
+        info.len(),
+        err.len(),
+        "level label must not shift the column"
+    );
+    assert_eq!(info, "17:24:06  INFO  m");
+    assert_eq!(err, "17:24:06  ERROR m");
+}
+
+#[test]
 fn test_init_file_logger_startup_banner_first_line_session_once() {
     // `init_file_logger` must write, as the FIRST line of the fresh
     // session file, the startup banner mirroring the Python side's

@@ -4,17 +4,23 @@
 
 name: Client CI
 
+# Single owner of the renderer quality gates: npm audit, typecheck, lint,
+# test. `build.yml`'s `client-build` job deliberately does NOT run these
+# (it builds the renderer + uploads the artifact only) so they run exactly
+# once per PR instead of twice.
+#
+# No `paths:` filter: `build.yml` runs on every non-docs PR, so filtering
+# this workflow to `voice_typer/client/**` would leave Python-only PRs with
+# no renderer gate at all.
 on:
   push:
     branches: [main]
-    paths:
-      - "voice_typer/client/**"
-      - ".github/workflows/client-ci.yml"
   pull_request:
     branches: [main]
-    paths:
-      - "voice_typer/client/**"
-      - ".github/workflows/client-ci.yml"
+    # mirror build.yml's docs-only skip
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
 
 # Cancel in-progress runs for the same ref so a new push supersedes them.
 concurrency:

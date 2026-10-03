@@ -110,11 +110,27 @@ sub-worklog-*.md
 .workbuddy-ai/
 
 # INTERNAL PLUGINS (experimental, still in development; never ship).
-# tools/internal-plugins is its OWN git repository, backed up to a
-# private remote; see tools/internal-plugins/README.md. The folder still
+# tools/internal_plugins is its OWN git repository, backed up to a
+# private remote; see tools/internal_plugins/README.md. The folder still
 # has files tracked in the parent repo until it is untracked with
-# `git rm -r --cached tools/internal-plugins` (E18: agents must not run
+# `git rm -r --cached tools/internal_plugins` (E18: agents must not run
 # `git rm`);
 # tests/tauri/test_internal_plugin_tools_absent.py::TestInternalPluginToolsNotInMainRepo
 # fails while any remain tracked.
-tools/internal-plugins/
+tools/internal_plugins/
+
+# Agent-tooling directories are local development infrastructure, not
+# product. Untracked so the shipped repo contains only product code
+# (tracked before this entry: `.Skills/` 75 files, `.agents/` 6 files,
+# `.workbuddy-ai/` 1 file incl. session memory notes).
+# NOTE: adding these here does NOT untrack already-tracked files — the owner
+# must run `git rm --cached -r .Skills .agents .workbuddy-ai` (agents may
+# not run `git rm`, AGENTS.md E18).
+.Skills/
+.agents/
+.workbuddy-ai/
+
+# Nested git worktrees created by tooling (e.g. .kilo/worktrees/*). Leaving
+# a 2,830-file duplicate checkout un-ignored doubles every filesystem-wide
+# grep/tool result without showing up in `git status`.
+.kilo/

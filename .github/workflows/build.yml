@@ -90,6 +90,13 @@ jobs:
         run: |
           python -m ruff check voice_typer/ tests/ scripts/ conftest.py --output-format=json > ruff-current.json || true
           python scripts/ruff_ratchet_check.py
+# Type-debt ratchet: mirrors the ruff ratchet above. mypy lives in the
+      # [dev] extra (not [test]), so install it explicitly. The gate is
+      # "no new errors", not "zero errors" — see docs/mypy-ratchet.md.
+      - name: mypy (ratchet compare against baseline)
+        run: |
+          uv pip install --system "mypy>=1.10,<3"
+          python scripts/mypy_ratchet_check.py
 
       # .deb/.rpm bundles must stay LF: .gitattributes enforces
       - name: Linux scripts LF check
@@ -462,13 +469,43 @@ jobs:
         run: |
           python scripts/check_branding.py
 
+  # Rust lint + dependency audit. Lives here rather than in tauri-*.yml so the
+  # fragile release workflows (C-CI-2) stay untouched.
+  rust-lint:
+    name: Rust clippy + cargo audit
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@v1
+        with:
+          components: clippy
+
+      - uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Every lint in Cargo.toml [lints.clippy] is `warn`, so this reports
+      # without failing. It is an advisory gate that makes the existing
+      # configuration visible; promoting it to a hard gate needs a measured
+      # baseline first.
+      - name: cargo clippy (advisory)
+        working-directory: src-tauri
+        continue-on-error: true
+        run: cargo clippy --all-targets --all-features
+
+      - name: cargo fmt --check
+        working-directory: src-tauri
+        run: cargo fmt --check
+
   # client-build job
   client-build:
     if: github.event_name != 'schedule'  # XS-REVIEW: skip on weekly schedule
     # pinned to match build-linux runner
     runs-on: ubuntu-22.04
-    # cap client-build runtime (npm ci + typecheck + lint + test +
-    # build:renderer).
+    # cap client-build runtime (npm ci + format:check + build:renderer).
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
@@ -486,30 +523,19 @@ jobs:
         working-directory: voice_typer/client
         run: npm ci
 
-      # never ship in the Tauri installer — only runtime deps are a
-      - name: npm audit (high+ only, warn-only)
-        working-directory: voice_typer/client
-        continue-on-error: true
-        run: npm audit --audit-level=high --omit=dev
-
-      - name: Type-check
-        working-directory: voice_typer/client
-        # typecheck:ci = tsc -b --force (stale tsbuildinfo cannot fake green).
-        run: npm run typecheck:ci
-
-      - name: Lint
-        working-directory: voice_typer/client
-        run: npm run lint
-
-      - name: Test
-        working-directory: voice_typer/client
-        run: npm run test
+      # `npm audit`, typecheck, lint and test are owned EXCLUSIVELY by
+      # .github/workflows/client-ci.yml (single owner). They used to also
+      # run here, so every renderer PR paid for them twice.
 
       - name: Format check
         working-directory: voice_typer/client
         run: npm run format:check
 
       # build renderer only (platform-independent). The main +
+      # RENDERER QUALITY GATES ARE NOT RUN HERE: npm audit, typecheck,
+      # lint and test are owned exclusively by client-ci.yml so they execute
+      # once per PR instead of twice. This job builds + uploads the artifact
+      # that the build-native / tauri legs consume.
       - name: Build renderer only
         working-directory: voice_typer/client
         run: npm run build:renderer

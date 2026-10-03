@@ -6,9 +6,11 @@
 ; wrapper composes the two hook files so both stay active under the
 ; one-path schema:
 ;
-;   - uninstaller.nsh       -> customUnInstall (CR-69/CR-70 cleanup)
-;   - installer-hooks.nsh   -> customInstall + Components-page "Include
-;                              offline engine pack" consent section
+;   - uninstaller.nsh       -> NSIS_HOOK_POSTUNINSTALL / customUnInstall
+;                              (CR-69/CR-70 cleanup)
+;   - installer-hooks.nsh   -> NSIS_HOOK_POSTINSTALL / customInstall +
+;                              custom-page "Include offline engine pack"
+;                              checkbox (installer-state.json writer)
 ;
 ; ${__FILEDIR__} resolves the nested includes relative to THIS file, so
 ; they work regardless of where the generated installer.nsi lives
