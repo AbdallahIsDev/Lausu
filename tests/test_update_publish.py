@@ -16,6 +16,7 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from release import publish_pack_release as pub  # type: ignore[import-not-found]  # noqa: E402
+from voice_typer.server import branding  # noqa: E402
 
 
 @pytest.fixture
@@ -493,7 +494,11 @@ class TestDefaults:
     """Default values are pinned (changing them breaks the URL contract)."""
 
     def test_default_repo(self):
-        assert pub.DEFAULT_REPO == "AbdallahIsDev/lausu"
+        # Derived from branding.APP_REPO (single source of truth) — see
+        # publish_pack_release.DEFAULT_REPO. The literal below is a guard
+        # against a silent slug change breaking every published pack URL.
+        assert pub.DEFAULT_REPO == "AbdallahIsDev/voice-typer"
+        assert pub.DEFAULT_REPO == branding.APP_REPO
 
     def test_default_gh_cli(self):
         assert pub.DEFAULT_GH_CLI == "gh"

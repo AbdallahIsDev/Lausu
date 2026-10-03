@@ -151,4 +151,3 @@ class TestInternalPluginToolsNotInMainRepo:
 def test_plugin_js_files_stay_inside_the_plugin_workspace(js_file: str) -> None:
     target = _PLUGINS_DIR / "google_stt" / js_file
     assert target.exists(), f"{js_file} must live under tools/internal_plugins/google_stt"
-

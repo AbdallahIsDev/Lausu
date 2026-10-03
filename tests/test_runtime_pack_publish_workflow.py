@@ -328,4 +328,3 @@ class TestFetchableAssetContract:
         pack_url = f"{parsed.scheme}://{parsed.netloc}{dir_path}/pack-{loaded['version']}.zip"
         assert pack_url.endswith(f"/pack-{pack_version}.zip")
         assert pack_url.startswith("https://github.com/")
-

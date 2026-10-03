@@ -3,4 +3,4 @@
 APP_NAME = "Lausu"
 APP_DESCRIPTION = "Background voice-to-text utility"
 APP_URL = "https://github.com/AbdallahIsDev/voice-typer"
-APP_REPO = "AbdallahIsDev/lausu"
+APP_REPO = "AbdallahIsDev/voice-typer"
