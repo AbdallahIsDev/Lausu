@@ -24,6 +24,17 @@ pub(crate) fn is_debug_env_truthy(value: Option<&str>) -> bool {
     is_truthy_value(value)
 }
 
+/// C-LOG-1 terminal line: `HH:MM:SS  LEVEL  msg` — TWO spaces after the
+/// time, the level left-padded to a 5-char column, ONE space before the
+/// message. Single source of truth for every terminal sink (`combined`,
+/// `early`, the `env_logger` fallback, the saturation notice) so the two
+/// sinks can never drift apart again; mirrors Python's `_TerminalFormatter`
+/// line-for-line.
+/// see docs/code-notes/tauri-host.md#logging-format-c-log-1
+pub(crate) fn format_terminal_line(ts: &str, level: log::Level, msg: &str) -> String {
+    format!("{ts}  {level:5} {msg}")
+}
+
 /// Combined stderr + rotating-file logger (replaces `env_logger` so the
 /// file sink needs no multiplexer crate).
 pub(crate) struct CombinedLogger {
@@ -61,7 +72,7 @@ impl log::Log for CombinedLogger {
         // Terminal line only when stderr logging is enabled (avoids a
         // wasted String allocation per record in release).
         if self.stderr_verbose.load(Ordering::Relaxed) {
-            let term_line = format!("{} {:5} {}", term_ts, record.level(), msg);
+            let term_line = format_terminal_line(&term_ts, record.level(), &msg);
             eprintln!("{}", term_line);
         }
         // ADR-0020 §11: exclude Info+ `bubble_level` from the file log

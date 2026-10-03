@@ -25,7 +25,9 @@ use super::math::{
     MAX_BUBBLE_H, MAX_BUBBLE_W, MIN_BUBBLE_H, MIN_BUBBLE_W,
 };
 use super::parse::parse_position;
-use super::window::{hide_bubble_window, show_bubble_window, wants_bubble_show};
+use super::window::{
+    hide_bubble_window, is_active_bubble_state, show_bubble_window, wants_bubble_show,
+};
 use crate::commands::main_window_label_check;
 use serde_json::{json, Value};
 
@@ -1032,4 +1034,31 @@ fn test_wants_bubble_show_only_for_bubble_show_event() {
             "event {other:?} must not show the bubble OS window"
         );
     }
+}
+
+#[test]
+fn test_is_active_bubble_state_reshows_on_recording_and_transcribing() {
+    // A host-side dismiss (shortcut or Schneider button) hides the window
+    // without touching the sidecar coordinator, so the next recording
+    // must re-show via the active states, not just `bubble_show`.
+    for state in ["recording", "transcribing"] {
+        assert!(
+            is_active_bubble_state("bubble_set_state", &json!({"state": state})),
+            "state {state:?} must re-show the bubble OS window"
+        );
+    }
+    for state in ["idle", "error", "", "hidden"] {
+        assert!(
+            !is_active_bubble_state("bubble_set_state", &json!({"state": state})),
+            "state {state:?} must NOT re-show the bubble OS window"
+        );
+    }
+    assert!(
+        !is_active_bubble_state("bubble_set_state", &json!({})),
+        "missing state must NOT re-show the bubble OS window"
+    );
+    assert!(
+        !is_active_bubble_state("bubble_show", &json!({"state": "recording"})),
+        "other events must NOT re-show, even with an active state"
+    );
 }

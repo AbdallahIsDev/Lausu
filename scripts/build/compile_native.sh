@@ -132,7 +132,7 @@ if [[ "$CHECK_ONLY" == "1" ]]; then
             if command -v cl.exe &>/dev/null; then
                 echo "[compile_native] OK: cl.exe found"
                 exit 0
-            elif command -v gcc &>/dev/null && gcc --version 2>&1 | grep -qi mingw; then
+            elif command -v gcc &>/dev/null && gcc --version 2>&1 | grep -qiE 'mingw|msys2'; then
                 echo "[compile_native] OK: MinGW gcc found at $(command -v gcc)"
                 exit 0
             else

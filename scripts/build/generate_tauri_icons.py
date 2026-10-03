@@ -363,7 +363,7 @@ def main() -> None:
     run_tauri_icon()
     pruned = prune_icons_dir(ICONS_DIR, keep)
     if pruned:
-        print(f"Pruned {len(pruned)} non-bundle icon(s): {', '.join(pruned)}")
+        print(f"Pruned {len(pruned)} non-bundle icons: {', '.join(pruned)}")
     missing, extra = validate_icon_set(ICONS_DIR, keep)
     problems = []
     if missing:

@@ -308,7 +308,19 @@ pub(crate) async fn initialize_worker(
             worker::relay_worker_started_to_sidecar(app_handle, worker_pid, port);
         }
         Err(e) => {
-            log::error!("[WORKER-INIT] worker spawn failed: {}", e);
+            if worker::is_worker_duplicate_exit(&e) {
+                // Not a crash: a (likely stale, previous-session) worker
+                // holds the single-instance lock. Retrying cannot help
+                // while it lives, so say exactly how to recover instead
+                // of a generic spawn-failed error.
+                log::warn!(
+                    "[WORKER-INIT] worker already running (exit=3), likely a stale process from a \
+                     previous session: offline transcription stays unavailable until that process \
+                     exits; terminate stale `python -m voice_typer.worker` processes to recover"
+                );
+            } else {
+                log::error!("[WORKER-INIT] worker spawn failed: {}", e);
+            }
         }
     }
 }

@@ -1,8 +1,24 @@
-## High Priority
+﻿## High Priority
 
 These items are the highest-priority remaining work for the project. They block the Tauri migration, fix core functionality, or address critical infrastructure gaps. Items in this section are ordered by priority (top = most urgent).
 
 > **Won't Fix tasks live in `WONT_FIX.md`**: deliberately not solved. Do NOT fix them (AGENTS.md C-REVIEW-1). See that file for the full list.
+
+### AUD-14 — 42 production files exceed the 500-line C-STRUCT-3 threshold (27% of the package)
+**Status:** NOT DONE (2026-02-10) - re-verified as real (42 files >500 lines, recording_lifecycle.py still 27 broad `except Exception`, hotkey_dispatcher.py 1094) but deliberately NOT started: splitting god files is a multi-session create-first effort (E1/E16), and a partial split in this session would be exactly the churn-for-churn the rule warns about. Needs its own dedicated pass with a green suite.
+**Description:** Rule C-STRUCT-3 sets ~500 lines as the refactor trigger. **42 files exceed it, totaling 29,574 lines — 27% of the Python package in 8.4% of its files.** Top offenders:
+
+| File | Lines | Concerns |
+|---|---|---|
+| `server/hotkey_dispatcher.py` | 1,094 | native backend pool lifecycle, registration, matching, dispatch — 25 methods on 1 class |
+| `service/model/_downloads.py` | 934 | 4 concerns; 16-method `DownloadsMixin` |
+| `worker/_ws_server.py` | 952 | `_handle_connection` alone is ~494 lines |
+| `recording_lifecycle.py` | 874 | **27 broad `except Exception`** in the recording hot path (lines 86-979) |
+| `event_bus.py` | 863 | 570-line docstring event catalogue (`:1-375`) — violates C-COMMENT-6 |
+**User Impact:** None directly. The cost is change risk: each edit touches a file with several unrelated reasons to change, so unrelated behavior is coupled to unrelated edits.
+**Root Cause:** Verified by line count — organic growth without the create-first split (E1) that C-STRUCT-3 requires.
+**Gain vs Trade-off:** Large, mechanical, regression-prone work. Best done incrementally, never as a batch.
+**If We Do It:** Each concern becomes independently testable and reviewable.
 
 ## 🚫 E. Cannot Verify (needs real host)
 **19 findings require Windows / macOS / Linux desktop runtime.** The

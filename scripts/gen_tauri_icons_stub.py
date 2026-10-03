@@ -930,7 +930,7 @@ def clean() -> int:
                 # not empty (real artifacts left), leave it alone
                 d.rmdir()
 
-    print(f"[gen_tauri_icons_stub] Removed {removed} stub file(s); skipped {skipped} real artifacts.")
+    print(f"[gen_tauri_icons_stub] Removed {removed} stub files; skipped {skipped} real artifacts.")
     return 0
 
 

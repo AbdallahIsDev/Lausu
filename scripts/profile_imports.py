@@ -194,9 +194,9 @@ def _format_report(
        true cold run) verbatim, so callers can diff BEFORE/AFTER.
     """
     stream.write(f"# Cold-start import profile: {target}\n\n")
-    stream.write(f"## Summary ({len(walls)} run(s))\n\n")
+    stream.write(f"## Summary ({len(walls)} runs)\n\n")
     stream.write(
-        f"- Wall-clock (s): min={min(walls):.3f}  median={statistics.median(walls):.3f}  max={max(walls):.3f}\n"
+        f"- Wall-clocks: min={min(walls):.3f}  median={statistics.median(walls):.3f}  max={max(walls):.3f}\n"
     )
     stream.write(f"- Modules imported (run 1, cold): {len(rows_per_run[0]) if rows_per_run else 0}\n\n")
 

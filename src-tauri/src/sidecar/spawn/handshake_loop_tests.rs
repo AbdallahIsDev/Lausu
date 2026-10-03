@@ -199,6 +199,34 @@ async fn test_dev_handshake_kills_child_on_stdout_close() {
     );
 }
 
+/// stdout-close error must carry the reaped exit code so a clean
+/// duplicate-instance refusal (worker exit 3) reads differently from
+/// a crash. The exact code is platform-specific (`cmd /C exit 1` on
+/// Windows, `true`→0 elsewhere), so only the marker is pinned.
+#[tokio::test]
+async fn test_dev_handshake_eof_error_carries_exit_code() {
+    let _lock = CHILD_PROCESS_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let (mut child, mut reader) = spawn_immediate_exit_child();
+
+    let result = read_handshake_from_stdout_lines(
+        &dev_labels(),
+        &mut reader,
+        &mut child,
+        None,
+        parse_server_started,
+        5_000,
+    )
+    .await;
+
+    let err = result.err().expect("stdout-close arm must return Err");
+    assert!(
+        err.contains("(exit="),
+        "error must carry the reaped exit code, got: {err}"
+    );
+}
+
 /// Deadline exceeded must kill + reap a hanging child and return the
 /// timeout error (with any stdout seen so far). Uses a short injected
 /// `timeout_ms` so the test does not wait the production 30s.

@@ -20,7 +20,7 @@ This creates two distinct coupling problems:
 
 The migration target is to move all `app.X` monkeypatch sites to canonical
 module paths (e.g. `voice_typer.server.server_platform.is_autostart_enabled`)
-and then delete the re-export block(s) from `app.py`.
+and then delete the re-export blocks from `app.py`.
 
 ### Re-export block under migration
 
@@ -86,7 +86,7 @@ removed from `app.py` until the **internal callers** that currently route
 through `voice_typer.server.app.X` are migrated to call the canonical module
 directly. The known internal callers (verified 2026-08-22):
 
-| Caller                                                      | Symbol(s) routed via `_app_module` (= `voice_typer.server.app`) |
+| Caller                                                      | Symbols routed via `_app_module` (= `voice_typer.server.app`) |
 | ----------------------------------------------------------- | --------------------------------------------------------------- |
 | `voice_typer/server/startup_tasks.py:113` `sync_autostart`  | `is_autostart_enabled`, `enable_autostart`, `disable_autostart` |
 | `voice_typer/server/startup_tasks.py:379` `sync_microphones` | `list_microphones`                                              |

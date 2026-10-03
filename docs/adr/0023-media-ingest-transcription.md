@@ -33,7 +33,7 @@ Key verified facts (web-checked, not assumed):
 
 - `faster-whisper` already pulls **PyAV 18.1.0** (locked). Its wheels bundle
   full FFmpeg: any-format decode with zero new heavy deps and zero external
-  `ffmpeg` binary. `av.open()` reads local files AND remote HTTP(S) URLs
+  `ffmpeg` binary. `av.open()` reads local files AND remote HTTPS URLs
   directly, with `open_timeout`/`read_timeout` options.
 - Since yt-dlp 2025.11.12 (issue #15012), full YouTube support requires an
   external JS runtime. Supported: Deno >= 2.0 (recommended, default-enabled),

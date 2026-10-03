@@ -201,12 +201,12 @@ def compile_wrapper(gcc: Path) -> None:
         # output and trains the reader to ignore the log. Show a bounded
         # sample plus the real count so nothing is silently hidden.
         lines = [ln for ln in proc.stderr.strip().splitlines() if ln.strip()]
-        log(f"compiler warnings: {len(lines)} line(s)")
+        log(f"compiler warnings: {len(lines)} lines")
         for line in lines[:MAX_COMPILER_OUTPUT_LINES]:
             log(f"  {line}")
         if len(lines) > MAX_COMPILER_OUTPUT_LINES:
             log(
-                f"  ... {len(lines) - MAX_COMPILER_OUTPUT_LINES} more line(s) "
+                f"  ... {len(lines) - MAX_COMPILER_OUTPUT_LINES} more lines "
                 "suppressed; recompile manually for the full output"
             )
 
@@ -227,7 +227,7 @@ def purge_stale_scratch() -> None:
     for rsp in TOOLCHAIN_DIR.glob("link-*.rsp"):
         rsp.unlink(missing_ok=True)
     if removed:
-        log(f"removed {removed} stale scratch dir(s) from an older wrapper")
+        log(f"removed {removed} stale scratch dirs from an older wrapper")
 
 
 def provision(force: bool) -> int:
@@ -289,8 +289,7 @@ def check() -> int:
 
     if not CARGO_CONFIG.is_file():
         sys.stderr.write(
-            f"[gnu-linkchain] MISSING: {CARGO_CONFIG}\n"
-            "Repair it with:  python scripts/build/ensure_gnu_linkchain.py\n"
+            f"[gnu-linkchain] MISSING: {CARGO_CONFIG}\nRepair it with:  python scripts/build/ensure_gnu_linkchain.py\n"
         )
         return 1
 

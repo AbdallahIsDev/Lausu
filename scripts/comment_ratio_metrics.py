@@ -49,14 +49,22 @@ def is_blank(line: str) -> bool:
 
 
 def classify_line(line: str, path: Path) -> str:
-    """Return 'comment', 'code', 'blank', or 'mixed'."""
+    """Return 'comment', 'docstring', 'code', 'blank', or 'mixed'.
+
+    Docstrings are classified separately from comments: a docstring is
+    API documentation (code), not commentary about the code, so counting it
+    as a comment inflated the measured ratio from 6.9% to 26.5% and made the
+    C-COMMENT-1 gate report a permanent false violation.
+    """
     if is_blank(line):
         return "blank"
     suf = path.suffix.lower()
     stripped = line.lstrip()
     if suf == ".py":
-        if stripped.startswith(("#", '"""', "'''")):
+        if stripped.startswith("#"):
             return "comment"
+        if stripped.startswith(('"""', "'''")):
+            return "docstring"
         return "code"
     if suf == ".rs":
         if stripped.startswith(("//", "/*", "*/", "*")):
@@ -91,50 +99,63 @@ def iter_files(base: Path, patterns: list[str]) -> list[Path]:
 
 
 def measure_tree(base: Path, patterns: list[str]) -> dict:
-    total = code = comment = blank = 0
+    total = code = comment = blank = docstring = 0
     per_file: dict[str, dict[str, int]] = {}
     for p in iter_files(base, patterns):
         try:
             text = p.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        f_total = f_code = f_comment = f_blank = 0
-        in_block = False
+        f_total = f_code = f_comment = f_blank = f_docstring = 0
+        is_py = p.suffix.lower() == ".py"
+        in_docstring = False
+        quote = ""
         for raw in text.splitlines():
             kind = classify_line(raw, p)
-            # Crude Python docstring block handling
-            if p.suffix.lower() == ".py":
+            # Python docstring bodies are documentation, not commentary, so
+            # they are bucketed as docstring rather than comment. Only a line
+            # that OPENS or CLOSES a docstring delimiter is a boundary; a
+            # string merely containing `"""` mid-expression is not.
+            if is_py:
                 s = raw.lstrip()
-                if not in_block and s.startswith(('"""', "'''")):
-                    # one-line docstring
+                if in_docstring:
+                    kind = "docstring"
+                    if quote in s:
+                        in_docstring = False
+                elif kind == "docstring":
                     q = s[:3]
-                    if len(s) >= 6 and s.endswith(q) and len(s) > 3:
-                        kind = "comment"
-                    else:
-                        in_block = True
-                        kind = "comment"
-                elif in_block:
-                    kind = "comment"
-                    if '"""' in s or "'''" in s:
-                        in_block = False
+                    # One-line docstring closes on the same line.
+                    if not (len(s) >= 6 and s.endswith(q)):
+                        quote = q
+                        in_docstring = True
             f_total += 1
             if kind == "comment":
                 f_comment += 1
             elif kind == "blank":
                 f_blank += 1
+            elif kind == "docstring":
+                f_docstring += 1
             else:
                 f_code += 1
-        rel = str(p.relative_to(ROOT)).replace("\\", "/")
+        # Paths outside ROOT (e.g. a pytest tmp_path fixture) have no repo-
+        # relative form; fall back to the name so the tool stays usable
+        # outside its own repository.
+        try:
+            rel = str(p.relative_to(ROOT)).replace("\\", "/")
+        except ValueError:
+            rel = p.name
         per_file[rel] = {
             "total": f_total,
             "code": f_code,
             "comment": f_comment,
+            "docstring": f_docstring,
             "blank": f_blank,
         }
         total += f_total
         code += f_code
         comment += f_comment
         blank += f_blank
+        docstring += f_docstring
     ratio = (comment / total * 100) if total else 0.0
     # Ratio of comment to (code+comment) is often more meaningful
     code_comment = code + comment
@@ -144,6 +165,7 @@ def measure_tree(base: Path, patterns: list[str]) -> dict:
         "total": total,
         "code": code,
         "comment": comment,
+        "docstring": docstring,
         "blank": blank,
         "ratio_of_total": ratio,
         "ratio_of_code_plus_comment": ratio_cc,
@@ -171,12 +193,16 @@ def main() -> None:
         print(json.dumps(slim, indent=2))
         return
 
-    print(f"{'directory':<28} {'files':>6} {'lines':>8} {'code':>8} {'comm':>8} {'%tot':>7} {'%c/(c+c)':>9}")
-    print("-" * 80)
+    print(
+        f"{'directory':<28} {'files':>6} {'lines':>8} {'code':>8} {'comm':>8} "
+        f"{'docstr':>8} {'blank':>8} {'%tot':>7} {'%c/(c+c)':>9}"
+    )
+    print("-" * 96)
     for label, v in report.items():
         print(
             f"{label:<28} {v['files']:>6} {v['total']:>8} {v['code']:>8} "
-            f"{v['comment']:>8} {v['ratio_of_total']:>6.1f}% {v['ratio_of_code_plus_comment']:>8.1f}%"
+            f"{v['comment']:>8} {v['docstring']:>8} {v['blank']:>8} "
+            f"{v['ratio_of_total']:>6.1f}% {v['ratio_of_code_plus_comment']:>8.1f}%"
         )
 
     print("\nDensest files (comment lines >= min, by comment count):")

@@ -15,7 +15,7 @@ fn candidate_paths() -> Vec<PathBuf> {
     if let Ok(cwd) = std::env::current_dir() {
         let roots = [cwd.clone(), cwd.parent().map(|p| p.to_path_buf()).unwrap_or(cwd)];
         for root in roots {
-            if cfg!(windows) {
+            if cfg!(target_os = "windows") {
                 out.push(root.join(".venv").join("Scripts").join("python.exe"));
             } else {
                 out.push(root.join(".venv").join("bin").join("python3"));
@@ -34,7 +34,7 @@ pub(crate) fn resolve_dev_python() -> String {
         }
     }
     // PATH fallback (tauri-dev.mjs prepends .venv\Scripts as well).
-    if cfg!(windows) {
+    if cfg!(target_os = "windows") {
         "python.exe".to_string()
     } else {
         "python3".to_string()

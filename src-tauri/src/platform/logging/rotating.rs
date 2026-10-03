@@ -1,3 +1,4 @@
+use super::combined::format_terminal_line;
 use crate::util::LOG_MAX_BYTES;
 use std::fs::OpenOptions;
 use std::io::Seek;
@@ -244,9 +245,15 @@ fn notify_queue_saturation_once() {
     }
     let ts = crate::util::now_time_only();
     eprintln!(
-        "{} {:5} [LOG] writer queue saturated ({} bytes in flight), non-error log lines \
-         dropped until it drains",
-        ts, "WARN", QUEUE_BYTE_CEILING
+        "{}",
+        format_terminal_line(
+            &ts,
+            log::Level::Warn,
+            &format!(
+                "[LOG] writer queue saturated ({QUEUE_BYTE_CEILING} bytes in flight), \
+                 non-error log lines dropped until it drains"
+            )
+        )
     );
 }
 

@@ -3,7 +3,7 @@
 //! is process-once, so `init_file_logger` swaps a CombinedLogger into
 //! `inner` rather than replacing the logger.
 
-use super::combined::{is_truthy_env_var, CombinedLogger};
+use super::combined::{format_terminal_line, is_truthy_env_var, CombinedLogger};
 use super::redact::redact_pii;
 use crate::util::now_time_only;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -56,9 +56,9 @@ impl log::Log for EarlyLogger {
         }
         let raw_msg = record.args().to_string();
         let msg = redact_pii(&raw_msg);
-        // C-LOG-1 terminal form: `HH:MM:SS LEVEL msg`.
+        // C-LOG-1 terminal form: `HH:MM:SS  LEVEL  msg`.
         let ts = now_time_only();
-        let line = format!("{} {:5} {}", ts, record.level(), msg);
+        let line = format_terminal_line(&ts, record.level(), &msg);
         if self.stderr_verbose.load(Ordering::Relaxed) {
             eprintln!("{}", line);
         }

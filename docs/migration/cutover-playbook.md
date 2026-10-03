@@ -32,7 +32,7 @@ default shipping Lausu app from predecessor to Tauri. Cutover was
 
 A platform may be cut over (its default shipping app flipped from predecessor
 to Tauri) ONLY when **all** of the following are true on a real host for
-that platform's target arch(s):
+that platform's target archs:
 
 ### Hard criteria (all must pass)
 

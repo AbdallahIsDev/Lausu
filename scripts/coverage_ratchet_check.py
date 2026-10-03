@@ -65,6 +65,7 @@ import json
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -282,6 +283,13 @@ def regenerate(current_pct: float, *, force: bool = False) -> int:
                 print("Refusing to regenerate without --force (would lose the ratchet floor).")
                 return 1
 
+    # Machine-owned provenance is rewritten on every regeneration so the
+    # recorded date/pct can never drift from the floor. `_comment` is
+    # hand-maintained narrative and is carried forward verbatim, so it is
+    # the one field that can go stale -- say so loudly instead of letting a
+    # refreshed number lend false credibility to a stale sentence.
+    metadata["_updated"] = date.today().isoformat()
+    metadata["_source"] = f"regenerated {date.today().isoformat()}: measured {current_pct:.4f}%"
     new_baseline = {**metadata, "total_coverage": round(current_pct, 4)}
     BASELINE_PATH.write_text(
         json.dumps(new_baseline, indent=2) + "\n",
@@ -289,6 +297,15 @@ def regenerate(current_pct: float, *, force: bool = False) -> int:
     )
     print(f"Regenerated {display_path(BASELINE_PATH, PROJECT_ROOT)}")
     print(f"  total_coverage = {current_pct:.4f}%")
+    if "_comment" in metadata:
+        print(
+            "  WARNING: `_comment` is HAND-MAINTAINED and was copied "
+            "verbatim, NOT rewritten."
+        )
+        print(
+            "  Review it: any measurement it cites is now stale, and "
+            "regeneration does not refresh it."
+        )
     return 0
 
 

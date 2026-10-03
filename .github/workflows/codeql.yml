@@ -28,6 +28,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-22.04
+    # Fail closed on newly-introduced advisories. pip-audit covers Python
+    # (build.yml); this covers the npm + Rust dependency trees, which were
+    # previously unguarded.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - name: Dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          # The package.json `overrides` block is the accepted-findings list
+          # for npm and is already reviewed there; a transitive advisory in a
+          # different ecosystem must still fail.
+          comment-summary-in-pr: on-failure
+
   analyze:
     name: Analyze
     runs-on: ubuntu-22.04
@@ -42,7 +61,8 @@ jobs:
       fail-fast: false
       matrix:
         # L-35 (IMPROVE-2026-07-19): added 'actions' to scan GitHub
-        language: ['python', 'javascript-typescript', 'actions']
+        # 'rust' added for the Tauri host (src-tauri), which was unscanned.
+        language: ['python', 'javascript-typescript', 'actions', 'rust']
 
     steps:
       - name: Checkout
@@ -65,6 +85,17 @@ jobs:
       - name: Autobuild (JS/TS + Actions)
         if: matrix.language != 'python'
         uses: github/codeql-action/autobuild@v4
+
+      # Rust has no meaningful autobuild for a Tauri host; a bare
+      # `cargo check` gives CodeQL the crate graph it needs to analyze.
+      - name: Setup Rust
+        if: matrix.language == 'rust'
+        uses: dtolnay/rust-toolchain@v1
+
+      - name: Cargo check (CodeQL build)
+        if: matrix.language == 'rust'
+        run: cargo check
+        working-directory: src-tauri
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

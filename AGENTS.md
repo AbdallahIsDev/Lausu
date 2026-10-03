@@ -112,10 +112,13 @@ binding: full rationale for each is in the `Hard "Don'ts"` section of this file 
 - **Never cut `timeout-minutes: 240`** (C-CI-3): real build takes 90-110
   min; it was raised twice after a 120-min ceiling canceled a build mid-way.
 - **Never re-enable the aarch64 matrix leg, never use `matrix.*` in
-  `jobs.<id>.if`, never uncomment push/PR triggers** (C-CI-4), `matrix` is
+  `jobs.<id>.if`** (C-CI-4), `matrix` is
   unavailable in job-level `if:` (0s validation failure on every push), no
   public `windows-11-arm` runner exists, and ADR-0020 §15 keeps releases
-  manual-only until Phase 0-W host validation passes.
+  manual-only until Phase 0-W host validation passes. **Windows/macOS:
+  never enable push/PR triggers.** Exception: `tauri-linux-build.yml`'s
+  path-filtered push/PR triggers are intentional (cheap `smoke-cargo-check`
+  only; the heavy `build` job is dispatch-gated) — leave them enabled.
 - **Keep every action on its Node-24 major** (C-CI-5):
   `checkout@v5`, `setup-python@v7`, `setup-node@v7`, `cache@v5`,
   `upload-artifact@v6`, `download-artifact@v6`, `attest-build-provenance@v4`,
@@ -791,6 +794,49 @@ Rationale: Margin-based inter-child spacing (and `space-y-*`, which is implement
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-UI-11
+Rule: Do NOT render a text label in the bubble's recording indicator. The
+recording indicator is the pulsing dot plus the audio-level bars, and the
+pill's recording row MUST render no text at all: no "REC", no localized
+equivalent, no visible copy of any kind. The `bubble.recordingLabel` catalog
+key was removed from all 8 locales and MUST NOT be reintroduced. The state is
+communicated by the dot's colour and animation; the pill's outer
+`<output aria-label>` already announces the state to assistive tech, so no
+label is needed for accessibility either.
+Rationale: The "REC" label restated what the red pulsing dot already said and
+widened an always-on-top pill that has to stay minimal. Removed 2026-09-30 at
+the owner's request. This is the owner's design call and is final: do not
+"restore" the label for clarity, do not substitute replacement text, and do
+not re-add the key to the locale files.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-UI-12
+Rule: Do NOT render the recording indicator (the red pulsing dot, marked
+`data-slot="bubble-recording-dot"`) in any mode other than `recording`. Red +
+pulsing means "capturing audio right now" and nothing else. Every
+non-recording mode owns a distinct indicator and must not borrow this one
+(idle: mic glyph + "Ready"; transcribing: label + bouncing dots; blocked /
+cancelling: glyph + label; the error family: red dot + label). The mode switch
+in `BubbleModeContent` MUST stay exhaustive over `BubbleMode`: the `default`
+branch is a `never` exhaustiveness guard that renders nothing, and an
+unhandled mode MUST NOT fall through to the recording indicator. The red
+pulsing dots in the ERROR family (`error`, `permission_revoked`,
+`paste_failed`) are a SEPARATE indicator that carries its own text label —
+they are correct, they must not be removed under this rule, and they must not
+be mistaken for the recording indicator.
+Rationale: The recording indicator used to be the switch's `default` branch,
+so any newly added or unrecognised `BubbleMode` silently rendered a red
+pulsing dot as if audio were being captured — a state indicator lying about
+the app's state. The explicit `case "recording"` plus the `never` guard makes
+that impossible at compile time. Scoping the rule to the recording dot rather
+than "no red anywhere" deliberately preserves the destructive-token error
+states. Established 2026-09-30 at the owner's request.
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Focus Indicators & Keyboard Accessibility
@@ -955,8 +1001,8 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-CI-4
-Rule: Do NOT re-enable the aarch64 matrix leg in `tauri-windows-build.yml` (it exists only as a commented template in the `strategy.matrix` block), do NOT add any `matrix.*` reference to a `jobs.<id>.if` condition anywhere in the workflow, and do NOT uncomment the `push:` / `pull_request:` triggers.
-Rationale: (1) The `matrix` context is NOT available in `jobs.<id>.if`, GitHub rejects the workflow file at validation time with "Unrecognized named-value: 'matrix'", failing every push in 0s. (2) GitHub does not ship a public `windows-11-arm` runner (as of 2026-08), so an active aarch64 leg could never be scheduled and has no valid gate to skip it. (3) push/PR triggers must stay disabled until Phase 0-W passes on a real Windows host (ADR-0020 §15: manual dispatch only, no auto-update). Uncommenting requires: a `tauri.windows-aarch64.conf.json`, a PYBS release with an aarch64-pc-windows-msvc asset, arch-suffixed artifact names, AND tauri-build.yml's download steps updated in lockstep. All documented in the TX-40 GATE STATUS block at the top of the file.
+Rule: Do NOT re-enable the aarch64 matrix leg in `tauri-windows-build.yml` (it exists only as a commented template in the `strategy.matrix` block) and do NOT add any `matrix.*` reference to a `jobs.<id>.if` condition anywhere in the workflow. For the WINDOWS and macOS release workflows, do NOT enable `push:` / `pull_request:` triggers. SANCTIONED EXCEPTION (verified 2026-02-10): `tauri-linux-build.yml` is path-filtered to `src-tauri/**`, `voice_typer/client/src/**`, `scripts/build/**` and its `push:`/`pull_request:` triggers are INTENTIONAL and must be left enabled — they exist solely to run the cheap `smoke-cargo-check` job (`cargo fmt --check` + `cargo test`, its own `if:` at the job level), while the expensive 30-60 min `build` job is gated OFF push/PR by its own `if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call'`. Do NOT "fix" the Linux workflow by removing those triggers, and do NOT use a workflow-level `if: true`.
+Rationale: (1) The `matrix` context is NOT available in `jobs.<id>.if`, GitHub rejects the workflow file at validation time with "Unrecognized named-value: 'matrix'", failing every push in 0s. (2) GitHub does not ship a public `windows-11-arm` runner (as of 2026-08), so an active aarch64 leg could never be scheduled and has no valid gate to skip it. (3) Windows/macOS push/PR triggers must stay disabled until Phase 0-W passes on a real Windows host (ADR-0020 §15: manual dispatch only, no auto-update). Uncommenting the aarch64 leg requires: a `tauri.windows-aarch64.conf.json`, a PYBS release with an aarch64-pc-windows-msvc asset, arch-suffixed artifact names, AND tauri-build.yml's download steps updated in lockstep. All documented in the TX-40 GATE STATUS block at the top of the file. (4) The original blanket "never enable push/PR triggers" wording was written when all three release workflows were dispatch-only; it contradicted the Linux workflow's own deliberate smoke-gate design. The harm the rule warned about ("would fire 30-60 min builds") cannot occur there, because that job never runs on push/PR. Reconciled 2026-02-10 by correcting the workflow's stale comments and carving out this narrow exception.
 Applies to: All agents, all modes, all sub-agents.
 ```
 
@@ -1222,6 +1268,20 @@ Rationale: Added 2026-08-08 so performance is measurable at a glance in the log 
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-LOG-3
+Rule: Do NOT add per-frame / per-request / per-IPC-message DEBUG wire-trace logs (RX/TX frame dumps of routine traffic), and do NOT reintroduce the removed `[SIDECAR-WS] RX frame type=... id=...` / `[SIDECAR-WS] TX response id=... status=...` traces (or any quiet-list allowlist that only partially silences them). Routine IPC chatter (config reads, history/stats polls, locale/tray sync, mic level polls, onboarding probes) must stay out of the log entirely. Lifecycle, auth, errors, rate-cap, and shutdown lines keep their existing INFO/WARN/ERROR form. Grep anchors that MUST NOT appear in source: `RX frame type=`, `TX response id=`.
+Rationale: Per-frame DEBUG dumps of every IPC request/response flooded the log with dozens of lines per UI interaction (`set_tray_locale`, `get_history`, `get_today_stats`, …), drowning real signals and making diagnostics harder, not easier. A quiet-list exemption only moved the noise; the traces themselves are the defect (user decision 2026-09-30). A source-grep regression test (`tests/test_no_ipc_wire_trace_logs.py`) fails if the anchors return.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-LOG-4
+Rule: The app-starting banner MUST stay the first app-identity log line of the process, use `|` field separators (never `--`), and emit at most once per process. Canonical form: `{APP_NAME} starting | model=... | hotkey=... | mic=... | sample_rate=...` produced by `emit_app_starting_banner()` in `voice_typer/server/startup_banner.py`. The entrypoint calls it immediately after `_setup_logging()` and BEFORE the heavy `voice_typer.server.app` / `LausuApp()` import (that import is multi-second and used to delay the banner behind `[IPC]` chatter). `AppConstruction._log_startup_banner` re-calls the same function (idempotent) then the launch timeline + `[STARTUP] logging initialized`. Do NOT emit the banner after IPC logs, do NOT reintroduce `--` as the first separator, do NOT drop the once-per-process guard, and do NOT move the function back into `app_construction` (it must stay import-light so the early call does not pull construction). Anchors: `starting | model=`, never `starting -- model=`. Tests: `tests/test_startup_banner.py`, `tests/app/test_construction_builders.py`.
+Rationale: User decision 2026-09-30. The banner that names the app was logged as the second line, ~5s after `[IPC] TAURI_SIDECAR=1...`, because it lived inside `LausuApp.__init__` behind a heavy import. The gap looked like a mystery stall between two startup lines. Emitting from a light module right after logging setup makes the identity line first and the separator style consistent (`|` throughout).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Design System Synchronization
@@ -1245,6 +1305,63 @@ shipped styles it silently becomes misleading (reviewers trust a
 showcase that no longer matches the app), and a showcase edited in
 isolation invents styles the app never renders. One atomic change
 keeps both authoritative.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-DESIGN-2
+Rule: Do NOT hand-pick border opacities, and do NOT use one border
+weight for everything. Border weight is a fixed four-step scale and
+every border MUST use the step its ROLE owns. **8% is the default** —
+cards, panels, dividers, chips, dialogs and control-track borders
+(`border-border/8`; a card outline and its internal dividers MUST match
+each other, so a card carries `border-border/8` + `divide-border/8`).
+**10%** is for the exceptions only: toasts and the active sidebar nav
+row. **15%** is for keycaps and checkboxes (`border-border/15`).
+**20%** is for dashed "mock / inactive" frames. **5% is a FILL, never a
+border** — `bg-border/5` (hover `bg-border/8`) fills neutral buttons,
+and `bg-border/10` fills a control track (the ToggleGroup track is
+`border-border/8` + `bg-border/10`: its BORDER is on the 8% default
+step, only its fill is 10%). A 5% border MUST NOT be left in place, and
+a fill MUST NOT be converted to a border (or vice versa) to "match" a
+neighbour. Write ONE class for both colour schemes wherever possible:
+`--border` is pure black in light and pure white in dark, so
+`border-border/8` paints `#000000`/8 (→ `#ebebeb`) in light and
+`#ffffff`/8 (→ `#313131`) in dark. Only add a `dark:` variant when the
+two percentages genuinely differ — the Button base is the one sanctioned
+case (`border-border/8 dark:border-border/10`, its light weight on the
+card step and its dark weight matching the toast). Never bake an alpha
+into `--border` itself.
+Rationale: user decision 2026-10-02 (the `/5` → `/8` pass). The app had
+drifted into a mix of 5% and 10% borders with no rule, so cards, chips
+and controls disagreed, and 5% card outlines were faint enough on the
+dark canvas to read as borderless. The alpha stays in the consumer,
+never in `--border`, because that is what lets one class serve both
+colour schemes and every theme preset.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-DESIGN-3
+Rule: Do NOT express a NEW surface token as a literal palette step when
+that surface must keep a RELATIONSHIP to an existing base surface.
+Derive it from the base instead — `var(--base)` or `color-mix(in oklch,
+var(--base) N%, black)` — because the theme presets
+(`voice_typer/client/src/renderer/src/themes/*.ts`) override a FIXED
+token set inline on `<html>` and NEVER override derived tokens. A
+literal step therefore looks right on the default palette but silently
+inverts on the presets whose base is darker or lighter. Use a literal
+step only when the surface is deliberately palette-independent. Lock
+the relationship with a test, and prove the test fails on the literal.
+Rationale: the sidebar rail (`--sidebar`) is `var(--background)` in
+light and `color-mix(in oklch, var(--background) 90%, black)` in dark —
+exactly `--gray-900` `#0f0f0f` on the default palette (gray-800 L 0.187
+× 90% = L 0.168) but one step BELOW the canvas on every preset. Written
+as a literal `--gray-900` it would have made the rail LIGHTER than the
+canvas on 9 of the 11 dark presets (amoled L 0, github 0.11,
+ayu/tokyo-night 0.12) — an inverted rail. Pinned by
+`__tests__/index-css-sidebar-rail-token.test.ts` (3 of its 4 assertions
+fail on the literal). Established 2026-10-02.
 Applies to: All agents, all modes, all sub-agents.
 ```
 
@@ -1333,8 +1450,8 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-SIDEBAR-9
-Rule: Do NOT give active sidebar pages a custom or stronger border. The active page item (top-level leaf AND Settings submenu child) MUST use the standard card treatment: `border-border/10` (the same ~10%-opacity card border token every card in the app uses) + `bg-surface` + `text-foreground`. The legacy `border-s-2`/`border-s-transparent` alignment borders are REMOVED, do not reintroduce them. The Settings PARENT is exempt: when its submenu is open it gets ONLY the calm foreground treatment (`text-foreground` + `font-medium` + `hover:bg-foreground/5`), never the card border/background.
-Rationale: The active item previously had no border at all while every card surface in the app carries `border-border/10`; the parent must not compete with its active child (supersedes the older UX-16 "no border, transparent border-s-2 only" contract, 2026-08-24).
+Rule: Do NOT give active sidebar pages a custom or stronger border. The active page item (top-level leaf AND Settings submenu child) MUST use the sidebar active-item treatment: `border-border/10` (deliberately ONE step stronger than the 8% card border, so the active page reads as a distinct raised row) + `bg-surface` + `text-foreground`. The legacy `border-s-2`/`border-s-transparent` alignment borders are REMOVED, do not reintroduce them. The Settings PARENT is exempt: when its submenu is open it gets ONLY the calm foreground treatment (`text-foreground` + `font-medium` + `hover:bg-foreground/5`), never the card border/background.
+Rationale: The active item previously had no border at all while the standard card border is `border-border/8`; the parent must not compete with its active child (supersedes the older UX-16 "no border, transparent border-s-2 only" contract, 2026-08-24).
 Applies to: All agents, all modes, all sub-agents.
 ```
 
@@ -1514,7 +1631,7 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-MIC-6
-Rule: Do NOT introduce unrelated styling on the Microphone page. Cards use the standard tokens (`border border-border/10`, `bg-surface-subtle`, `text-foreground` / `text-muted-foreground`); microphone selection uses RadioGroup rows (System Default row first), no bright-blue full-card borders, no verbose per-row action buttons, no technical channel/rate metadata in user-facing rows, section labels use one consistent treatment.
+Rule: Do NOT introduce unrelated styling on the Microphone page. Cards use the standard tokens (`border border-border/8`, `bg-surface-subtle`, `text-foreground` / `text-muted-foreground`); microphone selection uses RadioGroup rows (System Default row first), no bright-blue full-card borders, no verbose per-row action buttons, no technical channel/rate metadata in user-facing rows, section labels use one consistent treatment.
 Rationale: Pinned by the 2026-08-24 revamp so the page stays inside the existing Lausu design system; visual drift here was the original defect class.
 Applies to: All agents, all modes, all sub-agents.
 ```
@@ -1577,7 +1694,7 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-MIC-15
-Rule: Do NOT regress the Microphone Quality selector's COMPACT SINGLE-ROW header (refines C-MIC-14's two-line header and carves a per-instance exception out of C-MODELS-4): the collapsed state is ONE AccordionTrigger row, left group `[MICROPHONE QUALITY label + inline ? tooltip]`, right group `[active-filter chip (non-interactive span, keeps data-testid="mic-preset-current") + rotating chevron]`. The chevron is a single `ArrowDown01Icon` that rotates via `group-data-[state=open]/accordion-trigger:rotate-180` + `transition-transform duration-200` (collapsed = points down/can expand; expanded = points up/can collapse), never a swapped glyph, never two icons. The primitive's persistent PlusSignIcon is hidden ON THIS INSTANCE ONLY via `[&_[data-slot=accordion-trigger-icon]]:hidden` (ui/accordion.tsx itself stays untouched. Every other accordion keeps its `+`). The value chip is a plain span (SelectTrigger-style shell: rounded-lg border-border/10 bg-background), never a nested button. The expanded options container carries exactly ONE deliberate extra inset (`px-2` on the RadioGroup; total 24px), no per-row padding layer. Do not reintroduce the two-line stacked header, a `+`/static icon, or edge-touching option content.
+Rule: Do NOT regress the Microphone Quality selector's COMPACT SINGLE-ROW header (refines C-MIC-14's two-line header and carves a per-instance exception out of C-MODELS-4): the collapsed state is ONE AccordionTrigger row, left group `[MICROPHONE QUALITY label + inline ? tooltip]`, right group `[active-filter chip (non-interactive span, keeps data-testid="mic-preset-current") + rotating chevron]`. The chevron is a single `ArrowDown01Icon` that rotates via `group-data-[state=open]/accordion-trigger:rotate-180` + `transition-transform duration-200` (collapsed = points down/can expand; expanded = points up/can collapse), never a swapped glyph, never two icons. The primitive's persistent PlusSignIcon is hidden ON THIS INSTANCE ONLY via `[&_[data-slot=accordion-trigger-icon]]:hidden` (ui/accordion.tsx itself stays untouched. Every other accordion keeps its `+`). The value chip is a plain span (SelectTrigger-style shell: rounded-lg border-border/8 bg-background), never a nested button. The expanded options container carries exactly ONE deliberate extra inset (`px-2` on the RadioGroup; total 24px), no per-row padding layer. Do not reintroduce the two-line stacked header, a `+`/static icon, or edge-touching option content.
 Rationale: 2026-08-25 compaction pass (user decision), one-line header halved the collapsed height; the rotating chevron + grouped value chip match the app's SelectTrigger/disclosure language; the per-instance icon hide keeps C-MODELS-4 intact for the Models page accordions.
 Applies to: All agents, all modes, all sub-agents.
 ```
@@ -1742,22 +1859,22 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-UI-9
-Rule: Do NOT make any ``Clear All`` destructive button muted-on-hover or permanently tinted. Every ``Clear All`` control that wipes an entire collection (History, Vocabulary, Templates) MUST be muted at rest (``text-muted-foreground`` + outline ``border-border/5`` via ``variant="outline" size="sm"``) and on hover become the SAME solid destructive treatment used by ``ConfirmDialog``'s ``variant="destructive"`` confirm action: ``hover:border-destructive hover:bg-destructive hover:text-destructive-foreground`` (near-white ``text-destructive-foreground`` icon + label, not ``hover:text-foreground`` which is dark in light mode and fails contrast, and not a 5% ``bg-destructive/5`` wash). The icon inherits ``currentColor``, no separate icon color override. Keep ``gap-2`` + ``size-4`` icon + ``Delete01Icon strokeWidth 2`` for spacing/icon alignment, and preserve ``focus-visible:ring-1 ring-ring`` from the Button base.
+Rule: Do NOT make any ``Clear All`` destructive button muted-on-hover or permanently tinted. Every ``Clear All`` control that wipes an entire collection (History, Vocabulary, Templates) MUST be muted at rest (``text-muted-foreground`` + outline ``border-border/8`` via ``variant="outline" size="sm"``) and on hover become the SAME solid destructive treatment used by ``ConfirmDialog``'s ``variant="destructive"`` confirm action: ``hover:border-destructive hover:bg-destructive hover:text-destructive-foreground`` (near-white ``text-destructive-foreground`` icon + label, not ``hover:text-foreground`` which is dark in light mode and fails contrast, and not a 5% ``bg-destructive/5`` wash). The icon inherits ``currentColor``, no separate icon color override. Keep ``gap-2`` + ``size-4`` icon + ``Delete01Icon strokeWidth 2`` for spacing/icon alignment, and preserve ``focus-visible:ring-1 ring-ring`` from the Button base.
 Rationale: Vocabulary/Templates already used muted→solid-red on hover but with the wrong ``hover:text-foreground`` token (dark-on-red in light mode), while History was permanently ``border-destructive/40 text-destructive/80`` with a 5% hover wash. Standardizing to muted→solid-red + ``destructive-foreground`` makes the hover unambiguously read as the destructive wipe (the dialog's confirm button is the reference) and keeps Favorites (warning tint) visually distinct from the destructive action. Established 2026-08-30.
 Applies to: All agents, all modes, all sub-agents.
 ```
 
 ```
 C-FILTER-1
-Rule: Do NOT let History, Vocabulary, and Templates use different sort/filter button visuals. The three pages MUST share the SAME ``SortSelect`` primitive (``voice_typer/client/src/renderer/src/components/common/SortSelect.tsx``): ``SelectTrigger size="sm" hideChevron`` + ``className="text-muted-foreground transition-[color,box-shadow,background-color] hover:text-foreground"`` with ``Sorting01Icon size-4 strokeWidth 2`` inheriting ``currentColor``, and ``SelectContent position="popper" align="start" className="rounded-lg border border-border/5 bg-surface-subtle"``. Dimensions (``data-[size=sm]:h-8`` via ``select.tsx`` base ``rounded-lg border-border/5 bg-background text-sm``), border, typography, icon, spacing (``flex w-full flex-wrap gap-2``), hover/focus (``focus-visible:border-ring focus-visible:ring-1``), and interaction (hideChevron because the sort glyph already communicates the control) must stay identical, do not reintroduce History's old ``ChevronDownIcon``, default ``bg-surface`` ring, ``item-aligned`` centering, or ``ml-auto`` (use ``ms-auto`` for RTL).
+Rule: Do NOT let History, Vocabulary, and Templates use different sort/filter button visuals. The three pages MUST share the SAME ``SortSelect`` primitive (``voice_typer/client/src/renderer/src/components/common/SortSelect.tsx``): ``SelectTrigger size="sm" hideChevron`` + ``className="text-muted-foreground transition-[color,box-shadow,background-color] hover:text-foreground"`` with ``Sorting01Icon size-4 strokeWidth 2`` inheriting ``currentColor``, and ``SelectContent position="popper" align="start" className="rounded-lg border border-border/8 bg-surface"``. Dimensions (``data-[size=sm]:h-8`` via ``select.tsx`` base ``rounded-lg border-border/8 bg-background text-sm``), border, typography, icon, spacing (``flex w-full flex-wrap gap-2``), hover/focus (``focus-visible:border-ring focus-visible:ring-1``), and interaction (hideChevron because the sort glyph already communicates the control) must stay identical, do not reintroduce History's old ``ChevronDownIcon``, default ``bg-surface`` ring, ``item-aligned`` centering, or ``ml-auto`` (use ``ms-auto`` for RTL).
 Rationale: History's sort dropdown previously rendered a second chevron next to the sort glyph, used the generic popover surface, and was ``item-aligned``/``center`` (opening visibly right of short labels), while Vocabulary/Templates shared the muted + popper/start + subtle-surface pattern. Unifying on ``SortSelect`` eliminates the History-specific drift and ensures a single source of truth for dimensions/border/typography/icon/spacing/hover/focus. Established 2026-08-30.
 Applies to: All agents, all modes, all sub-agents.
 ```
 
 ```
 C-MODELS-5
-Rule: Do NOT render the Models page ``no-model`` state as a centered ``EmptyState`` block. When ``config.model_size === ""`` (backend ``NO_MODEL_SIZE`` sentinel) the page MUST show a compact, dismissible banner positioned in the normal page flow (``mb-3`` between the active-model summary and the tab switcher, not a centered ``flex flex-col py-16`` block that pushes cards below the fold and not a ``sticky`` overlay). The banner uses the shared design-system surface (``rounded-lg border border-border/10 bg-surface-subtle``) with ``AiBrain03Icon text-muted-foreground`` + ``text-foreground`` body + the precise ``C-UI-2``-compliant copy ``models.noModelBanner`` = ``"No speech model is selected. Select a model below."`` (not the vague ``models.noModelSelected`` = ``"No model selected"``), localized consistently in all 8 ``i18n/translations/*.json`` files, ``role="status" aria-live="polite"`` (``data-testid="models-no-model-banner"``), and a close ``X`` (``Cancel01Icon``) far-right with ``aria-label={t("common.close")}`` + ``hover:bg-foreground/10 hover:text-foreground focus-visible:ring-1`` that writes ``sessionStorage "models:noModelBannerDismissed"`` = ``"1"`` session-scoped. The dismissed flag MUST survive reloads and in-app navigation within the same app session and MUST NOT be cleared when ``config`` is still loading (guard ``if (lifecycle.config?.model_size)`` not ``!== ""`` when null, which previously cleared sessionStorage on mount and made the banner reappear); it is cleared only when a model is actually selected (``model_size`` truthy) or when the entire app/backend is closed (sessionStorage discarded by the browser). Do NOT change the existing ``model_size === ""`` selection logic.
-Rationale: The centered ``EmptyState`` consumed ~120px vertical space. The subtle-surface banner (``bg-surface-subtle``/``border-border``/``text-foreground``) matches model cards/SegmentedControl and adapts to every theme (light/dark/Dracula/Monokai via CSS vars ``--surface-subtle``/``--border``/``--text-*``), whereas the earlier ``border-accent/20 bg-accent/5 text-accent`` tint was theme-specific and felt disconnected; the sticky overlay also created a floating disconnected layer. The ``if (config?.model_size)`` guard fixes the reload/navigation regression where ``undefined !== ""`` cleared the dismissed flag on every mount. Established 2026-08-30, updated 2026-08-30 after user report of reload regression and theme mismatch.
+Rule: Do NOT render the Models page ``no-model`` state as a centered ``EmptyState`` block. When ``config.model_size === ""`` (backend ``NO_MODEL_SIZE`` sentinel) the page MUST show a compact, dismissible banner positioned in the normal page flow (``mb-3`` between the active-model summary and the tab switcher, not a centered ``flex flex-col py-16`` block that pushes cards below the fold and not a ``sticky`` overlay). The banner uses the shared design-system surface (``rounded-lg border border-border/8 bg-surface-subtle``) with ``AiBrain03Icon text-muted-foreground`` + ``text-foreground`` body + the precise ``C-UI-2``-compliant copy ``models.noModelBanner`` = ``"No speech model is selected. Select a model below."`` (not the vague ``models.noModelSelected`` = ``"No model selected"``), localized consistently in all 8 ``i18n/translations/*.json`` files, ``role="status" aria-live="polite"`` (``data-testid="models-no-model-banner"``), and a close ``X`` (``Cancel01Icon``) far-right with ``aria-label={t("common.close")}`` + ``hover:bg-foreground/10 hover:text-foreground focus-visible:ring-1`` that writes ``sessionStorage "models:noModelBannerDismissed"`` = ``"1"`` session-scoped. The dismissed flag MUST survive reloads and in-app navigation within the same app session and MUST NOT be cleared when ``config`` is still loading (guard ``if (lifecycle.config?.model_size)`` not ``!== ""`` when null, which previously cleared sessionStorage on mount and made the banner reappear); it is cleared only when a model is actually selected (``model_size`` truthy) or when the entire app/backend is closed (sessionStorage discarded by the browser). Do NOT change the existing ``model_size === ""`` selection logic.
+Rationale: The centered ``EmptyState`` consumed ~120px vertical space. The subtle-surface banner (``bg-surface-subtle``/``border-border``/``text-foreground``) matches model cards/ToggleGroup and adapts to every theme (light/dark/Dracula/Monokai via CSS vars ``--surface-subtle``/``--border``/``--text-*``), whereas the earlier ``border-accent/20 bg-accent/5 text-accent`` tint was theme-specific and felt disconnected; the sticky overlay also created a floating disconnected layer. The ``if (config?.model_size)`` guard fixes the reload/navigation regression where ``undefined !== ""`` cleared the dismissed flag on every mount. Established 2026-08-30, updated 2026-08-30 after user report of reload regression and theme mismatch.
 Applies to: All agents, all modes, all sub-agents.
 ```
 

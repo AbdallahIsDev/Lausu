@@ -10,8 +10,7 @@
 //!   window_close.rs`).
 //! - `ThemeChanged` → `theme_icon::apply_to_window` (theme-reactive
 //!   taskbar icon, `main` window only).
-//! - `Moved` → `commands::bubble::schedule_persist` (durable bubble
-//!   drag-position persistence, `bubble` window only).
+//! - `Moved` → unhandled (bubble drags are session-local, never persisted).
 
 use tauri::{Manager, WindowEvent};
 
@@ -36,21 +35,8 @@ pub(crate) fn handle(window: &tauri::Window, event: &WindowEvent) {
             crate::theme_icon::apply_to_window(window, theme);
         }
     }
-    // Durable bubble drag-position persistence: observe USER drags
-    // of the bubble window and write them back to the Python config
-    // (debounced, fire-and-forget, see
-    // `commands::bubble::persisted_position`). Programmatic moves
-    // arm a suppression window so they never persist themselves.
-    if let WindowEvent::Moved(position) = event {
-        if window.label() == "bubble" {
-            let sidecar_state = window
-                .app_handle()
-                .state::<std::sync::Arc<crate::state::SidecarState>>();
-            crate::commands::bubble::schedule_persist(
-                sidecar_state.inner(),
-                position.x,
-                position.y,
-            );
-        }
-    }
+    // Bubble drags are session-local by product decision: the pill
+    // stays where the user puts it for this session, but drags are
+    // never persisted, and every launch starts from the configured
+    // default edge. No `Moved` handling here.
 }

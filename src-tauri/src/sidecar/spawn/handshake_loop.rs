@@ -293,13 +293,27 @@ pub(super) async fn read_handshake_from_stdout_lines(
                 }
                 // Reap the zombie (mirrors the dev deadline arm):
                 // `kill()` sends the signal but does NOT call waitpid.
-                let _ =
-                    tokio::time::timeout(Duration::from_millis(EXIT_DRAIN_TIMEOUT_MS), child.wait())
-                        .await;
-                return Err(format!(
-                    "{} stdout closed before {}",
-                    labels.err_noun, labels.event_name
-                ));
+                // The exit code distinguishes a clean duplicate-instance
+                // refusal (worker exits 3 when the lock is held) from a
+                // real crash, so surface it when the reap yields one.
+                let exit_code = tokio::time::timeout(
+                    Duration::from_millis(EXIT_DRAIN_TIMEOUT_MS),
+                    child.wait(),
+                )
+                .await
+                .ok()
+                .and_then(|r| r.ok())
+                .and_then(|s| s.code());
+                return Err(match exit_code {
+                    Some(code) => format!(
+                        "{} stdout closed before {} (exit={})",
+                        labels.err_noun, labels.event_name, code
+                    ),
+                    None => format!(
+                        "{} stdout closed before {}",
+                        labels.err_noun, labels.event_name
+                    ),
+                });
             }
             Ok(Ok(_)) => {
                 stdout_buf.push_str(&line);

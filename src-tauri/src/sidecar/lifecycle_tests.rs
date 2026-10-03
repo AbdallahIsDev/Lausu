@@ -240,3 +240,25 @@ fn test_on_relaunch_app_counter_clear_and_teardown_precede_restart() {
          user asked for a fresh attempt budget in dev too"
     );
 }
+
+// quit-path window teardown (source wiring guard) ──────────────
+
+#[test]
+fn test_on_quit_app_destroys_windows_before_exit() {
+    let fn_start = LIFECYCLE_SRC
+        .find("pub(crate) fn on_quit_app")
+        .expect("on_quit_app must exist in lifecycle.rs");
+    let body = &LIFECYCLE_SRC[fn_start..];
+    let destroy_call = body
+        .find("window.destroy()")
+        .expect("on_quit_app must destroy webview windows before exiting");
+    let exit_call = body
+        .find("app_handle.exit(0)")
+        .expect("on_quit_app must still exit the host");
+    assert!(
+        destroy_call < exit_call,
+        "webview windows must be destroyed BEFORE app.exit(0): exiting with \
+         live HWNDs makes Chromium's AtExit class-unregistration fail with \
+         `Failed to unregister class Chrome_WidgetWin_0 (Error 1412)` noise"
+    );
+}
