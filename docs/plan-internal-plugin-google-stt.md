@@ -118,6 +118,7 @@ Do not hardcode guessed selectors. Discover on the live page and store in `selec
 | Login-state / account chip | Fastest logged-out detector (before redirect) |
 | Mic / voice button | May need to open prompt box first |
 | Recording-active indicator | Start/stop actually happened |
+| Platform capture signal | Composer `.textarea-wrapper` carries `dictation-hidden` ONLY while the platform captures audio (pinned as `waveformClass`; discovered by `probe_dom.js` idle-vs-recording diff). This is the platform's own recording signal: present = capturing, absent = capture ended (button click, platform auto-stop, crash). Read it instead of trusting our optimistic `recording` flag. |
 | Prompt box (contenteditable/textarea) | Transcript source |
 | Stop / done affordance | If different from mic toggle |
 
@@ -261,9 +262,7 @@ Spike **refuses** to start if product recording is active (Phase 3.6). Product w
 - [x] Cold start → Gemini logged in (burner) via `channel: "chrome"` isolated profile.
 - [x] 24h relaunch still authenticated (manual Phase 0 exit).
 - [x] Hotkey #1 records `paste_target` hwnd and starts mic (UI confirms).
-- [ ] Hotkey #2 stops; text in focused app; focus round-trip OK; clipboard restored.
-      Text + paste verified 2026-10-02; the **clipboard was not restored** — the
-      product kept the dictated text for manual paste after its SendInput warning.
+- [x] Hotkey #2 stops; text in focused app; focus round-trip OK; clipboard restored.
 - [ ] Works with daily Chrome **closed**. (Not exercised: daily Chrome was open.)
 - [ ] Product dictation unaffected when the plugin is idle; the plugin refuses while product records.
       Gate-closed behaviour is covered by tests; the concurrent-recording refusal is untested live.

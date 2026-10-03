@@ -2381,7 +2381,7 @@ def worker_internal_error(
     ) -> None:
         """
         pytest_internalerror() was called on the worker.
-    
+
         pytest_internalerror() arguments are an excinfo and an excrepr, which can't
         be serialized, so we go with a poor man's solution of raising an exception
         here ourselves using the formatted message.
