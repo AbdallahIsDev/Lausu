@@ -4,12 +4,28 @@ from __future__ import annotations
 
 import logging
 import threading
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from voice_typer.server.duck_crash_recovery import DuckCrashRecovery
+    from voice_typer.server.volume_backend_base import VolumeBackend, VolumeState
 
 log = logging.getLogger(__name__)
 
 
 class SmartDuckMonitorMixin:
     """Smart-duck background monitor methods, extracted from"""
+
+    # Members owned by VolumeDucker.__init__ (volume_ducker.py):
+    _monitor_thread: threading.Thread | None
+    _monitor_stop: threading.Event
+    _smart_duck_poll_ms: int
+    _lock: threading.Lock
+    _saved_state: VolumeState | None
+    _smart_duck_enabled: bool
+    _ducked_level: float
+    _crash_recovery: DuckCrashRecovery | None
+    _backend: VolumeBackend | None
 
     def _start_smart_duck_monitor(self, level: float, fade_ms: int, per_session: bool) -> None:
         """Start the background speaker-activity monitor."""

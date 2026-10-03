@@ -5,13 +5,29 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from typing import TYPE_CHECKING
 
+from voice_typer.server.asr_registry import AsrBackendRegistry
 from voice_typer.server.tray_types import AppState
+
+if TYPE_CHECKING:
+    from voice_typer.server.app import LausuApp
 
 log = logging.getLogger("voice_typer.server.model_manager")
 
 
 class LifecycleMixin:
+    # Members provided by the composed ``ModelManager`` (manager.py):
+    _app: LausuApp
+    _registry: AsrBackendRegistry
+    _model_lru_lock: threading.Lock
+    _model_access_times: dict[str, float]
+    _MAX_LOADED_MODELS: int
+
+    if TYPE_CHECKING:
+        # Method provided by a sibling mixin at runtime.
+        def _mark_deliberately_unloaded(self, backend_name: str | None) -> None: ...
+
     # Persistent idle-unload scheduler state (RACE-013 pattern, mirroring
     _idle_unload_deadline: float | None
     _idle_unload_wakeup: threading.Event
@@ -266,7 +282,9 @@ class LifecycleMixin:
         self._mark_deliberately_unloaded(active_name)
         # Drop the registry slot WITHOUT calling unload() on the engine
         try:
-            self._registry.unregister(active_name)
+            # ``active_name`` is None when even reading it failed;
+            # unregistering "" is a documented no-op (same outcome).
+            self._registry.unregister(active_name or "")
         except Exception:
             log.warning(
                 "[MODEL] registry.unregister(%r) failed (non-fatal)",

@@ -95,7 +95,9 @@ class RegistryCore:
     def get(self, name: str | None) -> AsrBackend | None:
         """Get a specific backend by name."""
         with self._lock:
-            return self._backends.get(name)
+            # ``None`` (or "") never names a backend; normalize so the
+            # lookup stays total without a KeyError risk.
+            return self._backends.get(name or "")
 
     @property
     def active_name(self) -> str:

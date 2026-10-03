@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from voice_typer.server._secrets import redact_secret, redact_url
 from voice_typer.server.i18n import t as _t
@@ -13,6 +14,11 @@ log = logging.getLogger(__name__)
 
 
 class DeleteImportMixin:
+    if TYPE_CHECKING:
+        # Method provided by StatusMixin at runtime in the assembled
+        # ModelMixin (mixin.py).
+        def _compute_model_status(self) -> dict[str, object]: ...
+
     def _invalidate_tray_model_cache(self, context: str) -> None:
         """Best-effort tray-submenu cache invalidation shared by delete/import."""
         try:
@@ -279,7 +285,7 @@ class DeleteImportMixin:
             if name == exclude_name or meta.backend == "distil-whisper":
                 continue
             entry = status.get(name)
-            if entry is not None and bool(entry.get("downloaded")):
+            if isinstance(entry, dict) and bool(entry.get("downloaded")):
                 return meta
         return None
 

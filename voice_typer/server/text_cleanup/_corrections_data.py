@@ -197,7 +197,7 @@ def _load_external_corrections(
     max_replacement_length = 500
 
     # the 3 per-correction-type truncation blocks + 3 per-correction-
-    misspellings = _truncate_corrections(
+    misspelling_items = _truncate_corrections(
         list(misspellings.items()),
         max_corrections_entries,
         "misspellings",
@@ -215,7 +215,7 @@ def _load_external_corrections(
 
     misspellings = dict(
         _filter_corrections_by_length(
-            misspellings,
+            misspelling_items,
             max_pattern_length,
             max_replacement_length,
             "misspellings",

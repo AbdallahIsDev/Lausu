@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -19,6 +21,24 @@ log = logging.getLogger(__name__)
 
 
 class TranscribeMixin:
+    # Owned by ParakeetEngine (engine.py), which initializes it to None;
+    # the fallback path assigns a monotonic timestamp.
+    _cpu_fallback_since: float | None
+    # Remaining members owned by ParakeetEngine.__init__ / LoadMixin:
+    _lock: threading.RLock
+    _model: Any
+    _active_inference: int
+    _inference_cond: threading.Condition
+    _abort_event: threading.Event
+    device: str
+    language: str
+
+    if TYPE_CHECKING:
+        # Methods owned by LoadMixin (_load.py) at runtime.
+        def _load_impl(self, *, providers: list[str]) -> bool: ...
+
+        def _unload_impl(self) -> None: ...
+
     @property
     def is_loaded(self) -> bool:
         """Return ``True`` if the ONNX model is loaded."""

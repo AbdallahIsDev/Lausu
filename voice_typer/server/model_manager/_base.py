@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from voice_typer.server.asr_registry import AsrBackendRegistry
 
@@ -12,6 +12,15 @@ log = logging.getLogger("voice_typer.server.model_manager")
 
 
 class ModelManagerCore:
+    if TYPE_CHECKING:
+        # Methods provided by LastResortNotifyMixin at runtime in the
+        # assembled ModelManager (manager.py).
+        def _on_last_resort_unloaded(self, backend_name: str) -> None: ...
+
+        def _should_suppress_last_resort_notification(self, backend_name: str) -> bool: ...
+
+        def _should_suppress_backend_disabled_notification(self, backend_name: str) -> bool: ...
+
     # PERF-015: maximum number of concurrently loaded models
     _MAX_LOADED_MODELS = 2
 

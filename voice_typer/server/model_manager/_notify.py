@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from voice_typer.server import i18n
 from voice_typer.server.asr_errors import ModelIntegrityError, ModelNotDownloadedError
@@ -10,10 +11,18 @@ from voice_typer.server.branding import APP_NAME
 from voice_typer.server.model_registry import NO_MODEL_SIZE
 from voice_typer.server.tray_types import AppState
 
+if TYPE_CHECKING:
+    from voice_typer.server.app import LausuApp
+
 log = logging.getLogger("voice_typer.server.model_manager")
 
 
 class LastResortNotifyMixin:
+    # Members provided by ModelManagerCore (_base.py):
+    _app: LausuApp
+    _LAST_RESORT_NOTIFY_COOLDOWN_SECS: float
+    _last_resort_notified_at: dict[str, float]
+
     def _notify_model_load_refused(self, exc: Exception, backend: str | None = None) -> str:
         """Surface a model-load refusal (not downloaded / integrity failed).
 

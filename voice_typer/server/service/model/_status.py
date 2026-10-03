@@ -11,6 +11,11 @@ log = logging.getLogger(__name__)
 
 
 class StatusMixin:
+    # Owned by DownloadStateMixin.__init__ (model/_download_state.py);
+    # declared here so the cache reads/writes below type-check.
+    _model_status_cache: dict[str, object] | None
+    _model_status_cache_ts: float
+
     def get_model_status(self) -> dict[str, object]:
         """Results are cached for ``_MODEL_STATUS_CACHE_TTL_S`` seconds."""
         now = time.monotonic()

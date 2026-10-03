@@ -39,6 +39,8 @@ class ChangeMixin:
     _model_change_lock: threading.RLock
     _pending_model_change: str | None
     _pending_backend_change: str | None
+    _model_change_thread: threading.Thread | None
+    _backend_change_thread: threading.Thread | None
 
     if TYPE_CHECKING:
         # Methods provided by the sibling mixins at runtime
