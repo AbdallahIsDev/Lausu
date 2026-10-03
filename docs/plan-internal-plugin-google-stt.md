@@ -138,7 +138,7 @@ Rules: prefer role/aria-label/visible text; on failure dump screenshot + aria sn
 ### Phase 3 — Hotkey + focus choreography + paste
 
 1. Hotkey default `ctrl+shift+space` — does **not** collide with product `DEFAULT_HOTKEY = "<caps_lock>"` (`voice_typer/server/config/_defaults.py`). Still **runtime-check** user-remapped product hotkeys and refuse on conflict.
-2. **Hotkey #1:** record foreground hwnd (`GetForegroundWindow`) as `paste_target`; then start mic (page already off-screen from Phase 0).
+2. **Hotkey #1:** record foreground hwnd (`GetForegroundWindow`) as `paste_target`; **then make the composer clean and VERIFY it** (`ensureCleanComposer`: dirty → new chat → re-read; a box still dirty fails the start as `composer-dirty`, so stale text can never be recorded over); then start mic (page already off-screen from Phase 0).
 3. **Hotkey #2:** stop mic → scrape (Phase 2) → `SetForegroundWindow(paste_target)` → product paste.
 4. **Fail-closed paste target** (mirror `_paste.py` gates): if target hwnd died / is elevated / is unsafe / IME composing / not a text field → **do not paste**; leave text on clipboard and toast “paste blocked” (no transcript in toast). Import path already implements these — call it, don’t duplicate.
 5. Clipboard: product `ClipboardSnapshot` borrow/restore around the paste (product paste import accepted). The system clipboard is **not** permanently clobbered.

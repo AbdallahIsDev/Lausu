@@ -39,7 +39,7 @@ TS unions: `types/ipc/push_events.ts` + `types/ipc/requests.ts`. Parity: `tests/
 | `llm_polish_failed` | `{}` | LLM polish path (distinct) |
 | `microphone_permission_revoked` | `{}` | OS revoked mid-recording |
 | `microphone_disconnected` | `{}` | Active mic lost |
-| `cloud_fallback_used` | `{provider, reason}` | Cloud ASR failed → local |
+| `cloud_fallback_used` | `{provider, kind, reason}` | Cloud ASR failed → local |
 | `dictation_suppressed` | `{duration, recorded_rms, reason}` | Near-silent UX silence |
 | `history_corrupted` | `{path, db_path, recovered_count}` | Rebuilt after corruption |
 | `history_fts5_rebuild_failed` | `{db_path, deleted, error, source}` | |
