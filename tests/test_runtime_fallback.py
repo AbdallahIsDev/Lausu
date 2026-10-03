@@ -344,6 +344,22 @@ class TestNativeRetry:
         # Should still be in FALLBACK state
         assert adapter._state == _NativeBackendAdapter._STATE_FALLBACK
 
+    def test_retry_native_stop_throw_stays_fallback(self, monkeypatch):
+        """If native.stop() throws, the retry must stay on legacy instead
+        of dying with NameError (unbound ``cb``) into FAILED state."""
+        from voice_typer.server.hotkeys import _NativeBackendAdapter
+
+        native = _make_mock_native_backend()
+        native.stop.side_effect = RuntimeError("stop exploded")
+        adapter = _NativeBackendAdapter(native)
+        adapter._state = _NativeBackendAdapter._STATE_FALLBACK
+        adapter._legacy = _make_mock_legacy_backend()
+        adapter._callback = MagicMock()
+        monkeypatch.setattr(adapter, "_schedule_native_retry", lambda: None)
+
+        adapter._retry_native()
+        assert adapter._state == _NativeBackendAdapter._STATE_FALLBACK
+
     def test_retry_when_stopped_is_noop(self, monkeypatch):
         """If stop() was called, _retry_native should not restart anything."""
         from voice_typer.server.hotkeys import _NativeBackendAdapter
