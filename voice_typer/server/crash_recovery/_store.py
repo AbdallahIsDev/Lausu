@@ -133,8 +133,8 @@ class CrashRecovery(_SaveWorker, _RecoveryIO):
         """Check for unpasted transcriptions from a previous session.
 
         Returns a list of unpasted entries if any exist, or None.
-        The caller should notify the user about these entries so they
-        can recover the text that was lost due to a crash or forced close.
+        Silent by owner decision: the caller logs the count only, the
+        entries stay in recovery.json for diagnostics export.
 
         Returns:
             List of unpasted entry dicts, or None if no unpasted entries.

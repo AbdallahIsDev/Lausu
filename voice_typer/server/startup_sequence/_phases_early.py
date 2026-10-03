@@ -309,27 +309,12 @@ class EarlyPhases:
                 unpasted = app._crash_recovery.check_on_startup()
                 if unpasted:
                     count = len(unpasted)
+                    # Fully silent (owner decision): no OS toast AND no
+                    # event-bus notification (the host renders every
+                    # "notification" event as a native toast, so there
+                    # is no in-app-only path). The log line above is
+                    # the only trace; entries stay in recovery.json.
                     log.info("[STARTUP] Found %d unpasted transcriptions from previous session", count)
-                    body = f"Found {count} unpasted transcriptions from previous session. Open History to review them."
-                    # No OS toast here (owner decision): the in-app
-                    # notification below is enough, recovery stays silent.
-                    try:
-                        from voice_typer.server import event_bus
-
-                        event_bus.publish(
-                            {
-                                "type": "notification",
-                                "data": {
-                                    "title": APP_NAME,
-                                    "message": body,
-                                    "duration_ms": 15000,
-                                    "critical": False,
-                                    "click_path": "/history",
-                                },
-                            }
-                        )
-                    except Exception:
-                        log.debug("[STARTUP] Could not publish recovery event to frontend")
             except Exception:
                 # Promote debug→warning so the failure surfaces in
                 log.warning("[STARTUP] Crash recovery check failed", exc_info=True)
