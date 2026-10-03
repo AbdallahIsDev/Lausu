@@ -171,7 +171,7 @@ class TestRedactSecretFlagForms:
 
 
 class TestRedactSecretThreshold20:
-    """G4-L-06: the generic ``[A-Za-z0-9_\\-]{N,}`` pattern threshold"""
+    """G4-L-06: the generic ``[A-Za-z0-9_]{N,}`` pattern threshold"""
 
     def test_20_char_bare_token_redacted(self):
         """G4-L-06: a bare 20-char alphanumeric token is redacted."""
@@ -231,6 +231,28 @@ class TestRedactSecretThreshold20:
         )
 
 
+def test_dash_joined_model_dir_names_survive_verbatim():
+    """HF hub cache dirs (``models--org--name-large-v3``) must not render
+    as ``models***v3``: dashes are not part of the generic catch-all, so
+    dash-joined names split into short runs that never match."""
+    line = (
+        r"[MODEL] system whisper model ready "
+        r"(~\.cache\huggingface\hub\models--Systran--faster-whisper-large-v3"
+        r"\snapshots\edaa852ec7e145841d8ffdb056a99866b5f0a478)"
+    )
+    assert redact_secret(line) == line
+
+
+def test_cuda_env_var_names_survive_verbatim():
+    """``CUDA_VISIBLE_DEVICES`` is exactly 20 chars and tripped the
+    generic catch-all, rendering ``Set ***=''`` in CUDA-DLL log lines."""
+    line = (
+        "[CUDA-DLL] Set CUDA_VISIBLE_DEVICES='': downstream imports "
+        "(ctranslate2) skip CUDA enumeration (~20s) and load on CPU"
+    )
+    assert redact_secret(line) == line
+
+
 def test_sec9_flag_patterns_module_constants():
     """SEC-9: ``_secrets`` module must expose the new flag-pattern"""
     assert hasattr(_secrets, "_FLAG_KEY_PATTERNS")
@@ -244,7 +266,7 @@ def test_sec9_flag_patterns_module_constants():
 
 
 class TestRedactUrl:
-    """HU-37: ``redact_url`` strips ``user:pass@`` userinfo AND chains"""
+    """``redact_url`` strips ``user:pass@`` userinfo AND chains"""
 
     def test_strips_userinfo_from_url(self):
         """``user:pass@`` userinfo is removed; scheme/host/path are"""
