@@ -4,8 +4,10 @@ import collections
 import json
 import logging
 import os
+import threading
 import time
 from datetime import datetime
+from pathlib import Path
 
 # ``_facade`` is a bound reference to the partially-initialized package
 from voice_typer.server import crash_recovery as _facade
@@ -29,6 +31,11 @@ log = logging.getLogger("voice_typer.server.crash_recovery")
 
 class _RecoveryIO:
     """Mixin: disk load/quarantine/save for :class:`CrashRecovery`."""
+
+    # Members owned by CrashRecovery.__init__ (_store.py):
+    _path: Path
+    _lock: threading.Lock
+    _save_lock: threading.Lock
 
     def _load(self) -> None:
         """during ``LausuApp.__init__``. In production,"""

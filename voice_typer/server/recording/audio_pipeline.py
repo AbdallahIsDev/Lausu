@@ -179,17 +179,17 @@ class AudioPipeline:
             try:
                 _flat = indata_mono.reshape(-1)
                 _bypass_peak = max(float(_flat.max()), -float(_flat.min()))
-            except Exception:
-                _bypass_peak = float("inf")
-            if _bypass_peak < _NEAR_SILENCE_BYPASS_PEAK:
-                _should_bypass = True
-            elif _bypass_peak < _NEAR_SILENCE_BYPASS_PEAK_CEILING:
-                # Ambient band: only pay the RMS reduction when peak
-                try:
+                if _bypass_peak < _NEAR_SILENCE_BYPASS_PEAK:
+                    _should_bypass = True
+                elif _bypass_peak < _NEAR_SILENCE_BYPASS_PEAK_CEILING:
+                    # Ambient band: only pay the RMS reduction when peak
                     _bypass_rms = float(np.sqrt(np.dot(_flat, _flat) / _flat.size))
-                except Exception:
-                    _bypass_rms = float("inf")
-                _should_bypass = _bypass_rms < AUDIO_SILENCE_RMS
+                    _should_bypass = _bypass_rms < AUDIO_SILENCE_RMS
+            except Exception:
+                # Any probe failure (reshape/peak/RMS) means "not
+                # provably silent": run the full chain. Identical to the
+                # old inf-fallback outcomes on every failure path.
+                _should_bypass = False
             if _should_bypass:
                 _proc = recorder._audio_processor
                 _proc_sr = getattr(_proc, "_sample_rate", None) if _proc is not None else None

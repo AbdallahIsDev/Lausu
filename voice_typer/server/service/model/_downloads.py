@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from voice_typer.server import segmented_download as segdl
 from voice_typer.server._secrets import redact_secret, redact_url
@@ -12,12 +13,22 @@ from voice_typer.server.service._download_helpers import DownloadOutcome
 
 from ._constants import _PARAKEET_REASON_MESSAGES
 
+if TYPE_CHECKING:
+    from voice_typer.server.app import LausuApp
+
 log = logging.getLogger(__name__)
 
 
 class DownloadsMixin:
     # Members provided by the composed ``ModelMixin`` (mixin.py);
     _download_queue: list[str]
+    _app: LausuApp
+
+    if TYPE_CHECKING:
+        # Methods provided by sibling mixins at runtime.
+        def _invalidate_model_status_cache(self) -> None: ...
+
+        def _unregister_download(self, download_id: str) -> None: ...
 
     def test_llm_connection(self) -> dict[str, object]:
         """Test the LLM polish API connection.

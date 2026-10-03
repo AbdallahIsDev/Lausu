@@ -186,7 +186,9 @@ def _resolve_public_ips(host: str) -> tuple[str, ...]:
         raise ValueError(f"host {host!r} did not resolve: {exc}") from exc
     ips: list[str] = []
     for _family, _type, _proto, _canonname, sockaddr in infos:
-        ip = sockaddr[0]
+        # sockaddr[0] is the address string; str() documents that (pyrefly
+        # types the tuple element as int | str across versions).
+        ip = str(sockaddr[0])
         if _is_private_ip(ip):
             raise ValueError(f"host {host!r} resolves to private/reserved IP {ip!r}, refusing")
         if ip not in ips:
@@ -296,7 +298,7 @@ def assert_url_allowed(
             infos = []
         for _family, _type, _proto, _canonname, sockaddr in infos:
             # sockaddr[0] is the IP address string for both AF_INET
-            ip = sockaddr[0]
+            ip = str(sockaddr[0])
             if _is_private_ip(ip):
                 raise ValueError(
                     f"{client_name}: {field_name} host {host!r} resolves "

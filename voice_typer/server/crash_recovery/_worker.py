@@ -75,6 +75,16 @@ _ATEXIT_FLUSH_TIMEOUT_S = 2.0
 class _SaveWorker:
     """Mixin: background save-thread machinery for :class:`CrashRecovery`."""
 
+    # Members owned by CrashRecovery.__init__ (_store.py):
+    _stopped: bool
+    _save_queue: queue.Queue[dict | None]
+    _save_thread: threading.Thread | None
+    _final_save_done: bool
+
+    if TYPE_CHECKING:
+        # Method owned by _RecoveryIO (_io.py) at runtime.
+        def _save_sync(self, *, durability: bool = False, set_final_save_done: bool = False) -> None: ...
+
     def _enqueue_save(self) -> None:
         """Enqueue a save request to the background worker."""
         if self._stopped:

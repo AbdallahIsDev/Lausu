@@ -131,7 +131,7 @@ def _detach_process_group() -> bool:
         return False
     # Resolved via getattr: POSIX-only os attributes are absent from the
     setpgid = getattr(os, "setpgid", None)
-    if setpgid is None:
+    if not callable(setpgid):
         return False
     try:
         setpgid(0, 0)

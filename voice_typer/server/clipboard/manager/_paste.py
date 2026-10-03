@@ -417,6 +417,7 @@ class PasteMixin:
                 # TOCTOU re-check on macOS. Re-fetch the frontmost app
                 if not self._recheck_macos_toctou(safe_macos_pid):
                     return False
+                assert _cb._Key is not None
                 self._safe_key_press(_cb._Key.cmd, "v")
             elif use_wayland_wtype:
                 # Linux Wayland residual risk, wtype does not return

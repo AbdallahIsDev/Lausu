@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import contextlib
+from typing import Any
 
 from voice_typer.server import clipboard as _cb
 
 
 class KeyboardMixin:
     """Keyboard-controller lifecycle mixin for :class:`ClipboardManager`."""
+
+    # Owned by ClipboardManager.__init__ (manager/__init__.py): the
+    # pynput controller, or None where pynput is unavailable.
+    _keyboard: Any
 
     def _release_stuck_modifiers(self) -> None:
         """Release any stuck modifier keys before paste."""
