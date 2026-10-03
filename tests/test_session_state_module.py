@@ -515,7 +515,7 @@ def test_secure_clear_caches_routes_through_recording_pkg_indirection(monkeypatc
 
 
 def test_secure_clear_caches_does_not_swallow_unexpected_exceptions(monkeypatch):
-    """invariant: the ``except`` clause is narrowed to ``(OSError, ValueError)``."""
+    """the ``except`` clause is narrowed to ``(OSError, ValueError)``."""
     rec = _make_recorder()
     rec._cached_resampled = np.array([0.1, 0.2], dtype=np.float32)
 

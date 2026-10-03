@@ -219,6 +219,39 @@ class TestPortRelay:
         assert get_shared_client() is get_shared_client()
 
 
+class TestCloseSharedClient:
+    """Early-bookend shutdown must stop the reconnect loop (no WARN spam
+    + no futile connects while the worker is gone)."""
+
+    def test_false_when_never_created(self, monkeypatch):
+        from voice_typer.server import worker_client as _wc
+
+        monkeypatch.setattr(_wc, "_shared_client", None)
+        assert _wc.close_shared_client() is False
+
+    def test_true_stops_reconnects(self, monkeypatch):
+        from voice_typer.server import worker_client as _wc
+
+        monkeypatch.setattr(_wc, "_shared_client", None)
+        client = get_shared_client()
+        assert _wc.close_shared_client() is True
+        assert client._stop_event.is_set()
+        monkeypatch.setattr(_wc, "_shared_client", None)
+
+    def test_close_failure_is_false_not_raise(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from voice_typer.server import worker_client as _wc
+
+        broken = MagicMock()
+        broken.close.side_effect = RuntimeError("boom")
+        monkeypatch.setattr(_wc, "_shared_client", broken)
+        try:
+            assert _wc.close_shared_client() is False
+        finally:
+            monkeypatch.setattr(_wc, "_shared_client", None)
+
+
 class TestNoPortNoSend:
     def test_send_without_port_returns_none(self):
         client, _ = _client_with_recorder()

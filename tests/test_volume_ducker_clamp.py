@@ -38,7 +38,7 @@ class SlowSubprocessBackend(VolumeBackend):
 
 
 class TestClampPollInterval:
-    """AB-15: the ``min_poll_interval_ms`` floor must apply on every"""
+    """the ``min_poll_interval_ms`` floor must apply on every"""
 
     def test_initialize_still_applies_floor(self) -> None:
         """Original XV-57 behaviour preserved: ``initialize`` clamps"""

@@ -1,4 +1,4 @@
-"""AB-26: regression tests for the ``get_today_stats`` short-TTL cache."""
+"""regression tests for the ``get_today_stats`` short-TTL cache."""
 
 from __future__ import annotations
 
@@ -18,8 +18,8 @@ def db(tmp_path):
     db_instance.close()
 
 
-class TestAb26TodayStatsCache:
-    """AB-26: ``get_today_stats`` serves from a 15s TTL cache."""
+class TestTodayStatsServedFromTtlCache:
+    """``get_today_stats`` serves from a 15s TTL cache."""
 
     def test_cache_returns_same_value_within_ttl(self, db):
         """Two consecutive calls within the TTL window return the same"""

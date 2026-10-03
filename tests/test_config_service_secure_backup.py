@@ -60,7 +60,7 @@ def test_reset_config_to_defaults_does_not_use_shutil_copy2(tmp_path: Path) -> N
             "reset_config_to_defaults must NOT call shutil.copy2, "
             "it is non-atomic, symlink-following, and lacks fsync. "
             "Use _secure_read_text + _secure_atomic_write instead. "
-            f"Got {len(copy2_calls)} call(s): {copy2_calls}"
+            f"Got {len(copy2_calls)} calls: {copy2_calls}"
         )
     finally:
         mp.undo()

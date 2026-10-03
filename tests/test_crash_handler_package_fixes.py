@@ -306,8 +306,8 @@ class TestWriteCrashMarkerHelper:
         """UE-2-F4: neither ``_crash_excepthook`` nor"""
         source = Path(_python_excepthook.__file__).read_text(encoding="utf-8")
         # The inline closure pattern (pre-fix), must NOT appear.
-        assert "def _redact(s):" not in source, (
-            "UE-2-F4: the inline ``def _redact(s):`` closure must be removed "
+        assert "def _redacts:" not in source, (
+            "UE-2-F4: the inline ``def _redacts:`` closure must be removed "
             "from _python_excepthook, the logic now lives in "
             "``_redact_exc_value`` (called from ``_write_crash_marker``)"
         )

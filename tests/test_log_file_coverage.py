@@ -97,7 +97,7 @@ def test_diagnostics_unexpected_name_collision_is_not_silently_overwritten(
     assert module._unique_zip_name("lausu.log", taken) == "lausu.log-3"
     assert module._unique_zip_name("sidecar.log", taken) == "sidecar.log"
 
-    # Integration: two same-basename logs cannot coexist on disk in one
+    # two same-basename logs cannot coexist on disk in one
     config_dir = tmp_path / "config"
     (config_dir / "logs").mkdir(parents=True)
     (config_dir / "logs" / "lausu.log").write_text("current\n", encoding="utf-8")

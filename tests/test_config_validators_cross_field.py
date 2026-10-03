@@ -84,7 +84,7 @@ class TestCrossFieldHotkeyConflicts:
 
 
 class TestCrossFieldViaValidateConfigUpdate:
-    """Integration: the cross-field check runs in ``validate_config_update``."""
+    """the cross-field check runs in ``validate_config_update``."""
 
     def test_conflict_between_hotkey_and_repaste_via_ipc(self) -> None:
         validated, errors = validate_config_update({"hotkey": "<f5>", "repaste_hotkey": "<f5>"})
@@ -112,7 +112,7 @@ class TestCrossFieldViaValidateConfigUpdate:
 
 
 class TestCrossFieldViaValidateConfig:
-    """Integration: the cross-field check runs in ``validate_config`` (load path)."""
+    """the cross-field check runs in ``validate_config`` (load path)."""
 
     def test_conflict_between_hotkey_and_repaste_caught_at_load(self) -> None:
         cfg = SimpleNamespace(
@@ -202,7 +202,7 @@ class TestCrossPlatformWarnings:
         assert "Windows" in warning
 
     def test_blanket_blocked_combos_via_cross_platform_warnings(self) -> None:
-        # Integration: ``cross_platform_hotkey_warnings(cfg)`` must
+        # ``cross_platform_hotkey_warnings(cfg)`` must
         cfg = SimpleNamespace(
             hotkey="<cmd>+<b>",  # darwin blanket rule (Cmd+letter)
             repaste_hotkey="<win>+<a>",  # win32 blanket rule (Win+*)
@@ -726,7 +726,7 @@ class TestCustomThemeCaps:
 
 
 class TestCrossFieldCloudConfig:
-    """PI-18: ``_check_cross_field_cloud_config`` catches cloud/LLM"""
+    """``_check_cross_field_cloud_config`` catches cloud/LLM"""
 
     def test_cloud_url_without_key_raises(self) -> None:
         """Setting ``cloud_api_url`` to a non-empty value while"""

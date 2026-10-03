@@ -36,7 +36,7 @@ def _isolate_state():
 
 
 class TestCancelTestLockedSecureClears:
-    """AP-13: ``_cancel_test_locked`` must call ``_secure_clear_test_chunks``"""
+    """``_cancel_test_locked`` must call ``_secure_clear_test_chunks``"""
 
     def test_cancel_calls_secure_clear_before_clear(self):
         """When a test is active and chunks are populated, the cancel"""

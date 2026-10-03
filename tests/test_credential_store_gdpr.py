@@ -144,7 +144,7 @@ class TestDeleteSecretClearsCache:
         cached_entry = next(iter(credential_store._plaintext_config_cache.values()))
         assert cached_entry[1].get("openai_api_key") == "sk-secret-to-delete"
 
-        # Act: delete the secret. This calls _write_plaintext_fallback('')
+        # delete the secret. This calls _write_plaintext_fallback('')
         credential_store.delete_secret("openai")
 
         # Assert: cache is empty, the stale plaintext value is no
@@ -164,7 +164,7 @@ class TestDeleteSecretClearsCache:
         credential_store.load_secret("groq")
         assert credential_store._plaintext_config_cache
 
-        # Act: delete just one provider.
+        # delete just one provider.
         credential_store.delete_secret("openai")
 
         # Assert: cache is cleared ().
@@ -382,7 +382,7 @@ class TestDeleteSecretOrphanCleanup:
         store[(credential_store.KEYRING_SERVICE_NAME, "openai")] = "sk-current-openai"
         store[(credential_store.KEYRING_SERVICE_NAME, "polisher")] = "sk-orphaned-polisher"
 
-        # Act: delete the openai entry. The orphan-cleanup must ALSO
+        # delete the openai entry. The orphan-cleanup must ALSO
         credential_store.delete_secret("openai")
 
         # Assert: both entries are gone.

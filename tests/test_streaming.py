@@ -974,7 +974,7 @@ class TestFinalizeImplInner:
 
         # Must return the snapshot text unchanged
         assert result == "hello world"
-        # CRITICAL: transcribe_words must NOT be called, the tail
+        # transcribe_words must NOT be called, the tail
         transcriber.transcribe_words.assert_not_called()
         # And transcribe_with_fallback must NOT be called either, this
         transcriber.transcribe_with_fallback.assert_not_called()

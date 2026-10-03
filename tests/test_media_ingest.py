@@ -71,6 +71,52 @@ class TestJobManager:
         assert MediaJobManager().cancel() is False
 
 
+class TestJobErrorCodes:
+    """The ``media_transcribe_error`` code must be a REGISTERED code.
+
+    ``tests/test_error_codes_registry.py`` only proves the literal is
+    registered; this pins WHICH code, because the renderer branches on it
+    (``isNoModelError``) to offer the "Open Models" recovery action.
+    """
+
+    @staticmethod
+    def _code_for(exc: Exception) -> str:
+        import threading
+
+        events: list[dict] = []
+        ready = threading.Event()
+        mgr = MediaJobManager(on_event=lambda e: (events.append(e), ready.set()))
+
+        def _runner(_job):
+            raise exc
+
+        job = mgr.start("src", _runner)
+        assert ready.wait(timeout=5), "the job thread never emitted an event"
+        assert job.status == "failed"
+        errors = [e for e in events if e.get("type") == "media_transcribe_error"]
+        assert errors, f"expected a media_transcribe_error event, got {events!r}"
+        return str(errors[0]["data"]["code"])
+
+    def test_missing_model_maps_to_namespaced_no_model(self):
+        """A missing/corrupt model must surface as ``server.no_model``.
+
+        The old bare ``no_engine_loaded`` literal was not in the error registry,
+        which failed ``test_error_codes_registry``.
+        """
+        from voice_typer.server.asr_errors import ModelNotDownloadedError
+
+        assert self._code_for(ModelNotDownloadedError("no model")) == "server.no_model"
+
+    def test_model_integrity_failure_maps_to_no_model(self):
+        from voice_typer.server.asr_errors import ModelIntegrityError
+
+        assert self._code_for(ModelIntegrityError("corrupt")) == "server.no_model"
+
+    def test_unrelated_failure_stays_internal_error(self):
+        """Only the ASR model errors get the no-model treatment."""
+        assert self._code_for(RuntimeError("boom")) == "internal_error"
+
+
 class TestEngineLoop:
     def test_windows_join_text(self):
         from voice_typer.server.media_ingest import engine_loop as loop

@@ -297,8 +297,8 @@ class TestIsSafePasteTarget:
             assert result is True
 
 
-class TestYj22PynputBindingsTyping:
-    """YJ-22: ``_Controller`` narrowed from ``Any`` to ``type | None``."""
+class TestPynputBindingsTyping:
+    """``_Controller`` narrowed from ``Any`` to ``type | None``."""
 
     def test_controller_annotation_is_type_or_none(self):
         """The ``_Controller`` annotation MUST be ``type | None`` (not"""

@@ -655,7 +655,7 @@ class TestQueueBounded:
 
 
 class TestPreMigrationBackup:
-    """PI-10: ``_init_db_schema`` must create a pre-migration backup"""
+    """``_init_db_schema`` must create a pre-migration backup"""
 
     def test_pre_migration_backup_created_on_v1_to_v3_migration(self, tmp_path):
         """``history.db.pre-migration-v1.bak`` file before the migration"""
@@ -772,7 +772,7 @@ class TestPreMigrationBackup:
             bak_conn.close()
 
     def test_no_pre_migration_backup_when_already_at_current_version(self, tmp_path):
-        """PI-10: opening a DB that's already at the current schema"""
+        """opening a DB that's already at the current schema"""
         import sqlite3
 
         from voice_typer.server.history_db import HistoryDB
@@ -828,21 +828,22 @@ class TestPreMigrationBackup:
 
 
 class TestCloseWalCheckpoint:
-    """PI-11: ``close()`` must run ``PRAGMA wal_checkpoint(TRUNCATE)``"""
+    """``close()`` must run ``PRAGMA wal_checkpoint(TRUNCATE)``"""
 
     def test_close_runs_wal_checkpoint_truncate(self, tmp_path, monkeypatch):
-        """PI-11: close() must call self.checkpoint(truncate=True) before"""
+        """close() must call self.checkpoint(truncate=True) before"""
         from voice_typer.server.history_db import HistoryDB
+        from voice_typer.server.history_db_internals import crud_writes as _crud_writes
 
         db = HistoryDB(db_path=tmp_path / "wal_close.db")
         checkpoint_calls: list[bool] = []
-        original_checkpoint = db.checkpoint
+        original_submit = _crud_writes.submit_checkpoint
 
-        def _spy_checkpoint(truncate: bool = True) -> bool:
+        def _spy_submit(db_arg, truncate: bool = True, **kwargs) -> bool:
             checkpoint_calls.append(truncate)
-            return original_checkpoint(truncate=truncate)
+            return original_submit(db_arg, truncate, **kwargs)
 
-        monkeypatch.setattr(db, "checkpoint", _spy_checkpoint)
+        monkeypatch.setattr(_crud_writes, "submit_checkpoint", _spy_submit)
 
         db.close()
 
@@ -856,17 +857,18 @@ class TestCloseWalCheckpoint:
         )
 
     def test_close_does_not_block_on_checkpoint_failure(self, tmp_path, monkeypatch):
-        """PI-11: if the checkpoint raises sqlite3.Error, close() must"""
+        """if the checkpoint raises sqlite3.Error, close() must"""
         from voice_typer.server.history_db import HistoryDB
+        from voice_typer.server.history_db_internals import crud_writes as _crud_writes
 
         db = HistoryDB(db_path=tmp_path / "wal_fail.db")
 
-        def _failing_checkpoint(truncate: bool = True) -> bool:
+        def _failing_submit(db_arg, truncate: bool = True, **kwargs) -> bool:
             import sqlite3
 
             raise sqlite3.Error("simulated checkpoint failure")
 
-        monkeypatch.setattr(db, "checkpoint", _failing_checkpoint)
+        monkeypatch.setattr(_crud_writes, "submit_checkpoint", _failing_submit)
 
         # close() must NOT raise, the sqlite3.Error is suppressed.
         db.close()
@@ -875,8 +877,31 @@ class TestCloseWalCheckpoint:
             "PI-11 regression: writer thread should exit after close() even if the pre-shutdown checkpoint fails"
         )
 
+    def test_close_checkpoint_not_dropped_after_shutdown(self, tmp_path, caplog):
+        """close()'s own WAL checkpoint must execute, not hit the shutdown guard.
+
+        ``close_db`` sets ``_shutdown`` before ``_close_writer`` runs, so a
+        plain ``checkpoint()`` was always refused and every quit logged a
+        phantom "Write submitted after shutdown, dropped" while skipping
+        the explicit TRUNCATE.
+        """
+        import logging
+
+        from voice_typer.server.history_db import HistoryDB
+
+        db = HistoryDB(db_path=tmp_path / "wal_drop.db")
+        db.add_transcription("hello world")
+        db.flush()
+
+        with caplog.at_level(logging.DEBUG, logger="voice_typer.server.history_db_internals.writer"):
+            db.close()
+
+        assert not any(
+            "submitted after shutdown" in r.message for r in caplog.records
+        ), "close()'s checkpoint must use the close-path escape hatch, not the drop guard"
+
     def test_close_truncates_wal_file(self, tmp_path):
-        """PI-11: end-to-end, after close(), the ``-wal`` sidecar file"""
+        """end-to-end, after close(), the ``-wal`` sidecar file"""
         from voice_typer.server.history_db import HistoryDB
 
         db_path = tmp_path / "wal_truncate.db"
@@ -900,7 +925,7 @@ class TestCloseWalCheckpoint:
 
 
 class TestO2DbSubdirMigration:
-    """O2: ``history.db`` moved from the config-dir root into ``db/``."""
+    """``history.db`` moved from the config-dir root into ``db/``."""
 
     def _redirect_config_dir(self, monkeypatch, tmp_path: Path) -> Path:
         from voice_typer.server import config as cfg_mod

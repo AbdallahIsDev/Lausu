@@ -51,7 +51,7 @@ def _make_backend(hotkey_str: str, *, prefer_message_loop: bool = False):
 
 
 def test_three_backends_install_only_one_ll_hook(mock_win32):
-    """AB-35: with the main hotkey using the LL hook and ESC + repaste"""
+    """with the main hotkey using the LL hook and ESC + repaste"""
     mock_user32, _, _ = mock_win32
 
     backends = []

@@ -13,7 +13,7 @@ from voice_typer.server.sidecar_ws import (
 
 
 class TestWSFrameSizeCheckSource:
-    """AB-38: source-level verification that the size check measures the"""
+    """source-level verification that the size check measures the"""
 
     def test_size_check_uses_encoded_byte_count(self):
         """The size check must compare ``len(raw_bytes)`` (the exact"""
@@ -90,7 +90,7 @@ class TestWSFrameSizeCheckSemantics:
 
 
 class TestWSFrameSizeCheckBehavioral:
-    """AB-38: behavioral verification that ``_safe_send`` drops frames"""
+    """behavioral verification that ``_safe_send`` drops frames"""
 
     async def _run_safe_send(self, event):
         """Call ``_safe_send`` against a fake websocket that records the"""

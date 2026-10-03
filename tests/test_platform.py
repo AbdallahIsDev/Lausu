@@ -565,7 +565,7 @@ class TestGetAutostartDirLinux:
 
         result = get_autostart_dir()
 
-        # Critical: must NOT be a relative path (the bug produced
+        # must NOT be a relative path (the bug produced
         assert result.is_absolute(), f"FR-9 regression: empty XDG_CONFIG_HOME produced relative path {result!r}"
         expected = fake_home / ".config" / "autostart"
         assert result == expected
@@ -619,6 +619,6 @@ class TestShortcutTarget:
         assert launcher.name == "autostart_launcher.py"
         # And the shortcut arguments should reference it
         assert "autostart_launcher.py" in str(launcher)
-        # Critically: should NOT reference -m voice_typer
+        # should NOT reference -m voice_typer
         assert "-m voice_typer" not in str(launcher)
         assert "-m" not in str(launcher)

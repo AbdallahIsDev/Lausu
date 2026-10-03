@@ -221,7 +221,7 @@ class TestMaxInputChars:
 
         # Must return the input unchanged, no API call, no transformation.
         assert result == oversized
-        # CRITICAL: no API call must have been made.
+        # no API call must have been made.
         mock_open.assert_not_called()
 
     def test_polish_still_calls_api_at_exactly_cap(self, polisher):

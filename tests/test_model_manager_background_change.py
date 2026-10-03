@@ -1,4 +1,4 @@
-"""AB-10: ``change_model`` / ``set_active_backend`` non-blocking tests."""
+"""``change_model`` / ``set_active_backend`` non-blocking tests."""
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def _make_mm_with_mock_backend(
 
 
 class TestChangeModelReturnsImmediately:
-    """AB-10: ``change_model`` must return in < 100ms (not 5-30s)."""
+    """``change_model`` must return in < 100ms (not 5-30s)."""
 
     def test_change_model_returns_under_100ms(self):
         """``change_model`` spawns a background thread and returns immediately."""
@@ -102,7 +102,7 @@ class TestChangeModelReturnsImmediately:
 
 
 class TestSetActiveBackendReturnsImmediately:
-    """AB-10: ``set_active_backend`` must return in < 100ms."""
+    """``set_active_backend`` must return in < 100ms."""
 
     def test_set_active_backend_returns_under_100ms(self):
         """``set_active_backend`` spawns a background thread and returns immediately."""
@@ -145,7 +145,7 @@ class TestSetActiveBackendReturnsImmediately:
 
 
 class TestBackendReadyEventFires:
-    """AB-10: the background thread publishes ``asr_backend_ready`` on completion."""
+    """the background thread publishes ``asr_backend_ready`` on completion."""
 
     def test_change_model_publishes_backend_ready_event(self):
         """After ``change_model``, the ``asr_backend_ready`` event fires."""
@@ -195,7 +195,7 @@ class TestBackendReadyEventFires:
 
 
 class TestConcurrentCallsSerialize:
-    """AB-10: concurrent ``change_model`` calls serialize via ``_model_change_lock``."""
+    """concurrent ``change_model`` calls serialize via ``_model_change_lock``."""
 
     def test_concurrent_change_model_calls_do_not_interleave(self):
         """Two concurrent ``change_model`` calls must not both run the load phase"""
@@ -277,7 +277,7 @@ class TestConcurrentCallsSerialize:
 
 
 class TestBlockingVariantStillWorks:
-    """AB-10: ``_change_model_blocking`` preserves the original sync behavior."""
+    """``_change_model_blocking`` preserves the original sync behavior."""
 
     def test_change_model_blocking_loads_synchronously(self):
         """``_change_model_blocking`` runs the full cycle synchronously and"""
@@ -318,7 +318,7 @@ class TestBlockingVariantStillWorks:
 
 
 class TestApplyPendingModelChangeUsesBlocking:
-    """AB-10: ``apply_pending_model_change`` must use the blocking variant"""
+    """``apply_pending_model_change`` must use the blocking variant"""
 
     def test_apply_pending_model_change_loads_synchronously(self):
         """When a pending model change is applied, the load must complete"""

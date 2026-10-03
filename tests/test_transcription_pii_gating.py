@@ -159,7 +159,7 @@ class TestResultModuleRedactionFailureFallback:
         return engine
 
     def test_redaction_failure_emits_marker_not_raw_text(self, caplog, monkeypatch):
-        """HU-13: when ``redact_pii`` raises (regex bug / security-module"""
+        """when ``redact_pii`` raises (regex bug / security-module"""
         import voice_typer.server.security as security_mod
         from voice_typer.server.transcription_result import transcribe_unlocked
 
@@ -218,7 +218,7 @@ class TestResultModuleRedactionFailureFallback:
         assert "[EMAIL]" in msg, f"Email not redacted to [EMAIL] token: {msg!r}"
 
     def test_redaction_import_failure_skips_segment_log_entirely(self, caplog, monkeypatch):
-        """HU-13: when the redaction engine cannot even be IMPORTED"""
+        """when the redaction engine cannot even be IMPORTED"""
         import voice_typer.server.security as security_mod
         from voice_typer.server.transcription_result import transcribe_unlocked
 

@@ -121,7 +121,7 @@ class TestTauriBinariesManifest:
         missing = set(expected_keys) - actual_keys
         assert not missing, (
             f"`{binary_name}.sha256` is missing the expected "
-            f"per-arch sub-key(s): {sorted(missing)}. Expected keys: "
+            f"per-arch sub-keys: {sorted(missing)}. Expected keys: "
             f"{sorted(expected_keys)}; actual keys: {sorted(actual_keys)}. "
             f"The loader consults these sub-keys to look up the sha256 "
             f"for the running platform/arch."

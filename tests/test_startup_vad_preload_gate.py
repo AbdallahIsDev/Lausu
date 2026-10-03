@@ -32,7 +32,12 @@ def _make_app(config):
     )
 
 
-def test_phase1_skips_preload_when_vad_disabled(monkeypatch, caplog):
+def test_phase1_preloads_even_with_off_audio_preset(monkeypatch, caplog):
+    """VAD is unconditional, so the Silero preload always happens.
+
+    It used to be skipped for the "Off" preset, which also meant auto-stop and
+    silence warnings silently disappeared with it.
+    """
     from voice_typer.server import vad as _vad
     from voice_typer.server.startup_sequence import StartupSequence as _Seq
 
@@ -49,7 +54,7 @@ def test_phase1_skips_preload_when_vad_disabled(monkeypatch, caplog):
     with caplog.at_level(logging.DEBUG, logger="voice_typer.server.startup_sequence"):
         result = seq._phase_1_init_and_vad_preload()
     assert result.success is True
-    assert calls == []
+    assert calls == [1], "the VAD preload must run regardless of the audio preset"
 
 
 def test_phase1_preloads_when_vad_enabled(monkeypatch, caplog):

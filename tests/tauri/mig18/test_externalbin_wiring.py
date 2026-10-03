@@ -200,7 +200,7 @@ def test_spawn_rs_target_triple_for_has_six_known_arms(spawn_rs_source) -> None:
     missing_combos = [(a, o) for a, o, _ in EXPECTED_TARGET_TRIPLES if (a, o) not in found_combos]
     assert not missing_combos, (
         f"target_triple_for is missing explicit arms for {len(missing_combos)} "
-        f"combo(s): {missing_combos} (expected all 6 of "
+        f"combos: {missing_combos} (expected all 6 of "
         f"{[(a, o) for a, o, _ in EXPECTED_TARGET_TRIPLES]}, "
         f"ADR-0020 §4.1 + §15)"
     )

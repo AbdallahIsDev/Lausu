@@ -49,7 +49,7 @@ def clean_env(monkeypatch):
 # _BubbleLevelExclusionFilter hybrid check ──────────────────
 
 
-class TestUe4F6BubbleFilterHybridCheck:
+class TestBubbleLevelFilterHybridCheck:
     """``_BubbleLevelExclusionFilter.filter`` checks"""
 
     def _make_record(self, level: int, msg: str, args=()) -> logging.LogRecord:
@@ -142,7 +142,7 @@ class TestUe4F6BubbleFilterHybridCheck:
         assert f.filter(record) is False
 
 
-class TestUe4F8QuietFileHandlerLevel:
+class TestQuietModeLowersHandlerLevels:
     """``setup_logging(quiet=True)`` lowers BOTH the root"""
 
     def _file_handler(self) -> logging.Handler:
@@ -208,7 +208,7 @@ class TestUe4F8QuietFileHandlerLevel:
             reset()
 
 
-class TestUe4F9SecureHandlerDedup:
+class TestSecureHandlerDeduplicatedOnRepeatSetup:
     """the ``setup_logging`` idempotency check uses"""
 
     def test_setup_logging_idempotent_with_secure_handler(self, tmp_path, clean_env):
@@ -273,7 +273,7 @@ class TestUe4F9SecureHandlerDedup:
 # _ensure_last_resort_redacted uses isinstance ────────────
 
 
-class TestUe4F10LastResortIsinstance:
+class TestLastResortHandlerUsesInstanceCheck:
     """``_ensure_last_resort_redacted`` uses"""
 
     def _make_filter(self):
@@ -348,7 +348,7 @@ class TestUe4F10LastResortIsinstance:
             last_resort.filters = saved_filters
 
 
-class TestUe4F13LockFailureNoPathLeak:
+class TestRotationLockFailureDoesNotLeakPath:
     """when ``_acquire_rotation_lock`` fails, the DEBUG log"""
 
     def test_lock_failure_logs_exception_class_name_only(self, tmp_path, monkeypatch, caplog):
@@ -393,7 +393,7 @@ class TestUe4F13LockFailureNoPathLeak:
 # (behavioural): PII filter attached to handlers only ────────────────
 
 
-class TestUe4F15PiiFilterHandlerOnlyAttachment:
+class TestPiiFilterAttachedOnlyToHandlers:
     """behavioural guard: ``setup_logging`` attaches the PII"""
 
     def test_pii_filter_not_attached_to_voice_typer_root(self, tmp_path, clean_env):

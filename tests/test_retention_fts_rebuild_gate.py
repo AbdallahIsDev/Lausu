@@ -78,8 +78,8 @@ def _optimize_seen(executed_sql: list[str]) -> bool:
     return any("transcriptions_fts" in sql and "optimize" in sql.lower() for sql in executed_sql)
 
 
-class TestAb25FtsRebuildGate:
-    """AB-25: ``apply_retention`` only rebuilds FTS5 when ``ratio > 0.20``."""
+class TestFtsRebuildGatedOnRatio:
+    """``apply_retention`` only rebuilds FTS5 when ``ratio > 0.20``."""
 
     def test_apply_retention_skips_fts5_rebuild_when_ratio_below_threshold(self, db, monkeypatch):
         """A small delete (<20% of rows) must NOT issue the FTS5 'rebuild'"""
@@ -105,7 +105,7 @@ class TestAb25FtsRebuildGate:
         executed_sql: list[str] = []
         _spy_submit_write(db, monkeypatch, executed_sql)
 
-        # Act: retention_days=1 deletes the 1 old row out of 21 total.
+        # retention_days=1 deletes the 1 old row out of 21 total.
         deleted = db.apply_retention(retention_days=1)
         assert deleted == 1, f"expected 1 row deleted, got {deleted}"
 
@@ -143,7 +143,7 @@ class TestAb25FtsRebuildGate:
         executed_sql: list[str] = []
         _spy_submit_write(db, monkeypatch, executed_sql)
 
-        # Act: retention_days=1 deletes the 1 old row out of 21 total.
+        # retention_days=1 deletes the 1 old row out of 21 total.
         deleted = db.apply_retention(retention_days=1)
         assert deleted == 1, f"expected 1 row deleted, got {deleted}"
 
@@ -185,7 +185,7 @@ class TestAb25FtsRebuildGate:
         executed_sql: list[str] = []
         _spy_submit_write(db, monkeypatch, executed_sql)
 
-        # Act: retention_days=1 deletes 20 of 25 rows.
+        # retention_days=1 deletes 20 of 25 rows.
         deleted = db.apply_retention(retention_days=1)
         assert deleted == 20, f"expected 20 rows deleted, got {deleted}"
 

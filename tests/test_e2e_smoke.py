@@ -62,7 +62,7 @@ class TestEndToEndSmoke:
         assert "models--Systran--faster-whisper-small.en" not in names
         assert "models--Systran--faster-whisper-medium.en" not in names
 
-    def test_issue8_onboarding_wizard_first_run_detection(self, temp_config):
+    def test_onboarding_wizard_first_run_detection(self, temp_config):
         """#8: OnboardingController.is_first_run detects wizard-should-show state."""
         from voice_typer.server.onboarding import OnboardingController
 
@@ -128,7 +128,7 @@ class TestEndToEndSmoke:
         assert app.models._registry is not None
         assert app.models.registry is not None
 
-    def test_issue13_tray_menu_module_exists(self):
+    def test_tray_menu_module_exists(self):
         """#13: tray_menu module extracted with build_menu_for_tray, display_hotkey, wrap_callback."""
         from voice_typer.server import tray_menu
 

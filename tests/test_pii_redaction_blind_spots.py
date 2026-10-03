@@ -48,6 +48,12 @@ _SAFE_LOG_CALL_SITES: dict[str, set[str]] = {
     "remote_session.py": {
         "[PLATFORM] RDP/remote session detected (SM_REMOTESESSION=%d)",
     },
+    # ``level_monitor/worker.py``: the interpolated value is a PortAudio
+    # status FLAG ("input overflow"), never transcription content. Flags
+    # come from the audio driver, not the user.
+    "worker.py": {
+        "[LEVEL-MON] PortAudio status: %s",
+    },
     # ``shutdown/plan.py`` and ``shutdown_controller.py``: the ``result``
     "plan.py": {
         "[SHUTDOWN] %s raised: %r",
@@ -126,7 +132,7 @@ class TestNoRawTranscriptionInLogs:
             "file. Either (a) apply ``redact_pii()`` / log a hash before "
             "the call, OR (b) add the format string to "
             "``_SAFE_LOG_CALL_SITES`` in this test with a justification "
-            "comment. Unsafe call(s):\n  " + "\n  ".join(all_unsafe)
+            "comment. Unsafe calls:\n  " + "\n  ".join(all_unsafe)
         )
 
     def test_pii_variable_name_set_is_nonempty(self) -> None:

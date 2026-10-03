@@ -261,7 +261,7 @@ def test_export_gdpr_bundle_includes_log(tmp_path) -> None:
 
 
 def test_export_gdpr_bundle_includes_rotated_log_backups(tmp_path) -> None:
-    """PI-4: the zip must contain lausu.log.{1,2} rotated backups."""
+    """the zip must contain lausu.log.{1,2} rotated backups."""
     svc, mp = _build_service(tmp_path)
     try:
         if not hasattr(svc, "export_gdpr_bundle"):
@@ -297,7 +297,7 @@ def test_export_gdpr_bundle_includes_crash_files(tmp_path) -> None:
 
 
 def test_export_gdpr_bundle_is_atomic_no_partial_tmp(tmp_path) -> None:
-    """PI-14: on success, no ``.zip.tmp`` partial artifact should"""
+    """on success, no ``.zip.tmp`` partial artifact should"""
     svc, mp = _build_service(tmp_path)
     try:
         if not hasattr(svc, "export_gdpr_bundle"):

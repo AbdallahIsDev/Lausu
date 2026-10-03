@@ -147,7 +147,7 @@ class TestTokenPatternValidation:
         assert "VOICE_TYPER_IPC_TOKEN" not in os.environ
 
 
-class TestGt63Redaction:
+class TestSidecarEnvLogRecordsPreRedacted:
     """all SIDECAR-ENV log records must pre-redact the value."""
 
     def test_unsafe_path_value_not_logged(self, monkeypatch, caplog):

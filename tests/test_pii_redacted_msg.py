@@ -1,4 +1,4 @@
-"""YJ-18: PIIRedactionFilter should expose the redacted message via"""
+"""PIIRedactionFilter should expose the redacted message via"""
 
 import logging
 

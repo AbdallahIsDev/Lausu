@@ -317,7 +317,7 @@ class TestHfEndpoint:
         assert "HF_ENDPOINT" not in os.environ
 
 
-class TestGt63EnvVarValuesRedacted:
+class TestEnvVarValuesRedactedInLogs:
     """ALL env-var values logged by ``_validate_env_vars`` are"""
 
     def test_invalid_boolean_value_redacted(self, monkeypatch, caplog):

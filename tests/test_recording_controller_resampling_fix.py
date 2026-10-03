@@ -45,7 +45,7 @@ def _force_linear_interp_fallback(monkeypatch):
 
 
 class TestLinearInterpAntialiasing:
-    """ER-88: the no-scipy linear-interp fallback applies an anti-aliasing"""
+    """the no-scipy linear-interp fallback applies an anti-aliasing"""
 
     def test_downsampling_attenuates_above_target_nyquist(self, monkeypatch):
         """A 12 kHz sine (above 8 kHz target Nyquist) at 48 kHz must be"""
@@ -135,7 +135,7 @@ class TestLinearInterpAntialiasing:
 
 
 class TestLinearInterpOneTimeWarning:
-    """ER-88: a one-time WARNING is emitted on the first linear-interp"""
+    """a one-time WARNING is emitted on the first linear-interp"""
 
     def test_first_fallback_call_emits_warning_even_when_log_resample_false(self, monkeypatch, caplog):
         _force_linear_interp_fallback(monkeypatch)
@@ -199,7 +199,7 @@ class TestLinearInterpOneTimeWarning:
 
 
 class TestLengthContractPreserved:
-    """ER-88: the anti-aliasing FIR uses ``np.convolve(., mode='same')``"""
+    """the anti-aliasing FIR uses ``np.convolve(., mode='same')``"""
 
     def test_downsampled_length_matches_legacy_formula(self, monkeypatch):
         _force_linear_interp_fallback(monkeypatch)

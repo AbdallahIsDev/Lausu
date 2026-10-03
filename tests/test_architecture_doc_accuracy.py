@@ -43,7 +43,7 @@ def test_event_bus_count_matches_doc_and_code():
     )
 
 
-def test_gp92_capabilities_row_lists_accurate_perms():
+def test_capabilities_row_lists_accurate_perms():
     """The capabilities row in ARCHITECTURE.md must match main-runtime.json."""
     doc = _read(ARCH_DOC)
     caps_row_match = re.search(r"\| Capabilities \|.*?\|\s*(?P<body>[^|]+)\s*\|", doc)
@@ -118,7 +118,7 @@ def test_gp92_capabilities_row_lists_accurate_perms():
     )
 
 
-def test_gp93_cargo_manifest_row_does_not_mention_removed_deps():
+def test_cargo_manifest_row_does_not_mention_removed_deps():
     doc = _read(ARCH_DOC)
     cargo_row_match = re.search(r"\| Cargo manifest \|.*?\|\s*(?P<body>[^|]+)\s*\|", doc)
     assert cargo_row_match is not None, "Cargo manifest row not found."
@@ -169,7 +169,7 @@ def _parse_generate_handler() -> list[str]:
     return cmds
 
 
-def test_gp94_tauri_command_count_in_doc_matches_code():
+def test_tauri_command_count_in_doc_matches_code():
     doc = _read(ARCH_DOC)
     rust_row_match = re.search(r"\| Rust host \|.*?\|\s*(?P<body>[^|]+)\s*\|", doc)
     assert rust_row_match is not None, "Rust host row not found."
@@ -219,7 +219,7 @@ def test_gp94_tauri_command_count_in_doc_matches_code():
     assert "ONE generic `dispatch`" not in body, "stale 'ONE generic `dispatch`' phrase must be removed."
 
 
-def test_gp94_main_rs_line_count_is_259():
+def test_main_rs_line_count_is_259():
     """
     Doc claims 259 lines; main.rs must actually be 259 lines.
     C-ARCH-1 / C-TOKIO-1 / C-TAURI-2 anchors kept). Still wiring-only.
@@ -253,7 +253,7 @@ def test_gp94_main_rs_line_count_is_259():
     assert "246 lines" not in doc, "Stale '246 lines' must be removed from doc."
 
 
-def test_gp95_module_paths_use_package_form():
+def test_module_paths_use_package_form():
     doc = _read(ARCH_DOC)
     # Stale single-file references must be gone.
     assert "`voice_typer/server/crash_handler.py`" not in doc, (
@@ -279,7 +279,7 @@ def test_gp95_module_paths_use_package_form():
     assert len(cts_files) == 5, f"clipboard_target_safety/ must be a 5-file package (actual: {len(cts_files)})."
 
 
-def test_gp96_shutdown_controller_entry_points_match_code():
+def test_shutdown_controller_entry_points_match_code():
     doc = _read(SHUTDOWN_DOC)
     # Required entry-point names per .
     for name in ["`quit()`", "`_do_cleanup()`", "`_do_fast_cleanup()`", "`_atexit_cleanup()`"]:
@@ -304,7 +304,7 @@ def test_gp96_shutdown_controller_entry_points_match_code():
         )
 
 
-def test_gp97_audio_quality_controller_entry_points_match_code():
+def test_audio_quality_controller_entry_points_match_code():
     doc = _read(AUDIO_Q_DOC)
     for name in [
         "`_on_audio_quality_chunk(rms: float, peak: float)`",
@@ -333,7 +333,7 @@ def test_gp97_audio_quality_controller_entry_points_match_code():
         )
 
 
-def test_gp98_sidecar_ws_doc_is_accurate():
+def test_sidecar_ws_doc_is_accurate():
     doc = _read(SIDECAR_DOC)
     # Required auth phrasing per .
     assert "one-shot bearer-token auth" in doc, "sidecar_ws.md must say 'one-shot bearer-token auth'."

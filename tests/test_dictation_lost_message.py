@@ -198,8 +198,8 @@ class TestDictationLostMessage:
             cr.shutdown()
 
 
-class TestHu10SentinelSecureRead:
-    """HU-10: the ``.dictation-in-flight`` sentinel is read through"""
+class TestDictationSentinelReadThroughSecureHelper:
+    """the ``.dictation-in-flight`` sentinel is read through"""
 
     def test_read_refusal_treats_as_hard_crash(self, recovery_dir, caplog, monkeypatch):
         def _refuse(_path, *args, **kwargs):

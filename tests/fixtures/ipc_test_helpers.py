@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import threading
 from typing import Any
 from unittest.mock import MagicMock
+
+import numpy as np
 
 
 def make_fake_app() -> MagicMock:
@@ -178,3 +181,47 @@ __all__ = [
     "make_buffered_mock_tcp_client",
     "make_ipc_server_with_fakes",
 ]
+
+
+def build_mock_recorder(
+    *,
+    sample_rate: int = 16000,
+    buffer_chunks: list[np.ndarray] | None = None,
+    buffer_sr: int | None = 16000,
+    effective_sr: int = 16000,
+    recording: bool = True,
+) -> MagicMock:
+    """Build a MagicMock recorder with the minimum stubs"""
+    recorder = MagicMock(name="recorder")
+
+    recorder._recording_event = threading.Event()
+    if recording:
+        recorder._recording_event.set()
+
+    recorder._stop_generation = 0
+    # `_user_stop_pending` is a bool flag toggled by stop() / discard().
+    recorder._user_stop_pending = False
+    # `_worker_thread` / `_event_worker_thread` are None on a real
+    recorder._worker_thread = None
+    recorder._event_worker_thread = None
+
+    # `_lock` must be a real `threading.Lock` so the `with` block
+    recorder._audio_pipeline._lock = threading.Lock()
+
+    # `_buffer` is a real `collections.deque` so the `not _buffer`
+    import collections
+
+    if buffer_chunks is None:
+        buffer_chunks = [np.zeros(100, dtype=np.float32)]
+    recorder._audio_pipeline._buffer = collections.deque(buffer_chunks, maxlen=30000)
+
+    # `_chunk_count` is reset to 0 on the empty-buffer path.
+    recorder._audio_pipeline._chunk_count = len(buffer_chunks)
+    recorder._audio_pipeline._buffer_sr = buffer_sr
+    recorder._effective_sr = effective_sr
+    recorder._last_rms = 0.0
+    recorder._last_audio_stats = (0.0, 0.0, 0.0)
+
+    # ``_teardown_stream``, ``_stop_audio_worker``,
+
+    return recorder

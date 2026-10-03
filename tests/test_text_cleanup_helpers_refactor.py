@@ -28,7 +28,7 @@ def _configure_corrections():
     configure_corrections()
 
 
-class TestAc80ThreadingImportAntipattern:
+class TestActiveStateLockIsPlainThreadingLock:
     """``_active_state_lock`` is now ``threading.Lock()``,"""
 
     def test_threading_is_top_level_import(self):
@@ -58,7 +58,7 @@ class TestAc80ThreadingImportAntipattern:
         assert '__import__("threading")' not in source, 'regression: ``__import__("threading")`` is back in the source'
 
 
-class TestAc81UnifiedPhraseSubstitutionsHelper:
+class TestUnifiedPhraseSubstitutionsHelper:
     """``_correct_whisper_phrases`` and ``_remove_extra_words``"""
 
     def test_helper_exists_and_is_callable(self):
@@ -170,7 +170,7 @@ class TestAc81UnifiedPhraseSubstitutionsHelper:
             assert not has_inline_pattern_sub, f"{fn.__name__} still inlines pattern.sub (regression)"
 
 
-class TestAc82LoadExternalCorrectionsHelpers:
+class TestLoadExternalCorrectionsOrchestration:
     """``_load_external_corrections`` orchestrates 4 phases via"""
 
     def test_load_bundled_corrections_helper_exists(self):
@@ -267,7 +267,7 @@ class TestAc82LoadExternalCorrectionsHelpers:
         assert "teh" in misspellings
 
 
-class TestAc84RomanNumeralWordSetExtensibility:
+class TestRomanNumeralWordSetExtensibility:
     """following word sets via their corrections file. The extensions are"""
 
     def test_bundled_defaults_unchanged(self):

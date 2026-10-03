@@ -1,4 +1,4 @@
-"""AB-8: On-disk integrity cache for ASR model SHA-256 verification."""
+"""On-disk integrity cache for ASR model SHA-256 verification."""
 
 from __future__ import annotations
 
@@ -140,7 +140,7 @@ def test_integrity_verdict_ignores_forged_cache_entry(tmp_path):
 
 
 def test_integrity_cache_persists_across_module_reloads(tmp_path):
-    """AB-8: the cache is written to disk so it survives across"""
+    """the cache is written to disk so it survives across"""
     from voice_typer.server import security
 
     model_dir, repo_id, _, config_sha256 = _setup_repo(tmp_path)
@@ -172,7 +172,7 @@ def test_integrity_cache_persists_across_module_reloads(tmp_path):
 
 
 def test_integrity_cache_invalidated_when_mtime_changes(tmp_path):
-    """AB-8: when the file's mtime changes (but size stays the same),"""
+    """when the file's mtime changes (but size stays the same),"""
     from voice_typer.server import security
 
     model_dir, repo_id, _, config_sha256 = _setup_repo(tmp_path)
@@ -287,7 +287,7 @@ def test_integrity_cache_stale_entry_does_not_cause_false_pass(tmp_path):
 
 
 def test_compute_file_sha256_uses_mmap_for_non_empty_file(tmp_path):
-    """AB-8: ``compute_file_sha256`` should use mmap for non-empty"""
+    """``compute_file_sha256`` should use mmap for non-empty"""
     from voice_typer.server import security
 
     # Use a file larger than 64 KB to ensure the chunk loop would
@@ -301,7 +301,7 @@ def test_compute_file_sha256_uses_mmap_for_non_empty_file(tmp_path):
 
 
 def test_compute_file_sha256_handles_empty_file(tmp_path):
-    """AB-8: mmap of a 0-length file raises ValueError. ``compute_file_sha256``"""
+    """mmap of a 0-length file raises ValueError. ``compute_file_sha256``"""
     from voice_typer.server import security
 
     path = tmp_path / "empty.bin"
@@ -317,7 +317,7 @@ def test_compute_file_sha256_handles_empty_file(tmp_path):
 
 
 def test_compute_file_sha256_matches_chunk_loop(tmp_path):
-    """AB-8: the mmap-based hash MUST equal the chunk-loop-based hash"""
+    """the mmap-based hash MUST equal the chunk-loop-based hash"""
     from voice_typer.server import security
 
     content = b"\x01\x02\x03\x04" * 50000  # 200 KB, crosses 64 KB chunk boundary
@@ -339,7 +339,7 @@ def test_compute_file_sha256_matches_chunk_loop(tmp_path):
 
 
 def test_integrity_cache_path_in_config_dir(tmp_path, monkeypatch):
-    """AB-8: the integrity cache MUST live in the user's config dir"""
+    """the integrity cache MUST live in the user's config dir"""
     from voice_typer.server import security
 
     monkeypatch.setattr(security, "_integrity_cache_path_override", None)
@@ -353,7 +353,7 @@ def test_integrity_cache_path_in_config_dir(tmp_path, monkeypatch):
 
 
 def test_integrity_cache_atomic_write_no_partial_file_on_disk(tmp_path):
-    """AB-8: ``_save_integrity_cache`` uses ``tempfile.mkstemp`` +"""
+    """``_save_integrity_cache`` uses ``tempfile.mkstemp`` +"""
     from voice_typer.server import security
 
     cache = {
@@ -378,7 +378,7 @@ def test_integrity_cache_atomic_write_no_partial_file_on_disk(tmp_path):
 
 
 def test_integrity_cache_save_failure_does_not_raise(tmp_path, monkeypatch):
-    """AB-8: ``_save_integrity_cache`` is best-effort, a save failure"""
+    """``_save_integrity_cache`` is best-effort, a save failure"""
     from voice_typer.server import security
 
     # Point the cache at a path whose parent can't be created.
@@ -388,7 +388,7 @@ def test_integrity_cache_save_failure_does_not_raise(tmp_path, monkeypatch):
 
 
 def test_integrity_cache_corrupt_json_is_replaced(tmp_path):
-    """AB-8: if the on-disk cache file is corrupt (invalid JSON),"""
+    """if the on-disk cache file is corrupt (invalid JSON),"""
     from voice_typer.server import security
 
     cache_path = security._integrity_cache_path()
@@ -600,6 +600,6 @@ def test_asr_setup_failure_details_hit_cache_not_rehash(tmp_path):
         assert ok2 is False
         assert details2["failed_file"] == "config.json"
         assert len(calls) == 1, (
-            f"failure-details path re-hashed {max(len(calls) - 1, 0)} file(s) instead of "
+            f"failure-details path re-hashed {max(len(calls) - 1, 0)} files instead of "
             "hitting the integrity cache refreshed by the verdict."
         )

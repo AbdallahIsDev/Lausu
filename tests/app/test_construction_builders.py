@@ -175,7 +175,11 @@ class TestInitThreadingAndCrash:
 class TestLogStartupBanner:
     def test_banner_line_and_startup_banner_call(self, monkeypatch, caplog):
         from voice_typer.server.branding import APP_NAME
+        from voice_typer.server.startup_banner import (
+            reset_app_starting_banner_for_tests,
+        )
 
+        reset_app_starting_banner_for_tests()
         host = _Host()
         host.config.model_size = "small"
         host.config.hotkey = "ctrl+shift+d"
@@ -190,7 +194,7 @@ class TestLogStartupBanner:
             host._log_startup_banner()
 
         assert any(
-            record.message.startswith(f"{APP_NAME} starting -- model=")
+            record.message.startswith(f"{APP_NAME} starting | model=")
             and "hotkey=Ctrl+Shift+D" in record.message
             and "mic=default" in record.message
             and "sample_rate=16000" in record.message
@@ -202,7 +206,11 @@ class TestLogStartupBanner:
     def test_banner_names_friendly_model_and_hotkey(self, monkeypatch, caplog):
         """The banner must show the user-facing model/hotkey, not raw ids."""
         from voice_typer.server.branding import APP_NAME
+        from voice_typer.server.startup_banner import (
+            reset_app_starting_banner_for_tests,
+        )
 
+        reset_app_starting_banner_for_tests()
         host = _Host()
         host.config.model_size = "large-v3"
         host.config.asr_backend = "whisper"
@@ -217,7 +225,7 @@ class TestLogStartupBanner:
             host._log_startup_banner()
 
         assert any(
-            record.message.startswith(f"{APP_NAME} starting -- model=Whisper Large V3")
+            record.message.startswith(f"{APP_NAME} starting | model=Whisper Large V3")
             and "hotkey=Caps Lock" in record.message
             and "large-v3 |" not in record.message
             and "<caps_lock>" not in record.message
@@ -227,7 +235,11 @@ class TestLogStartupBanner:
 
     def test_no_model_selection_reports_none_honestly(self, monkeypatch, caplog):
         from voice_typer.server.model_registry import NO_MODEL_SIZE
+        from voice_typer.server.startup_banner import (
+            reset_app_starting_banner_for_tests,
+        )
 
+        reset_app_starting_banner_for_tests()
         host = _Host()
         host.config.model_size = NO_MODEL_SIZE
         host.config.hotkey = "ctrl+shift+d"
@@ -243,6 +255,11 @@ class TestLogStartupBanner:
         assert any("model=none" in record.message for record in caplog.records)
 
     def test_stale_model_suffixes_not_installed(self, monkeypatch, caplog):
+        from voice_typer.server.startup_banner import (
+            reset_app_starting_banner_for_tests,
+        )
+
+        reset_app_starting_banner_for_tests()
         host = _Host()
         host.config.model_size = "large"
         host.config.hotkey = "ctrl+shift+d"

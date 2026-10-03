@@ -96,7 +96,7 @@ class MockApp:
         self._volume_ducker.backend_name = "fake (test)"
         self._volume_ducker.supports_per_session = False
         self._volume_ducker.initialize = MagicMock(return_value=True)
-        # RACE-011: the IPC set_config handler acquires this lock to
+        # the IPC set_config handler acquires this lock to
         self._config_mutation_lock = threading.RLock()
         self.hotkeys = MagicMock()
 

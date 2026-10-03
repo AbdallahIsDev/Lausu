@@ -196,8 +196,50 @@ class TestPhasesCallableIndependently:
 
         assert result.success is True
 
+    def test_phase_8_clears_stale_bubble_drag_position(self, app_for_phases, monkeypatch):
+        """Drag positions are session-local: a stale pair from an older
+        build must be reset so startup uses the default edge."""
+        from voice_typer.server import startup_sequence as ss_mod
 
-class TestStartupT0Anchoring:
+        monkeypatch.delenv("VOICE_TYPER_RESTART", raising=False)
+        app_for_phases.config.bubble_behavior = "hidden"
+        app_for_phases.config.bubble_show_on_startup = False
+        app_for_phases.config.bubble_x = 100
+        app_for_phases.config.bubble_y = 200
+
+        seq = ss_mod.StartupSequence(app_for_phases)
+        seq._t0 = 0.0
+
+        result = seq._phase_8_finalize_and_signal()
+
+        assert result.success is True
+        assert app_for_phases.config.bubble_x is None
+        assert app_for_phases.config.bubble_y is None
+
+    def test_phase_8_skips_position_reset_when_already_default(
+        self, app_for_phases, monkeypatch
+    ):
+        """No stale pair: no save, no log spam."""
+        from voice_typer.server import startup_sequence as ss_mod
+
+        monkeypatch.delenv("VOICE_TYPER_RESTART", raising=False)
+        app_for_phases.config.bubble_behavior = "hidden"
+        app_for_phases.config.bubble_show_on_startup = False
+        assert app_for_phases.config.bubble_x is None
+        assert app_for_phases.config.bubble_y is None
+        calls: list = []
+        monkeypatch.setattr(
+            app_for_phases.config, "save", lambda: calls.append(True) or True
+        )
+
+        seq = ss_mod.StartupSequence(app_for_phases)
+        seq._t0 = 0.0
+
+        assert seq._phase_8_finalize_and_signal().success is True
+        assert calls == [], "clean position must not trigger a config save"
+
+
+class TestStartupCompleteDurationCoversWholeStartup:
     """The \"Startup complete\" duration must cover the whole backend"""
 
     def test_anchor_uses_spawn_epoch_when_stamped(self, monkeypatch):

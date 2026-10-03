@@ -5,7 +5,7 @@ assertions only (no process launches), wired into the same drift spirit
 as the C-CI-7 gates.
 
 Two directions are pinned:
-1. ``tools/internal-plugins`` (the in-development plugin workspace) is
+1. ``tools/internal_plugins`` (the in-development plugin workspace) is
    absent from every packaging input: Nuitka scripts, tauri.conf.json.
 2. The product-side seam ``voice_typer/server/internal_plugin_hook.py``
    is inert when the plugin gate is closed, so the shipped app behaves
@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_PLUGINS_DIR = _REPO_ROOT / "tools" / "internal-plugins"
+_PLUGINS_DIR = _REPO_ROOT / "tools" / "internal_plugins"
 _TAURI_CONF = _REPO_ROOT / "src-tauri" / "tauri.conf.json"
 _HOOK = _REPO_ROOT / "voice_typer" / "server" / "internal_plugin_hook.py"
 _APP_PY = _REPO_ROOT / "voice_typer" / "server" / "app.py"
@@ -104,7 +104,7 @@ class TestInternalPluginToolsNotInMainRepo:
     """The plugin workspace must live outside the main repo's history.
 
     Backed up by its own nested repository
-    (tools/internal-plugins/backup.ps1) to a PRIVATE remote, never this
+    (tools/internal_plugins/backup.ps1) to a PRIVATE remote, never this
     one. These two assertions are the CI tripwire for a plugin leak: the
     folder must be ignored by the parent repo AND have zero tracked files
     in it.
@@ -128,20 +128,20 @@ class TestInternalPluginToolsNotInMainRepo:
         # "not ignored" regardless of the pattern; this asserts the
         # RULE exists (the tracked-vs-ignored state is test 2).
         code, out = self._git(
-            "check-ignore", "--no-index", "-q", "tools/internal-plugins"
+            "check-ignore", "--no-index", "-q", "tools/internal_plugins"
         )
         assert code == 0, (
-            "tools/internal-plugins must be listed in the root .gitignore "
+            "tools/internal_plugins must be listed in the root .gitignore "
             f"(git check-ignore said: {out or 'not ignored'})"
         )
 
     def test_no_tracked_files_under_plugin_tools(self) -> None:
-        code, out = self._git("ls-files", "tools/internal-plugins")
+        code, out = self._git("ls-files", "tools/internal_plugins")
         assert code == 0, f"git ls-files failed: {out}"
         tracked = [line for line in out.splitlines() if line.strip()]
         assert tracked == [], (
             "Plugin files are tracked in the main repo. Run:\n"
-            "  git rm -r --cached tools/internal-plugins\n"
+            "  git rm -r --cached tools/internal_plugins\n"
             "  git commit -m 'chore: untrack internal plugin workspace'\n"
             f"Tracked: {tracked}"
         )
@@ -150,5 +150,5 @@ class TestInternalPluginToolsNotInMainRepo:
 @pytest.mark.parametrize("js_file", ["run.js", "playwright_runner.js"])
 def test_plugin_js_files_stay_inside_the_plugin_workspace(js_file: str) -> None:
     target = _PLUGINS_DIR / "google_stt" / js_file
-    assert target.exists(), f"{js_file} must live under tools/internal-plugins/google_stt"
+    assert target.exists(), f"{js_file} must live under tools/internal_plugins/google_stt"
 

@@ -132,7 +132,7 @@ def test_notch_reset_zeros_state():
     assert zi_before is not None
     assert not np.all(zi_before == 0), "zi must be non-zero BEFORE reset (else the test is vacuous)."
 
-    # Act: reset.
+    # reset.
     notch.reset()
 
     # The state tuple is preserved (same b/a arrays, same zi array

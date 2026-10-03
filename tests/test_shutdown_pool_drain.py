@@ -15,7 +15,7 @@ from tests.fixtures.wait_helpers import wait_until
 
 
 class TestWsDispatchPoolDrain:
-    """YJ-20: the WS pool drain pattern must bound the in-flight handler"""
+    """the WS pool drain pattern must bound the in-flight handler"""
 
     def test_pool_drain_completes_within_6s_after_sleepy_task(self):
         """Construct a ``ThreadPoolExecutor``, submit a 2s-sleeping task"""
@@ -362,3 +362,214 @@ class TestDrainSkipsSelfJoinOnPoolWorker:
         assert True in waits, "off-worker drain must still join for in-flight work"
 
         # NOTE: the sleepy_handler's worker thread is still alive after
+
+
+class TestStuckWorkerSummary:
+    """Drain-timeout warnings must name the stuck handler (evidence for
+    the next slow-quit instead of a bare timeout)."""
+
+    def test_idle_pool_reports_no_live_workers(self):
+        from voice_typer.server.shutdown.ws_drain import _stuck_worker_summary
+
+        pool = ThreadPoolExecutor(max_workers=1)
+        pool.shutdown(wait=True)
+        assert _stuck_worker_summary(pool) == "no live pool workers (handler finished, thread reaping)"
+
+    def test_busy_pool_names_stuck_worker(self):
+        from voice_typer.server.shutdown.ws_drain import _stuck_worker_summary
+
+        from tests.fixtures.wait_helpers import wait_until
+
+        pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="sidecar-ws-dispatch")
+        started = threading.Event()
+
+        def _stuck() -> None:
+            started.set()
+            time.sleep(30.0)
+
+        pool.submit(_stuck)
+        try:
+            assert wait_until(started.is_set, timeout=2.0), "handler never started"
+            summary = _stuck_worker_summary(pool)
+            assert "sidecar-ws-dispatch" in summary, f"summary must name the worker: {summary!r}"
+            assert "at " in summary, f"summary must carry a stack location: {summary!r}"
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
+
+    def test_broken_pool_never_raises(self):
+        from voice_typer.server.shutdown.ws_drain import _stuck_worker_summary
+
+        assert _stuck_worker_summary(None) == "no live pool workers (handler finished, thread reaping)"
+        assert _stuck_worker_summary(object()) == "no live pool workers (handler finished, thread reaping)"
+
+        class _Raising:
+            @property
+            def _threads(self):  # noqa: D102
+                raise RuntimeError("boom")
+
+        assert _stuck_worker_summary(_Raising()) == "unavailable"
+
+    def test_summary_names_call_site_file(self):
+        """8-frame window with filenames must show WHERE the worker stuck.
+
+        A 3-frame window only showed ``as_completed <- wait <- wait``,
+        which cannot tell a nested-quit stall (``_timeout_utils``) from
+        a download stall (``segmented_download``).
+        """
+        from voice_typer.server.shutdown.ws_drain import _stuck_worker_summary
+
+        from tests.fixtures.wait_helpers import wait_until
+
+        pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="sidecar-ws-dispatch")
+        started = threading.Event()
+
+        def _stuck() -> None:
+            started.set()
+            time.sleep(30.0)
+
+        pool.submit(_stuck)
+        try:
+            assert wait_until(started.is_set, timeout=2.0), "handler never started"
+            summary = _stuck_worker_summary(pool)
+            assert ".py:" in summary, f"summary must carry filenames: {summary!r}"
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
+
+
+class TestWorkerClientClosedEarly:
+    """The early bookend must stop the worker-hop reconnect loop so it
+    does not retry a dead worker through teardown."""
+
+    def test_drain_closes_shared_client(self, monkeypatch):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from voice_typer.server import worker_client as _wc
+        from voice_typer.server.shutdown.ws_drain import drain_ws_dispatch_pool
+
+        calls: list[bool] = []
+        monkeypatch.setattr(_wc, "close_shared_client", lambda: calls.append(True) or True)
+        ipc = SimpleNamespace(
+            stop=MagicMock(),
+            _ws_dispatch_pool=None,
+            _ws_readonly_pool=None,
+            _ws_encode_pool=None,
+            _ws_drained_event=None,
+        )
+        drain_ws_dispatch_pool(MagicMock(), SimpleNamespace(_ipc_server=ipc))
+        assert calls == [True]
+
+    def test_drain_survives_client_close_failure(self, monkeypatch):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from voice_typer.server import worker_client as _wc
+
+        def _boom() -> bool:
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(_wc, "close_shared_client", _boom)
+        from voice_typer.server.shutdown.ws_drain import drain_ws_dispatch_pool
+
+        ipc = SimpleNamespace(
+            stop=MagicMock(),
+            _ws_dispatch_pool=None,
+            _ws_readonly_pool=None,
+            _ws_encode_pool=None,
+            _ws_drained_event=None,
+        )
+        drain_ws_dispatch_pool(MagicMock(), SimpleNamespace(_ipc_server=ipc))
+
+
+class TestInitiatorAwareDrain:
+    """When quit runs ON a pool worker, the blocking join could only time
+    out (the initiator finishes quit itself). The drain must skip it."""
+
+    def _ipc_with_pool(self, pool):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        return SimpleNamespace(
+            stop=MagicMock(),
+            _ws_dispatch_pool=pool,
+            _ws_readonly_pool=None,
+            _ws_encode_pool=None,
+            _ws_drained_event=None,
+        )
+
+    def test_drain_skips_join_when_initiator_is_sole_worker(self, caplog):
+        import logging
+        from types import SimpleNamespace
+
+        from voice_typer.server.shutdown.ws_drain import drain_ws_dispatch_pool
+
+        pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="sidecar-ws-dispatch")
+        release = threading.Event()
+        started = threading.Event()
+
+        def _occupant() -> None:
+            started.set()
+            release.wait(timeout=30.0)
+
+        from tests.fixtures.wait_helpers import wait_until
+
+        pool.submit(_occupant)
+        try:
+            assert wait_until(started.is_set, timeout=2.0), "occupant never started"
+            worker = next(iter(pool._threads))
+            controller = SimpleNamespace(_quit_initiator=worker)
+            ipc = self._ipc_with_pool(pool)
+            start = time.monotonic()
+            with caplog.at_level(logging.DEBUG, logger="voice_typer.server.shutdown_controller"):
+                drain_ws_dispatch_pool(controller, SimpleNamespace(_ipc_server=ipc))
+            elapsed = time.monotonic() - start
+            assert elapsed < 2.0, f"drain took {elapsed:.2f}s despite sole-worker initiator"
+            assert not any("did not drain" in r.message for r in caplog.records)
+        finally:
+            release.set()
+            pool.shutdown(wait=True)
+
+    def test_drain_still_joins_when_other_workers_busy(self):
+        """Initiator on a worker + ANOTHER busy worker → bounded join stays."""
+        from types import SimpleNamespace
+
+        from voice_typer.server.shutdown.ws_drain import _initiator_is_sole_worker
+
+        pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="sidecar-ws-dispatch")
+        release = threading.Event()
+        started = threading.Event()
+        count = 0
+
+        def _occupant() -> None:
+            nonlocal count
+            count += 1
+            if count == 2:
+                started.set()
+            release.wait(timeout=30.0)
+
+        from tests.fixtures.wait_helpers import wait_until
+
+        pool.submit(_occupant)
+        pool.submit(_occupant)
+        try:
+            assert wait_until(started.is_set, timeout=2.0), "occupants never started"
+            workers = list(pool._threads)
+            assert len(workers) == 2
+            controller = SimpleNamespace(_quit_initiator=workers[0])
+            assert _initiator_is_sole_worker(controller, pool) is False
+        finally:
+            release.set()
+            pool.shutdown(wait=True)
+
+    def test_initiator_helpers_tolerate_missing_state(self):
+        from types import SimpleNamespace
+
+        from voice_typer.server.shutdown.ws_drain import (
+            _initiator_is_sole_worker,
+            _initiator_on_workers,
+        )
+
+        assert _initiator_is_sole_worker(SimpleNamespace(), ThreadPoolExecutor(max_workers=1)) is False
+        assert _initiator_on_workers("sidecar-ws-dispatch", SimpleNamespace()) is False
+        dead = threading.Thread(target=lambda: None)
+        assert _initiator_is_sole_worker(SimpleNamespace(_quit_initiator=dead), None) is False

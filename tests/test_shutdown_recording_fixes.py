@@ -99,7 +99,7 @@ def _watchdog_src() -> str:
         return f.read()
 
 
-class TestIn17WatchdogJoinsLeakedWorkers:
+class TestWatchdogJoinsLeakedWorkers:
     """``_watchdog`` must call"""
 
     def test_join_leaked_workers_is_imported(self) -> None:
@@ -187,7 +187,7 @@ class TestIn17WatchdogJoinsLeakedWorkers:
         )
 
 
-class TestIn18CancelledCycleIdsBounded:
+class TestCancelledCycleIdsBounded:
     """``_cancelled_cycle_ids`` must be a bounded LRU registry so"""
 
     def test_module_constant_max_cancelled_ids_is_1000(self) -> None:
@@ -320,8 +320,8 @@ class TestIn18CancelledCycleIdsBounded:
         assert run_idx < discard_idx, "_discard_cancelled_cycle_id must be called AFTER pipeline.run()"
 
 
-class TestIn19AsrTeardownSecondWave:
-    """IN-19: ``_teardown_asr_models`` must run AFTER"""
+class TestAsrTeardownRunsAfterEngineTeardown:
+    """``_teardown_asr_models`` must run AFTER"""
 
     def test_asr_teardown_not_in_sequenced_plan(self) -> None:
         """``_teardown_asr_models`` must NOT be in the SEQUENCED"""
@@ -373,7 +373,7 @@ class TestIn19AsrTeardownSecondWave:
         assert parallel_call > sequenced_call, "IN-19: parallel plan must be run AFTER the sequenced plan returns"
 
 
-class TestIn20ToggleLockReleasedDuringModelLoad:
+class TestToggleLockReleasedDuringModelLoad:
     """F2 hotkey backend's single dispatch thread is not blocked."""
 
     def test_join_outside_lock_no_manual_release(self) -> None:

@@ -208,7 +208,7 @@ def test_non_ndarray_items_skipped_gracefully():
         assert not np.any(chunk), f"clean[{i}] not zeroed"
 
 
-def test_er91_deque_is_drained_chunk_by_chunk():
+def test_deque_is_drained_chunk_by_chunk():
     """The worker must POP chunks off the deque (not iterate in place):"""
     import collections
 
@@ -223,7 +223,7 @@ def test_er91_deque_is_drained_chunk_by_chunk():
         assert not np.any(c), f"chunk {i} was not zeroed"
 
 
-def test_er91_non_deque_iterable_still_zeroed_defensively():
+def test_non_deque_iterable_still_zeroed_defensively():
     """Non-deque buffers fall back to in-place iteration semantics:"""
     from voice_typer.server.recording import _secure_clear_array_background
 

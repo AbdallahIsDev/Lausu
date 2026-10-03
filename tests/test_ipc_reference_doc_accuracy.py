@@ -193,7 +193,7 @@ def test_ipc_reference_doc_mentions_host_only_commands() -> None:
     host_only = {"shutdown", "tray_click"}
     missing = host_only - doc_rows
     assert not missing, (
-        f"docs/ipc-reference.md is missing host-only command row(s): "
+        f"docs/ipc-reference.md is missing host-only command rows: "
         f"{sorted(missing)}. Each host-only command must be listed in the "
         f"App-control table with the '—' allowlist marker."
     )

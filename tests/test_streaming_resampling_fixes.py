@@ -8,7 +8,7 @@ from voice_typer.server.streaming import StreamingTextAssembler, WordTiming
 
 
 class TestBoundedWordKeyIndex:
-    """ER-69: ``_word_key_index`` should store bounded deques (maxlen=8)."""
+    """``_word_key_index`` should store bounded deques (maxlen=8)."""
 
     def test_word_key_index_buckets_are_bounded_deques(self):
         """Each bucket is a ``collections.deque`` with ``maxlen == 8``."""
@@ -63,7 +63,7 @@ class TestBoundedWordKeyIndex:
 
 
 class TestPruneInPlace:
-    """ER-96: ``_prune_old_entries`` should mutate in place, not rebuild."""
+    """``_prune_old_entries`` should mutate in place, not rebuild."""
 
     def test_prune_recomputes_rolling_max_after_drop(self):
         """After pruning entries, the rolling max-end is recomputed."""
@@ -83,7 +83,7 @@ class TestPruneInPlace:
 
 
 class TestIncrementalCommittedTextCache:
-    """ER-67: ``committed_text`` cache reads should be incremental."""
+    """``committed_text`` cache reads should be incremental."""
 
     def test_incremental_cache_hit_returns_same_object(self):
         """A second read with no intervening mutation returns the same"""

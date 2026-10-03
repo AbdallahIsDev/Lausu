@@ -725,7 +725,7 @@ class TestSetTrayLocale:
         assert registered == []
 
     def test_happy_path_switches_server_global_locale_and_merges_labels(self, ipc_server, monkeypatch):
-        """HU-17: ``set_tray_locale`` must also switch the server-GLOBAL"""
+        """``set_tray_locale`` must also switch the server-GLOBAL"""
         from voice_typer.server import i18n as server_i18n
 
         monkeypatch.setattr("voice_typer.server.tray.set_tray_locale", lambda loc: None)

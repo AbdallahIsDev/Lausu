@@ -1,4 +1,4 @@
-"""YJ-46: assert ``handlers/_log.py`` is the single source of the IPC handler logger."""
+"""assert ``handlers/_log.py`` is the single source of the IPC handler logger."""
 
 from __future__ import annotations
 

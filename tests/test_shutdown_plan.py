@@ -201,7 +201,7 @@ class TestRunPlanDriver:
         assert "slow_step" in result
         assert "fast_step" not in result
 
-    def test_run_plan_gt70_barrier_skips_dependent_sequenced_step(self, controller, monkeypatch) -> None:
+    def test_run_plan_barrier_skips_dependent_sequenced_step(self, controller, monkeypatch) -> None:
         """barrier: a sequenced step with ``depends_on`` +"""
         skip_spy = MagicMock()
         plan = ShutdownPlan(
@@ -223,7 +223,7 @@ class TestRunPlanDriver:
         assert "upstream" in result
         assert "downstream" not in result
 
-    def test_run_plan_gt70_barrier_runs_step_when_dep_succeeded(self, controller) -> None:
+    def test_run_plan_barrier_runs_step_when_dep_succeeded(self, controller) -> None:
         """When the dependency did NOT time out, the barrier does NOT"""
         run_spy = MagicMock()
         plan = ShutdownPlan(

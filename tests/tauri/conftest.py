@@ -98,7 +98,7 @@ def pytest_sessionfinish(session, exitstatus):
             missing = [p for p in _session_stub_paths if not os.path.exists(p)]
             if not missing:
                 return
-        print(f"[stub-guard] WARNING: {len(missing)} stub(s) still missing after session: {missing}")
+        print(f"[stub-guard] WARNING: {len(missing)} stubs still missing after session: {missing}")
     except Exception as exc:  # never fail the suite from a safety net
         print(f"[stub-guard] WARNING: session-finish stub restore skipped: {exc}")
 

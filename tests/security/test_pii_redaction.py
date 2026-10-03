@@ -44,7 +44,7 @@ class TestRedactPiiRedactsHomePath:
 
 
 class TestControlCharEscapingInRedactedText:
-    """HU-15: ``_redact_text`` (the ``PIIRedactionFilter`` path) must"""
+    """``_redact_text`` (the ``PIIRedactionFilter`` path) must"""
 
     def test_newline_forged_line_escaped(self) -> None:
         """A raw newline in the payload becomes the literal two-char"""

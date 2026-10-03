@@ -297,8 +297,8 @@ class TestHotkeyModifiers:
             assert mod in _HOTKEY_MODIFIERS
 
 
-class TestCfg1WhitespaceBypass:
-    """CFG-1 (Medium): a hotkey string with leading/trailing whitespace"""
+class TestHotkeyRejectsSurroundingWhitespace:
+    """a hotkey string with leading/trailing whitespace"""
 
     @pytest.mark.parametrize(
         "padding",
@@ -328,7 +328,7 @@ class TestCfg1WhitespaceBypass:
         assert isinstance(result, str | None)
 
 
-class TestCfg2WinAliasForSuperOnLinux:
+class TestSuperAliasAcceptedForWinKey:
     """``super`` by pynput / evdev.  A user (or a buggy renderer) may send"""
 
     @pytest.mark.parametrize(
@@ -376,8 +376,8 @@ class TestCfg2WinAliasForSuperOnLinux:
             assert "reserved by operating system" not in result, "win→super alias must NOT be applied on macOS (CFG-2)"
 
 
-class TestCfg3MultiKeyComboRejection:
-    """CFG-3 (Medium): a hotkey with more than one non-modifier key is"""
+class TestMultiKeyComboRejected:
+    """a hotkey with more than one non-modifier key is"""
 
     @pytest.mark.parametrize(
         "hotkey",
@@ -426,7 +426,7 @@ class TestCfg3MultiKeyComboRejection:
         assert "3" in result, f"Error message should include the count '3'; got: {result!r}"
 
 
-class TestXe12CapsLockNotAModifier:
+class TestCapsLockNotAModifier:
     """XE-12-1 (Medium): ``caps_lock`` and ``capslock`` were previously"""
 
     def test_caps_lock_not_in_hotkey_modifiers(self) -> None:

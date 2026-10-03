@@ -173,3 +173,23 @@ class TestDelNeverRaisesBaseException:
             cr._save_sync = real_save_sync
             # Best-effort cleanup of the instance state set by __del__.
             cr._stopped = True
+
+
+class TestSaverThreadNotRegistered:
+    """The saver blocks in ``queue.get(30s)`` with no stop event, so a
+    registry join could never wake it and every quit burned the full
+    join timeout. Lifecycle is owned by the sequenced
+    ``teardown_crash_recovery`` step (flush + shutdown)."""
+
+    def test_start_save_thread_skips_registry(self, recovery_dir):
+        from unittest.mock import MagicMock
+
+        from voice_typer.server.crash_recovery import CrashRecovery
+
+        registry = MagicMock()
+        inst = CrashRecovery(config_dir=recovery_dir, thread_registry=registry)
+        try:
+            assert inst._save_thread is not None and inst._save_thread.is_alive()
+            registry.register.assert_not_called()
+        finally:
+            inst.shutdown()

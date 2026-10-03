@@ -160,7 +160,7 @@ def test_mixin_host_member_declarations_present() -> None:
             missing = expected - declared
             assert not missing, (
                 f"{rel_path}: {class_name} lost host-provided member "
-                f"declaration(s) {sorted(missing)}, re-add the "
+                f"declarations {sorted(missing)}, re-add the "
                 f"annotation-only declaration so pyrefly keeps resolving "
                 f"the composed-class attribute (missing declarations were "
                 f"the original error source)."
@@ -175,7 +175,7 @@ def test_mixin_type_checking_stubs_present() -> None:
             stubs = _type_checking_stub_methods(_class_node(tree, class_name))
             missing = expected - stubs
             assert not missing, (
-                f"{rel_path}: {class_name} lost the TYPE_CHECKING stub(s) "
+                f"{rel_path}: {class_name} lost the TYPE_CHECKING stubs "
                 f"{sorted(missing)} for sibling-mixin methods, without the "
                 f"stub the cross-mixin method reference is an untyped "
                 f"missing-attribute error again."

@@ -492,7 +492,7 @@ class TestSendTypedParams:
 
 
 class TestDispatchCastNotSuppression:
-    """YJ-27: ``IPCServer._dispatch``'s ``handler = _resolved`` line"""
+    """``IPCServer._dispatch``'s ``handler = _resolved`` line"""
 
     def _dispatch_source(self) -> str:
         """Return the source of ``IPCServer._dispatch`` (the bound"""

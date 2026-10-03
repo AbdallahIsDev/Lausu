@@ -222,7 +222,7 @@ class TestCloudEngineTestConnection:
         assert "API key" in msg
 
     def test_test_connection_requires_consent(self):
-        """HU-16: ``test_connection`` must refuse when consent is not"""
+        """``test_connection`` must refuse when consent is not"""
         from unittest.mock import patch
 
         from voice_typer.server.cloud_engines import CloudEngine
@@ -237,7 +237,7 @@ class TestCloudEngineTestConnection:
         assert "consent" in msg.lower()
 
     def test_test_connection_consent_given_still_reaches_allowlist(self):
-        """HU-16: with consent given, ``test_connection`` proceeds to"""
+        """with consent given, ``test_connection`` proceeds to"""
         from unittest.mock import patch
         from urllib.error import URLError
 
@@ -485,7 +485,7 @@ class TestDeepgramUrlParameterInjection:
 
 
 class TestCloudEngineTypedExceptions:
-    """PI-17: ``CloudEngine`` raises typed ``CloudEngineError`` subclasses"""
+    """``CloudEngine`` raises typed ``CloudEngineError`` subclasses"""
 
     def test_cloud_engine_raises_auth_error_on_401(self):
         """A 401 HTTPError from the cloud provider raises"""

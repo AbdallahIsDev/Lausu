@@ -47,7 +47,7 @@ def _make_chunk(seq: int) -> tuple:
 
 
 class TestAudioWorkerLoopDrainStopCheck:
-    """AB-2: drain loop must check the stop event between iterations."""
+    """drain loop must check the stop event between iterations."""
 
     def test_drain_bails_out_when_stop_set_mid_drain(self):
         """Backlogged drain (20 slow chunks) + stop signal set after"""

@@ -271,8 +271,8 @@ class TestOnboardingCheckPermissionsHandler:
         assert resp["data"]["message"] == "internal error"
 
 
-class TestXzEh002ServiceErrorRedaction:
-    """XZ-EH-002: the five ``set_*`` / ``skip`` / ``apply`` handlers"""
+class TestServiceErrorRedaction:
+    """the five ``set_*`` / ``skip`` / ``apply`` handlers"""
 
     _SECRET_BEARER = "Bearer abcdefghijklmnopqrstuvwxyz0123456789"
     _SECRET_SK = "sk-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJ"
@@ -338,10 +338,10 @@ class TestXzEh002ServiceErrorRedaction:
         assert "error" not in resp["data"]
 
     def test_none_error_value_treated_as_success(self, ipc_server, fake_service):
-        """XZ-EH-015: if the service returns ``{\"error\": None}`` (key"""
+        """if the service returns ``{\"error\": None}`` (key"""
         fake_service.onboarding_apply.return_value = {"error": None}
         resp = ipc_server._handle_onboarding_apply({}, {})
-        # XZ-EH-015: {"error": None} -> type is "ack" (was "error").
+        # {"error": None} -> type is "ack" (was "error").
         assert resp["type"] == "ack"
         # The None value is preserved (not redacted to a string).
         assert resp["data"]["error"] is None
@@ -354,7 +354,7 @@ class TestXzEh002ServiceErrorRedaction:
         assert resp["data"]["error"] == "config write failed"
 
     def test_none_error_in_set_microphone_treated_as_success(self, ipc_server, fake_service):
-        """XZ-EH-015: the same {\"error\": None} -> ack fix applies to all"""
+        """the same {\"error\": None} -> ack fix applies to all"""
         fake_service.onboarding_set_microphone.return_value = {"error": None, "ok": True}
         resp = ipc_server._handle_onboarding_set_microphone({"mic_id": "usb_1"}, {})
         assert resp["type"] == "ack"

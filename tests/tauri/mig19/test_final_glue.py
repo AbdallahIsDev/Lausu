@@ -238,7 +238,7 @@ def test_tauri_conf_security_csp_has_core_directives(tauri_conf) -> None:
             f"app.security.csp must contain {directive!r} (one of the four core CSP directives); full CSP was: {csp!r}"
         )
 
-    # CR-SEC: script-src must NOT allow 'unsafe-eval' or 'unsafe-inline'
+    # script-src must NOT allow 'unsafe-eval' or 'unsafe-inline'
     assert "'unsafe-eval'" not in csp, (
         f"app.security.csp must NOT contain 'unsafe-eval' (script injection footgun); full CSP was: {csp!r}"
     )

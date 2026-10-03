@@ -403,7 +403,7 @@ class TestConcurrentStartStopNoLeak:
 
 
 class TestIdleStopStopsOrphanedWorkers:
-    """GT-23R: a start()/discard() race can leave ``_recording_event``"""
+    """a start()/discard() race can leave ``_recording_event``"""
 
     def test_stop_stops_live_event_worker_when_event_cleared(self, monkeypatch):
         """A live ``event-worker`` with ``_recording_event`` cleared must"""

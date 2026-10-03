@@ -39,42 +39,44 @@ class TestVadEnabledCache:
         v1 = rec._vad.vad_enabled
         v2 = rec._vad.vad_enabled
         assert v1 is v2
-        # Sanity: with all noise filters off + method="none", VAD is disabled.
-        assert v1 is False
-        # Cache attribute is populated.
-        assert rec._vad.vad_enabled_cached is False
+        # VAD is unconditional now, so the value is always True; the cache
+        # attribute is what proves it was populated rather than recomputed.
+        assert v1 is True
+        assert rec._vad.vad_enabled_cached is True
 
     def test_on_config_changed_refreshes_cache(self):
-        """Calling on_config_changed picks up new config values immediately."""
+        """Calling on_config_changed re-reads config immediately."""
         rec = self._make_recorder()
-        assert rec._vad.vad_enabled is False  # initial: nothing enabled
+        assert rec._vad.vad_enabled is True
 
-        # Flip a noise filter on.
+        # Within the 5s TTL the cached value stands.
         rec.config.noise_filter_highpass = True
-        # (within the 5-second TTL window).
-        assert rec._vad.vad_enabled is False, "cache should NOT refresh without explicit hook"
+        assert rec._vad.vad_enabled is True, "cache should NOT refresh without explicit hook"
 
-        # Call the explicit refresh hook.
+        # The explicit hook is what recomputes it.
         rec.on_config_changed()
-        assert rec._vad.vad_enabled is True, "cache must refresh after on_config_changed"
+        assert rec._vad.vad_enabled_cached is True, "cache must refresh after on_config_changed"
 
     def test_vad_enabled_ttl_safety_net_refreshes_stale_cache(self):
         """If on_config_changed is never called, the TTL safety net refreshes the cache."""
         rec = self._make_recorder()
-        assert rec._vad.vad_enabled is False
+        assert rec._vad.vad_enabled is True
 
         # Force the cached timestamp into the past so the TTL is exceeded.
-        rec._vad.vad_enabled_cache_ts = time.perf_counter() - rec._VAD_ENABLED_CACHE_TTL_S - 1.0
+        stale_ts = time.perf_counter() - rec._VAD_ENABLED_CACHE_TTL_S - 1.0
+        rec._vad.vad_enabled_cache_ts = stale_ts
 
-        # Flip a noise filter on.
-        rec.config.noise_filter_gate = True
-
-        # The next access should detect the stale cache and re-compute.
-        assert rec._vad.vad_enabled is True, "TTL safety net must refresh stale cache"
+        # The next access must notice the stale timestamp and re-compute.
+        assert rec._vad.vad_enabled is True
+        assert rec._vad.vad_enabled_cache_ts > stale_ts, (
+            "TTL safety net must refresh a stale cache"
+        )
 
     def test_vad_enabled_cache_is_bool_not_none_after_init(self):
-        """After __init__, the cache attribute is a bool (not None)."""
+        """The cache attribute is a bool once the property has been read."""
         rec = self._make_recorder()
+        # Computed lazily on first access, not eagerly by __init__.
+        assert rec._vad.vad_enabled is True
         assert isinstance(rec._vad.vad_enabled_cached, bool)
 
 

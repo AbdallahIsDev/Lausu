@@ -45,12 +45,12 @@ class TestCriticalNotificationsBypassToggle:
         assert "if err is not None and self.config.show_notifications" not in src
 
     def test_crash_recovery_notifies_user(self):
-        """Recovered-transcription notice must reach the user."""
+        """Recovered-transcription notice stays in-app only (no OS toast)."""
         src = _read_ux018(STARTUP_SEQUENCE_PY)
         assert "unpasted transcriptions from previous session" in src
         idx = src.index("unpasted transcriptions from previous session")
         block = src[idx - 200 : idx + 1500]
-        assert "notify_safety(" in block
+        assert "notify_safety(" not in block
         assert '"click_path": "/history"' in block or "'/history'" in block or "/history" in block
 
     def test_wayland_hotkeys_missing_uses_notify_safety(self):

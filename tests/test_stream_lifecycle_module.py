@@ -593,3 +593,79 @@ class TestRestartStreamScaledBlocksize:
         assert kwargs["samplerate"] == 16000
         assert kwargs["blocksize"] == scaled_audio_blocksize(16000)
         assert kwargs["blocksize"] == 512
+
+
+class TestWasapiAutoConvert:
+    """WASAPI opens allow system format conversion; other APIs pass None.
+
+    Browsers never hit the shared-mode exact-format refusal because
+    they convert; without the flag PortAudio fails when the engine mix
+    format currently differs (e.g. another app just used the mic).
+    """
+
+    def _fake_sd(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        attempts: list[dict] = []
+
+        def fake_input_stream(**kwargs):
+            attempts.append(kwargs)
+            stream = MagicMock(name="fake_stream")
+            stream.start = MagicMock(name="start")
+            return stream
+
+        fake_sd = MagicMock(name="fake_sd")
+        fake_sd.InputStream = MagicMock(side_effect=fake_input_stream)
+        monkeypatch.setattr(sl_module, "sd", fake_sd)
+        return fake_sd, attempts
+
+    def test_wasapi_open_gets_auto_convert(self, monkeypatch):
+        recorder = _make_recorder_stub()
+        recorder._devices._resolve_effective_sample_rate.return_value = (
+            48000,
+            {"name": "Microphone (Realtek(R) Audio)", "host_api_name": "Windows WASAPI", "native_rate": 48000},
+        )
+        fake_sd, attempts = self._fake_sd(monkeypatch)
+        lifecycle = StreamLifecycle(recorder)
+        lifecycle.open_stream_for_candidates(recorder, [30], MagicMock(), 16000, None)
+        assert len(attempts) == 1
+        fake_sd.WasapiSettings.assert_called_once_with(auto_convert=True)
+        assert attempts[0]["extra_settings"] is fake_sd.WasapiSettings.return_value
+
+    def test_mme_open_gets_no_extra_settings(self, monkeypatch):
+        recorder = _make_recorder_stub()
+        recorder._devices._resolve_effective_sample_rate.return_value = (
+            44100,
+            {"name": "Microphone (Realtek(R) Audio)", "host_api_name": "MME", "native_rate": 44100},
+        )
+        fake_sd, attempts = self._fake_sd(monkeypatch)
+        lifecycle = StreamLifecycle(recorder)
+        lifecycle.open_stream_for_candidates(recorder, [1], MagicMock(), 16000, None)
+        assert len(attempts) == 1
+        assert attempts[0]["extra_settings"] is None
+        fake_sd.WasapiSettings.assert_not_called()
+
+    def test_missing_wasapi_settings_api_falls_back_to_none(self, monkeypatch):
+        import types
+
+        recorder = _make_recorder_stub()
+        recorder._devices._resolve_effective_sample_rate.return_value = (
+            48000,
+            {"name": "Microphone (Realtek(R) Audio)", "host_api_name": "Windows WASAPI", "native_rate": 48000},
+        )
+        attempts: list[dict] = []
+
+        def fake_input_stream(**kwargs):
+            attempts.append(kwargs)
+            from unittest.mock import MagicMock
+
+            stream = MagicMock(name="fake_stream")
+            stream.start = MagicMock(name="start")
+            return stream
+
+        bare_sd = types.SimpleNamespace(InputStream=fake_input_stream)
+        monkeypatch.setattr(sl_module, "sd", bare_sd)
+        lifecycle = StreamLifecycle(recorder)
+        lifecycle.open_stream_for_candidates(recorder, [30], MagicMock(), 16000, None)
+        assert len(attempts) == 1
+        assert attempts[0]["extra_settings"] is None

@@ -12,7 +12,7 @@ import pytest
 
 
 class TestSchedulePeriodicRetention:
-    """ER-36: ``HistoryDB.schedule_periodic_retention`` API contract."""
+    """``HistoryDB.schedule_periodic_retention`` API contract."""
 
     def test_spawns_daemon_thread_that_calls_apply_retention(self, tmp_path, monkeypatch):
         """periodically calls ``apply_retention``."""
@@ -77,7 +77,7 @@ class TestSchedulePeriodicRetention:
         )
 
     def test_reentrancy_guard_skips_concurrent_retention(self, tmp_path, monkeypatch):
-        """ER-36: if a previous retention is still running when the next"""
+        """if a previous retention is still running when the next"""
         from voice_typer.server.history_db import HistoryDB
 
         db = HistoryDB(db_path=tmp_path / "sched_reent.db")
@@ -145,7 +145,7 @@ class TestSchedulePeriodicRetention:
 
 
 class TestConfigSaveBackupSkip:
-    """ER-53: ``_save_locked`` skips the backup read+write when the"""
+    """``_save_locked`` skips the backup read+write when the"""
 
     @pytest.fixture(autouse=True)
     def _isolated_config_dir(self, tmp_config_dir, monkeypatch):
@@ -228,7 +228,7 @@ class TestConfigSaveBackupSkip:
 
 
 class TestHistoryDBMultiRowInsertBatching:
-    """ER-78: 3+ pending ``add_transcription`` calls are batched into a"""
+    """3+ pending ``add_transcription`` calls are batched into a"""
 
     def _make_execute_counting_db(self, tmp_path, monkeypatch):
         """Build a HistoryDB whose writer connection counts INSERT"""
@@ -408,7 +408,7 @@ class TestHistoryDBMultiRowInsertBatching:
 
 
 class TestSecureAtomicWriteDurability:
-    """ER-80: ``durability=False`` skips both fsyncs (file + parent dir)."""
+    """``durability=False`` skips both fsyncs (file + parent dir)."""
 
     def test_durability_false_skips_fsync(self, tmp_path, monkeypatch):
         """With ``durability=False``, neither the file-data fsync nor"""

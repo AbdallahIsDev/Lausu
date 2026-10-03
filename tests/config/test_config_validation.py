@@ -77,7 +77,7 @@ class TestNonNumericFieldValidation:
         assert c.volume_duck_smart_poll_interval_ms == 1500
 
 
-class TestCfg5AccumulateAllErrors:
+class TestAccumulatesAllErrorsBeforeReporting:
     """first invalid field (``break``), forcing the user to fix-and-resubmit"""
 
     def test_three_invalid_fields_return_three_errors(self):
@@ -178,7 +178,7 @@ class TestCfg5AccumulateAllErrors:
         assert any("best_of" in e for e in errors)
 
 
-class TestCfg6ControlCharRejection:
+class TestControlCharRejection:
     """under the length cap, including strings with embedded C0 control"""
 
     @pytest.mark.parametrize(
@@ -253,7 +253,7 @@ class TestCfg6ControlCharRejection:
         assert "control" in errors[0].lower()
 
 
-class TestCfg7UrlCredentialsRejection:
+class TestUrlCredentialsRejected:
     """credentials-leak vector: the renderer would otherwise persist them"""
 
     def test_rejects_user_password_url(self):

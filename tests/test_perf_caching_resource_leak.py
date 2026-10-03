@@ -23,7 +23,7 @@ def _make_vocab(tmp_path) -> object:
 
 
 def test_apply_to_text_uses_cached_patterns(tmp_path) -> None:
-    """ER-37: ``re.compile`` is called once per phrase per session,"""
+    """``re.compile`` is called once per phrase per session,"""
     import re
 
     vm = _make_vocab(tmp_path)
@@ -54,7 +54,7 @@ def test_apply_to_text_uses_cached_patterns(tmp_path) -> None:
 
 
 def test_apply_to_text_cache_rebuilt_after_invalidation(tmp_path) -> None:
-    """ER-37: after the cache is invalidated (e.g. by ``add_phrase``),"""
+    """after the cache is invalidated (e.g. by ``add_phrase``),"""
     import re
 
     vm = _make_vocab(tmp_path)
@@ -84,7 +84,7 @@ def test_apply_to_text_cache_rebuilt_after_invalidation(tmp_path) -> None:
 
 
 def test_cache_invalidated_on_add_entry(tmp_path) -> None:
-    """ER-37: ``add_entry`` (dict-based category mutation) invalidates"""
+    """``add_entry`` (dict-based category mutation) invalidates"""
     vm = _make_vocab(tmp_path)
     vm.apply_to_text("hello")  # build cache
     assert vm._combined_phrase_cache is not None, "cache should be built after first apply_to_text"
@@ -95,7 +95,7 @@ def test_cache_invalidated_on_add_entry(tmp_path) -> None:
 
 
 def test_cache_invalidated_on_remove_entry(tmp_path) -> None:
-    """ER-37: ``remove_entry`` invalidates the cache."""
+    """``remove_entry`` invalidates the cache."""
     vm = _make_vocab(tmp_path)
     vm.add_entry("misspellings", "foo", "bar")
     vm.apply_to_text("hello")
@@ -105,7 +105,7 @@ def test_cache_invalidated_on_remove_entry(tmp_path) -> None:
 
 
 def test_cache_invalidated_on_import_json(tmp_path) -> None:
-    """ER-37: ``import_json`` invalidates the cache."""
+    """``import_json`` invalidates the cache."""
     vm = _make_vocab(tmp_path)
     vm.apply_to_text("hello")
     assert vm._combined_phrase_cache is not None
@@ -115,7 +115,7 @@ def test_cache_invalidated_on_import_json(tmp_path) -> None:
 
 
 def test_apply_to_text_correctness_preserved(tmp_path) -> None:
-    """ER-37: caching does not change the correction output."""
+    """caching does not change the correction output."""
     vm = _make_vocab(tmp_path)
     vm.add_phrase("phrase_corrections", "foo", "bar")
     vm.add_phrase("phrase_corrections", "hello world", "hi earth")
@@ -200,7 +200,7 @@ def test_pending_restores_no_leak_when_thread_start_fails() -> None:
 
 
 def test_pending_restores_no_leak_warning_logged() -> None:
-    """ER-72: a failed ``Thread().start()`` logs a WARNING so the"""
+    """a failed ``Thread().start()`` logs a WARNING so the"""
     import voice_typer.server.clipboard.manager as mgr_mod
     from voice_typer.server import clipboard as clip_mod
     from voice_typer.server.clipboard import ClipboardManager
@@ -254,7 +254,7 @@ def test_pending_restores_no_leak_warning_logged() -> None:
 
 
 def test_read_plaintext_fallback_uses_mtime_cache(monkeypatch, tmp_path) -> None:
-    """ER-79: repeated calls with the same ``st_mtime_ns`` hit the cache"""
+    """repeated calls with the same ``st_mtime_ns`` hit the cache"""
     import os
 
     from voice_typer.server import config as _config_mod, credential_store
@@ -298,7 +298,7 @@ def test_read_plaintext_fallback_uses_mtime_cache(monkeypatch, tmp_path) -> None
 
 
 def test_read_plaintext_fallback_cache_is_per_path(monkeypatch, tmp_path) -> None:
-    """ER-79: the cache is keyed by absolute file path, two different"""
+    """the cache is keyed by absolute file path, two different"""
     import os
 
     from voice_typer.server import config as _config_mod, credential_store

@@ -282,7 +282,7 @@ class TestStartupSequenceRunOrder:
         )
 
 
-class TestStartupSequenceRACE020ShutdownGates:
+class TestStartupSequenceShutdownGates:
     """
     RACE-020: ``app._shutting_down`` is checked between each major step
     StartupSequence must NOT proceed with model downloads or background

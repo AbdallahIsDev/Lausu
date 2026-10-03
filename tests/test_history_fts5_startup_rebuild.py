@@ -1,4 +1,4 @@
-"""AP-17: regression tests for the FTS5 startup rebuild sweep."""
+"""regression tests for the FTS5 startup rebuild sweep."""
 
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ class _FlakyCursor:
 
 
 class TestFts5StartupRebuild:
-    """AP-17: ``_fts5_startup_rebuild`` runs on every launch and bounds"""
+    """``_fts5_startup_rebuild`` runs on every launch and bounds"""
 
     def test_startup_sweep_runs_on_construction(self, db, monkeypatch):
         """The startup sweep must be called during HistoryDB construction"""
@@ -211,7 +211,7 @@ class TestFts5StartupRebuild:
             db2.close()
 
     def test_startup_sweep_failure_is_swallowed(self, tmp_path, monkeypatch, caplog):
-        """AP-17: the startup sweep is best-effort. If the rebuild fails"""
+        """the startup sweep is best-effort. If the rebuild fails"""
         from voice_typer.server.history_db import HistoryDB
 
         db_path = tmp_path / "history.db"
@@ -240,7 +240,7 @@ class TestFts5StartupRebuild:
             db2.close()
 
     def test_startup_sweep_succeeds_silently_at_debug_level(self, tmp_path, monkeypatch, caplog):
-        """AP-17: on success, the startup sweep logs at DEBUG (not INFO"""
+        """on success, the startup sweep logs at DEBUG (not INFO"""
         from voice_typer.server.history_db import HistoryDB
 
         db_path = tmp_path / "history.db"

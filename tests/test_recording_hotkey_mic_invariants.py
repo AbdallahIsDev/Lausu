@@ -88,7 +88,7 @@ class TestUseHotkeyCaptureEffectsHaveDepsArrays:
                 offenders.append(snippet)
         assert not offenders, (
             "useHotkeyCapture.ts must not contain a useEffect without a "
-            "dependency array. Possible offending effect(s):\n" + "\n---\n".join(offenders)
+            "dependency array. Possible offending effects:\n" + "\n---\n".join(offenders)
         )
 
     def test_handlers_are_usecallback_stable(self):

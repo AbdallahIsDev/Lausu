@@ -40,7 +40,7 @@ def dispatcher() -> HotkeyDispatcher:
 
 
 def test_first_time_register_calls_aux_backends(dispatcher: HotkeyDispatcher, monkeypatch):
-    """AB-34: the FIRST call to ``register()`` (at startup) MUST install"""
+    """the FIRST call to ``register()`` (at startup) MUST install"""
     new_backend = MagicMock()
     new_backend.is_alive.return_value = True
     monkeypatch.setattr(
@@ -108,7 +108,7 @@ def test_restart_does_not_call_register_esc(dispatcher: HotkeyDispatcher, monkey
 
 
 def test_restart_does_not_call_register_repaste(dispatcher: HotkeyDispatcher, monkeypatch):
-    """AB-34: ``restart()`` MUST NOT call ``register_repaste()``, same"""
+    """``restart()`` MUST NOT call ``register_repaste()``, same"""
     old_backend = MagicMock()
     old_backend.is_alive.return_value = True
     dispatcher._hotkey_backend = old_backend
@@ -201,7 +201,7 @@ def test_register_with_skip_aux_false_calls_aux_backends(dispatcher: HotkeyDispa
 
 
 def test_restart_failure_path_does_not_call_aux_backends(dispatcher: HotkeyDispatcher, monkeypatch):
-    """AB-34: even on the failure/restore path, ``restart()`` must NOT"""
+    """even on the failure/restore path, ``restart()`` must NOT"""
     old_backend = MagicMock()
     old_backend.is_alive.return_value = True
     dispatcher._hotkey_backend = old_backend

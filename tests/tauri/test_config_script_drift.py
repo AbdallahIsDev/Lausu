@@ -165,7 +165,7 @@ class TestTauriBinariesManifestCoverage:
         reachable = set(updater.TRIPLE_TO_MANIFEST_KEY.values())
         unreachable = manifest_keys - reachable
         assert not unreachable, (
-            "update_tauri_manifests.py cannot write the manifest key(s): "
+            "update_tauri_manifests.py cannot write the manifest keys: "
             + ", ".join(sorted(unreachable))
             + ", add the owning triple to "
             "TRIPLE_TO_MANIFEST_KEY."
@@ -708,7 +708,7 @@ class TestReleaseBumpWorkflow:
         missing = [rel for rel in BUMP_COMMIT_FILES if rel not in add_line]
         assert not missing, (
             "RELEASING.md's release-bump `git add` line is missing versioned "
-            f"file(s): {missing}. The bump must commit package.json + "
+            f"files: {missing}. The bump must commit package.json + "
             "src-tauri/tauri.conf.json + src-tauri/Cargo.toml in the SAME "
             "commit so the version lockstep (Pair 10) can't break mid-release.\n"
             f"  line: {add_line.strip()}"
@@ -884,8 +884,13 @@ class TestReverseDnsIdentifierNamespace:
         )
 
 
-def test_persisted_position_bound_matches_server_allowlist():
-    """server's ``bubble_x``/``bubble_y`` allowlist bounds."""
+def test_bubble_coordinate_bound_matches_server_allowlist():
+    """server's ``bubble_x``/``bubble_y`` allowlist bounds.
+
+    The Rust durable-position consumer is retired (drags are
+    session-local, never persisted), so only the server-side shape is
+    pinned here: the keys stay valid set_config targets, dormant.
+    """
     allowlist = (PROJECT_ROOT / "voice_typer/server/config_validators/allowlist.py").read_text(encoding="utf-8")
     bounds = re.findall(
         r'"bubble_[xy]": \(\(int, type\(None\)\), '
@@ -893,19 +898,10 @@ def test_persisted_position_bound_matches_server_allowlist():
         allowlist,
     )
     assert len(bounds) == 2, (
-        "allowlist.py bubble_x/bubble_y validator signature drifted, "
-        "update this pin together with persisted_position.rs."
+        "allowlist.py bubble_x/bubble_y validator signature drifted."
     )
     lo, hi = bounds[0]
     lo, hi = lo.replace("_", ""), hi.replace("_", "")
     assert lo == "-100000" and hi == "100000", (
-        f"server bubble coordinate bounds changed to [{lo}, {hi}], "
-        "update PERSISTED_COORDINATE_LIMIT in "
-        "src-tauri/src/commands/bubble/persisted_position.rs to match."
-    )
-
-    rust = (SRC_TAURI / "src/commands/bubble/persisted_position.rs").read_text(encoding="utf-8")
-    assert "const PERSISTED_COORDINATE_LIMIT: i32 = 100_000;" in rust, (
-        "persisted_position.rs PERSISTED_COORDINATE_LIMIT drifted from "
-        "the server allowlist bound (±100000), keep them in lockstep."
+        f"server bubble coordinate bounds changed to [{lo}, {hi}]."
     )

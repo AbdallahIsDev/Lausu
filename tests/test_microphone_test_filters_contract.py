@@ -159,7 +159,7 @@ class TestBuildTestFiltersKeyParity:
         ) | {"noise_filter_enabled"}
         missing = chain_read - self._renderer_emitted_keys()
         assert not missing, (
-            "buildTestFilters no longer emits field(s) the filter chain "
+            "buildTestFilters no longer emits fields the filter chain "
             f"reads directly: {sorted(missing)}. The affected filters would "
             "silently fall back to defaults in microphone tests."
         )
@@ -173,6 +173,6 @@ class TestBuildTestFiltersKeyParity:
         }
         unknown = self._renderer_emitted_keys() - backend_fields
         assert not unknown, (
-            "buildTestFilters emits key(s) unknown to the backend Config: "
+            "buildTestFilters emits keys unknown to the backend Config: "
             f"{sorted(unknown)}. They are silently ignored downstream."
         )

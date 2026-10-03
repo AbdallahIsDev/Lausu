@@ -29,7 +29,7 @@ def tray_module(monkeypatch):
 
 
 class TestTrayMonotonicElapsed:
-    """ER-54: tray elapsed-recording time uses ``time.monotonic()`` so"""
+    """tray elapsed-recording time uses ``time.monotonic()`` so"""
 
     def test_elapsed_uses_monotonic_not_wall_clock(self, tray_module, monkeypatch):
         """
@@ -125,7 +125,7 @@ class TestTrayMonotonicElapsed:
 
 
 class TestTemplatesLazyClipboard:
-    """ER-55: ``substitute_variables`` must NOT touch the clipboard when"""
+    """``substitute_variables`` must NOT touch the clipboard when"""
 
     def test_no_clipboard_call_without_placeholder(self, monkeypatch):
         from voice_typer.server import templates as tmpl_mod
@@ -201,7 +201,7 @@ class TestTemplatesLazyClipboard:
 
 
 class TestTemplatesWhitespaceRegexCompiledOnce:
-    """ER-55: ``_WHITESPACE_RE`` is compiled ONCE at import time, not"""
+    """``_WHITESPACE_RE`` is compiled ONCE at import time, not"""
 
     def test_whitespace_re_is_module_level_pattern(self):
         from voice_typer.server import templates as tmpl_mod
@@ -258,7 +258,7 @@ class TestTemplatesWhitespaceRegexCompiledOnce:
 
 
 class TestLoopbackHostsModuleLevel:
-    """ER-64: ``_LOOPBACK_HOSTS`` is a module-level frozenset, its"""
+    """``_LOOPBACK_HOSTS`` is a module-level frozenset, its"""
 
     def test_loopback_hosts_is_module_level(self):
         from voice_typer.server import _secrets
@@ -309,7 +309,7 @@ class TestLoopbackHostsModuleLevel:
 
 
 class TestRedactApiKeysSubHoisted:
-    """ER-64: ``_sub`` is hoisted out of the ``for pat in _KEY_PATTERNS``"""
+    """``_sub`` is hoisted out of the ``for pat in _KEY_PATTERNS``"""
 
     def test_bearer_prefix_preserved_after_hoist(self):
         from voice_typer.server._secrets import redact_api_keys

@@ -12,7 +12,7 @@ import pytest
 from voice_typer.server.recording.recording_lifecycle import start_recording
 
 
-def _build_mock_recorder(
+def build_mock_recorder(
     *,
     sample_rate: int = 16000,
     device: int = 5,
@@ -92,7 +92,7 @@ class TestStartRecordingHappyPath:
 
     def test_runs_all_steps_in_order(self, monkeypatch):
         """When the stream opens on the first candidate,"""
-        recorder = _build_mock_recorder()
+        recorder = build_mock_recorder()
         import voice_typer.server.recording.recording_lifecycle as split_mod
 
         refresh_vad_mock = MagicMock()
@@ -120,7 +120,7 @@ class TestStartRecordingHappyPath:
 
     def test_step_order_matches_contract(self, monkeypatch):
         """Pin the source-order contract: cache-clear → state reset →"""
-        recorder = _build_mock_recorder()
+        recorder = build_mock_recorder()
         call_log: list[str] = []
 
         def log_call(name, ret=None):
@@ -173,7 +173,7 @@ class TestStartRecordingHappyPath:
 
     def test_open_stream_for_candidates_receives_callback_and_effective_sr(self):
         """Pin the call-arg contract for ``_open_stream_for_candidates``:"""
-        recorder = _build_mock_recorder()
+        recorder = build_mock_recorder()
         start_recording(recorder)
 
         args, _ = recorder._stream_lifecycle.open_stream_for_candidates.call_args
@@ -233,7 +233,7 @@ class TestStartRecordingFallbackPath:
 
     def test_fallback_called_when_first_candidate_returns_none_stream(self):
         """When ``open_stream_for_candidates`` returns"""
-        recorder = _build_mock_recorder(open_success=False)
+        recorder = build_mock_recorder(open_success=False)
         # First attempt fails (``_stream`` is None);
         assert recorder._stream_lifecycle._stream is None
         original_err = recorder._stream_lifecycle.open_stream_for_candidates.return_value[2]
@@ -260,7 +260,7 @@ class TestStartRecordingFallbackPath:
 
     def test_raises_last_error_when_all_paths_fail(self):
         """When both the candidate path AND the fallback path fail"""
-        recorder = _build_mock_recorder(open_success=False)
+        recorder = build_mock_recorder(open_success=False)
         original_err = OSError("[Errno -9998] PortAudio invalid channel count")
         recorder._stream_lifecycle.open_stream_for_candidates.return_value = (
             None,
@@ -285,7 +285,7 @@ class TestStartRecordingFallbackPath:
 
     def test_raises_runtime_error_when_no_error_recorded(self):
         """Defensive contract: if the device enumeration loop"""
-        recorder = _build_mock_recorder(open_success=False)
+        recorder = build_mock_recorder(open_success=False)
         recorder._stream_lifecycle.open_stream_for_candidates.return_value = (None, 16000, None)
         recorder._stream_lifecycle.open_stream_fallback.return_value = (None, 16000, True, None)
         recorder._stream_lifecycle._stream = None
@@ -299,7 +299,7 @@ class TestMicrophoneFallbackSessionLocal:
 
     def test_config_microphone_not_overwritten_on_fallback(self):
         """``selected_device != device`` → the stream runs on the"""
-        recorder = _build_mock_recorder(device=5, open_success=True)
+        recorder = build_mock_recorder(device=5, open_success=True)
         recorder._stream_lifecycle.open_stream_for_candidates.return_value = (7, 16000, None)
         recorder._devices._resolve_device.return_value = 5
         recorder.config.microphone = "Windows WASAPI|USB Mic"
@@ -315,7 +315,7 @@ class TestMicrophoneFallbackSessionLocal:
 
     def test_no_persistence_thread_spawned_when_selected_device_differs(self):
         """No persistence thread (``mic-fallback-save``) may be spawned"""
-        recorder = _build_mock_recorder(device=5, open_success=True)
+        recorder = build_mock_recorder(device=5, open_success=True)
         recorder._stream_lifecycle.open_stream_for_candidates.return_value = (7, 16000, None)
         recorder._devices._resolve_device.return_value = 5
 
@@ -329,20 +329,20 @@ class TestMicrophoneFallbackSessionLocal:
 
     def test_fallback_logs_session_local_notice(self, caplog):
         """The fallback path logs that the saved selection is unchanged"""
-        recorder = _build_mock_recorder(device=5, open_success=True)
+        recorder = build_mock_recorder(device=5, open_success=True)
         recorder._stream_lifecycle.open_stream_for_candidates.return_value = (7, 16000, None)
         recorder._devices._resolve_device.return_value = 5
 
-        with caplog.at_level("INFO", logger="voice_typer.server.recording"):
+        with caplog.at_level("WARNING", logger="voice_typer.server.recording"):
             start_recording(recorder)
 
         assert any(
             "saved selection unchanged" in rec.message and "[RECORDING]" in rec.message for rec in caplog.records
-        ), "fallback usage must log an INFO line noting the saved selection is unchanged."
+        ), "fallback usage must log a WARNING line noting the saved selection is unchanged."
 
     def test_nothing_logged_when_selected_device_matches(self, caplog):
         """No fallback notice when the opened device is the configured"""
-        recorder = _build_mock_recorder(device=5, open_success=True)
+        recorder = build_mock_recorder(device=5, open_success=True)
         recorder._devices._resolve_device.return_value = 5
         recorder._stream_lifecycle.open_stream_for_candidates.return_value = (5, 16000, None)
 
@@ -353,7 +353,7 @@ class TestMicrophoneFallbackSessionLocal:
 
     def test_non_int_selected_device_skips_fallback_block(self, caplog):
         """A non-int device (e.g. None or a string) skips the"""
-        recorder = _build_mock_recorder(device=5, open_success=True)
+        recorder = build_mock_recorder(device=5, open_success=True)
         recorder._stream_lifecycle.open_stream_for_candidates.return_value = (
             "not-an-int",
             16000,
@@ -371,7 +371,7 @@ class TestResamplerWarmUp:
     """When the effective sample rate differs from the configured"""
 
     def test_warm_up_called_when_sr_differs_and_poly_not_loaded(self, monkeypatch):
-        recorder = _build_mock_recorder(
+        recorder = build_mock_recorder(
             sample_rate=16000,
             effective_sr=48000,  # differs from target_sr
             open_success=True,
@@ -386,7 +386,7 @@ class TestResamplerWarmUp:
         recorder.warm_up_resampler.assert_called_once()
 
     def test_warm_up_skipped_when_sr_matches(self, monkeypatch):
-        recorder = _build_mock_recorder(
+        recorder = build_mock_recorder(
             sample_rate=16000,
             effective_sr=16000,  # matches target_sr → skip warm-up
             open_success=True,
@@ -397,7 +397,7 @@ class TestResamplerWarmUp:
         recorder.warm_up_resampler.assert_not_called()
 
     def test_warm_up_skipped_when_poly_already_loaded(self, monkeypatch):
-        recorder = _build_mock_recorder(
+        recorder = build_mock_recorder(
             sample_rate=16000,
             effective_sr=48000,
             open_success=True,
@@ -414,7 +414,7 @@ class TestResamplerWarmUp:
 
     def test_warm_up_skipped_when_poly_failed_before(self, monkeypatch):
         """If a previous warm-up attempt failed"""
-        recorder = _build_mock_recorder(
+        recorder = build_mock_recorder(
             sample_rate=16000,
             effective_sr=48000,
             open_success=True,
@@ -435,7 +435,7 @@ class TestAudioProcessorRetune:
     def test_set_sample_rate_called_when_available(self, caplog):
         audio_processor = MagicMock(name="AudioProcessor")
         audio_processor._sample_rate = 16000  # chain rate
-        recorder = _build_mock_recorder(
+        recorder = build_mock_recorder(
             sample_rate=16000,
             effective_sr=48000,  # device rate differs from chain rate
             audio_processor=audio_processor,
@@ -451,7 +451,7 @@ class TestAudioProcessorRetune:
     def test_rebuild_from_config_called_when_set_sample_rate_unavailable(self, caplog):
         audio_processor = MagicMock(name="AudioProcessor")
         audio_processor._sample_rate = 16000
-        recorder = _build_mock_recorder(
+        recorder = build_mock_recorder(
             sample_rate=16000,
             effective_sr=48000,
             audio_processor=audio_processor,
@@ -467,7 +467,7 @@ class TestAudioProcessorRetune:
     def test_no_retune_when_processor_sr_matches(self, caplog):
         audio_processor = MagicMock(name="AudioProcessor")
         audio_processor._sample_rate = 16000
-        recorder = _build_mock_recorder(
+        recorder = build_mock_recorder(
             sample_rate=16000,
             effective_sr=16000,  # matches → skip retune (no-op)
             audio_processor=audio_processor,
@@ -480,7 +480,7 @@ class TestAudioProcessorRetune:
         audio_processor.rebuild_from_config.assert_not_called()
 
     def test_no_retune_when_no_audio_processor(self, caplog):
-        recorder = _build_mock_recorder(
+        recorder = build_mock_recorder(
             sample_rate=16000,
             effective_sr=48000,
             audio_processor=None,
@@ -495,7 +495,7 @@ class TestAudioProcessorRetune:
         audio_processor = MagicMock(name="AudioProcessor")
         audio_processor._sample_rate = 16000
         audio_processor.set_sample_rate.side_effect = RuntimeError("simulated bug")
-        recorder = _build_mock_recorder(
+        recorder = build_mock_recorder(
             sample_rate=16000,
             effective_sr=48000,
             audio_processor=audio_processor,
@@ -515,7 +515,7 @@ class TestAudioProcessorRetune:
         audio_processor._sample_rate = 16000
         del audio_processor.set_sample_rate
         audio_processor.rebuild_from_config.side_effect = RuntimeError("simulated bug")
-        recorder = _build_mock_recorder(
+        recorder = build_mock_recorder(
             sample_rate=16000,
             effective_sr=48000,
             audio_processor=audio_processor,
@@ -536,7 +536,7 @@ class TestAudioProcessorRetune:
         """Defensive: when ``_audio_processor._sample_rate`` is None"""
         audio_processor = MagicMock(name="AudioProcessor")
         audio_processor._sample_rate = None
-        recorder = _build_mock_recorder(
+        recorder = build_mock_recorder(
             sample_rate=16000,
             effective_sr=48000,
             audio_processor=audio_processor,
@@ -553,7 +553,7 @@ class TestRecordingEventContract:
     """``_recording_event.set()`` must be called BEFORE the audio"""
 
     def test_recording_event_set_before_workers_started(self):
-        recorder = _build_mock_recorder()
+        recorder = build_mock_recorder()
         call_log: list[str] = []
 
         def log_call(name):
@@ -671,6 +671,75 @@ class TestLazyPackageImport:
             "start_recording no longer reads through the package "
             "namespace; an unused lazy import here would be dead code."
         )
+
+
+class TestSessionLastGoodDevice:
+    """A fallback that worked once is tried first while still plugged."""
+
+    def test_memoized_device_moves_first(self, monkeypatch):
+        import voice_typer.server.recording.recording_lifecycle as rl
+
+        rl._reset_session_device_memo()
+        try:
+            recorder = build_mock_recorder()
+            recorder._devices._all_input_device_candidates.return_value = [30, 1]
+            rl._remember_session_device(1)
+            monkeypatch.setattr(rl, "refresh_vad_caches", MagicMock())
+            start_recording(recorder)
+            args, _ = recorder._stream_lifecycle.open_stream_for_candidates.call_args
+            assert args[1] == [1, 5], f"memoized device must lead; got {args[1]}"
+        finally:
+            rl._reset_session_device_memo()
+
+    def test_unplugged_memo_cleared(self, monkeypatch):
+        import voice_typer.server.recording.recording_lifecycle as rl
+
+        rl._reset_session_device_memo()
+        try:
+            recorder = build_mock_recorder()
+            recorder._devices._all_input_device_candidates.return_value = [30]
+            rl._remember_session_device(99)
+            monkeypatch.setattr(rl, "refresh_vad_caches", MagicMock())
+            start_recording(recorder)
+            args, _ = recorder._stream_lifecycle.open_stream_for_candidates.call_args
+            assert args[1] == [5], f"stale memo must not reorder; got {args[1]}"
+            assert rl._SESSION_LAST_GOOD_DEVICE == 5, (
+                "stale memo must be replaced by the device that opened"
+            )
+        finally:
+            rl._reset_session_device_memo()
+
+    def test_success_memoizes_opened_device(self, monkeypatch):
+        import voice_typer.server.recording.recording_lifecycle as rl
+
+        rl._reset_session_device_memo()
+        try:
+            recorder = build_mock_recorder()
+            monkeypatch.setattr(rl, "refresh_vad_caches", MagicMock())
+            start_recording(recorder)
+            assert rl._SESSION_LAST_GOOD_DEVICE == 5
+        finally:
+            rl._reset_session_device_memo()
+
+    def test_total_failure_clears_memo(self, monkeypatch):
+        import voice_typer.server.recording.recording_lifecycle as rl
+
+        rl._reset_session_device_memo()
+        try:
+            recorder = build_mock_recorder(open_success=False)
+            recorder._stream_lifecycle.open_stream_fallback.return_value = (
+                None,
+                16000,
+                False,
+                RuntimeError("no mic"),
+            )
+            rl._remember_session_device(1)
+            monkeypatch.setattr(rl, "refresh_vad_caches", MagicMock())
+            with pytest.raises(RuntimeError):
+                start_recording(recorder)
+            assert rl._SESSION_LAST_GOOD_DEVICE is None
+        finally:
+            rl._reset_session_device_memo()
 
 
 if __name__ == "__main__":

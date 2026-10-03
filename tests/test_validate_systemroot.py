@@ -201,8 +201,8 @@ class TestSystemRootEmptyValueContinues:
         _validate_systemroot()
 
 
-class TestCfg10PathTraversalComponentCheck:
-    """CFG-10 (Low): the previous ``if \"..\" in systemroot:`` substring"""
+class TestSystemRootRejectsTraversalComponents:
+    """the previous ``if \"..\" in systemroot:`` substring"""
 
     def test_real_traversal_mid_path_still_exits(self, windows_env):
         """``C:\\Windows\\..\\attacker`` has a real ``..`` component and"""

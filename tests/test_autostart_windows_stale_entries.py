@@ -150,7 +150,7 @@ class TestStaleEntryCleanupParsing:
 
         result = _register_app_autostart_runkey()
         assert result is True
-        # CRITICAL: the legitimate entry must NOT be deleted.
+        # the legitimate entry must NOT be deleted.
         fake_winreg.DeleteValue.assert_not_called()
 
     def test_doubled_backslash_value_deleted_even_when_path_exists(self, monkeypatch, fake_winreg, win32_platform):

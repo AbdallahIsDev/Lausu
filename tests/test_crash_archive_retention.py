@@ -47,8 +47,8 @@ def _reset_crash_handler_module_state():
             setattr(crash_handler, k, v)
 
 
-class TestAp39ArchiveRetention:
-    """AP-39: the archive subdir must be bounded so VEH-written crash"""
+class TestCrashArchiveRetention:
+    """the archive subdir must be bounded so VEH-written crash"""
 
     def test_enforce_archive_retention_keeps_last_5(self, tmp_path):
         """``_enforce_archive_retention`` deletes the oldest files beyond"""
@@ -73,7 +73,7 @@ class TestAp39ArchiveRetention:
         )
 
     def test_report_pending_crash_bounds_archive_subdir(self, tmp_path):
-        """AP-39: ``report_pending_crash`` calls"""
+        """``report_pending_crash`` calls"""
         archive_dir = tmp_path / _CRASH_DIAGNOSTICS_DIR
         archive_dir.mkdir()
         base = time.time() - 100
@@ -125,7 +125,7 @@ class TestAp39ArchiveRetention:
         )
 
     def test_sweep_stale_diagnostics_walks_archive_subdir(self, tmp_path):
-        """AP-39: ``_sweep_stale_diagnostics`` now globs the archive"""
+        """``_sweep_stale_diagnostics`` now globs the archive"""
         archive_dir = tmp_path / _CRASH_DIAGNOSTICS_DIR
         archive_dir.mkdir()
         # Create a stale file (mtime = 31 days ago).
@@ -165,11 +165,11 @@ class TestAp39ArchiveRetention:
         )
 
 
-class TestAp40VehWriteTruncates:
-    """AP-40: ``_write_to_file`` opens with ``CREATE_ALWAYS`` (truncates)"""
+class TestVehWriteTruncatesOnCreateAlways:
+    """``_write_to_file`` opens with ``CREATE_ALWAYS`` (truncates)"""
 
     def test_write_to_file_uses_create_always_not_open_always(self, monkeypatch):
-        """AP-40: the ``CreateFileW`` creation disposition is"""
+        """the ``CreateFileW`` creation disposition is"""
         create_file_w = MagicMock()
         # Return a non-NULL handle so the write proceeds.
         create_file_w.return_value.value = 42
@@ -195,7 +195,7 @@ class TestAp40VehWriteTruncates:
         )
 
     def test_write_to_file_does_not_seek_to_end(self, monkeypatch):
-        """AP-40: ``SetFilePointer(handle, 0, None, FILE_END)`` is NOT"""
+        """``SetFilePointer(handle, 0, None, FILE_END)`` is NOT"""
         create_file_w = MagicMock()
         create_file_w.return_value.value = 42
         write_file = MagicMock(return_value=True)
@@ -220,7 +220,7 @@ class TestAp40VehWriteTruncates:
         )
 
     def test_write_to_file_truncates_existing_content(self, monkeypatch, tmp_path):
-        """AP-40: end-to-end truncation check. A file with stale content"""
+        """end-to-end truncation check. A file with stale content"""
         crash_file = tmp_path / "crash_diagnostics.5000.txt"
         stale_content = b"OLD STALE CONTENT FROM A PREVIOUS CRASH"
         crash_file.write_bytes(stale_content)
@@ -323,8 +323,8 @@ class TestAp40VehWriteTruncates:
         )
 
 
-class TestAp40CreateAlwaysConstant:
-    """AP-40: ``CREATE_ALWAYS`` is defined locally in ``_veh_callback``"""
+class TestCreateAlwaysIsALocalConstant:
+    """``CREATE_ALWAYS`` is defined locally in ``_veh_callback``"""
 
     def test_create_always_is_defined_in_veh_callback(self):
         """``_veh_callback`` with value 2 (the Win32 creation disposition"""
@@ -344,8 +344,8 @@ class TestAp40CreateAlwaysConstant:
         assert crash_handler.OPEN_ALWAYS == OPEN_ALWAYS == 4
 
 
-class TestHu9SecureCrashFileRead:
-    """HU-9: crash-diagnostics / python_crash files are read through"""
+class TestCrashFileReadThroughSecureHelper:
+    """crash-diagnostics / python_crash files are read through"""
 
     def test_crash_diagnostics_read_refusal_fails_closed(self, tmp_path, caplog, monkeypatch):
         crash_file = tmp_path / "crash_diagnostics.7000.txt"

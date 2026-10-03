@@ -1,4 +1,4 @@
-"""AB-27: regression tests for the per-connection SQLite ``cache_size``"""
+"""regression tests for the per-connection SQLite ``cache_size``"""
 
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ def _get_pragma_int(conn, pragma: str) -> int:
     return int(row[0])
 
 
-class TestAb27ReaderCacheSize:
-    """AB-27: readers use 2 MB cache, writer uses 20 MB cache."""
+class TestReaderUsesLargerCacheThanWriter:
+    """readers use 2 MB cache, writer uses 20 MB cache."""
 
     def test_reader_connection_uses_2mb_cache(self, db):
         """``_get_read_conn`` must set ``cache_size=-2000`` (2 MB)."""

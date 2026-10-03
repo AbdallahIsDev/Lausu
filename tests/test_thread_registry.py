@@ -1014,3 +1014,74 @@ def _worker_target(stop_event: threading.Event) -> None:
     """A simple worker that loops until *stop_event* is set."""
     while not stop_event.is_set():
         time.sleep(0.01)
+
+
+class TestReapLogGrammar:
+    def test_singular_entry_for_one(self, caplog):
+        """'1 dead thread entries' is wrong; singular must read 'entry'."""
+        from unittest.mock import MagicMock
+
+        from voice_typer.server.thread_registry import ThreadRegistryEntry
+
+        reg = ThreadRegistry()
+        dead = MagicMock()
+        dead.is_alive.return_value = False
+        reg._entries["solo"] = ThreadRegistryEntry(
+            name="solo", thread=dead, stop_event=None, join_timeout=0.1
+        )
+        with caplog.at_level(logging.DEBUG, logger="voice_typer.server.thread_registry"):
+            assert reg.reap_dead() == 1
+        line = next(r.message for r in caplog.records if "Reaped" in r.message)
+        assert line.endswith("Reaped 1 dead thread entry: thread=solo")
+        assert "entries" not in line
+
+
+class TestShutdownAllCleanExitSummary:
+    def test_clean_exits_collapse_into_one_line(self, caplog):
+        """Clean exits log once with all names, not once per thread."""
+        reg = ThreadRegistry()
+        exits = [threading.Event() for _ in range(3)]
+        stops = [threading.Event() for _ in range(3)]
+        threads = [_make_worker(stops[i], on_exit=exits[i]) for i in range(3)]
+        for i, t in enumerate(threads):
+            reg.register(f"worker-{i}", t, stops[i], join_timeout=2.0)
+
+        with caplog.at_level(logging.DEBUG, logger="voice_typer.server.thread_registry"):
+            reg.shutdown_all()
+
+        for t in threads:
+            assert not t.is_alive()
+        summary = [r for r in caplog.records if "threads exited cleanly" in r.message]
+        assert len(summary) == 1, f"expected one summary line, got {len(summary)}"
+        assert "3/3" in summary[0].message
+        for i in range(3):
+            assert f"thread=worker-{i}" in summary[0].message
+        assert not any(
+            "exited cleanly after join" in r.message for r in caplog.records
+        ), "per-thread clean-exit lines must be gone"
+
+
+class TestShutdownAllSkipsCallingThread:
+    def test_shutdown_all_never_joins_itself(self, caplog):
+        """Registering the calling thread must not burn its join_timeout.
+
+        Quit is often initiated FROM a registered thread (the WS
+        ``shutdown`` command runs ``quit()`` on ``ipc-shutdown-cleanup``);
+        ``Thread.join()`` on the current thread raises, so joining it
+        can only waste the full timeout in 0.1s slices.
+        """
+        reg = ThreadRegistry()
+        reg.register(
+            "calling-thread",
+            threading.current_thread(),
+            None,
+            join_timeout=5.0,
+        )
+        start = time.monotonic()
+        with caplog.at_level(logging.DEBUG, logger="voice_typer.server.thread_registry"):
+            reg.shutdown_all()
+        elapsed = time.monotonic() - start
+        assert elapsed < 1.0, f"shutdown_all took {elapsed:.2f}s joining itself"
+        assert not any(
+            "calling-thread" in r.message and "did not exit" in r.message for r in caplog.records
+        ), "must not warn about the skipped calling thread"

@@ -317,8 +317,7 @@ class TestApplyStateStopRaceNoTornDownIconWrite:
             )
         torn_down_errors = [e for e in errors if isinstance(e, OSError)]
         assert not torn_down_errors, (
-            f"_apply_state wrote to a torn-down Icon during stop(), "
-            f"FR-23 race NOT fixed. OSError(s): {torn_down_errors}"
+            f"_apply_state wrote to a torn-down Icon during stop(), FR-23 race NOT fixed. OSErrors: {torn_down_errors}"
         )
         # Other exceptions (e.g. from re-arming _icon) are acceptable
 

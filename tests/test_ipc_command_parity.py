@@ -208,7 +208,7 @@ def test_rust_allowlist_rejects_known_dangerous_commands() -> None:
         "os": "would let a compromised renderer run OS calls",
     }
     leaked = sorted(cmd for cmd in dangerous if cmd in rust)
-    assert not leaked, f"Rust allowlist contains dangerous command(s): {leaked}. Reasons:\n" + "\n".join(
+    assert not leaked, f"Rust allowlist contains dangerous commands: {leaked}. Reasons:\n" + "\n".join(
         f"  - {cmd}: {dangerous[cmd]}" for cmd in leaked
     )
 
@@ -224,4 +224,4 @@ def test_rust_allowlist_contains_key_commands() -> None:
         "download_model",
     }
     missing = sorted(required - rust)
-    assert not missing, f"Rust allowlist is missing key UI command(s): {missing}."
+    assert not missing, f"Rust allowlist is missing key UI commands: {missing}."

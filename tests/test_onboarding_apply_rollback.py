@@ -45,7 +45,7 @@ def _assert_rolled_back(cfg, pre: dict) -> None:
 
 
 def test_onboarding_apply_rolls_back_config_on_side_effect_failure(monkeypatch) -> None:
-    """HU-23: when ``apply_config_side_effects`` raises (e.g. hotkey"""
+    """when ``apply_config_side_effects`` raises (e.g. hotkey"""
     from voice_typer.server import event_bus
 
     service, cfg = _build_onboarding_service()
@@ -75,7 +75,7 @@ def test_onboarding_apply_rolls_back_config_on_side_effect_failure(monkeypatch) 
 
 
 def test_onboarding_apply_rolls_back_config_on_save_failure(monkeypatch) -> None:
-    """HU-23: when ``config.save()`` raises (disk full / permissions),"""
+    """when ``config.save()`` raises (disk full / permissions),"""
     from voice_typer.server import event_bus
 
     service, cfg = _build_onboarding_service()
