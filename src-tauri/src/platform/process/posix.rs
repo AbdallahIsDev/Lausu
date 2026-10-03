@@ -54,7 +54,6 @@ pub(crate) fn register_kill_on_parent_exit_posix(pid: u32) -> Result<(), String>
     Ok(())
 }
 
-
 /// Send `sig` to `pid` via the `libc::kill(2)` syscall (best-effort:
 /// logs on failure but doesn't abort the caller). Returns `true` if a
 /// non-ESRCH failure occurred (i.e. the signal was NOT delivered AND

@@ -39,7 +39,8 @@ fn now_civil_parts() -> (i64, u64, u64, u64, u64, u64) {
             u64::from(st.wSecond),
         );
     }
-    #[allow(unreachable_code)] // the fallback below is reachable on
+    #[allow(unreachable_code)]
+    // the fallback below is reachable on
     // non-Windows/non-Unix targets only; the compiler flags it on the
     // two primary targets, where the cfg-arm above already returned.
     #[cfg(unix)]

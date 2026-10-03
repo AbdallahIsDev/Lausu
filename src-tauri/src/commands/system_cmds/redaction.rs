@@ -1,4 +1,3 @@
-
 use serde_json::Value;
 
 pub(crate) const REDACTED_MARKER: &str = "***REDACTED***";

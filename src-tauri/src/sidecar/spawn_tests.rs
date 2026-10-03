@@ -684,7 +684,9 @@ fn test_worker_started_relay_frame_shape() {
 fn test_worker_started_relay_frame_port_u16_max() {
     let v = worker_started_relay_frame(1, "v1", u16::MAX, 1);
     assert_eq!(
-        v.get("data").and_then(|d| d.get("port")).and_then(|p| p.as_u64()),
+        v.get("data")
+            .and_then(|d| d.get("port"))
+            .and_then(|p| p.as_u64()),
         Some(65535),
         "u16::MAX must serialize exactly, never wrap"
     );
@@ -988,10 +990,7 @@ fn test_every_cleared_spawn_path_sets_kmp_duplicate_lib_ok() {
     // `include_str!` keeps this test self-contained: no cwd assumptions,
     // works in the binary test harness on every platform.
     const MODULES: [(&str, &str); 3] = [
-        (
-            "release_mode.rs",
-            include_str!("spawn/release_mode.rs"),
-        ),
+        ("release_mode.rs", include_str!("spawn/release_mode.rs")),
         ("dev_mode.rs", include_str!("spawn/dev_mode.rs")),
         ("worker.rs", include_str!("spawn/worker.rs")),
     ];
@@ -1005,7 +1004,9 @@ fn test_every_cleared_spawn_path_sets_kmp_duplicate_lib_ok() {
             .collect::<Vec<_>>()
             .join("\n");
         let clears = code.matches(".env_clear()").count();
-        let kmp_sets = code.matches(".env(\"KMP_DUPLICATE_LIB_OK\", \"TRUE\")").count();
+        let kmp_sets = code
+            .matches(".env(\"KMP_DUPLICATE_LIB_OK\", \"TRUE\")")
+            .count();
         assert!(clears >= 1, "{name}: expected at least one .env_clear()");
         assert!(
             kmp_sets >= clears,
@@ -1037,7 +1038,10 @@ fn test_adopted_backend_env_port_zero_is_none() {
 
 #[test]
 fn test_adopted_backend_env_garbage_port_is_none() {
-    assert_eq!(parse_adopted_backend_env(Some("not-a-port"), Some("tok")), None);
+    assert_eq!(
+        parse_adopted_backend_env(Some("not-a-port"), Some("tok")),
+        None
+    );
     assert_eq!(parse_adopted_backend_env(Some(""), Some("tok")), None);
     assert_eq!(parse_adopted_backend_env(Some("65536"), Some("tok")), None);
 }

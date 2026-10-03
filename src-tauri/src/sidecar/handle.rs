@@ -30,9 +30,9 @@ impl SidecarHandle {
         match &mut self {
             // `take()` so Drop sees `None` and cannot double-kill.
             SidecarHandle::ShellPlugin(c) => match c.take() {
-                Some(child) => child.kill().map_err(|e| {
-                    std::io::Error::other(format!("shell-plugin kill: {e}"))
-                }),
+                Some(child) => child
+                    .kill()
+                    .map_err(|e| std::io::Error::other(format!("shell-plugin kill: {e}"))),
                 None => Ok(()),
             },
             SidecarHandle::DevMode(c) => c.kill().await,

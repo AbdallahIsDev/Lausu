@@ -36,7 +36,10 @@ fn dismiss_bubble(app: &tauri::AppHandle) {
         log::debug!("[SHORTCUTS] dismiss: idle/unknown tray state, hide only (no toggle)");
     }
     if let Err(e) = crate::commands::bubble::hide_bubble_window(app) {
-        log::debug!("[SHORTCUTS] dismiss hide failed (bubble may be hidden): {}", e);
+        log::debug!(
+            "[SHORTCUTS] dismiss hide failed (bubble may be hidden): {}",
+            e
+        );
     }
 }
 
@@ -51,15 +54,14 @@ pub(crate) fn register_bubble_dismiss(app: &tauri::AppHandle) {
             return;
         }
     };
-    let result = app.global_shortcut().on_shortcut(
-        shortcut,
-        |app_handle, _shortcut, event| {
+    let result = app
+        .global_shortcut()
+        .on_shortcut(shortcut, |app_handle, _shortcut, event| {
             // Press edge only; RELEASE would double-fire the toggle.
             if event.state == ShortcutState::Pressed {
                 dismiss_bubble(app_handle);
             }
-        },
-    );
+        });
     match result {
         Ok(()) => log::info!(
             "[SHORTCUTS] global bubble-dismiss accelerator registered: {}",

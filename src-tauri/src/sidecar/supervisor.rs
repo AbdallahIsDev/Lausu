@@ -2,10 +2,10 @@
 //! Owns ONLY respawn / backoff / restart-counter logic.
 //! NOTE: see docs/code-notes/tauri-host.md#supervisor-respawn
 
-use crate::state::SidecarState;
 use crate::sidecar::spawn::spawn_sidecar_and_get_port_with_shutdown;
 use crate::sidecar::ws::reconnect_ws;
 use crate::state::lock as mutex_lock;
+use crate::state::SidecarState;
 use crate::util::{
     atomic_write_bytes, generate_token, PRE_RESTART_DELAY_MS, SHUTDOWN_ACK_TIMEOUT_MS,
     SUPERVISOR_BACKOFF_MS,
@@ -119,9 +119,7 @@ pub(crate) fn clear_restart_counter_for_user_restart(_state: &Arc<SidecarState>)
 /// Adopted-backend mode: no-op. Caller must run on tokio runtime.
 pub(crate) async fn stop_sidecar_for_suspend(state: &Arc<SidecarState>) {
     if *state.adopted_backend.lock().await {
-        log::info!(
-            "[POWER] adopted-backend mode: suspend stop is a no-op (backend is our parent)"
-        );
+        log::info!("[POWER] adopted-backend mode: suspend stop is a no-op (backend is our parent)");
         return;
     }
     if state.shutting_down.load(Ordering::SeqCst) {
@@ -183,10 +181,7 @@ pub(crate) async fn stop_sidecar_for_suspend(state: &Arc<SidecarState>) {
 /// Ensure sidecar runs after OS resume. No-op if WS still live.
 /// Otherwise request one supervisor respawn so wake recovers immediately.
 /// Adopted-backend / shutting_down: no-op.
-pub(crate) async fn ensure_sidecar_after_resume(
-    app: &tauri::AppHandle,
-    state: &Arc<SidecarState>,
-) {
+pub(crate) async fn ensure_sidecar_after_resume(app: &tauri::AppHandle, state: &Arc<SidecarState>) {
     if *state.adopted_backend.lock().await {
         log::info!(
             "[POWER] adopted-backend mode: resume ensure is a no-op (backend is our parent)"
@@ -221,9 +216,7 @@ pub(crate) async fn respawn(
 ) -> Result<(), String> {
     // Adopted backend is our PARENT — do not double-spawn.
     if *state.adopted_backend.lock().await {
-        log::info!(
-            "[SUPERVISOR] adopted-backend mode (VT_PYTHON_PORT attach): respawn disabled"
-        );
+        log::info!("[SUPERVISOR] adopted-backend mode (VT_PYTHON_PORT attach): respawn disabled");
         return Ok(());
     }
     // Mid-sleep spawn would target a frozen process; resume path owns recovery.

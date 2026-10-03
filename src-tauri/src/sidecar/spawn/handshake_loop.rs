@@ -341,9 +341,11 @@ pub(super) async fn read_handshake_from_stdout_lines(
                         kill_err
                     );
                 }
-                let _ =
-                    tokio::time::timeout(Duration::from_millis(EXIT_DRAIN_TIMEOUT_MS), child.wait())
-                        .await;
+                let _ = tokio::time::timeout(
+                    Duration::from_millis(EXIT_DRAIN_TIMEOUT_MS),
+                    child.wait(),
+                )
+                .await;
                 return Err(format!("{} stdout read error: {}", labels.err_noun, e));
             }
             Err(_) => continue, // per-iteration timeout: retry until deadline

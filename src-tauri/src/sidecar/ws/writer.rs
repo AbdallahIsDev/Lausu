@@ -1,4 +1,3 @@
-
 use crate::state::lock as mutex_lock;
 use crate::state::SidecarState;
 use futures_util::{stream::SplitSink, FutureExt, SinkExt};

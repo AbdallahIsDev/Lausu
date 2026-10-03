@@ -1,4 +1,3 @@
-
 use rand::RngCore;
 use std::path::Path;
 
@@ -48,7 +47,6 @@ pub(crate) fn atomic_write_bytes(path: &Path, contents: &[u8]) -> Result<(), Str
 
     Ok(())
 }
-
 
 pub(crate) fn atomic_copy(src: &Path, dst: &Path) -> Result<(), String> {
     let bytes = std::fs::read(src).map_err(|e| format!("read src {}: {}", src.display(), e))?;

@@ -1,4 +1,3 @@
-
 use std::path::Path;
 
 pub(crate) fn write_sentinel_if_clean(new_dir: &Path, migration_failed: usize) -> bool {

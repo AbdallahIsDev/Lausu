@@ -18,7 +18,8 @@ fn test_parses_title_and_message() {
 
 #[test]
 fn test_click_routing_fields_are_parsed() {
-    let raw = r#"{"title":"T","message":"M","duration_ms":5000,"critical":true,"click_path":"/models"}"#;
+    let raw =
+        r#"{"title":"T","message":"M","duration_ms":5000,"critical":true,"click_path":"/models"}"#;
     let p = parse_notification(raw).expect("payload should parse");
     assert_eq!(p.click_path.as_deref(), Some("/models"));
     assert_eq!(p.click_consent_field, None);

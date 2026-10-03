@@ -69,7 +69,9 @@ async fn worker_exit_watch_loop(app: &tauri::AppHandle, state: &Arc<WorkerState>
                     continue;
                 }
                 _ => {
-                    log::debug!("[WORKER] exit channel closed without Terminated: probing liveness");
+                    log::debug!(
+                        "[WORKER] exit channel closed without Terminated: probing liveness"
+                    );
                 }
             }
         }
@@ -122,7 +124,10 @@ pub(crate) async fn respawn_worker(
         log::info!("[WORKER] respawn already in flight: skipping duplicate");
         return Ok(());
     }
-    if worker_generation_is_stale(expected_generation, state.ws_generation.load(Ordering::SeqCst)) {
+    if worker_generation_is_stale(
+        expected_generation,
+        state.ws_generation.load(Ordering::SeqCst),
+    ) {
         log::info!("[WORKER] stale respawn request for an older generation: skipping");
         state.respawn_in_progress.store(false, Ordering::SeqCst);
         return Ok(());
@@ -187,7 +192,8 @@ async fn respawn_worker_inner(
             return Ok(());
         }
         stop_worker_child(state).await;
-        match spawn_worker_and_get_port_with_shutdown(app, state.clone(), &state.shutting_down).await
+        match spawn_worker_and_get_port_with_shutdown(app, state.clone(), &state.shutting_down)
+            .await
         {
             Ok((port, child, exit_rx)) => {
                 // Capture the fresh pid BEFORE the child is moved into the
@@ -212,7 +218,10 @@ async fn respawn_worker_inner(
                 };
                 if let Some(orphan) = child_opt {
                     if let Err(e) = orphan.kill_tree().await {
-                        log::warn!("[WORKER] post-spawn shutdown kill failed (best-effort): {}", e);
+                        log::warn!(
+                            "[WORKER] post-spawn shutdown kill failed (best-effort): {}",
+                            e
+                        );
                     }
                     state.respawn_in_progress.store(false, Ordering::SeqCst);
                     return Ok(());
@@ -243,7 +252,9 @@ async fn respawn_worker_inner(
             }
             Err(e) => {
                 if e == "shutdown" {
-                    log::info!("[WORKER] spawn loop detected shutting_down: exiting respawn cleanly");
+                    log::info!(
+                        "[WORKER] spawn loop detected shutting_down: exiting respawn cleanly"
+                    );
                     state.respawn_in_progress.store(false, Ordering::SeqCst);
                     return Ok(());
                 }

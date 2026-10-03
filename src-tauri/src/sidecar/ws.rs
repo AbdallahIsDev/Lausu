@@ -20,8 +20,8 @@ use reader::spawn_reader_task;
 use respawn_scheduler::cleanup_and_trigger_respawn;
 use writer::spawn_writer_task;
 
-use crate::state::SidecarState;
 use crate::state::lock as mutex_lock;
+use crate::state::SidecarState;
 use crate::util::MAX_FRAME_BYTES;
 use futures_util::{
     stream::{SplitSink, SplitStream},

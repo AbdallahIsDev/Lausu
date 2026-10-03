@@ -197,7 +197,9 @@ fn test_renderer_kind_field_aliases_scope() {
 fn test_format_level_routing() {
     let warn = json!({"level": "warn", "message": "deprecated path"});
     assert_eq!(format_renderer_log_line(&warn).0, log::Level::Warn);
-    assert!(format_renderer_log_line(&warn).1.starts_with("[renderer-warn] "));
+    assert!(format_renderer_log_line(&warn)
+        .1
+        .starts_with("[renderer-warn] "));
     let weird = json!({"level": "verbose", "message": "x"});
     assert_eq!(format_renderer_log_line(&weird).0, log::Level::Error);
     let absent = json!({"message": "x"});

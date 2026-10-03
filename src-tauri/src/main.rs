@@ -26,13 +26,13 @@ mod window_events;
 
 // C-TEST-5: sibling test modules.
 #[cfg(test)]
-mod state_tests;
-#[cfg(test)]
-mod theme_icon_tests;
-#[cfg(test)]
 mod error_tests;
 #[cfg(test)]
 mod launch_args_tests;
+#[cfg(test)]
+mod state_tests;
+#[cfg(test)]
+mod theme_icon_tests;
 // Shared test-only helpers (panic-hook serialization lock).
 #[cfg(test)]
 mod test_support;

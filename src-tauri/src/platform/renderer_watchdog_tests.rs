@@ -11,7 +11,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use super::{
-    watchdog_decision, HeartbeatState, WatchdogAction, HEARTBEAT_INTERVAL_SECS, STALL_THRESHOLD_SECS,
+    watchdog_decision, HeartbeatState, WatchdogAction, HEARTBEAT_INTERVAL_SECS,
+    STALL_THRESHOLD_SECS,
 };
 use std::time::{Duration, Instant};
 
@@ -139,9 +140,8 @@ fn test_threshold_tolerates_one_missed_interval() {
 /// and compared instead of being restated.
 #[test]
 fn test_ts_heartbeat_interval_matches_rust() {
-    const HOOK_TS: &str = include_str!(
-        "../../../voice_typer/client/src/renderer/src/hooks/useRendererHeartbeat.ts"
-    );
+    const HOOK_TS: &str =
+        include_str!("../../../voice_typer/client/src/renderer/src/hooks/useRendererHeartbeat.ts");
     let expected = format!("HEARTBEAT_INTERVAL_MS = {}", HEARTBEAT_INTERVAL_SECS * 1000);
     assert!(
         HOOK_TS.contains(&expected) || HOOK_TS.contains("HEARTBEAT_INTERVAL_MS = 10_000"),

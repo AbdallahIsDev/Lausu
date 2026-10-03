@@ -123,7 +123,10 @@ pub(crate) async fn initialize_sidecar(
     if let Some((port, token)) = adopted_backend_env() {
         *state.adopted_backend.lock().await = true;
         if let Err(e) = crate::sidecar::ws::reconnect_ws(app_handle, &state, port, &token).await {
-            log::error!("[SETUP] initial WS connect to adopted backend failed: {}", e);
+            log::error!(
+                "[SETUP] initial WS connect to adopted backend failed: {}",
+                e
+            );
             // NO respawn fallback in adopted mode (would double-spawn parent).
         }
         return;
