@@ -469,7 +469,7 @@ describe("ActivityList inline masked reveal", () => {
 		// out over the last line.
 		expect(moreBtn.tagName).toBe("BUTTON");
 		expect(moreBtn.className).toContain("absolute");
-		expect(moreBtn.className).toContain("bottom-0");
+		expect(moreBtn.className).toContain("-bottom-6.5");
 		expect(moreBtn.className).toContain("left-1/2");
 		// Direct child of the toggle block: no overlay wrapper
 		// sits in between.
