@@ -26,6 +26,7 @@ import { defineConfig } from "vite";
 
 import { aliases } from "./aliases";
 import { cspEmissionPlugin } from "./csp-plugin";
+import { browserBridgePlugin } from "./scripts/vite-browser-bridge";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -36,7 +37,15 @@ export default defineConfig(({ command }) => ({
 	// prevent Vite from obscuring rust errors (official Tauri template)
 	clearScreen: false,
 	root: path.resolve(__dirname, "src/renderer"),
-	plugins: [react(), tailwind(), cspEmissionPlugin()],
+	plugins: [
+		react(),
+		tailwind(),
+		cspEmissionPlugin(),
+		// Dev-server only (`apply: "serve"`): lets the renderer run in a
+		// plain browser with a live sidecar, for UI inspection. No-op inside
+		// the Tauri WebView, absent from production builds.
+		browserBridgePlugin(),
+	],
 	resolve: {
 		alias: { ...aliases },
 	},

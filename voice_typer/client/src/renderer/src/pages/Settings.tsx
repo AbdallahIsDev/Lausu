@@ -385,7 +385,7 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 					<div
 						role="alert"
 						data-testid="settings-save-error"
-						className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive"
+						className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
 					>
 						{saveError}
 					</div>

@@ -137,13 +137,12 @@ describe("Sidebar", () => {
 
 	//nav grouping ──────────────────────────────────────────
 
-	it("renders ONE group label (System), the top group is header-less", () => {
+	it("renders NO visible group heading; groups are labelled for AT only", () => {
 		renderWithProviders(<Sidebar {...baseProps} />);
-		expect(screen.getByText("System")).toBeTruthy();
-		// The top group's heading is not rendered at all (no "Main" and
-		// no "Power features", the two-group layout has a single visible
-		// heading), while the section's aria-label is preserved for
-		// screen-reader navigation.
+		// No group renders a visible heading: the sidebar reads as one
+		// clean list. Group context is carried by the <section aria-label>
+		// only, which the next test pins.
+		expect(screen.queryByText("System")).toBeNull();
 		expect(screen.queryByText("Main")).toBeNull();
 		expect(screen.queryByText("Power features")).toBeNull();
 	});

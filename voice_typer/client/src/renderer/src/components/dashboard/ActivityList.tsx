@@ -368,7 +368,7 @@ function ActivityListInner({
 								onClick={onViewAll}
 								variant="link"
 								size="xs"
-								className="text-[12px] font-semibold text-muted-foreground hover:text-foreground p-0"
+								className="text-[12px] font-semibold text-muted-foreground hover:text-foreground"
 							>
 								{t("activityList.viewAll")}
 							</Button>
@@ -403,7 +403,7 @@ function ActivityListInner({
 							onClick={onViewAll}
 							variant="link"
 							size="xs"
-							className="text-[12px] font-semibold text-muted-foreground hover:text-foreground p-0"
+							className="text-[12px] font-semibold text-muted-foreground hover:text-foreground"
 						>
 							{t("activityList.viewAll")}
 						</Button>

@@ -60,13 +60,16 @@ interface NavItem {
 // frequent destinations on top, system/device/info at the bottom, is
 // encoded by the layout itself, in both sidebar states.
 // TWO groups, deliberately:
-//   1. Top group, NO visible header (hideLabel): the default page set
-//      speaks for itself. Day-to-day destinations (Home / History /
-//      Analytics) first, then the content tools (Models / Templates /
-//      Vocabulary).
-//   2. System group (visible heading), app + device configuration and
-//      information: Settings, Microphone (input-device configuration
-//      belongs beside app settings), About & Privacy.
+//   1. Top group: the default page set speaks for itself. Day-to-day
+//      destinations (Home / History / Analytics) first, then the content
+//      tools (Models / Templates / Vocabulary).
+//   2. System group, app + device configuration and information:
+//      Settings, Microphone (input-device configuration belongs beside app
+//      settings), About & Privacy.
+// NEITHER group renders a visible heading: the group names are carried by
+// each `<section aria-label=...>` for screen-reader navigation only. The
+// sidebar reads as one clean list, and the System cluster still separates
+// from the destinations above it through the `mt-auto` bottom pin.
 const MAIN_NAV_ITEMS: NavItem[] = [
 	{ id: "home", icon: Home04Icon },
 	{ id: "history", icon: HistoryIcon },
@@ -106,11 +109,6 @@ interface NavGroup {
 	// `screen.getByText("Main")` a stable string to assert on.
 	fallback: string;
 	items: NavItem[];
-	// When true, the group's visible heading label is NOT rendered
-	// (the `<section aria-label=...>` is kept, so screen-reader nav
-	// context is preserved). Used for the first/"Main" group, whose
-	// heading is redundant above the default page set.
-	hideLabel?: boolean;
 	// When true, the group is pinned to the bottom of the sidebar via
 	// `mt-auto` (flex auto margin), the System/low-priority cluster
 	// anchors to the rail's end edge in BOTH states without spacer
@@ -125,7 +123,6 @@ const NAV_GROUPS: NavGroup[] = [
 		labelKey: "nav.group.main",
 		fallback: "Main",
 		items: MAIN_NAV_ITEMS,
-		hideLabel: true,
 	},
 	{
 		labelKey: "nav.group.system",
@@ -361,39 +358,6 @@ function SidebarInner({
 								    component nulls itself), keeping the icon
 								    column geometry untouched. */}
 								{group.pinnedToBottom && <DeviceToggle collapsed={collapsed} />}
-								{!group.hideLabel && (
-									<div
-										aria-hidden={collapsed || undefined}
-										className={cn(
-											"px-3.5",
-											// Vertical SPACE collapse only. The label text itself
-											// exits via the shared horizontal motion (inner span),
-											// so the shrinking container never visibly half-clips
-											// glyphs: the text has dissolved toward the icon column
-											// before the collapse cuts into it.
-											"overflow-hidden transition-[max-height] duration-200 ease-out",
-											collapsed ? "max-h-0" : "max-h-4",
-										)}
-									>
-										<span
-											className={cn(
-												// block: CSS transforms do not apply to inline elements.
-												"block whitespace-nowrap text-xs font-semibold capitalize tracking-wider text-muted-foreground",
-												// The text fade runs slightly FASTER (150ms) than the
-												// container's 200ms space collapse, deliberate exit
-												// choreography so the label is gone before the
-												// vertical clip could bite. The shared principles
-												// allow per-layout timing.
-												"block transition-[opacity,translate,filter] duration-150 ease-out",
-												collapsed
-													? navLabelMotion(true)
-													: cn(navLabelMotion(false), "opacity-70"),
-											)}
-										>
-											{groupLabel}
-										</span>
-									</div>
-								)}
 								{group.items.map((item) => {
 									return (
 										<NavLeaf
