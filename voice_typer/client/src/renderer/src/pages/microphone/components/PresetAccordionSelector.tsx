@@ -119,11 +119,11 @@ export function PresetAccordionSelector({
 		<Accordion
 			type="single"
 			collapsible
-			className="rounded-lg border border-border/5 bg-surface-subtle overflow-hidden"
+			className="rounded-lg border border-border/8 bg-surface-subtle overflow-hidden"
 		>
 			<AccordionItem
 				value={ACCORDION_ITEM_VALUE}
-				className="border-border/5 data-open:bg-transparent"
+				className="border-border/8 data-open:bg-transparent"
 			>
 				<AccordionTrigger
 					// No aria-label override: the visible trigger content (section
@@ -164,7 +164,7 @@ export function PresetAccordionSelector({
                                         down (can expand), expanded points up (can collapse). */}
 					<span className="flex items-center gap-2 shrink-0">
 						<span
-							className="inline-flex max-w-40 items-center rounded-lg border border-border/5 bg-background px-2.5 py-1 text-xs font-medium text-foreground"
+							className="inline-flex max-w-40 items-center rounded-lg border border-border/8 bg-background px-2.5 py-1 text-xs font-medium text-foreground"
 							data-testid="mic-preset-current"
 						>
 							<span className="truncate">{current?.label ?? preset}</span>
@@ -211,7 +211,7 @@ export function PresetAccordionSelector({
 						/>
 					</div>
 					{enabled && (
-						<div className="border-t border-border/5 pt-4">
+						<div className="border-t border-border/8 pt-4">
 							<RadioGroup
 								value={preset}
 								onValueChange={(v) => onPresetChange(v as AudioPreset)}
@@ -278,7 +278,7 @@ export function PresetAccordionSelector({
 						<>
 							<button
 								type="button"
-								className="flex w-full items-center justify-between rounded-lg border border-border/5 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
+								className="flex w-full items-center justify-between rounded-lg border border-border/8 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
 								onClick={onToggleAdvanced}
 								aria-expanded={showAdvanced}
 								aria-controls={panelId}

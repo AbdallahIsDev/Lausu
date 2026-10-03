@@ -363,7 +363,7 @@ describe("ModelsPage, Import Model flow", () => {
 			// The component passes interpolated params to t(), so we
 			// check for the string content rather than the raw key.
 			expect(showSnack).toHaveBeenCalledWith(
-				expect.stringContaining("Imported 2 model(s)"),
+				expect.stringContaining("Imported 2 models"),
 				"success",
 			);
 		});
@@ -990,7 +990,7 @@ describe("ModelsPage, segmented control card border treatment (2026-08-21)", () 
 		});
 
 		// The tablist is the title-bar ModelsTabSwitcher; it must keep
-		// the card border treatment (`border border-border/5`
+		// the card border treatment (`border border-border/8`
 		// `rounded-lg`) so the control reads as one card among the
 		// model cards, NOT a borderless strip. Background is the
 		// title-bar surface (`bg-background`), not the page-card
@@ -1000,7 +1000,7 @@ describe("ModelsPage, segmented control card border treatment (2026-08-21)", () 
 		// guard against it returning.
 		const tablist = screen.getByRole("tablist");
 		const cls = tablist.className;
-		expect(cls).toContain("border-border/5");
+		expect(cls).toContain("border-border/8");
 		expect(cls).toContain("rounded-lg");
 		expect(cls).toContain("bg-background");
 		expect(cls).not.toContain("border-none");

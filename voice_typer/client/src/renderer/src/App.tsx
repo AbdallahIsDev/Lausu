@@ -200,7 +200,7 @@ export default function App() {
 			>
 				{t("a11y.skipToMain")}
 			</a>
-			<div className="flex h-screen flex-col overflow-hidden bg-surface-subtle font-sans text-foreground">
+			<div className="flex h-screen flex-col overflow-hidden bg-sidebar font-sans text-foreground">
 				<TitleBar
 					onToggleSidebar={handleToggleSidebar}
 					onGoBack={goBack}
@@ -236,7 +236,7 @@ export default function App() {
 							// chrome is hidden (boot/error cards).
 							className={cn(
 								"flex-1 overflow-y-auto bg-background focus:outline-none",
-								sidebarVisible && "rounded-l-lg border border-border/5",
+								sidebarVisible && "rounded-l-lg border border-border/8",
 							)}
 							style={{ scrollbarGutter: "stable" }}
 						>

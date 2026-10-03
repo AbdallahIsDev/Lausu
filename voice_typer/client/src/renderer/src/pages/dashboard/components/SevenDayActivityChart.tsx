@@ -52,7 +52,7 @@ export function ActivityChart({ range, activity }: ActivityChartProps) {
 	const ariaCounts = bars.map((b) => `${b.label}: ${b.count}`).join(", ");
 
 	return (
-		<div className="flex flex-col gap-4 rounded-lg border border-border/5 bg-surface-subtle p-4">
+		<div className="flex flex-col gap-4 rounded-lg border border-border/8 bg-surface-subtle p-4">
 			<div className="flex items-center gap-2.5">
 				{/* Icon grouped directly left of the title (was stranded
 				in the top-right corner). */}
@@ -138,7 +138,7 @@ export function ActivityChart({ range, activity }: ActivityChartProps) {
 													!bar.isMissing &&
 													"h-1 rounded-lg bg-border/50",
 												bar.isMissing &&
-													"h-1 border-t border-dashed border-border/5 bg-transparent",
+													"h-1 border-t border-dashed border-border/8 bg-transparent",
 											)}
 											style={{ height: bar.count > 0 ? `${pct}%` : undefined }}
 										/>

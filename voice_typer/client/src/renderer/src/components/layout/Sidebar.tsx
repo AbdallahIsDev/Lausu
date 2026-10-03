@@ -16,6 +16,7 @@ import { memo, useRef } from "react";
 import { HotkeyTooltip } from "@/components/hotkey/HotkeyTooltip";
 import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 import { SHORTCUTS } from "@/components/hotkey/shortcuts";
+import { DeviceToggle } from "@/components/layout/DeviceToggle";
 import { isSettingsSurface } from "@/components/settings/settingsSections";
 import { Button } from "@/components/ui/button";
 import { t } from "@/i18n/i18n";
@@ -295,6 +296,10 @@ function SidebarInner({
 			className={cn(
 				"flex shrink-0 flex-col",
 				"overflow-hidden",
+				// The rail: --sidebar is one step below the canvas in dark
+				// (gray-900 #0f0f0f against the gray-800 #131313 canvas),
+				// identical to it in light. See index.css.
+				"bg-sidebar",
 				"transition-[width] duration-200 ease-out",
 				// Rail geometry pins the icon column: every top-level nav
 				// button starts its icon at 16px from this edge (container
@@ -349,6 +354,13 @@ function SidebarInner({
 									group.pinnedToBottom && "mt-auto",
 								)}
 							>
+								{/* Compute-device switch lives at the top of the
+								    System cluster so it rides the same bottom
+								    pin: one quick toggle, no settings detour.
+								    Hidden when collapsed or GPU-less (the
+								    component nulls itself), keeping the icon
+								    column geometry untouched. */}
+								{group.pinnedToBottom && <DeviceToggle collapsed={collapsed} />}
 								{!group.hideLabel && (
 									<div
 										aria-hidden={collapsed || undefined}
@@ -460,15 +472,23 @@ function NavLeaf({
 					"px-2",
 					isActive
 						? cn(
-								// Active page = the standard card treatment: the
-								// app's card surface (--background) + the shared card
-								// border token at the same ~10% opacity every
-								// card in the app uses. No custom border color.
-								"border-border/5 bg-surface hover:bg-surface",
+								// Active page: the card surface plus a 1px border at
+								// 10% — #FFFFFF/10 in dark, its light-scheme
+								// counterpart #000000/10 in light (a literal
+								// white/10 would be invisible on the white
+								// sidebar). `border-border` carries both.
+								"border-border/10 bg-surface hover:bg-surface",
 								"text-foreground font-medium",
 							)
 						: cn(
-								"text-muted-foreground",
+								// Inactive: border at 0% (#FFFFFF/0). Both
+								// schemes are stated explicitly — the Button
+								// base carries `dark:border-border/10`, so a
+								// bare `border-transparent` would leave a 10%
+								// white edge on every inactive row in dark.
+								// The 1px box stays reserved either way, so the
+								// rail geometry never shifts.
+								"border-transparent dark:border-transparent text-muted-foreground",
 								"hover:bg-foreground/5 hover:text-foreground",
 							),
 				)}

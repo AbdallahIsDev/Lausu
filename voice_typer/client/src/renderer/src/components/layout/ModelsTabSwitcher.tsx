@@ -9,9 +9,9 @@
 
 import { memo } from "react";
 import {
-	SegmentedControl,
-	type SegmentedControlOption,
-} from "@/components/ui/segmented-control";
+	ToggleGroup,
+	type ToggleGroupOption,
+} from "@/components/ui/toggle-group";
 import { t } from "@/i18n/i18n";
 import { type ModelsTab, useModelsTab } from "@/stores/useModelsTab";
 import type { Page } from "@/types/ipc";
@@ -28,13 +28,13 @@ export const ModelsTabSwitcher = memo(function ModelsTabSwitcher({
 
 	if (currentPage !== "models") return null;
 
-	const tabOptions: SegmentedControlOption<string>[] = [
+	const tabOptions: ToggleGroupOption<string>[] = [
 		{ value: "local", label: t("models.localModels") },
 		{ value: "cloud", label: t("models.cloudModels") },
 	];
 
 	return (
-		<SegmentedControl
+		<ToggleGroup
 			variant="tabs"
 			options={tabOptions}
 			value={activeTab}
@@ -42,7 +42,7 @@ export const ModelsTabSwitcher = memo(function ModelsTabSwitcher({
 			ariaLabel={t("models.title")}
 			indicatorClassName="bg-surface border border-0 inset-0"
 			labelClassName="flex-1 text-center"
-			className="no-drag w-auto rounded-lg border border-border/5 bg-background p-0 h-full"
+			className="no-drag w-auto rounded-lg border border-border/8 bg-background p-0 h-full"
 			getTabId={(v) => `models-tab-${v}`}
 			getPanelId={(v) => `models-panel-${v}`}
 		/>

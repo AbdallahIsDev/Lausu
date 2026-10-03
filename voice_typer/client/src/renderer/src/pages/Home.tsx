@@ -2,7 +2,7 @@
 // sub-components + 1 inline hook. It is now a thin composition root
 // that imports the extracted pieces from `./home/`:
 //   - `./home/lib/constants.ts`   , cache keys, timing constants, STATUS_COLORS
-//   - `./home/lib/status.ts`      , normalizeHotkey, statusLabelFor, statusKeyFor
+//   - `./home/lib/status.ts`      , statusLabelFor, statusKeyFor
 //   - `./home/lib/cache.ts`       , loadCachedRecent/Stats, persistRecent/Stats
 //   - `./home/hooks/useFirstRecordingCelebration.ts`, first-run celebration
 //   - `./home/hooks/useForceCancel.ts`, "Force cancel" state machine
@@ -37,6 +37,7 @@ import StatCards from "@/components/dashboard/StatCards";
 import { StatsShareImage } from "@/components/dashboard/StatsShareImage";
 import { Spinner } from "@/components/feedback/Spinner";
 import { HotkeyChips } from "@/components/hotkey/HotkeyChips";
+import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 import { useLastUpdated } from "@/hooks/useLastUpdated";
 import { useLatestRef } from "@/hooks/useLatestRef";
 import { useNavigation } from "@/hooks/useNavigation";
@@ -68,11 +69,7 @@ import {
 	persistStats,
 } from "./home/lib/cache";
 import { DEFAULT_STATUS_COLOR, STATUS_COLORS } from "./home/lib/constants";
-import {
-	normalizeHotkey,
-	statusKeyFor,
-	statusLabelFor,
-} from "./home/lib/status";
+import { statusKeyFor, statusLabelFor } from "./home/lib/status";
 
 export default function Home() {
 	// Subscribe to the store directly instead of receiving
@@ -268,7 +265,7 @@ export default function Home() {
 			.then((cfg) => {
 				if (cancelled) return;
 				setCfg(cfg);
-				setHotkey(normalizeHotkey(cfg?.hotkey ?? HOTKEY_DEFAULT));
+				setHotkey(formatHotkey(cfg?.hotkey ?? HOTKEY_DEFAULT));
 			})
 			.catch((e) =>
 				console.warn("[renderer:Home] initial get_config failed:", e),
@@ -321,7 +318,7 @@ export default function Home() {
 			if (!mountedRef.current) return;
 			if (cfgTry.status === "fulfilled") {
 				setCfg(cfgTry.value);
-				setHotkey(normalizeHotkey(cfgTry.value?.hotkey ?? HOTKEY_DEFAULT));
+				setHotkey(formatHotkey(cfgTry.value?.hotkey ?? HOTKEY_DEFAULT));
 			}
 			if (sTry.status === "fulfilled" && sTry.value) {
 				persistStats(cachedStatsRef, sTry.value);
@@ -367,7 +364,7 @@ export default function Home() {
 			try {
 				const cfg = await call<LausuConfig>("get_config");
 				if (cancelled) return;
-				setHotkey(normalizeHotkey(cfg?.hotkey ?? HOTKEY_DEFAULT));
+				setHotkey(formatHotkey(cfg?.hotkey ?? HOTKEY_DEFAULT));
 				setCfg(cfg);
 			} catch (e) {
 				console.warn(

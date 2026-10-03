@@ -219,7 +219,7 @@ function ProviderConfigForm({
 	const saveDisabled = !apiKeyValue.trim();
 
 	return (
-		<div className="flex flex-col gap-4 rounded-lg border border-border/5 bg-surface p-4">
+		<div className="flex flex-col gap-4 rounded-lg border border-border/8 bg-surface p-4">
 			<div className="flex flex-col gap-2">
 				<div className="flex items-center gap-2">
 					<label
@@ -344,7 +344,7 @@ function ProviderConfigForm({
 				)}
 			</div>
 			{showConsent && (
-				<div className="rounded-lg border border-border/5 bg-surface-subtle p-4">
+				<div className="rounded-lg border border-border/8 bg-surface-subtle p-4">
 					<div className="flex items-start justify-between gap-4">
 						<div className="flex flex-1 flex-col gap-2">
 							<div className="flex flex-col gap-1">

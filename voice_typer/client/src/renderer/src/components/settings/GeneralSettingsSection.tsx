@@ -9,7 +9,6 @@
 import { memo } from "react";
 import { SettingRow } from "@/components/common/SettingRow";
 import { SettingsSection } from "@/components/common/SettingsSection";
-import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
 	Select,
 	SelectContent,
@@ -18,6 +17,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 import {
 	getLocale,
 	getLocaleLabel,
@@ -230,7 +230,7 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 			)}
 			{isVisible(TRAY_CLICK_LABEL, TRAY_CLICK_INFO, generalSectionTitle) && (
 				<SettingRow label={TRAY_CLICK_LABEL} info={TRAY_CLICK_INFO}>
-					<SegmentedControl
+					<ToggleGroup
 						options={TRAY_CLICK_OPTIONS.map((opt) => ({
 							value: opt.value,
 							label: t(opt.labelKey),

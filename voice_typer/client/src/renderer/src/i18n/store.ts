@@ -31,6 +31,25 @@ import en from "./translations/en.json";
 
 type TranslationDict = Record<string, unknown>;
 
+// Static, analyzable locale loaders. Vite can only emit a dynamic import it
+// can see at build time; a runtime-templated specifier would need
+// `@vite-ignore` and would then be absent from the bundle, leaving every
+// non-English user on the English fallback. Adding a locale means adding a
+// line here AND the file (C-I18N-1).
+type LocaleModule = { default: TranslationDict };
+const LOCALE_LOADERS: Record<
+	Exclude<Locale, "en">,
+	() => Promise<LocaleModule>
+> = {
+	ar: () => import("./translations/ar.json"),
+	de: () => import("./translations/de.json"),
+	es: () => import("./translations/es.json"),
+	fr: () => import("./translations/fr.json"),
+	hi: () => import("./translations/hi.json"),
+	ru: () => import("./translations/ru.json"),
+	zh: () => import("./translations/zh.json"),
+};
+
 // ── Shared mutable state ──────────────────────────────────────────
 
 // Current locale, defaults to 'en'. ``setLocale`` / ``initI18n`` write
@@ -134,10 +153,8 @@ export function ensureLocaleLoaded(locale: Locale): Promise<void> {
 	_localeLoadInitiated.add(locale);
 	const promise = (async () => {
 		try {
-			const mod = await import(
-				/* @vite-ignore */ `./translations/${locale}.json`
-			);
-			const data = (mod as { default: TranslationDict }).default;
+			const mod = await LOCALE_LOADERS[locale]();
+			const data = mod.default;
 			// Apply `{appName}` → APP_NAME substitution at load time
 			// (mirrors main-process _withAppName in src/main/i18n.ts:114-124)
 			// so locale JSON files stay free of hardcoded brand strings

@@ -353,7 +353,7 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 
 	return (
 		<div className="flex min-h-full flex-col">
-			<div className="mx-auto w-full max-w-4xl flex-1 flex flex-col gap-8 px-16 pt-28 pb-6">
+			<div className="mx-auto w-full max-w-4xl flex-1 flex flex-col gap-8 px-16 pt-20 pb-6">
 				{page === "settings" ? (
 					<PageHeading
 						title={t("settings.title")}

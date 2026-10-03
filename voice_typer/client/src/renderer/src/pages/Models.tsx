@@ -160,7 +160,7 @@ export default function ModelsPage() {
 	}
 	return (
 		<>
-			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-28 pb-6">
+			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
 				<PageHeading
 					title={t("models.asrTitle")}
 					description={t("models.asrSubtitle")}
@@ -226,7 +226,7 @@ export default function ModelsPage() {
                                     fold. Uses the shared design-system tokens
                                     (rounded-lg border-border/10 bg-surface-subtle
                                     text-foreground) so it matches model cards,
-                                    SegmentedControl and other subtle surfaces in every
+                                    ToggleGroup and other subtle surfaces in every
                                     theme (light/dark/Dracula/Monokai/etc. via CSS vars).
                                     Positioned in the normal page flow (not sticky) between
                                     the active-model summary and the tab switcher, with the
@@ -239,7 +239,7 @@ export default function ModelsPage() {
 							role="status"
 							aria-live="polite"
 							aria-atomic="true"
-							className="flex flex-wrap items-center gap-2 rounded-lg border border-border/5 bg-surface-subtle px-3 py-2"
+							className="flex flex-wrap items-center gap-2 rounded-lg border border-border/8 bg-surface-subtle px-3 py-2"
 						>
 							<HugeiconsIcon
 								icon={AiBrain03Icon}

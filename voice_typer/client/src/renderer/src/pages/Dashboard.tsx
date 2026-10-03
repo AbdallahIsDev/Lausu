@@ -40,6 +40,7 @@ import { formatCompactNumber } from "@/components/dashboard/StatCards";
 import { StatsShareImage } from "@/components/dashboard/StatsShareImage";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { HotkeyChips } from "@/components/hotkey/HotkeyChips";
+import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 // amber banner shown when the OS has not granted the
 // keyboard-monitoring (Accessibility / input-group) permission. Mirrors
 // the MicrophonePermissionBanner placement on the Microphone page.
@@ -178,7 +179,7 @@ export default function DashboardPage() {
 	if (!data) {
 		if (fetchError) {
 			return (
-				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center px-16 pt-28 pb-6">
+				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center px-16 pt-20 pb-6">
 					<EmptyState
 						variant="error"
 						icon={AlertCircleIcon}
@@ -203,7 +204,7 @@ export default function DashboardPage() {
 	};
 
 	return (
-		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-28 pb-6">
+		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
 			<PageHeading
 				title={t("analytics.title")}
 				description={t("analytics.description")}
@@ -244,7 +245,7 @@ export default function DashboardPage() {
 					title={t("analytics.noDataTitle")}
 					description={renderNoDataDescription(
 						t("analytics.noDataDescription", { hotkey: NO_DATA_HOTKEY_MARKER }),
-						configRaw?.hotkey || "F2",
+						formatHotkey(configRaw?.hotkey || "F2"),
 					)}
 					actionLabel={t("analytics.startDictation")}
 					actionIcon={SpeechToTextIcon}

@@ -50,7 +50,7 @@ export function SkeletonRegion({
 	);
 }
 
-/** Page container, mirrors the data pages' `max-w-4xl px-16 pt-28` shell. */
+/** Page container, mirrors the data pages' `max-w-4xl px-16 pt-20` shell. */
 export function PageShell({
 	children,
 	className,
@@ -64,7 +64,7 @@ export function PageShell({
 		<SkeletonRegion
 			label={label}
 			className={cn(
-				"mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-28 pb-6",
+				"mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6",
 				className,
 			)}
 		>

@@ -70,7 +70,7 @@ describe("TemplateDialog theme wiring", () => {
 		expect(el?.getAttribute("id")).toBe("template-trigger");
 	});
 
-	it("uses the shared SegmentedControl for match mode (two options, active highlighted)", () => {
+	it("uses the shared ToggleGroup for match mode (two options, active highlighted)", () => {
 		renderDialog();
 		const group = document.body.querySelector('[role="radiogroup"]');
 		expect(group).toBeTruthy();

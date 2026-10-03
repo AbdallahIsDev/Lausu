@@ -89,7 +89,7 @@ export default function ConsentStep({
 			{/* Agree-to-All banner — grants every consent at once. The
 			    wizard defaults stay privacy-first (all off); this is a
 			    convenience, not an implicit grant. */}
-			<div className="flex items-center justify-between gap-3 rounded-lg border border-border/5 bg-surface-subtle px-3.5 py-3">
+			<div className="flex items-center justify-between gap-3 rounded-lg border border-border/8 bg-surface-subtle px-3.5 py-3">
 				<p className="text-xs text-muted-foreground">
 					{t("settings.privacy.privacyDescription")}
 				</p>
@@ -108,7 +108,7 @@ export default function ConsentStep({
 			    borders (Settings / Models page pattern). NO inner-card
 			    padding boxes: the rows span the container edge-to-edge.
 			    Descriptions live behind the per-row `?` InfoTooltip. */}
-			<div className="flex flex-col divide-y divide-border/5">
+			<div className="flex flex-col divide-y divide-border/8">
 				{CONSENT_STEP_FIELDS.map(({ field, labelKey, infoKey }) => {
 					const label = t(labelKey);
 					return (

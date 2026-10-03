@@ -2,12 +2,12 @@ import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Button } from "@/components/ui/button";
-import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Select, SelectTrigger } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 
-// Stub the icon library so SegmentedControl's icon-only path can be
+// Stub the icon library so ToggleGroup's icon-only path can be
 // exercised without pulling in the real (heavy) hugeicons renderer.
 vi.mock("@hugeicons/react", () => ({
 	HugeiconsIcon: () => <span data-testid="hugeicon" />,
@@ -189,11 +189,11 @@ describe("SelectTrigger, dev-mode a11y warn", () => {
 	});
 });
 
-describe("SegmentedControl, dev-mode a11y warn", () => {
+describe("ToggleGroup, dev-mode a11y warn", () => {
 	it("warns when ariaLabel is missing", () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={[
 					{ value: "a", label: "Alpha" },
 					{ value: "b", label: "Bravo" },
@@ -203,7 +203,7 @@ describe("SegmentedControl, dev-mode a11y warn", () => {
 			/>,
 		);
 		const a11yWarns = warn.mock.calls.filter((c) =>
-			String(c[0]).includes("[renderer:SegmentedControl] `ariaLabel`"),
+			String(c[0]).includes("[renderer:ToggleGroup] `ariaLabel`"),
 		);
 		expect(a11yWarns).toHaveLength(1);
 		warn.mockRestore();
@@ -212,7 +212,7 @@ describe("SegmentedControl, dev-mode a11y warn", () => {
 	it("does NOT warn when ariaLabel is provided", () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={[
 					{ value: "a", label: "Alpha" },
 					{ value: "b", label: "Bravo" },
@@ -223,7 +223,7 @@ describe("SegmentedControl, dev-mode a11y warn", () => {
 			/>,
 		);
 		const a11yWarns = warn.mock.calls.filter((c) =>
-			String(c[0]).includes("[renderer:SegmentedControl] `ariaLabel`"),
+			String(c[0]).includes("[renderer:ToggleGroup] `ariaLabel`"),
 		);
 		expect(a11yWarns).toHaveLength(0);
 		warn.mockRestore();
@@ -232,7 +232,7 @@ describe("SegmentedControl, dev-mode a11y warn", () => {
 	it("warns when an icon-only option is missing title", () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={[
 					{
 						value: "a",
@@ -255,7 +255,7 @@ describe("SegmentedControl, dev-mode a11y warn", () => {
 	it("does NOT warn for icon-only option when title is provided", () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={[
 					{
 						value: "a",
@@ -278,7 +278,7 @@ describe("SegmentedControl, dev-mode a11y warn", () => {
 
 	it("uses a stable useId-derived name for radio inputs when ariaLabel is missing", () => {
 		render(
-			<SegmentedControl
+			<ToggleGroup
 				options={[
 					{ value: "a", label: "Alpha" },
 					{ value: "b", label: "Bravo" },
@@ -294,11 +294,11 @@ describe("SegmentedControl, dev-mode a11y warn", () => {
 		const names = new Set(Array.from(radios).map((r) => r.name));
 		// All radios in the same control share one name (so they toggle
 		// as a group), and that name is NOT the legacy collision-prone
-		// "segmented-control" literal, it's prefixed with "segmented-control-"
+		// "toggle-group" literal, it's prefixed with "toggle-group-"
 		// followed by the useId-derived base id.
 		expect(names.size).toBe(1);
 		const theName = names.values().next().value as string;
-		expect(theName.startsWith("segmented-control-")).toBe(true);
-		expect(theName).not.toBe("segmented-control");
+		expect(theName.startsWith("toggle-group-")).toBe(true);
+		expect(theName).not.toBe("toggle-group");
 	});
 });

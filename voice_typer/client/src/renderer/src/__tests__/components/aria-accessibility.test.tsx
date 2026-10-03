@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { KeyringStatus } from "@/types/config";
 
-// Stub the hugeicons wrapper so SegmentedControl's icon-only path can be
+// Stub the hugeicons wrapper so ToggleGroup's icon-only path can be
 // exercised without pulling in the real (heavy) hugeicons renderer.
 vi.mock("@hugeicons/react", () => ({
 	HugeiconsIcon: ({

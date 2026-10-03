@@ -22,7 +22,7 @@ export function ModelGroupAccordion({
 	return (
 		<Accordion
 			className={cn(
-				"rounded-lg border border-border/5 bg-surface-subtle",
+				"rounded-lg border border-border/8 bg-surface-subtle",
 				className,
 			)}
 			{...props}
@@ -36,7 +36,7 @@ export function ModelGroupItem({
 }: ComponentProps<typeof AccordionItem>) {
 	return (
 		<AccordionItem
-			className={cn("border-border/5 data-open:bg-transparent", className)}
+			className={cn("border-border/8 data-open:bg-transparent", className)}
 			{...props}
 		/>
 	);
@@ -68,7 +68,7 @@ export function ModelGroupContent({
 }: ComponentProps<typeof AccordionContent>) {
 	return (
 		<AccordionContent
-			className={cn("px-0 pb-0 divide-y divide-border/5", className)}
+			className={cn("px-0 pb-0 divide-y divide-border/8", className)}
 			{...props}
 		>
 			{children}
@@ -153,7 +153,7 @@ export function MetadataTag({
 	return (
 		<span
 			className={cn(
-				"inline-flex items-center rounded-full border border-border/5 bg-foreground/5 px-2 py-0.5 text-[11px] font-medium leading-4 text-muted-foreground",
+				"inline-flex items-center rounded-full border border-border/8 bg-foreground/5 px-2 py-0.5 text-[11px] font-medium leading-4 text-muted-foreground",
 				className,
 			)}
 		>

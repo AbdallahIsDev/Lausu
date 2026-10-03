@@ -295,7 +295,7 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
                                 previously the section-level check showed the entire
                                 section (including all rows) when ANY row matched,
                                 which defeated the purpose of in-section search. */}
-			<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/5">
+			<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/8">
 				{/* ── ADR 0007: Microphone Quality master Switch (first row) ──
                                     Enabling reveals the preset picker row below;
                                     "off" lives ONLY behind this Switch, never in
