@@ -32,11 +32,14 @@ import numpy as np
 
 from voice_typer.server._secrets import redact_secret, redact_url
 from voice_typer.server.asr_errors import (
+    CloudAuthError,
     CloudConfigError,
     CloudConsentRequiredError,
     CloudEmptyResponseError,
     CloudEngineError,
     CloudNetworkError,
+    CloudRateLimitError,
+    CloudServerError,
     ConsentRequiredError,
 )
 from voice_typer.server.cloud._defaults import _PROVIDER_DEFAULTS
@@ -78,6 +81,21 @@ def _verify_cloud_peer(req: Request, resp: object) -> None:
     except ValueError as exc:
         log.exception("[CLOUD] peer IP %r outside validated set, refusing", peer)
         raise CloudNetworkError("cloud peer IP outside validated set") from exc
+
+
+def _fallback_kind(exc: BaseException) -> str:
+    """Classify a cloud failure for fallback UX: "key" | "provider" | "network".
+
+    "key": the API key/config is at fault (401/403, missing key or URL),
+    the user must fix credentials. "provider": the provider failed
+    (5xx, rate limit, empty transcript), retry later. "network": the
+    request never reached the provider (timeout, DNS, reset).
+    """
+    if isinstance(exc, (CloudAuthError, CloudConfigError)):
+        return "key"
+    if isinstance(exc, (CloudServerError, CloudRateLimitError, CloudEmptyResponseError)):
+        return "provider"
+    return "network"
 
 
 def _facade():
@@ -249,6 +267,17 @@ class CloudEngine:
             # consent errors must propagate, do NOT fall back to
             raise
         except (RuntimeError, OSError) as cloud_err:
+            if self._abort_event.is_set():
+                # User-cancelled (ESC) or watchdog-recovered mid-request:
+                # the cycle is marked cancelled, so a local fallback decode
+                # would be wasted work pasted nowhere (CancellationGuard
+                # blocks it). Return empty and let the empty-transcription
+                # branch skip silently.
+                log.info(
+                    "[CLOUD] %s request aborted, skipping local fallback",
+                    self.provider,
+                )
+                return ""
             # Prefer the explicitly-passed local_engine; fall
             resolved_local_engine = local_engine
             if resolved_local_engine is None and self._local_engine_factory is not None:
@@ -278,6 +307,7 @@ class CloudEngine:
                             "type": "cloud_fallback_used",
                             "data": {
                                 "provider": self.provider,
+                                "kind": _fallback_kind(cloud_err),
                                 "reason": str(cloud_err)[:200],
                             },
                         }

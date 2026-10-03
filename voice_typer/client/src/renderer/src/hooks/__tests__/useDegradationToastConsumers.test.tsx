@@ -76,6 +76,36 @@ describe("useCloudFallbackToast", () => {
 		expect(JSON.stringify(call)).not.toContain("HTTP 503");
 	});
 
+	it("uses the API-key hint when kind is 'key'", () => {
+		renderHook(() => useCloudFallbackToast(mockT));
+		registered.get("cloud_fallback_used")?.({
+			provider: "openai",
+			kind: "key",
+			reason: "HTTP 401",
+		});
+		expect(toast.warning).toHaveBeenCalledWith(
+			"degradation.cloudFallbackUsed",
+			expect.objectContaining({
+				description: "degradation.cloudFallbackKeyUsedHint[provider=openai]",
+			}),
+		);
+	});
+
+	it("uses the generic hint when kind is 'provider'", () => {
+		renderHook(() => useCloudFallbackToast(mockT));
+		registered.get("cloud_fallback_used")?.({
+			provider: "openai",
+			kind: "provider",
+			reason: "HTTP 503",
+		});
+		expect(toast.warning).toHaveBeenCalledWith(
+			"degradation.cloudFallbackUsed",
+			expect.objectContaining({
+				description: "degradation.cloudFallbackUsedHint[provider=openai]",
+			}),
+		);
+	});
+
 	it("falls back to provider 'unknown' when the payload omits it", () => {
 		renderHook(() => useCloudFallbackToast(mockT));
 		registered.get("cloud_fallback_used")?.({ reason: "timeout" });

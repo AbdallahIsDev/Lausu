@@ -2043,6 +2043,7 @@
 		"asrBackendDisabledHint": "La transcripción usa otro motor. Abre Modelos para elegir uno distinto.",
 		"cloudFallbackUsed": "Falló la transcripción en la nube, se usó el motor de voz local en su lugar",
 		"cloudFallbackUsedHint": "El proveedor de nube {provider} no respondió. El dictado sigue funcionando con el motor local; comprueba tu conexión o los ajustes del proveedor.",
+		"cloudFallbackKeyUsedHint": "El proveedor de nube {provider} rechazó la clave API. El dictado sigue funcionando con el motor local; comprueba la clave en los ajustes.",
 		"historyCorrupted": "La base de datos del historial estaba dañada, se reconstruyó a partir de una copia de seguridad",
 		"historyCorruptedHint": "Se recuperaron {count} entradas. Las entradas más recientes pueden faltar; el archivo dañado se conservó junto a la base de datos para su inspección.",
 		"historyFtsRebuildFailed": "La eliminación del historial no terminó: las entradas eliminadas pueden seguir siendo buscables",

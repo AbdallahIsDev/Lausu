@@ -532,6 +532,28 @@ class TestFriendlyErrorForBackendNotLoaded:
             "model to finish loading', not 'check your internet connection'."
         )
 
+    def test_friendly_message_for_cloud_auth_names_key_and_no_fallback(self):
+        from voice_typer.server.asr_errors import CloudAuthError
+
+        msg = _friendly_transcription_error(CloudAuthError("openai API error (HTTP 401)"))
+        assert "api key" in msg.lower(), "key rejection must name the API key. Got: " + msg
+        assert "local" in msg.lower(), "must mention the missing local fallback. Got: " + msg
+
+    def test_friendly_message_for_cloud_server_names_provider(self):
+        from voice_typer.server.asr_errors import CloudServerError
+
+        msg = _friendly_transcription_error(CloudServerError("openai API error (HTTP 503)"))
+        assert "provider" in msg.lower(), "provider outage must name the provider. Got: " + msg
+        assert "local" in msg.lower(), "must mention the missing local fallback. Got: " + msg
+
+    def test_friendly_message_for_cloud_network_names_connection(self):
+        from voice_typer.server.asr_errors import CloudNetworkError
+
+        msg = _friendly_transcription_error(CloudNetworkError("timeout"))
+        assert "connection" in msg.lower() or "internet" in msg.lower(), (
+            "network failure must name the connection. Got: " + msg
+        )
+
     def test_friendly_message_for_generic_runtime_error_unchanged(self):
         """
         Regression guard: the generic RuntimeError path must still

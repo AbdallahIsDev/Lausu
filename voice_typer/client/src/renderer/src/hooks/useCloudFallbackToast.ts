@@ -33,11 +33,17 @@ const CLOUD_FALLBACK_TOAST_COOLDOWN_MS = 300_000;
 export function useCloudFallbackToast(t: TranslateFn): void {
 	const { showSnack } = useSnackbar();
 	usePythonEvent("cloud_fallback_used", (data): (() => void) | undefined => {
-		const payload = (data ?? {}) as { provider?: unknown };
+		const payload = (data ?? {}) as { provider?: unknown; kind?: unknown };
 		const provider =
 			typeof payload.provider === "string" && payload.provider !== ""
 				? payload.provider
 				: "unknown";
+		// Key problems get their own hint (check the API key); provider
+		// and network problems share the generic connection hint.
+		const hintKey =
+			payload.kind === "key"
+				? "degradation.cloudFallbackKeyUsedHint"
+				: "degradation.cloudFallbackUsedHint";
 
 		const now = Date.now();
 		const store = useDegradationToastStore.getState();
@@ -50,7 +56,7 @@ export function useCloudFallbackToast(t: TranslateFn): void {
 
 		showSnack(t("degradation.cloudFallbackUsed"), "warning", {
 			id: CLOUD_FALLBACK_TOAST_ID,
-			description: t("degradation.cloudFallbackUsedHint", { provider }),
+			description: t(hintKey, { provider }),
 			duration: SNACKBAR_DEFAULT_DURATION_MS.error,
 		});
 		return undefined;

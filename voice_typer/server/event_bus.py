@@ -226,7 +226,8 @@ renderer consumes it, in the TS ``PythonPushEvent`` union):
 * ``microphone_disconnected``: active mic lost from the recorder
   stream (fast unplug path / retry exhaustion). Payload: ``{}``.
 * ``cloud_fallback_used``: a cloud ASR provider failed and the local
-  engine took over. Payload: ``{provider:str, reason:str (≤200 chr)}``.
+  engine took over. Payload: ``{provider:str, kind:str ("key" |
+  "provider" | "network"), reason:str (≤200 chr)}``.
 * ``dictation_suppressed``: a short near-silent recording's failure
   notification was suppressed (UX-SILENCE-GRACE). Payload:
   ``{duration:float, recorded_rms:float, reason:str}``.

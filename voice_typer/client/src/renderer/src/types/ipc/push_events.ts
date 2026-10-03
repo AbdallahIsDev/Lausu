@@ -593,11 +593,13 @@ export interface MicrophoneDisconnectedEvent {
 /**
  * Pushed by `cloud/_engine.py` when a cloud ASR provider fails and the
  * local engine takes over for that transcription. `reason` is the
- * truncated exception message (max 200 chars). Consumed by
+ * truncated exception message (max 200 chars). `kind` names the cause:
+ * "key" (rejected/missing API key), "provider" (provider 5xx/rate
+ * limit/empty), or "network" (unreachable). Consumed by
  */
 export interface CloudFallbackUsedEvent {
 	type: "cloud_fallback_used";
-	data: { provider: string; reason: string };
+	data: { provider: string; reason: string; kind?: string };
 }
 
 /**
