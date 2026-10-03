@@ -373,5 +373,3 @@ def test_known_gap_no_pyobjc_include_flag(sidecar_text: str):
         "update this test to assert PRESENCE instead of absence, and "
         "remove GAP-2 from the module docstring."
     )
-
-

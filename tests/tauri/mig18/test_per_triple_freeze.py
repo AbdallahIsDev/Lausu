@@ -376,5 +376,3 @@ def test_nuitka_freeze_wrapper_dispatches_to_per_platform_scripts():
     assert "--check" in text, (
         "nuitka_freeze.sh must support a --check dry-run mode (prints build plan + exits 0 without invoking Nuitka)."
     )
-
-
