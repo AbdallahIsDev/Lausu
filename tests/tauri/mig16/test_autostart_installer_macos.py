@@ -460,17 +460,19 @@ def test_single_instance_plugin_enforced():
         )
 
     # 4. The callback focuses the existing main window (show + set_focus).
-    assert "get_webview_window" in main_rs and "set_focus" in main_rs, (
-        "single-instance callback must show + focus the existing main "
+    # main.rs stays wiring-only: the callback delegates to
+    # host_events::show_main_window, which shows + focuses "main".
+    assert "show_main_window" in main_rs, (
+        "single-instance callback must delegate to host_events::show_main_window "
+        "(second launch → focus first, no duplicate window)"
+    )
+    host_events_rs = SRC_TAURI_DIR / "src" / "host_events.rs"
+    assert host_events_rs.exists(), f"host_events.rs missing at {host_events_rs}"
+    host_src = host_events_rs.read_text(encoding="utf-8")
+    assert "webview_windows" in host_src and '"main"' in host_src and "set_focus" in host_src, (
+        "host_events::show_main_window must show + focus the existing main "
         "window (second launch → focus first, no duplicate window)"
     )
-    # The callback should reference the "main" window label (the dashboard).
-    init_block_end = main_rs.find("}))", single_instance_idx)
-    if init_block_end != -1:
-        init_block = main_rs[single_instance_idx:init_block_end]
-        assert '"main"' in init_block or "'main'" in init_block, (
-            "single-instance callback must target the 'main' window label"
-        )
 
 
 def test_ci_workflow_runs_codesign_notarytool_stapler():

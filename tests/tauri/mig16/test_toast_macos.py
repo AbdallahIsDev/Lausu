@@ -1,4 +1,15 @@
-"""toast notification wiring validation (macOS)."""
+"""toast notification wiring validation (macOS).
+
+VALIDATE ON MACOS HOST:
+  1. Sign the .app with a Developer ID Application certificate (a signed
+     build is required: macOS silently drops notifications from unsigned
+     builds).
+  2. If the TCC prompt was dismissed, re-grant in System Settings >
+     Notifications.
+  3. Confirm the event in ~/Library/Logs/lausu/lausu.log.
+  4. The banner must appear within 1s. Unsigned dev builds may not show
+     notifications, sign with Developer ID first.
+"""
 
 from __future__ import annotations
 
@@ -132,10 +143,16 @@ class TestWsRsNotificationEventName:
     """Gate 4: the WS reader emits the canonical ``notification`` event."""
 
     def test_ws_rs_emits_canonical_notification_event(self):
-        """``ws.rs`` emits the canonical ``notification`` event type."""
+        """``ws.rs`` MUST derive the emitted event name via"""
         src = _read_ws_bridge_rs()
-        assert 'emit("notification"' in src or "notification" in src, (
-            "ws.rs must emit the canonical 'notification' event type."
+        assert "let emit_name = translate_event_name(event_type);" in src, (
+            "ws.rs must derive the emitted name via `translate_event_name(event_type)` "
+            "— the generic rename helper that passes the canonical 'notification' "
+            "name through unchanged."
+        )
+        assert "emit(emit_name, payload.clone())" in src, (
+            "ws.rs must emit the specific event with `emit(emit_name, payload.clone())` "
+            "so the webview's direct listener receives the payload."
         )
 
     def test_ws_rs_alias_branch_emits_notification_with_payload(self):

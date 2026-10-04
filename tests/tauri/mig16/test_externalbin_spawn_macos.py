@@ -266,10 +266,26 @@ def test_spawn_rs_server_started_log_line_format(spawn_rs_source) -> None:
     ADR-0020 §1 + §3: the server_started log line must NOT include the token.
     Per ADR-0020 §3 ("never logged"), the bearer token must not appear
     """
-    port_log_re = re.compile(r"\[SIDECAR\]\s*server_started\s*port=\{[^}]*\}")
-    assert port_log_re.search(spawn_rs_source), (
-        "spawn.rs must log '[SIDECAR] server_started port={}' on success "
-        "(runbook §5 pass criteria greps for this line on macOS)"
+    # (a) The shared success-line template in the handshake loops.
+    template_re = re.compile(r'log::info!\("\{\} \{\} port=\{\}",\s*labels\.log_tag,\s*labels\.event_name')
+    assert template_re.search(spawn_rs_source), (
+        "handshake_loop.rs must log the handshake success line via the "
+        'shared template "{} {} port={}" (labels.log_tag, '
+        "labels.event_name, port), the template that renders the "
+        "runbook's '[SIDECAR] server_started port=N' line on macOS."
+    )
+    # (b) The release path wires the labels that render that template
+    release_mode_src = (_SPAWN_RS.parent / "spawn" / "release_mode.rs").read_text(encoding="utf-8")
+    assert re.search(r'log_tag:\s*"\[SIDECAR\]"', release_mode_src), (
+        'release_mode.rs must pass log_tag "[SIDECAR]" to the shared '
+        "handshake loop so the success line greps as '[SIDECAR] ...' "
+        "(runbook §5 + §6 pass criteria)."
+    )
+    assert re.search(r'event_name:\s*"server_started"', release_mode_src), (
+        'release_mode.rs must pass event_name "server_started" to the '
+        "shared handshake loop so the success line greps as "
+        "'[SIDECAR] server_started port=N' (runbook §5 + §6 pass "
+        "criteria)."
     )
     assert not re.search(
         r"log::\w+!\([^)]*token[^)]*\)",
@@ -400,9 +416,13 @@ def test_supervisor_respawn_serializes_with_atomic_flag(supervisor_rs_source) ->
 def test_sidecar_ws_binds_loopback_ephemeral_port(sidecar_ws_source) -> None:
     """ADR-0020 §1: sidecar binds 127.0.0.1:0. OS assigns the port."""
     assert re.search(
-        r'_LOOPBACK_HOST\s*=\s*"127\.0\.0\.1"',
+        r"from voice_typer\.server\._paths import .*LOOPBACK_HOST as _LOOPBACK_HOST"
+        r'|_LOOPBACK_HOST\s*=\s*"127\.0\.0\.1"',
         sidecar_ws_source,
-    ), "sidecar_ws.py must define _LOOPBACK_HOST = '127.0.0.1' (hard loopback, no 0.0.0.0/:: bind, ADR-0020 §1)"
+    ), "sidecar_ws.py must bind via _LOOPBACK_HOST = '127.0.0.1' (hard loopback, no 0.0.0.0/:: bind, ADR-0020 §1)"
+    from voice_typer.server._paths import LOOPBACK_HOST
+
+    assert LOOPBACK_HOST == "127.0.0.1", "_paths.LOOPBACK_HOST must stay 127.0.0.1 (ADR-0020 §1)"
     assert re.search(
         r"serve\s*\(\s*_handler\s*,\s*_LOOPBACK_HOST\s*,\s*0\s*",
         sidecar_ws_source,

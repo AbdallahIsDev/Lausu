@@ -104,8 +104,8 @@ EXPECTED_NUITKA_FLAGS = [
     "--onefile",
     "--assume-yes-for-downloads",
     "--enable-plugin=numpy",
-    "--include-package=faster_whisper",
-    "--include-package=ctranslate2",
+    "--nofollow-import-to=faster_whisper",
+    "--nofollow-import-to=ctranslate2",
     "--include-package=voice_typer",
     "--include-package=websockets",
     "--onefile-tempdir-spec",
@@ -124,35 +124,27 @@ def test_sidecar_script_contains_expected_nuitka_flag(sidecar_text: str, flag: s
 
 
 def test_sidecar_script_includes_ctranslate2_data_dir(sidecar_text: str):
-    """The script must ``--include-data-dir`` the ctranslate2/lib folder."""
-    assert "--include-data-dir" in sidecar_text
-    assert "ctranslate2/lib" in sidecar_text, (
-        "build_sidecar_macos.sh must include --include-data-dir for "
-        "$SITE/ctranslate2/lib (captures libctranslate2.dylib + libiomp5.dylib)."
-    )
+    """C7: no ctranslate2 data-dir plumbing may remain (worker owns it)."""
+    assert "CT2_DATA_DIR_SRC" not in sidecar_text
+    assert "CT2_DLL" not in sidecar_text
+    assert "CT2_LIBS_DIR" not in sidecar_text
+    assert "CT2_LIB_DIR" not in sidecar_text
+    assert "CT2_DIR" not in sidecar_text
+    assert "ctranslate2/lib" not in sidecar_text
+    assert "ctranslate2/libs" not in sidecar_text
 
 
 # 4. ctranslate2/libs guard (plural, pattern, REQUIRED on macOS) ─
 def test_sidecar_script_has_xplat3_ctranslate2_libs_guard(sidecar_text: str):
-    """The sidecar script must have the XPLAT-3 ``ctranslate2/libs`` guard."""
-    assert "CT2_LIBS_DIR=" in sidecar_text, (
-        "build_sidecar_macos.sh must define CT2_LIBS_DIR (the ctranslate2/libs plural path)."
-    )
-    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' in sidecar_text, (
-        "build_sidecar_macos.sh must guard the optional libs/ include with "
-        '`if [[ -d "$CT2_LIBS_DIR" ]]; then ... fi` (XPLAT-3 pattern).'
-    )
-    assert '--include-data-dir="$CT2_LIBS_DIR=$CT2_LIBS_DIR"' in sidecar_text, (
-        "build_sidecar_macos.sh must add --include-data-dir for CT2_LIBS_DIR inside the XPLAT-3 guard block."
-    )
+    """C7: the XPLAT-3 guard is deleted with the CT2 plumbing (worker owns it)."""
+    assert "CT2_LIBS_DIR" not in sidecar_text
+    assert "ctranslate2/libs" not in sidecar_text
 
 
 def test_sidecar_script_has_ctranslate2_lib_guard_singular(sidecar_text: str):
-    """The script must hard-fail if ``$SITE/ctranslate2/lib`` (singular) is missing."""
-    assert "CT2_LIB_DIR=" in sidecar_text
-    assert '! -d "$CT2_LIB_DIR"' in sidecar_text, (
-        'build_sidecar_macos.sh must guard: `if [[ ! -d "$CT2_LIB_DIR" ]]; then echo ERROR ...; exit 1; fi`'
-    )
+    """C7: the singular CT2 lib guard is deleted with the plumbing."""
+    assert "CT2_LIB_DIR" not in sidecar_text
+    assert "ctranslate2/lib" not in sidecar_text
 
 
 def test_sidecar_script_uses_triple_variable_construction(sidecar_text: str):
@@ -279,9 +271,10 @@ def test_sidecar_script_supports_check_mode(sidecar_text: str):
     """The sidecar script must support a ``--check`` arg to verify the toolchain."""
     assert '"--check"' in sidecar_text or "--check" in sidecar_text
     assert "import nuitka" in sidecar_text, "build_sidecar_macos.sh --check must verify nuitka is importable."
-    assert "import faster_whisper, ctranslate2" in sidecar_text or (
-        "import faster_whisper" in sidecar_text and "import ctranslate2" in sidecar_text
-    ), "build_sidecar_macos.sh --check must verify faster_whisper + ctranslate2."
+    assert "import websockets" in sidecar_text, "build_sidecar_macos.sh --check must verify websockets."
+    assert "import faster_whisper, ctranslate2" not in sidecar_text, (
+        "C7: --check must not require the worker-owned ASR libs."
+    )
 
 
 def test_sidecar_script_checks_swiftc(sidecar_text: str):
@@ -292,14 +285,11 @@ def test_sidecar_script_checks_swiftc(sidecar_text: str):
 
 
 def test_sidecar_script_sanity_checks_ctranslate2_import(sidecar_text: str):
-    """The sidecar script must run an import sanity check before invoking Nuitka."""
-    assert "import faster_whisper, ctranslate2, websockets" in sidecar_text, (
-        "build_sidecar_macos.sh must sanity-check that faster_whisper + "
-        "ctranslate2 + websockets all import in the build env."
+    """C7: the pre-Nuitka sanity check covers websockets only."""
+    assert "import faster_whisper, ctranslate2, websockets" not in sidecar_text, (
+        "C7: the sanity check must not require the worker-owned ASR libs."
     )
-    assert "ctranslate2.__version__" in sidecar_text, (
-        "build_sidecar_macos.sh must print ctranslate2.__version__ on the sanity-check line."
-    )
+    assert "ctranslate2.__version__" not in sidecar_text
 
 
 def test_sidecar_script_resolves_site_packages(sidecar_text: str):
@@ -323,11 +313,9 @@ def test_sidecar_script_uses_nuitka_args_array(sidecar_text: str):
 
 
 def test_sidecar_script_runs_otool_verify(sidecar_text: str):
-    """The script must run ``otool -L`` on the ctranslate2 dylib after build."""
-    assert "otool -L" in sidecar_text or "otool " in sidecar_text, (
-        "build_sidecar_macos.sh must run otool -L on libctranslate2.dylib "
-        "after a successful build (ADR-0020 §4.3 dylib verify)."
-    )
+    """C7: no otool verify of the CT2 dylib remains (worker owns it)."""
+    assert "otool -L" not in sidecar_text
+    assert "libctranslate2" not in sidecar_text
 
 
 def test_sidecar_script_documents_signing_next_step(sidecar_text: str):
@@ -340,13 +328,11 @@ def test_sidecar_script_documents_signing_next_step(sidecar_text: str):
 
 # 10. Sibling parity (Linux script has the  guard) ────────────────
 def test_linux_sibling_has_xplat3_ctranslate2_libs_guard():
-    """Sanity check: the Linux sibling MUST have the XPLAT-3 guard."""
+    """C7: the Linux sibling must not carry the XPLAT-3 guard anymore."""
     if not LINUX_SIDECAR_SCRIPT.is_file():
         pytest.skip(f"build_sidecar_linux.sh missing ({LINUX_SIDECAR_SCRIPT}), cannot verify Linux sibling parity.")
     linux_text = LINUX_SIDECAR_SCRIPT.read_text(encoding="utf-8")
-    assert "CT2_LIBS_DIR" in linux_text
-    assert '--include-data-dir="$CT2_LIBS_DIR=$CT2_LIBS_DIR"' in linux_text
-    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' in linux_text
+    assert "CT2_LIBS_DIR" not in linux_text
 
 
 # ─── 11. KNOWN GAPS (report, do NOT fix, out of scope for this gate check) ─

@@ -253,6 +253,13 @@ def test_cuda_env_var_names_survive_verbatim():
     assert redact_secret(line) == line
 
 
+def test_defer_model_load_env_var_name_survives_verbatim():
+    """``VOICE_TYPER_DEFER_MODEL_LOAD`` is 28 chars and trips the
+    generic catch-all, rendering ``***=1`` in the startup skip line."""
+    line = "[STARTUP] VOICE_TYPER_DEFER_MODEL_LOAD=1, skipping background model load"
+    assert redact_secret(line) == line
+
+
 def test_sec9_flag_patterns_module_constants():
     """SEC-9: ``_secrets`` module must expose the new flag-pattern"""
     assert hasattr(_secrets, "_FLAG_KEY_PATTERNS")

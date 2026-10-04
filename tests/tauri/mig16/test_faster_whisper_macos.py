@@ -39,17 +39,12 @@ def _install_fake_ct2_modules(monkeypatch) -> tuple[types.ModuleType, types.Modu
     return fw, ct2
 
 
-def test_build_script_check_flag_validates_ct2_backend_importable():
-    """The build script's ``--check`` flag must assert ``faster_whisper``"""
+def test_build_script_check_flag_validates_websockets_only():
+    """C7: the slim sidecar needs websockets only (ASR is worker-owned)."""
     text = _read_build_script()
-    # The --check branch imports both packages in a single python -c call.
-    assert "import faster_whisper, ctranslate2" in text, (
-        "build script's --check branch must validate that both "
-        "faster_whisper AND ctranslate2 are importable in the build env"
-    )
-    # And the same gate is enforced again right before Nuitka runs,
-    assert "import faster_whisper, ctranslate2, websockets" in text, (
-        "build script must re-validate CT2 import right before invoking Nuitka"
+    assert "import websockets" in text, "build script's --check branch must validate websockets"
+    assert "import faster_whisper, ctranslate2" not in text, (
+        "build script must not require faster_whisper/ctranslate2 in the slim build env"
     )
 
 
@@ -68,44 +63,23 @@ def test_asr_setup_and_transcription_modules_load_with_ct2_stubs(monkeypatch):
     assert importlib.util.find_spec("faster_whisper") is not None
 
 
-def test_build_script_includes_faster_whisper_and_ctranslate2_packages():
-    """Nuitka must freeze both packages into the standalone binary."""
+def test_build_script_excludes_faster_whisper_and_ctranslate2_packages():
+    """C7: Nuitka must exclude both ASR packages from the slim sidecar."""
     text = _read_build_script()
-    assert "--include-package=faster_whisper" in text, "Nuitka must include the faster_whisper Python package"
-    assert "--include-package=ctranslate2" in text, "Nuitka must include the ctranslate2 Python package (CT2 backend)"
+    assert "--nofollow-import-to=faster_whisper" in text, "Nuitka must exclude faster_whisper"
+    assert "--nofollow-import-to=ctranslate2" in text, "Nuitka must exclude ctranslate2"
+    assert "--include-package=faster_whisper" not in text, "slim sidecar must not bundle faster_whisper"
+    assert "--include-package=ctranslate2" not in text, "slim sidecar must not bundle ctranslate2"
 
 
-def test_build_script_includes_ct2_native_libs_singular_layout():
-    """Nuitka must bundle the entire ``ctranslate2/lib`` directory"""
+def test_build_script_has_no_ct2_native_lib_plumbing():
+    """C7: no ctranslate2 data-dir copies remain (worker owns them)."""
     text = _read_build_script()
-    # The data-dir include maps <SITE>/ctranslate2/lib → <SITE>/ctranslate2/lib
-    assert "ctranslate2/lib" in text and "--include-data-dir" in text, (
-        "build script must include --include-data-dir for ctranslate2/lib "
-        "(the directory holding libctranslate2.dylib + libiomp5.dylib)"
-    )
-    # The script also enforces the dir exists pre-build, without this
-    assert 'CT2_LIB_DIR="$SITE/ctranslate2/lib"' in text, (
-        "build script must resolve CT2_LIB_DIR from $SITE/ctranslate2/lib"
-    )
-
-
-def test_build_script_includes_ct2_libs_plural_layout_guarded():
-    """The build script must also handle the plural ``ctranslate2/libs``"""
-    text = _read_build_script()
-    # The plural path is referenced + guarded.
-    assert "ctranslate2/libs" in text, (
-        "build script must reference the plural ctranslate2/libs path "
-        "(some wheel variants ship dylibs there instead of ctranslate2/lib)"
-    )
-    # The guard: a conditional that only appends the plural data-dir
-    assert 'CT2_LIBS_DIR="$SITE/ctranslate2/libs"' in text, (
-        "build script must resolve CT2_LIBS_DIR from $SITE/ctranslate2/libs"
-    )
-    # The guard itself, either [[ -d ... ]] or if [[ -d ... ]].
-    assert '[[ -d "$CT2_LIBS_DIR" ]]' in text or "[[ ! -d" in text, (
-        "build script must guard the plural ctranslate2/libs include with "
-        "a directory-existence check so singular-only installs don't break"
-    )
+    assert "CT2_LIB_DIR" not in text
+    assert "CT2_LIBS_DIR" not in text
+    assert "CT2_DIR" not in text
+    assert "ctranslate2/lib" not in text
+    assert "ctranslate2/libs" not in text
 
 
 @pytest.mark.real_config_dir  # asserts the REAL resolver (macOS branch); resolves paths only, never writes
