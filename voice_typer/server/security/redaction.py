@@ -133,6 +133,7 @@ _PUBLIC_ENV_VAR_NAMES: frozenset[str] = frozenset(
         "VOICE_TYPER_LOG_JSON",
         "VOICE_TYPER_LOG_LEVEL_MODULES",
         "VOICE_TYPER_SKIP_ACCESSIBILITY_CHECK",
+        "VOICE_TYPER_DEFER_MODEL_LOAD",
         # Hugging Face
         "HUGGING_FACE_HUB_TOKEN",
         "HF_HOME",

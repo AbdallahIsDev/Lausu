@@ -2,7 +2,6 @@
 
 import errno
 import hashlib
-import io  # noqa: F401, referenced by string target in monkeypatch.setattr below
 import os
 import threading
 import time
@@ -482,6 +481,6 @@ class TestDiskFull:
             raise OSError(errno.ENOSPC, "No space left on device")
 
         # Fail part-file writes: ENOSPC must surface, not loop.
-        monkeypatch.setattr("io.open", failing_open)
+        monkeypatch.setattr("builtins.open", failing_open)
         with pytest.raises(OSError):
             seg.download_file_segmented(**kw)

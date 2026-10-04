@@ -744,7 +744,7 @@ def install_blob_into_hf_cache(
     assembled_path: str | Path,
 ) -> Path:
     """Place a verified file into the HF hub cache layout and return the"""
-    cache = Path(cache_dir)
+    cache = Path(cache_dir).resolve()
     blobs_dir = cache / "blobs"
     blobs_dir.mkdir(parents=True, exist_ok=True)
     blob_path = blobs_dir / blob_sha256
@@ -760,7 +760,8 @@ def install_blob_into_hf_cache(
     try:
         if snap_file.is_symlink() or snap_file.exists():
             snap_file.unlink()
-        rel = os.path.relpath(blob_path, snap_dir)
+        # Symlink targets resolve from the link's directory, not the snapshot root.
+        rel = os.path.relpath(blob_path, snap_file.parent)
         os.symlink(rel, snap_file)
     except OSError:
         # Windows without symlink privilege (or any symlink failure):
