@@ -363,6 +363,82 @@ class TestTauriNsisInstallerHooks:
             assert target.is_file(), f"nsis.{key} {rel!r} resolves to missing {target}"
             assert target.suffix.lower() == ".ico", f"nsis.{key} must be a .ico, got {rel!r}"
 
+    def test_installer_hooks_release_the_modern_ui_icon_symbols(self) -> None:
+        """The hooks must ``!undef`` the symbols tauri-bundler re-defines later.
+
+        Three separate ``!define ... already defined!`` aborts lived here, all
+        reproduced against the REAL tauri-bundler-generated installer.nsi on
+        makensis 3.11 (NSIS forbids redefining a name at all):
+
+        * ``MUI_ICON`` / ``MUI_UNICON`` — NSIS ``MUI2.nsh`` reaches
+          ``Interface.nsh``, which claims both via ``MUI_DEFAULT``; then
+          ``installerIcon``/``uninstallerIcon`` make tauri emit an UNGUARDED
+          ``!define`` for them. Script-side half of
+          :meth:`test_nsis_installer_icon_is_app_logo`.
+        * ``MUI_PAGE_CUSTOMFUNCTION_PRE`` — our pack-option page claims it at
+          include time; tauri's welcome-page ``!define`` then collided.
+          ``Page custom`` captures the PRE function at parse time, so the
+          symbol is free once our page is declared.
+        """
+        hooks = (SRC_TAURI / "../scripts/windows/installer-hooks.nsh").resolve()
+        assert hooks.is_file(), f"expected the NSIS hooks at {hooks}"
+        text = hooks.read_text(encoding="utf-8")
+        # Only real directives count: a WHY comment that quotes the offending
+        # line must not be able to fail (or pass) this contract.
+        code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith(";"))
+        releasable = ("MUI_ICON", "MUI_UNICON", "MUI_PAGE_CUSTOMFUNCTION_PRE")
+        for symbol in releasable:
+            undef = f"!undef {symbol}"
+            assert undef in code, (
+                f"{hooks.name} must contain `{undef}`: tauri-bundler's installer.nsi "
+                f"defines {symbol} itself, and NSIS aborts the whole bundle with "
+                "'already defined!' when the hooks claim it first."
+            )
+        # Placement is load-bearing: MUI2's MUI_DEFAULT calls re-run from inside
+        # MUI_PAGE_LICENSE, so a guard placed above our ToS page is undone by it
+        # and the collision returns (verified on makensis 3.11). Every macro we
+        # insert must therefore come BEFORE the release.
+        last_insert = max(i for i, ln in enumerate(code.splitlines()) if ln.strip().startswith("!insertmacro"))
+        for symbol in releasable:
+            release = next(i for i, ln in enumerate(code.splitlines()) if ln.strip() == f"!undef {symbol}")
+            assert release > last_insert, (
+                f"{hooks.name}: the `!undef {symbol}` release must come after the last "
+                f"!insertmacro (line {last_insert}); MUI_PAGE_LICENSE re-runs MUI2's "
+                "MUI_DEFAULT, which would re-claim the symbol and restore the collision."
+            )
+        # Our own page still needs the PRE hook, so the claim must exist too.
+        assert "!define MUI_PAGE_CUSTOMFUNCTION_PRE LausuPackOptionPre" in code, (
+            "the pack-option page must still claim MUI_PAGE_CUSTOMFUNCTION_PRE before "
+            "`Page custom`; only the later release was added"
+        )
+
+    def test_installer_state_writer_has_no_backtick_line_continuation(self) -> None:
+        """``FileWrite`` must not end a line with a backtick (NSIS line-continuation).
+
+        A trailing backtick merged the following line into the ``FileWrite``
+        call, so makensis aborted with ``FileWrite expects 2 parameters, got 3``
+        and no ``installer-state.json`` was ever written.
+        """
+        hooks = (SRC_TAURI / "../scripts/windows/installer-hooks.nsh").resolve()
+        lines = [
+            (i, line.rstrip())
+            for i, line in enumerate(hooks.read_text(encoding="utf-8").splitlines(), 1)
+            if line.strip().startswith("FileWrite")
+        ]
+        assert lines, "the installer-state writer must still write the file"
+        for lineno, line in lines:
+            assert not line.endswith("`"), (
+                f"installer-hooks.nsh:{lineno}: FileWrite ends with a backtick, which NSIS "
+                "treats as a line continuation and folds the next line into this command."
+            )
+            # ${VERSION} must expand, so it cannot sit inside a backticked literal.
+            assert "`" not in line, (
+                f"installer-hooks.nsh:{lineno}: backticks make the text literal, so ${{VERSION}} would never expand"
+            )
+        body = "\n".join(line for _, line in lines)
+        assert body.count("${VERSION}") == 2, "both consent branches must write installer_version"
+        assert '"pack_bundled": false' in body, "pack_bundled must stay false in the slim-core installer"
+
 
 def _path_components(template: str) -> tuple[str, ...]:
     """Split a path template into components (both separators normalized)."""
@@ -897,11 +973,7 @@ def test_bubble_coordinate_bound_matches_server_allowlist():
         r"_make_optional_int_validator\(lo=(-?[\d_]+), hi=([\d_]+)\)\)",
         allowlist,
     )
-    assert len(bounds) == 2, (
-        "allowlist.py bubble_x/bubble_y validator signature drifted."
-    )
+    assert len(bounds) == 2, "allowlist.py bubble_x/bubble_y validator signature drifted."
     lo, hi = bounds[0]
     lo, hi = lo.replace("_", ""), hi.replace("_", "")
-    assert lo == "-100000" and hi == "100000", (
-        f"server bubble coordinate bounds changed to [{lo}, {hi}]."
-    )
+    assert lo == "-100000" and hi == "100000", f"server bubble coordinate bounds changed to [{lo}, {hi}]."

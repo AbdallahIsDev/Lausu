@@ -160,7 +160,7 @@ conclusions from the same run:
 ```text
 1  | Set up job                                                    | success
 2  | Checkout                                                       | success
-3  | Cache Nuitka build artifacts (ccache)                          | success
+3  | Cache Nuitka build artifacts (clcache objects)                    | success
 4  | Cache Nuitka scons build dir (incremental C builds)           | success
 5  | Download + verify python-build-standalone                      | success
 6  | Build the sidecar with Nuitka (ADR-0020 §4.2)                 | success

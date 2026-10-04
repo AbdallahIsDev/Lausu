@@ -139,9 +139,17 @@ FunctionEnd
   FileOpen $0 "$LOCALAPPDATA\lausu\installer-state.json" w
   IfErrors installer_state_done
   ${If} $IncludeOfflineEnginePack == "1"
-    FileWrite $0 `{"include_offline_engine_pack": true, "installer_version": "${VERSION}", "pack_bundled": false}`$\r$\n`
+    ; Single-quoted + 3 writes, NOT one backticked literal: a trailing
+    ; backtick is an NSIS line-continuation, which used to swallow the
+    ; following line into FileWrite ("FileWrite expects 2 parameters, got 3"),
+    ; and ``${VERSION}`` inside backticks would not have expanded anyway.
+    FileWrite $0 '{"include_offline_engine_pack": true, "installer_version": "'
+    FileWrite $0 "${VERSION}"
+    FileWrite $0 '", "pack_bundled": false}$r$\n'
   ${Else}
-    FileWrite $0 `{"include_offline_engine_pack": false, "installer_version": "${VERSION}", "pack_bundled": false}`$\r$\n`
+    FileWrite $0 '{"include_offline_engine_pack": false, "installer_version": "'
+    FileWrite $0 "${VERSION}"
+    FileWrite $0 '", "pack_bundled": false}$r$\n'
   ${EndIf}
   FileClose $0
   DetailPrint "[lausu-installer] Wrote installer-state.json (include_offline_engine_pack=$IncludeOfflineEnginePack)."
@@ -163,3 +171,38 @@ FunctionEnd
 !macro customInstall
   !insertmacro NSIS_HOOK_POSTINSTALL
 !macroend
+
+; ─── Release symbols tauri-bundler re-defines later (upstream collisions) ─
+; MUST stay the LAST directive block in this file.
+;
+; 1. ``MUI_ICON`` / ``MUI_UNICON``. NSIS's ``MUI2.nsh`` reaches
+;    ``Interface.nsh``, which claims both through ``MUI_DEFAULT``
+;    (define-if-undefined), pointing them at the stock NSIS glyphs.
+;    tauri-bundler's installer.nsi then emits an UNGUARDED
+;    ``!define MUI_ICON "${INSTALLERICON}"`` once
+;    ``bundle.windows.nsis.installerIcon`` / ``uninstallerIcon`` is set, so
+;    makensis aborted the whole build with
+;    ``!define: "MUI_ICON" already defined!``.
+;
+; 2. ``MUI_PAGE_CUSTOMFUNCTION_PRE``. Our pack-option page needs it, but we
+;    claim it at include time (line ~31 of installer.nsi) and Tauri's own
+;    ``!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive`` for the welcome
+;    page then collided: ``!define: "MUI_PAGE_CUSTOMFUNCTION_PRE" already
+;    defined!``. ``Page custom`` captures the PRE function at parse time, so
+;    the symbol is free once our page is declared.
+;
+; Placement is load-bearing, not cosmetic: MUI2's ``MUI_DEFAULT`` calls re-run
+; from inside ``!insertmacro MUI_PAGE_LICENSE`` above, so a guard placed
+; earlier is undone by our own ToS page and the collision returns.
+; Verified against makensis 3.11 (the version tauri downloads) on the REAL
+; tauri-bundler-generated installer.nsi: the setup.exe compiles and both icon
+; symbols resolve to icons/icon.ico.
+!ifdef MUI_ICON
+  !undef MUI_ICON
+!endif
+!ifdef MUI_UNICON
+  !undef MUI_UNICON
+!endif
+!ifdef MUI_PAGE_CUSTOMFUNCTION_PRE
+  !undef MUI_PAGE_CUSTOMFUNCTION_PRE
+!endif
