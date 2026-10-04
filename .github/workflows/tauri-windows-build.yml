@@ -103,6 +103,13 @@ jobs:
     env:
       # TX-40: target triple from matrix (x86_64 or aarch64 template); job-level env.
       PYBS_TRIPLE: ${{ matrix.target }}
+      # NUITKA_CACHE_DIR pins Nuitka's cache base (clcache object files +
+      # dependency-walker downloads) so the cache step below has a stable path
+      # to persist. MUST be job-level: C-CI-12's lesson is that step-level env
+      # does NOT reach the Nuitka/SCons C-compiler subprocess, so a step-level
+      # value would silently leave Nuitka on its appdirs default and the cached
+      # directory would stay empty.
+      NUITKA_CACHE_DIR: C:\Users\runner\AppData\Local\nuitka
       # Caching is INTENTIONALLY on in this job (no CLCACHE_DISABLE):
       # Nuitka wraps cl with its inline clcache copy and stores objects
       # under its own cache dir, which the ccache step above persists
@@ -114,14 +121,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      # Nuitka ccache: persist compiled C objects between builds.
-      - name: Cache Nuitka build artifacts (ccache)
+      # Nuitka clcache: persist MSVC object files between builds. This is the
+      # step that makes a repeat freeze minutes instead of ~3 h. The previous
+      # `nuitka\cache` path matched no real Nuitka directory, so this step
+      # reported "Cache Not Found" on every run and NO cache was ever written
+      # (verified: zero `tauri-windows-nuitka-*` entries existed on the repo).
+      # The key is per-``matrix.target`` because both freeze jobs run in
+      # parallel; sharing one key made them race to write the same entry.
+      - name: Cache Nuitka build artifacts (clcache objects)
         uses: actions/cache@v5
         with:
-          path: C:\Users\runner\AppData\Local\nuitka\cache
-          key: tauri-windows-nuitka-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'requirements-lock.txt') }}
+          path: ${{ env.NUITKA_CACHE_DIR }}
+          key: tauri-windows-nuitka-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('pyproject.toml', 'requirements-lock.txt') }}
           restore-keys: |
-            tauri-windows-nuitka-${{ runner.os }}-
+            tauri-windows-nuitka-${{ runner.os }}-${{ matrix.target }}-
 
       # Scons build dir: when it survives between runs, scons skips
       # up-to-date objects (checksum-based) instead of recompiling ~800
@@ -325,6 +338,13 @@ jobs:
     env:
       # TX-40: target triple from matrix (x86_64 or aarch64 template); job-level env.
       PYBS_TRIPLE: ${{ matrix.target }}
+      # NUITKA_CACHE_DIR pins Nuitka's cache base (clcache object files +
+      # dependency-walker downloads) so the cache step below has a stable path
+      # to persist. MUST be job-level: C-CI-12's lesson is that step-level env
+      # does NOT reach the Nuitka/SCons C-compiler subprocess, so a step-level
+      # value would silently leave Nuitka on its appdirs default and the cached
+      # directory would stay empty.
+      NUITKA_CACHE_DIR: C:\Users\runner\AppData\Local\nuitka
       # Caching is INTENTIONALLY on in this job (no CLCACHE_DISABLE):
       # Nuitka wraps cl with its inline clcache copy and stores objects
       # under its own cache dir, which the ccache step above persists
@@ -336,14 +356,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      # Nuitka ccache: persist compiled C objects between builds.
-      - name: Cache Nuitka build artifacts (ccache)
+      # Nuitka clcache: persist MSVC object files between builds. This is the
+      # step that makes a repeat freeze minutes instead of ~3 h. The previous
+      # `nuitka\cache` path matched no real Nuitka directory, so this step
+      # reported "Cache Not Found" on every run and NO cache was ever written
+      # (verified: zero `tauri-windows-nuitka-*` entries existed on the repo).
+      # The key is per-``matrix.target`` because both freeze jobs run in
+      # parallel; sharing one key made them race to write the same entry.
+      - name: Cache Nuitka build artifacts (clcache objects)
         uses: actions/cache@v5
         with:
-          path: C:\Users\runner\AppData\Local\nuitka\cache
-          key: tauri-windows-nuitka-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'requirements-lock.txt') }}
+          path: ${{ env.NUITKA_CACHE_DIR }}
+          key: tauri-windows-nuitka-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('pyproject.toml', 'requirements-lock.txt') }}
           restore-keys: |
-            tauri-windows-nuitka-${{ runner.os }}-
+            tauri-windows-nuitka-${{ runner.os }}-${{ matrix.target }}-
 
       # Scons build dir: when it survives between runs, scons skips
       # up-to-date objects (checksum-based) instead of recompiling ~800
