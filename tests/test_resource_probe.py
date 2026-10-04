@@ -253,6 +253,42 @@ class TestCheckResourcesGPU:
         assert warnings, "Should log WARNING when free GPU memory < 512 MB"
 
 
+class TestCheckResourcesGpuEngineFirst:
+    """The GPU line leads with the ctranslate2 verdict (the runtime the
+    Whisper backend actually uses), not onnxruntime's."""
+
+    def test_ct2_count_reported_when_smi_unreadable(self, caplog, monkeypatch):
+        import sys as _sys_mod
+        import types as _types_mod
+
+        fake_ct2 = _types_mod.ModuleType("ctranslate2")
+        fake_ct2.get_cuda_device_count = lambda: 1
+        monkeypatch.setitem(_sys_mod.modules, "ctranslate2", fake_ct2)
+        monkeypatch.setattr(
+            "voice_typer.server.resource_probe._probe_gpu_memory_via_nvidia_smi",
+            lambda: (None, None),
+        )
+        monkeypatch.setattr(
+            "psutil.virtual_memory",
+            lambda: _fake_vm(4 * 1024**3),
+        )
+        monkeypatch.setattr("os.statvfs", lambda path: _fake_statvfs(50 * 1024**3), raising=False)
+
+        with caplog.at_level(logging.INFO, logger="voice_typer.server.resource_probe"):
+            check_resources()
+
+        gpu_lines = [r for r in caplog.records if "ctranslate2" in r.getMessage()]
+        assert gpu_lines, "GPU line must lead with the ctranslate2 verdict"
+        assert "nvidia-smi unavailable" not in gpu_lines[0].getMessage()
+
+    def test_nvidia_smi_candidates_cover_absent_path(self, monkeypatch):
+        from voice_typer.server.resource_probe import _nvidia_smi_candidates
+
+        monkeypatch.setattr("shutil.which", lambda _name: None)
+        candidates = _nvidia_smi_candidates()
+        assert candidates, "must always offer the well-known absolute fallback"
+
+
 class TestCheckResourcesLogger:
     """check_resources: the ``logger`` parameter routes records to either"""
 

@@ -145,7 +145,7 @@ class TestParakeetOnnxCpuFallback:
         status_events = [e for e in published_events if e.get("type") == "parakeet_cpu_fallback"]
         assert status_events, (
             "CUDA→CPU fallback must emit a 'parakeet_cpu_fallback' status event "
-            "so tray.py can show '(CPU fallback)' suffix."
+            "so tray.py can show '- CPU fallback' suffix."
         )
         assert status_events[0]["data"]["device"] == "cpu"
         assert "CUDA out of memory" in status_events[0]["data"]["reason"]

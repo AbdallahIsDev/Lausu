@@ -128,6 +128,9 @@ class SystemWhisperEngine:
         self._model: Any | None = None
         self._loaded = False
         self._cpu_fallback_notified = False
+        # Effective compute device, resolved from the built ctranslate2
+        # model in load(); falls back to the requested device before that.
+        self._effective_device: str = device or "auto"
 
     @property
     def is_loaded(self) -> bool:
@@ -136,8 +139,10 @@ class SystemWhisperEngine:
 
     @property
     def device_info(self) -> str:
-        """Human-readable backend description for tray/paste lines."""
-        return f"system whisper ({self._device})"
+        """User-facing compute device for tray status lines ("GPU"/"CPU")."""
+        from voice_typer.server.tray_models import describe_device
+
+        return describe_device(getattr(self, "_effective_device", None) or self._device)
 
     @property
     def loaded_via(self) -> str:
@@ -163,7 +168,21 @@ class SystemWhisperEngine:
             local_files_only=True,
         )
         self._loaded = True
+        # Effective device straight from the built ctranslate2 model, so
+        # logs + tooltip state what the model ACTUALLY runs on instead of
+        # what was requested.
+        effective = str(getattr(getattr(self._model, "model", None), "device", "") or "")
+        if effective:
+            self._effective_device = effective
         log.info("[MODEL] system whisper model ready (%s)", self._weights_dir)
+        from voice_typer.server.tray_models import describe_device
+
+        log.info(
+            "[MODEL] whisper %s running on %s (requested %s)",
+            self._model_size,
+            describe_device(self._effective_device),
+            self._device,
+        )
         return True
 
     def unload(self) -> None:

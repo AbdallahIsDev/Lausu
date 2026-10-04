@@ -274,7 +274,10 @@ class TranscribeMixin:
 
     @property
     def device_info(self) -> str:
-        return f"parakeet/{self.device}"
+        """User-facing compute device for tray status lines ("GPU"/"CPU")."""
+        from voice_typer.server.tray_models import describe_device
+
+        return describe_device(self.device)
 
     @property
     def loaded_via(self) -> str:

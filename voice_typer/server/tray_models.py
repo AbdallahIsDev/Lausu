@@ -44,6 +44,21 @@ def _title_case_slug(slug: str) -> str:
     return " ".join(part[:1].upper() + part[1:] for part in slug.split("-") if part)
 
 
+def describe_device(device: object) -> str:
+    """User-facing compute-device word: ``"cuda"`` → ``"GPU"``, ``"cpu"`` → ``"CPU"``.
+
+    End users may not know what CUDA means, so every user-facing
+    surface (tray tooltip, engine ``device_info``) uses GPU/CPU while
+    ``"cuda"`` stays in backend logs and config values.
+    """
+    text = str(device or "").strip().lower()
+    if text.startswith("cuda"):
+        return "GPU"
+    if text == "cpu":
+        return "CPU"
+    return str(device or "")
+
+
 def tooltip_model_label(config) -> str:
     """User-facing ASR model name for the tray tooltip.
 

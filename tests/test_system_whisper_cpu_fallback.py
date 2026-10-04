@@ -81,6 +81,28 @@ class TestSystemWhisperCublasFallback:
         assert engine._device == "cpu"
 
 
+class TestEffectiveDeviceWord:
+    def test_device_info_is_gpu_word_for_cuda(self):
+        engine = _make_engine(device="cuda")
+        engine._effective_device = "cuda"
+        assert engine.device_info == "GPU"
+
+    def test_device_info_is_cpu_word_for_cpu(self):
+        engine = _make_engine(device="cpu")
+        engine._effective_device = "cpu"
+        assert engine.device_info == "CPU"
+
+    def test_device_info_falls_back_to_requested_word(self):
+        engine = _make_engine(device="auto")
+        engine._effective_device = "auto"
+        assert engine.device_info == "auto"
+
+    def test_no_cuda_jargon_in_device_info(self):
+        engine = _make_engine(device="cuda")
+        engine._effective_device = "cuda"
+        assert "cuda" not in engine.device_info
+
+
 class TestWatchdogDiscardDualType:
     def test_discard_handles_set_and_ordereddict(self):
         from voice_typer.server.transcription_watchdog import TranscriptionWatchdog

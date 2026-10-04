@@ -97,6 +97,27 @@ def _probe_gpu_memory_via_pynvml() -> tuple[float | None, float | None]:
             pynvml.nvmlShutdown()
 
 
+def _nvidia_smi_candidates() -> list[str]:
+    """Candidate ``nvidia-smi`` executables: PATH first, then well-known
+    absolute locations (a scrubbed PATH is the usual reason the bare
+    lookup fails while a GPU is present)."""
+    import shutil
+
+    found = shutil.which("nvidia-smi")
+    candidates = [found] if found else []
+    if os.name == "nt":
+        candidates.append(r"C:\Windows\System32\nvidia-smi.exe")
+    else:
+        candidates.append("/usr/bin/nvidia-smi")
+    seen: set[str] = set()
+    unique = []
+    for candidate in candidates:
+        if candidate and candidate not in seen:
+            seen.add(candidate)
+            unique.append(candidate)
+    return unique
+
+
 def _probe_gpu_memory_via_nvidia_smi() -> tuple[float | None, float | None]:
     """Query GPU total/free memory (MB) via ``pynvml`` or ``nvidia-smi``.
 
@@ -121,36 +142,49 @@ def _probe_gpu_memory_via_nvidia_smi() -> tuple[float | None, float | None]:
     if total_mb is not None and free_mb is not None:
         return (total_mb, free_mb)
 
+    # Windows: hide the console window for this ~10-30ms probe.
+    hide_window_kwargs: dict = (
+        {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}
+    )
+    for smi in _nvidia_smi_candidates():
+        try:
+            result = subprocess.run(
+                [
+                    smi,
+                    "--query-gpu=memory.total,memory.free",
+                    "--format=csv,noheader,nounits",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+                **hide_window_kwargs,
+            )
+            if result.returncode != 0:
+                continue
+            first_line = result.stdout.strip().splitlines()[0] if result.stdout.strip() else ""
+            if not first_line:
+                continue
+            parts = [p.strip() for p in first_line.split(",")]
+            if len(parts) < 2:
+                continue
+            return (float(parts[0]), float(parts[1]))
+        except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+            continue
+    return (None, None)
+
+
+def _probe_ct2_cuda_count() -> int | None:
+    """Return ``ctranslate2.get_cuda_device_count()`` (the runtime the
+    Whisper backend actually uses), or ``None`` when ctranslate2 is not
+    importable. ``None`` means unknown, not zero."""
     try:
-        # Windows: hide the console window for this ~10-30ms probe.
-        hide_window_kwargs: dict = (
-            {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)} if os.name == "nt" else {}
-        )
-        result = subprocess.run(
-            [
-                "nvidia-smi",
-                "--query-gpu=memory.total,memory.free",
-                "--format=csv,noheader,nounits",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=False,
-            **hide_window_kwargs,
-        )
-        if result.returncode != 0:
-            return (None, None)
-        first_line = result.stdout.strip().splitlines()[0] if result.stdout.strip() else ""
-        if not first_line:
-            return (None, None)
-        parts = [p.strip() for p in first_line.split(",")]
-        if len(parts) < 2:
-            return (None, None)
-        total_mb = float(parts[0])
-        free_mb = float(parts[1])
-        return (total_mb, free_mb)
-    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
-        return (None, None)
+        import importlib
+
+        ctranslate2 = importlib.import_module("ctranslate2")
+        return int(ctranslate2.get_cuda_device_count())
+    except Exception:
+        return None
 
 
 def _drive_key_for_log_dedup(path: pathlib.Path) -> str:
@@ -344,8 +378,12 @@ def check_resources(*, logger: logging.Logger | None = None) -> None:
                     free_gb,
                 )
 
-    # Uses ``onnxruntime.get_device()`` (CUDA-availability check) +
+    # Uses ctranslate2's CUDA device count (what the Whisper backend
+    # actually runs on) first, ``nvidia-smi``/pynvml for memory numbers,
+    # onnxruntime's device string last (ORT is only the Parakeet/Qwen
+    # runtime; its verdict says nothing about faster-whisper).
     try:
+        ct2_count = _probe_ct2_cuda_count()
         gpu_total_mb, gpu_free_mb = _probe_gpu_memory_via_nvidia_smi()
         if gpu_total_mb is not None and gpu_free_mb is not None:
             gpu_used_mb = gpu_total_mb - gpu_free_mb
@@ -360,16 +398,21 @@ def check_resources(*, logger: logging.Logger | None = None) -> None:
                     "[RESOURCE] Low GPU memory (%.0f MB free). CUDA out-of-memory errors are likely.",
                     gpu_free_mb,
                 )
+        elif ct2_count is not None:
+            _log.info(
+                "[RESOURCE] GPU: ctranslate2 sees %d CUDA device(s), memory figures unavailable "
+                "(nvidia-smi unreadable and pynvml missing)",
+                ct2_count,
+            )
         else:
-            # nvidia-smi unavailable (no NVIDIA GPU, headless CI, macOS,
             ort_device = _probe_ort_device()
             if ort_device is not None:
                 _log.info(
-                    "[RESOURCE] GPU: onnxruntime reports device='%s' (nvidia-smi unavailable)",
+                    "[RESOURCE] GPU: onnxruntime reports device='%s' (ctranslate2 + nvidia-smi unavailable)",
                     ort_device,
                 )
             else:
-                _log.debug("[RESOURCE] GPU memory probe skipped (nvidia-smi + onnxruntime both unavailable)")
+                _log.debug("[RESOURCE] GPU probe skipped (ctranslate2, nvidia-smi, and onnxruntime all unavailable)")
     except Exception:
         _log.debug(
             "[RESOURCE] GPU check failed (non-fatal)",

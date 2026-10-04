@@ -273,7 +273,7 @@ class TestParakeetOnnxInit:
 
     def test_device_info_reflects_device(self):
         engine = _make_engine(device="cpu")
-        assert engine.device_info == "parakeet/cpu"
+        assert engine.device_info == "CPU"
 
     def test_loaded_via_includes_model_id(self):
         engine = _make_engine(device="cuda")

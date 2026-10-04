@@ -797,8 +797,8 @@ class TestElapsedRecordingTooltip:
         tray.run()
         tray.set_state(AppState.RECORDING, "recording")
         title = tray._icon.title
-        # Title should contain a '(' followed by mm:ss pattern.
-        assert "(" in title and ":" in title, f"Recording tooltip should include mm:ss, got: {title!r}"
+        # Title should contain a dash-separated mm:ss pattern.
+        assert "-" in title and ":" in title, f"Recording tooltip should include mm:ss, got: {title!r}"
 
     def test_apply_state_excludes_elapsed_when_idle(self, tray):
         """When state==IDLE, _apply_state does NOT append elapsed time."""
@@ -808,7 +808,7 @@ class TestElapsedRecordingTooltip:
         tray.run()
         tray.set_state(AppState.IDLE)
         title = tray._icon.title
-        # The hotkey is in parens, so we can't just check for '(' —
+        # Segments split on " | " with no parens, so any ":" must be elapsed.
         assert ":" not in title, f"IDLE tooltip should NOT include elapsed mm:ss, got: {title!r}"
 
 

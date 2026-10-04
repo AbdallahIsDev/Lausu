@@ -104,7 +104,7 @@ Events emitted via ``event_bus.publish`` (the modern path):
   message:str}``.
 * ``parakeet_cpu_fallback``: emitted by
   ``parakeet_engine.py`` when GPU transcription fails and the engine
-  falls back to CPU. The tray shows a "(CPU fallback)" status suffix.
+  falls back to CPU. The tray shows a "- CPU fallback" status suffix.
   Payload: ``{device:str (="cpu"), reason:str}``.
 * ``gpu_cpu_fallback``: emitted by ``transcription_fallback.py``
   (Whisper path) when a GPU inference error triggers the synchronous

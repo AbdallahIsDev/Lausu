@@ -570,12 +570,12 @@ class QwenEngine:
 
     @property
     def device_info(self) -> str:
-        """Return device info string.
+        """User-facing compute device for tray status lines.
 
-        The ONNX runtime path is CPU-first and pinned to ``\"cpu\"`` at
-        ``load()``, so this is always ``\"qwen/cpu\"``.
+        The ONNX runtime path is CPU-first and pinned to ``"cpu"`` at
+        ``load()``, so this is always ``"CPU"`` (no CUDA jargon).
         """
-        return "qwen/cpu"
+        return "CPU"
 
     @property
     def loaded_via(self) -> str:
