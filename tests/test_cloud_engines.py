@@ -913,7 +913,6 @@ class TestFallbackKindClassification:
 
     def _fallback_event_for(self, exc):
         import numpy as np
-
         from voice_typer.server import event_bus
         from voice_typer.server.cloud_engines import CloudEngine
 
@@ -963,7 +962,6 @@ class TestFallbackKindClassification:
     def test_abort_skips_fallback_and_returns_empty(self):
         """ESC mid-request must not burn a local decode on a dead cycle."""
         import numpy as np
-
         from voice_typer.server import event_bus
         from voice_typer.server.cloud_engines import CloudEngine
 
