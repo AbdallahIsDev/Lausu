@@ -178,7 +178,7 @@ export default function AboutAndPrivacyPage() {
 				{/* Local vs Cloud, the capability split made visually
 				    obvious: two side-by-side blocks with their own icon
 				    + title + one-line description. */}
-				<div className="grid pt-5 sm:grid-cols-2">
+				<div className="grid sm:grid-cols-2">
 					<div className="flex flex-col gap-2 border border-border/8 border-b-0 border-l-0 p-4 sm:border-r-0">
 						<div className="flex items-center gap-2">
 							<HugeiconsIcon

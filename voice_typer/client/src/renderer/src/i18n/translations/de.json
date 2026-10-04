@@ -2076,7 +2076,8 @@
 			"cancelling": "Abbrechen...",
 			"cancelled": "Abgebrochen",
 			"recovered": "Wiederhergestellt | Transkription abgelaufen",
-			"stillTranscribing": "Wird noch transkribiert..."
+			"stillTranscribing": "Wird noch transkribiert...",
+			"awaitingModel": "Model-Laden wird abgeschlossen | Ihre Aufnahme ist gespeichert und wird in Kürze transkribiert"
 		},
 		"modelManager": {
 			"loading": "Modell wird geladen | drücken Sie Ihre Tastenkombination zum Einreihen...",

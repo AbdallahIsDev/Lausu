@@ -45,7 +45,15 @@ export interface ToggleGroupProps<T extends string> {
 	variant?: "default" | "tabs";
 	/** Optional ``aria-label`` for the radiogroup container. */
 	ariaLabel?: string;
-	radius?: "pill" | "sm";
+	/**
+	 * Which surface the control sits on. Dark mode only (the light
+	 * treatment is identical on both): a control inside a card gets a
+	 * transparent track with a `bg-border/10` indicator. The sidebar
+	 * rail keeps the recessed `bg-border/10` track but drops the border
+	 * (`dark:border-border/0`), and its selected pill uses `bg-sidebar`
+	 * so it reads as a surface cut from the rail itself.
+	 */
+	context?: "card" | "sidebar";
 	/** Optional wrapper className. */
 	className?: string;
 	indicatorClassName?: string;
@@ -59,7 +67,7 @@ export function ToggleGroup<T extends string>({
 	value,
 	onChange,
 	variant = "default",
-	radius = "pill",
+	context = "card",
 	ariaLabel,
 	className,
 	indicatorClassName,
@@ -289,10 +297,17 @@ export function ToggleGroup<T extends string>({
 			onKeyDown={isTabs ? handleTabsKeyDown : undefined}
 			className={cn(
 				"relative inline-flex items-center",
+				// ONE radius system (2026-10-03): rounded-lg track with
+				// p-0.5, and the indicator inset below matches that
+				// padding so the pill's outer curve is the lg corner
+				// minus the inset. The former `pill` variant
+				// (rounded-full + p-0.75) is gone.
 				variant === "default" &&
-					(radius === "sm"
-						? "rounded-lg border border-border/8 bg-border/10 p-0.5"
-						: "rounded-full border border-border/8 bg-border/10 p-0.75"),
+					"rounded-lg border border-border/8 bg-border/10 p-0.5",
+				variant === "default" &&
+					(context === "sidebar"
+						? "dark:border-border/0 dark:bg-border/10"
+						: "dark:bg-border/0"),
 				variant === "tabs" && "bg-transparent rounded-none p-1",
 				className,
 			)}
@@ -303,12 +318,13 @@ export function ToggleGroup<T extends string>({
 					className={cn(
 						"pointer-events-none absolute z-0 transition-all duration-200 ease-out",
 						// Radius = parent corner − inset, so the pill's outer
-						// curve matches the container's (rounded-lg − p-1 ⇒
+						// curve matches the container's (rounded-lg − p-0.5 ⇒
 						// calc(--radius - inset)), never the same rounded-lg.
 						variant === "default" &&
-							(radius === "sm"
-								? "inset-y-0.5 rounded-[calc(var(--radius)-0.125rem)] bg-surface shadow-xs"
-								: "inset-y-0.75 rounded-full bg-surface shadow-xs"),
+							"inset-y-0.5 rounded-[calc(var(--radius)-0.125rem)] bg-surface shadow-xs",
+						// Dark-mode surface treatment; light keeps bg-surface.
+						variant === "default" &&
+							(context === "sidebar" ? "dark:bg-sidebar" : "dark:bg-border/10"),
 						variant === "tabs" &&
 							"inset-y-1 rounded-[calc(var(--radius)-0.25rem)] bg-input",
 						indicatorClassName,
@@ -406,9 +422,7 @@ export function ToggleGroup<T extends string>({
 							// has-[:focus-visible] to style the parent label).
 							"has-focus-visible:ring-1has-focus-visible:ring-ring has-focus-visible:outline-hidden",
 							variant === "default" &&
-								(radius === "sm"
-									? "rounded-lg px-2.5 py-1 text-[0.6875rem] tracking-wider"
-									: "rounded-full px-2 py-1 text-[0.6875rem] tracking-wider"),
+								"rounded-lg px-2.5 py-1 text-[0.6875rem] tracking-wider",
 							// Full-width options: an option that only fits its
 							// label leaves the group looking ragged whenever the
 							// container is wider than the sum of the labels
