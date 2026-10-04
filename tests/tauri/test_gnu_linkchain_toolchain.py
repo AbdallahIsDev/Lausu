@@ -98,8 +98,11 @@ def test_wrapper_cleans_up_its_scratch():
 
 @pytest.mark.skipif(sys.platform != "win32", reason="GNU shim is Windows-only")
 def test_bootstrap_check_passes_after_provisioning():
-    """--check must succeed once the shim exists (idempotent no-op)."""
+    """Provision the shim, then --check must succeed (idempotent no-op)."""
     bootstrap = _load_bootstrap()
+    if bootstrap.find_gcc() is None:
+        pytest.skip("mingw-w64 gcc absent: the shim cannot be compiled on this host")
+    assert bootstrap.provision(force=False) == 0
     assert bootstrap.check() == 0, (
         "shim reported as missing/broken. Run: "
         "python scripts/build/ensure_gnu_linkchain.py"

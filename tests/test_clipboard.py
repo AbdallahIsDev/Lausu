@@ -65,6 +65,11 @@ class TestPaste:
         # Platform is now centralized in platform_utils; clipboard.py uses
         monkeypatch.setattr("voice_typer.server.clipboard.is_windows", lambda: False)
         monkeypatch.setattr("voice_typer.server.clipboard.is_macos", lambda: False)
+        # Headless CI has no AT-SPI bus, so the Linux password probe fails
+        # closed there. Simulate a probed non-password target instead.
+        monkeypatch.setattr(
+            "voice_typer.server.clipboard._is_password_field_linux", lambda: False
+        )
 
         cm = self._make_cm(paste_enabled=True)
         result = cm.paste()

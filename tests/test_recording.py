@@ -159,6 +159,15 @@ class TestStopAudioPrep:
     def test_start_falls_back_to_same_microphone_on_another_host_api(self, monkeypatch):
         import voice_typer.server.recording as recording_mod
         from voice_typer.server.recording import Recorder
+        from voice_typer.server.recording.recording_lifecycle import _reset_session_device_memo
+        from voice_typer.server.server_platform.microphone_list import (
+            invalidate_microphone_list_cache,
+        )
+
+        # Earlier tests in this worker may memoize a last-good device or a
+        # mic list built from different mocks; reset both for determinism.
+        _reset_session_device_memo()
+        invalidate_microphone_list_cache()
 
         devices = [
             {

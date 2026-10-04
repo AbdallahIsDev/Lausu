@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys  # noqa: F401  # re-exported for tests (installer_state.sys)
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any

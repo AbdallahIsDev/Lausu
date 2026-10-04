@@ -25,15 +25,20 @@ def _load_helper():
 
 
 def _fake_site(tmp_path: Path) -> Path:
+    import importlib.machinery
+
+    # The compiled twin must carry a suffix the RUNNING interpreter
+    # recognises (.pyd only counts on Windows; .so only on POSIX).
+    twin = importlib.machinery.EXTENSION_SUFFIXES[0]
     av = tmp_path / "av"
     (av / "video").mkdir(parents=True)
     (av / "__init__.py").write_text("x = 1\n", encoding="utf-8")
     (av / "about.py").write_text("v = 1\n", encoding="utf-8")
     (av / "video" / "stream.py").write_text("import cython\n", encoding="utf-8")
-    (av / "video" / "stream.pyd").write_bytes(b"\x00")
+    (av / "video" / ("stream" + twin)).write_bytes(b"\x00")
     (av / "video" / "stream.pyi").write_text("s: int\n", encoding="utf-8")
     (av / "audio.py").write_text("import cython\n", encoding="utf-8")
-    (av / "audio.pyd").write_bytes(b"\x00")
+    (av / ("audio" + twin)).write_bytes(b"\x00")
     return tmp_path
 
 
@@ -46,7 +51,10 @@ def test_removes_only_py_with_compiled_twin(tmp_path: Path):
     assert not (av / "audio.py").exists()
     assert (av / "__init__.py").exists()
     assert (av / "about.py").exists()
-    assert (av / "video" / "stream.pyd").exists()
+    import importlib.machinery
+
+    twin = "stream" + importlib.machinery.EXTENSION_SUFFIXES[0]
+    assert (av / "video" / twin).exists()
     assert (av / "video" / "stream.pyi").exists()
 
 

@@ -292,7 +292,12 @@ class TestRefreshConfig:
 class TestIsSafePasteTarget:
     def test_returns_true_on_non_windows(self):
         """On non-Windows, _is_safe_paste_target should return True."""
-        with patch.object(clip_mod, "is_windows", return_value=False):
+        with (
+            patch.object(clip_mod, "is_windows", return_value=False),
+            # Headless CI has no AT-SPI bus, the Linux password probe
+            # fails closed there. Simulate a probed non-password target.
+            patch.object(clip_mod, "_is_password_field_linux", return_value=False),
+        ):
             result = ClipboardManager._is_safe_paste_target()
             assert result is True
 

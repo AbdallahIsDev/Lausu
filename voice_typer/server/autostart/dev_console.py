@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+import sys  # noqa: F401  # re-exported for tests (dev_console.sys)
 from pathlib import Path
 
 log = logging.getLogger("voice_typer.server.autostart_launcher")

@@ -6,7 +6,7 @@ import logging
 import threading
 import time
 from collections.abc import Callable
-from typing import NotRequired, TypedDict
+from typing import TypedDict
 
 log = logging.getLogger(__name__)
 
@@ -14,6 +14,8 @@ log = logging.getLogger(__name__)
 class DownloadOutcome(TypedDict, total=False):
     """* ``consent_required``: present on the HuggingFace consent-gate"""
 
+    # total=False already leaves every key optional, so plain
+    # annotations stay importable on 3.10 (NotRequired needs 3.11+).
     success: bool
     error: str
     model: str
@@ -21,9 +23,9 @@ class DownloadOutcome(TypedDict, total=False):
     cancelled: bool
     consent_required: bool
     reason: str
-    download_already_active: NotRequired[bool]
-    queued: NotRequired[bool]
-    queue_position: NotRequired[int]
+    download_already_active: bool
+    queued: bool
+    queue_position: int
 
 
 def push_progress(

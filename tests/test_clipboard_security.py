@@ -28,7 +28,11 @@ def clipboard():
 )
 def test_safe_paste_target_non_windows(clipboard):
     """On non-Windows, _is_safe_paste_target always returns True."""
-    assert clipboard._is_safe_paste_target() is True
+    with patch(
+        "voice_typer.server.clipboard._is_password_field_linux",
+        return_value=False,
+    ):
+        assert clipboard._is_safe_paste_target() is True
 
 
 def test_release_stuck_modifiers(clipboard):
