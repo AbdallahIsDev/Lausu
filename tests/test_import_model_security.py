@@ -379,6 +379,12 @@ class TestImportModelSymlinkRejection:
     def test_legitimate_model_dir_imports_successfully(self, service, tmp_path, monkeypatch):
         """False-positive guard: a model dir with NO symlinks must"""
         monkeypatch.setattr("voice_typer.server.config._config_dir", lambda: tmp_path / "app_hf")
+        # import_model writes to model_availability.shared_hub_dir, not the
+        # config dir; redirect it into tmp like test_model_import.py does.
+        monkeypatch.setattr(
+            "voice_typer.server.model_availability.shared_hub_dir",
+            lambda: tmp_path / "app_hf" / "huggingface" / "hub",
+        )
         monkeypatch.setattr(
             "voice_typer.server.tray_models.invalidate_model_availability_cache",
             lambda: None,
@@ -405,6 +411,11 @@ class TestImportModelSymlinkRejection:
     def test_mixed_symlink_and_clean_models(self, service, tmp_path, monkeypatch):
         """symlink) and a clean model, the clean one must still import"""
         monkeypatch.setattr("voice_typer.server.config._config_dir", lambda: tmp_path / "app_hf")
+        # Same shared-hub redirect as above: dest assertions target tmp.
+        monkeypatch.setattr(
+            "voice_typer.server.model_availability.shared_hub_dir",
+            lambda: tmp_path / "app_hf" / "huggingface" / "hub",
+        )
         monkeypatch.setattr(
             "voice_typer.server.tray_models.invalidate_model_availability_cache",
             lambda: None,

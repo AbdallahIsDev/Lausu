@@ -113,6 +113,11 @@ def _resolve_within(root: Path, relative: str) -> Path:
     candidate = Path(relative)
     if candidate.is_absolute() or ".." in candidate.parts:
         raise SegmentedDownloadError(f"refusing unsafe snapshot path: {relative!r}")
+    # POSIX does not parse Windows-absolute forms (``C:/...``, ``C:\\...``,
+    # UNC ``\\\\...``) as absolute, but a Windows host would resolve them
+    # outside the cache. Reject them on every platform.
+    if re.match(r"^[A-Za-z]:", relative) or relative.startswith("\\\\"):
+        raise SegmentedDownloadError(f"refusing unsafe snapshot path: {relative!r}")
     root = root.resolve()
     resolved = (root / candidate).resolve()
     if resolved != root and root not in resolved.parents:

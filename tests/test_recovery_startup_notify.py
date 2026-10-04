@@ -23,7 +23,9 @@ def _make_phase_app(fake_app, unpasted):
 
 
 class TestRecoveryStartupNotify:
-    def test_unpasted_entries_notify_through_tray_safety(self):
+    def test_unpasted_entries_stay_fully_silent(self):
+        """Unpasted entries leave only a log line: no toast, no event-bus
+        notification (the host renders every notification event natively)."""
         _, fake_app, _ = make_ipc_server_with_fakes()
         entries = [{"text": "hello", "pasted": False}, {"text": "world", "pasted": False}]
         _make_phase_app(fake_app, entries)
@@ -38,17 +40,9 @@ class TestRecoveryStartupNotify:
         ):
             StartupSequence(fake_app)._phase_4_corrections_and_recovery()
         fake_app._crash_recovery.check_on_startup.assert_called_once()
-        fake_app.tray.notify_safety.assert_called_once()
-        title, body = fake_app.tray.notify_safety.call_args.args
-        assert "2" in body
-        assert "History" in body
-        assert publish.called
+        fake_app.tray.notify_safety.assert_not_called()
         events = [c.args[0] for c in publish.call_args_list]
-        notifications = [e for e in events if e.get("type") == "notification"]
-        assert notifications, "recovery must publish a notification event"
-        data = notifications[0]["data"]
-        assert "2" in data["message"]
-        assert data.get("click_path") == "/history"
+        assert [e for e in events if e.get("type") == "notification"] == []
 
     def test_no_unpasted_entries_stays_silent(self):
         _, fake_app, _ = make_ipc_server_with_fakes()
@@ -67,7 +61,8 @@ class TestRecoveryStartupNotify:
         events = [c.args[0] for c in publish.call_args_list]
         assert [e for e in events if e.get("type") == "notification"] == []
 
-    def test_recovery_notice_uses_tauri_notification_event(self):
+    def test_recovery_notice_stays_silent_in_tauri_mode(self):
+        """Same silence under TAURI_SIDECAR: no notification event either."""
         _, fake_app, _ = make_ipc_server_with_fakes()
         _make_phase_app(fake_app, [{"text": "x", "pasted": False}])
         from voice_typer.server.startup_sequence import StartupSequence
@@ -87,7 +82,6 @@ class TestRecoveryStartupNotify:
                 StartupSequence(fake_app)._phase_4_corrections_and_recovery()
             finally:
                 del os.environ["TAURI_SIDECAR"]
+        fake_app.tray.notify_safety.assert_not_called()
         events = [c.args[0] for c in publish.call_args_list]
-        notifications = [e for e in events if e.get("type") == "notification"]
-        assert notifications
-        assert notifications[0]["type"] == "notification"
+        assert [e for e in events if e.get("type") == "notification"] == []

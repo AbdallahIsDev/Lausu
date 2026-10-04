@@ -42,23 +42,20 @@ def _install_fake_ct2_modules(monkeypatch) -> tuple[types.ModuleType, types.Modu
     return fw, ct2
 
 
-def test_build_script_pre_nuitka_check_validates_ct2_backend_importable():
-    """presence of ``faster_whisper`` + ``ctranslate2`` in the build env's"""
+def test_build_script_pre_nuitka_check_validates_websockets_only():
+    """C7: the slim sidecar needs websockets only (ASR is worker-owned)."""
     text = _read_build_script()
-    # The site-packages directory existence check for faster_whisper.
-    assert '"$SITE/faster_whisper"' in text, (
-        "build script must verify $SITE/faster_whisper exists before "
-        "invoking Nuitka (the cross-platform CT2 backend importability gate)"
+    assert '"$SITE/websockets"' in text, (
+        "build script must verify $SITE/websockets exists before invoking Nuitka"
     )
-    # The site-packages directory existence check for ctranslate2.
-    assert '"$SITE/ctranslate2"' in text, (
-        "build script must verify $SITE/ctranslate2 exists before "
-        "invoking Nuitka (the cross-platform CT2 backend importability gate)"
+    assert '"$SITE/faster_whisper"' not in text, (
+        "build script must not require faster_whisper in the slim build env"
     )
-    # The error message + pip install hint (so a stale python-build-standalone
-    assert "pip install faster-whisper ctranslate2 websockets numpy" in text, (
-        "build script must print a clear pip install hint when faster_whisper "
-        "or ctranslate2 is missing from the build env's site-packages"
+    assert '"$SITE/ctranslate2"' not in text, (
+        "build script must not require ctranslate2 in the slim build env"
+    )
+    assert "pip install faster-whisper ctranslate2" not in text, (
+        "build script must not print a pip install hint for the worker-owned ASR libs"
     )
 
 
@@ -77,45 +74,25 @@ def test_asr_setup_and_transcription_modules_load_with_ct2_stubs(monkeypatch):
     assert importlib.util.find_spec("faster_whisper") is not None
 
 
-def test_build_script_includes_faster_whisper_and_ctranslate2_packages():
-    """Nuitka must freeze both packages into the standalone binary."""
+def test_build_script_excludes_faster_whisper_and_ctranslate2_packages():
+    """C7: Nuitka must exclude both ASR packages from the slim sidecar."""
     text = _read_build_script()
-    assert "--include-package=faster_whisper" in text, "Nuitka must include the faster_whisper Python package"
-    assert "--include-package=ctranslate2" in text, "Nuitka must include the ctranslate2 Python package (CT2 backend)"
+    assert "--nofollow-import-to=faster_whisper" in text, "Nuitka must exclude faster_whisper"
+    assert "--nofollow-import-to=ctranslate2" in text, "Nuitka must exclude ctranslate2"
+    assert "--include-package=faster_whisper" not in text, "slim sidecar must not bundle faster_whisper"
+    assert "--include-package=ctranslate2" not in text, "slim sidecar must not bundle ctranslate2"
 
 
-def test_build_script_includes_ct2_native_libs_singular_layout():
-    """Nuitka must bundle the entire ``ctranslate2/lib`` directory"""
+def test_build_script_has_no_ct2_native_lib_plumbing():
+    """C7: no ctranslate2 data-dir copies remain (worker owns them)."""
     text = _read_build_script()
-    # The data-dir include maps <SITE>/ctranslate2/lib → <SITE>/ctranslate2/lib
-    assert "ctranslate2/lib" in text and "--include-data-dir" in text, (
-        "build script must include --include-data-dir for ctranslate2/lib "
-        "(the directory holding libctranslate2.so + libiomp5.so/libgomp.so)"
-    )
-    # The data-dir include is arch-agnostic, verbatim from the SITE path.
-    assert '--include-data-dir="$SITE/ctranslate2/lib=$SITE/ctranslate2/lib"' in text, (
-        "build script must include the verbatim --include-data-dir line for $SITE/ctranslate2/lib (singular layout)"
-    )
-
-
-def test_build_script_includes_ct2_libs_plural_layout_guarded():
-    """The build script must also handle the plural ``ctranslate2/libs``"""
-    text = _read_build_script()
-    # The plural path is referenced + guarded.
-    assert "ctranslate2/libs" in text, (
-        "build script must reference the plural ctranslate2/libs path "
-        "(some wheel variants ship .so files there instead of ctranslate2/lib)"
-    )
-    # The guard variable.
-    assert 'CT2_LIBS_DIR="$SITE/ctranslate2/libs"' in text, (
-        "build script must resolve CT2_LIBS_DIR from $SITE/ctranslate2/libs"
-    )
-    # The guard itself, a conditional that only appends the plural data-dir
-    assert '[[ -d "$CT2_LIBS_DIR" ]]' in text, (
-        "build script must guard the plural ctranslate2/libs include with "
-        "a directory-existence check so singular-only installs (CPU-only "
-        "aarch64 wheel) don't break the build"
-    )
+    assert "CT2_DATA_DIR_SRC" not in text
+    assert "CT2_DLL" not in text
+    assert "CT2_LIBS_DIR" not in text
+    assert "CT2_LIB_DIR" not in text
+    assert "CT2_DIR" not in text
+    assert "ctranslate2/lib" not in text
+    assert "ctranslate2/libs" not in text
 
 
 @pytest.mark.real_config_dir  # asserts the REAL resolver (XDG branch); resolves paths only, never writes
@@ -343,31 +320,10 @@ def test_build_script_supports_both_arches_with_python_build_standalone():
     )
 
 
-def test_build_script_bundles_openmp_runtime_libs():
-    """The Linux Nuitka bundle MUST include the OpenMP runtime .so files"""
+def test_build_script_has_no_openmp_runtime_plumbing():
+    """C7: the OpenMP runtimes ship via the worker's CT2 data-dirs, not the sidecar."""
     text = _read_build_script()
-
-    # 1. The header comment documents the OpenMP runtime .so files.
-    assert "libiomp5.so" in text and "libgomp.so" in text, (
-        "build script header must document that the ctranslate2/{lib,libs} "
-        "include ships libiomp5.so (Intel OpenMP, x86_64) + libgomp.so "
-        "(GNU OpenMP, aarch64), these are the OpenMP runtime .so files "
-        "CT2's CPU inference path requires"
-    )
-
-    assert '--include-data-dir="$SITE/ctranslate2/lib=$SITE/ctranslate2/lib"' in text, (
-        "build script must include --include-data-dir for $SITE/ctranslate2/lib "
-        "(transitively ships libiomp5.so / libgomp.so alongside "
-        "libctranslate2.so)"
-    )
-
-    assert 'CT2_LIBS_DIR="$SITE/ctranslate2/libs"' in text, (
-        "build script must reference CT2_LIBS_DIR (the plural layout), "
-        "some wheel variants ship the OpenMP runtime under "
-        "ctranslate2/libs instead of ctranslate2/lib"
-    )
-    assert '[[ -d "$CT2_LIBS_DIR" ]]' in text, (
-        "build script must guard the plural ctranslate2/libs include so "
-        "the build doesn't fail on wheel installs that ship only the "
-        "singular ctranslate2/lib layout"
-    )
+    assert "libiomp5.so" not in text
+    assert "libgomp.so" not in text
+    assert '--include-data-dir="$SITE/ctranslate2/lib=$SITE/ctranslate2/lib"' not in text
+    assert "CT2_LIBS_DIR" not in text

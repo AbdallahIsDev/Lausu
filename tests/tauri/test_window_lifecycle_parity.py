@@ -46,6 +46,8 @@ def _expand_permissions(manifest: dict, granted: set[str]) -> set[str]:
 
 
 def _capability_permissions(identifier: str) -> set[str]:
+    if not ACL_MANIFESTS.is_file():
+        pytest.skip("Tauri-generated acl-manifests.json absent (run a Tauri build to generate src-tauri/gen)")
     manifest = json.loads(ACL_MANIFESTS.read_text(encoding="utf-8"))
     for path in sorted(CAPABILITIES_DIR.glob("*.json")):
         capability = json.loads(path.read_text(encoding="utf-8"))

@@ -153,6 +153,28 @@ def _probe_gpu_memory_via_nvidia_smi() -> tuple[float | None, float | None]:
         return (None, None)
 
 
+def _drive_key_for_log_dedup(path: pathlib.Path) -> str:
+    """Collapse multiple dirs on one drive to a single dedup key.
+
+    Resolved paths differ per dir, so key by drive identity instead:
+    Windows drive anchor (``C:\\``) or POSIX ``st_dev``. A path that
+    does not exist yet (e.g. an uncreated hub subdir) stats its nearest
+    existing ancestor, which is on the same drive.
+    """
+    try:
+        anchor = str(getattr(path, "anchor", "") or "").upper()
+        if anchor and os.name == "nt":
+            return anchor
+        with contextlib.suppress(Exception):
+            probe = path
+            while not probe.exists() and probe.parent != probe:
+                probe = probe.parent
+            return f"dev:{os.stat(probe).st_dev}"
+        return anchor or str(path.drive).upper() if hasattr(path, "drive") else anchor
+    except Exception:
+        return str(path)
+
+
 def check_resources(*, logger: logging.Logger | None = None) -> None:
     """Pre-flight RAM / disk / GPU resource probe.
 
@@ -261,25 +283,6 @@ def check_resources(*, logger: logging.Logger | None = None) -> None:
 
     seen_drives: set[str] = set()
 
-    def _drive_key(path: pathlib.Path) -> str:
-        """Collapse multiple dirs on one drive to a single key.
-
-        ``config_dir``, ``home``, and ``HF_HOME`` usually live on the
-        same drive (observed 3x identical 9.3 GB lines). Resolved paths
-        differ per dir, so key by drive identity instead: Windows drive
-        anchor (``C:\\``) or POSIX ``st_dev``, falling back to anchor.
-        """
-        try:
-            anchor = str(getattr(path, "anchor", "") or "").upper()
-            # Windows anchor is the drive (``C:\\``); POSIX anchor
-            if anchor and os.name == "nt":
-                return anchor
-            with contextlib.suppress(Exception):
-                return f"dev:{os.stat(path).st_dev}"
-            return anchor or str(path.drive).upper() if hasattr(path, "drive") else anchor
-        except Exception:
-            return str(path)
-
     for path in drives_to_check:
         try:
             drive_info = os.statvfs(path) if hasattr(os, "statvfs") else None
@@ -294,7 +297,7 @@ def check_resources(*, logger: logging.Logger | None = None) -> None:
             )
             continue
         # One line per physical drive: config/home/cache on the same
-        drive_key = _drive_key(pathlib.Path(path))
+        drive_key = _drive_key_for_log_dedup(pathlib.Path(path))
         if drive_key in seen_drives:
             continue
         seen_drives.add(drive_key)

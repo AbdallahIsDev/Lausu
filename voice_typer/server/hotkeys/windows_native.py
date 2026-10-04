@@ -216,7 +216,7 @@ class WindowsNativeHotkey(HotkeyBackend):
                             "failed but WH_KEYBOARD_LL hook is keeping the hotkey "
                             "(vk=0x%X) functional. ``_NativeBackendAdapter`` should "
                             "surface a tray safety notification.",
-                            self._vk,
+                            self._vk if self._vk is not None else -1,
                         )
                     self._run_message_loop(callback, low_level_hook=True)
                 elif self._registered and not is_caps_lock_hotkey:

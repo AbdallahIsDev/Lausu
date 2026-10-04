@@ -172,6 +172,6 @@ def test_install_blob_places_nested_snapshot_file(tmp_path):
         assembled_path=assembled,
     )
 
-    assert placed == (cache / "snapshots" / "abc123" / "model" / "weights.bin").resolve()
+    assert placed == (cache / "snapshots" / "abc123" / "model").resolve() / "weights.bin"
     assert placed.exists()
     assert placed.read_bytes() == b"payload"

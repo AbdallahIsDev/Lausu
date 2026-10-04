@@ -2,6 +2,7 @@
 
 import ctypes
 import ctypes.wintypes
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -430,12 +431,19 @@ class TestModifierOnlyHotkeys:
         mock_win32,
     ):
         """FIX-HOTKEY-AND-NOTIFICATION (a): if a non-modifier key (like"""
-        mock_user32, _ = mock_win32
+        mock_user32, mock_kernel32 = mock_win32
+        # Real cadence: a no-op Sleep busy-spins the loop, starving it
+        # under xdist load so it can miss a short combo window entirely.
+        mock_kernel32.Sleep.side_effect = lambda ms: time.sleep(ms / 1000.0)
+        # Force the polling path (a working hook would take the
+        # message-loop path and never exercise this loop).
+        mock_user32.SetWindowsHookExW.return_value = 0
         from voice_typer.server.hotkeys import WindowsNativeHotkey
 
         backend = WindowsNativeHotkey("<alt>")
         # State: 0 = nothing, 1 = Alt held, 2 = Alt+C held,
         state = {"value": 0}
+        combo_sampled: list[float] = []
 
         def fake_get_async_key_state(vk):
             if state["value"] == 0:
@@ -444,6 +452,8 @@ class TestModifierOnlyHotkeys:
                 return 0x8000 if vk == 0x12 else 0  # Alt only
             if state["value"] == 2:
                 # Alt + C (VK_C = 0x43)
+                if vk == 0x43:
+                    combo_sampled.append(time.monotonic())
                 return 0x8000 if vk in (0x12, 0x43) else 0
             return 0
 
@@ -456,7 +466,9 @@ class TestModifierOnlyHotkeys:
             state["value"] = 1
             assert not wait_for(lambda: callback.call_count > 0, timeout=0.08)
             state["value"] = 2
-            assert not wait_for(lambda: callback.call_count > 0, timeout=0.08)
+            # Advance only after the loop provably sampled C while held:
+            # the release then must suppress, by construction, not by luck.
+            _wait_until(lambda: len(combo_sampled) > 0, msg="loop never sampled the Alt+C combo")
             state["value"] = 3
             assert not wait_for(lambda: callback.call_count > 0, timeout=0.12), (
                 f"Callback fired {callback.call_count} times after Alt+C "

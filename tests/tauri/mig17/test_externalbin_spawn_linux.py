@@ -485,9 +485,13 @@ def test_supervisor_respawn_serializes_with_atomic_flag(supervisor_rs_source) ->
 def test_sidecar_ws_binds_loopback_ephemeral_port(sidecar_ws_source) -> None:
     """ADR-0020 §1: sidecar binds 127.0.0.1:0. OS assigns the port."""
     assert re.search(
-        r'_LOOPBACK_HOST\s*=\s*"127\.0\.0\.1"',
+        r"from voice_typer\.server\._paths import .*LOOPBACK_HOST as _LOOPBACK_HOST"
+        r'|_LOOPBACK_HOST\s*=\s*"127\.0\.0\.1"',
         sidecar_ws_source,
-    ), "sidecar_ws.py must define _LOOPBACK_HOST = '127.0.0.1' (hard loopback, no 0.0.0.0/:: bind, ADR-0020 §1)"
+    ), "sidecar_ws.py must bind via _LOOPBACK_HOST = '127.0.0.1' (hard loopback, no 0.0.0.0/:: bind, ADR-0020 §1)"
+    from voice_typer.server._paths import LOOPBACK_HOST
+
+    assert LOOPBACK_HOST == "127.0.0.1", "_paths.LOOPBACK_HOST must stay 127.0.0.1 (ADR-0020 §1)"
     assert re.search(
         r"serve\s*\(\s*_handler\s*,\s*_LOOPBACK_HOST\s*,\s*0\s*",
         sidecar_ws_source,

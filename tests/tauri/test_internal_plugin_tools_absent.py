@@ -58,7 +58,10 @@ class TestInternalPluginToolsAbsentFromPackaging:
         assert hits == [], f"bundle must not reference plugin tools: {hits}"
 
     def test_gitignore_covers_plugin_artifacts(self) -> None:
-        gi = (_PLUGINS_DIR / ".gitignore").read_text(encoding="utf-8")
+        gi_path = _PLUGINS_DIR / ".gitignore"
+        if not gi_path.is_file():
+            pytest.skip("plugin workspace absent from this checkout (gitignored nested repo)")
+        gi = gi_path.read_text(encoding="utf-8")
         for entry in ("PLUGINS_ENABLED", "config.json", "debug/", "last_error.json"):
             assert entry in gi, f"{entry} must stay gitignored"
 
@@ -149,5 +152,7 @@ class TestInternalPluginToolsNotInMainRepo:
 
 @pytest.mark.parametrize("js_file", ["run.js", "playwright_runner.js"])
 def test_plugin_js_files_stay_inside_the_plugin_workspace(js_file: str) -> None:
+    if not _PLUGINS_DIR.is_dir():
+        pytest.skip("plugin workspace absent from this checkout (gitignored nested repo)")
     target = _PLUGINS_DIR / "google_stt" / js_file
     assert target.exists(), f"{js_file} must live under tools/internal_plugins/google_stt"

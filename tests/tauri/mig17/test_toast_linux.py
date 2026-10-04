@@ -1,4 +1,13 @@
-"""toast notification wiring validation (Linux)."""
+"""toast notification wiring validation (Linux).
+
+VALIDATE ON LINUX HOST:
+  1. Install the notify backend: sudo apt install libnotify4
+     (or install the .deb, which pulls it via Depends: dpkg -i lausu*.deb).
+  2. Confirm a notification daemon is reachable over D-Bus: on
+     GNOME Shell or KDE Plasma the banner must appear within 1s.
+     No daemon on D-Bus means the notify() call silently sends nothing.
+  3. Confirm the event in ~/.local/share/lausu/logs/lausu.log.
+"""
 
 from __future__ import annotations
 
