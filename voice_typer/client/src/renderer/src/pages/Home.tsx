@@ -606,7 +606,7 @@ export default function Home() {
 
 			{stats && (
 				<div className="flex w-full flex-col gap-3">
-					<div className="flex items-center justify-between">
+					<div className="flex items-end justify-between">
 						<span className="text-xs font-medium text-muted-foreground capitalize tracking-wide">
 							{t("home.todayStats")}
 						</span>

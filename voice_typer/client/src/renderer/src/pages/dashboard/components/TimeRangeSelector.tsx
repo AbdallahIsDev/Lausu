@@ -30,7 +30,6 @@ export function TimeRangeSelector({ value, onChange }: TimeRangeSelectorProps) {
 			// Fully rounded (pill), container AND active segment use
 			// full radius so the control reads as one soft capsule
 			// (ToggleGroup `radius` prop default).
-			radius="pill"
 		/>
 	);
 }

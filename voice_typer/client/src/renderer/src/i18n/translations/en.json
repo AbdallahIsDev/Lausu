@@ -2076,7 +2076,8 @@
 			"cancelling": "Cancelling...",
 			"cancelled": "Cancelled",
 			"recovered": "Recovered | transcription timed out",
-			"stillTranscribing": "Still transcribing..."
+			"stillTranscribing": "Still transcribing...",
+			"awaitingModel": "Finishing model load | your recording is saved and will transcribe shortly"
 		},
 		"modelManager": {
 			"loading": "Loading model | press your hotkey to queue...",

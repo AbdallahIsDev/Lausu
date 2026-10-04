@@ -2076,7 +2076,8 @@
 			"cancelling": "Cancelando...",
 			"cancelled": "Cancelado",
 			"recovered": "Recuperado | la transcripción agotó el tiempo de espera",
-			"stillTranscribing": "Todavía transcribiendo..."
+			"stillTranscribing": "Todavía transcribiendo...",
+			"awaitingModel": "Finalizando la carga del modelo | tu grabación está guardada y se transcribirá en breve"
 		},
 		"modelManager": {
 			"loading": "Cargando el modelo | pulse su atajo de teclado para ponerlo en cola...",

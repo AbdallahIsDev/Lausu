@@ -2076,7 +2076,8 @@
 			"cancelling": "取消中...",
 			"cancelled": "已取消",
 			"recovered": "已恢复 | 转录超时",
-			"stillTranscribing": "仍在转录..."
+			"stillTranscribing": "仍在转录...",
+			"awaitingModel": "正在完成模型加载 | 您的录音已保存，稍后会自动转写"
 		},
 		"modelManager": {
 			"loading": "正在加载模型 | 按你的快捷键排队...",
