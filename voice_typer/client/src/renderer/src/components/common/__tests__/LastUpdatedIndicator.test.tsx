@@ -37,8 +37,8 @@ describe("LastUpdatedIndicator refresh visual", () => {
 		expect(button.hasAttribute("disabled")).toBe(false);
 
 		const icon = screen.getByTestId("hugeicon");
-		expect(icon.className).toContain("h-3.5");
-		expect(icon.className).toContain("w-3.5");
+		expect(icon.className).toContain("h-4");
+		expect(icon.className).toContain("w-4");
 		expect(icon.className).not.toContain("animate-spin");
 	});
 
@@ -57,11 +57,11 @@ describe("LastUpdatedIndicator refresh visual", () => {
 		expect(button).toBeTruthy();
 		expect(button.hasAttribute("disabled")).toBe(true);
 
-		// The icon keeps its box (h-3.5/w-3.5) and only gains rotation —
+		// The icon keeps its box (h-4/w-4) and only gains rotation —
 		// no Spinner (role="img") is mounted in its place.
 		const icon = screen.getByTestId("hugeicon");
-		expect(icon.className).toContain("h-3.5");
-		expect(icon.className).toContain("w-3.5");
+		expect(icon.className).toContain("h-4");
+		expect(icon.className).toContain("w-4");
 		expect(icon.className).toContain("animate-spin");
 		expect(screen.queryByRole("img")).toBeNull();
 	});
