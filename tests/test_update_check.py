@@ -152,30 +152,30 @@ class TestFetchRemoteManifest:
         result = fetch_remote_manifest(fake_manifest_url, http_get=fake_http_get)
         assert result is None
 
-    def test_http_404_is_info_not_warning(self, fake_manifest_url: str, caplog):
-        """A 404 (no pack release published yet) is the expected"""
+    def test_http_404_is_debug_not_warning(self, fake_manifest_url: str, caplog):
+        """A 404 (no pack release published yet) is the expected steady"""
 
         def fake_http_get(url, *, max_bytes=MAX_MANIFEST_BYTES):
             raise RuntimeError(f"unexpected HTTP status 404 for {url}")
 
-        with caplog.at_level("INFO", logger="voice_typer.server.service.update_check"):
+        with caplog.at_level("DEBUG", logger="voice_typer.server.service.update_check"):
             assert fetch_remote_manifest(fake_manifest_url, http_get=fake_http_get) is None
         assert not any(r.levelname == "WARNING" and "[UPDATE]" in r.message for r in caplog.records), (
             f"404 must not warn; got: {[(r.levelname, r.message) for r in caplog.records]!r}"
         )
-        assert any("[UPDATE]" in r.message and r.levelname == "INFO" for r in caplog.records), (
-            f"expected INFO-level UPDATE record; got: {[(r.levelname, r.message) for r in caplog.records]!r}"
+        assert any("[UPDATE]" in r.message and r.levelname == "DEBUG" for r in caplog.records), (
+            f"expected DEBUG-level UPDATE record; got: {[(r.levelname, r.message) for r in caplog.records]!r}"
         )
         assert "Traceback" not in caplog.text
 
-    def test_http_error_404_object_is_info(self, fake_manifest_url: str, caplog):
-        """The real ``urllib.error.HTTPError`` (``.code == 404``) also maps to INFO."""
+    def test_http_error_404_object_is_debug(self, fake_manifest_url: str, caplog):
+        """The real ``urllib.error.HTTPError`` (``.code == 404``) also maps to DEBUG."""
         import urllib.error
 
         def fake_http_get(url, *, max_bytes=MAX_MANIFEST_BYTES):
             raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)  # type: ignore[arg-type]
 
-        with caplog.at_level("INFO", logger="voice_typer.server.service.update_check"):
+        with caplog.at_level("DEBUG", logger="voice_typer.server.service.update_check"):
             assert fetch_remote_manifest(fake_manifest_url, http_get=fake_http_get) is None
         assert not any(r.levelname == "WARNING" and "[UPDATE]" in r.message for r in caplog.records)
 

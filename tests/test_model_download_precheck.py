@@ -159,7 +159,7 @@ class TestComputeTooltipModelSuffix:
             config=Config(asr_backend="whisper", model_size="tiny"),
         )
         tooltip = tray._compute_tooltip(AppState.IDLE, "")
-        assert "[Whisper Tiny]" in tooltip, f"A downloaded model SHOULD be named in the tooltip. Got: {tooltip!r}"
+        assert "Whisper Tiny" in tooltip, f"A downloaded model SHOULD be named in the tooltip. Got: {tooltip!r}"
 
 
 def _make_mm(config: Config) -> tuple[ModelManager, MagicMock]:

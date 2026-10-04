@@ -72,9 +72,11 @@ def _idle_tooltip_label(tray: TrayIcon) -> str:
 
 
 def compute_tooltip(tray: TrayIcon, state: AppState, message: str) -> str:
-    """Compute the tray tooltip: ``<APP_NAME> | <msg|state> [(CPU fallback)]
-    [(mm:ss)] [<model>] (<hotkey>)``. Shared by _apply_state +
-    _publish_tray_state so pystray + Tauri stay in sync."""
+    """Compute the tray tooltip: ``<APP_NAME> | <msg|state> [- CPU fallback]
+    [- mm:ss] [| <model>] [| <hotkey>]``. Segments split on `` | `` only;
+    in-segment qualifiers use `` - `` so there are no nested parentheses
+    (e.g. ``Lausu | Ready | GPU | Whisper Large V3 | Caps Lock``). Shared
+    by _apply_state + _publish_tray_state so pystray + Tauri stay in sync."""
     title = APP_NAME
     if message:
         title += f" | {message}"
@@ -84,20 +86,20 @@ def compute_tooltip(tray: TrayIcon, state: AppState, message: str) -> str:
         # Localized AppState label (``state.recording`` etc.) so the
         title += f" | {_i18n_t('state.' + state.value)}"
     if tray._cpu_fallback_active:
-        title += " (CPU fallback)"
+        title += " - CPU fallback"
     if state == AppState.RECORDING and tray._recording_started_at is not None:
         elapsed = time.monotonic() - tray._recording_started_at
-        title += f" ({tray._format_elapsed(elapsed)})"
+        title += f" - {tray._format_elapsed(elapsed)}"
     # Model name suffix, only when the configured model is ACTUALLY
     if tray._config:  # model name
         from voice_typer.server.tray_models import is_active_model_downloaded, tooltip_model_label
 
         label = tooltip_model_label(tray._config)
         if label and is_active_model_downloaded(tray._config):
-            title += f" [{label}]"
+            title += f" | {label}"
     hotkey = tray._display_hotkey()  # hotkey
     if hotkey:
-        title += f" ({hotkey})"
+        title += f" | {hotkey}"
     # Win32 ``NOTIFYICONDATAW.szTip`` has a 128-char limit (127 +
     if len(title) > 127:
         title = title[:126] + "…"

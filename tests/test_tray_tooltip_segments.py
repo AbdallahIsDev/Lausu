@@ -1,9 +1,10 @@
 """Tray tooltip segments: state word, friendly model name, hotkey.
 
-``Lausu | <state> [<model>] (<hotkey>)`` — the state word must track the
-real state (never a hardcoded "Ready"), the model segment must name the
-ASR model (``Whisper Large V3``), never the engine (``Whisper ASR``) or
-the raw id (``large-v3``), and the hotkey must render (``Caps Lock``).
+``Lausu | <state> | <model> | <hotkey>`` — segments split on `` | ``
+only (no nested parentheses); the state word must track the real state
+(never a hardcoded "Ready"), the model segment must name the ASR model
+(``Whisper Large V3``), never the engine (``Whisper ASR``) or the raw id
+(``large-v3``), and the hotkey must render (``Caps Lock``).
 """
 
 from __future__ import annotations
@@ -51,10 +52,11 @@ class TestTooltipSegments:
         tray = _tray(_cfg(), True, monkeypatch)
         tooltip = tray._compute_tooltip(AppState.IDLE, "")
         assert tooltip.startswith("Lausu | Ready")
-        assert "[Whisper Large V3]" in tooltip
+        assert "Whisper Large V3" in tooltip
         assert "[large-v3]" not in tooltip
         assert "Whisper ASR" not in tooltip
-        assert tooltip.endswith("(Caps Lock)")
+        assert tooltip.endswith("Caps Lock")
+        assert "(" not in tooltip and ")" not in tooltip
 
     def test_bare_idle_without_model_is_not_ready(self, monkeypatch):
         tray = _tray(_cfg(model_size=""), False, monkeypatch)
@@ -73,4 +75,15 @@ class TestTooltipSegments:
         tray = _tray(_cfg(), True, monkeypatch)
         tooltip = tray._compute_tooltip(AppState.RECORDING, "Recording...")
         assert "| Recording..." in tooltip
-        assert "[Whisper Large V3]" in tooltip
+        assert "Whisper Large V3" in tooltip
+
+    def test_ready_gpu_tooltip_has_no_nesting(self, monkeypatch):
+        from voice_typer.server.tray_models import describe_device
+
+        assert describe_device("cuda") == "GPU"
+        assert describe_device("cpu") == "CPU"
+        assert describe_device("cuda:0") == "GPU"
+        tray = _tray(_cfg(), True, monkeypatch)
+        tooltip = tray._compute_tooltip(AppState.IDLE, "Ready | GPU")
+        assert tooltip == "Lausu | Ready | GPU | Whisper Large V3 | Caps Lock"
+        assert "cuda" not in tooltip

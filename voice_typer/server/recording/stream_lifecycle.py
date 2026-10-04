@@ -242,8 +242,12 @@ class StreamLifecycle:
         """
         selected_device: Any = None
         used_fallback = False
-        log.warning(
-            "[RECORDING] All devices matching configured mic failed. Trying all available input devices as fallback."
+        # INFO, not WARNING: falling back to another host API for the
+        # same physical mic is routine (e.g. transient WDM-KS exclusive
+        # holds) and usually succeeds; the per-device open errors above
+        # already carry the real failure at WARNING.
+        log.info(
+            "[RECORDING] Configured mic failed on its host API. Trying all available input devices as fallback."
         )
         all_candidates = recorder._devices._all_input_device_candidates()
         # Remove already-tried devices

@@ -210,7 +210,9 @@ def fetch_remote_manifest(
     except (OSError, RuntimeError) as exc:
         # Strip the scheme so the line stays short; host + path are the
         if _is_missing_manifest_404(exc):
-            log.info(
+            # DEBUG: an unpublished manifest is the steady state (no
+            # release cut yet), not news worth an INFO line per URL.
+            log.debug(
                 "[UPDATE] remote pack manifest not published yet (%s): %s",
                 exc,
                 url.split("://", 1)[-1],
