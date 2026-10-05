@@ -1,5 +1,5 @@
 // Plugins page entry point (lazy route chunk target): the installed
-// plugins, one square card per plugin in a 3-per-row grid. Data +
+// plugins, one compact card per plugin in a 2-per-row grid. Data +
 // activation live in `./hooks/usePlugins`; this file is the view
 // (heading, grid, loading / empty / error states).
 
@@ -68,7 +68,7 @@ export default function PluginsPage() {
 					onAction={() => void loadPlugins()}
 				/>
 			) : (
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+				<div className="grid grid-cols-2 gap-4">
 					{plugins.map((plugin) => (
 						<PluginCard key={plugin.id} plugin={plugin} onOpen={openPlugin} />
 					))}
