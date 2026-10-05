@@ -323,7 +323,7 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 		// spinner. Mirrors the History/Models load-failure pattern.
 		if (loadError) {
 			return (
-				<div className="flex h-full items-center justify-center">
+				<div className="mx-auto flex min-h-full w-full max-w-lg flex-col items-center justify-center px-6 py-12">
 					<EmptyState
 						variant="error"
 						icon={AlertCircleIcon}

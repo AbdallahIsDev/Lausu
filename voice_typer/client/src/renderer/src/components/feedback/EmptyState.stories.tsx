@@ -62,18 +62,17 @@ export const CustomActionIcon: Story = {
 	name: "Custom action icon",
 };
 
-//ErrorVariant story. The `variant="error"` prop switches the
-// icon to Alert02Icon, tints the icon + ring with `--destructive`,
-// and sets `role="alert"` on the wrapper so screen readers announce
-// the load failure immediately (vs. the polite `role="status"` used
+// ErrorVariant story. The `variant="error"` prop swaps the muted icon for
+// Alert02Icon on a `bg-destructive/10` disc, keeps the neutral card surface
+// (`border-border/8 bg-surface`), promotes the title to `text-lg font-semibold`,
+// gives the CTA the reload glyph, and sets `role="alert"` so screen readers
+// announce the load failure immediately (vs. the polite `role="status"` used
 // for genuine "no data yet" placeholders). Without this story the
 // error variant was invisible in the Storybook docs, designers and
 // QA had no canonical reference for what a load-failed empty state
 // should look like, which led to drift across pages.
-// The variant is consumed by ConnectionStatusScreen, History,
-// full list). This story serves as the visual contract: any page
-// that renders `<EmptyState variant="error" />` should match this
-// appearance.
+// This story serves as the visual contract: any page that renders
+// `<EmptyState variant="error" />` should match this appearance.
 export const ErrorVariant: Story = {
 	args: {
 		icon: Alert02Icon,

@@ -311,6 +311,14 @@ top would double the inset to 32px).
 Panels that must stay opaque (floating bulk bar, sticky list header, popover) do
 **not** use the card token — they use `bg-surface` / `bg-surface/95`.
 
+**Load-failure card** (`EmptyState variant="error"`, and the canonical
+`ConnectionStatusScreen` recovery card) — `rounded-lg border border-border/8
+bg-surface px-24 py-40`, children centered with a 16px gap. Icon: 40px glyph on
+a 64px `bg-destructive/10` disc (`text-destructive`). Title 18px/600
+`text-foreground`; description 14px `text-muted-foreground`, capped at 512px;
+CTA is the accent-blue Button with the 16px reload glyph. The destructive
+accent is the disc only — never a card-wide red fill.
+
 **Dialog / AlertDialog** — radius 10px, **padding 16px** (`p-4`), 1px ring at 8%
 (`ring-border/8`):
 

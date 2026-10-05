@@ -58,8 +58,11 @@ describe("Templates page, load-error variant", () => {
 		// the assertion that fails if variant="error" is removed.
 		const alertRegion = screen.getByRole("alert");
 		expect(alertRegion).toBeTruthy();
-		// The destructive ring + soft wash should be applied.
-		expect(alertRegion.className).toContain("destructive");
+		// The destructive accent (the tinted icon disc) keeps the failure
+		// visually distinct from a genuinely empty list.
+		expect(
+			alertRegion.querySelector('[data-slot="empty-state-error-icon"]'),
+		).toBeTruthy();
 	});
 
 	it("renders the load-error EmptyState with the localised description", async () => {

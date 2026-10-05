@@ -177,4 +177,50 @@ describe("EmptyState, BG-R13 (title as <h3> + icon prop wiring)", () => {
 		expect(errorIcon?.className).toContain("text-destructive");
 		expect(errorIcon?.className).not.toMatch(/opacity-\d/);
 	});
+
+	it("error-variant action button uses the reload glyph, not the warning triangle", () => {
+		// Regression guard: the error CTA used to inherit the title row's
+		// Alert02Icon, so a "Retry" button rendered a warning triangle.
+		// Retry carries the app's reload glyph (RefreshIcon), matching
+		// ConnectionStatusScreen's Retry.
+		render(
+			<EmptyState
+				icon={Mic02Icon}
+				title="Failed to load"
+				actionLabel="Retry"
+				onAction={vi.fn()}
+				variant="error"
+			/>,
+		);
+		const alert = screen.getByRole("alert");
+		const button = screen.getByRole("button", { name: /Retry/ });
+		expect(
+			button
+				.querySelector("[data-testid='hugeicon']")
+				?.getAttribute("data-name"),
+		).toBe("RefreshIcon");
+		// The title row keeps its own Alert02Icon — the glyphs stay distinct.
+		expect(
+			alert
+				.querySelector("[data-testid='hugeicon']")
+				?.getAttribute("data-name"),
+		).toBe("Alert02Icon");
+	});
+
+	it("info-variant action button keeps the default Add01Icon", () => {
+		render(
+			<EmptyState
+				icon={Mic02Icon}
+				title="No templates yet"
+				actionLabel="Add template"
+				onAction={vi.fn()}
+			/>,
+		);
+		const button = screen.getByRole("button", { name: /Add template/ });
+		expect(
+			button
+				.querySelector("[data-testid='hugeicon']")
+				?.getAttribute("data-name"),
+		).toBe("Add01Icon");
+	});
 });
