@@ -495,7 +495,7 @@ describe("BG-53: Clear All under active filter is unambiguous", () => {
 // The History page distinguishes "backend failed to load" from "history is
 // genuinely empty": when loadError is set AND records is empty, it renders an
 // EmptyState with variant="error" so the failure is visually distinct from a
-// genuine empty list (destructive ring + Alert02Icon + role="alert"). This
+// genuine empty list (destructive icon disc + Alert02Icon + role="alert"). This
 // matches the Vocabulary/Templates/Microphone load-failure pattern. Removing
 // variant="error" would make a backend failure look identical to "no
 // transcriptions yet", sending the user down the wrong recovery path.
@@ -518,7 +518,11 @@ describe("History load-error EmptyState uses the error variant", () => {
 		// the assertion that fails if variant="error" is removed.
 		const alertRegion = screen.getByRole("alert");
 		expect(alertRegion).toBeTruthy();
-		// The destructive ring + soft wash should be applied.
-		expect(alertRegion.className).toContain("destructive");
+		// The destructive accent (the tinted icon disc) keeps the failure
+		// visually distinct from a genuinely empty list. Asserted
+		// behaviorally, not via a class-name pin.
+		expect(
+			alertRegion.querySelector('[data-slot="empty-state-error-icon"]'),
+		).toBeTruthy();
 	});
 });

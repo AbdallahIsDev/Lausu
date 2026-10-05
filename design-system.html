@@ -196,7 +196,7 @@ body.compare #compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-
 .btn:active:not(:disabled){transform:translateY(1px)}
 .btn:disabled{cursor:not-allowed;pointer-events:none;opacity:.5}
 .btn:focus-visible{outline:none;border-color:var(--ring);box-shadow:0 0 0 1px var(--ring)}
-.btn-default{background:var(--primary);color:var(--primary-foreground)}
+.btn-default{background:var(--primary);color:var(--primary-foreground);border-color:transparent}
 .btn-default:hover{background:color-mix(in oklch,var(--primary) 80%,transparent)}
 .btn-secondary{background:var(--muted);color:var(--foreground)}
 .btn-secondary:hover{background:color-mix(in oklch,var(--muted),var(--foreground) 5%)}
@@ -309,6 +309,16 @@ kbd.in-tooltip{background:color-mix(in oklch,var(--foreground) 10%,transparent);
  display:flex;flex-direction:column;gap:8px}
 .card h4{margin:0;font-size:.875rem;font-weight:600;color:var(--foreground)}
 .card p{font-size:.8125rem;color:var(--text-secondary)}
+/* Load-failure card (EmptyState variant="error"). Neutral card surface; the
+ destructive accent lives ONLY on the icon disc — never a full-card red wash. */
+.card-error{display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
+ background:var(--surface);border-radius:var(--radius-lg);padding:40px 24px}
+.card-error .ce-icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;
+ width:64px;height:64px;border-radius:9999px;background:color-mix(in oklch,var(--destructive) 10%,transparent);
+ color:var(--destructive);font-size:1.75rem;line-height:1}
+.card-error h4{margin:0;font-size:1.125rem;font-weight:600;color:var(--foreground)}
+.card-error p{margin:0;font-size:.875rem;color:var(--text-secondary);max-width:32rem}
 .banner{display:flex;align-items:center;gap:12px;
  border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
  background:var(--surface-subtle);border-radius:var(--radius-lg);padding:12px 14px}
@@ -638,7 +648,9 @@ function renderSegmented(){
 }
 function renderCards(){
  return sec(`<h2>Cards, banners & skeletons</h2><p>Card = <code>rounded-lg border border-border/8 bg-surface-subtle</code>.
-  The "no model" state is a compact in-flow banner, not a centered empty block (C-MODELS-5). Skeletons mirror real layout (C-SKELETON-1).</p>`,
+  The "no model" state is a compact in-flow banner, not a centered empty block (C-MODELS-5). Skeletons mirror real layout (C-SKELETON-1).
+  A load failure uses the same neutral card surface (<code>border-border/8 bg-surface</code>) with the destructive accent confined to a
+  <code>bg-destructive/10</code> icon disc and a reload-glyph Retry — never a full-card red wash.</p>`,
  `<div class="stack">
   <div class="banner" role="status" data-banner>
    <span class="b-icon" aria-hidden="true">◈</span>
@@ -652,6 +664,12 @@ function renderCards(){
     <span class="skeleton" style="height:14px;width:70%"></span>
     <span class="skeleton" style="height:14px;width:45%"></span>
     <span class="skeleton" style="height:32px;width:96px"></span></div>
+  </div>
+  <div class="card-error" role="alert">
+   <span class="ce-icon" aria-hidden="true">⚠</span>
+   <h4>Couldn't load settings</h4>
+   <p>We couldn't load your settings from the backend. Check the logs and try again.</p>
+   <button type="button" class="btn btn-default">⟳ Retry</button>
   </div>
  </div>`);
 }
