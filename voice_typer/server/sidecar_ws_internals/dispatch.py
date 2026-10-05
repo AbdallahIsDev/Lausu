@@ -37,6 +37,12 @@ def _make_dispatch(server: IPCServer):
     # worker is queued behind a stuck mutating handler holding
     # ``_dispatch_lock`` — otherwise one wedged save starves status polls
     # and the host sees the all-commands-timeout outage class.
+    # Four workers, not two: the renderer's connect burst (get_config +
+    # get_status + mic/locale/history polls) lands while the backend is
+    # mid-startup-storm, and any two slow first-call probes (keyring,
+    # GPU, mic enumeration) must never starve the handshake. Readonly
+    # handlers are lock-free by contract (see the audit test), so extra
+    # workers add no contention.
     from voice_typer.server.ipc.registry import (
         _INSTANT_CONTROL_COMMANDS,
         _READONLY_COMMANDS,
@@ -47,7 +53,7 @@ def _make_dispatch(server: IPCServer):
         from concurrent.futures import ThreadPoolExecutor
 
         ws_readonly_pool = ThreadPoolExecutor(
-            max_workers=2,
+            max_workers=4,
             thread_name_prefix="sidecar-ws-readonly",
         )
         server._ws_readonly_pool = ws_readonly_pool
