@@ -2074,10 +2074,10 @@
 	"consentDialog": {
 		"title": "需要同意",
 		"allow": "允许",
-		"cancel": "取消",
-		"openSettings": "打开设置",
+		"viewAll": "查看全部",
 		"persistFailed": "无法保存您的同意。请重试。",
 		"retryFailed": "同意已保存，但无法自动重试该操作。请重试。",
+		"revokeHint": "您可以随时在“设置 > 隐私与许可”中撤回。",
 		"field": {
 			"voice_biometric_consent": "开始录音需要语音生物识别同意。您的语音将作为生物识别数据处理（GDPR 第 9 条）。允许录音吗？",
 			"huggingface_consent": "从 Hugging Face 下载模型会向美国第三方公司（Hugging Face, Inc.）暴露您的 IP 地址。音频绝不会被发送: 仅下载模型权重。允许下载模型吗？",

@@ -466,7 +466,9 @@ describe("axe-core automated WCAG scan, interactive surfaces", () => {
 		});
 		try {
 			renderPage(<ConsentGateDialog />);
-			await screen.findByRole("alertdialog");
+			// Dialog (not AlertDialog) semantics: the gate is dismissable
+			// and describes a single data flow, not an alert.
+			await screen.findByRole("dialog");
 			await expectNoAxeViolationsInDocument();
 		} finally {
 			useConsentGateStore.setState({ request: null });

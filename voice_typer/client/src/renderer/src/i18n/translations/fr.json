@@ -2074,10 +2074,10 @@
 	"consentDialog": {
 		"title": "Consentement requis",
 		"allow": "Autoriser",
-		"cancel": "Annuler",
-		"openSettings": "Ouvrir les paramètres",
+		"viewAll": "Tout voir",
 		"persistFailed": "Impossible d'enregistrer votre consentement. Veuillez réessayer.",
 		"retryFailed": "Consentement enregistré, mais l'action n'a pas pu être relancée automatiquement. Veuillez réessayer.",
+		"revokeHint": "Vous pouvez le révoquer à tout moment dans Paramètres > Confidentialité.",
 		"field": {
 			"voice_biometric_consent": "Le consentement à la biométrie vocale est requis pour démarrer l'enregistrement. Votre voix est traitée comme donnée biométrique (RGPD art. 9). Autoriser l'enregistrement ?",
 			"huggingface_consent": "Les téléchargements de modèles depuis Hugging Face révèlent votre adresse IP à une entreprise américaine (Hugging Face, Inc.). L'audio n'est jamais envoyé: seuls les poids du modèle. Autoriser les téléchargements ?",

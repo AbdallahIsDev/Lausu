@@ -1,7 +1,7 @@
 // src/renderer/src/components/consent/ConsentGateDialog.tsx
 // Unified point-of-use consent dialog ("This sends your audio to Groq.
-// Allow? [Allow / Cancel]"). Mounted ONCE in App.tsx; any consent-
-// gated flow opens it via `openConsentGate()` (see lib/consentGate.ts).
+// Allow?"). Mounted ONCE in App.tsx; any consent-gated flow opens it via
+// `openConsentGate()` (see lib/consentGate.ts).
 // Behaviour:
 //   - Allow → persists the consent field via the allowlisted
 //     `set_config` IPC (SEC-002), then invokes the request's `onAllow`
@@ -9,24 +9,35 @@
 //     closes. If persistence fails, the dialog stays open with an
 //     error toast, the UI never claims consent was granted when the
 //     backend rejected it.
-//   - Cancel → closes. No consent is granted.
-//   - "Open Settings" → deep-links to the exact consent row
-//     (Settings consumes the `consentField` navigate option), closes.
+//   - X / overlay click / Escape → dismiss. No consent is granted and
+//     `onAllow` never fires.
+//   - "View all" → deep-links to the Privacy & Consent section page,
+//     focused on the requested row (Settings consumes the
+//     `consentField` navigate option there), closes. Grants nothing.
+//
+// Dialog semantics (NOT AlertDialog): refusing is non-destructive, so
+// the surface must be dismissable by backdrop/Escape, which
+// AlertDialog suppresses by design.
+//
+// Deliberately NO "Allow all" here (legal): bundled, contextual consent
+// is uninformed — this dialog describes ONE data flow, so it can only
+// grant that one. Accept-all lives solely in the Settings consent
+// center, where every consent item is listed visibly before the user
+// acts.
 // The OS-level equivalent (clickable native toast → Settings) is the
 // backend's `notification` event with `click_consent_field`; both
-// paths land on the same Settings row.
+// paths land on the same Settings consent center.
 
 import { useCallback } from "react";
-import {
-	AlertDialog,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { useNavigation } from "@/hooks/useNavigation";
 import { usePython } from "@/hooks/usePython";
 import { useSnackbar } from "@/hooks/useSnackbar";
@@ -75,38 +86,59 @@ export default function ConsentGateDialog() {
 		}
 	}, [request, call, close, showSnack, t]);
 
-	const handleOpenSettings = useCallback(() => {
+	// Dismissal is a REFUSAL: it closes the gate and never grants.
+	// `Dialog` routes its X (DialogContent's built-in close button),
+	// overlay click, and Escape all through this one handler.
+	const handleOpenChange = useCallback(
+		(isOpen: boolean) => {
+			if (!isOpen) close();
+		},
+		[close],
+	);
+
+	// "View all" targets the Privacy & Consent SECTION page directly, not
+	// the Settings hub: the consent deep-link consumer
+	// (`useSettingsDeepLinks`) only arms its scroll+highlight on
+	// `page === "settingsPrivacy"`, so landing on the hub would drop the
+	// user on the section list with no row highlighted. The backend
+	// `navigate` event applies the same remap
+	// (`useNavigateEvent`: `"settings"` + consent_field -> the Privacy
+	// page), so both entry points behave identically.
+	const handleViewAll = useCallback(() => {
 		if (!request) return;
 		close();
-		navigate("settings", { consentField: request.consentField });
+		navigate("settingsPrivacy", { consentField: request.consentField });
 	}, [request, close, navigate]);
 
 	if (!request) return null;
 
 	return (
-		<AlertDialog open={open} onOpenChange={(isOpen) => !isOpen && close()}>
-			<AlertDialogContent>
-				<AlertDialogHeader>
-					<AlertDialogTitle>{t("consentDialog.title")}</AlertDialogTitle>
-					<AlertDialogDescription>
-						{t(request.bodyKey, request.bodyParams)}
-					</AlertDialogDescription>
-				</AlertDialogHeader>
-				<AlertDialogFooter>
-					<Button type="button" variant="ghost" onClick={handleOpenSettings}>
-						{t("consentDialog.openSettings")}
+		<Dialog open={open} onOpenChange={handleOpenChange}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>{t("consentDialog.title")}</DialogTitle>
+					<DialogDescription>
+						{t(request.bodyKey, request.bodyParams)}{" "}
+						{t("consentDialog.revokeHint")}
+					</DialogDescription>
+				</DialogHeader>
+				{/* Left link + right actions: `justify-between` pushes them to
+				    the row's two ends, `gap-2` spaces them (C-UI-10 — no
+				    margin utilities for inter-child spacing). */}
+				<DialogFooter className="sm:justify-between">
+					<Button type="button" variant="ghost" onClick={handleViewAll}>
+						{t("consentDialog.viewAll")}
 					</Button>
-					<AlertDialogCancel>{t("consentDialog.cancel")}</AlertDialogCancel>
-					{/* Plain Button (NOT AlertDialogAction): Radix's action
-					    auto-closes the dialog on click, which would defeat
-					    the keep-open-on-persist-failure contract below. The
-					    dialog closes only via the explicit ``close()`` in
-					    handleAllow / handleOpenSettings / Cancel / Escape. */}
+					{/* Plain Button, not a Dialog close primitive: Radix's Close
+					    auto-closes on click, which would defeat the
+					    keep-open-on-persist-failure contract. The dialog closes
+					    only via the explicit `close()` in handleAllow, or a
+					    dismissal gesture (X / overlay / Escape). */}
 					<Button type="button" onClick={handleAllow}>
 						{t("consentDialog.allow")}
 					</Button>
-				</AlertDialogFooter>
-			</AlertDialogContent>
-		</AlertDialog>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }

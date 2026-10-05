@@ -103,7 +103,11 @@ describe("PrewarmAndUpdates", () => {
 		// "Check for Updates" button. The English text is hardcoded
 		// in the en.json locale; the test renders with the default
 		// English locale, so the message substring is stable.
-		expect(screen.getByText(/Lausu is an offline application/i)).toBeTruthy();
+		expect(
+			screen.getByText(
+				/Lausu transcribes offline once its models are downloaded/i,
+			),
+		).toBeTruthy();
 	});
 
 	// C-DATA-1 regression guard: the "Check for Updates" button has
