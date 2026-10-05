@@ -230,6 +230,21 @@ class LatePhases:
         extractor_thread.start()
         log.debug("[STARTUP] Extractor refresh check dispatched to fire-and-forget daemon thread (no wait, no timeout)")
 
+        # Connect-time get_config runs keyring + GPU probes inline; their
+        # first-call cost (keyring backend init, DLL scan, ctranslate2
+        # import) can stall a readonly-pool worker for seconds mid-storm.
+        # Pre-warm both caches here so the handshake answers from cache.
+        def _probe_prewarm_task() -> None:
+            startup_tasks.prewarm_connect_probes()
+
+        probe_thread = threading.Thread(
+            target=_probe_prewarm_task,
+            name="startup-probe-prewarm",
+            daemon=True,
+        )
+        probe_thread.start()
+        log.debug("[STARTUP] Probe pre-warm dispatched to fire-and-forget daemon thread (no wait, no timeout)")
+
         # enumeration (below) runs in a bounded parallel pool under a 5s
         log.debug("[STARTUP] Registering hotkey")
         # Step 2: invoke HotkeyDispatcher directly. The

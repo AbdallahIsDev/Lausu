@@ -328,6 +328,29 @@ def ensure_desktop_shortcut(app: AppProtocol) -> None:
         log.debug("[STARTUP] Desktop shortcut creation skipped: %s", e)
 
 
+def prewarm_connect_probes() -> None:
+    """Warm the get_config probe caches before the renderer connects.
+
+    Connect-time ``get_config`` runs the keyring + GPU probes inline;
+    their first-call cost (keyring backend init, DLL scan, ctranslate2
+    import) can stall a readonly-pool worker mid-startup-storm. Both
+    probes cache per process, so one fire-and-forget pass here makes
+    every later handshake answer from cache. Never raises.
+    """
+    try:
+        from voice_typer.server import device_caps
+
+        device_caps.gpu_available()
+    except Exception:
+        log.debug("[STARTUP] GPU probe pre-warm failed", exc_info=True)
+    try:
+        from voice_typer.server.credential_store import get_keyring_status
+
+        get_keyring_status()
+    except Exception:
+        log.debug("[STARTUP] keyring probe pre-warm failed", exc_info=True)
+
+
 def _reconcile_configured_microphone(app: AppProtocol, mics: list[dict]) -> None:
     """Validate ``app.config.microphone`` against the live device list."""
     from voice_typer.server.server_platform.microphone_list import find_microphone_by_id

@@ -66,6 +66,18 @@ export const RESPAWN_EXHAUSTED_CODE = "respawn_exhausted";
 export const CONNECTION_PROBE_MAX_RETRIES = 5;
 /** Initial connection probe: delay between attempts. */
 export const CONNECTION_PROBE_RETRY_DELAY_MS = 2000;
+/**
+ * Startup grace: a dispatch timeout within this window of the probe
+ * effect mounting does not consume the disconnect budget. The backend
+ * answers from a cold disk + first-import storm for ~20s after launch,
+ * and a lone 15s-timeout get_config mid-storm is transient, not death.
+ * Fast failures (refused before the handshake) still count: only
+ * timeout-shaped errors earn extra patience, so a truly dead backend
+ * still flips in ~10s.
+ */
+export const CONNECTION_PROBE_STARTUP_GRACE_MS = 60_000;
+/** Extra attempts granted to timeout-shaped errors inside the grace. */
+export const CONNECTION_PROBE_GRACE_EXTRA_RETRIES = 4;
 
 /**
  * Periodic health-check: quick retries before declaring disconnected.

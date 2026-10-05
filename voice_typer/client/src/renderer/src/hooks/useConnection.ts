@@ -10,8 +10,10 @@ import {
 	applyStatusWithReason,
 	asRecordingState,
 	BACKGROUND_RECONNECT_INTERVAL_MS,
+	CONNECTION_PROBE_GRACE_EXTRA_RETRIES,
 	CONNECTION_PROBE_MAX_RETRIES,
 	CONNECTION_PROBE_RETRY_DELAY_MS,
+	CONNECTION_PROBE_STARTUP_GRACE_MS,
 	HEALTH_CHECK_EVENT_GRACE_MS,
 	HEALTH_CHECK_INTERVAL_MS,
 	HEALTH_CHECK_MAX_RETRIES,
@@ -71,6 +73,7 @@ export function useConnection({
 	useEffect(() => {
 		let retries = 0;
 		const maxRetries = CONNECTION_PROBE_MAX_RETRIES;
+		const probeStartTs = Date.now();
 		let timer: ReturnType<typeof setTimeout>;
 		let cancelled = false;
 
@@ -135,7 +138,22 @@ export function useConnection({
 					err,
 				);
 				retries++;
-				if (!cancelled && retries < maxRetries) {
+				// Startup grace: a dispatch timeout while the backend is
+				// still in its launch storm is transient. Grant extra
+				// attempts without flipping to "disconnected"; fast
+				// failures (pre-handshake refusal) keep the plain budget
+				// so a truly dead backend still surfaces in seconds.
+				const transient =
+					err instanceof Error
+						? /timed?\s?out/i.test(err.message)
+						: /timed?\s?out/i.test(String(err));
+				const inGrace =
+					Date.now() - probeStartTs < CONNECTION_PROBE_STARTUP_GRACE_MS;
+				const budget =
+					inGrace && transient
+						? maxRetries + CONNECTION_PROBE_GRACE_EXTRA_RETRIES
+						: maxRetries;
+				if (!cancelled && retries < budget) {
 					timer = setTimeout(checkConnection, CONNECTION_PROBE_RETRY_DELAY_MS);
 				} else if (!cancelled) {
 					setConnectionStatus("disconnected");
