@@ -45,6 +45,9 @@ class WorkerBackedAsr:
         self.config = kwargs.get("config")
         self._device_info = "pack worker"
         self._loaded = False
+        # Mirrors the engine's rejection flag, populated from the worker's
+        # response so the pipeline can report the real cause of "".
+        self.last_rejection_reason: str | None = None
 
     @property
     def is_loaded(self) -> bool:
@@ -144,4 +147,9 @@ class WorkerBackedAsr:
         device_info = result.get("device_info")
         if isinstance(device_info, str) and device_info:
             self._device_info = device_info
+        # The worker runs the gate in-process; surface its verdict so the
+        # dictation pipeline can distinguish a rejected hallucination from
+        # genuine silence. Cleared on every call so it cannot go stale.
+        rejected = result.get("rejected_reason")
+        self.last_rejection_reason = rejected if isinstance(rejected, str) and rejected else None
         return str(result.get("text") or "")

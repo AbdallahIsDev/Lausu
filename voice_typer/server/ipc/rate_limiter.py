@@ -105,6 +105,8 @@ COMMAND_COSTS: dict[str, int] = {
     "get_history": 1,
     "get_history_count": 1,
     "get_microphones": 1,
+    # Plugins page: reads the on-disk manifest set, no shared-state write.
+    "get_plugins": 1,
     "get_model_catalog": 1,
     "get_model_status": 1,
     "get_prewarm_status": 1,  # RESTORED 2026-08-14 (About-page Cache Status card. See plan §6.3)

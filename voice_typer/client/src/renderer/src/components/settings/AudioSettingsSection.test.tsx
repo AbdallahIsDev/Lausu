@@ -333,6 +333,13 @@ describe("AudioSettingsSection, Microphone Quality enable-Switch", () => {
 		return screen.getByTestId("microphone-quality-switch");
 	}
 
+	// Scoped to the preset Select's accessible name: the section also
+	// renders the hallucination-filter Select, so an unscoped
+	// `getByRole("combobox")` is now ambiguous.
+	function presetPicker() {
+		return screen.getByRole("combobox", { name: /Microphone Quality/i });
+	}
+
 	it("renders Microphone Quality first, preset picker second", () => {
 		const { container } = renderSection();
 		const labels = Array.from(
@@ -379,7 +386,7 @@ describe("AudioSettingsSection, Microphone Quality enable-Switch", () => {
 	it("preset Select offers no 'OFF' option (disabling is the Switch's job)", async () => {
 		const user = userEvent.setup();
 		renderSection({ audio_preset: "auto" });
-		await user.click(screen.getByRole("combobox"));
+		await user.click(presetPicker());
 		const options = screen.getAllByRole("option").map((o) => o.textContent);
 		expect(options).toContain("Auto");
 		expect(options).toContain("Studio");
@@ -390,7 +397,7 @@ describe("AudioSettingsSection, Microphone Quality enable-Switch", () => {
 
 	it("preset picker row is revealed only while the Switch is on", () => {
 		const { rerender } = renderSection({ audio_preset: "auto" });
-		expect(screen.queryByRole("combobox")).toBeTruthy();
+		expect(presetPicker()).toBeTruthy();
 
 		// Flip the preset off externally (e.g. from the Microphone
 		// page): the picker row unmounts, the switch-only row stays.
@@ -402,14 +409,16 @@ describe("AudioSettingsSection, Microphone Quality enable-Switch", () => {
 				isVisible={alwaysVisible}
 			/>,
 		);
-		expect(screen.queryByRole("combobox")).toBeNull();
+		expect(
+			screen.queryByRole("combobox", { name: /Microphone Quality/i }),
+		).toBeNull();
 		expect(screen.getByTestId("microphone-quality-switch")).toBeTruthy();
 	});
 
 	it("picking a preset persists it", async () => {
 		const user = userEvent.setup();
 		const { updateConfig } = renderSection({ audio_preset: "auto" });
-		await user.click(screen.getByRole("combobox"));
+		await user.click(presetPicker());
 		await user.click(screen.getByRole("option", { name: "Studio" }));
 		expect(updateConfig).toHaveBeenCalledWith({ audio_preset: "studio" });
 	});
@@ -465,5 +474,78 @@ describe("AudioSettingsSection, voice activity filtering toggle", () => {
 		// be absent if it were dropped from the visible surface).
 		renderSection();
 		expect(screen.getByText("Voice activity filtering")).toBeTruthy();
+	});
+});
+
+describe("AudioSettingsSection, hallucination filter mode", () => {
+	beforeEach(() => {
+		resetStableMocks();
+		vi.clearAllMocks();
+		cleanup();
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	function renderSection(
+		configOverrides: Partial<LausuConfig> = {},
+		updateConfig = vi.fn(),
+	) {
+		render(
+			<AudioSettingsSection
+				config={makeConfig(configOverrides)}
+				updateConfig={updateConfig}
+				updateConfigDebounced={() => {}}
+				isVisible={alwaysVisible}
+			/>,
+		);
+		return updateConfig;
+	}
+
+	it("renders the persisted mode", () => {
+		renderSection({ hallucination_filter_mode: "balanced" });
+		const select = screen.getByTestId("hallucination-filter-select");
+		expect(select.textContent).toContain("Balanced");
+	});
+
+	it("defaults to balanced when the field is absent", () => {
+		// A config written before the field existed must still render.
+		const cfg = makeConfig();
+		delete (cfg as Partial<LausuConfig>).hallucination_filter_mode;
+		render(
+			<AudioSettingsSection
+				config={cfg}
+				updateConfig={() => {}}
+				updateConfigDebounced={() => {}}
+				isVisible={alwaysVisible}
+			/>,
+		);
+		expect(
+			screen.getByTestId("hallucination-filter-select").textContent,
+		).toContain("Balanced");
+	});
+
+	it("offers exactly the three supported modes", async () => {
+		const user = userEvent.setup();
+		renderSection();
+		await user.click(screen.getByTestId("hallucination-filter-select"));
+		const options = screen.getAllByRole("option").map((o) => o.textContent);
+		expect(options).toEqual(["Balanced (recommended)", "Strict", "Off"]);
+	});
+
+	it("persists the chosen mode through set_config", async () => {
+		const user = userEvent.setup();
+		const updateConfig = renderSection();
+		await user.click(screen.getByTestId("hallucination-filter-select"));
+		await user.click(screen.getByRole("option", { name: "Off" }));
+		expect(updateConfig).toHaveBeenCalledWith({
+			hallucination_filter_mode: "off",
+		});
+	});
+
+	it("is searchable via the section search (label registered for filtering)", () => {
+		renderSection();
+		expect(screen.getByText("Ignore silence hallucinations")).toBeTruthy();
 	});
 });

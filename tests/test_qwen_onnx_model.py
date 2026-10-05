@@ -412,7 +412,7 @@ class TestQwenEngineOnnxIntegration:
         assert engine._onnx_model is not None
         assert engine.is_loaded
         assert engine.device == "cpu"
-        assert engine.device_info == "qwen/cpu"
+        assert engine.device_info == "CPU"
 
     def test_load_incomplete_onnx_dir_fails_closed(self, tmp_path):
         # ``is_onnx_model_dir`` only requires encoder + embed + tokenizer,

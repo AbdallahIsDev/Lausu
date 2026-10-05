@@ -353,6 +353,49 @@ None of this changes the spike gates (§4) or the non-rollout (§12).
   framing, signatures. Simple string ops, no product text-cleanup change.
 
 ### 14.4 Deferred: spoken-command prefix + auto audio-clip injection (NOT implemented)
+## 15. Plugins UI (implemented) and the `active_plugin` boundary
+
+The Plugins page is data-driven: the renderer never names a plugin. It asks
+for the installed set and renders whatever comes back, so a shipped build
+with no plugin workspace shows an empty state instead of dead UI.
+
+- **Discovery** — `voice_typer/server/plugins/registry.py` reads a
+  `plugin.json` manifest per plugin directory and imports no plugin code.
+  A missing workspace returns `[]`; one broken manifest never hides the
+  others.
+- **Manifest** — `tools/internal_plugins/google_stt/plugin.json` declares
+  id, name, vendor, icon, description, and the settings below.
+- **IPC** — `get_plugins` (read-only) returns the list with each plugin's
+  `active` flag resolved against config.
+
+### `active_plugin` is NOT a plugin setting
+
+§14.2 keeps plugin settings out of the product config. That rule is
+unchanged and still binds `visible`, `pollMs`, `stableMs`, `stableWindows`,
+`timeoutMs`, and `notify`: they live in the plugin's own gitignored
+`config.json` and are never added to `IPC_CONFIG_ALLOWLIST`.
+
+`active_plugin` is a different kind of value: app-level **selection state**
+("which engine owns dictation right now"). It must survive a restart and
+must be writable by the renderer through the single sanctioned mutation
+path, so it lives in the config schema and in the SEC-002 allowlist like
+any other persisted setting. Its validator accepts `""` (the local model)
+or a lowercase slug, and it deliberately does NOT check that the slug names
+an installed plugin — keeping the validator import-safe means a stale id
+can persist, which is safe because the gate fails closed on it.
+
+### Gate precedence (fail-closed at every step)
+
+`internal_plugin_hook.plugins_enabled(app)` requires ALL of:
+
+1. `config.active_plugin` is non-empty;
+2. `VOICE_TYPER_INTERNAL_PLUGINS=1`;
+3. the process is not frozen;
+4. the plugin's own `plugins_enabled()` (env + `PLUGINS_ENABLED` marker).
+
+Any failure means the built-in local model keeps dictation. With no plugin
+selected — the default — the local pipeline (VAD, noise processing, LLM
+polish) runs exactly as before.
 
 - Background: Gemini voice input is context-aware — a leading spoken
   instruction (e.g. "translate everything to English") steers the whole

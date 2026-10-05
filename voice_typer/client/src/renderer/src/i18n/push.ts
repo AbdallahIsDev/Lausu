@@ -69,6 +69,11 @@ export function trayLabelsForLocale(): Record<string, string> {
 			"trayState.recordingController.startingUp",
 		],
 		[
+			"state.recording_controller.model_load_retry",
+			"trayState.recordingController.modelLoadRetry",
+		],
+		["state.model_loading", "trayState.recordingController.modelLoading"],
+		[
 			"state.recording_controller.consent_required",
 			"trayState.recordingController.consentRequired",
 		],
@@ -400,6 +405,85 @@ export function trayLabelsForLocale(): Record<string, string> {
 			"notify.model.delete.active_refused_recording",
 		],
 		["notify.model.delete.unload_failed", "notify.model.delete.unload_failed"],
+		["llm_polish_failed", "notify.llm_polish_failed"],
+		["history_save_failed", "notify.history_save_failed"],
+		["crash_recovery_save_failed", "notify.crash_recovery_save_failed"],
+		["text_cleanup_failed", "notify.text_cleanup_failed"],
+		["vocab_correction_failed", "notify.vocab_correction_failed"],
+		["template_match_failed", "notify.template_match_failed"],
+		["auto_punctuation_failed", "notify.auto_punctuation_failed"],
+		["no_speech_detected", "notify.no_speech_detected"],
+		["no_transcription_produced", "notify.no_transcription_produced"],
+		["model_unloaded_idle", "notify.model_unloaded_idle"],
+		["model_loading", "notify.model_loading"],
+		["consent_not_verified", "notify.consent_not_verified"],
+		["onboarding_kept_failing", "notify.onboarding_kept_failing"],
+		["onboarding_setup_failed", "notify.onboarding_setup_failed"],
+		["wayland_hotkeys_may_fail", "notify.wayland_hotkeys_may_fail"],
+		["accessibility_granted", "notify.accessibility_granted"],
+		["global_hotkeys_disabled", "notify.global_hotkeys_disabled"],
+		["config_acl_failed", "notify.config_acl_failed"],
+		[
+			"notify.dictation_pipeline.llm_polish_failed",
+			"notify.dictation_pipeline.llm_polish_failed",
+		],
+		[
+			"notify.dictation_pipeline.history_save_failed",
+			"notify.dictation_pipeline.history_save_failed",
+		],
+		[
+			"notify.dictation_pipeline.crash_recovery_save_failed",
+			"notify.dictation_pipeline.crash_recovery_save_failed",
+		],
+		[
+			"notify.dictation_pipeline.text_cleanup_failed",
+			"notify.dictation_pipeline.text_cleanup_failed",
+		],
+		[
+			"notify.dictation_pipeline.vocab_correction_failed",
+			"notify.dictation_pipeline.vocab_correction_failed",
+		],
+		[
+			"notify.dictation_pipeline.template_match_failed",
+			"notify.dictation_pipeline.template_match_failed",
+		],
+		[
+			"notify.dictation_pipeline.auto_punctuation_failed",
+			"notify.dictation_pipeline.auto_punctuation_failed",
+		],
+		[
+			"notify.dictation_pipeline.no_speech_detected",
+			"notify.dictation_pipeline.no_speech_detected",
+		],
+		[
+			"notify.dictation_pipeline.no_transcription_produced",
+			"notify.dictation_pipeline.no_transcription_produced",
+		],
+		[
+			"notify.app.onboarding_kept_failing",
+			"notify.app.onboarding_kept_failing",
+		],
+		[
+			"notify.app.onboarding_setup_failed",
+			"notify.app.onboarding_setup_failed",
+		],
+		["notify.app.config_acl_failed", "notify.app.config_acl_failed"],
+		[
+			"notify.hotkey_dispatcher.wayland_hotkeys_may_fail",
+			"notify.hotkey_dispatcher.wayland_hotkeys_may_fail",
+		],
+		[
+			"notify.permissions.accessibility_granted",
+			"notify.permissions.accessibility_granted",
+		],
+		[
+			"notify.permissions.global_hotkeys_disabled",
+			"notify.permissions.global_hotkeys_disabled",
+		],
+		[
+			"notify.recording_controller.consent_not_verified",
+			"notify.recording_controller.consent_not_verified",
+		],
 	];
 	for (const [key, labelKey] of entries) {
 		const value = t(labelKey);

@@ -27,6 +27,10 @@ import {
 	setLocale,
 	useT,
 } from "@/i18n/i18n";
+import {
+	MODEL_IDLE_UNLOAD_OPTIONS,
+	normalizeModelIdleUnloadMinutes,
+} from "@/lib/utils/modelIdleUnload";
 import { SettingsSkeleton } from "./SettingsSkeleton";
 
 import type { SettingsSectionSharedProps } from "./types";
@@ -84,6 +88,13 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 	// Defaults ON.
 	const FAST_STARTUP_LABEL = t("settings.fastStartup");
 	const FAST_STARTUP_INFO = t("settings.fastStartupDescription");
+	// How long the ASR model stays loaded after the last dictation. Lives
+	// under General next to Fast Startup: both are "what does the app do
+	// with its memory / its warm-up" settings, not transcription output
+	// settings. The option list is shared with its test via
+	// `modelIdleUnload.ts` so the floor/ceiling/order can't drift.
+	const MODEL_IDLE_UNLOAD_LABEL = t("settings.modelIdleUnload");
+	const MODEL_IDLE_UNLOAD_INFO = t("settings.modelIdleUnloadDescription");
 
 	//section-level visibility check for the General section. The title
 	// constant feeds BOTH the `<SettingsSection title>` prop AND the
@@ -96,6 +107,7 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 		{ label: NOTIFICATIONS_LABEL, info: NOTIFICATIONS_INFO },
 		{ label: TRAY_CLICK_LABEL, info: TRAY_CLICK_INFO },
 		{ label: FAST_STARTUP_LABEL, info: FAST_STARTUP_INFO },
+		{ label: MODEL_IDLE_UNLOAD_LABEL, info: MODEL_IDLE_UNLOAD_INFO },
 	];
 	const generalVisible = generalItems.some((item) =>
 		isVisible(item.label, item.info, generalSectionTitle),
@@ -112,6 +124,8 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 		updateConfig({
 			tray_left_click_action: v as "open_app" | "toggle_dictation",
 		});
+	const handleModelIdleUnloadChange = (v: string) =>
+		updateConfig({ model_idle_unload_minutes: Number(v) });
 
 	if (!generalVisible) return null;
 
@@ -156,6 +170,42 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 						onCheckedChange={handleFastStartupChange}
 						aria-label={FAST_STARTUP_LABEL}
 					/>
+				</SettingRow>
+			)}
+			{/*How long the ASR model stays loaded after the last dictation.
+                Values are minutes; "Never" writes 0, which is the backend's
+                "don't arm the timer at all" sentinel. Normalising the value
+                matters: a value outside the offered set (hand-edited config,
+                older sidecar) would otherwise leave the Select showing blank. */}
+			{isVisible(
+				MODEL_IDLE_UNLOAD_LABEL,
+				MODEL_IDLE_UNLOAD_INFO,
+				generalSectionTitle,
+			) && (
+				<SettingRow
+					label={MODEL_IDLE_UNLOAD_LABEL}
+					info={MODEL_IDLE_UNLOAD_INFO}
+				>
+					<Select
+						value={String(
+							normalizeModelIdleUnloadMinutes(config.model_idle_unload_minutes),
+						)}
+						onValueChange={handleModelIdleUnloadChange}
+					>
+						<SelectTrigger
+							className="w-44"
+							aria-label={MODEL_IDLE_UNLOAD_LABEL}
+						>
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{MODEL_IDLE_UNLOAD_OPTIONS.map((opt) => (
+								<SelectItem key={opt.value} value={String(opt.value)}>
+									<span>{t(opt.labelKey)}</span>
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</SettingRow>
 			)}
 			{/*App Language selector, distinct from the spoken-language

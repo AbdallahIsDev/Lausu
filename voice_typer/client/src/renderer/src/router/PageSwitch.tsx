@@ -54,6 +54,8 @@ export function PageSwitch({
 				return <LAZY_PAGES.models />;
 			case "microphone":
 				return <LAZY_PAGES.microphone />;
+			case "plugins":
+				return <LAZY_PAGES.plugins />;
 			case "analytics":
 				return <LAZY_PAGES.analytics />;
 			// The Settings surface is HUB + nested section pages. "settings"

@@ -130,8 +130,12 @@ class TestInternalPluginToolsNotInMainRepo:
         # --no-index: git deliberately reports TRACKED paths as
         # "not ignored" regardless of the pattern; this asserts the
         # RULE exists (the tracked-vs-ignored state is test 2).
+        # Trailing slash: a directory-only pattern matches the path only
+        # when git is told it is a directory. The nested plugin repo is
+        # gitignored, so on CI the folder does not exist and the
+        # slash-less form reports "not ignored".
         code, out = self._git(
-            "check-ignore", "--no-index", "-q", "tools/internal_plugins"
+            "check-ignore", "--no-index", "-q", "tools/internal_plugins/"
         )
         assert code == 0, (
             "tools/internal_plugins must be listed in the root .gitignore "

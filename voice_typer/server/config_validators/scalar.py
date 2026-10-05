@@ -216,6 +216,32 @@ def _make_linux_window_buttons_validator() -> ValidatorFn:
     return _validate
 
 
+# A plugin id is a lowercase slug ("google_stt"). Only the SHAPE is checked
+# here: whether that id names an installed plugin is a runtime fact this
+# module must not depend on (it stays import-safe and free of the plugin
+# registry). A stale id therefore persists but never takes dictation away
+# from the local model - the activation path fails closed instead.
+_PLUGIN_ID_MAX_LEN = 64
+_PLUGIN_ID_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz0123456789_-")
+
+
+def _make_plugin_id_validator() -> ValidatorFn:
+    """Validate the ``active_plugin`` value: "" or a lowercase slug."""
+
+    def _validate(v: object) -> str | None:
+        if not _is_str(v):
+            return f"must be a string, got {type(v).__name__}"
+        if v == "":
+            return None
+        if len(v) > _PLUGIN_ID_MAX_LEN:
+            return f"plugin id must be at most {_PLUGIN_ID_MAX_LEN} characters, got {len(v)}"
+        bad = sorted({ch for ch in v if ch not in _PLUGIN_ID_CHARS})
+        if bad:
+            return f"plugin id may only use a-z, 0-9, '_' and '-', got {bad!r}"
+        return None
+
+    return _validate
+
 def _make_url_validator(
     *,
     allow_empty: bool = False,
@@ -342,6 +368,7 @@ __all__ = [
     "_make_enum_validator",
     "_make_custom_theme_validator",
     "_make_url_validator",
+    "_make_plugin_id_validator",
     # Standalone validators
     "_validate_trusted_extra_hosts",
 ]

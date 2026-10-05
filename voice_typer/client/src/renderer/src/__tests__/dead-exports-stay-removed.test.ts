@@ -99,6 +99,13 @@ describe("dead exports stay removed, orphaned i18n keys (all 8 locales)", () => 
 				models.download,
 				`${loc}: models.download.depsAria`,
 			).not.toHaveProperty("depsAria");
+			// The model cards no longer show a per-card "Dependencies
+			// required" badge (the download gate surfaces the problem in
+			// its own snack instead), so its status label is dead too.
+			expect(
+				models.status,
+				`${loc}: models.status.depsRequired`,
+			).not.toHaveProperty("depsRequired");
 			// LIVE keys that must never be swept up in a future cleanup.
 			expect(
 				models.snack,

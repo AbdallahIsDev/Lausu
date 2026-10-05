@@ -6,6 +6,7 @@ import contextlib
 import logging
 from typing import Any
 
+from voice_typer.server import i18n
 from voice_typer.server.branding import APP_NAME
 
 log = logging.getLogger(__name__)
@@ -40,10 +41,7 @@ class _TextStepsMixin:
             if not getattr(self._app, "_clean_text_fail_notified", False):
                 self._app._clean_text_fail_notified = True
                 with contextlib.suppress(Exception):
-                    self._app.tray.notify(
-                        APP_NAME,
-                        "Text cleanup failed. Check the log file for details.",
-                    )
+                    self._app.tray.notify(APP_NAME, i18n.t("notify.dictation_pipeline.text_cleanup_failed"))
         return text
 
     def _apply_vocabulary(self, text: str) -> str:
@@ -60,10 +58,7 @@ class _TextStepsMixin:
             if not getattr(self._app, "_vocab_fail_notified", False):
                 self._app._vocab_fail_notified = True
                 with contextlib.suppress(Exception):
-                    self._app.tray.notify(
-                        APP_NAME,
-                        "Vocabulary correction failed. Check the log file for details.",
-                    )
+                    self._app.tray.notify(APP_NAME, i18n.t("notify.dictation_pipeline.vocab_correction_failed"))
         return text
 
     def _apply_templates(self, text: str) -> str:
@@ -86,10 +81,7 @@ class _TextStepsMixin:
             if not getattr(self._app, "_template_fail_notified", False):
                 self._app._template_fail_notified = True
                 with contextlib.suppress(Exception):
-                    self._app.tray.notify(
-                        APP_NAME,
-                        "Template matching failed. Check the log file for details.",
-                    )
+                    self._app.tray.notify(APP_NAME, i18n.t("notify.dictation_pipeline.template_match_failed"))
         return text
 
     def _apply_punctuation(self, text: str) -> str:
@@ -105,8 +97,5 @@ class _TextStepsMixin:
             if not getattr(self._app, "_punct_fail_notified", False):
                 self._app._punct_fail_notified = True
                 with contextlib.suppress(Exception):
-                    self._app.tray.notify(
-                        APP_NAME,
-                        "Auto-punctuation failed. Check the log file for details.",
-                    )
+                    self._app.tray.notify(APP_NAME, i18n.t("notify.dictation_pipeline.auto_punctuation_failed"))
         return text

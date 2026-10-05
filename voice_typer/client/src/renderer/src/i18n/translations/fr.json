@@ -734,7 +734,15 @@
 			"backToSettings": "Retour aux paramètres",
 			"on": "Activé",
 			"off": "Désactivé"
-		}
+		},
+		"modelIdleUnload": "Garder le modèle vocal en mémoire",
+		"modelIdleUnloadDescription": "Durée pendant laquelle le modèle vocal reste chargé après la fin de la dictée. Une durée plus longue rend la dictée toujours instantanée et utilise environ 2 Go de mémoire tant que l'application est ouverte. Fermer l'application libère cette mémoire immédiatement.",
+		"modelIdleUnload.minutes15": "15 minutes",
+		"modelIdleUnload.minutes30": "30 minutes",
+		"modelIdleUnload.minutes60": "1 heure",
+		"modelIdleUnload.minutes90": "1 heure 30 minutes",
+		"modelIdleUnload.minutes120": "2 heures",
+		"modelIdleUnload.never": "Jamais (garder chargé)"
 	},
 	"models": {
 		"loadFailedTitle": "Impossible de charger les modèles",
@@ -1920,7 +1928,8 @@
 			"mic_unplugged": "Le microphone a été débranché. Enregistrement arrêté.",
 			"still_running": "La transcription est toujours en cours.\nLes enregistrements longs ou le repli CPU peuvent prendre plus de temps.",
 			"xrun_title": "{app} | Problèmes audio",
-			"xrun_body": "{count} sous-débordements du tampon audio détectés. Fermez d'autres applications audio ou réduisez la charge du processeur."
+			"xrun_body": "{count} sous-débordements du tampon audio détectés. Fermez d'autres applications audio ou réduisez la charge du processeur.",
+			"consent_not_verified": "Impossible de vérifier le consentement biométrique vocal.\nEnregistrement refusé. Vérifiez Paramètres > Confidentialité."
 		},
 		"model_manager": {
 			"backend_init_failed_title": "{appName}",
@@ -1958,7 +1967,10 @@
 			"undo_no_pynput": "Annulation indisponible (pynput manquant)",
 			"undo_failed": "Impossible d'annuler la dernière transcription. Consultez les journaux pour plus de détails.",
 			"clipboard_unavailable_body": "Transcription terminée, mais le presse-papiers n'était pas disponible.\nVotre texte a été sauvegardé dans le fichier de récupération après incident afin de ne pas être perdu.",
-			"clipboard_unavailable_recovery_path": "Fichier de récupération : {path}"
+			"clipboard_unavailable_recovery_path": "Fichier de récupération : {path}",
+			"onboarding_kept_failing": "La configuration initiale a échoué à plusieurs reprises. L'application démarrera avec les paramètres par défaut. Ouvrez Paramètres pour la configurer manuellement.",
+			"onboarding_setup_failed": "La configuration initiale a échoué ; elle sera retentée au prochain démarrage.",
+			"config_acl_failed": "Impossible de restreindre les permissions du fichier de configuration. Les clés API peuvent être lisibles par d'autres utilisateurs sur ce PC."
 		},
 		"hotkey_dispatcher": {
 			"register_failed": "Impossible d'enregistrer le raccourci {hotkey}. Il est peut-être utilisé par une autre application. Utilisez le menu de la barre d'état pour basculer la dictée, ou choisissez un autre raccourci dans les réglages.",
@@ -1968,7 +1980,8 @@
 			"esc_register_failed": "Impossible d'enregistrer le raccourci d'annulation ESC. Une autre application l'a peut-être réservé.",
 			"repaste_register_failed": "Impossible d'enregistrer le raccourci de recollement. Une autre application l'a peut-être réservé.",
 			"invalid_hotkey": "Le raccourci {hotkey} n'est pas valide : {validation_error}. Le raccourci précédent est conservé.",
-			"restore_failed": "Impossible de restaurer le raccourci précédent {hotkey}. Ouvrez les réglages pour en assigner un nouveau."
+			"restore_failed": "Impossible de restaurer le raccourci précédent {hotkey}. Ouvrez les réglages pour en assigner un nouveau.",
+			"wayland_hotkeys_may_fail": "Les raccourcis globaux peuvent ne pas fonctionner sous Wayland. Installez « wtype » ou « ydotool » pour les prendre en charge, ou utilisez l'option Démarrer la dictée du menu de la barre des menus."
 		},
 		"native_adapter": {
 			"warn_title": "{appName} : avertissement de raccourci natif",
@@ -1993,7 +2006,20 @@
 			"macos_body": "Cliquez pour ouvrir Réglages système → Accessibilité. Ajoutez {appName} (et son assistant d'écoute des touches) à la liste.",
 			"macos_body_with_command": "Cliquez pour ouvrir Réglages système → Accessibilité. Ajoutez {appName} (et son assistant d'écoute des touches) à la liste. Exécutez ensuite : {command}",
 			"linux_title": "{appName} nécessite l'autorisation du clavier",
-			"linux_body": "Cliquez pour accorder l'accès. Votre système demandera votre mot de passe pour installer l'autorisation du clavier (règle udev + groupe d'entrée). Après l'octroi, déconnectez-vous puis reconnectez-vous pour que le changement prenne effet."
+			"linux_body": "Cliquez pour accorder l'accès. Votre système demandera votre mot de passe pour installer l'autorisation du clavier (règle udev + groupe d'entrée). Après l'octroi, déconnectez-vous puis reconnectez-vous pour que le changement prenne effet.",
+			"accessibility_granted": "Autorisation d'accessibilité accordée. Les raccourcis sont maintenant actifs.",
+			"global_hotkeys_disabled": "Les raccourcis globaux ont été désactivés. Ouvrez Réglages Système -> Confidentialité et sécurité -> Accessibilité pour accorder à nouveau l'autorisation."
+		},
+		"dictation_pipeline": {
+			"llm_polish_failed": "Lissage par LLM échoué. La transcription s'affiche telle quelle ; consultez le journal pour plus de détails.",
+			"history_save_failed": "Impossible d'enregistrer la transcription dans l'historique. Consultez le journal pour plus de détails.",
+			"crash_recovery_save_failed": "Impossible d'enregistrer la transcription dans le tampon de récupération après incident. Consultez le journal pour plus de détails.",
+			"text_cleanup_failed": "Nettoyage du texte échoué. Consultez le journal pour plus de détails.",
+			"vocab_correction_failed": "Correction du vocabulaire échouée. Consultez le journal pour plus de détails.",
+			"template_match_failed": "Correspondance de modèle échouée. Consultez le journal pour plus de détails.",
+			"auto_punctuation_failed": "Ponctuation automatique échouée. Consultez le journal pour plus de détails.",
+			"no_speech_detected": "Aucune parole détectée et l'audio était presque silencieux.\nVotre micro capture peut-être mal le son.\nVérifiez que le bon micro est sélectionné et actif.",
+			"no_transcription_produced": "L'audio a été enregistré mais aucune transcription n'a été produite.\nCela arrive si le modèle est mal configuré ou si l'audio est peu clair. Réessayez ou consultez le journal."
 		}
 	},
 	"error": {
@@ -2077,7 +2103,9 @@
 			"cancelled": "Annulé",
 			"recovered": "Récupéré | la transcription a expiré",
 			"stillTranscribing": "Toujours en cours de transcription...",
-			"awaitingModel": "Finalisation du chargement du modèle | votre enregistrement est enregistré et sera transcrit sous peu"
+			"awaitingModel": "Finalisation du chargement du modèle | votre enregistrement est enregistré et sera transcrit sous peu",
+			"modelLoadRetry": "Chargement du modèle | votre dictée démarrera automatiquement.",
+			"modelLoading": "Chargement du modèle..."
 		},
 		"modelManager": {
 			"loading": "Chargement du modèle | appuyez sur votre raccourci clavier pour le mettre en file...",

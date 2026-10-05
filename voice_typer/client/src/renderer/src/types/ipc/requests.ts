@@ -57,6 +57,12 @@ export interface GetMicrophonesRequest {
 	type: "get_microphones";
 }
 
+// Plugins page: installed-plugin discovery (read-only). The response is
+// the `plugins` payload normalized by `pages/plugins/lib/pluginTypes.ts`.
+export interface GetPluginsRequest {
+	type: "get_plugins";
+}
+
 export interface ToggleDictationRequest {
 	type: "toggle_dictation";
 }
@@ -377,6 +383,7 @@ export interface UndoLastRequest {
 export type PythonRequest =
 	| GetConfigRequest
 	| GetMicrophonesRequest
+	| GetPluginsRequest
 	| ToggleDictationRequest
 	| GetHistoryRequest
 	| DeleteHistoryRequest

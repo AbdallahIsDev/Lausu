@@ -171,6 +171,12 @@ assert len(EXPECTED_COMMANDS) == 74, (
 
 KNOWN_UNDOCUMENTED_COMMANDS: frozenset[str] = frozenset(
     {
+        # Plugins page (plugin_handlers.py): read-only installed-plugin
+        # discovery for the Plugins UI. Real handler, Rust allowlist entry,
+        # ipc-reference.md row, own test file. Listed here because the
+        # frozen-contract ADR addendum for the Plugins feature is not
+        # written yet; the command itself is fully wired and documented.
+        "get_plugins",
         # PERF-005 (ipc_server.py:1710-1712): predecessor acks receipt of
         "relaunch_ack",
         # ``ipc_server.py``). Listed here so the frozen-contract gate

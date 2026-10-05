@@ -15,8 +15,15 @@ def _flip(backend):
     backend._stop_event.is_set.return_value = True
 
 
-def _wait_until(predicate, timeout: float = 3.0, msg: str = "condition not met"):
-    """Poll ``predicate`` until truthy or ``timeout`` elapses."""
+def _wait_until(predicate, timeout: float = 15.0, msg: str = "condition not met"):
+    """Poll ``predicate`` until truthy or ``timeout`` elapses.
+
+    The backend installs its hook on a background thread, so these waits
+    race thread startup against a loaded CI runner. A 3 s budget turned a
+    scheduling delay into a red test on isolated legs (macOS 3.10/3.13
+    failed while 3.11 passed), so the budget is generous. The assertions
+    that use it are unchanged; only the tolerance is.
+    """
     if not wait_for(predicate, timeout=timeout):
         raise AssertionError(f"{msg} (waited {timeout}s)")
 

@@ -19,6 +19,48 @@
 // in the locale catalogues, ONE key family shared by every surface.
 import type { TranslationKey } from "@/i18n";
 
+/** Value stored in `config.hallucination_filter_mode`. */
+export type HallucinationFilterMode = "strict" | "balanced" | "off";
+
+/**
+ * Single source of truth for the low-audio hallucination filter modes.
+ * The backend enum lives in `voice_typer/server/hallucination.py`
+ * (`HALLUCINATION_FILTER_MODES`) and is mirrored by the SEC-002 IPC
+ * allowlist entry; a round-trip test keeps this list in lockstep with it.
+ *
+ * "balanced" is the shipped default: it keeps the catalog phrases that are
+ * also real dictation ("so", "you", "bye") unless the decoder confirms
+ * silence, which removes the false positives of the previous strict-only
+ * behaviour without giving up the obvious artifacts ("thanks for watching").
+ * "off" disables the gate entirely.
+ */
+export interface HallucinationFilterModeOption {
+	value: HallucinationFilterMode;
+	labelKey: TranslationKey;
+	descriptionKey: TranslationKey;
+}
+
+export const HALLUCINATION_FILTER_MODE_OPTIONS: readonly HallucinationFilterModeOption[] =
+	[
+		{
+			value: "balanced",
+			labelKey: "settings.audioEnhancement.hallucinationBalanced",
+			descriptionKey:
+				"settings.audioEnhancement.hallucinationBalancedDescription",
+		},
+		{
+			value: "strict",
+			labelKey: "settings.audioEnhancement.hallucinationStrict",
+			descriptionKey:
+				"settings.audioEnhancement.hallucinationStrictDescription",
+		},
+		{
+			value: "off",
+			labelKey: "settings.audioEnhancement.hallucinationOff",
+			descriptionKey: "settings.audioEnhancement.hallucinationOffDescription",
+		},
+	];
+
 /** Microphone-quality preset value stored in `config.audio_preset`. */
 export type AudioPreset = "auto" | "studio" | "noisy_room" | "off" | "custom";
 

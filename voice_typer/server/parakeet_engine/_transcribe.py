@@ -11,7 +11,7 @@ import numpy as np
 
 from voice_typer.server._audio_constants import WHISPER_SAMPLE_RATE
 from voice_typer.server.branding import APP_NAME
-from voice_typer.server.hallucination import log_hallucination_rejection, should_reject_low_audio_hallucination
+from voice_typer.server.hallucination import log_hallucination_rejection, reject_and_stamp_reason
 
 from ._constants import _CHUNK_OVERLAP_SECONDS, _CHUNK_SECONDS, _PARAKERT_ONNX_REPO_ID
 from ._helpers import _compute_overlap_skip_impl, _is_cuda_error_impl, _is_likely_english, _merge_chunks_impl
@@ -106,7 +106,7 @@ class TranscribeMixin:
 
         # PERF-STATS: reuse pre-computed RMS when provided
         rms = audio_stats[0] if audio_stats is not None else float(np.sqrt(np.mean(np.square(audio), dtype=np.float64)))
-        if should_reject_low_audio_hallucination(text, rms):
+        if reject_and_stamp_reason(self, text, rms):
             log_hallucination_rejection(
                 "[PARAKEET]",
                 text,

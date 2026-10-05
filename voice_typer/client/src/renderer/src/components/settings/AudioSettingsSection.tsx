@@ -29,6 +29,8 @@ import { useT } from "@/i18n/i18n";
 import {
 	AUDIO_PRESET_OPTIONS,
 	type AudioPreset,
+	HALLUCINATION_FILTER_MODE_OPTIONS,
+	type HallucinationFilterMode,
 } from "@/lib/utils/audioPresets";
 import type { LausuConfig } from "@/types/config";
 import { SettingsSkeleton } from "./SettingsSkeleton";
@@ -128,6 +130,12 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 	const vadFilterInfoSearch = t(
 		"settings.audioEnhancement.vadFilterInfoSearch",
 	);
+	const hallucinationModeLabel = t(
+		"settings.audioEnhancement.hallucinationFilter",
+	);
+	const hallucinationModeInfoSearch = t(
+		"settings.audioEnhancement.hallucinationFilterInfoSearch",
+	);
 	const autoDuckVolumeLabel = t("settings.audioEnhancement.autoDuckVolume");
 	const autoDuckVolumeInfoSearch = t(
 		"settings.audioEnhancement.autoDuckVolumeInfoSearch",
@@ -214,6 +222,10 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 		{ label: microphoneQualityLabel, info: microphoneQualityInfoSearch },
 		{ label: qualityPresetLabel, info: microphoneQualityInfoSearch },
 		{ label: vadFilterLabel, info: vadFilterInfoSearch },
+		{
+			label: hallucinationModeLabel,
+			info: hallucinationModeInfoSearch,
+		},
 		{ label: volumeBackendLabel, info: volumeBackendInfoSearch },
 		{ label: autoDuckVolumeLabel, info: autoDuckVolumeInfoSearch },
 		{ label: duckLevelLabel, info: duckLevelInfoSearch },
@@ -246,6 +258,10 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 	// ── Inline handler extraction ─────────────────────────────────
 	const handleVadFilterChange = (checked: boolean) =>
 		updateConfig({ vad_filter_enabled: checked });
+	const handleHallucinationModeChange = (v: string) =>
+		updateConfig({
+			hallucination_filter_mode: v as HallucinationFilterMode,
+		});
 	const handleAutoDuckChange = (checked: boolean) =>
 		updateConfig({ volume_duck_enabled: checked });
 	const handleDuckLevelChange = (v: number) =>
@@ -284,6 +300,11 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 	const selectablePresets = AUDIO_PRESET_OPTIONS.filter(
 		(option) => option.value !== "off",
 	);
+
+	// Backend default is "balanced"; fall back the same way for a config
+	// written before the field existed so the Select never renders empty.
+	const hallucinationMode: HallucinationFilterMode =
+		config.hallucination_filter_mode ?? "balanced";
 
 	return (
 		<SettingsSection
@@ -375,6 +396,43 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 							aria-label={t("settings.audioEnhancement.vadFilterAria")}
 							data-testid="vad-filter-switch"
 						/>
+					</SettingRow>
+				)}
+
+				{/* ── Hallucination filtering (discards decoder artifacts
+				        emitted on near-silence). Sits directly below the VAD
+				        row because it is the same concern: what the app does
+				        with silent/empty audio. */}
+				{isVisible(
+					hallucinationModeLabel,
+					hallucinationModeInfoSearch,
+					audioSectionTitle,
+				) && (
+					<SettingRow
+						label={hallucinationModeLabel}
+						info={t("settings.audioEnhancement.hallucinationFilterInfo")}
+					>
+						<Select
+							value={hallucinationMode}
+							onValueChange={handleHallucinationModeChange}
+						>
+							<SelectTrigger
+								className="w-48"
+								aria-label={t(
+									"settings.audioEnhancement.hallucinationFilterAria",
+								)}
+								data-testid="hallucination-filter-select"
+							>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{HALLUCINATION_FILTER_MODE_OPTIONS.map((option) => (
+									<SelectItem key={option.value} value={option.value}>
+										{t(option.labelKey)}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</SettingRow>
 				)}
 

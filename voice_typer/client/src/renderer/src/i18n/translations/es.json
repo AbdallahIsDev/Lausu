@@ -1222,7 +1222,15 @@
 			"backToSettings": "Volver a Configuración",
 			"on": "Activado",
 			"off": "Desactivado"
-		}
+		},
+		"modelIdleUnload": "Mantener el modelo de voz en memoria",
+		"modelIdleUnloadDescription": "Cuánto tiempo permanece cargado el modelo de voz después de que dejes de dictar. Un tiempo más largo hace que dictar sea siempre instantáneo y usa unos 2 GB de memoria mientras la app está abierta. Al cerrar la app, se libera de inmediato.",
+		"modelIdleUnload.minutes15": "15 minutos",
+		"modelIdleUnload.minutes30": "30 minutos",
+		"modelIdleUnload.minutes60": "1 hora",
+		"modelIdleUnload.minutes90": "1 hora y 30 minutos",
+		"modelIdleUnload.minutes120": "2 horas",
+		"modelIdleUnload.never": "Nunca (mantener cargado)"
 	},
 	"models": {
 		"loadFailedTitle": "No se pudieron cargar los modelos",
@@ -1920,7 +1928,8 @@
 			"mic_unplugged": "El micrófono se desconectó. Grabación detenida.",
 			"still_running": "La transcripción sigue en curso.\nLas grabaciones largas o el respaldo de CPU pueden tardar más.",
 			"xrun_title": "{app} | Problemas de audio",
-			"xrun_body": "Se detectaron {count} subdesbordamientos del búfer de audio. Cierre otras aplicaciones de audio o reduzca la carga de la CPU."
+			"xrun_body": "Se detectaron {count} subdesbordamientos del búfer de audio. Cierre otras aplicaciones de audio o reduzca la carga de la CPU.",
+			"consent_not_verified": "No se pudo verificar el consentimiento de biometría vocal.\nSe rechazó la grabación. Revisa Ajustes > Privacidad."
 		},
 		"model_manager": {
 			"backend_init_failed_title": "{appName}",
@@ -1958,7 +1967,10 @@
 			"undo_no_pynput": "Deshacer no disponible (falta pynput)",
 			"undo_failed": "No se pudo deshacer la última transcripción. Consulte los registros para más detalles.",
 			"clipboard_unavailable_body": "Transcripción completada, pero el portapapeles no estaba disponible.\nSu texto se guardó en el archivo de recuperación de fallos para que no se pierda.",
-			"clipboard_unavailable_recovery_path": "Archivo de recuperación: {path}"
+			"clipboard_unavailable_recovery_path": "Archivo de recuperación: {path}",
+			"onboarding_kept_failing": "La configuración inicial ha seguido fallando. La aplicación se iniciará con los ajustes predeterminados. Abre Ajustes para configurarla manualmente.",
+			"onboarding_setup_failed": "La configuración inicial ha fallado; se reintentará en el próximo inicio.",
+			"config_acl_failed": "No se pudieron restringir los permisos del archivo de configuración. Las claves de API podrían ser legibles para otros usuarios de este equipo."
 		},
 		"hotkey_dispatcher": {
 			"register_failed": "No se pudo registrar el atajo {hotkey}. Puede que otra aplicación lo esté usando. Use el menú de la bandeja para alternar el dictado, o elija otro atajo en Configuración.",
@@ -1968,7 +1980,8 @@
 			"esc_register_failed": "No se pudo registrar el atajo de cancelación ESC. Otra aplicación puede haberlo reclamado.",
 			"repaste_register_failed": "No se pudo registrar el atajo de re-pegado. Otra aplicación puede haberlo reclamado.",
 			"invalid_hotkey": "El atajo {hotkey} no es válido: {validation_error}. Se mantiene el atajo anterior.",
-			"restore_failed": "No se pudo restaurar el atajo anterior {hotkey}. Abra Configuración para reasignar un atajo."
+			"restore_failed": "No se pudo restaurar el atajo anterior {hotkey}. Abra Configuración para reasignar un atajo.",
+			"wayland_hotkeys_may_fail": "Es posible que los atajos globales no funcionen en Wayland. Instala 'wtype' o 'ydotool' para compatibilidad con atajos, o usa la opción Iniciar dictado del menú de la bandeja."
 		},
 		"native_adapter": {
 			"warn_title": "{appName}: advertencia de atajo nativo",
@@ -1993,7 +2006,20 @@
 			"macos_body": "Haz clic para abrir Configuración del sistema → Accesibilidad. Añade {appName} (y su asistente de escucha de teclas) a la lista.",
 			"macos_body_with_command": "Haz clic para abrir Configuración del sistema → Accesibilidad. Añade {appName} (y su asistente de escucha de teclas) a la lista. Luego ejecuta: {command}",
 			"linux_title": "{appName} necesita permiso de teclado",
-			"linux_body": "Haz clic para conceder acceso. El sistema te pedirá tu contraseña para instalar el permiso de teclado (regla udev + grupo de entrada). Tras concederlo, cierra sesión y vuelve a iniciarla para que el cambio surta efecto."
+			"linux_body": "Haz clic para conceder acceso. El sistema te pedirá tu contraseña para instalar el permiso de teclado (regla udev + grupo de entrada). Tras concederlo, cierra sesión y vuelve a iniciarla para que el cambio surta efecto.",
+			"accessibility_granted": "Permiso de accesibilidad concedido. Los atajos ya están activos.",
+			"global_hotkeys_disabled": "Los atajos globales se han desactivado. Abre Ajustes del Sistema -> Privacidad y seguridad -> Accesibilidad para volver a conceder el permiso."
+		},
+		"dictation_pipeline": {
+			"llm_polish_failed": "El suavizado con LLM ha fallado. La transcripción se muestra sin cambios; consulta el archivo de registro para más detalles.",
+			"history_save_failed": "No se pudo guardar la transcripción en el historial. Consulta el archivo de registro para más detalles.",
+			"crash_recovery_save_failed": "No se pudo guardar la transcripción en el búfer de recuperación tras fallo. Consulta el archivo de registro para más detalles.",
+			"text_cleanup_failed": "La limpieza de texto ha fallado. Consulta el archivo de registro para más detalles.",
+			"vocab_correction_failed": "La corrección por vocabulario ha fallado. Consulta el archivo de registro para más detalles.",
+			"template_match_failed": "La coincidencia con plantillas ha fallado. Consulta el archivo de registro para más detalles.",
+			"auto_punctuation_failed": "La puntuación automática ha fallado. Consulta el archivo de registro para más detalles.",
+			"no_speech_detected": "No se detectó voz y el audio era casi silencio.\nPuede que el micrófono no esté captando sonido.\nComprueba que el micrófono correcto esté seleccionado y activo.",
+			"no_transcription_produced": "Se grabó audio pero no se produjo transcripción.\nPuede deberse a un modelo mal configurado o a un audio poco claro. Inténtalo de nuevo o consulta el archivo de registro."
 		}
 	},
 	"error": {
@@ -2077,7 +2103,9 @@
 			"cancelled": "Cancelado",
 			"recovered": "Recuperado | la transcripción agotó el tiempo de espera",
 			"stillTranscribing": "Todavía transcribiendo...",
-			"awaitingModel": "Finalizando la carga del modelo | tu grabación está guardada y se transcribirá en breve"
+			"awaitingModel": "Finalizando la carga del modelo | tu grabación está guardada y se transcribirá en breve",
+			"modelLoadRetry": "Cargando el modelo | tu dictado se iniciará automáticamente.",
+			"modelLoading": "Cargando el modelo..."
 		},
 		"modelManager": {
 			"loading": "Cargando el modelo | pulse su atajo de teclado para ponerlo en cola...",

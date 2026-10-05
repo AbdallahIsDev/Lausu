@@ -59,7 +59,10 @@ class TestQwenEngineUnit:
 
         assert engine.is_loaded is True
         assert engine.device == "cpu"  # ONNX path is CPU-pinned
-        assert engine.device_info == "qwen/cpu"
+        # User-facing device wording is the bare GPU/CPU word every engine
+        # reports via ``tray_models.describe_device``; the "qwen/" backend
+        # prefix belongs in ``loaded_via``, not here.
+        assert engine.device_info == "CPU"
         assert engine._onnx_model is not None
 
         audio = np.ones(16000, dtype=np.float32)

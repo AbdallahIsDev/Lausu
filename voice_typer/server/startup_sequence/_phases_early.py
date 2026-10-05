@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from voice_typer.server import crash_handler as _crash_handler, onboarding_status
+from voice_typer.server import crash_handler as _crash_handler, i18n, onboarding_status
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.config import _config_dir
 from voice_typer.server.text_cleanup import configure_corrections
@@ -268,18 +268,10 @@ class EarlyPhases:
                         _reset_onboarding_fail_count()
                         # critical, bypass show_notifications toggle.
                         with contextlib.suppress(Exception):
-                            app.tray.notify_safety(
-                                APP_NAME,
-                                "Onboarding setup kept failing. The app will "
-                                "start with default settings. Open Settings to "
-                                "configure manually.",
-                            )
+                            app.tray.notify_safety(APP_NAME, i18n.t("notify.app.onboarding_kept_failing"))
                     elif app.config.show_notifications:
                         with contextlib.suppress(Exception):
-                            app.tray.notify(
-                                APP_NAME,
-                                "Onboarding setup failed; will retry on next start.",
-                            )
+                            app.tray.notify(APP_NAME, i18n.t("notify.app.onboarding_setup_failed"))
                 except Exception:
                     log.exception("[STARTUP] Onboarding failure-handler itself failed")
 

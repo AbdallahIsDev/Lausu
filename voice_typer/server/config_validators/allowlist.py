@@ -58,10 +58,12 @@ from voice_typer.server.config_validators.scalar import (
     _make_optional_float_validator,
     _make_optional_int_validator,
     _make_optional_str_validator,
+    _make_plugin_id_validator,
     _make_str_validator,
     _make_url_validator,
     _validate_trusted_extra_hosts,
 )
+from voice_typer.server.hallucination import HALLUCINATION_FILTER_MODES
 from voice_typer.server.model_registry import (
     MODEL_REGISTRY as _MODEL_REGISTRY_FOR_ALLOWLIST,
     NO_MODEL_SIZE as _NO_MODEL_SIZE,
@@ -118,6 +120,7 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "condition_on_previous_text": (bool, _bool_validator),
     # Master switch for voice-activity (silence) filtering before
     "vad_filter_enabled": (bool, _bool_validator),
+    "hallucination_filter_mode": (str, _make_enum_validator(frozenset(HALLUCINATION_FILTER_MODES))),
     "streaming_transcription": (bool, _bool_validator),
     "streaming_chunk_seconds": (float, _make_float_validator(lo=0.1, hi=120.0)),
     "streaming_step_seconds": (float, _make_float_validator(lo=0.1, hi=60.0)),
@@ -195,6 +198,10 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "vocabulary_automation_enabled": (bool, _bool_validator),
     "vocabulary_auto_confidence_threshold": (float, _make_float_validator(lo=0.0, hi=1.0)),
     "vocabulary_auto_apply_threshold": (float, _make_float_validator(lo=0.0, hi=1.0)),
+    # Which installed plugin owns dictation ("" = the local model). The
+    # value is a plugin id, validated against what is actually installed so a
+    # stale id cannot silently take dictation away from the local model.
+    "active_plugin": (str, _make_plugin_id_validator()),
     "waveform_bubble": (bool, _bool_validator),
     "bubble_position": (str, _make_enum_validator(frozenset({"top", "bottom"}))),
     "bubble_behavior": (str, _make_enum_validator(frozenset({"show_on_record", "always_visible", "hidden"}))),

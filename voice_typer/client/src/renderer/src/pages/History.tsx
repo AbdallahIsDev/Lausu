@@ -259,7 +259,7 @@ export default function HistoryPage() {
 
 				<div className="flex w-full flex-col gap-2.5">
 					<div className="flex w-full items-center justify-between">
-						<span className="text-[12px] font-semibold text-foreground">
+						<span className="text-xs font-semibold text-foreground">
 							{t("home.recentActivity")}
 						</span>
 						<LastUpdatedIndicator

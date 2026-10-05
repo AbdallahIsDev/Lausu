@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from unittest.mock import MagicMock
 
 
@@ -214,24 +215,34 @@ class TestHealthCheckerLoopPeriodicProbe:
             return original_probe()
 
         dm._check_microphone_permission_revoked = counting_probe
+        # Simulate a slow/loaded device-info query. The loop calls
+        # ``_effective_device_check_interval_s()`` BEFORE its first
+        # ``wait()``, so a stop event armed on a fixed timer can land
+        # first and make the loop return without ever probing.
+        real_interval = dm._effective_device_check_interval_s
+
+        def slow_interval():
+            time.sleep(0.25)
+            return real_interval()
+
+        dm._effective_device_check_interval_s = slow_interval
         # GRANTED so the loop continues past the probe.
         monkeypatch.setattr(
             permissions,
             "check_microphone_permission",
             lambda: permissions.MicrophonePermissionState.GRANTED,
         )
-        # Run one loop iteration: stop the event AFTER the first wake
-        dm._device_health_stop_event.set()
         dm._device_health_stop_event = threading.Event()
 
-        def _set_stop_after_delay():
-            # Wait long enough for one wake, then set the stop event.
-            import time
-
-            time.sleep(0.05)
+        # Stop the loop only AFTER the probe has been observed, so the
+        # assertion is about the probe and never about thread scheduling.
+        def _stop_once_probed():
+            deadline = time.monotonic() + 10.0
+            while not probe_calls and time.monotonic() < deadline:
+                time.sleep(0.005)
             dm._device_health_stop_event.set()
 
-        stop_thread = threading.Thread(target=_set_stop_after_delay, daemon=True)
+        stop_thread = threading.Thread(target=_stop_once_probed, daemon=True)
         stop_thread.start()
         dm._device_health_checker_loop()
         stop_thread.join(timeout=1.0)
@@ -265,13 +276,15 @@ class TestHealthCheckerLoopPeriodicProbe:
         # Run ONE wake only: stop the event after one wake.
         dm._device_health_stop_event = threading.Event()
 
-        def _set_stop_after_delay():
-            import time
-
-            time.sleep(0.05)
+        # Arm the stop from INSIDE the wake path (the counter increment)
+        # instead of racing a fixed sleep against it, so the loop runs
+        # exactly one wake regardless of machine speed.
+        def _stop_after_first_wake():
+            while dm._permission_check_counter == 0:
+                time.sleep(0.005)
             dm._device_health_stop_event.set()
 
-        stop_thread = threading.Thread(target=_set_stop_after_delay, daemon=True)
+        stop_thread = threading.Thread(target=_stop_after_first_wake, daemon=True)
         stop_thread.start()
         dm._device_health_checker_loop()
         stop_thread.join(timeout=1.0)

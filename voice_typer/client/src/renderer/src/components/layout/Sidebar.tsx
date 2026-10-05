@@ -7,6 +7,7 @@ import {
 	HistoryIcon,
 	Home04Icon,
 	Mic02Icon,
+	PuzzleIcon,
 	Settings01Icon,
 	ShieldUserIcon,
 } from "@hugeicons/core-free-icons";
@@ -19,6 +20,7 @@ import { SHORTCUTS } from "@/components/hotkey/shortcuts";
 import { DeviceToggle } from "@/components/layout/DeviceToggle";
 import { isSettingsSurface } from "@/components/settings/settingsSections";
 import { Button } from "@/components/ui/button";
+import { usePluginsAvailable } from "@/hooks/usePluginCatalog";
 import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import { prefetchPage } from "@/router/prefetch";
@@ -39,6 +41,7 @@ type NavLeafId = Extract<
 	| "templates"
 	| "vocabulary"
 	| "media"
+	| "plugins"
 	| "settings"
 	| "microphone"
 	| "aboutAndPrivacy"
@@ -47,6 +50,14 @@ type NavLeafId = Extract<
 interface NavItem {
 	id: NavLeafId;
 	icon: IconSvgElement;
+	// Marks a freshly added destination with a trailing "new" label.
+	// The label text is resolved through i18n at RENDER time (never at
+	// module scope), so a locale switch re-labels the badge.
+	badge?: true;
+	// Gated destination: rendered only when the backend reports the
+	// internal plugin surface as available on this install. A shipped
+	// build must not show it at all (see `usePluginsAvailable`).
+	requiresPlugins?: true;
 }
 
 // 2-group nav hierarchy. Splitting the flat NAV_ITEMS list into
@@ -78,6 +89,10 @@ const MAIN_NAV_ITEMS: NavItem[] = [
 	{ id: "templates", icon: File02Icon },
 	{ id: "vocabulary", icon: BookOpen02Icon },
 	{ id: "media", icon: Film01Icon },
+	// Installed-plugin management. A day-to-day destination like the rest
+	// of this group (it browses what the app can run), not app settings.
+	// Gated: developer-only, so a shipped build renders no Plugins entry.
+	{ id: "plugins", icon: PuzzleIcon, badge: true, requiresPlugins: true },
 ];
 
 // (General / AI & Audio / Appearance / Privacy) is gone: the Settings
@@ -138,6 +153,29 @@ const NAV_GROUPS: NavGroup[] = [
 // vertical composite: arrow keys move across group boundaries). Every
 // item is a leaf button, so the flat list IS the nav order.
 const ALL_NAV_ITEMS: NavItem[] = [...MAIN_NAV_ITEMS, ...SYSTEM_NAV_ITEMS];
+
+/**
+ * Drop developer-gated items on installs that may not see them.
+ *
+ * Applied to BOTH the rendered groups and the flat roving-tabindex order:
+ * filtering only the render would leave the hidden entry focusable by
+ * keyboard, so it would still be reachable on a shipped build.
+ */
+function visibleNavItems(
+	items: NavItem[],
+	pluginsAvailable: boolean,
+): NavItem[] {
+	return pluginsAvailable
+		? items
+		: items.filter((item) => !item.requiresPlugins);
+}
+
+function visibleNavGroups(pluginsAvailable: boolean): NavGroup[] {
+	return NAV_GROUPS.map((group) => ({
+		...group,
+		items: visibleNavItems(group.items, pluginsAvailable),
+	}));
+}
 
 // Per-page keyboard shortcuts surfaced ONLY for accessibility + the
 // collapsed-sidebar tooltip: the expanded nav items render NO visible
@@ -227,7 +265,13 @@ function SidebarInner({
 	// between items without leaving the nav.
 	const navRef = useRef<HTMLElement>(null);
 
-	const activeFlatIdx = ALL_NAV_ITEMS.findIndex((i) => i.id === currentPage);
+	// Developer-gated destinations. False until the backend answers, so a
+	// shipped build never flashes the Plugins entry into view.
+	const pluginsAvailable = usePluginsAvailable();
+	const navGroups = visibleNavGroups(pluginsAvailable);
+	const navItems = visibleNavItems(ALL_NAV_ITEMS, pluginsAvailable);
+
+	const activeFlatIdx = navItems.findIndex((i) => i.id === currentPage);
 	// Roving-tabindex fallback: when the active page is a Settings
 	// surface (hub or a section page, neither is a nav item), focus the
 	// Settings leaf so it carries tabIndex=0 + aria-current for the
@@ -235,7 +279,7 @@ function SidebarInner({
 	// jump to the first nav item (home) on any Settings page, breaking
 	// the "focus follows active" UX.
 	const rovingFallbackIdx = isSettingsSurface(currentPage)
-		? ALL_NAV_ITEMS.findIndex((i) => i.id === "settings")
+		? navItems.findIndex((i) => i.id === "settings")
 		: -1;
 	const rovingIdx =
 		activeFlatIdx >= 0
@@ -336,7 +380,7 @@ function SidebarInner({
 						collapsed ? "gap-2" : "gap-5",
 					)}
 				>
-					{NAV_GROUPS.map((group) => {
+					{navGroups.map((group) => {
 						const groupLabel = navGroupLabel(group.labelKey, group.fallback);
 						return (
 							<section
@@ -367,7 +411,7 @@ function SidebarInner({
 											collapsed={collapsed}
 											onNavigate={onNavigate}
 											tabIndex={
-												ALL_NAV_ITEMS.findIndex((i) => i.id === item.id) ===
+												navItems.findIndex((i) => i.id === item.id) ===
 												rovingIdx
 													? 0
 													: -1
@@ -466,6 +510,25 @@ function NavLeaf({
 					className={cn("h-4 w-4 shrink-0 transition-colors duration-200")}
 				/>
 				<span className={navTextClasses(collapsed)}>{navLabel}</span>
+				{/* Trailing "new" marker. `ms-auto` pins it to the row's
+				    inline-end edge (RTL-safe; never `ml-auto`), and it
+				    rides the SAME collapse motion as the label so the
+				    rail stays clean when collapsed. Muted text, no fill:
+				    the marker annotates the row, it does not become a
+				    chip competing with the active-leaf surface. */}
+				{item.badge && (
+					<span
+						data-testid="nav-new-badge"
+						className={cn(
+							"ms-auto shrink-0 overflow-hidden whitespace-nowrap text-xs font-medium",
+							"transition-[max-width,opacity,translate,filter] duration-200 ease-out",
+							collapsed ? "max-w-0" : "max-w-16",
+							navLabelMotion(collapsed),
+						)}
+					>
+						<span className="text-muted-foreground">{t("nav.newBadge")}</span>
+					</span>
+				)}
 			</Button>
 		</HotkeyTooltip>
 	);

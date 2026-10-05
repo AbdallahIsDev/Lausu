@@ -2046,9 +2046,10 @@ class TestRegistryExtraction:
         assert registry._COMMAND_REGISTRY["media_transcribe_start"] == "_handle_media_transcribe_start"
         assert registry._COMMAND_REGISTRY["media_transcribe_cancel"] == "_handle_media_transcribe_cancel"
         assert registry._COMMAND_REGISTRY["media_transcribe_status"] == "_handle_media_transcribe_status"
-        assert len(registry._COMMAND_REGISTRY) == 79, (
-            f"registry._COMMAND_REGISTRY must contain 79 entries "
-            f"(75 forwarded in the Rust allowlist + shutdown + "
+        assert registry._COMMAND_REGISTRY["get_plugins"] == "_handle_get_plugins"
+        assert len(registry._COMMAND_REGISTRY) == 80, (
+            f"registry._COMMAND_REGISTRY must contain 80 entries "
+            f"(76 forwarded in the Rust allowlist + shutdown + "
             f"tray_click python-only + heartbeat + relaunch_ack host-dispatched); got "
             f"{len(registry._COMMAND_REGISTRY)}. "
             f"If the count drifted, update this test together with the "
@@ -2088,6 +2089,8 @@ class TestRegistryExtraction:
                 "get_favorites",
                 "get_transcription_text",
                 "get_microphones",
+                # Plugins page: reads on-disk manifests only.
+                "get_plugins",
                 "get_volume_backend_status",
                 "get_model_status",
                 "get_prewarm_status",

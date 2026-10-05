@@ -11,6 +11,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Protocol, TypedDict
 
+from voice_typer.server import i18n
 from voice_typer.server.branding import APP_NAME
 
 # hotkeys.restart() fallback must use the canonical DEFAULT_HOTKEY.
@@ -45,7 +46,7 @@ def _maybe_notify_acl_enforcement_failure(app: Any) -> None:
     try:
         notify(
             APP_NAME,
-            "Could not lock down config file permissions. API keys may be readable by other users on this PC.",
+            i18n.t("notify.app.config_acl_failed"),
         )
     except Exception:
         log.debug("[CONFIG] tray.notify for ACL failure also failed", exc_info=True)

@@ -100,6 +100,8 @@ class WorkerTranscriber:
                 parakeet_kwargs=dict(
                     device=getattr(config, "device", "auto"),
                     language=getattr(config, "language", None),
+                    # live Config handle for the hallucination filter mode
+                    config=config,
                 ),
             )
         elif name == "qwen":
@@ -109,6 +111,8 @@ class WorkerTranscriber:
                     model_path=getattr(config, "qwen_model_path", None),
                     device=getattr(config, "device", "auto"),
                     language=getattr(config, "language", None),
+                    # live Config handle for the hallucination filter mode
+                    config=config,
                 ),
             )
         else:
@@ -121,6 +125,8 @@ class WorkerTranscriber:
                     beam_size=getattr(config, "beam_size", 1),
                     best_of=getattr(config, "best_of", 1),
                     condition_on_previous_text=getattr(config, "condition_on_previous_text", False),
+                    # live Config handle for the hallucination filter mode
+                    config=config,
                 ),
             )
         return registry
@@ -221,6 +227,12 @@ class WorkerTranscriber:
             device_info = self._backend_device_info(engine)
             if device_info is not None:
                 result["device_info"] = device_info
+            # Carry the hallucination-rejection reason back across the worker
+            # IPC hop so the sidecar can report the real cause of an empty
+            # result instead of guessing "no speech detected".
+            rejected_reason = getattr(engine, "last_rejection_reason", None)
+            if isinstance(rejected_reason, str) and rejected_reason:
+                result["rejected_reason"] = rejected_reason
             return _done(result)
         except Exception as exc:  # noqa: BLE001, structured error result
             log.exception("[WORKER] offline transcription failed: %s", exc)

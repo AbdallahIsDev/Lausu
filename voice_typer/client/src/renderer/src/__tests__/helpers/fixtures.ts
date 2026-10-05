@@ -58,12 +58,14 @@ export const DEFAULT_CONFIG: LausuConfig = {
 	microphone: null,
 
 	model_size: "tiny",
+	active_plugin: "",
 	language: "en",
 	device: "cpu",
 	beam_size: 5,
 	best_of: 1,
 	condition_on_previous_text: false,
 	vad_filter_enabled: true,
+	hallucination_filter_mode: "balanced",
 
 	streaming_transcription: false,
 	streaming_chunk_seconds: 0,

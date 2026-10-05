@@ -15,6 +15,14 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 	return createHugeiconsMock();
 });
 
+// The Plugins nav entry is developer-gated. These tests exercise
+// roving-tabindex and aria-keyshortcuts over the full nav, so they opt
+// into the gate; the gating itself is covered by
+// components/layout/__tests__/Sidebar.plugins-gated.test.tsx.
+vi.mock("@/hooks/usePluginCatalog", () => ({
+	usePluginsAvailable: () => true,
+}));
+
 import { Sidebar } from "@/components/layout/Sidebar";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -153,6 +161,7 @@ describe("BG-R19 #11: Sidebar keyboard navigation (roving tabindex) + aria-keysh
 		"templates",
 		"vocabulary",
 		"media",
+		"plugins",
 		// System (pinned bottom group)
 		"settings",
 		"microphone",

@@ -64,7 +64,9 @@ describe("ModelCardActions, visual states (3 branches)", () => {
 			name: /Active: tiny/i,
 		});
 		expect(activeBtn).toBeDisabled();
-		// Uses the Tick02Icon (not PlayIcon, Select/Active are tick affordances).
+		// The Active button keeps the tick, post-selection the tick reads
+		// correctly as state ("this IS the model"), the Active label is
+		// disabled with reduced opacity so it never reads as an action.
 		// Delete icon renders FIRST, so the Active tick's icon is the second one.
 		expect(screen.getAllByTestId("hugeicon")[1]).toHaveAttribute(
 			"data-name",
@@ -139,7 +141,7 @@ describe("ModelCardActions, visual states (3 branches)", () => {
 		expect(dlBtn).not.toHaveAttribute("aria-busy", "true");
 	});
 
-	it("Branch 3 (Downloaded): renders 'Select' button using Tick02Icon (not PlayIcon)", () => {
+	it("Branch 3 (Downloaded): renders 'Select' with a circle icon, never a tick", () => {
 		render(
 			<ModelCardActions
 				model={{ ...baseModel, downloaded: true }}
@@ -154,13 +156,16 @@ describe("ModelCardActions, visual states (3 branches)", () => {
 			name: /Select tiny/i,
 		});
 		expect(selectBtn).toHaveTextContent("Select");
-		//#9: Select uses Tick02Icon (was PlayIcon, semantically wrong).
-		// Branch 3 renders BOTH a Select button and a Delete button, so we
+		// The at-rest icon is a plain circle outline: a neutral, NOT-YET
+		// chosen affordance. The tick must NOT appear until the model is
+		// actually active (Branch 1), which is the whole point of this
+		// contract — the old tick at rest read as "already selected" and
+		// users never realised they had to press the button.
+		// Branch 3 renders BOTH a Select button and a Delete button, so
 		// scope the icon assertion to the Select button itself.
-		expect(selectBtn.querySelector('[data-testid="hugeicon"]')).toHaveAttribute(
-			"data-name",
-			"Tick02Icon",
-		);
+		const icon = selectBtn.querySelector('[data-testid="hugeicon"]');
+		expect(icon).toHaveAttribute("data-name", "CircleIcon");
+		expect(icon).not.toHaveAttribute("data-name", "Tick02Icon");
 		// Downloaded → Delete button also rendered.
 		expect(
 			screen.getByRole("button", { name: /Delete tiny/i }),
@@ -248,7 +253,7 @@ describe("ModelCardActions, aria-busy + aria-label swap on async buttons", () =>
 		);
 	});
 
-	it("Select button at rest keeps the tick glyph (no spinner)", () => {
+	it("Select button at rest centres the circle icon + label (no left-align override)", () => {
 		render(
 			<ModelCardActions
 				model={{ ...baseModel, downloaded: true }}
@@ -262,8 +267,17 @@ describe("ModelCardActions, aria-busy + aria-label swap on async buttons", () =>
 		const selectBtn = screen.getByRole("button", { name: /Select tiny/i });
 		expect(selectBtn.querySelector('[data-testid="hugeicon"]')).toHaveAttribute(
 			"data-name",
-			"Tick02Icon",
+			"CircleIcon",
 		);
+		// The circle icon + label are CENTRED as a pair. The Button base's
+		// `justify-center` must win, so the Select button must NOT carry
+		// the `justify-start` override the Download button uses (that
+		// override exists to align icon + size text across rows; the
+		// Select button is a lone icon + word, so centring is intended).
+		expect(selectBtn.className).not.toContain("justify-start");
+		// The fixed width is kept so the button doesn't resize when the
+		// spinner appears during selection.
+		expect(selectBtn.className).toContain("w-24");
 	});
 });
 

@@ -68,16 +68,16 @@ def _probe() -> bool:
     # NOTE: importlib (not import statements) on purpose, same reason
     # as SystemWhisperEngine.load: static imports would pull
     # ctranslate2 into the frozen sidecar and trip the slim-core ML
-    # ratchet (scripts/slim_core_ml_ratchet_check.py). ctranslate2
-    # first: a CPU-only onnxruntime build can coexist with a
-    # CUDA-capable ctranslate2, so an ORT miss must not short-circuit
-    # the ctranslate2 check.
+    # ratchet (scripts/slim_core_ml_ratchet_check.py).
     import importlib
 
     try:
         ctranslate2 = importlib.import_module("ctranslate2")
-        if ctranslate2.get_cuda_device_count() <= 0:
-            return False
+        # Whisper transcribes via ctranslate2, never via onnxruntime: a
+        # CUDA device here means GPU transcription works even when the
+        # CPU-only onnxruntime wheel (no CUDAExecutionProvider) is
+        # installed, so return without consulting ORT below.
+        return ctranslate2.get_cuda_device_count() > 0
     except ImportError:
         pass
     except Exception:
@@ -85,6 +85,9 @@ def _probe() -> bool:
         return False
     if time.monotonic() >= deadline:
         return True
+    # ORT answers for the Parakeet/Qwen ONNX backends only: Whisper
+    # returned above when ctranslate2 is present, so reaching here
+    # means ctranslate2 is absent and only ONNX backends remain.
     try:
         ort = importlib.import_module("onnxruntime")
         providers = ort.get_available_providers()

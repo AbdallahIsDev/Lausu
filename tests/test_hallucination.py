@@ -4,14 +4,20 @@ Tests for ``voice_typer.server.hallucination``.
 """
 
 import logging
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from voice_typer.server.hallucination import (
     _HALLUCINATION_LOG_MAX_CHARS,
+    AMBIGUOUS_LOW_AUDIO_HALLUCINATIONS,
+    DEFAULT_HALLUCINATION_FILTER_MODE,
+    HALLUCINATION_FILTER_MODES,
     KNOWN_LOW_AUDIO_HALLUCINATIONS,
+    REJECTION_REASON_HALLUCINATION,
     log_hallucination_rejection,
+    normalize_hallucination_filter_mode,
     normalize_hallucination_key,
+    reject_and_stamp_reason,
     should_reject_low_audio_hallucination,
 )
 from voice_typer.server.security import redact_pii as _redact_pii
@@ -226,8 +232,13 @@ def test_should_reject_low_audio_hallucination_simple_tier():
 
 
 def test_should_reject_low_audio_hallucination_simple_tier_with_silence_pct():
-    """Tier 1: known phrase + very low RMS + high silence_pct → rejected."""
-    assert should_reject_low_audio_hallucination("bye", rms=0.0005, silence_pct=95.0) is True
+    """Tier 1: known phrase + very low RMS + high silence_pct → rejected.
+
+    ``strict`` mode is pinned explicitly because "bye" is an AMBIGUOUS
+    catalog entry (also real dictation), so the shipped ``balanced``
+    default keeps it -- see the ambiguity tests below.
+    """
+    assert should_reject_low_audio_hallucination("bye", rms=0.0005, silence_pct=95.0, mode="strict") is True
 
 
 def test_should_reject_low_audio_hallucination_simple_tier_low_silence_pct():
@@ -278,3 +289,130 @@ def test_should_reject_low_audio_hallucination_extended_tier_no_reject_long_span
         )
         is False
     )
+
+
+# ── filter modes + ambiguous-phrase disambiguation ─────────────────────
+
+
+class TestFilterModes:
+    """``mode`` controls how aggressively the gate discards output."""
+
+    def test_default_mode_is_balanced(self):
+        """The shipped default must be the false-positive-reducing mode."""
+        assert DEFAULT_HALLUCINATION_FILTER_MODE == "balanced"
+
+    def test_off_mode_never_rejects(self):
+        """``off`` disables the gate, even for the loudest artifact."""
+        for text in KNOWN_LOW_AUDIO_HALLUCINATIONS:
+            assert (
+                should_reject_low_audio_hallucination(
+                    text,
+                    rms=0.0001,
+                    silence_pct=99.0,
+                    no_speech_prob=0.99,
+                    avg_logprob=-3.0,
+                    mode="off",
+                )
+                is False
+            )
+
+    def test_unknown_mode_falls_back_to_default(self):
+        """A hand-edited config must not break the hot path."""
+        assert normalize_hallucination_filter_mode("bogus") == "balanced"
+        assert normalize_hallucination_filter_mode(None) == "balanced"
+        assert should_reject_low_audio_hallucination("thanks for watching", rms=0.0005, mode="bogus") is True
+
+    def test_all_modes_listed(self):
+        assert set(HALLUCINATION_FILTER_MODES) == {"off", "strict", "balanced"}
+
+
+class TestAmbiguousPhrases:
+    """Catalog entries that are ALSO plausible real dictation."""
+
+    @pytest.mark.parametrize("text", sorted(AMBIGUOUS_LOW_AUDIO_HALLUCINATIONS))
+    def test_balanced_keeps_ambiguous_phrase_without_decoder_proof(self, text):
+        """No ``no_speech_prob`` (parakeet/qwen) → keep, never drop."""
+        assert should_reject_low_audio_hallucination(text, rms=0.0005, mode="balanced") is False
+
+    @pytest.mark.parametrize("text", sorted(AMBIGUOUS_LOW_AUDIO_HALLUCINATIONS))
+    def test_balanced_rejects_ambiguous_phrase_when_decoder_confirms_silence(self, text):
+        """High ``no_speech_prob`` AND low ``avg_logprob`` → discard."""
+        assert (
+            should_reject_low_audio_hallucination(
+                text, rms=0.0005, no_speech_prob=0.9, avg_logprob=-2.0, mode="balanced"
+            )
+            is True
+        )
+
+    @pytest.mark.parametrize("text", sorted(AMBIGUOUS_LOW_AUDIO_HALLUCINATIONS))
+    def test_balanced_keeps_ambiguous_phrase_when_speech_is_confident(self, text):
+        """A confidently-spoken word is real dictation, not an artifact."""
+        assert (
+            should_reject_low_audio_hallucination(
+                text, rms=0.0005, no_speech_prob=0.05, avg_logprob=-0.2, mode="balanced"
+            )
+            is False
+        )
+
+    def test_requires_both_signals_not_either(self):
+        """Mirrors upstream: ``no_speech_prob`` alone is NOT enough.
+
+        OpenAI Whisper only treats a segment as silent when
+        ``no_speech_prob > 0.6`` AND ``avg_logprob < -1.0``.
+        """
+        assert (
+            should_reject_low_audio_hallucination(
+                "so", rms=0.0005, no_speech_prob=0.9, avg_logprob=-0.2, mode="balanced"
+            )
+            is False
+        )
+        assert (
+            should_reject_low_audio_hallucination(
+                "so", rms=0.0005, no_speech_prob=0.05, avg_logprob=-2.0, mode="balanced"
+            )
+            is False
+        )
+
+    def test_unambiguous_phrases_never_need_decoder_proof(self):
+        """Non-ambiguous artifacts keep the old RMS-only behavior."""
+        assert should_reject_low_audio_hallucination("thanks for watching", rms=0.0005, mode="balanced") is True
+
+    def test_ambiguous_entries_are_a_subset_of_the_catalog(self):
+        """E7: the ambiguous set can never drift outside the catalog."""
+        assert AMBIGUOUS_LOW_AUDIO_HALLUCINATIONS <= KNOWN_LOW_AUDIO_HALLUCINATIONS
+
+    def test_long_speech_is_never_rejected_in_any_mode(self):
+        """Regression guard: real dictation at normal volume always survives."""
+        for mode in HALLUCINATION_FILTER_MODES:
+            assert should_reject_low_audio_hallucination("thanks for watching", rms=0.08, mode=mode) is False
+            assert should_reject_low_audio_hallucination("so", rms=0.08, mode=mode) is False
+
+
+class TestRejectionReasonStamping:
+    """The reason flag the dictation pipeline reads."""
+
+    def test_stamps_reason_on_rejection(self):
+        engine = MagicMock()
+        engine.config.hallucination_filter_mode = "strict"
+        assert reject_and_stamp_reason(engine, "thanks for watching", 0.0005) is True
+        assert engine.last_rejection_reason == REJECTION_REASON_HALLUCINATION
+
+    def test_clears_reason_on_acceptance(self):
+        """A stale reason would mislabel the NEXT cycle's silence."""
+        engine = MagicMock()
+        engine.config.hallucination_filter_mode = "balanced"
+        engine.last_rejection_reason = REJECTION_REASON_HALLUCINATION
+        assert reject_and_stamp_reason(engine, "hello world", 0.05) is False
+        assert engine.last_rejection_reason is None
+
+    def test_reads_mode_from_engine_config(self):
+        """An engine whose config says "off" must not reject."""
+        engine = MagicMock()
+        engine.config.hallucination_filter_mode = "off"
+        assert reject_and_stamp_reason(engine, "thanks for watching", 0.0005) is False
+
+    def test_missing_config_uses_default(self):
+        """An engine with no config at all must still work."""
+        engine = MagicMock()
+        engine.config = None
+        assert reject_and_stamp_reason(engine, "thanks for watching", 0.0005) is True

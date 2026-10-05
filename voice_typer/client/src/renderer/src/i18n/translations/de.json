@@ -1222,7 +1222,15 @@
 			"backToSettings": "Zurück zu den Einstellungen",
 			"on": "Ein",
 			"off": "Aus"
-		}
+		},
+		"modelIdleUnload": "Sprachmodell im Speicher halten",
+		"modelIdleUnloadDescription": "Wie lange das Sprachmodell nach dem Diktieren geladen bleibt. Eine längere Zeit bedeutet, dass Diktieren immer sofort funktioniert und etwa 2 GB Arbeitsspeicher belegt, solange die App geöffnet ist. Beim Schließen der App wird der Speicher sofort freigegeben.",
+		"modelIdleUnload.minutes15": "15 Minuten",
+		"modelIdleUnload.minutes30": "30 Minuten",
+		"modelIdleUnload.minutes60": "1 Stunde",
+		"modelIdleUnload.minutes90": "1 Stunde 30 Minuten",
+		"modelIdleUnload.minutes120": "2 Stunden",
+		"modelIdleUnload.never": "Nie (geladen lassen)"
 	},
 	"models": {
 		"loadFailedTitle": "Modelle konnten nicht geladen werden",
@@ -1920,7 +1928,8 @@
 			"mic_unplugged": "Mikrofon wurde ausgesteckt. Aufnahme gestoppt.",
 			"still_running": "Die Transkription läuft noch.\nLange Aufnahmen oder CPU-Fallback können zusätzliche Zeit benötigen.",
 			"xrun_title": "{app} | Audioprobleme",
-			"xrun_body": "{count} Audio-Pufferunterläufe erkannt. Schließen Sie andere Audio-Apps oder reduzieren Sie die CPU-Last."
+			"xrun_body": "{count} Audio-Pufferunterläufe erkannt. Schließen Sie andere Audio-Apps oder reduzieren Sie die CPU-Last.",
+			"consent_not_verified": "Stimmbiometrie-Einwilligung konnte nicht geprüft werden.\nAufnahme abgelehnt. Prüfe Einstellungen > Datenschutz."
 		},
 		"model_manager": {
 			"backend_init_failed_title": "{appName}",
@@ -1958,7 +1967,10 @@
 			"undo_no_pynput": "Rückgängig nicht verfügbar (pynput fehlt)",
 			"undo_failed": "Die letzte Transkription konnte nicht rückgängig gemacht werden. Siehe Protokolle für Details.",
 			"clipboard_unavailable_body": "Transkription abgeschlossen, aber die Zwischenablage war nicht verfügbar.\nIhr Text wurde in der Crash-Wiederherstellungsdatei gespeichert, sodass er nicht verloren geht.",
-			"clipboard_unavailable_recovery_path": "Wiederherstellungsdatei: {path}"
+			"clipboard_unavailable_recovery_path": "Wiederherstellungsdatei: {path}",
+			"onboarding_kept_failing": "Die Ersteinrichtung ist wiederholt fehlgeschlagen. Die App startet mit den Standardeinstellungen. Öffne die Einstellungen, um sie manuell zu konfigurieren.",
+			"onboarding_setup_failed": "Die Ersteinrichtung ist fehlgeschlagen; sie wird beim nächsten Start erneut versucht.",
+			"config_acl_failed": "Die Berechtigungen der Konfigurationsdatei konnten nicht eingeschränkt werden. API-Schlüssel sind möglicherweise für andere Benutzer an diesem PC lesbar."
 		},
 		"hotkey_dispatcher": {
 			"register_failed": "Das Hotkey {hotkey} konnte nicht registriert werden. Möglicherweise wird es von einer anderen App verwendet. Verwenden Sie das Tray-Menü, um die Diktierung umzuschalten, oder wählen Sie in den Einstellungen einen anderen Hotkey.",
@@ -1968,7 +1980,8 @@
 			"esc_register_failed": "ESC-Abbruch-Hotkey konnte nicht registriert werden. Eine andere App hat ihn möglicherweise belegt.",
 			"repaste_register_failed": "Erneutes-Einfügen-Hotkey konnte nicht registriert werden. Eine andere App hat ihn möglicherweise belegt.",
 			"invalid_hotkey": "Hotkey {hotkey} ist ungültig: {validation_error}. Der vorherige Hotkey bleibt erhalten.",
-			"restore_failed": "Der vorherige Hotkey {hotkey} konnte nicht wiederhergestellt werden. Öffnen Sie die Einstellungen, um einen Hotkey neu zu binden."
+			"restore_failed": "Der vorherige Hotkey {hotkey} konnte nicht wiederhergestellt werden. Öffnen Sie die Einstellungen, um einen Hotkey neu zu binden.",
+			"wayland_hotkeys_may_fail": "Globale Hotkeys funktionieren unter Wayland möglicherweise nicht. Installiere 'wtype' oder 'ydotool' für Hotkey-Unterstützung oder nutze „Diktation starten“ im Tray-Menü."
 		},
 		"native_adapter": {
 			"warn_title": "{appName}: Native-Hotkey-Warnung",
@@ -1993,7 +2006,20 @@
 			"macos_body": "Klicken Sie, um die Systemeinstellungen → Bedienungshilfen zu öffnen. Fügen Sie {appName} (und seinen Tastatur-Listener-Helfer) zur Liste hinzu.",
 			"macos_body_with_command": "Klicken Sie, um die Systemeinstellungen → Bedienungshilfen zu öffnen. Fügen Sie {appName} (und seinen Tastatur-Listener-Helfer) zur Liste hinzu. Führen Sie dann aus: {command}",
 			"linux_title": "{appName} benötigt die Tastaturberechtigung",
-			"linux_body": "Klicken Sie, um Zugriff zu gewähren. Ihr System fragt nach Ihrem Passwort, um die Tastaturberechtigung zu installieren (udev-Regel + Eingabegruppe). Melden Sie sich danach ab und wieder an, damit die Änderung wirksam wird."
+			"linux_body": "Klicken Sie, um Zugriff zu gewähren. Ihr System fragt nach Ihrem Passwort, um die Tastaturberechtigung zu installieren (udev-Regel + Eingabegruppe). Melden Sie sich danach ab und wieder an, damit die Änderung wirksam wird.",
+			"accessibility_granted": "Zugriffsberechtigung erteilt. Hotkeys sind jetzt aktiv.",
+			"global_hotkeys_disabled": "Globale Hotkeys wurden deaktiviert. Öffne Systemeinstellungen -> Datenschutz & Sicherheit -> Zugriff, um die Erlaubnis erneut zu erteilen."
+		},
+		"dictation_pipeline": {
+			"llm_polish_failed": "LLM-Glättung fehlgeschlagen. Transkription wird unverändert angezeigt; Details in der Protokolldatei.",
+			"history_save_failed": "Transkription konnte nicht in den Verlauf gespeichert werden. Details in der Protokolldatei.",
+			"crash_recovery_save_failed": "Transkription konnte nicht im Absturz-Wiederherstellungspuffer gespeichert werden. Details in der Protokolldatei.",
+			"text_cleanup_failed": "Textbereinigung fehlgeschlagen. Details in der Protokolldatei.",
+			"vocab_correction_failed": "Korrektur nach Wortschatz fehlgeschlagen. Details in der Protokolldatei.",
+			"template_match_failed": "Vorlagenabgleich fehlgeschlagen. Details in der Protokolldatei.",
+			"auto_punctuation_failed": "Automatische Zeichensetzung fehlgeschlagen. Details in der Protokolldatei.",
+			"no_speech_detected": "Keine Sprache erkannt, Audio war nahezu stumm.\nDein Mikrofon nimmt möglicherweise keinen Ton auf.\nPrüfe, ob das richtige Mikrofon ausgewählt und aktiv ist.",
+			"no_transcription_produced": "Audio wurde aufgenommen, es kam aber zu keiner Transkription.\nDas kann an einer Fehlkonfiguration des Modells oder unklarer Audioqualität liegen. Versuche es erneut oder prüfe die Protokolldatei."
 		}
 	},
 	"error": {
@@ -2077,7 +2103,9 @@
 			"cancelled": "Abgebrochen",
 			"recovered": "Wiederhergestellt | Transkription abgelaufen",
 			"stillTranscribing": "Wird noch transkribiert...",
-			"awaitingModel": "Model-Laden wird abgeschlossen | Ihre Aufnahme ist gespeichert und wird in Kürze transkribiert"
+			"awaitingModel": "Model-Laden wird abgeschlossen | Ihre Aufnahme ist gespeichert und wird in Kürze transkribiert",
+			"modelLoadRetry": "Modell wird geladen | Ihre Diktierung startet automatisch.",
+			"modelLoading": "Modell wird geladen..."
 		},
 		"modelManager": {
 			"loading": "Modell wird geladen | drücken Sie Ihre Tastenkombination zum Einreihen...",

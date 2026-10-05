@@ -22,6 +22,13 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 	return createHugeiconsMock();
 });
 
+// The Plugins nav entry is developer-gated. These tests exercise nav
+// geometry and label motion, so they opt into the gate; the gating itself
+// is covered by Sidebar.plugins-gated.test.tsx.
+vi.mock("@/hooks/usePluginCatalog", () => ({
+	usePluginsAvailable: () => true,
+}));
+
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -92,7 +99,7 @@ describe("Sidebar, collapse rail geometry & transition model", () => {
 					"aside button[data-nav-item='true']",
 				),
 			);
-			expect(buttons.length).toBe(10);
+			expect(buttons.length).toBe(11);
 			for (const btn of buttons) {
 				// The single anchored icon column: identical start padding
 				// in both states (container p-2 + button px-2 = 16px from
@@ -121,11 +128,19 @@ describe("Sidebar, collapse rail geometry & transition model", () => {
 				document.querySelectorAll<HTMLSpanElement>(
 					"aside button[data-nav-item='true'] > span",
 				),
-			).filter((s) =>
-				s.className.includes("transition-[max-width,opacity,translate,filter]"),
-			);
-		// 10 nav items, every leaf + the Settings parent.
-		expect(labelSpans().length).toBe(10);
+			)
+				.filter((s) =>
+					s.className.includes(
+						"transition-[max-width,opacity,translate,filter]",
+					),
+				)
+				// The trailing "new" marker is not a nav LABEL: it rides the
+				// same motion model so the rail collapses cleanly, but it is
+				// excluded here so this suite keeps asserting the label
+				// contract (label max-width, blur endpoints) only.
+				.filter((s) => s.getAttribute("data-testid") !== "nav-new-badge");
+		// 11 nav items, every leaf + the Settings parent.
+		expect(labelSpans().length).toBe(11);
 		for (const span of labelSpans()) {
 			expect(span.className).toContain("opacity-100");
 			expect(span.className).toContain("blur-[0px]");
@@ -229,7 +244,7 @@ describe("Sidebar, collapse rail geometry & transition model", () => {
 		expect(kbdTexts).toContain(",");
 	});
 
-	it("rapid collapse/expand toggling keeps all 10 nav buttons mounted with classes flipping cleanly", () => {
+	it("rapid collapse/expand toggling keeps all 11 nav buttons mounted with classes flipping cleanly", () => {
 		const { rerender } = renderWithProviders(<Sidebar {...baseProps} />);
 		const countButtons = () =>
 			document.querySelectorAll<HTMLButtonElement>(
@@ -241,13 +256,13 @@ describe("Sidebar, collapse rail geometry & transition model", () => {
 					<Sidebar {...baseProps} collapsed />
 				</TooltipProvider>,
 			);
-			expect(countButtons()).toBe(10);
+			expect(countButtons()).toBe(11);
 			rerender(
 				<TooltipProvider delayDuration={200} skipDelayDuration={500}>
 					<Sidebar {...baseProps} />
 				</TooltipProvider>,
 			);
-			expect(countButtons()).toBe(10);
+			expect(countButtons()).toBe(11);
 		}
 		// After the toggle storm the expanded tree is intact: labels,
 		// active state, and the Settings submenu contract all survive.
