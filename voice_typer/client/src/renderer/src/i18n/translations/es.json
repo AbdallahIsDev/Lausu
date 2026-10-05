@@ -883,11 +883,11 @@
 			"vadFilterInfo": "Elimina el silencio inicial y final antes de la transcripción. Desactívelo para enviar el audio sin procesar al modelo y comparar.",
 			"vadFilterInfoSearch": "Actividad de voz silencio filtro audio sin procesar prueba modelo.",
 			"vadFilterAria": "Filtrado de actividad de voz",
-			"hallucinationFilter": "Filtro de alucinaciones",
+			"hallucinationFilter": "Ignorar alucinaciones del silencio",
 			"hallucinationFilterInfo": "Descarta las frases inventadas que el modelo produce con audio casi silencioso, como marcas de subtítulos. El modo equilibrado conserva frases cortas salvo silencio confirmado.",
 			"hallucinationFilterInfoSearch": "Filtro alucinaciones silencio artefactos equilibrado estricto desactivado.",
 			"hallucinationFilterAria": "Filtro de alucinaciones",
-			"hallucinationBalanced": "Equilibrado",
+			"hallucinationBalanced": "Equilibrado (recomendado)",
 			"hallucinationBalancedDescription": "Descarta artefactos obvios, conserva frases cortas salvo silencio confirmado. Recomendado.",
 			"hallucinationStrict": "Estricto",
 			"hallucinationStrictDescription": "Descarta toda frase artefacto conocida con audio bajo, aunque podría ser dictado real.",
@@ -1242,7 +1242,9 @@
 		"modelIdleUnload.minutes60": "1 hora",
 		"modelIdleUnload.minutes90": "1 hora y 30 minutos",
 		"modelIdleUnload.minutes120": "2 horas",
-		"modelIdleUnload.never": "Nunca (mantener cargado)"
+		"modelIdleUnload.never": "Nunca (mantener cargado)",
+		"streamingTranscription": "Transcripción en streaming",
+		"streamingTranscriptionDescription": "Transcribe mientras grabas para tener el texto listo al detener. Si está desactivado, toda la grabación se transcribe de una vez al final."
 	},
 	"plugins": {
 		"title": "Plugins",

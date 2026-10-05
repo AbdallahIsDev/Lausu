@@ -876,11 +876,11 @@
 			"vadFilterInfo": "在转录前去除开头和结尾的静音。关闭可将原始音频发送到模型以进行对比测试。",
 			"vadFilterInfoSearch": "语音活动 静音 过滤 原始音频 模型测试。",
 			"vadFilterAria": "语音活动过滤",
-			"hallucinationFilter": "幻觉过滤",
+			"hallucinationFilter": "忽略静音幻觉",
 			"hallucinationFilterInfo": "丢弃模型在近乎静音时编造的短语，如字幕水印。均衡模式会保留短语，除非确认静音。",
 			"hallucinationFilterInfoSearch": "幻觉过滤 静音 伪影 均衡 严格 关闭。",
 			"hallucinationFilterAria": "幻觉过滤",
-			"hallucinationBalanced": "均衡",
+			"hallucinationBalanced": "均衡（推荐）",
 			"hallucinationBalancedDescription": "丢弃明显伪影，保留短语，除非确认静音。推荐。",
 			"hallucinationStrict": "严格",
 			"hallucinationStrictDescription": "在安静音频上丢弃所有已知伪影短语，即使可能是真实听写。",
@@ -1242,7 +1242,9 @@
 		"modelIdleUnload.minutes60": "1 小时",
 		"modelIdleUnload.minutes90": "1 小时 30 分钟",
 		"modelIdleUnload.minutes120": "2 小时",
-		"modelIdleUnload.never": "从不（保持加载）"
+		"modelIdleUnload.never": "从不（保持加载）",
+		"streamingTranscription": "流式转写",
+		"streamingTranscriptionDescription": "边录边转写，停止时文本即就绪。关闭后将在结束时一次性转写整个录音。"
 	},
 	"plugins": {
 		"title": "插件",

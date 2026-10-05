@@ -882,11 +882,11 @@
 			"vadFilterInfo": "يزيل الصمت في البداية والنهاية قبل النسخ. عطّله لإرسال الصوت الخام إلى النموذج للمقارنة.",
 			"vadFilterInfoSearch": "النشاط الصوتي الصمت مرشح الصوت الخام اختبار النموذج.",
 			"vadFilterAria": "ترشيح النشاط الصوتي",
-			"hallucinationFilter": "مرشح الهلوسة",
+			"hallucinationFilter": "تجاهل هلوسات الصمت",
 			"hallucinationFilterInfo": "تجاهل العبارات المختلقة التي ينتجها النموذج مع الصوت شبه الصامت، مثل العلامات المائية للترجمة. الوضع المتوازن يحتفظ بالعبارات القصيرة ما لم يتم تأكيد الصمت.",
 			"hallucinationFilterInfoSearch": "مرشح الهلوسة الصمت العبارات الزائفة متوازن صارم متوقف.",
 			"hallucinationFilterAria": "مرشح الهلوسة",
-			"hallucinationBalanced": "متوازن",
+			"hallucinationBalanced": "متوازن (موصى به)",
 			"hallucinationBalancedDescription": "يزيل الزوائد الواضحة، ويحتفظ بالعبارات القصيرة ما لم يتم تأكيد الصمت. موصى به.",
 			"hallucinationStrict": "صارم",
 			"hallucinationStrictDescription": "يزيل كل عبارة زائفة معروفة مع الصوت الهادئ، حتى لو كانت إملاء حقيقيًا.",
@@ -1242,7 +1242,9 @@
 		"modelIdleUnload.minutes60": "ساعة واحدة",
 		"modelIdleUnload.minutes90": "ساعة ونصف",
 		"modelIdleUnload.minutes120": "ساعتان",
-		"modelIdleUnload.never": "أبدًا (إبقاؤه محمَّلاً)"
+		"modelIdleUnload.never": "أبدًا (إبقاؤه محمَّلاً)",
+		"streamingTranscription": "النسخ المتدفق",
+		"streamingTranscriptionDescription": "نسخ أثناء التسجيل ليكون النص جاهزًا لحظة التوقف. عند التعطيل، تُنسخ التسجيلة كاملة دفعة واحدة في النهاية."
 	},
 	"plugins": {
 		"title": "الإضافات",

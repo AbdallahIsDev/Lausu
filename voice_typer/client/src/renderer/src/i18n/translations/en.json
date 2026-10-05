@@ -903,11 +903,11 @@
 			"vadFilterInfo": "Remove leading and trailing silence before transcription. Turn off to send raw audio to the model for comparison testing.",
 			"vadFilterInfoSearch": "Voice activity silence filter raw audio model testing.",
 			"vadFilterAria": "Voice activity filtering",
-			"hallucinationFilter": "Hallucination filter",
+			"hallucinationFilter": "Ignore silence hallucinations",
 			"hallucinationFilterInfo": "Discard made-up phrases the model invents on near-silence, like subtitle watermarks. Balanced keeps short phrases unless silence is confirmed.",
 			"hallucinationFilterInfoSearch": "Hallucination filter silence artifacts balanced strict off.",
 			"hallucinationFilterAria": "Hallucination filter",
-			"hallucinationBalanced": "Balanced",
+			"hallucinationBalanced": "Balanced (recommended)",
 			"hallucinationBalancedDescription": "Drops obvious artifacts, keeps short phrases unless silence is confirmed. Recommended.",
 			"hallucinationStrict": "Strict",
 			"hallucinationStrictDescription": "Drops every known artifact phrase on quiet audio, even if it could be real dictation.",
@@ -1249,7 +1249,9 @@
 		"modelIdleUnload.minutes60": "1 hour",
 		"modelIdleUnload.minutes90": "1 hour 30 minutes",
 		"modelIdleUnload.minutes120": "2 hours",
-		"modelIdleUnload.never": "Never (keep loaded)"
+		"modelIdleUnload.never": "Never (keep loaded)",
+		"streamingTranscription": "Streaming transcription",
+		"streamingTranscriptionDescription": "Transcribe while you record, so the text is ready the moment you stop. If off, the whole recording is transcribed at once at the end."
 	},
 	"plugins": {
 		"title": "Plugins",

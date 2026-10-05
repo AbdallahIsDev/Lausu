@@ -882,11 +882,11 @@
 			"vadFilterInfo": "Entfernt führende und abschließende Stille vor der Transkription. Zum Vergleich deaktivieren, um Rohaudio an das Modell zu senden.",
 			"vadFilterInfoSearch": "Sprachaktivität Stille Filter Rohaudio Modelltest.",
 			"vadFilterAria": "Sprachaktivitätsfilter",
-			"hallucinationFilter": "Halluzinationsfilter",
+			"hallucinationFilter": "Stille-Halluzinationen ignorieren",
 			"hallucinationFilterInfo": "Erfindungen verwerfen, die das Modell bei Fast-Stille produziert, z. B. Untertitel-Wasserzeichen. Ausgewogen behält kurze Phrasen, sofern keine Stille bestätigt wird.",
 			"hallucinationFilterInfoSearch": "Halluzinationsfilter Stille Artefakte ausgewogen streng aus.",
 			"hallucinationFilterAria": "Halluzinationsfilter",
-			"hallucinationBalanced": "Ausgewogen",
+			"hallucinationBalanced": "Ausgewogen (empfohlen)",
 			"hallucinationBalancedDescription": "Offensichtliche Artefakte verwerfen, kurze Phrasen behalten, sofern keine Stille bestätigt wird. Empfohlen.",
 			"hallucinationStrict": "Streng",
 			"hallucinationStrictDescription": "Jede bekannte Artefakt-Phrase bei leisem Audio verwerfen, auch wenn sie echtes Diktat sein könnte.",
@@ -1242,7 +1242,9 @@
 		"modelIdleUnload.minutes60": "1 Stunde",
 		"modelIdleUnload.minutes90": "1 Stunde 30 Minuten",
 		"modelIdleUnload.minutes120": "2 Stunden",
-		"modelIdleUnload.never": "Nie (geladen lassen)"
+		"modelIdleUnload.never": "Nie (geladen lassen)",
+		"streamingTranscription": "Streaming-Transkription",
+		"streamingTranscriptionDescription": "Transkribieren während der Aufnahme, sodass der Text beim Stoppen bereit ist. Wenn deaktiviert, wird die gesamte Aufnahme am Ende auf einmal transkribiert."
 	},
 	"plugins": {
 		"title": "Plugins",

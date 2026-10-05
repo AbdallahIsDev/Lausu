@@ -95,6 +95,13 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 	// `modelIdleUnload.ts` so the floor/ceiling/order can't drift.
 	const MODEL_IDLE_UNLOAD_LABEL = t("settings.modelIdleUnload");
 	const MODEL_IDLE_UNLOAD_INFO = t("settings.modelIdleUnloadDescription");
+	// Live transcription during recording (streaming windows) vs one
+	// full decode at stop. Lives next to the model-memory rows: all
+	// three decide how transcription compute is spent. Defaults ON.
+	const STREAMING_TRANSCRIPTION_LABEL = t("settings.streamingTranscription");
+	const STREAMING_TRANSCRIPTION_INFO = t(
+		"settings.streamingTranscriptionDescription",
+	);
 
 	//section-level visibility check for the General section. The title
 	// constant feeds BOTH the `<SettingsSection title>` prop AND the
@@ -108,6 +115,10 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 		{ label: TRAY_CLICK_LABEL, info: TRAY_CLICK_INFO },
 		{ label: FAST_STARTUP_LABEL, info: FAST_STARTUP_INFO },
 		{ label: MODEL_IDLE_UNLOAD_LABEL, info: MODEL_IDLE_UNLOAD_INFO },
+		{
+			label: STREAMING_TRANSCRIPTION_LABEL,
+			info: STREAMING_TRANSCRIPTION_INFO,
+		},
 	];
 	const generalVisible = generalItems.some((item) =>
 		isVisible(item.label, item.info, generalSectionTitle),
@@ -126,6 +137,8 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 		});
 	const handleModelIdleUnloadChange = (v: string) =>
 		updateConfig({ model_idle_unload_minutes: Number(v) });
+	const handleStreamingTranscriptionChange = (checked: boolean) =>
+		updateConfig({ streaming_transcription: checked });
 
 	if (!generalVisible) return null;
 
@@ -206,6 +219,22 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 							))}
 						</SelectContent>
 					</Select>
+				</SettingRow>
+			)}
+			{isVisible(
+				STREAMING_TRANSCRIPTION_LABEL,
+				STREAMING_TRANSCRIPTION_INFO,
+				generalSectionTitle,
+			) && (
+				<SettingRow
+					label={STREAMING_TRANSCRIPTION_LABEL}
+					info={STREAMING_TRANSCRIPTION_INFO}
+				>
+					<Switch
+						checked={config.streaming_transcription ?? true}
+						onCheckedChange={handleStreamingTranscriptionChange}
+						aria-label={STREAMING_TRANSCRIPTION_LABEL}
+					/>
 				</SettingRow>
 			)}
 			{/*App Language selector, distinct from the spoken-language
