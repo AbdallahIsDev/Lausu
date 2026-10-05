@@ -889,8 +889,17 @@ class TestVadParametersSharedConstant:
 
         from voice_typer.server import transcription_result
 
-        for fn in (transcription_result.transcribe_unlocked, transcription_result.transcribe_words_unlocked):
-            fn_src = inspect.getsource(fn)
-            assert fn_src.count("vad_parameters=_VAD_PARAMETERS") == 1, (
-                f"{fn.__name__} must pass the shared _VAD_PARAMETERS constant exactly once"
-            )
+        # The words path decodes directly; the batch path centralizes all
+        # decode params in _decode_segments (sequential + batched share it).
+        words_src = inspect.getsource(transcription_result.transcribe_words_unlocked)
+        assert words_src.count("vad_parameters=_VAD_PARAMETERS") == 1, (
+            "transcribe_words_unlocked must pass the shared _VAD_PARAMETERS constant exactly once"
+        )
+        batch_src = inspect.getsource(transcription_result.transcribe_unlocked)
+        assert "_decode_segments(engine, audio, use_vad_filter, duration)" in batch_src, (
+            "transcribe_unlocked must decode through _decode_segments (single params owner)"
+        )
+        shared_src = inspect.getsource(transcription_result._decode_segments)
+        assert shared_src.count("_VAD_PARAMETERS") == 1, (
+            "_decode_segments must reference the shared _VAD_PARAMETERS constant exactly once"
+        )

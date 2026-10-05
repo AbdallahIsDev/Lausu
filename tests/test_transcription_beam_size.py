@@ -1,8 +1,7 @@
-"""Whisper beam-width configuration: automatic device/model-aware default."""
+"""Whisper beam-width configuration: greedy default, explicit opt-in."""
 
 import pytest
 from voice_typer.server.transcription import (
-    AUTO_CUDA_BEAM_SIZE,
     _auto_beam_size,
 )
 from voice_typer.worker.whisper import TranscriptionEngine
@@ -17,8 +16,10 @@ def _engine_with_device(model_size: str, device: str, **kwargs) -> Transcription
 
 
 class TestAutoBeamSizePolicy:
-    def test_cuda_non_tiny_model_gets_wide_beam(self):
-        assert _auto_beam_size("large-v3-turbo", "cuda") == AUTO_CUDA_BEAM_SIZE
+    """Owner decision: auto is greedy everywhere (no CUDA upgrade)."""
+
+    def test_cuda_non_tiny_model_stays_greedy(self):
+        assert _auto_beam_size("large-v3-turbo", "cuda") == 1
 
     def test_cuda_tiny_model_stays_greedy(self):
         assert _auto_beam_size("tiny", "cuda") == 1
@@ -32,11 +33,11 @@ class TestAutoBeamSizePolicy:
 
 
 class TestEngineBeamResolution:
-    def test_auto_upgrade_applied_on_resolved_cuda(self):
+    def test_auto_stays_greedy_on_resolved_cuda(self):
         engine = _engine_with_device("large-v3-turbo", "cuda")
         assert engine.beam_size == 1  # construction-time default
         engine._apply_auto_beam_size()
-        assert engine.beam_size == AUTO_CUDA_BEAM_SIZE
+        assert engine.beam_size == 1
 
     def test_auto_noop_for_tiny_on_cuda(self):
         engine = _engine_with_device("tiny", "cuda")
@@ -57,10 +58,10 @@ class TestEngineBeamResolution:
         engine._apply_auto_beam_size()
         assert engine.beam_size == 3
 
-    def test_cpu_fallback_downgrades_auto_beam(self):
+    def test_cpu_fallback_stays_greedy(self):
         engine = _engine_with_device("large-v3-turbo", "cuda")
         engine._apply_auto_beam_size()
-        assert engine.beam_size == AUTO_CUDA_BEAM_SIZE
+        assert engine.beam_size == 1
         # GPU→CPU fallback path re-resolves after switching devices.
         engine._device = "cpu"
         engine._apply_auto_beam_size()

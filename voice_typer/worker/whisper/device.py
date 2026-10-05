@@ -93,7 +93,7 @@ def apply_auto_beam_size(engine) -> None:
     """Re-resolve ``engine.beam_size`` when the user left it on auto."""
     if not getattr(engine, "_beam_size_auto", False):
         return
-    # Late binding: ``_auto_beam_size`` (and the AUTO_CUDA_BEAM_SIZE
+    # Late binding: ``_auto_beam_size`` stays canonical in the facade
     from voice_typer.server import transcription as _t
 
     engine.beam_size = _t._auto_beam_size(engine.model_size, engine._device)

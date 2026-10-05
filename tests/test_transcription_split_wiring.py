@@ -106,11 +106,10 @@ class TestFacadeReExports:
     """Back-compat import surface pinned (no behavior assertions)."""
 
     def test_beam_size_symbols_importable_from_facade(self):
-        from voice_typer.server.transcription import AUTO_CUDA_BEAM_SIZE, _auto_beam_size  # noqa: F401
+        from voice_typer.server.transcription import _auto_beam_size  # noqa: F401
         from voice_typer.worker.whisper import TranscriptionEngine  # noqa: F401
 
-        assert AUTO_CUDA_BEAM_SIZE == 5
-        assert _auto_beam_size("large-v3-turbo", "cuda") == AUTO_CUDA_BEAM_SIZE
+        assert _auto_beam_size("large-v3-turbo", "cuda") == 1
         assert _auto_beam_size("tiny", "cuda") == 1
         assert _auto_beam_size("large-v3-turbo", "cpu") == 1
 
