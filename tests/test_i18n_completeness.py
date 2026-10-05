@@ -22,6 +22,10 @@ ALLOWED_UNTRANSLATED = {
     "computeDevice.gpu",  # "GPU", universal hardware acronym
     "settings.languageHindi",  # "Hindi", proper noun
     "nav.microphone",  # "Microphone", technical term
+    # "Plugins" is the standard computing term in German/French/Spanish,
+    # spelled identically (same class as the "Notifications" cognate).
+    "nav.plugins",  # "Plugins"
+    "plugins.title",  # "Plugins"
     "settings.overlay",  # "Overlay", technical term
     "settings.preset",  # "Preset", technical term
     "settings.presetCode",  # "Code", technical term
