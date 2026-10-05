@@ -400,7 +400,7 @@ def check_resources(*, logger: logging.Logger | None = None) -> None:
                 )
         elif ct2_count is not None:
             _log.info(
-                "[RESOURCE] GPU: ctranslate2 sees %d CUDA device(s), memory figures unavailable "
+                "[RESOURCE] GPU: ctranslate2 sees %d CUDA devices, memory figures unavailable "
                 "(nvidia-smi unreadable and pynvml missing)",
                 ct2_count,
             )
