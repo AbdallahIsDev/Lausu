@@ -53,8 +53,8 @@ pub(crate) fn allowed_commands() -> &'static HashSet<&'static str> {
             "toggle_favorite",
             "get_favorites",
             "get_microphones",
-    // Plugins page: installed-plugin discovery (read-only).
-    "get_plugins",
+            // Plugins page: installed-plugin discovery (read-only).
+            "get_plugins",
             "restart_app",
             "quit_app",
             "get_templates",
