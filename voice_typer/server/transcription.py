@@ -64,20 +64,14 @@ _nvidia_config_lock = threading.Lock()
 _nvidia_dll_paths = _NvidiaDllPathManager()
 
 
-# Wide-beam default applied automatically on CUDA for non-tiny models.
-AUTO_CUDA_BEAM_SIZE = 5
-
-
 def _auto_beam_size(model_size: str, device: str) -> int:
-    """Beam width used when the user left it on auto.
+    """Beam width used when the user left it on auto: always greedy.
 
-    Returns the wide accuracy-biased beam only for non-tiny models on a
+    Owner decision: no wide-beam upgrade on CUDA. Greedy is ~2x faster
+    with negligible accuracy loss on clean microphone audio; users who
+    want beam search set ``beam_size`` / ``whisper_beam_size`` explicitly.
     """
-    if device != "cuda":
-        return 1
-    if str(model_size).lower().startswith("tiny"):
-        return 1
-    return AUTO_CUDA_BEAM_SIZE
+    return 1
 
 
 # Back-compat re-export: the canonical body lives in
