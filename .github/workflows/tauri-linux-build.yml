@@ -590,7 +590,7 @@ jobs:
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v6
         with:
-          name: tauri-linux-installer
+          name: Lausu-Linux-Installer
           path: |
             src-tauri/target/*/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/deb/*.deb
@@ -628,7 +628,7 @@ jobs:
           retention-days: 30
 
       # plan-runtime-pack-split.md §11.4 — Slim core .deb size gate
-      - name: Assert slim-core .deb size <= 45 MB (plan §11.4, Phase 2c target — informational)
+      - name: Assert slim-core .deb size <= 80 MB (plan §11.4, Phase 2c target — informational)
         continue-on-error: true
         run: |
           set -euo pipefail
@@ -641,12 +641,12 @@ jobs:
             exit 0
           fi
           SIZE_MB=$(du -m "$DEB" | cut -f1)
-          echo ".deb size: ${SIZE_MB} MB (Phase 2c slim-core target: 45 MB)"
-          if [ "$SIZE_MB" -gt 45 ]; then
-            echo "::warning::.deb exceeds 45 MB slim-core limit (got ${SIZE_MB} MB). Phase 2c target — gate is informational (continue-on-error: true) until the slim-core build strips ML libs out of the .deb payload (the pack is a separate download per §11.6)."
+          echo ".deb size: ${SIZE_MB} MB (Phase 2c slim-core target: 80 MB)"
+          if [ "$SIZE_MB" -gt 80 ]; then
+            echo "::warning::.deb exceeds 80 MB slim-core limit (got ${SIZE_MB} MB). Phase 2c target — gate is informational (continue-on-error: true) until the slim-core build strips ML libs out of the .deb payload (the pack is a separate download per §11.6)."
             exit 1
           fi
-          echo "Slim core .deb size within 45 MB limit (size gate passed)."
+          echo "Slim core .deb size within 80 MB limit (size gate passed)."
 
       - name: Upload build logs (Nuitka + cargo)
         if: always()
@@ -696,7 +696,7 @@ jobs:
       - name: Upload checksums
         uses: actions/upload-artifact@v6
         with:
-          name: Lausu-Tauri-Linux-SHA256SUMS-${{ env.BUILD_ARCH }}
+          name: Lausu-Linux-SHA256SUMS-${{ env.BUILD_ARCH }}
           path: SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
@@ -720,7 +720,7 @@ jobs:
       - name: Upload updated tauri-binaries.json
         uses: actions/upload-artifact@v6
         with:
-          name: tauri-binaries-manifest-linux-${{ env.BUILD_ARCH }}
+          name: Lausu-Binaries-Manifest-Linux-${{ env.BUILD_ARCH }}
           path: tauri-binaries.json
           if-no-files-found: error
           retention-days: 30

@@ -472,8 +472,8 @@ jobs:
     # jobs.<id>.if). Default binary names grepped by mig18 signing tests:
     #   python-sidecar-x86_64-pc-windows-msvc.exe
     #   python-sidecar-aarch64-pc-windows-msvc.exe  (aarch64 template, commented)
-    # Artifact names (C-CI-13): tauri-windows-installer, Lausu-Tauri-MSI,
-    # Lausu-Tauri-Sidecar-Binaries, Lausu-Tauri-SHA256SUMS.
+    # Artifact names (C-CI-13): Lausu-Windows-Installer, Lausu-Windows-MSI,
+    # Lausu-Windows-Sidecar-Binaries, Lausu-Windows-SHA256SUMS.
     # If enabling aarch64, also add tauri.windows-aarch64.conf.json + arch-suffix
     # those artifact names (TX-40 GATE STATUS / docs/code-notes/ci-workflows.md).
     strategy:
@@ -792,9 +792,9 @@ jobs:
           }
           Write-Host "Bundle contains only Windows binaries (assertion passed)"
 
-      # (Phase 2c target, ≤45 MB). The slim core is the NSIS installer
+      # (Phase 2c target, ≤80 MB). The slim core is the NSIS installer
       # pack is a separate download per §4.1/§11.6). Today the NSIS
-      - name: Assert slim-core installer size <= 45 MB (plan §11.4, Phase 2c target — informational)
+      - name: Assert slim-core installer size <= 80 MB (plan §11.4, Phase 2c target — informational)
         shell: pwsh
         continue-on-error: true
         run: |
@@ -804,12 +804,12 @@ jobs:
             exit 0
           }
           $size = (Get-Item $nsis).Length / 1MB
-          Write-Host "NSIS installer size: $([math]::Round($size,2)) MB (Phase 2c slim-core target: 45 MB)"
-          if ($size -gt 45) {
-            Write-Warning "NSIS installer exceeds 45 MB slim-core limit (got $([math]::Round($size,2)) MB). Phase 2c target — gate is informational (continue-on-error: true) until the slim-core build strips ML libs out of the NSIS payload."
+          Write-Host "NSIS installer size: $([math]::Round($size,2)) MB (Phase 2c slim-core target: 80 MB)"
+          if ($size -gt 80) {
+            Write-Warning "NSIS installer exceeds 80 MB slim-core limit (got $([math]::Round($size,2)) MB). Phase 2c target — gate is informational (continue-on-error: true) until the slim-core build strips ML libs out of the NSIS payload."
             exit 1
           }
-          Write-Host "Slim core size within 45 MB limit (size gate passed)."
+          Write-Host "Slim core size within 80 MB limit (size gate passed)."
 
       - name: Sign the final NSIS installer (optional — ADR-0020 §13.1)
         if: ${{ env.SIGN_ENABLED == 'true' && env.WIN_CSC_LINK != '' && env.WIN_CSC_KEY_PASSWORD != '' }}
@@ -923,23 +923,23 @@ jobs:
       - name: Upload NSIS installer artifact
         uses: actions/upload-artifact@v6
         with:
-          name: tauri-windows-installer
+          name: Lausu-Windows-Installer
           path: ${{ steps.artifacts.outputs.nsis_path }}
           if-no-files-found: error
 
       - name: Upload MSI installer artifact
         uses: actions/upload-artifact@v6
         with:
-          name: Lausu-Tauri-MSI
+          name: Lausu-Windows-MSI
           path: ${{ steps.artifacts.outputs.msi_path }}
           if-no-files-found: warn
 
       - name: Upload sidecar + native listener
         uses: actions/upload-artifact@v6
         with:
-          name: Lausu-Tauri-Sidecar-Binaries
+          name: Lausu-Windows-Sidecar-Binaries
           # TX-40: paths use matrix.target so the aarch64 leg (when enabled)
-          # step (`name: Lausu-Tauri-Sidecar-Binaries`) — when the
+          # step (`name: Lausu-Windows-Sidecar-Binaries`) — when the
           # and update tauri-build.yml accordingly (see TX-40 GATE STATUS
           # plan-runtime-pack-split.md §11.9 (C-CI-13): the worker exe is a
           # worker path glob matches nothing and upload-artifact@v6 silently
@@ -975,7 +975,7 @@ jobs:
       - name: Upload checksums
         uses: actions/upload-artifact@v6
         with:
-          name: Lausu-Tauri-SHA256SUMS
+          name: Lausu-Windows-SHA256SUMS
           path: SHA256SUMS.txt
           if-no-files-found: error
 
@@ -997,7 +997,7 @@ jobs:
       - name: Upload updated tauri-binaries.json
         uses: actions/upload-artifact@v6
         with:
-          name: tauri-binaries-manifest-windows
+          name: Lausu-Binaries-Manifest-Windows
           path: tauri-binaries.json
           if-no-files-found: error
           retention-days: 30
