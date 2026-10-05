@@ -104,13 +104,14 @@ def _download_with_retry(
             attempts,
         )
 
-    return run_with_retry(
+    result: str = run_with_retry(
         lambda: download_fn(**kwargs),
         max_attempts=max_attempts,
         delays=delays,
         on_retry=_on_retry,
         on_give_up=_on_give_up,
     )
+    return result
 
 
 def cleanup_hf_cache_dir(repo_id: str, log_prefix: str = "") -> None:

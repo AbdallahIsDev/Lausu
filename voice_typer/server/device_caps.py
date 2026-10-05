@@ -77,7 +77,8 @@ def _probe() -> bool:
         # CUDA device here means GPU transcription works even when the
         # CPU-only onnxruntime wheel (no CUDAExecutionProvider) is
         # installed, so return without consulting ORT below.
-        return ctranslate2.get_cuda_device_count() > 0
+        count: int = ctranslate2.get_cuda_device_count()
+        return count > 0
     except ImportError:
         pass
     except Exception:
