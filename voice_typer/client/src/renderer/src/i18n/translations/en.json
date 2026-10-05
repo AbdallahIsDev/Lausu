@@ -1340,7 +1340,6 @@
 			"testing": "Testing…"
 		},
 		"status": {
-			"depsRequired": "Dependencies required",
 			"insufficientDisk": "Insufficient disk space"
 		},
 		"import": {

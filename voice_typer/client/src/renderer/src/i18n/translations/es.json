@@ -1333,7 +1333,6 @@
 			"testing": "Probando…"
 		},
 		"status": {
-			"depsRequired": "Dependencias requeridas",
 			"insufficientDisk": "Espacio en disco insuficiente"
 		},
 		"import": {

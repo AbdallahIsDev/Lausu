@@ -1333,7 +1333,6 @@
 			"testing": "परीक्षण हो रहा है…"
 		},
 		"status": {
-			"depsRequired": "निर्भरताएं आवश्यक हैं",
 			"insufficientDisk": "अपर्याप्त डिस्क स्थान"
 		},
 		"import": {

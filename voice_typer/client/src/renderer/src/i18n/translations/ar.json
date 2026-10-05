@@ -1333,7 +1333,6 @@
 			"testing": "جارٍ الاختبار…"
 		},
 		"status": {
-			"depsRequired": "التبعيات مطلوبة",
 			"insufficientDisk": "مساحة القرص غير كافية"
 		},
 		"import": {

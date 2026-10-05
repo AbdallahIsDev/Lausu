@@ -1333,7 +1333,6 @@
 			"testing": "Wird getestet…"
 		},
 		"status": {
-			"depsRequired": "Abhängigkeiten erforderlich",
 			"insufficientDisk": "Unzureichender Speicherplatz"
 		},
 		"import": {
