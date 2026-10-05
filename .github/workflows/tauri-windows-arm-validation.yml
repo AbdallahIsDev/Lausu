@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       artifact_run_id:
-        description: "Run ID of a completed tauri-windows-build run whose tauri-windows-installer artifact should be validated (empty = latest successful)"
+        description: "Run ID of a completed tauri-windows-build run whose Lausu-Windows-Installer artifact should be validated (empty = latest successful)"
         required: false
         default: ""
         type: string
@@ -56,7 +56,7 @@ jobs:
       - name: Download x64 installer artifact
         uses: actions/download-artifact@v6
         with:
-          name: tauri-windows-installer
+          name: Lausu-Windows-Installer
           run-id: ${{ env.ARTIFACT_RUN_ID }}
           github-token: ${{ github.token }}
           path: arm-validation/installer
@@ -79,7 +79,7 @@ jobs:
           $installer = Get-ChildItem arm-validation/installer -Recurse -Filter *.exe |
             Sort-Object Length -Descending | Select-Object -First 1
           if (-not $installer) {
-            Write-Error "No installer .exe found in the tauri-windows-installer artifact."
+            Write-Error "No installer .exe found in the Lausu-Windows-Installer artifact."
             exit 1
           }
           $hash = (Get-FileHash -Path $installer.FullName -Algorithm SHA256).Hash.ToLower()

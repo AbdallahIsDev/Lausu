@@ -162,21 +162,21 @@ jobs:
         if: needs.build-windows.result == 'success'
         uses: actions/download-artifact@v6
         with:
-          name: tauri-windows-installer
+          name: Lausu-Windows-Installer
           path: aggregated/windows
 
       - name: Download macOS installer
         if: needs.build-macos.result == 'success'
         uses: actions/download-artifact@v6
         with:
-          name: tauri-macos-installer
+          name: Lausu-macOS-Installer
           path: aggregated/macos
 
       - name: Download Linux installer
         if: needs.build-linux.result == 'success'
         uses: actions/download-artifact@v6
         with:
-          name: tauri-linux-installer
+          name: Lausu-Linux-Installer
           path: aggregated/linux
 
       - name: Fail if no installers were found
@@ -190,28 +190,28 @@ jobs:
         if: needs.build-macos.result == 'success'
         uses: actions/download-artifact@v6
         with:
-          name: tauri-binaries-manifest-macos
+          name: Lausu-Binaries-Manifest-macOS
           path: manifests/macos
 
       - name: Download Windows manifest
         if: needs.build-windows.result == 'success'
         uses: actions/download-artifact@v6
         with:
-          name: tauri-binaries-manifest-windows
+          name: Lausu-Binaries-Manifest-Windows
           path: manifests/windows
 
       - name: Download Linux manifests (x86_64 + aarch64 legs)
         if: needs.build-linux.result == 'success'
         uses: actions/download-artifact@v6
         with:
-          name: tauri-binaries-manifest-linux-x86_64
+          name: Lausu-Binaries-Manifest-Linux-x86_64
           path: manifests/linux-x86_64
 
       - name: Download Linux manifests (aarch64 leg)
         if: needs.build-linux.result == 'success'
         uses: actions/download-artifact@v6
         with:
-          name: tauri-binaries-manifest-linux-aarch64
+          name: Lausu-Binaries-Manifest-Linux-aarch64
           path: manifests/linux-aarch64
 
       # Merge the per-leg manifests on top of the committed base manifest:
@@ -273,7 +273,7 @@ jobs:
       - name: Upload aggregated artifact
         uses: actions/upload-artifact@v6
         with:
-          name: tauri-all-installers
+          name: Lausu-All-Installers
           path: aggregated/
           retention-days: 30
 
@@ -282,7 +282,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: tauri-binaries-manifest-merged
+          name: Lausu-Binaries-Manifest-Merged
           path: tauri-binaries-merged.json
           if-no-files-found: error
           retention-days: 30

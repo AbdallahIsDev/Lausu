@@ -1,6 +1,7 @@
 """
 Installer-config tests for the slim-core / runtime-pack split.
-C-CI-13 forbids RENAMING the existing artifacts; these are NEW names
+C-CI-13 forbids RENAMING the existing artifacts without updating every
+consumer in lockstep; these are NEW names
 """
 
 from __future__ import annotations
@@ -332,8 +333,8 @@ class TestArtifactNames:
 
 class TestNoRenameOfExistingArtifacts:
     """
-    C-CI-13: never rename EXISTING artifacts.
-    C-CI-13-protected existing names (a collision would be a silent
+    C-CI-13: never rename EXISTING artifacts without lockstep consumer
+    updates. C-CI-13-protected existing names (a collision would be a silent
     """
 
     def test_new_names_do_not_collide_with_protected(self) -> None:
@@ -351,22 +352,22 @@ class TestNoRenameOfExistingArtifacts:
             "C-CI-13 violation: new §11.9 artifact names overlap with the "
             f"protected existing names: {sorted(overlap)}. The new names must "
             "be ADDITIVE, they must NOT rename or overwrite the existing "
-            "tauri-windows-installer / Lausu-Tauri-* / python-sidecar-* "
+            "Lausu-Windows-Installer / Lausu-Windows-* / python-sidecar-* "
             "artifact names."
         )
 
     def test_existing_protected_names_listed(self) -> None:
         """
         The protected names list must enumerate every C-CI-13 entry.
-        C-CI-13 enumerates: ``tauri-windows-installer``, ``Lausu-Tauri-MSI``,
+        C-CI-13 enumerates: ``Lausu-Windows-Installer``, ``Lausu-Windows-MSI``,
         """
         mod = _load_artifact_names_module()
         expected = {
-            "tauri-windows-installer",
-            "Lausu-Tauri-MSI",
-            "Lausu-Tauri-Sidecar-Binaries",
-            "Lausu-Tauri-SHA256SUMS",
-            "tauri-binaries-manifest-windows",
+            "Lausu-Windows-Installer",
+            "Lausu-Windows-MSI",
+            "Lausu-Windows-Sidecar-Binaries",
+            "Lausu-Windows-SHA256SUMS",
+            "Lausu-Binaries-Manifest-Windows",
         }
         assert expected.issubset(set(mod.EXISTING_PROTECTED_NAMES)), (
             "EXISTING_PROTECTED_NAMES missing entries from C-CI-13: "

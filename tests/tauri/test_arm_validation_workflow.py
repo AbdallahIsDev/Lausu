@@ -21,7 +21,7 @@ class TestArmValidationWorkflowContract:
     def test_downloads_the_x64_installer_artifact(self) -> None:
         """The artifact contract must match the x64 build's literal"""
         text = _workflow_text()
-        assert "name: tauri-windows-installer" in text
+        assert "name: Lausu-Windows-Installer" in text
         assert "run-id:" in text, "cross-run download must pin the run id"
 
     def test_proves_the_runner_is_arm64_and_the_binary_is_x64(self) -> None:
