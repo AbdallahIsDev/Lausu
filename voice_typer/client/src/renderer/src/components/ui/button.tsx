@@ -4,6 +4,14 @@ import type * as React from "react";
 
 import { cn } from "#utils";
 
+// Borderless pair for variants that must paint NO border in EITHER
+// scheme. `dark:border-transparent` is REQUIRED alongside
+// `border-transparent`: the Button base carries
+// `dark:border-border/10`, and a class-variant dark rule outranks a
+// plain utility, so in dark mode the border came back and the
+// variants rendered as outlined boxes.
+const borderless = "border-transparent dark:border-transparent";
+
 const buttonVariants = cva(
 	// PERF: enumerated `transition` property list instead of
 	// `transition-all`. The Button actually transitions colors
@@ -16,17 +24,20 @@ const buttonVariants = cva(
 	// RADIUS 8px (2026-10-02): buttons are 0.5rem while panels/cards
 	// stay on the 10px --radius; a button is a smaller object and the
 	// tighter corner reads as "control", not "surface".
-	// BORDER: 1px, black-at-5% in light / white-at-10% in dark (the
+	// BORDER: 1px, black-at-8% in light / white-at-10% in dark (the
 	// border token is pure black/white, the alpha is the modifier, so
-	// "#000000/5" and "#FFFFFF/10" are one pair of classes). The accent
-	// blue variant opts out with border-transparent.
+	// "#000000/8" and "#FFFFFF/10" are one pair of classes). The accent
+	// blue variant opts out in BOTH schemes via `borderless`.
 	"group/button inline-flex shrink-0 items-center justify-center rounded-[0.5rem] border border-border/8 dark:border-border/10 bg-clip-padding text-sm font-medium leading-[1.3] whitespace-nowrap transition outline-hidden select-none cursor-pointer focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring active:not-aria-[haspopup]:translate-y-px disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
 	{
 		variants: {
 			variant: {
 				// Accent blue: the one button with NO border (2026-10-02).
-				default:
-					"border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+				// `borderless` covers dark mode too — a bare
+				// `border-transparent` loses to the base's
+				// `dark:border-border/10` and the CTA rendered
+				// outlined in dark themes.
+				default: `${borderless} bg-primary text-primary-foreground hover:bg-primary/80`,
 				// Neutral button (2026-10-02): fill #FFFFFF/5 in dark and
 				// #000000/5 in light — one class, `bg-border/5`, because the
 				// border token flips with the scheme. Hover is the same token
@@ -35,8 +46,7 @@ const buttonVariants = cva(
 					"bg-border/5 text-foreground hover:bg-border/8 aria-expanded:bg-border/8 aria-expanded:text-foreground",
 				secondary:
 					"bg-border/5 text-foreground hover:bg-border/8 aria-expanded:bg-border/8 aria-expanded:text-foreground",
-				ghost:
-					"border-transparent hover:bg-border/8 hover:text-foreground aria-expanded:bg-border/8 aria-expanded:text-foreground",
+				ghost: `${borderless} hover:bg-border/8 hover:text-foreground aria-expanded:bg-border/8 aria-expanded:text-foreground`,
 				destructive:
 					"bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
 				// warning variant for mid-tier destructive actions
@@ -48,12 +58,7 @@ const buttonVariants = cva(
 				warning:
 					"bg-warning/15 text-warning hover:bg-warning/25 focus-visible:border-warning/40 focus-visible:ring-warning/20",
 				// No border/box: `link` is a text affordance, not a control.
-				// `dark:border-transparent` is REQUIRED alongside
-				// `border-transparent`: the Button base carries
-				// `dark:border-border/10`, and a class-variant dark rule
-				// outranks a plain utility, so in dark mode the border came
-				// back and link buttons rendered as outlined boxes.
-				link: "border-transparent dark:border-transparent px-0 text-primary underline-offset-4 hover:underline",
+				link: `${borderless} px-0 text-primary underline-offset-4 hover:underline`,
 			},
 			size: {
 				default:
