@@ -433,6 +433,10 @@ class _TranscribeStepMixin:
                 )
         elif self._duration < _grace_period and _audio_was_captured:
             # Short recording BUT real audio was captured: the engine
+            # returned nothing for audible speech (both streaming and
+            # batch came back empty, or the engine errored silently).
+            # Staying quiet here strands the user: they spoke, waited,
+            # and nothing happened. Notify like the long-recording case.
             log.warning(
                 "[TRANSCRIBE] Short recording (%.1fs) with audio "
                 "(rms=%.4f >= %.4f) produced empty transcription, "
@@ -446,6 +450,7 @@ class _TranscribeStepMixin:
                 AppState.IDLE,
                 _i18n_t("state.dictation_pipeline.transcription_empty"),
             )
+            self._app.tray.notify(APP_NAME, i18n.t("notify.dictation_pipeline.no_transcription_produced"))
         elif self._recorded_rms < _silence_rms_threshold:
             self._app.tray.set_state(
                 AppState.IDLE,
