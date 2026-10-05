@@ -25,8 +25,10 @@ export interface PluginInfo {
 	name: string;
 	description: string;
 	vendor: string;
-	/** Plugin-declared icon identifier; may be empty. Rendered as an
-	    initial tile, never as an image asset (no bundled icon exists). */
+	/** Plugin-declared icon identifier (e.g. `google`); may be empty.
+	    Resolved to a bundled asset when one ships for that id (see
+	    `pages/plugins/lib/pluginIcon`), otherwise rendered as an initial
+	    tile. Never used as a filesystem path. */
 	icon: string;
 	/** True when this plugin currently owns dictation. */
 	active: boolean;

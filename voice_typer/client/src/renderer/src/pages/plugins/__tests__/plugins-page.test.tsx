@@ -124,6 +124,93 @@ describe("Plugins page", () => {
 		expect(screen.getByText(COPY.statusInactive)).toBeTruthy();
 	});
 
+	it("keeps the card to name + status only (the description lives on the detail view)", async () => {
+		stubCalls([SAMPLE]);
+		const { Page } = await mountPage();
+		renderPage(Page);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+		});
+		expect(screen.getByText("Gemini")).toBeTruthy();
+		// The card is a compact two-line row; the description is owned by
+		// PluginDetail's PageHeading and must not be repeated on the card.
+		expect(screen.queryByText("Cloud speech plugin")).toBeNull();
+	});
+
+	it("tints the status dot with the success token when the plugin is active", async () => {
+		// Owner decision 2026-10-05: the dot reads green (the app's
+		// semantic --success token) exactly when this plugin owns dictation.
+		// `plugin.active` is the catalog's own flag, not config.active_plugin.
+		stubCalls([{ ...SAMPLE, active: true }]);
+		const { Page } = await mountPage();
+		renderPage(Page);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+		});
+		expect(
+			screen
+				.getByTestId("plugin-card-gemini")
+				.querySelector('[data-slot="plugin-status-dot"]')?.className,
+		).toContain("bg-success");
+	});
+
+	it("leaves the status dot muted grey when the plugin is not active", async () => {
+		stubCalls([SAMPLE]);
+		const { Page } = await mountPage();
+		renderPage(Page);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+		});
+		// The app's neutral status-dot tone (PrewarmAndUpdates' "off" dot),
+		// never a bare --border dot which reads as plain white in dark.
+		expect(
+			screen
+				.getByTestId("plugin-card-gemini")
+				.querySelector('[data-slot="plugin-status-dot"]')?.className,
+		).toContain("bg-muted-foreground/40");
+	});
+
+	it("renders the bundled asset for a plugin whose icon id has one", async () => {
+		stubCalls([{ ...SAMPLE, icon: "google" }]);
+		const { Page } = await mountPage();
+		renderPage(Page);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+		});
+		const img = screen.getByTestId("plugin-card-gemini").querySelector("img");
+		expect(img?.getAttribute("src")).toBe("/plugin-icons/google.svg");
+		// Decorative: the tile is aria-hidden and the name sits beside it.
+		expect(img?.getAttribute("alt")).toBe("");
+		// A real logo sits bare — no chip fill or border behind it.
+		const tile = screen.getByTestId("plugin-card-gemini").querySelector("span");
+		expect(tile?.className).not.toContain("bg-surface");
+		expect(tile?.className).not.toContain("border");
+	});
+
+	it("falls back to the initial tile when no asset ships for the icon id", async () => {
+		// SAMPLE declares `icon: ""`. An id with no bundled asset must never
+		// resolve to a path — a plugin cannot point the renderer at a file.
+		stubCalls([{ ...SAMPLE, icon: "some-other-provider" }]);
+		const { Page } = await mountPage();
+		renderPage(Page);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+		});
+		const card = screen.getByTestId("plugin-card-gemini");
+		expect(card.querySelector("img")).toBeNull();
+		// The icon tile (the card's first span) holds the initial instead,
+		// framed by the chip fill + border.
+		const tile = card.querySelector("span");
+		expect(tile?.textContent).toBe("G");
+		expect(tile?.className).toContain("bg-surface");
+		expect(tile?.className).toContain("border-border/8");
+	});
+
 	it("opens the detail view when a card is activated", async () => {
 		const user = userEvent.setup();
 		stubCalls([SAMPLE]);
@@ -242,7 +329,16 @@ describe("Plugin detail activation", () => {
 		await waitFor(() => {
 			expect(screen.getByTestId("plugin-setting-flag")).toBeTruthy();
 		});
-		expect(screen.getByTestId("plugin-setting-mode")).toBeTruthy();
+		// The DECLARED type picks the control and nothing else does: `bool`
+		// is the app's toggle, `enum` is the dropdown. A two-choice enum is
+		// therefore still a Select — a plugin that wants a toggle declares
+		// `bool`, it does not get one by narrowing its choices to two.
+		expect(screen.getByTestId("plugin-setting-flag").getAttribute("role")).toBe(
+			"switch",
+		);
+		expect(screen.getByTestId("plugin-setting-mode").getAttribute("role")).toBe(
+			"combobox",
+		);
 		expect(screen.getByTestId("plugin-setting-count")).toBeTruthy();
 		expect(screen.getByTestId("plugin-setting-name")).toBeTruthy();
 	});

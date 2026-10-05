@@ -1,11 +1,14 @@
-// One square plugin card in the Plugins grid. The whole card is a single
-// button so it is mouse- and keyboard-activatable; the focus ring is the
-// shared full-opacity `focus-visible:ring-1 ring-ring` contract
-// (C-FOCUS-1/2/5) and is never removed or dimmed.
+// One compact plugin card in the Plugins grid: the initial tile, then the
+// plugin name with its active/inactive status beside it. The whole card is
+// a single button so it is mouse- and keyboard-activatable; the focus ring
+// is the shared full-opacity `focus-visible:ring-1 ring-ring` contract
+// (C-FOCUS-1/2/5) and is never removed or dimmed. The card carries NO hover
+// treatment by design — only the focus ring responds.
 
 import { useT } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import type { PluginInfo } from "@/types/plugins";
+import { pluginIconSrc } from "../lib/pluginIcon";
 
 interface PluginCardProps {
 	plugin: PluginInfo;
@@ -22,6 +25,7 @@ function initialOf(plugin: PluginInfo): string {
 
 export function PluginCard({ plugin, onOpen }: PluginCardProps) {
 	const t = useT();
+	const iconSrc = pluginIconSrc(plugin.icon);
 	const statusLabel = plugin.active
 		? t("plugins.statusActive")
 		: t("plugins.statusInactive");
@@ -32,46 +36,53 @@ export function PluginCard({ plugin, onOpen }: PluginCardProps) {
 			aria-label={`${plugin.name} — ${statusLabel}`}
 			onClick={() => onOpen(plugin.id)}
 			className={cn(
-				"flex aspect-square flex-col gap-3 rounded-lg border border-border/8 bg-surface-subtle p-4 text-start",
-				"transition-[background-color,border-color] duration-200 ease-out",
-				"hover:border-border/15 hover:bg-surface",
+				"flex items-center gap-3 rounded-lg border border-border/8 bg-surface-subtle p-2 text-start",
 				// Full-opacity ring at the app's standard 1px thickness.
 				"focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none",
 			)}
 		>
-			{/* Initial tile. A plugin declares an icon IDENTIFIER, and no icon
-			    asset ships with the app, so the name's first letter is the
-			    glyph — an image reference could only ever render broken. */}
+			{/* Icon tile. A plugin declares an icon IDENTIFIER, not a path: when
+			    an asset ships for that id (see `../lib/pluginIcon`) it renders
+			    bare — a real logo carries its own visual weight, so the chip
+			    fill + border frame only the placeholder initial. A plugin
+			    cannot point the renderer at an arbitrary file. */}
 			<span
 				aria-hidden="true"
-				className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/8 bg-surface text-sm font-semibold text-foreground"
+				className={cn(
+					"flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-foreground",
+					!iconSrc && "border border-border/8 bg-surface",
+				)}
 			>
-				{initialOf(plugin)}
-			</span>
-
-			<span className="flex min-w-0 flex-col gap-1">
-				<span className="truncate text-sm font-medium text-foreground">
-					{plugin.name}
-				</span>
-				{plugin.description && (
-					<span className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-						{plugin.description}
-					</span>
+				{iconSrc ? (
+					<img src={iconSrc} alt="" className="size-8 object-contain" />
+				) : (
+					initialOf(plugin)
 				)}
 			</span>
 
-			{/* Status indicator: a filled dot + label. `ms-auto` keeps it at
-			    the row's inline-end edge (RTL-safe), the card's own `gap`
-			    spaces it from the label above. */}
-			<span className="mt-auto flex items-center gap-2">
-				<span
-					aria-hidden="true"
-					className={cn(
-						"size-1.5 shrink-0 rounded-full",
-						plugin.active ? "bg-primary" : "bg-border",
-					)}
-				/>
-				<span className="text-xs text-muted-foreground">{statusLabel}</span>
+			{/* Name over status. The description deliberately lives on the
+			    detail view only (PluginDetail's PageHeading) so the card
+			    stays a compact two-line row. */}
+			<span className="flex min-w-0 flex-1 flex-col gap-1">
+				<span className="truncate text-sm font-medium text-foreground">
+					{plugin.name}
+				</span>
+				{/* Status row, same shape as the app's other status dots
+				    (DiagnosticsSettingsSection / PrewarmAndUpdates): the
+				    decorative dot first, then the state label. */}
+				<span className="flex items-center gap-2">
+					<span
+						aria-hidden="true"
+						data-slot="plugin-status-dot"
+						className={cn(
+							"size-1.5 shrink-0 rounded-full",
+							// Green means "routing dictation through this plugin";
+							// the muted grey is the untouched default.
+							plugin.active ? "bg-success" : "bg-muted-foreground/40",
+						)}
+					/>
+					<span className="text-xs text-muted-foreground">{statusLabel}</span>
+				</span>
 			</span>
 		</button>
 	);
