@@ -17,7 +17,7 @@ pub(crate) async fn shutdown_sidecar_for_exit_with_budget(
     use std::time::Duration;
 
     if state.begin_shutdown() {
-        log::info!("[EXIT-SHUTDOWN] shutting_down already set, skipping duplicate teardown");
+        log::debug!("[EXIT-SHUTDOWN] shutting_down already set, skipping duplicate teardown");
         return;
     }
 

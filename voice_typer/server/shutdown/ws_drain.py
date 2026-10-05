@@ -96,6 +96,16 @@ def _initiator_on_workers(prefix: str, controller) -> bool:
 
 def drain_ws_dispatch_pool(controller, app) -> None:
     """Early bookend: stop the IPC server + drain the WS dispatch + encode pools."""
+    # Single-summary noise contract: the per-pool shutdown debugs used to
+    # emit one line each on every quit; they now append here and flush as
+    # one line at the end of the drain.
+    _closed: list[str] = []
+    _closed_lock = threading.Lock()
+
+    def _mark_closed(name: str) -> None:
+        with _closed_lock:
+            _closed.append(name)
+
     try:
         ipc_server = getattr(app, "_ipc_server", None)
         ws_pool = getattr(ipc_server, "_ws_dispatch_pool", None) if ipc_server is not None else None
@@ -112,7 +122,7 @@ def drain_ws_dispatch_pool(controller, app) -> None:
             def _drain_ws_pool() -> None:
                 # ``shutdown(wait=False, cancel_futures=True)`` only
                 ws_pool.shutdown(wait=False, cancel_futures=True)
-                log.debug("[SHUTDOWN] WS dispatch pool shut down (cancel_futures=True)")
+                _mark_closed("dispatch")
                 if _initiator_is_sole_worker(controller, ws_pool):
                     log.debug(
                         "[SHUTDOWN] WS dispatch drain skipping blocking join "
@@ -151,7 +161,7 @@ def drain_ws_dispatch_pool(controller, app) -> None:
                 # Same drain discipline as the main dispatch pool: readonly
                 # workers are short-lived status reads, so a tight budget.
                 readonly_pool.shutdown(wait=False, cancel_futures=True)
-                log.debug("[SHUTDOWN] WS readonly pool shut down (cancel_futures=True)")
+                _mark_closed("readonly")
                 if _initiator_is_sole_worker(controller, readonly_pool):
                     log.debug(
                         "[SHUTDOWN] WS readonly drain skipping blocking join "
@@ -188,7 +198,7 @@ def drain_ws_dispatch_pool(controller, app) -> None:
             def _drain_encode_pool() -> None:
                 # The WS frame-encode pool must be drained for the same
                 shutdown_encode_pool(ipc_server)
-                log.debug("[SHUTDOWN] WS encode pool shut down (cancel_futures=True)")
+                _mark_closed("encode")
                 if _initiator_is_sole_worker(controller, encode_pool):
                     log.debug(
                         "[SHUTDOWN] WS encode drain skipping blocking join "
@@ -228,12 +238,17 @@ def drain_ws_dispatch_pool(controller, app) -> None:
             from voice_typer.server import worker_client as _worker_client_mod
 
             if _worker_client_mod.close_shared_client():
-                log.debug("[SHUTDOWN] worker client closed (reconnect loop stopped)")
+                _mark_closed("worker client (reconnect loop stopped)")
         except Exception:
             log.debug("[SHUTDOWN] worker client close failed", exc_info=True)
 
         if early_items:
             _run_parallel_with_timeout(early_items)
+
+        with _closed_lock:
+            shut = sorted(set(_closed))
+        if shut:
+            log.debug("[SHUTDOWN] WS shutdown complete (cancel_futures=True): %s", ", ".join(shut))
 
         # explicit ``threading.Event`` coordination between the WS
         if ipc_server is not None:
