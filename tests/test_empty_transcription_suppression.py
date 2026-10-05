@@ -160,9 +160,12 @@ class TestHandleEmptyTranscriptionRefinedSuppression:
 
         pipeline._handle_empty_transcription()
 
-        # No popup notification, short clip is too ambiguous.
-        app.tray.notify.assert_not_called()
-        # But tray status must reflect the empty-transcription failure.
+        # The user spoke and got nothing: notify (a double backend
+        # failure must never fail silently), same as the long case.
+        app.tray.notify.assert_called_once()
+        notification_text = app.tray.notify.call_args.args[1]
+        assert "no transcription was produced" in notification_text.lower()
+        # Tray status must reflect the empty-transcription failure.
         statuses = [c.args[1] for c in app.tray.set_state.call_args_list]
         assert "Transcription returned empty" in statuses, (
             "Short recording with real audio should set tray to "
