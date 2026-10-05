@@ -4,49 +4,73 @@ By installing this software you agree to the following terms.
 
 1. LOCAL PROCESSING BY DEFAULT
 Lausu processes your voice, transcribed text, and metadata locally
-on your device by default. No audio or text is sent anywhere unless you
-explicitly enable a cloud feature.
+on your device by default. The app itself sends nothing anywhere
+except for the network uses listed in sections 2 and 5 below, and
+only a cloud feature you explicitly enable ever sends your audio
+or text to a third party.
 
 2. FEATURE CONSENT
-Certain features send data to third parties only when you enable them:
-- Cloud speech recognition providers: when you configure a cloud speech
-  recognition provider and it is the active backend, audio recordings
-  are sent to that provider for transcription, under that provider's
-  terms and privacy policy.
+Certain features contact third parties, and only when you enable them:
+- Cloud speech recognition providers: when you configure a cloud
+  speech recognition provider and it is the active backend, audio
+  recordings are sent to that provider for transcription, under that
+  provider's terms and privacy policy (OpenAI, Groq, or Deepgram,
+  depending on the provider you select).
 - LLM text polishing: sends transcribed text (not audio) to your
-  configured LLM API for grammar and punctuation cleanup when you have
-  granted consent.
-- Model downloads: local speech models are downloaded from Hugging Face,
-  which reveals your IP address to a US-based third party (Hugging Face,
-  Inc.). Audio is never sent. Downloads occur only when you explicitly
-  initiate them and have granted consent.
-- Offline engine pack: the offline transcription engine (about 180 MB)
-  is downloaded automatically in the background from the release server
-  when needed. No separate user consent is required; the download is
-  silent and only runs when the app needs the pack.
+  configured LLM API for grammar and punctuation cleanup when you
+  have granted consent.
+- Model downloads: local speech models are downloaded from Hugging
+  Face, which reveals your IP address to a US-based third party
+  (Hugging Face, Inc.). Audio is never sent for downloads. Downloads
+  occur only when you explicitly initiate them and have granted consent.
+- Media links: transcribing a web link contacts that linked site
+  directly from your device to fetch its audio stream.
+- Offline engine pack: the offline transcription engine (about
+  180 MB) is downloaded automatically in the background from the
+  official release server when needed. No separate user consent is
+  required; the download is silent and only runs when the app needs
+  the pack. It reveals only your IP address and app version.
 
 3. VOICE BIOMETRIC ACKNOWLEDGEMENT
 Local voice recordings may be considered biometric data under the
-Illinois Biometric Information Privacy Act (BIPA) and GDPR Article 9.
-You grant consent for local voice-biometric processing when you enable
-recording. Raw audio is not stored after transcription - only the
-transcribed text is kept.
+Illinois Biometric Information Privacy Act (BIPA) and GDPR
+Article 9. You grant consent for local voice-biometric processing
+when you enable recording. Purpose: transcribing your speech into
+text on your device. Retention: raw audio is not kept after
+transcription - only the transcribed text is kept, in your local
+history database (kept up to 90 days by default, configurable;
+favorites are exempt until deleted). Microphone test clips are
+deleted automatically after 5 minutes. You may delete history,
+recovery entries, and test clips at any time from within the app.
 
-4. REVOCATION
-You may revoke any cloud or model-download consent at any time in
-Settings > Privacy with the same ease as granting it. Revoked features
-refuse to run until consent is re-granted. The offline engine pack does
-not use a user toggle: it downloads automatically when required.
+4. YOUR RESPONSIBILITY FOR RECORDINGS
+You are solely responsible for how you use recording. Record only
+yourself, or others who have agreed to be recorded. You must comply
+with the recording, wiretapping, and two-party/all-party consent
+laws of your jurisdiction, and with the terms and privacy policies
+of any third-party provider whose API key you configure (cloud
+speech providers, LLM providers). The authors operate no server
+that receives your audio, text, or API keys.
 
 5. SOFTWARE UPDATES
 The application periodically checks for updates against the official
 release server. This reveals only your IP address and app version.
+No audio, text, or API keys are included in update checks.
 
-6. LIMITATION OF LIABILITY
-The software is provided "as is" without warranty of any kind. To the
-maximum extent permitted by law, the authors are not liable for any
-damages arising from use of this software.
+6. REVOCATION
+You may revoke any cloud, LLM, or model-download consent at any
+time in Settings > Privacy with the same ease as granting it.
+Revoked features refuse to run until consent is re-granted. The
+offline engine pack does not use a user toggle: it downloads
+automatically when required (see section 2).
 
-7. PRIVACY POLICY
+7. LIMITATION OF LIABILITY
+The software is provided "as is" without warranty of any kind. To
+the maximum extent permitted by law, the authors are not liable for
+any damages arising from use of this software, including from
+third-party services you choose to enable or from recordings you
+make in violation of applicable law (see section 4).
+
+8. PRIVACY POLICY
 The full privacy and security policy is available at
-https://github.com/lausu - see SECURITY.md.
+https://github.com/AbdallahIsDev/voice-typer - see SECURITY.md.
