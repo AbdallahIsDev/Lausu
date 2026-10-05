@@ -224,10 +224,10 @@ class TestStreamingIntegration:
 
 
 class TestModelLoadingQueue:
-    """When the model is still loading in the background, F2 queues the"""
+    """Record-while-loading: an in-flight load never blocks F2."""
 
-    def test_toggle_queues_when_model_loading(self, app):
-        """F2 during background model load sets _pending_dictation and"""
+    def test_toggle_records_immediately_when_model_loading(self, app):
+        """F2 during background model load starts recording at once."""
         app.recorder = MagicMock()
         app.recorder.recording = False
         app.tray = MagicMock()
@@ -242,11 +242,9 @@ class TestModelLoadingQueue:
 
         app.toggle_dictation()
 
-        assert app.models._pending_dictation is True
-        app._start_dictation.assert_not_called()
+        assert app.models._pending_dictation is False
+        app._start_dictation.assert_called_once()
         app._stop_dictation.assert_not_called()
-        # Tray should reflect the loading state.
-        app.tray.set_state.assert_called()
 
     def test_toggle_does_not_queue_when_load_complete(self, app):
         """Once the loader thread has finished, F2 goes straight to"""
@@ -273,6 +271,8 @@ class TestModelLoadingQueue:
         app.recorder = MagicMock()
         app.recorder.recording = False
         app.tray = MagicMock()
+        app._start_dictation = MagicMock()
+        app._stop_dictation = MagicMock()
 
         loader = MagicMock()
 
@@ -288,7 +288,8 @@ class TestModelLoadingQueue:
         except AttributeError as exc:
             pytest.fail(f"toggle_dictation crashed on race: {exc}")
 
-        assert app.models._pending_dictation is True
+        assert app.models._pending_dictation is False
+        app._start_dictation.assert_called_once()
 
     def test_background_load_auto_starts_pending_dictation(self, app, monkeypatch):
         """When the loader finishes and _pending_dictation is set, it"""

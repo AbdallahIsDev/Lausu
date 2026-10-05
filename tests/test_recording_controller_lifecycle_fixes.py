@@ -283,8 +283,8 @@ class TestCycleCounterNotIncrementedForBlockedToggles:
         )
         assert app._cycle_id == "#5", "UE-9-F15: a blocked (busy) toggle must NOT change _cycle_id."
 
-    def test_model_loading_toggle_does_not_increment_cycle_counter(self):
-        """When the model is still loading (loader alive), the toggle is"""
+    def test_model_loading_toggle_increments_cycle_counter(self):
+        """A toggle during load commits to a real start, consuming a cycle."""
         ctrl, app = _make_controller()
         app._busy_event.set()  # not busy
         app._cycle_counter = 7
@@ -297,9 +297,10 @@ class TestCycleCounterNotIncrementedForBlockedToggles:
 
         ctrl.toggle()
 
-        assert app._cycle_counter == 7, "UE-9-F15: a queued (model-loading) toggle must NOT increment _cycle_counter."
+        assert app._cycle_counter == 8, "record-while-loading commits to a start, consuming a cycle ID."
+        assert app._start_dictation.called, "the toggle must call _start_dictation instead of queueing."
 
-    def test_no_active_transcriber_toggle_does_not_increment_cycle_counter(self):
+    def test_no_active_transcriber_toggle_increments_cycle_counter(self):
         """cycle ID."""
         ctrl, app = _make_controller()
         app._busy_event.set()  # not busy
@@ -310,9 +311,10 @@ class TestCycleCounterNotIncrementedForBlockedToggles:
 
         ctrl.toggle()
 
-        assert app._cycle_counter == 3, (
-            "UE-9-F15: a no-active-transcriber toggle (re-trigger path) must NOT increment _cycle_counter."
+        assert app._cycle_counter == 4, (
+            "record-while-loading commits to a start (plus a load kick), consuming a cycle ID."
         )
+        assert app._start_dictation.called, "the toggle must call _start_dictation instead of queueing."
 
     def test_committed_start_increments_cycle_counter(self):
         """When the toggle commits to a real start (not recording →"""

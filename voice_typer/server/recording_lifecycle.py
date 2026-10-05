@@ -165,45 +165,34 @@ class RecordingLifecycle:
             log.warning("[F2 BLOCKED] Busy transcribing, ignoring toggle (cycle=%s)", app._cycle_id)
             return
 
-        # Model still loading in the background (post-fast-startup). Queue
+        # Record-while-loading: an in-flight loader is no reason to
+        # refuse the hotkey. Recording starts immediately; the
+        # DictationStart worker joins the load via
+        # ensure_active_engine_loaded(), and the stop-side transcribe
+        # path holds the audio until the model is ready.
         loader = app.models._model_load_thread
-        if loader is not None and loader.is_alive():
+        loader_alive = loader is not None and loader.is_alive()
+        if loader_alive:
             log.info(
-                "[HOTKEY FIRED] Model still loading -- queuing dictation (cycle=%s)",
+                "[HOTKEY FIRED] Model still loading -- recording now, load continues in background (cycle=%s)",
                 app._cycle_id,
             )
-            app.models._pending_dictation = True
-            app.tray.set_state(
-                AppState.LOADING,
-                i18n.t("state.recording_controller.loading_queued"),
-            )
-            return
 
-        if active is None:
-            # The previous background model load FAILED (or never
+        if active is None and not loader_alive:
+            # No engine and no live loader: kick a background load, then
+            # record anyway instead of queueing a pending dictation.
             log.info(
-                "[HOTKEY FIRED] No active transcriber and no live loader -- "
-                "re-triggering background model load (cycle=%s)",
+                "[HOTKEY FIRED] No active transcriber -- kicking background load + recording now (cycle=%s)",
                 app._cycle_id,
             )
             try:
-                app.models._pending_dictation = True
                 app.models.start_background_load()
-                app.tray.set_state(
-                    AppState.LOADING,
-                    "Retrying model load...",
-                )
             except Exception:
-                log.exception(
-                    "[HOTKEY FIRED] start_background_load re-trigger failed (cycle=%s)",
+                log.debug(
+                    "[HOTKEY FIRED] load kick failed, DictationStart worker retries (cycle=%s)",
                     app._cycle_id,
+                    exc_info=True,
                 )
-                # Fall back to the original "starting up" message so the
-                app.tray.set_state(
-                    AppState.LOADING,
-                    i18n.t("state.recording_controller.starting_up"),
-                )
-            return
 
         # Commit to a real start/stop. NOW increment the cycle counter
         app._cycle_counter += 1
@@ -262,10 +251,7 @@ class RecordingLifecycle:
                     APP_NAME,
                     "Could not verify voice biometric consent.\nRecording refused. Check Settings > Privacy.",
                 ):
-                    app.tray.notify_safety(
-                        APP_NAME,
-                        "Could not verify voice biometric consent.\nRecording refused. Check Settings > Privacy.",
-                    )
+                    app.tray.notify_safety(APP_NAME, i18n.t("notify.recording_controller.consent_not_verified"))
             except Exception:
                 log.debug(
                     "[DICTATION] failed to notify about consent check exception",

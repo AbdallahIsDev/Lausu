@@ -20,32 +20,32 @@ def _make_controller_with_mock_app():
     app.models.active_transcriber.return_value = None
     # ``app.models._model_load_thread`` is None, the loader already
     app.models._model_load_thread = None
+    app.models._pending_dictation = False
     return ctrl, app
 
 
-# F2 re-triggers start_background_load on model-load failure ───
+# F2 kicks start_background_load and records immediately ───
 
 
 class TestRetriesModelLoad:
-    """FR-15: pressing F2 after a model-load failure re-triggers"""
+    """FR-15 (record-while-loading): pressing F2 with no loaded model"""
 
     def test_re_triggers_start_background_load_when_no_active_transcriber(self):
         """``_model_load_thread`` is None, ``_toggle_impl`` must call"""
         ctrl, app = _make_controller_with_mock_app()
         ctrl.toggle()
         app.models.start_background_load.assert_called_once()
-        # ``_pending_dictation`` must be set so the loader's ``finally``
-        assert app.models._pending_dictation is True
+        assert app.models._pending_dictation is False
+        app._start_dictation.assert_called_once()
 
-    def test_tray_shows_retrying_model_load_message(self):
-        """The tray must show \"Retrying model load...\" (the FR-15"""
+    def test_tray_does_not_show_retrying_message(self):
+        """Recording starts at once, so no LOADING retry message appears."""
         ctrl, app = _make_controller_with_mock_app()
         ctrl.toggle()
-        # Find the set_state call with the retry message.
         set_state_calls = app.tray.set_state.call_args_list
         messages = [call.args[1] for call in set_state_calls if len(call.args) >= 2]
-        assert "Retrying model load..." in messages, (
-            f"FR-15: tray should show 'Retrying model load...' on F2 retry; got messages: {messages}"
+        assert "Retrying model load..." not in messages, (
+            f"record-while-loading must not show the retry message; got messages: {messages}"
         )
 
     def test_does_not_show_starting_up_message_on_retry(self):
@@ -58,21 +58,17 @@ class TestRetriesModelLoad:
             f"FR-15: 'starting up' message should not appear on the retry happy-path; got messages: {messages}"
         )
 
-    def test_start_background_load_failure_falls_back_to_starting_up(self):
-        """If ``start_background_load()`` itself raises (extremely"""
+    def test_start_background_load_failure_still_starts_recording(self):
+        """If the load kick itself raises, recording must still start."""
         ctrl, app = _make_controller_with_mock_app()
         app.models.start_background_load.side_effect = RuntimeError("boom")
-        # Should NOT raise, the exception is caught and the tray
+        # Should NOT raise; the DictationStart worker retries the load.
         ctrl.toggle()
-        set_state_calls = app.tray.set_state.call_args_list
-        messages = [call.args[1] for call in set_state_calls if len(call.args) >= 2]
-        assert any("starting up" in str(m).lower() for m in messages), (
-            f"FR-15: fallback 'starting up' message should appear when "
-            f"start_background_load raises; got messages: {messages}"
-        )
+        app._start_dictation.assert_called_once()
+        assert app.models._pending_dictation is False
 
     def test_does_not_re_trigger_when_loader_is_alive(self):
-        """progress), the existing 'queuing dictation' path runs instead"""
+        """progress), recording starts at once on the live load."""
         ctrl, app = _make_controller_with_mock_app()
         # Simulate a live loader thread.
         live_thread = MagicMock()
@@ -81,9 +77,10 @@ class TestRetriesModelLoad:
         # Still no active transcriber (load hasn't finished yet).
         app.models.active_transcriber.return_value = None
         ctrl.toggle()
-        # The queuing path runs, start_background_load is NOT called
+        # No second loader is spawned; recording starts on the live one.
         app.models.start_background_load.assert_not_called()
-        assert app.models._pending_dictation is True
+        assert app.models._pending_dictation is False
+        app._start_dictation.assert_called_once()
 
     def test_does_not_re_trigger_when_active_transcriber_exists(self):
         """When ``active_transcriber()`` returns a non-None transcriber"""
