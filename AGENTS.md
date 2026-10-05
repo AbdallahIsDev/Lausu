@@ -4,7 +4,7 @@ This file has been read entirely by the agent at session start. When the user gi
 
 `AGENTS.md file has been read successfully.`
 
-Then continue with the normal response to the user's request (status, findings, plan, questions, whatever the task calls for). This one line is the user's proof that you loaded this file on your own, without being told.
+Then continue with the normal response to the user's request "short in plain english" (status, findings, plan, questions, whatever the task calls for). This one line is the user's proof that you loaded this file on your own, without being told.
 
 If you did NOT read this file (it was not injected/loaded, or you skipped it), say NOTHING about it, never claim you read it, never mention the file at all. The user will know from the absence of the line.
 
@@ -13,6 +13,8 @@ If this file does NOT exist in the repository root / project folder, tell the us
 `AGENTS.md file is not found in this repository. Would you like me to create it with some strict instructions?`
 
 If the user says yes, create it and offer to fill it with strict, binding rules the agent (and every future agent) must follow without deviation, unbreakable rules the user can enforce across sessions (e.g. hard "do nots", allowed/forbidden actions, required behaviors). Nothing in the file may be overridden or bypassed by the agent.
+
+Always response to the user short in plain english.
 
 ## Compliance (read second, binding)
 
