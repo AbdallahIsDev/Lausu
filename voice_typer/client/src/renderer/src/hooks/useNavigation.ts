@@ -76,7 +76,13 @@ function saveNavState(state: NavState): void {
 export interface NavigateOptions {
 	/**
 	 * The Config consent-field name (e.g. ``"voice_biometric_consent"``)
-	 * to deep-link to in Settings. Ignored when ``page !== "settings"``.
+	 * to deep-link to in Settings, highlighting that row in the Privacy &
+	 * Consent section page (``settingsPrivacy``).
+	 *
+	 * The consent deep-link is only CONSUMED there (see
+	 * ``useSettingsDeepLinks``), so callers must route to
+	 * ``settingsPrivacy``, not the ``"settings"`` hub. The backend
+	 * ``navigate`` event applies the same remap in ``useNavigateEvent``.
 	 */
 	consentField?: string;
 	/**

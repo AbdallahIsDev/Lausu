@@ -2074,10 +2074,10 @@
 	"consentDialog": {
 		"title": "Zustimmung erforderlich",
 		"allow": "Zulassen",
-		"cancel": "Abbrechen",
-		"openSettings": "Einstellungen öffnen",
+		"viewAll": "Alle anzeigen",
 		"persistFailed": "Ihre Zustimmung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
 		"retryFailed": "Zustimmung gespeichert, aber die Aktion konnte nicht automatisch wiederholt werden. Bitte versuchen Sie es erneut.",
+		"revokeHint": "Sie können dies jederzeit unter Einstellungen > Datenschutz widerrufen.",
 		"field": {
 			"voice_biometric_consent": "Für die Aufnahme ist die Zustimmung zur Stimmbiometrie erforderlich. Ihre Stimme wird als biometrisches Datum verarbeitet (DSGVO Art. 9). Aufnahme zulassen?",
 			"huggingface_consent": "Modell-Downloads von Hugging Face geben Ihre IP-Adresse an ein US-Unternehmen weiter (Hugging Face, Inc.). Audio wird nie gesendet: nur Modellgewichte. Downloads zulassen?",

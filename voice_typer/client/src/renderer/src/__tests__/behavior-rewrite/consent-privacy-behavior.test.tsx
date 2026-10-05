@@ -315,8 +315,15 @@ describe("About page, updates / help / feedback sections", () => {
 			screen.queryByRole("button", { name: /check for updates/i }),
 		).toBeNull();
 
-		// The offline message MUST be rendered.
-		expect(screen.getByText(/Lausu is an offline application/i)).toBeTruthy();
+		// The offline message MUST be rendered. Matched on the current
+		// copy: the notice states what is offline (transcription, after
+		// the model download) rather than claiming the whole app is,
+		// which was false for the model download and update check.
+		expect(
+			screen.getByText(
+				/Lausu transcribes offline once its models are downloaded/i,
+			),
+		).toBeTruthy();
 
 		// No fetch should have fired, C-DATA-1 absolute guarantee.
 		expect(fetchSpy).not.toHaveBeenCalled();
