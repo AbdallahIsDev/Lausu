@@ -14,12 +14,14 @@ Variables supported in output text:
 """
 
 import getpass
-import json
 import logging
 import re
 import threading
 from datetime import datetime
 from pathlib import Path
+
+from voice_typer.server.template_persistence import TemplatePersistenceMixin
+from voice_typer.server.template_transfer import TemplateTransferMixin
 
 log = logging.getLogger(__name__)
 
@@ -104,7 +106,7 @@ def _safe_getuser() -> str:
         return "user"
 
 
-class TemplateManager:
+class TemplateManager(TemplatePersistenceMixin, TemplateTransferMixin):
     """Manages voice templates: CRUD, persistence, matching."""
 
     def __init__(self, config_dir: Path | None = None):
@@ -208,110 +210,6 @@ class TemplateManager:
         """
         with self._lock:
             return list(self._templates)
-
-    def _load(self) -> None:
-        """Load templates from JSON file.
-
-        Persistence is routed through :class:`PersistedJSON`
-        (``self._store``). On parse failure (corrupt JSON, OSError,
-        symlink-TOCTOU raise), the helper quarantines the corrupt file
-        to ``<path>.corrupt-<ts>`` for forensic recovery and returns
-        the configured default. The previous implementation silently
-        fell back to an empty list with a single WARNING log line, no
-        quarantine, so the next ``_save`` would atomically overwrite
-        the corrupt file with defaults, destroying any chance of
-        forensic recovery. Mirrors ``config.py:1744-1763`` and
-        ``crash_recovery.py:186-219``.
-
-        SEC-audit-006 (Round 0 forward-port): the underlying read
-        uses :func:`voice_typer.server.config._secure_read_text`
-        (POSIX ``O_NOFOLLOW`` + inode re-verification) to prevent a
-        symlink-TOCTOU attack where an attacker replaces the templates
-        file with a symlink to a sensitive file (e.g.
-        ``~/.ssh/id_rsa``).
-
-        ``_load`` is called only from ``__init__`` (before
-        the instance is published to other threads), so it does NOT
-        acquire ``self._lock``: the lock guards public-method
-        interleaving, not single-threaded construction.
-
-        validate each item's structure (must be a dict with both
-        ``trigger`` and ``output`` keys) BEFORE assigning to
-        ``self._templates``. Pre-fix, a valid-JSON-but-wrong-structure
-        file (e.g. ``{"templates": [42, "foo", null]}`` or
-        ``{"templates": [{"trigger": "no_output"}]}``) passed the
-        ``isinstance(data, list)`` / ``"templates" in data`` checks but
-        then crashed ``_rebuild_indexes`` with
-        ``AttributeError: 'int' object has no attribute 'get'`` (or
-        ``match`` with ``KeyError: 'output'``), and since ``_load`` is
-        called from ``__init__`` with no try/except, the constructor
-        raised, crashing app startup with an opaque traceback and no
-        recovery path (the file is NOT quarantined because the JSON
-        itself is valid). The validation mirrors the one already
-        enforced in ``import_json`` (line ~472) so the two load paths
-        agree on what counts as a well-formed template.
-        """
-        data = self._store.load()
-        if isinstance(data, list):
-            raw_list = data
-        elif isinstance(data, dict) and "templates" in data:
-            raw_list = data["templates"]
-        else:
-            raw_list = []
-        # per-item structural validation. Drop any item that
-        if not isinstance(raw_list, list):
-            raw_list = []
-        validated: list[dict] = []
-        dropped = 0
-        for t in raw_list:
-            if isinstance(t, dict) and "trigger" in t and "output" in t:
-                validated.append(t)
-            else:
-                dropped += 1
-        if dropped:
-            log.warning(
-                "[TEMPLATES] Dropped %d malformed templates from %s "
-                "(each must be a dict with both 'trigger' and 'output' keys)",
-                dropped,
-                self._path,
-            )
-        self._templates = validated
-        # rebuild match indexes after load.
-        self._rebuild_indexes()
-        log.info("[TEMPLATES] Loaded %d templates from %s", len(self._templates), self._path)
-
-    def _save(self) -> None:
-        """Save templates to JSON file.
-
-        Persistence is routed through :class:`PersistedJSON`
-        (``self._store``), which provides atomic write + single-slot
-        ``.bak`` before overwrite + 0o600 perms (parity with
-        ``config.py:1163-1182``). The shared ``_secure_atomic_write``
-        applies ``O_NOFOLLOW`` on POSIX to prevent symlink TOCTOU
-        attacks.
-
-        previously this method caught *all* exceptions and
-        silently logged them, returning ``None`` to callers. That
-        meant a disk failure left the in-memory ``_templates`` list
-        (already mutated by ``add``/``update``/``delete``) out of
-        sync with what was actually on disk, the user's edit
-        appeared to succeed (no error surfaced) but the next process
-        restart would load the stale on-disk state and the edit
-        would be lost. Now we log the error AND re-raise so callers
-        can roll back their in-memory mutation and the IPC layer can
-        surface the failure to the renderer.
-
-        caller is expected to hold ``self._lock`` (all
-        current callers, the public CRUD methods, already do).
-        """
-        try:
-            # PersistedJSON.save handles atomic write + .bak
-            self._store.save({"templates": self._templates}, durability=False)
-        except Exception:
-            # Log then re-raise so callers can roll back.
-            log.exception("[TEMPLATES] Failed to save")
-            raise
-        log.debug("[TEMPLATES] Saved %d templates", len(self._templates))
 
     def add(self, trigger: str, output: str, *, match_mode: str = "exact") -> dict | None:
         """Add a new template. Returns the created template dict, or
@@ -477,98 +375,6 @@ class TemplateManager:
                 raise
             # rebuild match indexes after the swap so ``match`` sees
             self._rebuild_indexes()
-
-    def export_json(self) -> str:
-        """Export templates as a JSON string.
-
-        snapshot ``_templates`` under the lock before
-        serializing so a concurrent CRUD mutation can't produce a
-        half-serialized JSON (e.g. ``json.dumps`` observing a list
-        mid-``pop``).
-        """
-        with self._lock:
-            snapshot = list(self._templates)
-        return json.dumps({"templates": snapshot}, indent=2, ensure_ascii=False)
-
-    def import_json(self, json_str: str) -> int:
-        """Import templates from a JSON string. Returns number imported.
-
-        enforces SEC-011-style caps:
-          - Drops templates whose trigger exceeds
-            ``MAX_TRIGGER_LENGTH`` or output exceeds
-            ``MAX_OUTPUT_LENGTH`` (mirrors
-            ``text_cleanup._load_external_corrections``).
-          - Truncates the import if it would exceed ``MAX_TEMPLATES``.
-          - Logs a single warning summarising the dropped count.
-
-        snapshots the list before appending and restores it on
-        save failure so the in-memory state stays consistent with the
-        on-disk state.
-
-        the validate-extend-save-rebuild sequence runs
-        under ``self._lock`` so a concurrent ``match`` can't observe
-        a half-extended list.
-        """
-        with self._lock:
-            try:
-                data = json.loads(json_str)
-                templates = data if isinstance(data, list) else data.get("templates", [])
-                to_add: list[dict] = []
-                dropped = 0
-                for t in templates:
-                    if not isinstance(t, dict) or "trigger" not in t or "output" not in t:
-                        continue
-                    trigger_raw = t.get("trigger", "")
-                    output_raw = t.get("output", "")
-                    trigger_str = trigger_raw if isinstance(trigger_raw, str) else str(trigger_raw)
-                    output_str = output_raw if isinstance(output_raw, str) else str(output_raw)
-                    # Use the stripped length for the trigger cap to match
-                    if len(trigger_str.strip()) > MAX_TRIGGER_LENGTH:
-                        dropped += 1
-                        continue
-                    if len(output_str) > MAX_OUTPUT_LENGTH:
-                        dropped += 1
-                        continue
-                    to_add.append(t)
-                if dropped:
-                    log.warning(
-                        "[TEMPLATES] Dropped %d templates from import (oversized)",
-                        dropped,
-                    )
-                # Total-count cap: truncate to fit within MAX_TEMPLATES.
-                current = len(self._templates)
-                available = MAX_TEMPLATES - current
-                if available <= 0:
-                    log.warning(
-                        "[TEMPLATES] Template count at MAX_TEMPLATES cap (%d), dropping all %d imported templates",
-                        MAX_TEMPLATES,
-                        len(to_add),
-                    )
-                    return 0
-                if len(to_add) > available:
-                    log.warning(
-                        "[TEMPLATES] Import exceeds MAX_TEMPLATES cap, truncating %d -> %d",
-                        len(to_add),
-                        available,
-                    )
-                    to_add = to_add[:available]
-                if not to_add:
-                    return 0
-                # Snapshot for rollback.
-                old_len = len(self._templates)
-                self._templates.extend(to_add)
-                try:
-                    self._save()
-                except Exception:
-                    # Rollback: truncate back to the pre-import length.
-                    del self._templates[old_len:]
-                    raise
-                # rebuild match indexes after mutation.
-                self._rebuild_indexes()
-                return len(to_add)
-            except Exception:
-                log.exception("[TEMPLATES] Import failed")
-                return 0
 
     def match(self, text: str) -> str | None:
         """Try to match *text* against any template trigger.
