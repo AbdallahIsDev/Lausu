@@ -386,11 +386,11 @@
 			"vadFilterInfo": "Supprime les silences de début et de fin avant la transcription. Désactivez pour envoyer l'audio brut au modèle à des fins de comparaison.",
 			"vadFilterInfoSearch": "Activité vocale silence filtre audio brut test modèle.",
 			"vadFilterAria": "Filtrage d'activité vocale",
-			"hallucinationFilter": "Filtre anti-hallucinations",
+			"hallucinationFilter": "Ignorer les hallucinations du silence",
 			"hallucinationFilterInfo": "Écarter les phrases inventées que le modèle produit sur un audio quasi silencieux, comme les filigranes de sous-titres. Le mode équilibré conserve les phrases courtes sauf silence confirmé.",
 			"hallucinationFilterInfoSearch": "Filtre hallucinations silence artefacts équilibré strict désactivé.",
 			"hallucinationFilterAria": "Filtre anti-hallucinations",
-			"hallucinationBalanced": "Équilibré",
+			"hallucinationBalanced": "Équilibré (recommandé)",
 			"hallucinationBalancedDescription": "Écarte les artefacts évidents, conserve les phrases courtes sauf silence confirmé. Recommandé.",
 			"hallucinationStrict": "Strict",
 			"hallucinationStrictDescription": "Écarte toute phrase artefact connue sur audio faible, même s'il pourrait s'agir d'une vraie dictée.",
@@ -754,7 +754,9 @@
 		"modelIdleUnload.minutes60": "1 heure",
 		"modelIdleUnload.minutes90": "1 heure 30 minutes",
 		"modelIdleUnload.minutes120": "2 heures",
-		"modelIdleUnload.never": "Jamais (garder chargé)"
+		"modelIdleUnload.never": "Jamais (garder chargé)",
+		"streamingTranscription": "Transcription en continu",
+		"streamingTranscriptionDescription": "Transcrire pendant l'enregistrement pour un texte prêt dès l'arrêt. Sinon, l'enregistrement entier est transcrit d'un coup à la fin."
 	},
 	"plugins": {
 		"title": "Plugins",

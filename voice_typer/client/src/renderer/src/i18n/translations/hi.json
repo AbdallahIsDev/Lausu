@@ -876,11 +876,11 @@
 			"vadFilterInfo": "प्रतिलेखन से पहले शुरुआती और अंतिम मौन हटाएँ। तुलना हेतु मॉडल को कच्चा ऑडियो भेजने के लिए इसे बंद करें।",
 			"vadFilterInfoSearch": "वाक् गतिविधि मौन फ़िल्टर कच्चा ऑडियो मॉडल परीक्षण।",
 			"vadFilterAria": "वाक् गतिविधि फ़िल्टरिंग",
-			"hallucinationFilter": "मतिभ्रम फ़िल्टर",
+			"hallucinationFilter": "मौन मतिभ्रम अनदेखा करें",
 			"hallucinationFilterInfo": "लगभग मौन ऑडियो पर मॉडल द्वारा गढ़े गए वाक्यांशों को हटाएँ, जैसे उपशीर्षक वॉटरमार्क। संतुलित मोड छोटे वाक्यांश रखता है जब तक मौन की पुष्टि न हो।",
 			"hallucinationFilterInfoSearch": "मतिभ्रम फ़िल्टर मौन कलाकृतियाँ संतुलित सख्त बंद।",
 			"hallucinationFilterAria": "मतिभ्रम फ़िल्टर",
-			"hallucinationBalanced": "संतुलित",
+			"hallucinationBalanced": "संतुलित (अनुशंसित)",
 			"hallucinationBalancedDescription": "स्पष्ट कलाकृतियाँ हटाएँ, छोटे वाक्यांश रखें जब तक मौन की पुष्टि न हो। अनुशंसित।",
 			"hallucinationStrict": "सख्त",
 			"hallucinationStrictDescription": "शांत ऑडियो पर हर ज्ञात कलाकृति वाक्यांश हटाएँ, भले ही वह वास्तविक श्रुतलेख हो।",
@@ -1242,7 +1242,9 @@
 		"modelIdleUnload.minutes60": "1 घंटा",
 		"modelIdleUnload.minutes90": "1 घंटा 30 मिनट",
 		"modelIdleUnload.minutes120": "2 घंटे",
-		"modelIdleUnload.never": "कभी नहीं (लोड रहने दें)"
+		"modelIdleUnload.never": "कभी नहीं (लोड रहने दें)",
+		"streamingTranscription": "स्ट्रीमिंग ट्रांसक्रिप्शन",
+		"streamingTranscriptionDescription": "रिकॉर्डिंग के दौरान ट्रांसक्राइब करें ताकि रुकते ही टेक्स्ट तैयार हो। बंद होने पर पूरी रिकॉर्डिंग अंत में एक साथ ट्रांसक्राइब होगी।"
 	},
 	"plugins": {
 		"title": "प्लगइन",
