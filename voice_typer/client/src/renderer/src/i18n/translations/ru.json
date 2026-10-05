@@ -1333,7 +1333,6 @@
 			"testing": "Тестирование…"
 		},
 		"status": {
-			"depsRequired": "Требуются зависимости",
 			"insufficientDisk": "Недостаточно места на диске"
 		},
 		"import": {

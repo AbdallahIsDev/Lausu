@@ -1333,7 +1333,6 @@
 			"testing": "测试中…"
 		},
 		"status": {
-			"depsRequired": "需要依赖项",
 			"insufficientDisk": "磁盘空间不足"
 		},
 		"import": {
