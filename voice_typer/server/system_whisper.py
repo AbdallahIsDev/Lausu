@@ -81,7 +81,7 @@ def try_load_system_whisper(config: Any) -> Any | None:
         )
 
         _configure_nvidia_dll_paths()
-        if device == "auto" and not _cuda_runtime_available():
+        if device in ("auto", "cuda") and not _cuda_runtime_available():
             device = "cpu"
             log.info("[MODEL] CUDA runtime DLLs missing, loading system whisper on CPU")
     except Exception:

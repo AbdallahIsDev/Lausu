@@ -23,6 +23,14 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 });
 
 import { SHORTCUTS } from "@/components/hotkey/shortcuts";
+
+// The Plugins nav entry is developer-gated. These tests exercise nav
+// geometry and label motion, so they opt into the gate; the gating itself
+// is covered by Sidebar.plugins-gated.test.tsx.
+vi.mock("@/hooks/usePluginCatalog", () => ({
+	usePluginsAvailable: () => true,
+}));
+
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { t } from "@/i18n/i18n";
@@ -67,10 +75,10 @@ describe("Sidebar, Settings is a single leaf (no submenu)", () => {
 		onNavigate: vi.fn(),
 	};
 
-	it("the nav contains exactly 10 leaf buttons and Settings is one of them", () => {
+	it("the nav contains exactly 11 leaf buttons and Settings is one of them", () => {
 		renderWithProviders(<Sidebar {...baseProps} />);
 		const buttons = allNavButtons();
-		expect(buttons.length).toBe(10);
+		expect(buttons.length).toBe(11);
 		expect(findNavButton(t("nav.settings"))).toBeTruthy();
 	});
 

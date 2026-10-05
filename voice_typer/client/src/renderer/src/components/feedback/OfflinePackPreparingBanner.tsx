@@ -82,7 +82,7 @@ export function OfflinePackPreparingBanner({
 					onClick={onDownload}
 					disabled={retrying}
 					aria-label={t("pack.downloadOfflineEngineAria")}
-					className="rounded-md border border-border/10 bg-surface px-2 py-0.5 text-[12px] text-foreground hover:bg-foreground/5 focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+					className="rounded-md border border-border/10 bg-surface px-2 py-0.5 text-xs text-foreground hover:bg-foreground/5 focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
 				>
 					{retrying
 						? t("pack.downloadOfflineEngineBusy")

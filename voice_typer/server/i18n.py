@@ -29,6 +29,56 @@ _INITIAL_LABELS: dict[str, str] = {
         "Finishing model load | your recording is saved and will transcribe shortly"
     ),
     "state.recording_controller.starting_up": "Starting up | please wait...",
+    # Shown when the hotkey is pressed with no engine loaded: the background
+    # load is re-triggered and dictation is queued behind it.
+    "state.recording_controller.model_load_retry": ("Loading model | your dictation will start automatically."),
+    # ── notices previously hardcoded as English literals (C-I18N-1) ──
+    # ── notices + states previously hardcoded as English literals (C-I18N-1) ──
+    "state.model_loading": "Loading model...",
+    "state.model_unloaded_idle": "Idle, model unloaded",
+    "notify.dictation_pipeline.llm_polish_failed": (
+        "LLM polish failed. Transcription shown raw; check the log file for details."
+    ),
+    "notify.dictation_pipeline.history_save_failed": (
+        "Could not save the transcription to history. Check the log file for details."
+    ),
+    "notify.dictation_pipeline.crash_recovery_save_failed": (
+        "Could not save the transcription to the crash-recovery buffer. Check the log file for details."
+    ),
+    "notify.dictation_pipeline.text_cleanup_failed": "Text cleanup failed. Check the log file for details.",
+    "notify.dictation_pipeline.vocab_correction_failed": (
+        "Vocabulary correction failed. Check the log file for details."
+    ),
+    "notify.dictation_pipeline.template_match_failed": "Template matching failed. Check the log file for details.",
+    "notify.dictation_pipeline.auto_punctuation_failed": "Auto-punctuation failed. Check the log file for details.",
+    "notify.dictation_pipeline.no_speech_detected": (
+        "No speech was detected and audio was near-silence.\n"
+        "Your microphone may not be capturing audio.\n"
+        "Check that the correct mic is selected and is active."
+    ),
+    "notify.dictation_pipeline.no_transcription_produced": (
+        "Audio was recorded but no transcription was produced.\n"
+        "This can happen if the model is misconfigured or the audio is unclear. "
+        "Try again, or check the log file for details."
+    ),
+    "notify.app.onboarding_kept_failing": (
+        "Onboarding setup kept failing. The app will start with default settings. Open Settings to configure manually."
+    ),
+    "notify.app.onboarding_setup_failed": "Onboarding setup failed; will retry on next start.",
+    "notify.app.config_acl_failed": (
+        "Could not lock down config file permissions. API keys may be readable by other users on this PC."
+    ),
+    "notify.hotkey_dispatcher.wayland_hotkeys_may_fail": (
+        "Global hotkeys may not work on Wayland. Install 'wtype' or 'ydotool' for "
+        "hotkey support, or use the tray menu's Start Dictation option."
+    ),
+    "notify.permissions.accessibility_granted": "Accessibility permission granted. Hotkeys are now active.",
+    "notify.permissions.global_hotkeys_disabled": (
+        "Global hotkeys have been disabled. Open System Settings -> Privacy & Security -> Accessibility to re-grant."
+    ),
+    "notify.recording_controller.consent_not_verified": (
+        "Could not verify voice biometric consent.\nRecording refused. Check Settings > Privacy."
+    ),
     "state.recording_controller.consent_required": "Voice biometric consent required",
     "state.recording_controller.model_failed_retry": "Model failed to load | press your hotkey to retry",
     "state.recording_controller.recording": "Recording...",
@@ -53,9 +103,7 @@ _INITIAL_LABELS: dict[str, str] = {
     "state.model_manager.model_failed": "Model failed | {error}",
     "state.model_manager.model_not_downloaded": ("No speech model is selected. Open Models to choose one."),
     # pack_missing: weights are on disk but the offline runtime pack
-    "state.model_manager.offline_pack_missing": (
-        "Offline pack is not installed. Open Settings to download it."
-    ),
+    "state.model_manager.offline_pack_missing": ("Offline pack is not installed. Open Settings to download it."),
     # no_model_selected: genuine "no model selected" state
     "state.model_manager.no_model_selected": ("No model selected. Go to the models page to select a model."),
     "state.model_manager.model_integrity_failed": (
@@ -66,6 +114,10 @@ _INITIAL_LABELS: dict[str, str] = {
     "state.dictation_pipeline.no_speech_detected": "No speech detected",
     "state.dictation_pipeline.no_speech_check_mic": "No speech | check microphone",
     "state.dictation_pipeline.transcription_empty": "Transcription returned empty",
+    # Shown instead of "no speech detected" when the low-audio hallucination
+    # gate discarded the text: the model DID emit something, we chose to drop
+    # it, so claiming silence would be misleading.
+    "state.dictation_pipeline.rejected_hallucination": "Ignored likely nonsense from silence",
     # paste_step "Done | N chars (mode)" statuses, the character count
     "state.dictation_pipeline.done_pasted": "Done | {count} chars (pasted)",
     "state.dictation_pipeline.done_in_db": ("Done | {count} chars (in DB, use repaste hotkey)"),
@@ -246,9 +298,7 @@ _INITIAL_LABELS: dict[str, str] = {
     "notify.model_manager.change_deferred": "Model will change to {model} after current recording",
     "notify.model_manager.backend_change_deferred": "Backend will change to {backend} after current recording.",
     "notify.model_manager.model_not_downloaded": ("No speech model is selected. Open Models to choose one."),
-    "notify.model_manager.offline_pack_missing": (
-        "Offline pack is not installed.\nOpen Settings to download it."
-    ),
+    "notify.model_manager.offline_pack_missing": ("Offline pack is not installed.\nOpen Settings to download it."),
     # no_model_selected: notification twin of the state message above —
     "notify.model_manager.no_model_selected": ("No model selected.\nGo to the models page to select a model."),
     # last_resort_unloaded: fired by get_active()'s last-resort branch

@@ -26,16 +26,54 @@ ENV_FLAG = "VOICE_TYPER_INTERNAL_PLUGINS"
 PLUGIN_MODULE = "tools.internal_plugins.google_stt.plugin"
 
 
-def plugins_enabled() -> bool:
-    """Cheap pre-check, then defer to the plugin's own gate.
+def requested_plugin_id(app: Any | None = None) -> str:
+    """The plugin the user selected in the Plugins page ("" = local model).
 
-    The env + frozen test runs first so a shipped build never imports
-    tools/internal_plugins at all; the PLUGINS_ENABLED marker is judged
-    by the plugin so the gate has exactly one source of truth.
+    Read from the running app's config; with no app (a CLI probe, a test)
+    the answer is "" so the local model stays in charge.
+    """
+    config = getattr(app, "config", None)
+    return str(getattr(config, "active_plugin", "") or "")
+
+
+def internal_surface_enabled() -> bool:
+    """Whether this install may show the Plugins UI at all.
+
+    This is the VISIBILITY gate, and it is deliberately independent of
+    ``active_plugin``: the UI has to be reachable in order to turn a plugin
+    on in the first place.
+
+    The discriminator is the plugin workspace, which is gitignored and never
+    packaged (``.gitignore``: ``tools/internal_plugins/``). Only a developer
+    running from source has it, so every shipped build answers False. The
+    env flag is honoured as a second way in, for testing the surface without
+    the workspace present.
     """
     import os
     import sys
 
+    if bool(getattr(sys, "frozen", False)):
+        return False
+    if os.environ.get(ENV_FLAG) == "1":
+        return True
+    from voice_typer.server.plugins import plugins_dir
+
+    return plugins_dir() is not None
+
+
+def plugins_enabled(app: Any | None = None) -> bool:
+    """Whether a plugin should own dictation right now.
+
+    Fail-closed at every step: no selected plugin means the local model, a
+    frozen build never imports the plugin, and the plugin's own gate (env +
+    PLUGINS_ENABLED marker) has the final say so that switch stays the single
+    source of truth.
+    """
+    import os
+    import sys
+
+    if requested_plugin_id(app) == "":
+        return False
     if os.environ.get(ENV_FLAG) != "1":
         return False
     if bool(getattr(sys, "frozen", False)):
@@ -61,7 +99,7 @@ def _plugin() -> Any | None:
 
 def install(app: Any) -> bool:
     """Wrap product dictation entry points when the plugin gate is open."""
-    if not plugins_enabled():
+    if not plugins_enabled(app):
         return False
     if getattr(app, "_internal_plugin_wrapped", False):
         # Already wrapped: a second pass would nest the wrappers and handle

@@ -83,17 +83,18 @@ class TestIdleUnloadZeroDisables:
         engine.unload.assert_not_called()
         mm._registry.unload.assert_not_called()
 
-    def test_default_config_value_is_thirty(self):
-        """``model_idle_unload_minutes`` must be 30 minutes."""
+    def test_default_config_value_is_sixty(self):
+        """``model_idle_unload_minutes`` must be 60 minutes."""
         from voice_typer.server.config import Config
 
         cfg = Config()
-        assert cfg.model_idle_unload_minutes == 30, (
-            "TY-11: the default value of model_idle_unload_minutes "
-            "must be 30 minutes (sensible production default for memory "
-            "management, keeps the model warm for short gaps, unloads "
-            "for long ones). Users who need always-loaded behaviour "
-            "can set it to 0."
+        assert cfg.model_idle_unload_minutes == 60, (
+            "the default value of model_idle_unload_minutes "
+            "must be 60 minutes: unloading inside a meeting is the "
+            "worst possible moment to cost a reload, and the memory "
+            "is only really reclaimed when the app closes anyway. "
+            "Users who want always-loaded behaviour can set it to 0, "
+            "and Settings → General offers 15/30/60/90/120/Never."
         )
 
     def test_zero_config_setting_to_zero_cancels_existing_deadline(self):
@@ -499,7 +500,10 @@ class TestConfigField:
         cfg = Config()
         assert hasattr(cfg, "model_idle_unload_minutes")
         assert isinstance(cfg.model_idle_unload_minutes, int)
-        assert cfg.model_idle_unload_minutes == 30
+        # Kept in lockstep with the backend default (see _schema.py) and with
+        # MODEL_IDLE_UNLOAD_OPTIONS in the renderer; the UI offers 15/30/60/90/120
+        # plus 0 (Never), so the default must be one of the offered values.
+        assert cfg.model_idle_unload_minutes == 60
 
     def test_field_in_int_fields_coercion_set(self):
         """The field must be in the ``int_fields`` set inside"""

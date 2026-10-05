@@ -279,6 +279,18 @@ def mock_heavy_imports(monkeypatch, request):
         )
 
 
+# The internal-plugin STT seam ships inert: ``install(app)`` wraps
+# ``app.toggle_dictation`` with the Google-STT session when the gate is
+# open. A developer machine that has ``VOICE_TYPER_INTERNAL_PLUGINS=1``
+# exported (plus the marker file) would otherwise run the whole suite
+# against the plugin path instead of the product dictation path, turning
+# every dictation/hotkey test red locally while CI stays green. Tests
+# assert the PRODUCT behaviour; the seam has its own dedicated coverage.
+@pytest.fixture(autouse=True)
+def _isolate_internal_plugin_gate(monkeypatch):
+    monkeypatch.delenv("VOICE_TYPER_INTERNAL_PLUGINS", raising=False)
+
+
 @pytest.fixture(autouse=True)
 def _reset_log_rate_limit():
     """Reset ``log_rate_limit`` module-level state between tests."""

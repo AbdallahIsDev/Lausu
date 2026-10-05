@@ -35,7 +35,7 @@ import numpy as np
 
 from voice_typer.server._audio_constants import WHISPER_SAMPLE_RATE
 from voice_typer.server.asr_utils import merge_chunks
-from voice_typer.server.hallucination import log_hallucination_rejection, should_reject_low_audio_hallucination
+from voice_typer.server.hallucination import log_hallucination_rejection, reject_and_stamp_reason
 
 log = logging.getLogger(__name__)
 
@@ -62,10 +62,15 @@ class QwenEngine:
         model_path: str,
         device: str = "cuda",
         language: str = "en",
+        config: Any = None,
     ):
         self.model_path = model_path
         self.device = device
         self.language = language
+        # Live Config handle, consulted by the hallucination gate for
+        # ``hallucination_filter_mode`` (mirrors ParakeetEngine).
+        self.config = config
+        self.last_rejection_reason: str | None = None
         self._model = None
         # Set when the ONNX backend is active (see ``load()``). Guards
         self._onnx_model = None
@@ -218,7 +223,7 @@ class QwenEngine:
                 rms = audio_stats[0]
             else:
                 rms = float(np.sqrt(np.mean(np.square(audio), dtype=np.float64)))
-            if should_reject_low_audio_hallucination(text, rms):
+            if reject_and_stamp_reason(self, text, rms):
                 # SEC-009: Use PII-safe logging helper instead of raw text
                 log_hallucination_rejection(
                     "[QWEN]",
@@ -398,7 +403,7 @@ class QwenEngine:
                 continue
             # Per-chunk hallucination filter using the chunk's own RMS.
             rms = float(np.sqrt(np.mean(np.square(chunk), dtype=np.float64)))
-            if should_reject_low_audio_hallucination(text, rms):
+            if reject_and_stamp_reason(self, text, rms):
                 # SEC-009: Use PII-safe logging helper instead of raw text
                 log_hallucination_rejection(
                     "[QWEN]",
@@ -442,7 +447,7 @@ class QwenEngine:
                 texts.append("")
                 continue
             rms = float(np.sqrt(np.mean(np.square(batch[idx]), dtype=np.float64)))
-            if should_reject_low_audio_hallucination(text, rms):
+            if reject_and_stamp_reason(self, text, rms):
                 log_hallucination_rejection(
                     "[QWEN]",
                     text,

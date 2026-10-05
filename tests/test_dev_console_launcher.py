@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from unittest.mock import MagicMock, patch
 
 from voice_typer.server.autostart import dev_console
@@ -13,6 +14,15 @@ def test_client_dir_has_package_json():
 
 def test_launch_dev_console_windows_spawns_cmd(monkeypatch):
     monkeypatch.setattr(dev_console.sys, "platform", "win32")
+    # ``launch_dev_console`` reads ``sys.platform`` through
+    # ``platform_utils.is_windows()``, so faking win32 here takes the
+    # Windows branch on POSIX too -- where CPython never defines the
+    # Windows-only creation-flag constants (they live under
+    # ``if _mswindows:`` in ``Lib/subprocess.py``). Inject the flag so the
+    # branch is exercisable on every OS.
+    sentinel = 0x00000010  # CREATE_NEW_CONSOLE
+    monkeypatch.setattr(subprocess, "CREATE_NEW_CONSOLE", sentinel, raising=False)
+
     popen = MagicMock()
     with patch.object(dev_console.subprocess, "Popen", popen):
         rc = dev_console.launch_dev_console("dev")
@@ -21,7 +31,9 @@ def test_launch_dev_console_windows_spawns_cmd(monkeypatch):
     assert args[0].endswith("cmd.exe")
     assert args[1] == "/k"
     assert args[2:5] == ["npm", "run", "dev"]
-    assert popen.call_args.kwargs.get("creationflags") == dev_console.subprocess.CREATE_NEW_CONSOLE
+    # A new console is the whole point: pythonw has no console of its own,
+    # so the user needs one to see vite/tauri output and Ctrl+C the server.
+    assert popen.call_args.kwargs.get("creationflags") == sentinel
 
 
 def test_launch_dev_console_missing_client(monkeypatch, tmp_path):

@@ -210,7 +210,13 @@ class _NvidiaDllPathManager:
                         )
 
         if missing:
-            log.debug("[CUDA-DLL] %d candidate DLL dirs absent (no NVIDIA wheels there)", missing)
+            log.debug(
+                "[CUDA-DLL] %d candidate DLL dirs absent (%d roots x %d parts, "
+                "roots without NVIDIA wheels)",
+                missing,
+                len(roots),
+                len(candidate_parts),
+            )
         if new_paths:
             os.environ["PATH"] = os.pathsep.join(new_paths + existing_paths)
             log.info(

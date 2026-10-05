@@ -1,5 +1,6 @@
 import {
 	Cancel01Icon,
+	CircleIcon,
 	Delete01Icon,
 	Download01Icon,
 	Loading03Icon,
@@ -115,14 +116,14 @@ export const ModelCardActions = memo(function ModelCardActions({
 				<Button
 					variant="secondary"
 					size="sm"
-					className="gap-1 cursor-default opacity-60"
+					className="gap-2 cursor-default opacity-60 h-fit px-3 py-1.5 text-xs whitespace-nowrap w-24 justify-start"
 					disabled
 					aria-label={t("models.card.activeAria", { name: model.name })}
 				>
 					<HugeiconsIcon
 						icon={Tick02Icon}
 						strokeWidth={2}
-						className="h-4 w-4"
+						className="h-3 w-3"
 					/>
 					{t("models.active")}
 				</Button>
@@ -258,7 +259,7 @@ export const ModelCardActions = memo(function ModelCardActions({
 						<HugeiconsIcon
 							icon={Cancel01Icon}
 							strokeWidth={2.5}
-							className="h-4 w-4"
+							className="h-3 w-3"
 						/>
 					</Button>
 				)}
@@ -267,8 +268,10 @@ export const ModelCardActions = memo(function ModelCardActions({
 	}
 
 	// ── Branch 3: downloaded → Select + Delete ─────────────────────
-	//#9: Select now uses `Tick02Icon` (was `PlayIcon`) —
-	// Select is a "mark active" affordance, not a "play media" one.
+	// Select at rest shows a plain CIRCLE outline, a neutral "not chosen
+	// yet" affordance, never state. The old tick was misread as "already
+	// selected"; the tick now only appears on the ACTIVE model (Branch 1)
+	// once the selection has landed.
 	// Destructive control sits LEFT of the primary action, same
 	// position as Branch 1's Delete-before-Active layout, so the
 	// trash icon doesn't jump between card states.
@@ -278,7 +281,8 @@ export const ModelCardActions = memo(function ModelCardActions({
 			<Button
 				variant={isSelectingThis ? "secondary" : "outline"}
 				size="sm"
-				className="gap-1"
+				// The fixed w-24 keeps the width stable when the spinner swaps in.
+				className="gap-2 text-xs whitespace-nowrap w-24"
 				onClick={() => onSelect(model)}
 				disabled={isSelectingThis}
 				// Announce the in-flight selection state
@@ -286,14 +290,23 @@ export const ModelCardActions = memo(function ModelCardActions({
 				aria-busy={isSelectingThis}
 				aria-label={selectAriaLabel(model, isSelectingThis)}
 			>
-				<HugeiconsIcon
-					// In-flight presentation (mirrors the Download
-					// button): a LOADING spinner glyph replaces the
-					// tick, spinning the tick itself read as broken.
-					icon={isSelectingThis ? Loading03Icon : Tick02Icon}
-					strokeWidth={2}
-					className={cn("h-4 w-4", isSelectingThis && "animate-spin")}
-				/>
+				{/* At rest: a plain circle outline — a neutral, not-yet-chosen
+				    marker. It can never be misread as "already selected"
+				    (which is what the old tick did). In-flight the spinner
+				    replaces it. */}
+				{isSelectingThis ? (
+					<HugeiconsIcon
+						icon={Loading03Icon}
+						strokeWidth={2}
+						className="h-3 w-3 animate-spin"
+					/>
+				) : (
+					<HugeiconsIcon
+						icon={CircleIcon}
+						strokeWidth={2}
+						className="h-3 w-3"
+					/>
+				)}
 				{isSelectingThis ? t("models.selecting") : t("models.select")}
 			</Button>
 		</div>
@@ -322,7 +335,7 @@ function DeleteButton({ model, onDelete }: DeleteButtonProps) {
 			<HugeiconsIcon
 				icon={Delete01Icon}
 				strokeWidth={2.5}
-				className="h-4 w-4"
+				className="h-3 w-3"
 			/>
 		</Button>
 	);

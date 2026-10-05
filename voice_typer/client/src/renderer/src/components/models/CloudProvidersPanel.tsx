@@ -12,13 +12,16 @@ import { memo, useState } from "react";
 import { KeyringStatusBadge } from "@/components/common/KeyringStatusBadge";
 import { FamilyLogo } from "@/components/models/FamilyLogo";
 import {
-	MetadataTag,
 	ModelGroupAccordion,
 	ModelGroupContent,
 	ModelGroupItem,
 	ModelGroupTrigger,
 	ModelVariantRow,
 } from "@/components/models/ModelGroupList";
+import {
+	CloudTag,
+	LanguageScopeTag,
+} from "@/components/models/ModelMetaIconTags";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -104,15 +107,15 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 							</ModelGroupTrigger>
 							<ModelGroupContent>
 								{/* One list row per provider: the API model
-                                                                    name + descriptive tags + the Configure
+                                                                    name + icon-only metadata chips + the Configure
                                                                     action (point 11). */}
 								<ModelVariantRow
 									name={formatModelDisplayName(provider.model)}
 									meta={
-										<>
-											<MetadataTag>{t("models.cloud.tagCloud")}</MetadataTag>
-											<MetadataTag>{t("models.card.multilingual")}</MetadataTag>
-										</>
+										<span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
+											<CloudTag />
+											<LanguageScopeTag multilingual />
+										</span>
 									}
 									actions={
 										<Button

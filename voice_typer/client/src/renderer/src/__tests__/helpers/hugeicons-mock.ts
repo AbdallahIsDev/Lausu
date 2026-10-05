@@ -50,6 +50,7 @@ const hugeiconsMock = {
 	CheckmarkCircle01Icon: make("CheckmarkCircle01Icon"),
 	CheckmarkCircle02Icon: make("CheckmarkCircle02Icon"),
 	ChevronDownIcon: make("ChevronDownIcon"),
+	CircleIcon: make("CircleIcon"),
 	CircleQuestionMarkIcon: make("CircleQuestionMarkIcon"),
 	ClipboardPasteIcon: make("ClipboardPasteIcon"),
 	Clock01Icon: make("Clock01Icon"),
@@ -70,6 +71,7 @@ const hugeiconsMock = {
 	FileDownloadIcon: make("FileDownloadIcon"),
 	Film01Icon: make("Film01Icon"),
 	FilterIcon: make("FilterIcon"),
+	FlaskConicalIcon: make("FlaskConicalIcon"),
 	Folder02Icon: make("Folder02Icon"),
 	GlobalIcon: make("GlobalIcon"),
 	Globe02Icon: make("Globe02Icon"),
@@ -99,7 +101,9 @@ const hugeiconsMock = {
 	PencilEdit02Icon: make("PencilEdit02Icon"),
 	PlayCircleIcon: make("PlayCircleIcon"),
 	PlayIcon: make("PlayIcon"),
+	Plug01Icon: make("Plug01Icon"),
 	PlusSignIcon: make("PlusSignIcon"),
+	PuzzleIcon: make("PuzzleIcon"),
 	QuoteUpIcon: make("QuoteUpIcon"),
 	RefreshIcon: make("RefreshIcon"),
 	Search01Icon: make("Search01Icon"),
@@ -121,6 +125,11 @@ const hugeiconsMock = {
 	TerminalIcon: make("TerminalIcon"),
 	TestTube01Icon: make("TestTube01Icon"),
 	TestTubeIcon: make("TestTubeIcon"),
+	// TextIcon (generic text/type glyph, used by StatCards + Settings +
+	// Dashboard) and TextFontIcon (the "Aa" font glyph the model cards
+	// use for English-only) are TWO DIFFERENT real exports; neither
+	// replaces the other.
+	TextFontIcon: make("TextFontIcon"),
 	TextIcon: make("TextIcon"),
 	Tick02Icon: make("Tick02Icon"),
 	Time02Icon: make("Time02Icon"),

@@ -41,6 +41,7 @@ _READONLY_COMMANDS: frozenset[str] = frozenset(
         "get_favorites",
         "get_transcription_text",
         "get_microphones",
+        "get_plugins",
         "get_volume_backend_status",
         "get_model_status",
         "get_prewarm_status",
@@ -111,6 +112,8 @@ _COMMAND_REGISTRY: dict[str, str] = {
     "get_history_count": "_handle_get_history_count",
     "get_transcription_text": "_handle_get_transcription_text",
     "get_microphones": "_handle_get_microphones",
+    # Plugins page: installed-plugin discovery (read-only).
+    "get_plugins": "_handle_get_plugins",
     "get_volume_backend_status": "_handle_get_volume_backend_status",
     "get_model_status": "_handle_get_model_status",
     # About-page Cache Status card (worker warm phase; not subprocess spawn).

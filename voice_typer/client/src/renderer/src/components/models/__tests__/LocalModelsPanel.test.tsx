@@ -2,6 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LocalModelsPanel } from "@/components/models/LocalModelsPanel";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { DiskInfo, ModelFamily, ModelMetadata } from "@/lib/utils/models";
 
 // Mock the HugeiconsIcon wrapper so the test doesn't depend on the SVG
@@ -66,6 +67,12 @@ vi.mock("@/components/models/DownloadProgressBar", () => ({
 		/>
 	),
 }));
+
+/** Wrap in the shared TooltipProvider so the icon-only metadata chips
+ *  (language / speed / distilled) mount their Radix tooltip. */
+function renderPanel(ui: React.ReactElement) {
+	return render(<TooltipProvider delayDuration={200}>{ui}</TooltipProvider>);
+}
 
 const noop = vi.fn();
 
@@ -169,7 +176,7 @@ describe("LocalModelsPanel, low-disk banner uses correct i18n keys", () => {
 			total_bytes: 1024 ** 3,
 			models_dir: "",
 		};
-		render(<LocalModelsPanel {...baseProps} diskInfo={disk} />);
+		renderPanel(<LocalModelsPanel {...baseProps} diskInfo={disk} />);
 		expect(screen.getByText("Low disk space")).toBeInTheDocument();
 		expect(screen.queryByText("Dependencies required")).toBeNull();
 	});
@@ -180,7 +187,7 @@ describe("LocalModelsPanel, low-disk banner uses correct i18n keys", () => {
 			total_bytes: 1024 ** 3,
 			models_dir: "",
 		};
-		render(<LocalModelsPanel {...baseProps} diskInfo={disk} />);
+		renderPanel(<LocalModelsPanel {...baseProps} diskInfo={disk} />);
 		expect(
 			screen.getByText(/Not enough free space to download models/i),
 		).toBeInTheDocument();
@@ -200,7 +207,7 @@ describe("LocalModelsPanel, low-disk banner uses correct i18n keys", () => {
 			total_bytes: 1024 ** 3,
 			models_dir: "",
 		};
-		render(<LocalModelsPanel {...baseProps} diskInfo={disk} />);
+		renderPanel(<LocalModelsPanel {...baseProps} diskInfo={disk} />);
 		// models.disk.freeSpace = "{size} free", for 500 MB the {size}
 		// placeholder is the locale-aware "500 MB" string. Asserting the
 		// word "free" appears and the hardcoded English " free)" literal
@@ -214,12 +221,12 @@ describe("LocalModelsPanel, low-disk banner uses correct i18n keys", () => {
 			total_bytes: 4 * 1024 ** 3,
 			models_dir: "",
 		};
-		render(<LocalModelsPanel {...baseProps} diskInfo={disk} />);
+		renderPanel(<LocalModelsPanel {...baseProps} diskInfo={disk} />);
 		expect(screen.queryByText("Low disk space")).toBeNull();
 	});
 
 	it("low-disk banner is hidden when diskInfo is null (backend doesn't expose disk IPC)", () => {
-		render(<LocalModelsPanel {...baseProps} diskInfo={null} />);
+		renderPanel(<LocalModelsPanel {...baseProps} diskInfo={null} />);
 		expect(screen.queryByText("Low disk space")).toBeNull();
 	});
 });
@@ -233,7 +240,7 @@ describe("LocalModelsPanel, HuggingFace consent is NOT a persistent banner", () 
 		// (`useModelLifecycle.handleDownloadModel`), which opens the
 		// shared point-of-use consent dialog (`openConsentGate`). The
 		// panel must not render any always-visible consent UI.
-		render(<LocalModelsPanel {...baseProps} />);
+		renderPanel(<LocalModelsPanel {...baseProps} />);
 		expect(
 			screen.queryByText("HuggingFace download consent required"),
 		).toBeNull();
@@ -254,7 +261,9 @@ describe("LocalModelsPanel, Open models folder button", () => {
 	afterEach(() => cleanup());
 
 	it("renders 'Open models folder' button (NOT 'Import Model') when modelsFolderSupported=true", () => {
-		render(<LocalModelsPanel {...baseProps} modelsFolderSupported={true} />);
+		renderPanel(
+			<LocalModelsPanel {...baseProps} modelsFolderSupported={true} />,
+		);
 		expect(
 			screen.getByRole("button", {
 				name: /Reveal models folder in file manager/i,
@@ -265,7 +274,9 @@ describe("LocalModelsPanel, Open models folder button", () => {
 	});
 
 	it("hides the 'Open models folder' button when modelsFolderSupported=false", () => {
-		render(<LocalModelsPanel {...baseProps} modelsFolderSupported={false} />);
+		renderPanel(
+			<LocalModelsPanel {...baseProps} modelsFolderSupported={false} />,
+		);
 		expect(
 			screen.queryByRole("button", {
 				name: /Reveal models folder in file manager/i,
@@ -276,7 +287,7 @@ describe("LocalModelsPanel, Open models folder button", () => {
 
 	it("clicking 'Open models folder' invokes onOpenModelsFolder", () => {
 		const onOpenModelsFolder = vi.fn();
-		render(
+		renderPanel(
 			<LocalModelsPanel
 				{...baseProps}
 				modelsFolderSupported={true}
@@ -321,7 +332,7 @@ describe("LocalModelsPanel, UI/UX overhaul: metadata line + display names", () =
 			// biome-ignore lint/style/noNonNullAssertion: catalog fixture is populated in beforeEach
 			tiny: { ...catalog.tiny!, display_name: undefined },
 		};
-		render(
+		renderPanel(
 			<LocalModelsPanel
 				{...baseProps}
 				modelFamilies={slugFamilies}
@@ -337,17 +348,36 @@ describe("LocalModelsPanel, UI/UX overhaul: metadata line + display names", () =
 		).toBeInTheDocument();
 	});
 
-	it("renders VRAM as a label+value pair and Multilingual as a tag pill", () => {
-		render(<LocalModelsPanel {...baseProps} />);
+	it("renders VRAM as a label+value pair and language/speed as icon-only chips", () => {
+		renderPanel(<LocalModelsPanel {...baseProps} />);
 		// VRAM label (muted) + colon + value, one pair per variant.
 		const vramLabels = screen.getAllByText("VRAM");
 		expect(vramLabels.length).toBeGreaterThanOrEqual(1);
 		// ~512 MB for tinyMeta.
 		expect(screen.getByText(/: ~512 MB/i)).toBeInTheDocument();
-		// Multilingual / English Only render as tags.
-		expect(screen.getAllByText("English Only").length).toBeGreaterThanOrEqual(
-			1,
-		);
+		// Language scope + speed are icon-only buttons: no visible label
+		// text, the meaning lives in the accessible name + tooltip.
+		expect(
+			screen.getAllByRole("button", { name: "English Only" }).length,
+		).toBeGreaterThanOrEqual(1);
+		expect(
+			screen.getAllByRole("button", { name: "Fast Speed" }).length,
+		).toBeGreaterThanOrEqual(1);
+		expect(
+			screen.getAllByRole("button", { name: "Slow Speed" }).length,
+		).toBeGreaterThanOrEqual(1);
+		expect(screen.queryByText("English Only")).toBeNull();
+		expect(screen.queryByText("Fast Speed")).toBeNull();
+		expect(screen.queryByText("Slow Speed")).toBeNull();
+	});
+
+	it("each icon chip reveals its meaning in the tooltip on hover/focus", async () => {
+		renderPanel(<LocalModelsPanel {...baseProps} />);
+		// Radix opens the tooltip on pointer-enter AND on keyboard focus,
+		// so focusing the chip is the deterministic way to assert it.
+		screen.getAllByRole("button", { name: "Fast Speed" })[0]?.focus();
+		const tip = await screen.findByRole("tooltip");
+		expect(tip.textContent).toContain("Fast Speed");
 	});
 
 	it("renders the WER label+value pair when the catalog supplies a published WER", () => {
@@ -355,7 +385,7 @@ describe("LocalModelsPanel, UI/UX overhaul: metadata line + display names", () =
 			// biome-ignore lint/style/noNonNullAssertion: catalog fixture is populated in beforeEach
 			tiny: { ...catalog.tiny!, wer: 7.5 },
 		};
-		render(
+		renderPanel(
 			<LocalModelsPanel
 				{...baseProps}
 				modelCatalog={werCatalog}
@@ -377,12 +407,12 @@ describe("LocalModelsPanel, UI/UX overhaul: metadata line + display names", () =
 
 	it("omits the WER pair when no published WER is available (never guess)", () => {
 		// tinyMeta has no `wer` field → no WER label rendered.
-		render(<LocalModelsPanel {...baseProps} />);
+		renderPanel(<LocalModelsPanel {...baseProps} />);
 		expect(screen.queryByText("WER")).toBeNull();
 	});
 
 	it("does NOT render a 'Size:' label in the metadata line (size moved to the download button)", () => {
-		render(<LocalModelsPanel {...baseProps} />);
+		renderPanel(<LocalModelsPanel {...baseProps} />);
 		expect(screen.queryByText(/Size:/i)).toBeNull();
 	});
 });
@@ -397,7 +427,7 @@ describe("LocalModelsPanel, insufficient-disk badge per model", () => {
 			total_bytes: 1024 ** 3,
 			models_dir: "",
 		};
-		render(<LocalModelsPanel {...baseProps} diskInfo={disk} />);
+		renderPanel(<LocalModelsPanel {...baseProps} diskInfo={disk} />);
 		expect(screen.getByText("Insufficient disk space")).toBeInTheDocument();
 		// disk badge (it's still legitimately used for dep-required models).
 		const badges = screen.getAllByText("Insufficient disk space");
@@ -410,8 +440,40 @@ describe("LocalModelsPanel, insufficient-disk badge per model", () => {
 			total_bytes: 16 * 1024 ** 3,
 			models_dir: "",
 		};
-		render(<LocalModelsPanel {...baseProps} diskInfo={disk} />);
+		renderPanel(<LocalModelsPanel {...baseProps} diskInfo={disk} />);
 		expect(screen.queryByText("Insufficient disk space")).toBeNull();
+	});
+
+	it("does NOT render a 'Dependencies required' badge, even for dep-missing models", () => {
+		// The badge was removed from the cards (user decision): a model
+		// whose deps are missing simply shows no status badge.
+		const depMissingFamilies: ModelFamily[] = [
+			{
+				id: "parakeet",
+				name: "Parakeet",
+				description: null,
+				variants: [
+					{
+						name: "parakeet",
+						size: "~2.5GB",
+						speed: "Fast",
+						backend: "parakeet",
+						downloaded: false,
+						depsOk: false,
+						isActive: false,
+					},
+				],
+			},
+		];
+		renderPanel(
+			<LocalModelsPanel {...baseProps} modelFamilies={depMissingFamilies} />,
+		);
+		// The card still renders (heading is the display-formatted model
+		// name, "Parakeet", not the raw slug).
+		expect(
+			screen.getByRole("heading", { name: "Parakeet" }),
+		).toBeInTheDocument();
+		expect(screen.queryByText("Dependencies required")).toBeNull();
 	});
 });
 
@@ -423,7 +485,7 @@ describe("LocalModelsPanel, forward error/modelName/onRetry to DownloadProgressB
 	afterEach(() => cleanup());
 
 	it("forwards modelName to <DownloadProgressBar> when the model is downloading", () => {
-		render(
+		renderPanel(
 			<LocalModelsPanel
 				{...baseProps}
 				downloadingModel="tiny"
@@ -439,7 +501,7 @@ describe("LocalModelsPanel, forward error/modelName/onRetry to DownloadProgressB
 	});
 
 	it("forwards the error string when failedDownload matches the downloading model", () => {
-		render(
+		renderPanel(
 			<LocalModelsPanel
 				{...baseProps}
 				downloadingModel="tiny"
@@ -459,7 +521,7 @@ describe("LocalModelsPanel, forward error/modelName/onRetry to DownloadProgressB
 		// medium.en must not render an error UI on the tiny.en
 		// card (the bar would be mounted on the medium.en card
 		// instead, where the error UI belongs).
-		render(
+		renderPanel(
 			<LocalModelsPanel
 				{...baseProps}
 				downloadingModel="tiny"

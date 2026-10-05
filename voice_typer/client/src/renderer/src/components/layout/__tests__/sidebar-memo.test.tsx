@@ -36,6 +36,13 @@ vi.mock("@/components/ui/button", () => ({
 	},
 }));
 
+// The Plugins nav entry is developer-gated. These tests exercise nav
+// geometry and label motion, so they opt into the gate; the gating itself
+// is covered by Sidebar.plugins-gated.test.tsx.
+vi.mock("@/hooks/usePluginCatalog", () => ({
+	usePluginsAvailable: () => true,
+}));
+
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { Page } from "@/types/ipc";

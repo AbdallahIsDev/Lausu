@@ -6,6 +6,7 @@ import contextlib
 import logging
 from typing import Any
 
+from voice_typer.server import i18n
 from voice_typer.server.branding import APP_NAME
 
 log = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ class _StorageStepMixin:
                     with contextlib.suppress(Exception):
                         self._app.tray.notify(
                             APP_NAME,
-                            "Could not save the transcription to history. Check the log file for details.",
+                            i18n.t("notify.dictation_pipeline.history_save_failed"),
                         )
 
         if self._app.config.crash_recovery_enabled:
@@ -64,11 +65,7 @@ class _StorageStepMixin:
                 if not getattr(self._app, "_crash_recovery_fail_notified", False):
                     self._app._crash_recovery_fail_notified = True
                     with contextlib.suppress(Exception):
-                        self._app.tray.notify(
-                            APP_NAME,
-                            "Could not save the transcription to the crash-recovery "
-                            "buffer. Check the log file for details.",
-                        )
+                        self._app.tray.notify(APP_NAME, i18n.t("notify.dictation_pipeline.crash_recovery_save_failed"))
 
         # Per-correction usage tracking: count this completed dictation
         try:

@@ -22,6 +22,8 @@ class ConstructionMixin:
                     parakeet_kwargs=dict(
                         device=self._app.config.device,
                         language=self._app.config.language,
+                        # live Config handle for the hallucination filter mode
+                        config=self._app.config,
                     ),
                 )
             elif backend_name == "qwen":
@@ -31,6 +33,8 @@ class ConstructionMixin:
                         model_path=self._app.config.qwen_model_path,
                         device=self._app.config.device,
                         language=self._app.config.language,
+                        # live Config handle for the hallucination filter mode
+                        config=self._app.config,
                     ),
                 )
             else:

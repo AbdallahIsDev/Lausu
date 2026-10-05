@@ -24,6 +24,11 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 });
 
 import { APP_NAME } from "@/branding";
+
+vi.mock("@/hooks/usePluginCatalog", () => ({
+	usePluginsAvailable: () => true,
+}));
+
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 

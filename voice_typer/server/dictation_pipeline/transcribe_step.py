@@ -6,6 +6,7 @@ import contextlib
 import logging
 from typing import TYPE_CHECKING, Any  # noqa: F401  # re-exported for tests (transcribe_step.Any)
 
+from voice_typer.server import i18n
 from voice_typer.server._audio_constants import WHISPER_SAMPLE_RATE
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.cloud_engines import CloudEngine
@@ -42,6 +43,9 @@ class _TranscribeStepMixin:
     _recorded_rms: float
     _last_resources_check_ts: float
     _resources_check_interval: float
+    # Hallucination-rejection reason from the last transcription, read by
+    # ``_handle_empty_transcription``. ``None`` means "genuine silence".
+    _rejection_reason: str | None
 
     def _hide_or_idle_bubble(self, log_label: str = "bubble hide/set idle") -> None:
         """Hide the waveform bubble or set it to idle (always_visible mode)."""
@@ -100,8 +104,7 @@ class _TranscribeStepMixin:
         transcription worker.
         """
         log.info(
-            "[TRANSCRIBE] No engine loaded yet; holding the recording while the "
-            "model finishes loading (cycle=%s)",
+            "[TRANSCRIBE] No engine loaded yet; holding the recording while the model finishes loading (cycle=%s)",
             self._cycle_id,
         )
         with contextlib.suppress(Exception):
@@ -241,10 +244,7 @@ class _TranscribeStepMixin:
                     with registry.busy_context(registry.active_name):
                         try:
                             _rate = int(
-                                getattr(
-                                    self._app.config, "sample_rate", WHISPER_SAMPLE_RATE
-                                )
-                                or WHISPER_SAMPLE_RATE
+                                getattr(self._app.config, "sample_rate", WHISPER_SAMPLE_RATE) or WHISPER_SAMPLE_RATE
                             )
                             _lang = str(getattr(self._app.config, "language", None) or "en")
                             text = active.transcribe_with_fallback(
@@ -294,6 +294,13 @@ class _TranscribeStepMixin:
         # Empty-transcription diagnostic: when the engine returns an
         if not text:
             backend_name = type(active).__name__ if active is not None else "<none>"
+            # Capture the engine's hallucination-rejection reason while
+            # ``active`` is in scope; ``_handle_empty_transcription`` runs
+            # in a later stage with no engine reference.
+            # WHY isinstance: a MagicMock engine auto-creates the attribute,
+            # so require a real non-empty string before trusting it.
+            _reason = getattr(active, "last_rejection_reason", None)
+            self._rejection_reason = _reason if isinstance(_reason, str) and _reason else None
             stats_repr = (
                 "rms={:.4f} peak={:.4f} silence_pct={:.1f}".format(*self._audio_stats)
                 if self._audio_stats is not None
@@ -344,6 +351,12 @@ class _TranscribeStepMixin:
                 self._hide_or_idle_bubble("bubble hide/set idle on cancelled empty")
                 return
 
+        # WHY: captured during transcription (see the empty-result branch in
+        # ``_transcribe``). Reporting "no speech detected" for a discarded
+        # hallucination is misleading -- the model DID produce output, we
+        # chose to drop it -- so the user gets the real reason instead.
+        _rejected_reason = getattr(self, "_rejection_reason", None)
+
         log.info("[TRANSCRIBE] No speech detected (cycle=%s)", self._cycle_id)
         # Hide the bubble since there's nothing to
         self._hide_or_idle_bubble("bubble hide/set idle on empty")
@@ -354,7 +367,47 @@ class _TranscribeStepMixin:
         _silence_rms_threshold = 0.005
         _audio_was_captured = self._recorded_rms >= _silence_rms_threshold
 
-        if self._duration < _grace_period and not _audio_was_captured:
+        if _rejected_reason is not None:
+            # A rejected hallucination on a short near-silent clip is the
+            # overwhelmingly common case (hotkey tapped, nothing said), so
+            # it keeps the grace-period behaviour of staying quiet -- only
+            # the wording changes. Longer / louder clips still notify.
+            if self._duration < _grace_period and not _audio_was_captured:
+                log.info(
+                    "[TRANSCRIBE] Short clip discarded as %s, suppressing notification (cycle=%s)",
+                    _rejected_reason,
+                    self._cycle_id,
+                )
+                self._app.tray.set_state(
+                    AppState.IDLE,
+                    _i18n_t("state.dictation_pipeline.rejected_hallucination"),
+                )
+                with contextlib.suppress(Exception):
+                    from voice_typer.server import event_bus
+
+                    event_bus.publish(
+                        {
+                            "type": "dictation_suppressed",
+                            "data": {
+                                "duration": self._duration,
+                                "recorded_rms": self._recorded_rms,
+                                "reason": "hallucination",
+                            },
+                        }
+                    )
+            else:
+                log.info(
+                    "[TRANSCRIBE] Discarded transcription as %s (duration=%.1fs, rms=%.4f, cycle=%s)",
+                    _rejected_reason,
+                    self._duration,
+                    self._recorded_rms,
+                    self._cycle_id,
+                )
+                self._app.tray.set_state(
+                    AppState.IDLE,
+                    _i18n_t("state.dictation_pipeline.rejected_hallucination"),
+                )
+        elif self._duration < _grace_period and not _audio_was_captured:
             # Short recording AND near-silence: the user almost certainly
             log.info(
                 "[TRANSCRIBE] No speech detected but recording was only %.1fs "
@@ -398,12 +451,7 @@ class _TranscribeStepMixin:
                 AppState.IDLE,
                 _i18n_t("state.dictation_pipeline.no_speech_check_mic"),
             )
-            self._app.tray.notify(
-                APP_NAME,
-                "No speech was detected and audio was near-silence.\n"
-                "Your microphone may not be capturing audio.\n"
-                "Check that the correct mic is selected and is active.",
-            )
+            self._app.tray.notify(APP_NAME, i18n.t("notify.dictation_pipeline.no_speech_detected"))
         else:
             # Long recording with real audio but the engine returned
             log.warning(
@@ -418,13 +466,7 @@ class _TranscribeStepMixin:
                 AppState.IDLE,
                 _i18n_t("state.dictation_pipeline.transcription_empty"),
             )
-            self._app.tray.notify(
-                APP_NAME,
-                "Audio was recorded but no transcription was produced.\n"
-                "This can happen if the model is misconfigured or the "
-                "audio is unclear. Try again, or check the log file for "
-                "details.",
-            )
+            self._app.tray.notify(APP_NAME, i18n.t("notify.dictation_pipeline.no_transcription_produced"))
         # busy = False) instead of the raw inverted _busy_event.
         self._app._busyness.set_idle()
         self._app._schedule_timer(2.0, lambda: self._app.tray.set_state(AppState.IDLE))

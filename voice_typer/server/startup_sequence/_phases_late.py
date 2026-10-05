@@ -9,6 +9,7 @@ import threading
 import time
 from typing import TYPE_CHECKING, cast
 
+from voice_typer.server import i18n
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.duration import format_duration
 from voice_typer.server.platform_utils import is_linux, is_macos, is_wayland_session
@@ -87,10 +88,7 @@ class LatePhases:
                     )
                     # critical, bypass toggle (hotkeys broken).
                     app.tray.notify_safety(
-                        f"{APP_NAME}, Wayland Hotkeys",
-                        "Global hotkeys may not work on Wayland. "
-                        "Install 'wtype' or 'ydotool' for hotkey support, "
-                        "or use the tray menu's Start Dictation option.",
+                        f"{APP_NAME}, Wayland Hotkeys", i18n.t("notify.hotkey_dispatcher.wayland_hotkeys_may_fail")
                     )
                 else:
                     log.info(

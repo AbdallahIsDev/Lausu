@@ -83,7 +83,7 @@ export interface ModelVariantRowProps {
 	name: string;
 	/** Optional badges rendered inline next to the heading. */
 	headingExtra?: ReactNode;
-	/** Metadata line: `MetadataPair` / `MetadataTag` children. */
+	/** Metadata line: `MetadataPair` values + icon-only metadata chips. */
 	meta?: ReactNode;
 	/** Right-side actions (e.g. `ModelCardActions`, a Configure button). */
 	actions?: ReactNode;
@@ -139,25 +139,6 @@ export function MetadataPair({
 		<span className="inline-flex items-baseline gap-1">
 			<span className="text-muted-foreground">{label}</span>
 			<span className="text-foreground">: {value}</span>
-		</span>
-	);
-}
-
-export function MetadataTag({
-	children,
-	className,
-}: {
-	children: ReactNode;
-	className?: string;
-}) {
-	return (
-		<span
-			className={cn(
-				"inline-flex items-center rounded-full border border-border/8 bg-foreground/5 px-2 py-0.5 text-[11px] font-medium leading-4 text-muted-foreground",
-				className,
-			)}
-		>
-			{children}
 		</span>
 	);
 }

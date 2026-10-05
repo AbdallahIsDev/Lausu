@@ -57,6 +57,82 @@ def _new_pipeline(app: _TestApp) -> DictationPipeline:
     return pipeline
 
 
+class TestHallucinationRejectionReasonSurfaced:
+    """The user must be told WHY the text vanished, not "no speech"."""
+
+    def test_rejected_hallucination_reports_its_own_message(self):
+        app = _TestApp()
+        pipeline = _new_pipeline(app)
+        pipeline._duration = 2.0
+        pipeline._recorded_rms = 0.001  # near-silent
+        pipeline._rejection_reason = "low-audio hallucination"
+
+        pipeline._handle_empty_transcription()
+
+        statuses = [c.args[1] for c in app.tray.set_state.call_args_list]
+        assert any("Ignored likely nonsense" in s for s in statuses), (
+            f"a rejected hallucination must not be reported as silence; got {statuses!r}"
+        )
+        assert "No speech detected" not in statuses
+
+    def test_rejected_hallucination_stays_quiet_on_short_silent_clip(self):
+        """Hotkey tap + nothing said: no popup, same as the silence case."""
+        app = _TestApp()
+        pipeline = _new_pipeline(app)
+        pipeline._duration = 2.0
+        pipeline._recorded_rms = 0.001
+        pipeline._rejection_reason = "low-audio hallucination"
+
+        pipeline._handle_empty_transcription()
+
+        app.tray.notify.assert_not_called()
+
+    def test_genuine_silence_still_reports_no_speech(self):
+        """No rejection reason → unchanged pre-existing behavior."""
+        app = _TestApp()
+        pipeline = _new_pipeline(app)
+        pipeline._duration = 2.0
+        pipeline._recorded_rms = 0.001
+        pipeline._rejection_reason = None
+
+        pipeline._handle_empty_transcription()
+
+        statuses = [c.args[1] for c in app.tray.set_state.call_args_list]
+        assert "No speech detected" in statuses
+
+    def test_magicmock_engine_attribute_is_not_trusted(self):
+        """A MagicMock auto-creates attributes; only a real str counts."""
+        app = _TestApp()
+        pipeline = _new_pipeline(app)
+        pipeline._duration = 2.0
+        pipeline._recorded_rms = 0.001
+        engine = MagicMock()  # engine.last_rejection_reason is a Mock, not a str
+        pipeline._active_engine_for_test = engine
+
+        # Simulate the capture step's isinstance guard.
+        reason = getattr(engine, "last_rejection_reason", None)
+        captured = reason if isinstance(reason, str) and reason else None
+        pipeline._rejection_reason = captured
+
+        pipeline._handle_empty_transcription()
+
+        statuses = [c.args[1] for c in app.tray.set_state.call_args_list]
+        assert "No speech detected" in statuses, "a Mock attribute must not be treated as a reason"
+
+    def test_loud_recording_with_rejection_notifies(self):
+        """Longer/louder clip that was discarded still surfaces loudly."""
+        app = _TestApp()
+        pipeline = _new_pipeline(app)
+        pipeline._duration = 30.0
+        pipeline._recorded_rms = 0.02
+        pipeline._rejection_reason = "low-audio hallucination"
+
+        pipeline._handle_empty_transcription()
+
+        statuses = [c.args[1] for c in app.tray.set_state.call_args_list]
+        assert any("Ignored likely nonsense" in s for s in statuses)
+
+
 class TestHandleEmptyTranscriptionRefinedSuppression:
     """The grace-period suppression must consider recorded_rms."""
 

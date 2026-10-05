@@ -8,6 +8,7 @@ import logging
 import threading
 from typing import TYPE_CHECKING, Any
 
+from voice_typer.server import i18n
 from voice_typer.server._secrets import redact_secret
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.dictation_pipeline.helpers import (
@@ -151,7 +152,7 @@ class _EnhancementStepsMixin:
                     with contextlib.suppress(Exception):
                         self._app.tray.notify(
                             APP_NAME,
-                            "LLM polish failed. Transcription shown raw; check the log file for details.",
+                            i18n.t("notify.dictation_pipeline.llm_polish_failed"),
                         )
                 with contextlib.suppress(Exception):
                     from voice_typer.server import event_bus

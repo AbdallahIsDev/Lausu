@@ -42,7 +42,7 @@ host-dispatched / host-only set (`heartbeat`, `relaunch_ack`,
 `allowed_commands()` are host-internal (invoked by the Rust host via
 `dispatch_inner` or host-supervised shutdown), never by the renderer.
 
-## Commands (79 total: 75 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
+## Commands (80 total: 76 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
 
 Grouped by namespace. "✓" in the Allowlist column means the command is
 in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
@@ -173,6 +173,7 @@ in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
 | Command | Handler | Allowlist | Notes |
 |---------|---------|-----------|-------|
 | `get_microphones` | `_handle_get_microphones` | ✓ |  |
+| `get_plugins` | `_handle_get_plugins` | ✓ | Installed plugins, their manifests, and each one's active flag. |
 
 ### Microphone test (start, stop, cancel, level)
 

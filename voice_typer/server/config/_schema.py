@@ -15,6 +15,7 @@ from voice_typer.server.config._defaults import (
     _default_hotkey_for_platform,
 )
 from voice_typer.server.config_internals.migrations import _CURRENT_SCHEMA_VERSION
+from voice_typer.server.hallucination import DEFAULT_HALLUCINATION_FILTER_MODE
 from voice_typer.server.model_registry import DEFAULT_MODEL_SIZE
 
 log = logging.getLogger("voice_typer.server.config")
@@ -65,6 +66,10 @@ class _ConfigSchema:
 
     # Transcription
     model_size: str = DEFAULT_MODEL_SIZE
+    # Installed plugin that currently owns dictation ("" = local model).
+    # Set from the Plugins page; a non-empty value must match an installed
+    # plugin id, otherwise the local model stays in charge (fail-closed).
+    active_plugin: str = ""
     language: str = "en"
     device: str = "cuda"  # cuda, cpu
     beam_size: int = 1  # 1 = fastest greedy decoding; higher values trade speed for accuracy
@@ -72,6 +77,10 @@ class _ConfigSchema:
     condition_on_previous_text: bool = False
     # In the SEC-002 IPC allowlist so the Settings UI toggle persists it.
     vad_filter_enabled: bool = True
+    # How aggressively low-audio hallucinations are discarded.
+    # "balanced" keeps catalog phrases that are also real dictation
+    # ("so", "you", "bye") unless the decoder confirms silence.
+    hallucination_filter_mode: str = DEFAULT_HALLUCINATION_FILTER_MODE
     # Whisper-specific beam size override. Defaults to 1 (matching the
     whisper_beam_size: int = 1
 
@@ -285,7 +294,13 @@ class _ConfigSchema:
     # silence_rms_threshold / silence_peak_threshold were REMOVED
 
     # Idle-unload timer for the active ASR backend. After this
-    model_idle_unload_minutes: int = 30
+    # many minutes without dictation the model is dropped from memory.
+    # 60 (not 30): unloading inside a meeting is the worst possible
+    # moment to cost the user a reload, and the committed memory is
+    # only reclaimed when the app closes anyway (where it is
+    # guaranteed). 0 disables the timer entirely. Surfaces in
+    # Settings → General as a dropdown (15/30/60/90/120/Never).
+    model_idle_unload_minutes: int = 60
 
     # VAD configuration for the recording callback.
     use_silero_vad: bool = True  # ADR 0007: was False, now True (torch available)

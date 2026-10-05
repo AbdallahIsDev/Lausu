@@ -44,8 +44,18 @@ export interface LausuConfig {
 	vad_auto_calibrate?: boolean;
 
 	model_size: ModelSize;
+	/** Installed plugin that currently owns dictation ("" = local model). */
+	active_plugin: string;
 	language: string;
 	device: "cuda" | "cpu";
+	/**
+	 * Minutes of dictation inactivity before the ASR model is dropped from
+	 * memory. `0` means "never unload" (keep it loaded while the app is
+	 * open). Only ever changed by the user through the Settings → General
+	 * dropdown; the app never writes it based on system memory pressure.
+	 * Optional for wire tolerance with older sidecars (absent = 60).
+	 */
+	model_idle_unload_minutes?: number;
 	/**
 	 * READ-ONLY computed flag attached to every `get_config` response
 	 * (NOT persisted): true when the backend probe found a
@@ -64,6 +74,12 @@ export interface LausuConfig {
 	 * Master switch for voice-activity (silence) filtering before transcription.
 	 */
 	vad_filter_enabled: boolean;
+	/**
+	 * How aggressively low-audio hallucinations are discarded.
+	 * "balanced" keeps catalog phrases that double as real dictation
+	 * ("so", "you", "bye") unless the decoder confirms silence.
+	 */
+	hallucination_filter_mode: "strict" | "balanced" | "off";
 
 	streaming_transcription: boolean;
 	streaming_chunk_seconds: number;

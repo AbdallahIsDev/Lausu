@@ -7,6 +7,7 @@ import threading
 import time
 from typing import TYPE_CHECKING
 
+from voice_typer.server import i18n
 from voice_typer.server.asr_registry import AsrBackendRegistry
 from voice_typer.server.tray_types import AppState
 
@@ -261,7 +262,7 @@ class LifecycleMixin:
             )
         # Tray state transition: "Idle, model unloaded" (reuses
         try:
-            self._app.tray.set_state(AppState.IDLE, "Idle, model unloaded")
+            self._app.tray.set_state(AppState.IDLE, i18n.t("state.model_unloaded_idle"))
         except Exception:
             log.debug(
                 "[MODEL] tray.set_state failed (non-fatal)",

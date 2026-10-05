@@ -78,6 +78,30 @@ class TestProbe:
         device_caps.gpu_available()
         assert time.monotonic() - t0 < 1.0
 
+    def test_ct2_cuda_wins_over_cpu_only_ort(self, monkeypatch) -> None:
+        import sys
+        import types
+
+        import voice_typer.server.nvidia_dll_paths as _nv
+
+        monkeypatch.setattr(_nv, "_cuda_runtime_available", lambda: True)
+        fake_ct2 = types.SimpleNamespace(get_cuda_device_count=lambda: 1)
+        monkeypatch.setitem(sys.modules, "ctranslate2", fake_ct2)
+        fake_ort = types.SimpleNamespace(get_available_providers=lambda: ["CPUExecutionProvider"])
+        monkeypatch.setitem(sys.modules, "onnxruntime", fake_ort)
+        assert device_caps.gpu_available(refresh=True) is True
+
+    def test_ct2_zero_devices_means_no_gpu(self, monkeypatch) -> None:
+        import sys
+        import types
+
+        import voice_typer.server.nvidia_dll_paths as _nv
+
+        monkeypatch.setattr(_nv, "_cuda_runtime_available", lambda: True)
+        fake_ct2 = types.SimpleNamespace(get_cuda_device_count=lambda: 0)
+        monkeypatch.setitem(sys.modules, "ctranslate2", fake_ct2)
+        assert device_caps.gpu_available(refresh=True) is False
+
 
 def _make_app(device: Any) -> tuple[Any, list[bool]]:
     saves: list[bool] = []

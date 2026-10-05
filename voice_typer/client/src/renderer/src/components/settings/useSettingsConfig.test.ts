@@ -52,12 +52,14 @@ const baseConfig: LausuConfig = {
 	sample_rate: 16000,
 	microphone: null,
 	model_size: "tiny",
+	active_plugin: "",
 	language: "en",
 	device: "cpu",
 	beam_size: 5,
 	best_of: 1,
 	condition_on_previous_text: false,
 	vad_filter_enabled: true,
+	hallucination_filter_mode: "balanced",
 	streaming_transcription: false,
 	streaming_chunk_seconds: 0,
 	streaming_step_seconds: 0,
@@ -308,6 +310,7 @@ describe("useSettingsConfig, XA-14 fixes", () => {
 
 		await result.current.updateConfig({
 			model_size: "qwen",
+			active_plugin: "",
 			hotkey: "F3",
 		});
 

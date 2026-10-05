@@ -38,6 +38,7 @@ const _RENDERER_CALLED_COMMANDS = {
 	// before the widening slice.
 	get_config: true,
 	get_microphones: true,
+	get_plugins: true,
 	toggle_dictation: true,
 	get_history: true,
 	delete_history: true,
@@ -178,6 +179,8 @@ const _SERVER_REGISTRY_MINUS_PYTHON_ONLY = {
 	get_history_count: true,
 	get_transcription_text: true,
 	get_microphones: true,
+	// Plugins page: installed-plugin discovery (read-only).
+	get_plugins: true,
 	get_volume_backend_status: true,
 	get_model_status: true,
 	get_vocabulary: true,

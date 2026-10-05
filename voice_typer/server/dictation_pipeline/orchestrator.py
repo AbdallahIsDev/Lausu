@@ -54,6 +54,9 @@ class _OrchestratorMixin:
         self._audio_stats: tuple[float, float, float] | None = None
         # Compact quality summary captured from the active ASR engine
         self._quality_summary: dict[str, float] | None = None
+        # Hallucination-rejection reason for the current cycle; ``None``
+        # means the empty result was genuine silence, not a discarded phrase.
+        self._rejection_reason: str | None = None
         #  (defense-in-depth observability): tracks whether
         self._templates_applied: bool = False
         # the 11-stage dictation pipeline. Each stage is a thin
@@ -116,6 +119,9 @@ class _OrchestratorMixin:
         self._audio_stats = getattr(self._app.recorder, "_last_audio_stats", None)
         # Reset the per-cycle quality summary BEFORE transcription so a
         self._quality_summary = None
+        # Same for the rejection reason: a stale value would make the NEXT
+        # cycle's genuine silence report "ignored likely nonsense".
+        self._rejection_reason = None
         _t0 = time.perf_counter()
 
         # Hoist ``text = ""`` outside the try block so the

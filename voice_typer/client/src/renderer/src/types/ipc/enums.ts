@@ -39,6 +39,7 @@ export type Page =
 	| "templates"
 	| "vocabulary"
 	| "media"
+	| "plugins"
 	| "models"
 	| "microphone"
 	| "analytics"

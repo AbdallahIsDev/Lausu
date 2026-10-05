@@ -37,6 +37,7 @@ export const PAGE_LOADERS = {
 	microphone: () => import("@/pages/Microphone"),
 	models: () => import("@/pages/Models"),
 	onboarding: () => import("@/pages/Onboarding"),
+	plugins: () => import("@/pages/plugins/Plugins"),
 	// The settings hub and ALL section-page literals resolve to the
 	// SAME Settings chunk, one entry covers them.
 	settings: () => import("@/pages/Settings"),
@@ -55,6 +56,7 @@ export const LAZY_PAGES = {
 	microphone: lazy(PAGE_LOADERS.microphone),
 	models: lazy(PAGE_LOADERS.models),
 	onboarding: lazy(PAGE_LOADERS.onboarding),
+	plugins: lazy(PAGE_LOADERS.plugins),
 	settings: lazy(PAGE_LOADERS.settings),
 	templates: lazy(PAGE_LOADERS.templates),
 	vocabulary: lazy(PAGE_LOADERS.vocabulary),

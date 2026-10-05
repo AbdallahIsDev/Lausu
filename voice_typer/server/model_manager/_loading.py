@@ -339,9 +339,7 @@ class LoadingMixin:
                     ),
                 )
 
-    def wait_for_active_engine_loaded(
-        self, timeout: float = MODEL_WAIT_FOR_READY_SECONDS
-    ) -> Any | None:
+    def wait_for_active_engine_loaded(self, timeout: float = MODEL_WAIT_FOR_READY_SECONDS) -> Any | None:
         """Wait for an in-flight engine load to finish; return the ready engine.
 
         Used by the transcribe path when ``active_transcriber()`` is None: the
@@ -420,7 +418,7 @@ class LoadingMixin:
                         engine = self._registry.get(backend)
             # reload-after-idle-unload. If the engine exists but
             if engine is not None and hasattr(engine, "is_loaded") and not engine.is_loaded:
-                self._app.tray.set_state(AppState.LOADING, "Loading model...")
+                self._app.tray.set_state(AppState.LOADING, i18n.t("state.model_loading"))
 
                 def on_progress(msg: str) -> None:
                     self._app.tray.set_state(AppState.LOADING, msg)

@@ -8,7 +8,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from voice_typer.server import onboarding_status
+from voice_typer.server import i18n, onboarding_status
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.platform_utils import is_windows
 from voice_typer.server.providers import AppProtocol
@@ -610,10 +610,7 @@ def start_accessibility_pulse(app: AppProtocol, initial_state: bool) -> None:
                     except Exception:
                         log.debug("[A11Y] could not persist last_known_a11y_version", exc_info=True)
                     with contextlib.suppress(Exception):
-                        app.tray.notify(
-                            APP_NAME,
-                            "Accessibility permission granted. Hotkeys are now active.",
-                        )
+                        app.tray.notify(APP_NAME, i18n.t("notify.permissions.accessibility_granted"))
                 else:
                     log.warning("[A11Y] macOS Accessibility permission revoked")
                     # detect version-change-induced TCC reset
@@ -646,8 +643,7 @@ def start_accessibility_pulse(app: AppProtocol, initial_state: bool) -> None:
                         else:
                             app.tray.notify_safety(
                                 f"{APP_NAME}, Accessibility Revoked",
-                                "Global hotkeys have been disabled. Open System Settings "
-                                "-> Privacy & Security -> Accessibility to re-grant.",
+                                i18n.t("notify.permissions.global_hotkeys_disabled"),
                             )
                 last_state = current
 

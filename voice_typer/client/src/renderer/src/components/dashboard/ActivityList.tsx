@@ -360,7 +360,7 @@ function ActivityListInner({
 			<div className="flex w-full flex-col gap-2 [text-wrap:auto]">
 				{!hideHeader && (
 					<div className="flex items-center justify-between w-full">
-						<span className="text-[12px] font-semibold text-foreground">
+						<span className="text-xs font-semibold text-foreground">
 							{title}
 						</span>
 						{showViewAll && onViewAll && (
@@ -368,7 +368,7 @@ function ActivityListInner({
 								onClick={onViewAll}
 								variant="link"
 								size="xs"
-								className="text-[12px] font-semibold text-muted-foreground hover:text-foreground"
+								className="text-xs font-semibold text-muted-foreground hover:text-foreground"
 							>
 								{t("activityList.viewAll")}
 							</Button>
@@ -395,15 +395,13 @@ function ActivityListInner({
 		<div className="flex w-full flex-col gap-2 [text-wrap:auto]">
 			{!hideHeader && (
 				<div className="flex items-center justify-between w-full">
-					<span className="text-[12px] font-semibold text-foreground">
-						{title}
-					</span>
+					<span className="text-xs font-semibold text-foreground">{title}</span>
 					{showViewAll && onViewAll && (
 						<Button
 							onClick={onViewAll}
 							variant="link"
 							size="xs"
-							className="text-[12px] font-semibold text-muted-foreground hover:text-foreground"
+							className="text-xs font-semibold text-muted-foreground hover:text-foreground"
 						>
 							{t("activityList.viewAll")}
 						</Button>

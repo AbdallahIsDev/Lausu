@@ -1222,7 +1222,15 @@
 			"backToSettings": "返回设置",
 			"on": "开",
 			"off": "关"
-		}
+		},
+		"modelIdleUnload": "将语音模型保留在内存中",
+		"modelIdleUnloadDescription": "停止听写后，语音模型在内存中保留多长时间。时间越长，听写始终即时可用，并且在应用打开期间会占用约 2 GB 内存。关闭应用会立即释放该内存。",
+		"modelIdleUnload.minutes15": "15 分钟",
+		"modelIdleUnload.minutes30": "30 分钟",
+		"modelIdleUnload.minutes60": "1 小时",
+		"modelIdleUnload.minutes90": "1 小时 30 分钟",
+		"modelIdleUnload.minutes120": "2 小时",
+		"modelIdleUnload.never": "从不（保持加载）"
 	},
 	"models": {
 		"loadFailedTitle": "无法加载模型",
@@ -1920,7 +1928,8 @@
 			"mic_unplugged": "麦克风已被拔出。录音已停止。",
 			"still_running": "转写仍在进行中。\n较长的录音或 CPU 后备模式可能需要更多时间。",
 			"xrun_title": "{app} | 音频问题",
-			"xrun_body": "检测到 {count} 次音频缓冲区欠载。请尝试关闭其他音频应用或降低 CPU 负载。"
+			"xrun_body": "检测到 {count} 次音频缓冲区欠载。请尝试关闭其他音频应用或降低 CPU 负载。",
+			"consent_not_verified": "无法验证语音生物识别授权。\n已拒绝录音。请检查“设置 > 隐私”。"
 		},
 		"model_manager": {
 			"backend_init_failed_title": "{appName}",
@@ -1958,7 +1967,10 @@
 			"undo_no_pynput": "撤销不可用（缺少 pynput）",
 			"undo_failed": "无法撤销上次转录。详情请查看日志。",
 			"clipboard_unavailable_body": "转写已完成，但剪贴板不可用。\n您的文本已保存到崩溃恢复文件中，因此不会丢失。",
-			"clipboard_unavailable_recovery_path": "恢复文件：{path}"
+			"clipboard_unavailable_recovery_path": "恢复文件：{path}",
+			"onboarding_kept_failing": "初始设置反复失败。应用将以默认设置启动。请打开“设置”手动配置。",
+			"onboarding_setup_failed": "初始设置失败；将在下次启动时重试。",
+			"config_acl_failed": "无法锁定配置文件权限。API 密钥可能会被本电脑上的其他用户读取。"
 		},
 		"hotkey_dispatcher": {
 			"register_failed": "无法注册快捷键 {hotkey}。它可能正被其他应用占用。可使用托盘菜单切换听写，或在设置中选择其他快捷键。",
@@ -1968,7 +1980,8 @@
 			"esc_register_failed": "无法注册 ESC 取消快捷键。其他应用可能已占用该按键。",
 			"repaste_register_failed": "无法注册重新粘贴快捷键。其他应用可能已占用该按键。",
 			"invalid_hotkey": "快捷键 {hotkey} 无效：{validation_error}。将保留之前的快捷键。",
-			"restore_failed": "无法恢复之前的快捷键 {hotkey}。请打开设置重新绑定快捷键。"
+			"restore_failed": "无法恢复之前的快捷键 {hotkey}。请打开设置重新绑定快捷键。",
+			"wayland_hotkeys_may_fail": "在 Wayland 下全局快捷键可能无法使用。请安装 'wtype' 或 'ydotool' 以支持快捷键，或使用托盘菜单中的“开始听写”。"
 		},
 		"native_adapter": {
 			"warn_title": "{appName}：原生快捷键警告",
@@ -1993,7 +2006,20 @@
 			"macos_body": "点击打开系统设置 → 辅助功能。将 {appName}（及其按键监听辅助程序）添加到列表中。",
 			"macos_body_with_command": "点击打开系统设置 → 辅助功能。将 {appName}（及其按键监听辅助程序）添加到列表中。然后运行：{command}",
 			"linux_title": "{appName} 需要键盘权限",
-			"linux_body": "点击以授予访问权限。系统将要求输入密码以安装键盘权限（udev 规则 + 输入组）。授予后，请注销并重新登录以使更改生效。"
+			"linux_body": "点击以授予访问权限。系统将要求输入密码以安装键盘权限（udev 规则 + 输入组）。授予后，请注销并重新登录以使更改生效。",
+			"accessibility_granted": "已授予辅助功能权限。快捷键现已启用。",
+			"global_hotkeys_disabled": "全局快捷键已禁用。请打开“系统设置”->“隐私与安全性”->“辅助功能”以重新授权。"
+		},
+		"dictation_pipeline": {
+			"llm_polish_failed": "LLM 润色失败。转写文本原样显示，详情请查看日志文件。",
+			"history_save_failed": "无法将转写文本保存到历史记录。详情请查看日志文件。",
+			"crash_recovery_save_failed": "无法将转写文本保存到崩溃恢复缓冲区。详情请查看日志文件。",
+			"text_cleanup_failed": "文本清理失败。详情请查看日志文件。",
+			"vocab_correction_failed": "词汇校正失败。详情请查看日志文件。",
+			"template_match_failed": "模板匹配失败。详情请查看日志文件。",
+			"auto_punctuation_failed": "自动标点失败。详情请查看日志文件。",
+			"no_speech_detected": "未检测到语音，且音频接近静音。\n麦克风可能没有采集到声音。\n请确认已选择并启用正确的麦克风。",
+			"no_transcription_produced": "已录制音频，但未生成转写文本。\n这可能是因为模型配置错误或音频不清晰。请重试，或查看日志文件了解详情。"
 		}
 	},
 	"error": {
@@ -2077,7 +2103,9 @@
 			"cancelled": "已取消",
 			"recovered": "已恢复 | 转录超时",
 			"stillTranscribing": "仍在转录...",
-			"awaitingModel": "正在完成模型加载 | 您的录音已保存，稍后会自动转写"
+			"awaitingModel": "正在完成模型加载 | 您的录音已保存，稍后会自动转写",
+			"modelLoadRetry": "正在加载模型 | 您的听写将自动开始。",
+			"modelLoading": "正在加载模型..."
 		},
 		"modelManager": {
 			"loading": "正在加载模型 | 按你的快捷键排队...",
