@@ -40,15 +40,10 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { CloudProvidersPanel } from "@/components/models/CloudProvidersPanel";
 import { LocalModelsPanel } from "@/components/models/LocalModelsPanel";
 import { Button } from "@/components/ui/button";
-import {
-	SegmentedControl,
-	type SegmentedControlOption,
-} from "@/components/ui/segmented-control";
-import { useFilterState } from "@/hooks/useFilterState";
 import { useModelLifecycle } from "@/hooks/useModelLifecycle";
 import { t } from "@/i18n/i18n";
 import { getActiveFamilyId, groupModelsByFamily } from "@/lib/utils/models";
-import { tabPageIndicatorClassName } from "./_tabBarStyles";
+import { useModelsTab } from "@/stores/useModelsTab";
 import { ModelsSkeleton } from "./models/components/ModelsSkeleton";
 
 export default function ModelsPage() {
@@ -56,25 +51,10 @@ export default function ModelsPage() {
 	// Persist the active tab (Local / Cloud) across page
 	// navigation via sessionStorage, a user who picked the Cloud
 	// tab to configure an API key expects to still be on it when
-	// they navigate away and back.
-	const [activeTab, setActiveTab] = useFilterState<"local" | "cloud">(
-		"models",
-		"activeTab",
-		"local",
-	);
+	// they navigate away and back. Shared zustand store with the
+	// title-bar ModelsTabSwitcher (`stores/useModelsTab`).
+	const activeTab = useModelsTab((s) => s.activeTab);
 
-	const tabOptions: SegmentedControlOption<string>[] = [
-		{ value: "local", label: t("models.localModels") },
-		//(overhaul point 12): renamed "Cloud Providers" → "Cloud Models"
-		// for naming consistency with "Local Models".
-		{ value: "cloud", label: t("models.cloudModels") },
-	];
-
-	// Stable identity so the memo'd CloudProvidersPanel skips
-	// re-renders driven by unrelated Models-page state (e.g. a
-	// local-model download tick). Depends only on the useState-stable
-	// `setApiKeys`, all other panel handlers come from
-	// useCallback-stable hook actions already.
 	const handleApiKeyChange = useCallback(
 		(provider: string, value: string) =>
 			lifecycle.setApiKeys((prev) => ({
@@ -180,21 +160,7 @@ export default function ModelsPage() {
 	}
 	return (
 		<>
-			{/*
-                                (UI/UX overhaul 2026-08-20):
-                                • points 1+2, the sticky top-of-viewport tab bar was
-                                  REMOVED; the SegmentedControl now sits in the page flow
-                                  below the title/description (where the "Last updated"
-                                  indicator used to sit) and scrolls with the content.
-                                  The "Last updated / refresh" indicator was removed
-                                  entirely (model availability/install state doesn't
-                                  change moment-to-moment; a manual refresh serves no
-                                  purpose here).
-                                • point 3, the "Import Model" button only renders on the
-                                  Local Models tab (importing a local model file has no
-                                  meaning on the Cloud Models tab).
-                        */}
-			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-28 pb-6">
+			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
 				<PageHeading
 					title={t("models.asrTitle")}
 					description={t("models.asrSubtitle")}
@@ -260,20 +226,20 @@ export default function ModelsPage() {
                                     fold. Uses the shared design-system tokens
                                     (rounded-lg border-border/10 bg-surface-subtle
                                     text-foreground) so it matches model cards,
-                                    SegmentedControl and other subtle surfaces in every
+                                    ToggleGroup and other subtle surfaces in every
                                     theme (light/dark/Dracula/Monokai/etc. via CSS vars).
                                     Positioned in the normal page flow (not sticky) between
                                     the active-model summary and the tab switcher, with the
                                     same close control as VocabDuplicateBanner
                                     (Cancel01Icon far right). */}
-				<div className="flex flex-col gap-3">
-					{showNoModelBanner && (
+				{showNoModelBanner && (
+					<div className="flex flex-col gap-3">
 						<div
 							data-testid="models-no-model-banner"
 							role="status"
 							aria-live="polite"
 							aria-atomic="true"
-							className="flex flex-wrap items-center gap-2 rounded-lg border border-border/5 bg-surface-subtle px-3 py-2"
+							className="flex flex-wrap items-center gap-2 rounded-lg border border-border/8 bg-surface-subtle px-3 py-2"
 						>
 							<HugeiconsIcon
 								icon={AiBrain03Icon}
@@ -309,34 +275,12 @@ export default function ModelsPage() {
 								/>
 							</button>
 						</div>
-					)}
-
-					{/* Tab switcher, in the page flow (not sticky), below the
-					    page title/description and above the model list. */}
-					<div className="pb-4">
-						<SegmentedControl
-							variant="tabs"
-							options={tabOptions}
-							value={activeTab}
-							onChange={(v) => setActiveTab(v as "local" | "cloud")}
-							ariaLabel={t("models.title")}
-							indicatorClassName={tabPageIndicatorClassName}
-							labelClassName="flex-1 text-center"
-							//(2026-08-21): the outer tab container now carries the
-							// SAME card/surface border treatment as the model
-							// cards below it (`rounded-lg border border-border/5
-							// bg-surface-subtle`, the app-wide page-card token),
-							// so the segmented control reads as one card among
-							// the model cards instead of a borderless strip.
-							// The active segment uses the matching
-							// `border-border/5` treatment via
-							// `tabPageIndicatorClassName`.
-							className="w-full rounded-lg border border-border/5 bg-surface-subtle"
-							getTabId={(v) => `models-tab-${v}`}
-							getPanelId={(v) => `models-panel-${v}`}
-						/>
 					</div>
-				</div>
+				)}
+
+				{/* Tab switcher lives in the title bar (ModelsTabSwitcher),
+					    same pattern as GlobalSearchBar. Only the page heading
+					    + banner remain in the flow here. */}
 
 				<div className="flex flex-col gap-6">
 					{activeTab === "local" ? (
@@ -370,7 +314,6 @@ export default function ModelsPage() {
 								diskInfo={lifecycle.diskInfo}
 								modelsFolderSupported={lifecycle.modelsFolderSupported}
 								onOpenModelsFolder={lifecycle.handleOpenModelsFolder}
-								storage={lifecycle.storage}
 								accordionValue={effectiveAccordionValue}
 								onAccordionValueChange={setUserAccordionValue}
 							/>

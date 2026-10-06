@@ -27,7 +27,7 @@ class MediaHandlersMixin(HandlerBase):
                     "export_path": {"type": (str, type(None)), "required": False, "default": None},
                     "export_format": {"type": (str, type(None)), "required": False, "default": None},
                     # ADR-0023 E13: subtitle fast-path is OPT-IN (default off).
-                    "use_subtitles": {"type": bool, "required": False, "default": False},
+                    "use_subtitles": {"type": bool, "required": False, "default": True},
                 },
             )
             if error:
@@ -297,7 +297,6 @@ class MediaHandlersMixin(HandlerBase):
         assert last_error is not None
         raise last_error
 
-
     def _publish_media_progress(
         self,
         job,
@@ -362,6 +361,10 @@ class MediaHandlersMixin(HandlerBase):
 
     def _ensure_media_backend(self):
         """E15: lazy-load the active ASR engine inside the job thread."""
+        from voice_typer.server.asr_errors import (
+            ModelIntegrityError,
+            ModelNotDownloadedError,
+        )
         from voice_typer.server.media_ingest.errors import NO_ENGINE, MediaIngestError
 
         models = getattr(self.app, "models", None)
@@ -371,10 +374,12 @@ class MediaHandlersMixin(HandlerBase):
         if callable(ensure):
             try:
                 ensure()
+            except (ModelNotDownloadedError, ModelIntegrityError) as exc:
+                # Pack/model missing is a user-actionable state, not a crash.
+                raise MediaIngestError(NO_ENGINE, str(exc)) from exc
             except Exception:  # noqa: BLE001, verified by the is_loaded re-check
                 log.debug("[MEDIA] lazy model load raised", exc_info=True)
         engine = models.active_transcriber()
         if engine is None or not getattr(engine, "is_loaded", False):
             raise MediaIngestError(NO_ENGINE, "no speech model is loaded (open Models to choose one)")
         return engine
-

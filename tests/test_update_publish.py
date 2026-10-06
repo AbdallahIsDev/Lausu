@@ -16,6 +16,7 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from release import publish_pack_release as pub  # type: ignore[import-not-found]  # noqa: E402
+from voice_typer.server import branding  # noqa: E402
 
 
 @pytest.fixture
@@ -493,7 +494,11 @@ class TestDefaults:
     """Default values are pinned (changing them breaks the URL contract)."""
 
     def test_default_repo(self):
-        assert pub.DEFAULT_REPO == "AbdallahIsDev/lausu"
+        # Derived from branding.APP_REPO (single source of truth) — see
+        # publish_pack_release.DEFAULT_REPO. The literal below is a guard
+        # against a silent slug change breaking every published pack URL.
+        assert pub.DEFAULT_REPO == "AbdallahIsDev/voice-typer"
+        assert pub.DEFAULT_REPO == branding.APP_REPO
 
     def test_default_gh_cli(self):
         assert pub.DEFAULT_GH_CLI == "gh"
@@ -636,3 +641,35 @@ class TestPublishResultDataclass:
         assert result.uploaded == []
         assert result.skipped == []
         assert result.errors == []
+
+
+class TestEmittedManifestSchemaRoundTrip:
+    """The pack asset pair the publisher uploads must be accepted by the
+    client-side ``OfflinePackManifest`` validator (E7: one schema).
+
+    The manifest is produced by ``scripts/release/build_pack_manifest.py``
+    (see tests/test_pack_manifest_builder.py); this pins the end-to-end
+    publisher-side invariant that a manifest shipped through
+    ``--pack-manifest`` round-trips through ``load_offline_pack_manifest``.
+    """
+
+    def test_publisher_manifest_asset_passes_load_offline_pack_manifest(self, tmp_path: Path):
+        import zipfile
+
+        from release import build_pack_manifest as bpm
+        from voice_typer.server.service.offline_pack import load_offline_pack_manifest
+
+        worker = "lausu-worker-x86_64-pc-windows-msvc.exe"
+        zip_path = tmp_path / "lausu-runtime-pack-3-x86_64-pc-windows-msvc.zip"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.writestr(worker, b"worker-bytes")
+
+        manifest = bpm.build_pack_manifest(zip_path, version="3")
+        manifest_path = bpm.write_pack_manifest(manifest, tmp_path / "pack-manifest.json")
+
+        # The publisher only uploads paths; the schema gate is the client's.
+        assert pub.validate_assets([zip_path, manifest_path]) == []
+        loaded = load_offline_pack_manifest(manifest_path)
+        assert loaded is not None, "publisher-emitted pack-manifest.json failed client validation"
+        assert loaded["version"] == "3"
+        assert loaded["sha256"] == manifest["sha256"]

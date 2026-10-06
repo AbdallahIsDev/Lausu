@@ -43,9 +43,6 @@ import { useTrayFallbackToast } from "@/hooks/useTrayFallbackToast";
 import { useWindowMaximized } from "@/hooks/useWindowMaximized";
 import { getLocale, setLocale, useT } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
-// Route→component mapping + per-route code splitting live in
-// router/PageSwitch.tsx (Home eager, the other 9 pages lazy). App
-// stays pure wiring: hooks, overlays, layout.
 import { PageSwitch } from "@/router/PageSwitch";
 import { prefetchRouteChunks } from "@/router/prefetch";
 import { useAppStore } from "@/stores/appStore";
@@ -54,13 +51,8 @@ import type { WindowBridge } from "@/types/ipc";
 export default function App() {
 	const t = useT();
 
-	// Auto-update feature (docs/auto-update-feature.md):
-	// network-is-back trigger: calls check_offline_pack_update on the
-	// false → true online transition. Pack updates are always-on
-	// (C-DATA-1 category 2/4 allowed; no consent gate).
 	useNetworkOnline();
 
-	// ── Routing (extracted to useNavigation) ──────────────────────
 	const {
 		currentPage,
 		navigate,
@@ -71,25 +63,14 @@ export default function App() {
 		canGoForward,
 	} = useNavigation();
 
-	// Route guard: protect onboarding from completed users —
-	// extracted to `useOnboardingRouteGuard` (the `replace`
-	// history-swap semantics and the field-level `config`
-	// selector live there).
 	useOnboardingRouteGuard({ currentPage, replace });
 
 	const hotkeyFromConfig = useAppStore((s) => s.config?.hotkey);
 	const repasteHotkeyFromConfig = useAppStore((s) => s.config?.repaste_hotkey);
 
-	// Privacy defense-in-depth (C-BG-1). Cold-start restore of
-	// "microphone" is already remapped to "home" in `loadNavState()`
-	// (see useNavigation.ts). This effect covers the remaining in-session
-	// case: the Microphone page is already mounted (user navigated there
-	// this session) and the window then goes hidden (close-to-tray /
-	// autostart hide) before the level monitor unmounts. After a short
-	// grace period — so a normal foreground launch that briefly starts
-	// hidden before ready-to-show is not misclassified — still-hidden
-	// means genuine background, so leave Microphone for Home. Becoming
-	// visible cancels the redirect via visibilitychange.
+	// C-BG-1: if the window is still hidden after a grace period with
+	// Microphone mounted (close-to-tray / hidden autostart), leave for
+	// Home so live mic monitoring never runs in the background.
 	useEffect(() => {
 		if (typeof document === "undefined") return;
 		if (currentPage !== "microphone") return;
@@ -101,9 +82,6 @@ export default function App() {
 				typeof document !== "undefined" &&
 				document.visibilityState !== "visible"
 			) {
-				// Still hidden after grace period, genuine background
-				// autostart with persisted microphone page. Use replace
-				// to avoid polluting back/forward history.
 				replace("home");
 			}
 		}, 900);
@@ -122,62 +100,24 @@ export default function App() {
 		};
 	}, [currentPage, replace]);
 
-	// a11y / WCAG 2.4.2 Page Titled: keep `document.title` in sync
-	// with the active route, extracted to `useDocumentTitle` (the
-	// settings-section registry keys and the locale re-title live
-	// there).
 	useDocumentTitle({ currentPage, t });
 
-	// One-time startup hook to propagate the restored locale (read
-	// from localStorage at i18n module-init time) to BOTH the
-	// predecessor main process (so native dialogs render in the user's
-	// language) AND the Python backend (so tray menu, tray tooltip,
-	// and OS notifications render in the user's language).
-	// Previously this propagation only happened on an explicit Settings
-	// change, so after every app restart with a saved non-English
-	// locale, the renderer showed the right language but native surfaces
-	// stayed English. `setLocale()` is now the single entry point that
-	// pushes to both processes (see i18n.ts). Calling it with the
-	// already-restored locale is idempotent on the renderer side and
-	// fires the IPC pushes on the backend side. Runs ONCE on mount.
+	// Push the restored locale to native dialogs + the Python tray.
 	useEffect(() => {
 		setLocale(getLocale());
 	}, []);
 
-	// Route-chunk prefetch (router/prefetch.ts): warm every lazy page
-	// chunk during idle time so the first navigation to each page
-	// renders from React.lazy's module cache instead of waiting on a
-	// dynamic import. Runs ONCE on mount; hover/focus on sidebar items
-	// (prefetchPage) covers the pre-idle window.
 	useEffect(() => {
 		prefetchRouteChunks();
 	}, []);
 
-	// a11y / focus management on route change: move keyboard focus
-	// to `<main id="main-content">` whenever `currentPage` changes so screen
-	// reader + keyboard users aren't stranded on the previously-focused
-	// nav item after a route transition. Extracted to
-	// `useRouteChangeFocus` (the skip link + `tabIndex={-1}` plumbing
-	// stays in the App shell; the skip-first-run guard lives there).
 	useRouteChangeFocus(currentPage);
-
 	useSoundFeedback();
 
-	// "?" key opens a help overlay listing keyboard shortcuts.
-	// Extracted to `useHelpOverlayShortcut`, returns the
-	// open flag + stable open/close callbacks.
 	const { showHelpOverlay, openHelp, closeHelp } = useHelpOverlayShortcut();
-
-	// ── Window-chrome state ───────────────────────────────────────
-	// Sidebar collapse state + the narrow-viewport auto-collapse rule
-	// (only the wide→narrow transition and the initial narrow mount
-	// force a collapse; the user's manual toggle wins otherwise) are
-	// extracted to `useSidebarAutoCollapse`.
 	const { sidebarCollapsed, setSidebarCollapsed } = useSidebarAutoCollapse();
-
 	const { call } = usePython();
 
-	// ── Theme + connection ────────────────────────────────────────
 	const {
 		themeMode,
 		handleThemeChange,
@@ -188,29 +128,22 @@ export default function App() {
 	const { recordingState, connectionStatus, lastError, handleRetryConnection } =
 		useConnection({ call, currentPage, navigate });
 
-	// Connection-state toasts + theme-reload-on-recover extracted
-	// to `useConnectionToasts`. Returns the prev-connection ref so the
-	// aria-live region below can announce RECOVERIES only (not the
-	// initial connecting → connected transition).
+	// Nav only when the backend is usable (and not in onboarding).
+	const sidebarVisible =
+		currentPage !== "onboarding" && connectionStatus === "connected";
+
 	const prevConnectionRef = useConnectionToasts({
 		connectionStatus,
 		reloadThemeFromConfig,
 		t,
 	});
 
-	// ── Window maximize state ─────────────────────────────────────
 	const bridge =
 		typeof window !== "undefined"
 			? (window.window_ as WindowBridge)
 			: undefined;
-	// Extracted to `useWindowMaximized`, queries the native
-	// bridge on mount, mirrors `is-maximized` onto <html>, returns the
-	// boolean for the caller's own chrome styling.
 	const isMaximized = useWindowMaximized(bridge);
 
-	// App-wide keyboard shortcuts (Ctrl+B/,/H/=/-/wheel) extracted
-	// to `useGlobalKeyboardShortcuts`. Behaviour byte-identical to the
-	// original inline effect.
 	useGlobalKeyboardShortcuts({
 		navigate,
 		textSize,
@@ -220,118 +153,30 @@ export default function App() {
 		setSidebarCollapsed,
 	});
 
-	// ── Listen for navigate events from Python ────────────────────
-	// Page validation (route-table `isKnownPage`), the consent-field
-	// Settings deep-link, and the legacy-literal → Privacy override
-	// are extracted to `useNavigateEvent`, the entry file stays
-	// wiring-only.
 	useNavigateEvent({ navigate });
-	// Webview liveness beacon for the host's watchdog (the Tauri
-	// stand-in for the predecessor's `child-process-gone` telemetry).
 	useRendererHeartbeat();
-
-	// paste_failed toast, extracted to `usePasteFailedToast`.
 	usePasteFailedToast(t);
-
-	// Degradation-event toasts, the typed-but-previously-unsubscribed
-	// server push events. Each hook is the SINGLE consumer of its event
-	// and shows ONE actionable localized notification naming what
-	// degraded + what to do:
-	//   - device_lost also flips the shared Microphone-page state
-	//     (meter pause) via deviceLostStore.
-	//   - llm_polish_failed covers the silent "transcription delivered
-	//     raw" path of the optional AI-polish step.
-	//   - asr_backend_disabled covers the recoverable engine-fallback
-	//     case (asr_last_resort_unloaded, the TERMINAL case, has its
-	//     own hook above).
 	useDeviceLostToast(t, () => navigate("microphone"));
 	useLlmPolishFailedToast(t);
 	useTextEnhancementFailedToast(t);
 	useAsrBackendDisabledToast(t, () => navigate("models"));
-
-	// Backend model-load lifecycle, the background load runs AFTER
-	// the set_config ack (its model_loading envelope promises these
-	// completion events): a load failure surfaces here as an error
-	// toast with an Open Models action (the Models-page "Using
-	// model" snack from the ack path is stale in that case), and a
-	// successful load clears the failure surface.
 	useAsrBackendLoadToast(t, () => navigate("models"));
-
-	// Mid-recording microphone loss (recorder-stream paths, the
-	// counterpart of device_lost's level-monitor paths): same shared
-	// recovery surface + toast, so one physical unplug never stacks
-	// two banners.
 	useMicrophoneDisconnectedToast(t, () => navigate("microphone"));
-
-	// Mid-recording OS mic-permission revocation, the DISTINCT
-	// banner (reuses the bubble's localized "Mic permission revoked"
-	// label) so the user doesn't get the misleading generic
-	// silence-auto-stop toast for a permission change.
 	useMicPermissionRevokedToast(t);
-
-	// Tray-unavailable degraded mode (headless / tray-less systems;
-	// predecessor/headless runtime only), the in-app banner for queued
-	// tray notifications that could not be shown.
 	useTrayFallbackToast(t);
-
-	// Cloud ASR degradation, the provider failed and the local engine
-	// took over for that transcription (the dictation still succeeds,
-	// so the notice informs rather than alarms; cooldown keeps an
-	// outage at one reminder per window, not one per dictation).
 	useCloudFallbackToast(t);
-
-	// History-DB integrity events, the corrupt-file recovery warning
-	// (history partially rebuilt; the quarantine file was kept) and the
-	// FTS5-rebuild-failure privacy warning (deleted entries may still
-	// be recoverable in the DB file).
 	useHistoryIntegrityToast(t);
-
-	// Paste-deferred notice, the auto-paste keystroke was dropped
-	// (Secure Input / IME composition) but the transcription is safe
-	// on the clipboard; tells the user to paste manually.
 	usePasteDeferredToast(t);
-
-	// asr_last_resort_unloaded toast, surfaces the Models-page pointer
-	// as an IN-APP toast so the user still sees it when OS tray
-	// notifications are disabled (the tray path is gated behind the
-	// "Show Notifications" toggle). The toast's "Open Models" action
-	// mirrors the host notification's ``click_path: "/models"``.
 	useLastResortUnloadedToast(t, () => navigate("models"));
-
-	// consent_required, unified point-of-use consent gate (GDPR
-	// Art. 9 etc.): the backend publishes this event when a
-	// consent-gated action is refused (dictation start, cloud
-	// providers, LLM polish, offline pack). Every consent field
-	// opens the SAME in-app dialog, "Allow? [Allow / Cancel]" —
-	// with the exact toggle deep-link as the secondary action;
-	// dictation refusals are retried after granting (Allow →
-	// toggle_dictation) so the user never leaves the flow.
-	// Extracted to `useConsentRequiredEvent` (the dictation-retry
-	// field set comes from `lib/consentGate`'s registry-derived
-	// `DICTATION_RETRY_CONSENT_FIELDS`).
 	useConsentRequiredEvent({ call });
 
-	// Connecting progress, backend `download_progress` events,
-	// ref-gated so the update is skipped while connected (the screen
-	// that reads the value is not rendered then). Extracted to
-	// `useConnectingProgress`, which also clears the value on any
-	// transition away from "connecting".
 	const connectingProgress = useConnectingProgress(connectionStatus);
 
-	// Stable callbacks so React.memo on <TitleBar>/<HelpOverlay> can
-	// short-circuit when their other props haven't changed. The
-	// `setSidebarCollapsed` dep is the useState setter returned by
-	// `useSidebarAutoCollapse`, referentially stable, so the callback
-	// identity is stable too.
 	const handleToggleSidebar = useCallback(
 		() => setSidebarCollapsed((c) => !c),
 		[setSidebarCollapsed],
 	);
-	// open/close callbacks come from `useHelpOverlayShortcut` —
-	// they are already stable (memoized with empty deps).
 
-	// Onboarding-complete handler extracted to `useOnboardingComplete`
-	// navigate home + re-apply the theme from the saved config.
 	const handleOnboardingComplete = useOnboardingComplete({
 		navigate,
 		call,
@@ -343,21 +188,10 @@ export default function App() {
 		repaste_hotkey: repasteHotkeyFromConfig,
 	});
 
-	// Linux window-button layout, resolved by `useLinuxWindowButtons`
-	// (field-level config/system selectors + a single memo) and passed
-	// to the (memoized) TitleBar as one stable prop. No-op on
-	// Windows/macOS (TitleBar ignores the prop there).
 	const linuxWindowButtons = useLinuxWindowButtons();
 
-	// ── Render ────────────────────────────────────────────────────
-	// ErrorBoundary wrap was removed from here, `main.tsx` already
-	// wraps `<App />` in the same `<ErrorBoundary>` with the same
-	// fallback. The inner wrap was dead-code redundancy: a render
-	// crash anywhere inside `<App />` propagated to the parent
-	// boundary regardless, and the inner boundary's fallback was
-	// identical to the outer one (no `fallback` prop supplied).
-	// Keeping a single boundary in `main.tsx` simplifies the tree
-	// and removes one layer of catch noise from stack traces.
+	// Window radius lives on the native Tauri shell (html.is-maximized);
+	// the React shell is a flat full-bleed column.
 	return (
 		<TooltipProvider delayDuration={200} skipDelayDuration={500}>
 			<a
@@ -366,17 +200,7 @@ export default function App() {
 			>
 				{t("a11y.skipToMain")}
 			</a>
-			<div
-				className={cn(
-					// Clean-window: no outer frame border. The window keeps its
-					// rounded corners (the `html` element carries the radius so
-					// it persists across React re-renders) but the 1px hard
-					// outline around the whole app is removed, the content
-					// background alone separates the window from the desktop.
-					"flex h-screen flex-col bg-surface-subtle font-sans text-foreground overflow-hidden",
-					!isMaximized && "rounded-lg",
-				)}
-			>
+			<div className="flex h-screen flex-col overflow-hidden bg-sidebar font-sans text-foreground">
 				<TitleBar
 					onToggleSidebar={handleToggleSidebar}
 					onGoBack={goBack}
@@ -385,24 +209,13 @@ export default function App() {
 					canGoForward={canGoForward}
 					isMaximized={isMaximized}
 					onOpenHelp={openHelp}
-					// The icon-only theme control lives in the title bar's
-					// window-control cluster (the sidebar no longer carries
-					// it). Same store-backed mode + change handler as
-					// before, single source of theme state.
 					themeMode={themeMode}
 					onThemeChange={handleThemeChange}
 					linuxWindowButtons={linuxWindowButtons}
 					currentPage={currentPage}
-				/>{" "}
+				/>
 				<div className="flex min-h-0 flex-1">
-					{/* ONB-3: the first-run onboarding is a FOCUSED, mandatory
-						    flow — the sidebar is hidden ENTIRELY (not collapsed to
-						    the icon rail), and the content row is pinned dir="ltr"
-						    so the (hidden) sidebar column stays on the physical left
-						    even in RTL locales (Arabic): the wizard column cannot
-						    jump sides mid-setup. Every other page keeps the normal
-						    direction-aware layout. */}
-					{currentPage !== "onboarding" && (
+					{sidebarVisible && (
 						<Sidebar
 							currentPage={currentPage}
 							onNavigate={navigate}
@@ -410,30 +223,21 @@ export default function App() {
 						/>
 					)}
 
+					{/* dir=rtl-safe: pin LTR when the sidebar is hidden so the
+					    main column does not jump sides mid-onboarding/boot. */}
 					<div
 						className="flex min-w-0 flex-1 flex-col"
-						dir={currentPage === "onboarding" ? "ltr" : undefined}
+						dir={sidebarVisible ? undefined : "ltr"}
 					>
 						<main
 							id="main-content"
 							tabIndex={-1}
-							// Focus is moved programmatically to this landmark after
-							// navigation (see the useEffect above) so screen readers and
-							// keyboard users land at the top of the new page. The element
-							// carries no visible focus decoration: the old focus ring
-							// framed the whole page window whenever it was focused (e.g.
-							// after any click inside the content area) and was reported
-							// as an annoying border around the page, focus is moved
-							// silently instead.
-							// Clean-window: no left/top panel border around the
-							// content area. The bg contrast against the
-							// --surface-subtle wrapper still separates content from
-							// chrome without a hard frame line.
-							// 1px frame around the page window, drawn with the theme's
-							// own --border token at 10% opacity so it reads as a faint
-							// separation line and blends with every theme (light, dark,
-							// and custom palettes all define --border).
-							className="flex-1 overflow-y-auto bg-background focus:outline-none rounded-l-lg border border-border/5"
+							// Inset frame only beside the sidebar; full-bleed when
+							// chrome is hidden (boot/error cards).
+							className={cn(
+								"flex-1 overflow-y-auto bg-background focus:outline-none",
+								sidebarVisible && "rounded-l-lg border border-border/8",
+							)}
 							style={{ scrollbarGutter: "stable" }}
 						>
 							{connectionStatus === "connected" ? (
@@ -454,19 +258,13 @@ export default function App() {
 					</div>
 				</div>
 				<Toaster />
-				{/* Unified point-of-use consent dialog, mounted once;
-                                    opened by any consent-gated flow via openConsentGate() */}
 				<ConsentGateDialog />
-				{/* Help overlay extracted to <HelpOverlay /> */}
 				<HelpOverlay
 					open={showHelpOverlay}
 					onClose={closeHelp}
 					dictationLabel={dictationLabel}
 					repasteLabel={repasteLabel}
 				/>
-				{/* Split the screen-reader live region
-                                    into THREE regions (recording / connection-error /
-                                    connection-recovery), see A11yLiveRegions. */}
 				<A11yLiveRegions
 					recordingState={recordingState}
 					currentPage={currentPage}

@@ -13,7 +13,7 @@ import collections
 import contextlib
 from typing import TYPE_CHECKING, Any
 
-from voice_typer.server._audio_constants import _AUDIO_BLOCKSIZE
+from voice_typer.server._audio_constants import _AUDIO_BLOCKSIZE, WHISPER_SAMPLE_RATE
 from voice_typer.server._lazy_import import lazy_module
 
 if TYPE_CHECKING:
@@ -26,6 +26,7 @@ np = lazy_module("numpy")
 _GROWABLE_BUFFER_INITIAL_CAPACITY_SECONDS = 30
 # Samples per device chunk used for the hard-cap estimate: two
 _GROWABLE_BUFFER_HARD_CAP_SAMPLES_PER_CHUNK = 2 * _AUDIO_BLOCKSIZE
+
 
 class GrowableRecordingBuffer:
     """Contiguous growable float32 recording storage with deque parity.
@@ -86,7 +87,7 @@ class GrowableRecordingBuffer:
         self,
         maxlen: int | None = None,
         *,
-        nominal_sample_rate: int = 16000,
+        nominal_sample_rate: int = WHISPER_SAMPLE_RATE,
         initial_capacity_samples: int | None = None,
         max_capacity_samples: int | None = None,
         on_extra_eviction: Any | None = None,
@@ -104,7 +105,7 @@ class GrowableRecordingBuffer:
         try:
             self._nominal_sample_rate = max(1, int(nominal_sample_rate))
         except (TypeError, ValueError):
-            self._nominal_sample_rate = 16000
+            self._nominal_sample_rate = WHISPER_SAMPLE_RATE
         if initial_capacity_samples is not None:
             try:
                 initial = max(1, int(initial_capacity_samples))

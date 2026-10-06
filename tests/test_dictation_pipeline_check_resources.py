@@ -294,7 +294,7 @@ class TestCheckResourcesGracefulDegradation:
         assert complete_lines, "_check_resources must complete without crashing even when ALL sub-checks fail"
 
 
-class TestCheckResourcesXZEH008SilentExcept:
+class TestCheckResourcesUsesSilentExcept:
     """XZ-EH-008 / XZ-EH-022: the two ``except Exception: pass`` blocks"""
 
     def test_ram_ctypes_fallback_failure_logs_debug(self, caplog, monkeypatch):
@@ -416,7 +416,7 @@ class TestCheckResourcesXZEH008SilentExcept:
                 )
 
     def test_check_resources_docstring_promises_debug_logging(self):
-        """XZ-EH-022: the docstring must still promise "DEBUG level\""""
+        """the docstring must still promise "DEBUG level\""""
         doc = DictationPipeline._check_resources.__doc__ or ""
         assert "DEBUG" in doc, (
             "XZ-EH-022 regression: _check_resources docstring must mention "

@@ -3,7 +3,7 @@
 // and swaps ONLY the activity list while records load, so this
 // skeleton replaces just the list slot (`pages/History.tsx` inline
 // branch). It mirrors `components/dashboard/ActivityList.tsx` exactly:
-// per-day `rounded-lg border border-border/5 bg-surface-subtle` section
+// per-day `rounded-lg border border-border/8 bg-surface-subtle` section
 // cards with a `px-4 pt-3 pb-1` day header, then `divide-y` rows of
 // `flex items-center gap-3 px-4 py-2`: each row a clamped text block
 // (text-sm lines → h-5, meta line text-xs → h-4) and a trailing
@@ -44,12 +44,12 @@ export function HistorySkeleton() {
 			{CARD_IDS.map((cardId) => (
 				<section
 					key={cardId}
-					className="w-full rounded-lg border border-border/5 bg-surface-subtle"
+					className="w-full rounded-lg border border-border/8 bg-surface-subtle"
 				>
 					<div className="px-4 pt-3 pb-1">
 						<Skeleton className="h-4 w-24" />
 					</div>
-					<div className="divide-y divide-border/5">
+					<div className="divide-y divide-border/8">
 						<HistoryRow />
 						<HistoryRow />
 						<HistoryRow />

@@ -2,7 +2,7 @@
 // sub-components + 1 inline hook. It is now a thin composition root
 // that imports the extracted pieces from `./home/`:
 //   - `./home/lib/constants.ts`   , cache keys, timing constants, STATUS_COLORS
-//   - `./home/lib/status.ts`      , normalizeHotkey, statusLabelFor, statusKeyFor
+//   - `./home/lib/status.ts`      , statusLabelFor, statusKeyFor
 //   - `./home/lib/cache.ts`       , loadCachedRecent/Stats, persistRecent/Stats
 //   - `./home/hooks/useFirstRecordingCelebration.ts`, first-run celebration
 //   - `./home/hooks/useForceCancel.ts`, "Force cancel" state machine
@@ -29,6 +29,7 @@
 // identity). The regression test greps Home.tsx source for this pattern, so
 // it stays here in the composition root rather than moving into a hook.
 
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LastUpdatedIndicator } from "@/components/common/LastUpdatedIndicator";
 import ActivityList from "@/components/dashboard/ActivityList";
 import { ShareStatsDialog } from "@/components/dashboard/ShareStatsDialog";
@@ -36,6 +37,7 @@ import StatCards from "@/components/dashboard/StatCards";
 import { StatsShareImage } from "@/components/dashboard/StatsShareImage";
 import { Spinner } from "@/components/feedback/Spinner";
 import { HotkeyChips } from "@/components/hotkey/HotkeyChips";
+import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 import { useLastUpdated } from "@/hooks/useLastUpdated";
 import { useLatestRef } from "@/hooks/useLatestRef";
 import { useNavigation } from "@/hooks/useNavigation";
@@ -53,7 +55,6 @@ import { HOTKEY_DEFAULT } from "@/pages/onboarding/lib/constants";
 import { useAppStore } from "@/stores/appStore";
 import type { LausuConfig } from "@/types/config";
 import type { HistoryRecord, TodayStats } from "@/types/ipc";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MicToggleButton } from "./home/components/MicToggleButton";
 import { RecordingStatusPill } from "./home/components/RecordingStatusPill";
 import { RecordingTimer } from "./home/components/RecordingTimer";
@@ -68,11 +69,7 @@ import {
 	persistStats,
 } from "./home/lib/cache";
 import { DEFAULT_STATUS_COLOR, STATUS_COLORS } from "./home/lib/constants";
-import {
-	normalizeHotkey,
-	statusKeyFor,
-	statusLabelFor,
-} from "./home/lib/status";
+import { statusKeyFor, statusLabelFor } from "./home/lib/status";
 
 export default function Home() {
 	// Subscribe to the store directly instead of receiving
@@ -268,7 +265,7 @@ export default function Home() {
 			.then((cfg) => {
 				if (cancelled) return;
 				setCfg(cfg);
-				setHotkey(normalizeHotkey(cfg?.hotkey ?? HOTKEY_DEFAULT));
+				setHotkey(formatHotkey(cfg?.hotkey ?? HOTKEY_DEFAULT));
 			})
 			.catch((e) =>
 				console.warn("[renderer:Home] initial get_config failed:", e),
@@ -321,7 +318,7 @@ export default function Home() {
 			if (!mountedRef.current) return;
 			if (cfgTry.status === "fulfilled") {
 				setCfg(cfgTry.value);
-				setHotkey(normalizeHotkey(cfgTry.value?.hotkey ?? HOTKEY_DEFAULT));
+				setHotkey(formatHotkey(cfgTry.value?.hotkey ?? HOTKEY_DEFAULT));
 			}
 			if (sTry.status === "fulfilled" && sTry.value) {
 				persistStats(cachedStatsRef, sTry.value);
@@ -367,7 +364,7 @@ export default function Home() {
 			try {
 				const cfg = await call<LausuConfig>("get_config");
 				if (cancelled) return;
-				setHotkey(normalizeHotkey(cfg?.hotkey ?? HOTKEY_DEFAULT));
+				setHotkey(formatHotkey(cfg?.hotkey ?? HOTKEY_DEFAULT));
 				setCfg(cfg);
 			} catch (e) {
 				console.warn(
@@ -433,11 +430,11 @@ export default function Home() {
 		() =>
 			stats && asrBackend
 				? computeShareStats(stats, asrBackend, {
-					// Pre-formatted display values ("Tiny", "GPU"), the
-					// share image renders them as-is.
-					model: cfg?.model_size ? formatModel(cfg.model_size) : "",
-					device: cfg?.device ? formatDevice(cfg.device) : "",
-				})
+						// Pre-formatted display values ("Tiny", "GPU"), the
+						// share image renders them as-is.
+						model: cfg?.model_size ? formatModel(cfg.model_size) : "",
+						device: cfg?.device ? formatDevice(cfg.device) : "",
+					})
 				: null,
 		[stats, asrBackend, cfg?.model_size, cfg?.device],
 	);
@@ -580,8 +577,11 @@ export default function Home() {
 			<output
 				aria-live="polite"
 				role={hint?.variant === "error" ? "alert" : undefined}
-				className={`flex items-center gap-2 text-[0.8125rem] animate-fade-in ${hint?.variant === "error" ? "text-destructive" : "text-muted-foreground"
-					}`}
+				className={`flex items-center gap-2 text-[0.8125rem] animate-fade-in ${
+					hint?.variant === "error"
+						? "text-destructive"
+						: "text-muted-foreground"
+				}`}
 			>
 				{hint ? (
 					noModelSelected && hint.variant === "error" ? (
@@ -606,7 +606,7 @@ export default function Home() {
 
 			{stats && (
 				<div className="flex w-full flex-col gap-3">
-					<div className="flex items-center justify-between">
+					<div className="flex items-end justify-between">
 						<span className="text-xs font-medium text-muted-foreground capitalize tracking-wide">
 							{t("home.todayStats")}
 						</span>

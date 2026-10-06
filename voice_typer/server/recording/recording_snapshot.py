@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from voice_typer.server._audio_constants import _AUDIO_BLOCKSIZE
+from voice_typer.server._audio_constants import _AUDIO_BLOCKSIZE, WHISPER_SAMPLE_RATE
 from voice_typer.server._lazy_import import lazy_module
 
 from . import (
@@ -70,7 +70,8 @@ def _append_resampled_samples(recorder: Recorder, samples: np.ndarray) -> None:
     if need > cap:
         initial = max(
             _AUDIO_BLOCKSIZE,
-            recording_buffer._GROWABLE_BUFFER_INITIAL_CAPACITY_SECONDS * 16000,
+            recording_buffer._GROWABLE_BUFFER_INITIAL_CAPACITY_SECONDS
+            * WHISPER_SAMPLE_RATE,
         )
         new_cap = max(initial, 2 * cap, need)
         grown = np.empty(new_cap, dtype=np.float32)

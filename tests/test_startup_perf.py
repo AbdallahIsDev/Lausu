@@ -77,7 +77,7 @@ class TestNoEagerManagerConstruction:
         # __init__ must NOT eagerly construct TemplateManager.
         assert construct_count["n"] == 0, (
             "DJ-2: LausuApp.__init__ eagerly constructed TemplateManager "
-            f"{construct_count['n']} time(s); it should be lazy-constructed on "
+            f"{construct_count['n']} times; it should be lazy-constructed on "
             "first access via service/template.py / dictation_pipeline.py."
         )
         # The attribute must still be accessible (preserved public API) —
@@ -116,7 +116,7 @@ class TestNoEagerManagerConstruction:
         instance = LausuApp()
         assert construct_count["n"] == 0, (
             "DJ-2: LausuApp.__init__ eagerly constructed VocabularyManager "
-            f"{construct_count['n']} time(s); it should be lazy-constructed on "
+            f"{construct_count['n']} times; it should be lazy-constructed on "
             "first access via service/vocabulary.py / dictation_pipeline.py."
         )
         assert hasattr(instance, "_vocabulary_manager"), (

@@ -12,6 +12,7 @@ export const ROUTES: Record<Page, RouteDef> = {
 	templates: { page: "templates" },
 	vocabulary: { page: "vocabulary" },
 	media: { page: "media" },
+	plugins: { page: "plugins" },
 	// "settings" is the Settings HUB page, a real destination (one card
 	// whose rows open the section pages below). Existing call sites
 	// (Ctrl+, shortcut, tray menu, Python `navigate {path: "/settings"}`
