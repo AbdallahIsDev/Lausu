@@ -28,6 +28,13 @@ metadata_keys = [
     "_current_state_2026_08_25_shutdown_split_recon",
     "_current_state_2026_09_07_sidecar_split_remap",
     "_current_state_2026_09_09_w3_bp141_recon",
+    # The three keys below were dropped by earlier regenerations because this
+    # list had not been extended for them (see the 2026-10-03 note, which had
+    # to restore them by hand from HEAD). Kept here so they survive.
+    "_current_state_2026_09_19_stale_drop",
+    "_current_state_2026_09_20_stale_drop",
+    "_current_state_2026_10_03_bulk_reanchor",
+    "_current_state_2026_10_06_wave1_package_splits",
 ]
 for k in metadata_keys:
     if k in existing:
