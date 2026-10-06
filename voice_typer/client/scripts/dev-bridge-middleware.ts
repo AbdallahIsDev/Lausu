@@ -329,7 +329,7 @@ class DevSidecar {
 // restart. Reading this file on startup makes the new instance adopt-kill
 // whatever the previous one left behind, so exactly one sidecar can ever
 // exist for this project.
-const PID_FILE = path.join(os.tmpdir(), "lausu-dev-bridge.pid");
+const PID_FILE = path.join(os.tmpdir(), "voice-typer-dev-bridge.pid");
 
 function killPid(pid: number): void {
 	try {

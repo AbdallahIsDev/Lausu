@@ -48,7 +48,7 @@ nvm use 20
 brew install uv
 
 # Clone + enter the repo
-git clone https://github.com/AbdallahIsDev/lausu.git
+git clone https://github.com/AbdallahIsDev/voice-typer.git
 cd lausu
 
 # Python venv + deps

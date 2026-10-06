@@ -21,7 +21,7 @@ plan §6 for the current design.
 
 Accepted (historical)
 
-**Repository:** `https://github.com/AbdallahIsDev/lausu`
+**Repository:** `https://github.com/AbdallahIsDev/voice-typer`
 **Document Type:** Architecture Specification for Implementation
 **Date:** 2026-07-08
 
@@ -427,12 +427,7 @@ def _cache_ratio(path: Path, samples: int = 20) -> float:
 def _handle_get_prewarm_status(app, data):
     sentinel = Path.home() / ".lausu" / ".prewarm-sentinel"
     if not sentinel.exists():
-        return {
-            "last_run": None,
-            "elapsed_s": None,
-            "cache_ratio": 0.0,
-            "cache_label": "unknown",
-        }
+        return {"last_run": None, "elapsed_s": None, "cache_ratio": 0.0, "cache_label": "unknown"}
 
     # Read sentinel: "boot_timestamp\nelapsed_seconds"
     content = sentinel.read_text().strip().split("\n")
@@ -611,9 +606,7 @@ def wait_for_prewarm(timeout_s: float = 60.0) -> bool:
             return True
         time.sleep(0.5)
 
-    log.warning(
-        "[PREWARM] prewarm still running after %.0fs, proceeding anyway", timeout_s
-    )
+    log.warning("[PREWARM] prewarm still running after %.0fs, proceeding anyway", timeout_s)
     return False
 ```
 

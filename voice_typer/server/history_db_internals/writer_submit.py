@@ -15,13 +15,8 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from voice_typer.server._lazy_import import lazy_module
-
 if TYPE_CHECKING:
     from voice_typer.server.history_db import HistoryDB
-
-# Lazy proxy: ``history_db`` imports this package, so a direct import would be circular.
-_hd = lazy_module("voice_typer.server.history_db")
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +28,8 @@ def _drop_oldest_for_overflow(
 
     Called when ``_submit_write`` hits ``queue.Full``.
     """
+    from voice_typer.server import history_db as _hd
+
     _SHUTDOWN_SENTINEL = _hd._SHUTDOWN_SENTINEL  # noqa: N806
     _BatchableInsert = _hd._BatchableInsert  # noqa: N806
     HistoryDBError = _hd.HistoryDBError  # noqa: N806
@@ -84,6 +81,8 @@ def _submit_write(
     even though ``_shutdown`` is already set. Every other caller keeps
     the default refusal.
     """
+    from voice_typer.server import history_db as _hd
+
     _WRITE_FUTURE_TIMEOUT = _hd._WRITE_FUTURE_TIMEOUT  # noqa: N806
     _WRITE_FUTURE_TOTAL_TIMEOUT = _hd._WRITE_FUTURE_TOTAL_TIMEOUT  # noqa: N806
     HistoryDBError = _hd.HistoryDBError  # noqa: N806
@@ -156,6 +155,8 @@ def flush(db: HistoryDB) -> None:
     """Enqueues a no-op write with ``wait=True`` and blocks on its
     future. Because the queue is FIFO, all writes submitted
     """
+    from voice_typer.server import history_db as _hd
+
     HistoryDBError = _hd.HistoryDBError  # noqa: N806
 
     if db._shutdown.is_set():
@@ -176,6 +177,8 @@ def _close_writer(db: HistoryDB) -> None:
     """1. Best-effort ``wal_checkpoint(TRUNCATE)`` via the writer
     thread (so the WAL pages are flushed back to the main DB
     """
+    from voice_typer.server import history_db as _hd
+
     _SHUTDOWN_SENTINEL = _hd._SHUTDOWN_SENTINEL  # noqa: N806
     _WRITE_QUEUE_MAXSIZE = _hd._WRITE_QUEUE_MAXSIZE  # noqa: N806
     _WRITER_JOIN_TIMEOUT = _hd._WRITER_JOIN_TIMEOUT  # noqa: N806

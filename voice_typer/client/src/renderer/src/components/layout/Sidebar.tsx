@@ -7,6 +7,7 @@ import {
 	HistoryIcon,
 	Home04Icon,
 	Mic02Icon,
+	PuzzleIcon,
 	Settings01Icon,
 	ShieldUserIcon,
 } from "@hugeicons/core-free-icons";
@@ -16,8 +17,10 @@ import { memo, useRef } from "react";
 import { HotkeyTooltip } from "@/components/hotkey/HotkeyTooltip";
 import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 import { SHORTCUTS } from "@/components/hotkey/shortcuts";
+import { DeviceToggle } from "@/components/layout/DeviceToggle";
 import { isSettingsSurface } from "@/components/settings/settingsSections";
 import { Button } from "@/components/ui/button";
+import { usePluginsAvailable } from "@/hooks/usePluginCatalog";
 import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import { prefetchPage } from "@/router/prefetch";
@@ -38,6 +41,7 @@ type NavLeafId = Extract<
 	| "templates"
 	| "vocabulary"
 	| "media"
+	| "plugins"
 	| "settings"
 	| "microphone"
 	| "aboutAndPrivacy"
@@ -46,6 +50,14 @@ type NavLeafId = Extract<
 interface NavItem {
 	id: NavLeafId;
 	icon: IconSvgElement;
+	// Marks a freshly added destination with a trailing "new" label.
+	// The label text is resolved through i18n at RENDER time (never at
+	// module scope), so a locale switch re-labels the badge.
+	badge?: true;
+	// Gated destination: rendered only when the backend reports the
+	// internal plugin surface as available on this install. A shipped
+	// build must not show it at all (see `usePluginsAvailable`).
+	requiresPlugins?: true;
 }
 
 // 2-group nav hierarchy. Splitting the flat NAV_ITEMS list into
@@ -59,13 +71,16 @@ interface NavItem {
 // frequent destinations on top, system/device/info at the bottom, is
 // encoded by the layout itself, in both sidebar states.
 // TWO groups, deliberately:
-//   1. Top group, NO visible header (hideLabel): the default page set
-//      speaks for itself. Day-to-day destinations (Home / History /
-//      Analytics) first, then the content tools (Models / Templates /
-//      Vocabulary).
-//   2. System group (visible heading), app + device configuration and
-//      information: Settings, Microphone (input-device configuration
-//      belongs beside app settings), About & Privacy.
+//   1. Top group: the default page set speaks for itself. Day-to-day
+//      destinations (Home / History / Analytics) first, then the content
+//      tools (Models / Templates / Vocabulary).
+//   2. System group, app + device configuration and information:
+//      Settings, Microphone (input-device configuration belongs beside app
+//      settings), About & Privacy.
+// NEITHER group renders a visible heading: the group names are carried by
+// each `<section aria-label=...>` for screen-reader navigation only. The
+// sidebar reads as one clean list, and the System cluster still separates
+// from the destinations above it through the `mt-auto` bottom pin.
 const MAIN_NAV_ITEMS: NavItem[] = [
 	{ id: "home", icon: Home04Icon },
 	{ id: "history", icon: HistoryIcon },
@@ -74,6 +89,10 @@ const MAIN_NAV_ITEMS: NavItem[] = [
 	{ id: "templates", icon: File02Icon },
 	{ id: "vocabulary", icon: BookOpen02Icon },
 	{ id: "media", icon: Film01Icon },
+	// Installed-plugin management. A day-to-day destination like the rest
+	// of this group (it browses what the app can run), not app settings.
+	// Gated: developer-only, so a shipped build renders no Plugins entry.
+	{ id: "plugins", icon: PuzzleIcon, badge: true, requiresPlugins: true },
 ];
 
 // (General / AI & Audio / Appearance / Privacy) is gone: the Settings
@@ -105,11 +124,6 @@ interface NavGroup {
 	// `screen.getByText("Main")` a stable string to assert on.
 	fallback: string;
 	items: NavItem[];
-	// When true, the group's visible heading label is NOT rendered
-	// (the `<section aria-label=...>` is kept, so screen-reader nav
-	// context is preserved). Used for the first/"Main" group, whose
-	// heading is redundant above the default page set.
-	hideLabel?: boolean;
 	// When true, the group is pinned to the bottom of the sidebar via
 	// `mt-auto` (flex auto margin), the System/low-priority cluster
 	// anchors to the rail's end edge in BOTH states without spacer
@@ -124,7 +138,6 @@ const NAV_GROUPS: NavGroup[] = [
 		labelKey: "nav.group.main",
 		fallback: "Main",
 		items: MAIN_NAV_ITEMS,
-		hideLabel: true,
 	},
 	{
 		labelKey: "nav.group.system",
@@ -140,6 +153,29 @@ const NAV_GROUPS: NavGroup[] = [
 // vertical composite: arrow keys move across group boundaries). Every
 // item is a leaf button, so the flat list IS the nav order.
 const ALL_NAV_ITEMS: NavItem[] = [...MAIN_NAV_ITEMS, ...SYSTEM_NAV_ITEMS];
+
+/**
+ * Drop developer-gated items on installs that may not see them.
+ *
+ * Applied to BOTH the rendered groups and the flat roving-tabindex order:
+ * filtering only the render would leave the hidden entry focusable by
+ * keyboard, so it would still be reachable on a shipped build.
+ */
+function visibleNavItems(
+	items: NavItem[],
+	pluginsAvailable: boolean,
+): NavItem[] {
+	return pluginsAvailable
+		? items
+		: items.filter((item) => !item.requiresPlugins);
+}
+
+function visibleNavGroups(pluginsAvailable: boolean): NavGroup[] {
+	return NAV_GROUPS.map((group) => ({
+		...group,
+		items: visibleNavItems(group.items, pluginsAvailable),
+	}));
+}
 
 // Per-page keyboard shortcuts surfaced ONLY for accessibility + the
 // collapsed-sidebar tooltip: the expanded nav items render NO visible
@@ -229,7 +265,13 @@ function SidebarInner({
 	// between items without leaving the nav.
 	const navRef = useRef<HTMLElement>(null);
 
-	const activeFlatIdx = ALL_NAV_ITEMS.findIndex((i) => i.id === currentPage);
+	// Developer-gated destinations. False until the backend answers, so a
+	// shipped build never flashes the Plugins entry into view.
+	const pluginsAvailable = usePluginsAvailable();
+	const navGroups = visibleNavGroups(pluginsAvailable);
+	const navItems = visibleNavItems(ALL_NAV_ITEMS, pluginsAvailable);
+
+	const activeFlatIdx = navItems.findIndex((i) => i.id === currentPage);
 	// Roving-tabindex fallback: when the active page is a Settings
 	// surface (hub or a section page, neither is a nav item), focus the
 	// Settings leaf so it carries tabIndex=0 + aria-current for the
@@ -237,7 +279,7 @@ function SidebarInner({
 	// jump to the first nav item (home) on any Settings page, breaking
 	// the "focus follows active" UX.
 	const rovingFallbackIdx = isSettingsSurface(currentPage)
-		? ALL_NAV_ITEMS.findIndex((i) => i.id === "settings")
+		? navItems.findIndex((i) => i.id === "settings")
 		: -1;
 	const rovingIdx =
 		activeFlatIdx >= 0
@@ -295,6 +337,10 @@ function SidebarInner({
 			className={cn(
 				"flex shrink-0 flex-col",
 				"overflow-hidden",
+				// The rail: --sidebar is one step below the canvas in dark
+				// (gray-900 #0f0f0f against the gray-800 #131313 canvas),
+				// identical to it in light. See index.css.
+				"bg-sidebar",
 				"transition-[width] duration-200 ease-out",
 				// Rail geometry pins the icon column: every top-level nav
 				// button starts its icon at 16px from this edge (container
@@ -334,7 +380,7 @@ function SidebarInner({
 						collapsed ? "gap-2" : "gap-5",
 					)}
 				>
-					{NAV_GROUPS.map((group) => {
+					{navGroups.map((group) => {
 						const groupLabel = navGroupLabel(group.labelKey, group.fallback);
 						return (
 							<section
@@ -349,39 +395,13 @@ function SidebarInner({
 									group.pinnedToBottom && "mt-auto",
 								)}
 							>
-								{!group.hideLabel && (
-									<div
-										aria-hidden={collapsed || undefined}
-										className={cn(
-											"px-3.5",
-											// Vertical SPACE collapse only. The label text itself
-											// exits via the shared horizontal motion (inner span),
-											// so the shrinking container never visibly half-clips
-											// glyphs: the text has dissolved toward the icon column
-											// before the collapse cuts into it.
-											"overflow-hidden transition-[max-height] duration-200 ease-out",
-											collapsed ? "max-h-0" : "max-h-4",
-										)}
-									>
-										<span
-											className={cn(
-												// block: CSS transforms do not apply to inline elements.
-												"block whitespace-nowrap text-xs font-semibold capitalize tracking-wider text-muted-foreground",
-												// The text fade runs slightly FASTER (150ms) than the
-												// container's 200ms space collapse, deliberate exit
-												// choreography so the label is gone before the
-												// vertical clip could bite. The shared principles
-												// allow per-layout timing.
-												"block transition-[opacity,translate,filter] duration-150 ease-out",
-												collapsed
-													? navLabelMotion(true)
-													: cn(navLabelMotion(false), "opacity-70"),
-											)}
-										>
-											{groupLabel}
-										</span>
-									</div>
-								)}
+								{/* Compute-device switch lives at the top of the
+								    System cluster so it rides the same bottom
+								    pin: one quick toggle, no settings detour.
+								    Hidden when collapsed or GPU-less (the
+								    component nulls itself), keeping the icon
+								    column geometry untouched. */}
+								{group.pinnedToBottom && <DeviceToggle collapsed={collapsed} />}
 								{group.items.map((item) => {
 									return (
 										<NavLeaf
@@ -391,7 +411,7 @@ function SidebarInner({
 											collapsed={collapsed}
 											onNavigate={onNavigate}
 											tabIndex={
-												ALL_NAV_ITEMS.findIndex((i) => i.id === item.id) ===
+												navItems.findIndex((i) => i.id === item.id) ===
 												rovingIdx
 													? 0
 													: -1
@@ -460,15 +480,23 @@ function NavLeaf({
 					"px-2",
 					isActive
 						? cn(
-								// Active page = the standard card treatment: the
-								// app's card surface (--background) + the shared card
-								// border token at the same ~10% opacity every
-								// card in the app uses. No custom border color.
-								"border-border/5 bg-surface hover:bg-surface",
+								// Active page: the card surface plus a 1px border at
+								// 10% — #FFFFFF/10 in dark, its light-scheme
+								// counterpart #000000/10 in light (a literal
+								// white/10 would be invisible on the white
+								// sidebar). `border-border` carries both.
+								"border-border/10 bg-surface hover:bg-surface",
 								"text-foreground font-medium",
 							)
 						: cn(
-								"text-muted-foreground",
+								// Inactive: border at 0% (#FFFFFF/0). Both
+								// schemes are stated explicitly — the Button
+								// base carries `dark:border-border/10`, so a
+								// bare `border-transparent` would leave a 10%
+								// white edge on every inactive row in dark.
+								// The 1px box stays reserved either way, so the
+								// rail geometry never shifts.
+								"border-transparent dark:border-transparent text-muted-foreground",
 								"hover:bg-foreground/5 hover:text-foreground",
 							),
 				)}
@@ -482,6 +510,25 @@ function NavLeaf({
 					className={cn("h-4 w-4 shrink-0 transition-colors duration-200")}
 				/>
 				<span className={navTextClasses(collapsed)}>{navLabel}</span>
+				{/* Trailing "new" marker. `ms-auto` pins it to the row's
+				    inline-end edge (RTL-safe; never `ml-auto`), and it
+				    rides the SAME collapse motion as the label so the
+				    rail stays clean when collapsed. Muted text, no fill:
+				    the marker annotates the row, it does not become a
+				    chip competing with the active-leaf surface. */}
+				{item.badge && (
+					<span
+						data-testid="nav-new-badge"
+						className={cn(
+							"ms-auto shrink-0 overflow-hidden whitespace-nowrap text-xs font-medium",
+							"transition-[max-width,opacity,translate,filter] duration-200 ease-out",
+							collapsed ? "max-w-0" : "max-w-16",
+							navLabelMotion(collapsed),
+						)}
+					>
+						<span className="text-muted-foreground">{t("nav.newBadge")}</span>
+					</span>
+				)}
 			</Button>
 		</HotkeyTooltip>
 	);

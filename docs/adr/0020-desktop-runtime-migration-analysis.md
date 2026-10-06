@@ -544,18 +544,11 @@ python -m nuitka --standalone --onefile \
       candidates = []
       if is_macos():
           # .app bundle: Lausu.app/Contents/Resources/prewarm-<triple>
-          candidates.append(
-              Path(sys.argv[0]).resolve().parent.parent
-              / "Resources"
-              / f"prewarm-{triple}{exe_suffix}"
-          )
+          candidates.append(Path(sys.argv[0]).resolve().parent.parent / "Resources" / f"prewarm-{triple}{exe_suffix}")
       elif is_linux():
           # AppImage: /tmp/.mount_VoiceTy*/usr/resources/prewarm-<triple>
           # .deb/.rpm: /usr/lib/lausu/resources/prewarm-<triple>
-          candidates.append(
-              Path(os.environ.get("APPDIR", "/usr/lib/lausu/resources"))
-              / f"prewarm-{triple}{exe_suffix}"
-          )
+          candidates.append(Path(os.environ.get("APPDIR", "/usr/lib/lausu/resources")) / f"prewarm-{triple}{exe_suffix}")
       elif is_windows():
           # %LOCALAPPDATA%\Programs\Lausu\resources\prewarm-<triple>.exe
           candidates.append(
@@ -688,7 +681,7 @@ Today the tray icon is `pystray` (Win32 / AppKit / GTK), with menu logic in `tra
     "notification": {},
     "clipboard-manager": {},
     "single-instance": {},
-    "updater": {"endpoints": ["https://github.com/AbdallahIsDev/lausu/releases/latest/download/latest.json"], "pubkey": "..."}
+    "updater": {"endpoints": ["https://github.com/AbdallahIsDev/voice-typer/releases/latest/download/latest.json"], "pubkey": "..."}
   },
   "app": { "security": { "capabilities": ["migrate-runtime"], "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'" } }
 }

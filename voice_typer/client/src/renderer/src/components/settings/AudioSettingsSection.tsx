@@ -8,6 +8,7 @@
 // status fetch (now done via this section's own `usePython` call so the
 // parent doesn't need to know about it).
 
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { AudioFilterChain } from "@/components/audio/AudioFilterChain";
 import { RangeSlider } from "@/components/common/RangeSlider";
 import { SettingRow } from "@/components/common/SettingRow";
@@ -28,9 +29,10 @@ import { useT } from "@/i18n/i18n";
 import {
 	AUDIO_PRESET_OPTIONS,
 	type AudioPreset,
+	HALLUCINATION_FILTER_MODE_OPTIONS,
+	type HallucinationFilterMode,
 } from "@/lib/utils/audioPresets";
 import type { LausuConfig } from "@/types/config";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { SettingsSkeleton } from "./SettingsSkeleton";
 import type { SettingsSectionSharedProps } from "./types";
 
@@ -128,6 +130,12 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 	const vadFilterInfoSearch = t(
 		"settings.audioEnhancement.vadFilterInfoSearch",
 	);
+	const hallucinationModeLabel = t(
+		"settings.audioEnhancement.hallucinationFilter",
+	);
+	const hallucinationModeInfoSearch = t(
+		"settings.audioEnhancement.hallucinationFilterInfoSearch",
+	);
 	const autoDuckVolumeLabel = t("settings.audioEnhancement.autoDuckVolume");
 	const autoDuckVolumeInfoSearch = t(
 		"settings.audioEnhancement.autoDuckVolumeInfoSearch",
@@ -214,6 +222,10 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 		{ label: microphoneQualityLabel, info: microphoneQualityInfoSearch },
 		{ label: qualityPresetLabel, info: microphoneQualityInfoSearch },
 		{ label: vadFilterLabel, info: vadFilterInfoSearch },
+		{
+			label: hallucinationModeLabel,
+			info: hallucinationModeInfoSearch,
+		},
 		{ label: volumeBackendLabel, info: volumeBackendInfoSearch },
 		{ label: autoDuckVolumeLabel, info: autoDuckVolumeInfoSearch },
 		{ label: duckLevelLabel, info: duckLevelInfoSearch },
@@ -246,6 +258,10 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 	// ── Inline handler extraction ─────────────────────────────────
 	const handleVadFilterChange = (checked: boolean) =>
 		updateConfig({ vad_filter_enabled: checked });
+	const handleHallucinationModeChange = (v: string) =>
+		updateConfig({
+			hallucination_filter_mode: v as HallucinationFilterMode,
+		});
 	const handleAutoDuckChange = (checked: boolean) =>
 		updateConfig({ volume_duck_enabled: checked });
 	const handleDuckLevelChange = (v: number) =>
@@ -285,6 +301,11 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 		(option) => option.value !== "off",
 	);
 
+	// Backend default is "balanced"; fall back the same way for a config
+	// written before the field existed so the Select never renders empty.
+	const hallucinationMode: HallucinationFilterMode =
+		config.hallucination_filter_mode ?? "balanced";
+
 	return (
 		<SettingsSection
 			title={audioSectionTitle}
@@ -295,7 +316,7 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
                                 previously the section-level check showed the entire
                                 section (including all rows) when ANY row matched,
                                 which defeated the purpose of in-section search. */}
-			<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/5">
+			<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/8">
 				{/* ── ADR 0007: Microphone Quality master Switch (first row) ──
                                     Enabling reveals the preset picker row below;
                                     "off" lives ONLY behind this Switch, never in
@@ -305,20 +326,20 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 					microphoneQualityInfoSearch,
 					audioSectionTitle,
 				) && (
-						<SettingRow
-							label={microphoneQualityLabel}
-							info={t("settings.audioEnhancement.microphoneQualityInfo")}
-						>
-							<Switch
-								checked={qualityEnabled}
-								onCheckedChange={handleQualityEnabledChange}
-								aria-label={t(
-									"settings.audioEnhancement.microphoneQualityEnableAria",
-								)}
-								data-testid="microphone-quality-switch"
-							/>
-						</SettingRow>
-					)}
+					<SettingRow
+						label={microphoneQualityLabel}
+						info={t("settings.audioEnhancement.microphoneQualityInfo")}
+					>
+						<Switch
+							checked={qualityEnabled}
+							onCheckedChange={handleQualityEnabledChange}
+							aria-label={t(
+								"settings.audioEnhancement.microphoneQualityEnableAria",
+							)}
+							data-testid="microphone-quality-switch"
+						/>
+					</SettingRow>
+				)}
 
 				{/* ── ADR 0007: Quality preset picker (revealed while enabled) ── */}
 				{qualityEnabled &&
@@ -378,27 +399,64 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 					</SettingRow>
 				)}
 
+				{/* ── Hallucination filtering (discards decoder artifacts
+				        emitted on near-silence). Sits directly below the VAD
+				        row because it is the same concern: what the app does
+				        with silent/empty audio. */}
+				{isVisible(
+					hallucinationModeLabel,
+					hallucinationModeInfoSearch,
+					audioSectionTitle,
+				) && (
+					<SettingRow
+						label={hallucinationModeLabel}
+						info={t("settings.audioEnhancement.hallucinationFilterInfo")}
+					>
+						<Select
+							value={hallucinationMode}
+							onValueChange={handleHallucinationModeChange}
+						>
+							<SelectTrigger
+								className="w-48"
+								aria-label={t(
+									"settings.audioEnhancement.hallucinationFilterAria",
+								)}
+								data-testid="hallucination-filter-select"
+							>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{HALLUCINATION_FILTER_MODE_OPTIONS.map((option) => (
+									<SelectItem key={option.value} value={option.value}>
+										{t(option.labelKey)}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</SettingRow>
+				)}
+
 				{/* ── Volume Backend status ── */}
 				{isVisible(
 					volumeBackendLabel,
 					volumeBackendInfoSearch,
 					audioSectionTitle,
 				) && (
-						<SettingRow
-							label={volumeBackendLabel}
-							info={t("settings.audioEnhancement.volumeBackendInfo")}
-						>
-							<span className="text-sm text-muted-foreground tabular-nums">
-								{volumeBackend
-									? volumeBackend.available
-										? volumeBackend.name
-										: t("settings.audioEnhancement.unavailableSuffix", {
+					<SettingRow
+						label={volumeBackendLabel}
+						info={t("settings.audioEnhancement.volumeBackendInfo")}
+					>
+						<span className="text-sm text-muted-foreground tabular-nums">
+							{volumeBackend
+								? volumeBackend.available
+									? volumeBackend.name
+									: t("settings.audioEnhancement.unavailableSuffix", {
 											name: volumeBackend.name,
 										})
-									: t("settings.audioEnhancement.detecting")}
-							</span>
-						</SettingRow>
-					)}
+								: t("settings.audioEnhancement.detecting")}
+						</span>
+					</SettingRow>
+				)}
 
 				{/* ── Auto Duck Volume ── */}
 				{isVisible(
@@ -406,17 +464,17 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 					autoDuckVolumeInfoSearch,
 					audioSectionTitle,
 				) && (
-						<SettingRow
-							label={autoDuckVolumeLabel}
-							info={t("settings.audioEnhancement.autoDuckVolumeInfo")}
-						>
-							<Switch
-								checked={config.volume_duck_enabled ?? true}
-								onCheckedChange={handleAutoDuckChange}
-								aria-label={t("settings.audioEnhancement.autoDuckVolumeAria")}
-							/>
-						</SettingRow>
-					)}
+					<SettingRow
+						label={autoDuckVolumeLabel}
+						info={t("settings.audioEnhancement.autoDuckVolumeInfo")}
+					>
+						<Switch
+							checked={config.volume_duck_enabled ?? true}
+							onCheckedChange={handleAutoDuckChange}
+							aria-label={t("settings.audioEnhancement.autoDuckVolumeAria")}
+						/>
+					</SettingRow>
+				)}
 				{isVisible(duckLevelLabel, duckLevelInfoSearch, audioSectionTitle) && (
 					<SettingRow
 						label={duckLevelLabel}
@@ -460,18 +518,18 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 					testMicrophoneInfo,
 					audioSectionTitle,
 				) && (
-						<SettingRow label={testMicrophoneLabel} info={testMicrophoneInfo}>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={handleGoToMicrophone}
-								aria-label={goToMicrophoneLabel}
-							>
-								{goToMicrophoneLabel}
-							</Button>
-						</SettingRow>
-					)}
+					<SettingRow label={testMicrophoneLabel} info={testMicrophoneInfo}>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={handleGoToMicrophone}
+							aria-label={goToMicrophoneLabel}
+						>
+							{goToMicrophoneLabel}
+						</Button>
+					</SettingRow>
+				)}
 			</div>
 		</SettingsSection>
 	);

@@ -10,11 +10,6 @@ import contextlib
 import logging
 import sqlite3
 
-from voice_typer.server._lazy_import import lazy_module
-
-# Lazy proxy: ``history_db`` imports this package, so a direct import would be circular.
-_hd = lazy_module("voice_typer.server.history_db")
-
 log = logging.getLogger(__name__)
 
 
@@ -46,10 +41,9 @@ _LIST_COLUMNS_T_SQL = """t.id,
     t.language"""
 
 
-def project_text_row(row: sqlite3.Row | tuple, *, preview_length: int | None = None) -> dict:
+def project_text_row(row: sqlite3.Row | tuple) -> dict:
     """Post-process a SQLite row from get_recent/search/get_favorites."""
-    if preview_length is None:
-        preview_length = _hd._HISTORY_TEXT_PREVIEW_LENGTH
+    from voice_typer.server import history_db as _hd
 
     d = dict(row)
     full_length = d.get("text_full_length")
@@ -58,7 +52,7 @@ def project_text_row(row: sqlite3.Row | tuple, *, preview_length: int | None = N
         truncated = False
     else:
         full_length_int = int(full_length)
-        truncated = full_length_int > preview_length
+        truncated = full_length_int > _hd._HISTORY_TEXT_PREVIEW_LENGTH
     d["text_truncated"] = truncated
     d["text_full_length"] = full_length_int
     d.pop("text_is_encrypted", None)
@@ -67,9 +61,8 @@ def project_text_row(row: sqlite3.Row | tuple, *, preview_length: int | None = N
 
 def _finalize_text_rows(conn: sqlite3.Connection, rows: list[sqlite3.Row]) -> list[dict]:
     """Project rows and decrypt flagged-encrypted text in Python."""
-    from voice_typer.server import _text_crypto
+    from voice_typer.server import _text_crypto, history_db as _hd
 
-    preview_len = _hd._HISTORY_TEXT_PREVIEW_LENGTH
     # Capture the encryption flag from the RAW rows before projection —
     out: list[dict] = []
     flagged_ids: list[int] = []
@@ -77,7 +70,7 @@ def _finalize_text_rows(conn: sqlite3.Connection, rows: list[sqlite3.Row]) -> li
         raw = dict(row)
         if raw.get("text_is_encrypted"):
             flagged_ids.append(int(raw["id"]))
-        out.append(project_text_row(row, preview_length=preview_len))
+        out.append(project_text_row(row))
     if not flagged_ids:
         # Common case (plaintext mode): zero extra work.
         return out
@@ -107,6 +100,7 @@ def _finalize_text_rows(conn: sqlite3.Connection, rows: list[sqlite3.Row]) -> li
             "[HISTORY] re-fetching encrypted row texts for decryption failed: %s",
             e,
         )
+    preview_len = _hd._HISTORY_TEXT_PREVIEW_LENGTH
     for d in out:
         if d["id"] in flagged_set:
             plaintext = _text_crypto.decrypt_text(full_texts.get(d["id"], ""), dek)

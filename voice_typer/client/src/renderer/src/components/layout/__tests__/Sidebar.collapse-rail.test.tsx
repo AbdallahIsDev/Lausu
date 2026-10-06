@@ -22,6 +22,13 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 	return createHugeiconsMock();
 });
 
+// The Plugins nav entry is developer-gated. These tests exercise nav
+// geometry and label motion, so they opt into the gate; the gating itself
+// is covered by Sidebar.plugins-gated.test.tsx.
+vi.mock("@/hooks/usePluginCatalog", () => ({
+	usePluginsAvailable: () => true,
+}));
+
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -92,7 +99,7 @@ describe("Sidebar, collapse rail geometry & transition model", () => {
 					"aside button[data-nav-item='true']",
 				),
 			);
-			expect(buttons.length).toBe(10);
+			expect(buttons.length).toBe(11);
 			for (const btn of buttons) {
 				// The single anchored icon column: identical start padding
 				// in both states (container p-2 + button px-2 = 16px from
@@ -121,11 +128,19 @@ describe("Sidebar, collapse rail geometry & transition model", () => {
 				document.querySelectorAll<HTMLSpanElement>(
 					"aside button[data-nav-item='true'] > span",
 				),
-			).filter((s) =>
-				s.className.includes("transition-[max-width,opacity,translate,filter]"),
-			);
-		// 10 nav items, every leaf + the Settings parent.
-		expect(labelSpans().length).toBe(10);
+			)
+				.filter((s) =>
+					s.className.includes(
+						"transition-[max-width,opacity,translate,filter]",
+					),
+				)
+				// The trailing "new" marker is not a nav LABEL: it rides the
+				// same motion model so the rail collapses cleanly, but it is
+				// excluded here so this suite keeps asserting the label
+				// contract (label max-width, blur endpoints) only.
+				.filter((s) => s.getAttribute("data-testid") !== "nav-new-badge");
+		// 11 nav items, every leaf + the Settings parent.
+		expect(labelSpans().length).toBe(11);
 		for (const span of labelSpans()) {
 			expect(span.className).toContain("opacity-100");
 			expect(span.className).toContain("blur-[0px]");
@@ -179,73 +194,28 @@ describe("Sidebar, collapse rail geometry & transition model", () => {
 		expect(nav?.className).not.toContain("gap-5");
 	});
 
-	it("group headings collapse via max-height while the label exits through the shared motion model (no instant unmount layout jump)", () => {
-		const { rerender, container } = renderWithProviders(
-			<Sidebar {...baseProps} />,
-		);
-		// The heading container no longer carries text-style classes —
-		// the label TEXT lives in an inner span that owns the horizontal
-		// motion. Locate by the container's max-height transition.
-		const headings = () =>
+	it("renders NO group heading containers in either state (labels are AT-only)", () => {
+		// Group names live on <section aria-label> only; there is no
+		// heading element, so there is no heading collapse animation to
+		// model. Pinned in BOTH states so a heading cannot reappear in
+		// one rail state only.
+		const headings = (container: HTMLElement) =>
 			Array.from(container.querySelectorAll("section > div")).filter((d) =>
 				d.className.includes("transition-[max-height]"),
 			);
-		const headingLabel = (heading: Element) => heading.querySelector("span");
-		// System only, the top group is header-less (single visible heading).
-		expect(headings().length).toBe(1);
-		for (const heading of headings()) {
-			// Outer container: vertical SPACE collapse only (max-height,
-			// 200ms ease-out) + clipping so the shrinking box never
-			// half-paints glyphs.
-			expect(heading.className).toContain("px-3.5");
-			expect(heading.className).toContain("overflow-hidden");
-			expect(heading.className).toContain("transition-[max-height]");
-			expect(heading.className).toContain("duration-200");
-			expect(heading.className).toContain("ease-out");
-			expect(heading.className).toContain("max-h-4");
-			expect(heading.getAttribute("aria-hidden")).toBeNull();
-			// Inner span: the text exits through the SHARED motion tokens
-			// (translate + fade + blur) on a deliberately faster 150ms
-			// track, so the label has dissolved before the vertical clip
-			// could bite. `block` is required for transforms to apply;
-			// the muted label tone rides on top of the motion's opacity.
-			const label = headingLabel(heading);
-			expect(label?.className).toContain("block");
-			expect(label?.className).toContain(
-				"transition-[opacity,translate,filter]",
-			);
-			expect(label?.className).toContain("duration-150");
-			expect(label?.className).toContain("ease-out");
-			expect(label?.className).toContain("translate-x-0");
-			expect(label?.className).toContain("blur-[0px]");
-			expect(label?.className).toContain("opacity-70");
-			// Same X-axis-only rule as the item labels.
-			expect(label?.className).not.toContain("translate-y");
-		}
+		const { rerender, container } = renderWithProviders(
+			<Sidebar {...baseProps} />,
+		);
+		expect(headings(container).length).toBe(0);
+		expect(screen.queryByText("System")).toBeNull();
 
 		rerender(
 			<TooltipProvider delayDuration={200} skipDelayDuration={500}>
 				<Sidebar {...baseProps} collapsed />
 			</TooltipProvider>,
 		);
-		// Headings stay MOUNTED when collapsed (they animate to zero
-		// height instead of vanishing and shifting the groups below) and
-		// leave the accessibility tree via aria-hidden.
-		expect(headings().length).toBe(1);
-		for (const heading of headings()) {
-			expect(heading.className).toContain("max-h-0");
-			expect(heading.getAttribute("aria-hidden")).toBe("true");
-			// Shared motion exit tokens on the inner span: toward the
-			// inline-start icon column (RTL-mirrored), fully transparent,
-			// blurred, and inert.
-			const label = headingLabel(heading);
-			expect(label?.className).toContain("-translate-x-3");
-			expect(label?.className).toContain("rtl:translate-x-3");
-			expect(label?.className).toContain("opacity-0");
-			expect(label?.className).toContain("blur-[4px]");
-			expect(label?.className).toContain("pointer-events-none");
-			expect(label?.className).not.toContain("translate-y");
-		}
+		expect(headings(container).length).toBe(0);
+		expect(screen.queryByText("System")).toBeNull();
 	});
 
 	it("collapsed rail: every icon keeps a non-empty accessible name (incl. the Settings flyout trigger)", () => {
@@ -274,7 +244,7 @@ describe("Sidebar, collapse rail geometry & transition model", () => {
 		expect(kbdTexts).toContain(",");
 	});
 
-	it("rapid collapse/expand toggling keeps all 10 nav buttons mounted with classes flipping cleanly", () => {
+	it("rapid collapse/expand toggling keeps all 11 nav buttons mounted with classes flipping cleanly", () => {
 		const { rerender } = renderWithProviders(<Sidebar {...baseProps} />);
 		const countButtons = () =>
 			document.querySelectorAll<HTMLButtonElement>(
@@ -286,13 +256,13 @@ describe("Sidebar, collapse rail geometry & transition model", () => {
 					<Sidebar {...baseProps} collapsed />
 				</TooltipProvider>,
 			);
-			expect(countButtons()).toBe(10);
+			expect(countButtons()).toBe(11);
 			rerender(
 				<TooltipProvider delayDuration={200} skipDelayDuration={500}>
 					<Sidebar {...baseProps} />
 				</TooltipProvider>,
 			);
-			expect(countButtons()).toBe(10);
+			expect(countButtons()).toBe(11);
 		}
 		// After the toggle storm the expanded tree is intact: labels,
 		// active state, and the Settings submenu contract all survive.

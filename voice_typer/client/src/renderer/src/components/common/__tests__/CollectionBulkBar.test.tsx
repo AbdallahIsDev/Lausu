@@ -132,16 +132,21 @@ describe("CollectionBulkBar, action wiring", () => {
 });
 
 describe("CollectionBulkBar, visual tokens (byte-identical extraction)", () => {
-	it("keeps the sticky floating-bar treatment: sticky bottom-4, mt-auto, centered w-fit, subtle surface, gap-2 spacing (C-UI-10)", () => {
+	it("keeps the sticky floating-bar treatment: sticky bottom-4, mt-auto, centered w-fit, opaque surface, gap-2 spacing (C-UI-10)", () => {
 		setupBulkBar();
 		const bar = screen.getByTestId("test-bulk-bar");
 		expect(bar.className).toContain("sticky bottom-4 z-20 mx-auto mt-auto");
 		expect(bar.className).toContain(
 			"flex w-fit max-w-full flex-wrap items-center gap-2",
 		);
+		// 2026-10-02: `bg-surface-subtle` became the CARD token (transparent
+		// in light, #FFFFFF/5 in dark), so floating chrome must not use it —
+		// a transparent bar over scrolling content is unreadable. This bar
+		// carries `bg-surface` (an opaque panel) instead.
 		expect(bar.className).toContain(
-			"rounded-lg border border-border/5 bg-surface-subtle px-3 py-2 shadow-lg",
+			"rounded-lg border border-border/8 bg-surface px-3 py-2 shadow-lg",
 		);
+		expect(bar.className).not.toContain("bg-surface-subtle");
 	});
 
 	it("delete button keeps the muted + destructive-text hover treatment", () => {

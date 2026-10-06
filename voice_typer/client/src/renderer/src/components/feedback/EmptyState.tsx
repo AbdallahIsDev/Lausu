@@ -1,4 +1,8 @@
-import { Add01Icon, Alert02Icon } from "@hugeicons/core-free-icons";
+import {
+	Add01Icon,
+	Alert02Icon,
+	RefreshIcon,
+} from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ReactNode, RefObject } from "react";
@@ -16,7 +20,7 @@ interface EmptyStateProps {
 	actionLabel?: string;
 	/** Optional action button click handler */
 	onAction?: () => void;
-	/** Optional, overrides the default Add01Icon for the action button */
+	/** Optional, overrides the variant's default action glyph (RefreshIcon for error, Add01Icon for info) */
 	actionIcon?: IconSvgElement;
 	actionRef?: RefObject<HTMLButtonElement | null>;
 	/** Optional extra content below the description */
@@ -35,54 +39,64 @@ export function EmptyState({
 	children,
 	variant = "info",
 }: EmptyStateProps) {
-	const displayIcon = actionIcon ?? Add01Icon;
 	const isError = variant === "error";
-	// For the action button: when the empty state represents a failure,
-	// the CTA is typically "Retry" / "Refresh", surface that with the
-	// Alert02Icon instead of the default Add01Icon so the affordance
-	// matches the context.
-	const actionGlyph = isError ? Alert02Icon : displayIcon;
+	// Error CTAs are retries, so they carry the reload glyph — the same one
+	// every other Retry button in the app uses (ConnectionStatusScreen).
+	const actionGlyph = actionIcon ?? (isError ? RefreshIcon : Add01Icon);
 	return (
 		<div
 			role={isError ? "alert" : "status"}
 			className={cn(
-				"flex flex-col items-center justify-center gap-4 py-16",
-				// Error variant: tinted ring + soft destructive wash so
-				// load failures don't masquerade as "no data yet".
-				isError &&
-					"rounded-lg border border-destructive/40 bg-destructive/5 px-6",
+				"flex w-full flex-col items-center justify-center rounded-lg border text-center",
+				isError
+					? // Calm app-theme failure card: neutral surface, destructive
+						// accent confined to the icon disc. A full-card red wash
+						// reads as an alarm, not as a load failure.
+						"gap-4 border-border/8 bg-surface px-6 py-10"
+					: "gap-5 border-border/8 bg-surface-subtle px-8 py-16",
 			)}
 		>
-			<HugeiconsIcon
-				icon={isError ? Alert02Icon : icon}
-				strokeWidth={2}
+			{isError ? (
+				<div
+					data-slot="empty-state-error-icon"
+					className="flex items-center justify-center rounded-full bg-destructive/10 p-3"
+				>
+					<HugeiconsIcon
+						icon={Alert02Icon}
+						strokeWidth={2}
+						className="h-10 w-10 text-destructive"
+					/>
+				</div>
+			) : (
+				<HugeiconsIcon
+					icon={icon}
+					strokeWidth={2}
+					className="h-10 w-10 text-muted-foreground"
+				/>
+			)}
+			{/* Title is an <h3> (not a <p>) so screen-reader users can navigate
+			    empty-state cards by heading; the level sits below the page h1/h2. */}
+			<h3
 				className={cn(
-					"h-10 w-10",
+					"text-center",
 					isError
-						? // No opacity wash for the error variant —
-							// destructive token already carries enough
-							// contrast, and stacking opacity on top
-							// pushes the icon below WCAG 1.4.11.
-							"text-destructive"
-						: // No opacity wash for the info variant either —
-							// text-muted-foreground alone carries the visual
-							// hierarchy. Stacking opacity on top of the
-							// already-muted token pushed the icon below the
-							// WCAG 1.4.11 non-text contrast minimum (3:1)
-							// (same rationale as the description below).
-							"text-muted-foreground",
+						? "text-lg font-semibold text-foreground"
+						: "text-sm text-muted-foreground",
 				)}
-			/>
-			{/* Title is rendered as an <h3> (not a <p>) so screen-reader
-			    users can navigate empty-state cards by heading. The heading
-			    level (h3) is chosen to sit below the typical page <h1>/<h2>
-			    hierarchy used across the app. */}
-			<h3 className="text-sm text-muted-foreground">{title}</h3>
-			{/* Dropped opacity-70, text-muted-foreground is already a
-			    low-contrast token, and stacking opacity on top pushed the
-			    effective contrast below WCAG AA for body text. */}
+			>
+				{title}
+			</h3>
+			{/* No stacked opacity on text-muted-foreground — it is already a
+			    low-contrast token, and opacity on top drops below WCAG AA. */}
 			{description && (
-				<p className="text-xs text-muted-foreground">{description}</p>
+				<p
+					className={cn(
+						"max-w-lg text-center leading-relaxed text-muted-foreground",
+						isError ? "text-sm" : "text-xs",
+					)}
+				>
+					{description}
+				</p>
 			)}
 			{children}
 			{actionLabel && onAction && (
