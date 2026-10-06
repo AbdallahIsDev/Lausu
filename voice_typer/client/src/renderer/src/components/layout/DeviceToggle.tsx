@@ -33,18 +33,18 @@ export function DeviceToggle({ collapsed = false }: { collapsed?: boolean }) {
 	};
 
 	return (
-		<div className={cn("flex flex-col items-center gap-1 px-1")}>
-			<ToggleGroup<ComputeDevice>
-				options={[
-					{ value: "cpu", label: t("computeDevice.cpu") },
-					{ value: "cuda", label: t("computeDevice.gpu") },
-				]}
-				value={value}
-				onChange={handleChange}
-				ariaLabel={t("computeDevice.ariaLabel")}
-				context="sidebar"
-				className="w-full"
-			/>
-		</div>
+		// <div className={cn("flex flex-col items-center")}>
+		<ToggleGroup<ComputeDevice>
+			options={[
+				{ value: "cpu", label: t("computeDevice.cpu") },
+				{ value: "cuda", label: t("computeDevice.gpu") },
+			]}
+			value={value}
+			onChange={handleChange}
+			ariaLabel={t("computeDevice.ariaLabel")}
+			context="sidebar"
+			className="w-full mb-4"
+		/>
+		// </div>
 	);
 }

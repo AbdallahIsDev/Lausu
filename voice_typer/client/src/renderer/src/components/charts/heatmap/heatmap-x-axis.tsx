@@ -4,17 +4,22 @@ import { memo, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { useHeatmap } from "./heatmap-context";
-import { getHeatmapColumnMonthAnchor } from "./heatmap-utils";
+import { buildHeatmapMonthTicks } from "./heatmap-utils";
 
 export interface HeatmapXAxisProps {
 	/** Additional class name for labels */
 	className?: string;
+	/**
+	 * Month labels indexed by `Date.getMonth()` (0 = January). The default
+	 * is English; pass a localised array so a full-year grid does not
+	 * render ~13 English month names inside a translated card.
+	 */
+	monthLabels?: readonly string[];
 }
-
-const monthFmt = new Intl.DateTimeFormat("en-US", { month: "short" });
 
 export const HeatmapXAxis = memo(function HeatmapXAxis({
 	className,
+	monthLabels,
 }: HeatmapXAxisProps) {
 	const { containerRef, data, margin, xScale } = useHeatmap();
 	const [mounted, setMounted] = useState(false);
@@ -23,36 +28,14 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
 		setMounted(true);
 	}, []);
 
-	const labels = useMemo(() => {
-		const ticks: { label: string; x: number; key: string }[] = [];
-		let lastMonthKey = "";
-
-		for (let columnIndex = 0; columnIndex < data.length; columnIndex++) {
-			const column = data[columnIndex];
-			if (!column) {
-				continue;
-			}
-
-			const monthAnchor = getHeatmapColumnMonthAnchor(column);
-			if (!monthAnchor) {
-				continue;
-			}
-
-			const monthKey = `${monthAnchor.getFullYear()}-${monthAnchor.getMonth()}`;
-			if (monthKey === lastMonthKey) {
-				continue;
-			}
-
-			ticks.push({
-				label: monthFmt.format(monthAnchor),
-				x: margin.left + xScale(columnIndex),
-				key: monthKey,
-			});
-			lastMonthKey = monthKey;
-		}
-
-		return ticks;
-	}, [data, margin.left, xScale]);
+	const labels = useMemo(
+		() =>
+			buildHeatmapMonthTicks(data, monthLabels).map((tick) => ({
+				...tick,
+				x: margin.left + xScale(tick.columnIndex),
+			})),
+		[data, margin.left, monthLabels, xScale],
+	);
 
 	const container = containerRef.current;
 	if (!(mounted && container)) {

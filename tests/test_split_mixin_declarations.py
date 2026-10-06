@@ -115,6 +115,40 @@ MIXIN_HOST_MEMBERS: dict[str, dict[str, set[str]]] = {
     "voice_typer/server/clipboard_snapshot_linux.py": {
         "LinuxClipboardMixin": {"items"},
     },
+    # Wave 3 splits: onboarding selections + VAD calibration/cache mixins.
+    # onboarding_permissions is a stateless probe (no host state), omitted.
+    "voice_typer/server/onboarding_selections.py": {
+        "_OnboardingSelectionsMixin": {
+            "selected_microphone",
+            "selected_hotkey",
+            "selected_model",
+            "selected_backend",
+        },
+    },
+    "voice_typer/server/vad_calibration.py": {
+        "_VadCalibrationMixin": {
+            "_calibration_duration",
+            "_calibration_rms_values",
+            "_calibration_prob_values",
+            "_calibrated",
+            "_calibration_status",
+            "_use_silero_vad",
+            "_silero_available",
+            "_vad_auto_calibrate",
+            "_silence_threshold",
+            "_speech_threshold",
+            "_silence_threshold_db",
+            "_speech_threshold_db",
+        },
+    },
+    "voice_typer/server/vad_enabled_cache.py": {
+        "_VadEnabledCacheMixin": {
+            "_config",
+            "_vad_enabled_cached",
+            "_vad_enabled_cache_ts",
+            "VAD_ENABLED_CACHE_TTL_S",
+        },
+    },
 }
 
 # (file, class, TYPE_CHECKING-only method stubs the class must carry)
@@ -142,6 +176,16 @@ MIXIN_STUB_METHODS: dict[str, dict[str, set[str]]] = {
         # sibling VocabularyApplyMixin -- both refs live inside
         # if TYPE_CHECKING: stubs in vocabulary_persistence.py.
         "VocabularyPersistenceMixin": {"_load_bundled", "_invalidate_pattern_cache"},
+    },
+    # Wave 3: selections mixin calls facade-owned _persist_progress at
+    # set_microphone. vad_calibration carries three TYPE_CHECKING stubs:
+    # vad_enabled (real property on sibling vad_enabled_cache) plus the
+    # threshold properties owned by the composed VadProcessor.
+    "voice_typer/server/onboarding_selections.py": {
+        "_OnboardingSelectionsMixin": {"_persist_progress"},
+    },
+    "voice_typer/server/vad_calibration.py": {
+        "_VadCalibrationMixin": {"vad_enabled", "speech_threshold_db", "silence_threshold_db"},
     },
 }
 

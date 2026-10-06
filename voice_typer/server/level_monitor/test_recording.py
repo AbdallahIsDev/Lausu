@@ -1,18 +1,18 @@
-"""Microphone test-recording helpers."""
+"""Microphone test-recording helpers.
+
+Split (create-first, every moved name re-exported here so the historical
+import path keeps resolving): :mod:`.test_recording_files` (mic-test WAV
+disk transport: recordings dir, persist, TTL expiry, slices) and
+:mod:`.test_recording_lifecycle` (arm/start/cancel/auto-stop). This
+module keeps the quality-band constants and the stop/finalize path.
+"""
 
 from __future__ import annotations
 
-import collections
-import contextlib
 import io
 import logging
-import os
-import threading
-import time
 import types
-import uuid
 import wave
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -21,6 +21,30 @@ from voice_typer.server._audio_constants import AUDIO_LOW_VOLUME_RMS, AUDIO_SILE
 from voice_typer.server.duration import format_duration
 
 from ._state import _state
+from .test_recording_files import (  # noqa: F401  # facade re-export
+    _TEST_RECORDINGS_DIRNAME,
+    MIC_TEST_RECORDING_TTL_SEC,
+    _delete_expired_recordings,
+    _delete_test_recording_paths,
+    _purge_test_recordings,
+    _remove_recordings_dir_if_empty,
+    _schedule_test_recording_expiry,
+    _test_recording_expiry_timers,
+    _test_recordings_dir,
+    _write_test_wav,
+    read_test_recording_slice,
+)
+from .test_recording_lifecycle import (  # noqa: F401  # facade re-export
+    _begin_test_locked,
+    _cancel_test_locked,
+    _do_auto_stop_test,
+    _reset_test_chunks,
+    _secure_clear_test_chunks,
+    cancel_test_recording,
+    is_test_active,
+    start_test_recording,
+    update_test_filters,
+)
 
 if TYPE_CHECKING:
     from typing import Any
@@ -41,376 +65,6 @@ _MIC_TEST_VOICE_PEAK = 0.05
 # ... but one loud transient (click/pop) in an otherwise silent test
 _MIC_TEST_VOICE_MAX_SILENCE_RATIO = 0.95
 _MIC_TEST_VOICE_MIN_NON_SILENT_BLOCKS = 3
-
-
-def _secure_clear_test_chunks(*deques: collections.deque) -> None:
-    """securely zero the np.ndarray chunks in the test"""
-    try:
-        from voice_typer.server.recording import _secure_clear_array_background
-    except Exception:
-        log.debug(
-            "[LEVEL-MON] _secure_clear_array_background unavailable; "
-            "skipping secure clear of test chunks (GC will reclaim)",
-            exc_info=True,
-        )
-        return
-    for d in deques:
-        if not d:
-            continue
-        try:
-            # Wrap a SNAPSHOT of the deque's current contents in a
-            snapshot = collections.deque(list(d))
-            _secure_clear_array_background(snapshot)
-        except Exception:
-            log.debug(
-                "[LEVEL-MON] secure clear of test chunks failed for one deque (best-effort; GC will reclaim)",
-                exc_info=True,
-            )
-
-
-# The completed test's WAV payloads are ~0.9 MB each (10 s @ 44.1/48 kHz
-_TEST_RECORDINGS_DIRNAME = "mic-test-recordings"
-
-# Mic-test WAV disk TTL: auto-delete a test's persisted WAVs this many
-MIC_TEST_RECORDING_TTL_SEC = 300
-
-# Live per-file expiry timers (threading.Timer, daemon like
-_test_recording_expiry_timers: set[threading.Timer] = set()
-
-
-def _test_recordings_dir() -> Path:
-    """Return (and create) the mic-test recordings dir under the config dir."""
-    from voice_typer.server.config_internals.paths import _config_dir
-
-    d = Path(_config_dir()) / _TEST_RECORDINGS_DIRNAME
-    d.mkdir(parents=True, exist_ok=True)
-    with contextlib.suppress(Exception):
-        _delete_expired_recordings()
-    return d
-
-
-def _remove_recordings_dir_if_empty() -> None:
-    """Best-effort remove of the recordings dir when it holds no files."""
-    try:
-        from voice_typer.server.config_internals.paths import _config_dir
-
-        with contextlib.suppress(OSError):
-            (Path(_config_dir()) / _TEST_RECORDINGS_DIRNAME).rmdir()
-    except Exception:
-        log.debug("[LEVEL-MON] recordings-dir remove failed", exc_info=True)
-
-
-def _purge_test_recordings() -> None:
-    """Best-effort delete of leftover test WAVs from previous tests."""
-    try:
-        d = _test_recordings_dir()
-        for pattern in ("*.wav", "*.wav.tmp"):
-            for f in d.glob(pattern):
-                try:
-                    f.unlink()
-                except OSError:
-                    log.debug("[LEVEL-MON] could not unlink leftover test WAV: %s", f)
-        _remove_recordings_dir_if_empty()
-    except Exception:
-        log.debug("[LEVEL-MON] test-recording purge failed", exc_info=True)
-
-
-def _delete_test_recording_paths(paths) -> None:
-    """Best-effort unlink of exactly the given persisted WAV paths."""
-    try:
-        targets = [str(p) for p in (paths or []) if p]
-        if not targets:
-            return
-        deleted = 0
-        for p in targets:
-            try:
-                Path(p).unlink()
-                deleted += 1
-            except FileNotFoundError:
-                continue
-            except OSError:
-                log.debug("[LEVEL-MON] could not unlink expired test WAV: %s", p)
-        log.debug(
-            "[LEVEL-MON] expired mic-test WAV delete: %d/%d files removed",
-            deleted,
-            len(targets),
-        )
-        _remove_recordings_dir_if_empty()
-    except Exception:
-        log.debug("[LEVEL-MON] expired mic-test WAV delete failed", exc_info=True)
-
-
-def _schedule_test_recording_expiry(paths, ttl_sec: float = MIC_TEST_RECORDING_TTL_SEC) -> threading.Timer | None:
-    """Schedule best-effort deletion of exactly *paths* after *ttl_sec*.
-
-    Mirrors the _test_auto_stop_timer daemon pattern. Never raises.
-    """
-    try:
-        targets = [str(p) for p in (paths or []) if p]
-        if not targets:
-            return None
-        timer: threading.Timer | None = None
-
-        def _fire() -> None:
-            try:
-                _delete_test_recording_paths(targets)
-            finally:
-                with contextlib.suppress(Exception):
-                    _test_recording_expiry_timers.discard(timer)
-
-        timer = threading.Timer(ttl_sec, _fire)
-        timer.daemon = True
-        _test_recording_expiry_timers.add(timer)
-        timer.start()
-        log.debug(
-            "[LEVEL-MON] scheduled mic-test WAV expiry in %ss for %d files",
-            ttl_sec,
-            len(targets),
-        )
-        return timer
-    except Exception:
-        log.debug("[LEVEL-MON] failed to schedule mic-test WAV expiry", exc_info=True)
-        return None
-
-
-def _delete_expired_recordings(max_age_sec: float = MIC_TEST_RECORDING_TTL_SEC) -> int:
-    """Best-effort unlink of mic-test WAVs older than *max_age_sec* by mtime."""
-    try:
-        from voice_typer.server.config_internals.paths import _config_dir
-
-        d = Path(_config_dir()) / _TEST_RECORDINGS_DIRNAME
-        if not d.is_dir():
-            return 0
-        now = time.time()
-        deleted = 0
-        for pattern in ("*.wav", "*.wav.tmp"):
-            try:
-                files = list(d.glob(pattern))
-            except OSError:
-                continue
-            for f in files:
-                try:
-                    if now - f.stat().st_mtime > max_age_sec:
-                        f.unlink()
-                        deleted += 1
-                except FileNotFoundError:
-                    continue
-                except OSError:
-                    log.debug("[LEVEL-MON] could not unlink expired test WAV: %s", f)
-        if deleted:
-            log.debug("[LEVEL-MON] expired mic-test WAV sweep removed %d files", deleted)
-        _remove_recordings_dir_if_empty()
-        return deleted
-    except Exception:
-        log.debug("[LEVEL-MON] expired mic-test WAV sweep failed", exc_info=True)
-        return 0
-
-
-def _write_test_wav(buf: io.BytesIO, kind: str) -> dict | None:
-    """Write *buf*'s WAV bytes to a unique file; return {"path","bytes"}.
-
-    Returns None when the payload is empty (nothing to persist). The
-    """
-    data = buf.getvalue()
-    if not data:
-        return None
-    d = _test_recordings_dir()
-    # Re-ensure: the TTL sweep inside _test_recordings_dir() may have
-    d.mkdir(parents=True, exist_ok=True)
-    path = d / f"test-{kind}-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:8]}.wav"
-    tmp = path.with_suffix(".wav.tmp")
-    tmp.write_bytes(data)
-    tmp.replace(path)
-    from voice_typer.server.platform_utils import is_windows
-
-    if not is_windows():
-        # POSIX only: keep biometric voice data owner-readable.
-        with contextlib.suppress(OSError):
-            os.chmod(path, 0o600)
-    return {"path": str(path), "bytes": len(data)}
-
-
-def read_test_recording_slice(path: str, offset: int, length: int) -> dict:
-    """Return a base64 slice [offset, offset+length) of a test WAV file."""
-    import base64 as _b64
-
-    try:
-        requested = Path(path)
-        root = _test_recordings_dir().resolve()
-        resolved = requested.resolve()
-        if resolved.parent != root or resolved.suffix.lower() != ".wav":
-            return {
-                "success": False,
-                "data_b64": "",
-                "bytes_read": 0,
-                "total_bytes": 0,
-                "eof": True,
-                "message": "path outside microphone-test recordings",
-            }
-        if not resolved.is_file():
-            return {
-                "success": False,
-                "data_b64": "",
-                "bytes_read": 0,
-                "total_bytes": 0,
-                "eof": True,
-                "message": "recording not found",
-            }
-        total = resolved.stat().st_size
-        length = max(0, min(int(length), 256 * 1024))
-        # BASE64-SAFE SLICING INVARIANT: every NON-FINAL slice must be a
-        length -= length % 3
-        offset = max(0, int(offset))
-        remaining = total - offset
-        if remaining <= 0:
-            return {
-                "success": True,
-                "data_b64": "",
-                "bytes_read": 0,
-                "total_bytes": total,
-                "eof": True,
-                "message": "ok",
-            }
-        if length == 0:
-            # Requests of 1-2 bytes align down to a 0-byte slice, which
-            length = 3 if remaining >= 3 else remaining
-        with open(resolved, "rb") as fh:
-            fh.seek(offset)
-            chunk = fh.read(length)
-        return {
-            "success": True,
-            "data_b64": _b64.b64encode(chunk).decode("ascii"),
-            "bytes_read": len(chunk),
-            "total_bytes": total,
-            "eof": offset + len(chunk) >= total,
-            "message": "ok",
-        }
-    except Exception as exc:
-        log.warning("[LEVEL-MON] read_test_recording_slice failed: %s", exc)
-        return {
-            "success": False,
-            "data_b64": "",
-            "bytes_read": 0,
-            "total_bytes": 0,
-            "eof": True,
-            "message": type(exc).__name__,
-        }
-
-
-def _reset_test_chunks(locked: bool) -> None:
-    """(Re) create the bounded test-chunk deques under the right capacity."""
-    sr = _state._monitor_sample_rate
-    # Capacity bound: chunks arrive at ``sr / blocksize`` per second where
-    cap = int(_state._test_duration * sr / 512) + 1
-    if cap < 1:
-        cap = 1
-    new_chunks = collections.deque(maxlen=cap)
-    new_raw = collections.deque(maxlen=cap)
-    new_filtered = collections.deque(maxlen=cap)
-
-    if locked:
-        _state._test_chunks = new_chunks
-        _state._test_raw_chunks = new_raw
-        _state._test_filtered_chunks = new_filtered
-    else:
-        with _state._monitor_lock:
-            _state._test_chunks = new_chunks
-            _state._test_raw_chunks = new_raw
-            _state._test_filtered_chunks = new_filtered
-
-
-def is_test_active() -> bool:
-    """Return True if a microphone test is currently recording.
-
-    Returns:
-    """
-    with _state._monitor_lock:
-        return _state._test_mode
-
-
-def _begin_test_locked(duration: float, filters: dict | None) -> dict:
-    """Arm test mode under ``_monitor_lock`` (caller holds the lock).
-
-    Shared by both ``start_test_recording`` paths: the monitor already on
-    the right device, and the restart path after ``start_monitoring``.
-    """
-    _state._test_mode = True
-    _state._test_start_time = time.perf_counter()
-    _state._test_duration = max(1.0, min(30.0, duration))
-    # (re)create bounded deques sized to this start's duration
-    _reset_test_chunks(locked=True)
-    _state._test_filters = dict(filters) if filters else {}
-    _state._test_peak_history.clear()
-    _state._test_rms_history.clear()
-    _state._test_clip_count = 0
-    _state._test_silence_blocks = 0
-    sr = _state._monitor_sample_rate
-
-    _state._test_auto_stop_timer = threading.Timer(
-        _state._test_duration,
-        _do_auto_stop_test,
-    )
-    _state._test_auto_stop_timer.daemon = True
-    _state._test_auto_stop_timer.start()
-
-    log.info(
-        "[LEVEL-MON] Test recording started: mic=%s | duration%s",
-        _state._monitor_mic_id or "default",
-        format_duration(_state._test_duration),
-    )
-    return {
-        "success": True,
-        "message": "Recording test...",
-        "duration": _state._test_duration,
-        "sample_rate": sr,
-    }
-
-
-def start_test_recording(
-    mic_id: str | None = None,
-    duration: float = 10.0,
-    filters: dict | None = None,
-) -> dict:
-    """Start a microphone test recording using the existing monitor stream."""
-    with _state._monitor_lock:
-        if _state._test_mode:
-            return {
-                "success": False,
-                "message": "Test already running",
-                "duration": duration,
-            }
-
-        # Keep-only-latest disk transport: a new test invalidates any
-        _purge_test_recordings()
-
-        # Ensure the monitor is running on the correct device
-        if not _state._monitor_active or _state._monitor_mic_id != mic_id:
-            # We must release the lock before calling start_monitoring
-            pass  # handled below the lock
-        else:
-            # Monitor is already active on the right device.
-            return _begin_test_locked(duration, filters)
-
-    # Monitor not running or on wrong device, start/restart it
-    from .monitoring import start_monitoring
-
-    mon_result = start_monitoring(mic_id=mic_id)
-    if not mon_result.get("success"):
-        return {
-            "success": False,
-            "message": mon_result.get("message", "Failed to start monitor"),
-            "duration": duration,
-        }
-
-    # Monitor is now running on the correct device.
-    with _state._monitor_lock:
-        if _state._test_mode:
-            return {
-                "success": False,
-                "message": "Test already running",
-                "duration": duration,
-            }
-        return _begin_test_locked(duration, filters)
 
 
 def stop_test_recording() -> dict:
@@ -679,98 +333,3 @@ def stop_test_recording() -> dict:
         "message": f"Recorded{format_duration(duration_ms / 1000)} of audio",
         "quality": quality,
     }
-
-
-def update_test_filters(filters_dict: dict) -> None:
-    """Update the active test recording's filter settings in real-time."""
-    with _state._monitor_lock:
-        if not _state._test_mode:
-            return
-        # Merge new settings into existing test filters so individual
-        _state._test_filters.update(filters_dict)
-        log.debug(
-            "[LEVEL-MON] Test filters updated in-flight: %s",
-            {k: v for k, v in _state._test_filters.items() if k.startswith("noise_filter_")},
-        )
-
-
-def cancel_test_recording() -> dict:
-    """Cancel an in-progress test recording without returning audio."""
-    # Cancel the auto-stop timer under ``_monitor_lock`` (mirrors
-    with _state._monitor_lock:
-        timer = _state._test_auto_stop_timer
-        if timer is not None:
-            timer.cancel()
-            _state._test_auto_stop_timer = None
-
-    was_active = _cancel_test_locked()
-
-    log.info("[LEVEL-MON] Test cancelled")
-    if not was_active:
-        return {"success": True, "message": "No test running"}
-    return {"success": True, "message": "Test cancelled"}
-
-
-def _do_auto_stop_test() -> None:
-    """Auto-stop callback fired by the threading.Timer."""
-    with _state._monitor_lock:
-        if not _state._test_mode:
-            return
-        _state._test_mode = False
-        _state._test_auto_stop_timer = None
-
-    log.info("[LEVEL-MON] Auto-stop: test ended")
-
-    # Notify the frontend
-    try:
-        from voice_typer.server import event_bus
-
-        event_bus.publish(
-            {
-                "type": "microphone_test_complete",
-                "data": {"duration": _state._test_duration},
-            },
-        )
-    except Exception:
-        # this is load-bearing, if the publish fails, the
-        log.warning(
-            "[LEVEL-MON] failed to publish microphone_test_complete event",
-            exc_info=True,
-        )
-
-    # G-PERF-RELIABILITY: do NOT clear chunks on auto-stop.
-
-
-def _cancel_test_locked() -> bool:
-    """Cancel test state under the lock.
-
-    Returns True if a test was actually active, False otherwise.
-    """
-    with _state._monitor_lock:
-        # Stop auto-stop timer if running (under the lock to close
-        timer = _state._test_auto_stop_timer
-        if timer is not None:
-            timer.cancel()
-            _state._test_auto_stop_timer = None
-
-        if (
-            not _state._test_mode
-            and not _state._test_chunks
-            and not _state._test_raw_chunks
-            and not _state._test_filtered_chunks
-        ):
-            return False
-        was_active = _state._test_mode
-        _state._test_mode = False
-        # .clear() preserves the bounded deque (and its maxlen).
-        _secure_clear_test_chunks(_state._test_raw_chunks, _state._test_filtered_chunks, _state._test_chunks)
-        _state._test_chunks.clear()
-        _state._test_raw_chunks.clear()
-        _state._test_filtered_chunks.clear()
-        _state._test_start_time = 0.0
-        _state._test_filters.clear()
-        _state._test_peak_history.clear()
-        _state._test_rms_history.clear()
-        _state._test_clip_count = 0
-        _state._test_silence_blocks = 0
-        return was_active
