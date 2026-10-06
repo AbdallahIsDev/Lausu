@@ -24,19 +24,22 @@ export function LastUpdatedIndicator({
 	return (
 		<div
 			className={cn(
-				"flex items-center text-xs text-muted-foreground",
+				"flex items-center gap-2 text-xs text-muted-foreground",
 				className,
 			)}
 			data-testid="last-updated-indicator"
 		>
-			{/* No visible text: the elapsed time is redundant next to the data
-			    it describes, and the label made this control read as a
-			    status line rather than the refresh action it is. The
-			    relative time is still announced to assistive tech (and
-			    still exposed in the title) so the freshness information is
-			    not lost, only de-emphasised visually.
-			    While a refresh is in flight the SAME icon spins in place
-			    (animate-spin on the unchanged glyph). Swapping in a
+			{/* The timestamp/label is the dynamic part, it lives inside its
+			    own polite live region so screen readers announce updates
+			    ("Last updated 5s ago" → "10s ago") without re-announcing
+			    the refresh button. The button stays OUTSIDE the live
+			    region (a button inside a live region would be announced
+			    twice). */}
+			<span aria-live="polite">
+				<span>{t("common.lastUpdatedWithValue", { value: agoLabel })}</span>
+			</span>
+			{/* While a refresh is in flight the SAME icon spins in place
+			    (animate-spin on the unchanged h-3.5 glyph). Swapping in a
 			    different element here (e.g. a border-2 Spinner at a
 			    different box size) reads as a size/color jump on every
 			    click; rotating the mounted icon keeps the box, stroke,
@@ -44,27 +47,19 @@ export function LastUpdatedIndicator({
 			    The button stays disabled while refreshing (muted +
 			    pointer-events-none per the Button base), and its
 			    aria-label/title are untouched. */}
-			<span aria-live="polite" className="sr-only">
-				{t("common.lastUpdatedWithValue", { value: agoLabel })}
-			</span>
-			{/* Same box + treatment as the adjacent share trigger
-			    (`variant="outline" size="icon"`), so the two controls in
-			    this cluster read as one row instead of two different
-			    sized boxes. */}
 			<Button
-				variant="outline"
-				size="icon"
+				variant="ghost"
+				size="icon-xs"
 				onClick={onRefresh}
 				disabled={refreshing}
 				aria-label={t("common.refreshAria")}
-				title={`${t("common.lastUpdatedWithValue", { value: agoLabel })} · ${t("common.refreshAria")}`}
-				className="text-muted-foreground hover:text-foreground"
+				title={t("common.refreshAria")}
 			>
 				<HugeiconsIcon
 					icon={RefreshIcon}
 					strokeWidth={1.625}
 					aria-hidden="true"
-					className={cn("h-4 w-4 shrink-0", refreshing && "animate-spin")}
+					className={cn("h-3.5 w-3.5", refreshing && "animate-spin")}
 				/>
 			</Button>
 		</div>

@@ -11,9 +11,6 @@
 // sections with no match are hidden; if nothing matches anywhere the
 // caller-supplied empty state renders instead.
 
-import { ArrowRight01Icon, Search01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { useMemo } from "react";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { formatHotkey } from "@/components/hotkey/hotkey-format";
 import {
@@ -27,9 +24,15 @@ import { cn } from "@/lib/utils";
 import { LANGUAGE_OPTIONS } from "@/lib/utils/languages";
 import { useGlobalSearch } from "@/stores/useGlobalSearch";
 import type { LausuConfig } from "@/types/config";
+import { ArrowRight01Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { useMemo } from "react";
 
 /** Current-value label for an audio filter-chain preset. */
-const AUDIO_PRESET_SUMMARY_KEYS: Record<LausuConfig["audio_preset"], string> = {
+const AUDIO_PRESET_SUMMARY_KEYS: Record<
+	LausuConfig["audio_preset"],
+	string
+> = {
 	auto: "settings.audioEnhancement.presetAuto",
 	studio: "settings.audioEnhancement.presetStudio",
 	noisy_room: "settings.audioEnhancement.presetNoisyRoom",
@@ -38,7 +41,8 @@ const AUDIO_PRESET_SUMMARY_KEYS: Record<LausuConfig["audio_preset"], string> = {
 };
 
 /** Current-value label for the color scheme. */
-const THEME_MODE_SUMMARY_KEYS: Record<LausuConfig["theme_mode"], string> = {
+const THEME_MODE_SUMMARY_KEYS: Record<LausuConfig["theme_mode"], string> =
+{
 	system: "settings.appearance.systemDefault",
 	light: "settings.appearance.light",
 	dark: "settings.appearance.dark",
@@ -56,9 +60,7 @@ function sectionSummary(
 			return t(
 				config.bubble_behavior === "always_visible"
 					? "settings.bubbleBehaviorAlwaysVisible"
-					: config.bubble_behavior === "hidden"
-						? "settings.bubbleBehaviorHidden"
-						: "settings.bubbleBehaviorShowOnRecord",
+					: "settings.bubbleBehaviorShowOnRecord",
 			);
 		case "settingsHotkeys":
 			return formatHotkey(config.hotkey);
@@ -73,12 +75,12 @@ function sectionSummary(
 		case "settingsAudio":
 			return t(
 				AUDIO_PRESET_SUMMARY_KEYS[config.audio_preset] ??
-					"settings.audioEnhancement.presetAuto",
+				"settings.audioEnhancement.presetAuto",
 			);
 		case "settingsAppearance":
 			return t(
 				THEME_MODE_SUMMARY_KEYS[config.theme_mode] ??
-					"settings.appearance.systemDefault",
+				"settings.appearance.systemDefault",
 			);
 		case "settingsPrivacy":
 			return null;
@@ -160,7 +162,7 @@ export function SettingsHub({ config, onNavigateSection }: SettingsHubProps) {
 			    SettingsSection card in the app (border + subtle bg + row
 			    dividers), rows as full-width buttons. overflow-hidden keeps
 			    the hover highlight inside the rounded corners. */}
-			<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle divide-y divide-border/8">
+			<div className="overflow-hidden rounded-lg border border-border/5 bg-surface-subtle divide-y divide-border/5">
 				{rows.map((row) => (
 					<button
 						key={row.def.page}

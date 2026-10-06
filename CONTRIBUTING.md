@@ -1,4 +1,4 @@
-﻿# Contributing to Lausu
+# Contributing to Lausu
 
 Thank you for your interest in improving Lausu, a premium offline
 background voice-to-text utility that lives in your system tray. This
@@ -11,15 +11,15 @@ changes that pass CI and respect the security model.
 > then `pytest tests/ -v` and `npm run test`.
 >
 > (`npm install` in `voice_typer/client/` auto-installs the husky git
-> hooks via the `prepare` script: see Â§4.3. Do NOT run
+> hooks via the `prepare` script: see §4.3. Do NOT run
 > `pre-commit install`; it writes to `.git/hooks/`, which git ignores
 > because husky sets `core.hooksPath = .husky/_/`. The pre-commit
 > framework is invoked via `pre-commit run` from inside husky's
 > `.husky/pre-commit` wrapper, not via its own git hook.)
 >
 > (`uv` is 10-100x faster than pip for cold installs and is the preferred
-> dev-environment setup. Plain `pip install -e ".[test,dev]"` still works â€”
-> see Â§2.)
+> dev-environment setup. Plain `pip install -e ".[test,dev]"` still works —
+> see §2.)
 
 ---
 
@@ -38,7 +38,7 @@ locally.
   constraint in `voice_typer/client/package.json`). The recommended way
   is via [nvm](https://github.com/nvm-sh/nvm) or
   [fnm](https://github.com/Schniz/fnm) so you can match CI exactly.
-- **Git** with LFS not required (we keep binary fixtures under 500 KB â€”
+- **Git** with LFS not required (we keep binary fixtures under 500 KB —
   see the `check-added-large-files` pre-commit hook).
 - **A working microphone** for end-to-end dictation tests. Headless
   unit tests mock audio capture via the `mock_heavy_imports` autouse
@@ -71,7 +71,7 @@ you already have installed.
 
 ```bash
 # 1. Clone
-git clone https://github.com/AbdallahIsDev/voice-typer.git
+git clone https://github.com/AbdallahIsDev/lausu.git
 cd lausu
 
 # 2. Install uv (one-time, any of):
@@ -91,7 +91,7 @@ source .venv/bin/activate          # macOS / Linux
 #    `uv sync --extra test --extra dev` would also work, but is
 #    currently blocked by an upstream `qwen-asr` release gap
 #    (only 0.0.6 exists on PyPI; the [qwen] extra requires >=0.1
-#    and uv's lockfile resolves all extras). See README Â§"Using uv"
+#    and uv's lockfile resolves all extras). See README §"Using uv"
 #    for the full backstory.
 uv pip install -e ".[test,dev]"
 #    Option B: pin to the hash-pinned locked set used by CI:
@@ -106,7 +106,7 @@ npm install
 
 # 6. Run the app in dev mode (Tauri host + Vite HMR + Python sidecar)
 #    Preferred: `npm run tauri:dev` (or `npm run dev`, same script)
-#    from voice_typer/client â€” starts Vite then `cargo tauri dev`
+#    from voice_typer/client — starts Vite then `cargo tauri dev`
 #    with VOICE_TYPER_SIDECAR_DEV so the backend runs as a live
 #    Python subprocess (no Nuitka rebuild).
 #    Standalone backend (optional, for transport debugging):
@@ -124,7 +124,7 @@ uv run --no-sync pytest tests/ -v
 
 ```bash
 # 1. Clone
-git clone https://github.com/AbdallahIsDev/voice-typer.git
+git clone https://github.com/AbdallahIsDev/lausu.git
 cd lausu
 
 # 2. Create a dedicated venv (matches the path the launcher expects
@@ -193,7 +193,7 @@ uv pip compile --generate-hashes --universal --python-version 3.10 pyproject.tom
 ```
 
 > **Always use `--universal`.** A single-platform regeneration (e.g. on a
-> Linux box without the flag) bakes Linux-only wheels into the lock â€”
+> Linux box without the flag) bakes Linux-only wheels into the lock —
 > the Windows-only and macOS-only wheels then have no Linux counterpart,
 > so the documented `uv pip install -e . -r requirements-lock.txt`
 > dev-loop fails entirely on the other platform at resolution time ("no
@@ -241,7 +241,7 @@ file in `.husky/`. There are currently two husky-managed hooks:
    (`pre-commit run --hook-stage pre-push`, ~seconds, only NEW typing
    errors). It deliberately runs NO pytest, the full suite is greened
    at the end of every task (AGENTS.md), so a push-time re-run would
-   only re-check an already-verified test state. See Â§7.2.1 for skip
+   only re-check an already-verified test state. See §7.2.1 for skip
    hooks in an emergency.
 
 The pre-commit framework (`.pre-commit-config.yaml`) provides the
@@ -283,7 +283,7 @@ run prepare` (which re-runs `husky` and re-sets `core.hooksPath`).
 The mypy hook was previously a `mirrors-mypy` repo entry with
 `additional_dependencies: [numpy, transformers, pydantic,
 sounddevice, pystray]`. Pre-commit framework spun up an isolated
-venv for mypy and installed those deps on first invocation â€” the
+venv for mypy and installed those deps on first invocation — the
 ML stack alone is ~2GB and 5-10 min to install. This made
 `pre-commit run mypy` unusable; developers universally
 `--no-verify`'d past it.
@@ -318,13 +318,13 @@ pre-commit run mypy --all-files   # requires project venv activated
 ### Tauri Development
 
 > **Note:** Tauri is the sole desktop host (predecessor removed 2026-09-17,
-> ADR-0020 Phase 5). See [README Â§ Runtime Architecture](README.md#runtime-architecture)
+> ADR-0020 Phase 5). See [README § Runtime Architecture](README.md#runtime-architecture)
 > and [ADR-0020](docs/adr/0020-desktop-runtime-migration-analysis.md).
 > Historical predecessor notes live under `docs/migration/`.
 
 The Tauri v2 + Python sidecar host lives in `src-tauri/`. The React renderer (`voice_typer/client/src/renderer/`) installs `window.python` / `window.bubble` / `window.window_` via `voice_typer/client/src/renderer/src/lib/tauri-bridge.ts` (Tauri's global `__TAURI__` API).
 
-#### Prerequisites (in addition to the common prereqs in Â§1)
+#### Prerequisites (in addition to the common prereqs in §1)
 
 - **Rust toolchain**: install via [rustup](https://rustup.rs/). The `src-tauri/rust-toolchain.toml` file pins the channel; `rustup` reads it automatically when you `cd src-tauri`.
 - **Tauri v2 system deps** (per-OS):
@@ -361,72 +361,85 @@ VOICE_TYPER_SIDECAR_DEV=1 cargo tauri dev
 cargo tauri build
 ```
 
-> **Headless dev containers:** `cargo tauri dev` and `cargo tauri build` both require a display server for the WebView. `cargo check` and `cargo clippy` do not: they are the recommended validation commands in CI and on headless dev machines. See [`docs/migration/tauri-sidecar-bridge.md`](docs/migration/tauri-sidecar-bridge.md) Â§ "What's NOT implemented this round" for the current host-validation status.
+> **Headless dev containers:** `cargo tauri dev` and `cargo tauri build` both require a display server for the WebView. `cargo check` and `cargo clippy` do not: they are the recommended validation commands in CI and on headless dev machines. See [`docs/migration/tauri-sidecar-bridge.md`](docs/migration/tauri-sidecar-bridge.md) § "What's NOT implemented this round" for the current host-validation status.
 
-#### Windows (MSYS2/mingw) GNU toolchain shim
+#### Windows (MSYS2/mingw) clippy workaround
 
-On Windows machines that build the Rust host with the MSYS2/mingw-w64 GCC
-toolchain (the `x86_64-pc-windows-gnu` target), two MSYS2/rustc defects break
-`cargo check` / `cargo build` / `cargo clippy`:
+On Windows machines that build the Rust host with the MSYS2/mingw-w64
+GCC toolchain (the `x86_64-pc-windows-gnu` target), `cargo clippy` can
+fail at the build-script **link** step with:
 
-1. **Absolute `@response` files.** When rustc's linker command line is long
-   (build scripts and proc-macro DLLs easily exceed the Windows command-line
-   limit) rustc passes the args via a response file and invokes
-   `gcc @C:\...\linker-arguments`. MSYS2 gcc does not expand absolute
-   `@`-files itself; it forwards the `@...` token to `ld`, which has no
-   response-file support -> `ld.exe: cannot find @...: Invalid argument`.
-2. **rustc deletes codegen artifacts mid-link.** rustc spawns the linker and
-   then asynchronously removes the per-crate temp dir and every `*.rcgu.o`.
-   With a slow gcc link the deletion wins the race, the link fails, and because
-   rustc does not wait for the linker it still exits 0 - so cargo marks the
-   crate built even though its DLL does not exist.
-
-A small C shim papers over both. Its **source is tracked in git**:
-
-| Path | Tracked? | Purpose |
-| --- | --- | --- |
-| `src-tauri/toolchain/linker_wrap.c` | **yes** | Source of truth. Portable: discovers the MSYS2 install at runtime (`MINGW_GCC` env override, then the usual install roots, then `PATH`), so nothing machine-specific is baked in. |
-| `scripts/build/ensure_gnu_linkchain.py` | **yes** | Compiles the shim and generates the cargo config. Idempotent; only recompiles when the source is newer than the binary. |
-| `src-tauri/.toolchain/linker-wrap.exe` | no (generated) | Compiled shim. |
-| `src-tauri/.cargo/config.toml` | no (generated) | Points cargo at the shim. The linker path is **absolute** on purpose: cargo forwards it to rustc as `-C linker`, which resolves a relative path against an unpredictable working directory. |
-
-**Everything generated is rebuildable with one command:**
-
-```bash
-python scripts/build/ensure_gnu_linkchain.py           # provision / repair
-python scripts/build/ensure_gnu_linkchain.py --check   # verify only, writes nothing
-python scripts/build/ensure_gnu_linkchain.py --force   # always recompile
+```
+gcc @C:\Users\<you>\...\target\debug\build\...\rustcXXXXXX\linker-arguments
+Invalid argument
 ```
 
-`npm run tauri:dev` already calls `--check` and re-provisions on failure
-(`tauri-dev.mjs` step 2c), so a deleted or AV-quarantined shim self-heals on the
-next dev launch instead of failing with a misleading
-`error: linker ... not found` followed by dozens of unrelated
-`could not compile <crate>` lines.
+**Why:** when a linker command line is long (clippy's build-script
+links easily exceed Windows' 32K command-line limit), rustc passes the
+linker arguments via a response file and invokes the linker as
+`gcc @C:\...\linker-arguments`. MSYS2 gcc's response-file parser
+rejects **backslash** paths in the `@arg` ("Invalid argument"; it also
+mangles `C:\Users` into `C:Users`). Forward-slash `@C:/...` paths are
+accepted (verified manually).
 
-> **Do not move the shim back into an untracked scratch directory.** Both
-> artifacts used to live only in gitignored paths with no regeneration step, so
-> a single deleted 300 KB file was an unrecoverable toolchain outage whose only
-> symptom looked like widespread source breakage.
-> `tests/tauri/test_gnu_linkchain_toolchain.py` pins the tracked-source and
-> no-dangling-config contracts.
+**Workaround (local-only: never commit):** the gitignored files under
+`src-tauri/` (see the `# Local clippy toolchain workaround (MSYS2
+response-file bug)` comment block in `.gitignore`) provide two pieces:
 
-Set `LW_DEBUG=1` for wrapper stderr diagnostics; the wrapper logs each
-invocation to `src-tauri/.toolchain/linker-wrap.log` (size-capped).
+1. **`src-tauri/.cargo/config.toml`**: pins the GNU-target linker and
+   archiver to the MSYS2 mingw tools so cargo invokes the right gcc:
 
-For a non-Windows or MSVC-equipped host none of this applies - the shim is
-Windows-only and the script exits 0 without writing anything.
+   ```toml
+   [target.x86_64-pc-windows-gnu]
+   linker = "x86_64-w64-mingw32-gcc.exe"
+   ar = "x86_64-w64-mingw32-gcc-ar.exe"
+   ```
+
+2. **`src-tauri/.cargo-tmp/linker_wrap.c`** (source) +
+   **`src-tauri/.cargo-tmp/linker-wrap.exe`** (built): a small C
+   wrapper that: (a) rewrites every `@...` argument to forward slashes
+   (`C:\Users\...` → `C:/Users/...`), (b) polls briefly for the
+   response file in case clippy-driver's temp-dir cleanup races the
+   child linker (~10 s max backoff), (c) prepends the MSYS2 bin dirs
+   to `PATH` and sets `GCC_EXEC_PREFIX` so gcc's subprograms (`cc1`,
+   `collect2`, `liblto_plugin`) resolve when spawned from cargo's
+   minimal environment, then (d) `exec`s the real
+   `x86_64-w64-mingw32-gcc.exe`. Set `LW_DEBUG=1` to enable stderr
+   diagnostics.
+
+**Rebuild the wrapper** (from `src-tauri/`, after any edit to
+`linker_wrap.c`):
+
+```bash
+x86_64-w64-mingw32-gcc.exe -O2 -o .cargo-tmp/linker-wrap.exe .cargo-tmp/linker_wrap.c
+```
+
+**Use the wrapper** when the raw `x86_64-w64-mingw32-gcc.exe` still
+trips on the response-file bug: point cargo at it with the standard
+target-linker env var (no config edit needed):
+
+```bash
+cd src-tauri
+CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=.cargo-tmp/linker-wrap.exe \
+  cargo clippy --all-targets -- -D warnings
+```
+
+(Or set `linker = ".cargo-tmp/linker-wrap.exe"` in
+`src-tauri/.cargo/config.toml` to make it the default for all cargo
+invocations on the GNU target.) These files are gitignored on purpose
+— the wrapper hardcodes this machine's MSYS2 install paths
+(`C:\msys64\...`), so it must never be committed or shipped.
 
 #### What's where
 
 | Path | Purpose |
 |---|---|
-| `src-tauri/src/main.rs` | The Rust host (~250 lines): spawns sidecar via `externalBin`, opens WS client, performs bearer-token auth, exposes a generic `dispatch` Tauri command, bridges server-initiated events to Tauri events, coalesces `bubble_level` 60Hzâ†’30Hz, runs supervisor with 500msâ†’1sâ†’2sâ†’4sâ†’8s backoff (cap 5 â†’ full-app relaunch via `AppHandle::restart()`). |
+| `src-tauri/src/main.rs` | The Rust host (~250 lines): spawns sidecar via `externalBin`, opens WS client, performs bearer-token auth, exposes a generic `dispatch` Tauri command, bridges server-initiated events to Tauri events, coalesces `bubble_level` 60Hz→30Hz, runs supervisor with 500ms→1s→2s→4s→8s backoff (cap 5 → full-app relaunch via `AppHandle::restart()`). |
 | `src-tauri/Cargo.toml` | Tauri v2 + plugins (`shell`, `notification`, `clipboard-manager`, `single-instance`, `dialog`) + `enigo` (keystroke injection) + `tokio-tungstenite` (WS client). |
-| `src-tauri/tauri.conf.json` | Per-arch `externalBin` (6 target triples) + `resources` (3 native hotkey binaries; the prewarm binaries were dropped with the prewarm retirement, master plan Â§6.2 P-1) + Tauri v2 capabilities. `withGlobalTauri: true` exposes `window.__TAURI__`. |
+| `src-tauri/tauri.conf.json` | Per-arch `externalBin` (6 target triples) + `resources` (3 native hotkey binaries; the prewarm binaries were dropped with the prewarm retirement, master plan §6.2 P-1) + Tauri v2 capabilities. `withGlobalTauri: true` exposes `window.__TAURI__`. |
 | `src-tauri/capabilities/main-runtime.json` + `bubble-runtime.json` | Least-privilege capability split (CR-5 / SEC-026): `main-runtime` grants the privileged main window scoped `shell:allow-spawn` per sidecar binary, `notification`, `clipboard-manager`, `single-instance`, `dialog`, and `core:tray:*`; `bubble-runtime` is minimal (`core:event:default` + `core:window:allow-start-dragging`) so a compromised bubble renderer cannot spawn, write clipboard, or touch the tray. (The legacy `migrate-runtime.json` file was split into these two scopes.) |
-| `voice_typer/client/src/renderer/src/lib/tauri-bridge.ts` | React â†” Tauri bridge. Installs `window.python` / `window.bubble` / `window.window_` using Tauri's global API. |
-| `voice_typer/server/sidecar_ws.py` | WebSocket server side of the bridge. Binds `127.0.0.1:0`, emits `{"event":"server_started","port":N}` to stdout, performs bearer-token auth handshake (ZR-56 reconciliation 2026-07-24: the implementation has always been a constant-time bearer-token literal match via `hmac.compare_digest`, not a keyed HMAC: historical "HMAC" wording has been reconciled across docs), dispatches WS frames via `IPCServer._dispatch` (reuses the 80-command registry unchanged: CR-18 reconciliation 2026-07-19; re-verified 2026-07-24 S4-CR-18; +1 2026-08-13 for `transcribe_offline` per master plan Â§7.4; âˆ’3 2026-08-14 for the prewarm retirements `get_prewarm_status` / `run_prewarm` / `open_prewarm_log` per master plan Â§6.2 P-1; +2 2026-08-14: `get_prewarm_status` / `open_prewarm_log` restored for the Settings â†’ About Cache Status card per plan Â§6.3 addendum, registered verbatim from 5a319872; +1 2026-08-14: `run_prewarm` restored (plan Â§6.3 addendum 2nd half, re-implemented: re-runs the worker's warm phase in-process via `prewarm.status.run_prewarm_now`, no deleted-subprocess spawn); +1 2026-08-14: `check_offline_pack_update` added by the auto-update feature, docs/auto-update-feature.md; +2 2026-08-16: `get_correction_usage` + `test_vocabulary_correction` added by the vocabulary usage-tracking + live-correction-test feature (ADR-0020 Â§16 addendum 2026-08-16); +3 2026-09-23: `media_transcribe_start` / `media_transcribe_cancel` / `media_transcribe_status` added by ADR-0023 universal media-to-text (local files first, URLs Phase 2); see `_HOST_ONLY_COMMANDS` in `tests/test_security_doc_command_count.py` for the +2 host-only delta), handles `{"type":"shutdown"}` cooperative shutdown. |
+| `voice_typer/client/src/renderer/src/lib/tauri-bridge.ts` | React ↔ Tauri bridge. Installs `window.python` / `window.bubble` / `window.window_` using Tauri's global API. |
+| `voice_typer/server/sidecar_ws.py` | WebSocket server side of the bridge. Binds `127.0.0.1:0`, emits `{"event":"server_started","port":N}` to stdout, performs bearer-token auth handshake (ZR-56 reconciliation 2026-07-24: the implementation has always been a constant-time bearer-token literal match via `hmac.compare_digest`, not a keyed HMAC: historical "HMAC" wording has been reconciled across docs), dispatches WS frames via `IPCServer._dispatch` (reuses the 79-command registry unchanged: CR-18 reconciliation 2026-07-19; re-verified 2026-07-24 S4-CR-18; +1 2026-08-13 for `transcribe_offline` per master plan §7.4; −3 2026-08-14 for the prewarm retirements `get_prewarm_status` / `run_prewarm` / `open_prewarm_log` per master plan §6.2 P-1; +2 2026-08-14: `get_prewarm_status` / `open_prewarm_log` restored for the Settings → About Cache Status card per plan §6.3 addendum, registered verbatim from 5a319872; +1 2026-08-14: `run_prewarm` restored (plan §6.3 addendum 2nd half, re-implemented: re-runs the worker's warm phase in-process via `prewarm.status.run_prewarm_now`, no deleted-subprocess spawn); +1 2026-08-14: `check_offline_pack_update` added by the auto-update feature, docs/auto-update-feature.md; +2 2026-08-16: `get_correction_usage` + `test_vocabulary_correction` added by the vocabulary usage-tracking + live-correction-test feature (ADR-0020 §16 addendum 2026-08-16); +3 2026-09-23: `media_transcribe_start` / `media_transcribe_cancel` / `media_transcribe_status` added by ADR-0023 universal media-to-text (local files first, URLs Phase 2); see `_HOST_ONLY_COMMANDS` in `tests/test_security_doc_command_count.py` for the +2 host-only delta), handles `{"type":"shutdown"}` cooperative shutdown. |
 | `voice_typer/server/ipc_server.py` | `--ws` CLI flag + `TAURI_SIDECAR=1` env gate. Under `TAURI_SIDECAR=1`: heartbeat thread is NOT started; Win32 single-instance mutex is NOT acquired. |
 
 #### Cutover status
@@ -446,79 +459,79 @@ Tauri is the sole desktop host. Historical migration notes:
 
 ```
 lausu/
-â”œâ”€â”€ voice_typer/
-â”‚   â”œâ”€â”€ server/                       # Python backend (the "real" app)
-â”‚   â”‚   â”œâ”€â”€ ipc_server.py             # TCP JSON-lines server, SEC-018 token auth
-â”‚   â”‚   â”œâ”€â”€ app.py                    # LausuApp, orchestrator
-â”‚   â”‚   â”œâ”€â”€ config/                 # SEC-002 allowlist, SEC-003 redaction (package: __init__.py + loader.py + sanitization.py + coercion.py)
-â”‚   â”‚   â”œâ”€â”€ security.py               # token / URL / file-perm helpers
-â”‚   â”‚   â”œâ”€â”€ tray.py / tray_menu.py    # pystray tray icon + menu
-â”‚   â”‚   â”œâ”€â”€ recording/                # PortAudio capture â†’ deque (package; see docs/rw04-recording-decomposition.md)
-â”‚   â”‚   â”œâ”€â”€ transcription.py          # ASR dispatch (whisper/qwen/parakeet)
-â”‚   â”‚   â”œâ”€â”€ text_cleanup.py           # dedup, misspellings, capitalization
-â”‚   â”‚   â”œâ”€â”€ vocabulary.py             # user corrections (single source)
-â”‚   â”‚   â”œâ”€â”€ templates.py              # text templates / snippets
-â”‚   â”‚   â”œâ”€â”€ history_db.py             # SQLite WAL, SEC-007 0o600 perms
-â”‚   â”‚   â”œâ”€â”€ crash_recovery.py         # RELIABILITY-005 async flush
-â”‚   â”‚   â”œâ”€â”€ cloud_engines.py          # RELIABILITY-004 URL allowlist
-â”‚   â”‚   â”œâ”€â”€ llm_polish.py             # PRIVACY-001 consent gate
-â”‚   â”‚   â”œâ”€â”€ audio_filters/            # ADR 0009, RNNoise, gate, EQ, â€¦
-â”‚   â”‚   â”œâ”€â”€ native/                   # C/Swift key listeners per OS
-â”‚   â”‚   â””â”€â”€ ...
-â”‚   â”‚
-â”‚   â””â”€â”€ client/                       # Tauri + React frontend
-â”‚       â”œâ”€â”€ src/
-â”‚       â”‚   â””â”€â”€ renderer/src/
-â”‚       â”‚       â”œâ”€â”€ App.tsx           # React root, routing
-â”‚       â”‚       â”œâ”€â”€ pages/            # Home, Settings, History, Models, â€¦
-â”‚       â”‚       â”œâ”€â”€ components/       # Sidebar, StatCards, ThemeSwitch, â€¦
-â”‚       â”‚       â”œâ”€â”€ hooks/            # usePython, useSnackbar, useStatsShare
-â”‚       â”‚       â”œâ”€â”€ lib/tauri-bridge.ts  # window.python / bubble / window_ via __TAURI__
-â”‚       â”‚       â””â”€â”€ types/            # ipc.ts, config.ts, stats.ts
-â”‚       â”œâ”€â”€ package.json              # scripts: dev / tauri:dev, build, test, typecheck
-â”‚       â”œâ”€â”€ biome.json                # formatter: tabs + double quotes
-â”‚       â””â”€â”€ vite.tauri.config.ts
-â”‚
-â”œâ”€â”€ src-tauri/                        # Rust Tauri host (sole desktop shell)
-â”‚   â”œâ”€â”€ src/main.rs                   # wiring-only host (C-ARCH-1)
-â”‚   â”œâ”€â”€ tauri.conf.json               # externalBin + resources + capabilities
-â”‚   â””â”€â”€ capabilities/                 # main-runtime + bubble-runtime scopes
-â”‚
-â”œâ”€â”€ tests/                            # pytest suite (6000+ tests; see `pytest --collect-only -q | tail -1` for the live count)
-â”‚   â”œâ”€â”€ conftest.py                   # mock_heavy_imports autouse fixture (session + per-test split, see below)
-â”‚   â”œâ”€â”€ fixtures/                     # WAV files + ipc_test_helpers for audio tests
-â”‚   â”œâ”€â”€ manual/                       # scripts you run by hand (cublas, etc.)
-â”‚   â”œâ”€â”€ <domain>/                     # domain subpackages, one package per feature area
-â”‚   â”‚   # e.g. vocabulary/, templates/, onboarding/, keyring/, microphones/,
-â”‚   â”‚   # config_side_effects/, history/, models_menu/, model_download/,
-â”‚   â”‚   # phrase_patterns/, recording/, hotkeys/, handlers/, service/, server/,
-â”‚   â”‚   # app/, shutdown/, clipboard/, security/, regressions/, tauri/
-â”‚   â””â”€â”€ test_*.py                     # top-level tests for cross-cutting concerns
-â”‚       # S2-CR-62: tests/mutmut_config.py was removed; mutmut now reads
-â”‚       # its config from the [tool.mutmut] table in pyproject.toml.
-â”‚
-â”œâ”€â”€ docs/
-â”‚   â”œâ”€â”€ ARCHITECTURE.md               # the big picture (READ THIS)
-â”‚   â”œâ”€â”€ ipc-reference.md              # IPC message reference (auto-generated from _COMMAND_REGISTRY + allowed_commands())
-â”‚   â”œâ”€â”€ python-api.md                 # Python class API reference (renamed from API.md)
-â”‚   â”œâ”€â”€ PLATFORM_STATUS.md            # per-OS support matrix
-â”‚   â”œâ”€â”€ home-directory.md             # ~/.lausu/ layout
-â”‚   â””â”€â”€ adr/                          # Architecture Decision Records
-â”‚       â”œâ”€â”€ README.md                 # ADR index, read this first
-â”‚       â”œâ”€â”€ template.md               # boilerplate scaffold for new ADRs
-â”‚       â””â”€â”€ 0000-0020                 # one file per decision (see index, ADR-0020 is the cross-platform Tauri migration ADR)
-â”‚
-â”œâ”€â”€ scripts/
-â”‚   â”œâ”€â”€ build/                        # PyInstaller spec, icon generators
-â”‚   â””â”€â”€ linux/                        # udev rules, polkit, postinst
-â”‚
-â”œâ”€â”€ bench/                            # startup + transcription benchmarks
-â”œâ”€â”€ pyproject.toml                    # project metadata, ruff, mypy, pytest, ALL deps
-â”œâ”€â”€ requirements-lock.txt             # hash-pinned exact versions (--require-hashes safe)
-â”œâ”€â”€ .pre-commit-config.yaml           # ruff + mypy + biome + sanity hooks
-â”œâ”€â”€ README.md
-â”œâ”€â”€ CONTRIBUTING.md                   # â† you are here
-â””â”€â”€ SECURITY.md
+├── voice_typer/
+│   ├── server/                       # Python backend (the "real" app)
+│   │   ├── ipc_server.py             # TCP JSON-lines server, SEC-018 token auth
+│   │   ├── app.py                    # LausuApp, orchestrator
+│   │   ├── config/                 # SEC-002 allowlist, SEC-003 redaction (package: __init__.py + loader.py + sanitization.py + coercion.py)
+│   │   ├── security.py               # token / URL / file-perm helpers
+│   │   ├── tray.py / tray_menu.py    # pystray tray icon + menu
+│   │   ├── recording/                # PortAudio capture → deque (package; see docs/rw04-recording-decomposition.md)
+│   │   ├── transcription.py          # ASR dispatch (whisper/qwen/parakeet)
+│   │   ├── text_cleanup.py           # dedup, misspellings, capitalization
+│   │   ├── vocabulary.py             # user corrections (single source)
+│   │   ├── templates.py              # text templates / snippets
+│   │   ├── history_db.py             # SQLite WAL, SEC-007 0o600 perms
+│   │   ├── crash_recovery.py         # RELIABILITY-005 async flush
+│   │   ├── cloud_engines.py          # RELIABILITY-004 URL allowlist
+│   │   ├── llm_polish.py             # PRIVACY-001 consent gate
+│   │   ├── audio_filters/            # ADR 0009, RNNoise, gate, EQ, …
+│   │   ├── native/                   # C/Swift key listeners per OS
+│   │   └── ...
+│   │
+│   └── client/                       # Tauri + React frontend
+│       ├── src/
+│       │   └── renderer/src/
+│       │       ├── App.tsx           # React root, routing
+│       │       ├── pages/            # Home, Settings, History, Models, …
+│       │       ├── components/       # Sidebar, StatCards, ThemeSwitch, …
+│       │       ├── hooks/            # usePython, useSnackbar, useStatsShare
+│       │       ├── lib/tauri-bridge.ts  # window.python / bubble / window_ via __TAURI__
+│       │       └── types/            # ipc.ts, config.ts, stats.ts
+│       ├── package.json              # scripts: dev / tauri:dev, build, test, typecheck
+│       ├── biome.json                # formatter: tabs + double quotes
+│       └── vite.tauri.config.ts
+│
+├── src-tauri/                        # Rust Tauri host (sole desktop shell)
+│   ├── src/main.rs                   # wiring-only host (C-ARCH-1)
+│   ├── tauri.conf.json               # externalBin + resources + capabilities
+│   └── capabilities/                 # main-runtime + bubble-runtime scopes
+│
+├── tests/                            # pytest suite (6000+ tests; see `pytest --collect-only -q | tail -1` for the live count)
+│   ├── conftest.py                   # mock_heavy_imports autouse fixture (session + per-test split, see below)
+│   ├── fixtures/                     # WAV files + ipc_test_helpers for audio tests
+│   ├── manual/                       # scripts you run by hand (cublas, etc.)
+│   ├── <domain>/                     # domain subpackages, one package per feature area
+│   │   # e.g. vocabulary/, templates/, onboarding/, keyring/, microphones/,
+│   │   # config_side_effects/, history/, models_menu/, model_download/,
+│   │   # phrase_patterns/, recording/, hotkeys/, handlers/, service/, server/,
+│   │   # app/, shutdown/, clipboard/, security/, regressions/, tauri/
+│   └── test_*.py                     # top-level tests for cross-cutting concerns
+│       # S2-CR-62: tests/mutmut_config.py was removed; mutmut now reads
+│       # its config from the [tool.mutmut] table in pyproject.toml.
+│
+├── docs/
+│   ├── ARCHITECTURE.md               # the big picture (READ THIS)
+│   ├── ipc-reference.md              # IPC message reference (auto-generated from _COMMAND_REGISTRY + allowed_commands())
+│   ├── python-api.md                 # Python class API reference (renamed from API.md)
+│   ├── PLATFORM_STATUS.md            # per-OS support matrix
+│   ├── home-directory.md             # ~/.lausu/ layout
+│   └── adr/                          # Architecture Decision Records
+│       ├── README.md                 # ADR index, read this first
+│       ├── template.md               # boilerplate scaffold for new ADRs
+│       └── 0000-0020                 # one file per decision (see index, ADR-0020 is the cross-platform Tauri migration ADR)
+│
+├── scripts/
+│   ├── build/                        # PyInstaller spec, icon generators
+│   └── linux/                        # udev rules, polkit, postinst
+│
+├── bench/                            # startup + transcription benchmarks
+├── pyproject.toml                    # project metadata, ruff, mypy, pytest, ALL deps
+├── requirements-lock.txt             # hash-pinned exact versions (--require-hashes safe)
+├── .pre-commit-config.yaml           # ruff + mypy + biome + sanity hooks
+├── README.md
+├── CONTRIBUTING.md                   # ← you are here
+└── SECURITY.md
 ```
 
 ---
@@ -652,7 +665,7 @@ mutmut run --use-coverage     # restricts to lines covered by tests
 ```
 
 **Configuration source of truth:** the `[tool.mutmut]` table in
-`pyproject.toml` (search for `TEST-010`). Modern mutmut (â‰¥2.x) reads
+`pyproject.toml` (search for `TEST-010`). Modern mutmut (≥2.x) reads
 its config from `pyproject.toml`, not from a Python shim, the
 legacy `tests/mutmut_config.py` file was deleted as part of the
 S2-CR-62 config-drift cleanup and should NOT be recreated.
@@ -722,7 +735,7 @@ subscription. See `docs/ARCHITECTURE.md` for the full diagram and
   `python scripts/mypy_ratchet_check.py` to check that your change
   adds no NEW mypy errors (the script compares counts against
   `mypy-baseline.json`; raw `python -m mypy voice_typer/server/`
-  surfaces ~700 baselined typing-debt errors that are not fixed yet â€”
+  surfaces ~700 baselined typing-debt errors that are not fixed yet —
   see `docs/mypy-ratchet.md`). The pre-commit hook already scopes mypy
   to `^voice_typer/server/` and runs with the project's ``[tool.mypy]``
   config (no override flags: see CR-183 fix in
@@ -757,7 +770,7 @@ subscription. See `docs/ARCHITECTURE.md` for the full diagram and
 - **Formatter:** ruff (line-length 120, target `py310`). Run
   `ruff check --fix` and `ruff format` before committing; the
   pre-commit hook does this automatically.
-- **Mocking convention (TEST-033):** import mock objects directly â€”
+- **Mocking convention (TEST-033):** import mock objects directly —
   `from unittest.mock import MagicMock, patch` Never
   `from unittest import mock` followed by `mock.MagicMock(...)`.
   Prefer `pytest`'s `monkeypatch` fixture for attribute/item
@@ -766,7 +779,7 @@ subscription. See `docs/ARCHITECTURE.md` for the full diagram and
 
 ### 6.2 TypeScript / React
 
-- **Formatter:** Biome (`voice_typer/client/biome.json`) â€”
+- **Formatter:** Biome (`voice_typer/client/biome.json`) —
   `indentStyle: "tab"`, `quoteStyle: "double"`. Run
   `npx biome check --write` to auto-fix. The pre-commit hook runs
   `npx biome check` (no `--write`) and fails if files are dirty.
@@ -780,8 +793,8 @@ subscription. See `docs/ARCHITECTURE.md` for the full diagram and
   --noEmit`; `npm run typecheck:root` runs `tsc -b --noEmit`; CI runs
   `npm run typecheck:ci` (`tsc -b --force`, cache-busting). Use
   `npm run typecheck:web` to scope to the renderer only.
-- **Path aliases:** `#ui/*` â†’ `./src/renderer/src/components/ui/*`,
-  `#utils` â†’ `./src/renderer/src/lib/utils.ts` (declared in
+- **Path aliases:** `#ui/*` → `./src/renderer/src/components/ui/*`,
+  `#utils` → `./src/renderer/src/lib/utils.ts` (declared in
   `package.json#imports` and mirrored in the tsconfigs). Prefer these
   over relative paths that climb above two levels.
 - **React 19 + shadcn/ui**: components live under
@@ -798,7 +811,7 @@ subscription. See `docs/ARCHITECTURE.md` for the full diagram and
 ### 6.3 Security: non-negotiable
 
 The `SEC-*` tags in the codebase are load-bearing controls documented
-in `docs/ARCHITECTURE.md` Â§ "Security boundaries". **Never bypass a
+in `docs/ARCHITECTURE.md` § "Security boundaries". **Never bypass a
 SEC-* control** without an ADR and an explicit code review. In
 particular:
 
@@ -823,15 +836,15 @@ write a draft ADR (`docs/adr/template.md`) before changing code.
 Lausu's IPC surface is a **two-layer allowlist**: the Python backend
 only dispatches commands it knows about, and the Tauri Rust host only
 *forwards* commands the renderer is allowed to send. Docs must reflect
-the resulting counts in lockstep. A new command is useless â€” or, worse,
-silently blocked â€” unless **all 10 touchpoints** below are updated
+the resulting counts in lockstep. A new command is useless — or, worse,
+silently blocked — unless **all 10 touchpoints** below are updated
 together.
 
 #### The 10 touchpoints (in update order)
 
 1. **Python `_COMMAND_REGISTRY`**, add `"<cmd>": "_handle_<cmd>"` to the
    `_COMMAND_REGISTRY` dict in `voice_typer/server/ipc/registry.py`. This is
-   what actually routes the inbound `{"type": "â€¦"}` message to a handler.
+   what actually routes the inbound `{"type": "…"}` message to a handler.
 2. **Python handler method**: implement `def _handle_<cmd>(self, data, resp)`
    in `voice_typer/server/handlers/<domain>_handlers.py` (preferred) or
    directly on `IPCServer` in `ipc_server.py` (rare: only for IPC-server-
@@ -851,7 +864,7 @@ together.
    (Skip if the renderer uses an untyped `call<T>`. But typed is preferred.)
 6. **TS renderer call site**, add a `python.call("<cmd>", ...)` invocation
    in the renderer code path that triggers the command. (Skip for host-only
-   commands like `tray_click` / `shutdown` â€” they originate from the Rust
+   commands like `tray_click` / `shutdown` — they originate from the Rust
    host, never from the renderer.)
 7. **`SECURITY.md` doc count**: update the `only the **N** commands listed
    in allowed_commands()` count (this is the renderer-reachable / Rust
@@ -914,13 +927,13 @@ Adding a new **ASR engine** has its own touchpoint set: see
 > update each missing touchpoint.
 
 > **Regression guards:**
-> - `tests/test_ipc_command_parity.py` â€” bidirectional parity between
+> - `tests/test_ipc_command_parity.py` — bidirectional parity between
 >   `_COMMAND_REGISTRY` and Rust `allowed_commands()` (modulo the
 >   host-dispatched delta `heartbeat` / `relaunch_ack` / `shutdown` /
 >   `tray_click`) + `SECURITY.md` documented count.
-> - `tests/test_security_doc_command_count.py` â€” SECURITY.md count â†”
+> - `tests/test_security_doc_command_count.py` — SECURITY.md count ↔
 >   Rust allowlist size + registry/host-delta count invariant.
-> - `scripts/check_new_command.sh` â€” pre-PR grep checker for all 10
+> - `scripts/check_new_command.sh` — pre-PR grep checker for all 10
 >   touchpoints (including the doc-count references the tests don't
 >   enforce).
 
@@ -956,7 +969,7 @@ completeness suite):**
    asserts every non-English file defines the *same dot-key set* as
    `en.json`. A key added only to English silently falls back for the
    other 7 locales.
-3. **Every non-English value must be a genuine translation** (C-I18N-2) â€”
+3. **Every non-English value must be a genuine translation** (C-I18N-2) —
    never paste the English text into `ar.json` / `de.json` / etc. If you
    cannot translate reliably, record the key as pending in `worklog.md`
    rather than shipping verbatim English.
@@ -964,11 +977,11 @@ completeness suite):**
    name, in locale values (C-BRAND-1). The runtime substitutes
    `APP_NAME` via `_withAppName` at registration time.
 5. **Pluralize with `tChoice` + `_category` suffixes.** `tChoice("key", n)`
-   resolves `key_{category}` â†’ `key_other` â†’ bare `key`, where `category`
+   resolves `key_{category}` → `key_other` → bare `key`, where `category`
    comes from `Intl.PluralRules` (`zero`/`one`/`two`/`few`/`many`/`other`).
    Each candidate is looked up through the same locale chain as `t()`:
-   current locale â†’ primary subtag (regional locales only, e.g. `zh-CN` â†’
-   `zh`) â†’ `en`. Keeping the two chains identical is what makes a future
+   current locale → primary subtag (regional locales only, e.g. `zh-CN` →
+   `zh`) → `en`. Keeping the two chains identical is what makes a future
    regional locale resolve plurals consistently; they are pinned together
    by `i18n/__tests__/translate-fallback.test.ts`.
    Add the category-suffixed keys your locale needs (e.g. `_one`/`_other`
@@ -986,7 +999,7 @@ completeness suite):**
 `locale.ts` (type + `SUPPORTED_LOCALES`), `store.ts` (translation state +
 `registerTranslations`/`setLocale`/`getLocale`), `translate.ts` (`t` +
 `tChoice` + caches), `hooks.ts` (`useT`/`useTChoice`/`subscribeLocale`),
-`rtl.ts`, `push.ts` (locale â†’ main process / Python backend),
+`rtl.ts`, `push.ts` (locale → main process / Python backend),
 `index.ts` (public surface + `initI18n()`).
 
 ### 6.6 Renderer page & component conventions
@@ -1027,7 +1040,7 @@ hand-rolling the React tree in component tests. Sibling files:
   (WCAG 2.4.7). Use full-opacity `focus-visible:ring-ring` on interactive
   primitives and the pointer-modality pattern from `SearchField` for
   click-vs-keyboard suppression.
-- **Localize, don't hardcode**: see Â§6.5. New pages/components consume
+- **Localize, don't hardcode**: see §6.5. New pages/components consume
   `t()`/`tChoice()` and add every key to all 8 locales.
 - **RTL-aware layout.** Prefer logical properties so Arabic mirrors
   correctly.
@@ -1063,7 +1076,7 @@ hand-rolling the React tree in component tests. Sibling files:
   the default suite fast: do not use `slow` to paper over fixable
   slowness (sleep-polling, oversized fixtures).
 - **Parallelism, `xdist_group` markers:** `make test` and CI run
-  pytest with `-n auto --dist=loadgroup` (pytest-xdist; see C-TEST-3 â€”
+  pytest with `-n auto --dist=loadgroup` (pytest-xdist; see C-TEST-3 —
   do not remove). Under `loadgroup`, every test whose module carries a
   module-level marker
 
@@ -1080,7 +1093,7 @@ hand-rolling the React tree in component tests. Sibling files:
   --dist=loadgroup` into `pyproject.toml` `addopts` (that would force
   parallelism on single-test debugging runs); the flags stay
   CLI-level in the `Makefile` and CI only. **When to add a marker:**
-  two or more test files that mutate the same process-wide state â€”
+  two or more test files that mutate the same process-wide state —
   class-attribute singletons, module-level dicts,
   `functools.lru_cache` on module functions. Existing groups (reuse
   these names; don't invent near-duplicates):
@@ -1117,7 +1130,7 @@ hand-rolling the React tree in component tests. Sibling files:
   in `pyproject.toml`) for `text_cleanup.py`, `config/__init__.py`, `tray.py`,
   and `tray_menu.py`. Run it locally before merging changes to those
   modules, `mutmut run` then `mutmut results`. **Local-only, see
-  Â§4.5** for why it's not in CI and the exact commands.
+  §4.5** for why it's not in CI and the exact commands.
 - **WAV fixtures:** `tests/fixtures/` ships `silence.wav`,
   `tone.wav`, `noise.wav`, and `test_440hz_1s_16k.wav` with a
   `metadata.json`. Regenerate via `tests/fixtures/generate_fixture.py`
@@ -1178,7 +1191,7 @@ hand-rolling the React tree in component tests. Sibling files:
   floor there is 70 % lines / functions / statements and 60 % branches
   (raise it as the renderer suite grows; lowering it needs
   justification). The Python gate is separate and stricter (78 %, see
-  Â§4.1).
+  §4.1).
 
 #### 7.2.1 Skipping pre-commit / pre-push hooks (XS-59)
 
@@ -1420,7 +1433,7 @@ A maintainer will merge your PR once:
 
 ### 8.4 Reporting bugs
 
-Use [GitHub Issues](https://github.com/AbdallahIsDev/voice-typer/issues)
+Use [GitHub Issues](https://github.com/AbdallahIsDev/lausu/issues)
 and include:
 
 - Lausu version (`python -m voice_typer --version` or the
@@ -1428,19 +1441,19 @@ and include:
 - OS and Python version (`python --version`).
 - Steps to reproduce.
 - Expected vs. actual behavior.
-- Log file: see the **About â†’ Diagnostics** page in the app, or
+- Log file: see the **About → Diagnostics** page in the app, or
   `<DATA_DIR>/lausu.log` on disk (Python backend log; the Tauri
   Rust host log is at `<DATA_DIR>/logs/lausu.log`). The data
   directory resolves per-platform: `%APPDATA%\lausu` on Windows,
   `~/Library/Application Support/lausu` on macOS,
   `$XDG_DATA_HOME/lausu` on Linux, see `docs/home-directory.md`
-  Â§"Log File Paths" for the canonical per-platform table.
+  §"Log File Paths" for the canonical per-platform table.
 
 ---
 
 ## Questions?
 
 Open an issue with the `question` label on the
-[GitHub issue tracker](https://github.com/AbdallahIsDev/voice-typer/issues).
+[GitHub issue tracker](https://github.com/AbdallahIsDev/lausu/issues).
 For security-sensitive reports, see `SECURITY.md` Do not open a
 public issue for vulnerabilities.

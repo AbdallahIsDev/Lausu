@@ -43,7 +43,7 @@ explanation in the cited section.
 3.  winget install --id Microsoft.VisualStudio.2022.BuildTools `
         --override "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
 4.  rustup default stable-x86_64-pc-windows-msvc
-5.  git clone https://github.com/AbdallahIsDev/voice-typer.git ; cd lausu
+5.  git clone https://github.com/AbdallahIsDev/lausu.git ; cd lausu
 6.  pip install uv ; uv venv ; .venv\Scripts\activate
 7.  uv pip install -e ".[dev,test]" nuitka==2.8.10 zstandard ordered-set
 8.  cd voice_typer\client ; npm install ; cd ..\..

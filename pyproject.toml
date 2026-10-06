@@ -100,13 +100,10 @@ dependencies = [
     # `padtype='even'` fix we use in noise_suppressor.py.
     "scipy>=1.10,<2.0",
     # ADR-0023: PyAV is imported directly by media_ingest/decoder.py (local
-    # + remote HTTPS decode to 16 kHz mono PCM). It was previously only a
+    # + remote HTTP(S) decode to 16 kHz mono PCM). It was previously only a
     # transitive dep of faster-whisper; the direct import must be declared.
     # The <19 cap guards against PyAV's FFmpeg-major upgrade waves.
-    # <18: av 17/18 Cython .py shims trip Nuitka's optimizer
-    # (assert micro_passes == 0 on av.video.stream); the build scripts
-    # strip those shims pre-freeze (each has a .pyd/.so twin).
-    "av>=17,<18",
+    "av>=17,<19",
     # ADR-0023: yt-dlp is the URL resolver/downloader for media ingest
     # (~1000 sites). The >=2026.8.19 floor is the current release at
     # adoption time; post-2025.11.12 YouTube support REQUIRES an external
@@ -331,17 +328,13 @@ dependencies = [
 
 [project.urls]
 # standard project URLs for PyPI / GitHub sidebar.
-Homepage = "https://github.com/AbdallahIsDev/voice-typer"
-Repository = "https://github.com/AbdallahIsDev/voice-typer"
-Issues = "https://github.com/AbdallahIsDev/voice-typer/issues"
-Changelog = "https://github.com/AbdallahIsDev/voice-typer/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/AbdallahIsDev/lausu"
+Repository = "https://github.com/AbdallahIsDev/lausu"
+Issues = "https://github.com/AbdallahIsDev/lausu/issues"
+Changelog = "https://github.com/AbdallahIsDev/lausu/blob/main/CHANGELOG.md"
 
 [project.scripts]
-# Production desktop entry (`lausu` starts the app; `lausu --dev` is the
-# explicit development environment). Do not point this at ipc_server:main —
-# that starts a bare backend without the UI.
-lausu = "voice_typer.server.cli:main"
-lausu-server = "voice_typer.server.ipc_server:main"
+lausu = "voice_typer.server.ipc_server:main"
 
 [project.optional-dependencies]
 # include modern test deps so CI is brittle-free.
@@ -381,10 +374,11 @@ test = [
     # passes ``-n auto`` explicitly (see .github/workflows/build.yml).
     "pytest-xdist>=3.5,<4",
 ]
-# Build extras for packaging tooling. PyInstaller fallback (scripts/build/
-# lausu.spec) was deleted with the dead prewarm packaging path; Nuitka is
-# the only freeze tool (ADR-0020 §4).
+# PyInstaller spec file lives at scripts/build/lausu.spec
+# but the tool itself wasn't declared. Make it an optional extra so
+# `pip install .[build]` produces a buildable environment.
 build = [
+    "pyinstaller>=6.0,<7",
     "setuptools>=68.0,<84",
     # Explicit floor so `pip install .[build]` never resolves an
     # unbounded `wheel` (which has no upper bound anyway, but a floor

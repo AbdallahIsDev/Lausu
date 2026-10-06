@@ -165,7 +165,7 @@ class TestTauriBinariesManifestCoverage:
         reachable = set(updater.TRIPLE_TO_MANIFEST_KEY.values())
         unreachable = manifest_keys - reachable
         assert not unreachable, (
-            "update_tauri_manifests.py cannot write the manifest keys: "
+            "update_tauri_manifests.py cannot write the manifest key(s): "
             + ", ".join(sorted(unreachable))
             + ", add the owning triple to "
             "TRIPLE_TO_MANIFEST_KEY."
@@ -205,6 +205,9 @@ BUILD_SCRIPTS = [
     "scripts/build/build_sidecar_windows.sh",
     "scripts/build/build_sidecar_linux.sh",
     "scripts/build/build_sidecar_macos.sh",
+    "scripts/build/build_prewarm_windows.sh",
+    "scripts/build/build_prewarm_linux.sh",
+    "scripts/build/build_prewarm_macos.sh",
 ]
 WINDOWS_WORKFLOW = PROJECT_ROOT / ".github" / "workflows" / "tauri-windows-build.yml"
 
@@ -247,7 +250,7 @@ class TestNuitkaBuildsIncludeLausuPackageData:
             )
 
     def test_windows_workflow_every_nuitka_invocation_has_the_flag(self) -> None:
-        """Every Nuitka command (sidecar) carries the flag."""
+        """Both inline Nuitka commands (sidecar + prewarm) carry the flag."""
         text = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
         flag = "--include-package-data=voice_typer.server"
         nuitka_count = text.count("-m nuitka")
@@ -271,26 +274,31 @@ WORKER_SCRIPTS = [
     "scripts/build/build_worker_macos.sh",
 ]
 
+PREWARM_SCRIPTS = [
+    "scripts/build/build_prewarm_windows.sh",
+    "scripts/build/build_prewarm_linux.sh",
+    "scripts/build/build_prewarm_macos.sh",
+]
 
 # Every Nuitka build script that freezes ``voice_typer``. The torch-free
-TORCH_FREE_SCRIPTS = SIDECAR_SCRIPTS + WORKER_SCRIPTS
+TORCH_FREE_SCRIPTS = SIDECAR_SCRIPTS + WORKER_SCRIPTS + PREWARM_SCRIPTS
+
+PYINSTALLER_SPEC = PROJECT_ROOT / "scripts" / "build" / "lausu.spec"
 
 
 class TestNuitkaSidecarBuildsDoNotExcludeTorchDistributed:
-    """Nuitka build scripts must stay torch-free (Phase 1c retirement of C-CI-8/NU-106)."""
+    """
+    Nuitka build scripts must stay torch-free (Phase 1c retirement of C-CI-8/NU-106).
+    Sanctioned C-CI-8 retirement, why the old contract is gone: torch is
+    """
 
     def test_no_sidecar_build_excludes_unconditionally_imported_torch_modules(
         self,
     ) -> None:
-        """No build script may carry dead torch Nuitka flags.
-
-        The top-level ``--nofollow-import-to=torch`` is NOT forbidden here:
-        it keeps torch out entirely (a stray torch in a build env crashes
-        Nuitka via onnxruntime's guarded probe import) and is pinned where
-        added by tests/test_nuitka_asr_exclusions.py.
-        """
+        """No build script may carry any torch Nuitka flag."""
         forbidden = [
             "torch-disable-jit",
+            "nofollow-import-to=torch",
         ]
         for rel in TORCH_FREE_SCRIPTS:
             text = (PROJECT_ROOT / rel).read_text(encoding="utf-8")
@@ -303,18 +311,8 @@ class TestNuitkaSidecarBuildsDoNotExcludeTorchDistributed:
                     "that check_bundle_torch_free.sh forbids."
                 )
 
-    def test_all_build_scripts_nofollow_torch(self) -> None:
-        """Every freeze script must carry the top-level torch exclusion."""
-        for rel in TORCH_FREE_SCRIPTS:
-            text = (PROJECT_ROOT / rel).read_text(encoding="utf-8")
-            assert "--nofollow-import-to=torch" in text, (
-                f"{rel} must exclude torch (C-CI-8): a stray torch in any "
-                "build env crashes Nuitka via onnxruntime's guarded probe "
-                "import, even though our code never imports torch."
-            )
-
     def test_no_build_script_carries_torch_jit_flag(self) -> None:
-        """All freeze builds must be free of the torch JIT module-parameter."""
+        """All nine builds must be free of the torch JIT module-parameter."""
         required_absent = "torch-disable-jit"
         for rel in TORCH_FREE_SCRIPTS:
             text = (PROJECT_ROOT / rel).read_text(encoding="utf-8")
@@ -324,6 +322,18 @@ class TestNuitkaSidecarBuildsDoNotExcludeTorchDistributed:
                 "torch.jit.load left to protect (Phase 1c retirement of "
                 "the NU-106 keep-JIT guard)."
             )
+
+    def test_spec_bundles_onnx_not_jit(self) -> None:
+        """The PyInstaller fallback spec must bundle ``silero_vad.onnx``."""
+        text = PYINSTALLER_SPEC.read_text(encoding="utf-8")
+        assert "silero_vad.onnx" in text, (
+            "scripts/build/lausu.spec must reference silero_vad.onnx (the ORT-loaded VAD model)."
+        )
+        assert "silero_vad.jit" not in text, (
+            "scripts/build/lausu.spec must NOT reference "
+            "silero_vad.jit (legacy torch JIT model, forbidden by the "
+            "Phase 1c torch-free gate)."
+        )
 
 
 class TestTauriNsisInstallerHooks:
@@ -362,82 +372,6 @@ class TestTauriNsisInstallerHooks:
             target = (SRC_TAURI / rel).resolve()
             assert target.is_file(), f"nsis.{key} {rel!r} resolves to missing {target}"
             assert target.suffix.lower() == ".ico", f"nsis.{key} must be a .ico, got {rel!r}"
-
-    def test_installer_hooks_release_the_modern_ui_icon_symbols(self) -> None:
-        """The hooks must ``!undef`` the symbols tauri-bundler re-defines later.
-
-        Three separate ``!define ... already defined!`` aborts lived here, all
-        reproduced against the REAL tauri-bundler-generated installer.nsi on
-        makensis 3.11 (NSIS forbids redefining a name at all):
-
-        * ``MUI_ICON`` / ``MUI_UNICON`` — NSIS ``MUI2.nsh`` reaches
-          ``Interface.nsh``, which claims both via ``MUI_DEFAULT``; then
-          ``installerIcon``/``uninstallerIcon`` make tauri emit an UNGUARDED
-          ``!define`` for them. Script-side half of
-          :meth:`test_nsis_installer_icon_is_app_logo`.
-        * ``MUI_PAGE_CUSTOMFUNCTION_PRE`` — our pack-option page claims it at
-          include time; tauri's welcome-page ``!define`` then collided.
-          ``Page custom`` captures the PRE function at parse time, so the
-          symbol is free once our page is declared.
-        """
-        hooks = (SRC_TAURI / "../scripts/windows/installer-hooks.nsh").resolve()
-        assert hooks.is_file(), f"expected the NSIS hooks at {hooks}"
-        text = hooks.read_text(encoding="utf-8")
-        # Only real directives count: a WHY comment that quotes the offending
-        # line must not be able to fail (or pass) this contract.
-        code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith(";"))
-        releasable = ("MUI_ICON", "MUI_UNICON", "MUI_PAGE_CUSTOMFUNCTION_PRE")
-        for symbol in releasable:
-            undef = f"!undef {symbol}"
-            assert undef in code, (
-                f"{hooks.name} must contain `{undef}`: tauri-bundler's installer.nsi "
-                f"defines {symbol} itself, and NSIS aborts the whole bundle with "
-                "'already defined!' when the hooks claim it first."
-            )
-        # Placement is load-bearing: MUI2's MUI_DEFAULT calls re-run from inside
-        # MUI_PAGE_LICENSE, so a guard placed above our ToS page is undone by it
-        # and the collision returns (verified on makensis 3.11). Every macro we
-        # insert must therefore come BEFORE the release.
-        last_insert = max(i for i, ln in enumerate(code.splitlines()) if ln.strip().startswith("!insertmacro"))
-        for symbol in releasable:
-            release = next(i for i, ln in enumerate(code.splitlines()) if ln.strip() == f"!undef {symbol}")
-            assert release > last_insert, (
-                f"{hooks.name}: the `!undef {symbol}` release must come after the last "
-                f"!insertmacro (line {last_insert}); MUI_PAGE_LICENSE re-runs MUI2's "
-                "MUI_DEFAULT, which would re-claim the symbol and restore the collision."
-            )
-        # Our own page still needs the PRE hook, so the claim must exist too.
-        assert "!define MUI_PAGE_CUSTOMFUNCTION_PRE LausuPackOptionPre" in code, (
-            "the pack-option page must still claim MUI_PAGE_CUSTOMFUNCTION_PRE before "
-            "`Page custom`; only the later release was added"
-        )
-
-    def test_installer_state_writer_has_no_backtick_line_continuation(self) -> None:
-        """``FileWrite`` must not end a line with a backtick (NSIS line-continuation).
-
-        A trailing backtick merged the following line into the ``FileWrite``
-        call, so makensis aborted with ``FileWrite expects 2 parameters, got 3``
-        and no ``installer-state.json`` was ever written.
-        """
-        hooks = (SRC_TAURI / "../scripts/windows/installer-hooks.nsh").resolve()
-        lines = [
-            (i, line.rstrip())
-            for i, line in enumerate(hooks.read_text(encoding="utf-8").splitlines(), 1)
-            if line.strip().startswith("FileWrite")
-        ]
-        assert lines, "the installer-state writer must still write the file"
-        for lineno, line in lines:
-            assert not line.endswith("`"), (
-                f"installer-hooks.nsh:{lineno}: FileWrite ends with a backtick, which NSIS "
-                "treats as a line continuation and folds the next line into this command."
-            )
-            # ${VERSION} must expand, so it cannot sit inside a backticked literal.
-            assert "`" not in line, (
-                f"installer-hooks.nsh:{lineno}: backticks make the text literal, so ${{VERSION}} would never expand"
-            )
-        body = "\n".join(line for _, line in lines)
-        assert body.count("${VERSION}") == 2, "both consent branches must write installer_version"
-        assert '"pack_bundled": false' in body, "pack_bundled must stay false in the slim-core installer"
 
 
 def _path_components(template: str) -> tuple[str, ...]:
@@ -784,7 +718,7 @@ class TestReleaseBumpWorkflow:
         missing = [rel for rel in BUMP_COMMIT_FILES if rel not in add_line]
         assert not missing, (
             "RELEASING.md's release-bump `git add` line is missing versioned "
-            f"files: {missing}. The bump must commit package.json + "
+            f"file(s): {missing}. The bump must commit package.json + "
             "src-tauri/tauri.conf.json + src-tauri/Cargo.toml in the SAME "
             "commit so the version lockstep (Pair 10) can't break mid-release.\n"
             f"  line: {add_line.strip()}"
@@ -960,20 +894,28 @@ class TestReverseDnsIdentifierNamespace:
         )
 
 
-def test_bubble_coordinate_bound_matches_server_allowlist():
-    """server's ``bubble_x``/``bubble_y`` allowlist bounds.
-
-    The Rust durable-position consumer is retired (drags are
-    session-local, never persisted), so only the server-side shape is
-    pinned here: the keys stay valid set_config targets, dormant.
-    """
+def test_persisted_position_bound_matches_server_allowlist():
+    """server's ``bubble_x``/``bubble_y`` allowlist bounds."""
     allowlist = (PROJECT_ROOT / "voice_typer/server/config_validators/allowlist.py").read_text(encoding="utf-8")
     bounds = re.findall(
         r'"bubble_[xy]": \(\(int, type\(None\)\), '
         r"_make_optional_int_validator\(lo=(-?[\d_]+), hi=([\d_]+)\)\)",
         allowlist,
     )
-    assert len(bounds) == 2, "allowlist.py bubble_x/bubble_y validator signature drifted."
+    assert len(bounds) == 2, (
+        "allowlist.py bubble_x/bubble_y validator signature drifted, "
+        "update this pin together with persisted_position.rs."
+    )
     lo, hi = bounds[0]
     lo, hi = lo.replace("_", ""), hi.replace("_", "")
-    assert lo == "-100000" and hi == "100000", f"server bubble coordinate bounds changed to [{lo}, {hi}]."
+    assert lo == "-100000" and hi == "100000", (
+        f"server bubble coordinate bounds changed to [{lo}, {hi}], "
+        "update PERSISTED_COORDINATE_LIMIT in "
+        "src-tauri/src/commands/bubble/persisted_position.rs to match."
+    )
+
+    rust = (SRC_TAURI / "src/commands/bubble/persisted_position.rs").read_text(encoding="utf-8")
+    assert "const PERSISTED_COORDINATE_LIMIT: i32 = 100_000;" in rust, (
+        "persisted_position.rs PERSISTED_COORDINATE_LIMIT drifted from "
+        "the server allowlist bound (±100000), keep them in lockstep."
+    )

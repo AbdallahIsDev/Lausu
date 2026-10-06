@@ -33,23 +33,6 @@ class ExtractorRefreshState:
     remote_solver_version: str | None = None
 
 
-def _mod_version(mod: object) -> str | None:
-    """Best-effort version string for an imported module.
-
-    ``yt_dlp.version`` is itself a MODULE (``yt_dlp/version.py``), so a
-    naive ``getattr(mod, "version")`` str() dumps a module repr with a
-    full local path. Only real version strings are returned.
-    """
-    direct = getattr(mod, "__version__", None)
-    if isinstance(direct, str) and direct:
-        return direct
-    sub = getattr(mod, "version", None)
-    if isinstance(sub, str) and sub:
-        return sub
-    nested = getattr(sub, "__version__", None)
-    return nested if isinstance(nested, str) and nested else None
-
-
 def installed_extractor_versions() -> tuple[str | None, str | None]:
     """Return installed ``(yt-dlp, solver)`` versions, or Nones if absent."""
     try:
@@ -57,15 +40,15 @@ def installed_extractor_versions() -> tuple[str | None, str | None]:
     except ImportError:
         return (None, None)
 
-    version = _mod_version(yt_dlp)
+    version = getattr(yt_dlp, "version", None) or getattr(yt_dlp, "__version__", None)
     solver = None
     try:
         import yt_dlp_ejs  # type: ignore
 
-        solver = _mod_version(yt_dlp_ejs)
+        solver = getattr(yt_dlp_ejs, "version", None) or getattr(yt_dlp_ejs, "__version__", None)
     except ImportError:
         solver = None
-    return (version, solver)
+    return (str(version) if version else None, str(solver) if solver else None)
 
 
 def state_path(root: Path | str | None = None) -> Path:
@@ -155,14 +138,8 @@ def check_refresh(
     try:
         body = get(url, max_bytes=64 * 1024, timeout=30.0)
         data = json.loads(body)
-    except Exception as exc:  # noqa: BLE001, freshness is advisory
-        # 404 is the normal pre-publish state (no manifest on Releases yet).
-        # One clean line, no stack dump — this check is advisory.
-        msg = str(exc)
-        if "404" in msg or "Not Found" in msg:
-            log.debug("[MEDIA] extractor refresh manifest not published yet")
-        else:
-            log.debug("[MEDIA] extractor refresh check failed: %s", msg)
+    except Exception:  # noqa: BLE001, freshness is advisory
+        log.debug("[MEDIA] extractor refresh check failed", exc_info=True)
         save_state(state, state_file)
         return state
     if not isinstance(data, dict):

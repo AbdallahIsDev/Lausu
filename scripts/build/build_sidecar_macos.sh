@@ -21,11 +21,10 @@
 # ADR-0020 §4.3 mandates:
 #   - python-build-standalone cpython-3.12.x+<arch>-apple-darwin
 #   - --standalone --onefile
-#   - --nofollow-import-to=faster_whisper --nofollow-import-to=ctranslate2
-#     (ADR-0025 C7: ASR lives in the pack worker; the ctranslate2 data-dir
-#     copies below were deleted in the same change, the WORKER build owns
-#     them now)
+#   - --include-package=faster_whisper --include-package=ctranslate2
 #   - --include-package=voice_typer --include-package=websockets
+#   - --include-data-dir=<SITE>/ctranslate2/lib=<SITE>/ctranslate2/lib
+#   - --include-data-dir=<SITE>/ctranslate2/libs=<SITE>/ctranslate2/libs
 #   - --macos-create-bundle --macos-app-name=LausuSidecar
 #   - --macos-signed-app-name=com.Lausu.sidecar
 #   - --macos-app-mode=background   (LSUIElement=true, no Dock icon)
@@ -42,8 +41,9 @@
 #     `build_native_listener_macos.sh`. Ad-hoc signing lets the parent
 #     `.app` re-sign --deep during the Tauri bundle step.
 #
-# (C7: the slim sidecar excludes ctranslate2; the note about its wheel
-# layout that lived here moved to the WORKER build, which still bundles it.)
+# CTranslate2 on macOS: the wheels ship libctranslate2.dylib + libiomp5.dylib
+# under $SITE/ctranslate2/lib/. Apple Silicon wheels are CPU-only (no CUDA).
+# Verify with `otool -L` that every @rpath dependency resolves in the build env.
 # =============================================================================
 set -euo pipefail
 
@@ -58,7 +58,7 @@ if [[ "$ARCH" == "--check" ]]; then
     echo "[build_sidecar_macos] --check: verifying toolchain"
     command -v python3 >/dev/null || { echo "MISSING: python3" >&2; exit 1; }
     python3 -c "import nuitka" 2>/dev/null || { echo "MISSING: nuitka" >&2; exit 1; }
-    python3 -c "import websockets" 2>/dev/null || { echo "MISSING: websockets" >&2; exit 1; }
+    python3 -c "import faster_whisper, ctranslate2" 2>/dev/null || { echo "MISSING: faster_whisper/ctranslate2" >&2; exit 1; }
     command -v swiftc >/dev/null || { echo "MISSING: swiftc (Xcode CLT)" >&2; exit 1; }
     echo "[build_sidecar_macos] OK: toolchain ready"
     exit 0
@@ -110,14 +110,18 @@ echo "[build_sidecar_macos] PY=$PY"
 SITE="$("$PY" -c 'import site; print(site.getsitepackages()[0])')"
 echo "[build_sidecar_macos] SITE=$SITE"
 
-"$PY" -c 'import websockets' \
-    || { echo "ERROR: build env missing websockets" >&2; exit 1; }
+"$PY" -c 'import faster_whisper, ctranslate2, websockets; print("ctranslate2", ctranslate2.__version__)' \
+    || { echo "ERROR: build env missing faster_whisper/ctranslate2/websockets" >&2; exit 1; }
 
-# Nuitka optimizer crashes on av's Cython .py shims
-# (assert micro_passes == 0, upstream issue 3970); each has a
-# precompiled twin Python prefers, so the helper deletes only those.
-"$PY" "$PROJECT_ROOT/scripts/build/strip_av_cython_shims.py" \
-    || { echo "ERROR: av shim strip failed" >&2; exit 1; }
+# ─── ctranslate2/lib + libs ──────────────────────────────────────────────────
+CT2_LIB_DIR="$SITE/ctranslate2/lib"
+CT2_LIBS_DIR="$SITE/ctranslate2/libs"
+if [[ ! -d "$CT2_LIB_DIR" ]]; then
+    echo "ERROR: $CT2_LIB_DIR not found, ctranslate2 install is incomplete." >&2
+    exit 1
+fi
+echo "[build_sidecar_macos] CT2_LIB_DIR=$CT2_LIB_DIR"
+echo "[build_sidecar_macos] CT2_LIBS_DIR=$CT2_LIBS_DIR (may not exist on all installs)"
 
 # ─── Prepare output dir ──────────────────────────────────────────────────────
 mkdir -p "$SIDECAR_DIR"
@@ -144,19 +148,10 @@ NUITKA_ARGS=(
     --jobs="$NUITKA_JOBS"
     --enable-plugin=numpy
     --enable-plugin=anti-bloat
-    # yt-dlp extractors (~940 modules + the 781KB lazy_extractors hub)
-    # ship as bytecode: compiling them OOMs the C compiler (MSVC
-    # C1060/C1002) and bloats the binary; yt-dlp lazy-loads them via
-    # importlib at runtime, which resolves bytecode modules fine
-    # (Nuitka anti-bloat "bytecode" mode, same as its eventlet rules).
-    --noinclude-custom-mode=yt_dlp.extractor:bytecode
-    # Phase 1c torch-free: our code never imports torch. Still nofollow it:
-    # onnxruntime's guarded probe import drags torch into Nuitka, which
-    # crashes on torch 2.13 (full story in build_sidecar_windows.sh).
+    # NU-106 retired (Phase 1c torch-free): runtime is ONNX-only, no torch flags.
     --nofollow-import-to=transformers
-    --nofollow-import-to=faster_whisper
-    --nofollow-import-to=ctranslate2
-    --nofollow-import-to=torch
+    --include-package=faster_whisper
+    --include-package=ctranslate2
     --include-package=voice_typer
     --include-package=websockets
     # ADR-0023 packaging: media ingest lazily imports yt_dlp / yt_dlp_ejs /
@@ -166,6 +161,7 @@ NUITKA_ARGS=(
     --include-package=av
     --include-package-data=yt_dlp
     --include-package-data=voice_typer.server
+    --include-data-dir="$CT2_LIB_DIR=$CT2_LIB_DIR"
     --macos-create-bundle
     --macos-app-name=LausuSidecar
     --macos-signed-app-name=com.Lausu.sidecar
@@ -180,6 +176,9 @@ if [[ -n "${MAC_SIGNING_IDENTITY:-}" ]]; then
     # signs the binary at build time. `--macos-signed-app-name` only sets
     # the bundle's signed name; it does not invoke codesign.
     NUITKA_ARGS+=(--macos-sign-identity="$MAC_SIGNING_IDENTITY")
+fi
+if [[ -d "$CT2_LIBS_DIR" ]]; then
+    NUITKA_ARGS+=(--include-data-dir="$CT2_LIBS_DIR=$CT2_LIBS_DIR")
 fi
 "$PY" -m nuitka "${NUITKA_ARGS[@]}"
 
@@ -199,6 +198,12 @@ echo "[build_sidecar_macos] OK: $OUTPUT_PATH (${SIZE_MB} MB)"
 if [[ -z "${MAC_SIGNING_IDENTITY:-}" ]] && command -v codesign >/dev/null; then
     echo "[build_sidecar_macos] Ad-hoc codesign (parent .app will re-sign --deep)..."
     codesign --force --sign - "$OUTPUT_PATH" || true
+fi
+
+# Verify the dylib dependencies resolve (ADR-0020 §4.3).
+if command -v otool >/dev/null; then
+    echo "[build_sidecar_macos] otool -L \$CT2_LIB_DIR/libctranslate2.dylib:"
+    otool -L "$CT2_LIB_DIR"/libctranslate2.dylib 2>/dev/null | head -20 || true
 fi
 
 echo "[build_sidecar_macos] NEXT: codesign + notarize (see docs/migration/signing-guide.md §13.2)."

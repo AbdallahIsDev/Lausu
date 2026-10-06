@@ -125,7 +125,7 @@ describe("Sonner Toaster, ZU-33 stacking configuration", () => {
 		expect(lastToasterProps?.style).toMatchObject({
 			"--normal-bg": "var(--surface)",
 			"--normal-text": "var(--foreground)",
-			"--normal-border": "color-mix(in srgb, var(--border) 10%, transparent)",
+			"--normal-border": "var(--border)",
 			"--border-radius": "var(--radius)",
 		});
 		// Scoping class for the index.css .toaster overrides.

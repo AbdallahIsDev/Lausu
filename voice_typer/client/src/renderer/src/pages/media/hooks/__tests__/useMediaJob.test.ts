@@ -5,7 +5,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useConsentGateStore } from "@/lib/consentGate";
-import { type UseMediaJobResult, useMediaJob } from "../useMediaJob";
+import { useMediaJob, type UseMediaJobResult } from "../useMediaJob";
 
 const registered = new Map<string, (data?: unknown) => unknown>();
 const callMock = vi.fn();
@@ -64,8 +64,7 @@ describe("useMediaJob", () => {
 
 	it("opens the consent gate on client.consent_required and Allow retries", async () => {
 		callMock.mockImplementation((cmd: string) => {
-			if (cmd === "media_transcribe_status")
-				return Promise.resolve({ job: null });
+			if (cmd === "media_transcribe_status") return Promise.resolve({ job: null });
 			const err = new Error("consent required") as Error & {
 				code?: string;
 				consent_field?: string;
@@ -88,9 +87,7 @@ describe("useMediaJob", () => {
 		expect(result.current.job.phase).toBe("idle");
 
 		callMock.mockImplementation((cmd: string) =>
-			cmd === "media_transcribe_status"
-				? Promise.resolve({ job: null })
-				: Promise.resolve({}),
+			cmd === "media_transcribe_status" ? Promise.resolve({ job: null }) : Promise.resolve({}),
 		);
 		await req?.onAllow?.();
 		await waitFor(() => expect(result.current.job.phase).toBe("loading_model"));
@@ -102,8 +99,7 @@ describe("useMediaJob", () => {
 
 	it("maps start-time server.no_model to the no-model error copy", async () => {
 		callMock.mockImplementation((cmd: string) => {
-			if (cmd === "media_transcribe_status")
-				return Promise.resolve({ job: null });
+			if (cmd === "media_transcribe_status") return Promise.resolve({ job: null });
 			const err = new Error("no model") as Error & { code?: string };
 			err.code = "server.no_model";
 			return Promise.reject(err);
@@ -164,9 +160,7 @@ describe("useMediaJob", () => {
 	it("hydrates a running job from the status probe after navigation", async () => {
 		callMock.mockImplementation((cmd: string) =>
 			cmd === "media_transcribe_status"
-				? Promise.resolve({
-						job: { job_id: "j9", status: "running", progress: 0.4 },
-					})
+				? Promise.resolve({ job: { job_id: "j9", status: "running", progress: 0.4 } })
 				: Promise.resolve({}),
 		);
 		const { result } = renderHook(() => useMediaJob());
@@ -181,3 +175,4 @@ describe("useMediaJob", () => {
 		expect(callMock).toHaveBeenCalledWith("media_transcribe_cancel");
 	});
 });
+

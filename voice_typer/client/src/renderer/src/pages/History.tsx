@@ -37,6 +37,17 @@ import {
 	sortRecords,
 } from "./history/utils/historySort";
 
+//NOTE: App.tsx prop passing will be removed by
+// useNavigation hook directly, eliminating the `onNavigate` prop drill.
+// event refresh) lives in `useHistoryCache`, the export paging loop
+// lives in `useHistoryExport`, and the client-side sort lives in
+// `historySort.ts`. This file is the thin view component.
+
+// Soft display cap, the flat list renders at most this many rows so a
+// very long history can't mount thousands of DOM rows at once. Once the
+// user has revealed this many rows AND the backend still reports more,
+// the "Load More" button is replaced by the cap notice pointing at
+// search (further fetches would append invisible rows past the cap).
 const HISTORY_DISPLAY_CAP = 200;
 
 export default function HistoryPage() {
@@ -187,17 +198,23 @@ export default function HistoryPage() {
 		[records, sortOrder],
 	);
 
+	// Date-grouped sections are only meaningful when the list reads
+	// chronologically, grouping an alphabetical sort would interleave
+	// date headers between A→Z entries and break the reading order.
 	const groupByDate = sortOrder === "newest" || sortOrder === "oldest";
 
 	return (
 		<>
-			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-28 pb-6">
 				<PageHeading
 					title={t("history.title")}
 					description={
 						stats
 							? t("history.transcriptionsToday", {
 									count: String(stats.count),
+									// resolve the "chars" suffix via t() so
+									// other locales can translate it and the digit
+									// grouping respects getLocale().
 									chars:
 										stats.chars > 0
 											? t("history.charsSuffix", {
@@ -209,6 +226,10 @@ export default function HistoryPage() {
 					}
 				/>
 
+				{/* Action buttons, shared filter/sort visual pattern with
+                                    Vocabulary/Templates (SortSelect + muted controls,
+                                    w-full flex-wrap so row wraps cleanly on narrow
+                                    viewports). */}
 				<div className="flex w-full flex-wrap items-center justify-between gap-2">
 					<div className="flex flex-wrap items-center gap-2">
 						<Button
@@ -257,9 +278,22 @@ export default function HistoryPage() {
 					</div>
 				</div>
 
+				{/* The label row and the content below it form ONE section:
+                                    the wrapper's tight gap (matching the list's own
+                                    header rhythm on Home) keeps the "Recent Activity"
+                                    header glued to its card instead of floating at the
+                                    page container's wide gap-6 rhythm. */}
 				<div className="flex w-full flex-col gap-2.5">
+					{/* Section label + freshness share ONE row: "Recent Activity"
+                                            on the left, "Last updated … ago" + refresh on the right
+                                            (justify-between). The indicator previously lived in its
+                                            own full-width right-aligned row, leaving a large empty
+                                            gap on the left; anchoring it to the list header gives
+                                            the refresh control a logical home next to the list it
+                                            refreshes. Label styling matches the list header row on
+                                            Home (`text-[12px] font-semibold`). */}
 					<div className="flex w-full items-center justify-between">
-						<span className="text-xs font-semibold text-foreground">
+						<span className="text-[12px] font-semibold text-foreground">
 							{t("home.recentActivity")}
 						</span>
 						<LastUpdatedIndicator
@@ -272,6 +306,12 @@ export default function HistoryPage() {
 					{loading && records.length === 0 ? (
 						<HistorySkeleton />
 					) : loadError && records.length === 0 ? (
+						//distinguish "backend failed to load" from
+						// "history is genuinely empty".
+						// variant="error" so the destructive
+						// tint + Alert02Icon swap make the failure visually
+						// distinct from a genuine empty list (matches the
+						//Vocabulary/Templates load-failure pattern from ).
 						<EmptyState
 							variant="error"
 							icon={AlertCircleIcon}
@@ -327,7 +367,20 @@ export default function HistoryPage() {
 								onFetchFullText={handleFetchFullText}
 								hideHeader
 							/>
-
+							{/*once the visible window reaches BOTH the end of the
+                                                        loaded cache AND the 200-row display cap while the
+                                                        backend still reports more available (`hasMore`),
+                                                        further "Load More" clicks could not reveal anything —
+                                                        rows past the cap stay hidden, so the user would click
+                                                         and see nothing change. Replace the button with a
+                                                        notice pointing the user at the search field to find
+                                                        older entries. Below the cap (or when loaded rows are
+                                                        still unrevealed), the Load More button stays useful:
+                                                        each click fetches the next page AND widens the visible
+                                                        window to include it.
+/**
+                                                */}
+							*/
 							{records.length >= HISTORY_DISPLAY_CAP &&
 							visibleCount >= records.length &&
 							hasMore ? (
@@ -350,7 +403,7 @@ export default function HistoryPage() {
 										setVisibleCount((c) => c + HISTORY_PAGE_SIZE);
 									}}
 									disabled={loadingMore}
-									className="w-full gap-2 text-xs rounded-lg border border-dashed border-border/8"
+									className="w-full gap-2 text-xs rounded-lg border border-dashed border-border/5"
 								>
 									{loadingMore ? (
 										<>
@@ -374,9 +427,17 @@ export default function HistoryPage() {
 				</div>
 			</div>
 
+			{/* ConfirmDialog for Clear All. variant="destructive" is
+                            explicit to match the Vocabulary Clear-All dialog, the
+                            confirm button carries the destructive treatment for an
+                            irreversible, privacy-adjacent wipe. */}
 			<ConfirmDialog
 				open={showClearConfirm}
 				title={t("history.clearAllHistory")}
+				//when a filter is active, the default message is
+				// ambiguous (the user might think only the visible subset
+				// will be deleted).  Use a clearer message that calls out
+				// the hidden entries.
 				message={
 					filterActive
 						? t("history.clearAllWithFilterMessage")

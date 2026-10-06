@@ -54,11 +54,7 @@
 		"errorDownloadFailed": "Le téléchargement de l'audio a échoué. Vérifiez votre connexion et réessayez.",
 		"errorNoModel": "Aucun modèle de reconnaissance n'est chargé. Ouvrez Modèles pour en choisir un.",
 		"errorBusy": "Une autre transcription est déjà en cours. Annulez-la d'abord.",
-		"noModelAction": "Ouvrir les modèles",
-		"dropZoneTitle": "Déposez un fichier vidéo ou audio",
-		"dropZoneAria": "Choisir un fichier média, ou le déposer ici",
-		"browseFile": "Parcourir les fichiers",
-		"orLink": "ou collez un lien"
+		"noModelAction": "Ouvrir les modèles"
 	},
 	"nav": {
 		"home": "Accueil",
@@ -68,8 +64,6 @@
 		"vocabulary": "Vocabulaire",
 		"media": "Médias",
 		"models": "Modèles",
-		"plugins": "Plugins",
-		"newBadge": "Nouveau",
 		"microphone": "Microphone",
 		"settings": "Paramètres",
 		"aboutAndPrivacy": "À propos et confidentialité",
@@ -114,7 +108,7 @@
 		"transcribingHint": "Transcription… veuillez patienter"
 	},
 	"settings": {
-		"apiUrlInvalid": "Saisissez une URL https valide",
+		"apiUrlInvalid": "Saisissez une URL http(s) valide",
 		"otherTabsResults": "Résultats des autres onglets",
 		"title": "Paramètres",
 		"searchPlaceholder": "Rechercher des paramètres…",
@@ -259,14 +253,6 @@
 		"bubblePositionBottom": "En bas au centre",
 		"bubbleBehaviorShowOnRecord": "Afficher lors de l'enregistrement",
 		"bubbleBehaviorAlwaysVisible": "Toujours visible",
-		"bubbleBehaviorHidden": "Masquée",
-		"bubbleShowRecordingTimer": "Minuteur d'enregistrement",
-		"bubbleShowRecordingTimerInfo": "Affiche la durée d'enregistrement (mm:ss) à côté du point rouge pendant l'enregistrement. Désactivé par défaut.",
-		"bubblePreview": "Aperçu de la bulle",
-		"bubblePreviewInfo": "Voici l'apparence de la bulle dans chaque état. Le minuteur tourne en direct ici.",
-		"bubblePreviewIdle": "Inactive",
-		"bubblePreviewRecording": "Enregistrement",
-		"bubblePreviewTranscribing": "Transcription",
 		"languageAutoDetect": "Détection automatique",
 		"languageEnglish": "Anglais",
 		"languageChinese": "Chinois",
@@ -386,16 +372,6 @@
 			"vadFilterInfo": "Supprime les silences de début et de fin avant la transcription. Désactivez pour envoyer l'audio brut au modèle à des fins de comparaison.",
 			"vadFilterInfoSearch": "Activité vocale silence filtre audio brut test modèle.",
 			"vadFilterAria": "Filtrage d'activité vocale",
-			"hallucinationFilter": "Ignorer les hallucinations du silence",
-			"hallucinationFilterInfo": "Écarter les phrases inventées que le modèle produit sur un audio quasi silencieux, comme les filigranes de sous-titres. Le mode équilibré conserve les phrases courtes sauf silence confirmé.",
-			"hallucinationFilterInfoSearch": "Filtre hallucinations silence artefacts équilibré strict désactivé.",
-			"hallucinationFilterAria": "Filtre anti-hallucinations",
-			"hallucinationBalanced": "Équilibré (recommandé)",
-			"hallucinationBalancedDescription": "Écarte les artefacts évidents, conserve les phrases courtes sauf silence confirmé. Recommandé.",
-			"hallucinationStrict": "Strict",
-			"hallucinationStrictDescription": "Écarte toute phrase artefact connue sur audio faible, même s'il pourrait s'agir d'une vraie dictée.",
-			"hallucinationOff": "Désactivé",
-			"hallucinationOffDescription": "Aucun filtrage. Les passages silencieux peuvent être transcrits en texte inventé.",
 			"volumeBackend": "Backend de volume",
 			"volumeBackendInfo": "Le backend de contrôle audio actif. 'disabled' signifie que l'atténuation ne fonctionnera pas sur cette plateforme: installez la dépendance optionnelle de la plateforme (pycaw sous Windows, pyobjc sous macOS).",
 			"volumeBackendInfoSearch": "Le backend de contrôle audio actif.",
@@ -746,35 +722,7 @@
 			"backToSettings": "Retour aux paramètres",
 			"on": "Activé",
 			"off": "Désactivé"
-		},
-		"modelIdleUnload": "Garder le modèle vocal en mémoire",
-		"modelIdleUnloadDescription": "Durée pendant laquelle le modèle vocal reste chargé après la fin de la dictée. Une durée plus longue rend la dictée toujours instantanée et utilise environ 2 Go de mémoire tant que l'application est ouverte. Fermer l'application libère cette mémoire immédiatement.",
-		"modelIdleUnload.minutes15": "15 minutes",
-		"modelIdleUnload.minutes30": "30 minutes",
-		"modelIdleUnload.minutes60": "1 heure",
-		"modelIdleUnload.minutes90": "1 heure 30 minutes",
-		"modelIdleUnload.minutes120": "2 heures",
-		"modelIdleUnload.never": "Jamais (garder chargé)",
-		"streamingTranscription": "Transcription en continu",
-		"streamingTranscriptionDescription": "Transcrire pendant l'enregistrement pour un texte prêt dès l'arrêt. Sinon, l'enregistrement entier est transcrit d'un coup à la fin."
-	},
-	"plugins": {
-		"title": "Plugins",
-		"description": "Étendre la dictée avec des fournisseurs vocaux installés.",
-		"loadFailedTitle": "Impossible de charger les plugins",
-		"loadFailedDescription": "Nous n'avons pas pu charger vos plugins depuis le backend. Vérifiez les journaux et réessayez.",
-		"retry": "Réessayer",
-		"emptyTitle": "Aucun plugin installé",
-		"emptyDescription": "Cette installation est livrée sans aucun plugin installé.",
-		"back": "Retour",
-		"notFoundTitle": "Plugin introuvable",
-		"notFoundDescription": "Le plugin demandé n'est pas installé.",
-		"activateLabel": "Utiliser ce plugin",
-		"activateDescription": "Acheminer la dictée via ce plugin plutôt que via le modèle local.",
-		"activateAria": "Utiliser ce plugin pour la dictée",
-		"settingsSection": "Paramètres",
-		"statusActive": "Actif",
-		"statusInactive": "Inactif"
+		}
 	},
 	"models": {
 		"loadFailedTitle": "Impossible de charger les modèles",
@@ -866,6 +814,7 @@
 			"testing": "Test en cours…"
 		},
 		"status": {
+			"depsRequired": "Dépendances requises",
 			"insufficientDisk": "Espace disque insuffisant"
 		},
 		"import": {
@@ -1599,7 +1548,7 @@
 		"stopRecordingAria": "Arrêter l'enregistrement",
 		"dismissAria": "Fermer la bulle",
 		"transcriptPreviewAria": "Aperçu de la transcription en direct",
-		"recordingTimerAria": "Durée d'enregistrement"
+		"livePreviewUnavailable": "Pas d'aperçu en direct pour ce moteur"
 	},
 	"errorBoundary": {
 		"title": "Une erreur s'est produite",
@@ -1959,8 +1908,7 @@
 			"mic_unplugged": "Le microphone a été débranché. Enregistrement arrêté.",
 			"still_running": "La transcription est toujours en cours.\nLes enregistrements longs ou le repli CPU peuvent prendre plus de temps.",
 			"xrun_title": "{app} | Problèmes audio",
-			"xrun_body": "{count} sous-débordements du tampon audio détectés. Fermez d'autres applications audio ou réduisez la charge du processeur.",
-			"consent_not_verified": "Impossible de vérifier le consentement biométrique vocal.\nEnregistrement refusé. Vérifiez Paramètres > Confidentialité."
+			"xrun_body": "{count} sous-débordements du tampon audio détectés. Fermez d'autres applications audio ou réduisez la charge du processeur."
 		},
 		"model_manager": {
 			"backend_init_failed_title": "{appName}",
@@ -1973,7 +1921,6 @@
 			"backend_init_failed": "Impossible d'initialiser le backend {backend}.{hint}",
 			"last_resort_unloaded": "Le modèle n'est pas chargé.\nOuvrez la page des modèles pour télécharger un modèle.",
 			"model_not_downloaded": "Aucun modèle vocal n'est sélectionné. Ouvrez Modèles pour en choisir un.",
-			"offline_pack_missing": "Le pack hors ligne n'est pas installé.\nOuvrez Paramètres pour le télécharger.",
 			"no_model_selected": "Aucun modèle sélectionné.\nAccédez à la page des modèles pour en sélectionner un.",
 			"load_failed_critical": "Impossible de charger le modèle vocal.\nL'application continuera de fonctionner. Appuyez sur {hotkey} pour réessayer le chargement."
 		},
@@ -1998,10 +1945,7 @@
 			"undo_no_pynput": "Annulation indisponible (pynput manquant)",
 			"undo_failed": "Impossible d'annuler la dernière transcription. Consultez les journaux pour plus de détails.",
 			"clipboard_unavailable_body": "Transcription terminée, mais le presse-papiers n'était pas disponible.\nVotre texte a été sauvegardé dans le fichier de récupération après incident afin de ne pas être perdu.",
-			"clipboard_unavailable_recovery_path": "Fichier de récupération : {path}",
-			"onboarding_kept_failing": "La configuration initiale a échoué à plusieurs reprises. L'application démarrera avec les paramètres par défaut. Ouvrez Paramètres pour la configurer manuellement.",
-			"onboarding_setup_failed": "La configuration initiale a échoué ; elle sera retentée au prochain démarrage.",
-			"config_acl_failed": "Impossible de restreindre les permissions du fichier de configuration. Les clés API peuvent être lisibles par d'autres utilisateurs sur ce PC."
+			"clipboard_unavailable_recovery_path": "Fichier de récupération : {path}"
 		},
 		"hotkey_dispatcher": {
 			"register_failed": "Impossible d'enregistrer le raccourci {hotkey}. Il est peut-être utilisé par une autre application. Utilisez le menu de la barre d'état pour basculer la dictée, ou choisissez un autre raccourci dans les réglages.",
@@ -2011,8 +1955,7 @@
 			"esc_register_failed": "Impossible d'enregistrer le raccourci d'annulation ESC. Une autre application l'a peut-être réservé.",
 			"repaste_register_failed": "Impossible d'enregistrer le raccourci de recollement. Une autre application l'a peut-être réservé.",
 			"invalid_hotkey": "Le raccourci {hotkey} n'est pas valide : {validation_error}. Le raccourci précédent est conservé.",
-			"restore_failed": "Impossible de restaurer le raccourci précédent {hotkey}. Ouvrez les réglages pour en assigner un nouveau.",
-			"wayland_hotkeys_may_fail": "Les raccourcis globaux peuvent ne pas fonctionner sous Wayland. Installez « wtype » ou « ydotool » pour les prendre en charge, ou utilisez l'option Démarrer la dictée du menu de la barre des menus."
+			"restore_failed": "Impossible de restaurer le raccourci précédent {hotkey}. Ouvrez les réglages pour en assigner un nouveau."
 		},
 		"native_adapter": {
 			"warn_title": "{appName} : avertissement de raccourci natif",
@@ -2037,20 +1980,7 @@
 			"macos_body": "Cliquez pour ouvrir Réglages système → Accessibilité. Ajoutez {appName} (et son assistant d'écoute des touches) à la liste.",
 			"macos_body_with_command": "Cliquez pour ouvrir Réglages système → Accessibilité. Ajoutez {appName} (et son assistant d'écoute des touches) à la liste. Exécutez ensuite : {command}",
 			"linux_title": "{appName} nécessite l'autorisation du clavier",
-			"linux_body": "Cliquez pour accorder l'accès. Votre système demandera votre mot de passe pour installer l'autorisation du clavier (règle udev + groupe d'entrée). Après l'octroi, déconnectez-vous puis reconnectez-vous pour que le changement prenne effet.",
-			"accessibility_granted": "Autorisation d'accessibilité accordée. Les raccourcis sont maintenant actifs.",
-			"global_hotkeys_disabled": "Les raccourcis globaux ont été désactivés. Ouvrez Réglages Système -> Confidentialité et sécurité -> Accessibilité pour accorder à nouveau l'autorisation."
-		},
-		"dictation_pipeline": {
-			"llm_polish_failed": "Lissage par LLM échoué. La transcription s'affiche telle quelle ; consultez le journal pour plus de détails.",
-			"history_save_failed": "Impossible d'enregistrer la transcription dans l'historique. Consultez le journal pour plus de détails.",
-			"crash_recovery_save_failed": "Impossible d'enregistrer la transcription dans le tampon de récupération après incident. Consultez le journal pour plus de détails.",
-			"text_cleanup_failed": "Nettoyage du texte échoué. Consultez le journal pour plus de détails.",
-			"vocab_correction_failed": "Correction du vocabulaire échouée. Consultez le journal pour plus de détails.",
-			"template_match_failed": "Correspondance de modèle échouée. Consultez le journal pour plus de détails.",
-			"auto_punctuation_failed": "Ponctuation automatique échouée. Consultez le journal pour plus de détails.",
-			"no_speech_detected": "Aucune parole détectée et l'audio était presque silencieux.\nVotre micro capture peut-être mal le son.\nVérifiez que le bon micro est sélectionné et actif.",
-			"no_transcription_produced": "L'audio a été enregistré mais aucune transcription n'a été produite.\nCela arrive si le modèle est mal configuré ou si l'audio est peu clair. Réessayez ou consultez le journal."
+			"linux_body": "Cliquez pour accorder l'accès. Votre système demandera votre mot de passe pour installer l'autorisation du clavier (règle udev + groupe d'entrée). Après l'octroi, déconnectez-vous puis reconnectez-vous pour que le changement prenne effet."
 		}
 	},
 	"error": {
@@ -2066,18 +1996,15 @@
 	},
 	"pack": {
 		"preparingOfflineEngine": "Préparation du moteur hors ligne…",
-		"preparingOfflineEngineAria": "Préparation du moteur hors ligne. Statut : {status}",
-		"downloadOfflineEngine": "Télécharger le moteur hors ligne",
-		"downloadOfflineEngineBusy": "Téléchargement…",
-		"downloadOfflineEngineAria": "Télécharger le pack du moteur vocal hors ligne"
+		"preparingOfflineEngineAria": "Préparation du moteur hors ligne. Statut : {status}"
 	},
 	"consentDialog": {
 		"title": "Consentement requis",
 		"allow": "Autoriser",
-		"viewAll": "Tout voir",
+		"cancel": "Annuler",
+		"openSettings": "Ouvrir les paramètres",
 		"persistFailed": "Impossible d'enregistrer votre consentement. Veuillez réessayer.",
 		"retryFailed": "Consentement enregistré, mais l'action n'a pas pu être relancée automatiquement. Veuillez réessayer.",
-		"revokeHint": "Vous pouvez le révoquer à tout moment dans Paramètres > Confidentialité.",
 		"field": {
 			"voice_biometric_consent": "Le consentement à la biométrie vocale est requis pour démarrer l'enregistrement. Votre voix est traitée comme donnée biométrique (RGPD art. 9). Autoriser l'enregistrement ?",
 			"huggingface_consent": "Les téléchargements de modèles depuis Hugging Face révèlent votre adresse IP à une entreprise américaine (Hugging Face, Inc.). L'audio n'est jamais envoyé: seuls les poids du modèle. Autoriser les téléchargements ?",
@@ -2100,7 +2027,6 @@
 		"asrBackendDisabledHint": "La transcription utilise un autre moteur. Ouvrez Modèles pour en choisir un différent.",
 		"cloudFallbackUsed": "Transcription cloud échouée, le moteur vocal local a été utilisé à la place",
 		"cloudFallbackUsedHint": "Le fournisseur cloud {provider} n'a pas répondu. La dictée continue avec le moteur local ; vérifiez votre connexion ou les paramètres du fournisseur.",
-		"cloudFallbackKeyUsedHint": "Le fournisseur cloud {provider} a rejeté la clé API. La dictée continue avec le moteur local ; vérifiez la clé dans les paramètres.",
 		"historyCorrupted": "Base de données d'historique corrompue, reconstruite à partir d'une copie de sauvegarde",
 		"historyCorruptedHint": "{count} entrées ont été récupérées. Les entrées les plus récentes peuvent manquer ; le fichier corrompu a été conservé à côté de la base de données pour inspection.",
 		"historyFtsRebuildFailed": "Suppression de l'historique inachevée: les entrées supprimées peuvent rester recherchables",
@@ -2108,8 +2034,7 @@
 		"pasteDeferred": "Collage automatique ignoré: la transcription est dans votre presse-papiers",
 		"pasteDeferredHint": "La commande de collage n'a pas pu être envoyée à l'application cible. Collez le texte vous-même avec votre raccourci de collage habituel.",
 		"pasteDeferredHintSecureInput": "L'application cible a activé la saisie sécurisée (Secure Input, par exemple un champ de mot de passe), ce qui bloque les frappes synthétiques. Collez le texte vous-même avec votre raccourci de collage habituel.",
-		"pasteDeferredHintIme": "Une composition IME était en cours, la commande de collage a donc été ignorée. Collez le texte vous-même avec votre raccourci de collage habituel.",
-		"pasteDeferredHintNoTextField": "Aucun champ de texte n'avait le focus, la commande de collage a donc été ignorée. Placez le focus dans un champ de texte et collez le texte vous-même avec votre raccourci de collage habituel."
+		"pasteDeferredHintIme": "Une composition IME était en cours, la commande de collage a donc été ignorée. Collez le texte vous-même avec votre raccourci de collage habituel."
 	},
 	"trayState": {
 		"idle": "inactif",
@@ -2133,19 +2058,16 @@
 			"cancelling": "Annulation...",
 			"cancelled": "Annulé",
 			"recovered": "Récupéré | la transcription a expiré",
-			"stillTranscribing": "Toujours en cours de transcription...",
-			"awaitingModel": "Finalisation du chargement du modèle | votre enregistrement est enregistré et sera transcrit sous peu",
-			"modelLoadRetry": "Chargement du modèle | votre dictée démarrera automatiquement.",
-			"modelLoading": "Chargement du modèle..."
+			"stillTranscribing": "Toujours en cours de transcription..."
 		},
 		"modelManager": {
 			"loading": "Chargement du modèle | appuyez sur votre raccourci clavier pour le mettre en file...",
 			"readyWhisper": "Prêt | {device_info}",
+			"readyOther": "Prêt | {name} ASR",
 			"loadFailedRetry": "Échec du chargement du modèle | appuyez sur votre raccourci clavier pour réessayer",
 			"backendFailed": "Échec du chargement du modèle {backend}",
 			"modelFailed": "Erreur du modèle | {error}",
 			"modelNotDownloaded": "Aucun modèle vocal n'est sélectionné. Ouvrez Modèles pour en choisir un.",
-			"offlinePackMissing": "Le pack hors ligne n'est pas installé. Ouvrez Paramètres pour le télécharger.",
 			"modelIntegrityFailed": "Le modèle {backend} a échoué à la vérification d'intégrité. Supprimez-le et téléchargez-le à nouveau depuis la page des modèles."
 		},
 		"pipeline": {
@@ -2157,10 +2079,5 @@
 			"doneInDb": "Terminé | {count} caractères (en BD, utilisez le raccourci de recollement)",
 			"doneInClipboard": "Terminé | {count} caractères (dans le presse-papiers)"
 		}
-	},
-	"computeDevice": {
-		"cpu": "CPU",
-		"gpu": "GPU",
-		"ariaLabel": "Unité de calcul"
 	}
 }

@@ -81,7 +81,7 @@ export function CollectionBulkBar({
 			// reads as part of the same design system, bg-surface was a
 			// separate, floating-element tone that didn't belong to any
 			// other surface on the page.
-			className="sticky bottom-4 z-20 mx-auto mt-auto flex w-fit max-w-full flex-wrap items-center gap-2 rounded-lg border border-border/8 bg-surface px-3 py-2 shadow-lg"
+			className="sticky bottom-4 z-20 mx-auto mt-auto flex w-fit max-w-full flex-wrap items-center gap-2 rounded-lg border border-border/5 bg-surface-subtle px-3 py-2 shadow-lg"
 		>
 			<span className="px-1 text-xs font-medium text-muted-foreground">
 				{t(selectedCountKey, { count: String(selectedCount) })}

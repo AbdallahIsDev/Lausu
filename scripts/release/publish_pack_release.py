@@ -26,6 +26,11 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# ── Defaults ────────────────────────────────────────────────────────────
+
+DEFAULT_REPO = "AbdallahIsDev/lausu"
+DEFAULT_GH_CLI = "gh"
+
 # Make ``scripts.build.artifact_names`` (the canonical §11.9 naming
 # module) importable under every execution mode, direct script run
 # (``python scripts/release/publish_pack_release.py`` puts
@@ -37,20 +42,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-# Post-bootstrap imports (both cheap: the ``__init__.py`` files on this path
-# are trivial, so this stays importable from a CI job with no ``pip install``).
-# ``APP_REPO`` is the ONE authoritative repo slug, so the publisher's upload
-# target and the downloader's manifest URL
-# (``update_check.DEFAULT_OFFLINE_PACK_MANIFEST_URL``, also derived from
-# APP_REPO) stay on the same repo by construction.
-from voice_typer.server.branding import APP_REPO  # noqa: E402
-
 from scripts.build import artifact_names  # noqa: E402
-
-# ─── Defaults ────────────────────────────────────────────────────────────
-
-DEFAULT_REPO = APP_REPO
-DEFAULT_GH_CLI = "gh"
 
 # Canonical release-asset naming (plan §11.9 / C-CI-13). The single
 # source of truth is ``scripts/build/artifact_names.py``; these aliases
@@ -706,13 +698,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="[%(levelname)s] %(message)s",
     )
-    # The success/failure lines use the ✓/✗ markers. A Windows console
-    # defaults to cp1252, which raises UnicodeEncodeError on them and turns a
-    # SUCCESSFUL publish into a traceback + exit 1 (a silent CI false-failure).
-    # Reconfigure the stream instead of dropping the markers.
-    for stream in (sys.stdout, sys.stderr):
-        if hasattr(stream, "reconfigure"):
-            stream.reconfigure(encoding="utf-8", errors="replace")
 
     # Collect assets from the named flags + --asset repeats.
     assets: list[Path] = []

@@ -13,10 +13,10 @@ Tooling note: `adr-tools` and similar expect unique `NNNN-*.md` names; this dire
 | 0005 | `0005-silero-vad.md` | Silero VAD Adoption | Accepted |
 | 0006 | `0006-clipboard-security.md` | Clipboard Security Approach | Accepted |
 | 0007 | `0007-native-hotkey-architecture.md` | Native subprocess hotkey architecture | Accepted |
-| 0008 | `0008-zero-command-hotkey-architecture.md` | Voice Typer: Zero-Command Hotkey Architecture Design | Accepted |
+| 0008 | `0008-zero-command-hotkey-architecture.md` | Lausu: Zero-Command Hotkey Architecture Design | Accepted |
 | 0009 | `0009-audio-filter-chain-architecture.md` | Audio Filter Chain Architecture | Accepted |
 | 0010 | `0010-dependency-injection-boundary.md` | Dependency Injection Boundary for IPCServer | Accepted |
-| 0011 | `0011-prewarm-architecture-analysis.md` | Voice Typer: Prewarm & Autostart Architecture | Accepted |
+| 0011 | `0011-prewarm-architecture-analysis.md` | Lausu: Prewarm & Autostart Architecture | Accepted |
 | 0012 | `0012-clipboard-borrow-restore-architecture.md` | Clipboard Borrow/Restore Architecture | Accepted |
 | 0013 | `0013-desktop-runtime-migration-analysis.md` | Desktop Runtime Migration to Tauri v2 + Python Sidecar (Original, Windows-only) | SUPERSEDED — predecessor host removed 2026-09-17; Tauri is sole host (ADR-0020). Historical record only. |
 | 0014 | `0014-tcp-ipc-session-token-auth.md` | TCP IPC Session Token Authentication (SEC-018) | SUPERSEDED for predecessor/TCP — token auth remains live on Tauri WS (`sidecar_ws.py` + `src-tauri/src/sidecar/ws.rs`). Historical TCP path only. |
@@ -29,7 +29,6 @@ Tooling note: `adr-tools` and similar expect unique `NNNN-*.md` names; this dire
 | 0021 | `rest-encryption.md` | At-Rest Encryption for User Data (Design-Gated) | Proposed (design-only: no production code changes; implementation tracked under the "Phased rollout" section of the ADR). |
 | 0022 | `0022-ws-tcp-protocol-version-asymmetry.md` | Sidecar WS Protocol-Version Check Stays Advisory While TCP Rejects | Accepted: deliberate asymmetry (WS warns-and-continues, TCP rejects with `server.protocol_version_mismatch`); revisit at the ADR-0020 single-transport cutover. |
 | 0024 | `0024-runtime-pack-worker-handoff.md` | Runtime-pack worker handoff end-to-end | Accepted (execution plan): Step-2 `worker_started {pid, version, port}` contract + Steps 0-7 build order; slimming gated on verified handoff. |
-| 0025 | `0025-dictation-worker-cutover.md` | Dictation cutover to the runtime-pack worker | Accepted (design + implementation plan): the four `active_transcriber()` slim-core consumers, a C1-C7 sequence (id correlation, sync bridge, in-memory audio, abort, per-site cutover, streaming session commands, engine removal). Closes the ADR-0024 Step-7 SCOPE FINDING; ITEM 3 slimming stays blocked until C7. |
 
 ## Template
 

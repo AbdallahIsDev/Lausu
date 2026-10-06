@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for Voice Typer, background voice-to-text tray app.
+"""PyInstaller spec for Lausu, background voice-to-text tray app.
 
 This is the **PyInstaller fallback** for ADR-0020 §4.5, used when Nuitka
 is unavailable or the Nuitka build fails on a given platform. The primary
@@ -12,9 +12,9 @@ Single output mode — Tauri sidecar (legacy packaging removed 2026-09-17):
 
 Build (Windows):
     set VOICE_TYPER_TAURI_SIDECAR=1
-    pyinstaller scripts\\build\\voice-typer.spec --noconfirm
+    pyinstaller scripts\\build\\lausu.spec --noconfirm
 Build (macOS/Linux):
-    VOICE_TYPER_TAURI_SIDECAR=1 pyinstaller scripts/build/voice-typer.spec --noconfirm
+    VOICE_TYPER_TAURI_SIDECAR=1 pyinstaller scripts/build/lausu.spec --noconfirm
 Output: dist/python-sidecar-<triple>[.exe]
 Where <triple> matches the Rust target triple Tauri's `externalBin`
 mechanism expects (see `src-tauri/src/sidecar/spawn.rs::target_triple_for`):
@@ -76,7 +76,7 @@ _EXE_NAME = f"python-sidecar-{_TRIPLE}"
 _CONSOLE = True
 _TARGET_ARCH = None  # let PyInstaller pick the host arch
 
-# The spec file lives at <project>/scripts/build/voice-typer.spec
+# The spec file lives at <project>/scripts/build/lausu.spec
 _spec_script = next(a for a in sys.argv if a.endswith(".spec"))
 _PROJECT_ROOT = Path(_spec_script).resolve().parent.parent.parent
 
@@ -88,7 +88,7 @@ _hotkey_reserved_json = str(_PROJECT_ROOT / "voice_typer" / "server" / "hotkey_r
 _model_hashes_json = str(_PROJECT_ROOT / "voice_typer" / "server" / "model_hashes.json")
 # MEM-03: bundled Silero VAD ONNX model (loaded by vad.py via ORT InferenceSession)
 _silero_vad_onnx = str(_PROJECT_ROOT / "voice_typer" / "server" / "silero_vad.onnx")
-_icon_path = _PROJECT_ROOT / "scripts" / "build" / "voice-typer.ico"
+_icon_path = _PROJECT_ROOT / "scripts" / "build" / "lausu.ico"
 
 # NATIVE-001: native key-listener binaries.
 # These are compiled by scripts/build/compile_native.sh (or .ps1 on Windows)
@@ -110,41 +110,41 @@ for _binary_name in ("macos-key-listener", "windows-key-listener.exe", "linux-ke
         # We put them under voice_typer/server/native/ in the bundle so
         # the Python code can find them via Path(__file__).parent / "native".
         _native_binaries.append((str(_candidate), "voice_typer/server/native"))
-        print(f"[voice-typer.spec] Including native binary: {_candidate}")
+        print(f"[lausu.spec] Including native binary: {_candidate}")
     else:
-        print(f"[voice-typer.spec] Skipping native binary (not built): {_candidate}")
+        print(f"[lausu.spec] Skipping native binary (not built): {_candidate}")
 
 # GAP-3: Linux permission-setup scripts. These are bundled so the AppImage
 # first-run helper can invoke them via pkexec. The postinst/prerm scripts
 # for .deb/.rpm packages also reference them (installed to
-# /usr/share/voice-typer/scripts/ by the Tauri Linux installer extras).
+# /usr/share/lausu/scripts/ by the Tauri Linux installer extras).
 _linux_scripts_dir = _PROJECT_ROOT / "scripts" / "linux"
 _linux_scripts = []
 if _linux_scripts_dir.is_dir():
     for _script_name in (
         "install_permissions.py",
         "uninstall_permissions.py",
-        "99-voice-typer.rules",
-        "00-voice-typer-capslock.conf",
-        "voice-typer.polkit",
+        "99-lausu.rules",
+        "00-lausu-capslock.conf",
+        "lausu.polkit",
     ):
         _candidate = _linux_scripts_dir / _script_name
         if _candidate.exists():
             _linux_scripts.append((str(_candidate), "scripts/linux"))
-            print(f"[voice-typer.spec] Including Linux script: {_candidate}")
+            print(f"[lausu.spec] Including Linux script: {_candidate}")
 
 # PLAT-037: Windows application manifest to set requestedExecutionLevel
 # to asInvoker. This prevents UAC elevation prompts on launch and
 # ensures the app runs with the user's normal privileges.
 # DRY: the manifest XML is the single source of truth. The
-# standalone voice-typer.manifest file (which duplicated this
+# standalone lausu.manifest file (which duplicated this
 # XML verbatim) has been removed.
 _manifest_xml = """\
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <assemblyIdentity
     type="win32"
-    name="VoiceTyper"
+    name="Lausu"
     version="1.0.0.0"
     processorArchitecture="*"/>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
@@ -219,6 +219,12 @@ _hiddenimports = [
     "ctranslate2",
     "tokenizers",
     "huggingface_hub",
+    # ADR-0023: media-ingest tiers lazily import yt-dlp / the JS-solver
+    # plugin / PyAV (decoder.py, downloader.py, subtitles.py). The Nuitka
+    # sibling scripts use --include-package for the same three.
+    "yt_dlp",
+    "yt_dlp_ejs",
+    "av",
 ]
 # XPLAT-03: add platform-specific hiddenimports
 if sys.platform == "win32":
@@ -292,7 +298,7 @@ a = Analysis(
         "uu",
         "xdrlib",
         "zipapp",
-        # BUILD-003: additional large stdlib modules not used by Voice Typer
+        # BUILD-003: additional large stdlib modules not used by Lausu
         "xml.dom",
         "xml.sax",
         "xml.etree",

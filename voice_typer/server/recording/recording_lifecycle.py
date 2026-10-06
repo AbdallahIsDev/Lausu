@@ -39,59 +39,6 @@ log = logging.getLogger("voice_typer.server.recording")
 np = lazy_module("numpy")
 
 
-# Session memo of the device index that last opened successfully.
-# A fallback that worked once usually keeps working (e.g. a WASAPI
-# exclusive-mode flake), so later starts try it first and skip the
-# fail-then-fallback WARN pair. Process-lifetime only, never persisted:
-# unplug/replug is detected by revalidating against enumeration.
-_SESSION_LAST_GOOD_DEVICE: int | None = None
-
-
-def _reset_session_device_memo() -> None:
-    """Clear the session device memo (tests)."""
-    global _SESSION_LAST_GOOD_DEVICE
-    _SESSION_LAST_GOOD_DEVICE = None
-
-
-def _prefer_session_last_good_device(recorder: Recorder, candidates: list[Any]) -> list[Any]:
-    """Move the session-memoized device to the front of ``candidates``."""
-    global _SESSION_LAST_GOOD_DEVICE
-    cached = _SESSION_LAST_GOOD_DEVICE
-    if cached is None or cached in candidates:
-        return candidates
-    try:
-        current = recorder._devices._all_input_device_candidates()
-    except Exception:
-        return candidates
-    if cached not in current:
-        _SESSION_LAST_GOOD_DEVICE = None
-        return candidates
-    return [cached, *[c for c in candidates if c != cached]]
-
-
-def _remember_session_device(device: Any) -> None:
-    """Memoize a successfully opened device index (ints only)."""
-    global _SESSION_LAST_GOOD_DEVICE
-    _SESSION_LAST_GOOD_DEVICE = device if isinstance(device, int) else None
-
-
-def _device_display_name(recorder: Recorder, device: Any) -> str:
-    """Best-effort display name for a device index ("" when unknown).
-
-    Only genuine string names count: anything else (test doubles,
-    broken layers) means "unknown" so callers fail safe toward the
-    loud fallback path instead of matching garbage.
-    """
-    try:
-        info = recorder._devices._cached_device_info(device)
-    except Exception:
-        return ""
-    if not isinstance(info, dict):
-        return ""
-    name = info.get("name", "")
-    return name.strip() if isinstance(name, str) else ""
-
-
 def discard_recording(recorder: Recorder) -> None:
     """Discard current recording without processing.
 
@@ -215,7 +162,6 @@ def start_recording(recorder: Recorder) -> None:
 
     device = recorder._devices._resolve_device()
     candidates = recorder._devices._same_physical_microphone_candidates(device)
-    candidates = _prefer_session_last_good_device(recorder, candidates)
 
     # build the PortAudio callback closure () ──
     callback = recorder._stream_lifecycle.build_audio_callback(recorder)
@@ -237,12 +183,9 @@ def start_recording(recorder: Recorder) -> None:
         )
 
     if recorder._stream_lifecycle._stream is None:
-        _remember_session_device(None)
         if last_error is not None:
             raise last_error
         raise RuntimeError("No input device could be opened")
-
-    _remember_session_device(selected_device)
 
     recorder._session_state.resize_buffers_for_sample_rate(recorder, effective_sr, max_rec)
 
@@ -265,54 +208,13 @@ def start_recording(recorder: Recorder) -> None:
                 selected_device,
             )
         else:
-            # Name the failure honestly: the device usually EXISTS (e.g.
-            # System Default resolving to a Realtek WASAPI endpoint) but
-            # its open call failed (driver/exclusive-mode/format). Saying
-            # "unavailable" alone sends users hunting for an unplugged
-            # mic that is sitting right there.
             _label = "System Default" if device is None else device
-            _reason = str(last_error)[:160] if last_error is not None else "unknown error"
-            _fallback_name = _device_display_name(recorder, selected_device)
-            _tried_names = {
-                _device_display_name(recorder, candidate).lower()
-                for candidate in candidates
-            } - {""}
-            if _fallback_name and _fallback_name.lower() in _tried_names:
-                # Same physical mic on another host API (WASAPI flake ->
-                # MME): routine, silent. No tray toast; a popup reading
-                # like breakage would train users to fear a working app.
-                log.info(
-                    "[RECORDING] Selected microphone [%s] failed to open (%s); using same "
-                    "microphone via device [%s] for this session (saved selection unchanged)",
-                    _label,
-                    _reason,
-                    selected_device,
-                )
-            else:
-                log.warning(
-                    "[RECORDING] Selected microphone [%s] failed to open (%s); using device [%s] "
-                    "for this session (saved selection unchanged)",
-                    _label,
-                    _reason,
-                    selected_device,
-                )
-                with contextlib.suppress(Exception):
-                    from voice_typer.server import event_bus as _event_bus
-                    from voice_typer.server.branding import APP_NAME as _APP_NAME
-
-                    _event_bus.publish(
-                        {
-                            "type": "notification",
-                            "data": {
-                                "title": _APP_NAME,
-                                "message": (
-                                    f"Selected microphone '{_label}' failed to open; "
-                                    f"using device [{selected_device}] for this session."
-                                ),
-                                "duration_ms": 10000,
-                            },
-                        }
-                    )
+            log.info(
+                "[RECORDING] Selected microphone [%s] unavailable; using device [%s] "
+                "for this session (saved selection unchanged)",
+                _label,
+                selected_device,
+            )
 
     recorder._recording_event.set()
 

@@ -1,3 +1,4 @@
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
 	cleanup,
 	fireEvent,
@@ -6,13 +7,12 @@ import {
 	waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { TooltipProvider } from "@/components/ui/tooltip";
 
 const renderWithProviders = (ui: React.ReactElement) =>
 	render(<TooltipProvider delayDuration={200}>{ui}</TooltipProvider>);
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PythonRequest, WindowBridge } from "@/types/ipc";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // no runtime values, so the assertions here are COMPILE-TIME checks
 // bound to runtime `const`s. If a future contributor removes
@@ -91,7 +91,7 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 
 vi.mock("@/hooks/usePython", () => ({
 	usePython: () => ({ call: mockCall }),
-	usePythonEvent: () => () => () => {},
+	usePythonEvent: () => () => () => { },
 }));
 
 vi.mock("@/hooks/useSnackbar", () => ({
@@ -117,7 +117,9 @@ vi.mock("next-themes", () => ({
 import { PrivacySettingsSection } from "@/components/settings/PrivacySettingsSection";
 import type { LausuConfig } from "@/types/config";
 
-function makeConfig(overrides: Partial<LausuConfig> = {}): LausuConfig {
+function makeConfig(
+	overrides: Partial<LausuConfig> = {},
+): LausuConfig {
 	return {
 		schema_version: 1,
 		fast_startup: true,
@@ -259,8 +261,8 @@ describe("PrivacySettingsSection export buttons (rewrite of test_settings_has_ex
 		renderWithProviders(
 			<PrivacySettingsSection
 				config={makeConfig()}
-				updateConfig={() => {}}
-				updateConfigDebounced={() => {}}
+				updateConfig={() => { }}
+				updateConfigDebounced={() => { }}
 				isVisible={alwaysVisible}
 			/>,
 		);
@@ -293,8 +295,8 @@ describe("PrivacySettingsSection export buttons (rewrite of test_settings_has_ex
 		renderWithProviders(
 			<PrivacySettingsSection
 				config={makeConfig()}
-				updateConfig={() => {}}
-				updateConfigDebounced={() => {}}
+				updateConfig={() => { }}
+				updateConfigDebounced={() => { }}
 				isVisible={alwaysVisible}
 			/>,
 		);
@@ -323,8 +325,8 @@ describe("PrivacySettingsSection export buttons (rewrite of test_settings_has_ex
 		renderWithProviders(
 			<PrivacySettingsSection
 				config={makeConfig()}
-				updateConfig={() => {}}
-				updateConfigDebounced={() => {}}
+				updateConfig={() => { }}
+				updateConfigDebounced={() => { }}
 				isVisible={alwaysVisible}
 			/>,
 		);
@@ -752,22 +754,20 @@ describe("generate-icons.mjs renames root → clientDir (rewrite of TestIconScri
 	});
 });
 
-// Section 8: voice-typer.spec (PyInstaller fallback)
+// Section 8: lausu.spec (PyInstaller)
 // Ports:
 //   - TestPyinstallerSpecHasAsrHiddenImports (5 tests)
 //   - TestPyinstallerSpecExcludesTkinter (1 test)
-// The PyInstaller spec was renamed to `scripts/build/voice-typer.spec`
-// (the `lausu.spec` name is gone). Nuitka is the primary freeze path;
-// this spec is the documented fallback and still declares the ASR
-// hiddenimports + tkinter excludes.
+// Reads `scripts/build/lausu.spec` (PyInstaller spec) as plain
+// text and asserts on substring presence.
 
-const SPEC_PATH = resolve(REPO_ROOT, "scripts", "build", "voice-typer.spec");
+const SPEC_PATH = resolve(REPO_ROOT, "scripts", "build", "lausu.spec");
 
 function readPyinstallerSpec(): string {
 	return readFileSync(SPEC_PATH, "utf-8");
 }
 
-describe("voice-typer.spec declares ASR hiddenimports (rewrite of TestPyinstallerSpecHasAsrHiddenImports)", () => {
+describe("lausu.spec declares ASR hiddenimports (rewrite of TestPyinstallerSpecHasAsrHiddenImports)", () => {
 	it("includes parakeet_engine", () => {
 		expect(readPyinstallerSpec()).toContain("parakeet_engine");
 	});
@@ -789,7 +789,7 @@ describe("voice-typer.spec declares ASR hiddenimports (rewrite of TestPyinstalle
 	});
 });
 
-describe("voice-typer.spec excludes tkinter (rewrite of TestPyinstallerSpecExcludesTkinter)", () => {
+describe("lausu.spec excludes tkinter (rewrite of TestPyinstallerSpecExcludesTkinter)", () => {
 	it('lists "tkinter" in the excludes array', () => {
 		expect(readPyinstallerSpec()).toContain('"tkinter"');
 	});
@@ -839,14 +839,10 @@ describe("pyproject.toml does not blanket-ignore ResourceWarning (rewrite of Tes
 	});
 });
 
-describe("pyproject.toml entry-point points at the production CLI (rewrite of test_pyproject_entry_point_points_to_ipc_server)", () => {
-	it('declares lausu = "voice_typer.server.cli:main"', () => {
-		// `lausu` starts the production desktop app (never the dev
-		// environment). The bare backend is the secondary `lausu-server`
-		// entry.
-		expect(readPyproject()).toContain('lausu = "voice_typer.server.cli:main"');
+describe("pyproject.toml entry-point points to ipc_server:main (rewrite of test_pyproject_entry_point_points_to_ipc_server)", () => {
+	it('declares lausu = "voice_typer.server.ipc_server:main"', () => {
 		expect(readPyproject()).toContain(
-			'lausu-server = "voice_typer.server.ipc_server:main"',
+			'lausu = "voice_typer.server.ipc_server:main"',
 		);
 	});
 });

@@ -80,11 +80,9 @@ vi.mock("next-themes", () => ({
 	useTheme: () => ({ theme: "light" as const }),
 }));
 
-import { ModelsTabSwitcher } from "@/components/layout/ModelsTabSwitcher";
 // ─── Module imports (after vi.mock, these run with mocks in place) ───
 import { useConsentGateStore } from "@/lib/consentGate";
 import ModelsPage from "@/pages/Models";
-import { useModelsTab } from "@/stores/useModelsTab";
 import type { LausuConfig } from "@/types/config";
 
 // ─── Helpers ───────────────────────────────────────────────────────────
@@ -315,15 +313,8 @@ describe("About page, updates / help / feedback sections", () => {
 			screen.queryByRole("button", { name: /check for updates/i }),
 		).toBeNull();
 
-		// The offline message MUST be rendered. Matched on the current
-		// copy: the notice states what is offline (transcription, after
-		// the model download) rather than claiming the whole app is,
-		// which was false for the model download and update check.
-		expect(
-			screen.getByText(
-				/Lausu transcribes offline once its models are downloaded/i,
-			),
-		).toBeTruthy();
+		// The offline message MUST be rendered.
+		expect(screen.getByText(/Lausu is an offline application/i)).toBeTruthy();
 
 		// No fetch should have fired, C-DATA-1 absolute guarantee.
 		expect(fetchSpy).not.toHaveBeenCalled();
@@ -358,7 +349,7 @@ describe("About page, updates / help / feedback sections", () => {
 		// Python invariant (test_about_page_has_feedback_links):
 		//   "Report a Bug" in src OR "Report an Issue" in src
 		//   OR "Report a Bug" in en OR "Report an Issue" in en
-		//   "github.com/AbdallahIsDev/voice-typer/issues" in src
+		//   "github.com/AbdallahIsDev/lausu/issues" in src
 		// Behavioral: an anchor with visible text matching
 		// /Report a (Bug|Issue)/ points at the GitHub issues URL.
 		const { ResourcesSettingsSection } = await import(
@@ -378,7 +369,7 @@ describe("About page, updates / help / feedback sections", () => {
 			name: /report a (bug|issue)/i,
 		});
 		const href = feedbackLink.getAttribute("href") ?? "";
-		expect(href).toContain("github.com/AbdallahIsDev/voice-typer/issues");
+		expect(href).toContain("github.com/AbdallahIsDev/lausu/issues");
 	});
 });
 
@@ -580,13 +571,11 @@ describe("About & Settings, voice biometric consent disclosure", () => {
 			).toBeTruthy();
 		});
 
-		// Section description is a title tooltip (SettingsSection
-		// descriptionMode default). The visible body copy is the
-		// Agree-to-All banner description
-		// (en.json: settings.privacy.consentBannerDesc):
-		//   "{appName} processes voice, text, and metadata locally..."
+		// en.json: settings.privacy.privacyDescription =
+		//   "Grant or revoke consent for data processing. All
+		//   consents default to off..."
 		expect(document.body.textContent ?? "").toMatch(
-			/processes voice, text, and metadata locally/i,
+			/grant or revoke consent for data processing/i,
 		);
 	});
 
@@ -722,10 +711,6 @@ describe("Models page, cloud consent toggles", () => {
 		// sessionStorage, clear it so every test starts on the
 		// default Local tab regardless of what a previous test did.
 		sessionStorage.clear();
-		// The shared zustand tab store also survives between tests —
-		// pin it back to Local so download-focused cases stay on the
-		// Local Models panel.
-		useModelsTab.setState({ activeTab: "local" });
 	});
 
 	afterEach(() => {
@@ -734,12 +719,11 @@ describe("Models page, cloud consent toggles", () => {
 
 	/** Render Models with a given config. Models shows a Spinner
 	 *  until get_config resolves; we wait for the page heading to
-	 *  appear. The Local/Cloud switcher lives in the title bar
-	 *  (`ModelsTabSwitcher`), so it must be rendered alongside the
-	 *  page for tab clicks to work. The cloud consent Switches live
-	 *  on the "Cloud Models" tab (the default is "Local Models"), so
-	 *  when `switchToCloudTab` is true (the default) we click that
-	 *  tab before returning. */
+	 *  appear. The cloud consent Switches live on the "Cloud Models"
+	 *  tab (renamed from "Cloud Providers" in the UI/UX overhaul;
+	 *  the default tab is "Local Models"), so when
+	 *  `switchToCloudTab` is true (the default) we click that tab
+	 *  before returning. */
 	async function renderModels(
 		config: Partial<LausuConfig>,
 		options: { switchToCloudTab?: boolean } = {},
@@ -753,13 +737,7 @@ describe("Models page, cloud consent toggles", () => {
 			return Promise.resolve(makeConfig(config));
 		});
 
-		renderWithProviders(
-			<>
-				{/* Title-bar chrome: Local/Cloud switcher shares useModelsTab. */}
-				<ModelsTabSwitcher currentPage="models" />
-				<ModelsPage />
-			</>,
-		);
+		renderWithProviders(<ModelsPage />);
 
 		await waitFor(() => {
 			expect(
@@ -769,7 +747,7 @@ describe("Models page, cloud consent toggles", () => {
 
 		// Switch to the Cloud Models tab, the cloud consent
 		// Switches (apiKeys[provider.key] gate) only render there.
-		// The ToggleGroup renders each option as a radio with
+		// The SegmentedControl renders each option as a radio with
 		// a clickable label.
 		if (switchToCloudTab) {
 			// Query the TAB by role, the panel heading inside the

@@ -65,7 +65,7 @@ export const FADEOUT_DURATION_MS = 150;
  * flips to margin-right automatically.
  */
 export const BUBBLE_BUTTON_CLASS =
-	"no-drag ms-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-(--surface-hover) hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground";
+	"no-drag ms-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-(--surface-hover) hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0";
 
 // ── Mode transition (single source of truth) ───────────────────
 
@@ -88,15 +88,10 @@ export const BUBBLE_BUTTON_CLASS =
  *     functional `setMode`), preserving the queued-update semantics of
  *     the original inline logic (e.g. hide → setState in the same
  *     batch).
- * Visibility (`show` / `hide`) never implies a recording state:
- * the backend always pairs `show()` with an explicit
- * `set_state(...)`, and the two IPC events can arrive in either
- * order (show travels via the window-show path while set_state is
- * a direct forward, so set_state routinely overtakes show). A
- * `show` that forced `recording` would land an idle bubble in the
- * recording UI whenever the idle set_state arrived first.
- *   - `show` → unchanged (visibility only; the enter animation is
- *     driven separately by `animState`).
+ * The transition table below reproduces the pre-refactor
+ * `useBubbleStateMachine` logic verbatim:
+ *   - `show` → `recording`, unless already `transcribing` (the backend
+ *     may call `set_state("transcribing")` before `show()` re-fires).
  *   - `hide` → `fading` when transcribing (two-stage fade-out), else
  *     unchanged (the exit animation is driven by `exitTick`).
  *   - `setState` → the 8-state mapping, with a `fading` guard (an
@@ -111,7 +106,7 @@ export function nextBubbleMode(
 ): BubbleMode {
 	switch (event.type) {
 		case "show":
-			return prev;
+			return prev === "transcribing" ? prev : "recording";
 		case "hide":
 			return prev === "transcribing" ? "fading" : prev;
 		case "setState": {

@@ -42,7 +42,7 @@ host-dispatched / host-only set (`heartbeat`, `relaunch_ack`,
 `allowed_commands()` are host-internal (invoked by the Rust host via
 `dispatch_inner` or host-supervised shutdown), never by the renderer.
 
-## Commands (80 total: 76 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
+## Commands (79 total: 75 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
 
 Grouped by namespace. "✓" in the Allowlist column means the command is
 in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
@@ -173,7 +173,6 @@ in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
 | Command | Handler | Allowlist | Notes |
 |---------|---------|-----------|-------|
 | `get_microphones` | `_handle_get_microphones` | ✓ |  |
-| `get_plugins` | `_handle_get_plugins` | ✓ | Installed plugins, their manifests, and each one's active flag. |
 
 ### Microphone test (start, stop, cancel, level)
 
@@ -306,7 +305,7 @@ list: events not in the union fall through to the `string` overload of
 | `asr_backend_load_failed` | `AsrBackendLoadFailedEvent` | `{ backend: string, model_size: string, failure_reason: string }` Background model load failed after `set_config` already acked; surfaced as an error toast with an Open Models action. |
 | `microphone_permission_revoked` | `MicrophonePermissionRevokedEvent` | bare frame: OS microphone permission was revoked mid-session; the renderer shows the localized permission-revoked bubble surface. |
 | `microphone_disconnected` | `MicrophoneDisconnectedEvent` | bare frame: the active recording stream lost the selected device (distinct from `device_lost`, which covers level-monitor paths); renderer shows the shared device-lost toast (deduplicated). |
-| `cloud_fallback_used` | `CloudFallbackUsedEvent` | `{ provider: string, kind: "key" \| "provider" \| "network", reason: string }` A cloud ASR provider failed and the pipeline fell back (typed in the union; renderer consumer optional). |
+| `cloud_fallback_used` | `CloudFallbackUsedEvent` | `{ provider: string, reason: string }` A cloud ASR provider failed and the pipeline fell back (typed in the union; renderer consumer optional). |
 | `dictation_suppressed` | `DictationSuppressedEvent` | `{ duration: number, recorded_rms: number, reason: string }` A dictation was suppressed before transcription (typed in the union; renderer consumer optional). |
 | `history_corrupted` | `HistoryCorruptedEvent` | `{ path: string, db_path: string, recovered_count: number }` History DB corruption was detected and recovered (typed in the union; renderer consumer optional). |
 | `paste_deferred` | `PasteDeferredEvent` | `{ reason: string, message?: string }` Paste was deferred (e.g. clipboard safety validation held it back; typed in the union; renderer consumer optional). |

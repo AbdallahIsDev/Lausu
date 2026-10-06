@@ -148,7 +148,7 @@ export default function AboutAndPrivacyPage() {
 	}, []);
 
 	return (
-		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-28 pb-6">
 			<PageHeading
 				title={t("aboutAndPrivacy.title")}
 				description={t("aboutAndPrivacy.description")}
@@ -157,7 +157,7 @@ export default function AboutAndPrivacyPage() {
 			{/* Product identity card, compact, native-app About block.
 			    No marketing copy, no hero section: identity, capability
 			    split, version + update check. */}
-			<div className="rounded-lg border border-border/8 bg-surface-subtle">
+			<div className="rounded-lg border border-border/5 bg-surface-subtle">
 				{/* Identity row: logo + name + capability summary. */}
 				<div className="flex items-center gap-3 px-4 pt-4">
 					<Logo size={40} className="shrink-0" />
@@ -178,8 +178,8 @@ export default function AboutAndPrivacyPage() {
 				{/* Local vs Cloud, the capability split made visually
 				    obvious: two side-by-side blocks with their own icon
 				    + title + one-line description. */}
-				<div className="grid sm:grid-cols-2">
-					<div className="flex flex-col gap-2 border border-border/8 border-b-0 border-l-0 p-4 sm:border-r-0">
+				<div className="grid pt-5 sm:grid-cols-2">
+					<div className="flex flex-col gap-2 border border-border/5 border-b-0 border-l-0 p-4 sm:border-r-0">
 						<div className="flex items-center gap-2">
 							<HugeiconsIcon
 								icon={Mic02Icon}
@@ -195,7 +195,7 @@ export default function AboutAndPrivacyPage() {
 							{t("about.localDesc")}
 						</p>
 					</div>
-					<div className="flex flex-col gap-2 border border-border/8 border-b-0 border-r-0 p-4">
+					<div className="flex flex-col gap-2 border border-border/5 border-b-0 border-r-0 p-4">
 						<div className="flex items-center gap-2">
 							<HugeiconsIcon
 								icon={CloudIcon}
@@ -219,7 +219,7 @@ export default function AboutAndPrivacyPage() {
 			    right edge via justify-between. The check is user-initiated
 			    against the release manifest (C-DATA-1 category-2 allowed
 			    update check; fires ONLY on button click, never on mount). */}
-				<div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/8 p-4">
+				<div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/5 p-4">
 					<div className="flex items-baseline gap-2">
 						<span className="text-sm font-medium text-foreground">
 							{t("about.version")}
@@ -244,7 +244,7 @@ export default function AboutAndPrivacyPage() {
 						role="status"
 						aria-live="polite"
 						data-testid="update-check-outcome"
-						className={`border-t border-border/8 px-4 py-2 text-xs ${
+						className={`border-t border-border/5 px-4 py-2 text-xs ${
 							packOutcome === "failed"
 								? "text-destructive"
 								: "text-muted-foreground"
@@ -258,7 +258,7 @@ export default function AboutAndPrivacyPage() {
 			{/* The privacy disclosure, five topic rows with thin dividers (the
                             section card's divide-y supplies them). Icons render
                             directly (no chip), in the standard muted icon tone. */}
-			<div className="divide-y divide-border/8 rounded-lg border border-border/8 bg-surface-subtle">
+			<div className="divide-y divide-border/5 rounded-lg border border-border/5 bg-surface-subtle">
 				{PRIVACY_TOPICS.map((topic) => (
 					<div key={topic.title} className="flex gap-3 px-4 py-4">
 						<HugeiconsIcon
@@ -268,7 +268,9 @@ export default function AboutAndPrivacyPage() {
 							className="mt-0.5 size-5 shrink-0 text-muted-foreground"
 						/>
 						<div className="flex min-w-0 flex-col gap-1 text-sm leading-relaxed text-muted-foreground">
-							<p className="font-medium text-foreground">{t(topic.title)}</p>
+							<p className="font-medium text-foreground">
+								{t(topic.title)}
+							</p>
 							{/* max-w-prose: keep paragraph line length
 							    readable; the rows can stay full width.
 							    text-balance: even out the final line of

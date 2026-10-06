@@ -3,7 +3,6 @@
 // pinned deletion.
 // ``parakeet_cpu_fallback`` (3 new events emitted by the Python backend
 
-import { describe, expect, it } from "vitest";
 import type {
 	AutostartStatus,
 	DiskInfo,
@@ -14,6 +13,7 @@ import type {
 	PythonPushEvent,
 	TranscriptionFinalEvent,
 } from "@/types/ipc";
+import { describe, expect, it } from "vitest";
 
 describe("NEW-IPC-002 / PVT-G5-010: dead-type removal guards", () => {
 	it("PythonPushEvent union does NOT include the `model_loaded` variant", () => {

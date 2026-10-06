@@ -72,13 +72,13 @@ export function AvailableMicrophonesList({
 				value={value}
 				onValueChange={handleValueChange}
 				disabled={testRunning}
-				className="rounded-lg border border-border/8 bg-surface-subtle"
+				className="rounded-lg border border-border/5 bg-surface-subtle"
 				data-testid="microphone-radio-list"
 			>
 				{/* native <ul>/<li> list semantics around the radio rows, the
 				    implicit list/listitem ARIA roles come from the elements
 				    themselves (biome's noRedundantRoles + ARIA-in-HTML agree). */}
-				<ul className="divide-y divide-border/8">
+				<ul className="divide-y divide-border/5">
 					<li className={testRunning ? "opacity-50" : undefined}>
 						{/* The a11y pair (nested RadioGroupItem is the accessible
 						    control; row click is pointer-only convenience) + the
@@ -87,7 +87,7 @@ export function AvailableMicrophonesList({
 						    in MicrophoneListItem. */}
 						<SelectableRow
 							className={
-								"flex items-center gap-3 p-4 transition-colors" +
+								"flex items-center gap-3 px-4 py-2 transition-colors" +
 								(testRunning || activeMicId === null
 									? ""
 									: " cursor-pointer hover:bg-foreground/5")

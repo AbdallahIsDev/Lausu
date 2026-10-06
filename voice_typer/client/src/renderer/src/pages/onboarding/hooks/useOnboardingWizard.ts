@@ -1,3 +1,9 @@
+import { useLatestRef } from "@/hooks/useLatestRef";
+import { usePython, usePythonEvent } from "@/hooks/usePython";
+import { useSnackbar } from "@/hooks/useSnackbar";
+import { t } from "@/i18n/i18n";
+import { openConsentGate } from "@/lib/consentGate";
+import type { LausuConfig } from "@/types/config";
 import {
 	type RefObject,
 	useCallback,
@@ -5,12 +11,6 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { useLatestRef } from "@/hooks/useLatestRef";
-import { usePython, usePythonEvent } from "@/hooks/usePython";
-import { useSnackbar } from "@/hooks/useSnackbar";
-import { t } from "@/i18n/i18n";
-import { openConsentGate } from "@/lib/consentGate";
-import type { LausuConfig } from "@/types/config";
 import { HOTKEY_DEFAULT, MODEL_DEFAULT } from "../lib/constants";
 import type { ModelOption, StepInfo } from "../lib/types";
 

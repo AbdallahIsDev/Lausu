@@ -43,16 +43,16 @@ fn test_worker_backoff_past_end_is_none() {
 
 #[test]
 fn test_respawn_path_relays_the_new_bind() {
-    /// Regression guard (ADR-0024 Step 6 row b, found by the host run).
-    ///
-    /// The initial spawn relays `worker_started` from
-    /// `spawn.rs::initialize_worker`, but the RESPAWN path used to return
-    /// without relaying. A live host run proved the consequence: after
-    /// killing the worker, the supervisor respawned it on a NEW port
-    /// (65289 -> 63792) while the sidecar still held the dead port, so
-    /// the worker hop was unreachable until the app restarted.
-    ///
-    /// Pins the source so the relay cannot be dropped again.
+    // Regression guard (ADR-0024 Step 6 row b, found by the host run).
+    //
+    // The initial spawn relays `worker_started` from
+    // `spawn.rs::initialize_worker`, but the RESPAWN path used to return
+    // without relaying. A live host run proved the consequence: after
+    // killing the worker, the supervisor respawned it on a NEW port
+    // (65289 -> 63792) while the sidecar still held the dead port, so
+    // the worker hop was unreachable until the app restarted.
+    //
+    // Pins the source so the relay cannot be dropped again.
     let src = include_str!("worker_supervisor.rs");
     let inner = src
         .split("async fn respawn_worker_inner")

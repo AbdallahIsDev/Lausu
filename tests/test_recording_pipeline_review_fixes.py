@@ -39,8 +39,8 @@ def _patch_ok_stream(monkeypatch, recording_mod):
     monkeypatch.setattr(recording_mod.sd, "query_hostapis", lambda idx=None: {"name": "MME"})
 
 
-class TestWorkerJoinTimeoutGuardAtStartBoundary:
-    """Worker-join-timeout contract pinned at the ``Recorder._start_audio_worker`` /"""
+class TestRec1StaleWorkerGuardWrapper:
+    """REC-1 contract pinned at the ``Recorder._start_audio_worker`` /"""
 
     def test_stop_keeps_stop_event_and_thread_when_still_alive(self):
         from voice_typer.server.recording import Recorder
@@ -99,8 +99,8 @@ class TestWorkerJoinTimeoutGuardAtStartBoundary:
                 r._stop_audio_worker(timeout=0.01, drain=False)
 
 
-class TestPortAudioRollbackOnWorkerStartFailure:
-    """Rollback contract: ``Recorder.start`` must roll back the PortAudio"""
+class TestRec2RollbackOnWorkerStartFailure:
+    """REC-2 contract: ``Recorder.start`` must roll back the PortAudio"""
 
     def test_start_rolls_back_stream_when_audio_worker_raises(self, monkeypatch):
         import voice_typer.server.recording as recording_mod
@@ -177,8 +177,8 @@ class TestPortAudioRollbackOnWorkerStartFailure:
         assert r._stop_generation == gen_before + 1
 
 
-class TestBufferClearAndRebindHoldTheLock:
-    """Lock contract: the buffer-clear / buffer-rebind operations must be wrapped"""
+class TestRec8BufferOpsLockContract:
+    """REC-8: the buffer-clear / buffer-rebind operations must be wrapped"""
 
     def test_discard_recording_locks_buffer_rebind(self):
         import inspect
@@ -187,10 +187,10 @@ class TestBufferClearAndRebindHoldTheLock:
 
         src = inspect.getsource(discard_recording)
         assert "with recorder._audio_pipeline._lock:" in src, (
-            "Lock contract: discard_recording does not acquire recorder._audio_pipeline._lock"
+            "REC-8: discard_recording does not acquire recorder._audio_pipeline._lock"
         )
         assert "recorder._audio_pipeline._buffer = recording_buffer._fresh_recording_buffer_like(" in src, (
-            "Lock contract: discard_recording does not swap in a fresh recording buffer"
+            "REC-8: discard_recording does not swap in a fresh recording buffer"
         )
 
     def test_stop_recording_locks_buffer_rebind(self):
@@ -200,10 +200,10 @@ class TestBufferClearAndRebindHoldTheLock:
 
         src = inspect.getsource(stop_recording)
         assert "with recorder._audio_pipeline._lock:" in src, (
-            "Lock contract: stop_recording does not acquire recorder._audio_pipeline._lock"
+            "REC-8: stop_recording does not acquire recorder._audio_pipeline._lock"
         )
         assert "recorder._audio_pipeline._buffer = recording_buffer._fresh_recording_buffer_like(" in src, (
-            "Lock contract: stop_recording does not swap in a fresh recording buffer"
+            "REC-8: stop_recording does not swap in a fresh recording buffer"
         )
 
     def test_start_acquires_start_lock(self):
@@ -212,4 +212,4 @@ class TestBufferClearAndRebindHoldTheLock:
         from voice_typer.server.recording import Recorder
 
         src = inspect.getsource(Recorder.start)
-        assert "with self._start_lock:" in src, "Lock contract: Recorder.start no longer acquires self._start_lock"
+        assert "with self._start_lock:" in src, "REC-8: Recorder.start no longer acquires self._start_lock"

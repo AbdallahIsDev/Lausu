@@ -126,7 +126,7 @@ export function SearchField({
 				// a bare `border-border` would override the Input's
 				// transparent border with a full-opacity line.
 				className={cn(
-					"ps-9 pe-9 rounded-lg bg-surface-subtle border-border/8",
+					"ps-9 pe-9 rounded-lg bg-surface-subtle border-border/5",
 					className,
 				)}
 			/>

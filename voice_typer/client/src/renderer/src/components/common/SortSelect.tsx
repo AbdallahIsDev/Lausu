@@ -8,7 +8,7 @@
 // Any future sort UI must reuse this component, do not create a
 // page-specific Select duplicate.
 // Design tokens (mirrors the app's outline Button / search input):
-// - Trigger: rounded-lg border-border/8 bg-background text-sm
+// - Trigger: rounded-lg border-border/5 bg-background text-sm
 //   (via SelectTrigger base) + muted text at rest
 //   (text-muted-foreground) with hover:text-foreground and
 //   transition-[color,box-shadow,background-color]; Sorting01Icon
@@ -16,7 +16,7 @@
 //   hideChevron hides the generic chevron because the sort glyph
 //   already communicates the control.
 // - Content: position="popper" align="start" + rounded-lg
-//   border-border/8 bg-surface-subtle so the popup belongs to the
+//   border-border/5 bg-surface-subtle so the popup belongs to the
 //   page's subtle surface instead of the generic popover ring.
 // The SortOrder union matches the three pages' existing
 // VocabSortOrder / TemplateSortOrder / HistorySortOrder types
@@ -70,7 +70,7 @@ export function SortSelect({ value, onValueChange }: SortSelectProps) {
 			<SelectContent
 				position="popper"
 				align="start"
-				className="rounded-lg border border-border/8 bg-surface"
+				className="rounded-lg border border-border/5 bg-surface-subtle"
 			>
 				<SelectItem value="newest">{t("common.sortNewest")}</SelectItem>
 				<SelectItem value="oldest">{t("common.sortOldest")}</SelectItem>

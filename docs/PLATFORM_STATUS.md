@@ -1,6 +1,6 @@
 # Platform Status
 
-Feature × OS matrix for Lausu.  Last updated: 2026-10-05.
+Feature × OS matrix for Lausu.  Last updated: 2026-06-30.
 
 | Feature                    | Windows | macOS | Linux (X11) | Linux (Wayland) |
 |----------------------------|---------|-------|-------------|-----------------|
@@ -18,7 +18,7 @@ Feature × OS matrix for Lausu.  Last updated: 2026-10-05.
 | Single-instance lock       | ✅ Win32 named mutex | ⚠️ Lockfile (best-effort) | ⚠️ Lockfile (best-effort) | ⚠️ Lockfile |
 | Microphone listing         | ✅ sounddevice WASAPI | ✅ sounddevice CoreAudio | ✅ sounddevice ALSA/PulseAudio | ✅ sounddevice PipeWire |
 | Clipboard paste            | ✅ `pyperclip` + Win32 API | ✅ `pyperclip` + `pbpaste` | ✅ `pyperclip` + `xclip`/`xsel` | ⚠️ `wl-copy` (if installed) |
-| Focus detection (safe auto-paste) | ✅ UIA control types (Edit/Document/ComboBox) | ✅ AX roles (pyobjc) | ✅ AT-SPI roles (pyatspi) | ✅ AT-SPI roles (pyatspi) |
+| Focus detection (safe auto-paste) | ✅ Win32 API | ❌ N/A (text always copied to clipboard) | ❌ N/A | ❌ N/A |
 | Audio recording            | ✅ PortAudio WASAPI | ✅ PortAudio CoreAudio | ✅ PortAudio ALSA | ✅ PortAudio PipeWire |
 | Console handler (Ctrl+C)   | ✅ `SetConsoleCtrlHandler` | ❌ N/A | ❌ N/A | ❌ N/A |
 | Devnull redirect (pythonw) | ✅ `os.devnull` | ✅ `os.devnull` | ✅ `os.devnull` | ✅ `os.devnull` |

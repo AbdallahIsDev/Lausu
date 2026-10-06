@@ -4,10 +4,13 @@
 // job survives page navigation (ADR-0023).
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useLatestRef } from "@/hooks/useLatestRef";
-import { usePython, usePythonEvent } from "@/hooks/usePython";
 import type { TranslationKey } from "@/i18n/translation-keys";
-import { CONSENT_REQUIRED_CODE, MEDIA_URL_CONSENT_FIELD } from "@/lib/consent";
+import { usePython, usePythonEvent } from "@/hooks/usePython";
+import { useLatestRef } from "@/hooks/useLatestRef";
+import {
+	CONSENT_REQUIRED_CODE,
+	MEDIA_URL_CONSENT_FIELD,
+} from "@/lib/consent";
 import { consentBodyKey, openConsentGate } from "@/lib/consentGate";
 import { isNoModelError, mediaErrorKey } from "../lib/mediaErrorCopy";
 
@@ -78,9 +81,9 @@ export function useMediaJob(): UseMediaJobResult {
 	// Latest `start` identity for the consent gate's `onAllow` retry:
 	// the gate stores the callback long after this render, so it must
 	// re-invoke the CURRENT function, not a stale closure.
-	const startRef = useRef<
-		(source: string, useSubtitles: boolean) => Promise<void>
-	>(async () => {});
+	const startRef = useRef<(source: string, useSubtitles: boolean) => Promise<void>>(
+		async () => {},
+	);
 
 	const start = useCallback(
 		async (source: string, useSubtitles: boolean) => {
@@ -110,9 +113,7 @@ export function useMediaJob(): UseMediaJobResult {
 					...IDLE_STATE,
 					phase: "error",
 					errorCode: typeof e.code === "string" ? e.code : null,
-					errorKey: isNoModelError(e.code)
-						? "media.errorNoModel"
-						: mediaErrorKey(e.code),
+					errorKey: isNoModelError(e.code) ? "media.errorNoModel" : mediaErrorKey(e.code),
 				});
 			} finally {
 				setStarting(false);
@@ -141,8 +142,7 @@ export function useMediaJob(): UseMediaJobResult {
 				: {
 						...prev,
 						phase: data.phase,
-						progress:
-							typeof data.progress === "number" ? data.progress : prev.progress,
+						progress: typeof data.progress === "number" ? data.progress : prev.progress,
 						etaSeconds: data.eta_seconds ?? null,
 						durationSeconds: data.duration_seconds ?? prev.durationSeconds,
 						jobId: data.job_id,
@@ -181,9 +181,7 @@ export function useMediaJob(): UseMediaJobResult {
 			jobId: data.job_id,
 			etaSeconds: null,
 			errorCode: data.code,
-			errorKey: isNoModelError(data.code)
-				? "media.errorNoModel"
-				: mediaErrorKey(data.code),
+			errorKey: isNoModelError(data.code) ? "media.errorNoModel" : mediaErrorKey(data.code),
 		}));
 	});
 
@@ -193,8 +191,7 @@ export function useMediaJob(): UseMediaJobResult {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: callRef is a useLatestRef mirror: reading .current in a stale closure is the hook's documented contract, .current must NOT become a dep
 	useEffect(() => {
 		let cancelled = false;
-		void callRef
-			.current<StatusSnapshot>("media_transcribe_status")
+		void callRef.current<StatusSnapshot>("media_transcribe_status")
 			.then((result) => {
 				if (cancelled) return;
 				const snapshot = result?.job;
