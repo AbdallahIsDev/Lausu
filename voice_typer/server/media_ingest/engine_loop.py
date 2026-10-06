@@ -42,6 +42,105 @@ class WindowsState:
 # (fraction, eta_seconds); eta is None until a stable rate is known.
 ProgressCallback = Callable[[float, float | None], None]
 
+_WORKER_WINDOW_TIMEOUT_S = 300.0
+
+
+def _shared_worker_client() -> Any | None:
+    try:
+        from voice_typer.server import worker_client
+
+        return worker_client.get_shared_client()
+    except Exception:  # noqa: BLE001, worker hop is optional
+        return None
+
+
+def _worker_path_available(backend: object) -> bool:
+    """Single-gate delegate: the policy lives in ``worker_path`` (E7)."""
+    from voice_typer.server import worker_path
+
+    ok, _reason = worker_path.worker_path_for_backend(backend)
+    return ok
+
+
+class WorkerWindowBackend:
+    """Worker hop for one media window, satisfying ``WindowBackend``.
+
+    Raises on any worker failure so the caller falls back in-process.
+    """
+
+    def __init__(
+        self,
+        *,
+        language: str | None = None,
+        timeout: float = _WORKER_WINDOW_TIMEOUT_S,
+        client: Any | None = None,
+    ) -> None:
+        self._language = language
+        self._timeout = float(timeout)
+        self._client_override = client
+        self._current_request_id: int | None = None
+        self._current_future: Any | None = None
+
+    def transcribe_with_fallback(self, audio: Any, *args: object, **kwargs: object) -> str:
+        import numpy as np
+
+        language = kwargs.get("language", self._language)
+        if language is not None and not isinstance(language, str):
+            language = self._language
+        arr = np.asarray(audio, dtype=np.float32).reshape(-1)
+        audio_bytes = arr.tobytes()
+        client = self._client_override if self._client_override is not None else _shared_worker_client()
+        if client is None:
+            raise RuntimeError("worker client unavailable")
+        future = client.request_samples(audio_bytes, TARGET_SAMPLE_RATE, language, timeout=self._timeout)
+        if future is None:
+            raise RuntimeError("worker not connected")
+        self._current_future = future
+        try:
+            seq = getattr(client, "_request_seq", None)
+            self._current_request_id = int(seq) if isinstance(seq, int) else None
+        except Exception:  # noqa: BLE001, id tracking is best-effort
+            self._current_request_id = None
+        try:
+            result = future.result(timeout=self._timeout)
+        except Exception:
+            import contextlib as _contextlib
+
+            with _contextlib.suppress(Exception):
+                self.request_abort()
+            raise
+        finally:
+            self._current_future = None
+        if isinstance(result, dict):
+            if result.get("error"):
+                self._current_request_id = None
+                raise RuntimeError(str(result.get("error")))
+            text = str(result.get("text") or "")
+            self._current_request_id = None
+            return text
+        self._current_request_id = None
+        return str(result or "")
+
+    def request_abort(self) -> None:
+        request_id = self._current_request_id
+        client = self._client_override if self._client_override is not None else _shared_worker_client()
+        if client is None:
+            return
+        if request_id is None:
+            return
+        try:
+            send = getattr(client, "send_abort", None)
+            if callable(send):
+                send(int(request_id))
+        except Exception:  # noqa: BLE001, abort is best-effort
+            log.debug("[MEDIA] worker abort send failed", exc_info=True)
+        try:
+            cancel = getattr(client, "cancel_request", None)
+            if callable(cancel):
+                cancel(int(request_id))
+        except Exception:  # noqa: BLE001, abort is best-effort
+            log.debug("[MEDIA] worker abort cancel failed", exc_info=True)
+
 
 def transcribe_windows(
     chunks: Iterable[Any],
@@ -65,14 +164,27 @@ def transcribe_windows(
     window_cap = int(WINDOW_SECONDS * TARGET_SAMPLE_RATE)
     started = time.perf_counter()
     start_offset = acc.decoded_seconds
+    worker_backend: WorkerWindowBackend | None = None
 
     def _flush() -> None:
-        nonlocal window, window_samples
+        nonlocal window, window_samples, worker_backend
         if not window:
             return
         audio = np.concatenate(window).astype(np.float32, copy=False)
         window = []
         window_samples = 0
+        if _worker_path_available(backend):
+            try:
+                if worker_backend is None:
+                    worker_backend = WorkerWindowBackend(language=getattr(backend, "language", None))
+                else:
+                    worker_backend._language = getattr(backend, "language", None)
+                text = str(worker_backend.transcribe_with_fallback(audio) or "").strip()
+                if text:
+                    acc.texts.append(text)
+                return
+            except Exception:  # noqa: BLE001, worker failure falls back in-process
+                log.debug("[MEDIA] worker window failed, falling back to in-process", exc_info=True)
         text = str(backend.transcribe_with_fallback(audio) or "").strip()
         if text:
             acc.texts.append(text)
@@ -84,6 +196,11 @@ def transcribe_windows(
             backend.request_abort()
         except Exception:  # noqa: BLE001, abort is best-effort
             log.debug("[MEDIA] backend abort failed", exc_info=True)
+        if worker_backend is not None:
+            try:
+                worker_backend.request_abort()
+            except Exception:  # noqa: BLE001, abort is best-effort
+                log.debug("[MEDIA] worker abort failed", exc_info=True)
         return True
 
     for chunk in chunks:

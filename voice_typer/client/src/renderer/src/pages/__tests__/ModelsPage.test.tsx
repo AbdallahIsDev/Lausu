@@ -35,12 +35,13 @@ vi.mock("@/hooks/usePython", () => pythonMock({ noopEvent: true }));
 vi.mock("@/hooks/useSnackbar", () => snackbarMock());
 vi.mock("sonner", () => sonnerMock({ errorTo: "mockToastError" }));
 
-// We import en.json directly for assertion string lookups.
-import en from "@/i18n/translations/en.json";
-
 // Static import of ModelsPage, vitest hoists vi.mock() before this,
 // so all dependencies (usePython, hugeicons, etc.) are mocked.
+import { ModelsTabSwitcher } from "@/components/layout/ModelsTabSwitcher";
+// We import en.json directly for assertion string lookups.
+import en from "@/i18n/translations/en.json";
 import ModelsPage from "@/pages/Models";
+import { useModelsTab } from "@/stores/useModelsTab";
 
 // Helper: flatten a nested JSON object into dot-separated keys (same as
 // by key for assertions.
@@ -99,6 +100,9 @@ function removeDialogMock() {
 // that expects the default Local tab.
 beforeEach(() => {
 	sessionStorage.clear();
+	// Zustand store is module-level and survives cleanup(); reset so
+	// each test starts on the Local tab.
+	useModelsTab.setState({ activeTab: "local" });
 });
 
 describe("ModelsPage, Import Model flow", () => {
@@ -359,7 +363,7 @@ describe("ModelsPage, Import Model flow", () => {
 			// The component passes interpolated params to t(), so we
 			// check for the string content rather than the raw key.
 			expect(showSnack).toHaveBeenCalledWith(
-				expect.stringContaining("Imported 2 model(s)"),
+				expect.stringContaining("Imported 2 models"),
 				"success",
 			);
 		});
@@ -723,17 +727,29 @@ describe("ModelsPage, MDL-5: cloud provider API key inputs have unique HTML ids"
 			if (type === "get_model_catalog") return Promise.resolve({ models: [] });
 			return Promise.resolve(MOCK_CONFIG);
 		});
-		renderWithProviders(<ModelsPage />);
+		renderWithProviders(
+			<>
+				{/* Title-bar chrome: Local/Cloud switcher shares useModelsTab. */}
+				<ModelsTabSwitcher currentPage="models" />
+				<ModelsPage />
+			</>,
+		);
 		await waitFor(() => {
 			expect(
 				screen.queryByRole("heading", { level: 1, name: /Models/i }),
 			).toBeTruthy();
 		});
 
-		// Switch to the Cloud Models tab (renamed from "Cloud Providers"
-		// in the UI/UX overhaul, point 12).
-		const cloudTab = screen.getByText(t("models.cloudModels"));
-		fireEvent.click(cloudTab);
+		// Switch to the Cloud Models tab via the title-bar switcher
+		// (shared useModelsTab store with the Models page).
+		fireEvent.click(screen.getByRole("tab", { name: t("models.cloudModels") }));
+		await waitFor(() => {
+			expect(
+				screen
+					.getByRole("tab", { name: t("models.cloudModels") })
+					.getAttribute("aria-selected"),
+			).toBe("true");
+		});
 
 		// (overhaul point 11) each provider is a collapsible group whose
 		// API-key form is hidden behind the "Configure" action, expand
@@ -961,26 +977,32 @@ describe("ModelsPage, segmented control card border treatment (2026-08-21)", () 
 			if (type === "get_model_catalog") return Promise.resolve({ models: [] });
 			return Promise.resolve(MOCK_CONFIG);
 		});
-		renderWithProviders(<ModelsPage />);
+		renderWithProviders(
+			<>
+				<ModelsTabSwitcher currentPage="models" />
+				<ModelsPage />
+			</>,
+		);
 		await waitFor(() => {
 			expect(
 				screen.queryByRole("heading", { level: 1, name: /Models/i }),
 			).toBeTruthy();
 		});
 
-		// The tablist is the SegmentedControl container; it must carry
-		// the model-card border treatment (`border border-border/5`
-		// `rounded-lg bg-surface-subtle`, the app-wide page-card token)
-		// so the control reads as one card among the model cards, NOT
-		// a borderless strip. The tabs
-		// tailwind-merge treats `border` (width) and `border-none`
-		// (style) as different groups, so `border-style: none` silently
-		// killed the container border, guard against it returning.
+		// The tablist is the title-bar ModelsTabSwitcher; it must keep
+		// the card border treatment (`border border-border/8`
+		// `rounded-lg`) so the control reads as one card among the
+		// model cards, NOT a borderless strip. Background is the
+		// title-bar surface (`bg-background`), not the page-card
+		// `bg-surface-subtle`. tailwind-merge treats `border` (width)
+		// and `border-none` (style) as different groups, so
+		// `border-style: none` silently killed the container border,
+		// guard against it returning.
 		const tablist = screen.getByRole("tablist");
 		const cls = tablist.className;
-		expect(cls).toContain("border-border/5");
+		expect(cls).toContain("border-border/8");
 		expect(cls).toContain("rounded-lg");
-		expect(cls).toContain("bg-surface-subtle");
+		expect(cls).toContain("bg-background");
 		expect(cls).not.toContain("border-none");
 
 		// The active segment indicator carries the SAME border token.

@@ -94,8 +94,16 @@ function BubbleInner() {
 	// Whether to show the dismiss '×' button. Shown whenever the bubble
 	// is in `always_visible` mode (the only mode where the user needs
 	// to manually dismiss the bubble, `show_on_record` auto-hides when
-	// recording stops). Driven by `bubble:config`.
+	// recording stops), except while recording (discarding mid-record
+	// is never valid). Driven by `bubble:config`.
 	const [dismissable, setDismissable] = useState(false);
+	// Whether to show the recording duration next to the red dot.
+	// Toggleable in Settings → Overlay, defaults to OFF.
+	const [showTimer, setShowTimer] = useState(false);
+	// Dismiss arming for the transcribing phase: the '×' stays disabled
+	// for the first 5s so an accidental click can't discard a healthy
+	// transcription, then arms so a hung transcription can be dismissed.
+	const [dismissArmed, setDismissArmed] = useState(true);
 	// Tracks the current `bubble_behavior` so the error-mode auto-hide
 	// effect can decide whether to auto-dismiss (show_on_record) or
 	// stay sticky (always_visible, the user dismisses manually via
@@ -103,7 +111,7 @@ function BubbleInner() {
 	// default in the Settings page) until the first `bubble:config`
 	// push arrives.
 	const [bubbleBehavior, setBubbleBehavior] = useState<
-		"show_on_record" | "always_visible"
+		"show_on_record" | "always_visible" | "hidden"
 	>("show_on_record");
 
 	// Lifecycle + state machine extracted to hooks.
@@ -116,7 +124,6 @@ function BubbleInner() {
 		setExitTick: _setExitTick,
 		errorMessage,
 		transcript,
-		livePreviewUnsupported,
 	} = useBubbleStateMachine();
 	// `_isVisible` is consumed inside useBubbleLifecycle (gates the rAF
 	// loop). We acknowledge it here so eslint doesn't flag it as unused.
@@ -152,6 +159,7 @@ function BubbleInner() {
 			const behavior = cfg.bubble_behavior;
 			const clickToToggle = cfg.bubble_click_to_toggle;
 			const micButton = cfg.bubble_mic_button;
+			setShowTimer(cfg.bubble_show_recording_timer === true);
 			const enabled =
 				behavior === "always_visible" &&
 				micButton !== false &&
@@ -165,12 +173,28 @@ function BubbleInner() {
 			setDismissable(behavior === "always_visible");
 			// Track the behavior so the error-mode auto-hide effect
 			// can decide whether to auto-dismiss.
-			if (behavior === "always_visible" || behavior === "show_on_record") {
+			if (
+				behavior === "always_visible" ||
+				behavior === "show_on_record" ||
+				behavior === "hidden"
+			) {
 				setBubbleBehavior(behavior);
 			}
 		});
 		return off;
 	}, [bridge]);
+
+	// Arm the transcribing dismiss control 5s after entering the
+	// transcribing phase (see `dismissArmed` above).
+	useEffect(() => {
+		if (mode !== "transcribing") {
+			setDismissArmed(true);
+			return;
+		}
+		setDismissArmed(false);
+		const id = setTimeout(() => setDismissArmed(true), 5000);
+		return () => clearTimeout(id);
+	}, [mode]);
 
 	// Mic button click → toggle dictation. The bubble is a sandboxed
 	// renderer (SEC-026) with no `python.call`, so it routes through
@@ -312,7 +336,7 @@ function BubbleInner() {
 					// Muted frame: theme's --border at 10% so the pill floats
 					// subtly over the desktop (same treatment as the page
 					// window frame in App.tsx).
-					"border border-border/5",
+					"border border-border/8",
 					"bg-surface text-foreground",
 					"px-4 py-2.5",
 					draggable ? "drag-region" : "no-drag",
@@ -322,20 +346,28 @@ function BubbleInner() {
 					mode={mode}
 					errorMessage={errorMessage}
 					transcript={transcript}
-					livePreviewUnsupported={livePreviewUnsupported}
+					showTimer={showTimer}
 					dotRefs={dotRefs}
 				/>
 
-				{micButton && (
+				{/* Single action slot: mic outside recording, stop while
+				    recording, retry on error. The pill never shows two
+				    competing actions at once. */}
+				{micButton && mode !== "recording" && mode !== "error" && (
 					<BubbleMicButton mode={mode as BubbleMode} onClick={handleMicClick} />
 				)}
-				{(mode === "recording" || mode === "error") && (
-					<BubbleStopButton
-						onClick={handleStopClick}
-						mode={mode === "error" ? "error" : "recording"}
+				{mode === "recording" && (
+					<BubbleStopButton onClick={handleStopClick} mode="recording" />
+				)}
+				{mode === "error" && (
+					<BubbleStopButton onClick={handleStopClick} mode="error" />
+				)}
+				{dismissable && mode !== "recording" && (
+					<BubbleDismissButton
+						onClick={handleDismissClick}
+						disabled={mode === "transcribing" && !dismissArmed}
 					/>
 				)}
-				{dismissable && <BubbleDismissButton onClick={handleDismissClick} />}
 			</div>
 		</output>
 	);

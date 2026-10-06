@@ -1,22 +1,10 @@
-import { Mic02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import type { RefObject } from "react";
 import { t } from "@/i18n/i18n";
 import { BubbleVisualizer } from "./BubbleVisualizer";
-import {
-	type BubbleMode,
-	FADEOUT_DURATION_MS,
-	TRANSCRIBING_DOT_COUNT,
-} from "./constants";
+import type { BubbleMode } from "./constants";
+import { FADEOUT_DURATION_MS } from "./constants";
 import { tf } from "./helpers";
-
-// Pre-computed `[0, 1, 2]` index array for the transcribing dots.
-// Hoisted to module scope so the JSX `.map` uses a stable reference
-// (same pattern as `DOT_INDICES` in `./constants.ts`).
-const TRANSCRIBING_DOT_INDICES: readonly number[] = Array.from(
-	{ length: TRANSCRIBING_DOT_COUNT },
-	(_, i) => i,
-);
+import { TranscribingLabel } from "./TranscribingLabel";
 
 const TRANSCRIPT_PREVIEW_MAX_CHARS = 60;
 
@@ -30,7 +18,7 @@ export interface BubbleModeContentProps {
 	mode: BubbleMode;
 	errorMessage?: string | null;
 	transcript?: string | null;
-	livePreviewUnsupported?: boolean;
+	showTimer: boolean;
 	dotRefs: RefObject<(HTMLSpanElement | null)[]>;
 }
 
@@ -38,7 +26,7 @@ export function BubbleModeContent({
 	mode,
 	errorMessage,
 	transcript,
-	livePreviewUnsupported,
+	showTimer,
 	dotRefs,
 }: BubbleModeContentProps) {
 	switch (mode) {
@@ -49,7 +37,7 @@ export function BubbleModeContent({
 					: null;
 			return (
 				<div className="flex items-center gap-2 text-xs font-medium text-(--text-secondary)">
-					<span>{t("bubble.transcribingLabel")}</span>
+					<TranscribingLabel />
 					{preview && (
 						<output
 							// `<output>` is the semantic element for
@@ -70,16 +58,6 @@ export function BubbleModeContent({
 							{preview}
 						</output>
 					)}
-					{TRANSCRIBING_DOT_INDICES.map((i) => (
-						<span
-							key={i}
-							className="inline-block h-1 w-1 animate-bounce rounded-full bg-muted-foreground"
-							style={{
-								animationDelay: `${i * 0.2}s`,
-								animationDuration: "1.2s",
-							}}
-						/>
-					))}
 				</div>
 			);
 		}
@@ -115,21 +93,8 @@ export function BubbleModeContent({
 		case "idle":
 			return (
 				<>
-					{/* A11Y: sr-only announcement so screen-reader users hear
-                                            "Transcription complete." when the bubble transitions to
-                                            idle (always_visible mode). The empty div below is
-                                            preserved as a zero-width sibling so Bubble.test.tsx's
-                                            `emptyContainer.textContent === ""` assertion still
-                                            passes, querySelector returns the first match in DOM
-                                            order, which is the empty div. */}
-					<div className="flex h-6 items-center" />
-					<div className="flex h-6 items-center gap-2 px-2" aria-hidden>
-						<HugeiconsIcon
-							icon={Mic02Icon}
-							strokeWidth={2}
-							className="w-3 h-3 text-muted-foreground"
-						/>
-						<span className="text-[0.625rem] font-medium text-muted-foreground">
+					<div className="flex h-6 items-center" aria-hidden>
+						<span className="text-xs font-medium text-muted-foreground">
 							{tf("bubble.idleLabel", "Ready")}
 						</span>
 					</div>
@@ -208,19 +173,26 @@ export function BubbleModeContent({
 					</span>
 				</div>
 			);
-		default:
+		case "recording":
+			// Recording shows the pulsing dot + level bars only. A
+			// "no live preview" notice used to sit here for engines
+			// without word streaming; it widened the always-on-top
+			// pill and wrapped to two lines. The bars already say
+			// "listening".
 			return (
 				<div className="flex items-center gap-2">
-					<BubbleVisualizer dotRefs={dotRefs} />
-					{livePreviewUnsupported && (
-						<span className="text-[0.625rem] font-medium text-muted-foreground">
-							{tf(
-								"bubble.livePreviewUnavailable",
-								"No live preview for this engine",
-							)}
-						</span>
-					)}
+					<BubbleVisualizer dotRefs={dotRefs} showTimer={showTimer} />
 				</div>
 			);
+		default: {
+			// Exhaustiveness guard: every BubbleMode has its own branch
+			// above, so this is unreachable today. If a mode is ever added
+			// without a branch the compiler fails HERE, instead of the pill
+			// falling through and showing the recording indicator while
+			// nothing is recording.
+			const unhandled: never = mode;
+			void unhandled;
+			return null;
+		}
 	}
 }

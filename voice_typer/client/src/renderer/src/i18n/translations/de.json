@@ -75,7 +75,11 @@
 		"errorDownloadFailed": "Das Herunterladen des Audios ist fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.",
 		"errorNoModel": "Kein Sprachmodell geladen. Öffne Modelle, um eines auszuwählen.",
 		"errorBusy": "Eine andere Transkription läuft bereits. Breche sie zuerst ab.",
-		"noModelAction": "Modelle öffnen"
+		"noModelAction": "Modelle öffnen",
+		"dropZoneTitle": "Video- oder Audiodatei hier ablegen",
+		"dropZoneAria": "Mediendatei wählen oder hier ablegen",
+		"browseFile": "Dateien durchsuchen",
+		"orLink": "oder Link einfügen"
 	},
 	"nav": {
 		"home": "Startseite",
@@ -85,6 +89,8 @@
 		"vocabulary": "Vokabular",
 		"media": "Medien",
 		"models": "Modelle",
+		"plugins": "Plugins",
+		"newBadge": "Neu",
 		"microphone": "Mikrofon",
 		"settings": "Einstellungen",
 		"aboutAndPrivacy": "Über & Datenschutz",
@@ -596,7 +602,7 @@
 		"loadedViaHint": "Wie das Spracherkennungsmodell geladen wurde (gebündelt, heruntergeladen oder ein benutzerdefinierter Pfad)."
 	},
 	"settings": {
-		"apiUrlInvalid": "Gültige http(s)-URL eingeben",
+		"apiUrlInvalid": "Gültige https-URL eingeben",
 		"otherTabsResults": "Ergebnisse aus anderen Tabs",
 		"title": "Einstellungen",
 		"searchPlaceholder": "Einstellungen durchsuchen…",
@@ -752,6 +758,14 @@
 		"bubblePositionBottom": "Unten mittig",
 		"bubbleBehaviorShowOnRecord": "Bei Aufnahme anzeigen",
 		"bubbleBehaviorAlwaysVisible": "Immer sichtbar",
+		"bubbleBehaviorHidden": "Ausgeblendet",
+		"bubbleShowRecordingTimer": "Aufnahme-Timer",
+		"bubbleShowRecordingTimerInfo": "Zeigt die Aufnahmedauer (mm:ss) neben dem roten Punkt während der Aufnahme. Standardmäßig aus.",
+		"bubblePreview": "Blasen-Vorschau",
+		"bubblePreviewInfo": "So sieht die Blase in jedem Zustand aus. Der Aufnahme-Timer läuft hier live.",
+		"bubblePreviewIdle": "Inaktiv",
+		"bubblePreviewRecording": "Aufnahme",
+		"bubblePreviewTranscribing": "Transkription",
 		"description": "Passen Sie {appName} an Ihre Vorlieben an.",
 		"loading": "Einstellungen werden geladen…",
 		"saveFailedToast": "Einstellung konnte nicht gespeichert werden",
@@ -868,6 +882,16 @@
 			"vadFilterInfo": "Entfernt führende und abschließende Stille vor der Transkription. Zum Vergleich deaktivieren, um Rohaudio an das Modell zu senden.",
 			"vadFilterInfoSearch": "Sprachaktivität Stille Filter Rohaudio Modelltest.",
 			"vadFilterAria": "Sprachaktivitätsfilter",
+			"hallucinationFilter": "Stille-Halluzinationen ignorieren",
+			"hallucinationFilterInfo": "Erfindungen verwerfen, die das Modell bei Fast-Stille produziert, z. B. Untertitel-Wasserzeichen. Ausgewogen behält kurze Phrasen, sofern keine Stille bestätigt wird.",
+			"hallucinationFilterInfoSearch": "Halluzinationsfilter Stille Artefakte ausgewogen streng aus.",
+			"hallucinationFilterAria": "Halluzinationsfilter",
+			"hallucinationBalanced": "Ausgewogen (empfohlen)",
+			"hallucinationBalancedDescription": "Offensichtliche Artefakte verwerfen, kurze Phrasen behalten, sofern keine Stille bestätigt wird. Empfohlen.",
+			"hallucinationStrict": "Streng",
+			"hallucinationStrictDescription": "Jede bekannte Artefakt-Phrase bei leisem Audio verwerfen, auch wenn sie echtes Diktat sein könnte.",
+			"hallucinationOff": "Aus",
+			"hallucinationOffDescription": "Keine Filterung. Stille Abschnitte können als erfundener Text transkribiert werden.",
 			"volumeBackend": "Lautstärke-Backend",
 			"volumeBackendInfo": "Das aktive Audiosteuerungs-Backend. 'disabled' bedeutet, dass Senken auf dieser Plattform nicht funktioniert: installieren Sie die optionale Abhängigkeit der Plattform (pycaw unter Windows, pyobjc unter macOS).",
 			"volumeBackendInfoSearch": "Das aktive Audiosteuerungs-Backend.",
@@ -1210,7 +1234,35 @@
 			"backToSettings": "Zurück zu den Einstellungen",
 			"on": "Ein",
 			"off": "Aus"
-		}
+		},
+		"modelIdleUnload": "Sprachmodell im Speicher halten",
+		"modelIdleUnloadDescription": "Wie lange das Sprachmodell nach dem Diktieren geladen bleibt. Eine längere Zeit bedeutet, dass Diktieren immer sofort funktioniert und etwa 2 GB Arbeitsspeicher belegt, solange die App geöffnet ist. Beim Schließen der App wird der Speicher sofort freigegeben.",
+		"modelIdleUnload.minutes15": "15 Minuten",
+		"modelIdleUnload.minutes30": "30 Minuten",
+		"modelIdleUnload.minutes60": "1 Stunde",
+		"modelIdleUnload.minutes90": "1 Stunde 30 Minuten",
+		"modelIdleUnload.minutes120": "2 Stunden",
+		"modelIdleUnload.never": "Nie (geladen lassen)",
+		"streamingTranscription": "Streaming-Transkription",
+		"streamingTranscriptionDescription": "Transkribieren während der Aufnahme, sodass der Text beim Stoppen bereit ist. Wenn deaktiviert, wird die gesamte Aufnahme am Ende auf einmal transkribiert."
+	},
+	"plugins": {
+		"title": "Plugins",
+		"description": "Diktat um installierte Sprachanbieter erweitern.",
+		"loadFailedTitle": "Plugins konnten nicht geladen werden",
+		"loadFailedDescription": "Wir konnten Ihre Plugins nicht vom Backend laden. Prüfen Sie die Protokolle und versuchen Sie es erneut.",
+		"retry": "Erneut versuchen",
+		"emptyTitle": "Keine Plugins installiert",
+		"emptyDescription": "Diese Installation enthält keine installierten Plugins.",
+		"back": "Zurück",
+		"notFoundTitle": "Plugin nicht gefunden",
+		"notFoundDescription": "Das angeforderte Plugin ist nicht installiert.",
+		"activateLabel": "Dieses Plugin verwenden",
+		"activateDescription": "Diktat über dieses Plugin statt über das lokale Modell leiten.",
+		"activateAria": "Dieses Plugin für Diktat verwenden",
+		"settingsSection": "Einstellungen",
+		"statusActive": "Aktiv",
+		"statusInactive": "Inaktiv"
 	},
 	"models": {
 		"loadFailedTitle": "Modelle konnten nicht geladen werden",
@@ -1281,7 +1333,6 @@
 			"testing": "Wird getestet…"
 		},
 		"status": {
-			"depsRequired": "Abhängigkeiten erforderlich",
 			"insufficientDisk": "Unzureichender Speicherplatz"
 		},
 		"import": {
@@ -1612,7 +1663,7 @@
 		"stopRecordingAria": "Aufnahme beenden",
 		"dismissAria": "Blase schließen",
 		"transcriptPreviewAria": "Live-Transkript-Vorschau",
-		"livePreviewUnavailable": "Keine Live-Vorschau für diese Engine"
+		"recordingTimerAria": "Aufnahmedauer"
 	},
 	"errorBoundary": {
 		"title": "Etwas ist schiefgegangen",
@@ -1908,7 +1959,8 @@
 			"mic_unplugged": "Mikrofon wurde ausgesteckt. Aufnahme gestoppt.",
 			"still_running": "Die Transkription läuft noch.\nLange Aufnahmen oder CPU-Fallback können zusätzliche Zeit benötigen.",
 			"xrun_title": "{app} | Audioprobleme",
-			"xrun_body": "{count} Audio-Pufferunterläufe erkannt. Schließen Sie andere Audio-Apps oder reduzieren Sie die CPU-Last."
+			"xrun_body": "{count} Audio-Pufferunterläufe erkannt. Schließen Sie andere Audio-Apps oder reduzieren Sie die CPU-Last.",
+			"consent_not_verified": "Stimmbiometrie-Einwilligung konnte nicht geprüft werden.\nAufnahme abgelehnt. Prüfe Einstellungen > Datenschutz."
 		},
 		"model_manager": {
 			"backend_init_failed_title": "{appName}",
@@ -1921,6 +1973,7 @@
 			"backend_init_failed": "Das {backend}-Backend konnte nicht initialisiert werden.{hint}",
 			"last_resort_unloaded": "Das Modell ist nicht geladen.\nÖffnen Sie die Modellseite, um ein Modell herunterzuladen.",
 			"model_not_downloaded": "Kein Sprachmodell ist ausgewählt. Öffnen Sie „Modelle“, um eines auszuwählen.",
+			"offline_pack_missing": "Offline-Paket ist nicht installiert.\nÖffnen Sie die Einstellungen, um es herunterzuladen.",
 			"no_model_selected": "Kein Modell ausgewählt.\nGehen Sie zur Modellseite, um ein Modell auszuwählen.",
 			"load_failed_critical": "Das Sprachmodell konnte nicht geladen werden.\nDie App läuft weiter. Drücken Sie {hotkey}, um das Laden erneut zu versuchen."
 		},
@@ -1945,7 +1998,10 @@
 			"undo_no_pynput": "Rückgängig nicht verfügbar (pynput fehlt)",
 			"undo_failed": "Die letzte Transkription konnte nicht rückgängig gemacht werden. Siehe Protokolle für Details.",
 			"clipboard_unavailable_body": "Transkription abgeschlossen, aber die Zwischenablage war nicht verfügbar.\nIhr Text wurde in der Crash-Wiederherstellungsdatei gespeichert, sodass er nicht verloren geht.",
-			"clipboard_unavailable_recovery_path": "Wiederherstellungsdatei: {path}"
+			"clipboard_unavailable_recovery_path": "Wiederherstellungsdatei: {path}",
+			"onboarding_kept_failing": "Die Ersteinrichtung ist wiederholt fehlgeschlagen. Die App startet mit den Standardeinstellungen. Öffne die Einstellungen, um sie manuell zu konfigurieren.",
+			"onboarding_setup_failed": "Die Ersteinrichtung ist fehlgeschlagen; sie wird beim nächsten Start erneut versucht.",
+			"config_acl_failed": "Die Berechtigungen der Konfigurationsdatei konnten nicht eingeschränkt werden. API-Schlüssel sind möglicherweise für andere Benutzer an diesem PC lesbar."
 		},
 		"hotkey_dispatcher": {
 			"register_failed": "Das Hotkey {hotkey} konnte nicht registriert werden. Möglicherweise wird es von einer anderen App verwendet. Verwenden Sie das Tray-Menü, um die Diktierung umzuschalten, oder wählen Sie in den Einstellungen einen anderen Hotkey.",
@@ -1955,7 +2011,8 @@
 			"esc_register_failed": "ESC-Abbruch-Hotkey konnte nicht registriert werden. Eine andere App hat ihn möglicherweise belegt.",
 			"repaste_register_failed": "Erneutes-Einfügen-Hotkey konnte nicht registriert werden. Eine andere App hat ihn möglicherweise belegt.",
 			"invalid_hotkey": "Hotkey {hotkey} ist ungültig: {validation_error}. Der vorherige Hotkey bleibt erhalten.",
-			"restore_failed": "Der vorherige Hotkey {hotkey} konnte nicht wiederhergestellt werden. Öffnen Sie die Einstellungen, um einen Hotkey neu zu binden."
+			"restore_failed": "Der vorherige Hotkey {hotkey} konnte nicht wiederhergestellt werden. Öffnen Sie die Einstellungen, um einen Hotkey neu zu binden.",
+			"wayland_hotkeys_may_fail": "Globale Hotkeys funktionieren unter Wayland möglicherweise nicht. Installiere 'wtype' oder 'ydotool' für Hotkey-Unterstützung oder nutze „Diktation starten“ im Tray-Menü."
 		},
 		"native_adapter": {
 			"warn_title": "{appName}: Native-Hotkey-Warnung",
@@ -1980,7 +2037,20 @@
 			"macos_body": "Klicken Sie, um die Systemeinstellungen → Bedienungshilfen zu öffnen. Fügen Sie {appName} (und seinen Tastatur-Listener-Helfer) zur Liste hinzu.",
 			"macos_body_with_command": "Klicken Sie, um die Systemeinstellungen → Bedienungshilfen zu öffnen. Fügen Sie {appName} (und seinen Tastatur-Listener-Helfer) zur Liste hinzu. Führen Sie dann aus: {command}",
 			"linux_title": "{appName} benötigt die Tastaturberechtigung",
-			"linux_body": "Klicken Sie, um Zugriff zu gewähren. Ihr System fragt nach Ihrem Passwort, um die Tastaturberechtigung zu installieren (udev-Regel + Eingabegruppe). Melden Sie sich danach ab und wieder an, damit die Änderung wirksam wird."
+			"linux_body": "Klicken Sie, um Zugriff zu gewähren. Ihr System fragt nach Ihrem Passwort, um die Tastaturberechtigung zu installieren (udev-Regel + Eingabegruppe). Melden Sie sich danach ab und wieder an, damit die Änderung wirksam wird.",
+			"accessibility_granted": "Zugriffsberechtigung erteilt. Hotkeys sind jetzt aktiv.",
+			"global_hotkeys_disabled": "Globale Hotkeys wurden deaktiviert. Öffne Systemeinstellungen -> Datenschutz & Sicherheit -> Zugriff, um die Erlaubnis erneut zu erteilen."
+		},
+		"dictation_pipeline": {
+			"llm_polish_failed": "LLM-Glättung fehlgeschlagen. Transkription wird unverändert angezeigt; Details in der Protokolldatei.",
+			"history_save_failed": "Transkription konnte nicht in den Verlauf gespeichert werden. Details in der Protokolldatei.",
+			"crash_recovery_save_failed": "Transkription konnte nicht im Absturz-Wiederherstellungspuffer gespeichert werden. Details in der Protokolldatei.",
+			"text_cleanup_failed": "Textbereinigung fehlgeschlagen. Details in der Protokolldatei.",
+			"vocab_correction_failed": "Korrektur nach Wortschatz fehlgeschlagen. Details in der Protokolldatei.",
+			"template_match_failed": "Vorlagenabgleich fehlgeschlagen. Details in der Protokolldatei.",
+			"auto_punctuation_failed": "Automatische Zeichensetzung fehlgeschlagen. Details in der Protokolldatei.",
+			"no_speech_detected": "Keine Sprache erkannt, Audio war nahezu stumm.\nDein Mikrofon nimmt möglicherweise keinen Ton auf.\nPrüfe, ob das richtige Mikrofon ausgewählt und aktiv ist.",
+			"no_transcription_produced": "Audio wurde aufgenommen, es kam aber zu keiner Transkription.\nDas kann an einer Fehlkonfiguration des Modells oder unklarer Audioqualität liegen. Versuche es erneut oder prüfe die Protokolldatei."
 		}
 	},
 	"error": {
@@ -1996,15 +2066,18 @@
 	},
 	"pack": {
 		"preparingOfflineEngine": "Offline-Engine wird vorbereitet…",
-		"preparingOfflineEngineAria": "Offline-Engine wird vorbereitet. Status: {status}"
+		"preparingOfflineEngineAria": "Offline-Engine wird vorbereitet. Status: {status}",
+		"downloadOfflineEngine": "Offline-Engine herunterladen",
+		"downloadOfflineEngineBusy": "Wird geladen…",
+		"downloadOfflineEngineAria": "Offline-Sprachengine-Paket herunterladen"
 	},
 	"consentDialog": {
 		"title": "Zustimmung erforderlich",
 		"allow": "Zulassen",
-		"cancel": "Abbrechen",
-		"openSettings": "Einstellungen öffnen",
+		"viewAll": "Alle anzeigen",
 		"persistFailed": "Ihre Zustimmung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
 		"retryFailed": "Zustimmung gespeichert, aber die Aktion konnte nicht automatisch wiederholt werden. Bitte versuchen Sie es erneut.",
+		"revokeHint": "Sie können dies jederzeit unter Einstellungen > Datenschutz widerrufen.",
 		"field": {
 			"voice_biometric_consent": "Für die Aufnahme ist die Zustimmung zur Stimmbiometrie erforderlich. Ihre Stimme wird als biometrisches Datum verarbeitet (DSGVO Art. 9). Aufnahme zulassen?",
 			"huggingface_consent": "Modell-Downloads von Hugging Face geben Ihre IP-Adresse an ein US-Unternehmen weiter (Hugging Face, Inc.). Audio wird nie gesendet: nur Modellgewichte. Downloads zulassen?",
@@ -2027,6 +2100,7 @@
 		"asrBackendDisabledHint": "Die Transkription fällt auf eine andere Engine zurück. Öffnen Sie „Modelle“, um eine andere zu wählen.",
 		"cloudFallbackUsed": "Cloud-Transkription fehlgeschlagen, es wurde die lokale Sprach-Engine verwendet",
 		"cloudFallbackUsedHint": "Der Cloud-Anbieter {provider} hat nicht geantwortet. Das Diktat läuft mit der lokalen Engine weiter; prüfen Sie Ihre Verbindung oder die Anbieter-Einstellungen.",
+		"cloudFallbackKeyUsedHint": "Der Cloud-Anbieter {provider} hat den API-Schlüssel abgelehnt. Das Diktat läuft mit der lokalen Engine weiter; prüfen Sie den Schlüssel in den Einstellungen.",
 		"historyCorrupted": "Verlaufsdatenbank war beschädigt, aus einer Sicherungskopie neu aufgebaut",
 		"historyCorruptedHint": "{count} Einträge wurden wiederhergestellt. Die neuesten Einträge können fehlen; die beschädigte Datei wurde zu Inspektionszwecken neben der Datenbank aufbewahrt.",
 		"historyFtsRebuildFailed": "Löschen des Verlaufs nicht abgeschlossen: gelöschte Einträge sind möglicherweise noch durchsuchbar",
@@ -2034,7 +2108,8 @@
 		"pasteDeferred": "Automatisches Einfügen übersprungen: die Transkription liegt in Ihrer Zwischenablage",
 		"pasteDeferredHint": "Die Einfügen-Tastatureingabe konnte nicht an die Ziel-App gesendet werden. Fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein.",
 		"pasteDeferredHintSecureInput": "In der Ziel-App ist Secure Input aktiviert (z. B. ein Passwortfeld), was synthetische Tastatureingaben blockiert. Fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein.",
-		"pasteDeferredHintIme": "Eine IME-Texteingabe war in Bearbeitung, daher wurde die Einfügen-Tastatureingabe übersprungen. Fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein."
+		"pasteDeferredHintIme": "Eine IME-Texteingabe war in Bearbeitung, daher wurde die Einfügen-Tastatureingabe übersprungen. Fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein.",
+		"pasteDeferredHintNoTextField": "Es war kein Textfeld fokussiert, daher wurde die Einfügen-Tastatureingabe übersprungen. Fokussieren Sie ein Textfeld und fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein."
 	},
 	"trayState": {
 		"idle": "bereit",
@@ -2058,16 +2133,19 @@
 			"cancelling": "Abbrechen...",
 			"cancelled": "Abgebrochen",
 			"recovered": "Wiederhergestellt | Transkription abgelaufen",
-			"stillTranscribing": "Wird noch transkribiert..."
+			"stillTranscribing": "Wird noch transkribiert...",
+			"awaitingModel": "Model-Laden wird abgeschlossen | Ihre Aufnahme ist gespeichert und wird in Kürze transkribiert",
+			"modelLoadRetry": "Modell wird geladen | Ihre Diktierung startet automatisch.",
+			"modelLoading": "Modell wird geladen..."
 		},
 		"modelManager": {
 			"loading": "Modell wird geladen | drücken Sie Ihre Tastenkombination zum Einreihen...",
 			"readyWhisper": "Bereit | {device_info}",
-			"readyOther": "Bereit | {name} ASR",
 			"loadFailedRetry": "Modell laden fehlgeschlagen | drücken Sie Ihre Tastenkombination zum Wiederholen",
 			"backendFailed": "{backend}-Modell konnte nicht geladen werden",
 			"modelFailed": "Modellfehler | {error}",
 			"modelNotDownloaded": "Kein Sprachmodell ist ausgewählt. Öffnen Sie „Modelle“, um eines auszuwählen.",
+			"offlinePackMissing": "Offline-Paket ist nicht installiert. Öffnen Sie die Einstellungen, um es herunterzuladen.",
 			"modelIntegrityFailed": "{backend}-Modell hat die Integritätsprüfung nicht bestanden. Löschen Sie es und laden Sie es von der Modelle-Seite erneut herunter."
 		},
 		"pipeline": {
@@ -2079,5 +2157,10 @@
 			"doneInDb": "Fertig | {count} Zeichen (in DB, Einfüge-Hotkey verwenden)",
 			"doneInClipboard": "Fertig | {count} Zeichen (in Zwischenablage)"
 		}
+	},
+	"computeDevice": {
+		"cpu": "CPU",
+		"gpu": "GPU",
+		"ariaLabel": "Rechengerät"
 	}
 }

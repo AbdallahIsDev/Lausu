@@ -16,15 +16,6 @@
 //      Language) so system/config info doesn't compete with usage
 //      metrics for attention.
 
-import { LastUpdatedIndicator } from "@/components/common/LastUpdatedIndicator";
-import PageHeading from "@/components/common/PageHeading";
-import { QuickInfoCard } from "@/components/dashboard/QuickInfoCard";
-import { ShareStatsDialog } from "@/components/dashboard/ShareStatsDialog";
-import { StatCard } from "@/components/dashboard/StatCard";
-import { formatCompactNumber } from "@/components/dashboard/StatCards";
-import { StatsShareImage } from "@/components/dashboard/StatsShareImage";
-import { EmptyState } from "@/components/feedback/EmptyState";
-import { HotkeyChips } from "@/components/hotkey/HotkeyChips";
 import {
 	AiBrain03Icon,
 	AlertCircleIcon,
@@ -40,6 +31,16 @@ import {
 } from "@hugeicons/core-free-icons";
 import type { CSSProperties } from "react";
 import { useMemo } from "react";
+import { LastUpdatedIndicator } from "@/components/common/LastUpdatedIndicator";
+import PageHeading from "@/components/common/PageHeading";
+import { QuickInfoCard } from "@/components/dashboard/QuickInfoCard";
+import { ShareStatsDialog } from "@/components/dashboard/ShareStatsDialog";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { formatCompactNumber } from "@/components/dashboard/StatCards";
+import { StatsShareImage } from "@/components/dashboard/StatsShareImage";
+import { EmptyState } from "@/components/feedback/EmptyState";
+import { HotkeyChips } from "@/components/hotkey/HotkeyChips";
+import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 // amber banner shown when the OS has not granted the
 // keyboard-monitoring (Accessibility / input-group) permission. Mirrors
 // the MicrophonePermissionBanner placement on the Microphone page.
@@ -144,28 +145,28 @@ export default function DashboardPage() {
 		() =>
 			data && configRaw
 				? computeShareStats(
-					{
-						count: data.todayCount,
-						chars: data.todayChars,
-						word_count: data.todayWordCount,
-						duration: data.todayDuration,
-					},
-					configRaw.asr_backend,
-					{
-						totalCount: data.totalCount,
-						totalChars: data.totalChars,
-						totalDuration: data.totalDuration,
-						activeDays: data.activeDays,
-						currentStreak: data.currentStreak,
-						// Only include the setup line when a model is genuinely
-						// installed (data.model/device are null otherwise) —
-						// the share image never claims a model that isn't
-						// there, and the values are pre-formatted for
-						// display ("Tiny", "GPU").
-						model: data.model ? formatModel(data.model) : "",
-						device: data.device ? formatDevice(data.device) : "",
-					},
-				)
+						{
+							count: data.todayCount,
+							chars: data.todayChars,
+							word_count: data.todayWordCount,
+							duration: data.todayDuration,
+						},
+						configRaw.asr_backend,
+						{
+							totalCount: data.totalCount,
+							totalChars: data.totalChars,
+							totalDuration: data.totalDuration,
+							activeDays: data.activeDays,
+							currentStreak: data.currentStreak,
+							// Only include the setup line when a model is genuinely
+							// installed (data.model/device are null otherwise) —
+							// the share image never claims a model that isn't
+							// there, and the values are pre-formatted for
+							// display ("Tiny", "GPU").
+							model: data.model ? formatModel(data.model) : "",
+							device: data.device ? formatDevice(data.device) : "",
+						},
+					)
 				: null,
 		[data, configRaw],
 	);
@@ -178,7 +179,7 @@ export default function DashboardPage() {
 	if (!data) {
 		if (fetchError) {
 			return (
-				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center px-16 pt-28 pb-6">
+				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center px-16 pt-20 pb-6">
 					<EmptyState
 						variant="error"
 						icon={AlertCircleIcon}
@@ -203,7 +204,7 @@ export default function DashboardPage() {
 	};
 
 	return (
-		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-28 pb-6">
+		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
 			<PageHeading
 				title={t("analytics.title")}
 				description={t("analytics.description")}
@@ -244,7 +245,7 @@ export default function DashboardPage() {
 					title={t("analytics.noDataTitle")}
 					description={renderNoDataDescription(
 						t("analytics.noDataDescription", { hotkey: NO_DATA_HOTKEY_MARKER }),
-						configRaw?.hotkey || "F2",
+						formatHotkey(configRaw?.hotkey || "F2"),
 					)}
 					actionLabel={t("analytics.startDictation")}
 					actionIcon={SpeechToTextIcon}
@@ -291,8 +292,8 @@ export default function DashboardPage() {
 							sublabel={
 								d.currentStreak > 0
 									? t("analytics.dayStreak", {
-										count: String(d.currentStreak),
-									})
+											count: String(d.currentStreak),
+										})
 									: undefined
 							}
 						/>
@@ -338,9 +339,9 @@ export default function DashboardPage() {
 							sublabel={
 								correctionStats.rate !== null
 									? t("analytics.correctionsRate", {
-										pct: String(Math.round(correctionStats.rate * 100)),
-										dictations: String(correctionStats.dictations),
-									})
+											pct: String(Math.round(correctionStats.rate * 100)),
+											dictations: String(correctionStats.dictations),
+										})
 									: undefined
 							}
 						/>

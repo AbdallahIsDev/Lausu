@@ -75,7 +75,11 @@
 		"errorDownloadFailed": "下载音频失败。请检查网络连接后重试。",
 		"errorNoModel": "未加载语音模型。打开“模型”页面选择一个。",
 		"errorBusy": "已有另一个转写任务在运行。请先取消它。",
-		"noModelAction": "打开模型"
+		"noModelAction": "打开模型",
+		"dropZoneTitle": "拖入视频或音频文件",
+		"dropZoneAria": "选择媒体文件，或拖放到此处",
+		"browseFile": "浏览文件",
+		"orLink": "或粘贴链接"
 	},
 	"nav": {
 		"home": "首页",
@@ -85,6 +89,8 @@
 		"vocabulary": "词汇表",
 		"media": "媒体",
 		"models": "模型",
+		"plugins": "插件",
+		"newBadge": "新增",
 		"microphone": "麦克风",
 		"settings": "设置",
 		"aboutAndPrivacy": "关于与隐私",
@@ -596,7 +602,7 @@
 		"loadedViaHint": "语音模型是如何加载的（内置、下载或自定义路径）。"
 	},
 	"settings": {
-		"apiUrlInvalid": "请输入有效的 http(s) URL",
+		"apiUrlInvalid": "请输入有效的 https URL",
 		"otherTabsResults": "其他标签页的结果",
 		"title": "设置",
 		"searchPlaceholder": "搜索设置…",
@@ -746,6 +752,14 @@
 		"bubblePositionBottom": "底部居中",
 		"bubbleBehaviorShowOnRecord": "录音时显示",
 		"bubbleBehaviorAlwaysVisible": "始终可见",
+		"bubbleBehaviorHidden": "隐藏",
+		"bubbleShowRecordingTimer": "录音计时器",
+		"bubbleShowRecordingTimerInfo": "在录音时于红点旁显示录音时长（mm:ss）。默认关闭。",
+		"bubblePreview": "气泡预览",
+		"bubblePreviewInfo": "气泡在每种状态下的外观。录音计时器在此实时跳动。",
+		"bubblePreviewIdle": "空闲",
+		"bubblePreviewRecording": "录音中",
+		"bubblePreviewTranscribing": "转写中",
 		"description": "根据您的偏好调整 {appName}。",
 		"loading": "正在加载设置…",
 		"saveFailedToast": "保存设置失败",
@@ -862,6 +876,16 @@
 			"vadFilterInfo": "在转录前去除开头和结尾的静音。关闭可将原始音频发送到模型以进行对比测试。",
 			"vadFilterInfoSearch": "语音活动 静音 过滤 原始音频 模型测试。",
 			"vadFilterAria": "语音活动过滤",
+			"hallucinationFilter": "忽略静音幻觉",
+			"hallucinationFilterInfo": "丢弃模型在近乎静音时编造的短语，如字幕水印。均衡模式会保留短语，除非确认静音。",
+			"hallucinationFilterInfoSearch": "幻觉过滤 静音 伪影 均衡 严格 关闭。",
+			"hallucinationFilterAria": "幻觉过滤",
+			"hallucinationBalanced": "均衡（推荐）",
+			"hallucinationBalancedDescription": "丢弃明显伪影，保留短语，除非确认静音。推荐。",
+			"hallucinationStrict": "严格",
+			"hallucinationStrictDescription": "在安静音频上丢弃所有已知伪影短语，即使可能是真实听写。",
+			"hallucinationOff": "关闭",
+			"hallucinationOffDescription": "不过滤。静音片段可能被转写为编造文本。",
 			"volumeBackend": "音量后端",
 			"volumeBackendInfo": "活动的音频控制后端。「disabled」表示音量降低在此平台上不工作: 请安装平台的可选依赖（Windows 上为 pycaw，macOS 上为 pyobjc）。",
 			"volumeBackendInfoSearch": "活动的音频控制后端。",
@@ -1210,7 +1234,35 @@
 			"backToSettings": "返回设置",
 			"on": "开",
 			"off": "关"
-		}
+		},
+		"modelIdleUnload": "将语音模型保留在内存中",
+		"modelIdleUnloadDescription": "停止听写后，语音模型在内存中保留多长时间。时间越长，听写始终即时可用，并且在应用打开期间会占用约 2 GB 内存。关闭应用会立即释放该内存。",
+		"modelIdleUnload.minutes15": "15 分钟",
+		"modelIdleUnload.minutes30": "30 分钟",
+		"modelIdleUnload.minutes60": "1 小时",
+		"modelIdleUnload.minutes90": "1 小时 30 分钟",
+		"modelIdleUnload.minutes120": "2 小时",
+		"modelIdleUnload.never": "从不（保持加载）",
+		"streamingTranscription": "流式转写",
+		"streamingTranscriptionDescription": "边录边转写，停止时文本即就绪。关闭后将在结束时一次性转写整个录音。"
+	},
+	"plugins": {
+		"title": "插件",
+		"description": "通过已安装的语音提供商扩展听写。",
+		"loadFailedTitle": "无法加载插件",
+		"loadFailedDescription": "我们无法从后端加载您的插件。请检查日志后重试。",
+		"retry": "重试",
+		"emptyTitle": "未安装插件",
+		"emptyDescription": "此安装未附带任何已安装的插件。",
+		"back": "返回",
+		"notFoundTitle": "未找到插件",
+		"notFoundDescription": "请求的插件尚未安装。",
+		"activateLabel": "使用此插件",
+		"activateDescription": "通过此插件而非本地模型进行听写。",
+		"activateAria": "使用此插件进行听写",
+		"settingsSection": "设置",
+		"statusActive": "已启用",
+		"statusInactive": "未启用"
 	},
 	"models": {
 		"loadFailedTitle": "无法加载模型",
@@ -1281,7 +1333,6 @@
 			"testing": "测试中…"
 		},
 		"status": {
-			"depsRequired": "需要依赖项",
 			"insufficientDisk": "磁盘空间不足"
 		},
 		"import": {
@@ -1612,7 +1663,7 @@
 		"stopRecordingAria": "停止录音",
 		"dismissAria": "关闭气泡",
 		"transcriptPreviewAria": "实时转录预览",
-		"livePreviewUnavailable": "当前引擎不支持实时预览"
+		"recordingTimerAria": "录音时长"
 	},
 	"errorBoundary": {
 		"title": "出错了",
@@ -1908,7 +1959,8 @@
 			"mic_unplugged": "麦克风已被拔出。录音已停止。",
 			"still_running": "转写仍在进行中。\n较长的录音或 CPU 后备模式可能需要更多时间。",
 			"xrun_title": "{app} | 音频问题",
-			"xrun_body": "检测到 {count} 次音频缓冲区欠载。请尝试关闭其他音频应用或降低 CPU 负载。"
+			"xrun_body": "检测到 {count} 次音频缓冲区欠载。请尝试关闭其他音频应用或降低 CPU 负载。",
+			"consent_not_verified": "无法验证语音生物识别授权。\n已拒绝录音。请检查“设置 > 隐私”。"
 		},
 		"model_manager": {
 			"backend_init_failed_title": "{appName}",
@@ -1921,6 +1973,7 @@
 			"backend_init_failed": "无法初始化 {backend} 后端。{hint}",
 			"last_resort_unloaded": "模型未加载。\n打开模型页面下载模型。",
 			"model_not_downloaded": "未选择语音模型。打开模型以选择一个。",
+			"offline_pack_missing": "离线包未安装。\n打开设置以下载。",
 			"no_model_selected": "未选择模型。\n前往模型页面选择模型。",
 			"load_failed_critical": "无法加载语音模型。\n应用将继续运行。按 {hotkey} 重试加载。"
 		},
@@ -1945,7 +1998,10 @@
 			"undo_no_pynput": "撤销不可用（缺少 pynput）",
 			"undo_failed": "无法撤销上次转录。详情请查看日志。",
 			"clipboard_unavailable_body": "转写已完成，但剪贴板不可用。\n您的文本已保存到崩溃恢复文件中，因此不会丢失。",
-			"clipboard_unavailable_recovery_path": "恢复文件：{path}"
+			"clipboard_unavailable_recovery_path": "恢复文件：{path}",
+			"onboarding_kept_failing": "初始设置反复失败。应用将以默认设置启动。请打开“设置”手动配置。",
+			"onboarding_setup_failed": "初始设置失败；将在下次启动时重试。",
+			"config_acl_failed": "无法锁定配置文件权限。API 密钥可能会被本电脑上的其他用户读取。"
 		},
 		"hotkey_dispatcher": {
 			"register_failed": "无法注册快捷键 {hotkey}。它可能正被其他应用占用。可使用托盘菜单切换听写，或在设置中选择其他快捷键。",
@@ -1955,7 +2011,8 @@
 			"esc_register_failed": "无法注册 ESC 取消快捷键。其他应用可能已占用该按键。",
 			"repaste_register_failed": "无法注册重新粘贴快捷键。其他应用可能已占用该按键。",
 			"invalid_hotkey": "快捷键 {hotkey} 无效：{validation_error}。将保留之前的快捷键。",
-			"restore_failed": "无法恢复之前的快捷键 {hotkey}。请打开设置重新绑定快捷键。"
+			"restore_failed": "无法恢复之前的快捷键 {hotkey}。请打开设置重新绑定快捷键。",
+			"wayland_hotkeys_may_fail": "在 Wayland 下全局快捷键可能无法使用。请安装 'wtype' 或 'ydotool' 以支持快捷键，或使用托盘菜单中的“开始听写”。"
 		},
 		"native_adapter": {
 			"warn_title": "{appName}：原生快捷键警告",
@@ -1980,7 +2037,20 @@
 			"macos_body": "点击打开系统设置 → 辅助功能。将 {appName}（及其按键监听辅助程序）添加到列表中。",
 			"macos_body_with_command": "点击打开系统设置 → 辅助功能。将 {appName}（及其按键监听辅助程序）添加到列表中。然后运行：{command}",
 			"linux_title": "{appName} 需要键盘权限",
-			"linux_body": "点击以授予访问权限。系统将要求输入密码以安装键盘权限（udev 规则 + 输入组）。授予后，请注销并重新登录以使更改生效。"
+			"linux_body": "点击以授予访问权限。系统将要求输入密码以安装键盘权限（udev 规则 + 输入组）。授予后，请注销并重新登录以使更改生效。",
+			"accessibility_granted": "已授予辅助功能权限。快捷键现已启用。",
+			"global_hotkeys_disabled": "全局快捷键已禁用。请打开“系统设置”->“隐私与安全性”->“辅助功能”以重新授权。"
+		},
+		"dictation_pipeline": {
+			"llm_polish_failed": "LLM 润色失败。转写文本原样显示，详情请查看日志文件。",
+			"history_save_failed": "无法将转写文本保存到历史记录。详情请查看日志文件。",
+			"crash_recovery_save_failed": "无法将转写文本保存到崩溃恢复缓冲区。详情请查看日志文件。",
+			"text_cleanup_failed": "文本清理失败。详情请查看日志文件。",
+			"vocab_correction_failed": "词汇校正失败。详情请查看日志文件。",
+			"template_match_failed": "模板匹配失败。详情请查看日志文件。",
+			"auto_punctuation_failed": "自动标点失败。详情请查看日志文件。",
+			"no_speech_detected": "未检测到语音，且音频接近静音。\n麦克风可能没有采集到声音。\n请确认已选择并启用正确的麦克风。",
+			"no_transcription_produced": "已录制音频，但未生成转写文本。\n这可能是因为模型配置错误或音频不清晰。请重试，或查看日志文件了解详情。"
 		}
 	},
 	"error": {
@@ -1996,15 +2066,18 @@
 	},
 	"pack": {
 		"preparingOfflineEngine": "正在准备离线引擎…",
-		"preparingOfflineEngineAria": "正在准备离线引擎。状态：{status}"
+		"preparingOfflineEngineAria": "正在准备离线引擎。状态：{status}",
+		"downloadOfflineEngine": "下载离线引擎",
+		"downloadOfflineEngineBusy": "下载中…",
+		"downloadOfflineEngineAria": "下载离线语音引擎包"
 	},
 	"consentDialog": {
 		"title": "需要同意",
 		"allow": "允许",
-		"cancel": "取消",
-		"openSettings": "打开设置",
+		"viewAll": "查看全部",
 		"persistFailed": "无法保存您的同意。请重试。",
 		"retryFailed": "同意已保存，但无法自动重试该操作。请重试。",
+		"revokeHint": "您可以随时在“设置 > 隐私与许可”中撤回。",
 		"field": {
 			"voice_biometric_consent": "开始录音需要语音生物识别同意。您的语音将作为生物识别数据处理（GDPR 第 9 条）。允许录音吗？",
 			"huggingface_consent": "从 Hugging Face 下载模型会向美国第三方公司（Hugging Face, Inc.）暴露您的 IP 地址。音频绝不会被发送: 仅下载模型权重。允许下载模型吗？",
@@ -2027,6 +2100,7 @@
 		"asrBackendDisabledHint": "转写将回退到其他引擎。打开“模型”页面选择其他引擎。",
 		"cloudFallbackUsed": "云端转写失败——已改用本地语音引擎",
 		"cloudFallbackUsedHint": "云端服务 {provider} 未响应。听写将继续使用本地引擎；请检查网络连接或服务设置。",
+		"cloudFallbackKeyUsedHint": "云端服务 {provider} 拒绝了 API 密钥。听写将继续使用本地引擎；请在设置中检查密钥。",
 		"historyCorrupted": "历史记录数据库已损坏——已从备份副本重建",
 		"historyCorruptedHint": "已恢复 {count} 条记录。最新的一些记录可能缺失；损坏的文件已保留在数据库旁以供检查。",
 		"historyFtsRebuildFailed": "历史记录删除未完成——已删除的条目可能仍可被搜索",
@@ -2034,7 +2108,8 @@
 		"pasteDeferred": "已跳过自动粘贴——转写文本已复制到剪贴板",
 		"pasteDeferredHint": "无法向目标应用发送粘贴按键。请自行使用惯用的粘贴快捷键粘贴文本。",
 		"pasteDeferredHintSecureInput": "目标应用启用了安全输入（例如密码输入框），会阻止模拟按键。请自行使用惯用的粘贴快捷键粘贴文本。",
-		"pasteDeferredHintIme": "输入法正在组词，因此跳过了粘贴按键。请自行使用惯用的粘贴快捷键粘贴文本。"
+		"pasteDeferredHintIme": "输入法正在组词，因此跳过了粘贴按键。请自行使用惯用的粘贴快捷键粘贴文本。",
+		"pasteDeferredHintNoTextField": "当前未聚焦文本输入框，因此跳过了粘贴按键。请先聚焦文本输入框，再自行使用惯用的粘贴快捷键粘贴文本。"
 	},
 	"trayState": {
 		"idle": "空闲",
@@ -2058,16 +2133,19 @@
 			"cancelling": "取消中...",
 			"cancelled": "已取消",
 			"recovered": "已恢复 | 转录超时",
-			"stillTranscribing": "仍在转录..."
+			"stillTranscribing": "仍在转录...",
+			"awaitingModel": "正在完成模型加载 | 您的录音已保存，稍后会自动转写",
+			"modelLoadRetry": "正在加载模型 | 您的听写将自动开始。",
+			"modelLoading": "正在加载模型..."
 		},
 		"modelManager": {
 			"loading": "正在加载模型 | 按你的快捷键排队...",
 			"readyWhisper": "就绪 | {device_info}",
-			"readyOther": "就绪 | {name} ASR",
 			"loadFailedRetry": "模型加载失败 | 按你的快捷键重试",
 			"backendFailed": "{backend} 模型加载失败",
 			"modelFailed": "模型错误 | {error}",
 			"modelNotDownloaded": "未选择语音模型。打开模型以选择一个。",
+			"offlinePackMissing": "离线包未安装。打开设置以下载。",
 			"modelIntegrityFailed": "{backend} 模型未通过完整性验证。请删除并从模型页面重新下载。"
 		},
 		"pipeline": {
@@ -2079,5 +2157,10 @@
 			"doneInDb": "完成 | {count} 个字符（已存入数据库，请按重新粘贴快捷键）",
 			"doneInClipboard": "完成 | {count} 个字符（已在剪贴板）"
 		}
+	},
+	"computeDevice": {
+		"cpu": "CPU",
+		"gpu": "GPU",
+		"ariaLabel": "计算设备"
 	}
 }

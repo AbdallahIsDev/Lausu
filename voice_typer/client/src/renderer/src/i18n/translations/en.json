@@ -75,7 +75,11 @@
 		"errorDownloadFailed": "Downloading the audio failed. Check your connection and try again.",
 		"errorNoModel": "No speech model is loaded. Open Models to choose one.",
 		"errorBusy": "Another transcription is already running. Cancel it first.",
-		"noModelAction": "Open Models"
+		"noModelAction": "Open Models",
+		"dropZoneTitle": "Drop a video or audio file",
+		"dropZoneAria": "Choose a media file, or drop one here",
+		"browseFile": "Browse files",
+		"orLink": "or paste a link"
 	},
 	"nav": {
 		"home": "Home",
@@ -85,6 +89,8 @@
 		"vocabulary": "Vocabulary",
 		"media": "Media",
 		"models": "Models",
+		"plugins": "Plugins",
+		"newBadge": "New",
 		"microphone": "Microphone",
 		"settings": "Settings",
 		"aboutAndPrivacy": "About & Privacy",
@@ -487,7 +493,7 @@
 		"description": "What this app is, what it does, and where it runs.",
 		"productDesc": "{appName} is a desktop voice-to-text application. It transcribes your speech into text you can paste into any application, documents, messages, email, and forms, so you never have to retype what you say.",
 		"localTitle": "Local & Offline",
-		"localDesc": "Transcription runs on your device with local speech models. Audio is processed locally and works without an internet connection.",
+		"localDesc": "Transcription runs on your device with local speech models. Audio is processed locally. After the first model download, transcription itself works without an internet connection.",
 		"cloudTitle": "Cloud (optional)",
 		"cloudDesc": "You can opt in to cloud speech recognition providers with an API key. Audio is then sent to that provider for transcription.",
 		"version": "Version",
@@ -507,15 +513,15 @@
 		"hotkey": "Hotkey",
 		"microphone": "Microphone",
 		"audioProcessingTitle": "Audio processing",
-		"audioProcessingDesc": "When using local speech recognition, {appName} processes audio on your device. No audio leaves your machine unless you explicitly configure a cloud speech recognition provider.",
+		"audioProcessingDesc": "When using local speech recognition, {appName} processes audio on your device. Audio leaves your machine only if you explicitly enable a cloud speech recognition provider, or when you ask it to transcribe a web link (that site is contacted to fetch its audio).",
 		"modelWeightsTitle": "Model weights",
 		"modelWeightsDesc": "Speech recognition model weights are downloaded from Hugging Face the first time you download a model. Downloading model weights requires a connection to Hugging Face, which receives your IP address as part of the request (a US-headquartered third party). See Hugging Face's privacy policy for details.",
 		"cloudAsrTitle": "Cloud speech recognition",
-		"cloudAsrDesc": "If you configure a cloud speech recognition provider, audio is streamed to that provider for transcription. The provider's privacy policy applies to the audio sent. {appName} never enables cloud speech recognition without your explicit opt-in.",
+		"cloudAsrDesc": "If you configure a cloud speech recognition provider (OpenAI, Groq, or Deepgram), audio is streamed to that provider for transcription under that provider's terms and privacy policy. {appName} never enables cloud speech recognition without your explicit opt-in, and you can revoke it anytime in Settings > Privacy.",
 		"voiceBiometricsTitle": "Voice biometrics",
-		"voiceBiometricsDesc": "Voice recordings may count as biometric data in some regions (e.g. Illinois BIPA, GDPR Article 9). {appName} does not keep raw audio after transcription: only the transcribed text stays in your local history database.",
+		"voiceBiometricsDesc": "Voice recordings may count as biometric data in some regions (e.g. Illinois BIPA, GDPR Article 9). Purpose: transcribing your speech on your device. {appName} does not keep raw audio after transcription: only the transcribed text stays in your local history database (kept up to 90 days by default; you can delete it anytime). Record only yourself or others who agreed; you are responsible for your local recording laws.",
 		"localDataTitle": "Local data",
-		"localDataDesc": "Configuration, vocabulary, templates, and history are stored in your user profile directory ({configDir}). No telemetry, no analytics, no crash reporting is sent anywhere.",
+		"localDataDesc": "Configuration, vocabulary, templates, and history are stored in your user profile directory ({configDir}). The app itself sends no telemetry, analytics, or crash reports. Checking for updates and fetching the offline engine pack contact the release server (IP address and version only); features you enable contact their provider.",
 		"updatesTitle": "Updates",
 		"updatesDescription": "Check for newer versions of {appName}.",
 		"installedVersion": "Installed Version",
@@ -524,7 +530,7 @@
 		"checkForUpdates": "Check for Updates",
 		"downloadVersion": "Download v{version}",
 		"viewChangelog": "View Changelog",
-		"offlineUpdatesMessage": "{appName} is an offline application. To check for updates, visit the GitHub releases page in your browser.",
+		"offlineUpdatesMessage": "{appName} transcribes offline once its models are downloaded. To check for updates, visit the GitHub releases page in your browser.",
 		"startStopDictation": "Start / Stop dictation",
 		"cancelRecording": "Cancel recording",
 		"repasteTranscription": "Re-paste last transcription",
@@ -603,7 +609,7 @@
 		"loadedViaHint": "How the speech model was loaded (bundled, downloaded, or a custom path)."
 	},
 	"settings": {
-		"apiUrlInvalid": "Enter a valid http(s) URL",
+		"apiUrlInvalid": "Enter a valid https URL",
 		"otherTabsResults": "Results from other tabs",
 		"title": "Settings",
 		"searchPlaceholder": "Search settings…",
@@ -773,6 +779,14 @@
 		"bubblePositionBottom": "Bottom Center",
 		"bubbleBehaviorShowOnRecord": "Show on Record",
 		"bubbleBehaviorAlwaysVisible": "Always Visible",
+		"bubbleBehaviorHidden": "Hidden",
+		"bubbleShowRecordingTimer": "Recording Timer",
+		"bubbleShowRecordingTimerInfo": "Show the recording duration (mm:ss) next to the red dot while recording. Off by default.",
+		"bubblePreview": "Bubble Preview",
+		"bubblePreviewInfo": "How the bubble looks in each state. The recording timer ticks live here.",
+		"bubblePreviewIdle": "Idle",
+		"bubblePreviewRecording": "Recording",
+		"bubblePreviewTranscribing": "Transcribing",
 		"description": "Adjust {appName} to your preferences.",
 		"loading": "Loading settings…",
 		"saveFailedToast": "Failed to save setting",
@@ -889,6 +903,16 @@
 			"vadFilterInfo": "Remove leading and trailing silence before transcription. Turn off to send raw audio to the model for comparison testing.",
 			"vadFilterInfoSearch": "Voice activity silence filter raw audio model testing.",
 			"vadFilterAria": "Voice activity filtering",
+			"hallucinationFilter": "Ignore silence hallucinations",
+			"hallucinationFilterInfo": "Discard made-up phrases the model invents on near-silence, like subtitle watermarks. Balanced keeps short phrases unless silence is confirmed.",
+			"hallucinationFilterInfoSearch": "Hallucination filter silence artifacts balanced strict off.",
+			"hallucinationFilterAria": "Hallucination filter",
+			"hallucinationBalanced": "Balanced (recommended)",
+			"hallucinationBalancedDescription": "Drops obvious artifacts, keeps short phrases unless silence is confirmed. Recommended.",
+			"hallucinationStrict": "Strict",
+			"hallucinationStrictDescription": "Drops every known artifact phrase on quiet audio, even if it could be real dictation.",
+			"hallucinationOff": "Off",
+			"hallucinationOffDescription": "No filtering. Silent stretches may transcribe as invented text.",
 			"volumeBackend": "Volume Backend",
 			"volumeBackendInfo": "The active audio control backend. 'disabled' means ducking won't work on this platform: install the platform's optional dependency (pycaw on Windows, pyobjc on macOS).",
 			"volumeBackendInfoSearch": "The active audio control backend.",
@@ -1217,7 +1241,35 @@
 			"backToSettings": "Back to Settings",
 			"on": "On",
 			"off": "Off"
-		}
+		},
+		"modelIdleUnload": "Keep speech model in memory",
+		"modelIdleUnloadDescription": "How long the speech model stays loaded after you stop dictating. A longer time means dictation is always instant, and uses about 2 GB of memory while the app is open. Closing the app frees it immediately.",
+		"modelIdleUnload.minutes15": "15 minutes",
+		"modelIdleUnload.minutes30": "30 minutes",
+		"modelIdleUnload.minutes60": "1 hour",
+		"modelIdleUnload.minutes90": "1 hour 30 minutes",
+		"modelIdleUnload.minutes120": "2 hours",
+		"modelIdleUnload.never": "Never (keep loaded)",
+		"streamingTranscription": "Streaming transcription",
+		"streamingTranscriptionDescription": "Transcribe while you record, so the text is ready the moment you stop. If off, the whole recording is transcribed at once at the end."
+	},
+	"plugins": {
+		"title": "Plugins",
+		"description": "Extend dictation with installed speech providers.",
+		"loadFailedTitle": "Couldn't load plugins",
+		"loadFailedDescription": "We couldn't load your plugins from the backend. Check the logs and try again.",
+		"retry": "Retry",
+		"emptyTitle": "No plugins installed",
+		"emptyDescription": "This install ships with no plugins installed.",
+		"back": "Back",
+		"notFoundTitle": "Plugin not found",
+		"notFoundDescription": "The requested plugin is not installed.",
+		"activateLabel": "Use this plugin",
+		"activateDescription": "Route dictation through this plugin instead of the local model.",
+		"activateAria": "Use this plugin for dictation",
+		"settingsSection": "Settings",
+		"statusActive": "Active",
+		"statusInactive": "Inactive"
 	},
 	"models": {
 		"loadFailedTitle": "Couldn't load models",
@@ -1288,14 +1340,13 @@
 			"testing": "Testing…"
 		},
 		"status": {
-			"depsRequired": "Dependencies required",
 			"insufficientDisk": "Insufficient disk space"
 		},
 		"import": {
 			"title": "Import Model",
 			"importModel": "Import Model",
 			"importing": "Importing...",
-			"success": "Imported {count} model(s): {models}",
+			"success": "Imported {count} models: {models}",
 			"noModelsFound": "No recognized model folders found in that directory. Select the HuggingFace hub cache folder (contains 'models--*' directories).",
 			"failedAll": "Failed to import any models from that directory.",
 			"failed": "Failed to import model: {error}"
@@ -1454,7 +1505,7 @@
 		"stopRecordingAria": "Stop recording",
 		"dismissAria": "Dismiss bubble",
 		"transcriptPreviewAria": "Live transcript preview",
-		"livePreviewUnavailable": "No live preview for this engine"
+		"recordingTimerAria": "Recording duration"
 	},
 	"help": {
 		"title": "Keyboard Shortcuts",
@@ -1908,7 +1959,8 @@
 			"still_running": "Transcription is still running.\nLong recordings or CPU fallback can take extra time.",
 			"xrun_title": "{app} | Audio Issues",
 			"xrun_body": "Detected {count} audio buffer underruns. Try closing other audio apps or reducing CPU load.",
-			"load_failed": "Could not load the speech model.\n{error}\n\nThe app will keep running. Press {hotkey} to retry loading."
+			"load_failed": "Could not load the speech model.\n{error}\n\nThe app will keep running. Press {hotkey} to retry loading.",
+			"consent_not_verified": "Could not verify voice biometric consent.\nRecording refused. Check Settings > Privacy."
 		},
 		"model_manager": {
 			"backend_init_failed_title": "{appName}",
@@ -1921,6 +1973,7 @@
 			"backend_init_failed": "Could not initialize the {backend} backend.{hint}",
 			"last_resort_unloaded": "The model is not loaded.\nOpen the models page to download a model.",
 			"model_not_downloaded": "No speech model is selected. Open Models to choose one.",
+			"offline_pack_missing": "Offline pack is not installed.\nOpen Settings to download it.",
 			"no_model_selected": "No model selected.\nGo to the models page to select a model.",
 			"load_failed_critical": "Could not load the speech model.\nThe app will keep running. Press {hotkey} to retry loading."
 		},
@@ -1945,7 +1998,10 @@
 			"undo_no_pynput": "Undo not available (pynput missing)",
 			"undo_failed": "Could not undo the last transcription. See logs for details.",
 			"clipboard_unavailable_body": "Transcription complete, but the clipboard was unavailable.\nYour text was saved to the crash-recovery file so it is not lost.",
-			"clipboard_unavailable_recovery_path": "Recovery file: {path}"
+			"clipboard_unavailable_recovery_path": "Recovery file: {path}",
+			"onboarding_kept_failing": "Onboarding setup kept failing. The app will start with default settings. Open Settings to configure manually.",
+			"onboarding_setup_failed": "Onboarding setup failed; will retry on next start.",
+			"config_acl_failed": "Could not lock down config file permissions. API keys may be readable by other users on this PC."
 		},
 		"hotkey_dispatcher": {
 			"register_failed": "Hotkey {hotkey} could not be registered. It may be in use by another app. Use the tray menu to toggle dictation, or pick a different hotkey in Settings.",
@@ -1955,7 +2011,8 @@
 			"esc_register_failed": "ESC cancel hotkey could not be registered. Another app may have claimed it.",
 			"repaste_register_failed": "Repaste hotkey could not be registered. Another app may have claimed it.",
 			"invalid_hotkey": "Hotkey {hotkey} is not valid: {validation_error}. Keeping the previous hotkey.",
-			"restore_failed": "Could not restore the previous hotkey {hotkey}. Open Settings to rebind a hotkey."
+			"restore_failed": "Could not restore the previous hotkey {hotkey}. Open Settings to rebind a hotkey.",
+			"wayland_hotkeys_may_fail": "Global hotkeys may not work on Wayland. Install 'wtype' or 'ydotool' for hotkey support, or use the tray menu's Start Dictation option."
 		},
 		"native_adapter": {
 			"warn_title": "{appName}: Native hotkey warning",
@@ -1980,7 +2037,20 @@
 			"macos_body": "Click to open System Settings → Accessibility. Add {appName} (and its key-listener helper) to the list.",
 			"macos_body_with_command": "Click to open System Settings → Accessibility. Add {appName} (and its key-listener helper) to the list. Then run: {command}",
 			"linux_title": "{appName} needs keyboard permission",
-			"linux_body": "Click to grant access. Your system will ask for your password to install the keyboard permission (udev rule + input group). After granting, log out and back in for the change to take effect."
+			"linux_body": "Click to grant access. Your system will ask for your password to install the keyboard permission (udev rule + input group). After granting, log out and back in for the change to take effect.",
+			"accessibility_granted": "Accessibility permission granted. Hotkeys are now active.",
+			"global_hotkeys_disabled": "Global hotkeys have been disabled. Open System Settings -> Privacy & Security -> Accessibility to re-grant."
+		},
+		"dictation_pipeline": {
+			"llm_polish_failed": "LLM polish failed. Transcription shown raw; check the log file for details.",
+			"history_save_failed": "Could not save the transcription to history. Check the log file for details.",
+			"crash_recovery_save_failed": "Could not save the transcription to the crash-recovery buffer. Check the log file for details.",
+			"text_cleanup_failed": "Text cleanup failed. Check the log file for details.",
+			"vocab_correction_failed": "Vocabulary correction failed. Check the log file for details.",
+			"template_match_failed": "Template matching failed. Check the log file for details.",
+			"auto_punctuation_failed": "Auto-punctuation failed. Check the log file for details.",
+			"no_speech_detected": "No speech was detected and audio was near-silence.\nYour microphone may not be capturing audio.\nCheck that the correct mic is selected and is active.",
+			"no_transcription_produced": "Audio was recorded but no transcription was produced.\nThis can happen if the model is misconfigured or the audio is unclear. Try again, or check the log file for details."
 		}
 	},
 	"error": {
@@ -1996,22 +2066,25 @@
 	},
 	"pack": {
 		"preparingOfflineEngine": "Preparing offline engine…",
-		"preparingOfflineEngineAria": "Preparing offline engine. Status: {status}"
+		"preparingOfflineEngineAria": "Preparing offline engine. Status: {status}",
+		"downloadOfflineEngine": "Download offline engine",
+		"downloadOfflineEngineBusy": "Downloading…",
+		"downloadOfflineEngineAria": "Download the offline speech engine pack"
 	},
 	"consentDialog": {
 		"title": "Consent required",
 		"allow": "Allow",
-		"cancel": "Cancel",
-		"openSettings": "Open Settings",
+		"viewAll": "View all",
 		"persistFailed": "Could not save your consent. Please try again.",
 		"retryFailed": "Consent saved, but the action could not be retried automatically. Please try again.",
+		"revokeHint": "You can revoke this anytime in Settings > Privacy.",
 		"field": {
 			"voice_biometric_consent": "Voice biometric consent is required to start recording. Your voice is processed as biometric data (GDPR Art. 9). Allow recording?",
 			"huggingface_consent": "Model downloads from Hugging Face reveal your IP address to a US-based third party (Hugging Face, Inc.). Audio is never sent: only model weights. Allow model downloads?",
-			"cloud_openai_consent": "Cloud transcription sends your audio to the selected cloud speech recognition provider for transcription. That provider's privacy policy applies. Allow?",
-			"cloud_groq_consent": "Cloud transcription sends your audio to the selected cloud speech recognition provider for transcription. That provider's privacy policy applies. Allow?",
-			"cloud_deepgram_consent": "Cloud transcription sends your audio to the selected cloud speech recognition provider for transcription. That provider's privacy policy applies. Allow?",
-			"llm_polish_consent": "LLM polish sends your transcribed text to the configured LLM provider for grammar and punctuation cleanup. Allow?",
+			"cloud_openai_consent": "Cloud transcription sends your audio to OpenAI's speech API for transcription, under OpenAI's terms and privacy policy. Allow?",
+			"cloud_groq_consent": "Cloud transcription sends your audio to Groq's speech API for transcription, under Groq's terms and privacy policy. Allow?",
+			"cloud_deepgram_consent": "Cloud transcription sends your audio to Deepgram's speech API for transcription, under Deepgram's terms and privacy policy. Allow?",
+			"llm_polish_consent": "LLM polish sends your transcribed text (not audio) to your configured LLM API for grammar and punctuation cleanup, under that API's terms. Allow?",
 			"media_url_consent": "Transcribing a media link sends that link to the media extractor (yt-dlp) to locate its audio stream. The linked site is contacted directly from this device. Allow?"
 		}
 	},
@@ -2027,6 +2100,7 @@
 		"asrBackendDisabledHint": "Transcription falls back to another engine. Open Models to pick a different one.",
 		"cloudFallbackUsed": "Cloud transcription failed, used the local speech engine instead",
 		"cloudFallbackUsedHint": "The {provider} cloud provider did not respond. Dictation keeps working with the local engine; check your connection or provider settings.",
+		"cloudFallbackKeyUsedHint": "The {provider} cloud provider rejected the API key. Dictation keeps working with the local engine; check the key in Settings.",
 		"historyCorrupted": "History database was corrupted, rebuilt from a backup copy",
 		"historyCorruptedHint": "{count} entries were recovered. The newest entries may be missing; the corrupt file was kept next to the database for inspection.",
 		"historyFtsRebuildFailed": "History deletion did not finish: deleted entries may still be searchable",
@@ -2034,7 +2108,8 @@
 		"pasteDeferred": "Auto-paste was skipped: the transcription is on your clipboard",
 		"pasteDeferredHint": "The paste keystroke could not be sent to the target app. Paste the text yourself with your usual paste shortcut.",
 		"pasteDeferredHintSecureInput": "The target app has Secure Input enabled (for example a password field), which blocks synthesized keystrokes. Paste the text yourself with your usual paste shortcut.",
-		"pasteDeferredHintIme": "An IME text composition was in progress, so the paste keystroke was skipped. Paste the text yourself with your usual paste shortcut."
+		"pasteDeferredHintIme": "An IME text composition was in progress, so the paste keystroke was skipped. Paste the text yourself with your usual paste shortcut.",
+		"pasteDeferredHintNoTextField": "No text field was focused, so the paste keystroke was skipped. Focus a text field and paste the text yourself with your usual paste shortcut."
 	},
 	"trayState": {
 		"idle": "idle",
@@ -2058,16 +2133,19 @@
 			"cancelling": "Cancelling...",
 			"cancelled": "Cancelled",
 			"recovered": "Recovered | transcription timed out",
-			"stillTranscribing": "Still transcribing..."
+			"stillTranscribing": "Still transcribing...",
+			"awaitingModel": "Finishing model load | your recording is saved and will transcribe shortly",
+			"modelLoadRetry": "Loading model | your dictation will start automatically.",
+			"modelLoading": "Loading model..."
 		},
 		"modelManager": {
 			"loading": "Loading model | press your hotkey to queue...",
 			"readyWhisper": "Ready | {device_info}",
-			"readyOther": "Ready | {name} ASR",
 			"loadFailedRetry": "Model load failed | press your hotkey to retry",
 			"backendFailed": "{backend} model failed to load",
 			"modelFailed": "Model failed | {error}",
 			"modelNotDownloaded": "No speech model is selected. Open Models to choose one.",
+			"offlinePackMissing": "Offline pack is not installed. Open Settings to download it.",
 			"modelIntegrityFailed": "{backend} model failed integrity verification. Delete and re-download it from the Models page."
 		},
 		"pipeline": {
@@ -2079,5 +2157,10 @@
 			"doneInDb": "Done | {count} chars (in DB, use repaste hotkey)",
 			"doneInClipboard": "Done | {count} chars (in clipboard)"
 		}
+	},
+	"computeDevice": {
+		"cpu": "CPU",
+		"gpu": "GPU",
+		"ariaLabel": "Compute device"
 	}
 }

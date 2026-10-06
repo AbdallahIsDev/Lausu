@@ -36,6 +36,7 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "bubble_position",
         "bubble_scale",
         "bubble_show_on_startup",
+        "bubble_show_recording_timer",
         "bubble_x",
         "bubble_y",
         "clipboard_restore_delay_ms",
@@ -145,6 +146,10 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "warn_elevated_paste",
         "warn_password_paste",
         "waveform_bubble",
+        # Added 2026-10-04 (Plugins page). Slug-validated; "" = local model.
+        "active_plugin",
+        # Added by a separate in-flight change (hallucination filter).
+        "hallucination_filter_mode"
     }
 )
 
@@ -153,15 +158,14 @@ class TestAllowlistSnapshot:
     """SEC-002 byte-for-byte parity for ``IPC_CONFIG_ALLOWLIST``."""
 
     def test_allowlist_size_unchanged(self) -> None:
-        """The allowlist must still contain exactly 127 keys."""
-        assert len(IPC_CONFIG_ALLOWLIST) == 127, (
-            f"IPC_CONFIG_ALLOWLIST size drifted: expected 127, got {len(IPC_CONFIG_ALLOWLIST)}. "
+        """The allowlist must still contain exactly 130 keys."""
+        assert len(IPC_CONFIG_ALLOWLIST) == 130, (
+            f"IPC_CONFIG_ALLOWLIST size drifted: expected 130, got {len(IPC_CONFIG_ALLOWLIST)}. "
             "SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a "
             "security-sensitive change that must be reviewed explicitly. "
-            "Latest reviewed growth: 126 → 127, `media_url_consent` "
-            "(ADR-0023 media-to-text URL consent gate; the renderer's "
-            "ConsentGateDialog / C-MIC-3 point-of-use flow toggles exactly "
-            "this key)."
+            "Latest reviewed growth: 129 → 130, `active_plugin` "
+            "(Plugins page activation switch; slug-validated, empty = local model). "
+            "Prior 128 → 129 growth: `hallucination_filter_mode` (separate in-flight change)."
         )
 
     def test_allowlist_keys_match_frozen_snapshot(self) -> None:

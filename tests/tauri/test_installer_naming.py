@@ -1,6 +1,7 @@
 """
 Installer-config tests for the slim-core / runtime-pack split.
-C-CI-13 forbids RENAMING the existing artifacts; these are NEW names
+C-CI-13 forbids RENAMING the existing artifacts without updating every
+consumer in lockstep; these are NEW names
 """
 
 from __future__ import annotations
@@ -141,76 +142,86 @@ class TestInstallerHooksNshRegistered:
 
 
 class TestInstallerHooksNshSection:
-    """The .nsh must define the \"Include offline engine pack\" Section."""
+    """The .nsh must surface a visible "Include offline engine pack" choice.
 
-    def test_section_definition_present(self) -> None:
+    Tauri's generated installer.nsi has NO ``MUI_PAGE_COMPONENTS`` page, so
+    a Section would never render as a checkbox (and inserting one would
+    expose Tauri's own Install section as optional). The choice is a
+    ``Page custom`` + nsDialogs checkbox instead.
+    """
+
+    def test_custom_pack_option_page_present(self) -> None:
         text = INSTALLER_HOOKS_NSH.read_text(encoding="utf-8")
-        # The Section line uses the canonical name + section index var.
-        assert 'Section "Include offline engine pack" SecIncludePack' in text, (
-            'installer-hooks.nsh must define `Section "Include offline engine pack" '
-            "SecIncludePack`, Tauri v2's bundle.windows.nsis has NO checkbox option, "
-            "so a custom NSIS Section is the only way to surface the per-feature "
-            "checkbox on the Components page (plan §4.8 / §9)."
+        assert "Page custom LausuPackOptionCreate LausuPackOptionLeave" in text, (
+            "installer-hooks.nsh must declare a custom Page for the pack "
+            "checkbox (Tauri v2 has no Components page; a Section alone is "
+            "invisible)."
         )
 
-    def test_section_is_optional_not_read_only(self) -> None:
-        """The Section must NOT be marked ``SectionIn RO`` (read-only)."""
-        text = _strip_nsis_comments(INSTALLER_HOOKS_NSH.read_text(encoding="utf-8"))
-        # Extract the Section ... SectionEnd block for SecIncludePack so we
-        match = re.search(
-            r'Section\s+"Include offline engine pack"\s+SecIncludePack\b.*?SectionEnd',
-            text,
-            re.DOTALL,
-        )
-        assert match is not None, "Section block for SecIncludePack not found."
-        section_body = match.group(0)
-        assert "SectionIn RO" not in section_body, (
-            "SecIncludePack must NOT be marked `SectionIn RO`, that suppresses "
-            "the checkbox on the Components page. The whole point of the section "
-            "is to give the user a checkbox (plan §4.8 consent gate)."
-        )
-
-    def test_section_does_not_deselect_itself_by_default(self) -> None:
-        """The section must default to SELECTED."""
-        text = _strip_nsis_comments(INSTALLER_HOOKS_NSH.read_text(encoding="utf-8"))
-        match = re.search(
-            r'Section\s+"Include offline engine pack"\s+SecIncludePack\b.*?SectionEnd',
-            text,
-            re.DOTALL,
-        )
-        assert match is not None
-        section_body = match.group(0)
-        bad = re.search(r"SectionSetFlags\s+\$\{SecIncludePack\}\s+[0-9]+", section_body)
-        assert bad is None, (
-            "SecIncludePack body must NOT call SectionSetFlags, that would "
-            "override the default-selected state. The section must be selected "
-            "by default (NSIS contract) so the checkbox starts ticked (plan §4.8)."
-        )
-
-    def test_section_has_langstring_description(self) -> None:
-        """The Section has a LangString description for the Components page."""
+    def test_checkbox_label_pinned(self) -> None:
         text = INSTALLER_HOOKS_NSH.read_text(encoding="utf-8")
-        assert "LangString DESC_SecIncludePack" in text, (
-            "installer-hooks.nsh must declare `LangString DESC_SecIncludePack`, "
-            "the Components page shows this description under the section list. "
-            "Plan §9.3 adds 8 locale strings for the pack UI; this is one of them."
+        assert "Include offline engine pack" in text, (
+            'installer-hooks.nsh must label the checkbox "Include offline '
+            "engine pack\" (plan §4.8 / §9.3)."
+        )
+
+    def test_checkbox_defaults_to_checked(self) -> None:
+        """Default is include (opt-out, not opt-in — plan §4.8)."""
+        text = _strip_nsis_comments(INSTALLER_HOOKS_NSH.read_text(encoding="utf-8"))
+        assert "${BST_CHECKED}" in text, (
+            "the pack checkbox must default to checked "
+            "(${NSD_SetState} ... ${BST_CHECKED}); the product default is "
+            "auto-download and the user opts OUT."
+        )
+
+    def test_no_components_page_section(self) -> None:
+        """A Components-page Section must NOT be reintroduced.
+
+        Inserting ``MUI_PAGE_COMPONENTS`` would expose Tauri's EarlyChecks /
+        WebView2 / Install sections as optional checkboxes (a user could
+        untick Install and break the app).
+        """
+        text = _strip_nsis_comments(INSTALLER_HOOKS_NSH.read_text(encoding="utf-8"))
+        assert 'Section "Include offline engine pack"' not in text, (
+            "do not model the pack choice as an NSIS Section — Tauri's wizard "
+            "has no Components page, and adding one exposes Tauri's own "
+            "sections as optional."
+        )
+        assert "MUI_PAGE_COMPONENTS" not in text, (
+            "do not insert MUI_PAGE_COMPONENTS; it would render Tauri's "
+            "Install section as an optional checkbox."
+        )
+
+    def test_checkbox_reads_nsd_state(self) -> None:
+        text = INSTALLER_HOOKS_NSH.read_text(encoding="utf-8")
+        assert "${NSD_GetState}" in text, (
+            "the pack-option leave handler must read the checkbox via "
+            "${NSD_GetState} (nsDialogs), not SectionGetFlags."
         )
 
 
 class TestInstallerHooksCustomInstallMacro:
-    """The ``customInstall`` macro writes installer-state.json."""
+    """The install hook writes installer-state.json (Tauri NSIS_HOOK_POSTINSTALL)."""
 
-    def test_custom_install_macro_defined(self) -> None:
+    def test_nsis_hook_postinstall_defined(self) -> None:
+        text = INSTALLER_HOOKS_NSH.read_text(encoding="utf-8")
+        assert "!macro NSIS_HOOK_POSTINSTALL" in text, (
+            "installer-hooks.nsh must define `!macro NSIS_HOOK_POSTINSTALL` — "
+            "that is the ONLY install-side hook Tauri v2's installer.nsi "
+            "invokes (crates/tauri-bundler). A bare customInstall is never "
+            "called."
+        )
+
+    def test_custom_install_alias_still_defined(self) -> None:
         text = INSTALLER_HOOKS_NSH.read_text(encoding="utf-8")
         assert "!macro customInstall" in text, (
-            "installer-hooks.nsh must define `!macro customInstall`, Tauri v2 "
-            "invokes this macro in the -post Section to write installer-state.json."
+            "customInstall must remain as a thin alias of "
+            "NSIS_HOOK_POSTINSTALL (older references / focused tests)."
         )
 
     def test_installer_state_json_path_pinned(self) -> None:
         """The macro must write to the canonical installer-state.json path."""
         text = INSTALLER_HOOKS_NSH.read_text(encoding="utf-8")
-        # The path is $LOCALAPPDATA\lausu\installer-state.json —
         assert r"$LOCALAPPDATA\lausu\installer-state.json" in text, (
             "installer-hooks.nsh must write installer-state.json to "
             "%LOCALAPPDATA%\\lausu\\, the SAME per-user data root the "
@@ -221,7 +232,6 @@ class TestInstallerHooksCustomInstallMacro:
     def test_installer_state_json_schema_pinned(self) -> None:
         """The JSON shape written by the macro is pinned here."""
         text = INSTALLER_HOOKS_NSH.read_text(encoding="utf-8")
-        # Both branches (true / false) must carry the same field set.
         for required_field in (
             "include_offline_engine_pack",
             "installer_version",
@@ -233,16 +243,25 @@ class TestInstallerHooksCustomInstallMacro:
                 "See plan-runtime-pack-split.md §4.8."
             )
 
-    def test_custom_install_reads_section_selection(self) -> None:
-        """The macro must consult the Section's selected state, not hardcode."""
-        text = INSTALLER_HOOKS_NSH.read_text(encoding="utf-8")
-        assert "SectionGetFlags ${SecIncludePack}" in text, (
-            "customInstall must call `SectionGetFlags ${SecIncludePack}` to read "
-            "the checkbox state, a hardcoded value defeats the consent gate."
+    def test_installer_version_uses_tauri_version_define(self) -> None:
+        """Tauri defines ``VERSION``; ``PRODUCT_VERSION`` is undefined and
+        aborts makensis."""
+        text = _strip_nsis_comments(INSTALLER_HOOKS_NSH.read_text(encoding="utf-8"))
+        assert "${VERSION}" in text, (
+            "installer-state.json must embed ${VERSION} (the define Tauri's "
+            "installer.nsi sets)."
         )
-        assert "${SF_SELECTED}" in text, (
-            "customInstall must AND the section flags with ${SF_SELECTED} to "
-            "isolate the selection bit (NSIS section flags are a bitmask)."
+        assert "${PRODUCT_VERSION}" not in text, (
+            "${PRODUCT_VERSION} is not defined by Tauri's installer.nsi — "
+            "makensis aborts on the unknown symbol. Use ${VERSION}."
+        )
+
+    def test_custom_install_reads_checkbox_state(self) -> None:
+        """The hook must consult the checkbox, not hardcode."""
+        text = INSTALLER_HOOKS_NSH.read_text(encoding="utf-8")
+        assert "$IncludeOfflineEnginePack" in text, (
+            "the state writer must read $IncludeOfflineEnginePack (set by "
+            "the custom-page checkbox), not a hardcoded value."
         )
 
 
@@ -314,8 +333,8 @@ class TestArtifactNames:
 
 class TestNoRenameOfExistingArtifacts:
     """
-    C-CI-13: never rename EXISTING artifacts.
-    C-CI-13-protected existing names (a collision would be a silent
+    C-CI-13: never rename EXISTING artifacts without lockstep consumer
+    updates. C-CI-13-protected existing names (a collision would be a silent
     """
 
     def test_new_names_do_not_collide_with_protected(self) -> None:
@@ -333,22 +352,22 @@ class TestNoRenameOfExistingArtifacts:
             "C-CI-13 violation: new §11.9 artifact names overlap with the "
             f"protected existing names: {sorted(overlap)}. The new names must "
             "be ADDITIVE, they must NOT rename or overwrite the existing "
-            "tauri-windows-installer / Lausu-Tauri-* / python-sidecar-* "
+            "Lausu-Windows-Installer / Lausu-Windows-* / python-sidecar-* "
             "artifact names."
         )
 
     def test_existing_protected_names_listed(self) -> None:
         """
         The protected names list must enumerate every C-CI-13 entry.
-        C-CI-13 enumerates: ``tauri-windows-installer``, ``Lausu-Tauri-MSI``,
+        C-CI-13 enumerates: ``Lausu-Windows-Installer``, ``Lausu-Windows-MSI``,
         """
         mod = _load_artifact_names_module()
         expected = {
-            "tauri-windows-installer",
-            "Lausu-Tauri-MSI",
-            "Lausu-Tauri-Sidecar-Binaries",
-            "Lausu-Tauri-SHA256SUMS",
-            "tauri-binaries-manifest-windows",
+            "Lausu-Windows-Installer",
+            "Lausu-Windows-MSI",
+            "Lausu-Windows-Sidecar-Binaries",
+            "Lausu-Windows-SHA256SUMS",
+            "Lausu-Binaries-Manifest-Windows",
         }
         assert expected.issubset(set(mod.EXISTING_PROTECTED_NAMES)), (
             "EXISTING_PROTECTED_NAMES missing entries from C-CI-13: "
@@ -512,6 +531,15 @@ class TestUninstallerNshNotRegressed:
             "CR-69 / CR-70 cleanup (autostart Run keys, Task Scheduler tasks, "
             "%APPDATA%\\lausu data dir) depends on it. Adding "
             "installer-hooks.nsh must NOT remove the existing uninstall hooks."
+        )
+
+    def test_uninstaller_nsh_wires_tauri_post_uninstall_hook(self) -> None:
+        """Tauri invokes only NSIS_HOOK_POSTUNINSTALL."""
+        text = UNINSTALLER_NSH.read_text(encoding="utf-8")
+        assert "!macro NSIS_HOOK_POSTUNINSTALL" in text, (
+            "uninstaller.nsh must define `!macro NSIS_HOOK_POSTUNINSTALL` — "
+            "that is the ONLY uninstall-side hook Tauri v2's installer.nsi "
+            "invokes. customUnInstall alone is never called."
         )
 
     def test_uninstaller_nsh_still_cleans_appdata(self) -> None:

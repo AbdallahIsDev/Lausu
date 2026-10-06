@@ -8,7 +8,7 @@ import os
 import shlex
 from pathlib import Path
 
-from voice_typer.server._paths import APP_IDENTIFIER
+from voice_typer.server._paths import APP_IDENTIFIER, APP_RDNN_ROOT
 from voice_typer.server.server_platform import autostart as _autostart_mod
 
 log = logging.getLogger(__name__)
@@ -96,7 +96,12 @@ def _sweep_legacy_runkeys() -> list[str]:
 
 
 def _sweep_legacy_tasks() -> list[str] | None:
-    """Remove legacy ``LausuAutostart*`` scheduled tasks for this install."""
+    """Remove pre-rename / duplicate scheduled tasks for this install.
+
+    Covers ``LausuAutostart*`` (old non-RDNN names) and
+    ``com.voicetyper.autostart_*`` (pre-brand-rename RDNN). The live
+    task is ``{APP_RDNN_ROOT}.autostart_<hash>``.
+    """
     from voice_typer.server.server_platform import autostart_windows as _aw
 
     if not _aw.is_windows():
@@ -113,7 +118,8 @@ def _sweep_legacy_tasks() -> list[str] | None:
     deleted: list[str] = []
     try:
         ps_cmd = (
-            f"Get-ScheduledTask -TaskName '{APP_IDENTIFIER}Autostart*' "
+            f"Get-ScheduledTask -TaskName '{APP_IDENTIFIER}Autostart*',"
+            f"'{APP_RDNN_ROOT}.autostart*','com.voicetyper.autostart*' "
             "-ErrorAction SilentlyContinue | "
             "ForEach-Object { Write-Output $_.TaskName }"
         )
@@ -142,7 +148,13 @@ def _sweep_legacy_tasks() -> list[str] | None:
             return None
         for line in (result.stdout or "").splitlines():
             name = line.strip()
-            if not name.startswith(f"{APP_IDENTIFIER}Autostart") or name == current_name:
+            if not name or name == current_name:
+                continue
+            if not (
+                name.startswith(f"{APP_IDENTIFIER}Autostart")
+                or name.startswith(f"{APP_RDNN_ROOT}.autostart")
+                or name.startswith("com.voicetyper.autostart")
+            ):
                 continue
             rc, xml = task_scheduler._schtasks(["/Query", "/TN", name, "/XML"])
             if rc != 0:

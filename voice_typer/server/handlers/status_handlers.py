@@ -1,5 +1,8 @@
 """Status IPC handlers: get_status / get_model_status / volume backend."""
 
+import threading
+import time
+
 from voice_typer.server.handlers._base import HandlerBase
 from voice_typer.server.handlers._log import log
 from voice_typer.server.ipc.validation import (  # noqa: F401
@@ -9,6 +12,15 @@ from voice_typer.server.ipc.validation import (  # noqa: F401
     _error_response,
 )
 from voice_typer.server.platform_utils import is_windows
+
+# The hub walk below is O(files) over gigabytes; the Models page polls
+# this command, and a cold-disk walk can exceed the 15 s dispatch
+# timeout and wedge a readonly-pool worker behind it. Cache per hub
+# path for a minute: storage figures are informational, staleness is
+# harmless, and a concurrent recompute is idempotent anyway.
+_STORAGE_CACHE_TTL_S = 60.0
+_storage_cache: dict[str, tuple[float, dict]] = {}
+_storage_cache_lock = threading.Lock()
 
 
 class StatusHandlersMixin(HandlerBase):
@@ -79,15 +91,30 @@ class StatusHandlersMixin(HandlerBase):
 
             config_dir = _paths.config_dir()
             hub = config_dir / "huggingface" / "hub"
-            used = self._dir_size_bytes(str(hub)) if hub.is_dir() else 0
             if isinstance(status, dict):
-                status["_storage"] = {
-                    "used_bytes": used,
-                    "hub_path": str(hub),
-                    "config_dir": str(config_dir),
-                }
+                status["_storage"] = self._cached_storage_summary(str(hub), str(config_dir))
         except Exception:
             log.debug("[IPC] get_model_status storage summary skipped", exc_info=True)
+
+    @staticmethod
+    def _cached_storage_summary(hub: str, config_dir: str) -> dict:
+        """Hub size summary with a 60 s TTL (cold-disk walks are slow)."""
+        import os
+
+        now = time.monotonic()
+        with _storage_cache_lock:
+            cached = _storage_cache.get(hub)
+            if cached is not None and now - cached[0] < _STORAGE_CACHE_TTL_S:
+                return dict(cached[1])
+        used = StatusHandlersMixin._dir_size_bytes(hub) if os.path.isdir(hub) else 0
+        summary = {
+            "used_bytes": used,
+            "hub_path": hub,
+            "config_dir": config_dir,
+        }
+        with _storage_cache_lock:
+            _storage_cache[hub] = (now, summary)
+        return dict(summary)
 
     @staticmethod
     def _dir_size_bytes(root: str) -> int:

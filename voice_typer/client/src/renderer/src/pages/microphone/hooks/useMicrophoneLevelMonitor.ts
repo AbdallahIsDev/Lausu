@@ -1,12 +1,5 @@
 // for text/aria consumers. C-BG-1: no monitor while hidden. See
 
-import { useLatestRef } from "@/hooks/useLatestRef";
-import { usePython, usePythonEvent } from "@/hooks/usePython";
-import {
-	CONSENT_REQUIRED_CODE,
-	VOICE_BIOMETRIC_CONSENT_FIELD,
-} from "@/lib/consent";
-import type { LausuConfig } from "@/types/config";
 import {
 	type Dispatch,
 	type RefObject,
@@ -16,6 +9,13 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useLatestRef } from "@/hooks/useLatestRef";
+import { usePython, usePythonEvent } from "@/hooks/usePython";
+import {
+	CONSENT_REQUIRED_CODE,
+	VOICE_BIOMETRIC_CONSENT_FIELD,
+} from "@/lib/consent";
+import type { LausuConfig } from "@/types/config";
 
 const START_RETRY_DELAYS_MS: readonly number[] = [1000, 2000, 4000];
 
@@ -135,6 +135,7 @@ export function useMicrophoneLevelMonitor({
 
 		let cancelled = false;
 		let retryTimer: ReturnType<typeof setTimeout> | null = null;
+		let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 		let attempt = 0;
 		let startedHere = false;
 		let issuedStartSeq = 0;
@@ -241,8 +242,22 @@ export function useMicrophoneLevelMonitor({
 			runOneShotLevelPoll();
 		}
 
+		// Keep-alive heartbeat: the backend auto-stops the monitor
+		// after 60s without polls (so an idle app releases the mic and
+		// the OS indicator clears). While this page is alive it IS the
+		// consumer, so poll every 30s to hold the stream. The poll
+		// itself is visibility-gated (hidden tabs never hold the mic).
+		const HEARTBEAT_POLL_MS = 30000;
+		heartbeatTimer = setInterval(() => {
+			if (!cancelled) runOneShotLevelPoll();
+		}, HEARTBEAT_POLL_MS);
+
 		return () => {
 			cancelled = true;
+			if (heartbeatTimer !== null) {
+				clearInterval(heartbeatTimer);
+				heartbeatTimer = null;
+			}
 			if (retryTimer !== null) {
 				clearTimeout(retryTimer);
 				retryTimer = null;

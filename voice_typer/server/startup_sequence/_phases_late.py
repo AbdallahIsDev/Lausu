@@ -9,6 +9,7 @@ import threading
 import time
 from typing import TYPE_CHECKING, cast
 
+from voice_typer.server import i18n
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.duration import format_duration
 from voice_typer.server.platform_utils import is_linux, is_macos, is_wayland_session
@@ -87,10 +88,7 @@ class LatePhases:
                     )
                     # critical, bypass toggle (hotkeys broken).
                     app.tray.notify_safety(
-                        f"{APP_NAME}, Wayland Hotkeys",
-                        "Global hotkeys may not work on Wayland. "
-                        "Install 'wtype' or 'ydotool' for hotkey support, "
-                        "or use the tray menu's Start Dictation option.",
+                        f"{APP_NAME}, Wayland Hotkeys", i18n.t("notify.hotkey_dispatcher.wayland_hotkeys_may_fail")
                     )
                 else:
                     log.info(
@@ -232,6 +230,21 @@ class LatePhases:
         extractor_thread.start()
         log.debug("[STARTUP] Extractor refresh check dispatched to fire-and-forget daemon thread (no wait, no timeout)")
 
+        # Connect-time get_config runs keyring + GPU probes inline; their
+        # first-call cost (keyring backend init, DLL scan, ctranslate2
+        # import) can stall a readonly-pool worker for seconds mid-storm.
+        # Pre-warm both caches here so the handshake answers from cache.
+        def _probe_prewarm_task() -> None:
+            startup_tasks.prewarm_connect_probes()
+
+        probe_thread = threading.Thread(
+            target=_probe_prewarm_task,
+            name="startup-probe-prewarm",
+            daemon=True,
+        )
+        probe_thread.start()
+        log.debug("[STARTUP] Probe pre-warm dispatched to fire-and-forget daemon thread (no wait, no timeout)")
+
         # enumeration (below) runs in a bounded parallel pool under a 5s
         log.debug("[STARTUP] Registering hotkey")
         # Step 2: invoke HotkeyDispatcher directly. The
@@ -304,13 +317,19 @@ class LatePhases:
         try:
             from voice_typer.server import startup_tasks
 
+            startup_tasks.reconcile_configured_device(app)
             startup_tasks.reconcile_configured_model(app)
         except Exception:
             log.debug(
                 "[STARTUP] model reconciliation failed (non-fatal, load precheck still guards)",
                 exc_info=True,
             )
-        app.models.start_background_load()
+        if os.environ.get("VOICE_TYPER_DEFER_MODEL_LOAD") == "1":
+            # Dev-bridge sidecars skip the multi-GB background model load;
+            # first dictation lazy-loads via ensure_active_engine_loaded.
+            log.info("[STARTUP] VOICE_TYPER_DEFER_MODEL_LOAD=1, skipping background model load")
+        else:
+            app.models.start_background_load()
 
         # RACE-020: check for shutdown after background model load start
         if app._shutting_down:
@@ -330,10 +349,24 @@ class LatePhases:
             except Exception as e:
                 log.warning("[STARTUP] Failed to open app window after restart: %s", e)
 
+        # Session-local positioning: drags are never persisted, so a
+        # stale bubble_x/bubble_y pair from an older build must not
+        # leak into this session. Clear once; startup placement below
+        # always uses the configured default edge.
+        try:
+            if app.config.bubble_x is not None or app.config.bubble_y is not None:
+                app.config.bubble_x = None
+                app.config.bubble_y = None
+                app.config.save()
+                log.info("[STARTUP] Cleared stale bubble drag position, using default edge")
+        except Exception:
+            log.debug("[STARTUP] Stale bubble position reset failed", exc_info=True)
+
         # Show the bubble at startup if always_visible mode is enabled AND
         if app.config.bubble_behavior == "always_visible" and app.config.bubble_show_on_startup:
             try:
                 app._waveform_bubble.show()
+                app._waveform_bubble.set_state("idle")
                 log.info("[STARTUP] Bubble shown at startup (always_visible mode)")
             except Exception as e:
                 log.warning("[STARTUP] Failed to show bubble at startup: %s", e)

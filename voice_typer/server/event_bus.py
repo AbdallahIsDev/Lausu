@@ -104,7 +104,7 @@ Events emitted via ``event_bus.publish`` (the modern path):
   message:str}``.
 * ``parakeet_cpu_fallback``: emitted by
   ``parakeet_engine.py`` when GPU transcription fails and the engine
-  falls back to CPU. The tray shows a "(CPU fallback)" status suffix.
+  falls back to CPU. The tray shows a "- CPU fallback" status suffix.
   Payload: ``{device:str (="cpu"), reason:str}``.
 * ``gpu_cpu_fallback``: emitted by ``transcription_fallback.py``
   (Whisper path) when a GPU inference error triggers the synchronous
@@ -118,16 +118,6 @@ Events emitted via ``event_bus.publish`` (the modern path):
   Step 7b) when the RULE-BASED AI-enhancement pass fails. Distinct
   from ``llm_polish_failed`` (the LLM-polish path): the transcription
   is still delivered un-enhanced. Payload: ``{}``.
-* ``media_transcribe_progress``: ADR-0023 chunked media job progress.
-  Payload: ``{job_id:str, progress:float (0-1), phase:str
-  ("downloading"|"loading_model"|"transcribing"), eta_seconds:float|None,
-  duration_seconds:float|None}``.
-* ``media_transcribe_complete``: ADR-0023 media job completion.
-  Payload: ``{job_id:str, row_id:int|None, chars:int, partial:bool}``
-  (``row_id`` is None when the transcript was empty — no History row).
-* ``media_transcribe_error``: ADR-0023 media job failure (E13), pushed
-  by ``media_ingest/jobs.py`` when the job thread raises. Payload:
-  ``{job_id:str, code:str, message:str}``.
 
 Master plan §7.4, runtime-pack / worker IPC events (13 new event
 types introduced by the slim-core / runtime-pack split). The
@@ -178,9 +168,11 @@ Offline-pack integrity (push, published by ``service/offline_pack.py``):
 Worker process lifecycle (push, published by the slim-core supervisor
 once the worker process spawns / crashes / unloads):
 
-* ``worker_started``: payload ``{pid:int, version:str}``. Worker
-  spawned + WS handshake done (prewarm NOT done yet, see
-  ``offline_pack_ready``).
+* ``worker_started``: payload ``{pid:int, version:str, port?:int}``.
+  Worker spawned + WS handshake done (prewarm NOT done yet, see
+  ``offline_pack_ready``). ``port`` is the host-relayed worker WS port
+  (ADR-0024 Step 2, always present on host-relayed frames, additive:
+  ``pid``/``version``-only readers keep working).
 * ``worker_crashed``: payload ``{pid:int, exit_code:int}``. Worker
   process exited non-zero (or killed by a signal); supervisor
   restarts with exponential backoff.
@@ -234,7 +226,8 @@ renderer consumes it, in the TS ``PythonPushEvent`` union):
 * ``microphone_disconnected``: active mic lost from the recorder
   stream (fast unplug path / retry exhaustion). Payload: ``{}``.
 * ``cloud_fallback_used``: a cloud ASR provider failed and the local
-  engine took over. Payload: ``{provider:str, reason:str (≤200 chr)}``.
+  engine took over. Payload: ``{provider:str, kind:str ("key" |
+  "provider" | "network"), reason:str (≤200 chr)}``.
 * ``dictation_suppressed``: a short near-silent recording's failure
   notification was suppressed (UX-SILENCE-GRACE). Payload:
   ``{duration:float, recorded_rms:float, reason:str}``.
@@ -342,6 +335,8 @@ EVENT_TYPES: frozenset[str] = frozenset(
         # IPCServer.push-only (included so assertion doesn't false-positive):
         "state_changed",
         "status_change",
+        # ADR-0023 failure push (media_ingest/jobs.py via _on_event, same path):
+        "media_transcribe_error",
         # Emitted but missing from the docstring catalogue:
         "asr_backend_disabled",
         "asr_last_resort_unloaded",
@@ -367,10 +362,10 @@ EVENT_TYPES: frozenset[str] = frozenset(
         "paste_deferred",
         # Tray-unavailable fallback (tray.py `_drain_pending`):
         "tray_fallback_notification",
-        # ADR-0023 universal media-to-text job events:
-        "media_transcribe_progress",
+        # ADR-0023 media jobs (published in handlers/media_handlers.py,
+        # already in Rust ALLOWED_EVENT_TYPES + renderer known-event-types):
         "media_transcribe_complete",
-        "media_transcribe_error",
+        "media_transcribe_progress",
     }
 )
 
