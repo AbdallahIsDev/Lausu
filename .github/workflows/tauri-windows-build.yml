@@ -119,7 +119,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # Nuitka clcache: persist MSVC object files between builds. This is the
       # step that makes a repeat freeze minutes instead of ~3 h. The previous
@@ -129,7 +129,7 @@ jobs:
       # The key is per-``matrix.target`` because both freeze jobs run in
       # parallel; sharing one key made them race to write the same entry.
       - name: Cache Nuitka build artifacts (clcache objects)
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.NUITKA_CACHE_DIR }}
           key: tauri-windows-nuitka-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('pyproject.toml', 'requirements-lock.txt') }}
@@ -140,7 +140,7 @@ jobs:
       # up-to-date objects (checksum-based) instead of recompiling ~800
       # TUs from scratch. Keyed on deps so a dependency bump rebuilds.
       - name: Cache Nuitka scons build dir (incremental C builds)
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: src-tauri/bin/*.build
           key: tauri-windows-scons-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('pyproject.toml', 'requirements-lock.txt') }}
@@ -305,7 +305,7 @@ jobs:
           bash scripts/build/check_bundle_torch_free.sh "$BIN"
 
       - name: Upload sidecar binary (intermediate)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           # TX-40: arch-suffix this name when enabling the aarch64 leg.
           name: windows-sidecar-exe
@@ -354,7 +354,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # Nuitka clcache: persist MSVC object files between builds. This is the
       # step that makes a repeat freeze minutes instead of ~3 h. The previous
@@ -364,7 +364,7 @@ jobs:
       # The key is per-``matrix.target`` because both freeze jobs run in
       # parallel; sharing one key made them race to write the same entry.
       - name: Cache Nuitka build artifacts (clcache objects)
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.NUITKA_CACHE_DIR }}
           key: tauri-windows-nuitka-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('pyproject.toml', 'requirements-lock.txt') }}
@@ -375,7 +375,7 @@ jobs:
       # up-to-date objects (checksum-based) instead of recompiling ~800
       # TUs from scratch. Keyed on deps so a dependency bump rebuilds.
       - name: Cache Nuitka scons build dir (incremental C builds)
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: src-tauri/bin/*.build
           key: tauri-windows-scons-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('pyproject.toml', 'requirements-lock.txt') }}
@@ -453,7 +453,7 @@ jobs:
           Write-Host "Runtime pack size within 200 MB limit (size gate passed)."
 
       - name: Upload worker binary (intermediate)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           # TX-40: arch-suffix this name when enabling the aarch64 leg.
           name: windows-worker-exe
@@ -518,7 +518,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.12 (dev env)
         uses: actions/setup-python@v7
@@ -538,7 +538,7 @@ jobs:
           targets: ${{ env.RUST_TARGET }}
 
       - name: Cache cargo registry + target
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -580,13 +580,13 @@ jobs:
       # via artifacts below. Nothing is compiled in this job anymore.
 
       - name: Download sidecar binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: windows-sidecar-exe
           path: src-tauri/bin
 
       - name: Download worker binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: windows-worker-exe
           path: src-tauri/bin
@@ -921,21 +921,21 @@ jobs:
           Write-Host "Smoke test PASSED: sidecar --version exited 0 with project name in output."
 
       - name: Upload NSIS installer artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Lausu-Windows-Installer
           path: ${{ steps.artifacts.outputs.nsis_path }}
           if-no-files-found: error
 
       - name: Upload MSI installer artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Lausu-Windows-MSI
           path: ${{ steps.artifacts.outputs.msi_path }}
           if-no-files-found: warn
 
       - name: Upload sidecar + native listener
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Lausu-Windows-Sidecar-Binaries
           # TX-40: paths use matrix.target so the aarch64 leg (when enabled)
@@ -973,7 +973,7 @@ jobs:
           Get-Content SHA256SUMS.txt
 
       - name: Upload checksums
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Lausu-Windows-SHA256SUMS
           path: SHA256SUMS.txt
@@ -995,7 +995,7 @@ jobs:
       # TX-24 / C-CI-15: tauri-binaries.json is the fail-closed integrity
       # manifest verified at login; --check aborts on empty/malformed hash.
       - name: Upload updated tauri-binaries.json
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Lausu-Binaries-Manifest-Windows
           path: tauri-binaries.json
