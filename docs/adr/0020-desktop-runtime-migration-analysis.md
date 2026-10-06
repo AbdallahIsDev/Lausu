@@ -681,7 +681,7 @@ Today the tray icon is `pystray` (Win32 / AppKit / GTK), with menu logic in `tra
     "notification": {},
     "clipboard-manager": {},
     "single-instance": {},
-    "updater": {"endpoints": ["https://github.com/AbdallahIsDev/voice-typer/releases/latest/download/latest.json"], "pubkey": "..."}
+    "updater": {"endpoints": ["https://github.com/AbdallahIsDev/lausu/releases/latest/download/latest.json"], "pubkey": "..."}
   },
   "app": { "security": { "capabilities": ["migrate-runtime"], "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'" } }
 }

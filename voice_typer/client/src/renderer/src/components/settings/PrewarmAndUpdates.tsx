@@ -53,7 +53,7 @@ const APP_VERSION = pkg.version as string;
 // (or a new BrowserWindow depending on config). The C-DATA-1 rule
 // forbids automated network calls from the production code path; a
 // not Lausu.
-const RELEASES_URL = "https://github.com/AbdallahIsDev/voice-typer/releases";
+const RELEASES_URL = "https://github.com/AbdallahIsDev/lausu/releases";
 
 // ADR-0009 Issue 3: shape of the ``get_prewarm_status`` IPC response.
 // Mirrors the dict returned by

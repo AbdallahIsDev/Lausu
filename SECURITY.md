@@ -16,7 +16,7 @@ If you discover a security vulnerability, please **do not** open a public
 GitHub issue. Instead:
 
 1. Email the maintainer directly via GitHub's private vulnerability reporting:
-   https://github.com/AbdallahIsDev/voice-typer/security/advisories/new
+   https://github.com/AbdallahIsDev/lausu/security/advisories/new
 2. Include a description of the vulnerability and steps to reproduce.
 3. You will receive a response within 72 hours.
 

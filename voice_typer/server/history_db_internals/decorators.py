@@ -1,11 +1,24 @@
-"""``raise_on_error`` wrappers for the history-DB public methods."""
+"""The ``raise_on_error`` failure contract for history-DB public methods.
+
+``HistoryDBError`` is the exception those methods raise; the ``_wrap_*``
+decorators below are what decide between raising it and returning the
+method's documented sentinel.
+"""
 
 from __future__ import annotations
 
 import functools
 import logging
 
-from voice_typer.server.history_db_internals.errors import HistoryDBError
+
+class HistoryDBError(RuntimeError):
+    """Raised by HistoryDB methods on unrecoverable failures.
+
+    Each method also returns its documented sentinel (``[]``, ``False``,
+    ``-1``, ``{}``); callers that must distinguish "empty result" from
+    "operation failed" pass ``raise_on_error=True`` to get this instead.
+    """
+
 
 # Same logger as the facade: these wrappers report failures of HistoryDB
 # methods, and users grep lausu.log for the ``voice_typer.server.history_db``

@@ -3,8 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ExternalLink } from "@/components/common/ExternalLink";
 
-const URL =
-	"https://github.com/AbdallahIsDev/voice-typer/blob/main/SECURITY.md";
+const URL = "https://github.com/AbdallahIsDev/lausu/blob/main/SECURITY.md";
 
 afterEach(() => {
 	vi.unstubAllGlobals();

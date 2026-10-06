@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "Tauri v2 host for Lausu: Rust shell + Python sidecar (ADR-0020)"
 authors = ["Abdallah IsDev <noreply@github.com>"]
 license = "MIT"
-repository = "https://github.com/AbdallahIsDev/voice-typer"
+repository = "https://github.com/AbdallahIsDev/lausu"
 edition = "2021"
 rust-version = "1.77"
 

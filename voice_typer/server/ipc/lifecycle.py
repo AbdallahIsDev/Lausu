@@ -346,7 +346,7 @@ class LifecycleMixin:
         """Wait for the predecessor's ``relaunch_ack`` signal (PERF-005).
 
         Public wrapper around the private ``_relaunch_ack_event`` so
-        :class:`voice_typer.server.app.VoiceTyperApp` does not have to
+        :class:`voice_typer.server.app.lausuApp` does not have to
         reach into IPC-server private state during ``restart_app``.
 
         The event is cleared before waiting so a stale ack from a prior

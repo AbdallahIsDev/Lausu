@@ -71,7 +71,7 @@ you already have installed.
 
 ```bash
 # 1. Clone
-git clone https://github.com/AbdallahIsDev/voice-typer.git
+git clone https://github.com/AbdallahIsDev/lausu.git
 cd lausu
 
 # 2. Install uv (one-time, any of):
@@ -124,7 +124,7 @@ uv run --no-sync pytest tests/ -v
 
 ```bash
 # 1. Clone
-git clone https://github.com/AbdallahIsDev/voice-typer.git
+git clone https://github.com/AbdallahIsDev/lausu.git
 cd lausu
 
 # 2. Create a dedicated venv (matches the path the launcher expects
@@ -1420,7 +1420,7 @@ A maintainer will merge your PR once:
 
 ### 8.4 Reporting bugs
 
-Use [GitHub Issues](https://github.com/AbdallahIsDev/voice-typer/issues)
+Use [GitHub Issues](https://github.com/AbdallahIsDev/lausu/issues)
 and include:
 
 - Lausu version (`python -m voice_typer --version` or the
@@ -1441,6 +1441,6 @@ and include:
 ## Questions?
 
 Open an issue with the `question` label on the
-[GitHub issue tracker](https://github.com/AbdallahIsDev/voice-typer/issues).
+[GitHub issue tracker](https://github.com/AbdallahIsDev/lausu/issues).
 For security-sensitive reports, see `SECURITY.md` Do not open a
 public issue for vulnerabilities.

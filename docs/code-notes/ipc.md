@@ -11,7 +11,9 @@ lockstep. Host-dispatched commands (`shutdown`, `tray_click`, `heartbeat`,
 `relaunch_ack`) are intentionally absent from the Rust renderer allowlist.
 
 Pinned sets:
-- `_COMMAND_REGISTRY` — 79 keys (tests/test_ipc_server.py).
+- `_COMMAND_REGISTRY` — 80 keys (tests/test_ipc_server.py).
+- `allowed_commands()` (Rust renderer allowlist) — 76 keys; the registry minus
+  the four host-dispatched commands (SECURITY.md, `sidecar_cmds_tests.rs`).
 - `_READONLY_COMMANDS` — `{get_status, get_config, get_model_catalog, heartbeat}`.
   WS/stdin dispatcher bypasses `_dispatch_lock` for these (pure reads).
 - `_PYTHON_ONLY_COMMANDS` — `{shutdown, tray_click}`. Renderer must never

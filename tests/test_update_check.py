@@ -11,6 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
 from voice_typer.server.service import update_check
 from voice_typer.server.service.update_check import (
     DEFAULT_OFFLINE_PACK_MANIFEST_URL,
@@ -39,7 +40,11 @@ def _make_manifest(version: str = "1.2.3", *, sha256: str | None = None) -> dict
         "version": version,
         "sha256": sha256,
         "files": [
-            {"name": "worker.exe", "sha256": hashlib.sha256(b"worker").hexdigest(), "size": 1024},
+            {
+                "name": "worker.exe",
+                "sha256": hashlib.sha256(b"worker").hexdigest(),
+                "size": 1024,
+            },
         ],
         "min_proto_version": 1,
     }
@@ -48,7 +53,7 @@ def _make_manifest(version: str = "1.2.3", *, sha256: str | None = None) -> dict
 @pytest.fixture
 def fake_manifest_url() -> str:
     """A fake manifest URL on the GitHub Releases host (SSRF-allowed)."""
-    return "https://github.com/AbdallahIsDev/voice-typer/releases/latest/download/pack-manifest.json"
+    return "https://github.com/AbdallahIsDev/lausu/releases/latest/download/pack-manifest.json"
 
 
 @pytest.fixture
@@ -129,18 +134,26 @@ class TestFetchRemoteManifest:
 
         # ``assert_pack_url_allowed`` extends the allowlist with GitHub
         def fake_http_get(url, *, max_bytes=MAX_MANIFEST_BYTES):
-            raise AssertionError("HTTP transport should NOT be called for SSRF-blocked URL")
+            raise AssertionError(
+                "HTTP transport should NOT be called for SSRF-blocked URL"
+            )
 
-        result = fetch_remote_manifest("https://10.0.0.5/pack-manifest.json", http_get=fake_http_get)
+        result = fetch_remote_manifest(
+            "https://10.0.0.5/pack-manifest.json", http_get=fake_http_get
+        )
         assert result is None
 
     def test_returns_none_on_non_allowlisted_host(self):
         """A non-allowlisted host (not GitHub + not in the allowlist) is rejected."""
 
         def fake_http_get(url, *, max_bytes=MAX_MANIFEST_BYTES):
-            raise AssertionError("HTTP transport should NOT be called for non-allowlisted host")
+            raise AssertionError(
+                "HTTP transport should NOT be called for non-allowlisted host"
+            )
 
-        result = fetch_remote_manifest("https://evil.example.com/pack-manifest.json", http_get=fake_http_get)
+        result = fetch_remote_manifest(
+            "https://evil.example.com/pack-manifest.json", http_get=fake_http_get
+        )
         assert result is None
 
     def test_returns_none_on_network_error(self, fake_manifest_url: str):
@@ -159,11 +172,17 @@ class TestFetchRemoteManifest:
             raise RuntimeError(f"unexpected HTTP status 404 for {url}")
 
         with caplog.at_level("DEBUG", logger="voice_typer.server.service.update_check"):
-            assert fetch_remote_manifest(fake_manifest_url, http_get=fake_http_get) is None
-        assert not any(r.levelname == "WARNING" and "[UPDATE]" in r.message for r in caplog.records), (
+            assert (
+                fetch_remote_manifest(fake_manifest_url, http_get=fake_http_get) is None
+            )
+        assert not any(
+            r.levelname == "WARNING" and "[UPDATE]" in r.message for r in caplog.records
+        ), (
             f"404 must not warn; got: {[(r.levelname, r.message) for r in caplog.records]!r}"
         )
-        assert any("[UPDATE]" in r.message and r.levelname == "DEBUG" for r in caplog.records), (
+        assert any(
+            "[UPDATE]" in r.message and r.levelname == "DEBUG" for r in caplog.records
+        ), (
             f"expected DEBUG-level UPDATE record; got: {[(r.levelname, r.message) for r in caplog.records]!r}"
         )
         assert "Traceback" not in caplog.text
@@ -176,8 +195,12 @@ class TestFetchRemoteManifest:
             raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)  # type: ignore[arg-type]
 
         with caplog.at_level("DEBUG", logger="voice_typer.server.service.update_check"):
-            assert fetch_remote_manifest(fake_manifest_url, http_get=fake_http_get) is None
-        assert not any(r.levelname == "WARNING" and "[UPDATE]" in r.message for r in caplog.records)
+            assert (
+                fetch_remote_manifest(fake_manifest_url, http_get=fake_http_get) is None
+            )
+        assert not any(
+            r.levelname == "WARNING" and "[UPDATE]" in r.message for r in caplog.records
+        )
 
     def test_non_404_network_error_stays_warning(self, fake_manifest_url: str, caplog):
         """Genuine outages (DNS/timeout) keep WARNING so they stay visible."""
@@ -186,8 +209,12 @@ class TestFetchRemoteManifest:
             raise OSError("simulated DNS failure")
 
         with caplog.at_level("INFO", logger="voice_typer.server.service.update_check"):
-            assert fetch_remote_manifest(fake_manifest_url, http_get=fake_http_get) is None
-        assert any(r.levelname == "WARNING" and "[UPDATE]" in r.message for r in caplog.records), (
+            assert (
+                fetch_remote_manifest(fake_manifest_url, http_get=fake_http_get) is None
+            )
+        assert any(
+            r.levelname == "WARNING" and "[UPDATE]" in r.message for r in caplog.records
+        ), (
             f"non-404 failure must warn; got: {[(r.levelname, r.message) for r in caplog.records]!r}"
         )
 
@@ -219,7 +246,9 @@ class TestFetchRemoteManifest:
         def fake_http_get(url, *, max_bytes=MAX_MANIFEST_BYTES):
             # The transport itself enforces the cap (defense-in-depth
             if len(big_body) > max_bytes:
-                raise RuntimeError(f"manifest exceeds max_bytes={max_bytes} (read {len(big_body)} bytes so far)")
+                raise RuntimeError(
+                    f"manifest exceeds max_bytes={max_bytes} (read {len(big_body)} bytes so far)"
+                )
             return big_body
 
         result = fetch_remote_manifest(fake_manifest_url, http_get=fake_http_get)
@@ -260,7 +289,9 @@ class TestCheckOfflinePackUpdate:
     ):
         """When no local pack exists + remote is available + consent given →"""
         # No local pack → local_version=None → update_available=True.
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda root=None: None)
+        monkeypatch.setattr(
+            update_check, "_local_offline_pack_version", lambda root=None: None
+        )
         manifest = _make_manifest("1.2.3")
         body = json.dumps(manifest)
 
@@ -306,7 +337,9 @@ class TestCheckOfflinePackUpdate:
         monkeypatch,
     ):
         """When local == remote → no download triggered."""
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda root=None: "1.2.3")
+        monkeypatch.setattr(
+            update_check, "_local_offline_pack_version", lambda root=None: "1.2.3"
+        )
         manifest = _make_manifest("1.2.3")
         body = json.dumps(manifest)
 
@@ -343,7 +376,9 @@ class TestCheckOfflinePackUpdate:
         monkeypatch,
     ):
         """Local 1.2.2, remote 1.2.3 → update_available + download_triggered."""
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda root=None: "1.2.2")
+        monkeypatch.setattr(
+            update_check, "_local_offline_pack_version", lambda root=None: "1.2.2"
+        )
         manifest = _make_manifest("1.2.3")
         body = json.dumps(manifest)
 
@@ -379,7 +414,9 @@ class TestCheckOfflinePackUpdate:
         monkeypatch,
     ):
         """Always-on: consent flag False does NOT block fetch or download."""
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda root=None: None)
+        monkeypatch.setattr(
+            update_check, "_local_offline_pack_version", lambda root=None: None
+        )
         manifest = _make_manifest("1.2.3")
         body = json.dumps(manifest)
         http_called: list[str] = []
@@ -408,7 +445,9 @@ class TestCheckOfflinePackUpdate:
         assert result["update_available"] is True
         assert result["download_triggered"] is True
         assert triggered == [True]
-        consent_events = [e for e in fake_event_bus.events if e["type"] == "consent_required"]
+        consent_events = [
+            e for e in fake_event_bus.events if e["type"] == "consent_required"
+        ]
         assert consent_events == []
 
     def test_consent_off_with_local_pack_still_checks_remote(
@@ -419,7 +458,9 @@ class TestCheckOfflinePackUpdate:
         monkeypatch,
     ):
         """Local pack installed → remote check still runs regardless of consent flag."""
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda root=None: "1.2.3")
+        monkeypatch.setattr(
+            update_check, "_local_offline_pack_version", lambda root=None: "1.2.3"
+        )
         manifest = _make_manifest("1.2.3")
         body = json.dumps(manifest)
         http_called: list[str] = []
@@ -448,15 +489,21 @@ class TestCheckOfflinePackUpdate:
         monkeypatch,
     ):
         """``manifest_timeout`` is plumbed to the default HTTP transport."""
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda root=None: None)
+        monkeypatch.setattr(
+            update_check, "_local_offline_pack_version", lambda root=None: None
+        )
         captured: dict[str, float] = {}
 
-        def fake_default_transport(url, *, max_bytes=MAX_MANIFEST_BYTES, timeout: float = 30.0):
+        def fake_default_transport(
+            url, *, max_bytes=MAX_MANIFEST_BYTES, timeout: float = 30.0
+        ):
             captured["timeout"] = timeout
             return json.dumps(_make_manifest("9.9.9"))
 
         monkeypatch.setattr(update_check, "_http_get_manifest", fake_default_transport)
-        monkeypatch.setattr(update_check, "_trigger_background_download", lambda **kwargs: True)
+        monkeypatch.setattr(
+            update_check, "_trigger_background_download", lambda **kwargs: True
+        )
 
         result = check_offline_pack_update(
             fake_config_with_consent,
@@ -481,7 +528,9 @@ class TestCheckOfflinePackUpdate:
         monkeypatch,
     ):
         """When the remote manifest can't be fetched → ``{success: False, reason: 'fetch_failed'}``."""
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda root=None: "1.2.3")
+        monkeypatch.setattr(
+            update_check, "_local_offline_pack_version", lambda root=None: "1.2.3"
+        )
 
         def fake_http_get(url, *, max_bytes=MAX_MANIFEST_BYTES):
             raise OSError("simulated network failure")
@@ -507,7 +556,9 @@ class TestCheckOfflinePackUpdate:
         monkeypatch,
     ):
         """A 404 with consent given → ``fetch_failed``, no download, no"""
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda root=None: None)
+        monkeypatch.setattr(
+            update_check, "_local_offline_pack_version", lambda root=None: None
+        )
 
         def fake_http_get(url, *, max_bytes=MAX_MANIFEST_BYTES):
             raise RuntimeError(f"unexpected HTTP status 404 for {url}")
@@ -515,7 +566,9 @@ class TestCheckOfflinePackUpdate:
         def fail_on_trigger(**kwargs):
             raise AssertionError("no download may trigger when the manifest is absent")
 
-        monkeypatch.setattr(update_check, "_trigger_background_download", fail_on_trigger)
+        monkeypatch.setattr(
+            update_check, "_trigger_background_download", fail_on_trigger
+        )
 
         result = check_offline_pack_update(
             fake_config_with_consent,
@@ -537,7 +590,9 @@ class TestCheckOfflinePackUpdate:
         monkeypatch,
     ):
         """``trigger_download=False`` → check runs but download is NOT triggered."""
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda root=None: None)
+        monkeypatch.setattr(
+            update_check, "_local_offline_pack_version", lambda root=None: None
+        )
         manifest = _make_manifest("1.2.3")
         body = json.dumps(manifest)
 
@@ -574,7 +629,9 @@ class TestCheckOfflinePackUpdate:
         """``VT_PACK_MANIFEST_URL`` env var overrides the default URL."""
         custom_url = "https://github.com/my-org/my-fork/releases/latest/download/pack-manifest.json"
         monkeypatch.setenv("VT_PACK_MANIFEST_URL", custom_url)
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda root=None: None)
+        monkeypatch.setattr(
+            update_check, "_local_offline_pack_version", lambda root=None: None
+        )
 
         fetched_urls: list[str] = []
         manifest = _make_manifest("1.2.3")
@@ -596,14 +653,16 @@ class TestCheckOfflinePackUpdate:
             # NOTE: manifest_url NOT passed, should fall back to env var.
         )
 
-        assert fetched_urls == [custom_url], f"expected fetch from env-var URL {custom_url!r}, got {fetched_urls}"
+        assert fetched_urls == [custom_url], (
+            f"expected fetch from env-var URL {custom_url!r}, got {fetched_urls}"
+        )
 
     def test_default_manifest_url_is_github_releases_latest(self):
         """The default manifest URL points at GitHub Releases ``/latest/download/``."""
         from voice_typer.server.branding import APP_REPO
 
         assert DEFAULT_OFFLINE_PACK_MANIFEST_URL == (
-            "https://github.com/AbdallahIsDev/voice-typer/releases/latest/download/pack-manifest.json"
+            "https://github.com/AbdallahIsDev/lausu/releases/latest/download/pack-manifest.json"
         ), (
             "DEFAULT_OFFLINE_PACK_MANIFEST_URL changed, update docs/auto-update-feature.md "
             "(Sub-agent 15) and the publisher (publish_pack_release.py) to match."
@@ -622,7 +681,9 @@ class TestCheckOfflinePackUpdate:
         monkeypatch,
     ):
         """The result includes ``checked_at`` (epoch ms) for UI display."""
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda root=None: "1.2.3")
+        monkeypatch.setattr(
+            update_check, "_local_offline_pack_version", lambda root=None: "1.2.3"
+        )
         manifest = _make_manifest("1.2.3")
         body = json.dumps(manifest)
 
@@ -639,7 +700,9 @@ class TestCheckOfflinePackUpdate:
         after = int(time.time() * 1000)
 
         assert "checked_at" in result
-        assert before <= result["checked_at"] <= after, f"checked_at {result['checked_at']} not in [{before}, {after}]"
+        assert before <= result["checked_at"] <= after, (
+            f"checked_at {result['checked_at']} not in [{before}, {after}]"
+        )
 
 
 class TestTriggerBackgroundDownload:
@@ -656,7 +719,9 @@ class TestTriggerBackgroundDownload:
         manifest = _make_manifest("1.2.3")
         captured: dict = {}
 
-        def fake_download(url, dest, *, expected_sha256, version, event_bus, http_get=None):
+        def fake_download(
+            url, dest, *, expected_sha256, version, event_bus, http_get=None
+        ):
             captured["url"] = url
             captured["dest"] = dest
             captured["expected_sha256"] = expected_sha256
@@ -690,8 +755,10 @@ class TestTriggerBackgroundDownload:
 
         assert "url" in captured, "download was not called within 2s"
         assert captured["url"] == (
-            "https://github.com/AbdallahIsDev/voice-typer/releases/latest/download/pack-1.2.3.zip"
-        ), f"download URL should be constructed from manifest URL + version, got {captured['url']!r}"
+            "https://github.com/AbdallahIsDev/lausu/releases/latest/download/pack-1.2.3.zip"
+        ), (
+            f"download URL should be constructed from manifest URL + version, got {captured['url']!r}"
+        )
         assert captured["expected_sha256"] == manifest["sha256"]
         assert captured["version"] == "1.2.3"
 
@@ -726,7 +793,9 @@ class TestTriggerBackgroundDownload:
         monkeypatch.setattr(
             update_check.offline_pack,
             "OfflinePackLock",
-            lambda *a, **k: SimpleNamespace(__enter__=lambda s: s, __exit__=lambda *a: False),
+            lambda *a, **k: SimpleNamespace(
+                __enter__=lambda s: s, __exit__=lambda *a: False
+            ),
         )
         monkeypatch.setattr(
             update_check.offline_pack,
@@ -756,7 +825,9 @@ class TestTriggerBackgroundDownload:
         entered = threading.Event()
         release = threading.Event()
 
-        def fake_download(url, dest, *, expected_sha256, version, event_bus, http_get=None):
+        def fake_download(
+            url, dest, *, expected_sha256, version, event_bus, http_get=None
+        ):
             entered.set()
             release.wait(5.0)  # hold the guard until the test checks it
             return True
@@ -801,7 +872,9 @@ class TestTriggerBackgroundDownload:
         started: list[int] = []
         done = threading.Event()
 
-        def fake_download(url, dest, *, expected_sha256, version, event_bus, http_get=None):
+        def fake_download(
+            url, dest, *, expected_sha256, version, event_bus, http_get=None
+        ):
             started.append(1)
             done.set()
             return True
@@ -844,9 +917,13 @@ class TestTriggerBackgroundDownload:
 class TestHandleCheckPackUpdateIpc:
     """``handle_check_offline_pack_update_ipc``, thin IPC wrapper."""
 
-    def test_returns_plain_dict(self, fake_config_with_consent, fake_event_bus, monkeypatch):
+    def test_returns_plain_dict(
+        self, fake_config_with_consent, fake_event_bus, monkeypatch
+    ):
         """The IPC handler returns a plain ``dict`` (not a TypedDict instance)."""
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda root=None: "1.2.3")
+        monkeypatch.setattr(
+            update_check, "_local_offline_pack_version", lambda root=None: "1.2.3"
+        )
         manifest = _make_manifest("1.2.3")
         body = json.dumps(manifest)
 
@@ -865,14 +942,18 @@ class TestHandleCheckPackUpdateIpc:
 
     def test_app_none_tolerated(self, monkeypatch):
         """``app=None`` is tolerated, treated as no-config + no-event-bus."""
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda root=None: None)
+        monkeypatch.setattr(
+            update_check, "_local_offline_pack_version", lambda root=None: None
+        )
         manifest = _make_manifest("1.2.3")
         body = json.dumps(manifest)
 
         def fake_http_get(url, *, max_bytes=MAX_MANIFEST_BYTES):
             return body
 
-        result = handle_check_offline_pack_update_ipc(None, None, http_get=fake_http_get)
+        result = handle_check_offline_pack_update_ipc(
+            None, None, http_get=fake_http_get
+        )
         assert isinstance(result, dict)
         # Always-on: no consent_required path; fetch failed (no local pack path mocked well).
         assert result.get("consent_required") is not True
@@ -883,7 +964,9 @@ class TestHandleCheckPackUpdateIpc:
         monkeypatch,
     ):
         """When ``app.event_bus`` is missing, the handler falls back to the"""
-        monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda root=None: "1.2.3")
+        monkeypatch.setattr(
+            update_check, "_local_offline_pack_version", lambda root=None: "1.2.3"
+        )
         manifest = _make_manifest("1.2.3")
         body = json.dumps(manifest)
 
@@ -1011,7 +1094,9 @@ class TestSSRFRedirectRevalidation:
         from voice_typer.server.service.update_check import _SSRFAwareRedirectHandler
 
         handler = _SSRFAwareRedirectHandler()
-        req = Request("https://github.com/owner/repo/releases/latest/download/pack-manifest.json")
+        req = Request(
+            "https://github.com/owner/repo/releases/latest/download/pack-manifest.json"
+        )
 
         # ``objects.githubusercontent.com`` is in the pack allowlist
         result = handler.redirect_request(
@@ -1025,7 +1110,10 @@ class TestSSRFRedirectRevalidation:
         assert result is not None, (
             "expected redirect to be followed for an allowlisted target, got redirect_request()=None (no follow)"
         )
-        assert result.get_full_url() == "https://objects.githubusercontent.com/github-production-release-asset/foo"
+        assert (
+            result.get_full_url()
+            == "https://objects.githubusercontent.com/github-production-release-asset/foo"
+        )
 
     def test_manifest_redirect_to_private_ip_is_rejected(self, monkeypatch):
         """redirect is NOT followed."""
@@ -1093,9 +1181,14 @@ class TestSSRFRedirectRevalidation:
         with pytest.raises(RuntimeError, match="SSRF") as exc_info:
             update_check._http_get_manifest(initial_url)
 
-        assert "10.0.0.5" in str(exc_info.value) or "redirect" in str(exc_info.value).lower()
+        assert (
+            "10.0.0.5" in str(exc_info.value)
+            or "redirect" in str(exc_info.value).lower()
+        )
 
-    def test_fetch_remote_manifest_returns_none_on_redirect_to_private_ip(self, monkeypatch):
+    def test_fetch_remote_manifest_returns_none_on_redirect_to_private_ip(
+        self, monkeypatch
+    ):
         """``fetch_remote_manifest`` returns ``None`` when the manifest URL"""
         import email.message
         import urllib.error
@@ -1138,7 +1231,9 @@ class TestSSRFRedirectRevalidation:
 
         class _FakeHTTPHandler(urllib.request.HTTPHandler):
             def http_open(self, req):  # noqa: ARG002
-                raise urllib.error.URLError("test: refusing to follow redirect (no real network)")
+                raise urllib.error.URLError(
+                    "test: refusing to follow redirect (no real network)"
+                )
 
         real_build_opener = urllib.request.build_opener
 
@@ -1178,11 +1273,16 @@ class TestTriggerInstallWiring:
             gate_calls.append(Path(pack_dir))
             raise RuntimeError("insufficient disk space")
 
-        def fake_download(url, dest, *, expected_sha256, version, event_bus, http_get=None):
+        def fake_download(
+            url, dest, *, expected_sha256, version, event_bus, http_get=None
+        ):
             download_called.set()
             return True
 
-        monkeypatch.setattr("voice_typer.server.service.offline_pack.check_offline_pack_disk_space", fake_gate)
+        monkeypatch.setattr(
+            "voice_typer.server.service.offline_pack.check_offline_pack_disk_space",
+            fake_gate,
+        )
         monkeypatch.setattr(
             "voice_typer.server.service.offline_pack.download_offline_pack_with_resume",
             fake_download,
@@ -1204,12 +1304,19 @@ class TestTriggerInstallWiring:
         while not gate_calls and time.monotonic() < deadline:
             time.sleep(0.01)
         assert gate_calls, "disk gate never ran within 2s"
-        dest = update_check.offline_pack.offline_pack_partial_path("1.1.0", root=tmp_path)
+        dest = update_check.offline_pack.offline_pack_partial_path(
+            "1.1.0", root=tmp_path
+        )
         assert gate_calls[0] == dest.parent
-        assert not download_called.wait(0.5), "download must not run when the disk gate fails"
+        assert not download_called.wait(0.5), (
+            "download must not run when the disk gate fails"
+        )
         # Guard released despite the gate failure.
         deadline = time.monotonic() + 2.0
-        while "1.1.0" in update_check._ACTIVE_PACK_DOWNLOADS and time.monotonic() < deadline:
+        while (
+            "1.1.0" in update_check._ACTIVE_PACK_DOWNLOADS
+            and time.monotonic() < deadline
+        ):
             time.sleep(0.01)
         assert "1.1.0" not in update_check._ACTIVE_PACK_DOWNLOADS
 
@@ -1237,7 +1344,9 @@ class TestTriggerInstallWiring:
                 events_order.append("lock_exit")
                 return None
 
-        def fake_download(url, dest, *, expected_sha256, version, event_bus, http_get=None):
+        def fake_download(
+            url, dest, *, expected_sha256, version, event_bus, http_get=None
+        ):
             events_order.append("download")
             return True
 
@@ -1245,12 +1354,16 @@ class TestTriggerInstallWiring:
             events_order.append("install")
             return True
 
-        monkeypatch.setattr("voice_typer.server.service.offline_pack.OfflinePackLock", _FakeLock)
+        monkeypatch.setattr(
+            "voice_typer.server.service.offline_pack.OfflinePackLock", _FakeLock
+        )
         monkeypatch.setattr(
             "voice_typer.server.service.offline_pack.download_offline_pack_with_resume",
             fake_download,
         )
-        monkeypatch.setattr("voice_typer.server.service.offline_pack.install_offline_pack", fake_install)
+        monkeypatch.setattr(
+            "voice_typer.server.service.offline_pack.install_offline_pack", fake_install
+        )
 
         assert (
             update_check._trigger_background_download(
@@ -1285,7 +1398,9 @@ class TestTriggerInstallWiring:
         manifest = _make_manifest("1.3.0")
         install_called = threading.Event()
 
-        def fake_download(url, dest, *, expected_sha256, version, event_bus, http_get=None):
+        def fake_download(
+            url, dest, *, expected_sha256, version, event_bus, http_get=None
+        ):
             return False
 
         def fake_install(archive, version, manifest, **kwargs):
@@ -1296,7 +1411,9 @@ class TestTriggerInstallWiring:
             "voice_typer.server.service.offline_pack.download_offline_pack_with_resume",
             fake_download,
         )
-        monkeypatch.setattr("voice_typer.server.service.offline_pack.install_offline_pack", fake_install)
+        monkeypatch.setattr(
+            "voice_typer.server.service.offline_pack.install_offline_pack", fake_install
+        )
 
         assert (
             update_check._trigger_background_download(
@@ -1309,7 +1426,9 @@ class TestTriggerInstallWiring:
             )
             is True
         )
-        assert not install_called.wait(1.0), "install must not run when the download fails"
+        assert not install_called.wait(1.0), (
+            "install must not run when the download fails"
+        )
 
     def test_bg_skips_download_when_pack_already_installed(
         self,
@@ -1326,11 +1445,15 @@ class TestTriggerInstallWiring:
         pack_dir = tmp_path / version
         pack_dir.mkdir(parents=True)
         (pack_dir / "worker.exe").write_bytes(b"worker")
-        (pack_dir / "pack-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        (pack_dir / "pack-manifest.json").write_text(
+            json.dumps(manifest), encoding="utf-8"
+        )
 
         download_called = threading.Event()
 
-        def fake_download(url, dest, *, expected_sha256, version, event_bus, http_get=None):
+        def fake_download(
+            url, dest, *, expected_sha256, version, event_bus, http_get=None
+        ):
             download_called.set()
             return True
 
@@ -1355,7 +1478,10 @@ class TestTriggerInstallWiring:
         )
         # The in-flight guard was still released (the skip is a clean exit).
         deadline = time.monotonic() + 2.0
-        while version in update_check._ACTIVE_PACK_DOWNLOADS and time.monotonic() < deadline:
+        while (
+            version in update_check._ACTIVE_PACK_DOWNLOADS
+            and time.monotonic() < deadline
+        ):
             time.sleep(0.01)
         assert version not in update_check._ACTIVE_PACK_DOWNLOADS
 
@@ -1386,7 +1512,11 @@ class TestTriggerInstallWiring:
             "version": version,
             "sha256": hashlib.sha256(pack_bytes).hexdigest(),
             "files": [
-                {"name": name, "sha256": hashlib.sha256(blob).hexdigest(), "size": len(blob)}
+                {
+                    "name": name,
+                    "sha256": hashlib.sha256(blob).hexdigest(),
+                    "size": len(blob),
+                }
                 for name, blob in files.items()
             ],
             "min_proto_version": 1,
@@ -1415,15 +1545,22 @@ class TestTriggerInstallWiring:
         )
         pack_dir = tmp_path / version
         deadline = time.monotonic() + 5.0
-        while not (pack_dir / "pack-manifest.json").exists() and time.monotonic() < deadline:
+        while (
+            not (pack_dir / "pack-manifest.json").exists()
+            and time.monotonic() < deadline
+        ):
             time.sleep(0.01)
         assert (pack_dir / "pack-manifest.json").exists(), "pack was never installed"
         # The consumed archive is gone (mirrors the NSIS installer).
-        assert not offline_pack.offline_pack_partial_path(version, root=tmp_path).exists()
+        assert not offline_pack.offline_pack_partial_path(
+            version, root=tmp_path
+        ).exists()
         # Launch-time scan now finds the pack → no update re-trigger.
         assert update_check._local_offline_pack_version(root=tmp_path) == version
         # Renderer contract: offline_pack_verified carries {version, sha256}.
-        verified = [e for e in fake_event_bus.events if e["type"] == "offline_pack_verified"]
+        verified = [
+            e for e in fake_event_bus.events if e["type"] == "offline_pack_verified"
+        ]
         assert verified and verified[0]["data"] == {
             "version": version,
             "sha256": manifest["sha256"],
@@ -1442,7 +1579,9 @@ class TestTriggerGuardLeak:
         tmp_path: Path,
     ):
         manifest = _make_manifest("2.2.2")
-        dest = update_check.offline_pack.offline_pack_partial_path("2.2.2", root=tmp_path)
+        dest = update_check.offline_pack.offline_pack_partial_path(
+            "2.2.2", root=tmp_path
+        )
         real_mkdir = Path.mkdir
         failures = {"n": 0}
 
@@ -1455,7 +1594,9 @@ class TestTriggerGuardLeak:
 
         download_called = threading.Event()
 
-        def fake_download(url, dest, *, expected_sha256, version, event_bus, http_get=None):
+        def fake_download(
+            url, dest, *, expected_sha256, version, event_bus, http_get=None
+        ):
             download_called.set()
             return True
 
@@ -1493,7 +1634,10 @@ class TestTriggerGuardLeak:
         assert download_called.wait(2.0), "second trigger never ran the download"
         # Cleanup: let the daemon thread release the guard.
         deadline = time.monotonic() + 2.0
-        while "2.2.2" in update_check._ACTIVE_PACK_DOWNLOADS and time.monotonic() < deadline:
+        while (
+            "2.2.2" in update_check._ACTIVE_PACK_DOWNLOADS
+            and time.monotonic() < deadline
+        ):
             time.sleep(0.01)
 
     def test_thread_start_failure_discards_guard(
@@ -1528,7 +1672,9 @@ class TestTriggerGuardLeak:
         monkeypatch.setattr(threading.Thread, "start", real_thread_start)
         download_called = threading.Event()
 
-        def fake_download(url, dest, *, expected_sha256, version, event_bus, http_get=None):
+        def fake_download(
+            url, dest, *, expected_sha256, version, event_bus, http_get=None
+        ):
             download_called.set()
             return True
 
@@ -1549,7 +1695,10 @@ class TestTriggerGuardLeak:
         )
         assert download_called.wait(2.0)
         deadline = time.monotonic() + 2.0
-        while "3.3.3" in update_check._ACTIVE_PACK_DOWNLOADS and time.monotonic() < deadline:
+        while (
+            "3.3.3" in update_check._ACTIVE_PACK_DOWNLOADS
+            and time.monotonic() < deadline
+        ):
             time.sleep(0.01)
 
 
@@ -1567,7 +1716,11 @@ class TestLocalPackVersionScan:
             "version": version,
             "sha256": _hashlib.sha256(b"whatever").hexdigest(),
             "files": [
-                {"name": "worker.exe", "sha256": _hashlib.sha256(b"worker").hexdigest(), "size": 6},
+                {
+                    "name": "worker.exe",
+                    "sha256": _hashlib.sha256(b"worker").hexdigest(),
+                    "size": 6,
+                },
             ],
             "min_proto_version": 1,
         }
@@ -1590,7 +1743,11 @@ class TestLocalPackVersionScan:
             "version": "2.0.0",
             "sha256": _hashlib.sha256(b"whatever").hexdigest(),
             "files": [
-                {"name": "worker.exe", "sha256": _hashlib.sha256(b"worker2").hexdigest(), "size": 7},
+                {
+                    "name": "worker.exe",
+                    "sha256": _hashlib.sha256(b"worker2").hexdigest(),
+                    "size": 7,
+                },
             ],
             "min_proto_version": 1,
         }
