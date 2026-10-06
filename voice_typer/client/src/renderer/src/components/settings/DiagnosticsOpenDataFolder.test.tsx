@@ -42,7 +42,7 @@ describe("DiagnosticsSettingsSection, Open Data Folder button", () => {
 	it("renders alongside Copy Diagnostics", async () => {
 		render(<DiagnosticsSettingsSection isVisible={() => true} />);
 		await waitFor(() =>
-			expect(screen.getByText("Copy diagnostics")).toBeTruthy(),
+			expect(screen.getByText("Copy Diagnostics")).toBeTruthy(),
 		);
 		expect(
 			screen.getByRole("button", { name: "Open Data Folder" }),

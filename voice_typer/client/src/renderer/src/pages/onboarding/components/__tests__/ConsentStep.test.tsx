@@ -84,12 +84,12 @@ describe("ConsentStep, consolidated first-run consent", () => {
 		expect(switches).toHaveLength(EXPECTED_FIELDS.length);
 
 		// Every field's plain-language label is present.
-		expect(screen.getByText("Voice biometric processing")).toBeTruthy();
-		expect(screen.getByText("HuggingFace model downloads")).toBeTruthy();
-		expect(screen.getByText("OpenAI cloud speech recognition")).toBeTruthy();
-		expect(screen.getByText("Groq cloud speech recognition")).toBeTruthy();
-		expect(screen.getByText("Deepgram cloud speech recognition")).toBeTruthy();
-		expect(screen.getByText("LLM text polishing")).toBeTruthy();
+		expect(screen.getByText("Voice Biometric Processing")).toBeTruthy();
+		expect(screen.getByText("HuggingFace Model Downloads")).toBeTruthy();
+		expect(screen.getByText("OpenAI Cloud Speech Recognition")).toBeTruthy();
+		expect(screen.getByText("Groq Cloud Speech Recognition")).toBeTruthy();
+		expect(screen.getByText("Deepgram Cloud Speech Recognition")).toBeTruthy();
+		expect(screen.getByText("LLM Text Polishing")).toBeTruthy();
 	});
 
 	it("switch state reflects the consents prop", () => {
@@ -104,14 +104,14 @@ describe("ConsentStep, consolidated first-run consent", () => {
 		const byLabel = (label: string) =>
 			switches.find((s) => s.getAttribute("aria-label") === label);
 		expect(
-			byLabel("Voice biometric processing")?.getAttribute("aria-checked"),
+			byLabel("Voice Biometric Processing")?.getAttribute("aria-checked"),
 		).toBe("true");
 		expect(
-			byLabel("HuggingFace model downloads")?.getAttribute("aria-checked"),
+			byLabel("HuggingFace Model Downloads")?.getAttribute("aria-checked"),
 		).toBe("false");
 		// Defaults to unchecked when the field is absent from the prop.
 		expect(
-			byLabel("Groq cloud speech recognition")?.getAttribute("aria-checked"),
+			byLabel("Groq Cloud Speech Recognition")?.getAttribute("aria-checked"),
 		).toBe("false");
 	});
 
@@ -122,7 +122,7 @@ describe("ConsentStep, consolidated first-run consent", () => {
 
 		const switches = screen.getAllByTestId("consent-switch");
 		const llm = switches.find(
-			(s) => s.getAttribute("aria-label") === "LLM text polishing",
+			(s) => s.getAttribute("aria-label") === "LLM Text Polishing",
 		);
 		expect(llm).toBeTruthy();
 		await user.click(llm as HTMLElement);
