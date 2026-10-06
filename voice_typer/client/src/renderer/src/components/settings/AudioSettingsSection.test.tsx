@@ -1,10 +1,10 @@
 /**
- * Tests for `AudioSettingsSection` covering the "Test microphone"
+ * Tests for `AudioSettingsSection` covering the "Test Microphone"
  * cross-link row and the Microphone Quality enable-Switch.
  *
  * Background: the `audio_preset` config field is mutated from two
  * unrelated UI surfaces, (1) this Settings section's "Microphone
- * Quality" switch-only row + revealed "Quality preset" picker row (no
+ * Quality" switch-only row + revealed "Quality Preset" picker row (no
  * "off" option) + custom filter chain, and (2) the Microphone page's
  * `PresetAccordionSelector` (with its own test-record A/B workflow). The
  * two surfaces use different presentation patterns, and live on
@@ -13,7 +13,7 @@
  * not realise the same setting is also configurable under Settings →
  * Audio.
  *
- * The fix adds a "Test microphone" row at the bottom of the Audio
+ * The fix adds a "Test Microphone" row at the bottom of the Audio
  * Enhancement card (with a "Go to Microphone" button) so the user knows
  * the duplicate surface exists. Combined with the cache-invalidation
  * fix (Settings always re-fetches on mount), edits made on either side
@@ -193,7 +193,7 @@ function makeConfig(overrides: Partial<LausuConfig> = {}): LausuConfig {
 
 const alwaysVisible = () => true;
 
-describe("AudioSettingsSection, 'Test microphone' cross-link row", () => {
+describe("AudioSettingsSection, 'Test Microphone' cross-link row", () => {
 	beforeEach(() => {
 		resetStableMocks();
 		vi.clearAllMocks();
@@ -216,7 +216,7 @@ describe("AudioSettingsSection, 'Test microphone' cross-link row", () => {
 
 		// The row label names the action; the info lives behind the
 		// row's (mocked) info tooltip and mentions the Microphone page.
-		expect(screen.getByText("Test microphone")).toBeTruthy();
+		expect(screen.getByText("Test Microphone")).toBeTruthy();
 		const tips = Array.from(
 			container.querySelectorAll('[data-testid="info-tooltip"]'),
 		).map((el) => el.getAttribute("data-text") ?? "");
@@ -347,7 +347,7 @@ describe("AudioSettingsSection, Microphone Quality enable-Switch", () => {
 		).map((el) => el.getAttribute("data-settings-row-label"));
 		expect(labels.length).toBeGreaterThan(1);
 		expect(labels[0]).toBe("Microphone Quality");
-		expect(labels[1]).toBe("Quality preset");
+		expect(labels[1]).toBe("Quality Preset");
 	});
 
 	it("switch is on for a real preset, off for 'off'", () => {
@@ -473,7 +473,7 @@ describe("AudioSettingsSection, voice activity filtering toggle", () => {
 		// search can find it, assert the label renders (the row would
 		// be absent if it were dropped from the visible surface).
 		renderSection();
-		expect(screen.getByText("Voice activity filtering")).toBeTruthy();
+		expect(screen.getByText("Voice Activity Filtering")).toBeTruthy();
 	});
 });
 
@@ -546,6 +546,6 @@ describe("AudioSettingsSection, hallucination filter mode", () => {
 
 	it("is searchable via the section search (label registered for filtering)", () => {
 		renderSection();
-		expect(screen.getByText("Ignore silence hallucinations")).toBeTruthy();
+		expect(screen.getByText("Ignore Silence Hallucinations")).toBeTruthy();
 	});
 });

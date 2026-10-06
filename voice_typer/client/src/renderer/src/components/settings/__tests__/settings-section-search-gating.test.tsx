@@ -104,11 +104,11 @@ describe("RecordingSettingsSection, in-section search filtering", () => {
 		expect(screen.queryByText("Stop on Silence")).toBeNull();
 		expect(screen.queryByText("ESC to Cancel")).toBeNull();
 		expect(screen.queryByText("Auto-Paste")).toBeNull();
-		expect(screen.queryByText("Paste into unidentified windows")).toBeNull();
-		expect(screen.queryByText("Confirm paste into admin windows")).toBeNull();
-		expect(screen.queryByText("Confirm paste into password fields")).toBeNull();
+		expect(screen.queryByText("Paste into Unidentified Windows")).toBeNull();
+		expect(screen.queryByText("Confirm Paste into Admin Windows")).toBeNull();
+		expect(screen.queryByText("Confirm Paste into Password Fields")).toBeNull();
 		expect(screen.queryByText("Sound Feedback")).toBeNull();
-		expect(screen.queryByText("Sound volume")).toBeNull();
+		expect(screen.queryByText("Sound Volume")).toBeNull();
 		expect(screen.queryByText("Test Sound")).toBeNull();
 		expect(screen.queryByText("Silence Warning")).toBeNull();
 		expect(screen.queryByText("Max Recording Time")).toBeNull();

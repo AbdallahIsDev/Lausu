@@ -277,7 +277,7 @@ describe("BG-55: per-row search filtering in Settings sections", () => {
 
 	it("PrivacySettingsSection hides non-matching consent rows but keeps matching ones", () => {
 		// Filter for "huggingface", should match the HuggingFace row
-		// (label = "HuggingFace model downloads") but not the other
+		// (label = "HuggingFace Model Downloads") but not the other
 		// consent rows.
 		const isVisible = filterByLabel("huggingface");
 		renderWithProviders(
@@ -289,14 +289,14 @@ describe("BG-55: per-row search filtering in Settings sections", () => {
 			/>,
 		);
 
-		// "HuggingFace model downloads" should be visible.
-		expect(screen.getByText("HuggingFace model downloads")).toBeTruthy();
-		// "Voice biometric processing" should NOT be visible.
-		expect(screen.queryByText("Voice biometric processing")).toBeNull();
+		// "HuggingFace Model Downloads" should be visible.
+		expect(screen.getByText("HuggingFace Model Downloads")).toBeTruthy();
+		// "Voice Biometric Processing" should NOT be visible.
+		expect(screen.queryByText("Voice Biometric Processing")).toBeNull();
 		// "OpenAI cloud ASR" should NOT be visible.
 		expect(screen.queryByText("OpenAI cloud ASR")).toBeNull();
-		// "LLM text polishing" should NOT be visible.
-		expect(screen.queryByText("LLM text polishing")).toBeNull();
+		// "LLM Text Polishing" should NOT be visible.
+		expect(screen.queryByText("LLM Text Polishing")).toBeNull();
 	});
 });
 

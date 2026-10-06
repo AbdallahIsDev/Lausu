@@ -59,7 +59,7 @@ describe("LinuxWindowButtonsSettingsSection", () => {
 		expect(screen.getByText("Window Buttons")).toBeTruthy();
 		expect(screen.getByText("Following your desktop's layout")).toBeTruthy();
 		// System mode: no visibility switches.
-		expect(screen.queryByLabelText("Show close button")).toBeNull();
+		expect(screen.queryByLabelText("Show Close Button")).toBeNull();
 	});
 
 	it("system snapshot missing → shows the unavailable note", async () => {
@@ -86,9 +86,9 @@ describe("LinuxWindowButtonsSettingsSection", () => {
 			show_close: true,
 		});
 		renderWithProviders(<Section {...props} />);
-		expect(screen.getByLabelText("Show minimize button")).toBeTruthy();
-		expect(screen.getByLabelText("Show maximize button")).toBeTruthy();
-		expect(screen.getByLabelText("Show close button")).toBeTruthy();
+		expect(screen.getByLabelText("Show Minimize Button")).toBeTruthy();
+		expect(screen.getByLabelText("Show Maximize Button")).toBeTruthy();
+		expect(screen.getByLabelText("Show Close Button")).toBeTruthy();
 	});
 
 	it("toggling a switch commits the COMPLETE linux_window_buttons object", async () => {
@@ -101,7 +101,7 @@ describe("LinuxWindowButtonsSettingsSection", () => {
 			show_close: true,
 		});
 		renderWithProviders(<Section {...props} />);
-		fireEvent.click(screen.getByLabelText("Show maximize button"));
+		fireEvent.click(screen.getByLabelText("Show Maximize Button"));
 		expect(props.updateConfig).toHaveBeenCalledWith({
 			linux_window_buttons: {
 				mode: "custom",

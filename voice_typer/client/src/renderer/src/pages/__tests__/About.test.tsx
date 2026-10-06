@@ -290,7 +290,7 @@ describe("Diagnostics section (IA split: Settings → Privacy)", () => {
 			expect(screen.getByText("/tmp/lausu")).toBeTruthy();
 		});
 
-		fireEvent.click(screen.getByRole("button", { name: "Copy diagnostics" }));
+		fireEvent.click(screen.getByRole("button", { name: "Copy Diagnostics" }));
 
 		await waitFor(() => {
 			expect(writeText).toHaveBeenCalledTimes(1);
@@ -300,7 +300,7 @@ describe("Diagnostics section (IA split: Settings → Privacy)", () => {
 		expect(text).toContain("App Version: v");
 		expect(text).toContain("Backend: Connected");
 		expect(text).toContain("Config Directory: /tmp/lausu");
-		expect(text).toContain("Speech recognizer: whisper (tiny)");
+		expect(text).toContain("Speech Recognizer: whisper (tiny)");
 		// Device renders the friendly display name ("cpu" → "CPU").
 		expect(text).toContain("Device: CPU");
 		expect(text).toContain("Loaded Via: cpu/int8/tiny.en");
@@ -325,7 +325,7 @@ describe("Diagnostics section (IA split: Settings → Privacy)", () => {
 });
 
 // ─── Diagnostics model-truth (point 10) ────────────────────────────────
-// The Diagnostics table's Speech recognizer / Device rows must derive
+// The Diagnostics table's Speech Recognizer / Device rows must derive
 // from the SAME source of truth as the Analytics page's Current Setup
 // cards (lib/utils/models.ts resolveActiveModel), never a per-page
 // duplicate check. With no model installed both pages show
@@ -362,7 +362,7 @@ describe("Diagnostics section, model rows share one source of truth with Analyti
 	const renderDiag = () =>
 		render(<DiagnosticsSettingsSection isVisible={() => true} />);
 
-	it("shows 'Not selected' for Speech recognizer and Device when no model is installed", async () => {
+	it("shows 'Not selected' for Speech Recognizer and Device when no model is installed", async () => {
 		// get_model_status returns {}, the configured "tiny" is NOT on
 		// disk, so the config defaults must NOT leak into the table.
 		mockCall.mockImplementation((type: string) => {
