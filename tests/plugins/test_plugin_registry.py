@@ -240,7 +240,15 @@ class TestGetPluginsEndToEnd:
 class TestPluginsUiVisibility:
     """The Plugins nav is developer-only: hidden from every shipped build."""
 
-    def test_owner_workspace_exposes_the_surface(self) -> None:
+    def test_owner_workspace_exposes_the_surface(self, workspace: Path) -> None:
+        """A developer checkout (which HAS the workspace) exposes the surface.
+
+        The workspace is created here rather than assumed present: it is
+        gitignored, so a CI checkout never has it — that is exactly what
+        ``test_workspace_is_never_packaged`` pins. Asserting against the
+        ambient repo made this pass locally and fail on every CI leg.
+        """
+        assert workspace.is_dir()
         assert hook.internal_surface_enabled() is True
 
     def test_missing_workspace_hides_it(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -258,8 +266,9 @@ class TestPluginsUiVisibility:
         monkeypatch.setenv("VOICE_TYPER_INTERNAL_PLUGINS", "1")
         assert hook.internal_surface_enabled() is True
 
-    def test_visibility_ignores_the_active_plugin(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_visibility_ignores_the_active_plugin(self, workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The UI must be reachable BEFORE a plugin is ever selected."""
+        assert workspace.is_dir()
         monkeypatch.setattr(hook, "requested_plugin_id", lambda app=None: "")
         assert hook.internal_surface_enabled() is True
 

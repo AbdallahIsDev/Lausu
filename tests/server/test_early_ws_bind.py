@@ -267,11 +267,17 @@ class TestMainEarlyWsBind:
         finally:
             os.environ.pop("TAURI_SIDECAR", None)
 
-        # The core bind-before-build contract: the WS transport (bind +
-        assert events[-1] == "run:entered", (
-            f"sidecar_ws.run must be entered before construction completes; events: {events}"
-        )
-        assert "construct:started" in events, "the ws-startup thread must have begun construction"
+        # The core bind-before-build contract: the WS transport (bind + the
+        # bounded pre-app dispatch buffer) is entered while construction is
+        # still parked on ``construct_gate``, so it necessarily precedes
+        # construction COMPLETING.
+        #
+        # Assert MEMBERSHIP, not the last event: the startup thread races
+        # this main thread, so by the time ``main()`` returns it may or may
+        # not have appended "construct:started" yet (windows-2022-3.10 lost
+        # that race, leaving events == ["run:entered"]). The ordering itself
+        # is asserted below, once the gate has been released.
+        assert "run:entered" in events, f"sidecar_ws.run must be entered; events: {events}"
         snapshot = run_server_snapshots[0]
         assert snapshot["app_is_none"] is True, (
             "at run() entry the server's app must still be the deferred placeholder (None)"
@@ -289,6 +295,10 @@ class TestMainEarlyWsBind:
                 break
             time.sleep(0.05)
         assert "app.start" in events, "the ws-startup thread must run app.start() after bind"
+        assert "construct:started" in events, "the ws-startup thread must have begun construction"
+        assert events.index("run:entered") < events.index("app.start"), (
+            "sidecar_ws.run must be entered before construction completes; events: " + repr(events)
+        )
         server = servers[0]
         assert server.app is not None, "the thread must late-bind the real app"
         assert server.started is True
