@@ -1,4 +1,16 @@
-"""User vocabulary store (C-PERSIST-1 categories)."""
+"""User vocabulary store (C-PERSIST-1 categories).
+
+Facade over the store's concerns, composed as mixins: persistence
+(``vocabulary_persistence``), apply engine (``vocabulary_apply``), with
+the schema constants in ``vocabulary_constants``. Every constant is
+re-exported here, so ``from voice_typer.server.vocabulary import
+CATEGORIES / VOCAB_FILENAME / MAX_*`` keeps resolving.
+
+The entry mutators stay in this module because they read the SEC-011
+limits from THIS module's globals, which keeps the
+``monkeypatch.setattr(vocabulary, "MAX_CORRECTIONS_ENTRIES", ...)`` test
+hook working.
+"""
 
 from __future__ import annotations
 
@@ -10,34 +22,25 @@ import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from voice_typer.server.vocabulary_apply import VocabularyApplyMixin
+from voice_typer.server.vocabulary_constants import (
+    _LEGACY_VOCAB_FILENAME,
+    BUNDLED_CORRECTIONS_PATH,
+    CATEGORIES,  # noqa: F401  # facade re-export
+    MAX_CORRECTIONS_ENTRIES,
+    MAX_PATTERN_LENGTH,
+    MAX_REPLACEMENT_LENGTH,
+    VOCAB_FILENAME,
+)
+from voice_typer.server.vocabulary_persistence import VocabularyPersistenceMixin
+
 if TYPE_CHECKING:
     from voice_typer.server.correction_usage import CorrectionUsageTracker
 
 log = logging.getLogger(__name__)
 
-VOCAB_FILENAME = "vocabulary.json"
-_LEGACY_VOCAB_FILENAME = "lausu-vocabulary.json"
-# single source of truth for the bundled corrections file path.
-BUNDLED_CORRECTIONS_PATH = Path(__file__).parent / "corrections.json"
 
-# Persistence model (do NOT flatten or re-merge):
-CATEGORIES = [
-    "misspellings",
-    "phrase_corrections",
-    "extra_word_patterns",
-    "technical_terms",
-    "names",
-    "products",
-]
-
-
-# Limits for corrections entries to prevent resource exhaustion
-MAX_CORRECTIONS_ENTRIES = 5000
-MAX_PATTERN_LENGTH = 200
-MAX_REPLACEMENT_LENGTH = 500
-
-
-class VocabularyManager:
+class VocabularyManager(VocabularyPersistenceMixin, VocabularyApplyMixin):
     """Manages custom vocabulary entries across 6 categories."""
 
     def __init__(
@@ -75,7 +78,7 @@ class VocabularyManager:
         # Route user-vocabulary persistence through PersistedJSON
         from voice_typer.server.secure_file_io import PersistedJSON
 
-        self._user_store = PersistedJSON(self._user_path, default={})
+        self._user_store: Any = PersistedJSON(self._user_path, default={})
 
         # Active merged data: {category: data}
         self._data: dict[str, Any] = {}
@@ -91,109 +94,6 @@ class VocabularyManager:
         ) = None
         self._load_and_merge()
 
-    def _invalidate_pattern_cache(self) -> None:
-        """invalidate the compiled-pattern cache. Called on any mutation."""
-        self._combined_phrase_cache = None
-
-    def _get_combined_phrase_pattern(self, category: str) -> tuple[re.Pattern[str], dict[str, tuple[str, str]]] | None:
-        """Build (or fetch from cache) the combined-alternation regex for a
-
-        Returns ``(pattern, lookup)`` where ``pattern`` is a single
-        """
-        if self._combined_phrase_cache is None:
-            self._combined_phrase_cache = {}
-        cached = self._combined_phrase_cache.get(category)
-        if cached is not None:
-            return cached or None  # (empty sentinel) → None
-        with self._lock:
-            entries = self._data.get(category, [])
-            if not isinstance(entries, list) or not entries:
-                self._combined_phrase_cache[category] = ()  # negative cache
-                return None
-            sorted_entries = sorted(
-                (e for e in entries if isinstance(e, list | tuple) and len(e) >= 2),
-                key=lambda e: len(e[0]),
-                reverse=True,
-            )
-            if not sorted_entries:
-                self._combined_phrase_cache[category] = ()  # negative cache
-                return None
-            lookup: dict[str, tuple[str, str]] = {}
-            alternations: list[str] = []
-            for entry in sorted_entries:
-                key = entry[0].lower()
-                if key in lookup:
-                    # Duplicate original (case-insensitive), first
-                    continue
-                lookup[key] = (entry[1], entry[0])
-                alternations.append(re.escape(entry[0]))
-        pattern = re.compile("(?:" + "|".join(alternations) + ")", re.IGNORECASE)
-        compiled: tuple[re.Pattern[str], dict[str, tuple[str, str]]] = (pattern, lookup)
-        self._combined_phrase_cache[category] = compiled
-        return compiled
-
-    def _load_and_merge(self) -> None:
-        """Load bundled corrections then merge user vocabulary on top."""
-        # Start with bundled corrections
-        bundled = self._load_bundled()
-        # Keep the RAW defaults around so the diff-style save path can
-        self._bundled_raw = bundled
-        user = self._load_user()
-
-        # Deletion tombstones (reserved ``_deleted`` key in the user file)
-        self._deleted = {}
-        raw_deleted = user.get("_deleted")
-        if isinstance(raw_deleted, dict):
-            self._deleted = {
-                cat: (list(v) if isinstance(v, list) else []) for cat, v in raw_deleted.items() if cat in CATEGORIES
-            }
-
-        # Merge: user extends bundled
-        for cat in CATEGORIES:
-            bundled_cat = bundled.get(cat)
-            user_cat = user.get(cat)
-
-            if cat in ("misspellings", "technical_terms", "names", "products"):
-                # Dict-based: user keys override bundled
-                merged = dict(bundled_cat) if isinstance(bundled_cat, dict) else {}
-                if isinstance(user_cat, dict):
-                    merged.update(user_cat)
-                self._data[cat] = merged
-            elif cat in ("phrase_corrections", "extra_word_patterns"):
-                # List-based: user entries are appended
-                merged = list(bundled_cat) if isinstance(bundled_cat, list) else []
-                if isinstance(user_cat, list):
-                    merged.extend(user_cat)
-                self._data[cat] = merged
-            else:
-                # Fallback
-                self._data[cat] = user_cat if user_cat is not None else bundled_cat
-
-        # Apply deletion tombstones: bundled (or previously user-added)
-        for cat in CATEGORIES:
-            removed = self._deleted.get(cat)
-            if not removed:
-                continue
-            if cat in ("misspellings", "technical_terms", "names", "products"):
-                cat_data = self._data.get(cat)
-                if isinstance(cat_data, dict):
-                    for k in removed:
-                        if isinstance(k, str):
-                            cat_data.pop(k, None)
-            else:
-                cat_data = self._data.get(cat)
-                if isinstance(cat_data, list):
-                    removed_pairs = {tuple(r) for r in removed if isinstance(r, (list, tuple)) and len(r) >= 2}
-                    if removed_pairs:
-                        self._data[cat] = [
-                            e
-                            for e in cat_data
-                            if not (isinstance(e, (list, tuple)) and len(e) >= 2 and tuple(e) in removed_pairs)
-                        ]
-
-        # invalidate pattern cache after data reload.
-        self._invalidate_pattern_cache()
-
     def _load_bundled(self) -> dict:
         """Load the bundled corrections.json."""
         if not self._bundled_path.exists():
@@ -208,95 +108,6 @@ class VocabularyManager:
         except Exception as exc:
             log.warning("[VOCAB] Failed to load bundled: %s", exc)
             return {}
-
-    def _load_user(self) -> dict:
-        """Load the user vocabulary file."""
-        data = self._user_store.load()
-        if not isinstance(data, dict):
-            return {}
-        return self._normalize_data(data)
-
-    @staticmethod
-    def _normalize_data(data: dict) -> dict:
-        """Normalize raw JSON data into canonical category format."""
-        if not isinstance(data, dict):
-            return {
-                cat: ({} if cat in ("misspellings", "technical_terms", "names", "products") else [])
-                for cat in CATEGORIES
-            }
-        result: dict[str, Any] = {}
-        for cat in CATEGORIES:
-            val = data.get(cat)
-            if cat in ("misspellings", "technical_terms", "names", "products"):
-                result[cat] = dict(val) if isinstance(val, dict) else {}
-            elif cat in ("phrase_corrections", "extra_word_patterns"):
-                result[cat] = list(val) if isinstance(val, list) else []
-            else:
-                result[cat] = val
-        # Carry the reserved ``_deleted`` tombstone key through
-        if isinstance(data.get("_deleted"), dict):
-            result["_deleted"] = {
-                cat: (list(v) if isinstance(v, list) else [])
-                for cat, v in data["_deleted"].items()
-                if cat in CATEGORIES
-            }
-        return result
-
-    def _save_user(self) -> None:
-        """Save only user vocabulary data (not bundled) to the user file."""
-        from voice_typer.server.retry import delay_for_attempt, sleep_interruptible
-
-        max_retries = 3
-        save_delays = (0.05, 0.10)
-        # track the final failure so we can raise after the
-        final_exc: Exception | None = None
-        for attempt in range(max_retries):
-            try:
-                # PersistedJSON.save handles atomic write + .bak
-                payload: dict[str, Any] = dict(self._data)
-                if self._deleted:
-                    payload["_deleted"] = self._deleted
-                self._user_store.save(payload, durability=False)
-                log.debug("[VOCAB] Saved user vocabulary")
-                return
-            except PermissionError as exc:
-                final_exc = exc
-                if attempt < max_retries - 1:
-                    backoff = delay_for_attempt(save_delays, attempt)
-                    log.warning(
-                        "[VOCAB] PermissionError on save (attempt %d/%d), retrying in %.0fms: %s",
-                        attempt + 1,
-                        max_retries,
-                        backoff * 1000,
-                        exc,
-                    )
-                    sleep_interruptible(backoff)
-                else:
-                    log.exception(
-                        "[VOCAB] Failed to save user vocabulary after %d attempts: %s",
-                        max_retries,
-                        exc,
-                    )
-            except OSError as exc:
-                final_exc = exc
-                # use log.exception so the traceback is
-                log.exception("[VOCAB] Failed to save user vocabulary")
-                break
-        # surface the failure to callers so they can roll back
-        if final_exc is not None:
-            raise final_exc
-
-    def get_category(self, category: str) -> object:
-        """Get all entries for a category."""
-        with self._lock:
-            if category in ("misspellings", "technical_terms", "names", "products"):
-                return dict(self._data.get(category, {}))
-            return list(self._data.get(category, []))
-
-    def get_all(self) -> dict:
-        """Return a shallow copy of all merged data."""
-        with self._lock:
-            return {cat: (dict(v) if isinstance(v, dict) else list(v)) for cat, v in self._data.items()}
 
     def add_entry(self, category: str, key: str, value: str) -> bool:
         """Add an entry to a dict-based category (misspellings, technical_terms, names, products)."""
@@ -460,10 +271,6 @@ class VocabularyManager:
         self._invalidate_pattern_cache()
         return removed
 
-    def export_json(self) -> str:
-        """Export all vocabulary as JSON string."""
-        return json.dumps(self._data, indent=2, ensure_ascii=False)
-
     def import_json(self, json_str: str, *, merge: bool = True) -> tuple[int, int]:
         """Import vocabulary from a JSON string.
 
@@ -600,68 +407,3 @@ class VocabularyManager:
         except Exception:
             log.exception("[VOCAB] Import failed")
             return 0, 0
-
-    @property
-    def usage_tracker(self) -> CorrectionUsageTracker:
-        """The shared per-correction usage tracker (see correction_usage.py)."""
-        if self._usage_tracker is None:
-            from voice_typer.server.correction_usage import CorrectionUsageTracker
-
-            self._usage_tracker = CorrectionUsageTracker(self._config_dir)
-        return self._usage_tracker
-
-    def apply_to_text(self, text: str, *, track_usage: bool = True) -> str:
-        """Apply vocabulary corrections to transcribed text."""
-        # Pre-compiled regex + the memoized token-key normalizer, shared
-        from voice_typer.server.text_cleanup import _RE_MISSPELL_WRAP, _token_key
-
-        # (category, original, count) hits for the usage tracker.
-        hits: list[tuple[str, str, int]] = []
-
-        # Phrase-level corrections. ONE combined-alternation pass per
-        for cat in ("phrase_corrections", "extra_word_patterns"):
-            combined = self._get_combined_phrase_pattern(cat)
-            if combined is None:
-                continue
-            pattern, lookup = combined
-            counts: dict[str, int] = {}
-
-            def _phrase_repl(
-                m: re.Match[str],
-                _lookup: dict[str, tuple[str, str]] = lookup,
-                _counts: dict[str, int] = counts,
-            ) -> str:
-                key = m.group(0).lower()
-                _counts[key] = _counts.get(key, 0) + 1
-                return _lookup[key][0]
-
-            text, _total = pattern.subn(_phrase_repl, text)
-            for key, count in counts.items():
-                hits.append((cat, lookup[key][1], count))
-
-        # Word-level corrections, single tokenization pass shared
-        with self._lock:
-            word_cats = [(cat, self._data.get(cat)) for cat in ("misspellings", "technical_terms", "names", "products")]
-
-        tokens = text.split(" ")
-        for cat, entries in word_cats:
-            # Skip non-dicts and empty categories, avoids the per-token
-            if not isinstance(entries, dict) or not entries:
-                continue
-            for i, token in enumerate(tokens):
-                key = _token_key(token)
-                correction = entries.get(key)
-                if correction is not None:
-                    match = _RE_MISSPELL_WRAP.match(token)
-                    tokens[i] = f"{match.group(1)}{correction}{match.group(3)}" if match else correction
-                    hits.append((cat, key, 1))
-        text = " ".join(tokens)
-
-        if track_usage and hits:
-            try:
-                self.usage_tracker.record_corrections(hits)
-            except Exception:
-                # Usage tracking must NEVER break the dictation path.
-                log.warning("[VOCAB] Failed to record correction usage", exc_info=True)
-
-        return text
