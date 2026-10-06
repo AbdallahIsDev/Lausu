@@ -66,6 +66,23 @@
 --chart-3:oklch(0.546 0.245 262.881);
 --chart-4:var(--accent-500);
 --chart-5:var(--accent-600);
+/* Bklit chart tokens (heatmap card). DERIVED, never literals: the theme
+   presets override --accent/--foreground/--surface inline on <html> and
+   never a --chart-* token, so a literal would freeze the chart on the
+   default palette. Mixed in srgb, not oklch: oklch interpolates the
+   achromatic canvas's hue (0) and sweeps the low ramp steps through
+   pink. See DESIGN-SYSTEM.md §3. */
+--chart-scale-01:color-mix(in srgb,var(--accent) 12%,var(--background));
+--chart-scale-02:color-mix(in srgb,var(--accent) 32%,var(--background));
+--chart-scale-03:color-mix(in srgb,var(--accent) 55%,var(--background));
+--chart-scale-04:color-mix(in srgb,var(--accent) 78%,var(--background));
+--chart-scale-05:var(--accent);
+--chart-scale-pattern-color:var(--background);
+--chart-label:var(--muted-foreground);
+--chart-grid:color-mix(in srgb,var(--foreground) 12%,var(--background));
+--chart-tooltip-background:var(--surface);
+--chart-tooltip-foreground:var(--foreground);
+--chart-tooltip-muted:var(--muted-foreground);
 --radius:0.625rem;
 }
 /* ── Semantic tokens — dark scheme (mirrors index.css .dark). Surfaces
@@ -517,6 +534,18 @@ const GROUPS=[
 ["--chart-3","oklch(0.546 0.245 262.881)","oklch(0.546 0.245 262.881)","Series 3"],
 ["--chart-4","oklch(0.488 0.243 264.376)","oklch(0.488 0.243 264.376)","Series 4 (= brand-500)"],
 ["--chart-5","oklch(0.424 0.199 265.638)","oklch(0.424 0.199 265.638)","Series 5 (= brand-600)"]
+]],
+["Charts — Bklit (derived)",[
+["--chart-scale-01","#e3e9fc","#141827","Heatmap level 1 = accent 12% over canvas"],
+["--chart-scale-02","#b4c4f7","#152048","Heatmap level 2 = accent 32%"],
+["--chart-scale-03","#7e9af1","#17296e","Heatmap level 3 = accent 55%"],
+["--chart-scale-04","#4870eb","#183394","Heatmap level 4 = accent 78%"],
+["--chart-scale-05","#1447e6","#193cb8","Heatmap level 5 = var(--accent)"],
+["--chart-label","#5c5c67","#9f9fa9","Axis labels = var(--muted-foreground)"],
+["--chart-grid","#e1e1e2","#2f2f2f","Gridlines = foreground 12% over canvas"],
+["--chart-tooltip-background","#ffffff","#1b1b1b","= var(--surface), same panel as ui/tooltip.tsx"],
+["--chart-tooltip-foreground","#09090b","#ffffff","= var(--foreground)"],
+["--chart-tooltip-muted","#5c5c67","#9f9fa9","= var(--muted-foreground)"]
 ]]
 ];
 const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");

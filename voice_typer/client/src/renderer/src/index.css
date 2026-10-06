@@ -55,6 +55,35 @@
 	   rounded-lg (10px). Circular elements (radio, switch, avatars,
 	   icon discs) use rounded-full; the checkbox keeps rounded-sm. */
 	--radius-lg: var(--radius);
+
+	/* @bklit/heatmap-chart tokens (Bklit UI registry, added 2026-10-06).
+	   ONLY the tokens consumed as Tailwind utilities are mapped here —
+	   `--color-*` is what generates `text-chart-label`,
+	   `bg-chart-tooltip-background`, etc. The remaining chart tokens
+	   (`--chart-line-primary`, `--chart-crosshair`, `--chart-brush-border`,
+	   `--chart-marker-*`) are read as `var()` from JS
+	   (components/charts/chart-context.tsx) and must NOT be re-declared in
+	   this block: a `@theme` key resolves into `:root`, so
+	   `--chart-x: var(--chart-x)` is a self-reference (CSS cycle) that
+	   invalidates the token for every consumer. */
+	--color-chart-background: var(--chart-background);
+	--color-chart-foreground: var(--chart-foreground);
+	--color-chart-foreground-muted: var(--chart-foreground-muted);
+	--color-chart-crosshair: var(--chart-crosshair);
+	--color-chart-grid: var(--chart-grid);
+	--color-chart-label: var(--chart-label);
+	--color-chart-marker-background: var(--chart-marker-background);
+	--color-chart-marker-border: var(--chart-marker-border);
+	--color-chart-marker-foreground: var(--chart-marker-foreground);
+	--color-chart-tooltip-background: var(--chart-tooltip-background);
+	--color-chart-tooltip-foreground: var(--chart-tooltip-foreground);
+	--color-chart-tooltip-muted: var(--chart-tooltip-muted);
+	--color-chart-scale-01: var(--chart-scale-01);
+	--color-chart-scale-02: var(--chart-scale-02);
+	--color-chart-scale-03: var(--chart-scale-03);
+	--color-chart-scale-04: var(--chart-scale-04);
+	--color-chart-scale-05: var(--chart-scale-05);
+	--color-chart-scale-pattern-color: var(--chart-scale-pattern-color);
 }
 
 :root {
@@ -162,6 +191,51 @@
 	/* Single corner radius: rounded-lg maps here. Circular controls
 	   (radio, switch, icon discs) opt out via rounded-full. */
 	--radius: 0.625rem;
+	/* Bklit chart tokens are DERIVED from this scheme's semantic tokens,
+	   never literals — same reason as `--sidebar` above. The registry
+	   ships literal greys, and the 12 theme presets override `--accent`
+	   / `--foreground` / `--muted-foreground` / `--surface` / `--border`
+	   inline on <html> but never a `--chart-*` token, so a literal here
+	   would freeze the chart on the default palette on every preset.
+	   Derived, ONE definition covers light, dark and all presets. */
+	--chart-background: var(--background);
+	--chart-foreground: var(--foreground);
+	--chart-foreground-muted: var(--muted-foreground);
+	--chart-line-primary: var(--chart-1);
+	--chart-line-secondary: var(--chart-2);
+	--chart-crosshair: var(--accent);
+	/* Chart derivations mix in sRGB, NOT oklch: every one of them tints a
+	   CHROMATIC token toward an ACHROMATIC one (accent → canvas,
+	   foreground → canvas). oklch interpolates hue, and an achromatic
+	   colour's hue reads as 0, so `color-mix(in oklch, blue 12%, white)`
+	   lands on PINK (#fbe3ee) before sweeping back to blue — a visible
+	   hue sweep through the ramp's low steps. sRGB mixes the channels
+	   and keeps the accent's hue. */
+	--chart-grid: color-mix(in srgb, var(--foreground) 12%, var(--background));
+	--chart-brush-border: var(--chart-grid);
+	/* Matches the app's own tooltip panel (ui/tooltip.tsx: bg-surface +
+	   text-foreground) so the chart tooltip reads as the same object. */
+	--chart-tooltip-background: var(--surface);
+	--chart-tooltip-foreground: var(--foreground);
+	--chart-tooltip-muted: var(--muted-foreground);
+	--chart-marker-background: var(--surface);
+	--chart-marker-border: color-mix(
+		in srgb,
+		var(--foreground) 22%,
+		var(--background)
+	);
+	--chart-marker-foreground: var(--foreground);
+	--chart-label: var(--muted-foreground);
+	/* Contribution ramp: canvas → full accent, so the heatmap is the
+	   theme's own colour (the app's other charts already derive
+	   --chart-4/5 from --accent-500/600). Resolves to #e3e9fc → #b4c4f7
+	   → #7e9af1 → #4870eb → #1447e6 on the default light palette. */
+	--chart-scale-01: color-mix(in srgb, var(--accent) 12%, var(--background));
+	--chart-scale-02: color-mix(in srgb, var(--accent) 32%, var(--background));
+	--chart-scale-03: color-mix(in srgb, var(--accent) 55%, var(--background));
+	--chart-scale-04: color-mix(in srgb, var(--accent) 78%, var(--background));
+	--chart-scale-05: var(--accent);
+	--chart-scale-pattern-color: var(--background);
 }
 
 /* ══ Semantic tokens — dark scheme ═══════════════════════════════════
@@ -211,6 +285,14 @@
 	   matches the opaque values the per-preset dark themes use. */
 	--input: oklch(25% 0 0);
 	--ring: oklch(0.552 0.016 285.938);
+	/* NOTE: `--chart-1` … `--chart-5` are deliberately NOT re-declared here.
+	   The shadcn CLI's Bklit install appended a grey ramp for them, which
+	   would silently replace the accent-derived palette this scheme
+	   inherits from `:root` (and the ramps the per-preset themes set inline
+	   on `<html>`), i.e. it would change every existing chart colour in
+	   dark mode. The Bklit chart tokens are not restated here either: they
+	   derive from the semantic tokens above, so they follow this scheme
+	   and every preset already. */
 }
 
 @layer base {

@@ -5,7 +5,7 @@ These items are the highest-priority remaining work for the project. They block 
 > **Won't Fix tasks live in `WONT_FIX.md`**: deliberately not solved. Do NOT fix them (AGENTS.md C-REVIEW-1). See that file for the full list.
 
 ### AUD-14 — 30 production files exceed the 500-line C-STRUCT-3 threshold (21% of the package)
-**Status:** SPLIT INTO 5 TASKS (2026-10-03) — AUD-14a…e below. The aggregate figures in the original entry were stale and have been re-measured: **30** production files ≥500 lines totalling **19,933 lines = 21.1% of the package's 94,349 lines, in 6.0% of its 496 files.** (The old "42 files / 29,574 lines / 27% / 8.4%" counted non-production paths — `tests/`, `scripts/`, and `src-tauri/resources/` copies — which are excluded by C-STRUCT-3's "production file" wording and C-TEST-5's test-file rules.) Each task below owns a DISJOINT file set, so the five can run as parallel agents without conflict (E16).
+**Status:** SPLIT INTO 5 TASKS (2026-10-03) — AUD-14a…e below. **WAVE 1 SHIPPED (2026-10-06): 5 of 30 files split create-first — AUD-14c fully done, plus `templates.py` + `transcription_result.py` from AUD-14e.** Wave 1 shipped files: `history_db.py` 786→471, `history_db_internals/writer.py` 638→281, `history_db_internals/search.py` 618→443, `templates.py` 635→441, `transcription_result.py` 551→404 (10 new focused modules, all ≤500 lines; 0 test files edited). **Full-suite gate (C-TEST-6) still pending — run it before opening Wave 2.** The aggregate figures in the original entry were stale and have been re-measured: **30** production files ≥500 lines totalling **19,933 lines = 21.1% of the package's 94,349 lines, in 6.0% of its 496 files.** (The old "42 files / 29,574 lines / 27% / 8.4%" counted non-production paths — `tests/`, `scripts/`, and `src-tauri/resources/` copies — which are excluded by C-STRUCT-3's "production file" wording and C-TEST-5's test-file rules.) Each task below owns a DISJOINT file set, so the five can run as parallel agents without conflict (E16).
 **User Impact:** None directly. The cost is change risk: each edit touches a file with several unrelated reasons to change, so unrelated behavior is coupled to unrelated edits.
 **Root Cause:** Verified by line count — organic growth without the create-first split (E1) that C-STRUCT-3 requires.
 **Gain vs Trade-off:** Large, mechanical, regression-prone work. Best done incrementally, never as a batch. Split by subsystem so no two tasks touch the same file.
@@ -69,19 +69,6 @@ These items are the highest-priority remaining work for the project. They block 
 
 ---
 
-### AUD-14c — History DB subsystem: `server/history_db*` (3 files, 1,776 lines)
-**Status:** NOT DONE (2026-10-03, split from AUD-14)
-**Description:** `history_db.py` (647), `history_db_internals/writer.py` (580), `history_db_internals/search.py` (549). Read/write/search are three reasons to change, so an encryption or FTS5 change currently touches the same files as a schema change.
-**Why separate:** Self-contained subsystem with a clean boundary — the lowest-coupling split in the set, so it is the safest place to establish the create-first pattern the other tasks copy.
-**Fix:** Create-first. Watch AUD-15 (stale `coverage-baseline.json` claim) — do NOT regenerate the coverage baseline to tidy up a refactor; the floor only rises on a real measurement.
-**Related Files:** `server/history_db.py`, `server/history_db_internals/{writer,search}.py`, `tests/test_history_db*.py`
-**Success:** no file >500 lines; history + FTS5 tests green.
-**Implementation Difficulty:** 🟡 Low-Medium
-**Severity:** 🟡 Medium
-**Priority:** P3
-
----
-
 ### AUD-14d — Security subsystem: `server/security/` (2 files, 1,429 lines)
 **Status:** NOT DONE (2026-10-03, split from AUD-14)
 **Description:** `redaction.py` (768) and `file_io.py` (661). Redaction carries many independent rules (PII patterns, API keys, URL scrubbing); file_io carries atomic-write/permission logic. Both are SEC-sensitive — a split must not weaken a filter or change a redaction rule's behavior.
@@ -101,7 +88,7 @@ These items are the highest-priority remaining work for the project. They block 
 
 - **Docstring/narrative bloat (do this one first):** `event_bus.py` (863) — a 570-line docstring event catalogue at `:1-375` violates **C-COMMENT-6** (deep explanations belong in `docs/`, not inline). Cheapest, highest-value item in all of AUD-14: no logic changes. **But it is NOT a pure relocation** — `tests/test_event_bus.py::TestCanonicalCatalogue` parses `event_bus.__doc__` and pins four event names (`` ``tray_menu`` ``, `` ``tray_state`` ``, `` ``consent_required`` ``, `` ``parakeet_cpu_fallback`` ``) plus an exact `Total: N events` line that must equal `len(EVENT_TYPES)` (C-COMMENT-9). So: move the prose/architecture narrative to `docs/code-notes/event-catalogue.md` and **keep a canonical event-name list plus the `Total: {len(EVENT_TYPES)} events` line in the module docstring**. The docstring shrinks from ~570 lines to roughly a name list; the pinned contract survives. Verify with `pytest tests/test_event_bus.py`.
 - **IPC/app surface:** `config_applier.py` (645), `onboarding.py` (605), `ipc/validation.py` (527), `handlers/system_handlers.py` (510)
-- **Data/text services:** `clipboard_snapshot.py` (617), `vocabulary.py` (613), `templates.py` (561), `text_cleanup/_engine.py` (503)
+- **Data/text services:** `clipboard_snapshot.py` (617), `vocabulary.py` (613), `text_cleanup/_engine.py` (503)
 - **Download/network:** `segmented_download.py` (669)
 - **Remaining root modules:** `startup_tasks.py` (686), `streaming.py` (806), `qwen_engine.py` (514), `vad_processor.py` (577), `worker_client.py` (613), `cloud/_engine.py` (583), `log/setup.py` (527), `level_monitor/test_recording.py` (675)
 

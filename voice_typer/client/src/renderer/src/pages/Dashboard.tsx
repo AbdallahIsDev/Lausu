@@ -12,7 +12,11 @@
 //      y-axis, gridlines, and zero-vs-no-data distinction.
 //   4. Derived-metric highlights (avg chars, longest session, peak
 //      weekday), only metrics the data actually supports.
-//   5. A visually demoted "Current Setup" section (Model / Device /
+//   5. The dictation heatmap — deliberately range-INDEPENDENT: it always
+//      spans the whole history the sample covers (capped at a year),
+//      because a per-day contribution grid only reads at a scale of
+//      months. See `./dashboard/components/ActivityHeatmap`.
+//   6. A visually demoted "Current Setup" section (Model / Device /
 //      Language) so system/config info doesn't compete with usage
 //      metrics for attention.
 
@@ -61,6 +65,7 @@ import {
 	formatModel,
 } from "@/lib/utils/configDisplay";
 import { computeTrend } from "@/pages/dashboard/lib/trend";
+import { ActivityHeatmap } from "./dashboard/components/ActivityHeatmap";
 import { DashboardSkeleton } from "./dashboard/components/DashboardSkeleton";
 import { ActivityChart } from "./dashboard/components/SevenDayActivityChart";
 import { TimeRangeSelector } from "./dashboard/components/TimeRangeSelector";
@@ -121,6 +126,7 @@ export default function DashboardPage() {
 		setRange,
 		period,
 		activity,
+		heatmap,
 		correctionStats,
 	} = useDashboardData({ call });
 	const {
@@ -346,6 +352,14 @@ export default function DashboardPage() {
 							}
 						/>
 					</div>
+
+					{/* Long-window consistency view. Placed AFTER the
+						range-aware block (cards → chart → derived metrics) so
+						the selected range's analysis stays contiguous, and
+						before the demoted config section. The card states its
+						own covered range in its subtitle because it ignores
+						the TimeRangeSelector above. */}
+					<ActivityHeatmap heatmap={heatmap} />
 
 					{/* Current Setup, system/config info, demoted below the
 						usage analytics so it doesn't compete for attention. */}

@@ -369,6 +369,21 @@ def merge_chunks(texts: list[str]) -> str:
     return " ".join(result_words).strip()
 
 
+def asr_language_param(value: str | None) -> str | None:
+    """Map the config's empty-string "auto-detect" sentinel to ``None``.
+
+    ``config.language == ""`` is how Settings → Post-Processing →
+    Transcription Language → Auto-detect is stored. faster-whisper only runs
+    language detection when it receives ``None``; an empty string skips the
+    detection branch and ``Tokenizer`` then raises
+    ``ValueError: '' is not a valid language code``, so every engine that
+    hands this value to a model must normalize it first.
+    """
+    if value is None:
+        return None
+    return value.strip() or None
+
+
 __all__ = [
     "MAX_BOUNDARY_SKIP_WORDS",
     "NON_LATIN_RATIO_LIMIT",
@@ -377,6 +392,7 @@ __all__ = [
     "_disk_space_error",
     "_download_with_retry",
     "_require_huggingface_consent",
+    "asr_language_param",
     "cleanup_hf_cache_dir",
     "compute_overlap_skip",
     "is_cuda_error",

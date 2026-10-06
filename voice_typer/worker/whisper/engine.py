@@ -19,7 +19,7 @@ from typing import Any
 
 from voice_typer.server._lazy_import import lazy_module
 from voice_typer.server.asr_errors import ModelNotDownloadedError
-from voice_typer.server.asr_utils import release_gpu_memory
+from voice_typer.server.asr_utils import asr_language_param, release_gpu_memory
 from voice_typer.server.duration import format_duration
 from voice_typer.server.hallucination import should_reject_low_audio_hallucination
 from voice_typer.server.i18n import DEFAULT_LOCALE
@@ -78,7 +78,7 @@ class TranscriptionEngine:
         self.model_size = model_size
         self._configured_model_size = model_size
         self._loaded_model_size: str | None = None
-        self.language = language
+        self.language = asr_language_param(language)
         # ``config.whisper_beam_size`` (when set to a non-default value)
         effective_beam_size = beam_size
         beam_explicitly_configured = beam_size > 1

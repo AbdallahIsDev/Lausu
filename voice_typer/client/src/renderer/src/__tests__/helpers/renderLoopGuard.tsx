@@ -71,6 +71,12 @@ export interface RenderLoopGuardOptions {
 	/** Committed-render bound (default 20; the vocabulary page settles
 	 *  at ~6 and pins 15). */
 	maxCommits?: number;
+	/** Fail-fast budget in ms (default 5000). This is NOT the loop
+	 *  detector, that is `maxCommits`; it only stops a regressed loop
+	 *  from spinning the worker into a heap OOM. A page whose module
+	 *  graph is heavy enough to exceed the default under full-suite
+	 *  parallel load raises it here. */
+	timeoutMs?: number;
 }
 
 // ── Module state read by the mock factories (set per test run) ────────
@@ -247,8 +253,9 @@ export function renderLoopGuard(opts: RenderLoopGuardOptions) {
 
 		// Hard per-test timeout so a regressed loop fails the TEST (and
 		// the suite) instead of spinning the worker into a heap OOM.
+		// Per-page override via `timeoutMs` (see the option's doc).
 		it("settles with a per-render-unstable call mock: one load, bounded renders", {
-			timeout: 5000,
+			timeout: opts.timeoutMs ?? 5000,
 		}, async () => {
 			let commits = 0;
 			const mod = await opts.page();

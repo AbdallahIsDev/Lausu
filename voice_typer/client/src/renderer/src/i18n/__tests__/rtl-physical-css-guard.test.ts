@@ -17,7 +17,14 @@ const CURRENTLY_VIOLATING_SIZE_BOUND = 5;
 // included because the numeric-only form let `ml-auto` slip through.
 const PHYSICAL_INLINE_CLASSNAME =
 	/(?:^|[\s":])(?:ml|mr|pl|pr)-(?:\d+(?:\.\d+)?|auto|\[[^\]]*\])/;
-const PHYSICAL_TEXT_ALIGN = /(?:^|\s)text-(?:left|right)(?=\s|["'`$])/;
+// `$` (end of the extracted literal) is a REQUIRED alternative: the
+// extractor strips the surrounding quotes before matching, so a class at
+// the very end of a `className="… text-left"` string has no following
+// character to look ahead at. Without `$` the guard silently missed
+// `className="px-3 py-2.5 text-left"` (found 2026-10-06 while vendoring
+// the Bklit chart tree) — the exact "physical utility at the tail of a
+// class list" shape, which is the common one.
+const PHYSICAL_TEXT_ALIGN = /(?:^|\s)text-(?:left|right)(?=\s|$)/;
 
 /** Strip /* block comments *\/ and // line comments from a source string. */
 function stripComments(src: string): string {
