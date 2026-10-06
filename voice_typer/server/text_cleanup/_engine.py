@@ -1,28 +1,51 @@
-"""Cleanup engine: entry points + state + cleaning rules for text cleanup.
+"""Active-corrections state + cleanup entry points for text cleanup.
 
-Split verbatim out of the pre-split ``text_cleanup`` module. Holds the
-module-level active-corrections state (+ its lock and the combined-
-alternation regex caches), ``configure_corrections`` /
-``clean_transcribed_text``, the precompiled regex constants, and every
-spacing / token / phrase / extra-word / punctuation rule.
+Owns the module-level active-corrections state (with its lock and the
+identity-keyed combined-alternation regex caches), ``configure_corrections``
+and ``clean_transcribed_text``, the corrections-backed misspelling rule,
+and the phrase / extra-word rules that resolve their patterns through
+those caches. The state-free rule families live in siblings
+(``_spacing``, ``_token_rules``, ``_punctuation``) and are re-exported
+here so ``text_cleanup._engine`` keeps resolving every historical name.
 """
 
 from __future__ import annotations
 
-import functools
 import logging
 import re
 import threading
 from pathlib import Path
-from typing import Final
 
 from ._casing import _capitalize_sentences, _fix_file_extensions
 from ._corrections_data import (
-    _INTENTIONAL_REPEAT_WORDS,
-    _QUESTION_OPENERS,
     CorrectionsLoadError,
     _active_corrections,
     _capitalize_pronoun_i,
+)
+from ._punctuation import (  # noqa: F401  # re-export
+    _MIN_WORDS_FOR_TERMINAL_PUNCTUATION,
+    _NO_PUNCTUATION_PATTERNS,
+    _RE_SENTENCE_SPLIT,
+    _RE_WORD_CHARS,
+    _add_safe_terminal_punctuation,
+    _looks_like_question,
+)
+from ._spacing import (  # noqa: F401  # re-export
+    _RE_SPACING_PUNCT_AFTER,
+    _RE_SPACING_PUNCT_BEFORE,
+    _RE_SPACING_WS,
+    _normalize_spacing,
+)
+from ._token_rules import (  # noqa: F401  # re-export
+    _RE_TOKEN_KEY,
+    _clean_self_corrections,
+    _clean_self_corrections_tokens,
+    _duplicate_phrase_length,
+    _remove_adjacent_duplicate_phrases,
+    _remove_adjacent_duplicate_phrases_tokens,
+    _remove_near_duplicate_words,
+    _remove_near_duplicate_words_tokens,
+    _token_key,
 )
 
 log = logging.getLogger("voice_typer.server.text_cleanup")
@@ -204,131 +227,8 @@ def clean_transcribed_text(
 
 
 # PERF-004: precompile all regex patterns at module level to avoid
-_RE_SPACING_WS = re.compile(r"\s+")
-_RE_SPACING_PUNCT_BEFORE = re.compile(r"\s+([,.;:!?])")
-_RE_SPACING_PUNCT_AFTER = re.compile(r"([,.;:!?])(?=[^\s,.;:!?])")
-# PERF-PIPE: precompile the regex used in _token_key at module level.
-_RE_TOKEN_KEY = re.compile(r"^\W+|\W+$")
 # precompile the per-token misspelling wrapping regex. Previously
 _RE_MISSPELL_WRAP = re.compile(r"^(\W*)(\w+)(\W*)$")
-# precompile the regexes used in _looks_like_question. Previously
-_RE_SENTENCE_SPLIT = re.compile(r"[.!?]\s+")
-_RE_WORD_CHARS = re.compile(r"[A-Za-z']+")
-
-
-def _normalize_spacing(text: str) -> str:
-    # PERF-004: use precompiled patterns
-    text = _RE_SPACING_WS.sub(" ", text).strip()
-    text = _RE_SPACING_PUNCT_BEFORE.sub(r"\1", text)
-    text = _RE_SPACING_PUNCT_AFTER.sub(r"\1 ", text)
-    return text.strip()
-
-
-def _clean_self_corrections_tokens(tokens: list[str]) -> list[str]:
-    """Token-based core of ``_clean_self_corrections``.
-
-    factored out so ``clean_transcribed_text`` can tokenize the
-    dictation once and pass the token list through the four token-based
-    helpers without re-splitting + re-joining between each step.
-    """
-    output: list[str] = []
-    i = 0
-    n = len(tokens)
-    while i < n:
-        if i + 1 < n:
-            key1 = _token_key(tokens[i])
-            key2 = _token_key(tokens[i + 1])
-            if key1 and key2 and key1 != key2:
-                # Direct prefix/suffix match (e.g., "talk" → "talking")
-                if key2.startswith(key1) or key1.startswith(key2):
-                    output.append(tokens[i + 1])
-                    i += 2
-                    continue
-                # Shared root with common prefix of 4+ chars
-                if len(key1) >= 4 and len(key2) >= 4:
-                    common = 0
-                    for a, b in zip(key1, key2, strict=False):
-                        if a == b:
-                            common += 1
-                        else:
-                            break
-                    if common >= 4:
-                        output.append(tokens[i + 1])
-                        i += 2
-                        continue
-        output.append(tokens[i])
-        i += 1
-    return output
-
-
-def _clean_self_corrections(text: str) -> str:
-    """Remove self-correction patterns like 'talk talking' → 'talking'."""
-    return " ".join(_clean_self_corrections_tokens(text.split(" ")))
-
-
-def _remove_adjacent_duplicate_phrases_tokens(tokens: list[str]) -> list[str]:
-    """Token-based core of ``_remove_adjacent_duplicate_phrases`` ()."""
-    output: list[str] = []
-    i = 0
-    n = len(tokens)
-    while i < n:
-        duplicate_len = _duplicate_phrase_length(tokens, i)
-        if duplicate_len:
-            output.extend(tokens[i : i + duplicate_len])
-            i += duplicate_len * 2
-        else:
-            output.append(tokens[i])
-            i += 1
-    return output
-
-
-def _remove_adjacent_duplicate_phrases(text: str) -> str:
-    return " ".join(_remove_adjacent_duplicate_phrases_tokens(text.split(" ")))
-
-
-def _duplicate_phrase_length(tokens: list[str], index: int) -> int:
-    max_len = min(4, (len(tokens) - index) // 2)
-    for size in range(max_len, 0, -1):
-        left = [_token_key(token) for token in tokens[index : index + size]]
-        right = [_token_key(token) for token in tokens[index + size : index + (size * 2)]]
-        if left == right and any(left):
-            if size == 1 and left[0] in _INTENTIONAL_REPEAT_WORDS:
-                continue
-            return size
-    return 0
-
-
-def _remove_near_duplicate_words_tokens(tokens: list[str]) -> list[str]:
-    """Token-based core of ``_remove_near_duplicate_words`` ()."""
-    output: list[str] = []
-    i = 0
-    n = len(tokens)
-    while i < n:
-        if i + 1 < n:
-            key1 = _token_key(tokens[i])
-            key2 = _token_key(tokens[i + 1])
-            if key1 and key2 and key1 != key2:
-                if len(key1) < 4 or len(key2) < 4:
-                    output.append(tokens[i])
-                    i += 1
-                    continue
-                if key1 in _INTENTIONAL_REPEAT_WORDS or key2 in _INTENTIONAL_REPEAT_WORDS:
-                    output.append(tokens[i])
-                    i += 1
-                    continue
-                if abs(len(key1) - len(key2)) <= 2 and (key1 in key2 or key2 in key1):
-                    longer = tokens[i] if len(key1) >= len(key2) else tokens[i + 1]
-                    output.append(longer)
-                    i += 2
-                    continue
-        output.append(tokens[i])
-        i += 1
-    return output
-
-
-def _remove_near_duplicate_words(text: str) -> str:
-    """Remove adjacent words where one is a substring of the other."""
-    return " ".join(_remove_near_duplicate_words_tokens(text.split(" ")))
 
 
 def _fix_common_misspellings_tokens(tokens: list[str]) -> list[str]:
@@ -520,74 +420,3 @@ def _remove_extra_words(text: str) -> str:
         _get_extra_words_regex,
         lambda m, lookup: lookup[m.group(0).lower()],
     )
-
-
-@functools.lru_cache(maxsize=4096)
-def _token_key(token: str) -> str:
-    # PERF-PIPE: use precompiled regex instead of re.sub(pattern, ...)
-    return _RE_TOKEN_KEY.sub("", token).lower()
-
-
-# minimum word count before ``_add_safe_terminal_punctuation``
-_MIN_WORDS_FOR_TERMINAL_PUNCTUATION: Final[int] = 4
-
-# Patterns that should NOT get terminal punctuation appended
-_NO_PUNCTUATION_PATTERNS = [
-    re.compile(r"https?://"),  # URLs
-    re.compile(r"\.(com|org|net|io|dev)$", re.IGNORECASE),  # Domain names
-    re.compile(r"[\\/]"),  # File paths
-    re.compile(r"`[^`]*`"),  # Inline code
-    re.compile(r"\{\{.*\}\}"),  # Template variables
-    re.compile(r"\{.*\}"),  # Variable placeholders
-]
-
-
-def _add_safe_terminal_punctuation(text: str) -> str:
-    """Add terminal punctuation with safety guards for URLs, paths, code.
-
-    This version of auto-punctuation checks for patterns that should
-    NOT receive punctuation before appending.
-    """
-    if not text or text[-1] in ".!?":
-        return text
-
-    # Check safety patterns, don't add punctuation if any match
-    for pattern in _NO_PUNCTUATION_PATTERNS:
-        if pattern.search(text):
-            return text
-
-    words = text.split()
-    # the magic ``4``-word cutoff was extracted to a named
-    if len(words) <= _MIN_WORDS_FOR_TERMINAL_PUNCTUATION:
-        return text
-
-    if _looks_like_question(text):
-        return f"{text}?"
-    return f"{text}."
-
-
-def _looks_like_question(text: str) -> bool:
-    """Detect whether the final sentence looks like a question.
-
-        Uses a conservative set of question openers that excludes "how"
-        and "what" to avoid false positives on declarative sentences.
-
-    uses the module-level precompiled ``_RE_SENTENCE_SPLIT`` and
-        ``_RE_WORD_CHARS`` patterns instead of ``re.split`` / ``re.findall``
-        with uncompiled string patterns.
-    """
-    sentence = _RE_SENTENCE_SPLIT.split(text.strip())[-1]
-    words = _RE_WORD_CHARS.findall(sentence.lower())
-    if not words:
-        return False
-    if words[0] in _QUESTION_OPENERS:
-        return True
-    question_starters = {
-        ("do", "you"),
-        ("did", "you"),
-        ("can", "you"),
-        ("could", "you"),
-        ("would", "you"),
-        ("should", "we"),
-    }
-    return len(words) >= 2 and tuple(words[:2]) in question_starters

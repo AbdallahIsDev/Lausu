@@ -87,6 +87,34 @@ MIXIN_HOST_MEMBERS: dict[str, dict[str, set[str]]] = {
             "_is_idle",
         },
     },
+    "voice_typer/server/vocabulary_apply.py": {
+        "VocabularyApplyMixin": {
+            "_data",
+            "_lock",
+            "_config_dir",
+            "_usage_tracker",
+            "_combined_phrase_cache",
+        },
+    },
+    "voice_typer/server/vocabulary_persistence.py": {
+        "VocabularyPersistenceMixin": {
+            "_data",
+            "_deleted",
+            "_bundled_path",
+            "_bundled_raw",
+            "_user_store",
+            "_lock",
+        },
+    },
+    "voice_typer/server/clipboard_snapshot_win32.py": {
+        "WindowsClipboardMixin": {"items"},
+    },
+    "voice_typer/server/clipboard_snapshot_macos.py": {
+        "MacosClipboardMixin": {"items"},
+    },
+    "voice_typer/server/clipboard_snapshot_linux.py": {
+        "LinuxClipboardMixin": {"items"},
+    },
 }
 
 # (file, class, TYPE_CHECKING-only method stubs the class must carry)
@@ -108,6 +136,12 @@ MIXIN_STUB_METHODS: dict[str, dict[str, set[str]]] = {
     },
     "voice_typer/server/microphone_watcher/_windows.py": {
         "_WindowsMixin": {"_invoke_callback"},
+    },
+    "voice_typer/server/vocabulary_persistence.py": {
+        # _load_bundled: facade (vocabulary.py); _invalidate_pattern_cache:
+        # sibling VocabularyApplyMixin -- both refs live inside
+        # if TYPE_CHECKING: stubs in vocabulary_persistence.py.
+        "VocabularyPersistenceMixin": {"_load_bundled", "_invalidate_pattern_cache"},
     },
 }
 
