@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any  # noqa: F401  # re-exported for tests (tr
 
 from voice_typer.server import i18n
 from voice_typer.server._audio_constants import WHISPER_SAMPLE_RATE
+from voice_typer.server.asr_utils import asr_language_param
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.cloud_engines import CloudEngine
 from voice_typer.server.dictation_pipeline.helpers import (
@@ -246,7 +247,7 @@ class _TranscribeStepMixin:
                             _rate = int(
                                 getattr(self._app.config, "sample_rate", WHISPER_SAMPLE_RATE) or WHISPER_SAMPLE_RATE
                             )
-                            _lang = str(getattr(self._app.config, "language", None) or "en")
+                            _lang = asr_language_param(getattr(self._app.config, "language", None))
                             text = active.transcribe_with_fallback(
                                 self._audio,
                                 audio_stats=self._audio_stats,

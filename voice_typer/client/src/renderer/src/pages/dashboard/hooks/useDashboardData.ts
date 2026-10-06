@@ -34,6 +34,7 @@ import { peekIpcCache, writeIpcCache } from "@/lib/ipcCache";
 import { resolveActiveModel } from "@/lib/utils/models";
 import type { LausuConfig } from "@/types/config";
 import type { HistoryRecord, ModelStatusMap } from "@/types/ipc";
+import { buildDictationHeatmap, type DictationHeatmap } from "../lib/heatmap";
 import {
 	type ActivityChartData,
 	buildActivityBars,
@@ -160,6 +161,12 @@ export interface UseDashboardDataResult {
 	period: PeriodStats;
 	/** Range-aware chart bars (hourly for Today, daily otherwise). */
 	activity: ActivityChartData;
+	/**
+	 * Contribution grid for the heatmap card. NOT range-aware on purpose:
+	 * it always spans the whole history the sample covers (capped at a
+	 * year), because a per-day grid only reads at a scale of months.
+	 */
+	heatmap: DictationHeatmap;
 	/** Range-aware corrections-applied totals from the vocabulary usage snapshot. */
 	correctionStats: CorrectionStats;
 	refreshData: () => Promise<void>;
@@ -392,6 +399,8 @@ export function useDashboardData({
 		() => buildActivityBars(sample, range),
 		[sample, range],
 	);
+	// Deliberately NOT keyed on `range` — see `UseDashboardDataResult.heatmap`.
+	const heatmap = useMemo(() => buildDictationHeatmap(sample), [sample]);
 	const correctionStats = useMemo(
 		() => computeCorrectionStats(correctionUsage, range),
 		[correctionUsage, range],
@@ -516,6 +525,7 @@ export function useDashboardData({
 		setRange,
 		period,
 		activity,
+		heatmap,
 		correctionStats,
 		refreshData,
 		handleManualRefresh,

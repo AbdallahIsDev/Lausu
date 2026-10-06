@@ -183,6 +183,24 @@ class TestBatchCutover:
         assert pipeline._device_info == "cpu-test"
         assert pipeline._quality_summary is None
 
+    def test_auto_detect_sends_none_language_to_worker(self, monkeypatch):
+        app, fake = self._shim_app(
+            monkeypatch, _resolved_future({"text": "worker words", "latency_ms": 7, "device_info": "cpu-test"})
+        )
+        app.config.language = ""
+        pipeline = _pipeline(app, np.zeros(16000, dtype=np.float32))
+        assert pipeline._transcribe() == "worker words"
+        assert fake.request_samples.call_args.args[2] is None
+
+    def test_explicit_language_still_reaches_worker(self, monkeypatch):
+        app, fake = self._shim_app(
+            monkeypatch, _resolved_future({"text": "worker words", "latency_ms": 7, "device_info": "cpu-test"})
+        )
+        app.config.language = "ar"
+        pipeline = _pipeline(app, np.zeros(16000, dtype=np.float32))
+        assert pipeline._transcribe() == "worker words"
+        assert fake.request_samples.call_args.args[2] == "ar"
+
     def test_timeout_degrades_instead_of_in_process(self, monkeypatch):
         from voice_typer.server.dictation_pipeline.transcribe_step import BackendNotLoadedError
 

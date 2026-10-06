@@ -53,4 +53,10 @@ renderLoopGuard({
 	// The analytics view (with the stat cards) settles in place of the
 	// skeleton once the first refresh lands.
 	settle: (s) => s.getByText(/^Total Dictations/) != null,
+	// Heaviest page in the suite: its own module graph imports in ~1.6s
+	// isolated and the vendored chart library adds ~0.8s, so the default
+	// 5s fail-fast budget is exceeded under parallel load (measured
+	// 5.9-8.7s; 2.2s isolated). Loop detection is the commit bound, which
+	// stays at the default 20.
+	timeoutMs: 20000,
 });

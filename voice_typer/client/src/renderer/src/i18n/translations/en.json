@@ -476,7 +476,20 @@
 		"dayCountTooltip_other": "{label}: {count} dictations",
 		"notSelected": "Not selected",
 		"avgCharsLabel": "Avg chars / dictation",
-		"longestLabel": "Longest session"
+		"longestLabel": "Longest session",
+		"heatmap": {
+			"title": "Dictation heatmap",
+			"aria": "Dictation heatmap: {total} dictations on {days} active days",
+			"less": "Less",
+			"more": "More",
+			"truncated": "showing the last year",
+			"tooltip_zero": "{count} dictations",
+			"tooltip_one": "{count} dictation",
+			"tooltip_two": "{count} dictations",
+			"tooltip_few": "{count} dictations",
+			"tooltip_many": "{count} dictations",
+			"tooltip_other": "{count} dictations"
+		}
 	},
 	"aboutAndPrivacy": {
 		"title": "About & Privacy",
