@@ -331,10 +331,10 @@ dependencies = [
 
 [project.urls]
 # standard project URLs for PyPI / GitHub sidebar.
-Homepage = "https://github.com/AbdallahIsDev/voice-typer"
-Repository = "https://github.com/AbdallahIsDev/voice-typer"
-Issues = "https://github.com/AbdallahIsDev/voice-typer/issues"
-Changelog = "https://github.com/AbdallahIsDev/voice-typer/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/AbdallahIsDev/lausu"
+Repository = "https://github.com/AbdallahIsDev/lausu"
+Issues = "https://github.com/AbdallahIsDev/lausu/issues"
+Changelog = "https://github.com/AbdallahIsDev/lausu/blob/main/CHANGELOG.md"
 
 [project.scripts]
 # Production desktop entry (`lausu` starts the app; `lausu --dev` is the

@@ -36,7 +36,7 @@
 
 <policyconfig>
   <vendor>Lausu</vendor>
-  <vendor_url>https://github.com/AbdallahIsDev/voice-typer</vendor_url>
+  <vendor_url>https://github.com/AbdallahIsDev/lausu</vendor_url>
 
   <action id="com.Lausu.install-permissions">
     <description>Install Lausu keyboard permissions</description>

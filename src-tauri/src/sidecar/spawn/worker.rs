@@ -69,7 +69,7 @@ pub(crate) async fn spawn_worker_release(
 ) -> Result<(u16, SidecarHandle, mpsc::Receiver<CommandEvent>), String> {
     let worker = app
         .shell()
-        .sidecar("voice-typer-worker")
+        .sidecar("lausu-worker")
         .map_err(|e| format!("failed to resolve worker binary: {e}"))?;
 
     let cmd = worker

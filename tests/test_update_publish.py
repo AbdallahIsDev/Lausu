@@ -497,7 +497,7 @@ class TestDefaults:
         # Derived from branding.APP_REPO (single source of truth) — see
         # publish_pack_release.DEFAULT_REPO. The literal below is a guard
         # against a silent slug change breaking every published pack URL.
-        assert pub.DEFAULT_REPO == "AbdallahIsDev/voice-typer"
+        assert pub.DEFAULT_REPO == "AbdallahIsDev/lausu"
         assert pub.DEFAULT_REPO == branding.APP_REPO
 
     def test_default_gh_cli(self):

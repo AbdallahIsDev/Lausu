@@ -5,12 +5,14 @@ internals and tests rely on keeps resolving; the public API stays on the
 facade class.
 """
 
+from __future__ import annotations
+
 import concurrent.futures
 import contextlib
 import sqlite3
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from voice_typer.server.history_db_internals import (
     corruption_recovery,
@@ -23,33 +25,48 @@ from voice_typer.server.history_db_internals import (
 )
 from voice_typer.server.history_db_internals.write_payloads import _BatchableInsert
 
+if TYPE_CHECKING:
+    # Self-type only: these seams are invoked on a HistoryDB and hand ``self``
+    # to free functions typed ``db: HistoryDB``. Never imported at runtime.
+    from voice_typer.server.history_db import HistoryDB
+
 
 class HistoryDBInternals:
+    """Private delegation seams of the :class:`HistoryDB` facade.
 
-    def _start_read_conn_prune_thread(self) -> None:
+    Requires the host's private state, declared as class-level annotations
+    on ``HistoryDB``: ``db_path``, ``_queue``, ``_shutdown``,
+    ``_writer_thread``, ``_writer_ready``, ``_init_error``, ``_read_local``,
+    ``_all_read_connections``, ``_connections_lock``, ``_read_conn_*``,
+    ``_retention_*``, ``_today_stats_cache*``, ``_history_count_cache*``,
+    ``_fts5_rebuild_*``, ``_encryption_status``. Each method annotates
+    ``self`` as ``HistoryDB`` so the delegation calls type-check.
+    """
+
+    def _start_read_conn_prune_thread(self: HistoryDB) -> None:
         """Start the prune daemon: see internals.reader._start_read_conn_prune_thread."""
         reader._start_read_conn_prune_thread(self)
 
     # Back-compat alias for the previous name (kept so external code
     _start_periodic_read_conn_prune = _start_read_conn_prune_thread
 
-    def _stop_read_conn_prune_thread(self) -> None:
+    def _stop_read_conn_prune_thread(self: HistoryDB) -> None:
         """Stop the prune daemon: see internals.reader._stop_read_conn_prune_thread."""
         reader._stop_read_conn_prune_thread(self)
 
     # Back-compat alias for the previous name.
     _stop_periodic_read_conn_prune = _stop_read_conn_prune_thread
 
-    def _periodic_read_conn_prune_loop(self) -> None:
+    def _periodic_read_conn_prune_loop(self: HistoryDB) -> None:
         """Prune loop body (daemon thread): see internals.reader._periodic_read_conn_prune_loop."""
         reader._periodic_read_conn_prune_loop(self)
 
-    def _writer_loop(self) -> None:
+    def _writer_loop(self: HistoryDB) -> None:
         """Drain the write queue serially: see internals.writer._writer_loop."""
         writer._writer_loop(self)
 
     def _execute_write_item(
-        self,
+        self: HistoryDB,
         conn: sqlite3.Connection,
         callable_: Callable[[sqlite3.Connection], Any],
         future: concurrent.futures.Future | None,
@@ -58,7 +75,7 @@ class HistoryDBInternals:
         writer._execute_write_item(self, conn, callable_, future)
 
     def _drain_batchable_inserts(
-        self,
+        self: HistoryDB,
         conn: sqlite3.Connection,
         first_item: _BatchableInsert,
     ) -> None:
@@ -73,7 +90,7 @@ class HistoryDBInternals:
         """Passive WAL checkpoint on the checkpoint-interval cadence, see internals.writer._run_checkpoint."""
         writer._run_checkpoint(self, conn)
 
-    def _open_write_conn(self) -> sqlite3.Connection:
+    def _open_write_conn(self: HistoryDB) -> sqlite3.Connection:
         """Open the writer connection: see internals.schema.open_write_conn."""
         return schema.open_write_conn(self.db_path)
 
@@ -82,7 +99,7 @@ class HistoryDBInternals:
         schema.check_wal_mode(conn, self.db_path)
 
     def _init_db_schema(
-        self,
+        self: HistoryDB,
         conn: sqlite3.Connection,
         _is_recovery: bool = False,
     ) -> sqlite3.Connection:
@@ -116,7 +133,7 @@ class HistoryDBInternals:
         """Report whether any non-empty row is still plaintext, see internals.encryption._has_plaintext_rows."""
         return encryption._has_plaintext_rows(self, conn)
 
-    def _enqueue_backfill_step(self) -> None:
+    def _enqueue_backfill_step(self: HistoryDB) -> None:
         """Queue one backfill batch: see internals.encryption._enqueue_backfill_step."""
         encryption._enqueue_backfill_step(self)
 
@@ -124,7 +141,7 @@ class HistoryDBInternals:
         """Encrypt one bounded backfill batch: see internals.encryption._encrypt_backfill_step."""
         return encryption._encrypt_backfill_step(self, conn)
 
-    def _enqueue_reindex_step(self) -> None:
+    def _enqueue_reindex_step(self: HistoryDB) -> None:
         """Queue one bounded decrypt-aware FTS re-index batch, see internals.encryption._enqueue_reindex_step."""
         encryption._enqueue_reindex_step(self)
 
@@ -141,7 +158,7 @@ class HistoryDBInternals:
         corruption_recovery._backup_before_migration(self, current_version)
 
     def _maybe_recover_from_corruption(
-        self,
+        self: HistoryDB,
         conn: sqlite3.Connection,
     ) -> sqlite3.Connection | None:
         """Corruption gate + fresh DB: see internals.corruption_recovery._maybe_recover_from_corruption."""
@@ -152,7 +169,7 @@ class HistoryDBInternals:
         return corruption_recovery._try_iterdump_recovery(self, old_db_path)
 
     def _apply_recovered_inserts(
-        self,
+        self: HistoryDB,
         conn: sqlite3.Connection,
         inserts: list[str],
     ) -> int:
@@ -160,22 +177,22 @@ class HistoryDBInternals:
         return corruption_recovery._apply_recovered_inserts(self, conn, inserts)
 
     def _notify_corruption_recovered(
-        self,
+        self: HistoryDB,
         corrupt_main: Path,
         recovered_count: int,
     ) -> None:
         """Surface the corruption event to the user, see internals.corruption_recovery._notify_corruption_recovered."""
         corruption_recovery._notify_corruption_recovered(self, corrupt_main, recovered_count)
 
-    def _get_read_conn(self) -> sqlite3.Connection:
+    def _get_read_conn(self: HistoryDB) -> sqlite3.Connection:
         """Get a thread-local READ-ONLY connection, see internals.reader._get_read_conn."""
         return reader._get_read_conn(self)
 
-    def _prune_dead_read_connections_locked(self) -> None:
+    def _prune_dead_read_connections_locked(self: HistoryDB) -> None:
         """Close dead-thread read connections: see internals.reader._prune_dead_read_connections_locked."""
         reader._prune_dead_read_connections_locked(self)
 
-    def _get_conn(self) -> sqlite3.Connection:
+    def _get_conn(self: HistoryDB) -> sqlite3.Connection:
         """Backwards-compat alias for ``_get_read_conn``, delegates to internals.reader._get_conn."""
         return reader._get_conn(self)
 
@@ -184,7 +201,7 @@ class HistoryDBInternals:
         writer._drop_oldest_for_overflow(self, current_future)
 
     def _submit_write(
-        self,
+        self: HistoryDB,
         fn: Callable[[sqlite3.Connection], Any],
         *,
         wait: bool = True,
@@ -193,18 +210,18 @@ class HistoryDBInternals:
         """submit a write closure to the writer thread, delegates to internals.writer._submit_write."""
         return writer._submit_write(self, fn, wait=wait, allow_after_shutdown=allow_after_shutdown)
 
-    def _close_writer(self) -> None:
+    def _close_writer(self: HistoryDB) -> None:
         """Writer-teardown portion of :meth:`close`: delegates to internals.writer._close_writer."""
         writer._close_writer(self)
 
-    def _stop_periodic_retention(self) -> None:
+    def _stop_periodic_retention(self: HistoryDB) -> None:
         """Signal + join the periodic retention thread, see internals.retention.stop_periodic_retention."""
         retention.stop_periodic_retention(self)
 
-    def _invalidate_today_stats_cache(self) -> None:
+    def _invalidate_today_stats_cache(self: HistoryDB) -> None:
         """Drop the cached today-stats dict: see internals.search.invalidate_today_stats_cache."""
         search.invalidate_today_stats_cache(self)
 
-    def _invalidate_history_count_cache(self) -> None:
+    def _invalidate_history_count_cache(self: HistoryDB) -> None:
         """drop the cached total-count int, delegates to internals.search.invalidate_history_count_cache."""
         search.invalidate_history_count_cache(self)

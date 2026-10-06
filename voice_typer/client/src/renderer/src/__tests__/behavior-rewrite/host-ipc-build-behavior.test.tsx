@@ -752,22 +752,22 @@ describe("generate-icons.mjs renames root → clientDir (rewrite of TestIconScri
 	});
 });
 
-// Section 8: voice-typer.spec (PyInstaller fallback)
+// Section 8: lausu.spec (PyInstaller fallback)
 // Ports:
 //   - TestPyinstallerSpecHasAsrHiddenImports (5 tests)
 //   - TestPyinstallerSpecExcludesTkinter (1 test)
-// The PyInstaller spec was renamed to `scripts/build/voice-typer.spec`
+// The PyInstaller spec was renamed to `scripts/build/lausu.spec`
 // (the `lausu.spec` name is gone). Nuitka is the primary freeze path;
 // this spec is the documented fallback and still declares the ASR
 // hiddenimports + tkinter excludes.
 
-const SPEC_PATH = resolve(REPO_ROOT, "scripts", "build", "voice-typer.spec");
+const SPEC_PATH = resolve(REPO_ROOT, "scripts", "build", "lausu.spec");
 
 function readPyinstallerSpec(): string {
 	return readFileSync(SPEC_PATH, "utf-8");
 }
 
-describe("voice-typer.spec declares ASR hiddenimports (rewrite of TestPyinstallerSpecHasAsrHiddenImports)", () => {
+describe("lausu.spec declares ASR hiddenimports (rewrite of TestPyinstallerSpecHasAsrHiddenImports)", () => {
 	it("includes parakeet_engine", () => {
 		expect(readPyinstallerSpec()).toContain("parakeet_engine");
 	});
@@ -789,7 +789,7 @@ describe("voice-typer.spec declares ASR hiddenimports (rewrite of TestPyinstalle
 	});
 });
 
-describe("voice-typer.spec excludes tkinter (rewrite of TestPyinstallerSpecExcludesTkinter)", () => {
+describe("lausu.spec excludes tkinter (rewrite of TestPyinstallerSpecExcludesTkinter)", () => {
 	it('lists "tkinter" in the excludes array', () => {
 		expect(readPyinstallerSpec()).toContain('"tkinter"');
 	});

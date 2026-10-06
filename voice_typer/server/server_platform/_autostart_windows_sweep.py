@@ -99,7 +99,7 @@ def _sweep_legacy_tasks() -> list[str] | None:
     """Remove pre-rename / duplicate scheduled tasks for this install.
 
     Covers ``LausuAutostart*`` (old non-RDNN names) and
-    ``com.voicetyper.autostart_*`` (pre-brand-rename RDNN). The live
+    ``com.lausu.autostart_*`` (pre-brand-rename RDNN). The live
     task is ``{APP_RDNN_ROOT}.autostart_<hash>``.
     """
     from voice_typer.server.server_platform import autostart_windows as _aw
@@ -119,7 +119,7 @@ def _sweep_legacy_tasks() -> list[str] | None:
     try:
         ps_cmd = (
             f"Get-ScheduledTask -TaskName '{APP_IDENTIFIER}Autostart*',"
-            f"'{APP_RDNN_ROOT}.autostart*','com.voicetyper.autostart*' "
+            f"'{APP_RDNN_ROOT}.autostart*','com.lausu.autostart*' "
             "-ErrorAction SilentlyContinue | "
             "ForEach-Object { Write-Output $_.TaskName }"
         )
@@ -153,7 +153,7 @@ def _sweep_legacy_tasks() -> list[str] | None:
             if not (
                 name.startswith(f"{APP_IDENTIFIER}Autostart")
                 or name.startswith(f"{APP_RDNN_ROOT}.autostart")
-                or name.startswith("com.voicetyper.autostart")
+                or name.startswith("com.lausu.autostart")
             ):
                 continue
             rc, xml = task_scheduler._schtasks(["/Query", "/TN", name, "/XML"])

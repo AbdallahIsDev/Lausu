@@ -215,7 +215,7 @@ Invariants:
 - Check `ws_tx` once before pending insert (None must not leak an entry).
 - Serialize data once into a `Cow<str>` for size check + frame body.
 - Send-failure and timeout remove the pending entry; Drop guard covers cancel.
-- `type:"error"` responses become `VoiceTyperError::server_from_data` so the
+- `type:"error"` responses become `lausuError::server_from_data` so the
   renderer invoke rejects with the sidecar envelope intact.
 
 ## Bubble window commands
@@ -274,7 +274,7 @@ Runs on spawn_blocking before sidecar spawn.
 env vars — NOT Tauri `app_config_dir()` (bundle-id path). APP_SLUG is
 the machine-readable leaf name, distinct from APP_NAME display string.
 Cached with OnceLock; `config_dir_from_env` stays pure for tests.
-Windows reads USERPROFILE first so legacy `~/.voice-typer` probes work.
+Windows reads USERPROFILE first so legacy `~/.lausu` probes work.
 TAURI_SIDECAR=1 disables the Python Win32 single-instance mutex.
 
 ## Kill-on-parent-exit

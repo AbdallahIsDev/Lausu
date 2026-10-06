@@ -6,21 +6,21 @@
   pkexec, with a GUI password prompt (polkit). Used by the AppImage
   first-run permission helper.
 
-  Placement: /usr/share/polkit-1/actions/com.voicetyper.policy
+  Placement: /usr/share/polkit-1/actions/com.lausu.policy
 
-  The action ID ``com.voicetyper.install-permissions`` and the policy
-  filename both use the project's ``com.voicetyper.*`` RDNN reverse-DNS
-  root (matching the ``com.voicetyper.desktop`` Tauri bundle identifier
+  The action ID ``com.lausu.install-permissions`` and the policy
+  filename both use the project's ``com.lausu.*`` RDNN reverse-DNS
+  root (matching the ``com.lausu.desktop`` Tauri bundle identifier
  , see review finding #54). Historically the action was
-  ``org.voice-typer.install-permissions``; the ID was renamed in this
+  ``org.lausu.install-permissions``; the ID was renamed in this
   file first, and the destination filename now matches too. Polkit
   identifies actions by the ``<action id>`` attribute, not by the
-  filename, so a legacy ``org.voice-typer.policy`` left on an upgraded
+  filename, so a legacy ``org.lausu.policy`` left on an upgraded
   system is inert (pkexec matches by the ``exec.path`` annotation,
   which still points at the same script); new installs write
-  ``com.voicetyper.policy``. The uninstaller (``install_permissions.py
+  ``com.lausu.policy``. The uninstaller (``install_permissions.py
   --uninstall``) removes BOTH policy files so an uninstalled system
-  fully converges on the ``com.voicetyper.*`` namespace.
+  fully converges on the ``com.lausu.*`` namespace.
 
   ``<message>`` and ``<description>`` entries are provided for
   ar, de, es, fr, hi, ru, zh (genuine translations per C-I18N-2, never
@@ -36,12 +36,12 @@
 
 <policyconfig>
   <vendor>Voice Typer</vendor>
-  <vendor_url>https://github.com/AbdallahIsDev/voice-typer</vendor_url>
+  <vendor_url>https://github.com/AbdallahIsDev/lausu</vendor_url>
 
-  <action id="com.voicetyper.install-permissions">
+  <action id="com.lausu.install-permissions">
     <description>Install Voice Typer keyboard permissions</description>
     <description xml:lang="ar">تثبيت أذونات لوحة مفاتيح Voice Typer</description>
-    <description xml:lang="de">Voice-Typer-Tastaturberechtigungen installieren</description>
+    <description xml:lang="de">lausu-Tastaturberechtigungen installieren</description>
     <description xml:lang="es">Instalar los permisos de teclado de Voice Typer</description>
     <description xml:lang="fr">Installer les autorisations clavier de Voice Typer</description>
     <description xml:lang="hi">Voice Typer कीबोर्ड अनुमतियाँ स्थापित करें</description>
@@ -60,7 +60,7 @@
       <allow_inactive>no</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
-    <annotate key="org.freedesktop.policykit.exec.path">/usr/share/voice-typer/scripts/install_permissions.py</annotate>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/share/lausu/scripts/install_permissions.py</annotate>
     <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
   </action>
 </policyconfig>

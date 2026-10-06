@@ -285,7 +285,7 @@ export const TroubleshootingSettingsSection = memo(
 							className="gap-2"
 							onClick={() =>
 								void openExternalUrl(
-									"https://github.com/AbdallahIsDev/voice-typer/blob/main/README.md",
+									"https://github.com/AbdallahIsDev/lausu/blob/main/README.md",
 								)
 							}
 							aria-label={t("settings.troubleshooting.openDocsAria")}
@@ -305,7 +305,7 @@ export const TroubleshootingSettingsSection = memo(
 							className="gap-2"
 							onClick={() =>
 								void openExternalUrl(
-									"https://github.com/AbdallahIsDev/voice-typer/issues",
+									"https://github.com/AbdallahIsDev/lausu/issues",
 								)
 							}
 							aria-label={t("settings.troubleshooting.reportBugAria")}

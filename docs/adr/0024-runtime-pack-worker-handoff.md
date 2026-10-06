@@ -210,17 +210,17 @@ downloader half was broken in the field:
 
 ```text
 [UPDATE] remote pack manifest not published yet (HTTP Error 404: Not Found):
-  github.com/AbdallahIsDev/voice-typer/releases/latest/download/pack-manifest.json
+  github.com/AbdallahIsDev/lausu/releases/latest/download/pack-manifest.json
 [UPDATE] remote pack manifest not published yet (HTTP Error 404: Not Found):
-  github.com/AbdallahIsDev/voice-typer/releases/download/offline-pack/pack-manifest.json
+  github.com/AbdallahIsDev/lausu/releases/download/offline-pack/pack-manifest.json
 ```
 
-(The 404 host reads `voice-typer` because the renderer release constants and
-`tests/test_update_check.py::fake_manifest_url` already used `voice-typer`;
+(The 404 host reads `lausu` because the renderer release constants and
+`tests/test_update_check.py::fake_manifest_url` already used `lausu`;
 only `APP_REPO` was stale — the tree was internally inconsistent.)
 
 Fix, forward, one authoritative source (E7, no second literal):
-`branding.APP_REPO = "AbdallahIsDev/voice-typer"`, and
+`branding.APP_REPO = "AbdallahIsDev/lausu"`, and
 `publish_pack_release.DEFAULT_REPO` now **derives** from it
 (`from voice_typer.server.branding import APP_REPO`) so the upload target and
 the downloader URL cannot drift apart again. Both `__init__.py` files on that
