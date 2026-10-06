@@ -119,15 +119,12 @@ describe("CollectionListHeader, select-all state machine", () => {
 });
 
 describe("CollectionListHeader, visual tokens (byte-identical extraction)", () => {
-	it("keeps the sticky header treatment with backdrop blur and an opaque surface", () => {
+	it("keeps the sticky header treatment with backdrop blur and the subtle surface", () => {
 		setupHeader();
 		const header = screen.getByTestId("test-list-header");
 		expect(header.className).toContain("sticky top-0 z-10");
-		// 2026-10-02: `bg-surface-subtle` is now the CARD token (transparent
-		// in light), which a sticky header cannot use — rows would scroll
-		// through it. It carries `bg-surface/95` + backdrop blur instead.
 		expect(header.className).toContain(
-			"rounded-t-lg border-b border-border/8 bg-surface/95",
+			"rounded-t-lg border-b border-border/5 bg-surface-subtle/95",
 		);
 		expect(header.className).toContain("backdrop-blur-sm");
 	});

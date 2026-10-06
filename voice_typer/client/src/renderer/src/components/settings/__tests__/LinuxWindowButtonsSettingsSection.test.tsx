@@ -1,8 +1,11 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SettingsSectionSharedProps } from "@/components/settings/types";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { LausuConfig, LinuxWindowButtonsConfig } from "@/types/config";
+import type {
+	LausuConfig,
+	LinuxWindowButtonsConfig,
+} from "@/types/config";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const LINUX_UA =
 	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";

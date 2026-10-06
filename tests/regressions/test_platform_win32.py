@@ -28,6 +28,31 @@ class TestManifestInExists:
         assert "README.md" in content
 
 
+class TestWindowsManifestAsInvoker:
+    """The finding: no requestedExecutionLevel manifest. Investigation:"""
+
+    def test_manifest_source_is_embedded_in_spec(self):
+        spec = Path(__file__).resolve().parent.parent.parent / "scripts" / "build" / "lausu.spec"
+        content = spec.read_text()
+        assert 'requestedExecutionLevel level="asInvoker"' in content, (
+            "PLAT-037: the .spec's inlined manifest must declare requestedExecutionLevel asInvoker."
+        )
+
+    def test_manifest_declares_as_invoker(self):
+        # KEEP, pins the asInvoker declaration.
+
+        spec = Path(__file__).resolve().parent.parent.parent / "scripts" / "build" / "lausu.spec"
+        content = spec.read_text()
+        assert 'requestedExecutionLevel level="asInvoker"' in content, (
+            "PLAT-037: manifest must declare requestedExecutionLevel asInvoker."
+        )
+
+    def test_spec_file_embeds_manifest(self):
+        # KEEP, pins  (.spec file references the manifest).
+
+        spec = Path(__file__).resolve().parent.parent.parent / "scripts" / "build" / "lausu.spec"
+        content = spec.read_text()
+        assert "manifest" in content.lower(), "PLAT-037: .spec file must reference the manifest."
 
 
 class TestPlatRunAutostartTaskHashed:

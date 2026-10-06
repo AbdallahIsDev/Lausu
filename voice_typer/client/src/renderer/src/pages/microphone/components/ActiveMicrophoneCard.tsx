@@ -17,9 +17,6 @@
 // Only `LevelBarContainer` (the `LevelBar` + `LiveQualityFeedback`
 // pair that actually consumes `level`/`peak`) re-renders on each push.
 
-import { Mic02Icon, PlayIcon, StopIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { memo } from "react";
 import { LevelBar } from "@/components/feedback/LevelBar";
 import { LiveQualityFeedback } from "@/components/feedback/LiveQualityFeedback";
 import { TestReviewPanel } from "@/components/microphone/TestReviewPanel";
@@ -28,6 +25,9 @@ import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import type { AudioPreset } from "@/lib/utils/audioPresets";
 import type { LausuConfig } from "@/types/config";
+import { Mic02Icon, PlayIcon, StopIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { memo } from "react";
 import { MICROPHONE_TEST_DURATION_SEC } from "../hooks/useMicrophoneTestSession";
 import type { TestResultQuality } from "../lib/types";
 import { PresetAccordionSelector } from "./PresetAccordionSelector";
@@ -118,7 +118,7 @@ export function ActiveMicrophoneCard({
 				// `LiveQualityFeedback`), the test controls row, the
 				// filter-invalidation notice, `TestReviewPanel` and the
 				// preset-selector wrapper.
-				"flex flex-col gap-3 rounded-lg border border-border/8 p-4 transition-colors",
+				"flex flex-col gap-3 rounded-lg border border-border/5 p-4 transition-colors",
 				"bg-surface-subtle",
 			)}
 		>
@@ -217,12 +217,12 @@ export function ActiveMicrophoneCard({
 				>
 					{testRunning
 						? t("microphone.level", {
-								percent: String(Math.round(level * 100)),
-							})
+							percent: String(Math.round(level * 100)),
+						})
 						: micMonitoring
 							? t("microphone.level", {
-									percent: String(Math.round(level * 100)),
-								})
+								percent: String(Math.round(level * 100)),
+							})
 							: t("microphone.monitoringOff")}
 				</span>
 			</div>

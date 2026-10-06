@@ -158,7 +158,7 @@ export default function OnboardingPage({
 	const isModelStepBlocked = step.step_name === "Model" && !selectedModel;
 
 	return (
-		<div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center gap-8 px-6 pt-20 pb-6">
+		<div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center gap-8 px-6 pt-28 pb-6">
 			{/* Progress header (ONB-1): "Step N of M" text + bar only — the
 			    step-title span that used to sit at the top-right duplicated
 			    the card's own <h2> heading and was removed. */}
@@ -209,7 +209,7 @@ export default function OnboardingPage({
 			{/* Parent card (ONB-3): widened max-w-lg → max-w-xl for
 			    breathing room around the consent rows and the model
 			    accordion. */}
-			<div className="flex w-full flex-col gap-6 rounded-lg border border-border/8 bg-surface p-8">
+			<div className="flex w-full flex-col gap-6 rounded-lg border border-border/5 bg-surface p-8">
 				{step.step_name === "Welcome" && (
 					<WelcomeStep headingRef={headingRef} />
 				)}

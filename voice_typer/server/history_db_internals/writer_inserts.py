@@ -13,8 +13,13 @@ import queue
 import sqlite3
 from typing import TYPE_CHECKING, Any
 
+from voice_typer.server._lazy_import import lazy_module
+
 if TYPE_CHECKING:
     from voice_typer.server.history_db import HistoryDB
+
+# Lazy proxy: ``history_db`` imports this package, so a direct import would be circular.
+_hd = lazy_module("voice_typer.server.history_db")
 
 log = logging.getLogger(__name__)
 
@@ -70,8 +75,6 @@ def _drain_batchable_inserts(
     """Called from :meth:`_writer_loop` (and :meth:`_drain_remaining`
     during shutdown) when the writer pulls a ``_BatchableInsert``
     """
-    from voice_typer.server import history_db as _hd
-
     _SHUTDOWN_SENTINEL = _hd._SHUTDOWN_SENTINEL  # noqa: N806
     _BatchableInsert = _hd._BatchableInsert  # noqa: N806
     _BATCH_INSERT_CAP = _hd._BATCH_INSERT_CAP  # noqa: N806

@@ -120,7 +120,7 @@ class TestSingleVadPreloadSpawn:
 
         assert calls == [], (
             "LausuApp construction must not invoke vad.preload(), "
-            f"observed {len(calls)} invocations from "
+            f"observed {len(calls)} invocation(s) from "
             f"{[t.name for t in preload_threads]}."
         )
 

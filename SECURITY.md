@@ -16,7 +16,7 @@ If you discover a security vulnerability, please **do not** open a public
 GitHub issue. Instead:
 
 1. Email the maintainer directly via GitHub's private vulnerability reporting:
-   https://github.com/AbdallahIsDev/voice-typer/security/advisories/new
+   https://github.com/AbdallahIsDev/lausu/security/advisories/new
 2. Include a description of the vulnerability and steps to reproduce.
 3. You will receive a response within 72 hours.
 
@@ -34,7 +34,7 @@ process can connect without this token.
 ### Command Allowlist (SEC-019)
 
 The Tauri Rust host enforces an allowlist of IPC commands. The renderer
-cannot invoke arbitrary commands: only the **76** commands listed in
+cannot invoke arbitrary commands: only the **75** commands listed in
 `allowed_commands()` (defined in
 `src-tauri/src/commands/sidecar_cmds/allowlist.rs`) are forwarded to
 the Python backend. The authoritative count is enforced by CI (see
@@ -46,8 +46,8 @@ are added or removed.
 > former TypeScript `ALLOWED_COMMANDS` Set is deleted with predecessor
 > main. The remaining two-way contract is: Python
 > `_COMMAND_REGISTRY` (`voice_typer/server/ipc/registry.py`,
-> re-exported by `ipc_server.py`) registers **80** handlers; the Rust
-> renderer allowlist exposes **76** of them. Four registry commands are
+> re-exported by `ipc_server.py`) registers **79** handlers; the Rust
+> renderer allowlist exposes **75** of them. Four registry commands are
 > intentionally absent from the Rust allowlist:
 >
 > - `tray_click` — Rust tray handler invokes via `dispatch_inner`

@@ -82,7 +82,7 @@ sudo apt-get install -y \
 #     libayatana-appindicator-gtk3-devel librsvg2-devel python3.12
 
 # Clone + enter the repo
-git clone https://github.com/AbdallahIsDev/voice-typer.git
+git clone https://github.com/AbdallahIsDev/lausu.git
 cd lausu
 
 # Python venv + deps (use uv, not pip, qwen-asr resolution issues with pip)

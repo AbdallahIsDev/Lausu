@@ -343,6 +343,22 @@ class TestManifestIn:
 # .spec manifest with asInvoker ─────────────────────────
 
 
+class TestSpecManifest:
+    """PLAT-037: .spec file includes Windows application manifest."""
+
+    def test_spec_has_as_invoker_manifest(self):
+        repo_root = Path(__file__).resolve().parent.parent
+        spec_path = repo_root / "scripts" / "build" / "lausu.spec"
+        spec_content = spec_path.read_text()
+        assert "asInvoker" in spec_content
+        assert "requestedExecutionLevel" in spec_content
+        assert "manifest=" in spec_content
+
+    def test_spec_has_dpi_awareness(self):
+        repo_root = Path(__file__).resolve().parent.parent
+        spec_path = repo_root / "scripts" / "build" / "lausu.spec"
+        spec_content = spec_path.read_text()
+        assert "dpiAware" in spec_content
 
 
 class TestRDPSession:

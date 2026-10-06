@@ -12,13 +12,12 @@
 // respectively. This file is now JSX-only: it calls the hook, reads
 // translations, and renders the section.
 
-import { Moon02Icon, Sun03Icon } from "@hugeicons/core-free-icons";
-import { memo } from "react";
 import { RangeSlider } from "@/components/common/RangeSlider";
 import { SettingRow } from "@/components/common/SettingRow";
 import { SettingsSection } from "@/components/common/SettingsSection";
 import { SunMoonIcon } from "@/components/common/SunMoonIcon";
 import { Input } from "@/components/ui/input";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
 	Select,
 	SelectContent,
@@ -26,7 +25,6 @@ import {
 	SelectTrigger,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ToggleGroup } from "@/components/ui/toggle-group";
 import {
 	Tooltip,
 	TooltipContent,
@@ -45,6 +43,8 @@ import {
 	THEMES,
 } from "@/themes";
 import type { LausuConfig } from "@/types/config";
+import { Moon02Icon, Sun03Icon } from "@hugeicons/core-free-icons";
+import { memo } from "react";
 import { SettingsSkeleton } from "./SettingsSkeleton";
 import type { SettingsSectionSharedProps } from "./types";
 import {
@@ -280,7 +280,7 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 					label={colorSchemeLabel}
 					info={t("settings.appearance.colorSchemeInfo")}
 				>
-					<ToggleGroup
+					<SegmentedControl
 						options={themeOptions}
 						value={themeModeProp ?? config.theme_mode}
 						onChange={handleColorSchemeChange}
@@ -389,22 +389,20 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 						<button
 							type="button"
 							onClick={handleSetLightMode}
-							className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-								customEditorMode === "light"
+							className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${customEditorMode === "light"
 									? "bg-surface text-foreground shadow-xs"
 									: "text-muted-foreground hover:text-foreground"
-							}`}
+								}`}
 						>
 							{t("settings.appearance.light")}
 						</button>
 						<button
 							type="button"
 							onClick={handleSetDarkMode}
-							className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-								customEditorMode === "dark"
+							className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${customEditorMode === "dark"
 									? "bg-surface text-foreground shadow-xs"
 									: "text-muted-foreground hover:text-foreground"
-							}`}
+								}`}
 						>
 							{t("settings.appearance.dark")}
 						</button>
@@ -437,7 +435,7 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 							return (
 								<div
 									key={varName}
-									className="flex items-center gap-2.5 rounded-lg border border-border/8 bg-surface p-2"
+									className="flex items-center gap-2.5 rounded-lg border border-border/5 bg-surface p-2"
 								>
 									<div className="relative shrink-0">
 										<Input
@@ -448,7 +446,7 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 											aria-label={t("settings.appearance.colorAria", { label })}
 										/>
 										<div
-											className="h-8 w-8 rounded-lg border border-border/8 shadow-xs"
+											className="h-8 w-8 rounded-lg border border-border/5 shadow-xs"
 											style={{ backgroundColor: currentHex }}
 										/>
 									</div>
@@ -532,7 +530,7 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 											// token for error borders (used by form validation
 											// throughout the app).
 											isHexInvalid &&
-												"border-destructive focus-visible:ring-destructive/30",
+											"border-destructive focus-visible:ring-destructive/30",
 										)}
 										spellCheck={false}
 										aria-label={t("settings.appearance.hexValueAria", {
@@ -564,7 +562,7 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 						type="button"
 						disabled={customDraftIsDefault}
 						onClick={handleResetCustomColors}
-						className="w-full rounded-lg border border-border/8 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+						className="w-full rounded-lg border border-border/5 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-(--surface-hover) hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
 					>
 						{t("settings.appearance.resetToDefaultColors")}
 					</button>

@@ -1,3 +1,4 @@
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
 	act,
 	cleanup,
@@ -7,7 +8,6 @@ import {
 	waitFor,
 	within,
 } from "@testing-library/react";
-import { TooltipProvider } from "@/components/ui/tooltip";
 
 const renderWithProviders = (ui: React.ReactElement) =>
 	render(<TooltipProvider delayDuration={200}>{ui}</TooltipProvider>);
@@ -16,7 +16,7 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
-	Element.prototype.scrollIntoView = function scrollIntoView() {};
+	Element.prototype.scrollIntoView = function scrollIntoView() { };
 }
 
 const stable = vi.hoisted(() => ({
@@ -110,7 +110,7 @@ vi.mock("@/hooks/useTheme", () => ({
 }));
 
 vi.mock("@/hooks/useSoundFeedback", () => ({
-	useSoundFeedback: () => {},
+	useSoundFeedback: () => { },
 }));
 
 vi.mock("@/components/ui/sonner", () => ({
@@ -521,7 +521,7 @@ let useNavigationHarness: () => {
 	canGoBack: boolean;
 	canGoForward: boolean;
 };
-let resetNavigationForTestHook: () => void = () => {};
+let resetNavigationForTestHook: () => void = () => { };
 
 beforeAll(async () => {
 	const mod = (await vi.importActual("@/hooks/useNavigation")) as {
@@ -529,7 +529,7 @@ beforeAll(async () => {
 		_resetNavigationForTest?: () => void;
 	};
 	useNavigationHarness = mod.useNavigation;
-	resetNavigationForTestHook = mod._resetNavigationForTest ?? (() => {});
+	resetNavigationForTestHook = mod._resetNavigationForTest ?? (() => { });
 });
 
 import { beforeAll } from "vitest";
@@ -882,7 +882,7 @@ describe("TitleBar, rewrite of isMaximized prop tests", () => {
 			<TitleBar
 				isMaximized={true}
 				themeMode="light"
-				onThemeChange={() => {}}
+				onThemeChange={() => { }}
 			/>,
 		);
 
@@ -896,7 +896,7 @@ describe("TitleBar, rewrite of isMaximized prop tests", () => {
 			<TitleBar
 				isMaximized={false}
 				themeMode="light"
-				onThemeChange={() => {}}
+				onThemeChange={() => { }}
 			/>,
 		);
 
@@ -925,7 +925,7 @@ describe("TitleBar, rewrite of isMaximized prop tests", () => {
 				<TitleBar
 					isMaximized={true}
 					themeMode="light"
-					onThemeChange={() => {}}
+					onThemeChange={() => { }}
 				/>,
 			);
 

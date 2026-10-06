@@ -266,7 +266,7 @@ export default function VocabularyPage() {
 
 	if (loadError && entries.length === 0) {
 		return (
-			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-28 pb-6">
 				<PageHeading
 					title={t("vocabulary.title")}
 					description={t("vocabulary.description")}
@@ -290,7 +290,7 @@ export default function VocabularyPage() {
                             floating bulk bar) stays centered relative to the CONTENT
                             in both sidebar states, the column recenters when the
                             sidebar expands/collapses. */}
-			<div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+			<div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-28 pb-6">
 				{/* Heading, then the toolbar on its OWN full-width row BELOW
                                     it (not inside PageHeading's children slot).
                                     PageHeading wraps children in a content-sized,
@@ -377,7 +377,7 @@ export default function VocabularyPage() {
 							/>
 						) : (
 							<>
-								<div className="overflow-clip rounded-lg border border-border/8 bg-surface-subtle">
+								<div className="overflow-clip rounded-lg border border-border/5 bg-surface-subtle">
 									{/* Shared column-header shell, keys + the
                                                                                 page-unique testid are injected. */}
 									<CollectionListHeader
@@ -394,7 +394,7 @@ export default function VocabularyPage() {
 										secondaryColumnKey="vocabulary.columnCorrected"
 										actionsColumnKey="vocabulary.columnActions"
 									/>
-									<div className="divide-y divide-border/8">
+									<div className="divide-y divide-border/5">
 										{filteredSorted.slice(0, displayCount).map((entry) =>
 											isEditing && editingEntry?._id === entry._id ? (
 												// In-place edit row, same inline treatment as

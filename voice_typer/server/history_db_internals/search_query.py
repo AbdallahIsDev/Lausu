@@ -8,14 +8,16 @@ from __future__ import annotations
 
 import re
 
+from voice_typer.server._lazy_import import lazy_module
+
+# Lazy proxy: ``history_db`` imports this package, so a direct import would be circular.
+_hd = lazy_module("voice_typer.server.history_db")
+
 # Search / LIKE / FTS5 helpers
 
 
 def prepare_like_search_pattern(query: str) -> str:
     """Build a bounded LIKE pattern where user wildcards stay literal."""
-    # ``_MAX_SEARCH_QUERY_CHARS`` lives on the history_db module so tests
-    from voice_typer.server import history_db as _hd
-
     capped_query = query[: _hd._MAX_SEARCH_QUERY_CHARS]
     escaped_query = capped_query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     return f"%{escaped_query}%"
@@ -23,8 +25,6 @@ def prepare_like_search_pattern(query: str) -> str:
 
 def is_fts_compatible_query(query: str) -> bool:
     """True when FTS5 can serve the query; separator-only queries fall back to LIKE."""
-    from voice_typer.server import history_db as _hd
-
     capped = query[: _hd._MAX_SEARCH_QUERY_CHARS]
     # ``\W`` matches [^a-zA-Z0-9_] in ASCII mode, but with re.UNICODE
     stripped = re.sub(r"[\W_]+", "", capped, flags=re.UNICODE)
@@ -49,8 +49,6 @@ _CJK_WIDE_CODEPOINT_RANGES: tuple[tuple[int, int], ...] = (
 
 def has_cjk_or_wide_chars(query: str) -> bool:
     """True when the query needs the LIKE path for CJK/fullwidth substring semantics."""
-    from voice_typer.server import history_db as _hd
-
     capped = query[: _hd._MAX_SEARCH_QUERY_CHARS]
     return any(lo <= codepoint <= hi for codepoint in map(ord, capped) for lo, hi in _CJK_WIDE_CODEPOINT_RANGES)
 
@@ -66,16 +64,12 @@ def _build_trigram_phrase(query: str) -> str:
 
 def is_trigram_cjk_query(query: str) -> bool:
     """True when the query should use the trigram CJK index."""
-    from voice_typer.server import history_db as _hd
-
     capped = query[: _hd._MAX_SEARCH_QUERY_CHARS]
     return len(capped) >= _TRIGRAM_MIN_QUERY_CHARS and has_cjk_or_wide_chars(capped)
 
 
 def sanitize_fts_query(query: str) -> str:
     """Escape FTS5 syntax so user input matches as literals."""
-    from voice_typer.server import history_db as _hd
-
     capped = query[: _hd._MAX_SEARCH_QUERY_CHARS]
     tokens = capped.split()
     if not tokens:

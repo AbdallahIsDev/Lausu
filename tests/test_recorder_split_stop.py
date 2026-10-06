@@ -11,8 +11,6 @@ import numpy as np
 import pytest
 from voice_typer.server.recording.recording_lifecycle import stop_recording
 
-from tests.fixtures.ipc_test_helpers import build_mock_recorder
-
 # ``stop_recording`` invokes the free function ``prepare_audio``
 
 _prepare_audio_mock_holder: dict = {}
@@ -32,6 +30,52 @@ def _mock_prepare_audio(monkeypatch):
 
 def _prep() -> MagicMock:
     return _prepare_audio_mock_holder["mock"]
+
+
+def _build_mock_recorder(
+    *,
+    sample_rate: int = 16000,
+    buffer_chunks: list[np.ndarray] | None = None,
+    buffer_sr: int | None = 16000,
+    effective_sr: int = 16000,
+    recording: bool = True,
+) -> MagicMock:
+    """Build a MagicMock recorder with the minimum stubs"""
+    recorder = MagicMock(name="recorder")
+
+    recorder._recording_event = threading.Event()
+    if recording:
+        recorder._recording_event.set()
+
+    recorder._stop_generation = 0
+    # `_user_stop_pending` is a bool flag toggled by stop() / discard().
+    recorder._user_stop_pending = False
+    # `_worker_thread` / `_event_worker_thread` are None on a real
+    recorder._worker_thread = None
+    recorder._event_worker_thread = None
+
+    # `_lock` must be a real `threading.Lock` so the `with` block
+    recorder._audio_pipeline._lock = threading.Lock()
+
+    # `_buffer` is a real `collections.deque` so the `not _buffer`
+    import collections
+
+    if buffer_chunks is None:
+        buffer_chunks = [np.zeros(100, dtype=np.float32)]
+    recorder._audio_pipeline._buffer = collections.deque(buffer_chunks, maxlen=30000)
+
+    # `_chunk_count` is reset to 0 on the empty-buffer path.
+    recorder._audio_pipeline._chunk_count = len(buffer_chunks)
+    recorder._audio_pipeline._buffer_sr = buffer_sr
+    recorder._effective_sr = effective_sr
+    recorder._last_rms = 0.0
+    recorder._last_audio_stats = (0.0, 0.0, 0.0)
+
+    # ``_teardown_stream``, ``_stop_audio_worker``,
+
+    return recorder
+
+
 class TestNotRecordingFastPath:
     """
     When ``_recording_event.is_set()`` is False and no worker refs
@@ -39,7 +83,7 @@ class TestNotRecordingFastPath:
     """
 
     def test_returns_empty_float32_array(self):
-        recorder = build_mock_recorder(recording=False)
+        recorder = _build_mock_recorder(recording=False)
         result = stop_recording(recorder)
         assert isinstance(result, np.ndarray)
         assert result.dtype == np.float32
@@ -48,7 +92,7 @@ class TestNotRecordingFastPath:
     def test_does_not_clear_recording_event(self):
         """The early-out fires BEFORE ``_recording_event.clear()``, so"""
         real_event = threading.Event()  # not set
-        recorder = build_mock_recorder(recording=False)
+        recorder = _build_mock_recorder(recording=False)
         # Replace the factory-built mock event with a wraps=Event mock
         recorder._recording_event = MagicMock(wraps=real_event)
         stop_recording(recorder)
@@ -56,13 +100,13 @@ class TestNotRecordingFastPath:
         recorder._recording_event.is_set.assert_called_once()
 
     def test_does_not_bump_stop_generation(self):
-        recorder = build_mock_recorder(recording=False)
+        recorder = _build_mock_recorder(recording=False)
         original_gen = recorder._stop_generation
         stop_recording(recorder)
         assert recorder._stop_generation == original_gen
 
     def test_does_not_call_teardown_or_worker_stops(self):
-        recorder = build_mock_recorder(recording=False)
+        recorder = _build_mock_recorder(recording=False)
         stop_recording(recorder)
         recorder._teardown_stream.assert_not_called()
         recorder._stop_audio_worker.assert_not_called()
@@ -72,8 +116,8 @@ class TestNotRecordingFastPath:
         _prep().assert_not_called()
 
     def test_cleared_event_with_live_worker_still_stops_workers(self):
-        """when ``_recording_event`` is cleared but a worker ref"""
-        recorder = build_mock_recorder(recording=False)
+        """GT-23R: when ``_recording_event`` is cleared but a worker ref"""
+        recorder = _build_mock_recorder(recording=False)
         recorder._worker_thread = threading.Thread(target=lambda: None)
         recorder._event_worker_thread = threading.Thread(target=lambda: None)
 
@@ -89,7 +133,7 @@ class TestStopRecordingOrdering:
 
     def test_runs_all_steps_in_order(self):
         """When the buffer has chunks, ``stop_recording`` must invoke"""
-        recorder = build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
+        recorder = _build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
         stop_recording(recorder)
 
         # Every documented step was called exactly once.
@@ -106,7 +150,7 @@ class TestStopRecordingOrdering:
             _AUDIO_WORKER_JOIN_TIMEOUT_S,
         )
 
-        recorder = build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
+        recorder = _build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
         stop_recording(recorder)
         recorder._stop_audio_worker.assert_called_once_with(timeout=_AUDIO_WORKER_JOIN_TIMEOUT_S, drain=True)
 
@@ -116,7 +160,7 @@ class TestStopRecordingOrdering:
             _EVENT_WORKER_JOIN_TIMEOUT_S,
         )
 
-        recorder = build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
+        recorder = _build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
         stop_recording(recorder)
         recorder._capture.stop_event_worker_body.assert_called_once_with(
             recorder, timeout=_EVENT_WORKER_JOIN_TIMEOUT_S, drain=True
@@ -124,7 +168,7 @@ class TestStopRecordingOrdering:
 
     def test_step_order_matches_contract(self):
         """Pin the source-order contract: clear event → bump"""
-        recorder = build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
+        recorder = _build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
         call_log: list[str] = []
 
         def log_call(name, ret=None):
@@ -168,7 +212,7 @@ class TestStopRecordingOrdering:
 
     def test_user_stop_pending_flag_toggled_around_teardown(self):
         """STREAM-FIX: ``_user_stop_pending`` is set to True BEFORE"""
-        recorder = build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
+        recorder = _build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
 
         flag_history: list[bool] = []
 
@@ -194,14 +238,14 @@ class TestStopRecordingOrdering:
 
     def test_stop_generation_incremented(self):
         """HOTKEY-CRASH: increment stop_generation so any stale"""
-        recorder = build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
+        recorder = _build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
         original_gen = recorder._stop_generation
         stop_recording(recorder)
         assert recorder._stop_generation == original_gen + 1
 
     def test_recording_event_cleared(self):
         """``_recording_event.clear()`` is the gate the audio callback"""
-        recorder = build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
+        recorder = _build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
         assert recorder._recording_event.is_set()
         stop_recording(recorder)
         assert not recorder._recording_event.is_set()
@@ -214,26 +258,26 @@ class TestEmptyBufferPath:
     """
 
     def test_returns_empty_float32_array(self):
-        recorder = build_mock_recorder(buffer_chunks=[])
+        recorder = _build_mock_recorder(buffer_chunks=[])
         result = stop_recording(recorder)
         assert isinstance(result, np.ndarray)
         assert result.dtype == np.float32
         assert result.size == 0
 
     def test_calls_secure_clear_caches(self):
-        recorder = build_mock_recorder(buffer_chunks=[])
+        recorder = _build_mock_recorder(buffer_chunks=[])
         stop_recording(recorder)
         recorder._session_state.secure_clear_caches.assert_called_once()
 
     def test_resets_chunk_count_to_zero(self):
-        recorder = build_mock_recorder(buffer_chunks=[])
+        recorder = _build_mock_recorder(buffer_chunks=[])
         recorder._audio_pipeline._chunk_count = 5  # pretend we had 5 chunks before
         stop_recording(recorder)
         assert recorder._audio_pipeline._chunk_count == 0
 
     def test_does_not_call_prepare_audio(self):
         """The empty-buffer early-return fires BEFORE _prepare_audio,"""
-        recorder = build_mock_recorder(buffer_chunks=[])
+        recorder = _build_mock_recorder(buffer_chunks=[])
         stop_recording(recorder)
         _prep().assert_not_called()
 
@@ -244,7 +288,7 @@ class TestEmptyBufferPath:
         bg_clear = MagicMock()
         monkeypatch.setattr(rec_pkg, "_secure_clear_array_background", bg_clear)
 
-        recorder = build_mock_recorder(buffer_chunks=[])
+        recorder = _build_mock_recorder(buffer_chunks=[])
         original_buffer = recorder._audio_pipeline._buffer
         stop_recording(recorder)
         # Buffer was not swapped.
@@ -254,7 +298,7 @@ class TestEmptyBufferPath:
 
     def test_teardown_and_worker_stops_still_called_before_empty_return(self):
         """The empty-buffer early-return fires AFTER teardown + worker"""
-        recorder = build_mock_recorder(buffer_chunks=[])
+        recorder = _build_mock_recorder(buffer_chunks=[])
         stop_recording(recorder)
         recorder._teardown_stream.assert_called_once()
         recorder._stop_audio_worker.assert_called_once()
@@ -272,7 +316,7 @@ class TestBufferSnapshotUnderLock:
         monkeypatch.setattr(rec_pkg, "_secure_clear_array_background", lambda _old: None)
 
         original_chunks = [np.ones(50, dtype=np.float32), np.zeros(30, dtype=np.float32)]
-        recorder = build_mock_recorder(buffer_chunks=original_chunks)
+        recorder = _build_mock_recorder(buffer_chunks=original_chunks)
         original_buffer = recorder._audio_pipeline._buffer
         assert len(original_buffer) == 2
 
@@ -294,7 +338,7 @@ class TestBufferSnapshotUnderLock:
         monkeypatch.setattr("voice_typer.server.recording.buffer._secure_clear_array_background", lambda _old: None)
 
         # Build a recorder with a custom maxlen.
-        recorder = build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
+        recorder = _build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
         custom_maxlen = 42
         recorder._audio_pipeline._buffer = collections.deque([np.ones(50, dtype=np.float32)], maxlen=custom_maxlen)
 
@@ -310,7 +354,7 @@ class TestBufferSnapshotUnderLock:
         # Patch the OWNING module: stop_recording calls
         monkeypatch.setattr("voice_typer.server.recording.buffer._secure_clear_array_background", bg_clear)
 
-        recorder = build_mock_recorder(buffer_chunks=[])
+        recorder = _build_mock_recorder(buffer_chunks=[])
         buf = GrowableRecordingBuffer(maxlen=30000, nominal_sample_rate=16000)
         buf.append(np.ones(50, dtype=np.float32))
         recorder._audio_pipeline._buffer = buf
@@ -324,7 +368,7 @@ class TestBufferSnapshotUnderLock:
         """The captured chunks are concatenated OUTSIDE the lock into"""
         chunk1 = np.array([0.1, 0.2, 0.3], dtype=np.float32)
         chunk2 = np.array([0.4, 0.5], dtype=np.float32)
-        recorder = build_mock_recorder(buffer_chunks=[chunk1, chunk2])
+        recorder = _build_mock_recorder(buffer_chunks=[chunk1, chunk2])
 
         result = stop_recording(recorder)
 
@@ -339,7 +383,7 @@ class TestStatsAndBufferSrCapture:
         """transcription engine can reuse them instead of recomputing"""
         # Use a known signal: constant 0.5 amplitude → RMS = 0.5,
         chunk = np.full(100, 0.5, dtype=np.float32)
-        recorder = build_mock_recorder(buffer_chunks=[chunk])
+        recorder = _build_mock_recorder(buffer_chunks=[chunk])
 
         stop_recording(recorder)
 
@@ -357,7 +401,7 @@ class TestStatsAndBufferSrCapture:
         """When the buffer is non-empty but the concatenated array"""
         # An empty chunk in the buffer, len > 0 passes, but size == 0
         empty_chunk = np.array([], dtype=np.float32)
-        recorder = build_mock_recorder(buffer_chunks=[empty_chunk])
+        recorder = _build_mock_recorder(buffer_chunks=[empty_chunk])
 
         stop_recording(recorder)
 
@@ -371,7 +415,7 @@ class TestStatsAndBufferSrCapture:
             [0.0, 0.0, 0.0005, 0.0009, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
             dtype=np.float32,
         )
-        recorder = build_mock_recorder(buffer_chunks=[chunk])
+        recorder = _build_mock_recorder(buffer_chunks=[chunk])
 
         stop_recording(recorder)
 
@@ -381,7 +425,7 @@ class TestStatsAndBufferSrCapture:
     def test_prepare_audio_called_with_captured_buffer_sr(self):
         """XV-31 / chipmunk regression guard: ``_prepare_audio`` is"""
         chunk = np.ones(100, dtype=np.float32)
-        recorder = build_mock_recorder(
+        recorder = _build_mock_recorder(
             buffer_chunks=[chunk],
             buffer_sr=16000,  # captured local, authoritative
             effective_sr=48000,  # device native rate, must NOT be used
@@ -403,7 +447,7 @@ class TestStatsAndBufferSrCapture:
     def test_prepare_audio_falls_back_to_effective_sr_when_buffer_sr_none(self):
         """``_effective_sr``, the ``or recorder._effective_sr`` idiom."""
         chunk = np.ones(100, dtype=np.float32)
-        recorder = build_mock_recorder(
+        recorder = _build_mock_recorder(
             buffer_chunks=[chunk],
             buffer_sr=None,
             effective_sr=48000,
@@ -419,7 +463,7 @@ class TestStatsAndBufferSrCapture:
         """The return value of ``_prepare_audio`` is the function's"""
         chunk = np.ones(50, dtype=np.float32) * 0.5
         # Build a recorder where _prepare_audio returns a different
-        recorder = build_mock_recorder(buffer_chunks=[chunk])
+        recorder = _build_mock_recorder(buffer_chunks=[chunk])
         resampled = np.full(200, 0.25, dtype=np.float32)
         _prep().side_effect = None
         _prep().return_value = resampled
@@ -433,7 +477,7 @@ class TestStatsAndBufferSrCapture:
         """When ``rms < 0.001``, the function logs a near-silence"""
         # A near-zero chunk → rms ≈ 0.0005 (below the 0.001 threshold).
         chunk = np.full(100, 0.0005, dtype=np.float32)
-        recorder = build_mock_recorder(buffer_chunks=[chunk])
+        recorder = _build_mock_recorder(buffer_chunks=[chunk])
 
         with caplog.at_level(logging.WARNING, logger="voice_typer.server.recording"):
             stop_recording(recorder)
@@ -446,7 +490,7 @@ class TestStatsAndBufferSrCapture:
         """When the buffer is non-empty but the concatenated array is"""
         # A single empty chunk → ``np.concatenate([empty]).reshape(-1)``
         empty_chunk = np.array([], dtype=np.float32)
-        recorder = build_mock_recorder(buffer_chunks=[empty_chunk])
+        recorder = _build_mock_recorder(buffer_chunks=[empty_chunk])
 
         with caplog.at_level(logging.WARNING, logger="voice_typer.server.recording"):
             stop_recording(recorder)
@@ -460,7 +504,7 @@ class TestStatsAndBufferSrCapture:
 
     def test_no_audio_warning_not_emitted_on_empty_buffer_fast_path(self, caplog):
         """The empty-buffer early-return (``if not self._buffer:``)"""
-        recorder = build_mock_recorder(buffer_chunks=[])
+        recorder = _build_mock_recorder(buffer_chunks=[])
 
         with caplog.at_level(logging.WARNING, logger="voice_typer.server.recording"):
             stop_recording(recorder)
@@ -477,7 +521,7 @@ class TestStatsAndBufferSrCapture:
     def test_info_summary_emitted_on_non_empty_audio(self, caplog):
         """The ``log.info`` summary (duration, sr, samples, RMS, peak,"""
         chunk = np.full(100, 0.5, dtype=np.float32)
-        recorder = build_mock_recorder(buffer_chunks=[chunk])
+        recorder = _build_mock_recorder(buffer_chunks=[chunk])
 
         with caplog.at_level(logging.INFO, logger="voice_typer.server.recording"):
             stop_recording(recorder)
@@ -545,7 +589,7 @@ class TestWorkerStopContracts:
     """Pin the per-worker timeout and drain semantics:"""
 
     def test_stop_device_health_checker_timeout_zero(self):
-        recorder = build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
+        recorder = _build_mock_recorder(buffer_chunks=[np.ones(50, dtype=np.float32)])
         stop_recording(recorder)
         recorder._stop_device_health_checker.assert_called_once_with(timeout=0.0)
 

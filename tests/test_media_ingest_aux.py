@@ -215,13 +215,16 @@ class TestTempAudioDownload:
                 (out_dir / "clip.m4a").write_bytes(b"x")
 
         fractions: list[float] = []
-        with downloader.temp_audio_download("https://x", factory=lambda o: FakeYDL(o), on_progress=fractions.append):
+        with downloader.temp_audio_download(
+            "https://x", factory=lambda o: FakeYDL(o), on_progress=fractions.append
+        ):
             pass
         assert hooks
         hooks[0]({"status": "downloading", "total_bytes": 200, "downloaded_bytes": 50})
         hooks[0]({"status": "downloading", "total_bytes_estimate": 100, "downloaded_bytes": 150})
         hooks[0]({"status": "finished", "total_bytes": 200, "downloaded_bytes": 200})
         assert fractions == [0.25, 1.0]
+
 
 
 class TestSubtitles:
@@ -232,6 +235,7 @@ class TestSubtitles:
     def test_pick_language_falls_back_to_en(self):
         subs = {"en": [{"url": "a"}], "fr": [{"url": "c"}]}
         assert subtitles._pick_language(subs, "de") == [{"url": "a"}]
+
 
 
 class TestPackDenoDiscovery:
@@ -292,7 +296,6 @@ class TestPackDenoDiscovery:
     def test_probe_never_raises_on_bad_root(self, tmp_path):
         broken = tmp_path / "missing-root"
         assert js_runtime._pack_deno_path(broken) is None
-
     def test_pick_language_none_when_absent(self):
         assert subtitles._pick_language({"fr": [{"url": "c"}]}, "de") is None
         assert subtitles._pick_language({}, "en") is None

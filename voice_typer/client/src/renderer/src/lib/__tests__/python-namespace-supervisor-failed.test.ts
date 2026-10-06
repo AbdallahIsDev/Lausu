@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import type { TauriGlobal } from "@/lib/tauri-bridge/detect";
+import { describe, expect, it, vi } from "vitest";
 
 import { createPythonNamespace } from "@/lib/tauri-bridge/python-namespace";
 import type { PythonPushEvent } from "@/types/ipc";

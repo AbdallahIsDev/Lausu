@@ -226,7 +226,7 @@ class TestNoEagerConstructionInInit:
 
         LausuApp()
         assert construct_count["n"] == 0, (
-            f"LausuApp.__init__ must NOT eagerly construct UndoRepasteController (got {construct_count['n']} calls)."
+            f"LausuApp.__init__ must NOT eagerly construct UndoRepasteController (got {construct_count['n']} call(s))."
         )
 
     def test_audio_quality_controller_not_constructed_in_init(self, tmp_config_dir, monkeypatch):
@@ -245,7 +245,7 @@ class TestNoEagerConstructionInInit:
 
         LausuApp()
         assert construct_count["n"] == 0, (
-            f"LausuApp.__init__ must NOT eagerly construct AudioQualityController (got {construct_count['n']} calls)."
+            f"LausuApp.__init__ must NOT eagerly construct AudioQualityController (got {construct_count['n']} call(s))."
         )
 
     def test_duck_crash_recovery_not_constructed_in_init(self, tmp_config_dir, monkeypatch):
@@ -264,7 +264,7 @@ class TestNoEagerConstructionInInit:
 
         LausuApp()
         assert construct_count["n"] == 0, (
-            f"LausuApp.__init__ must NOT eagerly construct DuckCrashRecovery (got {construct_count['n']} calls)."
+            f"LausuApp.__init__ must NOT eagerly construct DuckCrashRecovery (got {construct_count['n']} call(s))."
         )
 
     def test_volume_ducker_not_constructed_in_init(self, tmp_config_dir, monkeypatch):
@@ -283,5 +283,5 @@ class TestNoEagerConstructionInInit:
 
         LausuApp()
         assert construct_count["n"] == 0, (
-            f"LausuApp.__init__ must NOT eagerly construct VolumeDucker (got {construct_count['n']} calls)."
+            f"LausuApp.__init__ must NOT eagerly construct VolumeDucker (got {construct_count['n']} call(s))."
         )

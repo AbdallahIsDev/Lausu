@@ -66,7 +66,6 @@ class TestMediaCancelStatus:
         assert resp["type"] == "media_transcribe_result"
         assert resp["data"] == {"job": None}
 
-
 class TestMediaUrlStart:
     def test_url_resolves_then_starts_job(self, ipc_server, fake_service, monkeypatch):
         import voice_typer.server.media_ingest.jobs as jobs_mod

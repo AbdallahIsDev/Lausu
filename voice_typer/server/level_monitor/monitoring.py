@@ -323,7 +323,9 @@ def start_monitoring(mic_id: str | None = None) -> dict:
 
     try:
         dev_info_raw = sd.query_devices(kind="input") if device is None else sd.query_devices(device)
-        native_rate = int(dev_info_raw["default_samplerate"]) if isinstance(dev_info_raw, dict) else WHISPER_SAMPLE_RATE
+        native_rate = (
+            int(dev_info_raw["default_samplerate"]) if isinstance(dev_info_raw, dict) else WHISPER_SAMPLE_RATE
+        )
     except Exception:
         native_rate = WHISPER_SAMPLE_RATE
 
@@ -515,13 +517,13 @@ def _idle_timeout_auto_stop() -> bool:
     """auto-stop the monitor stream if the IPC idle-timeout has fired."""
     if not _state._monitor_active:
         return False
-    # Polls ONLY. Push timestamps self-perpetuate (every push refreshes
-    # the clock, so counting them kept the mic open 24/7 and defeated
-    # the timeout outright). Consumers that need the stream keep it
-    # alive by polling (the mic page heartbeats while visible).
-    last_activity_ts = _state._last_get_level_poll_ts
+    # Consider BOTH activity timestamps. After the push-event migration
+    last_activity_ts = max(
+        _state._last_get_level_poll_ts,
+        _state._mic_level_last_push_ts,
+    )
     if last_activity_ts <= 0.0:
-        # No poll has ever been recorded, don't auto-stop yet
+        # No poll or push has ever been recorded, don't auto-stop yet
         return False
     now = time.monotonic()
     if (now - last_activity_ts) < _state._LEVEL_IDLE_TIMEOUT_SEC:

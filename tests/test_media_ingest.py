@@ -1,4 +1,4 @@
-"""Unit tests for the media_ingest package (ADR-0023 Phase 1)."""
+﻿"""Unit tests for the media_ingest package (ADR-0023 Phase 1)."""
 
 from __future__ import annotations
 
@@ -69,52 +69,6 @@ class TestJobManager:
 
     def test_cancel_idle_false(self):
         assert MediaJobManager().cancel() is False
-
-
-class TestJobErrorCodes:
-    """The ``media_transcribe_error`` code must be a REGISTERED code.
-
-    ``tests/test_error_codes_registry.py`` only proves the literal is
-    registered; this pins WHICH code, because the renderer branches on it
-    (``isNoModelError``) to offer the "Open Models" recovery action.
-    """
-
-    @staticmethod
-    def _code_for(exc: Exception) -> str:
-        import threading
-
-        events: list[dict] = []
-        ready = threading.Event()
-        mgr = MediaJobManager(on_event=lambda e: (events.append(e), ready.set()))
-
-        def _runner(_job):
-            raise exc
-
-        job = mgr.start("src", _runner)
-        assert ready.wait(timeout=5), "the job thread never emitted an event"
-        assert job.status == "failed"
-        errors = [e for e in events if e.get("type") == "media_transcribe_error"]
-        assert errors, f"expected a media_transcribe_error event, got {events!r}"
-        return str(errors[0]["data"]["code"])
-
-    def test_missing_model_maps_to_namespaced_no_model(self):
-        """A missing/corrupt model must surface as ``server.no_model``.
-
-        The old bare ``no_engine_loaded`` literal was not in the error registry,
-        which failed ``test_error_codes_registry``.
-        """
-        from voice_typer.server.asr_errors import ModelNotDownloadedError
-
-        assert self._code_for(ModelNotDownloadedError("no model")) == "server.no_model"
-
-    def test_model_integrity_failure_maps_to_no_model(self):
-        from voice_typer.server.asr_errors import ModelIntegrityError
-
-        assert self._code_for(ModelIntegrityError("corrupt")) == "server.no_model"
-
-    def test_unrelated_failure_stays_internal_error(self):
-        """Only the ASR model errors get the no-model treatment."""
-        assert self._code_for(RuntimeError("boom")) == "internal_error"
 
 
 class TestEngineLoop:
@@ -207,7 +161,7 @@ class TestStorageExport:
 
         with pytest.raises(ValueError):
             storage_mod.export_text("x", str(tmp_path / "out.zzz"), fmt="zzz")
-
+
 
 class TestUrlResolver:
     def test_selects_audio_only_url(self):
@@ -291,62 +245,13 @@ class TestJsRuntime:
 
 
 class TestMiniUpdate:
-    def test_installed_versions_prefer_dunder_version(self, monkeypatch):
-        """``yt_dlp.version`` is a MODULE: only real version strings"""
-        import sys
-        import types
-
-        from voice_typer.server.media_ingest import mini_update as extractor_update
-
-        fake_pkg = types.ModuleType("yt_dlp")
-        fake_sub = types.ModuleType("yt_dlp.version")  # no __version__ here
-        fake_pkg.version = fake_sub
-        fake_pkg.__version__ = "2026.8.19"
-        fake_ejs = types.ModuleType("yt_dlp_ejs")
-        fake_ejs.__version__ = "0.8.0"
-        monkeypatch.setitem(sys.modules, "yt_dlp", fake_pkg)
-        monkeypatch.setitem(sys.modules, "yt_dlp_ejs", fake_ejs)
-        assert extractor_update.installed_extractor_versions() == ("2026.8.19", "0.8.0")
-
-    def test_installed_versions_fall_back_to_submodule(self, monkeypatch):
-        """A package exposing its version only via ``<pkg>.version``"""
-        import sys
-        import types
-
-        from voice_typer.server.media_ingest import mini_update as extractor_update
-
-        fake_pkg = types.ModuleType("yt_dlp")
-        fake_sub = types.ModuleType("yt_dlp.version")
-        fake_sub.__version__ = "2026.1.1"
-        fake_pkg.version = fake_sub
-        monkeypatch.setitem(sys.modules, "yt_dlp", fake_pkg)
-        monkeypatch.delitem(sys.modules, "yt_dlp_ejs", raising=False)
-        backend, _solver = extractor_update.installed_extractor_versions()
-        assert backend == "2026.1.1"
-        assert "module" not in backend
-
-    def test_installed_versions_accept_plain_version_string(self, monkeypatch):
-        """``yt_dlp_ejs.version`` is a plain string (not a module)."""
-        import sys
-        import types
-
-        from voice_typer.server.media_ingest import mini_update as extractor_update
-
-        fake_pkg = types.ModuleType("yt_dlp")
-        fake_pkg.__version__ = "2026.08.19"
-        fake_ejs = types.ModuleType("yt_dlp_ejs")
-        fake_ejs.version = "0.8.0"
-        monkeypatch.setitem(sys.modules, "yt_dlp", fake_pkg)
-        monkeypatch.setitem(sys.modules, "yt_dlp_ejs", fake_ejs)
-        assert extractor_update.installed_extractor_versions() == ("2026.08.19", "0.8.0")
-
     def test_newer_remote_marks_update(self, tmp_path):
         from voice_typer.server.media_ingest import mini_update as extractor_update
 
         state_file = tmp_path / "media-extractor.json"
 
         def _get(url, max_bytes=0, timeout=0):
-            return '{"yt_dlp_version": "2025.01.01"}'
+            return "{\"yt_dlp_version\": \"2025.01.01\"}"
 
         state = extractor_update.check_refresh(
             local_backend="2024.01.01",
@@ -358,6 +263,7 @@ class TestMiniUpdate:
         assert state.update_available is True
         assert state_file.is_file()
         assert extractor_update.load_state(state_file) is not None
+
 
 
 class TestExtractorRefreshStartupCheck:

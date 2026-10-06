@@ -2,8 +2,8 @@
 // Mirrors the loaded Settings hub (`pages/Settings.tsx` +
 // `components/settings/SettingsHub.tsx`): the real shell uses `gap-8`
 // (not the data pages' gap-6), then PageHeading, then ONE
-// `overflow-hidden rounded-lg border-border/8 bg-surface-subtle
-// divide-y divide-border/8` card of 9 section rows: each row is
+// `overflow-hidden rounded-lg border-border/5 bg-surface-subtle
+// divide-y divide-border/5` card of 9 section rows: each row is
 // `flex w-full items-center gap-4 p-4` with a leading h-5 icon, a
 // stacked title/description column, a trailing summary line and a
 // chevron (exactly the 9 entries of `settingsSections.ts`).
@@ -27,7 +27,7 @@ export function SettingsPageSkeleton() {
 	return (
 		<PageShell className="gap-8">
 			<HeadingSkeleton />
-			<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle divide-y divide-border/8">
+			<div className="overflow-hidden rounded-lg border border-border/5 bg-surface-subtle divide-y divide-border/5">
 				{SECTION_ROW_IDS.map((id) => (
 					<div key={id} className="flex w-full items-center gap-4 p-4">
 						<Skeleton className="h-5 w-5 shrink-0" />

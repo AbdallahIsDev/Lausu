@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
-import threading
 import time
 from collections.abc import Callable
-from typing import Any
 
 from voice_typer.server.duration import format_duration
 
@@ -22,12 +20,6 @@ log = logging.getLogger(__name__)
 
 
 class LoadMixin:
-    # Members owned by ParakeetEngine (engine.py):
-    _imports_lock: threading.Lock
-    _lock: threading.RLock
-    _model: Any
-    device: str
-
     @classmethod
     def _ensure_imports(cls) -> bool:
         """Lazily import ``onnx_asr`` + ``onnxruntime``.
@@ -191,24 +183,24 @@ class LoadMixin:
             except OSError as exc:
                 verify_exc = exc
             if not verified:
-                log.error(
-                    "[PARAKEET] Model integrity check failed%s for %s at %s. "
-                    "Refusing to load tampered model. To fix: delete it from the Models page.",
-                    f" (OSError: {verify_exc})" if verify_exc else "",
-                    _PARAKERT_ONNX_REPO_ID,
-                    model_dir,
-                )
-                if progress_callback:
-                    progress_callback("Model integrity check failed; delete and re-download from the Models page.")
-                from voice_typer.server.asr_errors import ModelIntegrityError
+                    log.error(
+                        "[PARAKEET] Model integrity check failed%s for %s at %s. "
+                        "Refusing to load tampered model. To fix: delete it from the Models page.",
+                        f" (OSError: {verify_exc})" if verify_exc else "",
+                        _PARAKERT_ONNX_REPO_ID,
+                        model_dir,
+                    )
+                    if progress_callback:
+                        progress_callback("Model integrity check failed; delete and re-download from the Models page.")
+                    from voice_typer.server.asr_errors import ModelIntegrityError
 
-                raise ModelIntegrityError(
-                    "The cached Parakeet model failed integrity verification. "
-                    "Delete it and download it again from the Models page to recover.",
-                    model_size="parakeet",
-                    backend="parakeet",
-                    repo_id=_PARAKERT_ONNX_REPO_ID,
-                )
+                    raise ModelIntegrityError(
+                        "The cached Parakeet model failed integrity verification. "
+                        "Delete it and download it again from the Models page to recover.",
+                        model_size="parakeet",
+                        backend="parakeet",
+                        repo_id=_PARAKERT_ONNX_REPO_ID,
+                    )
 
             # Load ONNX model via onnx_asr.load_model(...), by TYPE
             try:

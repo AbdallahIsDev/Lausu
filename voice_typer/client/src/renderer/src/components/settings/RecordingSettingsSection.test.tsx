@@ -84,7 +84,9 @@ vi.mock("@/components/feedback/InfoTooltip", () => ({
 import { RecordingSettingsSection } from "@/components/settings/RecordingSettingsSection";
 import type { LausuConfig } from "@/types/config";
 
-function makeConfig(overrides: Partial<LausuConfig> = {}): LausuConfig {
+function makeConfig(
+	overrides: Partial<LausuConfig> = {},
+): LausuConfig {
 	return {
 		schema_version: 1,
 		fast_startup: true,
@@ -207,8 +209,8 @@ describe("RecordingSettingsSection, dictation-key mode and repaste-key presets m
 		render(
 			<RecordingSettingsSection
 				config={makeConfig({ hotkey: "<caps_lock>" })}
-				updateConfig={() => {}}
-				updateConfigDebounced={() => {}}
+				updateConfig={() => { }}
+				updateConfigDebounced={() => { }}
 				isVisible={alwaysVisible}
 			/>,
 		);
@@ -231,8 +233,8 @@ describe("RecordingSettingsSection, dictation-key mode and repaste-key presets m
 				config={makeConfig({
 					repaste_hotkey: "<ctrl>+<shift>+v",
 				})}
-				updateConfig={() => {}}
-				updateConfigDebounced={() => {}}
+				updateConfig={() => { }}
+				updateConfigDebounced={() => { }}
 				isVisible={alwaysVisible}
 			/>,
 		);
@@ -255,8 +257,8 @@ describe("RecordingSettingsSection, dictation-key mode and repaste-key presets m
 				config={makeConfig({
 					repaste_hotkey: "<ctrl>+<alt>+v",
 				})}
-				updateConfig={() => {}}
-				updateConfigDebounced={() => {}}
+				updateConfig={() => { }}
+				updateConfigDebounced={() => { }}
 				isVisible={alwaysVisible}
 			/>,
 		);
@@ -277,8 +279,8 @@ describe("RecordingSettingsSection, dictation-key mode and repaste-key presets m
 				config={makeConfig({
 					repaste_hotkey: "<ctrl>+<shift>+v",
 				})}
-				updateConfig={() => {}}
-				updateConfigDebounced={() => {}}
+				updateConfig={() => { }}
+				updateConfigDebounced={() => { }}
 				isVisible={alwaysVisible}
 			/>,
 		);
@@ -300,8 +302,8 @@ describe("RecordingSettingsSection, dictation-key mode and repaste-key presets m
 		const { rerender } = render(
 			<RecordingSettingsSection
 				config={makeConfig({ hotkey: "<caps_lock>" })}
-				updateConfig={() => {}}
-				updateConfigDebounced={() => {}}
+				updateConfig={() => { }}
+				updateConfigDebounced={() => { }}
 				isVisible={alwaysVisible}
 			/>,
 		);
@@ -316,8 +318,8 @@ describe("RecordingSettingsSection, dictation-key mode and repaste-key presets m
 		rerender(
 			<RecordingSettingsSection
 				config={makeConfig({ hotkey: "<ctrl>" })}
-				updateConfig={() => {}}
-				updateConfigDebounced={() => {}}
+				updateConfig={() => { }}
+				updateConfigDebounced={() => { }}
 				isVisible={alwaysVisible}
 			/>,
 		);
@@ -338,8 +340,8 @@ describe("RecordingSettingsSection, dictation-key mode and repaste-key presets m
 		render(
 			<RecordingSettingsSection
 				config={makeConfig({ hotkey: "<caps_lock>" })}
-				updateConfig={() => {}}
-				updateConfigDebounced={() => {}}
+				updateConfig={() => { }}
+				updateConfigDebounced={() => { }}
 				isVisible={alwaysVisible}
 			/>,
 		);

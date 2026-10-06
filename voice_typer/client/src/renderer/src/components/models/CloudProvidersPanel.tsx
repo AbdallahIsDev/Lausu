@@ -12,16 +12,13 @@ import { memo, useState } from "react";
 import { KeyringStatusBadge } from "@/components/common/KeyringStatusBadge";
 import { FamilyLogo } from "@/components/models/FamilyLogo";
 import {
+	MetadataTag,
 	ModelGroupAccordion,
 	ModelGroupContent,
 	ModelGroupItem,
 	ModelGroupTrigger,
 	ModelVariantRow,
 } from "@/components/models/ModelGroupList";
-import {
-	CloudTag,
-	LanguageScopeTag,
-} from "@/components/models/ModelMetaIconTags";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -107,15 +104,15 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 							</ModelGroupTrigger>
 							<ModelGroupContent>
 								{/* One list row per provider: the API model
-                                                                    name + icon-only metadata chips + the Configure
+                                                                    name + descriptive tags + the Configure
                                                                     action (point 11). */}
 								<ModelVariantRow
 									name={formatModelDisplayName(provider.model)}
 									meta={
-										<span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
-											<CloudTag />
-											<LanguageScopeTag multilingual />
-										</span>
+										<>
+											<MetadataTag>{t("models.cloud.tagCloud")}</MetadataTag>
+											<MetadataTag>{t("models.card.multilingual")}</MetadataTag>
+										</>
 									}
 									actions={
 										<Button
@@ -222,7 +219,7 @@ function ProviderConfigForm({
 	const saveDisabled = !apiKeyValue.trim();
 
 	return (
-		<div className="flex flex-col gap-4 rounded-lg border border-border/8 bg-surface p-4">
+		<div className="flex flex-col gap-4 rounded-lg border border-border/5 bg-surface p-4">
 			<div className="flex flex-col gap-2">
 				<div className="flex items-center gap-2">
 					<label
@@ -347,7 +344,7 @@ function ProviderConfigForm({
 				)}
 			</div>
 			{showConsent && (
-				<div className="rounded-lg border border-border/8 bg-surface-subtle p-4">
+				<div className="rounded-lg border border-border/5 bg-surface-subtle p-4">
 					<div className="flex items-start justify-between gap-4">
 						<div className="flex flex-1 flex-col gap-2">
 							<div className="flex flex-col gap-1">

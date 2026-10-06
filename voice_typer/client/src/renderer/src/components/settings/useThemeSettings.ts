@@ -1,5 +1,3 @@
-import type { ChangeEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cssColorToHex } from "@/lib/color-utils";
 import {
 	clearDraftLS,
@@ -17,6 +15,8 @@ import {
 	THEMES,
 } from "@/themes";
 import type { LausuConfig } from "@/types/config";
+import type { ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { _themeColorCache } from "./themeColorCache";
 

@@ -15,9 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
-	ToggleGroup,
-	type ToggleGroupOption,
-} from "@/components/ui/toggle-group";
+	SegmentedControl,
+	type SegmentedControlOption,
+} from "@/components/ui/segmented-control";
 import { t } from "@/i18n/i18n";
 import { formatVram } from "@/lib/format";
 import { formatModelSpeed } from "@/lib/utils/models";
@@ -137,7 +137,7 @@ export function ModelStep({
 		bucket.models.push(m);
 	}
 
-	const backendOptions: ToggleGroupOption<BackendChoice>[] = [
+	const backendOptions: SegmentedControlOption<BackendChoice>[] = [
 		{ value: "local", label: t("onboarding.backendLocalLabel") },
 		{ value: "cloud", label: t("onboarding.backendCloudLabel") },
 	];
@@ -151,13 +151,13 @@ export function ModelStep({
 				{t("onboarding.modelDescription")}
 			</p>
 
-			{/* Local vs cloud choice — the SAME ToggleGroup the Models
+			{/* Local vs cloud choice — the SAME SegmentedControl the Models
 			    page uses for its Local/Cloud tabs (identical tokens:
 			    rounded-lg border border-border/10 bg-surface-subtle container
 			    + bg-surface bordered active segment, C-MODELS-1). This is the
 			    single place where the user decides how transcription runs;
 			    the app never downloads a model on its own. */}
-			<ToggleGroup
+			<SegmentedControl
 				variant="tabs"
 				options={backendOptions}
 				value={selectedBackend}
@@ -203,7 +203,7 @@ export function ModelStep({
 									</span>
 								</AccordionTrigger>
 								<AccordionContent className="px-4 pb-2">
-									<div className="flex flex-col divide-y divide-border/8">
+									<div className="flex flex-col divide-y divide-border/5">
 										{family.models.map((m) => {
 											const langKey = languageBadgeKey(m.languages);
 											const isSelected = selectedModel === m.name;
@@ -363,7 +363,7 @@ export function ModelStep({
 							value={cloudProvider}
 							onChange={(e) => setCloudProvider(e.target.value)}
 							aria-label={t("onboarding.cloudProviderLabel")}
-							className="w-full rounded-lg border border-border/8 bg-surface px-3 py-2 text-sm text-foreground"
+							className="w-full rounded-lg border border-border/5 bg-surface px-3 py-2 text-sm text-foreground"
 							data-testid="onboarding-cloud-provider"
 						>
 							{CLOUD_PROVIDERS.map((p) => (

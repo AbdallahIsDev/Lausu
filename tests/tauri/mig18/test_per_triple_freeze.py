@@ -20,6 +20,7 @@ BUILD_WINDOWS = BUILD_DIR / "build_sidecar_windows.sh"
 BUILD_MACOS = BUILD_DIR / "build_sidecar_macos.sh"
 BUILD_LINUX = BUILD_DIR / "build_sidecar_linux.sh"
 NUITKA_FREEZE_WRAPPER = BUILD_DIR / "nuitka_freeze.sh"
+PYINSTALLER_SPEC = BUILD_DIR / "lausu.spec"
 TAURI_CONF = PROJECT_ROOT / "src-tauri" / "tauri.conf.json"
 
 # Per-platform mandatory target triples (ADR-0020 §4.1).
@@ -45,14 +46,13 @@ PLATFORM_TRIPLES = {
 }
 
 # ADR-0020 §4 mandated Nuitka flags that EVERY per-platform script must include.
-# C7: the ASR packages are excluded (worker-owned), not included.
 COMMON_NUITKA_FLAGS = [
     "--standalone",
     "--onefile",
     "--assume-yes-for-downloads",
     "--enable-plugin=numpy",
-    "--nofollow-import-to=faster_whisper",
-    "--nofollow-import-to=ctranslate2",
+    "--include-package=faster_whisper",
+    "--include-package=ctranslate2",
     "--include-package=voice_typer",
     "--include-package=websockets",
 ]
@@ -267,12 +267,16 @@ def test_script_contains_expected_nuitka_flag(script_texts: dict[str, str], plat
 
 @pytest.mark.parametrize("platform", ["windows", "macos", "linux"])
 def test_script_includes_ctranslate2_data_dir(script_texts: dict[str, str], platform: str):
-    """C7: no script may ``--include-data-dir`` a ctranslate2 folder."""
+    """Each script must ``--include-data-dir`` the ctranslate2/lib folder."""
     text = script_texts[platform]
-    assert "ctranslate2/lib" not in text, (
-        f"build_sidecar_{platform}.sh must not reference ctranslate2/lib (native libs are worker-owned now)."
+    assert "--include-data-dir" in text, (
+        f"build_sidecar_{platform}.sh must use --include-data-dir to bundle "
+        "the ctranslate2/lib folder (OpenMP + MKL runtimes)."
     )
-    assert "CT2_LIBS_DIR" not in text, f"build_sidecar_{platform}.sh must not define CT2_LIBS_DIR"
+    assert "ctranslate2/lib" in text, (
+        f"build_sidecar_{platform}.sh must --include-data-dir the "
+        "$SITE/ctranslate2/lib folder (captures OpenMP + MKL runtimes)."
+    )
 
 
 @pytest.mark.parametrize("platform", ["windows", "macos", "linux"])
@@ -299,45 +303,101 @@ def test_script_verifies_output_after_build(script_texts: dict[str, str], platfo
     )
 
 
-# ─── 6. faster_whisper + ctranslate2 exclusion (explicit re-assertion) ─
+# ─── 6. faster_whisper + ctranslate2 include-package (explicit re-assertion) ─
 @pytest.mark.parametrize("platform", ["windows", "macos", "linux"])
 def test_script_includes_faster_whisper_package(script_texts: dict[str, str], platform: str):
-    """C7: ``--nofollow-import-to=faster_whisper`` must be present."""
-    text = script_texts[platform]
-    assert "--nofollow-import-to=faster_whisper" in text, (
-        f"build_sidecar_{platform}.sh must --nofollow-import-to=faster_whisper (worker-owned)."
-    )
-    assert "--include-package=faster_whisper" not in text, (
-        f"build_sidecar_{platform}.sh must not --include-package=faster_whisper."
+    """``--include-package=faster_whisper`` must be present (explicit re-assertion)."""
+    assert "--include-package=faster_whisper" in script_texts[platform], (
+        f"build_sidecar_{platform}.sh must --include-package=faster_whisper "
+        "(lazy-imported ASR engine, Nuitka will not auto-discover it)."
     )
 
 
 @pytest.mark.parametrize("platform", ["windows", "macos", "linux"])
 def test_script_includes_ctranslate2_package(script_texts: dict[str, str], platform: str):
-    """C7: ``--nofollow-import-to=ctranslate2`` must be present."""
-    text = script_texts[platform]
-    assert "--nofollow-import-to=ctranslate2" in text, (
-        f"build_sidecar_{platform}.sh must --nofollow-import-to=ctranslate2 (worker-owned)."
-    )
-    assert "--include-package=ctranslate2" not in text, (
-        f"build_sidecar_{platform}.sh must --include-package=ctranslate2."
+    """``--include-package=ctranslate2`` must be present (explicit re-assertion)."""
+    assert "--include-package=ctranslate2" in script_texts[platform], (
+        f"build_sidecar_{platform}.sh must --include-package=ctranslate2 "
+        "(lazy-imported inference backend, Nuitka will not auto-discover it)."
     )
 
 
-# 7.  ctranslate2/libs guards are gone with the plumbing (all platforms) ──
+# 7.  ctranslate2/libs guard (Linux + macOS only) ─────────────────
 def test_linux_script_has_xplat3_ctranslate2_libs_guard(script_texts: dict[str, str]):
-    """C7: the Linux XPLAT-3 guard is deleted with the CT2 plumbing."""
-    assert "CT2_LIBS_DIR" not in script_texts["linux"]
+    """The Linux script must carry the XPLAT-3 ``ctranslate2/libs`` (plural) guard."""
+    text = script_texts["linux"]
+    assert "CT2_LIBS_DIR" in text, "build_sidecar_linux.sh must define CT2_LIBS_DIR (XPLAT-3 ctranslate2/libs guard)."
+    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' in text, (
+        "build_sidecar_linux.sh must guard the optional --include-data-dir "
+        'for ctranslate2/libs behind `if [[ -d "$CT2_LIBS_DIR" ]]`.'
+    )
+    assert '--include-data-dir="$CT2_LIBS_DIR=$CT2_LIBS_DIR"' in text, (
+        "build_sidecar_linux.sh must add the ctranslate2/libs data dir inside the guard block."
+    )
 
 
 def test_macos_script_has_xplat3_ctranslate2_libs_guard(script_texts: dict[str, str]):
-    """C7: the macOS XPLAT-3 guard is deleted with the CT2 plumbing."""
-    assert "CT2_LIBS_DIR" not in script_texts["macos"]
+    """The macOS script must carry the XPLAT-3 ``ctranslate2/libs`` (plural) guard."""
+    text = script_texts["macos"]
+    assert "CT2_LIBS_DIR" in text, "build_sidecar_macos.sh must define CT2_LIBS_DIR (XPLAT-3 ctranslate2/libs guard)."
+    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' in text, (
+        "build_sidecar_macos.sh must guard the optional --include-data-dir "
+        'for ctranslate2/libs behind `if [[ -d "$CT2_LIBS_DIR" ]]`.'
+    )
+    assert '--include-data-dir="$CT2_LIBS_DIR=$CT2_LIBS_DIR"' in text, (
+        "build_sidecar_macos.sh must add the ctranslate2/libs data dir inside the guard block."
+    )
 
 
 def test_windows_script_known_gap_no_ctranslate2_libs_guard(script_texts: dict[str, str]):
-    """C7: the Windows BUILD-2 guard is deleted with the CT2 plumbing."""
-    assert "CT2_LIBS_DIR" not in script_texts["windows"]
+    """BUILD-2 fix: the Windows script now HAS the ctranslate2/libs guard."""
+    text = script_texts["windows"]
+    assert "CT2_LIBS_DIR" in text, "build_sidecar_windows.sh should have CT2_LIBS_DIR guard (BUILD-2 fix)."
+    assert "ctranslate2/libs" in text, "build_sidecar_windows.sh should reference ctranslate2/libs (BUILD-2 fix)."
+    assert 'if [[ -d "$CT2_LIBS_DIR" ]]' in text, (
+        "build_sidecar_windows.sh should guard the libs include with if [[ -d (BUILD-2 fix)."
+    )
+
+
+def test_pyinstaller_fallback_spec_exists():
+    """``scripts/build/lausu.spec`` must exist as the safety-net build path."""
+    assert PYINSTALLER_SPEC.is_file(), (
+        f"missing PyInstaller fallback spec: {PYINSTALLER_SPEC}. "
+        "ADR-0020 §4.5 mandates this as the safety-net build path."
+    )
+    assert PYINSTALLER_SPEC.stat().st_size > 1000, (
+        f"{PYINSTALLER_SPEC} is suspiciously small "
+        f"({PYINSTALLER_SPEC.stat().st_size} bytes); expected a full "
+        "PyInstaller spec (~10+ KB)."
+    )
+
+
+def test_pyinstaller_fallback_spec_references_target_triple():
+    """The PyInstaller fallback spec must compute the target triple."""
+    text = PYINSTALLER_SPEC.read_text(encoding="utf-8")
+    assert "VOICE_TYPER_TAURI_SIDECAR" in text, (
+        "lausu.spec must check the VOICE_TYPER_TAURI_SIDECAR env var "
+        "to switch between the Tauri sidecar path + the legacy predecessor path."
+    )
+    # Must compute the triple for all three platforms (mirror target_triple_for).
+    assert "pc-windows-msvc" in text, (
+        "lausu.spec must compute the Windows target triple (x86_64-pc-windows-msvc / aarch64-pc-windows-msvc)."
+    )
+    assert "apple-darwin" in text, "lausu.spec must compute the macOS target triple."
+    assert "unknown-linux-gnu" in text, "lausu.spec must compute the Linux target triple."
+    # Must construct the python-sidecar-<triple> name.
+    assert "python-sidecar-" in text, (
+        "lausu.spec must construct the output name as `python-sidecar-<triple>` in Tauri sidecar mode."
+    )
+
+
+def test_pyinstaller_fallback_spec_uses_same_entry_point():
+    """The PyInstaller fallback spec must use the SAME entry point as Nuitka."""
+    text = PYINSTALLER_SPEC.read_text(encoding="utf-8")
+    assert "voice_typer" in text and "ipc_server.py" in text, (
+        "lausu.spec must use voice_typer/server/ipc_server.py as the "
+        "entry point (identical to the Nuitka scripts, ADR-0020 §4.5)."
+    )
 
 
 def test_nuitka_freeze_wrapper_exists_and_is_valid_bash():
@@ -375,4 +435,12 @@ def test_nuitka_freeze_wrapper_dispatches_to_per_platform_scripts():
     # --check dry-run mode.
     assert "--check" in text, (
         "nuitka_freeze.sh must support a --check dry-run mode (prints build plan + exits 0 without invoking Nuitka)."
+    )
+
+
+def test_nuitka_freeze_wrapper_documents_pyinstaller_fallback():
+    """The wrapper docstring must point at the PyInstaller fallback spec."""
+    text = NUITKA_FREEZE_WRAPPER.read_text(encoding="utf-8")
+    assert "lausu.spec" in text or "PyInstaller" in text, (
+        "nuitka_freeze.sh must document the PyInstaller fallback (scripts/build/lausu.spec) per ADR-0020 §4.5."
     )
