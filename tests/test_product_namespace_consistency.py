@@ -25,6 +25,14 @@ _LEGACY_TOKEN_ALLOWLIST: dict[str, frozenset[str]] = {
     # to be meaningful.
     "scripts/linux/lausu.polkit": frozenset({"org.lausu.policy", "org.lausu.install-permissions"}),
     "src-tauri/resources/linux-scripts/lausu.polkit": frozenset({"org.lausu.policy", "org.lausu.install-permissions"}),
+    # Windows autostart sweep: these are the PRE-brand-rename scheduled-task
+    # names the sweep deliberately MATCHES so an upgraded install deletes them
+    # and converges on ``com.Lausu.autostart_<hash>`` (see
+    # ``_autostart_windows_sweep.py::_sweep_legacy_tasks``). The strings are the
+    # legacy names being cleaned up, not a namespace this code claims.
+    "voice_typer/server/server_platform/_autostart_windows_sweep.py": frozenset(
+        {"com.lausu.autostart", "com.lausu.autostart*", "com.lausu.autostart_*"}
+    ),
     "voice_typer/server/credential_store/_schema.py": frozenset({"app.Lausu"}),
     "voice_typer/server/credential_store/_migration.py": frozenset({"app.Lausu"}),
     "docs/security/credential-store.md": frozenset({"app.Lausu"}),
