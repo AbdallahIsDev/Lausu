@@ -10,11 +10,6 @@ import logging
 log = logging.getLogger(__name__)
 
 class TemplatePersistenceMixin:
-    """Load/save the template list through the host's ``PersistedJSON``.
-
-    Host contract (provided by ``TemplateManager``): ``_store``, ``_path``,
-    ``_templates``, ``_lock``, ``_rebuild_indexes()``, ``_save()``.
-    """
 
     def _load(self) -> None:
         """Load templates from JSON file.

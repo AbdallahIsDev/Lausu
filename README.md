@@ -112,7 +112,7 @@ This runs the Rust host against a `python -m voice_typer.server.ipc_server --ws`
 
 ## Quick Install (Windows: Easiest)
 
-1. Go to **[Releases](https://github.com/AbdallahIsDev/lausu/releases)**
+1. Go to **[Releases](https://github.com/AbdallahIsDev/voice-typer/releases)**
 2. Download the latest `Lausu-Setup-*.exe`
 3. Double-click the installer
 4. Click Next → Install → Finish

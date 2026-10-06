@@ -7,12 +7,14 @@
 
 // `pub(crate)` so lifecycle can consult `is_dev_mode()` for tray-Restart.
 pub(crate) mod dev_mode;
+// Dev interpreter discovery (python.exe often missing from GUI PATH).
+pub(crate) mod dev_python;
 mod env_allowlist;
 mod handshake;
 mod handshake_loop;
 // Permanent child-event drain: keeps the bounded shell event channel
 // drained post-handshake so child stderr can never block its writers.
-mod event_drain;
+pub(crate) mod event_drain;
 mod release_mode;
 // Worker exe spawn (runtime-pack split). Sidecar is the worker's WS client.
 pub(crate) mod worker;
@@ -31,7 +33,7 @@ pub(crate) use target_triple::{current_target_triple, target_triple_for};
 #[cfg(test)]
 pub(crate) use worker::try_claim_restart_slot;
 #[cfg(test)]
-pub(crate) use worker::worker_shared_env;
+pub(crate) use worker::{should_start_worker, worker_shared_env, worker_started_relay_frame};
 
 use crate::state::SidecarHandle;
 use std::panic::AssertUnwindSafe;
@@ -121,13 +123,25 @@ pub(crate) async fn initialize_sidecar(
     if let Some((port, token)) = adopted_backend_env() {
         *state.adopted_backend.lock().await = true;
         if let Err(e) = crate::sidecar::ws::reconnect_ws(app_handle, &state, port, &token).await {
-            log::error!("[SETUP] initial WS connect to adopted backend failed: {}", e);
+            log::error!(
+                "[SETUP] initial WS connect to adopted backend failed: {}",
+                e
+            );
             // NO respawn fallback in adopted mode (would double-spawn parent).
         }
         return;
     }
 
-    let token = crate::util::generate_token();
+    // Reuse the token minted in `main.rs` setup so the runtime-pack worker
+    // (which is spawned concurrently and reads the same slot) presents the
+    // identical per-launch token. Generate one only if setup did not
+    // pre-seed it (direct/adopted call paths).
+    let token = state
+        .auth_token
+        .get()
+        .cloned()
+        .unwrap_or_else(crate::util::generate_token);
+    let _ = state.auth_token.set(token.clone());
 
     match spawn_sidecar_and_get_port_with_shutdown(app_handle, &token, &state.shutting_down).await {
         Ok((port, child, exit_rx)) => {
@@ -220,18 +234,46 @@ pub(crate) async fn initialize_worker(
     app_handle: &tauri::AppHandle,
     state: Arc<crate::state::WorkerState>,
 ) {
-    // OnceLock: second call (respawn) reuses the host's token.
-    state.auth_token.get_or_init(crate::util::generate_token);
+    // The worker MUST share the sidecar's per-launch token: the sidecar's
+    // worker client reads its own `VOICE_TYPER_IPC_TOKEN` and presents
+    // that value on the worker hop, so a freshly minted token here would
+    // make every auth frame fail. Fall back to generating one ONLY when
+    // the sidecar never recorded a token (adopted-backend / test paths);
+    // `get_or_init` keeps it stable across respawns.
+    let sidecar_state: tauri::State<'_, Arc<crate::state::SidecarState>> = app_handle.state();
+    match sidecar_state.auth_token.get() {
+        Some(token) => {
+            let _ = state.auth_token.set(token.clone());
+        }
+        None => {
+            // No shared credential means worker auth CANNOT succeed. Fail the
+            // spawn loudly rather than minting a divergent secret, which
+            // would spin the client in an auth-reject loop forever.
+            // NOTE: the wording avoids the literal "token" because
+            // `tests/tauri/mig15/test_externalbin_spawn_windows.py` fails
+            // any `log::...!(... token ...)` in this module (ADR-0020 §3
+            // "never logged"); the guard is intentionally crude and stays.
+            log::error!(
+                "[WORKER-INIT] no sidecar bearer credential available; \
+                 skipping worker start (worker auth would always fail)"
+            );
+            return;
+        }
+    }
 
     // Single-instance lock path for the worker process.
     state.lock_file_path.get_or_init(|| {
         crate::platform::worker_path::worker_exe_path().with_file_name("worker.lock")
     });
 
+    let spawn_started = std::time::Instant::now();
     match spawn_worker_and_get_port_with_shutdown(app_handle, state.clone(), &state.shutting_down)
         .await
     {
         Ok((port, child, exit_rx)) => {
+            // Capture the pid before the move into state (kill path below
+            // consumes the child; the relay needs the pid after it).
+            let worker_pid = child.pid();
             // Post-spawn shutting_down re-check (mirror initialize_sidecar).
             if state.shutting_down.load(Ordering::SeqCst) {
                 log::info!(
@@ -252,17 +294,36 @@ pub(crate) async fn initialize_worker(
             // block its writers. Future worker-respawn path must do the same.
             let exit_rx = exit_rx.map(|rx| event_drain::spawn_child_event_drain("[WORKER]", rx));
             *state.child_exit_rx.lock().await = exit_rx;
+            // Crash→respawn supervisor owns the child from here on.
+            // NOTE: see docs/code-notes/worker-lifecycle-policy.md
+            super::worker_supervisor::spawn_worker_exit_watcher(app_handle, state.clone());
             // Never log the bearer token (ADR-0020 §3; pinned by
             // test_externalbin_spawn_windows.py).
             log::info!(
-                "[WORKER-INIT] worker spawned (port={}): WS client + \
-                 respawn supervisor are the next phase (plan §7.2/§7.3; \
-                 the slim-core sidecar owns the worker WS connection)",
-                port
+                "[WORKER-INIT] worker spawned (port={}){}: respawn supervisor active; \
+                 worker WS client is the next phase (plan §7.2/§7.3)",
+                port,
+                super::lifecycle::format_duration_suffix(spawn_started.elapsed())
             );
+            // ADR-0024 Step 2: relay the bind to the sidecar over the
+            // existing host↔sidecar WS hop (fast path + bounded retry).
+            // NOTE: see docs/code-notes/worker-port-relay.md#host-emit
+            worker::relay_worker_started_to_sidecar(app_handle, worker_pid, port);
         }
         Err(e) => {
-            log::error!("[WORKER-INIT] worker spawn failed: {}", e);
+            if worker::is_worker_duplicate_exit(&e) {
+                // Not a crash: a (likely stale, previous-session) worker
+                // holds the single-instance lock. Retrying cannot help
+                // while it lives, so say exactly how to recover instead
+                // of a generic spawn-failed error.
+                log::warn!(
+                    "[WORKER-INIT] worker already running (exit=3), likely a stale process from a \
+                     previous session: offline transcription stays unavailable until that process \
+                     exits; terminate stale `python -m voice_typer.worker` processes to recover"
+                );
+            } else {
+                log::error!("[WORKER-INIT] worker spawn failed: {}", e);
+            }
         }
     }
 }

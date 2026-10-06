@@ -11,7 +11,6 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from voice_typer.server._lazy_import import lazy_module
 from voice_typer.server.history_db_internals.writer_inserts import (  # noqa: F401, re-exported: the facade + _drain_remaining resolve these through this module
     _INSERT_SQL_COLUMNS,
     _INSERT_SQL_ROW_PLACEHOLDERS,
@@ -29,9 +28,6 @@ from voice_typer.server.history_db_internals.writer_submit import (  # noqa: F40
 if TYPE_CHECKING:
     from voice_typer.server.history_db import HistoryDB
 
-# Lazy proxy: ``history_db`` imports this package, so a direct import would be circular.
-_hd = lazy_module("voice_typer.server.history_db")
-
 log = logging.getLogger(__name__)
 
 #: Guards the one-time ``[HISTORY] FTS5 startup rebuild succeeded
@@ -45,6 +41,9 @@ def _reset_fts5_skip_paths() -> None:
 
 def _writer_loop(db: HistoryDB) -> None:
     """History DB writer-thread internals (queue drain, WAL, FTS rebuild)."""
+    # ``history_db`` module namespace (e.g. ``_WAL_CHECKPOINT_INTERVAL``).
+    from voice_typer.server import history_db as _hd
+
     _SHUTDOWN_SENTINEL = _hd._SHUTDOWN_SENTINEL  # noqa: N806
     _BatchableInsert = _hd._BatchableInsert  # noqa: N806
     _WAL_CHECKPOINT_INTERVAL = _hd._WAL_CHECKPOINT_INTERVAL  # noqa: N806
@@ -115,6 +114,9 @@ def _run_checkpoint(db: HistoryDB, conn: sqlite3.Connection) -> None:
     possible without forcing readers/writers to wait. Called every
     ``_WAL_CHECKPOINT_INTERVAL`` seconds by the writer thread.
     """
+    # ``history_db`` module namespace (e.g. _WAL_CHECKPOINT_INTERVAL).
+    from voice_typer.server import history_db as _hd
+
     wal_checkpoint_interval = _hd._WAL_CHECKPOINT_INTERVAL  # noqa: N806
 
     # Clear any lingering transaction from the previous checkpoint cycle
@@ -247,6 +249,8 @@ def _drain_remaining(db: HistoryDB, conn: sqlite3.Connection) -> None:
     """Called after the shutdown sentinel is received. Ensures
     fire-and-forget writes submitted before close() are persisted.
     """
+    from voice_typer.server import history_db as _hd
+
     _SHUTDOWN_SENTINEL = _hd._SHUTDOWN_SENTINEL  # noqa: N806
     _BatchableInsert = _hd._BatchableInsert  # noqa: N806
 

@@ -6,21 +6,23 @@ import { FamilyLogo } from "@/components/models/FamilyLogo";
 import { ModelCardActions } from "@/components/models/ModelCardActions";
 import {
 	MetadataPair,
-	MetadataTag,
 	ModelGroupAccordion,
 	ModelGroupContent,
 	ModelGroupItem,
 	ModelGroupTrigger,
 	ModelVariantRow,
 } from "@/components/models/ModelGroupList";
-import { ModelStorageCard } from "@/components/models/ModelStorageCard";
+import {
+	DistilledTag,
+	LanguageScopeTag,
+	SpeedTag,
+} from "@/components/models/ModelMetaIconTags";
 import { useModelDownloadQueue } from "@/components/models/useModelDownloadQueue";
 import { Button } from "@/components/ui/button";
 import { t } from "@/i18n/i18n";
 import { formatBytes } from "@/lib/format";
 import {
 	type DiskInfo,
-	formatModelSpeed,
 	formatVram,
 	formatWer,
 	getModelVariantDisplayName,
@@ -29,7 +31,6 @@ import {
 	type ModelInfo,
 	type ModelMetadata,
 } from "@/lib/utils/models";
-import type { ModelStorageSummary } from "@/types/ipc";
 
 // Minimum free-disk threshold for the global warning banner. Picked to
 // catch "disk almost full" states without false-positiving on systems
@@ -76,9 +77,6 @@ export interface LocalModelsPanelProps {
 	diskInfo: DiskInfo | null;
 	modelsFolderSupported: boolean;
 	onOpenModelsFolder: () => void;
-	// Shared-hub storage summary (from `get_model_status._storage`).
-	// Optional so direct mounts / tests can omit it; null hides the card.
-	storage?: ModelStorageSummary | null;
 	//      optional initial open-accordion state (the active family), seeds
 	// INTERNAL state only (uncontrolled mode).
 	initialAccordionValue?: string[];
@@ -120,7 +118,6 @@ export const LocalModelsPanel = memo(function LocalModelsPanel({
 	diskInfo,
 	modelsFolderSupported,
 	onOpenModelsFolder,
-	storage,
 	initialAccordionValue,
 	accordionValue: accordionValueProp,
 	onAccordionValueChange,
@@ -149,10 +146,6 @@ export const LocalModelsPanel = memo(function LocalModelsPanel({
 			>
 				{t("models.localModelsDescription")}
 			</p>
-
-			{/* Shared-hub storage card (bytes + path + Open Data Folder).
-                            Hidden while unknown (older backends omit `_storage`). */}
-			<ModelStorageCard storage={storage ?? null} />
 
 			{/* low-disk warning banner. Only shown when the backend
                             exposes `get_disk_info` AND free space is below the threshold. */}
@@ -220,7 +213,6 @@ export const LocalModelsPanel = memo(function LocalModelsPanel({
 							</ModelGroupTrigger>
 							<ModelGroupContent>
 								{family.variants.map((model) => {
-									const badge = getStatusBadge(model);
 									const meta = modelCatalog[model.name];
 									const isSelectingThis = selectingModel === model.name;
 									const isDownloadingThis = downloadingModel === model.name;
@@ -253,20 +245,11 @@ export const LocalModelsPanel = memo(function LocalModelsPanel({
 											<ModelVariantRow
 												name={getModelVariantDisplayName(model, meta)}
 												headingExtra={
-													<>
-														{badge && (
-															<span
-																className={`shrink-0 inline-flex items-center rounded-lg border px-2 py-0.5 text-[11px] font-semibold ${badge.className}`}
-															>
-																{badge.label}
-															</span>
-														)}
-														{insufficientSpace && (
-															<span className="shrink-0 inline-flex items-center rounded-lg border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
-																{t("models.status.insufficientDisk")}
-															</span>
-														)}
-													</>
+													insufficientSpace && (
+														<span className="shrink-0 inline-flex items-center rounded-lg border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
+															{t("models.status.insufficientDisk")}
+														</span>
+													)
 												}
 												meta={meta && <ModelMetadataLine meta={meta} />}
 												actions={
@@ -327,11 +310,11 @@ export const LocalModelsPanel = memo(function LocalModelsPanel({
 	);
 });
 
-// ── Metadata line (label+value pairs vs standalone tags) ─────────────
+// ── Metadata line (label+value pairs vs metadata icon chips) ───────────
 // Distinguishes label+value pairs (VRAM, WER, muted label, colon,
-// primary value) from standalone descriptive tags (Multilingual /
-// English Only, speed, Distilled, neutral pills). Size is NOT part of
-// this line anymore (moved into the download button).
+// primary value) from the icon-only descriptive chips (language scope,
+// speed, Distilled). Size is NOT part of this line anymore (moved into
+// the download button).
 function ModelMetadataLine({ meta }: { meta: ModelMetadata }) {
 	return (
 		<>
@@ -347,49 +330,21 @@ function ModelMetadataLine({ meta }: { meta: ModelMetadata }) {
 					value={formatWer(meta.wer)}
 				/>
 			)}
-			{/* (2026-08-21): the metadata line is now TWO independent
-                            groups, the information group (VRAM/WER pairs above) and
-                            this label group (all descriptive tags). The outer flex
-                            (`ModelVariantRow`) keeps `gap-x-3` between the last
-                            information pair and this group; the tags WITHIN the group
-                            use the tighter `gap-x-1.5` so "Multilingual" / "Fast
-                            Speed" / "Distilled" read as one cluster instead of being
-                            spaced as far apart as the VRAM/WER metrics. */}
+			{/* The metadata line is TWO independent groups: the
+                            information group (VRAM/WER pairs above) and this
+                            icon-chip group (language scope, speed, Distilled).
+                            The outer flex (`ModelVariantRow`) keeps `gap-x-3`
+                            between the last information pair and this group; the
+                            chips WITHIN the group use the tighter `gap-x-1.5`
+                            so they read as one cluster instead of being spaced
+                            as far apart as the VRAM/WER metrics. Each chip is
+                            icon-only; its meaning (e.g. "Fast Speed") lives in
+                            its hover/focus tooltip + accessible name. */}
 			<span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
-				<MetadataTag>
-					{meta.multilingual
-						? t("models.card.multilingual")
-						: t("models.card.englishOnly")}
-				</MetadataTag>
-				<MetadataTag>
-					{t("models.card.speedSuffix", {
-						rating: formatModelSpeed(meta.speed_rating),
-					})}
-				</MetadataTag>
-				{meta.is_distilled && (
-					<MetadataTag>{t("models.card.distilled")}</MetadataTag>
-				)}
+				<LanguageScopeTag multilingual={meta.multilingual} />
+				<SpeedTag rating={meta.speed_rating} />
+				{meta.is_distilled && <DistilledTag />}
 			</span>
 		</>
 	);
-}
-
-// ── Local helper: status badge for dep-required models ────────────────
-// Kept inside the panel (not in lib/utils/models.ts) because it's
-// purely presentational, it returns CSS color strings tied to the
-// amber-400 token used by the deps-required badge. The lib module stays
-// free of styling concerns.
-
-function getStatusBadge(
-	model: ModelInfo,
-): { label: string; className: string } | null {
-	if (!model.depsOk)
-		return {
-			label: t("models.status.depsRequired"),
-			// warning token pair (same treatment as the low-disk banner
-			// above), tracks light/dark/custom themes, unlike the
-			// previous hardcoded #f59e0b hex.
-			className: "bg-warning/15 text-warning border-warning/40",
-		};
-	return null;
 }

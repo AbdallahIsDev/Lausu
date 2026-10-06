@@ -24,13 +24,15 @@ SUPPORTED_TRIPLES: tuple[str, ...] = (
 
 WINDOWS_TRIPLES: frozenset[str] = frozenset({"x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"})
 
-# C-CI-13: never rename these; new §11.9 names are additive only.
+# C-CI-13: never rename these without updating every consumer in lockstep
+# (tauri-build.yml downloads, arm-validation download, parity tests);
+# "Lausu-*" labels replaced the "Tauri" labels per owner decision.
 EXISTING_PROTECTED_NAMES: tuple[str, ...] = (
-    "tauri-windows-installer",
-    "Lausu-Tauri-MSI",
-    "Lausu-Tauri-Sidecar-Binaries",
-    "Lausu-Tauri-SHA256SUMS",
-    "tauri-binaries-manifest-windows",
+    "Lausu-Windows-Installer",
+    "Lausu-Windows-MSI",
+    "Lausu-Windows-Sidecar-Binaries",
+    "Lausu-Windows-SHA256SUMS",
+    "Lausu-Binaries-Manifest-Windows",
     "python-sidecar-x86_64-pc-windows-msvc.exe",
     "python-sidecar-aarch64-pc-windows-msvc.exe",
     "lausu-worker-x86_64-pc-windows-msvc.exe",

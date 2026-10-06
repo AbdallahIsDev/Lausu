@@ -163,29 +163,9 @@ const ActivityListRow = memo(function ActivityListRow({
 	);
 
 	return (
-		// Row layout: two stacked blocks. The transcript takes the FULL
-		// width on top; below it a meta row spreads the timestamp/word
-		// count (inline-start) and the action cluster (inline-end) with
-		// justify-between, so the buttons always sit at the far end
-		// (mirrored automatically in RTL) instead of floating
-		// vertically centered beside wrapped text.
 		<div className="flex flex-col gap-1 px-4 py-2">
 			<div className="min-w-0">
-				{/* Positioning context for the collapsed fade overlay. */}
 				<div className="relative min-w-0">
-					{/* The text block doubles as the expand/collapse control
-					    when the row can reveal more: clicking anywhere on the
-					    text toggles, Enter/Space activate it from keyboard
-					    focus, and aria-expanded exposes the disclosure state.
-					    There is deliberately NO hover wash behind the text —
-					    the truncated line already carries the inline fade +
-					    "Show more" affordance below, so a background box
-					    would just add noise. Action buttons are OUTSIDE this
-					    block, so their click targets never collide with it.
-					    Not a native <button>: transcript text must stay
-					    mouse-selectable, so the disclosure semantics are
-					    carried by role/tabIndex/aria-expanded with explicit
-					    keyboard activation instead. */}
 					{/* biome-ignore lint/a11y/noStaticElementInteractions: the block IS the disclosure control (see comment above), text selection inside a native <button> is blocked by the UA stylesheet. */}
 					{/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: aria-expanded is the disclosure state; the conditional undefined keeps it off inert rows. */}
 					<div
@@ -199,19 +179,9 @@ const ActivityListRow = memo(function ActivityListRow({
 							expandable
 								? "cursor-pointer focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
 								: ""
-							// Reserve room for the floating bottom-center
-							// button once expanded: without it a long last
-							// line runs underneath the button. Collapsed
-							// text needs no reserve (the button sits on
-							// the masked fade).
 						} ${expanded ? "pb-7" : ""} ${loadingText ? "opacity-60" : ""}`}
 					>
 						<p
-							// The bottom fade lives on the text itself and
-							// ONLY while it is actually clamped (collapsed
-							// expandable rows): single-line and expanded
-							// text must render unmasked. Full-height fade
-							// (0% to 100%).
 							className={`text-sm text-foreground leading-snug overflow-hidden text-ellipsis ${
 								expandable && !expanded ? "mask-b-from-0% mask-b-to-100%" : ""
 							}`}
@@ -227,18 +197,7 @@ const ActivityListRow = memo(function ActivityListRow({
 						>
 							{displayedText}
 						</p>
-						{/* Single reveal control for expandable rows (ONE
-						    button, always in the same spot). The fade
-						    itself lives on the <p> via mask-b (see
-						    above); this <button> is positioned absolute
-						    on its own, centered along the bottom edge of
-						    the text block (left-1/2 + -translate-x-1/2
-						    centers in both LTR and RTL), no wrapper
-						    element, no separate button row, no extra
-						    vertical space. Expanding only flips its label
-						    (Show more ↔ Show less), the position never
-						    moves. Nested inside the toggle block, so it
-						    stops propagation to avoid double-toggling. */}
+
 						{expandable && (
 							<button
 								type="button"
@@ -249,7 +208,7 @@ const ActivityListRow = memo(function ActivityListRow({
 									void toggleExpanded();
 								}}
 								onKeyDown={(e) => e.stopPropagation()}
-								className="absolute bottom-0 left-1/2 -translate-x-1/2 cursor-pointer whitespace-nowrap text-sm leading-snug text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden rounded-lg"
+								className="absolute -bottom-6.5 left-1/2 -translate-x-1/2 cursor-pointer whitespace-nowrap text-sm leading-snug text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden rounded-lg"
 							>
 								{loadingText
 									? t("history.loading")
@@ -261,10 +220,7 @@ const ActivityListRow = memo(function ActivityListRow({
 					</div>
 				</div>
 			</div>
-			{/* Meta row: message info at the inline-start, every action
-			    at the far inline-end. justify-between (not ms-auto on
-			    the cluster) keeps the two ends pinned even when the
-			    metadata is short. */}
+
 			<div className="flex items-center justify-between gap-2">
 				<span className="text-xs text-muted-foreground block min-w-0 truncate">
 					{grouped
@@ -280,11 +236,6 @@ const ActivityListRow = memo(function ActivityListRow({
 					)}
 				</span>
 				<div className="flex shrink-0 items-center gap-1">
-					{/* Action order: Copy first (copying a past transcription is
-				    the primary reason a user opens History), then
-				    Star/Favorite, then Delete LAST, destructive actions
-				    never lead the group. Copy always receives the DISPLAYED
-				    text, so an expanded row copies the full transcript. */}
 					<Button
 						variant="ghost"
 						size="icon-xs"
@@ -409,7 +360,7 @@ function ActivityListInner({
 			<div className="flex w-full flex-col gap-2 [text-wrap:auto]">
 				{!hideHeader && (
 					<div className="flex items-center justify-between w-full">
-						<span className="text-[12px] font-semibold text-foreground">
+						<span className="text-xs font-semibold text-foreground">
 							{title}
 						</span>
 						{showViewAll && onViewAll && (
@@ -417,14 +368,14 @@ function ActivityListInner({
 								onClick={onViewAll}
 								variant="link"
 								size="xs"
-								className="text-[12px] font-semibold text-muted-foreground hover:text-foreground p-0"
+								className="text-xs font-semibold text-muted-foreground hover:text-foreground"
 							>
 								{t("activityList.viewAll")}
 							</Button>
 						)}
 					</div>
 				)}
-				<div className="rounded-lg border border-border/5 bg-surface-subtle">
+				<div className="rounded-lg border border-border/8 bg-surface-subtle">
 					<p className="px-3.5 py-4 text-xs text-muted-foreground text-center">
 						{t("activityList.noRecentActivity")}
 					</p>
@@ -444,15 +395,13 @@ function ActivityListInner({
 		<div className="flex w-full flex-col gap-2 [text-wrap:auto]">
 			{!hideHeader && (
 				<div className="flex items-center justify-between w-full">
-					<span className="text-[12px] font-semibold text-foreground">
-						{title}
-					</span>
+					<span className="text-xs font-semibold text-foreground">{title}</span>
 					{showViewAll && onViewAll && (
 						<Button
 							onClick={onViewAll}
 							variant="link"
 							size="xs"
-							className="text-[12px] font-semibold text-muted-foreground hover:text-foreground p-0"
+							className="text-xs font-semibold text-muted-foreground hover:text-foreground"
 						>
 							{t("activityList.viewAll")}
 						</Button>
@@ -471,15 +420,10 @@ function ActivityListInner({
 							aria-labelledby={
 								group.label ? `history-date-${group.key}` : undefined
 							}
-							className="rounded-lg border border-border/5 bg-surface-subtle"
+							className="rounded-lg border border-border/8 bg-surface-subtle"
 						>
 							{group.label && (
 								<div className="px-4 pt-3 pb-1">
-									{/* h2, not h3: the page title is the only
-									    h1 and nothing renders an h2 between it
-									    and this header, an h3 here skips a
-									    level (axe heading-order). Visual style
-									    unchanged (still the muted 12px label). */}
 									<h2
 										id={`history-date-${group.key}`}
 										className="text-xs font-semibold tracking-wide text-muted-foreground"
@@ -488,7 +432,7 @@ function ActivityListInner({
 									</h2>
 								</div>
 							)}
-							<div className="divide-y divide-border/5">
+							<div className="divide-y divide-border/8">
 								{group.records.map((item) => (
 									<ActivityListRow
 										key={item.id}
@@ -507,7 +451,7 @@ function ActivityListInner({
 					))}
 				</div>
 			) : (
-				<div className="rounded-lg border border-border/5 bg-surface-subtle divide-y divide-border/5">
+				<div className="rounded-lg border border-border/8 bg-surface-subtle divide-y divide-border/8">
 					{" "}
 					{items.map((item) => (
 						<ActivityListRow

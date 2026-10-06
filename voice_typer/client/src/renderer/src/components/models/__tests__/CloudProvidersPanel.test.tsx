@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CloudProvidersPanel } from "@/components/models/CloudProvidersPanel";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { ApiTestResult } from "@/hooks/useModelLifecycle";
 import type { CloudProvider } from "@/lib/utils/models";
 import type { LausuConfig } from "@/types/config";
@@ -57,6 +58,12 @@ vi.mock("@/components/ui/switch", () => ({
 		/>
 	),
 }));
+
+/** Wrap in the shared TooltipProvider so the icon-only metadata chips
+ *  (cloud / language) mount their Radix tooltip. */
+function renderPanel(ui: React.ReactElement) {
+	return render(<TooltipProvider delayDuration={200}>{ui}</TooltipProvider>);
+}
 
 const noop = vi.fn();
 
@@ -116,7 +123,7 @@ describe("CloudProvidersPanel, provider brand logos + collapsible groups", () =>
 			url: "https://api.deepgram.com/v1/listen",
 			model: "nova-2",
 		};
-		const { container } = render(
+		const { container } = renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				cloudProviders={[openaiProvider, groqProvider, deepgramProvider]}
@@ -139,7 +146,7 @@ describe("CloudProvidersPanel, provider brand logos + collapsible groups", () =>
 	});
 
 	it("renders each provider as a collapsible group with a Configure action (not an always-open card)", () => {
-		render(<CloudProvidersPanel {...baseProps} />);
+		renderPanel(<CloudProvidersPanel {...baseProps} />);
 
 		// Group header exists for the provider.
 		expect(
@@ -176,6 +183,19 @@ describe("CloudProvidersPanel, provider brand logos + collapsible groups", () =>
 			screen.getByRole("button", { name: /Hide OpenAI Whisper API setup/i }),
 		).toBeInTheDocument();
 	});
+
+	it("renders the model row metadata as icon-only chips (no text pills)", () => {
+		renderPanel(<CloudProvidersPanel {...baseProps} />);
+		expandProviderGroup("OpenAI Whisper API");
+		// Cloud-hosted + multilingual are icon-only buttons; their meaning
+		// lives in the accessible name + tooltip, never as visible text.
+		expect(screen.getByRole("button", { name: "Cloud" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "Multilingual" }),
+		).toBeInTheDocument();
+		expect(screen.queryByText("Cloud")).toBeNull();
+		expect(screen.queryByText("Multilingual")).toBeNull();
+	});
 });
 
 describe("CloudProvidersPanel, test-result span is a live region", () => {
@@ -186,7 +206,7 @@ describe("CloudProvidersPanel, test-result span is a live region", () => {
 			message: "Connection successful: API key is valid.",
 			status: "success",
 		};
-		render(
+		renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				testResults={{ openai: testResult }}
@@ -205,7 +225,7 @@ describe("CloudProvidersPanel, test-result span is a live region", () => {
 	});
 
 	it("test-result span is absent when there is no testResult for the provider", () => {
-		render(<CloudProvidersPanel {...baseProps} testResults={{}} />);
+		renderPanel(<CloudProvidersPanel {...baseProps} testResults={{}} />);
 		openApiKeyForm();
 		expect(screen.queryByRole("status")).toBeNull();
 	});
@@ -219,7 +239,7 @@ describe("CloudProvidersPanel, three test-result color branches", () => {
 			message: "ok",
 			status: "success",
 		};
-		render(
+		renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				testResults={{ openai: testResult }}
@@ -236,7 +256,7 @@ describe("CloudProvidersPanel, three test-result color branches", () => {
 			message: "bad key",
 			status: "failure",
 		};
-		render(
+		renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				testResults={{ openai: testResult }}
@@ -252,7 +272,7 @@ describe("CloudProvidersPanel, three test-result color branches", () => {
 			message: "testing…",
 			status: "info",
 		};
-		render(
+		renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				testResults={{ openai: testResult }}
@@ -272,13 +292,11 @@ describe("CloudProvidersPanel, consent progressive disclosure", () => {
 	afterEach(() => cleanup());
 
 	it("hides the consent card when no API key is set AND consent is not granted", () => {
-		render(
+		renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				apiKeys={{}}
-				config={
-					{ ...baseConfig, cloud_openai_consent: false } as LausuConfig
-				}
+				config={{ ...baseConfig, cloud_openai_consent: false } as LausuConfig}
 			/>,
 		);
 		openApiKeyForm();
@@ -286,13 +304,11 @@ describe("CloudProvidersPanel, consent progressive disclosure", () => {
 	});
 
 	it("shows the consent card when an API key is present (even if consent not granted)", () => {
-		render(
+		renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				apiKeys={{ openai: "sk-test" }}
-				config={
-					{ ...baseConfig, cloud_openai_consent: false } as LausuConfig
-				}
+				config={{ ...baseConfig, cloud_openai_consent: false } as LausuConfig}
 			/>,
 		);
 		openApiKeyForm();
@@ -301,13 +317,11 @@ describe("CloudProvidersPanel, consent progressive disclosure", () => {
 	});
 
 	it("shows the consent card when consent is already granted (even without an API key)", () => {
-		render(
+		renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				apiKeys={{}}
-				config={
-					{ ...baseConfig, cloud_openai_consent: true } as LausuConfig
-				}
+				config={{ ...baseConfig, cloud_openai_consent: true } as LausuConfig}
 			/>,
 		);
 		openApiKeyForm();
@@ -317,13 +331,11 @@ describe("CloudProvidersPanel, consent progressive disclosure", () => {
 
 	it("toggling the consent switch invokes onConsentChange with the new value", () => {
 		const onConsentChange = vi.fn();
-		render(
+		renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				apiKeys={{ openai: "sk-test" }}
-				config={
-					{ ...baseConfig, cloud_openai_consent: false } as LausuConfig
-				}
+				config={{ ...baseConfig, cloud_openai_consent: false } as LausuConfig}
 				onConsentChange={onConsentChange}
 			/>,
 		);
@@ -342,7 +354,7 @@ describe("CloudProvidersPanel, Save / Test buttons", () => {
 		//the Save Key button is disabled when the input is empty,
 		// so the test must pass a non-empty key to click it.
 		const onSaveApiKey = vi.fn();
-		render(
+		renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				apiKeys={{ openai: "sk-test" }}
@@ -358,7 +370,7 @@ describe("CloudProvidersPanel, Save / Test buttons", () => {
 
 	it("Test Connection button invokes onTestConnection with the provider key", () => {
 		const onTestConnection = vi.fn();
-		render(
+		renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				onTestConnection={onTestConnection}
@@ -380,7 +392,9 @@ describe("CloudProvidersPanel, Save Key button disabled guard", () => {
 	afterEach(() => cleanup());
 
 	it("disables the Save Key button when the API key input is empty", () => {
-		render(<CloudProvidersPanel {...baseProps} apiKeys={{ openai: "" }} />);
+		renderPanel(
+			<CloudProvidersPanel {...baseProps} apiKeys={{ openai: "" }} />,
+		);
 		openApiKeyForm();
 		const saveBtn = screen.getByRole("button", {
 			name: /Save OpenAI Whisper API API key/i,
@@ -389,7 +403,7 @@ describe("CloudProvidersPanel, Save Key button disabled guard", () => {
 	});
 
 	it("enables the Save Key button when the API key input has a non-whitespace value", () => {
-		render(
+		renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				apiKeys={{ openai: "sk-test-key" }}
@@ -403,7 +417,9 @@ describe("CloudProvidersPanel, Save Key button disabled guard", () => {
 	});
 
 	it("disables the Save Key button when the input is only whitespace", () => {
-		render(<CloudProvidersPanel {...baseProps} apiKeys={{ openai: "   " }} />);
+		renderPanel(
+			<CloudProvidersPanel {...baseProps} apiKeys={{ openai: "   " }} />,
+		);
 		openApiKeyForm();
 		const saveBtn = screen.getByRole("button", {
 			name: /Save OpenAI Whisper API API key/i,
@@ -420,7 +436,7 @@ describe("CloudProvidersPanel, Test Connection pending state + clear-on-key-chan
 	afterEach(() => cleanup());
 
 	it("disables the Test Connection button + sets aria-busy when testResult.status is 'pending'", () => {
-		render(
+		renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				apiKeys={{ openai: "sk-test" }}
@@ -438,7 +454,7 @@ describe("CloudProvidersPanel, Test Connection pending state + clear-on-key-chan
 	});
 
 	it("renders the spinning Loading03Icon (NOT SparklesIcon) when testResult.status is 'pending'", () => {
-		render(
+		renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				apiKeys={{ openai: "sk-test" }}
@@ -455,7 +471,7 @@ describe("CloudProvidersPanel, Test Connection pending state + clear-on-key-chan
 	});
 
 	it("enables the Test Connection button + uses SparklesIcon when no test is in flight", () => {
-		render(
+		renderPanel(
 			<CloudProvidersPanel {...baseProps} apiKeys={{ openai: "sk-test" }} />,
 		);
 		openApiKeyForm();
@@ -472,7 +488,7 @@ describe("CloudProvidersPanel, Test Connection pending state + clear-on-key-chan
 	it("clears the stale test result via onClearTestResult when the API key Input changes", () => {
 		const onApiKeyChange = vi.fn();
 		const onClearTestResult = vi.fn();
-		render(
+		renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				apiKeys={{ openai: "sk-test" }}

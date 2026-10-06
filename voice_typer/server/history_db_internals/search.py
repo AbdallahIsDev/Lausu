@@ -7,7 +7,6 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-from voice_typer.server._lazy_import import lazy_module
 from voice_typer.server.history_db_internals.search_projection import (  # noqa: F401, re-exported: the facade aliases + read paths resolve these here
     _LIST_COLUMNS_SQL,
     _LIST_COLUMNS_T_SQL,
@@ -26,9 +25,6 @@ from voice_typer.server.history_db_internals.search_query import (  # noqa: F401
 
 if TYPE_CHECKING:
     from voice_typer.server.history_db import HistoryDB
-
-# Lazy proxy: ``history_db`` imports this package, so a direct import would be circular.
-_hd = lazy_module("voice_typer.server.history_db")
 
 log = logging.getLogger(__name__)
 
@@ -53,6 +49,8 @@ def get_recent(
     before_id: int | None = None,
 ) -> list[dict]:
     """Get recent transcriptions with offset-based pagination."""
+    from voice_typer.server import history_db as _hd
+
     limit = min(max(limit, 1), _hd._MAX_LIST_LIMIT)
     conn = db._get_read_conn()
     with contextlib.closing(conn.cursor()) as cursor:
@@ -118,6 +116,8 @@ def search(
     before_id: int | None = None,
 ) -> list[dict]:
     """Search transcriptions by text with offset-based pagination."""
+    from voice_typer.server import history_db as _hd
+
     limit = min(max(limit, 1), _hd._MAX_LIST_LIMIT)
     conn = db._get_read_conn()
     with contextlib.closing(conn.cursor()) as cursor:
@@ -283,6 +283,8 @@ def get_favorites(
     before_id: int | None = None,
 ) -> list[dict]:
     """Get favorited transcriptions with offset-based pagination."""
+    from voice_typer.server import history_db as _hd
+
     limit = min(max(limit, 1), _hd._MAX_LIST_LIMIT)
     conn = db._get_read_conn()
     with contextlib.closing(conn.cursor()) as cursor:
@@ -326,6 +328,8 @@ def get_favorites(
 
 def get_today_stats(db: HistoryDB) -> dict:
     """Get statistics for today's transcriptions."""
+    from voice_typer.server import history_db as _hd
+
     # check the cache first.
     now = time.monotonic()
     with db._today_stats_cache_lock:
@@ -395,7 +399,9 @@ def get_transcription_text(
             e,
         )
         if raise_on_error:
-            raise _hd.HistoryDBError(str(e)) from e
+            from voice_typer.server.history_db import HistoryDBError
+
+            raise HistoryDBError(str(e)) from e
         return {"id": transcription_id, "text": ""}
 
 
@@ -405,6 +411,8 @@ def get_history_count(
     raise_on_error: bool = False,
 ) -> int:
     """Return the total number of transcription rows."""
+    from voice_typer.server import history_db as _hd
+
     now = time.monotonic()
     with db._history_count_cache_lock:
         if db._history_count_cache is not None and (now - db._history_count_cache_ts) < _hd._HISTORY_COUNT_CACHE_TTL_S:
@@ -422,7 +430,9 @@ def get_history_count(
     except Exception as e:
         log.exception("[HISTORY] Failed to get history count: %s", e)
         if raise_on_error:
-            raise _hd.HistoryDBError(str(e)) from e
+            from voice_typer.server.history_db import HistoryDBError
+
+            raise HistoryDBError(str(e)) from e
         return 0
 
 

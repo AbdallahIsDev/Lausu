@@ -70,10 +70,9 @@ from voice_typer.server.history_db_internals import (  # noqa: F401, re-export s
     search,
     writer,
 )
-from voice_typer.server.history_db_internals.decorators import (
+from voice_typer.server.history_db_internals.decorators import _wrap_read, _wrap_write
+from voice_typer.server.history_db_internals.errors import (
     HistoryDBError,  # noqa: F401, re-exported: callers import HistoryDBError from this module
-    _wrap_read,
-    _wrap_write,
 )
 from voice_typer.server.history_db_internals.internal_api import HistoryDBInternals
 from voice_typer.server.history_db_internals.retention import RetentionResult

@@ -7,20 +7,10 @@ round-trip) as opposed to the on-disk persistence in ``templates``.
 import json
 import logging
 
-from voice_typer.server._lazy_import import lazy_module
-
 log = logging.getLogger(__name__)
-
-# Lazy proxy: ``templates`` imports this module, so a direct import would be circular.
-_tmpl = lazy_module("voice_typer.server.templates")
 
 
 class TemplateTransferMixin:
-    """Export/import the template list as JSON text.
-
-    Host contract (provided by ``TemplateManager``): ``_templates``,
-    ``_lock``, ``_rebuild_indexes()``, ``_save()``.
-    """
 
     def export_json(self) -> str:
         """Export templates as a JSON string.
@@ -54,6 +44,8 @@ class TemplateTransferMixin:
         a half-extended list.
         """
         with self._lock:
+            from voice_typer.server import templates as _tmpl  # call-time caps lookup avoids an import cycle
+
             try:
                 data = json.loads(json_str)
                 templates = data if isinstance(data, list) else data.get("templates", [])

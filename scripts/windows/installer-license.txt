@@ -73,4 +73,4 @@ make in violation of applicable law (see section 4).
 
 8. PRIVACY POLICY
 The full privacy and security policy is available at
-https://github.com/AbdallahIsDev/lausu - see SECURITY.md.
+https://github.com/AbdallahIsDev/voice-typer - see SECURITY.md.

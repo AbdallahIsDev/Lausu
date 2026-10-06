@@ -146,7 +146,7 @@ export function ConnectionStatusScreen({
 									{progressPercent}%
 								</span>
 								<div
-									className="h-1.5 w-full overflow-hidden rounded-full bg-surface-subtle"
+									className="h-1.5 w-full overflow-hidden rounded-full bg-surface-hover"
 									role="progressbar"
 									aria-valuenow={progressPercent}
 									aria-valuemin={0}
