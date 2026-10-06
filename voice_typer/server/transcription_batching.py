@@ -8,6 +8,7 @@ these helpers.
 
 from __future__ import annotations
 
+import importlib
 import logging
 from typing import Any, Final
 
@@ -50,8 +51,12 @@ def _batched_pipeline_for(engine: Any) -> Any | None:
     None means "stay sequential": non-CUDA device, previous-text
     conditioning (batched windows decode independently, so chaining
     context across them would change results), a mocked/non-faster-whisper
-    model (unit tests), or a missing faster-whisper install. The import is
-    function-local so the slim-core import ratchet never sees it.
+    model (unit tests), or a missing faster-whisper install. The import goes
+    through ``importlib`` rather than an ``import`` statement: two consumers
+    scan for static imports of ``faster_whisper``/``ctranslate2`` — Nuitka's
+    module follower (which must never pull them into the frozen sidecar) and
+    the slim-core ratchet (``scripts/slim_core_ml_ratchet_check.py``). Same
+    pattern as ``system_whisper.py``.
     """
     if getattr(engine, "condition_on_previous_text", False):
         return None
@@ -61,11 +66,11 @@ def _batched_pipeline_for(engine: Any) -> Any | None:
     if model is None or type(model).__module__.split(".")[0] != "faster_whisper":
         return None
     try:
-        from faster_whisper import BatchedInferencePipeline
-    except ImportError:
+        pipeline_cls = importlib.import_module("faster_whisper").BatchedInferencePipeline
+    except (ImportError, AttributeError):
         return None
     try:
-        return BatchedInferencePipeline(model)
+        return pipeline_cls(model)
     except Exception:
         log.debug("[TRANSCRIBE] batched pipeline unavailable, staying sequential", exc_info=True)
         return None

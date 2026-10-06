@@ -11,7 +11,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from voice_typer.server.service import update_check
 from voice_typer.server.service.update_check import (
     DEFAULT_OFFLINE_PACK_MANIFEST_URL,
