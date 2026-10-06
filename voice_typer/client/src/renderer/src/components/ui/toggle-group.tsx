@@ -303,10 +303,10 @@ export function ToggleGroup<T extends string>({
 				// minus the inset. The former `pill` variant
 				// (rounded-full + p-0.75) is gone.
 				variant === "default" &&
-					"rounded-lg border border-border/8 bg-border/10 p-0.5",
+					"rounded-lg border border-border/8 bg-border/6 p-0.5",
 				variant === "default" &&
 					(context === "sidebar"
-						? "dark:border-border/0 dark:bg-border/10"
+						? "dark:border-border/0 dark:bg-border/5"
 						: "dark:bg-border/0"),
 				variant === "tabs" && "bg-transparent rounded-none p-1",
 				className,
@@ -316,7 +316,7 @@ export function ToggleGroup<T extends string>({
 			{indicatorStyle && (
 				<div
 					className={cn(
-						"pointer-events-none absolute z-0 transition-all duration-200 ease-out",
+						"pointer-events-none absolute z-0 transition-all duration-200 ease-out border border-border/10 dark:border-border/5",
 						// Radius = parent corner − inset, so the pill's outer
 						// curve matches the container's (rounded-lg − p-0.5 ⇒
 						// calc(--radius - inset)), never the same rounded-lg.
@@ -324,7 +324,9 @@ export function ToggleGroup<T extends string>({
 							"inset-y-0.5 rounded-[calc(var(--radius)-0.125rem)] bg-surface shadow-xs",
 						// Dark-mode surface treatment; light keeps bg-surface.
 						variant === "default" &&
-							(context === "sidebar" ? "dark:bg-sidebar" : "dark:bg-border/10"),
+							(context === "sidebar"
+								? "dark:bg-sidebar "
+								: "dark:bg-border/10"),
 						variant === "tabs" &&
 							"inset-y-1 rounded-[calc(var(--radius)-0.25rem)] bg-input",
 						indicatorClassName,

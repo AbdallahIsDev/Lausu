@@ -10,17 +10,23 @@
 // its own covered range in the subtitle so the two windows can never be
 // mistaken for each other.
 //
+// The grid is FIXED-WIDTH — always 53 weeks ending with the current week
+// (see `../lib/heatmap`). A two-week history therefore renders a full
+// year of cells that are mostly empty, rather than a two-column sliver;
+// the empty cells left of the first record mean "no data yet".
+//
 // Accessibility: the chart's <svg> is `aria-hidden`, so the whole card
 // body is exposed as ONE `role="img"` with a summary label (same
 // contract as the activity chart) — 180+ hover-only cells must not
 // become 180 tab stops, and there is no keyboard path to a cell's
 // tooltip, so the summary carries the totals instead.
 //
-// i18n: the vendored chart hardcodes English weekday/date formatting in
-// `HeatmapYAxis` and `HeatmapTooltip`. Both now take override props, and
-// this card feeds them locale-derived values, so every string the chart
-// renders here is translated (C-I18N-1) — including the y-axis day names
-// and the tooltip's date/weekday lines.
+// i18n: the vendored chart hardcodes English formatting in
+// `HeatmapXAxis` (month names), `HeatmapYAxis` (weekday names) and
+// `HeatmapTooltip` (date/weekday). All three take override props, and this
+// card feeds them locale-derived values, so every string the chart renders
+// here is translated (C-I18N-1). The month labels matter most: a
+// full-year grid shows ~13 of them.
 
 import { LayoutGridIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -37,18 +43,6 @@ import {
 } from "@/components/charts/heatmap";
 import { getLocale, t, tChoice } from "@/i18n/i18n";
 import type { DictationHeatmap } from "../lib/heatmap";
-
-/**
- * Cell sizing is computed as if the grid had at least this many columns.
- *
- * `layout="fluid"` sizes each cell as `innerWidth / columnCount`, so a
- * short history (a user two weeks in → 3 columns) would render three
- * ~230px squares and blow the card height past 1600px. The chart only
- * consults `sizingColumnCount` when `xDomain` is set, so the card passes
- * both. Longer histories are unaffected: the actual column count wins
- * above this floor and the cells shrink to fit the card exactly.
- */
-const MIN_SIZING_COLUMNS = 26;
 
 const RANGE_FORMAT: Intl.DateTimeFormatOptions = {
 	month: "short",
@@ -90,6 +84,17 @@ export function ActivityHeatmap({ heatmap }: ActivityHeatmapProps) {
 		// 2023-01-01 is a Sunday, so index 0 stays Sunday-first.
 		return Array.from({ length: 7 }, (_, i) =>
 			fmt.format(new Date(2023, 0, 1 + i)),
+		);
+	}, [locale]);
+
+	// January-first, because `buildHeatmapMonthTicks` indexes it by
+	// `Date.getMonth()`. A full-year grid renders ~13 month labels, so
+	// leaving them English would be the loudest untranslated string on the
+	// card (C-I18N-1).
+	const monthLabels = useMemo(() => {
+		const fmt = new Intl.DateTimeFormat(locale, { month: "short" });
+		return Array.from({ length: 12 }, (_, i) =>
+			fmt.format(new Date(2023, i, 1)),
 		);
 	}, [locale]);
 
@@ -149,12 +154,25 @@ export function ActivityHeatmap({ heatmap }: ActivityHeatmapProps) {
 						<HeatmapChart
 							data={columns}
 							layout="fluid"
-							sizingColumnCount={Math.max(columns.length, MIN_SIZING_COLUMNS)}
+							// Cell size comes from the full grid width, not from
+							// the columns the x-domain filter happens to keep:
+							// `fluid` divides innerWidth by this, so using the
+							// filtered count would resize all 53 cells whenever
+							// one boundary column drops.
+							sizingColumnCount={columns.length}
 							weekStartDay={0}
 							xDomain={[startDate, endDate]}
 						>
-							<HeatmapCells />
-							<HeatmapXAxis />
+							{/* Ghost cells stay ON screen. The chart's ghost logic
+							    infers a GitHub-style calendar range from the grid
+							    shape and hides the bins outside it — which, on
+							    the days that inference matches, would shave the
+							    leading days of column 0 and the trailing days of
+							    the current week, leaving a ragged edge that
+							    changes shape by date. The card's whole point is a
+							    complete rectangle, so opt out. */}
+							<HeatmapCells hideGhostCells={false} />
+							<HeatmapXAxis monthLabels={monthLabels} />
 							<HeatmapYAxis dayLabels={dayLabels} />
 							<HeatmapTooltip
 								formatDate={formatDate}

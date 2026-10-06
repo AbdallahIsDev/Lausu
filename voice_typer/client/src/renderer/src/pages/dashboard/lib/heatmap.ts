@@ -4,13 +4,14 @@
 // `HeatmapColumn[]` shape `@bklit/heatmap-chart` renders, plus the
 // aggregate numbers the card's accessible summary needs.
 //
-// Coverage honesty (this is the whole reason the grid is data-driven):
-// the grid is built from the sample's OLDEST record to today, never from
-// a fixed "last 12 months" window. The dashboard sample is the newest
-// N rows, so every calendar day inside [oldest, today] is fully
-// represented — a zero cell there means "no dictation that day", never
-// "we don't know". A fixed-width grid would paint the months before the
-// app was installed as empty, which reads as "you did nothing".
+// Fixed-width grid: ALWAYS `HEATMAP_MAX_WEEKS` whole Sun–Sat columns
+// ending with the current week, whatever the history length. A two-week
+// history therefore renders a full year of cells that are mostly empty,
+// instead of a two-column sliver that reads as a broken chart. The
+// trade-off is deliberate: cells left of the first record are empty
+// because there was no data yet, not because nothing was dictated.
+// `truncated` guards the OTHER edge — history older than the window is
+// not in the grid, and the card says so.
 //
 // Cell `count` is the RAW dictation count for that day, not a level:
 // the chart maps count → level internally via
@@ -55,13 +56,14 @@ export interface DictationHeatmap {
 }
 
 /**
- * Hard cap on grid width. 53 whole weeks ≈ one year, the span a
- * contribution graph is conventionally read at; beyond that the cells
- * get too small to hover accurately at the card's width.
+ * Grid width, in whole weeks. 53 ≈ one year, the span a contribution
+ * graph is conventionally read at. This is the grid's ACTUAL width, not
+ * a cap: every render produces exactly this many columns, so the cells
+ * stay a readable size and the card keeps the same shape as the history
+ * grows.
  */
 export const HEATMAP_MAX_WEEKS = 53;
 
-const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Local midnight of `d` (a copy — the argument is never mutated). */
@@ -102,7 +104,8 @@ export function buildDictationHeatmap(
 	for (const r of records) {
 		const key = dateKey(r.timestamp);
 		// A malformed timestamp makes `dateKey` return the raw string;
-		// ignoring it keeps it out of the grid anchor (see below).
+		// dropping it keeps it from counting as a day AND from dragging the
+		// `oldestKey` edge (which is what decides `truncated`).
 		if (!DATE_KEY_RE.test(key)) continue;
 		counts.set(key, (counts.get(key) ?? 0) + 1);
 		if (oldestKey === null || key < oldestKey) oldestKey = key;
@@ -110,18 +113,22 @@ export function buildDictationHeatmap(
 
 	const endDate = startOfDay(now);
 	const endWeekStart = startOfWeek(endDate);
-	const startWeekStart =
-		oldestKey === null ? endWeekStart : startOfWeek(fromDateKey(oldestKey));
 
-	// Whole weeks between the two Sunday anchors. The difference is not an
-	// exact multiple of 7 days across a DST boundary, so round the division
-	// (the drift is at most ±1h).
-	const weeksCovered =
-		Math.round(
-			(endWeekStart.getTime() - startWeekStart.getTime()) / MS_PER_WEEK,
-		) + 1;
-	const weeks = Math.max(1, Math.min(weeksCovered, HEATMAP_MAX_WEEKS));
-	const truncated = weeksCovered > HEATMAP_MAX_WEEKS;
+	// Fixed width: walk back a whole year of Sundays from the current
+	// week's anchor. Calendar arithmetic (setDate), not milliseconds, so a
+	// DST transition inside the window cannot shift the anchor by an hour
+	// and land the grid on the wrong weekday.
+	const weeks = HEATMAP_MAX_WEEKS;
+	const startWeekStart = new Date(endWeekStart);
+	startWeekStart.setDate(startWeekStart.getDate() - (weeks - 1) * 7);
+	startWeekStart.setHours(0, 0, 0, 0);
+
+	// Truncation is judged against the window actually rendered: history
+	// whose first week sits left of the grid start is the only case the
+	// card has to disclose, because that data is genuinely not on screen.
+	const truncated =
+		oldestKey !== null &&
+		startOfWeek(fromDateKey(oldestKey)).getTime() < startWeekStart.getTime();
 
 	const columns: DictationHeatmapColumn[] = [];
 	let total = 0;
@@ -145,8 +152,14 @@ export function buildDictationHeatmap(
 		columns.push({ bin: column, bins });
 	}
 
-	const startDate = new Date(endWeekStart);
-	startDate.setDate(startDate.getDate() - (weeks - 1) * 7);
-
-	return { columns, total, activeDays, startDate, endDate, truncated };
+	// `startWeekStart` is already the first Sunday of the window; returning
+	// it directly keeps the card's range subtitle in step with the grid.
+	return {
+		columns,
+		total,
+		activeDays,
+		startDate: startWeekStart,
+		endDate,
+		truncated,
+	};
 }

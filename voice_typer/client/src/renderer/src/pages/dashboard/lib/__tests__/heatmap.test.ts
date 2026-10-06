@@ -65,22 +65,28 @@ describe("buildDictationHeatmap", () => {
 			NOW,
 		);
 
-		// Only the current week is covered → exactly one column.
-		expect(heatmap.columns).toHaveLength(1);
-		const column = heatmap.columns[0];
-		expect(column?.bin).toBe(0);
-		expect(column?.bins).toHaveLength(7);
+		// Fixed width — one record still yields a full year of columns.
+		expect(heatmap.columns).toHaveLength(HEATMAP_MAX_WEEKS);
 
 		// The chart derives row 0 = Sunday and its y-axis labels from
 		// `HEATMAP_DAY_LABELS`; `bin` must equal `date.getDay()` for the
 		// grid and its labels to line up.
-		column?.bins.forEach((bin, row) => {
-			expect(bin.bin).toBe(row);
-			expect(bin.date.getDay()).toBe(row);
+		heatmap.columns.forEach((column, index) => {
+			expect(column.bin).toBe(index);
+			expect(column.bins).toHaveLength(7);
+			column.bins.forEach((bin, row) => {
+				expect(bin.bin).toBe(row);
+				expect(bin.date.getDay()).toBe(row);
+			});
 		});
 
-		// Column 0 starts on the Sunday of today's week (4 Oct 2026).
-		expect(keyOf(column?.bins[0]?.date ?? new Date(0))).toBe("2026-10-04");
+		// The LAST column is the current week and starts on its Sunday
+		// (4 Oct 2026); the grid runs back 52 Sundays from there.
+		const last = heatmap.columns[heatmap.columns.length - 1];
+		expect(keyOf(last?.bins[0]?.date ?? new Date(0))).toBe("2026-10-04");
+		expect(heatmap.columns[0]?.bins[0]?.date.getDay()).toBe(0);
+		expect(keyOf(heatmap.startDate)).toBe("2025-10-05");
+		expect(keyOf(heatmap.endDate)).toBe("2026-10-06");
 	});
 
 	it("counts the dictation on its own day and leaves the rest of the week empty", () => {
@@ -131,28 +137,46 @@ describe("buildDictationHeatmap", () => {
 		expect(heatmap.activeDays).toBe(1);
 	});
 
-	it("starts the grid at the sample's oldest week, so no pre-install day is painted as empty", () => {
-		const oldest = new Date(2026, 7, 1); // 1 Aug 2026
-		const heatmap = buildDictationHeatmap(
-			[recordAtNoon(oldest, 1), recordAtNoon(new Date(2026, 9, 6), 2)],
+	it("renders the same full year whatever the history length", () => {
+		const oneWeek = buildDictationHeatmap(
+			[recordAtNoon(new Date(2026, 9, 6), 1)],
+			NOW,
+		);
+		const elevenWeeks = buildDictationHeatmap(
+			[
+				recordAtNoon(new Date(2026, 7, 1), 1), // 1 Aug 2026
+				recordAtNoon(new Date(2026, 9, 6), 2),
+			],
+			NOW,
+		);
+		const threeYears = buildDictationHeatmap(
+			[recordAtNoon(new Date(2023, 4, 2), 1), recordAtNoon(NOW, 2)],
 			NOW,
 		);
 
-		const firstBin = heatmap.columns[0]?.bins[0]?.date;
-		expect(firstBin).toBeDefined();
-		// The anchor is the Sunday of the oldest record's week: on or before
-		// the oldest record, and less than a week before it.
-		expect(firstBin?.getDay()).toBe(0);
-		const daysBack =
-			(oldest.getTime() - (firstBin?.getTime() ?? 0)) / 86_400_000;
-		expect(daysBack).toBeGreaterThanOrEqual(0);
-		expect(daysBack).toBeLessThan(7);
+		// A brand-new install and a long-time user get the SAME grid shape;
+		// that is the whole point of a fixed-width grid.
+		for (const heatmap of [oneWeek, elevenWeeks, threeYears]) {
+			expect(heatmap.columns).toHaveLength(HEATMAP_MAX_WEEKS);
+			expect(heatmap.columns.every((column) => column.bins.length === 7)).toBe(
+				true,
+			);
+		}
 
-		// 26 Jul → 4 Oct 2026 inclusive = 11 whole weeks.
-		expect(heatmap.columns).toHaveLength(11);
-		expect(binFor(heatmap, "2026-08-01")?.count).toBe(1);
-		expect(heatmap.activeDays).toBe(2);
-		expect(heatmap.truncated).toBe(false);
+		// Every day from the grid start to today has a cell, so a day
+		// before the first record reads as a real zero instead of being
+		// absent from the grid.
+		expect(binFor(oneWeek, "2025-10-05")?.count).toBe(0);
+		expect(binFor(oneWeek, "2026-08-01")?.count).toBe(0);
+		expect(binFor(oneWeek, "2026-10-06")?.count).toBe(1);
+		expect(oneWeek.total).toBe(1);
+		expect(oneWeek.activeDays).toBe(1);
+
+		// Truncation tracks the far edge only: history older than the
+		// window is what the card has to disclose.
+		expect(oneWeek.truncated).toBe(false);
+		expect(elevenWeeks.truncated).toBe(false);
+		expect(threeYears.truncated).toBe(true);
 	});
 
 	it("keeps every column seven consecutive local days", () => {
@@ -193,27 +217,32 @@ describe("buildDictationHeatmap", () => {
 		expect(heatmap.columns[0]?.bins[0]?.date.getDay()).toBe(0);
 	});
 
-	it("returns a single empty week when there is no history at all", () => {
+	it("still renders a full year when there is no history at all", () => {
 		const heatmap = buildDictationHeatmap([], NOW);
 
-		expect(heatmap.columns).toHaveLength(1);
+		expect(heatmap.columns).toHaveLength(HEATMAP_MAX_WEEKS);
 		expect(heatmap.total).toBe(0);
 		expect(heatmap.activeDays).toBe(0);
 		expect(heatmap.truncated).toBe(false);
-		expect(heatmap.columns[0]?.bins.every((bin) => bin.count === 0)).toBe(true);
+		expect(
+			heatmap.columns.every((column) =>
+				column.bins.every((bin) => bin.count === 0),
+			),
+		).toBe(true);
 	});
 
-	it("ignores unparseable timestamps instead of poisoning the grid anchor", () => {
+	it("ignores unparseable timestamps instead of poisoning the grid", () => {
 		const broken = { ...recordAtNoon(NOW, 1), timestamp: "not-a-timestamp" };
 		const heatmap = buildDictationHeatmap(
 			[broken, recordAtNoon(new Date(2026, 9, 6), 2)],
 			NOW,
 		);
 
-		// The valid record still anchors the grid to its own week, and the
-		// broken row is not counted anywhere.
-		expect(heatmap.columns).toHaveLength(1);
+		// The broken row is counted nowhere, and being unparseable it also
+		// cannot drag the oldest-record edge and fake a truncation.
+		expect(heatmap.columns).toHaveLength(HEATMAP_MAX_WEEKS);
 		expect(heatmap.total).toBe(1);
+		expect(heatmap.truncated).toBe(false);
 		expect(binFor(heatmap, "2026-10-06")?.count).toBe(1);
 	});
 

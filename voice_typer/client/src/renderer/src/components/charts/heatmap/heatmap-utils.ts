@@ -162,6 +162,77 @@ export function getHeatmapColumnMonthAnchor(
 	return new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
 }
 
+/** English month labels, January-first. */
+export const HEATMAP_MONTH_LABELS = [
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec",
+] as const;
+
+/** One x-axis month tick. */
+export interface HeatmapMonthTick {
+	/** Column the label is anchored to. */
+	columnIndex: number;
+	/** `YYYY-M` — stable React key and the dedupe key. */
+	key: string;
+	/** Display text. */
+	label: string;
+}
+
+/**
+ * One tick per calendar month, anchored to the FIRST column whose month
+ * differs from the previous one.
+ *
+ * `labels` is indexed by `Date.getMonth()` (0 = January), so a caller can
+ * substitute a localised array — the vendored default is English-only and
+ * a full-year grid renders ~13 of these, which is too visible to leave
+ * untranslated. Falls back per-entry, so a short array cannot blank a
+ * label.
+ */
+export function buildHeatmapMonthTicks(
+	columns: HeatmapColumn[],
+	labels: readonly string[] = HEATMAP_MONTH_LABELS,
+): HeatmapMonthTick[] {
+	const ticks: HeatmapMonthTick[] = [];
+	let lastMonthKey = "";
+
+	for (let columnIndex = 0; columnIndex < columns.length; columnIndex++) {
+		const column = columns[columnIndex];
+		if (!column) {
+			continue;
+		}
+
+		const monthAnchor = getHeatmapColumnMonthAnchor(column);
+		if (!monthAnchor) {
+			continue;
+		}
+
+		const month = monthAnchor.getMonth();
+		const key = `${monthAnchor.getFullYear()}-${month}`;
+		if (key === lastMonthKey) {
+			continue;
+		}
+
+		ticks.push({
+			columnIndex,
+			key,
+			label: labels[month] ?? HEATMAP_MONTH_LABELS[month] ?? "",
+		});
+		lastMonthKey = key;
+	}
+
+	return ticks;
+}
+
 export function getHeatmapColumnStartDate(column: HeatmapColumn): Date | null {
 	return column.bins[0]?.date ?? null;
 }
