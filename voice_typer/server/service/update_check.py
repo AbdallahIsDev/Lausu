@@ -2,63 +2,43 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import os as _os
 import threading
-import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, TypedDict
 from urllib.parse import urlparse
 
-from voice_typer.server.branding import APP_NAME, APP_REPO
 from voice_typer.server.service import offline_pack
 from voice_typer.server.service.offline_pack import (
     OfflinePackManifest,
-    assert_offline_pack_url_allowed,
-    proxy_env,
     require_offline_pack_consent,
+)
+from voice_typer.server.service.update_check_http import (  # noqa: F401  # facade re-export
+    LAUNCH_MANIFEST_TIMEOUT_S,
+    _http_get_manifest,
+    _is_missing_manifest_404,
+    _SSRFAwareRedirectHandler,
+    fetch_remote_manifest,
+    fetch_remote_manifest_first_success,
+)
+from voice_typer.server.service.update_check_urls import (  # noqa: F401  # facade re-export
+    DEFAULT_OFFLINE_PACK_MANIFEST_URL,
+    MAX_MANIFEST_BYTES,
+    ROLLING_OFFLINE_PACK_MANIFEST_URL,
+    _resolve_manifest_url,
+    pack_manifest_url_candidates,
+)
+from voice_typer.server.service.update_check_versions import (  # noqa: F401  # facade re-export
+    _parse_version,
+    is_newer_version,
 )
 
 if TYPE_CHECKING:
     from voice_typer.server.config import Config
 
 log = logging.getLogger(__name__)
-
-
-# Stable GitHub Releases URL for the pack manifest. GitHub serves the
-DEFAULT_OFFLINE_PACK_MANIFEST_URL = f"https://github.com/{APP_REPO}/releases/latest/download/pack-manifest.json"
-
-# Rolling tag the publish workflow also updates. `releases/latest` moves
-# whenever ANY release (including app releases without a pack) is cut, so
-# the latest/download URL 404s after an app-only release. The `offline-pack`
-# tag is pack-only and stays valid across app releases.
-ROLLING_OFFLINE_PACK_MANIFEST_URL = f"https://github.com/{APP_REPO}/releases/download/offline-pack/pack-manifest.json"
-
-
-def pack_manifest_url_candidates(manifest_url: str | None = None) -> list[str]:
-    """Ordered candidate URLs for ``pack-manifest.json`` (first success wins).
-
-    Explicit ``manifest_url`` / ``VT_PACK_MANIFEST_URL`` still win as a
-    single candidate (opt-in override, no fallback surprise).
-    """
-    if manifest_url is not None:
-        return [manifest_url]
-    env = _os.environ.get("VT_PACK_MANIFEST_URL")
-    if env:
-        return [env]
-    return [DEFAULT_OFFLINE_PACK_MANIFEST_URL, ROLLING_OFFLINE_PACK_MANIFEST_URL]
-
-
-def _resolve_manifest_url(manifest_url: str | None) -> str:
-    """Return the primary manifest URL (kept for call sites that need one)."""
-    return pack_manifest_url_candidates(manifest_url)[0]
-
-
-# 1 MiB cap on the remote manifest. Real pack-manifest.json is <2 KB
-MAX_MANIFEST_BYTES = 1 * 1024 * 1024
 
 
 class UpdateCheckResult(TypedDict, total=False):
@@ -74,193 +54,6 @@ class UpdateCheckResult(TypedDict, total=False):
     error: str
     reason: str
 
-
-def _parse_version(v: str) -> tuple[int, ...]:
-    """Parse a dotted version string into a tuple of ints."""
-    if not v:
-        return (0,)
-    # Strip a leading ``v`` (GitHub release tags commonly use ``v1.2.3``).
-    s = v.strip().lstrip("vV")
-    # Drop any ``-suffix`` (pre-release / build metadata).
-    if "-" in s:
-        s = s.split("-", 1)[0]
-    parts: list[int] = []
-    for segment in s.split("."):
-        try:
-            parts.append(int(segment))
-        except ValueError:
-            # Non-numeric segment (e.g. ``"1.2.x"``), treat as 0.
-            parts.append(0)
-    return tuple(parts) if parts else (0,)
-
-
-def is_newer_version(remote: str, local: str) -> bool:
-    """Return True if *remote* is strictly newer than *local*.
-
-    Equal versions return False (no update needed). Shorter tuples pad
-    with zeros: ``1.2`` == ``1.2.0``. Non-numeric segments are treated
-    as 0 (defensive, a malformed version should NOT trigger a
-    spurious update).
-
-    Examples:
-        >>> is_newer_version("1.2.3", "1.2.2")
-        True
-        >>> is_newer_version("1.2.3", "1.2.3")
-        False
-        >>> is_newer_version("v2.0.0", "1.9.9")
-        True
-        >>> is_newer_version("1.2", "1.2.0")
-        False
-    """
-    r = _parse_version(remote)
-    l_ = _parse_version(local)
-    # Pad to equal length so ``(1, 2)`` compares equal to ``(1, 2, 0)``.
-    n = max(len(r), len(l_))
-    r_padded = r + (0,) * (n - len(r))
-    l_padded = l_ + (0,) * (n - len(l_))
-    return r_padded > l_padded
-
-
-class _SSRFAwareRedirectHandler(urllib.request.HTTPRedirectHandler):
-    """``HTTPRedirectHandler`` subclass that re-validates each 3xx hop."""
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        """Re-validate ``newurl`` through :func:`assert_offline_pack_url_allowed`."""
-        try:
-            assert_offline_pack_url_allowed(newurl)
-        except ValueError as exc:
-            # Convert ``ValueError`` (raised by ``assert_url_allowed``)
-            raise RuntimeError(
-                f"SSRF block on redirect target (refusing to follow "
-                f"{code} redirect to a non-allowlisted / private IP "
-                f"target): {exc}"
-            ) from exc
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
-
-
-# Upper bound on the launch-time remote-manifest fetch. The interactive
-LAUNCH_MANIFEST_TIMEOUT_S = 8.0
-
-
-def _http_get_manifest(url: str, *, max_bytes: int = MAX_MANIFEST_BYTES, timeout: float = 30.0) -> str:
-    """Default HTTP transport, fetches *url* and returns the body as text."""
-    proxies = proxy_env()
-    if proxies:
-        proxy_handler = urllib.request.ProxyHandler(proxies)
-        opener = urllib.request.build_opener(_SSRFAwareRedirectHandler(), proxy_handler)
-    else:
-        opener = urllib.request.build_opener(_SSRFAwareRedirectHandler())
-    req = urllib.request.Request(
-        url,
-        headers={"User-Agent": f"{APP_NAME}/pack-update-checker", "Accept": "application/json"},
-    )
-    with opener.open(req, timeout=timeout) as resp:
-        status = resp.getcode()
-        if status != 200:
-            raise RuntimeError(f"unexpected HTTP status {status} for {url}")
-        # Read in chunks; abort if the running total exceeds max_bytes.
-        total = 0
-        chunks: list[bytes] = []
-        while True:
-            chunk = resp.read(64 * 1024)
-            if not chunk:
-                break
-            total += len(chunk)
-            if total > max_bytes:
-                raise RuntimeError(
-                    f"manifest exceeds max_bytes={max_bytes} "
-                    f"(read {total} bytes so far), refusing to continue "
-                    f"reading to prevent unbounded memory consumption"
-                )
-            chunks.append(chunk)
-        return b"".join(chunks).decode("utf-8", errors="replace")
-
-
-def _is_missing_manifest_404(exc: BaseException) -> bool:
-    """True when *exc* is an HTTP 404 from the manifest fetch."""
-    if getattr(exc, "code", None) == 404:
-        return True
-    text = str(exc)
-    return "HTTP Error 404" in text or "HTTP status 404" in text
-
-
-def fetch_remote_manifest(
-    url: str,
-    *,
-    http_get: Callable[..., str] | None = None,
-    max_bytes: int = MAX_MANIFEST_BYTES,
-    timeout: float = 30.0,
-) -> OfflinePackManifest | None:
-    """Fetch + validate the remote ``pack-manifest.json``."""
-    # SSRF gate first, refuse to fetch from a private/disallowed host
-    try:
-        assert_offline_pack_url_allowed(url)
-    except ValueError as exc:
-        log.warning("[UPDATE] SSRF block on manifest URL: %s", exc)
-        return None
-
-    if http_get is None:
-        http_get = _http_get_manifest
-    try:
-        # The default transport accepts a ``timeout``; injected test
-        if http_get is _http_get_manifest:
-            body = http_get(url, max_bytes=max_bytes, timeout=timeout)
-        else:
-            body = http_get(url, max_bytes=max_bytes)
-    except (OSError, RuntimeError) as exc:
-        # Strip the scheme so the line stays short; host + path are the
-        if _is_missing_manifest_404(exc):
-            # DEBUG: an unpublished manifest is the steady state (no
-            # release cut yet), not news worth an INFO line per URL.
-            log.debug(
-                "[UPDATE] remote pack manifest not published yet (%s): %s",
-                exc,
-                url.split("://", 1)[-1],
-            )
-        else:
-            log.warning(
-                "[UPDATE] Manifest fetch failed (%s): %s",
-                exc,
-                url.split("://", 1)[-1],
-            )
-        return None
-
-    # Parse + validate via the shared schema validator (the SAME
-    try:
-        data = json.loads(body)
-    except json.JSONDecodeError:
-        log.warning("[UPDATE] remote manifest from %s is not valid JSON", url)
-        return None
-    manifest = offline_pack.validate_offline_pack_manifest_dict(data, source=url)
-    if manifest is None:
-        log.warning("[UPDATE] remote manifest from %s failed schema validation", url)
-        return None
-    return manifest
-
-
-def fetch_remote_manifest_first_success(
-    urls: list[str] | None = None,
-    *,
-    http_get: Callable[..., str] | None = None,
-    max_bytes: int = MAX_MANIFEST_BYTES,
-    timeout: float = 30.0,
-) -> tuple[OfflinePackManifest | None, str | None]:
-    """Try each candidate URL until one returns a valid manifest.
-
-    Returns ``(manifest, url)`` or ``(None, None)``. Stops at the first
-    schema-valid hit so a stale rolling-tag copy cannot override a fresher
-    ``latest`` manifest that is actually present.
-    """
-    candidates = urls if urls is not None else pack_manifest_url_candidates()
-    for url in candidates:
-        try:
-            manifest = fetch_remote_manifest(url, http_get=http_get, max_bytes=max_bytes, timeout=timeout)
-        except Exception:  # defensive: one bad candidate must not abort the list
-            log.debug("[UPDATE] candidate %s raised", url, exc_info=True)
-            continue
-        if manifest is not None:
-            return manifest, url
-    return None, None
 
 
 def _local_offline_pack_version(root: Path | None = None) -> str | None:
