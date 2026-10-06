@@ -601,9 +601,9 @@
 			"severity": "error"
 		},
 		{
-			"line": 328,
+			"line": 238,
 			"column": 9,
-			"stop_line": 328,
+			"stop_line": 238,
 			"stop_column": 31,
 			"path": "voice_typer/server/audio_filters/noise_suppressor.py",
 			"code": -2,
@@ -613,9 +613,9 @@
 			"severity": "error"
 		},
 		{
-			"line": 348,
+			"line": 258,
 			"column": 34,
-			"stop_line": 348,
+			"stop_line": 258,
 			"stop_column": 61,
 			"path": "voice_typer/server/audio_filters/noise_suppressor.py",
 			"code": -2,
@@ -625,9 +625,9 @@
 			"severity": "error"
 		},
 		{
-			"line": 433,
+			"line": 343,
 			"column": 31,
-			"stop_line": 433,
+			"stop_line": 343,
 			"stop_column": 56,
 			"path": "voice_typer/server/audio_filters/noise_suppressor.py",
 			"code": -2,
@@ -637,9 +637,9 @@
 			"severity": "error"
 		},
 		{
-			"line": 483,
+			"line": 393,
 			"column": 13,
-			"stop_line": 483,
+			"stop_line": 393,
 			"stop_column": 32,
 			"path": "voice_typer/server/audio_filters/noise_suppressor.py",
 			"code": -2,
@@ -4327,5 +4327,6 @@
 	"_current_state_2026_09_20_stale_drop": "Dropped 183 structurally-stale errors entries (365 -> 182); sanctioned by the accuracy test (remap-or-drop of past-EOF entries only).",
 	"_current_state_2026_10_03_bulk_reanchor": "Regenerated errors (182 -> 310) from a fresh pyrefly 1.1.1 Windows run using the CI's exact empty-baseline override invocation, via scripts/regenerate_pyrefly_baseline.py, after the source fixes listed in _comment. Dropped provenance keys _current_state_2026_09_19/20 restored verbatim from HEAD (the regen script does not preserve them).",
 	"_current_state_2026_10_06_wave1_package_splits": "Wave-1/1.5 package-split reconcile (2026-10-06, pyrefly==1.1.1 on Windows using the CI's exact empty-baseline override invocation, regenerated through scripts/regenerate_pyrefly_baseline.py): floor 310 -> 361. Cause: 19883cf6 restored the base plus the user keep-list, landing the history_db -> history_db_internals / writer / search / templates / transcription_result body-extractions without regenerating this baseline; the audit compares the LIVE pyrefly output against this file, so every relocated error re-appeared as 'added'. Measured: live 361 vs baseline 310; 83 added / 32 removed by (path,line,code); 34 of the added are pure line remaps (identical path+name+description); 49 new signatures, all in 4 files - internal_api.py (34: the documented `self: HistoryDB` delegation idiom = 21 invalid-annotation + 13 bad-argument-type, the same idiom mypy-baseline.json already holds), template_transfer.py (9), template_persistence.py (5), plugins/registry.py (1). No source fix was attempted for the idiom because it is deliberate and documented in the module docstring; the source-fix route, if wanted, is the repo's own host-declaration + TYPE_CHECKING-stub pattern pinned by tests/test_split_mixin_declarations.py. Windows live == floor (361 == 361); Linux/macOS run lower (no Windows-only module attrs), so the count gate holds on all platforms.",
-	"_current_state_2026_10_06_aud14e_wave2_split_remap": "Sanctioned remap after the AUD-14e Wave 2 create-first split moved _SubscriberSet out of event_bus.py into event_bus_subscribers.py: 10 missing-attribute entries re-anchored in order on (name, column, description), 2 bad-argument-type entries dropped because the moved resolvers list now carries an explicit list[Any] declaration that fixes them at source. No entry was dropped to avoid a diagnostic; the errors array keeps 359 anchors."
+	"_current_state_2026_10_06_aud14e_wave2_split_remap": "Sanctioned remap after the AUD-14e Wave 2 create-first split moved _SubscriberSet out of event_bus.py into event_bus_subscribers.py: 10 missing-attribute entries re-anchored in order on (name, column, description), 2 bad-argument-type entries dropped because the moved resolvers list now carries an explicit list[Any] declaration that fixes them at source. No entry was dropped to avoid a diagnostic; the errors array keeps 359 anchors.",
+	"_current_state_2026_10_07_aud14e_wave4_split_remap": "Sanctioned remap after the AUD-14e Wave 4 create-first split (noise_suppressor -> +resampler.py, update_check -> +update_check_urls/versions/http.py, binary_path -> +binary_names/binary_verification.py, level_monitor.monitoring -> +monitoring_queries/mic_level_push.py, system_handlers -> +system_permissions_handlers.py): every `errors` entry was re-paired, in order, with the live pyrefly==1.1.1 entry carrying the same (path, name, description) and its positional fields updated in place. Live count on the split tree is 359, identical to the baseline count, so the floor is unchanged (359)."
 }

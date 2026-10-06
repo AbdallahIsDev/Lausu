@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
-import threading
 import time
-import types
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -17,6 +15,18 @@ from voice_typer.server._audio_constants import (
 )
 
 from ._state import _state
+from .mic_level_push import (  # noqa: F401  # facade re-export
+    _ensure_mic_level_worker_running,
+    _mic_level_worker_loop,
+    _push_mic_level,
+    _stop_mic_level_worker,
+)
+from .monitoring_queries import (  # noqa: F401  # facade re-export
+    get_level,
+    get_level_diagnostics,
+    is_monitoring,
+    update_level_processor,
+)
 
 if TYPE_CHECKING:
     pass
@@ -63,200 +73,6 @@ def _level_stream_finished() -> None:
         _state._monitor_active = False
     log.warning("[LEVEL-MON] InputStream finished - device disconnected")
     _emit_device_lost("stream_finished")
-
-
-def _push_mic_level(rms: float, peak: float, active: bool) -> None:
-    """Coalesce + enqueue a mic_level push-event payload."""
-    now = time.monotonic()
-    if now - _state._mic_level_last_push_ts < _state._MIC_LEVEL_COALESCE_SEC:
-        return
-    _state._mic_level_last_push_ts = now
-    payload = {"level": float(rms), "peak": float(peak), "active": bool(active)}
-    with _state._mic_level_queue_lock:
-        # deque(maxlen=16) auto-evicts oldest on overflow, so we don't
-        _state._mic_level_queue.append(payload)
-    _state._mic_level_worker_wake_event.set()
-
-
-def _mic_level_worker_loop() -> None:
-    """Drains the coalesce queue (keeping the latest payload only, PERF-3"""
-    from .worker import (
-        MIC_LEVEL_WORKER_NAME,
-        _unregister_from_thread_registry,
-    )
-
-    _consecutive_idle_ticks = 0
-    while True:
-        _state._mic_level_worker_wake_event.wait(
-            timeout=_state._LEVEL_WORKER_BACKSTOP_TIMEOUT_SEC,
-        )
-        _state._mic_level_worker_wake_event.clear()
-        if _state._mic_level_worker_stop:
-            return
-        # PERF-3 latest-only: drain all pending payloads, keep the last.
-        latest = None
-        with _state._mic_level_queue_lock:
-            while _state._mic_level_queue:
-                latest = _state._mic_level_queue.popleft()
-        if latest is not None:
-            _consecutive_idle_ticks = 0
-            try:
-                from voice_typer.server import event_bus
-
-                event_bus.publish(
-                    {
-                        "type": "mic_level",
-                        "data": {
-                            "level": latest["level"],
-                            "peak": latest["peak"],
-                            "active": latest["active"],
-                        },
-                    },
-                )
-            except Exception:
-                log.debug("[LEVEL-MON] Failed to publish mic_level event", exc_info=True)
-            continue
-        # Queue was empty. If the monitor stream is no longer active
-        if not _state._monitor_active:
-            _consecutive_idle_ticks += 1
-            if _consecutive_idle_ticks >= 2:
-                # Clear the slot BEFORE returning (race-safe restart).
-                _state._mic_level_worker_thread = None
-                _unregister_from_thread_registry(MIC_LEVEL_WORKER_NAME)
-                return
-        else:
-            _consecutive_idle_ticks = 0
-
-
-def _ensure_mic_level_worker_running() -> None:
-    """Start the mic_level push-event worker thread if not already running."""
-    from .worker import (
-        MIC_LEVEL_WORKER_NAME,
-        _register_with_thread_registry,
-    )
-
-    if _state._mic_level_worker_thread is not None and _state._mic_level_worker_thread.is_alive():
-        return
-    _state._mic_level_worker_stop = False
-    _state._mic_level_worker_thread = threading.Thread(
-        target=_mic_level_worker_loop,
-        name=MIC_LEVEL_WORKER_NAME,
-        daemon=True,
-    )
-    _state._mic_level_worker_thread.start()
-    # Best-effort registration with the central ThreadRegistry so
-    _register_with_thread_registry(
-        MIC_LEVEL_WORKER_NAME,
-        _state._mic_level_worker_thread,
-        # The mic_level worker has no dedicated Event stop flag; the
-        _state._mic_level_worker_wake_event,
-    )
-
-
-def _stop_mic_level_worker() -> None:
-    """Signal the mic_level worker thread to stop and join it (best-effort)."""
-    _state._mic_level_worker_stop = True
-    _state._mic_level_worker_wake_event.set()
-    t = _state._mic_level_worker_thread
-    if t is not None and t is not threading.current_thread():
-        with contextlib.suppress(Exception):
-            t.join(timeout=1.0)
-    _state._mic_level_worker_thread = None
-    from .worker import (
-        MIC_LEVEL_WORKER_NAME,
-        _unregister_from_thread_registry,
-    )
-
-    _unregister_from_thread_registry(MIC_LEVEL_WORKER_NAME)
-
-
-def is_monitoring() -> bool:
-    """Return True if the continuous level monitor is active.
-
-    Returns:
-    """
-    with _state._monitor_lock:
-        return _state._monitor_active
-
-
-def get_level() -> dict:
-    """Return the current audio level from the monitor.
-
-    Returns:
-    """
-    # record the poll timestamp so the worker thread can detect
-    _state._last_get_level_poll_ts = time.monotonic()
-    with _state._monitor_lock:
-        return {
-            # Display gain: shared constant (see ``_state._LEVEL_DISPLAY_GAIN``)
-            "level": min(1.0, _state._monitor_level * _state._LEVEL_DISPLAY_GAIN),
-            "peak": _state._monitor_peak,
-            "active": _state._monitor_active,
-        }
-
-
-def get_level_diagnostics() -> dict:
-    """Return runtime diagnostics for the level monitor ().
-
-    Returns:
-    """
-    # ``_dropped_level_chunks`` is incremented in the PortAudio callback
-    from . import worker as _worker_mod
-
-    return {
-        "dropped_level_chunks": _state._dropped_level_chunks,
-        "total_dropped_level_chunks": _worker_mod._total_dropped_level_chunks,
-        "ring_buffer_capacity": _state._LEVEL_RING_BUFFER_CAPACITY,
-        "ring_buffer_len": len(_state._level_ring_buffer),
-        "monitor_active": _state._monitor_active,
-    }
-
-
-def update_level_processor(config_dict: dict) -> None:
-    """Create or update the audio processor for the live level bar."""
-    # Stash the config_dict BEFORE the early-return disable path so the
-    try:
-        _state._level_processor_config = dict(config_dict)
-    except Exception:
-        _state._level_processor_config = None
-
-    # Stash the ``level_bar_filtered`` flag on _state so the worker can
-    level_bar_filtered = bool(config_dict.get("level_bar_filtered", False))
-    with _state._monitor_lock:
-        _state._level_bar_filtered = level_bar_filtered
-
-    if not config_dict.get("noise_filter_enabled", True):
-        with _state._monitor_lock:
-            _state._level_processor = None
-        log.debug("[LEVEL-MON] Level processor disabled")
-        return
-
-    try:
-        # ADR 0007: AudioProcessor takes a config-like object (anything
-        from voice_typer.server.audio_processor import AudioProcessor
-
-        # Snapshot the current monitor sample rate under the lock so
-        with _state._monitor_lock:
-            sample_rate = _state._monitor_sample_rate
-
-        # Construct the processor OUTSIDE the lock: ``AudioProcessor.__init__``
-        ap_config = types.SimpleNamespace(**config_dict)
-        new_processor = AudioProcessor(ap_config, sample_rate=sample_rate, quiet=True)
-
-        # Assign under the lock so the worker's read of
-        with _state._monitor_lock:
-            _state._level_processor = new_processor
-
-        log.info(
-            "[LEVEL-MON] Level processor updated: highpass=%s, gate=%s, method=%s",
-            config_dict.get("noise_filter_highpass", True),
-            config_dict.get("noise_filter_gate", True),
-            config_dict.get("noise_suppression_method", "rnnoise"),
-        )
-    except Exception as exc:
-        log.warning("[LEVEL-MON] Failed to create level processor: %s", exc)
-        with _state._monitor_lock:
-            _state._level_processor = None
 
 
 def start_monitoring(mic_id: str | None = None) -> dict:
