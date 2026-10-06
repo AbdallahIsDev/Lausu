@@ -39,6 +39,11 @@ jobs:
     # previously unguarded.
     permissions:
       contents: read
+      # Required by `comment-summary-in-pr` below: the action's README states
+      # "If enabled, you must give the workflow or job the `pull-requests:
+      # write` permission", otherwise the summary naming the offending
+      # dependency is never posted.
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
       - name: Dependency review
