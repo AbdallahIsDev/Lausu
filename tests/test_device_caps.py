@@ -83,7 +83,12 @@ class TestProbe:
         import types
 
         import voice_typer.server.nvidia_dll_paths as _nv
+        import voice_typer.server.platform_utils as _pu
 
+        # Hermetic w.r.t. the host OS. ``_probe()`` returns False the moment
+        # ``is_macos()`` is true (no CUDA on macOS), so on a macos-14 runner
+        # the fakes below were never consulted and the test failed.
+        monkeypatch.setattr(_pu, "is_macos", lambda: False)
         monkeypatch.setattr(_nv, "_cuda_runtime_available", lambda: True)
         fake_ct2 = types.SimpleNamespace(get_cuda_device_count=lambda: 1)
         monkeypatch.setitem(sys.modules, "ctranslate2", fake_ct2)
@@ -96,7 +101,11 @@ class TestProbe:
         import types
 
         import voice_typer.server.nvidia_dll_paths as _nv
+        import voice_typer.server.platform_utils as _pu
 
+        # Same host-OS neutrality as the test above: without it this one
+        # passed on macOS via the short-circuit, testing nothing.
+        monkeypatch.setattr(_pu, "is_macos", lambda: False)
         monkeypatch.setattr(_nv, "_cuda_runtime_available", lambda: True)
         fake_ct2 = types.SimpleNamespace(get_cuda_device_count=lambda: 0)
         monkeypatch.setitem(sys.modules, "ctranslate2", fake_ct2)
