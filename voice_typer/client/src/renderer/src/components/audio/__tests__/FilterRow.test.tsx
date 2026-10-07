@@ -274,13 +274,13 @@ describe("FilterRow, label/info/aria fallback to raw key when labels dict is mis
 	});
 });
 
-describe("FilterRow, parentToggle propagation (disabled-state hides the row)", () => {
+describe("FilterRow, parentToggle propagation (dependent rows stay visible but locked)", () => {
 	afterEach(() => cleanup());
 
-	it("returns null when parentToggle's config value is false (parent default is true)", () => {
+	it("keeps the row visible and locks its control when parentToggle's config value is false", () => {
 		// high-pass cutoff has parentToggle=noise_filter_highpass
 		// (parent default = true). Setting config[noise_filter_highpass]=false
-		// must hide the cutoff row.
+		// must LOCK the cutoff row, never unmount it.
 		const d = descriptorFor("noise_filter_highpass_cutoff_hz");
 		const labels = makeLabels([
 			d.labelKey,
@@ -292,7 +292,7 @@ describe("FilterRow, parentToggle propagation (disabled-state hides the row)", (
 			...emptyConfig(),
 			noise_filter_highpass: false,
 		};
-		const { container } = render(
+		render(
 			withProvider(
 				<FilterRow
 					descriptor={d}
@@ -302,9 +302,58 @@ describe("FilterRow, parentToggle propagation (disabled-state hides the row)", (
 				/>,
 			),
 		);
-		// FilterRow returns null, container is empty.
-		expect(container.firstChild).toBeNull();
-		expect(screen.queryByText(`[${d.labelKey}]`)).toBeNull();
+		expect(screen.getByText(`[${d.labelKey}]`)).toBeInTheDocument();
+		expect(screen.getByRole("slider")).toHaveAttribute("data-disabled");
+	});
+
+	it("does not write config while the parent toggle is off", () => {
+		const d = descriptorFor("noise_filter_highpass_cutoff_hz");
+		const labels = makeLabels([
+			d.labelKey,
+			d.infoKey,
+			d.ariaKey,
+			d.sectionTitleKey,
+		]);
+		const set = vi.fn();
+		render(
+			withProvider(
+				<FilterRow
+					descriptor={d}
+					config={{ ...emptyConfig(), noise_filter_highpass: false }}
+					set={set}
+					labels={labels}
+				/>,
+			),
+		);
+		const thumb = screen.getByRole("slider");
+		fireEvent.keyDown(thumb, { key: "ArrowRight" });
+		expect(set).not.toHaveBeenCalled();
+	});
+
+	it("the `disabled` prop locks a row independently of its parentToggle", () => {
+		const d = descriptorFor("noise_filter_highpass");
+		const labels = makeLabels([
+			d.labelKey,
+			d.infoKey,
+			d.ariaKey,
+			d.sectionTitleKey,
+		]);
+		const set = vi.fn();
+		render(
+			withProvider(
+				<FilterRow
+					descriptor={d}
+					config={emptyConfig()}
+					set={set}
+					labels={labels}
+					disabled
+				/>,
+			),
+		);
+		expect(screen.getByText(`[${d.labelKey}]`)).toBeInTheDocument();
+		const sw = screen.getByRole("switch");
+		fireEvent.click(sw);
+		expect(set).not.toHaveBeenCalled();
 	});
 
 	it("renders the row when parentToggle's config value is true", () => {
@@ -379,10 +428,10 @@ describe("FilterRow, parentToggle propagation (disabled-state hides the row)", (
 		expect(screen.getByText(`[${d.labelKey}]`)).toBeInTheDocument();
 	});
 
-	it("notch row is hidden when parent (notchFilter toggle, defaultValue=false) is undefined", () => {
+	it("notch row stays visible but locked when parent (notchFilter toggle, defaultValue=false) is undefined", () => {
 		// notchFilter's defaultValue is `false`, so an undefined config
 		// means the parent is OFF, and the notchFrequency sub-row must
-		// NOT render.
+		// render disabled rather than disappear.
 		const d = descriptorFor("noise_filter_notch_frequency_hz");
 		const labels = makeLabels([
 			d.labelKey,
@@ -390,7 +439,7 @@ describe("FilterRow, parentToggle propagation (disabled-state hides the row)", (
 			d.ariaKey,
 			d.sectionTitleKey,
 		]);
-		const { container } = render(
+		render(
 			withProvider(
 				<FilterRow
 					descriptor={d}
@@ -400,7 +449,8 @@ describe("FilterRow, parentToggle propagation (disabled-state hides the row)", (
 				/>,
 			),
 		);
-		expect(container.firstChild).toBeNull();
+		expect(screen.getByText(`[${d.labelKey}]`)).toBeInTheDocument();
+		expect(screen.getByRole("slider")).toHaveAttribute("data-disabled");
 	});
 
 	it("notch row renders when parent notchFilter toggle is explicitly set to true", () => {

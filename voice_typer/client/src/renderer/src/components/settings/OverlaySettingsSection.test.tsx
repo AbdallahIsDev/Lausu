@@ -35,16 +35,34 @@ describe("OverlaySettingsSection, bubble behavior + timer + preview", () => {
 		expect(screen.getByText("Hidden")).toBeTruthy();
 	});
 
-	it("hides the timer toggle when behavior is hidden", () => {
+	it("locks the timer toggle when behavior is hidden", () => {
 		renderSection({ bubble_behavior: "hidden" });
-		expect(screen.queryByLabelText("Recording Timer")).toBeNull();
+		const toggle = screen.getByLabelText("Recording Timer");
+		expect(toggle).toBeInTheDocument();
+		expect(toggle).toBeDisabled();
 	});
 
-	it("hides position, drag, and preview when behavior is hidden", () => {
-		renderSection({ bubble_behavior: "hidden" });
+	it("keeps position and drag visible but locked when behavior is hidden", () => {
+		const updateConfig = vi.fn();
+		renderSection({ bubble_behavior: "hidden" }, updateConfig);
 		expect(screen.getByText("Bubble Behavior")).toBeTruthy();
-		expect(screen.queryByText("Bubble Position")).toBeNull();
-		expect(screen.queryByLabelText("Drag to Move")).toBeNull();
+		const positionGroup = screen.getByRole("radiogroup", {
+			name: "Bubble Position",
+		});
+		const positionRadios = positionGroup.querySelectorAll<HTMLInputElement>(
+			'input[type="radio"]',
+		);
+		expect(positionRadios).toHaveLength(2);
+		positionRadios.forEach((radio) => {
+			expect(radio).toBeDisabled();
+		});
+		const drag = screen.getByLabelText("Drag to Move");
+		expect(drag).toBeInTheDocument();
+		expect(drag).toBeDisabled();
+		fireEvent.click(drag);
+		expect(updateConfig).not.toHaveBeenCalled();
+		// The live preview card has nothing to mirror while the bubble
+		// itself is hidden, so it stays out of the way.
 		expect(screen.queryByText("Bubble Preview")).toBeNull();
 	});
 
@@ -52,7 +70,19 @@ describe("OverlaySettingsSection, bubble behavior + timer + preview", () => {
 		renderSection({ bubble_behavior: "show_on_record" });
 		expect(screen.getByText("Bubble Position")).toBeTruthy();
 		expect(screen.getByLabelText("Drag to Move")).toBeTruthy();
+		expect(screen.getByLabelText("Drag to Move")).toBeEnabled();
 		expect(screen.getByText("Bubble Preview")).toBeTruthy();
+	});
+
+	it("locks the startup toggle until Always Visible is picked", () => {
+		renderSection({ bubble_behavior: "show_on_record" });
+		const startup = screen.getByLabelText("Show on App Startup");
+		expect(startup).toBeInTheDocument();
+		expect(startup).toBeDisabled();
+
+		cleanup();
+		renderSection({ bubble_behavior: "always_visible" });
+		expect(screen.getByLabelText("Show on App Startup")).toBeEnabled();
 	});
 
 	it("shows the mic toggle for show on record, not just always visible", () => {
@@ -88,7 +118,7 @@ describe("OverlaySettingsSection, bubble behavior + timer + preview", () => {
 		});
 	});
 
-	it("renders idle/recording/transcribing previews with a live fake timer", () => {
+	it("renders idle/recording previews with a live fake timer", () => {
 		renderSection({
 			bubble_behavior: "show_on_record",
 			bubble_show_recording_timer: true,
@@ -96,7 +126,8 @@ describe("OverlaySettingsSection, bubble behavior + timer + preview", () => {
 		expect(screen.getByText("Bubble Preview")).toBeTruthy();
 		expect(screen.getByText("Idle")).toBeTruthy();
 		expect(screen.getByText("Recording")).toBeTruthy();
-		expect(document.querySelector(".bubble-shimmer-text")).toBeTruthy();
+		expect(screen.queryByText("Transcribing")).toBeNull();
+		expect(document.querySelector(".bubble-shimmer-text")).toBeNull();
 		const timer = document.querySelector(
 			'[data-slot="bubble-recording-timer"]',
 		);

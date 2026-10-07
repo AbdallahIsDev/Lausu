@@ -14,10 +14,11 @@
 //   - Slider `min/max/step/suffix/deferApply`, identical.
 //   - Toggle `checked={config[k] ?? defaultValue}`, identical.
 //   - Select `value={config[k] ?? defaultValue}` + options, identical.
-//   - `parentToggle`, when set, the row returns null if the parent
-//     toggle is off (after applying the parent's own defaultValue
-//     fallback). Matches the original
-//     `(config.noise_filter_X ?? parentDefault) && (<row>...)` wrap.
+//   - `parentToggle`, when set, the row stays VISIBLE and renders
+//     its control disabled while the parent toggle is off (after
+//     applying the parent's own defaultValue fallback). Locking
+//     instead of unmounting keeps the dependent filters discoverable,
+//     and the row unlocks the moment the parent toggle is enabled.
 
 import { RangeSlider } from "@/components/common/RangeSlider";
 import { SettingRow } from "@/components/common/SettingRow";
@@ -46,6 +47,12 @@ export interface FilterRowProps {
 	config: LausuConfig;
 	set: AudioFilterSet;
 	labels: AudioFilterLabels;
+	/**
+	 * Lock the control from outside the descriptor's `parentToggle`
+	 * relation, used by the Settings page while the preset is not
+	 * `custom` (the whole chain is visible but inert then).
+	 */
+	disabled?: boolean;
 }
 
 function readRowValue(
@@ -75,8 +82,13 @@ export function FilterRow({
 	config,
 	set,
 	labels,
+	disabled = false,
 }: FilterRowProps): React.ReactNode {
-	if (!parentToggleActive(config, descriptor.parentToggle)) return null;
+	// A dependent filter row is locked (not unmounted) while its parent
+	// toggle is off, so the row is still discoverable and unlocks as soon
+	// as the parent is enabled.
+	const locked =
+		disabled || !parentToggleActive(config, descriptor.parentToggle);
 
 	const label = labels[descriptor.labelKey] ?? descriptor.labelKey;
 	// Resolve info/aria strings from the memoized labels bundle
@@ -103,6 +115,7 @@ export function FilterRow({
 						checked={value as boolean}
 						onCheckedChange={(v: boolean) => write(v)}
 						aria-label={aria}
+						disabled={locked}
 					/>
 				</SettingRow>
 			);
@@ -117,6 +130,7 @@ export function FilterRow({
 						onChange={(v: number) => write(v)}
 						ariaLabel={aria}
 						suffix={descriptor.suffix ?? ""}
+						disabled={locked}
 						deferApply
 					/>
 				</SettingRow>
@@ -126,6 +140,7 @@ export function FilterRow({
 				<SettingRow label={label} info={info}>
 					<Select
 						value={value as string}
+						disabled={locked}
 						onValueChange={(v: string) => write(v)}
 					>
 						<SelectTrigger className="w-40" aria-label={aria}>

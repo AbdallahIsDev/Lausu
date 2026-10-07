@@ -46,6 +46,13 @@ export interface ToggleGroupProps<T extends string> {
 	/** Optional ``aria-label`` for the radiogroup container. */
 	ariaLabel?: string;
 	/**
+	 * Disable the whole group. A dependent setting stays VISIBLE but locked
+	 * while its master setting is off, so the options are still read out by
+	 * assistive tech and no radio can be selected. Styling matches the other
+	 * primitives (`cursor-not-allowed` + `opacity-50`).
+	 */
+	disabled?: boolean;
+	/**
 	 * Which surface the control sits on. Dark mode only (the light
 	 * treatment is identical on both): a control inside a card gets a
 	 * transparent track with a `bg-border/10` indicator. The sidebar
@@ -75,6 +82,7 @@ export function ToggleGroup<T extends string>({
 	labelClassName,
 	getTabId,
 	getPanelId,
+	disabled = false,
 }: ToggleGroupProps<T>) {
 	const isTabs = variant === "tabs";
 	if (process.env.NODE_ENV !== "production") {
@@ -294,6 +302,8 @@ export function ToggleGroup<T extends string>({
 			ref={setContainerRef}
 			role={isTabs ? "tablist" : "radiogroup"}
 			aria-label={ariaLabel}
+			aria-disabled={disabled || undefined}
+			data-disabled={disabled || undefined}
 			onKeyDown={isTabs ? handleTabsKeyDown : undefined}
 			className={cn(
 				"relative inline-flex items-center",
@@ -303,12 +313,11 @@ export function ToggleGroup<T extends string>({
 				// minus the inset. The former `pill` variant
 				// (rounded-full + p-0.75) is gone.
 				variant === "default" &&
-					"rounded-lg border border-border/8 bg-border/6 p-0.5",
+					"rounded-lg shadow-[0_0_0_1px_rgba(0,0,0,0.1)] bg-border/6 p-0.5",
 				variant === "default" &&
-					(context === "sidebar"
-						? "dark:border-border/0 dark:bg-border/5"
-						: "dark:bg-border/0"),
+					(context === "sidebar" ? "dark:shadow-none" : "dark:bg-border/0"),
 				variant === "tabs" && "bg-transparent rounded-none p-1",
+				disabled && "cursor-not-allowed opacity-50 pointer-events-none",
 				className,
 			)}
 		>
@@ -383,6 +392,7 @@ export function ToggleGroup<T extends string>({
 							aria-controls={resolvePanelId(opt.value)}
 							tabIndex={active ? 0 : -1}
 							aria-selected={active}
+							disabled={disabled}
 							onClick={handleRadioChange}
 							className={cn(
 								"relative z-10 cursor-pointer font-normal outline-hidden transition-colors duration-150",
@@ -416,8 +426,9 @@ export function ToggleGroup<T extends string>({
 						ref={getLabelRef(opt.value)}
 						title={opt.title}
 						className={cn(
-							"relative z-10 cursor-pointer font-normal outline-hidden transition-colors duration-150",
+							"relative z-10 font-normal outline-hidden transition-colors duration-150",
 							"select-none whitespace-nowrap inline-flex items-center justify-center gap-1",
+							disabled ? "cursor-not-allowed" : "cursor-pointer",
 							// A11Y-1: visible focus indicator on the wrapping label so keyboard
 							// users see which toggle-group option has focus (the inner
 							// <input type="radio" class="sr-only"> owns the focus, so we use
@@ -445,6 +456,7 @@ export function ToggleGroup<T extends string>({
 								`toggle-group-${baseId.replace(/[^a-zA-Z0-9]/g, "")}`
 							}
 							checked={active}
+							disabled={disabled}
 							onChange={handleRadioChange}
 							//explicit accessible name so icon-only options
 							// (label === "") are announced via title.

@@ -395,12 +395,14 @@ describe("AudioSettingsSection, Microphone Quality enable-Switch", () => {
 		expect(options).not.toContain("OFF");
 	});
 
-	it("preset picker row is revealed only while the Switch is on", () => {
+	it("preset picker row stays visible but is locked while the Switch is off", () => {
 		const { rerender } = renderSection({ audio_preset: "auto" });
 		expect(presetPicker()).toBeTruthy();
+		expect(presetPicker()).toBeEnabled();
 
 		// Flip the preset off externally (e.g. from the Microphone
-		// page): the picker row unmounts, the switch-only row stays.
+		// page): the picker row stays mounted but can no longer be
+		// edited, so the option is discoverable instead of vanishing.
 		rerender(
 			<AudioSettingsSection
 				config={makeConfig({ audio_preset: "off" })}
@@ -409,9 +411,11 @@ describe("AudioSettingsSection, Microphone Quality enable-Switch", () => {
 				isVisible={alwaysVisible}
 			/>,
 		);
-		expect(
-			screen.queryByRole("combobox", { name: /Microphone Quality/i }),
-		).toBeNull();
+		const picker = screen.getByRole("combobox", {
+			name: /Microphone Quality/i,
+		});
+		expect(picker).toBeInTheDocument();
+		expect(picker).toBeDisabled();
 		expect(screen.getByTestId("microphone-quality-switch")).toBeTruthy();
 	});
 

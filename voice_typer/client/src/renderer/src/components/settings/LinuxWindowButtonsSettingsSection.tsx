@@ -132,10 +132,11 @@ export const LinuxWindowButtonsSettingsSection = memo(
 							</span>
 						</SettingRow>
 					)}
-				{current.mode === "custom" && isVisible(sideLabel, sideInfo, title) && (
+				{isVisible(sideLabel, sideInfo, title) && (
 					<SettingRow label={sideLabel} info={sideInfo}>
 						<Select
 							value={current.side}
+							disabled={current.mode !== "custom"}
 							onValueChange={(value) =>
 								commit({
 									side: value as LinuxWindowButtonsConfig["side"],
@@ -155,40 +156,36 @@ export const LinuxWindowButtonsSettingsSection = memo(
 						</Select>
 					</SettingRow>
 				)}
-				{current.mode === "custom" &&
-					isVisible(showMinimizeLabel, undefined, title) && (
-						<SettingRow label={showMinimizeLabel}>
-							<Switch
-								checked={current.show_minimize}
-								onCheckedChange={(checked) =>
-									commit({ show_minimize: checked })
-								}
-								aria-label={showMinimizeLabel}
-							/>
-						</SettingRow>
-					)}
-				{current.mode === "custom" &&
-					isVisible(showMaximizeLabel, undefined, title) && (
-						<SettingRow label={showMaximizeLabel}>
-							<Switch
-								checked={current.show_maximize}
-								onCheckedChange={(checked) =>
-									commit({ show_maximize: checked })
-								}
-								aria-label={showMaximizeLabel}
-							/>
-						</SettingRow>
-					)}
-				{current.mode === "custom" &&
-					isVisible(showCloseLabel, undefined, title) && (
-						<SettingRow label={showCloseLabel}>
-							<Switch
-								checked={current.show_close}
-								onCheckedChange={(checked) => commit({ show_close: checked })}
-								aria-label={showCloseLabel}
-							/>
-						</SettingRow>
-					)}
+				{isVisible(showMinimizeLabel, undefined, title) && (
+					<SettingRow label={showMinimizeLabel}>
+						<Switch
+							checked={current.show_minimize}
+							disabled={current.mode !== "custom"}
+							onCheckedChange={(checked) => commit({ show_minimize: checked })}
+							aria-label={showMinimizeLabel}
+						/>
+					</SettingRow>
+				)}
+				{isVisible(showMaximizeLabel, undefined, title) && (
+					<SettingRow label={showMaximizeLabel}>
+						<Switch
+							checked={current.show_maximize}
+							disabled={current.mode !== "custom"}
+							onCheckedChange={(checked) => commit({ show_maximize: checked })}
+							aria-label={showMaximizeLabel}
+						/>
+					</SettingRow>
+				)}
+				{isVisible(showCloseLabel, undefined, title) && (
+					<SettingRow label={showCloseLabel}>
+						<Switch
+							checked={current.show_close}
+							disabled={current.mode !== "custom"}
+							onCheckedChange={(checked) => commit({ show_close: checked })}
+							aria-label={showCloseLabel}
+						/>
+					</SettingRow>
+				)}
 			</SettingsSection>
 		);
 	},

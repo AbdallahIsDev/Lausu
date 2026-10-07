@@ -58,8 +58,19 @@ describe("LinuxWindowButtonsSettingsSection", () => {
 		renderWithProviders(<Section {...props} />);
 		expect(screen.getByText("Window Buttons")).toBeTruthy();
 		expect(screen.getByText("Following your desktop's layout")).toBeTruthy();
-		// System mode: no visibility switches.
-		expect(screen.queryByLabelText("Show Close Button")).toBeNull();
+		// System mode: the visibility switches stay visible but locked
+		// (only the custom mode can edit them).
+		const closeButton = screen.getByLabelText("Show Close Button");
+		expect(closeButton).toBeInTheDocument();
+		expect(closeButton).toBeDisabled();
+	});
+
+	it("system mode ignores clicks on the locked visibility switches", async () => {
+		const Section = await loadSection();
+		const props = makeProps({ mode: "system" }, SYSTEM_SNAPSHOT);
+		renderWithProviders(<Section {...props} />);
+		fireEvent.click(screen.getByLabelText("Show Close Button"));
+		expect(props.updateConfig).not.toHaveBeenCalled();
 	});
 
 	it("system snapshot missing → shows the unavailable note", async () => {

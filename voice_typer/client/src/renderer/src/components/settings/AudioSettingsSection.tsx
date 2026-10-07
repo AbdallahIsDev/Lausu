@@ -318,7 +318,7 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
                                 which defeated the purpose of in-section search. */}
 			<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/8">
 				{/* ── ADR 0007: Microphone Quality master Switch (first row) ──
-                                    Enabling reveals the preset picker row below;
+                                    Enabling unlocks the preset picker row below;
                                     "off" lives ONLY behind this Switch, never in
                                     the preset dropdown. */}
 				{isVisible(
@@ -341,31 +341,31 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 					</SettingRow>
 				)}
 
-				{/* ── ADR 0007: Quality preset picker (revealed while enabled) ── */}
-				{qualityEnabled &&
-					isVisible(
-						qualityPresetLabel,
-						microphoneQualityInfoSearch,
-						audioSectionTitle,
-					) && (
-						<SettingRow
-							label={qualityPresetLabel}
-							info={t("settings.audioEnhancement.microphoneQualityInfoSearch")}
+				{/* ── ADR 0007: Quality preset picker (locked while disabled) ── */}
+				{isVisible(
+					qualityPresetLabel,
+					microphoneQualityInfoSearch,
+					audioSectionTitle,
+				) && (
+					<SettingRow
+						label={qualityPresetLabel}
+						info={t("settings.audioEnhancement.microphoneQualityInfoSearch")}
+					>
+						<Select
+							value={activePreset}
+							disabled={!qualityEnabled}
+							onValueChange={handleAudioPresetChange}
 						>
-							<Select
-								value={activePreset}
-								onValueChange={handleAudioPresetChange}
+							<SelectTrigger
+								className="w-48"
+								aria-label={t(
+									"settings.audioEnhancement.microphoneQualityAria",
+								)}
 							>
-								<SelectTrigger
-									className="w-48"
-									aria-label={t(
-										"settings.audioEnhancement.microphoneQualityAria",
-									)}
-								>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{/* Options come from the shared preset
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{/* Options come from the shared preset
                                                                         registry (lib/utils/audioPresets.ts), the
                                                                         SAME source the Microphone page's accordion
                                                                         consumes, so the two surfaces can never
@@ -374,15 +374,15 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
                                                                         (useT) so a locale switch re-renders them.
                                                                         "off" is intentionally excluded: disabling
                                                                         is the enable-Switch's job. */}
-									{selectablePresets.map((option) => (
-										<SelectItem key={option.value} value={option.value}>
-											{t(option.labelKey)}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</SettingRow>
-					)}
+								{selectablePresets.map((option) => (
+									<SelectItem key={option.value} value={option.value}>
+										{t(option.labelKey)}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</SettingRow>
+				)}
 
 				{/* ── Voice activity filtering ── */}
 				{isVisible(vadFilterLabel, vadFilterInfoSearch, audioSectionTitle) && (
@@ -498,19 +498,19 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 					</SettingRow>
 				)}
 
-				{/* ── ADR 0007: Custom filter controls (only when preset === 'custom') ── */}
+				{/* ── ADR 0007: Custom filter controls (locked unless preset === 'custom') ── */}
 				{/*F-1: filter chain extracted to shared <AudioFilterChain />.
                                         : the filter chain rows themselves are search-filtered
                                         inside <AudioFilterChain> via its own isVisible checks (it
                                         receives the same `isVisible` prop through `sectionProps`).
-                                        Only render the chain wrapper when at least one of its
-                                        parent rows (the preset selector) is visible OR the user is
-                                        actively searching for a filter name, see AudioFilterChain
-                                        implementation. Keep this conditional on preset==="custom" so
-                                        the chain never appears for a non-custom preset. */}
-				{config.audio_preset === "custom" && (
-					<AudioFilterChain config={config} onConfigChange={updateConfig} />
-				)}
+                                        The chain is ALWAYS rendered and locked unless
+                                        preset==="custom", so the individual filters stay
+                                        discoverable and unlock when the custom preset is picked. */}
+				<AudioFilterChain
+					config={config}
+					onConfigChange={updateConfig}
+					disabled={config.audio_preset !== "custom"}
+				/>
 
 				{/* ── Test microphone (cross-link row to the Microphone page) ── */}
 				{isVisible(
