@@ -884,7 +884,7 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-I18N-1
-Rule: Do NOT add any user-facing text (UI labels, buttons, tooltips, dialogs, notifications, tray menu, errors) without adding it to ALL locale files. User-visible strings MUST go through the i18n layer (`useT()` / `t()` in the renderer, `mainT()` in the main process) and the new key MUST be added to every locale under `voice_typer/client/src/renderer/src/i18n/translations/`: `en.json`, `ar.json`, `de.json`, `es.json`, `fr.json`, `hi.json`, `ru.json`, `zh.json`. Adding the key to `en.json` only, or to a subset of locales, is a violation. Every locale must contain the key (see `SUPPORTED_LOCALES` in `i18n/locale.ts`).
+Rule: Do NOT add any user-facing text (UI labels, buttons, tooltips, dialogs, notifications, tray menu, errors) without adding it to ALL locale files. User-visible strings MUST go through the i18n layer (`useT()` / `t()` in the renderer, `mainT()` in the main process) and the new key MUST be added to every locale under `voice_typer/client/src/renderer/src/i18n/translations/`: `en.json`, `zh.json`, `hi.json`, `es.json`, `ar.json`, `fr.json`, `ru.json`, `de.json`. Adding the key to `en.json` only, or to a subset of locales, is a violation. Every locale must contain the key (see `SUPPORTED_LOCALES` in `i18n/locale.ts`).
 Rationale: The app is multilingual (8 locales). A key missing from a locale file means users of that language fall back to English (or see raw keys). A silent downgrade that is invisible when only English is tested.
 Applies to: All agents, all modes.
 ```
