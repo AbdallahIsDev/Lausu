@@ -270,12 +270,7 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 			case "settingsTranscription":
 				return <PostProcessingSettingsSection {...sectionProps} />;
 			case "settingsAI":
-				return (
-					<>
-						<LlmPolishingSettingsSection {...sectionProps} />
-						<AiEnhancementSettingsSection {...sectionProps} />
-					</>
-				);
+				return <AiEnhancementSettingsSection {...sectionProps} />;
 			case "settingsAudio":
 				return <AudioSettingsSection {...sectionProps} />;
 			case "settingsAppearance":
@@ -302,6 +297,7 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 			case "settingsAdvanced":
 				return (
 					<>
+						<LlmPolishingSettingsSection {...sectionProps} />
 						<TroubleshootingSettingsSection
 							isVisible={_filter_settings}
 							updateConfig={updateConfig}

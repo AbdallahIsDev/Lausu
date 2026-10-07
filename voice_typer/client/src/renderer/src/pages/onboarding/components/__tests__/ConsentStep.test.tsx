@@ -89,7 +89,7 @@ describe("ConsentStep, consolidated first-run consent", () => {
 		expect(screen.getByText("OpenAI Cloud Speech Recognition")).toBeTruthy();
 		expect(screen.getByText("Groq Cloud Speech Recognition")).toBeTruthy();
 		expect(screen.getByText("Deepgram Cloud Speech Recognition")).toBeTruthy();
-		expect(screen.getByText("LLM Text Polishing")).toBeTruthy();
+		expect(screen.getByText("Allow AI polish")).toBeTruthy();
 	});
 
 	it("switch state reflects the consents prop", () => {
@@ -122,7 +122,7 @@ describe("ConsentStep, consolidated first-run consent", () => {
 
 		const switches = screen.getAllByTestId("consent-switch");
 		const llm = switches.find(
-			(s) => s.getAttribute("aria-label") === "LLM Text Polishing",
+			(s) => s.getAttribute("aria-label") === "Allow AI polish",
 		);
 		expect(llm).toBeTruthy();
 		await user.click(llm as HTMLElement);

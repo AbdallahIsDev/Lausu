@@ -84,6 +84,8 @@ class VocabularyManager(VocabularyPersistenceMixin, VocabularyApplyMixin):
         self._data: dict[str, Any] = {}
         # Deletion tombstones: {category: [key | [wrong, correct], ...]}.
         self._deleted: dict[str, list] = {}
+        # Auto-apply origin marks: {category: {original: corrected}}.
+        self._auto_applied: dict[str, dict[str, str]] = {}
         # guards read-modify-write mutations of self._data (add/remove/
         self._lock = threading.Lock()
         # Raw bundled defaults (as loaded by ``_load_bundled``, before any
@@ -175,6 +177,13 @@ class VocabularyManager(VocabularyPersistenceMixin, VocabularyApplyMixin):
                 if key not in self._deleted[category]:
                     self._deleted[category].append(key)
                     tombstoned = True
+                # A deleted entry loses its auto-apply origin mark.
+                auto_marks = self._auto_applied.get(category)
+                auto_dropped: str | None = None
+                if isinstance(auto_marks, dict) and key in auto_marks:
+                    auto_dropped = auto_marks.pop(key)
+                    if not auto_marks:
+                        self._auto_applied.pop(category, None)
                 removed = True
         if removed:
             try:
@@ -186,6 +195,8 @@ class VocabularyManager(VocabularyPersistenceMixin, VocabularyApplyMixin):
                         cat_data[key] = old_value
                     if tombstoned and key in self._deleted.get(category, []):
                         self._deleted[category].remove(key)
+                    if auto_dropped is not None:
+                        self._auto_applied.setdefault(category, {})[key] = auto_dropped
                 raise
             # invalidate pattern cache on mutation.
             self._invalidate_pattern_cache()

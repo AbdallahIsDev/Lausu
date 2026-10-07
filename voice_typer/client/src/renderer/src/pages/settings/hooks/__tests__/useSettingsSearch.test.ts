@@ -106,10 +106,16 @@ describe("useSettingsSearch, auto-switch navigation", () => {
 		expect(nav).not.toHaveBeenCalled();
 
 		// A genuine query change navigates normally.
-		rerender({ query: "llm polishing", activeSection: "settingsGeneral" });
+		rerender({ query: "text polish", activeSection: "settingsGeneral" });
 		expect(nav).toHaveBeenCalledTimes(1);
 		const [page] = nav.mock.calls[0] ?? [];
-		expect(page).toBe("settingsAI");
+		expect(page).toBe("settingsAdvanced");
+
+		// The legacy "LLM Polish" alias routes to the same page.
+		rerender({ query: "llm polish", activeSection: "settingsGeneral" });
+		expect(nav).toHaveBeenCalledTimes(2);
+		const [aliasPage] = nav.mock.calls[1] ?? [];
+		expect(aliasPage).toBe("settingsAdvanced");
 	});
 
 	it("does NOT navigate when the query is shorter than 2 characters", () => {

@@ -14,6 +14,11 @@ export type VocabRow = VocabularyEntry & { _id: string };
 /** Flatten category-shaped VocabularyData into a flat array. */
 export function flattenEntries(data: VocabularyData): VocabularyEntry[] {
 	const items: VocabularyEntry[] = [];
+	const autoMarks = (data as Record<string, unknown>)._auto_applied as
+		| Record<string, Record<string, string>>
+		| undefined;
+	const isAuto = (cat: string, original: string, correction: string) =>
+		autoMarks?.[cat]?.[original] === correction;
 	for (const cat of CATEGORIES) {
 		const catData = (data as Record<string, unknown>)[cat];
 		if (
@@ -26,17 +31,26 @@ export function flattenEntries(data: VocabularyData): VocabularyEntry[] {
 				for (const [key, val] of Object.entries(
 					catData as Record<string, string>,
 				)) {
-					items.push({ category: cat, original: key, correction: String(val) });
+					const correction = String(val);
+					items.push({
+						category: cat,
+						original: key,
+						correction,
+						autoApplied: isAuto(cat, key, correction),
+					});
 				}
 			}
 		} else if (cat === "phrase_corrections" || cat === "extra_word_patterns") {
 			if (Array.isArray(catData)) {
 				for (const entry of catData) {
 					if (Array.isArray(entry) && entry.length >= 2) {
+						const original = entry[0] as string;
+						const correction = entry[1] as string;
 						items.push({
 							category: cat,
-							original: entry[0] as string,
-							correction: entry[1] as string,
+							original,
+							correction,
+							autoApplied: isAuto(cat, original, correction),
 						});
 					}
 				}

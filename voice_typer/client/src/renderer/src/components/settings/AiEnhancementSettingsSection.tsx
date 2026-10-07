@@ -73,12 +73,6 @@ export const AiEnhancementSettingsSection = memo(
 		const vocabSuggestInfoSearch = t(
 			"settings.vocabAutomation.suggestBelowConfidenceInfoSearch",
 		);
-		const vocabAutoApplyLabel = t(
-			"settings.vocabAutomation.autoApplyConfidence",
-		);
-		const vocabAutoApplyInfoSearch = t(
-			"settings.vocabAutomation.autoApplyConfidenceInfoSearch",
-		);
 
 		// ── Inline handler extraction ─────────────────────────────────
 		const handleAiEnableChange = (checked: boolean) =>
@@ -92,26 +86,10 @@ export const AiEnhancementSettingsSection = memo(
 		const handleVocabEnableChange = (checked: boolean) =>
 			updateConfig({ vocabulary_automation_enabled: checked });
 
-		// Cross-slider validation: the two confidence sliders cannot
-		// cross. Auto-apply must stay >= the suggest threshold (a
-		// suggestion would otherwise need a HIGHER confidence than
-		// auto-apply requires, making auto-apply unreachable), so each
-		// change CLAMPS its own value against the other slider's
-		// committed value, the thumbs can touch but never pass.
+		// Suggest-threshold slider: free 0..1 range, the auto-apply
+		// threshold is no longer user-facing (fixed at 0.95 server-side).
 		const handleSuggestConfidenceChange = (v: number) => {
-			const applyThreshold = config.vocabulary_auto_apply_threshold ?? 0.95;
-			updateConfigDebounced(
-				"vocabulary_auto_confidence_threshold",
-				Math.min(v, applyThreshold),
-			);
-		};
-		const handleAutoApplyConfidenceChange = (v: number) => {
-			const suggestThreshold =
-				config.vocabulary_auto_confidence_threshold ?? 0.7;
-			updateConfigDebounced(
-				"vocabulary_auto_apply_threshold",
-				Math.max(v, suggestThreshold),
-			);
+			updateConfigDebounced("vocabulary_auto_confidence_threshold", v);
 		};
 
 		//section-level visibility check for AI Enhancement section.
@@ -129,7 +107,6 @@ export const AiEnhancementSettingsSection = memo(
 		const vocabItems = [
 			{ label: vocabEnableLabel, info: vocabEnableInfoSearch },
 			{ label: vocabSuggestLabel, info: vocabSuggestInfoSearch },
-			{ label: vocabAutoApplyLabel, info: vocabAutoApplyInfoSearch },
 		];
 		const vocabVisible = anyRowVisible(
 			isVisible,
@@ -248,28 +225,6 @@ export const AiEnhancementSettingsSection = memo(
 									onChange={handleSuggestConfidenceChange}
 									ariaLabel={t(
 										"settings.vocabAutomation.suggestBelowConfidenceAria",
-									)}
-									disabled={!vocabMasterOn}
-									suffix=""
-								/>
-							</GatedSettingRow>
-
-							{/* ── Auto-apply threshold ── */}
-							<GatedSettingRow
-								isVisible={isVisible}
-								sectionTitle={vocabSectionTitle}
-								label={vocabAutoApplyLabel}
-								info={t("settings.vocabAutomation.autoApplyConfidenceInfo")}
-								searchInfo={vocabAutoApplyInfoSearch}
-							>
-								<RangeSlider
-									value={config.vocabulary_auto_apply_threshold ?? 0.95}
-									min={0}
-									max={1}
-									step={0.05}
-									onChange={handleAutoApplyConfidenceChange}
-									ariaLabel={t(
-										"settings.vocabAutomation.autoApplyConfidenceAria",
 									)}
 									disabled={!vocabMasterOn}
 									suffix=""

@@ -204,8 +204,10 @@ class VocabularyAutomation:
                     _MAX_LEVENSHTEIN_DISTANCE,
                 )
                 if corrected is None:
-                    # No close match, the user will need to supply
-                    corrected = clean
+                    # No close match: an identity suggestion (word ->
+                    # itself) is unactionable in the accept/reject review
+                    # UI, so skip it instead of queueing noise.
+                    continue
 
                 context = word_to_sentence.get(i, text)
                 if len(context) > _MAX_CONTEXT_LENGTH:
@@ -337,6 +339,14 @@ class VocabularyAutomation:
                 ):
                     # Only auto-apply if we actually have a proposed
                     applied_count += 1
+                    # Stamp the origin so the Vocabulary page can badge
+                    # auto-added entries. Manual applies stay unmarked.
+                    mark = getattr(self._vm, "note_auto_applied", None)
+                    if callable(mark):
+                        try:
+                            mark("misspellings", suggestion.original, suggestion.corrected)
+                        except Exception:
+                            log.debug("[VOCAB_AUTO] note_auto_applied failed", exc_info=True)
 
         if applied_count > 0:
             log.info(
