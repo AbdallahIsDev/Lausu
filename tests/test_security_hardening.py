@@ -322,8 +322,7 @@ class TestHallucinationLogging:
 
     def test_privacy_warning_on_log_transcriptions(self, tmp_path, caplog):
         """SEC-009: Loading config with log_transcriptions=True emits a privacy warning."""
-        from voice_typer.server.config import Config
-        from voice_typer.server.config import coercion as coercion_mod
+        from voice_typer.server.config import Config, coercion as coercion_mod
 
         coercion_mod._PRIVACY_CONSENT_WARNED = False
         config_file = tmp_path / "config.json"
@@ -340,8 +339,7 @@ class TestHallucinationLogging:
 
     def test_privacy_warning_once_per_process(self, tmp_path, caplog):
         """Reloading config must not repeat the log_transcriptions warning."""
-        from voice_typer.server.config import Config
-        from voice_typer.server.config import coercion as coercion_mod
+        from voice_typer.server.config import Config, coercion as coercion_mod
 
         coercion_mod._PRIVACY_CONSENT_WARNED = False
         config_file = tmp_path / "config.json"
