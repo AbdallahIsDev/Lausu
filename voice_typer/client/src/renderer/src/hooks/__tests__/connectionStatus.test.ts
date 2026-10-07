@@ -16,6 +16,8 @@ import {
 	HEALTH_CHECK_INTERVAL_MS,
 	HEALTH_CHECK_MAX_RETRIES,
 	HEALTH_CHECK_RETRY_DELAY_MS,
+	isTransientTimeoutError,
+	MANUAL_RETRY_PROBE_MAX_ATTEMPTS,
 	MAX_BACKGROUND_RECONNECTS,
 	RESPAWN_EXHAUSTED_CODE,
 } from "@/hooks/connectionStatus";
@@ -110,5 +112,22 @@ describe("connection timing constants", () => {
 	it("keeps the background reconnect poll at 12 × 10s", () => {
 		expect(MAX_BACKGROUND_RECONNECTS).toBe(12);
 		expect(BACKGROUND_RECONNECT_INTERVAL_MS).toBe(10_000);
+	});
+
+	it("keeps the manual retry at 3 probe attempts before kill escalation", () => {
+		expect(MANUAL_RETRY_PROBE_MAX_ATTEMPTS).toBe(3);
+	});
+
+	it("isTransientTimeoutError matches timeout shapes only", () => {
+		expect(isTransientTimeoutError(new Error("timed out after 15s"))).toBe(
+			true,
+		);
+		expect(
+			isTransientTimeoutError(
+				new Error('IPC command "get_config" timed out after 15000ms'),
+			),
+		).toBe(true);
+		expect(isTransientTimeoutError(new Error("down"))).toBe(false);
+		expect(isTransientTimeoutError("socket closed")).toBe(false);
 	});
 });

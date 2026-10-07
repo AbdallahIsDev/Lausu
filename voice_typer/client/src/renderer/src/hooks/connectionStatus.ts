@@ -80,6 +80,26 @@ export const CONNECTION_PROBE_STARTUP_GRACE_MS = 60_000;
 export const CONNECTION_PROBE_GRACE_EXTRA_RETRIES = 4;
 
 /**
+ * Timeout-shaped IPC failures (host pending-entry expiry, e.g.
+ * `timed out after 15s`) mean the backend is alive-but-busy, not dead.
+ * Fast refusals mean no transport. Both the mount probe and the manual
+ * retry grant extra patience to the same shape so a booting backend is
+ * never mistaken for a dead one.
+ */
+export function isTransientTimeoutError(err: unknown): boolean {
+	const msg = err instanceof Error ? err.message : String(err);
+	return /timed?\s?out/i.test(msg);
+}
+
+/**
+ * Manual "Retry Connection" probe: attempts before escalating to a
+ * backend kill+respawn. 3 covers a ~35s cold boot (15s timeout + 2s
+ * pause per attempt); a kill mid-boot resets that clock, so patience
+ * here is cheaper than a respawn.
+ */
+export const MANUAL_RETRY_PROBE_MAX_ATTEMPTS = 3;
+
+/**
  * Periodic health-check: quick retries before declaring disconnected.
  * 3 strikes (initial attempt + 2 retries) ≈ 1s of total tolerance for
  * a transient flap before the outage is surfaced to the user.

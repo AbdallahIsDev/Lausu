@@ -18,6 +18,8 @@ import {
 	HEALTH_CHECK_INTERVAL_MS,
 	HEALTH_CHECK_MAX_RETRIES,
 	HEALTH_CHECK_RETRY_DELAY_MS,
+	isTransientTimeoutError,
+	MANUAL_RETRY_PROBE_MAX_ATTEMPTS,
 	MAX_BACKGROUND_RECONNECTS,
 	RESPAWN_EXHAUSTED_CODE,
 } from "./connectionStatus";
@@ -143,10 +145,7 @@ export function useConnection({
 				// attempts without flipping to "disconnected"; fast
 				// failures (pre-handshake refusal) keep the plain budget
 				// so a truly dead backend still surfaces in seconds.
-				const transient =
-					err instanceof Error
-						? /timed?\s?out/i.test(err.message)
-						: /timed?\s?out/i.test(String(err));
+				const transient = isTransientTimeoutError(err);
 				const inGrace =
 					Date.now() - probeStartTs < CONNECTION_PROBE_STARTUP_GRACE_MS;
 				const budget =
@@ -411,13 +410,47 @@ export function useConnection({
 		),
 	);
 
+	const retryInFlightRef = useRef(false);
+
 	const handleRetryConnection = useCallback(async () => {
-		setConnectionStatus("connecting");
+		// Single-flight: a click while a retry is already probing, or
+		// while the status is mid-transition, must not stack a second
+		// kill escalation. Each kill resets a booting backend's clock,
+		// so stacked retries turn a slow boot into a restart loop.
+		if (retryInFlightRef.current) return;
+		const cur = useAppStore.getState().connectionStatus;
+		if (cur === "connecting" || cur === "restarting") return;
+		retryInFlightRef.current = true;
 		try {
-			await call("get_config");
-			setConnectionStatus("connected");
+			setConnectionStatus("connecting");
+			for (
+				let attempt = 1;
+				attempt <= MANUAL_RETRY_PROBE_MAX_ATTEMPTS;
+				attempt++
+			) {
+				try {
+					await call("get_config");
+					setConnectionStatus("connected");
+					return;
+				} catch (err) {
+					// Fast refusals mean no transport: escalate now, as
+					// before. Only timeout-shaped errors earn another
+					// probe — a booting backend answers slowly, not never.
+					const last = attempt >= MANUAL_RETRY_PROBE_MAX_ATTEMPTS;
+					if (!isTransientTimeoutError(err) || last) break;
+					await new Promise((resolve) =>
+						setTimeout(resolve, CONNECTION_PROBE_RETRY_DELAY_MS),
+					);
+				}
+			}
+		} finally {
+			retryInFlightRef.current = false;
+		}
+		// A background path may have healed meanwhile; never kill a
+		// backend the store already considers connected.
+		if (useAppStore.getState().connectionStatus === "connected") {
 			return;
-		} catch {}
+		}
 		try {
 			const res = await window.window_?.restartBackend?.();
 			if (res?.ok) {
