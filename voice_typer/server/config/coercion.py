@@ -281,8 +281,6 @@ def _validate_privacy_consents(data: dict[str, Any]) -> None:
     if data.get("log_transcriptions") and not _PRIVACY_CONSENT_WARNED:
         _PRIVACY_CONSENT_WARNED = True
         log.warning(
-            "[CONFIG] log_transcriptions is enabled, transcription text "
-            "(potentially containing PII) will be written to log files. "
-            "Disable this setting if you do not want speech content persisted "
-            "to disk."
+            "[CONFIG] log_transcriptions on: PII-redacted transcription "
+            "snippets may appear in logs (full text stays in History)."
         )
