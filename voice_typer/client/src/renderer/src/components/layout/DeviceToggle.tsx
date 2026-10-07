@@ -1,7 +1,6 @@
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { usePython } from "@/hooks/usePython";
 import { t } from "@/i18n/i18n";
-import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/appStore";
 
 type ComputeDevice = "cpu" | "cuda";
@@ -33,7 +32,6 @@ export function DeviceToggle({ collapsed = false }: { collapsed?: boolean }) {
 	};
 
 	return (
-		// <div className={cn("flex flex-col items-center")}>
 		<ToggleGroup<ComputeDevice>
 			options={[
 				{ value: "cpu", label: t("computeDevice.cpu") },
@@ -45,6 +43,5 @@ export function DeviceToggle({ collapsed = false }: { collapsed?: boolean }) {
 			context="sidebar"
 			className="w-full mb-4"
 		/>
-		// </div>
 	);
 }
