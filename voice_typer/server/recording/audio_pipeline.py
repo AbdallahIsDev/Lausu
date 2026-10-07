@@ -11,7 +11,6 @@ import contextlib
 import logging
 import math
 import os
-import queue
 import threading
 import time
 from typing import Any
@@ -23,6 +22,9 @@ from voice_typer.server._audio_constants import (
 )
 from voice_typer.server._lazy_import import lazy_module
 from voice_typer.server.recording import resampling as _resampling_mod
+from voice_typer.server.recording.audio_pipeline_telemetry import (  # noqa: F401
+    AudioPipelineTelemetryMixin,
+)
 from voice_typer.server.recording.format import ensure_mono
 from voice_typer.server.recording.vad_helpers import refresh_vad_caches, vad_auto_calibrate, vad_update
 from voice_typer.server.vad import compute_vad_prob
@@ -73,7 +75,7 @@ _BUFFER_TELEMETRY_ENABLED = os.environ.get("VOICE_TYPER_VERBOSE", "").lower() in
 )
 
 
-class AudioPipeline:
+class AudioPipeline(AudioPipelineTelemetryMixin):
     """Audio-chunk processing pipeline for :class:`Recorder`."""
 
     def __init__(self, recorder: Any) -> None:
@@ -403,51 +405,6 @@ class AudioPipeline:
                 chunk_count,
                 buffer_len,
             )
-
-    def detect_and_emit_clipping(self, recorder: Any, chunk_peak: float) -> None:
-        """AUDIO-CLIP: track clipping + push a real-time IPC event.
-
-        The historical ``Recorder._detect_and_emit_clipping`` pure
-        delegator was removed: this ``AudioPipeline`` method is invoked
-        directly by ``process_audio_chunk``. Extracted from
-        ``process_audio_chunk`` for testability and readability. The
-        ``audio_clip`` event is throttled to 1 Hz (same as the log) so
-        the IPC channel isn't flooded. The event is enqueued on a
-        non-blocking ``queue.Queue`` and drained by a dedicated event
-        worker thread (see ``capture.AudioCallbackDispatcher``). This
-        keeps the audio worker thread off the IPC transport - a slow
-        TCP subscriber (or a blocked predecessor renderer) can no longer
-        stall the worker and cause ring-buffer overflows / dropped
-        audio. ``put_nowait`` + ``queue.Full`` suppression so a
-        backed-up event worker can never block the audio thread.
-
-        Side effects: increments ``self._clip_count`` (owned here),
-        updates ``self._peak`` and ``self._last_clip_log_time``, may
-        push an event to ``recorder._event_queue``.
-        """
-        if chunk_peak >= 0.99:
-            # STATE-OWNERSHIP: clip/peak telemetry lives on THIS pipeline.
-            self._clip_count += 1
-            if chunk_peak > self._peak:
-                self._peak = chunk_peak
-            now = time.perf_counter()
-            if now - self._last_clip_log_time >= 1.0:
-                log.debug(
-                    "[RECORDING] Clipping detected: peak=%.4f, count=%d chunks.",
-                    chunk_peak,
-                    self._clip_count,
-                )
-                self._last_clip_log_time = now
-                with contextlib.suppress(queue.Full):
-                    recorder._event_queue.put_nowait(
-                        {
-                            "type": "audio_clip",
-                            "data": {
-                                "peak": float(chunk_peak),
-                                "count": int(self._clip_count),
-                            },
-                        }
-                    )
 
     def process_audio_chunk(
         self,
