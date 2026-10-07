@@ -54,8 +54,17 @@ class _PasteStepMixin:
                             recovery_path = None
                 except Exception:
                     log.exception("[CLIPBOARD] Failed to write transcription to crash recovery")
-                # Hide the bubble since the
-                self._hide_or_idle_bubble("bubble hide on clipboard fail")
+                # Surface the failure in the bubble instead of hiding it.
+                try:
+                    self._app._waveform_bubble.show()
+                    self._app._waveform_bubble.set_state("paste_failed")
+
+                    def _bubble_paste_failed_to_idle() -> None:
+                        self._hide_or_idle_bubble("bubble paste-failed->idle transition")
+
+                    self._app._schedule_timer(3.0, _bubble_paste_failed_to_idle)
+                except Exception:
+                    log.debug("[PIPELINE] bubble set_state('paste_failed') on failure failed", exc_info=True)
                 self._app.tray.set_state(
                     AppState.IDLE,
                     _i18n_t("state.dictation_pipeline.clipboard_unavailable"),

@@ -264,3 +264,26 @@ class TestPayloadMatchesRendererExpectations:
         assert "recovery_path" in data
         assert data["recovery_path"] is None or isinstance(data["recovery_path"], str)
         assert data["recovery_path"] == "/real/path/recovery.json"
+
+
+class TestPasteFailureBubbleState:
+    """The clipboard-failure path surfaces a live ``paste_failed`` bubble."""
+
+    def test_bubble_shows_paste_failed_with_timed_exit(self, monkeypatch):
+        app = _TestApp()
+        app.clipboard.copy.side_effect = ClipboardCopyError("clipboard locked")
+        pipeline = _new_pipeline(app)
+        _capture_publish(monkeypatch)
+
+        pipeline._copy_and_paste("hello world")
+
+        app._waveform_bubble.show.assert_called_once_with()
+        app._waveform_bubble.set_state.assert_called_once_with("paste_failed")
+        delays = [delay for delay, _cb in app._scheduled]
+        assert 3.0 in delays, f"bubble must schedule its 3s exit; got {delays}"
+        for delay, cb in app._scheduled:
+            if delay == 3.0:
+                cb()
+        # bubble_behavior is "transient" (not always_visible) so the
+        # timed exit hides the bubble.
+        app._waveform_bubble.hide.assert_called_once_with()
