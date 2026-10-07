@@ -265,23 +265,23 @@ describe("bubble: error retry affordance (XA-6-13)", () => {
 		expect(mockBubble.toggleDictation).toHaveBeenCalledTimes(1);
 	});
 
-	it("surfaces the error message alongside the retry button", () => {
+	it("shows a fixed Error label without the backend reason", () => {
 		render(<Bubble />);
 
 		setBubbleState({ state: "error", message: "Mic permission denied" });
 
 		expect(screen.getByText(/⚠ Error/)).toBeTruthy();
-		expect(screen.getByText(/Mic permission denied/)).toBeTruthy();
+		expect(screen.queryByText(/Mic permission denied/)).toBeNull();
 		expect(screen.getByLabelText("Retry transcription")).toBeTruthy();
 	});
 
-	it("clears the error message when transitioning out of error mode", () => {
+	it("keeps the fixed Error label when transitioning out of error mode", () => {
 		render(<Bubble />);
 
 		setBubbleState({ state: "error", message: "Mic permission denied" });
-		expect(screen.getByText(/Mic permission denied/)).toBeTruthy();
+		expect(screen.getByText(/⚠ Error/)).toBeTruthy();
 
 		setBubbleState("recording");
-		expect(screen.queryByText(/Mic permission denied/)).toBeNull();
+		expect(screen.queryByText(/⚠ Error/)).toBeNull();
 	});
 });

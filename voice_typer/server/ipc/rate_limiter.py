@@ -156,6 +156,10 @@ COMMAND_COSTS: dict[str, int] = {
     "test_cloud_connection": 10,
     "reset_macos_accessibility": 2,
     "reset_linux_permissions": 2,
+    "screenshot_capture": 2,
+    "screenshot_clear_cycle": 2,
+    "screenshot_set_consent": 2,
+    "screenshot_get_status": 1,
 }
 DEFAULT_COST = 1
 

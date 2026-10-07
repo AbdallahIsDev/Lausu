@@ -149,7 +149,10 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         # Added 2026-10-04 (Plugins page). Slug-validated; "" = local model.
         "active_plugin",
         # Added by a separate in-flight change (hallucination filter).
-        "hallucination_filter_mode"
+        "hallucination_filter_mode",
+        # Added 2026-10-07 (one-shot screenshot beta flags; bool-validated).
+        "screenshot_beta_enabled",
+        "screenshot_consent"
     }
 )
 
@@ -158,12 +161,14 @@ class TestAllowlistSnapshot:
     """SEC-002 byte-for-byte parity for ``IPC_CONFIG_ALLOWLIST``."""
 
     def test_allowlist_size_unchanged(self) -> None:
-        """The allowlist must still contain exactly 130 keys."""
-        assert len(IPC_CONFIG_ALLOWLIST) == 130, (
-            f"IPC_CONFIG_ALLOWLIST size drifted: expected 130, got {len(IPC_CONFIG_ALLOWLIST)}. "
+        """The allowlist must still contain exactly 132 keys."""
+        assert len(IPC_CONFIG_ALLOWLIST) == 132, (
+            f"IPC_CONFIG_ALLOWLIST size drifted: expected 132, got {len(IPC_CONFIG_ALLOWLIST)}. "
             "SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a "
             "security-sensitive change that must be reviewed explicitly. "
-            "Latest reviewed growth: 129 → 130, `active_plugin` "
+            "Latest reviewed growth: 130 → 132, `screenshot_beta_enabled` + "
+            "`screenshot_consent` (one-shot screenshot beta flags; bool-validated). "
+            "Prior 129 → 130 growth: `active_plugin` "
             "(Plugins page activation switch; slug-validated, empty = local model). "
             "Prior 128 → 129 growth: `hallucination_filter_mode` (separate in-flight change)."
         )

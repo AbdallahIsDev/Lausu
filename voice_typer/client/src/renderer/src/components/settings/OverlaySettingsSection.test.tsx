@@ -181,6 +181,25 @@ describe("OverlaySettingsSection, bubble behavior + timer + preview", () => {
 		).toHaveLength(0);
 	});
 
+	it("offers the screenshot beta toggle off by default and commits the toggle", () => {
+		const updateConfig = vi.fn();
+		renderSection({}, updateConfig);
+		const toggle = screen.getByLabelText("Screenshot capture (Beta)");
+		expect(toggle).toBeTruthy();
+		expect(toggle).not.toBeChecked();
+		fireEvent.click(toggle);
+		expect(updateConfig).toHaveBeenCalledWith({
+			screenshot_beta_enabled: true,
+		});
+	});
+
+	it("locks the screenshot beta toggle when behavior is hidden", () => {
+		renderSection({ bubble_behavior: "hidden" });
+		const toggle = screen.getByLabelText("Screenshot capture (Beta)");
+		expect(toggle).toBeInTheDocument();
+		expect(toggle).toBeDisabled();
+	});
+
 	it("mirrors bubble position into the preview", () => {
 		renderSection({
 			bubble_behavior: "always_visible",

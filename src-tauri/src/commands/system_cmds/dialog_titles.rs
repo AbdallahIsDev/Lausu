@@ -19,7 +19,11 @@ pub(crate) enum DialogTitle {
 }
 
 #[cfg(test)]
-pub(crate) const SUPPORTED_LANGUAGES: [&str; 8] = ["en", "ar", "de", "es", "fr", "hi", "ru", "zh"];
+// Mirrors the renderer's `SUPPORTED_LOCALES`, in the same display order
+// (English first, then by global speaker population). Test-only: the
+// lookup below is a `match` on the language code and does not care about
+// sequence, but the two lists drifting apart is what this pins.
+pub(crate) const SUPPORTED_LANGUAGES: [&str; 8] = ["en", "zh", "hi", "es", "ar", "fr", "ru", "de"];
 
 pub(crate) fn host_locale(app: &tauri::AppHandle) -> Option<String> {
     use tauri::Manager;

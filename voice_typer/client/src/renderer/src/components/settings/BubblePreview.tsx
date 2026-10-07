@@ -9,8 +9,9 @@
 //   timerOn    ← bubble_show_recording_timer  (timer inside the pill)
 //   micOn      ← bubble_mic_button + bubble_click_to_toggle + behavior
 //                (the mic button only exists on the idle pill)
-//   dismissOn  ← bubble_behavior === "always_visible" (the × only ever
-//                renders on the always-visible bubble)
+//   dismissOn  ← bubble_behavior === "always_visible" (the × renders on
+//                every non-recording pill of the always-visible bubble;
+//                the preview pins it to the idle row)
 //   position   ← bubble_position (which screen edge the pill is pinned to)
 //
 // Spacing note (the two-column rhythm this component is built around):
@@ -31,9 +32,13 @@ import { useT } from "@/i18n/i18n";
 
 // Same frame as the real pill (Bubble.tsx) with tighter vertical
 // padding: the overlay pill is `py-2.5` because it floats alone over
-// the desktop, the preview is `py-1.5` so three of them stack without
+// the desktop, the preview is `py-1.5` so the two rows stack without
 // crowding each other. Horizontal padding, radius, border and palette
 // are unchanged, so it still reads as the real thing.
+// Only the two customizable states are previewed (idle hosts the mic
+// button, recording hosts the timer). Transcribing, error, blocked,
+// cancelling and friends have no per-state setting, so a preview row
+// for them would never change.
 const PREVIEW_PILL_CLASS =
 	"pointer-events-none inline-flex items-center gap-3 rounded-full border border-border/8 bg-surface px-4 py-1.5 text-foreground";
 
@@ -89,6 +94,7 @@ export const BubblePreview = memo(function BubblePreview({
 				<div className={PREVIEW_PILL_CLASS} aria-hidden>
 					<BubbleModeContent mode="idle" showTimer={false} dotRefs={dotRefs} />
 					{micOn && <BubbleMicButton mode="idle" onClick={noop} />}
+					{dismissOn && <BubbleDismissButton onClick={noop} />}
 				</div>
 			</div>
 			<div className="flex items-center justify-between gap-3">
@@ -102,19 +108,6 @@ export const BubblePreview = memo(function BubblePreview({
 						dotRefs={dotRefs}
 					/>
 					<BubbleStopButton onClick={noop} mode="recording" />
-				</div>
-			</div>
-			<div className="flex items-center justify-between gap-3">
-				<span className={PREVIEW_LABEL_CLASS}>
-					{t("settings.bubblePreviewTranscribing")}
-				</span>
-				<div className={PREVIEW_PILL_CLASS} aria-hidden>
-					<BubbleModeContent
-						mode="transcribing"
-						showTimer={false}
-						dotRefs={dotRefs}
-					/>
-					{dismissOn && <BubbleDismissButton onClick={noop} />}
 				</div>
 			</div>
 		</div>

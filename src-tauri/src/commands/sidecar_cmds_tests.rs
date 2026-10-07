@@ -151,9 +151,9 @@ fn test_allowed_commands_set_is_nonempty() {
 #[test]
 fn test_allowed_commands_count_matches_python_registry_parity() {
     // The Rust literal is exactly the renderer-reachable subset of the
-    // Python `_COMMAND_REGISTRY`: 80 registry entries minus the four
+    // Python `_COMMAND_REGISTRY`: 84 registry entries minus the four
     // host-dispatched commands (`heartbeat`, `relaunch_ack`, `shutdown`,
-    // `tray_click`) = 76. The Python parity test
+    // `tray_click`) = 80. The Python parity test
     // `tests/test_ipc_command_parity.py::test_registry_minus_rust_equals_host_dispatched_delta`
     // asserts the entries match exactly; this Rust-side test pins the
     // COUNT so a local `cargo test` catches drift before the Python test
@@ -161,8 +161,8 @@ fn test_allowed_commands_count_matches_python_registry_parity() {
     // (see `dispatch_inner`), so they are intentionally ABSENT here.
     assert_eq!(
         allowed_commands().len(),
-        76,
-        "must match the Python registry (80 entries) minus the 4 host-dispatched \
+        80,
+        "must match the Python registry (84 entries) minus the 4 host-dispatched \
          commands (heartbeat, relaunch_ack, shutdown, tray_click)"
     );
 }
@@ -170,9 +170,9 @@ fn test_allowed_commands_count_matches_python_registry_parity() {
 #[test]
 fn test_allowed_commands_set_contains_no_duplicates() {
     let set = allowed_commands();
-    // 76 entries: must match the cmds literal below (single
+    // 80 entries: must match the cmds literal below (single
     // source of truth). A duplicate in the literal would make
-    // set.len() < 76.
+    // set.len() < 80.
     // 66 → 67: `run_prewarm` restored 2026-08-14 (§6.3 addendum
     // second half: re-implemented to re-run the warm phase
     // in-process instead of spawning the deleted subprocess).
@@ -185,10 +185,12 @@ fn test_allowed_commands_set_contains_no_duplicates() {
     // 71 → 72: `open_data_folder` (Models storage card + Diagnostics).
     // 72 → 75: `media_transcribe_start/cancel/status` (ADR-0023).
     // 75 → 76: `get_plugins` (Plugins page installed-plugin discovery).
+    // 76 → 80: `screenshot_capture/clear_cycle/get_status/set_consent`
+    // (one-shot screenshot beta, Windows-only).
     assert_eq!(
         set.len(),
-        76,
-        "ALLOWED_COMMANDS contains a duplicate entry: set len ({}) < literal len (76). \
+        80,
+        "ALLOWED_COMMANDS contains a duplicate entry: set len ({}) < literal len (80). \
          Check the constructor log for the duplicate name.",
         set.len()
     );
@@ -196,18 +198,19 @@ fn test_allowed_commands_set_contains_no_duplicates() {
 
 #[test]
 fn test_allowed_commands_exact_snapshot() {
-    //Stricter parity test: pin the EXACT 76-entry set (sorted)
+    //Stricter parity test: pin the EXACT 80-entry set (sorted)
     // so any drift between the Rust literal and the Python registry is
     // caught at `cargo test` time, BEFORE the cross-layer Python
     // parity test in `tests/test_ipc_command_parity.py` runs. The
     // count-only test above catches add/remove drift but
     // MISSES a rename (e.g. `onboarding_reset` → `reset_onboarding`)
-    // that keeps the count at 76. This snapshot test catches both
+    // that keeps the count at 80. This snapshot test catches both
     // renames and any silent reordering that would mask a missing
     // entry.
     //
     // The expected list is the alphabetically-sorted union of:
-    //   - the Python `_COMMAND_REGISTRY` literal (80 entries)
+    //   - the Python `_COMMAND_REGISTRY` literal (84 entries, once the
+    //     backend slice lands the four screenshot handlers)
     //   - minus the four host-dispatched commands: `heartbeat`
     //     (Rust WS-reader task), `relaunch_ack` (Rust `relaunch_app`
     //     event handler), `shutdown` (supervised `shutdown_sidecar`
@@ -217,7 +220,9 @@ fn test_allowed_commands_exact_snapshot() {
     //
     // MAINTENANCE: when adding/removing a command from the Rust
     // literal, ALSO update this snapshot and the Python registry in
-    // the same PR. The Python parity test will catch a missed
+    // the same PR (the four screenshot entries are the known
+    // exception: the backend slice lands the registry side). The
+    // Python parity test will catch a missed
     // registry update, but this test catches a missed Rust snapshot
     // update faster (no Python venv required).
     //
@@ -230,8 +235,11 @@ fn test_allowed_commands_exact_snapshot() {
     // `check_offline_pack_update`
     // (auto-update feature) was added → 67.
     // (2026-08-16): `test_vocabulary_correction` → 68.
-    // (2026-08-17): `get_correction_usage` → 69. This snapshot is
-    // the current 76-entry set (2026-08: + microphone_test_read_audio,
+    // (2026-08-17): `get_correction_usage` → 69.
+    // One-shot screenshot beta (Windows-only, 2026-10):
+    // + `screenshot_capture/clear_cycle/get_status/set_consent`
+    // → 80. This snapshot is the current
+    // 80-entry set (2026-08: + microphone_test_read_audio,
     // chunked file-reference transport for mic-test WAVs;
     // 2026-09: + get_download_queue, pending-download queue snapshot;
     // + open_data_folder, Models storage card + Diagnostics;
@@ -306,6 +314,10 @@ fn test_allowed_commands_exact_snapshot() {
         "run_prewarm",
         "save_templates",
         "save_vocabulary",
+        "screenshot_capture",
+        "screenshot_clear_cycle",
+        "screenshot_get_status",
+        "screenshot_set_consent",
         "search_history",
         "set_config",
         "set_esc_cancel_paused",
@@ -322,14 +334,14 @@ fn test_allowed_commands_exact_snapshot() {
         expected.len(),
         "snapshot length mismatch: actual Rust set has {} entries, snapshot expected {}. \
          If you added/removed a command, update BOTH this snapshot AND the cmds literal AND \
-         the Python `_COMMAND_REGISTRY` (= 80 entries).",
+         the Python `_COMMAND_REGISTRY` (= 84 entries with the screenshot four).",
         actual.len(),
         expected.len()
     );
     assert_eq!(
         actual, expected,
         "ALLOWED_COMMANDS snapshot drift: the Rust literal no longer matches the pinned \
-         76-entry snapshot. Diff the actual vs expected Vec above. If the change is \
+         80-entry snapshot. Diff the actual vs expected Vec above. If the change is \
          intentional, update this snapshot in lockstep with the cmds literal AND the \
          Python `_COMMAND_REGISTRY` (see MAINTENANCE note above)."
     );

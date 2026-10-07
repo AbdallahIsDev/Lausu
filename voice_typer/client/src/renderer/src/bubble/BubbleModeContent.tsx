@@ -1,5 +1,6 @@
 import type { RefObject } from "react";
 import { t } from "@/i18n/i18n";
+import { BubbleAnnotateButton } from "./BubbleAnnotateButton";
 import { BubbleVisualizer } from "./BubbleVisualizer";
 import type { BubbleMode } from "./constants";
 import { FADEOUT_DURATION_MS } from "./constants";
@@ -16,18 +17,25 @@ function truncateTranscript(text: string): string {
 
 export interface BubbleModeContentProps {
 	mode: BubbleMode;
-	errorMessage?: string | null;
 	transcript?: string | null;
 	showTimer: boolean;
 	dotRefs: RefObject<(HTMLSpanElement | null)[]>;
+	// One-shot screenshot beta: the annotate button renders ONLY in
+	// the recording case while the beta flag is on. Absent by
+	// default, so the beta-off pill is unchanged.
+	annotateEnabled?: boolean;
+	annotateCaptured?: boolean;
+	onAnnotate?: () => void;
 }
 
 export function BubbleModeContent({
 	mode,
-	errorMessage,
 	transcript,
 	showTimer,
 	dotRefs,
+	annotateEnabled,
+	annotateCaptured,
+	onAnnotate,
 }: BubbleModeContentProps) {
 	switch (mode) {
 		case "transcribing": {
@@ -105,10 +113,8 @@ export function BubbleModeContent({
 			// Surface a red "⚠ Error" label so the user can see
 			// something went wrong (e.g. backend crash, mic
 			// permission revoked). Uses the destructive token so
-			// it inherits theme-preset colors. When the backend +
-			// main process forward a `message` field in the
-			// `bubble:set-state` payload, it's surfaced as a
-			// short reason string after the "Error" label.
+			// it inherits theme-preset colors. The pill stays a
+			// fixed short label, the backend reason is not shown.
 			return (
 				<div className="flex h-6 items-center gap-2 px-2">
 					<span
@@ -117,7 +123,6 @@ export function BubbleModeContent({
 					/>
 					<span className="text-[0.625rem] font-medium text-destructive">
 						{tf("bubble.errorLabel", "⚠ Error")}
-						{errorMessage ? `: ${errorMessage}` : ""}
 					</span>
 				</div>
 			);
@@ -138,12 +143,6 @@ export function BubbleModeContent({
 		case "cancelling":
 			return (
 				<div className="flex h-6 items-center gap-2 px-2">
-					<span
-						className="text-[0.6875rem] leading-none text-muted-foreground animate-pulse"
-						aria-hidden
-					>
-						⏇
-					</span>
 					<span className="text-[0.625rem] font-medium text-muted-foreground">
 						{tf("bubble.cancellingLabel", "Cancelling…")}
 					</span>
@@ -182,6 +181,12 @@ export function BubbleModeContent({
 			return (
 				<div className="flex items-center gap-2">
 					<BubbleVisualizer dotRefs={dotRefs} showTimer={showTimer} />
+					{annotateEnabled && onAnnotate && (
+						<BubbleAnnotateButton
+							onClick={onAnnotate}
+							captured={annotateCaptured === true}
+						/>
+					)}
 				</div>
 			);
 		default: {

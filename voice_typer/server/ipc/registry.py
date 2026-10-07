@@ -55,6 +55,7 @@ _READONLY_COMMANDS: frozenset[str] = frozenset(
         "onboarding_get_model_options",
         "onboarding_get_hotkey_presets",
         "onboarding_check_permissions",
+        "screenshot_get_status",
     }
 )
 
@@ -92,7 +93,7 @@ _SELF_SERIALIZED_COMMANDS: frozenset[str] = frozenset(
 # Host-only commands: registered here, never invoked by the renderer
 _PYTHON_ONLY_COMMANDS: frozenset[str] = frozenset({"shutdown", "tray_click"})
 
-# Maps IPC command name → handler method on IPCServer. Count pinned at 79
+# Maps IPC command name → handler method on IPCServer. Count pinned at 84
 _COMMAND_REGISTRY: dict[str, str] = {
     "get_status": "_handle_get_status",
     "toggle_dictation": "_handle_toggle_dictation",
@@ -186,6 +187,10 @@ _COMMAND_REGISTRY: dict[str, str] = {
     "media_transcribe_start": "_handle_media_transcribe_start",
     "media_transcribe_cancel": "_handle_media_transcribe_cancel",
     "media_transcribe_status": "_handle_media_transcribe_status",
+    "screenshot_capture": "_handle_screenshot_capture",
+    "screenshot_clear_cycle": "_handle_screenshot_clear_cycle",
+    "screenshot_get_status": "_handle_screenshot_get_status",
+    "screenshot_set_consent": "_handle_screenshot_set_consent",
 }
 
 

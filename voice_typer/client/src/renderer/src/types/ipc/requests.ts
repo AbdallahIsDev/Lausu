@@ -260,6 +260,39 @@ export interface CheckPackUpdateRequest {
 	data?: Record<string, unknown>;
 }
 
+// One-shot screenshot beta (Windows-only): region capture attached
+// to the active recording. `cycle_id` is minted by the renderer per
+// recording (`mintScreenshotCycleId` in `lib/screenshot.ts`); `rect`
+// is in DEVICE pixels (CSS pixels scaled by `devicePixelRatio`).
+// Mirrors `ScreenshotHandlersMixin` (`handlers/screenshot_handlers.py`).
+export interface ScreenshotCaptureRequest {
+	type: "screenshot_capture";
+	data: {
+		cycle_id: string;
+		rect: { left: number; top: number; width: number; height: number };
+	};
+}
+
+// Delete one cycle's screenshot dir (history-entry deletion path).
+export interface ScreenshotClearCycleRequest {
+	type: "screenshot_clear_cycle";
+	data: { cycle_id: string };
+}
+
+// Read the backend status ({supported, enabled, consent} plus store
+// status when `cycle_id` is given).
+export interface ScreenshotGetStatusRequest {
+	type: "screenshot_get_status";
+	data?: { cycle_id?: string };
+}
+
+// Persist the screenshot consent flag (also grantable point-of-use
+// via the shared consent gate, `consentDialog.field.screenshot_consent`).
+export interface ScreenshotSetConsentRequest {
+	type: "screenshot_set_consent";
+	data: { consented: boolean };
+}
+
 export interface GetModelCatalogRequest {
 	type: "get_model_catalog";
 	data?: Record<string, unknown>;
@@ -456,4 +489,12 @@ export type PythonRequest =
 	| AddTrustedEndpointRequest
 	// worker). See `TranscribeOfflineRequest` above for the wire
 	// shape + rationale. Pinned by `tests/test_event_types_parity.py`.
-	| TranscribeOfflineRequest;
+	| TranscribeOfflineRequest
+	// One-shot screenshot beta (Windows-only): region capture flow.
+	// No new push events: status is polled via `screenshot_get_status`
+	// and consent refusal arrives on the existing `consent_required`
+	// channel (`consent_field: "screenshot_consent"`).
+	| ScreenshotCaptureRequest
+	| ScreenshotClearCycleRequest
+	| ScreenshotGetStatusRequest
+	| ScreenshotSetConsentRequest;

@@ -46,6 +46,7 @@ const hugeiconsMock = {
 	Bug02Icon: make("Bug02Icon"),
 	BulbIcon: make("BulbIcon"),
 	Calendar01Icon: make("Calendar01Icon"),
+	Camera01Icon: make("Camera01Icon"),
 	Cancel01Icon: make("Cancel01Icon"),
 	CheckmarkCircle01Icon: make("CheckmarkCircle01Icon"),
 	CheckmarkCircle02Icon: make("CheckmarkCircle02Icon"),

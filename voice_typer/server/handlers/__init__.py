@@ -19,6 +19,7 @@ from voice_typer.server.handlers.onboarding_handlers import OnboardingHandlersMi
 from voice_typer.server.handlers.plugin_handlers import PluginHandlersMixin
 from voice_typer.server.handlers.privacy_handlers import PrivacyHandlersMixin
 from voice_typer.server.handlers.repaste_handlers import RepasteHandlersMixin
+from voice_typer.server.handlers.screenshot_handlers import ScreenshotHandlersMixin
 from voice_typer.server.handlers.status_handlers import StatusHandlersMixin
 from voice_typer.server.handlers.system_handlers import SystemHandlersMixin
 from voice_typer.server.handlers.templates_handlers import TemplatesHandlersMixin
@@ -47,4 +48,5 @@ __all__ = [
     "PrivacyHandlersMixin",
     # ``RepasteHandlersMixin`` () is part of the package
     "RepasteHandlersMixin",
+    "ScreenshotHandlersMixin",
 ]

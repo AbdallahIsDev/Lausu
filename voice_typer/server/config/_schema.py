@@ -235,6 +235,11 @@ class _ConfigSchema:
     history_retention_count: int = 0  # 0 = unlimited
     history_max_entries: int = 1000
 
+    # One-shot screenshot beta (Windows-only, local-only files).
+    screenshot_beta_enabled: bool = False
+    # JIT consent gate for screen capture.
+    screenshot_consent: bool = False
+
     # Onboarding
     onboarding_completed: bool = False
     # marks that onboarding was force-completed after repeated

@@ -167,6 +167,8 @@ class WaveformBubbleWiring:
                         "bubble_click_to_toggle": getattr(cfg, "bubble_click_to_toggle", None) or True,
                         "bubble_mic_button": getattr(cfg, "bubble_mic_button", None) or True,
                         "bubble_show_recording_timer": bool(getattr(cfg, "bubble_show_recording_timer", False)),
+                        "screenshot_beta_enabled": bool(getattr(cfg, "screenshot_beta_enabled", False)),
+                        "screenshot_consent": bool(getattr(cfg, "screenshot_consent", False)),
                         # theme sync. The renderer's useThemeSync hook
                         "theme_mode": getattr(cfg, "theme_mode", None) or "system",
                         "theme_preset": getattr(cfg, "theme_preset", None) or "default",

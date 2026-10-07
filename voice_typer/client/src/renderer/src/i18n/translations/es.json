@@ -775,6 +775,8 @@
 		"bubbleBehaviorHidden": "Oculta",
 		"bubbleShowRecordingTimer": "Temporizador de grabación",
 		"bubbleShowRecordingTimerInfo": "Muestra la duración de la grabación (mm:ss) junto al punto rojo durante la grabación. Desactivado por defecto.",
+		"screenshotBeta": "Captura de pantalla (Beta)",
+		"screenshotBetaInfo": "Adjunta una región de la pantalla a la transcripción, una vez por grabación. Solo Windows. Desactivado por defecto; la grabación continúa mientras seleccionas.",
 		"bubblePreview": "Vista previa de la burbuja",
 		"bubblePreviewInfo": "Así se ve la burbuja en cada estado. El temporizador avanza en directo aquí.",
 		"bubblePreviewIdle": "Inactiva",
@@ -1676,7 +1678,13 @@
 		"stopRecordingAria": "Detener grabación",
 		"dismissAria": "Descartar burbuja",
 		"transcriptPreviewAria": "Vista previa de transcripción en vivo",
-		"recordingTimerAria": "Duración de la grabación"
+		"recordingTimerAria": "Duración de la grabación",
+		"annotateAria": "Capturar una región de la pantalla",
+		"screenshotHint": "Arrastra para seleccionar una región — suelta para capturar, Esc para cancelar"
+	},
+	"screenshot": {
+		"consentTitle": "Captura de pantalla",
+		"consentDesc": "Adjuntar una captura envía la región seleccionada junto con esta transcripción como contexto. La imagen se procesa con tu audio y no se conserva más allá de la transcripción. ¿Permitir?"
 	},
 	"errorBoundary": {
 		"title": "Algo salió mal",
@@ -2098,7 +2106,8 @@
 			"cloud_groq_consent": "La transcripción en la nube envía tu audio a la API de voz de Groq para transcribirlo, según sus términos y política de privacidad. ¿Permitir?",
 			"cloud_deepgram_consent": "La transcripción en la nube envía tu audio a la API de voz de Deepgram para transcribirlo, según sus términos y política de privacidad. ¿Permitir?",
 			"llm_polish_consent": "El pulido con LLM envía tu texto transcrito (no el audio) a tu API LLM configurada para corregir gramática y puntuación, según sus términos. ¿Permitir?",
-			"media_url_consent": "Transcribir un enlace multimedia envía ese enlace al extractor de medios (yt-dlp) para localizar su flujo de audio. El sitio enlazado se contacta directamente desde este dispositivo. ¿Permitir?"
+			"media_url_consent": "Transcribir un enlace multimedia envía ese enlace al extractor de medios (yt-dlp) para localizar su flujo de audio. El sitio enlazado se contacta directamente desde este dispositivo. ¿Permitir?",
+			"screenshot_consent": "La captura de pantalla adjunta la región seleccionada a esta transcripción como contexto. La imagen se procesa con tu audio y no se conserva más allá de la transcripción. ¿Permitir?"
 		}
 	},
 	"degradation": {
