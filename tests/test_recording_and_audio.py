@@ -565,6 +565,35 @@ class TestCancelSetsCancellingState:
         last_call = app.tray.set_state.call_args_list[-1]
         assert last_call.args[0] == AppState.IDLE
 
+    def test_cancel_sets_bubble_cancelling(self):
+        from unittest.mock import MagicMock
+
+        from voice_typer.server.recording_controller import RecordingController
+
+        ctrl = RecordingController.__new__(RecordingController)
+        ctrl._streaming_session_lock = threading.Lock()
+        ctrl._watchdog_lock = threading.Lock()
+        ctrl._toggle_lock = threading.RLock()
+        ctrl._watchdog_firings = 0
+        ctrl._watchdog_max_firings = 3
+        ctrl._transcription_thread = None
+
+        app = MagicMock()
+        app._cycle_id = "test"
+        app._pending_timers_lock = threading.Lock()
+        app._pending_timers = []
+        app.recorder.recording = True
+        app._waveform_bubble = MagicMock()
+        app._cancel_streaming_session = MagicMock()
+        app._restore_volume = MagicMock()
+        app.config.bubble_behavior = "auto_hide"
+        app._busyness = MagicMock()
+        ctrl._app = app
+
+        ctrl.cancel()
+
+        app._waveform_bubble.set_state.assert_any_call("cancelling")
+
 
 class TestSetConfigInvalidatesTrayCache:
     """IPC set_config calls tray.invalidate_menu_cache."""

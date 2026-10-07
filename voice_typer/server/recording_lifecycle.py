@@ -919,6 +919,10 @@ class RecordingLifecycle:
             app.tray.set_state(AppState.CANCELLING, i18n.t("state.recording_controller.cancelling"))
         except Exception:
             log.debug("[CANCEL] could not set CANCELLING state", exc_info=True)
+        try:
+            app._waveform_bubble.set_state("cancelling")
+        except Exception:
+            log.debug("[CANCEL] could not set bubble cancelling state", exc_info=True)
         app._cancel_pending_timers()
 
         if app.recorder.recording:
