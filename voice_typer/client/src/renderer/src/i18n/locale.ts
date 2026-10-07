@@ -1,7 +1,7 @@
 // Locale constants, labels, and browser-locale detection.
 //Internationalization support.
-// Supported locales: Arabic (ar), German (de), English (en), Spanish (es), French (fr),
-// Hindi (hi), Russian (ru), Chinese/Mandarin (zh).
+// Supported locales: English (en), Chinese/Mandarin (zh), Hindi (hi), Spanish (es),
+// Arabic (ar), French (fr), Russian (ru), German (de).
 // Adding a new language requires:
 //   1. Create a new JSON file in translations/ (e.g., translations/ar.json)
 //   2. Add the locale to SUPPORTED_LOCALES below
@@ -11,19 +11,24 @@
 // SUPPORTED_LOCALES so first-run users see their language automatically.
 
 /**
- * Locales shipped with the app. Kept alphabetical (locale code order)
- * so the list stays scannable; the Settings → UI language dropdown and
- * the onboarding selector both derive their display order from this array.
+ * Locales shipped with the app, English first and the rest by global
+ * speaker population. The order is user-visible, not cosmetic: the
+ * Settings → UI language dropdown and the onboarding selector both render
+ * straight from this array, so it decides which languages a user reads
+ * first. It does NOT influence `detectBrowserLocale()` below — that walks
+ * the browser's own `navigator.languages` order and each candidate can
+ * equal at most one locale code, so there is never a tie to break.
+ * Reorder deliberately, never to tidy up.
  */
 const SUPPORTED_LOCALES = [
-	"ar",
-	"de",
 	"en",
-	"es",
-	"fr",
-	"hi",
-	"ru",
 	"zh",
+	"hi",
+	"es",
+	"ar",
+	"fr",
+	"ru",
+	"de",
 ] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 
@@ -31,15 +36,17 @@ export type Locale = (typeof SUPPORTED_LOCALES)[number];
 export { SUPPORTED_LOCALES };
 
 // Human-readable labels for each locale (used in the Settings dropdown).
+// Native names, so they read the same whichever UI language is active.
+// Keyed by locale, not ordered — SUPPORTED_LOCALES above owns the order.
 const LOCALE_LABELS: Record<Locale, string> = {
-	ar: "العربية",
-	de: "Deutsch",
 	en: "English",
-	es: "Español",
-	fr: "Français",
-	ru: "Русский",
 	zh: "中文",
 	hi: "हिन्दी",
+	es: "Español",
+	ar: "العربية",
+	fr: "Français",
+	ru: "Русский",
+	de: "Deutsch",
 };
 
 export function getLocaleLabel(locale: Locale): string {
