@@ -43,12 +43,19 @@ export interface AudioFilterChainProps {
 	config: LausuConfig;
 	onConfigChange: (updates: Partial<LausuConfig>) => void;
 	isVisible?: (label: string, info: string, sectionTitle: string) => boolean;
+	/**
+	 * Render every row locked, used when the owning preset is not the
+	 * custom chain: the individual filters stay visible so they can be
+	 * discovered, but cannot be edited until the custom preset is picked.
+	 */
+	disabled?: boolean;
 }
 
 export function AudioFilterChain({
 	config,
 	onConfigChange,
 	isVisible,
+	disabled,
 }: AudioFilterChainProps) {
 	// Permissive default so non-Settings call sites (the
 	// Microphone test page's preset selector) keep rendering
@@ -116,6 +123,7 @@ export function AudioFilterChain({
 					<FilterRow
 						key={descriptor.configKey as string}
 						descriptor={descriptor}
+						disabled={disabled}
 						{...sectionProps}
 					/>
 				);

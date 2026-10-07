@@ -181,136 +181,138 @@ export const LlmPolishingSettingsSection = memo(
 					/>
 				</GatedSettingRow>
 
-				{config.llm_polish && (
-					<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/8">
-						<GatedSettingRow
-							isVisible={isVisible}
-							sectionTitle={llmPolishingTitle}
-							label={t("settings.apiKey")}
-							info={t("settings.apiKeyInfo")}
-						>
-							<div className="relative flex flex-col gap-2">
-								{/*keyring status indicator next to the LLM API
-								 * key input. Shows a green lock icon when the secret
-								 * is stored in the OS keychain, or an amber warning
-								 * when only the plaintext fallback is available. */}
-								<div>
-									<KeyringStatusBadge status={config.keyring_status} />
-								</div>
-								<Input
-									type={llmKeyVisible ? "text" : "password"}
-									/* SEC-003: backend redacts the key to '<redacted>' in
-									 * get_config responses.  Show empty in that case so
-									 * the user isn't tempted to "save" the sentinel back.
-									 * When the user types a real key, updateConfig sends
-									 * it via set_config (which is allowlisted). */
-									value={
-										config.llm_api_key && config.llm_api_key !== "<redacted>"
-											? config.llm_api_key
-											: ""
-									}
-									onChange={handleApiKeyChange}
-									placeholder={
-										config.llm_api_key === "<redacted>"
-											? "•••••••• (configured)"
-											: t("settings.apiKeyPlaceholder")
-									}
-									className="w-56 pe-8"
-									aria-label={t("settings.apiKey")}
-								/>
-								<Button
-									variant="ghost"
-									size="xs"
-									onClick={handleToggleLlmKey}
-									className="absolute inset-e-1 top-1/2 -translate-y-1/2 text-xs"
-									aria-label={
-										llmKeyVisible ? t("settings.hide") : t("settings.show")
-									}
-								>
-									{llmKeyVisible ? t("settings.hide") : t("settings.show")}
-								</Button>
+				{/*every row below stays visible and locks while polishing is off,
+				    so the options are discoverable without enabling the feature. */}
+				<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/8">
+					<GatedSettingRow
+						isVisible={isVisible}
+						sectionTitle={llmPolishingTitle}
+						label={t("settings.apiKey")}
+						info={t("settings.apiKeyInfo")}
+					>
+						<div className="relative flex flex-col gap-2">
+							{/*keyring status indicator next to the LLM API
+							 * key input. Shows a green lock icon when the secret
+							 * is stored in the OS keychain, or an amber warning
+							 * when only the plaintext fallback is available. */}
+							<div>
+								<KeyringStatusBadge status={config.keyring_status} />
 							</div>
-						</GatedSettingRow>
-
-						<GatedSettingRow
-							isVisible={isVisible}
-							sectionTitle={llmPolishingTitle}
-							label={t("settings.apiUrl")}
-							info={t("settings.apiUrlInfo")}
-						>
-							<div className="flex flex-col items-end gap-1">
-								<Input
-									value={
-										urlDraft ??
-										config.llm_api_url ??
-										"https://api.openai.com/v1/chat/completions"
-									}
-									onChange={handleApiUrlChange}
-									onFocus={handleApiUrlFocus}
-									onBlur={handleApiUrlBlur}
-									placeholder={t("settings.apiUrlPlaceholder")}
-									className="w-64"
-									aria-label={t("settings.apiUrl")}
-									aria-invalid={llmApiUrlInvalid || undefined}
-									aria-describedby={
-										llmApiUrlInvalid ? "llm-api-url-error" : undefined
-									}
-								/>
-								{llmApiUrlInvalid && (
-									<span
-										id="llm-api-url-error"
-										role="alert"
-										data-testid="llm-api-url-error"
-										className="text-xs text-destructive"
-									>
-										{t("settings.apiUrlInvalid")}
-									</span>
-								)}
-							</div>
-						</GatedSettingRow>
-
-						<GatedSettingRow
-							isVisible={isVisible}
-							sectionTitle={llmPolishingTitle}
-							label={t("settings.model")}
-							info={t("settings.modelInfo")}
-						>
 							<Input
-								value={config.llm_model ?? "gpt-4o-mini"}
-								onChange={handleModelChange}
-								placeholder={t("settings.modelPlaceholder")}
-								className="w-44"
-								aria-label={t("settings.model")}
+								type={llmKeyVisible ? "text" : "password"}
+								/* SEC-003: backend redacts the key to '<redacted>' in
+								 * get_config responses.  Show empty in that case so
+								 * the user isn't tempted to "save" the sentinel back.
+								 * When the user types a real key, updateConfig sends
+								 * it via set_config (which is allowlisted). */
+								value={
+									config.llm_api_key && config.llm_api_key !== "<redacted>"
+										? config.llm_api_key
+										: ""
+								}
+								disabled={!config.llm_polish}
+								onChange={handleApiKeyChange}
+								placeholder={
+									config.llm_api_key === "<redacted>"
+										? "•••••••• (configured)"
+										: t("settings.apiKeyPlaceholder")
+								}
+								className="w-56 pe-8"
+								aria-label={t("settings.apiKey")}
 							/>
-						</GatedSettingRow>
-
-						<GatedSettingRow
-							isVisible={isVisible}
-							sectionTitle={llmPolishingTitle}
-							label={t("settings.preset")}
-							info={t("settings.presetInfo")}
-						>
-							<Select
-								value={config.llm_preset ?? "professional"}
-								onValueChange={handleLlmPresetChange}
+							<Button
+								variant="ghost"
+								size="xs"
+								disabled={!config.llm_polish}
+								onClick={handleToggleLlmKey}
+								className="absolute inset-e-1 top-1/2 -translate-y-1/2 text-xs"
+								aria-label={
+									llmKeyVisible ? t("settings.hide") : t("settings.show")
+								}
 							>
-								<SelectTrigger
-									className="w-40"
-									aria-label={t("settings.preset")}
+								{llmKeyVisible ? t("settings.hide") : t("settings.show")}
+							</Button>
+						</div>
+					</GatedSettingRow>
+
+					<GatedSettingRow
+						isVisible={isVisible}
+						sectionTitle={llmPolishingTitle}
+						label={t("settings.apiUrl")}
+						info={t("settings.apiUrlInfo")}
+					>
+						<div className="flex flex-col items-end gap-1">
+							<Input
+								value={
+									urlDraft ??
+									config.llm_api_url ??
+									"https://api.openai.com/v1/chat/completions"
+								}
+								onChange={handleApiUrlChange}
+								onFocus={handleApiUrlFocus}
+								onBlur={handleApiUrlBlur}
+								placeholder={t("settings.apiUrlPlaceholder")}
+								className="w-64"
+								aria-label={t("settings.apiUrl")}
+								disabled={!config.llm_polish}
+								aria-invalid={llmApiUrlInvalid || undefined}
+								aria-describedby={
+									llmApiUrlInvalid ? "llm-api-url-error" : undefined
+								}
+							/>
+							{llmApiUrlInvalid && (
+								<span
+									id="llm-api-url-error"
+									role="alert"
+									data-testid="llm-api-url-error"
+									className="text-xs text-destructive"
 								>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{LLM_PRESET_OPTIONS.map((opt) => (
-										<SelectItem key={opt.value} value={opt.value}>
-											{t(opt.labelKey)}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</GatedSettingRow>
-					</div>
-				)}
+									{t("settings.apiUrlInvalid")}
+								</span>
+							)}
+						</div>
+					</GatedSettingRow>
+
+					<GatedSettingRow
+						isVisible={isVisible}
+						sectionTitle={llmPolishingTitle}
+						label={t("settings.model")}
+						info={t("settings.modelInfo")}
+					>
+						<Input
+							value={config.llm_model ?? "gpt-4o-mini"}
+							onChange={handleModelChange}
+							placeholder={t("settings.modelPlaceholder")}
+							className="w-44"
+							aria-label={t("settings.model")}
+							disabled={!config.llm_polish}
+						/>
+					</GatedSettingRow>
+
+					<GatedSettingRow
+						isVisible={isVisible}
+						sectionTitle={llmPolishingTitle}
+						label={t("settings.preset")}
+						info={t("settings.presetInfo")}
+					>
+						<Select
+							value={config.llm_preset ?? "professional"}
+							disabled={!config.llm_polish}
+							onValueChange={handleLlmPresetChange}
+						>
+							<SelectTrigger className="w-40" aria-label={t("settings.preset")}>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{LLM_PRESET_OPTIONS.map((opt) => (
+									<SelectItem key={opt.value} value={opt.value}>
+										{t(opt.labelKey)}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</GatedSettingRow>
+				</div>
 			</SettingsSection>
 		);
 	},

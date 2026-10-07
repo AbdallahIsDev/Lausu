@@ -229,6 +229,11 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 	// on every render (3+ DOM reads per render for the same value).
 	const isDark = document.documentElement.classList.contains("dark");
 
+	// The custom colour editor stays visible at all times so the custom
+	// theme is discoverable; it is locked while the Custom Theme switch is
+	// off and unlocks as soon as the switch turns it on.
+	const customLocked = effectivePreset !== "custom";
+
 	// IMPL-C: resolve i18n keys once per render so the isVisible predicate
 	// and the rendered output share the same translated strings.
 	const colorSchemeLabel = t("settings.appearance.colorScheme");
@@ -381,15 +386,23 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 			)}
 
 			{/* ── Custom Theme color Picker ─────────────────────── */}
-			{/* Only visible when the custom theme toggle is ON */}
-			{effectivePreset === "custom" && customDraft && (
-				<div className="animate-fade-in flex flex-col gap-3 p-4">
+			{/* Always rendered (locked while the custom theme is off) so the
+			    editor stays discoverable instead of appearing only once the
+			    switch is on. */}
+			{customDraft && (
+				<div
+					className={cn(
+						"animate-fade-in flex flex-col gap-3 p-4",
+						customLocked && "opacity-50",
+					)}
+				>
 					{/* Light / Dark mode tabs */}
 					<div className="flex gap-1 rounded-lg bg-surface-subtle p-0.5">
 						<button
 							type="button"
+							disabled={customLocked}
 							onClick={handleSetLightMode}
-							className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+							className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all disabled:cursor-not-allowed ${
 								customEditorMode === "light"
 									? "bg-surface text-foreground shadow-xs"
 									: "text-muted-foreground hover:text-foreground"
@@ -399,8 +412,9 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 						</button>
 						<button
 							type="button"
+							disabled={customLocked}
 							onClick={handleSetDarkMode}
-							className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+							className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all disabled:cursor-not-allowed ${
 								customEditorMode === "dark"
 									? "bg-surface text-foreground shadow-xs"
 									: "text-muted-foreground hover:text-foreground"
@@ -443,6 +457,7 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 										<Input
 											type="color"
 											value={currentHex}
+											disabled={customLocked}
 											onChange={handleColorInputChange(varName)}
 											className="absolute inset-0 h-full w-full cursor-pointer opacity-0 p-0 border-none"
 											aria-label={t("settings.appearance.colorAria", { label })}
@@ -522,6 +537,7 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 									<Input
 										type="text"
 										value={hexDraftValue}
+										disabled={customLocked}
 										onChange={handleHexInputChange(varName)}
 										onBlur={handleHexInputBlur(varName, currentHex ?? "")}
 										className={cn(
@@ -562,7 +578,7 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
                                                         the defaults (re-enables the moment the user edits a color). */}
 					<button
 						type="button"
-						disabled={customDraftIsDefault}
+						disabled={customDraftIsDefault || customLocked}
 						onClick={handleResetCustomColors}
 						className="w-full rounded-lg border border-border/8 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
 					>

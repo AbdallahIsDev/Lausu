@@ -66,6 +66,10 @@ export const OverlaySettingsSection = memo(function OverlaySettingsSection({
 			info: t("settings.bubbleShowRecordingTimerInfo"),
 		},
 		{
+			label: t("settings.screenshotBeta"),
+			info: t("settings.screenshotBetaInfo"),
+		},
+		{
 			label: t("settings.bubblePreview"),
 			info: t("settings.bubblePreviewInfo"),
 		},
@@ -96,6 +100,11 @@ export const OverlaySettingsSection = memo(function OverlaySettingsSection({
 		updateConfig({ bubble_mic_button: checked });
 	const handleRecordingTimerChange = (checked: boolean) =>
 		updateConfig({ bubble_show_recording_timer: checked });
+	// One-shot screenshot beta, Windows-only, default OFF. While off
+	// the bubble annotate button stays hidden and no screenshot IPC
+	// fires, so the feature is a zero behavior change until enabled.
+	const handleScreenshotBetaChange = (checked: boolean) =>
+		updateConfig({ screenshot_beta_enabled: checked });
 
 	// The preview gets its own card ("Bubble Preview") instead of
 	// living as a last row inside the Overlay card: a mock pill in a
@@ -136,96 +145,102 @@ export const OverlaySettingsSection = memo(function OverlaySettingsSection({
 						onChange={handleBubbleBehaviorChange}
 						ariaLabel={t("settings.bubbleBehaviorLabel")}
 					/>
-				</GatedSettingRow>
-
+				</GatedSettingRow>{" "}
 				{/* Position, drag, timer, and preview are meaningless while
-			    the bubble itself is hidden. */}
-				{config.bubble_behavior !== "hidden" && (
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={overlaySectionTitle}
-						label={t("settings.bubblePositionLabel")}
-						info={t("settings.bubblePositionInfo")}
-					>
-						<ToggleGroup
-							options={[
-								{ value: "top", label: t("settings.bubblePositionTop") },
-								{ value: "bottom", label: t("settings.bubblePositionBottom") },
-							]}
-							value={config.bubble_position ?? "bottom"}
-							onChange={handleBubblePositionChange}
-							ariaLabel={t("settings.bubblePositionLabel")}
-						/>
-					</GatedSettingRow>
-				)}
-
+				    the bubble itself is hidden, so the rows stay visible but
+				    locked instead of disappearing. */}
+				<GatedSettingRow
+					isVisible={isVisible}
+					sectionTitle={overlaySectionTitle}
+					label={t("settings.bubblePositionLabel")}
+					info={t("settings.bubblePositionInfo")}
+				>
+					<ToggleGroup
+						options={[
+							{ value: "top", label: t("settings.bubblePositionTop") },
+							{ value: "bottom", label: t("settings.bubblePositionBottom") },
+						]}
+						value={config.bubble_position ?? "bottom"}
+						onChange={handleBubblePositionChange}
+						ariaLabel={t("settings.bubblePositionLabel")}
+						disabled={config.bubble_behavior === "hidden"}
+					/>
+				</GatedSettingRow>
 				{/* ── Switches ───────────────────────────────────────── */}
-				{/* Show on app startup toggle, only visible when Always Visible is selected */}
-				{config.bubble_behavior === "always_visible" && (
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={overlaySectionTitle}
-						label={t("settings.showOnAppStartup")}
-						info={t("settings.showOnAppStartupInfo")}
-					>
-						<Switch
-							checked={config.bubble_show_on_startup ?? true}
-							onCheckedChange={handleBubbleStartupChange}
-							aria-label={t("settings.showOnAppStartup")}
-						/>
-					</GatedSettingRow>
-				)}
-
-				{/*mic button toggle, shown for both visible behaviors. It
+				{/* Show on app startup toggle, only unlockable when Always Visible is selected */}
+				<GatedSettingRow
+					isVisible={isVisible}
+					sectionTitle={overlaySectionTitle}
+					label={t("settings.showOnAppStartup")}
+					info={t("settings.showOnAppStartupInfo")}
+				>
+					<Switch
+						checked={config.bubble_show_on_startup ?? true}
+						onCheckedChange={handleBubbleStartupChange}
+						aria-label={t("settings.showOnAppStartup")}
+						disabled={config.bubble_behavior !== "always_visible"}
+					/>
+				</GatedSettingRow>
+				{/*mic button toggle, available for both visible behaviors. It
                 	takes effect on the always-visible bubble (the only one
                 	with an idle state to host it); the preview below shows
                 	the difference live. */}
-				{config.bubble_behavior !== "hidden" && (
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={overlaySectionTitle}
-						label={t("settings.bubbleMicButton")}
-						info={t("settings.bubbleMicButtonDescription")}
-					>
-						<Switch
-							checked={config.bubble_mic_button ?? true}
-							onCheckedChange={handleBubbleMicButtonChange}
-							aria-label={t("settings.bubbleMicButton")}
-						/>
-					</GatedSettingRow>
-				)}
-
-				{config.bubble_behavior !== "hidden" && (
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={overlaySectionTitle}
-						label={t("settings.dragToMove")}
-						info={t("settings.dragToMoveInfo")}
-					>
-						<Switch
-							checked={config.bubble_draggable ?? true}
-							onCheckedChange={handleDragToMoveChange}
-							aria-label={t("settings.dragToMove")}
-						/>
-					</GatedSettingRow>
-				)}
-
-				{/* Recording timer toggle, hidden only when the bubble itself
+				<GatedSettingRow
+					isVisible={isVisible}
+					sectionTitle={overlaySectionTitle}
+					label={t("settings.bubbleMicButton")}
+					info={t("settings.bubbleMicButtonDescription")}
+				>
+					<Switch
+						checked={config.bubble_mic_button ?? true}
+						onCheckedChange={handleBubbleMicButtonChange}
+						aria-label={t("settings.bubbleMicButton")}
+						disabled={config.bubble_behavior === "hidden"}
+					/>
+				</GatedSettingRow>
+				<GatedSettingRow
+					isVisible={isVisible}
+					sectionTitle={overlaySectionTitle}
+					label={t("settings.dragToMove")}
+					info={t("settings.dragToMoveInfo")}
+				>
+					<Switch
+						checked={config.bubble_draggable ?? true}
+						onCheckedChange={handleDragToMoveChange}
+						aria-label={t("settings.dragToMove")}
+						disabled={config.bubble_behavior === "hidden"}
+					/>
+				</GatedSettingRow>{" "}
+				{/* Recording timer toggle, locked only while the bubble itself
 			    is hidden. Drives the live preview below instantly. */}
-				{config.bubble_behavior !== "hidden" && (
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={overlaySectionTitle}
-						label={t("settings.bubbleShowRecordingTimer")}
-						info={t("settings.bubbleShowRecordingTimerInfo")}
-					>
-						<Switch
-							checked={config.bubble_show_recording_timer ?? false}
-							onCheckedChange={handleRecordingTimerChange}
-							aria-label={t("settings.bubbleShowRecordingTimer")}
-						/>
-					</GatedSettingRow>
-				)}
+				<GatedSettingRow
+					isVisible={isVisible}
+					sectionTitle={overlaySectionTitle}
+					label={t("settings.bubbleShowRecordingTimer")}
+					info={t("settings.bubbleShowRecordingTimerInfo")}
+				>
+					<Switch
+						checked={config.bubble_show_recording_timer ?? false}
+						onCheckedChange={handleRecordingTimerChange}
+						aria-label={t("settings.bubbleShowRecordingTimer")}
+						disabled={config.bubble_behavior === "hidden"}
+					/>
+				</GatedSettingRow>
+				{/* Screenshot beta toggle, locked while the bubble itself
+				    is hidden (the annotate button lives on the bubble). */}
+				<GatedSettingRow
+					isVisible={isVisible}
+					sectionTitle={overlaySectionTitle}
+					label={t("settings.screenshotBeta")}
+					info={t("settings.screenshotBetaInfo")}
+				>
+					<Switch
+						checked={config.screenshot_beta_enabled ?? false}
+						onCheckedChange={handleScreenshotBetaChange}
+						aria-label={t("settings.screenshotBeta")}
+						disabled={config.bubble_behavior === "hidden"}
+					/>
+				</GatedSettingRow>
 			</SettingsSection>
 
 			{/* Second card: the preview. Every bubble setting above is
