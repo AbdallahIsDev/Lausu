@@ -4,17 +4,19 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, cast
 
 from voice_typer.server import i18n
 from voice_typer.server.asr_errors import ModelIntegrityError, ModelNotDownloadedError
 from voice_typer.server.asr_registry import AsrBackendRegistry
 from voice_typer.server.branding import APP_NAME
+from voice_typer.server.model_manager._backend_names import (
+    AsrBackendName,
+    _backend_for_model_size,
+)
+from voice_typer.server.model_manager._change_events import ChangeEventsMixin
 from voice_typer.server.model_registry import NO_MODEL_SIZE
 from voice_typer.server.tray_types import AppState
-
-# Mirrors ``Config.asr_backend`` (config/_schema.py), the three valid
-AsrBackendName = Literal["whisper", "qwen", "parakeet"]
 
 if TYPE_CHECKING:
     # Type-only import to avoid the import cycle (app.py constructs the
@@ -23,16 +25,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("voice_typer.server.model_manager")
 
 
-def _backend_for_model_size(model_size: str) -> AsrBackendName:
-    """Map a user-selected ``model_size`` to its owning ASR backend."""
-    if model_size == "parakeet":
-        return "parakeet"
-    if model_size == "qwen":
-        return "qwen"
-    return "whisper"
-
-
-class ChangeMixin:
+class ChangeMixin(ChangeEventsMixin):
     # Members provided by the composed ``ModelManager`` (manager.py):
     _app: LausuApp
     _registry: AsrBackendRegistry
@@ -443,53 +436,6 @@ class ChangeMixin:
                 backend,
                 self._app.config.model_size,
                 failure_reason="load_active returned falsy or raised",
-            )
-
-    def _publish_backend_ready_event(self, backend: str, model_size: str) -> None:
-        """Publish an ``asr_backend_ready`` event on the event_bus."""
-        try:
-            from voice_typer.server import event_bus
-
-            event_bus.publish(
-                {
-                    "type": "asr_backend_ready",
-                    "data": {
-                        "backend": backend,
-                        "model_size": model_size,
-                    },
-                }
-            )
-        except Exception:
-            log.debug(
-                "[MODEL] Failed to publish asr_backend_ready event",
-                exc_info=True,
-            )
-
-    def _publish_backend_load_failed_event(
-        self,
-        backend: str,
-        model_size: str,
-        *,
-        failure_reason: str,
-    ) -> None:
-        """Publish an ``asr_backend_load_failed`` event on the event_bus."""
-        try:
-            from voice_typer.server import event_bus
-
-            event_bus.publish(
-                {
-                    "type": "asr_backend_load_failed",
-                    "data": {
-                        "backend": backend,
-                        "model_size": model_size,
-                        "failure_reason": failure_reason,
-                    },
-                }
-            )
-        except Exception:
-            log.debug(
-                "[MODEL] Failed to publish asr_backend_load_failed event",
-                exc_info=True,
             )
 
     # apply a deferred model change captured during an active

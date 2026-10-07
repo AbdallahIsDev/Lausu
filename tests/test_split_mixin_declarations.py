@@ -149,6 +149,15 @@ MIXIN_HOST_MEMBERS: dict[str, dict[str, set[str]]] = {
             "VAD_ENABLED_CACHE_TTL_S",
         },
     },
+    # Wave 5 split: the telemetry mixin reads the clip/peak counters
+    # initialised by AudioPipeline.__init__.
+    "voice_typer/server/recording/audio_pipeline_telemetry.py": {
+        "AudioPipelineTelemetryMixin": {
+            "_clip_count",
+            "_peak",
+            "_last_clip_log_time",
+        },
+    },
 }
 
 # (file, class, TYPE_CHECKING-only method stubs the class must carry)

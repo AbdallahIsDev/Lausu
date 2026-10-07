@@ -274,7 +274,7 @@ def test_module_paths_use_package_form():
     crash_files = list((ROOT / "voice_typer/server/crash_handler").glob("*.py"))
     assert len(crash_files) == 8, f"crash_handler/ must be an 8-file package (actual: {len(crash_files)})."
     level_files = list((ROOT / "voice_typer/server/level_monitor").glob("*.py"))
-    assert len(level_files) == 5, f"level_monitor/ must be a 5-file package (actual: {len(level_files)})."
+    assert len(level_files) == 9, f"level_monitor/ must be a 9-file package (actual: {len(level_files)})."
     cts_files = list((ROOT / "voice_typer/server/clipboard_target_safety").glob("*.py"))
     assert len(cts_files) == 5, f"clipboard_target_safety/ must be a 5-file package (actual: {len(cts_files)})."
 
