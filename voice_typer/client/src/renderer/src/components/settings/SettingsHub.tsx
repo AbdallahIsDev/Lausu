@@ -69,7 +69,9 @@ function sectionSummary(
 			return option ? t(option.labelKey) : lang;
 		}
 		case "settingsAI":
-			return config.llm_polish ? t("settings.hub.on") : t("settings.hub.off");
+			return config.ai_enhancement_enabled
+				? t("settings.hub.on")
+				: t("settings.hub.off");
 		case "settingsAudio":
 			return t(
 				AUDIO_PRESET_SUMMARY_KEYS[config.audio_preset] ??
@@ -83,7 +85,7 @@ function sectionSummary(
 		case "settingsPrivacy":
 			return null;
 		case "settingsAdvanced":
-			return null;
+			return config.llm_polish ? t("settings.hub.on") : t("settings.hub.off");
 	}
 }
 

@@ -1,11 +1,11 @@
-// LlmPolishingSettingsSection, the LLM Polishing section of the
-// Settings surface.
+// LlmPolishingSettingsSection, the Text Polish (Beta) section of the
+// Settings surface. Lives on the Advanced page: online polish takes
+// 10–25 s per message, so it stays out of the main AI page.
 //
 // Extracted from the former ModelSettingsSection (which stacked the
-// Post-Processing and LLM Polishing cards on one page) so each domain
-// gets its own focused section page (settingsAI groups this card with
-// AI Enhancement + Vocabulary Automation). Renders one SettingsSection
-// block: "LLM Polishing" (Enable, API Key, API URL, Model, Preset).
+// Post-Processing and Text Polish cards on one page) so each domain
+// gets its own focused section page. Renders one SettingsSection
+// block: "Text Polish (Beta)" (Enable, API Key, API URL, Model, Preset).
 // Behaviour is identical to the previous combined implementation,
 // including the point-of-use consent gate on the master toggle and the
 // URL-format validation draft state.
@@ -120,7 +120,7 @@ export const LlmPolishingSettingsSection = memo(
 
 		if (!config) return <SettingsSkeleton rows={3} />;
 
-		// Point-of-use consent gate: turning LLM polishing ON sends
+		// Point-of-use consent gate: turning text polish ON sends
 		// transcribed text to the configured LLM provider, which requires
 		// `llm_polish_consent`. When the consent is missing, ask via the
 		// SHARED consent dialog at this exact moment instead of enabling a
@@ -143,7 +143,7 @@ export const LlmPolishingSettingsSection = memo(
 		const handleLlmPresetChange = (v: string) =>
 			updateConfig({ llm_preset: v });
 
-		//section-level visibility check for LLM Polishing section. The
+		//section-level visibility check for the Text Polish section. The
 		// title constant feeds BOTH the `<SettingsSection title>` prop AND
 		// the `isVisible` third parameter, so search matches the heading
 		// the user actually sees.

@@ -198,17 +198,19 @@ class TestAnalyzeTranscription:
         # Build segments where the first segment has high confidence
         segments = [
             {"text": "hello world", "avg_logprob": -0.05},  # exp(-0.05) ≈ 0.95
-            {"text": "suspicious word", "avg_logprob": -1.5},  # exp(-1.5) ≈ 0.22
+            {"text": "teh suspicious", "avg_logprob": -1.5},  # exp(-1.5) ≈ 0.22
         ]
         suggestions = automation.analyze_transcription(
-            "hello world suspicious word",
+            "hello world teh suspicious",
             segments=segments,
             confidence=0.99,
         )
-        # Only "suspicious" and "word" should be flagged.
+        # Only "teh" (close vocab match -> "the") should be flagged.
+        # Low-confidence words WITHOUT a close match ("suspicious")
+        # create identity suggestions, which are skipped, not queued.
         flagged = {s.original for s in suggestions}
-        assert "suspicious" in flagged
-        assert "word" in flagged
+        assert "teh" in flagged
+        assert "suspicious" not in flagged
         assert "hello" not in flagged
         assert "world" not in flagged
 
@@ -377,6 +379,31 @@ class TestAutoApplyHighConfidence:
         # Should still be pending.
         pending = automation.get_pending_suggestions()
         assert any(p.original == "xyzzy" for p in pending)
+
+    def test_analyze_skips_identity_suggestions(self, automation):
+        """Low-confidence words with no close vocab match create nothing.
+
+        Identity mappings (word -> itself) are unactionable in the
+        accept/reject review UI, so analyze_transcription skips them
+        instead of queueing noise.
+        """
+        suggestions = automation.analyze_transcription(
+            "hello world",
+            [{"text": "hello world", "confidence": 0.4}],
+            0.4,
+        )
+        assert suggestions == []
+        assert automation.get_pending_suggestions() == []
+
+    def test_analyze_keeps_close_match_suggestions(self, automation):
+        """Low-confidence words WITH a close vocab match still suggest."""
+        suggestions = automation.analyze_transcription(
+            "schedule with jonh tomorrow",
+            [{"text": "schedule with jonh tomorrow", "confidence": 0.4}],
+            0.4,
+        )
+        matches = [s for s in suggestions if s.original == "jonh"]
+        assert matches and matches[0].corrected == "john"
 
 
 class TestRespectsDisabledFlag:

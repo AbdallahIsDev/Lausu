@@ -32,11 +32,14 @@ class VocabularyPersistenceMixin:
     ``self._bundled_path`` (set by ``VocabularyManager.__init__``);
     ``self._user_store`` (PersistedJSON), ``self._data`` (merged
     ``{category: data}``), ``self._deleted`` (tombstones),
-    ``self._bundled_raw`` (raw bundled defaults), and ``self._lock``.
+    ``self._auto_applied`` (``{category: {original: corrected}}`` origin
+    marks for auto-applied entries), ``self._bundled_raw`` (raw bundled
+    defaults), and ``self._lock``.
     """
 
     _data: dict[str, Any]
     _deleted: dict[str, list[Any]]
+    _auto_applied: dict[str, dict[str, str]]
     _bundled_path: Path
     _bundled_raw: dict[str, Any]
     _user_store: Any
@@ -62,6 +65,21 @@ class VocabularyPersistenceMixin:
             self._deleted = {
                 cat: (list(v) if isinstance(v, list) else []) for cat, v in raw_deleted.items() if cat in CATEGORIES
             }
+
+        # Auto-apply origin marks (reserved ``_auto_applied`` key in the
+        # user file): {category: {original: corrected}} for entries the
+        # automation added without asking. A mark is only meaningful
+        # while the live entry still carries the same correction;
+        # ``get_auto_applied`` enforces that by value-matching.
+        self._auto_applied = {}
+        raw_auto = user.get("_auto_applied")
+        if isinstance(raw_auto, dict):
+            for cat, marks in raw_auto.items():
+                if cat not in CATEGORIES or not isinstance(marks, dict):
+                    continue
+                clean = {k: v for k, v in marks.items() if isinstance(k, str) and isinstance(v, str)}
+                if clean:
+                    self._auto_applied[cat] = clean
 
         # Merge: user extends bundled
         for cat in CATEGORIES:
@@ -140,6 +158,17 @@ class VocabularyPersistenceMixin:
                 for cat, v in data["_deleted"].items()
                 if cat in CATEGORIES
             }
+        # Carry the reserved ``_auto_applied`` origin-mark key through
+        if isinstance(data.get("_auto_applied"), dict):
+            auto: dict[str, dict[str, str]] = {}
+            for cat, marks in data["_auto_applied"].items():
+                if cat not in CATEGORIES or not isinstance(marks, dict):
+                    continue
+                clean = {k: v for k, v in marks.items() if isinstance(k, str) and isinstance(v, str)}
+                if clean:
+                    auto[cat] = clean
+            if auto:
+                result["_auto_applied"] = auto
         return result
 
     def _save_user(self) -> None:
@@ -156,6 +185,8 @@ class VocabularyPersistenceMixin:
                 payload: dict[str, Any] = dict(self._data)
                 if self._deleted:
                     payload["_deleted"] = self._deleted
+                if self._auto_applied:
+                    payload["_auto_applied"] = self._auto_applied
                 self._user_store.save(payload, durability=False)
                 log.debug("[VOCAB] Saved user vocabulary")
                 return
@@ -185,6 +216,40 @@ class VocabularyPersistenceMixin:
         # surface the failure to callers so they can roll back
         if final_exc is not None:
             raise final_exc
+
+    def note_auto_applied(self, category: str, original: str, corrected: str) -> None:
+        """Record an auto-applied entry's origin (no-op for unknown shapes)."""
+        if category not in CATEGORIES or not original or not corrected:
+            return
+        with self._lock:
+            self._auto_applied.setdefault(category, {})[original] = corrected
+        try:
+            self._save_user()
+        except Exception:
+            # Roll back the in-memory mark; the entry itself was
+            # already persisted by add_entry, only the badge is lost.
+            with self._lock:
+                marks = self._auto_applied.get(category)
+                if isinstance(marks, dict):
+                    marks.pop(original, None)
+                    if not marks:
+                        self._auto_applied.pop(category, None)
+            raise
+
+    def get_auto_applied(self) -> dict[str, dict[str, str]]:
+        """Value-matched auto-apply marks: only marks whose live entry still
+        carries the recorded correction. A manual edit changes the value
+        and the mark drops by itself."""
+        with self._lock:
+            out: dict[str, dict[str, str]] = {}
+            for cat, marks in self._auto_applied.items():
+                live = self._data.get(cat)
+                if not isinstance(live, dict) or not isinstance(marks, dict):
+                    continue
+                kept = {k: v for k, v in marks.items() if live.get(k) == v}
+                if kept:
+                    out[cat] = kept
+            return out
 
     def get_category(self, category: str) -> object:
         """Get all entries for a category."""

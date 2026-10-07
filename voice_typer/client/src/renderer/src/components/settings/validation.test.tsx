@@ -58,7 +58,7 @@ import { LlmPolishingSettingsSection } from "@/components/settings/LlmPolishingS
 const alwaysVisible = () => true;
 const noopUpdate = () => {};
 
-describe("AiEnhancementSettingsSection, cross-slider clamping", () => {
+describe("AiEnhancementSettingsSection, suggest slider (no auto-apply slider)", () => {
 	beforeEach(() => {
 		sliderInstances.length = 0;
 	});
@@ -67,7 +67,24 @@ describe("AiEnhancementSettingsSection, cross-slider clamping", () => {
 		cleanup();
 	});
 
-	it("dragging suggest ABOVE auto-apply clamps suggest to the auto-apply value", () => {
+	it("renders exactly one confidence slider (suggest-below)", () => {
+		render(
+			<AiEnhancementSettingsSection
+				config={makeConfig({
+					vocabulary_automation_enabled: true,
+					vocabulary_auto_confidence_threshold: 0.7,
+					vocabulary_auto_apply_threshold: 0.9,
+				})}
+				updateConfig={noopUpdate}
+				updateConfigDebounced={noopUpdate}
+				isVisible={alwaysVisible}
+			/>,
+		);
+		expect(sliderInstances).toHaveLength(1);
+		expect(sliderInstances[0]?.value).toBe(0.7);
+	});
+
+	it("dragging suggest passes the value through unclamped (no cross-slider clamp)", () => {
 		const updateConfigDebounced = vi.fn();
 		render(
 			<AiEnhancementSettingsSection
@@ -86,11 +103,11 @@ describe("AiEnhancementSettingsSection, cross-slider clamping", () => {
 		suggest?.onChange(0.95);
 		expect(updateConfigDebounced).toHaveBeenCalledWith(
 			"vocabulary_auto_confidence_threshold",
-			0.9,
+			0.95,
 		);
 	});
 
-	it("dragging suggest BELOW auto-apply passes the value through unclamped", () => {
+	it("dragging suggest low passes the value through unclamped", () => {
 		const updateConfigDebounced = vi.fn();
 		render(
 			<AiEnhancementSettingsSection
@@ -109,51 +126,6 @@ describe("AiEnhancementSettingsSection, cross-slider clamping", () => {
 		expect(updateConfigDebounced).toHaveBeenCalledWith(
 			"vocabulary_auto_confidence_threshold",
 			0.5,
-		);
-	});
-
-	it("dragging auto-apply BELOW suggest clamps it up to the suggest value", () => {
-		const updateConfigDebounced = vi.fn();
-		render(
-			<AiEnhancementSettingsSection
-				config={makeConfig({
-					vocabulary_automation_enabled: true,
-					vocabulary_auto_confidence_threshold: 0.7,
-					vocabulary_auto_apply_threshold: 0.9,
-				})}
-				updateConfig={noopUpdate}
-				updateConfigDebounced={updateConfigDebounced}
-				isVisible={alwaysVisible}
-			/>,
-		);
-		const apply = sliderInstances.find((s) => s.value === 0.9);
-		expect(apply).toBeTruthy();
-		apply?.onChange(0.4);
-		expect(updateConfigDebounced).toHaveBeenCalledWith(
-			"vocabulary_auto_apply_threshold",
-			0.7,
-		);
-	});
-
-	it("sliders can touch (suggest == apply) without clamping", () => {
-		const updateConfigDebounced = vi.fn();
-		render(
-			<AiEnhancementSettingsSection
-				config={makeConfig({
-					vocabulary_automation_enabled: true,
-					vocabulary_auto_confidence_threshold: 0.7,
-					vocabulary_auto_apply_threshold: 0.9,
-				})}
-				updateConfig={noopUpdate}
-				updateConfigDebounced={updateConfigDebounced}
-				isVisible={alwaysVisible}
-			/>,
-		);
-		const suggest = sliderInstances.find((s) => s.value === 0.7);
-		suggest?.onChange(0.9);
-		expect(updateConfigDebounced).toHaveBeenCalledWith(
-			"vocabulary_auto_confidence_threshold",
-			0.9,
 		);
 	});
 });

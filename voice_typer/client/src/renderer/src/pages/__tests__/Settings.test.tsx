@@ -599,10 +599,10 @@ describe("Settings search auto-switch navigation", () => {
 		});
 		expect(mockNavigate).not.toHaveBeenCalled();
 
-		useGlobalSearch.getState().setQuery("llm polishing");
+		useGlobalSearch.getState().setQuery("text polish");
 		await waitFor(() => {
 			expect(mockNavigate).toHaveBeenCalledWith(
-				"settingsAI",
+				"settingsAdvanced",
 				expect.objectContaining({
 					settingsScrollTarget: expect.objectContaining({
 						rowHint: expect.any(String),

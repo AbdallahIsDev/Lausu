@@ -8,6 +8,8 @@ export interface VocabularyData {
 	products?: Record<string, string>;
 	phrase_corrections?: Array<[string, string]>;
 	extra_word_patterns?: Array<[string, string]>;
+	/** Auto-apply origin marks: {category: {original: corrected}}. */
+	_auto_applied?: Record<string, Record<string, string>>;
 }
 
 export interface VocabularyEntry {
@@ -15,4 +17,6 @@ export interface VocabularyEntry {
 	original: string;
 	correction: string;
 	index?: number;
+	/** True when the automation added this entry (badged "Auto"). */
+	autoApplied?: boolean;
 }

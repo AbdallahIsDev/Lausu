@@ -949,3 +949,44 @@ describe("Vocabulary page, load-time dedupe", () => {
 		expect(toastSuccess).toHaveBeenCalledWith("Merged 1 duplicate entries");
 	});
 });
+
+describe("Vocabulary page, auto-apply origin badge", () => {
+	beforeEach(() => {
+		mockCall.mockReset();
+		showSnack.mockReset();
+		toastSuccess.mockClear();
+		toastError.mockClear();
+		sessionStorage.clear();
+		localStorage.clear();
+		vi.resetModules();
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	it("badges auto-applied rows and leaves manual rows plain", async () => {
+		seedWith({
+			misspellings: { jonathon: "jonathan", teh: "the" },
+			_auto_applied: { misspellings: { jonathon: "jonathan" } },
+		});
+		const { default: VocabularyPage } = await import("@/pages/Vocabulary");
+		renderWithProviders(<VocabularyPage />);
+
+		await waitFor(() => {
+			expect(screen.getByText("jonathon")).toBeTruthy();
+		});
+
+		const autoRow = screen
+			.getByText("jonathon")
+			.closest('[data-testid="vocab-list-row"]') as HTMLElement;
+		expect(within(autoRow).getByTestId("vocab-entry-auto-badge")).toBeTruthy();
+
+		const manualRow = screen
+			.getByText("teh")
+			.closest('[data-testid="vocab-list-row"]') as HTMLElement;
+		expect(
+			within(manualRow).queryByTestId("vocab-entry-auto-badge"),
+		).toBeNull();
+	});
+});

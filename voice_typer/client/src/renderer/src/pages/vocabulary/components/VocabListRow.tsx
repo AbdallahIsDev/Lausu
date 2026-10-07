@@ -139,11 +139,22 @@ export const VocabListRow = memo(function VocabListRow({
                             usage line ("Used N× · last used …") when the correction
                             has actually fired during dictation. */}
 			<div className="flex min-w-0 flex-col items-start gap-0.5">
-				<span
-					title={entry.original}
-					className="min-w-0 truncate text-sm font-medium text-destructive tracking-wide"
-				>
-					{entry.original}
+				<span className="flex min-w-0 items-center gap-1.5">
+					<span
+						title={entry.original}
+						className="min-w-0 truncate text-sm font-medium text-destructive tracking-wide"
+					>
+						{entry.original}
+					</span>
+					{entry.autoApplied && (
+						<span
+							data-testid="vocab-entry-auto-badge"
+							title={t("vocabulary.autoBadgeHint")}
+							className="shrink-0 rounded-full border border-border/8 bg-surface-subtle px-1.5 py-px text-[11px] font-medium text-muted-foreground"
+						>
+							{t("vocabulary.autoBadge")}
+						</span>
+					)}
 				</span>
 				{usage && usage.count > 0 && (
 					<span

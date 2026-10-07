@@ -92,8 +92,18 @@ class VocabularyMixin(ServiceMixinBase):
             fallback_vm = VocabularyManager(config_dir=self._app.config.config_dir)
             data = {k: copy.deepcopy(v) for k, v in fallback_vm.get_all().items()}
             user_path_str = str(fallback_vm._user_path) if hasattr(fallback_vm, "_user_path") else None
+            vm = fallback_vm
         # Attach the user-file path so the renderer can surface it in
         data["_user_file"] = user_path_str
+        # Attach value-matched auto-apply origin marks so the renderer
+        # can badge auto-added entries. Missing on old managers: default
+        # to no badges rather than failing the whole call.
+        try:
+            get_marks = getattr(vm, "get_auto_applied", None)
+            data["_auto_applied"] = get_marks() if callable(get_marks) else {}
+        except Exception:
+            log.debug("[SERVICE] get_auto_applied failed, omitting badges", exc_info=True)
+            data["_auto_applied"] = {}
         return data
 
     def save_vocabulary_with_diff(self, data: dict) -> dict[str, object]:
@@ -198,6 +208,32 @@ class VocabularyMixin(ServiceMixinBase):
         payload: dict[str, object] = dict(user_only)
         if deleted:
             payload["_deleted"] = deleted
+
+        # Preserve auto-apply origin marks for entries that survive this
+        # save with the same correction. Manual edits/deletes drop the
+        # mark, so the badge never outlives its origin.
+        try:
+            has_store = live_vm is not None and hasattr(live_vm, "_user_store")
+            prev_raw_full = live_vm._user_store.load() if has_store else None
+            prev_auto = prev_raw_full.get("_auto_applied") if isinstance(prev_raw_full, dict) else None
+            if isinstance(prev_auto, dict):
+                kept: dict[str, dict[str, str]] = {}
+                for cat, marks in prev_auto.items():
+                    if cat not in CATEGORIES or not isinstance(marks, dict):
+                        continue
+                    gone = set(deleted[cat]) if isinstance(deleted.get(cat), list) else set()
+                    incoming_cat = user_only.get(cat)
+                    for orig, corr in marks.items():
+                        if not isinstance(orig, str) or not isinstance(corr, str):
+                            continue
+                        if orig in gone:
+                            continue
+                        if isinstance(incoming_cat, dict) and incoming_cat.get(orig) == corr:
+                            kept.setdefault(cat, {})[orig] = corr
+                if kept:
+                    payload["_auto_applied"] = kept
+        except Exception:
+            log.debug("[SERVICE] auto-apply mark preservation failed, saving without marks", exc_info=True)
 
         if live_vm is not None and hasattr(live_vm, "_user_store"):
             try:

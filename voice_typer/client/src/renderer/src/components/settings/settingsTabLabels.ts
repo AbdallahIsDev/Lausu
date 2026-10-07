@@ -57,14 +57,9 @@ export function getSectionLabels(): Record<SettingsSectionPage, string[]> {
 			t("settings.vocabulary"),
 		],
 		settingsAI: [
-			t("settings.llmPolishing"),
 			t("settings.aiEnhancement.title"),
 			t("settings.vocabAutomation.title"),
 			t("settings.enable"),
-			t("settings.apiKey"),
-			t("settings.apiUrl"),
-			t("settings.model"),
-			t("settings.preset"),
 		],
 		settingsAudio: [
 			t("settings.audioEnhancement.title"),
@@ -104,6 +99,13 @@ export function getSectionLabels(): Record<SettingsSectionPage, string[]> {
 		],
 		settingsAdvanced: [
 			t("settings.hub.advancedTitle"),
+			t("settings.llmPolishing"),
+			t("settings.llmPolish"),
+			t("settings.enable"),
+			t("settings.apiKey"),
+			t("settings.apiUrl"),
+			t("settings.model"),
+			t("settings.preset"),
 			t("settings.troubleshooting.title"),
 			t("settings.troubleshooting.openLogFolder"),
 			t("settings.troubleshooting.diagnostics"),

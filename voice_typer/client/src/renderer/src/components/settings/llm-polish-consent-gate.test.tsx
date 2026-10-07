@@ -73,7 +73,7 @@ describe("LlmPolishingSettingsSection, enabling LLM polish asks for llm_polish_c
 	it("opens the shared consent gate and does NOT enable polish when consent is missing", () => {
 		renderSection(makeConfig());
 
-		fireEvent.click(screen.getByRole("switch", { name: "LLM Polishing" }));
+		fireEvent.click(screen.getByRole("switch", { name: "Text Polish (Beta)" }));
 
 		const req = useConsentGateStore.getState().request;
 		expect(req).not.toBeNull();
@@ -84,7 +84,7 @@ describe("LlmPolishingSettingsSection, enabling LLM polish asks for llm_polish_c
 
 	it("enables polish after Allow (the retry runs once consent is granted)", async () => {
 		renderSection(makeConfig());
-		fireEvent.click(screen.getByRole("switch", { name: "LLM Polishing" }));
+		fireEvent.click(screen.getByRole("switch", { name: "Text Polish (Beta)" }));
 
 		const onAllow = useConsentGateStore.getState().request?.onAllow;
 		expect(onAllow).toBeDefined();
@@ -97,7 +97,7 @@ describe("LlmPolishingSettingsSection, enabling LLM polish asks for llm_polish_c
 
 	it("does not enable polish when the dialog is cancelled", () => {
 		renderSection(makeConfig());
-		fireEvent.click(screen.getByRole("switch", { name: "LLM Polishing" }));
+		fireEvent.click(screen.getByRole("switch", { name: "Text Polish (Beta)" }));
 
 		act(() => {
 			useConsentGateStore.getState().close();
@@ -110,7 +110,7 @@ describe("LlmPolishingSettingsSection, enabling LLM polish asks for llm_polish_c
 	it("persists immediately when consent is already granted (no nag)", () => {
 		renderSection(makeConfig({ llm_polish_consent: true }));
 
-		fireEvent.click(screen.getByRole("switch", { name: "LLM Polishing" }));
+		fireEvent.click(screen.getByRole("switch", { name: "Text Polish (Beta)" }));
 
 		expect(useConsentGateStore.getState().request).toBeNull();
 		expect(updateConfig).toHaveBeenCalledWith({ llm_polish: true });
@@ -119,7 +119,7 @@ describe("LlmPolishingSettingsSection, enabling LLM polish asks for llm_polish_c
 	it("toggling OFF never opens the gate", () => {
 		renderSection(makeConfig({ llm_polish: true, llm_polish_consent: false }));
 
-		fireEvent.click(screen.getByRole("switch", { name: "LLM Polishing" }));
+		fireEvent.click(screen.getByRole("switch", { name: "Text Polish (Beta)" }));
 
 		expect(useConsentGateStore.getState().request).toBeNull();
 		expect(updateConfig).toHaveBeenCalledWith({ llm_polish: false });
