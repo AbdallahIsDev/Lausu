@@ -1,7 +1,8 @@
 // Shared ASR transcription-language options.
 // Single source of truth for the language codes the backend accepts
 // (`config.language`) and their i18n label keys. Used by:
-//   - the Settings transcription-language select (ModelSettingsSection)
+//   - the Settings transcription-language select
+//     (PostProcessingSettingsSection)
 //   - the Analytics "Current Setup" language card (via formatLanguage)
 // Dropdown option labels are translated at render time so they follow
 // the user's chosen UI language. No `description` field is set on any
@@ -11,14 +12,21 @@
 // entirely for consistency.
 export const LANGUAGE_OPTIONS = [
 	{ value: "auto", labelKey: "settings.languageAutoDetect" },
+	// The app's 8 UI locales lead, in the same order as
+	// `SUPPORTED_LOCALES` (i18n/locale.ts): English first, then by global
+	// speaker population. The JSON `settings.language*` key blocks mirror
+	// this sequence, so keep the two in step.
 	{ value: "en", labelKey: "settings.languageEnglish" },
 	{ value: "zh", labelKey: "settings.languageChinese" },
+	{ value: "hi", labelKey: "settings.languageHindi" },
 	{ value: "es", labelKey: "settings.languageSpanish" },
 	{ value: "ar", labelKey: "settings.languageArabic" },
 	{ value: "fr", labelKey: "settings.languageFrench" },
 	{ value: "ru", labelKey: "settings.languageRussian" },
-	{ value: "pt", labelKey: "settings.languagePortuguese" },
 	{ value: "de", labelKey: "settings.languageGerman" },
+	// Remaining ASR languages the backend accepts, in their existing
+	// relative order.
+	{ value: "pt", labelKey: "settings.languagePortuguese" },
 	{ value: "ja", labelKey: "settings.languageJapanese" },
 	{ value: "ko", labelKey: "settings.languageKorean" },
 	{ value: "it", labelKey: "settings.languageItalian" },
@@ -27,7 +35,6 @@ export const LANGUAGE_OPTIONS = [
 	{ value: "tr", labelKey: "settings.languageTurkish" },
 	{ value: "vi", labelKey: "settings.languageVietnamese" },
 	{ value: "th", labelKey: "settings.languageThai" },
-	{ value: "hi", labelKey: "settings.languageHindi" },
 	{ value: "id", labelKey: "settings.languageIndonesian" },
 	{ value: "sv", labelKey: "settings.languageSwedish" },
 	{ value: "da", labelKey: "settings.languageDanish" },
