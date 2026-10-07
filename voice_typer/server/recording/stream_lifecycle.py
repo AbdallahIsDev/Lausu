@@ -55,6 +55,26 @@ sd = lazy_module("sounddevice")
 # All submodules use the package-level logger so log records propagate
 log = logging.getLogger("voice_typer.server.recording")
 
+# Delay before retrying the SAME candidate after a transient open
+# failure, and the error-text markers that qualify as transient
+# (exclusive holds, vanished handles). Anything else fails fast
+# straight to the next candidate / fallback device.
+_TRANSIENT_OPEN_RETRY_SECONDS = 0.25
+_TRANSIENT_OPEN_ERROR_MARKERS = (
+    "-9999",
+    "unanticipated host error",
+    "device unavailable",
+    "device or resource busy",
+    "in use by another",
+)
+
+
+def _is_transient_open_error(exc: BaseException) -> bool:
+    """Whether a stream-open failure is worth one delayed retry."""
+    text = str(exc).lower()
+    return any(marker in text for marker in _TRANSIENT_OPEN_ERROR_MARKERS)
+
+
 if TYPE_CHECKING:
     pass
 
@@ -114,8 +134,10 @@ class StreamLifecycle:
         On success, ``self._stream`` (the lifecycle-owned slot) is the
         opened stream, ``recorder._effective_sr`` is updated under the lock, and
         ``recorder._actual_channels`` stores the negotiated channel count.
-        On failure, ``self._stream`` remains ``None`` and ``last_error``
-        holds the most recent exception.
+        A candidate that fails with a transient host error gets one
+        delayed retry before moving on, so a momentary exclusive hold
+        does not force a fallback device. On failure, ``self._stream``
+        remains ``None`` and ``last_error`` holds the most recent exception.
 
         The candidate loop is the primary device-enumeration path. If
         every candidate fails, :meth:`Recorder.start` falls back to
@@ -135,85 +157,100 @@ class StreamLifecycle:
                     candidate_sr,
                 )
 
-            stream = None
-            try:
-                # stream, defensive against misconfig, not missing attr.
-                config_channels = int(recorder.config.recording_channels or 1)
-                channels = config_channels if config_channels > 0 else 1
+            # One delayed retry of the SAME candidate on transient host
+            # errors; staying on the preferred host API beats dropping
+            # to a fallback device. Non-transient failures skip it.
+            _opened = False
+            for _attempt in (0, 1):
+                stream = None
                 try:
-                    # PERF: consult the cached device list (pre-warmed in
-                    max_ch = recorder._cached_max_input_channels(candidate)
-                    if config_channels <= 0:
-                        # 0 = auto-detect: prefer mono, fallback to device default
-                        if max_ch >= 2:
-                            channels = 2  # prefer stereo if available, downmix in callback
-                        elif max_ch == 1:
-                            channels = 1
-                    elif channels > max_ch:
-                        channels = max(1, max_ch)  # don't request more than device supports
-                except Exception:
-                    # Channel probe failure falls back to the device default;
-                    log.debug(
-                        "[RECORDING] channel probe failed for device %r, using default channel count",
-                        candidate,
-                        exc_info=True,
-                    )
-
-                stream = sd.InputStream(
-                    samplerate=candidate_sr,
-                    channels=channels,
-                    dtype=np.float32,
-                    device=candidate,
-                    callback=callback,
-                    # Rate-scaled: request ~32 ms blocks so each
-                    blocksize=scaled_audio_blocksize(candidate_sr),
-                    # Request the host API's "low" latency hint.
-                    latency="low",
-                    # AUDIO-HOT: finished_callback detects unexpected stream termination
-                    finished_callback=recorder._stream_finished_callback,
-                    extra_settings=_wasapi_auto_convert_settings(dev_info_extra),
-                )
-                stream.start()
-
-                # AUDIO-BT: detect Bluetooth HFP profile (8/16 kHz).
-                try:
-                    actual_sr = int(stream.samplerate) if hasattr(stream, "samplerate") else candidate_sr
-                    if actual_sr in SILERO_VAD_SAMPLE_RATES and actual_sr != candidate_sr:
-                        # AUDIO-BT: detecting a Bluetooth HFP (hands-free
-                        log.info(
-                            "[RECORDING] Bluetooth HFP profile detected: actual sample rate "
-                            "%d Hz differs from requested %d Hz. Audio quality will be limited. "
-                            "Consider disabling the hands-free telephony profile in Bluetooth "
-                            "settings for better quality.",
-                            actual_sr,
-                            candidate_sr,
+                    # stream, defensive against misconfig, not missing attr.
+                    config_channels = int(recorder.config.recording_channels or 1)
+                    channels = config_channels if config_channels > 0 else 1
+                    try:
+                        # PERF: consult the cached device list (pre-warmed in
+                        max_ch = recorder._cached_max_input_channels(candidate)
+                        if config_channels <= 0:
+                            # 0 = auto-detect: prefer mono, fallback to device default
+                            if max_ch >= 2:
+                                channels = 2  # prefer stereo if available, downmix in callback
+                            elif max_ch == 1:
+                                channels = 1
+                        elif channels > max_ch:
+                            channels = max(1, max_ch)  # don't request more than device supports
+                    except Exception:
+                        # Channel probe failure falls back to the device default;
+                        log.debug(
+                            "[RECORDING] channel probe failed for device %r, using default channel count",
+                            candidate,
+                            exc_info=True,
                         )
-                except Exception:
-                    # BT quality detection is advisory only, but a persistent
-                    log.debug("[RECORDING] Bluetooth HFP profile probe failed", exc_info=True)
 
-                # AUDIO-CH: store actual channel count for callback
-                recorder._actual_channels = channels
-            except Exception as e:
-                last_error = e
-                log.warning(
-                    "[RECORDING] Failed to open input device [%s]: %s",
-                    candidate if candidate is not None else "default",
-                    e,
-                )
-                if stream is not None:
-                    with contextlib.suppress(Exception):
-                        stream.close()
-                self._stream = None
-                continue
+                    stream = sd.InputStream(
+                        samplerate=candidate_sr,
+                        channels=channels,
+                        dtype=np.float32,
+                        device=candidate,
+                        callback=callback,
+                        # Rate-scaled: request ~32 ms blocks so each
+                        blocksize=scaled_audio_blocksize(candidate_sr),
+                        # Request the host API's "low" latency hint.
+                        latency="low",
+                        # AUDIO-HOT: finished_callback detects unexpected stream termination
+                        finished_callback=recorder._stream_finished_callback,
+                        extra_settings=_wasapi_auto_convert_settings(dev_info_extra),
+                    )
+                    stream.start()
 
-            self._stream = stream
-            # guard _effective_sr writes with the lock because
-            with recorder._audio_pipeline._lock:
-                recorder._effective_sr = candidate_sr
-            selected_device = candidate
-            effective_sr = candidate_sr
-            break
+                    # AUDIO-BT: detect Bluetooth HFP profile (8/16 kHz).
+                    try:
+                        actual_sr = int(stream.samplerate) if hasattr(stream, "samplerate") else candidate_sr
+                        if actual_sr in SILERO_VAD_SAMPLE_RATES and actual_sr != candidate_sr:
+                            # AUDIO-BT: detecting a Bluetooth HFP (hands-free
+                            log.info(
+                                "[RECORDING] Bluetooth HFP profile detected: actual sample rate "
+                                "%d Hz differs from requested %d Hz. Audio quality will be limited. "
+                                "Consider disabling the hands-free telephony profile in Bluetooth "
+                                "settings for better quality.",
+                                actual_sr,
+                                candidate_sr,
+                            )
+                    except Exception:
+                        # BT quality detection is advisory only, but a persistent
+                        log.debug("[RECORDING] Bluetooth HFP profile probe failed", exc_info=True)
+
+                    # AUDIO-CH: store actual channel count for callback
+                    recorder._actual_channels = channels
+                except Exception as e:
+                    last_error = e
+                    if stream is not None:
+                        with contextlib.suppress(Exception):
+                            stream.close()
+                    self._stream = None
+                    if _attempt == 0 and _is_transient_open_error(e):
+                        log.debug(
+                            "[RECORDING] Transient open failure on [%s], retrying once",
+                            candidate if candidate is not None else "default",
+                        )
+                        time.sleep(_TRANSIENT_OPEN_RETRY_SECONDS)
+                        continue
+                    log.warning(
+                        "[RECORDING] Failed to open input device [%s]: %s",
+                        candidate if candidate is not None else "default",
+                        e,
+                    )
+                    break
+
+                self._stream = stream
+                # guard _effective_sr writes with the lock because
+                with recorder._audio_pipeline._lock:
+                    recorder._effective_sr = candidate_sr
+                selected_device = candidate
+                effective_sr = candidate_sr
+                _opened = True
+                break
+            if _opened:
+                break
 
         return selected_device, effective_sr, last_error
 
