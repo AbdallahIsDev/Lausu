@@ -224,6 +224,83 @@ class TestOpenStreamForCandidates:
         assert last_err is None
 
 
+class TestTransientOpenRetry:
+    """One delayed same-candidate retry on transient host errors."""
+
+    def _factory_with_text_error(self, monkeypatch, text: str, fail_first_n: int):
+        """Fake sd.InputStream failing the first N opens with ``text``."""
+        calls: list[dict] = []
+
+        def fake_input_stream(**kwargs):
+            calls.append(kwargs)
+            if len(calls) <= fail_first_n:
+                raise RuntimeError(text)
+            stream = MagicMock(name="fake_stream_retry")
+            stream.start = MagicMock(name="start")
+            stream.stop = MagicMock(name="stop")
+            stream.close = MagicMock(name="close")
+            return stream
+
+        fake_sd = MagicMock(name="fake_sd")
+        fake_sd.InputStream = MagicMock(side_effect=fake_input_stream)
+        monkeypatch.setattr(sl_module, "sd", fake_sd)
+        return calls
+
+    def test_transient_failure_retries_same_candidate(self, monkeypatch):
+        import time as _time_mod
+
+        recorder = _make_recorder_stub()
+        calls = self._factory_with_text_error(
+            monkeypatch,
+            "Error starting stream: Unanticipated host error [PaErrorCode -9999]",
+            fail_first_n=1,
+        )
+        recorder._devices._resolve_effective_sample_rate.return_value = (16000, None)
+        sleeps: list[float] = []
+        monkeypatch.setattr(_time_mod, "sleep", lambda s: sleeps.append(s))
+        lifecycle = StreamLifecycle(recorder)
+
+        selected, eff_sr, last_err = lifecycle.open_stream_for_candidates(
+            recorder, [30], MagicMock(name="callback"), effective_sr=16000, last_error=None
+        )
+
+        assert selected == 30
+        assert eff_sr == 16000
+        assert len(calls) == 2
+        assert sleeps == [0.25]
+        assert lifecycle._stream is not None
+
+    def test_non_transient_failure_skips_retry(self, monkeypatch):
+        import time as _time_mod
+
+        recorder = _make_recorder_stub()
+        calls = self._factory_with_text_error(
+            monkeypatch, "fake open failure: invalid device", fail_first_n=5
+        )
+        recorder._devices._resolve_effective_sample_rate.side_effect = [
+            (16000, None),
+            (16000, None),
+        ]
+        sleeps: list[float] = []
+        monkeypatch.setattr(_time_mod, "sleep", lambda s: sleeps.append(s))
+        lifecycle = StreamLifecycle(recorder)
+
+        selected, _, _ = lifecycle.open_stream_for_candidates(
+            recorder, [3, 9], MagicMock(name="callback"), effective_sr=16000, last_error=None
+        )
+
+        assert selected is None
+        assert len(calls) == 2
+        assert sleeps == []
+
+    def test_is_transient_open_error_markers(self):
+        from voice_typer.server.recording.stream_lifecycle import _is_transient_open_error
+
+        assert _is_transient_open_error(RuntimeError("PaErrorCode -9999")) is True
+        assert _is_transient_open_error(RuntimeError("Device unavailable")) is True
+        assert _is_transient_open_error(RuntimeError("some other failure")) is False
+
+
 class TestOpenStreamFallback:
     """Body of ``Recorder._open_stream_fallback`` (no source-inspection"""
 
