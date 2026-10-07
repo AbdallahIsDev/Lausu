@@ -56,7 +56,7 @@ function SectionBackButton({ onBack }: { onBack: () => void }) {
 			type="button"
 			data-testid="settings-back-to-hub"
 			aria-label={t("settings.hub.backToSettings")}
-			className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-muted-foreground transition-colors duration-150 hover:bg-foreground/5 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+			className="inline-flex w-fit items-center gap-2 rounded-lg px-2 py-1 text-sm text-muted-foreground transition-colors duration-150 hover:bg-foreground/5 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
 			onClick={onBack}
 		>
 			{/* Left-pointing chevron, mirrored in RTL by the shared
