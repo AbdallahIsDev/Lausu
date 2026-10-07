@@ -6,9 +6,11 @@
  *
  * Status flow under test:
  *   - probe ok                          → "connected" (no restart call)
- *   - probe fail + restart accepted     → "restarting" (fresh backend's
- *     `state_changed` push flips back to "connected", exercised by the
- *     existing state_changed tests)
+ *   - fast-refusal probe fail + restart → "restarting" (no retries: no
+ *     transport means the backend is dead, not booting)
+ *   - timeout-shaped failures retry the probe; recovery → "connected"
+ *   - persistent timeouts exhaust the budget → "restarting" (one kill)
+ *   - rapid re-clicks collapse into a single escalation
  *   - probe fail + restart declined     → "disconnected" + lastError
  *     (adopted mode / relaunch in-flight / bridge missing)
  */
@@ -34,6 +36,7 @@ const { mockCall } = stableMocks;
 vi.mock("@/hooks/usePython", () => pythonMock());
 
 import { useConnection } from "@/hooks/useConnection";
+import { _resetNavigationForTest, useNavigation } from "@/hooks/useNavigation";
 import { useAppStore } from "@/stores/appStore";
 
 // Stub localStorage (jsdom 29 with opaque origin doesn't expose it).
@@ -64,12 +67,15 @@ interface BridgeLike {
  * current status/lastError so tests can drive the escalation.
  */
 function Harness() {
+	// Stable navigate (same convention as the startup-grace suite):
+	// an inline closure would re-run the mount probe every render.
+	const { navigate } = useNavigation();
 	const { handleRetryConnection } = useConnection({
 		call: (async (type: string) => mockCall(type)) as unknown as <T = unknown>(
 			type: string,
 			data?: Record<string, unknown>,
 		) => Promise<T>,
-		navigate: () => {},
+		navigate,
 	});
 	const connectionStatus = useAppStore((s) => s.connectionStatus);
 	const lastError = useAppStore((s) => s.lastError);
@@ -91,6 +97,7 @@ const CONFIG_OK = { onboarding_completed: true };
 describe("useConnection, OPTION-A retry escalation (probe → backend restart)", () => {
 	beforeEach(() => {
 		resetStableMocks();
+		_resetNavigationForTest();
 		useAppStore.getState().setConnectionStatus("connecting");
 		useAppStore.getState().setLastError(null);
 		// First mount-probe succeeds (backend healthy); subsequent
@@ -213,4 +220,110 @@ describe("useConnection, OPTION-A retry escalation (probe → backend restart)",
 			"could not be restarted",
 		);
 	});
+
+	it("timeout-shaped failures retry; recovery → connected, no restart", async () => {
+		const restartBackend = vi.fn();
+		(window as unknown as { window_: BridgeLike }).window_ = {
+			restartBackend,
+		};
+		// Mount probe ok, then two timeouts, then recovery.
+		let getConfigCalls = 0;
+		mockCall.mockImplementation((type: string) => {
+			switch (type) {
+				case "get_config":
+					getConfigCalls++;
+					if (getConfigCalls === 1) return Promise.resolve(CONFIG_OK);
+					if (getConfigCalls <= 3) {
+						return Promise.reject(
+							new Error('IPC command "get_config" timed out after 15000ms'),
+						);
+					}
+					return Promise.resolve(CONFIG_OK);
+				case "get_status":
+					return Promise.resolve({ status: "idle" });
+				case "onboarding_is_first_run":
+					return Promise.resolve({ is_first_run: false });
+				default:
+					return Promise.resolve({});
+			}
+		});
+		render(<Harness />);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("status").textContent).toBe("connected");
+		});
+
+		const before = getConfigCalls;
+		fireEvent.click(screen.getByText("Retry"));
+		// Two timeouts + recovery = 3 retry attempts, ~4s of backoff.
+		await waitFor(
+			() => {
+				expect(getConfigCalls).toBe(before + 3);
+			},
+			{ timeout: 10_000 },
+		);
+		expect(restartBackend).not.toHaveBeenCalled();
+		expect(screen.getByTestId("status").textContent).toBe("connected");
+	}, 15_000);
+
+	it("persistent timeouts exhaust the budget → restarting (exactly 3 probes)", async () => {
+		const restartBackend = vi.fn().mockResolvedValue({ ok: true });
+		(window as unknown as Record<string, unknown>).window_ = {
+			restartBackend,
+		};
+		let getConfigCalls = 0;
+		mockCall.mockImplementation((type: string) => {
+			switch (type) {
+				case "get_config":
+					getConfigCalls++;
+					if (getConfigCalls === 1) return Promise.resolve(CONFIG_OK);
+					return Promise.reject(new Error("timed out after 15s"));
+				case "get_status":
+					return Promise.resolve({ status: "idle" });
+				case "onboarding_is_first_run":
+					return Promise.resolve({ is_first_run: false });
+				default:
+					return Promise.resolve({});
+			}
+		});
+		render(<Harness />);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("status").textContent).toBe("connected");
+		});
+
+		const before = getConfigCalls;
+		fireEvent.click(screen.getByText("Retry"));
+		await waitFor(
+			() => {
+				expect(screen.getByTestId("status").textContent).toBe("restarting");
+			},
+			{ timeout: 10_000 },
+		);
+		expect(restartBackend).toHaveBeenCalledTimes(1);
+		expect(getConfigCalls).toBe(before + 3);
+	}, 15_000);
+
+	it("two rapid clicks collapse into one escalation", async () => {
+		const restartBackend = vi.fn().mockResolvedValue({ ok: true });
+		(window as unknown as Record<string, unknown>).window_ = {
+			restartBackend,
+		};
+		render(<Harness />);
+
+		await waitFor(() => {
+			expect(screen.getByTestId("status").textContent).toBe("connected");
+		});
+
+		const button = screen.getByText("Retry");
+		fireEvent.click(button);
+		fireEvent.click(button);
+		await waitFor(
+			() => {
+				expect(screen.getByTestId("status").textContent).toBe("restarting");
+			},
+			{ timeout: 10_000 },
+		);
+		expect(restartBackend).toHaveBeenCalledTimes(1);
+	}, 15_000);
 });
