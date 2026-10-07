@@ -126,6 +126,7 @@ export const DEFAULT_CONFIG: LausuConfig = {
 	bubble_click_to_toggle: true,
 	bubble_mic_button: true,
 	bubble_show_recording_timer: false,
+	screenshot_beta_enabled: false,
 
 	//persisted bubble position. Default `null` so the bubble
 	// falls back to the platform-default position computed from
@@ -200,6 +201,7 @@ export const DEFAULT_CONFIG: LausuConfig = {
 	voice_biometric_consent: false,
 	llm_polish_consent: false,
 	media_url_consent: false,
+	screenshot_consent: false,
 
 	sound_feedback_enabled: false,
 

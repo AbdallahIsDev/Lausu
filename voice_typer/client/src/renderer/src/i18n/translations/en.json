@@ -795,6 +795,8 @@
 		"bubbleBehaviorHidden": "Hidden",
 		"bubbleShowRecordingTimer": "Recording Timer",
 		"bubbleShowRecordingTimerInfo": "Show the recording duration (mm:ss) next to the red dot while recording. Off by default.",
+		"screenshotBeta": "Screenshot capture (Beta)",
+		"screenshotBetaInfo": "Attach a screen region to the transcription, once per recording. Windows only. Off by default; recording continues while you select.",
 		"bubblePreview": "Bubble Preview",
 		"bubblePreviewInfo": "How the bubble looks in each state. The recording timer ticks live here.",
 		"bubblePreviewIdle": "Idle",
@@ -1518,7 +1520,13 @@
 		"stopRecordingAria": "Stop recording",
 		"dismissAria": "Dismiss bubble",
 		"transcriptPreviewAria": "Live transcript preview",
-		"recordingTimerAria": "Recording duration"
+		"recordingTimerAria": "Recording duration",
+		"annotateAria": "Capture a screenshot region",
+		"screenshotHint": "Drag to select a region — release to capture, Esc to cancel"
+	},
+	"screenshot": {
+		"consentTitle": "Screenshot capture",
+		"consentDesc": "Attaching a screenshot sends the selected screen region with this transcription for context. The image is processed with your audio and is not stored beyond the transcription. Allow?"
 	},
 	"help": {
 		"title": "Keyboard Shortcuts",
@@ -2098,7 +2106,8 @@
 			"cloud_groq_consent": "Cloud transcription sends your audio to Groq's speech API for transcription, under Groq's terms and privacy policy. Allow?",
 			"cloud_deepgram_consent": "Cloud transcription sends your audio to Deepgram's speech API for transcription, under Deepgram's terms and privacy policy. Allow?",
 			"llm_polish_consent": "LLM polish sends your transcribed text (not audio) to your configured LLM API for grammar and punctuation cleanup, under that API's terms. Allow?",
-			"media_url_consent": "Transcribing a media link sends that link to the media extractor (yt-dlp) to locate its audio stream. The linked site is contacted directly from this device. Allow?"
+			"media_url_consent": "Transcribing a media link sends that link to the media extractor (yt-dlp) to locate its audio stream. The linked site is contacted directly from this device. Allow?",
+			"screenshot_consent": "Screenshot capture attaches the selected screen region to this transcription for context. The image is processed with your audio and is not stored beyond the transcription. Allow?"
 		}
 	},
 	"degradation": {

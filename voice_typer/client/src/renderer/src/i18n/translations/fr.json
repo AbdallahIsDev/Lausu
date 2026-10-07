@@ -262,6 +262,8 @@
 		"bubbleBehaviorHidden": "Masquée",
 		"bubbleShowRecordingTimer": "Minuteur d'enregistrement",
 		"bubbleShowRecordingTimerInfo": "Affiche la durée d'enregistrement (mm:ss) à côté du point rouge pendant l'enregistrement. Désactivé par défaut.",
+		"screenshotBeta": "Capture d'écran (Bêta)",
+		"screenshotBetaInfo": "Joint une zone d'écran à la transcription, une fois par enregistrement. Windows uniquement. Désactivé par défaut ; l'enregistrement continue pendant la sélection.",
 		"bubblePreview": "Aperçu de la bulle",
 		"bubblePreviewInfo": "Voici l'apparence de la bulle dans chaque état. Le minuteur tourne en direct ici.",
 		"bubblePreviewIdle": "Inactive",
@@ -1612,7 +1614,13 @@
 		"stopRecordingAria": "Arrêter l'enregistrement",
 		"dismissAria": "Fermer la bulle",
 		"transcriptPreviewAria": "Aperçu de la transcription en direct",
-		"recordingTimerAria": "Durée d'enregistrement"
+		"recordingTimerAria": "Durée d'enregistrement",
+		"annotateAria": "Capturer une zone d'écran",
+		"screenshotHint": "Glissez pour sélectionner une zone — relâchez pour capturer, Échap pour annuler"
+	},
+	"screenshot": {
+		"consentTitle": "Capture d'écran",
+		"consentDesc": "Joindre une capture envoie la zone d'écran sélectionnée avec cette transcription pour le contexte. L'image est traitée avec votre audio et n'est pas conservée au-delà de la transcription. Autoriser ?"
 	},
 	"errorBoundary": {
 		"title": "Une erreur s'est produite",
@@ -2098,7 +2106,8 @@
 			"cloud_groq_consent": "La transcription cloud envoie votre audio à l'API vocale de Groq pour transcription, selon ses conditions et sa politique de confidentialité. Autoriser ?",
 			"cloud_deepgram_consent": "La transcription cloud envoie votre audio à l'API vocale de Deepgram pour transcription, selon ses conditions et sa politique de confidentialité. Autoriser ?",
 			"llm_polish_consent": "La correction par LLM envoie votre texte transcrit (pas l'audio) à votre API LLM configurée pour corriger grammaire et ponctuation, selon ses conditions. Autoriser ?",
-			"media_url_consent": "La transcription d'un lien multimédia envoie ce lien à l'extracteur multimédia (yt-dlp) pour localiser le flux audio. Le site lié est contacté directement depuis cet appareil. Autoriser ?"
+			"media_url_consent": "La transcription d'un lien multimédia envoie ce lien à l'extracteur multimédia (yt-dlp) pour localiser le flux audio. Le site lié est contacté directement depuis cet appareil. Autoriser ?",
+			"screenshot_consent": "La capture d'écran joint la zone sélectionnée à cette transcription pour le contexte. L'image est traitée avec votre audio et n'est pas conservée au-delà de la transcription. Autoriser ?"
 		}
 	},
 	"degradation": {

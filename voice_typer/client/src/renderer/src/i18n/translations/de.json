@@ -774,6 +774,8 @@
 		"bubbleBehaviorHidden": "Ausgeblendet",
 		"bubbleShowRecordingTimer": "Aufnahme-Timer",
 		"bubbleShowRecordingTimerInfo": "Zeigt die Aufnahmedauer (mm:ss) neben dem roten Punkt während der Aufnahme. Standardmäßig aus.",
+		"screenshotBeta": "Screenshot-Aufnahme (Beta)",
+		"screenshotBetaInfo": "Einen Bildschirmbereich pro Aufnahme an die Transkription anhängen. Nur Windows. Standardmäßig aus; die Aufnahme läuft während der Auswahl weiter.",
 		"bubblePreview": "Blasen-Vorschau",
 		"bubblePreviewInfo": "So sieht die Blase in jedem Zustand aus. Der Aufnahme-Timer läuft hier live.",
 		"bubblePreviewIdle": "Inaktiv",
@@ -1676,7 +1678,13 @@
 		"stopRecordingAria": "Aufnahme beenden",
 		"dismissAria": "Blase schließen",
 		"transcriptPreviewAria": "Live-Transkript-Vorschau",
-		"recordingTimerAria": "Aufnahmedauer"
+		"recordingTimerAria": "Aufnahmedauer",
+		"annotateAria": "Screenshot-Bereich aufnehmen",
+		"screenshotHint": "Ziehen, um einen Bereich zu wählen — loslassen zum Aufnehmen, Esc zum Abbrechen"
+	},
+	"screenshot": {
+		"consentTitle": "Screenshot-Aufnahme",
+		"consentDesc": "Das Anhängen eines Screenshots sendet den gewählten Bildschirmbereich mit dieser Transkription als Kontext. Das Bild wird mit der Aufnahme verarbeitet und nicht über die Transkription hinaus gespeichert. Zulassen?"
 	},
 	"errorBoundary": {
 		"title": "Etwas ist schiefgegangen",
@@ -2098,7 +2106,8 @@
 			"cloud_groq_consent": "Cloud-Transkription sendet Ihr Audio zur Transkription an die Groq-Sprach-API, unter den Bedingungen und der Datenschutzrichtlinie von Groq. Zulassen?",
 			"cloud_deepgram_consent": "Cloud-Transkription sendet Ihr Audio zur Transkription an die Deepgram-Sprach-API, unter den Bedingungen und der Datenschutzrichtlinie von Deepgram. Zulassen?",
 			"llm_polish_consent": "Die LLM-Textverbesserung sendet Ihren transkribierten Text (kein Audio) zur Korrektur an Ihre konfigurierte LLM-API, unter deren Bedingungen. Zulassen?",
-			"media_url_consent": "Beim Transkribieren eines Medienlinks wird der Link an den Medien-Extraktor (yt-dlp) gesendet, um den Audiostream zu finden. Die verlinkte Website wird direkt von diesem Gerät kontaktiert. Zulassen?"
+			"media_url_consent": "Beim Transkribieren eines Medienlinks wird der Link an den Medien-Extraktor (yt-dlp) gesendet, um den Audiostream zu finden. Die verlinkte Website wird direkt von diesem Gerät kontaktiert. Zulassen?",
+			"screenshot_consent": "Die Screenshot-Aufnahme hängt den gewählten Bildschirmbereich als Kontext an diese Transkription an. Das Bild wird mit der Aufnahme verarbeitet und nicht über die Transkription hinaus gespeichert. Zulassen?"
 		}
 	},
 	"degradation": {

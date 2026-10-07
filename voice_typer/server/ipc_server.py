@@ -128,6 +128,7 @@ from voice_typer.server.handlers.model_handlers import ModelHandlersMixin  # noq
 from voice_typer.server.handlers.onboarding_handlers import OnboardingHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.plugin_handlers import PluginHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.repaste_handlers import RepasteHandlersMixin  # noqa: E402
+from voice_typer.server.handlers.screenshot_handlers import ScreenshotHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.status_handlers import StatusHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.system_handlers import SystemHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.templates_handlers import TemplatesHandlersMixin  # noqa: E402
@@ -174,6 +175,7 @@ class IPCServer(
     VocabularyAutomationHandlersMixin,
     RepasteHandlersMixin,
     CloudTestHandlersMixin,
+    ScreenshotHandlersMixin,
 ):
     """Reads JSON commands from WS or stdin, dispatches, writes responses.
 

@@ -28,9 +28,9 @@ const ALL_KINDS: [DialogTitle; 6] = [
     DialogTitle::ExportStatsImage,
 ];
 
-/// The 7 non-English supported languages (English is the fallback,
-/// handled separately).
-const NON_ENGLISH_LANGUAGES: [&str; 7] = ["ar", "de", "es", "fr", "hi", "ru", "zh"];
+/// The 7 non-English supported languages, in the app's display order
+/// (English is the fallback, handled separately).
+const NON_ENGLISH_LANGUAGES: [&str; 7] = ["zh", "hi", "es", "ar", "fr", "ru", "de"];
 
 // ── per-kind localization ────────────────────────────────────────
 
@@ -55,12 +55,14 @@ fn test_non_english_locales_yield_non_english_titles_for_every_kind() {
 
 #[test]
 fn test_supported_language_list_is_the_eight_locale_set() {
-    // The lookup must cover exactly the app's 8-locale set (mirrors
-    // the renderer's SUPPORTED_LOCALES). A missing language here
-    // means one of the app's locales silently gets English titles.
+    // The lookup must cover exactly the app's 8-locale set, in the same
+    // order as the renderer's SUPPORTED_LOCALES (English first, then by
+    // global speaker population). A missing language here means one of
+    // the app's locales silently gets English titles; a reordered one
+    // means the two lists have drifted.
     assert_eq!(
         SUPPORTED_LANGUAGES,
-        ["en", "ar", "de", "es", "fr", "hi", "ru", "zh"]
+        ["en", "zh", "hi", "es", "ar", "fr", "ru", "de"]
     );
     // Every non-English supported language resolves to its own arm
     // (spot-check distinctness across languages for one kind so a

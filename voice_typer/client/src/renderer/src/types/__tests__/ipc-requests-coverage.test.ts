@@ -239,6 +239,14 @@ const _SERVER_REGISTRY_MINUS_PYTHON_ONLY = {
 	media_transcribe_start: true, // ADR-0023 universal media-to-text jobs
 	media_transcribe_cancel: true,
 	media_transcribe_status: true,
+	// One-shot screenshot beta (Windows-only): all four live in the
+	// Python `_COMMAND_REGISTRY` + Rust allowlist. Only
+	// `screenshot_capture` has a renderer call site so far
+	// (`lib/screenshot.ts` `captureScreenshot`, bubble overlay release).
+	screenshot_capture: true,
+	screenshot_clear_cycle: true,
+	screenshot_get_status: true,
+	screenshot_set_consent: true,
 	get_prewarm_status: true, // RESTORED 2026-08-14 (About-page Cache Status card, plan §6.3)
 	open_prewarm_log: true, // RESTORED 2026-08-14 (About-page Cache Status card, plan §6.3)
 	open_data_folder: true, // Models storage card + Diagnostics button (config dir)

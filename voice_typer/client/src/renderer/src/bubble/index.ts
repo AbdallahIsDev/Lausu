@@ -1,3 +1,4 @@
+export { BubbleAnnotateButton } from "./BubbleAnnotateButton";
 export { BubbleDismissButton } from "./BubbleDismissButton";
 export { BubbleMicButton } from "./BubbleMicButton";
 export { BubbleModeContent } from "./BubbleModeContent";
@@ -23,6 +24,8 @@ export {
 // helpers, pure functions
 export { getBubbleAriaLabel, rmsToNorm, tf } from "./helpers";
 export { RecordingTimer } from "./RecordingTimer";
+export type { ScreenshotRect } from "./ScreenshotOverlay";
+export { ScreenshotOverlay } from "./ScreenshotOverlay";
 export { TranscribingLabel } from "./TranscribingLabel";
 export { useAudioLevels } from "./useAudioLevels";
 export type { BubbleBridge, BubbleBridgeOff } from "./useBubbleBridge";

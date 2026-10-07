@@ -154,6 +154,11 @@ export interface LausuConfig {
 	//show the recording duration (mm:ss) next to the red dot. Default OFF.
 	bubble_show_recording_timer: boolean;
 
+	// One-shot screenshot beta (Windows-only): master switch for the
+	// bubble annotate button + region overlay. Default OFF (zero
+	// behavior change while off).
+	screenshot_beta_enabled: boolean;
+
 	bubble_x: number | null;
 	bubble_y: number | null;
 
@@ -265,6 +270,9 @@ export interface LausuConfig {
 	llm_polish_consent: boolean;
 	// ADR-0023: consent that media URLs are sent to the yt-dlp extractor.
 	media_url_consent: boolean;
+	// One-shot screenshot beta (Windows-only): consent that the
+	// selected screen region is sent with the transcription.
+	screenshot_consent: boolean;
 
 	sound_feedback_enabled: boolean;
 

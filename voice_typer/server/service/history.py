@@ -58,7 +58,15 @@ class HistoryMixin(ServiceMixinBase):
 
         raise_on_error=True: see ``get_history``.
         """
-        return self._app.history_db.delete(rec_id, raise_on_error=True)
+        ok = self._app.history_db.delete(rec_id, raise_on_error=True)
+        # Sidecar screenshot files linked to this entry go with it.
+        try:
+            from voice_typer.server.screenshots import store as _shots
+
+            _shots.delete_screenshots_for_history_id(int(rec_id))
+        except Exception:
+            log.debug("[SERVICE] screenshot sidecar cleanup skipped", exc_info=True)
+        return ok
 
     def restore_history(self, record: dict) -> int:
         """Re-insert a previously-deleted history record.
@@ -77,7 +85,14 @@ class HistoryMixin(ServiceMixinBase):
 
         raise_on_error=True: see ``get_history``.
         """
-        return self._app.history_db.clear_all(raise_on_error=True)
+        ok = self._app.history_db.clear_all(raise_on_error=True)
+        try:
+            from voice_typer.server.screenshots import store as _shots
+
+            _shots.delete_all_screenshots()
+        except Exception:
+            log.debug("[SERVICE] screenshot bulk cleanup skipped", exc_info=True)
+        return ok
 
     def toggle_favorite(self, rec_id: int) -> bool:
         """Toggle favorite status of a history record.

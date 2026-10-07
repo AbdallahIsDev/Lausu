@@ -578,6 +578,26 @@ describe("Bubble", () => {
 		expect(screen.queryByLabelText("Dismiss bubble")).toBeNull();
 	});
 
+	it("auto-hides paste_failed in show_on_record after 7s", () => {
+		vi.useFakeTimers();
+		render(<Bubble />);
+
+		setBubbleState("paste_failed");
+		expect(screen.getByText("Paste failed")).toBeTruthy();
+		expect(
+			document.querySelector('output[aria-live="polite"]')?.className,
+		).not.toMatch("animate-bubble-exit");
+
+		act(() => {
+			vi.advanceTimersByTime(7000);
+		});
+		expect(
+			document.querySelector('output[aria-live="polite"]')?.className,
+		).toMatch("animate-bubble-exit");
+
+		vi.useRealTimers();
+	});
+
 	it("BG-96: clicking the dismiss button calls window.bubble.dismiss", () => {
 		render(<Bubble />);
 

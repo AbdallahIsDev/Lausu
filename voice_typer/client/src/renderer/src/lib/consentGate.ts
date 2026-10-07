@@ -56,6 +56,7 @@ export const CONSENT_FIELD_NAMES = [
 	"cloud_deepgram_consent",
 	"llm_polish_consent",
 	"media_url_consent",
+	"screenshot_consent",
 ] as const;
 
 export type ConsentFieldName = (typeof CONSENT_FIELD_NAMES)[number];

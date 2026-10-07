@@ -5,6 +5,12 @@ import {
 	useRef,
 	useState,
 } from "react";
+import {
+	ScreenshotOverlay,
+	type ScreenshotRect,
+} from "@/bubble/ScreenshotOverlay";
+import { openConsentGate } from "@/lib/consentGate";
+import { captureScreenshot, mintScreenshotCycleId } from "@/lib/screenshot";
 import { cn } from "@/lib/utils";
 import type { BubbleWindowBubble } from "@/types/ipc";
 import {
@@ -100,6 +106,15 @@ function BubbleInner() {
 	// Whether to show the recording duration next to the red dot.
 	// Toggleable in Settings → Overlay, defaults to OFF.
 	const [showTimer, setShowTimer] = useState(false);
+	// One-shot screenshot beta (Windows-only): master switch + consent
+	// pushed via `bubble:config`, overlay visibility, and whether this
+	// recording already captured its single screenshot. All default
+	// to off/closed/false, so the beta-off pill is unchanged.
+	const [screenshotBeta, setScreenshotBeta] = useState(false);
+	const [screenshotConsent, setScreenshotConsent] = useState(false);
+	const [screenshotOverlayOpen, setScreenshotOverlayOpen] = useState(false);
+	const [screenshotCaptured, setScreenshotCaptured] = useState(false);
+	const [screenshotCycleId, setScreenshotCycleId] = useState("");
 	// Dismiss arming for the transcribing phase: the '×' stays disabled
 	// for the first 5s so an accidental click can't discard a healthy
 	// transcription, then arms so a hung transcription can be dismissed.
@@ -160,6 +175,8 @@ function BubbleInner() {
 			const clickToToggle = cfg.bubble_click_to_toggle;
 			const micButton = cfg.bubble_mic_button;
 			setShowTimer(cfg.bubble_show_recording_timer === true);
+			setScreenshotBeta(cfg.screenshot_beta_enabled === true);
+			setScreenshotConsent(cfg.screenshot_consent === true);
 			const enabled =
 				behavior === "always_visible" &&
 				micButton !== false &&
@@ -223,6 +240,52 @@ function BubbleInner() {
 		getBubbleApi()?.dismiss?.();
 	}, []);
 
+	// One-shot cycle: a fresh recording mints a new cycle id and
+	// re-arms the annotate button.
+	useEffect(() => {
+		if (mode === "recording") {
+			setScreenshotCycleId(mintScreenshotCycleId());
+			setScreenshotCaptured(false);
+			setScreenshotOverlayOpen(false);
+		}
+	}, [mode]);
+
+	// Annotate click: point-of-use consent first (shared gate, the
+	// dialog itself mounts in the main window's App.tsx), then the
+	// region overlay. The recording never pauses.
+	const handleAnnotateClick = useCallback(() => {
+		if (screenshotCaptured) return;
+		if (!screenshotConsent) {
+			openConsentGate({
+				consentField: "screenshot_consent",
+				bodyKey: "screenshot.consentDesc",
+				onAllow: () => setScreenshotOverlayOpen(true),
+			});
+			return;
+		}
+		setScreenshotOverlayOpen(true);
+	}, [screenshotCaptured, screenshotConsent]);
+
+	// Overlay release: forward the device-pixel rect for this
+	// recording's cycle, then close and burn the one shot. Failures
+	// close too (recording continues).
+	const handleScreenshotCapture = useCallback(
+		(rect: ScreenshotRect) => {
+			const cycleId = screenshotCycleId;
+			setScreenshotOverlayOpen(false);
+			setScreenshotCaptured(true);
+			if (!cycleId) return;
+			captureScreenshot(cycleId, rect).catch((err) => {
+				console.warn("[renderer:bubble] screenshot_capture failed:", err);
+			});
+		},
+		[screenshotCycleId],
+	);
+
+	const handleScreenshotCancel = useCallback(() => {
+		setScreenshotOverlayOpen(false);
+	}, []);
+
 	// Auto-resize BrowserWindow to fit the pill content exactly.
 	// `useLayoutEffect` so the resize IPC arrives before paint. The
 	// effect depends on BOTH `animState` AND `mode` so resize runs when
@@ -269,7 +332,7 @@ function BubbleInner() {
 	}, [mode, exitTick, setAnimState]);
 
 	// Error-mode auto-hide: when the bubble is in `show_on_record`
-	// behavior and enters error mode, auto-hide after
+	// behavior and enters error or paste-failed mode, auto-hide after
 	// `ERROR_AUTO_HIDE_MS` so the pill doesn't linger over the user's
 	// text field. Sticky in `always_visible` mode (the user dismisses
 	// manually via the '×' button). Triggers the same exit-animation
@@ -280,7 +343,7 @@ function BubbleInner() {
 	// it skips the exit animation (the dismiss button is for instant
 	// user-initiated dismissal; the auto-hide is graceful).
 	useEffect(() => {
-		if (mode !== "error") return;
+		if (mode !== "error" && mode !== "paste_failed") return;
 		if (bubbleBehavior !== "show_on_record") return;
 		const timer = setTimeout(() => {
 			setAnimState("exit");
@@ -311,65 +374,80 @@ function BubbleInner() {
 		}
 	}, [animState, setAnimState]);
 
+	// The region overlay renders OUTSIDE the pill: the pill is a
+	// native drag region, which would swallow the overlay's mouse
+	// events. `fixed inset-0` still covers the viewport.
 	return (
-		<output
-			aria-live="polite"
-			aria-atomic="true"
-			// State-aware aria-label so screen-reader users hear the
-			// current bubble mode ("recording" / "transcribing" /
-			// "error" / "idle") instead of always hearing "recording".
-			// The implementation lives in `getBubbleAriaLabel` so it
-			// can be unit-tested in isolation; the previous inline
-			// 7-deep ternary over `mode` is gone.
-			aria-label={getBubbleAriaLabel(mode, errorMessage)}
-			className={cn(
-				"inline-flex items-center justify-center",
-				animState === "enter" && "animate-bubble-enter",
-				animState === "exit" && "animate-bubble-exit",
-			)}
-			onAnimationEnd={handleAnimEnd}
-		>
-			<div
-				ref={pillRef}
+		<>
+			<output
+				aria-live="polite"
+				aria-atomic="true"
+				// State-aware aria-label so screen-reader users hear the
+				// current bubble mode ("recording" / "transcribing" /
+				// "error" / "idle") instead of always hearing "recording".
+				// The implementation lives in `getBubbleAriaLabel` so it
+				// can be unit-tested in isolation; the previous inline
+				// 7-deep ternary over `mode` is gone.
+				aria-label={getBubbleAriaLabel(mode, errorMessage)}
 				className={cn(
-					"inline-flex items-center gap-3 rounded-full",
-					// Muted frame: theme's --border at 10% so the pill floats
-					// subtly over the desktop (same treatment as the page
-					// window frame in App.tsx).
-					"border border-border/8",
-					"bg-surface text-foreground",
-					"px-4 py-2.5",
-					draggable ? "drag-region" : "no-drag",
+					"inline-flex items-center justify-center",
+					animState === "enter" && "animate-bubble-enter",
+					animState === "exit" && "animate-bubble-exit",
 				)}
+				onAnimationEnd={handleAnimEnd}
 			>
-				<BubbleModeContent
-					mode={mode}
-					errorMessage={errorMessage}
-					transcript={transcript}
-					showTimer={showTimer}
-					dotRefs={dotRefs}
-				/>
-
-				{/* Single action slot: mic outside recording, stop while
+				<div
+					ref={pillRef}
+					className={cn(
+						"inline-flex items-center gap-3 rounded-full",
+						// Muted frame: theme's --border at 10% so the pill floats
+						// subtly over the desktop (same treatment as the page
+						// window frame in App.tsx).
+						"border border-border/8",
+						"bg-surface text-foreground",
+						"px-4 py-2.5",
+						draggable ? "drag-region" : "no-drag",
+					)}
+				>
+					<BubbleModeContent
+						mode={mode}
+						transcript={transcript}
+						showTimer={showTimer}
+						dotRefs={dotRefs}
+						annotateEnabled={screenshotBeta && !screenshotOverlayOpen}
+						annotateCaptured={screenshotCaptured}
+						onAnnotate={handleAnnotateClick}
+					/>
+					{/* Single action slot: mic outside recording, stop while
 				    recording, retry on error. The pill never shows two
 				    competing actions at once. */}
-				{micButton && mode !== "recording" && mode !== "error" && (
-					<BubbleMicButton mode={mode as BubbleMode} onClick={handleMicClick} />
-				)}
-				{mode === "recording" && (
-					<BubbleStopButton onClick={handleStopClick} mode="recording" />
-				)}
-				{mode === "error" && (
-					<BubbleStopButton onClick={handleStopClick} mode="error" />
-				)}
-				{dismissable && mode !== "recording" && (
-					<BubbleDismissButton
-						onClick={handleDismissClick}
-						disabled={mode === "transcribing" && !dismissArmed}
-					/>
-				)}
-			</div>
-		</output>
+					{micButton && mode !== "recording" && mode !== "error" && (
+						<BubbleMicButton
+							mode={mode as BubbleMode}
+							onClick={handleMicClick}
+						/>
+					)}
+					{mode === "recording" && (
+						<BubbleStopButton onClick={handleStopClick} mode="recording" />
+					)}
+					{mode === "error" && (
+						<BubbleStopButton onClick={handleStopClick} mode="error" />
+					)}
+					{dismissable && mode !== "recording" && (
+						<BubbleDismissButton
+							onClick={handleDismissClick}
+							disabled={mode === "transcribing" && !dismissArmed}
+						/>
+					)}
+				</div>
+			</output>
+			{screenshotOverlayOpen && (
+				<ScreenshotOverlay
+					onCapture={handleScreenshotCapture}
+					onCancel={handleScreenshotCancel}
+				/>
+			)}
+		</>
 	);
 }
 

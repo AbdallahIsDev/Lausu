@@ -2047,9 +2047,10 @@ class TestRegistryExtraction:
         assert registry._COMMAND_REGISTRY["media_transcribe_cancel"] == "_handle_media_transcribe_cancel"
         assert registry._COMMAND_REGISTRY["media_transcribe_status"] == "_handle_media_transcribe_status"
         assert registry._COMMAND_REGISTRY["get_plugins"] == "_handle_get_plugins"
-        assert len(registry._COMMAND_REGISTRY) == 80, (
-            f"registry._COMMAND_REGISTRY must contain 80 entries "
-            f"(76 forwarded in the Rust allowlist + shutdown + "
+        assert len(registry._COMMAND_REGISTRY) == 84, (
+            f"registry._COMMAND_REGISTRY must contain 84 entries "
+            f"(76 forwarded in the Rust allowlist + 4 screenshot-beta pending "
+            f"frontend registration + shutdown + "
             f"tray_click python-only + heartbeat + relaunch_ack host-dispatched); got "
             f"{len(registry._COMMAND_REGISTRY)}. "
             f"If the count drifted, update this test together with the "
@@ -2104,6 +2105,7 @@ class TestRegistryExtraction:
                 "onboarding_get_model_options",
                 "onboarding_get_hotkey_presets",
                 "onboarding_check_permissions",
+                "screenshot_get_status",
             }
         )
         assert expected == registry._READONLY_COMMANDS, (

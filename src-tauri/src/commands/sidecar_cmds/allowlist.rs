@@ -129,6 +129,14 @@ pub(crate) fn allowed_commands() -> &'static HashSet<&'static str> {
             "media_transcribe_start",
             "media_transcribe_cancel",
             "media_transcribe_status",
+            // One-shot screenshot beta (Windows-only): region capture
+            // attached to the active recording. Renderer-reachable;
+            // the Python `_COMMAND_REGISTRY` side lands with the
+            // backend slice (parity tests stay red until then).
+            "screenshot_capture",
+            "screenshot_clear_cycle",
+            "screenshot_get_status",
+            "screenshot_set_consent",
         ];
         HashSet::from_iter(cmds.iter().copied())
     })

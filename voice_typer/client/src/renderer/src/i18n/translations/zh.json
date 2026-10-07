@@ -768,6 +768,8 @@
 		"bubbleBehaviorHidden": "隐藏",
 		"bubbleShowRecordingTimer": "录音计时器",
 		"bubbleShowRecordingTimerInfo": "在录音时于红点旁显示录音时长（mm:ss）。默认关闭。",
+		"screenshotBeta": "截图捕获（测试版）",
+		"screenshotBetaInfo": "每次录音可为转录附加一个屏幕区域。仅限 Windows。默认关闭；选择时录音继续。",
 		"bubblePreview": "气泡预览",
 		"bubblePreviewInfo": "气泡在每种状态下的外观。录音计时器在此实时跳动。",
 		"bubblePreviewIdle": "空闲",
@@ -1676,7 +1678,13 @@
 		"stopRecordingAria": "停止录音",
 		"dismissAria": "关闭气泡",
 		"transcriptPreviewAria": "实时转录预览",
-		"recordingTimerAria": "录音时长"
+		"recordingTimerAria": "录音时长",
+		"annotateAria": "捕获截图区域",
+		"screenshotHint": "拖动以选择区域——松开捕获，按 Esc 取消"
+	},
+	"screenshot": {
+		"consentTitle": "截图捕获",
+		"consentDesc": "附加截图会将所选屏幕区域与本次转录一起发送以提供上下文。图像与音频一起处理，不会在转录之外存储。是否允许？"
 	},
 	"errorBoundary": {
 		"title": "出错了",
@@ -2098,7 +2106,8 @@
 			"cloud_groq_consent": "云转录会将您的音频发送至 Groq 语音 API 进行转录，适用 Groq 的条款和隐私政策。是否允许？",
 			"cloud_deepgram_consent": "云转录会将您的音频发送至 Deepgram 语音 API 进行转录，适用 Deepgram 的条款和隐私政策。是否允许？",
 			"llm_polish_consent": "LLM 润色会将您的转录文本（不含音频）发送至您配置的 LLM API 进行语法和标点修正，适用其条款。是否允许？",
-			"media_url_consent": "转写媒体链接会将该链接发送给媒体提取器（yt-dlp）以定位音频流。所链接的网站将从本设备直接访问。允许吗？"
+			"media_url_consent": "转写媒体链接会将该链接发送给媒体提取器（yt-dlp）以定位音频流。所链接的网站将从本设备直接访问。允许吗？",
+			"screenshot_consent": "截图捕获会将所选屏幕区域附加到本次转录以提供上下文。图像与音频一起处理，不会在转录之外存储。是否允许？"
 		}
 	},
 	"degradation": {

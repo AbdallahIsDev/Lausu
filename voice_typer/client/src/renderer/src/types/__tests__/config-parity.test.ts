@@ -312,6 +312,7 @@ describe("XZ-CFG-03: bubble_x / bubble_y / bubble_scale / test_duration_seconds,
 			bubble_click_to_toggle: true,
 			bubble_mic_button: true,
 			bubble_show_recording_timer: false,
+			screenshot_beta_enabled: false,
 			history_retention_days: 90,
 			history_retention_count: 0,
 			history_max_entries: 1000,
@@ -369,6 +370,7 @@ describe("XZ-CFG-03: bubble_x / bubble_y / bubble_scale / test_duration_seconds,
 			voice_biometric_consent: false,
 			llm_polish_consent: false,
 			media_url_consent: false,
+			screenshot_consent: false,
 			sound_feedback_enabled: true,
 			ai_enhancement_enabled: false,
 			auto_capitalize: true,
@@ -402,6 +404,21 @@ describe("GT-37: warn_elevated_paste / warn_password_paste, optional paste-safet
 		const _password: boolean | undefined = cfg.warn_password_paste;
 		expect(_elevated).toBeUndefined();
 		expect(_password).toBeUndefined();
+	});
+});
+
+describe("screenshot beta: screenshot_beta_enabled / screenshot_consent are required booleans", () => {
+	it("both fields are declared on LausuConfig (compile-time presence guard)", () => {
+		// One-shot screenshot beta (Windows-only): the Settings toggle
+		// persists `screenshot_beta_enabled` and the shared consent
+		// gate persists `screenshot_consent`. Both mirror the Python
+		// Config dataclass defaults (`False`) and are REQUIRED here so
+		// a drift surfaces at compile time, not at runtime.
+		const cfg = {} as LausuConfig;
+		const _beta: boolean = cfg.screenshot_beta_enabled;
+		const _consent: boolean = cfg.screenshot_consent;
+		expect(_beta).toBeUndefined();
+		expect(_consent).toBeUndefined();
 	});
 });
 

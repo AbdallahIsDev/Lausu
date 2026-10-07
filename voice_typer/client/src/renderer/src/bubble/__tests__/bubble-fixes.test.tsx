@@ -241,15 +241,15 @@ describe("bubble: dir sync from bubble:config locale", () => {
 });
 
 describe("bubble: error message from bubble:set-state payload", () => {
-	it("surfaces the message string in error mode (object payload)", () => {
+	it("shows a fixed Error label without the backend reason (object payload)", () => {
 		render(<Bubble />);
 
 		setBubbleState({ state: "error", message: "Mic permission denied" });
 
-		// The error pill should contain both the "⚠ Error" label and
-		// the short reason string.
+		// The error pill is a fixed short label; the backend reason is
+		// not shown (matches Bubble-transcript.test.tsx).
 		expect(screen.getByText(/⚠ Error/)).toBeTruthy();
-		expect(screen.getByText(/Mic permission denied/)).toBeTruthy();
+		expect(screen.queryByText(/Mic permission denied/)).toBeNull();
 	});
 
 	it("falls back to label-only when the payload is a plain string", () => {
@@ -263,15 +263,15 @@ describe("bubble: error message from bubble:set-state payload", () => {
 		expect(errorText).not.toContain(":");
 	});
 
-	it("clears the message when transitioning out of error mode", () => {
+	it("keeps the fixed Error label when transitioning out of error mode", () => {
 		render(<Bubble />);
 
 		setBubbleState({ state: "error", message: "Mic permission denied" });
-		expect(screen.getByText(/Mic permission denied/)).toBeTruthy();
+		expect(screen.getByText(/⚠ Error/)).toBeTruthy();
 
-		// Transition back to recording, the message should clear.
+		// Transition back to recording, the Error label should clear.
 		setBubbleState("recording");
-		expect(screen.queryByText(/Mic permission denied/)).toBeNull();
+		expect(screen.queryByText(/⚠ Error/)).toBeNull();
 	});
 });
 
