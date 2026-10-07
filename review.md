@@ -4,34 +4,21 @@ These items are the highest-priority remaining work for the project. They block 
 
 > **Won't Fix tasks live in `WONT_FIX.md`**: deliberately not solved. Do NOT fix them (AGENTS.md C-REVIEW-1). See that file for the full list.
 
-### AUD-14 — 30 production files exceed the 500-line C-STRUCT-3 threshold (21% of the package)
-**Status:** SPLIT INTO 5 TASKS (2026-10-03) — AUD-14a…e below. **WAVE 1 SHIPPED (2026-10-06): 5 of 30 files split create-first — AUD-14c fully done, plus `templates.py` + `transcription_result.py` from AUD-14e.** Wave 1 shipped files: `history_db.py` 786→471, `history_db_internals/writer.py` 638→281, `history_db_internals/search.py` 618→443, `templates.py` 635→441, `transcription_result.py` 551→404 (10 new focused modules, all ≤500 lines; 0 test files edited). **WAVE 2 SHIPPED + COMMITTED (2026-10-06, commit `05eef343`): 5 more files, all AUD-14e — `event_bus.py` 981→444, `vocabulary.py` 667→409, `text_cleanup/_engine.py` 593→422, `clipboard_snapshot.py` 713→152, `segmented_download.py` 778→79 (17 new modules, max 271 lines) + `tests/test_module_split_reexports.py` (11 facade pins) + mixin-registry entries; full suite 16170 passed / 0 failed.** **WAVE 3 SHIPPED + COMMITTED (2026-10-06, commit `b02b40fd`): 5 more AUD-14e files — `streaming.py` 898→383, `level_monitor/test_recording.py` 776→335, `config_applier.py` 771→347, `onboarding.py` 681→425, `vad_processor.py` 675→409 (11 new modules, max 469 lines) + `tests/test_module_split_reexports_wave3.py` (11 pins) + 4 mixin-registry sets; collect-only 17042, 0 errors.** **WAVE 4 SHIPPED + COMMITTED (2026-10-06, commit `65d1d226`): 5 more AUD-14e files — `level_monitor/monitoring.py` 559→375, `native_hotkeys/binary_path.py` 549→186, `service/update_check.py` 556→349, `audio_filters/noise_suppressor.py` 517→427, `handlers/system_handlers.py` 568→398 (9 new modules, max 256 lines) + `tests/test_module_split_reexports_wave4.py` (17 pins) + pyrefly-baseline re-anchor; collect-only 17073, 0 errors.** **WAVE 5 SPLIT DONE, UNCOMMITTED (2026-10-06, reviewer-verified green): 5 more files (last of AUD-14e root scope) — `model_manager/_change.py` 517→463, `config/_schema.py` 542→379, `sidecar_ws.py` 580→470, `recording/audio_pipeline.py` 540→497, `ipc/entrypoint.py` 553→460 (7 new modules, max 176 lines) + `tests/test_module_split_reexports_wave5.py` (17 pins) + telemetry-mixin registry entry + pyrefly-baseline re-anchors (file 4: 1 entry; file 5: 7 entries, live 359 == 359, 0 signature delta) + stale level_monitor count pin repaired at both layers (`docs/ARCHITECTURE.md:30` 5→9 files, `test_architecture_doc_accuracy.py:277`); function-name parity exact; collect-only 17128, 0 errors; commit with explicit paths only (working tree also holds unrelated client/i18n files + untracked docs). AUD-14c complete; AUD-14e all but 6 done (`startup_tasks.py`, `qwen_engine.py`, `worker_client.py`, `cloud/_engine.py`, `log/setup.py`, `ipc/validation.py`); remaining scope is AUD-14a gods (4), AUD-14b recording (3), AUD-14d security (2).** The aggregate figures in the original entry were stale and have been re-measured: **30** production files ≥500 lines totalling **19,933 lines = 21.1% of the package's 94,349 lines, in 6.0% of its 496 files.** (The old "42 files / 29,574 lines / 27% / 8.4%" counted non-production paths — `tests/`, `scripts/`, and `src-tauri/resources/` copies — which are excluded by C-STRUCT-3's "production file" wording and C-TEST-5's test-file rules.) Each task below owns a DISJOINT file set, so the five can run as parallel agents without conflict (E16).
+### AUD-14 — Production files over the 500-line C-STRUCT-3 threshold (15 left, Waves 1–5 shipped)
+**Status:** SPLIT INTO 5 TASKS (2026-10-03) — AUD-14a…e below. **WAVES 1–5 SHIPPED (2026-10-06, reviewer-verified green, commits `05eef343`, `b02b40fd`, `65d1d226`, `f52bc848`): AUD-14c complete; AUD-14e all but 6 files done. Per-wave evidence (counts, gates) in git history.** Remaining scope is the task list below (all DISJOINT file sets, E16).
 **User Impact:** None directly. The cost is change risk: each edit touches a file with several unrelated reasons to change, so unrelated behavior is coupled to unrelated edits.
 **Root Cause:** Verified by line count — organic growth without the create-first split (E1) that C-STRUCT-3 requires.
 **Gain vs Trade-off:** Large, mechanical, regression-prone work. Best done incrementally, never as a batch. Split by subsystem so no two tasks touch the same file.
 **Related Files:** `scripts/comment_ratio_metrics.py` (re-measure after each task)
 
-**Measured inventory (git-tracked `voice_typer/**/*.py` ≥500 lines):**
+**Remaining scope (original 2026-10-03 inventory minus shipped waves):**
 
-| Subsystem | Files | Lines |
+| Task | Scope | Files left |
 |---|---|---|
-| `server/` root modules (in AUD-14a + AUD-14e) | 14 | 9,737 |
-| `server/recording/` | 3 | 1,901 |
-| `server/history_db*` | 3 | 1,776 |
-| `server/security/` | 2 | 1,429 |
-| `server/{service,cloud,ipc,log,text_cleanup,level_monitor,handlers}/` | 6 | 3,325 |
-| `worker/` | 1 | 823 |
-| **Total** | **30** | **19,933** |
-
-**Split into 5 independently-runnable tasks (disjoint file sets, E16):**
-
-| Task | Scope | Files | Lines |
-|---|---|---|---|
-| **AUD-14a** | Four largest god files (P2) | 4 | 3,733 |
-| **AUD-14b** | `server/recording/` package | 3 | 1,901 |
-| **AUD-14c** | `server/history_db*` | 3 | 1,776 |
-| **AUD-14d** | `server/security/` | 2 | 1,429 |
-| **AUD-14e** | Remaining `server/` root + docstring bloat | 18 | 11,094 |
+| **AUD-14a** | Four largest god files (P2) | 4 |
+| **AUD-14b** | `server/recording/` package | 3 |
+| **AUD-14d** | `server/security/` | 2 |
+| **AUD-14e** | Tail: `startup_tasks.py`, `qwen_engine.py`, `worker_client.py`, `cloud/_engine.py`, `log/setup.py`, `ipc/validation.py` | 6 |
 
 ---
 
@@ -82,19 +69,19 @@ These items are the highest-priority remaining work for the project. They block 
 
 ---
 
-### AUD-14e — Remaining `server/` root modules (18 files, 11,094 lines)
-**Status:** PARTIAL (2026-10-03 split; Wave 1 did `templates.py` + `transcription_result.py`; Wave 2 did `event_bus.py`, `vocabulary.py`, `text_cleanup/_engine.py`, `clipboard_snapshot.py`, `segmented_download.py`; Wave 3 committed (`b02b40fd`): `streaming.py`, `level_monitor/test_recording.py`, `config_applier.py`, `onboarding.py`, `vad_processor.py`; Wave 4 committed (`65d1d226`): `level_monitor/monitoring.py`, `service/update_check.py`, `native_hotkeys/binary_path.py`, `audio_filters/noise_suppressor.py`, `handlers/system_handlers.py`; Wave 5 split done uncommitted (verified green): `model_manager/_change.py`, `config/_schema.py`, `sidecar_ws.py` (early-bind remainder; already a facade), `recording/audio_pipeline.py`, `ipc/entrypoint.py` — see AUD-14 top status. Still open: `startup_tasks.py`, `qwen_engine.py`, `worker_client.py`, `cloud/_engine.py`, `log/setup.py`, `ipc/validation.py` — next wave takes AUD-14a gods / AUD-14b recording / AUD-14d security per owner pick; `worker_client.py` held back for its C-WS-2/3 wire pins.)
-**Description:** The long tail, largest by line count. Work these clusters one at a time:
+### AUD-14e — Tail: 6 remaining `server/` root modules
+**Status:** OPEN. `startup_tasks.py` (686), `qwen_engine.py` (514), `worker_client.py` (613), `cloud/_engine.py` (583), `log/setup.py` (527), `ipc/validation.py` (527). Everything else in this task shipped in Waves 1–5 (see AUD-14 top status).
+**Description:** The remaining long tail. Each carries a pin — moves only, no behavior change:
 
-- **Docstring/narrative bloat (do this one first):** `event_bus.py` (863) — a 570-line docstring event catalogue at `:1-375` violates **C-COMMENT-6** (deep explanations belong in `docs/`, not inline). Cheapest, highest-value item in all of AUD-14: no logic changes. **But it is NOT a pure relocation** — `tests/test_event_bus.py::TestCanonicalCatalogue` parses `event_bus.__doc__` and pins four event names (`` ``tray_menu`` ``, `` ``tray_state`` ``, `` ``consent_required`` ``, `` ``parakeet_cpu_fallback`` ``) plus an exact `Total: N events` line that must equal `len(EVENT_TYPES)` (C-COMMENT-9). So: move the prose/architecture narrative to `docs/code-notes/event-catalogue.md` and **keep a canonical event-name list plus the `Total: {len(EVENT_TYPES)} events` line in the module docstring**. The docstring shrinks from ~570 lines to roughly a name list; the pinned contract survives. Verify with `pytest tests/test_event_bus.py`.
-- **IPC/app surface:** `config_applier.py` (645), `onboarding.py` (605), `ipc/validation.py` (527), `handlers/system_handlers.py` (510)
-- **Data/text services:** `clipboard_snapshot.py` (617), `vocabulary.py` (613), `text_cleanup/_engine.py` (503)
-- **Download/network:** `segmented_download.py` (669)
-- **Remaining root modules:** `startup_tasks.py` (686), `streaming.py` (806), `qwen_engine.py` (514), `vad_processor.py` (577), `worker_client.py` (613), `cloud/_engine.py` (583), `log/setup.py` (527), `level_monitor/test_recording.py` (675)
+- `startup_tasks.py`: carries C-CONF-2's startup mic reconciliation — re-verify after any move.
+- `qwen_engine.py`: carries RACE-032 (lock release during inference).
+- `worker_client.py`: C-WS-2 TEXT frames + C-WS-3 generation stamps.
+- `cloud/_engine.py`: SEC-002/005/011/030 + consent gates — later wave with security focus.
+- `log/setup.py` + `ipc/validation.py`: C-LOG-1 log format + SEC-002 allowlist — moving code must alter neither.
 
-**Fix:** Create-first throughout. `log/setup.py` and `ipc/validation.py` interact with C-LOG-1 and the SEC-002 allowlist — moving code there must not alter log format or the validation allowlist. `qwen_engine.py` carries RACE-032 (lock release during inference) and `startup_tasks.py` carries C-CONF-2's startup mic reconciliation — re-verify both pins after any move.
-**Related Files:** the modules listed above; `docs/code-notes/event-catalogue.md`
-**Success:** no file >500 lines; `tests/test_event_bus.py`, `tests/test_log_formatting.py`, `tests/test_logging.py` green unchanged.
+**Fix:** Create-first throughout (E1).
+**Related Files:** the modules listed above.
+**Success:** no file >500 lines; related suites green unchanged.
 **Implementation Difficulty:** 🟠 Medium
 **Severity:** 🟡 Medium
 **Priority:** P3

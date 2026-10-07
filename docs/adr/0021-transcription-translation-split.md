@@ -2,7 +2,7 @@
 
 # ADR-0021: Split Transcription from Translation (Points 1 + 2)
 
-Status: AGREED plan (Points 1 + 2 locked). Points 3/4/5 deferred to user direction.
+Status: LOCKED (2026-10-07, user-confirmed Sec. 5 + Sec. 6).
 Date: 2026-10-06
 
 ## 1. Locked decision: Transcription != Translation
@@ -49,15 +49,32 @@ First-look starting point (NOT approved, NOT downloaded):
 - Code-switching (theneuralbase whisper course + `faster-whisper#918`): stock Whisper already handles mixed speech "remarkably well out of the box" — training data includes code-switch. No pre-splitting needed. Output is one continuous transcription without language labels; per-segment confidence drops on heavy switching — flag low-confidence segments for review instead of upstream fixing.
 - Pinning breaks switching: forcing `language=en` on AR+EN audio corrupts Stage A, Stage B then translates garbage → worse garbage. No local algorithmic fix without massive unified model (Gemini-class = datacenter only). This is the triangle: **decoupled stages + pinned Speaking Language + seamless code-switch cannot all hold locally.**
 
-## 5. Open conflicts (Points 3/4/5 — NOT decided)
+## 5. Locked design (2026-10-07, user-confirmed)
 
-- "Speaking Language" pinned code + Auto-as-codeswitch-mode vs pinned-only.
-- Mixed AR+EN through pinned STT: failure lives in Stage A, not Stage B.
-- Whether Auto mode = current auto-detect (with above failure modes) or something smarter.
+### 5.1 Two settings, not one
+- **Speaking Language:** `Auto` (default, mixed-language) + 8 pinned codes. Auto preserves mixed speech. Pinned = single-language accuracy boost; mixed input under a pin may degrade (documented, not a bug).
+- **Output Target:** `Same as spoken` (default) + 8 languages. This is the only thing Stage B acts on.
 
-Awaiting user direction on Points 3/4/5.
+### 5.2 Stage A → B contract (locked)
+- Stage A writes what it hears, each part in its own script. AR stays AR, mixed stays mixed. `language=` is a transcription instruction, never a translation instruction.
+- Stage A output = `{text, segments[], detected_lang + confidence}`.
+- Skip Stage B when: target is `Same as spoken`; or text already confidently matches target. Rule: when in doubt (very short text, low confidence, single words / proper nouns), SKIP translation. A mistranslation of correct text is worse than passthrough.
+- Mixed input + matching target: sentence-level routing. Only translate non-target segments (script guess AR-vs-Latin is free, no model call), splice the rest back verbatim. Never run whole mixed text through the translator.
+- Transcription is NEVER blocked on language grounds when the model is multilingual (Whisper covers all 8). Refusal is reserved for genuine no-coverage (e.g. Parakeet + Arabic).
 
-## 6. Build order
+### 5.3 Fallback chain without a translation model (locked)
+1. Translator present → use it (best quality, all pairs).
+2. No translator + Whisper + target EN → Whisper built-in translate mode acceptable temporarily (weaker, English-only by model fact).
+3. No translator + Whisper + target non-EN → transcribe fully in spoken language, return original text + one honest line: target output needs the translation model. Nothing blocked, nothing faked.
+4. No translator + English-only model (Parakeet) → transcribe only. Non-English output request → one-line "not supported" message.
+- Capability check = intersect spoken/detected language with model's supported list. Notify on capability gap only, never on setting mismatch. Whisper + Auto never warns; Parakeet + Arabic warns once.
+
+## 6. Translation model choice — license lock (2026-10-07)
+- `facebook/nllb-200-distilled-600M` stays Plan B only. Reason: CC-BY-NC-4.0, and NC covers adapted material — finetune, quant, or format convert (ONNX/INT8) does NOT clean the license; the restriction travels with the weights. Distilled checkpoints re-shared under CC-BY-NC are restricted regardless of how they were made. Free + open-source today = low risk; any future closed-source/company distribution = violation + forced rip-out.
+- Plan A = permissive license base (M2M100 / Marian / MADLAD-small or equivalent Apache/MIT). Verify exact license + exact file bytes before any pull. HARD RULE in Sec. 3 still binds: report candidate + size, STOP, ask approval, never auto-download.
+- Engineering note, not legal advice.
+
+## 7. Build order
 
 1. Reorder 8-language dropdown (UI-only, resolve de-vs-pt first).
 2. Search + report translation candidates with exact sizes + licenses (no download).
