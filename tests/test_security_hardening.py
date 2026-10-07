@@ -323,7 +323,9 @@ class TestHallucinationLogging:
     def test_privacy_warning_on_log_transcriptions(self, tmp_path, caplog):
         """SEC-009: Loading config with log_transcriptions=True emits a privacy warning."""
         from voice_typer.server.config import Config
+        from voice_typer.server.config import coercion as coercion_mod
 
+        coercion_mod._PRIVACY_CONSENT_WARNED = False
         config_file = tmp_path / "config.json"
         config_data = {"log_transcriptions": True, "schema_version": 1}
         config_file.write_text(json.dumps(config_data), encoding="utf-8")
@@ -335,6 +337,23 @@ class TestHallucinationLogging:
         assert cfg.log_transcriptions is True
         # The privacy warning should appear in the log
         assert "PII" in caplog.text or "privacy" in caplog.text.lower() or "log_transcriptions" in caplog.text
+
+    def test_privacy_warning_once_per_process(self, tmp_path, caplog):
+        """Reloading config must not repeat the log_transcriptions warning."""
+        from voice_typer.server.config import Config
+        from voice_typer.server.config import coercion as coercion_mod
+
+        coercion_mod._PRIVACY_CONSENT_WARNED = False
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps({"log_transcriptions": True, "schema_version": 1}), encoding="utf-8")
+        with (
+            patch("voice_typer.server.config._config_dir", return_value=tmp_path),
+            caplog.at_level(logging.WARNING, logger="voice_typer.server.config"),
+        ):
+            Config.load()
+            caplog.clear()
+            Config.load()
+        assert "log_transcriptions is enabled" not in caplog.text
 
 
 class TestCorrectionsLimits:
