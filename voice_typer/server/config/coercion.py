@@ -18,6 +18,12 @@ from voice_typer.server.model_registry import DEFAULT_MODEL_SIZE, NO_MODEL_SIZE
 
 log = logging.getLogger("voice_typer.server.config")
 
+# Once-per-process gate for the log_transcriptions privacy warning:
+# config loads repeatedly (startup phases, worker + sidecar), and an
+# identical WARN on every load buries real signals. Tests reset it
+# directly (same pattern as _CONFIG_LOCK_MISSING_WARNED).
+_PRIVACY_CONSENT_WARNED = False
+
 
 def _get_config_dir() -> Path:
     """Lazy lookup of ``_config_dir`` via the parent ``config`` module."""
@@ -271,7 +277,9 @@ def _validate_corrections_path(data: dict[str, Any]) -> None:
 
 def _validate_privacy_consents(data: dict[str, Any]) -> None:
     """warn the user about privacy implications when ``log_transcriptions`` is enabled."""
-    if data.get("log_transcriptions"):
+    global _PRIVACY_CONSENT_WARNED
+    if data.get("log_transcriptions") and not _PRIVACY_CONSENT_WARNED:
+        _PRIVACY_CONSENT_WARNED = True
         log.warning(
             "[CONFIG] log_transcriptions is enabled, transcription text "
             "(potentially containing PII) will be written to log files. "
