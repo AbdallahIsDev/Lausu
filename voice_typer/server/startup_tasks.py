@@ -444,7 +444,7 @@ def reconcile_configured_model(app: AppProtocol) -> bool:
         return False
     backend = getattr(config, "asr_backend", "whisper") or "whisper"
     # Cloud backends have no local model to install, don't touch.
-    if backend in ("openai", "groq", "deepgram", "custom"):
+    if backend in ("openai", "groq", "deepgram", "gemini", "custom"):
         return False
     # Model IS on disk, nothing to do.
     if is_active_model_downloaded(config):

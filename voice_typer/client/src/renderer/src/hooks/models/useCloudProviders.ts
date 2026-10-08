@@ -59,12 +59,14 @@ export interface UseCloudProvidersResult {
 export function consentKeyFor(provider: string): keyof LausuConfig {
 	if (provider === "openai") return "cloud_openai_consent";
 	if (provider === "groq") return "cloud_groq_consent";
+	if (provider === "gemini") return "cloud_gemini_consent";
 	return "cloud_deepgram_consent";
 }
 
 function apiKeyConfigField(provider: string): keyof LausuConfig {
 	if (provider === "openai") return "openai_api_key";
 	if (provider === "groq") return "groq_api_key";
+	if (provider === "gemini") return "gemini_api_key";
 	return "deepgram_api_key";
 }
 

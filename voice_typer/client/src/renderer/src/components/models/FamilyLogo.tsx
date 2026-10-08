@@ -9,6 +9,9 @@ const FAMILY_LOGO: Record<string, string> = {
 	qwen,
 	parakeet: nvidia,
 	deepgram,
+	// Cloud provider key → the SAME asset the Plugins page serves
+	// from `src/renderer/public` (single source, no duplicate).
+	gemini: "/plugin-icons/google.svg",
 };
 
 // Black/white logos that must flip to white under the `.dark` theme.

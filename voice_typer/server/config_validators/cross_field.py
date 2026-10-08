@@ -52,6 +52,7 @@ _CLOUD_CONSENT_FIELD_NAMES: tuple[str, ...] = (
     "cloud_openai_consent",
     "cloud_groq_consent",
     "cloud_deepgram_consent",
+    "cloud_gemini_consent",
 )
 
 

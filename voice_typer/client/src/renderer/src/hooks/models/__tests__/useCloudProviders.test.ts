@@ -65,10 +65,12 @@ function makeConfig(overrides: Partial<LausuConfig> = {}): LausuConfig {
 		openai_api_key: "",
 		groq_api_key: "",
 		deepgram_api_key: "",
+		gemini_api_key: "",
 		huggingface_consent: false,
 		cloud_openai_consent: false,
 		cloud_groq_consent: false,
 		cloud_deepgram_consent: false,
+		cloud_gemini_consent: false,
 		...overrides,
 	} as LausuConfig;
 }
@@ -411,4 +413,21 @@ describe("useCloudProviders, setCloudConsent", () => {
 	// and revocation lives in the Settings privacy row. The former
 	// `setHuggingFaceConsent` / `handleGrantConsent` wrappers were
 	// removed with that migration.
+
+	it("routes gemini consent to cloud_gemini_consent (mirrors the groq gate)", async () => {
+		const args = makeHookArgs({}, makeConfig({ cloud_gemini_consent: false }));
+		const { result } = renderHook(() => useCloudProviders(args));
+
+		await act(async () => {
+			await result.current.setCloudConsent("gemini", true);
+		});
+
+		expect(updateConfigMock).toHaveBeenCalledWith({
+			cloud_gemini_consent: true,
+		});
+		expect(showSnackMock).toHaveBeenCalledWith(
+			expect.stringContaining("models.snack.consentGranted"),
+			"success",
+		);
+	});
 });

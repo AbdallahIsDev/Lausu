@@ -204,6 +204,7 @@ export function useModelConfig({
 					openai: safeApiKey(cfg?.openai_api_key),
 					groq: safeApiKey(cfg?.groq_api_key),
 					deepgram: safeApiKey(cfg?.deepgram_api_key),
+					gemini: safeApiKey(cfg?.gemini_api_key),
 				});
 			} else {
 				// Prefix with [renderer:useModelConfig] to match the

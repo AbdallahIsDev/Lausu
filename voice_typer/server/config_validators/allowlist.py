@@ -167,6 +167,7 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "openai_api_key": (str, _VALIDATOR_API_KEY),
     "groq_api_key": (str, _VALIDATOR_API_KEY),
     "deepgram_api_key": (str, _VALIDATOR_API_KEY),
+    "gemini_api_key": (str, _VALIDATOR_API_KEY),
     # LLM polish, same rationale as cloud ASR.
     "llm_polish": (bool, _bool_validator),
     "llm_api_key": (str, _VALIDATOR_API_KEY),
@@ -180,6 +181,7 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "cloud_openai_consent": (bool, _bool_validator),
     "cloud_groq_consent": (bool, _bool_validator),
     "cloud_deepgram_consent": (bool, _bool_validator),
+    "cloud_gemini_consent": (bool, _bool_validator),
     "voice_biometric_consent": (bool, _bool_validator),
     # ADR-0023: consent to send media URLs to the yt-dlp extractor.
     "media_url_consent": (bool, _bool_validator),

@@ -74,11 +74,12 @@ export interface ModelStepProps {
 	setCloudConsent: (v: boolean) => void;
 }
 
-const CLOUD_PROVIDERS = ["openai", "groq", "deepgram"] as const;
+const CLOUD_PROVIDERS = ["openai", "groq", "deepgram", "gemini"] as const;
 
 function providerLabel(provider: string): string {
 	if (provider === "openai") return t("models.providers.openai.label");
 	if (provider === "groq") return t("models.providers.groq.label");
+	if (provider === "gemini") return t("models.providers.gemini.label");
 	return t("models.providers.deepgram.label");
 }
 

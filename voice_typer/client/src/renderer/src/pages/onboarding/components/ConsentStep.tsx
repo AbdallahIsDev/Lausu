@@ -54,6 +54,11 @@ const CONSENT_STEP_FIELDS: {
 		infoKey: "settings.privacy.deepgramCloudAsrInfo",
 	},
 	{
+		field: "cloud_gemini_consent",
+		labelKey: "settings.privacy.geminiCloudAsrLabel",
+		infoKey: "settings.privacy.geminiCloudAsrInfo",
+	},
+	{
 		field: "llm_polish_consent",
 		labelKey: "settings.privacy.llmTextPolishingLabel",
 		infoKey: "settings.privacy.llmTextPolishingInfo",

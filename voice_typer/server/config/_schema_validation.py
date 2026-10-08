@@ -31,6 +31,7 @@ _SECRET_FIELD_NAMES_FALLBACK: frozenset[str] = frozenset(
         "openai_api_key",
         "groq_api_key",
         "deepgram_api_key",
+        "gemini_api_key",
         "cloud_api_key",
         "llm_api_key",
     }

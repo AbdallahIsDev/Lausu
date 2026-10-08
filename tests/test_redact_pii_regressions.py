@@ -80,7 +80,7 @@ class TestLlmPolishFailureLogRedactsException:
         app.config.llm_api_key = "sk-abcdefghijklmnopqrstuvwxyz1234567890"
         app.config.openai_api_key = ""
         app.config.llm_api_url = "https://api.openai.com/v1/chat/completions"
-        app.config.llm_model = "gpt-4o-mini"
+        app.config.llm_model = "gpt-6-luna"
         app.config.llm_preset = "professional"
         app.config.llm_polish_consent = True
 

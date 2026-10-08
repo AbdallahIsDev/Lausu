@@ -12,7 +12,7 @@ from voice_typer.server.platform_utils import is_windows
 LOOPBACK_HOSTS: frozenset[str] = frozenset({"localhost", "127.0.0.1", "::1"})
 LOOPBACK_HOST: str = "127.0.0.1"
 DEFAULT_LLM_API_URL: str = "https://api.openai.com/v1/chat/completions"
-DEFAULT_LLM_MODEL: str = "gpt-4o-mini"
+DEFAULT_LLM_MODEL: str = "gpt-6-luna"
 
 # Machine-readable application slug used for config-dir names, keyring
 APP_SLUG: str = "lausu"

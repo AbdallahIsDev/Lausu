@@ -298,7 +298,7 @@ describe("ConsentStep divider layout (ONB-4)", () => {
 		const tooltips = document.querySelectorAll(
 			'[aria-label^="More info about"]',
 		);
-		expect(tooltips.length).toBe(6);
+		expect(tooltips.length).toBe(7);
 	});
 });
 

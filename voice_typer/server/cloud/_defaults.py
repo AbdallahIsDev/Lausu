@@ -15,4 +15,8 @@ _PROVIDER_DEFAULTS = {
         "url": "https://api.deepgram.com/v1/listen",
         "model": "nova-2",
     },
+    "gemini": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        "model": "gemini-2.0-flash",
+    },
 }

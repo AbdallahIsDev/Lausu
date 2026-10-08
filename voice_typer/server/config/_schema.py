@@ -136,6 +136,7 @@ class _ConfigSchema:
     openai_api_key: str = ""
     groq_api_key: str = ""
     deepgram_api_key: str = ""
+    gemini_api_key: str = ""
 
     # LLM text polishing
     llm_polish: bool = False
@@ -154,6 +155,7 @@ class _ConfigSchema:
     cloud_openai_consent: bool = False
     cloud_groq_consent: bool = False
     cloud_deepgram_consent: bool = False
+    cloud_gemini_consent: bool = False
 
     # explicit consent that voice recordings (which may
     voice_biometric_consent: bool = False

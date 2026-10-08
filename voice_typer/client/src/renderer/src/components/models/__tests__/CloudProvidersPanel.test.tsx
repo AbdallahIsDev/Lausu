@@ -77,6 +77,7 @@ const baseConfig = {
 	cloud_openai_consent: false,
 	cloud_groq_consent: false,
 	cloud_deepgram_consent: false,
+	cloud_gemini_consent: false,
 	keyring_status: undefined,
 } as unknown as LausuConfig;
 
@@ -123,20 +124,31 @@ describe("CloudProvidersPanel, provider brand logos + collapsible groups", () =>
 			url: "https://api.deepgram.com/v1/listen",
 			model: "nova-2",
 		};
+		const geminiProvider: CloudProvider = {
+			key: "gemini",
+			url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+			model: "gemini-2.0-flash",
+		};
 		const { container } = renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
-				cloudProviders={[openaiProvider, groqProvider, deepgramProvider]}
+				cloudProviders={[
+					openaiProvider,
+					groqProvider,
+					deepgramProvider,
+					geminiProvider,
+				]}
 			/>,
 		);
 
-		// openai + deepgram render an <img> brand logo in their group
-		// headers; groq has none.
+		// openai + deepgram + gemini render an <img> brand logo in their
+		// group headers; groq has none.
 		const imgs = container.querySelectorAll("img");
-		expect(imgs).toHaveLength(2);
+		expect(imgs).toHaveLength(3);
 		const srcs = Array.from(imgs).map((i) => i.getAttribute("src") ?? "");
 		expect(srcs.some((s) => s.includes("OpenAI%20icon"))).toBe(true);
 		expect(srcs.some((s) => s.includes("Deepgram%20icon"))).toBe(true);
+		expect(srcs.some((s) => s.includes("/plugin-icons/google.svg"))).toBe(true);
 
 		// groq keeps the generic shield glyph in its group header.
 		const shields = screen

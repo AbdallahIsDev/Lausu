@@ -14,7 +14,7 @@ import type { LausuConfig } from "@/types/config";
 import { HOTKEY_DEFAULT, MODEL_DEFAULT } from "../lib/constants";
 import type { ModelOption, StepInfo } from "../lib/types";
 
-// The six consent flags surfaced on the consolidated Consent step
+// The seven consent flags surfaced on the consolidated Consent step
 // (voice biometric, HuggingFace, configured cloud ASR,
 // LLM polish). Module-level so useCallbacks/effects can list it as a
 // stable dep without re-creating the array every render.
@@ -24,6 +24,7 @@ const CONSENT_FIELDS = [
 	"cloud_openai_consent",
 	"cloud_groq_consent",
 	"cloud_deepgram_consent",
+	"cloud_gemini_consent",
 	"llm_polish_consent",
 ] as const;
 
@@ -36,12 +37,14 @@ export type BackendChoice = "local" | "cloud";
 function cloudConsentField(provider: string): string {
 	if (provider === "openai") return "cloud_openai_consent";
 	if (provider === "groq") return "cloud_groq_consent";
+	if (provider === "gemini") return "cloud_gemini_consent";
 	return "cloud_deepgram_consent";
 }
 
 function cloudApiKeyField(provider: string): string {
 	if (provider === "openai") return "openai_api_key";
 	if (provider === "groq") return "groq_api_key";
+	if (provider === "gemini") return "gemini_api_key";
 	return "deepgram_api_key";
 }
 
