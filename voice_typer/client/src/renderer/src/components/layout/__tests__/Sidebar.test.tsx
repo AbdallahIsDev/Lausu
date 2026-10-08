@@ -165,7 +165,7 @@ describe("Sidebar", () => {
 		expect(document.querySelectorAll("aside section").length).toBe(2);
 	});
 
-	it("Home/History/Analytics/Models/Templates/Vocabulary/Media are in the header-less Main group; Settings/Microphone/About & Privacy in System", () => {
+	it("Home/History/Analytics/Models/Text Snippets/Vocabulary/Media are in the header-less Main group; Settings/Microphone/About & Privacy in System", () => {
 		renderWithProviders(<Sidebar {...baseProps} />);
 		const groupOf = (label: string) =>
 			findNavButton(label).closest("section")?.getAttribute("aria-label");
@@ -174,7 +174,7 @@ describe("Sidebar", () => {
 		expect(groupOf("History")).toBe("Main");
 		expect(groupOf("Analytics")).toBe("Main");
 		expect(groupOf("Models")).toBe("Main");
-		expect(groupOf("Templates")).toBe("Main");
+		expect(groupOf("Text Snippets")).toBe("Main");
 		expect(groupOf("Vocabulary")).toBe("Main");
 		expect(groupOf("Media")).toBe("Main");
 
@@ -195,7 +195,7 @@ describe("Sidebar", () => {
 			"Home",
 			"History",
 			"Analytics",
-			"Templates",
+			"Text Snippets",
 			"Vocabulary",
 			"Media",
 			"Models",
@@ -280,11 +280,11 @@ describe("Sidebar", () => {
 
 	it("PROD-9: nav items without a keyboard shortcut omit aria-keyshortcuts entirely", () => {
 		renderWithProviders(<Sidebar {...baseProps} />);
-		// History, Templates, Vocabulary, Models, Microphone,
+		// History, Text Snippets, Vocabulary, Models, Microphone,
 		// About & Privacy, none have shortcuts bound in App.tsx.
 		const noShortcutItems = [
 			"History",
-			"Templates",
+			"Text Snippets",
 			"Vocabulary",
 			"Models",
 			"Microphone",
@@ -305,7 +305,7 @@ describe("Sidebar", () => {
 		// The top groups flow normally, no auto margin competing with
 		// the System group's bottom anchor.
 		expect(sectionClassOf("Home")).not.toContain("mt-auto");
-		expect(sectionClassOf("Templates")).not.toContain("mt-auto");
+		expect(sectionClassOf("Text Snippets")).not.toContain("mt-auto");
 	});
 
 	//sidebar branding removed ──────────────────────────

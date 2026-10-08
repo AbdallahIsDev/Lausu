@@ -84,7 +84,7 @@ describe("PostProcessingSettingsSection, vocab automation row", () => {
 		).toBeTruthy();
 	});
 
-	it("renders the Templates row with toggle and Open Templates button", () => {
+	it("renders the Text Snippets row with toggle and Open Text Snippets button", () => {
 		const navigate = vi.fn();
 		render(
 			<PostProcessingSettingsSection

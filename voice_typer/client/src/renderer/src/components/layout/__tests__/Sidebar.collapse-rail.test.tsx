@@ -55,7 +55,7 @@ const NAV_LABELS = [
 	"Home",
 	"History",
 	"Analytics",
-	"Templates",
+	"Text Snippets",
 	"Vocabulary",
 	"Media",
 	"Models",
