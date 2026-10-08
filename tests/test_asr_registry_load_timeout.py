@@ -53,6 +53,7 @@ class TestLoadWithTimeout:
         registry, primary, whisper = _make_registry_with_primary_and_whisper()
         # Load hangs forever; use a tiny timeout so the test is fast.
         monkeypatch.setattr("voice_typer.server.asr.registry.MODEL_LOAD_TIMEOUT_SECONDS", 0.05)
+        monkeypatch.setattr("voice_typer.server.asr.registry.MODEL_SLOW_LOAD_GRACE_SECONDS", 0.05)
         primary.load.side_effect = lambda **kw: time.sleep(60)
 
         with caplog.at_level(logging.WARNING):
@@ -70,6 +71,25 @@ class TestLoadWithTimeout:
         assert any("timed out" in r.getMessage() and r.levelno == logging.WARNING for r in caplog.records), (
             "A WARNING naming the timeout must be logged so the stall is observable in the log."
         )
+
+    def test_slow_but_completing_load_recovers_without_unload(self, monkeypatch, caplog):
+        """A load that finishes just past the ceiling is used, not discarded:"""
+        registry, primary, whisper = _make_registry_with_primary_and_whisper()
+        monkeypatch.setattr("voice_typer.server.asr.registry.MODEL_LOAD_TIMEOUT_SECONDS", 0.05)
+        monkeypatch.setattr("voice_typer.server.asr.registry.MODEL_SLOW_LOAD_GRACE_SECONDS", 5.0)
+
+        def slow_load(**kw):
+            time.sleep(0.2)
+            primary.is_loaded = True
+
+        primary.load.side_effect = slow_load
+        with caplog.at_level(logging.WARNING):
+            result = registry.load_with_fallback(progress_callback=lambda msg: None)
+
+        assert result is primary, "A load completing inside grace must be used, no fallback."
+        primary.unload.assert_not_called()
+        whisper.load.assert_not_called()
+        assert registry.failure_count("parakeet") == 0
 
     def test_fast_primary_load_returns_normally(self, monkeypatch):
         """A fast primary load returns the primary backend directly —"""
@@ -109,6 +129,7 @@ class TestWhisperFallbackTimeout:
         """
         registry, primary, whisper = _make_registry_with_primary_and_whisper()
         monkeypatch.setattr("voice_typer.server.asr.registry.MODEL_LOAD_TIMEOUT_SECONDS", 0.05)
+        monkeypatch.setattr("voice_typer.server.asr.registry.MODEL_SLOW_LOAD_GRACE_SECONDS", 0.05)
         primary.load.side_effect = RuntimeError("CUDA OOM")
         whisper.load.side_effect = lambda **kw: time.sleep(60)
 
