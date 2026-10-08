@@ -152,4 +152,32 @@ describe("useSettingsDeepLinks, scroll + highlight lifetime", () => {
 		});
 		expect(result.current.deepLinks.searchScrollHint).toBeNull();
 	});
+
+	it("leaves no timer armed on unmount, so no expiry fires into a dead tree", () => {
+		vi.useFakeTimers();
+		const row = document.createElement("div");
+		row.setAttribute("data-consent-field", "voice_biometric_consent");
+		document.body.appendChild(row);
+
+		const { result, rerender, unmount } = mount();
+		act(() => {
+			result.current.nav.navigate("settings", {
+				consentField: "voice_biometric_consent",
+			});
+		});
+		rerender();
+		act(() => {
+			vi.advanceTimersByTime(1);
+		});
+		// Row found, so the 2600ms ring timer is armed (alongside the
+		// 5000ms safety net). The ring timer deliberately outlives the
+		// scroll effect's own cleanup (a config identity change must not
+		// kill a lit ring), which is exactly why unmount has to clear it:
+		// an expiry after teardown is a setState on a torn-down tree — in
+		// a full-suite run, after jsdom is gone.
+		expect(vi.getTimerCount()).toBe(2);
+
+		unmount();
+		expect(vi.getTimerCount()).toBe(0);
+	});
 });
