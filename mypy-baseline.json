@@ -18,7 +18,8 @@
   "_current_state_2026_08_30_reconcile": "Landed refactors: native_hotkeys mixin split (_matching/_reader/_spawn/_watchdog), microphone_watcher package split, recording package shim/delegator removal, autostart_windows mechanism split. Growth is the established mixin-idiom attr-defined class (same as baselined dictation_pipeline/clipboard/model_manager mixins), structural not defect: attribute usage relocated to composing mixins. Counts reconciled after landing; ratchet holds from here.",
   "_current_state_2026_09_08_fix_then_lower": "Sanctioned fix-then-lower reconcile (Linux sandbox, mypy 2.3.1; python_version 3.10 + numpy Any-shadow stub unchanged). Floor 1051 -> 947. The dictation_pipeline split modules (text_steps / enhancement_steps / storage_step / paste_step / orchestrator, landed 2026-09-03 without their reconcile step) were fixed AT SOURCE first, using the same annotation-only mixin-declaration idiom their sibling transcribe_step.py already carries: _app / _cycle_id / _duration / _templates_applied / _LLM_POLISH_PIPELINE_TIMEOUT_S attribute declarations plus cross-mixin step-method declarations (_hide_or_idle_bubble, _check_resources_throttled as Callables); the shared LLM-polish executor was typed ThreadPoolExecutor and the polish future annotated to the documented str contract. Net -82 (attr-defined 622 -> 541, no-any-return 85 -> 84; one orchestrator union-attr remains \u2014 a documented mypy flow-analysis false positive: the watchdog-lock ternary guarantees _recording is not None whenever _watchdog_lock is not None, which mypy cannot narrow). import-not-found 1 -> 0: this sandbox resolves every import, so the prior sessions' env-noise bucket does not reproduce here. No error was suppressed, no type: ignore added, runtime behavior unchanged (declarations only).",
   "_current_state_2026_10_06_wave1_package_splits": "Sanctioned reconcile after the Wave 1/1.5 package splits (history_db_internals/, template_persistence + template_transfer, shutdown_controller/, app_construction, transcription_batching). Floor 716 -> 613: attr-defined -110 (split seams now declare their host attributes), has-type -11, assignment -4, union-attr -1. Two buckets grew: arg-type 29 -> 36 and misc 28 -> 44. Both are the documented mixin self-type idiom: the internals annotate 'self: HistoryDB' inside a mixin that HistoryDB composes (see history_db_internals/internal_api.py), so mypy reports 'The erased type of self HistoryDB is not a supertype of its class <Mixin>' as [misc] at the def and [arg-type] at each 'free_fn(self)' delegation. Structural, not defect: the same class of movement already recorded in _current_state_2026_08_29 / _08_30. Follow-up: type the mixins against a host Protocol (or declare the host attributes on the mixin) to delete this bucket class and shrink the floor again.",
-  "total_count": 613,
+  "_current_state_2026_10_08_union_attr_fix": "Sanctioned fix-then-lower reconcile (Windows, mypy 2.3.0 \u2014 the exact version CI pins via `uv pip install --system mypy==2.3.0`; python_version 3.10 + numpy Any-shadow stub unchanged). Floor 613 -> 608. A per-code regression had landed unnoticed with the Wave 2-6 package splits: union-attr 22 -> 23 at service/vocabulary.py:217, where a boolean flag (`has_store`) sat between the `live_vm is not None` guard and the attribute access, so mypy could not narrow `live_vm: Any | None` through it and reported 'Item None of Any | None has no attribute _user_store'. Fixed AT SOURCE by replacing the flag with the statement-form guard already used for the identical check at service/vocabulary.py:238 (`prev_raw_full = None`, then `if live_vm is not None and hasattr(live_vm, '_user_store'):`), which narrows the union and restores union-attr to 22 with no runtime change. The remaining -4 are genuine shrinks landed by earlier commits that never ran their reconcile step (misc 44 -> 43, no-any-return 78 -> 76, var-annotated 12 -> 10). Counts verified reproducible against the CI run on 78cf64bd: 609 errors / 148 files / 554 checked, identical to the local pre-fix run.",
+  "total_count": 608,
   "by_code": {
     "arg-type": 36,
     "assignment": 28,
@@ -26,14 +27,14 @@
     "call-overload": 2,
     "has-type": 23,
     "index": 9,
-    "misc": 44,
+    "misc": 43,
     "name-defined": 123,
-    "no-any-return": 78,
+    "no-any-return": 76,
     "no-redef": 4,
     "operator": 1,
     "return-value": 2,
     "type-var": 1,
     "union-attr": 22,
-    "var-annotated": 12
+    "var-annotated": 10
   }
 }

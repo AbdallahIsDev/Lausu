@@ -213,8 +213,9 @@ class VocabularyMixin(ServiceMixinBase):
         # save with the same correction. Manual edits/deletes drop the
         # mark, so the badge never outlives its origin.
         try:
-            has_store = live_vm is not None and hasattr(live_vm, "_user_store")
-            prev_raw_full = live_vm._user_store.load() if has_store else None
+            prev_raw_full = None
+            if live_vm is not None and hasattr(live_vm, "_user_store"):
+                prev_raw_full = live_vm._user_store.load()
             prev_auto = prev_raw_full.get("_auto_applied") if isinstance(prev_raw_full, dict) else None
             if isinstance(prev_auto, dict):
                 kept: dict[str, dict[str, str]] = {}
