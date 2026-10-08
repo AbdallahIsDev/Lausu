@@ -86,8 +86,10 @@ class ModelHandlersMixin(HandlerBase):
     def _handle_get_download_queue(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
         """Handle the ``get_download_queue`` IPC command."""
         try:
-            log.debug("[IPC] get_download_queue called")
             result = self.service.get_download_queue()
+            queue = result.get("queue") if isinstance(result, dict) else None
+            if queue:
+                log.debug("[IPC] get_download_queue: %d pending", len(queue))
             resp["type"] = "ack"
             resp["data"] = result
         except Exception as exc:
