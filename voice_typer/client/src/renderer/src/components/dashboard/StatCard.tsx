@@ -1,5 +1,6 @@
 import type { IconSvgElement } from "@hugeicons/react";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { ReactNode } from "react";
 
 import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,11 @@ interface StatCardProps {
 	 * them with dividers instead of gaps (C-DESIGN-2).
 	 */
 	inGroup?: boolean;
+	/**
+	 * Secondary line under the value (e.g. the corrections rate);
+	 * omitted when the cell has no derived sub-metric.
+	 */
+	sublabel?: ReactNode;
 }
 
 function TrendIndicator({ trend }: { trend: StatTrend }) {
@@ -59,6 +65,7 @@ export function StatCard({
 	icon,
 	trend,
 	inGroup,
+	sublabel,
 }: StatCardProps) {
 	return (
 		// Informational display card, NOT interactive: no hover
@@ -99,6 +106,9 @@ export function StatCard({
 				</p>
 				{trend && <TrendIndicator trend={trend} />}
 			</div>
+			{sublabel && (
+				<p className="truncate text-[11px] text-muted-foreground">{sublabel}</p>
+			)}
 		</div>
 	);
 }

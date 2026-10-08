@@ -10,9 +10,9 @@ import { StatCard } from "./StatCard";
 // ``lib/format.ts``. The StatCards legacy behaviour (K+ on remainder,
 // locale-aware sub-1000 grouping) is preserved by passing
 // ``{ plusSuffix: true, localeAware: true }``.
-// Exported so the Analytics page's Characters card reuses the SAME
-// formatting the Home page's Characters card uses (K-abbreviation +
-// rounding config) instead of reimplementing it.
+// Exported so the Home page's Characters card reuses the SAME
+// formatting (K-abbreviation + rounding config) instead of
+// reimplementing it.
 export function formatCompactNumber(n: number): string {
 	return compactNumber(n, { plusSuffix: true, localeAware: true });
 }

@@ -149,9 +149,9 @@ describe("DashboardSkeleton", () => {
 		const region = document.querySelector("section[aria-busy=true]");
 		expect(region).not.toBeNull();
 		expect(screen.queryByRole("status")).toBeNull();
-		// 3 stat cells (one merged, divided card) + 7 chart bars + 7
-		// x-labels + 3 derived-metric cards.
-		expect(region?.querySelectorAll(".divide-y > .min-h-24").length).toBe(3);
+		// 6 stat cells in two divided rows (one merged card) + 7 chart
+		// bars + 7 x-labels.
+		expect(region?.querySelectorAll(".divide-y > .min-h-24").length).toBe(6);
 		// The heading's action row: share + refresh, both `size="icon"`.
 		expect(region?.querySelectorAll(".h-9.w-9").length).toBe(2);
 		// The range control lives in the app title bar, so the page
@@ -159,8 +159,8 @@ describe("DashboardSkeleton", () => {
 		expect(region?.querySelectorAll(".h-7.w-16.rounded-full").length).toBe(0);
 		expect(region?.querySelectorAll(".h-36.w-7").length).toBe(1);
 		expect(region?.querySelectorAll(".rounded-t-\\[4px\\]").length).toBe(7);
-		expect(region?.querySelectorAll(".sm\\:grid-cols-3 > .flex").length).toBe(
-			3,
-		);
+		// The derived-metrics row is gone: all six cells live in the
+		// merged stat card, so no loose gapped card grid is reserved.
+		expect(region?.querySelectorAll(".sm\\:grid-cols-3").length).toBe(0);
 	});
 });

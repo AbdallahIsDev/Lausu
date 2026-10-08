@@ -1423,6 +1423,8 @@
 		"dayCountTooltip_few": "{label}: {count} dictées",
 		"dayCountTooltip_many": "{label}: {count} dictées",
 		"dayCountTooltip_other": "{label}: {count} dictées",
+		"wordsLabel": "Mots dictés",
+		"avgSpeedLabel": "Vitesse moyenne",
 		"avgCharsLabel": "Ø caractères / dictée",
 		"longestLabel": "Séance la plus longue",
 		"heatmap": {

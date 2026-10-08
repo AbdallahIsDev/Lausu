@@ -463,6 +463,8 @@
 		"dayCountTooltip_other": "{label}: {count} إملاء",
 		"loadFailedTitle": "تعذر تحميل الإحصائيات",
 		"loadFailedDescription": "تعذر تحميل إحصائياتك من الخادم الخلفي. تحقق من السجلات وحاول مرة أخرى.",
+		"wordsLabel": "الكلمات المنطوقة",
+		"avgSpeedLabel": "متوسط السرعة",
 		"avgCharsLabel": "متوسط الأحرف / الإملاء",
 		"longestLabel": "أطول جلسة",
 		"heatmap": {

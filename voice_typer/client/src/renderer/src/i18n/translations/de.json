@@ -463,6 +463,8 @@
 		"dayCountTooltip_few": "{label}: {count} Diktate",
 		"dayCountTooltip_many": "{label}: {count} Diktate",
 		"dayCountTooltip_other": "{label}: {count} Diktate",
+		"wordsLabel": "Diktierte Wörter",
+		"avgSpeedLabel": "Durchschnittliche Geschwindigkeit",
 		"avgCharsLabel": "Ø Zeichen / Diktat",
 		"longestLabel": "Längste Sitzung",
 		"heatmap": {

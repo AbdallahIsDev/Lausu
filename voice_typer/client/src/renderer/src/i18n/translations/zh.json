@@ -463,6 +463,8 @@
 		"dayCountTooltip_other": "{label}: {count} 次听写",
 		"loadFailedDescription": "无法加载仪表板数据。请检查连接后重试。",
 		"loadFailedTitle": "加载失败",
+		"wordsLabel": "听写词数",
+		"avgSpeedLabel": "平均速度",
 		"avgCharsLabel": "平均字符 / 听写",
 		"longestLabel": "最长会话",
 		"heatmap": {

@@ -463,6 +463,8 @@
 		"dayCountTooltip_two": "{label}: {count} диктовки",
 		"loadFailedDescription": "Не удалось загрузить данные панели. Проверьте подключение и попробуйте снова.",
 		"loadFailedTitle": "Не удалось загрузить",
+		"wordsLabel": "Продиктованные слова",
+		"avgSpeedLabel": "Средняя скорость",
 		"avgCharsLabel": "Сред. символов / диктовка",
 		"longestLabel": "Самая длинная сессия",
 		"heatmap": {
