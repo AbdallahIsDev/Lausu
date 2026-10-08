@@ -158,6 +158,32 @@ MIXIN_HOST_MEMBERS: dict[str, dict[str, set[str]]] = {
             "_last_clip_log_time",
         },
     },
+    # Wave 7 splits: device_manager facade trim + capture audio-worker body.
+    # capture_audio_worker._AudioWorkerMixin is stateless (no host state), omitted;
+    # recording_start.py has no classes.
+    "voice_typer/server/recording/device_health.py": {
+        "_DeviceHealthMixin": {
+            "recorder",
+            "_device_disconnected",
+            "_device_health_checker_thread",
+            "_device_health_stop_event",
+            "_device_check_interval_s",
+            "_device_check_interval_s_bt",
+            "_last_default_input_info",
+            "_permission_check_counter",
+            "_permission_check_interval",
+            "_stream_open_default_input_index",
+        },
+    },
+    "voice_typer/server/recording/device_resolution.py": {
+        "_DeviceResolutionMixin": {
+            "recorder",
+            "_device_list_cache",
+            "_host_api_cache",
+            "_bt_retry_sleep_seconds",
+            "_last_default_input_info",
+        },
+    },
 }
 
 # (file, class, TYPE_CHECKING-only method stubs the class must carry)
@@ -195,6 +221,19 @@ MIXIN_STUB_METHODS: dict[str, dict[str, set[str]]] = {
     },
     "voice_typer/server/vad_calibration.py": {
         "_VadCalibrationMixin": {"vad_enabled", "speech_threshold_db", "silence_threshold_db"},
+    },
+    # Wave 7: device_health/device_resolution delegate to the facade's
+    # _resolve_device/_refresh_device_list and to sibling-mixin helpers.
+    "voice_typer/server/recording/device_health.py": {
+        "_DeviceHealthMixin": {
+            "_resolve_device",
+            "_build_device_info_for_retry_policy",
+            "_get_max_retries_for_device",
+            "_cached_device_info",
+        },
+    },
+    "voice_typer/server/recording/device_resolution.py": {
+        "_DeviceResolutionMixin": {"_refresh_device_list", "_resolve_device"},
     },
 }
 
