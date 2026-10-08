@@ -1,17 +1,15 @@
-// Settings → Privacy tab.
+// Settings → Advanced tab: the Troubleshooting section.
 //
-// a 1125-line monolith). This component owns the six-button
-// whole section hides when no row inside it matches the active query.
-//
-// `resetToDefaults` async handler with the page-level `config` state
-// `onResetClick` to request the dialog.
+// Owns the support actions that must stay in-app: the keyboard-shortcut
+// reference, the bug-report composer, and the platform-specific stale
+// permission resets. Anything that would hand the user off to a browser
+// (help pages, issue trackers, changelogs) lives behind an in-app modal
+// instead, so the product reads as a shipped application rather than a
+// repository front-end.
 
 import {
 	ArrowTurnBackwardIcon,
-	Book02Icon,
 	Bug02Icon,
-	Delete02Icon,
-	File02Icon,
 	KeyboardIcon,
 	ShieldBanIcon,
 } from "@hugeicons/core-free-icons";
@@ -23,7 +21,6 @@ import { useLatestRef } from "@/hooks/useLatestRef";
 import { usePython } from "@/hooks/usePython";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
-import { openExternalUrl } from "@/lib/external-links";
 import type { LausuConfig } from "@/types/config";
 import type { Page } from "@/types/ipc";
 import { anyRowVisible } from "./settingsRowGating";
@@ -35,15 +32,15 @@ interface TroubleshootingSettingsSectionProps {
 	/** Used by the "Re-run setup wizard" button to flip
 	 *  `onboarding_completed` to false before navigating. */
 	updateConfig: (updates: Partial<LausuConfig>) => void;
-	/** Routes the user to the About page (diagnostics) or the Onboarding
-	 *  wizard (re-run setup). */
+	/** Routes the user to the Onboarding wizard (re-run setup). */
 	onNavigate?: (page: Page) => void;
-	/** Opens the parent-owned "Reset to Defaults" ConfirmDialog. */
-	onResetClick: () => void;
 	/** Opens the parent-owned HelpOverlay (keyboard-shortcut +
 	 *  punctuation-cheat-sheet reference). The overlay instance itself
 	 *  lives in Settings.tsx, the section only requests it. */
 	onOpenHelp: () => void;
+	/** Opens the parent-owned bug-report composer. The modal instance
+	 *  lives in Settings.tsx so it survives this section unmounting. */
+	onOpenBugReport: () => void;
 }
 
 export const TroubleshootingSettingsSection = memo(
@@ -51,8 +48,8 @@ export const TroubleshootingSettingsSection = memo(
 		isVisible,
 		updateConfig,
 		onNavigate,
-		onResetClick,
 		onOpenHelp,
+		onOpenBugReport,
 	}: TroubleshootingSettingsSectionProps) {
 		const { call } = usePython();
 		const { showSnack } = useSnackbar();
@@ -68,11 +65,8 @@ export const TroubleshootingSettingsSection = memo(
 		// predicate and the rendered labels share the same values.
 		const title = t("settings.troubleshooting.title");
 		const description = t("settings.troubleshooting.description");
-		const openLogFolderLabel = t("settings.troubleshooting.openLogFolder");
-		const helpFaqLabel = t("settings.troubleshooting.helpFaq");
 		const reportBugLabel = t("settings.troubleshooting.reportBug");
 		const reRunWizardLabel = t("settings.troubleshooting.reRunWizard");
-		const resetToDefaultsLabel = t("settings.troubleshooting.resetToDefaults");
 		// Keyboard Shortcuts button, opens the shared HelpOverlay
 		// existing `help.title` key ("Keyboard Shortcuts").
 		const keyboardShortcutsLabel = t("help.title");
@@ -89,6 +83,11 @@ export const TroubleshootingSettingsSection = memo(
 			typeof navigator === "undefined" ? "" : navigator.userAgent.toLowerCase();
 		const isMac = ua.includes("mac");
 		const isLinux = ua.includes("linux");
+
+		// The setup wizard is a developer affordance: it exists so the
+		// first-run flow can be replayed while developing. Shipping it
+		// invites users to re-run onboarding and lose their configuration.
+		const isDev = import.meta.env.DEV;
 
 		// Finding #919 part b: on a CONFIRMED stale Accessibility grant
 		// (``AXIsProcessTrusted()`` returned False) the backend echoes
@@ -129,39 +128,14 @@ export const TroubleshootingSettingsSection = memo(
 		const sectionVisible =
 			isVisible(title, description, title) ||
 			anyRowVisible(isVisible, title, [
-				{ label: openLogFolderLabel },
-				{ label: helpFaqLabel },
 				{ label: keyboardShortcutsLabel },
 				{ label: reportBugLabel },
-				{ label: reRunWizardLabel },
-				{ label: resetToDefaultsLabel },
+				...(isDev ? [{ label: reRunWizardLabel }] : []),
 				...(isMac ? [{ label: resetAccessibilityLabel }] : []),
 				...(isLinux ? [{ label: resetLinuxLabel }] : []),
 			]);
 
 		if (!sectionVisible) return null;
-
-		// Open the Python backend's log folder via the main process IPC.
-		// Falls back to a snackbar with the error message if the IPC fails.
-		const handleOpenLogs = async () => {
-			try {
-				const result = await window.window_?.openLogs?.();
-				if (result?.success) {
-					showSnack(t("settings.logFolderOpened"), "success");
-				} else {
-					showSnack(
-						result?.error || t("settings.couldNotOpenLogFolder"),
-						"error",
-					);
-				}
-			} catch (err) {
-				console.error(
-					"[renderer:TroubleshootingSettingsSection] Failed to open logs:",
-					err,
-				);
-				showSnack(t("settings.couldNotOpenLogFolder"), "error");
-			}
-		};
 
 		// Re-run the onboarding wizard: synchronously flip
 		// user land on the wizard page) then navigate. The toast confirms
@@ -262,63 +236,7 @@ export const TroubleshootingSettingsSection = memo(
 
 		return (
 			<SettingsSection title={title} description={description}>
-				<div className="px-3.5 py-3.5 flex flex-wrap gap-3">
-					{isVisible(openLogFolderLabel, undefined, title) && (
-						<Button
-							variant="outline"
-							className="gap-2"
-							onClick={handleOpenLogs}
-							aria-label={t("settings.troubleshooting.openLogFolderAria")}
-							title={t("settings.troubleshooting.openLogFolderHint")}
-						>
-							<HugeiconsIcon
-								icon={File02Icon}
-								strokeWidth={2}
-								className="h-4 w-4"
-							/>
-							{openLogFolderLabel}
-						</Button>
-					)}
-					{isVisible(helpFaqLabel, undefined, title) && (
-						<Button
-							variant="outline"
-							className="gap-2"
-							onClick={() =>
-								void openExternalUrl(
-									"https://github.com/AbdallahIsDev/lausu/blob/main/README.md",
-								)
-							}
-							aria-label={t("settings.troubleshooting.openDocsAria")}
-							title={t("settings.troubleshooting.openDocsHint")}
-						>
-							<HugeiconsIcon
-								icon={Book02Icon}
-								strokeWidth={2}
-								className="h-4 w-4"
-							/>
-							{helpFaqLabel}
-						</Button>
-					)}
-					{isVisible(reportBugLabel, undefined, title) && (
-						<Button
-							variant="outline"
-							className="gap-2"
-							onClick={() =>
-								void openExternalUrl(
-									"https://github.com/AbdallahIsDev/lausu/issues",
-								)
-							}
-							aria-label={t("settings.troubleshooting.reportBugAria")}
-							title={t("settings.troubleshooting.reportBugHint")}
-						>
-							<HugeiconsIcon
-								icon={Bug02Icon}
-								strokeWidth={2}
-								className="h-4 w-4"
-							/>
-							{reportBugLabel}
-						</Button>
-					)}
+				<div className="flex flex-wrap gap-3 px-4 py-2">
 					{isVisible(keyboardShortcutsLabel, undefined, title) && (
 						<Button
 							variant="outline"
@@ -336,7 +254,24 @@ export const TroubleshootingSettingsSection = memo(
 							{keyboardShortcutsLabel}
 						</Button>
 					)}
-					{isVisible(reRunWizardLabel, undefined, title) && (
+					{isVisible(reportBugLabel, undefined, title) && (
+						<Button
+							variant="outline"
+							className="gap-2"
+							onClick={onOpenBugReport}
+							aria-label={t("settings.troubleshooting.reportBugAria")}
+							title={t("settings.troubleshooting.reportBugHint")}
+							data-testid="report-bug-button"
+						>
+							<HugeiconsIcon
+								icon={Bug02Icon}
+								strokeWidth={2}
+								className="h-4 w-4"
+							/>
+							{reportBugLabel}
+						</Button>
+					)}
+					{isDev && isVisible(reRunWizardLabel, undefined, title) && (
 						<Button
 							variant="outline"
 							className="gap-2"
@@ -352,7 +287,7 @@ export const TroubleshootingSettingsSection = memo(
 							{reRunWizardLabel}
 						</Button>
 					)}
-					{isVisible(reRunWizardLabel, undefined, title) && (
+					{isDev && isVisible(reRunWizardLabel, undefined, title) && (
 						<p className="text-xs text-muted-foreground">
 							{t("settings.troubleshooting.reRunWizardHint")}
 						</p>
@@ -400,34 +335,6 @@ export const TroubleshootingSettingsSection = memo(
 							/>
 							{resetLinuxLabel}
 						</Button>
-					)}
-					{/*visually separate the destructive Reset to Defaults
-                                                button from the 5 non-destructive buttons above with a
-                                                top border + padding so users don't click it by accident. */}
-					{isVisible(resetToDefaultsLabel, undefined, title) && (
-						<div className="flex w-full flex-col gap-1 border-t border-border/8 pt-3">
-							<Button
-								variant="destructive"
-								className="gap-2 self-start"
-								onClick={onResetClick}
-								aria-label={t("settings.troubleshooting.resetToDefaultsAria")}
-								title={t("settings.troubleshooting.resetToDefaultsHint")}
-							>
-								<HugeiconsIcon
-									//use a trash/delete icon
-									// action so it's visually distinct from
-									// button (ArrowTurnBackwardIcon). The
-									// previous RefreshIcon was too similar
-									icon={Delete02Icon}
-									strokeWidth={2}
-									className="h-4 w-4"
-								/>
-								{resetToDefaultsLabel}
-							</Button>
-							<p className="text-xs text-muted-foreground">
-								{t("settings.troubleshooting.resetToDefaultsHint")}
-							</p>
-						</div>
 					)}
 				</div>
 			</SettingsSection>

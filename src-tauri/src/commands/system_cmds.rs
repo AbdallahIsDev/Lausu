@@ -3,6 +3,7 @@
 //! Every `#[tauri::command]` is guarded by `require_main_window`
 //! (SEC-026). Layout: docs/code-notes/tauri-host.md#module-layout
 
+mod bug_report;
 mod dialog_titles;
 mod dialogs;
 mod export;
@@ -16,6 +17,7 @@ mod stats_image;
 // Crate-visible re-exports (`main.rs` imports the commands from here).
 // Dialog titles also re-exported because `commands::export` resolves
 // save-dialog titles through them.
+pub(crate) use bug_report::send_bug_report;
 pub(crate) use dialog_titles::{localized_title_for, DialogTitle};
 pub(crate) use dialogs::{
     open_external_url_command, open_logs, open_model_import_dialog, reveal_path_command,

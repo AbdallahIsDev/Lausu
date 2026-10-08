@@ -79,43 +79,79 @@ pub(crate) fn open_external_url(url: &str) -> Result<(), String> {
         ));
     }
 
+    spawn_os_handler(trimmed)
+}
+
+/// Mailto-only contract for the bug-report composer.
+///
+/// Deliberately NOT folded into [`is_allowed_external_url`]: widening the
+/// general link policy to a second scheme would let ANY renderer path
+/// hand a `mailto:` to the shell. The bug-report command builds the URL
+/// itself from validated parts and is the only caller, so the scheme
+/// surface stays as narrow as the one feature that needs it.
+pub(crate) fn is_allowed_mailto_url(url: &str) -> bool {
+    let lowered = url.to_ascii_lowercase();
+    if !lowered.starts_with("mailto:") {
+        return false;
+    }
+    if url["mailto:".len()..].is_empty() {
+        return false;
+    }
+    // Same anti-smuggling rule as the https path: the URL builder
+    // percent-encodes every non-unreserved byte, so whitespace or control
+    // characters here mean the caller bypassed it.
+    !url.chars().any(|c| c.is_whitespace() || c.is_control())
+}
+
+/// Hand a `mailto:` URL to the OS mail handler.
+///
+/// `mailto:` cannot execute anything (unlike `file://` or a custom
+/// scheme) — it is a data-only handoff to the registered mail client —
+/// but it still reaches the shell, so it gets its own allowlist rather
+/// than riding on the https one.
+pub(crate) fn open_mailto_url(url: &str) -> Result<(), String> {
+    let trimmed = url.trim();
+    if !is_allowed_mailto_url(trimmed) {
+        return Err(format!(
+            "refusing to open non-mailto URL: {}",
+            sanitize_for_error(trimmed)
+        ));
+    }
+
+    spawn_os_handler(trimmed)
+}
+
+/// Spawn the platform's URL/path handler for `target` and reap the child
+/// on a waiter thread (a launcher shim returns immediately, but an
+/// unreaped child still lingers as a zombie on POSIX).
+///
+/// Shared by every opener in this module: the per-OS program is the only
+/// thing that varies for a single-argument handoff.
+fn spawn_os_handler(target: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
-    {
-        let mut child = std::process::Command::new("explorer.exe")
-            .arg(trimmed)
-            .spawn()
-            .map_err(|e| format!("explorer.exe spawn failed: {e}"))?;
-        std::thread::spawn(move || {
-            let _ = child.wait();
-        });
-        return Ok(());
-    }
+    let program = "explorer.exe";
     #[cfg(target_os = "macos")]
-    {
-        let mut child = std::process::Command::new("open")
-            .arg(trimmed)
-            .spawn()
-            .map_err(|e| format!("open spawn failed: {e}"))?;
-        std::thread::spawn(move || {
-            let _ = child.wait();
-        });
-        return Ok(());
-    }
+    let program = "open";
     #[cfg(target_os = "linux")]
-    {
-        let mut child = std::process::Command::new("xdg-open")
-            .arg(trimmed)
-            .spawn()
-            .map_err(|e| format!("xdg-open spawn failed: {e}"))?;
-        std::thread::spawn(move || {
-            let _ = child.wait();
-        });
-        return Ok(());
-    }
+    let program = "xdg-open";
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     {
-        let _ = trimmed;
-        Err("unsupported platform: open_external_url is only implemented for Windows / macOS / Linux".to_string())
+        let _ = target;
+        return Err(
+            "unsupported platform: no OS URL/path handler is implemented for this target"
+                .to_string(),
+        );
+    }
+    #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+    {
+        let mut child = std::process::Command::new(program)
+            .arg(target)
+            .spawn()
+            .map_err(|e| format!("{program} spawn failed: {e}"))?;
+        std::thread::spawn(move || {
+            let _ = child.wait();
+        });
+        Ok(())
     }
 }
 

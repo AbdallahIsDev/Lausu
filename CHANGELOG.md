@@ -405,7 +405,7 @@ Changes that affect end users (new features, bug fixes, UX improvements).
 
 - **Hotkey conflict notification** names the hotkey and suggests rebinding
 - **"View Logs" button** actually opens the log folder (was a fake handler)
-- **Settings inputs debounced**: typing "gpt-4o-mini" fires 1 IPC call, not 11
+- **Settings inputs debounced**: typing "gpt-6-luna" fires 1 IPC call, not 11
 - **Label associations** on all settings inputs (screen reader support)
 - **"Reset to Defaults"** fetches from backend (no silent drift from hardcoded defaults)
 - **Honest "not implemented" messages** on fake buttons (model download, benchmark)

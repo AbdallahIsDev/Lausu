@@ -145,4 +145,20 @@ export interface WindowBridge {
 		success: boolean;
 		error?: string;
 	}>;
+	/** In-app bug report. The host validates + writes the attached
+	 *  screenshots into the config dir, hands a `mailto:` draft to the OS
+	 *  mail client, and reveals the attachment folder. Optional: the
+	 *  sandboxed bubble window omits the whole namespace, and the modal
+	 *  degrades to a clipboard copy there. */
+	sendBugReport?: (report: {
+		to: string;
+		subject: string;
+		body: string;
+		attachments: Array<{ name: string; dataUrl: string }>;
+	}) => Promise<{
+		success: boolean;
+		folder?: string;
+		attachments?: number;
+		error?: string;
+	}>;
 }

@@ -52,7 +52,7 @@ use commands::sidecar_cmds::{dispatch, restart_sidecar, shutdown_sidecar};
 use commands::system_cmds::{
     export_config, export_templates, open_external_url_command, open_logs,
     open_model_import_dialog, renderer_heartbeat, renderer_log_error, reveal_path_command,
-    save_stats_image, set_host_locale,
+    save_stats_image, send_bug_report, set_host_locale,
 };
 use platform::logging::init_file_logger_or_stderr_fallback;
 use platform::paths::config_dir;
@@ -147,6 +147,8 @@ fn main() {
             export_config,
             // Share-image Downloads-save + localized Save-As dialog
             save_stats_image,
+            // in-app bug report: attachment write + mailto handoff
+            send_bug_report,
             // renderer_log_error sink
             renderer_log_error,
             // renderer-pushed locale for host native surfaces
