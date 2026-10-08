@@ -25,6 +25,7 @@ class _FakeConfig:
     openai_api_key: str | None = None
     groq_api_key: str | None = None
     deepgram_api_key: str | None = None
+    gemini_api_key: str | None = None
     llm_api_key: str | None = None
 
 

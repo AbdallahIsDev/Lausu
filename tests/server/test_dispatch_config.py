@@ -748,6 +748,11 @@ class TestGetConfigRedactsSecrets:
         result = server._dispatch({"id": 1, "type": "get_config"})
         assert result["data"]["deepgram_api_key"] == "<redacted>"
 
+    def test_gemini_api_key_redacted(self, server, mock_app):
+        mock_app.config.gemini_api_key = "AIza-real"
+        result = server._dispatch({"id": 1, "type": "get_config"})
+        assert result["data"]["gemini_api_key"] == "<redacted>"
+
     def test_llm_api_key_redacted(self, server, mock_app):
         mock_app.config.llm_api_key = "sk-llm-real"
         result = server._dispatch({"id": 1, "type": "get_config"})

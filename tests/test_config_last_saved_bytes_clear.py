@@ -147,7 +147,7 @@ class TestClearInMemorySecretsClearsLastSavedBytes:
         # Act, must NOT raise (the clear is best-effort; the
         cleared = credential_store.clear_in_memory_secrets(config)
 
-        # Assert: all 5 api_key fields were cleared (the loop completed
-        assert cleared == 5
+        # Assert: all 6 api_key fields were cleared (the loop completed
+        assert cleared == 6
         for field_name in credential_store.PROVIDER_TO_CONFIG_FIELD.values():
             assert getattr(config, field_name) == ""

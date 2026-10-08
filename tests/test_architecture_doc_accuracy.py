@@ -175,13 +175,13 @@ def test_tauri_command_count_in_doc_matches_code():
     assert rust_row_match is not None, "Rust host row not found."
     body = rust_row_match.group("body")
 
-    # Doc must say "24 Tauri commands: 1 generic `dispatch` + 23 typed shortcuts"
-    assert "24 Tauri commands" in body, f"Rust host row must say '24 Tauri commands'. Got: {body!r}"
+    # Doc must say "25 Tauri commands: 1 generic `dispatch` + 24 typed shortcuts"
+    assert "25 Tauri commands" in body, f"Rust host row must say '25 Tauri commands'. Got: {body!r}"
     assert "1 generic `dispatch`" in body
-    assert "23 typed shortcuts" in body
+    assert "24 typed shortcuts" in body
 
     cmds = _parse_generate_handler()
-    assert len(cmds) == 24, f"generate_handler! in main.rs must register 24 commands (actual: {len(cmds)}: {cmds})"
+    assert len(cmds) == 25, f"generate_handler! in main.rs must register 25 commands (actual: {len(cmds)}: {cmds})"
     assert cmds[0] == "dispatch", f"First command must be `dispatch` (actual: {cmds[0]!r})."
     # Every typed shortcut name from the frozen §16 contract must be present.
     expected_typed = {
@@ -209,6 +209,7 @@ def test_tauri_command_count_in_doc_matches_code():
         "restart_sidecar",
         "renderer_heartbeat",
         "save_stats_image",
+        "send_bug_report",
     }
     actual_typed = set(cmds[1:])
     assert actual_typed == expected_typed, (
@@ -219,18 +220,19 @@ def test_tauri_command_count_in_doc_matches_code():
     assert "ONE generic `dispatch`" not in body, "stale 'ONE generic `dispatch`' phrase must be removed."
 
 
-def test_main_rs_line_count_is_259():
+def test_main_rs_line_count_is_261():
     """
-    Doc claims 259 lines; main.rs must actually be 259 lines.
+    Doc claims 261 lines; main.rs must actually be 261 lines.
     C-ARCH-1 / C-TOKIO-1 / C-TAURI-2 anchors kept). Still wiring-only.
     """
     doc = _read(ARCH_DOC)
-    assert "259 lines" in doc, "Doc must claim '259 lines' for main.rs."
+    assert "261 lines" in doc, "Doc must claim '261 lines' for main.rs."
     actual = sum(1 for _ in _read(MAIN_RS).splitlines())
-    assert actual == 259, (
-        f"src-tauri/src/main.rs must be 259 lines (actual: {actual}). Update the doc + this test together."
+    assert actual == 261, (
+        f"src-tauri/src/main.rs must be 261 lines (actual: {actual}). Update the doc + this test together."
     )
     # Stale counts must NOT be in the doc.
+    assert "259 lines" not in doc, "Stale '259 lines' must be removed from doc."
     assert "240 lines" not in doc, "Stale '240 lines' must be removed from doc."
     assert "264 lines" not in doc, "Stale '264 lines' must be removed from doc."
     assert "488 lines" not in doc, "Stale '488 lines' must be removed from doc."

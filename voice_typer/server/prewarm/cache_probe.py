@@ -350,9 +350,10 @@ def _active_model_cache_dirs() -> list[Path]:
     if cfg is None:
         return dirs
     try:
+        # No early return when the app-local hub is absent: the model
+        # usually lives in the shared system hub, which is checked
+        # below. A missing root simply matches no dirs via is_dir().
         cache_root = _resolve_hf_cache_dir() / "hub"
-        if not cache_root.exists():
-            return dirs
 
         active_backend = getattr(cfg, "asr_backend", "whisper")
         active_model_size = getattr(cfg, "model_size", "tiny")

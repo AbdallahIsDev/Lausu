@@ -190,3 +190,35 @@ class TestWeightFileProbe:
         status = get_prewarm_status()
 
         assert status["total_bytes"] == 0
+
+
+class TestSharedHubFallback:
+    """The model usually lives in the shared system hub while the
+    app-local hub is absent. The lookup must still find it there."""
+
+    def test_missing_app_local_hub_still_finds_shared_hub(self, monkeypatch, tmp_path):
+        from types import SimpleNamespace
+
+        import voice_typer.server.model_availability as model_availability
+        from voice_typer.server.prewarm import cache_probe
+
+        shared_hub = tmp_path / "shared" / "hub"
+        snap = shared_hub / "models--Systran--faster-whisper-large-v3" / "snapshots" / "abc"
+        snap.mkdir(parents=True)
+        (snap / "model.bin").write_bytes(b"\x00" * 8192)
+
+        monkeypatch.setattr(
+            cache_probe,
+            "_resolve_hf_cache_dir",
+            lambda: tmp_path / "app-local" / "huggingface",  # does not exist
+        )
+        monkeypatch.setattr(model_availability, "shared_hub_dir", lambda: shared_hub)
+        monkeypatch.setattr(
+            cache_probe,
+            "_cached_active_config",
+            lambda: SimpleNamespace(asr_backend="whisper", model_size="large-v3"),
+        )
+
+        dirs = cache_probe._active_model_cache_dirs()
+
+        assert dirs == [shared_hub / "models--Systran--faster-whisper-large-v3"]
