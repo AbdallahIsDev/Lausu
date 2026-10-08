@@ -226,11 +226,17 @@
 	);
 	--chart-marker-foreground: var(--foreground);
 	--chart-label: var(--muted-foreground);
-	/* Contribution ramp: canvas → full accent, so the heatmap is the
-	   theme's own colour (the app's other charts already derive
-	   --chart-4/5 from --accent-500/600). Resolves to #e3e9fc → #b4c4f7
-	   → #7e9af1 → #4870eb → #1447e6 on the default light palette. */
-	--chart-scale-01: color-mix(in srgb, var(--accent) 12%, var(--background));
+	/* Heatmap contribution scale. Step 01 is the EMPTY cell (level 0 =
+	   zero dictations) and is deliberately not a weak accent tint: a day
+	   with nothing to show is not "a little bit of data", so it wears
+	   the same hairline the app draws every border with (--border at
+	   10% — black in light, white in dark). Steps 02 → 05 are the data
+	   ramp proper, canvas → full accent, so a day that HAS dictations is
+	   drawn in the theme's own colour (the app's other charts already
+	   derive --chart-4/5 from --accent-500/600). The ramp resolves to
+	   #b4c4f7 → #7e9af1 → #4870eb → #1447e6 on the default light
+	   palette. */
+	--chart-scale-01: color-mix(in srgb, var(--border) 10%, transparent);
 	--chart-scale-02: color-mix(in srgb, var(--accent) 32%, var(--background));
 	--chart-scale-03: color-mix(in srgb, var(--accent) 55%, var(--background));
 	--chart-scale-04: color-mix(in srgb, var(--accent) 78%, var(--background));

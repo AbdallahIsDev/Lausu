@@ -12,8 +12,9 @@
  *      `aria-hidden` svg alone would leave the card mute).
  *   2. Title / subtitle / legend labels come from the translation
  *      catalog (C-I18N-1), so the Arabic UI is not half English.
- *   3. The subtitle states the range the card covers, because the card
- *      ignores the page's TimeRangeSelector.
+ *   3. The covered window is stated by the grid's own x-axis rather than
+ *      by a subtitle, because the card ignores the range control in the
+ *      title bar and the axis already spans it.
  *   4. The truncation note appears only when the grid is capped, so it
  *      cannot cry wolf on a short history.
  *   5. Rendering survives an empty history (the chart's own zero-width
@@ -22,6 +23,9 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+const fs = require("node:fs");
+const path = require("node:path");
 
 import {
 	hugeiconsCoreMock,
@@ -88,8 +92,13 @@ describe("ActivityHeatmap", () => {
 		expect(
 			screen.getByRole("region", { name: t("analytics.heatmap.title") }),
 		).toBeTruthy();
+		// Regex, not a bare string: the heading is the card's title with
+		// the active-days figure in front of it, so its accessible name is
+		// "7 Active Days" while the region keeps the bare title.
 		expect(
-			screen.getByRole("heading", { name: t("analytics.heatmap.title") }),
+			screen.getByRole("heading", {
+				name: new RegExp(t("analytics.heatmap.title")),
+			}),
 		).toBeTruthy();
 
 		// The summary must report the SAME numbers the cells encode.
@@ -103,25 +112,93 @@ describe("ActivityHeatmap", () => {
 		expect(summary.getAttribute("aria-label")).toContain("3");
 	});
 
-	it("renders its title, range subtitle and legend labels from the catalog", () => {
+	it("renders its title and legend labels from the catalog", () => {
 		renderHeatmap([recordOn(new Date(2026, 9, 6), 1)]);
 
 		expect(
-			screen.getByRole("heading", { name: t("analytics.heatmap.title") }),
+			screen.getByRole("heading", {
+				name: new RegExp(t("analytics.heatmap.title")),
+			}),
 		).toBeTruthy();
-		// Subtitle = "<range> · per day" (the card ignores the page's
-		// range selector, so it must state its own window).
-		expect(screen.getByText(new RegExp(t("analytics.byDay")))).toBeTruthy();
 		expect(screen.getByText(t("analytics.heatmap.less"))).toBeTruthy();
 		expect(screen.getByText(t("analytics.heatmap.more"))).toBeTruthy();
+	});
+
+	it("states the covered window on the axis, not as a subtitle", () => {
+		// The card used to print "Oct 5, 2025 – Oct 8 · per day" under the
+		// title. The x-axis already labels ~13 months across the grid, so
+		// that line said it twice; nothing may put it back.
+		renderHeatmap([recordOn(new Date(2026, 9, 6), 1)]);
+
+		expect(screen.queryByText(new RegExp(t("analytics.byDay")))).toBeNull();
+	});
+
+	it("names the card by what it shows, not by the chart type", () => {
+		// "Heatmap" is chart jargon; the reader is looking at their own
+		// usage history. The title and the aria label are the same
+		// string, so a screen reader hears the heading it can see.
+		expect(t("analytics.heatmap.title")).not.toMatch(/heatmap/i);
+		expect(t("analytics.heatmap.aria", { total: "0", days: "0" })).not.toMatch(
+			/heatmap/i,
+		);
+	});
+
+	it("renders no icon in the card header", () => {
+		// The header is the figure, the card's title and the streak; the
+		// grid glyph that used to open it is gone.
+		const { container } = renderHeatmap([recordOn(new Date(2026, 9, 6), 1)]);
+		expect(container.querySelector('[data-testid="hugeicon"]')).toBeNull();
+	});
+
+	it("asks the vendored chart to skip its staggered entrance", () => {
+		// jsdom renders no cells at all (see the file header), so this
+		// contract can only be pinned at the source: the grid must be
+		// complete on the first paint rather than fading in cell by cell.
+		const src = fs.readFileSync(
+			path.resolve(__dirname, "..", "ActivityHeatmap.tsx"),
+			"utf8",
+		);
+		expect(src).toMatch(/animate=\{false\}/);
+	});
+
+	it("surfaces the active-days figure the heatmap itself counted", () => {
+		// The Active Days stat card is gone; its figure is a whole-year
+		// number, so it leads this card's heading instead of sitting
+		// beside range-aware numbers it shares no window with.
+		const { heatmap } = renderHeatmap([
+			recordOn(new Date(2026, 9, 6), 1),
+			recordOn(new Date(2026, 9, 5), 2),
+		]);
+
+		expect(heatmap.activeDays).toBe(2);
+		// The figure keeps its own element so it stays a `tabular-nums`
+		// run; the words come from the catalog (C-I18N-1).
+		expect(screen.getByText(String(heatmap.activeDays))).toBeTruthy();
+		expect(screen.getByText(t("analytics.heatmap.title"))).toBeTruthy();
+	});
+
+	it("adds the streak line only when a streak is passed in", () => {
+		const heatmap = buildDictationHeatmap(
+			[recordOn(new Date(2026, 9, 6), 1)],
+			NOW,
+		);
+		const { rerender } = render(<ActivityHeatmap heatmap={heatmap} />);
+		expect(
+			screen.queryByText(t("analytics.dayStreak", { count: "5" })),
+		).toBeNull();
+
+		rerender(<ActivityHeatmap heatmap={heatmap} currentStreak={5} />);
+		expect(
+			screen.getByText(t("analytics.dayStreak", { count: "5" })),
+		).toBeTruthy();
 	});
 
 	it("does not claim a truncated window when the history fits", () => {
 		const { heatmap } = renderHeatmap([recordOn(new Date(2026, 9, 6), 1)]);
 
 		expect(heatmap.truncated).toBe(false);
-		// Regex, not a bare string: the note lives inside the subtitle <p>
-		// alongside the range and "per day", and `getByText(string)` only
+		// Regex, not a bare string: the note rides on the heading line
+		// next to the figure and the title, and `getByText(string)` only
 		// matches an element whose WHOLE text is that string — a bare
 		// string here would match nothing whether or not the note
 		// rendered, i.e. the assertion would be vacuous.

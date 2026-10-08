@@ -3,10 +3,14 @@
 // `./dashboard/lib/{streaks,format,trend}`; presentational sub-components in
 // `./dashboard/components/`. Only page-local composition stays here.
 // Analytics layout:
-//   1. Range selector (Today / 7 Days / 30 Days / All Time), drives
-//      the stat cards AND the chart together (single source: one
-//      history sample, UTC-correct day bucketing, see the hook).
-//   2. Four range-aware stat cards with trend indicators vs the
+//   1. Range selector (Today / 7 Days / 30 Days / All Time) lives in the
+//      TITLE BAR, not here: it drives the stat cards AND the chart
+//      together (single source: one history sample, UTC-correct day
+//      bucketing, see the hook), and keeping it in the bar means it stays
+//      reachable while the page scrolls. The page holds no range state of
+//      its own, see `stores/useAnalyticsRange`.
+//   2. Three range-aware stat cards merged into ONE divided card
+//      (no gaps between cells), with trend indicators vs the
 //      previous period of the same length.
 //   3. The activity chart (hourly for Today, daily otherwise) with a
 //      y-axis, gridlines, and zero-vs-no-data distinction.
@@ -15,11 +19,12 @@
 //   5. The dictation heatmap — deliberately range-INDEPENDENT: it always
 //      spans the whole history the sample covers (capped at a year),
 //      because a per-day contribution grid only reads at a scale of
-//      months. See `./dashboard/components/ActivityHeatmap`.
+//      months. See `./dashboard/components/ActivityHeatmap`. It also
+//      carries the active-days + streak figures (they measure the same
+//      long window, so a range-aware card in row 2 would contradict it).
 
 import {
 	AlertCircleIcon,
-	Calendar01Icon,
 	CheckmarkCircle02Icon,
 	Mic02Icon,
 	SpeechToTextIcon,
@@ -58,7 +63,6 @@ import { computeTrend } from "@/pages/dashboard/lib/trend";
 import { ActivityHeatmap } from "./dashboard/components/ActivityHeatmap";
 import { DashboardSkeleton } from "./dashboard/components/DashboardSkeleton";
 import { ActivityChart } from "./dashboard/components/SevenDayActivityChart";
-import { TimeRangeSelector } from "./dashboard/components/TimeRangeSelector";
 import { useDashboardData } from "./dashboard/hooks/useDashboardData";
 
 // Hidden share-image capture target container style.
@@ -112,7 +116,6 @@ export default function DashboardPage() {
 		agoLabel,
 		fetchError,
 		range,
-		setRange,
 		period,
 		activity,
 		heatmap,
@@ -204,6 +207,11 @@ export default function DashboardPage() {
 				title={t("analytics.title")}
 				description={t("analytics.description")}
 			>
+				<LastUpdatedIndicator
+					agoLabel={agoLabel}
+					onRefresh={handleManualRefresh}
+					refreshing={refreshing}
+				/>
 				{data &&
 					configRaw &&
 					canShareStats({
@@ -225,15 +233,6 @@ export default function DashboardPage() {
 				unchanged on platforms where the banner doesn't apply. */}
 			<KeyboardPermissionBanner />
 
-			<div className="flex flex-wrap items-center justify-between gap-3 pb-2">
-				<TimeRangeSelector value={range} onChange={setRange} />
-				<LastUpdatedIndicator
-					agoLabel={agoLabel}
-					onRefresh={handleManualRefresh}
-					refreshing={refreshing}
-				/>
-			</div>
-
 			{isFirstRun ? (
 				<EmptyState
 					icon={Mic02Icon}
@@ -248,7 +247,13 @@ export default function DashboardPage() {
 				/>
 			) : (
 				<div className="flex flex-col gap-6">
-					<div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+					{/* ONE merged card, not three separate ones: the shared
+					    container owns the radius/border/background and 1px
+					    dividers separate the cells, so there is no gap
+					    between them (C-DESIGN-2). Stacked rows separated by
+					    horizontal rules on narrow windows, three columns
+					    separated by vertical rules from md up. */}
+					<div className="grid grid-cols-1 divide-y divide-border/8 overflow-hidden rounded-lg border border-border/8 bg-surface-subtle md:grid-cols-3 md:divide-x md:divide-y-0">
 						{/* Single dictations card, DATA-CONSISTENCY fix: the
 						    old "Dictations" card (window count from the
 						    500-row history sample) and the range-blind
@@ -263,10 +268,12 @@ export default function DashboardPage() {
 						    Time the true count is used so the card is never
 						    sample-capped. */}
 						<StatCard
-							// Plain label (no range suffix), the TimeRangeSelector
-							// + the chart's subtitle already state the active
-							// window; the suffix made this the only truncating
-							// label in the row ("Total Dictations (7 D…").
+							inGroup
+							// Plain label (no range suffix), the title bar's
+							// range control + the chart's subtitle already
+							// state the active window; the suffix made this
+							// the only truncating label in the row
+							// ("Total Dictations (7 D…").
 							label={t("analytics.totalDictations")}
 							value={
 								range === "all" ? String(d.totalCount) : String(period.count)
@@ -275,41 +282,50 @@ export default function DashboardPage() {
 							trend={computeTrend(period.count, period.prev?.count)}
 						/>
 						<StatCard
+							inGroup
 							label={t("analytics.recordingTime")}
 							value={formatDuration(period.duration)}
 							icon={Time02Icon}
 							trend={computeTrend(period.duration, period.prev?.duration)}
 						/>
-						<StatCard
-							label={t("analytics.activeDays")}
-							value={String(period.activeDays)}
-							icon={Calendar01Icon}
-							sublabel={
-								d.currentStreak > 0
-									? t("analytics.dayStreak", {
-											count: String(d.currentStreak),
-										})
-									: undefined
-							}
-						/>
 						{/* Characters, reuses the Home page Characters card's
 						    formatter (formatCompactNumber from StatCards) so
 						    the K-abbreviation + rounding config carries over
 						    unchanged; wired to the same range-filtered char
-						    count as the rest of the page. */}
+						    count as the rest of the page. It carries the same
+						    trend indicator as its two neighbours: a card in
+						    this row without one reads as "no change" rather
+						    than "not measured". */}
 						<StatCard
+							inGroup
 							label={t("analytics.cards.chars")}
 							value={formatCompactNumber(period.chars)}
 							icon={TextIcon}
+							trend={computeTrend(period.chars, period.prev?.chars)}
 						/>
-						{/* Corrections moved to the derived-metrics card row below
-							(so the top row divides evenly into 4 cards). */}
+						{/* Active Days is deliberately NOT a cell here: it
+						    measures the heatmap's whole-year window, not the
+						    selected range, so it lives in the heatmap header
+						    below. Corrections sits in the derived-metrics row
+						    for the same reason (it is a derived metric and
+						    carries a rate sublabel). */}
 					</div>
 
 					{/* NOTE: no "no dictations in this period" caption here —
 						the empty chart already communicates "no data". */}
 
 					<ActivityChart range={range} activity={activity} />
+
+					{/* Long-window consistency view. Placed AFTER the
+						range-aware block (cards → chart → derived metrics) so
+						the selected range's analysis stays contiguous. The
+						card states its own covered range in its subtitle
+						because it ignores the range control in the title bar,
+						and it owns the active-days + streak figures for the same
+						reason: both count the whole history, not the selected
+						window, so they must not sit next to range-aware
+						numbers. */}
+					<ActivityHeatmap heatmap={heatmap} currentStreak={d.currentStreak} />
 
 					{/* Derived metrics, card-styled row directly below the
 						chart (Avg chars / Longest session / Corrections). */}
@@ -341,13 +357,6 @@ export default function DashboardPage() {
 							}
 						/>
 					</div>
-
-					{/* Long-window consistency view. Placed AFTER the
-						range-aware block (cards → chart → derived metrics) so
-						the selected range's analysis stays contiguous. The
-						card states its own covered range in its subtitle
-						because it ignores the TimeRangeSelector above. */}
-					<ActivityHeatmap heatmap={heatmap} />
 				</div>
 			)}
 

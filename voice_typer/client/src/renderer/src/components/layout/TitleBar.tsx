@@ -4,6 +4,7 @@ import { memo, useEffect, useState } from "react";
 import { HotkeyTooltip } from "@/components/hotkey/HotkeyTooltip";
 import { IS_LINUX, IS_MAC, IS_WIN } from "@/components/hotkey/hotkey-utils";
 import { SHORTCUTS } from "@/components/hotkey/shortcuts";
+import { AnalyticsRangeSwitcher } from "@/components/layout/AnalyticsRangeSwitcher";
 import { GlobalSearchBar } from "@/components/layout/GlobalSearchBar";
 import { ModelsTabSwitcher } from "@/components/layout/ModelsTabSwitcher";
 import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
@@ -607,14 +608,20 @@ function TitleBarInner({
 				</HotkeyTooltip>
 			</div>
 
-			{/* Global search bar, centered in the middle of the title bar.
-                            Only rendered on searchable pages (history, templates,
-                            vocabulary, settings*). Models swaps in the Local/Cloud
-                            segmented control (same middle strip). On other pages
-                            the flex-1 spacer keeps the toolbar left + controls right. */}
+			{/* Per-page controls, centered in the middle of the title bar.
+                            Global search renders on the searchable pages (history,
+                            templates, vocabulary, settings*); Models swaps in the
+                            Local/Cloud segmented control; Analytics swaps in the
+                            time-range control (both same middle strip, so the
+                            control stays put while the page scrolls). On other
+                            pages the flex-1 spacer keeps the toolbar left +
+                            controls right. */}
 			<div className="flex min-w-0 flex-1 items-center justify-center p-1 h-full">
 				{currentPage ? <GlobalSearchBar currentPage={currentPage} /> : null}
 				{currentPage ? <ModelsTabSwitcher currentPage={currentPage} /> : null}
+				{currentPage ? (
+					<AnalyticsRangeSwitcher currentPage={currentPage} />
+				) : null}
 			</div>
 
 			{/* Theme control, icon-only, in its OWN p-1 (4px) padded

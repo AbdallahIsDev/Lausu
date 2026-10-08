@@ -29,7 +29,7 @@ export function MicrophoneSkeleton() {
 				<div className="flex flex-col gap-3 rounded-lg border border-border/8 bg-surface-subtle p-4">
 					<div className="flex min-w-0 items-center gap-3">
 						<Skeleton className="h-4 w-4 shrink-0" />
-						<div className="flex min-w-0 flex-col gap-1">
+						<div className="flex min-w-0 flex-col">
 							<Skeleton className="h-5 w-36" />
 							<Skeleton className="h-4 w-48" />
 						</div>

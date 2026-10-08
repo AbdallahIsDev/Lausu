@@ -19,6 +19,8 @@ export interface HeatmapTooltipProps {
 	formatWeekday?: (date: Date) => string;
 	/** Custom class name */
 	className?: string;
+	/** Custom class name for the tooltip panel itself (see `TooltipBox`). */
+	panelClassName?: string;
 	/** Inline styles for the tooltip panel (background, blur, etc.). */
 	panelStyle?: React.CSSProperties;
 	/**
@@ -47,6 +49,7 @@ export const HeatmapTooltip = memo(function HeatmapTooltip({
 	formatDate = formatHeatmapTooltipDate,
 	formatWeekday = formatHeatmapTooltipWeekday,
 	className = "",
+	panelClassName,
 	panelStyle,
 	backgroundColor,
 	showDelay = 0,
@@ -72,6 +75,7 @@ export const HeatmapTooltip = memo(function HeatmapTooltip({
 			containerRef={containerRef}
 			containerWidth={width}
 			entrance={!instant}
+			panelClassName={panelClassName}
 			panelStyle={panelStyle}
 			visible
 			x={displayData.x}

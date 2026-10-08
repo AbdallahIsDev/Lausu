@@ -60,14 +60,19 @@ export const HeatmapLegendSwatch = memo(function HeatmapLegendSwatch({
 	}
 
 	return (
+		// No outline on the empty swatch. The vendored default drew a 1px
+		// border in the swatch's own colour for level 0, to give a
+		// transparent or near-white fill an edge. This app's level 0 is
+		// `--chart-scale-01`, a 10%-alpha hairline that is already visible,
+		// and a same-coloured border laid over it composites twice —
+		// producing a darker ring around the "Less" swatch that reads as a
+		// second, heavier colour in the scale.
 		<span
 			aria-hidden="true"
 			className="block shrink-0"
 			style={{
 				...shellStyle,
 				backgroundColor: style.color,
-				border: level === 0 ? `1px solid ${style.color}` : undefined,
-				boxSizing: "border-box",
 			}}
 		/>
 	);

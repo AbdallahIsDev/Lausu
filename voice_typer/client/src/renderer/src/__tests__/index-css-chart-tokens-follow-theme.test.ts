@@ -73,10 +73,25 @@ describe("index.css Bklit chart tokens follow the theme", () => {
 		}
 	});
 
-	it("the contribution ramp runs canvas → full accent", () => {
+	it("step 01 is the neutral empty cell, not a weak accent tint", () => {
+		// Level 0 means "no dictations". A day with nothing to show is
+		// not a small amount of data, so it must not be drawn in the
+		// data's own colour — it wears the same hairline the app draws
+		// every border with (--border at 10%), which also flips from
+		// black to white with the scheme.
+		const value = tokenIn(rootBlock(), "chart-scale-01");
+		expect(value).toContain("color-mix(");
+		expect(value).toContain("var(--border)");
+		expect(value).toContain("10%");
+		expect(value).toContain("transparent");
+		expect(value).not.toContain("var(--accent)");
+		expect(LITERAL_OKLCH.test(value)).toBe(false);
+	});
+
+	it("the data ramp runs canvas → full accent", () => {
 		const root = rootBlock();
 		expect(tokenIn(root, "chart-scale-05")).toBe("var(--accent)");
-		for (const step of ["01", "02", "03", "04"] as const) {
+		for (const step of ["02", "03", "04"] as const) {
 			const value = tokenIn(root, `chart-scale-${step}`);
 			expect(value).toContain("color-mix(");
 			expect(value).toContain("var(--accent)");
@@ -87,9 +102,10 @@ describe("index.css Bklit chart tokens follow the theme", () => {
 
 	it("the ramp's accent share increases step by step", () => {
 		// A ramp that is not monotonic renders as noise rather than as
-		// "more dictation = darker".
+		// "more dictation = darker". Level 0 sits OUTSIDE the ramp (it
+		// is the neutral empty cell), so the run starts at step 02.
 		const root = rootBlock();
-		const shares = (["01", "02", "03", "04"] as const).map((step) => {
+		const shares = (["02", "03", "04"] as const).map((step) => {
 			const value = tokenIn(root, `chart-scale-${step}`);
 			const pct = /var\(--accent\)\s+([\d.]+)%/.exec(value)?.[1];
 			if (pct === undefined) {
@@ -108,10 +124,12 @@ describe("index.css Bklit chart tokens follow the theme", () => {
 	it("mixes in sRGB — oklch sweeps the ramp's low steps through pink", () => {
 		// `color-mix(in oklch, #1447e6 12%, #ffffff)` resolves to
 		// #fbe3ee — PINK — because an achromatic colour's hue reads as 0
-		// and oklch interpolates hue. Every chart mix here tints a
-		// chromatic token toward an achromatic one, so all of them must
-		// stay in sRGB (which resolves that same mix to #e3e9fc).
-		// Measured in Chrome; see the note in index.css.
+		// and oklch interpolates hue. Every chart mix here that tints a
+		// chromatic token toward an achromatic one must therefore stay
+		// in sRGB (which resolves that same mix to #e3e9fc). Measured in
+		// Chrome; see the note in index.css. Step 01 mixes two
+		// achromatic colours, where the space is moot — it stays sRGB so
+		// the whole scale is written one way.
 		const root = rootBlock();
 		for (const name of [
 			"chart-grid",

@@ -77,8 +77,8 @@ describe("BG-3: Dashboard activity chart container role=img + non-interactive ba
 		const buttonWithAccentClass = /<button[^>]*bg-accent/.test(SEVEN_DAY_SRC);
 		expect(buttonWithAccentClass).toBe(false);
 
-		// And the bars carry the accent fill (high-contrast /90).
-		expect(SEVEN_DAY_SRC).toContain("bg-accent/90");
+		// And the bars carry the accent fill at full strength.
+		expect(SEVEN_DAY_SRC).toContain('"bg-accent"');
 	});
 
 	it("bars carry no tabIndex and no per-bar aria-label (single-announcement chart)", () => {
@@ -95,11 +95,14 @@ describe("BG-3: Dashboard activity chart container role=img + non-interactive ba
 		expect(barBlock).not.toMatch(/aria-label=/);
 	});
 
-	it("bar fill is bg-accent/90 (WCAG 1.4.11 contrast, was /60)", () => {
-		// The chart bar fill is the only bg-accent/ element; bumped to
-		// /90 for WCAG 1.4.11 contrast against the card background.
-		expect(SEVEN_DAY_SRC).toMatch(/bg-accent\/90/);
-		expect(SEVEN_DAY_SRC).not.toMatch(/bg-accent\/60/);
+	it("bar fill is a flat, fully opaque bg-accent (no alpha step, no hover)", () => {
+		// The bar is a read-out, not a control: it renders at full
+		// strength and looks identical whether or not the pointer is
+		// over it. (It was bg-accent/90 + hover:bg-accent — every bar
+		// sat dimmed until hovered.)
+		expect(SEVEN_DAY_SRC).toContain('"bg-accent"');
+		expect(SEVEN_DAY_SRC).not.toMatch(/bg-accent\//);
+		expect(SEVEN_DAY_SRC).not.toMatch(/hover:bg-accent/);
 	});
 });
 
@@ -326,10 +329,10 @@ describe("SevenDayActivityChart migrates binary plural to tChoice", () => {
 
 describe("Corrections-applied card (server-side usage tracking)", () => {
 	it("Dashboard.tsx renders the Corrections card in the derived-metrics row", () => {
-		// The Corrections card moved out of the top stat row (which now
-		// divides evenly into 4 cards) into the derived-metrics row
-		// below the chart. It reads the range-aware correction totals
-		// from the hook and localises through the analytics.* keys.
+		// The Corrections card lives in the derived-metrics row below
+		// the chart, NOT in the top stat card. It reads the range-aware
+		// correction totals from the hook and localises through the
+		// analytics.* keys.
 		expect(DASHBOARD_SRC).toMatch(/correctionStats/);
 		expect(DASHBOARD_SRC).toMatch(/t\("analytics\.corrections"\)/);
 		// The rate survives as the card sublabel; the tooltip + trend
@@ -339,8 +342,8 @@ describe("Corrections-applied card (server-side usage tracking)", () => {
 		expect(DASHBOARD_SRC).toMatch(/correctionStats\.corrections/);
 		expect(DASHBOARD_SRC).toMatch(/correctionStats\.rate/);
 		expect(DASHBOARD_SRC).not.toMatch(/correctionStats\.prevCorrections/);
-		// The top row is a 4-card grid (even division).
-		expect(DASHBOARD_SRC).toMatch(/md:grid-cols-4/);
+		// The top row is ONE merged card with three cells.
+		expect(DASHBOARD_SRC).toMatch(/md:grid-cols-3/);
 	});
 
 	it("useDashboardData.ts fetches get_correction_usage in the Promise.all", () => {
@@ -378,7 +381,7 @@ describe("Top stat cards: merged dictation card + range-aware values", () => {
 		// count) vs Card 3 "Total Dictations" (range-blind true
 		// count), is merged into ONE card whose VALUE respects the
 		// selected range. The LABEL is range-free: the
-		// TimeRangeSelector + the chart subtitle already state the
+		// range control + the chart subtitle already state the
 		// active window, and the suffixed label was the only one in
 		// the row that truncated ("Total Dictations (7 D…").
 		expect(DASHBOARD_SRC).toMatch(/analytics\.totalDictations/);
@@ -431,9 +434,34 @@ describe("Top stat cards: merged dictation card + range-aware values", () => {
 		);
 	});
 
-	it("the top row is a 4-card grid (even division)", () => {
-		// Total Dictations / Recording Time / Active Days / Characters.
-		expect(DASHBOARD_SRC).toMatch(/md:grid-cols-4/);
+	it("the top row is ONE merged 3-cell card, cells divided not spaced", () => {
+		// Total Dictations / Recording Time / Characters, in a single
+		// bordered surface. The cells carry no gap (the container owns
+		// the radius/border/background and the dividers do the
+		// separating), which is the merged-card UX contract.
+		expect(DASHBOARD_SRC).toMatch(/md:grid-cols-3/);
+		expect(DASHBOARD_SRC).toMatch(/grid-cols-1 divide-y divide-border\/8/);
+		expect(DASHBOARD_SRC).toMatch(/md:divide-x md:divide-y-0/);
+		expect(DASHBOARD_SRC).toMatch(
+			/overflow-hidden rounded-lg border border-border\/8 bg-surface-subtle/,
+		);
+		// Every cell hands its chrome to that container.
+		expect(DASHBOARD_SRC.match(/\binGroup\b/g)?.length).toBe(3);
+		// No gapped grid survives in the top row.
+		expect(DASHBOARD_SRC).not.toMatch(/grid-cols-2 gap-3 md:grid-cols-4/);
+	});
+
+	it("drops the Active Days card and hands its figures to the heatmap", () => {
+		// The Active Days card measured the heatmap's whole-year window,
+		// not the selected range, so it is gone from the stat row and its
+		// numbers are rendered by the heatmap header instead.
+		expect(DASHBOARD_SRC).not.toMatch(/Calendar01Icon/);
+		expect(DASHBOARD_SRC).not.toMatch(/analytics\.activeDays/);
+		expect(DASHBOARD_SRC).toMatch(
+			/<ActivityHeatmap heatmap=\{heatmap\} currentStreak=\{d\.currentStreak\} \/>/,
+		);
+		// The streak line survives — as the heatmap's, not a card's.
+		expect(DASHBOARD_SRC).not.toMatch(/analytics\.noStreak/);
 	});
 
 	it("Longest Session uses a stopwatch icon, distinct from Recording Time's clock", () => {
@@ -446,7 +474,7 @@ describe("Top stat cards: merged dictation card + range-aware values", () => {
 	});
 });
 
-describe("Analytics polish: stat-card spacing, sublabel pruning, Activity icon weight", () => {
+describe("Analytics polish: stat-card spacing, sublabel pruning, header chrome", () => {
 	it("Recording Time card no longer renders the 'avg per dictation' sublabel", () => {
 		// POLISH: the "avg 1m each" line added no useful information
 		expect(DASHBOARD_SRC).not.toMatch(/analytics\.avgPerDictation/);
@@ -457,19 +485,36 @@ describe("Analytics polish: stat-card spacing, sublabel pruning, Activity icon w
 		);
 	});
 
-	it("Active Days card drops 'No streak yet' but keeps the streak line", () => {
-		// POLISH: the empty-streak sublabel is gone; a real streak
-		// still renders its "{count}-day streak" line.
-		expect(DASHBOARD_SRC).not.toMatch(/analytics\.noStreak/);
-		expect(DASHBOARD_SRC).toMatch(/analytics\.dayStreak/);
-		expect(DASHBOARD_SRC).toMatch(
-			/d\.currentStreak\s*>\s*0\s*\?\s*t\("analytics\.dayStreak"/,
+	it("the streak line lives on the heatmap, still hidden when there is none", () => {
+		// POLISH: the empty-streak sublabel never existed; a real streak
+		// renders its "{count}-day streak" line. Both figures moved to
+		// the heatmap header, so the guard lives there now.
+		const heatmapSrc = fs.readFileSync(
+			path.resolve(
+				__dirname,
+				"..",
+				"dashboard",
+				"components",
+				"ActivityHeatmap.tsx",
+			),
+			"utf8",
 		);
+		expect(heatmapSrc).toMatch(/analytics\.dayStreak/);
+		expect(heatmapSrc).toMatch(
+			/currentStreak\s*>\s*0\s*&&[\s\S]*?t\("analytics\.dayStreak"/,
+		);
+		// The figure is the heatmap's OWN window, never the range-aware
+		// period count: it has to come off the `heatmap` object the page
+		// hands the card, and the card must not reach for `period` at all.
+		expect(heatmapSrc).toMatch(/\{[^}]*\bactiveDays\b[^}]*\}\s*=\s*heatmap/);
+		expect(heatmapSrc).not.toMatch(/period\./);
+		expect(heatmapSrc).not.toMatch(/analytics\.noStreak/);
 	});
 
 	it("stat cards push the value down with an auto top margin (breathing room)", () => {
-		// POLISH: the value's `mt-auto` pins the icon+label row to the
-		// top of the stretched card and pushes the number to the bottom.
+		// POLISH: the value+trend row's `mt-auto` pins the icon+label row
+		// to the top of the stretched cell and pushes the number to the
+		// bottom.
 		const statCardSrc = fs.readFileSync(
 			path.resolve(
 				__dirname,
@@ -481,9 +526,10 @@ describe("Analytics polish: stat-card spacing, sublabel pruning, Activity icon w
 			),
 			"utf8",
 		);
-		expect(statCardSrc).toMatch(/mt-auto text-2xl font-semibold/);
-		// POLISH round 2: the card carries a minimum height so the
-		// auto-top-margin actually has room to spread (a card only as
+		expect(statCardSrc).toMatch(/mt-auto flex items-baseline justify-between/);
+		expect(statCardSrc).toMatch(/text-2xl font-semibold/);
+		// POLISH round 2: the cell carries a minimum height so the
+		// auto-top-margin actually has room to spread (a cell only as
 		// tall as its content leaves no breathing space).
 		expect(statCardSrc).toMatch(/min-h-24/);
 		// QuickInfoCard (the derived-metrics row) uses the same
@@ -503,8 +549,98 @@ describe("Analytics polish: stat-card spacing, sublabel pruning, Activity icon w
 		expect(quickInfoSrc).toMatch(/mt-auto truncate font-semibold/);
 	});
 
-	it("Activity icon stroke is reduced to match the stat-card icons' weight", () => {
-		// (stat-card icons render ~1.5px); strokeWidth 1 matches them.
-		expect(SEVEN_DAY_SRC).toMatch(/strokeWidth=\{1\}/);
+	it("neither analytics card draws a header icon any more", () => {
+		// Both card headers are title + range line only. The Activity
+		// card's glyph and the heatmap's grid glyph were decoration
+		// beside an already-explicit heading, so no icon is imported
+		// (or rendered) by either card.
+		const heatmapSrc = fs.readFileSync(
+			path.resolve(
+				__dirname,
+				"..",
+				"dashboard",
+				"components",
+				"ActivityHeatmap.tsx",
+			),
+			"utf8",
+		);
+		for (const src of [SEVEN_DAY_SRC, heatmapSrc]) {
+			expect(src).not.toMatch(/HugeiconsIcon/);
+			expect(src).not.toMatch(/@hugeicons\/core-free-icons/);
+		}
+	});
+});
+
+describe("Range + refresh controls live outside the scrolling body", () => {
+	it("the page renders no range control of its own", () => {
+		// The range selector moved into the app title bar, so the page
+		// must not keep a second copy (two controls on one store would
+		// look like duplicated chrome and scroll out of reach), and it
+		// must not keep its own setter for the value either.
+		expect(DASHBOARD_SRC).not.toMatch(/TimeRangeSelector/);
+		expect(DASHBOARD_SRC).not.toMatch(/setRange/);
+	});
+
+	it("the title bar mounts the range control for the analytics page", () => {
+		const titleBarSrc = fs.readFileSync(
+			path.resolve(
+				__dirname,
+				"..",
+				"..",
+				"components",
+				"layout",
+				"TitleBar.tsx",
+			),
+			"utf8",
+		);
+		expect(titleBarSrc).toMatch(
+			/<AnalyticsRangeSwitcher currentPage=\{currentPage\} \/>/,
+		);
+	});
+
+	it("the hook reads the range from the shared store, not local state", () => {
+		// The control lives in a sibling tree, so the value has to come
+		// from somewhere both trees can see. A `useState` here would
+		// silently freeze the page at the store's first value.
+		expect(HOOK_SRC).toMatch(/useAnalyticsRange/);
+		expect(HOOK_SRC).not.toMatch(/useState<RangeId>/);
+		expect(HOOK_SRC).not.toMatch(/setRange/);
+	});
+
+	it("the refresh indicator sits in the PageHeading action row beside Share", () => {
+		// Both are page-level actions, so they share the heading's
+		// right-hand row instead of a row of their own. Their ORDER in that
+		// row is not the contract — only that the heading owns both — so
+		// this asserts membership inside the PageHeading element rather
+		// than a fixed sequence.
+		const heading = DASHBOARD_SRC.match(
+			/<PageHeading[\s\S]*?<\/PageHeading>/,
+		)?.[0];
+
+		expect(heading).toBeTruthy();
+		expect(heading).toContain("<ShareStatsDialog");
+		expect(heading).toContain("<LastUpdatedIndicator");
+		// …and the old standalone row is gone.
+		expect(DASHBOARD_SRC).not.toMatch(
+			/flex flex-wrap items-center justify-between gap-3 pb-2/,
+		);
+	});
+
+	it("the skeleton mirrors the heading actions and reserves no range row", () => {
+		const skeletonSrc = fs.readFileSync(
+			path.resolve(
+				__dirname,
+				"..",
+				"dashboard",
+				"components",
+				"DashboardSkeleton.tsx",
+			),
+			"utf8",
+		);
+		expect(skeletonSrc).toMatch(/<HeadingSkeleton[\s\S]*?action=\{/);
+		// The pill row is what the old range skeleton looked like; the
+		// control is in the title bar now, so nothing pill-shaped is
+		// left to reserve space for.
+		expect(skeletonSrc).not.toMatch(/rounded-full/);
 	});
 });

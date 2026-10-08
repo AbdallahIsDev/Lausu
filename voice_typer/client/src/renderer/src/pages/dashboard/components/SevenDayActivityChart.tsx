@@ -1,19 +1,17 @@
-// Range-aware activity chart for the Dashboard.
-// with tick labels + horizontal gridlines, bars scaled to the max value
-// in the range, the count above each bar, a hover tooltip per bar
-// (tChoice, locale-aware plurals), and a clear visual distinction
-// between:
-//   - a zero-activity slot (solid muted baseline tick), and
-//   - a NO-DATA slot (dashed tick), a future hour on the "Today" view,
-//     or a day OLDER than the oldest record in the history sample
-//     (the sample simply doesn't reach back that far).
+// Range-aware activity chart for the Dashboard: one column per slot
+// (a day, or an hour on the "Today" view) with tick labels + horizontal
+// gridlines, bars scaled to the max value in the range, the count above
+// each bar, and a hover tooltip per bar (tChoice, locale-aware plurals).
+// Zero-vs-no-data: a slot with no dictations draws NOTHING, so a quiet
+// day reads as an empty column instead of as a tiny bar; a NO-DATA slot
+// — a future hour on the "Today" view, or a day OLDER than the oldest
+// record in the history sample — keeps a dashed tick, because "outside
+// the sample" is a different claim from "nothing happened".
 // Accessibility (preserved contract): the whole chart is exposed to AT
 // as a single role="img" with a descriptive aria-label (no dead-end tab
 // stops); each bar is a non-interactive <div> with a title tooltip for
 // sighted mouse users.
 
-import { Activity03Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { t, tChoice } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 
@@ -44,7 +42,7 @@ export function ActivityChart({ range, activity }: ActivityChartProps) {
 	const yTicks = maxCount > 1 ? [maxCount, midCount, 0] : [1, 0];
 	const every = tickEvery(activity);
 
-	// Range label for the subtitle + aria-label.
+	// Range label for the header's trailing line + aria-label.
 	const rangeLabel = t(`analytics.range.${range}`);
 	const unitLabel =
 		kind === "hourly" ? t("analytics.byHour") : t("analytics.byDay");
@@ -53,30 +51,18 @@ export function ActivityChart({ range, activity }: ActivityChartProps) {
 
 	return (
 		<div className="flex flex-col gap-4 rounded-lg border border-border/8 bg-surface-subtle p-4">
-			<div className="flex items-center gap-2.5">
-				{/* Icon grouped directly left of the title (was stranded
-				in the top-right corner). */}
-				<HugeiconsIcon
-					icon={Activity03Icon}
-					// Stroke tuned for the larger render size: at h-9 w-9
-					// (36px) the stat-card 1.75 would paint ~2.6px lines,
-					// heavier than every other icon on the page. strokeWidth
-					// 1 renders ~1.5px on screen, the same visual weight as
-					// the h-5 w-5 stat-card icons (1.75 × 20/24 ≈ 1.46px).
-					strokeWidth={1}
-					// Sized to roughly match the stacked title+subtitle block
-					// beside it (was h-4 w-4, disproportionately tiny next
-					// to a two-line text block).
-					className="h-8 w-8 shrink-0 text-muted-foreground"
-				/>
-				<div className="flex flex-col gap-0.5">
-					<h2 className="font-sans text-sm font-semibold text-foreground">
-						{t("analytics.activityTitle")}
-					</h2>
-					<p className="text-xs text-muted-foreground">
-						{rangeLabel} · {unitLabel}
-					</p>
-				</div>
+			{/* Title and range/unit on ONE baseline, title leading and the
+			    window trailing — the same header shape as the heatmap
+			    card below, so the two cards' headers read as a pair.
+			    Stacking them cost a row of height that said nothing the
+			    title did not already imply. */}
+			<div className="flex items-baseline justify-between gap-3">
+				<h2 className="min-w-0 truncate font-sans text-sm font-semibold text-foreground">
+					{t("analytics.activityTitle")}
+				</h2>
+				<p className="shrink-0 text-xs leading-tight text-muted-foreground">
+					{rangeLabel} · {unitLabel}
+				</p>
 			</div>
 
 			<div
@@ -129,19 +115,27 @@ export function ActivityChart({ range, activity }: ActivityChartProps) {
 										<span className="text-[10px] leading-none tabular-nums text-muted-foreground">
 											{bar.count > 0 ? bar.count : ""}
 										</span>
-										<div
-											title={tooltip}
-											className={cn(
-												"w-full max-w-8 rounded-t-lg transition-all duration-300",
-												bar.count > 0 && "bg-accent/90 hover:bg-accent",
-												bar.count === 0 &&
-													!bar.isMissing &&
-													"h-1 rounded-lg bg-border/50",
-												bar.isMissing &&
-													"h-1 border-t border-dashed border-border/8 bg-transparent",
-											)}
-											style={{ height: bar.count > 0 ? `${pct}%` : undefined }}
-										/>
+										{/* A quiet day draws NO mark at all: the plot
+										    then contains only real activity plus the
+										    dashed "no data" ticks, so an empty column
+										    reads as absence rather than as a bar of
+										    height zero. The fill is a flat `bg-accent`
+										    with no alpha step and no hover — the bar
+										    is a read-out, not a control. */}
+										{(bar.count > 0 || bar.isMissing) && (
+											<div
+												title={tooltip}
+												className={cn(
+													"w-full max-w-8 rounded-t-lg transition-all duration-300",
+													bar.count > 0 && "bg-accent",
+													bar.isMissing &&
+														"h-1 border-t border-dashed border-border/8 bg-transparent",
+												)}
+												style={{
+													height: bar.count > 0 ? `${pct}%` : undefined,
+												}}
+											/>
+										)}
 									</div>
 								);
 							})}

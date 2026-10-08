@@ -149,8 +149,14 @@ describe("DashboardSkeleton", () => {
 		const region = document.querySelector("section[aria-busy=true]");
 		expect(region).not.toBeNull();
 		expect(screen.queryByRole("status")).toBeNull();
-		// 4 stat cards + 7 chart bars + 7 x-labels + 3 derived-metric cards.
-		expect(region?.querySelectorAll(".grid-cols-2 > .min-h-24").length).toBe(4);
+		// 3 stat cells (one merged, divided card) + 7 chart bars + 7
+		// x-labels + 3 derived-metric cards.
+		expect(region?.querySelectorAll(".divide-y > .min-h-24").length).toBe(3);
+		// The heading's action row: share + refresh, both `size="icon"`.
+		expect(region?.querySelectorAll(".h-9.w-9").length).toBe(2);
+		// The range control lives in the app title bar, so the page
+		// skeleton must NOT reserve a row of pills for it.
+		expect(region?.querySelectorAll(".h-7.w-16.rounded-full").length).toBe(0);
 		expect(region?.querySelectorAll(".h-36.w-7").length).toBe(1);
 		expect(region?.querySelectorAll(".rounded-t-\\[4px\\]").length).toBe(7);
 		expect(region?.querySelectorAll(".sm\\:grid-cols-3 > .flex").length).toBe(
