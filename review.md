@@ -4,8 +4,8 @@ These items are the highest-priority remaining work for the project. They block 
 
 > **Won't Fix tasks live in `WONT_FIX.md`**: deliberately not solved. Do NOT fix them (AGENTS.md C-REVIEW-1). See that file for the full list.
 
-### AUD-14 — Production files over the 500-line C-STRUCT-3 threshold (13 left, Waves 1–6 shipped)
-**Status:** SPLIT INTO 5 TASKS (2026-10-03) — AUD-14a…e below. **WAVES 1–6 SHIPPED (reviewer-verified green, commits `05eef343`, `b02b40fd`, `65d1d226`, `f52bc848`, `000403b5` (Waves 1–6): AUD-14c and AUD-14d complete; AUD-14e all but 6 files done. Per-wave evidence (counts, gates) in git history.** Remaining scope is the task list below (all DISJOINT file sets, E16).
+### AUD-14 — Production files over the 500-line C-STRUCT-3 threshold (10 left, Waves 1–7 shipped)
+**Status:** SPLIT INTO 5 TASKS (2026-10-03) — AUD-14a…e below. **WAVES 1–7 SHIPPED (reviewer-verified green, commits `05eef343`, `b02b40fd`, `65d1d226`, `f52bc848`, `2073ba4c`, `75d564a0` (Waves 1–7 splits) plus the Wave 7 follow-ups commit on top: AUD-14b, AUD-14c and AUD-14d complete; AUD-14e all but 6 files done. Per-wave evidence (counts, gates) in git history.** Remaining scope is the task list below (all DISJOINT file sets, E16).
 **User Impact:** None directly. The cost is change risk: each edit touches a file with several unrelated reasons to change, so unrelated behavior is coupled to unrelated edits.
 **Root Cause:** Verified by line count — organic growth without the create-first split (E1) that C-STRUCT-3 requires.
 **Gain vs Trade-off:** Large, mechanical, regression-prone work. Best done incrementally, never as a batch. Split by subsystem so no two tasks touch the same file.
@@ -16,7 +16,6 @@ These items are the highest-priority remaining work for the project. They block 
 | Task | Scope | Files left |
 |---|---|---|
 | **AUD-14a** | Four largest god files (P2) | 4 |
-| **AUD-14b** | `server/recording/` package | 3 |
 | **AUD-14e** | Tail: `startup_tasks.py`, `qwen_engine.py`, `worker_client.py`, `cloud/_engine.py`, `log/setup.py`, `ipc/validation.py` | 6 |
 
 ---
@@ -42,9 +41,9 @@ These items are the highest-priority remaining work for the project. They block 
 
 ---
 
-### AUD-14b — Recording subsystem: `server/recording/` (3 files, 1,901 lines)
-**Status:** NOT DONE (2026-10-03, split from AUD-14)
-**Description:** 3 files over the threshold: `device_manager.py` (746), `capture.py` (623), `recording_lifecycle.py` (532). Note `recording_lifecycle.py` ALSO appears in AUD-14a — **this task owns only the `server/recording/` package copy; AUD-14a owns the `server/` root copy (874 lines).** Do not run both against the same file.
+### AUD-14b — Recording subsystem `server/recording/` (DONE: `device_manager.py` 808→210, `capture.py` 700→467, `recording_lifecycle.py` 617→370; new `device_health.py`, `device_resolution.py`, `recording_start.py`, `capture_audio_worker.py`; except-counts and function parity exact; reviewer-verified green)
+**Status:** DONE. Shipped this wave; only the task definition below is kept for the record.
+**Description:** 3 files over the threshold (device enumeration, capture, lifecycle). **This task owned only the `server/recording/` package copy; AUD-14a owns the `server/` root copy.** Split create-first with facade re-exports; `tests/test_module_split_reexports_wave7.py` pins the contracts; device-mixin registry entries added.
 **Why separate:** Device enumeration, capture, and lifecycle each change for different reasons, so a mic-driver fix currently risks the capture path.
 **Fix:** Create-first split per C-STRUCT-4: when touching any of these, split first, then land the fix on the clean structure.
 **Related Files:** `server/recording/{device_manager,capture,recording_lifecycle}.py`, `tests/recording/`
