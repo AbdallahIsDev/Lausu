@@ -561,6 +561,88 @@ class TestInitiatorAwareDrain:
             release.set()
             pool.shutdown(wait=True)
 
+    def test_drain_fast_when_only_initiator_remains(self, caplog):
+        """Initiator on a worker + idle others: no 4.5s self-join burn."""
+        import logging
+        import time
+        from concurrent.futures import ThreadPoolExecutor
+        from types import SimpleNamespace
+
+        from voice_typer.server.shutdown.ws_drain import drain_ws_dispatch_pool
+
+        pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="sidecar-ws-dispatch")
+        releases = [threading.Event() for _ in range(4)]
+        owners: dict[int, object] = {}
+
+        def _occupant(idx: int) -> None:
+            owners[idx] = threading.current_thread()
+            releases[idx].wait(timeout=30.0)
+
+        from tests.fixtures.wait_helpers import wait_until
+
+        for idx in range(4):
+            pool.submit(_occupant, idx)
+        try:
+            assert wait_until(lambda: len(owners) == 4, timeout=2.0), "workers never started"
+            initiator = owners[0]
+            for idx in (1, 2, 3):
+                releases[idx].set()
+            controller = SimpleNamespace(_quit_initiator=initiator)
+            ipc = self._ipc_with_pool(pool)
+            start = time.monotonic()
+            with caplog.at_level(logging.DEBUG, logger="voice_typer.server.shutdown_controller"):
+                drain_ws_dispatch_pool(controller, SimpleNamespace(_ipc_server=ipc))
+            elapsed = time.monotonic() - start
+            assert elapsed < 2.0, f"drain took {elapsed:.2f}s with only the initiator left"
+            assert not any("did not drain" in r.message for r in caplog.records)
+        finally:
+            for event in releases:
+                event.set()
+            pool.shutdown(wait=True)
+
+    def test_drain_still_waits_for_busy_non_initiator(self, caplog):
+        """Initiator + one genuinely busy worker: bounded wait, then clean."""
+        import logging
+        import time
+        from concurrent.futures import ThreadPoolExecutor
+        from types import SimpleNamespace
+
+        from voice_typer.server.shutdown.ws_drain import drain_ws_dispatch_pool
+
+        pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="sidecar-ws-dispatch")
+        initiator_release = threading.Event()
+        busy_release = threading.Event()
+        owners: dict[str, object] = {}
+
+        def _initiator_task() -> None:
+            owners["initiator"] = threading.current_thread()
+            initiator_release.wait(timeout=30.0)
+
+        def _busy_task() -> None:
+            owners["busy"] = threading.current_thread()
+            busy_release.wait(timeout=30.0)
+
+        from tests.fixtures.wait_helpers import wait_until
+
+        pool.submit(_initiator_task)
+        pool.submit(_busy_task)
+        try:
+            assert wait_until(lambda: len(owners) == 2, timeout=2.0), "workers never started"
+            threading.Thread(target=lambda: (time.sleep(1.0), busy_release.set()), daemon=True).start()
+            controller = SimpleNamespace(_quit_initiator=owners["initiator"])
+            ipc = self._ipc_with_pool(pool)
+            start = time.monotonic()
+            with caplog.at_level(logging.DEBUG, logger="voice_typer.server.shutdown_controller"):
+                drain_ws_dispatch_pool(controller, SimpleNamespace(_ipc_server=ipc))
+            elapsed = time.monotonic() - start
+            assert elapsed >= 0.8, f"drain returned in {elapsed:.2f}s without waiting for the busy worker"
+            assert elapsed < 4.0, f"drain took {elapsed:.2f}s, should stop once the busy worker exits"
+            assert not any("did not drain" in r.message for r in caplog.records)
+        finally:
+            initiator_release.set()
+            busy_release.set()
+            pool.shutdown(wait=True)
+
     def test_initiator_helpers_tolerate_missing_state(self):
         from types import SimpleNamespace
 
