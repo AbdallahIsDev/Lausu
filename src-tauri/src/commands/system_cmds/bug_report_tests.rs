@@ -12,9 +12,12 @@
 //! file, no inline test code in the production source).
 //!
 //! Only the pure half is covered here: decoding/validating attachment
-//! data URLs, filename sanitization, percent-encoding and body
-//! composition. The command wrapper itself needs a Tauri runtime, so it
-//! is exercised by the registration/parity guard instead.
+//! data URLs, filename sanitization and percent-encoding. The command
+//! wrapper itself needs a Tauri runtime, so it is exercised by the
+//! registration/parity guard instead. Body composition is NOT covered
+//! because it does not live here: the renderer owns it
+//! (`components/settings/BugReportModal.tsx`), which is also the copy
+//! the clipboard fallback needs.
 
 use super::*;
 use base64::Engine as _;
@@ -152,28 +155,11 @@ fn mailto_url_carries_encoded_subject_and_body() {
     assert!(!url.contains(' '), "no raw whitespace may survive: {url}");
 }
 
-// ── clamp_chars / build_report_body ──────────────────────────────────
+// ── clamp_chars ──────────────────────────────────────────────────────
 
 #[test]
 fn clamp_chars_counts_characters_not_bytes() {
     let clamped = clamp_chars("ééééé", 3);
     assert_eq!(clamped, "ééé");
     assert_eq!(clamped.len(), 6, "3 chars is 6 bytes of UTF-8");
-}
-
-#[test]
-fn report_body_keeps_description_then_context_block() {
-    let body = build_report_body(
-        "  It crashed.  ",
-        &["App: 1.2.3".to_string(), "OS: Windows 11".to_string()],
-    );
-    assert_eq!(
-        body, "It crashed.\n\n---\nApp: 1.2.3\nOS: Windows 11\n",
-        "description must be trimmed and separated from the context block"
-    );
-}
-
-#[test]
-fn report_body_tolerates_an_empty_context_block() {
-    assert_eq!(build_report_body("Only text", &[]), "Only text\n\n---\n");
 }

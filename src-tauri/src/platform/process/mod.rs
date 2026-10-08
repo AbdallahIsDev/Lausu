@@ -120,6 +120,13 @@ pub(crate) fn kill_process_tree(pid: u32) {
         use std::os::windows::process::CommandExt;
         use std::process::Command;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        // `taskkill` exits 128 when no process matches the pid, i.e. the
+        // target already exited. Measured on Windows:
+        // `taskkill /F /T /PID 999999` -> 128. "Nothing left running" is
+        // exactly what a kill-tree wants, so this code is not a failure
+        // and must not be logged as one — it fires on the ordinary
+        // shutdown race where the child died first.
+        const TASKKILL_NO_SUCH_PID: i32 = 128;
         let tool = "taskkill";
         match Command::new(tool)
             .args(["/F", "/T", "/PID", &pid.to_string()])
@@ -130,6 +137,12 @@ pub(crate) fn kill_process_tree(pid: u32) {
         {
             Ok(s) if s.success() => {
                 log::info!("[KILL-TREE] taskkill succeeded for pid={}", pid);
+            }
+            Ok(s) if s.code() == Some(TASKKILL_NO_SUCH_PID) => {
+                log::info!(
+                    "[KILL-TREE] taskkill found no process for pid={} (already exited)",
+                    pid
+                );
             }
             Ok(s) => {
                 log::warn!(

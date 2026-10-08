@@ -95,11 +95,11 @@ presets.
 | `--chart-3` | `bg-chart-3` | `#155dfc` | `#155dfc` | |
 | `--chart-4` | `bg-chart-4` | `#1447e6` | `#1447e6` | accent-500 |
 | `--chart-5` | `bg-chart-5` | `#193cb8` | `#193cb8` | accent-600 |
-| `--chart-scale-01` | — | `#e3e9fc` | `#141827` | `color-mix(in srgb, var(--accent) 12%, var(--background))` |
-| `--chart-scale-02` | — | `#b4c4f7` | `#152048` | `… 32% …` |
-| `--chart-scale-03` | — | `#7e9af1` | `#17296e` | `… 55% …` |
-| `--chart-scale-04` | — | `#4870eb` | `#183394` | `… 78% …` |
-| `--chart-scale-05` | — | `#1447e6` | `#193cb8` | `var(--accent)` |
+| `--chart-scale-01` | — | `#e6e6e6` | `#2b2b2b` | `color-mix(in srgb, var(--border) 10%, transparent)` — the **empty** cell (level 0) |
+| `--chart-scale-02` | — | `#b4c4f7` | `#152048` | `… accent 32% …` (level 1) |
+| `--chart-scale-03` | — | `#7e9af1` | `#17296e` | `… 55% …` (level 2) |
+| `--chart-scale-04` | — | `#4870eb` | `#183394` | `… 78% …` (level 3) |
+| `--chart-scale-05` | — | `#1447e6` | `#193cb8` | `var(--accent)` (level 4) |
 | `--chart-label` | `text-chart-label` | `#5c5c67` | `#9f9fa9` | `var(--muted-foreground)` |
 | `--chart-grid` | — | `#e1e1e2` | `#2f2f2f` | `color-mix(in srgb, var(--foreground) 12%, var(--background))` |
 | `--chart-tooltip-background` | `bg-chart-tooltip-background` | `#ffffff` | `#1b1b1b` | `var(--surface)` |
@@ -108,15 +108,20 @@ presets.
 
 **`--chart-*` (Bklit) are derived, never literals** (added 2026-10-06 with the heatmap
 card). The registry ships literal greys; the 12 theme presets override `--accent` /
-`--foreground` / `--surface` / `--muted-foreground` inline on `<html>` and **never** a
-`--chart-*` token, so a literal would freeze the chart on the default palette on every
-preset — the same trap `--sidebar` documents. Derived, one definition in `:root` covers
-light, dark and all 12 presets (hexes above are the **default** palette; they retint per
-preset, e.g. Dracula's ramp is `#e8daeb → #8a3d9b`). Locked by
+`--foreground` / `--surface` / `--muted-foreground` / `--border` inline on `<html>` and
+**never** a `--chart-*` token, so a literal would freeze the chart on the default palette
+on every preset — the same trap `--sidebar` documents. Derived, one definition in `:root`
+covers light, dark and all 12 presets (hexes above are the **default** palette; they
+retint per preset, e.g. Dracula's data ramp is `#d3b7d9 → #8a3d9a`). Locked by
 `__tests__/index-css-chart-tokens-follow-theme.test.ts`.
 
-Mixes use **sRGB, not oklch**: each tints a chromatic token toward an achromatic one, and
-oklch interpolates hue — an achromatic colour's hue reads as 0, so
+Step 01 is **not** part of the data ramp. It is the level-0 slot — a day with zero
+dictations — so it is the neutral `--border` at 10% (black in light, white in dark),
+the same hairline every card border uses, rather than a weak tint of the colour that
+means "a lot of dictations". Only steps 02 → 05 carry the accent.
+
+Mixes use **sRGB, not oklch**: the ramp steps tint a chromatic token toward an
+achromatic one, and oklch interpolates hue — an achromatic colour's hue reads as 0, so
 `color-mix(in oklch, #1447e6 12%, #ffffff)` lands on **pink** `#fbe3ee` before sweeping
 back to blue. The sRGB mix resolves that same step to `#e3e9fc`. Verified in Chrome.
 
