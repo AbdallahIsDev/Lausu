@@ -61,10 +61,6 @@ class _EventSpy:
         self.events.append(event)
 
 
-def _raising_enhancer(text: str, config: object) -> str:
-    raise RuntimeError("rule boom")
-
-
 class _RaisingPolisher:
     def polish(self, text: str) -> str:
         raise ValueError("provider down")
@@ -76,56 +72,6 @@ def event_spy():
     event_bus.subscribe(spy)
     yield spy
     event_bus.unsubscribe(spy)
-
-
-class TestAiEnhancementFailurePath:
-    """Step 7b (rule-based): failure must degrade, never abort."""
-
-    def test_failure_returns_original_text(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        host = _make_host()
-        monkeypatch.setattr(
-            "voice_typer.server.ai_enhancement.enhance_transcription",
-            _raising_enhancer,
-        )
-        assert host._apply_ai_enhancement("hello world") == "hello world"
-
-    def test_failure_publishes_enhancement_event_not_llm_event(
-        self, monkeypatch: pytest.MonkeyPatch, event_spy: _EventSpy
-    ) -> None:
-        host = _make_host()
-        monkeypatch.setattr(
-            "voice_typer.server.ai_enhancement.enhance_transcription",
-            _raising_enhancer,
-        )
-        result = host._apply_ai_enhancement("hello world")
-        assert result == "hello world"
-        published = [e["type"] for e in event_spy.events]
-        assert "text_enhancement_failed" in published
-        # The E9-class mismatch: a rule-based failure must NOT be
-        assert "llm_polish_failed" not in published
-
-    def test_failure_survives_raising_event_bus(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A raising event bus must not abort the dictation (suppress-wrap)."""
-        host = _make_host()
-        monkeypatch.setattr(
-            "voice_typer.server.ai_enhancement.enhance_transcription",
-            _raising_enhancer,
-        )
-
-        def _raising_publish(event: dict) -> bool:
-            raise RuntimeError("bus broken")
-
-        monkeypatch.setattr("voice_typer.server.event_bus.publish", _raising_publish)
-        assert host._apply_ai_enhancement("hello world") == "hello world"
-
-    def test_success_publishes_nothing(self, monkeypatch: pytest.MonkeyPatch, event_spy: _EventSpy) -> None:
-        host = _make_host()
-        monkeypatch.setattr(
-            "voice_typer.server.ai_enhancement.enhance_transcription",
-            lambda text, config: text.upper(),
-        )
-        assert host._apply_ai_enhancement("hello") == "HELLO"
-        assert event_spy.events == []
 
 
 class TestLlmPolishFailurePath:

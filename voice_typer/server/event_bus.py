@@ -59,7 +59,7 @@ Events emitted via ``event_bus.publish`` (the modern path):
 * ``consent_required``, ``parakeet_cpu_fallback``, ``gpu_cpu_fallback``
   (published BEFORE the Whisper GPU→CPU reload so the tray can surface
   "switching to CPU" during the multi-second reload),
-  ``cloud_fallback_used``, ``text_enhancement_failed``,
+  ``cloud_fallback_used``,
   ``llm_polish_failed``, ``error``.
 * Model-load lifecycle: ``asr_backend_ready``,
   ``asr_backend_load_failed``, ``asr_backend_disabled``,
@@ -116,7 +116,7 @@ server):
   former is a per-transition signal with just ``status``; the latter
   is the connect-time snapshot with a ``message`` field.
 
-Total: 52 events, the live count is ``len(EVENT_TYPES)`` and this
+Total: 51 events, the live count is ``len(EVENT_TYPES)`` and this
 sentence is kept in lockstep with it by
 ``tests/test_event_bus.py::TestCanonicalCatalogue
 ::test_catalogue_total_count_updated``. Update this docstring whenever
@@ -191,7 +191,6 @@ EVENT_TYPES: frozenset[str] = frozenset(
         "asr_backend_disabled",
         "asr_last_resort_unloaded",
         "llm_polish_failed",
-        "text_enhancement_failed",
         "error",
         "mic_level",
         "device_lost",

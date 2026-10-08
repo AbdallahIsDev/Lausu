@@ -15,7 +15,6 @@ import { create } from "zustand";
 
 interface DegradationToastState {
 	llmPolishFailedAt: number | null;
-	textEnhancementFailedAt: number | null;
 	asrBackendDisabledAt: Record<string, number>;
 	asrBackendLoadFailedAt: number | null;
 	micPermissionRevokedAt: number | null;
@@ -24,7 +23,6 @@ interface DegradationToastState {
 	pasteDeferredAt: number | null;
 	lastAnyToastShownAt: number | null;
 	setLlmPolishFailedAt: (timestamp: number) => void;
-	setTextEnhancementFailedAt: (timestamp: number) => void;
 	setAsrBackendDisabledAt: (backend: string, timestamp: number) => void;
 	setAsrBackendLoadFailedAt: (timestamp: number) => void;
 	setMicPermissionRevokedAt: (timestamp: number) => void;
@@ -39,7 +37,6 @@ interface DegradationToastState {
 export const useDegradationToastStore = create<DegradationToastState>(
 	(set) => ({
 		llmPolishFailedAt: null,
-		textEnhancementFailedAt: null,
 		asrBackendDisabledAt: {},
 		asrBackendLoadFailedAt: null,
 		micPermissionRevokedAt: null,
@@ -48,8 +45,6 @@ export const useDegradationToastStore = create<DegradationToastState>(
 		pasteDeferredAt: null,
 		lastAnyToastShownAt: null,
 		setLlmPolishFailedAt: (timestamp) => set({ llmPolishFailedAt: timestamp }),
-		setTextEnhancementFailedAt: (timestamp) =>
-			set({ textEnhancementFailedAt: timestamp }),
 		setAsrBackendDisabledAt: (backend, timestamp) =>
 			set((state) => ({
 				asrBackendDisabledAt: {
@@ -71,7 +66,6 @@ export const useDegradationToastStore = create<DegradationToastState>(
 		resetForTest: () =>
 			set({
 				llmPolishFailedAt: null,
-				textEnhancementFailedAt: null,
 				asrBackendDisabledAt: {},
 				asrBackendLoadFailedAt: null,
 				micPermissionRevokedAt: null,

@@ -1,14 +1,17 @@
-"""Tests for voice_typer.server.ai_enhancement: P4 AI grammar/punctuation/capitalization."""
+"""Tests for voice_typer.server.ai_enhancement leaf fixes.
+
+The master-toggle wrapper (``enhance_transcription``) was removed when
+its steps folded into Text Cleanup; the leaf functions below are covered
+directly.
+"""
 
 from __future__ import annotations
 
 from voice_typer.server.ai_enhancement import (
     auto_capitalize,
     auto_punctuate,
-    enhance_transcription,
     fix_grammar_basics,
 )
-from voice_typer.server.config import Config
 
 
 class TestAutoCapitalize:
@@ -180,92 +183,3 @@ class TestFixGrammarBasics:
         # The standalone `i` (between spaces) should be capitalized.
         assert "I" in result
 
-
-class TestEnhanceTranscription:
-    def test_enhance_transcription_respects_disabled_flags(self):
-        """When the master toggle is OFF, the text should be returned unchanged."""
-        cfg = Config()
-        # Sanity-check the defaults.
-        assert cfg.ai_enhancement_enabled is False
-
-        text = "i cant dont wont"
-        result = enhance_transcription(text, cfg)
-        assert result == text  # unchanged
-
-    def test_enhance_transcription_applies_enabled_flags(self):
-        """When the master toggle is ON, the enabled sub-features should fire."""
-        cfg = Config()
-        cfg.ai_enhancement_enabled = True
-        # All three sub-toggles default to True.
-
-        text = "i cant dont wont"
-        result = enhance_transcription(text, cfg)
-        assert "I" in result
-        assert "can't" in result
-        assert "don't" in result
-        assert "won't" in result
-        assert result.endswith(".")
-
-    def test_enhance_transcription_sub_toggle_disables_grammar(self):
-        """When fix_grammar_basics is OFF, contractions should NOT be fixed."""
-        cfg = Config()
-        cfg.ai_enhancement_enabled = True
-        cfg.fix_grammar_basics = False
-
-        text = "i dont know"
-        result = enhance_transcription(text, cfg)
-        # Grammar is off: `dont` stays `dont`, `i` stays `i`.
-        assert "dont" in result
-        # But auto_capitalize still ran (capitalized the first letter).
-        assert result.startswith("I")
-
-    def test_enhance_transcription_sub_toggle_disables_punctuate(self):
-        """When auto_punctuate is OFF, no terminal punctuation should be added."""
-        cfg = Config()
-        cfg.ai_enhancement_enabled = True
-        cfg.auto_punctuate = False
-
-        text = "this is a longer sentence"
-        result = enhance_transcription(text, cfg)
-        assert not result.endswith(".")
-        assert not result.endswith("?")
-
-    def test_enhance_transcription_sub_toggle_disables_capitalize(self):
-        """When auto_capitalize is OFF, sentence starts should NOT be capitalized."""
-        cfg = Config()
-        cfg.ai_enhancement_enabled = True
-        cfg.auto_capitalize = False
-        text = "hello world this is a test sentence"
-        result = enhance_transcription(text, cfg)
-        # First letter should NOT be capitalized.
-        assert result.startswith("h")
-
-    def test_enhance_transcription_empty_string(self):
-        """Empty input should return empty output regardless of toggles."""
-        cfg = Config()
-        cfg.ai_enhancement_enabled = True
-        assert enhance_transcription("", cfg) == ""
-
-    def test_enhance_transcription_full_sentence(self):
-        """End-to-end: a typical transcription should come out polished."""
-        cfg = Config()
-        cfg.ai_enhancement_enabled = True
-
-        text = "i went to the store and i bought milk"
-        result = enhance_transcription(text, cfg)
-        # Capitalized first letter.
-        assert result.startswith("I")
-        # Comma before the conjunction (subject + pronoun pattern).
-        assert ", and" in result
-        # Terminal period.
-        assert result.endswith(".")
-
-    def test_enhance_transcription_does_not_break_url(self):
-        """URLs should not get mangled by the enhancement pass."""
-        cfg = Config()
-        cfg.ai_enhancement_enabled = True
-
-        text = "https://example.com is a great website"
-        result = enhance_transcription(text, cfg)
-        # The URL should still be intact.
-        assert "https://example.com" in result

@@ -35,7 +35,6 @@ TS unions: `types/ipc/push_events.ts` + `types/ipc/requests.ts`. Parity: `tests/
 | `consent_required` | `{provider, model, message}` | HuggingFace download gate |
 | `parakeet_cpu_fallback` | `{device, reason}` | Tray shows CPU fallback |
 | `gpu_cpu_fallback` | `{device, reason}` | Whisper GPU→CPU reload |
-| `text_enhancement_failed` | `{}` | Rule-based AI step failed |
 | `llm_polish_failed` | `{}` | LLM polish path (distinct) |
 | `microphone_permission_revoked` | `{}` | OS revoked mid-recording |
 | `microphone_disconnected` | `{}` | Active mic lost |

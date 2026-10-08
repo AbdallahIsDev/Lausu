@@ -73,8 +73,6 @@ export function PageSwitch({
 				return <LAZY_PAGES.settings page="settingsHotkeys" />;
 			case "settingsTranscription":
 				return <LAZY_PAGES.settings page="settingsTranscription" />;
-			case "settingsAI":
-				return <LAZY_PAGES.settings page="settingsAI" />;
 			case "settingsAudio":
 				return <LAZY_PAGES.settings page="settingsAudio" />;
 			case "settingsAppearance":

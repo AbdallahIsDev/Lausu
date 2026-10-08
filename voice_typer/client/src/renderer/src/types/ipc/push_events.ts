@@ -330,15 +330,6 @@ export interface LLMPolishFailedEvent {
 }
 
 /**
- * Pushed by `voice_typer/server/dictation_pipeline/enhancement_steps.py`
- * `_apply_ai_enhancement`, Step 7b) when the RULE-BASED text
- * enhancement pass fails. Distinct from {@link LLMPolishFailedEvent}
- */
-export interface TextEnhancementFailedEvent {
-	type: "text_enhancement_failed";
-}
-
-/**
  * Pushed by the level monitor / recording pipeline when the ACTIVE
  * microphone disappears (unplug, Bluetooth power-off, driver reset) and
  * retries are exhausted. Emitters (all publish the same wire shape):
@@ -687,7 +678,6 @@ export type PythonPushEvent =
 	| ASRBackendDisabledEvent
 	| ASRLastResortUnloadedEvent
 	| LLMPolishFailedEvent
-	| TextEnhancementFailedEvent
 	// recorder emitters). See `DeviceLostEvent` above for the wire shape.
 	| DeviceLostEvent
 	| ReconnectingEvent

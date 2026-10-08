@@ -61,7 +61,6 @@ pub(super) const ALLOWED_EVENT_TYPES: &[&str] = &[
     "error", // no-id server-event variant (id responses use the pending map)
     "mic_level",
     "llm_polish_failed",
-    "text_enhancement_failed",
     "device_lost",
     "asr_backend_disabled",
     "asr_last_resort_unloaded",

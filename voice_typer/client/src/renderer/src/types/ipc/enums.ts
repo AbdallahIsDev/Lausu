@@ -48,7 +48,6 @@ export type Page =
 	| "settingsOverlay"
 	| "settingsHotkeys"
 	| "settingsTranscription"
-	| "settingsAI"
 	| "settingsAudio"
 	| "settingsAppearance"
 	| "settingsPrivacy"

@@ -15,7 +15,6 @@
 // honest if either side drifts.
 
 import {
-	AiBrain03Icon,
 	CpuIcon,
 	EyeIcon,
 	KeyboardIcon,
@@ -34,7 +33,6 @@ export const SETTINGS_SECTION_PAGES = [
 	"settingsOverlay",
 	"settingsHotkeys",
 	"settingsTranscription",
-	"settingsAI",
 	"settingsAudio",
 	"settingsAppearance",
 	"settingsPrivacy",
@@ -80,11 +78,6 @@ const SETTINGS_SECTION_DEFS: Record<
 		titleKey: "settings.postProcessing",
 		descriptionKey: "settings.postProcessingDescription",
 		icon: TextIcon,
-	},
-	settingsAI: {
-		titleKey: "settings.aiEnhancement.title",
-		descriptionKey: "settings.hub.aiDescription",
-		icon: AiBrain03Icon,
 	},
 	settingsAudio: {
 		titleKey: "settings.audioEnhancement.title",

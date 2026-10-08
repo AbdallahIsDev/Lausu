@@ -24,13 +24,27 @@ class _TextStepsMixin:
             from voice_typer.server.text_cleanup import clean_transcribed_text
 
             if self._app.config.text_cleanup_enabled:
-                vocab_enabled = getattr(self._app.config, "vocabulary_enabled", True)
+                # Vocabulary corrections are always on (user decision:
+                # no settings toggle). The stored flag is ignored.
+                vocab_enabled = True
                 raw = text
                 text = clean_transcribed_text(
                     text,
                     auto_punctuation=False,
                     skip_corrections=vocab_enabled,
                 )
+                # Former AI-Enhancement sub-steps, folded into Text
+                # Cleanup (always on with it): grammar basics, terminal
+                # punctuation + conjunction commas, capitalization.
+                from voice_typer.server.ai_enhancement import (
+                    auto_capitalize,
+                    auto_punctuate,
+                    fix_grammar_basics,
+                )
+
+                text = fix_grammar_basics(text)
+                text = auto_punctuate(text)
+                text = auto_capitalize(text)
                 if text != raw:
                     log.info("[CLEANUP] Text cleaned: len %d -> %d", len(raw), len(text))
             else:
