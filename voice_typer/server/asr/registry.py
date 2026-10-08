@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
@@ -22,6 +23,12 @@ ProgressCallback = Callable[[str], None]
 
 # Hard ceiling for a single model-load call. The documented window is
 MODEL_LOAD_TIMEOUT_SECONDS = 120
+# Extra wait for an in-flight load past the ceiling. A Python thread
+# cannot be killed, so abandoning it only orphans a 3GB load while a
+# retry starts a duplicate; slow machines (cold disk, low RAM) finish
+# just past the ceiling instead. Poll ``is_loaded`` up to this long,
+# then fail exactly like a plain timeout.
+MODEL_SLOW_LOAD_GRACE_SECONDS = 120.0
 
 
 @runtime_checkable
@@ -188,7 +195,17 @@ class RegistryCore:
         if result is not TIMEOUT:
             return backend
         log.warning(
-            "[ASR_REGISTRY] %s load timed out after %ds, trying fallback",
+            "[ASR_REGISTRY] %s load exceeded %ds, waiting up to %ds more "
+            "for the in-flight load (slow-machine grace)",
+            label,
+            MODEL_LOAD_TIMEOUT_SECONDS,
+            MODEL_SLOW_LOAD_GRACE_SECONDS,
+        )
+        if self._wait_for_slow_load(backend):
+            log.info("[ASR_REGISTRY] %s load finished during grace, using it", label)
+            return backend
+        log.warning(
+            "[ASR_REGISTRY] %s load timed out after %ds (incl. grace), trying fallback",
             label,
             MODEL_LOAD_TIMEOUT_SECONDS,
         )
@@ -198,6 +215,22 @@ class RegistryCore:
         except Exception:
             log.exception("[ASR_REGISTRY] failed to unload %s after load timeout", label)
         return None
+
+    @staticmethod
+    def _wait_for_slow_load(backend: AsrBackend) -> bool:
+        """Poll ``is_loaded`` until the grace expires (module const, patchable)."""
+        deadline = time.monotonic() + MODEL_SLOW_LOAD_GRACE_SECONDS
+        while True:
+            try:
+                if getattr(backend, "is_loaded", False):
+                    return True
+            except Exception:
+                log.debug("[ASR_REGISTRY] slow-load readiness probe failed", exc_info=True)
+                return False
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            time.sleep(min(2.0, remaining))
 
     def _try_system_whisper_fallback(self) -> AsrBackend | None:
         """Serve whisper from system libraries when the pack is absent.
@@ -238,7 +271,7 @@ class RegistryCore:
                         log.info("[ASR_REGISTRY] loaded backend: %s", name)
                         self._record_success(name)
                         return backend
-                    # TIMEOUT, helper already unloaded; fall through.
+                    # Grace expired too, helper already unloaded; fall through.
                 except (ModelNotDownloadedError, ModelIntegrityError) as exc:
                     # Pack-missing whisper gets one more chance: a dev
                     # checkout may serve system libraries instead (the
@@ -311,7 +344,7 @@ class RegistryCore:
                     # Do NOT call _record_success("whisper"), whisper is
                     self._breaker.clear_last_resort_notified()
                     return whisper
-                # TIMEOUT, helper already unloaded; fall through.
+                # Grace expired too, helper already unloaded; fall through.
             except Exception:
                 log.exception("[ASR_REGISTRY] whisper fallback also failed")
                 # Do NOT call _record_failure("whisper"), the breaker
