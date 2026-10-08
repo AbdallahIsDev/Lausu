@@ -267,7 +267,7 @@ export default function AboutAndPrivacyPage() {
 							aria-hidden="true"
 							className="mt-0.5 size-5 shrink-0 text-muted-foreground"
 						/>
-						<div className="flex min-w-0 flex-col gap-1 text-sm leading-relaxed text-muted-foreground">
+						<div className="flex min-w-0 flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
 							<p className="font-medium text-foreground">{t(topic.title)}</p>
 							{/* max-w-prose: keep paragraph line length
 							    readable; the rows can stay full width.

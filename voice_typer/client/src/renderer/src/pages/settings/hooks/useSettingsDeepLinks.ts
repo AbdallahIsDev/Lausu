@@ -11,7 +11,8 @@
 // row matcher and how the ring is applied (consent: state-driven,
 // consumed by PrivacySettingsSection; search: imperative ring classes).
 // IMPORTANT: the effects inside this hook must run in the ORIGINAL page
-// order (consume → consume → scroll → scroll → safety net) relative to
+// order (consume → consume → scroll → scroll → safety net → unmount
+// ring-timer clear) relative to
 // the page's surface-scroll restore effect, the consent consumption
 // zeroes the saved privacy-page scroll offset BEFORE the restore effect
 // reads it. The page must call this hook BEFORE `useSettingsSurfaceScroll`.
@@ -198,6 +199,23 @@ export function useSettingsDeepLinks({
 		}, 5000);
 		return () => clearTimeout(timer);
 	}, [focusedConsentField, searchScrollHint]);
+
+	// Ring-lifetime timers deliberately outlive an effect RE-RUN (a
+	// config identity change must not kill a ring that is already lit),
+	// so the scroll effects' own cleanups cannot own them — but UNMOUNT
+	// is the one case where nothing will ever consume the expiry. Clear
+	// it here or the callback fires into a torn-down tree; in a full
+	// test run that lands after jsdom is gone ("window is not defined").
+	// This effect has no body on purpose: only its cleanup matters, and
+	// an empty dep list is what scopes that cleanup to unmount.
+	useEffect(
+		() => () => {
+			if (highlightTimerRef.current) {
+				clearTimeout(highlightTimerRef.current);
+			}
+		},
+		[],
+	);
 
 	return { focusedConsentField, searchScrollHint };
 }
