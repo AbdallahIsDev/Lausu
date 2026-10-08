@@ -52,13 +52,13 @@ vi.mock("@/components/common/RangeSlider", () => ({
 }));
 
 import { makeConfig } from "@/__tests__/helpers/fixtures";
-import { AiEnhancementSettingsSection } from "@/components/settings/AiEnhancementSettingsSection";
 import { LlmPolishingSettingsSection } from "@/components/settings/LlmPolishingSettingsSection";
+import { PostProcessingSettingsSection } from "@/components/settings/PostProcessingSettingsSection";
 
 const alwaysVisible = () => true;
 const noopUpdate = () => {};
 
-describe("AiEnhancementSettingsSection, suggest slider (no auto-apply slider)", () => {
+describe("PostProcessingSettingsSection, vocab automation row", () => {
 	beforeEach(() => {
 		sliderInstances.length = 0;
 	});
@@ -67,66 +67,37 @@ describe("AiEnhancementSettingsSection, suggest slider (no auto-apply slider)", 
 		cleanup();
 	});
 
-	it("renders exactly one confidence slider (suggest-below)", () => {
+	it("renders the Vocabulary Automation toggle with zero sliders", () => {
 		render(
-			<AiEnhancementSettingsSection
+			<PostProcessingSettingsSection
 				config={makeConfig({
 					vocabulary_automation_enabled: true,
-					vocabulary_auto_confidence_threshold: 0.7,
-					vocabulary_auto_apply_threshold: 0.9,
 				})}
 				updateConfig={noopUpdate}
 				updateConfigDebounced={noopUpdate}
 				isVisible={alwaysVisible}
 			/>,
 		);
-		expect(sliderInstances).toHaveLength(1);
-		expect(sliderInstances[0]?.value).toBe(0.7);
+		expect(sliderInstances).toHaveLength(0);
+		expect(
+			screen.getByRole("switch", { name: "Vocabulary Automation" }),
+		).toBeTruthy();
 	});
 
-	it("dragging suggest passes the value through unclamped (no cross-slider clamp)", () => {
-		const updateConfigDebounced = vi.fn();
+	it("renders the Templates row with toggle and Open Templates button", () => {
+		const navigate = vi.fn();
 		render(
-			<AiEnhancementSettingsSection
-				config={makeConfig({
-					vocabulary_automation_enabled: true,
-					vocabulary_auto_confidence_threshold: 0.7,
-					vocabulary_auto_apply_threshold: 0.9,
-				})}
+			<PostProcessingSettingsSection
+				config={makeConfig({ templates_enabled: true })}
 				updateConfig={noopUpdate}
-				updateConfigDebounced={updateConfigDebounced}
+				updateConfigDebounced={noopUpdate}
 				isVisible={alwaysVisible}
+				onNavigate={navigate}
 			/>,
 		);
-		const suggest = sliderInstances.find((s) => s.value === 0.7);
-		expect(suggest).toBeTruthy();
-		suggest?.onChange(0.95);
-		expect(updateConfigDebounced).toHaveBeenCalledWith(
-			"vocabulary_auto_confidence_threshold",
-			0.95,
-		);
-	});
-
-	it("dragging suggest low passes the value through unclamped", () => {
-		const updateConfigDebounced = vi.fn();
-		render(
-			<AiEnhancementSettingsSection
-				config={makeConfig({
-					vocabulary_automation_enabled: true,
-					vocabulary_auto_confidence_threshold: 0.7,
-					vocabulary_auto_apply_threshold: 0.9,
-				})}
-				updateConfig={noopUpdate}
-				updateConfigDebounced={updateConfigDebounced}
-				isVisible={alwaysVisible}
-			/>,
-		);
-		const suggest = sliderInstances.find((s) => s.value === 0.7);
-		suggest?.onChange(0.5);
-		expect(updateConfigDebounced).toHaveBeenCalledWith(
-			"vocabulary_auto_confidence_threshold",
-			0.5,
-		);
+		expect(screen.getByTestId("open-templates-button")).toBeTruthy();
+		fireEvent.click(screen.getByTestId("open-templates-button"));
+		expect(navigate).toHaveBeenCalledWith("templates");
 	});
 });
 

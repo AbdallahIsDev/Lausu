@@ -149,14 +149,11 @@ describe("DashboardSkeleton", () => {
 		const region = document.querySelector("section[aria-busy=true]");
 		expect(region).not.toBeNull();
 		expect(screen.queryByRole("status")).toBeNull();
-		// 4 stat cards + 7 chart bars + 7 x-labels + 3 + 3 quick-info.
+		// 4 stat cards + 7 chart bars + 7 x-labels + 3 derived-metric cards.
 		expect(region?.querySelectorAll(".grid-cols-2 > .min-h-24").length).toBe(4);
 		expect(region?.querySelectorAll(".h-36.w-7").length).toBe(1);
 		expect(region?.querySelectorAll(".rounded-t-\\[4px\\]").length).toBe(7);
 		expect(region?.querySelectorAll(".sm\\:grid-cols-3 > .flex").length).toBe(
-			3,
-		);
-		expect(region?.querySelectorAll(".md\\:grid-cols-3 > .flex").length).toBe(
 			3,
 		);
 	});

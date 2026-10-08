@@ -351,8 +351,8 @@ const arMore = {
 	"settings.apiUrlPlaceholder": "https://api.openai.com/v1/chat/completions",
 	"settings.model": "النموذج",
 	"settings.modelInfo":
-		"نموذج الذكاء الاصطناعي المستخدم للتحسين (مثل gpt-4o-mini).",
-	"settings.modelPlaceholder": "gpt-4o-mini",
+		"نموذج الذكاء الاصطناعي المستخدم للتحسين (مثل gpt-6-luna).",
+	"settings.modelPlaceholder": "gpt-6-luna",
 	"settings.preset": "الإعداد المسبق",
 	"settings.presetInfo":
 		"أسلوب الكتابة للتطبيق, مهني، غير رسمي، بريد إلكتروني، أو كود.",

@@ -108,7 +108,6 @@ describe("useDashboardData hot/cold split", () => {
 			if (cmd === "get_config") return Promise.resolve(makeConfig());
 			if (cmd === "get_history") return Promise.resolve(rows);
 			if (cmd === "get_history_count") return Promise.resolve({ count });
-			if (cmd === "get_status") return Promise.resolve({ config_dir: "/cfg" });
 			if (cmd === "get_correction_usage") return Promise.resolve(null);
 			if (cmd === "get_model_status") return Promise.resolve({});
 			return Promise.resolve(null);
@@ -129,13 +128,12 @@ describe("useDashboardData hot/cold split", () => {
 		});
 	}
 
-	it("mount performs the full refresh (six IPCs, 500-row sample)", async () => {
+	it("mount performs the full refresh (five IPCs, 500-row sample)", async () => {
 		const rows = [makeRow(2), makeRow(1)];
 		const { result } = await mountWith(rows, 2);
 
 		expect(callsOf(callMock, "get_config").length).toBeGreaterThan(0);
 		expect(callsOf(callMock, "get_history_count").length).toBeGreaterThan(0);
-		expect(callsOf(callMock, "get_status").length).toBeGreaterThan(0);
 		expect(callsOf(callMock, "get_correction_usage").length).toBeGreaterThan(0);
 		expect(callsOf(callMock, "get_model_status").length).toBeGreaterThan(0);
 		const historyCalls = callsOf(callMock, "get_history");
@@ -143,7 +141,6 @@ describe("useDashboardData hot/cold split", () => {
 		expect(historyCalls[0]?.[1]).toEqual({ limit: DASHBOARD_SAMPLE_LIMIT });
 		expect(result.current.data?.totalCount).toBe(2);
 		expect(result.current.data?.sampleSize).toBe(2);
-		expect(result.current.configDir).toBe("/cfg");
 	});
 
 	it("transcription_final with count+1 applies the delta (no cold IPCs)", async () => {
@@ -171,12 +168,10 @@ describe("useDashboardData hot/cold split", () => {
 		expect(callsOf(callMock, "get_history").length).toBeGreaterThan(0);
 		expect(callsOf(callMock, "get_config")).toHaveLength(0);
 		expect(callsOf(callMock, "get_model_status")).toHaveLength(0);
-		expect(callsOf(callMock, "get_status")).toHaveLength(0);
 		// New row prepended, count bumped, cold-derived fields intact.
 		expect(result.current.data?.totalCount).toBe(3);
 		expect(result.current.data?.sampleSize).toBe(3);
 		expect(result.current.data?.todayCount).toBe(3);
-		expect(result.current.configDir).toBe("/cfg");
 	});
 
 	it("count jump (+2) falls back to the full refresh", async () => {
@@ -195,8 +190,6 @@ describe("useDashboardData hot/cold split", () => {
 				if (cmd === "get_history_count") return Promise.resolve({ count: 4 });
 				if (cmd === "get_correction_usage") return Promise.resolve(null);
 				if (cmd === "get_config") return Promise.resolve(makeConfig());
-				if (cmd === "get_status")
-					return Promise.resolve({ config_dir: "/cfg" });
 				if (cmd === "get_model_status")
 					return Promise.resolve({} as ModelStatusMap);
 				return Promise.resolve(null);
@@ -225,7 +218,6 @@ describe("useDashboardData hot/cold split", () => {
 			if (cmd === "get_history_count") return Promise.resolve({ count: 3 });
 			if (cmd === "get_correction_usage") return Promise.resolve(null);
 			if (cmd === "get_config") return Promise.resolve(makeConfig());
-			if (cmd === "get_status") return Promise.resolve({ config_dir: "/cfg" });
 			if (cmd === "get_model_status")
 				return Promise.resolve({} as ModelStatusMap);
 			return Promise.resolve(null);
@@ -247,7 +239,6 @@ describe("useDashboardData hot/cold split", () => {
 			if (cmd === "get_history_count") return Promise.resolve({ count: 3 });
 			if (cmd === "get_correction_usage") return Promise.resolve(null);
 			if (cmd === "get_config") return Promise.resolve(makeConfig());
-			if (cmd === "get_status") return Promise.resolve({ config_dir: "/cfg" });
 			if (cmd === "get_model_status")
 				return Promise.resolve({} as ModelStatusMap);
 			return Promise.resolve(null);
@@ -269,7 +260,6 @@ describe("useDashboardData hot/cold split", () => {
 			if (cmd === "get_config") return Promise.resolve(makeConfig());
 			if (cmd === "get_history") return Promise.resolve(rows);
 			if (cmd === "get_history_count") return Promise.resolve({ count: 2 });
-			if (cmd === "get_status") return Promise.resolve({ config_dir: "/cfg" });
 			if (cmd === "get_correction_usage") return Promise.resolve(null);
 			if (cmd === "get_model_status")
 				return Promise.resolve({} as ModelStatusMap);

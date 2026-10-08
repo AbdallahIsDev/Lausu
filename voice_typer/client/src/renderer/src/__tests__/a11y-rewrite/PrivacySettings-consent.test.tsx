@@ -97,6 +97,7 @@ function makeConfig(overrides: Partial<LausuConfig> = {}): LausuConfig {
 		openai_api_key: "",
 		groq_api_key: "",
 		deepgram_api_key: "",
+		gemini_api_key: "",
 		llm_polish: false,
 		llm_api_key: "",
 		llm_api_url: "",
@@ -159,6 +160,7 @@ function makeConfig(overrides: Partial<LausuConfig> = {}): LausuConfig {
 		cloud_openai_consent: false,
 		cloud_groq_consent: false,
 		cloud_deepgram_consent: false,
+		cloud_gemini_consent: false,
 		llm_polish_consent: false,
 		...overrides,
 	} as LausuConfig;
@@ -311,6 +313,7 @@ describe("PrivacySettings consent toggles, RW-0 rewrite of test_settings_has_all
 			cloud_openai_consent: false,
 			cloud_groq_consent: false,
 			cloud_deepgram_consent: false,
+			cloud_gemini_consent: false,
 		});
 		renderWithProviders(
 			<PrivacySettingsSection
@@ -373,7 +376,7 @@ describe("PrivacySettings consent toggles, RW-0 rewrite of test_settings_has_all
 		});
 	});
 
-	it("Agree-to-All button sets all six consent flags in one updateConfig call", async () => {
+	it("Agree-to-All button sets all seven consent flags in one updateConfig call", async () => {
 		const updateConfig = vi.fn();
 		const config = makeConfig({
 			huggingface_consent: false,
@@ -381,6 +384,7 @@ describe("PrivacySettings consent toggles, RW-0 rewrite of test_settings_has_all
 			cloud_openai_consent: false,
 			cloud_groq_consent: false,
 			cloud_deepgram_consent: false,
+			cloud_gemini_consent: false,
 			llm_polish_consent: false,
 		});
 		renderWithProviders(
@@ -421,6 +425,7 @@ describe("PrivacySettings consent toggles, RW-0 rewrite of test_settings_has_all
 				cloud_openai_consent: true,
 				cloud_groq_consent: true,
 				cloud_deepgram_consent: true,
+				cloud_gemini_consent: true,
 				llm_polish_consent: true,
 			}),
 		);

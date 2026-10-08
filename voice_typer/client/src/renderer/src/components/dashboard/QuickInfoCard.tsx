@@ -2,14 +2,11 @@ import type { IconSvgElement } from "@hugeicons/react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ReactNode } from "react";
 
-import { cn } from "@/lib/utils";
-
 interface QuickInfoCardProps {
 	icon: IconSvgElement;
 	label: string;
 	value: ReactNode;
 	sublabel?: ReactNode;
-	muted?: boolean;
 }
 
 export function QuickInfoCard({
@@ -17,7 +14,6 @@ export function QuickInfoCard({
 	label,
 	value,
 	sublabel,
-	muted,
 }: QuickInfoCardProps) {
 	return (
 		// Informational card, no hover interaction. Icon rendered at a
@@ -27,12 +23,7 @@ export function QuickInfoCard({
 		// with the value's `mt-auto` pushing it to the bottom, same
 		// top-pinned label / bottom-pushed number rhythm as the top-row
 		// stat cards.
-		<div
-			className={cn(
-				"flex items-stretch gap-3 rounded-lg border border-border/8",
-				muted ? "bg-surface-subtle/50 p-3" : "bg-surface-subtle p-4",
-			)}
-		>
+		<div className="flex items-stretch gap-3 rounded-lg border border-border/8 bg-surface-subtle p-4">
 			<HugeiconsIcon
 				icon={icon}
 				strokeWidth={1.75}
@@ -40,12 +31,7 @@ export function QuickInfoCard({
 			/>
 			<div className="flex min-w-0 flex-col">
 				<p className="text-[11px] font-medium text-muted-foreground">{label}</p>
-				<p
-					className={cn(
-						"mt-auto truncate font-semibold text-foreground",
-						muted ? "text-[13px]" : "text-sm",
-					)}
-				>
+				<p className="mt-auto truncate font-semibold text-foreground text-sm">
 					{value}
 				</p>
 				{sublabel && (

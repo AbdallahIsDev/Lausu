@@ -271,7 +271,7 @@ describe("Settings page, PERF-002 batched config writes", () => {
 		expect(mockConsumeConsentField).toHaveBeenCalledTimes(1);
 	});
 
-	it("S5-CR-103: Reset to Defaults uses Delete02Icon, distinct from Re-run Wizard's ArrowTurnBackwardIcon", async () => {
+	it("S5-CR-103: Reset to Defaults is a muted ghost button on the hub using RefreshIcon, distinct from Re-run Wizard's ArrowTurnBackwardIcon", async () => {
 		mockCall.mockImplementation((type: string) => {
 			if (type === "get_config") return Promise.resolve(baseConfig);
 			if (type === "set_config") return Promise.resolve({ success: true });
@@ -279,33 +279,53 @@ describe("Settings page, PERF-002 batched config writes", () => {
 		});
 
 		const { default: SettingsPage } = await import("@/pages/Settings");
-		renderWithProviders(<SettingsPage page="settingsAdvanced" />);
 
-		await waitFor(() => {
-			expect(
-				screen.getByRole("heading", { name: "Troubleshooting" }),
-			).toBeTruthy();
-		});
-
+		// Reset to Defaults lives at the foot of the Settings landing page
+		// (the hub), NOT inside a section card: a factory reset is a
+		// settings-wide action, not a per-section setting.
+		renderWithProviders(<SettingsPage page="settings" />);
 		const resetButton = await waitFor(() =>
 			screen.getByRole("button", { name: "Reset to Defaults" }),
 		);
-		const wizardButton = await waitFor(() =>
-			screen.getByRole("button", { name: "Re-run setup wizard" }),
-		);
-
 		const resetIcon = resetButton.querySelector(
 			'[data-testid="hugeicon"]',
 		) as HTMLElement | null;
+		// Explicit UX contract: the glyph says what the button DOES. A
+		// reset restores defaults, so it carries the app's reload glyph;
+		// the trash glyph read as "delete" instead.
+		expect(resetIcon?.getAttribute("data-name")).toBe("RefreshIcon");
+		// Explicit UX contract: ghost + muted. The control stays quiet
+		// (no border, no fill, no red) until hovered; the destructive
+		// warning is the ConfirmDialog's job, not the button's.
+		expect(resetButton.getAttribute("data-variant")).toBe("ghost");
+		expect(resetButton.className).toContain("text-muted-foreground");
+		expect(resetButton.className).not.toContain("text-destructive");
+
+		cleanup();
+
+		// ...and NOT inside the General section card. The relocation is the
+		// requirement, so the absence is pinned: a hub-only assertion would
+		// still pass if the button rendered in both places.
+		renderWithProviders(<SettingsPage page="settingsGeneral" />);
+		await waitFor(() => {
+			expect(screen.getByText("Launch at Login")).toBeTruthy();
+		});
+		expect(
+			screen.queryByRole("button", { name: "Reset to Defaults" }),
+		).toBeNull();
+
+		cleanup();
+
+		// The dev-only Re-run Setup Wizard stays on the Advanced page.
+		renderWithProviders(<SettingsPage page="settingsAdvanced" />);
+		const wizardButton = await waitFor(() =>
+			screen.getByRole("button", { name: "Re-run setup wizard" }),
+		);
 		const wizardIcon = wizardButton.querySelector(
 			'[data-testid="hugeicon"]',
 		) as HTMLElement | null;
-
 		expect(wizardIcon).toBeTruthy();
-
-		//Reset to Defaults MUST use the trash glyph.
-		expect(resetIcon?.getAttribute("data-name")).toBe("Delete02Icon");
-		// Re-run Wizard MUST use the back-arrow glyph (NOT Delete02Icon).
+		// Re-run Wizard MUST use the back-arrow glyph (NOT the reload glyph).
 		expect(wizardIcon?.getAttribute("data-name")).toBe("ArrowTurnBackwardIcon");
 		// Belt-and-braces: the two icons must not be the same glyph.
 		expect(resetIcon?.getAttribute("data-name")).not.toBe(

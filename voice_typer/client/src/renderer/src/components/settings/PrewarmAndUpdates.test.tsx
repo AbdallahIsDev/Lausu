@@ -93,11 +93,13 @@ describe("PrewarmAndUpdates", () => {
 
 	it("renders the prewarm action buttons + the offline Updates notice", () => {
 		render(<PrewarmAndUpdates />);
-		// Prewarm action buttons, "Run Prewarm Now" + "View prewarm
-		// log" are both present (RESTORED 2026-08-14 §6.3 addendum).
+		// "Run Prewarm Now" is the prewarm action button. The sibling
+		// "View prewarm log" button was removed: it opened a worker log
+		// file in the OS text editor, the same developer-only affordance
+		// as the removed "Open Log Folder" button.
 		expect(screen.getByText("Run Prewarm Now")).toBeTruthy();
-		expect(screen.getByText("View prewarm log")).toBeTruthy();
-		// "View Changelog" link button, still present (anchor, no fetch).
+		// "View Changelog" button, still present (opens the in-app
+		// release-notes modal, no fetch).
 		expect(screen.getByText("View Changelog")).toBeTruthy();
 		// Offline notice, the new static message replacing the
 		// "Check for Updates" button. The English text is hardcoded
@@ -159,17 +161,12 @@ describe("PrewarmAndUpdates", () => {
 		expect(fetchSpy).not.toHaveBeenCalled();
 	});
 
-	it("opens the prewarm log via the open_prewarm_log IPC", async () => {
-		mockCall.mockImplementation(async (type: string) => {
-			if (type === "open_prewarm_log") return { opened: true };
-			return PREWARM_HOT;
-		});
+	it("does NOT call open_prewarm_log (the 'View prewarm log' button was removed)", async () => {
 		render(<PrewarmAndUpdates />);
-		screen.getByText("View prewarm log").click();
 		await waitFor(() => {
-			expect(mockCall).toHaveBeenCalledWith("open_prewarm_log");
+			expect(mockCall).toHaveBeenCalledWith("get_prewarm_status");
 		});
-		expect(mockShowSnack).toHaveBeenCalled();
+		expect(mockCall).not.toHaveBeenCalledWith("open_prewarm_log");
 	});
 
 	it("re-runs prewarm via the run_prewarm IPC + refreshes status", async () => {
@@ -190,13 +187,9 @@ describe("PrewarmAndUpdates", () => {
 	});
 
 	// Honest error copy: when the run_prewarm IPC itself fails, the
-	// toast must say RUNNING the prewarm failed, not the View-Log
-	// handler's "Could not open prewarm log" copy (a user who clicked
-	// "Run Prewarm Now" is told the log couldn't be opened, which is
-	// a lie about what failed). The run handler uses the dedicated
-	// `about.prewarmRunFailed` key; the log handler keeps
-	// `about.prewarmLogOpenFailed`.
-	it("shows the run-failure toast (not the log-open copy) when run_prewarm rejects", async () => {
+	// toast must say that RUNNING the prewarm failed (the dedicated
+	// `about.prewarmRunFailed` key), not something else.
+	it("shows the run-failure copy when run_prewarm rejects", async () => {
 		mockCall.mockImplementation(async (type: string) => {
 			if (type === "run_prewarm") throw new Error("worker busy");
 			return PREWARM_HOT;
@@ -212,11 +205,5 @@ describe("PrewarmAndUpdates", () => {
 			"Failed to run prewarm: worker busy",
 			"error",
 		);
-		// The View-Log handler's copy must NOT leak into the Run
-		// failure path.
-		const calls = mockShowSnack.mock.calls as [string, string][];
-		expect(
-			calls.some(([message]) => message.includes("Could not open prewarm log")),
-		).toBe(false);
 	});
 });

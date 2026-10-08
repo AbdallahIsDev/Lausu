@@ -10,7 +10,6 @@ import {
 	sonnerMock,
 	stableMocks,
 } from "@/__tests__/helpers/stableMocks";
-import { ResourcesSettingsSection } from "@/components/settings/ResourcesSettingsSection";
 
 const { mockCall } = stableMocks;
 
@@ -81,43 +80,8 @@ describe("Merged About & Privacy page, BG-59 privacy URL fix", () => {
 		// The trailing "Privacy policy, See the full privacy policy
 		// below…" line pointed at nothing (the full disclosure is
 		// rendered in the rows above it). Both the label and the note
-		// are gone; the Security Policy link lives in Resources.
+		// are gone.
 		expect(screen.queryByText("Privacy policy")).toBeNull();
 		expect(screen.queryByText(/See the full privacy policy below/)).toBeNull();
-	});
-
-	it("still renders the Security Policy button in the Resources section", async () => {
-		render(<ResourcesSettingsSection isVisible={() => true} />);
-
-		await waitFor(() => {
-			expect(
-				screen.getByRole("heading", { name: "Resources & Feedback" }),
-			).toBeTruthy();
-		});
-
-		// The Security Policy button is still rendered in Resources.
-		// (This is the canonical place to surface SECURITY.md now that
-		// the Privacy-section duplicate has been removed.)
-		expect(screen.getByText("Security Policy")).toBeTruthy();
-	});
-
-	it("renders exactly ONE anchor pointing at SECURITY.md (the Resources-section Security Policy button)", async () => {
-		const { container } = render(
-			<ResourcesSettingsSection isVisible={() => true} />,
-		);
-
-		await waitFor(() => {
-			expect(
-				screen.getByRole("heading", { name: "Resources & Feedback" }),
-			).toBeTruthy();
-		});
-
-		// Before BG-59, two anchors pointed at SECURITY.md (one in the
-		// Privacy footer, one in Resources). After BG-59, only one
-		// anchor should, the Resources-section Security Policy link.
-		const securityAnchors = container.querySelectorAll(
-			'a[href*="SECURITY.md"]',
-		);
-		expect(securityAnchors.length).toBe(1);
 	});
 });

@@ -54,12 +54,9 @@ export function getSectionLabels(): Record<SettingsSectionPage, string[]> {
 			t("settings.autoPunctuation"),
 			t("settings.textCleanupLabel"),
 			t("settings.textSnippets"),
-			t("settings.vocabulary"),
-		],
-		settingsAI: [
-			t("settings.aiEnhancement.title"),
+			t("settings.openTemplates"),
 			t("settings.vocabAutomation.title"),
-			t("settings.enable"),
+			t("settings.vocabAutomation.enable"),
 		],
 		settingsAudio: [
 			t("settings.audioEnhancement.title"),
@@ -107,12 +104,13 @@ export function getSectionLabels(): Record<SettingsSectionPage, string[]> {
 			t("settings.model"),
 			t("settings.preset"),
 			t("settings.troubleshooting.title"),
-			t("settings.troubleshooting.openLogFolder"),
 			t("settings.troubleshooting.diagnostics"),
-			t("settings.troubleshooting.helpFaq"),
 			t("settings.troubleshooting.reportBug"),
-			t("settings.troubleshooting.reRunWizard"),
-			t("settings.troubleshooting.resetToDefaults"),
+			// The setup wizard is a dev-only affordance; listing its label
+			// in production would route a search to a page with no match.
+			...(import.meta.env.DEV
+				? [t("settings.troubleshooting.reRunWizard")]
+				: []),
 			t("settings.troubleshooting.resetAccessibility"),
 			t("settings.troubleshooting.resetLinux"),
 			t("about.cacheTitle"),

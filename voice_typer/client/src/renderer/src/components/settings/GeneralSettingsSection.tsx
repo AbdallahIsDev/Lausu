@@ -35,6 +35,8 @@ import { SettingsSkeleton } from "./SettingsSkeleton";
 
 import type { SettingsSectionSharedProps } from "./types";
 
+type GeneralSettingsSectionProps = SettingsSectionSharedProps;
+
 const TRAY_CLICK_OPTIONS = [
 	{ value: "toggle_dictation", labelKey: "settings.trayClickToggleDictation" },
 	{ value: "open_app", labelKey: "settings.trayClickOpenApp" },
@@ -66,7 +68,7 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 	config,
 	updateConfig,
 	isVisible,
-}: SettingsSectionSharedProps) {
+}: GeneralSettingsSectionProps) {
 	// F-3: subscribe to locale changes so this section repaints in the
 	// new language without a full page reload.
 	const t = useT();

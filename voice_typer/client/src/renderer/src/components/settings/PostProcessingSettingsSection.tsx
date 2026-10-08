@@ -8,9 +8,12 @@
 // implementation, including the per-row search-filter visibility via the
 // `isVisible` prop and the section-level "hide if no items match" check.
 
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { memo } from "react";
 import { SettingRow } from "@/components/common/SettingRow";
 import { SettingsSection } from "@/components/common/SettingsSection";
+import { Button } from "@/components/ui/button";
 import {
 	Select,
 	SelectContent,
@@ -21,8 +24,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useT } from "@/i18n/i18n";
 import { LANGUAGE_OPTIONS } from "@/lib/utils/languages";
+import type { Page } from "@/types/ipc";
 import { SettingsSkeleton } from "./SettingsSkeleton";
-
 import type { SettingsSectionSharedProps } from "./types";
 
 export const PostProcessingSettingsSection = memo(
@@ -30,7 +33,11 @@ export const PostProcessingSettingsSection = memo(
 		config,
 		updateConfig,
 		isVisible,
-	}: SettingsSectionSharedProps) {
+		onNavigate,
+	}: SettingsSectionSharedProps & {
+		/** Routes to the Templates page (the "Open Templates" button). */
+		onNavigate?: (page: Page) => void;
+	}) {
 		const t = useT();
 
 		if (!config) return <SettingsSkeleton rows={3} />;
@@ -44,8 +51,8 @@ export const PostProcessingSettingsSection = memo(
 			updateConfig({ text_cleanup_enabled: checked });
 		const handleTextSnippetsChange = (checked: boolean) =>
 			updateConfig({ templates_enabled: checked });
-		const handleVocabularyChange = (checked: boolean) =>
-			updateConfig({ vocabulary_enabled: checked });
+		const handleVocabAutomationChange = (checked: boolean) =>
+			updateConfig({ vocabulary_automation_enabled: checked });
 
 		//section-level visibility check for the Post-Processing section.
 		// The title constant feeds BOTH the `<SettingsSection title>` prop
@@ -69,7 +76,14 @@ export const PostProcessingSettingsSection = memo(
 				label: t("settings.textSnippets"),
 				info: t("settings.textSnippetsInfo"),
 			},
-			{ label: t("settings.vocabulary"), info: t("settings.vocabularyInfo") },
+			{
+				label: t("settings.vocabAutomation.title"),
+				info: t("settings.vocabAutomation.enableInfo"),
+			},
+			{
+				label: t("settings.openTemplates"),
+				info: t("settings.textSnippetsInfo"),
+			},
 		];
 		const postProcessingVisible = postProcessingItems.some((item) =>
 			isVisible(item.label, item.info, postProcessingTitle),
@@ -155,27 +169,46 @@ export const PostProcessingSettingsSection = memo(
 						label={t("settings.textSnippets")}
 						info={t("settings.textSnippetsInfo")}
 					>
-						<Switch
-							checked={config.templates_enabled ?? true}
-							onCheckedChange={handleTextSnippetsChange}
-							aria-label={t("settings.textSnippets")}
-						/>
+						<div className="flex items-center gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								className="gap-1.5"
+								onClick={() => onNavigate?.("templates")}
+								aria-label={t("settings.openTemplates")}
+								title={t("settings.textSnippetsInfo")}
+								data-testid="open-templates-button"
+							>
+								<HugeiconsIcon
+									icon={ArrowRight01Icon}
+									strokeWidth={2}
+									className="size-4"
+									aria-hidden="true"
+								/>
+								{t("settings.openTemplates")}
+							</Button>
+							<Switch
+								checked={config.templates_enabled ?? true}
+								onCheckedChange={handleTextSnippetsChange}
+								aria-label={t("settings.textSnippets")}
+							/>
+						</div>
 					</SettingRow>
 				)}
 
 				{isVisible(
-					t("settings.vocabulary"),
-					t("settings.vocabularyInfo"),
+					t("settings.vocabAutomation.title"),
+					t("settings.vocabAutomation.enableInfo"),
 					postProcessingTitle,
 				) && (
 					<SettingRow
-						label={t("settings.vocabulary")}
-						info={t("settings.vocabularyInfo")}
+						label={t("settings.vocabAutomation.title")}
+						info={t("settings.vocabAutomation.enableInfo")}
 					>
 						<Switch
-							checked={config.vocabulary_enabled ?? true}
-							onCheckedChange={handleVocabularyChange}
-							aria-label={t("settings.vocabulary")}
+							checked={config.vocabulary_automation_enabled ?? false}
+							onCheckedChange={handleVocabAutomationChange}
+							aria-label={t("settings.vocabAutomation.title")}
 						/>
 					</SettingRow>
 				)}

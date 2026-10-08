@@ -119,13 +119,18 @@ export function HeadingSkeleton({
 	action,
 }: {
 	titleWidth?: string;
-	descriptionWidth?: string;
+	/** `null` omits the line, for a `PageHeading` rendered with no
+	 *  description: otherwise the skeleton reserves a row the real heading
+	 *  never fills, and the content jumps up when the page loads. */
+	descriptionWidth?: string | null;
 	action?: ReactNode;
 }) {
 	const heading = (
 		<div className="flex min-w-0 flex-col gap-2">
 			<Skeleton className={cn("h-8", titleWidth)} />
-			<Skeleton className={cn("h-5", descriptionWidth)} />
+			{descriptionWidth !== null && (
+				<Skeleton className={cn("h-5", descriptionWidth)} />
+			)}
 		</div>
 	);
 	if (action === undefined) {

@@ -26,6 +26,7 @@ import { defineConfig } from "vite";
 
 import { aliases } from "./aliases";
 import { cspEmissionPlugin } from "./csp-plugin";
+import { releaseNotesPlugin } from "./release-notes-plugin";
 import { browserBridgePlugin } from "./scripts/vite-browser-bridge";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -45,6 +46,9 @@ export default defineConfig(({ command }) => ({
 		// plain browser with a live sidecar, for UI inspection. No-op inside
 		// the Tauri WebView, absent from production builds.
 		browserBridgePlugin(),
+		// Inlines the repo-root CHANGELOG.md as `virtual:release-notes` for
+		// the Settings → Updates "What's New" modal.
+		releaseNotesPlugin(path.resolve(__dirname, "../..")),
 	],
 	resolve: {
 		alias: { ...aliases },

@@ -18,6 +18,7 @@
 		"vite.config.ts",
 		"vite.tauri.config.ts",
 		"csp-plugin.ts",
+		"release-notes-plugin.ts",
 		"aliases.ts",
 		"scripts/vite-browser-bridge.ts",
 		"scripts/dev-bridge-middleware.ts",

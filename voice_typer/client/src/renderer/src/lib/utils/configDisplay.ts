@@ -1,14 +1,14 @@
 // Display-name helpers for config values shown in the UI.
 // The backend config stores machine values ("cuda", "cpu", "tiny",
 // "en"). These helpers map them to user-facing labels so every surface
-// (Analytics Current Setup, About, Home share image) renders the same
-// friendly text. The internal config values are NOT changed, only the
-// rendered text.
+// that shows them (the Home share image, the About/Diagnostics rows)
+// renders the same friendly text. The internal config values are NOT
+// changed, only the rendered text.
 // - device: "cuda" → "GPU" (friendly; the config keeps "cuda" to avoid
 //   a wider refactor). "cpu" → "CPU". Unknown values pass through.
 // - model: capitalize the first letter ("tiny" → "Tiny") so Model /
-//   Device / Language share one capitalization convention on the
-//   Current Setup cards.
+//   Device / Language share one capitalization convention wherever
+//   they are shown together.
 // - language: map the ISO code to the full localized name ("en" →
 //   "English", "" → "Auto-detect") using the same i18n label keys as
 //   the Settings language select (single source: lib/utils/languages).
