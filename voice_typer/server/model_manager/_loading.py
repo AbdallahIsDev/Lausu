@@ -7,6 +7,7 @@ import threading
 from typing import TYPE_CHECKING, Any, cast
 
 from voice_typer.server import i18n
+from voice_typer.server.asr.registry import MODEL_LOAD_TIMEOUT_SECONDS, MODEL_SLOW_LOAD_GRACE_SECONDS
 from voice_typer.server.asr_errors import ModelIntegrityError, ModelNotDownloadedError
 from voice_typer.server.asr_registry import AsrBackendRegistry
 from voice_typer.server.branding import APP_NAME
@@ -21,10 +22,18 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("voice_typer.server.model_manager")
 
-# Bounded wait used by the transcribe path. Must stay well under the 90s
-# transcription watchdog window so the wait can never be mistaken for a stuck
-# transcription and trip force-recovery.
+# Bounded wait used by the transcribe path when no background load is
+# running. Must stay well under the 90s transcription watchdog window
+# so the wait can never be mistaken for a stuck transcription and trip
+# force-recovery. When a background load IS running, the waiter joins
+# it instead (bounded by its own worst case below), the transcribe
+# worker stays alive so watchdog ticks stay benign until its ~270s
+# hard-kill, and the post-wait reset re-arms it.
 MODEL_WAIT_FOR_READY_SECONDS = 60.0
+# Worst case for one background load: ceiling plus slow grace. Both
+# join sites below use it so a join always outlives the load it waits
+# on (a load cannot run longer than this per backend attempt).
+MODEL_BACKGROUND_LOAD_JOIN_SECONDS = MODEL_LOAD_TIMEOUT_SECONDS + MODEL_SLOW_LOAD_GRACE_SECONDS
 
 
 class LoadingMixin:
@@ -347,15 +356,27 @@ class LoadingMixin:
         kicked off an idle-unload reload. Waiting keeps the user's audio
         instead of discarding it.
 
-        ``_lazy_init_lock`` is the single serialization point for every engine
-        load, so acquiring it blocks exactly until the in-flight load releases
-        it. When nothing is loading the lock is free, so this returns None
-        immediately rather than starting a load of its own — the transcribe
-        path must never become a second loader.
+        Two tiers: a live background load thread is joined directly
+        (bounded by its own worst case, it cannot run longer); otherwise
+        ``_lazy_init_lock`` is the serialization point for a synchronous
+        ensure-path load, so acquiring it blocks exactly until that load
+        releases it. When neither is loading the lock is free, so this
+        returns None immediately rather than starting a load of its own —
+        the transcribe path must never become a second loader.
         """
         engine = self.active_transcriber()
         if engine is not None and getattr(engine, "is_loaded", False):
             return engine
+
+        bg_loader = getattr(self, "_model_load_thread", None)
+        if bg_loader is not None and bg_loader.is_alive():
+            log.info("[MODEL] background load in flight, transcribe path joining it")
+            bg_loader.join(timeout=MODEL_BACKGROUND_LOAD_JOIN_SECONDS)
+            engine = self.active_transcriber()
+            if engine is not None and getattr(engine, "is_loaded", False):
+                log.info("[MODEL] model became ready while waiting; transcription resumes")
+                return engine
+            return None
 
         if not self._lazy_init_lock.acquire(timeout=timeout):
             log.warning(
@@ -393,6 +414,15 @@ class LoadingMixin:
                 "[MODEL] busy-check in ensure_active_engine_loaded failed (non-fatal)",
                 exc_info=True,
             )
+        bg_loader = getattr(self, "_model_load_thread", None)
+        if bg_loader is not None and bg_loader.is_alive():
+            # A background load is already running (hotkey kick or
+            # startup): join it instead of starting a duplicate
+            # synchronous load next to it.
+            log.info("[MODEL] background load in flight, joining it instead of duplicate sync load")
+            self.cancel_idle_unload_timer()
+            bg_loader.join(timeout=MODEL_BACKGROUND_LOAD_JOIN_SECONDS)
+            return self.active_transcriber()
         # cancel any pending idle-unload timer, the user is
         self.cancel_idle_unload_timer()
         # race-safe lazy init. The ``backend = config.asr_backend`` read

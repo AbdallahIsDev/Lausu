@@ -484,6 +484,42 @@ class TestWaitForActiveEngineLoaded:
         finally:
             lock.release()
 
+    def test_waits_for_background_thread_then_returns_engine(self):
+        """A live background load thread is joined, not raced."""
+        lock = threading.Lock()
+        engine = MagicMock()
+        engine.is_loaded = False
+        mgr = self._manager(lock, engine)
+
+        def _bg_load() -> None:
+            time.sleep(0.3)
+            engine.is_loaded = True
+
+        loader = threading.Thread(target=_bg_load, daemon=True)
+        loader.start()
+        mgr._model_load_thread = loader
+
+        result = mgr.wait_for_active_engine_loaded(timeout=5.0)
+
+        assert result is engine
+        loader.join(timeout=5.0)
+
+    def test_dead_background_thread_falls_back_to_lock_path(self):
+        """A dead loader handle must not stall the wait."""
+        lock = threading.Lock()
+        engine = MagicMock()
+        engine.is_loaded = False
+        mgr = self._manager(lock, engine)
+
+        dead = threading.Thread(target=lambda: None, daemon=True)
+        dead.start()
+        dead.join(timeout=5.0)
+        mgr._model_load_thread = dead
+
+        start = time.monotonic()
+        assert mgr.wait_for_active_engine_loaded(timeout=0.2) is None
+        assert time.monotonic() - start < 3.0
+
 
 class TestCancelledCycleEmptyHandling:
     """An ESC-cancelled cycle that aborts before the first"""
