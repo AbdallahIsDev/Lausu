@@ -20,7 +20,6 @@ const TEST_ICON = { name: "SpeechToTextIcon" } as unknown as Parameters<
 function renderCard(props: {
 	label?: string;
 	value?: string;
-	sublabel?: string;
 	trend?: { pct: number; up: boolean };
 }) {
 	return render(
@@ -28,7 +27,6 @@ function renderCard(props: {
 			label={props.label ?? "Recording Time"}
 			value={props.value ?? "1h 12m"}
 			icon={TEST_ICON}
-			sublabel={props.sublabel}
 			trend={props.trend}
 		/>,
 	);
@@ -36,8 +34,8 @@ function renderCard(props: {
 
 describe("StatCard", () => {
 	it("renders the icon, label and main value", () => {
-		renderCard({ label: "Active Days", value: "12" });
-		expect(screen.getByText("Active Days")).toBeInTheDocument();
+		renderCard({ label: "Characters", value: "12" });
+		expect(screen.getByText("Characters")).toBeInTheDocument();
 		expect(screen.getByText("12")).toBeInTheDocument();
 		expect(screen.getByTestId("hugeicon")).toHaveAttribute(
 			"data-name",
@@ -45,19 +43,36 @@ describe("StatCard", () => {
 		);
 	});
 
-	it("renders the sublabel only when a caller provides one", () => {
-		const { rerender } = renderCard({ value: "12" });
-		expect(screen.queryByText("5-day streak")).not.toBeInTheDocument();
+	it("keeps the value and the trend on ONE row, value first", () => {
+		renderCard({ value: "12", trend: { pct: 20, up: true } });
+		// The trend sits on the value's own line (value hard left,
+		// percentage hard right) instead of stacked under it, so both
+		// must be children of the same row element.
+		const value = screen.getByText("12");
+		const row = value.parentElement;
+		expect(row).not.toBeNull();
+		expect(row?.firstElementChild).toBe(value);
+		expect(row).toContainElement(screen.getByText("20%"));
+	});
 
-		rerender(
+	it("hands its card chrome to the parent when rendered inside a merged group", () => {
+		// Merged-group contract (C-DESIGN-2): the shared container owns
+		// the radius/border/background and draws the dividers between
+		// cells, so a cell that re-drew its own border would sit a second
+		// line on top of the divider. Padding stays with the cell.
+		const { container } = render(
 			<StatCard
-				label="Active Days"
-				value="12"
+				inGroup
+				label="Recording Time"
+				value="1h 12m"
 				icon={TEST_ICON}
-				sublabel="5-day streak"
 			/>,
 		);
-		expect(screen.getByText("5-day streak")).toBeInTheDocument();
+		const cell = container.firstElementChild;
+		expect(cell?.className).toContain("p-3");
+		expect(cell?.className).not.toContain("rounded-lg");
+		expect(cell?.className).not.toContain("border-border/8");
+		expect(cell?.className).not.toContain("bg-surface-subtle");
 	});
 
 	it("renders the trend indicator with the localized aria-label", () => {

@@ -3,12 +3,16 @@
 // (`@bklit/heatmap-chart`, see `components.json` → `registries.@bklit`,
 // source under `components/charts/heatmap/`).
 //
-// Why this card is NOT range-aware: the page's TimeRangeSelector answers
+// Why this card is NOT range-aware: the title bar's range control answers
 // "what happened in this window"; the heatmap answers "how consistent
 // have I been", which only reads at a scale of months. Driving it from
-// the selector would collapse "Today" to a single cell. The card prints
-// its own covered range in the subtitle so the two windows can never be
-// mistaken for each other.
+// the selector would collapse "Today" to a single cell. The grid's own
+// x-axis prints ~13 month labels spanning the year, so the window it
+// covers is legible from the axis itself — the card used to restate it
+// as a prose subtitle ("Oct 5, 2025 – Oct 8 · per day"), which was the
+// axis said twice. The active-days count and the current streak are
+// whole-history figures of the same kind, so they are surfaced in this
+// card's header instead of as range-aware stat cards.
 //
 // The grid is FIXED-WIDTH — always 53 weeks ending with the current week
 // (see `../lib/heatmap`). A two-week history therefore renders a full
@@ -28,8 +32,6 @@
 // here is translated (C-I18N-1). The month labels matter most: a
 // full-year grid shows ~13 of them.
 
-import { LayoutGridIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo } from "react";
 import {
 	HeatmapCells,
@@ -44,36 +46,24 @@ import {
 import { getLocale, t, tChoice } from "@/i18n/i18n";
 import type { DictationHeatmap } from "../lib/heatmap";
 
-const RANGE_FORMAT: Intl.DateTimeFormatOptions = {
-	month: "short",
-	day: "numeric",
-};
-
-/** Localised "Jan 5 – Oct 6" (year added only when the range spans two). */
-function formatRange(start: Date, end: Date, locale: string): string {
-	const short = new Intl.DateTimeFormat(locale, RANGE_FORMAT);
-	const startLabel =
-		start.getFullYear() === end.getFullYear()
-			? short.format(start)
-			: new Intl.DateTimeFormat(locale, {
-					...RANGE_FORMAT,
-					year: "numeric",
-				}).format(start);
-	return `${startLabel} – ${short.format(end)}`;
-}
-
 export interface ActivityHeatmapProps {
 	heatmap: DictationHeatmap;
+	/**
+	 * Current consecutive-day streak (0 = no streak, hint omitted).
+	 * Shown beside the active-days count: both count the heatmap's own
+	 * whole-history window, which is why the removed Active Days stat
+	 * card's figures live here instead of beside range-aware numbers.
+	 */
+	currentStreak?: number;
 }
 
-export function ActivityHeatmap({ heatmap }: ActivityHeatmapProps) {
+export function ActivityHeatmap({
+	heatmap,
+	currentStreak = 0,
+}: ActivityHeatmapProps) {
 	const { columns, total, activeDays, startDate, endDate, truncated } = heatmap;
 
 	const locale = getLocale();
-	const rangeLabel = useMemo(
-		() => formatRange(startDate, endDate, locale),
-		[startDate, endDate, locale],
-	);
 
 	// The vendored chart defaults to English-only weekday/date formatting;
 	// this card is translated, so it derives every label the chart renders
@@ -112,6 +102,11 @@ export function ActivityHeatmap({ heatmap }: ActivityHeatmapProps) {
 		return (date: Date) => fmt.format(date);
 	}, [locale]);
 
+	// The card's name, and the words that follow the figure in its
+	// heading. One string serves both: the section's accessible name and
+	// the visible label are the same phrase, so a screen reader hears the
+	// heading it can see (see the file header on why this replaced
+	// "Usage History").
 	const title = t("analytics.heatmap.title");
 
 	return (
@@ -119,24 +114,31 @@ export function ActivityHeatmap({ heatmap }: ActivityHeatmapProps) {
 			aria-label={title}
 			className="flex flex-col gap-4 rounded-lg border border-border/8 bg-surface-subtle p-4"
 		>
-			<div className="flex items-center gap-2.5">
-				{/* Grid glyph: the heatmap IS a grid of squares, so it reads as
-				    "this card is the grid" rather than a second analytics
-				    glyph next to the page's own Analytics nav icon. */}
-				<HugeiconsIcon
-					className="h-8 w-8 shrink-0 text-muted-foreground"
-					icon={LayoutGridIcon}
-					strokeWidth={1}
-				/>
-				<div className="flex flex-col gap-0.5">
-					<h2 className="font-sans text-sm font-semibold text-foreground">
-						{title}
-					</h2>
-					<p className="text-xs text-muted-foreground">
-						{rangeLabel} · {t("analytics.byDay")}
-						{truncated ? ` · ${t("analytics.heatmap.truncated")}` : ""}
+			{/* ONE header line: the card's own KPI is its title, with the
+			    secondary whole-history figure pushed to the far end. The
+			    count uses the heatmap's OWN `activeDays`, not the
+			    range-aware period count: this card ignores the title bar's
+			    range control, and a window-scoped number printed over a
+			    full-year grid would contradict what the axis shows.
+			    `truncated` stays on this line as a muted suffix rather than
+			    a subtitle of its own — it is the one fact the axis cannot
+			    state (that the grid is CAPPED, not that history began a
+			    year ago), so it appears only when the cap actually bites. */}
+			<div className="flex items-baseline justify-between gap-3">
+				<h2 className="min-w-0 truncate font-sans text-sm font-semibold text-foreground">
+					<span className="tabular-nums">{activeDays}</span>{" "}
+					<span className="font-normal text-muted-foreground">{title}</span>
+					{truncated && (
+						<span className="font-normal text-muted-foreground">
+							{` · ${t("analytics.heatmap.truncated")}`}
+						</span>
+					)}
+				</h2>
+				{currentStreak > 0 && (
+					<p className="shrink-0 text-xs leading-tight text-muted-foreground">
+						{t("analytics.dayStreak", { count: String(currentStreak) })}
 					</p>
-				</div>
+				)}
 			</div>
 
 			<div
@@ -146,20 +148,42 @@ export function ActivityHeatmap({ heatmap }: ActivityHeatmapProps) {
 					days: String(activeDays),
 				})}
 			>
-				{/* The provider sits ABOVE both chart and legend so hovering a
-				    legend swatch dims the matching cells (the chart's own
-				    internal provider is skipped when one already exists). */}
+				{/* One interaction provider for chart AND legend, placed above
+				    both: `HeatmapInteractionBoundary` requires one, and the
+				    chart skips its own internal provider when it finds this
+				    one, so the two share a single hover/tooltip state. The
+				    legend no longer dims anything with it (see
+				    `inactiveOpacity` below), so it is marked
+				    non-interactive rather than advertising a pointer cursor
+				    for a hover that has no effect. */}
 				<HeatmapInteractionProvider>
 					<HeatmapInteractionBoundary className="w-full">
 						<HeatmapChart
 							data={columns}
 							layout="fluid"
+							// Right margin reclaimed so the grid ends flush with
+							// the card's content box: the chart reserved 16px of
+							// its own right padding on top of the card's `p-4`,
+							// which left the last column short of the edge the
+							// legend below already aligns to. Fluid sizing grows
+							// `binHeight` with `binWidth`, so the cells stay
+							// square as they take the space. `HeatmapXAxis`
+							// clamps its last month label, which is what makes
+							// the reclaim safe on every calendar date.
+							margin={{ right: 0 }}
 							// Cell size comes from the full grid width, not from
 							// the columns the x-domain filter happens to keep:
 							// `fluid` divides innerWidth by this, so using the
 							// filtered count would resize all 53 cells whenever
 							// one boundary column drops.
 							sizingColumnCount={columns.length}
+							// No entrance animation. The vendored chart's
+							// staggered reveal fades the year in cell by cell
+							// (random per-cell delays inside a 1s window), so
+							// the grid arrives dripping rather than drawn; the
+							// card is a read-out, and it must be complete on
+							// the first paint.
+							animate={false}
 							weekStartDay={0}
 							xDomain={[startDate, endDate]}
 						>
@@ -171,7 +195,13 @@ export function ActivityHeatmap({ heatmap }: ActivityHeatmapProps) {
 							    the current week, leaving a ragged edge that
 							    changes shape by date. The card's whole point is a
 							    complete rectangle, so opt out. */}
-							<HeatmapCells hideGhostCells={false} />
+							{/* `inactiveOpacity={1}` switches OFF the vendored
+							    hover dim, which drops every OTHER cell to 30%
+							    while one is pointed at. On a 371-cell grid that
+							    turns finding the hovered cell into work: the
+							    tooltip already says which day it is, and the
+							    dimming also washed out the legend. */}
+							<HeatmapCells hideGhostCells={false} inactiveOpacity={1} />
 							<HeatmapXAxis monthLabels={monthLabels} />
 							<HeatmapYAxis dayLabels={dayLabels} />
 							<HeatmapTooltip
@@ -180,10 +210,21 @@ export function ActivityHeatmap({ heatmap }: ActivityHeatmapProps) {
 									tChoice("analytics.heatmap.tooltip", count)
 								}
 								formatWeekday={formatWeekday}
+								// The panel is the one floating surface on the
+								// card, so it carries the card's own outline
+								// rather than only a shadow (C-DESIGN-2).
+								panelClassName="border border-border/8"
 							/>
 						</HeatmapChart>
 						<HeatmapLegend
 							className="mt-3"
+							// `inactiveOpacity={1}` turns off the legend's half
+							// of the same hover effect, and `interactive={false}`
+							// follows from it: with nothing left to show on
+							// hover, the vendored pointer cursor would be
+							// advertising an interaction that does not happen.
+							inactiveOpacity={1}
+							interactive={false}
 							lessLabel={t("analytics.heatmap.less")}
 							moreLabel={t("analytics.heatmap.more")}
 						/>

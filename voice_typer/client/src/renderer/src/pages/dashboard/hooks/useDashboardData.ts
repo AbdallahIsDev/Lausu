@@ -32,6 +32,7 @@ import { usePythonEvent } from "@/hooks/usePython";
 import { t } from "@/i18n/i18n";
 import { peekIpcCache, writeIpcCache } from "@/lib/ipcCache";
 import { resolveActiveModel } from "@/lib/utils/models";
+import { useAnalyticsRange } from "@/stores/useAnalyticsRange";
 import type { LausuConfig } from "@/types/config";
 import type { HistoryRecord, ModelStatusMap } from "@/types/ipc";
 import { buildDictationHeatmap, type DictationHeatmap } from "../lib/heatmap";
@@ -152,9 +153,10 @@ export interface UseDashboardDataResult {
 	data: DashboardData | null;
 	configRaw: LausuConfig | null;
 	refreshing: boolean;
-	/** Selected analytics time range ("Today" / "7 Days" / …). */
+	/** Selected analytics time range ("Today" / "7 Days" / …). Owned by
+	 *  `stores/useAnalyticsRange` because the control that changes it
+	 *  lives in the title bar, outside this page's tree. */
 	range: RangeId;
-	setRange: (range: RangeId) => void;
 	/** Range-aware stats (current window + previous window for trends). */
 	period: PeriodStats;
 	/** Range-aware chart bars (hourly for Today, daily otherwise). */
@@ -208,8 +210,11 @@ export function useDashboardData({
 	const [refreshing, setRefreshing] = useState(false);
 	const [fetchError, setFetchError] = useState<string | null>(null);
 
-	// Selected time range, drives the stat cards + chart together.
-	const [range, setRange] = useState<RangeId>("7d");
+	// Selected time range, drives the stat cards + chart together. Read
+	// from the shared store, not `useState`: the title-bar control that
+	// changes it is a sibling tree, and the value must survive leaving
+	// and re-entering the page.
+	const range = useAnalyticsRange((s) => s.range);
 
 	// The history sample backing every derived stat (kept so period /
 	// activity memos recompute when the data refreshes).
@@ -513,7 +518,6 @@ export function useDashboardData({
 		configRaw,
 		refreshing,
 		range,
-		setRange,
 		period,
 		activity,
 		heatmap,

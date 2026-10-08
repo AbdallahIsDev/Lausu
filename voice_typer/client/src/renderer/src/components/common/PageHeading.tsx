@@ -33,7 +33,7 @@ export default function PageHeading({
 	children,
 }: PageHeadingProps) {
 	return (
-		<div className="flex flex-col gap-2">
+		<div className="flex flex-col">
 			{children ? (
 				// Title + description on the left, action row on the right
 				// with clear separation (gap-6) so a 4-button toolbar never
@@ -42,7 +42,7 @@ export default function PageHeading({
 				// the action row drop below on narrow windows instead of
 				// squeezing the title.
 				<div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-					<div className="flex min-w-0 flex-col gap-2">
+					<div className="flex min-w-0 flex-col">
 						<HeadingContent title={title} description={description} />
 					</div>
 					<div className="flex shrink-0 flex-wrap items-center gap-2">

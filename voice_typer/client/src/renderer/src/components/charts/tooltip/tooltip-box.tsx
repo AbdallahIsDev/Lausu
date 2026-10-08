@@ -23,8 +23,15 @@ export interface TooltipBoxProps {
 	containerHeight: number;
 	/** Offset from the target position */
 	offset?: number;
-	/** Custom class name */
+	/** Custom class name, applied to the positioned wrapper. */
 	className?: string;
+	/**
+	 * Custom class name for the inner panel (the visible surface).
+	 * `className` lands on the wrapper, which is transparent, so anything
+	 * meant to style the box itself — an outline, for instance — has to
+	 * come through here.
+	 */
+	panelClassName?: string;
 	/** Tooltip content */
 	children: React.ReactNode;
 	/** Override left position (bypasses internal calculation) */
@@ -74,6 +81,7 @@ function TooltipBoxInner({
 	containerHeight,
 	offset = 16,
 	className = "",
+	panelClassName: panelClassNameProp,
 	children,
 	left: leftOverride,
 	top: topOverride,
@@ -181,6 +189,7 @@ function TooltipBoxInner({
 			backgroundColor === chartCssVars.tooltipBackground &&
 			"bg-chart-tooltip-background",
 		panelStyle?.backdropFilter === undefined && "backdrop-blur-md",
+		panelClassNameProp,
 	);
 	const panelStyleResolved = {
 		transformOrigin,
