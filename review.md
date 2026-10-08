@@ -4,8 +4,8 @@ These items are the highest-priority remaining work for the project. They block 
 
 > **Won't Fix tasks live in `WONT_FIX.md`**: deliberately not solved. Do NOT fix them (AGENTS.md C-REVIEW-1). See that file for the full list.
 
-### AUD-14 — Production files over the 500-line C-STRUCT-3 threshold (15 left, Waves 1–5 shipped)
-**Status:** SPLIT INTO 5 TASKS (2026-10-03) — AUD-14a…e below. **WAVES 1–5 SHIPPED (2026-10-06, reviewer-verified green, commits `05eef343`, `b02b40fd`, `65d1d226`, `f52bc848`): AUD-14c complete; AUD-14e all but 6 files done. Per-wave evidence (counts, gates) in git history.** Remaining scope is the task list below (all DISJOINT file sets, E16).
+### AUD-14 — Production files over the 500-line C-STRUCT-3 threshold (13 left, Waves 1–6 shipped)
+**Status:** SPLIT INTO 5 TASKS (2026-10-03) — AUD-14a…e below. **WAVES 1–6 SHIPPED (reviewer-verified green, commits `05eef343`, `b02b40fd`, `65d1d226`, `f52bc848`, `000403b5` (Waves 1–6): AUD-14c and AUD-14d complete; AUD-14e all but 6 files done. Per-wave evidence (counts, gates) in git history.** Remaining scope is the task list below (all DISJOINT file sets, E16).
 **User Impact:** None directly. The cost is change risk: each edit touches a file with several unrelated reasons to change, so unrelated behavior is coupled to unrelated edits.
 **Root Cause:** Verified by line count — organic growth without the create-first split (E1) that C-STRUCT-3 requires.
 **Gain vs Trade-off:** Large, mechanical, regression-prone work. Best done incrementally, never as a batch. Split by subsystem so no two tasks touch the same file.
@@ -17,7 +17,6 @@ These items are the highest-priority remaining work for the project. They block 
 |---|---|---|
 | **AUD-14a** | Four largest god files (P2) | 4 |
 | **AUD-14b** | `server/recording/` package | 3 |
-| **AUD-14d** | `server/security/` | 2 |
 | **AUD-14e** | Tail: `startup_tasks.py`, `qwen_engine.py`, `worker_client.py`, `cloud/_engine.py`, `log/setup.py`, `ipc/validation.py` | 6 |
 
 ---
@@ -56,16 +55,9 @@ These items are the highest-priority remaining work for the project. They block 
 
 ---
 
-### AUD-14d — Security subsystem: `server/security/` (2 files, 1,429 lines)
-**Status:** NOT DONE (2026-10-03, split from AUD-14)
-**Description:** `redaction.py` (768) and `file_io.py` (661). Redaction carries many independent rules (PII patterns, API keys, URL scrubbing); file_io carries atomic-write/permission logic. Both are SEC-sensitive — a split must not weaken a filter or change a redaction rule's behavior.
-**Why separate:** Highest blast radius per line of any task here. A "cosmetic" split that reorders a redaction branch could silently un-redact output.
-**Fix:** Create-first split ONLY. Pure module reorganization: move functions to focused modules and re-export; **do not alter any pattern, ordering, or fallback** while splitting. Behavior-preserving by construction, verified by the existing redaction suites.
-**Related Files:** `server/security/{redaction,file_io}.py`, `tests/security/`, `tests/test_hallucination.py`
-**Success:** no file >500 lines; `pytest tests/security/ tests/test_hallucination.py` green with NO assertion edits — editing those tests means the split changed behavior, so stop and re-scope.
-**Implementation Difficulty:** 🟡 Low-Medium
-**Severity:** 🟠 High (blast radius, not likelihood)
-**Priority:** P3
+### AUD-14d — Security subsystem `server/security/` (DONE 2026-10-06, Wave 6: `redaction.py` 905→82, `file_io.py` 740→42, 8 focused siblings, order-equivalence byte-identical, reviewer-verified green)
+**Status:** DONE. Shipped this wave; only the task definition below is kept for the record.
+**Description:** Split create-first into 8 focused siblings with facade re-exports; pattern application order verified byte-identical; `tests/test_module_split_reexports_wave6.py` pins the contracts.
 
 ---
 
