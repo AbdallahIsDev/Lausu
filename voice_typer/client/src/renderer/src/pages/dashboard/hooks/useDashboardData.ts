@@ -151,8 +151,6 @@ export interface UseDashboardDataArgs {
 export interface UseDashboardDataResult {
 	data: DashboardData | null;
 	configRaw: LausuConfig | null;
-	/** Backend config directory (from get_status) for the data-path display. */
-	configDir: string;
 	refreshing: boolean;
 	/** Selected analytics time range ("Today" / "7 Days" / …). */
 	range: RangeId;
@@ -199,7 +197,6 @@ export function useDashboardData({
 	);
 	// R7-F18: removed dead `const [, setLoading] = useState(true)`.
 	const [configRaw, setConfigRaw] = useState<LausuConfig | null>(null);
-	const [configDir, setConfigDir] = useState<string>("");
 	// the timestamp after each successful refreshData() to surface
 	// staleness to the user.
 	const { agoLabel, markUpdated } = useLastUpdated();
@@ -237,7 +234,7 @@ export function useDashboardData({
 	// biome-ignore lint/correctness/useExhaustiveDependencies: callRef is a useLatestRef mirror: reading .current in a stale closure is the hook's documented contract, .current must NOT become a dep
 	const refreshData = useCallback(async () => {
 		try {
-			const [cfg, history, totalCount, status, correctionUsage, modelStatus] =
+			const [cfg, history, totalCount, correctionUsage, modelStatus] =
 				await Promise.all([
 					callRef.current<LausuConfig>("get_config"),
 					callRef
@@ -254,11 +251,6 @@ export function useDashboardData({
 					callRef.current<{ count: number }>("get_history_count").catch(() => ({
 						count: 0,
 					})),
-					// Fetch the backend config directory (for the data-path display).
-					// Returns null on failure, the caller falls back to the default path.
-					callRef
-						.current<{ config_dir?: string } | null>("get_status")
-						.catch(() => null),
 					// Per-correction usage snapshot (counts + per-day
 					// correction/dictation totals) powering the
 					// corrections-applied card. Null on failure, the
@@ -267,15 +259,16 @@ export function useDashboardData({
 					callRef
 						.current<CorrectionUsageSnapshot | null>("get_correction_usage")
 						.catch(() => null),
-					// MODEL-STATE fix: the "Current Setup" model/device
-					// values must reflect ACTUAL install state, not the
-					// config values (the app has no concrete default
-					// model; ``device`` is a preference). ``get_model_status`` stats the
-					// filesystem, the same truth the Models page and the
-					// backend's startup banner use. A configured model
-					// whose weights are not on disk is reported as "no
-					// model selected", never as a live selection. Empty
-					// map on failure → treated as nothing installed
+					// MODEL-STATE fix: the model/device shown in the
+					// share image must reflect ACTUAL install state,
+					// not the config values (the app has no concrete
+					// default model; ``device`` is a preference).
+					// ``get_model_status`` stats the filesystem, the
+					// same truth the Models page and the backend's
+					// startup banner use. A configured model whose
+					// weights are not on disk is reported as "no model
+					// selected", never as a live selection. Empty map
+					// on failure → treated as nothing installed
 					// (fail-safe: never advertise a model we can't
 					// verify).
 					callRef.current<ModelStatusMap>("get_model_status").catch(() => ({})),
@@ -307,7 +300,6 @@ export function useDashboardData({
 			// BP-159 cold snapshot: the delta path reuses these instead
 			// of re-fetching config / model-status per dictation.
 			coldRef.current = { cfg: cfg ?? null, modelStatus: modelStatus ?? {} };
-			if (status?.config_dir) setConfigDir(status.config_dir);
 			setFetchError(null);
 		} catch (err) {
 			// Surface refresh failures to the user instead of
@@ -519,7 +511,6 @@ export function useDashboardData({
 	return {
 		data,
 		configRaw,
-		configDir,
 		refreshing,
 		range,
 		setRange,

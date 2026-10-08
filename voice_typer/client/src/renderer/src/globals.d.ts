@@ -63,3 +63,10 @@ declare module "papaparse" {
 	};
 	export default Papa;
 }
+
+// The repo's CHANGELOG.md, inlined at build time by `release-notes-plugin.ts`
+// (the file lives outside the Vite root, so it cannot be imported directly).
+declare module "virtual:release-notes" {
+	const raw: string;
+	export default raw;
+}

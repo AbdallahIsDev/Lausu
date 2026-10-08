@@ -128,6 +128,17 @@ export const CONSENT_FIELDS: readonly ConsentFieldDescriptor[] = [
 		consentRow: true,
 		agreeToAll: true,
 	},
+	{
+		section: "privacy",
+		configKey: "cloud_gemini_consent",
+		labelKey: "settings.privacy.geminiCloudAsrLabel",
+		infoKey: "settings.privacy.geminiCloudAsrInfo",
+		infoSearchKey: "settings.privacy.geminiCloudAsrInfoSearch",
+		ariaKey: "settings.privacy.geminiCloudAsrAria",
+		defaultValue: false,
+		consentRow: true,
+		agreeToAll: true,
+	},
 	// LLM polish consent (existing field, surfaced here for completeness).
 	{
 		section: "privacy",

@@ -26,7 +26,9 @@ const SECTION_ROW_IDS = [
 export function SettingsPageSkeleton() {
 	return (
 		<PageShell className="gap-8">
-			<HeadingSkeleton />
+			{/* Title only: the hub renders a bare `PageHeading` with no
+			    subtitle, so a description line here would be a phantom row. */}
+			<HeadingSkeleton descriptionWidth={null} />
 			<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle divide-y divide-border/8">
 				{SECTION_ROW_IDS.map((id) => (
 					<div key={id} className="flex w-full items-center gap-4 p-4">

@@ -15,7 +15,7 @@
 //   - probes get_status / get_config / get_model_status on mount
 //   - the Speech recognizer / Device rows derive from the SHARED
 //     resolveActiveModel helper (lib/utils/models.ts), the same
-//     source of truth as the Analytics page's Current Setup cards
+//     source of truth the Analytics share image uses
 //   - Config Directory resolves from get_status's config_dir (the
 //     backend's authoritative path, never a hardcoded Windows path)
 //   - Copy diagnostics formats a labeled block to the clipboard
@@ -214,7 +214,7 @@ export const DiagnosticsSettingsSection = memo(
 		}, []);
 
 		// SHARED model-install truth (lib/utils/models.ts), the same
-		// function the Analytics page's Current Setup cards use.
+		// function the Analytics share image uses.
 		const activeModel = resolveActiveModel(
 			config?.model_size ?? "",
 			modelStatus ?? {},

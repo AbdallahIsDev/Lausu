@@ -137,6 +137,7 @@ function makeConfig(overrides: Partial<LausuConfig> = {}): LausuConfig {
 		openai_api_key: "",
 		groq_api_key: "",
 		deepgram_api_key: "",
+		gemini_api_key: "",
 		llm_polish: false,
 		llm_api_key: "",
 		llm_api_url: "",
@@ -203,6 +204,7 @@ function makeConfig(overrides: Partial<LausuConfig> = {}): LausuConfig {
 		cloud_openai_consent: false,
 		cloud_groq_consent: false,
 		cloud_deepgram_consent: false,
+		cloud_gemini_consent: false,
 		llm_polish_consent: false,
 		sound_feedback_enabled: false,
 		ai_enhancement_enabled: false,
@@ -329,56 +331,26 @@ describe("About page, updates / help / feedback sections", () => {
 		expect(fetchSpy).not.toHaveBeenCalled();
 	});
 
-	it("renders help links to README and CHANGELOG", async () => {
-		// Python invariant (test_about_page_has_help_links):
-		//   "README_URL" in src OR "README.md" in src
-		//   "CHANGELOG_URL" in src OR "CHANGELOG.md" in src
-		// Behavioral: anchor links to README.md and CHANGELOG.md
-		// are rendered as <a href="...README.md"> and
-		// <a href="...CHANGELOG.md">. The resources grid moved to
-		// Settings → Troubleshooting (ResourcesSettingsSection) in
-		// the IA split, so that's what we mount here.
-		const { ResourcesSettingsSection } = await import(
-			"@/components/settings/ResourcesSettingsSection"
+	it("renders no repository links (README / CHANGELOG / issues) anywhere in the app", async () => {
+		// Closed-source professionalization: the Resources grid was the
+		// only surface that rendered anchors to README.md, CHANGELOG.md
+		// and the GitHub issue tracker. It has been deleted, so the
+		// rendered Settings surface must contain no such anchor at all.
+		const { default: SettingsPage } = await import("@/pages/Settings");
+		const { container } = renderWithProviders(
+			<SettingsPage page="settingsAdvanced" />,
 		);
-		renderWithProviders(<ResourcesSettingsSection isVisible={() => true} />);
-
-		// Wait for the section to mount.
-		await waitFor(() => {
-			expect(screen.getAllByText(/documentation/i).length).toBeGreaterThan(0);
-		});
-
-		const links = screen.getAllByRole("link");
-		const hrefs = links.map((a) => a.getAttribute("href") ?? "");
-		expect(hrefs.some((h) => h.includes("README.md"))).toBe(true);
-		expect(hrefs.some((h) => h.includes("CHANGELOG.md"))).toBe(true);
-	});
-
-	it("renders a feedback link pointing at the GitHub issues tracker", async () => {
-		// Python invariant (test_about_page_has_feedback_links):
-		//   "Report a Bug" in src OR "Report an Issue" in src
-		//   OR "Report a Bug" in en OR "Report an Issue" in en
-		//   "github.com/AbdallahIsDev/lausu/issues" in src
-		// Behavioral: an anchor with visible text matching
-		// /Report a (Bug|Issue)/ points at the GitHub issues URL.
-		const { ResourcesSettingsSection } = await import(
-			"@/components/settings/ResourcesSettingsSection"
-		);
-		renderWithProviders(<ResourcesSettingsSection isVisible={() => true} />);
 
 		await waitFor(() => {
-			expect(
-				screen.getByRole("link", {
-					name: /report a (bug|issue)/i,
-				}),
-			).toBeTruthy();
+			expect(screen.getByRole("heading", { name: "Diagnostics" })).toBeTruthy();
 		});
 
-		const feedbackLink = screen.getByRole("link", {
-			name: /report a (bug|issue)/i,
-		});
-		const href = feedbackLink.getAttribute("href") ?? "";
-		expect(href).toContain("github.com/AbdallahIsDev/lausu/issues");
+		const hrefs = Array.from(container.querySelectorAll("a")).map(
+			(a) => a.getAttribute("href") ?? "",
+		);
+		expect(hrefs.some((h) => /README\.md/i.test(h))).toBe(false);
+		expect(hrefs.some((h) => /CHANGELOG\.md/i.test(h))).toBe(false);
+		expect(hrefs.some((h) => /github\.com/i.test(h))).toBe(false);
 	});
 });
 
@@ -423,19 +395,13 @@ describe("Settings page, Troubleshooting section", () => {
 		});
 	}
 
-	it("renders the Diagnostics section, Help & FAQ, Report a Bug, and Open Log Folder buttons", async () => {
-		// Python invariant (test_settings_has_diagnostics_button):
-		//   "Diagnostics" in src OR en
-		//   "Help & FAQ" in src OR en
-		//   "Report a Bug" in src OR en
-		//   "Open Log Folder" in src OR en
-		// the Settings → Advanced section page in the hub IA, so the
-		// section heading renders directly there. The Troubleshooting
-		// buttons carry aria-labels (en.json:
-		// settings.troubleshooting.*Aria) that differ from their
-		// visible text, we assert BOTH the visible text (per the
-		// Python invariant) and the accessible name (per WCAG SC
-		// 4.1.2) so a regression in either dimension fails the test.
+	it("renders the Diagnostics section and the in-app Report a Bug button, and no browser-handoff buttons", async () => {
+		// Closed-source professionalization: the Troubleshooting section
+		// keeps the Diagnostics table and the keyboard-shortcut
+		// reference, and now exposes an in-app "Report a Bug" button
+		// that opens the bug-report composer. The two browser-handoff
+		// buttons ("Help & FAQ" → README, "Open Log Folder" → the OS
+		// file manager) are gone.
 		await renderSettingsOnAdvancedPage();
 
 		// The Diagnostics section heading (about.diagnosticsTitle) —
@@ -443,22 +409,20 @@ describe("Settings page, Troubleshooting section", () => {
 		await waitFor(() => {
 			expect(screen.getByText("Diagnostics")).toBeTruthy();
 		});
-		expect(screen.getByText("Help & FAQ")).toBeTruthy();
-		// "Report a Bug" appears in BOTH the Troubleshooting button
-		// and the Resources grid, accept either occurrence.
-		expect(screen.getAllByText("Report a Bug").length).toBeGreaterThan(0);
-		expect(screen.getByText("Open Log Folder")).toBeTruthy();
 
-		// Accessible names (en.json: settings.troubleshooting.*Aria).
-		expect(
-			screen.getByRole("button", { name: /^open documentation$/i }),
-		).toBeTruthy();
+		// The bug-report button carries a stable testid and an
+		// accessible name (en.json: settings.troubleshooting.reportBugAria).
+		expect(screen.getByTestId("report-bug-button")).toBeTruthy();
 		expect(
 			screen.getByRole("button", { name: /^report a bug$/i }),
 		).toBeTruthy();
+
+		// The browser-handoff surfaces must be gone.
+		expect(screen.queryByText("Help & FAQ")).toBeNull();
+		expect(screen.queryByText("Open Log Folder")).toBeNull();
 		expect(
-			screen.getByRole("button", { name: /^open log folder$/i }),
-		).toBeTruthy();
+			screen.queryByRole("button", { name: /^open log folder$/i }),
+		).toBeNull();
 	});
 
 	it("renders the diagnostics table in Settings without navigating to About", async () => {
@@ -860,8 +824,10 @@ describe("Models page, cloud consent toggles", () => {
 		await renderModels({
 			groq_api_key: "gsk-test",
 			deepgram_api_key: "dg-test",
+			gemini_api_key: "",
 			cloud_groq_consent: false,
 			cloud_deepgram_consent: false,
+			cloud_gemini_consent: false,
 		});
 
 		// (overhaul point 11) reveal both providers' forms.
@@ -1035,9 +1001,11 @@ describe("Models page, cloud consent toggles", () => {
 			openai_api_key: "sk-test-key",
 			groq_api_key: "",
 			deepgram_api_key: "",
+			gemini_api_key: "",
 			cloud_openai_consent: false,
 			cloud_groq_consent: false,
 			cloud_deepgram_consent: false,
+			cloud_gemini_consent: false,
 		});
 
 		// (overhaul point 11) reveal the OpenAI form (it has a key, so

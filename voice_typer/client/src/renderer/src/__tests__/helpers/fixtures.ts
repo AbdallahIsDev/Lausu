@@ -107,6 +107,7 @@ export const DEFAULT_CONFIG: LausuConfig = {
 	openai_api_key: "",
 	groq_api_key: "",
 	deepgram_api_key: "",
+	gemini_api_key: "",
 
 	llm_polish: false,
 	llm_api_key: "",
@@ -198,6 +199,7 @@ export const DEFAULT_CONFIG: LausuConfig = {
 	cloud_openai_consent: false,
 	cloud_groq_consent: false,
 	cloud_deepgram_consent: false,
+	cloud_gemini_consent: false,
 	voice_biometric_consent: false,
 	llm_polish_consent: false,
 	media_url_consent: false,

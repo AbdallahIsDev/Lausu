@@ -3,7 +3,6 @@
 // (`config.language`) and their i18n label keys. Used by:
 //   - the Settings transcription-language select
 //     (PostProcessingSettingsSection)
-//   - the Analytics "Current Setup" language card (via formatLanguage)
 // Dropdown option labels are translated at render time so they follow
 // the user's chosen UI language. No `description` field is set on any
 // entry, earlier versions shipped inconsistent per-language

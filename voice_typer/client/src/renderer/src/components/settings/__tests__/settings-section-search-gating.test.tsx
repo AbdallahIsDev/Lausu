@@ -50,7 +50,7 @@ vi.mock("@/lib/sound-manager", () => ({
 	playSoundCue: vi.fn(),
 }));
 
-import { AiEnhancementSettingsSection } from "@/components/settings/AiEnhancementSettingsSection";
+import { PostProcessingSettingsSection } from "@/components/settings/PostProcessingSettingsSection";
 import { RecordingSettingsSection } from "@/components/settings/RecordingSettingsSection";
 import {
 	anyRowVisible,
@@ -161,26 +161,27 @@ describe("RecordingSettingsSection, in-section search filtering", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────
-// AI Enhancement + Vocabulary Automation
+// Post-Processing: vocabulary row lives in the shared card
 // ─────────────────────────────────────────────────────────────────────
-describe("AiEnhancementSettingsSection, in-section search filtering", () => {
+describe("PostProcessingSettingsSection, in-section search filtering", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		cleanup();
 	});
 
-	it("still renders the matching section header while filtering", () => {
+	it("still renders the matching vocabulary row while filtering", () => {
 		renderWithProviders(
-			<AiEnhancementSettingsSection
+			<PostProcessingSettingsSection
 				config={makeConfig()}
 				updateConfig={noopUpdate}
 				updateConfigDebounced={noopDebounced}
-				isVisible={filterByLabel("grammar")}
+				isVisible={filterByLabel("vocabulary")}
 			/>,
 		);
-		expect(screen.getByText("AI Enhancement")).toBeTruthy();
-		// The non-matching sibling section's header is gone.
-		expect(screen.queryByText("Vocabulary Automation")).toBeNull();
+		expect(screen.getByText("Text Enhancement")).toBeTruthy();
+		expect(
+			screen.getByRole("switch", { name: "Vocabulary Automation" }),
+		).toBeTruthy();
 	});
 });
 

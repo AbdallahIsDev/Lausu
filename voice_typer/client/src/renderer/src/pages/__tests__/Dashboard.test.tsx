@@ -33,10 +33,9 @@ const STATCARDS_SRC = fs.readFileSync(
 	),
 	"utf8",
 );
-// Dashboard data-fetch hook source. The hook now fires an
-// additional `get_status` IPC call in its Promise.all to fetch the
-// on-disk `config_dir` for the footer; the assertions below verify the
-// hook owns that fetch + exposes `configDir` on its result.
+// Dashboard data-fetch hook source. The assertions below read it to
+// pin the hook's data plumbing (correction-usage fetch, model-status
+// resolution) without rendering the component.
 const HOOK_SRC = fs.readFileSync(
 	path.resolve(__dirname, "..", "dashboard", "hooks", "useDashboardData.ts"),
 	"utf8",
@@ -292,52 +291,6 @@ describe("Dashboard noDataDescription interpolates {hotkey} from config", () => 
 	});
 });
 
-describe("Dashboard dataPath uses {path} interpolation fed by get_status config_dir", () => {
-	it('Dashboard.tsx calls t("analytics.dataPath", { path: configDir || ... })', () => {
-		// "Data stored in: ~/.lausu/" regardless of platform. The fix
-		// interpolates the actual on-disk path (fetched via the get_status
-		// IPC) so Windows / VOICE_TYPER_CONFIG_DIR users see the right path.
-		expect(DASHBOARD_SRC).toMatch(
-			/dataPath",\s*\{[\s\S]*?path:\s*configDir\s*\|\|\s*"~\/\.lausu\/"[\s\S]*?\}/,
-		);
-		// The bare no-arg call is gone.
-		expect(DASHBOARD_SRC).not.toMatch(/t\("analytics\.dataPath"\)\s/);
-	});
-
-	it("Dashboard.tsx destructures configDir from useDashboardData", () => {
-		// The hook now exposes `configDir` alongside `configRaw`; the page
-		// must consume it for the dataPath interpolation above to resolve.
-		expect(DASHBOARD_SRC).toMatch(/configDir,/);
-	});
-
-	it("useDashboardData.ts fetches get_status in the Promise.all (C-DATA-1 local IPC)", () => {
-		// The hook now fires `get_status` alongside `get_config` /
-		// `get_today_stats` / `get_history` / `get_history_count`. The call
-		// is a local IPC probe (C-DATA-1, offline), no network. A `.catch`
-		// fallback keeps the Promise.all alive if the backend doesn't expose
-		// `get_status` or the field is missing (older sidecar).
-		// The hook reads `call` through a ref (callRef.current) so the
-		// mount-load effect keeps a stable identity, the get_status
-		// probe is still part of the refreshData Promise.all.
-		expect(HOOK_SRC).toMatch(
-			/current<\{ config_dir\?:\s*string[^>]*>\s*\("get_status"/,
-		);
-		expect(HOOK_SRC).toMatch(
-			/get_status[\s\S]*?\.catch\(\s*\(\)\s*=>\s*null\)/,
-		);
-	});
-
-	it("useDashboardData.ts exposes configDir on its result + populates it from status.config_dir", () => {
-		// The hook must (1) declare `configDir: string` on its result
-		// interface so consumers can destructure it, (2) seed state from
-		// `status?.config_dir ?? ""` after the Promise.all resolves, and
-		// (3) include `configDir` in the returned object literal.
-		expect(HOOK_SRC).toMatch(/configDir:\s*string;/);
-		expect(HOOK_SRC).toMatch(/status\?\.config_dir/);
-		expect(HOOK_SRC).toMatch(/configDir,/);
-	});
-});
-
 describe("SevenDayActivityChart migrates binary plural to tChoice", () => {
 	it("SevenDayActivityChart.tsx imports tChoice from @/i18n/i18n", () => {
 		// `day.count === 1` between two hardcoded keys
@@ -491,15 +444,6 @@ describe("Top stat cards: merged dictation card + range-aware values", () => {
 			/icon=\{StopWatchIcon\}[\s\S]*?analytics\.longestLabel/,
 		);
 	});
-
-	it("Language card uses the classic globe (Globe02Icon)", () => {
-		// The previous circle-with-contours icon read as an indistinct
-		// blob at 20px; the meridian + latitude globe reads clearly.
-		expect(DASHBOARD_SRC).toContain("Globe02Icon");
-		expect(DASHBOARD_SRC).toMatch(
-			/icon=\{Globe02Icon\}[\s\S]*?analytics\.language/,
-		);
-	});
 });
 
 describe("Analytics polish: stat-card spacing, sublabel pruning, Activity icon weight", () => {
@@ -542,7 +486,7 @@ describe("Analytics polish: stat-card spacing, sublabel pruning, Activity icon w
 		// auto-top-margin actually has room to spread (a card only as
 		// tall as its content leaves no breathing space).
 		expect(statCardSrc).toMatch(/min-h-24/);
-		// QuickInfoCard (secondary row + Current Setup) uses the same
+		// QuickInfoCard (the derived-metrics row) uses the same
 		// bottom-pushed rhythm.
 		const quickInfoSrc = fs.readFileSync(
 			path.resolve(

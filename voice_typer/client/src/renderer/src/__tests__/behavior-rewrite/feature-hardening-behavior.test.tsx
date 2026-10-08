@@ -213,6 +213,7 @@ const baseConfig: LausuConfig = {
 	openai_api_key: "",
 	groq_api_key: "",
 	deepgram_api_key: "",
+	gemini_api_key: "",
 	llm_polish: false,
 	llm_api_key: "",
 	llm_api_url: "",
@@ -298,6 +299,7 @@ const baseConfig: LausuConfig = {
 	cloud_openai_consent: false,
 	cloud_groq_consent: false,
 	cloud_deepgram_consent: false,
+	cloud_gemini_consent: false,
 	voice_biometric_consent: false,
 	llm_polish_consent: false,
 	media_url_consent: false,
@@ -416,23 +418,10 @@ describe("useSnackbar, rewrite (DX-013: no Snackbar component returned)", () => 
 //    Python: TestPagesUseSharedSnackbarHook::test_settings_uses_shared_hook
 
 describe("Settings, rewrite of test_settings_uses_shared_hook", () => {
-	let originalWindow_: unknown;
-
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockCall.mockReset();
 		installPythonBridgeMock();
-		// Stub window.window_.openLogs to simulate the predecessor main
-		// process successfully opening the log folder.  Settings.tsx's
-		// viewLogs() handler awaits this then calls showSnack(..., "success").
-		originalWindow_ = (window as unknown as { window_?: unknown }).window_;
-		(
-			window as unknown as {
-				window_?: { openLogs?: () => Promise<{ success: boolean }> };
-			}
-		).window_ = {
-			openLogs: vi.fn(() => Promise.resolve({ success: true })),
-		};
 		mockCall.mockImplementation((arg: unknown) => {
 			const type =
 				typeof arg === "string"
@@ -449,40 +438,63 @@ describe("Settings, rewrite of test_settings_uses_shared_hook", () => {
 
 	afterEach(() => {
 		removePythonBridgeMock();
-		if (originalWindow_ === undefined) {
-			delete (window as unknown as { window_?: unknown }).window_;
-		} else {
-			(window as unknown as { window_?: unknown }).window_ = originalWindow_;
-		}
 		cleanup();
 	});
 
-	it("calls showSnack via the shared useSnackbar hook when 'Open Log Folder' succeeds (delegates to sonner.toast.success, not inline state)", async () => {
-		const { default: SettingsPage } = await import("@/pages/Settings");
-		// Mount the Advanced section page directly (hub IA, the
-		// Troubleshooting section that contains the "Open Log Folder"
-		// button lives on settingsAdvanced). The button's accessible
-		// name is its aria-label
-		// t("settings.troubleshooting.openLogFolderAria") → "Open log
-		// folder" (en.json).
-		renderWithProviders(<SettingsPage page="settingsAdvanced" />);
-
-		// Find the "Open Log Folder" button by its aria-label and click it.
-		const openLogBtn = await waitFor(() =>
-			screen.getByRole("button", { name: "Open log folder" }),
-		);
-		fireEvent.click(openLogBtn);
-
-		// TroubleshootingSettingsSection's handleOpenLogs awaits
-		// window.window_.openLogs(), then, on success, calls
-		// showSnack(t("settings.logFolderOpened"), "success"). Because
-		// useSnackbar delegates to sonner, this surfaces as a
-		// toast.success call. If the section had inline snackbar state
-		// (the pre-shared-hook pattern), toast.success would never be
-		// called.
-		await waitFor(() => {
-			expect(toastMock.success).toHaveBeenCalled();
+	it("calls showSnack via the shared useSnackbar hook when a Troubleshooting action succeeds (delegates to sonner.toast.success, not inline state)", async () => {
+		// The Troubleshooting section's old "Open Log Folder" button was
+		// removed in the closed-source professionalization pass. This test
+		// now drives the macOS stale-permission reset, which exercises the
+		// same shared-hook path (showSnack → sonner.toast.success) without
+		// mutating onboarding state the way the dev-only "Re-run Setup
+		// Wizard" button does (that mutation leaked into the App test
+		// below). The button's accessible name is its aria-label
+		// t("settings.troubleshooting.resetAccessibilityAria") → "Reset
+		// macOS accessibility permission" (en.json).
+		const originalUA = window.navigator.userAgent;
+		Object.defineProperty(window.navigator, "userAgent", {
+			value:
+				"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+			configurable: true,
 		});
+		try {
+			mockCall.mockImplementation((arg: unknown) => {
+				const type =
+					typeof arg === "string"
+						? arg
+						: ((arg as { type?: string })?.type ?? "");
+				if (type === "get_config") return Promise.resolve(baseConfig);
+				if (type === "set_config") return Promise.resolve({ success: true });
+				if (type === "reset_macos_accessibility")
+					return Promise.resolve({ ok: true, command: null });
+				return Promise.resolve({});
+			});
+
+			const { default: SettingsPage } = await import("@/pages/Settings");
+			renderWithProviders(<SettingsPage page="settingsAdvanced" />);
+
+			const resetBtn = await waitFor(() =>
+				screen.getByRole("button", {
+					name: "Reset macOS accessibility permission",
+				}),
+			);
+			fireEvent.click(resetBtn);
+
+			// handleResetAccessibility awaits reset_macos_accessibility, then
+			// on `ok: true` calls showSnack(t("...resetAccessibilityToast"),
+			// "success"). Because useSnackbar delegates to sonner, this
+			// surfaces as a toast.success call. If the section had inline
+			// snackbar state (the pre-shared-hook pattern), toast.success
+			// would never be called.
+			await waitFor(() => {
+				expect(toastMock.success).toHaveBeenCalled();
+			});
+		} finally {
+			Object.defineProperty(window.navigator, "userAgent", {
+				value: originalUA,
+				configurable: true,
+			});
+		}
 	});
 });
 

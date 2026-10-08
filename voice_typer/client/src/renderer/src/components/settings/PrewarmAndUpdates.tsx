@@ -28,7 +28,6 @@
 import { RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useState } from "react";
-import { ExternalLink } from "@/components/common/ExternalLink";
 import { ReadonlyRow } from "@/components/common/ReadonlyRow";
 import { SettingsSection } from "@/components/common/SettingsSection";
 // Reuse the byte/relative-time formatters exported by the diagnostics
@@ -45,15 +44,9 @@ import { useSnackbar } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
 import pkg from "../../../../../package.json";
 import type { IsVisibleFn } from "./types";
+import { WhatsNewModal } from "./WhatsNewModal";
 
 const APP_VERSION = pkg.version as string;
-
-// Static anchor URL for the "View Changelog" button. This is NOT a
-// user explicitly clicks, which predecessor routes to the system browser
-// (or a new BrowserWindow depending on config). The C-DATA-1 rule
-// forbids automated network calls from the production code path; a
-// not Lausu.
-const RELEASES_URL = "https://github.com/AbdallahIsDev/lausu/releases";
 
 // ADR-0009 Issue 3: shape of the ``get_prewarm_status`` IPC response.
 // Mirrors the dict returned by
@@ -131,7 +124,6 @@ export function getPrewarmAndUpdatesLabels(): string[] {
 		t("about.prewarmElapsed"),
 		t("about.runPrewarmNow"),
 		t("about.refreshCacheStatus"),
-		t("about.viewPrewarmLog"),
 		t("about.updatesTitle"),
 		t("about.updatesDescription"),
 		t("about.installedVersion"),
@@ -160,6 +152,9 @@ export default function PrewarmAndUpdates({
 	// "Run Prewarm Now" button state. runPrewarmLoading is true while
 	// addendum 2nd half).
 	const [runPrewarmLoading, setRunPrewarmLoading] = useState(false);
+	// In-app release notes. Owned here rather than by the page so the
+	// Updates card is self-contained.
+	const [whatsNewOpen, setWhatsNewOpen] = useState(false);
 
 	const fetchPrewarmStatus = async () => {
 		setPrewarmLoading(true);
@@ -174,33 +169,6 @@ export default function PrewarmAndUpdates({
 			);
 		} finally {
 			setPrewarmLoading(false);
-		}
-	};
-
-	// open_prewarm_log IPC handler which uses os.startfile (Windows), open
-	// (macOS), or xdg-open (Linux). Shows a toast if the log file doesn't
-	// exist or can't be opened. (RESTORED 2026-08-14, the handler now
-	// opens the worker log, which carries the [PREWARM] lines.)
-	const handleViewPrewarmLog = async () => {
-		try {
-			const result = await call<{
-				opened: boolean;
-				path?: string;
-				reason?: string;
-			}>("open_prewarm_log");
-			if (result?.opened) {
-				showSnack(t("about.prewarmLogOpened"), "success");
-			} else if (result?.reason === "not_found") {
-				showSnack(t("about.prewarmLogNotFound"), "info");
-			} else {
-				showSnack(t("about.prewarmLogOpenFailed"), "error");
-			}
-		} catch (err) {
-			showSnack(
-				t("about.prewarmLogOpenFailed") +
-					(err instanceof Error ? `: ${err.message}` : ""),
-				"error",
-			);
 		}
 	};
 
@@ -223,10 +191,8 @@ export default function PrewarmAndUpdates({
 				await fetchPrewarmStatus();
 			}
 		} catch (err) {
-			// Run-failure copy, NOT the View-Log handler's
-			// `prewarmLogOpenFailed` string (a user who clicked
-			// "Run Prewarm Now" must be told the RUN failed, not
-			// that opening a log failed).
+			// Run-failure copy: a user who clicked "Run Prewarm Now"
+			// must be told the RUN failed, not something else.
 			showSnack(
 				t("about.prewarmRunFailed") +
 					(err instanceof Error ? `: ${err.message}` : ""),
@@ -342,21 +308,7 @@ export default function PrewarmAndUpdates({
 							}
 						/>
 					)}
-					<div className="flex flex-wrap items-center gap-2 px-3.5 py-3.5">
-						{/* "Run Prewarm Now" button (RESTORED 2026-08-14 §6.3
-                                                addendum 2nd half). Disabled while the run_prewarm IPC
-                                                is in flight; the in-process warm pass is fast, so no
-                                                long-running state. */}
-						<Button
-							variant="default"
-							size="sm"
-							onClick={handleRunPrewarm}
-							disabled={runPrewarmLoading}
-						>
-							{runPrewarmLoading
-								? t("about.cacheRunning")
-								: t("about.runPrewarmNow")}
-						</Button>
+					<div className="flex flex-wrap items-center justify-end gap-2 px-4 py-2">
 						<Button
 							variant="outline"
 							size="sm"
@@ -367,10 +319,15 @@ export default function PrewarmAndUpdates({
 								? t("about.checking")
 								: t("about.refreshCacheStatus")}
 						</Button>
-						{/* "View prewarm log" button. Opens the worker log
-                                                (the prewarm record) in the OS default text editor. */}
-						<Button variant="ghost" size="sm" onClick={handleViewPrewarmLog}>
-							{t("about.viewPrewarmLog")}
+						<Button
+							variant="default"
+							size="sm"
+							onClick={handleRunPrewarm}
+							disabled={runPrewarmLoading}
+						>
+							{runPrewarmLoading
+								? t("about.cacheRunning")
+								: t("about.runPrewarmNow")}
 						</Button>
 					</div>
 				</SettingsSection>
@@ -403,40 +360,34 @@ export default function PrewarmAndUpdates({
 							value={t("about.versionValue", { version: APP_VERSION })}
 						/>
 					)}
-					<div className="flex flex-wrap items-center gap-2 px-3.5 py-3.5">
-						{/* The "Check for Updates" button was removed because
-                                                the offline-by-default UX was preferred; if a future
-                                                iteration wants to add it back (user-initiated GitHub
-                                                API check), C-DATA-1 permits it under the auto-update
-                                                category, see docs/auto-update-feature.md. A static
-                                                offline notice now directs the user to open the
-                                                GitHub releases page in their own browser. */}
+					<div className="flex flex-wrap items-center gap-2 px-4 py-2">
 						<p className="text-sm text-muted-foreground me-auto">
 							{t("about.offlineUpdatesMessage")}
 						</p>
-						{/* "View Changelog", a real `<a href>` link to the
-                                                GitHub releases page. This is NOT a renderer
-                                                network call: it's a user-activated OS-browser
-                                                navigation (the shared `ExternalLink`
-                                                routes the activation through the host opener so
-                                                the Tauri webview doesn't trap the page inside the
-                                                app, while keeping the anchor semantics). C-DATA-1
-                                                forbids automated network calls; user-clicked
-                                                external links are the user's browser making the
-                                                 call, not Lausu. */}
-						<Button asChild variant="ghost" size="sm">
-							<ExternalLink href={RELEASES_URL}>
-								<HugeiconsIcon
-									icon={RefreshIcon}
-									strokeWidth={2}
-									className="h-4 w-4"
-								/>
-								{t("about.viewChangelog")}
-							</ExternalLink>
+						{/* Opens the in-app release notes. The previous
+							    implementation linked out to the GitHub releases
+							    page, which handed the user off to the repository. */}
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setWhatsNewOpen(true)}
+							className="gap-2"
+						>
+							<HugeiconsIcon
+								icon={RefreshIcon}
+								strokeWidth={2}
+								className="h-4 w-4"
+							/>
+							{t("about.viewChangelog")}
 						</Button>
 					</div>
 				</SettingsSection>
 			)}
+
+			<WhatsNewModal
+				open={whatsNewOpen}
+				onClose={() => setWhatsNewOpen(false)}
+			/>
 		</>
 	);
 }

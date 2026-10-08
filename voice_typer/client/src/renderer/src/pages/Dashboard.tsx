@@ -16,17 +16,11 @@
 //      spans the whole history the sample covers (capped at a year),
 //      because a per-day contribution grid only reads at a scale of
 //      months. See `./dashboard/components/ActivityHeatmap`.
-//   6. A visually demoted "Current Setup" section (Model / Device /
-//      Language) so system/config info doesn't compete with usage
-//      metrics for attention.
 
 import {
-	AiBrain03Icon,
 	AlertCircleIcon,
 	Calendar01Icon,
 	CheckmarkCircle02Icon,
-	CpuIcon,
-	Globe02Icon,
 	Mic02Icon,
 	SpeechToTextIcon,
 	StopWatchIcon,
@@ -59,11 +53,7 @@ import {
 import { getLocale, t } from "@/i18n/i18n";
 import { compactNumber, formatDuration } from "@/lib/format";
 import { useThemePalette } from "@/lib/theme-palette";
-import {
-	formatDevice,
-	formatLanguage,
-	formatModel,
-} from "@/lib/utils/configDisplay";
+import { formatDevice, formatModel } from "@/lib/utils/configDisplay";
 import { computeTrend } from "@/pages/dashboard/lib/trend";
 import { ActivityHeatmap } from "./dashboard/components/ActivityHeatmap";
 import { DashboardSkeleton } from "./dashboard/components/DashboardSkeleton";
@@ -117,7 +107,6 @@ export default function DashboardPage() {
 	const {
 		data,
 		configRaw,
-		configDir,
 		refreshing,
 		handleManualRefresh,
 		agoLabel,
@@ -355,56 +344,10 @@ export default function DashboardPage() {
 
 					{/* Long-window consistency view. Placed AFTER the
 						range-aware block (cards → chart → derived metrics) so
-						the selected range's analysis stays contiguous, and
-						before the demoted config section. The card states its
-						own covered range in its subtitle because it ignores
-						the TimeRangeSelector above. */}
+						the selected range's analysis stays contiguous. The
+						card states its own covered range in its subtitle
+						because it ignores the TimeRangeSelector above. */}
 					<ActivityHeatmap heatmap={heatmap} />
-
-					{/* Current Setup, system/config info, demoted below the
-						usage analytics so it doesn't compete for attention. */}
-					<section
-						className="flex flex-col gap-2.5"
-						aria-label={t("analytics.currentSetup")}
-					>
-						<h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-							{t("analytics.currentSetup")}
-						</h3>
-						<div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-							<QuickInfoCard
-								muted
-								icon={AiBrain03Icon}
-								label={t("analytics.model")}
-								value={
-									d.model ? formatModel(d.model) : t("analytics.notSelected")
-								}
-							/>
-							<QuickInfoCard
-								muted
-								// Chip/processor icon, reads as "compute device".
-								icon={CpuIcon}
-								label={t("analytics.device")}
-								value={
-									d.device ? formatDevice(d.device) : t("analytics.notSelected")
-								}
-							/>
-							<QuickInfoCard
-								muted
-								// Classic globe (meridian + latitude lines), the
-								// previous circle-with-contours icon read as an
-								// indistinct blob at 20px.
-								icon={Globe02Icon}
-								label={t("analytics.language")}
-								value={formatLanguage(d.language)}
-							/>
-						</div>
-					</section>
-
-					<p className="pb-4 text-center text-xs text-muted-foreground">
-						{t("analytics.dataPath", {
-							path: configDir || "~/.lausu/",
-						})}
-					</p>
 				</div>
 			)}
 

@@ -280,8 +280,10 @@ export function modelsConfigMock() {
 		openai_api_key: "",
 		groq_api_key: "",
 		deepgram_api_key: "",
+		gemini_api_key: "",
 		cloud_openai_consent: false,
 		cloud_groq_consent: false,
 		cloud_deepgram_consent: false,
+		cloud_gemini_consent: false,
 	};
 }

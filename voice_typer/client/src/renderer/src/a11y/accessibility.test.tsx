@@ -390,6 +390,7 @@ function makeStubConfig(): LausuConfig {
 		openai_api_key: "",
 		groq_api_key: "",
 		deepgram_api_key: "",
+		gemini_api_key: "",
 		llm_polish: false,
 		llm_api_key: "",
 		llm_api_url: "",
@@ -456,6 +457,7 @@ function makeStubConfig(): LausuConfig {
 		cloud_openai_consent: false,
 		cloud_groq_consent: false,
 		cloud_deepgram_consent: false,
+		cloud_gemini_consent: false,
 		voice_biometric_consent: false,
 		llm_polish_consent: false,
 		sound_feedback_enabled: false,
@@ -784,12 +786,12 @@ describe("NEW-UX-012: Accessibility ARIA patterns", () => {
 			}
 		});
 
-		it("AiEnhancementSettingsSection: all switches have accessible names", async () => {
-			const { AiEnhancementSettingsSection } = await import(
-				"@/components/settings/AiEnhancementSettingsSection"
+		it("PostProcessingSettingsSection: all switches have accessible names", async () => {
+			const { PostProcessingSettingsSection } = await import(
+				"@/components/settings/PostProcessingSettingsSection"
 			);
 			const { container } = renderWithProviders(
-				<AiEnhancementSettingsSection {...makeSectionProps()} />,
+				<PostProcessingSettingsSection {...makeSectionProps()} />,
 			);
 			const switches = screen.getAllByRole("switch");
 			expect(switches.length).toBeGreaterThan(0);

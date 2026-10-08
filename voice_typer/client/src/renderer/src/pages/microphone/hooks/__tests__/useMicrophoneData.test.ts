@@ -87,10 +87,12 @@ function makeConfig(overrides: Partial<LausuConfig> = {}): LausuConfig {
 		openai_api_key: "",
 		groq_api_key: "",
 		deepgram_api_key: "",
+		gemini_api_key: "",
 		huggingface_consent: false,
 		cloud_openai_consent: false,
 		cloud_groq_consent: false,
 		cloud_deepgram_consent: false,
+		cloud_gemini_consent: false,
 		...overrides,
 	} as LausuConfig;
 }

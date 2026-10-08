@@ -1,7 +1,12 @@
 /// <reference types="vitest" />
 
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import { aliases } from "./aliases";
+import { releaseNotesPlugin } from "./release-notes-plugin";
+
+const configDir = path.dirname(fileURLToPath(import.meta.url));
 
 // BUILD-N11: vitest configuration for the renderer + shared modules.
 //
@@ -89,4 +94,10 @@ export default defineConfig({
 	resolve: {
 		alias: { ...aliases },
 	},
+	plugins: [
+		// Serves `virtual:release-notes` (the repo CHANGELOG.md) so tests can
+		// mount the Settings → Updates "What's New" modal. Mirrors
+		// vite.tauri.config.ts.
+		releaseNotesPlugin(path.resolve(configDir, "../..")),
+	],
 });

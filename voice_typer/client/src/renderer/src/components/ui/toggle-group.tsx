@@ -315,7 +315,7 @@ export function ToggleGroup<T extends string>({
 				variant === "default" &&
 					"rounded-lg shadow-[0_0_0_1px_rgba(0,0,0,0.1)] bg-border/6 p-0.5",
 				variant === "default" &&
-					(context === "sidebar" ? "dark:shadow-none" : "dark:bg-border/0"),
+					(context === "sidebar" ? "dark:shadow-none" : "dark:bg-border/5"),
 				variant === "tabs" && "bg-transparent rounded-none p-1",
 				disabled && "cursor-not-allowed opacity-50 pointer-events-none",
 				className,

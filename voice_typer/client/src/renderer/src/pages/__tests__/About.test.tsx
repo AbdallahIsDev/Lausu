@@ -136,7 +136,7 @@ describe("About & Privacy page, product identity (merged)", () => {
 		expect(screen.queryByText("Windows, macOS, and Linux")).toBeNull();
 	});
 
-	it("does NOT render Diagnostics or Resources sections (moved out in the IA split)", async () => {
+	it("does NOT render Diagnostics or Resources sections (moved out, then the Resources grid was deleted)", async () => {
 		const { default: AboutPage } = await import("@/pages/AboutAndPrivacy");
 		render(<AboutPage />);
 
@@ -147,9 +147,11 @@ describe("About & Privacy page, product identity (merged)", () => {
 		});
 
 		// The diagnostics table moved to Settings → Privacy (support
-		// area) and the resources grid to Settings → Privacy. The
-		// privacy disclosure lives on this page (merged), but as plain
-		// topic rows, no separate "Privacy" section heading exists.
+		// area). The resources grid was later deleted outright in the
+		// closed-source professionalization pass, so neither heading
+		// exists here. The privacy disclosure lives on this page
+		// (merged), but as plain topic rows, no separate "Privacy"
+		// section heading exists.
 		expect(screen.queryByRole("heading", { name: "Diagnostics" })).toBeNull();
 		expect(screen.queryByRole("heading", { name: "Privacy" })).toBeNull();
 		expect(
@@ -326,11 +328,11 @@ describe("Diagnostics section (IA split: Settings → Privacy)", () => {
 
 // ─── Diagnostics model-truth (point 10) ────────────────────────────────
 // The Diagnostics table's Speech Recognizer / Device rows must derive
-// from the SAME source of truth as the Analytics page's Current Setup
-// cards (lib/utils/models.ts resolveActiveModel), never a per-page
-// duplicate check. With no model installed both pages show
-// "Not selected"; with one installed both show the real values.
-describe("Diagnostics section, model rows share one source of truth with Analytics", () => {
+// from the SHARED source of truth (lib/utils/models.ts
+// resolveActiveModel), never a per-page duplicate check. With no model
+// installed both rows show "Not selected"; with one installed they show
+// the real values.
+describe("Diagnostics section, model rows derive from the shared install check", () => {
 	beforeEach(() => {
 		mockCall.mockReset();
 		mockCall.mockImplementation((type: string) => {

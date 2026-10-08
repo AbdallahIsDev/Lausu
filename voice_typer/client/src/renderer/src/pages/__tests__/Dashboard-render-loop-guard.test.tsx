@@ -5,10 +5,9 @@ import {
 import { modelsConfigMock } from "@/__tests__/helpers/stableMocks";
 
 // The canonical minimal models-page config shape (one source of truth
-// in helpers/stableMocks.tsx). The dashboard reads model/device/
-// language for the stat cards + asr_backend for the share-stats
-// summary; missing fields render as "Unknown", fine for a settling
-// guard.
+// in helpers/stableMocks.tsx). The dashboard reads model/device for the
+// share-stats summary and asr_backend for the share image; missing
+// fields render as "Unknown", fine for a settling guard.
 const MOCK_CONFIG = modelsConfigMock();
 
 const commands: GuardCommand[] = [
@@ -29,7 +28,6 @@ const commands: GuardCommand[] = [
 		],
 	},
 	{ name: "get_history_count", response: { count: 1 } },
-	{ name: "get_status", response: { config_dir: "" } },
 	// Empty correction-usage snapshot, the corrections card renders an
 	// empty state instead of blocking the page.
 	{ name: "get_correction_usage", response: { version: 1, entries: {} } },

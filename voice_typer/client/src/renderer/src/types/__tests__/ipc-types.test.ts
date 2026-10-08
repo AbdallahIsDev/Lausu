@@ -53,7 +53,6 @@ describe("NEW-IPC-002 / PVT-G5-010: dead-type removal guards", () => {
 			"asr_backend_disabled",
 			"asr_last_resort_unloaded",
 			"llm_polish_failed",
-			"text_enhancement_failed",
 			// gate (and missing from this union). Now wired
 			"asr_backend_ready",
 			"asr_backend_load_failed",
@@ -70,7 +69,7 @@ describe("NEW-IPC-002 / PVT-G5-010: dead-type removal guards", () => {
 		// Runtime guard: the literal must NOT appear in the accepted
 		expect(acceptedTypes).not.toContain("model_loaded");
 		expect(acceptedTypes).toContain("relaunch_app");
-		expect(acceptedTypes).toHaveLength(44);
+		expect(acceptedTypes).toHaveLength(43);
 	});
 
 	it("a `{ type: 'model_loaded' }` value is NOT assignable to PythonPushEvent (compile-time guard)", () => {
@@ -311,7 +310,6 @@ describe("YJ-34 (parity): every Python event_bus.publish type literal is in the 
 		"asr_backend_disabled",
 		"asr_last_resort_unloaded",
 		"llm_polish_failed",
-		"text_enhancement_failed",
 		"asr_backend_ready",
 		"asr_backend_load_failed",
 		"microphone_permission_revoked",
@@ -359,7 +357,6 @@ describe("YJ-34 (parity): every Python event_bus.publish type literal is in the 
 			"asr_backend_disabled",
 			"asr_last_resort_unloaded",
 			"llm_polish_failed",
-			"text_enhancement_failed",
 			// wired end-to-end.
 			"asr_backend_ready",
 			"asr_backend_load_failed",
@@ -387,7 +384,7 @@ describe("YJ-34 (parity): every Python event_bus.publish type literal is in the 
 
 	it("the Python emitter list and the acceptedTypes list have the expected YJ-34 length", () => {
 		// 33 Python-emitted events (the union also includes 2
-		expect(PYTHON_EMITTER_TYPE_LITERALS.length).toBe(44);
+		expect(PYTHON_EMITTER_TYPE_LITERALS.length).toBe(43);
 	});
 });
 

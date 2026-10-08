@@ -42,13 +42,4 @@ describe("QuickInfoCard", () => {
 		);
 		expect(screen.queryByText(/of dictations/)).not.toBeInTheDocument();
 	});
-
-	it("applies the muted styling for the Current Setup section", () => {
-		const { container } = render(
-			<QuickInfoCard muted icon={TEST_ICON} label="Model" value="Tiny" />,
-		);
-		const card = container.firstElementChild as HTMLElement;
-		expect(card.className).toMatch(/bg-surface-subtle\/50/);
-		expect(card.className).toMatch(/p-3\b/);
-	});
 });
