@@ -82,6 +82,9 @@ EXPECTED_MAIN_RS_COMMANDS = [
     "renderer_heartbeat",
     # `reveal_path_command` above). Main-window-only (SEC-026 via
     "save_stats_image",
+    # In-app bug report: attachment write + `mailto:` handoff. Replaces
+    # the old "Report a Bug" button that opened the public issue tracker.
+    "send_bug_report",
 ]
 
 # : ADR-0020 §15: the v1 Tauri migration MUST NOT wire up

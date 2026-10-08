@@ -217,7 +217,7 @@ class TestApplyLlmPolishNotifyOnceAndEventPublish:
         app.config.openai_api_key = ""
         app.config.llm_polish_consent = True
         app.config.llm_api_url = "https://api.openai.com/v1/chat/completions"
-        app.config.llm_model = "gpt-4o-mini"
+        app.config.llm_model = "gpt-6-luna"
         app.config.llm_preset = "professional"
         polisher = MagicMock()
         polisher.polish.side_effect = RuntimeError("LLM API 500")
@@ -300,7 +300,7 @@ class TestApplyLlmPolishEventBusFailureIsSwallowed:
         app.config.llm_api_key = "sk-" + "a" * 40
         app.config.llm_polish_consent = True
         app.config.llm_api_url = "https://api.openai.com/v1/chat/completions"
-        app.config.llm_model = "gpt-4o-mini"
+        app.config.llm_model = "gpt-6-luna"
         app.config.llm_preset = "professional"
         polisher = MagicMock()
         polisher.polish.side_effect = RuntimeError("LLM API 500")
