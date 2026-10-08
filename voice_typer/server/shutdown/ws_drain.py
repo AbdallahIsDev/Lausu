@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from collections.abc import Callable
 
 from voice_typer.server._timeout_utils import _run_parallel_with_timeout
@@ -94,6 +95,26 @@ def _initiator_on_workers(prefix: str, controller) -> bool:
         return False
 
 
+def _wait_for_pool_drain(pool: object, initiator: object, timeout: float) -> None:
+    """Wait until no pool worker besides the initiator is alive (bounded).
+
+    A blocking ``pool.shutdown(wait=True)`` join can never finish while
+    the initiator itself is a pool worker (quit arrived as a dispatched
+    command): the join waits for the very thread running the cleanup,
+    burning the whole budget every quit. Idle workers exit on their own
+    once the pool is shut down; genuinely busy ones still get the full
+    budget here, so in-flight work keeps its protection.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        others = [t for t in _live_pool_workers(pool) if t is not initiator]
+        if not others:
+            return
+        if time.monotonic() >= deadline:
+            return
+        time.sleep(0.05)
+
+
 def drain_ws_dispatch_pool(controller, app) -> None:
     """Early bookend: stop the IPC server + drain the WS dispatch + encode pools."""
     # Single-summary noise contract: the per-pool shutdown debugs used to
@@ -135,11 +156,28 @@ def drain_ws_dispatch_pool(controller, app) -> None:
                         "(shutdown runs on a pool worker; the join could only time out)"
                     )
                     return
-                join_thread = threading.Thread(
-                    target=ws_pool.shutdown,
-                    kwargs={"wait": True},
-                    daemon=True,
-                )
+                initiator = getattr(controller, "_quit_initiator", None)
+                if isinstance(initiator, threading.Thread) and _initiator_on_workers(
+                    "sidecar-ws-dispatch", controller
+                ):
+                    # Quit runs on a pool worker (dispatched shutdown
+                    # command): a stock shutdown(wait=True) join would wait
+                    # for the initiator itself and burn the whole budget
+                    # every quit. Wait for the OTHER workers only.
+
+                    def _wait_for_others() -> None:
+                        _wait_for_pool_drain(ws_pool, initiator, 4.5)
+
+                    join_thread = threading.Thread(
+                        target=_wait_for_others,
+                        daemon=True,
+                    )
+                else:
+                    join_thread = threading.Thread(
+                        target=ws_pool.shutdown,
+                        kwargs={"wait": True},
+                        daemon=True,
+                    )
                 join_thread.start()
                 # 4.5s, deliberately UNDER this item's 5.0s parallel
                 join_thread.join(timeout=4.5)
