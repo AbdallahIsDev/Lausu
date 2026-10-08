@@ -1,6 +1,7 @@
 import {
 	AlertCircleIcon,
 	ArrowLeft01Icon,
+	RefreshIcon,
 	Search01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -14,8 +15,8 @@ import { configHotkeyLabels } from "@/components/hotkey/hotkey-format";
 // keyboard-monitoring (Accessibility / input-group) permission. Mirrors
 // the MicrophonePermissionBanner placement on the Microphone page.
 import { KeyboardPermissionBanner } from "@/components/KeyboardPermissionBanner";
-import { AiEnhancementSettingsSection } from "@/components/settings/AiEnhancementSettingsSection";
 import { AudioSettingsSection } from "@/components/settings/AudioSettingsSection";
+import { BugReportModal } from "@/components/settings/BugReportModal";
 import { DiagnosticsSettingsSection } from "@/components/settings/DiagnosticsSettingsSection";
 import { GeneralSettingsSection } from "@/components/settings/GeneralSettingsSection";
 import { LinuxWindowButtonsSettingsSection } from "@/components/settings/LinuxWindowButtonsSettingsSection";
@@ -25,7 +26,6 @@ import { PostProcessingSettingsSection } from "@/components/settings/PostProcess
 import PrewarmAndUpdates from "@/components/settings/PrewarmAndUpdates";
 import { PrivacySettingsSection } from "@/components/settings/PrivacySettingsSection";
 import { RecordingSettingsSection } from "@/components/settings/RecordingSettingsSection";
-import { ResourcesSettingsSection } from "@/components/settings/ResourcesSettingsSection";
 import { SettingsHub } from "@/components/settings/SettingsHub";
 import {
 	isSettingsSectionPage,
@@ -35,6 +35,7 @@ import {
 import { ThemeSettingsSection } from "@/components/settings/ThemeSettingsSection";
 import { TroubleshootingSettingsSection } from "@/components/settings/TroubleshootingSettingsSection";
 import { useSettingsConfig } from "@/components/settings/useSettingsConfig";
+import { Button } from "@/components/ui/button";
 import { fuzzyContains } from "@/hooks/useFuzzySearch";
 import { useNavigation } from "@/hooks/useNavigation";
 import { usePython, usePythonEvent } from "@/hooks/usePython";
@@ -124,6 +125,10 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 	// (`[role="dialog"][data-state="open"]`) prevents the two instances
 	// from ever stacking.
 	const [helpOpen, setHelpOpen] = useState(false);
+	// Bug-report composer. Owned by the page (like the help overlay) so the
+	// draft survives the Troubleshooting section re-rendering on a search
+	// keystroke.
+	const [bugReportOpen, setBugReportOpen] = useState(false);
 	const settingsFilter = useGlobalSearch((s) => s.query);
 	const clearQuery = useGlobalSearch((s) => s.clearQuery);
 	// The active surface is DERIVED from the current page literal
@@ -268,9 +273,12 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 			case "settingsHotkeys":
 				return <RecordingSettingsSection {...sectionProps} />;
 			case "settingsTranscription":
-				return <PostProcessingSettingsSection {...sectionProps} />;
-			case "settingsAI":
-				return <AiEnhancementSettingsSection {...sectionProps} />;
+				return (
+					<PostProcessingSettingsSection
+						{...sectionProps}
+						onNavigate={navigate}
+					/>
+				);
 			case "settingsAudio":
 				return <AudioSettingsSection {...sectionProps} />;
 			case "settingsAppearance":
@@ -302,11 +310,10 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 							isVisible={_filter_settings}
 							updateConfig={updateConfig}
 							onNavigate={navigate}
-							onResetClick={() => setShowResetDialog(true)}
 							onOpenHelp={() => setHelpOpen(true)}
+							onOpenBugReport={() => setBugReportOpen(true)}
 						/>
 						<DiagnosticsSettingsSection isVisible={_filter_settings} />
-						<ResourcesSettingsSection isVisible={_filter_settings} />
 						<PrewarmAndUpdates isVisible={_filter_settings} />
 					</>
 				);
@@ -351,10 +358,7 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 		<div className="flex min-h-full flex-col">
 			<div className="mx-auto w-full max-w-4xl flex-1 flex flex-col gap-8 px-16 pt-20 pb-6">
 				{page === "settings" ? (
-					<PageHeading
-						title={t("settings.title")}
-						description={t("settings.description")}
-					/>
+					<PageHeading title={t("settings.title")} />
 				) : (
 					activeSection !== null && (
 						<SectionBackButton onBack={() => navigate("settings")} />
@@ -417,10 +421,35 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
                                     results card (when a query matches elsewhere) followed
                                     by the page's own section cards. */}
 				{page === "settings" ? (
-					<SettingsHub
-						config={config}
-						onNavigateSection={(sectionPage) => navigate(sectionPage)}
-					/>
+					<>
+						<SettingsHub
+							config={config}
+							onNavigateSection={(sectionPage) => navigate(sectionPage)}
+						/>
+						{/* Settings-wide destructive action. It sits at the
+						    foot of the Settings landing page rather than
+						    inside a section card: a factory reset is not a
+						    per-section setting. Ghost keeps it borderless and
+						    unfilled, and the muted label keeps a dangerous
+						    control quiet until it is hovered — the
+						    ConfirmDialog carries the warning. */}
+						<div className="mt-auto flex justify-center">
+							<Button
+								variant="ghost"
+								className="gap-2 text-muted-foreground"
+								onClick={() => setShowResetDialog(true)}
+								aria-label={t("settings.resetToDefaultsAria")}
+								title={t("settings.resetToDefaultsDescription")}
+							>
+								<HugeiconsIcon
+									icon={RefreshIcon}
+									strokeWidth={2}
+									className="h-4 w-4"
+								/>
+								{t("settings.resetToDefaults")}
+							</Button>
+						</div>
+					</>
 				) : (
 					activeSection !== null && (
 						<>
@@ -469,24 +498,28 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 				)}
 			</div>
 
-			{/* Reset-confirm + page-level help overlay serve the Advanced
-                            page's Troubleshooting section only, gated so the hub and
-                            other section pages don't mount them. The hooks backing them
-                            (showResetDialog / helpOpen) stay at the top of the component
-                            per the Rules of Hooks. */}
+			{/* Reset-confirm + bug-report composer + page-level help overlay.
+                            The reset dialog belongs to the Settings landing page (where
+                            the button lives); the other two serve the Advanced page's
+                            Troubleshooting section. Gated per page so the section pages
+                            don't mount them. The hooks backing them
+                            (showResetDialog / helpOpen / bugReportOpen) stay at the top of
+                            the component per the Rules of Hooks. */}
+			{page === "settings" && (
+				<ConfirmDialog
+					open={showResetDialog}
+					title={t("settings.resetToDefaults")}
+					message={t("settings.resetToDefaultsDialogMessage")}
+					confirmLabel={t("settings.resetToDefaults")}
+					cancelLabel={t("common.cancel")}
+					variant="destructive"
+					onConfirm={resetToDefaults}
+					onCancel={() => setShowResetDialog(false)}
+				/>
+			)}
+
 			{page === "settingsAdvanced" && (
 				<>
-					<ConfirmDialog
-						open={showResetDialog}
-						title={t("settings.troubleshooting.resetToDefaults")}
-						message={t("settings.troubleshooting.resetDialogMessage")}
-						confirmLabel={t("settings.troubleshooting.resetToDefaults")}
-						cancelLabel={t("common.cancel")}
-						variant="destructive"
-						onConfirm={resetToDefaults}
-						onCancel={() => setShowResetDialog(false)}
-					/>
-
 					{/* Page-level help overlay for the Troubleshooting section's
                                             "Keyboard Shortcuts" button. Same shared component App.tsx
                                             mounts for the `?` shortcut; labels come from the user's
@@ -497,6 +530,11 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 						onClose={() => setHelpOpen(false)}
 						dictationLabel={helpLabels.dictationLabel}
 						repasteLabel={helpLabels.repasteLabel}
+					/>
+
+					<BugReportModal
+						open={bugReportOpen}
+						onClose={() => setBugReportOpen(false)}
 					/>
 				</>
 			)}

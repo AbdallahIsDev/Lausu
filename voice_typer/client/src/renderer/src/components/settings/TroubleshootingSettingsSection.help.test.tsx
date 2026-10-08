@@ -35,8 +35,8 @@ function renderSection(onOpenHelp: () => void) {
 		<TroubleshootingSettingsSection
 			isVisible={alwaysVisible}
 			updateConfig={() => {}}
-			onResetClick={() => {}}
 			onOpenHelp={onOpenHelp}
+			onOpenBugReport={() => {}}
 		/>,
 	);
 }
@@ -67,8 +67,8 @@ describe("TroubleshootingSettingsSection, Keyboard Shortcuts button", () => {
 				// Only the "Keyboard Shortcuts" label matches the query.
 				isVisible={(label) => label.includes("Keyboard Shortcuts")}
 				updateConfig={() => {}}
-				onResetClick={() => {}}
 				onOpenHelp={() => {}}
+				onOpenBugReport={() => {}}
 			/>,
 		);
 		expect(screen.getByTestId("keyboard-shortcuts-button")).toBeTruthy();

@@ -310,6 +310,35 @@ export function createWindowNamespace(tauri: TauriGlobal): WindowBridge {
 			}
 		},
 
+		// Deliver an in-app bug report. The renderer composes the text
+		// and the attached screenshots; the host validates + writes the
+		// images to `<config_dir>/bug-reports/<stamp>/`, hands a
+		// `mailto:` draft to the OS mail client, and reveals the folder
+		// so the user can attach the images. A host command is required
+		// because the sandboxed renderer cannot write files, and
+		// `open_external_url_command` is deliberately https-only.
+		sendBugReport: async (report) => {
+			try {
+				const result = await tauri.core.invoke<{
+					success: boolean;
+					folder?: string;
+					attachments?: number;
+					error?: string;
+				}>("send_bug_report", { payload: report });
+				return {
+					success: Boolean(result?.success),
+					folder: result?.folder,
+					attachments: result?.attachments,
+					error: result?.error,
+				};
+			} catch (e) {
+				return {
+					success: false,
+					error: e instanceof Error ? e.message : String(e),
+				};
+			}
+		},
+
 		// Reveal a saved file in the OS file manager (Analytics
 		// share-image "Show in folder"). Invokes the Rust
 		// `reveal_path_command` (`shell.showItemInFolder` parity:
