@@ -237,6 +237,30 @@ class TestAppStateTransitions:
         # Must NOT hide the bubble synchronously during stop (it stays visible
         _wait_for_busy_clear(app)
 
+    def test_stop_dictation_sets_bubble_loading_when_engine_cold(self, app):
+        """Cold engine at stop → bubble 'loading', flipped later by the hold."""
+        cold = MagicMock()
+        cold.is_loaded = False
+        cold.transcribe_with_fallback = MagicMock(side_effect=RuntimeError("cold engine"))
+        app.models.active_transcriber = MagicMock(return_value=cold)
+        app._waveform_bubble = MagicMock()
+        app._waveform_bubble.visible = True
+        app.clipboard = MagicMock()
+        app.clipboard.copy = MagicMock(return_value=True)
+        app.models.transcriber = MagicMock()
+        app.models.transcriber.transcribe_with_fallback = MagicMock(return_value="test")
+        app.models.transcriber.device_info = "cpu (int8)"
+        app.recorder = MagicMock()
+        app.recorder.recording = True
+        app.recorder.stop = MagicMock(return_value=np.ones(16000, dtype=np.float32))
+        app.recorder.last_rms = 0.5
+
+        app._stop_dictation()
+
+        first = app._waveform_bubble.set_state.call_args_list[0]
+        assert first.args[0] == "loading", f"stop-time push must be 'loading' when cold, got {first!r}"
+        _wait_for_busy_clear(app)
+
     def test_stop_dictation_calls_set_state_transcribing(self, app):
         """_stop_dictation must call bubble.set_state('transcribing') during"""
         call_order = []

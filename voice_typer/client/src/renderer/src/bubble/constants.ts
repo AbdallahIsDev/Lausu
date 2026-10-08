@@ -3,6 +3,7 @@
 export type BubbleMode =
 	| "recording"
 	| "transcribing"
+	| "loading"
 	| "idle"
 	| "fading"
 	| "error"
@@ -99,8 +100,9 @@ export const BUBBLE_BUTTON_CLASS =
  *     driven separately by `animState`).
  *   - `hide` → `fading` when transcribing (two-stage fade-out), else
  *     unchanged (the exit animation is driven by `exitTick`).
- *   - `setState` → the 8-state mapping, with a `fading` guard (an
- *     in-progress fade-out is only interrupted by a new `recording`).
+ *   - `setState` → the 9-state mapping, with a `fading` guard (an
+ *     in-progress fade-out is only interrupted by a new `recording`
+ *     or a model-load wait (`loading`)).
  */
 export function nextBubbleMode(
 	prev: BubbleMode,
@@ -120,10 +122,14 @@ export function nextBubbleMode(
 			// user starts a new dictation while the previous transcribing
 			// pill is still fading out).
 			if (s === "recording" && prev === "fading") return "recording";
+			// A model-load wait interrupts fading the same way: a new
+			// cycle stopped while the engine was cold.
+			if (s === "loading" && prev === "fading") return "loading";
 			// Ignore non-recording state changes while fading out (exit
 			// in progress).
 			if (prev === "fading") return prev;
 			if (s === "transcribing") return "transcribing";
+			if (s === "loading") return "loading";
 			if (s === "idle") return "idle";
 			if (s === "recording") return "recording";
 			if (s === "error") return "error";

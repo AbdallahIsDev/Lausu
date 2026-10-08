@@ -108,6 +108,25 @@ class TestAvailableBackendsPropertyNoParens:
             "log.warning without raising."
         )
 
+    def test_all_backends_fail_publishes_event_and_notifies(self, monkeypatch):
+        """Loading failure must surface in-app (toast event) + OS (notify)."""
+        from voice_typer.server import event_bus as event_bus_mod
+
+        mm, app = _make_mm_with_failing_registry()
+        published: list[dict] = []
+        monkeypatch.setattr(
+            event_bus_mod,
+            "publish",
+            lambda event: published.append(event) or True,
+        )
+
+        mm.load_background()
+
+        failed = [e for e in published if e.get("type") == "asr_backend_load_failed"]
+        assert len(failed) == 1, f"exactly one asr_backend_load_failed event, got {published!r}"
+        assert failed[0]["data"]["backend"] == "whisper"
+        app.tray.notify.assert_called_once()
+
 
 # These tests exercise the constructor wiring and the high-level
 

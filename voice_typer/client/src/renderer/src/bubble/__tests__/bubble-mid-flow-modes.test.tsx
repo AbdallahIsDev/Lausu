@@ -125,6 +125,16 @@ describe("bubble mid-flow modes (blocked / cancelling / permission_revoked / pas
 		expect(screen.getByText("Paste failed")).toBeTruthy();
 	});
 
+	it("renders the 'Loading model' label when state becomes 'loading'", () => {
+		render(<Bubble />);
+
+		expect(screen.queryByText("Loading model")).toBeNull();
+
+		setBubbleState("loading");
+
+		expect(screen.getByText("Loading model")).toBeTruthy();
+	});
+
 	it("sets a distinctive aria-label for each new mode", () => {
 		render(<Bubble />);
 
@@ -152,6 +162,10 @@ describe("bubble mid-flow modes (blocked / cancelling / permission_revoked / pas
 		expect(output?.getAttribute("aria-label")).toBe(
 			"Lausu paste failed indicator",
 		);
+
+		// loading
+		setBubbleState("loading");
+		expect(output?.getAttribute("aria-label")).toBe("Lausu loading indicator");
 	});
 
 	it("falls back to recording mode when state becomes 'recording' after a mid-flow mode", () => {
@@ -198,6 +212,7 @@ describe("bubble mid-flow modes (blocked / cancelling / permission_revoked / pas
 			"cancelling",
 			"permission_revoked",
 			"paste_failed",
+			"loading",
 		]) {
 			setBubbleState(state);
 			expect(document.querySelectorAll(".gap-0\\.75 > span").length).toBe(0);

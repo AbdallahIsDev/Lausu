@@ -169,6 +169,20 @@ class LoadingMixin:
                     _attempted,
                 )
                 self._app.tray.set_state(AppState.ERROR, i18n.t("state.model_manager.load_failed_retry"))
+                # Loading failure must surface twice: the in-app toast
+                # (asr_backend_load_failed event) and an OS notification.
+                self._publish_backend_load_failed_event(
+                    backend_name,
+                    model_size,
+                    failure_reason=f"all backends failed to load (primary={_primary})",
+                )
+                self._app.tray.notify(
+                    APP_NAME,
+                    i18n.t(
+                        "notify.model_manager.load_failed_critical",
+                        hotkey=notification_hotkey_label(self._app.config.hotkey),
+                    ),
+                )
                 # Clear the pending-dictation flag so the ``finally``
                 self._pending_dictation = False
 

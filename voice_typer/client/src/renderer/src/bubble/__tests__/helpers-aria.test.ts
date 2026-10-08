@@ -34,6 +34,7 @@ describe("getBubbleAriaLabel mid-flow modes route through the locale catalog", (
 		expect(getBubbleAriaLabel("paste_failed")).toBe(
 			`${APP_NAME} paste failed indicator`,
 		);
+		expect(getBubbleAriaLabel("loading")).toBe(`${APP_NAME} loading indicator`);
 	});
 
 	it("matches t() for the same key (single source of truth, no duplicate fallback copy)", () => {
@@ -49,6 +50,7 @@ describe("getBubbleAriaLabel mid-flow modes route through the locale catalog", (
 		expect(getBubbleAriaLabel("paste_failed")).toBe(
 			t("bubble.pasteFailedIndicatorAria"),
 		);
+		expect(getBubbleAriaLabel("loading")).toBe(t("bubble.loadingAria"));
 	});
 
 	it("localizes the mid-flow aria labels for a non-English locale (no English fallback)", async () => {
@@ -62,6 +64,7 @@ describe("getBubbleAriaLabel mid-flow modes route through the locale catalog", (
 				cancellingIndicatorAria: "ABBRUCH {appName}",
 				permissionRevokedIndicatorAria: "MIKRO {appName}",
 				pasteFailedIndicatorAria: "EINFÜGEN {appName}",
+				loadingAria: "LADEN {appName}",
 			},
 		});
 		_setCurrentLocale(TEST_LOCALE);
@@ -73,6 +76,7 @@ describe("getBubbleAriaLabel mid-flow modes route through the locale catalog", (
 				`MIKRO ${APP_NAME}`,
 			);
 			expect(getBubbleAriaLabel("paste_failed")).toBe(`EINFÜGEN ${APP_NAME}`);
+			expect(getBubbleAriaLabel("loading")).toBe(`LADEN ${APP_NAME}`);
 		} finally {
 			_translations.delete(TEST_LOCALE);
 			_invalidateResolvedCache(TEST_LOCALE);
@@ -87,7 +91,7 @@ describe("helpers.ts source hygiene (no hardcoded brand literals)", () => {
 	});
 
 	it("contains no tf() fallback literal for the mid-flow indicator aria keys", () => {
-		// The four mid-flow modes must not carry an English fallback
+		// The five mid-flow modes must not carry an English fallback
 		// literal anymore: the keys exist in every locale (see the
 		// locale-key parity test), so t() alone suffices and a fallback
 		// would be a second source of truth for the copy.
@@ -96,6 +100,7 @@ describe("helpers.ts source hygiene (no hardcoded brand literals)", () => {
 			"bubble.cancellingIndicatorAria",
 			"bubble.permissionRevokedIndicatorAria",
 			"bubble.pasteFailedIndicatorAria",
+			"bubble.loadingAria",
 		]) {
 			expect(helpersSource).not.toContain(`tf(\n\t\t\t\t"${key}"`);
 			expect(helpersSource).not.toContain(`tf("${key}"`);

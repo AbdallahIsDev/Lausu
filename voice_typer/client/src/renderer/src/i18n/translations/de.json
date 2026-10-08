@@ -467,8 +467,8 @@
 		"avgCharsLabel": "Ø Zeichen / Diktat",
 		"longestLabel": "Längste Sitzung",
 		"heatmap": {
-			"title": "Diktat-Heatmap",
-			"aria": "Diktat-Heatmap: {total} Diktate an {days} aktiven Tagen",
+			"title": "Nutzungsverlauf",
+			"aria": "Nutzungsverlauf: {total} Diktate an {days} aktiven Tagen",
 			"less": "Weniger",
 			"more": "Mehr",
 			"truncated": "nur das letzte Jahr",
@@ -1635,6 +1635,7 @@
 	"bubble": {
 		"recordingIndicatorAria": "{appName}-Aufnahmeanzeige",
 		"transcribingLabel": "Transkribieren",
+		"loadingLabel": "Modell wird geladen",
 		"idleLabel": "Bereit",
 		"blockedLabel": "Blockiert",
 		"cancellingLabel": "Bricht ab…",
@@ -1644,6 +1645,7 @@
 		"micButtonStartAria": "Diktat starten",
 		"micButtonStopAria": "Diktat beenden",
 		"transcribingAria": "{appName} Transkriptionsanzeige",
+		"loadingAria": "{appName}-Ladeanzeige",
 		"errorIndicatorAria": "{appName} Fehleranzeige",
 		"idleIndicatorAria": "{appName} Bereitschaftsanzeige",
 		"blockedIndicatorAria": "{appName} Sperranzeige",

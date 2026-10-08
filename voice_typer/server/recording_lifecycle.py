@@ -688,7 +688,17 @@ class RecordingLifecycle:
         # Push a final zero-level event so the renderer resets its
         app._waveform_bubble.reset_level()
         # NEW-BUBBLE-TRANSCRIBING: Instead of hiding the bubble
-        app._waveform_bubble.set_state("transcribing")
+        # Engine cold at stop → "loading" pill (the transcribe hold
+        # flips it to transcribing on ready); the probe must never
+        # break stop, defaulting to today's "transcribing".
+        try:
+            _models = getattr(app, "models", None)
+            _active = _models.active_transcriber() if _models is not None else None
+            _engine_ready = bool(getattr(_active, "is_loaded", False))
+        except Exception:
+            log.debug("[DICTATION] engine-readiness probe failed, assuming transcribing", exc_info=True)
+            _engine_ready = True
+        app._waveform_bubble.set_state("transcribing" if _engine_ready else "loading")
 
         _captured_cycle_id = app._cycle_id
 

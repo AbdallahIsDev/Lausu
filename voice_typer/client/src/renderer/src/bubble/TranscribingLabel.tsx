@@ -6,8 +6,12 @@ const DOT_INDICES: readonly number[] = Array.from(
 	(_, i) => i,
 );
 
-export function TranscribingLabel() {
-	const label = t("bubble.transcribingLabel");
+export function TranscribingLabel({
+	labelKey = "bubble.transcribingLabel",
+}: {
+	labelKey?: string;
+} = {}) {
+	const label = t(labelKey);
 	return (
 		<span className="inline-flex items-center gap-1">
 			<span

@@ -189,6 +189,15 @@ export function BubbleModeContent({
 					)}
 				</div>
 			);
+		case "loading": {
+			// Model-load wait after stop: label + bouncing dots, never
+			// the recording indicator (red pulsing dot means capturing).
+			return (
+				<div className="flex items-center gap-2">
+					<TranscribingLabel labelKey="bubble.loadingLabel" />
+				</div>
+			);
+		}
 		default: {
 			// Exhaustiveness guard: every BubbleMode has its own branch
 			// above, so this is unreachable today. If a mode is ever added

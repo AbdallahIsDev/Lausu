@@ -117,6 +117,13 @@ class _TranscribeStepMixin:
         if engine is None:
             return None
 
+        # The stop pushed "loading" when the engine was cold; flip to
+        # transcribing now that it is ready (harmless otherwise).
+        try:
+            self._app._waveform_bubble.set_state("transcribing")
+        except Exception:
+            log.debug("[PIPELINE] bubble set_state('transcribing') on model-ready failed", exc_info=True)
+
         # The wait can consume most of the watchdog window; reset it so the
         # transcription itself is judged on its own time, not the load time.
         with contextlib.suppress(Exception):

@@ -467,8 +467,8 @@
 		"avgCharsLabel": "平均字符 / 听写",
 		"longestLabel": "最长会话",
 		"heatmap": {
-			"title": "听写热力图",
-			"aria": "听写热力图：{total} 次听写，活跃 {days} 天",
+			"title": "使用历史",
+			"aria": "使用历史：{total} 次听写，活跃 {days} 天",
 			"less": "少",
 			"more": "多",
 			"truncated": "仅显示最近一年",
@@ -1635,6 +1635,7 @@
 	"bubble": {
 		"recordingIndicatorAria": "{appName} 录音指示器",
 		"transcribingLabel": "转写中",
+		"loadingLabel": "正在加载模型",
 		"idleLabel": "就绪",
 		"blockedLabel": "已屏蔽",
 		"cancellingLabel": "正在取消…",
@@ -1644,6 +1645,7 @@
 		"micButtonStartAria": "开始听写",
 		"micButtonStopAria": "停止听写",
 		"transcribingAria": "{appName} 转写指示器",
+		"loadingAria": "{appName} 加载指示器",
 		"errorIndicatorAria": "{appName} 错误指示器",
 		"idleIndicatorAria": "{appName} 空闲指示器",
 		"blockedIndicatorAria": "{appName} 屏蔽指示器",

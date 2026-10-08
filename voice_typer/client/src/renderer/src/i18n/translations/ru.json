@@ -467,8 +467,8 @@
 		"avgCharsLabel": "Сред. символов / диктовка",
 		"longestLabel": "Самая длинная сессия",
 		"heatmap": {
-			"title": "Тепловая карта диктовки",
-			"aria": "Тепловая карта диктовки: {total} диктовок за {days} активных дней",
+			"title": "История использования",
+			"aria": "История использования: {total} диктовок за {days} активных дней",
 			"less": "Меньше",
 			"more": "Больше",
 			"truncated": "только последний год",
@@ -1635,6 +1635,7 @@
 	"bubble": {
 		"recordingIndicatorAria": "Индикатор записи {appName}",
 		"transcribingLabel": "Расшифровка",
+		"loadingLabel": "Загрузка модели",
 		"idleLabel": "Готов",
 		"blockedLabel": "Заблокировано",
 		"cancellingLabel": "Отмена…",
@@ -1644,6 +1645,7 @@
 		"micButtonStartAria": "Начать диктовку",
 		"micButtonStopAria": "Остановить диктовку",
 		"transcribingAria": "Индикатор транскрибации {appName}",
+		"loadingAria": "Индикатор загрузки {appName}",
 		"errorIndicatorAria": "Индикатор ошибки {appName}",
 		"idleIndicatorAria": "Индикатор ожидания {appName}",
 		"blockedIndicatorAria": "Индикатор блокировки {appName}",
