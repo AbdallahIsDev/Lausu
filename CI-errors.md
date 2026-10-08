@@ -2,11 +2,11 @@
 
 > Auto-generated from the latest GitHub Actions run via `scripts/ci/write_ci_errors.py`. Do not edit by hand, it is overwritten on every CI run.
 
-**15 failing/errored tests** across 6 matrix legs.
+**16 failing/errored tests** across 4 matrix legs.
 
 ### 1. `tests.handlers.test_error_envelope_code_field.TestHandlerFilesUseHelper.test_every_handler_file_uses_a_standardized_helper`
 
-- Legs: macos-14-3.12, macos-14-3.13, ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/handlers/test_error_envelope_code_field.py:122`
 
 ```
@@ -22,7 +22,7 @@ E   assert not ['system_permissions_handlers.py']
 
 ### 2. `tests.tauri.mig19.test_phase4_validation.test_command_contract_is_frozen_no_untested_additions`
 
-- Legs: macos-14-3.12, macos-14-3.13, ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig19/test_phase4_validation.py:642`
 
 ```
@@ -56,7 +56,7 @@ E   Do NOT silently grow the wire contract.
 
 ### 3. `tests.tauri.mig19.test_phase4_validation.test_known_undocumented_commands_are_reported`
 
-- Legs: macos-14-3.12, macos-14-3.13, ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/tauri/mig19/test_phase4_validation.py:684`
 
 ```
@@ -78,7 +78,7 @@ E     screenshot_set_consent
 
 ### 4. `tests.test_architecture_doc_accuracy.test_event_bus_count_matches_doc_and_code`
 
-- Legs: macos-14-3.12, macos-14-3.13, ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_architecture_doc_accuracy.py:40`
 
 ```
@@ -96,25 +96,25 @@ E    +  where 51 = len(frozenset({'asr_backend_disabled', 'asr_backend_load_fail
 
 ### 5. `tests.test_config_validators_split.TestAllowlistSnapshot.test_allowlist_size_unchanged`
 
-- Legs: macos-14-3.12, macos-14-3.13, ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_config_validators_split.py:165`
 
 ```
-+  where 134 = len({'hotkey': (<class 'str'>, <function _validate_hotkey at 0x10553ea20>), 'repaste_hotkey': (<class 'str'>, <function _validate_hotkey at 0x10553ea20>), 'microphone': ((<class 'str'>, <class 'NoneType'>), <function _make_optional_str_validator.<locals>._validate at 0x10553fec0>), 'model_size': (<class 'str'>, <function _make_enum_validator.<locals>._validate at 0x10556c040>), ...})
++  where 134 = len({'hotkey': (<class 'str'>, <function _validate_hotkey at 0x7f10fb511ab0>), 'repaste_hotkey': (<class 'str'>, <function _validate_hotkey at 0x7f10fb511ab0>), 'microphone': ((<class 'str'>, <class 'NoneType'>), <function _make_optional_str_validator.<locals>._validate at 0x7f10fb512c20>), 'model_size': (<class 'str'>, <function _make_enum_validator.<locals>._validate at 0x7f10fb512d40>), ...})
 
 AssertionError: IPC_CONFIG_ALLOWLIST size drifted: expected 132, got 134. SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a security-sensitive change that must be reviewed explicitly. Latest reviewed growth: 130 → 132, `screenshot_beta_enabled` + `screenshot_consent` (one-shot screenshot beta flags; bool-validated). Prior 129 → 130 growth: `active_plugin` (Plugins page activation switch; slug-validated, empty = local model). Prior 128 → 129 growth: `hallucination_filter_mode` (separate in-flight change).
 assert 134 == 132
- +  where 134 = len({'hotkey': (<class 'str'>, <function _validate_hotkey at 0x10553ea20>), 'repaste_hotkey': (<class 'str'>, <function _validate_hotkey at 0x10553ea20>), 'microphone': ((<class 'str'>, <class 'NoneType'>), <function _make_optional_str_validator.<locals>._validate at 0x10553fec0>), 'model_size': (<class 'str'>, <function _make_enum_validator.<locals>._validate at 0x10556c040>), ...})
+ +  where 134 = len({'hotkey': (<class 'str'>, <function _validate_hotkey at 0x7f10fb511ab0>), 'repaste_hotkey': (<class 'str'>, <function _validate_hotkey at 0x7f10fb511ab0>), 'microphone': ((<class 'str'>, <class 'NoneType'>), <function _make_optional_str_validator.<locals>._validate at 0x7f10fb512c20>), 'model_size': (<class 'str'>, <function _make_enum_validator.<locals>._validate at 0x7f10fb512d40>), ...})
 tests/test_config_validators_split.py:165: in test_allowlist_size_unchanged
     assert len(IPC_CONFIG_ALLOWLIST) == 132, (
 E   AssertionError: IPC_CONFIG_ALLOWLIST size drifted: expected 132, got 134. SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a security-sensitive change that must be reviewed explicitly. Latest reviewed growth: 130 → 132, `screenshot_beta_enabled` + `screenshot_consent` (one-shot screenshot beta flags; bool-validated). Prior 129 → 130 growth: `active_plugin` (Plugins page activation switch; slug-validated, empty = local model). Prior 128 → 129 growth: `hallucination_filter_mode` (separate in-flight change).
 E   assert 134 == 132
-E    +  where 134 = len({'hotkey': (<class 'str'>, <function _validate_hotkey at 0x10553ea20>), 'repaste_hotkey': (<class 'str'>, <function _validate_hotkey at 0x10553ea20>), 'microphone': ((<class 'str'>, <class 'NoneType'>), <function _make_optional_str_validator.<locals>._validate at 0x10553fec0>), 'model_size': (<class 'str'>, <function _make_enum_validator.<locals>._validate at 0x10556c040>), ...})
+E    +  where 134 = len({'hotkey': (<class 'str'>, <function _validate_hotkey at 0x7f10fb511ab0>), 'repaste_hotkey': (<class 'str'>, <function _validate_hotkey at 0x7f10fb511ab0>), 'microphone': ((<class 'str'>, <class 'NoneType'>), <function _make_optional_str_validator.<locals>._validate at 0x7f10fb512c20>), 'model_size': (<class 'str'>, <function _make_enum_validator.<locals>._validate at 0x7f10fb512d40>), ...})
 ```
 
 ### 6. `tests.test_config_validators_split.TestAllowlistSnapshot.test_allowlist_keys_match_frozen_snapshot`
 
-- Legs: macos-14-3.12, macos-14-3.13, ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_config_validators_split.py:185`
 
 ```
@@ -130,7 +130,7 @@ E   assert not frozenset({'cloud_gemini_consent', 'gemini_api_key'})
 
 ### 7. `tests.test_error_codes_registry.TestEmittedCodesAreRegisteredOrLegacy.test_all_emitted_codes_known`
 
-- Legs: macos-14-3.12, macos-14-3.13, ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_error_codes_registry.py:150`
 
 ```
@@ -156,7 +156,7 @@ E     voice_typer/server/handlers/screenshot_handlers.py:40 -> 'screenshot_alrea
 
 ### 8. `tests.test_hotkeys.TestApplyConfigReRegistersHotkeyForPushToTalk.test_service_handles_hotkey_change`
 
-- Legs: macos-14-3.12, macos-14-3.13, ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_hotkeys.py:34`
 
 ```
@@ -168,7 +168,7 @@ assert '"hotkey" in updates' in '"""Config side-effect dispatcher (registered ha
 
 ### 9. `tests.test_hotkeys.TestApplyConfigReRegistersHotkeyForPushToTalk.test_service_apply_config_side_effects_handles_recording_mode`
 
-- Legs: macos-14-3.12, macos-14-3.13, ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_hotkeys.py:29`
 
 ```
@@ -178,9 +178,25 @@ assert 'recording_mode' in '"""Config side-effect dispatcher (registered handler
 … (truncated)
 ```
 
-### 10. `tests.test_ipc_reference_doc_accuracy.test_ipc_reference_doc_has_row_for_every_registry_command`
+### 10. `tests.test_hotkeys_win32.TestModifierOnlyHotkeys.test_alt_only_hotkey_starts_without_error`
 
-- Legs: macos-14-3.12, macos-14-3.13, ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: ubuntu-22.04-3.10
+- Location: `tests/test_hotkeys_win32.py:285`
+
+```
+AssertionError: LL hook handle never installed for modifier-only spec (waited 15.0s)
+
+AssertionError: LL hook handle never installed for modifier-only spec (waited 15.0s)
+tests/test_hotkeys_win32.py:285: in test_alt_only_hotkey_starts_without_error
+    _wait_until(
+tests/test_hotkeys_win32.py:28: in _wait_until
+    raise AssertionError(f"{msg} (waited {timeout}s)")
+E   AssertionError: LL hook handle never installed for modifier-only spec (waited 15.0s)
+```
+
+### 11. `tests.test_ipc_reference_doc_accuracy.test_ipc_reference_doc_has_row_for_every_registry_command`
+
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_ipc_reference_doc_accuracy.py:118`
 
 ```
@@ -194,41 +210,9 @@ E   AssertionError: _COMMAND_REGISTRY has 4 commands with no row in docs/ipc-ref
 E   assert not {'screenshot_capture', 'screenshot_clear_cycle', 'screenshot_get_status', 'screenshot_set_consent'}
 ```
 
-### 11. `tests.test_ipc_reference_doc_accuracy.test_ipc_reference_doc_push_events_header_count_matches_source`
+### 12. `tests.test_ipc_reference_doc_accuracy.test_ipc_reference_doc_commands_header_count_matches_registry`
 
-- Legs: macos-14-3.12, macos-14-3.13, ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
-- Location: `tests/test_ipc_reference_doc_accuracy.py:159`
-
-```
-assert 63 == 62
-
-AssertionError: docs/ipc-reference.md documents 63 typed push events but the renderer's types/ipc/push_events.ts declares 62 (via `type: "<name>"` literals). Update the header.
-assert 63 == 62
-tests/test_ipc_reference_doc_accuracy.py:159: in test_ipc_reference_doc_push_events_header_count_matches_source
-    assert documented == actual, (
-E   AssertionError: docs/ipc-reference.md documents 63 typed push events but the renderer's types/ipc/push_events.ts declares 62 (via `type: "<name>"` literals). Update the header.
-E   assert 63 == 62
-```
-
-### 12. `tests.test_ipc_reference_doc_accuracy.test_ipc_reference_doc_push_event_rows_match_source_types`
-
-- Legs: macos-14-3.12, macos-14-3.13, ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
-- Location: `tests/test_ipc_reference_doc_accuracy.py:183`
-
-```
-assert not {'text_enhancement_failed'}
-
-AssertionError: docs/ipc-reference.md lists 1 push-event types that are NOT in types/ipc/push_events.ts: ['text_enhancement_failed']. Either add the type to the TS union or remove the row.
-assert not {'text_enhancement_failed'}
-tests/test_ipc_reference_doc_accuracy.py:183: in test_ipc_reference_doc_push_event_rows_match_source_types
-    assert not unknown, (
-E   AssertionError: docs/ipc-reference.md lists 1 push-event types that are NOT in types/ipc/push_events.ts: ['text_enhancement_failed']. Either add the type to the TS union or remove the row.
-E   assert not {'text_enhancement_failed'}
-```
-
-### 13. `tests.test_ipc_reference_doc_accuracy.test_ipc_reference_doc_commands_header_count_matches_registry`
-
-- Legs: macos-14-3.12, macos-14-3.13, ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_ipc_reference_doc_accuracy.py:146`
 
 ```
@@ -242,9 +226,41 @@ E   AssertionError: docs/ipc-reference.md documents 80 total commands but _COMMA
 E   assert 80 == 84
 ```
 
-### 14. `tests.test_macos_bundle_id.TestOnboardingSource.test_uses_runtime_resolution_and_no_hardcoded_bundle_id`
+### 13. `tests.test_ipc_reference_doc_accuracy.test_ipc_reference_doc_push_events_header_count_matches_source`
 
-- Legs: macos-14-3.12, macos-14-3.13, ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Location: `tests/test_ipc_reference_doc_accuracy.py:159`
+
+```
+assert 63 == 62
+
+AssertionError: docs/ipc-reference.md documents 63 typed push events but the renderer's types/ipc/push_events.ts declares 62 (via `type: "<name>"` literals). Update the header.
+assert 63 == 62
+tests/test_ipc_reference_doc_accuracy.py:159: in test_ipc_reference_doc_push_events_header_count_matches_source
+    assert documented == actual, (
+E   AssertionError: docs/ipc-reference.md documents 63 typed push events but the renderer's types/ipc/push_events.ts declares 62 (via `type: "<name>"` literals). Update the header.
+E   assert 63 == 62
+```
+
+### 14. `tests.test_ipc_reference_doc_accuracy.test_ipc_reference_doc_push_event_rows_match_source_types`
+
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Location: `tests/test_ipc_reference_doc_accuracy.py:183`
+
+```
+assert not {'text_enhancement_failed'}
+
+AssertionError: docs/ipc-reference.md lists 1 push-event types that are NOT in types/ipc/push_events.ts: ['text_enhancement_failed']. Either add the type to the TS union or remove the row.
+assert not {'text_enhancement_failed'}
+tests/test_ipc_reference_doc_accuracy.py:183: in test_ipc_reference_doc_push_event_rows_match_source_types
+    assert not unknown, (
+E   AssertionError: docs/ipc-reference.md lists 1 push-event types that are NOT in types/ipc/push_events.ts: ['text_enhancement_failed']. Either add the type to the TS union or remove the row.
+E   assert not {'text_enhancement_failed'}
+```
+
+### 15. `tests.test_macos_bundle_id.TestOnboardingSource.test_uses_runtime_resolution_and_no_hardcoded_bundle_id`
+
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_macos_bundle_id.py:281`
 
 ```
@@ -255,18 +271,16 @@ assert 'resolve_host_bundle_id()' in '"""First-run detection + 4-step onboarding
 … (truncated)
 ```
 
-### 15. `tests.test_hotkeys_win32.TestModifierOnlyHotkeys.test_alt_only_hotkey_starts_without_error`
+### 16. `tests.test_notifications.TestCriticalNotificationsBypassToggle.test_model_load_failure_uses_notify_safety`
 
-- Legs: macos-14-3.13
-- Location: `tests/test_hotkeys_win32.py:285`
+- Legs: ubuntu-22.04-3.10, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Location: `tests/test_notifications.py:88`
 
 ```
-AssertionError: LL hook handle never installed for modifier-only spec (waited 15.0s)
+assert 'notify_safety(' in 'reason=f"all backends failed to load (primary={_primary})",\n                )\n                self._app.tray.notify(\n                    APP_NAME,\n                    i18n.t(\n                        "notify.model_manager.load_failed_critical",\n                        hotkey=notification_hotkey_label(self._app.config.hotkey),\n                    ),\n                )\n                # Clear the pend'
 
-AssertionError: LL hook handle never installed for modifier-only spec (waited 15.0s)
-tests/test_hotkeys_win32.py:285: in test_alt_only_hotkey_starts_without_error
-    _wait_until(
-tests/test_hotkeys_win32.py:28: in _wait_until
-    raise AssertionError(f"{msg} (waited {timeout}s)")
-E   AssertionError: LL hook handle never installed for modifier-only spec (waited 15.0s)
+assert 'notify_safety(' in 'reason=f"all backends failed to load (primary={_primary})",\n                )\n                self._app.tray.notify(\n                    APP_NAME,\n                    i18n.t(\n                        "notify.model_manager.load_failed_critical",\n                        hotkey=notification_hotkey_label(self._app.config.hotkey),\n                    ),\n                )\n                # Clear the pend'
+tests/test_notifications.py:88: in test_model_load_failure_uses_notify_safety
+    assert "notify_safety(" in block
+E   assert 'notify_safety(' in 'reason=f"all backends failed to load (primary={_primary})",\n                )\n                self._app.tray.notify(\n                    APP_NAME,\n                    i18n.t(\n                        "notify.model_manager.load_failed_critical",\n                        hotkey=notification_hotkey_label(self._app.config.hotkey),\n                    ),\n                )\n                # Clear the pend'
 ```
