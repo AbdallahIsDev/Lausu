@@ -151,20 +151,6 @@ pub(crate) fn clamp_chars(value: &str, max: usize) -> String {
     value.chars().take(max).collect()
 }
 
-/// Compose the mail body: the user's description, then the generated
-/// context block (version / OS / architecture) they cannot type
-/// themselves.
-pub(crate) fn build_report_body(description: &str, context_lines: &[String]) -> String {
-    let mut out = String::new();
-    out.push_str(description.trim());
-    out.push_str("\n\n---\n");
-    for line in context_lines {
-        out.push_str(line);
-        out.push('\n');
-    }
-    out
-}
-
 /// Folder stamp for one report, e.g. `2026-10-08_01-53-30`.
 fn report_stamp() -> String {
     now_timestamps().0.replace("  ", "_").replace(':', "-")
