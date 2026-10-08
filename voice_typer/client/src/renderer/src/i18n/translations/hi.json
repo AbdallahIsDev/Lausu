@@ -463,6 +463,8 @@
 		"dayCountTooltip_few": "{label}: {count} श्रुतलेख",
 		"dayCountTooltip_many": "{label}: {count} श्रुतलेख",
 		"dayCountTooltip_other": "{label}: {count} श्रुतलेख",
+		"wordsLabel": "बोले गए शब्द",
+		"avgSpeedLabel": "औसत गति",
 		"avgCharsLabel": "औसत अक्षर / श्रुतलेख",
 		"longestLabel": "सबसे लंबा सत्र",
 		"heatmap": {

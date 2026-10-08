@@ -9,14 +9,16 @@
 //      bucketing, see the hook), and keeping it in the bar means it stays
 //      reachable while the page scrolls. The page holds no range state of
 //      its own, see `stores/useAnalyticsRange`.
-//   2. Three range-aware stat cards merged into ONE divided card
-//      (no gaps between cells), with trend indicators vs the
-//      previous period of the same length.
+//   2. Six range-aware stat cards in ONE divided card (two rows of
+//      three, no gaps between cells): Dictations / Recording Time /
+//      Words on top, Average Speed / Longest session / Corrections
+//      below. Each trend compares against the previous period of the
+//      same length; Longest session has no previous maximum to
+//      compare against so it carries no trend, and Corrections is
+//      a bare count with neither trend nor sublabel.
 //   3. The activity chart (hourly for Today, daily otherwise) with a
 //      y-axis, gridlines, and zero-vs-no-data distinction.
-//   4. Derived-metric highlights (avg chars, longest session, peak
-//      weekday), only metrics the data actually supports.
-//   5. The dictation heatmap — deliberately range-INDEPENDENT: it always
+//   4. The dictation heatmap — deliberately range-INDEPENDENT: it always
 //      spans the whole history the sample covers (capped at a year),
 //      because a per-day contribution grid only reads at a scale of
 //      months. See `./dashboard/components/ActivityHeatmap`. It also
@@ -36,7 +38,6 @@ import type { CSSProperties } from "react";
 import { useMemo } from "react";
 import { LastUpdatedIndicator } from "@/components/common/LastUpdatedIndicator";
 import PageHeading from "@/components/common/PageHeading";
-import { QuickInfoCard } from "@/components/dashboard/QuickInfoCard";
 import { ShareStatsDialog } from "@/components/dashboard/ShareStatsDialog";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { formatCompactNumber } from "@/components/dashboard/StatCards";
@@ -55,7 +56,7 @@ import {
 	computeShareStats,
 	useStatsShare,
 } from "@/hooks/useStatsShare";
-import { getLocale, t } from "@/i18n/i18n";
+import { t } from "@/i18n/i18n";
 import { compactNumber, formatDuration } from "@/lib/format";
 import { useThemePalette } from "@/lib/theme-palette";
 import { formatDevice, formatModel } from "@/lib/utils/configDisplay";
@@ -200,6 +201,18 @@ export default function DashboardPage() {
 		copyImageToClipboard,
 		revealInFolder,
 	};
+	// Average speaking speed for the selected window (words per minute
+	// of recorded audio). Null when the window has no recorded audio:
+	// the card then shows "—" and carries no trend instead of
+	// presenting a number the data cannot support.
+	const wpm =
+		period.duration > 0
+			? Math.round(period.wordCount / (period.duration / 60))
+			: null;
+	const prevWpm =
+		period.prev !== null && period.prev.duration > 0
+			? Math.round(period.prev.wordCount / (period.prev.duration / 60))
+			: null;
 
 	return (
 		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
@@ -247,68 +260,94 @@ export default function DashboardPage() {
 				/>
 			) : (
 				<div className="flex flex-col gap-6">
-					{/* ONE merged card, not three separate ones: the shared
+					{/* ONE merged card, not six separate ones: the shared
 					    container owns the radius/border/background and 1px
-					    dividers separate the cells, so there is no gap
-					    between them (C-DESIGN-2). Stacked rows separated by
-					    horizontal rules on narrow windows, three columns
-					    separated by vertical rules from md up. */}
-					<div className="grid grid-cols-1 divide-y divide-border/8 overflow-hidden rounded-lg border border-border/8 bg-surface-subtle md:grid-cols-3 md:divide-x md:divide-y-0">
-						{/* Single dictations card, DATA-CONSISTENCY fix: the
-						    old "Dictations" card (window count from the
-						    500-row history sample) and the range-blind
-						    "Total Dictations" card (true all-time row count
-						    from get_history_count) are merged into ONE card
-						    whose VALUE respects the selected range. The two
-						    previously disagreed under "All Time" (500 vs
-						    893): period.count caps at the sample size while
-						    totalCount is the true DB row count. For bounded
-						    ranges the window count is exact (recent rows are
-						    always inside the DESC-ordered sample); for All
-						    Time the true count is used so the card is never
-						    sample-capped. */}
-						<StatCard
-							inGroup
-							// Plain label (no range suffix), the title bar's
-							// range control + the chart's subtitle already
-							// state the active window; the suffix made this
-							// the only truncating label in the row
-							// ("Total Dictations (7 D…").
-							label={t("analytics.totalDictations")}
-							value={
-								range === "all" ? String(d.totalCount) : String(period.count)
-							}
-							icon={SpeechToTextIcon}
-							trend={computeTrend(period.count, period.prev?.count)}
-						/>
-						<StatCard
-							inGroup
-							label={t("analytics.recordingTime")}
-							value={formatDuration(period.duration)}
-							icon={Time02Icon}
-							trend={computeTrend(period.duration, period.prev?.duration)}
-						/>
-						{/* Characters, reuses the Home page Characters card's
-						    formatter (formatCompactNumber from StatCards) so
-						    the K-abbreviation + rounding config carries over
-						    unchanged; wired to the same range-filtered char
-						    count as the rest of the page. It carries the same
-						    trend indicator as its two neighbours: a card in
-						    this row without one reads as "no change" rather
-						    than "not measured". */}
-						<StatCard
-							inGroup
-							label={t("analytics.cards.chars")}
-							value={formatCompactNumber(period.chars)}
-							icon={TextIcon}
-							trend={computeTrend(period.chars, period.prev?.chars)}
-						/>
-						{/* Active Days is deliberately NOT a cell here: it
-						    measures the heatmap's whole-year window, not the
-						    selected range, so it lives in the heatmap header
-						    below. Corrections sits in the derived-metrics row
-						    for the same reason (it is a derived metric and
-						    carries a rate sublabel). */}
+					    rules separate the cells, so there is no gap between
+					    them (C-DESIGN-2). Each row is its own divided grid,
+					    stacked cells on narrow windows and three columns
+					    from md up, with the row rule (border-t) spanning
+					    both layouts. */}
+					<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle">
+						<div className="grid grid-cols-1 divide-y divide-border/8 md:grid-cols-3 md:divide-x md:divide-y-0">
+							{/* Single dictations card, DATA-CONSISTENCY fix: the
+							    old "Dictations" card (window count from the
+							    500-row history sample) and the range-blind
+							    "Total Dictations" card (true all-time row count
+							    from get_history_count) are merged into ONE card
+							    whose VALUE respects the selected range. The two
+							    previously disagreed under "All Time" (500 vs
+							    893): period.count caps at the sample size while
+							    totalCount is the true DB row count. For bounded
+							    ranges the window count is exact (recent rows are
+							    always inside the DESC-ordered sample); for All
+							    Time the true count is used so the card is never
+							    sample-capped. */}
+							<StatCard
+								inGroup
+								// Plain label (no range suffix), the title bar's
+								// range control + the chart's subtitle already
+								// state the active window; the suffix made this
+								// the only truncating label in the row
+								// ("Total Dictations (7 D…").
+								label={t("analytics.totalDictations")}
+								value={
+									range === "all" ? String(d.totalCount) : String(period.count)
+								}
+								icon={SpeechToTextIcon}
+								trend={computeTrend(period.count, period.prev?.count)}
+							/>
+							<StatCard
+								inGroup
+								label={t("analytics.recordingTime")}
+								value={formatDuration(period.duration)}
+								icon={Time02Icon}
+								trend={computeTrend(period.duration, period.prev?.duration)}
+							/>
+							{/* Words, reuses the Home StatCards compact formatter
+							    (formatCompactNumber) so the K-abbreviation +
+							    rounding config carries over unchanged. The value
+							    is the exact word count summed over the window: the
+							    renderer never re-counts text (list previews are
+							    truncated) and chars/5 would only approximate it. */}
+							<StatCard
+								inGroup
+								label={t("analytics.wordsLabel")}
+								value={formatCompactNumber(period.wordCount)}
+								icon={TextIcon}
+								trend={computeTrend(period.wordCount, period.prev?.wordCount)}
+							/>
+							{/* Active Days is deliberately NOT a cell here: it
+							    measures the heatmap's whole-year window, not the
+							    selected range, so it lives in the heatmap header
+							    below. */}
+						</div>
+						<div className="grid grid-cols-1 divide-y divide-border/8 border-t border-border/8 md:grid-cols-3 md:divide-x md:divide-y-0">
+							{/* Average speed: words ÷ recorded minutes; "—" and no
+							    trend when the window has no recorded audio, so an
+							    empty window never claims a speed. */}
+							<StatCard
+								inGroup
+								label={t("analytics.avgSpeedLabel")}
+								value={wpm !== null ? `${wpm} WPM` : "—"}
+								icon={Mic02Icon}
+								trend={wpm !== null ? computeTrend(wpm, prevWpm) : null}
+							/>
+							<StatCard
+								inGroup
+								// Stopwatch (not a clock), the top-row Recording Time
+								// card already uses Time02Icon; a stopwatch reads as
+								// "longest single session" at a glance.
+								icon={StopWatchIcon}
+								label={t("analytics.longestLabel")}
+								value={formatDuration(period.longestSession)}
+							/>
+							<StatCard
+								inGroup
+								label={t("analytics.corrections")}
+								value={compactNumber(correctionStats.corrections)}
+								icon={CheckmarkCircle02Icon}
+							/>
+						</div>
 					</div>
 
 					{/* NOTE: no "no dictations in this period" caption here —
@@ -317,7 +356,7 @@ export default function DashboardPage() {
 					<ActivityChart range={range} activity={activity} />
 
 					{/* Long-window consistency view. Placed AFTER the
-						range-aware block (cards → chart → derived metrics) so
+						range-aware block (cards → chart → heatmap) so
 						the selected range's analysis stays contiguous. The
 						card states its own covered range in its subtitle
 						because it ignores the range control in the title bar,
@@ -326,37 +365,6 @@ export default function DashboardPage() {
 						window, so they must not sit next to range-aware
 						numbers. */}
 					<ActivityHeatmap heatmap={heatmap} currentStreak={d.currentStreak} />
-
-					{/* Derived metrics, card-styled row directly below the
-						chart (Avg chars / Longest session / Corrections). */}
-					<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-						<QuickInfoCard
-							icon={TextIcon}
-							label={t("analytics.avgCharsLabel")}
-							value={period.avgCharsPerDictation.toLocaleString(getLocale())}
-						/>
-						<QuickInfoCard
-							// Stopwatch (not a clock), the top-row Recording
-							// Time card already uses Time02Icon; a stopwatch
-							// reads as "longest single session" at a glance.
-							icon={StopWatchIcon}
-							label={t("analytics.longestLabel")}
-							value={formatDuration(period.longestSession)}
-						/>
-						<QuickInfoCard
-							icon={CheckmarkCircle02Icon}
-							label={t("analytics.corrections")}
-							value={compactNumber(correctionStats.corrections)}
-							sublabel={
-								correctionStats.rate !== null
-									? t("analytics.correctionsRate", {
-											pct: String(Math.round(correctionStats.rate * 100)),
-											dictations: String(correctionStats.dictations),
-										})
-									: undefined
-							}
-						/>
-					</div>
 				</div>
 			)}
 

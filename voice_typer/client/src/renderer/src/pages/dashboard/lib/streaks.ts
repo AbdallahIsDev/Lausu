@@ -159,7 +159,12 @@ export interface PeriodStats {
 	/** Weekday index (0=Sunday…6=Saturday) with the most dictations, or null when empty. */
 	peakWeekday: number | null;
 	/** Same-length previous window, or null for "all" (no prior period). */
-	prev: { count: number; chars: number; duration: number } | null;
+	prev: {
+		count: number;
+		chars: number;
+		wordCount: number;
+		duration: number;
+	} | null;
 }
 
 interface WindowAgg {
@@ -256,6 +261,7 @@ export function computePeriodStats(
 				: {
 						count: prevAgg.count,
 						chars: prevAgg.chars,
+						wordCount: prevAgg.wordCount,
 						duration: prevAgg.duration,
 					},
 	};

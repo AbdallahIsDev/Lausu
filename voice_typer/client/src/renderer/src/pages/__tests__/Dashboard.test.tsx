@@ -328,21 +328,25 @@ describe("SevenDayActivityChart migrates binary plural to tChoice", () => {
 });
 
 describe("Corrections-applied card (server-side usage tracking)", () => {
-	it("Dashboard.tsx renders the Corrections card in the derived-metrics row", () => {
-		// The Corrections card lives in the derived-metrics row below
-		// the chart, NOT in the top stat card. It reads the range-aware
-		// correction totals from the hook and localises through the
-		// analytics.* keys.
+	it("Dashboard.tsx renders the Corrections card in the merged card's second row", () => {
+		// The Corrections cell lives in the merged card's second row
+		// (Avg Speed / Longest session / Corrections), not as a loose
+		// card below the chart. It reads the range-aware correction
+		// totals from the hook and localises through the analytics.*
+		// keys.
 		expect(DASHBOARD_SRC).toMatch(/correctionStats/);
 		expect(DASHBOARD_SRC).toMatch(/t\("analytics\.corrections"\)/);
-		// The rate survives as the card sublabel; the tooltip + trend
-		// are gone (informational card, no tooltip affordance).
+		// The rate sublabel is gone (bare count, no "0% of dictations"
+		// line); the tooltip + trend are gone too (informational card,
+		// no tooltip affordance).
 		expect(DASHBOARD_SRC).not.toMatch(/t\("analytics\.correctionsTooltip"\)/);
-		expect(DASHBOARD_SRC).toMatch(/t\("analytics\.correctionsRate"/);
+		expect(DASHBOARD_SRC).not.toMatch(/t\("analytics\.correctionsRate"/);
 		expect(DASHBOARD_SRC).toMatch(/correctionStats\.corrections/);
-		expect(DASHBOARD_SRC).toMatch(/correctionStats\.rate/);
+		expect(DASHBOARD_SRC).not.toMatch(/correctionStats\.rate/);
+		// No cell in this page carries a sublabel line anymore.
+		expect(DASHBOARD_SRC).not.toMatch(/sublabel=/);
 		expect(DASHBOARD_SRC).not.toMatch(/correctionStats\.prevCorrections/);
-		// The top row is ONE merged card with three cells.
+		// The six cells sit in ONE merged card.
 		expect(DASHBOARD_SRC).toMatch(/md:grid-cols-3/);
 	});
 
@@ -422,23 +426,25 @@ describe("Top stat cards: merged dictation card + range-aware values", () => {
 		expect(statCardSrc).not.toMatch(/Tooltip/);
 	});
 
-	it("the Characters card reuses the Home StatCards compact formatter", () => {
-		// Part C: the Analytics Characters card reuses the Home page
-		// Characters card's K-abbreviation formatting (exported from
-		// StatCards), never a reimplementation.
+	it("the Words card reuses the Home StatCards compact formatter", () => {
+		// The Analytics Words card reuses the Home page Characters
+		// card's K-abbreviation formatting (exported from StatCards),
+		// never a reimplementation; the value is the exact period word
+		// count summed upstream, not a re-count of preview text.
 		expect(DASHBOARD_SRC).toMatch(
 			/import\s*\{[^}]*formatCompactNumber[^}]*\}\s*from\s*"@\/components\/dashboard\/StatCards"/,
 		);
 		expect(DASHBOARD_SRC).toMatch(
-			/value=\{formatCompactNumber\(period\.chars\)\}/,
+			/value=\{formatCompactNumber\(period\.wordCount\)\}/,
 		);
 	});
 
-	it("the top row is ONE merged 3-cell card, cells divided not spaced", () => {
-		// Total Dictations / Recording Time / Characters, in a single
-		// bordered surface. The cells carry no gap (the container owns
-		// the radius/border/background and the dividers do the
-		// separating), which is the merged-card UX contract.
+	it("the six cells are ONE merged card, cells divided not spaced", () => {
+		// Row 1: Total Dictations / Recording Time / Words. Row 2:
+		// Average Speed / Longest session / Corrections. All six live in
+		// a single bordered surface. The cells carry no gap (the
+		// container owns the radius/border/background and the dividers
+		// do the separating), which is the merged-card UX contract.
 		expect(DASHBOARD_SRC).toMatch(/md:grid-cols-3/);
 		expect(DASHBOARD_SRC).toMatch(/grid-cols-1 divide-y divide-border\/8/);
 		expect(DASHBOARD_SRC).toMatch(/md:divide-x md:divide-y-0/);
@@ -446,7 +452,7 @@ describe("Top stat cards: merged dictation card + range-aware values", () => {
 			/overflow-hidden rounded-lg border border-border\/8 bg-surface-subtle/,
 		);
 		// Every cell hands its chrome to that container.
-		expect(DASHBOARD_SRC.match(/\binGroup\b/g)?.length).toBe(3);
+		expect(DASHBOARD_SRC.match(/\binGroup\b/g)?.length).toBe(6);
 		// No gapped grid survives in the top row.
 		expect(DASHBOARD_SRC).not.toMatch(/grid-cols-2 gap-3 md:grid-cols-4/);
 	});
@@ -532,21 +538,8 @@ describe("Analytics polish: stat-card spacing, sublabel pruning, header chrome",
 		// auto-top-margin actually has room to spread (a cell only as
 		// tall as its content leaves no breathing space).
 		expect(statCardSrc).toMatch(/min-h-24/);
-		// QuickInfoCard (the derived-metrics row) uses the same
-		// bottom-pushed rhythm.
-		const quickInfoSrc = fs.readFileSync(
-			path.resolve(
-				__dirname,
-				"..",
-				"..",
-				"components",
-				"dashboard",
-				"QuickInfoCard.tsx",
-			),
-			"utf8",
-		);
-		expect(quickInfoSrc).toMatch(/flex items-stretch gap-3/);
-		expect(quickInfoSrc).toMatch(/mt-auto truncate font-semibold/);
+		// The moved derived-metric cells (Longest session / Corrections)
+		// are StatCards now, so they share this exact rhythm.
 	});
 
 	it("neither analytics card draws a header icon any more", () => {
