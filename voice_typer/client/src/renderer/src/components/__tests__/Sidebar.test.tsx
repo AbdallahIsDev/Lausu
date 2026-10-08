@@ -60,7 +60,7 @@ describe("Sidebar", () => {
 			"Home",
 			"History",
 			"Analytics",
-			"Templates",
+			"Text Snippets",
 			"Vocabulary",
 			"Media",
 			"Models",

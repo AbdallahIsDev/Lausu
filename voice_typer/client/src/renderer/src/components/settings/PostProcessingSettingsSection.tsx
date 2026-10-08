@@ -35,7 +35,7 @@ export const PostProcessingSettingsSection = memo(
 		isVisible,
 		onNavigate,
 	}: SettingsSectionSharedProps & {
-		/** Routes to the Templates page (the "Open Templates" button). */
+		/** Routes to the Text Snippets page (the "Open Text Snippets" button). */
 		onNavigate?: (page: Page) => void;
 	}) {
 		const t = useT();
