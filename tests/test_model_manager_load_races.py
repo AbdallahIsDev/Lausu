@@ -248,6 +248,31 @@ class TestEnsureActiveEngineLoadedRace:
             "existing engine instead of constructing a duplicate."
         )
 
+    def test_ensure_joins_live_background_load_instead_of_sync_load(self):
+        """A live ``_model_load_thread`` must be joined, not duplicated."""
+        mm, app, registry = _make_mm_with_mock_registry(backend_name="whisper")
+        engine = MagicMock(name="bg-engine")
+        engine.is_loaded = False
+        registry.get_active.return_value = engine
+        mm.active_transcriber = MagicMock(return_value=engine)
+
+        def _bg_load() -> None:
+            import time as _time
+
+            _time.sleep(0.3)
+            engine.is_loaded = True
+
+        loader = threading.Thread(target=_bg_load, daemon=True)
+        loader.start()
+        mm._model_load_thread = loader
+
+        result = mm.ensure_active_engine_loaded()
+
+        assert result is engine
+        mm._ensure_engine.assert_not_called()
+        registry.load_active.assert_not_called()
+        loader.join(timeout=5.0)
+
     def test_no_revalidation_when_config_unchanged(self):
         """When ``config.asr_backend`` does NOT change during the lock"""
         mm, app, registry = _make_mm_with_mock_registry(backend_name="whisper")
