@@ -746,3 +746,71 @@ class TestWasapiAutoConvert:
         lifecycle.open_stream_for_candidates(recorder, [30], MagicMock(), 16000, None)
         assert len(attempts) == 1
         assert attempts[0]["extra_settings"] is None
+
+
+class TestPortAudioReinitRetry:
+    """Poisoned-state opens (WDM-KS leaking into WASAPI) reinit once, then retry."""
+
+    def _poisoned_sd(self, monkeypatch, *, fail_first_n: int, initialize_ok: bool = True):
+        attempts: list[dict] = []
+
+        def fake_input_stream(**kwargs):
+            attempts.append(kwargs)
+            if len(attempts) <= fail_first_n:
+                raise RuntimeError("PaErrorCode -9999: Unanticipated host error (WDM-KS poisoned)")
+            stream = MagicMock(name="reinit_stream")
+            stream.start = MagicMock(name="start")
+            return stream
+
+        fake_sd = MagicMock(name="poisoned_sd")
+        fake_sd.InputStream = MagicMock(side_effect=fake_input_stream)
+        if not initialize_ok:
+            fake_sd._initialize.side_effect = RuntimeError("terminate already failed")
+        monkeypatch.setattr(sl_module, "sd", fake_sd)
+        return attempts, fake_sd
+
+    def test_reinit_then_configured_retry_succeeds(self, monkeypatch):
+        recorder = _make_recorder_stub()
+        attempts, fake_sd = self._poisoned_sd(monkeypatch, fail_first_n=2)
+        lifecycle = StreamLifecycle(recorder)
+
+        selected, eff_sr, _ = lifecycle.open_stream_for_candidates(
+            recorder, [24], MagicMock(), 16000, None
+        )
+
+        assert selected == 24
+        assert len(attempts) == 3
+        fake_sd._terminate.assert_called_once()
+        fake_sd._initialize.assert_called_once()
+        recorder._devices._invalidate_device_cache.assert_called_once()
+
+    def test_non_transient_failure_skips_reinit(self, monkeypatch):
+        recorder = _make_recorder_stub()
+        attempts = _make_fake_stream_factory(monkeypatch, fail_indices={0, 1})
+        lifecycle = StreamLifecycle(recorder)
+
+        import voice_typer.server.recording.stream_lifecycle as live_module
+
+        selected, _, last_err = lifecycle.open_stream_for_candidates(
+            recorder, [24, 25], MagicMock(), 16000, None
+        )
+
+        assert selected is None
+        assert isinstance(last_err, RuntimeError)
+        assert len(attempts) == 2
+        assert not live_module.sd._terminate.called
+
+    def test_reinit_failure_falls_through_without_retry(self, monkeypatch):
+        recorder = _make_recorder_stub()
+        attempts, fake_sd = self._poisoned_sd(monkeypatch, fail_first_n=99, initialize_ok=False)
+        lifecycle = StreamLifecycle(recorder)
+
+        selected, _, last_err = lifecycle.open_stream_for_candidates(
+            recorder, [24], MagicMock(), 16000, None
+        )
+
+        assert selected is None
+        assert isinstance(last_err, RuntimeError)
+        assert len(attempts) == 2
+        fake_sd._terminate.assert_called_once()
+        recorder._devices._invalidate_device_cache.assert_not_called()

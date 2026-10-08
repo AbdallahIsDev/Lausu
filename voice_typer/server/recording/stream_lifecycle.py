@@ -124,25 +124,55 @@ class StreamLifecycle:
         effective_sr: int,
         last_error: Exception | None,
     ) -> tuple[Any, int, Exception | None]:
-        """Open an ``sd.InputStream`` for each candidate device (a
-        ``StreamLifecycle`` method invoked directly by
-        ``recording_lifecycle.start_recording``; the historical
-        ``Recorder._open_stream_for_candidates`` pure delegator was removed).
+        """Open an ``sd.InputStream`` for each candidate device, same contract as before.
 
-        Try opening an :class:`sd.InputStream` for each candidate device
-        in turn. Returns ``(selected_device, effective_sr, last_error)``.
-        On success, ``self._stream`` (the lifecycle-owned slot) is the
-        opened stream, ``recorder._effective_sr`` is updated under the lock, and
-        ``recorder._actual_channels`` stores the negotiated channel count.
-        A candidate that fails with a transient host error gets one
-        delayed retry before moving on, so a momentary exclusive hold
-        does not force a fallback device. On failure, ``self._stream``
-        remains ``None`` and ``last_error`` holds the most recent exception.
-
-        The candidate loop is the primary device-enumeration path. If
-        every candidate fails, :meth:`Recorder.start` falls back to
-        :meth:`open_stream_fallback` (all input devices).
+        When every candidate fails with a poisoned-state error (WDM-KS
+        leaking into a WASAPI open), PortAudio is reinitialized once and
+        the configured list is retried before the caller falls back to
+        other devices, staying on the preferred host API instead of
+        dropping to e.g. MME.
         """
+        selected, effective_sr, last_error = self._attempt_candidate_list(
+            recorder, candidates, callback, effective_sr, last_error
+        )
+        if (
+            selected is None
+            and last_error is not None
+            and _is_transient_open_error(last_error)
+            and self._reinitialize_portaudio(recorder)
+        ):
+            selected, effective_sr, last_error = self._attempt_candidate_list(
+                recorder, candidates, callback, effective_sr, last_error
+            )
+        return selected, effective_sr, last_error
+
+    def _reinitialize_portaudio(self, recorder: Any) -> bool:
+        """Reset PortAudio after a poisoned-state open failure."""
+        try:
+            sd._terminate()
+        except Exception:
+            log.debug("[RECORDING] PortAudio _terminate failed during reinit", exc_info=True)
+        try:
+            sd._initialize()
+        except Exception:
+            log.debug("[RECORDING] PortAudio _initialize failed during reinit", exc_info=True)
+            return False
+        try:
+            recorder._devices._invalidate_device_cache()
+        except Exception:
+            log.debug("[RECORDING] device cache invalidation failed after reinit", exc_info=True)
+        log.info("[RECORDING] PortAudio reinitialized after poisoned open failure, retrying configured device")
+        return True
+
+    def _attempt_candidate_list(
+        self,
+        recorder: Any,
+        candidates: list[Any],
+        callback: Any,
+        effective_sr: int,
+        last_error: Exception | None,
+    ) -> tuple[Any, int, Exception | None]:
+        """Single pass over ``candidates`` (extracted from ``open_stream_for_candidates``)."""
         selected_device: Any = None
         for candidate in candidates:
             candidate_sr, dev_info_extra = recorder._devices._resolve_effective_sample_rate(candidate)
