@@ -13,7 +13,7 @@ def polisher():
     return LLMPolisher(
         api_key="test-key",
         api_url="https://api.openai.com/v1/chat/completions",
-        model="gpt-4o-mini",
+        model="gpt-6-luna",
         preset="professional",
         enabled=True,
     )
@@ -43,7 +43,7 @@ class TestLLMPolisherDefaults:
     def test_default_model(self):
         from voice_typer.server.llm_polish import _DEFAULT_MODEL
 
-        assert _DEFAULT_MODEL == "gpt-4o-mini"
+        assert _DEFAULT_MODEL == "gpt-6-luna"
 
 
 class TestLLMPolisherPolish:

@@ -63,10 +63,10 @@ describe("useNavigateEvent", () => {
 	it("passes an explicit settings sub-page through unchanged with a consent_field", () => {
 		renderHook(() => useNavigateEvent({ navigate: mockNavigate }));
 		getHandler()({
-			path: "/settingsAI",
+			path: "/settingsTranscription",
 			consent_field: "cloud_groq_consent",
 		});
-		expect(mockNavigate).toHaveBeenCalledWith("settingsAI", {
+		expect(mockNavigate).toHaveBeenCalledWith("settingsTranscription", {
 			consentField: "cloud_groq_consent",
 		});
 	});

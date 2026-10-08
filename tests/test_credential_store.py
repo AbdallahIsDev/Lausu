@@ -455,8 +455,8 @@ class TestProviderMapping:
         assert len(credential_store.CONFIG_FIELD_TO_PROVIDER) == len(credential_store.PROVIDER_TO_CONFIG_FIELD)
 
     def test_expected_providers_are_present(self):
-        """The five known providers (openai / groq / deepgram / cloud / llm)"""
-        expected = {"openai", "groq", "deepgram", "cloud", "llm"}
+        """The six known providers (openai / groq / deepgram / gemini / cloud / llm)"""
+        expected = {"openai", "groq", "deepgram", "gemini", "cloud", "llm"}
         assert set(credential_store.PROVIDER_TO_CONFIG_FIELD.keys()) == expected
 
     def test_reference_token_format(self):

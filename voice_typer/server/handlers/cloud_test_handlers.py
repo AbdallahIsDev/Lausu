@@ -44,6 +44,10 @@ _PROVIDER_TEST_ENDPOINTS: dict[str, dict[str, str]] = {
         "url": "https://api.deepgram.com/v1/projects",
         "auth_scheme": "Token",
     },
+    "gemini": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models",
+        "auth_scheme": "X-goog-api-key",
+    },
 }
 
 # Imported from ``credential_store``: the single authoritative source
@@ -110,15 +114,24 @@ class CloudTestHandlersMixin(HandlerBase):
                     },
                 }
 
-            # Build the authenticated GET request. The ``Authorization``
+            # Build the authenticated GET request. Gemini uses the
+            # ``X-goog-api-key`` header (never ``?key=`` in the URL);
+            # all other providers use the ``Authorization`` scheme.
             url = endpoint["url"]
             auth_scheme = endpoint["auth_scheme"]
-            headers = {
-                "Authorization": f"{auth_scheme} {api_key}",
-                "Accept": "application/json",
-                # ``User-Agent`` helps some providers' WAFs accept the
-                "User-Agent": "lausu-cloud-test/1.0",
-            }
+            if auth_scheme == "X-goog-api-key":
+                headers = {
+                    "X-goog-api-key": api_key,
+                    "Accept": "application/json",
+                    "User-Agent": "lausu-cloud-test/1.0",
+                }
+            else:
+                headers = {
+                    "Authorization": f"{auth_scheme} {api_key}",
+                    "Accept": "application/json",
+                    # ``User-Agent`` helps some providers' WAFs accept the
+                    "User-Agent": "lausu-cloud-test/1.0",
+                }
             req = Request(url=url, headers=headers, method="GET")
 
             try:

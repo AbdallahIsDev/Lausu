@@ -44,6 +44,11 @@ from voice_typer.server.asr_errors import (
 )
 from voice_typer.server.cloud._defaults import _PROVIDER_DEFAULTS
 from voice_typer.server.cloud._providers.deepgram import build_listen_url
+from voice_typer.server.cloud._providers.gemini import (
+    build_gemini_body,
+    build_gemini_url,
+    parse_gemini_transcript,
+)
 from voice_typer.server.cloud._providers.openai import build_multipart_body, build_multipart_parts
 from voice_typer.server.cloud._retry import _cloud_http_error_class, _parse_retry_after
 from voice_typer.server.cloud._transport import _audio_to_wav_bytes, _read_capped
@@ -118,20 +123,24 @@ def _facade():
 class CloudEngine:
     """Cloud ASR engine implementing TranscriberProtocol.
 
-        Supports OpenAI, Groq, and Deepgram APIs (all OpenAI-compatible
-        except Deepgram which uses its own format).
+        Supports OpenAI, Groq, Deepgram, and Gemini APIs (all OpenAI-compatible
+        except Deepgram which uses its own format and Gemini which uses
+        generateContent with inline base64 audio).
 
     each CloudEngine instance has a ``consent_given``
         flag that must be True before any audio is sent to the provider.
         The flag is set from the per-provider consent field on the Config
         dataclass (``cloud_openai_consent``, ``cloud_groq_consent``,
-        ``cloud_deepgram_consent``).  When consent is False, ``is_loaded``
+        ``cloud_deepgram_consent``, ``cloud_gemini_consent``).  When consent is False, ``is_loaded``
         returns False and ``transcribe`` raises a ConsentRequiredError so
         the IPC layer can surface a consent dialog to the renderer.
     """
 
     # Per-request timeout for cloud HTTP calls. Reduced from 30s to 10s
     _REQUEST_TIMEOUT_SECONDS: float = 10.0
+    # Gemini transcriptions average ~17s per 8s clip, so the shared 10s
+    # timeout aborts every call. Gemini path uses its own 120s budget.
+    _GEMINI_REQUEST_TIMEOUT_SECONDS: float = 120.0
 
     def __init__(
         self,
@@ -345,15 +354,17 @@ class CloudEngine:
 
         if self.provider == "deepgram":
             return self._send_deepgram(wav_bytes)
-        else:
-            return self._send_openai_compatible(wav_bytes, filename)
+        if self.provider == "gemini":
+            return self._send_gemini(wav_bytes)
+        return self._send_openai_compatible(wav_bytes, filename)
 
-    # Both `_send_openai_compatible` and `_send_deepgram` previously
+    # All three send paths share the retry skeleton below.
     def _transcribe_with_retry(
         self,
         provider: str,
         request_factory: Callable[[], Request],
         parse_response: Callable[[bytes], str],
+        timeout: float | None = None,
     ) -> str:
         """Shared retry/backoff skeleton for cloud transcription HTTP calls.
 
@@ -384,7 +395,8 @@ class CloudEngine:
             req = request_factory()
             try:
                 opener = _facade()._opener
-                with opener.open(req, timeout=self._REQUEST_TIMEOUT_SECONDS) as resp:
+                effective_timeout = timeout if timeout is not None else self._REQUEST_TIMEOUT_SECONDS
+                with opener.open(req, timeout=effective_timeout) as resp:
                     _verify_cloud_peer(req, resp)
                     # SEC-030: cap response body at 50 MB to prevent
                     raw = _read_capped(resp, max_bytes=50 * 1024 * 1024)
@@ -570,6 +582,39 @@ class CloudEngine:
 
         return self._transcribe_with_retry(self.provider, _build_request, _parse)
 
+    def _send_gemini(self, wav_bytes: bytes) -> str:
+        """Send request to Gemini generateContent API.
+
+        Same URL allowlist + retry skeleton as the other providers.
+        Key travels in the ``X-goog-api-key`` header, never ``?key=``.
+        Uses ``_GEMINI_REQUEST_TIMEOUT_SECONDS`` (120s): measured
+        transcriptions take ~17s per 8s clip, the shared 10s aborts
+        every call.
+        """
+        _facade().assert_url_allowed(
+            self.api_url,
+            field_name="cloud_api_url",
+            client_name="cloud/gemini",
+            allow_loopback_http=True,
+        )
+        url = build_gemini_url(self.api_url, self.model_name)
+
+        def _build_request() -> Request:
+            body = build_gemini_body(wav_bytes)
+            headers = {
+                "X-goog-api-key": self.api_key,
+                "Content-Type": "application/json",
+                "Content-Length": str(len(body)),
+            }
+            return Request(url, data=body, headers=headers, method="POST")
+
+        return self._transcribe_with_retry(
+            self.provider,
+            _build_request,
+            parse_gemini_transcript,
+            timeout=self._GEMINI_REQUEST_TIMEOUT_SECONDS,
+        )
+
     def _build_multipart_body(self, wav_bytes: bytes, filename: str, boundary: str):
         """Build multipart/form-data body for OpenAI-compatible APIs.
 
@@ -644,6 +689,16 @@ class CloudEngine:
                     "Content-Type": "audio/wav",
                 }
                 req = Request(self.api_url, data=empty_wav, headers=headers, method="POST")
+            elif self.provider == "gemini":
+                # Gemini: empty-audio POST, expect 400 = reachable.
+                url = build_gemini_url(self.api_url, self.model_name)
+                empty_wav = _audio_to_wav_bytes(np.zeros(0, dtype=np.float32))
+                body = build_gemini_body(empty_wav)
+                headers = {
+                    "X-goog-api-key": self.api_key,
+                    "Content-Type": "application/json",
+                }
+                req = Request(url, data=body, headers=headers, method="POST")
             else:
                 # OpenAI-compatible: send empty multipart body.
                 boundary = "----LausuTestBoundary"

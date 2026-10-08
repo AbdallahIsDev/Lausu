@@ -27,7 +27,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import ConsentStep from "../ConsentStep";
 
-// The six fields surfaced on the step (mirrors CONSENT_STEP_FIELDS in
+// The seven fields surfaced on the step (mirrors CONSENT_STEP_FIELDS in
 // ConsentStep.tsx, any drift here fails the label assertions below).
 const EXPECTED_FIELDS = [
 	"voice_biometric_consent",
@@ -35,6 +35,7 @@ const EXPECTED_FIELDS = [
 	"cloud_openai_consent",
 	"cloud_groq_consent",
 	"cloud_deepgram_consent",
+	"cloud_gemini_consent",
 	"llm_polish_consent",
 ] as const;
 
@@ -77,7 +78,7 @@ describe("ConsentStep, consolidated first-run consent", () => {
 		expect(screen.getByText(/Choose what you agree to/i)).toBeTruthy();
 	});
 
-	it("renders one row per consent-gated field (all 6)", () => {
+	it("renders one row per consent-gated field (all 7)", () => {
 		renderStep();
 		// One switch per field.
 		const switches = screen.getAllByTestId("consent-switch");

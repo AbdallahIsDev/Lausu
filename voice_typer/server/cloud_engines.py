@@ -34,9 +34,12 @@ from voice_typer.server.cloud import (
     _parse_retry_after,  # noqa: F401  # facade re-export
     _read_capped,  # noqa: F401  # facade re-export
     _StreamingMultipartBody,  # noqa: F401  # facade re-export
+    build_gemini_body,  # noqa: F401  # facade re-export
+    build_gemini_url,  # noqa: F401  # facade re-export
     build_listen_url,  # noqa: F401  # facade re-export
     build_multipart_body,  # noqa: F401  # facade re-export
     build_multipart_parts,  # noqa: F401  # facade re-export
+    parse_gemini_transcript,  # noqa: F401  # facade re-export
 )
 
 # CloudEngine lifecycle is **per-transcription**.

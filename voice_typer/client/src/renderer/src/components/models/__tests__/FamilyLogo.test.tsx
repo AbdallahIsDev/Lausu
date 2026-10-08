@@ -113,6 +113,18 @@ describe("FamilyLogo, one logo per family", () => {
 		expect(img.getAttribute("src")).not.toContain("currentColor");
 	});
 
+	it("maps gemini → the shared Plugins-page Google icon, never inverted", () => {
+		// `gemini` reuses `/plugin-icons/google.svg` (the same asset
+		// `pluginIcon.ts` serves on the Plugins page). Public-dir URLs
+		// are not inlined, so assert the literal path. Multicolor brand
+		// mark, like Qwen/NVIDIA it never inverts.
+		const { container } = render(<FamilyLogo family="gemini" />);
+		expect(getImg(container).getAttribute("src")).toBe(
+			"/plugin-icons/google.svg",
+		);
+		expect(getImg(container).className).not.toContain("invert");
+	});
+
 	it("renders nothing for unknown family ids", () => {
 		const { container } = render(<FamilyLogo family="unknown-family" />);
 		expect(container).toBeEmptyDOMElement();

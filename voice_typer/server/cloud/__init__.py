@@ -11,6 +11,11 @@ from ._engine import (  # noqa: F401  # package re-export
 from ._providers.deepgram import (  # noqa: F401  # package re-export
     build_listen_url,
 )
+from ._providers.gemini import (  # noqa: F401  # package re-export
+    build_gemini_body,
+    build_gemini_url,
+    parse_gemini_transcript,
+)
 from ._providers.openai import (  # noqa: F401  # package re-export
     build_multipart_body,
     build_multipart_parts,

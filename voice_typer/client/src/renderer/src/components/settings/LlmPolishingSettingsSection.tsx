@@ -10,6 +10,8 @@
 // including the point-of-use consent gate on the master toggle and the
 // URL-format validation draft state.
 
+import { ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { memo, useEffect, useRef, useState } from "react";
 import { KeyringStatusBadge } from "@/components/common/KeyringStatusBadge";
 import { SettingsSection } from "@/components/common/SettingsSection";
@@ -190,48 +192,57 @@ export const LlmPolishingSettingsSection = memo(
 						label={t("settings.apiKey")}
 						info={t("settings.apiKeyInfo")}
 					>
-						<div className="relative flex flex-col gap-2">
-							{/*keyring status indicator next to the LLM API
-							 * key input. Shows a green lock icon when the secret
-							 * is stored in the OS keychain, or an amber warning
-							 * when only the plaintext fallback is available. */}
-							<div>
-								<KeyringStatusBadge status={config.keyring_status} />
+						<div className="flex items-center gap-2">
+							{/*Keyring badge shares the input's line, and the
+							 * `relative` wrapper below holds the input ALONE: the
+							 * reveal icon's `top-1/2` must resolve against the
+							 * input's height, not a taller badge+input box. */}
+							<KeyringStatusBadge status={config.keyring_status} />
+							<div className="relative">
+								<Input
+									type={llmKeyVisible ? "text" : "password"}
+									/* SEC-003: backend redacts the key to '<redacted>' in
+									 * get_config responses.  Show empty in that case so
+									 * the user isn't tempted to "save" the sentinel back.
+									 * When the user types a real key, updateConfig sends
+									 * it via set_config (which is allowlisted). */
+									value={
+										config.llm_api_key && config.llm_api_key !== "<redacted>"
+											? config.llm_api_key
+											: ""
+									}
+									disabled={!config.llm_polish}
+									onChange={handleApiKeyChange}
+									placeholder={
+										config.llm_api_key === "<redacted>"
+											? "•••••••• (configured)"
+											: t("settings.apiKeyPlaceholder")
+									}
+									/* pe-10 reserves the reveal icon's width (a
+									 * 24px icon button); a smaller pad lets it
+									 * cover the key. */
+									className="w-56 pe-10"
+									aria-label={t("settings.apiKey")}
+								/>
+								<Button
+									variant="ghost"
+									size="icon-xs"
+									disabled={!config.llm_polish}
+									onClick={handleToggleLlmKey}
+									className="absolute inset-e-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+									aria-label={
+										llmKeyVisible ? t("settings.hide") : t("settings.show")
+									}
+									aria-pressed={llmKeyVisible}
+								>
+									<HugeiconsIcon
+										icon={llmKeyVisible ? ViewOffIcon : ViewIcon}
+										strokeWidth={2}
+										className="size-4"
+										aria-hidden="true"
+									/>
+								</Button>
 							</div>
-							<Input
-								type={llmKeyVisible ? "text" : "password"}
-								/* SEC-003: backend redacts the key to '<redacted>' in
-								 * get_config responses.  Show empty in that case so
-								 * the user isn't tempted to "save" the sentinel back.
-								 * When the user types a real key, updateConfig sends
-								 * it via set_config (which is allowlisted). */
-								value={
-									config.llm_api_key && config.llm_api_key !== "<redacted>"
-										? config.llm_api_key
-										: ""
-								}
-								disabled={!config.llm_polish}
-								onChange={handleApiKeyChange}
-								placeholder={
-									config.llm_api_key === "<redacted>"
-										? "•••••••• (configured)"
-										: t("settings.apiKeyPlaceholder")
-								}
-								className="w-56 pe-8"
-								aria-label={t("settings.apiKey")}
-							/>
-							<Button
-								variant="ghost"
-								size="xs"
-								disabled={!config.llm_polish}
-								onClick={handleToggleLlmKey}
-								className="absolute inset-e-1 top-1/2 -translate-y-1/2 text-xs"
-								aria-label={
-									llmKeyVisible ? t("settings.hide") : t("settings.show")
-								}
-							>
-								{llmKeyVisible ? t("settings.hide") : t("settings.show")}
-							</Button>
 						</div>
 					</GatedSettingRow>
 
@@ -252,7 +263,9 @@ export const LlmPolishingSettingsSection = memo(
 								onFocus={handleApiUrlFocus}
 								onBlur={handleApiUrlBlur}
 								placeholder={t("settings.apiUrlPlaceholder")}
-								className="w-64"
+								/* w-96 fits the shipped default endpoint (~310px of
+								 * 14px text); a narrower field clips it. */
+								className="w-96"
 								aria-label={t("settings.apiUrl")}
 								disabled={!config.llm_polish}
 								aria-invalid={llmApiUrlInvalid || undefined}
@@ -280,7 +293,7 @@ export const LlmPolishingSettingsSection = memo(
 						info={t("settings.modelInfo")}
 					>
 						<Input
-							value={config.llm_model ?? "gpt-4o-mini"}
+							value={config.llm_model ?? ""}
 							onChange={handleModelChange}
 							placeholder={t("settings.modelPlaceholder")}
 							className="w-44"

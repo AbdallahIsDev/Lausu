@@ -138,6 +138,7 @@ PROVIDER_TO_CONFIG_FIELD = {
     "openai": "openai_api_key",
     "groq": "groq_api_key",
     "deepgram": "deepgram_api_key",
+    "gemini": "gemini_api_key",
     "cloud": "cloud_api_key",
     "llm": "llm_api_key",
 }

@@ -45,6 +45,7 @@ ALLOWED_UNTRANSLATED = {
     "models.providers.openai.label",  # "OpenAI Whisper API"
     "models.providers.groq.label",  # "Groq Whisper API"
     "models.providers.deepgram.label",  # "Deepgram API"
+    "models.providers.gemini.label",  # "Google Gemini API"
     # Parakeet label is a product name, kept identical.
     "models.card.parakeetLabel",  # "NVIDIA Parakeet TDT v3  ·  "
     # Em-dash placeholder for missing data, identical glyph across locales.
@@ -76,7 +77,7 @@ ALLOWED_UNTRANSLATED = {
     "vocabulary.count_other",  # "{count} corrections"
     "theme.system",  # "System"
     "settings.apiUrlPlaceholder",  # "https://api.openai.com/v1/chat/completions"
-    "settings.modelPlaceholder",  # "gpt-4o-mini"
+    "settings.modelPlaceholder",  # "gpt-6-luna"
     "hotkeyPicker.customLabel",  # "{label}"
     # Proper nouns: credits section entries, canonical English names.
     "about.creditsAuthorsValue",  # "AbdallahIsDev and contributors"
@@ -344,13 +345,12 @@ PRE_EXISTING_UNTRANSLATED = {
 # Maintenance contract (enforced by TestBackfillSetIsMinimal below):
 RW2_BACKFILLED_PENDING_TRANSLATION: set[str] = {
     "microphoneTest.volume",
-    "about.documentationLink",  # "Documentation"
     "about.versionValue",  # "v{version}"
     # hotkeyPicker (1 key)
     "hotkeyPicker.customLabel",  # "{label}"
     # settings (2 keys)
     "settings.apiUrlPlaceholder",  # "https://api.openai.com/v1/chat/completions"
-    "settings.modelPlaceholder",  # "gpt-4o-mini"
+    "settings.modelPlaceholder",  # "gpt-6-luna"
     "settings.audioEnhancement.equalizer",  # "Equalizer"
     "settings.audioEnhancement.equalizerAria",  # "Equalizer"
     # "How fast the gate opens when the signal rises above the open threshold."

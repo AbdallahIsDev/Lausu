@@ -125,6 +125,7 @@ export interface LausuConfig {
 	openai_api_key: string;
 	groq_api_key: string;
 	deepgram_api_key: string;
+	gemini_api_key: string;
 
 	llm_polish: boolean;
 	llm_api_key: string;
@@ -266,6 +267,7 @@ export interface LausuConfig {
 	cloud_openai_consent: boolean;
 	cloud_groq_consent: boolean;
 	cloud_deepgram_consent: boolean;
+	cloud_gemini_consent: boolean;
 	voice_biometric_consent: boolean;
 	llm_polish_consent: boolean;
 	// ADR-0023: consent that media URLs are sent to the yt-dlp extractor.

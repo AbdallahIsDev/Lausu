@@ -110,7 +110,7 @@ export const INITIAL_MODELS: ModelInfo[] = [
 ];
 
 export interface CloudProvider {
-	key: "openai" | "groq" | "deepgram";
+	key: "openai" | "groq" | "deepgram" | "gemini";
 	url: string;
 	model: string;
 }
@@ -131,6 +131,11 @@ export const CLOUD_PROVIDERS: readonly CloudProvider[] = [
 		url: "https://api.deepgram.com/v1/listen",
 		model: "nova-2",
 	},
+	{
+		key: "gemini",
+		url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+		model: "gemini-2.0-flash",
+	},
 ] as const;
 
 export function getProviderLabel(providerKey: string): string {
@@ -141,6 +146,8 @@ export function getProviderLabel(providerKey: string): string {
 			return t("models.providers.groq.label");
 		case "deepgram":
 			return t("models.providers.deepgram.label");
+		case "gemini":
+			return t("models.providers.gemini.label");
 		default:
 			return providerKey;
 	}
