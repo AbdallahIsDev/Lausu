@@ -25,7 +25,6 @@ export const ROUTES: Record<Page, RouteDef> = {
 	settingsOverlay: { page: "settingsOverlay" },
 	settingsHotkeys: { page: "settingsHotkeys" },
 	settingsTranscription: { page: "settingsTranscription" },
-	settingsAI: { page: "settingsAI" },
 	settingsAudio: { page: "settingsAudio" },
 	settingsAppearance: { page: "settingsAppearance" },
 	settingsPrivacy: { page: "settingsPrivacy" },

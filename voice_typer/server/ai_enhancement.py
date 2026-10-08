@@ -1,10 +1,14 @@
-"""AI text enhancement orchestration."""
+"""Rule-based text fixes (grammar, punctuation, capitalization).
+
+Leaf functions shared with the Text Cleanup pipeline step, which now
+runs them unconditionally. The old master-toggle wrapper
+(``enhance_transcription``) was removed with the AI Enhancement
+settings group."""
 
 from __future__ import annotations
 
 import logging
 import re
-from typing import Any
 
 from voice_typer.server.text_cleanup import _NO_PUNCTUATION_PATTERNS, _looks_like_question
 
@@ -220,44 +224,8 @@ def fix_grammar_basics(text: str) -> str:
     return result
 
 
-def enhance_transcription(text: str, config: Any) -> str:
-    """The function is defensive: if any individual step raises, the"""
-    # Master toggle, default OFF.  We use getattr with a default of
-    if not getattr(config, "ai_enhancement_enabled", False):
-        return text
-
-    if not text:
-        return text
-
-    result = text
-
-    # Step 1: grammar basics (i → I, contractions, double spaces).
-    if getattr(config, "fix_grammar_basics", True):
-        try:
-            result = fix_grammar_basics(result)
-        except Exception:
-            log.warning("[AI_ENHANCE] fix_grammar_basics failed", exc_info=True)
-
-    # Step 2: auto-punctuation.
-    if getattr(config, "auto_punctuate", True):
-        try:
-            result = auto_punctuate(result)
-        except Exception:
-            log.warning("[AI_ENHANCE] auto_punctuate failed", exc_info=True)
-
-    # Step 3: auto-capitalization (runs LAST so it sees the
-    if getattr(config, "auto_capitalize", True):
-        try:
-            result = auto_capitalize(result)
-        except Exception:
-            log.warning("[AI_ENHANCE] auto_capitalize failed", exc_info=True)
-
-    return result
-
-
 __all__ = [
     "auto_capitalize",
     "auto_punctuate",
     "fix_grammar_basics",
-    "enhance_transcription",
 ]

@@ -68,10 +68,6 @@ function sectionSummary(
 			const option = LANGUAGE_OPTIONS.find((l) => l.value === lang);
 			return option ? t(option.labelKey) : lang;
 		}
-		case "settingsAI":
-			return config.ai_enhancement_enabled
-				? t("settings.hub.on")
-				: t("settings.hub.off");
 		case "settingsAudio":
 			return t(
 				AUDIO_PRESET_SUMMARY_KEYS[config.audio_preset] ??

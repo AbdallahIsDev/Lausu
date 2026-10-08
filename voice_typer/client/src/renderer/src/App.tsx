@@ -37,7 +37,6 @@ import { useRendererHeartbeat } from "@/hooks/useRendererHeartbeat";
 import { useRouteChangeFocus } from "@/hooks/useRouteChangeFocus";
 import { useSidebarAutoCollapse } from "@/hooks/useSidebarAutoCollapse";
 import { useSoundFeedback } from "@/hooks/useSoundFeedback";
-import { useTextEnhancementFailedToast } from "@/hooks/useTextEnhancementFailedToast";
 import { useTheme } from "@/hooks/useTheme";
 import { useTrayFallbackToast } from "@/hooks/useTrayFallbackToast";
 import { useWindowMaximized } from "@/hooks/useWindowMaximized";
@@ -158,7 +157,6 @@ export default function App() {
 	usePasteFailedToast(t);
 	useDeviceLostToast(t, () => navigate("microphone"));
 	useLlmPolishFailedToast(t);
-	useTextEnhancementFailedToast(t);
 	useAsrBackendDisabledToast(t, () => navigate("models"));
 	useAsrBackendLoadToast(t, () => navigate("models"));
 	useMicrophoneDisconnectedToast(t, () => navigate("microphone"));

@@ -177,21 +177,6 @@ class _EnhancementStepsMixin:
                 )
         return text
 
-    def _apply_ai_enhancement(self, text: str) -> str:
-        """Step 7b: Apply rule-based AI enhancement (P4)."""
-        try:
-            from voice_typer.server.ai_enhancement import enhance_transcription
-
-            return enhance_transcription(text, self._app.config)
-        except Exception:
-            log.warning("[AI_ENHANCE] Enhancement failed", exc_info=True)
-            # This failure path previously published
-            with contextlib.suppress(Exception):
-                from voice_typer.server import event_bus
-
-                event_bus.publish({"type": "text_enhancement_failed"})
-            return text
-
     def _analyze_vocabulary(self, text: str) -> None:
         """Step 7c: Analyze transcription for vocabulary suggestions (P5)."""
         if not getattr(self._app.config, "vocabulary_automation_enabled", False):

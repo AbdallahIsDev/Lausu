@@ -122,16 +122,6 @@ class LLMPolishStage:
         return ctx.pipeline._apply_llm_polish(text)
 
 
-class AIEnhancementStage:
-    """Step 7b: Apply rule-based AI enhancement."""
-
-    name = "ai"
-    timed = True
-
-    def run(self, text: str, ctx: PipelineContext) -> str:
-        return ctx.pipeline._apply_ai_enhancement(text)
-
-
 class VocabularyAutomationStage:
     """Step 7c: Analyze transcription for vocabulary suggestions (P5)."""
 
@@ -209,7 +199,7 @@ class CancellationGuard:
 
 
 def build_default_stages() -> list[PipelineStage]:
-    """Construct the standard 11-stage dictation pipeline.
+    """Construct the standard 10-stage dictation pipeline.
 
     Returns a fresh list so callers can mutate (insert/remove stages)
     """
@@ -221,7 +211,6 @@ def build_default_stages() -> list[PipelineStage]:
         TemplatesStage(),
         PunctuationStage(),
         LLMPolishStage(),
-        AIEnhancementStage(),
         VocabularyAutomationStage(),
         StoreResultStage(),
         # wrap PasteStage in CancellationGuard so the

@@ -112,7 +112,6 @@ fn test_allowlist_is_exact_canonical_set() {
         "error",
         "mic_level",
         "llm_polish_failed",
-        "text_enhancement_failed",
         "device_lost",
         "asr_backend_disabled",
         "asr_last_resort_unloaded",
