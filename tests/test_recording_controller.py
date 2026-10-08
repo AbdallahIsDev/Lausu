@@ -466,3 +466,42 @@ class TestTimerShutdownSuppression:
         # Now invoke guarded_func directly. The captured gen no longer
         guarded()
         assert not fired.is_set(), "GT-72: callback with stale captured gen must be suppressed"
+
+
+class TestAutoStopSingleFirePerCycle:
+    """Repeat auto-stop callbacks in one cycle must not re-log/notify/schedule."""
+
+    def _ctrl(self, cycle: str):
+        ctrl = _make_minimal_controller()
+        ctrl._app._cycle_id = cycle
+        ctrl._app._schedule_timer = MagicMock()
+        ctrl._app.tray.notify_safety = MagicMock()
+        return ctrl
+
+    def test_silence_repeat_skipped(self):
+        ctrl = self._ctrl("#1")
+        ctrl.on_silence_auto_stop()
+        ctrl.on_silence_auto_stop()
+        ctrl.on_silence_auto_stop()
+        assert ctrl._app._schedule_timer.call_count == 1
+        assert ctrl._app.tray.notify_safety.call_count == 1
+
+    def test_max_duration_repeat_skipped(self):
+        ctrl = self._ctrl("#1")
+        ctrl.on_max_duration_auto_stop()
+        ctrl.on_max_duration_auto_stop()
+        assert ctrl._app._schedule_timer.call_count == 1
+        assert ctrl._app.tray.notify_safety.call_count == 1
+
+    def test_mixed_kinds_share_one_claim(self):
+        ctrl = self._ctrl("#1")
+        ctrl.on_silence_auto_stop()
+        ctrl.on_max_duration_auto_stop()
+        assert ctrl._app._schedule_timer.call_count == 1
+
+    def test_new_cycle_rearms(self):
+        ctrl = self._ctrl("#1")
+        ctrl.on_silence_auto_stop()
+        ctrl._app._cycle_id = "#2"
+        ctrl.on_silence_auto_stop()
+        assert ctrl._app._schedule_timer.call_count == 2

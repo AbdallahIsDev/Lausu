@@ -37,6 +37,11 @@ class RecordingController:
         self._transcription_thread: threading.Thread | None = None
         # RACE-025: lifecycle serialization lock. Prevents concurrent
         self._toggle_lock = threading.RLock()
+        # Auto-stop single-fire per cycle: the silence + device callbacks
+        # can re-enter from several recorder paths for the same quiet
+        # stretch, without this each one logs + notifies + schedules a stop.
+        self._auto_stop_lock = threading.Lock()
+        self._auto_stop_cycle: str | None = None
         # Watchdog firing counter for the current transcription cycle.
         self._watchdog_firings = 0
         self._watchdog_max_firings = 3
@@ -234,8 +239,24 @@ class RecordingController:
                 i18n.t("notify.recording_controller.silence_warning"),
             )
 
+    def _claim_auto_stop(self) -> bool:
+        """True once per recording cycle; repeat auto-stops are no-ops."""
+        lock = getattr(self, "_auto_stop_lock", None)
+        if lock is None:
+            lock = threading.Lock()
+            self._auto_stop_lock = lock
+        cycle = getattr(getattr(self, "_app", None), "_cycle_id", None)
+        with lock:
+            if cycle is not None and getattr(self, "_auto_stop_cycle", None) == cycle:
+                return False
+            self._auto_stop_cycle = cycle
+            return True
+
     def on_silence_auto_stop(self) -> None:
         """Handle silence auto-stop from recorder."""
+        if not self._claim_auto_stop():
+            log.debug("[DICTATION] Silence auto-stop already handled this cycle, skipping repeat")
+            return
         log.warning("[DICTATION] Silence auto-stop: stopping recording due to prolonged silence")
         with contextlib.suppress(Exception):
             self._app.tray.notify_safety(
@@ -247,6 +268,9 @@ class RecordingController:
 
     def on_max_duration_auto_stop(self) -> None:
         """Handle max duration auto-stop from recorder."""
+        if not self._claim_auto_stop():
+            log.debug("[DICTATION] Max duration auto-stop already handled this cycle, skipping repeat")
+            return
         log.warning("[DICTATION] Max duration auto-stop: stopping recording")
         with contextlib.suppress(Exception):
             self._app.tray.notify_safety(
