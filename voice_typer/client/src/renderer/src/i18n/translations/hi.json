@@ -467,8 +467,8 @@
 		"avgCharsLabel": "औसत अक्षर / श्रुतलेख",
 		"longestLabel": "सबसे लंबा सत्र",
 		"heatmap": {
-			"title": "श्रुतलेख हीटमैप",
-			"aria": "श्रुतलेख हीटमैप: {days} सक्रिय दिनों में {total} श्रुतलेख",
+			"title": "उपयोग इतिहास",
+			"aria": "उपयोग इतिहास: {days} सक्रिय दिनों में {total} श्रुतलेख",
 			"less": "कम",
 			"more": "अधिक",
 			"truncated": "केवल पिछला वर्ष",
@@ -1635,6 +1635,7 @@
 	"bubble": {
 		"recordingIndicatorAria": "{appName} रिकॉर्डिंग संकेतक",
 		"transcribingLabel": "लिखा जा रहा है",
+		"loadingLabel": "मॉडल लोड हो रहा है",
 		"idleLabel": "तैयार",
 		"blockedLabel": "अवरुद्ध",
 		"cancellingLabel": "रद्द हो रहा है…",
@@ -1644,6 +1645,7 @@
 		"micButtonStartAria": "डिक्टेशन शुरू करें",
 		"micButtonStopAria": "डिक्टेशन रोकें",
 		"transcribingAria": "{appName} ट्रांसक्राइबिंग संकेतक",
+		"loadingAria": "{appName} लोडिंग संकेतक",
 		"errorIndicatorAria": "{appName} त्रुटि संकेतक",
 		"idleIndicatorAria": "{appName} निष्क्रिय संकेतक",
 		"blockedIndicatorAria": "{appName} अवरुद्ध संकेतक",

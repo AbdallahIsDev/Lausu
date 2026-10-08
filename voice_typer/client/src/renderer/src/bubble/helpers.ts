@@ -23,6 +23,8 @@ export function getBubbleAriaLabel(
 		case "transcribing":
 		case "fading":
 			return t("bubble.transcribingAria");
+		case "loading":
+			return t("bubble.loadingAria");
 		case "error":
 			return t("bubble.errorIndicatorAria");
 		case "blocked":

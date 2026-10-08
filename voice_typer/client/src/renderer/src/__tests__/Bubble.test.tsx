@@ -167,6 +167,7 @@ describe("Bubble", () => {
 		// recording dot: red + pulsing means "capturing audio right now".
 		for (const state of [
 			"transcribing",
+			"loading",
 			"idle",
 			"error",
 			"blocked",
@@ -193,6 +194,19 @@ describe("Bubble", () => {
 		expect(document.querySelectorAll(".bubble-shimmer-text")).toHaveLength(1);
 		const dots = document.querySelectorAll(".bubble-blink-dot");
 		expect(dots.length).toBe(3);
+	});
+
+	it("shows loading state with label and dots, no recording dot", () => {
+		render(<Bubble />);
+
+		setBubbleState("loading");
+
+		expect(screen.getByText("Loading model")).toBeTruthy();
+		expect(document.querySelectorAll(".bubble-shimmer-text")).toHaveLength(1);
+		expect(document.querySelectorAll(".bubble-blink-dot").length).toBe(3);
+		expect(
+			document.querySelectorAll('[data-slot="bubble-recording-dot"]'),
+		).toHaveLength(0);
 	});
 
 	it("hides visualizer bars when in transcribing mode", () => {

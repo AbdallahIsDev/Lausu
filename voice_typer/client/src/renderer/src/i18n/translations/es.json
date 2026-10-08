@@ -467,8 +467,8 @@
 		"avgCharsLabel": "Prom. caracteres / dictado",
 		"longestLabel": "Sesión más larga",
 		"heatmap": {
-			"title": "Mapa de calor de dictado",
-			"aria": "Mapa de calor de dictado: {total} dictados en {days} días activos",
+			"title": "Historial de uso",
+			"aria": "Historial de uso: {total} dictados en {days} días activos",
 			"less": "Menos",
 			"more": "Más",
 			"truncated": "solo el último año",
@@ -1635,6 +1635,7 @@
 	"bubble": {
 		"recordingIndicatorAria": "Indicador de grabación de {appName}",
 		"transcribingLabel": "Transcribiendo",
+		"loadingLabel": "Cargando el modelo",
 		"idleLabel": "Listo",
 		"blockedLabel": "Bloqueado",
 		"cancellingLabel": "Cancelando…",
@@ -1644,6 +1645,7 @@
 		"micButtonStartAria": "Iniciar dictado",
 		"micButtonStopAria": "Detener dictado",
 		"transcribingAria": "Indicador de transcripción de {appName}",
+		"loadingAria": "Indicador de carga de {appName}",
 		"errorIndicatorAria": "Indicador de error de {appName}",
 		"idleIndicatorAria": "Indicador de inactividad de {appName}",
 		"blockedIndicatorAria": "Indicador de bloqueo de {appName}",

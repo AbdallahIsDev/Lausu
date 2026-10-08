@@ -474,8 +474,8 @@
 		"avgCharsLabel": "Avg chars / dictation",
 		"longestLabel": "Longest session",
 		"heatmap": {
-			"title": "Dictation heatmap",
-			"aria": "Dictation heatmap: {total} dictations on {days} active days",
+			"title": "Usage History",
+			"aria": "Usage History: {total} dictations on {days} active days",
 			"less": "Less",
 			"more": "More",
 			"truncated": "showing the last year",
@@ -1477,6 +1477,7 @@
 	"bubble": {
 		"recordingIndicatorAria": "{appName} recording indicator",
 		"transcribingAria": "{appName} transcribing indicator",
+		"loadingAria": "{appName} loading indicator",
 		"errorIndicatorAria": "{appName} error indicator",
 		"idleIndicatorAria": "{appName} idle indicator",
 		"blockedIndicatorAria": "{appName} blocked indicator",
@@ -1484,6 +1485,7 @@
 		"permissionRevokedIndicatorAria": "{appName} microphone permission revoked indicator",
 		"pasteFailedIndicatorAria": "{appName} paste failed indicator",
 		"transcribingLabel": "Transcribing",
+		"loadingLabel": "Loading model",
 		"idleLabel": "Ready",
 		"blockedLabel": "Blocked",
 		"cancellingLabel": "Cancelling…",

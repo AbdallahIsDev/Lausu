@@ -74,6 +74,7 @@ describe("bubble theme-token parity (no raw zinc/white palette)", () => {
 		const modes: BubbleMode[] = [
 			"recording",
 			"transcribing",
+			"loading",
 			"idle",
 			"fading",
 			"error",
@@ -82,6 +83,6 @@ describe("bubble theme-token parity (no raw zinc/white palette)", () => {
 			"permission_revoked",
 			"paste_failed",
 		];
-		expect(modes.length).toBe(9);
+		expect(modes.length).toBe(10);
 	});
 });

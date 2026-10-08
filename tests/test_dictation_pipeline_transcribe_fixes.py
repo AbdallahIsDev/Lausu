@@ -465,3 +465,31 @@ class TestPartialSavedToCrashRecovery:
             "inside the try, an exception before the assignment left text "
             "unbound in the except block."
         )
+
+
+class TestAwaitModelReadyBubbleFlip:
+    """The model-load hold must flip the bubble loading → transcribing."""
+
+    def _pipeline(self):
+        from tests.fixtures.dictation_pipeline_helpers import make_test_app, new_pipeline
+
+        app = make_test_app()
+        return new_pipeline(app), app
+
+    def test_hold_flips_to_transcribing_on_ready(self):
+        """Engine arriving during the hold pushes bubble 'transcribing'."""
+        pipeline, app = self._pipeline()
+        engine = MagicMock()
+        engine.is_loaded = True
+        app.models.wait_for_active_engine_loaded = MagicMock(return_value=engine)
+
+        assert pipeline._await_model_ready() is engine
+        app._waveform_bubble.set_state.assert_called_once_with("transcribing")
+
+    def test_hold_returns_none_without_bubble_touch(self):
+        """Expired wait: no engine, no bubble push (failure path owns it)."""
+        pipeline, app = self._pipeline()
+        app.models.wait_for_active_engine_loaded = MagicMock(return_value=None)
+
+        assert pipeline._await_model_ready() is None
+        app._waveform_bubble.set_state.assert_not_called()

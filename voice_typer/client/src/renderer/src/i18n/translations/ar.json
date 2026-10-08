@@ -467,8 +467,8 @@
 		"avgCharsLabel": "متوسط الأحرف / الإملاء",
 		"longestLabel": "أطول جلسة",
 		"heatmap": {
-			"title": "خريطة الإملاء الحرارية",
-			"aria": "خريطة الإملاء الحرارية: {total} إملاء في {days} يومًا نشطًا",
+			"title": "سجل الاستخدام",
+			"aria": "سجل الاستخدام: {total} إملاء في {days} يومًا نشطًا",
 			"less": "أقل",
 			"more": "أكثر",
 			"truncated": "يُعرض العام الأخير",
@@ -1635,6 +1635,7 @@
 	"bubble": {
 		"recordingIndicatorAria": "مؤشر تسجيل {appName}",
 		"transcribingLabel": "جارٍ الكتابة",
+		"loadingLabel": "جارٍ تحميل النموذج",
 		"idleLabel": "جاهز",
 		"blockedLabel": "محظور",
 		"cancellingLabel": "جارٍ الإلغاء…",
@@ -1644,6 +1645,7 @@
 		"micButtonStartAria": "بدء الإملاء",
 		"micButtonStopAria": "إيقاف الإملاء",
 		"transcribingAria": "مؤشر النسخ الصوتي لـ {appName}",
+		"loadingAria": "مؤشر تحميل {appName}",
 		"errorIndicatorAria": "مؤشر الخطأ لـ {appName}",
 		"idleIndicatorAria": "مؤشر الخمول لـ {appName}",
 		"blockedIndicatorAria": "مؤشر الحظر لـ {appName}",
