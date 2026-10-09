@@ -211,6 +211,17 @@ export default function App() {
 					onThemeChange={handleThemeChange}
 					linuxWindowButtons={linuxWindowButtons}
 					currentPage={currentPage}
+					// The routed page renders only while connected (the main
+					// column shows ConnectionStatusScreen otherwise), so its
+					// title-bar controls must hide with it. Same condition
+					// as sidebarVisible, which owns the identical invariant
+					// for the sidebar.
+					showPageControls={sidebarVisible}
+					// Status screens keep a visible bar (drag / theme /
+					// window buttons) but drop everything else, plus a
+					// card-colored bottom rule. Exactly the states where
+					// the main column is NOT a page.
+					minimalChrome={connectionStatus !== "connected"}
 				/>
 				<div className="flex min-h-0 flex-1">
 					{sidebarVisible && (

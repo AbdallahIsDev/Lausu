@@ -65,3 +65,12 @@ ReactDOM.createRoot(rootEl).render(
 		</ErrorBoundary>
 	</React.StrictMode>,
 );
+
+// Boot handshake for public/boot-fallback.js: the module graph loaded and
+// the first render was issued, so any watchdog card showing is stale.
+// (React replacing #root children already removes it; the dismiss call
+// covers the gap before that commit lands.)
+window.__lausu_booted = true;
+if (typeof window.__lausu_bootFailedDismiss === "function") {
+	window.__lausu_bootFailedDismiss();
+}

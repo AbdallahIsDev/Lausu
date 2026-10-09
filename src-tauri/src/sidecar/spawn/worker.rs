@@ -1,7 +1,7 @@
 use crate::state::SidecarHandle;
 use crate::state::WorkerState;
 use crate::state::{lock as state_lock, SidecarState};
-use crate::util::SERVER_STARTED_TIMEOUT_MS;
+use crate::util::{DEV_SERVER_STARTED_TIMEOUT_MS, SERVER_STARTED_TIMEOUT_MS};
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -151,7 +151,7 @@ pub(crate) async fn spawn_worker_dev_mode(
         &mut child,
         shutting_down,
         parse_worker_started,
-        SERVER_STARTED_TIMEOUT_MS,
+        DEV_SERVER_STARTED_TIMEOUT_MS,
     )
     .await?;
     Ok((port, SidecarHandle::DevMode(child)))

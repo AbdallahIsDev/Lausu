@@ -44,7 +44,7 @@ export function BubbleModeContent({
 					? truncateTranscript(transcript)
 					: null;
 			return (
-				<div className="flex items-center gap-2 text-xs font-medium text-(--text-secondary)">
+				<div className="flex h-6 items-center gap-2 text-xs font-medium text-(--text-secondary)">
 					<TranscribingLabel />
 					{preview && (
 						<output
@@ -76,7 +76,7 @@ export function BubbleModeContent({
 					: null;
 			return (
 				<div
-					className="flex items-center gap-2 text-xs font-medium text-(--text-secondary)"
+					className="flex h-6 items-center gap-2 text-xs font-medium text-(--text-secondary)"
 					style={{
 						opacity: 0,
 						transform: "translateY(-4px)",
@@ -192,8 +192,10 @@ export function BubbleModeContent({
 		case "loading": {
 			// Model-load wait after stop: label + bouncing dots, never
 			// the recording indicator (red pulsing dot means capturing).
+			// `h-6` matches every other mode's content box so the pill
+			// keeps one height across the whole state cycle.
 			return (
-				<div className="flex items-center gap-2">
+				<div className="flex h-6 items-center gap-2">
 					<TranscribingLabel labelKey="bubble.loadingLabel" />
 				</div>
 			);

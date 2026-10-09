@@ -406,6 +406,13 @@ function BubbleInner() {
 						"border border-border/8",
 						"bg-surface text-foreground",
 						"px-4 py-2.5",
+						// Single line by design: the shimmer overlay is already
+						// `nowrap`, so a wrapped base label would show through
+						// beneath it. It also keeps the pill's min-content width
+						// equal to its max-content width, which is what stops the
+						// resize effect from measuring its own wrapped width and
+						// deadlocking with the window it is trying to size.
+						"whitespace-nowrap",
 						draggable ? "drag-region" : "no-drag",
 					)}
 				>

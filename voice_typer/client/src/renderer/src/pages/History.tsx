@@ -207,66 +207,70 @@ export default function HistoryPage() {
 								})
 							: t("history.noTranscriptionsToday")
 					}
-				/>
+				>
+					{/* Freshness + manual refresh ride the heading's own row,
+					    top right — the slot the Analytics page already uses
+					    for the same control. They used to open the list
+					    section, which cost a whole row between the controls
+					    and the card to restate a heading the controls had
+					    already made obvious. */}
+					<LastUpdatedIndicator
+						agoLabel={agoLabel}
+						onRefresh={handleManualRefresh}
+						refreshing={refreshing}
+					/>
+				</PageHeading>
 
-				<div className="flex w-full flex-wrap items-center justify-between gap-2">
-					<div className="flex flex-wrap items-center gap-2">
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={toggleFavorites}
-							aria-pressed={favoritesOnly}
-							aria-label={t("history.favorites")}
-							className={`gap-2 ${
-								favoritesOnly
-									? "bg-warning/15 text-warning border-warning/30 hover:bg-warning/25"
-									: "text-muted-foreground hover:text-foreground"
-							}`}
-						>
-							<HugeiconsIcon
-								icon={StarIcon}
-								strokeWidth={2}
-								className={`h-4 w-4 ${favoritesOnly ? "text-warning" : ""}`}
+				{/* Controls and the list are ONE block: the page root's
+				    gap-6 separates the heading from this block, and the
+				    4px here separates the controls from the card. */}
+				<div className="flex w-full flex-col gap-4">
+					<div className="flex w-full flex-wrap items-center justify-between gap-2">
+						<div className="flex flex-wrap items-center gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={toggleFavorites}
+								aria-pressed={favoritesOnly}
+								aria-label={t("history.favorites")}
+								className={`gap-2 ${
+									favoritesOnly
+										? "bg-warning/15 text-warning border-warning/30 hover:bg-warning/25"
+										: "text-muted-foreground hover:text-foreground"
+								}`}
+							>
+								<HugeiconsIcon
+									icon={StarIcon}
+									strokeWidth={2}
+									className={`h-4 w-4 ${favoritesOnly ? "text-warning" : ""}`}
+								/>
+								{t("history.favorites")}
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleClearAll}
+								aria-label={t("history.clearAllAria")}
+								className="gap-2 text-muted-foreground hover:border-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive"
+							>
+								<HugeiconsIcon
+									icon={Delete01Icon}
+									strokeWidth={2}
+									className="h-4 w-4"
+								/>
+								{t("history.clearAll")}
+							</Button>
+							<SortSelect
+								value={sortOrder}
+								onValueChange={(v) => setSortOrder(v as HistorySortOrder)}
 							/>
-							{t("history.favorites")}
-						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={handleClearAll}
-							aria-label={t("history.clearAllAria")}
-							className="gap-2 text-muted-foreground hover:border-destructive hover:bg-destructive hover:text-destructive-foreground dark:hover:bg-destructive"
-						>
-							<HugeiconsIcon
-								icon={Delete01Icon}
-								strokeWidth={2}
-								className="h-4 w-4"
+						</div>
+						<div>
+							<ExportFormatMenu
+								onExport={doExport}
+								disabled={records.length === 0}
 							/>
-							{t("history.clearAll")}
-						</Button>
-						<SortSelect
-							value={sortOrder}
-							onValueChange={(v) => setSortOrder(v as HistorySortOrder)}
-						/>
-					</div>
-					<div>
-						<ExportFormatMenu
-							onExport={doExport}
-							disabled={records.length === 0}
-						/>
-					</div>
-				</div>
-
-				<div className="flex w-full flex-col gap-2.5">
-					<div className="flex w-full items-center justify-between">
-						<span className="text-xs font-semibold text-foreground">
-							{t("home.recentActivity")}
-						</span>
-						<LastUpdatedIndicator
-							agoLabel={agoLabel}
-							onRefresh={handleManualRefresh}
-							refreshing={refreshing}
-						/>
+						</div>
 					</div>
 
 					{loading && records.length === 0 ? (

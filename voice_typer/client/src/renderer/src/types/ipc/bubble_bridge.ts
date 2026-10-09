@@ -201,5 +201,10 @@ declare global {
 		window_?: WindowBridge;
 		bubble?: MainRendererBubbleMutators;
 		__TAURI__?: TauriGlobal;
+		// Boot-failure fallback (public/boot-fallback.js, no module).
+		// Set after the first React render; the fallback screen reads it
+		// to stand down on slow-but-healthy boots.
+		__lausu_booted?: boolean;
+		__lausu_bootFailedDismiss?: () => void;
 	}
 }

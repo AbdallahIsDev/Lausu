@@ -131,6 +131,11 @@
 
 <body>
   <div id="root"></div>
+  <!-- Boot-failure fallback (public/boot-fallback.js): classic script on
+       purpose (module scripts always defer, so this runs first). Renders
+       a calm status card if the module graph never boots; same-origin
+       file, no CSP hash needed. -->
+  <script src="/boot-fallback.js"></script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 

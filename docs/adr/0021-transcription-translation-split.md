@@ -74,8 +74,49 @@ First-look starting point (NOT approved, NOT downloaded):
 - Plan A = permissive license base (M2M100 / Marian / MADLAD-small or equivalent Apache/MIT). Verify exact license + exact file bytes before any pull. HARD RULE in Sec. 3 still binds: report candidate + size, STOP, ask approval, never auto-download.
 - Engineering note, not legal advice.
 
-## 7. Build order
+## 8. Candidate measurements (2026-10-08, verified, NOT downloaded)
 
-1. Reorder 8-language dropdown (UI-only, resolve de-vs-pt first).
-2. Search + report translation candidates with exact sizes + licenses (no download).
-3. User approves → download + test → wire Stage B behind "Same as spoken" default.
+8 langs = en zh hi es ar fr ru de. Sizes are Xet "Size of remote file" on the weight blob. Nothing pulled.
+
+| # | Model ID | Weight file | Exact size | License (HF hub API) | Covers 8 | Format | Verdict |
+|---|----------|-------------|------------|----------------------|----------|--------|---------|
+| 1 | `Helsinki-NLP/opus-mt-en-mul` + `Helsinki-NLP/opus-mt-mul-en` | `pytorch_model.bin` each | 310 MB + 310 MB = ~620 MB + tokenizer | Apache-2.0 + Apache-2.0 | yes via EN pivot | pickle | Smallest shippable. 2-hop on non-EN pairs. CT2-native (Marian, Sec. 8.2). |
+| 2 | `alirezamsh/small100` (SMaLL-100, 332M, M2M100 distill) | `model.safetensors` (use this; `model.onnx` = 1.86 GB, `pytorch_model.bin` dup) | 1.33 GB | MIT | yes direct | safetensors | Single direct model. CT2 via M2M path + prefix tweak (Sec. 8.2). Community mirror, needs trust check. |
+| 3 | `facebook/m2m100_418M` (418M, official) | `pytorch_model.bin` | 1.94 GB | MIT | yes direct | pickle | Official direct. CT2 official example (Sec. 8.2). |
+| R | `facebook/nllb-200-distilled-600M` | `pytorch_model.bin` | 2.46 GB | CC-BY-NC-4.0 | yes direct | pickle | REJECT per Sec. 6 (NC travels with weights). Plan B only. |
+| R | `google/madlad400-3b-mt` (2.94B) | repo 63.8 GB total (`model.safetensors` ~11-12 GB + 3 GGUF) | ~11 GB+ single | Apache-2.0 | yes | safetensors+GGUF | REJECT on size, not consumer-PC. |
+| R | `facebook/mbart-large-50-many-to-many-mmt` (611M) | repo 21.2 GB total | ~2.4 GB single | none declared | yes | safetensors | REJECT, no license. |
+
+Notes:
+- `used_storage_bytes` (whole repo, all frameworks) misleads; table uses per-file bytes.
+- Opus bilingual singles (e.g. `opus-mt-en-de`, `opus-mt-en-ar`) are Apache-2.0 but one pair each; full 8-lang EN-pivot group = ~14 files, est. 3-4 GB. Pair in row 1 replaces them at ~620 MB.
+- `facebook/m2m100_126M` does not exist (404); 418M is smallest official M2M100.
+- Hunt open (remaining): opus-mt safetensors re-shares; community MADLAD-small distills.
+
+### 8.1 Hunt round 2 (2026-10-08, verified, NOT downloaded)
+
+| Model ID | Weight files | Exact size | License (HF hub API) | Verdict |
+|----------|--------------|------------|----------------------|---------|
+| `venddair/m2m100-418M-onnx-int8` (M2M100 418M, ONNX INT8) | `encoder_model.onnx` + `decoder_model.onnx` | 287 MB + 470 MB = ~757 MB | none declared | Smallest direct-M2M footprint, but NO license + 182 downloads. Needs owner/license proof before ship. |
+| `entai2965/m2m100-418M-ctranslate2` (CT2, base `facebook/m2m100_418M`) | `model.bin` | 1.94 GB | MIT | Same size as base, no saving, 1340 downloads. Only useful if CT2 runtime chosen. |
+| MADLAD-small | — | — | — | No official small MT below 3B; no trusted community small found. Dropped. |
+
+### 8.2 Backend compat (2026-10-08, CT2 docs + forums, no torch at runtime)
+
+Rule: shipped runtime is CT2 (`model.bin` + tokenizer) or ORT (`.onnx`). Torch+transformers exist ONLY at offline convert time. Checkpoint format (pickle/safetensors) is irrelevant to shipping. Nothing is ignored on backend grounds; rejects stay license/size only.
+Sources: `opennmt.net/CTranslate2/guides/transformers.html` (v4.8.2: MarianMT/M2M-100/NLLB/T5 sections), `OpenNMT/CTranslate2#1560` (MADLAD=T5 works out-of-box), `forum.opennmt.net/t/convert-small100-with-ctranslate2/5134` + LibreTranslate thread (small100 converts via M2M path, target-prefix tweak needed), `BlackVarmir/m2m100-1.2B-ct2-int8` card ("inference without PyTorch"), `discuss.hf.co/t/export-m2m100-model-to-onnx/17694` + `optimum#16695` (M2M100/T5→ONNX has trace gaps; CT2 is the path, ORT not recommended here).
+
+| Model | CT2 | ORT | Note |
+|-------|-----|-----|------|
+| opus-mt pair (Marian) | YES, first-class (`--model Helsinki-NLP/opus-mt-en-de` is the doc example) | possible | Keep. |
+| m2m100_418M | YES (`--model facebook/m2m100_418M` is the doc example) | weak (trace issues) | Keep, via CT2. |
+| small100 (m2m_100 arch) | YES with prefix tweak, test after approval | n/a | Keep, via CT2. |
+| nllb-200-distilled-600M | YES (doc example) | n/a | Still REJECT (license Sec. 6). |
+| madlad400-3b-mt (T5) | YES (T5 section + #1560) | n/a | Still REJECT (size). |
+| mbart-50 (mBART arch listed in CT2 model types) | YES arch-wise | n/a | Still REJECT (no license). |
+| venddair ONNX-INT8 | n/a (already ONNX) | YES files exist | Still BLOCKED (no license). |
+| entai2965 CT2 model.bin | n/a (already CT2) | n/a | Usable only if CT2 runtime chosen; no size win. |
+
+Status: reported, STOPPED, no download. Approval pending per Sec. 3 HARD RULE.
+
+## 9. Build order

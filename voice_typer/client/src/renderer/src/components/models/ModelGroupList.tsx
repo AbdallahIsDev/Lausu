@@ -126,7 +126,7 @@ export function ModelVariantRow({
  * Label+value pair: the LABEL word renders muted/secondary, then a
  * colon, then the VALUE in the primary text color, visually a
  * "named metric with a measured value" (e.g. "VRAM: ~512 MB",
- * "WER: 2.0%").
+ * "WER: 5.0%").
  */
 export function MetadataPair({
 	label,

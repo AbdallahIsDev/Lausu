@@ -69,7 +69,16 @@ export interface ToggleDictationRequest {
 
 export interface GetHistoryRequest {
 	type: "get_history";
-	data?: { limit?: number; offset?: number };
+	data?: {
+		limit?: number;
+		offset?: number;
+		/** UTC window bounds ("YYYY-MM-DD HH:MM:SS") for custom ranges. */
+		start_ts?: string;
+		end_ts?: string;
+		/** Keyset cursor for deep paging past the offset guard. */
+		before_timestamp?: string;
+		before_id?: number;
+	};
 }
 
 export interface DeleteHistoryRequest {

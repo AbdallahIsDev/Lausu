@@ -6,6 +6,7 @@
 // `{ usePython }` from `@/hooks/usePython`.
 
 import { useCallback } from "react";
+import { isTransientTimeoutError } from "@/hooks/connectionStatus";
 // Import the `PythonCallErrorCode` union so the renderer can narrow
 // `result._code` against the typed union. The canonical declaration
 // lives in the predecessor main process's `python-call-handler.ts`
@@ -58,9 +59,61 @@ function _singleFlightKey(
 	return `${type}|${_stableStringify(data ?? null)}`;
 }
 
-/** Clear the single-flight registry (tests only). */
+/** Clear the single-flight registry (tests only). Also resets the
+ *  cold-start retry gate below so every test starts pre-first-success. */
 export function __resetPythonSingleFlightForTests(): void {
 	_inFlightReads.clear();
+	_bridgeHasDelivered = false;
+}
+
+// Cold-start read retry: the first get_* after launch races the backend's
+// boot storm (VAD/mic/hotkey/CUDA threads + keyring first-probe) while the
+// renderer's own 5s get_config budget fires on calls the host would have
+// answered within its 15s. Every page loads through this one `call`, so the
+// retry lives here instead of per-page: present and future pages inherit
+// it. Bounded four ways: idempotent reads only (writes never re-fire),
+// timeout-shaped errors only (refusals still surface fast), a fixed
+// attempt budget, and ONLY until the bridge delivers its first success —
+// after that the behavior is exactly what it was (fast failure). A retry
+// that outlives its caller is harmless: single-flight entries self-remove
+// and every page guards setState with cancellation flags.
+let _bridgeHasDelivered = false;
+/** Extra attempts per call while the bridge never succeeded. */
+const COLD_START_READ_RETRIES = 3;
+/** Backoff between those attempts (storms clear in seconds, not ms). */
+const COLD_START_READ_BACKOFF_MS = [500, 1_500, 3_000];
+
+function _sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function _callWithColdStartRetry(
+	invoke: () => Promise<unknown>,
+	type: string,
+): Promise<unknown> {
+	let attempt = 0;
+	for (;;) {
+		try {
+			const out = await withCommandTimeout(invoke(), type);
+			_bridgeHasDelivered = true;
+			return out;
+		} catch (err) {
+			const retryable =
+				!_bridgeHasDelivered &&
+				_isSingleFlightEligible(type) &&
+				isTransientTimeoutError(err);
+			if (!retryable || attempt >= COLD_START_READ_RETRIES) throw err;
+			// Indexed access yields `number | undefined` under
+			// noUncheckedIndexedAccess; the index is clamped above so the
+			// fallback only satisfies tsc, it never fires at runtime.
+			await _sleep(
+				COLD_START_READ_BACKOFF_MS[
+					Math.min(attempt, COLD_START_READ_BACKOFF_MS.length - 1)
+				] ?? 3_000,
+			);
+			attempt += 1;
+		}
+	}
 }
 
 type PythonBridgeApi = NonNullable<typeof window.python>;
@@ -124,8 +177,12 @@ export function usePython() {
 				// are predecessor-path-only, see the comment below).
 				let result: Record<string, unknown>;
 				try {
-					result = (await withCommandTimeout(
-						api.call({ type, data }),
+					// Cold-start retry included: timeout-shaped failures of
+					// idempotent reads re-race inside this await (bounded, see
+					// _callWithColdStartRetry). The raw error below is the
+					// LAST attempt's, normalization is unchanged.
+					result = (await _callWithColdStartRetry(
+						() => api.call({ type, data }),
 						type,
 					)) as Record<string, unknown>;
 				} catch (err) {
