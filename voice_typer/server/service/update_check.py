@@ -216,10 +216,12 @@ def check_offline_pack_update(
     Returns an :data:`UpdateCheckResult`. Never raises, all errors are
     caught and returned as ``{"success": False, "error": ..., "reason": ...}``.
     """
+    import os
     import time
 
     candidates = pack_manifest_url_candidates(manifest_url)
     url = candidates[0]
+    is_default_candidates = manifest_url is None and not os.environ.get("VT_PACK_MANIFEST_URL")
 
     # Default local_version to a scan of the pack root.
     if local_version is None:
@@ -229,15 +231,27 @@ def check_offline_pack_update(
             log.exception("[UPDATE] local pack scan failed")
             local_version = None
 
+    failure_info: dict = {}
     try:
         remote_manifest, fetched_url = fetch_remote_manifest_first_success(
-            candidates, http_get=http_get, timeout=manifest_timeout
+            candidates, http_get=http_get, timeout=manifest_timeout, failure_info=failure_info
         )
     except Exception:  # fetch is supposed to return None on failure, but catch defensively
         log.exception("[UPDATE] unexpected error fetching remote manifest")
         remote_manifest, fetched_url = None, None
 
     if remote_manifest is None or not fetched_url:
+        if is_default_candidates and failure_info.get("all_not_found"):
+            log.info("[UPDATE] no pack manifest published yet, nothing to download (local=%s)", local_version)
+            return {
+                "success": True,
+                "checked_at": int(time.time() * 1000),
+                "local_version": local_version,
+                "remote_version": None,
+                "update_available": False,
+                "download_triggered": False,
+                "reason": "no_remote_manifest",
+            }
         return {
             "success": False,
             "checked_at": int(time.time() * 1000),
