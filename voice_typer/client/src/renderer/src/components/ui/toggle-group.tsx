@@ -52,15 +52,6 @@ export interface ToggleGroupProps<T extends string> {
 	 * primitives (`cursor-not-allowed` + `opacity-50`).
 	 */
 	disabled?: boolean;
-	/**
-	 * Which surface the control sits on. Dark mode only (the light
-	 * treatment is identical on both): a control inside a card gets a
-	 * transparent track with a `bg-border/10` indicator. The sidebar
-	 * rail keeps the recessed `bg-border/10` track but drops the border
-	 * (`dark:border-border/0`), and its selected pill uses `bg-sidebar`
-	 * so it reads as a surface cut from the rail itself.
-	 */
-	context?: "card" | "sidebar";
 	/** Optional wrapper className. */
 	className?: string;
 	indicatorClassName?: string;
@@ -74,7 +65,6 @@ export function ToggleGroup<T extends string>({
 	value,
 	onChange,
 	variant = "default",
-	context = "card",
 	ariaLabel,
 	className,
 	indicatorClassName,
@@ -313,9 +303,7 @@ export function ToggleGroup<T extends string>({
 				// minus the inset. The former `pill` variant
 				// (rounded-full + p-0.75) is gone.
 				variant === "default" &&
-					"rounded-lg shadow-[0_0_0_1px_rgba(0,0,0,0.1)] bg-border/6 p-0.5",
-				variant === "default" &&
-					(context === "sidebar" ? "dark:shadow-none" : "dark:bg-border/5"),
+					"rounded-lg shadow-[0_0_0_1px_rgba(0,0,0,0.1)] bg-border/6 p-0.5 dark:bg-border/5",
 				variant === "tabs" && "bg-transparent rounded-none p-1",
 				disabled && "cursor-not-allowed opacity-50 pointer-events-none",
 				className,
@@ -330,12 +318,7 @@ export function ToggleGroup<T extends string>({
 						// curve matches the container's (rounded-lg − p-0.5 ⇒
 						// calc(--radius - inset)), never the same rounded-lg.
 						variant === "default" &&
-							"inset-y-0.5 rounded-[calc(var(--radius)-0.125rem)] bg-surface shadow-xs",
-						// Dark-mode surface treatment; light keeps bg-surface.
-						variant === "default" &&
-							(context === "sidebar"
-								? "dark:bg-sidebar "
-								: "dark:bg-border/10"),
+							"inset-y-0.5 rounded-[calc(var(--radius)-0.125rem)] bg-surface shadow-xs dark:bg-border/10",
 						variant === "tabs" &&
 							"inset-y-1 rounded-[calc(var(--radius)-0.25rem)] bg-input",
 						indicatorClassName,
@@ -395,7 +378,7 @@ export function ToggleGroup<T extends string>({
 							disabled={disabled}
 							onClick={handleRadioChange}
 							className={cn(
-								"relative z-10 cursor-pointer font-normal outline-hidden transition-colors duration-150",
+								"group relative z-10 cursor-pointer font-normal outline-hidden transition-colors duration-150",
 								"select-none whitespace-nowrap inline-flex items-center justify-center gap-1",
 								// A11Y-1: visible focus indicator for keyboard users.
 								"focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden",
@@ -410,8 +393,10 @@ export function ToggleGroup<T extends string>({
 									icon={opt.icon}
 									strokeWidth={2}
 									className={cn(
-										"h-4 w-4 shrink-0",
-										active ? "opacity-100" : "opacity-60",
+										"h-4 w-4 shrink-0 transition-opacity duration-150",
+										active
+											? "opacity-100"
+											: "opacity-60 group-hover:opacity-100",
 										opt.label && "-ms-0.5",
 									)}
 								/>
@@ -426,7 +411,7 @@ export function ToggleGroup<T extends string>({
 						ref={getLabelRef(opt.value)}
 						title={opt.title}
 						className={cn(
-							"relative z-10 font-normal outline-hidden transition-colors duration-150",
+							"group relative z-10 font-normal outline-hidden transition-colors duration-150",
 							"select-none whitespace-nowrap inline-flex items-center justify-center gap-1",
 							disabled ? "cursor-not-allowed" : "cursor-pointer",
 							// A11Y-1: visible focus indicator on the wrapping label so keyboard
@@ -468,8 +453,8 @@ export function ToggleGroup<T extends string>({
 								icon={opt.icon}
 								strokeWidth={2}
 								className={cn(
-									"h-4 w-4 shrink-0",
-									active ? "opacity-100" : "opacity-60",
+									"h-4 w-4 shrink-0 transition-opacity duration-150",
+									active ? "opacity-100" : "opacity-60 group-hover:opacity-100",
 									opt.label && "-ms-0.5",
 								)}
 							/>
