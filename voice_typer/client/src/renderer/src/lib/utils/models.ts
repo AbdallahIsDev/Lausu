@@ -45,8 +45,9 @@ export interface ModelMetadata {
 	speed_rating: string; // "fast" | "medium" | "slow"
 	accuracy_rating: string; // "low" | "medium" | "high"
 	/**
-	 * Published WER (%) on LibriSpeech test-clean (lower is better),
-	 * sourced from each model's official model card / evaluation.
+	 * Representative WER (%) (lower is better): real-world average for
+	 * every model. Per-entry sources live in
+	 * voice_typer/server/model_registry.py.
 	 */
 	wer?: number | null;
 }
