@@ -101,13 +101,20 @@ def fetch_remote_manifest(
     http_get: Callable[..., str] | None = None,
     max_bytes: int = MAX_MANIFEST_BYTES,
     timeout: float = 30.0,
+    failure_info: dict | None = None,
 ) -> OfflinePackManifest | None:
     """Fetch + validate the remote ``pack-manifest.json``."""
     # SSRF gate first, refuse to fetch from a private/disallowed host
+    def _record(*, not_found: bool, error: str = "") -> None:
+        if failure_info is not None:
+            failure_info["not_found"] = not_found
+            if error:
+                failure_info["error"] = error
     try:
         assert_offline_pack_url_allowed(url)
     except ValueError as exc:
         log.warning("[UPDATE] SSRF block on manifest URL: %s", exc)
+        _record(not_found=False, error=str(exc))
         return None
 
     if http_get is None:
@@ -128,12 +135,18 @@ def fetch_remote_manifest(
                 exc,
                 url.split("://", 1)[-1],
             )
+            _record(not_found=True, error=str(exc))
         else:
             log.warning(
                 "[UPDATE] Manifest fetch failed (%s): %s",
                 exc,
                 url.split("://", 1)[-1],
             )
+            _record(not_found=False, error=str(exc))
+        return None
+    except Exception as exc:
+        log.debug("[UPDATE] candidate %s raised", url, exc_info=True)
+        _record(not_found=_is_missing_manifest_404(exc), error=str(exc))
         return None
 
     # Parse + validate via the shared schema validator (the SAME
@@ -141,10 +154,12 @@ def fetch_remote_manifest(
         data = json.loads(body)
     except json.JSONDecodeError:
         log.warning("[UPDATE] remote manifest from %s is not valid JSON", url)
+        _record(not_found=False, error="invalid JSON")
         return None
     manifest = offline_pack.validate_offline_pack_manifest_dict(data, source=url)
     if manifest is None:
         log.warning("[UPDATE] remote manifest from %s failed schema validation", url)
+        _record(not_found=False, error="schema validation failed")
         return None
     return manifest
 
@@ -155,6 +170,7 @@ def fetch_remote_manifest_first_success(
     http_get: Callable[..., str] | None = None,
     max_bytes: int = MAX_MANIFEST_BYTES,
     timeout: float = 30.0,
+    failure_info: dict | None = None,
 ) -> tuple[OfflinePackManifest | None, str | None]:
     """Try each candidate URL until one returns a valid manifest.
 
@@ -163,12 +179,20 @@ def fetch_remote_manifest_first_success(
     ``latest`` manifest that is actually present.
     """
     candidates = urls if urls is not None else pack_manifest_url_candidates()
+    not_found_flags: list[bool] = []
     for url in candidates:
         try:
-            manifest = fetch_remote_manifest(url, http_get=http_get, max_bytes=max_bytes, timeout=timeout)
+            info: dict = {}
+            manifest = fetch_remote_manifest(
+                url, http_get=http_get, max_bytes=max_bytes, timeout=timeout, failure_info=info
+            )
         except Exception:  # defensive: one bad candidate must not abort the list
             log.debug("[UPDATE] candidate %s raised", url, exc_info=True)
+            not_found_flags.append(False)
             continue
         if manifest is not None:
             return manifest, url
+        not_found_flags.append(bool(info.get("not_found", False)))
+    if failure_info is not None:
+        failure_info["all_not_found"] = bool(not_found_flags) and all(not_found_flags)
     return None, None
