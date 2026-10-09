@@ -406,7 +406,8 @@
 			"30d": "30 दिन",
 			"7d": "7 दिन",
 			"all": "पूरा समय",
-			"today": "आज"
+			"today": "आज",
+			"custom": "कस्टम"
 		},
 		"activityChartAria": "{range} गतिविधि चार्ट: {counts}",
 		"activityTitle": "गतिविधि",
@@ -416,6 +417,25 @@
 		"longestSession": "सबसे लंबा {duration}",
 		"noDataBar": "{label}: कोई डेटा नहीं",
 		"rangeAria": "विश्लेषण समय सीमा",
+		"rangeCustomAria": "कस्टम तिथि सीमा चयनकर्ता खोलें",
+		"customRangeCapped": "इस अवधि के नवीनतम {count} डिक्टेशन दिखाए जा रहे हैं",
+		"rangePicker": {
+			"presets": "प्रीसेट",
+			"prevMonth": "पिछला महीना",
+			"nextMonth": "अगला महीना",
+			"cancel": "रद्द करें",
+			"apply": "लागू करें",
+			"pickEndDate": "समाप्ति तिथि चुनें",
+			"noDates": "कोई तिथि नहीं",
+			"days_zero": "{count} दिन",
+			"days_one": "{count} दिन",
+			"days_two": "{count} दिन",
+			"days_few": "{count} दिन",
+			"days_many": "{count} दिन",
+			"days_other": "{count} दिन",
+			"statusStart": "प्रारंभ {date}। समाप्ति तिथि चुनें।",
+			"statusShown": "{shown}, {count}"
+		},
 		"corrections": "सुधार",
 		"correctionsTooltip": "डिक्टेशन के दौरान इंजन द्वारा लागू किए गए शब्दावली सुधार",
 		"correctionsRate": "{pct}% डिक्टेशन",
@@ -1828,9 +1848,7 @@
 	},
 	"dashboard": {
 		"cards": {
-			"dictations": "डिक्टेशन",
-			"chars": "अक्षर",
-			"duration": "अवधि"
+			"dictations": "डिक्टेशन"
 		}
 	},
 	"stats": {
@@ -1848,7 +1866,7 @@
 			"dictations": "डिक्टेशन",
 			"activeDays": "सक्रिय दिन",
 			"dayStreak": "{count}-दिन की स्ट्रीक",
-			"chars": "वर्ण",
+			"words": "शब्द",
 			"recordingTime": "रिकॉर्डिंग समय",
 			"exportedFrom": "{appName} से निर्यात किया गया",
 			"captureFailed": "स्टैट्स छवि कैप्चर करने में विफल।",

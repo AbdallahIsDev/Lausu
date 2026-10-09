@@ -406,7 +406,8 @@
 			"30d": "٣٠ يومًا",
 			"7d": "٧ أيام",
 			"all": "كل الوقت",
-			"today": "اليوم"
+			"today": "اليوم",
+			"custom": "مخصص"
 		},
 		"activityChartAria": "مخطط نشاط {range}: {counts}",
 		"activityTitle": "النشاط",
@@ -416,6 +417,25 @@
 		"longestSession": "الأطول {duration}",
 		"noDataBar": "{label}: لا توجد بيانات",
 		"rangeAria": "النطاق الزمني للتحليلات",
+		"rangeCustomAria": "فتح منتقي النطاق الزمني المخصص",
+		"customRangeCapped": "عرض أحدث {count} إملاءات في هذا النطاق",
+		"rangePicker": {
+			"presets": "إعدادات مسبقة",
+			"prevMonth": "الشهر السابق",
+			"nextMonth": "الشهر التالي",
+			"cancel": "إلغاء",
+			"apply": "تطبيق",
+			"pickEndDate": "اختر تاريخ الانتهاء",
+			"noDates": "لا تواريخ",
+			"days_zero": "{count} أيام",
+			"days_one": "{count} يوم",
+			"days_two": "{count} يومان",
+			"days_few": "{count} أيام",
+			"days_many": "{count} يومًا",
+			"days_other": "{count} يوم",
+			"statusStart": "البداية {date}. اختر تاريخ الانتهاء.",
+			"statusShown": "{shown}، {count}"
+		},
 		"corrections": "التصحيحات",
 		"correctionsTooltip": "تصحيحات المفردات التي طبّقها المحرّك أثناء الإملاء",
 		"correctionsRate": "{pct}% من الإملاءات",
@@ -1828,9 +1848,7 @@
 	},
 	"dashboard": {
 		"cards": {
-			"dictations": "إملاءات",
-			"chars": "أحرف",
-			"duration": "المدة"
+			"dictations": "إملاءات"
 		}
 	},
 	"stats": {
@@ -1848,7 +1866,7 @@
 			"dictations": "عمليات الإملاء",
 			"activeDays": "أيام النشاط",
 			"dayStreak": "سلسلة {count} يوم",
-			"chars": "الأحرف",
+			"words": "الكلمات",
 			"recordingTime": "مدة التسجيل",
 			"exportedFrom": "مُصدَّر من {appName}",
 			"captureFailed": "فشل التقاط صورة الإحصائيات.",

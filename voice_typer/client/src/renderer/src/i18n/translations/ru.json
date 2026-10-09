@@ -406,7 +406,8 @@
 			"30d": "30 дней",
 			"7d": "7 дней",
 			"all": "Всё время",
-			"today": "Сегодня"
+			"today": "Сегодня",
+			"custom": "Свой"
 		},
 		"activityChartAria": "График активности ({range}): {counts}",
 		"activityTitle": "Активность",
@@ -416,6 +417,25 @@
 		"longestSession": "Самая длинная {duration}",
 		"noDataBar": "{label}: нет данных",
 		"rangeAria": "Период аналитики",
+		"rangeCustomAria": "Открыть выбор произвольного периода",
+		"customRangeCapped": "Показаны последние {count} диктовок за этот период",
+		"rangePicker": {
+			"presets": "Предустановки",
+			"prevMonth": "Предыдущий месяц",
+			"nextMonth": "Следующий месяц",
+			"cancel": "Отмена",
+			"apply": "Применить",
+			"pickEndDate": "Выберите дату окончания",
+			"noDates": "Нет дат",
+			"days_zero": "{count} дней",
+			"days_one": "{count} день",
+			"days_two": "{count} дня",
+			"days_few": "{count} дня",
+			"days_many": "{count} дней",
+			"days_other": "{count} дня",
+			"statusStart": "Начало {date}. Выберите дату окончания.",
+			"statusShown": "{shown}, {count}"
+		},
 		"corrections": "Исправления",
 		"correctionsTooltip": "Исправления словаря, применённые движком во время диктовки",
 		"correctionsRate": "{pct}% диктовок",
@@ -1828,9 +1848,7 @@
 	},
 	"dashboard": {
 		"cards": {
-			"dictations": "Диктовки",
-			"chars": "Символы",
-			"duration": "Длительность"
+			"dictations": "Диктовки"
 		}
 	},
 	"stats": {
@@ -1848,7 +1866,7 @@
 			"dictations": "Диктовки",
 			"activeDays": "Активные дни",
 			"dayStreak": "Серия из {count} дней",
-			"chars": "Символы",
+			"words": "Слова",
 			"recordingTime": "Время записи",
 			"exportedFrom": "Экспортировано из {appName}",
 			"captureFailed": "Не удалось сделать снимок",

@@ -9,7 +9,7 @@ describe("computeShareStats", () => {
 			"openai",
 			{
 				totalCount: 40,
-				totalChars: 8_000,
+				totalWords: 8_000,
 				totalDuration: 3_600,
 				activeDays: 12,
 				currentStreak: 4,
@@ -30,7 +30,7 @@ describe("computeShareStats", () => {
 			dictations: "40",
 			activeDays: "12",
 			activeDaysDetail: "4-day streak",
-			chars: "8K",
+			words: "8K",
 			recordingTime: "1h",
 			model: "gpt-4o-transcribe",
 			device: "cpu",
@@ -61,7 +61,7 @@ describe("computeShareStats", () => {
 		);
 
 		expect(stats.dictations).toBe("5");
-		expect(stats.chars).toBe("250");
+		expect(stats.words).toBe("50");
 		expect(stats.recordingTime).toBe("2m");
 		expect(stats.model).toBe("");
 		expect(stats.device).toBe("");

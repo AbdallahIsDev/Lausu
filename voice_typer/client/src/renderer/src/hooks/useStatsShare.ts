@@ -27,8 +27,8 @@ export function canShareStats(opts: {
 export interface ShareStatsExtras {
 	/** All-time dictation count. */
 	totalCount?: number;
-	/** All-time character count. */
-	totalChars?: number;
+	/** All-time word count. */
+	totalWords?: number;
 	/** All-time recording duration in seconds. */
 	totalDuration?: number;
 	/** Distinct active days. */
@@ -71,7 +71,7 @@ export function computeShareStats(
 		wpm > 0 ? Math.round(((wpm - AVG_TYPING_WPM) / AVG_TYPING_WPM) * 100) : 0;
 
 	const totalCount = extras?.totalCount ?? todayStats.count;
-	const totalChars = extras?.totalChars ?? todayStats.chars;
+	const totalWords = extras?.totalWords ?? todayStats.word_count;
 	const totalDuration = extras?.totalDuration ?? todayStats.duration;
 	const activeDays = extras?.activeDays ?? (totalCount > 0 ? 1 : 0);
 	const currentStreak = extras?.currentStreak ?? 0;
@@ -97,7 +97,7 @@ export function computeShareStats(
 						count: String(currentStreak),
 					})
 				: null,
-		chars: compactNumber(totalChars, { localeAware: true }),
+		words: compactNumber(totalWords, { localeAware: true }),
 		recordingTime: formatDuration(totalDuration),
 		model: extras?.model ?? "",
 		device: extras?.device ?? "",

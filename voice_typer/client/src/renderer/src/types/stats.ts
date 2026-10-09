@@ -21,8 +21,8 @@ export interface ShareStats {
 	activeDays: string;
 	/** Streak detail line (e.g. "5-day streak"); `null` when no streak. */
 	activeDaysDetail: string | null;
-	/** Total characters dictated. */
-	chars: string;
+	/** Total words dictated (exact DB word count, same source as the Dashboard Words card). */
+	words: string;
 	/** Formatted total recording time (e.g. "2h 14m"). */
 	recordingTime: string;
 	/** ASR model name (e.g. "parakeet"). */

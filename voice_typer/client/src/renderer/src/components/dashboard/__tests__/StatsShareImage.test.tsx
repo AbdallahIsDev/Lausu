@@ -25,7 +25,7 @@ const stats: ShareStats = {
 	dictations: "1,204",
 	activeDays: "87",
 	activeDaysDetail: "5-day streak",
-	chars: "24,510",
+	words: "24,510",
 	recordingTime: "9h 40m",
 	model: "parakeet",
 	device: "cpu",
@@ -62,7 +62,7 @@ describe("StatsShareImage, redesigned themed card", () => {
 		expect(screen.getByText("Active days")).toBeTruthy();
 		expect(screen.getByText("5-day streak")).toBeTruthy();
 		expect(screen.getByText("24,510")).toBeTruthy();
-		expect(screen.getByText("Characters")).toBeTruthy();
+		expect(screen.getByText("Words")).toBeTruthy();
 		expect(screen.getByText("9h 40m")).toBeTruthy();
 		expect(screen.getByText("Recording time")).toBeTruthy();
 		// Mode chip + footer model/device.
