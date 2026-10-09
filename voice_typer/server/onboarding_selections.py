@@ -86,7 +86,7 @@ class _OnboardingSelectionsMixin:
             "size": "~3GB",
             "speed": "Slow",
             "description": "Multilingual, highest accuracy, GPU recommended",
-            "vram_gb": 4.0,
+            "vram_gb": 3.0,
             "languages": None,
         },
         {

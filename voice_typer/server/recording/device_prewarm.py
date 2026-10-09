@@ -326,29 +326,48 @@ class DevicePrewarm:
         return count
 
     def classify_portaudio_open_error(self, exc: BaseException) -> None:
-        """Re-raise an OSError-from-PortAudio as a typed
-        :class:`MicrophonePermissionDeniedError` when the OS reports
-        the microphone permission as ``DENIED`` or ``PROMPT`` AND the
-        OSError message matches one of the known PortAudio
-        permission-denial substrings.
+        """Re-raise a PortAudio open failure as a typed permission error.
 
-        Non-OSError exceptions are passed through unchanged. OSErrors
-        whose message doesn't match any substring are passed through
-        unchanged (likely a hardware fault, not a permission issue).
-        OSErrors that match the substring but whose permission state
-        is ``GRANTED`` / ``UNKNOWN`` are passed through unchanged
-        (avoid false-positive permission prompts when the real cause
-        is hardware, or pyobjc is missing on macOS so we can't be sure).
+        Handles OSError AND sounddevice PortAudioError (Exception
+        subclass). Raises only on explicit evidence: literal
+        access-denied text with probe DENIED, or the -9999 block
+        signature with registry consent Deny. Everything else passes
+        through so broken/exclusive-mode hardware is not misreported.
         """
         recorder = self._recorder
-        if not isinstance(exc, OSError):
-            return
         msg = str(exc).lower()
         if not any(pat.lower() in msg for pat in recorder._PORTAUDIO_PERMISSION_DENIED_SUBSTRINGS):
             return
         from voice_typer.server import permissions
         from voice_typer.server.asr_errors import MicrophonePermissionDeniedError
 
+        if "access denied" in msg or "access is denied" in msg:
+            if permissions.check_microphone_permission() == permissions.MicrophonePermissionState.DENIED:
+                raise MicrophonePermissionDeniedError(
+                    "PortAudio reports microphone permission denied",
+                    state="denied",
+                ) from exc
+            return
+        if "-9999" in msg or "unanticipated host error" in msg:
+            try:
+                from voice_typer.server.permissions.mic import _windows_microphone_consent_denied
+
+                consent = _windows_microphone_consent_denied()
+            except Exception:
+                consent = None
+            if consent is True:
+                raise MicrophonePermissionDeniedError(
+                    "PortAudio reports microphone permission denied",
+                    state="denied",
+                ) from exc
+            if consent is False:
+                return
+            if permissions.check_microphone_permission() == permissions.MicrophonePermissionState.DENIED:
+                raise MicrophonePermissionDeniedError(
+                    "PortAudio reports microphone permission denied",
+                    state="denied",
+                ) from exc
+            return
         state = permissions.check_microphone_permission()
         if state == permissions.MicrophonePermissionState.DENIED:
             raise MicrophonePermissionDeniedError(

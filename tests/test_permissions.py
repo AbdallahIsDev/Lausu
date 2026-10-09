@@ -547,12 +547,14 @@ class TestClassifyPortAudioOpenError:
     def test_no_op_when_state_is_unknown(self, monkeypatch):
         """UNKNOWN (pyobjc missing on macOS), don't false-positive."""
         from voice_typer.server import permissions
+        from voice_typer.server.permissions import mic as mic_mod
 
         monkeypatch.setattr(
             permissions,
             "check_microphone_permission",
             lambda: permissions.MicrophonePermissionState.UNKNOWN,
         )
+        monkeypatch.setattr(mic_mod, "_windows_microphone_consent_denied", lambda: False)
         fake = _FakeRecorderForClassify()
         fake._classify_portaudio_open_error(OSError("Unanticipated host error"))
 

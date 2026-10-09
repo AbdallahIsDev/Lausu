@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from voice_typer.server.branding import APP_NAME
-
 # import the canonical smart-duck poll-interval default and the
 from voice_typer.server.volume_ducker import _DEFAULT_SMART_DUCK_POLL_MS, DEFAULT_DUCK_LEVEL
 
@@ -28,16 +26,15 @@ class VolumeController:
     def _on_volume_crash_restore(self, state: Any) -> None:
         """Callback invoked when a stale duck crash-recovery file is found.
 
-        Notifies the user that the volume was restored after a crash.
+        Deliberately silent (user decision): no OS notification, the
+        restore is routine self-healing, not something the user must
+        act on. The outcome stays observable in the log file.
         """
-        app = self._app
         try:
-            app.tray.notify(
-                APP_NAME,
-                f"System volume was restored after a crash (to {int(state.linear * 100)}%).",
-            )
+            pct = int(state.linear * 100)
         except Exception:
-            log.debug("[VOLUME] crash-restore notification failed", exc_info=True)
+            pct = -1
+        log.info("[VOLUME] System volume was restored after a crash (to %d%%).", pct)
 
     def _duck_volume(self) -> None:
         """Duck system volume at the start of dictation."""

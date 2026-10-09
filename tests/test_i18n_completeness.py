@@ -181,6 +181,10 @@ ALLOWED_UNTRANSLATED = {
     "hotkeyKeys.pageUp",  # 'Page Up'
     "hotkeyKeys.pageDown",  # 'Page Down'
     "hotkeyKeys.fnGlobeMacos",  # 'Fn / Globe \U0001f310 (macOS only)'
+    # Pure format pattern (two interpolated spans joined by a comma):
+    # identical in every locale whose list separator is a comma (zh/ar
+    # use their own punctuation and stay translated).
+    "analytics.rangePicker.statusShown",  # "{shown}, {count}"
 }
 
 # Pre-existing untranslated settings keys documented in the directive (§6).

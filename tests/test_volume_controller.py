@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from voice_typer.server.branding import APP_NAME
 from voice_typer.server.volume_controller import VolumeController
 from voice_typer.server.volume_ducker import DEFAULT_DUCK_LEVEL
 
@@ -181,27 +180,19 @@ class TestRestoreVolume:
 
 
 class TestOnVolumeCrashRestore:
-    """``_on_volume_crash_restore`` notifies the user about a stale"""
+    """``_on_volume_crash_restore`` stays silent: log-only, no OS toast."""
 
-    def test_notifies_tray_with_percent(self, fake_app, controller):
+    def test_no_tray_notification(self, fake_app, controller):
         state = _FakeState(linear=0.42)
 
         controller._on_volume_crash_restore(state)
 
-        fake_app.tray.notify.assert_called_once()
-        args = fake_app.tray.notify.call_args.args
-        kwargs = fake_app.tray.notify.call_args.kwargs
-        # First positional arg is APP_NAME (the title).
-        assert args[0] == APP_NAME, "tray.notify title must be APP_NAME"
-        # Message includes the restored percentage as an int.
-        message = args[1] if len(args) > 1 else kwargs.get("message", "")
-        assert "42%" in message, f"crash-restore notification must mention the percent; got {message!r}"
+        fake_app.tray.notify.assert_not_called()
 
-    def test_swallows_tray_notify_exception(self, fake_app, controller):
-        """A tray failure must not propagate, crash recovery is best-effort."""
-        fake_app.tray.notify.side_effect = RuntimeError("tray not ready")
+    def test_malformed_state_does_not_raise(self, fake_app, controller):
+        """A state without ``.linear`` must not propagate, still silent."""
 
         # Must NOT raise.
-        controller._on_volume_crash_restore(_FakeState(linear=0.5))
+        controller._on_volume_crash_restore(object())
 
-        fake_app.tray.notify.assert_called_once()
+        fake_app.tray.notify.assert_not_called()

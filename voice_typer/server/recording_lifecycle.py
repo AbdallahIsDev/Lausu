@@ -179,6 +179,31 @@ class RecordingLifecycle:
             )
 
         if active is None and not loader_alive:
+            # Permission pre-check doubles as the model-load gate: a
+            # denied hotkey press refuses here, before the load below
+            # and before the _start_impl gate. Granted/unknown probes
+            # cost one InputStream open here plus one in _start_impl's
+            # recorder.start(); acceptable for a hotkey press.
+            try:
+                from voice_typer.server import permissions as _perm_pre
+
+                _perm_pre.verify_microphone_accessible()
+            except Exception as pre_exc:
+                from voice_typer.server.asr_errors import MicrophonePermissionDeniedError
+
+                if isinstance(pre_exc, MicrophonePermissionDeniedError):
+                    _deny_state = getattr(pre_exc, "state", "denied")
+                    log.warning(
+                        "[HOTKEY FIRED] Refusing hotkey press: mic permission "
+                        "%s (no model load kicked, cycle=%s)",
+                        _deny_state,
+                        app._cycle_id,
+                    )
+                    self._publish_permission_denied_refusal(
+                        controller._app, getattr(pre_exc, "state", None) or "denied"
+                    )
+                    return
+                raise
             # No engine and no live loader: kick a background load, then
             # record anyway instead of queueing a pending dictation.
             log.info(
@@ -428,8 +453,38 @@ class RecordingLifecycle:
             # Best-effort, mirroring the stop paths.
             controller._maybe_restart_level_monitor_for_always_visible_bubble(app)
 
+    def _publish_permission_denied_refusal(self, app, state: str = "denied") -> None:
+        """Terminal hotkey-press refusal: bubble + tray + notify + event."""
+        try:
+            if getattr(app.config, "bubble_behavior", "show_on_record") != "hidden":
+                app._waveform_bubble.show()
+                app._waveform_bubble.set_state("permission_revoked")
+        except Exception:
+            log.debug("[DICTATION] permission bubble surface failed", exc_info=True)
+        try:
+            app.tray.set_state(AppState.ERROR, i18n.t("state.recording_controller.recording_failed_permission"))
+        except Exception:
+            log.debug("[DICTATION] permission tray surface failed", exc_info=True)
+        try:
+            app.tray.notify_safety(APP_NAME, i18n.t("notify.recording_controller.mic_permission_revoked"))
+        except Exception:
+            log.debug("[DICTATION] permission notify failed", exc_info=True)
+        try:
+            event_bus.publish({"type": "microphone_permission_revoked"})
+        except Exception:
+            log.debug("[DICTATION] permission event publish failed", exc_info=True)
+        try:
+            app._schedule_timer(3.0, lambda: app.tray.set_state(AppState.IDLE))
+        except Exception:
+            log.debug("[DICTATION] permission idle timer failed", exc_info=True)
+
     def _publish_start_failure_notification(self, app, exc: BaseException) -> None:
         """Surface a start failure in tray / toast / push / idle-timer."""
+        from voice_typer.server.asr_errors import MicrophonePermissionDeniedError
+
+        if isinstance(exc, MicrophonePermissionDeniedError):
+            self._publish_permission_denied_refusal(app, getattr(exc, "state", None) or "denied")
+            return
         _start_fail_msg = _recording_start_failure_message(exc)
         app.tray.set_state(AppState.ERROR, _start_fail_msg)
         # Notification mirrors the tooltip: for typed failures the
@@ -460,6 +515,20 @@ class RecordingLifecycle:
 
         if not self._gate_voice_biometric_consent(app):
             return
+
+        try:
+            from voice_typer.server import permissions as _perm_gate
+
+            _perm_gate.verify_microphone_accessible()
+        except Exception as gate_exc:
+            from voice_typer.server.asr_errors import MicrophonePermissionDeniedError
+
+            if isinstance(gate_exc, MicrophonePermissionDeniedError):
+                _gate_state = getattr(gate_exc, "state", "denied")
+                log.warning("[DICTATION] Refusing hotkey start: mic permission %s", _gate_state)
+                self._publish_permission_denied_refusal(app, getattr(gate_exc, "state", None) or "denied")
+                return
+            raise
 
         # Cancel any stale pending timers from previous sessions
         app._cancel_pending_timers()
@@ -820,6 +889,13 @@ class RecordingLifecycle:
         if duration < 0.5:
             log.info("[DICTATION] Audio too short, skipping transcription")
             controller._cancel_streaming_session()
+            try:
+                if getattr(app.config, "bubble_behavior", "show_on_record") == "always_visible":
+                    app._waveform_bubble.set_state("idle")
+                else:
+                    app._waveform_bubble.hide()
+            except Exception:
+                log.debug("[DICTATION] too-short bubble reset failed", exc_info=True)
             app.tray.set_state(AppState.IDLE, i18n.t("state.recording_controller.too_short"))
             app._busyness.set_idle()  # busy = False (coordinator)
             app._schedule_timer(2.0, lambda: app.tray.set_state(AppState.IDLE))

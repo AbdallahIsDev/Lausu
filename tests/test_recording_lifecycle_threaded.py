@@ -421,10 +421,12 @@ class TestRecordingStartFailureReason:
             "Recording failed | microphone permission denied. Allow mic access in system settings.",
         )
         # The OS notification must carry the same actionable reason.
-        notify_msg = str(app.tray.notify.call_args.args[1])
-        assert "microphone permission denied" in notify_msg, (
+        notify_mock = app.tray.notify_safety if app.tray.notify_safety.called else app.tray.notify
+        notify_msg = str(notify_mock.call_args.args[1])
+        assert "microphone permission" in notify_msg.lower(), (
             f"notification must carry the permission reason, got: {notify_msg!r}"
         )
+        app._waveform_bubble.set_state.assert_called_with("permission_revoked")
 
     def test_no_input_device_surfaces_reason(self) -> None:
         """The \"No input device could be opened\" RuntimeError surfaces"""
