@@ -15,6 +15,8 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/i18n/i18n", () => ({
 	t: (key: string) => key,
+	tChoice: (key: string) => key,
+	getLocale: () => "en",
 }));
 
 vi.mock("@/lib/ipcCache", () => ({
@@ -22,6 +24,7 @@ vi.mock("@/lib/ipcCache", () => ({
 	writeIpcCache: vi.fn(),
 }));
 
+import { useAnalyticsRange } from "@/stores/useAnalyticsRange";
 import type { LausuConfig } from "@/types/config";
 import type { HistoryRecord, ModelStatusMap } from "@/types/ipc";
 import type { CorrectionUsageSnapshot } from "../../lib/streaks";
@@ -302,5 +305,217 @@ describe("useDashboardData hot/cold split", () => {
 		expect(callsOf(callMock, "get_config")).toHaveLength(0);
 		expect(result.current.correctionStats.corrections).toBe(2);
 		expect(result.current.data?.totalCount).toBe(3);
+	});
+});
+
+describe("useDashboardData custom windows", () => {
+	let callMock: ReturnType<typeof vi.fn>;
+
+	function dayKey(daysAgo = 0): string {
+		const d = new Date();
+		d.setDate(d.getDate() - daysAgo);
+		const pad = (n: number) => String(n).padStart(2, "0");
+		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+	}
+
+	function rowOnDay(id: number, daysAgo: number): HistoryRecord {
+		const d = new Date();
+		d.setDate(d.getDate() - daysAgo);
+		d.setHours(12, 0, 0, 0);
+		return makeRow(id, { timestamp: d.toISOString() });
+	}
+
+	function windowCalls() {
+		return callsOf(callMock, "get_history").filter(
+			(c) => (c[1] as Record<string, unknown>)?.start_ts !== undefined,
+		);
+	}
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		Object.defineProperty(document, "visibilityState", {
+			value: "visible",
+			configurable: true,
+		});
+		sessionStorage.clear();
+		useAnalyticsRange.setState({ range: "7d", customWindow: null });
+		callMock = vi.fn((cmd: string) => {
+			if (cmd === "get_config") return Promise.resolve(makeConfig());
+			if (cmd === "get_history_count") return Promise.resolve({ count: 0 });
+			if (cmd === "get_correction_usage") return Promise.resolve(null);
+			if (cmd === "get_model_status") return Promise.resolve({});
+			return Promise.resolve(null);
+		});
+	});
+
+	afterEach(() => {
+		useAnalyticsRange.setState({ range: "7d", customWindow: null });
+		sessionStorage.clear();
+		vi.useRealTimers();
+		vi.clearAllMocks();
+	});
+
+	async function mountCustom() {
+		useAnalyticsRange
+			.getState()
+			.setCustomRange({ startKey: dayKey(6), endKey: dayKey(0) });
+		const hook = renderHook(() =>
+			useDashboardData({ call: asCallStub(callMock) }),
+		);
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(50);
+		});
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(50);
+		});
+		return hook;
+	}
+
+	it("fetches the window with UTC bounds and scopes stats to it", async () => {
+		const windowRows = [rowOnDay(3, 6), rowOnDay(2, 5), rowOnDay(1, 4)];
+		callMock.mockImplementation(
+			(cmd: string, data?: Record<string, unknown>) => {
+				if (cmd === "get_config") return Promise.resolve(makeConfig());
+				if (cmd === "get_history") {
+					if (data?.start_ts !== undefined) return Promise.resolve(windowRows);
+					return Promise.resolve([]);
+				}
+				if (cmd === "get_history_count") return Promise.resolve({ count: 3 });
+				if (cmd === "get_correction_usage") return Promise.resolve(null);
+				if (cmd === "get_model_status") return Promise.resolve({});
+				return Promise.resolve(null);
+			},
+		);
+		const { result } = await mountCustom();
+
+		const calls = windowCalls();
+		expect(calls.length).toBeGreaterThan(0);
+		const sent = calls[0]?.[1] as Record<string, string>;
+		expect(sent.start_ts).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+		expect(sent.end_ts).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+		expect(result.current.period.count).toBe(3);
+		expect(result.current.customReady).toBe(true);
+		expect(result.current.customCapped).toBe(false);
+		expect(result.current.customWindowLabel).toContain("–");
+	});
+
+	it("pages with the cursor and marks the cap after ten full pages", async () => {
+		// 5000 rows spread across the 7-day window (each page full, so
+		// the loop runs the whole 10-page budget and marks sampled).
+		const page = (base: number) =>
+			Array.from({ length: 500 }, (_, i) => rowOnDay(base + i, (base + i) % 7));
+		let pages = 0;
+		callMock.mockImplementation(
+			(cmd: string, data?: Record<string, unknown>) => {
+				if (cmd === "get_config") return Promise.resolve(makeConfig());
+				if (cmd === "get_history") {
+					if (data?.start_ts === undefined) return Promise.resolve([]);
+					pages += 1;
+					if (pages === 1) return Promise.resolve(page(1));
+					// Second page proves cursor forwarding, then stay full.
+					return Promise.resolve(page(1000 + pages));
+				}
+				if (cmd === "get_history_count")
+					return Promise.resolve({ count: 99999 });
+				if (cmd === "get_correction_usage") return Promise.resolve(null);
+				if (cmd === "get_model_status") return Promise.resolve({});
+				return Promise.resolve(null);
+			},
+		);
+		const { result } = await mountCustom();
+
+		const calls = windowCalls();
+		expect(calls).toHaveLength(10);
+		const first = calls[0]?.[1] as Record<string, unknown> | undefined;
+		const second = calls[1]?.[1] as Record<string, unknown> | undefined;
+		expect(typeof second?.before_timestamp).toBe("string");
+		expect(typeof second?.before_id).toBe("number");
+		expect(second?.start_ts).toBe(first?.start_ts);
+		expect(result.current.customCapped).toBe(true);
+		expect(result.current.period.count).toBe(5000);
+	});
+});
+
+describe("useDashboardData cold-start mount retry", () => {
+	let callMock: ReturnType<typeof vi.fn>;
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		Object.defineProperty(document, "visibilityState", {
+			value: "visible",
+			configurable: true,
+		});
+		usePythonEventMock.mockClear();
+		callMock = vi.fn();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.clearAllMocks();
+	});
+
+	it("re-races once after a dataless mount failure, then shows data", async () => {
+		let attempts = 0;
+		callMock.mockImplementation((cmd: string) => {
+			if (cmd === "get_config") {
+				attempts += 1;
+				if (attempts === 1) return Promise.reject(new Error("startup storm"));
+				return Promise.resolve(makeConfig());
+			}
+			if (cmd === "get_history") return Promise.resolve([makeRow(1)]);
+			if (cmd === "get_history_count") return Promise.resolve({ count: 1 });
+			if (cmd === "get_correction_usage") return Promise.resolve(null);
+			if (cmd === "get_model_status") return Promise.resolve({});
+			return Promise.resolve(null);
+		});
+		const { result } = renderHook(() =>
+			useDashboardData({ call: asCallStub(callMock) }),
+		);
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(0);
+		});
+
+		// First attempt failed: the error screen owns the page for now.
+		expect(result.current.data).toBeNull();
+		expect(result.current.fetchError).not.toBeNull();
+
+		// The single delayed re-race heals it without manual Retry.
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(8000);
+		});
+		expect(callsOf(callMock, "get_config")).toHaveLength(2);
+		expect(result.current.data?.totalCount).toBe(1);
+		expect(result.current.fetchError).toBeNull();
+	});
+
+	it("keeps the error screen (bounded: no third attempt) when the retry fails", async () => {
+		callMock.mockImplementation((cmd: string) => {
+			if (cmd === "get_config")
+				return Promise.reject(new Error("backend down"));
+			if (cmd === "get_history") return Promise.resolve([]);
+			if (cmd === "get_history_count") return Promise.resolve({ count: 0 });
+			if (cmd === "get_correction_usage") return Promise.resolve(null);
+			if (cmd === "get_model_status") return Promise.resolve({});
+			return Promise.resolve(null);
+		});
+		const { result } = renderHook(() =>
+			useDashboardData({ call: asCallStub(callMock) }),
+		);
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(0);
+		});
+		expect(result.current.data).toBeNull();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(8000);
+		});
+		expect(callsOf(callMock, "get_config")).toHaveLength(2);
+		expect(result.current.fetchError).not.toBeNull();
+
+		// No runaway loop: far-future timers add no further attempts.
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(120_000);
+		});
+		expect(callsOf(callMock, "get_config")).toHaveLength(2);
 	});
 });
