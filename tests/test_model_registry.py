@@ -100,14 +100,14 @@ class TestGetModelMetadataReturnsCorrectFields:
         assert d["display_name"] == "Parakeet-TDT-0.6b-V3"
 
     def test_wer_is_published_benchmark_data_for_every_entry(self):
-        """LibriSpeech test-clean (lower is better): see the per-entry"""
+        """Real-world representative WER for every entry (lower is
+        better): see the per-entry"""
         expected: dict[str, float] = {
-            "tiny": 7.5,
-            "large-v3": 2.0,
-            "large-v3-turbo": 2.1,
-            "parakeet": 1.93,
-            # Qwen/Qwen3-ASR-1.7B model card evaluation table (1.63)
-            "qwen": 1.63,
+            "tiny": 12.3,
+            "large-v3": 5.0,
+            "large-v3-turbo": 5.5,
+            "parakeet": 6.34,
+            "qwen": 5.76,
         }
         for name, wer in expected.items():
             meta = get_model_metadata(name)
@@ -118,7 +118,7 @@ class TestGetModelMetadataReturnsCorrectFields:
     def test_to_dict_includes_wer(self):
         """``to_dict()`` (the ``get_model_catalog`` IPC payload) carries"""
         d = get_model_metadata("tiny").to_dict()
-        assert d["wer"] == 7.5
+        assert d["wer"] == 12.3
 
     def test_metadata_is_frozen(self):
         """Registry entries are immutable so they can be safely shared"""
@@ -154,11 +154,11 @@ class TestLargeV3HasCorrectMetadata:
     """test_large-v3_has_correct_metadata."""
 
     def test_large_v3_has_correct_metadata(self):
-        """The ``large-v3`` entry matches: 3000 MB download, 4096 MB"""
+        """The ``large-v3`` entry matches: 3000 MB download, 3072 MB"""
         meta = get_model_metadata("large-v3")
         assert meta is not None, "large-v3 missing from registry"
         assert meta.download_size_mb == 3000, f"expected download_size_mb=3000, got {meta.download_size_mb}"
-        assert meta.required_vram_mb == 4096, f"expected required_vram_mb=4096, got {meta.required_vram_mb}"
+        assert meta.required_vram_mb == 3072, f"expected required_vram_mb=3072, got {meta.required_vram_mb}"
         assert meta.multilingual is True, "expected multilingual=True"
         assert meta.supported_languages is None, "expected supported_languages=None (all languages)"
         assert meta.backend == "whisper", f"expected backend='whisper', got {meta.backend!r}"

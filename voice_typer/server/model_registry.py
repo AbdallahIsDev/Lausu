@@ -20,7 +20,8 @@ class ModelMetadata:
     is_distilled: bool = False
     speed_rating: str = "medium"  # "fast", "medium", "slow"
     accuracy_rating: str = "high"  # "low", "medium", "high"
-    # Published WER (%) on LibriSpeech test-clean, sourced per entry
+    # WER (%) per entry (lower is better). Every entry carries a
+    # real-world representative average — see each entry's source note.
     wer: float | None = None
     # declares what network activity the model requires, so the
     network_behavior: str = "local-only"
@@ -53,14 +54,16 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         repo_id="Systran/faster-whisper-tiny",
         speed_rating="fast",
         accuracy_rating="low",
-        # WER 7.5% on LibriSpeech test-clean, self-reported in the
-        wer=7.5,
+        # WER 12.3% real-world representative: official HF model-index
+        # eval (openai/whisper-tiny) averages clean 7.54% + other 17.15%.
+        wer=12.3,
     ),
     # ``large-v3``: highest-accuracy multilingual Whisper. Restored
     "large-v3": ModelMetadata(
         name="large-v3",
         download_size_mb=3000,
-        required_vram_mb=4096,
+        # Measured 2.88 GB weights + runtime ≈3 GB on an 8 GB card.
+        required_vram_mb=3072,
         backend="whisper",
         multilingual=True,
         supported_languages=None,
@@ -69,8 +72,10 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         repo_id="Systran/faster-whisper-large-v3",
         speed_rating="slow",
         accuracy_rating="high",
-        # WER 2.0% on LibriSpeech test-clean, published Whisper
-        wer=2.0,
+        # WER 5.0% real-world representative (test-clean lab ~2% understates
+        # everyday errors 2-3x): Coval live-STT 4.8% (Sep 2026), clean/noisy
+        # 2.1%/5.2%, OpenASR leaderboard mean ~6%.
+        wer=5.0,
     ),
     # ``large-v3-turbo`` is OpenAI's 2024 fast multilingual model:
     "large-v3-turbo": ModelMetadata(
@@ -86,8 +91,9 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         repo_id="mobiuslabsgmbh/faster-whisper-large-v3-turbo",
         speed_rating="fast",
         accuracy_rating="high",
-        # WER 2.1% on LibriSpeech test-clean, published benchmark
-        wer=2.1,
+        # WER 5.5% real-world representative: 0.5 above large-v3's 5.0,
+        # preserving the measured turbo gap (OpenASR means 7.83 vs 7.44).
+        wer=5.5,
     ),
     # added to registry so get_model_status() can resolve the
     "parakeet": ModelMetadata(
@@ -103,8 +109,9 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         repo_id="grikdotnet/parakeet-tdt-0.6b-fp16",
         speed_rating="fast",
         accuracy_rating="high",
-        # WER 1.93% on LibriSpeech test-clean, self-reported in the
-        wer=1.93,
+        # WER 6.34% real-world representative: official NVIDIA model-card
+        # OpenASR average (LS clean 1.93% understates everyday errors).
+        wer=6.34,
     ),
     # added to registry for status consistency. Qwen uses a
     "qwen": ModelMetadata(
@@ -123,8 +130,9 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         repo_id="andrewleech/qwen3-asr-1.7b-onnx",
         speed_rating="medium",
         accuracy_rating="high",
-        # WER 1.63% on LibriSpeech test-clean, from the official
-        wer=1.63,
+        # WER 5.76% real-world representative: OpenASR average
+        # (LS clean 1.63% understates everyday errors).
+        wer=5.76,
     ),
 }
 
