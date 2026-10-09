@@ -51,11 +51,21 @@ def get_recent(
     *,
     before_timestamp: str | None = None,
     before_id: int | None = None,
+    start_ts: str | None = None,
+    end_ts: str | None = None,
 ) -> list[dict]:
-    """Get recent transcriptions with offset-based pagination."""
+    """Get recent transcriptions with offset-based pagination.
+
+    ``start_ts``/``end_ts`` optionally bound the window (UTC
+    ``"YYYY-MM-DD HH:MM:SS"``, same shape as the stored values):
+    ``timestamp >= start_ts`` and ``timestamp < end_ts``. The renderer
+    computes both bounds from local day edges, so no timezone logic
+    lives here; string comparison matches storage order.
+    """
     limit = min(max(limit, 1), _hd._MAX_LIST_LIMIT)
     conn = db._get_read_conn()
     with contextlib.closing(conn.cursor()) as cursor:
+        range_sql, range_args = _window_predicate(start_ts, end_ts)
         use_cursor = before_timestamp is not None and before_id is not None
         if use_cursor:
             cursor.execute(
@@ -63,7 +73,7 @@ def get_recent(
                 SELECT
                     {_LIST_COLUMNS_SQL}
                 FROM transcriptions
-                WHERE timestamp < ? OR (timestamp = ? AND id < ?)
+                WHERE (timestamp < ? OR (timestamp = ? AND id < ?)){range_sql}
                 ORDER BY timestamp DESC, id DESC
                 LIMIT ?
             """,
@@ -72,6 +82,7 @@ def get_recent(
                     before_timestamp,
                     before_timestamp,
                     before_id,
+                    *range_args,
                     limit,
                 ),
             )
@@ -82,13 +93,29 @@ def get_recent(
                 SELECT
                     {_LIST_COLUMNS_SQL}
                 FROM transcriptions
+                WHERE 1 = 1{range_sql}
                 ORDER BY timestamp DESC, id DESC
                 LIMIT ? OFFSET ?
             """,
-                (_hd._HISTORY_TEXT_PREVIEW_LENGTH, limit, offset),
+                (_hd._HISTORY_TEXT_PREVIEW_LENGTH, *range_args, limit, offset),
             )
         rows = cursor.fetchall()
     return _finalize_text_rows(conn, rows)
+
+
+def _window_predicate(
+    start_ts: str | None, end_ts: str | None
+) -> tuple[str, tuple[str, ...]]:
+    """SQL fragment + args for an optional ``[start_ts, end_ts)`` window."""
+    sql = ""
+    args: list[str] = []
+    if start_ts is not None:
+        sql += " AND timestamp >= ?"
+        args.append(start_ts)
+    if end_ts is not None:
+        sql += " AND timestamp < ?"
+        args.append(end_ts)
+    return sql, tuple(args)
 
 
 def get_latest_text(db: HistoryDB) -> str:

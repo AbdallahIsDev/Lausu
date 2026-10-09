@@ -6,7 +6,10 @@
  *   - alphabetical sorts (az/za) render FLAT (no date headers —
  *     grouping would interleave date sections into A→Z order);
  *   - expanding a truncated row issues ``get_transcription_text`` with
- *     the record id (the page's onFetchFullText bridge).
+ *     the record id (the page's onFetchFullText bridge);
+ *   - the refresh control rides the page heading's action slot, the
+ *     section label is gone, and the controls block keeps a 4px gap to
+ *     the list while the page root keeps 6px to the heading.
  */
 
 import {
@@ -207,7 +210,7 @@ describe("History date-grouped list", () => {
 		});
 	});
 
-	it("Recent Activity label and Last-updated indicator share one space-between header row", async () => {
+	it("rides the refresh control on the heading row and drops the section label", async () => {
 		mockCall.mockImplementation((type: string) => {
 			if (type === "get_history")
 				return Promise.resolve([rec(1, localIso(0, 12))]);
@@ -222,20 +225,33 @@ describe("History date-grouped list", () => {
 			expect(screen.getByText("entry 1")).toBeTruthy();
 		});
 
-		// Label left, freshness right, one row, no orphaned
-		// full-width indicator row.
-		const label = screen.getByText(t("home.recentActivity"));
-		const indicator = screen.getByTestId("last-updated-indicator");
-		expect(label.parentElement).toBe(indicator.parentElement);
-		expect(label.parentElement?.className).toContain("justify-between");
+		// The "Recent Activity" section label is gone. The controls above
+		// the list already say what the section is, and the label cost a
+		// whole row between them and the card.
+		expect(screen.queryByText(t("home.recentActivity"))).toBeNull();
 
-		// The label row is grouped WITH the list card in a tight-gap
-		// section wrapper, not a loose sibling under the page's
-		// wide gap-6 rhythm (that stacking doubled the space above
-		// the card).
-		const section = label.parentElement?.parentElement;
-		expect(section?.textContent).toContain("entry 1");
-		expect(section?.className).toContain("gap-2.5");
-		expect(section?.className).not.toContain("gap-6");
+		// Freshness + refresh ride the PAGE HEADING's action slot (the
+		// same slot the Analytics page uses), so the indicator's cluster
+		// is a child of the heading row that also holds the <h1>.
+		const indicator = screen.getByTestId("last-updated-indicator");
+		const headingRow = indicator.parentElement?.parentElement;
+		expect(headingRow?.querySelector("h1")).not.toBeNull();
+		expect(headingRow?.className).toContain("justify-between");
+
+		// Page rhythm: the root keeps gap-6 between the heading and the
+		// controls block, and the block itself uses gap-4 between the
+		// controls and the list card. The indicator is NOT inside that
+		// block any more.
+		const block = screen
+			.getByRole("button", { name: t("history.favorites") })
+			.closest(".gap-4");
+		expect(block).not.toBeNull();
+		expect(block?.textContent).toContain("entry 1");
+		expect(
+			block?.querySelector('[data-testid="last-updated-indicator"]'),
+		).toBeNull();
+		const root = block?.parentElement;
+		expect(root?.className).toContain("gap-6");
+		expect(root?.querySelector("h1")).not.toBeNull();
 	});
 });

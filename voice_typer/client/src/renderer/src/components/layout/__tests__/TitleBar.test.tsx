@@ -16,6 +16,7 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 
 import { TitleBar } from "@/components/layout/TitleBar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { t } from "@/i18n/i18n";
 import type { WindowBridge } from "@/types/ipc";
 
 // TitleBar renders real Radix Tooltips (via HotkeyTooltip on the
@@ -670,5 +671,100 @@ describe("TitleBar, Tauri drag region (data-tauri-drag-region)", () => {
 		// on (not children), so the window-control / sidebar buttons
 		// inside the bar stay clickable.
 		expect(bar?.getAttribute("data-tauri-drag-region")).toBe("");
+	});
+});
+
+describe("TitleBar, per-page controls follow page visibility", () => {
+	afterEach(() => {
+		cleanup();
+	});
+
+	function renderBar(showPageControls?: boolean) {
+		return renderWithProviders(
+			<TitleBar
+				onToggleSidebar={() => {}}
+				isMaximized={false}
+				onOpenHelp={() => {}}
+				themeMode="light"
+				onThemeChange={() => {}}
+				currentPage="analytics"
+				{...(showPageControls === undefined ? {} : { showPageControls })}
+			/>,
+		);
+	}
+
+	it("shows the analytics range control when the routed page is visible", () => {
+		// Default (prop omitted): existing call sites keep their controls.
+		renderBar();
+		expect(
+			screen.getByRole("radiogroup", { name: t("analytics.rangeAria") }),
+		).toBeTruthy();
+	});
+
+	it("hides the middle-strip controls while a status screen owns the main column", () => {
+		// App.tsx passes showPageControls=false whenever main shows
+		// ConnectionStatusScreen (boot / restarting / lost backend):
+		// route-matched controls would be dead buttons above a status card.
+		renderBar(false);
+		expect(
+			screen.queryByRole("radiogroup", {
+				name: t("analytics.rangeAria"),
+			}),
+		).toBeNull();
+	});
+});
+
+describe("TitleBar, minimal chrome on status screens", () => {
+	afterEach(() => {
+		cleanup();
+	});
+
+	function renderMinimal() {
+		return renderWithProviders(
+			<TitleBar
+				onToggleSidebar={() => {}}
+				isMaximized={false}
+				onOpenHelp={() => {}}
+				themeMode="light"
+				onThemeChange={() => {}}
+				currentPage="analytics"
+				showPageControls={false}
+				minimalChrome
+			/>,
+		);
+	}
+
+	it("drops the toolbar group but keeps theme + drag region", () => {
+		const { container } = renderMinimal();
+		// Sidebar toggle, back/forward, help: nothing up here works
+		// without a page behind it.
+		expect(
+			screen.queryByRole("button", { name: /toggle sidebar/i }),
+		).toBeNull();
+		expect(screen.queryByRole("button", { name: "Go back" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "Go forward" })).toBeNull();
+		expect(screen.queryByLabelText("Help Overlay")).toBeNull();
+		// Theme switch stays (users flip appearance from anywhere).
+		expect(
+			screen.getByLabelText("Current theme: Light. Click to switch to Dark."),
+		).toBeTruthy();
+		// Card-colored bottom rule separates bar from status card.
+		const bar = container.querySelector(".drag-region");
+		expect(bar?.className).toContain("border-b");
+	});
+
+	it("full chrome has no bottom rule", () => {
+		const { container } = renderWithProviders(
+			<TitleBar
+				onToggleSidebar={() => {}}
+				isMaximized={false}
+				onOpenHelp={() => {}}
+				themeMode="light"
+				onThemeChange={() => {}}
+				currentPage="analytics"
+			/>,
+		);
+		const bar = container.querySelector(".drag-region");
+		expect(bar?.className).not.toContain("border-b");
 	});
 });

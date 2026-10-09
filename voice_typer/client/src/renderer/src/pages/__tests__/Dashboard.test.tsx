@@ -305,14 +305,20 @@ describe("SevenDayActivityChart migrates binary plural to tChoice", () => {
 		);
 	});
 
-	it('SevenDayActivityChart.tsx uses tChoice("analytics.dayCountTooltip", bar.count, { label })', () => {
+	it('SevenDayActivityChart.tsx uses tChoice("analytics.heatmap.tooltip", bar.count)', () => {
 		// The single tChoice call replaces the previous ternary. The
-		// `count` argument drives plural-category selection; `label` is
-		// forwarded as an interpolation param so each bar's tooltip
-		// shows its slot label (weekday or hour).
+		// `count` argument drives plural-category selection. It carries
+		// NO `label` param: the slot's weekday/hour is already printed
+		// on the x axis under the bar, so the tooltip shows the count
+		// alone ("3 dictations", not "Mon: 3 dictations").
 		expect(SEVEN_DAY_SRC).toMatch(
-			/tChoice\(\s*"analytics\.dayCountTooltip",\s*bar\.count,\s*\{\s*label:\s*bar\.label,?\s*\}\s*\)/,
+			/tChoice\(\s*"analytics\.heatmap\.tooltip",\s*bar\.count,?\s*\)/,
 		);
+		expect(SEVEN_DAY_SRC).not.toMatch(/label:\s*bar\.label/);
+		// One shape for every slot: an empty one reports "0 dictations"
+		// rather than switching to a separate "no data" sentence, so the
+		// key is off this chart entirely.
+		expect(SEVEN_DAY_SRC).not.toMatch(/analytics\.noDataBar/);
 	});
 
 	it("SevenDayActivityChart.tsx no longer references the binary plural keys", () => {
@@ -321,9 +327,26 @@ describe("SevenDayActivityChart migrates binary plural to tChoice", () => {
 		// chart source pins the migration so a future revert fails this test.
 		expect(SEVEN_DAY_SRC).not.toMatch(/dayCountTooltipSingular/);
 		expect(SEVEN_DAY_SRC).not.toMatch(/dayCountTooltipPlural/);
+		// The whole `dayCountTooltip` family is off this chart now — it
+		// bakes the slot label into the string, which the x axis already
+		// shows. (The keys stay in the catalogs: the i18n key-contract
+		// test uses `analytics.dayCountTooltip` as its plural-base
+		// example, so deleting them would break that test's compile.)
+		expect(SEVEN_DAY_SRC).not.toMatch(/analytics\.dayCountTooltip/);
 		// The manual `day.count === 1` ternary is gone too (replaced by
 		// Intl.PluralRules inside tChoice).
 		expect(SEVEN_DAY_SRC).not.toMatch(/day\.count\s*===\s*1\s*\?/);
+	});
+});
+
+describe("SevenDayActivityChart count tooltip (no permanent labels)", () => {
+	it("drops the native title now that a custom tooltip follows the cursor", () => {
+		// The mark used to carry `title={tooltip}`. A surviving `title`
+		// would fire the browser's own tooltip on top of the custom one
+		// — two tooltips for one hover — and jsdom cannot catch that, so
+		// the absence is pinned at the source level.
+		expect(SEVEN_DAY_SRC).not.toMatch(/title=\{tooltip\}/);
+		expect(SEVEN_DAY_SRC).toMatch(/<TooltipBox/);
 	});
 });
 
@@ -336,16 +359,21 @@ describe("Corrections-applied card (server-side usage tracking)", () => {
 		// keys.
 		expect(DASHBOARD_SRC).toMatch(/correctionStats/);
 		expect(DASHBOARD_SRC).toMatch(/t\("analytics\.corrections"\)/);
-		// The rate sublabel is gone (bare count, no "0% of dictations"
-		// line); the tooltip + trend are gone too (informational card,
-		// no tooltip affordance).
+		// The (?) tooltip and the "0% of dictations" rate sublabel are
+		// both still gone: the cell is a bare count plus the trend every
+		// cell in the row now carries.
 		expect(DASHBOARD_SRC).not.toMatch(/t\("analytics\.correctionsTooltip"\)/);
 		expect(DASHBOARD_SRC).not.toMatch(/t\("analytics\.correctionsRate"/);
 		expect(DASHBOARD_SRC).toMatch(/correctionStats\.corrections/);
 		expect(DASHBOARD_SRC).not.toMatch(/correctionStats\.rate/);
 		// No cell in this page carries a sublabel line anymore.
 		expect(DASHBOARD_SRC).not.toMatch(/sublabel=/);
-		expect(DASHBOARD_SRC).not.toMatch(/correctionStats\.prevCorrections/);
+		// CROSS-CARD CONSISTENCY: the trend was restored on this cell, so
+		// it compares the window's corrections against the previous
+		// window's rather than standing out as the one bare number.
+		expect(DASHBOARD_SRC).toMatch(
+			/computeTrend\(\s*correctionStats\.corrections,\s*correctionStats\.prevCorrections,?\s*\)/,
+		);
 		// The six cells sit in ONE merged card.
 		expect(DASHBOARD_SRC).toMatch(/md:grid-cols-3/);
 	});
@@ -427,7 +455,7 @@ describe("Top stat cards: merged dictation card + range-aware values", () => {
 	});
 
 	it("the Words card reuses the Home StatCards compact formatter", () => {
-		// The Analytics Words card reuses the Home page Characters
+		// The Analytics Words card reuses the Home page Words
 		// card's K-abbreviation formatting (exported from StatCards),
 		// never a reimplementation; the value is the exact period word
 		// count summed upstream, not a re-count of preview text.
@@ -453,6 +481,10 @@ describe("Top stat cards: merged dictation card + range-aware values", () => {
 		);
 		// Every cell hands its chrome to that container.
 		expect(DASHBOARD_SRC.match(/\binGroup\b/g)?.length).toBe(6);
+		// …and every cell carries a trend, so no cell reads as a
+		// different kind of thing (the cross-card consistency rule).
+		// Longest Session and Corrections were the two that had none.
+		expect(DASHBOARD_SRC.match(/\btrend=\{/g)?.length).toBe(6);
 		// No gapped grid survives in the top row.
 		expect(DASHBOARD_SRC).not.toMatch(/grid-cols-2 gap-3 md:grid-cols-4/);
 	});

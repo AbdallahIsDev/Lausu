@@ -375,15 +375,28 @@ class HistoryDB(HistoryDBInternals):
         raise_on_error: bool = False,
         before_timestamp: str | None = None,
         before_id: int | None = None,
+        start_ts: str | None = None,
+        end_ts: str | None = None,
     ) -> list[dict]:
         """Get recent transcriptions with pagination.
 
         ``raise_on_error=True`` raises ``HistoryDBError`` instead of
         returning ``[]``; rows carry a 500-char ``text`` preview plus
-        ``text_truncated`` / ``text_full_length``. Delegates to
-        internals.search.get_recent (keyset cursor args).
+        ``text_truncated`` / ``text_full_length``. ``start_ts``/``end_ts``
+        bound an optional UTC window (see internals.search.get_recent).
+        Delegates to internals.search.get_recent (keyset cursor args).
         """
-        return search.get_recent(self, limit, offset, before_timestamp=before_timestamp, before_id=before_id)
+        window_kwargs: dict = {}
+        if start_ts is not None or end_ts is not None:
+            window_kwargs = {"start_ts": start_ts, "end_ts": end_ts}
+        return search.get_recent(
+            self,
+            limit,
+            offset,
+            before_timestamp=before_timestamp,
+            before_id=before_id,
+            **window_kwargs,
+        )
 
     def get_latest_text(self) -> str:
         """Return the most recent transcription text ("" when empty).
