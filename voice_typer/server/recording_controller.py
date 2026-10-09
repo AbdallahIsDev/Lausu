@@ -284,6 +284,10 @@ class RecordingController:
         """Handle mid-recording OS-level microphone-permission revocation."""
         log.warning("[DICTATION] mic_permission_revoked mid-recording -- stopping stream and surfacing IPC event")
         with contextlib.suppress(Exception):
+            if getattr(self._app.config, "bubble_behavior", "show_on_record") != "hidden":
+                self._app._waveform_bubble.show()
+                self._app._waveform_bubble.set_state("permission_revoked")
+        with contextlib.suppress(Exception):
             self._app.tray.notify_safety(
                 APP_NAME,
                 i18n.t("notify.recording_controller.mic_permission_revoked"),

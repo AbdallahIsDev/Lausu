@@ -11,6 +11,106 @@ import voice_typer.server.permissions as _p
 log = logging.getLogger("voice_typer.server.permissions")
 
 
+def _windows_microphone_consent_denied() -> bool | None:
+    """Best-effort read of the Windows microphone consent store.
+
+    Returns True when the OS records microphone access as denied,
+    False when it records Allow, None when unreadable. Never raises.
+    Checks HKCU ConsentStore microphone Value plus NonPackaged subkey.
+    """
+    try:
+        import winreg as _wr
+    except Exception:
+        return None
+    try:
+        with _wr.OpenKey(
+            _wr.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone",
+        ) as key:
+            try:
+                value, _ = _wr.QueryValueEx(key, "Value")
+            except OSError:
+                value = None
+            if isinstance(value, str) and value.strip().lower() == "deny":
+                return True
+            try:
+                count, _, _ = _wr.QueryInfoKey(key)
+            except OSError:
+                return False if isinstance(value, str) and value.strip().lower() == "allow" else None
+            denies = 0
+            checked = 0
+            for idx in range(count):
+                try:
+                    sub = _wr.EnumKey(key, idx)
+                except OSError:
+                    continue
+                if sub.lower() == "nonpackaged":
+                    try:
+                        with _wr.OpenKey(key, sub) as np_key:
+                            try:
+                                n, _, _ = _wr.QueryInfoKey(np_key)
+                            except OSError:
+                                continue
+                            for j in range(n):
+                                try:
+                                    app_sub = _wr.EnumKey(np_key, j)
+                                except OSError:
+                                    continue
+                                try:
+                                    with _wr.OpenKey(np_key, app_sub) as app_key:
+                                        try:
+                                            v, _ = _wr.QueryValueEx(app_key, "Value")
+                                        except OSError:
+                                            continue
+                                        checked += 1
+                                        if isinstance(v, str) and v.strip().lower() == "deny":
+                                            denies += 1
+                                except OSError:
+                                    continue
+                    except OSError:
+                        continue
+                else:
+                    try:
+                        with _wr.OpenKey(key, sub) as app_key:
+                            try:
+                                v, _ = _wr.QueryValueEx(app_key, "Value")
+                            except OSError:
+                                continue
+                            checked += 1
+                            if isinstance(v, str) and v.strip().lower() == "deny":
+                                denies += 1
+                    except OSError:
+                        continue
+            if denies and checked and denies == checked:
+                return True
+            if isinstance(value, str) and value.strip().lower() == "allow":
+                return False
+            return None
+    except Exception:
+        return None
+
+
+def _classify_windows_probe_error(exc: BaseException) -> _p.MicrophonePermissionState | None:
+    """Map a Windows probe stream-open failure to DENIED/None.
+
+    DENIED only on explicit evidence: literal access-denied text, or
+    the -9999 privacy-block signature WITH registry consent Deny.
+    Anything else returns None (caller maps to UNKNOWN).
+    """
+    msg = str(exc).lower()
+    if "access denied" in msg or "access is denied" in msg:
+        return _p.MicrophonePermissionState.DENIED
+    if "-9999" in msg or "unanticipated host error" in msg:
+        if _windows_microphone_consent_denied() is True:
+            return _p.MicrophonePermissionState.DENIED
+        return None
+    if "-9996" in msg or "invalid device" in msg:
+        if _windows_microphone_consent_denied() is True:
+            return _p.MicrophonePermissionState.DENIED
+        return None
+    return None
+
+
 def _check_windows_microphone() -> _p.MicrophonePermissionState:
     """probe Windows microphone permission via a 1-frame"""
     try:
@@ -22,7 +122,7 @@ def _check_windows_microphone() -> _p.MicrophonePermissionState:
             "importable, pre-check is limited; runtime PortAudio failure "
             "will be re-classified by the recorder"
         )
-        return _p.MicrophonePermissionState.GRANTED
+        return _p.MicrophonePermissionState.UNKNOWN
 
     try:
         # Open a 1-frame InputStream. ``framesize=1`` + immediate
@@ -38,30 +138,34 @@ def _check_windows_microphone() -> _p.MicrophonePermissionState:
         stream.close()
         return _p.MicrophonePermissionState.GRANTED
     except OSError as exc:
-        msg = str(exc).lower()
-        # Windows MediaFoundation "access denied" signature when the
-        if "access denied" in msg or "access is denied" in msg:
+        denied = _classify_windows_probe_error(exc)
+        if denied == _p.MicrophonePermissionState.DENIED:
             log.warning(
-                "[PERMISSION] Windows mic permission DENIED (PortAudio InputStream open raised 'access denied'): %s",
+                "[PERMISSION] Windows mic permission DENIED (PortAudio InputStream open raised): %s",
                 exc,
             )
             return _p.MicrophonePermissionState.DENIED
-        # Any other OSError (no default device, driver issue, etc.) —
         log.debug(
             "[PERMISSION] Windows mic probe raised unrelated OSError "
-            "(falling back to GRANTED, recorder will re-classify): %s",
+            "(falling back to UNKNOWN, recorder will re-classify): %s",
             exc,
         )
-        return _p.MicrophonePermissionState.GRANTED
+        return _p.MicrophonePermissionState.UNKNOWN
     except Exception as exc:
-        # Probe failure (e.g. test Mock raised something unexpected, or
+        denied = _classify_windows_probe_error(exc)
+        if denied == _p.MicrophonePermissionState.DENIED:
+            log.warning(
+                "[PERMISSION] Windows mic permission DENIED (PortAudio open raised): %s",
+                exc,
+            )
+            return _p.MicrophonePermissionState.DENIED
         log.warning(
             "[PERMISSION] Windows mic permission probe itself raised "
-            "(falling back to GRANTED; runtime PortAudio failure will "
+            "(falling back to UNKNOWN; runtime PortAudio failure will "
             "be re-classified by the recorder): %s",
             exc,
         )
-        return _p.MicrophonePermissionState.GRANTED
+        return _p.MicrophonePermissionState.UNKNOWN
 
 
 def _check_linux_microphone() -> _p.MicrophonePermissionState:
@@ -92,10 +196,10 @@ def _check_linux_microphone() -> _p.MicrophonePermissionState:
         if not perm_path.exists():
             # No permission file, fall back to GRANTED (flatpak may
             log.debug(
-                "[PERMISSION] Flatpak mic permission file not found at %s, falling back to GRANTED",
+                "[PERMISSION] Flatpak mic permission file not found at %s, falling back to UNKNOWN",
                 perm_path,
             )
-            return _p.MicrophonePermissionState.GRANTED
+            return _p.MicrophonePermissionState.UNKNOWN
 
         import json
 
@@ -118,11 +222,11 @@ def _check_linux_microphone() -> _p.MicrophonePermissionState:
     except Exception as exc:
         log.warning(
             "[PERMISSION] Flatpak mic permission probe itself raised "
-            "(falling back to GRANTED; runtime PortAudio failure will "
+            "(falling back to UNKNOWN; runtime PortAudio failure will "
             "be re-classified by the recorder): %s",
             exc,
         )
-        return _p.MicrophonePermissionState.GRANTED
+        return _p.MicrophonePermissionState.UNKNOWN
 
 
 def _check_macos_microphone() -> _p.MicrophonePermissionState:

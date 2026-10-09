@@ -257,6 +257,13 @@ class StreamLifecycle:
                         with contextlib.suppress(Exception):
                             stream.close()
                     self._stream = None
+                    try:
+                        recorder._classify_portaudio_open_error(e)
+                    except Exception as typed:
+                        from voice_typer.server.asr_errors import MicrophonePermissionDeniedError
+
+                        if isinstance(typed, MicrophonePermissionDeniedError):
+                            raise
                     if _attempt == 0 and _is_transient_open_error(e):
                         log.debug(
                             "[RECORDING] Transient open failure on [%s], retrying once",
@@ -309,6 +316,16 @@ class StreamLifecycle:
         """
         selected_device: Any = None
         used_fallback = False
+        try:
+            from voice_typer.server import permissions as _perm
+
+            _perm.verify_microphone_accessible()
+        except Exception as denied:
+            from voice_typer.server.asr_errors import MicrophonePermissionDeniedError
+
+            if isinstance(denied, MicrophonePermissionDeniedError):
+                log.warning("[RECORDING] Skipping device fallback sweep: microphone permission denied")
+                raise
         # INFO, not WARNING: falling back to another host API for the
         # same physical mic is routine (e.g. transient WDM-KS exclusive
         # holds) and usually succeeds; the per-device open errors above
