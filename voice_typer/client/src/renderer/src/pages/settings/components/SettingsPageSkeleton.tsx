@@ -1,7 +1,9 @@
 // Settings page loading skeleton (full page, hub state).
 // Mirrors the loaded Settings hub (`pages/Settings.tsx` +
-// `components/settings/SettingsHub.tsx`): the real shell uses `gap-8`
-// (not the data pages' gap-6), then PageHeading, then ONE
+// `components/settings/SettingsHub.tsx`): the real shell uses `gap-4`
+// (tighter than the data pages' gap-6 — it is the heading→first-card
+// tier, while the CARDS below the heading stack at 6), then
+// PageHeading, then ONE
 // `overflow-hidden rounded-lg border-border/8 bg-surface-subtle
 // divide-y divide-border/8` card of 9 section rows: each row is
 // `flex w-full items-center gap-4 p-4` with a leading h-5 icon, a
@@ -25,7 +27,7 @@ const SECTION_ROW_IDS = [
 
 export function SettingsPageSkeleton() {
 	return (
-		<PageShell className="gap-8">
+		<PageShell className="gap-4">
 			{/* Title only: the hub renders a bare `PageHeading` with no
 			    subtitle, so a description line here would be a phantom row. */}
 			<HeadingSkeleton descriptionWidth={null} />

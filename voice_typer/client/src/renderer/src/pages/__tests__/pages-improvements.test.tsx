@@ -651,4 +651,40 @@ describe("Settings.tsx, hub + section pages render model", () => {
 			),
 		).toBeTruthy();
 	});
+
+	it("keeps the 4px heading tier and gives the section cards their own 6px stack", async () => {
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config") return Promise.resolve(MINIMAL_CONFIG);
+			if (type === "set_config") return Promise.resolve({ success: true });
+			return Promise.resolve({});
+		});
+
+		renderWithProviders(<SettingsPage page="settingsAdvanced" />);
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("heading", { name: "Troubleshooting" }),
+			).toBeTruthy();
+		});
+
+		// Tier 1 — the page shell: 4px from the back button down to the
+		// first card.
+		const root = document.querySelector<HTMLElement>(
+			"div.mx-auto.w-full.max-w-4xl.flex-1.flex-col",
+		);
+		expect(root?.className).toContain("gap-4");
+
+		// Tier 2 — the cards: their own stack, so consecutive cards are 6
+		// apart instead of inheriting the heading tier's 4. Advanced
+		// renders several, which is exactly the case that regressed.
+		const stack = Array.from(root?.children ?? []).find((el) =>
+			(el as HTMLElement).className.includes("gap-6"),
+		) as HTMLElement | undefined;
+		expect(stack).toBeTruthy();
+		expect(stack?.className).toContain("flex-col");
+		expect(stack?.textContent).toContain("Troubleshooting");
+		expect(stack?.textContent).toContain("Diagnostics");
+		// A single card would make the stack vacuous.
+		expect(stack?.children.length).toBeGreaterThan(1);
+	});
 });

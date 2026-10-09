@@ -324,6 +324,9 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 		// Initial-load failure: render the load-failure EmptyState
 		// (variant="error" + Retry) instead of an endless "Loading…"
 		// spinner. Mirrors the History/Models load-failure pattern.
+		// The error screen is usually transient (boot-storm get_config
+		// timeout): useSettingsConfig auto-retries with backoff while
+		// this branch shows, so it self-heals without the click.
 		if (loadError) {
 			return (
 				<div className="mx-auto flex min-h-full w-full max-w-lg flex-col items-center justify-center px-6 py-12">
@@ -356,6 +359,11 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 
 	return (
 		<div className="flex min-h-full flex-col">
+			{/* Page rhythm, two tiers: 4px from the heading (or a section
+			    page's back button) down to the first card, then the cards
+			    stack at 6px in the wrapper the section branch renders.
+			    The banners below ride the 4px tier — they are part of the
+			    header, not cards. */}
 			<div className="mx-auto w-full max-w-4xl flex-1 flex flex-col gap-4 px-16 pt-20 pb-6">
 				{page === "settings" ? (
 					<PageHeading title={t("settings.title")} />
@@ -452,7 +460,14 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 					</>
 				) : (
 					activeSection !== null && (
-						<>
+						// Card-to-card rhythm. The root's 4px is the
+						// heading→first-card gap; a section page renders
+						// 1-4 cards (Advanced has four), and a bare
+						// fragment would flatten them into the root's 4
+						// and pack them together. The cross-section search
+						// results card is a card too, so it stacks here as
+						// well rather than sitting 4px off its neighbour.
+						<div className="flex w-full flex-col gap-6">
 							{otherSectionGroups.length > 0 && (
 								<section
 									aria-label={t("settings.otherTabsResults")}
@@ -493,7 +508,7 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 								</section>
 							)}
 							{renderSectionCards(activeSection)}
-						</>
+						</div>
 					)
 				)}
 			</div>

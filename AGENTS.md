@@ -1962,7 +1962,7 @@ Supporting tool: `scripts/comment_ratio_metrics.py` — per-directory comment ra
 
 ```
 C-STRUCT-1
-Rule: Do NOT let a file serve more than one purpose. Every file MUST have high cohesion: its elements belong together and jointly serve ONE specific responsibility (one module, one class-family, one concern). Closely related logic stays together; unrelated logic MUST be split into separate files, no matter how many files the project grows to (1,000+ files of single-purpose modules is correct; a few hundred multi-concern files is not).
+Rule: Do NOT let a file serve more than one purpose. Every file MUST have high cohesion: its elements belong together and jointly serve ONE specific responsibility (one module, one class-family, one concern). Closely related logic stays together; unrelated logic MUST be split into separate files, no matter how many files the project grows to (2,000+ files of single-purpose modules is correct; a few hundred multi-concern files is not).
 Rationale: Low-cohesion files cannot be understood, modified, or tested independently; every edit risks unrelated behavior. File count is not a cost — mixed responsibility is.
 Applies to: All agents, all modes, all sub-agents.
 ```

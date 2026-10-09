@@ -40,7 +40,6 @@ export function DeviceToggle({ collapsed = false }: { collapsed?: boolean }) {
 			value={value}
 			onChange={handleChange}
 			ariaLabel={t("computeDevice.ariaLabel")}
-			context="sidebar"
 			className="w-full mb-4"
 		/>
 	);

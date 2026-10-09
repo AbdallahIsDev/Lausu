@@ -35,6 +35,11 @@ pub(crate) const EXIT_SHUTDOWN_ACK_TIMEOUT_MS: u64 = 30_000;
 /// Time to wait for the `server_started` JSON on sidecar stdout.
 pub(crate) const SERVER_STARTED_TIMEOUT_MS: u64 = 30_000;
 
+/// Dev-source handshake budget (180s). A cold `python -m` boot pays
+/// interpreter + first-import cost (torch/scipy/ORT) before the WS
+/// bind; 30s taskkilled two healthy cold boots in a row. Release keeps 30s.
+pub(crate) const DEV_SERVER_STARTED_TIMEOUT_MS: u64 = 180_000;
+
 /// `bubble_level` coalesce target rate (Hz). Sidecar emits ~60 Hz.
 pub(crate) const BUBBLE_LEVEL_COALESCE_HZ: u64 = 30;
 

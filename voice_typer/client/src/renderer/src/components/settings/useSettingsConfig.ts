@@ -8,6 +8,19 @@ import type { LausuConfig } from "@/types/config";
 
 let _cachedConfig: LausuConfig | null = null;
 
+// Initial-load auto-retry: the first get_config after connect races the
+// backend's boot storm (VAD/mic/hotkey/CUDA threads + keyring first-probe)
+// while the renderer's own 5s get_config budget (command-timeouts.ts)
+// can fire on a call the host would have answered within its 15s. That
+// failure is transient and self-heals in seconds, so a BLOCKING load
+// failure (nothing to show yet) retries with capped backoff instead of
+// parking on the error screen until the user clicks Retry. Bounded three
+// ways: the timer dies on unmount (App unmounts this page on disconnect,
+// so a dead backend retires the loop by itself), it runs only while
+// config is still null (background-refresh failures stay single-shot),
+// and it costs at most 1 req/10s.
+const LOAD_RETRY_DELAYS_MS = [1_000, 2_000, 5_000, 10_000];
+
 /**
  * /4: extract a human-readable warning string from a `set_config`
  * response envelope. Returns `null` when the response is a plain
@@ -54,7 +67,9 @@ export interface UseSettingsConfigResult {
 	error: string | null;
 	/**
 	 * Set when the initial `get_config` fetch fails. The Settings
-	 * page renders a load-failure EmptyState with a Retry action
+	 * page renders a load-failure EmptyState with a Retry action.
+	 * A blocking failure also schedules a bounded auto-retry (see
+	 * LOAD_RETRY_DELAYS_MS), so the screen self-heals without the click.
 	 */
 	loadError: string | null;
 	/**
@@ -96,6 +111,10 @@ export function useSettingsConfig(): UseSettingsConfigResult {
 	const flushPromiseResolversRef = useRef<Array<() => void>>([]);
 	const flushPendingUpdatesRef = useRef<() => Promise<void>>(async () => {});
 	const configRef = useRef<LausuConfig | null>(_cachedConfig);
+	// Consecutive load failures (drives the backoff index) + the one
+	// pending auto-retry timer, at most one (manual Retry clears it).
+	const loadFailuresRef = useRef(0);
+	const loadRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	useEffect(() => {
 		configRef.current = config;
 	}, [config]);
@@ -109,14 +128,61 @@ export function useSettingsConfig(): UseSettingsConfigResult {
 		cancelledRef.current = false;
 		return () => {
 			cancelledRef.current = true;
+			// Retire the auto-retry loop with the mount: no attempt
+			// outlives the page (disconnect unmounts it via App.tsx).
+			if (loadRetryTimerRef.current !== null) {
+				clearTimeout(loadRetryTimerRef.current);
+				loadRetryTimerRef.current = null;
+			}
 		};
 	}, []);
 
+	// Stable indirection for the retry timer (breaks the
+	// loadConfig↔schedule cycle: the timer fires the LATEST loadConfig
+	// without either callback naming the other).
+	const loadConfigRef = useRef<
+		(isCancelled?: () => boolean, isRetry?: boolean) => Promise<void>
+	>(async () => {});
+
+	const clearPendingLoadRetry = useCallback(() => {
+		if (loadRetryTimerRef.current !== null) {
+			clearTimeout(loadRetryTimerRef.current);
+			loadRetryTimerRef.current = null;
+		}
+	}, []);
+
+	const scheduleLoadRetry = useCallback(() => {
+		if (loadRetryTimerRef.current !== null) return;
+		// Background-refresh failure while content is already shown:
+		// single-shot, the visible page is usable without a loop.
+		if (configRef.current !== null) return;
+		const delay =
+			LOAD_RETRY_DELAYS_MS[
+				Math.min(loadFailuresRef.current, LOAD_RETRY_DELAYS_MS.length - 1)
+			];
+		loadFailuresRef.current += 1;
+		loadRetryTimerRef.current = setTimeout(() => {
+			loadRetryTimerRef.current = null;
+			void loadConfigRef.current(undefined, true);
+		}, delay);
+	}, []);
+
 	const loadConfig = useCallback(
-		async (isCancelled: () => boolean = () => cancelledRef.current) => {
+		async (
+			isCancelled: () => boolean = () => cancelledRef.current,
+			isRetry = false,
+		) => {
+			// A fresh (manual or mount) attempt restarts the backoff; a
+			// timer-fired attempt keeps climbing it.
+			if (!isRetry) {
+				clearPendingLoadRetry();
+				loadFailuresRef.current = 0;
+			}
 			try {
 				const result = await callRef.current<LausuConfig>("get_config");
 				if (isCancelled()) return;
+				loadFailuresRef.current = 0;
+				clearPendingLoadRetry();
 				setLoadError(null);
 				_cachedConfig = result;
 				lastSavedConfigRef.current = result;
@@ -128,11 +194,16 @@ export function useSettingsConfig(): UseSettingsConfigResult {
 						err,
 					);
 					setLoadError(err instanceof Error ? err.message : String(err));
+					scheduleLoadRetry();
 				}
 			}
 		},
-		[callRef],
+		[callRef, clearPendingLoadRetry, scheduleLoadRetry],
 	);
+
+	useEffect(() => {
+		loadConfigRef.current = loadConfig;
+	}, [loadConfig]);
 
 	const flushPendingUpdates = useCallback(async () => {
 		const updates = pendingUpdatesRef.current;

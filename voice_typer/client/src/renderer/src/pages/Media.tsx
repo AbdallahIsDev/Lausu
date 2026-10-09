@@ -113,7 +113,7 @@ export default function MediaPage() {
 							if (path) setSource(path.replace(/^file:\/\//, ""));
 						}}
 						className={cn(
-							"flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-6 py-8 transition-colors",
+							"flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-6 py-12 transition-colors",
 							"border-border/10 bg-background focus-visible:ring-1 focus-visible:ring-ring",
 							dragOver && "border-primary/40 bg-primary/5",
 						)}

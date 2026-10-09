@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bubble — all variants · lausu</title>
+<style>
+/* Font: the same single Inter Variable face index.css declares. It is the
+   roman face only — the renderer ships no italic file, so none is declared
+   here either. */
+@font-face{font-family:"Inter Variable";font-style:normal;font-weight:100 900;font-display:swap;src:url("voice_typer/client/src/renderer/public/fonts/InterVariable.woff2") format("woff2")}
+
+/* ── Palette scales — Tailwind-style 50→950, verbatim from index.css ── */
+:root{
+--gray-50:oklch(1 0 0);
+--gray-100:oklch(0.967 0.001 286.375);
+--gray-200:oklch(0.93 0 0);
+--gray-300:oklch(0.85 0 0);
+--gray-400:oklch(0.705 0.015 286.067);
+--gray-500:oklch(0.48 0.016 285.938);
+--gray-600:oklch(0.274 0.006 286.033);
+--gray-700:oklch(0.22 0 0);
+--gray-800:oklch(0.187 0 271.152);
+--gray-900:oklch(0.168 0 0);
+--gray-950:oklch(0.141 0.005 285.823);
+--accent-50:oklch(0.97 0.014 254.604);
+--accent-500:oklch(0.488 0.243 264.376);
+--accent-600:oklch(0.424 0.199 265.638);
+}
+/* ── Semantic tokens — light scheme (mirrors index.css :root) ── */
+:root,.tokens-light{
+--background:var(--gray-50);
+--surface:var(--gray-50);
+--surface-subtle:var(--gray-100);
+--surface-hover:var(--gray-200);
+--muted:var(--gray-100);
+--foreground:var(--gray-950);
+--text-secondary:var(--gray-500);
+--muted-foreground:var(--gray-500);
+--primary:var(--accent-500);
+--primary-foreground:var(--accent-50);
+--destructive:oklch(0.55 0.25 27);
+--border:oklch(0 0 0);
+--ring:var(--accent-500);
+--radius:0.625rem;
+}
+/* ── Semantic tokens — dark scheme (mirrors index.css .dark) ── */
+.dark,.tokens-dark{
+--background:var(--gray-800);
+--surface:var(--gray-700);
+--surface-subtle:var(--gray-900);
+--surface-hover:var(--gray-700);
+--muted:var(--gray-600);
+--foreground:var(--gray-50);
+--text-secondary:var(--gray-300);
+--muted-foreground:var(--gray-400);
+--primary:var(--accent-600);
+--primary-foreground:var(--accent-50);
+--border:oklch(1 0 0);
+--ring:oklch(0.552 0.016 285.938);
+}
+:root{--radius-lg:var(--radius)}
+
+/* ── Base layout ── */
+*,*::before,*::after{box-sizing:border-box}
+html{font-size:calc(100% * var(--font-scale,1));color-scheme:light}
+html.dark{color-scheme:dark}
+body{margin:0;background:var(--background);color:var(--foreground);
+ font-family:"Inter Variable",Inter,system-ui,-apple-system,sans-serif;
+ font-size:.875rem;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;line-height:1.25;text-wrap:balance}
+p{margin:0}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+code{font-size:.9em}
+*:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+
+.page{max-width:1160px;margin:0 auto;padding:0 24px 64px}
+header.topbar{position:sticky;top:0;z-index:20;
+ background:color-mix(in oklch,var(--background) 92%,transparent);
+ backdrop-filter:blur(8px);border-bottom:1px solid color-mix(in oklch,var(--border) 8%,transparent)}
+.topbar-inner{max-width:1160px;margin:0 auto;padding:14px 24px;
+ display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand b{font-size:1.05rem;font-weight:650;letter-spacing:-.01em}
+.brand span{font-size:.75rem;color:var(--muted-foreground)}
+.mode-switch{display:inline-flex;border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
+ background:var(--surface-subtle);border-radius:9999px;padding:3px}
+.mode-switch button{border:0;background:transparent;color:var(--muted-foreground);
+ font:inherit;font-size:.75rem;font-weight:550;padding:6px 14px;border-radius:9999px;
+ cursor:pointer;transition:color .15s}
+.mode-switch button:hover{color:var(--foreground)}
+.mode-switch button[aria-pressed="true"]{background:var(--primary);color:var(--primary-foreground)}
+.mode-switch button:focus-visible{outline:2px solid var(--ring);outline-offset:1px}
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:16px}
+.toolbar button{border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
+ background:var(--background);color:var(--text-secondary);font:inherit;font-size:.75rem;
+ font-weight:550;padding:6px 12px;border-radius:9999px;cursor:pointer;transition:color .15s,background-color .15s}
+.toolbar button:hover{color:var(--foreground);background:var(--muted)}
+.toolbar button[aria-pressed="true"]{background:var(--primary);color:var(--primary-foreground);border-color:transparent}
+
+section.doc{margin-top:40px;display:flex;flex-direction:column;gap:16px}
+.sec-head{display:flex;flex-direction:column;gap:4px}
+.sec-head h2{font-size:1rem;font-weight:650}
+.sec-head p{font-size:.8125rem;color:var(--text-secondary);max-width:78ch}
+.hr{height:1px;background:color-mix(in oklch,var(--border) 8%,transparent);border:0;margin:0}
+.note{font-size:.75rem;color:var(--muted-foreground)}
+pre.tree{margin:0;padding:14px 16px;border-radius:var(--radius-lg);overflow-x:auto;
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
+ background:var(--surface-subtle);font-size:.72rem;line-height:1.7;color:var(--text-secondary)}
+
+/* ── Tables (spec + class map + strings) ── */
+.tbl-wrap{border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
+ border-radius:var(--radius-lg);overflow:hidden;background:var(--surface-subtle)}
+table{width:100%;border-collapse:collapse;font-size:.75rem}
+th{text-align:start;font-weight:600;color:var(--muted-foreground);letter-spacing:.04em;
+ text-transform:uppercase;font-size:.65rem;padding:10px 14px;
+ border-bottom:1px solid color-mix(in oklch,var(--border) 8%,transparent)}
+td{padding:9px 14px;vertical-align:top;border-bottom:1px solid color-mix(in oklch,var(--border) 8%,transparent);
+ color:var(--text-secondary)}
+tr:last-child td{border-bottom:0}
+td.k{color:var(--foreground);font-weight:550;white-space:nowrap}
+td.c{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;
+ color:var(--foreground);word-break:break-word}
+td.dim{color:var(--muted-foreground)}
+
+/* ── Mode cards ── */
+/* minmax(430px) so the widest realistic pill (truncated transcript preview,
+   ~380px wide) fits inside a card without being clipped. */
+.mode-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));gap:14px}
+.mode-card{display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:var(--radius-lg);
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);background:var(--surface-subtle)}
+.mode-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.mode-name{font-size:.8rem;font-weight:650;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.mode-idx{font-size:.65rem;color:var(--muted-foreground);font-variant-numeric:tabular-nums}
+.mode-desc{font-size:.72rem;color:var(--text-secondary)}
+/* The stage is a documentation aid: the real bubble is its own transparent
+   BrowserWindow floating over the desktop. This backdrop only exists so the
+   pill has something to sit on.
+   `overflow-x:auto` + `justify-content:safe center` so an over-wide pill
+   scrolls instead of being clipped at the start edge (plain `center` would
+   make the left edge unreachable). */
+.stage{position:relative;display:flex;align-items:center;justify-content:safe center;
+ min-height:78px;padding:18px 14px;border-radius:var(--radius-lg);overflow-x:auto;overflow-y:hidden;
+ background:
+  repeating-linear-gradient(135deg,
+    color-mix(in oklch,var(--muted) 55%,transparent) 0 10px,
+    transparent 10px 20px),
+  var(--background);
+ border:1px dashed color-mix(in oklch,var(--border) 14%,transparent)}
+.stage.tall{min-height:96px}
+.stage.stack{flex-direction:column;gap:14px;align-items:flex-start;justify-content:flex-start;padding:18px}
+
+/* ══════════════════════════════════════════════════════════════════
+   THE BUBBLE PILL — a 1:1 translation of the Tailwind class lists in
+   Bubble.tsx / BubbleModeContent.tsx / the bubble/* leaf components.
+   Every value below is the computed px value of the class named in the
+   comment. Nothing here is invented.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* <output className="inline-flex items-center justify-center …"> */
+.bub{display:inline-flex;align-items:center;justify-content:center}
+.bub.enter{animation:bubbleEnter 180ms cubic-bezier(.16,1,.3,1) both}
+.bub.exit{animation:bubbleExit 200ms cubic-bezier(.5,0,.5,1) both}
+
+/* <div className="inline-flex items-center gap-3 rounded-full border border-border/8
+                     bg-surface text-foreground px-4 py-2.5 whitespace-nowrap {drag-region|no-drag}"> */
+.pill{display:inline-flex;align-items:center;gap:12px;border-radius:9999px;
+ border:1px solid color-mix(in oklab,var(--border) 8%,transparent);
+ background:var(--surface);color:var(--foreground);
+ padding:10px 16px;
+ white-space:nowrap;                       /* the pill is single-line by design */
+ -webkit-app-region:drag}                 /* draggable === true (the default) */
+.pill.no-drag{-webkit-app-region:no-drag}  /* draggable === false */
+
+/* ── Shared content primitives ── */
+.c-row{display:flex;height:24px;align-items:center;gap:8px}          /* flex h-6 items-center gap-2 */
+.c-trans{display:flex;height:24px;align-items:center;gap:8px;font-size:12px;font-weight:500;
+ color:var(--text-secondary)}                                        /* … flex h-6 items-center gap-2 text-xs font-medium text-(--text-secondary) */
+.c-h6{display:flex;height:24px;align-items:center}                  /* flex h-6 items-center */
+.c-h6-p{display:flex;height:24px;align-items:center;gap:8px;padding:0 8px} /* flex h-6 items-center gap-2 px-2 */
+.c-label{font-size:12px;font-weight:500}                            /* text-xs font-medium */
+.c-label-2xs{font-size:10px;font-weight:500}                        /* text-[0.625rem] font-medium */
+.c-glyph{font-size:11px;line-height:1}                              /* text-[0.6875rem] leading-none */
+.muted{color:var(--muted-foreground)}
+.destructive{color:var(--destructive)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+ clip:rect(0,0,0,0);white-space:nowrap;border-width:0}
+
+/* transcribing / fading transcript preview:
+   <output className="max-w-45 truncate text-muted-foreground"> */
+.c-preview{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+ color:var(--muted-foreground)}
+/* fading's root carries these INLINE in the app (FADEOUT_DURATION_MS = 150). */
+.c-fading{opacity:0;transform:translateY(-4px);
+ transition:opacity 150ms ease-out,transform 150ms ease-out}
+/* Documentation-only override: reveals what fading paints at opacity 0.
+   The app never applies this. */
+.reveal-fade .c-fading{opacity:1;transform:none}
+
+/* pulsing dot: w-1.5 h-1.5 rounded-full bg-destructive animate-pulse */
+.dot{width:6px;height:6px;border-radius:9999px;background:var(--destructive);
+ animation:pulse 2s cubic-bezier(.4,0,.6,1) infinite}
+
+/* ── BubbleVisualizer ── */
+.vis{display:flex;height:24px;align-items:center;gap:8px}           /* flex h-6 items-center gap-2 */
+.timer{font-size:10px;font-weight:500;font-variant-numeric:tabular-nums;
+ color:var(--muted-foreground)}                                      /* text-[0.625rem] font-medium tabular-nums … */
+/* <div className="flex h-6 items-center gap-0.75 ms-1" aria-hidden> */
+.bars{display:flex;height:24px;align-items:center;gap:3px;margin-inline-start:4px}
+/* <span className="inline-block w-0.75 rounded-full bg-foreground" style={{height:5,opacity:.3}}> */
+.bars>span{display:inline-block;width:3px;border-radius:9999px;background:var(--foreground);
+ height:5px;opacity:.3}
+
+/* ── TranscribingLabel ── */
+.tl{display:inline-flex;align-items:center;gap:4px}                 /* inline-flex items-center gap-1 */
+.tl .shimmer{position:relative;opacity:.6;font-size:12px;font-weight:500}
+.tl .shimmer::after{content:attr(data-text);position:absolute;inset:0;white-space:nowrap;
+ opacity:1;color:var(--foreground);clip-path:inset(0 100% 0 0);
+ animation:bubbleShimmerSlide 2.2s linear infinite}
+.tl .dots{display:inline-flex;align-items:center;gap:2px}           /* inline-flex items-center gap-0.5 */
+.tl .dots span{display:inline-block;height:4px;width:4px;border-radius:9999px;
+ background:var(--muted-foreground);animation:bubbleDotBlink 1.2s ease-in-out infinite}
+
+/* ── BUBBLE_BUTTON_CLASS (constants.ts:68) — mic / stop / retry / dismiss / annotate ── */
+.bub-btn{-webkit-app-region:no-drag;margin-inline-start:4px;
+ display:inline-flex;align-items:center;justify-content:center;
+ width:24px;height:24px;border-radius:9999px;
+ color:var(--muted-foreground);background:transparent;border:0;padding:0;
+ font:inherit;cursor:pointer;
+ transition:color .15s,background-color .15s}
+.bub-btn:hover{background:var(--surface-hover);color:var(--foreground)}
+.bub-btn:focus-visible{outline:none;box-shadow:0 0 0 1px var(--ring)}
+.bub-btn:disabled{opacity:.4;cursor:not-allowed}
+.bub-btn:disabled:hover{background:transparent;color:var(--muted-foreground)}
+.bub-btn.relative{position:relative}
+/* captured badge: absolute -end-0.5 -top-0.5 rounded-full bg-primary px-1
+                   text-[9px] font-semibold leading-3 text-primary-foreground */
+.badge{position:absolute;inset-inline-end:-2px;top:-2px;border-radius:9999px;
+ background:var(--primary);padding:0 4px;font-size:9px;font-weight:600;line-height:12px;
+ color:var(--primary-foreground)}
+
+/* ── ScreenshotOverlay ──
+   The app renders this OUTSIDE the pill as `fixed inset-0 z-[100]
+   cursor-crosshair bg-black/60`. `.sso.in-frame` is the docs-only
+   variant that fills a mock desktop instead of the viewport. */
+.sso{position:fixed;inset:0;z-index:100;cursor:crosshair;background:rgba(0,0,0,.6)}
+.sso.in-frame{position:absolute}
+.sso-hint{pointer-events:none;position:absolute;left:50%;top:24px;transform:translateX(-50%);
+ border-radius:9999px;background:var(--surface);padding:8px 16px;
+ font-size:12px;font-weight:500;color:var(--foreground)}
+.sso-sel{position:absolute;border:1px solid #fff;background:rgba(255,255,255,.1)}
+.sso-size{position:absolute;bottom:-24px;left:0;border-radius:var(--radius);
+ background:var(--surface);padding:2px 8px;font-size:11px;color:var(--foreground)}
+.mock-desktop{position:relative;height:300px;border-radius:var(--radius-lg);overflow:hidden;
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
+ background:
+  radial-gradient(120% 90% at 20% 10%,color-mix(in oklch,var(--muted) 70%,transparent),transparent 60%),
+  var(--background)}
+.mock-text{position:absolute;left:28px;top:34px;right:28px;display:flex;flex-direction:column;gap:10px}
+.mock-line{height:10px;border-radius:9999px;background:color-mix(in oklch,var(--border) 8%,transparent)}
+.mock-line.w1{width:62%}.mock-line.w2{width:88%}.mock-line.w3{width:74%}
+
+/* ── Compare (side-by-side) view ── */
+#compare{display:none}
+body.compare #single{display:none}
+body.compare #compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+.scope{min-width:0;border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
+ border-radius:var(--radius-lg);padding:20px;background:var(--background);color:var(--foreground)}
+.scope-label{position:sticky;top:64px;z-index:5;display:inline-flex;align-items:center;gap:6px;
+ font-size:.7rem;font-weight:650;letter-spacing:.08em;text-transform:uppercase;
+ color:var(--muted-foreground);background:var(--surface-subtle);
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
+ border-radius:9999px;padding:4px 12px;margin-bottom:12px}
+.scope-label::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--primary)}
+@media (max-width:960px){body.compare #compare{grid-template-columns:1fr}}
+
+footer.doc-footer{margin-top:40px;padding-top:16px;display:flex;flex-direction:column;gap:6px;
+ border-top:1px solid color-mix(in oklch,var(--border) 8%,transparent);
+ font-size:.72rem;color:var(--muted-foreground);max-width:92ch}
+
+/* ── Keyframes — verbatim from index.css ── */
+@keyframes bubbleEnter{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+@keyframes bubbleExit{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(.92)}}
+@keyframes bubbleShimmerSlide{0%{clip-path:inset(0 100% 0 0)}50%{clip-path:inset(0 0 0 0)}100%{clip-path:inset(0 0 0 100%)}}
+@keyframes bubbleDotBlink{0%,100%{opacity:0}50%{opacity:1}}
+@keyframes pulse{50%{opacity:.5}}   /* Tailwind's --animate-pulse */
+
+/* The app's own reduced-motion fallback (index.css): shimmer + dots stop,
+   the label reads at full opacity, the blink dots stay visible. */
+@media (prefers-reduced-motion:reduce){
+ .tl .shimmer{opacity:1}
+ .tl .shimmer::after{content:none;animation:none}
+ .tl .dots span{animation:none;opacity:1}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <b>Bubble — all variants</b>
+      <span>lausu renderer — every pill variant the app renders today, 1:1 from source</span>
+    </div>
+    <div class="mode-switch" role="group" aria-label="Theme mode">
+      <button type="button" data-mode="light" aria-pressed="true">Light</button>
+      <button type="button" data-mode="dark" aria-pressed="false">Dark</button>
+      <button type="button" data-mode="compare" aria-pressed="false">Compare</button>
+    </div>
+  </div>
+</header>
+<div class="page">
+  <div class="toolbar" id="tools">
+    <button type="button" data-toggle="sim" aria-pressed="false">Simulate audio levels</button>
+    <button type="button" data-toggle="reveal" aria-pressed="false">Reveal fading content</button>
+    <button type="button" data-act="anim-enter">Replay enter</button>
+    <button type="button" data-act="anim-exit">Replay exit</button>
+  </div>
+  <main id="single"></main>
+  <div id="compare"></div>
+</div>
+
+<script>
+"use strict";
+/* ══════════════════════════════════════════════════════════════════════
+   Sources (all read, none guessed):
+     Bubble.tsx                     — the pill shell, every flag, every action slot
+     bubble/BubbleModeContent.tsx   — the exhaustive per-mode content switch
+     bubble/constants.ts            — BubbleMode union, DOT_*, BUBBLE_BUTTON_CLASS
+     bubble/BubbleVisualizer.tsx    — dot + timer + 7 level bars
+     bubble/useAudioLevels.ts       — the rAF level maths (reproduced below)
+     bubble/BubbleMicButton.tsx · BubbleStopButton.tsx · BubbleDismissButton.tsx
+     bubble/BubbleAnnotateButton.tsx · RecordingTimer.tsx · TranscribingLabel.tsx
+     bubble/ScreenshotOverlay.tsx
+     index.css                      — tokens, .drag-region, bubble keyframes
+     i18n/translations/en.json      — every visible string
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Strings — i18n/translations/en.json, with `{appName}` → APP_NAME ("Lausu") ── */
+const APP_NAME = "Lausu";
+const T = {
+  transcribing: "Transcribing",
+  loading: "Loading model",
+  idle: "Ready",
+  blocked: "Blocked",
+  cancelling: "Cancelling…",
+  pasteFailed: "Paste failed",
+  permissionRevoked: "Mic permission revoked",
+  error: "⚠ Error",
+  a11yComplete: "Transcription complete.",
+  transcriptPreviewAria: "Live transcript preview",
+  recordingTimerAria: "Recording duration",
+  micStart: "Start dictation",
+  micStop: "Stop dictation",
+  stopRecording: "Stop recording",
+  retry: "Retry transcription",
+  dismiss: "Dismiss bubble",
+  annotate: "Capture a screenshot region",
+  screenshotHint: "Drag to select a region — release to capture, Esc to cancel",
+  screenshotTitle: "Screenshot capture",
+};
+/* getBubbleAriaLabel (helpers.ts:13) — the state-aware <output> label. */
+const ARIA = {
+  recording: APP_NAME + " recording indicator",
+  transcribing: APP_NAME + " transcribing indicator",
+  fading: APP_NAME + " transcribing indicator",
+  loading: APP_NAME + " loading indicator",
+  idle: APP_NAME + " idle indicator",
+  error: APP_NAME + " error indicator",
+  blocked: APP_NAME + " blocked indicator",
+  cancelling: APP_NAME + " cancelling indicator",
+  permission_revoked: APP_NAME + " microphone permission revoked indicator",
+  paste_failed: APP_NAME + " paste failed indicator",
+};
+
+/* ── Visualizer constants — bubble/constants.ts ── */
+const DOT_COUNT = 7, MIN_HEIGHT = 5, MAX_HEIGHT = 22;
+const DOT_WEIGHTS = [0.5, 0.75, 1.0, 0.95, 1.0, 0.75, 0.5];
+const TRANSCRIBING_DOT_COUNT = 3;
+const BAR_CAP_RADIUS_PX = 1.5;                       /* useAudioLevels.ts:29 */
+const REDUCED_MOTION_HEIGHT = (MIN_HEIGHT + MAX_HEIGHT) / 2;  /* 13.5 */
+const TRANSCRIPT_PREVIEW_MAX_CHARS = 60;             /* BubbleModeContent.tsx:10 */
+
+/* ── Icons — copied verbatim from the components ── */
+const ICON_MIC = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>`;
+const ICON_STOP = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" ry="2"/></svg>`;
+const ICON_RETRY = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+const ICON_DISMISS = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>`;
+/* @hugeicons/core-free-icons Camera01Icon, rendered through <HugeiconsIcon size={14} strokeWidth={2}>:
+   the wrapper's `strokeWidth` prop overrides each path's own 1.5. */
+const ICON_CAMERA = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" color="currentColor" stroke="currentColor" stroke-width="2"><path d="M12.6974 3.5H11.303C10.5884 3.5 10.2311 3.5 9.91067 3.612C9.71499 3.68039 9.53113 3.77879 9.36568 3.90367C9.09474 4.10816 8.89655 4.40544 8.50018 5L8.50017 5.00001C8.29717 5.30453 7.99794 5.75337 7.87867 5.87871C7.58314 6.18927 7.19563 6.39666 6.77329 6.47029C6.60284 6.5 6.41985 6.5 6.05387 6.5C5.07379 6.5 4.58376 6.5 4.18307 6.61342C3.18074 6.89716 2.39734 7.68055 2.1136 8.68289C2.00018 9.08357 2.00018 9.57361 2.00018 10.5537V14.5C2.00018 17.3284 2.00018 18.7426 2.87886 19.6213C3.75754 20.5 5.17176 20.5 8.00018 20.5H16.0002C18.8286 20.5 20.2428 20.5 21.1215 19.6213C22.0002 18.7426 22.0002 17.3284 22.0002 14.5V10.5537C22.0002 9.57361 22.0002 9.08357 21.8868 8.68289C21.603 7.68055 20.8196 6.89716 19.8173 6.61342C19.4166 6.5 18.9266 6.5 17.9465 6.5C17.5805 6.5 17.3975 6.5 17.2271 6.47029C16.8047 6.39666 16.4172 6.18927 16.1217 5.87871C16.0024 5.75336 15.7032 5.30451 15.5002 5C15.1038 4.40544 14.9056 4.10816 14.6347 3.90367C14.4692 3.77879 14.2854 3.68039 14.0897 3.612C13.7693 3.5 13.412 3.5 12.6974 3.5Z" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.0002 13C16.0002 15.2091 14.2093 17 12.0002 17C9.79104 17 8.00018 15.2091 8.00018 13C8.00018 10.7909 9.79104 9 12.0002 9C14.2093 9 16.0002 10.7909 16.0002 13Z" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.1252 9.5H19.0002M19.2502 9.5C19.2502 9.63807 19.1383 9.75 19.0002 9.75C18.8621 9.75 18.7502 9.63807 18.7502 9.5C18.7502 9.36193 18.8621 9.25 19.0002 9.25C19.1383 9.25 19.2502 9.36193 19.2502 9.5Z" stroke-linecap="round"/></svg>`;
+
+/* ── Small helpers ── */
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function sec(head,body){return `<section class="doc">${head}<hr class="hr">${body}</section>`;}
+function head(title,desc){return `<div class="sec-head"><h2>${title}</h2>${desc?`<p>${desc}</p>`:""}</div>`;}
+function truncateTranscript(text){
+  if(text.length<=TRANSCRIPT_PREVIEW_MAX_CHARS) return text;
+  return text.slice(0,TRANSCRIPT_PREVIEW_MAX_CHARS-1)+"…";
+}
+
+/* ══ The replica ═════════════════════════════════════════════════════
+   pill(mode, cfg) mirrors Bubble.tsx exactly: the same derived flags,
+   the same action-slot conditions, the same JSX order.
+   cfg defaults to the richest shipped configuration:
+   bubble_behavior = "always_visible", mic + click-to-toggle on,
+   screenshot beta off, no live transcript, dismiss armed.            */
+const DEFAULT_CFG = {
+  behavior:"always_visible",  /* bubble_behavior */
+  micToggle:true,             /* bubble_mic_button !== false */
+  clickToggle:true,           /* bubble_click_to_toggle !== false */
+  showTimer:false,            /* bubble_show_recording_timer */
+  beta:false,                 /* screenshot_beta_enabled */
+  captured:false,             /* screenshotCaptured */
+  dismissArmed:true,          /* !(transcribing && !dismissArmed) */
+  transcript:null,
+  draggable:true,
+  revealFade:false,
+  reducedMotion:false,
+  sim:false,
+};
+
+/* BubbleModeContent — the exhaustive content switch, one branch per mode. */
+function content(mode,cfg){
+  switch(mode){
+    case "transcribing":{
+      const preview = cfg.transcript ? truncateTranscript(cfg.transcript) : null;
+      return `<div class="c-trans"><span class="tl"><span class="shimmer" data-text="${esc(T.transcribing)}">${esc(T.transcribing)}</span><span class="dots" aria-hidden>${dots3()}</span></span>${preview?`<output class="c-preview" aria-label="${esc(T.transcriptPreviewAria)}">${esc(preview)}</output>`:""}</div>`;
+    }
+    case "fading":{
+      const preview = cfg.transcript ? truncateTranscript(cfg.transcript) : null;
+      return `<div class="c-trans c-fading"><span>${esc(T.transcribing)}</span>${preview?`<output class="c-preview" aria-label="${esc(T.transcriptPreviewAria)}">${esc(preview)}</output>`:""}</div>`;
+    }
+    case "idle":
+      return `<div class="c-h6" aria-hidden><span class="c-label muted">${esc(T.idle)}</span></div><span class="sr-only">${esc(T.a11yComplete)}</span>`;
+    case "error":
+      return `<div class="c-h6-p"><span class="dot" aria-hidden></span><span class="c-label-2xs destructive">${esc(T.error)}</span></div>`;
+    case "blocked":
+      return `<div class="c-h6-p"><span class="c-glyph muted" aria-hidden>⊘</span><span class="c-label-2xs muted">${esc(T.blocked)}</span></div>`;
+    case "cancelling":
+      return `<div class="c-h6-p"><span class="c-label-2xs muted">${esc(T.cancelling)}</span></div>`;
+    case "permission_revoked":
+      return `<div class="c-h6-p"><span class="dot" aria-hidden></span><span class="c-label-2xs destructive">${esc(T.permissionRevoked)}</span></div>`;
+    case "paste_failed":
+      return `<div class="c-h6-p"><span class="dot" aria-hidden></span><span class="c-label-2xs destructive">${esc(T.pasteFailed)}</span></div>`;
+    case "recording":{
+      const annotate = cfg.beta
+        ? `<button type="button" class="bub-btn relative" aria-label="${esc(T.annotate)}" title="${esc(T.annotate)}"${cfg.captured?" disabled":""}>${ICON_CAMERA}${cfg.captured?'<span class="badge" aria-hidden>1/1</span>':""}</button>`
+        : "";
+      return `<div class="c-row"><div class="vis"${cfg.sim?" data-sim":""}><span class="dot" aria-hidden></span>${cfg.showTimer?`<span class="timer" role="timer" aria-label="${esc(T.recordingTimerAria)}">00:07</span>`:""}<div class="bars" aria-hidden>${bars(cfg.reducedMotion)}</div></div>${annotate}</div>`;
+    }
+    case "loading":
+      return `<div class="c-row"><span class="tl"><span class="shimmer" data-text="${esc(T.loading)}">${esc(T.loading)}</span><span class="dots" aria-hidden>${dots3()}</span></span></div>`;
+    default:
+      return "";   /* the `never` guard is unreachable — every mode has a branch */
+  }
+}
+function dots3(){
+  let out="";
+  for(let i=0;i<TRANSCRIBING_DOT_COUNT;i++) out+=`<span style="animation-delay:${i*0.25}s"></span>`;
+  return out;
+}
+function bars(reducedMotion){
+  let out="";
+  for(let i=0;i<DOT_COUNT;i++){
+    if(!reducedMotion) { out+="<span></span>"; continue; }
+    /* useAudioLevels.renderReducedMotion(): full box height + scaleY(13.5/22), opacity .5. */
+    const s=REDUCED_MOTION_HEIGHT/MAX_HEIGHT;
+    out+=`<span style="height:${MAX_HEIGHT}px;border-radius:${BAR_CAP_RADIUS_PX}px / calc(${BAR_CAP_RADIUS_PX}px / max(var(--bar-scale), 0.03));--bar-scale:${s};transform:scaleY(${s});opacity:.5"></span>`;
+  }
+  return out;
+}
+/* One shared action-button builder, so the three glyphs stay siblings. */
+function btn(kind,label,disabled){
+  const glyph = kind==="mic"?ICON_MIC : kind==="stop"?ICON_STOP : kind==="retry"?ICON_RETRY : ICON_DISMISS;
+  return `<button type="button" class="bub-btn" aria-label="${esc(label)}" title="${esc(label)}"${disabled?' disabled aria-disabled="true"':""}>${glyph}</button>`;
+}
+
+function pill(mode,cfgIn){
+  return `<output class="bub" aria-live="polite" aria-atomic="true" aria-label="${esc(ARIA[mode])}">${pillOnly(mode,cfgIn)}</output>`;
+}
+/* The pill div alone, without the <output> wrapper — used by the motion
+   stage, which needs its own element to carry the enter/exit classes. */
+function pillOnly(mode,cfgIn){
+  const cfg=Object.assign({},DEFAULT_CFG,cfgIn||{});
+  /* Bubble.tsx:180 — all three conditions, in the same order. */
+  const micButton = cfg.behavior==="always_visible" && cfg.micToggle!==false && cfg.clickToggle!==false;
+  const dismissable = cfg.behavior==="always_visible";           /* Bubble.tsx:190 */
+  const parts=[content(mode,cfg)];
+  /* "Single action slot: the pill never shows two competing actions at once." */
+  if(micButton && mode!=="recording" && mode!=="error") parts.push(btn("mic",T.micStart));
+  if(mode==="recording") parts.push(btn("stop",T.stopRecording));
+  if(mode==="error") parts.push(btn("retry",T.retry));
+  if(dismissable && mode!=="recording") parts.push(btn("dismiss",T.dismiss, mode==="transcribing" && !cfg.dismissArmed));
+  const cls="pill"+(cfg.draggable===false?" no-drag":"")+(cfg.revealFade&&mode==="fading"?" reveal-fade locked":"");
+  return `<div class="${cls}">${parts.join("")}</div>`;
+}
+
+/* ══ §1 Anatomy ══ */
+function renderAnatomy(){
+  const tree=
+`&lt;output aria-live="polite" aria-atomic="true"
+        aria-label={getBubbleAriaLabel(mode, errorMessage)}
+        className={cn("inline-flex items-center justify-center",
+                      animState === "enter" &amp;&amp; "animate-bubble-enter",
+                      animState === "exit"  &amp;&amp; "animate-bubble-exit")}
+        onAnimationEnd={handleAnimEnd}&gt;
+  &lt;div ref={pillRef}
+       className={cn("inline-flex items-center gap-3 rounded-full",
+                     "border border-border/8",
+                     "bg-surface text-foreground",
+                     "px-4 py-2.5",
+                     draggable ? "drag-region" : "no-drag")}&gt;
+    &lt;BubbleModeContent mode={mode} transcript={transcript} showTimer={showTimer}
+                       dotRefs={dotRefs} annotateEnabled={screenshotBeta &amp;&amp; !screenshotOverlayOpen}
+                       annotateCaptured={screenshotCaptured} onAnnotate={handleAnnotateClick} /&gt;
+    {micButton &amp;&amp; mode !== "recording" &amp;&amp; mode !== "error" &amp;&amp; &lt;BubbleMicButton … /&gt;}
+    {mode === "recording" &amp;&amp; &lt;BubbleStopButton mode="recording" … /&gt;}
+    {mode === "error"     &amp;&amp; &lt;BubbleStopButton mode="error"     … /&gt;}
+    {dismissable &amp;&amp; mode !== "recording" &amp;&amp;
+      &lt;BubbleDismissButton disabled={mode === "transcribing" &amp;&amp; !dismissArmed} … /&gt;}
+  &lt;/div&gt;
+&lt;/output&gt;
+{screenshotOverlayOpen &amp;&amp; &lt;ScreenshotOverlay … /&gt;}   // fixed inset-0, OUTSIDE the pill`;
+  const rows=[
+    ["Wrapper","inline-flex items-center justify-center","display:inline-flex; align-items:center; justify-content:center"],
+    ["Pill display","inline-flex items-center","display:inline-flex; align-items:center"],
+    ["Pill gap","gap-3","gap:12px"],
+    ["Pill radius","rounded-full","border-radius:9999px"],
+    ["Pill border","border border-border/8","border:1px solid color-mix(in oklab, var(--border) 8%, transparent) — 8% black in light, 8% white in dark"],
+    ["Pill fill","bg-surface","background:var(--surface) — #ffffff light · #1b1b1b dark"],
+    ["Pill text","text-foreground","color:var(--foreground) — #0d0d0d light · #ffffff dark"],
+    ["Pill padding","px-4 py-2.5","padding:10px 16px"],
+    ["Drag","drag-region | no-drag","-webkit-app-region:drag | no-drag (native, invisible)"],
+    ["Action gap","gap-3 + ms-1","12px flex gap + 4px margin-inline-start on each button = 16px"],
+    ["Button box","h-6 w-6 rounded-full","24 × 24px, radius 9999px"],
+    ["Button glyph","16 / 12 / 10 px","mic 16px · retry 12px · stop 10px · dismiss 10px · camera 14px"],
+    ["Button idle","text-muted-foreground","color:var(--muted-foreground)"],
+    ["Button hover","hover:bg-(--surface-hover) hover:text-foreground","background:var(--surface-hover); color:var(--foreground)"],
+    ["Button disabled","disabled:opacity-40","opacity:.4; hover falls back to transparent/muted"],
+    ["Content height","h-6","24px on idle / error / blocked / cancelling / permission_revoked / paste_failed"],
+    ["Dot","w-1.5 h-1.5 rounded-full bg-destructive animate-pulse","6 × 6px, pulse 2s cubic-bezier(.4,0,.6,1) infinite (opacity → .5 at 50%)"],
+    ["Level bar","w-0.75 rounded-full bg-foreground","3px wide, at rest height:5px opacity:.3"],
+    ["Level bars box","flex h-6 items-center gap-0.75 ms-1","7 bars, 3px gap, 4px logical start margin"],
+    ["Timer","text-[0.625rem] font-medium tabular-nums","10px / 500, tabular figures, muted"],
+    ["Shimmer label","bubble-shimmer-text text-xs font-medium","12px / 500; base text at opacity .6 with a full-opacity ::after sweeping clip-path inset over 2.2s"],
+    ["Blink dots","h-1 w-1 rounded-full bg-muted-foreground","4px, bubbleDotBlink 1.2s ease-in-out infinite, delay i × 0.25s"],
+    ["Transcript preview","max-w-45 truncate","max-width:180px, single line, ellipsis; input capped at 60 chars with a trailing …"],
+    ["Error/blocked label","text-[0.625rem] font-medium","10px / 500; destructive or muted"],
+    ["Blocked glyph","text-[0.6875rem] leading-none","11px ⊘"],
+    ["Captured badge","-end-0.5 -top-0.5 rounded-full bg-primary px-1 text-[9px] font-semibold leading-3","2px outside the top/end edge, primary fill, 9px/600, line-height 12px"],
+  ];
+  const body=`<pre class="tree">${tree}</pre>
+   <div class="tbl-wrap"><table><thead><tr><th>Part</th><th>Tailwind class (verbatim)</th><th>Computed</th></tr></thead><tbody>
+   ${rows.map(r=>`<tr><td class="k">${r[0]}</td><td class="c">${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join("")}
+   </tbody></table></div>
+   <p class="note">One pill, one action slot: the pill never renders two competing actions at once. Hover a button in any card below to see its real hover fill.</p>`;
+  return sec(head("1 · Anatomy","The shell is fixed; only the content slot and the action slot change. Everything below is the computed value of the class named next to it — no value here was chosen for this page."),body);
+}
+
+/* ══ §2 The ten modes ══ */
+const MODES=[
+  ["recording","Capturing audio right now. Red pulsing dot + 7 level bars, no text label. Stop button; the dismiss × is suppressed (discarding mid-record is never valid)."],
+  ["transcribing","Recording stopped, the engine is working. Shimmering label + 3 blink dots. Mic and dismiss are both available."],
+  ["loading","Model-load wait after a stop. Same shimmer treatment, different label key (bubble.loadingLabel)."],
+  ["idle","Visible but doing nothing. “Ready” in muted text; the completion sentence is screen-reader only."],
+  ["fading","Two-stage exit after a transcribing hide. The content is deliberately at opacity 0 / translateY(-4px) for 150 ms, then the whole pill plays animate-bubble-exit. The shell is painted but looks empty — that is the real behaviour."],
+  ["error","Something failed. Destructive pulsing dot + “⚠ Error”. The retry button takes the mic's slot; dismiss stays."],
+  ["blocked","Dictation refused (another app holds the mic, or the recorder declined to start). Muted ⊘ glyph + “Blocked”."],
+  ["cancelling","A cancel is in flight. A single muted label, no dot."],
+  ["permission_revoked","Mic permission was pulled mid-session. Destructive pulsing dot + “Mic permission revoked”."],
+  ["paste_failed","Transcription succeeded but the paste into the target field failed. Destructive pulsing dot + “Paste failed”."],
+];
+function renderModes(){
+  const cards=MODES.map(([m,desc],i)=>{
+    return `<div class="mode-card">
+      <div class="mode-head"><span class="mode-idx">${String(i+1).padStart(2,"0")}</span><span class="mode-name">${m}</span></div>
+      <div class="stage">${pill(m)}</div>
+      <div class="mode-desc">${desc}</div>
+    </div>`;
+  }).join("");
+  const body=`<div class="mode-grid">${cards}</div>
+   <p class="note">All ten are rendered with <code>bubble_behavior = "always_visible"</code>, mic button on, screenshot beta off — the richest shipped configuration. §3 shows what changes when those flags flip. The dashed stage is a documentation aid: the real bubble is its own transparent always-on-top window floating over the desktop.</p>`;
+  return sec(head("2 · The ten modes","<code>BubbleMode</code> (bubble/constants.ts:3) has exactly ten members and <code>BubbleModeContent</code> is an exhaustive switch over them, so these ten are the complete set of content variants."),body);
+}
+
+/* ══ §3 Action-slot matrix ══ */
+function renderMatrix(){
+  const rows=MODES.map(([m])=>{
+    const cfg={behavior:"always_visible",micToggle:true,clickToggle:true,beta:true};
+    const mic = (m!=="recording"&&m!=="error") ? "yes":"—";
+    const stop = m==="recording" ? "stop glyph":"—";
+    const retry = m==="error" ? "retry glyph":"—";
+    const dismiss = m!=="recording" ? (m==="transcribing"?"yes, disabled for the first 5s":"yes") : "—";
+    const annotate = m==="recording" ? "yes (beta only)" : "—";
+    return `<tr><td class="k">${m}</td><td class="c">${mic}</td><td class="c">${stop}</td><td class="c">${retry}</td><td class="c">${dismiss}</td><td class="c">${annotate}</td></tr>`;
+  }).join("");
+  const body=`<div class="tbl-wrap"><table><thead><tr><th>Mode</th><th>Mic</th><th>Stop</th><th>Retry</th><th>Dismiss ×</th><th>Annotate</th></tr></thead><tbody>${rows}</tbody></table></div>
+   <p class="note">Screenshot beta ON in this table so the annotate column is meaningful. The dismiss × is armed 5 s after entering <code>transcribing</code> (<code>Bubble.tsx:206</code>) — an accidental click must not discard a healthy transcription, but a hung one must be dismissable.</p>`;
+  return sec(head("3 · Action slot by mode","Every condition read from <code>Bubble.tsx</code>; nothing is rendered by hand."),body);
+}
+
+/* ══ §4 Orthogonal variants ══ */
+function renderVariants(){
+  function cell(label,pillHtml,desc,tall){
+    return `<div class="mode-card">
+      <div class="mode-head"><span class="mode-name">${label}</span></div>
+      <div class="stage${tall?" tall":""}">${pillHtml}</div>
+      <div class="mode-desc">${desc}</div>
+    </div>`;
+  }
+  const cells=[
+    cell("recording · showTimer off",pill("recording",{showTimer:false}),
+      "<code>bubble_show_recording_timer = false</code> (the default). Dot, then the bars."),
+    cell("recording · showTimer on",pill("recording",{showTimer:true}),
+      "The timer sits between the dot and the bars: 10px, weight 500, tabular figures, muted. Format is <code>MM:SS</code>, zero-padded, ticking every 500 ms."),
+    cell("recording · reduced motion",pill("recording",{reducedMotion:true}),
+      "<code>prefers-reduced-motion: reduce</code>. The rAF loop stops and the bars are written once at the midpoint — scaleY(13.5/22) = 0.6136, opacity 0.5."),
+    cell("recording · levels (simulated)",pill("recording",{sim:true}),
+      "Docs-only: the exact <code>useAudioLevels</code> maths driven by a synthetic envelope, so you can see what the bars do. Press <em>Simulate audio levels</em> in the toolbar to run it — the card is shown at rest above. Height = 5 + level × weight × 17, eased 0.36 per frame, opacity = 0.35 + level × 0.65, written as scaleY plus a counter-scaled cap radius.",true),
+    cell("recording · annotate (beta)",pill("recording",{beta:true}),
+      "<code>screenshot_beta_enabled</code>. The camera button joins the recording content, before the stop button."),
+    cell("recording · annotate captured",pill("recording",{beta:true,captured:true}),
+      "After the one shot is burned. The button disables at opacity .4 and grows a 1/1 badge: 9px/600, primary fill, 2px outside the top-end corner."),
+    cell("transcribing · no preview",pill("transcribing",{transcript:null}),
+      "No live preview from the engine, or an empty transcript. Label and dots only."),
+    cell("transcribing · short preview",pill("transcribing",{transcript:"Meeting notes for Tuesday"}),
+      "Under 60 characters, so it renders whole inside the 180px box."),
+    cell("transcribing · truncated preview",pill("transcribing",{transcript:"Send the revised architecture doc to the platform team before the review on Thursday"}),
+      "Over 60 characters: the string is cut at 59 and a single … is appended, then the 180px box ellipsises whatever still overflows.",true),
+    cell("transcribing · dismiss armed",pill("transcribing",{dismissArmed:true}),
+      "5 s have passed. The × is live; hovering it shows the real hover fill."),
+    cell("transcribing · dismiss not armed",pill("transcribing",{dismissArmed:false}),
+      "The first 5 s. The × renders at opacity .4 and is genuinely disabled — hovering it changes nothing."),
+    cell("fading · as shipped",pill("fading"),
+      "What the app actually paints: opacity 0, translateY(-4px). The pill looks empty for 150 ms. Press <em>Reveal fading content</em> above to see through it."),
+    cell("fading · content revealed",pill("fading",{revealFade:true,transcript:"Meeting notes for Tuesday"}),
+      "Docs-only override. Note the content is the plain label, not the shimmering <code>TranscribingLabel</code> — fading swaps it out."),
+    cell("idle · show_on_record",pill("idle",{behavior:"show_on_record"}),
+      "<code>bubble_behavior = \"show_on_record\"</code> (the default). No mic, no ×: the bubble only appears while working and auto-hides."),
+    cell("idle · always_visible, mic off",pill("idle",{behavior:"always_visible",micToggle:false}),
+      "<code>bubble_mic_button = false</code>. The × stays — the user must always be able to dismiss an always-visible pill — but the mic does not."),
+    cell("idle · hidden",pill("idle",{behavior:"hidden"}),
+      "<code>bubble_behavior = \"hidden\"</code>. Nothing renders either action; the pill is content-only."),
+    cell("idle · draggable off",pill("idle",{draggable:false}),
+      "<code>draggable = false</code>. Visually identical — the only difference is <code>-webkit-app-region: no-drag</code>, so the window stops being draggable by the pill."),
+  ].join("");
+  return sec(head("4 · Orthogonal variants","Every other axis that changes what the pill paints. None of these are separate modes — they combine with the ten above."),`<div class="mode-grid">${cells}</div>`);
+}
+
+/* ══ §5 Motion ══ */
+function renderMotion(){
+  const body=`<div class="stage stack" id="motion-stage">
+    <div class="bub" id="motion-bub">${pillOnly("transcribing",{transcript:"Meeting notes for Tuesday"})}</div>
+    <span class="note">Press <em>Replay enter</em> / <em>Replay exit</em> in the toolbar above.</span>
+  </div>
+  <div class="tbl-wrap"><table><thead><tr><th>State</th><th>Class</th><th>Keyframes</th></tr></thead><tbody>
+  <tr><td class="k">enter</td><td class="c">animate-bubble-enter</td><td>bubbleEnter 180ms cubic-bezier(0.16, 1, 0.3, 1) both — opacity 0 → 1, scale 0.92 → 1</td></tr>
+  <tr><td class="k">exit</td><td class="c">animate-bubble-exit</td><td>bubbleExit 200ms cubic-bezier(0.5, 0, 0.5, 1) both — opacity 1 → 0, scale 1 → 0.92</td></tr>
+  <tr><td class="k">pulse</td><td class="c">animate-pulse</td><td>pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite — opacity reaches .5 at 50%</td></tr>
+  <tr><td class="k">shimmer</td><td class="c">bubble-shimmer-text</td><td>bubbleShimmerSlide 2.2s linear infinite — clip-path inset sweeps 0 100% → 0 0 → 0 0 0 100%</td></tr>
+  <tr><td class="k">blink</td><td class="c">bubble-blink-dot</td><td>bubbleDotBlink 1.2s ease-in-out infinite — opacity 0 → 1 → 0, per-dot delay i × 0.25s</td></tr>
+  </tbody></table></div>
+  <p class="note">The exit animation is what tells the main process it is safe to hide the window: <code>onAnimationEnd</code> → <code>handleAnimEnd</code> → <code>api.hideComplete()</code>. The dismiss × deliberately skips it — an instant user dismissal must feel instant.</p>`;
+  return sec(head("5 · Motion","Four keyframes drive the whole pill, all four defined in <code>index.css</code>."),body);
+}
+
+/* ══ §6 ScreenshotOverlay ══ */
+function renderOverlay(){
+  const body=`<div class="mock-desktop">
+    <div class="mock-text"><span class="mock-line w1"></span><span class="mock-line w2"></span><span class="mock-line w3"></span><span class="mock-line w2"></span></div>
+    <div class="sso in-frame" role="dialog" aria-label="${esc(T.screenshotTitle)}" tabindex="-1">
+      <p class="sso-hint">${esc(T.screenshotHint)}</p>
+      <div class="sso-sel" aria-hidden style="left:24%;top:34%;width:38%;height:40%"><span class="sso-size">372 × 118</span></div>
+    </div>
+  </div>
+  <div class="stage"><button type="button" class="bub-btn" style="margin:0" data-act="open-overlay" aria-label="Open the real overlay">${ICON_CAMERA}</button><span class="note" style="margin-inline-start:10px">Open the real overlay — <code>fixed inset-0</code>, drag to select, Esc or a 4px-or-shorter drag cancels.</span></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Part</th><th>Tailwind class</th><th>Computed</th></tr></thead><tbody>
+  <tr><td class="k">Scrim</td><td class="c">fixed inset-0 z-[100] cursor-crosshair bg-black/60</td><td>fills the viewport, z-index 100, crosshair, rgba(0,0,0,.6)</td></tr>
+  <tr><td class="k">Hint pill</td><td class="c">absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-surface px-4 py-2 text-xs font-medium text-foreground</td><td>24px from the top, centred, 8px 16px, 12px/500</td></tr>
+  <tr><td class="k">Selection</td><td class="c">absolute border border-white bg-white/10</td><td>1px solid #fff, rgba(255,255,255,.1) fill</td></tr>
+  <tr><td class="k">Size label</td><td class="c">absolute -bottom-6 left-0 rounded bg-surface px-2 py-0.5 text-[11px] text-foreground</td><td>24px below the selection, 2px 8px, 11px, radius 10px</td></tr>
+  </tbody></table></div>
+  <p class="note">The overlay renders <em>outside</em> the pill, on purpose: the pill is a native drag region and would swallow the overlay's mouse events. Release forwards a device-pixel rect (CSS px × <code>devicePixelRatio</code>, rounded) and the recording never pauses. It exists only while <code>screenshot_beta_enabled</code> is on.</p>`;
+  return sec(head("6 · Screenshot region overlay","One-shot screenshot beta (Windows only). It replaces the pill's interaction for its lifetime."),body);
+}
+
+/* ══ §7 Class map ══ */
+function renderClassMap(){
+  const rows=[
+    ["Bubble.tsx:392","output","inline-flex items-center justify-center"],
+    ["Bubble.tsx:402","pill","inline-flex items-center gap-3 rounded-full"],
+    ["Bubble.tsx:406","pill","border border-border/8"],
+    ["Bubble.tsx:407","pill","bg-surface text-foreground"],
+    ["Bubble.tsx:408","pill","px-4 py-2.5"],
+    ["Bubble.tsx:409","pill","drag-region | no-drag"],
+    ["BubbleModeContent.tsx:47","transcribing","flex items-center gap-2 text-xs font-medium text-(--text-secondary)"],
+    ["BubbleModeContent.tsx:64","preview","max-w-45 truncate text-muted-foreground"],
+    ["BubbleModeContent.tsx:79","fading","flex items-center gap-2 text-xs font-medium text-(--text-secondary) + inline opacity/transform/transition"],
+    ["BubbleModeContent.tsx:104","idle","flex h-6 items-center"],
+    ["BubbleModeContent.tsx:109","idle","sr-only"],
+    ["BubbleModeContent.tsx:119","error","flex h-6 items-center gap-2 px-2"],
+    ["BubbleModeContent.tsx:121","error dot","w-1.5 h-1.5 rounded-full bg-destructive animate-pulse"],
+    ["BubbleModeContent.tsx:124","error label","text-[0.625rem] font-medium text-destructive"],
+    ["BubbleModeContent.tsx:133","blocked glyph","text-[0.6875rem] leading-none text-muted-foreground"],
+    ["BubbleModeContent.tsx:182","recording","flex items-center gap-2"],
+    ["BubbleVisualizer.tsx:28","visualizer","flex h-6 items-center gap-2"],
+    ["BubbleVisualizer.tsx:35","recording dot","w-1.5 h-1.5 rounded-full bg-destructive animate-pulse"],
+    ["BubbleVisualizer.tsx:42","bars box","flex h-6 items-center gap-0.75 ms-1"],
+    ["BubbleVisualizer.tsx:47","bar","inline-block w-0.75 rounded-full bg-foreground + style height:5, opacity:.3"],
+    ["RecordingTimer.tsx:27","timer","text-[0.625rem] font-medium tabular-nums text-muted-foreground"],
+    ["TranscribingLabel.tsx:16","label root","inline-flex items-center gap-1"],
+    ["TranscribingLabel.tsx:18","shimmer","bubble-shimmer-text text-xs font-medium + data-text"],
+    ["TranscribingLabel.tsx:23","dots","inline-flex items-center gap-0.5"],
+    ["TranscribingLabel.tsx:27","dot","bubble-blink-dot inline-block h-1 w-1 rounded-full bg-muted-foreground + delay i × 0.25s"],
+    ["constants.ts:68","all buttons","no-drag ms-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-(--surface-hover) hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"],
+    ["BubbleAnnotateButton.tsx:21","annotate","BUBBLE_BUTTON_CLASS + relative"],
+    ["BubbleAnnotateButton.tsx:27","badge","absolute -end-0.5 -top-0.5 rounded-full bg-primary px-1 text-[9px] font-semibold leading-3 text-primary-foreground"],
+    ["ScreenshotOverlay.tsx:110","scrim","fixed inset-0 z-[100] cursor-crosshair bg-black/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"],
+    ["ScreenshotOverlay.tsx:116","hint","pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-surface px-4 py-2 text-xs font-medium text-foreground"],
+    ["ScreenshotOverlay.tsx:125","selection","absolute border border-white bg-white/10"],
+    ["ScreenshotOverlay.tsx:133","size label","absolute -bottom-6 left-0 rounded bg-surface px-2 py-0.5 text-[11px] text-foreground"],
+  ];
+  const body=`<div class="tbl-wrap"><table><thead><tr><th>Source</th><th>Part</th><th>Class list</th></tr></thead><tbody>
+  ${rows.map(r=>`<tr><td class="c dim">${esc(r[0])}</td><td class="k">${esc(r[1])}</td><td class="c">${esc(r[2])}</td></tr>`).join("")}
+  </tbody></table></div>
+  <p class="note">This is the audit trail: every class on this page appears in the row above it. A change to any of those class lists is a change to this page.</p>`;
+  return sec(head("7 · Class map","Every class this page reproduces, and the exact line it came from."),body);
+}
+
+/* ══ §8 Strings ══ */
+function renderStrings(){
+  const rows=[
+    ["bubble.transcribingLabel","Transcribing","transcribing shimmer, fading plain label"],
+    ["bubble.loadingLabel","Loading model","loading shimmer"],
+    ["bubble.idleLabel","Ready","idle, muted"],
+    ["bubble.blockedLabel","Blocked","blocked, muted"],
+    ["bubble.cancellingLabel","Cancelling…","cancelling, muted"],
+    ["bubble.pasteFailedLabel","Paste failed","paste_failed, destructive"],
+    ["bubble.permissionRevokedLabel","Mic permission revoked","permission_revoked, destructive"],
+    ["bubble.errorLabel","⚠ Error","error, destructive"],
+    ["a11y.transcriptionComplete","Transcription complete.","idle, screen-reader only"],
+    ["bubble.transcriptPreviewAria","Live transcript preview","preview <output> aria-label"],
+    ["bubble.recordingTimerAria","Recording duration","timer aria-label"],
+    ["bubble.micButtonStartAria","Start dictation","mic aria-label + title"],
+    ["bubble.micButtonStopAria","Stop dictation","mic aria-label when mode is recording (unreachable today — recording shows the stop button instead)"],
+    ["bubble.stopRecordingAria","Stop recording","stop glyph"],
+    ["bubble.retryAria","Retry transcription","retry glyph"],
+    ["bubble.dismissAria","Dismiss bubble","×"],
+    ["bubble.annotateAria","Capture a screenshot region","camera"],
+    ["bubble.screenshotHint","Drag to select a region — release to capture, Esc to cancel","overlay hint pill"],
+    ["screenshot.consentTitle","Screenshot capture","overlay role=dialog aria-label"],
+  ];
+  const aria=Object.keys(ARIA).map(k=>`<tr><td class="c dim">bubble.${k}IndicatorAria</td><td class="k">${esc(ARIA[k])}</td><td>the &lt;output&gt; label, per mode</td></tr>`).join("");
+  const body=`<div class="tbl-wrap"><table><thead><tr><th>Key</th><th>English value</th><th>Where it renders</th></tr></thead><tbody>
+  ${rows.map(r=>`<tr><td class="c dim">${esc(r[0])}</td><td class="k">${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join("")}${aria}
+  </tbody></table></div>
+  <p class="note">All values from <code>i18n/translations/en.json</code>; <code>{appName}</code> resolves to “${APP_NAME}” at load time (C-BRAND-1). <code>bubble.recordingLabel</code> (“REC”, translated in all eight catalogs) is not referenced by any component — the recording state shows the dot and the bars, never a text label.</p>`;
+  return sec(head("8 · Strings","Every user-visible string the pill can show."),body);
+}
+
+function renderFooter(){
+  return `<footer class="doc-footer">
+   <span>Sources: <code>Bubble.tsx</code> · <code>bubble/BubbleModeContent.tsx</code> · <code>bubble/constants.ts</code> · <code>bubble/BubbleVisualizer.tsx</code> · <code>bubble/useAudioLevels.ts</code> · <code>bubble/BubbleMicButton.tsx</code> · <code>bubble/BubbleStopButton.tsx</code> · <code>bubble/BubbleDismissButton.tsx</code> · <code>bubble/BubbleAnnotateButton.tsx</code> · <code>bubble/RecordingTimer.tsx</code> · <code>bubble/TranscribingLabel.tsx</code> · <code>bubble/ScreenshotOverlay.tsx</code> · <code>index.css</code> · <code>i18n/translations/en.json</code>.</span>
+   <span>Icons: the inline SVGs are copied verbatim from those components; the camera glyph is <code>Camera01Icon</code> from <code>@hugeicons/core-free-icons</code> 4.2.3 as rendered by <code>&lt;HugeiconsIcon size={14} strokeWidth={2}&gt;</code>.</span>
+   <span>This page is documentation, not shipped app code, and it is NOT a second design-system representation: it is a component catalogue derived from the sources above. The design system's two authoritative surfaces stay <code>design-system.html</code> and the live renderer, per C-DESIGN-1 — if a class in this page ever disagrees with those, this page is wrong.</span>
+   <span>It renders the pill in isolation; the real bubble lives in its own transparent, always-on-top, non-focusable BrowserWindow and resizes itself to the pill's content box plus 1px on each axis.</span>
+  </footer>`;
+}
+
+const SECTIONS=()=>[renderAnatomy(),renderModes(),renderMatrix(),renderVariants(),renderMotion(),renderOverlay(),renderClassMap(),renderStrings(),renderFooter()].join("");
+
+/* ══ Level-bar simulation — the exact useAudioLevels maths ══
+   Only ever applied to bars inside a [data-sim] visualizer. The synthetic
+   envelope stands in for the backend's ~50–60 Hz audio-peak IPC events. */
+const simState=new WeakMap();
+let simOn=false, simRaf=null, simT0=0;
+function writeBar(el,h,opacity){
+  const scale=h/MAX_HEIGHT;
+  el.style.height=MAX_HEIGHT+"px";
+  el.style.borderRadius=BAR_CAP_RADIUS_PX+"px / calc("+BAR_CAP_RADIUS_PX+"px / max(var(--bar-scale), 0.03))";
+  el.style.setProperty("--bar-scale",String(scale));
+  el.style.transform="scaleY("+scale+")";
+  el.style.opacity=String(opacity);
+}
+function resetBars(){
+  document.querySelectorAll("[data-sim] .bars > span").forEach(el=>{
+    el.style.height=MIN_HEIGHT+"px";
+    el.style.opacity=".3";
+    el.style.transform="";
+    el.style.borderRadius="";
+    el.style.removeProperty("--bar-scale");
+  });
+}
+function collectSims(){
+  document.querySelectorAll("[data-sim]").forEach(vis=>{
+    if(simState.has(vis)) return;
+    simState.set(vis,{
+      bars:Array.from(vis.querySelectorAll(".bars > span")),
+      heights:Array.from({length:DOT_COUNT},()=>MIN_HEIGHT),
+      raw:0, seed:Math.random()*10,
+    });
+  });
+}
+function simTick(ts){
+  if(!simT0) simT0=ts;
+  const t=(ts-simT0)/1000;
+  document.querySelectorAll("[data-sim]").forEach(vis=>{
+    const st=simState.get(vis);
+    if(!st) return;
+    /* Synthetic speech envelope: syllable rate × phrase rate. */
+    const syll=Math.abs(Math.sin(t*4.1+st.seed))*Math.abs(Math.sin(t*11.7+st.seed*.7));
+    const phrase=.5+.5*Math.sin(t*.85+st.seed);
+    const rms=.015+.17*syll*phrase;
+    const norm=Math.min(1,rms*8);                       /* rmsToNorm */
+    st.raw = norm>st.raw ? st.raw*.2+norm*.8 : st.raw*.82+norm*.18;
+    const level=st.raw;
+    st.bars.forEach((el,i)=>{
+      const weight=DOT_WEIGHTS[i]??1;
+      const target=MIN_HEIGHT+level*weight*(MAX_HEIGHT-MIN_HEIGHT);
+      const cur=st.heights[i];
+      const next=cur+(target-cur)*.36;
+      const h=Math.max(MIN_HEIGHT,next);
+      st.heights[i]=h;
+      writeBar(el,h,.35+level*.65);
+    });
+  });
+  simRaf=requestAnimationFrame(simTick);
+}
+function setSim(on){
+  simOn=on;
+  if(on){
+    if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){ simOn=false; return; }
+    collectSims(); simT0=0;
+    if(simRaf===null) simRaf=requestAnimationFrame(simTick);
+  }else{
+    if(simRaf!==null){ cancelAnimationFrame(simRaf); simRaf=null; }
+    resetBars();
+  }
+}
+
+/* ══ Render + chrome ══ */
+let mode="light", simWanted=false, revealWanted=false;
+function renderAll(){
+  const single=document.getElementById("single");
+  const compare=document.getElementById("compare");
+  if(mode==="compare"){
+    single.innerHTML="";
+    compare.innerHTML=
+      `<div class="scope tokens-light"><span class="scope-label">Light</span>${SECTIONS()}</div>`+
+      `<div class="scope tokens-dark"><span class="scope-label">Dark</span>${SECTIONS()}</div>`;
+  }else{
+    compare.innerHTML="";
+    single.innerHTML=SECTIONS();
+  }
+  /* Re-apply the docs-only reveal toggle after every rebuild. `.locked`
+     marks the card that is revealed by its own config — the toggle must
+     not un-reveal it. */
+  applyReveal();
+  syncToggles();
+  if(simWanted) setSim(true);
+}
+function applyReveal(){
+  document.querySelectorAll(".pill:not(.locked)").forEach(p=>{
+    if(p.querySelector(".c-fading")) p.classList.toggle("reveal-fade",revealWanted);
+  });
+}
+function syncToggles(){
+  document.querySelectorAll('[data-toggle="sim"]').forEach(b=>b.setAttribute("aria-pressed",String(simWanted)));
+  document.querySelectorAll('[data-toggle="reveal"]').forEach(b=>b.setAttribute("aria-pressed",String(revealWanted)));
+}
+function setMode(next){
+  mode=next;
+  document.documentElement.classList.toggle("dark",mode==="dark");
+  document.body.classList.toggle("compare",mode==="compare");
+  document.querySelectorAll(".mode-switch button").forEach(b=>
+    b.setAttribute("aria-pressed",String(b.dataset.mode===mode)));
+  renderAll();
+  try{history.replaceState(null,"","#"+mode);}catch(e){/* file:// may deny */}
+}
+function replay(which){
+  document.querySelectorAll("#motion-bub").forEach(el=>{
+    el.classList.remove("enter","exit");
+    void el.offsetWidth;                       /* restart the animation */
+    el.classList.add(which);
+  });
+}
+
+document.addEventListener("click",e=>{
+  const modeBtn=e.target.closest(".mode-switch button");
+  if(modeBtn){setMode(modeBtn.dataset.mode);return;}
+  const toggle=e.target.closest("[data-toggle]");
+  if(toggle){
+    if(toggle.dataset.toggle==="sim"){
+      simWanted=!simWanted;
+      if(simWanted) setSim(true);
+      else { setSim(false); simWanted=false; }
+      syncToggles();
+      return;
+    }
+    if(toggle.dataset.toggle==="reveal"){
+      revealWanted=!revealWanted;
+      applyReveal();
+      syncToggles();
+      return;
+    }
+  }
+  const act=e.target.closest("[data-act]");
+  if(act){
+    if(act.dataset.act==="anim-enter") replay("enter");
+    if(act.dataset.act==="anim-exit") replay("exit");
+    if(act.dataset.act==="open-overlay") openOverlay();
+    return;
+  }
+  /* The overlay's own size label must not swallow the cancel click. */
+  if(e.target.classList.contains("sso") || e.target.classList.contains("sso-sel") ||
+     e.target.classList.contains("sso-size")) closeOverlay();
+});
+
+/* Real ScreenshotOverlay: fixed inset-0, drag to select, Esc or a
+   sub-4px drag cancels. Same MIN_SELECTION_PX as the component. */
+const MIN_SELECTION_PX=4;
+let ovStart=null, ovEl=null;
+function openOverlay(){
+  if(ovEl) return;
+  ovEl=document.createElement("div");
+  ovEl.className="sso";
+  ovEl.setAttribute("role","dialog");
+  ovEl.setAttribute("aria-label",T.screenshotTitle);
+  ovEl.tabIndex=-1;
+  ovEl.innerHTML=`<p class="sso-hint">${esc(T.screenshotHint)}</p>`;
+  document.body.appendChild(ovEl);
+  ovEl.addEventListener("pointerdown",ev=>{
+    if(ev.button!==0) return;
+    ovStart={x:ev.clientX,y:ev.clientY};
+  });
+  ovEl.addEventListener("pointerup",ev=>{
+    if(!ovStart) return;
+    const w=Math.abs(ev.clientX-ovStart.x), h=Math.abs(ev.clientY-ovStart.y);
+    ovStart=null;
+    closeOverlay();
+    if(w<MIN_SELECTION_PX||h<MIN_SELECTION_PX) return;   /* a click, not a drag */
+  });
+}
+function closeOverlay(){
+  if(!ovEl) return;
+  ovEl.remove(); ovEl=null; ovStart=null;
+}
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){e.stopPropagation();closeOverlay();}
+});
+
+const initial=(location.hash||"").replace("#","");
+setMode(["light","dark","compare"].includes(initial)?initial:"light");
+</script>
+</body>
+</html>

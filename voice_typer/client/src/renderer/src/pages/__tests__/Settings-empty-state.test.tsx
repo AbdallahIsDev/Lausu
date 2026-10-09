@@ -235,3 +235,128 @@ describe("Settings initial-load failure shows an error state with Retry", () => 
 		expect(screen.queryByText("Couldn't load settings")).toBeNull();
 	});
 });
+
+describe("Settings initial-load auto-retry self-heals without a click", () => {
+	beforeEach(() => {
+		mockCall.mockReset();
+		mockPythonEvent.mockReset();
+		localStorage.clear();
+		vi.resetModules();
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	const getConfigCallCount = () =>
+		mockCall.mock.calls.filter(([type]) => type === "get_config").length;
+
+	it("recovers into the page when the retry succeeds (no manual click)", async () => {
+		let failGetConfig = true;
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config") {
+				return failGetConfig
+					? Promise.reject(new Error("boot storm"))
+					: Promise.resolve(baseConfig);
+			}
+			return Promise.resolve({});
+		});
+
+		const { default: SettingsPage } = await import("@/pages/Settings");
+		renderWithProviders(<SettingsPage />);
+
+		await waitFor(() => {
+			expect(screen.getByText("Couldn't load settings")).toBeTruthy();
+		});
+
+		// Backend recovers on its own; the +1s backoff retry heals the
+		// page with no click.
+		failGetConfig = false;
+		await waitFor(
+			() => {
+				expect(screen.getByText("Settings")).toBeTruthy();
+			},
+			{ timeout: 5000 },
+		);
+		expect(screen.queryByText("Couldn't load settings")).toBeNull();
+	}, 10000);
+
+	it("keeps polling on persistent failure without spamming (backoff)", async () => {
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config")
+				return Promise.reject(new Error("backend down"));
+			return Promise.resolve({});
+		});
+
+		const { default: SettingsPage } = await import("@/pages/Settings");
+		renderWithProviders(<SettingsPage />);
+
+		await waitFor(() => {
+			expect(screen.getByText("Couldn't load settings")).toBeTruthy();
+		});
+		// Mount attempt + ~1 backoff retry, not a tight loop.
+		await waitFor(
+			() => {
+				expect(getConfigCallCount()).toBeGreaterThanOrEqual(2);
+			},
+			{ timeout: 5000 },
+		);
+		expect(getConfigCallCount()).toBeLessThanOrEqual(3);
+	}, 10000);
+
+	it("does not auto-retry background refresh failures while content shows", async () => {
+		let failGetConfig = false;
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config") {
+				return failGetConfig
+					? Promise.reject(new Error("backend down"))
+					: Promise.resolve(baseConfig);
+			}
+			return Promise.resolve({});
+		});
+
+		const { default: SettingsPage } = await import("@/pages/Settings");
+		const { unmount } = renderWithProviders(<SettingsPage />);
+		await waitFor(() => {
+			expect(screen.getByText("Settings")).toBeTruthy();
+		});
+		const before = getConfigCallCount();
+
+		// Remount with a poisoned backend: the module cache seeds content
+		// instantly, the background refresh fails -> exactly one attempt,
+		// no loop behind a usable page.
+		unmount();
+		failGetConfig = true;
+		renderWithProviders(<SettingsPage />);
+		await waitFor(
+			() => {
+				expect(screen.getByText("Settings")).toBeTruthy();
+			},
+			{ timeout: 5000 },
+		);
+		const afterMount = getConfigCallCount();
+		expect(afterMount).toBe(before + 1);
+		// Past the first (+1s) backoff mark: still no follow-up attempt.
+		await new Promise((resolve) => setTimeout(resolve, 1300));
+		expect(getConfigCallCount()).toBe(afterMount);
+	}, 15000);
+
+	it("retires the loop on unmount (no attempts after teardown)", async () => {
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config")
+				return Promise.reject(new Error("backend down"));
+			return Promise.resolve({});
+		});
+
+		const { default: SettingsPage } = await import("@/pages/Settings");
+		const { unmount } = renderWithProviders(<SettingsPage />);
+		await waitFor(() => {
+			expect(screen.getByText("Couldn't load settings")).toBeTruthy();
+		});
+		unmount();
+		const count = getConfigCallCount();
+		// Past the first (+1s) backoff mark: nothing fired.
+		await new Promise((resolve) => setTimeout(resolve, 1300));
+		expect(getConfigCallCount()).toBe(count);
+	}, 10000);
+});

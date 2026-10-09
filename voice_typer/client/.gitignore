@@ -5,9 +5,14 @@ dist/
 # istanbul/vitest HTML coverage report (emitted by `npm run test:coverage`
 # into ./coverage, build artifact, never commit).
 coverage/
-src/renderer/public/
+# NOTE: trailing `/*` (not `/`) so the single exception below can
+# re-include one file; git cannot re-include inside an excluded dir.
+src/renderer/public/*
 resources/
 storybook-static/
+# Exception: hand-written source shipped verbatim (boot-failure fallback
+# screen, referenced by index.html). Generated siblings stay ignored.
+!src/renderer/public/boot-fallback.js
 # TS declaration stubs (emitted by tsc -b / composite builds) live in ./out
 # (see tsconfig.web.json outDir). Never commit in-source .d.ts artifacts.
 src/**/*.d.ts

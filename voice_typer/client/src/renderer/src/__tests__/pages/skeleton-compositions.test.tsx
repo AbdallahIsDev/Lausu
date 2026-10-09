@@ -119,6 +119,12 @@ describe("SettingsPageSkeleton (hub)", () => {
 	it("renders ONE hub card with 9 section rows", () => {
 		render(<SettingsPageSkeleton />);
 		const status = screen.getByRole("status", { name: LOADING_LABEL });
+		// The shell's heading→card tier must match the real page
+		// (`pages/Settings.tsx`): gap-4, NOT the data pages' gap-6 and
+		// not the stale gap-8 this skeleton carried while the page moved
+		// on. A skeleton with a wider shell shifts the card on hydration.
+		expect(status.className).toContain("gap-4");
+		expect(status.className).not.toContain("gap-8");
 		const card = status.querySelector(".overflow-hidden.rounded-lg.divide-y");
 		expect(card).not.toBeNull();
 		expect(card?.querySelectorAll(".divide-y > .flex").length).toBe(9);

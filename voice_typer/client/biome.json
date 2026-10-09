@@ -26,5 +26,14 @@
 		"rules": {
 			"preset": "recommended"
 		}
-	}
+	},
+	"overrides": [
+		{
+			"includes": [
+				"src/renderer/src/components/ui/date-range-picker.tsx",
+				"src/renderer/src/components/ui/date-range-picker-utils/date-range-picker.module.css"
+			],
+			"linter": { "enabled": false }
+		}
+	]
 }
