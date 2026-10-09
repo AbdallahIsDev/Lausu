@@ -12,6 +12,7 @@ import {
 	dateKey,
 	localDateKey,
 	parseUtcTimestamp,
+	WEEKDAY_LABEL_MAX_SPAN,
 } from "../streaks";
 
 function bar(bars: ActivityBar[], i: number): ActivityBar {
@@ -156,6 +157,20 @@ describe("computePeriodStats", () => {
 		expect(p.peakWeekday).toBe(NOW.getDay());
 	});
 
+	it("the prev window exposes its own longest session, for a like-for-like trend", () => {
+		// The Longest Session card compares against the previous window's
+		// MAX, not against a sum: "prev" has to carry it. For "7d" the
+		// previous window is days 7..13 ago.
+		const records = [
+			rec(0, { duration: 60 }),
+			rec(7, { duration: 90 }),
+			rec(10, { duration: 30 }),
+		];
+		const p = computePeriodStats(records, "7d", NOW);
+		expect(p.longestSession).toBe(60);
+		expect(p.prev?.longestSession).toBe(90);
+	});
+
 	it("excludes future-dated records from the window", () => {
 		const future = new Date(NOW);
 		future.setDate(future.getDate() + 2);
@@ -202,6 +217,41 @@ describe("buildActivityBars", () => {
 		const { daySpan, kind } = buildActivityBars(records, "all", NOW);
 		expect(kind).toBe("daily");
 		expect(daySpan).toBe(30);
+	});
+
+	it("labels bars with weekday names up to a week, then with month + day", () => {
+		// A weekday name identifies a day only within a week: "Thu"
+		// recurs four times across a 30-day window, so a wide range used
+		// to print the same handful of names in a seemingly random order
+		// and never say which date a bar was. Past a week the ticks are
+		// dates instead. (Locale is `en` — nothing in this file changes
+		// it — so the exact strings are stable.)
+		const week = buildActivityBars([rec(0)], "7d", NOW);
+		expect(week.bars).toHaveLength(7);
+		expect(week.bars.every((b) => !/\d/.test(b.label))).toBe(true);
+
+		const wide = buildActivityBars([rec(0)], "all", NOW);
+		expect(wide.bars).toHaveLength(30);
+		// 30 days back from Aug 16 2026 → Jul 18 … Aug 16. Every label
+		// carries its day-of-month, which a weekday name never does.
+		expect(wide.bars.every((b) => /\d/.test(b.label))).toBe(true);
+		expect(bar(wide.bars, 0).label).toBe("Jul 18");
+		expect(bar(wide.bars, 29).label).toBe("Aug 16");
+	});
+
+	it("spans the weekday→date switch exactly at the threshold", () => {
+		// The chart's tick SPACING reads the same constant, so the label
+		// text and the labels' density cannot drift apart.
+		expect(WEEKDAY_LABEL_MAX_SPAN).toBe(7);
+		const atLimit = buildActivityBars([rec(0)], "7d", NOW);
+		expect(atLimit.daySpan).toBe(WEEKDAY_LABEL_MAX_SPAN);
+		expect(atLimit.bars.every((b) => !/\d/.test(b.label))).toBe(true);
+		const pastLimit = buildActivityBars([rec(0)], "custom", NOW, {
+			startKey: "2026-08-09",
+			endKey: "2026-08-16",
+		});
+		expect(pastLimit.daySpan).toBe(8);
+		expect(pastLimit.bars.every((b) => /\d/.test(b.label))).toBe(true);
 	});
 
 	it("today range: 24 hourly bars, future hours are missing, past zeros are not", () => {
@@ -300,5 +350,127 @@ describe("computeCorrectionStats", () => {
 		expect(stats.corrections).toBe(0);
 		expect(stats.dictations).toBe(2);
 		expect(stats.rate).toBe(0);
+	});
+});
+
+describe("custom windows (explicit day ranges)", () => {
+	// Fixed NOW (Aug 16 2026 local) shared with the module helper above.
+	const CUSTOM = { startKey: "2026-08-10", endKey: "2026-08-12" }; // 3 days
+
+	it("resolveRangeWindow passes the window through with the previous same-length span", async () => {
+		const { resolveRangeWindow } = await import("../streaks");
+		const w = resolveRangeWindow("custom", NOW, CUSTOM);
+		expect(w.startKey).toBe("2026-08-10");
+		expect(w.endKey).toBe("2026-08-12");
+		expect(w.prevStartKey).toBe("2026-08-07");
+		expect(w.prevEndKey).toBe("2026-08-09");
+	});
+
+	it("resolveRangeWindow crosses month boundaries in the previous span", async () => {
+		const { resolveRangeWindow } = await import("../streaks");
+		const w = resolveRangeWindow("custom", NOW, {
+			startKey: "2026-03-01",
+			endKey: "2026-03-03",
+		});
+		// 2026 is not a leap year: Feb has 28 days.
+		expect(w.prevStartKey).toBe("2026-02-26");
+		expect(w.prevEndKey).toBe("2026-02-28");
+	});
+
+	it("resolveRangeWindow falls back to trailing-30d without a window", async () => {
+		const { resolveRangeWindow } = await import("../streaks");
+		expect(resolveRangeWindow("custom", NOW)).toEqual(
+			resolveRangeWindow("30d", NOW),
+		);
+	});
+
+	it("utcBoundsForWindow emits an inclusive-start/exclusive-end UTC pair", async () => {
+		const { utcBoundsForWindow } = await import("../streaks");
+		const { startTs, endTs } = utcBoundsForWindow("2026-08-10", "2026-08-12");
+		expect(startTs).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+		expect(endTs).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+		expect(startTs < endTs).toBe(true);
+		// Local noon inside the window satisfies start <= ts < end on
+		// every host timezone (storage order matches the strings).
+		const noon = new Date(2026, 7, 11, 12, 0, 0);
+		const ts = `${noon.getUTCFullYear()}-${String(noon.getUTCMonth() + 1).padStart(2, "0")}-${String(noon.getUTCDate()).padStart(2, "0")} ${String(noon.getUTCHours()).padStart(2, "0")}:00:00`;
+		expect(startTs <= ts && ts < endTs).toBe(true);
+	});
+
+	it("computePeriodStats scopes counts + trends to the custom window", () => {
+		const records = [rec(4), rec(5), rec(6), rec(3), rec(7)];
+		const p = computePeriodStats(records, "custom", NOW, CUSTOM);
+		expect(p.count).toBe(3); // Aug 10, 11, 12
+		expect(p.prev?.count).toBe(1); // Aug 9 (prev window Aug 7..9)
+	});
+
+	it("computeCorrectionStats scopes to the custom window", () => {
+		const stats = computeCorrectionStats(
+			{
+				version: 1,
+				entries: {},
+				corrections_by_day: {
+					"2026-08-11": 4, // inside
+					"2026-08-08": 6, // previous window
+					"2026-08-16": 9, // outside (today)
+				},
+				dictations_by_day: { "2026-08-11": 2 },
+			},
+			"custom",
+			NOW,
+			CUSTOM,
+		);
+		expect(stats.corrections).toBe(4);
+		expect(stats.dictations).toBe(2);
+		expect(stats.prevCorrections).toBe(6);
+	});
+
+	it("buildActivityBars renders daily bars over a multi-day custom window", () => {
+		const { bars, kind, daySpan } = buildActivityBars(
+			[rec(6), rec(6), rec(4)],
+			"custom",
+			NOW,
+			CUSTOM,
+		);
+		expect(kind).toBe("daily");
+		expect(daySpan).toBe(3);
+		expect(bars.map((b) => b.key)).toEqual([
+			"2026-08-10",
+			"2026-08-11",
+			"2026-08-12",
+		]);
+		expect(bars.map((b) => b.count)).toEqual([2, 0, 1]);
+	});
+
+	it("buildActivityBars renders hourly bars for a single past custom day", () => {
+		const day = { startKey: "2026-08-10", endKey: "2026-08-10" };
+		const { bars, kind } = buildActivityBars(
+			[rec(6, { hour: 9 }), rec(6, { hour: 9 }), rec(6, { hour: 14 })],
+			"custom",
+			NOW,
+			day,
+		);
+		expect(kind).toBe("hourly");
+		expect(bars).toHaveLength(24);
+		expect(bar(bars, 9).count).toBe(2);
+		expect(bar(bars, 14).count).toBe(1);
+		// A fully-past day has no future hours to mark missing.
+		expect(bars.every((b) => !b.isMissing)).toBe(true);
+	});
+});
+
+describe("formatWindowLabel", () => {
+	it("joins a same-year span without years", async () => {
+		const { formatWindowLabel } = await import("../format");
+		const label = formatWindowLabel("2026-08-10", "2026-08-12");
+		expect(label).toContain("–");
+		expect(label).not.toContain("2026");
+	});
+
+	it("shows years when the span crosses New Year", async () => {
+		const { formatWindowLabel } = await import("../format");
+		const label = formatWindowLabel("2025-12-30", "2026-01-02");
+		expect(label).toContain("2025");
+		expect(label).toContain("2026");
 	});
 });

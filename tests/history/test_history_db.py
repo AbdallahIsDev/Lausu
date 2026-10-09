@@ -592,3 +592,99 @@ class TestTodayStatsTimezoneQueryPreserved:
             "DATETIME('now', 'localtime', 'start of day', 'utc') query, "
             f"not the old DATE('now') UTC-only query. Got: {sql}"
         )
+
+
+class TestGetRecentWindowFilter:
+    """``get_recent`` ``start_ts``/``end_ts`` window bounds."""
+
+    @staticmethod
+    def _seed_closed_db(db_path):
+        from voice_typer.server.history_db import HistoryDB
+
+        db = HistoryDB(db_path=db_path)
+        for text in ("jan", "feb", "mar"):
+            db.add_transcription(text)
+        db.flush()
+        db.close()
+
+    @staticmethod
+    def _retimestamp(db_path, mapping):
+        import sqlite3
+
+        # Match by autoincrement id: row text is encrypted at rest, so
+        # plaintext WHERE clauses never match. Fresh DB → ids 1, 2, 3.
+        conn = sqlite3.connect(db_path)
+        try:
+            for row_id, ts in mapping.items():
+                conn.execute(
+                    "UPDATE transcriptions SET timestamp = ? WHERE id = ?",
+                    (ts, row_id),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def _window_db(self, tmp_path):
+        from voice_typer.server.history_db import HistoryDB
+
+        path = tmp_path / "window.db"
+        self._seed_closed_db(path)
+        self._retimestamp(
+            path,
+            {
+                1: "2026-01-10 12:00:00",
+                2: "2026-02-10 12:00:00",
+                3: "2026-03-10 12:00:00",
+            },
+        )
+        db = HistoryDB(db_path=path)
+        try:
+            yield db
+        finally:
+            db.close()
+
+    def test_window_returns_only_rows_inside(self, tmp_path):
+        for db in self._window_db(tmp_path):
+            rows = db.get_recent(
+                limit=50,
+                start_ts="2026-02-01 00:00:00",
+                end_ts="2026-03-01 00:00:00",
+            )
+            assert [r["text"] for r in rows] == ["feb"]
+
+    def test_window_bounds_are_start_inclusive_end_exclusive(self, tmp_path):
+        for db in self._window_db(tmp_path):
+            rows = db.get_recent(
+                limit=50,
+                start_ts="2026-02-10 12:00:00",
+                end_ts="2026-02-10 12:00:01",
+            )
+            assert [r["text"] for r in rows] == ["feb"]
+            rows = db.get_recent(
+                limit=50,
+                start_ts="2026-02-10 12:00:01",
+                end_ts="2026-03-01 00:00:00",
+            )
+            assert rows == []
+
+    def test_window_combines_with_keyset_cursor(self, tmp_path):
+        for db in self._window_db(tmp_path):
+            first = db.get_recent(
+                limit=1,
+                start_ts="2026-01-01 00:00:00",
+                end_ts="2026-04-01 00:00:00",
+            )
+            assert [r["text"] for r in first] == ["mar"]
+            second = db.get_recent(
+                limit=1,
+                before_timestamp=first[0]["timestamp"],
+                before_id=first[0]["id"],
+                start_ts="2026-01-01 00:00:00",
+                end_ts="2026-04-01 00:00:00",
+            )
+            assert [r["text"] for r in second] == ["feb"]
+
+    def test_no_window_returns_everything(self, tmp_path):
+        for db in self._window_db(tmp_path):
+            rows = db.get_recent(limit=50)
+            assert [r["text"] for r in rows] == ["mar", "feb", "jan"]

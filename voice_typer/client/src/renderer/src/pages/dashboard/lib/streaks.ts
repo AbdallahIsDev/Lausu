@@ -9,7 +9,7 @@
 
 import { dateKey, localDateKey, parseUtcTimestamp } from "@/lib/format";
 import type { HistoryRecord } from "@/types/ipc";
-import { dayAbbr } from "./format";
+import { dayAbbr, dayMonthAbbr } from "./format";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -24,7 +24,7 @@ import { dayAbbr } from "./format";
  * 500 dictations) so the cards, chart, and streaks can never disagree
  * with each other. The only exception is `totalCount`, which comes
  * from the dedicated `get_history_count` IPC (the true all-time row
- * count). When `totalCount > sampleSize` the char/duration totals are
+ * count). When `totalCount > sampleSize` the word/duration totals are
  * sampled, not complete, the page surfaces that with a footnote.
  */
 export interface DashboardData {
@@ -33,7 +33,7 @@ export interface DashboardData {
 	todayWordCount: number;
 	todayDuration: number;
 	totalCount: number;
-	totalChars: number;
+	totalWords: number;
 	totalDuration: number;
 	favoritesCount: number;
 	/** Active ASR model name, or null when no model is installed/selected. */
@@ -127,8 +127,106 @@ export function computeStreaks(records: HistoryRecord[]): {
 
 // ── Time-range period computation (single source of truth) ───────────
 
-/** Selectable analytics time ranges. */
-export type RangeId = "today" | "7d" | "30d" | "all";
+/** Selectable analytics time ranges. `"custom"` is an explicit local-day
+ *  window carried alongside (see CustomWindow); it never stands alone. */
+export type RangeId = "today" | "7d" | "30d" | "all" | "custom";
+
+/** Explicit custom window: inclusive local calendar day keys. */
+export interface CustomWindow {
+	startKey: string;
+	endKey: string;
+}
+
+/** A resolved window: current + previous same-length day-key ranges. */
+export interface ResolvedWindow {
+	startKey: string;
+	endKey: string;
+	prevStartKey: string | null;
+	prevEndKey: string | null;
+}
+
+/**
+ * Resolve a range to concrete day keys. Presets anchor on `now`;
+ * `"custom"` uses the caller's window and puts the previous window of
+ * the same length immediately before it (trends keep working). A custom
+ * range without a window falls back to the trailing 30 days: the store
+ * invariant (validated on write + rehydrate) makes that unreachable in
+ * production, and a guess beats a crash.
+ */
+export function resolveRangeWindow(
+	range: RangeId,
+	now: Date,
+	custom?: CustomWindow | null,
+): ResolvedWindow {
+	if (range === "custom" && custom) {
+		const spanDays =
+			Math.round(
+				(Date.parse(`${custom.endKey}T00:00:00Z`) -
+					Date.parse(`${custom.startKey}T00:00:00Z`)) /
+					86400000,
+			) + 1;
+		return {
+			startKey: custom.startKey,
+			endKey: custom.endKey,
+			prevStartKey: shiftDayKey(custom.startKey, -spanDays),
+			prevEndKey: shiftDayKey(custom.startKey, -1),
+		};
+	}
+	if (range === "custom") {
+		return resolveRangeWindow("30d", now);
+	}
+	const todayKey = localDateKey(now);
+	const span = rangeDaySpan(range);
+	if (span === null) {
+		return {
+			startKey: "0000-00-00",
+			endKey: todayKey,
+			prevStartKey: null,
+			prevEndKey: null,
+		};
+	}
+	return {
+		startKey: localDateKey(addDays(now, -(span - 1))),
+		endKey: todayKey,
+		prevStartKey: localDateKey(addDays(now, -(span * 2 - 1))),
+		prevEndKey: localDateKey(addDays(now, -span)),
+	};
+}
+
+/** Shift a `YYYY-MM-DD` day key by whole calendar days (UTC date
+ *  arithmetic: immune to DST and to the viewer's UTC offset, unlike
+ *  local `setDate` on a UTC-midnight instant). */
+function shiftDayKey(key: string, deltaDays: number): string {
+	const [y = 1970, m = 1, d = 1] = key.split("-").map(Number);
+	const shifted = new Date(Date.UTC(y, m - 1, d + deltaDays));
+	return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}-${String(shifted.getUTCDate()).padStart(2, "0")}`;
+}
+
+/**
+ * UTC `"YYYY-MM-DD HH:MM:SS"` bounds for a local-day window, for the
+ * `get_history` `start_ts`/`end_ts` filter (storage order matches).
+ * Start is inclusive (local midnight of the first day), end is exclusive
+ * (local midnight of the day AFTER the last). Local-midnight arithmetic
+ * rides through DST transitions instead of assuming 24h days.
+ */
+export function utcBoundsForWindow(
+	startKey: string,
+	endKey: string,
+): { startTs: string; endTs: string } {
+	const toUtcStamp = (d: Date) =>
+		`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}:${String(d.getUTCSeconds()).padStart(2, "0")}`;
+	// Keys are validated (`YYYY-MM-DD`) before they reach here; the
+	// defaults below only satisfy noUncheckedIndexedAccess, they never
+	// fire on real input.
+	const [sy = 1970, sm = 1, sd = 1] = startKey.split("-").map(Number);
+	const [ey = 1970, em = 1, ed = 1] = endKey.split("-").map(Number);
+	const startLocal = new Date(sy, sm - 1, sd);
+	const endExclusiveLocal = new Date(ey, em - 1, ed + 1);
+	return {
+		startTs: toUtcStamp(startLocal),
+		endTs: toUtcStamp(endExclusiveLocal),
+	};
+}
 
 /** Number of calendar days a range covers (null = unbounded / all-time). */
 export function rangeDaySpan(range: RangeId): number | null {
@@ -141,6 +239,13 @@ export function rangeDaySpan(range: RangeId): number | null {
 			return 30;
 		case "all":
 			return null;
+		case "custom":
+			// Custom windows carry their own span (see resolveRangeWindow):
+			// a single number cannot describe them. Throw so a missed
+			// call site fails loudly instead of silently mis-windowing.
+			throw new Error(
+				"rangeDaySpan: custom ranges resolve via resolveRangeWindow",
+			);
 	}
 }
 
@@ -164,6 +269,13 @@ export interface PeriodStats {
 		chars: number;
 		wordCount: number;
 		duration: number;
+		/**
+		 * Longest single dictation in the previous window. Already
+		 * computed by `aggregate`, so the Longest Session card can carry
+		 * the same trend as its five neighbours instead of being the one
+		 * cell with a number and nothing to compare it to.
+		 */
+		longestSession: number;
 	} | null;
 }
 
@@ -220,19 +332,18 @@ export function computePeriodStats(
 	records: HistoryRecord[],
 	range: RangeId,
 	now: Date = new Date(),
+	customWindow?: CustomWindow | null,
 ): PeriodStats {
-	const todayKey = localDateKey(now);
-	const span = rangeDaySpan(range);
-	const windowStart =
-		span === null ? "0000-00-00" : localDateKey(addDays(now, -(span - 1)));
-	const prevWindowStart =
-		span === null ? null : localDateKey(addDays(now, -(span * 2 - 1)));
-	const prevWindowEnd =
-		span === null ? null : localDateKey(addDays(now, -span));
+	const {
+		startKey: windowStart,
+		endKey: windowEnd,
+		prevStartKey: prevWindowStart,
+		prevEndKey: prevWindowEnd,
+	} = resolveRangeWindow(range, now, customWindow);
 
 	const inWindow = records.filter((r) => {
 		const k = dateKey(r.timestamp);
-		return k >= windowStart && k <= todayKey;
+		return k >= windowStart && k <= windowEnd;
 	});
 	const prevRecords =
 		prevWindowStart !== null && prevWindowEnd !== null
@@ -256,13 +367,14 @@ export function computePeriodStats(
 		longestSession: cur.longestSession,
 		peakWeekday: cur.peakWeekday,
 		prev:
-			span === null
+			prevWindowStart === null || prevWindowEnd === null
 				? null
 				: {
 						count: prevAgg.count,
 						chars: prevAgg.chars,
 						wordCount: prevAgg.wordCount,
 						duration: prevAgg.duration,
+						longestSession: prevAgg.longestSession,
 					},
 	};
 }
@@ -299,33 +411,32 @@ export function computeCorrectionStats(
 	usage: CorrectionUsageSnapshot | null,
 	range: RangeId,
 	now: Date = new Date(),
+	customWindow?: CustomWindow | null,
 ): CorrectionStats {
 	if (!usage)
 		return { corrections: 0, dictations: 0, rate: null, prevCorrections: null };
 
 	const correctionsByDay = usage.corrections_by_day ?? {};
 	const dictationsByDay = usage.dictations_by_day ?? {};
-	const todayKey = localDateKey(now);
-	const span = rangeDaySpan(range);
-	const windowStart =
-		span === null ? "0000-00-00" : localDateKey(addDays(now, -(span - 1)));
-	const prevWindowStart =
-		span === null ? null : localDateKey(addDays(now, -(span * 2 - 1)));
-	const prevWindowEnd =
-		span === null ? null : localDateKey(addDays(now, -span));
+	const {
+		startKey: windowStart,
+		endKey: windowEnd,
+		prevStartKey: prevWindowStart,
+		prevEndKey: prevWindowEnd,
+	} = resolveRangeWindow(range, now, customWindow);
 
 	let corrections = 0;
 	let dictations = 0;
 	let prevCorrections = 0;
 	for (const [day, n] of Object.entries(correctionsByDay)) {
-		if (day >= windowStart && day <= todayKey) corrections += n ?? 0;
+		if (day >= windowStart && day <= windowEnd) corrections += n ?? 0;
 		if (prevWindowStart !== null && prevWindowEnd !== null) {
 			if (day >= prevWindowStart && day <= prevWindowEnd)
 				prevCorrections += n ?? 0;
 		}
 	}
 	for (const [day, n] of Object.entries(dictationsByDay)) {
-		if (day >= windowStart && day <= todayKey) dictations += n ?? 0;
+		if (day >= windowStart && day <= windowEnd) dictations += n ?? 0;
 	}
 
 	return {
@@ -358,38 +469,64 @@ export interface ActivityChartData {
 	daySpan: number;
 }
 
+/**
+ * Widest daily span whose bars are still identified by weekday name.
+ * Past a week the name stops being an identifier — "Thu" recurs four
+ * times in a 30-day window — so the ticks switch to month + day. The
+ * chart's tick SPACING reads the same threshold, so the label text and
+ * the labels' density can never drift apart.
+ */
+export const WEEKDAY_LABEL_MAX_SPAN = 7;
+
 /** Build the chart bars for the selected range from the history sample. */
 export function buildActivityBars(
 	records: HistoryRecord[],
 	range: RangeId,
 	now: Date = new Date(),
+	customWindow?: CustomWindow | null,
 ): ActivityChartData {
-	if (range === "today") {
-		return buildHourlyBars(records, now);
+	const { startKey, endKey } = resolveRangeWindow(range, now, customWindow);
+	const spanDays =
+		Math.round(
+			(Date.parse(`${endKey}T00:00:00Z`) -
+				Date.parse(`${startKey}T00:00:00Z`)) /
+				86400000,
+		) + 1;
+	if (range === "today" || (range === "custom" && spanDays <= 1)) {
+		return buildHourlyBars(
+			records,
+			range === "today" ? localDateKey(now) : startKey,
+			// Past days have no future hours; today caps at the current one.
+			range === "today" ? now.getHours() : null,
+		);
 	}
 	// "all" renders the trailing 30 days (per-day bars are unbounded
 	// otherwise); the subtitle communicates the window.
-	const span = rangeDaySpan(range) ?? 30;
-	const todayKey = localDateKey(now);
-	const startKey = localDateKey(addDays(now, -(span - 1)));
+	const span = range === "all" ? 30 : spanDays;
+	const anchoredEnd = range === "all" ? localDateKey(now) : endKey;
+	const anchoredStart =
+		range === "all" ? localDateKey(addDays(now, -(span - 1))) : startKey;
 
 	const counts = new Map<string, number>();
 	let coveredFromKey: string | null = null;
 	for (const r of records) {
 		const k = dateKey(r.timestamp);
 		if (coveredFromKey === null || k < coveredFromKey) coveredFromKey = k;
-		if (k >= startKey && k <= todayKey) {
+		if (k >= anchoredStart && k <= anchoredEnd) {
 			counts.set(k, (counts.get(k) ?? 0) + 1);
 		}
 	}
 
 	const bars: ActivityBar[] = [];
+	// Weekday names identify a day only within a week; the wider ranges
+	// label the ticks with month + day instead.
+	const weekdayLabels = span <= WEEKDAY_LABEL_MAX_SPAN;
 	for (let i = 0; i < span; i++) {
-		const key = localDateKey(addDays(now, -(span - 1 - i)));
+		const key = shiftDayKey(anchoredStart, i);
 		const missing = coveredFromKey !== null && key < coveredFromKey;
 		bars.push({
 			key,
-			label: dayAbbr(key),
+			label: weekdayLabels ? dayAbbr(key) : dayMonthAbbr(key),
 			count: counts.get(key) ?? 0,
 			isMissing: missing,
 		});
@@ -397,32 +534,32 @@ export function buildActivityBars(
 	return { bars, kind: "daily", coveredFromKey, daySpan: span };
 }
 
-/** Per-hour bars for a single day (used by the "Today" range). */
+/** Per-hour bars for a single day. `hourCap` hides future hours (today);
+ *  null marks every hour eligible (a fully-past custom day). */
 function buildHourlyBars(
 	records: HistoryRecord[],
-	now: Date,
+	dayKey: string,
+	hourCap: number | null,
 ): ActivityChartData {
-	const todayKey = localDateKey(now);
 	const counts = new Map<number, number>();
 	let coveredFromKey: string | null = null;
 	for (const r of records) {
 		const d = parseUtcTimestamp(r.timestamp);
 		const k = dateKey(r.timestamp);
 		if (coveredFromKey === null || k < coveredFromKey) coveredFromKey = k;
-		if (k === todayKey && !Number.isNaN(d.getTime())) {
+		if (k === dayKey && !Number.isNaN(d.getTime())) {
 			counts.set(d.getHours(), (counts.get(d.getHours()) ?? 0) + 1);
 		}
 	}
-	const currentHour = now.getHours();
 	const bars: ActivityBar[] = [];
 	for (let h = 0; h < 24; h++) {
 		bars.push({
-			key: `${todayKey}-${h}`,
+			key: `${dayKey}-${h}`,
 			label: String(h),
 			count: counts.get(h) ?? 0,
 			// Future hours can't have data yet, a "no data" slot, not
 			// a zero-activity one.
-			isMissing: h > currentHour,
+			isMissing: hourCap !== null && h > hourCap,
 		});
 	}
 	return { bars, kind: "hourly", coveredFromKey, daySpan: 1 };

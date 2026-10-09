@@ -37,6 +37,83 @@ class TestGetHistory:
         fake_service.get_history.assert_called_once_with(50, 0)
 
 
+class TestGetHistoryWindowBounds:
+    """``_handle_get_history`` optional UTC ``[start_ts, end_ts)`` window."""
+
+    def test_window_bounds_forwarded_to_service(self, ipc_server, fake_service):
+        """Valid bounds ride along as kwargs; row order still DESC."""
+        fake_service.get_history.return_value = []
+        resp = ipc_server._handle_get_history(
+            {
+                "limit": 10,
+                "start_ts": "2026-02-01 00:00:00",
+                "end_ts": "2026-03-01 00:00:00",
+            },
+            {},
+        )
+        assert resp["type"] == "history"
+        fake_service.get_history.assert_called_once_with(
+            10, 0, start_ts="2026-02-01 00:00:00", end_ts="2026-03-01 00:00:00"
+        )
+
+    def test_single_bound_forwarded(self, ipc_server, fake_service):
+        """Only ``end_ts`` supplied → still forwarded (open start)."""
+        fake_service.get_history.return_value = []
+        resp = ipc_server._handle_get_history({"end_ts": "2026-03-01 00:00:00"}, {})
+        assert resp["type"] == "history"
+        fake_service.get_history.assert_called_once_with(
+            50, 0, start_ts=None, end_ts="2026-03-01 00:00:00"
+        )
+
+    def test_malformed_bound_rejected_service_not_called(
+        self, ipc_server, fake_service
+    ):
+        """Non-datetime ``start_ts`` is rejected with invalid-field."""
+        resp = ipc_server._handle_get_history({"start_ts": "last Tuesday"}, {})
+        assert resp["type"] == "error"
+        assert resp["data"]["code"] == "client.invalid_field"
+        assert resp["data"]["field"] == "start_ts"
+        fake_service.get_history.assert_not_called()
+
+    def test_inverted_window_rejected_service_not_called(
+        self, ipc_server, fake_service
+    ):
+        """``start_ts`` after ``end_ts`` is rejected (empty window)."""
+        resp = ipc_server._handle_get_history(
+            {
+                "start_ts": "2026-03-01 00:00:00",
+                "end_ts": "2026-02-01 00:00:00",
+            },
+            {},
+        )
+        assert resp["type"] == "error"
+        assert resp["data"]["code"] == "client.invalid_field"
+        fake_service.get_history.assert_not_called()
+
+    def test_window_combines_with_keyset_cursor(self, ipc_server, fake_service):
+        """Cursor paging + window filter compose in one service call."""
+        fake_service.get_history.return_value = []
+        resp = ipc_server._handle_get_history(
+            {
+                "limit": 10,
+                "before_timestamp": "2026-02-15 00:00:00",
+                "before_id": 7,
+                "start_ts": "2026-02-01 00:00:00",
+                "end_ts": "2026-03-01 00:00:00",
+            },
+            {},
+        )
+        assert resp["type"] == "history"
+        fake_service.get_history.assert_called_once_with(
+            10,
+            0,
+            before_timestamp="2026-02-15 00:00:00",
+            before_id=7,
+            start_ts="2026-02-01 00:00:00",
+            end_ts="2026-03-01 00:00:00",
+        )
+
+
 class TestGetTodayStats:
     """``_handle_get_today_stats``, returns today's stats dict."""
 

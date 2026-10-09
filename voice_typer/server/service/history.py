@@ -17,14 +17,22 @@ class HistoryMixin(ServiceMixinBase):
         *,
         before_timestamp: str | None = None,
         before_id: int | None = None,
+        start_ts: str | None = None,
+        end_ts: str | None = None,
     ) -> list[dict]:
         """Return recent transcriptions."""
+        # Forward window bounds only when present: the no-bounds call
+        # stays byte-identical (exact-arg assertions pin it).
+        window_kwargs: dict = {}
+        if start_ts is not None or end_ts is not None:
+            window_kwargs = {"start_ts": start_ts, "end_ts": end_ts}
         return self._app.history_db.get_recent(
             limit,
             offset,
             raise_on_error=True,
             before_timestamp=before_timestamp,
             before_id=before_id,
+            **window_kwargs,
         )
 
     def search_history(

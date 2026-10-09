@@ -31,6 +31,42 @@ _HISTORY_CURSOR_FIELDS: dict = {
     },
 }
 
+# Optional UTC window bounds (``get_history`` only): renderer-computed
+# ``"YYYY-MM-DD HH:MM:SS"`` instants, validated by _validate_window_bounds.
+_HISTORY_WINDOW_FIELDS: dict = {
+    "start_ts": {"type": str, "required": False, "default": None},
+    "end_ts": {"type": str, "required": False, "default": None},
+}
+
+
+def _validate_window_bounds(
+    validated: dict, error_response
+) -> tuple[str | None, str | None] | dict:
+    """Validate optional ``start_ts``/``end_ts`` window bounds.
+
+    Returns ``(start_ts, end_ts)`` (either may be None) or an error
+    envelope dict. Strict ``strptime`` shape + start-before-end so a
+    malformed bound can never reach SQL (values are parameterized
+    anyway; this is about rejecting nonsense early with a clear code).
+    """
+    from datetime import datetime
+
+    start_ts = validated.get("start_ts")
+    end_ts = validated.get("end_ts")
+    if start_ts is None and end_ts is None:
+        return None, None
+    for value in (start_ts, end_ts):
+        if value is not None and (not isinstance(value, str) or len(value) != 19):
+            return error_response("start_ts/end_ts must be UTC 'YYYY-MM-DD HH:MM:SS'")
+    try:
+        start = datetime.strptime(start_ts, "%Y-%m-%d %H:%M:%S") if start_ts is not None else None
+        end = datetime.strptime(end_ts, "%Y-%m-%d %H:%M:%S") if end_ts is not None else None
+    except (TypeError, ValueError):
+        return error_response("start_ts/end_ts must be UTC 'YYYY-MM-DD HH:MM:SS'")
+    if start is not None and end is not None and not start < end:
+        return error_response("start_ts must be before end_ts")
+    return start_ts, end_ts
+
 
 class HistoryHandlersMixin(HandlerBase):
     """Mixin: history-related IPC handlers (get_history / delete_history / ...)."""
@@ -44,6 +80,7 @@ class HistoryHandlersMixin(HandlerBase):
         service_call,
         extra_schema: dict | None = None,
         service_args: tuple = (),
+        range_filter: bool = False,
     ) -> dict:
         """Shared pipeline for get_history / get_favorites / search_history.
 
@@ -51,12 +88,17 @@ class HistoryHandlersMixin(HandlerBase):
         reject → service call → frame-cap → envelope. ``service_call`` is
         ``self.service.<list method>``; extra required fields (e.g. query)
         come from ``extra_schema`` and are passed as ``service_args`` first.
+        ``range_filter=True`` (``get_history`` only) accepts an optional
+        UTC ``[start_ts, end_ts)`` window validated by
+        :func:`_validate_window_bounds`.
         """
         schema = {
             "limit": {"type": (int, str), "required": False, "default": 50},
             "offset": {"type": (int, str), "required": False, "default": 0},
             **_HISTORY_CURSOR_FIELDS,
         }
+        if range_filter:
+            schema.update(_HISTORY_WINDOW_FIELDS)
         if extra_schema:
             schema.update(extra_schema)
         validated, error = _validate_dict_payload(d, schema)
@@ -70,6 +112,20 @@ class HistoryHandlersMixin(HandlerBase):
         if isinstance(cursor, dict):
             return cursor
         before_timestamp, before_id = cursor
+        window_kwargs: dict = {}
+        if range_filter:
+            window = _validate_window_bounds(
+                validated,
+                lambda msg: self._error_response(
+                    resp, msg, code=ErrorCodes.INVALID_FIELD, field="start_ts"
+                ),
+            )
+            if isinstance(window, dict):
+                return window
+            # Forward bounds only when present: the no-bounds call stays
+            # byte-identical (existing call-shape assertions pin it).
+            if window[0] is not None or window[1] is not None:
+                window_kwargs = {"start_ts": window[0], "end_ts": window[1]}
         deep = self._reject_deep_offset(resp, offset, before_timestamp, before_id)
         if deep is not None:
             return deep
@@ -80,9 +136,10 @@ class HistoryHandlersMixin(HandlerBase):
                 offset,
                 before_timestamp=before_timestamp,
                 before_id=before_id,
+                **window_kwargs,
             )
         else:
-            rows = service_call(*service_args, limit, offset)
+            rows = service_call(*service_args, limit, offset, **window_kwargs)
         rows = self._enforce_history_frame_cap(rows, command=command)
         if isinstance(rows, dict):
             return rows
@@ -135,6 +192,7 @@ class HistoryHandlersMixin(HandlerBase):
                 resp,
                 command="get_history",
                 service_call=self.service.get_history,
+                range_filter=True,
             )
 
         return self._wrap(

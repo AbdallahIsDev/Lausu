@@ -12,10 +12,13 @@
 //   2. Six range-aware stat cards in ONE divided card (two rows of
 //      three, no gaps between cells): Dictations / Recording Time /
 //      Words on top, Average Speed / Longest session / Corrections
-//      below. Each trend compares against the previous period of the
-//      same length; Longest session has no previous maximum to
-//      compare against so it carries no trend, and Corrections is
-//      a bare count with neither trend nor sublabel.
+//      below. All six carry the SAME trend indicator, each comparing
+//      against the previous period of the same length, so no cell
+//      reads as a different kind of thing. A cell whose baseline is
+//      unusable (no previous window under "All Time", or a zero
+//      previous value) omits the indicator rather than inventing a
+//      comparison — that is `computeTrend`'s null contract, not a
+//      per-card decision.
 //   3. The activity chart (hourly for Today, daily otherwise) with a
 //      y-axis, gridlines, and zero-vs-no-data distinction.
 //   4. The dictation heatmap — deliberately range-INDEPENDENT: it always
@@ -121,6 +124,9 @@ export default function DashboardPage() {
 		activity,
 		heatmap,
 		correctionStats,
+		customReady,
+		customCapped,
+		customWindowLabel,
 	} = useDashboardData({ call });
 	const {
 		imageRef,
@@ -153,7 +159,7 @@ export default function DashboardPage() {
 						configRaw.asr_backend,
 						{
 							totalCount: data.totalCount,
-							totalChars: data.totalChars,
+							totalWords: data.totalWords,
 							totalDuration: data.totalDuration,
 							activeDays: data.activeDays,
 							currentStreak: data.currentStreak,
@@ -172,10 +178,14 @@ export default function DashboardPage() {
 
 	// Skeleton shown only on FIRST load (when `!data`); subsequent
 	// refreshes keep prior data visible (refreshing flag drives the
-	// LastUpdatedIndicator spinner instead).
+	// LastUpdatedIndicator spinner instead). A custom window with no
+	// rows yet skeletonizes too (its fetch rides outside `data`).
 	// When `fetchError` is set and `data` is null, the first fetch failed —
 	// render an error state with a Retry button instead of the skeleton.
-	if (!data) {
+	// A custom window with no synced rows lands here too: loading shows
+	// the skeleton, a failed fetch shows the error (zeros would read as
+	// "no activity" instead of "load failed").
+	if (!data || (range === "custom" && !customReady)) {
 		if (fetchError) {
 			return (
 				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center px-16 pt-20 pb-6">
@@ -259,7 +269,7 @@ export default function DashboardPage() {
 					onAction={() => navigate("home")}
 				/>
 			) : (
-				<div className="flex flex-col gap-6">
+				<div className="flex flex-col gap-4">
 					{/* ONE merged card, not six separate ones: the shared
 					    container owns the radius/border/background and 1px
 					    rules separate the cells, so there is no gap between
@@ -340,12 +350,26 @@ export default function DashboardPage() {
 								icon={StopWatchIcon}
 								label={t("analytics.longestLabel")}
 								value={formatDuration(period.longestSession)}
+								// Compares against the previous window's longest
+								// single session — the like-for-like baseline.
+								// Absent under "All Time" (no prior period).
+								trend={computeTrend(
+									period.longestSession,
+									period.prev?.longestSession,
+								)}
 							/>
 							<StatCard
 								inGroup
 								label={t("analytics.corrections")}
 								value={compactNumber(correctionStats.corrections)}
 								icon={CheckmarkCircle02Icon}
+								// Vocabulary corrections APPLIED inside the window.
+								// More is the feature working, so the shared
+								// up = green convention holds here unchanged.
+								trend={computeTrend(
+									correctionStats.corrections,
+									correctionStats.prevCorrections,
+								)}
 							/>
 						</div>
 					</div>
@@ -353,7 +377,21 @@ export default function DashboardPage() {
 					{/* NOTE: no "no dictations in this period" caption here —
 						the empty chart already communicates "no data". */}
 
-					<ActivityChart range={range} activity={activity} />
+					<ActivityChart
+						range={range}
+						activity={activity}
+						customWindowLabel={customWindowLabel}
+					/>
+					{/* Custom windows that hit the page cap serve sampled
+					    stats: say so under the chart, next to the numbers
+					    it qualifies. */}
+					{range === "custom" && customCapped && (
+						<p className="text-center text-xs text-muted-foreground">
+							{t("analytics.customRangeCapped", {
+								count: String(period.count),
+							})}
+						</p>
+					)}
 
 					{/* Long-window consistency view. Placed AFTER the
 						range-aware block (cards → chart → heatmap) so

@@ -85,6 +85,20 @@ interface TitleBarProps {
 	 *  placeholder + visibility. Optional so existing TitleBar call
 	 *  sites (tests, splash) render without the search bar. */
 	currentPage?: Page;
+	/** Minimal chrome for the connection-status screens (boot /
+	 *  restarting / lost backend): the bar stays visible (drag, theme,
+	 *  window buttons) but the toolbar group and the middle strip go
+	 *  away, and a card-colored bottom rule separates it from the
+	 *  status card below. App.tsx sets this whenever the main column
+	 *  shows ConnectionStatusScreen instead of a page. Defaults false. */
+	minimalChrome?: boolean;
+	/** Per-page middle-strip controls (search, models tabs, analytics
+	 *  range) render only while the routed page is actually visible.
+	 *  App.tsx sets this false whenever the main column shows the
+	 *  connection-status screen instead of the page (boot / restarting
+	 *  / lost-backend), so dead controls never linger above an error
+	 *  card. Defaults true to preserve existing call sites. */
+	showPageControls?: boolean;
 }
 
 // Window-control glyphs, native Windows caption icon geometry.
@@ -404,6 +418,8 @@ function TitleBarInner({
 	onThemeChange,
 	linuxWindowButtons,
 	currentPage,
+	showPageControls = true,
+	minimalChrome = false,
 }: TitleBarProps) {
 	// When the window is unfocused (user clicked another app), the
 	// WHOLE title bar dims like native OS title bars (container
@@ -514,6 +530,10 @@ function TitleBarInner({
 			{...(isTauri() ? { "data-tauri-drag-region": "" } : {})}
 			className={cn(
 				"drag-region flex w-full shrink-0 items-center select-none h-9 transition-opacity duration-150",
+				// Minimal chrome (status screens): a card-colored bottom
+				// rule (C-DESIGN-2 8% default) separates the bar from the
+				// status card, same border the cards themselves wear.
+				minimalChrome && "border-b border-border/8",
 				// Native OS title bars dim the WHOLE bar while the window
 				// is unfocused, every element (sidebar toggle, back,
 				// forward, help, and all three window controls) tones
@@ -541,72 +561,76 @@ function TitleBarInner({
 			{/* Toolbar button group, sidebar/back/forward/help wrapped in
                             a p-1 (4px) padded flex container so no button takes the
                             full 36px bar height; the 4px padding gives breathing room
-                            top/bottom/left/right, and gap-1 separates the buttons. */}
-			<div className="flex items-center gap-1 p-1">
-				{/* ONB-3: the onboarding wizard is a focused, mandatory flow —
+                            top/bottom/left/right, and gap-1 separates the buttons.
+                            Hidden entirely in minimal chrome (status screens):
+                            nothing up here is usable without a page behind it. */}
+			{!minimalChrome && (
+				<div className="flex items-center gap-1 p-1">
+					{/* ONB-3: the onboarding wizard is a focused, mandatory flow —
 				    the sidebar is hidden entirely for that page, so the toggle
 				    must not render (toggling would collapse a sidebar that
 				    isn't visible and desync the persisted rail state). */}
-				{currentPage !== "onboarding" && (
-					<HotkeyTooltip
-						label={t("a11y.toggleSidebar")}
-						keys={SHORTCUTS.toggleSidebar.keys}
-					>
-						<ToolbarButton
-							onClick={onToggleSidebar}
-							ariaLabel={t("a11y.toggleSidebarWithShortcut", {
-								shortcut: SHORTCUTS.toggleSidebar.keys,
-							})}
-							ariaKeyshortcuts={SHORTCUTS.toggleSidebar.ariaKeyshortcuts}
+					{currentPage !== "onboarding" && (
+						<HotkeyTooltip
+							label={t("a11y.toggleSidebar")}
+							keys={SHORTCUTS.toggleSidebar.keys}
 						>
-							<HugeiconsIcon
-								icon={PanelLeftIcon}
-								strokeWidth={2}
-								className="h-4 w-4"
-							/>
-						</ToolbarButton>
-					</HotkeyTooltip>
-				)}
+							<ToolbarButton
+								onClick={onToggleSidebar}
+								ariaLabel={t("a11y.toggleSidebarWithShortcut", {
+									shortcut: SHORTCUTS.toggleSidebar.keys,
+								})}
+								ariaKeyshortcuts={SHORTCUTS.toggleSidebar.ariaKeyshortcuts}
+							>
+								<HugeiconsIcon
+									icon={PanelLeftIcon}
+									strokeWidth={2}
+									className="h-4 w-4"
+								/>
+							</ToolbarButton>
+						</HotkeyTooltip>
+					)}
 
-				{/* Back/Forward navigation */}
-				<NavChevronButton
-					tooltipLabel={t("titleBar.back")}
-					shortcutKeys={SHORTCUTS.navBack.keys}
-					ariaLabel={t("a11y.goBack")}
-					onClick={onGoBack}
-					disabled={!canGoBack}
-					path="M10 12L6 8L10 4"
-				/>
-				<NavChevronButton
-					tooltipLabel={t("titleBar.forward")}
-					shortcutKeys={SHORTCUTS.navForward.keys}
-					ariaLabel={t("a11y.goForward")}
-					onClick={onGoForward}
-					disabled={!canGoForward}
-					path="M6 4L10 8L6 12"
-				/>
+					{/* Back/Forward navigation */}
+					<NavChevronButton
+						tooltipLabel={t("titleBar.back")}
+						shortcutKeys={SHORTCUTS.navBack.keys}
+						ariaLabel={t("a11y.goBack")}
+						onClick={onGoBack}
+						disabled={!canGoBack}
+						path="M10 12L6 8L10 4"
+					/>
+					<NavChevronButton
+						tooltipLabel={t("titleBar.forward")}
+						shortcutKeys={SHORTCUTS.navForward.keys}
+						ariaLabel={t("a11y.goForward")}
+						onClick={onGoForward}
+						disabled={!canGoForward}
+						path="M6 4L10 8L6 12"
+					/>
 
-				{/*discoverable "?" help button. Mirrors the "?"
+					{/*discoverable "?" help button. Mirrors the "?"
                             keyboard shortcut (handled in App.tsx) so mouse users and
                             AT users can also open the keyboard-shortcut overlay. */}
-				<HotkeyTooltip
-					label={t("help.openHelp")}
-					keys={SHORTCUTS.openHelp.keys}
-				>
-					<ToolbarButton
-						onClick={onOpenHelp}
-						ariaLabel={t("help.openHelp")}
-						ariaKeyshortcuts={SHORTCUTS.openHelp.ariaKeyshortcuts}
+					<HotkeyTooltip
+						label={t("help.openHelp")}
+						keys={SHORTCUTS.openHelp.keys}
 					>
-						<span
-							aria-hidden
-							className="text-[0.8125rem] font-semibold leading-none"
+						<ToolbarButton
+							onClick={onOpenHelp}
+							ariaLabel={t("help.openHelp")}
+							ariaKeyshortcuts={SHORTCUTS.openHelp.ariaKeyshortcuts}
 						>
-							?
-						</span>
-					</ToolbarButton>
-				</HotkeyTooltip>
-			</div>
+							<span
+								aria-hidden
+								className="text-[0.8125rem] font-semibold leading-none"
+							>
+								?
+							</span>
+						</ToolbarButton>
+					</HotkeyTooltip>
+				</div>
+			)}
 
 			{/* Per-page controls, centered in the middle of the title bar.
                             Global search renders on the searchable pages (history,
@@ -615,12 +639,17 @@ function TitleBarInner({
                             time-range control (both same middle strip, so the
                             control stays put while the page scrolls). On other
                             pages the flex-1 spacer keeps the toolbar left +
-                            controls right. */}
+                            controls right. Suppressed entirely while
+                            showPageControls is false (boot/restart/error screens
+                            own the main column, so route-matched controls would
+                            be dead buttons above a status card). */}
 			<div className="flex min-w-0 flex-1 items-center justify-center p-1 h-full">
-				{currentPage ? <GlobalSearchBar currentPage={currentPage} /> : null}
-				{currentPage ? <ModelsTabSwitcher currentPage={currentPage} /> : null}
-				{currentPage ? (
-					<AnalyticsRangeSwitcher currentPage={currentPage} />
+				{currentPage && showPageControls ? (
+					<>
+						<GlobalSearchBar currentPage={currentPage} />
+						<ModelsTabSwitcher currentPage={currentPage} />
+						<AnalyticsRangeSwitcher currentPage={currentPage} />
+					</>
 				) : null}
 			</div>
 
