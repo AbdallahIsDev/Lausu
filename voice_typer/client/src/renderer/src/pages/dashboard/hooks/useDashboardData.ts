@@ -35,12 +35,14 @@ import { resolveActiveModel } from "@/lib/utils/models";
 import { useAnalyticsRange } from "@/stores/useAnalyticsRange";
 import type { LausuConfig } from "@/types/config";
 import type { HistoryRecord, ModelStatusMap } from "@/types/ipc";
+import { formatWindowLabel } from "../lib/format";
 import { buildDictationHeatmap, type DictationHeatmap } from "../lib/heatmap";
 import {
 	type ActivityChartData,
 	buildActivityBars,
 	type CorrectionStats,
 	type CorrectionUsageSnapshot,
+	type CustomWindow,
 	computeCorrectionStats,
 	computePeriodStats,
 	computeStreaks,
@@ -48,12 +50,73 @@ import {
 	dateKey,
 	type PeriodStats,
 	type RangeId,
+	resolveRangeWindow,
+	utcBoundsForWindow,
 } from "../lib/streaks";
 
 /** History sample size for the dashboard's derived stats. */
 export const DASHBOARD_SAMPLE_LIMIT = 500;
 
 export const DASHBOARD_DELTA_LIMIT = 10;
+
+/**
+ * Custom-window page fetch: cursor through `[startTs, endTs)` newest-first.
+ * Caps at 10 pages (5000 rows): beyond that the window is served sampled
+ * and the page footnotes it. A mid-loop failure keeps the rows fetched so
+ * far (marked capped); a total failure throws for the caller's error path.
+ */
+export const CUSTOM_WINDOW_PAGE_LIMIT = 500;
+export const CUSTOM_WINDOW_MAX_PAGES = 10;
+
+type WindowCall = <T = unknown>(
+	type: string,
+	data?: Record<string, unknown>,
+) => Promise<T>;
+
+async function fetchWindowRecords(
+	call: WindowCall,
+	startTs: string,
+	endTs: string,
+): Promise<{ recs: HistoryRecord[]; capped: boolean }> {
+	const out: HistoryRecord[] = [];
+	let cursor: { timestamp: string; id: number } | null = null;
+	for (let page = 0; page < CUSTOM_WINDOW_MAX_PAGES; page++) {
+		const data: Record<string, unknown> = {
+			limit: CUSTOM_WINDOW_PAGE_LIMIT,
+			start_ts: startTs,
+			end_ts: endTs,
+		};
+		if (cursor) {
+			data.before_timestamp = cursor.timestamp;
+			data.before_id = cursor.id;
+		}
+		let rows: HistoryRecord[] | null = null;
+		try {
+			const fetched = await call<HistoryRecord[]>("get_history", data);
+			rows = Array.isArray(fetched) ? fetched : [];
+		} catch (err) {
+			// Total failure surfaces on the caller's error path; a partial
+			// page keeps what it has and marks the window sampled.
+			if (out.length === 0) throw err;
+			return { recs: out, capped: true };
+		}
+		if (rows.length === 0) return { recs: out, capped: false };
+		out.push(...rows);
+		if (rows.length < CUSTOM_WINDOW_PAGE_LIMIT)
+			return { recs: out, capped: false };
+		const last = rows[rows.length - 1];
+		// Unpageable tail (caller contract guarantees both fields):
+		// stop and mark sampled rather than looping forever.
+		if (
+			!last ||
+			typeof last.timestamp !== "string" ||
+			typeof last.id !== "number"
+		)
+			return { recs: out, capped: true };
+		cursor = { timestamp: last.timestamp, id: last.id };
+	}
+	return { recs: out, capped: true };
+}
 
 function buildDashboardData(args: {
 	cfg: LausuConfig | null;
@@ -69,10 +132,10 @@ function buildDashboardData(args: {
 	// chart and streaks by construction. When the sample is
 	// capped (totalCount > recs.length) the page shows a
 	// "sampled from the last N dictations" footnote.
-	let totalChars = 0,
+	let totalWords = 0,
 		totalDuration = 0;
 	for (const r of recs) {
-		totalChars += r.char_count ?? 0;
+		totalWords += r.word_count ?? 0;
 		totalDuration += r.duration ?? 0;
 	}
 
@@ -126,7 +189,7 @@ function buildDashboardData(args: {
 		// both empty-DB and IPC-failure, the empty-DB case is
 		// correct, and the IPC-failure case surfaces a 0 stat.
 		totalCount,
-		totalChars,
+		totalWords,
 		totalDuration,
 		favoritesCount,
 		model: activeModel,
@@ -169,7 +232,23 @@ export interface UseDashboardDataResult {
 	heatmap: DictationHeatmap;
 	/** Range-aware corrections-applied totals from the vocabulary usage snapshot. */
 	correctionStats: CorrectionStats;
-	refreshData: () => Promise<void>;
+	/**
+	 * Custom window (day keys) backing `range === "custom"`, null
+	 * otherwise. The window fetch covers the previous same-length span
+	 * too, so trends have a denominator.
+	 */
+	customWindow: CustomWindow | null;
+	/** The custom sample belongs to the current window (a switch
+	 *  desyncs it until the refetch lands; memos read empty meanwhile). */
+	customReady: boolean;
+	/** Custom fetch in flight (switching ranges shows the skeleton). */
+	customLoading: boolean;
+	/** Custom window hit the page cap: stats are sampled, footnoted. */
+	customCapped: boolean;
+	/** Pre-formatted custom span for the chart subtitle ("Oct 1 – Oct 9"). */
+	customWindowLabel?: string;
+	/** Full refresh. Resolves true on success, false when the error path ran. */
+	refreshData: () => Promise<boolean>;
 	handleManualRefresh: () => Promise<void>;
 	debouncedRefreshFromEvent: () => (() => void) | undefined;
 	/** "Last updated" relative label (e.g. "5s ago") for the indicator. */
@@ -215,10 +294,23 @@ export function useDashboardData({
 	// changes it is a sibling tree, and the value must survive leaving
 	// and re-entering the page.
 	const range = useAnalyticsRange((s) => s.range);
+	const customWindow = useAnalyticsRange((s) => s.customWindow);
 
 	// The history sample backing every derived stat (kept so period /
 	// activity memos recompute when the data refreshes).
 	const [sample, setSample] = useState<HistoryRecord[]>([]);
+	// Custom-window records: fetched on demand (paged, newest-first)
+	// instead of riding the 500-row sample, which may not cover an old
+	// window at all. Event-delta refreshes leave it alone (historical
+	// windows barely move); range switches + manual refresh re-fetch.
+	const [customSample, setCustomSample] = useState<HistoryRecord[]>([]);
+	// "startKey:endKey" the sample above was fetched for. A window switch
+	// desyncs it until the refetch lands; memos treat a desynced sample
+	// as empty so the page never shows one window's rows under another
+	// window's label.
+	const [customSampleKey, setCustomSampleKey] = useState<string | null>(null);
+	const [customCapped, setCustomCapped] = useState(false);
+	const [customLoading, setCustomLoading] = useState(false);
 	// Per-correction usage snapshot from `get_correction_usage`.
 	const [correctionUsage, setCorrectionUsage] =
 		useState<CorrectionUsageSnapshot | null>(null);
@@ -237,7 +329,7 @@ export function useDashboardData({
 	} | null>(null);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: callRef is a useLatestRef mirror: reading .current in a stale closure is the hook's documented contract, .current must NOT become a dep
-	const refreshData = useCallback(async () => {
+	const refreshData = useCallback(async (): Promise<boolean> => {
 		try {
 			const [cfg, history, totalCount, correctionUsage, modelStatus] =
 				await Promise.all([
@@ -306,6 +398,7 @@ export function useDashboardData({
 			// of re-fetching config / model-status per dictation.
 			coldRef.current = { cfg: cfg ?? null, modelStatus: modelStatus ?? {} };
 			setFetchError(null);
+			return true;
 		} catch (err) {
 			// Surface refresh failures to the user instead of
 			// caught and ignored ALL errors, so a backend disconnect
@@ -321,6 +414,7 @@ export function useDashboardData({
 			);
 			toast.error(message);
 			setFetchError(message);
+			return false;
 		} finally {
 			// F4: bump the "last updated" timestamp after each refresh
 			// attempt (success or failure) so the indicator stays accurate.
@@ -387,21 +481,86 @@ export function useDashboardData({
 		}
 	}, []);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: callRef/markUpdatedRef are useLatestRef mirrors (see refreshData above); the *Ref mirrors below are refs by design
+	const refreshCustomWindow = useCallback(async () => {
+		const live = useAnalyticsRange.getState();
+		if (live.range !== "custom" || !live.customWindow) return;
+		setCustomLoading(true);
+		try {
+			// Fetch from the previous window's start so trends resolve
+			// from the same rows the memos filter (single round-trip set).
+			const resolved = resolveRangeWindow(
+				"custom",
+				new Date(),
+				live.customWindow,
+			);
+			const bounds = utcBoundsForWindow(
+				resolved.prevStartKey ?? live.customWindow.startKey,
+				live.customWindow.endKey,
+			);
+			const { recs, capped } = await fetchWindowRecords(
+				callRef.current,
+				bounds.startTs,
+				bounds.endTs,
+			);
+			setCustomSample(recs);
+			setCustomSampleKey(
+				`${live.customWindow.startKey}:${live.customWindow.endKey}`,
+			);
+			setCustomCapped(capped);
+			setFetchError(null);
+		} catch (err) {
+			const message = t("analytics.refreshFailed");
+			console.error(
+				"[renderer:useDashboardData] Custom window refresh failed:",
+				err,
+			);
+			toast.error(message);
+			setFetchError(message);
+		} finally {
+			setCustomLoading(false);
+			markUpdatedRef.current();
+		}
+	}, []);
+
+	// Custom windows refetch on switch + window change (mount included).
+	// Preset ranges recompute from the existing sample, no fetch.
+	useEffect(() => {
+		if (range !== "custom" || !customWindow) return;
+		void refreshCustomWindow();
+	}, [range, customWindow, refreshCustomWindow]);
+
 	// ── Range-aware derived stats (single source: `sample`) ───────────
+	// A custom window reads its own fetch (desynced sample = empty, so a
+	// window switch never shows stale rows under the new label).
+	const customKey =
+		range === "custom" && customWindow
+			? `${customWindow.startKey}:${customWindow.endKey}`
+			: null;
+	const customReady = customKey !== null && customKey === customSampleKey;
+	const activeRecords =
+		range === "custom" ? (customReady ? customSample : []) : sample;
+	const activeWindow =
+		range === "custom" ? (customWindow ?? undefined) : undefined;
 	const period = useMemo(
-		() => computePeriodStats(sample, range),
-		[sample, range],
+		() => computePeriodStats(activeRecords, range, undefined, activeWindow),
+		[activeRecords, range, activeWindow],
 	);
 	const activity = useMemo(
-		() => buildActivityBars(sample, range),
-		[sample, range],
+		() => buildActivityBars(activeRecords, range, undefined, activeWindow),
+		[activeRecords, range, activeWindow],
 	);
 	// Deliberately NOT keyed on `range` — see `UseDashboardDataResult.heatmap`.
 	const heatmap = useMemo(() => buildDictationHeatmap(sample), [sample]);
 	const correctionStats = useMemo(
-		() => computeCorrectionStats(correctionUsage, range),
-		[correctionUsage, range],
+		() =>
+			computeCorrectionStats(correctionUsage, range, undefined, activeWindow),
+		[correctionUsage, range, activeWindow],
 	);
+	const customWindowLabel =
+		range === "custom" && customWindow
+			? formatWindowLabel(customWindow.startKey, customWindow.endKey)
+			: undefined;
 
 	// F4: manual refresh handler for the LastUpdatedIndicator button.
 	// Wraps `refreshData()` so we can flip a `refreshing` flag for the
@@ -412,10 +571,13 @@ export function useDashboardData({
 		setRefreshing(true);
 		try {
 			await refreshData();
+			// Manual refresh covers the custom window too (the
+			// range-change effect only fires on switches, not revisits).
+			await refreshCustomWindow();
 		} finally {
 			setRefreshing(false);
 		}
-	}, [refreshData]);
+	}, [refreshData, refreshCustomWindow]);
 
 	// ── Proactive background refresh after new transcriptions ────────
 	// Shared 500ms debounce (one timer for both event paths) so rapid
@@ -470,7 +632,9 @@ export function useDashboardData({
 		| undefined => {
 		return scheduleDebouncedRefresh(async () => {
 			const applied = await refreshDataDelta();
-			if (!applied) await refreshData();
+			if (!applied) {
+				await refreshData();
+			}
 		});
 	}, [refreshData, refreshDataDelta, scheduleDebouncedRefresh]);
 
@@ -480,7 +644,9 @@ export function useDashboardData({
 	const debouncedRefreshFullFromEvent = useCallback(():
 		| (() => void)
 		| undefined => {
-		return scheduleDebouncedRefresh(() => refreshData());
+		return scheduleDebouncedRefresh(async () => {
+			await refreshData();
+		});
 	}, [refreshData, scheduleDebouncedRefresh]);
 
 	// refresh on focus when stale. When the window regains
@@ -509,8 +675,25 @@ export function useDashboardData({
 		};
 	}, [cancelDebouncedRefresh]);
 
+	// Cold-start storm: the bridge's retry budget is spent by its
+	// first success, so a mount racing a still-booting backend fails
+	// fast with no data and no recovery. One delayed re-race heals
+	// that without manual Retry; a second failure keeps the error
+	// screen (bounded: exactly one extra attempt, unmount cancels).
 	useEffect(() => {
-		refreshData();
+		let cancelled = false;
+		let timer: ReturnType<typeof setTimeout> | null = null;
+		void refreshData().then((ok) => {
+			if (!ok && !cancelled) {
+				timer = setTimeout(() => {
+					if (!cancelled) void refreshData();
+				}, 8000);
+			}
+		});
+		return () => {
+			cancelled = true;
+			if (timer !== null) clearTimeout(timer);
+		};
 	}, [refreshData]);
 
 	return {
@@ -522,6 +705,11 @@ export function useDashboardData({
 		activity,
 		heatmap,
 		correctionStats,
+		customWindow,
+		customReady,
+		customLoading,
+		customCapped,
+		customWindowLabel,
 		refreshData,
 		handleManualRefresh,
 		debouncedRefreshFromEvent,
