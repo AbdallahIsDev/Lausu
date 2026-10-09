@@ -136,9 +136,7 @@
 	},
 	"dashboard": {
 		"cards": {
-			"dictations": "Dictations",
-			"chars": "Characters",
-			"duration": "Duration"
+			"dictations": "Dictations"
 		}
 	},
 	"common": {
@@ -413,7 +411,8 @@
 			"30d": "30 Days",
 			"7d": "7 Days",
 			"all": "All Time",
-			"today": "Today"
+			"today": "Today",
+			"custom": "Custom"
 		},
 		"activityChartAria": "{range} activity chart: {counts}",
 		"activityTitle": "Activity",
@@ -423,6 +422,25 @@
 		"longestSession": "Longest {duration}",
 		"noDataBar": "{label}: no data",
 		"rangeAria": "Analytics time range",
+		"rangeCustomAria": "Open the custom date-range picker",
+		"customRangeCapped": "Showing the most recent {count} dictations in this range",
+		"rangePicker": {
+			"presets": "Presets",
+			"prevMonth": "Previous month",
+			"nextMonth": "Next month",
+			"cancel": "Cancel",
+			"apply": "Apply",
+			"pickEndDate": "Pick an end date",
+			"noDates": "No dates",
+			"days_zero": "{count} days",
+			"days_one": "{count} day",
+			"days_two": "{count} days",
+			"days_few": "{count} days",
+			"days_many": "{count} days",
+			"days_other": "{count} days",
+			"statusStart": "Start {date}. Choose an end date.",
+			"statusShown": "{shown}, {count}"
+		},
 		"corrections": "Corrections",
 		"correctionsTooltip": "Vocabulary corrections the engine applied during dictation",
 		"correctionsRate": "{pct}% of dictations",
@@ -1848,7 +1866,7 @@
 			"dictations": "Dictations",
 			"activeDays": "Active days",
 			"dayStreak": "{count}-day streak",
-			"chars": "Characters",
+			"words": "Words",
 			"recordingTime": "Recording time",
 			"exportedFrom": "Exported from {appName}",
 			"captureFailed": "Failed to capture stats image.",

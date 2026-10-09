@@ -32,7 +32,7 @@ const stats: ShareStats = {
 	dictations: "1,204",
 	activeDays: "87",
 	activeDaysDetail: "5-day streak",
-	chars: "24,510",
+	words: "24,510",
 	recordingTime: "9h 40m",
 	model: "parakeet",
 	device: "cpu",

@@ -31,7 +31,7 @@ const TEST_STATS: ShareStats = {
 	dictations: "42",
 	activeDays: "12",
 	activeDaysDetail: "5-day streak",
-	chars: "8400",
+	words: "8400",
 	recordingTime: "1h 12m",
 	model: "Tiny",
 	device: "GPU",

@@ -406,7 +406,8 @@
 			"30d": "30 días",
 			"7d": "7 días",
 			"all": "Todo el tiempo",
-			"today": "Hoy"
+			"today": "Hoy",
+			"custom": "Personalizado"
 		},
 		"activityChartAria": "Gráfico de actividad de {range}: {counts}",
 		"activityTitle": "Actividad",
@@ -416,6 +417,25 @@
 		"longestSession": "Más largo {duration}",
 		"noDataBar": "{label}: sin datos",
 		"rangeAria": "Rango de tiempo de las estadísticas",
+		"rangeCustomAria": "Abrir el selector de intervalo personalizado",
+		"customRangeCapped": "Mostrando los {count} dictados más recientes de este intervalo",
+		"rangePicker": {
+			"presets": "Preajustes",
+			"prevMonth": "Mes anterior",
+			"nextMonth": "Mes siguiente",
+			"cancel": "Cancelar",
+			"apply": "Aplicar",
+			"pickEndDate": "Elige una fecha de fin",
+			"noDates": "Sin fechas",
+			"days_zero": "{count} días",
+			"days_one": "{count} día",
+			"days_two": "{count} días",
+			"days_few": "{count} días",
+			"days_many": "{count} días",
+			"days_other": "{count} días",
+			"statusStart": "Inicio {date}. Elige una fecha de fin.",
+			"statusShown": "{shown}, {count}"
+		},
 		"corrections": "Correcciones",
 		"correctionsTooltip": "Correcciones de vocabulario que el motor aplicó durante el dictado",
 		"correctionsRate": "{pct}% de los dictados",
@@ -1841,7 +1861,7 @@
 			"dictations": "Dictados",
 			"activeDays": "Días activos",
 			"dayStreak": "Racha de {count} días",
-			"chars": "Caracteres",
+			"words": "Palabras",
 			"recordingTime": "Tiempo de grabación",
 			"exportedFrom": "Exportado desde {appName}",
 			"captureFailed": "No se pudo capturar la imagen de estadísticas.",
@@ -1874,9 +1894,7 @@
 	},
 	"dashboard": {
 		"cards": {
-			"dictations": "Dictados",
-			"chars": "Caracteres",
-			"duration": "Duración"
+			"dictations": "Dictados"
 		}
 	},
 	"format": {

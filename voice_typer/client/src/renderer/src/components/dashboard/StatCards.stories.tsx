@@ -10,7 +10,7 @@ const meta: Meta<typeof StatCards> = {
 		docs: {
 			description: {
 				component:
-					"Three-card row shown at the top of the Home / Dashboard page summarizing today's dictation usage: Voice Dictations (count), Text Transcribed (chars, formatted as `1.2K+`), and Dictation Time (duration, formatted as `1h 23m`). Each card uses an icon from `@hugeicons/core-free-icons` and `--surface-subtle` for the card background.",
+					"Three-card row shown at the top of the Home / Dashboard page summarizing today's dictation usage: Voice Dictations (count), Recording Time (duration, formatted as `1h 23m`), and Words Dictated (word_count, formatted as `1.2K+`). Each card uses an icon from `@hugeicons/core-free-icons` and `--surface-subtle` for the card background.",
 			},
 		},
 	},
@@ -59,7 +59,7 @@ export const Large: Story = {
 		docs: {
 			description: {
 				story:
-					"Demonstrates the `formatCompactNumber` and `formatDuration` helpers, 24,380 chars is rendered as `24.3K+` and 5,235 seconds as `1h 27m`.",
+					"Demonstrates the `formatCompactNumber` and `formatDuration` helpers, 4,297 words is rendered as `4.2K+` and 5,235 seconds as `1h 27m`.",
 			},
 		},
 	},

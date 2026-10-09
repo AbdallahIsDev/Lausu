@@ -181,9 +181,9 @@ function StatsShareImageInner({
 					palette={palette}
 				/>
 				<StatCard
-					value={stats.chars}
+					value={stats.words}
 					valueColor={palette.foreground}
-					label={t("stats.shareImage.chars")}
+					label={t("stats.shareImage.words")}
 					palette={palette}
 				/>
 				<StatCard

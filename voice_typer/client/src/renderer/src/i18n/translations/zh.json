@@ -406,7 +406,8 @@
 			"30d": "30 天",
 			"7d": "7 天",
 			"all": "全部时间",
-			"today": "今天"
+			"today": "今天",
+			"custom": "自定义"
 		},
 		"activityChartAria": "{range}活动图：{counts}",
 		"activityTitle": "活动",
@@ -416,6 +417,25 @@
 		"longestSession": "最长 {duration}",
 		"noDataBar": "{label}：无数据",
 		"rangeAria": "分析时间范围",
+		"rangeCustomAria": "打开自定义日期范围选择器",
+		"customRangeCapped": "显示此时间范围内的最新 {count} 条听写",
+		"rangePicker": {
+			"presets": "预设",
+			"prevMonth": "上个月",
+			"nextMonth": "下个月",
+			"cancel": "取消",
+			"apply": "应用",
+			"pickEndDate": "选择结束日期",
+			"noDates": "无日期",
+			"days_zero": "{count} 天",
+			"days_one": "{count} 天",
+			"days_two": "{count} 天",
+			"days_few": "{count} 天",
+			"days_many": "{count} 天",
+			"days_other": "{count} 天",
+			"statusStart": "开始 {date}。选择结束日期。",
+			"statusShown": "{shown}，{count}"
+		},
 		"corrections": "修正",
 		"correctionsTooltip": "听写时引擎应用的词汇修正",
 		"correctionsRate": "占听写的 {pct}%",
@@ -1828,9 +1848,7 @@
 	},
 	"dashboard": {
 		"cards": {
-			"dictations": "听写",
-			"chars": "字符",
-			"duration": "时长"
+			"dictations": "听写"
 		}
 	},
 	"stats": {
@@ -1848,7 +1866,7 @@
 			"dictations": "听写次数",
 			"activeDays": "活跃天数",
 			"dayStreak": "连续 {count} 天",
-			"chars": "字符数",
+			"words": "词数",
 			"recordingTime": "录音时长",
 			"exportedFrom": "从 {appName} 导出",
 			"captureFailed": "截图失败",

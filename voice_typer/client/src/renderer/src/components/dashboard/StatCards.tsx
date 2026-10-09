@@ -10,7 +10,7 @@ import { StatCard } from "./StatCard";
 // ``lib/format.ts``. The StatCards legacy behaviour (K+ on remainder,
 // locale-aware sub-1000 grouping) is preserved by passing
 // ``{ plusSuffix: true, localeAware: true }``.
-// Exported so the Home page's Characters card reuses the SAME
+// Exported so the Home page's Words card reuses the SAME
 // formatting (K-abbreviation + rounding config) instead of
 // reimplementing it.
 export function formatCompactNumber(n: number): string {
@@ -30,11 +30,13 @@ export function formatCompactNumber(n: number): string {
 // render time so the active locale is always reflected, the previous
 // implementation hard-coded English strings, which broke i18n for es /
 // fr / de / ar / hi / zh users.
+// Order + labels mirror the Dashboard row: Dictations / Recording
+// Time / Words.
 const CARDS: {
 	labelKey:
 		| "dashboard.cards.dictations"
-		| "dashboard.cards.chars"
-		| "dashboard.cards.duration";
+		| "analytics.recordingTime"
+		| "analytics.wordsLabel";
 	key: keyof TodayStats;
 	icon: typeof Mic02Icon;
 	format: (v: number) => string;
@@ -46,16 +48,16 @@ const CARDS: {
 		format: formatCompactNumber,
 	},
 	{
-		labelKey: "dashboard.cards.chars",
-		key: "chars",
-		icon: TextIcon,
-		format: formatCompactNumber,
-	},
-	{
-		labelKey: "dashboard.cards.duration",
+		labelKey: "analytics.recordingTime",
 		key: "duration",
 		icon: Time02Icon,
 		format: formatDuration,
+	},
+	{
+		labelKey: "analytics.wordsLabel",
+		key: "word_count",
+		icon: TextIcon,
+		format: formatCompactNumber,
 	},
 ];
 

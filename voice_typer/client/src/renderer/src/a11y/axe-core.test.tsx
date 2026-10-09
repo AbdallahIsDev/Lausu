@@ -114,9 +114,8 @@ mockCall.mockImplementation(async (cmd: string) => {
 			return {
 				count: 0,
 				chars: 0,
-				duration_sec: 0,
-				model: "tiny",
-				device: "cpu",
+				word_count: 0,
+				duration: 0,
 			};
 		case "get_history":
 			return [];
@@ -515,7 +514,7 @@ describe("axe-core automated WCAG scan, interactive surfaces", () => {
 					dictations: "42",
 					activeDays: "12",
 					activeDaysDetail: "5-day streak",
-					chars: "8400",
+					words: "8400",
 					recordingTime: "1h 12m",
 					model: "Tiny",
 					device: "GPU",

@@ -111,10 +111,24 @@ describe("Home page", () => {
 		render(<TooltipProvider>{<Home />}</TooltipProvider>);
 
 		//StatCards renders three labelled cards. : card labels
-		// are i18n-driven (dashboard.cards.dictations/chars/duration).
-		expect(screen.getByText("Dictations")).toBeTruthy();
-		expect(screen.getByText("Characters")).toBeTruthy();
-		expect(screen.getByText("Duration")).toBeTruthy();
+		// are i18n-driven (dashboard.cards.dictations +
+		// analytics.recordingTime/wordsLabel, same sources as
+		// Dashboard). Order mirrors the Dashboard row: Dictations /
+		// Recording Time / Words.
+		const dictations = screen.getByText("Dictations");
+		const recordingTime = screen.getByText("Recording Time");
+		const words = screen.getByText("Words dictated");
+		expect(dictations).toBeTruthy();
+		expect(recordingTime).toBeTruthy();
+		expect(words).toBeTruthy();
+		expect(
+			dictations.compareDocumentPosition(recordingTime) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+		expect(
+			recordingTime.compareDocumentPosition(words) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
 		// The "Today's Stats" heading is shown above the cards.
 		expect(screen.getByText(/Today's Stats/i)).toBeTruthy();
 		// No spinner should be visible because cached stats exist.
