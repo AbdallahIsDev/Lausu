@@ -5,6 +5,34 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 
+class TestOpenMicSettings:
+    """``_handle_open_mic_settings`` opens the OS mic privacy page."""
+
+    def test_windows_opens_ms_settings(self, ipc_server, monkeypatch):
+        import voice_typer.server.platform_utils as plat
+
+        monkeypatch.setattr(plat, "is_windows", lambda: True)
+        monkeypatch.setattr(plat, "is_macos", lambda: False)
+        monkeypatch.setattr(plat, "is_linux", lambda: False)
+        opened = []
+        monkeypatch.setattr("os.startfile", lambda path, *a, **k: opened.append(path), raising=False)
+
+        resp = ipc_server._handle_open_mic_settings({}, {})
+        assert resp["type"] == "mic_settings"
+        assert resp["data"]["opened"] is True
+        assert opened == ["ms-settings:privacy-microphone"]
+
+    def test_unsupported_platform_returns_error(self, ipc_server, monkeypatch):
+        import voice_typer.server.platform_utils as plat
+
+        monkeypatch.setattr(plat, "is_windows", lambda: False)
+        monkeypatch.setattr(plat, "is_macos", lambda: False)
+        monkeypatch.setattr(plat, "is_linux", lambda: False)
+
+        resp = ipc_server._handle_open_mic_settings({}, {})
+        assert resp["type"] == "error"
+
+
 class TestOpenDataFolder:
     """``_handle_open_data_folder`` opens the config dir in the OS file manager."""
 

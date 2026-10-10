@@ -250,6 +250,7 @@ const _SERVER_REGISTRY_MINUS_PYTHON_ONLY = {
 	get_prewarm_status: true, // RESTORED 2026-08-14 (About-page Cache Status card, plan §6.3)
 	open_prewarm_log: true, // RESTORED 2026-08-14 (About-page Cache Status card, plan §6.3)
 	open_data_folder: true, // Models storage card + Diagnostics button (config dir)
+	open_mic_settings: true, // Mic-permission refusal toast action (OS privacy page)
 	run_prewarm: true, // RESTORED 2026-08-14 (§6.3 addendum 2nd half, in-process warm pass)
 	heartbeat: true,
 	relaunch_ack: true,

@@ -287,11 +287,17 @@ class RecordingController:
             if getattr(self._app.config, "bubble_behavior", "show_on_record") != "hidden":
                 self._app._waveform_bubble.show()
                 self._app._waveform_bubble.set_state("permission_revoked")
-        with contextlib.suppress(Exception):
-            self._app.tray.notify_safety(
-                APP_NAME,
-                i18n.t("notify.recording_controller.mic_permission_revoked"),
-            )
+        from voice_typer.server.recording_lifecycle import _notify_permission_denied_with_settings
+
+        if not _notify_permission_denied_with_settings(
+            APP_NAME,
+            i18n.t("notify.recording_controller.mic_permission_revoked"),
+        ):
+            with contextlib.suppress(Exception):
+                self._app.tray.notify_safety(
+                    APP_NAME,
+                    i18n.t("notify.recording_controller.mic_permission_revoked"),
+                )
         # Emit the dedicated ``microphone_permission_revoked`` IPC event
         try:
             from voice_typer.server import event_bus

@@ -16,16 +16,42 @@ def _windows_microphone_consent_denied() -> bool | None:
 
     Returns True when the OS records microphone access as denied,
     False when it records Allow, None when unreadable. Never raises.
-    Checks HKCU ConsentStore microphone Value plus NonPackaged subkey.
+    Checks the HKLM global switch first (the Settings Privacy toggle
+    writes Deny there), then HKCU ConsentStore microphone Value plus
+    per-app subkeys including the NonPackaged desktop-apps branch.
     """
+
+    def _read_value(root, path: str, name: str = "Value"):
+        try:
+            import winreg as _wr
+
+            with _wr.OpenKey(root, path) as key:
+                try:
+                    value, _ = _wr.QueryValueEx(key, name)
+                except OSError:
+                    return None
+                return value
+        except Exception:
+            return None
+
     try:
         import winreg as _wr
     except Exception:
         return None
+    _mic_path = r"Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone"
+    try:
+        hklm_value = _read_value(
+            _wr.HKEY_LOCAL_MACHINE,
+            _mic_path,
+        )
+        if isinstance(hklm_value, str) and hklm_value.strip().lower() == "deny":
+            return True
+    except Exception:
+        pass
     try:
         with _wr.OpenKey(
             _wr.HKEY_CURRENT_USER,
-            r"Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone",
+            _mic_path,
         ) as key:
             try:
                 value, _ = _wr.QueryValueEx(key, "Value")
@@ -84,7 +110,14 @@ def _windows_microphone_consent_denied() -> bool | None:
             if denies and checked and denies == checked:
                 return True
             if isinstance(value, str) and value.strip().lower() == "allow":
-                return False
+                try:
+                    np_value = _read_value(
+                        _wr.HKEY_CURRENT_USER,
+                        _mic_path + r"\NonPackaged",
+                    )
+                except Exception:
+                    np_value = None
+                return isinstance(np_value, str) and np_value.strip().lower() == "deny"
             return None
     except Exception:
         return None

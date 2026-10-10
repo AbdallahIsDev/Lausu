@@ -1,5 +1,28 @@
 use serde::Deserialize;
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 use tauri::{AppHandle, Emitter, Listener, Manager};
+
+/// Pending OS-toast click intents: notification id -> action.
+/// Written at show-time, consumed when the plugin reports a tap.
+fn pending_tap_actions() -> &'static Mutex<HashMap<i32, TapAction>> {
+    static PENDING: OnceLock<Mutex<HashMap<i32, TapAction>>> = OnceLock::new();
+    PENDING.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+#[derive(Debug, Clone)]
+enum TapAction {
+    /// Open the OS microphone privacy page (mirrors `open_mic_settings`).
+    OpenMicSettings,
+    /// Emit a renderer `navigate` event (in-app destination).
+    Navigate(serde_json::Value),
+}
+
+/// Next notification id for id-tagged toasts.
+fn next_notification_id() -> &'static Mutex<i32> {
+    static NEXT_ID: OnceLock<Mutex<i32>> = OnceLock::new();
+    NEXT_ID.get_or_init(|| Mutex::new(1))
+}
 
 #[derive(Debug, Clone, Deserialize)]
 struct NotificationPayload {
@@ -53,30 +76,127 @@ fn navigate_payload(payload: &NotificationPayload) -> serde_json::Value {
     }
 }
 
+/// Tap intent for a payload: mic-settings opens the OS page,
+/// everything else navigates in-app.
+fn tap_action_for(payload: &NotificationPayload) -> Option<TapAction> {
+    if payload.click_path.as_deref() == Some("/microphone") && payload.click_consent_field.is_none()
+    {
+        return Some(TapAction::OpenMicSettings);
+    }
+    if payload.click_path.is_some() || payload.click_consent_field.is_some() {
+        return Some(TapAction::Navigate(navigate_payload(payload)));
+    }
+    None
+}
+
+/// Open the OS microphone privacy page (mirrors the Python
+/// `open_os_microphone_settings` IPC: ms-settings on Windows,
+/// System Settings on macOS, sound panel on Linux).
+fn open_os_microphone_settings() {
+    #[cfg(target_os = "windows")]
+    {
+        let child = std::process::Command::new("explorer.exe")
+            .arg("ms-settings:privacy-microphone")
+            .spawn();
+        match child {
+            Ok(mut c) => {
+                std::thread::spawn(move || {
+                    let _ = c.wait();
+                });
+                log::info!("[HOST-EVENTS] toast tap opened OS mic privacy settings");
+            }
+            Err(e) => log::warn!("[HOST-EVENTS] toast tap failed to open mic settings: {e}"),
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let child = std::process::Command::new("open")
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
+            .spawn();
+        match child {
+            Ok(mut c) => {
+                std::thread::spawn(move || {
+                    let _ = c.wait();
+                });
+                log::info!("[HOST-EVENTS] toast tap opened OS mic privacy settings");
+            }
+            Err(e) => log::warn!("[HOST-EVENTS] toast tap failed to open mic settings: {e}"),
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let child = std::process::Command::new("xdg-open")
+            .arg("gnome-control-center sound")
+            .spawn();
+        match child {
+            Ok(mut c) => {
+                std::thread::spawn(move || {
+                    let _ = c.wait();
+                });
+                log::info!("[HOST-EVENTS] toast tap opened OS mic privacy settings");
+            }
+            Err(e) => log::warn!("[HOST-EVENTS] toast tap failed to open mic settings: {e}"),
+        }
+    }
+}
+
+/// Handle a plugin `tap` on notification `id`: run the pending intent.
+fn handle_notification_tap(app: &AppHandle, id: i32) {
+    let action = pending_tap_actions()
+        .lock()
+        .map(|mut map| map.remove(&id))
+        .unwrap_or(None);
+    match action {
+        Some(TapAction::OpenMicSettings) => open_os_microphone_settings(),
+        Some(TapAction::Navigate(nav)) => {
+            // Raise the window first so the navigation lands visible.
+            show_main_window(app);
+            if let Err(e) = app.emit("navigate", nav) {
+                log::warn!("[HOST-EVENTS] tap navigate emit failed: {}", e);
+            }
+        }
+        None => {
+            log::debug!("[HOST-EVENTS] tap on untracked notification id={}", id);
+        }
+    }
+}
+
 fn show_notification(app: &AppHandle, payload: &NotificationPayload) {
     use tauri_plugin_notification::NotificationExt;
 
     let app = app.clone();
     let title = payload.title.clone();
     let message = payload.message.clone();
-    let click = payload.click_path.is_some() || payload.click_consent_field.is_some();
-    let navigate = navigate_payload(payload);
+    let tap_action = tap_action_for(payload);
     let duration_ms = payload.duration_ms;
     #[allow(clippy::let_underscore_future)] // intentional fire-and-forget
     let _ = tauri::async_runtime::spawn_blocking(move || {
-        if click {
-            if let Err(e) = app.emit("navigate", navigate) {
-                log::warn!("[HOST-EVENTS] navigate pre-broadcast failed: {}", e);
+        // Id-tag + intent BEFORE show so a fast tap cannot miss the map.
+        let id = {
+            let mut next = next_notification_id()
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let id = *next;
+            *next = next.wrapping_add(1).max(1);
+            id
+        };
+        if let Some(action) = tap_action {
+            if let Ok(mut map) = pending_tap_actions().lock() {
+                map.insert(id, action);
             }
         }
         if let Err(e) = app
             .notification()
             .builder()
+            .id(id)
             .title(&title)
             .body(&message)
             .show()
         {
             log::warn!("[HOST-EVENTS] notification show failed: {}", e);
+            if let Ok(mut map) = pending_tap_actions().lock() {
+                map.remove(&id);
+            }
             return;
         }
         if duration_ms > 0 {
@@ -144,6 +264,27 @@ pub(crate) fn setup(app: &AppHandle) {
             show_notification(&notify_handle, &payload);
         }
     });
+
+    // OS-toast tap -> pending intent (`Notification::on_action`, 2.5.x;
+    // `action_id == "tap"`; see `handle_notification_tap`). The plugin
+    // reports taps only while a handler exists, hence registered here
+    // at startup rather than per-toast.
+    {
+        use tauri_plugin_notification::NotificationExt;
+        let tap_handle = app.clone();
+        let registration = app.notification().on_action(move |performed| {
+            if performed.action_id() != "tap" {
+                return;
+            }
+            match performed.notification().map(|n| n.id()) {
+                Some(id) => handle_notification_tap(&tap_handle, id),
+                None => log::debug!("[HOST-EVENTS] tap without notification id ignored"),
+            }
+        });
+        if let Err(e) = registration {
+            log::warn!("[HOST-EVENTS] notification tap handler registration failed: {e}");
+        }
+    }
 
     let show_handle = app.clone();
     app.listen("show_window", move |_event| {

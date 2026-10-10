@@ -2047,10 +2047,10 @@ class TestRegistryExtraction:
         assert registry._COMMAND_REGISTRY["media_transcribe_cancel"] == "_handle_media_transcribe_cancel"
         assert registry._COMMAND_REGISTRY["media_transcribe_status"] == "_handle_media_transcribe_status"
         assert registry._COMMAND_REGISTRY["get_plugins"] == "_handle_get_plugins"
-        assert len(registry._COMMAND_REGISTRY) == 84, (
-            f"registry._COMMAND_REGISTRY must contain 84 entries "
-            f"(76 forwarded in the Rust allowlist + 4 screenshot-beta pending "
-            f"frontend registration + shutdown + "
+        assert registry._COMMAND_REGISTRY["open_mic_settings"] == "_handle_open_mic_settings"
+        assert len(registry._COMMAND_REGISTRY) == 85, (
+            f"registry._COMMAND_REGISTRY must contain 85 entries "
+            f"(81 forwarded in the Rust allowlist + shutdown + "
             f"tray_click python-only + heartbeat + relaunch_ack host-dispatched); got "
             f"{len(registry._COMMAND_REGISTRY)}. "
             f"If the count drifted, update this test together with the "

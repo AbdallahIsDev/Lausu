@@ -1,7 +1,7 @@
 //! Tests for `host_events.rs`: pure payload-parsing contracts (per
 //! C-TEST-5, sibling test file; no Tauri runtime required).
 
-use super::{navigate_payload, parse_notification};
+use super::{navigate_payload, parse_notification, tap_action_for, TapAction};
 
 #[test]
 fn test_parses_title_and_message() {
@@ -81,4 +81,49 @@ fn test_navigate_payload_no_routing_defaults_empty_path() {
     let p = parse_notification(raw).expect("payload should parse");
     let nav = navigate_payload(&p);
     assert_eq!(nav["path"], "");
+}
+
+#[test]
+fn test_tap_action_mic_settings_for_microphone_path() {
+    // The mic-permission refusal toast must open the OS mic privacy page
+    // on tap (parity with the in-app toast's open_mic_settings button),
+    // not navigate inside the app.
+    let raw = r#"{"title":"T","message":"M","click_path":"/microphone"}"#;
+    let p = parse_notification(raw).expect("payload should parse");
+    assert!(matches!(
+        tap_action_for(&p),
+        Some(TapAction::OpenMicSettings)
+    ));
+}
+
+#[test]
+fn test_tap_action_navigates_for_other_paths() {
+    let raw = r#"{"title":"T","message":"M","click_path":"/models"}"#;
+    let p = parse_notification(raw).expect("payload should parse");
+    match tap_action_for(&p) {
+        Some(TapAction::Navigate(nav)) => assert_eq!(nav["path"], "/models"),
+        other => panic!("expected Navigate, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_tap_action_consent_field_wins_over_microphone_path() {
+    // A consent deep-link keeps the in-app navigation semantics even if
+    // the path happens to be /microphone.
+    let raw = r#"{"title":"T","message":"M","click_path":"/microphone","click_consent_field":"voice_biometric_consent"}"#;
+    let p = parse_notification(raw).expect("payload should parse");
+    match tap_action_for(&p) {
+        Some(TapAction::Navigate(nav)) => {
+            assert_eq!(nav["path"], "/settings");
+            assert_eq!(nav["consent_field"], "voice_biometric_consent");
+        }
+        other => panic!("expected Navigate, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_tap_action_none_without_click_fields() {
+    let raw = r#"{"title":"T","message":"M"}"#;
+    let p = parse_notification(raw).expect("payload should parse");
+    assert!(tap_action_for(&p).is_none());
 }

@@ -139,6 +139,7 @@ COMMAND_COSTS: dict[str, int] = {
     "onboarding_start": 1,
     "open_prewarm_log": 1,  # RESTORED 2026-08-14 (About-page Cache Status card. See plan §6.3); launches OS editor
     "open_data_folder": 1,  # Models storage card + Diagnostics button; launches OS file manager
+    "open_mic_settings": 1,  # Mic-permission refusal toast action; launches OS privacy page
     "run_prewarm": 10,  # RESTORED 2026-08-14 (§6.3 addendum 2nd half); warm pass reads ~200 MB
     "relaunch_ack": 1,
     "repaste_last": 1,

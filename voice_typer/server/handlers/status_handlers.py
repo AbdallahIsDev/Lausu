@@ -23,6 +23,38 @@ _storage_cache: dict[str, tuple[float, dict]] = {}
 _storage_cache_lock = threading.Lock()
 
 
+def open_os_microphone_settings() -> bool:
+    """Open the OS microphone privacy page. Shared by IPC + hotkey paths."""
+    import subprocess
+
+    from voice_typer.server.platform_utils import is_linux, is_macos, is_windows
+
+    try:
+        if is_windows():
+            import os
+
+            os.startfile("ms-settings:privacy-microphone")  # type: ignore[attr-defined] # noqa: S606
+        elif is_macos():
+            subprocess.Popen(
+                ["open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        elif is_linux():
+            subprocess.Popen(
+                ["xdg-open", "gnome-control-center sound"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        else:
+            return False
+        log.info("[IPC] open_mic_settings: opened OS microphone privacy page")
+        return True
+    except Exception:
+        log.debug("[IPC] open_mic_settings failed", exc_info=True)
+        return False
+
+
 class StatusHandlersMixin(HandlerBase):
     """Mixin: status-query IPC handlers."""
 
@@ -164,6 +196,26 @@ class StatusHandlersMixin(HandlerBase):
         except Exception as exc:
             # generic WS-path envelope (no ``str(exc)`` leak).
             self._respond_with_error(resp, exc, "run_prewarm")
+        return resp
+
+    def _handle_open_mic_settings(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
+        """Handle the ``open_mic_settings`` IPC command.
+
+        Opens the OS microphone privacy page (Settings on Windows,
+        System Settings on macOS, sound panel on Linux).
+        """
+        try:
+            opened = open_os_microphone_settings()
+            if not opened:
+                return _error_response(
+                    resp,
+                    "Unsupported platform",
+                    code="server.not_found",
+                )
+            resp["type"] = "mic_settings"
+            resp["data"] = {"opened": True}
+        except Exception as exc:
+            self._respond_with_error(resp, exc, "open_mic_settings")
         return resp
 
     def _handle_open_data_folder(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
