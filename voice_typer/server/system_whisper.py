@@ -98,11 +98,7 @@ def try_load_system_whisper(config: Any) -> Any | None:
     except Exception:
         log.debug("[MODEL] system whisper fallback load failed", exc_info=True)
         return None
-    log.info(
-        "[MODEL] serving whisper/%s from system libraries (%s)",
-        model_size,
-        weights,
-    )
+    log.info("[MODEL] serving whisper/%s from system libraries", model_size)
     return engine
 
 
@@ -174,7 +170,7 @@ class SystemWhisperEngine:
         effective = str(getattr(getattr(self._model, "model", None), "device", "") or "")
         if effective:
             self._effective_device = effective
-        log.info("[MODEL] system whisper model ready (%s)", self._weights_dir)
+        log.info("[MODEL] system whisper model ready")
         from voice_typer.server.tray_models import describe_device
 
         log.info(
