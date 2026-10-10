@@ -2,7 +2,7 @@
 
 > Auto-generated from the latest GitHub Actions run via `scripts/ci/write_ci_errors.py`. Do not edit by hand, it is overwritten on every CI run.
 
-**19 failing/errored tests** across 4 matrix legs.
+**18 failing/errored tests** across 4 matrix legs.
 
 ### 1. `tests.handlers.test_error_envelope_code_field.TestHandlerFilesUseHelper.test_every_handler_file_uses_a_standardized_helper`
 
@@ -82,17 +82,17 @@ E     screenshot_set_consent
 - Location: `tests/tauri/mig19/test_reconnect_ux.py:425`
 
 ```
-+    where <built-in method search of re.Pattern object at 0x557413e742a0> = re.compile('withCommandTimeout\\s*\\(\\s*api\\.call', re.MULTILINE|re.DOTALL).search
++    where <built-in method search of re.Pattern object at 0x55f41e021190> = re.compile('withCommandTimeout\\s*\\(\\s*api\\.call', re.MULTILINE|re.DOTALL).search
 
 AssertionError: usePython.ts must call withCommandTimeout(api.call(...)) AFTER the `if (!api)` guard, otherwise the renderer would wait for the 120s command timeout instead of surfacing the 'Python bridge not available' error immediately.
 assert None
- +  where None = <built-in method search of re.Pattern object at 0x557413e742a0>(');\n\t\t\tconst execute = async (): Promise<T> => {\n\t\t\t\t// Race the underlying bridge call against a per-command\n\t\t\t\t// timeout so a hung trivial command (e.g. `get_status`) surfaces\n\t\t\t\t// an error in seconds instead of the prior blanket 120s timeout\n\t\t\t\t// imposed by the predecessor main / Rust host. The underlying\n\t\t\t\t// promise may still resolve later; the caller sees the timeout\n\t\t\t\t// rejection first.\n\t\t\t\t//\n\t\t\t\t// Tauri/predecessor error-envelope normalization. On\n\t\t\t\t// Tauri v2, `invoke` rejects with a RAW STRING (not an Error)\n\t\t\t\t// when the Rust `dispatch` command returns an Err, the host\'s\n\t\t\t\t// `e.to_string()` becomes the rejection value verbatim. Callers\n\t\t\t\t// that guard with `err instanceof Error ? err.message : String(err)`\n\t\t\t\t// work, but callers that do `err.message` directly\n\t\t\t\t// (e.g. `Microphone.tsx:278`, `lib/utils/models.ts:252`) read\n\t\t\t\t// `undefined` and lose the server error message. We wrap the\n\t\t\t\t// `await withCommandTimeout` call in try/catch and re-throw:\n\t\t\t\t//   - Error instances propagate unchanged (no double-wrapping);\n\t\t\t\t//   - string rejections ...\n\t// better than implicit so future contributors don\'t accidentally\n\t// remove the entry thinking it\'s the default).\n\ttoggle_dictation: 30_000,\n\t// ADR-0023: resolves the pasted URL (yt-dlp extract) synchronously\n\t// before acknowledging. 115s = 5s BELOW the host\'s 120s\n\t// `DISPATCH_TIMEOUT_SECS` budget for the same command (see\n\t// `_LONG_RUNNING_COMMANDS` in `dispatch.rs`), so the renderer\n\t// surfaces the command-specific timeout first (house convention).\n\tmedia_transcribe_start: 115_000,\n};\n\nconst DEFAULT_COMMAND_TIMEOUT_MS = 30_000;\n\nexport function getTimeout(cmd: string): number {\n\treturn COMMAND_TIMEOUTS[cmd] ?? DEFAULT_COMMAND_TIMEOUT_MS;\n}\n\nexport function withCommandTimeout<T>(\n\tpromise: Promise<T>,\n\tcmd: string,\n): Promise<T> {\n\tconst timeoutMs = getTimeout(cmd);\n\tlet timer: ReturnType<typeof setTimeout> | undefined;\n\tconst timeoutPromise = new Promise<never>((_, reject) => {\n\t\ttimer = setTimeout(() => {\n\t\t\treject(new Error(`IPC command "${cmd}" timed out after ${timeoutMs}ms`));\n\t\t}, timeoutMs);\n\t});\n\treturn Promise.race([promise, timeoutPromise]).finally(() => {\n\t\tif (timer) clearTimeout(timer);\n\t});\n}\n')
- +    where <built-in method search of re.Pattern object at 0x557413e742a0> = re.compile('withCommandTimeout\\s*\\(\\s*api\\.call', re.MULTILINE|re.DOTALL).search
+ +  where None = <built-in method search of re.Pattern object at 0x55f41e021190>(');\n\t\t\tconst execute = async (): Promise<T> => {\n\t\t\t\t// Race the underlying bridge call against a per-command\n\t\t\t\t// timeout so a hung trivial command (e.g. `get_status`) surfaces\n\t\t\t\t// an error in seconds instead of the prior blanket 120s timeout\n\t\t\t\t// imposed by the predecessor main / Rust host. The underlying\n\t\t\t\t// promise may still resolve later; the caller sees the timeout\n\t\t\t\t// rejection first.\n\t\t\t\t//\n\t\t\t\t// Tauri/predecessor error-envelope normalization. On\n\t\t\t\t// Tauri v2, `invoke` rejects with a RAW STRING (not an Error)\n\t\t\t\t// when the Rust `dispatch` command returns an Err, the host\'s\n\t\t\t\t// `e.to_string()` becomes the rejection value verbatim. Callers\n\t\t\t\t// that guard with `err instanceof Error ? err.message : String(err)`\n\t\t\t\t// work, but callers that do `err.message` directly\n\t\t\t\t// (e.g. `Microphone.tsx:278`, `lib/utils/models.ts:252`) read\n\t\t\t\t// `undefined` and lose the server error message. We wrap the\n\t\t\t\t// `await withCommandTimeout` call in try/catch and re-throw:\n\t\t\t\t//   - Error instances propagate unchanged (no double-wrapping);\n\t\t\t\t//   - string rejections ...\n\t// better than implicit so future contributors don\'t accidentally\n\t// remove the entry thinking it\'s the default).\n\ttoggle_dictation: 30_000,\n\t// ADR-0023: resolves the pasted URL (yt-dlp extract) synchronously\n\t// before acknowledging. 115s = 5s BELOW the host\'s 120s\n\t// `DISPATCH_TIMEOUT_SECS` budget for the same command (see\n\t// `_LONG_RUNNING_COMMANDS` in `dispatch.rs`), so the renderer\n\t// surfaces the command-specific timeout first (house convention).\n\tmedia_transcribe_start: 115_000,\n};\n\nconst DEFAULT_COMMAND_TIMEOUT_MS = 30_000;\n\nexport function getTimeout(cmd: string): number {\n\treturn COMMAND_TIMEOUTS[cmd] ?? DEFAULT_COMMAND_TIMEOUT_MS;\n}\n\nexport function withCommandTimeout<T>(\n\tpromise: Promise<T>,\n\tcmd: string,\n): Promise<T> {\n\tconst timeoutMs = getTimeout(cmd);\n\tlet timer: ReturnType<typeof setTimeout> | undefined;\n\tconst timeoutPromise = new Promise<never>((_, reject) => {\n\t\ttimer = setTimeout(() => {\n\t\t\treject(new Error(`IPC command "${cmd}" timed out after ${timeoutMs}ms`));\n\t\t}, timeoutMs);\n\t});\n\treturn Promise.race([promise, timeoutPromise]).finally(() => {\n\t\tif (timer) clearTimeout(timer);\n\t});\n}\n')
+ +    where <built-in method search of re.Pattern object at 0x55f41e021190> = re.compile('withCommandTimeout\\s*\\(\\s*api\\.call', re.MULTILINE|re.DOTALL).search
 tests/tauri/mig19/test_reconnect_ux.py:425: in test_use_python_throws_when_bridge_missing
     assert call_re.search(rest), (
 E   AssertionError: usePython.ts must call withCommandTimeout(api.call(...)) AFTER the `if (!api)` guard, otherwise the renderer would wait for the 120s command timeout instead of surfacing the 'Python bridge not available' error immediately.
 E   assert None
-E    +  where None = <built-in method search of re.Pattern object at 0x557413e742a0>(');\n\t\t\tconst execute = async (): Promise<T> => {\n\t\t\t\t// Race the underlying bridge call against a per-command\n\t\t\t\t// timeout so a hung trivial command (e.g. `get_status`) surfaces\n\t\t\t\t// an error in seconds instead of the prior blanket 120s timeout\n\t\t\t\t// imposed by the predecessor main / Rust host. The underlying\n\t\t\t\t// promise may still resolve later; the caller sees the timeout\n\t\t\t\t// rejection first.\n\t\t\t\t//\n\t\t\t\t// Tauri
+E    +  where None = <built-in method search of re.Pattern object at 0x55f41e021190>(');\n\t\t\tconst execute = async (): Promise<T> => {\n\t\t\t\t// Race the underlying bridge call against a per-command\n\t\t\t\t// timeout so a hung trivial command (e.g. `get_status`) surfaces\n\t\t\t\t// an error in seconds instead of the prior blanket 120s timeout\n\t\t\t\t// imposed by the predecessor main / Rust host. The underlying\n\t\t\t\t// promise may still resolve later; the caller sees the timeout\n\t\t\t\t// rejection first.\n\t\t\t\t//\n\t\t\t\t// Tauri
 … (truncated)
 ```
 
@@ -148,16 +148,16 @@ E   assert 'set_state("recording")' in 'bubble_behavior", "show_on_record") != "
 - Location: `tests/test_config_validators_split.py:165`
 
 ```
-+  where 134 = len({'hotkey': (<class 'str'>, <function _validate_hotkey at 0x7fd4e072d990>), 'repaste_hotkey': (<class 'str'>, <function _validate_hotkey at 0x7fd4e072d990>), 'microphone': ((<class 'str'>, <class 'NoneType'>), <function _make_optional_str_validator.<locals>._validate at 0x7fd4e072eb00>), 'model_size': (<class 'str'>, <function _make_enum_validator.<locals>._validate at 0x7fd4e072ec20>), ...})
++  where 134 = len({'hotkey': (<class 'str'>, <function _validate_hotkey at 0x7f42bd015a20>), 'repaste_hotkey': (<class 'str'>, <function _validate_hotkey at 0x7f42bd015a20>), 'microphone': ((<class 'str'>, <class 'NoneType'>), <function _make_optional_str_validator.<locals>._validate at 0x7f42bd016b90>), 'model_size': (<class 'str'>, <function _make_enum_validator.<locals>._validate at 0x7f42bd016cb0>), ...})
 
 AssertionError: IPC_CONFIG_ALLOWLIST size drifted: expected 132, got 134. SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a security-sensitive change that must be reviewed explicitly. Latest reviewed growth: 130 → 132, `screenshot_beta_enabled` + `screenshot_consent` (one-shot screenshot beta flags; bool-validated). Prior 129 → 130 growth: `active_plugin` (Plugins page activation switch; slug-validated, empty = local model). Prior 128 → 129 growth: `hallucination_filter_mode` (separate in-flight change).
 assert 134 == 132
- +  where 134 = len({'hotkey': (<class 'str'>, <function _validate_hotkey at 0x7fd4e072d990>), 'repaste_hotkey': (<class 'str'>, <function _validate_hotkey at 0x7fd4e072d990>), 'microphone': ((<class 'str'>, <class 'NoneType'>), <function _make_optional_str_validator.<locals>._validate at 0x7fd4e072eb00>), 'model_size': (<class 'str'>, <function _make_enum_validator.<locals>._validate at 0x7fd4e072ec20>), ...})
+ +  where 134 = len({'hotkey': (<class 'str'>, <function _validate_hotkey at 0x7f42bd015a20>), 'repaste_hotkey': (<class 'str'>, <function _validate_hotkey at 0x7f42bd015a20>), 'microphone': ((<class 'str'>, <class 'NoneType'>), <function _make_optional_str_validator.<locals>._validate at 0x7f42bd016b90>), 'model_size': (<class 'str'>, <function _make_enum_validator.<locals>._validate at 0x7f42bd016cb0>), ...})
 tests/test_config_validators_split.py:165: in test_allowlist_size_unchanged
     assert len(IPC_CONFIG_ALLOWLIST) == 132, (
 E   AssertionError: IPC_CONFIG_ALLOWLIST size drifted: expected 132, got 134. SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a security-sensitive change that must be reviewed explicitly. Latest reviewed growth: 130 → 132, `screenshot_beta_enabled` + `screenshot_consent` (one-shot screenshot beta flags; bool-validated). Prior 129 → 130 growth: `active_plugin` (Plugins page activation switch; slug-validated, empty = local model). Prior 128 → 129 growth: `hallucination_filter_mode` (separate in-flight change).
 E   assert 134 == 132
-E    +  where 134 = len({'hotkey': (<class 'str'>, <function _validate_hotkey at 0x7fd4e072d990>), 'repaste_hotkey': (<class 'str'>, <function _validate_hotkey at 0x7fd4e072d990>), 'microphone': ((<class 'str'>, <class 'NoneType'>), <function _make_optional_str_validator.<locals>._validate at 0x7fd4e072eb00>), 'model_size': (<class 'str'>, <function _make_enum_validator.<locals>._validate at 0x7fd4e072ec20>), ...})
+E    +  where 134 = len({'hotkey': (<class 'str'>, <function _validate_hotkey at 0x7f42bd015a20>), 'repaste_hotkey': (<class 'str'>, <function _validate_hotkey at 0x7f42bd015a20>), 'microphone': ((<class 'str'>, <class 'NoneType'>), <function _make_optional_str_validator.<locals>._validate at 0x7f42bd016b90>), 'model_size': (<class 'str'>, <function _make_enum_validator.<locals>._validate at 0x7f42bd016cb0>), ...})
 ```
 
 ### 9. `tests.test_config_validators_split.TestAllowlistSnapshot.test_allowlist_keys_match_frozen_snapshot`
@@ -315,20 +315,4 @@ assert 'notify_safety(' in 'reason=f"all backends failed to load (primary={_prim
 tests/test_notifications.py:88: in test_model_load_failure_uses_notify_safety
     assert "notify_safety(" in block
 E   assert 'notify_safety(' in 'reason=f"all backends failed to load (primary={_primary})",\n                )\n                self._app.tray.notify(\n                    APP_NAME,\n                    i18n.t(\n                        "notify.model_manager.load_failed_critical",\n                        hotkey=notification_hotkey_label(self._app.config.hotkey),\n                    ),\n                )\n                # Clear the pend'
-```
-
-### 19. `tests.test_hotkeys_win32.TestModifierOnlyHotkeys.test_alt_only_hotkey_starts_without_error`
-
-- Legs: ubuntu-22.04-3.13
-- Location: `tests/test_hotkeys_win32.py:285`
-
-```
-AssertionError: LL hook handle never installed for modifier-only spec (waited 15.0s)
-
-AssertionError: LL hook handle never installed for modifier-only spec (waited 15.0s)
-tests/test_hotkeys_win32.py:285: in test_alt_only_hotkey_starts_without_error
-    _wait_until(
-tests/test_hotkeys_win32.py:28: in _wait_until
-    raise AssertionError(f"{msg} (waited {timeout}s)")
-E   AssertionError: LL hook handle never installed for modifier-only spec (waited 15.0s)
 ```
