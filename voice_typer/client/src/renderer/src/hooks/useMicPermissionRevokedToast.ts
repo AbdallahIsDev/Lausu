@@ -20,7 +20,7 @@
 // `degradationToastStore` (Zustand, in its own module) so Vite HMR of
 // this hook file does not reset it mid-session.
 
-import { usePythonEvent } from "@/hooks/usePython";
+import { usePython, usePythonEvent } from "@/hooks/usePython";
 import type { TranslateFn } from "@/i18n/translate-types";
 import { useDegradationToastStore } from "@/stores/degradationToastStore";
 import { SNACKBAR_DEFAULT_DURATION_MS, useSnackbar } from "./useSnackbar";
@@ -31,8 +31,12 @@ const MIC_PERMISSION_REVOKED_TOAST_ID = "mic-permission-revoked";
 /** Suppression window for back-to-back events (ms). */
 const MIC_PERMISSION_REVOKED_TOAST_COOLDOWN_MS = 10_000;
 
-export function useMicPermissionRevokedToast(t: TranslateFn): void {
+export function useMicPermissionRevokedToast(
+	t: TranslateFn,
+	onOpenSettings?: () => void,
+): void {
 	const { showSnack } = useSnackbar();
+	const { call } = usePython();
 
 	usePythonEvent("microphone_permission_revoked", () => {
 		const now = Date.now();
@@ -47,9 +51,23 @@ export function useMicPermissionRevokedToast(t: TranslateFn): void {
 		store.setMicPermissionRevokedAt(now);
 		store.setLastAnyToastShownAt(now);
 
+		const openSettings = () => {
+			if (onOpenSettings) {
+				onOpenSettings();
+				return;
+			}
+			void call<{ opened: boolean }>("open_mic_settings").catch(
+				() => undefined,
+			);
+		};
 		showSnack(t("bubble.permissionRevokedLabel"), "warning", {
 			id: MIC_PERMISSION_REVOKED_TOAST_ID,
+			description: t("microphone.permissionDeniedMessage"),
 			duration: SNACKBAR_DEFAULT_DURATION_MS.error,
+			action: {
+				label: t("microphone.openSettings"),
+				onClick: openSettings,
+			},
 		});
 		return undefined;
 	});

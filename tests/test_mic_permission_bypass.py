@@ -203,3 +203,111 @@ def test_too_short_path_resets_bubble():
     lifecycle = RecordingLifecycle()
     lifecycle._run_stop_and_transcribe(controller, np.zeros(1600, dtype=np.float32), "#2")
     app._waveform_bubble.hide.assert_called_once_with()
+
+
+def test_hklm_deny_blocks_probe_and_fallback(monkeypatch):
+    """HKLM global Deny is enough: probe DENIED, no fallback sweep."""
+    from voice_typer.server import permissions
+    from voice_typer.server.asr_errors import MicrophonePermissionDeniedError
+    from voice_typer.server.permissions import mic as mic_mod
+    from voice_typer.server.recording.stream_lifecycle import StreamLifecycle
+
+    class _PortAudioError(Exception):
+        pass
+
+    class _FakeStream:
+        def start(self):
+            raise _PortAudioError(
+                "Error opening InputStream: Unanticipated host error "
+                "[PaErrorCode -9999]: 'Undefined external error.' [MME error 1]"
+            )
+
+        def stop(self):
+            pass
+
+        def close(self):
+            pass
+
+    class _FakeSD:
+        def InputStream(self, **kw):  # noqa: N802 - mirrors sounddevice API
+            return _FakeStream()
+
+    monkeypatch.setitem(__import__("sys").modules, "sounddevice", _FakeSD())
+    monkeypatch.setattr(mic_mod, "_windows_microphone_consent_denied", lambda: True)
+    state = mic_mod._check_windows_microphone()
+    assert state == permissions.MicrophonePermissionState.DENIED
+
+    def _raise_denied():
+        raise MicrophonePermissionDeniedError("denied", state="denied")
+
+    import voice_typer.server.permissions as permissions_mod
+
+    monkeypatch.setattr(permissions_mod, "verify_microphone_accessible", _raise_denied)
+    lifecycle = StreamLifecycle(recorder=MagicMock())
+    recorder = MagicMock()
+    with pytest.raises(MicrophonePermissionDeniedError):
+        lifecycle.open_stream_fallback(recorder, [], MagicMock(), 16000, None)
+
+def test_silent_zero_audio_routes_to_permission_refusal():
+    """0.0s + zero RMS (privacy-blocked silence) gets the refusal, not idle."""
+    import threading
+
+    import numpy as np
+    from voice_typer.server.recording_lifecycle import RecordingLifecycle
+
+    app = MagicMock(name="app")
+    app.recorder = MagicMock(name="recorder")
+    app.recorder._dropped_ring_chunks = 0
+    app.recorder.last_rms = 0.0
+    app.config = MagicMock()
+    app.config.sample_rate = 16000
+    app.config.bubble_behavior = "show_on_record"
+    app.tray = MagicMock()
+    app._waveform_bubble = MagicMock()
+    app._busyness = MagicMock()
+    app._schedule_timer = MagicMock()
+    app._restore_volume = MagicMock()
+    app._finalize_audio_quality_report = MagicMock()
+    app._cycle_id = "#9"
+    controller = MagicMock(name="controller")
+    controller._app = app
+    controller._watchdog_lock = threading.Lock()
+    controller._cancel_streaming_session = MagicMock()
+    controller._maybe_restart_level_monitor_for_always_visible_bubble = MagicMock()
+    lifecycle = RecordingLifecycle()
+    lifecycle._run_stop_and_transcribe(controller, np.zeros(0, dtype=np.float32), "#9")
+    app._waveform_bubble.set_state.assert_called_once_with("permission_revoked")
+    app._waveform_bubble.hide.assert_not_called()
+
+
+def test_short_but_audible_audio_still_resets_idle():
+    """0.3s of real audio keeps the plain idle reset, not the refusal."""
+    import threading
+
+    import numpy as np
+    from voice_typer.server.recording_lifecycle import RecordingLifecycle
+
+    app = MagicMock(name="app")
+    app.recorder = MagicMock(name="recorder")
+    app.recorder._dropped_ring_chunks = 0
+    app.recorder.last_rms = 0.05
+    app.config = MagicMock()
+    app.config.sample_rate = 16000
+    app.config.bubble_behavior = "show_on_record"
+    app.tray = MagicMock()
+    app._waveform_bubble = MagicMock()
+    app._busyness = MagicMock()
+    app._schedule_timer = MagicMock()
+    app._restore_volume = MagicMock()
+    app._finalize_audio_quality_report = MagicMock()
+    app._cycle_id = "#10"
+    controller = MagicMock(name="controller")
+    controller._app = app
+    controller._watchdog_lock = threading.Lock()
+    controller._cancel_streaming_session = MagicMock()
+    controller._maybe_restart_level_monitor_for_always_visible_bubble = MagicMock()
+    lifecycle = RecordingLifecycle()
+    audio = np.ones(4800, dtype=np.float32)
+    lifecycle._run_stop_and_transcribe(controller, audio, "#10")
+    app._waveform_bubble.hide.assert_called_once_with()
+    app._waveform_bubble.set_state.assert_not_called()

@@ -208,6 +208,13 @@ export interface OpenPrewarmLogRequest {
 	data?: Record<string, unknown>;
 }
 
+// Opens the OS microphone privacy page (mic-permission refusal toast
+// action). No payload; the target is fixed server-side per platform.
+export interface OpenMicSettingsRequest {
+	type: "open_mic_settings";
+	data?: Record<string, unknown>;
+}
+
 // Opens the app config (data) dir in the OS file manager (Models
 // storage card + Diagnostics button). No payload; the target is
 // fixed server-side and containment-checked there.
@@ -478,6 +485,7 @@ export type PythonRequest =
 	| MediaTranscribeStatusRequest
 	| OpenPrewarmLogRequest
 	| OpenDataFolderRequest
+	| OpenMicSettingsRequest
 	| PauseModelDownloadRequest
 	| RepasteLastRequest
 	| RestoreHistoryRequest

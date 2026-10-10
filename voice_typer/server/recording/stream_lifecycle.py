@@ -326,6 +326,16 @@ class StreamLifecycle:
             if isinstance(denied, MicrophonePermissionDeniedError):
                 log.warning("[RECORDING] Skipping device fallback sweep: microphone permission denied")
                 raise
+        try:
+            from voice_typer.server.recording import recording_checks as _checks
+
+            _checks.raise_if_permission_blocked(last_error)
+        except Exception as blocked:
+            from voice_typer.server.asr_errors import MicrophonePermissionDeniedError
+
+            if isinstance(blocked, MicrophonePermissionDeniedError):
+                log.warning("[RECORDING] Skipping device fallback sweep: all mics report privacy-block errors")
+                raise
         # INFO, not WARNING: falling back to another host API for the
         # same physical mic is routine (e.g. transient WDM-KS exclusive
         # holds) and usually succeeds; the per-device open errors above

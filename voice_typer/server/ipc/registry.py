@@ -121,6 +121,7 @@ _COMMAND_REGISTRY: dict[str, str] = {
     "get_prewarm_status": "_handle_get_prewarm_status",
     "open_prewarm_log": "_handle_open_prewarm_log",
     "open_data_folder": "_handle_open_data_folder",
+    "open_mic_settings": "_handle_open_mic_settings",
     "run_prewarm": "_handle_run_prewarm",
     "get_vocabulary": "_handle_get_vocabulary",
     "save_vocabulary": "_handle_save_vocabulary",

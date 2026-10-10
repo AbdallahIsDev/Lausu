@@ -66,6 +66,8 @@ pub(crate) fn allowed_commands() -> &'static HashSet<&'static str> {
             "open_prewarm_log",
             // Models storage card + Diagnostics button (config dir in OS file manager).
             "open_data_folder",
+            // Mic-permission refusal: opens the OS microphone privacy page.
+            "open_mic_settings",
             "run_prewarm",
             "get_vocabulary",
             "save_vocabulary",

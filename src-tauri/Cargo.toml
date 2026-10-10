@@ -36,7 +36,16 @@ tauri-build = { version = "2", features = [] }
 # this feature is enabled.
 tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-plugin-shell = "2"
-tauri-plugin-notification = "2"
+# OS-toast tap handling (`Notification::on_action`). Released crates
+# (<=2.5.1, published 2026-10-01) predate the desktop-actions feature
+# (merged 2026-10-08, tauri-apps/plugins-workspace#3671) and expose NO
+# tap callback at all - toast clicks would stay dead on a version req.
+# Rev = official per-plugin mirror v2 HEAD carrying the feature; switch
+# back to a plain version req once >=2.6 is published.
+# Rev = plugins-workspace v2 HEAD. Do NOT use the per-plugin mirror
+# (tauri-apps/tauri-plugin-notification): it ships without the workspace
+# root manifest, so cargo cannot resolve `workspace.package.edition`.
+tauri-plugin-notification = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "818d2e04d92fd208f11aafdf32bb4a0605f344b2" }
 # MO-125: the system-wide bubble-dismiss accelerator
 # (CommandOrControl+Shift+D). The previous host registered it via its
 # global-shortcut main-process module; this plugin is the Tauri v2
@@ -134,6 +143,12 @@ windows = { version = "0.61", features = [
     # `SetInformationJobObject`, `AssignProcessToJobObject`. See
     # `src/platform/process.rs`.
     "Win32_System_JobObjects",
+    # RegisterClassW / WNDCLASSW (platform/power.rs) are gated behind
+    # Win32_Graphics_Gdi in windows 0.61.x. Until tauri 2.12 this was
+    # satisfied transitively by tauri's OWN windows features unifying
+    # onto the same 0.61.x instance; tauri 2.12 moved to windows 0.62,
+    # so the gate must be declared here explicitly.
+    "Win32_Graphics_Gdi",
     # CreateJobObjectW is gated behind Win32_Security in windows
     # 0.61.x (it takes a SECURITY_ATTRIBUTES parameter).
     "Win32_Security",

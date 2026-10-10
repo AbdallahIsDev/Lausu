@@ -132,6 +132,12 @@ def start_recording(recorder: Recorder) -> None:
 
     if recorder._stream_lifecycle._stream is None:
         _facade()._remember_session_device(None)
+        from voice_typer.server.recording import recording_checks as _checks
+
+        try:
+            _checks.raise_if_permission_blocked(last_error)
+        except Exception:
+            raise
         if last_error is not None:
             raise last_error
         raise RuntimeError("No input device could be opened")
@@ -183,6 +189,22 @@ def start_recording(recorder: Recorder) -> None:
                     selected_device,
                 )
             else:
+                from voice_typer.server.recording import recording_checks as _checks
+
+                if _checks._looks_permission_blocked(last_error):
+                    log.warning(
+                        "[RECORDING] Selected microphone [%s] blocked by OS privacy settings; "
+                        "tearing down fallback stream and refusing",
+                        _label,
+                    )
+                    with contextlib.suppress(Exception):
+                        recorder._teardown_stream()
+                    from voice_typer.server.asr_errors import MicrophonePermissionDeniedError
+
+                    raise MicrophonePermissionDeniedError(
+                        "Microphone blocked by OS privacy settings",
+                        state="denied",
+                    ) from last_error
                 log.warning(
                     "[RECORDING] Selected microphone [%s] failed to open (%s); using device [%s] "
                     "for this session (saved selection unchanged)",

@@ -21,6 +21,7 @@ const onOpenModels = vi.fn();
 const onOpenMicrophone = vi.fn();
 
 vi.mock("@/hooks/usePython", () => ({
+	usePython: () => ({ call: vi.fn().mockResolvedValue({ opened: true }) }),
 	usePythonEvent: (type: string, handler: (data?: unknown) => unknown) => {
 		registered.set(type, handler);
 	},
@@ -165,7 +166,10 @@ describe("useMicPermissionRevokedToast", () => {
 		expect(toast.warning).toHaveBeenCalledTimes(1);
 		expect(toast.warning).toHaveBeenCalledWith(
 			"bubble.permissionRevokedLabel",
-			expect.objectContaining({ id: "mic-permission-revoked" }),
+			expect.objectContaining({
+				id: "mic-permission-revoked",
+				action: expect.objectContaining({ label: "microphone.openSettings" }),
+			}),
 		);
 	});
 

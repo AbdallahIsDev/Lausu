@@ -101,6 +101,40 @@ def _publish_consent_required_event() -> None:
         log.debug("[DICTATION] consent_required event push failed", exc_info=True)
 
 
+def _open_os_microphone_settings() -> bool:
+    """Open the OS microphone privacy page via the shared helper."""
+    try:
+        from voice_typer.server.handlers.status_handlers import open_os_microphone_settings as _open
+
+        return bool(_open())
+    except Exception:
+        log.debug("[DICTATION] open OS mic settings failed", exc_info=True)
+    return False
+
+
+def _notify_permission_denied_with_settings(title: str, message: str) -> bool:
+    """Clickable host notification; falls back to tray balloon."""
+    try:
+        if event_bus.has_live_transport():
+            ok = event_bus.publish(
+                {
+                    "type": "notification",
+                    "data": {
+                        "title": title,
+                        "message": message,
+                        "duration_ms": 0,
+                        "critical": True,
+                        "click_path": "/microphone",
+                    },
+                }
+            )
+            if ok:
+                return True
+    except Exception:
+        log.debug("[DICTATION] clickable permission notification push failed", exc_info=True)
+    return False
+
+
 class RecordingLifecycle:
     """Toggle / start / stop / cancel state machine for recording."""
 
@@ -465,10 +499,12 @@ class RecordingLifecycle:
             app.tray.set_state(AppState.ERROR, i18n.t("state.recording_controller.recording_failed_permission"))
         except Exception:
             log.debug("[DICTATION] permission tray surface failed", exc_info=True)
-        try:
-            app.tray.notify_safety(APP_NAME, i18n.t("notify.recording_controller.mic_permission_revoked"))
-        except Exception:
-            log.debug("[DICTATION] permission notify failed", exc_info=True)
+        _perm_msg = i18n.t("notify.recording_controller.mic_permission_revoked")
+        if not _notify_permission_denied_with_settings(APP_NAME, _perm_msg):
+            try:
+                app.tray.notify_safety(APP_NAME, _perm_msg)
+            except Exception:
+                log.debug("[DICTATION] permission notify failed", exc_info=True)
         try:
             event_bus.publish({"type": "microphone_permission_revoked"})
         except Exception:
@@ -889,6 +925,10 @@ class RecordingLifecycle:
         if duration < 0.5:
             log.info("[DICTATION] Audio too short, skipping transcription")
             controller._cancel_streaming_session()
+            if duration <= 0 and recorded_rms <= 0.0001:
+                self._publish_permission_denied_refusal(app, "denied")
+                app._busyness.set_idle()
+                return
             try:
                 if getattr(app.config, "bubble_behavior", "show_on_record") == "always_visible":
                     app._waveform_bubble.set_state("idle")
