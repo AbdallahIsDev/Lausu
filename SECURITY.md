@@ -34,7 +34,7 @@ process can connect without this token.
 ### Command Allowlist (SEC-019)
 
 The Tauri Rust host enforces an allowlist of IPC commands. The renderer
-cannot invoke arbitrary commands: only the **80** commands listed in
+cannot invoke arbitrary commands: only the **81** commands listed in
 `allowed_commands()` (defined in
 `src-tauri/src/commands/sidecar_cmds/allowlist.rs`) are forwarded to
 the Python backend. The authoritative count is enforced by CI (see
@@ -46,8 +46,8 @@ are added or removed.
 > former TypeScript `ALLOWED_COMMANDS` Set is deleted with predecessor
 > main. The remaining two-way contract is: Python
 > `_COMMAND_REGISTRY` (`voice_typer/server/ipc/registry.py`,
-> re-exported by `ipc_server.py`) registers **84** handlers; the Rust
-> renderer allowlist exposes **80** of them. Four registry commands are
+> re-exported by `ipc_server.py`) registers **85** handlers; the Rust
+> renderer allowlist exposes **81** of them. Four registry commands are
 > intentionally absent from the Rust allowlist:
 >
 > - `tray_click` — Rust tray handler invokes via `dispatch_inner`
