@@ -84,6 +84,7 @@
 --chart-tooltip-foreground:var(--foreground);
 --chart-tooltip-muted:var(--muted-foreground);
 --radius:0.625rem;
+--corner-shape:squircle;
 }
 /* ── Semantic tokens — dark scheme (mirrors index.css .dark). Surfaces
    split here; destructive/charts identical to light, inherited above. ── */
@@ -441,11 +442,28 @@ kbd.in-tooltip{background:color-mix(in oklch,var(--foreground) 10%,transparent);
  font-size:.8rem}
 .preset .sw{width:26px;height:26px;border-radius:50%;flex-shrink:0;
  border:1px solid color-mix(in oklch,var(--border) 15%,transparent)}
+.radius-comparison{display:flex;gap:20px;align-items:center;margin:14px 0}
+.radius-comparison>div{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--foreground)}
+.radius-comparison-box{display:block;width:64px;height:44px;border-radius:var(--radius);background:var(--primary)}
 
 footer.doc-footer{margin-top:56px;padding-top:20px;
  border-top:1px solid color-mix(in oklch,var(--border) 8%,transparent);
  display:flex;flex-direction:column;gap:6px;font-size:.72rem;color:var(--muted-foreground)}
 footer.doc-footer code{color:var(--text-secondary)}
+
+/* Mirror the renderer's native-first radius treatment. Unsupported engines
+   ignore this block and keep the existing circular arcs. */
+@supports (corner-shape: squircle){
+ :root{--radius:1.625rem}
+ :where(.radius-box[data-corner-shape="squircle"],.radius-comparison-box[data-corner-shape="squircle"],
+  .border-swatch,.scope,.tok,.chip,
+  .type-card,.btn,.input,.select-trigger,.seg:not(.pill),.seg:not(.pill) .seg-btn,
+  .card,.focus-card,.motion-item,.m-box,.preset,.dlg-demo){
+  corner-shape:var(--corner-shape,squircle)}
+ :where(.radius-box[data-corner-shape="round"],.radius-comparison-box[data-corner-shape="round"],
+  .scope-label,.select-trigger,.seg.pill,
+  .seg.pill .seg-btn,.pill,.preset .sw){corner-shape:round}
+}
 </style>
 </head>
 <body>
@@ -561,16 +579,16 @@ function renderTokens(mode){
 }
 function renderTypography(){
  const rows=[
-  ["Display","1.75rem / 650","t-display","Voice dictation, at your fingertips"],
-  ["Heading 1","1.5rem / 650","t-h1","Settings"],
-  ["Heading 2","1.125rem / 600","t-h2","Appearance"],
-  ["Body","0.875rem / 400","t-body","Body copy uses --text-secondary: readable, not the dominant focus."],
-  ["Label","0.875rem / 500","t-label","Microphone Quality"],
-  ["Caption","0.75rem / 400","t-caption","Helper text, timestamps, metadata — --muted-foreground."],
-  ["Mono (keycaps)","0.75rem / ui-monospace","t-mono","Ctrl — font-mono, as rendered by Kbd"]
+  ["Display","1.75rem / 28px / 650","t-display","Voice dictation, at your fingertips"],
+  ["Heading 1","1.5rem / 24px / 650","t-h1","Settings"],
+  ["Heading 2","1.125rem / 18px / 600","t-h2","Appearance"],
+  ["Body","0.875rem / 14px / 400","t-body","Body copy uses --text-secondary: readable, not the dominant focus."],
+  ["Label","0.875rem / 14px / 500","t-label","Microphone Quality"],
+  ["Caption","0.75rem / 12px / 400","t-caption","Helper text, timestamps, metadata — --muted-foreground."],
+  ["Mono (keycaps)","0.75rem / 12px / ui-monospace","t-mono","Ctrl — font-mono, as rendered by Kbd"]
  ].map(([role,meta,cls,sample])=>`<div class="type-row"><span class="meta">${role}<br>${meta}</span><span class="${cls}">${sample}</span></div>`).join("");
  return sec(`<h2>Typography</h2><p><strong>Inter Variable</strong> (weights 100–900) is <code>font-sans</code>; <code>--font-heading</code> aliases it.
-  Root size = <code>calc(100% * var(--font-scale))</code>, so the Settings text-size slider scales the whole rem-based UI.
+  Root size = <code>calc(100% * var(--font-scale))</code>, so the Settings text-size slider scales the whole rem-based UI — the px shown is the value at <code>--font-scale: 1</code> (16px root).
   Role rule: <code>--foreground</code> must-read · <code>--text-secondary</code> body default · <code>--muted-foreground</code> skippable.</p>`,
  `<div class="type-card">${rows}</div>`);
 }
@@ -578,17 +596,21 @@ function renderRadius(){
  const radii=[["lg","10px","= --radius · the ONE non-circular radius (buttons, inputs, cards, dialogs)"],
   ["full","circular","exemption: radio, switch, pills, avatars, icon discs"],
   ["sm","4px","compact exemption: 16px checkbox only (rounded-lg would render it circular)"]];
- const boxes=radii.map(([n,px,note])=>`<div class="radius-item"><span class="radius-box" style="border-radius:${n==="full"?"9999px":n==="sm"?"4px":px}"></span>
+ const boxes=radii.map(([n,px,note])=>`<div class="radius-item"><span class="radius-box" data-corner-shape="${n==="full"?"round":"squircle"}" style="border-radius:${n==="full"?"9999px":n==="sm"?"4px":px}"></span>
   <span><strong>rounded-${n}</strong> · ${px}<br>${note}</span></div>`).join("");
  const borders=[[ "/5","color-mix(in oklch,var(--border) 5%,transparent)","control FILLS only (bg-border/5) — never a border"],
   ["/8","color-mix(in oklch,var(--border) 8%,transparent)","DEFAULT: cards, panels, dividers, chips, dialogs, track borders"],
   ["/10","color-mix(in oklch,var(--border) 10%,transparent)","exceptions: toasts, active sidebar row"],
   ["/15","color-mix(in oklch,var(--border) 15%,transparent)","keycaps, checkboxes"]]
   .map(([n,v,use])=>`<div class="border-swatch" style="border:1px solid ${v}">border-border${n} · ${use}</div>`).join("");
+ const comparison=`<div class="radius-comparison" aria-label="Round and squircle corner comparison">
+  <div><span class="radius-comparison-box" data-corner-shape="round"></span><strong>Round</strong></div>
+  <div><span class="radius-comparison-box" data-corner-shape="squircle"></span><strong>Squircle</strong></div>
+ </div>`;
  return sec(`<h2>Radius & borders</h2><p>STANDARDIZED: every non-circular control and panel uses <code>rounded-lg</code> (10px, <code>--radius: 0.625rem</code>),
   including buttons and inputs. Naturally circular elements (radio, switch, pills, icon discs) keep <code>rounded-full</code>; the 16px checkbox keeps <code>rounded-sm</code>.
-  Border token is pure black/white — alpha always comes from the consumer, never the token. Weight is a fixed scale by ROLE (C-DESIGN-2): <strong>8%</strong> default (cards, panels, dividers, chips, dialogs, control-track borders) · <strong>10%</strong> toasts + the active sidebar row · <strong>15%</strong> keycaps/checkboxes · <strong>20%</strong> dashed frames; <strong>5% is a FILL only</strong> (<code>bg-border/5</code> buttons, <code>bg-border/10</code> tracks).</p>`,
- `<div class="radius-grid">${boxes}</div><div class="borders">${borders}</div>`);
+  Supported engines use the <code>--corner-shape</code> superellipse curve; other engines keep round corners. Border token is pure black/white — alpha always comes from the consumer, never the token. Weight is a fixed scale by ROLE (C-DESIGN-2): <strong>8%</strong> default (cards, panels, dividers, chips, dialogs, control-track borders) · <strong>10%</strong> toasts + the active sidebar row · <strong>15%</strong> keycaps/checkboxes · <strong>20%</strong> dashed frames; <strong>5% is a FILL only</strong> (<code>bg-border/5</code> buttons, <code>bg-border/10</code> tracks).</p>`,
+ `<div class="radius-grid">${boxes}</div>${comparison}<div class="borders">${borders}</div>`);
 }
 function renderButtons(){
  const v=[["default","btn-default"],["secondary","btn-secondary"],["outline","btn-outline"],
@@ -722,7 +744,8 @@ function renderStatus(){
   <span class="t-body"><span class="t-title">${title}</span><span class="t-desc">${desc}</span>${actions}</span>
   <button type="button" class="t-close" aria-label="Close">✕</button></div>`;
  return sec(`<h2>Status, pills & toasts</h2><p>Status tokens (<code>--success/-warning/-info/-destructive</code>) drive pill/ toast icon colours.
-  Toast surface = <code>--surface</code>, description = <code>--muted-foreground</code>, action = solid primary, cancel = muted fill (index.css sonner block).</p>`,
+  Toast surface = <code>--surface</code>, description = <code>--muted-foreground</code>, action = solid primary, cancel = muted fill (index.css sonner block).
+  Layout is stacked — <strong>title → description → action</strong>. The action never sits beside the copy; index.css overrides sonner's single flex row with a 2-column grid (icon · content) so the action lands on the content column's second row.</p>`,
  `<div class="stack"><div class="row">${pills}</div>
   <div class="row" style="align-items:flex-start;gap:12px">
    ${toast("success","✓","Model downloaded","fastest-mini.en was installed successfully.",

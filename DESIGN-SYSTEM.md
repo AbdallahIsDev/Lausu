@@ -273,7 +273,7 @@ kills the glow, pulse and blink loops.
 ## 12. Component metrics
 
 **Button** — 14px / weight 500 / line-height 1.3 (18.2px) / **radius 8px**
-(`rounded-[0.5rem]`).
+(`rounded-lg`).
 
 | | Light | Dark | Class |
 |---|---|---|---|
