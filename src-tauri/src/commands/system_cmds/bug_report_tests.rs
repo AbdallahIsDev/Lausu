@@ -20,7 +20,6 @@
 //! the clipboard fallback needs.
 
 use super::*;
-use base64::Engine as _;
 
 fn data_url(prefix: &str, bytes: &[u8]) -> String {
     format!(
@@ -148,11 +147,32 @@ fn percent_encode_escapes_multibyte_characters_byte_wise() {
 
 #[test]
 fn mailto_url_carries_encoded_subject_and_body() {
-    let url = build_mailto_url("a.elfiky.dev@gmail.com", "[Bug] Crash on start", "It broke.");
+    let url = build_mailto_url(
+        "a.elfiky.dev@gmail.com",
+        "[Bug] Crash on start",
+        "It broke.",
+    );
     assert!(url.starts_with("mailto:a.elfiky.dev@gmail.com?subject="));
     assert!(url.contains("%5BBug%5D%20Crash%20on%20start"));
     assert!(url.ends_with("&body=It%20broke."));
     assert!(!url.contains(' '), "no raw whitespace may survive: {url}");
+}
+
+#[test]
+fn recipient_keeps_at_but_cannot_inject_mailto_fields() {
+    // RFC 6068 addr-spec: `@` stays raw, while `&`/`=`/`%`/space all
+    // encode so a renderer-controlled `to` cannot append extra hfields
+    // (bcc injection) or a second recipient via `,`.
+    assert_eq!(
+        percent_encode_recipient("a.elfiky.dev@gmail.com"),
+        "a.elfiky.dev@gmail.com"
+    );
+    assert_eq!(
+        percent_encode_recipient("x@y.com&bcc=evil@z.com"),
+        "x@y.com%26bcc%3Devil@z.com"
+    );
+    assert_eq!(percent_encode_recipient("a,b@c.com"), "a%2Cb@c.com");
+    assert_eq!(percent_encode_recipient("100%@y.com"), "100%25@y.com");
 }
 
 // ── clamp_chars ──────────────────────────────────────────────────────
