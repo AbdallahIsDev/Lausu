@@ -114,7 +114,7 @@ export const BubblePreview = memo(function BubblePreview({
 	);
 
 	return (
-		<div className="flex flex-col gap-3 px-4 py-4">
+		<div className="flex flex-col gap-3 px-4 py-2.5">
 			{position === "top" && (
 				<ScreenEdge
 					label={`${t("settings.bubblePositionLabel")}: ${t(

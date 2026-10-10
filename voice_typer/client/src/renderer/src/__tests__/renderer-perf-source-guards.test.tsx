@@ -396,9 +396,9 @@ describe("Dashboard derived stats are memoized in useDashboardData", () => {
 			expect(memoMatch?.[2] ?? "").toContain("range");
 		}
 		// The activity bars come from buildActivityBars (single source:
-		// the history sample), not an inline .map in render.
+		// the selected records), not an inline .map in render.
 		expect(src).toMatch(
-			/const\s+activity\s*=\s*useMemo\(\s*\(\)\s*=>\s*buildActivityBars\(sample,\s*range\)/,
+			/const\s+activity\s*=\s*useMemo\(\s*\(\)\s*=>\s*buildActivityBars\(activeRecords,\s*range(?:,|\))/,
 		);
 	});
 
@@ -410,7 +410,7 @@ describe("Dashboard derived stats are memoized in useDashboardData", () => {
 		);
 		// …and passes the memoized activity array into the chart.
 		expect(pageSrc).toMatch(
-			/<ActivityChart\s+range=\{range\}\s+activity=\{activity\}\s*\/>/,
+			/<ActivityChart\s+range=\{range\}\s+activity=\{activity\}[^>]*\/>/,
 		);
 		// No inline dailyActivity mapping may remain in the page render.
 		expect(pageSrc).not.toMatch(/dailyActivity\s*\.\s*map/);

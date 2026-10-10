@@ -58,7 +58,7 @@ export function MicrophoneSkeleton() {
 					<div className="rounded-lg border border-border/8 bg-surface-subtle">
 						<div className="divide-y divide-border/8">
 							{DEVICE_ROW_IDS.map((id) => (
-								<div key={id} className="flex items-center gap-3 px-4 py-2">
+								<div key={id} className="flex items-center gap-3 px-4 py-2.5">
 									<Skeleton className="h-4 w-4 shrink-0" />
 									<div className="flex min-w-0 flex-1 flex-col gap-1">
 										<Skeleton className="h-5 w-40" />

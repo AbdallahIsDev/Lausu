@@ -29,7 +29,7 @@ export function VocabDuplicateBanner({
 		<div
 			data-testid="vocab-duplicate-banner"
 			role="status"
-			className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-2"
+			className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-2.5"
 		>
 			<HugeiconsIcon
 				icon={Alert01Icon}

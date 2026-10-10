@@ -113,7 +113,7 @@ export function ScreenshotOverlay({
 			onMouseMove={handleMouseMove}
 			onMouseUp={handleMouseUp}
 		>
-			<p className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-surface px-4 py-2 text-xs font-medium text-foreground">
+			<p className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-surface px-4 py-2.5 text-xs font-medium text-foreground">
 				{tf(
 					"bubble.screenshotHint",
 					"Drag to select a region — release to capture, Esc to cancel",

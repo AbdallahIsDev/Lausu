@@ -191,6 +191,8 @@
 	/* Single corner radius: rounded-lg maps here. Circular controls
 	   (radio, switch, icon discs) opt out via rounded-full. */
 	--radius: 0.625rem;
+	/* Progressive enhancement for the shared radius family. */
+	--corner-shape: squircle;
 	/* Bklit chart tokens are DERIVED from this scheme's semantic tokens,
 	   never literals — same reason as `--sidebar` above. The registry
 	   ships literal greys, and the 12 theme presets override `--accent`
@@ -356,6 +358,31 @@
 	label,
 	select:not(:disabled) {
 		cursor: pointer;
+	}
+
+	/* Supported engines shape every shared-radius utility at paint time.
+	   Keep this in base so normal utility declarations retain precedence.
+	   Full circles and pills explicitly keep their circular caps. */
+	@supports (corner-shape: squircle) {
+		:root {
+			--radius: 1.625rem !important; /* 26px, matches the Tauri shell's default */
+		}
+
+		:where(
+				.rounded-2xl,
+				.rounded-xl,
+				.rounded-lg,
+				.rounded-t-lg,
+				.rounded-l-lg,
+				.rounded-md,
+				.rounded-sm
+			) {
+			corner-shape: var(--corner-shape, squircle);
+		}
+
+		:where(.rounded-full) {
+			corner-shape: round;
+		}
 	}
 }
 
@@ -845,6 +872,46 @@
 
 .toaster [data-sonner-toast][data-styled="true"] [data-button]:hover {
 	background: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+
+/* Action placement: title → description → button, stacked. Sonner lays the
+   toast out as ONE flex row (icon | content | button) with the button pushed
+   right by --toast-button-margin-start: auto, so a wrapping description got
+   squeezed into a narrow column beside it. design-system.html stacks the
+   action under the description instead (.t-actions inside .t-body), so mirror
+   that here with a 2-column grid: icon col 1, content col 2, action on the
+   content column's second row. */
+.toaster [data-sonner-toast][data-styled="true"] {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 6px;
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-icon] {
+	grid-column: 1;
+	grid-row: 1;
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-content] {
+	grid-column: 2;
+	grid-row: 1;
+}
+
+/* justify-self: start + zeroed margins: grid items stretch by default, and
+   the inherited margin-left: auto (LTR) / margin-right: auto (RTL) would
+   otherwise push the action to the far edge of the content column. */
+.toaster [data-sonner-toast][data-styled="true"] [data-button] {
+	grid-column: 2;
+	grid-row: 2;
+	justify-self: start;
+	margin-left: 0;
+	margin-right: 0;
+}
+
+/* A toast carrying both cancel and action (sonner renders cancel first) must
+   not stack them in the same cell — put the action on its own row. */
+.toaster [data-sonner-toast][data-styled="true"] [data-button] ~ [data-button] {
+	grid-row: 3;
 }
 
 /* Cancel button: secondary surface. The .toaster[data-sonner-toaster]

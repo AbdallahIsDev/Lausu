@@ -270,6 +270,12 @@ describe("ToggleGroup per-option label ref stability + value-change behaviour", 
 		);
 		const indicator = container.querySelector<HTMLElement>(".bg-surface");
 		expect(indicator).toBeTruthy();
+		expect(indicator?.className).toContain(
+			"rounded-[calc(var(--radius)-0.125rem)]",
+		);
+		expect(indicator?.className).toContain(
+			"not-supports-[corner-shape:squircle]:rounded-lg",
+		);
 		await waitFor(() => expect(indicator?.style.left).toBe("0px"));
 
 		rerender(
@@ -283,6 +289,30 @@ describe("ToggleGroup per-option label ref stability + value-change behaviour", 
 
 		await waitFor(() => expect(indicator?.style.left).toBe("48px"));
 		expect(indicator?.style.width).toBe("40px");
+	});
+
+	it("uses the fallback radius for the tabs indicator when corner-shape is unsupported", async () => {
+		const { container } = render(
+			<ToggleGroup
+				variant="tabs"
+				options={OPTIONS}
+				value="a"
+				onChange={() => {}}
+				ariaLabel="tabs-radius-fallback"
+			/>,
+		);
+		mockMeasureRects(container, { 0: 0, 1: 48 });
+		await waitFor(() =>
+			expect(container.querySelector(".bg-input")).toBeTruthy(),
+		);
+
+		const indicator = container.querySelector<HTMLElement>(".bg-input");
+		expect(indicator?.className).toContain(
+			"rounded-[calc(var(--radius)-0.25rem)]",
+		);
+		expect(indicator?.className).toContain(
+			"not-supports-[corner-shape:squircle]:rounded-lg",
+		);
 	});
 
 	it("the ResizeObserver callback measures the CURRENT value's label, not a stale first-render closure", async () => {

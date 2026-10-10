@@ -39,7 +39,7 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 
 import { GeneralSettingsSection } from "@/components/settings/GeneralSettingsSection";
 import type { SettingsSectionSharedProps } from "@/components/settings/types";
-import { type Locale, setLocale } from "@/i18n/i18n";
+import { type Locale, setLocale, t } from "@/i18n/i18n";
 import type { LausuConfig } from "@/types/config";
 
 /** Minimal config that satisfies GeneralSettingsSection's render path. */
@@ -323,5 +323,53 @@ describe("GeneralSettingsSection, B-REVIEW-3 locale re-rendering", () => {
 
 		expect(screen.getByText("Launch at Login")).toBeTruthy();
 		expect(screen.queryByText("التشغيل عند تسجيل الدخول")).toBeNull();
+	});
+});
+
+describe("GeneralSettingsSection, heading help affordance", () => {
+	beforeEach(() => {
+		act(() => {
+			setLocale("en" as Locale);
+		});
+	});
+
+	afterEach(() => {
+		act(() => {
+			setLocale("en" as Locale);
+		});
+		cleanup();
+	});
+
+	const renderSection = () =>
+		renderWithProviders(
+			<GeneralSettingsSection
+				config={makeConfig()}
+				updateConfig={vi.fn()}
+				updateConfigDebounced={vi.fn()}
+				isVisible={alwaysVisible}
+			/>,
+		);
+
+	it("collapses the section description into the ? tooltip beside the title", () => {
+		// Regression guard: the heading used to pass descriptionMode="text",
+		// which spent a whole line on the subtitle above the card. The
+		// description is help text, so it belongs behind the ? trigger like
+		// every other settings card (SettingsSection's default mode).
+		renderSection();
+		const description = t("settings.generalDescription");
+		// Not visible body copy...
+		expect(screen.queryByText(description)).toBeNull();
+		// ...but reachable as the named tooltip trigger on the heading.
+		const help = screen.getByRole("button", {
+			name: t("a11y.moreInfoAbout", { label: t("settings.general") }),
+		});
+		expect(help).toBeTruthy();
+	});
+
+	it("keeps the heading itself as the only 'General' text on the page", () => {
+		renderSection();
+		expect(screen.getByRole("heading", { level: 2 }).textContent).toBe(
+			t("settings.general"),
+		);
 	});
 });

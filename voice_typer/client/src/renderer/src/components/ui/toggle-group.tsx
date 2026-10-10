@@ -314,13 +314,13 @@ export function ToggleGroup<T extends string>({
 				<div
 					className={cn(
 						"pointer-events-none absolute z-0 transition-all duration-200 ease-out border border-border/10 dark:border-border/5",
-						// Radius = parent corner − inset, so the pill's outer
-						// curve matches the container's (rounded-lg − p-0.5 ⇒
-						// calc(--radius - inset)), never the same rounded-lg.
+						// The calc radius is the fallback when corner-shape is
+						// unsupported. Native squircle browsers use rounded-lg,
+						// matching the shared radius token.
 						variant === "default" &&
-							"inset-y-0.5 rounded-[calc(var(--radius)-0.125rem)] bg-surface shadow-xs dark:bg-border/10",
+							"inset-y-0.5 rounded-lg not-supports-[corner-shape:squircle]:rounded-[calc(var(--radius)-0.125rem)] bg-surface shadow-xs dark:bg-border/10",
 						variant === "tabs" &&
-							"inset-y-1 rounded-[calc(var(--radius)-0.25rem)] bg-input",
+							"inset-y-1 rounded-lg not-supports-[corner-shape:squircle]:rounded-[calc(var(--radius)-0.25rem)] bg-input",
 						indicatorClassName,
 					)}
 					style={{

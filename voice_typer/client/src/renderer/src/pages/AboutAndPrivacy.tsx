@@ -244,7 +244,7 @@ export default function AboutAndPrivacyPage() {
 						role="status"
 						aria-live="polite"
 						data-testid="update-check-outcome"
-						className={`border-t border-border/8 px-4 py-2 text-xs ${
+						className={`border-t border-border/8 px-4 py-2.5 text-xs ${
 							packOutcome === "failed"
 								? "text-destructive"
 								: "text-muted-foreground"

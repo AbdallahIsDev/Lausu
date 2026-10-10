@@ -236,7 +236,7 @@ export const TroubleshootingSettingsSection = memo(
 
 		return (
 			<SettingsSection title={title} description={description}>
-				<div className="flex flex-wrap gap-3 px-4 py-2">
+				<div className="flex flex-wrap gap-3 px-4 py-2.5">
 					{isVisible(keyboardShortcutsLabel, undefined, title) && (
 						<Button
 							variant="outline"

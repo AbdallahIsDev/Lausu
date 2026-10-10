@@ -50,7 +50,7 @@ export function ModelGroupTrigger({
 	return (
 		<AccordionTrigger
 			className={cn(
-				"gap-2 px-4 py-2 text-sm font-semibold text-foreground hover:no-underline hover:bg-foreground/5 data-open:bg-transparent",
+				"gap-2 px-4 py-2.5 text-sm font-semibold text-foreground hover:no-underline hover:bg-foreground/5 data-open:bg-transparent",
 				className,
 			)}
 			{...props}
@@ -96,7 +96,7 @@ export function ModelVariantRow({
 	actions,
 }: ModelVariantRowProps) {
 	return (
-		<div className="flex items-center gap-3 px-4 py-2">
+		<div className="flex items-center gap-3 px-4 py-2.5">
 			<div className="flex min-w-0 flex-1 flex-col gap-1">
 				<div className="flex items-center gap-2">
 					<h4
