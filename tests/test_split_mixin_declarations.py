@@ -184,6 +184,83 @@ MIXIN_HOST_MEMBERS: dict[str, dict[str, set[str]]] = {
             "_last_default_input_info",
         },
     },
+    # Wave 9 splits: hotkey_dispatcher facade trim (5 sibling mixins) and
+    # service/model/_downloads facade trim (4 sibling mixins). Without these
+    # declarations mypy infers each attribute from the first ``self.x = ...``
+    # in the mixin body (often ``None``), so the composed facade's
+    # ``__init__`` assignments became "base class defined the type as ...".
+    # service/model/_download_state.py declares nothing annotation-only
+    # (its only annotated assignment carries a value), so it is omitted.
+    "voice_typer/server/hotkey_dispatch.py": {
+        "HotkeyDispatchMixin": {
+            "_app",
+            "_esc_backend",
+            "_esc_pending_capture_exit_event",
+        },
+    },
+    "voice_typer/server/hotkey_registration.py": {
+        "HotkeyRegistrationMixin": {
+            "_app",
+            "_esc_backend",
+            "_esc_callback",
+            "_esc_pending_capture_exit_event",
+            "_esc_spec",
+            "_hotkey_backend",
+            "_repaste_backend",
+            "_repaste_callback",
+            "_repaste_spec",
+            "_shared_backend",
+            "_shared_backend_pool",
+        },
+    },
+    "voice_typer/server/hotkey_pool.py": {
+        "HotkeyPoolMixin": {
+            "_app",
+            "_esc_callback",
+            "_esc_spec",
+            "_repaste_callback",
+            "_repaste_spec",
+            "_resyncing_aux",
+            "_shared_backend",
+            "_shared_backend_pool",
+        },
+    },
+    "voice_typer/server/hotkey_lifecycle.py": {
+        "HotkeyLifecycleMixin": {
+            "_app",
+            "_esc_callback",
+            "_esc_spec",
+            "_hotkey_backend",
+            "_repaste_callback",
+            "_repaste_spec",
+            "_shared_backend",
+            "_shared_backend_pool",
+        },
+    },
+    "voice_typer/server/hotkey_ptt_safety.py": {
+        "HotkeyPttSafetyMixin": {
+            "_PTT_SAFETY_TIMEOUT_SECONDS",
+            "_app",
+            "_ptt_safety_timer",
+        },
+    },
+    "voice_typer/server/service/model/_download_queue.py": {
+        "DownloadQueueMixin": {
+            "_active_download_id",
+            "_download_cancel_events",
+            "_download_cancel_lock",
+            "_download_queue",
+        },
+    },
+    "voice_typer/server/service/model/_download_dispatch.py": {
+        "DownloadDispatchMixin": {"_app"},
+    },
+    "voice_typer/server/service/model/_download_preflight.py": {
+        "DownloadPreflightMixin": {"_app"},
+    },
+    "voice_typer/server/service/model/_download_qwen_parakeet.py": {
+        "QwenParakeetDownloadMixin": {"_app"},
+    },
 }
 
 # (file, class, TYPE_CHECKING-only method stubs the class must carry)
@@ -234,6 +311,56 @@ MIXIN_STUB_METHODS: dict[str, dict[str, set[str]]] = {
     },
     "voice_typer/server/recording/device_resolution.py": {
         "_DeviceResolutionMixin": {"_refresh_device_list", "_resolve_device"},
+    },
+    # Wave 9: every cross-mixin method reference in the hotkey / download
+    # siblings still carries its ``if TYPE_CHECKING:`` stub. The stubs are
+    # what keep ``self._sibling_method(...)`` typed on the composed class
+    # instead of an untyped missing-attribute error.
+    "voice_typer/server/hotkey_dispatch.py": {
+        "HotkeyDispatchMixin": {"_shared_native"},
+    },
+    "voice_typer/server/hotkey_registration.py": {
+        "HotkeyRegistrationMixin": {
+            "_handle_shared_native_state_changed",
+            "_make_dictation_callback",
+            "_make_repaste_callback",
+            "_maybe_warn_wayland_caps_lock",
+            "_on_esc_release",
+            "_pool_aux_into_shared",
+            "_remove_shared_extra_matcher",
+            "_repool_aux_into_shared",
+            "_shared_native",
+            "_start_ptt_safety_timer",
+            "_track_pooled_backend",
+            "_untrack_pooled_backend",
+        },
+    },
+    "voice_typer/server/hotkey_pool.py": {
+        "HotkeyPoolMixin": {"register_esc", "register_repaste"},
+    },
+    "voice_typer/server/hotkey_lifecycle.py": {
+        "HotkeyLifecycleMixin": {
+            "_cancel_ptt_safety_timer",
+            "_create_and_start_main_backend",
+            "_untrack_pooled_backend",
+        },
+    },
+    "voice_typer/server/service/model/_download_queue.py": {
+        "DownloadQueueMixin": {"download_model"},
+    },
+    "voice_typer/server/service/model/_download_dispatch.py": {
+        "DownloadDispatchMixin": {
+            "_download_parakeet",
+            "_download_qwen",
+            "_download_whisper_family",
+            "_start_next_queued_download",
+        },
+    },
+    "voice_typer/server/service/model/_download_qwen_parakeet.py": {
+        "QwenParakeetDownloadMixin": {
+            "_enqueue_download",
+            "_require_huggingface_consent",
+        },
     },
 }
 
