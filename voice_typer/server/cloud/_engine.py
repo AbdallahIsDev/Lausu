@@ -1,12 +1,14 @@
 """CloudEngine: the cloud ASR engine implementing TranscriberProtocol.
 
-Engine-dispatch half of the ``cloud_engines.py`` monolith split: the
-full ``CloudEngine`` class (lifecycle, consent gate, shared retry
-skeleton, provider send paths, connection probe) lives HERE; the
-stateless plumbing (transport, retry policy, provider defaults,
-request shaping) lives in the sibling leaf modules
+Engine-dispatch half of the ``cloud_engines.py`` monolith split: the full
+``CloudEngine`` class (lifecycle, consent gate, shared retry skeleton,
+connection probe) lives HERE. The provider send paths and their retry loop
+live in :mod:`._sendpaths`; the cloud-to-local fallback policy lives in
+:mod:`._fallback`; the stateless plumbing (transport, retry policy, provider
+defaults, request shaping) lives in the sibling leaf modules
 (:mod:`._transport`, :mod:`._retry`, :mod:`._defaults`,
-:mod:`._providers.*`).
+:mod:`._providers.*`). Both split leaves are re-exported here, so every
+existing import path keeps resolving.
 
 FACADE-NAMESPACE PATCH CONTRACT: tests and production patch
 engine-adjacent singletons through the facade module's namespace
@@ -20,7 +22,6 @@ statically from its owning leaf module.
 
 from __future__ import annotations
 
-import json
 import logging
 import threading
 from collections.abc import Callable
@@ -32,92 +33,20 @@ import numpy as np
 
 from voice_typer.server._secrets import redact_secret, redact_url
 from voice_typer.server.asr_errors import (
-    CloudAuthError,
     CloudConfigError,
     CloudConsentRequiredError,
     CloudEmptyResponseError,
     CloudEngineError,
     CloudNetworkError,
-    CloudRateLimitError,
-    CloudServerError,
-    ConsentRequiredError,
 )
 from voice_typer.server.cloud._defaults import _PROVIDER_DEFAULTS
-from voice_typer.server.cloud._providers.deepgram import build_listen_url
-from voice_typer.server.cloud._providers.gemini import (
-    build_gemini_body,
-    build_gemini_url,
-    parse_gemini_transcript,
-)
-from voice_typer.server.cloud._providers.openai import build_multipart_body, build_multipart_parts
+from voice_typer.server.cloud._providers.gemini import build_gemini_body, build_gemini_url
 from voice_typer.server.cloud._retry import _cloud_http_error_class, _parse_retry_after
 from voice_typer.server.cloud._transport import _audio_to_wav_bytes, _read_capped
 from voice_typer.server.i18n import DEFAULT_LOCALE
 from voice_typer.server.retry import delay_for_attempt, sleep_interruptible
 
 log = logging.getLogger(__name__)
-
-
-def _verify_cloud_peer(req: Request, resp: object) -> None:
-    """Verify the connected peer IP matches the validated URL IPs."""
-    try:
-        facade = _facade()
-        expected = facade.resolve_allowed_url_ips(
-            req.full_url,
-            field_name="cloud_api_url",
-            client_name="cloud",
-            allow_loopback_http=True,
-        )
-    except Exception:
-        log.debug("[CLOUD] peer-IP pin lookup failed", exc_info=True)
-        return
-    try:
-        raw = getattr(resp, "fp", None)
-        sock = getattr(raw, "raw", None)
-        sock = getattr(sock, "_sock", sock)
-        peer = sock.getpeername()[0] if hasattr(sock, "getpeername") else None
-    except Exception:
-        log.debug("[CLOUD] peer-IP read failed", exc_info=True)
-        return
-    if peer is None:
-        return
-    try:
-        facade.verify_peer_ip_allowed(peer, expected, host=req.host)
-    except ValueError as exc:
-        log.exception("[CLOUD] peer IP %r outside validated set, refusing", peer)
-        raise CloudNetworkError("cloud peer IP outside validated set") from exc
-
-
-def _fallback_kind(exc: BaseException) -> str:
-    """Classify a cloud failure for fallback UX: "key" | "provider" | "network".
-
-    "key": the API key/config is at fault (401/403, missing key or URL),
-    the user must fix credentials. "provider": the provider failed
-    (5xx, rate limit, empty transcript), retry later. "network": the
-    request never reached the provider (timeout, DNS, reset).
-    """
-    if isinstance(exc, (CloudAuthError, CloudConfigError)):
-        return "key"
-    if isinstance(exc, (CloudServerError, CloudRateLimitError, CloudEmptyResponseError)):
-        return "provider"
-    return "network"
-
-
-def _facade():
-    """Resolve the compatibility facade namespace at call time.
-
-    The facade module (``voice_typer.server.cloud_engines``) owns the
-    engine-adjacent singletons tests rebind to steer the engine
-    (``_opener``, ``assert_url_allowed``). Reading them through the
-    facade at call time, instead of importing them at module level —
-    keeps that contract intact now that the class body lives in this
-    leaf. Call-time-only import: the facade imports this package at
-    module level, so the facade is always fully initialized by the
-    time an engine method runs (no import cycle).
-    """
-    from voice_typer.server import cloud_engines
-
-    return cloud_engines
 
 
 class CloudEngine:
@@ -241,99 +170,9 @@ class CloudEngine:
         local_engine=None,
         audio_stats: tuple[float, float, float] | None = None,
     ) -> str:
-        """Try cloud transcription; fall back to local engine on failure.
+        """Delegate to :func:`voice_typer.server.cloud._fallback.fall_back_to_local`."""
+        return fall_back_to_local(self, audio, local_engine, audio_stats)
 
-        PERF: if the cloud request fails after all retries,
-        and a local_engine is provided, attempt transcription on it
-        instead of raising.  This gives a best-effort result even
-        when the cloud is temporarily unreachable.
-
-                When ``local_engine`` is NOT explicitly passed but the
-                engine was constructed with a ``local_engine_factory`` callable,
-                the factory is invoked lazily to construct the local whisper
-                engine on demand.  This decouples the cloud engine from the
-                model registry / app object: callers that don't know about
-                the local whisper backend (e.g. the streaming session) still
-                get the cloud→local fallback as long as the factory was wired
-                at construction time.  If the factory returns ``None`` (e.g.
-                cold start with whisper not yet registered), the fallback is
-                skipped and the original cloud error is re-raised.
-
-        Signature note: ``audio_stats`` is accepted
-                for signature parity with the three local engines
-                (Whisper/Parakeet/Qwen) so ``DictationPipeline._transcribe``
-                can pass it unconditionally without a broad ``except TypeError``
-                fallback. The cloud engines don't use it, RMS/peak/silence
-                detection is irrelevant when audio is shipped to a remote API
-               , so the value is simply ignored here on the cloud path.
-                When a ``local_engine`` is provided, ``audio_stats`` is forwarded
-                so the local fallback benefits from the same pre-computation
-                (all three local engines accept the kwarg).
-        """
-        try:
-            return self.transcribe(audio)
-        except ConsentRequiredError:
-            # consent errors must propagate, do NOT fall back to
-            raise
-        except (RuntimeError, OSError) as cloud_err:
-            if self._abort_event.is_set():
-                # User-cancelled (ESC) or watchdog-recovered mid-request:
-                # the cycle is marked cancelled, so a local fallback decode
-                # would be wasted work pasted nowhere (CancellationGuard
-                # blocks it). Return empty and let the empty-transcription
-                # branch skip silently.
-                log.info(
-                    "[CLOUD] %s request aborted, skipping local fallback",
-                    self.provider,
-                )
-                return ""
-            # Prefer the explicitly-passed local_engine; fall
-            resolved_local_engine = local_engine
-            if resolved_local_engine is None and self._local_engine_factory is not None:
-                try:
-                    resolved_local_engine = self._local_engine_factory()
-                except Exception as factory_err:
-                    log.warning(
-                        "[CLOUD] %s local_engine_factory raised; skipping fallback: %s",
-                        self.provider,
-                        factory_err,
-                    )
-                    resolved_local_engine = None
-            if resolved_local_engine is not None:
-                # Include exc_info so the cloud failure
-                log.warning(
-                    "[CLOUD] %s failed, falling back to local engine: %s",
-                    self.provider,
-                    cloud_err,
-                    exc_info=True,
-                )
-                # surface the fallback to the renderer so the
-                try:
-                    from voice_typer.server import event_bus
-
-                    event_bus.publish(
-                        {
-                            "type": "cloud_fallback_used",
-                            "data": {
-                                "provider": self.provider,
-                                "kind": _fallback_kind(cloud_err),
-                                "reason": str(cloud_err)[:200],
-                            },
-                        }
-                    )
-                except Exception as notify_exc:
-                    log.debug(
-                        "[CLOUD] could not publish cloud_fallback_used event: %s",
-                        notify_exc,
-                    )
-                try:
-                    return resolved_local_engine.transcribe(audio, audio_stats=audio_stats)
-                except Exception as local_err:
-                    # Include exc_info so the local fallback
-                    log.error("[CLOUD] Local fallback also failed: %s", local_err, exc_info=True)
-                    # re-raise the ORIGINAL cloud error (not a
-                    raise cloud_err from local_err
-            raise
 
     def unload(self) -> None:
         """No-op for cloud engines."""
@@ -487,156 +326,24 @@ class CloudEngine:
         raise CloudEngineError(f"{provider} request failed after {max_retries} attempts")
 
     def _send_openai_compatible(self, wav_bytes: bytes, filename: str) -> str:
-        """Send request to OpenAI-compatible API (OpenAI, Groq).
-
-        URL allowlist: asserts the configured ``api_url`` is in the
-        trusted-host allowlist before sending any audio.  This closes
-        the SEC-002 endpoint-swap vector at the cloud-engine layer:
-        even if an attacker finds another path to write
-        ``config.cloud_api_url``, this engine refuses to send audio
-        to an untrusted host.
-
-        PERF: exponential backoff retry (3 attempts) for transient
-        network errors. HTTP goes through the shared module-level
-        OpenerDirector (built once, so the handler chain, redirect
-        refusal, plaintext-HTTP refusal, is not reconstructed per
-        request); note the stdlib opener does NOT pool connections —
-        each request opens a fresh TCP/TLS connection and sends
-        ``Connection: close``.
-
-        Thin wrapper around ``_transcribe_with_retry``, supplies the
-        OpenAI-specific request factory (multipart body, rebuilt per
-        attempt because ``_StreamingMultipartBody`` carries internal
-        state) and the OpenAI response parser (``result["text"]``).
-        """
-        # Defense-in-depth: SEC-002 already validates URL scheme at
-        _facade().assert_url_allowed(
-            self.api_url,
-            field_name="cloud_api_url",
-            client_name=f"cloud/{self.provider}",
-            allow_loopback_http=True,
-        )
-
-        boundary = "----LausuBoundary7MA4YWxkTrZu0gW"
-
-        def _build_request() -> Request:
-            # Rebuild `body` and `req` INSIDE the retry loop.
-            body = self._build_multipart_body(wav_bytes, filename, boundary)
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": f"multipart/form-data; boundary={boundary}",
-                # PERF: pass Content-Length explicitly so urllib
-                "Content-Length": str(len(body)),
-            }
-            return Request(self.api_url, data=body, headers=headers, method="POST")
-
-        def _parse(raw: bytes) -> str:
-            result = json.loads(raw.decode("utf-8"))
-            return result.get("text", "").strip()
-
-        return self._transcribe_with_retry(self.provider, _build_request, _parse)
+        """Delegate to :func:`voice_typer.server.cloud._sendpaths._send_openai_compatible`."""
+        return _send_openai_compatible(self, wav_bytes, filename)
 
     def _send_deepgram(self, wav_bytes: bytes) -> str:
-        """Send request to Deepgram API.
-
-                Same URL allowlist + log redaction as the
-                OpenAI-compatible path.
-
-                SEC-005: query parameters (model, language) are validated
-                and URL-encoded by the Deepgram provider module
-                (``voice_typer.server.cloud._providers.deepgram``) to prevent
-                parameter injection via crafted config values.
-
-        PERF: exponential backoff retry (3 attempts) for
-        transient network errors, matching the OpenAI-compatible path
-        (now shared via ``_transcribe_with_retry``).
-        """
-        # Opt in to allow_loopback_http=True: see the
-        _facade().assert_url_allowed(
-            self.api_url,
-            field_name="cloud_api_url",
-            client_name="cloud/deepgram",
-            allow_loopback_http=True,
-        )
-
-        # SEC-005: the provider module escapes special characters in the
-        url = build_listen_url(self.api_url, self.model_name, self.language)
-
-        # Deepgram's body is a plain ``bytes`` object (no internal
-        def _build_request() -> Request:
-            headers = {
-                "Authorization": f"Token {self.api_key}",
-                "Content-Type": "audio/wav",
-            }
-            return Request(url, data=wav_bytes, headers=headers, method="POST")
-
-        def _parse(raw: bytes) -> str:
-            result = json.loads(raw.decode("utf-8"))
-            # Deepgram response format
-            channels = result.get("results", {}).get("channels", [])
-            if channels:
-                alternatives = channels[0].get("alternatives", [])
-                if alternatives:
-                    return alternatives[0].get("transcript", "").strip()
-            return ""
-
-        return self._transcribe_with_retry(self.provider, _build_request, _parse)
+        """Delegate to :func:`voice_typer.server.cloud._sendpaths._send_deepgram`."""
+        return _send_deepgram(self, wav_bytes)
 
     def _send_gemini(self, wav_bytes: bytes) -> str:
-        """Send request to Gemini generateContent API.
-
-        Same URL allowlist + retry skeleton as the other providers.
-        Key travels in the ``X-goog-api-key`` header, never ``?key=``.
-        Uses ``_GEMINI_REQUEST_TIMEOUT_SECONDS`` (120s): measured
-        transcriptions take ~17s per 8s clip, the shared 10s aborts
-        every call.
-        """
-        _facade().assert_url_allowed(
-            self.api_url,
-            field_name="cloud_api_url",
-            client_name="cloud/gemini",
-            allow_loopback_http=True,
-        )
-        url = build_gemini_url(self.api_url, self.model_name)
-
-        def _build_request() -> Request:
-            body = build_gemini_body(wav_bytes)
-            headers = {
-                "X-goog-api-key": self.api_key,
-                "Content-Type": "application/json",
-                "Content-Length": str(len(body)),
-            }
-            return Request(url, data=body, headers=headers, method="POST")
-
-        return self._transcribe_with_retry(
-            self.provider,
-            _build_request,
-            parse_gemini_transcript,
-            timeout=self._GEMINI_REQUEST_TIMEOUT_SECONDS,
-        )
+        """Delegate to :func:`voice_typer.server.cloud._sendpaths._send_gemini`."""
+        return _send_gemini(self, wav_bytes)
 
     def _build_multipart_body(self, wav_bytes: bytes, filename: str, boundary: str):
-        """Build multipart/form-data body for OpenAI-compatible APIs.
-
-        PERF: returns a streaming ``_StreamingMultipartBody`` file-like
-        object (defined in ``voice_typer.server.cloud._transport``) that
-        yields the pre-built parts as ~64 KB chunks on demand, avoiding a
-        SECOND full-body copy, the naive ``b"".join(parts)`` built one
-        contiguous ~5.2 MB ``bytes`` object next to the WAV that is
-        already resident in ``parts``; ``Content-Length`` is computed
-        upfront via ``__len__`` so the server knows the total size
-        without chunked transfer encoding.
-        Shaping itself lives in
-        ``voice_typer.server.cloud._providers.openai``.
-        """
-        return build_multipart_body(wav_bytes, filename, boundary, self.model_name, self.language)
+        """Delegate to :func:`voice_typer.server.cloud._sendpaths._build_multipart_body`."""
+        return _build_multipart_body(self, wav_bytes, filename, boundary)
 
     def _multipart_parts(self, wav_bytes: bytes, filename: str, boundary: str) -> list[bytes]:
-        """Return the ordered list of byte chunks that compose the body.
-
-        Shaping lives in ``voice_typer.server.cloud._providers.openai``.
-        """
-        return build_multipart_parts(wav_bytes, filename, boundary, self.model_name, self.language)
+        """Delegate to :func:`voice_typer.server.cloud._sendpaths._multipart_parts`."""
+        return _multipart_parts(self, wav_bytes, filename, boundary)
 
     def test_connection(self) -> tuple[bool, str]:
         """Test the API connection. Returns (success, message).
@@ -736,3 +443,20 @@ class CloudEngine:
                 return True, f"Connected to {self.provider} (HTTP {status})"
             # Chain ``redact_url`` (strips URL userinfo +
             return False, f"Connection failed: {redact_secret(redact_url(msg))}"
+
+# Facade re-exports: the provider send paths (``_sendpaths``) and the
+# cloud-to-local fallback policy (``_fallback``) keep resolving through this
+# module, so every existing import path stays intact.
+from voice_typer.server.cloud._fallback import (  # noqa: E402,F401  # facade re-export
+    _fallback_kind,
+    fall_back_to_local,
+)
+from voice_typer.server.cloud._sendpaths import (  # noqa: E402,F401  # facade re-export
+    _build_multipart_body,
+    _facade,
+    _multipart_parts,
+    _send_deepgram,
+    _send_gemini,
+    _send_openai_compatible,
+    _verify_cloud_peer,
+)

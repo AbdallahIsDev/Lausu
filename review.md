@@ -4,8 +4,8 @@ These items are the highest-priority remaining work for the project. They block 
 
 > **Won't Fix tasks live in `WONT_FIX.md`**: deliberately not solved. Do NOT fix them (AGENTS.md C-REVIEW-1). See that file for the full list.
 
-### AUD-14 — Production files over the 500-line C-STRUCT-3 threshold (10 left, Waves 1–7 shipped)
-**Status:** SPLIT INTO 5 TASKS (2026-10-03) — AUD-14a…e below. **WAVES 1–7 SHIPPED (reviewer-verified green, commits `05eef343`, `b02b40fd`, `65d1d226`, `f52bc848`, `2073ba4c`, `75d564a0` (Waves 1–7 splits) plus the Wave 7 follow-ups commit on top: AUD-14b, AUD-14c and AUD-14d complete; AUD-14e all but 6 files done. Per-wave evidence (counts, gates) in git history.** Remaining scope is the task list below (all DISJOINT file sets, E16).
+### AUD-14 — Production files over the 500-line C-STRUCT-3 threshold (4 left, Waves 1–8 shipped)
+**Status:** SPLIT INTO 5 TASKS (2026-10-03) — AUD-14a…e below. **WAVES 1–8 SHIPPED (reviewer-verified green; per-wave evidence in git history): AUD-14b, AUD-14c, AUD-14d and AUD-14e complete. Wave 8 closed the tail — `startup_tasks.py` 784→379, `qwen_engine.py` 588→444, `worker_client.py` 692→422, `cloud/_engine.py` 738→462, `log/setup.py` 601→350, `ipc/validation.py` 603→419 (9 new modules, max 259) + `tests/test_module_split_reexports_wave8.py` (25 pins); mypy buckets neutral (611), collect-only 17268, 0 errors. Remaining scope is the task list below (all DISJOINT file sets, E16).
 **User Impact:** None directly. The cost is change risk: each edit touches a file with several unrelated reasons to change, so unrelated behavior is coupled to unrelated edits.
 **Root Cause:** Verified by line count — organic growth without the create-first split (E1) that C-STRUCT-3 requires.
 **Gain vs Trade-off:** Large, mechanical, regression-prone work. Best done incrementally, never as a batch. Split by subsystem so no two tasks touch the same file.
@@ -16,7 +16,6 @@ These items are the highest-priority remaining work for the project. They block 
 | Task | Scope | Files left |
 |---|---|---|
 | **AUD-14a** | Four largest god files (P2) | 4 |
-| **AUD-14e** | Tail: `startup_tasks.py`, `qwen_engine.py`, `worker_client.py`, `cloud/_engine.py`, `log/setup.py`, `ipc/validation.py` | 6 |
 
 ---
 
@@ -60,19 +59,8 @@ These items are the highest-priority remaining work for the project. They block 
 
 ---
 
-### AUD-14e — Tail: 6 remaining `server/` root modules
-**Status:** OPEN. `startup_tasks.py` (686), `qwen_engine.py` (514), `worker_client.py` (613), `cloud/_engine.py` (583), `log/setup.py` (527), `ipc/validation.py` (527). Everything else in this task shipped in Waves 1–5 (see AUD-14 top status).
-**Description:** The remaining long tail. Each carries a pin — moves only, no behavior change:
-
-- `startup_tasks.py`: carries C-CONF-2's startup mic reconciliation — re-verify after any move.
-- `qwen_engine.py`: carries RACE-032 (lock release during inference).
-- `worker_client.py`: C-WS-2 TEXT frames + C-WS-3 generation stamps.
-- `cloud/_engine.py`: SEC-002/005/011/030 + consent gates — later wave with security focus.
-- `log/setup.py` + `ipc/validation.py`: C-LOG-1 log format + SEC-002 allowlist — moving code must alter neither.
-
-**Fix:** Create-first throughout (E1).
-**Related Files:** the modules listed above.
-**Success:** no file >500 lines; related suites green unchanged.
+### AUD-14e — Tail (DONE: all 6 shipped in Wave 8, reviewer-verified green)
+**Status:** DONE. `startup_tasks.py` 784→379, `qwen_engine.py` 588→444, `worker_client.py` 692→422, `cloud/_engine.py` 738→462, `log/setup.py` 601→350, `ipc/validation.py` 603→419; 9 new focused siblings; `tests/test_module_split_reexports_wave8.py` (25 pins). Pins held (C-CONF-2, RACE-032, C-WS-2/3, SEC-002/005/011/030, C-LOG-1).
 **Implementation Difficulty:** 🟠 Medium
 **Severity:** 🟡 Medium
 **Priority:** P3

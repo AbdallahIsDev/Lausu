@@ -1,4 +1,3 @@
-# extracted from the original
 """Shared IPC payload validation + error-envelope helpers.
 
 validates an IPC ``data`` argument against a declarative
@@ -51,132 +50,22 @@ optional rules that the previous inline checks in live handlers
   Rust-mirror ``_handle_show_notification``; that command is
   NOT registered in ``_COMMAND_REGISTRY`` — do not cite it as a live
   IPC example).
+
+Split leaves, both re-exported below so every existing import path keeps
+resolving:
+
+- :mod:`voice_typer.server.ipc.error_codes`, the namespaced + legacy code
+  registry and the derived frozensets (``ErrorCodes``,
+  ``LegacyErrorCodes``, ``ERROR_CODES``, ``LEGACY_ERROR_CODES``,
+  ``ALL_ERROR_CODES``).
+- :mod:`voice_typer.server.ipc.error_envelope`, the typed envelope contract
+  and its builder (``ErrorData``, ``ErrorEnvelope``, ``_error_response``).
 """
 
 # ``TypedDict`` is needed for the schema + error-envelope type
 import json
 from collections.abc import Callable as _Callable
 from typing import TypedDict
-
-
-# canonical namespaced error-code registry.
-class ErrorCodes:
-    """Namespaced IPC error code constants (single source of truth).
-
-    Importing emitters should reference these attributes (e.g.
-    ``ErrorCodes.INVALID_PAYLOAD``) instead of bare string literals so
-    that typos surface at import time and renames touch one site. The
-    :data:`ERROR_CODES` frozenset is derived from this class via
-    :func:`vars`, keeping the two in sync automatically.
-    """
-
-    # Client-originated errors (4xx analog).
-    INVALID_FIELD = "client.invalid_field"
-    MISSING_FIELD = "client.missing_field"
-    INVALID_PAYLOAD = "client.invalid_payload"
-    PAYLOAD_TOO_LARGE = "client.payload_too_large"
-    # ``duplicate_entry`` is emitted by ``save_vocabulary`` when the
-    DUPLICATE_ENTRY = "client.duplicate_entry"
-    RATE_LIMITED = "client.rate_limited"
-    PATH_NOT_ALLOWED = "client.path_not_allowed"
-    NOT_FOUND = "client.not_found"
-    AUTH_FAILED = "client.auth_failed"
-    # Structured consent error, the renderer surfaces a consent
-    CONSENT_REQUIRED = "client.consent_required"
-    # ``onboarding_start`` rejects a re-run of a finished wizard unless the
-    # caller passes ``{force: true}``; the renderer surfaces the message.
-    ONBOARDING_ALREADY_COMPLETE = "client.onboarding_already_complete"
-    # Server-originated errors (5xx analog).
-    INTERNAL_ERROR = "server.internal_error"
-    HANDLER_ERROR = "server.handler_error"
-    FILE_LOCKED = "server.file_locked"
-    MODEL_SWITCH_FAILED = "server.model_switch_failed"
-    SHUTTING_DOWN = "server.shutting_down"
-    UNKNOWN_COMMAND = "server.unknown_command"
-    UNKNOWN_TRAY_ITEM = "server.unknown_tray_item"
-    SERVER_NOT_FOUND = "server.not_found"
-    # ``max_connections_reached`` is emitted by ``sidecar_ws.py`` when
-    MAX_CONNECTIONS_REACHED = "server.max_connections_reached"
-    # ``duplicate_connection`` is emitted by ``sidecar_ws.py`` when
-    DUPLICATE_CONNECTION = "server.duplicate_connection"
-    # ``not_initialized`` is the namespaced form of the
-    NOT_INITIALIZED = "server.not_initialized"
-    # ADR-0023 media ingest: no speech model installed/selected.
-    NO_MODEL = "server.no_model"
-    # ADR-0023 media ingest: another media job is running / source rejected.
-    JOB_BUSY = "server.job_busy"
-    NOT_SUPPORTED = "server.not_supported"
-    # structured consent-required envelope emitted by the
-    SERVER_CONSENT_REQUIRED = "server.consent_required"
-    # Typed cloud/LLM exception hierarchy, distinct codes for
-    CLOUD_AUTH_FAILED = "server.cloud_auth_failed"
-    CLOUD_RATE_LIMITED = "server.cloud_rate_limited"
-    CLOUD_SERVER_ERROR = "server.cloud_server_error"
-    CLOUD_NETWORK_ERROR = "server.cloud_network_error"
-    CLOUD_CONFIG_ERROR = "server.cloud_config_error"
-    CLOUD_ENGINE_ERROR = "server.cloud_engine_error"
-    # recording-pipeline exception hierarchy, distinct codes
-    RECORDING_RESAMPLE_FAILED = "server.recording_resample_failed"
-    RECORDING_RESAMPLE_UNAVAILABLE = "server.recording_resample_unavailable"
-    # IPC wire-protocol version negotiation. Emitted by the TCP auth
-    PROTOCOL_VERSION_MISMATCH = "server.protocol_version_mismatch"
-    # Dispatch-queue contention: a state-mutating command waited too long
-    # for ``_dispatch_lock`` (holder stuck). The caller retries shortly;
-    # readonly commands keep flowing on their reserved pool.
-    SERVER_BUSY = "server.busy"
-
-
-class LegacyErrorCodes:
-    """Legacy non-namespaced error code aliases (backward compat).
-
-    New emitters MUST use :class:`ErrorCodes` instead. The
-    :data:`LEGACY_ERROR_CODES` frozenset is derived from this class via
-    :func:`vars`. Keeping the legacy set explicit (instead of an
-    open-ended ``str``) lets us audit which aliases are still emitted
-    and remove them once the renderer migrates fully to the namespaced
-    form.
-    """
-
-    INTERNAL_ERROR = "internal_error"
-    SHUTTING_DOWN = "shutting_down"
-    UNKNOWN_COMMAND = "unknown_command"
-    UNKNOWN_TRAY_ITEM = "unknown_tray_item"
-    AUTH_FAILED = "auth_failed"
-    RATE_LIMITED = "rate_limited"
-    INVALID_PAYLOAD = "invalid_payload"
-    INVALID_FIELD = "invalid_field"
-    MISSING_FIELD = "missing_field"
-    MODEL_SWITCH_FAILED = "model_switch_failed"
-    PAYLOAD_TOO_LARGE = "payload_too_large"
-    HANDLER_ERROR = "handler_error"
-    NOT_INITIALIZED = "not_initialized"
-    # Rust-host-only dispatch-cap codes emitted by the Tauri
-    PENDING_FULL = "pending_full"
-    DATA_TOO_LARGE = "data_too_large"
-    # Rust-host-only codes: emitted by the Tauri `#[tauri::command]`
-    DISALLOWED_COMMAND = "disallowed_command"
-    DISALLOWED_WINDOW = "disallowed_window"
-    SIDECAR_DISCONNECTED = "sidecar_disconnected"
-
-
-def _class_str_values(cls: type) -> frozenset[str]:
-    """Derive a frozenset of all ``str`` class-attribute values from *cls*.
-
-    Used to keep :data:`ERROR_CODES` / :data:`LEGACY_ERROR_CODES` in sync
-    with :class:`ErrorCodes` / :class:`LegacyErrorCodes` automatically —
-    no risk of the frozenset drifting from the class.
-    """
-    return frozenset(value for name, value in vars(cls).items() if not name.startswith("_") and isinstance(value, str))
-
-
-# namespaced error codes, the canonical form for new emitters.
-ERROR_CODES: frozenset[str] = _class_str_values(ErrorCodes)
-
-# legacy non-namespaced aliases still emitted by some paths for
-LEGACY_ERROR_CODES: frozenset[str] = _class_str_values(LegacyErrorCodes)
-
-# convenience union for validation / contract tests. Every
-ALL_ERROR_CODES: frozenset[str] = ERROR_CODES | LEGACY_ERROR_CODES
 
 # Maximum serialized payload size for a single IPC response, derived from
 MAX_EXPORT_PAYLOAD_BYTES: int = 1 * 1024 * 1024 - 64 * 1024
@@ -285,50 +174,6 @@ def _schema_effective_max_payload_bytes(schema: Schema) -> int | None:
         del _MAX_PAYLOAD_BYTES_CACHE[oldest]
         _MAX_PAYLOAD_BYTES_CACHE_SEEN.discard(oldest)
     return value
-
-
-# Typed contract for the IPC error envelope. The TS side has a
-class ErrorData(TypedDict, total=False):
-    code: str
-    message: str
-    field: str
-    command: str
-    id: str | int
-
-
-class _ErrorEnvelopeRequired(TypedDict):
-    """Required keys on every error envelope.
-
-    Split out so :class:`ErrorEnvelope` can extend it with ``id`` as
-    an optional key (ad-hoc emitters only set ``id`` when a request id
-    is available to echo back).
-    """
-
-    type: str  # always ``"error"`` for an error envelope
-    data: ErrorData
-
-
-class ErrorEnvelope(_ErrorEnvelopeRequired, total=False):
-    """Canonical IPC error envelope.
-
-    Required keys: ``type`` (``"error"``), ``data`` (an
-    :class:`ErrorData` mapping). Optional key: ``id`` (echoed request
-    id when available). This is the documented *contract* for every
-    error envelope constructed in the IPC layer; ad-hoc dict literals
-    at the construction sites are not type-checked against this
-    TypedDict (the contract is documentation, not runtime
-    enforcement, the return-type annotation on
-    :func:`_validate_dict_payload` is plain ``dict[str, object]`` rather
-    than :class:`ErrorEnvelope` because TypedDicts are invariant and
-    not subtypes of ``dict``, so annotating the return as
-    :class:`ErrorEnvelope` would flag every caller that returns the
-    error directly from a ``-> dict | None`` handler. The contract is
-    documented at construction sites via the
-    ``# ErrorEnvelope contract: see validation.py`` comments and
-    verified by ``tests/test_error_codes_registry.py``).
-    """
-
-    id: object | None
 
 
 def _validate_dict_payload(
@@ -524,51 +369,6 @@ def _validate_dict_payload(
     return validated, None
 
 
-def _error_response(resp: dict, message: str, *, code: str = ErrorCodes.HANDLER_ERROR) -> dict:
-    """Stamp an error envelope on ``resp`` and return it.
-
-        The helper standardizes the catch-all ``except Exception`` envelope
-        produced by handler mixins. Previously each handler did::
-
-            except Exception as e:
-                log.error("[IPC] <cmd> failed: %s", e, exc_info=True)
-                resp["type"] = "error"
-                resp["data"] = {"message": str(e)}
-            return resp
-
-        The ad-hoc envelope omitted the ``code`` field that every other
-        error path (validation, dispatch safety net, rate limiter) sets.
-        Clients branching on ``code`` silently fell through to a generic
-        "unknown error" path for handler exceptions. The helper stamps
-    ``code: "server.handler_error"`` ( namespaced form; was
-    ``"handler_error"`` pre-) and a sanitized message (the caller is
-        responsible for logging the full exception server-side at ERROR
-        with ``exc_info=True``).
-
-        Parameters
-        ----------
-        resp : dict
-            The response dict pre-populated by ``_dispatch`` (carries the
-            request ``id``). Mutated in place.
-        message : str
-            The client-facing message. Should be sanitized (no Python
-            internals, no PII). The caller decides what's safe to expose.
-        code : str, optional
-    The error code. Defaults to ``"server.handler_error"`` ( namespaced form; was
-    ``"handler_error"`` pre-), the standard
-            for an unexpected exception caught by a handler's catch-all.
-            Override for known-error paths that still want the helper's
-            envelope shape (e.g. ``"not_initialized"``).
-
-        Returns
-        -------
-        dict
-            The same ``resp`` dict, mutated to be an error envelope.
-    """
-    resp["type"] = "error"
-    resp["data"] = {"code": code, "message": message}
-    return resp
-
 
 __all__ = [
     "_validate_dict_payload",
@@ -601,3 +401,19 @@ __all__ += [
     "CommandHandler",
     "ResponseEnvelope",
 ]
+
+# Facade re-exports: the code registry (``error_codes``) and the typed
+# envelope contract (``error_envelope``) keep resolving through this module,
+# so every handler/test import path stays intact.
+from voice_typer.server.ipc.error_codes import (  # noqa: E402,F401  # facade re-export
+    ALL_ERROR_CODES,
+    ERROR_CODES,
+    LEGACY_ERROR_CODES,
+    ErrorCodes,
+    LegacyErrorCodes,
+)
+from voice_typer.server.ipc.error_envelope import (  # noqa: E402,F401  # facade re-export
+    ErrorData,
+    ErrorEnvelope,
+    _error_response,
+)
