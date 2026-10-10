@@ -123,12 +123,25 @@ pub(crate) fn safe_attachment_stem(raw: &str) -> String {
 /// subject and body travel as ONE argv element to the OS handler, so a
 /// raw space or `&` would split or truncate them.
 pub(crate) fn percent_encode(value: &str) -> String {
+    percent_encode_impl(value, false)
+}
+
+/// Encode a mailto `to` recipient: same as [`percent_encode`] but `@`
+/// stays raw - RFC 6068's addr-spec ABNF expects a literal `@`. Every
+/// field-breaking byte (`&` `?` `,` `=` `%` SPACE) still encodes, so a
+/// renderer-controlled recipient cannot inject extra mailto fields.
+pub(crate) fn percent_encode_recipient(value: &str) -> String {
+    percent_encode_impl(value, true)
+}
+
+fn percent_encode_impl(value: &str, keep_at: bool) -> String {
     let mut out = String::with_capacity(value.len());
     for byte in value.as_bytes() {
         match byte {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
                 out.push(*byte as char);
             }
+            b'@' if keep_at => out.push('@'),
             other => out.push_str(&format!("%{other:02X}")),
         }
     }
@@ -139,7 +152,7 @@ pub(crate) fn percent_encode(value: &str) -> String {
 pub(crate) fn build_mailto_url(to: &str, subject: &str, body: &str) -> String {
     format!(
         "mailto:{}?subject={}&body={}",
-        percent_encode(to),
+        percent_encode_recipient(to),
         percent_encode(subject),
         percent_encode(body)
     )
