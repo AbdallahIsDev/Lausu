@@ -45,7 +45,7 @@ export function ModelsSkeleton() {
 								key={id}
 								className="w-full rounded-lg border border-border/8 bg-surface-subtle"
 							>
-								<div className="flex items-center justify-between gap-2 px-4 py-2">
+								<div className="flex items-center justify-between gap-2 px-4 py-2.5">
 									<div className="flex min-w-0 items-center gap-2">
 										<Skeleton className="h-4 w-10" />
 										<Skeleton className="h-5 w-28" />

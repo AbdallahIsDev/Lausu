@@ -163,7 +163,7 @@ const ActivityListRow = memo(function ActivityListRow({
 	);
 
 	return (
-		<div className="flex flex-col gap-1 px-4 py-2">
+		<div className="flex flex-col gap-1 px-4 py-2.5">
 			<div className="min-w-0">
 				<div className="relative min-w-0">
 					{/* biome-ignore lint/a11y/noStaticElementInteractions: the block IS the disclosure control (see comment above), text selection inside a native <button> is blocked by the UA stylesheet. */}

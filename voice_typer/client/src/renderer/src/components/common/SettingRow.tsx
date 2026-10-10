@@ -85,7 +85,7 @@ export function SettingRow({
 	return (
 		<div
 			className={cn(
-				"flex items-start justify-between gap-6 px-4 py-2",
+				"flex items-start justify-between gap-6 px-4 py-2.5",
 				align === "center" && "items-center",
 			)}
 		>
@@ -100,7 +100,7 @@ export function SettingRow({
 				</LabelTag>
 				{info && <InfoTooltip text={info} contextLabel={label} />}
 			</div>
-			<div ref={childrenRef} className="shrink-0">
+			<div ref={childrenRef} className="shrink-0 flex">
 				{children}
 			</div>
 		</div>

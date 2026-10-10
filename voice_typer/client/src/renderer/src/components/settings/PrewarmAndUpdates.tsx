@@ -308,7 +308,7 @@ export default function PrewarmAndUpdates({
 							}
 						/>
 					)}
-					<div className="flex flex-wrap items-center justify-end gap-2 px-4 py-2">
+					<div className="flex flex-wrap items-center justify-end gap-2 p-4">
 						<Button
 							variant="outline"
 							size="sm"
@@ -360,7 +360,7 @@ export default function PrewarmAndUpdates({
 							value={t("about.versionValue", { version: APP_VERSION })}
 						/>
 					)}
-					<div className="flex flex-wrap items-center gap-2 px-4 py-2">
+					<div className="flex flex-wrap items-center gap-2 px-4 pb-4 py-2.5">
 						<p className="text-sm text-muted-foreground me-auto">
 							{t("about.offlineUpdatesMessage")}
 						</p>

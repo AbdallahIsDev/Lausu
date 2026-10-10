@@ -40,7 +40,7 @@ export function SettingsSkeleton({
 						//restored biome-ignore, the rule fires under `preset: "recommended"` (the previous `recommended: true` was deprecated and silently skipped enforcement). Skeleton rows are static, identical, and never reorder; index is the only stable key.
 						// biome-ignore lint/suspicious/noArrayIndexKey: skeleton rows are static and identical; index is the only stable key
 						key={`row-${rows}-${i}`}
-						className="flex items-center justify-between gap-6 px-4 py-2"
+						className="flex items-center justify-between gap-6 px-4 py-2.5"
 					>
 						<div className="flex items-center gap-2">
 							<Skeleton className="h-5 w-28" />

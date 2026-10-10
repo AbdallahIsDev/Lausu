@@ -467,7 +467,7 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 						// and pack them together. The cross-section search
 						// results card is a card too, so it stacks here as
 						// well rather than sitting 4px off its neighbour.
-						<div className="flex w-full flex-col gap-6">
+						<div className="flex w-full flex-col gap-12">
 							{otherSectionGroups.length > 0 && (
 								<section
 									aria-label={t("settings.otherTabsResults")}
