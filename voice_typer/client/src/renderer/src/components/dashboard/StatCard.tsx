@@ -101,7 +101,7 @@ export function StatCard({
 			<div className="mt-auto flex items-baseline justify-between gap-2">
 				{/* `min-w-0 truncate`: a value too wide for the cell
 				    ellipsises rather than colliding with the trend. */}
-				<p className="min-w-0 truncate text-2xl font-semibold leading-none tracking-tight tabular-nums text-foreground">
+				<p className="min-w-0 truncate text-2xl font-medium leading-none tracking-tight tabular-nums text-foreground">
 					{value}
 				</p>
 				{trend && <TrendIndicator trend={trend} />}

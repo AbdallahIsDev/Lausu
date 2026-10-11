@@ -2,7 +2,6 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-	CloudTag,
 	DistilledTag,
 	LanguageScopeTag,
 	SpeedTag,
@@ -77,13 +76,13 @@ describe("metadata icon chips, icon-only with a hover/focus tooltip", () => {
 		);
 	});
 
-	it("the cloud chip is a cloud labelled 'Cloud'", () => {
-		renderChip(<CloudTag />);
-		const chip = screen.getByRole("button", { name: "Cloud" });
-		expect(chip.querySelector('[data-testid="hugeicon"]')).toHaveAttribute(
-			"data-name",
-			"CloudIcon",
-		);
+	// There is deliberately no cloud chip: its only caller was the Cloud
+	// Models tab, where every row is a cloud model, so the chip plus its
+	// "Cloud" tooltip only restated the tab. `SpeedTag` took its place.
+	// This guards against the chip being reintroduced on its own.
+	it("exports no cloud chip", async () => {
+		const mod = await import("@/components/models/ModelMetaIconTags");
+		expect("CloudTag" in mod).toBe(false);
 	});
 
 	it("focusing a chip opens a tooltip carrying the same meaning", async () => {

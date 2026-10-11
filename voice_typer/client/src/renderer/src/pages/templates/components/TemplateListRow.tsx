@@ -89,7 +89,7 @@ export const TemplateListRow = memo(function TemplateListRow({
 			<div className="flex min-w-0 flex-col items-start gap-1">
 				<span
 					title={row.trigger}
-					className="min-w-0 truncate text-sm font-semibold text-foreground"
+					className="min-w-0 truncate text-sm font-medium text-foreground"
 				>
 					{row.trigger}
 				</span>

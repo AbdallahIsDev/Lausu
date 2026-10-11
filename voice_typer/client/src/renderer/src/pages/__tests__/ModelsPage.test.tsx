@@ -741,19 +741,23 @@ describe("ModelsPage, MDL-5: cloud provider API key inputs have unique HTML ids"
 		});
 
 		// Switch to the Cloud Models tab via the title-bar switcher
-		// (shared useModelsTab store with the Models page).
-		fireEvent.click(screen.getByRole("tab", { name: t("models.cloudModels") }));
+		// (shared useModelsTab store with the Models page). The switcher
+		// is the primitive's DEFAULT variant — the same control the
+		// sidebar's CPU/GPU switch renders — so its options are radios,
+		// not tabs.
+		fireEvent.click(
+			screen.getByRole("radio", { name: t("models.cloudModels") }),
+		);
 		await waitFor(() => {
 			expect(
-				screen
-					.getByRole("tab", { name: t("models.cloudModels") })
-					.getAttribute("aria-selected"),
-			).toBe("true");
+				screen.getByRole("radio", { name: t("models.cloudModels") }),
+			).toBeChecked();
 		});
 
 		// (overhaul point 11) each provider is a collapsible group whose
-		// API-key form is hidden behind the "Configure" action, expand
-		// the group + click Configure to reveal each provider's input.
+		// API-key form is hidden behind the "Configure" action. Since
+		// 2026-10-11 Configure opens a MODAL setup dialog, so exactly one
+		// provider's form exists at a time.
 		const providerLabel = (key: string) =>
 			EN_KEYS.get(`models.providers.${key}.label`) ?? key;
 
@@ -762,7 +766,7 @@ describe("ModelsPage, MDL-5: cloud provider API key inputs have unique HTML ids"
 			fireEvent.click(
 				screen.getByRole("button", { name: providerLabel(providerKey) }),
 			);
-			// Reveal the API-key form.
+			// Open the setup dialog.
 			fireEvent.click(
 				screen.getByRole("button", {
 					name: new RegExp(`Configure ${providerLabel(providerKey)}`, "i"),
@@ -783,15 +787,20 @@ describe("ModelsPage, MDL-5: cloud provider API key inputs have unique HTML ids"
 			);
 			expect(label).not.toBeNull();
 			expect(label?.textContent).toContain(t("models.cloud.apiKey"));
+
+			// Modal exclusivity: the dialog holds this provider's input
+			// and nothing else's, so a duplicate id is structurally
+			// impossible. Close it before the next provider.
+			expect(
+				document.querySelectorAll('input[id^="api-key-input-"]'),
+			).toHaveLength(1);
+			fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+			await waitFor(() => {
+				expect(screen.queryByRole("dialog")).toBeNull();
+			});
 		}
 
 		expect(document.getElementById("api-key-input")).toBeNull();
-		// And there are exactly 3 inputs with the api-key-input-*
-		// prefix (one per provider).
-		const allApiKeyInputs = document.querySelectorAll(
-			'input[id^="api-key-input-"]',
-		);
-		expect(allApiKeyInputs.length).toBe(3);
 	});
 });
 
@@ -963,14 +972,14 @@ describe("ModelsPage, Select buttons stay enabled during a download", () => {
 	});
 });
 
-describe("ModelsPage, segmented control card border treatment (2026-08-21)", () => {
+describe("ModelsPage, title-bar Local/Cloud switcher matches the sidebar control (2026-10-11)", () => {
 	afterEach(() => {
 		cleanup();
 		vi.clearAllMocks();
 		removeDialogMock();
 	});
 
-	it("renders the Local/Cloud tab container with the same border token as the model cards", async () => {
+	it("renders the sidebar's recessed-track ToggleGroup, not a transparent tab strip", async () => {
 		mockCall.mockImplementation((type: string) => {
 			if (type === "get_config") return Promise.resolve(MOCK_CONFIG);
 			if (type === "get_model_status") return Promise.resolve({});
@@ -989,28 +998,42 @@ describe("ModelsPage, segmented control card border treatment (2026-08-21)", () 
 			).toBeTruthy();
 		});
 
-		// The tablist is the title-bar ModelsTabSwitcher; it must keep
-		// the card border treatment (`border border-border/8`
-		// `rounded-lg`) so the control reads as one card among the
-		// model cards, NOT a borderless strip. Background is the
-		// title-bar surface (`bg-background`), not the page-card
-		// `bg-surface-subtle`. tailwind-merge treats `border` (width)
-		// and `border-none` (style) as different groups, so
-		// `border-style: none` silently killed the container border,
-		// guard against it returning.
-		const tablist = screen.getByRole("tablist");
-		const cls = tablist.className;
-		expect(cls).toContain("border-border/8");
+		// The switcher is the primitive's DEFAULT variant — the same one
+		// the sidebar's CPU/GPU switch renders — so it is a RADIOGROUP,
+		// not a tablist, and it wears the recessed track: `rounded-lg`
+		// + `bg-border/6` fill + a `#000000`/10 hairline ring drawn as a
+		// shadow (deliberately NOT a border, so the hairline keeps the
+		// same weight in both schemes). The old tab strip's
+		// `border-border/8` / `bg-background` pair must be gone; a
+		// leftover `border-none` would silently cancel the container
+		// border, so guard against it returning too.
+		expect(screen.queryByRole("tablist")).toBeNull();
+		const group = screen.getByRole("radiogroup", { name: t("models.title") });
+		const cls = group.className;
 		expect(cls).toContain("rounded-lg");
-		expect(cls).toContain("bg-background");
+		expect(cls).toContain("bg-border/6");
+		expect(cls).toContain("shadow-[0_0_0_1px_rgba(0,0,0,0.1)]");
+		expect(cls).not.toContain("border-border/8");
+		expect(cls).not.toContain("bg-background");
 		expect(cls).not.toContain("border-none");
 
-		// The active segment indicator carries the SAME border token.
-		const activeTab = screen.getByRole("tab", {
-			name: t("models.localModels"),
-		});
-		// Radix/aria contract: active tab is selected.
-		expect(activeTab.getAttribute("aria-selected")).toBe("true");
+		// The options are the same 11px `tracking-wider` pills the
+		// sidebar's options are, so the two instances of the component
+		// differ only in their label text.
+		const local = screen.getByRole("radio", { name: t("models.localModels") });
+		expect(local).toBeChecked();
+		const label = local.closest("label");
+		expect(label?.className).toContain("text-[0.6875rem]");
+		expect(label?.className).toContain("tracking-wider");
+
+		// The page panels are labelled regions, not tabpanels: the
+		// radiogroup has no tablist for a tabpanel to belong to, and a
+		// `role="tabpanel"` with a dangling `aria-labelledby` would be an
+		// axe failure.
+		expect(screen.queryByRole("tabpanel")).toBeNull();
+		expect(
+			screen.getByRole("region", { name: t("models.localModels") }),
+		).toBeInTheDocument();
 	});
 });
 

@@ -140,7 +140,7 @@ export function PresetAccordionSelector({
 					className="items-center gap-3 px-4 py-2.5 hover:bg-foreground/5 hover:no-underline focus-visible:ring-ring **:data-[slot=accordion-trigger-icon]:hidden **:data-[slot=accordion-trigger-icon]:text-muted-foreground"
 				>
 					<span className="flex items-center gap-2 min-w-0">
-						<span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+						<span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
 							{t("settings.audioEnhancement.microphoneQuality")}
 						</span>
 						{/* Inline (span) trigger: this tooltip lives INSIDE the

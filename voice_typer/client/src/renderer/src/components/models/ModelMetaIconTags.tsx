@@ -1,5 +1,4 @@
 import {
-	CloudIcon,
 	FlaskConicalIcon,
 	Globe02Icon,
 	TextFontIcon,
@@ -17,11 +16,16 @@ import { formatModelSpeed } from "@/lib/utils/models";
 
 // ── Metadata icon chips ────────────────────────────────────────────────
 // Language scope (globe = multilingual, "Aa" = English-only), speed
-// rating (zap), distilled (flask) and cloud-hosted (cloud) render as
-// compact icon-only chips: the chip carries no visible text, its meaning
-// lives in the hover/focus tooltip and in the button's accessible name.
+// rating (zap) and distilled (flask) render as compact icon-only chips:
+// the chip carries no visible text, its meaning lives in the
+// hover/focus tooltip and in the button's accessible name.
 // A real <button> trigger (not a span) so keyboard users can Tab to the
 // chip and read the same tooltip a mouse user gets on hover.
+//
+// There is deliberately no "cloud" chip any more (removed 2026-10-11).
+// Its only caller was the Cloud Models tab, where every row is a cloud
+// model, so a cloud glyph whose tooltip read "Cloud" restated the tab
+// the user was already on. The Cloud rows show the SPEED chip instead.
 
 function MetadataIconChip({
 	icon,
@@ -89,17 +93,6 @@ export function DistilledTag() {
 			icon={FlaskConicalIcon}
 			label={t("models.card.distilled")}
 			testId="meta-icon-distilled"
-		/>
-	);
-}
-
-/** Cloud: the model is transcribed by a hosted provider, not locally. */
-export function CloudTag() {
-	return (
-		<MetadataIconChip
-			icon={CloudIcon}
-			label={t("models.cloud.tagCloud")}
-			testId="meta-icon-cloud"
 		/>
 	);
 }

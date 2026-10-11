@@ -288,12 +288,20 @@ export default function ModelsPage() {
 					    same pattern as GlobalSearchBar. Only the page heading
 					    + banner remain in the flow here. */}
 
+				{/* The two panels are labelled REGIONS, not `role="tabpanel"`.
+				    The switcher (`ModelsTabSwitcher`) is the primitive's
+				    DEFAULT variant — a radiogroup — since 2026-10-11, so
+				    there is no tablist here for a tabpanel to belong to and
+				    no `models-tab-*` id for `aria-labelledby` to point at. A
+				    `tabpanel` with a dangling `aria-labelledby` is an axe
+				    failure (`aria-valid-attr-value`), which is exactly what
+				    leaving the old markup would have produced.
+				    A `<section>` with an accessible name IS `role="region"`,
+				    so the native element carries the role for free. */}
 				<div className="flex flex-col gap-6">
 					{activeTab === "local" ? (
-						<div
-							role="tabpanel"
-							id="models-panel-local"
-							aria-labelledby="models-tab-local"
+						<section
+							aria-label={t("models.localModels")}
 							className="flex flex-col gap-6 scroll-mt-32"
 						>
 							<LocalModelsPanel
@@ -323,12 +331,10 @@ export default function ModelsPage() {
 								accordionValue={effectiveAccordionValue}
 								onAccordionValueChange={setUserAccordionValue}
 							/>
-						</div>
+						</section>
 					) : (
-						<div
-							role="tabpanel"
-							id="models-panel-cloud"
-							aria-labelledby="models-tab-cloud"
+						<section
+							aria-label={t("models.cloudModels")}
 							className="flex flex-col gap-6 scroll-mt-32"
 						>
 							<CloudProvidersPanel
@@ -342,7 +348,7 @@ export default function ModelsPage() {
 								onConsentChange={lifecycle.setCloudConsent}
 								onClearTestResult={lifecycle.clearTestResult}
 							/>
-						</div>
+						</section>
 					)}
 				</div>
 			</div>

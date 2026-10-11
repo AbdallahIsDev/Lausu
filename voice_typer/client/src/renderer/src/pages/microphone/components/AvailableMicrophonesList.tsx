@@ -65,7 +65,7 @@ export function AvailableMicrophonesList({
 
 	return (
 		<div className="flex flex-col gap-2">
-			<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
+			<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground px-1">
 				{t("microphone.availableMicrophones")}
 			</p>
 			<RadioGroup

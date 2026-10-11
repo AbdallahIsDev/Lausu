@@ -275,7 +275,7 @@ export const VocabListRow = memo(function VocabListRow({
 							// corrected text's green colour, not a
 							// green-bordered box.
 							<div className="flex flex-col gap-0.5 rounded-lg border border-border/8 bg-surface px-3 py-2">
-								<p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+								<p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
 									{t("vocabulary.testCorrected")}
 								</p>
 								<p className="whitespace-pre-wrap wrap-break-word text-sm font-medium text-emerald-700 dark:text-emerald-400">

@@ -158,7 +158,7 @@ export const LocalModelsPanel = memo(function LocalModelsPanel({
 							className="mt-0.5 h-5 w-5 shrink-0 text-warning"
 						/>
 						<div className="flex flex-1 flex-col gap-1">
-							<h3 className="text-sm font-semibold text-foreground">
+							<h3 className="text-sm font-medium text-foreground">
 								{t("models.disk.lowSpaceTitle")}
 							</h3>
 							<p className="text-xs leading-relaxed text-muted-foreground">
@@ -246,7 +246,7 @@ export const LocalModelsPanel = memo(function LocalModelsPanel({
 												name={getModelVariantDisplayName(model, meta)}
 												headingExtra={
 													insufficientSpace && (
-														<span className="shrink-0 inline-flex items-center rounded-lg border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
+														<span className="shrink-0 inline-flex items-center rounded-lg border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
 															{t("models.status.insufficientDisk")}
 														</span>
 													)
