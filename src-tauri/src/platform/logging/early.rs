@@ -3,11 +3,11 @@
 //! is process-once, so `init_file_logger` swaps a CombinedLogger into
 //! `inner` rather than replacing the logger.
 
-use super::combined::{is_truthy_env_var, CombinedLogger};
+use super::combined::{CombinedLogger, is_truthy_env_var};
 use super::redact::redact_pii;
 use crate::util::now_time_only;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Process-global handle to the leaked `&'static EarlyLogger`. Read by
 /// `init_file_logger` to swap the file sink in without a second
