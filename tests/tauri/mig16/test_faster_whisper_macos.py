@@ -342,7 +342,7 @@ def test_build_script_targets_ipc_server_entry_point_and_macos_bundle_flags():
     assert "ipc_server.py" in text, (
         "Nuitka must target voice_typer/server/ipc_server.py (the Tauri WS sidecar entry point)"
     )
-    assert "--macos-create-bundle" in text, "Nuitka must create a .app bundle (--macos-create-bundle)"
+    assert "--macos-create-app-bundle" in text, "Nuitka must create a .app bundle (--macos-create-app-bundle)"
     assert "--macos-app-name=LausuSidecar" in text, (
         "Nuitka must set the sidecar .app name (--macos-app-name=LausuSidecar)"
     )

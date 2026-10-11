@@ -246,8 +246,8 @@ def test_sidecar_script_uses_macos_app_mode_background(sidecar_text: str):
 
 
 def test_sidecar_script_uses_macos_create_bundle(sidecar_text: str):
-    """The script must pass ``--macos-create-bundle`` (+ app name + signed name)."""
-    assert "--macos-create-bundle" in sidecar_text
+    """The script must pass ``--macos-create-app-bundle`` (+ app name + signed name)."""
+    assert "--macos-create-app-bundle" in sidecar_text
     assert "--macos-app-name=" in sidecar_text
     assert "--macos-signed-app-name=" in sidecar_text, (
         "build_sidecar_macos.sh must pass --macos-signed-app-name (matches "
@@ -280,7 +280,7 @@ def test_sidecar_script_supports_check_mode(sidecar_text: str):
 def test_sidecar_script_checks_swiftc(sidecar_text: str):
     """The sidecar script ``--check`` must verify ``swiftc`` is on PATH."""
     assert "command -v swiftc" in sidecar_text, (
-        "build_sidecar_macos.sh --check must verify swiftc (Xcode CLT) is on PATH, required for --macos-create-bundle."
+        "build_sidecar_macos.sh --check must verify swiftc (Xcode CLT) is on PATH, required for --macos-create-app-bundle."
     )
 
 

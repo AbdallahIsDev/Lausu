@@ -26,7 +26,7 @@
 #     copies below were deleted in the same change, the WORKER build owns
 #     them now)
 #   - --include-package=voice_typer --include-package=websockets
-#   - --macos-create-bundle --macos-app-name=LausuSidecar
+#   - --macos-create-app-bundle --macos-app-name=LausuSidecar
 #   - --macos-signed-app-name=com.Lausu.sidecar
 #   - --macos-app-mode=background   (LSUIElement=true, no Dock icon)
 #
@@ -166,7 +166,7 @@ NUITKA_ARGS=(
     --include-package=av
     --include-package-data=yt_dlp
     --include-package-data=voice_typer.server
-    --macos-create-bundle
+    --macos-create-app-bundle
     --macos-app-name=LausuSidecar
     --macos-signed-app-name=com.Lausu.sidecar
     --macos-app-mode=background
