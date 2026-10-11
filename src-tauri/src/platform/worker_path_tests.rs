@@ -568,6 +568,215 @@ fn test_worker_exe_path_file_name_matches_target_triple() {
 
 // ── WorkerPathEnv struct ────────────────────────────────────────────
 
+/// The host protocol range must stay pinned to exactly version 1
+/// until a wire-format change lands: it mirrors `PROTOCOL_VERSION = 1`
+/// in `voice_typer/server/ipc/protocol_version.py`, and the pack
+/// manifests shipped today all declare `min_proto_version: 1`.
+#[test]
+fn test_host_proto_range_pinned_to_v1() {
+    assert_eq!(
+        HOST_MIN_PROTO_VERSION, 1,
+        "host min proto must mirror Python PROTOCOL_VERSION"
+    );
+    assert_eq!(
+        HOST_PROTO_VERSION, 1,
+        "host max proto must mirror Python PROTOCOL_VERSION"
+    );
+    assert!(
+        HOST_MIN_PROTO_VERSION <= HOST_PROTO_VERSION,
+        "host proto range must be non-empty"
+    );
+}
+
+/// The manifest file name is owned by the Python schema (`core.py`);
+/// the host only reads it, so the literal is pinned here.
+#[test]
+fn test_pack_manifest_file_name_pinned() {
+    assert_eq!(PACK_MANIFEST_FILE_NAME, "pack-manifest.json");
+}
+
+// ── parse_pack_min_proto_version (pure) ───────────────────────
+
+/// A manifest declaring the current version parses to a launchable value.
+#[test]
+fn test_parse_pack_min_proto_match_value() {
+    let text = r#"{"version":"v1","sha256":"x","files":[],"min_proto_version":1}"#;
+    assert_eq!(parse_pack_min_proto_version(text), Some(1));
+}
+
+/// A newer pack (higher minimum than the host) parses distinctly from
+/// a match: the caller refuses instead of launching.
+#[test]
+fn test_parse_pack_min_proto_newer_pack() {
+    let text = r#"{"version":"v2","sha256":"x","files":[],"min_proto_version":2}"#;
+    assert_eq!(parse_pack_min_proto_version(text), Some(2));
+}
+
+/// Every non-u32 shape fails closed to `None`: missing field, invalid
+/// JSON, negative, float, bool, string, and u32 overflow must never
+/// parse into a launchable version.
+#[test]
+fn test_parse_pack_min_proto_rejects_non_u32_shapes() {
+    assert_eq!(
+        parse_pack_min_proto_version(r#"{"version":"v1"}"#),
+        None,
+        "missing min_proto_version must fail closed"
+    );
+    assert_eq!(
+        parse_pack_min_proto_version("{not json"),
+        None,
+        "invalid JSON must fail closed"
+    );
+    assert_eq!(
+        parse_pack_min_proto_version(r#"{"min_proto_version":-1}"#),
+        None,
+        "negative version must fail closed"
+    );
+    assert_eq!(
+        parse_pack_min_proto_version(r#"{"min_proto_version":1.5}"#),
+        None,
+        "float version must fail closed"
+    );
+    assert_eq!(
+        parse_pack_min_proto_version(r#"{"min_proto_version":true}"#),
+        None,
+        "bool must not pass as 1/0"
+    );
+    assert_eq!(
+        parse_pack_min_proto_version(r#"{"min_proto_version":"1"}"#),
+        None,
+        "string version must fail closed"
+    );
+    assert_eq!(
+        parse_pack_min_proto_version(r#"{"min_proto_version":1099511627776}"#),
+        None,
+        "u32 overflow must fail closed, never wrap"
+    );
+}
+
+// ── check_pack_proto (pure range decision) ────────────────────
+
+/// The current pack version launches.
+#[test]
+fn test_check_pack_proto_match_launches() {
+    let status = check_pack_proto(Some(1));
+    assert_eq!(status, PackProtoStatus::Match { min_proto_version: 1 });
+    assert!(
+        status.launch_allowed(),
+        "match must allow launch"
+    );
+}
+
+/// Older (0) and newer (2) packs both refuse: anything outside the
+/// host range fails fast instead of failing mid-transcription.
+#[test]
+fn test_check_pack_proto_mismatch_refuses_both_directions() {
+    for v in [0u32, 2u32, u32::MAX] {
+        let status = check_pack_proto(Some(v));
+        assert_eq!(
+            status,
+            PackProtoStatus::Mismatch { min_proto_version: v },
+            "min_proto_version={v} is outside the host range and must refuse"
+        );
+        assert!(
+            !status.launch_allowed(),
+            "mismatch must never allow launch"
+        );
+    }
+}
+
+/// An unparseable manifest refuses with the schema reason.
+#[test]
+fn test_check_pack_proto_none_is_missing_manifest() {
+    let status = check_pack_proto(None);
+    assert_eq!(
+        status,
+        PackProtoStatus::MissingManifest {
+            reason: "invalid_schema"
+        }
+    );
+    assert!(
+        !status.launch_allowed(),
+        "missing manifest must never allow launch"
+    );
+}
+
+// ── pack_manifest_path_for_exe + check_pack_manifest_for_exe (fs) ──
+
+/// The manifest sits next to the pack exe inside the version dir.
+#[test]
+fn test_pack_manifest_path_for_exe_is_sibling() {
+    let exe = std::path::Path::new("/pack/v1/lausu-worker-triple");
+    assert_eq!(
+        pack_manifest_path_for_exe(exe),
+        Some(std::path::PathBuf::from("/pack/v1/pack-manifest.json"))
+    );
+}
+
+/// A missing manifest file refuses with the not_found reason
+/// (fail-closed: a pack without a manifest never launches).
+#[test]
+fn test_check_pack_manifest_missing_file() {
+    let dir = std::env::temp_dir().join(format!(
+        "vt-pack-proto-test-missing-{}",
+        std::process::id()
+    ));
+    let exe = dir.join("lausu-worker-triple");
+    let status = check_pack_manifest_for_exe(&exe);
+    assert_eq!(
+        status,
+        PackProtoStatus::MissingManifest {
+            reason: "not_found"
+        },
+        "absent manifest must refuse with not_found"
+    );
+}
+
+/// A well-formed on-disk manifest with the current version launches.
+#[test]
+fn test_check_pack_manifest_on_disk_match() {
+    let dir = std::env::temp_dir().join(format!(
+        "vt-pack-proto-test-match-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("test temp dir must be creatable");
+    std::fs::write(
+        dir.join(PACK_MANIFEST_FILE_NAME),
+        r#"{"version":"v1","sha256":"x","files":[],"min_proto_version":1}"#,
+    )
+    .expect("test manifest must be writable");
+    let status = check_pack_manifest_for_exe(&dir.join("lausu-worker-triple"));
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(
+        status,
+        PackProtoStatus::Match { min_proto_version: 1 },
+        "on-disk manifest with min_proto_version=1 must launch"
+    );
+}
+
+/// A corrupt on-disk manifest refuses with the invalid_json reason.
+#[test]
+fn test_check_pack_manifest_on_disk_corrupt() {
+    let dir = std::env::temp_dir().join(format!(
+        "vt-pack-proto-test-corrupt-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("test temp dir must be creatable");
+    std::fs::write(dir.join(PACK_MANIFEST_FILE_NAME), "{not valid json")
+        .expect("test manifest must be writable");
+    let status = check_pack_manifest_for_exe(&dir.join("lausu-worker-triple"));
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(
+        status,
+        PackProtoStatus::MissingManifest {
+            reason: "invalid_json"
+        },
+        "corrupt manifest must refuse with invalid_json"
+    );
+}
+
 /// `WorkerPathEnv` must be `Clone + Copy + Debug + PartialEq + Eq`
 /// (the derive macros are pinned on the struct). The `Copy` bound is
 /// important: it lets tests pass `WorkerPathEnv` by value without

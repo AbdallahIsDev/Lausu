@@ -1,8 +1,18 @@
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use super::paths::APP_SLUG;
 
 pub(crate) const DEFAULT_PACK_VERSION: &str = "v1";
+
+/// Host-supported worker protocol range (pack handshake). Mirrors
+/// `PROTOCOL_VERSION = 1` in `voice_typer/server/ipc/protocol_version.py`.
+pub(crate) const HOST_MIN_PROTO_VERSION: u32 = 1;
+pub(crate) const HOST_PROTO_VERSION: u32 = 1;
+
+/// Pack manifest file name. Schema owned by Python (`core.py`); the
+/// host only reads `min_proto_version`, never writes.
+pub(crate) const PACK_MANIFEST_FILE_NAME: &str = "pack-manifest.json";
 
 /// Per-platform sub-directory name under the app-data root that holds
 /// the versioned runtime-pack directories (`runtime-pack/<version>/`).
@@ -165,6 +175,91 @@ fn worker_exe_path_env_args() -> WorkerPathEnv {
         xdg_data_home: std::env::var("XDG_DATA_HOME").ok().map(leak),
         voice_typer_config_dir: std::env::var("VOICE_TYPER_CONFIG_DIR").ok().map(leak),
     }
+}
+
+/// Pack protocol compatibility against the host range.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PackProtoStatus {
+    Match { min_proto_version: u32 },
+    Mismatch { min_proto_version: u32 },
+    MissingManifest { reason: &'static str },
+}
+
+impl PackProtoStatus {
+    /// True only when the worker may launch. Every other variant
+    /// refuses fast (fail-closed, no spawn attempt).
+    pub(crate) fn launch_allowed(&self) -> bool {
+        matches!(self, PackProtoStatus::Match { .. })
+    }
+}
+
+/// Manifest path for a pack worker exe (sibling file in the version dir).
+pub(crate) fn pack_manifest_path_for_exe(exe_path: &Path) -> Option<PathBuf> {
+    exe_path
+        .parent()
+        .map(|dir| dir.join(PACK_MANIFEST_FILE_NAME))
+}
+
+/// Pure `min_proto_version` extract. `None` on any shape deviation
+/// (fail-closed at the caller, never a default version).
+pub(crate) fn parse_pack_min_proto_version(text: &str) -> Option<u32> {
+    let v: serde_json::Value = serde_json::from_str(text).ok()?;
+    v.get("min_proto_version")
+        .and_then(|n| n.as_u64())
+        .and_then(|n| u32::try_from(n).ok())
+}
+
+/// Pure range check over an extracted value.
+pub(crate) fn check_pack_proto(min_proto_version: Option<u32>) -> PackProtoStatus {
+    match min_proto_version {
+        Some(v)
+            if v >= HOST_MIN_PROTO_VERSION && v <= HOST_PROTO_VERSION =>
+        {
+            PackProtoStatus::Match {
+                min_proto_version: v,
+            }
+        }
+        Some(v) => PackProtoStatus::Mismatch {
+            min_proto_version: v,
+        },
+        None => PackProtoStatus::MissingManifest {
+            reason: "invalid_schema",
+        },
+    }
+}
+
+/// Read + parse + check the manifest next to a pack worker exe.
+/// Never raises, never launches: every failure refuses (fail-closed).
+pub(crate) fn check_pack_manifest_for_exe(exe_path: &Path) -> PackProtoStatus {
+    let manifest = match pack_manifest_path_for_exe(exe_path) {
+        Some(p) => p,
+        None => {
+            return PackProtoStatus::MissingManifest {
+                reason: "no_parent",
+            }
+        }
+    };
+    let text = match std::fs::read_to_string(&manifest) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return PackProtoStatus::MissingManifest {
+                reason: "not_found",
+            }
+        }
+        Err(_) => {
+            return PackProtoStatus::MissingManifest {
+                reason: "unreadable",
+            }
+        }
+    };
+    // Reason-first validity probe: keeps corrupt-JSON distinguishable
+    // from schema drift in logs; the typed extract below runs once.
+    if serde_json::from_str::<serde_json::Value>(&text).is_err() {
+        return PackProtoStatus::MissingManifest {
+            reason: "invalid_json",
+        };
+    }
+    check_pack_proto(parse_pack_min_proto_version(&text))
 }
 
 // Sibling test module: tests live in `worker_path_tests.rs` (per
