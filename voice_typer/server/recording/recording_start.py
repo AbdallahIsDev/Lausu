@@ -303,5 +303,3 @@ def start_recording(recorder: Recorder) -> None:
     _mic_watcher = recorder._devices._mic_watcher
     if _mic_watcher is not None:
         _mic_watcher.set_idle(False)
-
-

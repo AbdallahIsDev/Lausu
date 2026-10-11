@@ -187,4 +187,3 @@ class HotkeyDispatcher(
 
     # PTT safety timeout. Push-to-talk starts recording on key-down
     _PTT_SAFETY_TIMEOUT_SECONDS: float = 60.0
-

@@ -182,4 +182,3 @@ class TestFixGrammarBasics:
         result = fix_grammar_basics("don't i know you")
         # The standalone `i` (between spaces) should be capitalized.
         assert "I" in result
-

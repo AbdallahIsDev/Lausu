@@ -555,4 +555,3 @@ class TestIpcValidationFacadeReexports:
         assert resp["type"] == "error"
         assert resp["id"] == 7
         assert resp["data"]["code"] == validation.ErrorCodes.HANDLER_ERROR
-

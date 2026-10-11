@@ -105,4 +105,3 @@ def update_level_processor(config_dict: dict) -> None:
         log.warning("[LEVEL-MON] Failed to create level processor: %s", exc)
         with _state._monitor_lock:
             _state._level_processor = None
-

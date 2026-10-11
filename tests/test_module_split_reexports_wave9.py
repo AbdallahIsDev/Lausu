@@ -659,4 +659,3 @@ class TestRecordingLifecycleStageOrderParity:
         assert (
             self._ordered_markers(stop_src, self.STOP_STAGE_ORDER) == self.STOP_STAGE_ORDER
         ), "stop-pipeline stage order drifted from the pre-split capture"
-

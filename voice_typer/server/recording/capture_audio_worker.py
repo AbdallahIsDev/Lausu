@@ -270,4 +270,3 @@ class _AudioWorkerMixin:
             recorder._worker_stop_event.clear()
             recorder._worker_wake_event.clear()
             recorder._worker_thread = None
-

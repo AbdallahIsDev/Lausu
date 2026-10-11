@@ -212,9 +212,7 @@ pub(crate) fn parse_pack_min_proto_version(text: &str) -> Option<u32> {
 /// Pure range check over an extracted value.
 pub(crate) fn check_pack_proto(min_proto_version: Option<u32>) -> PackProtoStatus {
     match min_proto_version {
-        Some(v)
-            if v >= HOST_MIN_PROTO_VERSION && v <= HOST_PROTO_VERSION =>
-        {
+        Some(v) if v >= HOST_MIN_PROTO_VERSION && v <= HOST_PROTO_VERSION => {
             PackProtoStatus::Match {
                 min_proto_version: v,
             }
@@ -236,7 +234,7 @@ pub(crate) fn check_pack_manifest_for_exe(exe_path: &Path) -> PackProtoStatus {
         None => {
             return PackProtoStatus::MissingManifest {
                 reason: "no_parent",
-            }
+            };
         }
     };
     let text = match std::fs::read_to_string(&manifest) {
@@ -244,12 +242,12 @@ pub(crate) fn check_pack_manifest_for_exe(exe_path: &Path) -> PackProtoStatus {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             return PackProtoStatus::MissingManifest {
                 reason: "not_found",
-            }
+            };
         }
         Err(_) => {
             return PackProtoStatus::MissingManifest {
                 reason: "unreadable",
-            }
+            };
         }
     };
     // Reason-first validity probe: keeps corrupt-JSON distinguishable

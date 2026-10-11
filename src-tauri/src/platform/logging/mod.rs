@@ -27,15 +27,15 @@ pub(crate) use rotating::RotatingFileWriter;
 pub(crate) use color::{TOPIC_COLOR, color_enabled_for, colorize_with, topic_color_for};
 #[cfg(test)]
 pub(crate) use combined::{
-    format_terminal_line, is_debug_env_truthy, is_truthy_env_var, is_truthy_value, CombinedLogger,
+    CombinedLogger, format_terminal_line, is_debug_env_truthy, is_truthy_env_var, is_truthy_value,
 };
 #[cfg(test)]
-pub(crate) use early::{EarlyLogger, EARLY_LOGGER_HANDLE};
+pub(crate) use early::{EARLY_LOGGER_HANDLE, EarlyLogger};
 #[cfg(test)]
 pub(crate) use init::{init_file_logger, sweep_stale_logs};
 #[cfg(test)]
 pub(crate) use panic_hook::{
-    breaker_should_exit, PANIC_BREAKER_MAX, PANIC_BREAKER_WINDOW_SECS, PANIC_HOOK_REENTRY,
+    PANIC_BREAKER_MAX, PANIC_BREAKER_WINDOW_SECS, PANIC_HOOK_REENTRY, breaker_should_exit,
 };
 #[cfg(test)]
 pub(crate) use redact::has_any_fast_trigger;
