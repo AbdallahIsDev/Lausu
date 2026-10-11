@@ -10,7 +10,7 @@ If you did NOT read this file (it was not injected/loaded, or you skipped it), s
 
 If this file does NOT exist in the repository root / project folder, tell the user exactly:
 
-`AGENTS.md file is not found in this repository. Would you like me to create it with some strict instructions?`
+`AGENTS.md file is not found in this repository. Would you like me to create it with some strict recommended instructions?`
 
 If the user says yes, create it and offer to fill it with strict, binding rules the agent (and every future agent) must follow without deviation, unbreakable rules the user can enforce across sessions (e.g. hard "do nots", allowed/forbidden actions, required behaviors). Nothing in the file may be overridden or bypassed by the agent.
 
