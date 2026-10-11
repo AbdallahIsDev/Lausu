@@ -41,7 +41,10 @@ interface EmitterSpec {
 // change, the source-scan assertions below keep this list honest.
 const EMITTERS: readonly EmitterSpec[] = [
 	{
-		path: "voice_typer/server/recording_lifecycle.py",
+		// Moved here from `recording_lifecycle.py` by the Wave 9 split
+		// (the publish lives in `_publish_consent_required_event`; the
+		// payload key set is unchanged).
+		path: "voice_typer/server/recording_lifecycle_permissions.py",
 		keys: ["consent_field"],
 	},
 	{
