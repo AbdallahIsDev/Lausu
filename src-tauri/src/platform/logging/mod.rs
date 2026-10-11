@@ -3,6 +3,7 @@
 //! Format: C-LOG-1 (docs/code-notes/tauri-host.md#logging-format-c-log-1).
 //! Layout: docs/code-notes/tauri-host.md#module-layout-orchestrator-files
 
+mod color;
 mod combined;
 mod early;
 mod init;
@@ -22,6 +23,8 @@ pub(crate) use rotating::RotatingFileWriter;
 
 // Test-only re-exports for the sibling `platform/logging_tests.rs`.
 // `redact_pii` / `RotatingFileWriter` are production re-exports above.
+#[cfg(test)]
+pub(crate) use color::{TOPIC_COLOR, color_enabled_for, colorize_with, topic_color_for};
 #[cfg(test)]
 pub(crate) use combined::{
     format_terminal_line, is_debug_env_truthy, is_truthy_env_var, is_truthy_value, CombinedLogger,

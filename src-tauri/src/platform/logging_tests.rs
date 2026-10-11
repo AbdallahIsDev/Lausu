@@ -2486,3 +2486,204 @@ fn test_breaker_should_exit_policy_counts_within_window() {
     );
     assert_eq!(recent.len(), 1, "window must retain only the fresh panic");
 }
+
+// ── Restored ANSI palette (`platform::logging::color`) ───────────────
+//
+// The Electron main process used to own the terminal palette
+// (`src/main/logging/colors.ts`); it was deleted with the Electron shell
+// (17461108 `refactor(client)!: delete Electron shell, Tauri-only
+// frontend`). The Tauri-era equivalent is the Rust host's terminal sink,
+// which now renders the SAME palette as the Python sidecar's
+// `_ColorFormatter`. These tests pin the palette, the gate, and — most
+// importantly — that colouring never moves the C-LOG-1 text.
+
+/// Strip the SGR escape sequences this module emits so a coloured line can
+/// be compared against the pinned plain one.
+fn strip_ansi_codes(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            // Only SGR (`...m`) is ever emitted; drop through the final `m`.
+            for inner in chars.by_ref() {
+                if inner == 'm' {
+                    break;
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+#[test]
+fn test_colorize_terminal_line_preserves_the_c_log_1_text() {
+    // The whole point of restoring colour: C-LOG-1's visible text must not
+    // move. Stripping the ANSI wrappers must yield `format_terminal_line`
+    // byte-for-byte, for every level, so the pinned column layout survives.
+    let cases: [(log::Level, &str); 5] = [
+        (log::Level::Debug, "DEBUG"),
+        (log::Level::Info, "INFO "),
+        (log::Level::Warn, "WARN "),
+        (log::Level::Error, "ERROR"),
+        (log::Level::Trace, "TRACE"),
+    ];
+    for (level, padded) in cases {
+        let plain = format_terminal_line("17:24:06", level, "shape check message");
+        let coloured = colorize_with("17:24:06", level, "shape check message", true);
+        assert_ne!(
+            coloured, plain,
+            "colour must actually change the bytes for {level}"
+        );
+        let stripped = strip_ansi_codes(&coloured);
+        assert_eq!(
+            stripped, plain,
+            "C-LOG-1 text must survive colouring for {level}"
+        );
+        assert_eq!(
+            &stripped[10..15],
+            padded,
+            "level column must not shift for {level}: {stripped}"
+        );
+    }
+}
+
+#[test]
+fn test_colorize_with_disabled_is_the_plain_line() {
+    for level in [
+        log::Level::Debug,
+        log::Level::Info,
+        log::Level::Warn,
+        log::Level::Error,
+    ] {
+        assert_eq!(
+            colorize_with("17:24:06", level, "[HOTKEY] x", false),
+            format_terminal_line("17:24:06", level, "[HOTKEY] x"),
+            "disabled colour must be byte-identical to the plain line"
+        );
+    }
+}
+
+#[test]
+fn test_warn_is_yellow_and_error_is_red_never_the_quantized_orange() {
+    // WARN must be 38;5;226 (yellow), NOT 38;5;214 (orange): Windows
+    // conhost's 256->16 quantization maps orange to bright-red, which
+    // inverted WARN and ERROR. Same fix the Python side carries.
+    let warn = colorize_with("17:24:06", log::Level::Warn, "m", true);
+    assert!(warn.starts_with("\x1b[38;5;226m"), "WARN colour: {warn:?}");
+    assert!(!warn.contains("38;5;214"), "WARN must not be orange: {warn:?}");
+    assert!(warn.ends_with("\x1b[0m"), "WARN must reset: {warn:?}");
+
+    let err = colorize_with("17:24:06", log::Level::Error, "m", true);
+    assert!(err.starts_with("\x1b[38;5;196m"), "ERROR colour: {err:?}");
+}
+
+#[test]
+fn test_info_dims_the_timestamp_and_colours_a_known_topic() {
+    let line = colorize_with("17:24:06", log::Level::Info, "[HOTKEY] registered", true);
+    assert!(
+        line.starts_with("\x1b[38;5;242m17:24:06\x1b[0m"),
+        "dim timestamp: {line:?}"
+    );
+    assert!(
+        line.contains("\x1b[38;5;141m[HOTKEY] registered\x1b[0m"),
+        "topic colour: {line:?}"
+    );
+}
+
+#[test]
+fn test_info_leaves_an_unknown_topic_plain() {
+    let line = colorize_with("17:24:06", log::Level::Info, "[NOT-A-TOPIC] x", true);
+    assert!(
+        line.ends_with("INFO  [NOT-A-TOPIC] x"),
+        "unknown topic body stays plain: {line:?}"
+    );
+}
+
+#[test]
+fn test_color_enabled_for_precedence() {
+    // NO_COLOR always wins.
+    assert!(!color_enabled_for(true, Some("1"), true));
+    assert!(!color_enabled_for(true, None, true));
+    // FORCE_COLOR overrides the terminal in both directions.
+    assert!(color_enabled_for(false, Some("1"), false));
+    assert!(color_enabled_for(false, Some("true"), false));
+    assert!(color_enabled_for(false, Some(""), false));
+    assert!(!color_enabled_for(false, Some("0"), true));
+    assert!(!color_enabled_for(false, Some("no"), true));
+    // An unrecognised value falls through to the terminal.
+    assert!(color_enabled_for(false, Some("maybe"), true));
+    assert!(!color_enabled_for(false, Some("maybe"), false));
+    // Nothing set -> the terminal decides.
+    assert!(color_enabled_for(false, None, true));
+    assert!(!color_enabled_for(false, None, false));
+}
+
+#[test]
+fn test_expected_topic_colours_are_pinned() {
+    for (topic, color) in [
+        ("HOTKEY", "38;5;141"),
+        ("STARTUP", "38;5;103"),
+        ("WS", "38;5;110"),
+        ("VAD", "38;5;245"),
+        ("CRASH", "38;5;167"),
+        ("MODEL", "38;5;69"),
+    ] {
+        assert_eq!(topic_color_for(topic), Some(color), "topic {topic}");
+    }
+    assert_eq!(topic_color_for("NOT-A-TOPIC"), None);
+}
+
+#[test]
+fn test_topic_colour_map_matches_the_python_formatter() {
+    // The palette is a two-language contract: the Python sidecar's
+    // `_TOPIC_COLOR` and this table must not drift, or a tag renders
+    // coloured in one process and plain in the other. Parse the Python
+    // source and compare entry-for-entry.
+    let py_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("voice_typer")
+        .join("server")
+        .join("log")
+        .join("formatters.py");
+    let py = std::fs::read_to_string(&py_path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", py_path.display()));
+    let start = py
+        .find("_TOPIC_COLOR: dict[str, str] = {")
+        .expect("_TOPIC_COLOR header in formatters.py");
+    let end = py[start..].find("\n}").expect("_TOPIC_COLOR terminator") + start;
+    let mut parsed: Vec<(String, String)> = Vec::new();
+    for line in py[start..end].lines() {
+        let line = line.trim();
+        let Some(rest) = line.strip_prefix('"') else {
+            continue;
+        };
+        let Some((key, value)) = rest.split_once("\": \"") else {
+            continue;
+        };
+        let Some(value) = value.strip_suffix("\",") else {
+            continue;
+        };
+        parsed.push((key.to_string(), value.to_string()));
+    }
+    assert!(
+        !parsed.is_empty(),
+        "parsed no topics from {}",
+        py_path.display()
+    );
+    assert_eq!(
+        parsed.len(),
+        TOPIC_COLOR.len(),
+        "topic count drift: python={} rust={}",
+        parsed.len(),
+        TOPIC_COLOR.len()
+    );
+    for (topic, color) in parsed {
+        assert_eq!(
+            topic_color_for(&topic),
+            Some(color.as_str()),
+            "topic {topic} drifted from formatters.py"
+        );
+    }
+}

@@ -9,6 +9,25 @@ pub(crate) fn passthrough_env_allowlist() -> Vec<(std::ffi::OsString, std::ffi::
         }
     }
 
+    // ── Colour decision (ANSI palette) ────────────────────────────────
+    //
+    // `tauri dev` spawns the app with a PIPED stderr
+    // (`tauri-cli/src/interface/rust/desktop.rs`) and this host then spawns
+    // the sidecar with `Stdio::inherit()`, so the sidecar inherits that
+    // pipe: `sys.stderr.isatty()` is false and Python's `_ColorFormatter`
+    // is silently bypassed for its plain `_TerminalFormatter`. The one
+    // process that still owns the real terminal, `scripts/tauri-dev.mjs`,
+    // states the decision explicitly, so the two vars carrying it MUST
+    // reach the sidecar or the restore stops at the host boundary.
+    // `NO_COLOR`/`FORCE_COLOR=0` are the user's explicit opt-outs and must
+    // travel just as faithfully.
+    const COLOR: &[&str] = &["FORCE_COLOR", "NO_COLOR"];
+    for name in COLOR {
+        if let Some(val) = std::env::var_os(name) {
+            out.push((std::ffi::OsString::from(name), val));
+        }
+    }
+
     // POSIX: HOME
     #[cfg(unix)]
     if let Some(val) = std::env::var_os("HOME") {

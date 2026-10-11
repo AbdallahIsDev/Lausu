@@ -70,10 +70,14 @@ impl log::Log for CombinedLogger {
         let (file_ts, term_ts) = now_timestamps();
         let file_line = format!("{}  {:5} {}", file_ts, record.level(), msg);
         // Terminal line only when stderr logging is enabled (avoids a
-        // wasted String allocation per record in release).
+        // wasted String allocation per record in release). The terminal
+        // sink is the one place the restored palette applies; the FILE
+        // line above stays plain so `lausu-rust.log` is grep-friendly.
         if self.stderr_verbose.load(Ordering::Relaxed) {
-            let term_line = format_terminal_line(&term_ts, record.level(), &msg);
-            eprintln!("{}", term_line);
+            eprintln!(
+                "{}",
+                super::color::colorize_terminal_line(&term_ts, record.level(), &msg)
+            );
         }
         // ADR-0020 §11: exclude Info+ `bubble_level` from the file log
         // (60 Hz would fill disk); Error/Warn are preserved.
