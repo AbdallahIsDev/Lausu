@@ -660,11 +660,13 @@ fn test_parse_pack_min_proto_rejects_non_u32_shapes() {
 #[test]
 fn test_check_pack_proto_match_launches() {
     let status = check_pack_proto(Some(1));
-    assert_eq!(status, PackProtoStatus::Match { min_proto_version: 1 });
-    assert!(
-        status.launch_allowed(),
-        "match must allow launch"
+    assert_eq!(
+        status,
+        PackProtoStatus::Match {
+            min_proto_version: 1
+        }
     );
+    assert!(status.launch_allowed(), "match must allow launch");
 }
 
 /// Older (0) and newer (2) packs both refuse: anything outside the
@@ -675,13 +677,12 @@ fn test_check_pack_proto_mismatch_refuses_both_directions() {
         let status = check_pack_proto(Some(v));
         assert_eq!(
             status,
-            PackProtoStatus::Mismatch { min_proto_version: v },
+            PackProtoStatus::Mismatch {
+                min_proto_version: v
+            },
             "min_proto_version={v} is outside the host range and must refuse"
         );
-        assert!(
-            !status.launch_allowed(),
-            "mismatch must never allow launch"
-        );
+        assert!(!status.launch_allowed(), "mismatch must never allow launch");
     }
 }
 
@@ -717,10 +718,8 @@ fn test_pack_manifest_path_for_exe_is_sibling() {
 /// (fail-closed: a pack without a manifest never launches).
 #[test]
 fn test_check_pack_manifest_missing_file() {
-    let dir = std::env::temp_dir().join(format!(
-        "vt-pack-proto-test-missing-{}",
-        std::process::id()
-    ));
+    let dir =
+        std::env::temp_dir().join(format!("vt-pack-proto-test-missing-{}", std::process::id()));
     let exe = dir.join("lausu-worker-triple");
     let status = check_pack_manifest_for_exe(&exe);
     assert_eq!(
@@ -735,10 +734,7 @@ fn test_check_pack_manifest_missing_file() {
 /// A well-formed on-disk manifest with the current version launches.
 #[test]
 fn test_check_pack_manifest_on_disk_match() {
-    let dir = std::env::temp_dir().join(format!(
-        "vt-pack-proto-test-match-{}",
-        std::process::id()
-    ));
+    let dir = std::env::temp_dir().join(format!("vt-pack-proto-test-match-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("test temp dir must be creatable");
     std::fs::write(
@@ -750,7 +746,9 @@ fn test_check_pack_manifest_on_disk_match() {
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(
         status,
-        PackProtoStatus::Match { min_proto_version: 1 },
+        PackProtoStatus::Match {
+            min_proto_version: 1
+        },
         "on-disk manifest with min_proto_version=1 must launch"
     );
 }
@@ -758,10 +756,8 @@ fn test_check_pack_manifest_on_disk_match() {
 /// A corrupt on-disk manifest refuses with the invalid_json reason.
 #[test]
 fn test_check_pack_manifest_on_disk_corrupt() {
-    let dir = std::env::temp_dir().join(format!(
-        "vt-pack-proto-test-corrupt-{}",
-        std::process::id()
-    ));
+    let dir =
+        std::env::temp_dir().join(format!("vt-pack-proto-test-corrupt-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("test temp dir must be creatable");
     std::fs::write(dir.join(PACK_MANIFEST_FILE_NAME), "{not valid json")

@@ -1,17 +1,17 @@
 use crate::platform::worker_path::{
-    check_pack_manifest_for_exe, pack_version, PackProtoStatus, WORKER_BIN_BASE_NAME,
-    HOST_MIN_PROTO_VERSION, HOST_PROTO_VERSION,
+    HOST_MIN_PROTO_VERSION, HOST_PROTO_VERSION, PackProtoStatus, WORKER_BIN_BASE_NAME,
+    check_pack_manifest_for_exe, pack_version,
 };
 use crate::state::SidecarHandle;
 use crate::state::WorkerState;
-use crate::state::{lock as state_lock, SidecarState};
+use crate::state::{SidecarState, lock as state_lock};
 use crate::util::{DEV_SERVER_STARTED_TIMEOUT_MS, SERVER_STARTED_TIMEOUT_MS};
-use serde_json::{json, Value};
-use std::sync::atomic::{AtomicBool, Ordering};
+use serde_json::{Value, json};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{Emitter, Manager};
-use tauri_plugin_shell::process::{Command, CommandEvent};
 use tauri_plugin_shell::ShellExt;
+use tauri_plugin_shell::process::{Command, CommandEvent};
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
@@ -19,8 +19,8 @@ use super::dev_mode::is_dev_mode;
 use super::env_allowlist::passthrough_env_allowlist;
 use super::handshake::parse_worker_started;
 use super::handshake_loop::{
-    read_handshake_from_command_events, read_handshake_from_stdout_lines,
-    register_kill_on_parent_exit_best_effort, HandshakeLabels,
+    HandshakeLabels, read_handshake_from_command_events, read_handshake_from_stdout_lines,
+    register_kill_on_parent_exit_best_effort,
 };
 use super::initialize_worker;
 
@@ -158,10 +158,7 @@ async fn launch_worker_command(
 }
 
 /// Pure refusal text for the spawn-boundary backstop (no emit here).
-pub(crate) fn pack_refusal_message(
-    exe_path: &std::path::Path,
-    status: &PackProtoStatus,
-) -> String {
+pub(crate) fn pack_refusal_message(exe_path: &std::path::Path, status: &PackProtoStatus) -> String {
     match status {
         PackProtoStatus::Mismatch { min_proto_version } => format!(
             "refusing stale pack worker (min_proto_version={min_proto_version}, \
@@ -172,10 +169,7 @@ pub(crate) fn pack_refusal_message(
             "refusing pack worker without a readable manifest ({reason}): {}",
             exe_path.display()
         ),
-        PackProtoStatus::Match { .. } => format!(
-            "pack worker verified: {}",
-            exe_path.display()
-        ),
+        PackProtoStatus::Match { .. } => format!("pack worker verified: {}", exe_path.display()),
     }
 }
 
@@ -332,11 +326,7 @@ pub(crate) async fn start_worker_if_ready(app_handle: &tauri::AppHandle, state: 
                         "[WORKER-INIT] refusing stale pack (min_proto_version={min_proto_version}, \
                          host supports {HOST_MIN_PROTO_VERSION}..={HOST_PROTO_VERSION}): outdated signal emitted"
                     );
-                    relay_pack_outdated_to_sidecar(
-                        app_handle,
-                        &pack_version(),
-                        min_proto_version,
-                    );
+                    relay_pack_outdated_to_sidecar(app_handle, &pack_version(), min_proto_version);
                     state.respawn_in_progress.store(false, Ordering::SeqCst);
                     return;
                 }

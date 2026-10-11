@@ -375,5 +375,3 @@ from voice_typer.server.startup_launch_checks import (  # noqa: E402,F401  # fac
     ensure_desktop_shortcut,
     prewarm_connect_probes,
 )
-
-

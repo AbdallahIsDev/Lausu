@@ -2178,9 +2178,11 @@ fn test_rotating_sequential_flushes_still_each_flush() {
     let writer = RotatingFileWriter::new(tmp.clone(), "test-log");
     writer.write_line_level("first", log::Level::Info).unwrap();
     writer.flush().unwrap();
-    assert!(std::fs::read_to_string(tmp.join("test-log.log"))
-        .unwrap()
-        .contains("first"));
+    assert!(
+        std::fs::read_to_string(tmp.join("test-log.log"))
+            .unwrap()
+            .contains("first")
+    );
     writer.write_line_level("second", log::Level::Info).unwrap();
     writer.flush().unwrap();
     let content = std::fs::read_to_string(tmp.join("test-log.log")).unwrap();
@@ -2572,7 +2574,10 @@ fn test_warn_is_yellow_and_error_is_red_never_the_quantized_orange() {
     // inverted WARN and ERROR. Same fix the Python side carries.
     let warn = colorize_with("17:24:06", log::Level::Warn, "m", true);
     assert!(warn.starts_with("\x1b[38;5;226m"), "WARN colour: {warn:?}");
-    assert!(!warn.contains("38;5;214"), "WARN must not be orange: {warn:?}");
+    assert!(
+        !warn.contains("38;5;214"),
+        "WARN must not be orange: {warn:?}"
+    );
     assert!(warn.ends_with("\x1b[0m"), "WARN must reset: {warn:?}");
 
     let err = colorize_with("17:24:06", log::Level::Error, "m", true);

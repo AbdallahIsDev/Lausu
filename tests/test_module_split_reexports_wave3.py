@@ -346,6 +346,3 @@ class TestConfigApplierFacadeReexports:
             assert params == ["self", "ctx"], name
             ann = str(inspect.signature(apply).parameters["ctx"].annotation)
             assert "SideEffectContext" in ann, name
-
-
-

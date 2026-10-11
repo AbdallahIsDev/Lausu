@@ -224,7 +224,11 @@ pub(crate) fn colorize_with(ts: &str, level: log::Level, msg: &str, enabled: boo
     }
     match level {
         log::Level::Warn | log::Level::Error => {
-            let color = if level == log::Level::Error { ERROR } else { WARN };
+            let color = if level == log::Level::Error {
+                ERROR
+            } else {
+                WARN
+            };
             format!("\x1b[{color}m{ts}  {level:5} {msg}\x1b[0m")
         }
         _ => {

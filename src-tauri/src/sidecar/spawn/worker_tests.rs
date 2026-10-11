@@ -73,10 +73,7 @@ fn test_classify_absent_when_no_binary_anywhere() {
 fn test_pack_outdated_payload_shape() {
     let v = pack_outdated_payload("v1", 2);
     assert_eq!(v.get("version").and_then(|s| s.as_str()), Some("v1"));
-    assert_eq!(
-        v.get("min_proto_version").and_then(|n| n.as_u64()),
-        Some(2)
-    );
+    assert_eq!(v.get("min_proto_version").and_then(|n| n.as_u64()), Some(2));
     assert_eq!(
         v.get("host_min_proto_version").and_then(|n| n.as_u64()),
         Some(crate::platform::worker_path::HOST_MIN_PROTO_VERSION as u64)
