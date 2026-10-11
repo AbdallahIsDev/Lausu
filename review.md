@@ -4,51 +4,18 @@ These items are the highest-priority remaining work for the project. They block 
 
 > **Won't Fix tasks live in `WONT_FIX.md`**: deliberately not solved. Do NOT fix them (AGENTS.md C-REVIEW-1). See that file for the full list.
 
-### AUD-14 — Production files over the 500-line C-STRUCT-3 threshold (DONE, Waves 1–9 shipped)
-**Status:** SPLIT INTO 5 TASKS (2026-10-03) — AUD-14a…e below. **WAVES 1–8 SHIPPED (reviewer-verified green; per-wave evidence in git history): AUD-14b, AUD-14c, AUD-14d and AUD-14e complete. Wave 8 closed the tail — `startup_tasks.py` 784→379, `qwen_engine.py` 588→444, `worker_client.py` 692→422, `cloud/_engine.py` 738→462, `log/setup.py` 601→350, `ipc/validation.py` 603→419 (9 new modules, max 259) + `tests/test_module_split_reexports_wave8.py` (25 pins); mypy buckets neutral (611), collect-only 17268, 0 errors. **WAVE 9 SHIPPED (reviewer-verified green): the 4 gods — `hotkey_dispatcher.py` 1215→190, `service/model/_downloads.py` 1055→407, `recording_lifecycle.py` 1141→478, `worker/_ws_server.py` 953→154 (+18 focused siblings, all <500) + `tests/test_module_split_reexports_wave9.py` + mixin-registry entries; mypy 628→598 (wave-attributable 0); collect-only 17339, 0 errors. AUD-14 COMPLETE — every file in its scope is under 500 lines. (6 other files have since crossed 500 outside this task's scope: `recording/stream_lifecycle.py`, `history_db_internals/retention.py`, `clipboard/windows.py`, `handlers/_base.py`, `clipboard/manager/_paste.py`, `handlers/history_handlers.py` — future work, not AUD-14.)
-**User Impact:** None directly. The cost is change risk: each edit touches a file with several unrelated reasons to change, so unrelated behavior is coupled to unrelated edits.
-**Root Cause:** Verified by line count — organic growth without the create-first split (E1) that C-STRUCT-3 requires.
-**Gain vs Trade-off:** Large, mechanical, regression-prone work. Best done incrementally, never as a batch. Split by subsystem so no two tasks touch the same file.
-**Related Files:** `scripts/comment_ratio_metrics.py` (re-measure after each task)
-
-**Remaining scope (original 2026-10-03 inventory minus shipped waves):**
-
-| Task | Scope | Files left |
-|---|---|---|
-| *(none — all AUD-14 tasks shipped)* | — | 0 |
-
----
-
-### AUD-14a — Four largest god files (DONE: all 4 shipped in Wave 9, reviewer-verified green)
-**Status:** DONE. `hotkey_dispatcher.py` 1215→190, `service/model/_downloads.py` 1055→407, `recording_lifecycle.py` 1141→478, `worker/_ws_server.py` 953→154 (+18 focused siblings, all <500) + `tests/test_module_split_reexports_wave9.py` + mixin-registry entries; except-counts exact (no narrowing); mypy 628→598 with zero wave-attributable errors; collect-only 17339, 0 errors.
-
----
-
-### AUD-14b — Recording subsystem `server/recording/` (DONE: `device_manager.py` 808→210, `capture.py` 700→467, `recording_lifecycle.py` 617→370; new `device_health.py`, `device_resolution.py`, `recording_start.py`, `capture_audio_worker.py`; except-counts and function parity exact; reviewer-verified green)
-**Status:** DONE. Shipped this wave; only the task definition below is kept for the record.
-**Description:** 3 files over the threshold (device enumeration, capture, lifecycle). **This task owned only the `server/recording/` package copy; AUD-14a owns the `server/` root copy.** Split create-first with facade re-exports; `tests/test_module_split_reexports_wave7.py` pins the contracts; device-mixin registry entries added.
-**Why separate:** Device enumeration, capture, and lifecycle each change for different reasons, so a mic-driver fix currently risks the capture path.
-**Fix:** Create-first split per C-STRUCT-4: when touching any of these, split first, then land the fix on the clean structure.
-**Related Files:** `server/recording/{device_manager,capture,recording_lifecycle}.py`, `tests/recording/`
-**Success:** no file >500 lines; `pytest tests/recording/` green.
-**Implementation Difficulty:** 🟠 Medium
+### AUD-15 — Post-AUD-14 method-level leftovers (admitted from reviewer audit; AUD-14 Waves 1–9 shipped and committed, see git history)
+**Status:** DONE except 2 opportunistic items (below).
+**Description:** AUD-14 split every production file over 500 lines, but three oversized *methods* survive inside now-compliant facades plus two long functions in drift files. Same create-first wave discipline: E1, re-export/delegator preserves path, existing tests pass UNEDITED or STOP, LF-only, no `type: ignore`, no baseline regen.
+**Landed:** `DownloadsMixin._download_whisper_family` extracted to `service/model/_download_whisper.py` (reviewer-verified: delegator keeps facade path, 107 download tests green, ruff + mypy clean).
+- `retention.apply_retention` (`history_db_internals/retention.py`, ~202 lines) and `stream_lifecycle.open_stream_fallback` (`recording/stream_lifecycle.py`, ~171 lines) — opportunistic only: split if a real fix lands on those files (C-STRUCT-4), never as standalone churn.
+**Why separate from AUD-14:** method/function granularity, not file granularity; the `_handle_connection` remainder (375 lines, `worker/_ws_connection.py`) stays as-is — streaming entanglement makes it a vetoed seam (recorded in Wave 9 report).
+**Fix:** Done (above); the other two only opportunistically.
+**Related Files:** `service/model/_downloads.py`, `history_db_internals/retention.py`, `recording/stream_lifecycle.py`, `tests/model_download/`
+**Success:** no method >100 lines in the touched files; focused suites + mypy no-new-errors + ruff + collect-only green.
+**Implementation Difficulty:** 🟡 Low-Medium
 **Severity:** 🟡 Medium
 **Priority:** P3
-
----
-
-### AUD-14d — Security subsystem `server/security/` (DONE 2026-10-06, Wave 6: `redaction.py` 905→82, `file_io.py` 740→42, 8 focused siblings, order-equivalence byte-identical, reviewer-verified green)
-**Status:** DONE. Shipped this wave; only the task definition below is kept for the record.
-**Description:** Split create-first into 8 focused siblings with facade re-exports; pattern application order verified byte-identical; `tests/test_module_split_reexports_wave6.py` pins the contracts.
-
----
-
-### AUD-14e — Tail (DONE: all 6 shipped in Wave 8, reviewer-verified green)
-**Status:** DONE. `startup_tasks.py` 784→379, `qwen_engine.py` 588→444, `worker_client.py` 692→422, `cloud/_engine.py` 738→462, `log/setup.py` 601→350, `ipc/validation.py` 603→419; 9 new focused siblings; `tests/test_module_split_reexports_wave8.py` (25 pins). Pins held (C-CONF-2, RACE-032, C-WS-2/3, SEC-002/005/011/030, C-LOG-1).
-**Implementation Difficulty:** 🟠 Medium
-**Severity:** 🟡 Medium
-**Priority:** P3
-
 
 ## 🚫 E. Cannot Verify (needs real host)
 **19 findings require Windows / macOS / Linux desktop runtime.** The
@@ -86,6 +53,19 @@ observations before marking anything done.
 - **GP-7**: macOS notarization. Preflight verified (`Info.plist` mic/notification keys + entitlements + secrets-gated workflow step); full sign + notarize + staple + clean-Mac Gatekeeper check needs a real macOS host with Developer ID + notary credentials.
 - **GP-135**: cross-platform native binaries. Manifest/lookup/source verified headless (x86_64 shas match disk bytes; empty aarch64/macOS shas are fail-closed BY DESIGN; mirror tables match). Open host work: per-platform hash population, `build_native_listener_windows.sh` vs `compile_native.ps1` output-dir mismatch to confirm on Windows Git Bash, arch-aware `get_expected_sha256` gap (owned elsewhere), live per-OS runs.
 - **VT-1**: Windows host validation. Code verified present (`config/loader.py` warnings registry, `_timeout_utils` TIMEOUT runner, `tray_lifecycle.py:151-177` degradation) + imports/unit green (`test_timeout_utils` 34 passed); live Windows terminal re-run needs a real host.
+
+### WL-1 - Load the no-pack whisper model in the worker, not the sidecar (multi-round)
+**Status:** OPEN.
+**Description:** On installs without the offline pack, the sidecar loads `faster_whisper.WhisperModel` in-process (`asr/registry.py:235` `_try_system_whisper_fallback` → `system_whisper.py:49` `try_load_system_whisper` → `WhisperModel(...)` on the `ModelLoad` thread started by `model_manager/_loading.py:211` `start_background_load`). The 3GB weight read + ctranslate2 float16→float32 conversion saturates the sidecar process, and the UI gets zero IPC answers for minutes. Observed 2026-10-11 on a live dev boot: host-side `get_config`/`get_status` 15s timeouts from 08:56:27 to 08:57:39 (note `get_status` is pure in-memory reads — this is process starvation, not slow probes), ctranslate2 conversion warning at 09:01:12, model ready minutes later. Renderer mitigations already shipped (6-min bridge wait, mount re-races, probe prewarm, escalating backoff) only make the storm survivable; this task removes it for no-pack installs. With the pack installed the problem does not exist (`WorkerBackedAsr.load` loads nothing in-process).
+**Why separate from the pack split:** the Phase-2 split (slim core + downloadable pack) is unshipped with no published manifest; this task fixes the no-pack path that every current install actually runs.
+**Round A — worker-side load command (backend-only, headless-testable).** Add a worker WS command (e.g. `load_whisper_model`) that loads the named model in the worker process and reports `{loaded, backend, device, error}`; extend the sidecar `worker_client` with a matching call + timeout; cover with worker unit tests using a stubbed engine (no 3GB weights in tests — mock `WhisperModel`). Files: `worker/_ws_commands.py`, `worker/whisper/` (holder), `server/worker_client.py`, `tests/worker/`. Success: command round-trips load/success/failure shapes; focused worker + client suites green; ruff + mypy clean.
+**Round B — sidecar cutover with safe fallback (backend, headless-testable).** Route `system_whisper.try_load_system_whisper` (or its registry call site) through the Round-A command when the worker is connected; the sidecar `ModelLoad` thread then only waits on the worker and the sidecar loop stays responsive throughout. Keep the in-process path as fallback when the worker is unreachable or the load fails (no behavior loss vs today). Pin the fallback order with registry tests. Files: `server/system_whisper.py`, `server/asr/registry.py`, `server/model_manager/_loading.py` (untouched/WebSocket-wait only), `tests/test_*registry*` + `tests/test_system_whisper*`. Success: worker-connected → zero `faster_whisper` import in sidecar (assert via `sys.modules` in test); worker-down → legacy path serves as today; full related suites green.
+**Round C — release + live validation (needs Windows host).** Confirm the Nuitka worker bundle already ships `faster_whisper`/`ctranslate2` (C-CI-8 constrains the sidecar freeze, not the worker — verify, do not assume); then on a real Windows host WITHOUT the pack: cold-boot with large-v3, assert `get_config`/`get_status` answer <15s for the whole load, assert tray/model states match today's, assert fallback still triggers with the worker killed. Record timings in `worklog.md`. Success: no IPC blackout during load; installer size unchanged by this task (no new bundled deps — `faster_whisper` moves processes, not packages).
+**Related Files:** `voice_typer/server/system_whisper.py`, `voice_typer/server/asr/registry.py`, `voice_typer/server/worker_backed_asr.py`, `voice_typer/server/worker_client.py`, `voice_typer/worker/_ws_commands.py`, `voice_typer/worker/whisper/`, `voice_typer/server/model_manager/_loading.py`, `docs/plan-runtime-pack-split.md` (Phase 2 context)
+**Success:** Rounds A+B headless-green; Round C live evidence (IPC latency log across a no-pack cold boot, no 15s timeouts); renderer changes: none required (6-min wait + re-races stay as backstop).
+**Implementation Difficulty:** High (cross-process protocol + fallback matrix + live validation)
+**Severity:** High (multi-minute UI blackout on every no-pack cold boot with a large model)
+**Priority:** P1 (below P0 host validation; above polish)
 
 ---
 
