@@ -54,6 +54,56 @@ observations before marking anything done.
 **Severity:** High (multi-minute UI blackout on every no-pack cold boot with a large model)
 **Priority:** P1 (below P0 host validation; above polish)
 
+### PK-1 - Enforce the pack min_proto_version handshake at worker launch
+**Status:** OPEN.
+**Description:** The pack manifest schema already carries `min_proto_version` (`server/service/offline_pack/core.py:33`, validated at `:171-212`), and the host resolves a versioned pack dir (`src-tauri/src/platform/worker_path.rs`, default v1, `VOICE_TYPER_PACK_VERSION` override), but nothing enforces compatibility: the spawn path (`src-tauri/src/sidecar/spawn/worker.rs:279` reads the version, `:185` gates only on binary presence) will launch any worker found on disk. A stale pack after an app update loads the wrong protocol and fails obscurely mid-transcription instead of refusing fast with a clear state.
+**Fix:** After resolving the pack dir and before spawn, read `pack-manifest.json`, compare `min_proto_version` against the host/sidecar's supported range, and on mismatch refuse to launch while publishing the `outdated` pack state (feeds PK-2) so the UI offers re-download instead of a dead worker. Cover with Rust unit tests (match/mismatch/missing-manifest) + a Python test for the manifest reader. Do NOT change the manifest schema.
+**Related Files:** `src-tauri/src/platform/worker_path.rs`, `src-tauri/src/sidecar/spawn/worker.rs`, `voice_typer/server/service/offline_pack/core.py`, `voice_typer/server/service/offline_pack/checksum.py`
+**Success:** stale-pack launch refused with an `outdated` signal (not a mid-job failure); new tests green; no schema change.
+**Implementation Difficulty:** Low-Medium
+**Severity:** Medium (silent protocol mismatch after any pack-format change)
+**Priority:** P2
+
+### PK-2 - User-visible pack state machine (Settings screen + global states)
+**Status:** OPEN.
+**Description:** Pack states today are fragmented: an `OfflinePackPreparingBanner` near mic-test/transcription areas plus an About-page update check (`check_offline_pack_update`), backend events in `server/service/offline_pack/events.py`, consent gates in `gates.py` — but no Settings screen and no single source for the states users actually hit: downloading (with progress), ready, missing, broken (checksum/incomplete), outdated (see PK-1). Users currently discover pack problems only when transcription fails.
+**Fix:** Add one Settings section backed by a single status query (state + version + progress, reusing the existing events/check commands, no new IPC surface unless the status query cannot be composed): ready/missing/downloading(progress %)/broken/outdated, each with its action (download/retry/repair/remove). Keep the existing banner as the point-of-use surface; it reads the same status. New renderer tests per state + i18n keys in all 8 locales (C-I18N-1/2).
+**Related Files:** `voice_typer/client/src/renderer/src/pages/settings/`, `voice_typer/client/src/renderer/src/components/feedback/OfflinePackPreparingBanner.tsx`, `voice_typer/server/service/offline_pack/events.py`, `voice_typer/server/service/offline_pack/gates.py`
+**Success:** every pack state reachable in Settings with a working action; banner + Settings never disagree (shared status); locale-complete; suites green.
+**Implementation Difficulty:** Medium (renderer-heavy, needs real download runs to verify progress display)
+**Severity:** Medium (pack problems surface today only as failed transcriptions)
+**Priority:** P2
+
+### PK-3 - Rehearse the pack/worker failure table on all three systems
+**Status:** OPEN.
+**Description:** The pieces exist but were never run as a matrix: `scripts/build/verify_worker_bridge_live.py`, `verify_worker_degrade_live.py`, `verify_worker_handoff_live.py` rehearse worker failure modes, and `.github/workflows/host-validation.yml` (manual dispatch) owns host runs — yet no recorded run covers the pack failure table: worker killed mid-transcription, corrupt pack download (checksum must catch + re-offer), pack folder deleted by hand (noticed + reinstall offered), first launch with no internet (app works, voice politely unavailable), stale pack after app update (feeds PK-1). Untested matrix entries are where the next multi-minute blackout hides.
+**Fix:** Run the matrix on Windows, macOS, and Linux (real hosts or dispatched CI): each cell records app behavior + logs in `worklog.md`; file every deviation as a follow-up entry (fix or Won't Fix with rationale, never silent). Split across sessions by OS if too big for one round; do NOT mark complete on partial matrices.
+**Related Files:** `scripts/build/verify_worker_*.py`, `.github/workflows/host-validation.yml`, `docs/migration/windows-validation-runbook.md`, `docs/migration/macos-validation-runbook.md`
+**Success:** matrix green on all three systems with log evidence, or deviations filed; the "genuinely complete" bar from the architecture report is met.
+**Implementation Difficulty:** Medium (mostly execution time on real hosts, not code)
+**Severity:** High (unverified failure handling is what produced the last two outages)
+**Priority:** P1 (after PK-1/PK-2 land; the matrix tests them)
+
+### SP-1 - Ship the split: slim installer + downloadable offline pack (owner-approved 2026-10-11)
+**Status:** OPEN.
+**Description:** Owner approved the split as-is: worker moves out of the installer into the background-downloaded offline pack (real build numbers 2026-10-04: sidecar 96.8MB + worker 124MB = 226MB installer; post-split slim installer ≈102MB by subtraction, pack ≈124MB — beats the plan's 180-200MB guess). No subsystem moves in this phase: detector, filters, engines stay sidecar-side; the installer just stops bundling the worker. PK-1 (handshake), PK-2 (state machine/Settings screen), PK-3 (failure matrix) are the component tasks; this entry tracks the build + publish + first-launch wiring that makes them shippable.
+**Fix:** (1) Build split: slim installer config (host + sidecar only) alongside the full-offline installer which keeps bundling the pack (see plan §4.1/§11.9, scripts/windows/full-offline-installer.nsi); verify `tauri.windows-x86_64.conf.json` narrowing + no-non-Windows-binaries assertion still hold. (2) Run the publish pipeline once by hand (runtime-pack-publish.yml, manual dispatch); confirm manifest + pack download from a clean machine. (3) First-launch flow: fresh install works offline on day one (cloud engines usable immediately), pack downloads quietly, features unlock with honest states (no silent dead buttons). (4) Update plan §5 numbers to the real 96.8/124/226 measurements.
+**Related Files:** `src-tauri/tauri.windows-x86_64.conf.json`, `.github/workflows/runtime-pack-publish.yml`, `scripts/release/publish_pack_release.py`, `scripts/release/build_pack_manifest.py`, `scripts/windows/full-offline-installer.nsi`, `voice_typer/server/service/offline_pack/`, `docs/plan-runtime-pack-split.md` §4/§5/§11
+**Success:** clean-machine install ≈102MB; pack downloads in background and unlocks offline transcription; full-offline installer still one-file-installs; PK-1/2/3 all green on top.
+**Implementation Difficulty:** High (build + release + first-launch across three systems)
+**Severity:** High (the approved prize: every update halves)
+**Priority:** P1 (top of the pack program; WL-1 stays independent)
+
+### SP-2 - Move the sound filter chain to the worker (phase two, owner-approved 2026-10-11)
+**Status:** OPEN.
+**Description:** Owner-approved follow-up after SP-1 ships: move the sidecar's audio filter chain (denoise/pyrnnoise + enhancement, scipy-backed ≈29MB compressed) into the worker, same message-pattern as transcription; brain forwards raw audio. Detector + engines stay sidecar-side until this proves itself. Known accepted gap: mic-test quality scoring can't run until the pack arrives (shows an honest "engine still downloading" state, per PK-2 machine).
+**Fix:** New worker command(s) for filter+score (keep brain-side fallback until proven, then remove per E15); slim the sidecar freeze to nofollow what moved with a loud build failure if anything still imports it; mic-test and live paths use the worker path when the pack is ready, fallback before that; regression tests for filtered/unfiltered parity.
+**Related Files:** `voice_typer/server/audio_filters/`, `voice_typer/worker/_ws_commands.py`, `voice_typer/server/worker_client.py`, `scripts/build/build_sidecar_windows.sh`, `voice_typer/client/src/renderer/src/pages/microphone/`
+**Success:** slim installer ≈73MB (102 − 29); filtered-audio parity byte-identical or within tolerance; mic test honest pre-pack, scoring post-pack; suites green.
+**Implementation Difficulty:** High (timing-sensitive pipeline over a process boundary)
+**Severity:** Medium (single biggest remaining installer saving)
+**Priority:** P2 (starts after SP-1 ships; do NOT interleave with the split)
+
 ---
 
 # FV Session
