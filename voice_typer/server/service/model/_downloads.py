@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import logging
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from voice_typer.server import segmented_download as segdl
-from voice_typer.server.asr_setup import ModelDownloadAborted, check_download_gate
+from voice_typer.server.asr_setup import ModelDownloadAborted
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.service._download_helpers import DownloadOutcome
 
+from . import _download_whisper as _whisper_download
 from ._constants import _PARAKEET_REASON_MESSAGES
 from ._download_dispatch import DownloadDispatchMixin
 from ._download_preflight import DownloadPreflightMixin
@@ -170,28 +172,21 @@ class DownloadsMixin(DownloadPreflightMixin, DownloadQueueMixin, DownloadDispatc
                 download_id = self._register_download(model_name)
                 download_err: list = []
 
-                def _do_download():
-                    try:
-                        # use retry-with-backoff wrapper
-                        from voice_typer.server.transcription import _download_with_retry
-
-                        _download_with_retry(
-                            snapshot_download,
-                            repo_id=repo_id,
-                            revision=_service_revision,
-                            allow_patterns=SERVICE_ALLOW_PATTERNS_WHISPER,
-                            # Segmented fast lane owns the big files —
-                            ignore_patterns=seg_names or None,
-                            resume_download=True,
-                            # pause/abort gate: intercepts every ~10 MB
-                            tqdm_class=get_download_tqdm_class(),
-                        )
-                    except BaseException as e:
-                        # ModelDownloadAborted is a BaseException, catch
-                        download_err.append(e)
+                # The transfer itself lives in the sibling module; every value
+                # the former closure read is passed explicitly.
+                transfer = partial(
+                    _whisper_download.run_classic_transfer,
+                    snapshot_download=snapshot_download,
+                    repo_id=repo_id,
+                    revision=_service_revision,
+                    allow_patterns=SERVICE_ALLOW_PATTERNS_WHISPER,
+                    ignore_patterns=seg_names or None,
+                    tqdm_class=get_download_tqdm_class(),
+                    errors=download_err,
+                )
 
                 # daemon=True is acceptable because
-                t = threading.Thread(target=_do_download, daemon=True)
+                t = threading.Thread(target=transfer, daemon=True)
                 t.start()
                 log.info(
                     "[SERVICE] Download thread started for '%s' (target=%d MB)",
@@ -246,119 +241,20 @@ class DownloadsMixin(DownloadPreflightMixin, DownloadQueueMixin, DownloadDispatc
                     raise download_err[0] from None
                 # Phase B, segmented fast lane for the big files (runs on
                 if seg_plan:
-                    try:
-                        from voice_typer.server.asr_setup import (
-                            is_download_paused as _seg_is_paused,
-                        )
-                        from voice_typer.server.service._download_helpers import (
-                            make_segmented_progress_tracker as _make_seg_tracker,
-                        )
-
-                        try:
-                            from huggingface_hub.utils import get_token as _get_token
-
-                            _token = _get_token()
-                        except Exception:
-                            _token = None
-                        _headers = {"Authorization": f"Bearer {_token}"} if _token else {}
-                        try:
-                            from voice_typer.server.service.offline_pack import (
-                                proxy_env as _proxy_env,
-                            )
-
-                            _proxies = _proxy_env()
-                        except Exception:
-                            _proxies = None
-
-                        _big_total = sum(p.size for p in seg_plan)
-                        # Pause-aware progress tracker (owns the
-                        _on_seg_progress = _make_seg_tracker(
-                            event_bus=event_bus,
-                            model_name=model_name,
-                            target_mb=target_mb,
-                            target_bytes=target_bytes,
-                            phase_total_bytes=_big_total,
-                            is_paused_fn=_seg_is_paused,
-                        )
-
-                        segdl.run_segmented_phase(
-                            model_name=model_name,
-                            repo_id=repo_id,
-                            commit=_service_revision,
-                            cache_dir=cache_dir,
-                            seg_plan=seg_plan,
-                            progress_cb=_on_seg_progress,
-                            gate_check=check_download_gate,
-                            headers=_headers,
-                            proxies=_proxies,
-                        )
-                    except ModelDownloadAborted:
-                        log.info(
-                            "[SERVICE] Download of '%s' aborted via transfer gate",
-                            model_name,
-                        )
-                        clear_download_pause_state()
-                        return {
-                            "success": False,
-                            "model": model_name,
-                            "cancelled": True,
-                            "message": f"Download of {model_name} cancelled. "
-                            "Partial files remain in cache; "
-                            "retry to resume.",
-                        }
-                    except segdl.SegmentedDownloadError as e:
-                        # Failover, not failure: anything the segmented
-                        log.warning(
-                            "[SERVICE] Segmented fast lane failed for '%s' (%s), falling back to classic download",
-                            model_name,
-                            e,
-                        )
-                        _push_progress(
-                            event_bus,
-                            model_name,
-                            10,
-                            f"Retrying {model_name} with standard download...",
-                            total_bytes=target_bytes,
-                        )
-                        from voice_typer.server.transcription import (
-                            _download_with_retry as _retry_classic,
-                        )
-
-                        _retry_classic(
-                            snapshot_download,
-                            repo_id=repo_id,
-                            revision=_service_revision,
-                            allow_patterns=SERVICE_ALLOW_PATTERNS_WHISPER,
-                            resume_download=True,
-                            tqdm_class=get_download_tqdm_class(),
-                        )
-                    # Self-verify the assembled snapshot by HF's own
-                    try:
-                        snapshot_download(
-                            repo_id=repo_id,
-                            revision=_service_revision,
-                            allow_patterns=SERVICE_ALLOW_PATTERNS_WHISPER,
-                            local_files_only=True,
-                        )
-                    except Exception as e:
-                        log.warning(
-                            "[SERVICE] Post-segmented snapshot probe failed "
-                            "for '%s' (%s), falling back to classic download",
-                            model_name,
-                            e,
-                        )
-                        from voice_typer.server.transcription import (
-                            _download_with_retry as _retry_verify,
-                        )
-
-                        _retry_verify(
-                            snapshot_download,
-                            repo_id=repo_id,
-                            revision=_service_revision,
-                            allow_patterns=SERVICE_ALLOW_PATTERNS_WHISPER,
-                            resume_download=True,
-                            tqdm_class=get_download_tqdm_class(),
-                        )
+                    seg_outcome = _whisper_download.run_segmented_fast_lane(
+                        seg_plan=seg_plan,
+                        repo_id=repo_id,
+                        revision=_service_revision,
+                        cache_dir=cache_dir,
+                        snapshot_download=snapshot_download,
+                        allow_patterns=SERVICE_ALLOW_PATTERNS_WHISPER,
+                        event_bus=event_bus,
+                        model_name=model_name,
+                        target_mb=target_mb,
+                        target_bytes=target_bytes,
+                    )
+                    if seg_outcome is not None:
+                        return seg_outcome
                 log.info(
                     "[SERVICE] Download of '%s' complete (%d MB)",
                     model_name,
