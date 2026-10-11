@@ -64,7 +64,7 @@ export const CustomActionIcon: Story = {
 
 // ErrorVariant story. The `variant="error"` prop swaps the muted icon for
 // Alert02Icon on a `bg-destructive/10` disc, keeps the neutral card surface
-// (`border-border/8 bg-surface`), promotes the title to `text-lg font-semibold`,
+// (`border-border/8 bg-surface`), promotes the title to `text-lg font-medium`,
 // gives the CTA the reload glyph, and sets `role="alert"` so screen readers
 // announce the load failure immediately (vs. the polite `role="status"` used
 // for genuine "no data yet" placeholders). Without this story the

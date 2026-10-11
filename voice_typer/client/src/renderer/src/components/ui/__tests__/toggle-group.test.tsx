@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -466,5 +468,58 @@ describe("ToggleGroup tabs variant", () => {
 
 		const group = screen.getByRole("radiogroup");
 		expect(group.className).toContain("my-custom-class");
+	});
+});
+
+// ── No-selection value (`null`) ──────────────────────────────────────────────
+
+// `value: null` is the "nothing is selected" state the Analytics range row
+// needs once a custom date window takes over: the four presets are no longer
+// what the page shows, so no pill may stay lit. It replaced a sentinel
+// `"custom"` value, which had no matching option and therefore left the
+// indicator parked on the previously-selected option.
+describe("ToggleGroup (no selection)", () => {
+	it("renders every option unchecked when the value is null", () => {
+		render(
+			<ToggleGroup
+				options={TWO_OPTIONS}
+				value={null}
+				onChange={() => {}}
+				ariaLabel="none-selected"
+			/>,
+		);
+
+		for (const radio of screen.getAllByRole("radio")) {
+			expect(radio).not.toBeChecked();
+		}
+	});
+
+	it("still reports a click when nothing was selected", async () => {
+		const onChange = vi.fn();
+		render(
+			<ToggleGroup
+				options={TWO_OPTIONS}
+				value={null}
+				onChange={onChange}
+				ariaLabel="none-selected"
+			/>,
+		);
+
+		await userEvent.click(screen.getByText("Left"));
+		expect(onChange).toHaveBeenCalledWith("left");
+	});
+
+	// The indicator is absolutely positioned from a rAF measurement and jsdom
+	// does no layout, so its opacity is not observable from a render. Pin the
+	// source shape instead (the repo's pattern for contracts jsdom cannot
+	// see): `hasSelection` is what fades the pill out on a null / unknown
+	// value instead of leaving it parked where the last selection was.
+	it("gates the indicator on hasSelection so a null value fades it out", () => {
+		const src = fs.readFileSync(
+			path.resolve(__dirname, "..", "toggle-group.tsx"),
+			"utf-8",
+		);
+		expect(src).toMatch(/const hasSelection =/);
+		expect(src).toContain('!hasSelection && "opacity-0"');
 	});
 });

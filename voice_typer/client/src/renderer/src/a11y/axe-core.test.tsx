@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { t } from "@/i18n/i18n";
 
 // Disable color-contrast, the test environment doesn't load the full
 // Tailwind stylesheet, so axe's computed contrast values would be
@@ -554,6 +555,41 @@ describe("axe-core automated WCAG scan, interactive surfaces", () => {
 		);
 		// Let the title bar's focus/blur + search effects settle.
 		await act(async () => {});
+		await expectNoAxeViolations(container);
+	});
+
+	// The range row mounts only on the analytics page, so the case above
+	// (`currentPage="home"`) never renders it. It holds three interactive
+	// surfaces that had no scan: the preset radiogroup, the standalone
+	// calendar disclosure button, and the custom-range panel that button
+	// opens.
+	it("analytics TitleBar range row, closed and with the panel open: no axe violations", async () => {
+		const { TitleBar } = await import("@/components/layout/TitleBar");
+		const user = userEvent.setup();
+		const { container } = renderPage(
+			<TitleBar
+				isMaximized={false}
+				onToggleSidebar={vi.fn()}
+				onGoBack={vi.fn()}
+				onGoForward={vi.fn()}
+				canGoBack={false}
+				canGoForward={false}
+				themeMode="system"
+				onThemeChange={vi.fn()}
+				onOpenHelp={vi.fn()}
+				currentPage="analytics"
+			/>,
+		);
+		await act(async () => {});
+
+		// Closed: the radiogroup plus the calendar button.
+		await expectNoAxeViolations(container);
+
+		// Open: the custom-range panel the button discloses.
+		await user.click(
+			screen.getByRole("button", { name: t("analytics.rangeCustomAria") }),
+		);
+		await screen.findByRole("dialog");
 		await expectNoAxeViolations(container);
 	});
 

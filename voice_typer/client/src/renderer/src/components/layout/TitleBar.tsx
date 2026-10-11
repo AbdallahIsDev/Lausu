@@ -623,7 +623,7 @@ function TitleBarInner({
 						>
 							<span
 								aria-hidden
-								className="text-xs-plus font-semibold leading-none"
+								className="text-xs-plus font-medium leading-none"
 							>
 								?
 							</span>

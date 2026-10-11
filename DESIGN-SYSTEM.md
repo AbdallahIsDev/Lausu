@@ -148,6 +148,9 @@ House style (2026-10-02): **8%** for card/panel borders and dividers, **10%** fo
 standalone panels and control borders (buttons, toasts), **20%** for dashed "this is
 a mock / inactive" frames. **5%** survives only as a control *fill*
 (`bg-border/5`, hover `bg-border/8`) — it is no longer used for any border.
+The ToggleGroup track is the one control this scale does not govern: its edge is a
+1px `#000000`/10 ring painted by a shadow, not a border (see the component entry
+below).
 
 ## 5. Contrast audit (measured, WCAG 2.1)
 
@@ -305,13 +308,16 @@ both fill and border.
 **Switch** — default 44×20px (2px border), thumb 24×16px, radius full, checked
 `bg-primary` / border `primary/30`, unchecked `bg-input`. Small: 28×16px, thumb 16×12px.
 
-**ToggleGroup** (segmented control) — track: radius full, `bg-border/10`
-(`#000000`/10 → `#e6e6e6` light; `#FFFFFF`/10 → `#353535` over a dark card),
-3px padding, 1px border at 8%. Options: radius full, 8×4px padding, 11px text,
-`tracking-wider`.
+**ToggleGroup** (segmented control) — track: radius 10px (`rounded-lg`, the one
+non-circular radius), fill `bg-border/6` (`#000000`/6 light) → `dark:bg-border/5`
+(`#FFFFFF`/5), 2px padding. Its edge is **not a border**: it is a 1px `#000000`/10
+ring drawn with `shadow-[0_0_0_1px_rgba(0,0,0,0.1)]`, so the hairline keeps the same
+weight in both schemes and does not consume the border box. Options: radius 10px,
+10×4px padding, 11px text, `tracking-wider`, `flex-1` so they share the row equally.
 Selected: `bg-surface` + `shadow-xs` + `text-foreground` (neutral, not accent-filled);
-indicator slides 200ms `ease-out`. `sm` variant: radius 10px, 2px track padding,
-10×4px option padding.
+the indicator insets 2px, carries a `border-border/10` (`dark:border-border/5`)
+hairline, and slides 200ms `ease-out`. With `value={null}` no option is selected and
+the indicator fades out where it stands instead of parking on the last option.
 
 **SettingRow** — 16×8px padding, 24px gap between label and control, label 14px/500.
 

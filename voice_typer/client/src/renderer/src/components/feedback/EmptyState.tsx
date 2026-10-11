@@ -80,7 +80,7 @@ export function EmptyState({
 				className={cn(
 					"text-center",
 					isError
-						? "text-lg font-semibold text-foreground"
+						? "text-lg font-medium text-foreground"
 						: "text-sm text-muted-foreground",
 				)}
 			>

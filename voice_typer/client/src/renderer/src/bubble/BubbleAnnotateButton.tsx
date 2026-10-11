@@ -24,7 +24,7 @@ export function BubbleAnnotateButton({
 			{captured && (
 				<span
 					aria-hidden
-					className="absolute -end-0.5 -top-0.5 rounded-full bg-primary px-1 text-[9px] font-semibold leading-3 text-primary-foreground"
+					className="absolute -end-0.5 -top-0.5 rounded-full bg-primary px-1 text-[9px] font-medium leading-3 text-primary-foreground"
 				>
 					1/1
 				</span>
