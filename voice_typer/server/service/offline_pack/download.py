@@ -22,6 +22,12 @@ from .core import (
 )
 from .events import _publish_event
 from .gates import assert_offline_pack_url_allowed
+from .progress import (
+    record_download_completed,
+    record_download_failed,
+    record_download_progress,
+    record_download_started,
+)
 
 log = logging.getLogger(__name__)
 
@@ -59,6 +65,7 @@ def download_offline_pack_with_resume(
                     "offline_pack_download_failed",
                     {"version": version, "reason": "rate_limited", "attempts": attempt},
                 )
+                record_download_failed(version)
                 raise OfflinePackRateLimitError(
                     f"GitHub rate limit exhausted for pack {version}",
                     version=version,
@@ -88,6 +95,7 @@ def download_offline_pack_with_resume(
                     "resumed": True,
                 },
             )
+            record_download_started(version, offset)
             return _finalize_download(
                 h,
                 dest,
@@ -126,6 +134,7 @@ def download_offline_pack_with_resume(
                     "resumed": offset > 0,
                 },
             )
+            record_download_started(version, total_bytes)
             downloaded_bytes = _stream_response_to_disk(
                 resp,
                 dest,
@@ -150,6 +159,7 @@ def download_offline_pack_with_resume(
                 "offline_pack_download_failed",
                 {"version": version, "reason": "io_error", "attempts": attempt},
             )
+            record_download_failed(version)
             raise
         # Step 3, finalize: verify the complete file's SHA-256.
         return _finalize_download(
@@ -222,6 +232,7 @@ def _stream_response_to_disk(
                         "offline_pack_download_failed",
                         {"version": version, "reason": "disk_full", "attempts": attempt},
                     )
+                    record_download_failed(version)
                     raise OfflinePackDiskFullError(
                         f"Disk full while downloading pack {version}",
                         version=version,
@@ -246,6 +257,7 @@ def _stream_response_to_disk(
                             "eta_seconds": eta,
                         },
                     )
+                    record_download_progress(version, pct, downloaded_bytes, total_bytes)
                     last_progress = now
                     last_bytes = downloaded_bytes
         finally:
@@ -283,12 +295,14 @@ def _finalize_download(
             "offline_pack_corrupt",
             {"version": version, "path": str(dest), "reason": "sha256_mismatch"},
         )
+        record_download_failed(version)
         return False
     _publish_event(
         event_bus,
         "offline_pack_download_completed",
         {"version": version, "sha256": actual},
     )
+    record_download_completed(version)
     return True
 
 

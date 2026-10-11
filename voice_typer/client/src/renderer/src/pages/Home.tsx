@@ -142,7 +142,11 @@ export default function Home() {
 	// Deepgram) never needs the pack, so we suppress the banner when
 	// the active ASR backend is a cloud one (§4.9: "works, cloud
 	// never needs the pack").
-	const { isReady: packReady } = useOfflinePackDownload();
+	const {
+		status: packStatus,
+		progress: packProgress,
+		isReady: packReady,
+	} = useOfflinePackDownload();
 	const {
 		imageRef,
 		downloadImage,
@@ -489,7 +493,16 @@ export default function Home() {
 	} else if (inlineStatus) {
 		hint = { variant: "status", text: inlineStatus };
 	} else if (preparingOffline) {
-		hint = { variant: "status", text: t("pack.preparingOfflineEngine") };
+		const showPct =
+			packStatus === "downloading" && typeof packProgress === "number";
+		hint = {
+			variant: "status",
+			text: showPct
+				? t("pack.downloadingOfflineEngine", {
+						percent: String(packProgress),
+					})
+				: t("pack.preparingOfflineEngine"),
+		};
 	}
 
 	// Status pill, computed AFTER the dynamic line so the pill always

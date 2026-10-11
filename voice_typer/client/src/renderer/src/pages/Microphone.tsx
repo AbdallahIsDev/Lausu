@@ -74,7 +74,11 @@ export default function MicrophonePage() {
 	// the pack (§4.9: "RMS meter works; VAD 'smartness' degrades
 	// silently"), so the banner is purely informational, it does NOT
 	// block the test.
-	const { status: packStatus, isReady: packReady } = useOfflinePackDownload();
+	const {
+		status: packStatus,
+		progress: packProgress,
+		isReady: packReady,
+	} = useOfflinePackDownload();
 	// Tracks whether the user has attempted an action that would
 	// normally require the pack (startTest or selectMicrophone). The
 	// banner is gated on this so a fresh page load with a missing pack
@@ -235,6 +239,7 @@ export default function MicrophonePage() {
 				<OfflinePackPreparingBanner
 					visible={!packReady && hasAttempted}
 					status={packStatus}
+					progress={packProgress}
 				/>
 
 				{/* ``meterRef`` wrapper. The level monitor's rAF

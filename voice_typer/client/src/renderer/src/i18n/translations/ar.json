@@ -1409,9 +1409,6 @@
 			"consentAria": "منح موافقة إرسال الصوت لـ {provider}",
 			"configure": "تكوين",
 			"configureAria": "تكوين {provider}",
-			"hideConfigure": "إخفاء",
-			"hideConfigureAria": "إخفاء إعدادات {provider}",
-			"tagCloud": "سحابي",
 			"apiKeyShowAria": "إظهار مفتاح API الخاص بـ {provider}",
 			"apiKeyHideAria": "إخفاء مفتاح API الخاص بـ {provider}",
 			"apiKeyFormatHint": "مفاتيح API الخاصة بـ {provider} عبارة عن سلاسل طويلة (عادةً 40–60 حرفًا). الصق المفتاح كاملًا: بدون مسافات أو بادئات."
@@ -2086,6 +2083,8 @@
 	"pack": {
 		"preparingOfflineEngine": "جارٍ تجهيز محرك التعرّف على الكلام دون اتصال…",
 		"preparingOfflineEngineAria": "جارٍ تجهيز محرك التعرّف على الكلام دون اتصال. الحالة: {status}",
+		"downloadingOfflineEngine": "جارٍ تنزيل المحرك دون اتصال، {percent}٪",
+		"downloadingOfflineEngineAria": "جارٍ تنزيل المحرك دون اتصال، {percent}٪. الحالة: {status}",
 		"downloadOfflineEngine": "تنزيل المحرك دون اتصال",
 		"downloadOfflineEngineBusy": "جارٍ التنزيل…",
 		"downloadOfflineEngineAria": "تنزيل حزمة محرك التعرّف على الكلام دون اتصال"

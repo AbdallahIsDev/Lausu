@@ -32,13 +32,15 @@ class TestDispatchGetStatus:
     def test_includes_offline_pack_degradation_state(self, server, monkeypatch):
         """Phase 2d (§8.10): get_status carries the offline-pack state."""
         from voice_typer.server.service import update_check
+        from voice_typer.server.service.offline_pack.progress import reset_download_progress
 
+        reset_download_progress()
         monkeypatch.setattr(update_check, "_local_offline_pack_version", lambda: None)
         result = server._dispatch({"id": 9, "type": "get_status"})
         assert result["type"] == "status"
         op = result["data"]["offline_pack"]
-        assert set(op) == {"installed_version", "available", "consent_granted"}
-        assert op == {"installed_version": None, "available": False, "consent_granted": True}
+        assert set(op) == {"installed_version", "available", "consent_granted", "download_progress"}
+        assert op == {"installed_version": None, "available": False, "consent_granted": True, "download_progress": None}
 
     def test_offline_pack_present_is_reported_available(self, server, monkeypatch):
         """Pack installed → available True + version surfaced."""

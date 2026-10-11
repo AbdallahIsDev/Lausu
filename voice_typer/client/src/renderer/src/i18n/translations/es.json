@@ -1409,9 +1409,6 @@
 			"consentAria": "Otorgar consentimiento de transmisión de audio para {provider}",
 			"configure": "Configurar",
 			"configureAria": "Configurar {provider}",
-			"hideConfigure": "Ocultar",
-			"hideConfigureAria": "Ocultar configuración de {provider}",
-			"tagCloud": "Nube",
 			"apiKeyShowAria": "Mostrar clave API de {provider}",
 			"apiKeyHideAria": "Ocultar clave API de {provider}",
 			"apiKeyFormatHint": "Las claves API de {provider} son cadenas largas (normalmente de 40 a 60 caracteres). Pega la clave completa: sin espacios ni prefijos."
@@ -2086,6 +2083,8 @@
 	"pack": {
 		"preparingOfflineEngine": "Preparando motor sin conexión…",
 		"preparingOfflineEngineAria": "Preparando motor sin conexión. Estado: {status}",
+		"downloadingOfflineEngine": "Descargando motor sin conexión, {percent} %",
+		"downloadingOfflineEngineAria": "Descargando motor sin conexión, {percent} %. Estado: {status}",
 		"downloadOfflineEngine": "Descargar motor sin conexión",
 		"downloadOfflineEngineBusy": "Descargando…",
 		"downloadOfflineEngineAria": "Descargar el paquete del motor de voz sin conexión"

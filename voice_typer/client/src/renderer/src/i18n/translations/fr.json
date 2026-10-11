@@ -901,9 +901,6 @@
 			"consentAria": "Accorder le consentement de transmission audio pour {provider}",
 			"configure": "Configurer",
 			"configureAria": "Configurer {provider}",
-			"hideConfigure": "Masquer",
-			"hideConfigureAria": "Masquer la configuration de {provider}",
-			"tagCloud": "Cloud",
 			"apiKeyShowAria": "Afficher la clé API {provider}",
 			"apiKeyHideAria": "Masquer la clé API {provider}",
 			"apiKeyFormatHint": "Les clés API {provider} sont des chaînes longues (généralement 40 à 60 caractères). Collez la clé complète: sans espaces ni préfixes."
@@ -2086,6 +2083,8 @@
 	"pack": {
 		"preparingOfflineEngine": "Préparation du moteur hors ligne…",
 		"preparingOfflineEngineAria": "Préparation du moteur hors ligne. Statut : {status}",
+		"downloadingOfflineEngine": "Téléchargement du moteur hors ligne, {percent} %",
+		"downloadingOfflineEngineAria": "Téléchargement du moteur hors ligne, {percent} %. Statut : {status}",
 		"downloadOfflineEngine": "Télécharger le moteur hors ligne",
 		"downloadOfflineEngineBusy": "Téléchargement…",
 		"downloadOfflineEngineAria": "Télécharger le pack du moteur vocal hors ligne"

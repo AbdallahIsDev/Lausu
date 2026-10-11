@@ -1409,9 +1409,6 @@
 			"consentAria": "{provider} के लिए ऑडियो ट्रांसमिशन सहमति प्रदान करें",
 			"configure": "कॉन्फ़िगर करें",
 			"configureAria": "{provider} कॉन्फ़िगर करें",
-			"hideConfigure": "छिपाएँ",
-			"hideConfigureAria": "{provider} सेटअप छिपाएँ",
-			"tagCloud": "क्लाउड",
 			"apiKeyShowAria": "{provider} API कुंजी दिखाएँ",
 			"apiKeyHideAria": "{provider} API कुंजी छिपाएँ",
 			"apiKeyFormatHint": "{provider} API कुंजियाँ लंबी स्ट्रिंग होती हैं (आमतौर पर 40–60 अक्षर)। पूरी कुंजी चिपकाएँ: बिना रिक्त स्थान या उपसर्ग के।"
@@ -2086,6 +2083,8 @@
 	"pack": {
 		"preparingOfflineEngine": "ऑफ़लाइन इंजन तैयार किया जा रहा है…",
 		"preparingOfflineEngineAria": "ऑफ़लाइन इंजन तैयार किया जा रहा है. स्थिति: {status}",
+		"downloadingOfflineEngine": "ऑफ़लाइन इंजन डाउनलोड हो रहा है, {percent}%",
+		"downloadingOfflineEngineAria": "ऑफ़लाइन इंजन डाउनलोड हो रहा है, {percent}%. स्थिति: {status}",
 		"downloadOfflineEngine": "ऑफ़लाइन इंजन डाउनलोड करें",
 		"downloadOfflineEngineBusy": "डाउनलोड हो रहा है…",
 		"downloadOfflineEngineAria": "ऑफ़लाइन स्पीच इंजन पैक डाउनलोड करें"

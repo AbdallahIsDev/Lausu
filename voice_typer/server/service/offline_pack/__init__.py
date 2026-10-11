@@ -51,6 +51,21 @@ from .install import (
     install_offline_pack,
 )
 from .lock import OfflinePackLock
+from .progress import (
+    get_download_progress,
+    get_download_snapshot,
+    record_download_completed,
+    record_download_failed,
+    record_download_progress,
+    record_download_started,
+    reset_download_progress,
+)
+from .ready import (
+    note_pack_verified,
+    note_prewarm_complete,
+    note_worker_started,
+    reset_for_tests as reset_ready_for_tests,
+)
 
 __all__ = [
     "APP_NAME",
@@ -80,7 +95,18 @@ __all__ = [
     "check_offline_pack_disk_space",
     "download_offline_pack_with_resume",
     "fallback_offline_pack_root",
+    "get_download_progress",
+    "get_download_snapshot",
     "install_offline_pack",
+    "note_pack_verified",
+    "note_prewarm_complete",
+    "note_worker_started",
+    "record_download_completed",
+    "record_download_failed",
+    "record_download_progress",
+    "record_download_started",
+    "reset_download_progress",
+    "reset_ready_for_tests",
     "time",
     "validate_offline_pack_manifest_dict",
     "load_offline_pack_manifest",
