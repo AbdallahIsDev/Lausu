@@ -1,4 +1,5 @@
 {
+	"root": false,
 	"css": {
 		"parser": {
 			"cssModules": true,

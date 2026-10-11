@@ -64,7 +64,7 @@ describe("usePython cold-start retry for idempotent reads", () => {
 				},
 			);
 			await act(async () => {
-				await vi.advanceTimersByTimeAsync(100_000);
+				await vi.advanceTimersByTimeAsync(400_000);
 			});
 			await pending;
 
@@ -72,12 +72,12 @@ describe("usePython cold-start retry for idempotent reads", () => {
 			expect(String((failure as Error)?.message ?? failure)).toMatch(
 				/timed out after 5000ms/,
 			);
-			// Deadline-bounded, not attempt-counted: far more patience
-			// than the old 1+3 budget, but finite.
+			// Deadline-bounded, not attempt-counted: ~6min of patience
+			// for saturated boots, but finite.
 			const attempts = bridge.call.mock.calls.length;
 			expect(attempts).toBeGreaterThan(4);
 			await act(async () => {
-				await vi.advanceTimersByTimeAsync(120_000);
+				await vi.advanceTimersByTimeAsync(300_000);
 			});
 			expect(bridge.call.mock.calls.length).toBe(attempts);
 		} finally {

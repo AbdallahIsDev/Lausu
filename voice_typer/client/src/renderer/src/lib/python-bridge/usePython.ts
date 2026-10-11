@@ -84,12 +84,22 @@ export function __resetPythonSingleFlightForTests(): void {
 // flags.
 let _bridgeHasDelivered = false;
 /** Total wait budget per call while the bridge never succeeded. Covers
- *  slow model warms (~25s observed) with headroom; a dead backend
- *  surfaces after this instead of spinning forever. */
-const COLD_START_WAIT_BUDGET_MS = 90_000;
-/** Backoff between attempts (storms clear in seconds, not ms; the tail
- *  repeats while the deadline holds). */
-const COLD_START_WAIT_BACKOFF_MS = [500, 1_500, 3_000, 5_000];
+ *  slow model warms: ~25s typically, but a saturated boot (3GB weight
+ *  conversion starving the sidecar loop) answered NOTHING for 70s+ and
+ *  took ~5min to serve (observed 2026-10-11: host-side 15s timeouts from
+ *  08:56:27 to 08:57:39, model ready 09:01:12). A crashed backend still
+ *  fails fast — a dead WS surfaces non-timeout errors, which never wait.
+ *  Only a hung-but-connected backend spins to the deadline, then the
+ *  page error states (and their Retry) take over as before. */
+const COLD_START_WAIT_BUDGET_MS = 360_000;
+/** Backoff between attempts, escalating to a 15s tail. Storms clear in
+ *  seconds, not ms — but a saturated boot starves answers for minutes,
+ *  and every doomed attempt occupies a dispatch-pool thread (4 each)
+ *  until its timeout. The escalating tail cuts retry pressure ~5x over
+ *  a long storm versus a flat 5s cadence, while still re-probing often
+ *  enough to catch recovery within seconds. The tail repeats while the
+ *  deadline holds. */
+const COLD_START_WAIT_BACKOFF_MS = [500, 1_500, 3_000, 5_000, 10_000, 15_000];
 
 function _sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -118,7 +128,7 @@ async function _callWithColdStartRetry(
 			const backoff =
 				COLD_START_WAIT_BACKOFF_MS[
 					Math.min(attempt, COLD_START_WAIT_BACKOFF_MS.length - 1)
-				] ?? 5_000;
+				] ?? 15_000;
 			if (Date.now() - startedAt + backoff >= COLD_START_WAIT_BUDGET_MS)
 				throw err;
 			await _sleep(backoff);
