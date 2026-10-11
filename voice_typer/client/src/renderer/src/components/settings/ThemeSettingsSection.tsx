@@ -110,7 +110,7 @@ const ThemeSwatch = memo(function ThemeSwatch({
 	return (
 		<span className={`flex items-center ${gap}`}>
 			<span
-				className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-semibold"
+				className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-medium"
 				style={{ backgroundColor: bg, color: fg }}
 			>
 				A

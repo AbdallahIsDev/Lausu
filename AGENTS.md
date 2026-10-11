@@ -1445,10 +1445,13 @@ each other, so a card carries `border-border/8` + `divide-border/8`).
 row. **15%** is for keycaps and checkboxes (`border-border/15`).
 **20%** is for dashed "mock / inactive" frames. **5% is a FILL, never a
 border** — `bg-border/5` (hover `bg-border/8`) fills neutral buttons,
-and `bg-border/10` fills a control track (the ToggleGroup track is
-`border-border/8` + `bg-border/10`: its BORDER is on the 8% default
-step, only its fill is 10%). A 5% border MUST NOT be left in place, and
-a fill MUST NOT be converted to a border (or vice versa) to "match" a
+and the ToggleGroup track fills at `bg-border/6` (dark `dark:bg-border/5`).
+That track is the ONE surface whose edge is not a border at all: it is a
+1px `#000000`/10 ring drawn with `shadow-[0_0_0_1px_rgba(0,0,0,0.1)]`, so
+this scale does not govern it — do not "fix" it back to a
+`border-border/8` + `bg-border/10` track. A 5% border MUST NOT be left in
+place, and a fill MUST NOT be converted to a border (or vice versa) to
+"match" a
 neighbour. Write ONE class for both colour schemes wherever possible:
 `--border` is pure black in light and pure white in dark, so
 `border-border/8` paints `#000000`/8 (→ `#ebebeb`) in light and

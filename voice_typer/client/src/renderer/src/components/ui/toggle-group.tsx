@@ -10,10 +10,12 @@ import { getLocale, isRtlLocale } from "@/i18n/i18n";
  * mutually exclusive values). Used site-wide for exactly that, e.g.
  * Bubble Behavior / Bubble Position / Local-Cloud.
  *
- * Visual language (2026-10-02, adopted from the settings explorations
- * mockup): a recessed track at 10% — `bg-border/10` is #000000/10 in
- * light and #FFFFFF/10 in dark, because the border token flips with the
- * scheme — and the selected option is a *raised surface* pill
+ * Visual language (2026-10-02, refined 2026-10-07 and 2026-10-09): a
+ * recessed track filled at `bg-border/6` (dark `dark:bg-border/5`) whose
+ * edge is a 1px `#000000`/10 ring drawn as a shadow —
+ * `shadow-[0_0_0_1px_rgba(0,0,0,0.1)]`, deliberately NOT a border, so the
+ * hairline keeps the same weight in both schemes and never consumes the
+ * border box — and the selected option is a *raised surface* pill
  * (`bg-surface` + `shadow-xs` + `text-foreground`), NOT an
  * accent-filled pill. Keeping the selection neutral leaves the accent
  * colour for committed actions (buttons, links) instead of spending it
@@ -21,6 +23,14 @@ import { getLocale, isRtlLocale } from "@/i18n/i18n";
  *
  * role="radiogroup"; options are role="radio". C-MODELS-1: tabs variant
  * must NOT re-add border-none (cancels container border).
+ *
+ * `value` accepts `null` for "nothing is selected" (2026-10-11): every
+ * option renders unchecked and the indicator fades out in place. That is
+ * what the Analytics range row needs once a CUSTOM date window takes
+ * over — the row's four presets are no longer what the page is showing,
+ * so leaving a preset pill lit would be a lie. The alternative, forcing
+ * the row onto a sentinel value, is what stranded the indicator: a value
+ * with no matching option left the pill parked where it already was.
  */
 export interface ToggleGroupOption<T extends string> {
 	/** Stored value (e.g. ``"toggle"``). */
@@ -38,8 +48,15 @@ export interface ToggleGroupOption<T extends string> {
 export interface ToggleGroupProps<T extends string> {
 	/** Array of options to render. */
 	options: ToggleGroupOption<T>[];
-	/** Currently-selected value. */
-	value: T;
+	/**
+	 * Currently-selected value. `null` means NO option is selected: every
+	 * option renders unchecked and the indicator fades out instead of
+	 * parking on whichever option happened to be active last. The
+	 * Analytics range row uses this once a custom date range takes over —
+	 * no preset pill is the truth any more, so a highlight left sitting on
+	 * the old preset would misreport what the page is showing.
+	 */
+	value: T | null;
 	/** Called with the new value when the user clicks an option. */
 	onChange: (value: T) => void;
 	variant?: "default" | "tabs";
@@ -62,12 +79,12 @@ export interface ToggleGroupProps<T extends string> {
 	/**
 	 * Fires on EVERY option click, including a re-click of the option that
 	 * is already active. `onChange` deliberately stays quiet there (radio
-	 * semantics: re-selecting the current value is a no-op), but an option
-	 * that doubles as a disclosure trigger still needs that second click.
-	 * The Analytics calendar pill is the case in point: once a custom
-	 * range is committed it IS the active value, so without this hook a
-	 * re-click could never reopen its panel. Wired to the control's click
-	 * (not its change), so it fires once per click in both variants.
+	 * semantics: re-selecting the current value is a no-op), so this is
+	 * the hook for an option that also doubles as a disclosure trigger.
+	 * Wired to the control's click (not its change), so it fires exactly
+	 * once per click in both variants. (The Analytics range row was its
+	 * one caller; that pill is a standalone button now, so nothing in the
+	 * app depends on it today — kept as a primitive capability.)
 	 */
 	onOptionActivate?: (value: T) => void;
 }
@@ -87,6 +104,10 @@ export function ToggleGroup<T extends string>({
 	disabled = false,
 }: ToggleGroupProps<T>) {
 	const isTabs = variant === "tabs";
+	// A `null` (or unknown) value means nothing is selected: the indicator
+	// fades out rather than staying parked where the last selection was.
+	const hasSelection =
+		value !== null && options.some((opt) => opt.value === value);
 	if (process.env.NODE_ENV !== "production") {
 		if (!ariaLabel) {
 			console.warn("[renderer:ToggleGroup] `ariaLabel` is missing");
@@ -192,8 +213,12 @@ export function ToggleGroup<T extends string>({
 	});
 
 	const updateIndicator = useCallback(() => {
-		const el = labelRefs.current.get(valueRef.current);
 		const container = containerRef.current;
+		const current = valueRef.current;
+		// `null` has no label to measure. Leaving the last measured
+		// position in place is deliberate: the indicator is faded out by
+		// `hasSelection`, and jumping it first would flash.
+		const el = current === null ? undefined : labelRefs.current.get(current);
 		if (!el || !container) return;
 		setIndicatorStyle(measureElement(el, container));
 	}, [measureElement]);
@@ -326,6 +351,11 @@ export function ToggleGroup<T extends string>({
 				<div
 					className={cn(
 						"pointer-events-none absolute z-0 transition-all duration-200 ease-out border border-border/10 dark:border-border/5",
+						// Nothing selected: fade the pill out where it stands
+						// instead of leaving it under a pill that is no longer
+						// the active one. `transition-all` already covers
+						// opacity, so this animates for free.
+						!hasSelection && "opacity-0",
 						// The calc radius is the fallback when corner-shape is
 						// unsupported. Native squircle browsers use rounded-lg,
 						// matching the shared radius token.

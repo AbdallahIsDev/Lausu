@@ -733,13 +733,13 @@ describe("Models page, cloud consent toggles", () => {
 
 		// Switch to the Cloud Models tab, the cloud consent
 		// Switches (apiKeys[provider.key] gate) only render there.
-		// The ToggleGroup renders each option as a radio with
-		// a clickable label.
+		// The ToggleGroup is the primitive's DEFAULT (radiogroup)
+		// variant, so each option is a radio behind a clickable label.
 		if (switchToCloudTab) {
-			// Query the TAB by role, the panel heading inside the
+			// Query the RADIO by role, the panel heading inside the
 			// Cloud tab also reads "Cloud Models", so a plain
 			// getByText would match two elements.
-			fireEvent.click(screen.getByRole("tab", { name: "Cloud Models" }));
+			fireEvent.click(screen.getByRole("radio", { name: "Cloud Models" }));
 		}
 	}
 
@@ -754,6 +754,17 @@ describe("Models page, cloud consent toggles", () => {
 		fireEvent.click(
 			screen.getByRole("button", { name: `Configure ${providerLabel}` }),
 		);
+	}
+
+	/** Dismiss the open setup dialog. The form is a MODAL, so the rest of
+	 *  the page (every other Configure button included) is hidden from
+	 *  the accessibility tree until it closes. Escape takes the same
+	 *  Radix path as the X button and an overlay click. */
+	async function closeApiKeyForm(): Promise<void> {
+		fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+		await waitFor(() => {
+			expect(screen.queryByRole("dialog")).toBeNull();
+		});
 	}
 
 	it("renders at least one Switch for cloud consent when a provider has an API key", async () => {
@@ -830,9 +841,13 @@ describe("Models page, cloud consent toggles", () => {
 			cloud_gemini_consent: false,
 		});
 
-		// (overhaul point 11) reveal both providers' forms.
+		// (overhaul point 11) reveal each provider's form. Since
+		// 2026-10-11 that form is a MODAL setup dialog, so providers are
+		// configured ONE AT A TIME: while it is open the overlay hides the
+		// rest of the page (including the other Configure buttons) from
+		// the accessibility tree. Close each dialog before opening the
+		// next.
 		openApiKeyForm("Groq Whisper API");
-		openApiKeyForm("Deepgram API");
 
 		// Groq
 		const groqSwitch = await waitFor(() =>
@@ -846,11 +861,15 @@ describe("Models page, cloud consent toggles", () => {
 				cloud_groq_consent: true,
 			});
 		});
+		await closeApiKeyForm();
 
 		// Deepgram
-		const deepgramSwitch = screen.getByRole("switch", {
-			name: /grant audio transmission consent for deepgram api/i,
-		});
+		openApiKeyForm("Deepgram API");
+		const deepgramSwitch = await waitFor(() =>
+			screen.getByRole("switch", {
+				name: /grant audio transmission consent for deepgram api/i,
+			}),
+		);
 		fireEvent.click(deepgramSwitch);
 		await waitFor(() => {
 			expect(lastSetConfigPayload()).toMatchObject({

@@ -152,7 +152,7 @@ export function KeyboardPermissionBanner({
 					className="h-4 w-4 shrink-0 mt-0.5 text-warning"
 				/>
 				<div className="flex-1 flex flex-col gap-1">
-					<p className="text-sm font-semibold text-warning">
+					<p className="text-sm font-medium text-warning">
 						{t("keyboard.permissionDeniedTitle")}
 					</p>
 					<p className="text-xs text-foreground">

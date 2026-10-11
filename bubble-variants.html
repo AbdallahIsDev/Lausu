@@ -234,7 +234,7 @@ td.dim{color:var(--muted-foreground)}
 .bub-btn:disabled:hover{background:transparent;color:var(--muted-foreground)}
 .bub-btn.relative{position:relative}
 /* captured badge: absolute -end-0.5 -top-0.5 rounded-full bg-primary px-1
-                   text-[9px] font-semibold leading-3 text-primary-foreground */
+                   text-[9px] font-medium leading-3 text-primary-foreground */
 .badge{position:absolute;inset-inline-end:-2px;top:-2px;border-radius:9999px;
  background:var(--primary);padding:0 4px;font-size:9px;font-weight:600;line-height:12px;
  color:var(--primary-foreground)}
@@ -547,7 +547,7 @@ function renderAnatomy(){
     ["Transcript preview","max-w-45 truncate","max-width:180px, single line, ellipsis; input capped at 60 chars with a trailing …"],
     ["Error/blocked label","text-[0.625rem] font-medium","10px / 500; destructive or muted"],
     ["Blocked glyph","text-[0.6875rem] leading-none","11px ⊘"],
-    ["Captured badge","-end-0.5 -top-0.5 rounded-full bg-primary px-1 text-[9px] font-semibold leading-3","2px outside the top/end edge, primary fill, 9px/600, line-height 12px"],
+    ["Captured badge","-end-0.5 -top-0.5 rounded-full bg-primary px-1 text-[9px] font-medium leading-3","2px outside the top/end edge, primary fill, 9px/600, line-height 12px"],
   ];
   const body=`<pre class="tree">${tree}</pre>
    <div class="tbl-wrap"><table><thead><tr><th>Part</th><th>Tailwind class (verbatim)</th><th>Computed</th></tr></thead><tbody>
@@ -714,7 +714,7 @@ function renderClassMap(){
     ["TranscribingLabel.tsx:27","dot","bubble-blink-dot inline-block h-1 w-1 rounded-full bg-muted-foreground + delay i × 0.25s"],
     ["constants.ts:68","all buttons","no-drag ms-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-(--surface-hover) hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"],
     ["BubbleAnnotateButton.tsx:21","annotate","BUBBLE_BUTTON_CLASS + relative"],
-    ["BubbleAnnotateButton.tsx:27","badge","absolute -end-0.5 -top-0.5 rounded-full bg-primary px-1 text-[9px] font-semibold leading-3 text-primary-foreground"],
+    ["BubbleAnnotateButton.tsx:27","badge","absolute -end-0.5 -top-0.5 rounded-full bg-primary px-1 text-[9px] font-medium leading-3 text-primary-foreground"],
     ["ScreenshotOverlay.tsx:110","scrim","fixed inset-0 z-[100] cursor-crosshair bg-black/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"],
     ["ScreenshotOverlay.tsx:116","hint","pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-surface px-4 py-2 text-xs font-medium text-foreground"],
     ["ScreenshotOverlay.tsx:125","selection","absolute border border-white bg-white/10"],

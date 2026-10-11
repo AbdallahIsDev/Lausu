@@ -31,6 +31,7 @@
  * App.tsx, and (b) any other surface that explicitly mounts the
  * button. The affordance itself is fully self-contained here.
  */
+
 import { useState } from "react";
 import { Kbd } from "@/components/common/Kbd";
 import { Modal } from "@/components/common/Modal";
@@ -98,7 +99,7 @@ export function PunctuationCheatSheet({
 		>
 			<h3
 				id="punctuation-cheat-sheet-title"
-				className="text-sm font-semibold text-foreground"
+				className="text-sm font-medium text-foreground"
 			>
 				{t("help.punctuationTitle")}
 			</h3>
@@ -166,7 +167,7 @@ export function PunctuationCheatSheetButton() {
 			>
 				{/* Decorative "?", aria-hidden because the button's aria-label
 				 * conveys the same meaning to assistive tech. */}
-				<span aria-hidden="true" className="text-sm font-semibold leading-none">
+				<span aria-hidden="true" className="text-sm font-medium leading-none">
 					?
 				</span>
 			</Button>

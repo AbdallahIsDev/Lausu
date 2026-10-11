@@ -5,6 +5,22 @@
  * middle strip while `currentPage === "models"` and unmounts elsewhere.
  * Tab selection is shared via `useFilterState("models", "activeTab")` so
  * the Models page and the title bar stay in sync (sessionStorage).
+ *
+ * Wears the DEFAULT (recessed-track) variant, the same one the sidebar's
+ * CPU/GPU switch renders (2026-10-11, user decision). It used to be the
+ * `tabs` variant — a transparent strip with 13px options — which meant
+ * one component showed two different controls depending on where it was
+ * mounted. Both instances now share one visual language: `rounded-lg`
+ * recessed track with a `#000000`/10 hairline ring, `p-0.5`, and 11px
+ * `tracking-wider` options on a raised `bg-surface` pill. Only the
+ * labels differ.
+ *
+ * The page-side panels in `pages/Models.tsx` are therefore labelled
+ * REGIONS, not `role="tabpanel"`: the default variant is a radiogroup
+ * (the primitive's documented job — "one setting with mutually
+ * exclusive values"), so there is no tablist for a tabpanel to belong
+ * to and no `getTabId` / `getPanelId` ids to point `aria-labelledby`
+ * at.
  */
 
 import { memo } from "react";
@@ -35,16 +51,16 @@ export const ModelsTabSwitcher = memo(function ModelsTabSwitcher({
 
 	return (
 		<ToggleGroup
-			variant="tabs"
 			options={tabOptions}
 			value={activeTab}
 			onChange={(v) => setActiveTab(v as ModelsTab)}
 			ariaLabel={t("models.title")}
-			indicatorClassName="bg-surface border border-0 inset-0"
-			labelClassName="flex-1 text-center"
-			className="no-drag w-auto rounded-lg border border-border/8 bg-background p-0 h-full"
-			getTabId={(v) => `models-tab-${v}`}
-			getPanelId={(v) => `models-panel-${v}`}
+			// `no-drag` only: the control keeps the primitive's own
+			// auto width so it reads exactly like the sidebar instance.
+			// The former `h-full` stretched the track to the title bar's
+			// full inner height, which no other instance of this
+			// component does.
+			className="no-drag"
 		/>
 	);
 });
