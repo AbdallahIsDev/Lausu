@@ -195,7 +195,10 @@ jobs:
           C:\tools\pybs\python\python.exe --version
           C:\tools\pybs\python\python.exe -m pip install --upgrade --no-warn-script-location pip
           C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location "nuitka==2.8.10" zstandard ordered-set
-          C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location -e ".[dev,test]"
+          # Runtime deps only: the freeze follows imports from the worker entry
+          # point, and dev/test extras (e.g. mutmut -> libcst, a Rust build)
+          # have no wheels on some targets and break cross-arch pip installs.
+          C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location -e .
           C:\tools\pybs\python\python.exe -c "import voice_typer.worker, onnxruntime, numpy, scipy, websockets; print('worker deps ok')"
 
       - name: Download + verify python-build-standalone (POSIX)
@@ -222,7 +225,9 @@ jobs:
           "$PYBS_PY" --version
           "$PYBS_PY" -m pip install --quiet --upgrade pip
           "$PYBS_PY" -m pip install --quiet "nuitka==2.8.10" zstandard ordered-set
-          "$PYBS_PY" -m pip install --quiet -e ".[dev,test]"
+          # Runtime deps only (see Windows leg above): dev/test extras pull
+          # Rust-built packages without wheels on some targets.
+          "$PYBS_PY" -m pip install --quiet -e .
           "$PYBS_PY" -c "import voice_typer.worker, onnxruntime, numpy, scipy, websockets; print('worker deps ok')"
 
       - name: Build the worker with Nuitka (plan §4.4)
