@@ -195,7 +195,7 @@ NUITKA_ARGS=(
     --include-package=onnxruntime
     --include-package=websockets
     --include-package-data=voice_typer.server
-    --macos-create-bundle
+    --macos-create-app-bundle
     --macos-app-name=LausuWorker
     --macos-signed-app-name=com.Lausu.worker
     --macos-app-mode=background

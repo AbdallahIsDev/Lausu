@@ -496,7 +496,7 @@ python -m nuitka --standalone --onefile \
   --include-package=voice_typer --include-package=websockets \
   --include-data-dir=$SITE/ctranslate2/lib=$SITE/ctranslate2/lib \
   --include-data-dir=$SITE/ctranslate2/libs=$SITE/ctranslate2/libs \
-  --macos-create-bundle \
+  --macos-create-app-bundle \
   --macos-app-name=LausuSidecar \
   --macos-signed-app-name=com.Lausu.sidecar \
   --macos-app-mode=background \

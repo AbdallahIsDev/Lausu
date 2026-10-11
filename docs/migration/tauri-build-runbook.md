@@ -353,7 +353,7 @@ marked RETIRED (prewarm is now a worker-startup phase, plan §6.2 P-1).
 |---|---|---|
 | Build orchestrator | `scripts/build/build_tauri_all.sh` | ✅ Local dev wrapper around the per-platform build scripts + `cargo tauri build`. Bash-syntax-verified. |
 | Sidecar build (Windows x86_64+aarch64) | `scripts/build/build_sidecar_windows.sh` | ✅ Nuitka `--standalone --onefile` against `python-build-standalone` cpython-3.12.x+x86_64-pc-windows-msvc. Includes ctranslate2/lib + ctranslate2.dll. `--windows-disable-console`. |
-| Sidecar build (macOS x86_64+aarch64) | `scripts/build/build_sidecar_macos.sh` | ✅ Nuitka with `--macos-create-bundle --macos-app-mode=background` (LSUIElement=true). Rosetta 2 fallback for x86_64 on Apple Silicon host. |
+| Sidecar build (macOS x86_64+aarch64) | `scripts/build/build_sidecar_macos.sh` | ✅ Nuitka with `--macos-create-app-bundle --macos-app-mode=background` (LSUIElement=true). Rosetta 2 fallback for x86_64 on Apple Silicon host. |
 | Sidecar build (Linux x86_64+aarch64) | `scripts/build/build_sidecar_linux.sh` | ✅ Nuitka with `--onefile-tempdir-spec=$XDG_CACHE_HOME/lausu/onefile-tmp`. qemu-user-static cross-build for aarch64 on x86_64 host. glibc ≤ 2.35 baseline check. |
 | Prewarm build (Windows) | ~~`scripts/build/build_prewarm_windows.sh`~~ | ❌ RETIRED (plan §6.2 P-1): the standalone `prewarm-<triple>.exe` is gone (no `voice_typer/server/prewarm/__main__.py`, no prewarm build step in `tauri-windows-build.yml`, no prewarm entries in `bundle.resources`). Prewarm runs as a worker-startup phase. |
 | Prewarm build (macOS) | ~~`scripts/build/build_prewarm_macos.sh`~~ | ❌ RETIRED (same as Windows). |
