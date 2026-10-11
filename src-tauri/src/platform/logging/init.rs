@@ -2,9 +2,7 @@
 //! host-entrypoint stderr-fallback wrapper.
 //! C-LOG-1: docs/code-notes/tauri-host.md#logging-format-c-log-1
 
-use super::combined::{
-    format_terminal_line, is_debug_env_truthy, is_truthy_env_var, CombinedLogger,
-};
+use super::combined::{is_debug_env_truthy, is_truthy_env_var, CombinedLogger};
 use super::early::EarlyLogger;
 use super::redact::redact_pii;
 use super::rotating::RotatingFileWriter;
@@ -155,11 +153,13 @@ pub(crate) fn init_file_logger_or_stderr_fallback(config_dir: &std::path::Path) 
                 // no ISO date, no millis, no module path). Mirrors
                 // EarlyLogger's pre-init sink so the degraded path stays
                 // parseable, and redacts PII (this may be the only sink).
+                // Coloured with the restored palette so even the degraded
+                // path matches the main sink.
                 .format(|buf, record| {
                     writeln!(
                         buf,
                         "{}",
-                        format_terminal_line(
+                        super::color::colorize_terminal_line(
                             &crate::util::now_time_only(),
                             record.level(),
                             &redact_pii(&record.args().to_string())

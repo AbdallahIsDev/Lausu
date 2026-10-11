@@ -1,4 +1,4 @@
-use super::combined::format_terminal_line;
+use super::color::colorize_terminal_line;
 use crate::util::LOG_MAX_BYTES;
 use std::fs::OpenOptions;
 use std::io::Seek;
@@ -246,7 +246,7 @@ fn notify_queue_saturation_once() {
     let ts = crate::util::now_time_only();
     eprintln!(
         "{}",
-        format_terminal_line(
+        colorize_terminal_line(
             &ts,
             log::Level::Warn,
             &format!(
