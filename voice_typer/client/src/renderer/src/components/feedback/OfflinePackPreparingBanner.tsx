@@ -31,6 +31,8 @@ export interface OfflinePackPreparingBannerProps {
 	visible: boolean;
 	/** Current pack/worker status (also on `data-pack-status`). */
 	status: OfflinePackStatus;
+	/** Live download percent 0-100; shown only while downloading. */
+	progress?: number | null;
 	/** Optional extra classes (merged via cn() / tailwind-merge). */
 	className?: string;
 }
@@ -38,6 +40,7 @@ export interface OfflinePackPreparingBannerProps {
 export function OfflinePackPreparingBanner({
 	visible,
 	status,
+	progress,
 	className,
 }: OfflinePackPreparingBannerProps) {
 	const { call } = usePython();
@@ -65,17 +68,32 @@ export function OfflinePackPreparingBanner({
 
 	if (!visible) return null;
 
+	const showPercent = status === "downloading" && typeof progress === "number";
+
 	return (
 		<output
 			aria-live="polite"
-			aria-label={t("pack.preparingOfflineEngineAria", { status })}
+			aria-label={
+				showPercent
+					? t("pack.downloadingOfflineEngineAria", {
+							percent: String(progress),
+							status,
+						})
+					: t("pack.preparingOfflineEngineAria", { status })
+			}
 			data-pack-status={status}
 			className={cn(
 				"flex flex-wrap items-center gap-2 text-xs-plus text-muted-foreground animate-fade-in",
 				className,
 			)}
 		>
-			<span>{t("pack.preparingOfflineEngine")}</span>
+			<span>
+				{showPercent
+					? t("pack.downloadingOfflineEngine", {
+							percent: String(progress),
+						})
+					: t("pack.preparingOfflineEngine")}
+			</span>
 			{showRecovery && (
 				<button
 					type="button"

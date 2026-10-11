@@ -1409,9 +1409,6 @@
 			"consentAria": "Zustimmung zur Audioübertragung für {provider} erteilen",
 			"configure": "Konfigurieren",
 			"configureAria": "{provider} konfigurieren",
-			"hideConfigure": "Ausblenden",
-			"hideConfigureAria": "{provider} Einrichtung ausblenden",
-			"tagCloud": "Cloud",
 			"apiKeyShowAria": "API-Schlüssel für {provider} anzeigen",
 			"apiKeyHideAria": "API-Schlüssel für {provider} ausblenden",
 			"apiKeyFormatHint": "{provider}-API-Schlüssel sind lange Zeichenfolgen (in der Regel 40–60 Zeichen). Fügen Sie den vollständigen Schlüssel ein: ohne Leerzeichen oder Präfixe."
@@ -2086,6 +2083,8 @@
 	"pack": {
 		"preparingOfflineEngine": "Offline-Engine wird vorbereitet…",
 		"preparingOfflineEngineAria": "Offline-Engine wird vorbereitet. Status: {status}",
+		"downloadingOfflineEngine": "Offline-Engine wird heruntergeladen, {percent} %",
+		"downloadingOfflineEngineAria": "Offline-Engine wird heruntergeladen, {percent} %. Status: {status}",
 		"downloadOfflineEngine": "Offline-Engine herunterladen",
 		"downloadOfflineEngineBusy": "Wird geladen…",
 		"downloadOfflineEngineAria": "Offline-Sprachengine-Paket herunterladen"

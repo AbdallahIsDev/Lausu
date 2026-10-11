@@ -14,6 +14,7 @@ from .core import (
     verify_offline_pack_or_skip,
 )
 from .events import _publish_event
+from .ready import note_pack_verified
 
 log = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ class BackgroundChecksum:
                 "offline_pack_verified",
                 {"version": self.version, "sha256": manifest["sha256"] if manifest else ""},
             )
+            note_pack_verified(self.version, self.event_bus)
         else:
             _publish_event(
                 self.event_bus,

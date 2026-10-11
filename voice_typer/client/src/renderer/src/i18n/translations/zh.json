@@ -1409,9 +1409,6 @@
 			"consentAria": "授予 {provider} 的音频传输许可",
 			"configure": "配置",
 			"configureAria": "配置{provider}",
-			"hideConfigure": "隐藏",
-			"hideConfigureAria": "隐藏{provider}设置",
-			"tagCloud": "云端",
 			"apiKeyShowAria": "显示 {provider} API 密钥",
 			"apiKeyHideAria": "隐藏 {provider} API 密钥",
 			"apiKeyFormatHint": "{provider} API 密钥是较长的字符串（通常为 40–60 个字符）。请粘贴完整密钥: 不要包含空格或前缀。"
@@ -2086,6 +2083,8 @@
 	"pack": {
 		"preparingOfflineEngine": "正在准备离线引擎…",
 		"preparingOfflineEngineAria": "正在准备离线引擎。状态：{status}",
+		"downloadingOfflineEngine": "正在下载离线引擎，已完成 {percent}%",
+		"downloadingOfflineEngineAria": "正在下载离线引擎，已完成 {percent}%。状态：{status}",
 		"downloadOfflineEngine": "下载离线引擎",
 		"downloadOfflineEngineBusy": "下载中…",
 		"downloadOfflineEngineAria": "下载离线语音引擎包"

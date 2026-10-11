@@ -16,7 +16,7 @@
 // `transcribe_offline_result` push) are per-transcription events, not
 // pack-lifecycle events, so they don't belong here.
 //   1.  `offline_pack_download_started`  , download kicked off (after consent)
-//   2.  `offline_pack_download_progress` , byte counter (silent, no UI surface)
+//   2.  `offline_pack_download_progress` , byte counter + percent (banner shows X%)
 //   3.  `offline_pack_download_completed`, bytes landed; verify step begins
 //   4.  `offline_pack_download_failed`   , network/disk/proxy failure
 //   5.  `offline_pack_verified`          , checksum verified; worker can start
@@ -57,9 +57,9 @@
 // started + prewarmed, the `offline_pack_ready` event). Every other state
 // means offline transcription will either queue, fail, or degrade.
 // Transitions (event → new status):
-//   offline_pack_download_started  → "downloading"
-//   offline_pack_download_progress → "downloading" (no-op if already)
-//   offline_pack_download_completed → "verifying"
+//   offline_pack_download_started  → "downloading" (progress 0)
+//   offline_pack_download_progress → "downloading" + progress %
+//   offline_pack_download_completed → "verifying" (progress cleared)
 //   offline_pack_download_failed   → "failed"   (records `error`)
 //   offline_pack_verified          → "worker-starting" (if not already "ready")
 //   offline_pack_missing           → "missing"
@@ -107,6 +107,11 @@ export interface UseOfflinePackDownloadResult {
 	 *  "Preparing offline engine…" UI on `!isReady` (plus a "user has
 	 *  attempted offline transcription" flag they own). */
 	isReady: boolean;
+	/** Live download percent 0-100, non-null ONLY while
+	 *  `status === "downloading"`. Consumers show
+	 *  "downloading voice pack X%" from it; every other event clears it
+	 *  so a stale percent never poses as live progress. */
+	progress: number | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -128,11 +133,28 @@ function pickString(
 	return null;
 }
 
+/** First finite number at any key, clamped 0-100 (payloads use
+ *  `progress` live but older tests use `percent`). */
+function pickNumber(
+	data: Record<string, unknown> | undefined,
+	keys: string[],
+): number | null {
+	if (!data) return null;
+	for (const key of keys) {
+		const value = data[key];
+		if (typeof value === "number" && Number.isFinite(value)) {
+			return Math.max(0, Math.min(100, Math.round(value)));
+		}
+	}
+	return null;
+}
+
 // ── Hook ──────────────────────────────────────────────────────────────
 
 export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 	const [status, setStatus] = useState<OfflinePackStatus>("idle");
 	const [error, setError] = useState<string | null>(null);
+	const [progress, setProgress] = useState<number | null>(null);
 
 	// ── offline_pack_download_started → "downloading" ─────────────────────────
 	usePythonEvent(
@@ -140,20 +162,24 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 		useCallback((): (() => void) | undefined => {
 			setStatus("downloading");
 			setError(null);
+			setProgress(0);
 			return undefined;
 		}, []),
 	);
 
-	// ── offline_pack_download_progress → "downloading" (silent, no UI surface)
-	// §7.4 calls this event "silent, no UI". We still subscribe so the
-	// status machine reflects "actively downloading" even if
-	// `offline_pack_download_started` was missed (e.g. the renderer mounted
-	// after the download already began). The handler is a no-op when
-	// the status is already "downloading".
+	// ── offline_pack_download_progress → "downloading" + percent ────────
+	// Point-of-use honest progress (slice C): the banner shows
+	// "downloading voice pack X%" from this while downloading.
 	usePythonEvent(
 		"offline_pack_download_progress",
-		useCallback((): (() => void) | undefined => {
+		useCallback((data?: Record<string, unknown>): (() => void) | undefined => {
 			setStatus((prev) => (prev === "downloading" ? prev : "downloading"));
+			const pct = pickNumber(data, [
+				"progress",
+				"percent",
+				"download_progress",
+			]);
+			if (pct !== null) setProgress(pct);
 			return undefined;
 		}, []),
 	);
@@ -163,6 +189,7 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 		"offline_pack_download_completed",
 		useCallback((): (() => void) | undefined => {
 			setStatus("verifying");
+			setProgress(null);
 			return undefined;
 		}, []),
 	);
@@ -172,6 +199,7 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 		"offline_pack_download_failed",
 		useCallback((data?: Record<string, unknown>): (() => void) | undefined => {
 			setStatus("failed");
+			setProgress(null);
 			const msg = pickString(data, ["error", "message", "reason"]);
 			if (msg !== null) setError(msg);
 			return undefined;
@@ -187,6 +215,7 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 		"offline_pack_verified",
 		useCallback((): (() => void) | undefined => {
 			setStatus((prev) => (prev === "ready" ? prev : "worker-starting"));
+			setProgress(null);
 			return undefined;
 		}, []),
 	);
@@ -200,6 +229,7 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 		"offline_pack_missing",
 		useCallback((): (() => void) | undefined => {
 			setStatus("missing");
+			setProgress(null);
 			return undefined;
 		}, []),
 	);
@@ -209,6 +239,7 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 		"offline_pack_corrupt",
 		useCallback((data?: Record<string, unknown>): (() => void) | undefined => {
 			setStatus("corrupt");
+			setProgress(null);
 			const msg = pickString(data, ["reason", "error", "message"]);
 			if (msg !== null) setError(msg);
 			return undefined;
@@ -221,6 +252,7 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 		useCallback((): (() => void) | undefined => {
 			setStatus("ready");
 			setError(null);
+			setProgress(null);
 			return undefined;
 		}, []),
 	);
@@ -230,6 +262,7 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 		"worker_started",
 		useCallback((): (() => void) | undefined => {
 			setStatus((prev) => (prev === "ready" ? prev : "worker-starting"));
+			setProgress(null);
 			return undefined;
 		}, []),
 	);
@@ -239,6 +272,7 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 		"worker_crashed",
 		useCallback((data?: Record<string, unknown>): (() => void) | undefined => {
 			setStatus("worker-crashed");
+			setProgress(null);
 			const msg = pickString(data, ["reason", "error", "message"]);
 			if (msg !== null) setError(msg);
 			return undefined;
@@ -257,6 +291,8 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 	usePythonEvent(
 		"worker_unloaded",
 		useCallback((): (() => void) | undefined => {
+			// Progress is already null in "ready" (the only state this
+			// transitions from), so only the status moves.
 			setStatus((prev) => (prev === "ready" ? "worker-unloaded" : prev));
 			return undefined;
 		}, []),
@@ -264,5 +300,5 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 
 	const isReady = status === "ready";
 
-	return { status, error, isReady };
+	return { status, error, isReady, progress };
 }

@@ -1409,9 +1409,6 @@
 			"consentAria": "Предоставить согласие на передачу аудио для {provider}",
 			"configure": "Настроить",
 			"configureAria": "Настроить {provider}",
-			"hideConfigure": "Скрыть",
-			"hideConfigureAria": "Скрыть настройку {provider}",
-			"tagCloud": "Облако",
 			"apiKeyShowAria": "Показать API-ключ {provider}",
 			"apiKeyHideAria": "Скрыть API-ключ {provider}",
 			"apiKeyFormatHint": "API-ключи {provider}: это длинные строки (обычно 40–60 символов). Вставьте полный ключ: без пробелов и префиксов."
@@ -2086,6 +2083,8 @@
 	"pack": {
 		"preparingOfflineEngine": "Подготовка офлайн-движка…",
 		"preparingOfflineEngineAria": "Подготовка офлайн-движка. Статус: {status}",
+		"downloadingOfflineEngine": "Загрузка офлайн-движка, {percent} %",
+		"downloadingOfflineEngineAria": "Загрузка офлайн-движка, {percent} %. Статус: {status}",
 		"downloadOfflineEngine": "Скачать офлайн-движок",
 		"downloadOfflineEngineBusy": "Загрузка…",
 		"downloadOfflineEngineAria": "Скачать пакет офлайн-движка речи"

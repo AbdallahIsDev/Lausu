@@ -1414,9 +1414,6 @@
 			"consentAria": "Grant audio transmission consent for {provider}",
 			"configure": "Configure",
 			"configureAria": "Configure {provider}",
-			"hideConfigure": "Hide",
-			"hideConfigureAria": "Hide {provider} setup",
-			"tagCloud": "Cloud",
 			"apiKeyShowAria": "Show {provider} API key",
 			"apiKeyHideAria": "Hide {provider} API key",
 			"apiKeyFormatHint": "{provider} API keys are long strings (typically 40–60 characters). Paste the full key: no spaces or prefixes."
@@ -2086,6 +2083,8 @@
 	"pack": {
 		"preparingOfflineEngine": "Preparing offline engine…",
 		"preparingOfflineEngineAria": "Preparing offline engine. Status: {status}",
+		"downloadingOfflineEngine": "Downloading voice pack {percent}%",
+		"downloadingOfflineEngineAria": "Downloading voice pack {percent}%. Status: {status}",
 		"downloadOfflineEngine": "Download offline engine",
 		"downloadOfflineEngineBusy": "Downloading…",
 		"downloadOfflineEngineAria": "Download the offline speech engine pack"

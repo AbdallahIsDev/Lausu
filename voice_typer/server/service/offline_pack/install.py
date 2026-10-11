@@ -21,6 +21,7 @@ from .core import (
     offline_pack_dir_for_version,
 )
 from .events import _publish_event
+from .ready import note_pack_verified
 
 log = logging.getLogger(__name__)
 
@@ -170,4 +171,5 @@ def install_offline_pack(
         "offline_pack_verified",
         {"version": version, "sha256": manifest["sha256"]},
     )
+    note_pack_verified(version, event_bus)
     return True
