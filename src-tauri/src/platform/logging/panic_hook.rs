@@ -3,8 +3,8 @@
 //! crash-loop breaker.
 
 use super::redact::redact_pii;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 // ── Crash-loop breaker (HOST panics only) ──────────────────────────────

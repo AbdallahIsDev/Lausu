@@ -2,7 +2,7 @@
 //! host-entrypoint stderr-fallback wrapper.
 //! C-LOG-1: docs/code-notes/tauri-host.md#logging-format-c-log-1
 
-use super::combined::{is_debug_env_truthy, is_truthy_env_var, CombinedLogger};
+use super::combined::{CombinedLogger, is_debug_env_truthy, is_truthy_env_var};
 use super::early::EarlyLogger;
 use super::redact::redact_pii;
 use super::rotating::RotatingFileWriter;

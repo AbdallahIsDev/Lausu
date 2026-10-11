@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import threading
 from types import ModuleType
+from typing import TypeGuard
 
 from .events import _publish_event
 
@@ -26,7 +27,10 @@ def _valid_version(value: object) -> bool:
     return isinstance(value, str) and len(value) > 0
 
 
-def _valid_pid(value: object) -> bool:
+def _valid_pid(value: object) -> TypeGuard[int]:
+    # TypeGuard (not plain `bool`) so callers that guard with this get the
+    # `object` narrowed to `int` — otherwise `int(pid)` on a bare `object`
+    # is a `call-overload` error and needs a `# type: ignore`.
     return type(value) is int and value >= 0
 
 
@@ -52,7 +56,7 @@ def note_worker_started(pid: object, version: object, event_bus: ModuleType | No
         return False
     ver = str(version)
     with _lock:
-        _worker_pid_by_version[ver] = int(pid)  # type: ignore[arg-type]
+        _worker_pid_by_version[ver] = pid
         return _try_publish(ver, event_bus)
 
 

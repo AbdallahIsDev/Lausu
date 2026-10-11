@@ -19,8 +19,14 @@ _total_bytes: int | None = None
 
 
 def _clamp_pct(value: object) -> int:
+    # Narrow to the scalar shapes an IPC payload can carry before coercing:
+    # `int()` has no overload for bare `object`, so an unnarrowed call is a
+    # `call-overload` error AND resolves to `Any`, which then trips
+    # `warn_return_any` on the `max(...)` return below.
+    if not isinstance(value, (int, float, str)):
+        return 0
     try:
-        pct = int(value)  # type: ignore[arg-type]
+        pct = int(value)
     except (TypeError, ValueError):
         return 0
     return max(0, min(100, pct))
@@ -47,8 +53,9 @@ def record_download_progress(
     with _lock:
         _version = version if isinstance(version, str) else _version
         _progress = _clamp_pct(progress)
-        with contextlib.suppress(TypeError, ValueError):
-            _downloaded_bytes = int(downloaded_bytes)  # type: ignore[arg-type]
+        if isinstance(downloaded_bytes, (int, float, str)):
+            with contextlib.suppress(TypeError, ValueError):
+                _downloaded_bytes = int(downloaded_bytes)
         if isinstance(total_bytes, int):
             _total_bytes = total_bytes
 
