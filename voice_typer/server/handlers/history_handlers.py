@@ -1,6 +1,7 @@
 """History IPC handler mixin: get_history, get_today_stats, delete_history,"""
 
 import json
+from collections.abc import Callable
 
 from voice_typer.server.handlers._base import HandlerBase
 from voice_typer.server.handlers._log import log
@@ -40,7 +41,7 @@ _HISTORY_WINDOW_FIELDS: dict = {
 
 
 def _validate_window_bounds(
-    validated: dict, error_response
+    validated: dict, error_response: Callable[[str], dict]
 ) -> tuple[str | None, str | None] | dict:
     """Validate optional ``start_ts``/``end_ts`` window bounds.
 
