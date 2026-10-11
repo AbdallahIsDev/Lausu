@@ -24,18 +24,18 @@ pub(crate) use rotating::RotatingFileWriter;
 // Test-only re-exports for the sibling `platform/logging_tests.rs`.
 // `redact_pii` / `RotatingFileWriter` are production re-exports above.
 #[cfg(test)]
-pub(crate) use color::{TOPIC_COLOR, color_enabled_for, colorize_with, topic_color_for};
+pub(crate) use color::{color_enabled_for, colorize_with, topic_color_for, TOPIC_COLOR};
 #[cfg(test)]
 pub(crate) use combined::{
-    CombinedLogger, format_terminal_line, is_debug_env_truthy, is_truthy_env_var, is_truthy_value,
+    format_terminal_line, is_debug_env_truthy, is_truthy_env_var, is_truthy_value, CombinedLogger,
 };
 #[cfg(test)]
-pub(crate) use early::{EARLY_LOGGER_HANDLE, EarlyLogger};
+pub(crate) use early::{EarlyLogger, EARLY_LOGGER_HANDLE};
 #[cfg(test)]
 pub(crate) use init::{init_file_logger, sweep_stale_logs};
 #[cfg(test)]
 pub(crate) use panic_hook::{
-    PANIC_BREAKER_MAX, PANIC_BREAKER_WINDOW_SECS, PANIC_HOOK_REENTRY, breaker_should_exit,
+    breaker_should_exit, PANIC_BREAKER_MAX, PANIC_BREAKER_WINDOW_SECS, PANIC_HOOK_REENTRY,
 };
 #[cfg(test)]
 pub(crate) use redact::has_any_fast_trigger;

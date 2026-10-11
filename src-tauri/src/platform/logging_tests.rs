@@ -2178,11 +2178,9 @@ fn test_rotating_sequential_flushes_still_each_flush() {
     let writer = RotatingFileWriter::new(tmp.clone(), "test-log");
     writer.write_line_level("first", log::Level::Info).unwrap();
     writer.flush().unwrap();
-    assert!(
-        std::fs::read_to_string(tmp.join("test-log.log"))
-            .unwrap()
-            .contains("first")
-    );
+    assert!(std::fs::read_to_string(tmp.join("test-log.log"))
+        .unwrap()
+        .contains("first"));
     writer.write_line_level("second", log::Level::Info).unwrap();
     writer.flush().unwrap();
     let content = std::fs::read_to_string(tmp.join("test-log.log")).unwrap();
