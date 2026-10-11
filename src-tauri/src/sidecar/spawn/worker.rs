@@ -1,3 +1,7 @@
+use crate::platform::worker_path::{
+    check_pack_manifest_for_exe, pack_version, PackProtoStatus, WORKER_BIN_BASE_NAME,
+    HOST_MIN_PROTO_VERSION, HOST_PROTO_VERSION,
+};
 use crate::state::SidecarHandle;
 use crate::state::WorkerState;
 use crate::state::{lock as state_lock, SidecarState};
@@ -5,8 +9,8 @@ use crate::util::{DEV_SERVER_STARTED_TIMEOUT_MS, SERVER_STARTED_TIMEOUT_MS};
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tauri::Manager;
-use tauri_plugin_shell::process::CommandEvent;
+use tauri::{Emitter, Manager};
+use tauri_plugin_shell::process::{Command, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
@@ -62,22 +66,66 @@ pub(crate) fn worker_shared_env(token: &str) -> Vec<(&'static str, String)> {
     ]
 }
 
-pub(crate) async fn spawn_worker_release(
-    app: &tauri::AppHandle,
-    token: &str,
+/// Worker launch source (slim install + runtime pack). The pack copy wins when
+/// present (updatable without reinstall); otherwise the bundled
+/// externalBin copy (full-offline installer); neither means a slim
+/// install whose pack never downloaded.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum WorkerLaunchTarget {
+    PackExe(std::path::PathBuf),
+    Bundled,
+    Absent,
+}
+
+/// Pure target decision over existence probes (fs reads stay in the caller).
+pub(crate) fn classify_worker_launch_target(
+    pack_exe: Option<std::path::PathBuf>,
+    bundled_present: bool,
+) -> WorkerLaunchTarget {
+    match (pack_exe, bundled_present) {
+        (Some(path), _) => WorkerLaunchTarget::PackExe(path),
+        (None, true) => WorkerLaunchTarget::Bundled,
+        (None, false) => WorkerLaunchTarget::Absent,
+    }
+}
+
+/// Bundled externalBin path: beside the host exe under the plain base
+/// name (the bundler strips the triple at install time, so the shell
+/// plugin joins the name verbatim). Mirrors the plugin's `deps/`
+/// test-harness rule so probes stay honest under `cargo test`.
+fn bundled_worker_exe_path() -> Option<std::path::PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?;
+    let base = if dir.ends_with("deps") {
+        dir.parent().unwrap_or(dir)
+    } else {
+        dir
+    };
+    let mut path = base.join(WORKER_BIN_BASE_NAME);
+    if cfg!(windows) {
+        path.as_mut_os_string().push(".exe");
+    }
+    Some(path)
+}
+
+fn bundled_worker_present() -> bool {
+    bundled_worker_exe_path().is_some_and(|p| p.exists())
+}
+
+fn pack_worker_exe_present() -> Option<std::path::PathBuf> {
+    let path = crate::platform::worker_path::worker_exe_path();
+    path.exists().then(|| path.to_path_buf())
+}
+
+fn resolve_worker_launch_target() -> WorkerLaunchTarget {
+    classify_worker_launch_target(pack_worker_exe_present(), bundled_worker_present())
+}
+
+/// Shared tail for both release launch paths: spawn, handshake, wrap.
+async fn launch_worker_command(
+    cmd: Command,
     shutting_down: Option<&AtomicBool>,
 ) -> Result<(u16, SidecarHandle, mpsc::Receiver<CommandEvent>), String> {
-    let worker = app
-        .shell()
-        .sidecar("lausu-worker")
-        .map_err(|e| format!("failed to resolve worker binary: {e}"))?;
-
-    let cmd = worker
-        .env_clear()
-        .envs(passthrough_env_allowlist())
-        .envs(worker_shared_env(token))
-        .env("KMP_DUPLICATE_LIB_OK", "TRUE");
-
     let (rx, child) = cmd
         .spawn()
         .map_err(|e| format!("failed to spawn worker: {e}"))?;
@@ -107,6 +155,70 @@ pub(crate) async fn spawn_worker_release(
     )
     .await?;
     Ok((port, SidecarHandle::ShellPlugin(Some(child)), rx))
+}
+
+/// Pure refusal text for the spawn-boundary backstop (no emit here).
+pub(crate) fn pack_refusal_message(
+    exe_path: &std::path::Path,
+    status: &PackProtoStatus,
+) -> String {
+    match status {
+        PackProtoStatus::Mismatch { min_proto_version } => format!(
+            "refusing stale pack worker (min_proto_version={min_proto_version}, \
+             host supports {HOST_MIN_PROTO_VERSION}..={HOST_PROTO_VERSION}): {}",
+            exe_path.display()
+        ),
+        PackProtoStatus::MissingManifest { reason } => format!(
+            "refusing pack worker without a readable manifest ({reason}): {}",
+            exe_path.display()
+        ),
+        PackProtoStatus::Match { .. } => format!(
+            "pack worker verified: {}",
+            exe_path.display()
+        ),
+    }
+}
+
+pub(crate) async fn spawn_worker_release(
+    app: &tauri::AppHandle,
+    token: &str,
+    shutting_down: Option<&AtomicBool>,
+) -> Result<(u16, SidecarHandle, mpsc::Receiver<CommandEvent>), String> {
+    match resolve_worker_launch_target() {
+        WorkerLaunchTarget::PackExe(path) => {
+            // Pack-proto enforcement backstop: the start gate already refused +
+            // signalled, but a swapped pack between gate and spawn must
+            // still refuse here (no emit: never double-signal).
+            let status = check_pack_manifest_for_exe(&path);
+            if !status.launch_allowed() {
+                return Err(pack_refusal_message(&path, &status));
+            }
+            // Rust-side absolute launch needs no shell scope (ACL gates
+            // the JS surface only, not `app.shell()`).
+            let cmd = app
+                .shell()
+                .command(&path)
+                .env_clear()
+                .envs(passthrough_env_allowlist())
+                .envs(worker_shared_env(token))
+                .env("KMP_DUPLICATE_LIB_OK", "TRUE");
+            launch_worker_command(cmd, shutting_down).await
+        }
+        WorkerLaunchTarget::Bundled => {
+            let worker = app
+                .shell()
+                .sidecar("lausu-worker")
+                .map_err(|e| format!("failed to resolve worker binary: {e}"))?;
+
+            let cmd = worker
+                .env_clear()
+                .envs(passthrough_env_allowlist())
+                .envs(worker_shared_env(token))
+                .env("KMP_DUPLICATE_LIB_OK", "TRUE");
+            launch_worker_command(cmd, shutting_down).await
+        }
+        WorkerLaunchTarget::Absent => Err("no worker binary on disk".to_string()),
+    }
 }
 
 pub(crate) async fn spawn_worker_dev_mode(
@@ -163,7 +275,9 @@ pub(crate) fn try_claim_restart_slot(flag: &AtomicBool) -> bool {
 }
 
 fn worker_binary_present() -> bool {
-    is_dev_mode() || crate::platform::worker_path::worker_exe_path().exists()
+    // Dev always has a worker (`python -m`); release needs the pack
+    // copy or the bundled externalBin copy (slim installs have neither).
+    is_dev_mode() || !matches!(resolve_worker_launch_target(), WorkerLaunchTarget::Absent)
 }
 
 pub(crate) async fn stop_worker_child(state: &Arc<WorkerState>) {
@@ -207,8 +321,123 @@ pub(crate) async fn start_worker_if_ready(app_handle: &tauri::AppHandle, state: 
         state.respawn_in_progress.store(false, Ordering::SeqCst);
         return;
     }
+    // Stale-pack fast refuse (release pack launches only: dev spawns python,
+    // which has no pack manifest to gate on).
+    if !is_dev_mode() {
+        if let WorkerLaunchTarget::PackExe(path) = resolve_worker_launch_target() {
+            match check_pack_manifest_for_exe(&path) {
+                PackProtoStatus::Match { .. } => {}
+                PackProtoStatus::Mismatch { min_proto_version } => {
+                    log::warn!(
+                        "[WORKER-INIT] refusing stale pack (min_proto_version={min_proto_version}, \
+                         host supports {HOST_MIN_PROTO_VERSION}..={HOST_PROTO_VERSION}): outdated signal emitted"
+                    );
+                    relay_pack_outdated_to_sidecar(
+                        app_handle,
+                        &pack_version(),
+                        min_proto_version,
+                    );
+                    state.respawn_in_progress.store(false, Ordering::SeqCst);
+                    return;
+                }
+                PackProtoStatus::MissingManifest { reason } => {
+                    log::warn!(
+                        "[WORKER-INIT] pack manifest {reason}, refusing pack worker launch (fail-closed)"
+                    );
+                    state.respawn_in_progress.store(false, Ordering::SeqCst);
+                    return;
+                }
+            }
+        }
+    }
     initialize_worker(app_handle, state.clone()).await;
     state.respawn_in_progress.store(false, Ordering::SeqCst);
+}
+
+/// Stale-pack signal for the UI: the pack's
+/// `min_proto_version` fell outside the host range, so the UI offers
+/// re-download instead of a dead worker.
+pub(crate) const PACK_OUTDATED_EVENT: &str = "offline_pack_outdated";
+
+/// Pure outdated payload. Versions stay typed (E9: u32 both sides).
+pub(crate) fn pack_outdated_payload(version: &str, min_proto_version: u32) -> Value {
+    json!({
+        "version": version,
+        "min_proto_version": min_proto_version,
+        "host_min_proto_version": HOST_MIN_PROTO_VERSION,
+        "host_proto_version": HOST_PROTO_VERSION,
+    })
+}
+
+/// Pure frame for the host→sidecar hop. Wire shape (until the sidecar
+/// slice intercepts it, the frame lands as an orphaned-reply debug,
+/// never a UI error):
+/// `{"type": "offline_pack_outdated", "data": {...}, "id": N}`.
+pub(crate) fn pack_outdated_relay_frame(version: &str, min_proto_version: u32, id: u64) -> Value {
+    json!({"type": PACK_OUTDATED_EVENT, "data": pack_outdated_payload(version, min_proto_version), "id": id})
+}
+
+/// Best-effort immediate send over the host→sidecar hop.
+fn send_pack_outdated_frame(
+    state: &Arc<SidecarState>,
+    version: &str,
+    min_proto_version: u32,
+) -> Option<u64> {
+    let ws_tx = state_lock(&state.ws_tx).clone()?;
+    let id = state.next_id.fetch_add(1, Ordering::Relaxed);
+    let frame = pack_outdated_relay_frame(version, min_proto_version, id);
+    match ws_tx.try_send(Message::Text(frame.to_string().into())) {
+        Ok(_) => {
+            log::info!(
+                "[WORKER-INIT] pack-outdated relay sent (version={}, min_proto_version={}, id={})",
+                version,
+                min_proto_version,
+                id
+            );
+            Some(id)
+        }
+        Err(e) => {
+            log::warn!(
+                "[WORKER-INIT] pack-outdated relay try_send failed (id={}): {}",
+                id,
+                e
+            );
+            None
+        }
+    }
+}
+
+/// Emit the outdated signal: direct renderer event first (drives the
+/// UI with no sidecar round-trip), then the sidecar hop with the same
+/// bounded retry as the worker_started relay (cold-start race cover).
+pub(crate) fn relay_pack_outdated_to_sidecar(
+    app: &tauri::AppHandle,
+    version: &str,
+    min_proto_version: u32,
+) {
+    let _ = app.emit(
+        PACK_OUTDATED_EVENT,
+        pack_outdated_payload(version, min_proto_version),
+    );
+    let state: tauri::State<'_, Arc<SidecarState>> = app.state();
+    let state = state.inner().clone();
+    if send_pack_outdated_frame(&state, version, min_proto_version).is_some() {
+        return;
+    }
+    log::info!("[WORKER-INIT] sidecar link down, retrying pack-outdated relay");
+    let version = version.to_string();
+    tauri::async_runtime::spawn(async move {
+        for _ in 0..RELAY_RETRY_ATTEMPTS {
+            tokio::time::sleep(std::time::Duration::from_millis(RELAY_RETRY_INTERVAL_MS)).await;
+            if state.shutting_down.load(Ordering::SeqCst) {
+                return;
+            }
+            if send_pack_outdated_frame(&state, &version, min_proto_version).is_some() {
+                return;
+            }
+        }
+        log::warn!("[WORKER-INIT] pack-outdated relay undelivered after retries");
+    });
 }
 
 /// ADR-0024 Step 2 port relay: host pushes `worker_started
@@ -314,3 +543,9 @@ pub(crate) fn on_pack_verified(app: &tauri::AppHandle) {
         start_worker_if_ready(&app_handle, state).await;
     });
 }
+
+// Sibling test module: tests live in `worker_tests.rs` (per C-TEST-5:
+// no inline `#[cfg(test)] mod tests` blocks in production source).
+#[cfg(test)]
+#[path = "worker_tests.rs"]
+mod worker_tests;
