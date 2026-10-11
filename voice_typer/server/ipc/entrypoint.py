@@ -197,6 +197,25 @@ def parse_ipc_args() -> tuple[int | None, bool]:
     return port, ws_mode
 
 
+def _prewarm_connect_probes_early() -> None:
+    """Fire-and-forget probe warm for the first renderer handshake.
+
+    ``get_config`` answers keyring + GPU probes inline; their first-call
+    cost can stall a readonly-pool worker for seconds mid-boot-storm, and
+    every concurrent handshake funnels on the probe locks behind it.
+    Both probes cache per process, so one early pass makes the first
+    handshake answer from cache. Never raises.
+    """
+    try:
+        from voice_typer.server.startup_launch_checks import (
+            prewarm_connect_probes,
+        )
+
+        prewarm_connect_probes()
+    except Exception:
+        log.debug("[STARTUP] early probe pre-warm failed", exc_info=True)
+
+
 def main() -> None:
     """Create a ``LausuApp``, wrap it in an ``IPCServer``, and block.
 
@@ -260,6 +279,24 @@ def main() -> None:
     # ``setup_logging`` is idempotent; it emits the ``[STARTUP] logging
     # initialized`` banner (C-LOG-1) at most once per process.
     _setup_logging()
+    # Connect-probe pre-warm, FIRST pass (the phase-7 pass re-runs it
+    # idempotently): starting it here — before the heavy LausuApp import
+    # and the WS bind — gives it the whole import window as head start,
+    # so the first renderer handshake answers from cache instead of
+    # paying first-probe costs mid-storm. RACE-008: daemon is acceptable,
+    # the warm is best-effort (never raises) and process exit must never
+    # wait on it.
+    try:
+        import threading as _threading
+
+        _probe_thread = _threading.Thread(
+            target=_prewarm_connect_probes_early,
+            name="startup-probe-prewarm-early",
+            daemon=True,
+        )
+        _probe_thread.start()
+    except Exception:
+        log.debug("[STARTUP] early probe pre-warm spawn failed", exc_info=True)
     # C-LOG-4: app-identity banner FIRST, before the heavy LausuApp import
     # (that import alone is multi-second) and before any IPC chatter.
     try:

@@ -163,9 +163,10 @@ def setup_logging(
     port_mode:
         Accepted for backwards compatibility. NO LONGER forces coloured
         stderr output: ANSI colours are gated on
-        ``sys.stderr.isatty()`` so ``--port`` runs whose stderr is
-        redirected to a file stay plain and grep-friendly, while a
-        terminal ``--port`` run still gets colours (a terminal IS a
+        ``sys.stderr.isatty()`` (plus the ``FORCE_COLOR`` / ``NO_COLOR``
+        overrides, see :func:`_console_color_enabled`) so ``--port`` runs
+        whose stderr is redirected to a file stay plain and grep-friendly,
+        while a terminal ``--port`` run still gets colours (a terminal IS a
         TTY, so the old ``or port_mode`` was redundant for the case it
         was designed for).
     process_name:
@@ -295,7 +296,11 @@ def setup_logging(
                 sys.stdout.reconfigure(errors="backslashreplace", line_buffering=True)
 
         # always flush after each emit so terminal log lines appear
-        do_color = bool(sys.stderr is not None and sys.stderr.isatty())
+        # ANSI gating lives in `_console_color_enabled` (levels.py): the
+        # TTY check plus the FORCE_COLOR escape hatch the Tauri dev chain
+        # needs, where `tauri dev` hands this process a PIPE instead of a
+        # terminal. `NO_COLOR` / `FORCE_COLOR=0` still force it off.
+        do_color = _console_color_enabled()
         if sys.stderr is not None:
             stream = _FlushingStreamHandler()
             stream.setLevel(logging.DEBUG if debug else logging.INFO)
@@ -334,6 +339,7 @@ from voice_typer.server.log.levels import (  # noqa: E402,F401  # facade re-expo
     _THIRD_PARTY_LOGGER_LEVELS,
     _apply_per_module_log_levels,
     _apply_third_party_logger_levels,
+    _console_color_enabled,
     _ensure_last_resort_redacted,
     _json_logging_enabled,
     get_module_levels,

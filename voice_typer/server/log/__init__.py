@@ -48,6 +48,7 @@ from voice_typer.server.log.setup import (  # noqa: F401
     LOG_SUBDIR,
     _apply_per_module_log_levels,
     _apply_third_party_logger_levels,
+    _console_color_enabled,
     _ensure_last_resort_redacted,
     _json_logging_enabled,
     _maybe_migrate_legacy_logs,
