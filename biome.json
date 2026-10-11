@@ -1,0 +1,6 @@
+{
+	"root": true,
+	"files": {
+		"includes": ["voice_typer/client/**"]
+	}
+}

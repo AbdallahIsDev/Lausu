@@ -82,8 +82,11 @@ class TestCriticalNotificationsBypassToggle:
     def test_model_load_failure_uses_notify_safety(self):
         src = _read_ux018(MODEL_MANAGER_PY)
         # Fix-B (i18n extraction): the English notification
-        assert "notify.model_manager.load_failed" in src
-        idx = src.index("notify.model_manager.load_failed")
+        assert "notify.model_manager.load_failed_critical" in src
+        # Only the CRITICAL variant (last-resort load failure) must bypass the
+        # toggle; the non-critical `load_failed` variant deliberately keeps the
+        # toggle-respecting notify(), so pin the critical call site.
+        idx = src.rindex("notify.model_manager.load_failed_critical")
         block = src[idx - 200 : idx + 200]
         assert "notify_safety(" in block
 

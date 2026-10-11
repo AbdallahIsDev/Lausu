@@ -416,17 +416,33 @@ def test_use_python_throws_when_bridge_missing(use_python_source: str) -> None:
         "usePython.ts must reject with `new Error('Python bridge not available')` "
         "when `!api` (window.python undefined)."
     )
-    # Find `withCommandTimeout(\s*api.call` AFTER the guard statement.
+    # Find the bridge call AFTER the guard statement. The call site is
+    # either the original inline `withCommandTimeout(api.call(...))` or
+    # the post-cold-start-retry form where `api.call` is passed as the
+    # `invoke` thunk to `_callWithColdStartRetry` (which applies
+    # `withCommandTimeout` inside the helper). Both satisfy the
+    # invariant: the `!api` guard rejects BEFORE any bridge call or
+    # timeout wait is constructed.
     rest = use_python_source[guard_match.end() :]
     call_re = re.compile(
-        r"withCommandTimeout\s*\(\s*api\.call",
+        r"(?:withCommandTimeout\s*\(\s*api\.call|"
+        r"_callWithColdStartRetry\s*\(\s*\(\s*\)\s*=>\s*api\.call)",
         re.MULTILINE | re.DOTALL,
     )
     assert call_re.search(rest), (
-        "usePython.ts must call withCommandTimeout(api.call(...)) AFTER "
-        "the `if (!api)` guard, otherwise the renderer would "
+        "usePython.ts must invoke the bridge (`api.call`) AFTER the "
+        "`if (!api)` guard, wrapped either directly in "
+        "withCommandTimeout(...) or as the `invoke` thunk passed to "
+        "_callWithColdStartRetry(...), otherwise the renderer would "
         "wait for the 120s command timeout instead of surfacing the "
         "'Python bridge not available' error immediately."
+    )
+    # The timeout wrapper itself must still be applied somewhere in the
+    # module (cold-start retry helper wraps each attempt).
+    assert "withCommandTimeout(" in use_python_source, (
+        "usePython.ts must still race each bridge call against the "
+        "per-command timeout (withCommandTimeout), the cold-start "
+        "retry must not have dropped it."
     )
 
 

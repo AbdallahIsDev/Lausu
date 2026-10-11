@@ -275,9 +275,11 @@ class TestOnboardingSource:
     def test_uses_runtime_resolution_and_no_hardcoded_bundle_id(self):
         import inspect
 
-        from voice_typer.server import onboarding
+        from voice_typer.server import onboarding, onboarding_permissions
 
-        src = inspect.getsource(onboarding)
+        # The macOS permissions guidance builds the tccutil command in the
+        # onboarding_permissions sibling (create-first split); scan both.
+        src = inspect.getsource(onboarding) + inspect.getsource(onboarding_permissions)
         assert "resolve_host_bundle_id()" in src, (
             "onboarding.py must resolve the host bundle ID at runtime "
             "(resolve_host_bundle_id) for the macOS permissions guidance "

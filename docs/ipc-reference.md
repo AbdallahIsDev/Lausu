@@ -42,7 +42,7 @@ host-dispatched / host-only set (`heartbeat`, `relaunch_ack`,
 `allowed_commands()` are host-internal (invoked by the Rust host via
 `dispatch_inner` or host-supervised shutdown), never by the renderer.
 
-## Commands (80 total: 76 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
+## Commands (85 total: 81 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
 
 Grouped by namespace. "✓" in the Allowlist column means the command is
 in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
@@ -57,6 +57,7 @@ in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
 | `get_status` | `_handle_get_status` | ✓ |  |
 | `heartbeat` | `_handle_heartbeat` | — | Host-dispatched watchdog tick via `dispatch_inner`. Kept out of the renderer allowlist so a compromised WebView cannot spoof ticks. |
 | `relaunch_ack` | `_handle_relaunch_ack` | — | Host-dispatched PERF-005 relaunch ack (fire-and-forget). Kept out of the renderer allowlist so a compromised WebView cannot race the restart-wait event. |
+| `open_mic_settings` | `_handle_open_mic_settings` | ✓ | Opens the OS microphone-privacy settings page (the recovery path when the input device grant is missing). |
 | `set_config` | `_handle_set_config` | ✓ |  |
 
 ### App control (toggle, undo, repaste, tray, force-cancel, restart/quit)
@@ -185,6 +186,15 @@ in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
 | `microphone_test_stop` | `_handle_microphone_test_stop` | ✓ |  |
 | `microphone_test_read_audio` | `_handle_microphone_test_read_audio` | ✓ | Chunked slice of a persisted mic-test WAV (path/offset/length); recordings-dir containment enforced |
 
+### Screenshot (beta capture + consent)
+
+| Command | Handler | Allowlist | Notes |
+|---------|---------|-----------|-------|
+| `screenshot_capture` | `_handle_screenshot_capture` | ✓ | Screenshot beta: capture the current screen for the OCR/vision path. |
+| `screenshot_clear_cycle` | `_handle_screenshot_clear_cycle` | ✓ | Screenshot beta: drop the current capture cycle's staged files. |
+| `screenshot_get_status` | `_handle_screenshot_get_status` | ✓ | Screenshot beta: enabled flag + whether consent has been recorded. |
+| `screenshot_set_consent` | `_handle_screenshot_set_consent` | ✓ | Screenshot beta: persist the user's consent decision (reads are still gated by the beta flag). |
+
 ### Continuous level monitor
 
 | Command | Handler | Allowlist | Notes |
@@ -242,7 +252,7 @@ restored `get_prewarm_status` / `run_prewarm` (worker status file +
 in-process warm pass), not the old
 `sentinel` / `PID`-file probe.
 
-## Push events (63 typed)
+## Push events (62 typed)
 
 Push events flow server to renderer via `window.python.onEvent(callback)`.
 The `PythonPushEvent` union in `types/ipc/push_events.ts` is the canonical
@@ -284,7 +294,6 @@ list: events not in the union fall through to the `string` overload of
 | `asr_backend_disabled` | `AsrBackendDisabledEvent` | `{ backend: string, reason: string, ... }` Emitted from `asr_registry._record_failure` when a backend trips its failure threshold. |
 | `asr_last_resort_unloaded` | `AsrLastResortUnloadedEvent` | `{ backend: string, reason: string, ... }` Emitted when the last-resort ASR backend is force-unloaded. |
 | `llm_polish_failed` | `LlmPolishFailedEvent` | `{ reason: string, ... }` Emitted when LLM polishing fails so the UI can fall back to raw transcription. |
-| `text_enhancement_failed` | `TextEnhancementFailedEvent` | bare `{ type: "text_enhancement_failed" }` Emitted when the rule-based text enhancement pass fails; transcription is still delivered un-enhanced, renderer may surface a one-time toast. |
 | `reconnecting` | `ReconnectingEvent` | `{ reason: string }` |
 | `reconnected` | `ReconnectedEvent` | `{ reason: string }` |
 | `mic_level` | `MicLevelEvent` | `{ rms: number, peak: number, active: boolean }` Continuous level monitor stream for the Settings microphone level meter. |

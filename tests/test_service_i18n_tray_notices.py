@@ -218,7 +218,11 @@ class TestHotkeyDispatcherSourceUsesI18n:
     def test_hotkey_dispatcher_no_hardcoded_notice_bodies(self):
         from pathlib import Path
 
-        src = Path("voice_typer/server/hotkey_dispatcher.py").read_text(encoding="utf-8")
+        # The dispatcher's notice bodies live in the hotkey_* sibling modules
+        # (create-first split); scan the whole family so a hardcoded body
+        # cannot hide in a sibling.
+        server_dir = Path("voice_typer/server")
+        src = "".join(p.read_text(encoding="utf-8") for p in sorted(server_dir.glob("hotkey_*.py")))
         # The two previously-hardcoded long bodies must be gone.
         assert "could not be registered. It may be in use" not in src
         assert "Failed to save hotkey to disk. Check disk space" not in src
