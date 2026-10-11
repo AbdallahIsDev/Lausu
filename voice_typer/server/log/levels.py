@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 
 from voice_typer.server.log import state as _state
 
@@ -24,6 +25,40 @@ log = logging.getLogger("voice_typer.server.log")
 def _json_logging_enabled() -> bool:
     """structured JSON logging is opt-in via ``VOICE_TYPER_LOG_JSON``."""
     return os.environ.get("VOICE_TYPER_LOG_JSON", "").lower() in ("1", "true", "yes")
+
+
+def _console_color_enabled() -> bool:
+    """Whether the stderr console handler should use the ANSI formatter.
+
+    ANSI colours are gated on the terminal, but the Tauri dev chain loses the
+    TTY: ``tauri dev`` spawns the app with a PIPED stderr
+    (``tauri-cli/src/interface/rust/desktop.rs``:
+    ``dev_cmd.stdout(os_pipe::dup_stdout())`` + ``dev_cmd.stderr(Stdio::piped())``)
+    and the Rust host then spawns this sidecar with ``Stdio::inherit()``, so
+    ``sys.stderr.isatty()`` is False even though the bytes DO reach the user's
+    terminal (the CLI re-emits each line verbatim). ``scripts/tauri-dev.mjs``,
+    the only process in the chain that still owns the real terminal, therefore
+    exports ``FORCE_COLOR=1`` and the Rust host forwards it through its spawn
+    allowlist. Pre-migration the Electron main process spawned this process
+    directly with inherited stdio, so the TTY survived and the colours showed.
+
+    Precedence, matching the Node/Rust gates in the same chain:
+
+    * ``NO_COLOR`` set (any non-empty value) -> off, always wins.
+    * ``FORCE_COLOR`` set -> ``""``/``1``/``true``/``yes`` on,
+      ``0``/``false``/``no`` off, anything else falls through to the TTY.
+    * otherwise -> ``sys.stderr.isatty()``.
+    """
+    if os.environ.get("NO_COLOR"):
+        return False
+    forced = os.environ.get("FORCE_COLOR")
+    if forced is not None:
+        value = forced.strip().lower()
+        if value in ("", "1", "true", "yes"):
+            return True
+        if value in ("0", "false", "no"):
+            return False
+    return bool(sys.stderr is not None and sys.stderr.isatty())
 
 
 def _apply_per_module_log_levels() -> None:
