@@ -4,8 +4,8 @@ These items are the highest-priority remaining work for the project. They block 
 
 > **Won't Fix tasks live in `WONT_FIX.md`**: deliberately not solved. Do NOT fix them (AGENTS.md C-REVIEW-1). See that file for the full list.
 
-### AUD-14 — Production files over the 500-line C-STRUCT-3 threshold (4 left, Waves 1–8 shipped)
-**Status:** SPLIT INTO 5 TASKS (2026-10-03) — AUD-14a…e below. **WAVES 1–8 SHIPPED (reviewer-verified green; per-wave evidence in git history): AUD-14b, AUD-14c, AUD-14d and AUD-14e complete. Wave 8 closed the tail — `startup_tasks.py` 784→379, `qwen_engine.py` 588→444, `worker_client.py` 692→422, `cloud/_engine.py` 738→462, `log/setup.py` 601→350, `ipc/validation.py` 603→419 (9 new modules, max 259) + `tests/test_module_split_reexports_wave8.py` (25 pins); mypy buckets neutral (611), collect-only 17268, 0 errors. Remaining scope is the task list below (all DISJOINT file sets, E16).
+### AUD-14 — Production files over the 500-line C-STRUCT-3 threshold (DONE, Waves 1–9 shipped)
+**Status:** SPLIT INTO 5 TASKS (2026-10-03) — AUD-14a…e below. **WAVES 1–8 SHIPPED (reviewer-verified green; per-wave evidence in git history): AUD-14b, AUD-14c, AUD-14d and AUD-14e complete. Wave 8 closed the tail — `startup_tasks.py` 784→379, `qwen_engine.py` 588→444, `worker_client.py` 692→422, `cloud/_engine.py` 738→462, `log/setup.py` 601→350, `ipc/validation.py` 603→419 (9 new modules, max 259) + `tests/test_module_split_reexports_wave8.py` (25 pins); mypy buckets neutral (611), collect-only 17268, 0 errors. **WAVE 9 SHIPPED (reviewer-verified green): the 4 gods — `hotkey_dispatcher.py` 1215→190, `service/model/_downloads.py` 1055→407, `recording_lifecycle.py` 1141→478, `worker/_ws_server.py` 953→154 (+18 focused siblings, all <500) + `tests/test_module_split_reexports_wave9.py` + mixin-registry entries; mypy 628→598 (wave-attributable 0); collect-only 17339, 0 errors. AUD-14 COMPLETE — every file in its scope is under 500 lines. (6 other files have since crossed 500 outside this task's scope: `recording/stream_lifecycle.py`, `history_db_internals/retention.py`, `clipboard/windows.py`, `handlers/_base.py`, `clipboard/manager/_paste.py`, `handlers/history_handlers.py` — future work, not AUD-14.)
 **User Impact:** None directly. The cost is change risk: each edit touches a file with several unrelated reasons to change, so unrelated behavior is coupled to unrelated edits.
 **Root Cause:** Verified by line count — organic growth without the create-first split (E1) that C-STRUCT-3 requires.
 **Gain vs Trade-off:** Large, mechanical, regression-prone work. Best done incrementally, never as a batch. Split by subsystem so no two tasks touch the same file.
@@ -15,28 +15,12 @@ These items are the highest-priority remaining work for the project. They block 
 
 | Task | Scope | Files left |
 |---|---|---|
-| **AUD-14a** | Four largest god files (P2) | 4 |
+| *(none — all AUD-14 tasks shipped)* | — | 0 |
 
 ---
 
-### AUD-14a — Split the four largest god files (E1/C-STRUCT-3 create-first)
-**Status:** NOT DONE (2026-10-03, split from AUD-14)
-**Description:** The four worst offenders are single-class files with 20-29 methods each and multiple unrelated reasons to change. Each violates C-STRUCT-1 (one concern per file) and C-STRUCT-2 (SRP):
-
-| File | Lines | Classes | defs | Concern to extract |
-|---|---|---|---|---|
-| `server/hotkey_dispatcher.py` | 1,094 | 1 | 29 | native backend pool lifecycle / registration / matching / dispatch |
-| `service/model/_downloads.py` | 942 | 1 | 20 | split the 4 concerns behind the `DownloadsMixin` |
-| `recording_lifecycle.py` | 874 | 1 | 25 | **27 broad `except Exception`** in the recording hot path (lines 86-979) |
-| `worker/_ws_server.py` | 823 | 2 | 24 | `_handle_connection` alone is ~494 lines |
-
-**Why first:** Highest change-risk density in the package. `recording_lifecycle.py` carries real behavioral risk — 27 catch-alls in the recording hot path make a failure in any stage indistinguishable in logs from every other (undercuts C-LOG-1's diagnostic-value rule).
-**Fix:** Create-first (E1): add the new focused modules complete + green, keep re-exports so existing import paths resolve, THEN trim the original. Never delete before the replacement exists. Narrow a broad `except Exception` only where its intended behavior is already pinned by a test — do NOT blanket-convert (E13: fixing blind changes behavior).
-**Related Files:** the four files above + `tests/test_hotkeys*.py`, `tests/test_recorder_*.py`, `tests/test_worker_*.py`
-**Success:** no file >500 lines; full suite green; the `except Exception` count drops with each narrowed handler traceable to a test.
-**Implementation Difficulty:** 🟠 Medium
-**Severity:** 🟡 Medium
-**Priority:** P2
+### AUD-14a — Four largest god files (DONE: all 4 shipped in Wave 9, reviewer-verified green)
+**Status:** DONE. `hotkey_dispatcher.py` 1215→190, `service/model/_downloads.py` 1055→407, `recording_lifecycle.py` 1141→478, `worker/_ws_server.py` 953→154 (+18 focused siblings, all <500) + `tests/test_module_split_reexports_wave9.py` + mixin-registry entries; except-counts exact (no narrowing); mypy 628→598 with zero wave-attributable errors; collect-only 17339, 0 errors.
 
 ---
 
