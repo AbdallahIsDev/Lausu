@@ -326,7 +326,14 @@ dependencies = [
     # upper cap, that API has been stable across every major since.
     # The module degrades to plaintext if the import fails, but it is
     # a base dependency so a normal install always provides it.
-    "cryptography>=42",
+    # PLATFORM SPLIT (2026-10-11): upstream removed macOS x86_64 wheels
+    # in 49.0.0 (arm64-only since), so an Intel-Mac pip install would
+    # compile from source (needs Rust + OpenSSL for the target) and die.
+    # Intel Macs stay on 48.0.1, the last release with an x86_64 wheel;
+    # the 49.0.0 advisories affect <=48.0.0, so 48.0.1 is outside their
+    # range. Revisit if upstream restores x86_64 wheels.
+    "cryptography>=42; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "cryptography>=48.0.1,<49; sys_platform == 'darwin' and platform_machine == 'x86_64'",
 ]
 
 [project.urls]
