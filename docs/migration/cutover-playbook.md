@@ -126,6 +126,11 @@ for that version:
 
 ## Cutover procedure (per platform)
 
+> **HISTORICAL — DO NOT EXECUTE.** Cutover completed 2026-09-17 on all
+> platforms. The steps below are the record of what was run, not a
+> procedure to re-apply: the previous-host source, the legacy builder
+> config, and the previous-host packaging targets they reference are gone.
+
 > **One platform at a time.** Do NOT cut over multiple platforms in the
 > same release. Each platform's cutover is its own release.
 
@@ -149,7 +154,7 @@ For the platform being cut over, in the same release tag (`v<version>`):
      sub-agents #5/#6/#7).
    - Change `if: false` → `if: true` (or remove the guard).
    - This makes the per-platform workflow run on tag push automatically.
-2. **Disable the legacy packaging target for that platform (HISTORICAL).**
+2. **Disable the legacy packaging target for that platform (HISTORICAL — DO NOT EXECUTE).**
     - File: the legacy client builder config (removed 2026-09-17; Tauri
       `tauri.conf.json` + `tauri-*-build.yml` are the only pipeline now).
     - Comment out the platform's `target:` entries (e.g., on Windows
@@ -179,13 +184,17 @@ For the platform being cut over, in the same release tag (`v<version>`):
 
 ## Rollback procedure (per platform)
 
+> **HISTORICAL — DO NOT EXECUTE.** There is no previous-host fallback to
+> roll back to (removed 2026-09-17). Rollback today means shipping a new
+> Tauri release, not re-enabling a legacy target.
+
 > **Rollback is per-platform.** Rolling back Windows does NOT roll back
 > macOS or Linux. The predecessor code path stays intact on every platform
 > until that platform has been stable on Tauri for ≥ 1 release cycle.
 
 ### To roll back a platform that was just cut over:
 
-1. **Re-enable the legacy packaging target for that platform (HISTORICAL).**
+1. **Re-enable the legacy packaging target for that platform (HISTORICAL — DO NOT EXECUTE).**
     - File: the legacy client builder config (removed 2026-09-17).
     - Uncomment the platform's `target:` entries commented out in Step 2.2.
 2. **Disable the per-platform Tauri workflow's top-level `if:` guard.**
@@ -241,9 +250,14 @@ platform has been stable on Tauri for ≥ 1 release cycle.
 
 ## Mixed-mode period
 
+> **HISTORICAL — DO NOT EXECUTE.** There is no mixed mode: every
+> supported platform ships Tauri only. The triage below applied while
+> some users were still on the previous host.
+
 During the transition, **some users are on predecessor and some on Tauri**
-for the same platform. This is expected and supported. Both builds read
-+ write the same data dir, so users can switch between them freely.
+for the same platform. This was expected and supported (HISTORICAL: the
+transition is over; both builds read + wrote the same data dir, so users
+could switch between them freely).
 
 ### How to tell which build a user is on
 
@@ -321,7 +335,8 @@ Track every cutover (and rollback) in this section. Format:
 - YYYY-MM-DD  v<version>  <platform>  ROLLED BACK  reason: <issue link>
 ```
 
-(Empty until the first platform cuts over.)
+(Cutover completed 2026-09-17; entries below are the historical record.
+No new entries: there is nothing left to cut over.)
 
 ---
 
@@ -332,7 +347,7 @@ Track every cutover (and rollback) in this section. Format:
 - [`signing-guide.md`](./signing-guide.md): Windows Authenticode, macOS
   Developer ID + notarization + stapling, Linux unsigned + the
   no-auto-update audit (ADR-0020 §13 + §15).
-- [`tauri-sidecar-bridge.md`](./tauri-sidecar-bridge.md): the 63-command
-  + 24-event wire contract (ADR-0020 §2 + §"Sidecar→UI Event Table").
+- [`tauri-sidecar-bridge.md`](./tauri-sidecar-bridge.md): the 85-command
+  + 51-event wire contract (ADR-0020 §2 + §"Sidecar→UI Event Table").
 - [`../adr/0020-desktop-runtime-migration-analysis.md`](../adr/0020-desktop-runtime-migration-analysis.md)
  The authoritative migration spec (Phase 5 + §"Reversibility").

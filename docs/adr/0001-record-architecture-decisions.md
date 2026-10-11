@@ -4,6 +4,13 @@
 
 Accepted
 
+> **Scope note (2026-10-11):** the ADR *process* (Decision section) is live
+> and unchanged. The host-background framing in Context (predecessor/React
+> shell) is superseded by ADR-0020 — predecessor was removed 2026-09-17 and
+> Tauri v2 + Python sidecar is the sole host. Read "predecessor/React
+> frontend" above as the historical shell; the record-keeping decision
+> itself is unaffected.
+
 ## Context
 
 We need to record the architectural decisions made on this project so that

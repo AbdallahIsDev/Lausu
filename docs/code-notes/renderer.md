@@ -35,7 +35,7 @@ Models-page download progress slice. Single `useState<DownloadState>` + patch on
 
 ## tauri-bridge
 
-Public entry: named exports only — install side effect lives in `install.ts` (`main.tsx` / `bubble-main.tsx` import it). `window.python.call` / `onEvent` contract is identical on Tauri and predecessor paths. Error-envelope checks in `usePython` are predecessor-only in practice (Tauri rejects on error before JS sees data).
+Public entry: named exports only — install side effect lives in `install.ts` (`main.tsx` / `bubble-main.tsx` import it). `window.python.call` / `onEvent` contract is Tauri-only (the predecessor path was removed 2026-09-17; the bridge's predecessor-mode early-return is a dead fallback, not a live path). Error-envelope checks in `usePython` are unreachable dead code on Tauri (the Rust host rejects on error before JS sees data); they remain in source as harmless no-ops.
 
 ## bubble-namespace / SEC-026
 

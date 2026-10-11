@@ -1,6 +1,6 @@
 # Error Envelope Contract
 
-Lausu uses **one unified error-envelope contract on both IPC transports** (TCP loopback for the predecessor host, localhost WebSocket for the Tauri host). The unification was finalized in CR-20 (2026-07-18), earlier drafts documented a per-transport split, but that split no longer exists.
+Lausu uses **one unified error-envelope contract on every IPC transport** (localhost WebSocket for the Tauri host; the legacy TCP-loopback transport was removed with the predecessor host). The unification was finalized in CR-20 (2026-07-18), earlier drafts documented a per-transport split, but that split no longer exists.
 
 > **Canonical form (PI-22):** the table at the [Registered Codes](#server-originated-errors-5xx-analog--server) section below is the single source of truth for every `code` value the server emits. The namespaced `client.*` / `server.*` form is canonical; the legacy non-namespaced aliases (e.g. `internal_error`, `rate_limited`, `invalid_payload`) are DEPRECATED and retained only for one-release backward compatibility. New emitters MUST use the namespaced form. The `legacy_code` field on the wire is a transitional alias emitted alongside the canonical `code` for `client.invalid_payload` / `client.invalid_field` / `client.missing_field` / `client.rate_limited` (per PI-23); it will be dropped once the renderer migration completes.
 
@@ -20,19 +20,19 @@ Optionally, on the request/response channel (channel 1), the envelope may also c
 
 The `id` field is omitted when the error pre-dates request parsing (e.g. malformed JSON, missing `type` field) or when the request itself did not carry an `id`.
 
-## Both paths are generic
+## All transports are generic
 
-There is **no** per-transport divergence. Both the TCP path (`ipc/transport_tcp.py:_handle_tcp_connection` on `TCPTransportMixin`, inherited by `IPCServer`) and the WS path (`sidecar_ws.py:_handle_connection`) emit the same generic envelope for unhandled exceptions:
+There is **no** per-transport divergence. The WS path (`sidecar_ws.py:_handle_connection`) emits the same generic envelope for unhandled exceptions (the retired TCP path, `ipc/transport_tcp.py`, emitted the identical envelope before its removal):
 
 ```json
 {"type": "error", "data": {"code": "server.internal_error", "message": "internal error"}}
 ```
 
-The exception's `str(exc)` is deliberately NOT leaked into the `message` field: the full traceback is logged server-side at ERROR with `exc_info=True`, but only the generic `"internal error"` string reaches the wire. This is true on BOTH transports; there is no "TCP returns detailed messages, WS is production" split anymore.
+The exception's `str(exc)` is deliberately NOT leaked into the `message` field: the full traceback is logged server-side at ERROR with `exc_info=True`, but only the generic `"internal error"` string reaches the wire.
 
 ## The `code` field
 
-The `code` field is the machine-readable error identifier that the renderer (and the Tauri Rust host) switches on. The canonical registry is `ERROR_CODES` in `voice_typer/server/ipc/validation.py` That frozenset is the single source of truth, and `tests/test_error_codes_registry.py` is the contract test that asserts every `"code": "..."` literal emitted by the server is either registered there or is a documented legacy alias.
+The `code` field is the machine-readable error identifier that the renderer (and the Tauri Rust host) switches on. The canonical registry is `ERROR_CODES` in `voice_typer/server/ipc/error_codes.py` That frozenset is the single source of truth (re-exported through `voice_typer/server/ipc/validation.py` for existing import paths), and `tests/test_error_codes_registry.py` is the contract test that asserts every `"code": "..."` literal emitted by the server is either registered there or is a documented legacy alias.
 
 The registered codes (as of the CR-20 unification):
 
@@ -56,7 +56,7 @@ The server could not process a well-formed request. The renderer surfaces a gene
 | Code | Meaning |
 |---|---|
 | `server.internal_error` | Unhandled exception inside the dispatch loop. Message is the generic `"internal error"`. |
-| `server.handler_error` | A handler-level `except Exception` catch-all fired (the `_error_response` helper in `validation.py` stamps this code so handler exceptions get the same envelope shape as validation errors). |
+| `server.handler_error` | A handler-level `except Exception` catch-all fired (the `_error_response` helper in `error_envelope.py` stamps this code so handler exceptions get the same envelope shape as validation errors). |
 | `server.file_locked` | A file the server needs to read/write is locked by another process. |
 | `server.model_switch_failed` | The model-switch handler could not switch to the requested model. |
 | `server.shutting_down` | The server is mid-shutdown and refusing new work. |
@@ -87,12 +87,12 @@ The renderer MUST accept both forms and treat the legacy form as an alias for th
 
 ## Per-command validation errors
 
-Both transports return the SAME per-command validation error envelopes (e.g. `{"code": "client.invalid_payload", "message": "payload too large (N bytes; max M)"}` from `_validate_dict_payload`'s `max_payload_bytes` rule, or `{"code": "client.invalid_field", "message": "..."}` from a type-mismatch). These are explicit error codes the renderer can switch on, and they are produced identically on both transports because the WS path reuses `IPCServer._dispatch` (and therefore the same `_validate_dict_payload` helper) verbatim.
+Both transports return the SAME per-command validation error envelopes (e.g. `{"code": "client.invalid_payload", "message": "payload too large (N bytes; max M)"}` from `_validate_dict_payload`'s `max_payload_bytes` rule, or `{"code": "client.invalid_field", "message": "..."}` from a type-mismatch). These are explicit error codes the renderer can switch on, and they are produced identically on every transport because the WS path reuses `IPCServer._dispatch` (and therefore the same `_validate_dict_payload` helper) verbatim.
 
 ## Wire-side behavior
 
-- **TCP path (predecessor host)**, `ipc/transport_tcp.py:_handle_tcp_connection` (on `TCPTransportMixin`, inherited by `IPCServer`)'s ERR-018 block constructs the `{"type": "error", "data": {"code": "server.internal_error", "message": "internal error"}}` envelope for any unhandled dispatch exception, attaches the originating request `id` if available, and sends it back on the same socket. Validation errors from `_validate_dict_payload` are returned by the handler itself and flow back through the same `_send` path. Rate-limit rejections and invalid-JSON errors emit the namespaced `client.rate_limited` / `client.invalid_payload` codes with a transitional `legacy_code` alias (PI-23).
-- **WS path (Tauri host)**, `sidecar_ws._handle_connection` reuses `IPCServer._dispatch` for inbound frames, so validation errors come back verbatim. For dispatch-loop exceptions, the WS path's catch-all (see the IPC-5 / 2026-07-18 reconciliation comment in `sidecar_ws.py`) returns the **same** `{"type": "error", "data": {"code": "server.internal_error", "message": "internal error"}}` envelope as the TCP path, same `code`, same `message`, no leakage of `str(exception)`. The two paths are byte-identical on the wire (modulo the optional `id` correlation field).
+- **WS path (Tauri host)**, `sidecar_ws._handle_connection` reuses `IPCServer._dispatch` for inbound frames, so validation errors come back verbatim. For dispatch-loop exceptions, the WS path's catch-all (see the IPC-5 / 2026-07-18 reconciliation comment in `sidecar_ws.py`) returns the **same** `{"type": "error", "data": {"code": "server.internal_error", "message": "internal error"}}` envelope as the retired TCP path emitted, same `code`, same `message`, no leakage of `str(exception)`. (The TCP wire behavior below is retained as history; `ipc/transport_tcp.py` no longer exists.)
+- **TCP path (retired predecessor host)**, `ipc/transport_tcp.py:_handle_tcp_connection` (on `TCPTransportMixin`, inherited by `IPCServer`)'s ERR-018 block constructed the `{"type": "error", "data": {"code": "server.internal_error", "message": "internal error"}}` envelope for any unhandled dispatch exception, attached the originating request `id` if available, and sent it back on the same socket. Validation errors from `_validate_dict_payload` were returned by the handler itself and flowed back through the same `_send` path. Rate-limit rejections and invalid-JSON errors emitted the namespaced `client.rate_limited` / `client.invalid_payload` codes with a transitional `legacy_code` alias (PI-23).
 
 ## Client-side handling
 

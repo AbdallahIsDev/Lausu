@@ -37,6 +37,13 @@
 > is a local IPC), C-STYLE-1 (no task-ID references inside the document
 > body; the filename uses the task ID only as an external design-doc
 > reference tag, sanctioned by the task brief).
+>
+> **Reading guide (2026-10-11):** §§1–15 are the design-gate SKETCH
+> (historical — includes the `text_enc BLOB` + column-swap plan and the
+> phased-rollout roadmap); §16 "Implementation notes" is the SHIPPED
+> record and wins wherever they differ (per-row `text_is_encrypted`
+> flag, no new column, no swap, DDL-only v4, §16.3 key-loss policy).
+> Bodies kept verbatim.
 
 ## 1. Context
 

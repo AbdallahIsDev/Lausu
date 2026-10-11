@@ -119,8 +119,8 @@ tokens. If a 5-token phrase gets duplicated (e.g. "I want to do this
   - Trade-off: you lose the streaming UX win (no partial-transcription
     feedback during recording) and the first-word latency goes up
     slightly (no warm window). For most users this is acceptable.
-- **Switch to a larger model** (e.g. `medium.en` or `large-v3`), the
-  timestamp drift is most pronounced on `tiny`/`base`/`small` models.
+- **Switch to a larger model** (e.g. `large-v3-turbo` or `large-v3`), the
+  timestamp drift is most pronounced on `tiny` (the smallest catalog model).
   Larger models produce more stable timestamps, which narrows the
   drift band below the 0.25 s near-duplicate threshold.
 - **Reduce background noise**: Whisper's VAD splits more aggressively

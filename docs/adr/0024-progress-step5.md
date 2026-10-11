@@ -1,5 +1,12 @@
 # ADR-0024 Steps 5–7 prep — progress record
 
+> **STATUS (2026-10-11): SUPERSEDED SNAPSHOT.** This file is a 2026-09-26
+> point-in-time record (Step 5 verified, Step-6 harness delivered/unrun,
+> Step 7 prep-only). All three states have since moved on and the parent
+> `0024-runtime-pack-worker-handoff.md` holds the verified record (Step 6
+> signed off, C7 landed, Step 8 shipped). Do not act on the checkboxes
+> below; kept for the audit trail only.
+
 > The parent file `docs/adr/0024-runtime-pack-worker-handoff.md` was
 > present at slice start (read 2026-09-26, 64 lines) but is absent from
 > the tree at write time (untracked input, removed by another actor —

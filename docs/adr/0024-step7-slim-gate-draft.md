@@ -1,5 +1,13 @@
 # ADR-0024 Step 7 - slim-build gate
 
+> **STATUS (2026-10-11): SUPERSEDED DRAFT.** The ownership decision
+> (VAD + GTCRN stay, only ASR libs move) and the ML-import ratchet gate
+> below LANDED (wired into `tauri-windows-build.yml`); the remaining
+> "still NOT applied" items were completed by ADR-0025 C7 (engine move +
+> Nuitka ASR exclusions, 2026-09-27). The "45 MB NSIS informational gate"
+> below is superseded by ADR-0026 — the target is **80 MB**. Kept for the
+> ownership-decision trail only.
+
 > **PARTIALLY APPLIED 2026-09-26.** Step 6 is signed off (real host), so the
 > "DO NOT APPLY" hold is lifted. What landed: the ownership decision below +
 > the ML-import ratchet gate (`scripts/slim_core_ml_ratchet_check.py` +

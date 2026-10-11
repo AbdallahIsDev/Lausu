@@ -2,6 +2,8 @@
 
 This directory contains short dedicated doc pages for modules introduced during the RW-9 god-class decomposition and the ADR-0020 desktop runtime migration. Each page covers the module's responsibility, entry points, and IPC surface.
 
+Scope guard: this index covers ONLY the five modules tabled below. Broader subsystem notes live in `docs/code-notes/` and the architecture docs; do not extend this index into a second catalogue.
+
 ## Modules
 
 | Module | Responsibility |

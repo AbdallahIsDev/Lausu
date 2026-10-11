@@ -1,5 +1,10 @@
 # ADR-0024 Step 6 — real-machine verification checklist
 
+> **STATUS (2026-10-11): ANNEX to ADR-0024.** This checklist is the Step-6
+> evidence annex of the parent `0024-runtime-pack-worker-handoff.md`
+> (SIGNED OFF 2026-09-26, real Windows host, dev worker). It is not a
+> standalone decision; the parent ADR owns the execution record.
+
 > STATUS: **SIGNED OFF 2026-09-26 (real Windows host, dev worker).**
 > Static preflight (`python scripts/verify_worker_handoff_preflight.py`) 5/5
 > PASS proves the wiring exists; the live harness

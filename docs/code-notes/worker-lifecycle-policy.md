@@ -31,8 +31,10 @@ the live engine needs the Step 6 host run).
 
 - No idle unload exists yet. `should_keep_worker_running` is the hook
   the future "Keep offline engine running" toggle threads through;
-  identity today, so `worker_unloaded` (`event_bus.py:187`) semantics
-  are unchanged.
+  identity today, so `worker_unloaded`
+  (`OFFLINE_PACK_EVENT_TYPES` in
+  `voice_typer/server/service/offline_pack/events.py`) semantics are
+  unchanged.
 
 ## Wire discipline
 

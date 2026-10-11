@@ -8,8 +8,8 @@
 >   Kept in sync with the actual class signatures by
 >   `tests/test_api_doc_accuracy.py`.
 > - **[`docs/ipc-reference.md`](ipc-reference.md)**: IPC message reference
->   (the 69-command / 36-event surface, 67 renderer-reachable + 2 host-only
->   commands; 36 typed push events, grouped by namespace, with the
+>   (the 85-command / 51-event surface, 81 renderer-reachable + 4 host-only
+>   commands; 51 typed push events, grouped by namespace, with the
 >   four-allowlist contract + per-command notes).
 >
 > New content MUST go in `docs/python-api.md` or `docs/ipc-reference.md`,

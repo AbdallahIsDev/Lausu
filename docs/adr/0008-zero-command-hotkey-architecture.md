@@ -19,6 +19,16 @@
 
 Accepted: all 4 gaps closed (status normalized to the template enum from the prior "Implemented. All 4 gaps closed" inline value).
 
+> **Build-path note (2026-10-11):** the `build.yml` / legacy-builder /
+> PyInstaller packaging refs in §§A/C (e.g. "add the `build-native` matrix
+> job to the existing `.github/workflows/build.yml`", "legacy builder
+> config", `lausu.spec`) are predecessor-era: that pipeline was retired at
+> the ADR-0020 cutover (2026-09-17). The live path is the `tauri-*.yml`
+> workflows + Nuitka sidecar freeze (see ADR-0020 §4). The hotkey design
+> (gaps, fallback chain, permission flows) is unaffected and stays live;
+> only the CI/packaging vehicle changed. Body kept verbatim as the
+> historical record.
+
 **Document version**: 1.0
 **Date**: 2026-06-30
 **Scope**: Closes four identified gaps in the native hotkey architecture

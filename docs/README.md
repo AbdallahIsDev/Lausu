@@ -20,12 +20,12 @@ audiences: [`README.md`](../README.md), [`CONTRIBUTING.md`](../CONTRIBUTING.md),
 |------|---------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | High-level architecture: renderer ↔ Tauri host ↔ Python backend. Start here. |
 | [python-api.md](python-api.md) | Python class API reference (`LausuApp`, `Recorder`, `TranscriptionEngine`, `Config`, etc.). Kept in sync with the code by `tests/test_api_doc_accuracy.py`. |
-| [ipc-reference.md](ipc-reference.md) | IPC message reference: 69 commands (67 renderer-reachable + 2 host-only) + 36 push events grouped by namespace, with the two-allowlist contract (server registry + Rust host) and per-command notes. |
+| [ipc-reference.md](ipc-reference.md) | IPC message reference: 85 commands (81 renderer-reachable + 4 host-only) + 51 push events grouped by namespace, with the two-allowlist contract (server registry + Rust host) and per-command notes. |
 | [API.md](API.md) | **Deprecated.** Retained only for inbound-link compat, see `python-api.md` + `ipc-reference.md` instead. |
 | [debugging.md](debugging.md) | How to read the logs, attach a debugger, and reproduce common failure modes. |
 | [ruff-ratchet.md](ruff-ratchet.md) | How the ruff lint ratchet works (`ruff-baseline.json` + `scripts/ruff_ratchet_check.py`). |
 | [native-hotkey-architecture-plan.md](native-hotkey-architecture-plan.md) | **Historical plan** for the cross-platform native-hotkey rewrite. See ADR-0007 for what shipped. |
-| [auto-update-feature.md](auto-update-feature.md) | Design spec for auto-update (NOT IMPLEMENTED, design-only). |
+| [auto-update-feature.md](auto-update-feature.md) | Runtime-pack auto-update (IMPLEMENTED 2026-08-13; Python-side pack manifest + downloader + `useNetworkOnline` trigger). |
 | [modules/](modules/) | Per-module deep dives: [_index.md](modules/_index.md), [audio_quality_controller.md](modules/audio_quality_controller.md), [sidecar_ws.md](modules/sidecar_ws.md), [shutdown_controller.md](modules/shutdown_controller.md). |
 | [architecture/](architecture/) | Cross-cutting architecture contracts: [error-envelope-contract.md](architecture/error-envelope-contract.md). |
 | [ux/](ux/) | UX rationale notes: [model-delete-rationale.md](ux/model-delete-rationale.md). |
@@ -76,5 +76,5 @@ the top noting whether its action items are still live.
 | [rw04-recording-decomposition.md](history/rw04-recording-decomposition.md) | recording-lifecycle decomposition notes (RecordingController extraction). |
 | [rw8-meta-tests-triage.md](history/rw8-meta-tests-triage.md) | triage of the now-deleted `tests/test_bugfix_regressions.py` meta-tests. Historical; the source file has been removed and the surviving behavioral ports live in `tests/test_bugfix_regressions_behavioral.py`. |
 | [rw9-god-class-decomposition.md](history/rw9-god-class-decomposition.md) | `LausuApp` god-class decomposition tracker (controller extractions, `app.py` line-count history). |
-| [vitest-rewrite-progress.md](vitest-rewrite-progress.md) | vitest rewrite progress tracker for the 87 string-pattern Python tests. Historical; `tests/test_feature_hardening_regressions.py` was deleted post-rewrite. |
+| [vitest-rewrite-progress.md](vitest-rewrite-progress.md) | vitest rewrite progress tracker for the 87 string-pattern Python tests (lives in `docs/`, not `docs/history/`). Historical; `tests/test_feature_hardening_regressions.py` was deleted post-rewrite. |
 | [native-hotkey-architecture-plan.md](native-hotkey-architecture-plan.md) | Historical plan for the cross-platform native-hotkey rewrite. See ADR-0007 for what shipped. |
