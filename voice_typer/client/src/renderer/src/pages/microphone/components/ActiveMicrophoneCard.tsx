@@ -130,7 +130,7 @@ export function ActiveMicrophoneCard({
 					className="h-4 w-4 shrink-0"
 				/>
 				<div className="min-w-0">
-					<p className="text-sm font-semibold text-foreground truncate">
+					<p className="text-sm font-medium text-foreground truncate">
 						{activeMicName}
 					</p>
 					{/* Description only for System Default, its text carries

@@ -114,6 +114,24 @@ export interface CloudProvider {
 	key: "openai" | "groq" | "deepgram" | "gemini";
 	url: string;
 	model: string;
+	/**
+	 * Real-world representative WER (%) for the engine behind this
+	 * provider — the same figure the Local tab shows, so a user can
+	 * compare error rates across BOTH tabs (lower is better). Every
+	 * entry carries its own source note, exactly like
+	 * `voice_typer/server/model_registry.py` does for local models.
+	 *
+	 * The SCALE matters: the local registry's numbers are real-world
+	 * representative averages (Coval's pooled leaderboard puts Whisper
+	 * Large v3 at 5.0%, and the local `large-v3` entry is 5.0), NOT
+	 * LibriSpeech-clean numbers (~2.8% for the same model, which
+	 * understate everyday errors 2-3x). Cloud entries are placed on
+	 * that same scale so Local and Cloud stay comparable.
+	 */
+	wer: number;
+	/** Transcription speed tier (`"fast"` | `"medium"` | `"slow"`),
+	 *  rendered by `SpeedTag` exactly as the local model rows do. */
+	speed_rating: string;
 }
 
 export const CLOUD_PROVIDERS: readonly CloudProvider[] = [
@@ -121,21 +139,52 @@ export const CLOUD_PROVIDERS: readonly CloudProvider[] = [
 		key: "openai",
 		url: "https://api.openai.com/v1/audio/transcriptions",
 		model: "whisper-1",
+		// WER 5.5, DERIVED. `whisper-1` is the Whisper large-v2
+		// generation; Coval's pooled leaderboard (2026-10-11) scores
+		// Whisper Large v3 at 5.0%, and v2 sits ~0.5 behind v3 on the
+		// same corpora — the same generation gap the local registry
+		// applies to large-v3-turbo (5.5). Coval has no whisper-1 row,
+		// so this is a derivation, not a published figure.
+		wer: 5.5,
+		// Batch-only endpoint: no streaming, and the highest wall-clock
+		// latency of the four (docs/cloud-transcription-setup.md).
+		speed_rating: "medium",
 	},
 	{
 		key: "groq",
 		url: "https://api.groq.com/openai/v1/audio/transcriptions",
 		model: "whisper-large-v3",
+		// WER 5.0: Coval pooled "Whisper Large v3" (2026-10-11). Groq
+		// serves the SAME weights as the local `large-v3` entry, so the
+		// two figures agree by construction rather than by coincidence.
+		wer: 5.0,
+		// Groq's LPU is the lowest-latency cloud ASR path (<300 ms for a
+		// short clip).
+		speed_rating: "fast",
 	},
 	{
 		key: "deepgram",
 		url: "https://api.deepgram.com/v1/listen",
 		model: "nova-2",
+		// WER 6.4: Coval pooled "Nova 2" (2026-10-11).
+		wer: 6.4,
+		// Streaming engine, 130 ms p95 time-to-final-segment on the same
+		// leaderboard.
+		speed_rating: "fast",
 	},
 	{
 		key: "gemini",
 		url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
 		model: "gemini-2.0-flash",
+		// WER 9.5, DERIVED. Gemini 2.0 Flash is a general-purpose
+		// multimodal model used as an ASR fallback, not a dedicated
+		// transcription engine, and no pooled real-world benchmark
+		// covers it. Coval has no Flash-tier row either; the Gemini
+		// family's Pro tier measures 8.7% on noisy real-world audio
+		// (CodeSOTA, Feb-Mar 2026), and the smaller Flash tier trails
+		// it. Treated as a representative figure, not a published one.
+		wer: 9.5,
+		speed_rating: "fast",
 	},
 ] as const;
 

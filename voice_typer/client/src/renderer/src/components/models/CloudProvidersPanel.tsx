@@ -12,6 +12,7 @@ import { memo, useState } from "react";
 import { KeyringStatusBadge } from "@/components/common/KeyringStatusBadge";
 import { FamilyLogo } from "@/components/models/FamilyLogo";
 import {
+	MetadataPair,
 	ModelGroupAccordion,
 	ModelGroupContent,
 	ModelGroupItem,
@@ -19,10 +20,16 @@ import {
 	ModelVariantRow,
 } from "@/components/models/ModelGroupList";
 import {
-	CloudTag,
 	LanguageScopeTag,
+	SpeedTag,
 } from "@/components/models/ModelMetaIconTags";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { consentKeyFor } from "@/hooks/models/useCloudProviders";
@@ -32,6 +39,7 @@ import { cn } from "@/lib/utils";
 import {
 	type CloudProvider,
 	formatModelDisplayName,
+	formatWer,
 	getProviderLabel,
 } from "@/lib/utils/models";
 import type { LausuConfig } from "@/types/config";
@@ -71,17 +79,14 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 	onConsentChange,
 	onClearTestResult,
 }: CloudProvidersPanelProps) {
-	// Which providers' API-key forms are currently revealed (via their
-	// "Configure" action). A SET so multiple provider forms can be open
-	// at once, matching the accordion's `type="multiple"` behavior.
+	// Which provider's setup dialog is open. A SINGLE key, not a set:
+	// the setup form is a modal (2026-10-11), and a modal is exclusive
+	// by construction — the overlay blocks every other provider's
+	// Configure button, so at most one form can ever be open.
 	// Purely local UI state.
-	const [configuredProviders, setConfiguredProviders] = useState<string[]>([]);
-
-	const toggleConfigured = (key: string) => {
-		setConfiguredProviders((prev) =>
-			prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
-		);
-	};
+	const [configuredProvider, setConfiguredProvider] = useState<string | null>(
+		null,
+	);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -90,7 +95,7 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 			</p>
 			<ModelGroupAccordion type="multiple">
 				{cloudProviders.map((provider) => {
-					const isConfigured = configuredProviders.includes(provider.key);
+					const isConfigured = configuredProvider === provider.key;
 					return (
 						<ModelGroupItem key={provider.key} value={provider.key}>
 							<ModelGroupTrigger>
@@ -107,46 +112,87 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 							</ModelGroupTrigger>
 							<ModelGroupContent>
 								{/* One list row per provider: the API model
-                                                                    name + icon-only metadata chips + the Configure
-                                                                    action (point 11). */}
+                                                                    name, the accuracy pair, the icon-only metadata
+                                                                    chips and the Configure action. */}
 								<ModelVariantRow
 									name={formatModelDisplayName(provider.model)}
 									meta={
-										<span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
-											<CloudTag />
-											<LanguageScopeTag multilingual />
-										</span>
+										<>
+											{/* WER, the same figure the Local tab shows.
+											    Without it the Cloud rows gave the user no
+											    way to judge accuracy at all, which is the
+											    one number they pick a model by. */}
+											<MetadataPair
+												label={t("models.card.werLabel")}
+												value={formatWer(provider.wer)}
+											/>
+											{/* Same two-group structure as the Local rows
+											    (C-MODELS-2): the information group is the
+											    WER pair above (spaced `gap-x-3` by
+											    `ModelVariantRow`), and this span is the
+											    chip group at the tighter `gap-x-1.5`.
+											    The cloud chip that used to open this group
+											    is gone: every row on THIS tab is a cloud
+											    model, so a cloud glyph with a "Cloud"
+											    tooltip restated the tab. The speed chip
+											    takes its place — that is the fact the user
+											    cannot read off the tab. */}
+											<span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
+												<LanguageScopeTag multilingual />
+												<SpeedTag rating={provider.speed_rating} />
+											</span>
+										</>
 									}
 									actions={
 										<Button
 											variant="outline"
 											size="sm"
 											className="gap-2"
-											onClick={() => toggleConfigured(provider.key)}
-											aria-expanded={isConfigured}
-											aria-label={
-												isConfigured
-													? t("models.cloud.hideConfigureAria", {
-															provider: getProviderLabel(provider.key),
-														})
-													: t("models.cloud.configureAria", {
-															provider: getProviderLabel(provider.key),
-														})
-											}
+											onClick={() => setConfiguredProvider(provider.key)}
+											// A MODAL trigger, not a disclosure: the setup
+											// form opens in a dialog, so the button
+											// advertises `aria-haspopup="dialog"` and
+											// carries neither `aria-expanded` (nothing
+											// expands in place) nor a "Hide" label — the
+											// dialog owns its own close affordances.
+											aria-haspopup="dialog"
+											aria-label={t("models.cloud.configureAria", {
+												provider: getProviderLabel(provider.key),
+											})}
 										>
 											<HugeiconsIcon
 												icon={Settings01Icon}
 												strokeWidth={2}
 												className="h-4 w-4"
 											/>
-											{isConfigured
-												? t("models.cloud.hideConfigure")
-												: t("models.cloud.configure")}
+											{t("models.cloud.configure")}
 										</Button>
 									}
 								/>
-								{isConfigured && (
-									<div className="p-4">
+								<Dialog
+									open={isConfigured}
+									onOpenChange={(open) => {
+										// Escape, an overlay click and the X all land
+										// here with `false`. Only clear THIS
+										// provider's key so a late event from an
+										// already-closed dialog cannot wipe a newly
+										// opened one.
+										if (!open) {
+											setConfiguredProvider((current) =>
+												current === provider.key ? null : current,
+											);
+										}
+									}}
+								>
+									{/* Title = the provider name. The form below
+									    carries its own labelled fields, so no
+									    separate description is needed. */}
+									<DialogContent size="lg">
+										<DialogHeader>
+											<DialogTitle>
+												{getProviderLabel(provider.key)}
+											</DialogTitle>
+										</DialogHeader>
 										<ProviderConfigForm
 											provider={provider}
 											config={config}
@@ -165,8 +211,8 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 												onConsentChange(provider.key, granted)
 											}
 										/>
-									</div>
-								)}
+									</DialogContent>
+								</Dialog>
 							</ModelGroupContent>
 						</ModelGroupItem>
 					);
@@ -177,7 +223,10 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 });
 
 // ── Sub-component: API-key entry + test + consent form ────────────────
-// provider card), triggered by the Configure action.
+// Rendered INSIDE the provider's setup dialog (`DialogContent`), opened
+// by that row's Configure action. It deliberately carries no card
+// surface of its own: the dialog already provides the raised panel, so
+// a second border + fill here would read as a card inside a card.
 
 interface ProviderConfigFormProps {
 	provider: CloudProvider;
@@ -222,7 +271,7 @@ function ProviderConfigForm({
 	const saveDisabled = !apiKeyValue.trim();
 
 	return (
-		<div className="flex flex-col gap-4 rounded-lg border border-border/8 bg-surface p-4">
+		<div className="flex flex-col gap-4">
 			<div className="flex flex-col gap-2">
 				<div className="flex items-center gap-2">
 					<label
@@ -351,7 +400,7 @@ function ProviderConfigForm({
 					<div className="flex items-start justify-between gap-4">
 						<div className="flex flex-1 flex-col gap-2">
 							<div className="flex flex-col gap-1">
-								<h4 className="text-sm font-semibold text-foreground">
+								<h4 className="text-sm font-medium text-foreground">
 									{t("models.cloud.consentTitle")}
 								</h4>
 								<p className="text-xs leading-relaxed text-muted-foreground">

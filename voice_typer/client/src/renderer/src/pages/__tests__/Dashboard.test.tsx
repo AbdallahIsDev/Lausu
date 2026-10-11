@@ -586,7 +586,7 @@ describe("Analytics polish: stat-card spacing, sublabel pruning, header chrome",
 			"utf8",
 		);
 		expect(statCardSrc).toMatch(/mt-auto flex items-baseline justify-between/);
-		expect(statCardSrc).toMatch(/text-2xl font-semibold/);
+		expect(statCardSrc).toMatch(/text-2xl font-medium/);
 		// POLISH round 2: the cell carries a minimum height so the
 		// auto-top-margin actually has room to spread (a cell only as
 		// tall as its content leaves no breathing space).

@@ -66,7 +66,7 @@ export function MicrophoneListItem({
 						// label names the sentinel selection row; this badge
 						// only marks "this device is the OS default" (C-UI-2:
 						// one meaning per label).
-						<span className="shrink-0 inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-accent-foreground">
+						<span className="shrink-0 inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-[11px] font-medium text-accent-foreground">
 							{t("microphone.osDefaultBadge")}
 						</span>
 					)}

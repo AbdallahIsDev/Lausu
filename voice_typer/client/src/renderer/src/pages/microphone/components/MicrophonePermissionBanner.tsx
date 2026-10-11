@@ -61,7 +61,7 @@ export function MicrophonePermissionBanner({
 					className="h-4 w-4 shrink-0 mt-0.5 text-destructive"
 				/>
 				<div className="flex-1 flex flex-col gap-1">
-					<p className="text-sm font-semibold text-destructive">
+					<p className="text-sm font-medium text-destructive">
 						{t("microphone.permissionDeniedTitle")}
 					</p>
 					<p className="text-xs text-foreground">{message}</p>

@@ -49,7 +49,7 @@ export function PluginCard({ plugin, onOpen }: PluginCardProps) {
 			<span
 				aria-hidden="true"
 				className={cn(
-					"flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-foreground",
+					"flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium text-foreground",
 					!iconSrc && "border border-border/8 bg-surface",
 				)}
 			>

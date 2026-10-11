@@ -175,7 +175,7 @@ const ActivityListRow = memo(function ActivityListRow({
 						data-testid={expandable ? "activity-row-text-toggle" : undefined}
 						onClick={expandable ? () => void toggleExpanded() : undefined}
 						onKeyDown={expandable ? handleTextKeyDown : undefined}
-						className={`rounded-lg transition-colors ${
+						className={`transition-colors ${
 							expandable
 								? "cursor-pointer focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
 								: ""
@@ -360,15 +360,13 @@ function ActivityListInner({
 			<div className="flex w-full flex-col gap-2 [text-wrap:auto]">
 				{!hideHeader && (
 					<div className="flex items-center justify-between w-full">
-						<span className="text-xs font-semibold text-foreground">
-							{title}
-						</span>
+						<span className="text-xs font-medium text-foreground">{title}</span>
 						{showViewAll && onViewAll && (
 							<Button
 								onClick={onViewAll}
 								variant="link"
 								size="xs"
-								className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+								className="text-xs font-medium text-muted-foreground hover:text-foreground"
 							>
 								{t("activityList.viewAll")}
 							</Button>
@@ -395,13 +393,13 @@ function ActivityListInner({
 		<div className="flex w-full flex-col gap-2 [text-wrap:auto]">
 			{!hideHeader && (
 				<div className="flex items-center justify-between w-full">
-					<span className="text-xs font-semibold text-foreground">{title}</span>
+					<span className="text-xs font-medium text-foreground">{title}</span>
 					{showViewAll && onViewAll && (
 						<Button
 							onClick={onViewAll}
 							variant="link"
 							size="xs"
-							className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+							className="text-xs font-medium text-muted-foreground hover:text-foreground"
 						>
 							{t("activityList.viewAll")}
 						</Button>

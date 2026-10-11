@@ -1,10 +1,21 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CloudProvidersPanel } from "@/components/models/CloudProvidersPanel";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { ApiTestResult } from "@/hooks/useModelLifecycle";
-import type { CloudProvider } from "@/lib/utils/models";
+import {
+	CLOUD_PROVIDERS,
+	type CloudProvider,
+	formatModelSpeed,
+	formatWer,
+} from "@/lib/utils/models";
 import type { LausuConfig } from "@/types/config";
 
 // Mock the HugeiconsIcon wrapper so the test doesn't depend on the SVG
@@ -67,11 +78,17 @@ function renderPanel(ui: React.ReactElement) {
 
 const noop = vi.fn();
 
-const openaiProvider: CloudProvider = {
-	key: "openai",
-	url: "https://api.openai.com/v1/audio/transcriptions",
-	model: "whisper-1",
-};
+/** Look the real provider up instead of hand-building a fixture: the
+ *  panel renders `wer` / `speed_rating` straight off the entry, so a
+ *  fixture copy would let the shipped figures drift out from under the
+ *  assertions. */
+function provider(key: CloudProvider["key"]): CloudProvider {
+	const found = CLOUD_PROVIDERS.find((p) => p.key === key);
+	if (!found) throw new Error(`no CLOUD_PROVIDERS entry for ${key}`);
+	return found;
+}
+
+const openaiProvider = provider("openai");
 
 const baseConfig = {
 	cloud_openai_consent: false,
@@ -114,29 +131,14 @@ describe("CloudProvidersPanel, provider brand logos + collapsible groups", () =>
 	afterEach(() => cleanup());
 
 	it("renders the brand logo for openai and deepgram; groq keeps the shield fallback", () => {
-		const groqProvider: CloudProvider = {
-			key: "groq",
-			url: "https://api.groq.com/openai/v1/audio/transcriptions",
-			model: "whisper-large-v3",
-		};
-		const deepgramProvider: CloudProvider = {
-			key: "deepgram",
-			url: "https://api.deepgram.com/v1/listen",
-			model: "nova-2",
-		};
-		const geminiProvider: CloudProvider = {
-			key: "gemini",
-			url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-			model: "gemini-2.0-flash",
-		};
 		const { container } = renderPanel(
 			<CloudProvidersPanel
 				{...baseProps}
 				cloudProviders={[
 					openaiProvider,
-					groqProvider,
-					deepgramProvider,
-					geminiProvider,
+					provider("groq"),
+					provider("deepgram"),
+					provider("gemini"),
 				]}
 			/>,
 		);
@@ -157,7 +159,7 @@ describe("CloudProvidersPanel, provider brand logos + collapsible groups", () =>
 		expect(shields).toHaveLength(1);
 	});
 
-	it("renders each provider as a collapsible group with a Configure action (not an always-open card)", () => {
+	it("renders each provider as a collapsible group whose Configure action opens a setup dialog", () => {
 		renderPanel(<CloudProvidersPanel {...baseProps} />);
 
 		// Group header exists for the provider.
@@ -166,8 +168,10 @@ describe("CloudProvidersPanel, provider brand logos + collapsible groups", () =>
 		).toBeInTheDocument();
 
 		// The API-key form is NOT visible until Configure is clicked
-		// (point 11, no permanently-visible API-key card).
+		// (point 11, no permanently-visible API-key card), and there is
+		// no dialog in the tree yet either.
 		expect(screen.queryByTestId("api-key-input")).toBeNull();
+		expect(screen.queryByRole("dialog")).toBeNull();
 		expect(
 			screen.queryByRole("button", {
 				name: /Save OpenAI Whisper API API key/i,
@@ -176,32 +180,57 @@ describe("CloudProvidersPanel, provider brand logos + collapsible groups", () =>
 
 		// Expanding the group reveals the model row + Configure action.
 		expandProviderGroup("OpenAI Whisper API");
-		expect(
-			screen.getByRole("button", {
-				name: /Configure OpenAI Whisper API/i,
-			}),
-		).toBeInTheDocument();
+		const configure = screen.getByRole("button", {
+			name: /Configure OpenAI Whisper API/i,
+		});
+		// A MODAL trigger, not a disclosure: `aria-haspopup="dialog"` and
+		// no `aria-expanded` (nothing expands in place) and no label flip.
+		expect(configure).toHaveAttribute("aria-haspopup", "dialog");
+		expect(configure).not.toHaveAttribute("aria-expanded");
 		// The API model name renders as a display-formatted heading.
 		expect(
 			screen.getByRole("heading", { name: "Whisper 1" }),
 		).toBeInTheDocument();
 
-		// Configure reveals the form; the button flips to "Hide".
-		fireEvent.click(
-			screen.getByRole("button", { name: /Configure OpenAI Whisper API/i }),
-		);
+		// Configure opens the setup dialog, titled with the provider.
+		fireEvent.click(configure);
+		const dialog = screen.getByRole("dialog");
+		expect(dialog).toHaveAccessibleName("OpenAI Whisper API");
 		expect(screen.getByTestId("api-key-input")).toBeInTheDocument();
-		expect(
-			screen.getByRole("button", { name: /Hide OpenAI Whisper API setup/i }),
-		).toBeInTheDocument();
+		// The Configure button keeps its label — the dialog owns the
+		// close affordances (X / Escape / overlay).
+		expect(configure).toHaveTextContent("Configure");
 	});
 
-	it("renders the model row metadata as icon-only chips (no text pills)", () => {
+	it("closes the setup dialog on Escape and unmounts the form", async () => {
+		renderPanel(<CloudProvidersPanel {...baseProps} />);
+		openApiKeyForm();
+		expect(screen.getByTestId("api-key-input")).toBeInTheDocument();
+
+		fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+		await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+		expect(screen.queryByTestId("api-key-input")).toBeNull();
+	});
+
+	it("renders the model row metadata as a WER pair + icon-only chips (no text pills)", () => {
 		renderPanel(<CloudProvidersPanel {...baseProps} />);
 		expandProviderGroup("OpenAI Whisper API");
-		// Cloud-hosted + multilingual are icon-only buttons; their meaning
+		// WER renders as a label+value pair, exactly like the Local rows,
+		// so accuracy is comparable across both tabs.
+		expect(screen.getByText("WER")).toBeInTheDocument();
+		expect(
+			screen.getByText(`: ${formatWer(openaiProvider.wer)}`),
+		).toBeInTheDocument();
+		// Speed + multilingual are icon-only buttons; their meaning
 		// lives in the accessible name + tooltip, never as visible text.
-		expect(screen.getByRole("button", { name: "Cloud" })).toBeInTheDocument();
+		// The SPEED chip replaced the old cloud chip: on the Cloud tab
+		// every row is a cloud model, so "Cloud" restated the tab.
+		expect(
+			screen.getByRole("button", {
+				name: `${formatModelSpeed(openaiProvider.speed_rating)} Speed`,
+			}),
+		).toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: "Cloud" })).toBeNull();
 		expect(
 			screen.getByRole("button", { name: "Multilingual" }),
 		).toBeInTheDocument();
