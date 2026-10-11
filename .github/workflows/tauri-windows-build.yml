@@ -462,11 +462,17 @@ jobs:
 
   tauri-windows-build:
     # JOB SPLIT (2026-09-29): this job no longer freezes anything itself.
-    # It downloads the sidecar + worker binaries from the build-sidecar-exe
-    # / build-worker-exe jobs (which hold their own 240min budgets in
-    # parallel) and runs native build + gates + Tauri packaging + signing.
+    # It downloads the sidecar binary from the build-sidecar-exe job (which
+    # holds its own 240min budget in parallel) and runs native build +
+    # gates + Tauri packaging + signing.
+    # SP-1 SLIM (2026-10-11): this job builds the SLIM installer (host +
+    # sidecar only, `--config tauri.windows-x86_64-slim.conf.json`). The
+    # worker freeze (build-worker-exe) still runs for the runtime-pack
+    # pipeline, but this job no longer downloads, signs, or bundles it.
+    # `Lausu-Windows-Installer` stays with the SLIM installer (owner
+    # decision); full-offline artifacts use ADDITIVE names only (C-CI-13).
     # MIG-1.5: enabled for manual workflow_dispatch triggers.
-    needs: [build-sidecar-exe, build-worker-exe]
+    needs: [build-sidecar-exe]
     # MIG-1.5 / TX-40: active matrix is x86_64-only (windows-2022). aarch64 stays a
     # commented template (C-CI-4: no public windows-11-arm runner; matrix not in
     # jobs.<id>.if). Default binary names grepped by mig18 signing tests:
@@ -483,7 +489,8 @@ jobs:
           - arch: x86_64
             target: x86_64-pc-windows-msvc
             runner: windows-2022
-            tauri_config: tauri.windows-x86_64.conf.json
+            # SP-1 SLIM: sidecar-only externalBin (no worker in the bundle).
+            tauri_config: tauri.windows-x86_64-slim.conf.json
           # - arch: aarch64
           #   target: aarch64-pc-windows-msvc
           #   runner: windows-11-arm
@@ -575,20 +582,16 @@ jobs:
           uv pip install --system nuitka==2.8.10 zstandard ordered-set
           pip list
 
-      # JOB SPLIT: the Nuitka freezes (sidecar + worker) now run in the
-      # build-sidecar-exe / build-worker-exe jobs; their binaries arrive
-      # via artifacts below. Nothing is compiled in this job anymore.
+      # JOB SPLIT: the Nuitka freezes (sidecar + worker) run in the
+      # build-sidecar-exe / build-worker-exe jobs. SP-1 SLIM: this job
+      # consumes ONLY the sidecar (the worker ships in the runtime pack,
+      # not in this installer), so only the sidecar artifact is
+      # downloaded. Nothing is compiled in this job anymore.
 
       - name: Download sidecar binary
         uses: actions/download-artifact@v6
         with:
           name: windows-sidecar-exe
-          path: src-tauri/bin
-
-      - name: Download worker binary
-        uses: actions/download-artifact@v6
-        with:
-          name: windows-worker-exe
           path: src-tauri/bin
 
       # NOTE: the standalone prewarm binary was REMOVED per
@@ -643,18 +646,11 @@ jobs:
             if ($LASTEXITCODE -ne 0) { Write-Error "signtool failed for $exe"; exit 1 }
             & $signtool verify /pa /v $exe
           }
-          # C-CI-11 / plan §11.5: worker exe is a 5th Authenticode binary
-          # (same S1-CR-99 SmartScreen rationale; conditional until Phase 2a).
-          $workerExe = "src-tauri\bin\lausu-worker-${{ matrix.target }}.exe"
-          if (Test-Path $workerExe) {
-            Write-Host "Signing worker exe (5th binary): $workerExe"
-            & $signtool sign /f $pfxPath /p $env:WIN_CSC_KEY_PASSWORD `
-                /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "$sigDescription" /du "https://Lausu.app" $workerExe
-            if ($LASTEXITCODE -ne 0) { Write-Error "signtool failed for $workerExe"; exit 1 }
-            & $signtool verify /pa /v $workerExe
-          } else {
-            Write-Host "Worker exe not present — skipping worker signing (5th binary gate; worker build is live)."
-          }
+          # C-CI-11 / plan §11.5: the worker exe is Authenticode-signed in
+          # the runtime-pack-publish workflow (which freezes it for the
+          # pack). SP-1 SLIM: this installer does not bundle the worker,
+          # so there is no worker to sign here (slim leg skips worker
+          # sign); the sidecar + native listener above stay signed.
           Remove-Item $pfxPath -Force
 
       # C-CI-7: fail-fast gates BEFORE cargo tauri build (order: versions --check →
@@ -686,10 +682,11 @@ jobs:
         run: python scripts/slim_core_ml_ratchet_check.py
 
       # C-CI-7: generate placeholder BINARY stubs (icons are real committed files).
+      # SP-1 SLIM: the slim leg needs sidecar + native stubs only (--slim).
       - name: Generate Tauri binary stubs
         shell: bash
         run: |
-          python scripts/gen_tauri_icons_stub.py --check || python scripts/gen_tauri_icons_stub.py
+          python scripts/gen_tauri_icons_stub.py --check --slim || python scripts/gen_tauri_icons_stub.py --slim
 
       # Fail-fast gate: verify EVERY committed file in tauri.conf.json
       - name: Verify bundle.icon icons are present + valid (fail fast)
@@ -791,6 +788,36 @@ jobs:
             exit 1
           }
           Write-Host "Bundle contains only Windows binaries (assertion passed)"
+
+      - name: Post-build assertion — slim bundle has no worker binary
+        # SP-1 SLIM: the slim installer is host + sidecar only. The worker
+        # ships in the separately-downloaded runtime pack, so any
+        # lausu-worker file staged under the bundle tree is a packaging
+        # regression (same violations/exit-1 shape as the assertion above).
+        shell: pwsh
+        run: |
+          # TX-40: per-target bundle dir uses matrix.target (cargo tauri
+          # build stages externalBin sidecars under the bundle tree).
+          $bundleRoots = @(
+            "src-tauri\target\${{ matrix.target }}\release\bundle",
+            "src-tauri\target\release\bundle"
+          )
+          $violations = @()
+          foreach ($root in $bundleRoots) {
+            if (-not (Test-Path $root)) { continue }
+            foreach ($file in Get-ChildItem $root -Recurse -File -ErrorAction SilentlyContinue) {
+              if ($file.Name -like "*lausu-worker*") {
+                $violations += "$($file.FullName) (slim bundle must not contain the worker)"
+              }
+            }
+          }
+          if ($violations.Count -gt 0) {
+            Write-Error "Slim Windows bundle contains worker binaries:"
+            $violations | ForEach-Object { Write-Host "  - $_" }
+            Write-Error "Check tauri.windows-x86_64-slim.conf.json bundle.externalBin (must be sidecar-only)."
+            exit 1
+          }
+          Write-Host "Slim bundle contains no worker binaries (assertion passed)"
 
       # (Phase 2c target, ≤80 MB). The slim core is the NSIS installer
       # pack is a separate download per §4.1/§11.6). Today the NSIS
@@ -943,10 +970,10 @@ jobs:
           # and update tauri-build.yml accordingly (see TX-40 GATE STATUS
           # plan-runtime-pack-split.md §11.9 (C-CI-13): the worker exe is a
           # worker path glob matches nothing and upload-artifact@v6 silently
+          # SP-1 SLIM: slim ships sidecar + listener only (no worker path).
           path: |
             src-tauri/bin/python-sidecar-${{ matrix.target }}.exe
             src-tauri/resources/native/windows-key-listener.exe
-            src-tauri/bin/lausu-worker-${{ matrix.target }}.exe
           if-no-files-found: error
 
       - name: Generate SHA-256 checksums
@@ -955,12 +982,12 @@ jobs:
           $checksums = @()
           # TX-40: checksum paths use matrix.target so both legs emit
           # plan-runtime-pack-split.md §11.9 (C-CI-13): the worker exe is
+          # SP-1 SLIM: checksums cover the slim payload only (no worker).
           foreach ($p in @(
                 "${{ steps.artifacts.outputs.nsis_path }}",
                 "${{ steps.artifacts.outputs.msi_path }}",
                 "src-tauri/bin/python-sidecar-${{ matrix.target }}.exe",
                 "src-tauri/resources/native/windows-key-listener.exe",
-                "src-tauri/bin/lausu-worker-${{ matrix.target }}.exe",
                 "src-tauri/target/${{ matrix.target }}/release/lausu-tauri.exe"
           )) {
             if (Test-Path $p) {
@@ -1008,9 +1035,11 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && env.SIGN_ENABLED == 'true' }}
         uses: actions/attest-build-provenance@v4
         with:
-          # plan-runtime-pack-split.md §11.9 (C-CI-13): worker exe added to
+          # SP-1 SLIM: subjects are the slim payload (sidecar is bundled
+          # inside the installers; the worker ships in the runtime pack
+          # and is signed/attested by runtime-pack-publish.yml, not here).
+          # C-CI-13/15: existing subject entries are kept, never renamed.
           subject-path: |
             ${{ steps.artifacts.outputs.nsis_path }}
             ${{ steps.artifacts.outputs.msi_path }}
             src-tauri/target/${{ matrix.target }}/release/lausu-tauri.exe
-            src-tauri/bin/lausu-worker-${{ matrix.target }}.exe

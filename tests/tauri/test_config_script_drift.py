@@ -497,6 +497,7 @@ class TestLauncherInstallPathsMatchManifest:
 # Per-arch config file → (platform, build triples it serves). The test
 PER_ARCH_CONFIGS: dict[str, tuple[str, tuple[str, ...]]] = {
     "tauri.windows-x86_64.conf.json": ("windows", ("x86_64-pc-windows-msvc",)),
+    "tauri.windows-x86_64-slim.conf.json": ("windows", ("x86_64-pc-windows-msvc",)),
     "tauri.windows-aarch64.conf.json": ("windows", ("aarch64-pc-windows-msvc",)),
     "tauri.macos.conf.json": (
         "macos",
@@ -505,6 +506,11 @@ PER_ARCH_CONFIGS: dict[str, tuple[str, tuple[str, ...]]] = {
     "tauri.linux-x86_64.conf.json": ("linux", ("x86_64-unknown-linux-gnu",)),
     "tauri.linux-aarch64.conf.json": ("linux", ("aarch64-unknown-linux-gnu",)),
 }
+
+# Slim per-arch configs (SP-1): sidecar-only ``externalBin`` (no worker).
+# The ONLY configs allowed to narrow externalBin; every other per-arch
+# config must keep the base list verbatim.
+SLIM_PER_ARCH_CONFIGS: set[str] = {"tauri.windows-x86_64-slim.conf.json"}
 
 
 def _resource_relevant(resource: str, platform: str, triples: set[str]) -> bool:
@@ -580,9 +586,17 @@ class TestPerArchConfigsStayLockedToBase:
     def test_per_arch_external_bin_never_changes_sidecar(self) -> None:
         """Overrides may not alter or drop the ``externalBin`` sidecar list."""
         base_external_bin = _tauri_conf()["bundle"].get("externalBin", [])
+        slim_external_bin = _stub_module().SLIM_EXTERNAL_BIN
         for rel, (platform, _triples) in PER_ARCH_CONFIGS.items():
             cfg = json.loads((SRC_TAURI / rel).read_text(encoding="utf-8"))
             cfg_external_bin = cfg["bundle"].get("externalBin", base_external_bin)
+            if rel in SLIM_PER_ARCH_CONFIGS:
+                assert cfg_external_bin == slim_external_bin, (
+                    f"{rel} ({platform}) is the registered slim config: its "
+                    f"bundle.externalBin must be exactly {slim_external_bin} "
+                    f"(sidecar-only, no worker); got: {cfg_external_bin}"
+                )
+                continue
             assert cfg_external_bin == base_external_bin, (
                 f"{rel} ({platform}) overrides bundle.externalBin: "
                 f"{cfg_external_bin} != base {base_external_bin}, dropping "

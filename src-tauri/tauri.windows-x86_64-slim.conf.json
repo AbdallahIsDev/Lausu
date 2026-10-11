@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "title": "Lausu",
+        "width": 900,
+        "height": 700,
+        "minWidth": 720,
+        "minHeight": 540,
+        "resizable": true,
+        "fullscreen": false,
+        "transparent": false,
+        "decorations": false,
+        "visible": true,
+        "create": false,
+        "label": "main"
+      },
+      {
+        "title": "Lausu Bubble",
+        "url": "bubble.html",
+        "width": 240,
+        "height": 80,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "label": "bubble"
+      }
+    ]
+  },
+  "bundle": {
+    "targets": ["nsis", "msi"],
+    "externalBin": ["bin/python-sidecar"],
+    "resources": [
+      "resources/native/windows-key-listener.exe",
+      "icons/tray/"
+    ]
+  }
+}

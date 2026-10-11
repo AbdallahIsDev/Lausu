@@ -71,6 +71,7 @@ USAGE
 ::
 
     python scripts/gen_tauri_icons_stub.py             # generate all binary stubs
+    python scripts/gen_tauri_icons_stub.py --slim        # generate slim-core stubs only (sidecar + native, no worker)
     python scripts/gen_tauri_icons_stub.py --check     # exit 0 iff all stubs present AND structurally valid (CI)
     python scripts/gen_tauri_icons_stub.py --check-icons # exit 0 iff every bundle.icon file is valid (CI)
     python scripts/gen_tauri_icons_stub.py --clean     # remove generated binary stubs
@@ -635,6 +636,14 @@ _EXTERNAL_BIN_STUBS: tuple[tuple[str, str], ...] = (
     ("worker", WORKER_BASENAME),
 )
 
+# Slim-core installer set (SP-1): the slim per-arch ``-slim.conf.json``
+# files declare sidecar-only ``externalBin`` (no worker; the worker ships
+# in the separately-downloaded runtime pack). Single source of truth for
+# the slim subset; the drift tests import it instead of re-listing.
+SLIM_EXTERNAL_BIN: list[str] = ["bin/python-sidecar"]
+FULL_EXTERNAL_BIN: list[str] = ["bin/python-sidecar", "bin/lausu-worker"]
+SLIM_EXTERNAL_BIN_STUBS: tuple[tuple[str, str], ...] = (("sidecar", SIDECAR_BASENAME),)
+
 
 def _local_dev_stub_specs() -> list[tuple[Path, str, str]]:
     """``(path, platform, kind)`` for the :data:`LOCAL_DEV_TRIPLES` mirrors.
@@ -668,16 +677,49 @@ def _all_stub_specs() -> list[tuple[Path, str, str]]:
     intentionally NOT included, they are committed real files, not
     stubs (see the module docstring).
     """
+    return _slim_stub_specs() + _worker_stub_specs()
+
+
+def _slim_stub_specs() -> list[tuple[Path, str, str]]:
+    """``(path, platform, kind)`` for the slim-core set: sidecar + native, no worker.
+
+    Mirrors the slim per-arch ``-slim.conf.json`` files (sidecar-only
+    ``externalBin``). The slim CI leg checks/generates exactly this set.
+    """
     specs: list[tuple[Path, str, str]] = []
     for triple in SIDECAR_TRIPLES:
         ext = ".exe" if triple in WINDOWS_TRIPLES else ""
         platform = "windows" if triple in WINDOWS_TRIPLES else "unix"
-        for kind, basename in _EXTERNAL_BIN_STUBS:
+        for kind, basename in SLIM_EXTERNAL_BIN_STUBS:
             specs.append((SRC_TAURI / "bin" / f"{basename}-{triple}{ext}", platform, kind))
-    specs.extend(_local_dev_stub_specs())
+    specs.extend(
+        (path, platform, kind)
+        for path, platform, kind in _local_dev_stub_specs()
+        if kind in {k for k, _ in SLIM_EXTERNAL_BIN_STUBS}
+    )
     for rel, platform in NATIVE_RESOURCES:
         specs.append((SRC_TAURI / rel, platform, "native"))
     return specs
+
+
+def _worker_stub_specs() -> list[tuple[Path, str, str]]:
+    """``(path, platform, kind)`` for the worker stubs (full set minus slim set)."""
+    specs: list[tuple[Path, str, str]] = []
+    for triple in SIDECAR_TRIPLES:
+        ext = ".exe" if triple in WINDOWS_TRIPLES else ""
+        platform = "windows" if triple in WINDOWS_TRIPLES else "unix"
+        specs.append((SRC_TAURI / "bin" / f"{WORKER_BASENAME}-{triple}{ext}", platform, "worker"))
+    specs.extend(
+        (path, platform, kind)
+        for path, platform, kind in _local_dev_stub_specs()
+        if kind == "worker"
+    )
+    return specs
+
+
+def _slim_stub_paths() -> list[Path]:
+    """Slim-set paths only, for slim-mode generate/check/clean."""
+    return [p for p, _, _ in _slim_stub_specs()]
 
 
 def _all_stub_paths() -> list[Path]:
@@ -720,10 +762,12 @@ def _linux_scripts_problems() -> list[str]:
     return problems
 
 
-def generate() -> list[Path]:
-    """Generate all binary stubs. Returns the list of created file paths.
+def generate(slim: bool = False) -> list[Path]:
+    """Generate binary stubs. Returns the list of created file paths.
 
     Icons are NOT generated here, they are committed real files.
+    ``slim=True`` generates only the slim-core set (sidecar + native,
+    no worker) for the slim CI leg; default generates the full set.
     """
     created: list[Path] = []
 
@@ -738,11 +782,13 @@ def generate() -> list[Path]:
         platform = "windows" if triple in WINDOWS_TRIPLES else "unix"
         # Preserve a REAL binary a CI step / developer already built at this
         # path, never clobber it with a placeholder stub.
-        for kind, basename in _EXTERNAL_BIN_STUBS:
+        for kind, basename in SLIM_EXTERNAL_BIN_STUBS if slim else _EXTERNAL_BIN_STUBS:
             path = bin_dir / f"{basename}-{triple}{ext}"
             _write_stub_file_if_needed(path, platform, kind)
             created.append(path)
     for path, platform, kind in _local_dev_stub_specs():
+        if slim and kind not in {k for k, _ in SLIM_EXTERNAL_BIN_STUBS}:
+            continue
         # GNU-toolchain mirrors (C-TDEV-1); same never-clobber rule.
         _write_stub_file_if_needed(path, platform, kind)
         created.append(path)
@@ -856,7 +902,7 @@ def check_icons() -> int:
     return rc
 
 
-def check() -> int:
+def check(slim: bool = False) -> int:
     """Exit 0 iff every expected stub exists AND is structurally valid.
 
     Designed for CI: a non-zero exit blocks the build pipeline. Presence
@@ -866,9 +912,9 @@ def check() -> int:
     Each path must be either the exact canonical stub bytes or a
     plausible real binary (large, marker-free); anything else, a
     truncated/mangled stub, an empty file, a tiny garbage file, fails
-    here in milliseconds.
+    here in milliseconds. ``slim=True`` checks only the slim-core set.
     """
-    specs = _all_stub_specs()
+    specs = _slim_stub_specs() if slim else _all_stub_specs()
     problems: list[str] = []
     for path, platform, kind in specs:
         if not path.exists():
@@ -892,16 +938,16 @@ def check() -> int:
     return 0
 
 
-def clean() -> int:
-    """Remove every stub file we generated. Preserves real binaries.
+def clean(slim: bool = False) -> int:
+    """Remove stub files we generated. Preserves real binaries.
 
     Uses ``_is_stub_file`` heuristic so a developer who already built a
     real Nuitka sidecar / compiled native binary at one of these paths
-    won't lose it.
+    won't lose it. ``slim=True`` removes only slim-set stubs.
     """
     removed = 0
     skipped = 0
-    for p in _all_stub_paths():
+    for p in _slim_stub_paths() if slim else _all_stub_paths():
         if not p.exists():
             continue
         if not _is_stub_file(p):
@@ -934,7 +980,7 @@ def clean() -> int:
     return 0
 
 
-def _print_summary(created: list[Path]) -> None:
+def _print_summary(created: list[Path], slim: bool = False) -> None:
     """Print a clear summary of what was generated."""
     print("[gen_tauri_icons_stub] Generated stub files:")
     for p in created:
@@ -948,9 +994,9 @@ def _print_summary(created: list[Path]) -> None:
     print()
     print("[gen_tauri_icons_stub] Summary:")
     print(f"  Sidecar binaries:  {len(SIDECAR_TRIPLES)}")
-    print(f"  Worker binaries:   {len(SIDECAR_TRIPLES)}")
+    print(f"  Worker binaries:   {0 if slim else len(SIDECAR_TRIPLES)}")
     print(f"  Native resources:  {len(NATIVE_RESOURCES)}")
-    print(f"  Local-dev mirrors: {len(_local_dev_stub_paths())}")
+    print(f"  Local-dev mirrors: {len(LOCAL_DEV_TRIPLES) if slim else len(_local_dev_stub_paths())}")
     print(f"  Total:             {len(created)}")
     print()
     print("[gen_tauri_icons_stub] WARNING: stubs are NOT real binaries, they print")
@@ -996,17 +1042,25 @@ def main() -> int:
         action="store_true",
         help="remove generated stub files (preserves real binaries)",
     )
+    parser.add_argument(
+        "--slim",
+        action="store_true",
+        help=(
+            "limit generate/--check/--clean to the slim-core set "
+            "(sidecar + native, no worker stubs)"
+        ),
+    )
     args = parser.parse_args()
 
     if args.check:
-        return check()
+        return check(slim=args.slim)
     if args.check_icons:
         return check_icons()
     if args.clean:
-        return clean()
+        return clean(slim=args.slim)
 
-    created = generate()
-    _print_summary(created)
+    created = generate(slim=args.slim)
+    _print_summary(created, slim=args.slim)
     return 0
 
 

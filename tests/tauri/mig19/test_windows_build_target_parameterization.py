@@ -23,14 +23,16 @@ def workflow_text() -> str:
 def test_matrix_includes_x86_64_leg(workflow_text: str):
     """The active matrix must include the x86_64 leg."""
     # Locate the matrix.include block. The x86_64 leg has:
+    # SP-1 SLIM: the leg builds the slim (sidecar-only) config.
     assert re.search(
         r"- arch:\s*x86_64\s*\n"
         r"\s*target:\s*x86_64-pc-windows-msvc\s*\n"
         r"\s*runner:\s*windows-2022\s*\n"
-        r"\s*tauri_config:\s*tauri\.windows-x86_64\.conf\.json",
+        r"(\s*#[^\n]*\n)*"
+        r"\s*tauri_config:\s*tauri\.windows-x86_64-slim\.conf\.json",
         workflow_text,
         re.MULTILINE,
-    ), "Matrix x86_64 leg (target: x86_64-pc-windows-msvc) not found, the primary Windows release path is missing."
+    ), "Matrix x86_64 leg (x86_64-pc-windows-msvc, slim config) not found, the primary Windows release path is missing."
 
 
 def test_aarch64_leg_documented_as_commented_template(workflow_text: str):

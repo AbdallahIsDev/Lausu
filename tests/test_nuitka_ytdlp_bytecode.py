@@ -54,19 +54,32 @@ class TestFreezeJobSplit:
         for job in ("build-sidecar-exe:", "build-worker-exe:", "tauri-windows-build:"):
             assert job in text, f"expected job {job} in tauri-windows-build.yml"
 
-    def test_tauri_job_needs_both_freeze_jobs(self):
+    def test_tauri_job_needs_sidecar_freeze_job(self):
         text = self._text()
-        assert "needs: [build-sidecar-exe, build-worker-exe]" in text, (
-            "tauri-windows-build must wait for both freeze jobs so one "
-            "240min budget is never shared by two Nuitka freezes"
+        assert "needs: [build-sidecar-exe]" in text, (
+            "tauri-windows-build must wait for the sidecar freeze job. "
+            "SP-1 SLIM: the slim installer bundles host + sidecar only, so "
+            "it no longer waits for the worker freeze (the worker ships in "
+            "the runtime pack via runtime-pack-publish.yml)."
         )
 
     def test_binaries_pass_via_artifacts(self):
         text = self._text()
         assert "name: windows-sidecar-exe" in text
         assert "name: windows-worker-exe" in text
-        assert text.count("uses: actions/download-artifact@v6") >= 2, (
-            "tauri-windows-build must download both intermediate binaries"
+        import yaml
+
+        jobs = yaml.safe_load(self.WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+        steps = jobs["tauri-windows-build"]["steps"]
+        downloads = [
+            s for s in steps if s.get("uses", "") == "actions/download-artifact@v6"
+        ]
+        assert len(downloads) == 1, (
+            "SP-1 SLIM: tauri-windows-build must download exactly one "
+            f"intermediate binary (the sidecar); found {[s.get('name') for s in downloads]}"
+        )
+        assert "sidecar" in str(downloads[0]).lower(), (
+            "the single download must be the sidecar binary, not the worker."
         )
 
     def test_no_nuitka_invocation_left_in_tauri_job(self):
