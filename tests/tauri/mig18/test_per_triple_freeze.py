@@ -207,6 +207,30 @@ def test_tauri_conf_external_bin_uses_base_name():
     )
 
 
+def test_slim_conf_external_bin_is_sidecar_only():
+    """``tauri.windows-x86_64-slim.conf.json`` must be sidecar-only (SP-1)."""
+    slim_conf = PROJECT_ROOT / "src-tauri" / "tauri.windows-x86_64-slim.conf.json"
+    assert slim_conf.is_file(), f"missing slim config: {slim_conf}"
+    conf = json.loads(slim_conf.read_text(encoding="utf-8"))
+    external_bin = conf.get("bundle", {}).get("externalBin", [])
+    assert external_bin == ["bin/python-sidecar"], (
+        "the slim config `bundle.externalBin` must be exactly "
+        '["bin/python-sidecar"] (the worker ships in the runtime pack, '
+        f"not in the slim installer); got: {external_bin!r}"
+    )
+
+
+def test_slim_conf_resources_match_full_windows_conf():
+    """Slim resources must equal the full Windows narrowing (same platform slice)."""
+    slim_conf = PROJECT_ROOT / "src-tauri" / "tauri.windows-x86_64-slim.conf.json"
+    full_conf = PROJECT_ROOT / "src-tauri" / "tauri.windows-x86_64.conf.json"
+    slim_resources = json.loads(slim_conf.read_text(encoding="utf-8"))["bundle"]["resources"]
+    full_resources = json.loads(full_conf.read_text(encoding="utf-8"))["bundle"]["resources"]
+    assert slim_resources == full_resources, (
+        f"slim resources drifted from the full Windows narrowing: slim={slim_resources} full={full_resources}"
+    )
+
+
 def test_tauri_conf_shell_config_is_v2_valid():
     """
     ``tauri.conf.json`` ``plugins.shell`` must be v2-valid.

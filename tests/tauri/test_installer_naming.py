@@ -375,6 +375,47 @@ class TestNoRenameOfExistingArtifacts:
         )
 
 
+class TestSlimInstallerNaming:
+    """SP-1 slice A: the slim installer keeps the existing names (C-CI-13)."""
+
+    SLIM_CONF = SRC_TAURI / "tauri.windows-x86_64-slim.conf.json"
+    FULL_CONF = SRC_TAURI / "tauri.windows-x86_64.conf.json"
+    WORKFLOW = PROJECT_ROOT / ".github" / "workflows" / "tauri-windows-build.yml"
+
+    def test_slim_conf_exists_with_sidecar_only_external_bin(self) -> None:
+        assert self.SLIM_CONF.is_file(), f"slim config missing at {self.SLIM_CONF}"
+        conf = json.loads(self.SLIM_CONF.read_text(encoding="utf-8"))
+        assert conf["bundle"]["externalBin"] == ["bin/python-sidecar"], (
+            "slim config must declare sidecar-only externalBin (no worker)."
+        )
+
+    def test_slim_conf_resources_match_full_conf(self) -> None:
+        slim = json.loads(self.SLIM_CONF.read_text(encoding="utf-8"))["bundle"]["resources"]
+        full = json.loads(self.FULL_CONF.read_text(encoding="utf-8"))["bundle"]["resources"]
+        assert slim == full, "slim resources must equal the full Windows narrowing."
+
+    def test_workflow_builds_slim_config(self) -> None:
+        text = self.WORKFLOW.read_text(encoding="utf-8")
+        assert "tauri.windows-x86_64-slim.conf.json" in text, (
+            "tauri-windows-build.yml must build the slim config (SP-1 slim leg)."
+        )
+
+    def test_existing_installer_name_stays_with_slim(self) -> None:
+        """``Lausu-Windows-Installer`` is still uploaded (now the slim payload)."""
+        text = self.WORKFLOW.read_text(encoding="utf-8")
+        assert "name: Lausu-Windows-Installer" in text, (
+            "C-CI-13: Lausu-Windows-Installer must stay (it now carries the "
+            "slim installer per owner decision); full-offline uses ADDITIVE names."
+        )
+        for protected in (
+            "Lausu-Windows-MSI",
+            "Lausu-Windows-Sidecar-Binaries",
+            "Lausu-Windows-SHA256SUMS",
+            "Lausu-Binaries-Manifest-Windows",
+        ):
+            assert f"name: {protected}" in text, f"C-CI-13: {protected} must stay."
+
+
 class TestFullOfflineInstallerTemplate:
     """The full-offline installer .nsi template must require its !defines."""
 
