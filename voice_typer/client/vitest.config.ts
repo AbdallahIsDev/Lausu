@@ -59,6 +59,13 @@ export default defineConfig({
 			// python-call-error-code, ...) carry their own
 			// contract/parity guards under src/shared/__tests__.
 			"src/shared/**/*.{test,spec}.ts",
+			// Node-side dev tooling. The Electron main process used to own
+			// the terminal ANSI palette and carried its TTY-gating test
+			// (`src/main/logging/__tests__/colors-tty.test.ts`); that whole
+			// tree was deleted with the Electron shell, so the restored
+			// palette in `scripts/log-colors.mjs` keeps its guard here.
+			// Those specs declare `// @vitest-environment node` themselves.
+			"scripts/**/*.{test,spec}.ts",
 		],
 		coverage: {
 			provider: "istanbul",

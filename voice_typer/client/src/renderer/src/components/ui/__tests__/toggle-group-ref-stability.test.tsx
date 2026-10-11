@@ -270,11 +270,15 @@ describe("ToggleGroup per-option label ref stability + value-change behaviour", 
 		);
 		const indicator = container.querySelector<HTMLElement>(".bg-surface");
 		expect(indicator).toBeTruthy();
+		// The pill must carry the real `rounded-lg` CLASS: index.css's
+		// `@supports (corner-shape: squircle)` gate shapes only the named
+		// radius utilities, so an arbitrary `rounded-[calc(...)]` would stay
+		// a round corner inside a squircle track (same radius, different
+		// material). The `not-supports` variant is the concentric fallback
+		// for engines that cannot do corner-shape.
+		expect(indicator?.className).toContain("rounded-lg");
 		expect(indicator?.className).toContain(
-			"rounded-[calc(var(--radius)-0.125rem)]",
-		);
-		expect(indicator?.className).toContain(
-			"not-supports-[corner-shape:squircle]:rounded-lg",
+			"not-supports-[corner-shape:squircle]:rounded-[calc(var(--radius)-0.125rem)]",
 		);
 		await waitFor(() => expect(indicator?.style.left).toBe("0px"));
 
@@ -307,11 +311,9 @@ describe("ToggleGroup per-option label ref stability + value-change behaviour", 
 		);
 
 		const indicator = container.querySelector<HTMLElement>(".bg-input");
+		expect(indicator?.className).toContain("rounded-lg");
 		expect(indicator?.className).toContain(
-			"rounded-[calc(var(--radius)-0.25rem)]",
-		);
-		expect(indicator?.className).toContain(
-			"not-supports-[corner-shape:squircle]:rounded-lg",
+			"not-supports-[corner-shape:squircle]:rounded-[calc(var(--radius)-0.25rem)]",
 		);
 	});
 

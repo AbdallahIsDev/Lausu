@@ -49,7 +49,10 @@ const EMITTERS: readonly EmitterSpec[] = [
 		keys: ["consent_field"],
 	},
 	{
-		path: "voice_typer/server/service/model/_downloads.py",
+		// Moved here from `service/model/_downloads.py` by the module
+		// split (the facade now owns the queue/state surface only); the
+		// payload key set is unchanged.
+		path: "voice_typer/server/service/model/_download_preflight.py",
 		keys: ["message", "model", "provider"],
 	},
 ];

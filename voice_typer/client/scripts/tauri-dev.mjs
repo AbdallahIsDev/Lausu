@@ -28,6 +28,11 @@
  *   4. Forwards everything; Ctrl+C (or either child exiting) tears the
  *      whole tree down (taskkill /T, Node's child.kill does not kill
  *      Windows process trees).
+ *   5. Decides ONCE whether the terminal takes ANSI colour and exports
+ *      that decision as `FORCE_COLOR` for the whole descendant tree
+ *      (see the "Colour decision" block below), then renders its own
+ *      `[tauri-dev]` lines with the restored pre-migration palette
+ *      (`scripts/log-colors.mjs`).
  *
  * Rust file changes: the tauri CLI rebuilds + relaunches the app
  * automatically. Renderer file changes: Vite HMR pushes instantly.
@@ -37,6 +42,31 @@ import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { ERROR_CLR, INFO_CLR, RESET, WARN_CLR } from "./log-colors.mjs";
+
+// ── Coloured `[tauri-dev]` console lines ─────────────────────────────
+//
+// Restores the pre-migration terminal look: the Electron main process
+// coloured its own lines through `main/logging/colors.ts` (deleted with
+// the Electron shell in 17461108). The Tauri equivalent of those lines is
+// this orchestrator, so it reuses the same palette. The visible text is
+// unchanged, only ANSI is added, and `log-colors.mjs` resolves every
+// constant to "" when no terminal is attached (redirected files, pipes,
+// CI) so nothing is polluted.
+const TAG = `${INFO_CLR}[tauri-dev]${RESET}`;
+
+function info(msg) {
+	console.log(`${TAG} ${msg}`);
+}
+
+function warn(msg) {
+	console.warn(`${TAG} ${WARN_CLR}${msg}${RESET}`);
+}
+
+function fail(msg) {
+	console.error(`${TAG} ${ERROR_CLR}${msg}${RESET}`);
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.resolve(__dirname, "..");
@@ -72,6 +102,48 @@ function withBuildToolsOnPath(env) {
 	return next;
 }
 const childEnv = withBuildToolsOnPath(process.env);
+
+// ── Colour decision (exported to the whole descendant tree) ──────────
+//
+// Why the decision has to be made HERE and passed down explicitly:
+//
+//   * `tauri dev` spawns the app with a PIPED stderr
+//     (`tauri-cli/src/interface/rust/desktop.rs`:
+//     `dev_cmd.stdout(os_pipe::dup_stdout())` + `dev_cmd.stderr(Stdio::piped())`),
+//     then re-emits each line to its own stderr. The bytes reach the
+//     terminal intact, but the app's own stderr is a PIPE.
+//   * The Rust host then spawns the Python sidecar with
+//     `Stdio::inherit()`, so Python inherits that same pipe.
+//
+// Net effect: BOTH descendants see `isatty() == false`, so the Python
+// side's `do_color = sys.stderr.isatty()` gate fails and it silently falls
+// back to its plain `_TerminalFormatter`; the Rust host cannot detect a
+// terminal either. Pre-migration the Electron main process spawned Python
+// directly from node with inherited stdio, so the TTY survived and every
+// line was coloured. That is the regression this block fixes.
+//
+// This orchestrator is the last process in the chain that still owns the
+// real terminal, so it states the decision once and exports it:
+//   * `NO_COLOR` set (any non-empty value) -> off, always wins.
+//   * `FORCE_COLOR=0/false/no`            -> off, explicit opt-out.
+//   * otherwise a TTY on stdout/stderr    -> on, exported as FORCE_COLOR=1.
+//   * no TTY (CI, redirected)             -> nothing exported, stays plain.
+function isTruthyEnv(value) {
+	const v = (value ?? "").trim().toLowerCase();
+	return v === "" || v === "1" || v === "true" || v === "yes";
+}
+
+const forceColorVar = process.env.FORCE_COLOR;
+const colorExplicitlyOff =
+	Boolean(process.env.NO_COLOR) ||
+	["0", "false", "no"].includes((forceColorVar ?? "").trim().toLowerCase());
+const wantColor =
+	!colorExplicitlyOff &&
+	((forceColorVar !== undefined && isTruthyEnv(forceColorVar)) ||
+		Boolean(process.stdout.isTTY || process.stderr.isTTY));
+if (wantColor) {
+	childEnv.FORCE_COLOR = "1";
+}
 
 // NOTE: `localhost`, not 127.0.0.1, Vite binds whichever stack
 // `localhost` resolves to (::1 on this machine) and the tauri CLI's
@@ -143,7 +215,7 @@ function freeVitePort(port) {
 			.map((s) => Number.parseInt(s, 10))
 			.filter((n) => Number.isFinite(n) && n > 0 && n !== process.pid);
 		for (const pid of pids) {
-			console.log(`[tauri-dev] port ${port} busy (pid=${pid}), killing leftover process`);
+			info(`port ${port} busy (pid=${pid}), killing leftover process`);
 			spawnSync("taskkill", ["/T", "/F", "/PID", String(pid)], {
 				windowsHide: true,
 				stdio: "ignore",
@@ -158,7 +230,7 @@ function freeVitePort(port) {
 		.split(/\s+/)
 		.map((s) => Number.parseInt(s, 10))
 		.filter((n) => Number.isFinite(n) && n > 0 && n !== process.pid)) {
-		console.log(`[tauri-dev] port ${port} busy (pid=${pid}), killing leftover process`);
+		info(`port ${port} busy (pid=${pid}), killing leftover process`);
 		try {
 			process.kill(pid, "SIGKILL");
 		} catch {
@@ -201,8 +273,8 @@ const linkchainScriptPath = path.join(
 function runStubGen(args) {
 	const py = resolvePython();
 	if (!py) {
-		console.error(
-			"[tauri-dev] no Python found (tried .venv, python3, python, py). " +
+		fail(
+			"no Python found (tried .venv, python3, python, py). " +
 				"Install Python or create .venv, then re-run.",
 		);
 		return { status: 1, error: new Error("python not found") };
@@ -215,7 +287,7 @@ function runStubGen(args) {
 		windowsHide: true,
 	});
 	if (res.error) {
-		console.error(`[tauri-dev] failed to spawn ${py}: ${res.error.message}`);
+		fail(`failed to spawn ${py}: ${res.error.message}`);
 	}
 	return res;
 }
@@ -231,7 +303,7 @@ function runLinkchain(args) {
 		windowsHide: true,
 	});
 	if (res.error) {
-		console.error(`[tauri-dev] failed to spawn ${py}: ${res.error.message}`);
+		fail(`failed to spawn ${py}: ${res.error.message}`);
 	}
 	return res;
 }
@@ -240,7 +312,7 @@ function runLinkchain(args) {
 // Leftover Vite from a crashed prior run often still holds 1420
 // (strictPort) — clear it so this launch can bind.
 freeVitePort(1420);
-console.log("[tauri-dev] starting Vite (http://localhost:1420)...");
+info("starting Vite (http://localhost:1420)...");
 viteChild = spawn("cmd", ["/c", "npx", "vite", "--config", "vite.tauri.config.ts"], {
 	cwd: clientDir,
 	env: childEnv,
@@ -249,7 +321,7 @@ viteChild = spawn("cmd", ["/c", "npx", "vite", "--config", "vite.tauri.config.ts
 });
 viteChild.on("exit", (code) => {
 	if (!shuttingDown) {
-		console.error(`[tauri-dev] vite exited early (code=${code}), aborting`);
+		fail(`vite exited early (code=${code}), aborting`);
 		teardown(1);
 	}
 });
@@ -257,7 +329,7 @@ viteChild.on("exit", (code) => {
 try {
 	await waitForVite();
 } catch (e) {
-	console.error(`[tauri-dev] ${e.message}`);
+	fail(`${e.message}`);
 	teardown(1);
 	// teardown schedules process.exit, never fall through to the CLI.
 	await new Promise(() => {});
@@ -272,15 +344,13 @@ try {
 // suite's `--clean` deletes stubs by design, so this check-then-generate
 // must run before EVERY `tauri dev`, otherwise pytest (often running
 // concurrently in another terminal) breaks the next dev launch.
-console.log("[tauri-dev] checking Tauri stub binaries...");
+info("checking Tauri stub binaries...");
 const stubCheck = runStubGen(["--check"]);
 if (stubCheck.status !== 0) {
-	console.log("[tauri-dev] stubs missing, regenerating...");
+	info("stubs missing, regenerating...");
 	const gen = runStubGen([]);
 	if (gen.status !== 0) {
-		console.error(
-			"[tauri-dev] stub generation failed, aborting (see output above)",
-		);
+		fail("stub generation failed, aborting (see output above)");
 		teardown(1);
 		await new Promise(() => {});
 	}
@@ -295,13 +365,11 @@ if (stubCheck.status !== 0) {
 // only symptom is a misleading "error: linker ... not found" plus dozens of
 // unrelated "could not compile" lines. Same check-then-regenerate shape as the
 // stub step above, so the dev loop self-heals instead of failing cryptically.
-console.log("[tauri-dev] checking GNU linker shim...");
+info("checking GNU linker shim...");
 if (runLinkchain(["--check"]).status !== 0) {
-	console.log("[tauri-dev] linker shim missing, regenerating...");
+	info("linker shim missing, regenerating...");
 	if (runLinkchain([]).status !== 0) {
-		console.error(
-			"[tauri-dev] GNU linker shim setup failed, aborting (see output above)",
-		);
+		fail("GNU linker shim setup failed, aborting (see output above)");
 		teardown(1);
 		await new Promise(() => {});
 	}
@@ -312,7 +380,7 @@ if (runLinkchain(["--check"]).status !== 0) {
 // Bare `npx @tauri-apps/cli` with cwd=repoRoot does not see the client
 // package, re-downloads the CLI into the npx cache every run, and prompts
 // "Ok to proceed? (y)" — which also vanishes when the cache is cleaned.
-console.log("[tauri-dev] starting tauri dev (debug host + source sidecar)...");
+info("starting tauri dev (debug host + source sidecar)...");
 const localTauriWin = path.join(clientDir, "node_modules", ".bin", "tauri.cmd");
 const localTauriPosix = path.join(clientDir, "node_modules", ".bin", "tauri");
 const localTauri = existsSync(localTauriWin)
@@ -331,8 +399,8 @@ if (localTauri) {
 			? ["/c", localTauri, "dev", "--config", devOverride]
 			: ["dev", "--config", devOverride];
 } else {
-	console.warn(
-		"[tauri-dev] local @tauri-apps/cli missing; using npx --yes (run `npm install` in voice_typer/client to pin it)",
+	warn(
+		"local @tauri-apps/cli missing; using npx --yes (run `npm install` in voice_typer/client to pin it)",
 	);
 	cliCmd = process.platform === "win32" ? "cmd" : "npx";
 	cliArgs =
