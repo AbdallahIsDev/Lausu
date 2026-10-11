@@ -148,6 +148,18 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "**/pyproject.toml"
 
+      # The macos-latest runners are ARM hardware but the matrix builds an
+      # x86_64 worker too: its PYBS pip install may compile Rust-based deps
+      # (cryptography, libcst) from source for x86_64-apple-darwin. Without
+      # that target's stdlib the build dies with E0463 "can't find crate
+      # for `core`". Install both Apple targets up front (all platforms:
+      # harmless elsewhere, required on mac).
+      - name: Install Rust targets for cross-arch pip builds
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
       # C-CI-6: nuitka pinned at 2.8.10 — <2.8.0 crashes compiling numpy 2.5
       # PEP 695 type aliases (NU-105). Never downgrade; bump forward instead.
       - name: Install Python build deps (nuitka==2.8.10)
