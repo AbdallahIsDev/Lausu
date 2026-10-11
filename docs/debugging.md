@@ -27,7 +27,7 @@ the app.
 | `VOICE_TYPER_NO_TRAY` | `1` | Skip the pystray tray icon. Useful in headless / CI contexts where the tray would crash on missing GTK / AppKit. |
 | `VOICE_TYPER_NATIVE_BINARY` | path | Override the native hotkey binary path (single binary). Bypasses the `VOICE_TYPER_NATIVE_DIR` / dev-source-tree lookup. |
 | `VOICE_TYPER_NATIVE_DIR` | path | Directory containing all three native binaries (`{windows,macos,linux}-key-listener[.exe]`). Set by the Tauri host to `resourceDir/native/`. |
-| `VOICE_TYPER_PREWARM_EXE` | path | Override the prewarm binary path (frozen `prewarm-<triple>[.exe]`). Bypasses `resolve_prewarm_exe()`. |
+| `VOICE_TYPER_PREWARM_EXE` | path | Historical only (prewarm binary retired per `plan-runtime-pack-split.md` §6.2 P-1; prewarm is now a startup phase of the worker exe). Previously overrode the frozen `prewarm-<triple>[.exe]` path. |
 | `TAURI_SIDECAR` | `1` | Marks the process as running under the Tauri host. Skips ADR-0018 heartbeat-watchdog thread (supervisor owns liveness instead) and the Win32 single-instance mutex (Tauri `single-instance` plugin owns it). |
 
 ### Frontend (historical predecessor env vars)
@@ -188,8 +188,8 @@ host path is removed; do not follow deleted `predecessor-main.log` guidance.)
 #### Tauri host (sole production path, ADR-0020)
 
 1. Check `<DATA_DIR>/logs/lausu-rust.log` (and
-   `<DATA_DIR>/logs/lausu.log` if present) for
-   `{"event":"server_started","port":N}` If absent, the sidecar
+    `<DATA_DIR>/lausu.log` if present) for
+    `{"event":"server_started","port":N}` If absent, the sidecar
    didn't bind the WebSocket. See [`docs/home-directory.md`](home-directory.md)
    for the per-platform `<DATA_DIR>` layout.
 2. Check the backend log (`lausu.log`) for `[FATAL]` /

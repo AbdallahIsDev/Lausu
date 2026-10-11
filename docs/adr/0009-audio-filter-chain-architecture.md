@@ -2,7 +2,16 @@
 
 ## Status
 
-Accepted
+Implemented
+
+> **Record note (2026-10-11):** the §5 config sketch is the original
+> proposal shape — the shipped deltas are the GT-58 addenda inline in §5.2
+> (removed-fields scrub) and §5.4 (runtime switches NOT deprecated), plus
+> the ONNX-migration notes (§§3.2/4.1/5.3/8.2: torch retired 2026-08-13,
+> Silero runs on bundled `silero_vad.onnx` via onnxruntime, see ADR-0005).
+> Where the sketch and the addenda differ, the addenda + tree
+> (`audio_filters/`, `audio_presets.py`, `audio_chain_builder.py`) win.
+> Body kept verbatim as the historical record.
 
 **Date**: 2026-06-30
 **Supersedes**: The monolithic `AudioProcessor` design (NATIVE-001 era)

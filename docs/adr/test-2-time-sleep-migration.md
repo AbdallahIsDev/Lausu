@@ -1,6 +1,6 @@
 # TEST-2, `time.sleep` → condition-wait migration
 
-Status: 🟡 In progress (Wave 1, Agent W1-A11, chip-away per review.md E16).
+Status: Accepted (chip-away migration in progress, per review.md E16; content active).
 Last updated: 2026-08-22 (Wave 1).
 
 ## Context

@@ -2,7 +2,13 @@
 
 # ADR-0021: Split Transcription from Translation (Points 1 + 2)
 
-Status: LOCKED (2026-10-07, user-confirmed Sec. 5 + Sec. 6).
+Status: Accepted (locked 2026-10-07, user-confirmed Sec. 5 + Sec. 6).
+
+> **Completeness note (2026-10-11):** §9 "Build order" below is an empty
+> heading — no build-order content was ever written. The locked
+> decisions (Sec. 5 + Sec. 6) and the candidate measurements (Sec. 8)
+> are complete and unaffected; §9 is INCOMPLETE, not removed, pending
+> the owner filling it in.
 Date: 2026-10-06
 
 ## 1. Locked decision: Transcription != Translation

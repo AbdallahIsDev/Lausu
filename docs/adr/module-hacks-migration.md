@@ -11,6 +11,15 @@ submodules directly. `prewarm/__init__.py` and `server_platform/__init__.py`
 keep only the milder `_pkg.X` call-time indirection: no custom module
 classes remain anywhere in the codebase.>
 
+> **Addendum (2026-08-26, C-ARCH-2):** the remaining `_pkg.X` call-time
+> indirection in `server_platform/` / `prewarm/` / `recording/` was
+> REMOVED. Canonical contract since: tests patch the OWNING SUBMODULE's
+> attribute; production resolves cross-module names through sibling
+> MODULE-OBJECT attribute reads at call time; each package `__init__.py`
+> is a pure re-export surface. Do not reintroduce `_pkg.X` (or custom
+> module subclasses / package-attr patch targets) in those packages.
+> Body below kept verbatim as the migration trail.
+
 ## Context
 
 `voice_typer/server/recording/__init__.py` (lines 348-475) installs a custom

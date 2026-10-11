@@ -2,7 +2,21 @@
 
 ## Status
 
-Accepted (execution plan, 2026-09-26). Work not started. This ADR freezes the order + the Step-2 wire contract so Steps 1-2 (Rust) and 3-4 (Python) can run as disjoint parallel slices.
+Accepted — historical execution record. Steps 0–6 VERIFIED 2026-09-26
+(real Windows host, live harness byte-identical to the Step-0 baseline +
+host-supervised respawn + degradation matrix, see Execution plan +
+checklist annex); C7 LANDED 2026-09-27 (engine moved, ratchet 4→0, Nuitka
+ASR exclusions, 127 focused tests); Step 8 SHIPPED 2026-09-27
+(`runtime-pack-publish.yml`); dispatched CI validation 2026-10-03 (run
+37128596808) green for sidecar/worker freezes, 185 MB + torch-free gates,
+and C-CI-7/ratchet order (see "C7 host gates" section; smoke-test +
+later steps were still running when recorded). This ADR freezes the
+order + the Step-2 wire contract so Steps 1-2 (Rust) and 3-4 (Python)
+could run as disjoint parallel slices — that purpose is fulfilled.
+
+> **Size-gate pointer (2026-10-11):** the "45 MB NSIS informational" ref
+> in Step 7 below is superseded by ADR-0026 — the target is 80 MB.
+> Read "45 MB" as the historical plan value.
 
 ## Context
 

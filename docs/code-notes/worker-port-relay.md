@@ -45,7 +45,7 @@ publish, never raise, never overwrite a valid port with garbage.
   `voice_typer/server/worker_relay.py` (single port store,
   `get_worker_port()` is the only accessor for Step 3).
 - Catalogue: `voice_typer/server/event_bus.py` docstring (`port?`
-  additive; `EVENT_TYPES` stays 52: relay publishes via the
+  additive; `EVENT_TYPES` stays 51: relay publishes via the
   variable-form helper like the other pack/worker events).
 
 ## Anchors

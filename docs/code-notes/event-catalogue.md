@@ -13,7 +13,9 @@ TS unions: `types/ipc/push_events.ts` + `types/ipc/requests.ts`. Parity: `tests/
 |-------|---------|-------|
 | `ready` | `{}` | First authenticated WS / TCP start |
 | `bubble_show` / `bubble_hide` | `{}` | Waveform bubble |
+| `bubble_config` | `{}` | Bubble config snapshot |
 | `bubble_level` | `{rms, peak}` | ~60 Hz RMS/peak |
+| `mic_level` | `{level, peak, active}` | Level-monitor push (coalesced) |
 | `bubble_set_state` | `{state}` | Bubble state machine |
 | `transcription_final` | `{text, quality?}` | quality only from Whisper batch path |
 | `transcription_partial` | `{text, cycle_id, supported?}` | ≤4 Hz live preview; `supported:false` once when engine lacks words |
@@ -38,6 +40,8 @@ TS unions: `types/ipc/push_events.ts` + `types/ipc/requests.ts`. Parity: `tests/
 | `llm_polish_failed` | `{}` | LLM polish path (distinct) |
 | `microphone_permission_revoked` | `{}` | OS revoked mid-recording |
 | `microphone_disconnected` | `{}` | Active mic lost |
+| `device_lost` | `{source}` | Level-monitor device loss (level_monitor) |
+| `dictation_lost` | `{message, cycle_id, recoverable, recovery_type}` | Crash-interrupted dictation (crash recovery) |
 | `cloud_fallback_used` | `{provider, kind, reason}` | Cloud ASR failed → local |
 | `dictation_suppressed` | `{duration, recorded_rms, reason}` | Near-silent UX silence |
 | `history_corrupted` | `{path, db_path, recovered_count}` | Rebuilt after corruption |
@@ -46,8 +50,10 @@ TS unions: `types/ipc/push_events.ts` + `types/ipc/requests.ts`. Parity: `tests/
 | `tray_fallback_notification` | `{"data":{title,message}}` | Nested under `data` |
 | `media_transcribe_progress` | `{job_id, progress}` | ADR-0023 chunked job progress |
 | `media_transcribe_complete` | `{job_id, row_id, chars}` | ADR-0023 job completion |
+| `media_transcribe_error` | `{job_id, code, message}` | ADR-0023 job failure |
 | `asr_backend_ready` | `{backend, model_size}` | Background model load ok |
 | `asr_backend_load_failed` | `{backend, model_size, failure_reason}` | |
+| `asr_backend_disabled` | `{backend, failure_count, timestamp}` | Circuit-breaker disabled backend |
 
 ## Offline pack (§7.4)
 

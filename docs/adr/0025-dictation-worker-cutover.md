@@ -11,6 +11,18 @@ the remaining host/CI gates are listed in
 `docs/code-notes/dictation-worker-cutover-status.md`. **No production
 behaviour changes shipped until those host gates pass.**
 
+> **Host-gate update (2026-10-11, per the parent ADR-0024 "C7 host gates"
+> evidence, dispatched run 37128596808, no workflow edit):** PASSED —
+> `build-worker-exe` + `build-sidecar-exe` Nuitka freezes (separate jobs,
+> post-2026-09-29 split), ITEM 1c 185 MB sidecar gate, torch-free gate,
+> C-CI-7 pre-build order + Step-7 ratchet (steps 15–20, incl. `cargo
+> test`). OPEN at record time — step 29 smoke-test sidecar boot
+> (ITEM 1a frozen-boot check) + steps 22–38 (run still in
+> `Install tauri-cli` when recorded; no claim made). Local frozen-slim
+> pre-flight (`verify_frozen_slim_live.py --source-sidecar`,
+> `FROZEN_SLIM_GATE_OK` 2026-10-03) is green against the SOURCE sidecar
+> only — not a substitute for the frozen run. Body below kept verbatim.
+
 ## Context
 
 ADR-0024 verified the worker hop end to end (`scripts/verify_worker_handoff_live.py`,

@@ -137,7 +137,15 @@ kill $SIDECAR_PID
 
 ---
 
-## Step 2: Nuitka prewarm binary builds from `python-build-standalone` (BOTH arches)
+## Step 2: Nuitka prewarm binary builds from `python-build-standalone` (BOTH arches) — HISTORICAL, DO NOT RUN
+
+> **HISTORICAL — the command in this section targets a module that no
+> longer exists.** The prewarm pipeline was migrated to the slim-core
+> worker: `voice_typer/server/prewarm/__main__.py` was deleted and the
+> directory now holds only `__init__.py`, `cache_probe.py`, and
+> `status.py`. The Tauri build no longer bundles a `prewarm-<triple>`
+> binary. The section is kept for reference only. (Mirrors the
+> retirement banner in `windows-validation-runbook.md` §2.)
 
 **VALIDATE ON MACOS HOST**
 

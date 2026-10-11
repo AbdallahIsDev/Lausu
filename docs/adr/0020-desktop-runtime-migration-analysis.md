@@ -7,6 +7,33 @@ Tauri v2 + Python sidecar is the sole desktop host on all supported
 platforms. Historical predecessor notes below describe the migration
 contract as written; the predecessor path is no longer in-tree.
 
+> **Supersession notes (2026-10-11, bodies below kept verbatim as the
+> historical record):**
+> - *Prewarm-binary sections* (§5 prewarm packaging, §4.1 prewarm-binary
+>   row, §§13-15 signing/bundle/checklist prewarm refs, target-architecture
+>   `prewarm-<triple>[.exe]` lines): SUPERSEDED. The standalone
+>   `prewarm-<triple>[.exe]` was deleted per plan-runtime-pack-split §6.2
+>   Option P-1 (see ADR-0011 Status: Superseded 2026-08-13); prewarm is a
+>   startup phase of `voice_typer/worker/__main__.py`. `resolve_prewarm_exe`
+>   / `VOICE_TYPER_PREWARM_EXE` / scheduler prewarm-exe wiring in this ADR
+>   is retired with the binary.
+> - *Nuitka ML-bundling §§4.2–4.4* (`--include-package=faster_whisper /
+>   ctranslate2` + DLL/Data-dir lines): SUPERSEDED by ADR-0024 Step 7 /
+>   C7 + ADR-0025. C7 moved the engine to `voice_typer/worker/whisper/`
+>   behind `WorkerBackedAsr`; the sidecar freeze now EXCLUDES the ASR libs
+>   (`--nofollow-import-to`, all four sidecar invocations + pin test) while
+>   `onnxruntime` STAYS (VAD + GTCRN on the real-time path). Torch refs in
+>   those sections are doubly historical (torch retired 2026-08-13, ONNX
+>   migration, ADR-0005).
+> - *Command-count reconciliation (verified 2026-10-11):* the in-body
+>   counts disagree with each other (69 in §2/§10/§15, 74 frozen-contract
+>   note, 78 registry note in the §2 addendum) because each was a snapshot
+>   at write time. ONE TRUE NUMBER: **85 commands / 51 events**
+>   (`len(_COMMAND_REGISTRY) == 85`,
+>   `len(event_bus.EVENT_TYPES) == 51`, matching `docs/ARCHITECTURE.md`
+>   and `tests/test_architecture_doc_accuracy.py`). Read every older
+>   count in this file as its historical snapshot, not the live contract.
+
 ## Date
 
 2026-07-13 (decision): 2026-07-14 (updated to Sidecar-only, actionable migration plan), 2026-07-16 (cross-platform rewrite: verified against `AbdallahIsDev/lausu` `main`, reconciled with ADRs 0003/0007/0008/0009/0011/0014/0015/0016/0017/0018/0019, expanded to cover Windows + macOS + Linux + Wayland + Apple Silicon + Linux ARM64). **2026-09-17: cutover note — predecessor host removed; Tauri sole host.**

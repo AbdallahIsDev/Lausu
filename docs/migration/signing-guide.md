@@ -7,12 +7,15 @@ default). It also documents the **no-auto-update** decision (ADR-0020 §15)
 and the audit results confirming `tauri-plugin-updater` is not wired.
 
 **Scope**:
-- Windows: Authenticode signing of the Nuitka sidecar exe + prewarm exe +
-  MSI/NSIS installer. Reuses the existing `WIN_CSC_LINK` / `CSC_LINK`
-  env vars from `voice_typer/client/legacy builder config`.
+- Windows: Authenticode signing of the Nuitka sidecar exe +
+  MSI/NSIS installer. Uses the `WIN_CSC_LINK` /
+  `WIN_CSC_KEY_PASSWORD` env vars consumed by
+  `.github/workflows/tauri-windows-build.yml`.
 - macOS: Developer ID Application signing + `notarytool` notarization +
-  `stapler` stapling of the `.app` + `.dmg`. Reuses the existing
-  `MAC_SIGNING_IDENTITY` + `APPLE_ID` + `APPLE_TEAM_ID` env vars.
+  `stapler` stapling of the `.app` + `.dmg`. Uses
+  `MAC_SIGNING_IDENTITY` + `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` +
+  `APPLE_TEAM_ID` as consumed by
+  `.github/workflows/tauri-macos-build.yml`.
 - Linux: unsigned by default (no certificate authority for Linux desktop
   apps). Optional GPG-sign for `.deb` / `.rpm` / AppImage is documented
   but out of scope for v1.
@@ -28,16 +31,19 @@ and the audit results confirming `tauri-plugin-updater` is not wired.
 
 ## Reused signing identities (no cert duplication)
 
-To avoid cert duplication in CI, the Tauri build reuses the same signing
-identities + env vars as the existing predecessor build. Source of truth:
-`voice_typer/client/legacy builder config` + `.github/workflows/build.yml`.
+To avoid cert duplication in CI, the Tauri build uses one signing
+identity + env-var set per platform. Source of truth:
+`.github/workflows/tauri-windows-build.yml` (Windows) +
+`.github/workflows/tauri-macos-build.yml` (macOS). (HISTORICAL: these
+vars were inherited from the removed predecessor builder config; the
+Tauri workflows are the only consumers now.)
 
-| Platform | Env vars | Source in repo | Reuse for Tauri |
+| Platform | Env vars | Source in repo | Use for Tauri |
 |----------|------------|----------------|-----------------|
-| Windows | `WIN_CSC_LINK` / `CSC_LINK` | `legacy builder config` `win.signAndEditExecutable: true` + comment block | Pass to `signtool sign` for the sidecar + prewarm + MSI. |
-| Windows | `WIN_CSC_KEY_PASSWORD` / `CSC_KEY_PASSWORD` | (cert password secret in GitHub) | Same. |
-| macOS | `MAC_SIGNING_IDENTITY` | `legacy builder config` `mac.identity: ${env.MAC_SIGNING_IDENTITY}` | Pass to `codesign --sign` for the sidecar + `.app`. |
-| macOS | `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` | `.github/workflows/build.yml` (existing macOS job) | Pass to `xcrun notarytool submit`. |
+| Windows | `WIN_CSC_LINK` | `tauri-windows-build.yml` (job-level `env:`) | PFX path passed to `signtool sign` for the sidecar + MSI/NSIS. |
+| Windows | `WIN_CSC_KEY_PASSWORD` | (cert password secret in GitHub, job-level `env:`) | Same. |
+| macOS | `MAC_SIGNING_IDENTITY` | `tauri-macos-build.yml` | Passed to `codesign --sign` for the sidecar + `.app`. |
+| macOS | `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` | `tauri-macos-build.yml` | Passed to `xcrun notarytool submit`. |
 
 > **CI secret rotation**: rotating any of these secrets for the Tauri
 > build rotates them for the predecessor build too (same secret name). This
@@ -53,11 +59,14 @@ Per ADR-0020 §13.1:
 
 1. **Sign the Nuitka sidecar exe** immediately after build, before it
    enters the Tauri bundle. Unsigned sidecars trigger SmartScreen / AV.
-2. **Sign the prewarm exe** (same reason).
-3. **Tauri builds the MSI/NSIS**; the Tauri bundler signs the main
-   executable + installer using the same cert.
-4. **(Optional) re-sign the final bundle.** Keep cert + timestamp server
+2. **Tauri builds the MSI/NSIS**; the MSI + NSIS are signed with the
+   same cert via `signtool` (see §"Tauri bundler signing" below).
+3. **(Optional) re-sign the final bundle.** Keep cert + timestamp server
    configured in CI.
+
+> The standalone prewarm exe (former step 2) is RETIRED with the
+> prewarm binary retirement (plan §6.2 P-1): there is no prewarm exe to
+> sign, and it is not a signing target (C-CI-11).
 
 ### Cert requirements
 
@@ -76,11 +85,11 @@ Per ADR-0020 §13.1:
 ### Signing command (sidecar + prewarm exes)
 
 ```powershell
-# Decompose the PFX (CSC_LINK is a path to a .pfx file; CSC_KEY_PASSWORD is its password).
-$PFX = $env:WIN_CSC_LINK          # or $env:CSC_LINK (alias)
-$PWD = $env:WIN_CSC_KEY_PASSWORD  # or $env:CSC_KEY_PASSWORD (alias)
+# Decompose the PFX (WIN_CSC_LINK is a path to a .pfx file; WIN_CSC_KEY_PASSWORD is its password).
+$PFX = $env:WIN_CSC_LINK
+$PWD = $env:WIN_CSC_KEY_PASSWORD
 
-# Sign the sidecar exe (built by scripts/build/build_sidecar_windows.sh).
+# Sign the sidecar exe (built by the Nuitka sidecar step in tauri-windows-build.yml).
 signtool sign `
     /fd SHA256 `
     /tr http://timestamp.digicert.com `
@@ -88,16 +97,12 @@ signtool sign `
     /f $PFX `
     /p $PWD `
     src-tauri\bin\python-sidecar-x86_64-pc-windows-msvc.exe
-
-# Sign the prewarm exe (built by scripts/build/build_prewarm_windows.sh).
-signtool sign `
-    /fd SHA256 `
-    /tr http://timestamp.digicert.com `
-    /td SHA256 `
-    /f $PFX `
-    /p $PWD `
-    src-tauri\resources\prewarm-x86_64-pc-windows-msvc.exe
 ```
+
+> HISTORICAL: the matching `signtool` block for the prewarm exe (built
+> by the removed `scripts/build/build_prewarm_windows.sh` into
+> `src-tauri\resources\prewarm-x86_64-pc-windows-msvc.exe`) was deleted
+> with the prewarm retirement. Do not re-add it.
 
 For `aarch64-pc-windows-msvc` (Windows on ARM), repeat with the
 `aarch64-pc-windows-msvc` target triple.
@@ -113,11 +118,9 @@ survives cert expiry. Alternative timestamp servers:
 
 ### Tauri bundler signing (MSI + NSIS)
 
-The Tauri bundler signs the MSI + NSIS automatically if the
-`TAURI_SIGNING_PRIVATE_KEY` + `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` env
-vars are set. However, **for v1 we do NOT use the Tauri bundler's
-updater signing** (per ADR-0020 §15: no auto-update). Instead, the MSI
-+ NSIS are signed with the same `signtool` command above:
+The MSI + NSIS are signed with the same `signtool` command above
+(`WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`, per ADR-0020 §15: no
+auto-update, so the Tauri bundler's updater signing is NOT used):
 
 ```powershell
 # After `cargo tauri build --target x86_64-pc-windows-msvc`:
@@ -160,8 +163,9 @@ and what SmartScreen validates.
 
 - Sub-agent #5's Windows validation runbook: `windows-validation-runbook.md`
   Step 1 (Nuitka build) + Step 8 (signing).
-- `.github/workflows/build.yml` `build-windows` job: existing
-  `WIN_CSC_LINK` / `CSC_LINK` env wiring.
+- `.github/workflows/tauri-windows-build.yml`: the `WIN_CSC_LINK` /
+  `WIN_CSC_KEY_PASSWORD` job-level `env:` wiring consumed by the
+  signtool steps.
 
 ---
 
@@ -173,21 +177,24 @@ Per ADR-0020 §13.2:
 
 1. **Sign the Nuitka sidecar binary** with Developer ID Application
    immediately after build, before it enters the `.app` bundle.
-2. **Sign the prewarm binary** (same).
-3. **Add the binaries to the `.app` bundle's** `Contents/Resources/`
-   (prewarm) or `Contents/MacOS/` (sidecar).
-4. **Sign the entire `.app` bundle** with `--deep` (or, preferably,
+2. **Add the binary to the `.app` bundle's** `Contents/Resources/`
+   or `Contents/MacOS/`.
+3. **Sign the entire `.app` bundle** with `--deep` (or, preferably,
    signed leaf-to-root manually).
-5. **Notarize the `.app`** (`xcrun notarytool submit ... --wait`).
-6. **Staple the `.app`** (`xcrun stapler staple <app>`).
-7. **Build the DMG** from the stapled `.app`.
-8. **Sign + notarize + staple the DMG** (same flow as the `.app`).
+4. **Notarize the `.app`** (`xcrun notarytool submit ... --wait`).
+5. **Staple the `.app`** (`xcrun stapler staple <app>`).
+6. **Build the DMG** from the stapled `.app`.
+7. **Sign + notarize + staple the DMG** (same flow as the `.app`).
+
+> The standalone prewarm binary (former step 2) is RETIRED with the
+> prewarm retirement (plan §6.2 P-1): there is no prewarm binary to
+> sign, and it is not a signing target (C-CI-11).
 
 ### Required `Info.plist` keys for the `.app` (ADR-0020 §13.2)
 
 | Key | Value | Why |
 |-----|-------|-----|
-| `CFBundleIdentifier` | `com.Lausu.desktop` | Matches today's `legacy builder config` `appId`. |
+| `CFBundleIdentifier` | `com.Lausu.desktop` | Matches `src-tauri/tauri.conf.json` `identifier`. |
 | `LSMinimumSystemVersion` | `13.0` | Matches `PLATFORM_STATUS.md` minimum. |
 | `LSUIElement` | `false` | Main app shows in Dock. (Sidecar sets `LSUIElement=true` separately.) |
 | `NSMicrophoneUsageDescription` | (required) | `sounddevice` mic access. |
@@ -208,7 +215,7 @@ Per ADR-0020 §13.2:
 # Format: "Developer ID Application: Your Name (XXXXXXXXXX)"
 IDENTITY="$MAC_SIGNING_IDENTITY"
 
-# Sign the sidecar binary (built by scripts/build/build_sidecar_macos.sh).
+# Sign the sidecar binary (built by the Nuitka sidecar step in tauri-macos-build.yml).
 codesign --force --options runtime --sign "$IDENTITY" \
     --entitlements src-tauri/entitlements.plist \
     src-tauri/bin/python-sidecar-x86_64-apple-darwin
@@ -217,12 +224,8 @@ codesign --force --options runtime --sign "$IDENTITY" \
     --entitlements src-tauri/entitlements.plist \
     src-tauri/bin/python-sidecar-aarch64-apple-darwin
 
-# Sign the prewarm binary (built by scripts/build/build_prewarm_macos.sh).
-codesign --force --options runtime --sign "$IDENTITY" \
-    src-tauri/resources/prewarm-x86_64-apple-darwin
-
-codesign --force --options runtime --sign "$IDENTITY" \
-    src-tauri/resources/prewarm-aarch64-apple-darwin
+# (HISTORICAL: the matching codesign blocks for the retired standalone
+# prewarm binaries were deleted with the prewarm retirement.)
 ```
 
 ### Signing the `.app` bundle
@@ -299,9 +302,8 @@ xcrun stapler validate "$DMG"
 ### Apple Silicon + Intel
 
 Per ADR-0020 §13.2: build separately, produce two `.app` bundles, ship
-as two DMGs (or one universal DMG). The existing `legacy builder config`
-ships `dmg` with `arch: [x64, arm64]` Two separate DMGs. Mirror this
-for Tauri:
+as two DMGs (or one universal DMG). The `tauri-macos-build.yml` jobs
+build per-arch plus universal. Mirror this for manual builds:
 
 ```bash
 # Build + sign + notarize + staple for each arch separately:
@@ -314,8 +316,8 @@ bash scripts/build/build_tauri_all.sh macos aarch64-apple-darwin
 
 - Sub-agent #6's macOS validation runbook: `macos-validation-runbook.md`
   (per-platform runbook: owned by sub-agent #6).
-- `.github/workflows/build.yml` macOS job: existing `MAC_SIGNING_IDENTITY`
-  + `APPLE_TEAM_ID` env wiring.
+- `.github/workflows/tauri-macos-build.yml`: the `MAC_SIGNING_IDENTITY`
+  + `APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` / `APPLE_TEAM_ID` wiring.
 
 ---
 
@@ -326,8 +328,8 @@ bash scripts/build/build_tauri_all.sh macos aarch64-apple-darwin
 Linux desktop apps have **no certificate authority** comparable to
 Windows Authenticode or macOS Developer ID. The distro package managers
 (`apt`, `dnf`) verify GPG signatures on the **repository** level, not
-on individual packages. Today's predecessor build (`legacy builder config`)
-ships unsigned `.deb` / `.rpm` / AppImage; the Tauri build matches this.
+on individual packages. The Tauri build ships unsigned `.deb` / `.rpm` /
+AppImage (matching the retired predecessor packaging).
 
 ### Optional GPG-signing (out of scope for v1)
 
@@ -373,9 +375,9 @@ reused verbatim for the Tauri `.deb` / `.rpm` bundles:
 
 - Sub-agent #7's Linux validation runbook: `linux-validation-runbook.md`
   (per-platform runbook: owned by sub-agent #7).
-- `voice_typer/client/legacy builder config` `deb`/`rpm` sections: existing
-  `afterInstall`/`afterRemove` wiring (the Tauri `bundle.linux.deb/rpm`
-  config mirrors these).
+- `src-tauri/tauri.conf.json` `bundle.linux.deb`/`rpm` sections carry
+  the `postInstallScript`/`preRemoveScript` wiring (the Tauri config
+  owns these; there is no separate builder config).
 
 ---
 
@@ -428,7 +430,7 @@ and are intentionally NOT modified by this audit:
 | `docs/adr/0013-desktop-runtime-migration-analysis.md` | 133, 146, 147 | The PRIOR (superseded) ADR: references `updater` as a hypothetical option. ADR-0020 supersedes ADR-0013. | No action: superseded ADR. |
 | `docs/API.md` | 123 | Mentions `predecessor-updater` (the predecessor's auto-updater, not Tauri's) in a comment about a config flag. | No action: predecessor-side reference. |
 | `docs/auto-update-feature.md` | 10, 28, 58-67, 180-186 | Design-only spec for the (not-implemented) auto-update feature. The file's own header states: "STATUS: NOT IMPLEMENTED." | No action: design doc only. |
-| `voice_typer/client/legacy builder config` | 8 | Comment about `auto-updater` (predecessor's). | No action: predecessor-side config; the `publish: github` block is not consumed by any code today (per ADR-0020 §15). |
+| (predecessor builder config) | 8 | Comment about `auto-updater` (predecessor's). | No action: predecessor-side config, removed with the predecessor shell; the `publish: github` block was never consumed by any code (per ADR-0020 §15). |
 
 #### Conclusion
 

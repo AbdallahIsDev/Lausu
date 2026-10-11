@@ -1,6 +1,7 @@
 # ShutdownController
 
-**File**: `voice_typer/server/shutdown_controller.py`
+**Package**: `voice_typer/server/shutdown_controller/` (plus the
+`voice_typer/server/shutdown/` sibling package)
 
 ## Responsibility
 

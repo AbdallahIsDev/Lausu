@@ -1,6 +1,6 @@
 # ARCH-12 / S3-CR-21: Source-text-pinning tests (`inspect.getsource`) migration
 
-- **Status:** Proposed (chip-away migration in progress)
+- **Status:** Accepted (chip-away migration in progress; content active)
 - **Date:** 2026-08-22
 - **Review.md entries:** #2 ARCH-12 + #5 S3-CR-21
 - **Severity:** High (blocks safe refactoring of large files)

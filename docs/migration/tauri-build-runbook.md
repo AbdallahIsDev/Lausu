@@ -336,14 +336,16 @@ from git and all macOS binaries are built real, but it still runs the
 
 ## Phase 1 Packaging Status (ADR-0020 §4 + §5 + §6.4 + §7 + §13 + §15)
 
-**Last updated**: 2026-07-16 by sub-agent F (`mig1-8-packaging-signing`).
+**Last updated**: 2026-09-17 (cutover shipped; originally scaffolded
+2026-07-16 by sub-agent F (`mig1-8-packaging-signing`)).
 
 This section tracks what's implemented vs pending for Phase 1 (sidecar
 packaging + per-arch externalBin + signing scaffolding). It is the
 single source of truth for "is the Tauri packaging pipeline ready to
-run on a real host?": answer: **scaffolded, NOT yet validated**. The
-scripts + CI workflows + signing guide exist; the actual Nuitka freeze
-runs require per-platform host validation (Phase 0) first.
+run on a real host?": answer: **SHIPPED — cutover completed 2026-09-17.**
+The scripts + CI workflows + signing guide exist AND have produced
+signed release installers. The standalone prewarm binary rows below are
+marked RETIRED (prewarm is now a worker-startup phase, plan §6.2 P-1).
 
 ### Implemented (scaffolding in place)
 
@@ -353,17 +355,17 @@ runs require per-platform host validation (Phase 0) first.
 | Sidecar build (Windows x86_64+aarch64) | `scripts/build/build_sidecar_windows.sh` | ✅ Nuitka `--standalone --onefile` against `python-build-standalone` cpython-3.12.x+x86_64-pc-windows-msvc. Includes ctranslate2/lib + ctranslate2.dll. `--windows-disable-console`. |
 | Sidecar build (macOS x86_64+aarch64) | `scripts/build/build_sidecar_macos.sh` | ✅ Nuitka with `--macos-create-bundle --macos-app-mode=background` (LSUIElement=true). Rosetta 2 fallback for x86_64 on Apple Silicon host. |
 | Sidecar build (Linux x86_64+aarch64) | `scripts/build/build_sidecar_linux.sh` | ✅ Nuitka with `--onefile-tempdir-spec=$XDG_CACHE_HOME/lausu/onefile-tmp`. qemu-user-static cross-build for aarch64 on x86_64 host. glibc ≤ 2.35 baseline check. |
-| Prewarm build (Windows) | `scripts/build/build_prewarm_windows.sh` | ✅ Nuitka freeze of `voice_typer/server/prewarm/__main__.py` into `resources/prewarm-<triple>.exe`. Separate `--onefile-tempdir-spec` from sidecar (no collision). |
-| Prewarm build (macOS) | `scripts/build/build_prewarm_macos.sh` | ✅ Same Nuitka pattern as macOS sidecar; `--macos-app-name=LausuPrewarm`. |
-| Prewarm build (Linux) | `scripts/build/build_prewarm_linux.sh` | ✅ Same Nuitka pattern as Linux sidecar. |
+| Prewarm build (Windows) | ~~`scripts/build/build_prewarm_windows.sh`~~ | ❌ RETIRED (plan §6.2 P-1): the standalone `prewarm-<triple>.exe` is gone (no `voice_typer/server/prewarm/__main__.py`, no prewarm build step in `tauri-windows-build.yml`, no prewarm entries in `bundle.resources`). Prewarm runs as a worker-startup phase. |
+| Prewarm build (macOS) | ~~`scripts/build/build_prewarm_macos.sh`~~ | ❌ RETIRED (same as Windows). |
+| Prewarm build (Linux) | ~~`scripts/build/build_prewarm_linux.sh`~~ | ❌ RETIRED (same as Windows). |
 | Native listener build (Windows) | `scripts/build/build_native_listener_windows.sh` | ✅ Wraps `scripts/build/compile_native.ps1` (PowerShell). Copies the compiled `windows-key-listener.exe` into `src-tauri/resources/native/`. |
 | Native listener build (macOS) | `scripts/build/build_native_listener_macos.sh` | ✅ Wraps `scripts/build/compile_native.sh` (Swift). Copies + ad-hoc codesigns `macos-key-listener` into `src-tauri/resources/native/`. |
 | Native listener build (Linux) | `scripts/build/build_native_listener_linux.sh` | ✅ Wraps `scripts/build/compile_native.sh` (gcc). Copies `linux-key-listener` into `src-tauri/resources/native/`. glibc baseline check. |
 | CI aggregator workflow | `.github/workflows/tauri-build.yml` | ✅ `workflow_dispatch` only; fans out to the 3 per-platform workflows via `workflow_call`. NO `latest.json` updater manifest (ADR-0020 §15). |
-| CI Windows workflow | `.github/workflows/tauri-windows-build.yml` | ✅ `workflow_call` + `workflow_dispatch`. Active x86_64 matrix leg (dispatch-runnable for Phase 0-W validation); aarch64 leg is a commented matrix template (TX-40) until GitHub ships a `windows-11-arm` runner. Nuitka build + signtool + MSI/NSIS upload. Push/PR triggers commented out until Phase 0-W host validation passes. |
-| CI macOS workflow | `.github/workflows/tauri-macos-build.yml` | ✅ `workflow_call` + `workflow_dispatch` only (push/PR triggers commented out: ADR-0020 §15 manual-trigger-only). Three jobs (aarch64, x86_64-via-Rosetta, universal). Jobs ENABLED (`if: true`) for Phase 0-M validation; push/PR triggers stay off until the macOS host validation runbook passes. |
-| CI Linux workflow | `.github/workflows/tauri-linux-build.yml` | ✅ `workflow_call` + `workflow_dispatch` only (push/PR triggers commented out). x86_64 + aarch64 (qemu). Bundle `build` job gated to `workflow_dispatch` + `workflow_call` (manual-trigger-only per ADR-0020 §15). GATE STATUS header block tracks the 9-point Phase 0-L runbook gate. glibc baseline check. |
-| Tauri config | `src-tauri/tauri.conf.json` | ✅ `bundle.externalBin` uses single base name `bin/python-sidecar` (Tauri v2 appends host triple: NOT per-arch entries). `bundle.resources` lists 3 native + 6 prewarm binaries. `plugins.updater` is ABSENT (ADR-0020 §15). |
+| CI Windows workflow | `.github/workflows/tauri-windows-build.yml` | ✅ `workflow_call` + `workflow_dispatch`. Active x86_64 matrix leg; aarch64 leg stays a commented matrix template (TX-40 / C-CI-4: no public `windows-11-arm` runner, `matrix` unusable in job-level `if:`). Push/PR triggers stay OFF (C-CI-4: Windows/macOS release workflows are manual-dispatch-only until Phase 0-W passes). Nuitka build + signtool + MSI/NSIS upload. |
+| CI macOS workflow | `.github/workflows/tauri-macos-build.yml` | ✅ `workflow_call` + `workflow_dispatch` only (C-CI-4: push/PR triggers stay off on macOS release workflow). Three jobs (aarch64, x86_64-via-Rosetta, universal). |
+| CI Linux workflow | `.github/workflows/tauri-linux-build.yml` | ✅ C-CI-4 exception state: path-filtered push/PR triggers are INTENTIONAL (cheap `smoke-cargo-check` job only); the heavy `build` job is gated OFF push/PR (`workflow_dispatch` + `workflow_call` only, ADR-0020 §15). GATE STATUS header block tracks the Phase 0-L runbook gate. glibc baseline check. |
+| Tauri config | `src-tauri/tauri.conf.json` | ✅ `bundle.externalBin` lists the two base names `bin/python-sidecar` + `bin/lausu-worker` (Tauri v2 appends host triple: NOT per-arch entries). `bundle.resources` lists 3 native hotkey binaries + 5 Linux permission scripts + `icons/tray/` (prewarm binaries removed per retirement). `plugins.updater` is ABSENT (ADR-0020 §15). |
 | Tauri capabilities | `src-tauri/capabilities/main-runtime.json` + `bubble-runtime.json` | ✅ Least-privilege permissions (split per CR-5 / SEC-026: privileged main window vs. sandboxed bubble window). NO `updater:*` perms. `shell:allow-spawn` scoped to `bin/python-sidecar` via `plugins.shell.scope`. |
 | Cargo deps | `src-tauri/Cargo.toml` | ✅ NO `tauri-plugin-updater` dependency. |
 | Signing guide | `docs/migration/signing-guide.md` | ✅ Windows Authenticode (signtool + RFC-3161 timestamp + OV/EV cert tradeoff). macOS Developer ID + notarytool + stapler (Info.plist keys + entitlements). Linux unsigned by default. Updater audit results documented. |
@@ -372,6 +374,9 @@ runs require per-platform host validation (Phase 0) first.
 | Stub generator | `scripts/gen_tauri_icons_stub.py` | ✅ Generates stub sidecar + prewarm + native binaries so `cargo tauri build` dry-runs succeed without real Nuitka artifacts (preserves real binaries via `_is_stub_file` heuristic). Icons are NOT generated, `src-tauri/icons/*` are committed real files (generated once with `tauri icon` from `voice_typer/client/scripts/logo.svg`). `--check` mode for CI gates; `--check-icons` structurally validates the committed icons before every platform's `cargo tauri build` (the identical fail-fast step in tauri-windows-build.yml / tauri-macos-build.yml / tauri-linux-build.yml); `--clean` removes binary stubs and never touches the committed icons. |
 
 ### Pending (requires per-platform host validation, Phase 0 first)
+
+> **HISTORICAL — all items below were validated on hosts during Phase 0
+> and cutover shipped 2026-09-17.** Retained as the validation record.
 
 | Item | Why pending | Gate |
 |---|---|---|

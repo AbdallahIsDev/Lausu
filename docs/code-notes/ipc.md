@@ -10,11 +10,22 @@ Source: `voice_typer/server/ipc/registry.py`. Parity contract: CONTRIBUTING.md
 lockstep. Host-dispatched commands (`shutdown`, `tray_click`, `heartbeat`,
 `relaunch_ack`) are intentionally absent from the Rust renderer allowlist.
 
-Pinned sets:
+Pinned sets (counts verified against code: 85-entry `_COMMAND_REGISTRY`
+minus the 4 host-dispatched commands = 81-entry Rust allowlist):
 - `_COMMAND_REGISTRY` — 85 keys (tests/test_ipc_server.py).
 - `allowed_commands()` (Rust renderer allowlist) — 81 keys; the registry minus
   the four host-dispatched commands (SECURITY.md, `sidecar_cmds_tests.rs`).
-- `_READONLY_COMMANDS` — `{get_status, get_config, get_model_catalog, heartbeat}`.
+- `_READONLY_COMMANDS` — 26 pure-read commands (full set in
+  `voice_typer/server/ipc/registry.py`): `get_status`, `get_config`,
+  `get_model_catalog`, `heartbeat`, `get_defaults`, `get_history`,
+  `get_history_count`, `get_today_stats`, `get_favorites`,
+  `get_transcription_text`, `get_microphones`, `get_plugins`,
+  `get_volume_backend_status`, `get_model_status`, `get_prewarm_status`,
+  `get_vocabulary`, `get_correction_usage`, `get_templates`,
+  `get_download_queue`, `microphone_test_get_level`,
+  `onboarding_is_first_run`, `onboarding_get_microphones`,
+  `onboarding_get_model_options`, `onboarding_get_hotkey_presets`,
+  `onboarding_check_permissions`, `screenshot_get_status`.
   WS/stdin dispatcher bypasses `_dispatch_lock` for these (pure reads).
 - `_PYTHON_ONLY_COMMANDS` — `{shutdown, tray_click}`. Renderer must never
   invoke them (spoofing / DoS).
@@ -119,7 +130,7 @@ this file. Patch the **owning leaf** when a test needs to rebind.
 Catalogue of event names + payloads: `docs/code-notes/event-catalogue.md`.
 Docstring in `event_bus.py` is pinned by `tests/test_event_bus.py`
 (`tray_menu`, `tray_state`, `consent_required`, `parakeet_cpu_fallback`,
-`Total: 49 events`). RT auto-defer (PERF-2) + bounded deferred queue
+`Total: 51 events`). RT auto-defer (PERF-2) + bounded deferred queue
 (`_DEFERRED_QUEUE_MAX`).
 
 ## Logging

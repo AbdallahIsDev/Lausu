@@ -30,7 +30,7 @@ both link here.
 There are **two** log files (one per process): the Python backend log
 and the Tauri Rust host log. They live at *different* paths, the
 Python log is at `<DATA_DIR>/lausu.log` (directly under the data
-dir), while the Rust host log is at `<DATA_DIR>/logs/lausu.log`
+dir), while the Rust host log is at `<DATA_DIR>/logs/lausu-rust.log`
 (in a `logs/` subdir). Verified via:
 
 - Python: `voice_typer/server/logging_setup.py:_setup_logging()` (canonical entry point: re-exported from `app.py` for backwards compatibility) → delegates to `voice_typer/server/log.py:setup_logging`; path literal at `log.py:898` `log_file = config_dir / "lausu.log"`
@@ -69,8 +69,8 @@ When running under the Tauri runtime (ADR-0020, sole host), the Rust host writes
 its own log at `<DATA_DIR>/logs/lausu-rust.log` (single-file
 policy: it is truncated in place at 5 MB, numbered backups are never
 created — see `src-tauri/src/platform/logging/init.rs:135-149`). The
-basename is `lausu-rust` (distinct from the Python current log
-`logs/lausu.log`) so the two processes never collide on disk or in
+basename is `lausu-rust` (distinct from the Python log
+`lausu.log`) so the two processes never collide on disk or in
 the diagnostics zip; the bundle ships the file under this same
 on-disk name.
 
@@ -108,14 +108,14 @@ This design is:
 │   ├── version                  #   HF cache version stamp
 │   └── tokenizers/              #   Tokenizer cache (rarely used)
 ├── models/ ──junction/symlink──→ huggingface/hub/   ← browsable shortcut
-├── venv/                        # Python virtual environment (python -m venv)
+├── venv/                        # LEGACY/dev only: Python virtual environment (python -m venv). The shipped app runs frozen Nuitka onefiles (`python-sidecar` + `lausu-worker` via Tauri `externalBin`), no `venv/` is created or required.
 │   ├── Scripts/python.exe       #   Python executable (Windows)
 │   ├── bin/python               #   Python executable (POSIX)
 │   ├── Lib/site-packages/       #   All Python deps (Windows)
 │   └── lib/python3.XY/site-packages/  # All Python deps (POSIX)
 ├── lausu.log              # Python backend log (single file, truncates in place at 5 MiB)
 ├── logs/
-│   └── lausu.log          # Tauri Rust host log (single file, truncates in place at 5 MB)
+│   └── lausu-rust.log     # Tauri Rust host log (single file, truncates in place at 5 MB)
 ├── legacy-profile/               # LEGACY only: Chromium profile left by pre-cutover installs (inert, see uninstall script for exact dirname)
 ├── vocabulary.json  # User vocabulary overrides (merged with bundled defaults)
 ├── lausu-corrections.json # User text-corrections overrides (optional; merged with bundled)
@@ -142,8 +142,8 @@ HuggingFace cache directory. Set via `os.environ["HF_HOME"]` in `logging_setup.p
 - `models--org--name/` directories containing snapshots, blobs, refs
 - Managed entirely by `huggingface_hub` The app does **not** write here directly
 
-### `venv/`
-Python virtual environment created by the installer or first-run setup. Contains:
+### `venv/` (LEGACY/dev only)
+Legacy Python virtual environment layout (dev installs / first-run setup). The shipped app does NOT use a `venv/`: it runs frozen Nuitka onefiles (`python-sidecar` + `lausu-worker` via Tauri `externalBin` in `src-tauri/tauri.conf.json`). A `venv/` on disk is a dev leftover, not a runtime requirement. Historical contents:
 - Python interpreter
 - All pip dependencies (faster-whisper, ctranslate2, onnxruntime, sounddevice, pynput, pystray, Pillow, etc.)
   - **Torch migration note (retired 2026-08-15)**: the ONNX migration is complete (`PLAN_ONNX_INTEGRATION.md` §2/§3, Phase 1d). VAD uses `onnxruntime`, Parakeet uses `onnx-asr`, Qwen uses pre-exported ONNX via `onnxruntime`. `torch` is not a project dependency; see `pyproject.toml` for the canonical dep list.
@@ -222,14 +222,12 @@ When a user launches the app for the first time (no `<DATA_DIR>` exists yet):
 4. `get_history` + `get_today_stats` populate History page
 5. StatusBar shows connection state and recording state
 
-### NSIS installer (Tauri), TBD
-Currently the installer does NOT create `<DATA_DIR>`. The Python backend creates it on first launch. Options:
+### NSIS installer (Tauri), wired
+The NSIS post-install hooks are wired (`src-tauri/tauri.conf.json` → `bundle.windows.nsis.installerHooks`, composed by `scripts/windows/tauri-installer-hooks.nsh`). The installer does NOT create `<DATA_DIR>`; the Python backend creates it on first launch (Option A below is the live behavior). Historical options:
 
 - **Option A** (current, simple): Python backend creates everything on first run. No installer changes needed.
-- **Option B** (recommended for v1 release): Tauri NSIS post-install script (`scripts/windows/tauri-installer-hooks.nsh`) runs setup that creates the folder structure + venv + base config. Slower install but faster first launch.
-- **Option C**: RUST host runs setup before spawning the Python sidecar.
-
-See "Implementation Checklist" below for what an AI agent should build for Option B/C.
+- **Option B** (done): Tauri NSIS post-install script (`scripts/windows/tauri-installer-hooks.nsh`) is wired via `installerHooks`.
+- **Option C**: RUST host runs setup before spawning the Python sidecar (not adopted; the backend owns first-run setup).
 
 ## Error States & Recovery
 
@@ -241,7 +239,7 @@ See "Implementation Checklist" below for what an AI agent should build for Optio
 | `model/` junction broken | Recreated on startup (`_ensure_model_junction()`) |
 | `huggingface/hub/` missing | Models are re-downloaded on next load attempt |
 | Disk full / permission denied | Backend catches `OSError`, sets tray state → `ERROR` |
-| `venv/` missing | App cannot start (Python won't even run). Installer must ensure venv is valid. |
+| `venv/` missing | Not an error in the shipped app (frozen onefiles carry their own runtime; `venv/` is dev-only). |
 
 ---
 
@@ -271,20 +269,15 @@ For an AI agent tasked with implementing the folder structure recommendations:
 - [ ] If not, write a copy of this document (or a condensed user-facing version)
 - [ ] The README should list every folder/file with a short description and tell the user not to delete model files manually
 
-### 5. NSIS installer setup (Tauri)
-- [ ] Add an NSIS script wired via `src-tauri/tauri.conf.json` → `bundle.windows.nsis.installerHooks` (composed by `scripts/windows/tauri-installer-hooks.nsh`) that:
-  - Creates `$PROFILE\.lausu\` and subfolders
-  - Runs `python -m venv $PROFILE\.lausu\venv`
-  - Runs pip install from bundled requirements
-  - Writes initial `config.json`
-  - Creates desktop shortcut (or let the Python backend handle this)
-- [ ] Do NOT reference the deleted legacy builder config; Tauri NSIS hooks only
-- [ ] Bundle Python embeddable + pip requirements inside the installer
+### 5. NSIS installer setup (Tauri) (DONE)
+- [x] NSIS script wired via `src-tauri/tauri.conf.json` → `bundle.windows.nsis.installerHooks` (composed by `scripts/windows/tauri-installer-hooks.nsh`)
+- [x] Do NOT reference the deleted legacy builder config; Tauri NSIS hooks only
+- [x] Shipped app runs frozen Nuitka onefiles (`python-sidecar` + `lausu-worker` via `externalBin`); no `venv/` creation, pip install, or Python embeddable bundling in the installer (first-run setup is owned by the backend)
 
-### 6. Model download UX
-- [ ] When user clicks "Download" for a model in Settings UI:
+### 6. Model download UX (DONE)
+- [x] When user clicks "Download" for a model in Settings UI (Settings → Models, `download_model` IPC + `download_progress` push events):
   - Show progress bar (HuggingFace `snapshot_download` supports `callback` for progress)
-  - Emit `model_download_progress` push event with bytes downloaded / total
+  - Emit `download_progress` push event with bytes downloaded / total
   - Show completion notification
   - On failure: show error with retry button
 
@@ -293,15 +286,15 @@ For an AI agent tasked with implementing the folder structure recommendations:
 - [ ] If CUDA not available, show "No GPU detected, using CPU (slower)"
 - [ ] Let user override device in Settings (CUDA → CPU fallback)
 
-### 8. CUDA runtime probe (`_probe_cuda_runtime`)
-- [ ] Already implemented in `transcription.py` Runs a 10ms silent transcription after model load on CUDA
+### 8. CUDA runtime probe (`_probe_cuda_runtime`) (DONE)
+- [x] Implemented in `transcription.py` Runs a 10ms silent transcription after model load on CUDA
 - [ ] Forces early cuBLAS/cuDNN DLL resolution so failures surface at startup, not mid-recording
 - [ ] On probe failure: tears down GPU model, reloads on CPU via `_reload_under_lock()`
 - [ ] Logs `[CUDA-PROBE]` entries for every step
 - [ ] Probe uses `vad_filter=False` + `word_timestamps=False` for minimal kernel touch
 
-### 9. Debug logging for CUDA DLL loading (`_configure_nvidia_dll_paths`)
-- [ ] Already implemented, `[CUDA-DLL]` tags on every path check
+### 9. Debug logging for CUDA DLL loading (`_configure_nvidia_dll_paths`) (DONE)
+- [x] Implemented (`voice_typer/server/nvidia_dll_paths.py`), `[CUDA-DLL]` tags on every path check
 - [ ] Logs each root path searched, whether directories exist, how many DLLs found
 - [ ] Logs each `os.add_dll_directory()` call result (success/failure)
 - [ ] Logs final `PATH` entries containing `nvidia` for post-mortem debugging

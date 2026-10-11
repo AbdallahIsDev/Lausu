@@ -169,9 +169,9 @@ The auto-update mechanism is now wired end-to-end:
   the Rust `allowed_commands()` literal
   (`src-tauri/src/commands/sidecar_cmds/allowlist.rs`), the
   `PythonRequest` TS union, and the rate-limiter cost table, all in
-  lockstep. There are exactly TWO dispatch allowlists post-cutover
-  (CONTRIBUTING.md §6.4): the Python `_COMMAND_REGISTRY` (75 entries) and
-  the Rust `allowed_commands()` set (71 entries = 75 minus the four
+   lockstep. There are exactly TWO dispatch allowlists post-cutover
+   (CONTRIBUTING.md §6.4): the Python `_COMMAND_REGISTRY` (85 entries) and
+   the Rust `allowed_commands()` set (81 entries = 85 minus the four
   host-dispatched commands `heartbeat`, `relaunch_ack`, `shutdown`,
   `tray_click`). There is no TypeScript allowlist; parity is pinned by
   `tests/test_ipc_command_parity.py`.

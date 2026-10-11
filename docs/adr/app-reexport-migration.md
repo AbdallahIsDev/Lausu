@@ -1,8 +1,23 @@
 # ARCH-9, `app.py` Test-Seam Re-Export Migration Plan
 
-**Status**: In Progress (Wave 1 chip-away)
+**Status**: In Progress (chip-away; 27 `app.X` sites remain 2026-10-11, was 174 on 2026-08-22 — see recount note below. `LausuApp` sites stay: the class lives in `app.py`.)
 **Started**: 2026-08-22 (Wave 1, Sub-Agent #9 / W1-A9)
-**Scope**: Migrate `monkeypatch.setattr("voice_typer.server.app.X", ...)` sites in `tests/` to canonical paths (`voice_typer.server.server_platform.X`, etc.), then delete the corresponding re-export blocks from `voice_typer/server/app.py` once dependency count hits zero.
+**Scope**: Migrate `monkeypatch.setattr("voice_typer.server.app.X", ...)` sites in `tests/` to canonical paths (the OWNING SUBMODULE's attribute, e.g. `voice_typer.server.server_platform.autostart.enable_autostart`), then delete the corresponding re-export blocks from `voice_typer/server/app.py` once dependency count hits zero.
+
+> **Recount (2026-10-11):** 27 sites remain (13× `LausuApp` which stays,
+> 4× `_windows_*`/`_systemroot_notepad_path`, 7× devnull/pid helpers,
+> 1× `_config_dir`, 2× misc). The autostart/mic symbols of Phase 1 are
+> all migrated. The §"Remaining Sites Count" table below (174, dated
+> 2026-08-22) is the historical snapshot, not the live count.
+>
+> **C-ARCH-2 direction (2026-10-11):** the `_pkg.X` call-time
+> "patch-path bridge" endorsed in Context below was REMOVED 2026-08-26
+> per C-ARCH-2 (forbidden in `server_platform/` / `prewarm/` /
+> `recording/`). Do NOT follow that direction: production resolves
+> cross-module names through sibling MODULE-OBJECT attribute reads at
+> call time (e.g. `from ... import autostart as _m; _m.enable_autostart()`),
+> tests patch the OWNING SUBMODULE's attribute. The `_pkg.X` paragraphs
+> below are historical.
 
 ## Context
 
@@ -34,13 +49,14 @@ from voice_typer.server.server_platform import (  # noqa: F401
 )
 ```
 
-The canonical module `voice_typer.server.server_platform` uses the
-"patch-path bridge" pattern internally (see
-`server_platform/autostart.py` lines 60-65 and
-`server_platform/microphone_list.py` lines 41-46): public dispatch functions
-look up sub-helpers via `_pkg.X` (the package-self reference) at call time so
-that `monkeypatch.setattr("voice_typer.server.server_platform.X", ...)` DOES
-intercept the call.
+The canonical target is the OWNING SUBMODULE (e.g.
+`voice_typer.server.server_platform.autostart.enable_autostart`):
+tests patch that attribute directly and production resolves it through
+the sibling module object at call time. (Historical: this paragraph
+previously endorsed the `_pkg.X` package-self "patch-path bridge";
+that pattern was removed 2026-08-26 per C-ARCH-2 and must not be
+reintroduced. The `server_platform/autostart.py` / `microphone_list.py`
+line refs below are stale.)
 
 ## Migration Plan
 

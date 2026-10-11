@@ -32,8 +32,10 @@ push/PR triggers stay disabled until Phase 0-W host validation.
 
 - `sign=true` + missing secrets must hard-fail; `sign=false` skips.
 - Secrets must map to job-level `env` (unusable in step `if:`).
-- Sign sidecar, prewarm, native listener, NSIS, MSI, standalone host exe,
-  runtime-pack worker, full offline installer when present.
+- Sign sidecar, native listener, NSIS, MSI, standalone host exe,
+  runtime-pack worker, full offline installer when present. (The
+  standalone prewarm binary is retired per plan §6.2 P-1 and is NOT a
+  signing target.)
 
 ## Other Windows-build invariants
 
