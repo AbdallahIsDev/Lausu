@@ -100,6 +100,9 @@ def handle_host_frame(msg: object) -> bool:
     _pack_events_mod._publish_event(
         _event_bus_mod, WORKER_STARTED_EVENT, {"pid": pid, "version": version, "port": port}
     )
+    from voice_typer.server.service.offline_pack import ready as _pack_ready_mod
+
+    _pack_ready_mod.note_worker_started(pid, version, _event_bus_mod)
     log.info("[WORKER] host relayed worker port=%d (pid=%d)", port, pid)
     return True
 
