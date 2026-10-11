@@ -1,17 +1,17 @@
 use crate::platform::worker_path::{
-    HOST_MIN_PROTO_VERSION, HOST_PROTO_VERSION, PackProtoStatus, WORKER_BIN_BASE_NAME,
-    check_pack_manifest_for_exe, pack_version,
+    check_pack_manifest_for_exe, pack_version, PackProtoStatus, HOST_MIN_PROTO_VERSION,
+    HOST_PROTO_VERSION, WORKER_BIN_BASE_NAME,
 };
 use crate::state::SidecarHandle;
 use crate::state::WorkerState;
-use crate::state::{SidecarState, lock as state_lock};
+use crate::state::{lock as state_lock, SidecarState};
 use crate::util::{DEV_SERVER_STARTED_TIMEOUT_MS, SERVER_STARTED_TIMEOUT_MS};
-use serde_json::{Value, json};
-use std::sync::Arc;
+use serde_json::{json, Value};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tauri::{Emitter, Manager};
-use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{Command, CommandEvent};
+use tauri_plugin_shell::ShellExt;
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
@@ -19,8 +19,8 @@ use super::dev_mode::is_dev_mode;
 use super::env_allowlist::passthrough_env_allowlist;
 use super::handshake::parse_worker_started;
 use super::handshake_loop::{
-    HandshakeLabels, read_handshake_from_command_events, read_handshake_from_stdout_lines,
-    register_kill_on_parent_exit_best_effort,
+    read_handshake_from_command_events, read_handshake_from_stdout_lines,
+    register_kill_on_parent_exit_best_effort, HandshakeLabels,
 };
 use super::initialize_worker;
 
