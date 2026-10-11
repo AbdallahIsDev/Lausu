@@ -37,15 +37,29 @@ class StatusMixin(ServiceMixinBase):
         """Cheap, cached offline-pack state for the degradation matrix (§8.10).
 
         Returns ``{"installed_version": <str|None>, "available": bool,
+        "consent_granted": bool, "download_progress": <int|None>}`` where
+        ``download_progress`` is 0-100 while downloading, 100 once bytes
+        land, None otherwise (PK-2 mount catch-up reads it).
         """
+        from voice_typer.server.service.offline_pack.progress import get_download_progress
+
+        progress: int | None = None
+        try:
+            progress = get_download_progress()
+        except Exception:
+            log.debug("[SERVICE] offline pack progress unavailable", exc_info=True)
+            progress = None
         now = time.monotonic()
         cached = self._pack_status_cache
         if cached is not None and (now - self._pack_status_cached_at) < self._OFFLINE_PACK_STATUS_TTL_S:
-            return cached
+            fresh = dict(cached)
+            fresh["download_progress"] = progress
+            return fresh
         state: dict[str, object] = {
             "installed_version": None,
             "available": False,
             "consent_granted": False,
+            "download_progress": progress,
         }
         try:
             from voice_typer.server.service import update_check
@@ -59,7 +73,7 @@ class StatusMixin(ServiceMixinBase):
             log.debug("[SERVICE] offline pack status unavailable", exc_info=True)
         self._pack_status_cache = state
         self._pack_status_cached_at = now
-        return state
+        return dict(state)
 
     def get_status(self) -> "StatusResponse":
         """Return the current app state plus audio-quality telemetry."""
