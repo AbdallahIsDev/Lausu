@@ -19,6 +19,45 @@ are `voice_typer/server/log/formatters.py`. Pinned by
 `src-tauri/src/util_tests.rs` (`test_now_timestamp_format`) and
 `src-tauri/src/platform/logging_tests.rs`.
 
+## Terminal colour (C-LOG-1 ANSI palette)
+
+The stderr terminal sink renders the same ANSI palette as the Python
+sidecar's `_ColorFormatter`: dim timestamp `38;5;242`, WARN `38;5;226`
+(yellow — never the `38;5;214` orange, which Windows conhost quantizes to
+bright-red and so inverts WARN against ERROR), ERROR `38;5;196`, and a
+`[TOPIC]` colour table mirroring `_TOPIC_COLOR`. The palette was originally
+owned by the Electron main process (`src/main/logging/colors.ts`, deleted
+with the Electron shell in `17461108`).
+
+Colouring never moves the visible text: `colorize_with(...)` with its SGR
+sequences stripped is byte-identical to `format_terminal_line(...)`, so the
+C-LOG-1 column layout holds for every level. Only the terminal sink is
+coloured; the file sinks stay plain and grep-friendly.
+
+**Why `FORCE_COLOR` exists.** `tauri dev` spawns the app with a PIPED
+stderr (`tauri-cli/src/interface/rust/desktop.rs`:
+`dev_cmd.stdout(os_pipe::dup_stdout())` + `dev_cmd.stderr(Stdio::piped())`)
+and then re-emits every line to its own stderr, so the bytes reach the
+terminal but the child's stderr is a pipe. The host then spawns the sidecar
+with `Stdio::inherit()`, handing it that same pipe. Both descendants
+therefore see `isatty() == false` — which is exactly why the Python
+sidecar's `_ColorFormatter` silently fell back to `_TerminalFormatter` after
+the Tauri migration (Electron had spawned it from node with inherited
+stdio, so the TTY survived).
+
+`scripts/tauri-dev.mjs` — the last process in the chain that still owns the
+terminal — decides once and exports `FORCE_COLOR=1`; the host reads it and
+forwards it to the sidecar through `sidecar/spawn/env_allowlist.rs`.
+Precedence in all three languages: `NO_COLOR` (any non-empty value) wins,
+then an explicit `FORCE_COLOR` (`""`/`1`/`true`/`yes` on, `0`/`false`/`no`
+off), then `isatty()`. The production autostart launcher opts out the other
+way — `voice_typer/server/autostart/_spawn_env.py` sets `NO_COLOR=1` +
+`FORCE_COLOR=0` — so redirected production output stays plain.
+
+Sources: `src-tauri/src/platform/logging/color.rs`,
+`voice_typer/client/scripts/log-colors.mjs`,
+`voice_typer/server/log/levels.py::_console_color_enabled`.
+
 ## Logging rotation tiers (ADR-0020 §11)
 
 Mirrors `voice_typer/server/_log_constants.py`:

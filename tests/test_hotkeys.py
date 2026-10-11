@@ -24,13 +24,21 @@ def _read(rel: str) -> str:
 class TestApplyConfigReRegistersHotkeyForPushToTalk:
     """Hotkey is re-registered when recording_mode or hotkey changes."""
 
+    @staticmethod
+    def _config_applier_src() -> str:
+        """The dispatcher plus the registered handlers it delegates to."""
+        base = REPO_ROOT / "voice_typer" / "server"
+        return (base / "config_applier.py").read_text(encoding="utf-8") + (
+            base / "config_applier_handlers.py"
+        ).read_text(encoding="utf-8")
+
     def test_service_apply_config_side_effects_handles_recording_mode(self):
-        config_applier_py = (REPO_ROOT / "voice_typer" / "server" / "config_applier.py").read_text(encoding="utf-8")
+        config_applier_py = self._config_applier_src()
         assert "recording_mode" in config_applier_py
         assert "app.hotkeys.restart" in config_applier_py
 
     def test_service_handles_hotkey_change(self):
-        config_applier_py = (REPO_ROOT / "voice_typer" / "server" / "config_applier.py").read_text(encoding="utf-8")
+        config_applier_py = self._config_applier_src()
         assert '"hotkey" in updates' in config_applier_py
 
 

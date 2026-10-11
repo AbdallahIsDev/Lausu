@@ -4,19 +4,6 @@ These items are the highest-priority remaining work for the project. They block 
 
 > **Won't Fix tasks live in `WONT_FIX.md`**: deliberately not solved. Do NOT fix them (AGENTS.md C-REVIEW-1). See that file for the full list.
 
-### AUD-15 — Post-AUD-14 method-level leftovers (admitted from reviewer audit; AUD-14 Waves 1–9 shipped and committed, see git history)
-**Status:** DONE except 2 opportunistic items (below).
-**Description:** AUD-14 split every production file over 500 lines, but three oversized *methods* survive inside now-compliant facades plus two long functions in drift files. Same create-first wave discipline: E1, re-export/delegator preserves path, existing tests pass UNEDITED or STOP, LF-only, no `type: ignore`, no baseline regen.
-**Landed:** `DownloadsMixin._download_whisper_family` extracted to `service/model/_download_whisper.py` (reviewer-verified: delegator keeps facade path, 107 download tests green, ruff + mypy clean).
-- `retention.apply_retention` (`history_db_internals/retention.py`, ~202 lines) and `stream_lifecycle.open_stream_fallback` (`recording/stream_lifecycle.py`, ~171 lines) — opportunistic only: split if a real fix lands on those files (C-STRUCT-4), never as standalone churn.
-**Why separate from AUD-14:** method/function granularity, not file granularity; the `_handle_connection` remainder (375 lines, `worker/_ws_connection.py`) stays as-is — streaming entanglement makes it a vetoed seam (recorded in Wave 9 report).
-**Fix:** Done (above); the other two only opportunistically.
-**Related Files:** `service/model/_downloads.py`, `history_db_internals/retention.py`, `recording/stream_lifecycle.py`, `tests/model_download/`
-**Success:** no method >100 lines in the touched files; focused suites + mypy no-new-errors + ruff + collect-only green.
-**Implementation Difficulty:** 🟡 Low-Medium
-**Severity:** 🟡 Medium
-**Priority:** P3
-
 ## 🚫 E. Cannot Verify (needs real host)
 **19 findings require Windows / macOS / Linux desktop runtime.** The
 headless-provable slices were fixed + tested 2026-09-15 (4-lane wave, see

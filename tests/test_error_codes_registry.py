@@ -61,6 +61,15 @@ LEGACY_ALIASES: dict[str, str] = {
     "handler_error": "server.handler_error",
     "payload_too_large": "",
     "not_initialized": "",
+    # Screenshot beta (Windows-only, flag-gated). Emitted bare by
+    # ``ScreenshotHandlersMixin``; no namespaced counterpart yet, so the
+    # renderer has nothing to branch on. Namespace them (and add the
+    # members to the TS ``ErrorCodes`` union) in the change that makes
+    # the beta renderer-consumable.
+    "screenshot_unsupported": "",
+    "screenshot_disabled": "",
+    "screenshot_no_consent": "",
+    "screenshot_already_captured": "",
     # Rust-host-only dispatch-cap codes emitted by the Tauri
     "pending_full": "",
     "data_too_large": "",

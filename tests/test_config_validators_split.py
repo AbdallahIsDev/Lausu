@@ -44,6 +44,7 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "cloud_api_key",
         "cloud_api_url",
         "cloud_deepgram_consent",
+        "cloud_gemini_consent",
         "cloud_groq_consent",
         "cloud_model",
         "cloud_openai_consent",
@@ -152,7 +153,9 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "hallucination_filter_mode",
         # Added 2026-10-07 (one-shot screenshot beta flags; bool-validated).
         "screenshot_beta_enabled",
-        "screenshot_consent"
+        "screenshot_consent",
+        # Added 2026-10-11 (Gemini cloud-ASR provider). Reviewed: mirrors
+        "gemini_api_key"
     }
 )
 
@@ -161,12 +164,19 @@ class TestAllowlistSnapshot:
     """SEC-002 byte-for-byte parity for ``IPC_CONFIG_ALLOWLIST``."""
 
     def test_allowlist_size_unchanged(self) -> None:
-        """The allowlist must still contain exactly 132 keys."""
-        assert len(IPC_CONFIG_ALLOWLIST) == 132, (
-            f"IPC_CONFIG_ALLOWLIST size drifted: expected 132, got {len(IPC_CONFIG_ALLOWLIST)}. "
+        """The allowlist must still contain exactly 134 keys."""
+        assert len(IPC_CONFIG_ALLOWLIST) == 134, (
+            f"IPC_CONFIG_ALLOWLIST size drifted: expected 134, got {len(IPC_CONFIG_ALLOWLIST)}. "
             "SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a "
             "security-sensitive change that must be reviewed explicitly. "
-            "Latest reviewed growth: 130 → 132, `screenshot_beta_enabled` + "
+            "Latest reviewed growth: 132 → 134, `gemini_api_key` + "
+            "`cloud_gemini_consent` (Gemini cloud-ASR provider; the key uses "
+            "the same `_VALIDATOR_API_KEY` as the openai/groq/deepgram keys and "
+            "the consent flag the same `_bool_validator` as the other "
+            "`cloud_*_consent` flags; `credential_store._schema` maps provider "
+            "'gemini' to this field and `cross_field._CLOUD_CONSENT_FIELD_NAMES` "
+            "covers the flag). "
+            "Prior 130 → 132 growth: `screenshot_beta_enabled` + "
             "`screenshot_consent` (one-shot screenshot beta flags; bool-validated). "
             "Prior 129 → 130 growth: `active_plugin` "
             "(Plugins page activation switch; slug-validated, empty = local model). "

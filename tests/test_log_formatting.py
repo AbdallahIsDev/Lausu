@@ -27,8 +27,17 @@ from voice_typer.server.log import (
 
 
 @pytest.fixture(autouse=True)
-def _restore_logging_state():
-    """Snapshot and restore the ``voice_typer`` logger + override registry."""
+def _restore_logging_state(monkeypatch):
+    """Snapshot and restore the ``voice_typer`` logger + override registry.
+
+    Also neutralises the ANSI colour overrides: the console formatter is now
+    chosen by :func:`_console_color_enabled`, which honours ``FORCE_COLOR`` /
+    ``NO_COLOR`` ahead of ``sys.stderr.isatty()``. Those are inherited from
+    the ambient environment (CI sets ``FORCE_COLOR``), so the TTY-vs-plain
+    assertions below must not depend on what the caller exported.
+    """
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+    monkeypatch.delenv("NO_COLOR", raising=False)
     vt_root = logging.getLogger("voice_typer")
     saved_vt_handlers = list(vt_root.handlers)
     saved_vt_filters = list(vt_root.filters)
@@ -207,6 +216,67 @@ def test_port_mode_with_tty_stderr_keeps_color_formatter(tmp_path: Path, monkeyp
         stream = next(h for h in root.handlers if isinstance(h, _FlushingStreamHandler))
         assert isinstance(stream.formatter, _ColorFormatter), (
             f"TTY stderr must keep _ColorFormatter, got {type(stream.formatter).__name__}"
+        )
+    finally:
+        reset()
+
+
+def test_force_color_enables_color_formatter_without_tty(tmp_path: Path, monkeypatch) -> None:
+    """``FORCE_COLOR=1`` restores the ANSI formatter on a PIPE.
+
+    The Tauri dev-chain regression: ``tauri dev`` spawns the app with a
+    PIPED stderr and the Rust host then hands that same pipe to this
+    sidecar, so ``sys.stderr.isatty()`` is False even though the bytes do
+    reach the user's terminal (the CLI re-emits each line verbatim).
+    ``scripts/tauri-dev.mjs`` exports ``FORCE_COLOR=1`` for exactly this
+    case, so it must beat the isatty gate.
+    """
+
+    class _FakeNonTtyStderr:
+        def isatty(self) -> bool:
+            return False
+
+        def reconfigure(self, **_kwargs) -> None:  # pragma: no cover - best-effort
+            pass
+
+    monkeypatch.setattr(sys, "stderr", _FakeNonTtyStderr())
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    reset()
+    config_dir = tmp_path / "cfg"
+    config_dir.mkdir()
+    setup_logging(config_dir)
+    try:
+        root = logging.getLogger("voice_typer")
+        stream = next(h for h in root.handlers if isinstance(h, _FlushingStreamHandler))
+        assert isinstance(stream.formatter, _ColorFormatter), (
+            "FORCE_COLOR=1 must select _ColorFormatter even on a non-TTY stderr, "
+            f"got {type(stream.formatter).__name__}"
+        )
+    finally:
+        reset()
+
+
+def test_no_color_wins_over_a_real_terminal(tmp_path: Path, monkeypatch) -> None:
+    """``NO_COLOR`` forces the plain formatter even on a TTY."""
+
+    class _FakeTtyStderr:
+        def isatty(self) -> bool:
+            return True
+
+        def reconfigure(self, **_kwargs) -> None:  # pragma: no cover - best-effort
+            pass
+
+    monkeypatch.setattr(sys, "stderr", _FakeTtyStderr())
+    monkeypatch.setenv("NO_COLOR", "1")
+    reset()
+    config_dir = tmp_path / "cfg"
+    config_dir.mkdir()
+    setup_logging(config_dir)
+    try:
+        root = logging.getLogger("voice_typer")
+        stream = next(h for h in root.handlers if isinstance(h, _FlushingStreamHandler))
+        assert isinstance(stream.formatter, _TerminalFormatter), (
+            f"NO_COLOR must select _TerminalFormatter, got {type(stream.formatter).__name__}"
         )
     finally:
         reset()

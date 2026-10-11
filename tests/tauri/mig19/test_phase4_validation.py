@@ -190,6 +190,17 @@ KNOWN_UNDOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         # renderer coverage, but without the full (b) paperwork (no ADR
         # addendum, no _validate_dict_payload schema). Explicit gap.
         "open_data_folder",
+        # Mic-permission + screenshot beta (2026-10): ``open_mic_settings``
+        # (status_handlers) plus the four ``screenshot_*`` beta commands
+        # (screenshot_handlers). All five have real handlers, Rust allowlist
+        # entries, ipc-reference.md rows and their own tests, but not the
+        # full (b) paperwork (no ADR-0020 §16 addendum row, no
+        # _validate_dict_payload schema). Explicit gap.
+        "open_mic_settings",
+        "screenshot_capture",
+        "screenshot_clear_cycle",
+        "screenshot_get_status",
+        "screenshot_set_consent",
     }
 )
 

@@ -100,6 +100,12 @@ class TestHandlerFilesUseHelper:
     NON_HANDLER_FILES = {"__init__.py", "_base.py", "_log.py"}
     # (2026-07-30): these handlers were reduced to empty stubs
     STUB_HANDLER_FILES = {"privacy_handlers.py", "vocabulary_automation_handlers.py"}
+    # system_permissions_handlers.py has no error-envelope path: its failure
+    # branches return deliberate diagnostic payloads (`granted=false,
+    # reason=check_failed` / `{ok: false, error: <tccutil stderr>}`) through
+    # ``_wrap``, which owns the envelope. The inline-``str(e)`` guard still
+    # scans this file, only the helper requirement is waived.
+    NO_ERROR_ENVELOPE_FILES = {"system_permissions_handlers.py"}
 
     @pytest.fixture(autouse=True)
     def _handlers_dir_exists(self):
@@ -117,6 +123,8 @@ class TestHandlerFilesUseHelper:
     def test_every_handler_file_uses_a_standardized_helper(self):
         missing = []
         for fpath, src in self._handler_files():
+            if fpath.name in self.NO_ERROR_ENVELOPE_FILES:
+                continue
             if "_respond_with_error" not in src and "_error_response" not in src:
                 missing.append(fpath.name)
         assert not missing, (
