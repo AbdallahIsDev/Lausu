@@ -432,3 +432,231 @@ class TestWorkerWsServerPatchSeams:
         # so a facade-level patch is what the streaming call sites see
         assert _ws_connection._facade.transcribe_window_words is sentinel
 
+
+# ---------------------------------------------------------------------------
+# ``voice_typer/server/recording_lifecycle.py`` -> start-flow
+# (``recording_lifecycle_start``), stop/cancel (``recording_lifecycle_stop``)
+# and permission/consent (``recording_lifecycle_permissions``) siblings; the
+# five notification helpers moved to the permissions sibling. The facade
+# keeps the composed class, the constants, the pipeline bodies pinned by
+# source-text tests, and every monkeypatch seam (``i18n``).
+# ---------------------------------------------------------------------------
+
+RECORDING_LIFECYCLE_MIXINS: dict[str, tuple[str, set[str]]] = {
+    "voice_typer.server.recording_lifecycle_start": (
+        "RecordingLifecycleStartMixin",
+        {
+            "_toggle_impl",
+            "_wire_recorder_start_callbacks",
+            "_notify_mic_watcher_of_active_device",
+            "_claim_keyboard_ownership_for_recording",
+            "_rearm_esc_cancel_if_enabled",
+            "_publish_recording_started_event",
+            "_spawn_dictation_start_worker",
+            "_teardown_failed_recorder_start",
+        },
+    ),
+    "voice_typer.server.recording_lifecycle_stop": (
+        "RecordingLifecycleStopMixin",
+        {"_stop_impl", "_cancel_impl"},
+    ),
+    "voice_typer.server.recording_lifecycle_permissions": (
+        "RecordingLifecyclePermissionsMixin",
+        {
+            "_gate_voice_biometric_consent",
+            "_publish_permission_denied_refusal",
+            "_schedule_permission_revoked_bubble_reset",
+            "_publish_start_failure_notification",
+        },
+    ),
+}
+
+RECORDING_LIFECYCLE_HELPERS = (
+    "_recording_start_failure_message",
+    "_notify_consent_gate",
+    "_publish_consent_required_event",
+    "_open_os_microphone_settings",
+    "_notify_permission_denied_with_settings",
+)
+
+# The facade class surface captured from the pre-split definition
+# (24 methods incl. ``__init__``; ``dir()`` drops the dunder).
+EXPECTED_RECORDING_LIFECYCLE_SURFACE = {
+    "_run_public_entry",
+    "toggle",
+    "start",
+    "stop",
+    "cancel",
+    "_toggle_impl",
+    "_gate_voice_biometric_consent",
+    "_wire_recorder_start_callbacks",
+    "_notify_mic_watcher_of_active_device",
+    "_claim_keyboard_ownership_for_recording",
+    "_rearm_esc_cancel_if_enabled",
+    "_publish_recording_started_event",
+    "_spawn_dictation_start_worker",
+    "_teardown_failed_recorder_start",
+    "_publish_permission_denied_refusal",
+    "_schedule_permission_revoked_bubble_reset",
+    "_publish_start_failure_notification",
+    "_start_impl",
+    "_start_dictation_worker_entry",
+    "_stop_impl",
+    "_stop_and_transcribe_worker_entry",
+    "_run_stop_and_transcribe",
+    "_cancel_impl",
+}
+
+# Method bodies the source-text pins in other suites read out of the
+# FACADE file; they must stay defined there (not just resolvable on the class).
+FACADE_PINNED_BODIES = (
+    "_run_public_entry",
+    "_start_impl",
+    "_start_dictation_worker_entry",
+    "_stop_and_transcribe_worker_entry",
+    "_run_stop_and_transcribe",
+)
+
+
+class TestRecordingLifecycleSplitFacade:
+    """Composition (not delegation) + facade surface + re-export identity."""
+
+    def test_all_three_mixins_are_composed(self):
+        from voice_typer.server.recording_lifecycle import RecordingLifecycle
+        from voice_typer.server.recording_lifecycle_permissions import (
+            RecordingLifecyclePermissionsMixin,
+        )
+        from voice_typer.server.recording_lifecycle_start import RecordingLifecycleStartMixin
+        from voice_typer.server.recording_lifecycle_stop import RecordingLifecycleStopMixin
+
+        for base in (
+            RecordingLifecycleStartMixin,
+            RecordingLifecycleStopMixin,
+            RecordingLifecyclePermissionsMixin,
+        ):
+            assert base in RecordingLifecycle.__mro__, base.__name__
+
+    @pytest.mark.parametrize("module_path,pair", sorted(RECORDING_LIFECYCLE_MIXINS.items()))
+    def test_each_method_is_the_mixin_function_itself(self, module_path: str, pair):
+        import importlib
+
+        from voice_typer.server.recording_lifecycle import RecordingLifecycle
+
+        cls_name, owned = pair
+        mixin_cls = getattr(importlib.import_module(module_path), cls_name)
+        for name in owned:
+            assert getattr(RecordingLifecycle, name) is getattr(mixin_cls, name), (
+                f"{module_path}.{name} must be the same function object "
+                f"the facade resolves to"
+            )
+
+    def test_helpers_resolve_to_the_permissions_sibling(self):
+        from voice_typer.server import recording_lifecycle as rl, recording_lifecycle_permissions as rlp
+
+        for name in RECORDING_LIFECYCLE_HELPERS:
+            assert getattr(rl, name) is getattr(rlp, name)
+
+    def test_surface_matches_the_presplit_class(self):
+        from voice_typer.server.recording_lifecycle import RecordingLifecycle
+
+        surface = {n for n in dir(RecordingLifecycle) if not n.startswith("__")}
+        assert surface == EXPECTED_RECORDING_LIFECYCLE_SURFACE, (
+            f"missing: {sorted(EXPECTED_RECORDING_LIFECYCLE_SURFACE - surface)}; "
+            f"unexpected: {sorted(surface - EXPECTED_RECORDING_LIFECYCLE_SURFACE)}"
+        )
+
+    def test_logger_names_stay_the_facade_namespace(self):
+        import importlib
+
+        from voice_typer.server import recording_lifecycle as rl
+
+        assert rl.log.name == "voice_typer.server.recording_lifecycle"
+        for module_path in RECORDING_LIFECYCLE_MIXINS:
+            assert importlib.import_module(module_path).log.name == "voice_typer.server.recording_lifecycle"
+
+    def test_source_text_pin_anchors_stay_on_the_facade(self):
+        """The file-text pins of test_bubble_idle_state_push / test_notifications /
+        test_shutdown_recording_fixes read ``recording_lifecycle.py``; the
+        bodies they slice must therefore keep living in the facade file."""
+        import inspect
+
+        from voice_typer.server.recording_lifecycle import RecordingLifecycle
+
+        for name in FACADE_PINNED_BODIES:
+            srcfile = inspect.getsourcefile(getattr(RecordingLifecycle, name))
+            assert srcfile is not None and srcfile.replace("\\", "/").endswith(
+                "voice_typer/server/recording_lifecycle.py"
+            ), f"{name} must stay defined in the facade file (source-text pins slice it there)"
+
+
+class TestRecordingLifecyclePatchSeams:
+    """The one facade global tests monkeypatch (``i18n``) is read at call time."""
+
+    def test_i18n_patch_on_facade_is_read_at_call_time(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from voice_typer.server import recording_lifecycle as rl, recording_lifecycle_permissions as rlp
+
+        sentinel = MagicMock()
+        monkeypatch.setattr(rl, "i18n", sentinel)
+
+        # the permissions sibling resolves the seam lazily through the facade
+        assert rlp._facade().i18n is sentinel
+
+        app = MagicMock()
+        app.config.voice_biometric_consent = False
+        lifecycle = rl.RecordingLifecycle()
+        assert lifecycle._gate_voice_biometric_consent(app) is False
+        assert sentinel.t.called, "the consent gate must notify through the patched facade i18n"
+
+
+class TestRecordingLifecycleStageOrderParity:
+    """The pipelines' stage order was captured before the split and must hold."""
+
+    START_STAGE_ORDER = [
+        "_wire_recorder_start_callbacks",
+        "app.recorder.start()",
+        "AppState.RECORDING",
+        '_waveform_bubble.show()',
+        'set_state("recording")',
+        "_claim_keyboard_ownership_for_recording",
+        "_rearm_esc_cancel_if_enabled",
+        "_publish_recording_started_event",
+        "_spawn_dictation_start_worker",
+    ]
+
+    STOP_STAGE_ORDER = [
+        "app._restore_volume()",
+        "duration = len(audio)",
+        "recorded_rms = app.recorder.last_rms",
+        "if duration < 0.5:",
+        "AppState.TRANSCRIBING",
+        "_start_watchdog_thread",
+        "pipeline.run(",
+        "_discard_cancelled_cycle_id(cycle_id)",
+    ]
+
+    @staticmethod
+    def _ordered_markers(src: str, markers: list[str]) -> list[str]:
+        positions = sorted((src.find(m), m) for m in markers)
+        missing = [m for i, m in positions if i < 0]
+        assert not missing, f"missing stage markers: {missing}"
+        return [m for _, m in positions]
+
+    def test_pipeline_stage_order_matches_pre_split(self):
+        """Captured pre-split from the old recording_lifecycle.py and compared
+        against the composed class after the split (both pipelines)."""
+        import inspect
+
+        from voice_typer.server.recording_lifecycle import RecordingLifecycle
+
+        start_src = inspect.getsource(RecordingLifecycle._start_impl)
+        assert (
+            self._ordered_markers(start_src, self.START_STAGE_ORDER) == self.START_STAGE_ORDER
+        ), "start-pipeline stage order drifted from the pre-split capture"
+
+        stop_src = inspect.getsource(RecordingLifecycle._run_stop_and_transcribe)
+        assert (
+            self._ordered_markers(stop_src, self.STOP_STAGE_ORDER) == self.STOP_STAGE_ORDER
+        ), "stop-pipeline stage order drifted from the pre-split capture"
+
