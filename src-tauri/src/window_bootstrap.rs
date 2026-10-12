@@ -27,6 +27,10 @@ pub(crate) fn bootstrap_main_window(app: &tauri::AppHandle) {
         .expect("[SETUP] main window build failed");
     // Match the main-window icon to the OS theme (body in `theme_icon.rs`).
     crate::theme_icon::apply_startup(&main_window);
+    // Strip the bubble's OS system menu before first paint when the
+    // auto-created bubble window already exists. Every later show
+    // re-applies (idempotent self-heal in `show_bubble_window`).
+    harden_bubble_on_setup(app);
     if std::env::var("VT_START_HIDDEN").as_deref() == Ok("1") {
         if let Err(e) = main_window.hide() {
             log::warn!("[SETUP] hide main window for VT_START_HIDDEN failed: {}", e);
@@ -35,5 +39,14 @@ pub(crate) fn bootstrap_main_window(app: &tauri::AppHandle) {
             log::warn!("[SETUP] set_skip_taskbar for VT_START_HIDDEN failed: {}", e);
         }
         log::info!("[SETUP] started hidden (VT_START_HIDDEN=1), window hidden, skip_taskbar=true");
+    }
+}
+
+/// Best-effort bubble-chrome hardening at startup (body in
+/// `commands::bubble`, re-exported for the setup call above).
+pub(crate) fn harden_bubble_on_setup(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    if let Some(window) = app.get_webview_window("bubble") {
+        crate::commands::bubble::harden_bubble_chrome(&window);
     }
 }

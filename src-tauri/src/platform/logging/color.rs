@@ -50,6 +50,7 @@ pub(crate) const TOPIC_COLOR: &[(&str, &str)] = &[
     ("HOTKEY", "38;5;141"),
     ("HOTKEY FIRED", "38;5;141"),
     ("HOTKEY FALLBACK", "38;5;141"),
+    ("KEYBOARD_OWNERSHIP", "38;5;141"),
     ("RECORDING", "38;5;79"),
     ("AUDIO_QUALITY", "38;5;215"),
     ("DICTATION", "38;5;215"),
@@ -91,8 +92,12 @@ pub(crate) const TOPIC_COLOR: &[(&str, &str)] = &[
     ("A11Y", "38;5;102"),
     ("AI_ENHANCE", "38;5;140"),
     ("APP", "38;5;102"),
+    ("AUDIO-CHAIN", "38;5;215"),
+    ("AUDIO-MIC", "38;5;215"),
     ("AUDIO-PROC", "38;5;215"),
+    ("AUMID", "38;5;102"),
     ("AUTOSTART", "38;5;103"),
+    ("BUBBLE", "38;5;102"),
     ("BUNDLE-ID", "38;5;102"),
     ("CLIPBOARD-AUDIT", "38;5;120"),
     ("CLIPBOARD-SNAPSHOT", "38;5;120"),
@@ -102,12 +107,17 @@ pub(crate) const TOPIC_COLOR: &[(&str, &str)] = &[
     ("CUDA-DLL", "38;5;75"),
     ("DISK", "38;5;102"),
     ("GPU", "38;5;75"),
+    ("HEARTBEAT", "38;5;110"),
     ("HIGHPASS", "38;5;69"),
     ("HOTKEY-WAYLAND", "38;5;141"),
     ("INIT", "38;5;103"),
+    ("KILL-TREE", "38;5;103"),
     ("LEVEL-MON", "38;5;215"),
     ("LOG-SETUP", "38;5;102"),
+    ("MEDIA", "38;5;110"),
+    ("MIC", "38;5;215"),
     ("MIC-WATCHER-CA", "38;5;215"),
+    ("MIGRATE", "38;5;102"),
     ("NATIVE-BINARY", "38;5;102"),
     ("NATIVE-HOTKEY", "38;5;141"),
     ("NOISE-SUPPRESS", "38;5;69"),
@@ -116,7 +126,9 @@ pub(crate) const TOPIC_COLOR: &[(&str, &str)] = &[
     ("PAUSE", "38;5;215"),
     ("PERF", "38;5;111"),
     ("PERMISSION", "38;5;111"),
+    ("PIPELINE-PERF", "38;5;111"),
     ("PLATFORM", "38;5;102"),
+    ("POWER", "38;5;102"),
     ("PREWARM", "38;5;103"),
     ("PROC-CHAIN", "38;5;102"),
     ("QWEN-ONNX", "38;5;69"),
@@ -125,16 +137,25 @@ pub(crate) const TOPIC_COLOR: &[(&str, &str)] = &[
     ("SECURITY", "38;5;167"),
     ("SERVICE", "38;5;110"),
     ("SESSION", "38;5;102"),
+    ("SETUP", "38;5;103"),
+    ("SHORTCUTS", "38;5;141"),
+    ("SIDECAR-DEV", "38;5;110"),
     ("SIDECAR-ENV", "38;5;110"),
     ("SIDECAR-WS", "38;5;110"),
     ("START", "38;5;103"),
+    ("SUPERVISOR", "38;5;103"),
     ("TASK", "38;5;102"),
     ("TEMPLATES", "38;5;102"),
+    ("THEME-ICON", "38;5;102"),
     ("THREAD-REGISTRY", "38;5;102"),
     ("TIMER", "38;5;102"),
     ("UNDO", "38;5;120"),
     ("UNINSTALL", "38;5;95"),
     ("UPDATE", "38;5;110"),
+    ("URL-Allowlist", "38;5;110"),
+    ("WORKER", "38;5;110"),
+    ("WORKER-DEV", "38;5;110"),
+    ("WORKER-INIT", "38;5;110"),
     ("VOCAB", "38;5;102"),
     ("VOCAB_AUTO", "38;5;102"),
     ("VOLUME-CRASH", "38;5;167"),
@@ -142,6 +163,8 @@ pub(crate) const TOPIC_COLOR: &[(&str, &str)] = &[
     ("VOLUME-MAC", "38;5;111"),
     ("VOLUME-WIN", "38;5;111"),
     ("WS", "38;5;110"),
+    ("WS-AUTH", "38;5;110"),
+    ("WS-WRITER", "38;5;110"),
     ("XRUN", "38;5;215"),
 ];
 
@@ -202,15 +225,15 @@ pub(crate) fn color_enabled() -> bool {
 
 /// Render one terminal line with the restored palette.
 ///
-/// The VISIBLE text is byte-identical to
-/// [`format_terminal_line`] (C-LOG-1); only ANSI wrappers are added:
+/// Stripping the ANSI wrappers yields the plain line, except INFO (see
+/// below); colour is a wrapper, never the template:
 ///
 /// * WARN/ERROR take a FULL-LINE colour, exactly like Python's
 ///   `_ColorFormatter` does for `levelno >= WARNING`.
-/// * INFO/DEBUG dim the timestamp and colour the message by its `[TOPIC]`
-///   tag when the tag is in [`TOPIC_COLOR`]; the level label stays visible
-///   (Python's coloured INFO line drops it, a deliberate divergence that
-///   keeps the host on the pinned C-LOG-1 column layout).
+/// * INFO carries no level label: dim timestamp plus the
+///   topic-coloured (or plain) message, like Python.
+/// * DEBUG renders label + body in one colour; only the timestamp
+///   stays dim, like Python.
 ///
 /// With colour disabled every branch collapses to the plain line.
 pub(crate) fn colorize_terminal_line(ts: &str, level: log::Level, msg: &str) -> String {
@@ -230,6 +253,20 @@ pub(crate) fn colorize_with(ts: &str, level: log::Level, msg: &str, enabled: boo
                 WARN
             };
             format!("\x1b[{color}m{ts}  {level:5} {msg}\x1b[0m")
+        }
+        log::Level::Info => {
+            let body = match extract_topic(msg).and_then(topic_color_for) {
+                Some(color) => format!("\x1b[{color}m{msg}\x1b[0m"),
+                None => msg.to_string(),
+            };
+            format!("\x1b[{DIM}m{ts}\x1b[0m  {body}")
+        }
+        log::Level::Debug => {
+            let rest = format!("DEBUG {msg}");
+            match extract_topic(msg).and_then(topic_color_for) {
+                Some(color) => format!("\x1b[{DIM}m{ts}\x1b[0m  \x1b[{color}m{rest}\x1b[0m"),
+                None => format!("\x1b[{DIM}m{ts}\x1b[0m  {rest}"),
+            }
         }
         _ => {
             let body = match extract_topic(msg).and_then(topic_color_for) {
