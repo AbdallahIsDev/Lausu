@@ -459,6 +459,17 @@ export interface OfflinePackReadyEvent {
 }
 
 /**
+ * Pack outdated (PK-1), the installed pack's `min_proto_version` is
+ * older than the host/sidecar supports, so the worker was refused at
+ * launch. The Settings surface offers re-download; the banner shares
+ * the same recovery action via the shared hook.
+ */
+export interface OfflinePackOutdatedEvent {
+	type: "offline_pack_outdated";
+	data: { version: string; min_proto_version: number };
+}
+
+/**
  * Worker started, the worker process has spawned and completed its
  * WS handshake with the slim core. Prewarm is NOT done yet (see
  * `offline_pack_ready` for that signal).
@@ -695,6 +706,7 @@ export type PythonPushEvent =
 	| OfflinePackMissingEvent
 	| OfflinePackCorruptEvent
 	| OfflinePackReadyEvent
+	| OfflinePackOutdatedEvent
 	| WorkerStartedEvent
 	| WorkerCrashedEvent
 	| WorkerUnloadedEvent

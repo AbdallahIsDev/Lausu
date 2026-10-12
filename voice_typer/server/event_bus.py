@@ -72,12 +72,15 @@ Events emitted via ``event_bus.publish`` (the modern path):
   ``media_transcribe_complete``, ``media_transcribe_error``.
 
 Master plan §7.4, runtime-pack / worker IPC events (13 event
-types introduced by the slim-core / runtime-pack split). The
+types introduced by the slim-core / runtime-pack split, plus the PK-1
+stale-pack signal ``offline_pack_outdated``). The
 canonical schema is the ``OFFLINE_PACK_EVENT_TYPES`` frozenset in
-``voice_typer/server/service/offline_pack.py``; all 13 are also listed
-in the Rust ``ALLOWED_EVENT_TYPES`` slice in
+``voice_typer/server/service/offline_pack.py``; the 13 §7.4 entries are
+also listed in the Rust ``ALLOWED_EVENT_TYPES`` slice in
 ``src-tauri/src/sidecar/ws/event_protocol.rs`` so the Tauri WS reader
-does not silently drop the frames. The 12 push events are members of
+does not silently drop the frames (the ``offline_pack_outdated``
+entry there is still pending, so Tauri drops that frame until it
+lands). The 13 push events are members of
 the TS ``PythonPushEvent`` union
 (``voice_typer/client/src/renderer/src/types/ipc/push_events.ts``);
 the 1 request event is a member of the TS ``PythonRequest`` union
@@ -91,7 +94,9 @@ Pinned by ``tests/test_event_types_parity.py``.
   ``offline_pack_download_failed`` (retry budgets exhausted).
 * Offline-pack integrity: ``offline_pack_verified``,
   ``offline_pack_missing``, ``offline_pack_corrupt``,
-  ``offline_pack_ready`` (worker started AND prewarmed).
+  ``offline_pack_ready`` (worker started AND prewarmed),
+  ``offline_pack_outdated`` (``{version, min_proto_version}``,
+  stale pack refused at launch).
 * Worker process lifecycle (slim-core supervisor):
   ``worker_started`` (``{pid, version, port?}``),
   ``worker_crashed`` (``{pid, exit_code}``),

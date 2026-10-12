@@ -81,6 +81,21 @@ describe("useOfflinePackDownload, progress % (slice C)", () => {
 		expect(result.current.isReady).toBe(true);
 	});
 
+	it("hook storm: 20 progress events then ready → ready + progress null", () => {
+		const { result } = renderHook(() => useOfflinePackDownload());
+		for (let i = 1; i <= 20; i++) {
+			act(() =>
+				getHandler("offline_pack_download_progress")({ progress: i * 5 }),
+			);
+		}
+		expect(result.current.status).toBe("downloading");
+		expect(result.current.progress).toBe(100);
+		act(() => getHandler("offline_pack_ready")());
+		expect(result.current.status).toBe("ready");
+		expect(result.current.progress).toBeNull();
+		expect(result.current.isReady).toBe(true);
+	});
+
 	it("failed / missing / corrupt clear progress", () => {
 		const { result } = renderHook(() => useOfflinePackDownload());
 		act(() => getHandler("offline_pack_download_progress")({ progress: 60 }));

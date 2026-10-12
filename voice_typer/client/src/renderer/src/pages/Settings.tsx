@@ -21,6 +21,7 @@ import { DiagnosticsSettingsSection } from "@/components/settings/DiagnosticsSet
 import { GeneralSettingsSection } from "@/components/settings/GeneralSettingsSection";
 import { LinuxWindowButtonsSettingsSection } from "@/components/settings/LinuxWindowButtonsSettingsSection";
 import { LlmPolishingSettingsSection } from "@/components/settings/LlmPolishingSettingsSection";
+import OfflinePackSection from "@/components/settings/OfflinePackSection";
 import { OverlaySettingsSection } from "@/components/settings/OverlaySettingsSection";
 import { PostProcessingSettingsSection } from "@/components/settings/PostProcessingSettingsSection";
 import PrewarmAndUpdates from "@/components/settings/PrewarmAndUpdates";
@@ -315,6 +316,7 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 						/>
 						<DiagnosticsSettingsSection isVisible={_filter_settings} />
 						<PrewarmAndUpdates isVisible={_filter_settings} />
+						<OfflinePackSection isVisible={_filter_settings} />
 					</>
 				);
 		}

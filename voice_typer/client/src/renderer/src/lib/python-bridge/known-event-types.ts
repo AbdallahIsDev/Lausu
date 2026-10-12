@@ -81,6 +81,7 @@ export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
 	"offline_pack_missing",
 	"offline_pack_corrupt",
 	"offline_pack_ready",
+	"offline_pack_outdated",
 	// Worker process lifecycle:
 	"worker_started",
 	"worker_crashed",

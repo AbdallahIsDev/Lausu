@@ -65,6 +65,7 @@ const _PARITY = {
 	offline_pack_missing: true,
 	offline_pack_corrupt: true,
 	offline_pack_ready: true,
+	offline_pack_outdated: true,
 	worker_started: true,
 	worker_crashed: true,
 	worker_unloaded: true,

@@ -264,11 +264,12 @@ fn test_python_event_envelope_shape() {
     );
 }
 
-// ── Pack + worker IPC event types (master plan §7.4, 13 new) ───────
+// ── Pack + worker IPC event types (master plan §7.4, 13 new + outdated) ───────
 //
 // The runtime-pack split introduces 13 new server-initiated event types:
 // pack download lifecycle (4), pack integrity (4), worker process
 // lifecycle (3), and offline transcription (2, request + result push).
+// PK-1 adds a 14th: `offline_pack_outdated` (stale-pack fast-refuse).
 // Each is registered in `ALLOWED_EVENT_TYPES` so the WS reader's
 // `is_allowed_event_type` gate does NOT silently drop the frame once
 // the worker comes online. This test pins the full 13-entry set so a
@@ -296,6 +297,7 @@ fn test_offline_pack_worker_event_types_are_allowed() {
         "offline_pack_missing",
         "offline_pack_corrupt",
         "offline_pack_ready",
+        "offline_pack_outdated",
         // Worker process lifecycle (push):
         "worker_started",
         "worker_crashed",
@@ -306,8 +308,8 @@ fn test_offline_pack_worker_event_types_are_allowed() {
     ];
     assert_eq!(
         pack_worker_events.len(),
-        13,
-        "sanity: the §7.4 pack/worker event set is exactly 13 entries, \
+        14,
+        "sanity: the §7.4 pack/worker event set is exactly 14 entries, \
          if the plan adds/removes one, update this test in lockstep"
     );
     for &evt in pack_worker_events {

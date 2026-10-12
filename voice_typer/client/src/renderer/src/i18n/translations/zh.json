@@ -2088,7 +2088,22 @@
 		"downloadingOfflineEngineAria": "正在下载离线引擎，已完成 {percent}%。状态：{status}",
 		"downloadOfflineEngine": "下载离线引擎",
 		"downloadOfflineEngineBusy": "下载中…",
-		"downloadOfflineEngineAria": "下载离线语音引擎包"
+		"downloadOfflineEngineAria": "下载离线语音引擎包",
+		"offlinePackTitle": "离线引擎包",
+		"offlinePackDescription": "用于离线转写的语音引擎包，可下载。状态会自动更新。",
+		"packStatus": "状态",
+		"packInstalledVersion": "已安装版本",
+		"packNotInstalled": "未安装",
+		"packStateChecking": "检查中…",
+		"packStateReady": "就绪",
+		"packStateOutdated": "有可用更新",
+		"packStateMissing": "未下载",
+		"packStateFailed": "下载失败",
+		"packStateCorrupt": "安装包已损坏",
+		"packStateWorkerCrashed": "引擎已崩溃",
+		"packStateWorkerUnloaded": "引擎已卸载",
+		"packRetryDownload": "重试下载",
+		"packRepairPack": "修复安装包"
 	},
 	"consentDialog": {
 		"title": "需要同意",

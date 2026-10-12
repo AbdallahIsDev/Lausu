@@ -33,13 +33,77 @@ class StatusMixin(ServiceMixinBase):
     _pack_status_cache: dict[str, object] | None = None
     _pack_status_cached_at: float = 0.0
 
+    def _read_pack_outdated_info(self) -> dict[str, object] | None:
+        """Latest PK-1 stale-pack signal copy, None when clear. Never raises."""
+        try:
+            from voice_typer.server.service.offline_pack.outdated import get_outdated_info
+
+            info = get_outdated_info()
+        except Exception:
+            log.debug("[SERVICE] offline pack outdated info unavailable", exc_info=True)
+            return None
+        if not isinstance(info, dict) or not info:
+            return None
+        return dict(info)
+
+    @staticmethod
+    def _derive_pack_state(
+        installed_version: object,
+        download_progress: object,
+        outdated_info: object,
+    ) -> str:
+        """Stable PK-2 machine: outdated > downloading > verifying > ready > missing."""
+        try:
+            if isinstance(outdated_info, dict) and len(outdated_info) > 0:
+                return "outdated"
+            if type(download_progress) is int:
+                if 0 <= download_progress <= 99:
+                    return "downloading"
+                if download_progress == 100:
+                    return "verifying"
+            if isinstance(installed_version, str) and installed_version:
+                try:
+                    from voice_typer.server.service.offline_pack.core import offline_pack_exists
+
+                    if offline_pack_exists(installed_version):
+                        return "ready"
+                except Exception:
+                    log.debug("[SERVICE] offline pack existence check failed", exc_info=True)
+                    # The version scan already proved presence; a transient
+                    # confirm failure must not claim the pack is missing.
+                    return "ready"
+            return "missing"
+        except Exception:
+            log.debug("[SERVICE] offline pack state derive failed", exc_info=True)
+            return "missing"
+
+    def invalidate_pack_status_cache(self) -> None:
+        """Drop the cached version scan so the next read re-scans.
+
+        The TTL gates the filesystem scan only; progress + derived state
+        are recomputed on every read. Outdated/download paths should call
+        this after mutating their stores so the next read serves the new
+        signal without waiting out the TTL. Never raises.
+        """
+        try:
+            self._pack_status_cache = None
+            self._pack_status_cached_at = 0.0
+        except Exception:
+            log.debug("[SERVICE] offline pack cache invalidate failed", exc_info=True)
+
     def _get_offline_pack_status(self) -> dict[str, object]:
         """Cheap, cached offline-pack state for the degradation matrix (§8.10).
 
         Returns ``{"installed_version": <str|None>, "available": bool,
-        "consent_granted": bool, "download_progress": <int|None>}`` where
+        "consent_granted": bool, "download_progress": <int|None>,
+        "state": <str>, "outdated_info": <dict|None>}`` where
         ``download_progress`` is 0-100 while downloading, 100 once bytes
-        land, None otherwise (PK-2 mount catch-up reads it).
+        land, None otherwise (PK-2 mount catch-up reads it); ``state`` is
+        the stable PK-2 machine (outdated > downloading > verifying >
+        ready > missing); ``outdated_info`` is ``{version,
+        min_proto_version}`` when the PK-1 stale-pack signal is set.
+        The TTL gates the version scan only: cached copies keep the scan
+        fields but always carry fresh progress + freshly derived state.
         """
         from voice_typer.server.service.offline_pack.progress import get_download_progress
 
@@ -54,12 +118,19 @@ class StatusMixin(ServiceMixinBase):
         if cached is not None and (now - self._pack_status_cached_at) < self._OFFLINE_PACK_STATUS_TTL_S:
             fresh = dict(cached)
             fresh["download_progress"] = progress
+            outdated_info = self._read_pack_outdated_info()
+            fresh["outdated_info"] = outdated_info
+            fresh["state"] = self._derive_pack_state(
+                fresh.get("installed_version"), progress, outdated_info
+            )
             return fresh
         state: dict[str, object] = {
             "installed_version": None,
             "available": False,
             "consent_granted": False,
             "download_progress": progress,
+            "state": "missing",
+            "outdated_info": None,
         }
         try:
             from voice_typer.server.service import update_check
@@ -71,6 +142,11 @@ class StatusMixin(ServiceMixinBase):
             state["consent_granted"] = True
         except Exception:  # fail-safe: degraded state, never raise
             log.debug("[SERVICE] offline pack status unavailable", exc_info=True)
+        outdated_info = self._read_pack_outdated_info()
+        state["outdated_info"] = outdated_info
+        state["state"] = self._derive_pack_state(
+            state.get("installed_version"), progress, outdated_info
+        )
         self._pack_status_cache = state
         self._pack_status_cached_at = now
         return dict(state)

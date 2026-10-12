@@ -2088,7 +2088,22 @@
 		"downloadingOfflineEngineAria": "جارٍ تنزيل المحرك دون اتصال، {percent}٪. الحالة: {status}",
 		"downloadOfflineEngine": "تنزيل المحرك دون اتصال",
 		"downloadOfflineEngineBusy": "جارٍ التنزيل…",
-		"downloadOfflineEngineAria": "تنزيل حزمة محرك التعرّف على الكلام دون اتصال"
+		"downloadOfflineEngineAria": "تنزيل حزمة محرك التعرّف على الكلام دون اتصال",
+		"offlinePackTitle": "حزمة المحرك دون اتصال",
+		"offlinePackDescription": "حزمة صوتية قابلة للتنزيل للنسخ دون اتصال. يتم تحديث الحالة تلقائيًا.",
+		"packStatus": "الحالة",
+		"packInstalledVersion": "النسخة المثبتة",
+		"packNotInstalled": "غير مثبت",
+		"packStateChecking": "جارٍ التحقق…",
+		"packStateReady": "جاهز",
+		"packStateOutdated": "يتوفر تحديث",
+		"packStateMissing": "غير منزّل",
+		"packStateFailed": "فشل التنزيل",
+		"packStateCorrupt": "الحزمة تالفة",
+		"packStateWorkerCrashed": "تعطّل المحرك",
+		"packStateWorkerUnloaded": "تم إلغاء تحميل المحرك",
+		"packRetryDownload": "إعادة المحاولة",
+		"packRepairPack": "إصلاح الحزمة"
 	},
 	"consentDialog": {
 		"title": "الموافقة مطلوبة",

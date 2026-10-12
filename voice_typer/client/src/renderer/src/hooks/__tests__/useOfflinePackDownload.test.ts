@@ -45,7 +45,7 @@ afterEach(() => {
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe("useOfflinePackDownload, initial state", () => {
-	it("subscribes to all 11 pack/worker lifecycle push events", () => {
+	it("subscribes to all 12 pack/worker lifecycle push events", () => {
 		renderHook(() => useOfflinePackDownload());
 
 		const expectedEvents = [
@@ -57,6 +57,7 @@ describe("useOfflinePackDownload, initial state", () => {
 			"offline_pack_missing",
 			"offline_pack_corrupt",
 			"offline_pack_ready",
+			"offline_pack_outdated",
 			"worker_started",
 			"worker_crashed",
 			"worker_unloaded",
@@ -255,6 +256,71 @@ describe("useOfflinePackDownload, worker crash + unload", () => {
 		// A stray worker_unloaded must not wipe the failed status.
 		act(() => getHandler("worker_unloaded")());
 		expect(result.current.status).toBe("failed");
+	});
+});
+
+describe("useOfflinePackDownload, outdated (PK-1 stale-pack signal)", () => {
+	it("offline_pack_outdated → outdated + stashes versions", () => {
+		const { result } = renderHook(() => useOfflinePackDownload());
+		act(() =>
+			getHandler("offline_pack_outdated")({
+				version: "v10",
+				min_proto_version: 7,
+			}),
+		);
+		expect(result.current.status).toBe("outdated");
+		expect(result.current.outdatedInfo).toEqual({
+			version: "v10",
+			min_proto_version: 7,
+		});
+		expect(result.current.isReady).toBe(false);
+		expect(result.current.progress).toBeNull();
+	});
+
+	it("malformed outdated payload still moves status, keeps outdatedInfo null", () => {
+		const { result } = renderHook(() => useOfflinePackDownload());
+		act(() => getHandler("offline_pack_outdated")({ version: "v10" }));
+		expect(result.current.status).toBe("outdated");
+		expect(result.current.outdatedInfo).toBeNull();
+	});
+
+	it("offline_pack_ready clears outdatedInfo", () => {
+		const { result } = renderHook(() => useOfflinePackDownload());
+		act(() =>
+			getHandler("offline_pack_outdated")({
+				version: "v10",
+				min_proto_version: 7,
+			}),
+		);
+		expect(result.current.outdatedInfo).not.toBeNull();
+		act(() => getHandler("offline_pack_ready")());
+		expect(result.current.status).toBe("ready");
+		expect(result.current.outdatedInfo).toBeNull();
+	});
+
+	it("a fresh download_started clears outdatedInfo", () => {
+		const { result } = renderHook(() => useOfflinePackDownload());
+		act(() =>
+			getHandler("offline_pack_outdated")({
+				version: "v10",
+				min_proto_version: 7,
+			}),
+		);
+		act(() => getHandler("offline_pack_download_started")());
+		expect(result.current.status).toBe("downloading");
+		expect(result.current.outdatedInfo).toBeNull();
+	});
+
+	it("offline_pack_verified clears outdatedInfo", () => {
+		const { result } = renderHook(() => useOfflinePackDownload());
+		act(() =>
+			getHandler("offline_pack_outdated")({
+				version: "v10",
+				min_proto_version: 7,
+			}),
+		);
+		act(() => getHandler("offline_pack_verified")());
+		expect(result.current.outdatedInfo).toBeNull();
 	});
 });
 

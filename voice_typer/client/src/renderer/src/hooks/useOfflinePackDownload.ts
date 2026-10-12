@@ -10,8 +10,8 @@
 // transcription areas when the user attempts offline transcription
 // before the pack is ready (§4.9, local whisper / Parakeet degrade
 // silently to "silent download starts, 'Preparing…' line, then works").
-// ── Subscribed push events (§7.4, 11 of the 13 new events) ──────────
-// The hook subscribes to the 11 pack/worker lifecycle push events.
+// ── Subscribed push events (§7.4 + PK-1, 12 pack/worker events) ─────
+// The hook subscribes to the 12 pack/worker lifecycle push events.
 // The other 2 events in §7.4 (`transcribe_offline` request and
 // `transcribe_offline_result` push) are per-transcription events, not
 // pack-lifecycle events, so they don't belong here.
@@ -26,7 +26,8 @@
 //   9.  `worker_started`         , worker process up (not yet prewarmed)
 //   10. `worker_crashed`         , worker exited unexpectedly
 //   11. `worker_unloaded`        , slim-core asked worker to unload (RAM)
-// NOTE on type-safety: the 11 event names ARE in the
+//   12. `offline_pack_outdated`  , stale pack refused at launch (PK-1)
+// NOTE on type-safety: the 12 event names ARE in the
 // `PythonPushEvent` union in `types/ipc/push_events.ts` AND in the
 // runtime `KNOWN_EVENT_TYPES` mirror that backs the dev-time typo
 // warning (`lib/python-bridge/known-event-types.ts`, re-exported via
@@ -64,7 +65,8 @@
 //   offline_pack_verified          → "worker-starting" (if not already "ready")
 //   offline_pack_missing           → "missing"
 //   offline_pack_corrupt           → "corrupt"  (records `error`)
-//   offline_pack_ready             → "ready"    (clears `error`)
+//   offline_pack_ready             → "ready"    (clears `error` + `outdatedInfo`)
+//   offline_pack_outdated            → "outdated" (stashes `outdatedInfo`)
 //   worker_started         → "worker-starting" (if not already "ready")
 //   worker_crashed         → "worker-crashed" (records `error`)
 //   worker_unloaded        → "worker-unloaded" (only from "ready";
@@ -92,9 +94,16 @@ export type OfflinePackStatus =
 	| "failed" // offline_pack_download_failed
 	| "missing" // offline_pack_missing (deleted by AV/cleaner, §8.10)
 	| "corrupt" // offline_pack_corrupt (checksum mismatch, §8.2)
+	| "outdated" // offline_pack_outdated (stale pack refused at launch, PK-1)
 	| "worker-starting" // worker_started but offline_pack_ready hasn't fired
 	| "worker-crashed" // worker_crashed
 	| "worker-unloaded"; // worker_unloaded (slim-core low-RAM unload)
+
+/** Stashed PK-1 stale-pack signal (`offline_pack_outdated` payload). */
+export interface OfflinePackOutdatedInfo {
+	version: string;
+	min_proto_version: number;
+}
 
 export interface UseOfflinePackDownloadResult {
 	/** Current lifecycle stage. See the state-machine comment above. */
@@ -112,6 +121,11 @@ export interface UseOfflinePackDownloadResult {
 	 *  "downloading voice pack X%" from it; every other event clears it
 	 *  so a stale percent never poses as live progress. */
 	progress: number | null;
+	/** Stale-pack versions from the latest `offline_pack_outdated` event.
+	 *  Cleared on a fresh download / verify / ready (mirroring the
+	 *  backend `clear_on_download_started` / `clear_on_verified` resets).
+	 *  `null` until the first outdated event. */
+	outdatedInfo: OfflinePackOutdatedInfo | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -155,6 +169,8 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 	const [status, setStatus] = useState<OfflinePackStatus>("idle");
 	const [error, setError] = useState<string | null>(null);
 	const [progress, setProgress] = useState<number | null>(null);
+	const [outdatedInfo, setOutdatedInfo] =
+		useState<OfflinePackOutdatedInfo | null>(null);
 
 	// ── offline_pack_download_started → "downloading" ─────────────────────────
 	usePythonEvent(
@@ -163,6 +179,7 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 			setStatus("downloading");
 			setError(null);
 			setProgress(0);
+			setOutdatedInfo(null);
 			return undefined;
 		}, []),
 	);
@@ -216,6 +233,7 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 		useCallback((): (() => void) | undefined => {
 			setStatus((prev) => (prev === "ready" ? prev : "worker-starting"));
 			setProgress(null);
+			setOutdatedInfo(null);
 			return undefined;
 		}, []),
 	);
@@ -253,6 +271,32 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 			setStatus("ready");
 			setError(null);
 			setProgress(null);
+			setOutdatedInfo(null);
+			return undefined;
+		}, []),
+	);
+
+	// ── offline_pack_outdated → "outdated" (PK-1 stale-pack signal) ────
+	// The installed pack's protocol is older than the host/sidecar
+	// supports, so it was refused at launch. The payload versions are
+	// stashed for the Settings surface; only a well-formed payload
+	// updates them (a malformed frame still moves the status, the
+	// signal itself is what matters).
+	usePythonEvent(
+		"offline_pack_outdated",
+		useCallback((data?: Record<string, unknown>): (() => void) | undefined => {
+			setStatus("outdated");
+			setProgress(null);
+			const version = pickString(data, ["version"]);
+			const proto = data?.["min_proto_version"];
+			if (
+				version !== null &&
+				typeof proto === "number" &&
+				Number.isInteger(proto) &&
+				proto >= 0
+			) {
+				setOutdatedInfo({ version, min_proto_version: proto });
+			}
 			return undefined;
 		}, []),
 	);
@@ -300,5 +344,5 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 
 	const isReady = status === "ready";
 
-	return { status, error, isReady, progress };
+	return { status, error, isReady, progress, outdatedInfo };
 }
