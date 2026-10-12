@@ -50,6 +50,17 @@ def build_transcribe_frame(audio_path: str, sample_rate: int | None, language: s
     )
 
 
+def build_load_whisper_frame(model_size: str, device: str | None, language: str | None, request_id: int) -> str:
+    """Forward envelope for one worker-side whisper model load."""
+    return json.dumps(
+        {
+            "cmd": "load_whisper_model",
+            "id": int(request_id),
+            "data": {"model_size": model_size, "device": device, "language": language},
+        }
+    )
+
+
 def build_heartbeat_frame() -> str:
     """Liveness ping; the worker answers ``heartbeat_ack`` (plan §7.2)."""
     return json.dumps({"type": "heartbeat"})
@@ -142,6 +153,23 @@ def route_frame(frame: dict, publish: Any, on_result: Any = None) -> str:
                     log.debug("[WORKER] result resolver failed for id=%s", request_id, exc_info=True)
         publish({"type": "transcribe_offline_result", "data": result})
         return "result"
+    if ftype == "load_whisper_model_result":
+        data = frame.get("data") if isinstance(frame.get("data"), dict) else {}
+        error = data.get("error")
+        result = {
+            "loaded": bool(data.get("loaded")),
+            "backend": str(data.get("backend") or "whisper"),
+            "device_info": str(data.get("device_info") or ""),
+            "error": str(error) if error is not None else None,
+        }
+        if on_result is not None:
+            request_id = frame.get("id")
+            if isinstance(request_id, int) and not isinstance(request_id, bool):
+                try:
+                    on_result(request_id, result)
+                except Exception:  # noqa: BLE001, a bad resolver must not drop the result
+                    log.debug("[WORKER] result resolver failed for id=%s", request_id, exc_info=True)
+        return "load_result"
     if ftype == "heartbeat_ack":
         return "heartbeat_ack"
     if ftype == "abort_ack":

@@ -163,6 +163,31 @@ class WorkerClient:
             return None
         return self._register_future(request_id, timeout)
 
+    def request_load_whisper_model(
+        self,
+        model_size: str,
+        device: str | None = None,
+        language: str | None = None,
+        timeout: float | None = 300.0,
+    ) -> concurrent.futures.Future[dict] | None:
+        """Ask the worker to load a whisper model; Future resolves on id echo.
+
+        Same Future/timeout/cancel contract as :meth:`request_transcribe`;
+        ``None`` when there is nowhere to send it (E8).
+        """
+        request_id = self._next_id()
+        with self._lock:
+            port = self._port
+        if port is None:
+            return None
+        try:
+            self._outbound.put_nowait(build_load_whisper_frame(model_size, device, language, request_id))
+        except queue.Full:
+            log.warning("[WORKER] outbound queue full: dropping load_whisper_model request")
+            return None
+        self._notify_outbound()
+        return self._register_future(request_id, timeout)
+
     def cancel_request(self, request_id: int) -> bool:
         """Drop one pending id mapping; a late result still publishes by type."""
         with self._lock:
@@ -404,6 +429,7 @@ from voice_typer.server.worker_protocol import (  # noqa: E402,F401  # facade re
     build_abort_frame,
     build_auth_frame,
     build_heartbeat_frame,
+    build_load_whisper_frame,
     build_streaming_frame,
     build_transcribe_frame,
     chunk_samples,
