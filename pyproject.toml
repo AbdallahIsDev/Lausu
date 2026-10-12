@@ -329,9 +329,12 @@ dependencies = [
     # PLATFORM SPLIT (2026-10-11): upstream removed macOS x86_64 wheels
     # in 49.0.0 (arm64-only since), so an Intel-Mac pip install would
     # compile from source (needs Rust + OpenSSL for the target) and die.
-    # Intel Macs stay on 48.0.1, the last release with an x86_64 wheel;
-    # the 49.0.0 advisories affect <=48.0.0, so 48.0.1 is outside their
-    # range. Revisit if upstream restores x86_64 wheels.
+    # Intel Macs stay on 48.0.1, the last release with an x86_64 wheel.
+    # KNOWN GAP: 48.0.1 is affected by PYSEC-2026-3552/3553/3554 (fixed in
+    # 49.0.0/50.0.0). Accepted because the frozen worker never imports it
+    # (unreachable from worker/__main__; --nofollow-import-to keeps it out
+    # of the binary) and the lock's pip-audit gate skips darwin-only pins
+    # on other platforms. Revisit if upstream restores x86_64 wheels.
     "cryptography>=42; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "cryptography>=48.0.1,<49; sys_platform == 'darwin' and platform_machine == 'x86_64'",
 ]

@@ -145,6 +145,22 @@ if [[ "$NUITKA_VER" != *"2.8.10"* ]]; then
 fi
 echo "[build_worker_macos] nuitka=$NUITKA_VER"
 
+# Static libpython (macOS /install-prefix FATAL): python-build-standalone
+# dylibs carry their build-time ID (/install/lib/libpython3.12.dylib), so
+# anything Nuitka links records that absolute path and the bundler dies
+# with "failed to find path /install/lib/..." (Nuitka#2933 pattern).
+# Linking libpython statically removes the dependency entirely (upstream
+# recommends static on macOS). Fail fast here, not 2h into the freeze.
+PY_PREFIX="$("$PY" -c 'import sys; print(sys.prefix)')"
+shopt -s nullglob
+_STATIC_LIBS=("$PY_PREFIX"/lib/libpython3.*.a)
+shopt -u nullglob
+if (( ${#_STATIC_LIBS[@]} == 0 )); then
+    echo "[build_worker_macos] ERROR: no static libpython archive in $PY_PREFIX/lib (needed for --static-libpython=yes)." >&2
+    exit 1
+fi
+echo "[build_worker_macos] static libpython: ${_STATIC_LIBS[0]}"
+
 # ctranslate2/lib + libs, optional on the worker (the Whisper fallback
 # may not be wired in for Phase 2a; the worker still builds without it).
 CT2_LIB_DIR="$SITE/ctranslate2/lib"
@@ -163,6 +179,7 @@ echo "[build_worker_macos] Running Nuitka..."
 NUITKA_ARGS=(
     --standalone --onefile
     --assume-yes-for-downloads
+    --static-libpython=yes
     --enable-plugin=anti-bloat
     # yt-dlp extractors (~940 modules + the 781KB lazy_extractors hub,
     # reached here via follow-imports from media_ingest) ship as bytecode:
@@ -191,6 +208,19 @@ NUITKA_ARGS=(
     --nofollow-import-to=psutil._pssunos
     --nofollow-import-to=psutil._psaix
     --nofollow-import-to=torch
+    # Bloat trim (plan §11.4 200 MB cap): pyrnnoise (RNNoise denoise,
+    # host-side only) drags audiolab/soundfile/matplotlib into the freeze
+    # (matplotlib's mpl-data fonts alone are tens of MB). Zero static
+    # importers anywhere in voice_typer; the sole in-tree edge
+    # (noise_suppressor's lazy import) degrades via ImportError fallback,
+    # and the worker never denoises. cryptography (history at-rest
+    # encryption, host-side only) is likewise unreachable from
+    # worker/__main__ and fails loud (unguarded imports) if ever hit.
+    --nofollow-import-to=pyrnnoise
+    --nofollow-import-to=audiolab
+    --nofollow-import-to=matplotlib
+    --nofollow-import-to=soundfile
+    --nofollow-import-to=cryptography
     --include-package=voice_typer
     --include-package=onnxruntime
     --include-package=websockets

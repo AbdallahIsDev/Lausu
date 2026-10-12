@@ -156,7 +156,7 @@ cutover complete 2026-09-17). predecessor packaging, TCP IPC, and
 | 18 | NVIDIA Parakeet TDT v3 | ✅ | HuggingFace Transformers, auto-download weights |
 | 19 | Cloud ASR: OpenAI Whisper API | ✅ | `CloudEngine` interface, tested |
 | 20 | Cloud ASR: Groq Whisper API | ✅ | `CloudEngine` interface, tested |
-| 21 | Cloud ASR: Deepgram API (nova-2) | ✅ | `CloudEngine` interface, tested |
+| 21 | Cloud ASR: Deepgram API (nova-3) / Google Gemini | ✅ | `CloudEngine` interface, tested |
 | 22 | GPU→CPU automatic fallback chain | ✅ | 4 levels: CUDA→CUDA (fallback)→CPU (float16)→CPU (float32) |
 | 23 | ASR backend registry (AsrBackendRegistry) | ✅ | Single source of truth for all engine instances |
 | 24 | Model download management | ✅ | Real HuggingFace downloads via `huggingface_hub.snapshot_download` with retry + pause/resume; progress events stream to the UI (asserted by e2e tests, `tests/test_download_progress_events.py`) |
