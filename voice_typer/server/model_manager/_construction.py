@@ -3,14 +3,23 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from voice_typer.server import i18n
 from voice_typer.server.branding import APP_NAME
+
+if TYPE_CHECKING:
+    from voice_typer.server.app import LausuApp
+    from voice_typer.server.asr_registry import AsrBackendRegistry
 
 log = logging.getLogger("voice_typer.server.model_manager")
 
 
 class ConstructionMixin:
+    # Members provided by the composed ``ModelManager`` (manager.py):
+    _app: LausuApp
+    _registry: AsrBackendRegistry
+
     def _ensure_engine(self, backend_name: str) -> None:
         """Ensure the engine object for ``backend_name`` exists (no load)."""
         if self._registry.get(backend_name) is not None:
