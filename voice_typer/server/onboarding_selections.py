@@ -80,6 +80,14 @@ class _OnboardingSelectionsMixin:
             "description": "Multilingual, best for quick notes",
             "vram_gb": 0.5,
             "languages": None,
+            # The ``asr_backend`` this entry activates. The renderer writes
+            # the pair (``asr_backend``, ``model_size``) when the user leaves
+            # the Model step, mirroring the Models page's ``selectModel``.
+            # Without it a wizard selection of a non-Whisper family left
+            # ``asr_backend`` at its ``"whisper"`` default and the chosen
+            # model never loaded. Mirrors ``ModelMetadata.backend`` in
+            # :mod:`voice_typer.server.model_registry`.
+            "backend": "whisper",
         },
         {
             "name": "large-v3",
@@ -88,6 +96,7 @@ class _OnboardingSelectionsMixin:
             "description": "Multilingual, highest accuracy, GPU recommended",
             "vram_gb": 3.0,
             "languages": None,
+            "backend": "whisper",
         },
         {
             "name": "large-v3-turbo",
@@ -96,6 +105,7 @@ class _OnboardingSelectionsMixin:
             "description": "Multilingual, near-large-v3 accuracy at 8x speed",
             "vram_gb": 2.0,
             "languages": None,
+            "backend": "whisper",
         },
         # NVIDIA Parakeet RNN-T model, fast, accurate, multilingual.
         {
@@ -105,6 +115,7 @@ class _OnboardingSelectionsMixin:
             "description": "NVIDIA Parakeet, fast & accurate, multilingual",
             "vram_gb": 2.0,
             "languages": None,
+            "backend": "parakeet",
         },
     ]
 

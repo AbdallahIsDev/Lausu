@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from ..base import log
 from ..win32_vk import _KEYEVENTF_KEYUP, _VK_CAPITAL
 from ._win32_keyboard import _send_keyboard_event
@@ -40,8 +42,19 @@ def ensure_caps_lock_off(self) -> None:
     try:
         toggle_state = self._user32.GetKeyState(_VK_CAPITAL) & 0x1
         if toggle_state:
-            _send_keyboard_event(self._user32, _VK_CAPITAL, 0x45, 0)
-            _send_keyboard_event(self._user32, _VK_CAPITAL, 0x45, _KEYEVENTF_KEYUP)
-            log.info("[HOTKEY] Proactive caps lock toggle-off (was ON, forced OFF)")
+            down = _send_keyboard_event(self._user32, _VK_CAPITAL, 0x45, 0)
+            up = _send_keyboard_event(self._user32, _VK_CAPITAL, 0x45, _KEYEVENTF_KEYUP)
+            # Verify the effect: a swallowed/failed synthetic toggle
+            # (e.g. an already-hooked key listener) leaves the state ON.
+            time.sleep(0.01)
+            still_on = self._user32.GetKeyState(_VK_CAPITAL) & 0x1
+            if still_on:
+                log.warning(
+                    "[HOTKEY] Caps lock toggle-off FAILED (sent down=%s up=%s, still ON)",
+                    down,
+                    up,
+                )
+            else:
+                log.info("[HOTKEY] Proactive caps lock toggle-off (was ON, forced OFF)")
     except Exception:
         log.exception("[HOTKEY] Failed to force caps lock off")

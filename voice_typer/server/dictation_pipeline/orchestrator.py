@@ -162,7 +162,7 @@ class _OrchestratorMixin:
                         format_duration(_elapsed),
                     )
                     log.debug(
-                        "[PIPE-PERF] transcribe: %.0f ms (cycle=%s)",
+                        "[PIPELINE-PERF] transcribe: %.0f ms (cycle=%s)",
                         _timings.get("transcribe", 0.0),
                         self._cycle_id,
                     )
@@ -180,7 +180,7 @@ class _OrchestratorMixin:
 
             _total_ms = (time.perf_counter() - _t0) * 1000
             log.info(
-                "[PIPE-PERF] total=%.0fms | stages: transcribe=%.0f, clean=%.0f, "
+                "[PIPELINE-PERF] total=%.0fms | stages: transcribe=%.0f, clean=%.0f, "
                 "vocab=%.0f, templates=%.0f, punct=%.0f, store=%.0f, "
                 "paste=%.0f | cycle=%s",
                 _total_ms,
@@ -195,7 +195,7 @@ class _OrchestratorMixin:
             )
             if _timings.get("llm", 0.0) > 1:
                 log.info(
-                    "[PIPE-PERF] llm_polish=%.0fms, ai_enhance=%.0fms, vocab_auto=%.0fms | cycle=%s",
+                    "[PIPELINE-PERF] llm_polish=%.0fms, ai_enhance=%.0fms, vocab_auto=%.0fms | cycle=%s",
                     _timings.get("llm", 0.0),
                     _timings.get("ai", 0.0),
                     _timings.get("vocab_auto", 0.0),

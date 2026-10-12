@@ -52,6 +52,9 @@ from voice_typer.worker.whisper.fallback import (  # noqa: E402
     transcribe_with_fallback as _transcribe_with_fallback_impl,
     with_gpu_fallback as _with_gpu_fallback_impl,
 )
+from voice_typer.worker.whisper.native_stderr import (  # noqa: E402
+    capture_native_stderr as _capture_native_stderr,
+)
 
 np = lazy_module("numpy")
 
@@ -212,14 +215,17 @@ class TranscriptionEngine:
                     progress_callback(f"{verb} model '{model_size}'...")
                 # time WhisperModel construction to measure
                 _t0 = time.perf_counter()
-                # cpu_threads: CTranslate2 silently defaults to 4
-                model = WhisperModel(
-                    model_size,
-                    device=device,
-                    compute_type=compute_type,
-                    cpu_threads=_whisper_cpu_threads_impl(),
-                    num_workers=1,
-                )
+                # ctranslate2 logs to fd 2 in its own format, bypassing the
+                # file log; capture it so native lines land in canonical form.
+                with _capture_native_stderr(target=log):
+                    # cpu_threads: CTranslate2 silently defaults to 4
+                    model = WhisperModel(
+                        model_size,
+                        device=device,
+                        compute_type=compute_type,
+                        cpu_threads=_whisper_cpu_threads_impl(),
+                        num_workers=1,
+                    )
                 _load_elapsed = time.perf_counter() - _t0
                 if acquire_lock:
                     with self._lock:

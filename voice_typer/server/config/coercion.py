@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -275,12 +276,33 @@ def _validate_corrections_path(data: dict[str, Any]) -> None:
                 )
 
 
+_PRIVACY_WARN_MARKER = ".privacy_transcription_warned"
+_PRIVACY_WARN_TTL_S = 24 * 3600
+
+
 def _validate_privacy_consents(data: dict[str, Any]) -> None:
     """warn the user about privacy implications when ``log_transcriptions`` is enabled."""
     global _PRIVACY_CONSENT_WARNED
-    if data.get("log_transcriptions") and not _PRIVACY_CONSENT_WARNED:
-        _PRIVACY_CONSENT_WARNED = True
-        log.warning(
-            "[CONFIG] log_transcriptions on: PII-redacted transcription "
-            "snippets may appear in logs (full text stays in History)."
-        )
+    if not data.get("log_transcriptions") or _PRIVACY_CONSENT_WARNED:
+        return
+    _PRIVACY_CONSENT_WARNED = True
+    # WHY: sidecar + worker are separate processes sharing one log file, so the
+    # in-process flag alone still emits one WARN per process seconds apart.
+    try:
+        _marker = _get_config_dir() / _PRIVACY_WARN_MARKER
+        try:
+            _age = time.time() - _marker.stat().st_mtime
+        except OSError:
+            _age = None
+        if _age is not None and _age < _PRIVACY_WARN_TTL_S:
+            return
+        try:
+            _marker.touch(exist_ok=True)
+        except OSError:
+            pass
+    except Exception:
+        pass
+    log.warning(
+        "[CONFIG] log_transcriptions on: PII-redacted transcription "
+        "snippets may appear in logs (full text stays in History)."
+    )

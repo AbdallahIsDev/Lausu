@@ -3,6 +3,7 @@
 # ruff: noqa: E501 -- the state-transition ASCII table in the
 
 import contextlib
+import ctypes
 import threading
 from collections.abc import Callable
 
@@ -72,6 +73,11 @@ class _NativeBackendAdapter(HotkeyBackend):
     def start(self, callback: Callable[[], None]) -> None:
         self._callback = callback
         try:
+            # Force Caps Lock off BEFORE the native binary starts: its
+            # LL hook swallows every Caps keydown (no injected/physical
+            # distinction), so a synthetic toggle sent afterwards would
+            # never reach the OS. With no hook alive yet, it lands.
+            self._force_caps_lock_off()
             self._native.start(callback)
             with self._swap_lock:
                 if self._state != self._STATE_STOPPED:
@@ -79,6 +85,20 @@ class _NativeBackendAdapter(HotkeyBackend):
         except Exception as exc:
             log.warning("[HOTKEY] Native backend failed to start: %s, trying legacy", exc)
             self._swap_to_legacy()
+
+    def _force_caps_lock_off(self) -> None:
+        """Force Caps Lock OFF at startup when it is the hotkey (Windows)."""
+        if not is_windows():
+            return
+        if "caps_lock" not in (self.hotkey_str or "").lower():
+            return
+        try:
+            from .windows.caps_lock_suppressor import ensure_caps_lock_off
+
+            self._user32 = ctypes.windll.user32  # type: ignore[attr-defined]
+            ensure_caps_lock_off(self)
+        except Exception:
+            log.debug("[HOTKEY] Proactive caps-lock off failed (non-fatal)", exc_info=True)
 
     def set_on_release(self, callback: Callable[[], None] | None) -> None:
         self._on_release_callback = callback

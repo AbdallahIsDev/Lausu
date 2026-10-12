@@ -34,6 +34,11 @@ class AsrBackendRegistry(RegistryCore):
         "whisper": ("voice_typer.server.worker_backed_asr", "WorkerBackedAsr"),
         "qwen": ("voice_typer.server.qwen_engine", "QwenEngine"),
         "parakeet": ("voice_typer.server.parakeet_engine", "ParakeetEngine"),
+        # Cloud holds no local weights: it is constructed from the live Config
+        # (provider + that provider's key + model) and re-resolves on every
+        # load/transcribe, so it needs no model path here. See
+        # ``cloud_backend.py``.
+        "cloud": ("voice_typer.server.cloud_backend", "CloudAsrBackend"),
     }
 
     # ``load_active`` lives on the facade (not on RegistryCore) so its
@@ -95,6 +100,7 @@ class AsrBackendRegistry(RegistryCore):
         whisper_kwargs: dict | None = None,
         qwen_kwargs: dict | None = None,
         parakeet_kwargs: dict | None = None,
+        cloud_kwargs: dict | None = None,
     ) -> AsrBackend | None:
         """Construct (but don't load) a backend engine.
 
@@ -110,6 +116,7 @@ class AsrBackendRegistry(RegistryCore):
             "whisper": whisper_kwargs or {},
             "qwen": qwen_kwargs or {},
             "parakeet": parakeet_kwargs or {},
+            "cloud": cloud_kwargs or {},
         }
         kwargs = kwargs_map[name]
 

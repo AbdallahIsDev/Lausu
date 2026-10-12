@@ -27,10 +27,29 @@ class KEYBDINPUT(ctypes.Structure):
     KEYUP = 0x0002
 
 
+class MOUSEINPUT(ctypes.Structure):
+    """Win32 ``MOUSEINPUT``: the largest ``INPUT`` union member.
+
+    Only its size matters here (the app never synthesizes mouse
+    input): without it the union collapses to ``KEYBDINPUT`` (24 B),
+    ``INPUT`` shrinks to 32 B instead of the real 40 B on x64, and
+    ``SendInput`` rejects every call (returns 0, no toggle ever lands).
+    """
+
+    _fields_ = (
+        ("dx", wintypes.LONG),
+        ("dy", wintypes.LONG),
+        ("mouseData", wintypes.DWORD),
+        ("dwFlags", wintypes.DWORD),
+        ("time", wintypes.DWORD),
+        ("dwExtraInfo", _ULONG_PTR),
+    )
+
+
 class InputUnion(ctypes.Union):
     """Win32 ``INPUT`` union, only the keyboard branch is populated."""
 
-    _fields_ = (("ki", KEYBDINPUT),)
+    _fields_ = (("mi", MOUSEINPUT), ("ki", KEYBDINPUT))
 
 
 class INPUT(ctypes.Structure):
@@ -71,6 +90,7 @@ __all__ = [
     "INPUT",
     "InputUnion",
     "KEYBDINPUT",
+    "MOUSEINPUT",
     "_build_keyboard_input",
     "_send_keyboard_event",
 ]

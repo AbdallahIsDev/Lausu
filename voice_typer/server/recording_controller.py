@@ -232,6 +232,12 @@ class RecordingController:
 
     def on_silence_warning(self) -> None:
         """Handle silence warning from recorder."""
+        cycle = getattr(getattr(self, "_app", None), "_cycle_id", None)
+        warned = getattr(self, "_silence_warned_cycle", None)
+        if cycle is not None and warned == cycle:
+            log.debug("[DICTATION] Silence warning repeat suppressed (cycle=%s)", cycle)
+            return
+        self._silence_warned_cycle = cycle
         log.warning("[DICTATION] Silence warning: no audio detected for a while")
         with contextlib.suppress(Exception):
             self._app.tray.notify_safety(

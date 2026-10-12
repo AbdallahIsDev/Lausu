@@ -86,7 +86,7 @@ class _ConfigSchema:
     offline_pack_consent: bool = True
 
     # ASR backend selection
-    asr_backend: Literal["whisper", "qwen", "parakeet"] = "whisper"
+    asr_backend: Literal["whisper", "qwen", "parakeet", "cloud"] = "whisper"
     qwen_model_path: str | None = None  # local path to Qwen3-ASR weights
     parakeet_model_path: str | None = None  # local override for Parakeet weights (None = HF cache)
 
@@ -133,6 +133,13 @@ class _ConfigSchema:
     cloud_api_key: str = ""
     cloud_api_url: str = ""
     cloud_model: str = ""
+    # Which cloud provider is active when ``asr_backend == "cloud"``. Empty
+    # means "no provider selected", and the cloud backend then reports itself
+    # not-loaded so the registry degrades to whisper. The API key is NOT
+    # stored here: it lives in the provider's own ``<provider>_api_key``
+    # field (``credential_store.PROVIDER_TO_CONFIG_FIELD``), so one provider
+    # can be configured once and every model it serves becomes usable.
+    cloud_provider: str = ""
     openai_api_key: str = ""
     groq_api_key: str = ""
     deepgram_api_key: str = ""
