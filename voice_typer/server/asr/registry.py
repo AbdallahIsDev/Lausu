@@ -242,26 +242,26 @@ class RegistryCore:
         source can serve; the caller then propagates the original
         pack-missing refusal.
         """
+        engine: AsrBackend | None
         try:
             from voice_typer.server.system_whisper import try_load_worker_whisper
 
             engine = try_load_worker_whisper(self._config)
+            source = "worker"
         except Exception:
             log.debug("[ASR_REGISTRY] worker whisper attempt failed", exc_info=True)
             engine = None
-        if engine is not None:
-            self.register("whisper", engine)
-            self._record_success("whisper")
-            log.info("[ASR_REGISTRY] serving whisper from worker (offline pack absent)")
-            return engine
-        from voice_typer.server.system_whisper import try_load_system_whisper
+            source = ""
+        if engine is None:
+            from voice_typer.server.system_whisper import try_load_system_whisper
 
-        engine = try_load_system_whisper(self._config)
+            engine = try_load_system_whisper(self._config)
+            source = "system libraries"
         if engine is None:
             return None
         self.register("whisper", engine)
         self._record_success("whisper")
-        log.info("[ASR_REGISTRY] serving whisper from system libraries (offline pack absent)")
+        log.info("[ASR_REGISTRY] serving whisper from %s (offline pack absent)", source)
         return engine
 
     def load_with_fallback(self, progress_callback: ProgressCallback | None = None) -> AsrBackend | None:
