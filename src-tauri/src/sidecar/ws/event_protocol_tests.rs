@@ -138,6 +138,7 @@ fn test_allowlist_is_exact_canonical_set() {
         "offline_pack_missing",
         "offline_pack_corrupt",
         "offline_pack_ready",
+        "offline_pack_outdated",
         "worker_started",
         "worker_crashed",
         "worker_unloaded",
