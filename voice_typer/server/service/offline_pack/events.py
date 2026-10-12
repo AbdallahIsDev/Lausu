@@ -18,6 +18,7 @@ OFFLINE_PACK_EVENT_TYPES: frozenset[str] = frozenset(
         "offline_pack_missing",
         "offline_pack_corrupt",
         "offline_pack_ready",
+        "offline_pack_outdated",
         "worker_started",
         "worker_crashed",
         "worker_unloaded",
