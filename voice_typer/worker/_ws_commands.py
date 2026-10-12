@@ -146,6 +146,63 @@ async def handle_transcribe_samples(frame: dict, handles: _CommandHandles) -> No
     handles.launch(_run_samples, request_id)
 
 
+async def handle_load_whisper_model_async(frame: dict, handles: _CommandHandles) -> None:
+    """Load a whisper model in the worker; answer ``load_whisper_model_result``."""
+    request_id = _valid_request_id(frame.get("id"))
+    if request_id is None:
+        log.warning("[WORKER] load_whisper_model without a numeric id: ignoring")
+        return
+    data = frame.get("data") if isinstance(frame.get("data"), dict) else {}
+    model_size = data.get("model_size")
+    device = data.get("device")
+    language = data.get("language")
+    if not isinstance(model_size, str) or not model_size:
+        with contextlib.suppress(Exception):
+            await handles.websocket.send(
+                json.dumps(
+                    {
+                        "type": "load_whisper_model_result",
+                        "id": request_id,
+                        "data": {
+                            "loaded": False,
+                            "backend": "whisper",
+                            "device_info": "",
+                            "error": "missing model_size",
+                        },
+                    }
+                )
+            )
+        return
+
+    def _run(
+        _size: str = model_size,
+        _device: object = device,
+        _lang: object = language,
+    ) -> dict:
+        from voice_typer.worker._transcribe import get_transcriber
+
+        return get_transcriber().load_whisper_model(
+            _size,
+            str(_device) if _device is not None else None,
+            str(_lang) if _lang is not None else None,
+        )
+
+    import asyncio as _asyncio
+
+    async def _do() -> None:
+        try:
+            result = await _asyncio.to_thread(_run)
+        except Exception as exc:  # noqa: BLE001, never leave the request hanging
+            log.exception("[WORKER] load_whisper_model thread raised: %s", exc)
+            result = {"loaded": False, "backend": "whisper", "device_info": None, "error": f"internal error: {exc}"}
+        with contextlib.suppress(Exception):
+            await handles.websocket.send(
+                json.dumps({"type": "load_whisper_model_result", "id": request_id, "data": result})
+            )
+
+    _asyncio.ensure_future(_do())
+
+
 async def handle_abort_request(frame: dict, handles: _CommandHandles) -> None:
     """ADR-0025 C4: best-effort cooperative abort.
 

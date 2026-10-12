@@ -158,6 +158,45 @@ class WorkerTranscriber:
 
     # ── public API ───────────────────────────────────────────────────
 
+    def load_whisper_model(
+        self, model_size: str, device: str | None = None, language: str | None = None
+    ) -> dict:
+        """Load a whisper model with explicit args; never raises."""
+        with self._lock:
+            try:
+                if (
+                    self._engine is not None
+                    and self._engine_language == language
+                    and getattr(self._engine, "model_size", None) == model_size
+                ):
+                    try:
+                        if bool(self._engine.is_loaded):
+                            info = self._backend_device_info(self._engine)
+                            return {"loaded": True, "backend": "whisper", "device_info": info, "error": None}
+                    except Exception:
+                        pass
+                from voice_typer.worker.whisper.engine import TranscriptionEngine
+
+                engine = TranscriptionEngine(
+                    model_size=model_size,
+                    device=device if device is not None else "auto",
+                    language=language if language is not None else "en",
+                )
+                engine.load()
+                self._engine = engine
+                self._registry = None
+                self._engine_language = language
+                log.info("[WORKER] whisper model loaded: size=%s language=%s", model_size, language)
+                return {
+                    "loaded": True,
+                    "backend": "whisper",
+                    "device_info": self._backend_device_info(engine),
+                    "error": None,
+                }
+            except Exception as exc:  # noqa: BLE001, structured error result
+                log.warning("[WORKER] whisper model load failed: %s", exc)
+                return {"loaded": False, "backend": "whisper", "device_info": None, "error": str(exc)}
+
     def transcribe_file(self, audio_path: str, sample_rate: int | None, language: str | None) -> dict:
         """Transcribe a WAV file; return the ``transcribe_offline_result`` payload.
 
