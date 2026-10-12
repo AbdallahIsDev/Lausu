@@ -102,4 +102,50 @@ describe("Bubble text selection guard", () => {
 		const leftCancelled = fireEvent.mouseDown(pill(), { button: 0 });
 		expect(leftCancelled).toBe(true);
 	});
+
+	it("kills dragstart at initiation so a text drag carries no selection", () => {
+		render(<Bubble />);
+		const ev = new Event("dragstart", {
+			bubbles: true,
+			cancelable: true,
+		});
+		pill().dispatchEvent(ev);
+		expect(ev.defaultPrevented).toBe(true);
+	});
+});
+
+describe("Bubble transcript preview selection ban", () => {
+	it("marks the live preview select-none in transcribing mode", async () => {
+		const { BubbleModeContent } = await import("@/bubble/BubbleModeContent");
+		const { container } = render(
+			<BubbleModeContent
+				mode="transcribing"
+				transcript="currently"
+				showTimer={false}
+				dotRefs={{ current: [] }}
+			/>,
+		);
+		const preview = container.querySelector(
+			'[aria-label="Live transcript preview"]',
+		);
+		expect(preview).toBeTruthy();
+		expect(preview?.className).toMatch(/(^| )select-none($| )/);
+	});
+
+	it("marks the live preview select-none in fading mode", async () => {
+		const { BubbleModeContent } = await import("@/bubble/BubbleModeContent");
+		const { container } = render(
+			<BubbleModeContent
+				mode="fading"
+				transcript="currently"
+				showTimer={false}
+				dotRefs={{ current: [] }}
+			/>,
+		);
+		const preview = container.querySelector(
+			'[aria-label="Live transcript preview"]',
+		);
+		expect(preview).toBeTruthy();
+		expect(preview?.className).toMatch(/(^| )select-none($| )/);
+	});
 });

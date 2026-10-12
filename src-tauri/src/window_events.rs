@@ -53,10 +53,13 @@ pub(crate) fn handle(window: &tauri::Window, event: &WindowEvent) {
         )
     {
         if let Some(bubble) = window.app_handle().get_webview_window("bubble") {
-            // This handler runs ON the main thread, and hardening
-            // blocks on main-thread roundtrips: running it inline
-            // deadlocks the UI on itself. Hop off-thread; the work is
-            // idempotent and finishes in microseconds.
+            // Queue-level backstop first, synchronously: this handler
+            // runs ON the main thread, which is exactly the thread the
+            // hook must attach to. Sync + non-blocking, then the
+            // heavier hardening hops off-thread (it blocks on
+            // main-thread roundtrips: running it inline deadlocks the
+            // UI on itself).
+            crate::commands::bubble::ensure_bubble_msg_hook(&bubble);
             std::thread::spawn(move || {
                 crate::commands::bubble::harden_bubble_chrome(&bubble);
             });

@@ -24,8 +24,8 @@ mod window;
 // body the bubble's '×' button uses, so the keyboard path can never
 // drift from the click path (E7).
 pub(crate) use window::{
-    harden_bubble_chrome, hide_bubble_window, is_active_bubble_state, show_bubble_window,
-    wants_bubble_show,
+    ensure_bubble_msg_hook, harden_bubble_chrome, hide_bubble_window, is_active_bubble_state,
+    show_bubble_window, wants_bubble_show,
 };
 
 pub(crate) use commands::{

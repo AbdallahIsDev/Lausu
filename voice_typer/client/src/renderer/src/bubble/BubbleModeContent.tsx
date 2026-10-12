@@ -61,7 +61,10 @@ export function BubbleModeContent({
 								"bubble.transcriptPreviewAria",
 								"Live transcript preview",
 							)}
-							className="max-w-45 truncate text-muted-foreground"
+							// select-none repeated here, not just on the
+							// pill: this live-updating text has painted
+							// selection fragments through the inherited ban.
+							className="max-w-45 truncate text-muted-foreground select-none"
 						>
 							{preview}
 						</output>
@@ -90,7 +93,10 @@ export function BubbleModeContent({
 								"bubble.transcriptPreviewAria",
 								"Live transcript preview",
 							)}
-							className="max-w-45 truncate text-muted-foreground"
+							// select-none repeated here, not just on the
+							// pill: this live-updating text has painted
+							// selection fragments through the inherited ban.
+							className="max-w-45 truncate text-muted-foreground select-none"
 						>
 							{preview}
 						</output>
