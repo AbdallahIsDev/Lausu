@@ -248,17 +248,38 @@ fn test_on_quit_app_destroys_windows_before_exit() {
     let fn_start = LIFECYCLE_SRC
         .find("pub(crate) fn on_quit_app")
         .expect("on_quit_app must exist in lifecycle.rs");
-    let body = &LIFECYCLE_SRC[fn_start..];
-    let destroy_call = body
-        .find("window.destroy()")
+    let after = &LIFECYCLE_SRC[fn_start..];
+    // Bound the slice to on_quit_app itself (the next item is the shared
+    // destroy helper): scanning to EOF would mistake the helper's own
+    // `window.destroy()` for the call site and mis-order the check.
+    let fn_end = after
+        .find("\npub(crate) fn ")
+        .expect("on_quit_app must be followed by another item");
+    let body = &after[..fn_end];
+    let teardown_call = body
+        .find("destroy_webview_windows(app_handle)")
         .expect("on_quit_app must destroy webview windows before exiting");
     let exit_call = body
         .find("app_handle.exit(0)")
         .expect("on_quit_app must still exit the host");
     assert!(
-        destroy_call < exit_call,
+        teardown_call < exit_call,
         "webview windows must be destroyed BEFORE app.exit(0): exiting with \
          live HWNDs makes Chromium's AtExit class-unregistration fail with \
          `Failed to unregister class Chrome_WidgetWin_0 (Error 1412)` noise"
+    );
+    // The helper itself must actually destroy: a renamed-to-noop helper
+    // would keep the call order above green while windows stay alive.
+    let helper_start = LIFECYCLE_SRC
+        .find("pub(crate) fn destroy_webview_windows")
+        .expect("the shared destroy_webview_windows helper must exist in lifecycle.rs");
+    let helper_after = &LIFECYCLE_SRC[helper_start..];
+    let helper_end = helper_after
+        .find("\npub(crate) fn ")
+        .expect("destroy_webview_windows must be followed by another item");
+    assert!(
+        helper_after[..helper_end].contains("window.destroy()"),
+        "destroy_webview_windows must call window.destroy(): otherwise \
+         on_quit_app's teardown call destroys nothing"
     );
 }
