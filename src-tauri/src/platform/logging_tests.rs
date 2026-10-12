@@ -2519,12 +2519,13 @@ fn strip_ansi_codes(s: &str) -> String {
 
 #[test]
 fn test_colorize_terminal_line_preserves_the_c_log_1_text() {
-    // The whole point of restoring colour: C-LOG-1's visible text must not
-    // move. Stripping the ANSI wrappers must yield `format_terminal_line`
-    // byte-for-byte, for every level, so the pinned column layout survives.
-    let cases: [(log::Level, &str); 5] = [
+    // The whole point of restoring colour: visible text must not move.
+    // Stripping the ANSI wrappers must yield `format_terminal_line`
+    // byte-for-byte for every labelled level, so the pinned column
+    // layout survives. INFO is labelless by design (pinned below), so
+    // it is asserted separately.
+    let cases: [(log::Level, &str); 4] = [
         (log::Level::Debug, "DEBUG"),
-        (log::Level::Info, "INFO "),
         (log::Level::Warn, "WARN "),
         (log::Level::Error, "ERROR"),
         (log::Level::Trace, "TRACE"),
@@ -2547,6 +2548,19 @@ fn test_colorize_terminal_line_preserves_the_c_log_1_text() {
             "level column must not shift for {level}: {stripped}"
         );
     }
+}
+
+#[test]
+fn test_colorize_info_drops_the_label() {
+    // INFO renders `ts + two spaces + message`, no level column.
+    let coloured = colorize_with("17:24:06", log::Level::Info, "shape check message", true);
+    let plain = format_terminal_line("17:24:06", log::Level::Info, "shape check message");
+    assert_ne!(coloured, plain, "colour must change the bytes");
+    assert_eq!(
+        strip_ansi_codes(&coloured),
+        "17:24:06  shape check message",
+        "stripped INFO line must be labelless"
+    );
 }
 
 #[test]
@@ -2599,8 +2613,36 @@ fn test_info_dims_the_timestamp_and_colours_a_known_topic() {
 fn test_info_leaves_an_unknown_topic_plain() {
     let line = colorize_with("17:24:06", log::Level::Info, "[NOT-A-TOPIC] x", true);
     assert!(
-        line.ends_with("INFO  [NOT-A-TOPIC] x"),
+        line.ends_with("  [NOT-A-TOPIC] x"),
         "unknown topic body stays plain: {line:?}"
+    );
+    assert!(
+        !strip_ansi_codes(&line).contains("INFO"),
+        "INFO label must stay dropped: {line:?}"
+    );
+}
+
+#[test]
+fn test_debug_is_one_colour_except_the_timestamp() {
+    // Dim timestamp, then ONE wrap around label + body.
+    let line = colorize_with("17:24:06", log::Level::Debug, "[HOTKEY] x", true);
+    assert!(
+        line.starts_with("\x1b[38;5;242m17:24:06\x1b[0m"),
+        "dim timestamp: {line:?}"
+    );
+    assert!(
+        line.contains("\x1b[38;5;141mDEBUG [HOTKEY] x\x1b[0m"),
+        "label+body one-colour wrap: {line:?}"
+    );
+    assert_eq!(
+        line.matches("\x1b[").count(),
+        4,
+        "unexpected SGR segments: {line:?}"
+    );
+    assert_eq!(
+        strip_ansi_codes(&line),
+        "17:24:06  DEBUG [HOTKEY] x",
+        "stripped DEBUG shape: {line:?}"
     );
 }
 
@@ -2632,6 +2674,11 @@ fn test_expected_topic_colours_are_pinned() {
         ("VAD", "38;5;245"),
         ("CRASH", "38;5;167"),
         ("MODEL", "38;5;69"),
+        ("URL-Allowlist", "38;5;110"),
+        ("SUPERVISOR", "38;5;103"),
+        ("KILL-TREE", "38;5;103"),
+        ("WS-WRITER", "38;5;110"),
+        ("HEARTBEAT", "38;5;110"),
     ] {
         assert_eq!(topic_color_for(topic), Some(color), "topic {topic}");
     }

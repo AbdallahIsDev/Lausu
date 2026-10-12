@@ -8,6 +8,7 @@
 
 mod branding;
 mod commands;
+mod console_ctrl;
 mod error;
 mod host_events;
 mod launch_args;
@@ -184,6 +185,10 @@ fn main() {
             app.listen("quit_app", move |_event| {
                 crate::state::on_quit_app(&quit_handle);
             });
+            // Console Ctrl handler (Windows): destroy webviews before
+            // a Ctrl+C kill so Chromium's AtExit finds no live HWNDs.
+            // No-op everywhere else; inert in GUI-subsystem releases.
+            crate::console_ctrl::install(app.handle());
             // System tray (non-fatal). On success `tray_available` is
             // marked so the close handler picks hide-to-tray vs real close.
             crate::tray::create_tray_and_mark_state(app.handle());

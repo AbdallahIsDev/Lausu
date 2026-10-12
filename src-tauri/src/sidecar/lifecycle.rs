@@ -155,6 +155,15 @@ pub(crate) fn on_quit_app(app_handle: &tauri::AppHandle) {
     // class-unregistration then races still-alive windows (upstream
     // Chromium noise, harmless but alarming). Destroying the webview
     // windows first leaves no window of that class alive at exit.
+    destroy_webview_windows(app_handle);
+    app_handle.exit(0);
+}
+
+/// Destroy every webview window, best-effort (Chromium AtExit
+/// ordering). Shared by tray-Quit (`on_quit_app`) and console kills
+/// (`console_ctrl`): both must run it before the process goes away.
+pub(crate) fn destroy_webview_windows(app_handle: &tauri::AppHandle) {
+    use tauri::Manager;
     for (label, window) in app_handle.webview_windows() {
         if let Err(e) = window.destroy() {
             log::debug!(
@@ -164,7 +173,6 @@ pub(crate) fn on_quit_app(app_handle: &tauri::AppHandle) {
             );
         }
     }
-    app_handle.exit(0);
 }
 
 pub(crate) fn on_host_exit(app_handle: &tauri::AppHandle) {

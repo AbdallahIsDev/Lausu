@@ -152,6 +152,10 @@ windows = { version = "0.61", features = [
     # CreateJobObjectW is gated behind Win32_Security in windows
     # 0.61.x (it takes a SECURITY_ATTRIBUTES parameter).
     "Win32_Security",
+    # SetConsoleCtrlHandler + CTRL_* events (console_ctrl.rs): destroy
+    # webviews before a Ctrl+C kill so Chromium's AtExit finds no live
+    # HWNDs (`Failed to unregister class Chrome_WidgetWin_0`).
+    "Win32_System_Console",
 ] }
 
 [profile.release]

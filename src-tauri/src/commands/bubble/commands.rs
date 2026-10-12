@@ -68,7 +68,12 @@ pub async fn bubble_set_position(
     let (px, py) = bubble_position_in_work_area(&position, &wa_rect, bubble_w, bubble_h, margin)?;
     window
         .set_position(PhysicalPosition::new(px, py))
-        .map_err(|e| LausuError::Host(e.to_string()))
+        .map_err(|e| LausuError::Host(e.to_string()))?;
+    // One line per placement (hydration + settings changes only, never
+    // drags): proves in lausu.log that the session started on the
+    // configured edge instead of the OS default position.
+    log::info!("[BUBBLE] positioned at ({px},{py}) edge={position}");
+    Ok(())
 }
 
 /// Resolve monitor the bubble should appear on (cursor display, then primary).
@@ -187,7 +192,11 @@ pub async fn bubble_resize(
     use tauri::PhysicalSize;
     window
         .set_size(PhysicalSize::new(capped_w, capped_h))
-        .map_err(|e| LausuError::Host(e.to_string()))
+        .map_err(|e| LausuError::Host(e.to_string()))?;
+    // Mode changes resize constantly; keep the chrome stripped no
+    // matter which tao path last touched the window. Idempotent.
+    super::window::harden_bubble_chrome(&window);
+    Ok(())
 }
 
 /// Bubble mic-button toggle. ONLY sanctioned dispatch-allowlist bypass (SEC-026):
