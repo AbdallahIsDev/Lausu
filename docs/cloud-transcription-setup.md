@@ -20,28 +20,41 @@ API key format, network requirements, and per-OS quirks.
 |----------|-----|------------|------------------|-------|
 | OpenAI | ✅ Whisper (audio/transcriptions) | ✅ GPT-4o-family chat | `api.openai.com` | Default cloud option. Both ASR + LLM use the same API key. |
 | Groq | ✅ Whisper-large / Distil-whisper (audio/transcriptions) | ✅ Llama-family chat | `api.groq.com` | Lowest-latency cloud ASR (typically <300 ms for a short clip). |
-| Deepgram | ✅ Nova-2 streaming + pre-recorded | ❌ (use OpenAI / Anthropic for LLM polish) | `api.deepgram.com` | Best streaming/cloud-ASR accuracy for telephony-grade audio. |
+| Deepgram | ✅ Nova-3 + Nova-2, pre-recorded (batch) | ❌ (use OpenAI / Anthropic for LLM polish) | `api.deepgram.com` | Nova-3 is the default; Nova-2 stays selectable for the languages Nova-3 does not cover yet. Batch only — Flux (the streaming voice-agent model) is deliberately not in the catalogue. |
+| Google Gemini | ✅ Gemini Flash (inline audio → `generateContent`) | ✅ Gemini chat | `generativelanguage.googleapis.com` | Same API key for both. Needs internet; ~15–20 s per message, so it is a fallback rather than a first choice for dictation. |
 | Anthropic (Claude) | ❌ (no ASR endpoint) | ✅ Claude chat | `api.anthropic.com` | LLM polish only. Pair with a cloud speech recognition provider. |
-| Google Gemini / Vertex | ❌ (use cloud ASR provider above) | ✅ Gemini chat | `generativelanguage.googleapis.com` | LLM polish only. |
-| Self-hosted (vLLM, llama.cpp server, Whisper HTTP server, etc.) | ✅ (if the server speaks a supported cloud ASR wire format) | ✅ (same) | `localhost`, `127.0.0.1`, `::1` (loopback) or any host added via `add_trusted_endpoint` | HTTPS is NOT enforced on loopback; any non-loopback self-hosted host MUST be added via `add_trusted_endpoint` AND served over HTTPS. |
+| Self-hosted (vLLM, llama.cpp server, Whisper HTTP server, etc.) | ✅ (if the server speaks a supported cloud ASR wire format) | ✅ (same) | `localhost`, `127.0.0.1`, `::1` (loopback) or any host added via `add_trusted_endpoint` | HTTPS is NOT enforced on loopback; any non-loopback self-hosted host MUST be added via `add_trusted_endpoint` AND served over HTTPS. See the caveat under "Self-hosted endpoint quickstart". |
 
 > Lausu does not implement provider-specific SDKs, each cloud
 > path is a thin HTTP client. As long as the self-hosted endpoint
 > speaks the same JSON wire format as one of the supported providers,
-> Lausu will treat it as that provider (set `cloud_provider` to
-> `openai` / `groq` / `deepgram` accordingly and point `cloud_api_url`
-> at the self-hosted URL).
+> the `CloudEngine` API will treat it as that provider (pass
+> `provider="openai"` / `"groq"` / `"deepgram"` / `"gemini"` and point
+> `api_url` at the self-hosted URL).
 
 ## API key format
 
 | Provider | Env var / config key | Format | Where it's stored |
 |----------|---------------------|--------|-------------------|
-| OpenAI | `OPENAI_API_KEY` (env) or `cloud_api_key` (config) | `sk-...` (32+ ASCII chars) | OS credential store, see [`docs/security/credential-store.md`](security/credential-store.md). Never written to disk in plaintext. |
-| Groq | `GROQ_API_KEY` (env) or `cloud_api_key` (config) | `gsk_...` (40+ ASCII chars) | Same. |
-| Deepgram | `DEEPGRAM_API_KEY` (env) or `cloud_api_key` (config) | 32-hex-char UUID-like string | Same. |
+| OpenAI | `OPENAI_API_KEY` (env) or `cloud_api_key` (config) | `sk-` + 20+ of `[A-Za-z0-9_-]` (`sk-proj-…` matches too) | OS credential store, see [`docs/security/credential-store.md`](security/credential-store.md). Never written to disk in plaintext. |
+| Groq | `GROQ_API_KEY` (env) or `cloud_api_key` (config) | `gsk_` + exactly 52 alphanumerics | Same. |
+| Deepgram | `DEEPGRAM_API_KEY` (env) or `cloud_api_key` (config) | exactly 40 lowercase alphanumerics, no prefix | Same. |
 | Anthropic | `ANTHROPIC_API_KEY` (env) or `llm_api_key` (config) | `sk-ant-...` (100+ ASCII chars) | Same. |
-| Google Gemini | `GEMINI_API_KEY` (env) or `llm_api_key` (config) | `AIza...` (40 ASCII chars) | Same. |
+| Google Gemini | `GEMINI_API_KEY` (env) or `llm_api_key` (config) | `AIza` + 35 of `[A-Za-z0-9_-]` (39 chars total) | Same. |
 | Self-hosted | `cloud_api_key` / `llm_api_key` (config) | Whatever the server expects (often a bearer token or empty for unauthenticated local servers) | Same: if the key is non-empty. |
+
+The four cloud-ASR shapes above are **enforced in the renderer** before
+the key is written: `isValidApiKeyFormat()` in
+`client/src/renderer/src/lib/utils/models.ts` carries one regex per
+provider, each copied from a published machine-readable detector rather
+than invented (OpenAI from RegexVault's audited pattern; Groq from
+`secretlint-rule-groq` / trufflehog `pkg/detectors/groq`; Deepgram from
+trufflehog `pkg/detectors/deepgram`; Google from Microsoft Purview's
+"Google API key" SIT). A value that cannot be a key for the selected
+provider is refused with an in-app toast and never reaches the
+credential store, the format is NOT re-printed under the input field
+(that hint was removed on 2026-10-11), and the only authority on
+whether a well-shaped key actually works is Test Connection.
 
 The API key is redacted from all log lines by the `PIIRedactionFilter`
 (SEC-009) and from IPC responses via the secret-redaction layer
@@ -101,11 +114,71 @@ a short-lived HTTPS connection to the configured `cloud_api_url` (or
 the provider's default hostname if no URL is set), sends a trivial
 `GET /v1/models` (or equivalent) request with the configured API key,
 and reports the HTTP status code + round-trip latency back to the
-renderer. This is exposed in Settings → Models → Cloud as the "Test
-connection" button.
+renderer. This is exposed on the Models page's Cloud tab as the "Test
+Connection" button inside each provider's setup dialog.
+
+The handler returns a short stable token (`auth_failed`,
+`rate_limited`, `server_error`, `http_error`, `network_error`,
+`no_api_key`) rather than a sentence. The renderer maps that token to
+localized copy via `connectionFailureKey()` and shows the result as an
+**in-app toast**, never as inline text next to the button: the token
+itself ("400 http_error") communicates nothing, and a transient probe
+outcome is not a property of the form. Saving a key for a provider whose
+audio-transmission consent is not yet granted raises the shared
+point-of-use consent dialog (the same modal every other consent-gated
+flow uses) once the key is stored.
 
 The `test_cloud_connection` command is rate-limited to 10 calls per
 minute (per-connection ADR-0019 rate limiter) to prevent abuse.
+
+## Activating a provider's model
+
+Configuring a provider and *using* it are two separate steps, and the
+Models page's Cloud tab exposes them separately:
+
+1. **Configure** sits on the provider's own header row (provider name on
+   the left, the button on the right) and opens the provider-level setup
+   dialog: one API key field for the whole provider. A provider's models
+   all share one key, so the form is never repeated per model. Saving the
+   key raises the shared point-of-use consent dialog the first time (see
+   `docs/adr/` consent gate notes and `lib/consentGate.ts`).
+2. **Select** sits on each model row inside the group. Activating writes
+   three config fields together:
+
+   | Field | Value | Why |
+   |-------|-------|-----|
+   | `asr_backend` | `"cloud"` | The backend selector. There is exactly ONE of these, which is what makes "one active model at a time" hold across the Local and Cloud tabs: activating a cloud model deactivates whichever local model was active, and selecting a local model writes `"whisper"` / `"qwen"` / `"parakeet"` back. |
+   | `cloud_provider` | the provider key | Which provider the `cloud` backend talks to. `""` = none, and the backend then reports itself not-loaded so the registry degrades to whisper. |
+   | `cloud_model` | the model id | Always written explicitly. The backend falls back to its per-provider default only when this is empty, and the Cloud tab marks that same default as the active row. |
+
+The backend resolves all of this on every `load()` / `transcribe()`
+(`CloudAsrBackend` in `voice_typer/server/cloud_backend.py`), so a key
+saved in Settings works without restarting the sidecar. Activating a
+model for a provider with no stored key is refused up front with a toast
+rather than silently falling back to whisper.
+
+### The onboarding wizard writes the same fields
+
+The wizard's Model step has no Save button of its own, and its
+`onboarding_set_model` / `onboarding_set_backend` commands only feed the
+wizard's controller — `apply_settings` persists the hotkey, microphone and
+`model_size` and nothing else. So the step also issues one `set_config`
+when the user leaves it, writing exactly what the Cloud tab writes:
+
+* **Cloud branch** — the same three fields above, with `cloud_model` set to
+  the provider's catalogue default (`cloudDefaultModel()` in
+  `lib/utils/models.ts`), plus the provider's API-key field when one was
+  typed. The provider's audio-transmission consent is requested through the
+  shared consent gate at that moment rather than through a checkbox on the
+  step, so the user reads what the choice authorises as it takes effect;
+  the wizard refuses to advance until the gate is allowed.
+* **Local branch** — `asr_backend` (from the entry's own registry
+  `backend`, so a Parakeet or Qwen choice no longer leaves the backend
+  pointing at Whisper) plus `model_size`.
+
+Without this the wizard's Model step was decorative: a cloud choice left
+`asr_backend` at its `"whisper"` default, so dictation kept running locally
+with no key involved.
 
 ## Self-hosted endpoint quickstart
 
@@ -133,6 +206,16 @@ minute (per-connection ADR-0019 rate limiter) to prevent abuse.
    - `cloud_api_url` = `https://asr.lan.example.com/v1`
    - `cloud_api_key` = the bearer token your server expects (or empty
      for unauthenticated loopback servers)
+
+   > **Caveat (SEC-011).** The registry-backed `cloud` backend — the one
+   > the Cloud tab's Select action activates — resolves the endpoint from
+   > the provider's own default (`_PROVIDER_DEFAULTS`) and **deliberately
+   > ignores `cloud_api_url`**. A stored key must never be posted to a
+   > caller-chosen host, so a config-level URL cannot redirect it. Driving
+   > a self-hosted endpoint therefore means constructing a `CloudEngine`
+   > through the API with an explicit `api_url`
+   > (`voice_typer/server/cloud/_engine.py`), not pointing the Cloud tab
+   > at it. The fields above remain the integrator-facing config surface.
 5. Click "Test connection": you should get a 200 + a latency reading.
    If you get `host 'asr.lan.example.com' is not in the trusted
    allowlist`, the `add_trusted_endpoint` call didn't land (check the

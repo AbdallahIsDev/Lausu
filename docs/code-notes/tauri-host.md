@@ -12,7 +12,11 @@ no thread/module path. The only per-session id is the trailing
 
 TERMINAL lines: `HH:MM:SS  LEVEL  msg` — time only; the date lives in the
 file. Both sinks build from a single `now_timestamps()` clock read so one
-record cannot straddle a second boundary.
+record cannot straddle a second boundary. Two deliberate shape exceptions,
+identical on the Rust host and the Python `_ColorFormatter`: INFO carries
+no level label (`HH:MM:SS  msg`, the default mode stays out of the way),
+and DEBUG renders label + body in the line's topic colour with only the
+timestamp dim.
 
 The Rust formatters live in `util.rs` / `platform/logging/*`. Python twins
 are `voice_typer/server/log/formatters.py`. Pinned by

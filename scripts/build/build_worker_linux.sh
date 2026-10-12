@@ -273,6 +273,19 @@ NUITKA_ARGS=(
     --nofollow-import-to=psutil._pssunos
     --nofollow-import-to=psutil._psaix
     --nofollow-import-to=torch
+    # Bloat trim (plan §11.4 200 MB cap): pyrnnoise (RNNoise denoise,
+    # host-side only) drags audiolab/soundfile/matplotlib into the freeze
+    # (matplotlib's mpl-data fonts alone are tens of MB). Zero static
+    # importers anywhere in voice_typer; the sole in-tree edge
+    # (noise_suppressor's lazy import) degrades via ImportError fallback,
+    # and the worker never denoises. cryptography (history at-rest
+    # encryption, host-side only) is likewise unreachable from
+    # worker/__main__ and fails loud (unguarded imports) if ever hit.
+    --nofollow-import-to=pyrnnoise
+    --nofollow-import-to=audiolab
+    --nofollow-import-to=matplotlib
+    --nofollow-import-to=soundfile
+    --nofollow-import-to=cryptography
     --include-package=voice_typer
     --include-package=onnxruntime
     --include-package=websockets

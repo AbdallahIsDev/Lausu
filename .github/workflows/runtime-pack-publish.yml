@@ -137,6 +137,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # C-CI-11: sign=true + missing secrets hard-fails (TX-23); checked
+      # FIRST so a misconfigured dispatch dies in seconds, not after the
+      # 2h Nuitka freeze. Same condition as the old post-build gate.
+      - name: Fail fast — sign=true but Windows signing secrets missing
+        if: runner.os == 'Windows' && env.SIGN_ENABLED == 'true' && (env.WIN_CSC_LINK == '' || env.WIN_CSC_KEY_PASSWORD == '')
+        shell: pwsh
+        run: |
+          Write-Error "sign=true was requested but WIN_CSC_LINK / WIN_CSC_KEY_PASSWORD are missing. Add the secrets, or dispatch with sign=false."
+          exit 1
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v7
         with:
@@ -237,7 +247,12 @@ jobs:
         run: |
           set -euo pipefail
           bash "scripts/build/${{ matrix.script }}" "${{ matrix.arch }}"
-          WORKER="src-tauri/bin/lausu-worker-${{ matrix.triple }}$( [ "${{ runner.os }}" = "Windows" ] && echo .exe )"
+          # NOTE: no `$( [ ... ] && echo .exe )` here — under `set -e` the
+          # false `[` exits the step with code 1 and no message (observed
+          # 2026-10-11: green build, red step, empty log tail).
+          WORKER_SUFFIX=""
+          if [ "${{ runner.os }}" = "Windows" ]; then WORKER_SUFFIX=".exe"; fi
+          WORKER="src-tauri/bin/lausu-worker-${{ matrix.triple }}${WORKER_SUFFIX}"
           test -f "$WORKER" || { echo "ERROR: worker binary not built at $WORKER"; exit 1; }
           ls -lh "$WORKER"
 
@@ -247,7 +262,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          WORKER="src-tauri/bin/lausu-worker-${{ matrix.triple }}$( [ "${{ runner.os }}" = "Windows" ] && echo .exe )"
+          WORKER_SUFFIX=""
+          if [ "${{ runner.os }}" = "Windows" ]; then WORKER_SUFFIX=".exe"; fi
+          WORKER="src-tauri/bin/lausu-worker-${{ matrix.triple }}${WORKER_SUFFIX}"
           SIZE_MB=$(du -m "$WORKER" | cut -f1)
           echo "Worker onefile size: ${SIZE_MB} MB (limit: 200 MB)"
           if [ "$SIZE_MB" -gt 200 ]; then
@@ -257,15 +274,8 @@ jobs:
 
       # C-CI-11: the worker exe is a signing target. Mirrors the signtool
       # invocation in tauri-windows-build.yml (fd SHA256 + RFC-3161 timestamp).
-      # sign=true + missing secrets hard-fails; a misconfigured release must
-      # never silently ship unsigned (TX-23).
-      - name: Fail fast — sign=true but Windows signing secrets missing
-        if: runner.os == 'Windows' && env.SIGN_ENABLED == 'true' && (env.WIN_CSC_LINK == '' || env.WIN_CSC_KEY_PASSWORD == '')
-        shell: pwsh
-        run: |
-          Write-Error "sign=true was requested but WIN_CSC_LINK / WIN_CSC_KEY_PASSWORD are missing. Add the secrets, or dispatch with sign=false."
-          exit 1
-
+      # The fail-fast gate lives at the top of the job (TX-23); a
+      # misconfigured release must never silently ship unsigned.
       - name: Sign the worker exe (Windows)
         if: runner.os == 'Windows' && env.SIGN_ENABLED == 'true' && env.WIN_CSC_LINK != '' && env.WIN_CSC_KEY_PASSWORD != ''
         shell: pwsh
@@ -302,7 +312,9 @@ jobs:
           set -euo pipefail
           ZIP_NAME="$(python scripts/build/artifact_names.py --runtime-pack --pack-version "$PACK_VERSION" --triple "${{ matrix.triple }}")"
           echo "ZIP_NAME=$ZIP_NAME" >> "$GITHUB_ENV"
-          WORKER_NAME="lausu-worker-${{ matrix.triple }}$( [ "${{ runner.os }}" = "Windows" ] && echo .exe )"
+          WORKER_SUFFIX=""
+          if [ "${{ runner.os }}" = "Windows" ]; then WORKER_SUFFIX=".exe"; fi
+          WORKER_NAME="lausu-worker-${{ matrix.triple }}${WORKER_SUFFIX}"
           python - "$ZIP_NAME" "src-tauri/bin/$WORKER_NAME" "$WORKER_NAME" <<'PY'
           import sys, zipfile
           from pathlib import Path
