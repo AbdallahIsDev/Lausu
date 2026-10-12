@@ -44,22 +44,32 @@ def test_main_window_keeps_normal_chrome():
 
 
 def test_system_menu_strip_wired_in_show_path():
-    """Every show must harden the chrome; the strip must target WS_SYSMENU."""
+    """Every show must harden the chrome: hook (mouse path) + one-shot
+    gutting (Alt+Space keyboard corner). No subclassing may remain."""
     source = (PROJECT_ROOT / "src-tauri" / "src" / "commands" / "bubble" / "window.rs").read_text(encoding="utf-8")
     assert "harden_bubble_chrome(&window)" in source
-    assert "WS_SYSMENU" in source
-    assert "strip_bubble_system_menu" in source
+    assert "gut_bubble_system_menu" in source
+    assert "ensure_bubble_msg_hook" in source
     assert "DeleteMenu" in source
-    assert "GWLP_WNDPROC" in source
-    assert "Chrome_RenderWidgetHostHWND" in source
+    assert "SetWindowsHookExW" in source
+    assert "WH_GETMESSAGE" in source
+    assert "WM_NULL" in source
     assert "WM_RBUTTONDOWN" in source
+    # Dead layers: the style strip lost a race to tao's flag flips,
+    # and the wndproc subclass both leaked clicks in the gap and once
+    # deadlocked the UI. Neither may come back.
+    assert "strip_bubble_system_menu" not in source
+    assert "swallow_bubble_caption_clicks" not in source
+    assert "GWLP_WNDPROC" not in source
+    assert "CallWindowProcW" not in source
+    assert "SetWindowLongPtrW" not in source
     bootstrap = (PROJECT_ROOT / "src-tauri" / "src" / "window_bootstrap.rs").read_text(encoding="utf-8")
     assert "harden_bubble_on_setup" in bootstrap
 
 
 def test_system_menu_strip_covers_mutation_paths():
-    """tao rewrites the style on flag flips, so the strip must run on
-    hide, resize, and geometry events too, never on show alone."""
+    """The hook registration must run on show, hide, resize, and
+    geometry events too, never on show alone."""
     window_rs = (PROJECT_ROOT / "src-tauri" / "src" / "commands" / "bubble" / "window.rs").read_text(encoding="utf-8")
     assert window_rs.count("harden_bubble_chrome(&") >= 2
     commands_rs = (PROJECT_ROOT / "src-tauri" / "src" / "commands" / "bubble" / "commands.rs").read_text(
@@ -68,18 +78,7 @@ def test_system_menu_strip_covers_mutation_paths():
     assert "harden_bubble_chrome" in commands_rs
     events_rs = (PROJECT_ROOT / "src-tauri" / "src" / "window_events.rs").read_text(encoding="utf-8")
     assert "harden_bubble_chrome" in events_rs
-    # The geometry handler runs ON the main thread while hardening
-    # blocks on main-thread roundtrips: it must hop off-thread or the
-    # UI deadlocks on itself (frozen splash, "Not Responding").
+    assert "ensure_bubble_msg_hook" in events_rs
+    # The geometry handler runs ON the main thread; the hook attach
+    # is synchronous there while the rest hops off-thread.
     assert "thread::spawn" in events_rs
-    # The swallow pre-checks liveness on the caller thread and only
-    # dispatches when an install is actually needed, so steady-state
-    # event calls never touch the main thread at all.
-    assert "CallWindowProcW(*prev" not in window_rs
-    # The chained proc must be copied out and the registry guard
-    # dropped BEFORE the call: tao/Chromium send synchronously to
-    # our other subclassed window, re-entering the proc on the same
-    # thread, and calling out under a non-reentrant Mutex deadlocks
-    # the UI (frozen splash, "Not Responding", ~0 CPU).
-    assert "CallWindowProcW(Some(p)" in window_rs
-    assert "IsWindow" in window_rs

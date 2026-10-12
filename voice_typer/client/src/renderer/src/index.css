@@ -433,7 +433,16 @@
 
 /* Bubble overlay: right-mousedown word-selects for the context menu
    BEFORE any event can prevent it, and the unfocused document paints
-   it gray. Invisible by contract, selectable by nothing. */
+   it gray. Invisible by contract, selectable by nothing. The pill
+   carries `select-none`, but the transcript preview is live-updating
+   text that has painted selection fragments through it, so the ban
+   is repeated here at the root: no element inside the bubble may
+   ever become selectable, whatever it renders. */
+#bubble-root,
+#bubble-root * {
+	-webkit-user-select: none;
+	user-select: none;
+}
 #bubble-root ::selection {
 	background: transparent;
 	color: inherit;

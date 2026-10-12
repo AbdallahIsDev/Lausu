@@ -34,16 +34,19 @@ pub(crate) fn show_bubble_window(app: &tauri::AppHandle) -> Result<(), String> {
 }
 
 /// Cross-platform bubble-chrome hardening. Runs on every show
-/// (idempotent), which also self-heals if anything restores the style.
+/// (idempotent).
 ///
 /// - Windows: the pill drags through an OS caption region, which
 ///   summons the system menu on right-click even on a frameless
-///   window. Two independent kills: the `WS_SYSMENU` style is
-///   removed AND the caption right-button messages are swallowed in
-///   our own window proc, so no style race can ever resurrect the
-///   menu. Left-button drag and double-click zoom are unaffected
-///   (zoom is separately disabled by `maximizable/minimizable:
-///   false` in each tauri conf bubble block).
+///   window. The single mechanism is a thread-local `WH_GETMESSAGE`
+///   hook (`ensure_bubble_msg_hook`) eating right-button queue
+///   messages before any proc sees them — unlike subclassing, it
+///   cannot be raced out by tao's proc restores. A one-shot menu
+///   gutting covers the keyboard corner (Alt+Space sends
+///   `WM_SYSCOMMAND` synchronously, which no queue hook can eat).
+///   Left-button drag and double-click zoom are unaffected (zoom is
+///   separately disabled by `maximizable/minimizable: false` in each
+///   tauri conf bubble block).
 /// - macOS: the bubble is borderless with no titlebar, so there is
 ///   no titlebar menu and no double-click zoom box. Nothing to do.
 /// - Linux: frameless + skip-taskbar windows expose no caption menu
@@ -51,283 +54,209 @@ pub(crate) fn show_bubble_window(app: &tauri::AppHandle) -> Result<(), String> {
 pub(crate) fn harden_bubble_chrome(window: &tauri::WebviewWindow) {
     #[cfg(target_os = "windows")]
     {
-        strip_bubble_system_menu(window);
-        swallow_bubble_caption_clicks(window);
+        gut_bubble_system_menu(window);
+        ensure_bubble_msg_hook(window);
     }
     #[cfg(not(target_os = "windows"))]
     let _ = window;
 }
 
-/// Swallow right-button messages on the bubble (Windows only).
+/// Queue-level right-button backstop (Windows only, no-op elsewhere).
 ///
-/// Two layers, because neither alone covers every path:
-/// - Top-level: `WM_NCRBUTTONDOWN/UP` (the dead system menu trigger).
-/// - Render-host child (`Chrome_RenderWidgetHostHWND`, the true input
-///   surface): `WM_RBUTTONDOWN/UP/DBLCLK` + `WM_CONTEXTMENU`. Input
-///   goes straight to this child, bypassing the top proc, so page
-///   guards (`selectstart`, `contextmenu`, `user-select`) never see
-///   right-button gestures that start here. Killing them at entry
-///   means no word-select, no menu cascade, no artifact, no matter
-///   which paint path the browser would have taken.
-/// Left-button drag and clicks are untouched on both layers, and the
-/// previous procs stay chained for every other message. Re-runs on
-/// every harden call so a recreated child gets re-armed; install is
-/// skipped when our proc is already in place (live check, no stale
-/// state). No restore on destroy: the install is process-lifetime
-/// (the exe never unloads) and dead HWNDs never dispatch.
+/// This is the single mechanism that keeps the system menu dead:
+/// a thread-local `WH_GETMESSAGE` hook eats the six right-button
+/// messages at the queue, before any proc sees them. Subclassing
+/// was tried first and removed: tao rebuilds the window proc on
+/// flag flips and re-arms it during drags, so any click between
+/// tao's restore and the next harden reached DefWindowProc — and
+/// the chained proc once deadlocked the UI on synchronous
+/// cross-window sends. The hook cannot be raced out (tao
+/// subclasses, it never unhooks) and holds no lock across calls.
+/// Safe from any thread: the owning UI thread is resolved from the
+/// bubble HWND itself. Registration covers top + every descendant
+/// (input can land on WRY_WEBVIEW, any Chrome_WidgetWin_*, the
+/// render host, or the D3D window).
 #[cfg(target_os = "windows")]
-fn swallow_bubble_caption_clicks(window: &tauri::WebviewWindow) {
-    use std::sync::{Mutex, OnceLock};
+pub(crate) fn ensure_bubble_msg_hook(window: &tauri::WebviewWindow) {
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex, OnceLock,
+    };
 
     use windows::core::BOOL;
     use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
     use windows::Win32::UI::WindowsAndMessaging::{
-        CallWindowProcW, DefWindowProcW, EnumChildWindows, GetWindowLongPtrW, SetWindowLongPtrW,
-        GWLP_WNDPROC, WM_CONTEXTMENU, WM_NCDESTROY, WM_NCRBUTTONDOWN, WM_NCRBUTTONUP,
-        WM_RBUTTONDBLCLK, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDPROC,
+        CallNextHookEx, EnumChildWindows, GetWindowThreadProcessId, SetWindowsHookExW, MSG,
+        WH_GETMESSAGE, WM_CONTEXTMENU, WM_NCRBUTTONDOWN, WM_NCRBUTTONUP, WM_NULL, WM_RBUTTONDBLCLK,
+        WM_RBUTTONDOWN, WM_RBUTTONUP,
     };
 
-    static PREV_PROCS: OnceLock<Mutex<Vec<(isize, WNDPROC)>>> = OnceLock::new();
-    fn prev_procs() -> &'static Mutex<Vec<(isize, WNDPROC)>> {
-        PREV_PROCS.get_or_init(|| Mutex::new(Vec::new()))
+    static HOOK_HWNDS: OnceLock<Mutex<Vec<isize>>> = OnceLock::new();
+    fn hook_hwnds() -> &'static Mutex<Vec<isize>> {
+        HOOK_HWNDS.get_or_init(|| Mutex::new(Vec::new()))
     }
+    static HOOK_INSTALLED: AtomicBool = AtomicBool::new(false);
+    // Raw handle value: HHOOK itself is not Send+Sync (raw pointer),
+    // so the static keeps the isize. The hook is process-lifetime;
+    // the stored value is only for debuggability, never unhooked.
+    static HOOK_HANDLE: OnceLock<Mutex<Option<isize>>> = OnceLock::new();
 
-    // SAFETY: process-lifetime install; the previous proc stays chained
-    // for every other message.
-    unsafe extern "system" fn bubble_wndproc(
-        hwnd: HWND,
-        msg: u32,
+    // Runs on the UI thread for every queued message: two integer
+    // compares, the HWND-set lookup only for the six eaten ids.
+    // Never holds a lock across a call; never blocks. The owning
+    // thread is resolved per harden call from the bubble HWND itself
+    // (`GetWindowThreadProcessId`), so this works from any caller
+    // thread — no main-thread witness needed.
+    unsafe extern "system" fn bubble_getmsg_hook(
+        code: i32,
         wparam: WPARAM,
         lparam: LPARAM,
     ) -> LRESULT {
-        if msg == WM_NCRBUTTONDOWN
-            || msg == WM_NCRBUTTONUP
-            || msg == WM_RBUTTONDOWN
-            || msg == WM_RBUTTONUP
-            || msg == WM_RBUTTONDBLCLK
-            || msg == WM_CONTEXTMENU
-        {
-            return LRESULT(0);
-        }
-        if msg == WM_NCDESTROY {
-            if let Ok(mut guard) = prev_procs().lock() {
-                guard.retain(|(h, _)| *h != hwnd.0 as isize);
+        // HC_ACTION (0): the queue delivered a message.
+        if code == 0 {
+            let msg = &mut *(lparam.0 as *mut MSG);
+            if matches!(
+                msg.message,
+                WM_NCRBUTTONDOWN
+                    | WM_NCRBUTTONUP
+                    | WM_RBUTTONDOWN
+                    | WM_RBUTTONUP
+                    | WM_RBUTTONDBLCLK
+                    | WM_CONTEXTMENU
+            ) {
+                let raw = msg.hwnd.0 as isize;
+                let watched = hook_hwnds()
+                    .lock()
+                    .map(|guard| guard.contains(&raw))
+                    .unwrap_or(false);
+                if watched {
+                    // Strip the message in place: the queue keeps a
+                    // harmless WM_NULL, no proc ever sees the button.
+                    msg.message = WM_NULL;
+                }
             }
         }
-        // Copy the previous proc out and DROP the guard before
-        // calling it: the previous proc (tao / Chromium) routinely
-        // sends messages synchronously to our OTHER subclassed window,
-        // which re-enters this proc on the same thread. Calling out
-        // while holding a non-reentrant std Mutex deadlocks the UI
-        // thread on itself (frozen splash, "Not Responding", ~0 CPU).
-        let prev = prev_procs()
-            .lock()
-            .ok()
-            .and_then(|guard| {
-                guard
-                    .iter()
-                    .find(|(h, _)| *h == hwnd.0 as isize)
-                    .map(|(_, p)| *p)
-            })
-            .flatten();
-        match prev {
-            Some(p) => CallWindowProcW(Some(p), hwnd, msg, wparam, lparam),
-            None => DefWindowProcW(hwnd, msg, wparam, lparam),
-        }
+        CallNextHookEx(None, code, wparam, lparam)
     }
 
-    // fn item to integer: coerce to the nullable-pointer alias first,
-    // then transmute (same width both ways).
-    fn ours() -> isize {
-        let proc: WNDPROC = Some(bubble_wndproc);
-        unsafe { std::mem::transmute(proc) }
-    }
-
-    // Install our proc on `hwnd` unless already installed (live check,
-    // no stale state). Returns true when a fresh install happened.
-    fn install_on(hwnd: HWND) -> bool {
-        let ours = ours();
-        let cur = unsafe { GetWindowLongPtrW(hwnd, GWLP_WNDPROC) };
-        if cur == ours {
-            return false;
-        }
-        let prev = unsafe { SetWindowLongPtrW(hwnd, GWLP_WNDPROC, ours) };
-        // A zero return MIGHT be a valid previous proc (NULL is never
-        // a real proc); transmute unconditionally, chaining falls back
-        // to DefWindowProc only when no entry exists.
-        let prev: WNDPROC = unsafe { std::mem::transmute(prev) };
-        if let Ok(mut guard) = prev_procs().lock() {
-            guard.retain(|(h, _)| *h != hwnd.0 as isize);
-            guard.push((hwnd.0 as isize, prev));
-        }
-        true
-    }
-
-    unsafe extern "system" fn enum_child(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        use std::cell::Cell;
-
-        use windows::Win32::UI::WindowsAndMessaging::GetClassNameW;
-        // Class names are short; a fixed stack buffer avoids allocation
-        // on every enumeration.
-        let mut buf = [0u16; 64];
-        let len = GetClassNameW(hwnd, &mut buf);
-        let name = String::from_utf16_lossy(&buf[..len as usize]);
-        if name == "Chrome_RenderWidgetHostHWND" {
-            let found = &*(lparam.0 as *const Cell<Option<isize>>);
-            found.set(Some(hwnd.0 as isize));
-            return false.into();
-        }
+    unsafe extern "system" fn enum_all(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let out = &mut *(lparam.0 as *mut Vec<isize>);
+        out.push(hwnd.0 as isize);
         true.into()
     }
 
     let raw = match window.hwnd() {
         Ok(hwnd) => hwnd.0 as isize,
-        Err(e) => {
-            log::warn!("[BUBBLE] caption-click swallow skipped (no HWND): {}", e);
-            return;
-        }
+        Err(_) => return,
     };
-    // The actual input surface is the render-host child: real button
-    // messages go straight to it and never pass the top proc. Install
-    // on both so neither layer can start the menu cascade.
-    //
-    // The liveness reads below are pure Win32 queries: safe on ANY
-    // thread, main included. Only the SetWindowLongPtrW mutation needs
-    // the window thread, so steady-state calls dispatch nothing at
-    // all. That keeps this safe for main-thread callers (window
-    // geometry events): an unconditional dispatch would block the main
-    // thread waiting on itself forever.
-    let ours = ours();
-    let (need_top, need_child): (bool, Option<isize>) = unsafe {
+    let mut hwnds = vec![raw];
+    unsafe {
         let top = HWND(raw as *mut std::ffi::c_void);
-        let need_top = GetWindowLongPtrW(top, GWLP_WNDPROC) != ours;
-        let found: std::cell::Cell<Option<isize>> = std::cell::Cell::new(None);
         let _ = EnumChildWindows(
             Some(top),
-            Some(enum_child),
-            LPARAM(&found as *const _ as isize),
+            Some(enum_all),
+            LPARAM(&mut hwnds as *mut Vec<isize> as isize),
         );
-        let need_child = found
-            .get()
-            .filter(|c| GetWindowLongPtrW(HWND(*c as *mut std::ffi::c_void), GWLP_WNDPROC) != ours);
-        (need_top, need_child)
-    };
-    if !(need_top || need_child.is_some()) {
+    }
+    if let Ok(mut guard) = hook_hwnds().lock() {
+        for hwnd in hwnds {
+            if !guard.contains(&hwnd) {
+                guard.push(hwnd);
+            }
+        }
+    }
+    if HOOK_INSTALLED.swap(true, Ordering::SeqCst) {
         return;
     }
-    window
-        .run_on_main_thread(move || {
-            // `install_on` re-checks liveness, and dead HWNDs are
-            // skipped: the child may have died between the pre-check
-            // above and this closure (never attach to a recycled HWND).
-            unsafe {
-                use windows::Win32::UI::WindowsAndMessaging::IsWindow;
-                let mut fresh = false;
-                if need_top {
-                    let top = HWND(raw as *mut std::ffi::c_void);
-                    if IsWindow(Some(top)).as_bool() {
-                        fresh |= install_on(top);
+    // The UI thread owns every tao window, so resolve it from the
+    // bubble HWND itself: install works from any caller thread and
+    // needs no main-thread witness. A zero id means the window is
+    // gone; retry on the next harden.
+    let ui_tid = unsafe { GetWindowThreadProcessId(HWND(raw as *mut std::ffi::c_void), None) };
+    if ui_tid == 0 {
+        HOOK_INSTALLED.store(false, Ordering::SeqCst);
+        return;
+    }
+    unsafe {
+        match SetWindowsHookExW(WH_GETMESSAGE, Some(bubble_getmsg_hook), None, ui_tid) {
+            Ok(hook) => {
+                let raw_hook = hook.0 as isize;
+                if let Some(slot) = HOOK_HANDLE.get() {
+                    if let Ok(mut guard) = slot.lock() {
+                        *guard = Some(raw_hook);
                     }
+                } else {
+                    let _ = HOOK_HANDLE.set(Mutex::new(Some(raw_hook)));
                 }
-                if let Some(child_raw) = need_child {
-                    let child = HWND(child_raw as *mut std::ffi::c_void);
-                    if IsWindow(Some(child)).as_bool() {
-                        fresh |= install_on(child);
-                    }
-                }
-                if fresh {
-                    log::info!(
-                        "[BUBBLE] caption-click swallow installed (right-button messages die in our wndproc)"
-                    );
-                }
+                log::info!("[BUBBLE] right-button input hook installed (queue-level backstop)");
             }
-        })
-        .unwrap_or_else(|e| {
-            log::warn!("[BUBBLE] caption-click swallow dispatch failed: {}", e);
-        });
+            Err(e) => {
+                log::warn!(
+                    "[BUBBLE] input hook install failed (retrying next event): {}",
+                    e
+                );
+                HOOK_INSTALLED.store(false, Ordering::SeqCst);
+            }
+        }
+    }
 }
 
-/// Strip the OS system menu from the bubble window (Windows only).
-///
-/// The pill drags through an OS caption region, which summons the
-/// system menu on right-click even on a frameless window. Removing
-/// `WS_SYSMENU` kills the menu entirely (right-click and Alt+Space
-/// do nothing); dragging is unaffected. Idempotent: runs on every
-/// show, which also self-heals if anything restores the style.
+/// Non-Windows: no caption menu exists, nothing to hook.
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn ensure_bubble_msg_hook(_window: &tauri::WebviewWindow) {}
+
+// Right-button input used to die in a subclassed wndproc here. That
+// whole layer is removed: tao rebuilds the proc under us (clicks in
+// the gap reopened the menu) and the chained call once deadlocked
+// the UI. `ensure_bubble_msg_hook` above owns this now.
+
+/// Gut the OS system menu items once (Windows only). The style
+/// strip this replaced lost a race to tao's flag flips, so it is
+/// gone; the input hook owns the mouse path. What remains is the
+/// keyboard corner: Alt+Space sends `WM_SYSCOMMAND` synchronously,
+/// which no queue hook can eat. Deleting the items is permanent
+/// for the window's lifetime (nothing calls `GetSystemMenu(TRUE)`),
+/// so even that corner opens onto nothing.
 #[cfg(target_os = "windows")]
-fn strip_bubble_system_menu(window: &tauri::WebviewWindow) {
+fn gut_bubble_system_menu(window: &tauri::WebviewWindow) {
     use std::sync::atomic::{AtomicBool, Ordering};
 
     use windows::Win32::Foundation::HWND;
     use windows::Win32::UI::WindowsAndMessaging::{
-        DeleteMenu, GetSystemMenu, GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, GWL_STYLE,
-        MF_BYCOMMAND, SC_CLOSE, SC_MAXIMIZE, SC_MINIMIZE, SC_MOVE, SC_RESTORE, SC_SIZE,
-        SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_SYSMENU,
+        DeleteMenu, GetSystemMenu, MF_BYCOMMAND, SC_CLOSE, SC_MAXIMIZE, SC_MINIMIZE, SC_MOVE,
+        SC_RESTORE, SC_SIZE,
     };
 
-    static HARDEN_LOGGED: AtomicBool = AtomicBool::new(false);
-
+    static GUTTED: AtomicBool = AtomicBool::new(false);
+    if GUTTED.swap(true, Ordering::SeqCst) {
+        return;
+    }
     // `window.hwnd()` returns tauri's own `windows`-crate HWND, which
     // may differ from ours: cross the boundary through the raw value.
     let raw = match window.hwnd() {
         Ok(hwnd) => hwnd.0 as isize,
         Err(e) => {
-            log::warn!("[BUBBLE] system-menu strip skipped (no HWND): {}", e);
+            log::warn!("[BUBBLE] system-menu gutting skipped (no HWND): {}", e);
             return;
         }
     };
-    // Reading the style is safe from any thread; only the mutation
-    // must run where the window was created.
-    let had_menu = unsafe {
-        GetWindowLongPtrW(HWND(raw as *mut std::ffi::c_void), GWL_STYLE) & (WS_SYSMENU.0 as isize)
-            != 0
-    };
-    if had_menu {
-        let dispatched = window
-            .run_on_main_thread(move || {
-                unsafe {
-                    let hwnd = HWND(raw as *mut std::ffi::c_void);
-                    let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
-                    SetWindowLongPtrW(hwnd, GWL_STYLE, style & !(WS_SYSMENU.0 as isize));
-                    let _ = SetWindowPos(
-                        hwnd,
-                        None,
-                        0,
-                        0,
-                        0,
-                        0,
-                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOACTIVATE,
-                    );
-                    // Belt and suspenders: tao rebuilds the style (with
-                    // WS_SYSMENU) on every flag flip (show/hide/...), so a
-                    // bare style strip can lose a race. Gutted menu items
-                    // stay deleted for the window's lifetime (nothing
-                    // calls GetSystemMenu(TRUE)), so even a resurrected
-                    // shell opens onto an empty menu.
-                    let menu = GetSystemMenu(hwnd, false.into());
-                    for item in [
-                        SC_RESTORE,
-                        SC_MOVE,
-                        SC_SIZE,
-                        SC_MINIMIZE,
-                        SC_MAXIMIZE,
-                        SC_CLOSE,
-                    ] {
-                        let _ = DeleteMenu(menu, item, MF_BYCOMMAND);
-                    }
-                }
-            })
-            .is_ok();
-        if !HARDEN_LOGGED.swap(true, Ordering::SeqCst) {
-            if dispatched {
-                log::info!("[BUBBLE] bubble chrome hardened (system menu removed)");
-            } else {
-                log::warn!("[BUBBLE] system-menu strip dispatch failed (menu may still appear)");
-            }
+    unsafe {
+        let menu = GetSystemMenu(HWND(raw as *mut std::ffi::c_void), false.into());
+        if menu.0.is_null() {
+            return;
         }
-    } else if !HARDEN_LOGGED.swap(true, Ordering::SeqCst) {
-        log::info!("[BUBBLE] bubble chrome hardened (no system menu present)");
+        for item in [
+            SC_RESTORE,
+            SC_MOVE,
+            SC_SIZE,
+            SC_MINIMIZE,
+            SC_MAXIMIZE,
+            SC_CLOSE,
+        ] {
+            let _ = DeleteMenu(menu, item, MF_BYCOMMAND);
+        }
     }
+    log::info!("[BUBBLE] system menu gutted (Alt+Space corner covered)");
 }
 
 pub(crate) fn hide_bubble_window(app: &tauri::AppHandle) -> Result<(), String> {
@@ -339,9 +268,8 @@ pub(crate) fn hide_bubble_window(app: &tauri::AppHandle) -> Result<(), String> {
         .get_webview_window("bubble")
         .ok_or("bubble window not found")?;
     bubble.hide().map_err(|e| e.to_string())?;
-    // tao rewrites the full style (WS_SYSMENU included) on every
-    // flag flip, hide included. Re-strip so a later show can never
-    // observe a resurrected menu, whatever ordered the operations.
+    // Re-harden so the hook's HWND set stays current whatever
+    // ordered the operations (idempotent, cheap when installed).
     harden_bubble_chrome(&bubble);
     Ok(())
 }

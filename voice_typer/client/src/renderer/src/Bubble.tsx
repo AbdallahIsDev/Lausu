@@ -260,72 +260,16 @@ function BubbleInner() {
 			});
 	}, []);
 
-	// TEMPORARY diagnostic (remove once the overlay artifact is
-	// identified): report every selection + mouse event so the log
-	// shows what the page actually receives during a right-click.
+	// Drags starting inside the pill (a text drag from the live
+	// transcript preview) would carry a selection with them: kill
+	// at initiation, same as the right-mousedown guard above.
 	useEffect(() => {
-		console.warn("[bubble-debug] diagnostic listeners mounted");
-		const tag = (e: Event) => (e.target as HTMLElement | null)?.tagName ?? "?";
-		const onStart = () => {
-			console.warn("[bubble-debug] selectstart fired");
-		};
-		const onChange = () => {
-			const text = window.getSelection()?.toString() ?? "";
-			console.warn(
-				`[bubble-debug] selectionchange range=${JSON.stringify(text)}`,
-			);
-		};
-		const onDown = (e: MouseEvent) => {
-			console.warn(
-				`[bubble-debug] mousedown button=${e.button} target=${tag(e)}`,
-			);
-		};
-		const onUp = (e: MouseEvent) => {
-			console.warn(
-				`[bubble-debug] mouseup button=${e.button} target=${tag(e)}`,
-			);
-		};
-		const onCtx = () => {
-			console.warn("[bubble-debug] contextmenu fired");
-		};
-		const onDragStart = (e: Event) => {
-			console.warn("[bubble-debug] dragstart fired, prevented");
-			e.preventDefault();
-		};
-		const onDragEnd = () => {
-			console.warn("[bubble-debug] dragend fired");
-		};
-		const onDrop = () => {
-			console.warn("[bubble-debug] drop fired");
-		};
-		document.addEventListener("selectstart", onStart, { capture: true });
-		document.addEventListener("selectionchange", onChange);
-		document.addEventListener("mousedown", onDown, { capture: true });
-		document.addEventListener("mouseup", onUp, { capture: true });
-		document.addEventListener("contextmenu", onCtx, { capture: true });
+		const onDragStart = (e: Event) => e.preventDefault();
 		document.addEventListener("dragstart", onDragStart, { capture: true });
-		document.addEventListener("dragend", onDragEnd, { capture: true });
-		document.addEventListener("drop", onDrop, { capture: true });
-		return () => {
-			document.removeEventListener("selectstart", onStart, {
-				capture: true,
-			});
-			document.removeEventListener("selectionchange", onChange);
-			document.removeEventListener("mousedown", onDown, {
-				capture: true,
-			});
-			document.removeEventListener("mouseup", onUp, { capture: true });
-			document.removeEventListener("contextmenu", onCtx, {
-				capture: true,
-			});
+		return () =>
 			document.removeEventListener("dragstart", onDragStart, {
 				capture: true,
 			});
-			document.removeEventListener("dragend", onDragEnd, {
-				capture: true,
-			});
-			document.removeEventListener("drop", onDrop, { capture: true });
-		};
 	}, []);
 
 	// Cancel right-mousedown at initiation: that is what starts the
