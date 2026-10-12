@@ -55,7 +55,7 @@ observations before marking anything done.
 **Priority:** P1 (below P0 host validation; above polish)
 
 ### PK-1 - Enforce the pack min_proto_version handshake at worker launch
-**Status:** OPEN.
+**Status:** ✅ Fixed headless 2026-10-12 (Rust unit tests unrun — no cargo in sandbox; Python parity 22/22 green as proxy; live stale-pack refusal still needs a real host).
 **Description:** The pack manifest schema already carries `min_proto_version` (`server/service/offline_pack/core.py:33`, validated at `:171-212`), and the host resolves a versioned pack dir (`src-tauri/src/platform/worker_path.rs`, default v1, `VOICE_TYPER_PACK_VERSION` override), but nothing enforces compatibility: the spawn path (`src-tauri/src/sidecar/spawn/worker.rs:279` reads the version, `:185` gates only on binary presence) will launch any worker found on disk. A stale pack after an app update loads the wrong protocol and fails obscurely mid-transcription instead of refusing fast with a clear state.
 **Fix:** After resolving the pack dir and before spawn, read `pack-manifest.json`, compare `min_proto_version` against the host/sidecar's supported range, and on mismatch refuse to launch while publishing the `outdated` pack state (feeds PK-2) so the UI offers re-download instead of a dead worker. Cover with Rust unit tests (match/mismatch/missing-manifest) + a Python test for the manifest reader. Do NOT change the manifest schema.
 **Related Files:** `src-tauri/src/platform/worker_path.rs`, `src-tauri/src/sidecar/spawn/worker.rs`, `voice_typer/server/service/offline_pack/core.py`, `voice_typer/server/service/offline_pack/checksum.py`
@@ -65,7 +65,7 @@ observations before marking anything done.
 **Priority:** P2
 
 ### PK-2 - User-visible pack state machine (Settings screen + global states)
-**Status:** OPEN.
+**Status:** ✅ Fixed headless 2026-10-12 (pytest 458 + vitest 99 green; real download-progress display still needs a live download run).
 **Description:** Pack states today are fragmented: an `OfflinePackPreparingBanner` near mic-test/transcription areas plus an About-page update check (`check_offline_pack_update`), backend events in `server/service/offline_pack/events.py`, consent gates in `gates.py` — but no Settings screen and no single source for the states users actually hit: downloading (with progress), ready, missing, broken (checksum/incomplete), outdated (see PK-1). Users currently discover pack problems only when transcription fails.
 **Fix:** Add one Settings section backed by a single status query (state + version + progress, reusing the existing events/check commands, no new IPC surface unless the status query cannot be composed): ready/missing/downloading(progress %)/broken/outdated, each with its action (download/retry/repair/remove). Keep the existing banner as the point-of-use surface; it reads the same status. New renderer tests per state + i18n keys in all 8 locales (C-I18N-1/2).
 **Related Files:** `voice_typer/client/src/renderer/src/pages/settings/`, `voice_typer/client/src/renderer/src/components/feedback/OfflinePackPreparingBanner.tsx`, `voice_typer/server/service/offline_pack/events.py`, `voice_typer/server/service/offline_pack/gates.py`
@@ -75,7 +75,7 @@ observations before marking anything done.
 **Priority:** P2
 
 ### PK-3 - Rehearse the pack/worker failure table on all three systems
-**Status:** OPEN.
+**Status:** ⚠️ Partial 2026-10-12 (headless matrix 5/5 + stress 6/6 in worklog.md; Windows/macOS/Linux live runs still open).
 **Description:** The pieces exist but were never run as a matrix: `scripts/build/verify_worker_bridge_live.py`, `verify_worker_degrade_live.py`, `verify_worker_handoff_live.py` rehearse worker failure modes, and `.github/workflows/host-validation.yml` (manual dispatch) owns host runs — yet no recorded run covers the pack failure table: worker killed mid-transcription, corrupt pack download (checksum must catch + re-offer), pack folder deleted by hand (noticed + reinstall offered), first launch with no internet (app works, voice politely unavailable), stale pack after app update (feeds PK-1). Untested matrix entries are where the next multi-minute blackout hides.
 **Fix:** Run the matrix on Windows, macOS, and Linux (real hosts or dispatched CI): each cell records app behavior + logs in `worklog.md`; file every deviation as a follow-up entry (fix or Won't Fix with rationale, never silent). Split across sessions by OS if too big for one round; do NOT mark complete on partial matrices.
 **Related Files:** `scripts/build/verify_worker_*.py`, `.github/workflows/host-validation.yml`, `docs/migration/windows-validation-runbook.md`, `docs/migration/macos-validation-runbook.md`
