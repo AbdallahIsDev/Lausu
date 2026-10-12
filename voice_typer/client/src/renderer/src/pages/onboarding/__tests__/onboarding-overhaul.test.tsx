@@ -549,7 +549,7 @@ describe("Model step activation parity with the Models page (ONB-6)", () => {
 		expect(activation?.[1]).toEqual({
 			asr_backend: "cloud",
 			cloud_provider: "gemini",
-			cloud_model: "gemini-3.8-flash",
+			cloud_model: "gemini-3.5-transcribe",
 			gemini_api_key: "AIza-test",
 		});
 	});

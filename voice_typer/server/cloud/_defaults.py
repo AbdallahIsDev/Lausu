@@ -32,11 +32,12 @@ _PROVIDER_DEFAULTS = {
         "model": "nova-3",
     },
     "gemini": {
-        # gemini-2.0-flash was the previous default and is now listed by
-        # Google as SHUT DOWN, which is why this was rebuilt rather than
-        # left alone: the URL template below substitutes {model}, so a
-        # retired id produced a 404 on every request.
+        # gemini-3.5-transcribe is a dedicated speech-to-text model served by
+        # the same unary `generateContent` call this provider makes. It
+        # replaced the general-purpose Flash models that were previously
+        # borrowed as an ASR fallback. The URL template below substitutes
+        # {model}, so a retired id produces a 404 on every request.
         "url": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-        "model": "gemini-3.8-flash",
+        "model": "gemini-3.5-transcribe",
     },
 }

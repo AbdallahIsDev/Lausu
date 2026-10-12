@@ -649,7 +649,10 @@ describe("useCloudProviders, activateCloudModel", () => {
 		const { result } = renderHook(() => useCloudProviders(args));
 
 		await act(async () => {
-			await result.current.activateCloudModel("gemini", "gemini-3.8-flash");
+			await result.current.activateCloudModel(
+				"gemini",
+				"gemini-3.5-transcribe",
+			);
 		});
 
 		expect(openConsentGateMock).toHaveBeenCalledWith(

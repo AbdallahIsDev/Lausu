@@ -23,6 +23,8 @@ audiences: [`README.md`](../README.md), [`CONTRIBUTING.md`](../CONTRIBUTING.md),
 | [ipc-reference.md](ipc-reference.md) | IPC message reference: 85 commands (81 renderer-reachable + 4 host-only) + 51 push events grouped by namespace, with the two-allowlist contract (server registry + Rust host) and per-command notes. |
 | [API.md](API.md) | **Deprecated.** Retained only for inbound-link compat, see `python-api.md` + `ipc-reference.md` instead. |
 | [debugging.md](debugging.md) | How to read the logs, attach a debugger, and reproduce common failure modes. |
+| [cloud-transcription-setup.md](cloud-transcription-setup.md) | Cloud ASR / LLM providers: supported models, API-key formats, network requirements, per-OS quirks. |
+| [cloud-asr-batch-vs-realtime.md](cloud-asr-batch-vs-realtime.md) | Why some cloud ASR models (OpenAI realtime, Gemini Live, Deepgram Flux) cannot be served by a batch dictation app — the evidence, and the three options for adding them. |
 | [ruff-ratchet.md](ruff-ratchet.md) | How the ruff lint ratchet works (`ruff-baseline.json` + `scripts/ruff_ratchet_check.py`). |
 | [native-hotkey-architecture-plan.md](native-hotkey-architecture-plan.md) | **Historical plan** for the cross-platform native-hotkey rewrite. See ADR-0007 for what shipped. |
 | [auto-update-feature.md](auto-update-feature.md) | Runtime-pack auto-update (IMPLEMENTED 2026-08-13; Python-side pack manifest + downloader + `useNetworkOnline` trigger). |
