@@ -1,4 +1,5 @@
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -45,6 +46,7 @@ vi.mock("@/components/ui/checkbox", () => ({
 }));
 
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useConsentGateStore } from "@/lib/consentGate";
 import OnboardingPage from "@/pages/Onboarding";
 import ConsentStep from "@/pages/onboarding/components/ConsentStep";
 import ModelStep from "@/pages/onboarding/components/ModelStep";
@@ -83,11 +85,21 @@ const MODEL_OPTIONS = [
 		description: "NVIDIA Parakeet",
 		vram_gb: 2.0,
 		languages: null,
+		// Only the non-Whisper entry declares its backend, so the two
+		// activation paths stay distinguishable: `parakeet` proves the
+		// entry's own backend is written, while the two Whisper entries
+		// (no `backend`, the older-backend shape) prove the fallback.
+		backend: "parakeet",
 	},
 ];
 
-/** Jump the wizard straight to a given step index (4-step layout). */
-function mockStartAtStep(stepIndex: number) {
+/** Jump the wizard straight to a given step index (4-step layout).
+ *  `extraConfig` is merged into the `get_config` reply so a test can
+ *  start from a config that already has a consent granted. */
+function mockStartAtStep(
+	stepIndex: number,
+	extraConfig: Record<string, unknown> = {},
+) {
 	let current = stepIndex;
 	mockCall.mockImplementation((type: string) => {
 		switch (type) {
@@ -120,6 +132,7 @@ function mockStartAtStep(stepIndex: number) {
 					model_size: "tiny",
 					microphone: null,
 					huggingface_consent: true,
+					...extraConfig,
 				});
 			case "onboarding_get_microphones":
 				return Promise.resolve({ microphones: [] });
@@ -369,8 +382,6 @@ describe("Model step rebuild (ONB-5)", () => {
 				setCloudProvider={() => {}}
 				cloudApiKey=""
 				setCloudApiKey={() => {}}
-				cloudConsent={false}
-				setCloudConsent={() => {}}
 			/>,
 		);
 
@@ -435,5 +446,175 @@ describe("Model step rebuild (ONB-5)", () => {
 		// Qwen family rendered via normalized catalog entry, no crash.
 		expect(screen.getByTestId("onboarding-model-select-qwen")).toBeTruthy();
 		expect(screen.getByTestId("onboarding-download-button-qwen")).toBeTruthy();
+	});
+});
+
+// The Model step must leave the config in the SAME state the Models page
+// leaves it in. `onboarding_set_model` / `onboarding_set_backend` only feed
+// the wizard's own controller — `apply_settings` saves hotkey + microphone
+// + `model_size` and nothing else — so without an explicit `set_config` the
+// wizard's Model step was decorative: a cloud choice left `asr_backend` at
+// its "whisper" default (dictation still ran locally, with no API key), and
+// a parakeet/qwen choice left `asr_backend` pointing at Whisper.
+describe("Model step activation parity with the Models page (ONB-6)", () => {
+	beforeEach(() => {
+		mockCall.mockReset();
+		mockShowSnack.mockReset();
+		useConsentGateStore.setState({ request: null });
+	});
+	afterEach(() => {
+		useConsentGateStore.setState({ request: null });
+		cleanup();
+	});
+
+	/** Reach the Model step's Cloud branch with `provider` selected and a
+	 *  key typed, then click Continue. */
+	async function leaveCloudStep(provider: string, key: string) {
+		await screen.findByText("Step 3 of 4");
+		fireEvent.click(screen.getByRole("tab", { name: "Cloud API" }));
+		fireEvent.change(screen.getByTestId("onboarding-cloud-provider"), {
+			target: { value: provider },
+		});
+		fireEvent.change(screen.getByTestId("onboarding-cloud-api-key"), {
+			target: { value: key },
+		});
+		fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+	}
+
+	it("cloud: leaving the step opens the provider's consent gate instead of activating", async () => {
+		mockStartAtStep(2);
+		renderWithProviders(<OnboardingPage onComplete={() => {}} />);
+
+		await leaveCloudStep("gemini", "AIza-test");
+
+		// The gate is the provider's OWN field, so granting Google's
+		// consent can never imply another provider's.
+		await waitFor(() => {
+			expect(useConsentGateStore.getState().request).not.toBeNull();
+		});
+		const req = useConsentGateStore.getState().request;
+		expect(req?.consentField).toBe("cloud_gemini_consent");
+		expect(req?.bodyKey).toBe("consentDialog.field.cloud_gemini_consent");
+
+		// Nothing was activated and the step did not advance: the grant
+		// has to land first, otherwise the config would claim a cloud
+		// backend the user never consented to sending audio to.
+		expect(
+			mockCall.mock.calls.some((c: unknown[]) => c[0] === "set_config"),
+		).toBe(false);
+		expect(
+			mockCall.mock.calls.some(
+				(c: unknown[]) => c[0] === "onboarding_next_step",
+			),
+		).toBe(false);
+	});
+
+	it("cloud: Allow grants, advances, and writes the same triple the Models page writes", async () => {
+		mockStartAtStep(2);
+		renderWithProviders(<OnboardingPage onComplete={() => {}} />);
+
+		await leaveCloudStep("gemini", "AIza-test");
+		await waitFor(() => {
+			expect(useConsentGateStore.getState().request).not.toBeNull();
+		});
+
+		// The gate's Allow persists the consent itself, then re-enters the
+		// raw action (it must NOT re-open the gate off a stale snapshot).
+		await act(async () => {
+			await useConsentGateStore.getState().request?.onAllow?.();
+		});
+
+		await waitFor(() => {
+			expect(
+				mockCall.mock.calls.some(
+					(c: unknown[]) => c[0] === "onboarding_next_step",
+				),
+			).toBe(true);
+		});
+		// (The store entry is cleared by ConsentGateDialog's own `close()`
+		// after a successful grant — that dialog belongs to the App shell
+		// and is not mounted here, so this test asserts the ACTION, which
+		// is the part `onAllow` owns.)
+
+		const activation = mockCall.mock.calls.find(
+			(c: unknown[]) =>
+				c[0] === "set_config" &&
+				(c[1] as { asr_backend?: string } | undefined)?.asr_backend === "cloud",
+		);
+		// `cloud_model` is the catalogue default, so the wizard leaves the
+		// config exactly where the Cloud tab already marks a row active
+		// (`isCloudModelActive` treats an empty `cloud_model` as the
+		// default). The id is pinned against the backend's
+		// `_PROVIDER_DEFAULTS` by the cross-language parity test.
+		expect(activation?.[1]).toEqual({
+			asr_backend: "cloud",
+			cloud_provider: "gemini",
+			cloud_model: "gemini-3.8-flash",
+			gemini_api_key: "AIza-test",
+		});
+	});
+
+	it("cloud: an already-granted provider consent advances without opening the gate", async () => {
+		mockStartAtStep(2, { cloud_gemini_consent: true });
+		renderWithProviders(<OnboardingPage onComplete={() => {}} />);
+
+		await leaveCloudStep("gemini", "AIza-test");
+
+		await waitFor(() => {
+			expect(
+				mockCall.mock.calls.some(
+					(c: unknown[]) => c[0] === "onboarding_next_step",
+				),
+			).toBe(true);
+		});
+		expect(useConsentGateStore.getState().request).toBeNull();
+	});
+
+	it("local: writes the (asr_backend, model_size) pair for the chosen family", async () => {
+		mockStartAtStep(2);
+		renderWithProviders(<OnboardingPage onComplete={() => {}} />);
+
+		await screen.findByText("Step 3 of 4");
+		// Only the first family (whisper) starts expanded, so the parakeet
+		// row has to be revealed through its own family header first.
+		fireEvent.click(screen.getByRole("button", { name: "NVIDIA" }));
+		fireEvent.click(screen.getByTestId("onboarding-model-select-parakeet"));
+		fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+		await waitFor(() => {
+			const activation = mockCall.mock.calls.find(
+				(c: unknown[]) =>
+					c[0] === "set_config" &&
+					(c[1] as { model_size?: string } | undefined)?.model_size ===
+						"parakeet",
+			);
+			// The entry's own registry backend, not the "whisper" default:
+			// the pair is what the Models page's `selectModel` writes.
+			expect(activation?.[1]).toEqual({
+				asr_backend: "parakeet",
+				model_size: "parakeet",
+			});
+		});
+	});
+
+	it("local: an entry without a backend falls back to whisper", async () => {
+		mockStartAtStep(2);
+		renderWithProviders(<OnboardingPage onComplete={() => {}} />);
+
+		await screen.findByText("Step 3 of 4");
+		fireEvent.click(screen.getByTestId("onboarding-model-select-tiny"));
+		fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+		await waitFor(() => {
+			const activation = mockCall.mock.calls.find(
+				(c: unknown[]) =>
+					c[0] === "set_config" &&
+					(c[1] as { model_size?: string } | undefined)?.model_size === "tiny",
+			);
+			expect(activation?.[1]).toEqual({
+				asr_backend: "whisper",
+				model_size: "tiny",
+			});
+		});
 	});
 });

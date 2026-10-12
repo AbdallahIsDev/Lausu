@@ -15,13 +15,6 @@ import {
 	requiresHuggingFaceConsent,
 } from "@/lib/utils/models";
 
-// Re-export the cloud-provider test-result type so existing imports
-// (`import type { ApiTestResult } from "@/hooks/useModelLifecycle"`)
-// keep working after the split. The canonical definition lives in
-// `useCloudProviders` (where it's used); re-exported here for back-
-// compat with `CloudProvidersPanel.tsx` and its tests.
-export type { ApiTestResult } from "@/hooks/models/useCloudProviders";
-
 // ── Facade ────────────────────────────────────────────────────────────
 
 export function useModelLifecycle() {
@@ -83,16 +76,20 @@ export function useModelLifecycle() {
 		onDownloaded: handleDownloaded,
 	});
 
-	// 4. Cloud-provider API keys + test results + consent actions.
-	//    Needs `apiKeys` (read by saveApiKey + testConnection),
-	//    `setConfig` (optimistic consent flip), and `updateConfig`
-	//    (persist key + consent).
+	// 4. Cloud-provider API keys + connection-test + model-activation
+	//    actions. Needs `apiKeys` (read by saveApiKey + testConnection),
+	//    `updateConfig` (persist the key, and the
+	//    asr_backend/cloud_provider/cloud_model triple an activation
+	//    writes) and `setConfig` (optimistic merge so the Active marker
+	//    moves on the click, not on the `config_changed` echo). Consent
+	//    is granted through the shared consent dialog, not through this
+	//    hook.
 	const cloud = useCloudProviders({
 		showSnack,
-		setConfig,
 		config: configRest.config,
 		apiKeys: configRest.apiKeys,
 		updateConfig,
+		setConfig,
 		call,
 	});
 

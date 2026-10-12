@@ -1083,7 +1083,7 @@
 			"groqCloudAsrLabel": "تعرّف صوتي سحابي من Groq",
 			"groqCloudAsrInfoSearch": "يسمح بإرسال تسجيلات الصوت إلى واجهة Whisper API من Groq.",
 			"deepgramCloudAsrLabel": "تعرّف صوتي سحابي من Deepgram",
-			"deepgramCloudAsrInfoSearch": "يسمح بإرسال تسجيلات الصوت إلى واجهة nova-2 API من Deepgram.",
+			"deepgramCloudAsrInfoSearch": "يسمح بإرسال تسجيلات الصوت إلى واجهة nova-3 API من Deepgram.",
 			"geminiCloudAsrLabel": "تعرّف صوتي سحابي من Google Gemini",
 			"geminiCloudAsrInfoSearch": "يسمح بإرسال تسجيلات الصوت إلى واجهة Gemini API من Google.",
 			"llmTextPolishingLabel": "السماح بالتنقيح بالذكاء الاصطناعي",
@@ -1113,7 +1113,7 @@
 			"groqCloudAsrInfo": "يسمح بإرسال تسجيلات الصوت إلى واجهة Whisper API من Groq للتفريغ. يسري فقط عندما يكون Groq هو الخادم الخلفي النشط للتعرّف على الكلام ومُهيَّأ مفتاح API.",
 			"groqCloudAsrAria": "موافقة التعرّف الصوتي السحابي من Groq",
 			"deepgramCloudAsr": "تعرّف صوتي سحابي من Deepgram",
-			"deepgramCloudAsrInfo": "يسمح بإرسال تسجيلات الصوت إلى واجهة nova-2 API من Deepgram للتفريغ. يسري فقط عندما يكون Deepgram هو الخادم الخلفي النشط للتعرّف على الكلام ومُهيَّأ مفتاح API.",
+			"deepgramCloudAsrInfo": "يسمح بإرسال تسجيلات الصوت إلى واجهة nova-3 API من Deepgram للتفريغ. يسري فقط عندما يكون Deepgram هو الخادم الخلفي النشط للتعرّف على الكلام ومُهيَّأ مفتاح API.",
 			"deepgramCloudAsrAria": "موافقة التعرّف الصوتي السحابي من Deepgram",
 			"geminiCloudAsr": "تعرّف صوتي سحابي من Google Gemini",
 			"geminiCloudAsrInfo": "يسمح بإرسال تسجيلات الصوت إلى واجهة Gemini API من Google للتفريغ. يسري فقط عندما يكون Gemini هو الخادم الخلفي النشط للتعرّف على الكلام ومُهيَّأ مفتاح API. يتطلب إنترنت؛ ~15–20 ثانية لكل رسالة.",
@@ -1288,16 +1288,16 @@
 		"selecting": "جارٍ التحديد…",
 		"providers": {
 			"openai": {
-				"label": "OpenAI Whisper API"
+				"label": "OpenAI"
 			},
 			"groq": {
-				"label": "Groq Whisper API"
+				"label": "Groq"
 			},
 			"deepgram": {
-				"label": "Deepgram API"
+				"label": "Deepgram"
 			},
 			"gemini": {
-				"label": "Google Gemini API"
+				"label": "Google"
 			}
 		},
 		"errors": {
@@ -1323,8 +1323,7 @@
 			"apiKeyEmpty": "أدخل مفتاح API أولاً",
 			"apiKeyUnchanged": "مفتاح API لم يتغير",
 			"apiKeySaved": "تم حفظ مفتاح API لـ {provider}",
-			"consentGranted": "تم منح الموافقة لـ {provider}: سيتم إرسال الصوت إلى هذا المزود.",
-			"consentRevoked": "تم إلغاء الموافقة لـ {provider}: لن يتم إرسال الصوت.",
+			"apiKeyInvalid": "لا يبدو هذا مفتاح API صالحًا لـ {provider}. تحقق من المفتاح وحاول مرة أخرى.",
 			"resumeFailed": "فشل الاستئناف: {error}",
 			"pauseFailed": "فشل الإيقاف المؤقت: {error}",
 			"pauseNoop": "لا يوجد تنزيل نشط لإيقافه مؤقتًا.",
@@ -1341,7 +1340,13 @@
 		"test": {
 			"needApiKey": "الرجاء إدخال مفتاح API أولاً",
 			"connectionSuccessful": "نجح الاتصال: مفتاح API صالح.",
-			"connectionFailed": "فشل الاتصال: {status} {statusText}",
+			"failure": {
+				"auth": "رفض {provider} مفتاح API. تأكد من لصق المفتاح كاملًا.",
+				"rateLimited": "يحدّ {provider} حاليًا من عدد الطلبات. انتظر قليلًا ثم حاول مرة أخرى.",
+				"server": "أبلغ {provider} عن مشكلة من جهته. حاول مرة أخرى بعد بضع دقائق.",
+				"network": "تعذّر الوصول إلى {provider}. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.",
+				"http": "رفض {provider} الطلب (HTTP {status})."
+			},
 			"connectionTestFailed": "فشل اختبار الاتصال: {error}",
 			"testing": "جارٍ الاختبار…"
 		},
@@ -1403,15 +1408,11 @@
 			"testConnection": "اختبار الاتصال",
 			"consentTitle": "موافقة إرسال الصوت",
 			"consentDescription": "عند تحديد هذا المزوّد كخلفية نشطة للتعرّف على الكلام، سيتم إرسال تسجيلاتك الصوتية إلى {provider} للتفريغ. تنطبق سياسة خصوصية المزوّد على الصوت المُرسل. لا يُفعّل {appName} التعرّف على الكلام السحابي أبدًا دون موافقتك الصريحة, حتى إذا تم تهيئة مفتاح API.",
-			"statusLabel": "الحالة:",
-			"consentGrantedStatus": "تم منح الموافقة: سيتم إرسال الصوت عندما يكون هذا المزود نشطاً.",
-			"consentNotGrantedStatus": "لم يتم منح الموافقة: سيرفض هذا المزود التفريغ.",
 			"consentAria": "منح موافقة إرسال الصوت لـ {provider}",
 			"configure": "تكوين",
 			"configureAria": "تكوين {provider}",
 			"apiKeyShowAria": "إظهار مفتاح API الخاص بـ {provider}",
-			"apiKeyHideAria": "إخفاء مفتاح API الخاص بـ {provider}",
-			"apiKeyFormatHint": "مفاتيح API الخاصة بـ {provider} عبارة عن سلاسل طويلة (عادةً 40–60 حرفًا). الصق المفتاح كاملًا: بدون مسافات أو بادئات."
+			"apiKeyHideAria": "إخفاء مفتاح API الخاص بـ {provider}"
 		},
 		"deleteDialog": {
 			"title": "حذف النموذج",

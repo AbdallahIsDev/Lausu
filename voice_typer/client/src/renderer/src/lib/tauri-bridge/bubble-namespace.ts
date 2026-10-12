@@ -49,17 +49,22 @@ export function createBubbleNamespace(
 				);
 		},
 
-		setPosition: (position: "top" | "bottom") => {
-			tauri.core
-				.invoke("bubble_set_position", {
+		// Returns the invoke promise (rejected after logging) so the
+		// connection hydration can await edge placement before show:
+		// a fire-and-forget order let show win and stranded the pill
+		// at the OS default position for the whole session.
+		setPosition: async (position: "top" | "bottom"): Promise<void> => {
+			try {
+				await tauri.core.invoke("bubble_set_position", {
 					position,
-				})
-				.catch((err) =>
-					console.warn(
-						"[renderer:bubble-namespace] bubble_set_position failed:",
-						err,
-					),
+				});
+			} catch (err) {
+				console.warn(
+					"[renderer:bubble-namespace] bubble_set_position failed:",
+					err,
 				);
+				throw err;
+			}
 		},
 
 		setDraggable: (draggable: boolean) => {

@@ -1,8 +1,10 @@
 import {
+	CircleIcon,
 	Loading03Icon,
 	Settings01Icon,
 	Shield01Icon,
 	SparklesIcon,
+	Tick02Icon,
 	ViewIcon,
 	ViewOffIcon,
 } from "@hugeicons/core-free-icons";
@@ -31,16 +33,17 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { consentKeyFor } from "@/hooks/models/useCloudProviders";
-import type { ApiTestResult } from "@/hooks/useModelLifecycle";
 import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import {
+	type CloudModel,
+	type CloudModelRef,
 	type CloudProvider,
-	formatModelDisplayName,
-	formatWer,
+	type CloudProviderKey,
+	cloudModelLabel,
+	formatCloudWer,
 	getProviderLabel,
+	isCloudModelActive,
 } from "@/lib/utils/models";
 import type { LausuConfig } from "@/types/config";
 
@@ -48,17 +51,33 @@ export interface CloudProvidersPanelProps {
 	config: LausuConfig | null;
 	cloudProviders: readonly CloudProvider[];
 	apiKeys: Record<string, string>;
-	testResults: Record<string, ApiTestResult>;
+	/** Providers with a Test Connection probe in flight (absent = idle).
+	 * Only the button's spinner/disabled state depends on it — the
+	 * outcome itself is a toast (see `useCloudProviders`). */
+	testingProviders: Record<string, boolean>;
+	/** The cloud model whose activation is being persisted (absent =
+	 * idle). Only that one row shows its spinner. */
+	selectingCloudModel: CloudModelRef | null;
 	onApiKeyChange: (provider: string, value: string) => void;
 	onSaveApiKey: (provider: string) => void;
 	onTestConnection: (provider: string) => void;
-	onConsentChange: (provider: string, granted: boolean) => void;
-	/** Clear the test result for a single provider. Wired to
-	 * the API-key Input's onChange so stale "Success" badges don't
-	 * linger after the user edits the key. Optional so the panel can
-	 * be mounted without it (the consumer is responsible for wiring
-	 * it; without it, stale results simply don't auto-clear). */
-	onClearTestResult?: (provider: string) => void;
+	/** Make ONE of a provider's models the active speech backend. */
+	onActivateModel: (provider: CloudProviderKey, modelId: string) => void;
+}
+
+// One shared width for every cloud row action so the Select / Selecting…
+// / Active labels never reflow the row. Mirrors the local rows'
+// `ModelCardActions` (w-24), so the two tabs' right-hand columns line up.
+const CLOUD_ACTION_BUTTON_CLASS = "w-24 gap-2 text-xs whitespace-nowrap";
+
+// ── The provider-level setup dialog's state ───────────────────────────
+// `open` is kept SEPARATE from the provider so the dialog stays mounted
+// while it animates closed: unmounting it the instant `open` flips to
+// false would skip Radix's `onCloseAutoFocus`, dropping focus onto
+// <body> instead of returning it to the Configure button that opened it.
+interface ConfigureDialogState {
+	provider: CloudProvider;
+	open: boolean;
 }
 
 // Wrapped in `React.memo` (same pattern as the memo'd settings sections
@@ -72,21 +91,19 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 	config,
 	cloudProviders,
 	apiKeys,
-	testResults,
+	testingProviders,
+	selectingCloudModel,
 	onApiKeyChange,
 	onSaveApiKey,
 	onTestConnection,
-	onConsentChange,
-	onClearTestResult,
+	onActivateModel,
 }: CloudProvidersPanelProps) {
-	// Which provider's setup dialog is open. A SINGLE key, not a set:
-	// the setup form is a modal (2026-10-11), and a modal is exclusive
-	// by construction — the overlay blocks every other provider's
-	// Configure button, so at most one form can ever be open.
-	// Purely local UI state.
-	const [configuredProvider, setConfiguredProvider] = useState<string | null>(
-		null,
-	);
+	// Which provider's setup dialog is open, plus the provider it belongs
+	// to. A SINGLE slot, not a map: the setup form is a modal
+	// (2026-10-11), and a modal is exclusive by construction — the
+	// overlay blocks every other provider's Configure button, so at most
+	// one form can ever be open. Purely local UI state.
+	const [dialog, setDialog] = useState<ConfigureDialogState | null>(null);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -94,167 +111,258 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 				{t("models.cloudModelsDescription")}
 			</p>
 			<ModelGroupAccordion type="multiple">
-				{cloudProviders.map((provider) => {
-					const isConfigured = configuredProvider === provider.key;
-					return (
-						<ModelGroupItem key={provider.key} value={provider.key}>
-							<ModelGroupTrigger>
-								{provider.key === "groq" ? (
-									<HugeiconsIcon
-										icon={Shield01Icon}
-										strokeWidth={2}
-										className="h-4 w-4 text-accent"
-									/>
-								) : (
-									<FamilyLogo family={provider.key} />
-								)}
-								{getProviderLabel(provider.key)}
-							</ModelGroupTrigger>
-							<ModelGroupContent>
-								{/* One list row per provider: the API model
-                                                                    name, the accuracy pair, the icon-only metadata
-                                                                    chips and the Configure action. */}
-								<ModelVariantRow
-									name={formatModelDisplayName(provider.model)}
-									meta={
-										<>
-											{/* WER, the same figure the Local tab shows.
-											    Without it the Cloud rows gave the user no
-											    way to judge accuracy at all, which is the
-											    one number they pick a model by. */}
-											<MetadataPair
-												label={t("models.card.werLabel")}
-												value={formatWer(provider.wer)}
-											/>
-											{/* Same two-group structure as the Local rows
-											    (C-MODELS-2): the information group is the
-											    WER pair above (spaced `gap-x-3` by
-											    `ModelVariantRow`), and this span is the
-											    chip group at the tighter `gap-x-1.5`.
-											    The cloud chip that used to open this group
-											    is gone: every row on THIS tab is a cloud
-											    model, so a cloud glyph with a "Cloud"
-											    tooltip restated the tab. The speed chip
-											    takes its place — that is the fact the user
-											    cannot read off the tab. */}
-											<span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
-												<LanguageScopeTag multilingual />
-												<SpeedTag rating={provider.speed_rating} />
-											</span>
-										</>
-									}
-									actions={
-										<Button
-											variant="outline"
-											size="sm"
-											className="gap-2"
-											onClick={() => setConfiguredProvider(provider.key)}
-											// A MODAL trigger, not a disclosure: the setup
-											// form opens in a dialog, so the button
-											// advertises `aria-haspopup="dialog"` and
-											// carries neither `aria-expanded` (nothing
-											// expands in place) nor a "Hide" label — the
-											// dialog owns its own close affordances.
-											aria-haspopup="dialog"
-											aria-label={t("models.cloud.configureAria", {
-												provider: getProviderLabel(provider.key),
-											})}
-										>
-											<HugeiconsIcon
-												icon={Settings01Icon}
-												strokeWidth={2}
-												className="h-4 w-4"
-											/>
-											{t("models.cloud.configure")}
-										</Button>
-									}
-								/>
-								<Dialog
-									open={isConfigured}
-									onOpenChange={(open) => {
-										// Escape, an overlay click and the X all land
-										// here with `false`. Only clear THIS
-										// provider's key so a late event from an
-										// already-closed dialog cannot wipe a newly
-										// opened one.
-										if (!open) {
-											setConfiguredProvider((current) =>
-												current === provider.key ? null : current,
-											);
-										}
-									}}
+				{cloudProviders.map((provider) => (
+					<ModelGroupItem key={provider.key} value={provider.key}>
+						{/* The trigger carries the provider's BRAND only
+						    ("OpenAI", "Groq", "Deepgram", "Google") and the
+						    Configure action sits at the provider level, on
+						    the right of that same row.
+						    Both halves are deliberate:
+						      • the trigger used to read "OpenAI Whisper API" —
+						        provider + model + the word "API" welded into
+						        one label, which pre-empted the group's own
+						        content. The model name now appears once, as
+						        the row heading inside the group;
+						      • Configure used to hang off EACH model row, so
+						        a provider with ten models asked for the same
+						        API key ten times. All of a provider's models
+						        share one key, so the form belongs to the
+						        provider. It is a sibling of the trigger (see
+						        `AccordionTrigger`'s `actions` slot), never a
+						        child: the trigger is a <button>. */}
+						<ModelGroupTrigger
+							actions={
+								<Button
+									variant="outline"
+									size="sm"
+									className="gap-2"
+									onClick={() => setDialog({ provider, open: true })}
+									// A MODAL trigger, not a disclosure: the
+									// setup form opens in a dialog, so the
+									// button advertises `aria-haspopup="dialog"`
+									// and carries neither `aria-expanded`
+									// (nothing expands in place) nor a "Hide"
+									// label — the dialog owns its own close
+									// affordances.
+									aria-haspopup="dialog"
+									aria-label={t("models.cloud.configureAria", {
+										provider: getProviderLabel(provider.key),
+									})}
 								>
-									{/* Title = the provider name. The form below
-									    carries its own labelled fields, so no
-									    separate description is needed. */}
-									<DialogContent size="lg">
-										<DialogHeader>
-											<DialogTitle>
-												{getProviderLabel(provider.key)}
-											</DialogTitle>
-										</DialogHeader>
-										<ProviderConfigForm
-											provider={provider}
-											config={config}
-											apiKeyValue={apiKeys[provider.key] ?? ""}
-											testResult={testResults[provider.key]}
-											onApiKeyChange={(v) => {
-												onApiKeyChange(provider.key, v);
-												//clear the stale test result whenever the
-												// user edits the key, otherwise the previous
-												// "Success" badge stays visible during a re-test.
-												onClearTestResult?.(provider.key);
-											}}
-											onSaveApiKey={() => onSaveApiKey(provider.key)}
-											onTestConnection={() => onTestConnection(provider.key)}
-											onConsentChange={(granted) =>
-												onConsentChange(provider.key, granted)
-											}
-										/>
-									</DialogContent>
-								</Dialog>
-							</ModelGroupContent>
-						</ModelGroupItem>
-					);
-				})}
+									<HugeiconsIcon
+										icon={Settings01Icon}
+										strokeWidth={2}
+										className="h-4 w-4"
+									/>
+									{t("models.cloud.configure")}
+								</Button>
+							}
+						>
+							{provider.key === "groq" ? (
+								<HugeiconsIcon
+									icon={Shield01Icon}
+									strokeWidth={2}
+									className="h-4 w-4 text-accent"
+								/>
+							) : (
+								<FamilyLogo family={provider.key} />
+							)}
+							{getProviderLabel(provider.key)}
+						</ModelGroupTrigger>
+						<ModelGroupContent>
+							{/* One row per model the provider serves. The list
+							    is data (`CloudProvider.models`) and grows over
+							    time, so nothing here may assume a fixed count
+							    or a single entry. */}
+							{provider.models.map((model) => (
+								<CloudModelRow
+									key={model.id}
+									provider={provider}
+									model={model}
+									config={config}
+									activating={
+										selectingCloudModel?.provider === provider.key &&
+										selectingCloudModel.model === model.id
+									}
+									onActivateModel={onActivateModel}
+								/>
+							))}
+						</ModelGroupContent>
+					</ModelGroupItem>
+				))}
 			</ModelGroupAccordion>
+			{dialog && (
+				<Dialog
+					open={dialog.open}
+					onOpenChange={(open) => {
+						// Escape, an overlay click and the X all land here
+						// with `false`. Only flip THIS dialog's flag, so a
+						// late event from an already-closed dialog cannot
+						// close a newly opened one.
+						if (!open) {
+							setDialog((current) =>
+								current ? { ...current, open: false } : current,
+							);
+						}
+					}}
+				>
+					{/* Title = the provider name. The form below carries its
+					    own labelled fields, so no separate description is
+					    needed. */}
+					<DialogContent size="lg">
+						<DialogHeader>
+							<DialogTitle>{getProviderLabel(dialog.provider.key)}</DialogTitle>
+						</DialogHeader>
+						<ProviderConfigForm
+							provider={dialog.provider}
+							config={config}
+							apiKeyValue={apiKeys[dialog.provider.key] ?? ""}
+							isTesting={Boolean(testingProviders[dialog.provider.key])}
+							onApiKeyChange={(v) => onApiKeyChange(dialog.provider.key, v)}
+							onSaveApiKey={() => onSaveApiKey(dialog.provider.key)}
+							onTestConnection={() => onTestConnection(dialog.provider.key)}
+						/>
+					</DialogContent>
+				</Dialog>
+			)}
 		</div>
 	);
 });
 
-// ── Sub-component: API-key entry + test + consent form ────────────────
+// ── Sub-component: one model row ──────────────────────────────────────
+// The row's action is the SAME Select / Active vocabulary the Local tab
+// uses, on purpose: there is exactly ONE active speech model at a time
+// across both tabs (`config.asr_backend` is a single value), so one
+// vocabulary is the honest way to express it. Activating a cloud model
+// writes `asr_backend = "cloud"`, which is what deactivates whichever
+// local model was active — and vice versa.
+function CloudModelRow({
+	provider,
+	model,
+	config,
+	activating,
+	onActivateModel,
+}: {
+	provider: CloudProvider;
+	model: CloudModel;
+	config: LausuConfig | null;
+	activating: boolean;
+	onActivateModel: (provider: CloudProviderKey, modelId: string) => void;
+}) {
+	const label = cloudModelLabel(provider.key, model.id);
+	const isActive = isCloudModelActive(provider, model.id, config);
+
+	return (
+		<ModelVariantRow
+			name={label}
+			meta={
+				<>
+					{/* WER, the same figure the Local tab shows. `null` (no
+					    pooled real-world benchmark covers this model)
+					    renders as an em dash — see `formatCloudWer`. */}
+					<MetadataPair
+						label={t("models.card.werLabel")}
+						value={formatCloudWer(model.wer)}
+					/>
+					{/* Same two-group structure as the Local rows
+					    (C-MODELS-2): the information group is the WER pair
+					    above (spaced `gap-x-3` by `ModelVariantRow`), and
+					    this span is the chip group at the tighter
+					    `gap-x-1.5`. The cloud chip that used to open this
+					    group is gone: every row on THIS tab is a cloud
+					    model, so a cloud glyph with a "Cloud" tooltip
+					    restated the tab. The speed chip takes its place —
+					    that is the fact the user cannot read off the tab. */}
+					<span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
+						<LanguageScopeTag multilingual />
+						<SpeedTag rating={model.speed_rating} />
+					</span>
+				</>
+			}
+			actions={
+				isActive ? (
+					<Button
+						variant="secondary"
+						size="sm"
+						className={cn(
+							CLOUD_ACTION_BUTTON_CLASS,
+							"cursor-default opacity-60",
+						)}
+						// Disabled, not hidden: it reports state ("this is the
+						// one in use") and a second click would be a no-op.
+						disabled
+						aria-label={t("models.card.activeAria", { name: label })}
+					>
+						<HugeiconsIcon
+							icon={Tick02Icon}
+							strokeWidth={2}
+							className="h-3 w-3"
+						/>
+						{t("models.active")}
+					</Button>
+				) : (
+					<Button
+						variant={activating ? "secondary" : "outline"}
+						size="sm"
+						className={CLOUD_ACTION_BUTTON_CLASS}
+						onClick={() => onActivateModel(provider.key, model.id)}
+						disabled={activating}
+						// Announce the in-flight activation via aria-busy + a
+						// label swap (same contract as the Local rows).
+						aria-busy={activating}
+						aria-label={
+							activating
+								? t("models.selecting")
+								: t("models.card.selectAria", { name: label })
+						}
+					>
+						<HugeiconsIcon
+							icon={activating ? Loading03Icon : CircleIcon}
+							strokeWidth={2}
+							className={cn("h-3 w-3", activating && "animate-spin")}
+						/>
+						{activating ? t("models.selecting") : t("models.select")}
+					</Button>
+				)
+			}
+		/>
+	);
+}
+
+// ── Sub-component: API-key entry + test ───────────────────────────────
 // Rendered INSIDE the provider's setup dialog (`DialogContent`), opened
-// by that row's Configure action. It deliberately carries no card
+// by that provider's Configure action. It deliberately carries no card
 // surface of its own: the dialog already provides the raised panel, so
 // a second border + fill here would read as a card inside a card.
+//
+// The form is the key field and two buttons, and NOTHING else. The
+// format hint that used to sit under the field ("… typically 40-60
+// characters. Paste the full key: no spaces or prefixes.") was removed:
+// it described a shape the user cannot act on, and the actionable
+// version of that message is the rejection toast `useCloudProviders`
+// raises when the shape is actually wrong. The audio-transmission
+// consent moved to the shared consent dialog, raised after the key is
+// saved.
 
 interface ProviderConfigFormProps {
 	provider: CloudProvider;
 	config: LausuConfig | null;
 	apiKeyValue: string;
-	testResult?: ApiTestResult;
+	isTesting: boolean;
 	onApiKeyChange: (value: string) => void;
 	onSaveApiKey: () => void;
 	onTestConnection: () => void;
-	onConsentChange: (granted: boolean) => void;
 }
 
 function ProviderConfigForm({
 	provider,
 	config,
 	apiKeyValue,
-	testResult,
+	isTesting,
 	onApiKeyChange,
 	onSaveApiKey,
 	onTestConnection,
-	onConsentChange,
 }: ProviderConfigFormProps) {
-	const consentKey = consentKeyFor(provider.key);
-	const consentGranted = Boolean(
-		(config?.[consentKey] as boolean | undefined) ?? false,
-	);
-	const showConsent = Boolean(apiKeyValue) || consentGranted;
-
 	// Show/hide toggle for the API key input. Default is
 	// hidden (type="password"); clicking the eye-icon button reveals
 	// the plain-text value for verification. The reveal state is purely
@@ -262,12 +370,12 @@ function ProviderConfigForm({
 	// opening one provider's key does NOT reveal another's.
 	const [revealKey, setRevealKey] = useState(false);
 
-	//pending state, disable the Test button + show a spinner.
-	const isPending = testResult?.status === "pending";
 	//disable Save Key when the input is empty (prevents
 	// silently clobbering a stored secret with the empty string that
 	// `safeApiKey` substitutes for the `<redacted>` sentinel on every
-	// config fetch).
+	// config fetch). A key that is non-empty but malformed stays
+	// ENABLED on purpose: clicking it is what raises the explanatory
+	// toast, and a disabled button would say "no" without saying why.
 	const saveDisabled = !apiKeyValue.trim();
 
 	return (
@@ -282,7 +390,11 @@ function ProviderConfigForm({
 					</label>
 					<KeyringStatusBadge status={config?.keyring_status} compact />
 				</div>
-				<div className="relative w-full max-w-md">
+				{/* Full width of the dialog. The wrapper used to be
+				    `w-full max-w-md`, which capped the field at 28rem
+				    inside a 36rem `size="lg"` dialog and left a strip of
+				    dead space to its right that read as a layout bug. */}
+				<div className="relative w-full">
 					<Input
 						id={`api-key-input-${provider.key}`}
 						type={revealKey ? "text" : "password"}
@@ -318,26 +430,12 @@ function ProviderConfigForm({
 						/>
 					</button>
 				</div>
-				{/* Subtle format hint below the input so users
-                                        know the expected key shape without trial-and-error.
-                                        Generic hint covers the common provider key conventions;
-                                        the per-provider text is intentionally minimal so it
-                                        doesn't mislead when a provider changes their key
-                                        format. */}
-				<p className="text-xs text-muted-foreground">
-					{t("models.cloud.apiKeyFormatHint", {
-						provider: getProviderLabel(provider.key),
-					})}
-				</p>
 			</div>
 			<div className="flex flex-wrap items-center gap-3">
 				<Button
 					variant="default"
 					size="sm"
 					onClick={onSaveApiKey}
-					//disable when the input is empty. Prevents the
-					// "Save Key → clobber stored secret with ''" data-loss
-					//path documented in the  finding.
 					disabled={saveDisabled}
 					aria-label={t("models.cloud.saveKeyAria", {
 						provider: getProviderLabel(provider.key),
@@ -351,10 +449,9 @@ function ProviderConfigForm({
 					className="gap-2"
 					onClick={onTestConnection}
 					//disable while a test is in flight so concurrent
-					// clicks don't fire overlapping fetches (race conditions
-					// on `setTestResults`).
-					disabled={isPending}
-					aria-busy={isPending}
+					// clicks don't fire overlapping fetches.
+					disabled={isTesting}
+					aria-busy={isTesting}
 					aria-label={t("models.cloud.testConnectionAria", {
 						provider: getProviderLabel(provider.key),
 					})}
@@ -363,79 +460,14 @@ function ProviderConfigForm({
 						//swap the static SparklesIcon for a spinning
 						// Loading03Icon while the test is in flight so users
 						// get immediate visual feedback that the click
-						// registered (the fetch can take 500ms–5s).
-						icon={isPending ? Loading03Icon : SparklesIcon}
+						// registered (the probe can take 500ms–5s).
+						icon={isTesting ? Loading03Icon : SparklesIcon}
 						strokeWidth={2}
-						className={cn("h-4 w-4", isPending && "animate-spin")}
+						className={cn("h-4 w-4", isTesting && "animate-spin")}
 					/>
 					{t("models.cloud.testConnection")}
 				</Button>
-				{testResult && (
-					<output
-						//aria-live=polite so SR
-						// users hear the test-connection outcome as it arrives
-						// (no manual focus required). <output> is the semantic
-						// element for role=status, it's a proper live region
-						// with the correct SR semantics.
-						aria-live="polite"
-						className={cn(
-							"text-xs",
-							testResult.status === "success"
-								? "text-primary"
-								: testResult.status === "failure"
-									? "text-destructive"
-									: //`text-[(--muted-foreground)]` is invalid Tailwind
-										// v4 syntax. The canonical form is
-										// `text-muted-foreground`, matches every other call
-										// site in the codebase.
-										"text-muted-foreground",
-						)}
-					>
-						{testResult.message}
-					</output>
-				)}
 			</div>
-			{showConsent && (
-				<div className="rounded-lg border border-border/8 bg-surface-subtle p-4">
-					<div className="flex items-start justify-between gap-4">
-						<div className="flex flex-1 flex-col gap-2">
-							<div className="flex flex-col gap-1">
-								<h4 className="text-sm font-medium text-foreground">
-									{t("models.cloud.consentTitle")}
-								</h4>
-								<p className="text-xs leading-relaxed text-muted-foreground">
-									{t("models.cloud.consentDescription", {
-										provider: getProviderLabel(provider.key),
-									})}
-								</p>
-							</div>
-							<p className="text-xs text-muted-foreground">
-								{t("models.cloud.statusLabel")}{" "}
-								{consentGranted ? (
-									<span className="font-medium text-success">
-										{t("models.cloud.consentGrantedStatus")}
-									</span>
-								) : (
-									<span className="font-medium text-warning">
-										{t("models.cloud.consentNotGrantedStatus")}
-									</span>
-								)}
-							</p>
-						</div>
-						<Switch
-							checked={consentGranted}
-							onCheckedChange={onConsentChange}
-							aria-label={t("models.cloud.consentAria", {
-								provider: getProviderLabel(provider.key),
-							})}
-						/>
-					</div>
-				</div>
-			)}
 		</div>
 	);
 }
-
-// ── Local helpers ─────────────────────────────────────────────────────
-// `consentKeyFor` is imported from the hook (single source of truth) —
-// a local duplicate drifted if a provider was ever added.

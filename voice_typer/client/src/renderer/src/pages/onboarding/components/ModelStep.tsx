@@ -1,5 +1,4 @@
 import type { Ref } from "react";
-import { InfoTooltip } from "@/components/feedback/InfoTooltip";
 import { FamilyLogo } from "@/components/models/FamilyLogo";
 import {
 	DOWNLOAD_CONTENT_ALIGNMENT,
@@ -12,7 +11,6 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
 	ToggleGroup,
@@ -65,13 +63,15 @@ export interface ModelStepProps {
 	downloadProgress: number;
 	downloadFailed: boolean;
 	onDownload: (model: string) => void;
-	// Cloud branch: provider + API key + consent (persisted on Continue).
+	// Cloud branch: provider + API key (persisted on Continue). The
+	// provider's audio-transmission CONSENT is deliberately not a checkbox
+	// here — leaving the step opens the shared consent gate for the chosen
+	// provider, the same dialog the Models page shows on activation, so the
+	// user reads what the choice authorises at the moment it takes effect.
 	cloudProvider: string;
 	setCloudProvider: (v: string) => void;
 	cloudApiKey: string;
 	setCloudApiKey: (v: string) => void;
-	cloudConsent: boolean;
-	setCloudConsent: (v: boolean) => void;
 }
 
 const CLOUD_PROVIDERS = ["openai", "groq", "deepgram", "gemini"] as const;
@@ -119,8 +119,6 @@ export function ModelStep({
 	setCloudProvider,
 	cloudApiKey,
 	setCloudApiKey,
-	cloudConsent,
-	setCloudConsent,
 }: ModelStepProps) {
 	const isDownloading = downloadingModel !== null;
 	const progressPct = Math.round(downloadProgress);
@@ -392,33 +390,6 @@ export function ModelStep({
 							spellCheck={false}
 							data-testid="onboarding-cloud-api-key"
 						/>
-					</div>
-
-					<div className="flex items-start gap-3">
-						<Checkbox
-							id="onboarding-cloud-consent"
-							className="mt-0.5 cursor-pointer"
-							checked={cloudConsent}
-							onCheckedChange={(v) => setCloudConsent(v === true)}
-							aria-label={t("models.cloud.consentAria", {
-								provider: providerLabel(cloudProvider),
-							})}
-							data-testid="onboarding-cloud-consent"
-						/>
-						<label
-							htmlFor="onboarding-cloud-consent"
-							className="flex min-w-0 flex-1 flex-col gap-1 text-sm"
-						>
-							<span className="font-medium text-foreground">
-								{t("models.cloud.consentTitle")}
-								<InfoTooltip
-									text={t("models.cloud.consentDescription", {
-										provider: providerLabel(cloudProvider),
-									})}
-									contextLabel={t("models.cloud.consentTitle")}
-								/>
-							</span>
-						</label>
 					</div>
 
 					<p className="text-xs text-muted-foreground">

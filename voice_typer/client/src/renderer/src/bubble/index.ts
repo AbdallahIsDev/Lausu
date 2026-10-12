@@ -33,8 +33,8 @@ export type { BubbleBridge, BubbleBridgeOff } from "./useBubbleBridge";
 // listener per event channel; consumers register handlers via
 // `bridge.on(event, handler)`.
 export { BubbleBridgeProvider, useBubbleBridge } from "./useBubbleBridge";
+// hooks
 export { useBubbleLifecycle } from "./useBubbleLifecycle";
 export type { BubbleStateMachine } from "./useBubbleStateMachine";
 export { useBubbleStateMachine } from "./useBubbleStateMachine";
-// hooks
 export { useThemeSync } from "./useThemeSync";

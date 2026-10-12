@@ -106,7 +106,30 @@ export function useConnection({
 						);
 					const pos = cfg?.bubble_position;
 					if (pos === "bottom" || pos === "top") {
-						window.bubble?.setPosition?.(pos);
+						// Awaited BEFORE show: the edge placement must land
+						// before the window becomes visible, otherwise the
+						// pill sits at the OS default position all session.
+						// One retry covers a display stack still coming up
+						// at logon; failure still shows (unpositioned beats
+						// hidden), loudly.
+						try {
+							await window.bubble?.setPosition?.(pos);
+						} catch (err) {
+							console.warn(
+								"[renderer:useConnection] bubble_set_position failed, retrying once:",
+								err,
+							);
+							await new Promise((r) => setTimeout(r, 2000));
+							if (cancelled) return;
+							try {
+								await window.bubble?.setPosition?.(pos);
+							} catch (err2) {
+								console.error(
+									"[renderer:useConnection] bubble_set_position retry failed, showing unpositioned:",
+									err2,
+								);
+							}
+						}
 					}
 					const draggable = cfg?.bubble_draggable;
 					if (typeof draggable === "boolean") {

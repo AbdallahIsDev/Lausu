@@ -9,7 +9,8 @@ import { useLatestRef } from "@/hooks/useLatestRef";
 import { usePython, usePythonEvent } from "@/hooks/usePython";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
-import { openConsentGate } from "@/lib/consentGate";
+import { consentBodyKey, openConsentGate } from "@/lib/consentGate";
+import { cloudDefaultModel } from "@/lib/utils/models";
 import type { LausuConfig } from "@/types/config";
 import { HOTKEY_DEFAULT, MODEL_DEFAULT } from "../lib/constants";
 import type { ModelOption, StepInfo } from "../lib/types";
@@ -41,11 +42,35 @@ function cloudConsentField(provider: string): string {
 	return "cloud_deepgram_consent";
 }
 
-function cloudApiKeyField(provider: string): string {
+/** The provider's API-key config field. Typed as the exact union rather
+ *  than `string` so the activation `updates` object can be a
+ *  `Partial<LausuConfig>` and stay type-checked at the write site. */
+function cloudApiKeyField(
+	provider: string,
+): "openai_api_key" | "groq_api_key" | "gemini_api_key" | "deepgram_api_key" {
 	if (provider === "openai") return "openai_api_key";
 	if (provider === "groq") return "groq_api_key";
 	if (provider === "gemini") return "gemini_api_key";
 	return "deepgram_api_key";
+}
+
+/** The ``asr_backend`` a local model selection activates: the entry's own
+ *  registry ``backend``, narrowed to the values ``asr_backend`` accepts
+ *  (the Whisper family, distil variants included, is all ``"whisper"``).
+ *  Falls back to ``"whisper"`` when the entry carries no backend, which is
+ *  the curated-only path of an older backend. Mirrors the Models page's
+ *  ``selectModel``, which derives the same value from ``ModelInfo.backend``
+ *  — the wizard cannot use that field directly because its model list comes
+ *  from the onboarding catalog, not from the disk-status IPC. */
+function backendForModelName(
+	options: ModelOption[],
+	name: string,
+): LausuConfig["asr_backend"] {
+	const backend = options.find((m) => m.name === name)?.backend;
+	if (backend === "whisper" || backend === "qwen" || backend === "parakeet") {
+		return backend;
+	}
+	return "whisper";
 }
 
 /** Extract the fulfilled value of a settled content-fetch result,
@@ -94,13 +119,14 @@ export interface UseOnboardingWizardResult {
 	 * transfer's lifecycle is observable via downloadingModel /
 	 * downloadProgress). */
 	handleDownload: (model: string) => void;
-	// Model step: cloud provider configuration (API key + consent).
+	// Model step: cloud provider configuration (API key). The consent for
+	// the provider is NOT a checkbox on the step: it is requested at the
+	// point of use through the shared gate when the user leaves the step
+	// (see `guardCloudConsent`), exactly like the Models page's activation.
 	cloudProvider: string;
 	setCloudProvider: (v: string) => void;
 	cloudApiKey: string;
 	setCloudApiKey: (v: string) => void;
-	cloudConsent: boolean;
-	setCloudConsent: (v: boolean) => void;
 }
 
 export function useOnboardingWizard(
@@ -137,11 +163,12 @@ export function useOnboardingWizard(
 	const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
 	const [downloadProgress, setDownloadProgress] = useState(0);
 	const [downloadFailed, setDownloadFailed] = useState(false);
-	// Cloud panel: provider API key + consent (persisted via the
-	// allowlisted set_config fields, mirroring the Models page).
+	// Cloud panel: the provider + its API key. Consent is not stored here,
+	// it lives in `consents` under the provider's own field (see
+	// `guardCloudConsent`), so the wizard has exactly ONE source for every
+	// consent flag.
 	const [cloudProvider, setCloudProvider] = useState("openai");
 	const [cloudApiKey, setCloudApiKey] = useState("");
-	const [cloudConsent, setCloudConsent] = useState(false);
 
 	// Consent step: the six consent flags shown on the consolidated
 	// Consent step (see module-level CONSENT_FIELDS). Keyed by config
@@ -265,7 +292,6 @@ export function useOnboardingWizard(
 					if (cfgHotkey) setSelectedHotkey(cfgHotkey);
 					const cfgModel = cfg.model_size ?? MODEL_DEFAULT;
 					if (cfgModel) setSelectedModel(cfgModel);
-					setCloudConsent(cfg.cloud_openai_consent === true);
 					// Pre-fill the consolidated consent step from the
 					// saved config (re-run / already-granted users).
 					const savedConsents: Record<string, boolean> = {};
@@ -417,17 +443,36 @@ export function useOnboardingWizard(
 			await call("onboarding_set_model", { model: selectedModel });
 			// Persist the local-vs-cloud choice (Model step).
 			await call("onboarding_set_backend", { backend: selectedBackend });
+			// ACTIVATE the choice through the allowlisted set_config
+			// fields, writing the SAME pair/triple the Models page writes
+			// on selection. `onboarding_set_model` / `onboarding_set_backend`
+			// only feed the wizard's own controller: `apply_settings` saves
+			// hotkey + microphone + `model_size` and nothing else, so
+			// without this the wizard's Model step was decorative — a cloud
+			// choice left `asr_backend` at its "whisper" default (dictation
+			// still ran locally, with no API key), and a parakeet/qwen
+			// choice left `asr_backend` pointing at Whisper.
 			if (selectedBackend === "cloud") {
-				// Persist the cloud provider API key + consent through
-				// the allowlisted set_config fields, mirroring the
-				// Models page cloud tab.
-				const updates: Record<string, unknown> = {
-					[cloudConsentField(cloudProvider)]: cloudConsent,
+				const updates: Partial<LausuConfig> = {
+					asr_backend: "cloud",
+					cloud_provider: cloudProvider,
+					// The provider's catalogue default, so the wizard leaves
+					// the config in the state the Cloud tab already marks as
+					// active (`isCloudModelActive` treats an empty
+					// `cloud_model` as the default). Kept in step with the
+					// backend's `_PROVIDER_DEFAULTS` by
+					// `tests/test_cloud_provider_catalogue_parity.py`.
+					cloud_model: cloudDefaultModel(cloudProvider),
 				};
 				if (cloudApiKey.trim()) {
 					updates[cloudApiKeyField(cloudProvider)] = cloudApiKey.trim();
 				}
 				await call("set_config", updates);
+			} else {
+				await call("set_config", {
+					asr_backend: backendForModelName(modelOptions, selectedModel),
+					model_size: selectedModel,
+				});
 			}
 		}
 	}, [
@@ -436,13 +481,47 @@ export function useOnboardingWizard(
 		selectedHotkey,
 		selectedModel,
 		selectedBackend,
+		modelOptions,
 		cloudProvider,
 		cloudApiKey,
-		cloudConsent,
 		consents,
 	]);
 
-	const handleNext = useCallback(async () => {
+	// ── Leaving the Model step: the cloud consent gate ───────────────
+	// Choosing a cloud provider activates it (see the Model branch above),
+	// so the provider's consent is requested AT THE POINT OF USE through
+	// the shared gate — the same dialog the Models page opens on
+	// activation — rather than through a checkbox on the step that a user
+	// could tick without ever seeing what it authorises.
+	//
+	// The gate's Allow persists the consent itself and then re-enters the
+	// RAW action, so the retry can never re-gate: the callback's `consents`
+	// snapshot is still stale at that point. Same split as `handleDownload`
+	// / `startDownload`.
+	const guardCloudConsent = useCallback(
+		(run: () => void): boolean => {
+			if (step?.step_name !== "Model" || selectedBackend !== "cloud") {
+				return false;
+			}
+			const field = cloudConsentField(cloudProvider);
+			if (consents[field] === true) return false;
+			openConsentGate({
+				consentField: field,
+				bodyKey: consentBodyKey(field),
+				onAllow: () => {
+					// Mirror the gate's persisted grant so the Consent step
+					// and this step agree for the rest of the session
+					// (idempotent with the dialog's own set_config).
+					setConsents((prev) => ({ ...prev, [field]: true }));
+					run();
+				},
+			});
+			return true;
+		},
+		[step?.step_name, selectedBackend, cloudProvider, consents],
+	);
+
+	const advanceStep = useCallback(async () => {
 		setSubmitting(true);
 		try {
 			await persistStepSelections();
@@ -459,7 +538,7 @@ export function useOnboardingWizard(
 		}
 	}, [call, persistStepSelections, showSnack]);
 
-	const handleApply = useCallback(async () => {
+	const applyOnboarding = useCallback(async () => {
 		setApplyError(false);
 		setSubmitting(true);
 		try {
@@ -494,6 +573,16 @@ export function useOnboardingWizard(
 			setSubmitting(false);
 		}
 	}, [call, onComplete, persistStepSelections, showSnack]);
+
+	const handleNext = useCallback(async () => {
+		if (guardCloudConsent(() => void advanceStep())) return;
+		await advanceStep();
+	}, [guardCloudConsent, advanceStep]);
+
+	const handleApply = useCallback(async () => {
+		if (guardCloudConsent(() => void applyOnboarding())) return;
+		await applyOnboarding();
+	}, [guardCloudConsent, applyOnboarding]);
 
 	const handlePrev = useCallback(async () => {
 		setSubmitting(true);
@@ -538,8 +627,6 @@ export function useOnboardingWizard(
 		setCloudProvider,
 		cloudApiKey,
 		setCloudApiKey,
-		cloudConsent,
-		setCloudConsent,
 	};
 }
 
@@ -560,6 +647,7 @@ interface RawCatalogEntry {
 	download_size_mb?: unknown;
 	required_vram_mb?: unknown;
 	supported_languages?: unknown;
+	backend?: unknown;
 }
 
 function formatCatalogSize(downloadSizeMb: unknown): string {
@@ -604,6 +692,9 @@ function normalizeCatalogEntry(raw: RawCatalogEntry): ModelOption | null {
 		size,
 		speed,
 		description: typeof raw.description === "string" ? raw.description : "",
+		...(typeof raw.backend === "string" && raw.backend.length > 0
+			? { backend: raw.backend }
+			: {}),
 		...(vramGb !== undefined ? { vram_gb: vramGb } : {}),
 		...(languages !== undefined ? { languages } : {}),
 	};

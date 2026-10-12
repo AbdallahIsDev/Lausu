@@ -748,7 +748,7 @@ describe("Models page, cloud consent toggles", () => {
 	 *  behind the group's "Configure" action. Expand the group and
 	 *  click Configure to surface the form. `providerLabel` is the
 	 *  localized provider name (en.json models.providers.{key}.label,
-	 *  e.g. "OpenAI Whisper API"). */
+	 *  e.g. "OpenAI"). */
 	function openApiKeyForm(providerLabel: string): void {
 		fireEvent.click(screen.getByRole("button", { name: providerLabel }));
 		fireEvent.click(
@@ -767,143 +767,130 @@ describe("Models page, cloud consent toggles", () => {
 		});
 	}
 
-	it("renders at least one Switch for cloud consent when a provider has an API key", async () => {
-		// Python invariant (test_models_imports_switch):
-		//   "import { Switch }" in pages/Models.tsx source.
-		// Behavioral: when a cloud provider has an API key set,
-		// the per-provider consent row renders a Switch.  The
-		// aria-label is interpolated with the provider's
-		// localized label (en.json: models.providers.openai.label
-		// = "OpenAI Whisper API").
+	it("renders NO consent control inside the provider setup form", async () => {
+		// The bug report: "there is audio transmission present … appears
+		// from nowhere immediately after the person starts typing on the
+		// API key input field, which is completely wrong." The consent
+		// card is gone from the form entirely; it is now the shared
+		// point-of-use dialog, raised by Save Key / Test Connection.
 		await renderModels({ openai_api_key: "sk-test-key" });
 
-		// (overhaul point 11) the form is hidden behind the group's
-		// Configure action, reveal it first.
-		openApiKeyForm("OpenAI Whisper API");
+		openApiKeyForm("OpenAI");
 
-		// The OpenAI provider consent Switch carries aria-label
-		// "Grant audio transmission consent for OpenAI Whisper API".
+		// The form is open …
 		await waitFor(() => {
-			expect(
-				screen.getByRole("switch", {
-					name: /grant audio transmission consent for openai whisper api/i,
-				}),
-			).toBeTruthy();
+			expect(screen.getByRole("dialog")).toBeTruthy();
 		});
+		// … and carries no consent surface at all.
+		expect(screen.queryByRole("switch")).toBeNull();
+		expect(screen.queryByText(/audio transmission consent/i)).toBeNull();
+		expect(document.body.textContent ?? "").not.toMatch(
+			/audio recordings will be sent/i,
+		);
 	});
 
-	it("toggling the OpenAI Switch persists cloud_openai_consent", async () => {
+	it("saving a key raises the shared consent dialog for that provider's own consent field", async () => {
 		// Python invariant (test_models_has_set_cloud_consent_handler):
-		//   "setCloudConsent" in src
 		//   "cloud_openai_consent" in src
 		//   "cloud_groq_consent" in src
 		//   "cloud_deepgram_consent" in src
-		// Behavioral: clicking the OpenAI provider's Switch
-		// fires set_config with cloud_openai_consent=true.
+		// Behavioral: the key is persisted FIRST (set_config carries the
+		// key), and the audio-transmission consent is then requested
+		// through the shared gate — not through a checkbox in the form.
 		await renderModels({
-			openai_api_key: "sk-test-key",
+			openai_api_key: "",
 			cloud_openai_consent: false,
 		});
 
-		openApiKeyForm("OpenAI Whisper API");
-
-		const switchBtn = await waitFor(() =>
-			screen.getByRole("switch", {
-				name: /grant audio transmission consent for openai whisper api/i,
-			}),
+		openApiKeyForm("OpenAI");
+		fireEvent.change(screen.getByLabelText("API Key"), {
+			target: { value: `sk-${"A".repeat(24)}` },
+		});
+		fireEvent.click(
+			screen.getByRole("button", { name: /save openai api key/i }),
 		);
-		fireEvent.click(switchBtn);
 
 		await waitFor(() => {
-			expect(setConfigCallCount()).toBeGreaterThanOrEqual(1);
+			expect(lastSetConfigPayload()).toMatchObject({
+				openai_api_key: `sk-${"A".repeat(24)}`,
+			});
 		});
-		const payload = lastSetConfigPayload();
-		expect(payload).not.toBeNull();
-		expect(payload).toHaveProperty("cloud_openai_consent", true);
+
+		const req = useConsentGateStore.getState().request;
+		expect(req).not.toBeNull();
+		expect(req?.consentField).toBe("cloud_openai_consent");
+		expect(req?.bodyKey).toBe("consentDialog.field.cloud_openai_consent");
 	});
 
-	it("toggling Groq and Deepgram Switches persists the correct per-provider consent key", async () => {
+	it("maps each provider to its own consent field", async () => {
 		// Python invariant (test_models_has_consent_key_helper):
 		//   "consentKeyFor" in src
-		// Behavioral: the consentKeyFor helper maps each provider
-		// to its own consent flag, toggling the Groq Switch
-		// persists cloud_groq_consent, and toggling the Deepgram
-		// Switch persists cloud_deepgram_consent.  Provider
-		// labels come from en.json (models.providers.{key}.label):
-		//   groq     → "Groq Whisper API"
-		//   deepgram → "Deepgram API"
-		await renderModels({
-			groq_api_key: "gsk-test",
-			deepgram_api_key: "dg-test",
-			gemini_api_key: "",
-			cloud_groq_consent: false,
-			cloud_deepgram_consent: false,
-			cloud_gemini_consent: false,
-		});
+		// Behavioral: the same gate request is raised with the matching
+		// per-provider field, so granting one provider's consent never
+		// implies another's.
+		const cases = [
+			[
+				"Groq",
+				"gsk_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				"cloud_groq_consent",
+				"groq_api_key",
+			],
+			[
+				"Deepgram",
+				"a".repeat(40),
+				"cloud_deepgram_consent",
+				"deepgram_api_key",
+			],
+			[
+				"Google",
+				`AIza${"A".repeat(35)}`,
+				"cloud_gemini_consent",
+				"gemini_api_key",
+			],
+		] as const;
 
-		// (overhaul point 11) reveal each provider's form. Since
-		// 2026-10-11 that form is a MODAL setup dialog, so providers are
-		// configured ONE AT A TIME: while it is open the overlay hides the
-		// rest of the page (including the other Configure buttons) from
-		// the accessibility tree. Close each dialog before opening the
-		// next.
-		openApiKeyForm("Groq Whisper API");
-
-		// Groq
-		const groqSwitch = await waitFor(() =>
-			screen.getByRole("switch", {
-				name: /grant audio transmission consent for groq whisper api/i,
-			}),
-		);
-		fireEvent.click(groqSwitch);
-		await waitFor(() => {
-			expect(lastSetConfigPayload()).toMatchObject({
-				cloud_groq_consent: true,
+		for (const [label, key, field, configField] of cases) {
+			useConsentGateStore.setState({ request: null });
+			await renderModels({ [configField]: "" } as Partial<LausuConfig>);
+			openApiKeyForm(label);
+			fireEvent.change(screen.getByLabelText("API Key"), {
+				target: { value: key },
 			});
-		});
-		await closeApiKeyForm();
-
-		// Deepgram
-		openApiKeyForm("Deepgram API");
-		const deepgramSwitch = await waitFor(() =>
-			screen.getByRole("switch", {
-				name: /grant audio transmission consent for deepgram api/i,
-			}),
-		);
-		fireEvent.click(deepgramSwitch);
-		await waitFor(() => {
-			expect(lastSetConfigPayload()).toMatchObject({
-				cloud_deepgram_consent: true,
+			fireEvent.click(
+				screen.getByRole("button", {
+					name: new RegExp(`save ${label} api key`, "i"),
+				}),
+			);
+			await waitFor(() => {
+				expect(useConsentGateStore.getState().request).not.toBeNull();
 			});
-		});
+			expect(useConsentGateStore.getState().request?.consentField).toBe(field);
+			await closeApiKeyForm();
+			cleanup();
+		}
 	});
 
-	it("renders the consent disclosure title + description text for a provider with a key", async () => {
-		// Python invariant (test_models_has_consent_disclosure_text):
-		//   't("models.cloud.consentTitle")' in src
-		//   '"models.cloud.consentDescription"' in src
-		// Behavioral: the localized "Audio transmission consent"
-		// title (en.json: models.cloud.consentTitle) and the
-		// provider-specific description text (en.json:
-		// models.cloud.consentDescription) are rendered into the
-		// DOM when the consent row is shown.
-		await renderModels({ openai_api_key: "sk-test-key" });
-
-		openApiKeyForm("OpenAI Whisper API");
-
-		await waitFor(() => {
-			expect(
-				screen.getAllByText(/audio transmission consent/i).length,
-			).toBeGreaterThan(0);
+	it("does NOT raise the consent dialog when the consent was already granted", async () => {
+		// State-driven: once granted, the gate must never nag again.
+		await renderModels({
+			openai_api_key: "",
+			cloud_openai_consent: true,
 		});
 
-		// en.json: models.cloud.consentDescription contains
-		// "audio recordings will be sent to {provider}", the
-		// {provider} placeholder is interpolated with the
-		// localized provider label ("OpenAI Whisper API").
-		expect(document.body.textContent ?? "").toMatch(
-			/audio recordings will be sent to openai whisper api/i,
+		openApiKeyForm("OpenAI");
+		fireEvent.change(screen.getByLabelText("API Key"), {
+			target: { value: `sk-${"A".repeat(24)}` },
+		});
+		fireEvent.click(
+			screen.getByRole("button", { name: /save openai api key/i }),
 		);
+
+		await waitFor(() => {
+			expect(lastSetConfigPayload()).toMatchObject({
+				openai_api_key: `sk-${"A".repeat(24)}`,
+			});
+		});
+		expect(useConsentGateStore.getState().request).toBeNull();
 	});
 
 	it("opens the shared consent dialog on download and continues the download after Allow", async () => {
@@ -1008,14 +995,12 @@ describe("Models page, cloud consent toggles", () => {
 		});
 	});
 
-	it("shows the consent section for a provider only when that provider has an API key OR consent already granted", async () => {
+	it("keeps the gate request scoped to one provider at a time (no page-level consent UI)", async () => {
 		// Python invariant (test_models_consent_section_only_shown_when_key_present):
 		//   "apiKeys[provider.key]" in src
-		//   "consentKeyFor(provider.key)" in src
-		// Behavioral: when OpenAI has an API key but Groq and
-		// Deepgram don't (and their consent flags are false),
-		// the OpenAI consent Switch is rendered but the Groq
-		// and Deepgram consent Switches are NOT.
+		// Behavioral: nothing about consent is rendered on the page
+		// itself. It only ever exists as a single gate request, raised
+		// for the provider whose key was just saved.
 		await renderModels({
 			openai_api_key: "sk-test-key",
 			groq_api_key: "",
@@ -1027,31 +1012,19 @@ describe("Models page, cloud consent toggles", () => {
 			cloud_gemini_consent: false,
 		});
 
-		// (overhaul point 11) reveal the OpenAI form (it has a key, so
-		// its consent Switch should render); leave Groq/Deepgram
-		// collapsed.
-		openApiKeyForm("OpenAI Whisper API");
+		expect(screen.queryByRole("switch")).toBeNull();
+		expect(screen.queryByText(/audio transmission consent/i)).toBeNull();
+		expect(useConsentGateStore.getState().request).toBeNull();
 
-		// OpenAI Switch is rendered.
+		// Saving the already-stored key is a no-op ("unchanged"), so it
+		// must not raise the gate either.
+		openApiKeyForm("OpenAI");
+		fireEvent.click(
+			screen.getByRole("button", { name: /save openai api key/i }),
+		);
 		await waitFor(() => {
-			expect(
-				screen.getByRole("switch", {
-					name: /grant audio transmission consent for openai whisper api/i,
-				}),
-			).toBeTruthy();
+			expect(stable.showSnack).toHaveBeenCalled();
 		});
-
-		// Groq and Deepgram Switches are NOT rendered (their groups are
-		// collapsed and their forms never opened).
-		expect(
-			screen.queryByRole("switch", {
-				name: /grant audio transmission consent for groq whisper api/i,
-			}),
-		).toBeNull();
-		expect(
-			screen.queryByRole("switch", {
-				name: /grant audio transmission consent for deepgram api/i,
-			}),
-		).toBeNull();
+		expect(useConsentGateStore.getState().request).toBeNull();
 	});
 });

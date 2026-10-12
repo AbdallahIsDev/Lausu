@@ -110,84 +110,296 @@ export const INITIAL_MODELS: ModelInfo[] = [
 	},
 ];
 
-export interface CloudProvider {
-	key: "openai" | "groq" | "deepgram" | "gemini";
-	url: string;
-	model: string;
+export type CloudProviderKey = "openai" | "groq" | "deepgram" | "gemini";
+
+/**
+ * One model served by a cloud provider.
+ *
+ * A provider owns MANY of these. The old shape welded exactly one model
+ * onto each provider (`CloudProvider.model`), which forced the setup UI to
+ * hang a Configure action off every model row even though all of a
+ * provider's models share one API key. Adding a model is now a one-line
+ * change here, which is the point: these lists grow.
+ */
+export interface CloudModel {
+	/** Provider model id, exactly as the API expects it. */
+	id: string;
 	/**
-	 * Real-world representative WER (%) for the engine behind this
-	 * provider — the same figure the Local tab shows, so a user can
-	 * compare error rates across BOTH tabs (lower is better). Every
-	 * entry carries its own source note, exactly like
-	 * `voice_typer/server/model_registry.py` does for local models.
+	 * How the provider WRITES this model's name, for ids the generic
+	 * dash-splitter mangles (`"gpt-4o-transcribe"` →
+	 * `"Gpt 4o Transcribe"`). Omit when `formatModelDisplayName(id)` is
+	 * already right (`"whisper-large-v3"` → `"Whisper Large V3"`); read
+	 * it through `cloudModelLabel()` rather than off the field.
+	 */
+	displayName?: string;
+	/**
+	 * Real-world representative WER (%) on the SAME pooled scale the
+	 * Local tab uses (lower is better), or `null` when no pooled
+	 * benchmark covers this model. `null` renders as an em dash rather
+	 * than a guessed number — inventing one would silently break the
+	 * cross-tab comparison the column exists for.
 	 *
 	 * The SCALE matters: the local registry's numbers are real-world
 	 * representative averages (Coval's pooled leaderboard puts Whisper
 	 * Large v3 at 5.0%, and the local `large-v3` entry is 5.0), NOT
 	 * LibriSpeech-clean numbers (~2.8% for the same model, which
-	 * understate everyday errors 2-3x). Cloud entries are placed on
-	 * that same scale so Local and Cloud stay comparable.
+	 * understate everyday errors 2-3x).
 	 */
-	wer: number;
+	wer: number | null;
 	/** Transcription speed tier (`"fast"` | `"medium"` | `"slow"`),
 	 *  rendered by `SpeedTag` exactly as the local model rows do. */
 	speed_rating: string;
+}
+
+export interface CloudProvider {
+	key: CloudProviderKey;
+	/** Transcription endpoint. `{model}` is substituted by the backend
+	 *  for providers whose model id is part of the URL (Gemini). */
+	url: string;
+	/** Model id used when the provider is activated without a choice. */
+	defaultModel: string;
+	/** Models this provider serves. Grows over time. */
+	models: readonly CloudModel[];
 }
 
 export const CLOUD_PROVIDERS: readonly CloudProvider[] = [
 	{
 		key: "openai",
 		url: "https://api.openai.com/v1/audio/transcriptions",
-		model: "whisper-1",
-		// WER 5.5, DERIVED. `whisper-1` is the Whisper large-v2
-		// generation; Coval's pooled leaderboard (2026-10-11) scores
-		// Whisper Large v3 at 5.0%, and v2 sits ~0.5 behind v3 on the
-		// same corpora — the same generation gap the local registry
-		// applies to large-v3-turbo (5.5). Coval has no whisper-1 row,
-		// so this is a derivation, not a published figure.
-		wer: 5.5,
-		// Batch-only endpoint: no streaming, and the highest wall-clock
-		// latency of the four (docs/cloud-transcription-setup.md).
-		speed_rating: "medium",
+		defaultModel: "whisper-1",
+		// Source: OpenAI's speech-to-text guide (developers.openai.com,
+		// 2026-10-12). The transcriptions endpoint accepts whisper-1 plus the
+		// two GPT-4o transcribe tiers. whisper-1 stays the default: it is the
+		// only one of the three with a pooled real-world figure, so it is the
+		// only one the WER column can compare against the Local tab.
+		models: [
+			{
+				id: "whisper-1",
+				// WER 5.5, DERIVED. `whisper-1` is the Whisper large-v2
+				// generation; Coval's pooled leaderboard (2026-10-11) scores
+				// Whisper Large v3 at 5.0%, and v2 sits ~0.5 behind v3 on the
+				// same corpora — the same generation gap the local registry
+				// applies to large-v3-turbo (5.5). Coval has no whisper-1 row,
+				// so this is a derivation, not a published figure.
+				wer: 5.5,
+				// Batch-only endpoint: no streaming, and the highest wall-clock
+				// latency of the four (docs/cloud-transcription-setup.md).
+				speed_rating: "medium",
+			},
+			{
+				id: "gpt-4o-transcribe",
+				// OpenAI writes it "GPT-4o" (caps + no dash before the 4o);
+				// the generic splitter would render "Gpt 4o Transcribe".
+				displayName: "GPT-4o Transcribe",
+				// No pooled real-world figure covers the GPT-4o transcribe
+				// tiers, so the cell shows an em dash rather than a guess.
+				wer: null,
+				speed_rating: "fast",
+			},
+			{
+				id: "gpt-4o-mini-transcribe",
+				displayName: "GPT-4o mini Transcribe",
+				wer: null,
+				speed_rating: "fast",
+			},
+		],
 	},
 	{
 		key: "groq",
 		url: "https://api.groq.com/openai/v1/audio/transcriptions",
-		model: "whisper-large-v3",
-		// WER 5.0: Coval pooled "Whisper Large v3" (2026-10-11). Groq
-		// serves the SAME weights as the local `large-v3` entry, so the
-		// two figures agree by construction rather than by coincidence.
-		wer: 5.0,
-		// Groq's LPU is the lowest-latency cloud ASR path (<300 ms for a
-		// short clip).
-		speed_rating: "fast",
+		defaultModel: "whisper-large-v3",
+		// Source: Groq's Speech to Text docs (console.groq.com, 2026-10-12) —
+		// exactly two models, whisper-large-v3 and whisper-large-v3-turbo.
+		models: [
+			{
+				id: "whisper-large-v3",
+				// WER 5.0: Coval pooled "Whisper Large v3" (2026-10-11). Groq
+				// serves the SAME weights as the local `large-v3` entry, so the
+				// two figures agree by construction rather than by coincidence.
+				wer: 5.0,
+				// Groq's LPU is the lowest-latency cloud ASR path (<300 ms for
+				// a short clip).
+				speed_rating: "fast",
+			},
+			{
+				id: "whisper-large-v3-turbo",
+				// WER 5.5, DERIVED — the same generation gap the local registry
+				// applies to `large-v3-turbo`. Groq publishes 12% for this
+				// model, but on a different (harder) corpus than Coval's pool,
+				// so it is deliberately NOT used here: the column has to stay
+				// comparable with the Local tab.
+				wer: 5.5,
+				// Groq documents turbo at 216x real-time vs 189x for the full
+				// model, and at $0.04/hr vs $0.111/hr.
+				speed_rating: "fast",
+			},
+		],
 	},
 	{
 		key: "deepgram",
 		url: "https://api.deepgram.com/v1/listen",
-		model: "nova-2",
-		// WER 6.4: Coval pooled "Nova 2" (2026-10-11).
-		wer: 6.4,
-		// Streaming engine, 130 ms p95 time-to-final-segment on the same
-		// leaderboard.
-		speed_rating: "fast",
+		defaultModel: "nova-3",
+		// Source: Deepgram's Models & Languages overview
+		// (developers.deepgram.com, 2026-10-12). The current general-purpose
+		// line is nova-3 (highest performing, widest language coverage) with
+		// nova-2 kept for the languages nova-3 does not cover yet. Flux is
+		// excluded on purpose: it is a streaming voice-agent model with
+		// model-native turn detection, not a batch dictation engine.
+		models: [
+			{
+				id: "nova-3",
+				// No pooled real-world figure covers Nova 3 yet.
+				wer: null,
+				// Deepgram documents nova-3 as 47.4% better WER than its
+				// predecessor on batch, and 54.2% on streaming.
+				speed_rating: "fast",
+			},
+			{
+				id: "nova-2",
+				// WER 6.4: Coval pooled "Nova 2" (2026-10-11).
+				wer: 6.4,
+				// Streaming engine, 130 ms p95 time-to-final-segment on the
+				// same leaderboard.
+				speed_rating: "fast",
+			},
+		],
 	},
 	{
 		key: "gemini",
-		url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-		model: "gemini-2.0-flash",
-		// WER 9.5, DERIVED. Gemini 2.0 Flash is a general-purpose
-		// multimodal model used as an ASR fallback, not a dedicated
-		// transcription engine, and no pooled real-world benchmark
-		// covers it. Coval has no Flash-tier row either; the Gemini
-		// family's Pro tier measures 8.7% on noisy real-world audio
-		// (CodeSOTA, Feb-Mar 2026), and the smaller Flash tier trails
-		// it. Treated as a representative figure, not a published one.
-		wer: 9.5,
-		speed_rating: "fast",
+		url: "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+		defaultModel: "gemini-3.8-flash",
+		// Source: Google's Gemini API model list (ai.google.dev, 2026-10-12).
+		// `gemini-2.0-flash` — the previous default here — is listed as SHUT
+		// DOWN, which is why this list was rebuilt rather than extended.
+		models: [
+			{
+				id: "gemini-3.8-flash",
+				// Gemini is a general-purpose multimodal model used as an ASR
+				// fallback, not a dedicated transcription engine, and no pooled
+				// real-world benchmark covers it.
+				wer: null,
+				speed_rating: "fast",
+			},
+			{
+				id: "gemini-2.5-flash",
+				// Still served, but Google restricts the 2.5 family to accounts
+				// that already used it — hence the 3.8 default above.
+				wer: null,
+				speed_rating: "fast",
+			},
+		],
 	},
 ] as const;
 
+/**
+ * Identifies ONE cloud model: the provider that serves it plus the
+ * model id. Used as the in-flight marker while an activation is being
+ * persisted, so only the clicked row shows its spinner.
+ */
+export interface CloudModelRef {
+	provider: CloudProviderKey;
+	model: string;
+}
+
+/**
+ * True when a speech model is genuinely usable — a LOCAL one, or a cloud
+ * provider selected as the backend.
+ *
+ * This exists because the "no model selected" question used to be asked
+ * as `cfg.model_size === ""`, which is a LOCAL-only question: a cloud
+ * activation writes `asr_backend` / `cloud_provider` / `cloud_model` and
+ * leaves `model_size` untouched, so a user whose only model is a cloud
+ * one was told "No speech model is selected" (in red, on Home) while
+ * dictation worked.
+ *
+ * `asr_backend === "cloud"` alone is not enough: with no provider the
+ * backend reports itself not-loaded and the registry degrades to whisper,
+ * so the app really does have nothing usable. `false` for a null config
+ * means "still loading", never "nothing selected".
+ */
+export function hasActiveSpeechModel(cfg: LausuConfig | null): boolean {
+	if (!cfg) return false;
+	if (cfg.asr_backend === "cloud") return (cfg.cloud_provider ?? "") !== "";
+	return (cfg.model_size ?? "") !== "";
+}
+
+/**
+ * The negation of `hasActiveSpeechModel`, spelled out for the call sites
+ * that read better that way (the Home status line, the Models banner).
+ * A null config is NOT "no model selected" — it is "not loaded yet".
+ */
+export function isNoModelSelected(cfg: LausuConfig | null): boolean {
+	return cfg ? !hasActiveSpeechModel(cfg) : false;
+}
+
+/**
+ * The name to render for a cloud model: the catalogue's explicit
+ * `displayName` when it has one, otherwise the shared dash-splitter the
+ * Local rows use. Takes the (provider, model id) PAIR rather than the
+ * entry so the activation toast — which only ever has the two ids in
+ * hand — and the row heading resolve through the same lookup and can
+ * never disagree.
+ */
+export function cloudModelLabel(providerKey: string, modelId: string): string {
+	const model = CLOUD_PROVIDERS.find(
+		(provider) => provider.key === providerKey,
+	)?.models.find((entry) => entry.id === modelId);
+	return model?.displayName ?? formatModelDisplayName(modelId);
+}
+
+/**
+ * WER cell for a cloud model row. `null` (no pooled benchmark covers this
+ * model) renders as an em dash — deliberately NOT a made-up number, because
+ * the column exists so a user can compare error rates across the Local and
+ * Cloud tabs.
+ */
+export function formatCloudWer(wer: number | null): string {
+	return wer === null ? "—" : formatWer(wer);
+}
+
+/**
+ * True when `modelId` is the cloud model currently in use: the active
+ * backend is cloud, `providerKey` is the configured provider, and the model
+ * matches (or none has been chosen yet, in which case the provider's
+ * default is the one actually being served).
+ */
+export function isCloudModelActive(
+	provider: CloudProvider,
+	modelId: string,
+	cfg: LausuConfig | null,
+): boolean {
+	if (cfg?.asr_backend !== "cloud") return false;
+	if ((cfg.cloud_provider ?? "") !== provider.key) return false;
+	const selected = cfg.cloud_model?.trim()
+		? cfg.cloud_model
+		: provider.defaultModel;
+	return selected === modelId;
+}
+
+/**
+ * The model a provider serves when the user picks the PROVIDER without
+ * picking a model — the exact counterpart of the backend's
+ * `_PROVIDER_DEFAULTS[provider]["model"]` (`server/cloud/_defaults.py`).
+ * The two tables are pinned against each other by
+ * `tests/test_cloud_provider_catalogue_parity.py`, so a provider whose
+ * entry is missing here is a bug in this file, not a legitimate state;
+ * the empty string keeps the caller from writing a bogus model id.
+ */
+export function cloudDefaultModel(providerKey: string): string {
+	return (
+		CLOUD_PROVIDERS.find((provider) => provider.key === providerKey)
+			?.defaultModel ?? ""
+	);
+}
+
+/**
+ * The provider's BRAND name ("OpenAI", "Groq", "Deepgram", "Google") —
+ * the whole of the provider's identity, and nothing about which model
+ * it serves. The cloud rows used to render "OpenAI Whisper API", which
+ * welded three different facts (provider + model + the word "API") into
+ * one label; the model name belongs in the row's own heading, one level
+ * down inside the provider's group.
+ */
 export function getProviderLabel(providerKey: string): string {
 	switch (providerKey) {
 		case "openai":
@@ -200,6 +412,81 @@ export function getProviderLabel(providerKey: string): string {
 			return t("models.providers.gemini.label");
 		default:
 			return providerKey;
+	}
+}
+
+// ── API-key format validation ─────────────────────────────────────────
+// Each provider mints keys in a fixed shape, and each shape is published
+// as a machine-readable detector rule — that is the only authoritative
+// statement of "what a key for this provider looks like". Sources:
+//   • OpenAI   — "sk-" (legacy, 48 chars) or "sk-proj-" (project-scoped,
+//                longer). RegexVault's audited pattern is
+//                `^sk-[A-Za-z0-9_-]{20,128}$`; the `sk-proj-` body is
+//                covered because "-" is inside the class.
+//   • Groq     — "gsk_" + exactly 52 alphanumerics (secretlint's
+//                `secretlint-rule-groq`, mirrored by trufflehog's
+//                `pkg/detectors/groq` and GitHub secret scanning).
+//   • Deepgram — 40 lowercase alphanumerics, no prefix (trufflehog
+//                `pkg/detectors/deepgram`: `\b([0-9a-z]{40})\b`).
+//   • Google   — "AIza" + 35 of [A-Za-z0-9_-], 39 chars total
+//                (Microsoft Purview SIT "Google API key"). The Gemini
+//                API key issued by AI Studio is a Google API key.
+//
+// Why a shape check at all: without it the Save action wrote ANY typed
+// string into the credential store and then reported success, so
+// "GFHFGHHFGH" produced a green "API key saved" toast and a provider
+// that could never authenticate. A shape match is not a validity
+// guarantee — only the provider can say that, which is what Test
+// Connection is for — but it does reject the case where the user typed
+// something that cannot possibly be a key.
+const API_KEY_PATTERNS: Record<string, RegExp> = {
+	openai: /^sk-[A-Za-z0-9_-]{20,}$/,
+	groq: /^gsk_[A-Za-z0-9]{52}$/,
+	deepgram: /^[0-9a-z]{40}$/,
+	gemini: /^AIza[A-Za-z0-9_-]{35}$/,
+};
+
+/**
+ * True when `value` has the published shape of an API key for
+ * `providerKey`. Unknown providers (a self-hosted endpoint configured
+ * outside this UI) accept any non-empty value — there is no published
+ * shape to check against, and refusing would break them.
+ */
+export function isValidApiKeyFormat(
+	providerKey: string,
+	value: string,
+): boolean {
+	const pattern = API_KEY_PATTERNS[providerKey];
+	const trimmed = value.trim();
+	if (!pattern) return trimmed.length > 0;
+	return pattern.test(trimmed);
+}
+
+/**
+ * Map the backend's `test_cloud_connection` failure token to the i18n
+ * key that explains it in words. The backend deliberately returns a
+ * short stable token (`_http_error_message` in
+ * `server/handlers/cloud_test_handlers.py`) so the wording stays a
+ * renderer concern; rendering the token raw is what produced the
+ * meaningless "Connection failed: 400 http_error".
+ *
+ * `no_api_key` maps to the existing "enter a key first" copy: it means
+ * the same thing to the user as the pre-flight guard's message.
+ */
+export function connectionFailureKey(token: string): string {
+	switch (token) {
+		case "auth_failed":
+			return "models.test.failure.auth";
+		case "rate_limited":
+			return "models.test.failure.rateLimited";
+		case "server_error":
+			return "models.test.failure.server";
+		case "network_error":
+			return "models.test.failure.network";
+		case "no_api_key":
+			return "models.test.needApiKey";
+		default:
+			return "models.test.failure.http";
 	}
 }
 

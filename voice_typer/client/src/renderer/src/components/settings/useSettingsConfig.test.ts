@@ -88,6 +88,7 @@ const baseConfig: LausuConfig = {
 	cloud_api_key: "",
 	cloud_api_url: "",
 	cloud_model: "",
+	cloud_provider: "",
 	openai_api_key: "",
 	groq_api_key: "",
 	deepgram_api_key: "",

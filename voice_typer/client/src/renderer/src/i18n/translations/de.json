@@ -1083,7 +1083,7 @@
 			"groqCloudAsrLabel": "Groq Cloud-Spracherkennung",
 			"groqCloudAsrInfoSearch": "Erlaubt das Senden von Audioaufnahmen an die Whisper-API von Groq.",
 			"deepgramCloudAsrLabel": "Deepgram Cloud-Spracherkennung",
-			"deepgramCloudAsrInfoSearch": "Erlaubt das Senden von Audioaufnahmen an die nova-2-API von Deepgram.",
+			"deepgramCloudAsrInfoSearch": "Erlaubt das Senden von Audioaufnahmen an die nova-3-API von Deepgram.",
 			"geminiCloudAsrLabel": "Google Gemini Cloud-Spracherkennung",
 			"geminiCloudAsrInfoSearch": "Erlaubt das Senden von Audioaufnahmen an die Gemini-API von Google.",
 			"llmTextPolishingLabel": "KI-Politur erlauben",
@@ -1113,7 +1113,7 @@
 			"groqCloudAsrInfo": "Erlaubt das Senden von Audioaufnahmen an die Whisper-API von Groq zur Transkription. Wirkt sich nur aus, wenn Groq das aktive Spracherkennungs-Backend ist UND ein API-Schlüssel konfiguriert ist.",
 			"groqCloudAsrAria": "Zustimmung zu Groq Cloud-Spracherkennung",
 			"deepgramCloudAsr": "Deepgram Cloud-Spracherkennung",
-			"deepgramCloudAsrInfo": "Erlaubt das Senden von Audioaufnahmen an die nova-2-API von Deepgram zur Transkription. Wirkt sich nur aus, wenn Deepgram das aktive Spracherkennungs-Backend ist UND ein API-Schlüssel konfiguriert ist.",
+			"deepgramCloudAsrInfo": "Erlaubt das Senden von Audioaufnahmen an die nova-3-API von Deepgram zur Transkription. Wirkt sich nur aus, wenn Deepgram das aktive Spracherkennungs-Backend ist UND ein API-Schlüssel konfiguriert ist.",
 			"deepgramCloudAsrAria": "Zustimmung zu Deepgram Cloud-Spracherkennung",
 			"geminiCloudAsr": "Google Gemini Cloud-Spracherkennung",
 			"geminiCloudAsrInfo": "Erlaubt das Senden von Audioaufnahmen an die Gemini-API von Google zur Transkription. Wirkt sich nur aus, wenn Gemini das aktive Spracherkennungs-Backend ist UND ein API-Schlüssel konfiguriert ist. Internet erforderlich; ~15–20s pro Nachricht.",
@@ -1288,16 +1288,16 @@
 		"selecting": "Wird ausgewählt…",
 		"providers": {
 			"openai": {
-				"label": "OpenAI Whisper API"
+				"label": "OpenAI"
 			},
 			"groq": {
-				"label": "Groq Whisper API"
+				"label": "Groq"
 			},
 			"deepgram": {
-				"label": "Deepgram API"
+				"label": "Deepgram"
 			},
 			"gemini": {
-				"label": "Google Gemini API"
+				"label": "Google"
 			}
 		},
 		"errors": {
@@ -1323,8 +1323,7 @@
 			"apiKeyEmpty": "Zuerst einen API-Schlüssel eingeben",
 			"apiKeyUnchanged": "API-Schlüssel unverändert",
 			"apiKeySaved": "{provider}-API-Schlüssel gespeichert",
-			"consentGranted": "Zustimmung für {provider} erteilt: Audio wird an diesen Anbieter gesendet.",
-			"consentRevoked": "Zustimmung für {provider} widerrufen: Audio wird NICHT gesendet.",
+			"apiKeyInvalid": "Das sieht nicht wie ein gültiger {provider}-API-Schlüssel aus. Prüfe den Schlüssel und versuche es erneut.",
 			"resumeFailed": "Fortsetzen fehlgeschlagen: {error}",
 			"pauseFailed": "Pausieren fehlgeschlagen: {error}",
 			"pauseNoop": "Kein aktiver Download zum Pausieren.",
@@ -1341,7 +1340,13 @@
 		"test": {
 			"needApiKey": "Bitte zuerst einen API-Schlüssel eingeben",
 			"connectionSuccessful": "Verbindung erfolgreich: API-Schlüssel ist gültig.",
-			"connectionFailed": "Verbindung fehlgeschlagen: {status} {statusText}",
+			"failure": {
+				"auth": "{provider} hat den API-Schlüssel abgelehnt. Prüfe, ob du den vollständigen Schlüssel eingefügt hast.",
+				"rateLimited": "{provider} begrenzt derzeit die Anfragen. Warte einen Moment und versuche es erneut.",
+				"server": "{provider} meldet ein Problem auf eigener Seite. Versuche es in ein paar Minuten erneut.",
+				"network": "{provider} ist nicht erreichbar. Prüfe deine Internetverbindung und versuche es erneut.",
+				"http": "{provider} hat die Anfrage abgelehnt (HTTP {status})."
+			},
 			"connectionTestFailed": "Verbindungstest fehlgeschlagen: {error}",
 			"testing": "Wird getestet…"
 		},
@@ -1403,15 +1408,11 @@
 			"testConnection": "Verbindung testen",
 			"consentTitle": "Zustimmung zur Audioübertragung",
 			"consentDescription": "Wenn dieser Anbieter als aktives Spracherkennungs-Backend ausgewählt ist, werden Ihre Audioaufnahmen zur Transkription an {provider} gesendet. Erteilen Sie die Zustimmung, um die Audioübertragung zu aktivieren. {appName} aktiviert die Cloud-Spracherkennung niemals ohne Ihre ausdrückliche Zustimmung, selbst wenn ein API-Schlüssel konfiguriert ist.",
-			"statusLabel": "Status:",
-			"consentGrantedStatus": "Zustimmung erteilt: Audio wird gesendet, wenn dieser Anbieter aktiv ist.",
-			"consentNotGrantedStatus": "Zustimmung nicht erteilt: dieser Anbieter wird die Transkription verweigern.",
 			"consentAria": "Zustimmung zur Audioübertragung für {provider} erteilen",
 			"configure": "Konfigurieren",
 			"configureAria": "{provider} konfigurieren",
 			"apiKeyShowAria": "API-Schlüssel für {provider} anzeigen",
-			"apiKeyHideAria": "API-Schlüssel für {provider} ausblenden",
-			"apiKeyFormatHint": "{provider}-API-Schlüssel sind lange Zeichenfolgen (in der Regel 40–60 Zeichen). Fügen Sie den vollständigen Schlüssel ein: ohne Leerzeichen oder Präfixe."
+			"apiKeyHideAria": "API-Schlüssel für {provider} ausblenden"
 		},
 		"deleteDialog": {
 			"title": "Modell löschen",

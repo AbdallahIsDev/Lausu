@@ -98,7 +98,7 @@ export interface LausuConfig {
 	clipboard_save_restore: boolean;
 	clipboard_restore_delay_ms: number;
 
-	asr_backend: "whisper" | "qwen" | "parakeet";
+	asr_backend: "whisper" | "qwen" | "parakeet" | "cloud";
 	qwen_model_path: string | null;
 	parakeet_model_path: string | null;
 
@@ -122,6 +122,11 @@ export interface LausuConfig {
 	cloud_api_key: string;
 	cloud_api_url: string;
 	cloud_model: string;
+	// Which provider the "cloud" backend talks to. "" = none selected, which
+	// leaves cloud inactive (the backend then reports itself not-loaded and
+	// the registry degrades to whisper). The API key is NOT here: it lives in
+	// the provider's own `<provider>_api_key` field below.
+	cloud_provider: string;
 	openai_api_key: string;
 	groq_api_key: string;
 	deepgram_api_key: string;

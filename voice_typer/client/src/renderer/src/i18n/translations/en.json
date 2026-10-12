@@ -1102,7 +1102,7 @@
 			"groqCloudAsrLabel": "Groq Cloud Speech Recognition",
 			"groqCloudAsrInfoSearch": "Allows sending audio recordings to Groq's Whisper API.",
 			"deepgramCloudAsrLabel": "Deepgram Cloud Speech Recognition",
-			"deepgramCloudAsrInfoSearch": "Allows sending audio recordings to Deepgram's nova-2 API.",
+			"deepgramCloudAsrInfoSearch": "Allows sending audio recordings to Deepgram's nova-3 API.",
 			"geminiCloudAsrLabel": "Google Gemini Cloud Speech Recognition",
 			"geminiCloudAsrInfoSearch": "Allows sending audio recordings to Google's Gemini API.",
 			"llmTextPolishingLabel": "Allow AI polish",
@@ -1132,7 +1132,7 @@
 			"groqCloudAsrInfo": "Allows sending audio recordings to Groq's Whisper API for transcription. Only takes effect when Groq is the active speech recognition backend AND an API key is configured.",
 			"groqCloudAsrAria": "Groq cloud speech recognition consent",
 			"deepgramCloudAsr": "Deepgram cloud speech recognition",
-			"deepgramCloudAsrInfo": "Allows sending audio recordings to Deepgram's nova-2 API for transcription. Only takes effect when Deepgram is the active speech recognition backend AND an API key is configured.",
+			"deepgramCloudAsrInfo": "Allows sending audio recordings to Deepgram's nova-3 API for transcription. Only takes effect when Deepgram is the active speech recognition backend AND an API key is configured.",
 			"deepgramCloudAsrAria": "Deepgram cloud speech recognition consent",
 			"geminiCloudAsr": "Google Gemini cloud speech recognition",
 			"geminiCloudAsrInfo": "Allows sending audio recordings to Google's Gemini API for transcription. Only takes effect when Gemini is the active speech recognition backend AND an API key is configured. Needs internet; ~15–20s per message.",
@@ -1293,16 +1293,16 @@
 		"selecting": "Selecting…",
 		"providers": {
 			"openai": {
-				"label": "OpenAI Whisper API"
+				"label": "OpenAI"
 			},
 			"groq": {
-				"label": "Groq Whisper API"
+				"label": "Groq"
 			},
 			"deepgram": {
-				"label": "Deepgram API"
+				"label": "Deepgram"
 			},
 			"gemini": {
-				"label": "Google Gemini API"
+				"label": "Google"
 			}
 		},
 		"errors": {
@@ -1331,8 +1331,7 @@
 			"downloadAlreadyActiveName": "{name} is already downloading: wait for it to finish or cancel it.",
 			"downloadQueued": "{name} queued. It starts automatically when the current download finishes.",
 			"apiKeySaved": "{provider} API key saved",
-			"consentGranted": "Consent granted for {provider}: audio will be sent to this provider.",
-			"consentRevoked": "Consent revoked for {provider}: audio will NOT be sent.",
+			"apiKeyInvalid": "That doesn't look like a valid {provider} API key. Check the key and try again.",
 			"resumeFailed": "Failed to resume: {error}",
 			"pauseFailed": "Failed to pause: {error}",
 			"pauseNoop": "No active download to pause.",
@@ -1346,7 +1345,13 @@
 		"test": {
 			"needApiKey": "Please enter an API key first",
 			"connectionSuccessful": "Connection successful: API key is valid.",
-			"connectionFailed": "Connection failed: {status} {statusText}",
+			"failure": {
+				"auth": "{provider} rejected the API key. Check that you pasted the whole key.",
+				"rateLimited": "{provider} is limiting how often it will accept requests. Wait a moment and try again.",
+				"server": "{provider} reported a problem on its side. Try again in a few minutes.",
+				"network": "Couldn't reach {provider}. Check your internet connection and try again.",
+				"http": "{provider} rejected the request (HTTP {status})."
+			},
 			"connectionTestFailed": "Connection test failed: {error}",
 			"testing": "Testing…"
 		},
@@ -1408,15 +1413,11 @@
 			"testConnection": "Test Connection",
 			"consentTitle": "Audio transmission consent",
 			"consentDescription": "When this provider is selected as the active speech recognition backend, your audio recordings will be sent to {provider} for transcription. The provider's privacy policy applies to the audio sent. {appName} never enables cloud speech recognition without your explicit consent, even if an API key is configured.",
-			"statusLabel": "Status:",
-			"consentGrantedStatus": "Consent granted: audio will be sent when this provider is active.",
-			"consentNotGrantedStatus": "Consent not granted: this provider will refuse to transcribe.",
 			"consentAria": "Grant audio transmission consent for {provider}",
 			"configure": "Configure",
 			"configureAria": "Configure {provider}",
 			"apiKeyShowAria": "Show {provider} API key",
-			"apiKeyHideAria": "Hide {provider} API key",
-			"apiKeyFormatHint": "{provider} API keys are long strings (typically 40–60 characters). Paste the full key: no spaces or prefixes."
+			"apiKeyHideAria": "Hide {provider} API key"
 		},
 		"deleteDialog": {
 			"title": "Delete Model",

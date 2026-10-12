@@ -391,13 +391,27 @@ const localTauri = existsSync(localTauriWin)
 
 let cliCmd;
 let cliArgs;
-if (localTauri) {
+const localTauriJs = path.join(
+	clientDir,
+	"node_modules",
+	"@tauri-apps",
+	"cli",
+	"tauri.js",
+);
+if (localTauri && process.platform === "win32" && existsSync(localTauriJs)) {
+	// Run the CLI JS directly under node: one fewer `cmd.exe` layer
+	// means one fewer "Terminate batch job (Y/N)?" prompt on Ctrl+C
+	// (npm's own cmd wrapper still prompts once; run
+	// `node scripts/tauri-dev.mjs` directly to skip that too).
+	cliCmd = process.execPath;
+	cliArgs = [localTauriJs, "dev", "--config", devOverride, "--features", "dev"];
+} else if (localTauri) {
 	// Windows .cmd needs cmd.exe; POSIX bin is directly executable.
 	cliCmd = process.platform === "win32" ? "cmd" : localTauri;
 	cliArgs =
 		process.platform === "win32"
-			? ["/c", localTauri, "dev", "--config", devOverride]
-			: ["dev", "--config", devOverride];
+			? ["/c", localTauri, "dev", "--config", devOverride, "--features", "dev"]
+			: ["dev", "--config", devOverride, "--features", "dev"];
 } else {
 	warn(
 		"local @tauri-apps/cli missing; using npx --yes (run `npm install` in voice_typer/client to pin it)",
@@ -405,8 +419,8 @@ if (localTauri) {
 	cliCmd = process.platform === "win32" ? "cmd" : "npx";
 	cliArgs =
 		process.platform === "win32"
-			? ["/c", "npx", "--yes", "@tauri-apps/cli", "dev", "--config", devOverride]
-			: ["--yes", "@tauri-apps/cli", "dev", "--config", devOverride];
+			? ["/c", "npx", "--yes", "@tauri-apps/cli", "dev", "--config", devOverride, "--features", "dev"]
+			: ["--yes", "@tauri-apps/cli", "dev", "--config", devOverride, "--features", "dev"];
 }
 cliChild = spawn(cliCmd, cliArgs, {
 	cwd: repoRoot,

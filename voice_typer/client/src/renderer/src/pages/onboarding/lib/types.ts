@@ -35,6 +35,11 @@ export interface ModelOption {
 	// fields are optional, older backends don't return them.
 	vram_gb?: number;
 	languages?: string[] | null;
+	// The `asr_backend` this entry activates (`ModelMetadata.backend` in
+	// the backend registry, mirrored on the curated `MODEL_OPTIONS`).
+	// Optional so an older backend that omits it still type-checks; the
+	// wizard falls back to "whisper" for those entries.
+	backend?: string;
 }
 
 // `PermissionsResult` (and its `instructions` shape) is consolidated

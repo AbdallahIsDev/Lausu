@@ -78,8 +78,6 @@ export default function OnboardingPage({
 		setCloudProvider,
 		cloudApiKey,
 		setCloudApiKey,
-		cloudConsent,
-		setCloudConsent,
 		// Consent step: consolidated grant of every consent flag.
 		consents,
 		setConsentField,
@@ -237,8 +235,6 @@ export default function OnboardingPage({
 						setCloudProvider={setCloudProvider}
 						cloudApiKey={cloudApiKey}
 						setCloudApiKey={setCloudApiKey}
-						cloudConsent={cloudConsent}
-						setCloudConsent={setCloudConsent}
 					/>
 				)}
 				{step.step_name === FINAL_STEP_NAME && (
