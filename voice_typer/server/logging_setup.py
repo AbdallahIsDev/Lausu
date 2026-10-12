@@ -102,11 +102,9 @@ def _emit_startup_banner() -> None:
     # One-time PII heads-up when debug logging is enabled.
     if debug:
         log.warning(
-            "[STARTUP] Debug logging is enabled (VOICE_TYPER_DEBUG=1), "
-            "DEBUG records may include sensitive context (file paths, "
-            "device names, hostnames) beyond what PII redaction covers. "
-            "Do not share the log file publicly without review; disable "
-            "VOICE_TYPER_DEBUG for everyday use."
+            "[STARTUP] Debug logging on (VOICE_TYPER_DEBUG=1): DEBUG may "
+            "include sensitive data beyond PII redaction. "
+            "Do not share the log file publicly without review."
         )
 
     # Install BEFORE any C extensions load so the handler catches

@@ -37,6 +37,15 @@ class ConstructionMixin:
                         config=self._app.config,
                     ),
                 )
+            elif backend_name == "cloud":
+                # Cloud has no model path to pass: the engine resolves
+                # provider, that provider's key, the endpoint and the model
+                # from the live Config on every load/transcribe
+                # (``cloud_backend.CloudAsrBackend``).
+                self._registry.create(
+                    "cloud",
+                    cloud_kwargs=dict(config=self._app.config),
+                )
             else:
                 self._registry.create(
                     "whisper",
@@ -60,6 +69,8 @@ class ConstructionMixin:
                     hint = " Check that the Qwen model path is set correctly in Settings."
                 elif backend_name == "parakeet":
                     hint = " Check that Parakeet weights are downloaded."
+                elif backend_name == "cloud":
+                    hint = " Check that a cloud provider and its API key are configured in Settings."
                 self._app.tray.notify(
                     APP_NAME,
                     i18n.t(

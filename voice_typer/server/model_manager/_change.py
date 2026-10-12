@@ -11,6 +11,7 @@ from voice_typer.server.asr_errors import ModelIntegrityError, ModelNotDownloade
 from voice_typer.server.asr_registry import AsrBackendRegistry
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.model_manager._backend_names import (
+    ASR_BACKEND_NAMES,
     AsrBackendName,
     _backend_for_model_size,
 )
@@ -23,6 +24,11 @@ if TYPE_CHECKING:
     from voice_typer.server.app import LausuApp
 
 log = logging.getLogger("voice_typer.server.model_manager")
+
+
+def _quoted_backend_names() -> str:
+    """Render the legal backend names for the ``set_active_backend`` error."""
+    return ", ".join(f"'{name}'" for name in ASR_BACKEND_NAMES)
 
 
 class ChangeMixin(ChangeEventsMixin):
@@ -255,9 +261,10 @@ class ChangeMixin(ChangeEventsMixin):
 
         Returns
         """
-        if backend not in ("whisper", "qwen", "parakeet"):
+        if backend not in ASR_BACKEND_NAMES:
             raise ValueError(
-                f"set_active_backend: unknown backend {backend!r}. Expected one of: 'whisper', 'qwen', 'parakeet'."
+                f"set_active_backend: unknown backend {backend!r}. "
+                f"Expected one of: {_quoted_backend_names()}."
             )
         # ``backend`` passed the allowlist above; rebind to the Literal
         backend = cast(AsrBackendName, backend)
@@ -338,9 +345,10 @@ class ChangeMixin(ChangeEventsMixin):
 
     def _set_active_backend_blocking(self, backend: str) -> None:
         """Synchronous backend switch (for test compat and direct callers)."""
-        if backend not in ("whisper", "qwen", "parakeet"):
+        if backend not in ASR_BACKEND_NAMES:
             raise ValueError(
-                f"set_active_backend: unknown backend {backend!r}. Expected one of: 'whisper', 'qwen', 'parakeet'."
+                f"set_active_backend: unknown backend {backend!r}. "
+                f"Expected one of: {_quoted_backend_names()}."
             )
         # ``backend`` passed the allowlist above; rebind to the Literal
         backend = cast(AsrBackendName, backend)

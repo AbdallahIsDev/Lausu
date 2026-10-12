@@ -152,7 +152,13 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     # idle-unload timer for the active ASR backend, in minutes. 0 disables
     # unloading entirely; the shipped default is 30 (schema + test pinned).
     "model_idle_unload_minutes": (int, _make_int_validator(lo=0, hi=1440)),
-    "asr_backend": (str, _make_enum_validator(frozenset({"whisper", "qwen", "parakeet"}))),
+    # "cloud" is a first-class backend name: the registry holds it under that
+    # name (``cloud_backend.CLOUD_BACKEND_NAME``) and ``cloud_provider`` below
+    # picks which provider it talks to.
+    "asr_backend": (
+        str,
+        _make_enum_validator(frozenset({"whisper", "qwen", "parakeet", "cloud"})),
+    ),
     "text_cleanup_enabled": (bool, _bool_validator),
     "auto_punctuation": (bool, _bool_validator),
     "log_transcriptions": (bool, _bool_validator),
@@ -164,6 +170,13 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "cloud_api_key": (str, _VALIDATOR_API_KEY),
     "cloud_api_url": (str, _VALIDATOR_API_URL),
     "cloud_model": (str, _VALIDATOR_CLOUD_MODEL),
+    # Which provider the cloud backend talks to. "" is the canonical
+    # "no provider selected" value (the schema default), which leaves cloud
+    # inactive rather than guessing an endpoint.
+    "cloud_provider": (
+        str,
+        _make_enum_validator(frozenset({"", "openai", "groq", "deepgram", "gemini"})),
+    ),
     "openai_api_key": (str, _VALIDATOR_API_KEY),
     "groq_api_key": (str, _VALIDATOR_API_KEY),
     "deepgram_api_key": (str, _VALIDATOR_API_KEY),

@@ -34,6 +34,7 @@ _TOPIC_COLOR: dict[str, str] = {
     "HOTKEY": "38;5;141",
     "HOTKEY FIRED": "38;5;141",
     "HOTKEY FALLBACK": "38;5;141",
+    "KEYBOARD_OWNERSHIP": "38;5;141",
     "RECORDING": "38;5;79",
     "AUDIO_QUALITY": "38;5;215",
     "DICTATION": "38;5;215",
@@ -48,6 +49,9 @@ _TOPIC_COLOR: dict[str, str] = {
     "CLEANUP": "38;5;102",
     "TEMPLATE": "38;5;102",
     "WIN32": "38;5;102",
+    "WORKER": "38;5;110",
+    "WORKER-DEV": "38;5;110",
+    "WORKER-INIT": "38;5;110",
     "SIGNAL": "38;5;102",
     "HISTORY": "38;5;102",
     "HISTORY_DB": "38;5;102",
@@ -58,6 +62,8 @@ _TOPIC_COLOR: dict[str, str] = {
     "CRASH": "38;5;167",
     "ENV": "38;5;103",
     "LAUNCHER": "38;5;110",
+    "MEDIA": "38;5;110",
+    "MIC": "38;5;215",
     "MIC-WATCHER": "38;5;215",
     "REPASTE": "38;5;120",
     "CONFIG": "38;5;102",
@@ -75,8 +81,12 @@ _TOPIC_COLOR: dict[str, str] = {
     "A11Y": "38;5;102",
     "AI_ENHANCE": "38;5;140",
     "APP": "38;5;102",
+    "AUDIO-CHAIN": "38;5;215",
+    "AUDIO-MIC": "38;5;215",
     "AUDIO-PROC": "38;5;215",
+    "AUMID": "38;5;102",
     "AUTOSTART": "38;5;103",
+    "BUBBLE": "38;5;102",
     "BUNDLE-ID": "38;5;102",
     "CLIPBOARD-AUDIT": "38;5;120",
     "CLIPBOARD-SNAPSHOT": "38;5;120",
@@ -86,12 +96,15 @@ _TOPIC_COLOR: dict[str, str] = {
     "CUDA-DLL": "38;5;75",
     "DISK": "38;5;102",
     "GPU": "38;5;75",
+    "HEARTBEAT": "38;5;110",
     "HIGHPASS": "38;5;69",
     "HOTKEY-WAYLAND": "38;5;141",
     "INIT": "38;5;103",
+    "KILL-TREE": "38;5;103",
     "LEVEL-MON": "38;5;215",
     "LOG-SETUP": "38;5;102",
     "MIC-WATCHER-CA": "38;5;215",
+    "MIGRATE": "38;5;102",
     "NATIVE-BINARY": "38;5;102",
     "NATIVE-HOTKEY": "38;5;141",
     "NOISE-SUPPRESS": "38;5;69",
@@ -99,8 +112,10 @@ _TOPIC_COLOR: dict[str, str] = {
     "PACK": "38;5;102",
     "PAUSE": "38;5;215",
     "PERF": "38;5;111",
+    "PIPELINE-PERF": "38;5;111",
     "PERMISSION": "38;5;111",
     "PLATFORM": "38;5;102",
+    "POWER": "38;5;102",
     "PREWARM": "38;5;103",
     "PROC-CHAIN": "38;5;102",
     "QWEN-ONNX": "38;5;69",
@@ -109,16 +124,22 @@ _TOPIC_COLOR: dict[str, str] = {
     "SECURITY": "38;5;167",
     "SERVICE": "38;5;110",
     "SESSION": "38;5;102",
+    "SETUP": "38;5;103",
+    "SHORTCUTS": "38;5;141",
+    "SIDECAR-DEV": "38;5;110",
     "SIDECAR-ENV": "38;5;110",
     "SIDECAR-WS": "38;5;110",
     "START": "38;5;103",
+    "SUPERVISOR": "38;5;103",
     "TASK": "38;5;102",
     "TEMPLATES": "38;5;102",
+    "THEME-ICON": "38;5;102",
     "THREAD-REGISTRY": "38;5;102",
     "TIMER": "38;5;102",
     "UNDO": "38;5;120",
     "UNINSTALL": "38;5;95",
     "UPDATE": "38;5;110",
+    "URL-Allowlist": "38;5;110",
     "VOCAB": "38;5;102",
     "VOCAB_AUTO": "38;5;102",
     "VOLUME-CRASH": "38;5;167",
@@ -126,6 +147,8 @@ _TOPIC_COLOR: dict[str, str] = {
     "VOLUME-MAC": "38;5;111",
     "VOLUME-WIN": "38;5;111",
     "WS": "38;5;110",
+    "WS-AUTH": "38;5;110",
+    "WS-WRITER": "38;5;110",
     "XRUN": "38;5;215",
 }
 
@@ -278,8 +301,20 @@ class _ColorFormatter(logging.Formatter):
             sym = self._LVL_SYM.get(record.levelno, "????")
             # Full-line colour: emit colour, ts, then reset.
             line = f"\033[{c}m{ts}  {sym:<5} {msg}\033[0m"
+        elif record.levelno == logging.DEBUG:
+            # DEBUG renders label + body in one color; only the
+            # timestamp stays dim, like every other level.
+            tc = _TOPIC_COLOR.get(topic) if topic else None
+            if tc is None and not topic:
+                inferred = _infer_topic(msg)
+                if inferred:
+                    tc = _TOPIC_COLOR.get(inferred)
+            prefix = f"\033[{self._DIM}m{ts}\033[0m"
+            rest = f"DEBUG {msg}"
+            line = f"{prefix}  \033[{tc}m{rest}\033[0m" if tc else f"{prefix}  {rest}"
         else:
-            # INFO, dim timestamp, no level label,
+            # INFO carries no level label: dim timestamp, topic-colored
+            # body (or plain when nothing matches).
             prefix = f"\033[{self._DIM}m{ts}\033[0m"
             tc = _TOPIC_COLOR.get(topic) if topic else None
             if tc is None and not topic:

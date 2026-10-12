@@ -59,6 +59,19 @@ def describe_device(device: object) -> str:
     return str(device or "")
 
 
+# Brand names for the cloud providers. The renderer owns UI copy
+# (C-I18N-1) and spells these in ``models.providers.<key>.label``; the tray
+# composes its own label here for the same reason it does for local model
+# families, and ``gemini`` maps to the brand the user sees ("Google"), not to
+# the provider key.
+_CLOUD_PROVIDER_BRANDS: dict[str, str] = {
+    "openai": "OpenAI",
+    "groq": "Groq",
+    "deepgram": "Deepgram",
+    "gemini": "Google",
+}
+
+
 def tooltip_model_label(config) -> str:
     """User-facing ASR model name for the tray tooltip.
 
@@ -83,6 +96,20 @@ def tooltip_model_label(config) -> str:
         if meta is None:
             return size
         return meta.display_name or f"Whisper {_title_case_slug(size)}"
+    if backend == "cloud":
+        provider = (getattr(config, "cloud_provider", "") or "").strip()
+        if not provider:
+            return ""
+        brand = _CLOUD_PROVIDER_BRANDS.get(provider, _title_case_slug(provider))
+        model = (getattr(config, "cloud_model", "") or "").strip()
+        if not model:
+            # No model picked yet: show the provider's documented default
+            # rather than a bare brand, matching how the whisper branch falls
+            # back to the configured size.
+            from voice_typer.server.cloud._defaults import _PROVIDER_DEFAULTS
+
+            model = str(_PROVIDER_DEFAULTS.get(provider, {}).get("model", ""))
+        return f"{brand} {_title_case_slug(model)}".strip() if model else brand
     return ""
 
 
