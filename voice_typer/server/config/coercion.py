@@ -1,5 +1,6 @@
 """Pure-dict coercion + path-validation helpers extracted from ``config.py``."""
 
+import contextlib
 import logging
 import os
 import time
@@ -296,10 +297,8 @@ def _validate_privacy_consents(data: dict[str, Any]) -> None:
             _age = None
         if _age is not None and _age < _PRIVACY_WARN_TTL_S:
             return
-        try:
+        with contextlib.suppress(OSError):
             _marker.touch(exist_ok=True)
-        except OSError:
-            pass
     except Exception:
         pass
     log.warning(

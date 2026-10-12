@@ -356,7 +356,6 @@ class TestHallucinationLogging:
     def test_privacy_warning_throttled_across_processes(self, tmp_path, caplog):
         """A second process (flag reset, same config dir) must not re-warn."""
         import logging
-
         from unittest.mock import patch
 
         from voice_typer.server.config import Config, coercion as coercion_mod
