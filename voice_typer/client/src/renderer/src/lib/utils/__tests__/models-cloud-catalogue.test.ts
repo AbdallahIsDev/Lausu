@@ -94,6 +94,84 @@ describe("CLOUD_PROVIDERS catalogue invariants", () => {
 	});
 });
 
+describe("OpenAI catalogue — batch endpoint only", () => {
+	it("lists gpt-transcribe under OpenAI's own hyphenated casing", () => {
+		// The generic splitter renders "Gpt Transcribe", which is not how
+		// OpenAI writes it. The label is what the row heading AND the
+		// activation toast both read, so a missing displayName is visible.
+		expect(cloudModelLabel("openai", "gpt-transcribe")).toBe("GPT-Transcribe");
+	});
+
+	it("serves gpt-transcribe alongside the measured default and the GPT-4o tiers", () => {
+		const ids = providerByKey("openai").models.map((model) => model.id);
+		expect(ids).toContain("gpt-transcribe");
+		expect(ids).toContain("whisper-1");
+		expect(ids).toContain("gpt-4o-transcribe");
+		expect(ids).toContain("gpt-4o-mini-transcribe");
+		// The default stays the one model with a pooled WER, so the Cloud
+		// tab's accuracy column remains comparable with the Local tab.
+		expect(providerByKey("openai").defaultModel).toBe("whisper-1");
+	});
+
+	it("excludes the Realtime-API models this provider's endpoint cannot serve", () => {
+		// `gpt-live-transcribe` and `gpt-realtime-whisper` are real OpenAI
+		// transcription models, but they belong to Realtime API sessions
+		// (WebSocket / WebRTC), NOT to `POST /v1/audio/transcriptions` —
+		// the single endpoint the openai provider calls. Listing them would
+		// render a Select button whose activation can never transcribe.
+		//
+		// This is a guard on a DECISION, so it is meant to be brittle: if
+		// OpenAI later serves either id on the batch endpoint, this test
+		// fails and forces the re-check rather than letting the omission
+		// rot silently.
+		const ids = providerByKey("openai").models.map((model) => model.id);
+		expect(ids).not.toContain("gpt-live-transcribe");
+		expect(ids).not.toContain("gpt-realtime-whisper");
+	});
+});
+
+describe("Gemini catalogue — one dedicated ASR model", () => {
+	it("serves gemini-3.5-transcribe alone, as its own default", () => {
+		const provider = providerByKey("gemini");
+		expect(provider.models.map((model) => model.id)).toEqual([
+			"gemini-3.5-transcribe",
+		]);
+		// The default must be one of the provider's own models
+		// (`isCloudModelActive` falls back to it when `cloud_model` is empty,
+		// which is the state onboarding leaves behind).
+		expect(provider.defaultModel).toBe("gemini-3.5-transcribe");
+	});
+
+	it("labels it the way Google writes it, with no displayName override", () => {
+		// `formatModelDisplayName` already splits this id correctly, so an
+		// override would only be a second place to drift.
+		expect(cloudModelLabel("gemini", "gemini-3.5-transcribe")).toBe(
+			"Gemini 3.5 Transcribe",
+		);
+	});
+
+	it("excludes the Live-API sibling the unary endpoint cannot serve", () => {
+		// `gemini-3.5-transcribe-live` is the Live API (WebSocket) variant of
+		// the same model, for continuous microphone audio. This provider posts
+		// one finished file to `{model}:generateContent`, so a row for it would
+		// be a Select button that can never transcribe — the same decision as
+		// the OpenAI realtime ids. Deliberately brittle: if Google ever serves
+		// it on the unary endpoint, this fails and forces the re-check.
+		const ids = providerByKey("gemini").models.map((model) => model.id);
+		expect(ids).not.toContain("gemini-3.5-transcribe-live");
+	});
+
+	it("no longer offers the general-purpose Flash models it replaced", () => {
+		// The Flash entries were borrowed multimodal models, not dedicated ASR
+		// engines; they were removed on the user's instruction, not by
+		// accident, so re-adding one should be a deliberate edit.
+		const ids = providerByKey("gemini").models.map((model) => model.id);
+		expect(ids).not.toContain("gemini-3.8-flash");
+		expect(ids).not.toContain("gemini-2.5-flash");
+		expect(ids).not.toContain("gemini-2.0-flash");
+	});
+});
+
 describe("formatCloudWer, em dash instead of a guessed number", () => {
 	it("renders null as an em dash (no pooled benchmark covers the model)", () => {
 		expect(formatCloudWer(null)).toBe("—");

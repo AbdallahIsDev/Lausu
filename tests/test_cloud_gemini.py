@@ -60,21 +60,21 @@ class TestGeminiUrl:
         assert "{model}" in entry["url"]
         # Kept in step with the renderer catalogue's `defaultModel` by
         # tests/test_cloud_provider_catalogue_parity.py.
-        assert entry["model"] == "gemini-3.8-flash"
+        assert entry["model"] == "gemini-3.5-transcribe"
 
     def test_substitutes_model(self):
         url = gemini_provider.build_gemini_url(
             "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-            "gemini-3.8-flash",
+            "gemini-3.5-transcribe",
         )
         assert url == (
             "https://generativelanguage.googleapis.com/v1beta/models/"
-            "gemini-3.8-flash:generateContent"
+            "gemini-3.5-transcribe:generateContent"
         )
 
     def test_passthrough_without_placeholder(self):
         custom = "https://generativelanguage.googleapis.com/v1beta/models/x:generateContent"
-        assert gemini_provider.build_gemini_url(custom, "gemini-2.0-flash") == custom
+        assert gemini_provider.build_gemini_url(custom, "gemini-3.5-transcribe") == custom
 
     def test_rejects_model_injection(self):
         with pytest.raises(RuntimeError, match="invalid characters"):
@@ -120,7 +120,7 @@ class TestGeminiSendPath:
         ) as mock_open:
             assert engine.transcribe(np.zeros(16000, dtype=np.float32)) == "hi"
         req = mock_open.call_args[0][0]
-        assert "gemini-3.8-flash:generateContent" in req.full_url
+        assert "gemini-3.5-transcribe:generateContent" in req.full_url
         assert "?key=" not in req.full_url and "key=" not in req.full_url
         assert req.get_header("X-goog-api-key") == "test-gemini-key"
         assert mock_open.call_args[1]["timeout"] == 120.0 == engine._GEMINI_REQUEST_TIMEOUT_SECONDS

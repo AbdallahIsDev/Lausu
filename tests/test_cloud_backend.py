@@ -109,7 +109,7 @@ def test_empty_model_falls_back_to_the_provider_default() -> None:
     cfg = make_config(cloud_provider="gemini", gemini_api_key="k")
     resolved = resolve_cloud_target(cfg)
     assert resolved is not None
-    assert resolved[3] == "gemini-3.8-flash"
+    assert resolved[3] == "gemini-3.5-transcribe"
 
 
 @pytest.mark.parametrize("provider", ["", "   ", "not-a-provider", "CLOUD"])

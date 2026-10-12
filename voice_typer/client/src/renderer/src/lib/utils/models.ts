@@ -167,11 +167,16 @@ export const CLOUD_PROVIDERS: readonly CloudProvider[] = [
 		key: "openai",
 		url: "https://api.openai.com/v1/audio/transcriptions",
 		defaultModel: "whisper-1",
-		// Source: OpenAI's speech-to-text guide (developers.openai.com,
-		// 2026-10-12). The transcriptions endpoint accepts whisper-1 plus the
-		// two GPT-4o transcribe tiers. whisper-1 stays the default: it is the
-		// only one of the three with a pooled real-world figure, so it is the
-		// only one the WER column can compare against the Local tab.
+		// Source: OpenAI's transcription guides (developers.openai.com,
+		// 2026-10-12). `gpt-transcribe` and `gpt-live-transcribe` shipped
+		// 2026-07-28; only the first is listed here. This provider posts to
+		// the BATCH transcriptions endpoint, and by OpenAI's own model matrix
+		// `gpt-live-transcribe` and `gpt-realtime-whisper` are Realtime-API
+		// models (WebSocket/WebRTC transcription sessions) that the batch
+		// endpoint does not serve — listing them would offer a row that
+		// cannot transcribe. whisper-1 stays the default: it is the only
+		// model here with a pooled real-world figure, so it is the only one
+		// the WER column can compare against the Local tab.
 		models: [
 			{
 				id: "whisper-1",
@@ -182,8 +187,25 @@ export const CLOUD_PROVIDERS: readonly CloudProvider[] = [
 				// applies to large-v3-turbo (5.5). Coval has no whisper-1 row,
 				// so this is a derivation, not a published figure.
 				wer: 5.5,
-				// Batch-only endpoint: no streaming, and the highest wall-clock
-				// latency of the four (docs/cloud-transcription-setup.md).
+				// Batch-only endpoint: no streaming, and the highest
+				// wall-clock latency of the models this provider serves
+				// (docs/cloud-transcription-setup.md).
+				speed_rating: "medium",
+			},
+			{
+				id: "gpt-transcribe",
+				// OpenAI writes the new generation with a hyphen before
+				// "Transcribe" ("GPT-Transcribe"), unlike the GPT-4o tiers
+				// below; the generic splitter would render "Gpt Transcribe".
+				displayName: "GPT-Transcribe",
+				// No pooled real-world figure covers it yet, so the cell
+				// shows an em dash rather than a guess.
+				wer: null,
+				// OpenAI's own model page publishes Speed "Medium" for this
+				// model (Performance "Highest") — the same tier as whisper-1
+				// and the GPT-4o tiers below. This REPLACES an earlier
+				// inferred "fast": the inference was wrong, and the published
+				// figure supersedes it.
 				speed_rating: "medium",
 			},
 			{
@@ -194,12 +216,18 @@ export const CLOUD_PROVIDERS: readonly CloudProvider[] = [
 				// No pooled real-world figure covers the GPT-4o transcribe
 				// tiers, so the cell shows an em dash rather than a guess.
 				wer: null,
-				speed_rating: "fast",
+				// OpenAI's model page publishes Speed "Medium" (Performance
+				// "Higher"). This said "fast" until 2026-10-12, which
+				// contradicted the vendor's own label; the mini tier below is
+				// genuinely "Fast", so the two tiers really do differ.
+				speed_rating: "medium",
 			},
 			{
 				id: "gpt-4o-mini-transcribe",
 				displayName: "GPT-4o mini Transcribe",
 				wer: null,
+				// OpenAI publishes Speed "Fast" (Performance "High") for this
+				// one — unlike its larger sibling — so this was already right.
 				speed_rating: "fast",
 			},
 		],
@@ -267,24 +295,23 @@ export const CLOUD_PROVIDERS: readonly CloudProvider[] = [
 	{
 		key: "gemini",
 		url: "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-		defaultModel: "gemini-3.8-flash",
-		// Source: Google's Gemini API model list (ai.google.dev, 2026-10-12).
-		// `gemini-2.0-flash` — the previous default here — is listed as SHUT
-		// DOWN, which is why this list was rebuilt rather than extended.
+		defaultModel: "gemini-3.5-transcribe",
+		// Source: Google's Gemini API model page (ai.google.dev, 2026-10-12).
+		// `gemini-3.5-transcribe` is a DEDICATED speech-to-text model, served by
+		// the Unary `generateContent` call this provider already makes — the
+		// previous entries here were general-purpose Flash models borrowed as an
+		// ASR fallback. The realtime sibling, `gemini-3.5-transcribe-live`,
+		// belongs to the Live API (WebSocket) and is deliberately absent for the
+		// same reason the OpenAI realtime ids are: this provider posts a
+		// finished file, not a live stream.
 		models: [
 			{
-				id: "gemini-3.8-flash",
-				// Gemini is a general-purpose multimodal model used as an ASR
-				// fallback, not a dedicated transcription engine, and no pooled
-				// real-world benchmark covers it.
+				id: "gemini-3.5-transcribe",
+				// No pooled real-world figure covers it yet, so the cell shows
+				// an em dash rather than a guess.
 				wer: null,
-				speed_rating: "fast",
-			},
-			{
-				id: "gemini-2.5-flash",
-				// Still served, but Google restricts the 2.5 family to accounts
-				// that already used it — hence the 3.8 default above.
-				wer: null,
+				// Google's model page describes it as "low-latency, accurate
+				// transcription"; no real-time-factor figure is published.
 				speed_rating: "fast",
 			},
 		],

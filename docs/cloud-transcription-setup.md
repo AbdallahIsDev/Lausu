@@ -14,14 +14,21 @@ API key format, network requirements, and per-OS quirks.
 > `add_trusted_endpoint`) or the request is rejected before it leaves
 > the process.
 
+> **Batch only.** Every provider below is reached with a *finished* audio
+> file. Some models only work inside a live streaming session — OpenAI's
+> `gpt-live-transcribe` / `gpt-realtime-whisper`, Gemini's
+> `gemini-3.5-transcribe-live`, Deepgram's Flux — and are therefore not in
+> the catalogue. The evidence and the options for adding them are in
+> [`cloud-asr-batch-vs-realtime.md`](cloud-asr-batch-vs-realtime.md).
+
 ## Supported providers
 
 | Provider | ASR | LLM polish | Default hostname | Notes |
 |----------|-----|------------|------------------|-------|
-| OpenAI | ✅ Whisper (audio/transcriptions) | ✅ GPT-4o-family chat | `api.openai.com` | Default cloud option. Both ASR + LLM use the same API key. |
+| OpenAI | ✅ Whisper-1, gpt-transcribe, and the GPT-4o transcribe tiers (audio/transcriptions) | ✅ GPT-4o-family chat | `api.openai.com` | Default cloud option. Both ASR + LLM use the same API key. Batch only — `gpt-live-transcribe` and `gpt-realtime-whisper` are Realtime-API models (WebSocket / WebRTC sessions) that `POST /v1/audio/transcriptions` does not serve, so they are deliberately not in the catalogue. |
 | Groq | ✅ Whisper-large / Distil-whisper (audio/transcriptions) | ✅ Llama-family chat | `api.groq.com` | Lowest-latency cloud ASR (typically <300 ms for a short clip). |
 | Deepgram | ✅ Nova-3 + Nova-2, pre-recorded (batch) | ❌ (use OpenAI / Anthropic for LLM polish) | `api.deepgram.com` | Nova-3 is the default; Nova-2 stays selectable for the languages Nova-3 does not cover yet. Batch only — Flux (the streaming voice-agent model) is deliberately not in the catalogue. |
-| Google Gemini | ✅ Gemini Flash (inline audio → `generateContent`) | ✅ Gemini chat | `generativelanguage.googleapis.com` | Same API key for both. Needs internet; ~15–20 s per message, so it is a fallback rather than a first choice for dictation. |
+| Google Gemini | ✅ Gemini 3.5 Transcribe (inline audio → `generateContent`) | ✅ Gemini chat | `generativelanguage.googleapis.com` | Same API key for both. The catalogue serves Google's dedicated `gemini-3.5-transcribe` model; the earlier entries were general-purpose Flash models borrowed as an ASR fallback. The ~15–20 s per message recorded for that Flash path has NOT been re-measured against the transcribe model. |
 | Anthropic (Claude) | ❌ (no ASR endpoint) | ✅ Claude chat | `api.anthropic.com` | LLM polish only. Pair with a cloud speech recognition provider. |
 | Self-hosted (vLLM, llama.cpp server, Whisper HTTP server, etc.) | ✅ (if the server speaks a supported cloud ASR wire format) | ✅ (same) | `localhost`, `127.0.0.1`, `::1` (loopback) or any host added via `add_trusted_endpoint` | HTTPS is NOT enforced on loopback; any non-loopback self-hosted host MUST be added via `add_trusted_endpoint` AND served over HTTPS. See the caveat under "Self-hosted endpoint quickstart". |
 

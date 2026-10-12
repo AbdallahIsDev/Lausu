@@ -208,8 +208,8 @@ describe("CloudProvidersPanel, Configure is a provider-level action", () => {
 		);
 
 		// 4 providers × 1 Configure. The model count is deliberately
-		// irrelevant here: openai alone serves 3 models, so a per-model
-		// button would already push this to 9.
+		// irrelevant here: openai alone serves 4 models, so a per-model
+		// button would already push this to 10.
 		const configureButtons = screen.getAllByRole("button", {
 			name: /^Configure /,
 		});
@@ -313,11 +313,20 @@ describe("CloudProvidersPanel, model rows + activation", () => {
 		// lives in the accessible name + tooltip, never as visible text.
 		// The SPEED chip replaced the old cloud chip: on the Cloud tab
 		// every row is a cloud model, so "Cloud" restated the tab.
-		expect(
-			screen.getByRole("button", {
-				name: `${formatModelSpeed(modelAt(0).speed_rating)} Speed`,
-			}),
-		).toBeInTheDocument();
+		//
+		// Count-based, NOT `getByRole`: several OpenAI rows now share one
+		// speed tier (whisper-1 and gpt-transcribe are both "Medium"), so a
+		// single-element query would throw on a legitimate catalogue.
+		expect(screen.getAllByRole("button", { name: / Speed$/ })).toHaveLength(
+			openaiModels.length,
+		);
+		for (const model of openaiModels) {
+			expect(
+				screen.getAllByRole("button", {
+					name: `${formatModelSpeed(model.speed_rating)} Speed`,
+				}).length,
+			).toBeGreaterThan(0);
+		}
 		expect(screen.queryByRole("button", { name: "Cloud" })).toBeNull();
 		expect(
 			screen.getAllByRole("button", { name: "Multilingual" }),
