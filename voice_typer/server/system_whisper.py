@@ -230,11 +230,16 @@ class WorkerWhisperProxyEngine:
             raise WorkerTranscriptionError(f"worker request failed: {exc}") from exc
         if client.port is None:
             raise WorkerTranscriptionError("worker not connected")
-        language = kwargs.get("language", self._language)
-        sample_rate = kwargs.get("sample_rate", 16000)
-        try:
-            sample_rate = int(sample_rate)
-        except (TypeError, ValueError):
+        language_arg: object = kwargs.get("language", self._language)
+        language: str | None = (
+            language_arg if isinstance(language_arg, (str, type(None))) else self._language
+        )
+        sample_rate_arg: object = kwargs.get("sample_rate", 16000)
+        if isinstance(sample_rate_arg, bool):
+            sample_rate = 16000
+        elif isinstance(sample_rate_arg, int):
+            sample_rate = sample_rate_arg
+        else:
             sample_rate = 16000
         try:
             future = client.request_samples(raw, sample_rate, language, timeout=_WORKER_TRANSCRIBE_TIMEOUT_SECONDS)

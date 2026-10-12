@@ -154,12 +154,13 @@ def route_frame(frame: dict, publish: Any, on_result: Any = None) -> str:
         publish({"type": "transcribe_offline_result", "data": result})
         return "result"
     if ftype == "load_whisper_model_result":
-        data = frame.get("data") if isinstance(frame.get("data"), dict) else {}
-        error = data.get("error")
+        raw: object = frame.get("data")
+        payload: dict[str, Any] = raw if isinstance(raw, dict) else {}
+        error = payload.get("error")
         result = {
-            "loaded": bool(data.get("loaded")),
-            "backend": str(data.get("backend") or "whisper"),
-            "device_info": str(data.get("device_info") or ""),
+            "loaded": bool(payload.get("loaded")),
+            "backend": str(payload.get("backend") or "whisper"),
+            "device_info": str(payload.get("device_info") or ""),
             "error": str(error) if error is not None else None,
         }
         if on_result is not None:

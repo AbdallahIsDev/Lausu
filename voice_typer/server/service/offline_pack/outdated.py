@@ -19,14 +19,6 @@ _outdated: dict[str, dict[str, object]] = {}
 _last_version: str | None = None
 
 
-def _valid_version(value: object) -> bool:
-    return isinstance(value, str) and len(value) > 0
-
-
-def _valid_proto(value: object) -> bool:
-    return type(value) is int and int(value) >= 0
-
-
 def outdated_from_pack_outdated(payload: object) -> dict[str, object] | None:
     """Extract ``{version, min_proto_version}`` from an outdated payload."""
     try:
@@ -34,9 +26,13 @@ def outdated_from_pack_outdated(payload: object) -> dict[str, object] | None:
             return None
         version = payload.get("version")
         proto = payload.get("min_proto_version")
-        if not _valid_version(version) or not _valid_proto(proto):
+        # Inline narrowing (not helper calls) so mypy sees the types:
+        # ``type(proto) is int`` rejects bools, unlike isinstance.
+        if not isinstance(version, str) or not version:
             return None
-        return {"version": str(version), "min_proto_version": int(proto)}
+        if type(proto) is not int or proto < 0:
+            return None
+        return {"version": version, "min_proto_version": proto}
     except Exception:
         return None
 
@@ -44,15 +40,17 @@ def outdated_from_pack_outdated(payload: object) -> dict[str, object] | None:
 def record_outdated(version: object, min_proto_version: object) -> bool:
     """Store one outdated signal; evicts oldest past the cap. Never raises."""
     try:
-        if not _valid_version(version) or not _valid_proto(min_proto_version):
+        if not isinstance(version, str) or not version:
             return False
-        ver = str(version)
+        if type(min_proto_version) is not int or min_proto_version < 0:
+            return False
+        ver = version
         global _last_version
         with _lock:
             if ver not in _outdated and len(_outdated) >= _MAX_OUTDATED_ENTRIES:
                 oldest = next(iter(_outdated))
                 del _outdated[oldest]
-            _outdated[ver] = {"version": ver, "min_proto_version": int(min_proto_version)}
+            _outdated[ver] = {"version": ver, "min_proto_version": min_proto_version}
             _last_version = ver
         return True
     except Exception:
