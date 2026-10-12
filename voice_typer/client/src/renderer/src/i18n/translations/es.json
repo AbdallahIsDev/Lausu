@@ -2088,7 +2088,22 @@
 		"downloadingOfflineEngineAria": "Descargando motor sin conexión, {percent} %. Estado: {status}",
 		"downloadOfflineEngine": "Descargar motor sin conexión",
 		"downloadOfflineEngineBusy": "Descargando…",
-		"downloadOfflineEngineAria": "Descargar el paquete del motor de voz sin conexión"
+		"downloadOfflineEngineAria": "Descargar el paquete del motor de voz sin conexión",
+		"offlinePackTitle": "Paquete de motor sin conexión",
+		"offlinePackDescription": "Paquete de voz descargable para la transcripción sin conexión. El estado se actualiza automáticamente.",
+		"packStatus": "Estado",
+		"packInstalledVersion": "Versión instalada",
+		"packNotInstalled": "No instalado",
+		"packStateChecking": "Comprobando…",
+		"packStateReady": "Listo",
+		"packStateOutdated": "Actualización disponible",
+		"packStateMissing": "No descargado",
+		"packStateFailed": "Descarga fallida",
+		"packStateCorrupt": "Paquete dañado",
+		"packStateWorkerCrashed": "El motor falló",
+		"packStateWorkerUnloaded": "Motor descargado",
+		"packRetryDownload": "Reintentar descarga",
+		"packRepairPack": "Reparar paquete"
 	},
 	"consentDialog": {
 		"title": "Se requiere consentimiento",

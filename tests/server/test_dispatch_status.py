@@ -39,8 +39,22 @@ class TestDispatchGetStatus:
         result = server._dispatch({"id": 9, "type": "get_status"})
         assert result["type"] == "status"
         op = result["data"]["offline_pack"]
-        assert set(op) == {"installed_version", "available", "consent_granted", "download_progress"}
-        assert op == {"installed_version": None, "available": False, "consent_granted": True, "download_progress": None}
+        assert set(op) == {
+            "installed_version",
+            "available",
+            "consent_granted",
+            "download_progress",
+            "state",
+            "outdated_info",
+        }
+        assert op == {
+            "installed_version": None,
+            "available": False,
+            "consent_granted": True,
+            "download_progress": None,
+            "state": "missing",
+            "outdated_info": None,
+        }
 
     def test_offline_pack_present_is_reported_available(self, server, monkeypatch):
         """Pack installed → available True + version surfaced."""

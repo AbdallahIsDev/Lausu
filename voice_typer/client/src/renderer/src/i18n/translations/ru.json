@@ -2088,7 +2088,22 @@
 		"downloadingOfflineEngineAria": "Загрузка офлайн-движка, {percent} %. Статус: {status}",
 		"downloadOfflineEngine": "Скачать офлайн-движок",
 		"downloadOfflineEngineBusy": "Загрузка…",
-		"downloadOfflineEngineAria": "Скачать пакет офлайн-движка речи"
+		"downloadOfflineEngineAria": "Скачать пакет офлайн-движка речи",
+		"offlinePackTitle": "Офлайн-пакет движка",
+		"offlinePackDescription": "Загружаемый речевой пакет для офлайн-транскрибации. Статус обновляется автоматически.",
+		"packStatus": "Статус",
+		"packInstalledVersion": "Установленная версия",
+		"packNotInstalled": "Не установлен",
+		"packStateChecking": "Проверка…",
+		"packStateReady": "Готов",
+		"packStateOutdated": "Доступно обновление",
+		"packStateMissing": "Не загружен",
+		"packStateFailed": "Ошибка загрузки",
+		"packStateCorrupt": "Пакет повреждён",
+		"packStateWorkerCrashed": "Движок аварийно завершён",
+		"packStateWorkerUnloaded": "Движок выгружен",
+		"packRetryDownload": "Повторить загрузку",
+		"packRepairPack": "Восстановить пакет"
 	},
 	"consentDialog": {
 		"title": "Требуется согласие",

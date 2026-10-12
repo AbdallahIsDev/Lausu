@@ -2088,7 +2088,22 @@
 		"downloadingOfflineEngineAria": "Downloading voice pack {percent}%. Status: {status}",
 		"downloadOfflineEngine": "Download offline engine",
 		"downloadOfflineEngineBusy": "Downloading…",
-		"downloadOfflineEngineAria": "Download the offline speech engine pack"
+		"downloadOfflineEngineAria": "Download the offline speech engine pack",
+		"offlinePackTitle": "Offline engine pack",
+		"offlinePackDescription": "Downloadable speech engine used for offline transcription. Status updates automatically.",
+		"packStatus": "Status",
+		"packInstalledVersion": "Installed version",
+		"packNotInstalled": "Not installed",
+		"packStateChecking": "Checking…",
+		"packStateReady": "Ready",
+		"packStateOutdated": "Update available",
+		"packStateMissing": "Not downloaded",
+		"packStateFailed": "Download failed",
+		"packStateCorrupt": "Pack corrupt",
+		"packStateWorkerCrashed": "Engine crashed",
+		"packStateWorkerUnloaded": "Engine unloaded",
+		"packRetryDownload": "Retry download",
+		"packRepairPack": "Repair pack"
 	},
 	"consentDialog": {
 		"title": "Consent required",

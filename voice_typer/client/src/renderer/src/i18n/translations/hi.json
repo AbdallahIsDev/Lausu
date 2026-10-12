@@ -2088,7 +2088,22 @@
 		"downloadingOfflineEngineAria": "ऑफ़लाइन इंजन डाउनलोड हो रहा है, {percent}%. स्थिति: {status}",
 		"downloadOfflineEngine": "ऑफ़लाइन इंजन डाउनलोड करें",
 		"downloadOfflineEngineBusy": "डाउनलोड हो रहा है…",
-		"downloadOfflineEngineAria": "ऑफ़लाइन स्पीच इंजन पैक डाउनलोड करें"
+		"downloadOfflineEngineAria": "ऑफ़लाइन स्पीच इंजन पैक डाउनलोड करें",
+		"offlinePackTitle": "ऑफ़लाइन इंजन पैक",
+		"offlinePackDescription": "ऑफ़लाइन ट्रांसक्रिप्शन के लिए डाउनलोड करने योग्य स्पीच पैक। स्थिति अपने आप अपडेट होती है।",
+		"packStatus": "स्थिति",
+		"packInstalledVersion": "इंस्टॉल किया गया संस्करण",
+		"packNotInstalled": "इंस्टॉल नहीं है",
+		"packStateChecking": "जाँच हो रही है…",
+		"packStateReady": "तैयार",
+		"packStateOutdated": "अपडेट उपलब्ध",
+		"packStateMissing": "डाउनलोड नहीं हुआ",
+		"packStateFailed": "डाउनलोड विफल",
+		"packStateCorrupt": "पैक क्षतिग्रस्त",
+		"packStateWorkerCrashed": "इंजन क्रैश हुआ",
+		"packStateWorkerUnloaded": "इंजन अनलोड हुआ",
+		"packRetryDownload": "पुनः डाउनलोड करें",
+		"packRepairPack": "पैक ठीक करें"
 	},
 	"consentDialog": {
 		"title": "सहमति आवश्यक है",

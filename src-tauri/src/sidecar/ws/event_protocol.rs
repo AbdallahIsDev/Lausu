@@ -96,6 +96,7 @@ pub(super) const ALLOWED_EVENT_TYPES: &[&str] = &[
     "offline_pack_missing",
     "offline_pack_corrupt",
     "offline_pack_ready",
+    "offline_pack_outdated",
     "worker_started",
     "worker_crashed",
     "worker_unloaded",

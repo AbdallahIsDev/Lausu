@@ -24,6 +24,7 @@ const RECOVERY_STATUSES: ReadonlySet<OfflinePackStatus> = new Set([
 	"missing",
 	"failed",
 	"corrupt",
+	"outdated",
 ]);
 
 export interface OfflinePackPreparingBannerProps {

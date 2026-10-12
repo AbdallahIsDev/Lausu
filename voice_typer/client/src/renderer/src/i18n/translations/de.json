@@ -2088,7 +2088,22 @@
 		"downloadingOfflineEngineAria": "Offline-Engine wird heruntergeladen, {percent} %. Status: {status}",
 		"downloadOfflineEngine": "Offline-Engine herunterladen",
 		"downloadOfflineEngineBusy": "Wird geladen…",
-		"downloadOfflineEngineAria": "Offline-Sprachengine-Paket herunterladen"
+		"downloadOfflineEngineAria": "Offline-Sprachengine-Paket herunterladen",
+		"offlinePackTitle": "Offline-Engine-Paket",
+		"offlinePackDescription": "Herunterladbares Sprach-Engine-Paket für die Offline-Transkription. Der Status wird automatisch aktualisiert.",
+		"packStatus": "Status",
+		"packInstalledVersion": "Installierte Version",
+		"packNotInstalled": "Nicht installiert",
+		"packStateChecking": "Wird geprüft…",
+		"packStateReady": "Bereit",
+		"packStateOutdated": "Update verfügbar",
+		"packStateMissing": "Nicht heruntergeladen",
+		"packStateFailed": "Download fehlgeschlagen",
+		"packStateCorrupt": "Paket beschädigt",
+		"packStateWorkerCrashed": "Engine abgestürzt",
+		"packStateWorkerUnloaded": "Engine entladen",
+		"packRetryDownload": "Download wiederholen",
+		"packRepairPack": "Paket reparieren"
 	},
 	"consentDialog": {
 		"title": "Zustimmung erforderlich",

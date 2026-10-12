@@ -11,6 +11,7 @@
 // the cross-section groups, and the auto-switch can never disagree.
 
 import { useEffect, useMemo, useRef } from "react";
+import { getOfflinePackSectionLabels } from "@/components/settings/OfflinePackSection";
 import { getPrewarmAndUpdatesLabels } from "@/components/settings/PrewarmAndUpdates";
 import type { SettingsSectionPage } from "@/components/settings/settingsSections";
 import { getSectionLabels } from "@/components/settings/settingsTabLabels";
@@ -67,6 +68,7 @@ export function useSettingsSearch({
 		sectionLabels.settingsAdvanced = [
 			...sectionLabels.settingsAdvanced,
 			...getPrewarmAndUpdatesLabels(),
+			...getOfflinePackSectionLabels(),
 		];
 		return sectionLabels;
 	}, [query, activeSection]);

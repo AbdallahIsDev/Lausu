@@ -2088,7 +2088,22 @@
 		"downloadingOfflineEngineAria": "Téléchargement du moteur hors ligne, {percent} %. Statut : {status}",
 		"downloadOfflineEngine": "Télécharger le moteur hors ligne",
 		"downloadOfflineEngineBusy": "Téléchargement…",
-		"downloadOfflineEngineAria": "Télécharger le pack du moteur vocal hors ligne"
+		"downloadOfflineEngineAria": "Télécharger le pack du moteur vocal hors ligne",
+		"offlinePackTitle": "Pack moteur hors ligne",
+		"offlinePackDescription": "Pack vocal téléchargeable pour la transcription hors ligne. Le statut se met à jour automatiquement.",
+		"packStatus": "Statut",
+		"packInstalledVersion": "Version installée",
+		"packNotInstalled": "Non installé",
+		"packStateChecking": "Vérification…",
+		"packStateReady": "Prêt",
+		"packStateOutdated": "Mise à jour disponible",
+		"packStateMissing": "Non téléchargé",
+		"packStateFailed": "Échec du téléchargement",
+		"packStateCorrupt": "Pack corrompu",
+		"packStateWorkerCrashed": "Moteur planté",
+		"packStateWorkerUnloaded": "Moteur déchargé",
+		"packRetryDownload": "Réessayer le téléchargement",
+		"packRepairPack": "Réparer le pack"
 	},
 	"consentDialog": {
 		"title": "Consentement requis",

@@ -50,6 +50,7 @@ describe("OfflinePackPreparingBanner, recovery action", () => {
 		"missing",
 		"failed",
 		"corrupt",
+		"outdated",
 	];
 	const passiveStatuses: OfflinePackStatus[] = [
 		"idle",
@@ -172,6 +173,7 @@ describe("OfflinePackPreparingBanner, data-pack-status", () => {
 		"failed",
 		"missing",
 		"corrupt",
+		"outdated",
 		"worker-starting",
 		"worker-crashed",
 		"worker-unloaded",

@@ -386,13 +386,15 @@ class TestPackEventTypesSourceOfTruth:
 
     def test_pack_event_types_exists_and_has_13_entries(self) -> None:
         pack = _pack_event_types()
-        assert len(pack) == 13, (
-            "§7.4: OFFLINE_PACK_EVENT_TYPES in voice_typer/server/service/pack.py "
-            f"has {len(pack)} entries, expected exactly 13 (12 push + "
-            "1 request). The master plan §7.4 catalogue is the source "
-            "of truth. If you added/removed an event, update the master "
-            "plan AND the parity assertions in this test file in the "
-            "same PR."
+        # 13 §7.4 events + the PK-1 stale-pack signal
+        # (``offline_pack_outdated``): 13 push + 1 request.
+        assert len(pack) == 14, (
+            "§7.4 + PK-1: OFFLINE_PACK_EVENT_TYPES in voice_typer/server/service/pack.py "
+            f"has {len(pack)} entries, expected exactly 14 (13 push + "
+            "1 request). The master plan §7.4 catalogue plus the PK-1 "
+            "stale-pack signal is the source of truth. If you "
+            "added/removed an event, update the master plan AND the "
+            "parity assertions in this test file in the same PR."
         )
 
     def test_pack_event_types_contains_transcribe_offline(self) -> None:
