@@ -386,5 +386,91 @@ class TestTeardownWithLiveSubprocessJoins:
         assert native._process is None, "stop() should clear _process"
 
 
+class TestCapsLockForceOffAtStartup:
+    """Native-binary path must force a pre-existing Caps Lock ON state off."""
+
+    def _adapter_with_hotkey(self, hotkey_str):
+        from voice_typer.server.hotkeys.native_adapter import _NativeBackendAdapter
+
+        native = MagicMock()
+        native.hotkey_str = hotkey_str
+        return _NativeBackendAdapter(native)
+
+    def test_skipped_off_windows(self, monkeypatch):
+        import voice_typer.server.hotkeys.native_adapter as adapter_mod
+
+        monkeypatch.setattr(adapter_mod, "is_windows", lambda: False)
+        adapter = self._adapter_with_hotkey("<caps_lock>")
+        adapter._force_caps_lock_off()
+        assert not hasattr(adapter, "_user32")
+
+    def test_skipped_when_hotkey_is_not_caps(self, monkeypatch):
+        import ctypes
+
+        import voice_typer.server.hotkeys.native_adapter as adapter_mod
+
+        monkeypatch.setattr(adapter_mod, "is_windows", lambda: True)
+        monkeypatch.setattr(ctypes, "windll", MagicMock(), raising=False)
+        adapter = self._adapter_with_hotkey("<alt>")
+        adapter._force_caps_lock_off()
+        assert not hasattr(adapter, "_user32")
+
+    def _patch_windows_caps(self, monkeypatch, *, toggle_on: bool):
+        import ctypes
+        from types import SimpleNamespace
+
+        import voice_typer.server.hotkeys.native_adapter as adapter_mod
+
+        monkeypatch.setattr(adapter_mod, "is_windows", lambda: True)
+        reads = iter([0x1 if toggle_on else 0x0, 0x0])
+        fake_user32 = SimpleNamespace(GetKeyState=lambda vk: next(reads, 0x0))
+        monkeypatch.setattr(ctypes, "windll", SimpleNamespace(user32=fake_user32), raising=False)
+        sends: list[tuple] = []
+        monkeypatch.setattr(
+            "voice_typer.server.hotkeys.windows.caps_lock_suppressor._send_keyboard_event",
+            lambda user32, vk, scan, flags: sends.append((vk, scan, flags)),
+        )
+        return sends
+
+    def test_forces_off_when_on(self, monkeypatch, caplog):
+        import logging
+
+        sends = self._patch_windows_caps(monkeypatch, toggle_on=True)
+        adapter = self._adapter_with_hotkey("<caps_lock>")
+        with caplog.at_level(logging.INFO):
+            adapter._force_caps_lock_off()
+        assert len(sends) == 2, f"expected synthetic down+up to toggle off, got {sends}"
+        assert "Proactive caps lock toggle-off" in caplog.text
+
+    def test_noop_when_already_off(self, monkeypatch):
+        sends = self._patch_windows_caps(monkeypatch, toggle_on=False)
+        adapter = self._adapter_with_hotkey("<caps_lock>")
+        adapter._force_caps_lock_off()
+        assert sends == []
+
+    def test_start_invokes_force_off(self, monkeypatch):
+        import voice_typer.server.hotkeys.native_adapter as adapter_mod
+
+        monkeypatch.setattr(adapter_mod, "is_windows", lambda: True)
+        adapter = self._adapter_with_hotkey("<caps_lock>")
+        calls: list[bool] = []
+        adapter._force_caps_lock_off = lambda: calls.append(True)  # type: ignore[method-assign]
+        adapter.start(lambda: None)
+        assert calls == [True]
+
+    def test_force_off_runs_before_native_start(self, monkeypatch):
+        """The native binary swallows every Caps keydown, so the synthetic
+        off-toggle must land BEFORE the hook exists, not after."""
+        import voice_typer.server.hotkeys.native_adapter as adapter_mod
+
+        monkeypatch.setattr(adapter_mod, "is_windows", lambda: True)
+        adapter = self._adapter_with_hotkey("<caps_lock>")
+        order: list[str] = []
+        adapter._force_caps_lock_off = lambda: order.append("force-off")  # type: ignore[method-assign]
+        adapter._native.start = lambda _cb: order.append("native-start")  # type: ignore[method-assign]
+        adapter.start(lambda: None)
+        assert order == ["force-off", "native-start"]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--timeout=30"])

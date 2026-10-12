@@ -505,3 +505,27 @@ class TestAutoStopSingleFirePerCycle:
         ctrl._app._cycle_id = "#2"
         ctrl.on_silence_auto_stop()
         assert ctrl._app._schedule_timer.call_count == 2
+
+
+class TestSilenceWarningSingleFirePerCycle:
+    """Repeat backoff warnings in one cycle must notify once; repeats debug."""
+
+    def _ctrl(self, cycle: str):
+        ctrl = _make_minimal_controller()
+        ctrl._app._cycle_id = cycle
+        ctrl._app.tray.notify_safety = MagicMock()
+        return ctrl
+
+    def test_warning_repeat_notifies_once(self):
+        ctrl = self._ctrl("#1")
+        ctrl.on_silence_warning()
+        ctrl.on_silence_warning()
+        ctrl.on_silence_warning()
+        assert ctrl._app.tray.notify_safety.call_count == 1
+
+    def test_new_cycle_rearms(self):
+        ctrl = self._ctrl("#1")
+        ctrl.on_silence_warning()
+        ctrl._app._cycle_id = "#2"
+        ctrl.on_silence_warning()
+        assert ctrl._app.tray.notify_safety.call_count == 2

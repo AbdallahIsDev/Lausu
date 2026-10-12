@@ -58,16 +58,18 @@ class TestGeminiUrl:
         entry = _PROVIDER_DEFAULTS["gemini"]
         assert entry["url"].startswith("https://generativelanguage.googleapis.com")
         assert "{model}" in entry["url"]
-        assert entry["model"] == "gemini-2.0-flash"
+        # Kept in step with the renderer catalogue's `defaultModel` by
+        # tests/test_cloud_provider_catalogue_parity.py.
+        assert entry["model"] == "gemini-3.8-flash"
 
     def test_substitutes_model(self):
         url = gemini_provider.build_gemini_url(
             "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-            "gemini-2.0-flash",
+            "gemini-3.8-flash",
         )
         assert url == (
             "https://generativelanguage.googleapis.com/v1beta/models/"
-            "gemini-2.0-flash:generateContent"
+            "gemini-3.8-flash:generateContent"
         )
 
     def test_passthrough_without_placeholder(self):
@@ -118,7 +120,7 @@ class TestGeminiSendPath:
         ) as mock_open:
             assert engine.transcribe(np.zeros(16000, dtype=np.float32)) == "hi"
         req = mock_open.call_args[0][0]
-        assert "gemini-2.0-flash:generateContent" in req.full_url
+        assert "gemini-3.8-flash:generateContent" in req.full_url
         assert "?key=" not in req.full_url and "key=" not in req.full_url
         assert req.get_header("X-goog-api-key") == "test-gemini-key"
         assert mock_open.call_args[1]["timeout"] == 120.0 == engine._GEMINI_REQUEST_TIMEOUT_SECONDS

@@ -692,6 +692,39 @@ class TestModelOptionsVramAndLanguages:
                     f"English-only model {opt['name']!r} should have languages=['en'], got {opt['languages']!r}"
                 )
 
+    def test_all_entries_declare_a_valid_backend(self, ctrl):
+        """Each curated entry names the ``asr_backend`` it activates.
+
+        The renderer writes the pair (``asr_backend``, ``model_size``)
+        when the user leaves the Model step, mirroring the Models page's
+        ``selectModel``. Without this field a wizard selection of a
+        non-Whisper family left ``asr_backend`` at its ``"whisper"``
+        default, so the chosen model never loaded.
+        """
+        valid = {"whisper", "qwen", "parakeet", "cloud"}
+        for opt in ctrl.MODEL_OPTIONS:
+            assert "backend" in opt, f"MODEL_OPTIONS entry {opt['name']!r} missing backend"
+            assert opt["backend"] in valid, (
+                f"MODEL_OPTIONS entry {opt['name']!r} has backend {opt['backend']!r}, "
+                f"which is not an asr_backend value ({sorted(valid)})"
+            )
+
+    def test_declared_backend_matches_the_model_registry(self, ctrl):
+        """The curated list must not contradict the registry it summarises."""
+        from voice_typer.server.model_registry import get_all_models
+
+        by_name = {m.name: m.backend for m in get_all_models()}
+        for opt in ctrl.MODEL_OPTIONS:
+            expected = by_name.get(opt["name"])
+            if expected is None:
+                # A curated-only name is covered by
+                # tests/test_allowed_user_models.py instead.
+                continue
+            assert opt["backend"] == expected, (
+                f"MODEL_OPTIONS entry {opt['name']!r} declares backend "
+                f"{opt['backend']!r} but the registry says {expected!r}"
+            )
+
     def test_multilingual_variants_have_none_languages(self, ctrl):
         """the multilingual variants (tiny/small/medium without"""
         multilingual_names = {"tiny", "small", "medium", "parakeet"}

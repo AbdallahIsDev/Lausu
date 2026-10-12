@@ -351,7 +351,29 @@ class TestHallucinationLogging:
             Config.load()
             caplog.clear()
             Config.load()
-        assert "log_transcriptions is enabled" not in caplog.text
+        assert "log_transcriptions on:" not in caplog.text
+
+    def test_privacy_warning_throttled_across_processes(self, tmp_path, caplog):
+        """A second process (flag reset, same config dir) must not re-warn."""
+        import logging
+
+        from unittest.mock import patch
+
+        from voice_typer.server.config import Config, coercion as coercion_mod
+
+        coercion_mod._PRIVACY_CONSENT_WARNED = False
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps({"log_transcriptions": True, "schema_version": 1}), encoding="utf-8")
+        with (
+            patch("voice_typer.server.config._config_dir", return_value=tmp_path),
+            caplog.at_level(logging.WARNING, logger="voice_typer.server.config"),
+        ):
+            Config.load()
+            assert "log_transcriptions on:" in caplog.text
+            caplog.clear()
+            coercion_mod._PRIVACY_CONSENT_WARNED = False
+            Config.load()
+        assert "log_transcriptions on:" not in caplog.text
 
 
 class TestCorrectionsLimits:

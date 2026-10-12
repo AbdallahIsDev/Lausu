@@ -155,7 +155,16 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "screenshot_beta_enabled",
         "screenshot_consent",
         # Added 2026-10-11 (Gemini cloud-ASR provider). Reviewed: mirrors
-        "gemini_api_key"
+        "gemini_api_key",
+        # Added 2026-10-12 (cloud ASR promoted to a first-class backend).
+        # Reviewed: `cloud_provider` names which provider the `"cloud"`
+        # backend talks to. Enum-validated against the four provider keys
+        # plus "" (the schema default = no provider selected), NOT a secret
+        # (`_VALIDATOR_API_KEY` deliberately does not apply), and it grants no
+        # new egress: the endpoint still comes from the server-side
+        # `cloud._defaults._PROVIDER_DEFAULTS` table, so a renderer cannot
+        # point a stored key at an arbitrary host.
+        "cloud_provider",
     }
 )
 
@@ -164,12 +173,16 @@ class TestAllowlistSnapshot:
     """SEC-002 byte-for-byte parity for ``IPC_CONFIG_ALLOWLIST``."""
 
     def test_allowlist_size_unchanged(self) -> None:
-        """The allowlist must still contain exactly 134 keys."""
-        assert len(IPC_CONFIG_ALLOWLIST) == 134, (
-            f"IPC_CONFIG_ALLOWLIST size drifted: expected 134, got {len(IPC_CONFIG_ALLOWLIST)}. "
+        """The allowlist must still contain exactly 135 keys."""
+        assert len(IPC_CONFIG_ALLOWLIST) == 135, (
+            f"IPC_CONFIG_ALLOWLIST size drifted: expected 135, got {len(IPC_CONFIG_ALLOWLIST)}. "
             "SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a "
             "security-sensitive change that must be reviewed explicitly. "
-            "Latest reviewed growth: 132 → 134, `gemini_api_key` + "
+            "Latest reviewed growth: 134 → 135, `cloud_provider` (cloud ASR "
+            "became a first-class `asr_backend` value, so the renderer needs "
+            "to say WHICH provider is active; enum-validated, not a secret, "
+            "and it cannot redirect the endpoint). "
+            "Prior 132 → 134 growth: `gemini_api_key` + "
             "`cloud_gemini_consent` (Gemini cloud-ASR provider; the key uses "
             "the same `_VALIDATOR_API_KEY` as the openai/groq/deepgram keys and "
             "the consent flag the same `_bool_validator` as the other "

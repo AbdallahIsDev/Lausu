@@ -131,13 +131,14 @@ class TestEnsureCapsLockOff:
     def test_forces_off_when_caps_lock_is_on(self, caplog):
         """When the toggle state is ON, the helper must send the"""
         user32 = _make_user32(toggle_state=1)
+        user32.GetKeyState.side_effect = [1, 0]
         captured = _capture_sendinput_events(user32)
         host = _FakeHost(user32=user32, kernel32=MagicMock())
 
         with caplog.at_level(logging.INFO, logger="voice_typer.server.hotkeys"):
             ensure_caps_lock_off(host)
 
-        user32.GetKeyState.assert_called_once_with(_VK_CAPITAL)
+        assert user32.GetKeyState.call_count == 2
         assert user32.SendInput.call_count == 2
         assert len(captured) == 2
         keydown, keyup = captured
@@ -148,6 +149,18 @@ class TestEnsureCapsLockOff:
         assert keyup.ki.ki.wScan == 0x45
         assert keyup.ki.ki.dwFlags == _KEYEVENTF_KEYUP
         assert any("Proactive caps lock toggle-off" in r.message for r in caplog.records)
+
+    def test_failed_toggle_warns_with_send_counts(self, caplog):
+        """A swallowed/failed synthetic toggle (still ON) must warn loudly."""
+        user32 = _make_user32(toggle_state=1)
+        user32.GetKeyState.side_effect = [1, 1]
+        _capture_sendinput_events(user32)
+        host = _FakeHost(user32=user32, kernel32=MagicMock())
+
+        with caplog.at_level(logging.WARNING, logger="voice_typer.server.hotkeys"):
+            ensure_caps_lock_off(host)
+
+        assert any("toggle-off FAILED" in r.message for r in caplog.records)
 
     def test_no_press_when_caps_lock_is_off(self):
         """When the toggle state is OFF, no synthetic keypress is sent."""
@@ -212,3 +225,10 @@ class TestSendKeyboardEventHelper:
     def test_keyup_constant_matches_keybdinput_legacy_value(self):
         """``KEYBDINPUT.KEYUP`` must equal ``_KEYEVENTF_KEYUP`` (0x0002) —"""
         assert KEYBDINPUT.KEYUP == _KEYEVENTF_KEYUP == 0x0002
+
+    def test_input_struct_matches_win32_size(self):
+        """``INPUT`` must be the real Win32 size (40 B on x64): a short
+        struct makes ``SendInput`` reject every call with 0, silently
+        disabling all synthetic toggles."""
+        expected = 40 if ctypes.sizeof(ctypes.c_void_p) == 8 else 28
+        assert ctypes.sizeof(INPUT) == expected
