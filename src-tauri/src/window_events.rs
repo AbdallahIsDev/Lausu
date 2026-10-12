@@ -38,5 +38,28 @@ pub(crate) fn handle(window: &tauri::Window, event: &WindowEvent) {
     // Bubble drags are session-local by product decision: the pill
     // stays where the user puts it for this session, but drags are
     // never persisted, and every launch starts from the configured
-    // default edge. No `Moved` handling here.
+    // default edge. No `Moved` persistence here, but geometry events
+    // ARE the deterministic post-mutation point to re-strip the
+    // system menu: tao rewrites the full style (WS_SYSMENU included)
+    // on flag flips, so the strip must run after tao, not just
+    // before. Fires after tao processes, keeping the menu dead no
+    // matter the operation order.
+    if window.label() == "bubble"
+        && matches!(
+            event,
+            WindowEvent::Resized(_)
+                | WindowEvent::Moved(_)
+                | WindowEvent::ScaleFactorChanged { .. }
+        )
+    {
+        if let Some(bubble) = window.app_handle().get_webview_window("bubble") {
+            // This handler runs ON the main thread, and hardening
+            // blocks on main-thread roundtrips: running it inline
+            // deadlocks the UI on itself. Hop off-thread; the work is
+            // idempotent and finishes in microseconds.
+            std::thread::spawn(move || {
+                crate::commands::bubble::harden_bubble_chrome(&bubble);
+            });
+        }
+    }
 }
