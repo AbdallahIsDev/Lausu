@@ -19,7 +19,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
-
 from voice_typer.server.asr_registry import AsrBackendRegistry
 from voice_typer.server.cloud._engine import CloudEngine
 from voice_typer.server.cloud_backend import (

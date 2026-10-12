@@ -280,7 +280,8 @@ def test_sidecar_script_supports_check_mode(sidecar_text: str):
 def test_sidecar_script_checks_swiftc(sidecar_text: str):
     """The sidecar script ``--check`` must verify ``swiftc`` is on PATH."""
     assert "command -v swiftc" in sidecar_text, (
-        "build_sidecar_macos.sh --check must verify swiftc (Xcode CLT) is on PATH, required for --macos-create-app-bundle."
+        "build_sidecar_macos.sh --check must verify swiftc (Xcode CLT) is on PATH, "
+        "required for --macos-create-app-bundle."
     )
 
 

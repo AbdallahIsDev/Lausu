@@ -30,7 +30,6 @@ import re
 from pathlib import Path
 
 import pytest
-
 from voice_typer.server.cloud._defaults import _PROVIDER_DEFAULTS
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
