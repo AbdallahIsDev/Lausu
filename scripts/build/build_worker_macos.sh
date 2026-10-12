@@ -145,21 +145,13 @@ if [[ "$NUITKA_VER" != *"2.8.10"* ]]; then
 fi
 echo "[build_worker_macos] nuitka=$NUITKA_VER"
 
-# Static libpython (macOS /install-prefix FATAL): python-build-standalone
-# dylibs carry their build-time ID (/install/lib/libpython3.12.dylib), so
-# anything Nuitka links records that absolute path and the bundler dies
-# with "failed to find path /install/lib/..." (Nuitka#2933 pattern).
-# Linking libpython statically removes the dependency entirely (upstream
-# recommends static on macOS). Fail fast here, not 2h into the freeze.
-PY_PREFIX="$("$PY" -c 'import sys; print(sys.prefix)')"
-shopt -s nullglob
-_STATIC_LIBS=("$PY_PREFIX"/lib/libpython3.*.a)
-shopt -u nullglob
-if (( ${#_STATIC_LIBS[@]} == 0 )); then
-    echo "[build_worker_macos] ERROR: no static libpython archive in $PY_PREFIX/lib (needed for --static-libpython=yes)." >&2
-    exit 1
-fi
-echo "[build_worker_macos] static libpython: ${_STATIC_LIBS[0]}"
+# libpython linkage: Nuitka default (dynamic). A static link was tried
+# first (--static-libpython=yes + the fail-fast check above it), but the
+# macOS install_only PYBS archive ships ONLY python/lib/libpython3.12.dylib
+# (verified 2026-10-11 against cpython-3.12.8+20241219 archives) — no .a
+# exists, so static can never work here. Dynamic is proven: the mac sidecar
+# (build_sidecar_macos.sh) and both other worker platforms link dynamically
+# and are green; no script passes --static-libpython.
 
 # ctranslate2/lib + libs, optional on the worker (the Whisper fallback
 # may not be wired in for Phase 2a; the worker still builds without it).
@@ -179,7 +171,6 @@ echo "[build_worker_macos] Running Nuitka..."
 NUITKA_ARGS=(
     --standalone --onefile
     --assume-yes-for-downloads
-    --static-libpython=yes
     --enable-plugin=anti-bloat
     # yt-dlp extractors (~940 modules + the 781KB lazy_extractors hub,
     # reached here via follow-imports from media_ingest) ship as bytecode:
