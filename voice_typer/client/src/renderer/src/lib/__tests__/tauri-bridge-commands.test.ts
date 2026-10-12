@@ -284,6 +284,21 @@ describe("tauri-bridge commands (MIG-1.1 + MIG-1.2)", () => {
 		});
 	});
 
+	it("bubble.setPosition returns a rejecting promise after logging on failure", async () => {
+		const stub = makeTauriStub();
+		(window as unknown as WindowBridgeState).__TAURI__ = stub;
+
+		await import("@/lib/tauri-bridge");
+		await import("@/lib/tauri-bridge/install");
+
+		const bubble = (window as unknown as WindowBridgeState).bubble;
+		stub.core.invoke.mockRejectedValueOnce(new Error("no monitor"));
+
+		// The hydration awaits this (ordering) and retries on rejection,
+		// so the promise must reject instead of resolving void.
+		await expect(bubble?.setPosition?.("bottom")).rejects.toThrow("no monitor");
+	});
+
 	it("bubble.setDraggable invokes 'bubble_set_draggable' with { draggable }", async () => {
 		const stub = makeTauriStub();
 		(window as unknown as WindowBridgeState).__TAURI__ = stub;

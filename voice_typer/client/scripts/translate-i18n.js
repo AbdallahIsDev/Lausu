@@ -801,7 +801,7 @@ const arMore = {
 		"يسمح بإرسال التسجيلات الصوتية إلى Groq Whisper API.",
 	"settings.privacy.deepgramCloudAsrLabel": "Deepgram ASR سحابي",
 	"settings.privacy.deepgramCloudAsrInfoSearch":
-		"يسمح بإرسال التسجيلات الصوتية إلى Deepgram nova-2 API.",
+		"يسمح بإرسال التسجيلات الصوتية إلى Deepgram nova-3 API.",
 	"settings.privacy.llmTextPolishingLabel": "تحسين نص LLM",
 	"settings.privacy.llmTextPolishingInfoSearch":
 		"يسمح بإرسال النص المنسوخ إلى LLM API.",
@@ -846,7 +846,7 @@ const arMore = {
 	"settings.privacy.groqCloudAsrAria": "موافقة Groq ASR سحابي",
 	"settings.privacy.deepgramCloudAsr": "Deepgram ASR سحابي",
 	"settings.privacy.deepgramCloudAsrInfo":
-		"يسمح بإرسال التسجيلات الصوتية إلى Deepgram nova-2 API للنسخ.",
+		"يسمح بإرسال التسجيلات الصوتية إلى Deepgram nova-3 API للنسخ.",
 	"settings.privacy.deepgramCloudAsrAria": "موافقة Deepgram ASR سحابي",
 	"settings.privacy.llmTextPolishing": "تحسين نص LLM",
 	"settings.privacy.llmTextPolishingInfo":

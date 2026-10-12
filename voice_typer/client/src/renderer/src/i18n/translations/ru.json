@@ -1077,7 +1077,7 @@
 			"groqCloudAsrLabel": "Облачное распознавание речи Groq",
 			"groqCloudAsrInfoSearch": "Разрешает отправку аудиозаписей в API Whisper компании Groq.",
 			"deepgramCloudAsrLabel": "Облачное распознавание речи Deepgram",
-			"deepgramCloudAsrInfoSearch": "Разрешает отправку аудиозаписей в API nova-2 компании Deepgram.",
+			"deepgramCloudAsrInfoSearch": "Разрешает отправку аудиозаписей в API nova-3 компании Deepgram.",
 			"geminiCloudAsrLabel": "Облачное распознавание речи Google Gemini",
 			"geminiCloudAsrInfoSearch": "Разрешает отправку аудиозаписей в API Gemini компании Google.",
 			"llmTextPolishingLabel": "Разрешить ИИ-полировку",
@@ -1107,7 +1107,7 @@
 			"groqCloudAsrInfo": "Разрешает отправку аудиозаписей в API Whisper компании Groq для транскрипции. Действует только когда Groq является активным бэкендом распознавания речи И настроен API-ключ.",
 			"groqCloudAsrAria": "Согласие на облачное распознавание речи Groq",
 			"deepgramCloudAsr": "Облачное распознавание речи Deepgram",
-			"deepgramCloudAsrInfo": "Разрешает отправку аудиозаписей в API nova-2 компании Deepgram для транскрипции. Действует только когда Deepgram является активным бэкендом распознавания речи И настроен API-ключ.",
+			"deepgramCloudAsrInfo": "Разрешает отправку аудиозаписей в API nova-3 компании Deepgram для транскрипции. Действует только когда Deepgram является активным бэкендом распознавания речи И настроен API-ключ.",
 			"deepgramCloudAsrAria": "Согласие на облачное распознавание речи Deepgram",
 			"geminiCloudAsr": "Облачное распознавание речи Google Gemini",
 			"geminiCloudAsrInfo": "Разрешает отправку аудиозаписей в API Gemini компании Google для транскрипции. Действует только когда Gemini является активным бэкендом распознавания речи И настроен API-ключ. Требуется интернет; ~15–20 с на сообщение.",
@@ -1288,16 +1288,16 @@
 		"selecting": "Выбор…",
 		"providers": {
 			"openai": {
-				"label": "OpenAI Whisper API"
+				"label": "OpenAI"
 			},
 			"groq": {
-				"label": "Groq Whisper API"
+				"label": "Groq"
 			},
 			"deepgram": {
-				"label": "Deepgram API"
+				"label": "Deepgram"
 			},
 			"gemini": {
-				"label": "Google Gemini API"
+				"label": "Google"
 			}
 		},
 		"errors": {
@@ -1323,8 +1323,7 @@
 			"apiKeyEmpty": "Сначала введите ключ API",
 			"apiKeyUnchanged": "Ключ API не изменился",
 			"apiKeySaved": "Ключ API {provider} сохранён",
-			"consentGranted": "Согласие предоставлено для {provider}: аудио будет отправляться этому поставщику.",
-			"consentRevoked": "Согласие для {provider} отозвано: аудио отправляться НЕ будет.",
+			"apiKeyInvalid": "Это не похоже на действительный ключ API {provider}. Проверьте ключ и попробуйте снова.",
 			"resumeFailed": "Не удалось возобновить: {error}",
 			"pauseFailed": "Не удалось приостановить: {error}",
 			"pauseNoop": "Нет активной загрузки для приостановки.",
@@ -1341,7 +1340,13 @@
 		"test": {
 			"needApiKey": "Сначала введите ключ API",
 			"connectionSuccessful": "Подключение успешно: API-ключ действителен.",
-			"connectionFailed": "Сбой подключения: {status} {statusText}",
+			"failure": {
+				"auth": "{provider} отклонил ключ API. Проверьте, что вставили ключ целиком.",
+				"rateLimited": "{provider} сейчас ограничивает частоту запросов. Подождите немного и попробуйте снова.",
+				"server": "{provider} сообщил о проблеме на своей стороне. Попробуйте снова через несколько минут.",
+				"network": "Не удалось связаться с {provider}. Проверьте подключение к интернету и попробуйте снова.",
+				"http": "{provider} отклонил запрос (HTTP {status})."
+			},
 			"connectionTestFailed": "Тест подключения не пройден: {error}",
 			"testing": "Тестирование…"
 		},
@@ -1403,15 +1408,11 @@
 			"testConnection": "Проверить соединение",
 			"consentTitle": "Согласие на передачу аудио",
 			"consentDescription": "Когда этот провайдер выбран в качестве активного бэкенда распознавания речи, ваши аудиозаписи будут отправлены в {provider} для транскрипции. Политика конфиденциальности провайдера применяется к отправленному аудио. {appName} никогда не включает облачное распознавание речи без вашего явного согласия, даже если API-ключ настроен.",
-			"statusLabel": "Status:",
-			"consentGrantedStatus": "Согласие предоставлено: аудио будет отправляться при активации этого поставщика.",
-			"consentNotGrantedStatus": "Согласие не предоставлено: этот поставщик откажет в транскрибации.",
 			"consentAria": "Предоставить согласие на передачу аудио для {provider}",
 			"configure": "Настроить",
 			"configureAria": "Настроить {provider}",
 			"apiKeyShowAria": "Показать API-ключ {provider}",
-			"apiKeyHideAria": "Скрыть API-ключ {provider}",
-			"apiKeyFormatHint": "API-ключи {provider}: это длинные строки (обычно 40–60 символов). Вставьте полный ключ: без пробелов и префиксов."
+			"apiKeyHideAria": "Скрыть API-ключ {provider}"
 		},
 		"deleteDialog": {
 			"title": "Удалить модель",

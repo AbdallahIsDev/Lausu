@@ -54,6 +54,7 @@ export const CONSENT_FIELD_NAMES = [
 	"cloud_openai_consent",
 	"cloud_groq_consent",
 	"cloud_deepgram_consent",
+	"cloud_gemini_consent",
 	"llm_polish_consent",
 	"media_url_consent",
 	"screenshot_consent",

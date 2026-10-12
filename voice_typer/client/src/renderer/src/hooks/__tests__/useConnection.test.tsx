@@ -15,7 +15,7 @@
  * together (mirroring App.tsx) so we don't need to mock the entire page
  * graph. The navigation state is asserted via the rendered page label.
  */
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Shared stable-mocks preamble (see helpers/stableMocks.tsx): the
@@ -418,5 +418,113 @@ describe("useConnection, F1: first-run auto-route ignores persisted page", () =>
 		await waitFor(() => {
 			expect(getByTestId("current-page").textContent).toBe("onboarding");
 		});
+	});
+});
+
+describe("useConnection, bubble edge hydration", () => {
+	const bubbleHolder = window as unknown as {
+		bubble?: {
+			setPosition?: (pos: "top" | "bottom") => Promise<void>;
+			show?: () => void;
+			setDraggable?: (v: boolean) => void;
+		};
+	};
+	const savedBubble = bubbleHolder.bubble;
+
+	beforeEach(() => {
+		resetStableMocks();
+		localStorage.clear();
+		vi.resetModules();
+	});
+
+	afterEach(() => {
+		if (savedBubble === undefined) delete bubbleHolder.bubble;
+		else bubbleHolder.bubble = savedBubble;
+		vi.useRealTimers();
+		cleanup();
+	});
+
+	function mockAlwaysVisibleBottom() {
+		mockCall.mockImplementation((type: string) => {
+			switch (type) {
+				case "get_config":
+					return Promise.resolve({
+						onboarding_completed: true,
+						bubble_position: "bottom",
+						bubble_behavior: "always_visible",
+						bubble_show_on_startup: true,
+						bubble_draggable: true,
+					});
+				case "get_status":
+					return Promise.resolve({ status: "idle" });
+				case "onboarding_is_first_run":
+					return Promise.resolve({ is_first_run: false });
+				default:
+					return Promise.resolve({});
+			}
+		});
+	}
+
+	it("awaits setPosition before show", async () => {
+		mockAlwaysVisibleBottom();
+		const order: string[] = [];
+		let resolvePosition!: () => void;
+		const positionGate = new Promise<void>((r) => {
+			resolvePosition = r;
+		});
+		const show = vi.fn(() => {
+			order.push("show");
+		});
+		bubbleHolder.bubble = {
+			setPosition: vi.fn(() => {
+				order.push("setPosition");
+				return positionGate.then(() => {
+					order.push("setPosition-resolved");
+				});
+			}),
+			show,
+			setDraggable: vi.fn(),
+		};
+
+		render(<Harness />);
+
+		// Placement fired but show holds until it lands: no
+		// fire-and-forget race onto the OS default position.
+		await waitFor(() => expect(order).toContain("setPosition"));
+		expect(order).not.toContain("show");
+		resolvePosition();
+		await waitFor(() => expect(order).toContain("show"));
+		expect(order.indexOf("setPosition-resolved")).toBeLessThan(
+			order.indexOf("show"),
+		);
+	});
+
+	it("retries setPosition once, then shows anyway", async () => {
+		vi.useFakeTimers();
+		mockAlwaysVisibleBottom();
+		const setPosition = vi
+			.fn()
+			.mockRejectedValueOnce(new Error("no monitor"))
+			.mockResolvedValueOnce(undefined);
+		const show = vi.fn();
+		bubbleHolder.bubble = {
+			setPosition,
+			show,
+			setDraggable: vi.fn(),
+		};
+
+		render(<Harness />);
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(0);
+		});
+		expect(setPosition).toHaveBeenCalledTimes(1);
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(2000);
+		});
+
+		expect(setPosition).toHaveBeenCalledTimes(2);
+		expect(setPosition).toHaveBeenNthCalledWith(2, "bottom");
+		expect(show).toHaveBeenCalledTimes(1);
 	});
 });

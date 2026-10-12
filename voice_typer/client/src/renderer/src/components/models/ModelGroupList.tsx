@@ -45,6 +45,7 @@ export function ModelGroupItem({
 export function ModelGroupTrigger({
 	className,
 	children,
+	actions,
 	...props
 }: ComponentProps<typeof AccordionTrigger>) {
 	return (
@@ -53,6 +54,11 @@ export function ModelGroupTrigger({
 				"gap-2 px-4 py-2.5 text-sm font-medium text-foreground hover:no-underline hover:bg-foreground/5 data-open:bg-transparent",
 				className,
 			)}
+			// Forwarded through (not spread with the rest) so the slot is
+			// declared at this layer too, the Cloud tab's provider-level
+			// Configure button uses it to sit on the group's header row
+			// while staying outside the trigger `<button>`.
+			actions={actions}
 			{...props}
 		>
 			{children}

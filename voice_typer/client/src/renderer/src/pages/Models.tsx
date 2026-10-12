@@ -42,7 +42,12 @@ import { LocalModelsPanel } from "@/components/models/LocalModelsPanel";
 import { Button } from "@/components/ui/button";
 import { useModelLifecycle } from "@/hooks/useModelLifecycle";
 import { t } from "@/i18n/i18n";
-import { getActiveFamilyId, groupModelsByFamily } from "@/lib/utils/models";
+import {
+	getActiveFamilyId,
+	groupModelsByFamily,
+	hasActiveSpeechModel,
+	isNoModelSelected,
+} from "@/lib/utils/models";
 import { useModelsTab } from "@/stores/useModelsTab";
 import { ModelsSkeleton } from "./models/components/ModelsSkeleton";
 
@@ -107,17 +112,23 @@ export default function ModelsPage() {
 			}
 		},
 	);
+	// `hasActiveSpeechModel` (not `model_size !== ""`): an ACTIVE cloud
+	// model is a selected model, and it leaves `model_size` untouched.
+	// A null config still reads as "not loaded yet" — that is what keeps
+	// the dismissed flag alive across reloads (see the comment above).
+	const hasActiveModel = hasActiveSpeechModel(lifecycle.config);
 	useEffect(() => {
-		// Only clear the dismissed flag when a model is actually selected
-		// (model_size is a non-empty string). The previous check
-		// `lifecycle.config?.model_size !== ""` was truthy when config was
-		// still `null` (initial load: `undefined !== ""`), which cleared the
-		// sessionStorage immediately on mount and made the banner reappear on
-		// every reload / navigation. Guard with a truthy check so the flag
-		// survives reloads and page changes within the same app session and
-		// is only cleared when the user picks a model, or when the app is
-		// fully closed (sessionStorage is then discarded by the browser).
-		if (lifecycle.config?.model_size) {
+		// Only clear the dismissed flag when a model is actually selected.
+		// The previous check `lifecycle.config?.model_size !== ""` was
+		// truthy when config was still `null` (initial load:
+		// `undefined !== ""`), which cleared the sessionStorage
+		// immediately on mount and made the banner reappear on every
+		// reload / navigation. Guard with a truthy check so the flag
+		// survives reloads and page changes within the same app session
+		// and is only cleared when the user picks a model, or when the app
+		// is fully closed (sessionStorage is then discarded by the
+		// browser).
+		if (hasActiveModel) {
 			if (noModelBannerDismissed) setNoModelBannerDismissed(false);
 			try {
 				sessionStorage.removeItem("models:noModelBannerDismissed");
@@ -125,9 +136,11 @@ export default function ModelsPage() {
 				// ignore storage errors (e.g. blocked in some contexts)
 			}
 		}
-	}, [lifecycle.config?.model_size, noModelBannerDismissed]);
+	}, [hasActiveModel, noModelBannerDismissed]);
 	const showNoModelBanner =
-		lifecycle.config?.model_size === "" && !noModelBannerDismissed;
+		lifecycle.config !== null &&
+		isNoModelSelected(lifecycle.config) &&
+		!noModelBannerDismissed;
 
 	// Show a full-page spinner until the first `get_config` resolves.
 	// Replaces the original `if (!_cachedConfig && !config)` check.
@@ -341,12 +354,12 @@ export default function ModelsPage() {
 								config={lifecycle.config}
 								cloudProviders={lifecycle.cloudProviders}
 								apiKeys={lifecycle.apiKeys}
-								testResults={lifecycle.testResults}
+								testingProviders={lifecycle.testingProviders}
+								selectingCloudModel={lifecycle.selectingCloudModel}
 								onApiKeyChange={handleApiKeyChange}
 								onSaveApiKey={lifecycle.saveApiKey}
 								onTestConnection={lifecycle.testConnection}
-								onConsentChange={lifecycle.setCloudConsent}
-								onClearTestResult={lifecycle.clearTestResult}
+								onActivateModel={lifecycle.activateCloudModel}
 							/>
 						</section>
 					)}

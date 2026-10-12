@@ -51,6 +51,7 @@ import {
 import { t } from "@/i18n/i18n";
 import { useThemePalette } from "@/lib/theme-palette";
 import { formatDevice, formatModel } from "@/lib/utils/configDisplay";
+import { isNoModelSelected } from "@/lib/utils/models";
 import { HOTKEY_DEFAULT } from "@/pages/onboarding/lib/constants";
 import { useAppStore } from "@/stores/appStore";
 import type { LausuConfig } from "@/types/config";
@@ -473,14 +474,17 @@ export default function Home() {
 	// swaps its content (and color) based on the current state, instead
 	// of separate hotkey-hint / "Preparing offline engine…" / inline
 	// status lines (or a status pill above the button):
-	//   1. No model selected (the backend's `NO_MODEL_SIZE` sentinel,
-	//      `model_size === ""`) → red "No model selected…" error.
+	//   1. No model selected (neither a local model nor a cloud provider
+	//      chosen as the backend) → red "No model selected…" error.
 	//   2. Recording error with a message → red error text.
 	//   3. Transcribing / loading model → the inline status hint.
 	//   4. Offline engine still preparing (pack not ready AND the user
 	//      attempted dictation) → "Preparing offline engine…".
 	//   5. Otherwise → "Press <hotkey> or click to dictate".
-	const noModelSelected = cfg?.model_size === "";
+	// The check is `isNoModelSelected`, NOT `cfg.model_size === ""`: an
+	// active CLOUD model leaves `model_size` untouched, so the raw check
+	// told cloud users their model was missing while dictation worked.
+	const noModelSelected = isNoModelSelected(cfg);
 	const preparingOffline = !packReady && hasAttemptedDictation;
 	let hint:
 		| { variant: "error"; text: string }

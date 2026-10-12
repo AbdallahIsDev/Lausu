@@ -429,10 +429,11 @@ describe("XA-5-11, CloudProvidersPanel renders the API-key eye toggle", () => {
 		// Source-scan assertion: the ProviderConfigForm sub-component
 		// declares a ``revealKey`` state + a button that flips it +
 		// the input ``type`` is bound to that state. Mounting the
-		// panel for a behavioral test would require expanding the
-		// Radix Accordion group first (the Configure button sits
-		// inside AccordionContent, which Radix defers); the
-		// source-scan covers the wiring without that orchestration.
+		// panel for a behavioral test would mean driving the Radix
+		// Dialog the Configure action opens (focus scope, portal,
+		// Escape handling); the source-scan covers the wiring without
+		// that orchestration. The behavioral coverage lives in
+		// `components/models/__tests__/CloudProvidersPanel.test.tsx`.
 		const src = fs.readFileSync(
 			path.join(
 				RENDERER_SRC_ROOT,
@@ -448,7 +449,12 @@ describe("XA-5-11, CloudProvidersPanel renders the API-key eye toggle", () => {
 		expect(src).toMatch(/type=\{revealKey \? "text" : "password"\}/);
 		expect(src).toMatch(/t\("models\.cloud\.apiKeyShowAria"/);
 		expect(src).toMatch(/t\("models\.cloud\.apiKeyHideAria"/);
-		expect(src).toMatch(/t\("models\.cloud\.apiKeyFormatHint"/);
+		// The format hint that used to sit under the field is REMOVED
+		// (2026-10-11): it described a key shape the user cannot act on
+		// ("typically 40-60 characters"), and the actionable version of
+		// that message is the rejection toast `useCloudProviders` raises
+		// when the shape is actually wrong.
+		expect(src).not.toMatch(/apiKeyFormatHint/);
 	});
 });
 
@@ -537,7 +543,12 @@ describe("XA-5 locale parity for the new keys", () => {
 		"microphoneTest.recommendations.applyNoisyRoom",
 		"models.cloud.apiKeyShowAria",
 		"models.cloud.apiKeyHideAria",
-		"models.cloud.apiKeyFormatHint",
+		"models.snack.apiKeyInvalid",
+		"models.test.failure.auth",
+		"models.test.failure.rateLimited",
+		"models.test.failure.server",
+		"models.test.failure.network",
+		"models.test.failure.http",
 		"vocabulary.count_zero",
 		"vocabulary.count_one",
 		"vocabulary.count_two",

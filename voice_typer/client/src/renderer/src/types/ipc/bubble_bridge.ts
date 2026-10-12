@@ -74,7 +74,7 @@ export interface MainRendererBubbleMutators {
 	// drifted from the impl, which made positional-call mistakes
 	// type system. Renaming the type param aligns the contract with
 	// `setPosition(position: "top" | "bottom")` signature.
-	setPosition?: (position: "top" | "bottom") => void;
+	setPosition?: (position: "top" | "bottom") => Promise<void>;
 	setDraggable?: (v: boolean) => void;
 	show?: () => void;
 	// main-renderer subset (intentional split residual). Neither preload implements

@@ -82,13 +82,11 @@ const {
 			confirmDelete: vi.fn(),
 		},
 		cloudHookReturn: {
-			cloudConsents: {},
-			savingApiKey: null,
-			testResults: {},
+			testingProviders: {},
+			selectingCloudModel: null,
 			saveApiKey: vi.fn(),
-			setCloudConsent: vi.fn(),
 			testConnection: vi.fn(),
-			clearTestResult: vi.fn(),
+			activateCloudModel: vi.fn(),
 		},
 		folderHookReturn: {
 			diskInfo: null,
@@ -319,7 +317,7 @@ describe("useModelLifecycle, facade composition ", () => {
 	});
 
 	describe("useCloudProviders forwarding", () => {
-		it("receives setConfig + config + apiKeys + updateConfig + call + showSnack", () => {
+		it("receives config + apiKeys + updateConfig + setConfig + call + showSnack", () => {
 			renderHook(() => useModelLifecycle());
 			const cArgs = useCloudProvidersArgs.value as {
 				setConfig?: unknown;
@@ -329,6 +327,13 @@ describe("useModelLifecycle, facade composition ", () => {
 				call?: unknown;
 				showSnack?: unknown;
 			};
+			// `setConfig` was NOT forwarded while the hook's only job was
+			// Save / Test (its only local state was `testingProviders`,
+			// and consent went through the shared dialog rather than an
+			// optimistic write). Activating a cloud model re-introduced
+			// the need: the Active marker must move on the click, not on
+			// the `config_changed` echo — the same contract
+			// useModelSelection already has.
 			expect(cArgs.setConfig).toBe(configHookReturn.setConfig);
 			expect(cArgs.config).toBe(configHookReturn.config);
 			expect(cArgs.apiKeys).toBe(configHookReturn.apiKeys);
@@ -389,6 +394,9 @@ describe("useModelLifecycle, facade composition ", () => {
 			// From cloud:
 			expect(r.saveApiKey).toBe(cloudHookReturn.saveApiKey);
 			expect(r.testConnection).toBe(cloudHookReturn.testConnection);
+			expect(r.testingProviders).toBe(cloudHookReturn.testingProviders);
+			expect(r.selectingCloudModel).toBe(cloudHookReturn.selectingCloudModel);
+			expect(r.activateCloudModel).toBe(cloudHookReturn.activateCloudModel);
 
 			// From folder:
 			expect(r.diskInfo).toBe(folderHookReturn.diskInfo);
@@ -421,16 +429,18 @@ describe("useModelLifecycle, facade composition ", () => {
 		});
 	});
 
-	describe("ApiTestResult type re-export (back-compat)", () => {
-		it("the type alias is re-exported from the facade module", async () => {
-			// The re-export is a TypeScript type-only export, at
-			// runtime there's no value to assert on, but the
-			// import must resolve (no missing-export error).
-			// We verify by importing the module's named exports
-			// and confirming the module namespace object exists.
-			const mod = await import("@/hooks/useModelLifecycle");
-			expect(mod).toBeDefined();
-			expect(typeof mod.useModelLifecycle).toBe("function");
+	describe("the facade's public surface stays minimal", () => {
+		it("does NOT re-export the retired ApiTestResult type or its state", () => {
+			// `ApiTestResult` + `testResults` + `clearTestResult` +
+			// `setCloudConsent` were removed with the toast-based
+			// rework: a transient probe outcome is not a property of
+			// the form, so the panel takes no such prop. Nothing may
+			// resurrect them on the facade.
+			const { result } = renderHook(() => useModelLifecycle());
+			const r = result.current as Record<string, unknown>;
+			expect(r.testResults).toBeUndefined();
+			expect(r.clearTestResult).toBeUndefined();
+			expect(r.setCloudConsent).toBeUndefined();
 		});
 	});
 });

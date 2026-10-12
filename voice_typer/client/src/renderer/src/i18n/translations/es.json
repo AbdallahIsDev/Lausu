@@ -1084,7 +1084,7 @@
 			"groqCloudAsrLabel": "Reconocimiento de voz en la nube de Groq",
 			"groqCloudAsrInfoSearch": "Permite enviar grabaciones de audio a la API Whisper de Groq.",
 			"deepgramCloudAsrLabel": "Reconocimiento de voz en la nube de Deepgram",
-			"deepgramCloudAsrInfoSearch": "Permite enviar grabaciones de audio a la API nova-2 de Deepgram.",
+			"deepgramCloudAsrInfoSearch": "Permite enviar grabaciones de audio a la API nova-3 de Deepgram.",
 			"geminiCloudAsrLabel": "Reconocimiento de voz en la nube de Google Gemini",
 			"geminiCloudAsrInfoSearch": "Permite enviar grabaciones de audio a la API Gemini de Google.",
 			"llmTextPolishingLabel": "Permitir pulido con IA",
@@ -1114,7 +1114,7 @@
 			"groqCloudAsrInfo": "Permite enviar grabaciones de audio a la API Whisper de Groq para transcripción. Solo surte efecto cuando Groq es el backend de reconocimiento de voz activo Y hay una clave de API configurada.",
 			"groqCloudAsrAria": "Consentimiento de reconocimiento de voz en la nube de Groq",
 			"deepgramCloudAsr": "Reconocimiento de voz en la nube de Deepgram",
-			"deepgramCloudAsrInfo": "Permite enviar grabaciones de audio a la API nova-2 de Deepgram para transcripción. Solo surte efecto cuando Deepgram es el backend de reconocimiento de voz activo Y hay una clave de API configurada.",
+			"deepgramCloudAsrInfo": "Permite enviar grabaciones de audio a la API nova-3 de Deepgram para transcripción. Solo surte efecto cuando Deepgram es el backend de reconocimiento de voz activo Y hay una clave de API configurada.",
 			"deepgramCloudAsrAria": "Consentimiento de reconocimiento de voz en la nube de Deepgram",
 			"geminiCloudAsr": "Reconocimiento de voz en la nube de Google Gemini",
 			"geminiCloudAsrInfo": "Permite enviar grabaciones de audio a la API Gemini de Google para transcripción. Solo surte efecto cuando Gemini es el backend de reconocimiento de voz activo Y hay una clave de API configurada. Requiere internet; ~15–20 s por mensaje.",
@@ -1288,16 +1288,16 @@
 		"selecting": "Seleccionando…",
 		"providers": {
 			"openai": {
-				"label": "API de OpenAI Whisper"
+				"label": "OpenAI"
 			},
 			"groq": {
-				"label": "API de Groq Whisper"
+				"label": "Groq"
 			},
 			"deepgram": {
-				"label": "API de Deepgram"
+				"label": "Deepgram"
 			},
 			"gemini": {
-				"label": "API de Google Gemini"
+				"label": "Google"
 			}
 		},
 		"errors": {
@@ -1323,8 +1323,7 @@
 			"apiKeyEmpty": "Introduce una clave API primero",
 			"apiKeyUnchanged": "Clave API sin cambios",
 			"apiKeySaved": "Clave API de {provider} guardada",
-			"consentGranted": "Consentimiento otorgado para {provider}: el audio se enviará a este proveedor.",
-			"consentRevoked": "Consentimiento revocado para {provider}: el audio NO se enviará.",
+			"apiKeyInvalid": "Eso no parece una clave API de {provider} válida. Revisa la clave e inténtalo de nuevo.",
 			"resumeFailed": "Error al reanudar: {error}",
 			"pauseFailed": "Error al pausar: {error}",
 			"pauseNoop": "No hay ninguna descarga activa para pausar.",
@@ -1341,7 +1340,13 @@
 		"test": {
 			"needApiKey": "Por favor, introduce una clave API primero",
 			"connectionSuccessful": "Conexión exitosa: la clave API es válida.",
-			"connectionFailed": "Error de conexión: {status} {statusText}",
+			"failure": {
+				"auth": "{provider} rechazó la clave API. Comprueba que pegaste la clave completa.",
+				"rateLimited": "{provider} está limitando la frecuencia de solicitudes. Espera un momento e inténtalo de nuevo.",
+				"server": "{provider} informó de un problema en su lado. Inténtalo de nuevo en unos minutos.",
+				"network": "No se pudo contactar con {provider}. Comprueba tu conexión a internet e inténtalo de nuevo.",
+				"http": "{provider} rechazó la solicitud (HTTP {status})."
+			},
 			"connectionTestFailed": "Error en la prueba de conexión: {error}",
 			"testing": "Probando…"
 		},
@@ -1403,15 +1408,11 @@
 			"testConnection": "Probar Conexión",
 			"consentTitle": "Consentimiento de transmisión de audio",
 			"consentDescription": "Cuando este proveedor se selecciona como backend de reconocimiento de voz activo, tus grabaciones de audio se enviarán a {provider} para transcripción. La política de privacidad del proveedor se aplica al audio enviado. {appName} nunca activa el reconocimiento de voz en la nube sin tu consentimiento explícito, incluso si hay una clave API configurada.",
-			"statusLabel": "Estado:",
-			"consentGrantedStatus": "Consentimiento otorgado: el audio se enviará cuando este proveedor esté activo.",
-			"consentNotGrantedStatus": "Consentimiento no otorgado: este proveedor se negará a transcribir.",
 			"consentAria": "Otorgar consentimiento de transmisión de audio para {provider}",
 			"configure": "Configurar",
 			"configureAria": "Configurar {provider}",
 			"apiKeyShowAria": "Mostrar clave API de {provider}",
-			"apiKeyHideAria": "Ocultar clave API de {provider}",
-			"apiKeyFormatHint": "Las claves API de {provider} son cadenas largas (normalmente de 40 a 60 caracteres). Pega la clave completa: sin espacios ni prefijos."
+			"apiKeyHideAria": "Ocultar clave API de {provider}"
 		},
 		"deleteDialog": {
 			"title": "Eliminar Modelo",

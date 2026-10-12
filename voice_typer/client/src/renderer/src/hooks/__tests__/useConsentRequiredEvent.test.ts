@@ -118,6 +118,7 @@ describe("DICTATION_RETRY_CONSENT_FIELDS (registry-derived single source)", () =
 			"cloud_openai_consent",
 			"cloud_groq_consent",
 			"cloud_deepgram_consent",
+			"cloud_gemini_consent",
 		]);
 	});
 

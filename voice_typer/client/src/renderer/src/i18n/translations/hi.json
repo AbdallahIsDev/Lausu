@@ -1077,7 +1077,7 @@
 			"groqCloudAsrLabel": "Groq क्लाउड वाक् पहचान",
 			"groqCloudAsrInfoSearch": "ऑडियो रिकॉर्डिंग को Groq की Whisper API में भेजने की अनुमति देता है।",
 			"deepgramCloudAsrLabel": "Deepgram क्लाउड वाक् पहचान",
-			"deepgramCloudAsrInfoSearch": "ऑडियो रिकॉर्डिंग को Deepgram की nova-2 API में भेजने की अनुमति देता है।",
+			"deepgramCloudAsrInfoSearch": "ऑडियो रिकॉर्डिंग को Deepgram की nova-3 API में भेजने की अनुमति देता है।",
 			"geminiCloudAsrLabel": "Google Gemini क्लाउड वाक् पहचान",
 			"geminiCloudAsrInfoSearch": "ऑडियो रिकॉर्डिंग को Google की Gemini API में भेजने की अनुमति देता है।",
 			"llmTextPolishingLabel": "AI पॉलिश की अनुमति दें",
@@ -1107,7 +1107,7 @@
 			"groqCloudAsrInfo": "ऑडियो रिकॉर्डिंग को Groq की Whisper API में ट्रांसक्रिप्शन के लिए भेजने की अनुमति देता है। केवल तभी प्रभावी होता है जब Groq सक्रिय वाक् पहचान बैकएंड हो और एक API कुंजी कॉन्फ़िगर की गई हो।",
 			"groqCloudAsrAria": "Groq क्लाउड वाक् पहचान सहमति",
 			"deepgramCloudAsr": "Deepgram क्लाउड वाक् पहचान",
-			"deepgramCloudAsrInfo": "ऑडियो रिकॉर्डिंग को Deepgram की nova-2 API में ट्रांसक्रिप्शन के लिए भेजने की अनुमति देता है। केवल तभी प्रभावी होता है जब Deepgram सक्रिय वाक् पहचान बैकएंड हो और एक API कुंजी कॉन्फ़िगर की गई हो।",
+			"deepgramCloudAsrInfo": "ऑडियो रिकॉर्डिंग को Deepgram की nova-3 API में ट्रांसक्रिप्शन के लिए भेजने की अनुमति देता है। केवल तभी प्रभावी होता है जब Deepgram सक्रिय वाक् पहचान बैकएंड हो और एक API कुंजी कॉन्फ़िगर की गई हो।",
 			"deepgramCloudAsrAria": "Deepgram क्लाउड वाक् पहचान सहमति",
 			"geminiCloudAsr": "Google Gemini क्लाउड वाक् पहचान",
 			"geminiCloudAsrInfo": "ऑडियो रिकॉर्डिंग को Google की Gemini API में ट्रांसक्रिप्शन के लिए भेजने की अनुमति देता है। केवल तभी प्रभावी होता है जब Gemini सक्रिय वाक् पहचान बैकएंड हो और एक API कुंजी कॉन्फ़िगर की गई हो। इंटरनेट आवश्यक; प्रति संदेश ~15–20 सेकंड।",
@@ -1288,16 +1288,16 @@
 		"selecting": "चुना जा रहा है…",
 		"providers": {
 			"openai": {
-				"label": "OpenAI Whisper API"
+				"label": "OpenAI"
 			},
 			"groq": {
-				"label": "Groq Whisper API"
+				"label": "Groq"
 			},
 			"deepgram": {
-				"label": "Deepgram API"
+				"label": "Deepgram"
 			},
 			"gemini": {
-				"label": "Google Gemini API"
+				"label": "Google"
 			}
 		},
 		"errors": {
@@ -1323,8 +1323,7 @@
 			"apiKeyEmpty": "पहले एक API कुंजी दर्ज करें",
 			"apiKeyUnchanged": "API कुंजी अपरिवर्तित है",
 			"apiKeySaved": "{provider} API कुंजी सहेजी गई",
-			"consentGranted": "{provider} के लिए सहमति प्रदान की गई: ऑडियो इस प्रदाता को भेजा जाएगा।",
-			"consentRevoked": "{provider} के लिए सहमति वापस ली गई: ऑडियो नहीं भेजा जाएगा।",
+			"apiKeyInvalid": "यह मान्य {provider} API कुंजी नहीं लगती। कुंजी जाँचें और फिर से प्रयास करें।",
 			"resumeFailed": "फिर से शुरू करने में विफल: {error}",
 			"pauseFailed": "रोकने में विफल: {error}",
 			"pauseNoop": "रोकने के लिए कोई सक्रिय डाउनलोड नहीं है।",
@@ -1341,7 +1340,13 @@
 		"test": {
 			"needApiKey": "कृपया पहले एक API कुंजी दर्ज करें",
 			"connectionSuccessful": "कनेक्शन सफल: API कुंजी मान्य है।",
-			"connectionFailed": "कनेक्शन विफल: {status} {statusText}",
+			"failure": {
+				"auth": "{provider} ने API कुंजी अस्वीकार कर दी। जाँचें कि आपने पूरी कुंजी चिपकाई है।",
+				"rateLimited": "{provider} इस समय अनुरोधों की संख्या सीमित कर रहा है। थोड़ी देर रुकें और फिर से प्रयास करें।",
+				"server": "{provider} की ओर से समस्या की सूचना है। कुछ मिनट बाद फिर से प्रयास करें।",
+				"network": "{provider} से संपर्क नहीं हो सका। अपना इंटरनेट कनेक्शन जाँचें और फिर से प्रयास करें।",
+				"http": "{provider} ने अनुरोध अस्वीकार कर दिया (HTTP {status})।"
+			},
 			"connectionTestFailed": "कनेक्शन परीक्षण विफल: {error}",
 			"testing": "परीक्षण हो रहा है…"
 		},
@@ -1403,15 +1408,11 @@
 			"testConnection": "कनेक्शन परीक्षण",
 			"consentTitle": "ऑडियो ट्रांसमिशन सहमति",
 			"consentDescription": "जब इस प्रदाता को सक्रिय वाक् पहचान बैकएंड के रूप में चुना जाता है, तो आपकी ऑडियो रिकॉर्डिंग ट्रांसक्रिप्शन के लिए {provider} को भेजी जाएगी। ऑडियो ट्रांसमिशन सक्षम करने के लिए सहमति दें। {appName} आपकी स्पष्ट सहमति के बिना कभी भी क्लाउड वाक् पहचान सक्षम नहीं करता है, भले ही API कुंजी कॉन्फ़िगर की गई हो।",
-			"statusLabel": "स्थिति:",
-			"consentGrantedStatus": "सहमति प्रदान: जब यह प्रदाता सक्रिय हो तब ऑडियो भेजा जाएगा।",
-			"consentNotGrantedStatus": "सहमति प्रदान नहीं: यह प्रदाता ट्रांसक्राइब करने से इनकार करेगा।",
 			"consentAria": "{provider} के लिए ऑडियो ट्रांसमिशन सहमति प्रदान करें",
 			"configure": "कॉन्फ़िगर करें",
 			"configureAria": "{provider} कॉन्फ़िगर करें",
 			"apiKeyShowAria": "{provider} API कुंजी दिखाएँ",
-			"apiKeyHideAria": "{provider} API कुंजी छिपाएँ",
-			"apiKeyFormatHint": "{provider} API कुंजियाँ लंबी स्ट्रिंग होती हैं (आमतौर पर 40–60 अक्षर)। पूरी कुंजी चिपकाएँ: बिना रिक्त स्थान या उपसर्ग के।"
+			"apiKeyHideAria": "{provider} API कुंजी छिपाएँ"
 		},
 		"deleteDialog": {
 			"title": "मॉडल हटाएं",

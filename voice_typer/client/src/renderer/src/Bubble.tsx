@@ -1,3 +1,4 @@
+import type { MouseEvent as ReactMouseEvent } from "react";
 import {
 	useCallback,
 	useEffect,
@@ -240,6 +241,126 @@ function BubbleInner() {
 		getBubbleApi()?.dismiss?.();
 	}, []);
 
+	// Text in the pill is status chrome, never content: kill
+	// selection at the source so a right-drag can never paint a
+	// highlight over the label. (Transcripts live in History in the
+	// main window; nothing in the bubble is ever copied.)
+	// Document-level CAPTURE: selectstart does not reliably bubble
+	// from text nodes on every initiation path (notably the
+	// right-button word-select performed for the context menu), so a
+	// bubble-phase listener on the pill can miss it. The bubble is
+	// its own document per BrowserWindow, so document scope here is
+	// still pill-scoped, never app-wide.
+	useEffect(() => {
+		const kill = (e: Event) => e.preventDefault();
+		document.addEventListener("selectstart", kill, { capture: true });
+		return () =>
+			document.removeEventListener("selectstart", kill, {
+				capture: true,
+			});
+	}, []);
+
+	// TEMPORARY diagnostic (remove once the overlay artifact is
+	// identified): report every selection + mouse event so the log
+	// shows what the page actually receives during a right-click.
+	useEffect(() => {
+		console.warn("[bubble-debug] diagnostic listeners mounted");
+		const tag = (e: Event) => (e.target as HTMLElement | null)?.tagName ?? "?";
+		const onStart = () => {
+			console.warn("[bubble-debug] selectstart fired");
+		};
+		const onChange = () => {
+			const text = window.getSelection()?.toString() ?? "";
+			console.warn(
+				`[bubble-debug] selectionchange range=${JSON.stringify(text)}`,
+			);
+		};
+		const onDown = (e: MouseEvent) => {
+			console.warn(
+				`[bubble-debug] mousedown button=${e.button} target=${tag(e)}`,
+			);
+		};
+		const onUp = (e: MouseEvent) => {
+			console.warn(
+				`[bubble-debug] mouseup button=${e.button} target=${tag(e)}`,
+			);
+		};
+		const onCtx = () => {
+			console.warn("[bubble-debug] contextmenu fired");
+		};
+		const onDragStart = (e: Event) => {
+			console.warn("[bubble-debug] dragstart fired, prevented");
+			e.preventDefault();
+		};
+		const onDragEnd = () => {
+			console.warn("[bubble-debug] dragend fired");
+		};
+		const onDrop = () => {
+			console.warn("[bubble-debug] drop fired");
+		};
+		document.addEventListener("selectstart", onStart, { capture: true });
+		document.addEventListener("selectionchange", onChange);
+		document.addEventListener("mousedown", onDown, { capture: true });
+		document.addEventListener("mouseup", onUp, { capture: true });
+		document.addEventListener("contextmenu", onCtx, { capture: true });
+		document.addEventListener("dragstart", onDragStart, { capture: true });
+		document.addEventListener("dragend", onDragEnd, { capture: true });
+		document.addEventListener("drop", onDrop, { capture: true });
+		return () => {
+			document.removeEventListener("selectstart", onStart, {
+				capture: true,
+			});
+			document.removeEventListener("selectionchange", onChange);
+			document.removeEventListener("mousedown", onDown, {
+				capture: true,
+			});
+			document.removeEventListener("mouseup", onUp, { capture: true });
+			document.removeEventListener("contextmenu", onCtx, {
+				capture: true,
+			});
+			document.removeEventListener("dragstart", onDragStart, {
+				capture: true,
+			});
+			document.removeEventListener("dragend", onDragEnd, {
+				capture: true,
+			});
+			document.removeEventListener("drop", onDrop, { capture: true });
+		};
+	}, []);
+
+	// Cancel right-mousedown at initiation: that is what starts the
+	// word-select/menu cascade (selection first, menu on mouseup).
+	// Killing it here means no range ever exists for anything to
+	// paint, and no menu is ever requested. Left button untouched
+	// (OS caption drag).
+	const handlePillMouseDown = useCallback((e: ReactMouseEvent<HTMLElement>) => {
+		if (e.button === 2) e.preventDefault();
+	}, []);
+
+	// The pill never shows a web context menu. The OS system menu
+	// is disabled at the window level (maximizable/minimizable/
+	// closable false in every tauri.*.conf.json bubble block), so
+	// right-clicking the caption region opens nothing. Any selection
+	// in flight is cleared too, so no highlight survives the click.
+	// Finally, one real repaint: an aborted menu decision can leave
+	// a stale highlight tile in the compositor with no window and no
+	// DOM range behind it. A single 0.99-opacity frame (visually
+	// identical to opaque) forces the tile to repaint clean.
+	const handlePillContextMenu = useCallback(
+		(e: ReactMouseEvent<HTMLElement>) => {
+			e.preventDefault();
+			window.getSelection()?.removeAllRanges();
+			const el = pillRef.current;
+			if (el) {
+				el.style.opacity = "0.99";
+				requestAnimationFrame(() => {
+					el.style.opacity = "";
+				});
+			}
+		},
+		[],
+	);
+
 	// One-shot cycle: a fresh recording mints a new cycle id and
 	// re-arms the annotate button.
 	useEffect(() => {
@@ -396,6 +517,7 @@ function BubbleInner() {
 				)}
 				onAnimationEnd={handleAnimEnd}
 			>
+				{/* biome-ignore lint/a11y/noStaticElementInteractions: the pill is a status container, not a control; onMouseDown cancels only the right button (kills the select/menu cascade at initiation, left-button OS drag untouched), onContextMenu only swallows the web menu, and the buttons inside keep their own roles. */}
 				<div
 					ref={pillRef}
 					className={cn(
@@ -413,8 +535,14 @@ function BubbleInner() {
 						// resize effect from measuring its own wrapped width and
 						// deadlocking with the window it is trying to size.
 						"whitespace-nowrap",
+						"select-none",
+						// OS-native drag (smooth on every platform). The
+						// caption side effects (system menu, double-click
+						// zoom) are disabled at the window level, not here.
 						draggable ? "drag-region" : "no-drag",
 					)}
+					onContextMenu={handlePillContextMenu}
+					onMouseDown={handlePillMouseDown}
 				>
 					<BubbleModeContent
 						mode={mode}

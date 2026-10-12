@@ -1077,7 +1077,7 @@
 			"groqCloudAsrLabel": "Groq 云端语音识别",
 			"groqCloudAsrInfoSearch": "允许将音频录音发送至 Groq 的 Whisper API。",
 			"deepgramCloudAsrLabel": "Deepgram 云端语音识别",
-			"deepgramCloudAsrInfoSearch": "允许将音频录音发送至 Deepgram 的 nova-2 API。",
+			"deepgramCloudAsrInfoSearch": "允许将音频录音发送至 Deepgram 的 nova-3 API。",
 			"geminiCloudAsrLabel": "Google Gemini 云端语音识别",
 			"geminiCloudAsrInfoSearch": "允许将音频录音发送至 Google 的 Gemini API。",
 			"llmTextPolishingLabel": "允许 AI 润色",
@@ -1107,7 +1107,7 @@
 			"groqCloudAsrInfo": "允许将音频录音发送至 Groq 的 Whisper API 进行转写。仅在 Groq 为活动语音识别后端且配置了 API 密钥时生效。",
 			"groqCloudAsrAria": "Groq 云端语音识别许可",
 			"deepgramCloudAsr": "Deepgram 云端语音识别",
-			"deepgramCloudAsrInfo": "允许将音频录音发送至 Deepgram 的 nova-2 API 进行转写。仅在 Deepgram 为活动语音识别后端且配置了 API 密钥时生效。",
+			"deepgramCloudAsrInfo": "允许将音频录音发送至 Deepgram 的 nova-3 API 进行转写。仅在 Deepgram 为活动语音识别后端且配置了 API 密钥时生效。",
 			"deepgramCloudAsrAria": "Deepgram 云端语音识别许可",
 			"geminiCloudAsr": "Google Gemini 云端语音识别",
 			"geminiCloudAsrInfo": "允许将音频录音发送至 Google 的 Gemini API 进行转写。仅在 Gemini 为活动语音识别后端且配置了 API 密钥时生效。需要联网；每条消息约 15–20 秒。",
@@ -1288,16 +1288,16 @@
 		"selecting": "选择中…",
 		"providers": {
 			"openai": {
-				"label": "OpenAI Whisper API"
+				"label": "OpenAI"
 			},
 			"groq": {
-				"label": "Groq Whisper API"
+				"label": "Groq"
 			},
 			"deepgram": {
-				"label": "Deepgram API"
+				"label": "Deepgram"
 			},
 			"gemini": {
-				"label": "Google Gemini API"
+				"label": "Google"
 			}
 		},
 		"errors": {
@@ -1323,8 +1323,7 @@
 			"apiKeyEmpty": "请先输入 API 密钥",
 			"apiKeyUnchanged": "API 密钥未更改",
 			"apiKeySaved": "{provider} API 密钥已保存",
-			"consentGranted": "已授予 {provider} 许可: 音频将发送到此提供商。",
-			"consentRevoked": "已撤销对 {provider} 的许可: 音频将不会被发送。",
+			"apiKeyInvalid": "这看起来不是有效的 {provider} API 密钥。请检查密钥后重试。",
 			"resumeFailed": "恢复失败：{error}",
 			"pauseFailed": "暂停失败：{error}",
 			"pauseNoop": "没有正在进行的下载可暂停。",
@@ -1341,7 +1340,13 @@
 		"test": {
 			"needApiKey": "请先输入 API 密钥",
 			"connectionSuccessful": "连接成功: API 密钥有效。",
-			"connectionFailed": "连接失败：{status} {statusText}",
+			"failure": {
+				"auth": "{provider} 拒绝了该 API 密钥。请确认已粘贴完整密钥。",
+				"rateLimited": "{provider} 当前限制了请求频率。请稍候片刻再试。",
+				"server": "{provider} 报告了其服务端的问题。请过几分钟再试。",
+				"network": "无法连接到 {provider}。请检查网络连接后重试。",
+				"http": "{provider} 拒绝了该请求（HTTP {status}）。"
+			},
 			"connectionTestFailed": "连接测试失败：{error}",
 			"testing": "测试中…"
 		},
@@ -1403,15 +1408,11 @@
 			"testConnection": "测试连接",
 			"consentTitle": "音频传输许可",
 			"consentDescription": "当此提供商被选为活动语音识别后端时，您的音频录音将发送至 {provider} 进行转写。授予同意以启用音频传输。{appName} 绝不会在未经您明确同意的情况下启用云端语音识别，即使已配置 API 密钥。",
-			"statusLabel": "Status:",
-			"consentGrantedStatus": "已授予许可: 此提供商激活时将发送音频。",
-			"consentNotGrantedStatus": "未授予许可: 此提供商将拒绝转写。",
 			"consentAria": "授予 {provider} 的音频传输许可",
 			"configure": "配置",
 			"configureAria": "配置{provider}",
 			"apiKeyShowAria": "显示 {provider} API 密钥",
-			"apiKeyHideAria": "隐藏 {provider} API 密钥",
-			"apiKeyFormatHint": "{provider} API 密钥是较长的字符串（通常为 40–60 个字符）。请粘贴完整密钥: 不要包含空格或前缀。"
+			"apiKeyHideAria": "隐藏 {provider} API 密钥"
 		},
 		"deleteDialog": {
 			"title": "删除模型",

@@ -36,10 +36,26 @@ function AccordionItem({
 function AccordionTrigger({
 	className,
 	children,
+	actions,
 	...props
-}: React.ComponentProps<typeof AccordionPrimitive.Trigger>) {
+}: React.ComponentProps<typeof AccordionPrimitive.Trigger> & {
+	/**
+	 * Optional trailing slot, rendered INSIDE the header but OUTSIDE the
+	 * trigger button (e.g. the Cloud tab's provider-level Configure
+	 * action, which must sit on the same row as the provider name).
+	 *
+	 * It cannot live inside the trigger's children: the trigger IS a
+	 * `<button>`, so nesting another one is invalid HTML and axe flags
+	 * it as `nested-interactive`. A sibling also means clicking the
+	 * action cannot toggle the panel.
+	 *
+	 * Rendered as a `<span>` (not a `<div>`) because the header is an
+	 * `<h3>`, whose content model is phrasing content.
+	 */
+	actions?: React.ReactNode;
+}) {
 	return (
-		<AccordionPrimitive.Header className="flex">
+		<AccordionPrimitive.Header className="flex items-center">
 			<AccordionPrimitive.Trigger
 				data-slot="accordion-trigger"
 				className={cn(
@@ -58,6 +74,9 @@ function AccordionTrigger({
 					className="pointer-events-none shrink-0"
 				/>
 			</AccordionPrimitive.Trigger>
+			{actions ? (
+				<span className="flex shrink-0 items-center pe-4">{actions}</span>
+			) : null}
 		</AccordionPrimitive.Header>
 	);
 }
