@@ -42,10 +42,13 @@ ALLOWED_UNTRANSLATED = {
     # (client_root_i18n): "⚠ Error", universal warning symbol +
     "bubble.errorLabel",  # "⚠ Error"
     # Provider labels are brand names, kept identical across all locales.
-    "models.providers.openai.label",  # "OpenAI Whisper API"
-    "models.providers.groq.label",  # "Groq Whisper API"
-    "models.providers.deepgram.label",  # "Deepgram API"
-    "models.providers.gemini.label",  # "Google Gemini API"
+    # They carry the BRAND ONLY (2026-10-11): the old labels welded the
+    # provider, the model and the word "API" into one string ("OpenAI
+    # Whisper API"), which pre-empted the group's own content.
+    "models.providers.openai.label",  # "OpenAI"
+    "models.providers.groq.label",  # "Groq"
+    "models.providers.deepgram.label",  # "Deepgram"
+    "models.providers.gemini.label",  # "Google"
     # Parakeet label is a product name, kept identical.
     "models.card.parakeetLabel",  # "NVIDIA Parakeet TDT v3  ·  "
     # Em-dash placeholder for missing data, identical glyph across locales.
@@ -277,8 +280,6 @@ PRE_EXISTING_UNTRANSLATED = {
     "models.snack.deleteFailed",
     "models.snack.deleteFailedError",
     "models.snack.apiKeySaved",
-    "models.snack.consentGranted",
-    "models.snack.consentRevoked",
     "models.snack.hfConsentGranted",
     "models.snack.hfConsentRevoked",
     "models.snack.resumeFailed",
@@ -287,7 +288,6 @@ PRE_EXISTING_UNTRANSLATED = {
     "models.snack.cancelFailed",
     "models.test.needApiKey",
     "models.test.connectionSuccessful",
-    "models.test.connectionFailed",
     "models.test.endpointUnavailable",
     "models.test.connectionTestFailed",
     "models.benchmark.notImplemented",
@@ -332,9 +332,6 @@ PRE_EXISTING_UNTRANSLATED = {
     "models.cloud.testConnection",
     "models.cloud.consentTitle",
     "models.cloud.consentDescription",
-    "models.cloud.statusLabel",
-    "models.cloud.consentGrantedStatus",
-    "models.cloud.consentNotGrantedStatus",
     "models.cloud.consentAria",
     "models.deleteDialog.title",
     "models.deleteDialog.message",

@@ -25,11 +25,9 @@ class TestDebugModePiiWarning:
         """With debug=True the banner must be followed by a WARNING that"""
         with caplog.at_level(logging.WARNING, logger="voice_typer"):
             logging.getLogger("voice_typer").warning(
-                "[STARTUP] Debug logging is enabled (VOICE_TYPER_DEBUG=1), "
-                "DEBUG records may include sensitive context (file paths, "
-                "device names, hostnames) beyond what PII redaction covers. "
-                "Do not share the log file publicly without review; disable "
-                "VOICE_TYPER_DEBUG for everyday use."
+                "[STARTUP] Debug logging on (VOICE_TYPER_DEBUG=1): DEBUG may "
+                "include sensitive data beyond PII redaction. Do not share "
+                "the log file publicly without review."
             )
         assert any("VOICE_TYPER_DEBUG=1" in r.message and "Do not share" in r.message for r in caplog.records)
 

@@ -547,11 +547,89 @@ def test_terminal_formatter_level_column_alignment() -> None:
         assert line[10:15] == padded, f"5-wide level column: {line!r}"
         assert line[15] == " ", f"one space before the message: {line!r}"
         assert line[16:] == "column check", f"message at byte 16: {line!r}"
-        # `_ColorFormatter` (TTY) omits the INFO/DEBUG level label by design
-        # (see `single_instance._startup_line`), but the two-space gap after
-        # the time is the same contract and must be pinned too.
+        # `_ColorFormatter` (TTY) keeps the INFO line labelless (only
+        # the two-space gap after the time is shared with the column
+        # layout); DEBUG/WARN+ render the full padded column, pinned
+        # by the tests below.
         color = re.sub(r"\033\[[0-9;]*m", "", _ColorFormatter().format(record))
         assert color[8:10] == "  ", f"_ColorFormatter two spaces after the time: {color!r}"
+
+
+def test_color_formatter_stripped_matches_terminal_formatter() -> None:
+    """Stripped color lines match plain terminal lines, except INFO.
+
+    DEBUG/WARN+ keep the padded label on both sinks; INFO is labelless
+    on the color sink by design (the default mode stays out of the way).
+    """
+    for level in (
+        logging.DEBUG,
+        logging.WARNING,
+        logging.ERROR,
+        logging.CRITICAL,
+    ):
+        record = logging.LogRecord(
+            name="voice_typer.server.fake",
+            level=level,
+            pathname=__file__,
+            lineno=1,
+            msg="[STARTUP] parity check",
+            args=(),
+            exc_info=None,
+        )
+        record.session_id = "deadbeef"
+        record.created = 1783987200.0
+        plain = _TerminalFormatter().format(record)
+        color = re.sub(r"\033\[[0-9;]*m", "", _ColorFormatter().format(record))
+        assert color == plain, (
+            f"level {logging.getLevelName(level)}: stripped color line differs "
+            f"from plain terminal line:\n{color!r}\n{plain!r}"
+        )
+
+
+def test_color_formatter_info_drops_label_debug_is_one_color() -> None:
+    """INFO renders labelless; DEBUG renders the whole line in one color."""
+    info = logging.LogRecord(
+        name="voice_typer.server.fake",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg="[STARTUP] colored check",
+        args=(),
+        exc_info=None,
+    )
+    info.session_id = "deadbeef"
+    line = _ColorFormatter().format(info)
+    assert "\033[38;5;242m" in line, f"dim timestamp missing:\n{line!r}"
+    assert "\033[38;5;103m[STARTUP] colored check\033[0m" in line, (
+        f"topic-colored body missing:\n{line!r}"
+    )
+    plain = re.sub(r"\033\[[0-9;]*m", "", line)
+    assert re.fullmatch(r"\d{2}:\d{2}:\d{2}  \[STARTUP\] colored check", plain), (
+        f"stripped INFO line must have no label:\n{plain!r}"
+    )
+
+    debug = logging.LogRecord(
+        name="voice_typer.server.fake",
+        level=logging.DEBUG,
+        pathname=__file__,
+        lineno=1,
+        msg="[STARTUP] debug check",
+        args=(),
+        exc_info=None,
+    )
+    debug.session_id = "deadbeef"
+    dline = _ColorFormatter().format(debug)
+    # Dim timestamp, then ONE wrap around label + body: nothing but
+    # the time stays out of the topic color.
+    assert dline.startswith("\033[38;5;242m"), f"dim timestamp missing:\n{dline!r}"
+    assert "\033[38;5;103mDEBUG [STARTUP] debug check\033[0m" in dline, (
+        f"label+body one-color wrap missing:\n{dline!r}"
+    )
+    assert dline.count("\033[") == 4, f"unexpected SGR segments:\n{dline!r}"
+    dplain = re.sub(r"\033\[[0-9;]*m", "", dline)
+    assert re.fullmatch(
+        r"\d{2}:\d{2}:\d{2}  DEBUG \[STARTUP\] debug check", dplain
+    ), f"stripped DEBUG line not in canonical shape:\n{dplain!r}"
 
 
 def test_startup_line_warn_uses_the_canonical_level_column() -> None:
