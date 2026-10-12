@@ -2091,7 +2091,7 @@
 		"downloadOfflineEngineAria": "Offline-Sprachengine-Paket herunterladen",
 		"offlinePackTitle": "Offline-Engine-Paket",
 		"offlinePackDescription": "Herunterladbares Sprach-Engine-Paket für die Offline-Transkription. Der Status wird automatisch aktualisiert.",
-		"packStatus": "Status",
+		"packStatus": "Zustand",
 		"packInstalledVersion": "Installierte Version",
 		"packNotInstalled": "Nicht installiert",
 		"packStateChecking": "Wird geprüft…",
