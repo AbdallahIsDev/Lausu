@@ -107,6 +107,12 @@ async def _read_loop(websocket, server: IPCServer, dispatch) -> None:
         if msg.get("type") == _worker_relay_mod.WORKER_STARTED_EVENT:
             _worker_relay_mod.handle_host_frame(msg)
             continue
+        # Host relay: outdated pack signal, not a dispatch command.
+        if msg.get("type") == "offline_pack_outdated":  # PACK_OUTDATED_EVENT
+            from voice_typer.server.service.offline_pack import outdated as _outdated_mod
+
+            _outdated_mod.handle_host_frame(msg)
+            continue
         task = asyncio.create_task(_dispatch_and_respond(msg, request_id, websocket, dispatch))
         dispatch_tasks.add(task)
         task.add_done_callback(dispatch_tasks.discard)
