@@ -22,10 +22,15 @@ def _isolated_port():
     set port flips `forwarded` from False to True).
     """
     from voice_typer.server import worker_client as wc
+    from voice_typer.server.service.offline_pack import ready as pack_ready
 
     def _reset() -> None:
         worker_relay.reset_worker_port()
         wc.get_shared_client().close()
+        # The worker_started handler also feeds the offline_pack_ready join;
+        # without this, a version verified by an earlier test would emit an
+        # extra ready event here and break exact-bus-shape assertions below.
+        pack_ready.reset_for_tests()
 
     _reset()
     yield
