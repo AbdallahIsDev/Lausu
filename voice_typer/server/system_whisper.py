@@ -135,7 +135,8 @@ def try_load_worker_whisper(config: Any, timeout: float = 300.0) -> Any | None:
             log.debug("[MODEL] worker whisper load timed out or failed", exc_info=True)
             return None
         if not isinstance(result, dict) or not result.get("loaded") or result.get("error"):
-            log.debug("[MODEL] worker whisper load refused: %r", result)
+            reason = result.get("error") if isinstance(result, dict) else result
+            log.debug("[MODEL] worker whisper load refused: %s", reason)
             return None
         device_info = result.get("device_info")
         engine = WorkerWhisperProxyEngine(
