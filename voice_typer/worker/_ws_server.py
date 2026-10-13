@@ -21,7 +21,11 @@ from voice_typer.server.duration import format_duration
 from voice_typer.server.ipc.protocol_version import MAX_WS_FRAME_BYTES, PROTOCOL_VERSION
 from voice_typer.worker._parent_watch import start_parent_watch
 from voice_typer.worker._ws_connection import _handle_connection
-from voice_typer.worker._ws_samples import _SamplesBuffer, _valid_samples_header  # noqa: F401 - facade re-export
+from voice_typer.worker._ws_samples import (  # noqa: F401 - facade re-export
+    _SAMPLES_MAX_CHUNKS,
+    _SamplesBuffer,
+    _valid_samples_header,
+)
 from voice_typer.worker._ws_shutdown import _install_sigterm_handler, _ShutdownTimer
 from voice_typer.worker._ws_startup import (
     _emit_worker_started,

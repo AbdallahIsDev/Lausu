@@ -20,7 +20,12 @@ import logging
 from typing import Any
 
 from voice_typer.server._audio_constants import WHISPER_SAMPLE_RATE
-from voice_typer.server.worker_client import WorkerAbortedError, get_shared_client
+from voice_typer.server.ipc.protocol_version import MAX_SAMPLES_CHUNKS
+from voice_typer.server.worker_client import (
+    WorkerAbortedError,
+    get_shared_client,
+    samples_chunk_count,
+)
 
 log = logging.getLogger(__name__)
 
@@ -116,7 +121,14 @@ class WorkerBackedAsr:
         import numpy as _np
 
         try:
-            raw = _np.asarray(audio, dtype=_np.float32).reshape(-1).tobytes()
+            arr = _np.asarray(audio, dtype=_np.float32)
+        except Exception as exc:
+            raise WorkerTranscriptionError(f"invalid audio array: {exc}") from exc
+        total = samples_chunk_count(int(arr.nbytes))
+        if total > MAX_SAMPLES_CHUNKS:
+            raise WorkerTranscriptionError(f"audio needs {total} chunks (worker cap {MAX_SAMPLES_CHUNKS})")
+        try:
+            raw = arr.reshape(-1).tobytes()
         except Exception as exc:
             raise WorkerTranscriptionError(f"invalid audio array: {exc}") from exc
         client = get_shared_client()

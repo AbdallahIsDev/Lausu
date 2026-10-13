@@ -13,9 +13,10 @@ from __future__ import annotations
 import base64
 import json
 import logging
+from collections.abc import Iterator
 from typing import Any
 
-from voice_typer.server.ipc.protocol_version import MAX_WS_FRAME_BYTES
+from voice_typer.server.ipc.protocol_version import MAX_SAMPLES_CHUNKS, MAX_WS_FRAME_BYTES
 
 log = logging.getLogger(__name__)
 
@@ -73,6 +74,41 @@ def build_heartbeat_frame() -> str:
 # intent (bounded frames) is preserved.)
 _SAMPLES_CHUNK_RAW_BYTES = 720 * 1024
 
+# Worker-side reassembly cap, shared via ``protocol_version`` so the client
+# pre-check and the worker header check cannot drift apart.
+_SAMPLES_MAX_CHUNKS = MAX_SAMPLES_CHUNKS
+
+
+def samples_chunk_count(num_bytes: int) -> int:
+    """Chunk count for ``num_bytes`` of float32 PCM (empty audio needs one)."""
+    return max(1, (int(num_bytes) + _SAMPLES_CHUNK_RAW_BYTES - 1) // _SAMPLES_CHUNK_RAW_BYTES)
+
+
+def iter_chunk_samples(
+    audio_f32: bytes, sample_rate: int, language: str | None, request_id: int
+) -> Iterator[str]:
+    """Yield ``transcribe_samples`` frames one at a time (bounded peak).
+
+    Same envelopes as :func:`chunk_samples` without holding them co-live.
+    """
+    total = samples_chunk_count(len(audio_f32))
+    for index in range(total):
+        raw = audio_f32[index * _SAMPLES_CHUNK_RAW_BYTES : (index + 1) * _SAMPLES_CHUNK_RAW_BYTES]
+        # C-WS-2: str, never bytes, so the frame leaves as a TEXT opcode.
+        yield json.dumps(
+            {
+                "cmd": "transcribe_samples",
+                "id": int(request_id),
+                "data": {
+                    "index": index,
+                    "total": total,
+                    "sample_rate": int(sample_rate),
+                    "language": language,
+                    "payload_b64": base64.b64encode(raw).decode("ascii"),
+                },
+            }
+        )
+
 
 def chunk_samples(audio_f32: bytes, sample_rate: int, language: str | None, request_id: int) -> list[str]:
     """Split raw float32 PCM into ``transcribe_samples`` chunk frames.
@@ -82,26 +118,7 @@ def chunk_samples(audio_f32: bytes, sample_rate: int, language: str | None, requ
     yields exactly one (empty-payload) chunk — silence is data, not an
     error. Every returned frame is ``str`` (C-WS-2, TEXT opcode).
     """
-    total = max(1, (len(audio_f32) + _SAMPLES_CHUNK_RAW_BYTES - 1) // _SAMPLES_CHUNK_RAW_BYTES)
-    frames = []
-    for index in range(total):
-        raw = audio_f32[index * _SAMPLES_CHUNK_RAW_BYTES : (index + 1) * _SAMPLES_CHUNK_RAW_BYTES]
-        frames.append(
-            json.dumps(
-                {
-                    "cmd": "transcribe_samples",
-                    "id": int(request_id),
-                    "data": {
-                        "index": index,
-                        "total": total,
-                        "sample_rate": int(sample_rate),
-                        "language": language,
-                        "payload_b64": base64.b64encode(raw).decode("ascii"),
-                    },
-                }
-            )
-        )
-    return frames
+    return list(iter_chunk_samples(audio_f32, sample_rate, language, request_id))
 
 
 def build_abort_frame(request_id: int) -> str:

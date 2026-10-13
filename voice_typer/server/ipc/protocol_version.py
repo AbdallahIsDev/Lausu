@@ -17,3 +17,8 @@ PROTOCOL_VERSION: int = 1
 # dependency-free module so the slim-core sidecar can import it without
 # pulling in ``voice_typer.worker`` (mirrors the PROTOCOL_VERSION split).
 MAX_WS_FRAME_BYTES: int = 1 * 1024 * 1024
+
+# In-memory samples cap (worker hop): at most this many 720 KiB chunks per
+# request (~46 MiB). Single source for the client's pre-check, the frame
+# builder, and the worker's header validation, which must agree.
+MAX_SAMPLES_CHUNKS: int = 64

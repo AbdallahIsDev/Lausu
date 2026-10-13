@@ -8,11 +8,14 @@ no inference, no logging.
 
 from __future__ import annotations
 
+from voice_typer.server.ipc.protocol_version import MAX_SAMPLES_CHUNKS
+
 # ─── In-memory sample reassembly (ADR-0025 C3) ──────────────────────────
 
 # Bound the per-request reassembly state: 64 chunks × ~720 KiB raw keeps
 # one request under ~46 MiB before inference (a 30 s window needs ~3).
-_SAMPLES_MAX_CHUNKS = 64
+# Shared with the client pre-check via protocol_version (single source).
+_SAMPLES_MAX_CHUNKS = MAX_SAMPLES_CHUNKS
 # Base64 of one chunk must itself respect the frame cap (ADR-0020 §10).
 _SAMPLES_MAX_PAYLOAD_B64 = 1_400_000
 _SAMPLES_MIN_RATE = 1000
