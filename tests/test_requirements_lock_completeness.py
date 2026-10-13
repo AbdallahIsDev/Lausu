@@ -166,36 +166,70 @@ def _lockfile_pinned_versions() -> dict[str, list[tuple[str, str]]]:
     return out
 
 
+_EVAL_ENVS: list[dict[str, str]] = [
+    {
+        "implementation_name": "cpython",
+        "os_name": os_name,
+        "platform_machine": machine,
+        "platform_system": system,
+        "python_version": py,
+        "python_full_version": f"{py}.0",
+        "sys_platform": platform,
+    }
+    for platform, os_name, system in (
+        ("win32", "nt", "Windows"),
+        ("linux", "posix", "Linux"),
+        ("darwin", "posix", "Darwin"),
+    )
+    for machine in ("x86_64", "arm64")
+    for py in ("3.10", "3.11", "3.12")
+]
+
+
 def test_lockfile_pinned_versions_satisfy_pyproject_constraints() -> None:
     """Every lockfile pin MUST satisfy the version specifier in pyproject.toml.
 
-    Marker-aware: a pin is checked against the declared entry carrying the
-    SAME marker (platform splits pin several versions of one package, e.g.
-    cryptography 50.0.0 everywhere but 48.0.1 on Intel Macs).
+    Marker-aware per environment: each pyproject entry is checked against
+    the lockfile pins that apply in the SAME matrix cell (uv unions extra
+    bounds like ``python_full_version < '3.15'`` into pin markers, so raw
+    string equality between spec and pin markers never holds).
     """
     try:
+        from packaging.markers import Marker
         from packaging.specifiers import SpecifierSet
         from packaging.version import Version
     except ImportError:  # pragma: no cover, packaging is a pip dep
         pytest.skip("packaging library not available, cannot check version constraints")
+
+    def _holds(marker_str: str, env: dict[str, str]) -> bool:
+        if not marker_str.strip():
+            return True
+        return Marker(marker_str).evaluate(environment=env)
+
     specs = _pyproject_dep_specifiers()
     pins = _lockfile_pinned_versions()
     violations: list[str] = []
-    for name, entries in sorted(specs.items()):
-        for spec_str, spec_marker in entries:
-            matching = [pin for pin, pin_marker in pins.get(name, []) if pin_marker == spec_marker]
-            if not matching:
-                # Completeness is checked by test_every_direct_dep_is_pinned_in_lockfile.
-                continue
-            for pin in matching:
+    for env in _EVAL_ENVS:
+        env_label = f"{env['sys_platform']}/{env['platform_machine']}/py{env['python_version']}"
+        for name, entries in sorted(specs.items()):
+            for spec_str, spec_marker in entries:
+                if not _holds(spec_marker, env):
+                    continue
+                candidates = [pin for pin, pin_marker in pins.get(name, []) if _holds(pin_marker, env)]
+                if not candidates:
+                    # Completeness is checked by test_every_direct_dep_is_pinned_in_lockfile.
+                    continue
                 try:
                     spec = SpecifierSet(spec_str)
-                    ver = Version(pin)
+                    versions = [Version(pin) for pin in candidates]
                 except Exception as exc:  # pragma: no cover, defensive parse
-                    violations.append(f"  {name}: failed to parse spec={spec_str!r} or pin={pin!r} ({exc})")
+                    violations.append(f"  [{env_label}] {name}: failed to parse spec={spec_str!r} ({exc})")
                     continue
-                if ver not in spec:
-                    violations.append(f"  {name}: lockfile pins {pin} but pyproject.toml requires {spec_str}")
+                if not any(ver in spec for ver in versions):
+                    violations.append(
+                        f"  [{env_label}] {name}: lockfile pins {candidates} "
+                        f"but pyproject.toml requires {spec_str}"
+                    )
     assert not violations, (
         "Lockfile drift detected, the lockfile pin violates the version "
         "specifier declared in pyproject.toml. CI (which resolves from "
