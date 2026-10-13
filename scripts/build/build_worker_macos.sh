@@ -146,12 +146,43 @@ fi
 echo "[build_worker_macos] nuitka=$NUITKA_VER"
 
 # libpython linkage: Nuitka default (dynamic). A static link was tried
-# first (--static-libpython=yes + the fail-fast check above it), but the
-# macOS install_only PYBS archive ships ONLY python/lib/libpython3.12.dylib
+# first (--static-libpython=yes + a fail-fast check), but the macOS
+# install_only PYBS archive ships ONLY python/lib/libpython3.12.dylib
 # (verified 2026-10-11 against cpython-3.12.8+20241219 archives) — no .a
-# exists, so static can never work here. Dynamic is proven: the mac sidecar
-# (build_sidecar_macos.sh) and both other worker platforms link dynamically
-# and are green; no script passes --static-libpython.
+# exists, so static can never work here.
+# The dylib carries its build-time ID (/install/lib/libpython3.12.dylib),
+# and Nuitka's bundler dies with "failed to find path /install/lib/..."
+# (Nuitka#2933 pattern, observed 2026-10-11 on both mac legs) unless the ID
+# is rewritten first. The ID is set to the dylib's REAL on-disk path (not
+# @rpath, which would need LC_RPATH surgery on the interpreter): the file
+# exists there, the interpreter keeps working, and Nuitka bundles +
+# re-links absolute-path deps as a matter of course. Done AFTER the import
+# check above and BEFORE Nuitka runs; verified with an interpreter smoke
+# test right after the rewrite.
+
+PY_PREFIX="$("$PY" -c 'import sys; print(sys.prefix)')"
+shopt -s nullglob
+_PY_DYLIBS=("$PY_PREFIX"/lib/libpython3.*.dylib)
+shopt -u nullglob
+if (( ${#_PY_DYLIBS[@]} > 0 )); then
+    for _dylib in "${_PY_DYLIBS[@]}"; do
+        _old_id="$(otool -D "$_dylib" 2>/dev/null | tail -1)"
+        if [[ "$_old_id" == /install/* ]]; then
+            echo "[build_worker_macos] rewriting dylib ID: $_old_id -> $_dylib"
+            install_name_tool -id "$_dylib" "$_dylib"
+            for _bin in "$PY_PREFIX"/bin/python3*; do
+                [[ -f "$_bin" ]] || continue
+                install_name_tool -change "$_old_id" "$_dylib" "$_bin" 2>/dev/null || true
+            done
+            echo "[build_worker_macos] new ID: $(otool -D "$_dylib" | tail -1)"
+            "$PY" -c 'import sys; print("[build_worker_macos] interpreter still works:", sys.version.split()[0])'
+        else
+            echo "[build_worker_macos] dylib ID already sane: $_old_id (leaving untouched)"
+        fi
+    done
+else
+    echo "[build_worker_macos] NOTE: no libpython dylib under $PY_PREFIX/lib (non-PYBS python?); skipping ID rewrite."
+fi
 
 # ctranslate2/lib + libs, optional on the worker (the Whisper fallback
 # may not be wired in for Phase 2a; the worker still builds without it).
