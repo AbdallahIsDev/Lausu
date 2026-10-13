@@ -664,6 +664,10 @@ norecursedirs = [".venv", "dist", "build", "node_modules", "voice_typer/client",
 # 60s is generous: the longest legitimate test (test_stalled_auth_connection_
 # times_out) was patched down to 0.5s in WR-10, so no in-tree test should
 # approach the cap.
+# Timeout split (do NOT "fix" by unifying): local default 60s keeps the fast
+# loop tight (C-TEST-4); CI overrides 120s for slow runners (build.yml
+# pytest step). A test in the 60-120s window fails locally but passes CI —
+# that asymmetry is intentional, not a bug.
 # Note: removed --cov-fail-under from addopts so local subset runs
 # (e.g. `pytest tests/test_foo.py`) don't trip the coverage gate. The
 # threshold is still enforced in CI (build.yml pytest step passes

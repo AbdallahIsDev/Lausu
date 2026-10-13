@@ -64,16 +64,6 @@ observations before marking anything done.
 **Severity:** Medium (silent protocol mismatch after any pack-format change)
 **Priority:** P2
 
-### PK-2 - User-visible pack state machine (Settings screen + global states)
-**Status:** ✅ Fixed headless 2026-10-12 (pytest 458 + vitest 99 green; real download-progress display still needs a live download run).
-**Description:** Pack states today are fragmented: an `OfflinePackPreparingBanner` near mic-test/transcription areas plus an About-page update check (`check_offline_pack_update`), backend events in `server/service/offline_pack/events.py`, consent gates in `gates.py` — but no Settings screen and no single source for the states users actually hit: downloading (with progress), ready, missing, broken (checksum/incomplete), outdated (see PK-1). Users currently discover pack problems only when transcription fails.
-**Fix:** Add one Settings section backed by a single status query (state + version + progress, reusing the existing events/check commands, no new IPC surface unless the status query cannot be composed): ready/missing/downloading(progress %)/broken/outdated, each with its action (download/retry/repair/remove). Keep the existing banner as the point-of-use surface; it reads the same status. New renderer tests per state + i18n keys in all 8 locales (C-I18N-1/2).
-**Related Files:** `voice_typer/client/src/renderer/src/pages/settings/`, `voice_typer/client/src/renderer/src/components/feedback/OfflinePackPreparingBanner.tsx`, `voice_typer/server/service/offline_pack/events.py`, `voice_typer/server/service/offline_pack/gates.py`
-**Success:** every pack state reachable in Settings with a working action; banner + Settings never disagree (shared status); locale-complete; suites green.
-**Implementation Difficulty:** Medium (renderer-heavy, needs real download runs to verify progress display)
-**Severity:** Medium (pack problems surface today only as failed transcriptions)
-**Priority:** P2
-
 ### PK-3 - Rehearse the pack/worker failure table on all three systems
 **Status:** ⚠️ Partial 2026-10-12 (headless matrix 5/5 + stress 6/6 in worklog.md; Windows/macOS/Linux live runs still open).
 **Description:** The pieces exist but were never run as a matrix: `scripts/build/verify_worker_bridge_live.py`, `verify_worker_degrade_live.py`, `verify_worker_handoff_live.py` rehearse worker failure modes, and `.github/workflows/host-validation.yml` (manual dispatch) owns host runs — yet no recorded run covers the pack failure table: worker killed mid-transcription, corrupt pack download (checksum must catch + re-offer), pack folder deleted by hand (noticed + reinstall offered), first launch with no internet (app works, voice politely unavailable), stale pack after app update (feeds PK-1). Untested matrix entries are where the next multi-minute blackout hides.
@@ -142,4 +132,211 @@ observations before marking anything done.
 **Fix:** Incremental (only when already touching a file): migrate patch sites to the owning submodule per the C-ARCH-2 shape and drop the re-export; each migration must rewrite the pinned tests in the same change (E1 create-first); do NOT batch-swap.
 **Simplified Fix:** Old tests reach into the app's front-door modules to swap out internals. Migrating them to the modules that own those internals — one file at a time, only when already editing it — keeps the front doors thin.
 **Implementation Difficulty:** 🟡 Medium
+**Severity:** 🟢 Low
+
+---
+
+# DC Session (2026-10-12, Groups 1/2/6/7, INVESTIGATION ONLY, 4 waves)
+
+> Wave 1: 4 parallel investigators (G1/G2/G6/G7). Wave 2: 2 reviewers (REQUEST-CHANGES: 5 false/inflated Wave1 claims dropped, severities recalibrated). Wave 3: 4 verifiers re-checked every survivor at exact lines + hunted new issues. Wave 4: 2 closers (G1/2/6: REQUEST-CHANGES with downgrades; G7: KEEP 8 / DROP 2). Dropped (never re-file): IPCServer 22-mixin, heatmap-1750, timer facade, worker-RAM-unmeasured, per-chunk-resample, double-RMS, cache-clear, isinstance-dead (unlocated), local-catalog-parity-NEW (already pinned), vitest-guard-NEW (thresholds exist), abort-TOCTOU (unproven), P7-06 (owner question), P7-10 (dupe S5-CR-83). Baseline suite run SKIPPED (RUN_BASELINE_TESTS=OFF); no code changed in this session (investigation mode — zero edits).
+
+### DC-8 — `models.ts` (767 lines) owns local catalog + cloud catalog + selection + formatting
+**Status:** ❌ Not Fixed
+**Description:** One shared utils file owns the local-model catalog, the cloud-provider catalog, active-model predicates, display formatters, and validation helpers — at least four reasons to change, with cloud-vs-local facts able to drift.
+**User Impact:** Navigability/edit-coupling only; no runtime bug.
+**Root Cause:** Verified (`voice_typer/client/src/renderer/src/lib/utils/models.ts`, 767 lines, ~37% comments).
+**Gain vs Trade-off:** A create-first split (catalog / cloud / selection / format + barrel re-export) isolates edit reasons. Must update the parity-test parser path in the same change (`test_cloud_provider_catalogue_parity.py` parses `models.ts`).
+**If We Do It:** Models-page edits touch one concern at a time.
+**If We Don't:** The catch-all keeps growing.
+**My Recommendation:** 🟡 Defer (opportunistic per FV-31: split only when the file is touched anyway; never a bulk move).
+**Progress:** `None yet.`
+**Related Files:**
+- `voice_typer/client/src/renderer/src/lib/utils/models.ts`
+**Fix:** Split into `modelCatalog.ts` / `cloudCatalog.ts` / `modelActive.ts` / `format.ts` with re-export barrel (E1 create-first).
+**Simplified Fix:** Divide the oversized models helper into one file per job.
+**Implementation Difficulty:** 🟡 Medium
+**Severity:** 🟢 Low
+
+### DC-9 — `TitleBar.tsx` (732 lines) owns glyphs + three button layers + layout
+**Status:** ❌ Not Fixed
+**Description:** One file owns caption glyph paths, the title-bar button, toolbar and chevron buttons, and the full bar layout — three widget layers sharing a file.
+**User Impact:** Review/ownership granularity only; cohesive and working.
+**Root Cause:** Verified (`voice_typer/client/src/renderer/src/components/layout/TitleBar.tsx`, 732 lines).
+**Gain vs Trade-off:** Extracting glyph/button primitives leaves a ~200-line composition with zero visual change. Must preserve C-SIDEBAR-2/3 (single shared ThemeSwitch), RTL pinning, focus ring, C-UI-10 gaps.
+**If We Do It:** Bar chrome edits touch one layer at a time.
+**If We Don't:** The file keeps growing as one unit.
+**My Recommendation:** 🟡 Defer (opportunistic; never bulk-move).
+**Progress:** `None yet.`
+**Related Files:**
+- `voice_typer/client/src/renderer/src/components/layout/TitleBar.tsx`
+**Fix:** Extract `captionGlyphs.tsx` + `titleBarButtons.tsx`; `TitleBar.tsx` stays composition-only (E1 create-first, no behavior change).
+**Simplified Fix:** Move the button artwork into their own files, leaving the bar as pure layout.
+**Implementation Difficulty:** 🟡 Medium
+**Severity:** 🟢 Low
+
+### DC-10 — backend factory takes bare `dict` kwargs with no pinned keys
+**Status:** ✅ Fixed (2026-10-13: 4 total=False TypedDicts + literal call sites; 114 green, pyrefly scoped 0, negative control flags misspelling; kwargs_map uses Mapping (prompt's dict-form would not type-check — invariance); 4 dict() sites in asr/registry.py:359 + worker/_transcribe.py still un-pinned, need authorization)
+**Description:** The backend factory accepts untyped `whisper_kwargs`/`qwen_kwargs` dicts passed straight into engine constructors, so a typo'd key fails only at runtime inside `__init__` and the type checker cannot flag it.
+**User Impact:** Misconfigured engine options surface late as runtime errors instead of type errors.
+**Root Cause:** Verified (`voice_typer/server/asr_registry.py:96-104,115-120`); contrast `model_registry.py` which uses a frozen dataclass. Weak confidence per Wave 4 (needs exact type + sites at implementation).
+**Gain vs Trade-off:** `TypedDict`s (or dataclasses) pin the known keys with a type-only change. Touches `_BACKEND_SPECS` + lifecycle tests.
+**If We Do It:** Bad option keys fail at type-check time.
+**If We Don't:** Runtime-only failures persist.
+**My Recommendation:** ✅ Implement (opportunistic, Easy-Medium)
+**Progress:** Done 2026-10-13 (independently verified incl. negative control `"devic"` → bad-argument-type; probe reverted clean).
+**Related Files:**
+- `voice_typer/server/asr_registry.py:96-120`
+**Fix:** Add per-backend `TypedDict`s; annotate `kwargs_map: dict[str, Mapping[str, object]]` (NOT `dict[str, dict[str, object]]` — TypedDict invariance rejects that). Type-only.
+**Simplified Fix:** Give the engine option bags named, checked shapes instead of anything-goes dicts.
+**Implementation Difficulty:** 🟢 Easy
+**Severity:** 🟢 Low
+
+### DC-11 — skipped mic-lost wiring tests pin a renamed API (partial coverage only)
+**Status:** ✅ Fixed (2026-10-13: 3 skips re-pinned to new API and unskipped + stop/start semantics updated to match implementation; 1 skip honestly kept with updated reason; 13 passed + 1 intentional skip ON WINDOWS sandbox)
+**Description:** Four skip markers pin old private names (`_on_device_lost`, `_cancel_on_mic_lost`, `_mic_device_id_provider`) that exist nowhere in the server tree — only inside the skipped bodies, which would fail if unskipped. Three wiring tests stay active and green; the renamed behavior is partly covered by `test_recording_controller_fixes.py:159`.
+**User Impact:** Renamed-API drift goes partially unpinned on C-MIC-16 territory.
+**Root Cause:** Verified (`tests/test_active_mic_lost_wiring.py:48,116,203,281` skips vs `recording_controller.py:108-126` + `mic_lifecycle_hooks.py:41-49` new names; Wave 2 false-claim corrected: not "zero assertions").
+**Gain vs Trade-off:** Rewriting skip reasons + bodies to the new names restores the pins. Never delete the skipped tests to manufacture green (C-TEST-6).
+**If We Do It:** The DJ-65 init-wiring contract is pinned against the current API.
+**If We Don't:** Stale skips linger as honest-but-unexecuting placeholders.
+**My Recommendation:** ✅ Implement (Low; opportunistic rewrite)
+**Progress:** Done 2026-10-13 (init-wiring renames + opened-device/start + after-stop ordering + callback renames; 1 cached-_microphones case kept skipped with honest reason; file green).
+**Related Files:**
+- `tests/test_active_mic_lost_wiring.py:48-340`
+- `voice_typer/server/recording_controller.py:108-126`
+- `voice_typer/server/mic_lifecycle_hooks.py:39-49`
+**Fix:** Re-pin skipped bodies to `on_device_lost` / `on_active_mic_lost` / `_list_active_mic_ids` per TDD Prove-It, then unskip.
+**Simplified Fix:** Update the skipped tests to the current function names so they run again.
+**Implementation Difficulty:** 🟢 Easy
+**Severity:** 🟢 Low
+
+### DC-12 — suite-size comment pins understate the suite 2-4x (docs-only)
+**Status:** ❌ Not Fixed
+**Description:** Three comments pin old suite sizes (`pyproject.toml` 544-file / 309-file / 14660-test prose, `vitest.config.ts:28` 237-file, `coverage-baseline.json` 14976 tests) vs measured 811 root test files / 376 vitest files / 17574 collected. PERF-007 arithmetic stays directionally true, magnitudes wrong. Coverage floor 80.0 (baseline 84.84%) is conservative + lockstep-tested — no drift, merged here, no separate filing. FV-31 counts refreshed in place (811 vs 716/727 strengthens its Defer).
+**User Impact:** None runtime; stale magnitudes mislead capacity math.
+**Root Cause:** Verified read-only counts (C-COMMENT-5 stale-comment class).
+**Gain vs Trade-off:** Refresh the three numbers opportunistically when those files are touched. Never edit `AGENTS.md` (user-only) and never a standalone churn edit.
+**If We Do It:** Comments match the tree again.
+**If We Don't:** Magnitudes keep drifting.
+**My Recommendation:** 🟡 Defer (opportunistic docs-only)
+**Progress:** `None yet.`
+**Related Files:**
+- `pyproject.toml:584-586,386-391,604-627`
+- `voice_typer/client/vitest.config.ts:28`
+- `coverage-baseline.json`
+**Fix:** Refresh comment numbers in place; leave C-TEST-1/2/3 settings untouched (threads/importlib/xdist verified intact).
+**Simplified Fix:** Update the outdated test-count comments to today's sizes.
+**Implementation Difficulty:** 🟢 Easy
+**Severity:** 🟢 Low
+
+### DC-13 — pytest timeout skew: local 60 s vs CI 120 s (docs-level)
+**Status:** ✅ Fixed (2026-10-13: split documented in pyproject comment, values untouched; comment-only)
+**Description:** Local addopts and Makefile use `--timeout=60` while CI overrides `--timeout=120`, so a 60-120 s test fails locally but passes CI. `test_mypy_ratchet.py:325` already needs a 600 s override, proving the skew bites at the slow end.
+**User Impact:** Latent asymmetric flake window; no test observed in it today.
+**Root Cause:** Verified (`pyproject.toml:660-690`, `Makefile:59-74`, `build.yml:191-196`).
+**Gain vs Trade-off:** Document when-to-use-what (Makefile 60 = fast loop per C-TEST-4; pipeline canonical 120). Do NOT unify blindly and do NOT touch `build.yml` as a first-line fix (C-CI-2).
+**If We Do It:** Contributors know which timeout governs their run.
+**If We Don't:** The asymmetry persists silently.
+**My Recommendation:** ✅ Implement (docs-only note)
+**Progress:** Done 2026-10-13 (comment added, 60/120 values intact).
+**Related Files:**
+- `pyproject.toml:660-690`
+- `Makefile:59-74`
+- `.github/workflows/build.yml:191-196`
+**Fix:** Document the 60-vs-120 split in the pyproject comment; no workflow change.
+**Simplified Fix:** Write down why local and CI time-outs differ so nobody "fixes" the wrong one.
+**Implementation Difficulty:** 🟢 Easy
+**Severity:** 🟢 Low
+
+### DC-14 — Windows NSIS uninstaller leaves the Startup-folder `.bat` orphan
+**Status:** ⚠️ Partial (2026-10-13: code done — both .bat schemes enumerated in uninstaller.nsh + sweep widened + 3 new sweep pins green ON WINDOWS sandbox; live uninstall run on a real host still owed)
+**Description:** The uninstaller removes HKCU Run values, scheduled tasks, and `%APPDATA%\lausu`, but never the Startup-folder `.bat` (`com.Lausu.autostart_<hash>.bat`) — and the runtime legacy sweep only globs `Lausu*.bat`, which cannot match the current `com.Lausu.*` name. On tertiary-mechanism machines the orphan fires a deleted target at every logon after uninstall.
+**User Impact:** Uninstalled app keeps a logon entry pointing at a deleted binary (rare path: only when Task Scheduler failed).
+**Root Cause:** Verified: `scripts/windows/uninstaller.nsh:67-155` has zero Startup handling; `.bat` path `autostart_windows.py:385-392`; sweep mismatch `_autostart_windows_sweep.py:179-214` vs `_paths.py:27,32`. Linux closed (`prerm:101`); macOS tracked as S5-CR-83 (distinct, not merged).
+**Gain vs Trade-off:** A best-effort Startup-folder delete loop in `customUnInstall` closes the orphan. Script-only, no workflow touch (C-CI-2 safe), keep autostart order (C-CROSS-2).
+**If We Do It:** Uninstall removes all three autostart mechanisms.
+**If We Don't:** Orphan logon entries persist on fragile machines.
+**My Recommendation:** ✅ Implement
+**Progress:** Code done 2026-10-13 (both schemes enumerated + sweep widened + 3 sweep pins green); live uninstall host run still owed.
+**Related Files:**
+- `scripts/windows/uninstaller.nsh:67-155`
+- `voice_typer/server/server_platform/autostart_windows.py:385-392`
+**Fix:** Enumerate `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\com.Lausu.autostart_*.bat` + legacy `Lausu_*.bat` in `customUnInstall`. `VALIDATE ON WINDOWS HOST`.
+**Simplified Fix:** Make the uninstaller delete the startup-folder shortcut it currently forgets.
+**Implementation Difficulty:** 🟢 Easy
+**Severity:** 🟡 Medium
+
+### DC-15 — per-arch Tauri confs drop base window fields (array-replace)
+**Status:** ⚠️ Partial (2026-10-13: content done — 4 confs repeat the 5 fields, drift-pinned, 87 tauri tests green ON WINDOWS sandbox; visual chrome check on real Win/macOS hosts still owed)
+**Description:** Per-arch configs re-specify `app.windows` but omit base-only `center`, `hiddenTitle`/`titleBarStyle`/`trafficLightPosition`, and `additionalBrowserArgs` (autoplay + WebOOUI hardening flags). Tauri merges `--config` per RFC 7396: arrays replace wholesale, so omitted fields fall back to defaults, not base values. No test pins these fields (0 hits in `tests/`).
+**User Impact:** Shipped Windows/macOS windows lose centering and hardening flags; macOS loses traffic-light position. Size/`decorations` deltas look intentional and stay.
+**Root Cause:** Doc-verified (v2.tauri.app configuration-files: "arrays are replaced as a whole… Repeat everything you want to keep") + field diff vs `tauri.conf.json:21-58`.
+**Gain vs Trade-off:** Repeat the dropped hardening/geometry fields per-arch (content-only JSON; C-CI-10 narrowing + assertion intact; do NOT touch workflow `--config` wiring).
+**If We Do It:** Per-arch windows match the intended chrome and flags.
+**If We Don't:** Silent divergence from the base window spec ships.
+**My Recommendation:** ✅ Implement
+**Progress:** Content done 2026-10-13 (4 confs repeat the 5 fields, drift-pinned, 87 green); visual host check still owed.
+**Related Files:**
+- `src-tauri/tauri.windows-x86_64.conf.json`
+- `src-tauri/tauri.macos.conf.json`
+- `src-tauri/tauri.conf.json:21-58`
+**Fix:** Re-add `center` / `hiddenTitle` / `titleBarStyle` / `trafficLightPosition` / `additionalBrowserArgs` per-arch where intended; document intentional deltas. `VALIDATE ON WINDOWS HOST` + `VALIDATE ON MACOS HOST`.
+**Simplified Fix:** Copy the missing window settings from the base config into each platform config.
+**Implementation Difficulty:** 🟢 Easy
+**Severity:** 🟡 Medium
+
+### DC-16 — migration runbooks still live-voice the retired prewarm flow
+**Status:** ✅ Fixed (2026-10-13: section-level HISTORICAL banners + checklists/tables struck; 3 residual VALIDATE lines sit inside bannered-retired sections only; linux zero live prewarm VALIDATEs)
+**Description:** Build sections banner prewarm HISTORICAL (Linux `:148-154`, Windows `:435-442`) but live-voiced steps remain: Linux Step-11/systemd + check #7 + capture items; Windows §5/§6.7/§7.2/troubleshooting/tables referencing deleted `server/prewarm/__main__.py` and removed `build_prewarm_*` scripts. `tauri-build-runbook.md:347-348` already marks prewarm RETIRED — the migration runbooks must match.
+**User Impact:** A host validator following the runbook burns a Nuitka build of a deleted module.
+**Root Cause:** Verified half-retired docs (C-CI-13/16 unaffected — docs-only).
+**Gain vs Trade-off:** Banner the remnants HISTORICAL like Step 2. Pure docs, zero code/workflow risk.
+**If We Do It:** Runbooks stop sending validators down a deleted path.
+**If We Don't:** Wasted host-validation builds recur.
+**My Recommendation:** ✅ Implement (docs-only)
+**Progress:** Done 2026-10-13 (banners + struck tables) + nits round same day (residual §2/§6.7 VALIDATE + pass-criteria lines struck-through; :1314 uninstall-deregistration kept as legitimate legacy-cleanup; zero live-voiced prewarm VALIDATEs outside retired sections). Open product call (owner): gate still reads "all 9 must pass" while point 7 is retired — 9 vs 8.
+**Related Files:**
+- `docs/migration/linux-validation-runbook.md:393-423,651,745-747`
+- `docs/migration/windows-validation-runbook.md:435-481,562,666,987-1050,1221-1247,1389-1390,1859-1893`
+**Fix:** Apply the Step-2 HISTORICAL banner treatment to every live-voiced prewarm section/row.
+**Simplified Fix:** Mark the leftover prewarm instructions as retired everywhere, not just in one section.
+**Implementation Difficulty:** 🟢 Easy
+**Severity:** 🟢 Low
+
+### DC-17 — macOS dev-path LaunchAgent omits `--hidden/--delay` + stale platform rows/hints
+**Status:** ❌ Not Fixed
+**Description:** The non-packaged macOS registration builds `ProgramArguments` without the `--hidden --delay` flags the packaged path, Linux, and Windows all pass (launcher honors them). Same entry bundles three verified-narrowed docs issues: PLATFORM_STATUS single-instance row omits the Tauri plugin authority (`main.rs:103` owns it under the host; Python mutex skipped in sidecar mode `ipc/entrypoint.py:277`); the Wayland hint suggests wtype/ydotool "for hotkey support" though wtype only injects paste and ydotool is probed but never consumed (native evdev already covers Wayland hotkeys); power.rs keeps only unnamed `4/7/18/10` constants (Windows PBT_* mapping verified in the `GetMessageW` loop — the "dead mapping" half of Wave1 was false, stub documented-deliberate).
+**User Impact:** Dev-checkout Macs launch visible with no I/O-settle delay; docs mislead Wayland/single-instance/power readers.
+**Root Cause:** Verified (`autostart_macos.py:80-129` vs `:71-73` + `autostart.py:127` + `launcher:113-141`; `PLATFORM_STATUS.md:18`; `i18n.py:71-74,240-244` + `clipboard/linux.py:177-205`; `power.rs:181-188,265-316`). Apple man-page shape otherwise matches.
+**Gain vs Trade-off:** Append the two flags on the dev path only (keep macOS array shape; Windows `list2cmdline` untouched per C-CROSS-1); docs rows are one-line/copy fixes (P7-08 touches all 8 locales per C-I18N-1/2 with genuine translations; power constants only if the file is touched anyway per E13).
+**If We Do It:** Dev Mac logons behave like packaged ones; platform docs match code.
+**If We Don't:** Visible dev logons + misleading hints persist.
+**My Recommendation:** ✅ Implement
+**Progress:** `None yet.`
+**Related Files:**
+- `voice_typer/server/server_platform/autostart_macos.py:80-129`
+- `docs/PLATFORM_STATUS.md:18`
+- `voice_typer/server/i18n.py:71-74`
+- `src-tauri/src/platform/power.rs:181-188`
+**Fix:** Dev-path `program_args += ["--hidden", "--delay", delay_str]`; PLATFORM_STATUS single-instance row note; Wayland hint reword to evdev/input-group; name PBT_* constants opportunistically. `VALIDATE ON MACOS HOST` (plist lint + logon cycle) + `VALIDATE ON LINUX HOST` (Wayland matrix).
+**Simplified Fix:** Give dev Mac logons the same hidden/delayed start as packaged ones and correct three small docs rows.
+**Implementation Difficulty:** 🟢 Easy
+**Severity:** 🟢 Low
+
+### DC-18 — stale unreferenced `voice-typer.desktop.template` (pre-rename twin)
+**Status:** ✅ Fixed (2026-10-13: all 5 twins deleted, zero refs repo-wide, drift/naming green; .deb content check still owed on a Linux host)
+**Description:** `src-tauri/voice-typer.desktop.template` carries pre-rename branding (`Name=Voice Typer`, `StartupWMClass=Voice Typer`) and is referenced nowhere — every config/test/doc pins `lausu.desktop.template` (`tauri.conf.json:107`, mig17/18 tests). Same twin pattern unreferenced: `00-voice-typer-capslock.conf`, `99-voice-typer.rules` (per-arch resources list `lausu.*` only). Risk: a wrong-file fix for S1-CR-146 and template-glob confusion.
+**User Impact:** None today; a future editor fixes the wrong template.
+**Root Cause:** Verified reference grep (1 hit = the other file).
+**Gain vs Trade-off:** Delete the twin (+ twin confs/rules) and confirm `.deb` contents unchanged. Keep `bundle.resources` narrowing + assertion (C-CI-10); do NOT touch `lausu.desktop.template:28` (owned by S1-CR-146 host gate).
+**If We Do It:** One template, no wrong-file risk.
+**If We Don't:** The stale twin keeps inviting a misdirected fix.
+**My Recommendation:** ✅ Implement (Trivial)
+**Progress:** Done 2026-10-13 (5 files deleted; .deb check owed on Linux host).
+**Related Files:**
+- `src-tauri/voice-typer.desktop.template`
+- `src-tauri/lausu.desktop.template`
+**Fix:** Delete unreferenced twin files; re-grep for references at implementation time. `VALIDATE ON LINUX HOST`: per-arch build, menu entry `Name=Lausu`, no `Voice Typer` string in `.deb`.
+**Simplified Fix:** Delete the leftover pre-rename desktop template nobody uses.
+**Implementation Difficulty:** 🟢 Easy
 **Severity:** 🟢 Low
