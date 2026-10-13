@@ -25,6 +25,7 @@ from . import (
     buffer as _buffer_mod,  # owning module of the secure-clear helpers (C-ARCH-2)
     recording_buffer,
 )
+from .exceptions import ResampleError
 from .format import prepare_audio
 from .recording_start import start_recording  # noqa: F401  # re-exported seam (tests patch the facade)
 from .vad_helpers import refresh_vad_caches  # noqa: F401  # call-time seam read by recording_start
@@ -327,8 +328,13 @@ def stop_recording(recorder: Recorder) -> np.ndarray:
         recorder._last_audio_stats = (0.0, 0.0, 0.0)
         log.warning("[RECORDING] No audio data captured!")
 
-    # Wait for the resample thread to complete and propagate any
-    _resample_thread.join()
+    # Bounded join on the worker-join budget: a hung resample fails
+    # the stop honestly via ResampleError, never stalls this thread.
+    _resample_thread.join(timeout=_AUDIO_WORKER_JOIN_TIMEOUT_S)
+    if _resample_thread.is_alive():
+        raise ResampleError(
+            f"resample timed out after {_AUDIO_WORKER_JOIN_TIMEOUT_S:.1f}s"
+        )
     if _resample_result["exc"] is not None:
         raise _resample_result["exc"]
     audio = _resample_result["audio"]

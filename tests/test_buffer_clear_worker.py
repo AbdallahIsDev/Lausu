@@ -145,30 +145,73 @@ def test_worker_singleton_reused_across_calls():
     _drain_queue(timeout=5.0)
 
 
-def test_queue_full_fallback_clears_synchronously(monkeypatch):
-    """if the bounded queue is full, the caller thread zeros the buffer."""
+def test_queue_full_drops_oldest_and_keeps_depth(monkeypatch):
+    """On a full clear queue the oldest entry is dropped (zeroed) and the"""
+    import time
+
     from voice_typer.server import recording
     from voice_typer.server.recording import buffer as buffer_mod
 
-    # Replace the queue's put_nowait with one that always raises Full,
+    # Park the singleton worker with an empty queue so no concurrent
+    # drain can disturb the depth assertions below.
+    _drain_queue(timeout=10.0)
+    assert buffer_mod._stop_buffer_clear_worker(timeout=5.0), (
+        "test setup: singleton clear worker did not stop"
+    )
+    # reads its OWN module global (C-ARCH-2 owning-module shape), so the
+    monkeypatch.setattr(buffer_mod, "_ensure_buffer_clear_worker", lambda: None)
+    real_queue = buffer_mod._buffer_clear_queue
+    assert real_queue.qsize() == 0, "test setup: queue should be empty"
+    burst = [_make_buffer(n_chunks=1) for _ in range(64)]
+    for buf in burst:
+        real_queue.put_nowait(buf)
+    victim = burst[0]
+    victim_chunks = list(victim)
+    assert np.any(victim_chunks[0]), "test setup: oldest queued buffer should start non-zero"
+
+    fresh = _make_buffer(n_chunks=1)
+    started = time.perf_counter()
+    recording._secure_clear_array_background(fresh)
+    elapsed = time.perf_counter() - started
+
+    assert elapsed < 5.0, (
+        f"drop-oldest took {elapsed:.1f}s: the Full path must stay off "
+        f"the audio path, never synchronously zero a large buffer."
+    )
+    assert real_queue.qsize() == 64, "queue depth must stay at the cap after drop-oldest"
+    assert not np.any(victim_chunks[0]), "dropped oldest entry must be secure-zeroed inline"
+    assert np.any(fresh[0]), "the new buffer must be queued, not cleared inline"
+
+    # Re-arm the singleton worker and drain what this test queued.
+    monkeypatch.undo()
+    recording._secure_clear_array_background(_make_buffer(n_chunks=1))
+    _drain_queue(timeout=10.0)
+
+
+def test_queue_full_empty_race_clears_inline(monkeypatch):
+    """If the queue drains between the failed put and the drop (Empty),"""
+    from voice_typer.server import recording
+    from voice_typer.server.recording import buffer as buffer_mod
+
     real_queue = buffer_mod._buffer_clear_queue
 
     def always_full(_item):
         raise queue.Full
 
+    def always_empty():
+        raise queue.Empty
+
     monkeypatch.setattr(real_queue, "put_nowait", always_full)
-    # reads its OWN module global (C-ARCH-2 owning-module shape), so the
+    monkeypatch.setattr(real_queue, "get_nowait", always_empty)
     monkeypatch.setattr(buffer_mod, "_ensure_buffer_clear_worker", lambda: None)
 
     overflow = _make_buffer(n_chunks=2)
     assert np.any(overflow[0]), "test setup: overflow buffer should start non-zero"
 
-    # Should NOT raise; should fall back to synchronous fill(0).
     recording._secure_clear_array_background(overflow)
 
-    # The fallback cleared the overflow buffer in-place.
     for i, chunk in enumerate(overflow):
-        assert not np.any(chunk), f"overflow chunk {i} not zeroed by queue-full fallback"
+        assert not np.any(chunk), f"overflow chunk {i} not zeroed by empty-race fallback"
 
 
 def test_public_api_signature_preserved():
