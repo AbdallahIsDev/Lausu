@@ -122,7 +122,10 @@ class RegistryCore:
         return getattr(backend, "is_loaded", True)
 
     def get_active(self) -> AsrBackend | None:
-        """Return the ready configured backend, else whisper, else None"""
+        """Configured backend if ready, else whisper if ready, else None.
+
+        Only those two names are examined, in that order, so an unconfigured engine never surprises the caller.
+        """
         name = getattr(self._config, "asr_backend", "whisper")
         notify_last_resort = False
         # Gate answer reused by the fan-out below so the gate is consulted once.
@@ -141,6 +144,7 @@ class RegistryCore:
                     self._breaker.clear_last_resort_notified()
                     return whisper
 
+                # First registration only, by contract.
                 for b in list(self._backends.values()):
                     if b is not None:
                         if not self._is_ready(b):
@@ -264,6 +268,36 @@ class RegistryCore:
         log.info("[ASR_REGISTRY] serving whisper from %s (offline pack absent)", source)
         return engine
 
+    def _attempt_load(self, backend: AsrBackend, label: str, _cb: ProgressCallback, *, record_breaker: bool) -> bool:
+        """One load attempt. True = loaded; False = failed/expired (fall through).
+        Refusals propagate (primary re-raises, fallback absorbs); ``record_breaker`` gates breaker writes.
+        """
+        try:
+            # Grace-expired None falls through.
+            return self._load_with_timeout(backend, label, _cb) is not None
+        except (ModelNotDownloadedError, ModelIntegrityError):
+            if record_breaker:
+                raise
+            log.exception("[ASR_REGISTRY] whisper fallback also failed")
+        except Exception as exc:
+            log.warning(
+                "[ASR_REGISTRY] failed to load %s: %s, trying fallback",
+                label,
+                exc,
+                exc_info=True,
+            )
+            if record_breaker:
+                self._record_failure(label)
+        try:
+            backend.unload()
+            log.info("[ASR_REGISTRY] unloaded failed backend: %s", label)
+        except Exception:
+            log.exception(
+                "[ASR_REGISTRY] failed to unload %s after load failure",
+                label,
+            )
+        return False
+
     def load_with_fallback(self, progress_callback: ProgressCallback | None = None) -> AsrBackend | None:
         """Load the configured backend; on failure, fall back to whisper."""
         _cb = progress_callback or (lambda msg: None)
@@ -280,7 +314,7 @@ class RegistryCore:
                 backend = self._backends.get(name)
             if backend is not None:
                 try:
-                    if self._load_with_timeout(backend, name, _cb) is not None:
+                    if self._attempt_load(backend, name, _cb, record_breaker=True):
                         log.info("[ASR_REGISTRY] loaded backend: %s", name)
                         self._record_success(name)
                         return backend
@@ -304,24 +338,6 @@ class RegistryCore:
                         exc,
                     )
                     raise
-                except Exception as exc:
-                    # ``exc_info=True`` so the full traceback is captured.
-                    log.warning(
-                        "[ASR_REGISTRY] failed to load %s: %s, trying fallback",
-                        name,
-                        exc,
-                        exc_info=True,
-                    )
-                    self._record_failure(name)
-                    try:
-                        backend.unload()
-                        log.info("[ASR_REGISTRY] unloaded failed backend: %s", name)
-                    except Exception:
-                        log.exception(
-                            "[ASR_REGISTRY] failed to unload %s after load failure",
-                            name,
-                        )
-                    # Do NOT unregister. Keep it in _backends so
 
         # If the primary IS whisper and it failed, no separate fallback.
         if name == "whisper":
@@ -350,24 +366,11 @@ class RegistryCore:
                     config=self._config,
                 ),
             )
-        if whisper is not None:
-            try:
-                if self._load_with_timeout(whisper, "whisper fallback", _cb) is not None:
-                    log.info("[ASR_REGISTRY] loaded fallback backend: whisper")
-                    # Do NOT call _record_success("whisper"), whisper is
-                    self._breaker.clear_last_resort_notified()
-                    return whisper
-                # Grace expired too, helper already unloaded; fall through.
-            except Exception:
-                log.exception("[ASR_REGISTRY] whisper fallback also failed")
-                # Do NOT call _record_failure("whisper"), the breaker
-                try:
-                    whisper.unload()
-                    log.info("[ASR_REGISTRY] unloaded failed fallback backend: whisper")
-                except Exception:
-                    log.exception(
-                        "[ASR_REGISTRY] failed to unload whisper after load failure",
-                    )
+        if whisper is not None and self._attempt_load(whisper, "whisper fallback", _cb, record_breaker=False):
+            log.info("[ASR_REGISTRY] loaded fallback backend: whisper")
+            # Do NOT call _record_success("whisper"), whisper is
+            self._breaker.clear_last_resort_notified()
+            return whisper
 
         return None
 
