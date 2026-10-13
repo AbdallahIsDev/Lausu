@@ -121,18 +121,22 @@ def test_known_critical_deps_are_pinned() -> None:
     )
 
 
-def _pyproject_dep_specifiers() -> dict[str, str]:
-    """Return ``{normalized_name: specifier_str}`` for every direct dep."""
+def _pyproject_dep_specifiers() -> dict[str, list[tuple[str, str]]]:
+    """Return ``{normalized_name: [(specifier_str, marker_str)]}``.
+
+    One entry per declared line: a package with a platform split (e.g.
+    cryptography's Intel-Mac pin) yields two entries with different markers.
+    """
     with PYPROJECT.open("rb") as fh:
         data = tomllib.load(fh)
     deps_raw: list[str] = data.get("project", {}).get("dependencies", [])
-    out: dict[str, str] = {}
+    out: dict[str, list[tuple[str, str]]] = {}
     for line in deps_raw:
         # Split off environment markers.
         if ";" in line:
-            dep_part, _ = line.split(";", 1)
+            dep_part, marker_part = line.split(";", 1)
         else:
-            dep_part = line
+            dep_part, marker_part = line, ""
         # ``"psutil>=5.9,<8.0"`` → name="psutil", spec=">=5.9,<8.0".
         m = re.match(r"^\s*([A-Za-z0-9_.-]+)\s*(.*)$", dep_part)
         if not m:
@@ -140,27 +144,35 @@ def _pyproject_dep_specifiers() -> dict[str, str]:
         name = _normalize(m.group(1))
         spec = m.group(2).strip()
         if spec:
-            out[name] = spec
+            out.setdefault(name, []).append((spec, marker_part.strip()))
     return out
 
 
-def _lockfile_pinned_versions() -> dict[str, str]:
+def _lockfile_pinned_versions() -> dict[str, list[tuple[str, str]]]:
     """
-    Return ``{normalized_name: pinned_version}`` for every ``<name>==<version>`` line.
-    Only the FIRST pin per package is recorded (lockfiles are expected
+    Return ``{normalized_name: [(pinned_version, marker_str)]}`` for every
+    ``<name>==<version>[; markers]`` stanza header. ALL pins per package are
+    recorded (a platform split legitimately pins several versions).
     """
     with LOCKFILE.open("r", encoding="utf-8") as fh:
-        text = fh.read()
-    out: dict[str, str] = {}
-    for m in re.finditer(r"^([A-Za-z0-9_.-]+)==([A-Za-z0-9.+!]+)", text, re.MULTILINE):
+        lines = fh.read().splitlines()
+    out: dict[str, list[tuple[str, str]]] = {}
+    for line in lines:
+        m = re.match(r"^([A-Za-z0-9_.-]+)==([A-Za-z0-9.+!]+)\s*(?:;\s*(.*?))?\s*\\?\s*$", line)
+        if not m:
+            continue
         name = _normalize(m.group(1))
-        if name not in out:
-            out[name] = m.group(2)
+        out.setdefault(name, []).append((m.group(2), (m.group(3) or "").strip()))
     return out
 
 
 def test_lockfile_pinned_versions_satisfy_pyproject_constraints() -> None:
-    """Every lockfile pin MUST satisfy the version specifier in pyproject.toml."""
+    """Every lockfile pin MUST satisfy the version specifier in pyproject.toml.
+
+    Marker-aware: a pin is checked against the declared entry carrying the
+    SAME marker (platform splits pin several versions of one package, e.g.
+    cryptography 50.0.0 everywhere but 48.0.1 on Intel Macs).
+    """
     try:
         from packaging.specifiers import SpecifierSet
         from packaging.version import Version
@@ -169,19 +181,21 @@ def test_lockfile_pinned_versions_satisfy_pyproject_constraints() -> None:
     specs = _pyproject_dep_specifiers()
     pins = _lockfile_pinned_versions()
     violations: list[str] = []
-    for name, spec_str in sorted(specs.items()):
-        pin = pins.get(name)
-        if pin is None:
-            # Completeness is checked by test_every_direct_dep_is_pinned_in_lockfile.
-            continue
-        try:
-            spec = SpecifierSet(spec_str)
-            ver = Version(pin)
-        except Exception as exc:  # pragma: no cover, defensive parse
-            violations.append(f"  {name}: failed to parse spec={spec_str!r} or pin={pin!r} ({exc})")
-            continue
-        if ver not in spec:
-            violations.append(f"  {name}: lockfile pins {pin} but pyproject.toml requires {spec_str}")
+    for name, entries in sorted(specs.items()):
+        for spec_str, spec_marker in entries:
+            matching = [pin for pin, pin_marker in pins.get(name, []) if pin_marker == spec_marker]
+            if not matching:
+                # Completeness is checked by test_every_direct_dep_is_pinned_in_lockfile.
+                continue
+            for pin in matching:
+                try:
+                    spec = SpecifierSet(spec_str)
+                    ver = Version(pin)
+                except Exception as exc:  # pragma: no cover, defensive parse
+                    violations.append(f"  {name}: failed to parse spec={spec_str!r} or pin={pin!r} ({exc})")
+                    continue
+                if ver not in spec:
+                    violations.append(f"  {name}: lockfile pins {pin} but pyproject.toml requires {spec_str}")
     assert not violations, (
         "Lockfile drift detected, the lockfile pin violates the version "
         "specifier declared in pyproject.toml. CI (which resolves from "
@@ -201,7 +215,8 @@ def test_lockfile_psutil_pin_matches_pyproject_constraint() -> None:
         pytest.skip("psutil not installed in this environment")
     installed = psutil.__version__
     pins = _lockfile_pinned_versions()
-    pinned = pins.get("psutil")
+    psutil_pins = pins.get("psutil") or []
+    pinned = psutil_pins[0][0] if psutil_pins else None
     assert pinned is not None, (
         "psutil is missing from requirements-lock.txt, the reproducible-build "
         "path would crash with ModuleNotFoundError on the first "
