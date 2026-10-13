@@ -758,3 +758,30 @@ class TestLastResortWarningLogOncePerTransition:
                 "after recovery, the next fall-through must log the "
                 f"WARNING again. Got {len(warnings)} WARNING records."
             )
+
+
+class TestConfiguredWhisperNoneContract:
+    """``get_active`` examines configured, then whisper, then None."""
+
+    def test_ready_later_backend_ignored_returns_none_with_notification(self):
+        """Unloaded first registration short-circuits a ready later one."""
+        registry = AsrBackendRegistry(_Config("cloud"))
+        qwen = _make_unloaded_backend()
+        parakeet = _make_loaded_backend()
+        registry.register("qwen", qwen)
+        registry.register("parakeet", parakeet)
+
+        notifications: list[str] = []
+        registry.add_last_resort_subscriber(lambda name: notifications.append(name))
+
+        result = registry.get_active()
+
+        assert parakeet.is_loaded, "sanity: the later backend is ready (the ignored case)."
+        assert result is None, (
+            "contract: only configured then whisper are examined, "
+            "a ready later registration is intentionally not picked."
+        )
+        assert notifications == ["cloud"], (
+            "the last-resort fan-out must fire with the configured name "
+            f"when the first registration is unloaded. Got {notifications!r}."
+        )
