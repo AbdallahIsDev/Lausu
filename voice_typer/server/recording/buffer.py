@@ -153,11 +153,26 @@ def _secure_clear_array_background(buffer: Any) -> None:
     try:
         _buffer_clear_queue.put_nowait(buffer)
     except queue.Full:
+        # Drop-oldest: the queue is a bounded backlog, never a reason to
+        # stall the caller. The evicted entry is zeroed inline (it needed
+        # clearing anyway) and its queue slot accounted, so joiners never
+        # hang on a leaked task.
         log.warning(
-            "[RECORDING] buffer-clear queue full (size=%d); clearing "
-            "synchronously on caller thread. If this recurs, the "
-            "buffer-clear worker may be starved.",
+            "[RECORDING] buffer-clear queue full (size=%d); dropping the "
+            "oldest entry. If this recurs, the buffer-clear worker may "
+            "be starved.",
             _BUFFER_CLEAR_QUEUE_MAXSIZE,
         )
-        with contextlib.suppress(Exception):
-            _secure_clear_handed_off_buffer(buffer)
+        try:
+            oldest = _buffer_clear_queue.get_nowait()
+        except queue.Empty:
+            oldest = None
+        if oldest is not None:
+            with contextlib.suppress(Exception):
+                _secure_clear_handed_off_buffer(oldest)
+            _buffer_clear_queue.task_done()
+        try:
+            _buffer_clear_queue.put_nowait(buffer)
+        except queue.Full:
+            with contextlib.suppress(Exception):
+                _secure_clear_handed_off_buffer(buffer)

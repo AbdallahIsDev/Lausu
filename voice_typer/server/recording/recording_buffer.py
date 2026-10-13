@@ -26,6 +26,10 @@ np = lazy_module("numpy")
 _GROWABLE_BUFFER_INITIAL_CAPACITY_SECONDS = 30
 # Samples per device chunk used for the hard-cap estimate: two
 _GROWABLE_BUFFER_HARD_CAP_SAMPLES_PER_CHUNK = 2 * _AUDIO_BLOCKSIZE
+# ``clear()`` releases the allocation back to initial size once it has
+# grown past this multiple of it, so one long session stops pinning
+# peak RAM idle for the rest of the process.
+_CLEAR_SHRINK_OVER_PROVISION_FACTOR = 4
 
 
 class GrowableRecordingBuffer:
@@ -360,16 +364,22 @@ class GrowableRecordingBuffer:
 
     def clear(self) -> None:
         """Zero every occupied byte and reset to empty (secure-clear sync
-        contract). The ALLOCATION is kept so the next session reuses it
-        without a fresh malloc."""
-        if self._storage is not None and self._filled > 0:
+        contract). A modest ALLOCATION is kept so the next session reuses
+        it without a fresh malloc; a peak allocation past the shrink
+        threshold is zeroed whole (evicted bytes may hold stale audio)
+        and released back to initial size."""
+        if self._storage is not None:
             cap = self._storage.shape[0]
-            s = self._start
-            if s + self._filled <= cap:
-                self._storage[s : s + self._filled].fill(0)
-            else:
-                self._storage[s:].fill(0)
-                self._storage[: s + self._filled - cap].fill(0)
+            if cap > _CLEAR_SHRINK_OVER_PROVISION_FACTOR * self._initial_capacity_samples:
+                self._storage.fill(0)
+                self._storage = np.empty(self._initial_capacity_samples, dtype=np.float32)
+            elif self._filled > 0:
+                s = self._start
+                if s + self._filled <= cap:
+                    self._storage[s : s + self._filled].fill(0)
+                else:
+                    self._storage[s:].fill(0)
+                    self._storage[: s + self._filled - cap].fill(0)
         self._filled = 0
         self._n_chunks = 0
         self._lens.clear()

@@ -384,3 +384,47 @@ class TestDiscardAndStopZeroing:
         # Subsequent appends land in the installed buffer.
         rec._audio_pipeline._buffer.append(np.full(2, 5.0, dtype=np.float32))
         assert rec._audio_pipeline._buffer.total_samples == 6
+
+
+class TestClearReleasesPeakAllocation:
+    def test_clear_shrinks_oversize_storage_to_initial(self):
+        """``clear()`` on a >>4x-initial buffer must return capacity near"""
+        buf = GrowableRecordingBuffer(
+            maxlen=None,
+            nominal_sample_rate=16000,
+            initial_capacity_samples=64,
+            max_capacity_samples=1 << 40,
+        )
+        for _ in range(64):
+            buf.append(np.full(64, 0.5, dtype=np.float32))
+        old_storage = buf.storage
+        assert old_storage.shape[0] > 4 * 64
+
+        buf.clear()
+
+        assert buf.total_samples == 0
+        assert len(buf) == 0
+        assert buf.storage.shape[0] == 64, (
+            f"clear() kept a {old_storage.shape[0]}-sample allocation: "
+            f"peak memory stays held idle instead of returning near initial."
+        )
+        assert not np.any(old_storage), (
+            "SEC: the released peak storage must be zeroed before freeing, "
+            "evicted-region bytes may hold stale audio."
+        )
+
+    def test_clear_keeps_modest_allocation(self):
+        """``clear()`` at or below 4x initial must keep the allocation."""
+        buf = GrowableRecordingBuffer(
+            maxlen=None,
+            nominal_sample_rate=16000,
+            initial_capacity_samples=64,
+            max_capacity_samples=1 << 40,
+        )
+        buf.append(np.full(64, 0.5, dtype=np.float32))
+        storage_ref = buf.storage
+
+        buf.clear()
+
+        assert buf.storage is storage_ref
+        assert buf.total_samples == 0

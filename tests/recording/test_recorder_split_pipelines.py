@@ -480,5 +480,54 @@ class TestStopRecordingPrepareAudioPipelining:
         )
 
 
+class TestStopRecordingResampleTimeout:
+    """A hung resample must fail the stop, never stall it."""
+
+    def test_hung_resample_fails_fast_with_resample_error(self):
+        """``stop_recording`` returns (raising ``ResampleError``) even"""
+        import threading
+
+        from voice_typer.server.recording.exceptions import ResampleError
+
+        gate = threading.Event()
+        rec = _build_mock_recorder_for_stop(
+            buffer_chunks=[np.ones(100, dtype=np.float32)],
+        )
+
+        def _hung_prepare(rec, audio, effective_sr_in, **kw):
+            gate.wait(60)
+            return audio
+
+        _prep().side_effect = _hung_prepare
+        outcome: dict = {}
+
+        def _run():
+            try:
+                stop_recording(rec)
+            except ResampleError as exc:
+                outcome["err"] = exc
+            else:
+                outcome["ok"] = True
+
+        started = time.perf_counter()
+        worker = threading.Thread(target=_run, daemon=True)
+        worker.start()
+        worker.join(timeout=15)
+        elapsed = time.perf_counter() - started
+
+        assert not worker.is_alive(), (
+            "stop_recording hung on the resample thread: the join "
+            "must be bounded so a stuck resample fails the stop."
+        )
+        assert isinstance(outcome.get("err"), ResampleError), (
+            f"expected ResampleError, got {outcome!r}: a timed-out "
+            f"resample must fail the stop honestly, not return audio."
+        )
+        assert elapsed < 10, (
+            f"stop took {elapsed:.1f}s: the resample join must be "
+            f"bounded by the worker-join budget, not unbounded."
+        )
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v", "--timeout=30"]))
