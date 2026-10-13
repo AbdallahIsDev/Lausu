@@ -197,9 +197,10 @@ class TestNvidiaDllPaths:
 
         import voice_typer.server.transcription as mod
 
-        cublas_bin = tmp_path / "nvidia" / "cublas" / "bin"
-        cudnn_bin = tmp_path / "nvidia" / "cudnn" / "bin"
-        nvrtc_bin = tmp_path / "nvidia" / "cuda_nvrtc" / "bin"
+        sp = tmp_path / "Lib" / "site-packages"
+        cublas_bin = sp / "nvidia" / "cublas" / "bin"
+        cudnn_bin = sp / "nvidia" / "cudnn" / "bin"
+        nvrtc_bin = sp / "nvidia" / "cuda_nvrtc" / "bin"
         for path in (cublas_bin, cudnn_bin, nvrtc_bin):
             path.mkdir(parents=True)
         (cublas_bin / "cublas64_12.dll").write_text("")
@@ -209,11 +210,12 @@ class TestNvidiaDllPaths:
         added = []
         monkeypatch.setattr(sys, "platform", "win32")
         # ``site`` / ``sys`` / ``os`` are stdlib singletons, patch them
-        monkeypatch.setattr(site, "getsitepackages", lambda: [str(tmp_path)])
+        monkeypatch.setattr(site, "getsitepackages", lambda: [str(sp)])
         monkeypatch.setattr(site, "getusersitepackages", lambda: str(tmp_path / "user"))
         # Override sys.prefix so the _configure_nvidia_dll_paths()
         monkeypatch.setattr(sys, "prefix", str(tmp_path / "prefix"))
-        # Override expanduser so the app_venv fallback doesn't pick up
+        monkeypatch.setattr(sys, "base_prefix", str(tmp_path / "base"))
+        # Pin expanduser to tmp so no home-derived lookup can escape the sandbox.
         monkeypatch.setattr(os.path, "expanduser", lambda _: str(tmp_path / "home"))
         monkeypatch.setattr(os, "add_dll_directory", lambda path: added.append(path), raising=False)
         monkeypatch.setenv("PATH", "C:\\Windows")
