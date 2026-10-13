@@ -21,14 +21,14 @@ class TestAsrRegistryCreatesEngines:
         registry = AsrBackendRegistry(MagicMock())
         result = registry.create(
             "whisper",
-            whisper_kwargs=dict(
-                model_size="tiny.en",
-                device="cpu",
-                language="en",
-                beam_size=1,
-                best_of=1,
-                condition_on_previous_text=False,
-            ),
+            whisper_kwargs={
+                "model_size": "tiny.en",
+                "device": "cpu",
+                "language": "en",
+                "beam_size": 1,
+                "best_of": 1,
+                "condition_on_previous_text": False,
+            },
         )
         assert result is fake_engine
         fake_cls.assert_called_once()
@@ -50,7 +50,7 @@ class TestAsrRegistryCreatesEngines:
         registry = AsrBackendRegistry(MagicMock())
         result = registry.create(
             "qwen",
-            qwen_kwargs=dict(model_path="/fake/path", device="cpu", language="en"),
+            qwen_kwargs={"model_path": "/fake/path", "device": "cpu", "language": "en"},
         )
         assert result is fake_engine
         fake_cls.assert_called_once_with(model_path="/fake/path", device="cpu", language="en")
@@ -68,7 +68,7 @@ class TestAsrRegistryCreatesEngines:
         registry = AsrBackendRegistry(MagicMock())
         result = registry.create(
             "parakeet",
-            parakeet_kwargs=dict(device="cuda", language="en"),
+            parakeet_kwargs={"device": "cuda", "language": "en"},
         )
         assert result is fake_engine
         fake_cls.assert_called_once_with(device="cuda", language="en")

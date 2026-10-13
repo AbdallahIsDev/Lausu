@@ -28,23 +28,23 @@ class ConstructionMixin:
             if backend_name == "parakeet":
                 self._registry.create(
                     "parakeet",
-                    parakeet_kwargs=dict(
-                        device=self._app.config.device,
-                        language=self._app.config.language,
+                    parakeet_kwargs={
+                        "device": self._app.config.device,
+                        "language": self._app.config.language,
                         # live Config handle for the hallucination filter mode
-                        config=self._app.config,
-                    ),
+                        "config": self._app.config,
+                    },
                 )
             elif backend_name == "qwen":
                 self._registry.create(
                     "qwen",
-                    qwen_kwargs=dict(
-                        model_path=self._app.config.qwen_model_path,
-                        device=self._app.config.device,
-                        language=self._app.config.language,
+                    qwen_kwargs={
+                        "model_path": self._app.config.qwen_model_path,
+                        "device": self._app.config.device,
+                        "language": self._app.config.language,
                         # live Config handle for the hallucination filter mode
-                        config=self._app.config,
-                    ),
+                        "config": self._app.config,
+                    },
                 )
             elif backend_name == "cloud":
                 # Cloud has no model path to pass: the engine resolves
@@ -53,21 +53,21 @@ class ConstructionMixin:
                 # (``cloud_backend.CloudAsrBackend``).
                 self._registry.create(
                     "cloud",
-                    cloud_kwargs=dict(config=self._app.config),
+                    cloud_kwargs={"config": self._app.config},
                 )
             else:
                 self._registry.create(
                     "whisper",
-                    whisper_kwargs=dict(
-                        model_size=self._app.config.model_size,
-                        device=self._app.config.device,
-                        language=self._app.config.language,
-                        beam_size=self._app.config.beam_size,
-                        best_of=self._app.config.best_of,
-                        condition_on_previous_text=self._app.config.condition_on_previous_text,
+                    whisper_kwargs={
+                        "model_size": self._app.config.model_size,
+                        "device": self._app.config.device,
+                        "language": self._app.config.language,
+                        "beam_size": self._app.config.beam_size,
+                        "best_of": self._app.config.best_of,
+                        "condition_on_previous_text": self._app.config.condition_on_previous_text,
                         # pass the live Config reference so the engine
-                        config=self._app.config,
-                    ),
+                        "config": self._app.config,
+                    },
                 )
         except Exception as exc:
             log.exception("[MODEL] Failed to initialize %s engine: %s", backend_name, exc)
