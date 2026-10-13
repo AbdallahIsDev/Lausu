@@ -590,3 +590,24 @@ class TestUninstallerNshNotRegressed:
             'uninstaller.nsh must still RMDir /r "%APPDATA%\\lausu", CR-70 '
             "per-user data dir cleanup (settings JSON, history DB, vocabularies)."
         )
+
+    def test_uninstaller_nsh_cleans_startup_folder_bats(self) -> None:
+        text = UNINSTALLER_NSH.read_text(encoding="utf-8")
+        assert "Start Menu" in text and "Startup" in text, (
+            "uninstaller.nsh must handle the per-user Startup folder: the "
+            "tertiary autostart mechanism writes its .bat there and neither "
+            "the Run-key loop nor the task sweep removes files."
+        )
+        assert "com.Lausu.autostart_*.bat" in text, (
+            "uninstaller.nsh must enumerate the current Startup .bat scheme "
+            "`com.Lausu.autostart_*.bat` (hash-suffixed per install)."
+        )
+        assert "Lausu_*.bat" in text, (
+            "uninstaller.nsh must also enumerate the pre-rename legacy scheme "
+            "`Lausu_*.bat` so stale entries from older installs are removed."
+        )
+        assert "FindFirst" in text, (
+            "uninstaller.nsh must enumerate Startup .bat matches (FindFirst / "
+            "FindNext loop): a single fixed-path Delete cannot cover "
+            "hash-suffixed names from previous installs."
+        )

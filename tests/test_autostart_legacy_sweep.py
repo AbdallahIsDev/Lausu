@@ -360,6 +360,77 @@ class TestStartupBatSweep:
         assert current.exists(), "current .bat must be preserved"
         assert other.exists(), "other install's .bat must be preserved"
 
+    def test_removes_same_install_current_namespace_duplicate(self, tmp_path, monkeypatch):
+        """A duplicate ``com.Lausu.autostart_<otherhash>.bat`` whose"""
+        from voice_typer.server.server_platform.autostart_windows import _sweep_legacy_startup_bats
+
+        _awin = self._install_bat_fakes(monkeypatch, tmp_path)
+        launcher = _ast._install_identifier()
+
+        live = tmp_path / _awin._startup_bat_name()
+        live.write_text(
+            f'@echo off\r\nset VT_START_HIDDEN=1\r\nstart "" /B "{launcher}" --hidden --delay 15\r\n',
+            encoding="utf-8",
+        )
+        duplicate = tmp_path / "com.Lausu.autostart_deadbeef.bat"
+        duplicate_cmd = f'start "" /B "{sys.executable}" "{launcher}" --hidden --delay 15'
+        duplicate.write_text(
+            f"@echo off\r\nset VT_START_HIDDEN=1\r\n{duplicate_cmd}\r\n",
+            encoding="utf-8",
+        )
+
+        deleted = _sweep_legacy_startup_bats()
+
+        assert deleted == [duplicate.name]
+        assert not duplicate.exists(), "same-install duplicate .bat must be deleted"
+        assert live.exists(), "live current-namespace .bat must be preserved"
+
+    def test_preserves_other_install_current_namespace_bat(self, tmp_path, monkeypatch):
+        """A ``com.Lausu.autostart_*.bat`` pointing at another install"""
+        from voice_typer.server.server_platform.autostart_windows import _sweep_legacy_startup_bats
+
+        self._install_bat_fakes(monkeypatch, tmp_path)
+
+        other = tmp_path / "com.Lausu.autostart_99999999.bat"
+        other.write_text(
+            '@echo off\r\nset VT_START_HIDDEN=1\r\nstart "" /B "C:\\OtherInstall\\app.exe" --hidden\r\n',
+            encoding="utf-8",
+        )
+
+        deleted = _sweep_legacy_startup_bats()
+
+        assert deleted == []
+        assert other.exists(), "other install's current-namespace .bat must be preserved"
+
+    def test_live_current_file_never_deleted_in_mixed_dir(self, tmp_path, monkeypatch):
+        """The live current-namespace file survives a sweep that deletes"""
+        from voice_typer.server.server_platform.autostart_windows import _sweep_legacy_startup_bats
+
+        _awin = self._install_bat_fakes(monkeypatch, tmp_path)
+        launcher = _ast._install_identifier()
+
+        live = tmp_path / _awin._startup_bat_name()
+        live.write_text(
+            f'@echo off\r\nset VT_START_HIDDEN=1\r\nstart "" /B "{launcher}" --hidden --delay 15\r\n',
+            encoding="utf-8",
+        )
+        duplicate = tmp_path / "com.Lausu.autostart_deadbeef.bat"
+        duplicate.write_text(
+            f'@echo off\r\nset VT_START_HIDDEN=1\r\nstart "" /B "{sys.executable}" "{launcher}" --hidden\r\n',
+            encoding="utf-8",
+        )
+        other = tmp_path / "Lausu_99999999.bat"
+        other.write_text(
+            '@echo off\r\nset VT_START_HIDDEN=1\r\nstart "" /B "C:\\OtherInstall\\app.exe" --hidden\r\n',
+            encoding="utf-8",
+        )
+
+        deleted = _sweep_legacy_startup_bats()
+
+        assert deleted == [duplicate.name]
+        assert live.exists(), "live file must never be deleted"
+        assert other.exists(), "other install's .bat must be preserved"
+
 
 class TestSyncAutostartHook:
     """``sync_autostart`` invokes the marker-gated sweep on every startup."""
