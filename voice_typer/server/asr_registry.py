@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
+from typing import Any, TypedDict
 
 from voice_typer.server.asr.circuit_breaker import (
     BackendDisabledCallback,
@@ -19,6 +21,52 @@ from voice_typer.server.asr.registry import (
 from voice_typer.server.asr_errors import ModelIntegrityError, ModelNotDownloadedError
 
 log = logging.getLogger(__name__)
+
+
+class WhisperKwargs(TypedDict, total=False):
+    """Options ``create("whisper", ...)`` forwards to ``WorkerBackedAsr``.
+
+    ``total=False`` because callers pass subsets; a misspelled key still
+    fails the type check, which is the point of pinning the shape.
+    """
+
+    model_size: str
+    device: str
+    language: str | None
+    beam_size: int
+    best_of: int
+    condition_on_previous_text: bool
+    # Live Config handle (hallucination-filter mode).
+    config: Any
+
+
+class QwenKwargs(TypedDict, total=False):
+    """Options ``create("qwen", ...)`` forwards to ``QwenEngine``."""
+
+    model_path: str | None
+    device: str
+    language: str | None
+    # Live Config handle (hallucination-filter mode).
+    config: Any
+
+
+class ParakeetKwargs(TypedDict, total=False):
+    """Options ``create("parakeet", ...)`` forwards to ``ParakeetEngine``."""
+
+    device: str
+    language: str | None
+    # Live Config handle (hallucination-filter mode).
+    config: Any
+
+
+class CloudKwargs(TypedDict, total=False):
+    """Options ``create("cloud", ...)`` forwards to ``CloudAsrBackend``.
+
+    Cloud needs no model path: provider, key, endpoint and model are
+    re-resolved from this live Config handle on every load/transcribe.
+    """
+
+    config: Any
 
 
 class AsrBackendRegistry(RegistryCore):
@@ -97,10 +145,10 @@ class AsrBackendRegistry(RegistryCore):
         self,
         name: str,
         *,
-        whisper_kwargs: dict | None = None,
-        qwen_kwargs: dict | None = None,
-        parakeet_kwargs: dict | None = None,
-        cloud_kwargs: dict | None = None,
+        whisper_kwargs: WhisperKwargs | None = None,
+        qwen_kwargs: QwenKwargs | None = None,
+        parakeet_kwargs: ParakeetKwargs | None = None,
+        cloud_kwargs: CloudKwargs | None = None,
     ) -> AsrBackend | None:
         """Construct (but don't load) a backend engine.
 
@@ -112,7 +160,7 @@ class AsrBackendRegistry(RegistryCore):
             return None
 
         module_path, class_name = spec
-        kwargs_map = {
+        kwargs_map: dict[str, Mapping[str, object]] = {
             "whisper": whisper_kwargs or {},
             "qwen": qwen_kwargs or {},
             "parakeet": parakeet_kwargs or {},
