@@ -177,7 +177,12 @@ def _sweep_legacy_tasks() -> list[str] | None:
 
 
 def _sweep_legacy_startup_bats() -> list[str]:
-    """Remove legacy ``Lausu*.bat`` Startup-folder files for this install."""
+    """Remove stale Startup-folder .bat files for this install.
+
+    Covers the pre-rename ``Lausu*.bat`` names and duplicate
+    current-namespace files (same ``com.Lausu.autostart_`` prefix with a
+    different install hash); the live file keeps its exact name match.
+    """
     from voice_typer.server.server_platform import autostart_windows as _aw
 
     if not _aw.is_windows():
@@ -190,27 +195,32 @@ def _sweep_legacy_startup_bats() -> list[str]:
     if not autostart_dir.is_dir():
         return []
     deleted: list[str] = []
-    for bat_path in autostart_dir.glob(f"{APP_IDENTIFIER}*.bat"):
-        if bat_path.name == current_name:
-            continue
-        try:
-            content = bat_path.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        if _entry_targets_this_install(content):
+    seen: set[Path] = set()
+    for pattern in (f"{APP_IDENTIFIER}*.bat", f"{APP_RDNN_ROOT}*.bat"):
+        for bat_path in autostart_dir.glob(pattern):
+            if bat_path in seen:
+                continue
+            seen.add(bat_path)
+            if bat_path.name == current_name:
+                continue
             try:
-                bat_path.unlink()
-                deleted.append(bat_path.name)
-                log.info(
-                    "[AUTOSTART] Legacy sweep removed duplicate Startup .bat: %s",
-                    bat_path.name,
-                )
-            except OSError as exc:
-                log.warning(
-                    "[AUTOSTART] Legacy sweep failed to remove %s: %s",
-                    bat_path.name,
-                    exc,
-                )
+                content = bat_path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            if _entry_targets_this_install(content):
+                try:
+                    bat_path.unlink()
+                    deleted.append(bat_path.name)
+                    log.info(
+                        "[AUTOSTART] Legacy sweep removed duplicate Startup .bat: %s",
+                        bat_path.name,
+                    )
+                except OSError as exc:
+                    log.warning(
+                        "[AUTOSTART] Legacy sweep failed to remove %s: %s",
+                        bat_path.name,
+                        exc,
+                    )
     return deleted
 
 

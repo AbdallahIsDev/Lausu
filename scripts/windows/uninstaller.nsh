@@ -51,15 +51,18 @@
 ;   1. Build the installer via the Tauri workflow / `cargo tauri build`.
 ;   2. Install the resulting *-setup.exe.
 ;   3. Launch Lausu → enable autostart via Settings.
-;   4. Verify both autostart entries exist:
+;   4. Verify all autostart entries exist:
 ;         reg query HKCU\Software\Microsoft\Windows\CurrentVersion\Run | findstr Lausu
 ;         schtasks /query /tn "LausuAutostart*" /v /fo LIST
+;         dir "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\com.Lausu.autostart_*.bat"
 ;   5. Uninstall via "Add or remove programs".
-;   6. Verify both autostart entries are gone:
+;   6. Verify all autostart entries are gone:
 ;         reg query HKCU\Software\Microsoft\Windows\CurrentVersion\Run | findstr Lausu
 ;            (Expected: no matches)
 ;         schtasks /query /tn "LausuAutostart*"
 ;            (Expected: ERROR: The system cannot find the file specified)
+;         dir "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\com.Lausu.autostart_*.bat"
+;            (Expected: File Not Found; same for Lausu_*.bat)
 ;   7. Verify the data dir is gone:
 ;         dir "%APPDATA%\lausu"
 ;            (Expected: File Not Found)
@@ -143,6 +146,41 @@
   Pop $0  ; exit code, best-effort, discard
   nsExec::ExecToLog 'schtasks.exe /Delete /TN "LausuPrewarm" /F'
   Pop $0  ; exit code, best-effort, discard
+
+  ; ─── Startup-folder .bat cleanup ───────────────────────────────────
+  ; The tertiary autostart mechanism writes a hash-suffixed .bat into the
+  ; per-user Startup folder
+  ; (`$APPDATA\Microsoft\Windows\Start Menu\Programs\Startup`,
+  ; current name `com.Lausu.autostart_<hash>.bat`, pre-rename
+  ; `Lausu_<hash>.bat`). Neither the Run-key loop nor the task sweep
+  ; above touches files, so an orphaned .bat would keep firing the
+  ; deleted target at every logon on machines where the Scheduler
+  ; fallback was in use. Enumerate both name schemes with FindFirst /
+  ; FindNext and delete every match. Best-effort: a missing folder or
+  ; locked file is non-fatal (FindFirst sets the error flag when nothing
+  ; matches; Delete on an absent file is a no-op for the uninstall).
+  Push $0    ; find handle
+  Push $1    ; filename from FindFirst / FindNext
+  FindFirst $0 $1 "$APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\com.Lausu.autostart_*.bat"
+  startup_new_loop:
+    IfErrors startup_new_done
+    Delete "$APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\$1"
+    DetailPrint "[lausu-uninstall] Removed Startup .bat: $1"
+    FindNext $0 $1
+    Goto startup_new_loop
+  startup_new_done:
+  FindClose $0
+  FindFirst $0 $1 "$APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\Lausu_*.bat"
+  startup_legacy_loop:
+    IfErrors startup_legacy_done
+    Delete "$APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\$1"
+    DetailPrint "[lausu-uninstall] Removed Startup .bat: $1"
+    FindNext $0 $1
+    Goto startup_legacy_loop
+  startup_legacy_done:
+  FindClose $0
+  Pop $1
+  Pop $0
 
   ; ─── CR-70: per-user data directory cleanup ────────────────────────
   ; Belt-and-suspenders: Tauri NSIS may also remove product data, but
