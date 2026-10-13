@@ -145,25 +145,30 @@ class _NvidiaDllPathManager:
         except Exception as exc:
             log.warning("[CUDA-DLL] site.getusersitepackages() failed: %s", exc)
 
-        # Also include the current venv's site-packages (via sys.prefix).
+        # Current venv site-packages via sys.prefix (dynamic across
+        # python311/312/313, venv or base install alike).
         venv_sp = os.path.join(sys.prefix, "Lib", "site-packages")
         if os.path.isdir(venv_sp) and venv_sp not in roots:
             roots.append(venv_sp)
-            log.debug("[CUDA-DLL] Added current venv site-packages: %s", venv_sp)
 
-        # Fallback: the app's own venv at ~/.lausu/venv/ may have
-        app_venv_sp = os.path.join(
-            os.path.expanduser("~"),
-            ".lausu",
-            "venv",
-            "Lib",
-            "site-packages",
-        )
-        if os.path.isdir(app_venv_sp) and app_venv_sp not in roots:
-            roots.append(app_venv_sp)
-            log.debug("[CUDA-DLL] Added app venv site-packages: %s", app_venv_sp)
+        # Base interpreter site-packages (covers system site-packages when
+        # running inside a venv; resolves python311/312/313 dynamically).
+        base_sp = os.path.join(sys.base_prefix, "Lib", "site-packages")
+        if os.path.isdir(base_sp) and base_sp not in roots:
+            roots.append(base_sp)
 
-        log.debug("[CUDA-DLL] Searching root paths for NVIDIA DLLs: %s", roots)
+        # Keep site-packages only: scanning a bare venv root walks its
+        # Scripts/Lib/Include trees for nothing.
+        seen: set[str] = set()
+        uniq: list[str] = []
+        for r in roots:
+            if not r.lower().rstrip("\\/").endswith("site-packages"):
+                continue
+            key = r.lower()
+            if key not in seen:
+                seen.add(key)
+                uniq.append(r)
+        roots = uniq
 
         candidate_parts = [
             ("nvidia", "cublas", "bin"),
@@ -172,56 +177,31 @@ class _NvidiaDllPathManager:
         ]
         existing_paths = os.environ.get("PATH", "").split(os.pathsep)
         new_paths: list[str] = []
-        missing = 0
         for root in roots:
             for parts in candidate_parts:
                 path = os.path.join(root, *parts)
                 if not os.path.isdir(path):
-                    missing += 1
                     continue
                 dll_names = [n for n in os.listdir(path) if n.lower().endswith(".dll")]
                 if not dll_names:
-                    log.debug("[CUDA-DLL] No DLLs in: %s", path)
                     continue
-                log.debug(
-                    "[CUDA-DLL] Found path with %d DLLs: %s (first: %s)",
-                    len(dll_names),
-                    path,
-                    dll_names[0],
-                )
                 if path not in existing_paths and path not in new_paths:
                     new_paths.append(path)
                 add_dll_directory = getattr(os, "add_dll_directory", None)
                 if add_dll_directory is not None:
                     try:
                         handle = add_dll_directory(path)
-                        log.debug(
-                            "[CUDA-DLL] os.add_dll_directory(%s) -> handle=%s",
-                            path,
-                            handle,
-                        )
                         if handle is not None:
                             self.handles.append(handle)
                     except Exception as exc:
-                        log.warning(
-                            "[CUDA-DLL] os.add_dll_directory(%s) failed: %s",
-                            path,
-                            exc,
-                        )
+                        log.warning("[CUDA-DLL] add_dll_directory failed: %s", exc)
 
-        if missing:
-            log.debug(
-                "[CUDA-DLL] %d candidate DLL dirs absent (%d roots x %d parts, "
-                "roots without NVIDIA wheels)",
-                missing,
-                len(roots),
-                len(candidate_parts),
-            )
         if new_paths:
             os.environ["PATH"] = os.pathsep.join(new_paths + existing_paths)
+            short = sorted({os.path.basename(os.path.dirname(p)) for p in new_paths})
             log.info(
-                "[CUDA-DLL] Prepended to PATH: %s%s",
-                new_paths,
+                "[CUDA-DLL] PATH += %s%s",
+                short,
                 format_duration(time.perf_counter() - _t0),
             )
 
