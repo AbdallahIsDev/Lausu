@@ -45,41 +45,43 @@ def test_bubble_config_event_carries_relevant_subset():
         captured.setdefault(msg.get("type"), msg)
 
     event_bus.subscribe(capture)
+    try:
+        # Wire the listener exactly as _wire_waveform_bubble does.
+        def _push_bubble_config(cfg):
+            event_bus.publish(
+                {
+                    "type": "bubble_config",
+                    "data": {
+                        "bubble_behavior": getattr(cfg, "bubble_behavior", "show_on_record"),
+                        "bubble_click_to_toggle": getattr(cfg, "bubble_click_to_toggle", True),
+                        "bubble_mic_button": getattr(cfg, "bubble_mic_button", True),
+                        "bubble_show_recording_timer": bool(
+                            getattr(cfg, "bubble_show_recording_timer", False)
+                        ),
+                    },
+                }
+            )
 
-    # Wire the listener exactly as _wire_waveform_bubble does.
-    def _push_bubble_config(cfg):
-        event_bus.publish(
-            {
-                "type": "bubble_config",
-                "data": {
-                    "bubble_behavior": getattr(cfg, "bubble_behavior", "show_on_record"),
-                    "bubble_click_to_toggle": getattr(cfg, "bubble_click_to_toggle", True),
-                    "bubble_mic_button": getattr(cfg, "bubble_mic_button", True),
-                    "bubble_show_recording_timer": bool(
-                        getattr(cfg, "bubble_show_recording_timer", False)
-                    ),
-                },
-            }
-        )
+        bubble.on_config = _push_bubble_config
 
-    bubble.on_config = _push_bubble_config
+        class _Cfg:
+            bubble_behavior = "always_visible"
+            bubble_click_to_toggle = True
+            bubble_mic_button = True
+            bubble_show_recording_timer = True
 
-    class _Cfg:
-        bubble_behavior = "always_visible"
-        bubble_click_to_toggle = True
-        bubble_mic_button = True
-        bubble_show_recording_timer = True
+        bubble.on_config(_Cfg())
 
-    bubble.on_config(_Cfg())
-
-    assert captured.get("bubble_config") is not None
-    data = captured["bubble_config"]["data"]
-    assert set(data.keys()) == {
-        "bubble_behavior",
-        "bubble_click_to_toggle",
-        "bubble_mic_button",
-        "bubble_show_recording_timer",
-    }
-    assert data["bubble_behavior"] == "always_visible"
-    assert data["bubble_mic_button"] is True
-    assert data["bubble_show_recording_timer"] is True
+        assert captured.get("bubble_config") is not None
+        data = captured["bubble_config"]["data"]
+        assert set(data.keys()) == {
+            "bubble_behavior",
+            "bubble_click_to_toggle",
+            "bubble_mic_button",
+            "bubble_show_recording_timer",
+        }
+        assert data["bubble_behavior"] == "always_visible"
+        assert data["bubble_mic_button"] is True
+        assert data["bubble_show_recording_timer"] is True
+    finally:
+        event_bus.unsubscribe(capture)
