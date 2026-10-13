@@ -86,6 +86,7 @@ __all__ = [
     "_keyring_reason_cache",
     "_keyring_state_lock",
     "_last_store_outcome",
+    "_logged_load_providers",
     "_KEYRING_ORPHAN_WARN_THRESHOLD",
     "_KEYRING_REPROBE_INTERVAL_SECONDS",
     "_KEYRING_TIMEOUT_SECONDS",

@@ -45,6 +45,10 @@ _keyring_probe_lock = threading.Lock()
 #: Cache for parsed ``config.json`` in :func:`_read_plaintext_fallback`.
 _plaintext_config_cache: dict[str, tuple[int, dict]] = {}
 
+#: Providers already audit-logged this process. ``load_secret`` is called on
+#: every config load, so logging on each call spams one INFO per provider.
+_logged_load_providers: set[str] = set()
+
 
 def _run_keyring_call(func: Callable[..., _T], *args: Any, **kwargs: Any) -> _T:
     """Run a keyring backend call under a finite timeout."""
@@ -208,6 +212,7 @@ def _reset_keyring_cache() -> None:
     _keyring_backend_name_cache = None
     _keyring_reason_cache = None
     _keyring_last_probe_ts = 0.0
+    _cs._logged_load_providers.clear()
 
 
 def _clear_plaintext_config_cache() -> None:
@@ -243,6 +248,7 @@ __all__ = [
     "_keyring_probe_lock",
     "_keyring_reason_cache",
     "_keyring_state_lock",
+    "_logged_load_providers",
     "_orphaned_thread_count",
     "_plaintext_config_cache",
     "_probe_keyring",

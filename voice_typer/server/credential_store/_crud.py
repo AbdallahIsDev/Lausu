@@ -111,12 +111,17 @@ def load_secret(provider: str) -> str | None:
             # wrap get_password in a finite timeout so a hung
             value: str | None = _cs._run_keyring_call(keyring.get_password, KEYRING_SERVICE_NAME, provider)
             if value:
-                # emit an INFO audit log so operators can
-                log.info(
-                    "[CREDENTIAL_STORE] loaded secret for provider=%s (len=%d) from keyring",
-                    provider,
-                    len(value),
-                )
+                # One INFO per provider per process; load_secret runs on
+                # every config load so per-call logging is pure noise.
+                with _cs._keyring_state_lock:
+                    first = provider not in _cs._logged_load_providers
+                    _cs._logged_load_providers.add(provider)
+                if first:
+                    log.info(
+                        "[CREDENTIAL_STORE] loaded secret for provider=%s (len=%d) from keyring",
+                        provider,
+                        len(value),
+                    )
                 return value
             # keyring returned None, secret not in keychain. Fall
     except Exception as e:
