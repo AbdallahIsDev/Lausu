@@ -45,12 +45,6 @@ def _assert_bound_methods_equal(actual, expected, msg: str = "") -> None:
     )
 
 
-@pytest.mark.skip(
-    reason="RecordingController wiring API changed, _on_device_lost / "
-    "_cancel_on_mic_lost / _mic_device_id_provider were renamed to "
-    "on_device_lost / on_active_mic_lost / _list_active_mic_ids; "
-    "these init-time wiring tests pin the old private names."
-)
 class TestInitWiring:
     """DJ-65: ``__init__`` wires ``on_device_lost`` + the watcher hooks."""
 
@@ -62,9 +56,9 @@ class TestInitWiring:
         actual = getattr(app.recorder, "on_device_lost", None)
         _assert_bound_methods_equal(
             actual,
-            ctrl._on_device_lost,
+            ctrl.on_device_lost,
             "DJ-65: __init__ must bind recorder.on_device_lost to "
-            "self._on_device_lost so the recorder's terminal-case "
+            "self.on_device_lost so the recorder's terminal-case "
             "fallback (recorder.py:1142) invokes our callback instead "
             "of falling back to on_silence_auto_stop.",
         )
@@ -78,8 +72,8 @@ class TestInitWiring:
         actual_arg = app.recorder._devices._mic_watcher.set_on_active_mic_lost.call_args.args[0]
         _assert_bound_methods_equal(
             actual_arg,
-            ctrl._cancel_on_mic_lost,
-            "DJ-65: set_on_active_mic_lost must be called with self._cancel_on_mic_lost",
+            ctrl.on_active_mic_lost,
+            "DJ-65: set_on_active_mic_lost must be called with self.on_active_mic_lost",
         )
 
     def test_set_device_id_provider_is_wired_on_init(self):
@@ -91,8 +85,8 @@ class TestInitWiring:
         actual_arg = app.recorder._devices._mic_watcher.set_device_id_provider.call_args.args[0]
         _assert_bound_methods_equal(
             actual_arg,
-            ctrl._mic_device_id_provider,
-            "DJ-65: set_device_id_provider must be called with self._mic_device_id_provider",
+            ctrl._list_active_mic_ids,
+            "DJ-65: set_device_id_provider must be called with self._list_active_mic_ids",
         )
 
     def test_init_wiring_is_no_op_when_no_mic_watcher(self):
@@ -105,7 +99,7 @@ class TestInitWiring:
         actual = getattr(app.recorder, "on_device_lost", None)
         _assert_bound_methods_equal(
             actual,
-            ctrl._on_device_lost,
+            ctrl.on_device_lost,
             "DJ-65: on_device_lost must be bound even when _mic_watcher is None",
         )
 
@@ -113,21 +107,16 @@ class TestInitWiring:
 class TestStartWiring:
     """DJ-65: ``_start_impl`` calls ``set_active_mic_id(mic_id)`` after"""
 
-    @pytest.mark.skip(
-        reason="RecordingController wiring API changed, _start_impl now "
-        "passes recorder._effective_device (the actually-opened "
-        "device) to set_active_mic_id, not the configured "
-        "app.config.microphone value."
-    )
-    def test_start_calls_set_active_mic_id_with_configured_mic(self):
-        """After ``recorder.start()`` succeeds, the watcher must have"""
+    def test_start_calls_set_active_mic_id_with_opened_device(self):
+        """After start, the watcher must have the actually-opened device"""
         app = _make_app_with_mock_recorder(mic_id="7")
+        app.recorder._effective_device = 7
         ctrl = _make_full_controller(app)
         app.recorder._devices._mic_watcher.reset_mock()
 
         ctrl._lifecycle._start_impl(ctrl)
 
-        app.recorder._devices._mic_watcher.set_active_mic_id.assert_called_once_with("7")
+        app.recorder._devices._mic_watcher.set_active_mic_id.assert_called_once_with(7)
 
     def test_start_calls_set_active_mic_id_after_recorder_start(self):
         """``set_active_mic_id`` must be called AFTER ``recorder.start()``"""
@@ -200,15 +189,8 @@ class TestStopUnwiring:
             f"clear the active-mic id; got calls: {set_active_calls}"
         )
 
-    @pytest.mark.skip(
-        reason="RecordingController wiring API changed, _stop_impl now "
-        "calls set_active_mic_id(None) AFTER recorder.stop() "
-        "(not before), and may call it many times from the audio "
-        "worker cleanup path; the strict before-recorder-stop "
-        "ordering assertion no longer holds."
-    )
-    def test_stop_calls_set_active_mic_id_none_before_recorder_stop(self):
-        """``set_active_mic_id(None)`` must be called BEFORE"""
+    def test_stop_calls_set_active_mic_id_none_after_recorder_stop(self):
+        """``set_active_mic_id(None)`` must be called AFTER"""
         app = _make_app_with_mock_recorder()
         ctrl = _make_full_controller(app)
         app.recorder.recording = True
@@ -250,17 +232,20 @@ class TestStopUnwiring:
         finally:
             dp_module.DictationPipeline = original_pipeline
 
-        # The FIRST set_active_mic_id call must be None, and it must
-        set_active_entries = [c for c in call_order if c.startswith("set_active_mic_id")]
-        assert set_active_entries, "DJ-65: set_active_mic_id was never called"
-        assert set_active_entries[0] == "set_active_mic_id(None)", (
-            f"DJ-65: first set_active_mic_id call must be None; got {set_active_entries[0]}"
+        # The stop runs on a daemon worker; join it so the order below
+        # is deterministic instead of racing the test thread.
+        ctrl._transcription_thread.join(timeout=30)
+        assert not ctrl._transcription_thread.is_alive(), (
+            "DJ-65: stop worker did not finish; order assertions would race"
         )
-        stop_idx = call_order.index("recorder.stop")
-        set_active_idx = call_order.index("set_active_mic_id(None)")
-        assert set_active_idx < stop_idx, (
-            f"DJ-65: set_active_mic_id(None) must be called BEFORE "
-            f"recorder.stop() to avoid a TOCTOU; call order: {call_order}"
+        stop_positions = [i for i, c in enumerate(call_order) if c == "recorder.stop"]
+        none_positions = [i for i, c in enumerate(call_order) if c == "set_active_mic_id(None)"]
+        assert stop_positions, "DJ-65: recorder.stop was never called"
+        assert none_positions, "DJ-65: set_active_mic_id was never called"
+        assert min(none_positions) > min(stop_positions), (
+            f"DJ-65: set_active_mic_id(None) must be called AFTER "
+            f"recorder.stop() (the id clears once audio is captured); "
+            f"call order: {call_order}"
         )
 
 
@@ -278,17 +263,11 @@ class TestCancelUnwiring:
         app.recorder._devices._mic_watcher.set_active_mic_id.assert_called_once_with(None)
 
 
-@pytest.mark.skip(
-    reason="RecordingController wiring API changed, _cancel_on_mic_lost "
-    "/ _on_device_lost / _mic_device_id_provider were renamed to "
-    "on_active_mic_lost / on_device_lost / _list_active_mic_ids; "
-    "these callback-behavior tests reference the old private names."
-)
 class TestCallbackBehavior:
     """DJ-65: the wired callbacks behave correctly."""
 
-    def test_cancel_on_mic_lost_notifies_tray_and_defers_cancel(self):
-        """``_cancel_on_mic_lost`` (the watcher-side callback) must:"""
+    def test_cancel_on_mic_lost_notifies_tray_and_defers_stop(self):
+        """``on_active_mic_lost`` (the watcher-side callback) must:"""
         app = _make_app_with_mock_recorder()
         ctrl = _make_full_controller(app)
 
@@ -300,12 +279,12 @@ class TestCallbackBehavior:
         app._schedule_timer.side_effect = _capture_schedule
         app.tray.notify_safety = MagicMock()
 
-        ctrl._cancel_on_mic_lost()
+        ctrl.on_active_mic_lost()
 
         # Tray notification was shown.
         assert app.tray.notify_safety.called, (
-            "DJ-65: _cancel_on_mic_lost must show a tray notification "
-            "so the user sees 'microphone disconnected' (not 'silence "
+            "DJ-65: on_active_mic_lost must show a tray notification "
+            "so the user sees 'microphone unplugged' (not 'silence "
             "detected')."
         )
         notify_args = app.tray.notify_safety.call_args
@@ -313,16 +292,16 @@ class TestCallbackBehavior:
         assert "microphone" in notification_text.lower(), (
             f"DJ-65: notification must mention 'microphone'; got: {notification_text!r}"
         )
-        # Cancel was deferred via _schedule_timer(0, ...).
+        # Stop was deferred via _schedule_timer(0, ...).
         assert scheduled, (
-            "DJ-65: _cancel_on_mic_lost must defer the cancel via "
-            "_schedule_timer(0, ...), must NOT call cancel() directly."
+            "DJ-65: on_active_mic_lost must defer the stop via "
+            "_schedule_timer(0, ...), must NOT call stop() directly."
         )
         assert scheduled[0][0] == 0, f"DJ-65: defer delay must be 0; got {scheduled[0][0]}"
-        assert scheduled[0][1] == app._cancel_dictation
+        assert scheduled[0][1] == app._stop_dictation
 
     def test_on_device_lost_notifies_tray_and_defers_stop(self):
-        """``_on_device_lost`` (the terminal-case callback) must:"""
+        """``on_device_lost`` (the terminal-case callback) must:"""
         app = _make_app_with_mock_recorder()
         ctrl = _make_full_controller(app)
 
@@ -334,7 +313,7 @@ class TestCallbackBehavior:
         app._schedule_timer.side_effect = _capture_schedule
         app.tray.notify_safety = MagicMock()
 
-        ctrl._on_device_lost()
+        ctrl.on_device_lost()
 
         assert app.tray.notify_safety.called
         notify_args = app.tray.notify_safety.call_args
@@ -343,25 +322,30 @@ class TestCallbackBehavior:
             f"DJ-65: notification must mention 'microphone'; got: {notification_text!r}"
         )
         assert scheduled, (
-            "DJ-65: _on_device_lost must defer the stop via _schedule_timer(0, ...), must NOT call stop() directly."
+            "DJ-65: on_device_lost must defer the stop via _schedule_timer(0, ...), must NOT call stop() directly."
         )
         assert scheduled[0][0] == 0
         assert scheduled[0][1] == app._stop_dictation
 
     def test_device_id_provider_returns_mic_ids(self):
-        """the app's ``list_microphones`` (or cached ``_microphones``)."""
+        """the app's ``list_microphones`` device indexes."""
         app = _make_app_with_mock_recorder()
         app.list_microphones = MagicMock(
             return_value=[
-                {"id": "0", "name": "Mic A"},
-                {"id": "1", "name": "Mic B"},
+                {"index": 0, "id": "0", "name": "Mic A"},
+                {"index": 1, "id": "1", "name": "Mic B"},
             ]
         )
         ctrl = _make_full_controller(app)
 
-        ids = ctrl._mic_device_id_provider()
-        assert ids == ["0", "1"], f"DJ-65: device_id_provider must return mic IDs; got {ids}"
+        ids = ctrl._list_active_mic_ids()
+        assert ids == [0, 1], f"DJ-65: device_id_provider must return mic indexes; got {ids}"
 
+    @pytest.mark.skip(
+        reason="_list_active_mic_ids reads controller._app.list_microphones() "
+        "only; the old cached-``_microphones`` fallback no longer exists, "
+        "so this case has no new-API equivalent."
+    )
     def test_device_id_provider_falls_back_to_cached_microphones(self):
         """provider falls back to the cached ``_microphones`` list."""
         app = _make_app_with_mock_recorder()
@@ -374,7 +358,7 @@ class TestCallbackBehavior:
         ]
         ctrl = _make_full_controller(app)
 
-        ids = ctrl._mic_device_id_provider()
+        ids = ctrl._list_active_mic_ids()
         assert ids == ["5", "6"], f"DJ-65: device_id_provider must fall back to the cached _microphones list; got {ids}"
 
     def test_device_id_provider_returns_empty_on_failure(self):
@@ -386,5 +370,5 @@ class TestCallbackBehavior:
             delattr(app, "_microphones")
         ctrl = _make_full_controller(app)
 
-        ids = ctrl._mic_device_id_provider()
+        ids = ctrl._list_active_mic_ids()
         assert ids == [], f"DJ-65: device_id_provider must return [] on failure; got {ids}"
