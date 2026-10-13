@@ -252,7 +252,7 @@ restored `get_prewarm_status` / `run_prewarm` (worker status file +
 in-process warm pass), not the old
 `sentinel` / `PID`-file probe.
 
-## Push events (62 typed)
+## Push events (63 typed)
 
 Push events flow server to renderer via `window.python.onEvent(callback)`.
 The `PythonPushEvent` union in `types/ipc/push_events.ts` is the canonical
@@ -307,6 +307,7 @@ list: events not in the union fall through to the `string` overload of
 | `offline_pack_missing` | `OfflinePackMissingEvent` | `{ version: string, path: string }` Expected pack file not found at startup (user deleted it, or a cleaner / AV quarantined it). |
 | `offline_pack_corrupt` | `OfflinePackCorruptEvent` | `{ version: string, path: string, reason: string }` SHA256 mismatch or signature verification failed (background checksum §8.16). |
 | `offline_pack_ready` | `OfflinePackReadyEvent` | `{ version: string, worker_pid: number }` Worker process started AND prewarmed the ASR engine (Phase 2 of the worker lifecycle per §6.2); queued `transcribe_offline` requests can now be dispatched. |
+| `offline_pack_outdated` | `OfflinePackOutdatedEvent` | `{ version: string, min_proto_version: number }` Stale-pack fast-refuse signal from the Tauri host when the pack's `min_proto_version` is outside the host range; the Settings surface offers re-download. |
 | `worker_started` | `WorkerStartedEvent` | `{ pid: number, version: string }` Worker process spawned and completed its WS handshake with the slim core; prewarm NOT yet done (see `offline_pack_ready` for that signal). |
 | `worker_crashed` | `WorkerCrashedEvent` | `{ pid: number, exit_code: number }` Worker process exited non-zero (or was killed by a signal); the slim core's supervisor restarts it with exponential backoff. |
 | `worker_unloaded` | `WorkerUnloadedEvent` | `{ reason: string }` Worker unloaded via idle-timeout path or explicit user action ("Keep offline engine running" toggle off). |
