@@ -32,7 +32,7 @@
 |---|---|---|
 | §0 Prerequisites | Prerequisites + Step 0 | "Prerequisites" + "Step 0: Environment setup" |
 | §1 Build sidecar (both archs) | Step 1 | "Step 1: Nuitka Linux sidecar builds from `python-build-standalone` (glibc 2.35 baseline)" |
-| §2 Build prewarm | Step 2 | "Step 2: Nuitka prewarm builds" |
+| §2 Build prewarm — HISTORICAL | Step 2 (retired) | "Step 2: Nuitka prewarm builds" |
 | §3 Build native linux-key-listener | Step 3 | "Step 3: Native `linux-key-listener` binary build + copy to resources" |
 | §4 Build Tauri app | Step 4 | "Step 4: Build the Tauri app" |
 | §5 Install + smoke test on X11 | Step 5 | "Step 5: Install + smoke test on X11" |
@@ -47,7 +47,7 @@ Bonus operational steps not in the spec §0–§10 list (but referenced by the s
 - Step 8: Paste keystroke works on X11 AND Wayland (gate point 4).
 - Step 9: libnotify toast appears on X11 AND Wayland (gate point 5).
 - Step 10: Cooperative shutdown + `kill_children` backstop (gate point 6).
-- Step 11: Prewarm systemd user timer (gate point 7).
+- Step 11: Prewarm systemd user timer (gate point 7) — HISTORICAL, retired.
 - Step 12: Native `linux-key-listener` toggles dictation on X11 AND Wayland (gate point 8).
 - Step 14: Single-instance behavior (gate point 9).
 - Step 15: New Rust commands (`export_history`, `export_vocabulary`, `bubble_*`).
@@ -91,7 +91,7 @@ uv venv
 source .venv/bin/activate
 uv pip install -e ".[dev,test]"
 
-# Nuitka + python-build-standalone (for the sidecar/prewarm freeze)
+# Nuitka + python-build-standalone (for the sidecar freeze)
 uv pip install nuitka zstandard
 # Download python-build-standalone cpython-3.12.x+<triple> from
 #   https://github.com/indygreg/python-build-standalone/releases
@@ -204,7 +204,7 @@ ls -la target/release/bundle/deb/   # .deb package
 ls -la target/release/bundle/appimage/  # .AppImage
 ```
 
-**Expected output**: `cargo tauri build` compiles the Rust host (~5 min), bundles the sidecar + prewarm + native listener + resources, and produces:
+**Expected output**: `cargo tauri build` compiles the Rust host (~5 min), bundles the sidecar + native listener + resources (no prewarm — Step 2 HISTORICAL), and produces:
 - `target/release/bundle/deb/lausu_1.0.0_amd64.deb` (or `_arm64.deb` on aarch64)
 - `target/release/bundle/appimage/lausu_1.0.0_amd64.AppImage` (or `_arm64.AppImage`)
 
@@ -390,9 +390,14 @@ tail -20 ~/.local/share/lausu/logs/sidecar.log | grep -E 'shutdown|kill_children
 
 ---
 
-## Step 11: Prewarm systemd user timer
+## Step 11: Prewarm systemd user timer — HISTORICAL, DO NOT RUN
 
-**VALIDATE ON LINUX DISPLAY HOST.**
+> **HISTORICAL — the binary this section registers no longer exists.**
+> The prewarm pipeline was migrated to the slim-core worker:
+> `voice_typer/server/prewarm/__main__.py` was deleted and the Tauri
+> build no longer bundles a `prewarm-<triple>` binary, so there is no
+> `lausu-prewarm.timer` to register. The section is kept for reference
+> only. (Mirrors the retirement banner on Step 2 above.)
 
 ```bash
 # In the running app:
@@ -648,7 +653,7 @@ The 9 mandatory checks (per ADR-0020 §"Phase 0 validation gate", Phase 0-L). **
 | 4 | `enigo` types on X11; clipboard + Ctrl+V fallback (via `wl-copy` + Ctrl+V) works on Wayland | Step 8 | Text appears in editor on BOTH session types; Wayland uses `_linux_copy` → `wl-copy` path in `clipboard.py` (ADR-0020 §6.6) |
 | 5 | `tauri-plugin-notification` posts via libnotify on X11 + Wayland | Step 9 | Notification appears in DE notification list on BOTH session types |
 | 6 | Cooperative `{"type":"shutdown"}` exits; `kill_children` cleans | Step 10 | `ps aux \| grep python-sidecar` returns nothing within 2s of window close; log shows `[SHUTDOWN] sidecar exited cleanly` or `kill_children` |
-| 7 | Prewarm exe registered as systemd user timer | Step 11 | `systemctl --user list-timers lausu-prewarm.timer` shows the timer with `OnBootSec=10s`; `~/.config/systemd/user/lausu-prewarm.service` `ExecStart=` points at the frozen prewarm binary (NOT `python3 -m ...`) |
+| 7 | ~~Prewarm exe registered as systemd user timer~~ — HISTORICAL (Step 11 retired; prewarm is a worker-startup phase, nothing to register) | — | — |
 | 8 | Native `linux-key-listener` toggles dictation on X11 (XRecord) + Wayland (libinput/evdev) | Step 12 | F8 starts/stops recording on BOTH session types; `ps aux \| grep linux-key-listener` shows the process |
 | 9 | Single-instance (lockfile at `<config_dir>/.single-instance.lock`): second launch focuses first, no zombie sidecar | Step 14 | Second instance exits within 2s; `ps aux \| grep python-sidecar \| wc -l` returns `1` after second launch |
 
@@ -671,7 +676,7 @@ ADR-0020 §4.1 mandates both `x86_64-unknown-linux-gnu` AND `aarch64-unknown-lin
 **aarch64 validation** (one of):
 - **Native aarch64 host** (preferred): Raspberry Pi 4/5 (Ubuntu 22.04+), Ampere Altra, AWS Graviton EC2 instance, or Apple Silicon Linux VM (UTM/Podman). Run Steps 0–15 directly. The native `linux-key-listener` is built by `scripts/build/compile_native.sh` on the aarch64 host (no cross-compile).
 - **qemu-system-aarch64 with a Wayland display**: boot an aarch64 Ubuntu 22.04 VM under qemu-system-aarch64 with `-device virtio-gpu` + a virtual display, run a Wayland compositor (weston or GNOME), and run Steps 0–15 inside the VM. Slower than native but reproducible in CI.
-- **qemu-user-static for cross-build + native aarch64 smoke**: build the sidecar + prewarm on an x86_64 host using `bash scripts/build/build_sidecar_linux.sh aarch64` (qemu executes the aarch64 python-build-standalone interpreter during Nuitka compilation). Copy the resulting `python-sidecar-aarch64-unknown-linux-gnu` + `prewarm-aarch64-unknown-linux-gnu` to an aarch64 host and run Steps 5–15 there. The native `linux-key-listener` must be built on the aarch64 host (qemu-user-static cannot run gcc to produce a working aarch64 binary that links against the aarch64 glibc).
+- **qemu-user-static for cross-build + native aarch64 smoke**: build the sidecar on an x86_64 host using `bash scripts/build/build_sidecar_linux.sh aarch64` (qemu executes the aarch64 python-build-standalone interpreter during Nuitka compilation). Copy the resulting `python-sidecar-aarch64-unknown-linux-gnu` to an aarch64 host and run Steps 5–15 there (the prewarm binary formerly copied alongside is retired — Step 2 HISTORICAL). The native `linux-key-listener` must be built on the aarch64 host (qemu-user-static cannot run gcc to produce a working aarch64 binary that links against the aarch64 glibc).
 
 **aarch64-specific gotchas**:
 - CTranslate2 wheels for `aarch64-unknown-linux-gnu` are CPU-only (no CUDA). Verify `ldd $SITE/ctranslate2/lib/libctranslate2.so` resolves all `NEEDED` deps in the aarch64 python-build-standalone env.
@@ -739,12 +744,12 @@ No data loss on revert. The predecessor app picks up the same config + models + 
 After running the runbook, capture the following artifacts for the migration record:
 
 1. `src-tauri/bin/.build-sidecar-<triple>.log` (Nuitka build log).
-2. `src-tauri/resources/.build-prewarm-<triple>.log` (Nuitka prewarm build log).
-3. `ldd` output for both binaries (proves the glibc baseline).
+2. ~~`src-tauri/resources/.build-prewarm-<triple>.log` (Nuitka prewarm build log)~~ — HISTORICAL (Step 2 retired; no prewarm build runs).
+3. `ldd` output for the sidecar binary (proves the glibc baseline).
 4. `~/.local/share/lausu/logs/sidecar.log` (runtime log: contains `server_started`, `auth ok`, `model_loaded`, `shutdown` events).
-5. `~/.local/share/lausu/logs/prewarm.log` (prewarm log).
-6. `systemctl --user status lausu-prewarm.timer` output (proves the systemd user timer registered).
-7. `journalctl --user -u lausu-prewarm.service` output (proves the prewarm ran at boot).
+5. ~~`~/.local/share/lausu/logs/prewarm.log` (prewarm log)~~ — HISTORICAL (no standalone prewarm runs).
+6. ~~`systemctl --user status lausu-prewarm.timer` output (proves the systemd user timer registered)~~ — HISTORICAL (Step 11 retired).
+7. ~~`journalctl --user -u lausu-prewarm.service` output (proves the prewarm ran at boot)~~ — HISTORICAL (Step 11 retired).
 8. Screenshots of: the main window, the bubble, a notification, a transcription in a text editor, on BOTH X11 and Wayland.
 9. `dpkg-deb -e` + `dpkg-deb -c` output for the `.deb` (proves the postinst/prerm scripts + udev rule are in the package).
 10. The `cargo tauri build` stdout (proves the Rust host compiled + bundled successfully).
