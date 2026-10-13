@@ -3,8 +3,14 @@
 from __future__ import annotations
 
 import ctypes
-import ctypes.wintypes as wintypes
 from typing import Any
+
+# Fixed-width field types, NOT ctypes.wintypes aliases: wintypes DWORD/LONG
+# are c_ulong/c_long (8 bytes on LP64 Linux/macOS, 4 on Windows), which
+# inflated this model to 56 B off-Windows. The Win32 ABI is 40 B on x64.
+_WORD = ctypes.c_ushort
+_DWORD = ctypes.c_uint32
+_LONG = ctypes.c_int32
 
 # ULONG_PTR is pointer-sized: 4 bytes on 32-bit Windows, 8 bytes on
 _ULONG_PTR = ctypes.c_uint64 if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_uint32
@@ -17,10 +23,10 @@ class KEYBDINPUT(ctypes.Structure):
     """
 
     _fields_ = (
-        ("wVk", wintypes.WORD),
-        ("wScan", wintypes.WORD),
-        ("dwFlags", wintypes.DWORD),
-        ("time", wintypes.DWORD),
+        ("wVk", _WORD),
+        ("wScan", _WORD),
+        ("dwFlags", _DWORD),
+        ("time", _DWORD),
         ("dwExtraInfo", _ULONG_PTR),
     )
     # by a synthetic press. Matches the Win32 constant and the legacy
@@ -37,11 +43,11 @@ class MOUSEINPUT(ctypes.Structure):
     """
 
     _fields_ = (
-        ("dx", wintypes.LONG),
-        ("dy", wintypes.LONG),
-        ("mouseData", wintypes.DWORD),
-        ("dwFlags", wintypes.DWORD),
-        ("time", wintypes.DWORD),
+        ("dx", _LONG),
+        ("dy", _LONG),
+        ("mouseData", _DWORD),
+        ("dwFlags", _DWORD),
+        ("time", _DWORD),
         ("dwExtraInfo", _ULONG_PTR),
     )
 
@@ -59,7 +65,7 @@ class INPUT(ctypes.Structure):
     """
 
     _fields_ = (
-        ("type", wintypes.DWORD),
+        ("type", _DWORD),
         # The C struct has an anonymous union here; ctypes requires a
         ("ki", InputUnion),
     )

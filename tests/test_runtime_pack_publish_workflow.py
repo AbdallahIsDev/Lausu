@@ -29,9 +29,14 @@ TAURI_WORKFLOWS = (
 PINNED_ACTION_VERSIONS: dict[str, str] = {
     "actions/checkout": "v5",
     "actions/setup-python": "v7",
+    "actions/cache": "v5",
+    "actions/setup-node": "v7",
+    # Node-24 runtime versions (upload/download-artifact v6, setup-uv v7).
     "actions/upload-artifact": "v6",
     "actions/download-artifact": "v6",
     "astral-sh/setup-uv": "v7",
+    "dtolnay/rust-toolchain": "v1",
+    "actions/attest-build-provenance": "v4",
 }
 
 
