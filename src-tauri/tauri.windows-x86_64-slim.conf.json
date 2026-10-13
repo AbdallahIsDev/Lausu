@@ -12,9 +12,17 @@
         "fullscreen": false,
         "transparent": false,
         "decorations": false,
+        "center": true,
+        "hiddenTitle": true,
+        "titleBarStyle": "Overlay",
+        "trafficLightPosition": {
+          "x": 12,
+          "y": 10
+        },
         "visible": true,
         "create": false,
-        "label": "main"
+        "label": "main",
+        "additionalBrowserArgs": "--autoplay-policy=no-user-gesture-required --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection"
       },
       {
         "title": "Lausu Bubble",

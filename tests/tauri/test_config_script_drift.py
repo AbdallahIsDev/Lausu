@@ -620,6 +620,40 @@ class TestPerArchConfigsStayLockedToBase:
                 'WebviewLabelAlreadyExists("main") at startup.'
             )
 
+    def test_per_arch_main_window_keeps_base_chrome_and_hardening(self) -> None:
+        """Overrides re-declaring ``app.windows`` must repeat the base-only fields.
+
+        The merge follows JSON Merge Patch: arrays replace wholesale, so any
+        main-window key missing from a per-arch ``app.windows`` entry falls
+        back to the framework default, not the base value. Geometry and chrome
+        (``center``, ``hiddenTitle``, ``titleBarStyle``,
+        ``trafficLightPosition``) plus the webview hardening flags
+        (``additionalBrowserArgs``) must equal the base ``main`` entry.
+        Intentional per-arch deltas (window/size minimums, ``decorations``)
+        are NOT pinned here.
+        """
+        base_main = {w["label"]: w for w in _tauri_conf()["app"]["windows"]}["main"]
+        pinned = (
+            "center",
+            "hiddenTitle",
+            "titleBarStyle",
+            "trafficLightPosition",
+            "additionalBrowserArgs",
+        )
+        for key in pinned:
+            assert key in base_main, f"base tauri.conf.json main window lost pinned key {key!r}"
+        for rel, (platform, _triples) in PER_ARCH_CONFIGS.items():
+            cfg = json.loads((SRC_TAURI / rel).read_text(encoding="utf-8"))
+            windows = {w["label"]: w for w in cfg.get("app", {}).get("windows", [])}
+            if "main" not in windows:
+                continue  # inherits the base array untouched (linux confs)
+            for key in pinned:
+                assert windows["main"].get(key) == base_main[key], (
+                    f"{rel} ({platform}) main window drops base {key!r}: "
+                    f"got {windows['main'].get(key)!r}, base has {base_main[key]!r} "
+                    "(arrays merge wholesale: omitted fields reset to defaults)."
+                )
+
 
 def _configs_declaring_bubble() -> list[tuple[str, dict]]:
     """Every Tauri config on disk that declares a ``bubble`` window."""
