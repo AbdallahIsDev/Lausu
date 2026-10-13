@@ -18,6 +18,7 @@ import logging
 import queue
 import threading
 import time
+from collections.abc import Iterable
 from typing import Any
 
 from voice_typer.server import event_bus
@@ -232,16 +233,46 @@ class WorkerClient:
         """Register the finalize waiter for an open streaming session (C6)."""
         return self._register_future(int(request_id), timeout)
 
+    def _free_outbound_slots(self) -> int:
+        """Free slots in the bounded outbound queue (approximate fast path)."""
+        return max(0, self._outbound.maxsize - self._outbound.qsize())
+
+    def _enqueue_all_or_none(self, frames: Iterable[str]) -> bool:
+        """Enqueue every frame; on failure withdraw ours so none remain."""
+        sent_ids: set[int] = set()
+        try:
+            for frame in frames:
+                self._outbound.put_nowait(frame)
+                sent_ids.add(id(frame))
+        except queue.Full:
+            self._withdraw_frames(sent_ids)
+            return False
+        except Exception:
+            self._withdraw_frames(sent_ids)
+            raise
+        return True
+
+    def _withdraw_frames(self, sent_ids: set[int]) -> None:
+        """Drop our just-enqueued frames by identity; others keep order."""
+        if not sent_ids:
+            return
+        outstanding = self._outbound
+        with outstanding.mutex:
+            kept = [frame for frame in outstanding.queue if id(frame) not in sent_ids]
+            if len(kept) != len(outstanding.queue):
+                outstanding.queue.clear()
+                outstanding.queue.extend(kept)
+
     def enqueue_frames(self, frames: list[str]) -> bool:
         """Queue prebuilt frames atomically; ``False`` sends nothing (E8)."""
         with self._lock:
             port = self._port
         if port is None:
             return False
-        try:
-            for frame in frames:
-                self._outbound.put_nowait(frame)
-        except queue.Full:
+        if len(frames) > self._free_outbound_slots():
+            log.warning("[WORKER] outbound queue full: dropping %d streaming frames", len(frames))
+            return False
+        if not self._enqueue_all_or_none(iter(frames)):
             log.warning("[WORKER] outbound queue full: dropping %d streaming frames", len(frames))
             return False
         self._notify_outbound()
@@ -301,20 +332,24 @@ class WorkerClient:
 
         Same Future/timeout/cancel contract as :meth:`request_transcribe`;
         ``None`` when there is nowhere to send it. All chunks are queued
-        atomically: if the outbound queue cannot fit the whole request,
-        nothing is sent and ``None`` is returned (a half-sent request
-        would hang its Future forever).
+        atomically: when the request cannot fit, nothing is sent and
+        ``None`` is returned (pre-checks fail fast; a mid-enqueue
+        ``Full`` withdraws the frames already queued).
         """
         request_id = self._next_id()
         with self._lock:
             port = self._port
         if port is None:
             return None
-        frames = chunk_samples(bytes(audio_f32), int(sample_rate), language, request_id)
-        try:
-            for frame in frames:
-                self._outbound.put_nowait(frame)
-        except queue.Full:
+        total = samples_chunk_count(len(audio_f32))
+        if total > _SAMPLES_MAX_CHUNKS:
+            log.warning("[WORKER] samples request needs %d chunks (cap %d): refusing", total, _SAMPLES_MAX_CHUNKS)
+            return None
+        if total > self._free_outbound_slots():
+            log.warning("[WORKER] outbound queue full: dropping %d-chunk samples request", total)
+            return None
+        frames = iter_chunk_samples(bytes(audio_f32), int(sample_rate), language, request_id)
+        if not self._enqueue_all_or_none(frames):
             log.warning("[WORKER] outbound queue full: dropping samples request")
             return None
         self._notify_outbound()
@@ -425,6 +460,7 @@ def close_shared_client() -> bool:
 from voice_typer.server.worker_protocol import (  # noqa: E402,F401  # facade re-export
     _MAX_FRAME_BYTES,
     _SAMPLES_CHUNK_RAW_BYTES,
+    _SAMPLES_MAX_CHUNKS,
     backoff_delay,
     build_abort_frame,
     build_auth_frame,
@@ -433,9 +469,11 @@ from voice_typer.server.worker_protocol import (  # noqa: E402,F401  # facade re
     build_streaming_frame,
     build_transcribe_frame,
     chunk_samples,
+    iter_chunk_samples,
     parse_incoming,
     port_from_worker_started,
     route_frame,
+    samples_chunk_count,
 )
 from voice_typer.server.worker_session import (  # noqa: E402,F401  # facade re-export
     _WorkerUnresponsiveError,
