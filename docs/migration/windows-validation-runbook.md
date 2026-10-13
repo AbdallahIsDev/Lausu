@@ -58,8 +58,8 @@ explanation in the cited section.
 # ─── §1 Build sidecar .exe with Nuitka ──────────────────────────────────
 11. # See §1: the exact `python -m nuitka ...` command (≈ 15 min build).
 
-# ─── §2 Build prewarm .exe with Nuitka ──────────────────────────────────
-12. # See §2: the exact `python -m nuitka ...` command.
+# ─── §2 Build prewarm .exe — HISTORICAL, DO NOT RUN ─────────────
+12. # §2 retired (prewarm is a worker-startup phase); skip this step.
 
 # ─── §4 Build Tauri app (MSI + NSIS) ────────────────────────────────────
 13. cd voice_typer\client ; npm run build:renderer ; cd ..\..
@@ -76,7 +76,7 @@ explanation in the cited section.
 20. §6.4 enigo paste (short + long)          , text in Notepad
 21. §6.5 Toast notification                  : Windows toast appears
 22. §6.6 Cooperative shutdown                : sidecar exits ≤ 2 s
-23. §6.7 Prewarm LogonTrigger                : schtasks shows Last Run
+23. §6.7 Prewarm LogonTrigger (HISTORICAL — retired) : skip
 24. §6.8 Native windows-key-listener         : F8 toggles dictation
 25. §6.9 Single-instance                     : second launch focuses first
 
@@ -86,7 +86,7 @@ explanation in the cited section.
 28. §10.3 Bubble window                      : bubble appears + hides
 
 # ─── §7 Code signing (optional, skip if no cert) ───────────────────────
-29. # See §7: signtool sign + verify sidecar + prewarm + MSI + NSIS.
+29. # See §7: signtool sign + verify sidecar + MSI + NSIS (prewarm retired).
 
 # ─── §9 Capture results ─────────────────────────────────────────────────
 30. # Fill the §9 results table; attach %APPDATA%\lausu\logs\*.
@@ -473,15 +473,15 @@ resolves it via `resolve_prewarm_exe()` (see ADR-0020 §5).
     --output-dir=src-tauri\resources `
     voice_typer\server\prewarm\__main__.py
 
-**VALIDATE ON WINDOWS HOST** Test-Path .\src-tauri\resources\prewarm-x86_64-pc-windows-msvc.exe
+~~**VALIDATE ON WINDOWS HOST** Test-Path .\src-tauri\resources\prewarm-x86_64-pc-windows-msvc.exe~~ — HISTORICAL (no prewarm binary is built).
 # Expected: True
 ```
 
-**Pass criteria for §2**:
-- `src-tauri\resources\prewarm-x86_64-pc-windows-msvc.exe` exists.
-- Size is 60–100 MB (smaller than the sidecar because it doesn't
+**Pass criteria for §2** — HISTORICAL (section retired; kept for reference):
+- ~~`src-tauri\resources\prewarm-x86_64-pc-windows-msvc.exe` exists.~~
+- ~~Size is 60–100 MB (smaller than the sidecar because it doesn't
   include the WS server stack, though it does include CTranslate2 for
-  cache warming).
+  cache warming).~~
 
 ---
 
@@ -559,8 +559,8 @@ there so `cargo tauri build` bundles it:
 ## §4 Build Tauri app (`cargo tauri build`)
 
 **VALIDATE ON WINDOWS HOST** Build the React renderer + the Rust host +
-bundle the sidecar + prewarm + native listener + produce the MSI + NSIS
-installers.
+bundle the sidecar + native listener (no prewarm binary is bundled
+anymore — §2 HISTORICAL) + produce the MSI + NSIS installers.
 
 ```powershell
 **VALIDATE ON WINDOWS HOST** cd voice_typer\client
@@ -662,9 +662,9 @@ shippable fallback until all 9 pass.
 **Tests**: ADR-0020 §1, Tauri's `externalBin` mechanism selects the
 sidecar binary by target triple at runtime and spawns it with the
 `TAURI_SIDECAR=1`, `VOICE_TYPER_IPC_TOKEN=<64-hex>`,
-`VOICE_TYPER_NATIVE_DIR=<resourceDir>\native`,
-`VOICE_TYPER_PREWARM_EXE=<resourceDir>\prewarm-<triple>.exe` env vars
-set. The sidecar binds `127.0.0.1:0`, the OS assigns an ephemeral
+`VOICE_TYPER_NATIVE_DIR=<resourceDir>\native` env vars set
+(`VOICE_TYPER_PREWARM_EXE` is retired with the prewarm binary and is
+never set). The sidecar binds `127.0.0.1:0`, the OS assigns an ephemeral
 port, and the sidecar writes ONE structured line to stdout:
 `{"event":"server_started","port":<n>}` (see `voice_typer/server/sidecar_ws.py::_emit_server_started`).
 
@@ -980,9 +980,12 @@ Expected (in `sidecar.log`):
   `kill_children` backstop should handle this; if not, the
   `native_hotkeys/` package exit handler needs fixing.
 
-### §6.7 Prewarm `LogonTrigger`
+### §6.7 Prewarm `LogonTrigger` — HISTORICAL, DO NOT RUN
 
-**VALIDATE ON WINDOWS HOST**
+> **HISTORICAL — the binary this section registers no longer exists.**
+> The prewarm pipeline was migrated to the slim-core worker (see the
+> STATUS NOTE below and the retirement banner in §2 above). The section
+> is kept for reference only.
 
 **Tests**: ADR-0020 §5, prewarm is registered as a Windows Task
 Scheduler task with `LogonTrigger` (via `task_scheduler.py`). On
@@ -1013,7 +1016,7 @@ fallback (plain python module).
 **Verify** the task was registered + ran:
 
 ```powershell
-**VALIDATE ON WINDOWS HOST** schtasks /query /tn "com.Lausu.prewarm" /v /fo LIST
+~~**VALIDATE ON WINDOWS HOST** schtasks /query /tn "com.Lausu.prewarm" /v /fo LIST~~ — HISTORICAL (no prewarm task is registered).
 ```
 
 Expected fields:
@@ -1025,7 +1028,7 @@ Expected fields:
 **Verify** the prewarm log:
 
 ```powershell
-**VALIDATE ON WINDOWS HOST** Get-Content "$env:APPDATA\lausu\logs\prewarm.log" -Tail 50
+~~**VALIDATE ON WINDOWS HOST** Get-Content "$env:APPDATA\lausu\logs\prewarm.log" -Tail 50~~ — HISTORICAL (no prewarm runs, so no log).
 ```
 
 Expected: lines showing prewarm ran (file-cache warming of model
@@ -1161,8 +1164,9 @@ doesn't spawn a zombie sidecar.
 ## §7 Code signing (Authenticode signtool)
 
 **VALIDATE ON WINDOWS HOST** Per ADR-0020 §13.1, sign the Nuitka-built
-sidecar + prewarm exes immediately after build (BEFORE bundling —
-unsigned sidecars trigger SmartScreen / AV), then sign the final MSI +
+sidecar exe immediately after build (BEFORE bundling —
+unsigned sidecars trigger SmartScreen / AV; prewarm retired, its §7.2
+block below is HISTORICAL), then sign the final MSI +
 NSIS installer after `cargo tauri build`.
 
 **Required**:
@@ -1218,7 +1222,7 @@ For production: obtain a real Authenticode cert from a CA. Store the
 PFX base64-encoded in the `WIN_CSC_LINK` GitHub secret + its password
 in `WIN_CSC_KEY_PASSWORD` (matching the legacy builder config).
 
-### §7.2 Sign the sidecar + prewarm exes
+### §7.2 Sign the sidecar exes (prewarm block HISTORICAL, see note)
 
 **VALIDATE ON WINDOWS HOST**
 
@@ -1238,6 +1242,10 @@ in `WIN_CSC_KEY_PASSWORD` (matching the legacy builder config).
 **VALIDATE ON WINDOWS HOST** & $signtool verify /pa /v `
     src-tauri\bin\python-sidecar-x86_64-pc-windows-msvc.exe
 # Expected: "Successfully verified"
+
+> **HISTORICAL — the prewarm binary below is not built anymore (§2
+> retired).** Do not run these commands; the sidecar block above is the
+> live signing step.
 
 # Sign the prewarm exe:
 **VALIDATE ON WINDOWS HOST** & $signtool sign /f $pfx /p $pfxPwd `
@@ -1358,7 +1366,7 @@ tracking issue.
 | §6.4 | enigo paste (short + long) | ☐ Pass ☐ Fail | short=__ long=__ | `[PASTE] injected N chars via enigo` |
 | §6.5 | Toast notification | ☐ Pass ☐ Fail | toast appeared at T+__s | screenshot of Action Center |
 | §6.6 | Cooperative shutdown | ☐ Pass ☐ Fail | sidecar exited in __ms | `[SHUTDOWN] sidecar exited gracefully (code=..., signal=...)` OR `[SHUTDOWN] sidecar kill completed (graceful=...)` |
-| §6.7 | Prewarm LogonTrigger | ☐ Pass ☐ Fail | Last Run Time=____ Last Result=____ | `schtasks /query /v` output |
+| §6.7 | Prewarm LogonTrigger — HISTORICAL (retired, do not run) | ☐ N/A | — | — |
 | §6.8 | Native windows-key-listener | ☐ Pass ☐ Fail | hotkey ____ toggles dictation | `tasklist` shows windows-key-listener.exe |
 | §6.9 | Single-instance | ☐ Pass ☐ Fail | second launch focused existing | `tasklist` shows 1+1 processes |
 | §10.1 | Export History (Sub-agent A) | ☐ Pass ☐ Fail | file written at ____ | file path + size |
@@ -1386,8 +1394,8 @@ tracking issue.
 - `%APPDATA%\lausu\logs\lausu.log` (rotated; zip the whole
   `logs/` dir).
 - `%APPDATA%\lausu\logs\sidecar.log` (rotated; same zip).
-- `%APPDATA%\lausu\logs\prewarm.log`.
-- `schtasks /query /tn "com.Lausu.prewarm" /v /fo LIST > prewarm-task.txt`.
+- ~~`%APPDATA%\lausu\logs\prewarm.log`~~ — HISTORICAL (§6.7 retired; no prewarm runs).
+- ~~`schtasks /query /tn "com.Lausu.prewarm" /v /fo LIST > prewarm-task.txt`~~ — HISTORICAL (§6.7 retired).
 - `tasklist /v > tasklist.txt` (captured while app running).
 - Screenshots of: main window, bubble window (§10.3), toast (§6.5),
   Action Center.
@@ -1634,15 +1642,16 @@ instantly on `import ctranslate2` at launch."
 ### §11.3 `--onefile` tempdir bloat
 
 **Symptom**: `%TEMP%\onefile_*` accumulates gigabytes of extracted
-sidecar/prewarm binaries across launches/crashes. Disk fills up.
+sidecar binaries across launches/crashes (plus prewarm binaries on
+pre-retirement installs). Disk fills up.
 
 **Cause**: Nuitka `--onefile` extracts to a fresh temp dir on every
 launch; orphaned dirs accumulate if the process crashes before
 cleanup.
 
-**Fix**: The §1 + §2 commands pin a deterministic extract dir via
+**Fix**: The §1 command pins a deterministic extract dir via
 `--onefile-tempdir-spec=%LOCALAPPDATA%\lausu\onefile-tmp`
-(sidecar) and `...\prewarm-onefile-tmp` (prewarm). This means the
+(sidecar; §2's `...\prewarm-onefile-tmp` is HISTORICAL with it). This means the
 extract dir is reused across launches (no accumulation). Verify the
 flag is present in your command.
 
@@ -1658,7 +1667,11 @@ extract dir on uninstall (per ADR-0020 §4.2 "have the
 installer/uninstaller purge that dir"); this is a packaging TODO for
 Sub-agent F.
 
-### §11.4 Task Scheduler requires admin for some triggers
+### §11.4 Task Scheduler requires admin for some triggers — HISTORICAL (§6.7 retired)
+
+> **HISTORICAL — §6.7 is retired, so this failure mode cannot occur on
+> current builds.** Kept for reference (the admin-trigger quirk still
+> applies to Task Scheduler work in general).
 
 **Symptom**: §6.7 prewarm task registration fails with
 "ERROR: The task requires the user to be an administrator" or the
@@ -1856,7 +1869,8 @@ Once §6 passes, the release engineer should:
    `tauri-windows-build` job (the workflow is otherwise active).
 2. Verify the workflow runs green on `main`.
 3. Download the workflow artifacts (NSIS installer, MSI installer,
-  sidecar binary, prewarm binary, native listener binary, SHA256SUMS)
+  sidecar binary, native listener binary, SHA256SUMS — no prewarm
+  binary is produced anymore, §2 HISTORICAL)
   and run §5 + §6 against them on a fresh Windows host to confirm CI
   produces shippable binaries.
 
@@ -1865,11 +1879,11 @@ The workflow:
   `windows-2022` runner.
 - Downloads + SHA-256-verifies python-build-standalone cpython-3.12.8
   + 20241219 (matches §0.7).
-- Builds the sidecar + prewarm with Nuitka (matches §1 + §2).
+- Builds the sidecar with Nuitka (matches §1; prewarm retired, §2 HISTORICAL).
 - Builds the native listener via `compile_native.ps1` (matches §3).
 - (Optional, if `WIN_CSC_LINK` + `WIN_CSC_KEY_PASSWORD` secrets are
-  set) Authenticode-signs the sidecar + prewarm + MSI + NSIS (matches
-  §7).
+   set) Authenticode-signs the sidecar + MSI + NSIS (matches
+  §7; prewarm retired).
 - Builds the Tauri app via `cargo tauri build --target
   x86_64-pc-windows-msvc` (matches §4).
 - Uploads all artifacts + SHA-256 checksums.
@@ -1890,7 +1904,7 @@ binaries; the human validator runs §6 against them.
 | §0.3 MSVC Build Tools | §4.2 | `scripts/build/compile_native.ps1` |
 | §0.7 python-build-standalone | §4.2 | `.github/workflows/tauri-windows-build.yml` |
 | §1 Sidecar Nuitka build | §4.2 | `voice_typer/server/ipc_server.py` |
-| §2 Prewarm Nuitka build | §5 | `voice_typer/server/prewarm/` package (entry point `__main__.py`), `prewarm_resolver.py` |
+| §2 Prewarm Nuitka build — HISTORICAL | §5 | ~~`voice_typer/server/prewarm/` package (entry point `__main__.py`), `prewarm_resolver.py`~~ (both deleted with the retirement) |
 | §3 Native listener build | §6.4 | `scripts/build/compile_native.ps1`, `voice_typer/server/native/windows-key-listener.c` |
 | §4 Tauri build | §7 | `src-tauri/tauri.conf.json`, `src-tauri/src/main.rs` |
 | §5 Install + smoke | §Phase 0-W | (installer) |
@@ -1900,7 +1914,7 @@ binaries; the human validator runs §6 against them.
 | §6.4 enigo paste | §6.2 + §6.3 | `src-tauri/src/main.rs:660` (`paste_text`) |
 | §6.5 Toast | §6.1 | `tauri-plugin-notification` |
 | §6.6 Cooperative shutdown | §10 | `src-tauri/src/main.rs:705` (`shutdown_sidecar`) |
-| §6.7 Prewarm LogonTrigger | §5 | `voice_typer/server/task_scheduler.py` |
+| §6.7 Prewarm LogonTrigger — HISTORICAL | §5 | ~~`voice_typer/server/task_scheduler.py`~~ (prewarm task registration retired with §6.7) |
 | §6.8 Native listener | §6.4 | `voice_typer/server/native_hotkeys/` package |
 | §6.9 Single-instance | §12 | `src-tauri/src/main.rs:744` (plugin init) |
 | §7 Code signing | §13.1 | `docs/migration/signing-guide.md` |
