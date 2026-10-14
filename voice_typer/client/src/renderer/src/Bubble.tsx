@@ -510,10 +510,6 @@ function BubbleInner() {
 						// caption side effects (system menu, double-click
 						// zoom) are disabled at the window level, not here.
 						draggable ? "drag-region" : "no-drag",
-						// TEMP-DRAG-PROBE (remove after diagnosis): paint the
-						// pill red while runtime draggable is false, so a
-						// stuck-false state is visible without devtools.
-						...(!draggable ? (["bg-red-500"] as const) : []),
 					)}
 					onContextMenu={handlePillContextMenu}
 					onMouseDown={handlePillMouseDown}

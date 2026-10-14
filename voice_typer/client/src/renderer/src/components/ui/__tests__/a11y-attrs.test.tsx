@@ -227,15 +227,12 @@ describe("Accordion, decorative disclosure glyph", () => {
 		}
 	});
 
-	it("the chevron rotates off the HEADER's data-state, not the trigger's", () => {
-		// The glyph is a sibling of the trigger, so the usual
-		// `group-data-[state=open]/accordion-trigger:` selector cannot
-		// reach it — a group selector only matches descendants. It is
-		// driven by `group/accordion-header` instead, which works only
-		// because Radix puts `data-state` on the header <h3> as well.
-		// Assert BOTH halves of that contract, so a Radix change that
-		// dropped `data-state` from the header fails here instead of
-		// silently leaving a chevron stuck pointing right.
+	it("the chevron rotates off the TRIGGER's data-state", () => {
+		// The glyph lives inside the trigger button, so the trigger's
+		// own `group-data-[state=open]/accordion-trigger:` selector
+		// reaches it. Assert the contract so a Radix change that drops
+		// `data-state` from the trigger fails here instead of silently
+		// leaving a chevron stuck pointing right.
 		render(
 			<Accordion type="single" collapsible>
 				<AccordionItem value="item-1">
@@ -244,19 +241,19 @@ describe("Accordion, decorative disclosure glyph", () => {
 				</AccordionItem>
 			</Accordion>,
 		);
-		const header = (
-			document.querySelector('[data-slot="accordion-trigger"]') as HTMLElement
-		).parentElement as HTMLElement;
+		const trigger = document.querySelector(
+			'[data-slot="accordion-trigger"]',
+		) as HTMLElement;
 		const icon = document.querySelector(
 			'[data-slot="accordion-trigger-icon"]',
 		) as HTMLElement;
 
-		expect(header.className).toContain("group/accordion-header");
+		expect(trigger.className).toContain("group/accordion-trigger");
 		expect(icon.className).toContain(
-			"group-data-[state=open]/accordion-header:rotate-90",
+			"group-data-[state=open]/accordion-trigger:rotate-90",
 		);
 		// Collapsed: a right chevron, pointing at the content it reveals.
-		expect(header.getAttribute("data-state")).toBe("closed");
+		expect(trigger.getAttribute("data-state")).toBe("closed");
 	});
 
 	it("the header's data-state actually flips, so the rotation fires", async () => {
@@ -287,11 +284,10 @@ describe("Accordion, decorative disclosure glyph", () => {
 		expect(header.getAttribute("data-state")).toBe("closed");
 	});
 
-	it("the chevron is a SIBLING of the trigger button, never a child", () => {
-		// The glyph moved out of the trigger so an `actions` button could
-		// sit to its LEFT: nesting a <button> inside the trigger <button>
-		// is invalid HTML and axe's `nested-interactive`. The glyph must
-		// therefore live in the trailing span, on the header.
+	it("the chevron is a CHILD of the trigger button inside the trailing div", () => {
+		// The row is one button: the trailing div (actions + chevron)
+		// lives inside the trigger, so the whole row is a single hover
+		// surface owned by the trigger.
 		render(
 			<Accordion type="single">
 				<AccordionItem value="item-1">
@@ -311,18 +307,16 @@ describe("Accordion, decorative disclosure glyph", () => {
 		) as HTMLElement;
 
 		expect(trailing).toBeTruthy();
-		expect(trigger.contains(icon)).toBe(false);
+		expect(trailing.tagName).toBe("DIV");
+		expect(trigger.contains(trailing)).toBe(true);
+		expect(trigger.contains(icon)).toBe(true);
 		expect(trailing.contains(icon)).toBe(true);
-		// Siblings, both on the header.
-		expect(trigger.parentElement).toBe(trailing.parentElement);
 	});
 
-	it("the header stretches its halves to one row height", () => {
-		// The trigger and the trailing span paint the SAME hover tint, so
-		// they only read as one continuous band if they are also the same
-		// height. They are not naturally (the trigger is `py-2.5` around a
-		// 20px line box; the span is only as tall as the action button it
-		// wraps), so the header must stretch rather than centre them.
+	it("the trigger alone owns the row hover, no sibling half", () => {
+		// One button, one hover surface: the trigger carries
+		// `hover:bg-foreground/5` and there is no second half painting
+		// a group hover beside it.
 		render(
 			<Accordion type="single">
 				<AccordionItem value="item-1">
@@ -333,18 +327,21 @@ describe("Accordion, decorative disclosure glyph", () => {
 				</AccordionItem>
 			</Accordion>,
 		);
-		const header = (
-			document.querySelector('[data-slot="accordion-trigger"]') as HTMLElement
-		).parentElement;
-		expect(header?.className).toContain("items-stretch");
-		expect(header?.className).not.toContain("items-center");
+		const trigger = document.querySelector(
+			'[data-slot="accordion-trigger"]',
+		) as HTMLElement;
+		const trailing = document.querySelector(
+			'[data-slot="accordion-trigger-trailing"]',
+		) as HTMLElement;
+		expect(trigger.className).toContain("hover:bg-foreground/5");
+		expect(trailing.className).not.toContain("group-hover");
+		expect(trigger.contains(trailing)).toBe(true);
 	});
 
-	it("disclosure={false} with no actions renders NO trailing slot at all", () => {
-		// An empty trailing span still contributes its `pe-4`, stealing
-		// 16px from the trigger and shifting the row's right inset. The
+	it("disclosure={false} with no actions renders NO trailing div at all", () => {
+		// An empty trailing div would steal inset from the label side. The
 		// microphone preset selector is exactly this shape (it supplies
-		// its own chevron and no action), so the slot must not exist.
+		// its own chevron and no action), so the group must not exist.
 		render(
 			<Accordion type="single">
 				<AccordionItem value="item-1">
@@ -359,12 +356,12 @@ describe("Accordion, decorative disclosure glyph", () => {
 		expect(
 			document.querySelector('[data-slot="accordion-trigger-icon"]'),
 		).toBeNull();
-		// …and the header is therefore not a hover group either: there is
-		// no second half to keep visually attached to the trigger.
+		// …and the trigger is therefore the only hover surface: there is
+		// no second half to keep visually attached to it.
 		expect(
 			(document.querySelector('[data-slot="accordion-trigger"]') as HTMLElement)
-				.parentElement?.className,
-		).not.toContain("group/accordion-row");
+				.className,
+		).toContain("hover:bg-foreground/5");
 	});
 
 	it("disclosure={false} WITH actions keeps the slot, minus the glyph", () => {
@@ -385,7 +382,14 @@ describe("Accordion, decorative disclosure glyph", () => {
 			'[data-slot="accordion-trigger-trailing"]',
 		) as HTMLElement;
 		expect(trailing).toBeTruthy();
+		expect(trailing.tagName).toBe("DIV");
 		expect(trailing.textContent).toBe("Configure");
+		// Inside the trigger button, not beside it.
+		expect(
+			(
+				document.querySelector('[data-slot="accordion-trigger"]') as HTMLElement
+			).contains(trailing),
+		).toBe(true);
 		expect(
 			document.querySelector('[data-slot="accordion-trigger-icon"]'),
 		).toBeNull();

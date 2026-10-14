@@ -65,6 +65,14 @@ export interface CloudProvidersPanelProps {
 	onTestConnection: (provider: string) => void;
 	/** Make ONE of a provider's models the active speech backend. */
 	onActivateModel: (provider: CloudProviderKey, modelId: string) => void;
+	// Controlled accordion state (page-lifted): keeps the user's
+	// expanded providers alive across tab flips, Models.tsx unmounts
+	// this panel when switching to Local, which would otherwise reset
+	// the accordion to collapsed on return. When absent the accordion
+	// falls back to internal state (uncontrolled, for direct mounts /
+	// tests).
+	accordionValue?: string[];
+	onAccordionValueChange?: (value: string[]) => void;
 }
 
 // One shared width for every cloud row action so the Select / Selecting…
@@ -99,6 +107,8 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 	onSaveApiKey,
 	onTestConnection,
 	onActivateModel,
+	accordionValue,
+	onAccordionValueChange,
 }: CloudProvidersPanelProps) {
 	// Which provider's setup dialog is open, plus the provider it belongs
 	// to. A SINGLE slot, not a map: the setup form is a modal
@@ -112,7 +122,11 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 			<p className="text-sm text-muted-foreground">
 				{t("models.cloudModelsDescription")}
 			</p>
-			<ModelGroupAccordion type="multiple">
+			<ModelGroupAccordion
+				type="multiple"
+				value={accordionValue}
+				onValueChange={onAccordionValueChange}
+			>
 				{cloudProviders.map((provider) => {
 					// Every model a provider serves shares that provider's ONE
 					// key, so "is this provider configured" is a per-GROUP fact.
@@ -138,9 +152,8 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 						        a provider with ten models asked for the same
 						        API key ten times. All of a provider's models
 						        share one key, so the form belongs to the
-						        provider. It is a sibling of the trigger (see
-						        `AccordionTrigger`'s `actions` slot), never a
-						        child: the trigger is a <button>. */}
+						        provider. It renders in the trigger trailing group, inside the button (see
+						        `AccordionTrigger`'s `actions` slot; its click is stopped before it can toggle the panel. */}
 							<ModelGroupTrigger
 								actions={
 									<Button

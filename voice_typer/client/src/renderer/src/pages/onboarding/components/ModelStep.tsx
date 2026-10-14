@@ -194,12 +194,12 @@ export function ModelStep({
 						{families.map((family) => (
 							<AccordionItem key={family.id} value={family.id}>
 								<AccordionTrigger className="px-4 hover:no-underline">
-									<span className="flex items-center gap-2">
+									<div className="flex items-center gap-2">
 										<FamilyLogo family={family.id} />
 										<span className="text-sm font-medium text-foreground">
 											{FAMILY_LABELS[family.id] ?? family.id}
 										</span>
-									</span>
+									</div>
 								</AccordionTrigger>
 								<AccordionContent className="px-4 pb-2">
 									<div className="flex flex-col divide-y divide-border/8">

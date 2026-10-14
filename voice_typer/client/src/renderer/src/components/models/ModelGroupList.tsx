@@ -51,35 +51,21 @@ export function ModelGroupTrigger({
 	return (
 		<AccordionTrigger
 			className={cn(
-				// `justify-start` + `items-center` override the primitive's
-				// `justify-between` + `items-start`. That base pair is kept
-				// for consumers that spread TWO groups across the row (the
-				// microphone preset selector: label on the left, current
-				// value + chevron on the right), but it is wrong here: a
-				// model-group header's children are the logo and the name,
-				// one unit. The primitive used to neutralise its own
-				// `justify-between` by giving the trailing "+" `ms-auto`,
-				// which consumed every spare pixel — once the glyph moved
-				// out to the sibling span, nothing absorbed the free space
-				// and the name was flung to the far edge, away from its
-				// logo. These two classes are the replacement, at the layer
-				// that knows the header is a single line.
-				"justify-start items-center gap-2 px-4 py-2.5 text-sm font-medium text-foreground hover:no-underline hover:bg-foreground/5 data-open:bg-transparent",
+				// Full-width row: the primitive spreads its two groups with
+				// `justify-between` — the left content group below against
+				// the trailing action+chevron group. The trigger button is
+				// the single hover surface (`hover:bg-foreground/5`).
+				"items-center justify-between gap-2 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-foreground/5 hover:no-underline data-open:bg-transparent",
 				className,
 			)}
-			// Forwarded through (not spread with the rest) so the slot is
-			// declared at this layer too, the Cloud tab's provider-level
-			// Configure button uses it to sit on the group's header row
-			// while staying outside the trigger `<button>` — immediately
-			// LEFT of the disclosure chevron. When it is present the primitive
-			// also makes the HEADER the hover group, so the row highlight
-			// covers the action instead of stopping at the "+"; the
-			// `hover:bg-foreground/5` below still carries the Local tab,
-			// which passes no actions and therefore gets no group hover.
+			// The Cloud tab's provider-level Configure button rides in
+			// the trigger's trailing group, inside the button, immediately
+			// LEFT of the disclosure chevron. Its click is stopped before
+			// it can toggle the panel (see the primitive).
 			actions={actions}
 			{...props}
 		>
-			{children}
+			<div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
 		</AccordionTrigger>
 	);
 }

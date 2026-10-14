@@ -30,7 +30,7 @@
 		"restartingBackend": "Restarting {appName} backend…",
 		"restartingHint": "This usually takes a few seconds. Dictation will resume from the system tray once ready.",
 		"goHome": "Go to Home",
-		"lostConnectionHint": "The backend process exited unexpectedly. Try restarting the app.",
+		"lostConnectionHint": "The backend is not responding. Try restarting the app.",
 		"connecting": {
 			"step1StartingPython": "Starting Python",
 			"step2LoadingModel": "Loading model",

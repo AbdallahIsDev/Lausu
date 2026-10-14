@@ -140,7 +140,7 @@ export function PresetAccordionSelector({
 					disclosure={false}
 					className="items-center gap-3 px-4 py-2.5 hover:bg-foreground/5 hover:no-underline focus-visible:ring-ring"
 				>
-					<span className="flex items-center gap-2 min-w-0">
+					<div className="flex items-center gap-2 min-w-0">
 						<span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
 							{t("settings.audioEnhancement.microphoneQuality")}
 						</span>
@@ -154,7 +154,7 @@ export function PresetAccordionSelector({
 							text={t("settings.audioEnhancement.microphoneQualityInfo")}
 							contextLabel={t("settings.audioEnhancement.microphoneQuality")}
 						/>
-					</span>
+					</div>
 					{/* Active-filter field + chevron: a NON-interactive chip
                                         (plain span, the whole row is the one control) that visually
                                         communicates the current selection, grouped with the expand
@@ -163,7 +163,7 @@ export function PresetAccordionSelector({
                                         chevron is decorative (the trigger owns aria-expanded) and
                                         rotates via the primitive's data-state, collapsed points
                                         down (can expand), expanded points up (can collapse). */}
-					<span className="flex items-center gap-2 shrink-0">
+					<div className="flex items-center gap-2 shrink-0">
 						<span
 							className="inline-flex max-w-40 items-center rounded-lg border border-border/8 bg-background px-2.5 py-1 text-xs font-medium text-foreground"
 							data-testid="mic-preset-current"
@@ -176,7 +176,7 @@ export function PresetAccordionSelector({
 							aria-hidden="true"
 							className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]/accordion-trigger:rotate-180"
 						/>
-					</span>
+					</div>
 				</AccordionTrigger>
 				{/* Padding contract (C-MIC-15): the shared primitive's
                                 AccordionContent supplies NO horizontal padding — only the
