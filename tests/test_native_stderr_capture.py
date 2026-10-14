@@ -6,6 +6,7 @@ import logging
 import os
 
 from voice_typer.worker.whisper.native_stderr import (
+    _shorten,
     capture_native_stderr,
     parse_native_line,
 )
@@ -35,7 +36,21 @@ class TestParseNativeLine:
         assert parse_native_line("03:41:25  WARN  [MODEL] hello") is None
 
     def test_reformatted_line_does_not_rematch(self):
-        assert parse_native_line("[MODEL] ctranslate2: The compute type is float32.") is None
+        assert parse_native_line("[ctranslate2] The compute type is float32.") is None
+
+
+class TestShorten:
+    def test_inferred_compute_fallback_is_compressed(self):
+        long = (
+            "The compute type inferred from the saved model is float16, but the "
+            "target device or backend do not support efficient float16 computation. "
+            "The model weights have been automatically converted to use the float32 "
+            "compute type instead."
+        )
+        assert _shorten(long) == "compute float16 unsupported, weights converted to float32"
+
+    def test_unknown_message_passes_through(self):
+        assert _shorten("The compute type is float32.") == "The compute type is float32."
 
 
 class TestCaptureNativeStderr:
@@ -55,7 +70,7 @@ class TestCaptureNativeStderr:
             finally:
                 os.dup2(saved, 2)
                 os.close(saved)
-        assert "[MODEL] ctranslate2: The compute type is float32." in caplog.text
+        assert "[ctranslate2] The compute type is float32." in caplog.text
         raw = sink.read_bytes()
         assert b"plain passthrough\n" in raw
         assert b"ctranslate2" not in raw
@@ -66,3 +81,19 @@ class TestCaptureNativeStderr:
         monkeypatch.setattr(mod.os, "dup", lambda _: (_ for _ in ()).throw(OSError()))
         with mod.capture_native_stderr():
             pass
+
+
+class TestSystemWhisperWrapped:
+    def test_both_model_constructions_capture_native_stderr(self):
+        # Both WhisperModel sites in system_whisper.py must route through
+        # the fd capture, otherwise ctranslate2 warnings land raw on
+        # stderr. Source-pinned (same precedent as the wire-trace guard):
+        # a behavioral test would need real weights + GPU.
+        import pathlib
+
+        src = pathlib.Path("voice_typer/server/system_whisper.py").read_text(encoding="utf-8")
+        assert src.count("faster_whisper.WhisperModel(") == 4
+        # …two per site: the fail-open branch (capture module absent in
+        # the frozen sidecar) plus the wrapped branch. Both sites wrap.
+        assert src.count("with _capture(target=log):") == 2
+        assert src.count('import_module(\n                "voice_typer.worker.whisper.native_stderr"') == 2

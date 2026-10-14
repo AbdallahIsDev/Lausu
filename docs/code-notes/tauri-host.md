@@ -280,6 +280,23 @@ because OS-IPC at ~60 Hz mousemove must not pin an async worker.
 Resize clamps to predecessor pill MIN/MAX (cross-host consistency + SEC-016
 phishing-overlay bound).
 
+## Bubble system-menu kill + drag frame sync
+
+Right-click on the caption drag region summoned the OS system menu even
+on the frameless pill. Tried and removed: a wndproc subclass (leaked
+clicks in tao's restore gap, then deadlocked the UI holding its
+registry lock across the chained call). What stays: a thread-local
+`WH_GETMESSAGE` hook (`ensure_bubble_msg_hook`) eating the six
+right-button messages at the queue (tao subclasses, it never
+unhooks), plus a one-shot `DeleteMenu` gutting for the Alt+Space
+corner no queue hook can eat. The `WS_SYSMENU` style strip is back
+as well, for a different reason than the menu: sysmenu presence
+freezes caption drag (verified live twice: stripped → drags,
+present → frozen), and the strip's `FRAMECHANGED` pass re-syncs
+input routing. It runs when dirty after show/hide/resize/setup/scale
+— never on `Moved`, where a recalc would fight the active move loop
+(`sync_frame` flag on `harden_bubble_chrome`).
+
 ## Supervisor respawn
 
 `respawn` serializes via `respawn_in_progress`, runs `respawn_inner` under

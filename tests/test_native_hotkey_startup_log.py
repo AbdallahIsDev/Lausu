@@ -88,8 +88,9 @@ class TestDiagnosticLinesRecognized:
         diag = [r for r in caplog.records if "binary diagnostic" in r.getMessage()]
         assert diag, "diagnostic line must be logged"
         logged = diag[0].getMessage()
-        assert _STARTUP_LINES[0].split("  INFO  ")[1] in logged
+        assert "windows-key-listener starting; spec=<f2>" in logged
         assert "2026-09-18" not in logged
+        assert "log_file=" not in logged
 
     def test_strip_canonical_diag_timestamp_only_strips_canonical_prefix(self):
         assert (

@@ -201,11 +201,13 @@ class TestNvidiaDllPaths:
         cublas_bin = sp / "nvidia" / "cublas" / "bin"
         cudnn_bin = sp / "nvidia" / "cudnn" / "bin"
         nvrtc_bin = sp / "nvidia" / "cuda_nvrtc" / "bin"
-        for path in (cublas_bin, cudnn_bin, nvrtc_bin):
+        cudart_bin = sp / "nvidia" / "cuda_runtime" / "bin"
+        for path in (cublas_bin, cudnn_bin, nvrtc_bin, cudart_bin):
             path.mkdir(parents=True)
         (cublas_bin / "cublas64_12.dll").write_text("")
         (cudnn_bin / "cudnn64_9.dll").write_text("")
         (nvrtc_bin / "nvrtc64_120_0.dll").write_text("")
+        (cudart_bin / "cudart64_12.dll").write_text("")
 
         added = []
         monkeypatch.setattr(sys, "platform", "win32")
@@ -227,7 +229,8 @@ class TestNvidiaDllPaths:
         assert str(cublas_bin) in os.environ["PATH"]
         assert str(cudnn_bin) in os.environ["PATH"]
         assert str(nvrtc_bin) in os.environ["PATH"]
-        assert added == [str(cublas_bin), str(cudnn_bin), str(nvrtc_bin)]
+        assert str(cudart_bin) in os.environ["PATH"]
+        assert added == [str(cublas_bin), str(nvrtc_bin), str(cudart_bin), str(cudnn_bin)]
 
 
 class TestLoadIdempotent:

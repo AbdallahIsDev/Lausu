@@ -365,16 +365,13 @@ class TestStartupBanner:  # noqa: N801
         )
 
     def test_banner_includes_file_path(self, config_dir, clean_env, stub_side_effects):
-        """The banner includes the resolved log file path."""
+        """The banner names the resolved log file (basename, not the full path)."""
         logging_setup._setup_logging()
         logging_setup._emit_startup_banner()
         _flush_all()
         banner = self._banner_lines(config_dir)
-        expected_file = str(config_dir / "logs" / "lausu.log")
-        # SEC-009: the PII log filter replaces the home-dir prefix with
-        expected_variants = {expected_file, expected_file.replace(str(Path.home()), "~")}
-        assert any(f"file={v}" in banner for v in expected_variants), (
-            f"GT-B1-15: banner missing file path; got: {banner!r}"
+        assert "file=lausu.log" in banner, (
+            f"GT-B1-15: banner missing log file name; got: {banner!r}"
         )
 
     def test_banner_includes_level_name(self, config_dir, clean_env, stub_side_effects):
@@ -453,14 +450,18 @@ class TestStartupBanner:  # noqa: N801
         )
 
     def test_banner_defaults_when_no_flags_set(self, config_dir, clean_env, stub_side_effects):
-        """Default config: debug=False, quiet=False, json=False, level=DEBUG."""
+        """Default config: short banner shape, no startup-flag internals."""
         logging_setup._setup_logging()
         logging_setup._emit_startup_banner()
         _flush_all()
         banner = self._banner_lines(config_dir)
-        assert "debug=False" in banner
-        assert "quiet=False" in banner
-        assert "json=False" in banner
+        assert "file=lausu.log" in banner
+        assert "level=" in banner
+        assert "process=main" in banner
+        assert "session=" in banner
+        assert "json=" not in banner
+        assert "debug=" not in banner
+        assert "quiet=" not in banner
 
     def test_banner_emitted_before_validate_env_vars(self, config_dir, clean_env, stub_side_effects):
         """PLAT-008 ordering: ``_validate_env_vars`` runs during"""
