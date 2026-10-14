@@ -153,13 +153,23 @@ def reconcile_configured_device(app: AppProtocol) -> bool:
     except ImportError:
         log.debug("[DEVICE] device_caps unavailable, skipping reconcile", exc_info=True)
         return False
-    if device_caps.gpu_available():
-        return False
     try:
         current = app.config.device
     except AttributeError:
         return False
     if not isinstance(current, str):
+        return False
+    if device_caps.gpu_available():
+        # A persisted CPU value with a GPU present is either an explicit
+        # choice or a stale fallback from a GPU-less window. Never flip
+        # it silently (an explicit choice must survive restarts), but say
+        # so loudly: without this line the CPU fallback is invisible and
+        # looks exactly like broken GPU detection.
+        if current.lower() == "cpu":
+            log.warning(
+                "[DEVICE] Configured device is CPU although a CUDA GPU is available; "
+                "switch device to cuda to use the GPU"
+            )
         return False
     if current.lower() == "cpu":
         return False

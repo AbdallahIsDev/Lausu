@@ -64,7 +64,7 @@ def check_offline_pack_on_launch(app: AppProtocol, shutdown_event: threading.Eve
             except Exception:  # noqa: BLE001
                 log.exception("[PACK] background checksum spawn failed for %s", local_version)
             log.info(
-                "[PACK] offline pack %s present at launch, background checksum started",
+                "[PACK] offline transcription pack %s installed, verifying checksum in background",
                 local_version,
             )
         else:
@@ -80,7 +80,7 @@ def check_offline_pack_on_launch(app: AppProtocol, shutdown_event: threading.Eve
                 )
             except Exception:  # noqa: BLE001
                 log.debug("[PACK] offline_pack_missing publish failed", exc_info=True)
-            log.info("[PACK] offline pack missing at launch, always-on re-download check")
+            log.info("[PACK] offline transcription pack not installed, checking for a download in background")
 
         if shutdown_event is not None and shutdown_event.is_set():
             return {

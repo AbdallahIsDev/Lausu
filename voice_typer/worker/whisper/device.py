@@ -15,6 +15,7 @@ def resolve_device(engine, device: str) -> tuple[str, str]:
     from voice_typer.server import transcription as _t
 
     if device == "cpu":
+        log.info("[MODEL] Using CPU for transcription (reason=explicitly_requested, compute=int8)")
         return "cpu", "int8"
 
     # Try CUDA
@@ -28,13 +29,23 @@ def resolve_device(engine, device: str) -> tuple[str, str]:
                 )
                 if device == "cuda":
                     log.warning("[MODEL] CUDA requested but DLLs unavailable, falling back to CPU")
-                log.info("[MODEL] Using CPU for transcription")
+                log.info("[MODEL] Using CPU for transcription (reason=cuda_runtime_dlls_unavailable)")
                 return "cpu", "int8"
             import ctranslate2
 
-            if ctranslate2.get_cuda_device_count() > 0:
-                log.info("[MODEL] Using CUDA device for transcription")
+            count = ctranslate2.get_cuda_device_count()
+            if count > 0:
+                log.info(
+                    "[MODEL] Using CUDA device for transcription (cuda_devices=%d, compute=float16)",
+                    count,
+                )
                 return "cuda", "float16"
+            log.info(
+                "[MODEL] Using CPU for transcription (reason=no_cuda_devices, cuda_devices=0, "
+                "ctranslate2=%s, CUDA_VISIBLE_DEVICES=%r)",
+                getattr(ctranslate2, "__version__", "unknown"),
+                os.environ.get("CUDA_VISIBLE_DEVICES"),
+            )
         except (OSError, RuntimeError, ImportError):
             # OSError: missing DLL / driver file
             log.warning(
@@ -45,7 +56,7 @@ def resolve_device(engine, device: str) -> tuple[str, str]:
         if device == "cuda":
             log.warning("[MODEL] CUDA requested but not available, falling back to CPU")
 
-    log.info("[MODEL] Using CPU for transcription")
+    log.info("[MODEL] Using CPU for transcription (reason=requested=%r)", device)
     return "cpu", "int8"
 
 

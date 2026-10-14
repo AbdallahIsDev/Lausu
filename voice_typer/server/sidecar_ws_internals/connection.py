@@ -217,6 +217,54 @@ def _emit_initial_state_snapshot(server: IPCServer) -> None:
         )
 
 
+def _emit_bubble_startup_show(server: IPCServer) -> bool:
+    """Show the always-visible bubble at backend-ready (first WS auth).
+
+    The late startup phases (mic enumeration, model/worker connect) take
+    seconds; the bubble waited for them in ``_phase_8_finalize_and_signal``
+    even though the host can display it as soon as this WS is up. Firing
+    here moves the first paint from worker-connect to ``ready``.
+
+    Fires at most once per process (``_bubble_startup_show_done`` under
+    ``server._lock``): reconnects never re-fire, so a mid-recording
+    respawn can't clobber the live state back to idle. Skips unless the
+    config asks for ``always_visible`` + show-on-startup, the bubble
+    coordinator is wired (``on_show`` set), and nothing is already
+    visible or recording. Phase 8 stays as the backstop for paths where
+    this skips (app not constructed yet, unwired coordinator).
+    """
+    with server._lock:
+        if getattr(server, "_bubble_startup_show_done", False):
+            return False
+        server._bubble_startup_show_done = True
+    try:
+        app = getattr(server, "app", None)
+        config = getattr(app, "config", None)
+        if config is None:
+            return False
+        if getattr(config, "bubble_behavior", "") != "always_visible":
+            return False
+        if not getattr(config, "bubble_show_on_startup", False):
+            return False
+        bubble = getattr(app, "_waveform_bubble", None)
+        if bubble is None or getattr(bubble, "on_show", None) is None:
+            return False
+        if getattr(bubble, "visible", False):
+            return False
+        if getattr(bubble, "state", "idle") in ("recording", "transcribing"):
+            return False
+        bubble.show()
+        bubble.set_state("idle")
+        on_config = getattr(bubble, "on_config", None)
+        if on_config is not None:
+            on_config(config)
+        log.info("[STARTUP] Bubble shown at backend-ready (always_visible mode)")
+        return True
+    except Exception:
+        log.debug("[SIDECAR-WS] backend-ready bubble show failed", exc_info=True)
+        return False
+
+
 async def _reject_browser_origins(connection, request):
     """Reject WS connections that carry an ``Origin`` header."""
     origin = request.headers.get("Origin")

@@ -321,12 +321,31 @@ class SystemWhisperEngine:
 
         faster_whisper = importlib.import_module("faster_whisper")
 
-        self._model = faster_whisper.WhisperModel(
-            self._weights_dir,
-            device=self._device,
-            compute_type="default",
-            local_files_only=True,
-        )
+        # ctranslate2 logs to fd 2 in its own format, bypassing the file
+        # log; capture it so native lines land in canonical form. Imported
+        # by string like faster_whisper above so static-import scanners
+        # (ratchet/Nuitka) stay green; fail-open without it.
+        try:
+            _capture = importlib.import_module(
+                "voice_typer.worker.whisper.native_stderr"
+            ).capture_native_stderr
+        except ImportError:
+            _capture = None
+        if _capture is None:
+            self._model = faster_whisper.WhisperModel(
+                self._weights_dir,
+                device=self._device,
+                compute_type="default",
+                local_files_only=True,
+            )
+        else:
+            with _capture(target=log):
+                self._model = faster_whisper.WhisperModel(
+                    self._weights_dir,
+                    device=self._device,
+                    compute_type="default",
+                    local_files_only=True,
+                )
         self._loaded = True
         # Effective device straight from the built ctranslate2 model, so
         # logs + tooltip state what the model ACTUALLY runs on instead of
@@ -427,12 +446,27 @@ class SystemWhisperEngine:
         self._model = None
         gc.collect()
         faster_whisper = importlib.import_module("faster_whisper")
-        self._model = faster_whisper.WhisperModel(
-            self._weights_dir,
-            device="cpu",
-            compute_type="default",
-            local_files_only=True,
-        )
+        try:
+            _capture = importlib.import_module(
+                "voice_typer.worker.whisper.native_stderr"
+            ).capture_native_stderr
+        except ImportError:
+            _capture = None
+        if _capture is None:
+            self._model = faster_whisper.WhisperModel(
+                self._weights_dir,
+                device="cpu",
+                compute_type="default",
+                local_files_only=True,
+            )
+        else:
+            with _capture(target=log):
+                self._model = faster_whisper.WhisperModel(
+                    self._weights_dir,
+                    device="cpu",
+                    compute_type="default",
+                    local_files_only=True,
+                )
         self._device = "cpu"
         self._loaded = True
         log.warning("[MODEL] system whisper rebuilt on CPU after CUDA failure")

@@ -32,6 +32,16 @@ def _strip_canonical_diag_timestamp(line: str) -> str:
     return _CANONICAL_DIAG_TS_RE.sub("", line, count=1)
 
 
+# The native binaries append `; log_file=<path>` to their startup line. The
+# path adds no diagnostic value (it is always the known per-platform log
+# file), so it is stripped before forwarding to our log.
+_DIAG_LOG_FILE_RE = re.compile(r"; log_file=.*$")
+
+
+def _strip_diag_log_file(line: str) -> str:
+    return _DIAG_LOG_FILE_RE.sub("", line, count=1)
+
+
 class _ReaderMixin:
     # Human-readable backend name used in log messages. Provided by the
     platform_name: str
@@ -171,7 +181,7 @@ class _ReaderMixin:
                 log.debug(
                     "[NATIVE-HOTKEY] %s binary diagnostic: %s",
                     self.platform_name,
-                    _strip_canonical_diag_timestamp(line),
+                    _strip_diag_log_file(_strip_canonical_diag_timestamp(line)),
                 )
                 return
 

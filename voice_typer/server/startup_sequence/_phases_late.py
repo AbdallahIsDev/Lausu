@@ -366,11 +366,17 @@ class LatePhases:
             log.debug("[STARTUP] Stale bubble position reset failed", exc_info=True)
 
         # Show the bubble at startup if always_visible mode is enabled AND
+        # the backend-ready show (first WS auth) hasn't already shown it.
+        # Skipping a redundant show keeps one `[WAVEFORM] Bubble shown`
+        # line and never resets a recording that started mid-startup.
         if app.config.bubble_behavior == "always_visible" and app.config.bubble_show_on_startup:
             try:
-                app._waveform_bubble.show()
-                app._waveform_bubble.set_state("idle")
-                log.info("[STARTUP] Bubble shown at startup (always_visible mode)")
+                if not app._waveform_bubble.visible:
+                    app._waveform_bubble.show()
+                    app._waveform_bubble.set_state("idle")
+                    log.info("[STARTUP] Bubble shown at startup (always_visible mode)")
+                else:
+                    log.debug("[STARTUP] Bubble already visible (backend-ready show), skipping startup show")
             except Exception as e:
                 log.warning("[STARTUP] Failed to show bubble at startup: %s", e)
             # push the bubble-relevant config (bubble_behavior
