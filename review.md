@@ -147,3 +147,24 @@ These items are the highest-priority remaining work for the project. They block 
 **Simplified Fix:** Copy the missing window settings from the base config into each platform config.
 **Implementation Difficulty:** 🟢 Easy
 **Severity:** 🟡 Medium
+
+### Pages should open instantly with data ready after hovering their sidebar item
+**Status:** ❌ Not Fixed
+**Description:** There is an issue with how pages open. It is not exactly a bug, but something is not working the way originally planned.
+
+We have several pages that contain important information, such as the Analytics page, also known as the Dashboard. This page contains a lot of important information. When clicking on it and navigating to the page, it sends a request to the database to retrieve the information and display it. Initially, all the values are zero until the data comes back from the database and the actual numbers are displayed.
+
+Previously, it was requested to implement something like a pre-request. As soon as the user hovers over the Analytics page item or button in the sidebar, it should immediately send a request to the database, retrieve the data, and display it. This way, when clicking on the Analytics page, there should be no loading period because the data would already have been fetched and displayed before even entering the page, simply by hovering over it.
+
+However, the problem is that when hovering over the Analytics button and waiting for around five seconds to make sure the database request has been sent and the data has been retrieved, the expectation is to click on the page and find everything already displayed and ready to use.
+
+Instead, when entering the page, the page skeleton appears first. Once the skeleton disappears, the UI and layout appear with the data already available.
+
+It is not sure whether hovering over the button actually triggered the database request and retrieved the information. When navigating to the page, the skeleton appears for about a second or less, and then disappears, revealing all the data. So, it is suspected the data is indeed being fetched during the hover, but the current implementation only retrieves the data when the user hovers over the page item. The page itself has not been loaded yet. In other words, hovering only triggers the database request without actually loading the page.
+
+The correct approach would be to load the page itself as soon as the user hovers over it, rather than just fetching the data.
+
+To clarify, as soon as the user hovers over a page item, the application should send the database request to retrieve the data and also begin loading the page itself. This way, if the user hovers over the page for five seconds, or even less depending on how long it takes, and then clicks on it, the page should appear instantly without any skeleton, loader, or placeholder information. Everything should already be rendered and ready to display.
+
+The Analytics page is just an example. This behavior affects all the pages in the application. Therefore, when fixing this issue or implementing a solution, it needs to be applied consistently across all pages, not just the Analytics page.
+**Severity:** 🟡 Medium
