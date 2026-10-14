@@ -1,4 +1,5 @@
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -762,9 +763,12 @@ describe("ModelsPage, MDL-5: cloud provider API key inputs have unique HTML ids"
 			EN_KEYS.get(`models.providers.${key}.label`) ?? key;
 
 		for (const providerKey of ["openai", "groq", "deepgram"]) {
-			// Expand the provider group.
+			// Expand the provider group. The trigger wraps the whole row,
+			// so its accessible name carries the trailing Configure text.
 			fireEvent.click(
-				screen.getByRole("button", { name: providerLabel(providerKey) }),
+				screen.getByRole("button", {
+					name: `${providerLabel(providerKey)} Configure`,
+				}),
 			);
 			// Open the setup dialog.
 			fireEvent.click(
@@ -1153,5 +1157,88 @@ describe("ModelsPage, initial load failure shows an error state with Retry", () 
 		// The error card is gone once the config loads (assert on the
 		// card's title, the loaded page may contain other alert roles).
 		expect(screen.queryByText(t("models.loadFailedTitle"))).toBeNull();
+	});
+});
+
+describe("ModelsPage, context-aware tab + preserved accordion state", () => {
+	afterEach(() => {
+		cleanup();
+		vi.clearAllMocks();
+		removeDialogMock();
+	});
+
+	// Local render helper (mirrors the suite above): resolve get_config
+	// with the given config, then wait for the page heading.
+	async function renderWithConfig(config: unknown) {
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config") return Promise.resolve(config);
+			if (type === "get_model_status") return Promise.resolve({});
+			if (type === "get_model_catalog") return Promise.resolve({ models: [] });
+			return Promise.resolve(config);
+		});
+		renderWithProviders(<ModelsPage />);
+		await waitFor(() => {
+			expect(
+				screen.queryByRole("heading", { level: 1, name: /Models/i }),
+			).toBeTruthy();
+		});
+	}
+
+	// The cloud trigger wraps the whole row, so its accessible name
+	// carries the trailing Configure text (see the accordion DOM pass).
+	function cloudTrigger(label: string) {
+		return screen.getByRole("button", { name: `${label} Configure` });
+	}
+
+	function setTab(tab: "local" | "cloud") {
+		act(() => {
+			useModelsTab.getState().setActiveTab(tab);
+		});
+	}
+
+	it("preserves the cloud accordion across local↔cloud tab switches", async () => {
+		await renderWithConfig(MOCK_CONFIG);
+		setTab("cloud");
+
+		fireEvent.click(cloudTrigger("OpenAI"));
+		expect(cloudTrigger("OpenAI").getAttribute("aria-expanded")).toBe("true");
+
+		// Flip away: the cloud panel unmounts (its Configure actions go
+		// with it)…
+		setTab("local");
+		expect(
+			screen.queryByRole("button", { name: "OpenAI Configure" }),
+		).toBeNull();
+
+		// …and back: the provider is still expanded, exactly as left.
+		setTab("cloud");
+		expect(cloudTrigger("OpenAI").getAttribute("aria-expanded")).toBe("true");
+	});
+
+	it("opens the cloud tab with the active provider expanded when the active model is cloud", async () => {
+		await renderWithConfig({
+			...MOCK_CONFIG,
+			asr_backend: "cloud",
+			cloud_provider: "openai",
+			cloud_model: "whisper-1",
+		});
+
+		// Entry lands on the relevant tab (store started on Local)…
+		await waitFor(() => {
+			expect(useModelsTab.getState().activeTab).toBe("cloud");
+		});
+		// …with the active model's provider already expanded.
+		expect(cloudTrigger("OpenAI").getAttribute("aria-expanded")).toBe("true");
+	});
+
+	it("opens the local tab when the active model is local, even with a stored cloud tab", async () => {
+		// A previous visit left the persisted tab on Cloud…
+		useModelsTab.setState({ activeTab: "cloud" });
+		await renderWithConfig(MOCK_CONFIG);
+
+		// …but the active model is local, so entry lands on Local.
+		await waitFor(() => {
+			expect(useModelsTab.getState().activeTab).toBe("local");
+		});
 	});
 });

@@ -11,7 +11,7 @@
 // so the assertions also prove the keys resolve), read from en.json so a
 // copy edit does not silently break the suite.
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -236,6 +236,57 @@ describe("Plugins page", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText(COPY.loadFailedTitle)).toBeTruthy();
+		});
+	});
+
+	it("retries with a fresh IPC round-trip after a failed load (no poisoned cache)", async () => {
+		// A probe that fails mid-outage must not poison the shared catalog
+		// cache: Retry has to re-issue `get_plugins`, not resolve a stale
+		// cached denial (which would render the empty state instead of the
+		// recovered list).
+		const user = userEvent.setup();
+		stableMocks.mockCall.mockRejectedValue(
+			new Error('IPC command "get_config" timed out after 5000ms'),
+		);
+		const { Page } = await mountPage();
+		renderPage(Page);
+
+		await waitFor(() => {
+			expect(screen.getByText(COPY.loadFailedTitle)).toBeTruthy();
+		});
+		// Backend recovered while the error state is on screen.
+		stubCalls([SAMPLE]);
+		await user.click(screen.getByText(COPY.retry));
+
+		await waitFor(() => {
+			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+		});
+	});
+
+	it("refetches automatically when the backend reconnects after a failed load", async () => {
+		// Mount during the outage (e.g. the persisted Plugins page on a
+		// slow first boot) leaves the error state with an empty module
+		// cache. The disconnected → connected transition must refetch
+		// without requiring a Retry click or navigation.
+		stableMocks.mockCall.mockRejectedValue(new Error("timed out after 5000ms"));
+		const { Page } = await mountPage();
+		const { useAppStore } = await import("@/stores/appStore");
+		renderPage(Page);
+
+		await waitFor(() => {
+			expect(screen.getByText(COPY.loadFailedTitle)).toBeTruthy();
+		});
+		// Backend recovered; the reconnect transition lands.
+		stubCalls([SAMPLE]);
+		act(() => {
+			useAppStore.getState().setConnectionStatus("disconnected");
+		});
+		act(() => {
+			useAppStore.getState().setConnectionStatus("connected");
+		});
+
+		await waitFor(() => {
+			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
 		});
 	});
 });

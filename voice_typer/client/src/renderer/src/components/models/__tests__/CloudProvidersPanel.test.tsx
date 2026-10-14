@@ -119,7 +119,12 @@ const baseProps = {
 // not need the group expanded; the model rows do.
 
 function expandProviderGroup(providerLabel: string) {
-	fireEvent.click(screen.getByRole("button", { name: providerLabel }));
+	// The trigger button now wraps the whole row: provider brand on the
+	// left plus the trailing Configure + chevron group on the right, so
+	// its accessible name includes the Configure text.
+	fireEvent.click(
+		screen.getByRole("button", { name: `${providerLabel} Configure` }),
+	);
 }
 
 function openApiKeyForm(providerLabel = "OpenAI") {
@@ -180,7 +185,11 @@ describe("CloudProvidersPanel, provider brand logos + collapsible groups", () =>
 		);
 
 		for (const label of ["OpenAI", "Groq", "Deepgram", "Google"]) {
-			expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+			// The trigger wraps the whole row, so its name carries the
+			// trailing Configure text; the brand is the leading half.
+			expect(
+				screen.getByRole("button", { name: `${label} Configure` }),
+			).toBeInTheDocument();
 		}
 		for (const stale of [
 			"OpenAI Whisper API",
@@ -227,36 +236,40 @@ describe("CloudProvidersPanel, Configure is a provider-level action", () => {
 		}
 	});
 
-	it("puts Configure on the provider's header row — provider name left, action right — OUTSIDE the trigger button", () => {
-		// A Configure button nested inside the accordion trigger would be
-		// a <button> inside a <button>: invalid HTML, flagged by axe as
-		// `nested-interactive`, and its click would toggle the group.
+	it("puts Configure on the provider's header row — provider name left, action right — INSIDE the trigger button", () => {
+		// The row is one full-width trigger button: the left div holds
+		// the brand, the trailing div holds Configure + the chevron.
 		renderPanel(<CloudProvidersPanel {...baseProps} />);
 
-		const trigger = screen.getByRole("button", { name: "OpenAI" });
+		const trigger = screen.getByRole("button", {
+			name: "OpenAI Configure",
+		});
 		const configure = screen.getByRole("button", {
 			name: "Configure OpenAI",
 		});
 
-		// Sibling, not descendant.
-		expect(trigger.contains(configure)).toBe(false);
-		expect(configure.closest('[data-slot="accordion-trigger"]')).toBeNull();
-		// …but on the SAME row: both live inside the accordion header
-		// (Radix's `Header`, an <h3> the ui wrapper does not tag).
+		// Descendant, not sibling: both groups live inside the button.
+		expect(trigger.contains(configure)).toBe(true);
+		expect(
+			configure.closest('[data-slot="accordion-trigger-trailing"]'),
+		).not.toBeNull();
+		// …and the button spans the header row (Radix `Header`, an H3).
 		const header = trigger.parentElement;
 		expect(header?.tagName).toBe("H3");
-		expect(header?.contains(configure)).toBe(true);
+		expect(trigger.className).toContain("w-full");
 	});
 
 	it("places Configure immediately LEFT of the disclosure glyph", () => {
-		// The bug report: Configure hung off the row's right edge, past the
-		// glyph, so the row's hover highlight stopped before it. Order is
-		// [brand … Configure ▸]: the action comes first, then the
-		// disclosure glyph.
+		// Order inside the trailing div is [Configure … ▸]: the action
+		// comes first, then the disclosure glyph.
 		renderPanel(<CloudProvidersPanel {...baseProps} />);
 
-		const trigger = screen.getByRole("button", { name: "OpenAI" });
-		const header = trigger.parentElement;
+		const trigger = screen.getByRole("button", {
+			name: "OpenAI Configure",
+		});
+		const trailing = trigger.querySelector(
+			'[data-slot="accordion-trigger-trailing"]',
+		);
 		const configure = screen.getByRole("button", {
 			name: "Configure OpenAI",
 		});
@@ -264,98 +277,83 @@ describe("CloudProvidersPanel, Configure is a provider-level action", () => {
 		// (this suite stubs the icon wrapper), so the disclosure glyph is
 		// found by its icon name here. `a11y-attrs.test.tsx` pins the real
 		// `data-slot="accordion-trigger-icon"` against the unmocked icon.
-		const chevron = header?.querySelector('[data-name="ArrowRight01Icon"]');
+		const chevron = trailing?.querySelector('[data-name="ArrowRight01Icon"]');
 
-		expect(header).not.toBeNull();
+		expect(trailing).not.toBeNull();
 		expect(chevron).not.toBeNull();
 		// The glyph FOLLOWS the action in document order, i.e. renders to
 		// its right in this LTR row.
 		expect(configure.compareDocumentPosition(chevron as Node)).toBe(
 			Node.DOCUMENT_POSITION_FOLLOWING,
 		);
-		// Both live on the header, and neither is inside the trigger
-		// <button> — that is what keeps the row valid HTML.
-		expect(header?.contains(configure)).toBe(true);
-		expect(header?.contains(chevron as Element)).toBe(true);
-		expect(trigger.contains(configure)).toBe(false);
-		expect(trigger.contains(chevron as Element)).toBe(false);
+		// Both live in the trailing div, inside the trigger <button>.
+		expect(trailing?.contains(configure)).toBe(true);
+		expect(trigger.contains(chevron as Element)).toBe(true);
 	});
 
-	it("makes the whole header row one hover surface, action included", () => {
+	it("makes the trigger button the single hover surface, action included", () => {
 		// jsdom cannot measure a :hover paint, so the CONTRACT is pinned
-		// instead: the header is the hover group and BOTH halves paint it.
-		// A row whose highlight stops at the trigger is the bug being
-		// guarded (the action sat outside the highlighted area).
+		// instead: the trigger alone owns `hover:bg-foreground/5` and the
+		// trailing div paints no second tint. One button, one hover.
 		renderPanel(<CloudProvidersPanel {...baseProps} />);
 
-		const trigger = screen.getByRole("button", { name: "OpenAI" });
-		const header = trigger.parentElement;
-		expect(header?.className).toContain("group/accordion-row");
-		expect(trigger.className).toContain(
-			"group-hover/accordion-row:bg-foreground/5",
+		const trigger = screen.getByRole("button", {
+			name: "OpenAI Configure",
+		});
+		expect(trigger.className).toContain("hover:bg-foreground/5");
+		const trailing = trigger.querySelector(
+			'[data-slot="accordion-trigger-trailing"]',
 		);
-		const actionWrapper = screen.getByRole("button", {
-			name: "Configure OpenAI",
-		}).parentElement;
-		expect(actionWrapper?.className).toContain(
-			"group-hover/accordion-row:bg-foreground/5",
-		);
+		expect(trailing?.className).not.toContain("group-hover");
 	});
 
-	it("stretches BOTH halves of the header to the same height (no seam)", () => {
-		// Same colour is not enough: the two halves must also be the same
-		// HEIGHT or the tint steps where they meet. They differ naturally
-		// — the trigger is `py-2.5` around a 20px line box (40px), the
-		// trailing span is only as tall as the ~32px action button — so
-		// `items-center` on the header left a visible step between the
-		// two 5% bands, which read as two separate hover regions.
-		// jsdom has no layout, so the class contract is the guard.
+	it("renders the row as two div groups inside one full-width button (no seam)", () => {
+		// One button, two divs: the left content group and the trailing
+		// action+chevron group. No sibling half, so no height step where
+		// two tints could meet. jsdom has no layout, so the DOM contract
+		// is the guard.
 		renderPanel(<CloudProvidersPanel {...baseProps} />);
 
-		const trigger = screen.getByRole("button", { name: "OpenAI" });
-		const header = trigger.parentElement;
-		expect(header?.className).toContain("items-stretch");
-		expect(header?.className).not.toContain("items-center");
-
-		// Both halves are DIRECT children of that one row, so stretching
-		// the row is enough — nothing in between can break the band.
-		const actionWrapper = screen.getByRole("button", {
-			name: "Configure OpenAI",
-		}).parentElement;
-		expect(actionWrapper?.parentElement).toBe(header);
-		// …and each half still centres its own content inside the row.
+		const trigger = screen.getByRole("button", {
+			name: "OpenAI Configure",
+		});
+		expect(trigger.className).toContain("w-full");
 		expect(trigger.className).toContain("items-center");
-		expect(actionWrapper?.className).toContain("items-center");
+
+		// The trailing group is a DIV child of the trigger…
+		const trailing = trigger.querySelector(
+			'[data-slot="accordion-trigger-trailing"]',
+		) as HTMLElement;
+		expect(trailing).not.toBeNull();
+		expect(trailing.tagName).toBe("DIV");
+		// …and the Configure action lives inside it.
+		expect(
+			trailing.contains(
+				screen.getByRole("button", { name: "Configure OpenAI" }),
+			),
+		).toBe(true);
 	});
 
-	it("packs the provider name against its logo, not at the far edge", () => {
-		// The regression: the primitive's trigger carries
-		// `justify-between` (kept deliberately — the microphone preset
-		// selector spreads two groups across the row with it) and it
-		// used to neutralise that by giving the trailing "+" `ms-auto`,
-		// which absorbed every spare pixel. Once the glyph moved into
-		// the sibling span, nothing absorbed them any more and
-		// `justify-between` flung the name to the opposite edge from its
-		// logo. jsdom cannot measure the rendered gap, so the CONTRACT
-		// that decides it is pinned instead. Both tabs go through
+	it("packs the provider name against its logo in the left div, action far right", () => {
+		// The trigger spreads its two groups with `justify-between`: the
+		// left content div (logo + name, packed with a small gap) against
+		// the trailing div. jsdom cannot measure the rendered gap, so the
+		// CONTRACT that decides it is pinned instead. Both tabs go through
 		// `ModelGroupTrigger`, so this covers Local too.
 		renderPanel(<CloudProvidersPanel {...baseProps} />);
 
-		const trigger = screen.getByRole("button", { name: "OpenAI" });
-		expect(trigger.className).toContain("justify-start");
-		expect(trigger.className).not.toContain("justify-between");
+		const trigger = screen.getByRole("button", {
+			name: "OpenAI Configure",
+		});
+		expect(trigger.className).toContain("justify-between");
 		expect(trigger.className).toContain("items-center");
 
-		// The logo and the name are the trigger's ONLY children, in that
-		// order — nothing sits between them that could push them apart.
-		const nodes = Array.from(trigger.childNodes).filter(
-			(node) =>
-				node.nodeType === Node.ELEMENT_NODE ||
-				(node.textContent ?? "").trim() !== "",
-		);
-		expect(nodes.length).toBe(2);
-		expect((nodes[0] as Element).querySelector("img")).not.toBeNull();
-		expect(nodes[1]?.textContent).toBe("OpenAI");
+		// The left div packs the logo and the name, in that order —
+		// nothing sits between them that could push them apart.
+		const left = trigger.querySelector("div.flex.min-w-0") as HTMLElement;
+		expect(left).not.toBeNull();
+		expect(left.querySelector("img")).not.toBeNull();
+		expect(left.textContent).toContain("OpenAI");
 	});
 
 	it("keeps Configure visible while the group is COLLAPSED (it is not a row action)", () => {

@@ -30,7 +30,7 @@
 		"restartingBackend": "Reiniciando backend de {appName}…",
 		"restartingHint": "Esto suele tardar unos segundos. El dictado se reanudará desde la bandeja del sistema cuando esté listo.",
 		"goHome": "Ir al inicio",
-		"lostConnectionHint": "El proceso backend terminó inesperadamente. Intenta reiniciar la aplicación.",
+		"lostConnectionHint": "El backend no responde. Intenta reiniciar la aplicación.",
 		"connecting": {
 			"step1StartingPython": "Iniciando Python",
 			"step2LoadingModel": "Cargando modelo",

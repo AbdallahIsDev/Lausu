@@ -33,7 +33,7 @@ import {
 	Folder02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import PageHeading from "@/components/common/PageHeading";
 import { EmptyState } from "@/components/feedback/EmptyState";
@@ -57,8 +57,12 @@ export default function ModelsPage() {
 	// navigation via sessionStorage, a user who picked the Cloud
 	// tab to configure an API key expects to still be on it when
 	// they navigate away and back. Shared zustand store with the
-	// title-bar ModelsTabSwitcher (`stores/useModelsTab`).
+	// title-bar ModelsTabSwitcher (`stores/useModelsTab`). The entry
+	// effect below overrides it once per page visit from the active
+	// model, so arriving from Home (or anywhere else) lands on the
+	// relevant tab; manual switches afterwards are untouched.
 	const activeTab = useModelsTab((s) => s.activeTab);
+	const setActiveTab = useModelsTab((s) => s.setActiveTab);
 
 	const handleApiKeyChange = useCallback(
 		(provider: string, value: string) =>
@@ -94,6 +98,45 @@ export default function ModelsPage() {
 		null,
 	);
 	const effectiveAccordionValue = userAccordionValue ?? initialAccordionValue;
+
+	// Initial open-accordion value for the CLOUD tab: expand the provider
+	// serving the active cloud model. Empty when the active model is
+	// local (or none is selected) — the accordion starts collapsed.
+	const initialCloudAccordionValue = useMemo(() => {
+		const cfg = lifecycle.config;
+		if (cfg?.asr_backend === "cloud" && (cfg.cloud_provider ?? "") !== "") {
+			return [cfg.cloud_provider as string];
+		}
+		return [];
+	}, [lifecycle.config]);
+
+	// Controlled cloud accordion state, same pattern as local: lives HERE
+	// so expanding a provider survives the cloud↔local tab switch (this
+	// panel unmounts on switch; uncontrolled state would reset to
+	// collapsed on return).
+	const [userCloudAccordionValue, setUserCloudAccordionValue] = useState<
+		string[] | null
+	>(null);
+	const effectiveCloudAccordionValue =
+		userCloudAccordionValue ?? initialCloudAccordionValue;
+
+	// Context-aware entry: navigating to the Models page lands on the tab
+	// matching the active model — a local model opens Local with its
+	// family expanded, a cloud model opens Cloud with its provider
+	// expanded — so the active selection is immediately visible. Runs
+	// once per page visit, when config first resolves; manual tab
+	// switches afterwards never re-trigger it.
+	const entrySyncedRef = useRef(false);
+	useEffect(() => {
+		const cfg = lifecycle.config;
+		if (entrySyncedRef.current || !cfg) return;
+		entrySyncedRef.current = true;
+		if (cfg.asr_backend === "cloud" && (cfg.cloud_provider ?? "") !== "") {
+			setActiveTab("cloud");
+		} else {
+			setActiveTab("local");
+		}
+	}, [lifecycle.config, setActiveTab]);
 
 	// Dismissible "no model selected" banner, compact, sticky, independent
 	// of the main content flow. Replaces the former centered EmptyState which
@@ -360,6 +403,8 @@ export default function ModelsPage() {
 								onSaveApiKey={lifecycle.saveApiKey}
 								onTestConnection={lifecycle.testConnection}
 								onActivateModel={lifecycle.activateCloudModel}
+								accordionValue={effectiveCloudAccordionValue}
+								onAccordionValueChange={setUserCloudAccordionValue}
 							/>
 						</section>
 					)}

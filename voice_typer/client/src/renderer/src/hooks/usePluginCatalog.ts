@@ -6,9 +6,10 @@
 // never import from a page, so the shell's consumer sits on the neutral
 // side of that boundary and the page reads the same cache.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLatestRef } from "@/hooks/useLatestRef";
 import { type PythonCall, usePython } from "@/hooks/usePython";
+import { useAppStore } from "@/stores/appStore";
 import { type PluginCatalog, toPluginCatalog } from "@/types/plugins";
 
 /** Resolved once per process; `null` until the first answer lands. */
@@ -29,10 +30,12 @@ async function fetchCatalog(call: PythonCall): Promise<PluginCatalog> {
 		return catalog;
 	} catch (err) {
 		console.warn("[renderer:usePluginCatalog] get_plugins failed:", err);
-		// A failed probe must not unlock a developer-only surface.
-		const denied: PluginCatalog = { available: false, plugins: [] };
-		_catalog = denied;
-		return denied;
+		// A failed probe must not unlock a developer-only surface. The
+		// denial is returned to THIS caller only and never cached: caching
+		// it would poison every later consumer (the Plugins page Retry
+		// would resolve the stale denial without a fresh IPC round-trip,
+		// and the nav item would stay hidden until process restart).
+		return { available: false, plugins: [] };
 	} finally {
 		_inflight = null;
 	}
@@ -72,6 +75,31 @@ export function usePluginsAvailable(): boolean {
 			cancelled = true;
 		};
 	}, [callRef]);
+
+	// Same reconnect refetch as the page hook: a probe that failed during
+	// a backend outage is no longer cached (see fetchCatalog), so a
+	// transition back to "connected" with no cached answer re-probes and
+	// reveals the nav item without requiring a remount.
+	const connectionStatus = useAppStore((s) => s.connectionStatus);
+	const prevStatusRef = useRef(connectionStatus);
+	useEffect(() => {
+		const prev = prevStatusRef.current;
+		prevStatusRef.current = connectionStatus;
+		if (
+			connectionStatus === "connected" &&
+			prev !== "connected" &&
+			_catalog === null
+		) {
+			let cancelled = false;
+			void loadPluginCatalog(callRef.current).then((catalog) => {
+				if (!cancelled) setAvailable(catalog.available);
+			});
+			return () => {
+				cancelled = true;
+			};
+		}
+		return undefined;
+	}, [connectionStatus, callRef]);
 
 	return available;
 }

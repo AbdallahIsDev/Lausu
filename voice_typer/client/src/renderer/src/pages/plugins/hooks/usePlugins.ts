@@ -7,11 +7,12 @@
 // availability gate) belongs to `@/hooks/usePluginCatalog`, which the shell
 // also reads; this hook is the page-side view of that shared cache.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLatestRef } from "@/hooks/useLatestRef";
 import { loadPluginCatalog } from "@/hooks/usePluginCatalog";
 import { usePython, usePythonEvent } from "@/hooks/usePython";
 import { t } from "@/i18n/i18n";
+import { useAppStore } from "@/stores/appStore";
 import type { LausuConfig } from "@/types/config";
 import type { PluginInfo } from "@/types/plugins";
 
@@ -82,6 +83,35 @@ export function usePlugins(): UsePluginsResult {
 			cancelled = true;
 		};
 	}, [loadPlugins]);
+
+	// Reconnect refetch: a mount during a backend outage (or a slow
+	// startup model load that trips the 5s `get_config` budget) leaves
+	// this page on its error state with an empty module cache. Every
+	// reconnect path in `useConnection` (background poll, manual retry,
+	// supervisor `reconnected`) lands `connectionStatus` on "connected"
+	// without touching this hook, so without this effect the error
+	// state sticks until the user navigates away or clicks Retry. Refetch
+	// exactly on the disconnected/transient → connected transition while
+	// the cache is still empty; a populated cache means the list already
+	// rendered and needs no refresh.
+	const connectionStatus = useAppStore((s) => s.connectionStatus);
+	const prevStatusRef = useRef(connectionStatus);
+	useEffect(() => {
+		const prev = prevStatusRef.current;
+		prevStatusRef.current = connectionStatus;
+		if (
+			connectionStatus === "connected" &&
+			prev !== "connected" &&
+			_cachedPlugins === null
+		) {
+			let cancelled = false;
+			void loadPlugins(() => cancelled);
+			return () => {
+				cancelled = true;
+			};
+		}
+		return undefined;
+	}, [connectionStatus, loadPlugins]);
 
 	// Activation is persisted by the backend (`set_config` writes
 	// `active_plugin`); the push keeps the list + this page's toggle in sync

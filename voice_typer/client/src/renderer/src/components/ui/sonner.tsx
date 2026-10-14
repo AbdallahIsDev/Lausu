@@ -114,7 +114,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
 					// opacity as `border-border/10` (full --border is too loud).
 					"--normal-border":
 						"color-mix(in srgb, var(--border) 10%, transparent)",
-					"--border-radius": "var(--radius)",
+					// Toasts match the app surface radius (rounded-lg), not
+					// the generic --radius, so they track theme changes.
+					"--border-radius": "var(--radius-lg)",
 				} as React.CSSProperties
 			}
 			{...props}
