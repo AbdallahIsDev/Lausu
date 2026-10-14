@@ -126,12 +126,21 @@ describe("MODEL_DEFAULT, canonical home + compat re-export", () => {
 		expect(MODEL_DEFAULT_COMPAT).toBe(MODEL_DEFAULT);
 	});
 
-	it("lib/utils/models.ts contains no pages-layer import (lib must never import from pages, inverted layering)", () => {
+	it("every lib/utils model module is free of pages-layer imports (lib must never import from pages, inverted layering)", () => {
 		// Source-scan guard for the layering contract: comments are
-		// cannot false-positive.
-		const src = readFileSync("src/renderer/src/lib/utils/models.ts", "utf8")
-			.replace(/\/\*[\s\S]*?\*\//g, "")
-			.replace(/\/\/.*$/gm, "");
-		expect(src).not.toMatch(/from\s+["']@\/pages\//);
+		// stripped first so a doc mention of the pages layer cannot
+		// false-positive.
+		for (const file of [
+			"src/renderer/src/lib/utils/models.ts",
+			"src/renderer/src/lib/utils/modelCatalog.ts",
+			"src/renderer/src/lib/utils/cloudCatalog.ts",
+			"src/renderer/src/lib/utils/modelActive.ts",
+			"src/renderer/src/lib/utils/format.ts",
+		]) {
+			const src = readFileSync(file, "utf8")
+				.replace(/\/\*[\s\S]*?\*\//g, "")
+				.replace(/\/\/.*$/gm, "");
+			expect(src, file).not.toMatch(/from\s+["']@\/pages\//);
+		}
 	});
 });

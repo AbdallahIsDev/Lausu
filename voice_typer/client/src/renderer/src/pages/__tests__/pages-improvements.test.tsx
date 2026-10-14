@@ -439,7 +439,7 @@ describe("R7-F12: Models.tsx, display_name fallback for variant heading", () => 
 		expect(panelStripped).not.toContain('"NVIDIA Parakeet TDT v3"');
 
 		const libSrc = fs.readFileSync(
-			"src/renderer/src/lib/utils/models.ts",
+			"src/renderer/src/lib/utils/modelCatalog.ts",
 			"utf8",
 		);
 		const libStripped = libSrc

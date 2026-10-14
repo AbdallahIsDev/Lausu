@@ -1,5 +1,6 @@
 """Extract the native Windows caption-button glyphs from Segoe Fluent Icons
-as SVG path data for the renderer's window-control icons (TitleBar.tsx).
+as SVG path data for the renderer's window-control icons
+(components/layout/titlebar/captionGlyphs.tsx).
 
 The Windows 11 caption buttons (minimize / maximize / restore / close) draw
 their glyphs from the `Segoe Fluent Icons` font that ships with the OS —
@@ -13,7 +14,8 @@ Usage:
     python scripts/gen_caption_glyph_paths.py
 
 Prints one `d="..."` attribute per glyph, centered in a 10x10 viewBox, ready
-to paste into `voice_typer/client/src/renderer/src/components/layout/TitleBar.tsx`.
+to paste into
+`voice_typer/client/src/renderer/src/components/layout/titlebar/captionGlyphs.tsx`.
 """
 
 import re
