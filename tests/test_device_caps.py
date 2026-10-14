@@ -191,6 +191,15 @@ class TestReconcileConfiguredDevice:
         assert startup_tasks.reconcile_configured_device(app) is True
         assert app.config.device == "cpu"
 
+    def test_stale_cpu_pin_warns_when_gpu_present(self, monkeypatch, caplog) -> None:
+        monkeypatch.setattr(device_caps, "gpu_available", lambda: True)
+        app, saves = _make_app("cpu")
+        with caplog.at_level("WARNING", logger="voice_typer.server.startup_tasks"):
+            assert startup_tasks.reconcile_configured_device(app) is False
+        assert app.config.device == "cpu"
+        assert saves == []
+        assert any("although a CUDA GPU is available" in r.getMessage() for r in caplog.records)
+
     def test_save_failure_returns_false(self, monkeypatch) -> None:
         monkeypatch.setattr(device_caps, "gpu_available", lambda: False)
         app = SimpleNamespace(config=SimpleNamespace(device="cuda", save=lambda: False))

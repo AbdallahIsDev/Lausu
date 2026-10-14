@@ -47,22 +47,30 @@ def test_system_menu_strip_wired_in_show_path():
     """Every show must harden the chrome: hook (mouse path) + one-shot
     gutting (Alt+Space keyboard corner). No subclassing may remain."""
     source = (PROJECT_ROOT / "src-tauri" / "src" / "commands" / "bubble" / "window.rs").read_text(encoding="utf-8")
-    assert "harden_bubble_chrome(&window)" in source
+    assert "harden_bubble_chrome(&window, true)" in source
     assert "gut_bubble_system_menu" in source
     assert "ensure_bubble_msg_hook" in source
+    # Style strip is back (not just gutting): WS_SYSMENU presence
+    # freezes caption drag (verified live twice: stripped → drags,
+    # present → frozen), and the strip's FRAMECHANGED pass re-syncs
+    # input routing. Requested after show/hide/resize/setup/scale —
+    # never for Moved, where a recalc would fight the move loop.
+    assert "fn strip_bubble_system_menu" in source
+    assert "WS_SYSMENU" in source
     assert "DeleteMenu" in source
     assert "SetWindowsHookExW" in source
     assert "WH_GETMESSAGE" in source
     assert "WM_NULL" in source
     assert "WM_RBUTTONDOWN" in source
-    # Dead layers: the style strip lost a race to tao's flag flips,
-    # and the wndproc subclass both leaked clicks in the gap and once
-    # deadlocked the UI. Neither may come back.
-    assert "strip_bubble_system_menu" not in source
+    # Dead layer that must never come back: the wndproc subclass
+    # leaked clicks in tao's restore gap and once deadlocked the UI
+    # holding its registry lock across the chained call. The style
+    # strip is intentionally back (drag needs sysmenu absent); the
+    # queue hook covers the clicks the strip's race window lets
+    # through.
     assert "swallow_bubble_caption_clicks" not in source
     assert "GWLP_WNDPROC" not in source
     assert "CallWindowProcW" not in source
-    assert "SetWindowLongPtrW" not in source
     bootstrap = (PROJECT_ROOT / "src-tauri" / "src" / "window_bootstrap.rs").read_text(encoding="utf-8")
     assert "harden_bubble_on_setup" in bootstrap
 
@@ -80,5 +88,7 @@ def test_system_menu_strip_covers_mutation_paths():
     assert "harden_bubble_chrome" in events_rs
     assert "ensure_bubble_msg_hook" in events_rs
     # The geometry handler runs ON the main thread; the hook attach
-    # is synchronous there while the rest hops off-thread.
+    # is synchronous there while the rest hops off-thread. The frame
+    # re-sync goes along on resizes/scales but never on Moved.
     assert "thread::spawn" in events_rs
+    assert "sync_frame" in events_rs
