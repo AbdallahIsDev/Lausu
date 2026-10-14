@@ -66,6 +66,7 @@ EXPECTED_MAIN_RS_COMMANDS = [
     "bubble_hide_complete",
     "bubble_resize",
     "bubble_toggle_dictation",
+    "bubble_request_screenshot_capture",
     # bubble dismiss (SEC-026 bubble '×' button). Registered in
     "bubble_dismiss",
     "open_logs",

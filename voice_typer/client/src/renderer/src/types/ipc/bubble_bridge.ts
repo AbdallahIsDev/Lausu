@@ -160,6 +160,18 @@ export interface BubbleWindowExtras {
 	// Tauri. With `bubble_dismiss` registered, the type is now
 	// other bubble-only mutators.
 	dismiss: () => void;
+	// One-shot screenshot beta: forward the overlay drag rect (pill-
+	// client device px) plus this recording's cycle id to the Rust
+	// `bubble_request_screenshot_capture` command, which translates
+	// to screen space and dispatches `screenshot_capture`. The
+	// sandboxed bubble has no `window.python`, so this host hop is
+	// the ONLY working capture path. Resolves with the sidecar
+	// result (`{type: "screenshot_captured", data: {path, ...}}`);
+	// rejects when the backend is unreachable or refuses.
+	requestScreenshotCapture: (
+		cycleId: string,
+		rect: { left: number; top: number; width: number; height: number },
+	) => Promise<unknown>;
 }
 
 /**

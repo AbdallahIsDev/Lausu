@@ -17,7 +17,10 @@
 //! `#[tauri::command]` behavior is exercised by the mig19 integration
 //! tests in `tests/tauri/mig19/`.
 
-use super::commands::{bubble_dismiss, bubble_hide_complete};
+use super::commands::{
+    bubble_dismiss, bubble_hide_complete, bubble_request_screenshot_capture, PillCaptureRect,
+    translate_pill_rect_to_screen,
+};
 use super::math::{
     bubble_position_in_work_area, centered_x_in_work_area, clamp_f64_to_i32, clamp_resize_height,
     clamp_resize_width, compute_move_by_new_pos, edge_margin_physical, keyword_edge_y_in_work_area,
@@ -975,6 +978,74 @@ fn test_bubble_dismiss_command_exists() {
     // `generate_handler![]` registration in main.rs.
     let _ = bubble_dismiss;
     let _ = bubble_hide_complete;
+}
+
+#[test]
+fn test_bubble_request_screenshot_capture_command_exists() {
+    //pin the existence of `bubble_request_screenshot_capture`
+    // (same pattern as above: fn item reference; the macro +
+    // `generate_handler![]` registration verify the signature).
+    let _ = bubble_request_screenshot_capture;
+}
+
+// ── Pill-to-screen rect translation (screenshot beta) ────────────
+
+fn pill_rect(left: f64, top: f64, width: f64, height: f64) -> PillCaptureRect {
+    PillCaptureRect {
+        left,
+        top,
+        width,
+        height,
+    }
+}
+
+#[test]
+fn test_translate_pill_rect_adds_window_origin() {
+    // Pill drag (10,20)-(110,70) device px with the pill at screen
+    // (1000,500): the backend must grab screen (1010,520,100,50).
+    let (x, y, w, h) = translate_pill_rect_to_screen(1000, 500, pill_rect(10.0, 20.0, 100.0, 50.0))
+        .expect("valid rect must translate");
+    assert_eq!((x, y, w, h), (1010, 520, 100, 50));
+}
+
+#[test]
+fn test_translate_pill_rect_rounds_and_handles_negative_origin() {
+    // Fractional drag rounds; a secondary monitor left of primary
+    // contributes a negative origin.
+    let (x, y, w, h) =
+        translate_pill_rect_to_screen(-1920, 100, pill_rect(10.6, 20.4, 99.5, 49.5))
+            .expect("valid rect must translate");
+    assert_eq!((x, y, w, h), (-1909, 120, 100, 50));
+}
+
+#[test]
+fn test_translate_pill_rect_rejects_bad_input() {
+    // Non-finite, empty, and absurd rects fail fast with a message
+    // instead of a sidecar round-trip.
+    for bad in [
+        pill_rect(f64::NAN, 0.0, 10.0, 10.0),
+        pill_rect(0.0, f64::INFINITY, 10.0, 10.0),
+        pill_rect(0.0, 0.0, 0.0, 10.0),
+        pill_rect(0.0, 0.0, 10.0, -5.0),
+        pill_rect(0.0, 0.0, 8000.0, 10.0),
+        pill_rect(0.0, 0.0, 10.0, 5000.0),
+    ] {
+        assert!(
+            translate_pill_rect_to_screen(0, 0, bad).is_err(),
+            "rect {:?} must be rejected",
+            bad
+        );
+    }
+}
+
+#[test]
+fn test_translate_pill_rect_saturates_without_overflow() {
+    // i32::MAX origin + positive offset must saturate, never wrap.
+    let (x, y, w, h) =
+        translate_pill_rect_to_screen(i32::MAX, i32::MAX, pill_rect(5000.0, 5000.0, 100.0, 100.0))
+            .expect("saturating math must not overflow");
+    assert_eq!((x, y), (i32::MAX, i32::MAX));
+    assert_eq!((w, h), (100, 100));
 }
 
 #[test]

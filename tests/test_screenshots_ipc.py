@@ -49,6 +49,28 @@ def test_capture_success_then_already_captured(monkeypatch, tmp_path: Path) -> N
     assert _code(server, payload) == "screenshot_already_captured"
 
 
+def test_capture_logs_success_then_refusal(monkeypatch, tmp_path: Path, caplog) -> None:
+    import logging
+
+    import voice_typer.server.platform_utils as _plat
+
+    monkeypatch.setattr(_plat, "is_windows", lambda: True)
+    monkeypatch.setattr(_paths, "_config_dir", lambda: tmp_path)
+    dest = _paths.shot_path("2026-10-07_X")
+    fake = {"path": str(dest), "width": 10, "height": 10, "bytes": 8}
+    monkeypatch.setattr(_cap, "capture_rect", lambda rect, p, **kw: fake)
+    server, _, _ = make_ipc_server_with_fakes()
+    _enable(server)
+    payload = {"cycle_id": "2026-10-07_X", "rect": dict(_RECT)}
+    with caplog.at_level(logging.INFO, logger="voice_typer.server.handlers.screenshot_handlers"):
+        assert server._handle_screenshot_capture(payload, {})["type"] == "screenshot_captured"
+    assert "[SCREENSHOT] captured" in caplog.text
+    dest.write_bytes(b"\x89PNG" + b"0" * 16)
+    with caplog.at_level(logging.INFO, logger="voice_typer.server.handlers.screenshot_handlers"):
+        assert _code(server, payload) == "screenshot_already_captured"
+    assert "already captured" in caplog.text
+
+
 def test_status_clear_and_consent(monkeypatch, tmp_path: Path) -> None:
     import voice_typer.server.platform_utils as _plat
 

@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+import time
+
+from voice_typer.server.duration import format_duration
 from voice_typer.server.handlers._base import HandlerBase
 from voice_typer.server.ipc.validation import ErrorCodes, ResponseEnvelope
+
+log = logging.getLogger(__name__)
 
 
 class ScreenshotHandlersMixin(HandlerBase):
@@ -24,21 +30,32 @@ class ScreenshotHandlersMixin(HandlerBase):
         def body(d: dict) -> dict:
             gated = self._screenshot_gate(resp)
             if gated is not None:
+                log.warning("[SCREENSHOT] capture refused: %s", gated["data"].get("code"))
                 return gated
             from voice_typer.server.screenshots import capture as _cap, paths as _paths, store as _store
 
             cycle_id = str(d["cycle_id"])
+            t0 = time.perf_counter()
             try:
                 result = _cap.capture_rect(d["rect"], _paths.shot_path(cycle_id))
             except ValueError:
+                log.warning("[SCREENSHOT] capture refused: invalid rect")
                 return self._error_response(resp, "Invalid rect", code=ErrorCodes.INVALID_FIELD, field="rect")
             except RuntimeError:
+                log.warning("[SCREENSHOT] capture refused: screenshot_unsupported")
                 return self._error_response(resp, self._WINDOWS_ONLY_MSG, code="screenshot_unsupported")
             try:
                 _store.register_shot(cycle_id, result["path"])
             except _store.AlreadyCapturedError:
+                log.warning("[SCREENSHOT] capture refused: already captured (cycle_id=%s)", cycle_id)
                 return self._error_response(resp, "One screenshot per recording", code="screenshot_already_captured")
             _store.write_meta(cycle_id, {**_store.read_meta(cycle_id), "shots": [result["path"]]})
+            log.info(
+                "[SCREENSHOT] captured %s (%d bytes)%s",
+                result["path"],
+                result["bytes"],
+                format_duration(time.perf_counter() - t0),
+            )
             return {"type": "screenshot_captured", "data": result}
 
         return self._wrap(

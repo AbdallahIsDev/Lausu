@@ -241,8 +241,9 @@ const _SERVER_REGISTRY_MINUS_PYTHON_ONLY = {
 	media_transcribe_status: true,
 	// One-shot screenshot beta (Windows-only): all four live in the
 	// Python `_COMMAND_REGISTRY` + Rust allowlist. Only
-	// `screenshot_capture` has a renderer call site so far
-	// (`lib/screenshot.ts` `captureScreenshot`, bubble overlay release).
+	// `screenshot_capture` has a renderer call site so far (bubble
+	// overlay release via the `bubble_request_screenshot_capture`
+	// host command; the sandboxed bubble has no `window.python`).
 	screenshot_capture: true,
 	screenshot_clear_cycle: true,
 	screenshot_get_status: true,
