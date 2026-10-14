@@ -32,7 +32,7 @@ pub(crate) use combined::{
 #[cfg(test)]
 pub(crate) use early::{EarlyLogger, EARLY_LOGGER_HANDLE};
 #[cfg(test)]
-pub(crate) use init::{init_file_logger, sweep_stale_logs};
+pub(crate) use init::{init_file_logger, resolve_file_level, sweep_stale_logs};
 #[cfg(test)]
 pub(crate) use panic_hook::{
     breaker_should_exit, PANIC_BREAKER_MAX, PANIC_BREAKER_WINDOW_SECS, PANIC_HOOK_REENTRY,

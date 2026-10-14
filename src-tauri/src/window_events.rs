@@ -38,30 +38,29 @@ pub(crate) fn handle(window: &tauri::Window, event: &WindowEvent) {
     // Bubble drags are session-local by product decision: the pill
     // stays where the user puts it for this session, but drags are
     // never persisted, and every launch starts from the configured
-    // default edge. No `Moved` persistence here, but geometry events
-    // ARE the deterministic post-mutation point to re-strip the
-    // system menu: tao rewrites the full style (WS_SYSMENU included)
-    // on flag flips, so the strip must run after tao, not just
-    // before. Fires after tao processes, keeping the menu dead no
-    // matter the operation order.
-    if window.label() == "bubble"
-        && matches!(
-            event,
-            WindowEvent::Resized(_)
-                | WindowEvent::Moved(_)
-                | WindowEvent::ScaleFactorChanged { .. }
-        )
-    {
+    // default edge. No `Moved` persistence here. Geometry events ARE
+    // the deterministic post-mutation point to re-harden: tao
+    // rewrites the window under us on flag flips, so hardening must
+    // run after tao, not just before. The frame re-sync is requested
+    // for resizes and scale changes but NEVER for `Moved`: recalc
+    // inside an active user drag would fight the move loop.
+    let sync_frame = matches!(
+        event,
+        WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. }
+    );
+    if window.label() == "bubble" && (sync_frame || matches!(event, WindowEvent::Moved(_))) {
         if let Some(bubble) = window.app_handle().get_webview_window("bubble") {
+            // A `Moved` event is a user drag (OS caption region): clear the
+            // edge preference so later auto-fit resizes never snap back.
+            if matches!(event, WindowEvent::Moved(_)) {
+                crate::commands::bubble::note_bubble_user_moved();
+            }
             // Queue-level backstop first, synchronously: this handler
-            // runs ON the main thread, which is exactly the thread the
-            // hook must attach to. Sync + non-blocking, then the
-            // heavier hardening hops off-thread (it blocks on
-            // main-thread roundtrips: running it inline deadlocks the
-            // UI on itself).
+            // runs ON the main thread. Sync + non-blocking, then the
+            // heavier hardening hops off-thread.
             crate::commands::bubble::ensure_bubble_msg_hook(&bubble);
             std::thread::spawn(move || {
-                crate::commands::bubble::harden_bubble_chrome(&bubble);
+                crate::commands::bubble::harden_bubble_chrome(&bubble, sync_frame);
             });
         }
     }

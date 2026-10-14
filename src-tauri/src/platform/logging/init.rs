@@ -61,8 +61,10 @@ pub(crate) fn sweep_stale_logs(logs_dir: &std::path::Path) {
 /// ADR-0020 §11: rotating file logger at
 /// `<config_dir>/logs/lausu-rust.log`.
 /// Excludes bubble_level (~60 Hz) from the file sink. Session banner is
-/// the ONLY sanctioned `session=` line (C-LOG-1). File default WARN+;
-/// VOICE_TYPER_RUST_INFO_LOG=1 opts INFO. Hand-rolled writer (not log4rs).
+/// the ONLY sanctioned `session=` line (C-LOG-1). File default INFO
+/// (Python `lausu.log` parity, so host startup lifecycle lines land in
+/// the file without opt-in); `RUST_LOG` / `VOICE_TYPER_DEBUG=1` raise
+/// verbosity, `RUST_LOG=warn` narrows it. Hand-rolled writer (not log4rs).
 pub(crate) fn init_file_logger(config_dir: &std::path::Path) -> Result<(), String> {
     let logs_dir = config_dir.join("logs");
     std::fs::create_dir_all(&logs_dir).map_err(|e| format!("create logs dir failed: {e}"))?;
@@ -86,15 +88,10 @@ pub(crate) fn init_file_logger(config_dir: &std::path::Path) -> Result<(), Strin
                 None
             }
         });
-    let file_level = explicit_level.unwrap_or_else(|| {
-        if is_truthy_env_var("VOICE_TYPER_RUST_INFO_LOG") {
-            log::LevelFilter::Info
-        } else {
-            log::LevelFilter::Warn
-        }
-    });
-    // TERMINAL sink default: INFO, so a developer tailing stderr still
-    // sees the lifecycle lines even though the file (above) is WARN-only.
+    let file_level = resolve_file_level(explicit_level);
+    // TERMINAL sink default: INFO, so a developer tailing stderr
+    // sees the lifecycle lines (the file sink above matches this by
+    // default; both narrow together under an explicit `RUST_LOG`).
     let stderr_level = explicit_level.unwrap_or(log::LevelFilter::Info);
     let max_level = if file_level > stderr_level {
         file_level
@@ -139,6 +136,13 @@ pub(crate) fn init_file_logger(config_dir: &std::path::Path) -> Result<(), Strin
     }
     log::set_max_level(max_level);
     Ok(())
+}
+
+/// File-sink level: explicit `RUST_LOG` wins, otherwise INFO (Python
+/// `lausu.log` parity, so host startup lifecycle lines land in the
+/// file without opt-in; `RUST_LOG=warn` still narrows it).
+pub(crate) fn resolve_file_level(explicit: Option<log::LevelFilter>) -> log::LevelFilter {
+    explicit.unwrap_or(log::LevelFilter::Info)
 }
 
 pub(crate) fn init_file_logger_or_stderr_fallback(config_dir: &std::path::Path) {

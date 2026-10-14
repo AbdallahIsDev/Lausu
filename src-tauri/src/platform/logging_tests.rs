@@ -553,9 +553,9 @@ fn test_combined_logger_log_format_is_clean() {
     let logger = CombinedLogger {
         file_writer: Some(writer),
         level_filter: log::LevelFilter::Info,
-        // File sink pinned to Info so these formatting tests still see
-        // their INFO records in the file (production defaults the file
-        // to Warn, see `CombinedLogger::file_level`).
+        // File sink pinned to Info so these formatting tests see
+        // their INFO records in the file (mirrors the production
+        // default, see `CombinedLogger::file_level`).
         file_level: log::LevelFilter::Info,
         //stderr_verbose=true in tests so the eprintln! path
         // is exercised (mirrors debug-build behavior).
@@ -627,9 +627,9 @@ fn test_combined_logger_log_format_renders_without_file_line() {
     let logger = CombinedLogger {
         file_writer: Some(writer),
         level_filter: log::LevelFilter::Info,
-        // File sink pinned to Info so these formatting tests still see
-        // their INFO records in the file (production defaults the file
-        // to Warn, see `CombinedLogger::file_level`).
+        // File sink pinned to Info so these formatting tests see
+        // their INFO records in the file (mirrors the production
+        // default, see `CombinedLogger::file_level`).
         file_level: log::LevelFilter::Info,
         //stderr_verbose=true in tests so the eprintln! path
         // is exercised (mirrors debug-build behavior).
@@ -681,9 +681,9 @@ fn test_combined_logger_file_line_has_no_session_id() {
     let logger = CombinedLogger {
         file_writer: Some(writer),
         level_filter: log::LevelFilter::Info,
-        // File sink pinned to Info so these formatting tests still see
-        // their INFO records in the file (production defaults the file
-        // to Warn, see `CombinedLogger::file_level`).
+        // File sink pinned to Info so these formatting tests see
+        // their INFO records in the file (mirrors the production
+        // default, see `CombinedLogger::file_level`).
         file_level: log::LevelFilter::Info,
         // stderr off: this test asserts only on the file sink.
         stderr_verbose: AtomicBool::new(false),
@@ -726,9 +726,9 @@ fn test_combined_logger_file_line_matches_canonical_shape() {
     let logger = CombinedLogger {
         file_writer: Some(writer),
         level_filter: log::LevelFilter::Info,
-        // File sink pinned to Info so these formatting tests still see
-        // their INFO records in the file (production defaults the file
-        // to Warn, see `CombinedLogger::file_level`).
+        // File sink pinned to Info so these formatting tests see
+        // their INFO records in the file (mirrors the production
+        // default, see `CombinedLogger::file_level`).
         file_level: log::LevelFilter::Info,
         stderr_verbose: AtomicBool::new(false),
     };
@@ -1239,7 +1239,7 @@ fn test_fr16_early_logger_pre_init_fallback_does_not_panic() {
         // NOTE: no `file_level` here. `EarlyLogger` is the PRE-INIT
         // stderr fallback; the file level lives on `CombinedLogger`
         // (created by `init_file_logger`, defaulting the file sink to
-        // Warn: see `CombinedLogger::file_level`).
+        // Info: see `CombinedLogger::file_level`).
     };
     let record = log::Record::builder()
         .level(log::Level::Info)
@@ -2387,12 +2387,10 @@ fn test_rotating_queue_byte_gate_drops_non_error_keeps_error() {
 
 #[test]
 fn test_combined_logger_file_level_gate_suppresses_info_keeps_warn() {
-    // Production defaults the FILE sink to WARN/ERROR (predecessor
-    // production parity: WARN+ to the host file, INFO to stdout unless
-    // opted in), while the global gate stays at the more verbose
-    // terminal level. Pin BOTH halves: an INFO record is filtered out of
-    // the file, a WARN record is written, and a logger constructed with
-    // the opt-in INFO file level writes INFO again.
+    // The FILE sink carries its own level gate below the global
+    // (terminal) gate: a logger built with a WARN file level filters
+    // INFO out of the file while WARN still lands, and a logger built
+    // with the INFO file level writes INFO again. Pin BOTH halves.
     let tmp = std::env::temp_dir().join(format!("lausu-test-{}-file-level", std::process::id()));
     std::fs::remove_dir_all(&tmp).ok();
     let writer = RotatingFileWriter::new(tmp.clone(), "test-log");
@@ -2447,6 +2445,24 @@ fn test_combined_logger_file_level_gate_suppresses_info_keeps_warn() {
         content
     );
     std::fs::remove_dir_all(&tmp).ok();
+}
+
+// ── file-sink default level ────────────────────
+
+#[test]
+fn test_resolve_file_level_defaults_to_info() {
+    // Regression pin: the file sink must default to INFO (Python
+    // `lausu.log` parity) so host startup lifecycle lines land in
+    // `lausu-rust.log` without opt-in; explicit `RUST_LOG` still wins.
+    assert_eq!(resolve_file_level(None), log::LevelFilter::Info);
+    assert_eq!(
+        resolve_file_level(Some(log::LevelFilter::Warn)),
+        log::LevelFilter::Warn
+    );
+    assert_eq!(
+        resolve_file_level(Some(log::LevelFilter::Debug)),
+        log::LevelFilter::Debug
+    );
 }
 
 // ── crash-loop breaker policy ─────────────────────
