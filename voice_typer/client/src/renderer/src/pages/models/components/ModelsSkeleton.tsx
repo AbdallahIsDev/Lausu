@@ -7,8 +7,8 @@
 // panel description + right-aligned Open-folder pill → the
 // ModelGroupAccordion family cards: `rounded-lg border-border/8
 // bg-surface-subtle` rows with a `px-4 py-2` trigger (bare h-4 family
-// logo + text-sm name + trailing plus icon), collapsed like the real
-// accordions' default state.
+// logo + text-sm name + trailing disclosure chevron), collapsed like
+// the real accordions' default state.
 
 import {
 	HeadingSkeleton,

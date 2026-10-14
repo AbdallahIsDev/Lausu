@@ -17,9 +17,9 @@
 // maps preset → filter chain). When the Custom preset is active, the
 // progressive-disclosure Custom-filters toggle + AudioFilterChain render
 // inside the expanded region.
-// The expand/collapse affordance is the shared ui/accordion trigger —
-// its persistent PlusSignIcon stays "+" in both states (app-wide
-// accordion convention).
+// The expand/collapse affordance is the shared ui/accordion trigger.
+// That trigger's own glyph is switched off here (see `disclosure={false}`
+// below) and replaced by a dedicated rotating chevron.
 
 import { ArrowDown01Icon, FilterIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -133,11 +133,12 @@ export function PresetAccordionSelector({
 					// active-filter field + rotating chevron grouped on the right
 					// (base justify-between spreads them). px-4 keeps both insets
 					// equal and matches the option rows' content boundary.
-					// The primitive's persistent PlusSignIcon is hidden on THIS
-					// instance (user decision for this selector) and replaced by
-					// the dedicated rotating chevron below, the primitive itself
-					// is untouched, so every other accordion keeps its "+".
-					className="items-center gap-3 px-4 py-2.5 hover:bg-foreground/5 hover:no-underline focus-visible:ring-ring **:data-[slot=accordion-trigger-icon]:hidden **:data-[slot=accordion-trigger-icon]:text-muted-foreground"
+					// The primitive's own disclosure glyph is switched OFF on
+					// THIS instance (user decision for this selector) and replaced
+					// by the dedicated rotating chevron below, which rotates
+					// down↔up rather than the shared right→down.
+					disclosure={false}
+					className="items-center gap-3 px-4 py-2.5 hover:bg-foreground/5 hover:no-underline focus-visible:ring-ring"
 				>
 					<span className="flex items-center gap-2 min-w-0">
 						<span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

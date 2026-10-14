@@ -177,8 +177,8 @@ export function ModelStep({
 					className="flex flex-col gap-3"
 				>
 					{/* Family accordion — the Models-page structure: one
-					    AccordionItem per provider family (persistent `+`
-					    affordance per C-MODELS-4), each model item shows its
+					    AccordionItem per provider family (the shared
+					    right→down disclosure chevron), each model item shows its
 					    VRAM / language badges and carries its OWN download
 					    button on the right (the standalone blue Download
 					    button + duplicate HF consent checkbox were removed
