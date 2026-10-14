@@ -998,17 +998,32 @@ describe("Dashboard a11y, heatmap role + stat card names", () => {
 // The dead `<title>` elements were removed (all six icon glyphs,
 // including the back/forward arrows). This test is now a regular
 // `it` regression spec: any future <title> inside an aria-hidden SVG
-// in TitleBar.tsx fails the suite.
+// in the title-bar modules fails the suite.
 describe("TitleBar SVGs should NOT carry <title> inside aria-hidden SVGs", () => {
-	it("TitleBar.tsx contains no <title> elements inside aria-hidden SVGs", () => {
-		const titleBarPath = path.resolve(
-			__dirname,
-			"..",
-			"components",
-			"layout",
-			"TitleBar.tsx",
-		);
-		const src = fs.readFileSync(titleBarPath, "utf-8");
+	it("the title-bar modules contain no <title> elements inside aria-hidden SVGs", () => {
+		// The bar's artwork and buttons live in three files (the glyph
+		// primitives, the button primitives, and the composition), so
+		// the scan covers all of them, a title added to any one of
+		// them fails the suite.
+		const titleBarModules = [
+			path.resolve(__dirname, "..", "components", "layout", "TitleBar.tsx"),
+			path.resolve(
+				__dirname,
+				"..",
+				"components",
+				"layout",
+				"titlebar",
+				"captionGlyphs.tsx",
+			),
+			path.resolve(
+				__dirname,
+				"..",
+				"components",
+				"layout",
+				"titlebar",
+				"titleBarButtons.tsx",
+			),
+		];
 
 		// Find every `<svg ... aria-hidden ...>` block and assert none
 		// of them contain a `<title>` child.  We use a coarse regex
@@ -1016,11 +1031,14 @@ describe("TitleBar SVGs should NOT carry <title> inside aria-hidden SVGs", () =>
 		// strict so any `<title>` inside an aria-hidden SVG is
 		// flagged.
 		const svgBlockRegex = /<svg[^>]*aria-hidden[\s\S]*?<\/svg>/g;
-		const svgBlocks = src.match(svgBlockRegex) || [];
-		const offendingBlocks = svgBlocks.filter((block) =>
-			block.includes("<title>"),
-		);
-		expect(offendingBlocks).toEqual([]);
+		for (const modulePath of titleBarModules) {
+			const src = fs.readFileSync(modulePath, "utf-8");
+			const svgBlocks = src.match(svgBlockRegex) || [];
+			const offendingBlocks = svgBlocks.filter((block) =>
+				block.includes("<title>"),
+			);
+			expect(offendingBlocks, modulePath).toEqual([]);
+		}
 	});
 });
 
