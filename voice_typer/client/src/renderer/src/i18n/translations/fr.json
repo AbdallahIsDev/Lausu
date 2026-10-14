@@ -846,6 +846,7 @@
 			"queuedCancelled": "{name} a été retiré de la file d'attente des téléchargements.",
 			"cancelNoopName": "{name} n'est ni en cours de téléchargement ni en file d'attente.",
 			"selectFailed": "Impossible de sélectionner le modèle.",
+			"realtimeOnlyBlocked": "{name} diffuse uniquement l'audio en direct et ne peut pas transcrire de fichiers ici.",
 			"downloadAlreadyActive": "Un autre téléchargement de modèle est déjà en cours (il est peut-être en pause). Reprenez-le ou annulez-le d’abord.",
 			"downloadAlreadyActiveName": "{name} est déjà en cours de téléchargement: attendez la fin ou annulez-le.",
 			"downloadQueued": "{name} est en file d'attente. Le téléchargement démarrera automatiquement une fois le téléchargement en cours terminé."
@@ -904,7 +905,9 @@
 			"configure": "Configurer",
 			"configureAria": "Configurer {provider}",
 			"apiKeyShowAria": "Afficher la clé API {provider}",
-			"apiKeyHideAria": "Masquer la clé API {provider}"
+			"apiKeyHideAria": "Masquer la clé API {provider}",
+			"realtimeOnly": "Temps réel uniquement",
+			"realtimeOnlyTooltip": "Diffuse uniquement l'audio en direct ; la transcription de fichiers utilise les modèles par lots."
 		},
 		"deleteDialog": {
 			"title": "Supprimer le Modèle",
@@ -2029,7 +2032,7 @@
 			"repaste_register_failed": "Impossible d'enregistrer le raccourci de recollement. Une autre application l'a peut-être réservé.",
 			"invalid_hotkey": "Le raccourci {hotkey} n'est pas valide : {validation_error}. Le raccourci précédent est conservé.",
 			"restore_failed": "Impossible de restaurer le raccourci précédent {hotkey}. Ouvrez les réglages pour en assigner un nouveau.",
-			"wayland_hotkeys_may_fail": "Les raccourcis globaux peuvent ne pas fonctionner sous Wayland. Installez « wtype » ou « ydotool » pour les prendre en charge, ou utilisez l'option Démarrer la dictée du menu de la barre des menus."
+			"wayland_hotkeys_may_fail": "Les raccourcis globaux sous Wayland nécessitent un accès en lecture aux périphériques d'entrée : ajoutez votre utilisateur au groupe « input », puis reconnectez-vous. wtype/ydotool ne sont pas utilisés pour les raccourcis : wtype ne sert qu'à coller du texte."
 		},
 		"native_adapter": {
 			"warn_title": "{appName} : avertissement de raccourci natif",

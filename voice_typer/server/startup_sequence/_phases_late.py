@@ -81,10 +81,13 @@ class LatePhases:
             should_warn = not app.config.wayland_warned or state_changed or version_changed
             if should_warn:
                 if not wtype_available and not ydotool_available:
+                    # wtype only injects paste; ydotool is probed, never consumed.
+                    # Hotkeys themselves run on evdev and need the 'input' group.
                     log.warning(
-                        "[STARTUP] Neither wtype nor ydotool found. "
-                        "Install one for hotkey support on Wayland: "
-                        "'sudo apt install wtype' or 'sudo apt install ydotool'"
+                        "[STARTUP] Neither wtype nor ydotool found: Wayland paste injection "
+                        "will fall back to the clipboard. Hotkeys on Wayland use evdev and "
+                        "need read access to /dev/input (add the user to the 'input' group "
+                        "and re-login)."
                     )
                     # critical, bypass toggle (hotkeys broken).
                     app.tray.notify_safety(

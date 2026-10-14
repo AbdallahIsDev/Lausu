@@ -1333,6 +1333,7 @@
 			"queuedCancelled": "{name} 已从下载队列中移除。",
 			"cancelNoopName": "{name} 未在下载，也不在队列中。",
 			"selectFailed": "选择失败",
+			"realtimeOnlyBlocked": "{name}仅传输实时音频，无法在此转录文件。",
 			"downloadAlreadyActive": "另一个模型下载正在进行中（可能已暂停）。请先恢复或取消该下载。",
 			"downloadAlreadyActiveName": "{name} 正在下载中——请等待完成或取消。",
 			"downloadQueued": "{name} 已加入队列——当前下载完成后将自动开始。"
@@ -1412,7 +1413,9 @@
 			"configure": "配置",
 			"configureAria": "配置{provider}",
 			"apiKeyShowAria": "显示 {provider} API 密钥",
-			"apiKeyHideAria": "隐藏 {provider} API 密钥"
+			"apiKeyHideAria": "隐藏 {provider} API 密钥",
+			"realtimeOnly": "仅实时",
+			"realtimeOnlyTooltip": "仅传输实时音频；文件转录请使用批量模型。"
 		},
 		"deleteDialog": {
 			"title": "删除模型",
@@ -2029,7 +2032,7 @@
 			"repaste_register_failed": "无法注册重新粘贴快捷键。其他应用可能已占用该按键。",
 			"invalid_hotkey": "快捷键 {hotkey} 无效：{validation_error}。将保留之前的快捷键。",
 			"restore_failed": "无法恢复之前的快捷键 {hotkey}。请打开设置重新绑定快捷键。",
-			"wayland_hotkeys_may_fail": "在 Wayland 下全局快捷键可能无法使用。请安装 'wtype' 或 'ydotool' 以支持快捷键，或使用托盘菜单中的“开始听写”。"
+			"wayland_hotkeys_may_fail": "Wayland 下的全局快捷键需要输入设备的读取权限：请将用户加入“input”用户组后重新登录。快捷键不会使用 wtype/ydotool：wtype 仅用于粘贴文本。"
 		},
 		"native_adapter": {
 			"warn_title": "{appName}：原生快捷键警告",

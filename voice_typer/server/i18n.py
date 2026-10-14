@@ -69,8 +69,9 @@ _INITIAL_LABELS: dict[str, str] = {
         "Could not lock down config file permissions. API keys may be readable by other users on this PC."
     ),
     "notify.hotkey_dispatcher.wayland_hotkeys_may_fail": (
-        "Global hotkeys may not work on Wayland. Install 'wtype' or 'ydotool' for "
-        "hotkey support, or use the tray menu's Start Dictation option."
+        "Global hotkeys on Wayland need read access to input devices: add your user "
+        "to the 'input' group, then log out and back in. wtype/ydotool are not used "
+        "for hotkeys: wtype only pastes text."
     ),
     "notify.permissions.accessibility_granted": "Accessibility permission granted. Hotkeys are now active.",
     "notify.permissions.global_hotkeys_disabled": (
@@ -238,9 +239,9 @@ _INITIAL_LABELS: dict[str, str] = {
     ),
     "notify.startup_sequence.wayland_hotkeys_title": "{app} | Wayland Hotkeys",
     "notify.startup_sequence.wayland_hotkeys_body": (
-        "Global hotkeys may not work on Wayland. "
-        "Install 'wtype' or 'ydotool' for hotkey support, "
-        "or use the tray menu's Start Dictation option."
+        "Global hotkeys on Wayland need read access to input devices: add your user "
+        "to the 'input' group, then log out and back in. wtype/ydotool are not used "
+        "for hotkeys: wtype only pastes text."
     ),
     "notify.startup_sequence.accessibility_title": "{app} | Accessibility Permission",
     "notify.startup_sequence.accessibility_body": (
