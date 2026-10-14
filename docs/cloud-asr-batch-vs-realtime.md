@@ -1,22 +1,26 @@
 # Cloud ASR: batch models vs realtime models
 
-**Status: OPEN DECISION (recorded 2026-10-12).** Lausu's cloud catalogue serves
-**batch** models only. Two OpenAI models the user asked for are **realtime-only** and are
-therefore deliberately absent from `CLOUD_PROVIDERS`. This document records the evidence, the
-reason, and the three ways to change it — so the decision can be made later without
-re-doing the research.
+**Status: RESOLVED for OpenAI 2026-10-14 (WS burst-append transport shipped, rows selectable);
+GUARD-ONLY for Gemini Live (disabled marker until its protocol lands).** Lausu's cloud catalogue serves
+**batch** models plus the two streamed OpenAI models. Two OpenAI models the user asked for are **realtime-only** and are
+therefore served over a WS session instead of the batch endpoint. This document records the evidence, the
+reason, and the three ways to change it — so the remaining decision can be made later without
+re-doing the research. The shipped guard and transport are recorded in
+[`adr/0028-cloud-realtime-transcription.md`](adr/0028-cloud-realtime-transcription.md).
 
 Read this before adding **any** cloud model to
-[`lib/utils/models.ts`](../voice_typer/client/src/renderer/src/lib/utils/models.ts).
+[`lib/utils/cloudCatalog.ts`](../voice_typer/client/src/renderer/src/lib/utils/cloudCatalog.ts).
 
 ---
 
-## The short version
+## The short version (updated 2026-10-14)
 
-Lausu sends a **finished audio file** to a provider and gets text back. Every cloud ASR
-provider in the catalogue works that way. A model that only exists inside a **live streaming
-session** has no call path in this app — so listing one would put a Select button in the UI
-that saves fine and then fails on the next dictation.
+Lausu sends a **finished audio file** to a provider and gets text back — except the two
+OpenAI realtime models, which go over a **WebSocket session carrying that same finished
+recording** (burst-append at stop, then commit; see ADR-0028 §2). Every other cloud model
+in the catalogue uses the one-shot call. A model that only exists inside a **live streaming
+session** and has no transport here (Gemini Live) still gets a disabled marker, never a
+Select button — a control that looks usable and is not would fail on the next dictation.
 
 ---
 
@@ -31,12 +35,14 @@ Dictation is *record → stop → one request*. The audio is complete before it 
 | Deepgram | `POST https://api.deepgram.com/v1/listen` | pre-recorded (batch) |
 | Google Gemini | `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` | unary, base64 audio inline |
 
-All four are "here is my finished recording, give me the transcript" calls. See
+All four are "here is my finished recording, give me the transcript" calls, and the two
+OpenAI realtime rows reuse the same finished recording through the WS burst-append path. See
 [cloud-transcription-setup.md](cloud-transcription-setup.md) for the provider/key detail and
-the request shaping (`voice_typer/server/cloud/_providers/`).
+the request shaping (`voice_typer/server/cloud/_providers/`), and ADR-0028 §2 for the WS path.
 
-**A realtime model cannot be reached from any of these.** It needs a persistent session that
-stays open while audio streams out, and the text arrives in pieces as you speak.
+**A realtime model without a transport here cannot be reached from any of these** (today:
+Gemini Live only). It needs a persistent session that stays open while audio streams out,
+and the text arrives in pieces as you speak.
 
 ---
 
@@ -173,7 +179,8 @@ threw once `gpt-transcribe` became `medium` alongside `whisper-1`.)
 
 ## How to resolve this — three options
 
-### Option 1 — show them, but not selectable *(recommended)*
+### Option 1 — show them, but not selectable *(SHIPPED 2026-10-13; narrowed 2026-10-14:
+OpenAI rows became selectable with §2, Gemini Live keeps the marker)*
 
 Both names appear in the OpenAI list exactly as on OpenAI's site, but the action area renders a
 **disabled "Realtime only"** marker instead of a Select button, with the reason in a tooltip.
@@ -191,39 +198,47 @@ Activation is also refused at the hook level, so no code path can write a realti
 Nothing lies, nothing can break dictation, and the list matches OpenAI's page. This is the
 cheapest honest option.
 
-### Option 2 — build the live-streaming path so they really work
+### Option 2 — build the live-streaming path so they really work *(SHIPPED 2026-10-14
+for OpenAI as burst-append at stop — no live mic feed, per C-TRANS-1; see ADR-0028 §2
+for the as-built design and its deliberate omissions)*
 
-The only option where these two models actually transcribe. It is a real feature, not a list
-entry:
+The option where these two models actually transcribe. It was a real feature, not a list
+entry. **As built:** `voice_typer/server/cloud/_realtime.py` holds the capability sets
+(`REALTIME_MODELS`, `WS_REALTIME_MODELS`), the official session/append/commit envelopes,
+PCM16 conversion + 16→24 kHz resampling, 200 ms framing, the delta assembler and the guards;
+`voice_typer/server/cloud/_realtime_ws.py` holds the WS session (open → session.update →
+burst appends → commit → first `transcription.completed`); `CloudEngine` routes per model.
+Superseded design notes (kept for history — the shipped path differs where struck):
 
-* New transport in `voice_typer/server/cloud/` — a WebSocket client for
-  `v1/realtime/transcription_sessions` (the existing engine is a one-shot HTTP POST:
-  `_sendpaths.py` / `_engine.py` / `_transport.py`).
+* ~~New transport streaming the mic live during the window~~ — shipped as burst-append of
+  the finished recording at stop instead (same wire protocol, no recorder surgery).
 * Session lifecycle: `session.update` with `type: "transcription"`, then
-  `input_audio_buffer.append` while the key is held, `input_audio_buffer.commit` on release.
+  `input_audio_buffer.append` per frame, `input_audio_buffer.commit` at stop.
 * Delta assembly: merge `...transcription.delta` events into the final
-  `...transcription.completed` transcript, and reconcile revisions to partial text.
-* Wire it into the recording lifecycle so the mic stream is consumed live rather than buffered.
-* A per-model capability flag so batch vs realtime routing is explicit.
-* `gpt-live-transcribe` supports a tunable `delay` (minimal/low/medium/high/xhigh) trading
-  latency against accuracy — a product decision in itself.
+  `...transcription.completed` transcript, buffered and released once (never rendered live).
+* ~~Wire the mic stream live~~ — not built; revisit only if burst turnaround proves too slow.
+* A per-model capability flag so batch vs realtime routing is explicit (`realtimeOnly` +
+  `realtimeWs`, pinned cross-language by the parity test).
+* `gpt-live-transcribe` tunable `delay` — deferred (field omitted, server default).
 
-Large. Do not start it by accident.
+### Option 3 — add them as normal selectable rows *(rejected; OpenAI rows are selectable
+now only because Option 2 ships beneath them)*
 
-### Option 3 — add them as normal selectable rows
-
-They appear and are selectable like everything else. Consequence: selecting one saves to config,
-the row shows Active, and the next dictation fails with an OpenAI API error until Option 2
-exists. Listed only for completeness — it produces exactly the lying control the project's own
-UX doctrine rules out.
+They appear and are selectable like everything else. Consequence without a transport
+beneath: selecting one saves to config, the row shows Active, and the next dictation fails
+with an OpenAI API error. Listed only for completeness — it produces exactly the lying
+control the project's own UX doctrine rules out. (The OpenAI rows are selectable today
+only because Option 2 ships beneath them; a transport-less selectable row is still banned.)
 
 ---
 
 ## Things a future agent must not break
 
-* **`tests/test_cloud_provider_catalogue_parity.py`** — parses `models.ts` for the contiguous
+* **`tests/test_cloud_provider_catalogue_parity.py`** — parses `cloudCatalog.ts` for the contiguous
   `key:`/`url:`/`defaultModel:` triplet and compares it to `_PROVIDER_DEFAULTS`
-  (`voice_typer/server/cloud/_defaults.py`). Changing a `defaultModel` means changing **both**.
+  (`voice_typer/server/cloud/_defaults.py`), plus the `realtimeOnly` set against
+  `REALTIME_MODELS` and the `realtimeWs` set against `WS_REALTIME_MODELS`.
+  Changing a `defaultModel` means changing **both**.
   Drift is silent: with an empty `cloud_model` (what onboarding leaves) the backend serves the
   Python default while the Cloud tab marks the TS one active.
 * **`defaultModel` must be one of that provider's own models** — `isCloudModelActive` falls back

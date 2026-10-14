@@ -905,6 +905,51 @@ const arMore = {
 // Merge remaining translations
 Object.assign(translations.ar, arMore);
 
+// Realtime-only catalogue guard: the same 3 keys in every locale, in
+// lockstep with the JSON files above. `applyTranslations` below writes
+// only keys that are missing or still English, so re-running is safe.
+translations.ar["models.cloud.realtimeOnly"] = "للوقت الحقيقي فقط";
+translations.ar["models.cloud.realtimeOnlyTooltip"] =
+	"يبث الصوت المباشر فقط؛ نسخ الملفات يتم عبر نماذج الدُفعات.";
+translations.ar["models.snack.realtimeOnlyBlocked"] =
+	"{name} يبث الصوت المباشر فقط ولا يمكنه نسخ الملفات هنا.";
+translations.de = translations.de || {};
+translations.de["models.cloud.realtimeOnly"] = "Nur Echtzeit";
+translations.de["models.cloud.realtimeOnlyTooltip"] =
+	"Streamt nur Live-Audio; Dateitranskription nutzt die Batch-Modelle.";
+translations.de["models.snack.realtimeOnlyBlocked"] =
+	"{name} streamt nur Live-Audio und kann hier keine Dateien transkribieren.";
+translations.es = translations.es || {};
+translations.es["models.cloud.realtimeOnly"] = "Solo en tiempo real";
+translations.es["models.cloud.realtimeOnlyTooltip"] =
+	"Transmite solo audio en directo; la transcripción de archivos usa los modelos por lotes.";
+translations.es["models.snack.realtimeOnlyBlocked"] =
+	"{name} solo transmite audio en directo y no puede transcribir archivos aquí.";
+translations.fr = translations.fr || {};
+translations.fr["models.cloud.realtimeOnly"] = "Temps réel uniquement";
+translations.fr["models.cloud.realtimeOnlyTooltip"] =
+	"Diffuse uniquement l'audio en direct ; la transcription de fichiers utilise les modèles par lots.";
+translations.fr["models.snack.realtimeOnlyBlocked"] =
+	"{name} diffuse uniquement l'audio en direct et ne peut pas transcrire de fichiers ici.";
+translations.hi = translations.hi || {};
+translations.hi["models.cloud.realtimeOnly"] = "केवल रीयलटाइम";
+translations.hi["models.cloud.realtimeOnlyTooltip"] =
+	"केवल लाइव ऑडियो स्ट्रीम करता है; फ़ाइल ट्रांसक्रिप्शन के लिए बैच मॉडल चुनें।";
+translations.hi["models.snack.realtimeOnlyBlocked"] =
+	"{name} केवल लाइव ऑडियो स्ट्रीम करता है और यहाँ फ़ाइलें ट्रांसक्राइब नहीं कर सकता।";
+translations.ru = translations.ru || {};
+translations.ru["models.cloud.realtimeOnly"] = "Только реалтайм";
+translations.ru["models.cloud.realtimeOnlyTooltip"] =
+	"Передаёт только живой звук; транскрибация файлов выполняется пакетными моделями.";
+translations.ru["models.snack.realtimeOnlyBlocked"] =
+	"{name} передаёт только живой звук и не может транскрибировать файлы здесь.";
+translations.zh = translations.zh || {};
+translations.zh["models.cloud.realtimeOnly"] = "仅实时";
+translations.zh["models.cloud.realtimeOnlyTooltip"] =
+	"仅传输实时音频；文件转录请使用批量模型。";
+translations.zh["models.snack.realtimeOnlyBlocked"] =
+	"{name}仅传输实时音频，无法在此转录文件。";
+
 // ── Generic translations for all other locales ────────────────────
 // For German, Spanish, French, Hindi, Russian, Chinese, generate the same
 // deep section translations. I'll add a few representative ones per locale

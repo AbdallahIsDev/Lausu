@@ -24,6 +24,7 @@ import {
 	connectionFailureKey,
 	formatErrorMessage,
 	getProviderLabel,
+	isRealtimeGuardOnly,
 	isValidApiKeyFormat,
 } from "@/lib/utils/models";
 import type { LausuConfig } from "@/types/config";
@@ -93,6 +94,29 @@ function apiKeyConfigField(provider: string): keyof LausuConfig {
 
 export function safeApiKey(value: string | undefined | null): string {
 	return value && value !== "<redacted>" ? value : "";
+}
+
+/**
+ * True when `provider` has a STORED API key.
+ *
+ * This is deliberately NOT `safeApiKey(...) !== ""`. The backend's
+ * `_sanitize_config_for_ipc` preserves `""` verbatim and substitutes the
+ * `<redacted>` sentinel for any SET value, exactly so the renderer can
+ * tell "not configured" from "configured but hidden". `safeApiKey`
+ * collapses BOTH to `""` because it answers a different question — "what
+ * should the key INPUT show" — so reading presence through it made a
+ * stored key look absent: after every restart, `get_config` returns
+ * `<redacted>`, and anything gated on `safeApiKey` believed the provider
+ * was unconfigured. A just-saved key is non-empty too (the
+ * `config_changed` echo carries the raw value), so this holds in both
+ * the same-session and the reloaded case.
+ */
+export function hasStoredCloudApiKey(
+	config: LausuConfig | null,
+	provider: string,
+): boolean {
+	const raw = config?.[apiKeyConfigField(provider)];
+	return typeof raw === "string" && raw.trim() !== "";
 }
 
 /** The "that is not a key" copy, shared by Save Key and Test
@@ -300,6 +324,18 @@ export function useCloudProviders({
 	//     when the requirement is surfaced.
 	const commitActivation = useCallback(
 		async (provider: CloudProviderKey, modelId: string) => {
+			// Guard-only ids cannot transcribe on any app transport. Refuse
+			// here too: the consent gate's Allow button retries through
+			// this path directly, bypassing `activateCloudModel`.
+			if (isRealtimeGuardOnly(provider, modelId)) {
+				showSnack(
+					t("models.snack.realtimeOnlyBlocked", {
+						name: cloudModelLabel(provider, modelId),
+					}),
+					"info",
+				);
+				return;
+			}
 			setSelectingCloudModel({ provider, model: modelId });
 			const updates: Partial<LausuConfig> = {
 				asr_backend: "cloud",
@@ -335,8 +371,25 @@ export function useCloudProviders({
 
 	const activateCloudModel = useCallback(
 		async (provider: CloudProviderKey, modelId: string) => {
-			const configKey = apiKeyConfigField(provider);
-			if (!safeApiKey(config?.[configKey] as string | undefined)) {
+			// Refuse before the key/consent checks: no spinner, no config
+			// write, no consent gate for an id no transport can run.
+			if (isRealtimeGuardOnly(provider, modelId)) {
+				showSnack(
+					t("models.snack.realtimeOnlyBlocked", {
+						name: cloudModelLabel(provider, modelId),
+					}),
+					"info",
+				);
+				return;
+			}
+			// `hasStoredCloudApiKey`, not `safeApiKey`: a stored key comes
+			// back from `get_config` as `<redacted>`, which `safeApiKey`
+			// maps to "" — reading presence through it refused every
+			// activation after a restart. The panel hides Select in this
+			// state anyway; this guard is the backstop for the paths that
+			// bypass it (the consent dialog's Allow retry goes through
+			// `commitActivation`, but any future caller lands here).
+			if (!hasStoredCloudApiKey(config, provider)) {
 				showSnack(t("models.test.needApiKey"), "info");
 				return;
 			}

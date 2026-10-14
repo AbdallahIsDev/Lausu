@@ -33,6 +33,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { hasStoredCloudApiKey } from "@/hooks/models/useCloudProviders";
 import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import {
@@ -44,6 +45,7 @@ import {
 	formatCloudWer,
 	getProviderLabel,
 	isCloudModelActive,
+	isRealtimeGuardOnly,
 } from "@/lib/utils/models";
 import type { LausuConfig } from "@/types/config";
 
@@ -111,12 +113,21 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 				{t("models.cloudModelsDescription")}
 			</p>
 			<ModelGroupAccordion type="multiple">
-				{cloudProviders.map((provider) => (
-					<ModelGroupItem key={provider.key} value={provider.key}>
-						{/* The trigger carries the provider's BRAND only
+				{cloudProviders.map((provider) => {
+					// Every model a provider serves shares that provider's ONE
+					// key, so "is this provider configured" is a per-GROUP fact.
+					// It decides whether the model rows offer Select at all:
+					// a Select that can only answer "enter the API key first"
+					// is a button that exists to refuse.
+					const keyConfigured = hasStoredCloudApiKey(config, provider.key);
+					return (
+						<ModelGroupItem key={provider.key} value={provider.key}>
+							{/* The trigger carries the provider's BRAND only
 						    ("OpenAI", "Groq", "Deepgram", "Google") and the
 						    Configure action sits at the provider level, on
-						    the right of that same row.
+						    the right of that same row — immediately LEFT of
+						    the disclosure chevron, so the whole row (brand →
+						    Configure → chevron) is one hover surface.
 						    Both halves are deliberate:
 						      • the trigger used to read "OpenAI Whisper API" —
 						        provider + model + the word "API" welded into
@@ -130,66 +141,68 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 						        provider. It is a sibling of the trigger (see
 						        `AccordionTrigger`'s `actions` slot), never a
 						        child: the trigger is a <button>. */}
-						<ModelGroupTrigger
-							actions={
-								<Button
-									variant="outline"
-									size="sm"
-									className="gap-2"
-									onClick={() => setDialog({ provider, open: true })}
-									// A MODAL trigger, not a disclosure: the
-									// setup form opens in a dialog, so the
-									// button advertises `aria-haspopup="dialog"`
-									// and carries neither `aria-expanded`
-									// (nothing expands in place) nor a "Hide"
-									// label — the dialog owns its own close
-									// affordances.
-									aria-haspopup="dialog"
-									aria-label={t("models.cloud.configureAria", {
-										provider: getProviderLabel(provider.key),
-									})}
-								>
+							<ModelGroupTrigger
+								actions={
+									<Button
+										variant="outline"
+										size="sm"
+										className="gap-2"
+										onClick={() => setDialog({ provider, open: true })}
+										// A MODAL trigger, not a disclosure: the
+										// setup form opens in a dialog, so the
+										// button advertises `aria-haspopup="dialog"`
+										// and carries neither `aria-expanded`
+										// (nothing expands in place) nor a "Hide"
+										// label — the dialog owns its own close
+										// affordances.
+										aria-haspopup="dialog"
+										aria-label={t("models.cloud.configureAria", {
+											provider: getProviderLabel(provider.key),
+										})}
+									>
+										<HugeiconsIcon
+											icon={Settings01Icon}
+											strokeWidth={2}
+											className="h-4 w-4"
+										/>
+										{t("models.cloud.configure")}
+									</Button>
+								}
+							>
+								{provider.key === "groq" ? (
 									<HugeiconsIcon
-										icon={Settings01Icon}
+										icon={Shield01Icon}
 										strokeWidth={2}
-										className="h-4 w-4"
+										className="h-4 w-4 text-accent"
 									/>
-									{t("models.cloud.configure")}
-								</Button>
-							}
-						>
-							{provider.key === "groq" ? (
-								<HugeiconsIcon
-									icon={Shield01Icon}
-									strokeWidth={2}
-									className="h-4 w-4 text-accent"
-								/>
-							) : (
-								<FamilyLogo family={provider.key} />
-							)}
-							{getProviderLabel(provider.key)}
-						</ModelGroupTrigger>
-						<ModelGroupContent>
-							{/* One row per model the provider serves. The list
+								) : (
+									<FamilyLogo family={provider.key} />
+								)}
+								{getProviderLabel(provider.key)}
+							</ModelGroupTrigger>
+							<ModelGroupContent>
+								{/* One row per model the provider serves. The list
 							    is data (`CloudProvider.models`) and grows over
 							    time, so nothing here may assume a fixed count
 							    or a single entry. */}
-							{provider.models.map((model) => (
-								<CloudModelRow
-									key={model.id}
-									provider={provider}
-									model={model}
-									config={config}
-									activating={
-										selectingCloudModel?.provider === provider.key &&
-										selectingCloudModel.model === model.id
-									}
-									onActivateModel={onActivateModel}
-								/>
-							))}
-						</ModelGroupContent>
-					</ModelGroupItem>
-				))}
+								{provider.models.map((model) => (
+									<CloudModelRow
+										key={model.id}
+										provider={provider}
+										model={model}
+										config={config}
+										keyConfigured={keyConfigured}
+										activating={
+											selectingCloudModel?.provider === provider.key &&
+											selectingCloudModel.model === model.id
+										}
+										onActivateModel={onActivateModel}
+									/>
+								))}
+							</ModelGroupContent>
+						</ModelGroupItem>
+					);
+				})}
 			</ModelGroupAccordion>
 			{dialog && (
 				<Dialog
@@ -240,30 +253,45 @@ function CloudModelRow({
 	provider,
 	model,
 	config,
+	keyConfigured,
 	activating,
 	onActivateModel,
 }: {
 	provider: CloudProvider;
 	model: CloudModel;
 	config: LausuConfig | null;
+	/** The provider has a stored API key. Gates the Select action: without
+	 *  a key the backend cannot run the model, so offering Select would
+	 *  only ever answer "enter the API key first". */
+	keyConfigured: boolean;
 	activating: boolean;
 	onActivateModel: (provider: CloudProviderKey, modelId: string) => void;
 }) {
 	const label = cloudModelLabel(provider.key, model.id);
 	const isActive = isCloudModelActive(provider, model.id, config);
+	// Guard-only rows are display-only: no app transport serves
+	// them, so they get a marker instead of Select — and never Active.
+	// WS-supported realtime rows activate like batch rows.
+	const realtime = isRealtimeGuardOnly(provider.key, model.id);
 
 	return (
 		<ModelVariantRow
 			name={label}
 			meta={
 				<>
-					{/* WER, the same figure the Local tab shows. `null` (no
-					    pooled real-world benchmark covers this model)
-					    renders as an em dash — see `formatCloudWer`. */}
-					<MetadataPair
-						label={t("models.card.werLabel")}
-						value={formatCloudWer(model.wer)}
-					/>
+					{/* WER, the same figure the Local tab shows — and, like
+					    the Local rows, rendered ONLY when a pooled
+					    real-world benchmark actually covers the model.
+					    `null` used to render as "WER : —", which spent a
+					    label on an absence and read as a broken value;
+					    hiding the pair is the honest version. Never
+					    guessed — see `formatCloudWer`. */}
+					{model.wer !== null && (
+						<MetadataPair
+							label={t("models.card.werLabel")}
+							value={formatCloudWer(model.wer)}
+						/>
+					)}
 					{/* Same two-group structure as the Local rows
 					    (C-MODELS-2): the information group is the WER pair
 					    above (spaced `gap-x-3` by `ModelVariantRow`), and
@@ -280,7 +308,23 @@ function CloudModelRow({
 				</>
 			}
 			actions={
-				isActive ? (
+				realtime ? (
+					<span
+						className={cn(
+							CLOUD_ACTION_BUTTON_CLASS,
+							"inline-flex cursor-default items-center justify-center rounded-lg border border-border/8 text-muted-foreground",
+						)}
+						// Exposed to AT: a bare span drops aria-label, and
+						// title is mouse-only, so keyboard users get the
+						// reason through the note role instead.
+						role="note"
+						title={t("models.cloud.realtimeOnlyTooltip")}
+						aria-label={t("models.cloud.realtimeOnlyTooltip")}
+						data-testid={`realtime-only-${provider.key}-${model.id}`}
+					>
+						{t("models.cloud.realtimeOnly")}
+					</span>
+				) : isActive ? (
 					<Button
 						variant="secondary"
 						size="sm"
@@ -290,6 +334,9 @@ function CloudModelRow({
 						)}
 						// Disabled, not hidden: it reports state ("this is the
 						// one in use") and a second click would be a no-op.
+						// It also stays visible with no stored key: the config
+						// naming the model is a fact about the app, not an
+						// action the user can take.
 						disabled
 						aria-label={t("models.card.activeAria", { name: label })}
 					>
@@ -300,7 +347,7 @@ function CloudModelRow({
 						/>
 						{t("models.active")}
 					</Button>
-				) : (
+				) : keyConfigured ? (
 					<Button
 						variant={activating ? "secondary" : "outline"}
 						size="sm"
@@ -323,7 +370,7 @@ function CloudModelRow({
 						/>
 						{activating ? t("models.selecting") : t("models.select")}
 					</Button>
-				)
+				) : null
 			}
 		/>
 	);
