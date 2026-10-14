@@ -1535,13 +1535,6 @@ Rationale: Uniform `gap-x-3` spread the descriptive badges (Multilingual / Fast 
 Applies to: All agents, all modes, all sub-agents.
 ```
 
-```
-C-MODELS-3
-Rule: Do NOT replace the provider/family expand/collapse affordance with a minus icon, a chevron, a rotating icon, or any plus-to-other-symbol transition. The accordion trigger icon in `voice_typer/client/src/renderer/src/components/ui/accordion.tsx` MUST be a single persistent `PlusSignIcon` that stays a `+` in BOTH the collapsed and expanded states, with `data-slot="accordion-trigger-icon"` + `aria-hidden="true"` and NO icon-state animation classes (the Radix trigger owns `aria-expanded`). Clicking the icon still expands/collapses the provider, only the icon's appearance is intentionally constant.
-Rationale: A static plus in both states is the user's explicit design decision (2026-08-21). Earlier iterations that swapped `+`→`−` or animated a rotating chevron were reverted; the affordance is deliberately identical whether the group is open or closed.
-Applies to: All agents, all modes, all sub-agents.
-```
-
 ---
 
 ## Category: Sidebar & Title Bar
@@ -1848,8 +1841,8 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-MIC-15
-Rule: Do NOT regress the Microphone Quality selector's COMPACT SINGLE-ROW header (refines C-MIC-14's two-line header and carves a per-instance exception out of C-MODELS-4): the collapsed state is ONE AccordionTrigger row, left group `[MICROPHONE QUALITY label + inline ? tooltip]`, right group `[active-filter chip (non-interactive span, keeps data-testid="mic-preset-current") + rotating chevron]`. The chevron is a single `ArrowDown01Icon` that rotates via `group-data-[state=open]/accordion-trigger:rotate-180` + `transition-transform duration-200` (collapsed = points down/can expand; expanded = points up/can collapse), never a swapped glyph, never two icons. The primitive's persistent PlusSignIcon is hidden ON THIS INSTANCE ONLY via `[&_[data-slot=accordion-trigger-icon]]:hidden` (ui/accordion.tsx itself stays untouched. Every other accordion keeps its `+`). The value chip is a plain span (SelectTrigger-style shell: rounded-lg border-border/8 bg-background), never a nested button. The expanded options container carries exactly ONE deliberate extra inset (`px-2` on the RadioGroup; total 24px), no per-row padding layer. Do not reintroduce the two-line stacked header, a `+`/static icon, or edge-touching option content.
-Rationale: 2026-08-25 compaction pass (user decision), one-line header halved the collapsed height; the rotating chevron + grouped value chip match the app's SelectTrigger/disclosure language; the per-instance icon hide keeps C-MODELS-4 intact for the Models page accordions.
+Rule: Do NOT regress the Microphone Quality selector's COMPACT SINGLE-ROW header (refines C-MIC-14's two-line header and is a per-instance exception to the shared accordion disclosure glyph): the collapsed state is ONE AccordionTrigger row, left group `[MICROPHONE QUALITY label + inline ? tooltip]`, right group `[active-filter chip (non-interactive span, keeps data-testid="mic-preset-current") + rotating chevron]`. The chevron is a single `ArrowDown01Icon` that rotates via `group-data-[state=open]/accordion-trigger:rotate-180` + `transition-transform duration-200` (collapsed = points down/can expand; expanded = points up/can collapse), never a swapped glyph, never two icons. This selector's chevron rotates down↔up IN PLACE, deliberately unlike the shared models-row chevron, which starts pointing right and rotates 90° to down — keep the two idioms distinct, do not "unify" them. The primitive's own disclosure glyph is switched off ON THIS INSTANCE ONLY via `disclosure={false}` on `AccordionTrigger` (mechanism updated 2026-10-14: the glyph now renders in the primitive's trailing slot, after any `actions`, so the old `[&_[data-slot=accordion-trigger-icon]]:hidden` on the trigger can no longer reach it. The prop IS the per-instance switch, and `ui/accordion.tsx` renders its own right→down chevron for every accordion that does not ask for the hide). Every other accordion keeps that chevron, and the glyph still toggles the panel from its new slot. The value chip is a plain span (SelectTrigger-style shell: rounded-lg border-border/8 bg-background), never a nested button. The expanded options container carries exactly ONE deliberate extra inset (`px-2` on the RadioGroup; total 24px), no per-row padding layer. Do not reintroduce the two-line stacked header, a static `+` glyph, or edge-touching option content.
+Rationale: 2026-08-25 compaction pass (user decision), one-line header halved the collapsed height; the rotating chevron + grouped value chip match the app's SelectTrigger/disclosure language; the per-instance icon hide keeps the shared disclosure glyph intact for the Models page accordions.
 Applies to: All agents, all modes, all sub-agents.
 ```
 
@@ -2144,5 +2137,16 @@ Applies to: All agents, all modes, all sub-agents.
 C-STRUCT-5
 Rule: Do NOT create a new file without a single-sentence purpose that distinguishes it from its neighbors. The purpose MUST be statable as "this file exists so that <one thing>"; if the sentence needs "and", the file needs splitting. New files go beside the concern they serve (same folder as siblings), never in a catch-all util/misc bucket.
 Rationale: Purpose-less files (util.py, helpers/, misc/) become the dumping ground that re-creates the god-file problem one import at a time.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+---
+
+## Category: Transcription Delivery
+
+```
+C-TRANS-1
+Rule: Do NOT surface transcription text during recording or deliver it before the stop trigger, regardless of backend transport (one-shot POST at stop, chunked upload, local hidden streaming, or realtime WebSocket session). The transcript MUST be delivered once, at the end, after the user presses the hotkey again to stop recording and start transcribing; a realtime backend that already holds the text MUST buffer it and release at stop, never render live partials.
+Rationale: User decision 2026-10-14. Live text distracts while dictating; one end-only delivery keeps every backend interchangeable from the user's view.
 Applies to: All agents, all modes, all sub-agents.
 ```

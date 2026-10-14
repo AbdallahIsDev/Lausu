@@ -25,7 +25,7 @@ export default defineConfig({
 	test: {
 		// PERF-007: use worker threads instead of child process forks.
 		// Threads share memory (no IPC serialization) and avoid the ~200ms
-		// per-file fork overhead. On a 237-file suite this cuts wall time
+		// per-file fork overhead. On a 376-file suite this cuts wall time
 		// by 2-4x. Worker threads are safe here because:
 		//   - jsdom is thread-safe (each thread gets its own DOM)
 		//   - vi.mock/hoisted mocks are per-file, not global
