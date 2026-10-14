@@ -6,10 +6,12 @@ import logging
 import threading
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
 if TYPE_CHECKING:
     import numpy as np
+
+    from voice_typer.server.asr_registry import AsrBackendRegistry
 
 from voice_typer.server._timeout_utils import TIMEOUT, _run_with_timeout
 from voice_typer.server.asr.busy_flag import BusyFlag
@@ -354,17 +356,17 @@ class RegistryCore:
                 "configured model_size=%r for fallback",
                 fallback_size,
             )
-            whisper = self.create(
+            whisper = cast("AsrBackendRegistry", self).create(
                 "whisper",
-                whisper_kwargs=dict(
-                    model_size=fallback_size,
-                    device=self._config.device,
-                    language=self._config.language,
-                    beam_size=self._config.beam_size,
-                    best_of=self._config.best_of,
-                    condition_on_previous_text=self._config.condition_on_previous_text,
-                    config=self._config,
-                ),
+                whisper_kwargs={
+                    "model_size": fallback_size,
+                    "device": self._config.device,
+                    "language": self._config.language,
+                    "beam_size": self._config.beam_size,
+                    "best_of": self._config.best_of,
+                    "condition_on_previous_text": self._config.condition_on_previous_text,
+                    "config": self._config,
+                },
             )
         if whisper is not None and self._attempt_load(whisper, "whisper fallback", _cb, record_breaker=False):
             log.info("[ASR_REGISTRY] loaded fallback backend: whisper")

@@ -55,6 +55,11 @@ from voice_typer.server.server_platform import autostart as _autostart_mod
 
 log = logging.getLogger(__name__)
 
+# Mirrors task_scheduler's default value. Used only when that single source
+# cannot be read or is not numeric: the launcher ignores a non-numeric --delay
+# and would then start immediately, losing the logon I/O-settle window.
+_DEFAULT_LOGON_DELAY_SECONDS = "3"
+
 
 def _enable_autostart_macos() -> bool:
     from xml.sax.saxutils import escape
@@ -102,7 +107,18 @@ def _enable_autostart_macos() -> bool:
                     "deleted, but works for the current user.",
                     python_exe,
                 )
-        program_args = [python_exe, str(launcher)]
+        # Parity with the Linux/Windows logon entries: the launcher honors
+        # --hidden/--delay. ADR-0009 Issue 4 keeps the value in one place.
+        try:
+            from voice_typer.server.task_scheduler import _APP_AUTOSTART_DELAY_SECONDS
+
+            delay_value = _APP_AUTOSTART_DELAY_SECONDS
+        except Exception:
+            delay_value = _DEFAULT_LOGON_DELAY_SECONDS
+        delay_str = str(delay_value)
+        if not delay_str.isdigit():
+            delay_str = _DEFAULT_LOGON_DELAY_SECONDS
+        program_args = [python_exe, str(launcher), "--hidden", "--delay", delay_str]
 
     program_args_xml = "\n".join(f"        <string>{escape(arg)}</string>" for arg in program_args)
     plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
