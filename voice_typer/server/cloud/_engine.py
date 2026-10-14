@@ -41,6 +41,15 @@ from voice_typer.server.asr_errors import (
 )
 from voice_typer.server.cloud._defaults import _PROVIDER_DEFAULTS
 from voice_typer.server.cloud._providers.gemini import build_gemini_body, build_gemini_url
+from voice_typer.server.cloud._realtime import (
+    assert_official_realtime_host,
+    ensure_not_realtime,
+    float32_to_pcm16,
+    frame_200ms,
+    is_realtime_model,
+    is_ws_realtime_model,
+    resample_16k_to_24k,
+)
 from voice_typer.server.cloud._retry import _cloud_http_error_class, _parse_retry_after
 from voice_typer.server.cloud._transport import _audio_to_wav_bytes, _read_capped
 from voice_typer.server.i18n import DEFAULT_LOCALE
@@ -188,6 +197,15 @@ class CloudEngine:
 
     def _send_request(self, audio: np.ndarray) -> str:
         """Send audio to the cloud API and return transcribed text."""
+        if len(audio) == 0:
+            return ""
+        # Realtime ids never touch the batch endpoint: WS-supported ids
+        # burst-append over a WS session, the rest keep the batch guard.
+        if is_realtime_model(self.provider, self.model_name):
+            if is_ws_realtime_model(self.provider, self.model_name):
+                assert_official_realtime_host(self.api_url)
+                return self._send_realtime(audio)
+            ensure_not_realtime(self.provider, self.model_name)
         wav_bytes = _audio_to_wav_bytes(audio)
         filename = "audio.wav"
 
@@ -196,6 +214,29 @@ class CloudEngine:
         if self.provider == "gemini":
             return self._send_gemini(wav_bytes)
         return self._send_openai_compatible(wav_bytes, filename)
+
+    def _send_realtime(self, audio: np.ndarray) -> str:
+        """Burst-append the finished recording over a realtime WS session."""
+        from voice_typer.server.cloud import _realtime_ws
+        from voice_typer.server.cloud._realtime import _REALTIME_MAX_PCM_BYTES
+
+        pcm24k = resample_16k_to_24k(float32_to_pcm16(audio))
+        # Live turns are minutes, not tens of minutes: refuse a pathological
+        # burst up front (request never sent → "network" fallback kind) and
+        # let the local engine serve it instead of uploading doomed megabytes.
+        if len(pcm24k) > _REALTIME_MAX_PCM_BYTES:
+            raise CloudNetworkError(
+                "audio too long for realtime session "
+                f"({len(pcm24k) / 1024 / 1024:.0f} MB > "
+                f"{_REALTIME_MAX_PCM_BYTES / 1024 / 1024:.0f} MB)"
+            )
+        return _realtime_ws.transcribe_via_realtime(
+            api_key=self.api_key,
+            model=self.model_name.strip(),
+            pcm24k_frames=frame_200ms(pcm24k),
+            language_ignored=self.language,
+            abort_event=self._abort_event,
+        )
 
     # All three send paths share the retry skeleton below.
     def _transcribe_with_retry(

@@ -37,6 +37,7 @@ vi.mock("@/lib/consentGate", () => ({
 
 // ── Helpers ──────────────────────────────────────────────────────────
 import {
+	hasStoredCloudApiKey,
 	safeApiKey,
 	useCloudProviders,
 } from "@/hooks/models/useCloudProviders";
@@ -151,6 +152,52 @@ describe("safeApiKey, secret redaction sentinel", () => {
 
 	it("preserves empty string (no false positive on the sentinel check)", () => {
 		expect(safeApiKey("")).toBe("");
+	});
+});
+
+// ── hasStoredCloudApiKey helper (module-level, re-exported) ───────────
+// "Is this provider configured?" — the question the panel asks before it
+// renders a Select button, and the one `safeApiKey` answers WRONG (it
+// collapses a stored `<redacted>` key to "", which is indistinguishable
+// from "never configured").
+describe("hasStoredCloudApiKey, presence vs. redaction", () => {
+	it("counts the <redacted> sentinel as CONFIGURED", () => {
+		// This is the state after every app restart: the backend redacts
+		// the stored key rather than echoing it.
+		expect(
+			hasStoredCloudApiKey(
+				makeConfig({ openai_api_key: "<redacted>" }),
+				"openai",
+			),
+		).toBe(true);
+	});
+
+	it("counts a just-saved key (the raw config_changed echo) as configured", () => {
+		expect(
+			hasStoredCloudApiKey(
+				makeConfig({ openai_api_key: OPENAI_KEY }),
+				"openai",
+			),
+		).toBe(true);
+	});
+
+	it("treats '' as NOT configured (the schema's canonical 'unset')", () => {
+		expect(hasStoredCloudApiKey(makeConfig(), "openai")).toBe(false);
+		expect(
+			hasStoredCloudApiKey(makeConfig({ openai_api_key: "   " }), "openai"),
+		).toBe(false);
+	});
+
+	it("is false without a loaded config, never a crash", () => {
+		expect(hasStoredCloudApiKey(null, "openai")).toBe(false);
+	});
+
+	it("reads the field belonging to the provider asked about", () => {
+		const cfg = makeConfig({ groq_api_key: GROQ_KEY });
+		expect(hasStoredCloudApiKey(cfg, "groq")).toBe(true);
+		expect(hasStoredCloudApiKey(cfg, "openai")).toBe(false);
+		expect(hasStoredCloudApiKey(cfg, "deepgram")).toBe(false);
+		expect(hasStoredCloudApiKey(cfg, "gemini")).toBe(false);
 	});
 });
 
@@ -591,7 +638,17 @@ describe("useCloudProviders, activateCloudModel", () => {
 		expect(openConsentGateMock).not.toHaveBeenCalled();
 	});
 
-	it("treats a <redacted> persisted key as absent (safeApiKey), so it still refuses", async () => {
+	it("treats a <redacted> persisted key as PRESENT, so a stored key still activates", async () => {
+		// The bug report behind this reversal: after a restart
+		// `get_config` returns `<redacted>` for a stored key, and the
+		// guard used `safeApiKey`, which maps that sentinel to "". The
+		// result was that Select always answered "Please enter the API
+		// key first" even though a key WAS configured.
+		//
+		// The backend keeps `""` and `<redacted>` distinct on purpose
+		// (`_sanitize_config_for_ipc`: the renderer "must receive it
+		// verbatim to distinguish 'not configured' from 'configured but
+		// hidden'"), so presence must read the raw config value.
 		const cfg = makeConfig({
 			openai_api_key: "<redacted>",
 			cloud_openai_consent: true,
@@ -603,11 +660,15 @@ describe("useCloudProviders, activateCloudModel", () => {
 			await result.current.activateCloudModel("openai", "whisper-1");
 		});
 
-		expect(updateConfigMock).not.toHaveBeenCalled();
-		expect(showSnackMock).toHaveBeenCalledWith(
+		expect(showSnackMock).not.toHaveBeenCalledWith(
 			"models.test.needApiKey",
 			"info",
 		);
+		expect(updateConfigMock).toHaveBeenCalledWith({
+			asr_backend: "cloud",
+			cloud_provider: "openai",
+			cloud_model: "whisper-1",
+		});
 	});
 
 	it("opens the shared consent dialog (with a retry) instead of activating when consent is missing", async () => {
@@ -767,6 +828,77 @@ describe("useCloudProviders, activateCloudModel", () => {
 		// The UI must stay in sync with what the backend actually
 		// persisted — nothing was, so no optimistic merge.
 		expect(setConfigMock).not.toHaveBeenCalled();
+		expect(result.current.selectingCloudModel).toBeNull();
+	});
+
+	it("refuses a guard-only realtime model id: info snack, no spinner, no write, no consent gate", async () => {
+		// Key stored AND consent granted: the refusal must still fire
+		// first, before any of those paths is touched.
+		const cfg = makeConfig({
+			gemini_api_key: GEMINI_KEY,
+			cloud_gemini_consent: true,
+		});
+		const args = makeHookArgs({ gemini: GEMINI_KEY }, cfg);
+		const { result } = renderHook(() => useCloudProviders(args));
+
+		await act(async () => {
+			await result.current.activateCloudModel(
+				"gemini",
+				"gemini-3.5-transcribe-live",
+			);
+		});
+
+		expect(showSnackMock).toHaveBeenCalledWith(
+			expect.stringContaining("models.snack.realtimeOnlyBlocked"),
+			"info",
+		);
+		expect(updateConfigMock).not.toHaveBeenCalled();
+		expect(setConfigMock).not.toHaveBeenCalled();
+		expect(openConsentGateMock).not.toHaveBeenCalled();
+		expect(result.current.selectingCloudModel).toBeNull();
+	});
+
+	it("activates a WS-supported realtime id like a batch model", async () => {
+		const cfg = makeConfig({
+			openai_api_key: OPENAI_KEY,
+			cloud_openai_consent: true,
+		});
+		const args = makeHookArgs({ openai: OPENAI_KEY }, cfg);
+		const { result } = renderHook(() => useCloudProviders(args));
+
+		await act(async () => {
+			await result.current.activateCloudModel("openai", "gpt-live-transcribe");
+		});
+
+		expect(updateConfigMock).toHaveBeenCalledWith({
+			asr_backend: "cloud",
+			cloud_provider: "openai",
+			cloud_model: "gpt-live-transcribe",
+		});
+		expect(showSnackMock).toHaveBeenCalledWith(
+			expect.stringContaining("models.snack.usingModel"),
+			"success",
+		);
+		expect(result.current.selectingCloudModel).toBeNull();
+	});
+
+	it("refuses a realtime id before the key/consent checks (nothing stored, nothing asked)", async () => {
+		const args = makeHookArgs({}, makeConfig());
+		const { result } = renderHook(() => useCloudProviders(args));
+
+		await act(async () => {
+			await result.current.activateCloudModel(
+				"gemini",
+				"gemini-3.5-transcribe-live",
+			);
+		});
+
+		expect(showSnackMock).toHaveBeenCalledWith(
+			expect.stringContaining("models.snack.realtimeOnlyBlocked"),
+			"info",
+		);
+		expect(updateConfigMock).not.toHaveBeenCalled();
+		expect(openConsentGateMock).not.toHaveBeenCalled();
 		expect(result.current.selectingCloudModel).toBeNull();
 	});
 });

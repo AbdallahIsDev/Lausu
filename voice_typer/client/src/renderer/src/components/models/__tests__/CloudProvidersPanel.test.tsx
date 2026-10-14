@@ -16,6 +16,7 @@ import {
 	cloudModelLabel,
 	formatCloudWer,
 	formatModelSpeed,
+	isRealtimeGuardOnly,
 } from "@/lib/utils/models";
 import type { LausuConfig } from "@/types/config";
 
@@ -88,6 +89,11 @@ const baseConfig = {
 	asr_backend: "whisper",
 	cloud_provider: "",
 	cloud_model: "",
+	// `<redacted>` is what `get_config` returns for a STORED key, and it
+	// is the state that decides whether the model rows offer Select. It
+	// is the realistic default here: a provider the user has configured.
+	// The "no key configured" branch is asserted explicitly below.
+	openai_api_key: "<redacted>",
 	cloud_openai_consent: false,
 	cloud_groq_consent: false,
 	cloud_deepgram_consent: false,
@@ -242,6 +248,116 @@ describe("CloudProvidersPanel, Configure is a provider-level action", () => {
 		expect(header?.contains(configure)).toBe(true);
 	});
 
+	it("places Configure immediately LEFT of the disclosure glyph", () => {
+		// The bug report: Configure hung off the row's right edge, past the
+		// glyph, so the row's hover highlight stopped before it. Order is
+		// [brand … Configure ▸]: the action comes first, then the
+		// disclosure glyph.
+		renderPanel(<CloudProvidersPanel {...baseProps} />);
+
+		const trigger = screen.getByRole("button", { name: "OpenAI" });
+		const header = trigger.parentElement;
+		const configure = screen.getByRole("button", {
+			name: "Configure OpenAI",
+		});
+		// The mocked HugeiconsIcon keeps `data-name` but drops `data-slot`
+		// (this suite stubs the icon wrapper), so the disclosure glyph is
+		// found by its icon name here. `a11y-attrs.test.tsx` pins the real
+		// `data-slot="accordion-trigger-icon"` against the unmocked icon.
+		const chevron = header?.querySelector('[data-name="ArrowRight01Icon"]');
+
+		expect(header).not.toBeNull();
+		expect(chevron).not.toBeNull();
+		// The glyph FOLLOWS the action in document order, i.e. renders to
+		// its right in this LTR row.
+		expect(configure.compareDocumentPosition(chevron as Node)).toBe(
+			Node.DOCUMENT_POSITION_FOLLOWING,
+		);
+		// Both live on the header, and neither is inside the trigger
+		// <button> — that is what keeps the row valid HTML.
+		expect(header?.contains(configure)).toBe(true);
+		expect(header?.contains(chevron as Element)).toBe(true);
+		expect(trigger.contains(configure)).toBe(false);
+		expect(trigger.contains(chevron as Element)).toBe(false);
+	});
+
+	it("makes the whole header row one hover surface, action included", () => {
+		// jsdom cannot measure a :hover paint, so the CONTRACT is pinned
+		// instead: the header is the hover group and BOTH halves paint it.
+		// A row whose highlight stops at the trigger is the bug being
+		// guarded (the action sat outside the highlighted area).
+		renderPanel(<CloudProvidersPanel {...baseProps} />);
+
+		const trigger = screen.getByRole("button", { name: "OpenAI" });
+		const header = trigger.parentElement;
+		expect(header?.className).toContain("group/accordion-row");
+		expect(trigger.className).toContain(
+			"group-hover/accordion-row:bg-foreground/5",
+		);
+		const actionWrapper = screen.getByRole("button", {
+			name: "Configure OpenAI",
+		}).parentElement;
+		expect(actionWrapper?.className).toContain(
+			"group-hover/accordion-row:bg-foreground/5",
+		);
+	});
+
+	it("stretches BOTH halves of the header to the same height (no seam)", () => {
+		// Same colour is not enough: the two halves must also be the same
+		// HEIGHT or the tint steps where they meet. They differ naturally
+		// — the trigger is `py-2.5` around a 20px line box (40px), the
+		// trailing span is only as tall as the ~32px action button — so
+		// `items-center` on the header left a visible step between the
+		// two 5% bands, which read as two separate hover regions.
+		// jsdom has no layout, so the class contract is the guard.
+		renderPanel(<CloudProvidersPanel {...baseProps} />);
+
+		const trigger = screen.getByRole("button", { name: "OpenAI" });
+		const header = trigger.parentElement;
+		expect(header?.className).toContain("items-stretch");
+		expect(header?.className).not.toContain("items-center");
+
+		// Both halves are DIRECT children of that one row, so stretching
+		// the row is enough — nothing in between can break the band.
+		const actionWrapper = screen.getByRole("button", {
+			name: "Configure OpenAI",
+		}).parentElement;
+		expect(actionWrapper?.parentElement).toBe(header);
+		// …and each half still centres its own content inside the row.
+		expect(trigger.className).toContain("items-center");
+		expect(actionWrapper?.className).toContain("items-center");
+	});
+
+	it("packs the provider name against its logo, not at the far edge", () => {
+		// The regression: the primitive's trigger carries
+		// `justify-between` (kept deliberately — the microphone preset
+		// selector spreads two groups across the row with it) and it
+		// used to neutralise that by giving the trailing "+" `ms-auto`,
+		// which absorbed every spare pixel. Once the glyph moved into
+		// the sibling span, nothing absorbed them any more and
+		// `justify-between` flung the name to the opposite edge from its
+		// logo. jsdom cannot measure the rendered gap, so the CONTRACT
+		// that decides it is pinned instead. Both tabs go through
+		// `ModelGroupTrigger`, so this covers Local too.
+		renderPanel(<CloudProvidersPanel {...baseProps} />);
+
+		const trigger = screen.getByRole("button", { name: "OpenAI" });
+		expect(trigger.className).toContain("justify-start");
+		expect(trigger.className).not.toContain("justify-between");
+		expect(trigger.className).toContain("items-center");
+
+		// The logo and the name are the trigger's ONLY children, in that
+		// order — nothing sits between them that could push them apart.
+		const nodes = Array.from(trigger.childNodes).filter(
+			(node) =>
+				node.nodeType === Node.ELEMENT_NODE ||
+				(node.textContent ?? "").trim() !== "",
+		);
+		expect(nodes.length).toBe(2);
+		expect((nodes[0] as Element).querySelector("img")).not.toBeNull();
+		expect(nodes[1]?.textContent).toBe("OpenAI");
+	});
+
 	it("keeps Configure visible while the group is COLLAPSED (it is not a row action)", () => {
 		renderPanel(<CloudProvidersPanel {...baseProps} />);
 
@@ -303,8 +419,12 @@ describe("CloudProvidersPanel, model rows + activation", () => {
 		expandProviderGroup("OpenAI");
 
 		// WER renders as a label+value pair, exactly like the Local rows,
-		// so accuracy is comparable across both tabs.
-		expect(screen.getAllByText("WER")).toHaveLength(openaiModels.length);
+		// so accuracy is comparable across both tabs — and, also like the
+		// Local rows, only on the models a pooled benchmark actually
+		// covers (see the "no pooled WER" test below).
+		const measured = openaiModels.filter((model) => model.wer !== null);
+		expect(measured.length).toBeGreaterThan(0);
+		expect(screen.getAllByText("WER")).toHaveLength(measured.length);
 		expect(
 			screen.getByText(`: ${formatCloudWer(modelAt(0).wer)}`),
 		).toBeInTheDocument();
@@ -335,7 +455,12 @@ describe("CloudProvidersPanel, model rows + activation", () => {
 		expect(screen.queryByText("Multilingual")).toBeNull();
 	});
 
-	it("renders an em dash — never a guessed number — for a model with no pooled WER", () => {
+	it("hides the WER pair entirely when no pooled benchmark covers the model", () => {
+		// The bug report: a row read "WER : —" — a label spent on an
+		// absence, which reads as a broken value. An unknown WER is not a
+		// value at all, so the pair is not rendered. The measured rows
+		// still show a real percentage, so this is a per-model decision,
+		// not a whole-column fallback.
 		renderPanel(<CloudProvidersPanel {...baseProps} />);
 		expandProviderGroup("OpenAI");
 
@@ -343,9 +468,10 @@ describe("CloudProvidersPanel, model rows + activation", () => {
 		const measured = openaiModels.filter((m) => m.wer !== null);
 		expect(unmeasured.length).toBeGreaterThan(0);
 		expect(measured.length).toBeGreaterThan(0);
-		expect(screen.getAllByText(": —")).toHaveLength(unmeasured.length);
-		// The measured ones still render a real percentage, so the em
-		// dash is a per-model decision, not a whole-column fallback.
+
+		// No em dash anywhere, and no "WER" label beyond the measured rows.
+		expect(screen.queryByText(": —")).toBeNull();
+		expect(screen.getAllByText("WER")).toHaveLength(measured.length);
 		for (const model of measured) {
 			expect(
 				screen.getAllByText(`: ${formatCloudWer(model.wer)}`).length,
@@ -437,9 +563,13 @@ describe("CloudProvidersPanel, model rows + activation", () => {
 		const busy = screen.getByRole("button", { name: "Selecting…" });
 		expect(busy).toBeDisabled();
 		expect(busy).toHaveAttribute("aria-busy", "true");
-		// Every OTHER row is still selectable.
+		// Every OTHER *selectable* row is still selectable (guard-only
+		// rows render a marker, never Select, so they are out of the count).
+		const selectable = openaiModels.filter(
+			(model) => !isRealtimeGuardOnly(openaiProvider.key, model.id),
+		);
 		expect(screen.getAllByRole("button", { name: /^Select / })).toHaveLength(
-			openaiModels.length - 1,
+			selectable.length - 1,
 		);
 	});
 
@@ -454,6 +584,237 @@ describe("CloudProvidersPanel, model rows + activation", () => {
 		expandProviderGroup("OpenAI");
 
 		expect(screen.queryByRole("button", { name: "Selecting…" })).toBeNull();
+	});
+});
+
+// A Select button whose only possible answer is "Please enter the API key
+// first" is a button that exists to refuse. The action is therefore gated
+// on the provider having a STORED key — one fact per provider, because all
+// of a provider's models share its single key.
+describe("CloudProvidersPanel, Select is gated on a stored API key", () => {
+	afterEach(() => cleanup());
+
+	/** Every non-guard-only OpenAI model, i.e. the rows that can offer Select. */
+	function selectableModels(): CloudModel[] {
+		return openaiModels.filter(
+			(model) => !isRealtimeGuardOnly(openaiProvider.key, model.id),
+		);
+	}
+
+	it("offers Select on every selectable row when the provider IS configured", () => {
+		renderPanel(<CloudProvidersPanel {...baseProps} />);
+		expandProviderGroup("OpenAI");
+
+		// `<redacted>` in `baseConfig` is the stored-key state.
+		expect(screen.getAllByRole("button", { name: /^Select / })).toHaveLength(
+			selectableModels().length,
+		);
+	});
+
+	it("renders NO Select at all when the provider has no stored key", () => {
+		renderPanel(
+			<CloudProvidersPanel
+				{...baseProps}
+				config={
+					{
+						...baseConfig,
+						openai_api_key: "",
+					} as LausuConfig
+				}
+			/>,
+		);
+		expandProviderGroup("OpenAI");
+
+		// Every row is still listed — the catalogue is not hidden, only the
+		// action that could not succeed is.
+		for (const model of openaiModels) {
+			expect(
+				screen.getByRole("heading", {
+					name: cloudModelLabel(openaiProvider.key, model.id),
+				}),
+			).toBeInTheDocument();
+		}
+		expect(screen.queryByRole("button", { name: /^Select / })).toBeNull();
+		expect(screen.queryByRole("button", { name: "Selecting…" })).toBeNull();
+	});
+
+	it("renders no marker on OpenAI rows without a key (both realtime rows stream over WS)", () => {
+		renderPanel(
+			<CloudProvidersPanel
+				{...baseProps}
+				config={
+					{
+						...baseConfig,
+						openai_api_key: "",
+					} as LausuConfig
+				}
+			/>,
+		);
+		expandProviderGroup("OpenAI");
+
+		expect(screen.queryByTestId(/^realtime-only-/)).toBeNull();
+	});
+
+	it("keeps the Active marker without a key (config state, not an action)", () => {
+		const activeModel = modelAt(0);
+		renderPanel(
+			<CloudProvidersPanel
+				{...baseProps}
+				config={
+					{
+						...baseConfig,
+						openai_api_key: "",
+						asr_backend: "cloud",
+						cloud_provider: "openai",
+						cloud_model: activeModel.id,
+					} as LausuConfig
+				}
+			/>,
+		);
+		expandProviderGroup("OpenAI");
+
+		const label = cloudModelLabel(openaiProvider.key, activeModel.id);
+		expect(
+			screen.getByRole("button", { name: `Active: ${label}` }),
+		).toBeDisabled();
+	});
+
+	it("gates each provider on ITS OWN key, not on any configured provider", () => {
+		renderPanel(
+			<CloudProvidersPanel
+				{...baseProps}
+				cloudProviders={[openaiProvider, provider("groq")]}
+				config={
+					{
+						...baseConfig,
+						// openai is configured, groq is not.
+						groq_api_key: "",
+					} as LausuConfig
+				}
+			/>,
+		);
+		// `type="multiple"`, so both groups are open at once.
+		expandProviderGroup("OpenAI");
+		expandProviderGroup("Groq");
+
+		// Groq's rows ARE rendered (the catalogue is never hidden)…
+		expect(
+			screen.getByRole("heading", { name: "Whisper Large V3" }),
+		).toBeInTheDocument();
+		// …but they add no Select: the only Selects in the tree are
+		// OpenAI's, whose key is stored.
+		expect(screen.getAllByRole("button", { name: /^Select / })).toHaveLength(
+			selectableModels().length,
+		);
+	});
+});
+
+describe("CloudProvidersPanel, realtime-only rows", () => {
+	afterEach(() => cleanup());
+
+	it("offers Select — never a marker — on the WS-supported OpenAI realtime rows", () => {
+		renderPanel(<CloudProvidersPanel {...baseProps} />);
+		expandProviderGroup("OpenAI");
+
+		// Both streaming ids render the normal Select action: the app
+		// streams OpenAI sessions over its own WS transport.
+		expect(screen.queryByTestId(/^realtime-only-/)).toBeNull();
+		expect(
+			screen.getByRole("button", { name: /Select GPT-Live-Transcribe/ }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /Select GPT-Realtime-Whisper/ }),
+		).toBeInTheDocument();
+	});
+
+	it("renders the gemini realtime marker beside its batch row", () => {
+		renderPanel(
+			<CloudProvidersPanel
+				{...baseProps}
+				cloudProviders={[provider("gemini")]}
+				// The batch row offers Select only once Google's key is
+				// stored (`baseConfig` stores OpenAI's, not Google's).
+				config={
+					{
+						...baseConfig,
+						gemini_api_key: "<redacted>",
+					} as LausuConfig
+				}
+			/>,
+		);
+		expandProviderGroup("Google");
+
+		expect(screen.getAllByTestId(/^realtime-only-/)).toHaveLength(1);
+		expect(
+			screen.getByRole("button", { name: /Select Gemini 3\.5 Transcribe/ }),
+		).toBeInTheDocument();
+	});
+
+	it("never shows Active on a guard-only row, even when the config names it", () => {
+		renderPanel(
+			<CloudProvidersPanel
+				{...baseProps}
+				cloudProviders={[provider("gemini")]}
+				config={
+					{
+						...baseConfig,
+						gemini_api_key: "<redacted>",
+						asr_backend: "cloud",
+						cloud_provider: "gemini",
+						cloud_model: "gemini-3.5-transcribe-live",
+					} as LausuConfig
+				}
+			/>,
+		);
+		expandProviderGroup("Google");
+
+		expect(screen.queryByRole("button", { name: /^Active/ })).toBeNull();
+		expect(screen.getAllByTestId(/^realtime-only-/)).toHaveLength(1);
+	});
+
+	it("shows Active on a WS-supported realtime row when the config names it", () => {
+		renderPanel(
+			<CloudProvidersPanel
+				{...baseProps}
+				config={
+					{
+						...baseConfig,
+						asr_backend: "cloud",
+						cloud_provider: "openai",
+						cloud_model: "gpt-realtime-whisper",
+					} as LausuConfig
+				}
+			/>,
+		);
+		expandProviderGroup("OpenAI");
+
+		const label = cloudModelLabel("openai", "gpt-realtime-whisper");
+		expect(
+			screen.getByRole("button", { name: `Active: ${label}` }),
+		).toBeDisabled();
+	});
+
+	it("never shows Selecting… on a guard-only row, even if marked in flight", () => {
+		renderPanel(
+			<CloudProvidersPanel
+				{...baseProps}
+				cloudProviders={[provider("gemini")]}
+				config={
+					{
+						...baseConfig,
+						gemini_api_key: "<redacted>",
+					} as LausuConfig
+				}
+				selectingCloudModel={{
+					provider: "gemini",
+					model: "gemini-3.5-transcribe-live",
+				}}
+			/>,
+		);
+		expandProviderGroup("Google");
+
+		expect(screen.queryByRole("button", { name: "Selecting…" })).toBeNull();
+		expect(screen.getAllByTestId(/^realtime-only-/)).toHaveLength(1);
 	});
 });
 
