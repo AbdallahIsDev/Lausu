@@ -1333,6 +1333,7 @@
 			"queuedCancelled": "{name} wurde aus der Download-Warteschlange entfernt.",
 			"cancelNoopName": "{name} wird weder heruntergeladen noch wartet es in der Warteschlange.",
 			"selectFailed": "Modell konnte nicht ausgewählt werden.",
+			"realtimeOnlyBlocked": "{name} streamt nur Live-Audio und kann hier keine Dateien transkribieren.",
 			"downloadAlreadyActive": "Ein anderer Modell-Download läuft bereits (möglicherweise pausiert). Setzen Sie ihn zuerst fort oder brechen Sie ihn ab.",
 			"downloadAlreadyActiveName": "{name} wird bereits heruntergeladen: warten Sie, bis es abgeschlossen ist, oder brechen Sie es ab.",
 			"downloadQueued": "{name} wurde in die Warteschlange eingereiht. Es startet automatisch, wenn der aktuelle Download abgeschlossen ist."
@@ -1412,7 +1413,9 @@
 			"configure": "Konfigurieren",
 			"configureAria": "{provider} konfigurieren",
 			"apiKeyShowAria": "API-Schlüssel für {provider} anzeigen",
-			"apiKeyHideAria": "API-Schlüssel für {provider} ausblenden"
+			"apiKeyHideAria": "API-Schlüssel für {provider} ausblenden",
+			"realtimeOnly": "Nur Echtzeit",
+			"realtimeOnlyTooltip": "Streamt nur Live-Audio; Dateitranskription nutzt die Batch-Modelle."
 		},
 		"deleteDialog": {
 			"title": "Modell löschen",
@@ -2029,7 +2032,7 @@
 			"repaste_register_failed": "Erneutes-Einfügen-Hotkey konnte nicht registriert werden. Eine andere App hat ihn möglicherweise belegt.",
 			"invalid_hotkey": "Hotkey {hotkey} ist ungültig: {validation_error}. Der vorherige Hotkey bleibt erhalten.",
 			"restore_failed": "Der vorherige Hotkey {hotkey} konnte nicht wiederhergestellt werden. Öffnen Sie die Einstellungen, um einen Hotkey neu zu binden.",
-			"wayland_hotkeys_may_fail": "Globale Hotkeys funktionieren unter Wayland möglicherweise nicht. Installiere 'wtype' oder 'ydotool' für Hotkey-Unterstützung oder nutze „Diktation starten“ im Tray-Menü."
+			"wayland_hotkeys_may_fail": "Globale Hotkeys unter Wayland benötigen Lesezugriff auf Eingabegeräte: Füge deinen Benutzer der Gruppe „input“ hinzu und melde dich neu an. wtype/ydotool werden für Hotkeys nicht benötigt: wtype dient nur zum Einfügen von Text."
 		},
 		"native_adapter": {
 			"warn_title": "{appName}: Native-Hotkey-Warnung",

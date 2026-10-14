@@ -178,11 +178,23 @@ fn spawn_platform_watch(
     );
 }
 
+// `WM_POWERBROADCAST` wParam values (WinUser.h / MS Learn "WM_POWERBROADCAST
+// message"). Declared locally rather than imported from `windows` because
+// `map_windows_power_wparam` compiles on every target.
+/// System is about to suspend (`PBT_APMSUSPEND`).
+const PBT_APMSUSPEND: u32 = 0x0004;
+/// Resumed after a user-initiated wake (`PBT_APMRESUMESUSPEND`).
+const PBT_APMRESUMESUSPEND: u32 = 0x0007;
+/// Resumed without user interaction; sent on every resume (`PBT_APMRESUMEAUTOMATIC`).
+const PBT_APMRESUMEAUTOMATIC: u32 = 0x0012;
+/// AC/battery power-source change (`PBT_APMPOWERSTATUSCHANGE`).
+const PBT_APMPOWERSTATUSCHANGE: u32 = 0x000A;
+
 pub(crate) fn map_windows_power_wparam(wparam: u32) -> Option<PowerEvent> {
     match wparam {
-        4 => Some(PowerEvent::Suspend),
-        7 | 18 => Some(PowerEvent::Resume),
-        10 => Some(PowerEvent::OnBattery),
+        PBT_APMSUSPEND => Some(PowerEvent::Suspend),
+        PBT_APMRESUMESUSPEND | PBT_APMRESUMEAUTOMATIC => Some(PowerEvent::Resume),
+        PBT_APMPOWERSTATUSCHANGE => Some(PowerEvent::OnBattery),
         _ => None,
     }
 }

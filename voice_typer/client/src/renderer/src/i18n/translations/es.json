@@ -1333,6 +1333,7 @@
 			"queuedCancelled": "{name} se ha eliminado de la cola de descargas.",
 			"cancelNoopName": "{name} no se está descargando ni está en la cola.",
 			"selectFailed": "No se pudo seleccionar el modelo.",
+			"realtimeOnlyBlocked": "{name} solo transmite audio en directo y no puede transcribir archivos aquí.",
 			"downloadAlreadyActive": "Ya hay otra descarga de modelo en curso (puede estar en pausa). Reanúdela o cancélala primero.",
 			"downloadAlreadyActiveName": "{name} ya se está descargando: espere a que termine o cancélelo.",
 			"downloadQueued": "{name} se ha puesto en la cola: comenzará automáticamente cuando termine la descarga actual."
@@ -1412,7 +1413,9 @@
 			"configure": "Configurar",
 			"configureAria": "Configurar {provider}",
 			"apiKeyShowAria": "Mostrar clave API de {provider}",
-			"apiKeyHideAria": "Ocultar clave API de {provider}"
+			"apiKeyHideAria": "Ocultar clave API de {provider}",
+			"realtimeOnly": "Solo en tiempo real",
+			"realtimeOnlyTooltip": "Transmite solo audio en directo; la transcripción de archivos usa los modelos por lotes."
 		},
 		"deleteDialog": {
 			"title": "Eliminar Modelo",
@@ -2029,7 +2032,7 @@
 			"repaste_register_failed": "No se pudo registrar el atajo de re-pegado. Otra aplicación puede haberlo reclamado.",
 			"invalid_hotkey": "El atajo {hotkey} no es válido: {validation_error}. Se mantiene el atajo anterior.",
 			"restore_failed": "No se pudo restaurar el atajo anterior {hotkey}. Abra Configuración para reasignar un atajo.",
-			"wayland_hotkeys_may_fail": "Es posible que los atajos globales no funcionen en Wayland. Instala 'wtype' o 'ydotool' para compatibilidad con atajos, o usa la opción Iniciar dictado del menú de la bandeja."
+			"wayland_hotkeys_may_fail": "Los atajos globales en Wayland necesitan acceso de lectura a los dispositivos de entrada: añade tu usuario al grupo «input» y vuelve a iniciar sesión. wtype/ydotool no se usan para los atajos: wtype solo sirve para pegar texto."
 		},
 		"native_adapter": {
 			"warn_title": "{appName}: advertencia de atajo nativo",

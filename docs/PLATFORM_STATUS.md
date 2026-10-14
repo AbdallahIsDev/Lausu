@@ -16,6 +16,7 @@ Feature × OS matrix for Lausu.  Last updated: 2026-10-05.
 | Tray notifications         | ✅ `Shell_NotifyIcon` | ✅ `NSUserNotificationCenter` | ✅ `Notify` (libnotify) | ✅ `Notify` |
 | Autostart                  | ✅ Registry `HKCU\...\Run` | ✅ `LaunchAgents` plist | ✅ `.desktop` in `~/.config/autostart/` | ✅ Same |
 | Single-instance lock       | ✅ Win32 named mutex | ⚠️ Lockfile (best-effort) | ⚠️ Lockfile (best-effort) | ⚠️ Lockfile |
+| Single-instance authority  | ✅ Tauri single-instance plugin (`src-tauri/src/main.rs:103`) is the real authority on all three OSes; the Python mutex is a legacy fallback only and is skipped in sidecar mode (`voice_typer/server/ipc/entrypoint.py:275-277`) | ✅ (same plugin) | ✅ (same plugin) | ✅ (same plugin) |
 | Microphone listing         | ✅ sounddevice WASAPI | ✅ sounddevice CoreAudio | ✅ sounddevice ALSA/PulseAudio | ✅ sounddevice PipeWire |
 | Clipboard paste            | ✅ `pyperclip` + Win32 API | ✅ `pyperclip` + `pbpaste` | ✅ `pyperclip` + `xclip`/`xsel` | ⚠️ `wl-copy` (if installed) |
 | Focus detection (safe auto-paste) | ✅ UIA control types (Edit/Document/ComboBox) | ✅ AX roles (pyobjc) | ✅ AT-SPI roles (pyatspi) | ✅ AT-SPI roles (pyatspi) |

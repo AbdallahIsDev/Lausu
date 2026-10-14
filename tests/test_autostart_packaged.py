@@ -141,6 +141,31 @@ class TestTaskXmlPackagedShape:
         assert "\\\\" not in value.split("--hidden")[0]
 
 
+def _dev_macos_plist_program_arguments(monkeypatch, tmp_path) -> list:
+    """Build the dev (non-packaged) macOS LaunchAgent and return its
+    ProgramArguments. Text-only, so it runs on any host (no launchd)."""
+    import plistlib
+
+    from voice_typer.server.server_platform import autostart_macos as autostart_macos_mod
+
+    home = tmp_path / "home"
+    (home / "Library" / "LaunchAgents").mkdir(parents=True)
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    monkeypatch.setenv("VOICE_TYPER_CONFIG_DIR", str(config_dir))
+    monkeypatch.setattr(Path, "home", lambda: home)
+    monkeypatch.setattr(platform_flags, "SYSTEM", "darwin")
+    # Pure-dev machine: no installed binary, so the launcher path stays.
+    monkeypatch.setattr(autostart_mod, "_packaged_tauri_target", lambda: None)
+    monkeypatch.setattr(subprocess, "run", lambda args, **kw: MagicMock(returncode=0, stdout=b"", stderr=b""))
+
+    assert autostart_macos_mod._enable_autostart_macos() is True
+
+    plist = home / "Library" / "LaunchAgents" / "com.Lausu.plist"
+    with plist.open("rb") as fh:
+        return plistlib.load(fh)["ProgramArguments"]
+
+
 class TestDevModeUnchanged:
     """A dev checkout (launcher script present, interpreter alive) keeps"""
 
@@ -153,6 +178,40 @@ class TestDevModeUnchanged:
         assert "autostart_launcher" in cmd
         assert "--hidden" in cmd
         assert "--delay" in cmd
+
+    def test_dev_macos_plist_program_arguments_carry_hidden_and_delay(self, monkeypatch, tmp_path):
+        """The dev (non-packaged) macOS LaunchAgent must start the launcher
+        hidden and delayed, exactly like the Linux/Windows logon entries."""
+        from voice_typer.server.task_scheduler import _APP_AUTOSTART_DELAY_SECONDS
+
+        args = _dev_macos_plist_program_arguments(monkeypatch, tmp_path)
+        assert "--hidden" in args, f"dev plist must launch the launcher hidden; got {args!r}"
+        assert "--delay" in args, f"dev plist must delay the logon start; got {args!r}"
+        delay_value = args[args.index("--delay") + 1]
+        assert delay_value == str(_APP_AUTOSTART_DELAY_SECONDS), (
+            "the logon delay must come from the single source (task_scheduler); "
+            f"got {delay_value!r} vs {str(_APP_AUTOSTART_DELAY_SECONDS)!r}"
+        )
+        assert delay_value.isdigit(), f"the delay argument must be numeric; got {delay_value!r}"
+
+    @pytest.mark.parametrize("delay_constant", ["", "soon", None])
+    def test_dev_macos_plist_delay_falls_back_when_constant_is_not_a_number(
+        self, monkeypatch, tmp_path, delay_constant
+    ):
+        """An empty/missing delay constant must still emit a numeric --delay
+        argument (the launcher would silently ignore a non-numeric one)."""
+        import voice_typer.server.task_scheduler as task_scheduler_mod
+
+        monkeypatch.setattr(task_scheduler_mod, "_APP_AUTOSTART_DELAY_SECONDS", delay_constant)
+
+        args = _dev_macos_plist_program_arguments(monkeypatch, tmp_path)
+
+        delay_value = args[args.index("--delay") + 1]
+        assert delay_value == "3", (
+            f"a non-numeric delay constant {delay_constant!r} must fall back to "
+            f"the default; got {delay_value!r}"
+        )
+        assert delay_value.isdigit()
 
     def test_dev_runkey_command_validates_clean(self, win32_platform, monkeypatch, tmp_path):
         """A dev python+launcher command pointing at live files is valid"""
