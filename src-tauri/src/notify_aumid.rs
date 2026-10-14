@@ -10,8 +10,10 @@
 //! Registering the AUMID per-user under
 //! `HKCU\Software\Classes\AppUserModelId\<identifier>` with `DisplayName`
 //! and `IconUri` makes every toast (dev AND installed) show the Lausu
-//! name + icon and play the default notification sound. Idempotent: the key
-//! is (re)written on each launch so icon path changes self-heal.
+//! name + icon and play the default notification sound. Idempotent: the
+//! stored values are compared first and the write (plus its INFO log) is
+//! skipped when they already match, so steady-state launches stay silent;
+//! an icon-path change still self-heals via the next write.
 
 use tauri::AppHandle;
 #[cfg(windows)]
@@ -35,7 +37,7 @@ pub fn register(app: &AppHandle) {
 fn register_windows(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     use std::io::Write;
 
-    use winreg::enums::{HKEY_CURRENT_USER, KEY_SET_VALUE};
+    use winreg::enums::{HKEY_CURRENT_USER, KEY_QUERY_VALUE, KEY_SET_VALUE};
     use winreg::RegKey;
 
     let identifier = app.config().identifier.clone();
@@ -61,12 +63,44 @@ fn register_windows(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 
     let key_path = format!(r"Software\Classes\AppUserModelId\{identifier}");
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let (key, _) = hkcu.create_subkey_with_flags(&key_path, KEY_SET_VALUE)?;
+    let (key, _) = hkcu.create_subkey_with_flags(&key_path, KEY_SET_VALUE | KEY_QUERY_VALUE)?;
+    let want_icon = icon_path.to_string_lossy().to_string();
+    // Read-before-write: a missing value (fresh install) parses as
+    // `None`, which never equals the wanted string, so first launch
+    // still writes + logs.
+    let existing_display: Option<String> = key.get_value("DisplayName").ok();
+    let existing_icon: Option<String> = key.get_value("IconUri").ok();
+    if registration_current(
+        existing_display.as_deref(),
+        existing_icon.as_deref(),
+        &display_name,
+        &want_icon,
+    ) {
+        log::debug!("[AUMID] '{identifier}' already registered (no change)");
+        return Ok(());
+    }
     key.set_value("DisplayName", &display_name)?;
-    key.set_value("IconUri", &icon_path.to_string_lossy().to_string())?;
+    key.set_value("IconUri", &want_icon)?;
     log::info!(
         "[AUMID] registered '{identifier}' (DisplayName='{display_name}', IconUri={})",
         icon_path.display()
     );
     Ok(())
 }
+
+/// True when the stored AUMID values already equal the wanted ones, so
+/// the registry write and its INFO log can be skipped for the launch.
+#[cfg(any(windows, test))]
+fn registration_current(
+    existing_display: Option<&str>,
+    existing_icon: Option<&str>,
+    want_display: &str,
+    want_icon: &str,
+) -> bool {
+    existing_display == Some(want_display) && existing_icon == Some(want_icon)
+}
+
+// C-TEST-5: sibling test file (no inline test blocks in production source).
+#[cfg(test)]
+#[path = "notify_aumid_tests.rs"]
+mod notify_aumid_tests;

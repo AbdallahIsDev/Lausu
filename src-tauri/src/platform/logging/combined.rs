@@ -41,9 +41,9 @@ pub(crate) struct CombinedLogger {
     pub(crate) file_writer: Option<RotatingFileWriter>,
     /// Most-verbose of the two sinks; checked in `enabled()` before format.
     pub(crate) level_filter: log::LevelFilter,
-    /// FILE-sink level gate (default WARN/ERROR so support logs stay
-    /// small; INFO opt-in via `VOICE_TYPER_RUST_INFO_LOG=1` / `RUST_LOG`).
-    /// Terminal keeps the more verbose `level_filter`.
+    /// FILE-sink level gate (default INFO, Python `lausu.log` parity;
+    /// narrowed via `RUST_LOG`). Terminal keeps the more verbose
+    /// `level_filter`.
     pub(crate) file_level: log::LevelFilter,
     /// Cached stderr-logging predicate (debug builds or `RUST_LOG_STDERR=1`).
     /// Atomic so a future command can toggle without restart; Relaxed load

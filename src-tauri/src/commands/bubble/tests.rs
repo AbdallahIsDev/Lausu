@@ -18,8 +18,8 @@
 //! tests in `tests/tauri/mig19/`.
 
 use super::commands::{
-    bubble_dismiss, bubble_hide_complete, bubble_request_screenshot_capture, PillCaptureRect,
-    translate_pill_rect_to_screen,
+    bubble_dismiss, bubble_hide_complete, bubble_request_screenshot_capture,
+    translate_pill_rect_to_screen, PillCaptureRect,
 };
 use super::math::{
     bubble_position_in_work_area, centered_x_in_work_area, clamp_f64_to_i32, clamp_resize_height,
@@ -1012,9 +1012,8 @@ fn test_translate_pill_rect_adds_window_origin() {
 fn test_translate_pill_rect_rounds_and_handles_negative_origin() {
     // Fractional drag rounds; a secondary monitor left of primary
     // contributes a negative origin.
-    let (x, y, w, h) =
-        translate_pill_rect_to_screen(-1920, 100, pill_rect(10.6, 20.4, 99.5, 49.5))
-            .expect("valid rect must translate");
+    let (x, y, w, h) = translate_pill_rect_to_screen(-1920, 100, pill_rect(10.6, 20.4, 99.5, 49.5))
+        .expect("valid rect must translate");
     assert_eq!((x, y, w, h), (-1909, 120, 100, 50));
 }
 

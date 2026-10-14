@@ -1,11 +1,16 @@
-//! Console control handler (Windows): destroy webviews before death.
+//! Console control handler (Windows): cooperative teardown before death.
 //!
-//! Ctrl+C in a dev terminal kills the host with live WebView HWNDs,
-//! and Chromium's AtExit then logs `Failed to unregister class
-//! Chrome_WidgetWin_0` (harmless but alarming). The tray-Quit path
-//! already destroys webviews first (`on_quit_app`); this installs the
-//! same ordering for console kills. Best-effort: failures just log,
-//! and the default termination always proceeds afterwards.
+//! Ctrl+C in a dev terminal used to destroy webviews only, then return
+//! false so the default termination hard-killed the process. The sidecar
+//! never got its `{"type":"shutdown"}` frame: `shutdown_sidecar_for_exit`
+//! (WAL checkpoint, crash-recovery flush, native hotkey teardown) was cut
+//! off mid-flush. The tray-Quit path (`on_quit_app` + `RunEvent::Exit` →
+//! `on_host_exit`) already runs the full ordered teardown; this installs
+//! the same sequence for console kills by calling `on_quit_app` itself
+//! (no second teardown copy to drift): arm `shutting_down`, destroy
+//! webviews, then `app.exit(0)` so the Exit event drives the budgeted
+//! sidecar/worker shutdown. Returning true swallows the OS default
+//! `ExitProcess` so the teardown above owns process exit.
 
 #[cfg(target_os = "windows")]
 static APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
@@ -34,13 +39,28 @@ unsafe extern "system" fn ctrl_handler(ctrl_type: u32) -> windows::core::BOOL {
         CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT, CTRL_C_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT,
     };
     match ctrl_type {
-        CTRL_C_EVENT | CTRL_BREAK_EVENT | CTRL_CLOSE_EVENT | CTRL_LOGOFF_EVENT
-        | CTRL_SHUTDOWN_EVENT => {
+        CTRL_C_EVENT | CTRL_BREAK_EVENT => {
+            if let Some(app) = APP.get() {
+                // Same ordered sequence as tray Quit (`on_quit_app`:
+                // arm `shutting_down`, destroy webviews, `app.exit(0)`
+                // so `RunEvent::Exit` → `on_host_exit` runs the budgeted
+                // sidecar/worker teardown). Best-effort off the OS
+                // handler thread: `AppHandle` is thread-safe, failures
+                // just log inside the callees.
+                crate::sidecar::lifecycle::on_quit_app(app);
+            }
+            // true: swallow the OS default `ExitProcess` so the teardown
+            // above (not the hard kill) owns process exit. `app.exit(0)`
+            // ends the event loop after `on_host_exit` is dispatched.
+            true.into()
+        }
+        CTRL_CLOSE_EVENT | CTRL_LOGOFF_EVENT | CTRL_SHUTDOWN_EVENT => {
             if let Some(app) = APP.get() {
                 crate::sidecar::lifecycle::destroy_webview_windows(app);
             }
-            // false: default termination proceeds, just with no live
-            // WebViews left for Chromium's AtExit to trip over.
+            // false: the OS imposes a seconds-long deadline on these
+            // events (no 30s flush possible); default termination
+            // proceeds, just with no live WebViews left behind.
             false.into()
         }
         _ => false.into(),

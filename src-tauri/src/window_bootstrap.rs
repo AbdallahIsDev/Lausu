@@ -47,6 +47,6 @@ pub(crate) fn bootstrap_main_window(app: &tauri::AppHandle) {
 pub(crate) fn harden_bubble_on_setup(app: &tauri::AppHandle) {
     use tauri::Manager;
     if let Some(window) = app.get_webview_window("bubble") {
-        crate::commands::bubble::harden_bubble_chrome(&window);
+        crate::commands::bubble::harden_bubble_chrome(&window, true);
     }
 }

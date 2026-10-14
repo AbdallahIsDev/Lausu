@@ -29,7 +29,7 @@ pub(crate) fn show_bubble_window(app: &tauri::AppHandle) -> Result<(), String> {
     // window's connection hydration); drags are session-local and are
     // never persisted.
     window.show().map_err(|e| e.to_string())?;
-    harden_bubble_chrome(&window);
+    harden_bubble_chrome(&window, true);
     Ok(())
 }
 
@@ -51,14 +51,92 @@ pub(crate) fn show_bubble_window(app: &tauri::AppHandle) -> Result<(), String> {
 ///   no titlebar menu and no double-click zoom box. Nothing to do.
 /// - Linux: frameless + skip-taskbar windows expose no caption menu
 ///   on right-click under X11 or Wayland. Nothing to do.
-pub(crate) fn harden_bubble_chrome(window: &tauri::WebviewWindow) {
+///
+/// `sync_frame` requests a frame/input re-sync after tao's flag
+/// flips (show/hide/resize/setup/scale). It MUST stay false for
+/// `Moved`: a frame recalc inside an active user drag would fight
+/// the move loop.
+pub(crate) fn harden_bubble_chrome(window: &tauri::WebviewWindow, sync_frame: bool) {
     #[cfg(target_os = "windows")]
     {
+        strip_bubble_system_menu(window, sync_frame);
         gut_bubble_system_menu(window);
         ensure_bubble_msg_hook(window);
     }
     #[cfg(not(target_os = "windows"))]
-    let _ = window;
+    {
+        let _ = window;
+        let _ = sync_frame;
+    }
+}
+
+/// Strip the OS system menu from the bubble window (Windows only).
+///
+/// This does two jobs, and the second is why it is back: besides
+/// removing the menu shell, the `WS_SYSMENU` strip plus the
+/// `FRAMECHANGED` pass re-syncs the frame and input routing that
+/// caption drag depends on (verified live: sysmenu present → drag
+/// frozen; sysmenu stripped → drag works; the queue hook alone
+/// cannot restore it). The style edit runs only when dirty, so
+/// steady-state calls (including per-tick `Moved` during a drag)
+/// are pure reads. Dragging is unaffected by the strip itself.
+#[cfg(target_os = "windows")]
+fn strip_bubble_system_menu(window: &tauri::WebviewWindow, sync_frame: bool) {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, GWL_STYLE, SWP_FRAMECHANGED,
+        SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_SYSMENU,
+    };
+
+    static HARDEN_LOGGED: AtomicBool = AtomicBool::new(false);
+
+    // `window.hwnd()` returns tauri's own `windows`-crate HWND, which
+    // may differ from ours: cross the boundary through the raw value.
+    let raw = match window.hwnd() {
+        Ok(hwnd) => hwnd.0 as isize,
+        Err(e) => {
+            log::warn!("[BUBBLE] system-menu strip skipped (no HWND): {}", e);
+            return;
+        }
+    };
+    // Reading the style is safe from any thread; only the mutation
+    // must run where the window was created. The frame re-sync runs
+    // only on structural hardens, never mid-drag.
+    let had_menu = unsafe {
+        GetWindowLongPtrW(HWND(raw as *mut std::ffi::c_void), GWL_STYLE) & (WS_SYSMENU.0 as isize)
+            != 0
+    };
+    if had_menu && sync_frame {
+        let dispatched = window
+            .run_on_main_thread(move || unsafe {
+                let hwnd = HWND(raw as *mut std::ffi::c_void);
+                let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+                SetWindowLongPtrW(hwnd, GWL_STYLE, style & !(WS_SYSMENU.0 as isize));
+                let _ = SetWindowPos(
+                    hwnd,
+                    None,
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOACTIVATE,
+                );
+            })
+            .is_ok();
+        if !HARDEN_LOGGED.swap(true, Ordering::SeqCst) {
+            if dispatched {
+                log::info!("[BUBBLE] bubble chrome hardened (system menu removed)");
+            } else {
+                log::warn!("[BUBBLE] system-menu strip dispatch failed (menu may still appear)");
+            }
+        }
+    } else if !had_menu && !HARDEN_LOGGED.swap(true, Ordering::SeqCst) {
+        // Genuinely clean (not a skipped dirty mid-drag: the next
+        // structural harden re-strips then).
+        log::info!("[BUBBLE] bubble chrome hardened (no system menu present)");
+    }
 }
 
 /// Queue-level right-button backstop (Windows only, no-op elsewhere).
@@ -278,6 +356,6 @@ pub(crate) fn hide_bubble_window(app: &tauri::AppHandle) -> Result<(), String> {
     bubble.hide().map_err(|e| e.to_string())?;
     // Re-harden so the hook's HWND set stays current whatever
     // ordered the operations (idempotent, cheap when installed).
-    harden_bubble_chrome(&bubble);
+    harden_bubble_chrome(&bubble, true);
     Ok(())
 }

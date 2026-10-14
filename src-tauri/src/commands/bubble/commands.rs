@@ -16,6 +16,9 @@ use super::math::{
     edge_margin_physical, rect_contains_point, round_f64_to_i32_saturating,
     round_f64_to_u32_saturating, RectPx,
 };
+use super::placement::{
+    bubble_edge_for_reanchor, note_bubble_edge_position, note_bubble_user_moved,
+};
 use super::rate_limit::toggle_rate_limiter_allows;
 use super::window::{hide_bubble_window, show_bubble_window};
 
@@ -69,6 +72,9 @@ pub async fn bubble_set_position(
     window
         .set_position(PhysicalPosition::new(px, py))
         .map_err(|e| LausuError::Host(e.to_string()))?;
+    // Remember the edge so later auto-fit resizes re-anchor instead of
+    // sticking top-left (user drags clear it, see `note_bubble_user_moved`).
+    note_bubble_edge_position(&position);
     // One line per placement (hydration + settings changes only, never
     // drags): proves in lausu.log that the session started on the
     // configured edge instead of the OS default position.
@@ -76,35 +82,47 @@ pub async fn bubble_set_position(
     Ok(())
 }
 
+/// Resolve the monitor containing a physical point (cursor or window
+/// origin): OS hit first, manual bounds hit-test for stacked/negative
+/// layouts, primary as the last resort.
+fn resolve_monitor_at_point(
+    app: &tauri::AppHandle,
+    x: f64,
+    y: f64,
+) -> Result<tauri::window::Monitor, String> {
+    match app.monitor_from_point(x, y) {
+        Ok(Some(monitor)) => return Ok(monitor),
+        Ok(None) | Err(_) => {
+            // Fallback hit-test: saturating f64→i32 for NaN/±inf.
+            let cx = round_f64_to_i32_saturating(x);
+            let cy = round_f64_to_i32_saturating(y);
+            let hit = app.available_monitors().ok().and_then(|monitors| {
+                monitors.into_iter().find(|m| {
+                    let rect = RectPx::new(
+                        m.position().x,
+                        m.position().y,
+                        m.size().width,
+                        m.size().height,
+                    );
+                    rect_contains_point(&rect, cx, cy)
+                })
+            });
+            if let Some(monitor) = hit {
+                return Ok(monitor);
+            }
+            log::warn!("[BUBBLE] point ({cx},{cy}) matched no monitor: falling back to primary");
+        }
+    }
+    app.primary_monitor()
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "no primary monitor available".to_string())
+}
+
 /// Resolve monitor the bubble should appear on (cursor display, then primary).
 /// Full bounds hit-test is belt-and-suspenders for stacked/negative layouts.
 fn resolve_cursor_monitor(app: &tauri::AppHandle) -> Result<tauri::window::Monitor, String> {
     if let Ok(cursor) = app.cursor_position() {
-        match app.monitor_from_point(cursor.x, cursor.y) {
-            Ok(Some(monitor)) => return Ok(monitor),
-            Ok(None) | Err(_) => {
-                // Fallback hit-test: saturating f64→i32 for NaN/±inf.
-                let cx = round_f64_to_i32_saturating(cursor.x);
-                let cy = round_f64_to_i32_saturating(cursor.y);
-                let hit = app.available_monitors().ok().and_then(|monitors| {
-                    monitors.into_iter().find(|m| {
-                        let rect = RectPx::new(
-                            m.position().x,
-                            m.position().y,
-                            m.size().width,
-                            m.size().height,
-                        );
-                        rect_contains_point(&rect, cx, cy)
-                    })
-                });
-                if let Some(monitor) = hit {
-                    return Ok(monitor);
-                }
-                log::warn!(
-                    "[BUBBLE] cursor ({cx},{cy}) matched no monitor: falling back to primary"
-                );
-            }
-        }
+        return resolve_monitor_at_point(app, cursor.x, cursor.y);
     }
     app.primary_monitor()
         .map_err(|e| e.to_string())?
@@ -141,6 +159,8 @@ pub async fn bubble_move_by(dx: f64, dy: f64, app: tauri::AppHandle) -> Result<V
         window
             .set_position(PhysicalPosition::new(new_x, new_y))
             .map_err(|e| e.to_string())?;
+        // A keyboard nudge is a user move: later resizes must not snap back.
+        note_bubble_user_moved();
         Ok(json!({"x": new_x, "y": new_y}))
     })
     .await;
@@ -195,8 +215,43 @@ pub async fn bubble_resize(
         .map_err(|e| LausuError::Host(e.to_string()))?;
     // Mode changes resize constantly; keep the chrome stripped no
     // matter which tao path last touched the window. Idempotent.
-    super::window::harden_bubble_chrome(&window);
+    super::window::harden_bubble_chrome(&window, true);
+    // Edge-anchored pills must stay centered: the initial placement was
+    // measured on the pre-content size, and every mode/button change
+    // resizes around a stale top-left. Re-anchor on the remembered edge
+    // with the NEW size; user-dragged pills keep their position.
+    if let Some(edge) = bubble_edge_for_reanchor() {
+        match reanchor_bubble_after_resize(&app, &window, &edge) {
+            Ok((px, py)) => log::info!(
+                "[BUBBLE] re-anchored at ({px},{py}) edge={edge} after resize {capped_w}x{capped_h}"
+            ),
+            Err(e) => log::warn!("[BUBBLE] re-anchor after resize failed: {}", e),
+        }
+    }
     Ok(())
+}
+
+/// Re-center an edge-anchored bubble after an auto-fit resize, on the
+/// monitor holding its current top-left (never the cursor's monitor:
+/// the cursor may have moved away since placement).
+fn reanchor_bubble_after_resize(
+    app: &tauri::AppHandle,
+    window: &tauri::WebviewWindow,
+    edge: &str,
+) -> Result<(i32, i32), String> {
+    let pos = window.outer_position().map_err(|e| e.to_string())?;
+    let monitor = resolve_monitor_at_point(app, pos.x as f64, pos.y as f64)?;
+    let wa = monitor.work_area();
+    let wa_rect = RectPx::new(wa.position.x, wa.position.y, wa.size.width, wa.size.height);
+    let size = window.outer_size().map_err(|e| e.to_string())?;
+    let bubble_w = i32::try_from(size.width).unwrap_or(i32::MAX);
+    let bubble_h = i32::try_from(size.height).unwrap_or(i32::MAX);
+    let margin = edge_margin_physical(monitor.scale_factor());
+    let (px, py) = bubble_position_in_work_area(edge, &wa_rect, bubble_w, bubble_h, margin)?;
+    window
+        .set_position(PhysicalPosition::new(px, py))
+        .map_err(|e| e.to_string())?;
+    Ok((px, py))
 }
 
 /// Bubble mic-button toggle. First sanctioned dispatch-allowlist bypass (SEC-026):
