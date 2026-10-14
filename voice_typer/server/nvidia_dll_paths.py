@@ -50,6 +50,30 @@ from voice_typer.server.platform_utils import is_windows
 log = logging.getLogger(__name__)
 
 
+def _process_tag() -> str:
+    return "worker" if "voice_typer.worker" in sys.modules else "main"
+
+
+def _nvidia_bin_dirs(root: str) -> list[str]:
+    """Every ``nvidia/<pkg>/bin`` dir under ``root``, sorted.
+
+    The CUDA runtime ships as many ``nvidia-*`` wheels (cuBLAS, cuDNN,
+    nvRTC, plus the runtime/fft/rand/sparse/solver/cupti/nccl/nvtx
+    companions); cuBLAS will not load unless its own dependency
+    (cudart) is visible too, so every package bin dir belongs on the
+    loader path, not just the compute trio.
+    """
+    base = os.path.join(root, "nvidia")
+    try:
+        entries = sorted(os.listdir(base))
+    except OSError:
+        return []
+    return [os.path.join(base, name, "bin") for name in entries]
+
+
+_CONFIGURED_NVIDIA_BIN_DIRS: list[str] = []
+
+
 class _NvidiaDllPathManager:
     """Encapsulates the mutable NVIDIA DLL-path state."""
 
@@ -170,23 +194,25 @@ class _NvidiaDllPathManager:
                 uniq.append(r)
         roots = uniq
 
-        candidate_parts = [
-            ("nvidia", "cublas", "bin"),
-            ("nvidia", "cudnn", "bin"),
-            ("nvidia", "cuda_nvrtc", "bin"),
-        ]
+        candidate_bins: list[str] = []
+        for root in roots:
+            candidate_bins.extend(_nvidia_bin_dirs(root))
         existing_paths = os.environ.get("PATH", "").split(os.pathsep)
         new_paths: list[str] = []
-        for root in roots:
-            for parts in candidate_parts:
-                path = os.path.join(root, *parts)
-                if not os.path.isdir(path):
-                    continue
+        configured_bins: list[str] = []
+        for path in candidate_bins:
+            if not os.path.isdir(path):
+                continue
+            try:
                 dll_names = [n for n in os.listdir(path) if n.lower().endswith(".dll")]
-                if not dll_names:
-                    continue
-                if path not in existing_paths and path not in new_paths:
-                    new_paths.append(path)
+            except OSError as exc:
+                log.warning("[CUDA-DLL] cannot list %s: %s", path, exc)
+                continue
+            if not dll_names:
+                continue
+            configured_bins.append(path)
+            if path not in existing_paths and path not in new_paths:
+                new_paths.append(path)
                 add_dll_directory = getattr(os, "add_dll_directory", None)
                 if add_dll_directory is not None:
                     try:
@@ -196,11 +222,13 @@ class _NvidiaDllPathManager:
                     except Exception as exc:
                         log.warning("[CUDA-DLL] add_dll_directory failed: %s", exc)
 
+        _record_configured_bin_dirs(configured_bins)
         if new_paths:
             os.environ["PATH"] = os.pathsep.join(new_paths + existing_paths)
             short = sorted({os.path.basename(os.path.dirname(p)) for p in new_paths})
             log.info(
-                "[CUDA-DLL] PATH += %s%s",
+                "[CUDA-DLL] %s process: NVIDIA GPU DLL dirs added to PATH for GPU transcription: %s%s",
+                _process_tag(),
                 short,
                 format_duration(time.perf_counter() - _t0),
             )
@@ -273,6 +301,38 @@ _cuda_availability_checked = False
 _cuda_available = True
 
 
+def _record_configured_bin_dirs(bin_dirs: list[str]) -> None:
+    """Remember the bin dirs the last configure exposed, for probe naming."""
+    global _CONFIGURED_NVIDIA_BIN_DIRS
+    _CONFIGURED_NVIDIA_BIN_DIRS = list(bin_dirs)
+
+
+def _cuda_dll_probe_names() -> tuple[str, ...]:
+    """cuBLAS probe DLLs, preferring the major version actually on disk.
+
+    The hardcoded ``_CUDA_DLL_CANDIDATES`` only match CUDA 12; a machine
+    carrying CUDA 13 wheels (``cublas64_13.dll``) would fail the probe
+    and be misreported as GPU-less. Probe what the scan found instead.
+    """
+    found: list[str] = []
+    for path in _CONFIGURED_NVIDIA_BIN_DIRS:
+        try:
+            names = os.listdir(path)
+        except OSError:
+            continue
+        for name in names:
+            lower = name.lower()
+            if (
+                lower.startswith(("cublas64_", "cublaslt64_"))
+                and lower.endswith(".dll")
+                and name not in found
+            ):
+                found.append(name)
+    if found:
+        return tuple(sorted(found))
+    return _CUDA_DLL_CANDIDATES
+
+
 def _cuda_runtime_available() -> bool:
     """Return True when the CUDA runtime DLLs can actually be loaded."""
     global _cuda_availability_checked, _cuda_available
@@ -284,13 +344,15 @@ def _cuda_runtime_available() -> bool:
     try:
         import ctypes
 
-        _cuda_available = all(_load_cuda_dll(ctypes, name) for name in _CUDA_DLL_CANDIDATES)
+        probe_names = _cuda_dll_probe_names()
+        _cuda_available = all(_load_cuda_dll(ctypes, name) for name in probe_names)
     except Exception:
+        probe_names = _CUDA_DLL_CANDIDATES
         _cuda_available = True  # fail-open: let ctranslate2 decide
     if not _cuda_available:
         log.warning(
             "[CUDA-DLL] CUDA runtime DLLs unavailable (%s missing). CUDA disabled; model will load on CPU",
-            " / ".join(_CUDA_DLL_CANDIDATES),
+            " / ".join(probe_names),
         )
     return _cuda_available
 

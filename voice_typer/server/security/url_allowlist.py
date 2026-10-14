@@ -77,13 +77,13 @@ def extend_url_allowlist(
     # Routine allowlist extensions (GitHub pack hosts on every boot,
     if normalized:
         log.info(
-            "[URL-Allowlist] extended by %s with hosts: %s",
+            "[URL-Allowlist] %s added trusted hosts for HTTPS calls: %s",
             caller,
             normalized,
         )
     else:
         log.info(
-            "[URL-Allowlist] no-op extend call by %s (no new hosts)",
+            "[URL-Allowlist] %s added no new trusted hosts (already allowed)",
             caller,
         )
 

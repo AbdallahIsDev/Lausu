@@ -88,15 +88,26 @@ def _emit_startup_banner() -> None:
             break
     # in quiet mode, the voice_typer logger is at WARNING. The banner
     _banner_level = logging.WARNING if quiet else logging.INFO
+    # Banner shape: filename (not the full path) + effective level, then
+    # only the non-default modes (debug/quiet/json when active) + process
+    # + session. Default runs stay a short line; active modes still
+    # surface. Debug mode additionally announces itself via the warning
+    # below.
+    _banner_fields = [
+        f"file={_log_file.name}",
+        f"level={logging.getLevelName(_root_level)}",
+    ]
+    if _json_mode:
+        _banner_fields.append("json=True")
+    if debug:
+        _banner_fields.append("debug=True")
+    if quiet:
+        _banner_fields.append("quiet=True")
+    _banner_fields.extend(["process=main", f"session={_session_id}"])
     log.log(
         _banner_level,
-        "[STARTUP] logging initialized: file=%s | level=%s | json=%s | debug=%s | quiet=%s | session=%s",
-        _log_file,
-        logging.getLevelName(_root_level),
-        _json_mode,
-        debug,
-        quiet,
-        _session_id,
+        "[STARTUP] logging initialized: %s",
+        " | ".join(_banner_fields),
     )
 
     # One-time PII heads-up when debug logging is enabled.

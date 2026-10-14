@@ -161,9 +161,12 @@ def _warm_imports() -> None:
             segments.append(f"{pkg}: {bytes_read / (1024 * 1024):.0f} MB{format_duration(time.perf_counter() - pt0)}")
     # One rollup line for all libraries (C-LOG-2: each segment ends with
     if segments:
-        log.info("[PREWARM] file-warmed %s", " | ".join(segments))
+        log.info("[PREWARM] file-warmed into OS cache for faster startup: %s", " | ".join(segments))
     else:
-        log.info("[PREWARM] file-warmed: nothing to warm%s", format_duration(time.perf_counter() - t0))
+        log.info(
+            "[PREWARM] file-warmed: nothing to pre-read into OS cache%s",
+            format_duration(time.perf_counter() - t0),
+        )
     # Warm the active model's WEIGHT files too (the multi-GB payload
     try:
         weight_bytes = _warm_model_weights(_active_model_cache_dirs())
@@ -174,7 +177,7 @@ def _warm_imports() -> None:
     elapsed = time.perf_counter() - t0
     # C-LOG-2: lifecycle-completion log line carries the canonical
     log.info(
-        "[PREWARM] worker warm-imports complete: %d packages (%s)%s",
+        "[PREWARM] worker warm-imports complete: %d libraries pre-read into OS cache (%s)%s",
         len(warmed),
         ", ".join(warmed) if warmed else "none",
         format_duration(elapsed),
@@ -334,7 +337,7 @@ def _warm_model_weights(active_dirs: list[Path]) -> int:
             log.debug("[PREWARM] skip weight %s: %s", path, exc)
     elapsed = time.perf_counter() - t0
     log.info(
-        "[PREWARM] model weights warm pass: %d files, %d already hot, %.1f MB read%s",
+        "[PREWARM] model weights warm pass: %d weight files, %d already hot, %.1f MB pre-read%s",
         len(weight_files),
         skipped_hot,
         total / (1024 * 1024),

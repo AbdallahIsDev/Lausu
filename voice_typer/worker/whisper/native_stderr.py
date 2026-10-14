@@ -27,6 +27,23 @@ _LEVEL_BY_NAME = {
 }
 
 
+# Known-verbose ctranslate2 messages, shortened at the emit site so the
+# log stays scannable. Patterns are anchored to ctranslate2's stable
+# wording; anything unmatched passes through verbatim.
+_INFERRED_COMPUTE_RE = re.compile(
+    r"The compute type inferred from the saved model is (\S+?), "
+    r".*converted to use the (\S+) compute type"
+)
+
+
+def _shorten(msg: str) -> str:
+    """Compress a known-verbose native message, else return it unchanged."""
+    _m = _INFERRED_COMPUTE_RE.search(msg)
+    if _m:
+        return f"compute {_m.group(1)} unsupported, weights converted to {_m.group(2)}"
+    return msg
+
+
 def parse_native_line(line: str) -> tuple[int, str] | None:
     """Split a native ``[ctranslate2]`` stderr line into (level, message)."""
     _match = _NATIVE_LINE_RE.match(line.strip())
@@ -40,7 +57,6 @@ def parse_native_line(line: str) -> tuple[int, str] | None:
 
 @contextlib.contextmanager
 def capture_native_stderr(
-    tag: str = "[MODEL]",
     target: logging.Logger | None = None,
 ) -> Iterator[None]:
     """Capture fd-level stderr for the block; re-emit native lines via logging."""
@@ -62,7 +78,7 @@ def capture_native_stderr(
             with contextlib.suppress(OSError):
                 os.write(_saved, _raw)
         else:
-            _dest.log(_parsed[0], "%s ctranslate2: %s", tag, _parsed[1])
+            _dest.log(_parsed[0], "[ctranslate2] %s", _shorten(_parsed[1]))
 
     def _reader() -> None:
         _buf = bytearray()

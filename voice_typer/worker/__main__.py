@@ -113,14 +113,18 @@ def run() -> int:
     # without polluting every subsequent line. Mirrors
     # ``voice_typer/server/logging_setup.py``'s banner shape.
     _worker_json_mode = os.environ.get("VOICE_TYPER_LOG_JSON", "").lower() in ("1", "true", "yes")
+    _worker_banner_fields = [
+        f"file={_get_log_file_path(_worker_config_dir, process_name='worker').name}",
+        f"level={logging.getLevelName(logging.getLogger('voice_typer').level)}",
+    ]
+    if _worker_json_mode:
+        _worker_banner_fields.append("json=True")
+    if args.debug:
+        _worker_banner_fields.append("debug=True")
+    _worker_banner_fields.extend(["process=worker", f"session={_worker_session_id}"])
     log.info(
-        "[STARTUP] logging initialized: file=%s, level=%s, json=%s, debug=%s, quiet=%s, session=%s",
-        _get_log_file_path(_worker_config_dir, process_name="worker"),
-        logging.getLevelName(logging.getLogger("voice_typer").level),
-        _worker_json_mode,
-        args.debug,
-        False,
-        _worker_session_id,
+        "[STARTUP] logging initialized: %s",
+        " | ".join(_worker_banner_fields),
     )
 
     # Single-instance lock (defense-in-depth; Tauri host owns authoritative).

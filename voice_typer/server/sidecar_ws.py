@@ -117,7 +117,8 @@ the pin map):
 
 - ``connection``: per-connection helpers (duplicate-auth invariant,
   connection semaphore, browser-origin rejection, drop-oldest enqueue,
-  ready emit, event-bus subscriber, initial state snapshot).
+  ready emit, event-bus subscriber, initial state snapshot,
+  backend-ready bubble show).
 - ``dispatch``: the WS dispatch factory (``_make_dispatch``): the
   ADR-0019 per-frame rate-limit gate, the cooperative-shutdown
   gates, the dedicated dispatch thread pool, and the in-flight
@@ -179,6 +180,7 @@ from voice_typer.server.sidecar_ws_internals import (  # C-ARCH-2 canonical call
 # by source-grep tests. C-ARCH-2: production resolves sibling names via
 from voice_typer.server.sidecar_ws_internals.connection import (  # noqa: F401
     _check_duplicate_auth,
+    _emit_bubble_startup_show,
     _emit_initial_state_snapshot,
     _emit_ready_if_first,
     _enqueue_safe,
@@ -334,6 +336,11 @@ async def _handle_connection_inner(websocket, server: IPCServer, dispatch, peer)
     _push_to_ws = _install_subscriber(server, loop, outbound)
     _emit_ready_if_first(server)
     _emit_initial_state_snapshot(server)
+    # Backend-ready bubble show (always_visible only): the host displays
+    # the pill as soon as this WS is up instead of waiting for the late
+    # startup phases (mic/model/worker). Runs after `ready` + snapshot
+    # so the C-WS-1 first-frame contract is untouched.
+    _emit_bubble_startup_show(server)
     writer_task = _outbound_mod._start_writer(websocket, outbound)
 
     from voice_typer.server import event_bus

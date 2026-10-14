@@ -171,7 +171,11 @@ def verify_native_binary(path: Path, expected_sha256: str) -> bool:
             actual,
         )
         return False
-    log.debug("[NATIVE-BINARY] Checksum OK for binary=%s (sha256=%s)", path.name, actual)
+    # Success logs the binary name only: the full digest matched the
+    # manifest (the source of truth), so persisting it adds no
+    # diagnostic value. Keep the message pure ASCII: a multibyte
+    # truncation marker here once glued this record to the next line.
+    log.debug("[NATIVE-BINARY] Checksum OK for binary=%s", path.name)
     return True
 
 
