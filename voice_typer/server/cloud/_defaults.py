@@ -9,7 +9,7 @@ tables are pinned against each other by
 ``tests/test_cloud_provider_catalogue_parity.py``.
 
 Source of the model ids: the renderer catalogue
-(``client/src/renderer/src/lib/utils/models.ts``), which cites each
+(``client/src/renderer/src/lib/utils/cloudCatalog.ts``), which cites each
 provider's own live model list.
 """
 

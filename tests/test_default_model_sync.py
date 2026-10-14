@@ -7,7 +7,7 @@ from pathlib import Path
 
 from voice_typer.server.model_registry import DEFAULT_MODEL_SIZE
 
-# Canonical home of the renderer's MODEL_DEFAULT (lib layer).
+# Canonical home of the renderer's MODEL_DEFAULT (lib/utils/modelCatalog.ts).
 MODEL_DEFAULT_TS_PATH = (
     Path(__file__).resolve().parent.parent
     / "voice_typer"
@@ -17,7 +17,7 @@ MODEL_DEFAULT_TS_PATH = (
     / "src"
     / "lib"
     / "utils"
-    / "models.ts"
+    / "modelCatalog.ts"
 )
 
 # Compatibility re-export in the onboarding constants module.
@@ -42,7 +42,7 @@ def _extract_model_default(ts_source: str) -> str:
         ts_source,
     )
     assert m is not None, (
-        'models.ts is missing `export const MODEL_DEFAULT = "...";`. '
+        'modelCatalog.ts is missing `export const MODEL_DEFAULT = "...";`. '
         "Either the constant was renamed (update this test) or removed "
         "(update the wizard to source the default elsewhere)."
     )
@@ -52,14 +52,14 @@ def _extract_model_default(ts_source: str) -> str:
 def test_constants_ts_model_default_matches_backend_default() -> None:
     """The TS-side ``MODEL_DEFAULT`` must equal ``DEFAULT_MODEL_SIZE``."""
     assert MODEL_DEFAULT_TS_PATH.exists(), (
-        f"models.ts not found at {MODEL_DEFAULT_TS_PATH}, has the renderer's lib/utils directory moved?"
+        f"modelCatalog.ts not found at {MODEL_DEFAULT_TS_PATH}, has the renderer's lib/utils directory moved?"
     )
     ts_source = MODEL_DEFAULT_TS_PATH.read_text(encoding="utf-8")
     ts_value = _extract_model_default(ts_source)
     assert ts_value == DEFAULT_MODEL_SIZE, (
-        f"models.ts::MODEL_DEFAULT = {ts_value!r} but "
+        f"modelCatalog.ts::MODEL_DEFAULT = {ts_value!r} but "
         f"model_registry.DEFAULT_MODEL_SIZE = {DEFAULT_MODEL_SIZE!r}. "
-        "Update models.ts to match the backend's canonical default "
+        "Update modelCatalog.ts to match the backend's canonical default "
         "(one-line change in `voice_typer/server/model_registry.py`)."
     )
 

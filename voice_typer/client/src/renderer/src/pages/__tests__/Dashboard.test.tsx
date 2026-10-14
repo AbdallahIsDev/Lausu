@@ -44,7 +44,7 @@ const HOOK_SRC = fs.readFileSync(
 // read here so the point-10 assertions can verify the `downloaded`
 // check lives in ONE place (the shared helper), not in the hook.
 const MODELS_SRC = fs.readFileSync(
-	path.resolve(__dirname, "..", "..", "lib", "utils", "models.ts"),
+	path.resolve(__dirname, "..", "..", "lib", "utils", "modelActive.ts"),
 	"utf8",
 );
 

@@ -20,6 +20,9 @@ import {
 	INITIAL_MODELS,
 	isCloudModelActive,
 	isNoModelSelected,
+	isRealtimeCloudModel,
+	isRealtimeGuardOnly,
+	isRealtimeWsSupported,
 } from "@/lib/utils/models";
 import type { LausuConfig } from "@/types/config";
 
@@ -94,7 +97,7 @@ describe("CLOUD_PROVIDERS catalogue invariants", () => {
 	});
 });
 
-describe("OpenAI catalogue — batch endpoint only", () => {
+describe("OpenAI catalogue", () => {
 	it("lists gpt-transcribe under OpenAI's own hyphenated casing", () => {
 		// The generic splitter renders "Gpt Transcribe", which is not how
 		// OpenAI writes it. The label is what the row heading AND the
@@ -113,29 +116,31 @@ describe("OpenAI catalogue — batch endpoint only", () => {
 		expect(providerByKey("openai").defaultModel).toBe("whisper-1");
 	});
 
-	it("excludes the Realtime-API models this provider's endpoint cannot serve", () => {
-		// `gpt-live-transcribe` and `gpt-realtime-whisper` are real OpenAI
-		// transcription models, but they belong to Realtime API sessions
-		// (WebSocket / WebRTC), NOT to `POST /v1/audio/transcriptions` —
-		// the single endpoint the openai provider calls. Listing them would
-		// render a Select button whose activation can never transcribe.
-		//
-		// This is a guard on a DECISION, so it is meant to be brittle: if
-		// OpenAI later serves either id on the batch endpoint, this test
-		// fails and forces the re-check rather than letting the omission
-		// rot silently.
-		const ids = providerByKey("openai").models.map((model) => model.id);
-		expect(ids).not.toContain("gpt-live-transcribe");
-		expect(ids).not.toContain("gpt-realtime-whisper");
+	it("lists the Realtime-API ids as realtime rows the app streams over WS", () => {
+		// `gpt-live-transcribe` and `gpt-realtime-whisper` belong to
+		// Realtime API sessions, NOT to `POST /v1/audio/transcriptions` —
+		// but the app now streams OpenAI sessions over its own WS
+		// transport, so these rows are selectable despite `realtimeOnly`.
+		for (const id of ["gpt-live-transcribe", "gpt-realtime-whisper"]) {
+			const entry = providerByKey("openai").models.find(
+				(model) => model.id === id,
+			);
+			expect(entry?.realtimeOnly).toBe(true);
+			expect(isRealtimeCloudModel("openai", id)).toBe(true);
+			expect(isRealtimeWsSupported("openai", id)).toBe(true);
+			expect(isRealtimeGuardOnly("openai", id)).toBe(false);
+		}
+		expect(isRealtimeCloudModel("openai", "whisper-1")).toBe(false);
+		expect(isRealtimeWsSupported("openai", "whisper-1")).toBe(false);
 	});
 });
 
 describe("Gemini catalogue — one dedicated ASR model", () => {
-	it("serves gemini-3.5-transcribe alone, as its own default", () => {
+	it("serves gemini-3.5-transcribe as its default, beside the realtime guard row", () => {
 		const provider = providerByKey("gemini");
-		expect(provider.models.map((model) => model.id)).toEqual([
-			"gemini-3.5-transcribe",
-		]);
+		const ids = provider.models.map((model) => model.id);
+		expect(ids).toContain("gemini-3.5-transcribe");
+		expect(ids).toContain("gemini-3.5-transcribe-live");
 		// The default must be one of the provider's own models
 		// (`isCloudModelActive` falls back to it when `cloud_model` is empty,
 		// which is the state onboarding leaves behind).
@@ -150,15 +155,19 @@ describe("Gemini catalogue — one dedicated ASR model", () => {
 		);
 	});
 
-	it("excludes the Live-API sibling the unary endpoint cannot serve", () => {
-		// `gemini-3.5-transcribe-live` is the Live API (WebSocket) variant of
-		// the same model, for continuous microphone audio. This provider posts
-		// one finished file to `{model}:generateContent`, so a row for it would
-		// be a Select button that can never transcribe — the same decision as
-		// the OpenAI realtime ids. Deliberately brittle: if Google ever serves
-		// it on the unary endpoint, this fails and forces the re-check.
-		const ids = providerByKey("gemini").models.map((model) => model.id);
-		expect(ids).not.toContain("gemini-3.5-transcribe-live");
+	it("lists the Live-API sibling as a realtime-only guard row", () => {
+		// `gemini-3.5-transcribe-live` is the Live API (WebSocket) variant
+		// of the same model, for continuous microphone audio. This
+		// provider posts one finished file to `{model}:generateContent`,
+		// so the row renders a marker, never Select.
+		const entry = providerByKey("gemini").models.find(
+			(model) => model.id === "gemini-3.5-transcribe-live",
+		);
+		expect(entry?.realtimeOnly).toBe(true);
+		expect(isRealtimeCloudModel("gemini", "gemini-3.5-transcribe-live")).toBe(
+			true,
+		);
+		expect(isRealtimeCloudModel("gemini", "gemini-3.5-transcribe")).toBe(false);
 	});
 
 	it("no longer offers the general-purpose Flash models it replaced", () => {
@@ -169,6 +178,107 @@ describe("Gemini catalogue — one dedicated ASR model", () => {
 		expect(ids).not.toContain("gemini-3.8-flash");
 		expect(ids).not.toContain("gemini-2.5-flash");
 		expect(ids).not.toContain("gemini-2.0-flash");
+	});
+});
+
+describe("realtime-only catalogue guard", () => {
+	const realtimePairs: Array<[string, string]> = [
+		["openai", "gpt-live-transcribe"],
+		["openai", "gpt-realtime-whisper"],
+		["gemini", "gemini-3.5-transcribe-live"],
+	];
+
+	it("flags exactly the three streaming ids, nothing else", () => {
+		const flagged = CLOUD_PROVIDERS.flatMap((provider) =>
+			provider.models
+				.filter((model) => model.realtimeOnly === true)
+				.map((model) => `${provider.key}/${model.id}`),
+		);
+		expect(flagged.sort()).toEqual(
+			realtimePairs.map(([key, id]) => `${key}/${id}`).sort(),
+		);
+	});
+
+	it("marks exactly the two OpenAI rows as WS-supported, gemini stays guard-only", () => {
+		// Count-based: the app streams OpenAI sessions only; the Live
+		// API uses a different protocol with no app transport.
+		const supported = CLOUD_PROVIDERS.flatMap((provider) =>
+			provider.models
+				.filter((model) => isRealtimeWsSupported(provider.key, model.id))
+				.map((model) => `${provider.key}/${model.id}`),
+		);
+		expect(supported.sort()).toEqual(
+			["openai/gpt-live-transcribe", "openai/gpt-realtime-whisper"].sort(),
+		);
+		expect(isRealtimeGuardOnly("gemini", "gemini-3.5-transcribe-live")).toBe(
+			true,
+		);
+		expect(isRealtimeWsSupported("gemini", "gemini-3.5-transcribe-live")).toBe(
+			false,
+		);
+	});
+
+	it("never uses a realtime model as a provider default", () => {
+		// The defaults stay the batch ids, so the empty-`cloud_model`
+		// fallback always resolves to a transcribable model.
+		expect(providerByKey("openai").defaultModel).toBe("whisper-1");
+		expect(providerByKey("groq").defaultModel).toBe("whisper-large-v3");
+		expect(providerByKey("deepgram").defaultModel).toBe("nova-3");
+		expect(providerByKey("gemini").defaultModel).toBe("gemini-3.5-transcribe");
+		for (const provider of CLOUD_PROVIDERS) {
+			const flagged = provider.models
+				.filter((model) => model.realtimeOnly === true)
+				.map((model) => model.id);
+			expect(flagged).not.toContain(provider.defaultModel);
+		}
+	});
+
+	it("keeps every id — realtime included — globally unique", () => {
+		const all = CLOUD_PROVIDERS.flatMap((provider) =>
+			provider.models.map((model) => model.id),
+		);
+		for (const [, id] of realtimePairs) {
+			expect(all.filter((entry) => entry === id)).toHaveLength(1);
+		}
+		expect(new Set(all).size).toBe(all.length);
+	});
+
+	it("reads a guard-only model as never active, even when the config names it", () => {
+		const c = makeConfig({
+			asr_backend: "cloud",
+			cloud_provider: "gemini",
+			cloud_model: "gemini-3.5-transcribe-live",
+		});
+		expect(
+			isCloudModelActive(
+				providerByKey("gemini"),
+				"gemini-3.5-transcribe-live",
+				c,
+			),
+		).toBe(false);
+	});
+
+	it("reads a WS-supported realtime model as active when the config names it", () => {
+		for (const id of ["gpt-live-transcribe", "gpt-realtime-whisper"]) {
+			const c = makeConfig({
+				asr_backend: "cloud",
+				cloud_provider: "openai",
+				cloud_model: id,
+			});
+			expect(isCloudModelActive(providerByKey("openai"), id, c)).toBe(true);
+		}
+	});
+
+	it("labels the realtime rows through the catalogue", () => {
+		expect(cloudModelLabel("openai", "gpt-live-transcribe")).toBe(
+			"GPT-Live-Transcribe",
+		);
+		expect(cloudModelLabel("openai", "gpt-realtime-whisper")).toBe(
+			"GPT-Realtime-Whisper",
+		);
+		expect(cloudModelLabel("gemini", "gemini-3.5-transcribe-live")).toBe(
+			"Gemini 3.5 Transcribe Live",
+		);
 	});
 });
 
