@@ -97,37 +97,37 @@ class WorkerTranscriber:
         if name == "parakeet":
             registry.create(
                 "parakeet",
-                parakeet_kwargs=dict(
-                    device=getattr(config, "device", "auto"),
-                    language=getattr(config, "language", None),
+                parakeet_kwargs={
+                    "device": getattr(config, "device", "auto"),
+                    "language": getattr(config, "language", None),
                     # live Config handle for the hallucination filter mode
-                    config=config,
-                ),
+                    "config": config,
+                },
             )
         elif name == "qwen":
             registry.create(
                 "qwen",
-                qwen_kwargs=dict(
-                    model_path=getattr(config, "qwen_model_path", None),
-                    device=getattr(config, "device", "auto"),
-                    language=getattr(config, "language", None),
+                qwen_kwargs={
+                    "model_path": getattr(config, "qwen_model_path", None),
+                    "device": getattr(config, "device", "auto"),
+                    "language": getattr(config, "language", None),
                     # live Config handle for the hallucination filter mode
-                    config=config,
-                ),
+                    "config": config,
+                },
             )
         else:
             registry.create(
                 "whisper",
-                whisper_kwargs=dict(
-                    model_size=getattr(config, "model_size", "small.en"),
-                    device=getattr(config, "device", "auto"),
-                    language=getattr(config, "language", None),
-                    beam_size=getattr(config, "beam_size", 1),
-                    best_of=getattr(config, "best_of", 1),
-                    condition_on_previous_text=getattr(config, "condition_on_previous_text", False),
+                whisper_kwargs={
+                    "model_size": getattr(config, "model_size", "small.en"),
+                    "device": getattr(config, "device", "auto"),
+                    "language": getattr(config, "language", None),
+                    "beam_size": getattr(config, "beam_size", 1),
+                    "best_of": getattr(config, "best_of", 1),
+                    "condition_on_previous_text": getattr(config, "condition_on_previous_text", False),
                     # live Config handle for the hallucination filter mode
-                    config=config,
-                ),
+                    "config": config,
+                },
             )
         return registry
 
