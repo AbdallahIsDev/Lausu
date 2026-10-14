@@ -361,7 +361,8 @@ lausu-server = "voice_typer.server.ipc_server:main"
 # pytest-mock: MagicMock fixture.
 test = [
     # Runner tracks the current stable major (FV-60): floor 9 chosen
-    # because the full suite is green on 9.1.1 (14660 passed, 0 failed)
+    # because the full suite is green on 9.1.1 (0 failed; 17655 tests
+    # collected as of 2026-10-13, 14660 when this floor was chosen)
     # with all plugins loaded (xdist/asyncio/timeout/cov/benchmark/
     # hypothesis), no pytest_itemstart/inicfg usage exists in tests/ or
     # conftest.py, and CI jobs already install unpinned latest pytest.
@@ -383,7 +384,7 @@ test = [
     "hypothesis>=6.0,<7",
     # pytest-benchmark for performance benchmarks
     "pytest-benchmark>=4.0,<6",
-    # pytest-xdist so the 309-file test suite can run in
+    # pytest-xdist so the 1016-file test suite can run in
     # parallel on multi-core CI runners (cuts the per-leg wall time
     # from ~25 min to ~5-7 min on a 4-core runner). Local single-
     # core invocations are unaffected, pytest-xdist only activates
@@ -583,7 +584,7 @@ testpaths = ["tests"]
 # PERF-007: prevent pytest from crawling into irrelevant directories
 # during test collection. Without this, pytest walks .venv/, build/,
 # voice_typer/client/node_modules/ etc. checking every .py file for
-# test functions, on a 544-file suite the extra stat() calls add up.
+# test functions, on a 1016-file suite the extra stat() calls add up.
 # ``.hypothesis`` MUST be listed here: hypothesis writes its example
 # database (``.hypothesis/examples/*``) under the repo root, and the
 # hypothesis pytest plugin emits a ``UserWarning: Skipping collection
@@ -602,8 +603,9 @@ norecursedirs = [".venv", "dist", "build", "node_modules", "voice_typer/client",
 # stay in lockstep — tests/test_coverage_floor_consistency.py fails if
 # they drift apart.
 # COV-002 + MO-89 re-measurement (2026-09-16, full suite, 14976 passing
-# tests): global line coverage is 84.84% (37491/44193 statements across
-# 459 files) and there are ZERO 0%-coverage modules. The earlier
+# tests then; the suite collects 17655 as of 2026-10-13): global line
+# coverage is 84.84% (37491/44193 statements across 459 files) and there
+# are ZERO 0%-coverage modules. The earlier
 # "0%-coverage modules are the bottleneck" claim (cloud-engine adapters,
 # platform GUI shells) is obsolete: the cloud adapters are exercised via
 # mocked transports in tests/test_cloud_engines.py and the platform
@@ -686,7 +688,7 @@ norecursedirs = [".venv", "dist", "build", "node_modules", "voice_typer/client",
 # would silently drop CI coverage enforcement.
 # PERF-007: --import-mode=importlib avoids the legacy "prepend" mode
 # which copies test files to a temp dir and adjusts sys.path for every
-# single file, on a 544-file suite this adds ~1-2s of pure I/O overhead
+# single file, on a 1016-file suite this adds ~1-2s of pure I/O overhead
 # at collection time. importlib mode uses importlib.import_module() instead,
 # which is both faster and avoids subtle __file__ / __name__ mismatches.
 # Safe for this project because no test relies on the "prepend" path
