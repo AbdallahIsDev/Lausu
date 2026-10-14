@@ -1,19 +1,11 @@
 """All heavy dependencies are mocked via the project-wide ``mock_heavy_imports``"""
 
-import time
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 
-
-def _wait_for_busy_clear(app, timeout=2.0):
-    """Poll until app._busy_event is set (not busy)."""
-    deadline = time.monotonic() + timeout
-    while not app._busy_event.is_set() and time.monotonic() < deadline:
-        time.sleep(0.005)
-    if not app._busy_event.is_set():
-        raise TimeoutError(f"_busy_event still not set after {timeout}s")
+from tests.fixtures.wait_helpers import wait_for_busy_clear
 
 
 class TestToggleDictationDispatch:
@@ -171,7 +163,7 @@ class TestStreamingIntegration:
         app.recording.set_streaming_session(session)
 
         app._stop_dictation()
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
         session.finalize.assert_called_once_with(audio)
         app.models.transcriber.transcribe_with_fallback.assert_not_called()
