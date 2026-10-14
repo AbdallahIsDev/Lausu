@@ -3,19 +3,11 @@
 import contextlib
 import json
 import sys
-import time
 from unittest.mock import MagicMock
 
 import numpy as np
 
-
-def _wait_for_busy_clear(app, timeout=2.0):
-    """Poll until app._busy_event is set (not busy)."""
-    deadline = time.monotonic() + timeout
-    while not app._busy_event.is_set() and time.monotonic() < deadline:
-        time.sleep(0.005)
-    if not app._busy_event.is_set():
-        raise TimeoutError(f"_busy_event still not set after {timeout}s")
+from tests.fixtures.wait_helpers import wait_for_busy_clear
 
 
 class TestConfigWiring:
@@ -165,7 +157,7 @@ class TestTextCleanupConfig:
 
         monkeypatch.setattr("voice_typer.server.text_cleanup.clean_transcribed_text", spy)
         app._stop_dictation()
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
         assert not called, "clean_transcribed_text should NOT be called when disabled"
 
     def test_cleanup_applied_when_enabled(self):

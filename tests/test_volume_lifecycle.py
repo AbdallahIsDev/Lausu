@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import contextlib
 import sys
-import time
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
+
+from tests.fixtures.wait_helpers import wait_for_busy_clear
 
 # These must be in place before LausuApp is imported, so we apply
 
@@ -146,15 +147,6 @@ def app_with_fake_ducker(tmp_config_dir, monkeypatch):
     return instance, backend
 
 
-def _wait_for_busy_clear(app, timeout=2.0):
-    """Poll until app._busy_event is set (not busy)."""
-    deadline = time.monotonic() + timeout
-    while not app._busy_event.is_set() and time.monotonic() < deadline:
-        time.sleep(0.05)
-    if not app._busy_event.is_set():
-        raise TimeoutError(f"_busy_event still not set after {timeout}s")
-
-
 class TestStartDictationDucksVolume:
     """§7.2: _start_dictation() must duck system volume AFTER recorder.start()."""
 
@@ -242,7 +234,7 @@ class TestStopDictationRestoresVolume:
         assert app._volume_ducker.is_ducked
 
         app._stop_dictation()
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
         # Restore should have faded back to the saved 0.5
         assert (0.5, 200) in backend.fade_calls
@@ -277,7 +269,7 @@ class TestStopDictationRestoresVolume:
         app.models.transcriber.transcribe_with_fallback = spy_transcribe
 
         app._stop_dictation()
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
         # Restore should appear before transcribe
         if "transcribe" in events:
@@ -298,7 +290,7 @@ class TestStopDictationRestoresVolume:
         app.models._registry.register("whisper", mock_transcriber)
 
         app._stop_dictation()
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
         # No fade calls, restore is gated on volume_duck_enabled
         assert backend.fade_calls == []

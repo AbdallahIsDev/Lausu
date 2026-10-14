@@ -4,20 +4,12 @@ import contextlib
 import inspect
 import logging
 import sys
-import time
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 
-
-def _wait_for_busy_clear(app, timeout=10.0):
-    """Poll until app._busy_event is set (not busy)."""
-    deadline = time.monotonic() + timeout
-    while not app._busy_event.is_set() and time.monotonic() < deadline:
-        time.sleep(0.005)
-    if not app._busy_event.is_set():
-        raise TimeoutError(f"_busy_event still not set after {timeout}s")
+from tests.fixtures.wait_helpers import wait_for_busy_clear
 
 
 class TestAppStateTransitions:
@@ -70,7 +62,7 @@ class TestAppStateTransitions:
 
         app._stop_dictation()
 
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
         assert app._busy_event.is_set()
         # the short-audio branch must NOT call into the transcription
         app.models.transcriber.transcribe_with_fallback.assert_not_called()
@@ -90,7 +82,7 @@ class TestAppStateTransitions:
 
         app._stop_dictation()
 
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
         app.clipboard.copy.assert_called_with("Hello world")
         app.clipboard.paste.assert_called_once()
@@ -110,7 +102,7 @@ class TestAppStateTransitions:
 
         app._stop_dictation()
 
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
         app.clipboard.copy.assert_called_once_with("Can we test this now?")
 
@@ -134,7 +126,7 @@ class TestAppStateTransitions:
 
         app._stop_dictation()
 
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
         # copy was called
         app.clipboard.copy.assert_called_once_with("Secret text")
@@ -155,7 +147,7 @@ class TestAppStateTransitions:
 
         app._stop_dictation()
 
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
         app.clipboard.copy.assert_not_called()
 
@@ -173,7 +165,7 @@ class TestAppStateTransitions:
 
         app._stop_dictation()
 
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
         # Should not crash; error state should be set
         assert app._busy_event.is_set()
@@ -198,7 +190,7 @@ class TestAppStateTransitions:
 
         app._stop_dictation()
 
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
         assert app._busy_event.is_set()
         # The mock must have been called (at least once) by _transcribe().
@@ -235,7 +227,7 @@ class TestAppStateTransitions:
         # Must set transcribing state instead of hiding
         app._waveform_bubble.set_state.assert_called_once_with("transcribing")
         # Must NOT hide the bubble synchronously during stop (it stays visible
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
     def test_stop_dictation_sets_bubble_loading_when_engine_cold(self, app):
         """Cold engine at stop → bubble 'loading', flipped later by the hold."""
@@ -259,7 +251,7 @@ class TestAppStateTransitions:
 
         first = app._waveform_bubble.set_state.call_args_list[0]
         assert first.args[0] == "loading", f"stop-time push must be 'loading' when cold, got {first!r}"
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
     def test_stop_dictation_calls_set_state_transcribing(self, app):
         """_stop_dictation must call bubble.set_state('transcribing') during"""
@@ -286,7 +278,7 @@ class TestAppStateTransitions:
 
         app._stop_dictation()
 
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
         transcribing_calls = [call for call in call_order if call[0] == "set_state" and call[1] == "transcribing"]
         assert len(transcribing_calls) >= 1, f"set_state('transcribing') must be called, call_order={call_order}"
@@ -330,7 +322,7 @@ class TestAppStateTransitions:
 
         # First stop, transcription fails
         app._stop_dictation()
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
         assert app._busy_event.is_set(), "_busy_event must be set after failed transcription"
 
@@ -344,7 +336,7 @@ class TestAppStateTransitions:
 
         app.recorder.recording = True
         app.toggle_dictation()  # F2 → stop recording, transcribe
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
         assert app._busy_event.is_set()
         app.models.transcriber.transcribe_with_fallback.assert_called_once()
@@ -372,7 +364,7 @@ class TestAppStateTransitions:
 
         # Drive a real stop via the delegate.
         app._stop_dictation()
-        _wait_for_busy_clear(app)
+        wait_for_busy_clear(app)
 
         # Assert the recording_stopped event was emitted exactly once.
         stop_events = [e for e in captured["events"] if e.get("type") == "recording_stopped"]
