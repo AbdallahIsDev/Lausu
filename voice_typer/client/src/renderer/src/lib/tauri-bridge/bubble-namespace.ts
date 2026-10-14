@@ -197,6 +197,32 @@ export function createBubbleNamespace(
 				);
 		},
 
+		// Screenshot beta: the overlay drag rect is pill-client device
+		// px; the host translates to screen space and forwards
+		// `screenshot_capture` to the sidecar. Returns the invoke
+		// promise (rejected after logging) so the caller can log
+		// captured/failed and decide whether the one shot is burnt.
+		requestScreenshotCapture: (
+			cycleId: string,
+			rect: { left: number; top: number; width: number; height: number },
+		): Promise<unknown> => {
+			return tauri.core
+				.invoke("bubble_request_screenshot_capture", {
+					cycle_id: cycleId,
+					left: rect.left,
+					top: rect.top,
+					width: rect.width,
+					height: rect.height,
+				})
+				.catch((err) => {
+					console.warn(
+						"[renderer:bubble-namespace] bubble_request_screenshot_capture failed:",
+						err,
+					);
+					throw err;
+				});
+		},
+
 		hideComplete: () => {
 			tauri.core
 				.invoke("bubble_hide_complete")

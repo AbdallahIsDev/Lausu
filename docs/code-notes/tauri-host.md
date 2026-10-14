@@ -269,8 +269,13 @@ SEC-016 gates (`require_bubble_window`) apply only to `bubble_signal_ready`,
 `bubble_hide_complete`, and `bubble_dismiss` — spoofing those from another
 window would break readiness/hide UX.
 
-`bubble_toggle_dictation` is the sole dispatch-allowlist bypass (fixed command
-+ fire-and-forget + 500ms rate limit). `bubble_move_by` uses `spawn_blocking`
+`bubble_toggle_dictation` is the first dispatch-allowlist bypass (fixed command
++ fire-and-forget + 500ms rate limit). The second is
+`bubble_request_screenshot_capture` (fixed `screenshot_capture` envelope with
+pill-to-screen rect translation + cycle id, request/response so the renderer
+can log captured/failed, bubble-window-gated). The sandboxed bubble has no
+`window.python`, so these host hops are the only sidecar paths it can use.
+`bubble_move_by` uses `spawn_blocking`
 because OS-IPC at ~60 Hz mousemove must not pin an async worker.
 Resize clamps to predecessor pill MIN/MAX (cross-host consistency + SEC-016
 phishing-overlay bound).

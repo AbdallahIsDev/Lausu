@@ -44,8 +44,9 @@ use std::sync::Arc;
 use tauri::{Listener, Manager, RunEvent};
 
 use commands::bubble::{
-    bubble_dismiss, bubble_hide_complete, bubble_move_by, bubble_resize, bubble_set_draggable,
-    bubble_set_position, bubble_show, bubble_signal_ready, bubble_toggle_dictation,
+    bubble_dismiss, bubble_hide_complete, bubble_move_by, bubble_request_screenshot_capture,
+    bubble_resize, bubble_set_draggable, bubble_set_position, bubble_show, bubble_signal_ready,
+    bubble_toggle_dictation,
 };
 use commands::export::{export_history, export_vocabulary};
 use commands::sidecar_cmds::{dispatch, restart_sidecar, shutdown_sidecar};
@@ -135,8 +136,9 @@ fn main() {
             bubble_hide_complete,
             // dismiss command (mirror of `bubble_hide_complete`)
             bubble_dismiss,
-            // bubble window extensions (resize / toggle)
+            // bubble window extensions (resize / toggle / screenshot)
             bubble_resize,
+            bubble_request_screenshot_capture,
             bubble_toggle_dictation,
             // system-level window_ commands
             open_logs,

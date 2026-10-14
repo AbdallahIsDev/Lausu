@@ -53,6 +53,10 @@ function makeMockBubble() {
 		}),
 		toggleDictation: vi.fn(),
 		dismiss: vi.fn(),
+		requestScreenshotCapture: vi.fn().mockResolvedValue({
+			type: "screenshot_captured",
+			data: { path: "shot.png", width: 10, height: 10, bytes: 8 },
+		}),
 		_listeners: listeners,
 	};
 }
@@ -157,11 +161,12 @@ describe("screenshot beta annotate button", () => {
 		expect(mockPythonCall).not.toHaveBeenCalled();
 	});
 
-	it("drag release captures with a device-pixel rect and burns the one shot", () => {
+	it("drag release captures via the bubble host bridge and burns the one shot on success", async () => {
 		Object.defineProperty(window, "devicePixelRatio", {
 			value: 2,
 			configurable: true,
 		});
+		const info = vi.spyOn(console, "info").mockImplementation(() => {});
 		try {
 			render(<Bubble />);
 			pushBetaConfig(true);
@@ -173,18 +178,23 @@ describe("screenshot beta annotate button", () => {
 			fireEvent.mouseDown(dialog, { clientX: 10, clientY: 10, button: 0 });
 			fireEvent.mouseMove(dialog, { clientX: 110, clientY: 60 });
 			fireEvent.mouseUp(dialog, { clientX: 110, clientY: 60 });
-			expect(mockPythonCall).toHaveBeenCalledTimes(1);
-			expect(mockPythonCall).toHaveBeenCalledWith({
-				type: "screenshot_capture",
-				data: {
-					cycle_id: expect.any(String),
-					rect: { left: 20, top: 20, width: 200, height: 100 },
-				},
-			});
+			const request = mockBubble.requestScreenshotCapture;
+			expect(request).toHaveBeenCalledTimes(1);
+			const [cycleId, rect] = request.mock.calls[0] as [unknown, unknown];
+			expect(typeof cycleId).toBe("string");
+			expect(rect).toEqual({ left: 20, top: 20, width: 200, height: 100 });
+			// The sandboxed bubble has no window.python: the capture must
+			// NOT go through the python bridge (that path silently no-ops).
+			expect(mockPythonCall).not.toHaveBeenCalled();
 			expect(screen.queryByText(/Drag to select a region/)).toBeNull();
-			expect(screen.getByText("1/1")).toBeTruthy();
+			expect(await screen.findByText("1/1")).toBeTruthy();
 			expect(screen.getByLabelText(ANNOTATE_ARIA)).toBeDisabled();
+			expect(info).toHaveBeenCalledWith(
+				"[renderer:bubble] screenshot captured:",
+				"shot.png",
+			);
 		} finally {
+			info.mockRestore();
 			Object.defineProperty(window, "devicePixelRatio", {
 				value: 1,
 				configurable: true,
@@ -192,7 +202,63 @@ describe("screenshot beta annotate button", () => {
 		}
 	});
 
-	it("re-arms the button on the next recording", () => {
+	it("a rejected capture warns and stays retryable (one shot not burnt)", async () => {
+		mockBubble.requestScreenshotCapture.mockRejectedValueOnce(
+			new Error("sidecar down"),
+		);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			render(<Bubble />);
+			pushBetaConfig(true);
+			setBubbleState("recording");
+			fireEvent.click(screen.getByLabelText(ANNOTATE_ARIA));
+			const dialog = screen.getByRole("dialog", {
+				name: "Screenshot capture",
+			});
+			fireEvent.mouseDown(dialog, { clientX: 10, clientY: 10, button: 0 });
+			fireEvent.mouseMove(dialog, { clientX: 60, clientY: 60 });
+			fireEvent.mouseUp(dialog, { clientX: 60, clientY: 60 });
+			expect(mockBubble.requestScreenshotCapture).toHaveBeenCalledTimes(1);
+			await act(async () => {});
+			expect(screen.queryByText(/Drag to select a region/)).toBeNull();
+			expect(screen.queryByText("1/1")).toBeNull();
+			expect(screen.getByLabelText(ANNOTATE_ARIA)).toBeEnabled();
+			expect(warn).toHaveBeenCalledWith(
+				"[renderer:bubble] screenshot_capture failed:",
+				expect.anything(),
+			);
+		} finally {
+			warn.mockRestore();
+		}
+	});
+
+	it("warns when the bubble bridge has no capture method", () => {
+		(
+			mockBubble as unknown as Record<string, unknown>
+		).requestScreenshotCapture = undefined;
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			render(<Bubble />);
+			pushBetaConfig(true);
+			setBubbleState("recording");
+			fireEvent.click(screen.getByLabelText(ANNOTATE_ARIA));
+			const dialog = screen.getByRole("dialog", {
+				name: "Screenshot capture",
+			});
+			fireEvent.mouseDown(dialog, { clientX: 10, clientY: 10, button: 0 });
+			fireEvent.mouseMove(dialog, { clientX: 60, clientY: 60 });
+			fireEvent.mouseUp(dialog, { clientX: 60, clientY: 60 });
+			expect(screen.queryByText(/Drag to select a region/)).toBeNull();
+			expect(screen.queryByText("1/1")).toBeNull();
+			expect(warn).toHaveBeenCalledWith(
+				"[renderer:bubble] screenshot capture backend unreachable (no bubble bridge)",
+			);
+		} finally {
+			warn.mockRestore();
+		}
+	});
+
+	it("re-arms the button on the next recording", async () => {
 		render(<Bubble />);
 		pushBetaConfig(true);
 		setBubbleState("recording");
@@ -203,6 +269,7 @@ describe("screenshot beta annotate button", () => {
 		fireEvent.mouseDown(dialog, { clientX: 0, clientY: 0, button: 0 });
 		fireEvent.mouseMove(dialog, { clientX: 50, clientY: 50 });
 		fireEvent.mouseUp(dialog, { clientX: 50, clientY: 50 });
+		expect(await screen.findByText("1/1")).toBeTruthy();
 		expect(screen.getByLabelText(ANNOTATE_ARIA)).toBeDisabled();
 		setBubbleState("transcribing");
 		setBubbleState("recording");

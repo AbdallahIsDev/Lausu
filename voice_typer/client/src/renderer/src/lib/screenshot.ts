@@ -1,5 +1,3 @@
-import type { ScreenshotRect } from "@/bubble/ScreenshotOverlay";
-
 // Bridge-agnostic screenshot-beta IPC helpers (Windows-only beta).
 // Wire shapes mirror `ScreenshotHandlersMixin`
 // (`voice_typer/server/handlers/screenshot_handlers.py`).
@@ -25,14 +23,6 @@ export function mintScreenshotCycleId(now: number = Date.now()): string {
 	const d = new Date(now);
 	const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 	return `${day}_${now}`;
-}
-
-/** Send the device-pixel capture rect for this recording's cycle. */
-export function captureScreenshot(
-	cycleId: string,
-	rect: ScreenshotRect,
-): Promise<unknown> {
-	return pythonCall("screenshot_capture", { cycle_id: cycleId, rect });
 }
 
 /** Delete one cycle's screenshot dir (history-entry deletion path). */

@@ -11,7 +11,7 @@ import {
 	type ScreenshotRect,
 } from "@/bubble/ScreenshotOverlay";
 import { openConsentGate } from "@/lib/consentGate";
-import { captureScreenshot, mintScreenshotCycleId } from "@/lib/screenshot";
+import { mintScreenshotCycleId } from "@/lib/screenshot";
 import { cn } from "@/lib/utils";
 import type { BubbleWindowBubble } from "@/types/ipc";
 import {
@@ -332,17 +332,43 @@ function BubbleInner() {
 	}, [screenshotCaptured, screenshotConsent]);
 
 	// Overlay release: forward the device-pixel rect for this
-	// recording's cycle, then close and burn the one shot. Failures
-	// close too (recording continues).
+	// recording's cycle through the bubble host bridge (the sandboxed
+	// bubble has no `window.python`, so the Rust
+	// `bubble_request_screenshot_capture` command is the only working
+	// path). The overlay always closes; the one shot burns ONLY on a
+	// confirmed capture so a failure stays retryable. Either way the
+	// recording keeps running, and either way it is logged.
 	const handleScreenshotCapture = useCallback(
 		(rect: ScreenshotRect) => {
 			const cycleId = screenshotCycleId;
 			setScreenshotOverlayOpen(false);
-			setScreenshotCaptured(true);
 			if (!cycleId) return;
-			captureScreenshot(cycleId, rect).catch((err) => {
-				console.warn("[renderer:bubble] screenshot_capture failed:", err);
-			});
+			const request = getBubbleApi()?.requestScreenshotCapture?.(cycleId, rect);
+			if (!request) {
+				console.warn(
+					"[renderer:bubble] screenshot capture backend unreachable (no bubble bridge)",
+				);
+				return;
+			}
+			request.then(
+				(res) => {
+					const data = (res as { data?: unknown } | null)?.data as
+						| { path?: unknown }
+						| undefined;
+					const path = typeof data?.path === "string" ? data.path : null;
+					if (path === null) {
+						console.warn(
+							"[renderer:bubble] screenshot capture failed: backend answered without a path",
+						);
+						return;
+					}
+					setScreenshotCaptured(true);
+					console.info("[renderer:bubble] screenshot captured:", path);
+				},
+				(err) => {
+					console.warn("[renderer:bubble] screenshot_capture failed:", err);
+				},
+			);
 		},
 		[screenshotCycleId],
 	);
@@ -484,6 +510,10 @@ function BubbleInner() {
 						// caption side effects (system menu, double-click
 						// zoom) are disabled at the window level, not here.
 						draggable ? "drag-region" : "no-drag",
+						// TEMP-DRAG-PROBE (remove after diagnosis): paint the
+						// pill red while runtime draggable is false, so a
+						// stuck-false state is visible without devtools.
+						...(!draggable ? (["bg-red-500"] as const) : []),
 					)}
 					onContextMenu={handlePillContextMenu}
 					onMouseDown={handlePillMouseDown}

@@ -199,7 +199,7 @@ pub async fn bubble_resize(
     Ok(())
 }
 
-/// Bubble mic-button toggle. ONLY sanctioned dispatch-allowlist bypass (SEC-026):
+/// Bubble mic-button toggle. First sanctioned dispatch-allowlist bypass (SEC-026):
 /// fixed `toggle_dictation` envelope built in Rust, fire-and-forget, rate-limited
 /// 1/500ms. Bubble cannot invoke arbitrary sidecar commands.
 /// NOTE: see docs/code-notes/tauri-host.md#fire-and-forget-id0
@@ -214,4 +214,114 @@ pub async fn bubble_toggle_dictation(
     }
     // id=0, no pending entry; reader DEBUG-drops the response.
     crate::commands::sidecar_cmds::dispatch_fire_and_forget(state.inner(), "toggle_dictation", None)
+}
+
+/// Pill-space capture rect (device px, from the overlay drag).
+/// Translated to virtual-screen pixels by adding the bubble window's
+/// outer position before forwarding (the backend grabs screen space).
+#[derive(Debug, Clone, Copy)]
+pub(super) struct PillCaptureRect {
+    pub(super) left: f64,
+    pub(super) top: f64,
+    pub(super) width: f64,
+    pub(super) height: f64,
+}
+
+/// Translate a pill-client rect into virtual-screen pixels. Pure
+/// (unit-testable): the caller looks up the window position, this only
+/// does the saturating math. Bounds mirror the backend
+/// (`screenshots/capture.py::validate_rect`) so bad rects fail fast
+/// here with a clear message instead of a sidecar round-trip.
+pub(super) fn translate_pill_rect_to_screen(
+    origin_x: i32,
+    origin_y: i32,
+    rect: PillCaptureRect,
+) -> Result<(i32, i32, u32, u32), String> {
+    if !rect.left.is_finite()
+        || !rect.top.is_finite()
+        || !rect.width.is_finite()
+        || !rect.height.is_finite()
+    {
+        return Err("capture rect must be finite numbers".into());
+    }
+    if rect.width < 1.0 || rect.height < 1.0 {
+        return Err(format!(
+            "capture rect too small: {}x{}",
+            rect.width, rect.height
+        ));
+    }
+    if rect.width > 7680.0 || rect.height > 4320.0 {
+        return Err(format!(
+            "capture rect too large: {}x{}",
+            rect.width, rect.height
+        ));
+    }
+    let x = origin_x.saturating_add(round_f64_to_i32_saturating(rect.left));
+    let y = origin_y.saturating_add(round_f64_to_i32_saturating(rect.top));
+    let w = round_f64_to_u32_saturating(rect.width);
+    let h = round_f64_to_u32_saturating(rect.height);
+    Ok((x, y, w, h))
+}
+
+/// Bubble screenshot-annotate capture. Second sanctioned
+/// dispatch-allowlist bypass (SEC-026): fixed `screenshot_capture`
+/// envelope built in Rust (the sandboxed bubble has no `window.python`,
+/// so the renderer cannot dispatch it directly). Request/response (not
+/// fire-and-forget) so the renderer can log captured/failed.
+/// SEC-016: only the bubble window may call it.
+#[tauri::command]
+pub async fn bubble_request_screenshot_capture(
+    cycle_id: String,
+    left: f64,
+    top: f64,
+    width: f64,
+    height: f64,
+    state: tauri::State<'_, Arc<SidecarState>>,
+    app: tauri::AppHandle,
+    window: tauri::Window,
+) -> Result<Value, LausuError> {
+    crate::commands::require_bubble_window(&window)?;
+    if cycle_id.is_empty() || cycle_id.len() > 128 {
+        return Err(LausuError::Host("cycle_id must be 1..=128 chars".into()));
+    }
+    let bubble_window = app
+        .get_webview_window("bubble")
+        .ok_or(LausuError::Host("bubble window not found".into()))?;
+    let origin = bubble_window
+        .outer_position()
+        .map_err(|e| LausuError::Host(e.to_string()))?;
+    let (x, y, w, h) = translate_pill_rect_to_screen(
+        origin.x,
+        origin.y,
+        PillCaptureRect {
+            left,
+            top,
+            width,
+            height,
+        },
+    )
+    .map_err(LausuError::Host)?;
+    let data = json!({
+        "cycle_id": cycle_id,
+        "rect": {"left": x, "top": y, "width": w, "height": h},
+    });
+    let result = crate::commands::sidecar_cmds::dispatch_inner(
+        crate::commands::sidecar_cmds::DispatchArgs {
+            cmd: "screenshot_capture".to_string(),
+            data: Some(data),
+        },
+        state.inner().clone(),
+    )
+    .await;
+    match &result {
+        Ok(value) => {
+            let path = value
+                .pointer("/data/path")
+                .and_then(|p| p.as_str())
+                .unwrap_or("?");
+            log::info!("[SCREENSHOT] bubble capture ok: {}", path);
+        }
+        Err(e) => log::warn!("[SCREENSHOT] bubble capture failed: {}", e),
+    }
+    result
 }

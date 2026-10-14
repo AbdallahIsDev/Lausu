@@ -96,6 +96,14 @@ pub(crate) fn ensure_bubble_msg_hook(window: &tauri::WebviewWindow) {
         HOOK_HWNDS.get_or_init(|| Mutex::new(Vec::new()))
     }
     static HOOK_INSTALLED: AtomicBool = AtomicBool::new(false);
+    // Escape hatch (drag debugging): LAUSU_NO_BUBBLE_HOOK=1 skips the
+    // install entirely; the one-shot gutting in harden still runs.
+    // Read once per process; the geometry handler re-runs this on
+    // every move, and getenv on every tick would be pure overhead.
+    static HOOK_DISABLED: OnceLock<bool> = OnceLock::new();
+    if *HOOK_DISABLED.get_or_init(|| std::env::var("LAUSU_NO_BUBBLE_HOOK").is_ok()) {
+        return;
+    }
     // Raw handle value: HHOOK itself is not Send+Sync (raw pointer),
     // so the static keeps the isize. The hook is process-lifetime;
     // the stored value is only for debuggability, never unhooked.

@@ -82,6 +82,7 @@ const NATIVE_ONLY_COMMANDS = new Set([
 	"bubble_dismiss",
 	"bubble_hide_complete",
 	"bubble_move_by",
+	"bubble_request_screenshot_capture",
 	"bubble_resize",
 	"bubble_set_draggable",
 	"bubble_set_position",
