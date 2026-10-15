@@ -22,23 +22,23 @@
 	},
 	"app": {
 		"name": "{appName}",
-		"startingBackend": "Iniciando backend de Python…",
+		"startingBackend": "Iniciando {appName}…",
 		"firstLaunchHint": "El primer inicio puede tardar 30–60 segundos mientras descargamos el modelo de reconocimiento de voz (~466 MB para small.en). Los inicios posteriores son mucho más rápidos. Puede cerrar esta ventana. El dictado funcionará desde la bandeja del sistema una vez que esté listo.",
-		"lostConnection": "Se perdió la conexión con el backend de Python",
+		"lostConnection": "Conexión perdida",
 		"retryConnection": "Reintentar conexión",
 		"forceRetry": "Forzar reintento",
-		"restartingBackend": "Reiniciando backend de {appName}…",
+		"restartingBackend": "Reiniciando {appName}…",
 		"restartingHint": "Esto suele tardar unos segundos. El dictado se reanudará desde la bandeja del sistema cuando esté listo.",
 		"goHome": "Ir al inicio",
-		"lostConnectionHint": "El backend no responde. Intenta reiniciar la aplicación.",
+		"lostConnectionHint": "{appName} dejó de responder. Reinicia la aplicación para continuar.",
 		"connecting": {
-			"step1StartingPython": "Iniciando Python",
+			"step1StartingPython": "Iniciando {appName}",
 			"step2LoadingModel": "Cargando modelo",
 			"step3Ready": "Listo"
 		},
 		"pageNotFoundDescription": "Página desconocida: {page}",
 		"pageNotFoundTitle": "Página no encontrada",
-		"recordingInterrupted": "Grabación interrumpida: se perdió la conexión con el backend"
+		"recordingInterrupted": "Grabación interrumpida: conexión perdida"
 	},
 	"media": {
 		"title": "Transcripción de medios",
@@ -1398,6 +1398,7 @@
 			"selectAria": "Seleccionar {name}",
 			"deleteAria": "Eliminar {name}",
 			"vramLabel": "VRAM",
+			"ramLabel": "RAM",
 			"werLabel": "WER"
 		},
 		"cloud": {
@@ -1632,7 +1633,7 @@
 		"englishOnlyBadge": "Solo inglés",
 		"multilingualBadge": "Multilingüe",
 		"downloadProgressAria": "Progreso de descarga del modelo: {percent}%",
-		"backendAria": "Backend de transcripción",
+		"backendAria": "Método de transcripción",
 		"backendLocalLabel": "Modelo local",
 		"backendLocalDescription": "Descarga un modelo en tu dispositivo. La transcripción se ejecuta completamente sin conexión: tu audio nunca abandona tu ordenador.",
 		"backendCloudLabel": "Cloud API",
@@ -1698,7 +1699,7 @@
 		"resetSettingsHint": "Restablecer todos los ajustes a valores predeterminados y recargar: útil si un valor de configuración incorrecto causó este fallo",
 		"openLogs": "Abrir registros",
 		"reportBug": "Reportar este error",
-		"resetFailedNotice": "El reinicio del backend falló, limpiando el estado local y recargando de todos modos.",
+		"resetFailedNotice": "No se pudo restablecer la configuración, recargando de todos modos.",
 		"resetSettings": "Restablecer ajustes",
 		"copied": "¡Copiado!",
 		"resetting": "Restableciendo…",
@@ -1913,18 +1914,18 @@
 		"unknown": "La aplicación encontró un error inesperado. Sus datos están seguros.",
 		"cudaOom": "La GPU se quedó sin memoria. Pruebe un modelo más pequeño, cierre otras aplicaciones GPU o cambie al modo CPU.",
 		"rateLimited": "Demasiadas solicitudes. Espere un momento e intente de nuevo.",
-		"unknownBackend": "El backend de transcripción encontró un error inesperado. Sus datos están seguros. Intente de nuevo.",
+		"unknownBackend": "La transcripción encontró un error inesperado. Tus datos están a salvo. Inténtalo de nuevo.",
 		"viewLogsAction": "Ver registros",
 		"copyErrorAction": "Copiar error",
 		"commandTimeout": "La solicitud agotó el tiempo de espera: el motor puede estar aún cargándose. Inténtalo de nuevo en breve.",
-		"backendNotConnected": "El servicio en segundo plano aún no está conectado. Espera a que termine de iniciarse y vuelve a intentarlo.",
+		"backendNotConnected": "La aplicación aún no está lista. Espera a que termine de iniciar e inténtalo de nuevo.",
 		"invalidFields": "{count} valores se rechazaron como no válidos. Revisa los ajustes modificados y corrígelos.",
 		"invalidValue": "Uno de los valores proporcionados se rechazó como no válido. Comprueba el ajuste e inténtalo de nuevo."
 	},
 	"connection": {
-		"respawnFailed": "El backend no pudo reiniciarse automáticamente",
-		"respawnFailedHint": "{appName} intentó recuperar su backend varias veces y se rindió. Reinicie la aplicación, y si el problema persiste, verifique los registros o reinstale.",
-		"restartBackendHint": "No se pudo reiniciar el backend desde esta ventana. Puede que esté administrado externamente; reinicie la aplicación."
+		"respawnFailed": "{appName} no pudo recuperarse automáticamente",
+		"respawnFailedHint": "{appName} intentó recuperarse varias veces y se rindió. Vuelve a abrir la aplicación. Si sigue pasando, reinstálala.",
+		"restartBackendHint": "La aplicación no pudo reiniciarse desde aquí. Ciérrala y vuelve a abrirla."
 	},
 	"dialog": {
 		"discardChangesTitle": "¿Descartar cambios?",
@@ -1932,21 +1933,21 @@
 		"discardChangesConfirm": "Descartar cambios",
 		"discardChangesStay": "Seguir editando",
 		"pythonCrash": {
-			"title": "El backend de Python falló",
-			"body": "El backend de Python de {appName} salió inesperadamente con código {code} y ahora saldrá.",
-			"signalBody": "El backend de Python de {appName} fue terminado por la señal {signal} y ahora saldrá."
+			"title": "Algo salió mal",
+			"body": "{appName} se cerró inesperadamente. Reinicia la aplicación.",
+			"signalBody": "{appName} se detuvo inesperadamente. Reinicia la aplicación."
 		},
 		"pythonNotFound": {
-			"title": "Backend de Python no encontrado",
-			"body": "{appName} no pudo encontrar su backend de Python. Por favor reinstale la aplicación."
+			"title": "Problema de instalación",
+			"body": "{appName} no pudo iniciarse correctamente. Reinstala la aplicación."
 		},
 		"pythonStartupTimeout": {
-			"title": "El backend de Python no pudo iniciar",
-			"body": "{appName} no pudo conectar a su backend de Python dentro de {seconds} segundos."
+			"title": "No se pudo iniciar",
+			"body": "{appName} está tardando demasiado en iniciar. Reinicia la aplicación."
 		},
 		"restartLoopBreak": {
 			"title": "{appName} no puede reiniciarse de forma segura",
-			"body": "El backend de Python está fallando al iniciar. Después de {count} intentos en {seconds} segundos, el disyuntor de reinicio se ha activado. Por favor verifique los archivos de registro y reinstale si el problema persiste."
+			"body": "{appName} sigue teniendo problemas al iniciar. Reinicia tu computadora, y reinstala la aplicación si sigue pasando."
 		}
 	},
 	"notify": {
@@ -1966,7 +1967,7 @@
 			"xrun_warning_title": "{appName}",
 			"xrun_warning_body": "Se detectó un desbordamiento del búfer de audio. Prueba con un tamaño de búfer mayor.",
 			"cancelled_timeout": "La transcripción tardó demasiado y se canceló.\nPulse {hotkey} para reintentar.",
-			"start_failed": "No se pudo iniciar la grabación.\nConsulte logs/lausu.log para ver el rastreo.",
+			"start_failed": "No se pudo iniciar la grabación. Inténtalo de nuevo.",
 			"stop_failed": "No se pudo detener la grabación.",
 			"silence_warning": "No se detectó audio. Compruebe que el micrófono esté conectado y funcionando.",
 			"consent_required": "Se requiere el consentimiento de biometría de voz para iniciar la grabación.\nActívalo en Configuración > Privacidad > Consentimiento de biometría de voz.",
@@ -2106,7 +2107,13 @@
 		"packStateWorkerCrashed": "El motor falló",
 		"packStateWorkerUnloaded": "Motor descargado",
 		"packRetryDownload": "Reintentar descarga",
-		"packRepairPack": "Reparar paquete"
+		"packRepairPack": "Reparar paquete",
+		"updateTitle": "Actualización de voz",
+		"updateVerifying": "Verificando la descarga…",
+		"updateReady": "Actualización de voz lista",
+		"updateFailed": "Falló la actualización de voz",
+		"outdatedDescription": "El paquete de voz instalado está desactualizado. Descargando una copia nueva…",
+		"viewDetails": "Ver detalles"
 	},
 	"consentDialog": {
 		"title": "Se requiere consentimiento",

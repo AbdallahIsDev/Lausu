@@ -1,23 +1,23 @@
 {
 	"app": {
 		"name": "{appName}",
-		"startingBackend": "Démarrage du backend Python…",
+		"startingBackend": "Démarrage de {appName}…",
 		"firstLaunchHint": "Le premier lancement peut prendre 30 à 60 secondes pendant que nous téléchargeons le modèle de reconnaissance vocale (~466 Mo pour small.en). Les lancements suivants sont beaucoup plus rapides. Vous pouvez fermer cette fenêtre. La dictée fonctionnera depuis la barre d'état système une fois prête.",
-		"lostConnection": "Connexion perdue avec le backend Python",
+		"lostConnection": "Connexion perdue",
 		"retryConnection": "Réessayer la connexion",
 		"forceRetry": "Forcer la nouvelle tentative",
-		"restartingBackend": "Redémarrage du backend {appName}…",
+		"restartingBackend": "Redémarrage de {appName}…",
 		"restartingHint": "Cela prend généralement quelques secondes. La dictée reprendra depuis la barre d'état système une fois prête.",
 		"goHome": "Aller à l'accueil",
-		"lostConnectionHint": "Le backend Python ne répond plus. Essayez de le redémarrer.",
+		"lostConnectionHint": "{appName} ne répond plus. Redémarrez l'application pour continuer.",
 		"connecting": {
-			"step1StartingPython": "Démarrage de Python",
+			"step1StartingPython": "Démarrage de {appName}",
 			"step2LoadingModel": "Chargement du modèle",
 			"step3Ready": "Prêt"
 		},
 		"pageNotFoundDescription": "Page inconnue : {page}",
 		"pageNotFoundTitle": "Page non trouvée",
-		"recordingInterrupted": "Enregistrement interrompu: connexion au backend perdue"
+		"recordingInterrupted": "Enregistrement interrompu : connexion perdue"
 	},
 	"media": {
 		"title": "Transcription de médias",
@@ -890,6 +890,7 @@
 			"selectAria": "Sélectionner {name}",
 			"deleteAria": "Supprimer {name}",
 			"vramLabel": "VRAM",
+			"ramLabel": "RAM",
 			"werLabel": "WER"
 		},
 		"cloud": {
@@ -1634,7 +1635,7 @@
 		"resetSettingsHint": "Réinitialiser tous les paramètres par défaut et recharger: utile si une mauvaise valeur de configuration a causé ce crash",
 		"openLogs": "Ouvrir les logs",
 		"reportBug": "Signaler ce bug",
-		"resetFailedNotice": "La réinitialisation du backend a échoué, effacement de l'état local et rechargement quand même.",
+		"resetFailedNotice": "Impossible de réinitialiser les paramètres, rechargement quand même.",
 		"resetSettings": "Réinitialiser les paramètres",
 		"copied": "Copié !",
 		"resetting": "Réinitialisation…",
@@ -1787,7 +1788,7 @@
 		"englishOnlyBadge": "Anglais uniquement",
 		"multilingualBadge": "Multilingue",
 		"downloadProgressAria": "Progression du téléchargement du modèle : {percent}%",
-		"backendAria": "Backend de transcription",
+		"backendAria": "Méthode de transcription",
 		"backendLocalLabel": "Modèle local",
 		"backendLocalDescription": "Téléchargez un modèle sur votre appareil. La transcription s'exécute entièrement hors ligne: votre audio ne quitte jamais votre ordinateur.",
 		"backendCloudLabel": "Cloud API",
@@ -1913,18 +1914,18 @@
 		"unknown": "L'application a rencontré une erreur inattendue. Vos données sont en sécurité.",
 		"cudaOom": "Le GPU n'a plus de mémoire. Essayez un modèle plus petit, fermez d'autres applications GPU ou passez en mode CPU.",
 		"rateLimited": "Trop de requêtes. Veuillez attendre un instant et réessayer.",
-		"unknownBackend": "Le backend de transcription a rencontré une erreur inattendue. Vos données sont en sécurité. Réessayez.",
+		"unknownBackend": "La transcription a rencontré une erreur inattendue. Vos données sont en sécurité. Réessayez.",
 		"viewLogsAction": "Voir les journaux",
 		"copyErrorAction": "Copier l'erreur",
 		"commandTimeout": "La demande a expiré: le moteur est peut-être encore en cours de chargement. Réessayez dans un instant.",
-		"backendNotConnected": "Le service en arrière-plan n'est pas encore connecté. Attendez la fin de son démarrage, puis réessayez.",
+		"backendNotConnected": "L'application n'est pas encore prête. Attendez la fin du démarrage, puis réessayez.",
 		"invalidFields": "{count} valeurs ont été rejetées comme non valides. Vérifiez les paramètres modifiés et corrigez-les.",
 		"invalidValue": "L'une des valeurs fournies a été rejetée comme non valide. Vérifiez le paramètre et réessayez."
 	},
 	"connection": {
-		"respawnFailed": "Le backend n'a pas pu redémarrer automatiquement",
-		"respawnFailedHint": "{appName} a essayé de récupérer son backend plusieurs fois et a abandonné. Relancez l'application, et si le problème persiste, vérifiez les journaux ou réinstallez.",
-		"restartBackendHint": "Impossible de redémarrer le backend depuis cette fenêtre. Il est peut-être géré en externe – veuillez relancer l'application."
+		"respawnFailed": "{appName} n'a pas pu récupérer automatiquement",
+		"respawnFailedHint": "{appName} a essayé de récupérer plusieurs fois et a abandonné. Relancez l'application. Si cela continue, réinstallez l'application.",
+		"restartBackendHint": "L'application n'a pas pu redémarrer d'ici. Veuillez la fermer puis l'ouvrir à nouveau."
 	},
 	"dialog": {
 		"discardChangesTitle": "Abandonner les modifications ?",
@@ -1932,21 +1933,21 @@
 		"discardChangesConfirm": "Abandonner les modifications",
 		"discardChangesStay": "Continuer à modifier",
 		"pythonCrash": {
-			"title": "Le backend Python a planté",
-			"body": "Le backend Python de {appName} s'est arrêté inopinément avec le code {code} et va maintenant quitter.",
-			"signalBody": "Le backend Python de {appName} a été tué par le signal {signal} et va maintenant quitter."
+			"title": "Un problème est survenu",
+			"body": "{appName} s'est fermé de façon inattendue. Veuillez redémarrer l'application.",
+			"signalBody": "{appName} a été arrêté de façon inattendue. Veuillez redémarrer l'application."
 		},
 		"pythonNotFound": {
-			"title": "Backend Python introuvable",
-			"body": "{appName} n'a pas pu trouver son backend Python. Veuillez réinstaller l'application."
+			"title": "Problème d'installation",
+			"body": "{appName} n'a pas pu démarrer correctement. Veuillez réinstaller l'application."
 		},
 		"pythonStartupTimeout": {
-			"title": "Le backend Python n'a pas pu démarrer",
-			"body": "{appName} n'a pas pu se connecter à son backend Python dans les {seconds} secondes."
+			"title": "Démarrage impossible",
+			"body": "{appName} met trop de temps à démarrer. Veuillez redémarrer l'application."
 		},
 		"restartLoopBreak": {
 			"title": "{appName} ne peut pas redémarrer en toute sécurité",
-			"body": "Le backend Python plante au lancement. Après {count} tentatives sur {seconds} secondes, le disjoncteur de redémarrage s'est engagé. Veuillez vérifier les fichiers journaux et réinstaller si le problème persiste."
+			"body": "{appName} n'arrête pas de rencontrer des problèmes au démarrage. Veuillez redémarrer votre ordinateur, et réinstaller l'application si cela continue."
 		}
 	},
 	"notify": {
@@ -1966,7 +1967,7 @@
 			"xrun_warning_title": "{appName}",
 			"xrun_warning_body": "Dépassement de tampon audio détecté. Essayez une taille de tampon plus grande.",
 			"cancelled_timeout": "La transcription a pris trop de temps et a été annulée.\nAppuyez sur {hotkey} pour réessayer.",
-			"start_failed": "Impossible de démarrer l'enregistrement.\nConsultez logs/lausu.log pour la trace.",
+			"start_failed": "Impossible de démarrer l'enregistrement. Veuillez réessayer.",
 			"stop_failed": "Impossible d'arrêter l'enregistrement.",
 			"silence_warning": "Aucun audio détecté. Vérifiez que votre microphone est connecté et fonctionne.",
 			"consent_required": "Le consentement à la biométrie vocale est requis pour démarrer l'enregistrement.\nActivez-le dans Paramètres > Confidentialité > Consentement à la biométrie vocale.",
@@ -2106,7 +2107,13 @@
 		"packStateWorkerCrashed": "Moteur planté",
 		"packStateWorkerUnloaded": "Moteur déchargé",
 		"packRetryDownload": "Réessayer le téléchargement",
-		"packRepairPack": "Réparer le pack"
+		"packRepairPack": "Réparer le pack",
+		"updateTitle": "Mise à jour vocale",
+		"updateVerifying": "Vérification du téléchargement…",
+		"updateReady": "Mise à jour vocale prête",
+		"updateFailed": "Échec de la mise à jour vocale",
+		"outdatedDescription": "Le pack vocal installé est obsolète. Téléchargement d'une nouvelle copie…",
+		"viewDetails": "Voir les détails"
 	},
 	"consentDialog": {
 		"title": "Consentement requis",

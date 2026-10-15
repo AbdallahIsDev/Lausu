@@ -22,23 +22,23 @@
 	},
 	"app": {
 		"name": "{appName}",
-		"startingBackend": "Starting Python backend…",
+		"startingBackend": "Starting {appName}…",
 		"firstLaunchHint": "First launch can take 30–60 seconds while we download the speech model (~466 MB for small.en). Subsequent launches are much faster. You can close this window. Dictation will work from the system tray once ready.",
-		"lostConnection": "Lost connection to Python backend",
+		"lostConnection": "Connection lost",
 		"retryConnection": "Retry Connection",
 		"forceRetry": "Force Retry",
-		"restartingBackend": "Restarting {appName} backend…",
+		"restartingBackend": "Restarting {appName}…",
 		"restartingHint": "This usually takes a few seconds. Dictation will resume from the system tray once ready.",
 		"goHome": "Go to Home",
-		"lostConnectionHint": "The backend is not responding. Try restarting the app.",
+		"lostConnectionHint": "{appName} stopped responding. Restart the app to continue.",
 		"connecting": {
-			"step1StartingPython": "Starting Python",
+			"step1StartingPython": "Starting {appName}",
 			"step2LoadingModel": "Loading model",
 			"step3Ready": "Ready"
 		},
 		"pageNotFoundTitle": "Page not found",
 		"pageNotFoundDescription": "Unknown page: {page}",
-		"recordingInterrupted": "Recording interrupted: connection to backend lost"
+		"recordingInterrupted": "Recording interrupted: connection lost"
 	},
 	"media": {
 		"title": "Media transcription",
@@ -1403,6 +1403,7 @@
 			"selectAria": "Select {name}",
 			"deleteAria": "Delete {name}",
 			"vramLabel": "VRAM",
+			"ramLabel": "RAM",
 			"werLabel": "WER"
 		},
 		"cloud": {
@@ -1656,7 +1657,7 @@
 		"modelTitle": "Choose Your Model",
 		"modelDescription": "Choose how you want to transcribe: run a local AI model on your device, or connect a cloud transcription API. You can change this later on the Models page.",
 		"modelSelectAria": "Select model: {name}",
-		"backendAria": "Transcription backend",
+		"backendAria": "Transcription method",
 		"backendLocalLabel": "Local model",
 		"backendLocalDescription": "Download a model to your device. Transcription runs fully offline: your audio never leaves your computer.",
 		"backendCloudLabel": "Cloud API",
@@ -1703,7 +1704,7 @@
 		"openLogs": "Open logs",
 		"resetSettings": "Reset settings",
 		"resetting": "Resetting…",
-		"resetFailedNotice": "Backend reset failed, clearing local state and reloading anyway.",
+		"resetFailedNotice": "Couldn't reset settings, reloading anyway.",
 		"resetSettingsHint": "Reset all settings to defaults and reload: useful if a bad config value caused this crash",
 		"componentStackLabel": "Component stack:",
 		"reportBug": "Report this bug",
@@ -1913,18 +1914,18 @@
 		"unknown": "The app encountered an unexpected error. Your data is safe.",
 		"cudaOom": "GPU ran out of memory. Try a smaller model, close other GPU apps, or switch to CPU mode.",
 		"rateLimited": "Too many requests. Please wait a moment and try again.",
-		"unknownBackend": "The transcription backend hit an unexpected error. Your data is safe. Try again.",
+		"unknownBackend": "Transcription hit an unexpected error. Your data is safe. Try again.",
 		"viewLogsAction": "View logs",
 		"copyErrorAction": "Copy error",
 		"commandTimeout": "The request timed out: the engine may still be loading. Try again shortly.",
-		"backendNotConnected": "The background service isn't connected yet. Wait for it to finish starting, then try again.",
+		"backendNotConnected": "The app isn't ready yet. Wait for it to finish starting, then try again.",
 		"invalidFields": "{count} values were rejected as invalid. Review the changed settings and correct them.",
 		"invalidValue": "One of the provided values was rejected as invalid. Recheck the setting and try again."
 	},
 	"connection": {
-		"respawnFailed": "Backend couldn't restart automatically",
-		"respawnFailedHint": "{appName} tried to recover its backend several times and gave up. Relaunch the app, and if the problem persists, check the logs or reinstall.",
-		"restartBackendHint": "The backend could not be restarted from this window. It may be managed externally: please relaunch the app."
+		"respawnFailed": "{appName} couldn't recover automatically",
+		"respawnFailedHint": "{appName} tried to recover several times and gave up. Relaunch the app. If it keeps happening, reinstall the app.",
+		"restartBackendHint": "The app couldn't restart itself from here. Please close it and open it again."
 	},
 	"dialog": {
 		"discardChangesTitle": "Discard changes?",
@@ -1932,21 +1933,21 @@
 		"discardChangesConfirm": "Discard changes",
 		"discardChangesStay": "Keep editing",
 		"pythonCrash": {
-			"title": "Python backend crashed",
-			"body": "{appName}'s Python backend exited unexpectedly with code {code} and will now exit.",
-			"signalBody": "{appName}'s Python backend was killed by signal {signal} and will now exit."
+			"title": "Something went wrong",
+			"body": "{appName} closed unexpectedly. Please restart the app.",
+			"signalBody": "{appName} was stopped unexpectedly. Please restart the app."
 		},
 		"pythonNotFound": {
-			"title": "Python backend not found",
-			"body": "{appName} could not find its Python backend. Please reinstall the application."
+			"title": "Installation problem",
+			"body": "{appName} couldn't start properly. Please reinstall the app."
 		},
 		"pythonStartupTimeout": {
-			"title": "Python backend failed to start",
-			"body": "{appName} could not connect to its Python backend within {seconds} seconds."
+			"title": "Couldn't start",
+			"body": "{appName} is taking too long to start. Please restart the app."
 		},
 		"restartLoopBreak": {
 			"title": "{appName} cannot restart safely",
-			"body": "The Python backend is crashing on launch. After {count} attempts over {seconds} seconds, the restart loop breaker has engaged. Please check the log files and reinstall if the problem persists."
+			"body": "{appName} keeps having trouble starting. Please restart your computer, and reinstall the app if it keeps happening."
 		}
 	},
 	"notify": {
@@ -1966,7 +1967,7 @@
 			"xrun_warning_title": "{appName}",
 			"xrun_warning_body": "Audio buffer overflow detected. Try a higher buffer size.",
 			"cancelled_timeout": "Transcription took too long and was cancelled.\nPress {hotkey} to try again.",
-			"start_failed": "Could not start recording.\nCheck logs/lausu.log for traceback.",
+			"start_failed": "Could not start recording. Please try again.",
 			"start_failed_with_reason": "Could not start recording.\n{reason}",
 			"stop_failed": "Could not stop recording.",
 			"silence_warning": "No audio detected. Check your microphone is connected and working.",
@@ -2106,7 +2107,13 @@
 		"packStateWorkerCrashed": "Engine crashed",
 		"packStateWorkerUnloaded": "Engine unloaded",
 		"packRetryDownload": "Retry download",
-		"packRepairPack": "Repair pack"
+		"packRepairPack": "Repair pack",
+		"updateTitle": "Voice update",
+		"updateVerifying": "Verifying download…",
+		"updateReady": "Voice update ready",
+		"updateFailed": "Voice update failed",
+		"outdatedDescription": "The installed voice pack is outdated. Downloading a fresh copy…",
+		"viewDetails": "View details"
 	},
 	"consentDialog": {
 		"title": "Consent required",
