@@ -1846,7 +1846,13 @@
 			"volume_low": "Sube la ganancia de entrada en los ajustes de sonido del sistema.",
 			"no_voice": "Habla de forma continua durante la prueba para que se detecte la voz.",
 			"applyNoisyRoom": "Aplicar ajuste de habitación ruidosa"
-		}
+		},
+		"liveListen": "Escucha en directo",
+		"stopListening": "Dejar de escuchar",
+		"liveListenHint": "Deberías escucharte ahora. Usa auriculares para evitar el eco.",
+		"liveListenFailed": "La escucha en directo falló. Comprueba el micrófono e inténtalo de nuevo.",
+		"liveListenDenied": "Se bloqueó el acceso al micrófono. Permite el acceso e inténtalo de nuevo.",
+		"liveListenUnavailable": "La escucha en directo no está disponible en esta ventana."
 	},
 	"stats": {
 		"shareImage": {

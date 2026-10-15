@@ -1846,7 +1846,13 @@
 			"volume_low": "在系统声音设置中提高输入增益。",
 			"no_voice": "测试期间请持续说话，以便检测到语音。",
 			"applyNoisyRoom": "应用“嘈杂房间”预设"
-		}
+		},
+		"liveListen": "实时试听",
+		"stopListening": "停止试听",
+		"liveListenHint": "您现在应该能听到自己的声音。请使用耳机以避免回声。",
+		"liveListenFailed": "实时试听失败。请检查麦克风后重试。",
+		"liveListenDenied": "麦克风访问被阻止。请允许访问后重试。",
+		"liveListenUnavailable": "此窗口不支持实时试听。"
 	},
 	"dashboard": {
 		"cards": {

@@ -1851,7 +1851,13 @@
 		"qualityFeedback": {
 			"recording": "Recording…",
 			"qualityNotApplicable": "N/A: transcription unavailable"
-		}
+		},
+		"liveListen": "Listen live",
+		"stopListening": "Stop listening",
+		"liveListenHint": "You should hear yourself now. Use headphones to avoid echo.",
+		"liveListenFailed": "Live listening failed. Check the microphone and try again.",
+		"liveListenDenied": "Microphone access was blocked. Allow access and try again.",
+		"liveListenUnavailable": "Live listening is not available in this window."
 	},
 	"stats": {
 		"shareImage": {

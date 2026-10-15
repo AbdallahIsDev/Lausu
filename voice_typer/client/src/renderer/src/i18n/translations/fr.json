@@ -1846,7 +1846,13 @@
 			"volume_low": "Augmentez le gain d'entrée dans les réglages son de votre système.",
 			"no_voice": "Parlez en continu pendant le test pour que la voix soit détectée.",
 			"applyNoisyRoom": "Appliquer le préréglage « Pièce bruyante »"
-		}
+		},
+		"liveListen": "Écoute en direct",
+		"stopListening": "Arrêter l'écoute",
+		"liveListenHint": "Vous devriez vous entendre. Utilisez un casque pour éviter l'écho.",
+		"liveListenFailed": "L'écoute en direct a échoué. Vérifiez le microphone et réessayez.",
+		"liveListenDenied": "L'accès au microphone a été bloqué. Autorisez l'accès et réessayez.",
+		"liveListenUnavailable": "L'écoute en direct n'est pas disponible dans cette fenêtre."
 	},
 	"dashboard": {
 		"cards": {

@@ -1846,7 +1846,13 @@
 			"volume_low": "Erhöhen Sie die Eingangsverstärkung in den Soundeinstellungen Ihres Betriebssystems.",
 			"no_voice": "Sprechen Sie während des Tests durchgehend, damit Stimmaktivität erkannt wird.",
 			"applyNoisyRoom": "Preset „Noisy Room“ anwenden"
-		}
+		},
+		"liveListen": "Live mithören",
+		"stopListening": "Stoppen",
+		"liveListenHint": "Sie sollten sich jetzt hören. Verwenden Sie Kopfhörer, um Echo zu vermeiden.",
+		"liveListenFailed": "Live-Mithören fehlgeschlagen. Prüfen Sie das Mikrofon und versuchen Sie es erneut.",
+		"liveListenDenied": "Mikrofonzugriff wurde blockiert. Erlauben Sie den Zugriff und versuchen Sie es erneut.",
+		"liveListenUnavailable": "Live-Mithören ist in diesem Fenster nicht verfügbar."
 	},
 	"dashboard": {
 		"cards": {
