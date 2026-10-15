@@ -3,7 +3,7 @@
 // `components/models/LocalModelsPanel.tsx`): page shell → heading with
 // the trailing Import-Model action (the loaded PageHeading has one) →
 // full-width Local/Cloud segmented control (rounded-lg card, p-1, two
-// h-8 segments, active segment carries the bg-input indicator) →
+// h-8 segments, active segment carries the bg-border/10 indicator) →
 // panel description + right-aligned Open-folder pill → the
 // ModelGroupAccordion family cards: `rounded-lg border-border/8
 // bg-surface-subtle` rows with a `px-4 py-2` trigger (bare h-4 family
@@ -27,7 +27,7 @@ export function ModelsSkeleton() {
 				<div className="pb-4">
 					<div className="w-full rounded-lg border border-border/8 bg-surface-subtle p-1">
 						<div className="grid grid-cols-2 gap-1">
-							<Skeleton className="h-8 rounded-lg bg-input" />
+							<Skeleton className="h-8 rounded-lg bg-border/10" />
 							<Skeleton className="h-8 rounded-lg" />
 						</div>
 					</div>

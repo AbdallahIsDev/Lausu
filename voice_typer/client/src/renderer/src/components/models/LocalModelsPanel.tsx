@@ -31,6 +31,7 @@ import {
 	type ModelInfo,
 	type ModelMetadata,
 } from "@/lib/utils/models";
+import { useAppStore } from "@/stores/appStore";
 
 // Minimum free-disk threshold for the global warning banner. Picked to
 // catch "disk almost full" states without false-positiving on systems
@@ -311,15 +312,23 @@ export const LocalModelsPanel = memo(function LocalModelsPanel({
 });
 
 // ── Metadata line (label+value pairs vs metadata icon chips) ───────────
-// Distinguishes label+value pairs (VRAM, WER, muted label, colon,
+// Distinguishes label+value pairs (VRAM/RAM, WER, muted label, colon,
 // primary value) from the icon-only descriptive chips (language scope,
 // speed, Distilled). Size is NOT part of this line anymore (moved into
 // the download button).
 function ModelMetadataLine({ meta }: { meta: ModelMetadata }) {
+	// Same flag `DeviceToggle` reads (absent = GPU-less). On a CPU-only
+	// machine there is no VRAM, the model runs in system RAM, so the same
+	// memory figure is labelled RAM there instead of VRAM.
+	const gpuAvailable = useAppStore((s) => s.config?.gpu_available);
 	return (
 		<>
 			<MetadataPair
-				label={t("models.card.vramLabel")}
+				label={t(
+					gpuAvailable === true
+						? "models.card.vramLabel"
+						: "models.card.ramLabel",
+				)}
 				value={`~${formatVram(meta.required_vram_mb)}`}
 			/>
 			{/* WER, only when the backend catalog supplies a real,

@@ -9,7 +9,7 @@
 // 2026-09-02 theme pass (native primitives, roomier panel):
 //   - The custom ``rounded-lg`` field chrome is GONE, every control
 //     now uses the app's native pill language: the shared ``Input``
-//     (rounded-lg, bg-input/50, pointer/keyboard focus modality), the
+//     (rounded-lg, bg-border/10, pointer/keyboard focus modality), the
 //     new shared ``Textarea`` (same pill + focus contract), and the
 //     native ``SelectTrigger`` (rounded-lg, mirrors the outline
 //     Button). A single overlay-wide field shell fought all three
@@ -28,7 +28,7 @@
 //     flow inline with the sentence).
 //   - Fields (Input + Textarea) now carry per-instance polish on top of
 //     the shared primitives: ``rounded-lg`` (matches the lg panel; the
-//     default rounded-lg read too round) + ``bg-input/25`` (the 50%
+//     default rounded-lg read too round) + ``bg-border/10`` (the 50%
 //     wash was too visible on the bg panel). Match mode is the shared
 //     two-option ``ToggleGroup`` stacked vertically (label above,
 //     control below), same row layout as the trigger and output fields.
@@ -164,7 +164,7 @@ export function TemplateDialog({
 						value={trigger}
 						onChange={onTriggerChange}
 						placeholder={t("templates.triggerPlaceholder")}
-						className="rounded-lg bg-input/25"
+						className="rounded-lg bg-border/10"
 					/>
 				</div>
 
@@ -181,7 +181,7 @@ export function TemplateDialog({
 						onChange={onExpansionChange}
 						placeholder={t("templates.outputPlaceholder")}
 						rows={5}
-						className="resize-y rounded-lg bg-input/25"
+						className="resize-y rounded-lg bg-border/10"
 					/>
 					{/* Two rows: the description alone on the first row,
 					    ALL variable chips grouped on the second, the chips

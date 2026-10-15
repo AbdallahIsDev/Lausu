@@ -90,10 +90,10 @@ describe("ModelsSkeleton", () => {
 		render(<ModelsSkeleton />);
 		const status = screen.getByRole("status", { name: LOADING_LABEL });
 		// Full-width segmented control (no max-w cap), 2 segments, first
-		// carries the bg-input indicator like the loaded control.
+		// carries the bg-border/10 indicator like the loaded control.
 		const segments = status.querySelectorAll(".grid-cols-2 > [data-slot]");
 		expect(segments.length).toBe(2);
-		expect(segments[0]?.className).toContain("bg-input");
+		expect(segments[0]?.className).toContain("bg-border/10");
 		// 3 collapsed family accordion cards (OpenAI / NVIDIA / Qwen).
 		const families = status.querySelectorAll(
 			".rounded-lg.border > .flex.items-center.justify-between",

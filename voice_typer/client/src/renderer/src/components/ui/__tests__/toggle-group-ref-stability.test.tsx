@@ -307,10 +307,10 @@ describe("ToggleGroup per-option label ref stability + value-change behaviour", 
 		);
 		mockMeasureRects(container, { 0: 0, 1: 48 });
 		await waitFor(() =>
-			expect(container.querySelector(".bg-input")).toBeTruthy(),
+			expect(container.querySelector(".bg-border/10")).toBeTruthy(),
 		);
 
-		const indicator = container.querySelector<HTMLElement>(".bg-input");
+		const indicator = container.querySelector<HTMLElement>(".bg-border/10");
 		expect(indicator?.className).toContain("rounded-lg");
 		expect(indicator?.className).toContain(
 			"not-supports-[corner-shape:squircle]:rounded-[calc(var(--radius)-0.25rem)]",

@@ -174,9 +174,9 @@ describe("LevelBar, neutral borderless track", () => {
 		expect(cls.split(/\s+/).some((c) => c.startsWith("border"))).toBe(false);
 	});
 
-	it("uses the neutral bg-input/30 track when idle and the muted swap when frozen", () => {
+	it("uses the neutral bg-border/10 track when idle and the muted swap when frozen", () => {
 		render(<LevelBar level={0} playing={false} />);
-		expect(getProgressbar().className).toContain("bg-input/30");
+		expect(getProgressbar().className).toContain("bg-border/10");
 		cleanup();
 		render(<LevelBar level={0} playing={true} />);
 		expect(getProgressbar().className).toContain("bg-muted-foreground/10");

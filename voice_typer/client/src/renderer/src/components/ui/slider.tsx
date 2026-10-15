@@ -61,7 +61,7 @@ function Slider({
 			<SliderPrimitive.Track
 				data-slot="slider-track"
 				className={cn(
-					"relative h-1.5 w-full grow overflow-hidden rounded-full bg-input/90",
+					"relative h-1.5 w-full grow overflow-hidden rounded-full bg-border/10",
 					trackClassName,
 				)}
 			>
