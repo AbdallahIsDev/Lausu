@@ -1070,7 +1070,7 @@ describe("App routing + chrome, rewrite of routing + ErrorBoundary tests", () =>
 		render(<App />);
 
 		await waitFor(() => {
-			expect(screen.getByText(/Starting Python backend/u)).toBeTruthy();
+			expect(screen.getByText(/Starting Lausu/u)).toBeTruthy();
 		});
 
 		expect(screen.getByText(/This usually takes a few seconds/u)).toBeTruthy();

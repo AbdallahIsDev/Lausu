@@ -1,9 +1,10 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LocalModelsPanel } from "@/components/models/LocalModelsPanel";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { DiskInfo, ModelFamily, ModelMetadata } from "@/lib/utils/models";
+import { useAppStore } from "@/stores/appStore";
 
 // Mock the HugeiconsIcon wrapper so the test doesn't depend on the SVG
 // renderer. The mock exposes the icon's `name` via data-name.
@@ -75,6 +76,12 @@ function renderPanel(ui: React.ReactElement) {
 }
 
 const noop = vi.fn();
+
+// Deterministic config baseline: `gpu_available` absent == GPU-less, the
+// same reading `DeviceToggle` uses. Each label test sets what it needs.
+beforeEach(() => {
+	useAppStore.setState({ config: null });
+});
 
 const tinyMeta: ModelMetadata = {
 	name: "tiny",
@@ -349,6 +356,7 @@ describe("LocalModelsPanel, UI/UX overhaul: metadata line + display names", () =
 	});
 
 	it("renders VRAM as a label+value pair and language/speed as icon-only chips", () => {
+		useAppStore.setState({ config: { gpu_available: true } });
 		renderPanel(<LocalModelsPanel {...baseProps} />);
 		// VRAM label (muted) + colon + value, one pair per variant.
 		const vramLabels = screen.getAllByText("VRAM");
@@ -533,5 +541,68 @@ describe("LocalModelsPanel, forward error/modelName/onRetry to DownloadProgressB
 		);
 		const bar = screen.getByTestId("download-progress-bar");
 		expect(bar.getAttribute("data-error")).toBe("");
+	});
+});
+
+// The metadata line's memory pair is labelled VRAM on a CUDA machine and
+// RAM on a CPU-only one: same figure, same formatter, same position. The
+// WER pair and the icon chips are identical in both modes.
+describe("LocalModelsPanel, memory label follows gpu_available", () => {
+	afterEach(() => cleanup());
+
+	const tinyOnlyFamily: ModelFamily[] = families.map((family) => ({
+		...family,
+		variants: family.variants.filter((variant) => variant.name === "tiny"),
+	}));
+	const tinyOnlyCatalog: Record<string, ModelMetadata> = {
+		tiny: { ...tinyMeta, wer: 7.5 },
+	};
+
+	it("labels the pair VRAM when the backend reports a CUDA GPU", () => {
+		useAppStore.setState({ config: { gpu_available: true } });
+		renderPanel(<LocalModelsPanel {...baseProps} />);
+		expect(screen.getAllByText("VRAM").length).toBeGreaterThanOrEqual(1);
+		expect(screen.queryByText("RAM")).toBeNull();
+		expect(screen.getByText(/: ~512 MB/i)).toBeInTheDocument();
+		expect(screen.getByText(/: ~4 GB/i)).toBeInTheDocument();
+	});
+
+	it("labels the SAME pair RAM on a CPU-only machine (gpu_available: false)", () => {
+		useAppStore.setState({ config: { gpu_available: false } });
+		renderPanel(<LocalModelsPanel {...baseProps} />);
+		expect(screen.queryByText("VRAM")).toBeNull();
+		expect(screen.getAllByText("RAM").length).toBeGreaterThanOrEqual(1);
+		expect(screen.getByText(/: ~512 MB/i)).toBeInTheDocument();
+		expect(screen.getByText(/: ~4 GB/i)).toBeInTheDocument();
+	});
+
+	it("treats an absent capability flag as GPU-less (legacy sidecar / config still loading)", () => {
+		useAppStore.setState({ config: null });
+		renderPanel(<LocalModelsPanel {...baseProps} />);
+		expect(screen.queryByText("VRAM")).toBeNull();
+		expect(screen.getAllByText("RAM").length).toBeGreaterThanOrEqual(1);
+		expect(screen.getByText(/: ~512 MB/i)).toBeInTheDocument();
+	});
+
+	it("leaves the WER pair and the icon chips untouched in both modes", () => {
+		for (const config of [{ gpu_available: true }, { gpu_available: false }]) {
+			useAppStore.setState({ config });
+			const { unmount } = renderPanel(
+				<LocalModelsPanel
+					{...baseProps}
+					modelCatalog={tinyOnlyCatalog}
+					modelFamilies={tinyOnlyFamily}
+				/>,
+			);
+			expect(screen.getByText("WER")).toBeInTheDocument();
+			expect(screen.getByText(/: 7.5%/i)).toBeInTheDocument();
+			expect(
+				screen.getAllByRole("button", { name: "English Only" }).length,
+			).toBeGreaterThanOrEqual(1);
+			expect(
+				screen.getAllByRole("button", { name: "Fast Speed" }).length,
+			).toBeGreaterThanOrEqual(1);
+			unmount();
+		}
 	});
 });

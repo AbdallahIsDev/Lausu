@@ -362,7 +362,7 @@ export function ToggleGroup<T extends string>({
 						variant === "default" &&
 							"inset-y-0.5 rounded-lg not-supports-[corner-shape:squircle]:rounded-[calc(var(--radius)-0.125rem)] bg-surface shadow-xs dark:bg-border/10",
 						variant === "tabs" &&
-							"inset-y-1 rounded-lg not-supports-[corner-shape:squircle]:rounded-[calc(var(--radius)-0.25rem)] bg-input",
+							"inset-y-1 rounded-lg not-supports-[corner-shape:squircle]:rounded-[calc(var(--radius)-0.25rem)] bg-border/10",
 						indicatorClassName,
 					)}
 					style={{

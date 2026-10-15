@@ -302,7 +302,7 @@ both fill and border.
 | `icon` | — | — | 36×36 | 16px |
 | `icon-lg` | — | — | 40×40 | 16px |
 
-**Input** — 32px tall (`h-8`), 12×8px padding, radius 10px, `bg-input/50`, text 16px
+**Input** — 32px tall (`h-8`), 12×8px padding, radius 10px, `bg-border/10`, text 16px
 (14px at ≥768px).
 
 **Switch** — default 44×20px (2px border), thumb 24×16px, radius full, checked
