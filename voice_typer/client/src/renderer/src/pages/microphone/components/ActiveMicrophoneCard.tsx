@@ -17,7 +17,12 @@
 // Only `LevelBarContainer` (the `LevelBar` + `LiveQualityFeedback`
 // pair that actually consumes `level`/`peak`) re-renders on each push.
 
-import { Mic02Icon, PlayIcon, StopIcon } from "@hugeicons/core-free-icons";
+import {
+	Mic02Icon,
+	PlayIcon,
+	StopIcon,
+	VolumeHighIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { memo } from "react";
 import { LevelBar } from "@/components/feedback/LevelBar";
@@ -28,6 +33,7 @@ import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import type { AudioPreset } from "@/lib/utils/audioPresets";
 import type { LausuConfig } from "@/types/config";
+import type { LiveListenError } from "../hooks/useLiveListen";
 import { MICROPHONE_TEST_DURATION_SEC } from "../hooks/useMicrophoneTestSession";
 import type { TestResultQuality } from "../lib/types";
 import { PresetAccordionSelector } from "./PresetAccordionSelector";
@@ -64,6 +70,12 @@ export interface ActiveMicrophoneCardProps {
 	hasFiltersEnabled: boolean;
 	showAdvanced: boolean;
 	config: LausuConfig | null;
+	/** Live monitor ("hear yourself") state, owned by useLiveListen in the page. */
+	liveListening: boolean;
+	liveStarting: boolean;
+	liveListenError: LiveListenError;
+	liveListenDisabled: boolean;
+	onToggleLiveListen: () => void;
 	onStartTest: () => void;
 	onStopTest: () => void;
 	onPlayEnhanced: () => void;
@@ -97,6 +109,11 @@ export function ActiveMicrophoneCard({
 	hasFiltersEnabled,
 	showAdvanced,
 	config,
+	liveListening,
+	liveStarting,
+	liveListenError,
+	liveListenDisabled,
+	onToggleLiveListen,
 	onStartTest,
 	onStopTest,
 	onPlayEnhanced,
@@ -193,6 +210,30 @@ export function ActiveMicrophoneCard({
 					</Button>
 				)}
 
+				{/* Live monitor ("hear yourself"): pure frontend
+				passthrough, no recording. Disabled while a test,
+				playback, or start is in flight (one mic stream at a
+				time). */}
+				{!testRunning && (
+					<Button
+						variant="outline"
+						size="sm"
+						className="gap-2"
+						disabled={liveListenDisabled || liveStarting}
+						onClick={onToggleLiveListen}
+						aria-pressed={liveListening}
+					>
+						<HugeiconsIcon
+							icon={liveListening ? StopIcon : VolumeHighIcon}
+							strokeWidth={1.625}
+							className="h-4 w-4"
+						/>
+						{liveListening
+							? t("microphoneTest.stopListening")
+							: t("microphoneTest.liveListen")}
+					</Button>
+				)}
+
 				{/*(a11y): split the live level indicator from
                                     the post-test duration readout. The live level
                                     (rapidly fluctuating during recording) is NOT
@@ -226,6 +267,26 @@ export function ActiveMicrophoneCard({
 							: t("microphone.monitoringOff")}
 				</span>
 			</div>
+
+			{/* Live-monitor hint + error. The hint shows while
+			listening (headphones warning against feedback); errors
+			map the hook's code to copy. */}
+			{liveListening && !testRunning && (
+				<p className="text-xs text-muted-foreground">
+					{t("microphoneTest.liveListenHint")}
+				</p>
+			)}
+			{liveListenError && !testRunning && (
+				<p className="text-xs text-destructive" role="alert">
+					{t(
+						liveListenError === "denied"
+							? "microphoneTest.liveListenDenied"
+							: liveListenError === "unavailable"
+								? "microphoneTest.liveListenUnavailable"
+								: "microphoneTest.liveListenFailed",
+					)}
+				</p>
+			)}
 
 			{/* Filter invalidation notice */}
 			{filtersSinceLastTest && filtersChangedSinceTest && !testRunning && (

@@ -22,6 +22,7 @@ import { ActiveMicrophoneCard } from "./microphone/components/ActiveMicrophoneCa
 import { AvailableMicrophonesList } from "./microphone/components/AvailableMicrophonesList";
 import { MicrophonePermissionBanner } from "./microphone/components/MicrophonePermissionBanner";
 import { MicrophoneSkeleton } from "./microphone/components/MicrophoneSkeleton";
+import { useLiveListen } from "./microphone/hooks/useLiveListen";
 import { useMicrophoneData } from "./microphone/hooks/useMicrophoneData";
 import { useMicrophonePermission } from "./microphone/hooks/useMicrophonePermission";
 import { useMicrophoneTest } from "./microphone/hooks/useMicrophoneTest";
@@ -86,6 +87,15 @@ export default function MicrophonePage() {
 	// interacts with the mic-test surface.
 	const [hasAttempted, setHasAttempted] = useState(false);
 
+	// Live-monitor stop signal. Bumped whenever the mic stream is
+	// claimed elsewhere (test start, device switch): the monitor must
+	// release it so only one consumer holds the device.
+	const [liveListenStopSignal, setLiveListenStopSignal] = useState(0);
+	const bumpLiveListenStop = useCallback(
+		() => setLiveListenStopSignal((n) => n + 1),
+		[],
+	);
+
 	const {
 		testRunning,
 		testStarting,
@@ -131,6 +141,7 @@ export default function MicrophonePage() {
 	const startTest = useCallback(
 		(...args: Parameters<typeof rawStartTest>) => {
 			setHasAttempted(true);
+			bumpLiveListenStop();
 			if (config && !config.voice_biometric_consent) {
 				openConsentGate({
 					consentField: VOICE_BIOMETRIC_CONSENT_FIELD,
@@ -142,7 +153,7 @@ export default function MicrophonePage() {
 			}
 			return rawStartTest(...args);
 		},
-		[rawStartTest, config],
+		[rawStartTest, config, bumpLiveListenStop],
 	);
 
 	// Wrap selectMicrophone so the first invocation flips `hasAttempted`
@@ -154,6 +165,7 @@ export default function MicrophonePage() {
 	const selectMicrophone = useCallback(
 		async (...args: Parameters<typeof rawSelectMicrophone>) => {
 			setHasAttempted(true);
+			bumpLiveListenStop();
 			if (lostSource !== null) {
 				clearLost();
 			}
@@ -165,7 +177,7 @@ export default function MicrophonePage() {
 				}
 			}
 		},
-		[rawSelectMicrophone, lostSource, clearLost, loadData],
+		[rawSelectMicrophone, lostSource, clearLost, loadData, bumpLiveListenStop],
 	);
 
 	// ── Derived state ─────────────────────────────────────────────
@@ -183,6 +195,27 @@ export default function MicrophonePage() {
 			? filtersSinceLastTest
 			: false;
 	const hasFiltersEnabled = (config?.audio_preset ?? "auto") !== "off";
+
+	// Live monitor ("hear yourself"). Frontend-only passthrough, no
+	// consent gate: nothing is recorded, processed, stored, or
+	// transmitted. Stops on test start / device switch (stopSignal),
+	// tab-hide, and unmount (all inside the hook).
+	const {
+		listening: liveListening,
+		starting: liveStarting,
+		error: liveListenError,
+		toggle: toggleLiveListen,
+	} = useLiveListen({
+		activeMicName: isSystemDefault ? null : activeMicName,
+		isSystemDefault,
+		stopSignal: liveListenStopSignal,
+	});
+	const liveListenDisabled =
+		testRunning ||
+		testStarting ||
+		playingEnhanced ||
+		playingOriginal ||
+		microphones.length === 0;
 
 	// ── Render ────────────────────────────────────────────────────
 
@@ -274,6 +307,11 @@ export default function MicrophonePage() {
 						hasFiltersEnabled={hasFiltersEnabled}
 						showAdvanced={showAdvanced}
 						config={config}
+						liveListening={liveListening}
+						liveStarting={liveStarting}
+						liveListenError={liveListenError}
+						liveListenDisabled={liveListenDisabled}
+						onToggleLiveListen={toggleLiveListen}
 						onStartTest={startTest}
 						onStopTest={stopTest}
 						onPlayEnhanced={() =>
