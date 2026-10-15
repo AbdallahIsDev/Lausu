@@ -29,7 +29,7 @@ These items are the highest-priority remaining work for the project. They block 
 - **VT-1**: Windows host validation. Code verified present (`config/loader.py` warnings registry, `_timeout_utils` TIMEOUT runner, `tray_lifecycle.py:151-177` degradation) + imports/unit green (`test_timeout_utils` 34 passed); live Windows terminal re-run needs a real host.
 
 ### WL-1 - Load the no-pack whisper model in the worker, not the sidecar (multi-round)
-**Status:** OPEN.
+**Status:** ✅ Fixed (2026-10-15, Windows host. Round A: `load_whisper_model` WS command + `request_load_whisper_model` client, unit + stress suites green. Round B: `_try_system_whisper_fallback` worker-first with in-process fallback, fallback-matrix tests green; 42 focused tests passed. Round C live: real no-pack cold boot (`offline_pack_exists("1.0.0")=False`, large-v3/cuda, real 3GB weights) — source worker loaded large-v3 in 10.8s, sidecar `get_status`/`get_config` polls during the whole `ModelLoad` window all ≤0.01s (0 over 15s, 0 failures), served `idle/worker/large-v3`, zero `faster_whisper` import sidecar-side, config/recovery untouched. Frozen worker bundle ships faster_whisper/ctranslate2 verified by inspection only (`build_worker_windows.sh` nofollows torch + lazy modules, never faster_whisper/ctranslate2 — the sidecar freeze is the one that excludes them); re-confirm with a live frozen-exe run at packaging time. Full timings in `worklog.md`.)
 **Description:** On installs without the offline pack, the sidecar loads `faster_whisper.WhisperModel` in-process (`asr/registry.py:235` `_try_system_whisper_fallback` → `system_whisper.py:49` `try_load_system_whisper` → `WhisperModel(...)` on the `ModelLoad` thread started by `model_manager/_loading.py:211` `start_background_load`). The 3GB weight read + ctranslate2 float16→float32 conversion saturates the sidecar process, and the UI gets zero IPC answers for minutes. Observed 2026-10-11 on a live dev boot: host-side `get_config`/`get_status` 15s timeouts from 08:56:27 to 08:57:39 (note `get_status` is pure in-memory reads — this is process starvation, not slow probes), ctranslate2 conversion warning at 09:01:12, model ready minutes later. Renderer mitigations already shipped (6-min bridge wait, mount re-races, probe prewarm, escalating backoff) only make the storm survivable; this task removes it for no-pack installs. With the pack installed the problem does not exist (`WorkerBackedAsr.load` loads nothing in-process).
 **Why separate from the pack split:** the Phase-2 split (slim core + downloadable pack) is unshipped with no published manifest; this task fixes the no-pack path that every current install actually runs.
 **Round A — worker-side load command (backend-only, headless-testable).** Add a worker WS command (e.g. `load_whisper_model`) that loads the named model in the worker process and reports `{loaded, backend, device, error}`; extend the sidecar `worker_client` with a matching call + timeout; cover with worker unit tests using a stubbed engine (no 3GB weights in tests — mock `WhisperModel`). Files: `worker/_ws_commands.py`, `worker/whisper/` (holder), `server/worker_client.py`, `tests/worker/`. Success: command round-trips load/success/failure shapes; focused worker + client suites green; ruff + mypy clean.
@@ -146,25 +146,4 @@ These items are the highest-priority remaining work for the project. They block 
 **Fix:** Re-add `center` / `hiddenTitle` / `titleBarStyle` / `trafficLightPosition` / `additionalBrowserArgs` per-arch where intended; document intentional deltas. `VALIDATE ON WINDOWS HOST` + `VALIDATE ON MACOS HOST`.
 **Simplified Fix:** Copy the missing window settings from the base config into each platform config.
 **Implementation Difficulty:** 🟢 Easy
-**Severity:** 🟡 Medium
-
-### Pages should open instantly with data ready after hovering their sidebar item
-**Status:** ❌ Not Fixed
-**Description:** There is an issue with how pages open. It is not exactly a bug, but something is not working the way originally planned.
-
-We have several pages that contain important information, such as the Analytics page, also known as the Dashboard. This page contains a lot of important information. When clicking on it and navigating to the page, it sends a request to the database to retrieve the information and display it. Initially, all the values are zero until the data comes back from the database and the actual numbers are displayed.
-
-Previously, it was requested to implement something like a pre-request. As soon as the user hovers over the Analytics page item or button in the sidebar, it should immediately send a request to the database, retrieve the data, and display it. This way, when clicking on the Analytics page, there should be no loading period because the data would already have been fetched and displayed before even entering the page, simply by hovering over it.
-
-However, the problem is that when hovering over the Analytics button and waiting for around five seconds to make sure the database request has been sent and the data has been retrieved, the expectation is to click on the page and find everything already displayed and ready to use.
-
-Instead, when entering the page, the page skeleton appears first. Once the skeleton disappears, the UI and layout appear with the data already available.
-
-It is not sure whether hovering over the button actually triggered the database request and retrieved the information. When navigating to the page, the skeleton appears for about a second or less, and then disappears, revealing all the data. So, it is suspected the data is indeed being fetched during the hover, but the current implementation only retrieves the data when the user hovers over the page item. The page itself has not been loaded yet. In other words, hovering only triggers the database request without actually loading the page.
-
-The correct approach would be to load the page itself as soon as the user hovers over it, rather than just fetching the data.
-
-To clarify, as soon as the user hovers over a page item, the application should send the database request to retrieve the data and also begin loading the page itself. This way, if the user hovers over the page for five seconds, or even less depending on how long it takes, and then clicks on it, the page should appear instantly without any skeleton, loader, or placeholder information. Everything should already be rendered and ready to display.
-
-The Analytics page is just an example. This behavior affects all the pages in the application. Therefore, when fixing this issue or implementing a solution, it needs to be applied consistently across all pages, not just the Analytics page.
 **Severity:** 🟡 Medium
