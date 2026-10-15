@@ -22,23 +22,23 @@
 	},
 	"app": {
 		"name": "{appName}",
-		"startingBackend": "正在启动 Python 后端…",
+		"startingBackend": "正在启动 {appName}…",
 		"firstLaunchHint": "首次启动可能需要 30–60 秒，因为我们正在下载语音模型（small.en 约 466 MB）。后续启动会快得多。您可以关闭此窗口. 准备就绪后即可从系统托盘进行听写。",
-		"lostConnection": "与 Python 后端的连接已断开",
+		"lostConnection": "连接已断开",
 		"retryConnection": "重试连接",
 		"forceRetry": "强制重试",
-		"restartingBackend": "正在重启 {appName} 后端…",
+		"restartingBackend": "正在重启 {appName}…",
 		"restartingHint": "通常需要几秒钟。准备就绪后，听写将从系统托盘恢复。",
 		"goHome": "返回首页",
-		"lostConnectionHint": "Python 后端已停止响应。请尝试重启。",
+		"lostConnectionHint": "{appName} 已停止响应。请重启应用以继续。",
 		"connecting": {
-			"step1StartingPython": "正在启动 Python",
+			"step1StartingPython": "正在启动 {appName}",
 			"step2LoadingModel": "正在加载模型",
 			"step3Ready": "就绪"
 		},
 		"pageNotFoundDescription": "未知页面：{page}",
 		"pageNotFoundTitle": "页面未找到",
-		"recordingInterrupted": "录音已中断"
+		"recordingInterrupted": "录音已中断：连接已断开"
 	},
 	"media": {
 		"title": "媒体转写",
@@ -1398,6 +1398,7 @@
 			"selectAria": "选择 {name}",
 			"deleteAria": "删除 {name}",
 			"vramLabel": "VRAM",
+			"ramLabel": "RAM",
 			"werLabel": "WER"
 		},
 		"cloud": {
@@ -1632,7 +1633,7 @@
 		"englishOnlyBadge": "仅英语",
 		"multilingualBadge": "多语言",
 		"downloadProgressAria": "下载进度：{percent}%",
-		"backendAria": "转录后端",
+		"backendAria": "转录方式",
 		"backendLocalLabel": "本地模型",
 		"backendLocalDescription": "将模型下载到您的设备。转录完全离线运行: 您的音频永远不会离开您的计算机。",
 		"backendCloudLabel": "Cloud API",
@@ -1698,7 +1699,7 @@
 		"resetSettingsHint": "将所有设置重置为默认值并重新加载——如果错误的配置值导致此崩溃，此功能很有用",
 		"openLogs": "打开日志",
 		"reportBug": "报告此错误",
-		"resetFailedNotice": "后端重置失败——正在清除本地状态并仍然重新加载。",
+		"resetFailedNotice": "无法重置设置，仍将重新加载。",
 		"resetSettings": "重置设置",
 		"copied": "已复制！",
 		"resetting": "正在重置…",
@@ -1913,18 +1914,18 @@
 		"unknown": "应用程序遇到意外错误。您的数据是安全的。",
 		"cudaOom": "GPU内存不足。请尝试较小的模型、关闭其他GPU应用程序或切换到CPU模式。",
 		"rateLimited": "请求过多。请稍候片刻再试。",
-		"unknownBackend": "转写后端遇到意外错误。您的数据是安全的——请重试。",
+		"unknownBackend": "转录遇到意外错误。您的数据是安全的。请重试。",
 		"viewLogsAction": "查看日志",
 		"copyErrorAction": "复制错误",
 		"commandTimeout": "请求超时——引擎可能仍在加载。请稍后重试。",
-		"backendNotConnected": "后台服务尚未连接。请等待其完成启动后再试。",
+		"backendNotConnected": "应用尚未就绪。请等待启动完成，然后重试。",
 		"invalidFields": "{count} 个值被拒绝为无效。请检查所更改的设置并修正。",
 		"invalidValue": "提供的某个值被拒绝为无效。请重新检查该设置后重试。"
 	},
 	"connection": {
-		"respawnFailed": "后端无法自动重启",
-		"respawnFailedHint": "{appName} 多次尝试恢复后端并放弃了。请重新启动应用，如果问题持续，请检查日志或重新安装。",
-		"restartBackendHint": "无法从此窗口重新启动后端。它可能由外部管理——请重新启动应用。"
+		"respawnFailed": "{appName} 无法自动恢复",
+		"respawnFailedHint": "{appName} 已多次尝试恢复但未成功。请重新打开应用。如果问题持续，请重新安装应用。",
+		"restartBackendHint": "应用无法在此处自行重启。请关闭应用然后重新打开。"
 	},
 	"dialog": {
 		"discardChangesTitle": "放弃更改？",
@@ -1932,21 +1933,21 @@
 		"discardChangesConfirm": "放弃更改",
 		"discardChangesStay": "继续编辑",
 		"pythonCrash": {
-			"title": "Python 后端崩溃",
-			"body": "{appName} 的 Python 后端意外退出，代码为 {code}，现在将退出。",
-			"signalBody": "{appName} 的 Python 后端被信号 {signal} 终止，现在将退出。"
+			"title": "出现了一些问题",
+			"body": "{appName} 意外关闭。请重启应用。",
+			"signalBody": "{appName} 意外停止。请重启应用。"
 		},
 		"pythonNotFound": {
-			"title": "未找到 Python 后端",
-			"body": "{appName} 找不到其 Python 后端。请重新安装应用程序。"
+			"title": "安装问题",
+			"body": "{appName} 无法正常启动。请重新安装应用。"
 		},
 		"pythonStartupTimeout": {
-			"title": "Python 后端启动失败",
-			"body": "{appName} 无法在 {seconds} 秒内连接到其 Python 后端。"
+			"title": "无法启动",
+			"body": "{appName} 启动时间过长。请重启应用。"
 		},
 		"restartLoopBreak": {
 			"title": "{appName} 无法安全重启",
-			"body": "Python 后端在启动时崩溃。在 {seconds} 秒内尝试 {count} 次后，重启循环断路器已启动。请检查日志文件，如果问题持续则重新安装。"
+			"body": "{appName} 启动时一直遇到问题。请重启电脑，如果问题持续，请重新安装应用。"
 		}
 	},
 	"notify": {
@@ -1966,7 +1967,7 @@
 			"xrun_warning_title": "{appName}",
 			"xrun_warning_body": "检测到音频缓冲区溢出。请尝试更大的缓冲区大小。",
 			"cancelled_timeout": "转录耗时过长，已取消。\n按 {hotkey} 重试。",
-			"start_failed": "无法开始录音。\n请查看 logs/lausu.log 中的回溯信息。",
+			"start_failed": "无法开始录音。请重试。",
 			"stop_failed": "无法停止录音。",
 			"silence_warning": "未检测到音频。请检查麦克风是否已连接并正常工作。",
 			"consent_required": "开始录音需要语音生物识别同意。\n请在 设置 > 隐私 > 语音生物识别同意 中启用。",
@@ -2106,7 +2107,13 @@
 		"packStateWorkerCrashed": "引擎已崩溃",
 		"packStateWorkerUnloaded": "引擎已卸载",
 		"packRetryDownload": "重试下载",
-		"packRepairPack": "修复安装包"
+		"packRepairPack": "修复安装包",
+		"updateTitle": "语音更新",
+		"updateVerifying": "正在验证下载…",
+		"updateReady": "语音更新就绪",
+		"updateFailed": "语音更新失败",
+		"outdatedDescription": "已安装的语音包已过时。正在下载新副本…",
+		"viewDetails": "查看详情"
 	},
 	"consentDialog": {
 		"title": "需要同意",

@@ -22,23 +22,23 @@
 	},
 	"app": {
 		"name": "{appName}",
-		"startingBackend": "Python-Backend wird gestartet…",
+		"startingBackend": "{appName} wird gestartet…",
 		"firstLaunchHint": "Der erste Start kann 30–60 Sekunden dauern, während das Spracherkennungsmodell (~466 MB für small.en) heruntergeladen wird. Nachfolgende Starts sind deutlich schneller. Sie können dieses Fenster schließen. Die Diktierfunktion wird aus dem System-Tray heraus funktionieren, sobald sie bereit ist.",
-		"lostConnection": "Verbindung zum Python-Backend verloren",
+		"lostConnection": "Verbindung verloren",
 		"retryConnection": "Verbindung wiederherstellen",
 		"forceRetry": "Erneut erzwingen",
-		"restartingBackend": "{appName}-Backend wird neu gestartet…",
+		"restartingBackend": "{appName} wird neu gestartet…",
 		"restartingHint": "Dies dauert in der Regel einige Sekunden. Das Diktat wird aus dem System-Tray fortgesetzt, sobald es bereit ist.",
 		"goHome": "Zur Startseite",
-		"lostConnectionHint": "Das Python-Backend antwortet nicht. Bitte neu starten.",
+		"lostConnectionHint": "{appName} antwortet nicht. Starten Sie die App neu, um fortzufahren.",
 		"connecting": {
-			"step1StartingPython": "Python wird gestartet",
+			"step1StartingPython": "{appName} wird gestartet",
 			"step2LoadingModel": "Modell wird geladen",
 			"step3Ready": "Bereit"
 		},
 		"pageNotFoundDescription": "Unbekannte Seite: {page}",
 		"pageNotFoundTitle": "Seite nicht gefunden",
-		"recordingInterrupted": "Aufnahme unterbrochen: Verbindung zum Backend verloren"
+		"recordingInterrupted": "Aufnahme unterbrochen: Verbindung verloren"
 	},
 	"media": {
 		"title": "Medientranskription",
@@ -1398,6 +1398,7 @@
 			"selectAria": "{name} auswählen",
 			"deleteAria": "{name} löschen",
 			"vramLabel": "VRAM",
+			"ramLabel": "RAM",
 			"werLabel": "WER"
 		},
 		"cloud": {
@@ -1632,7 +1633,7 @@
 		"englishOnlyBadge": "Nur Englisch",
 		"multilingualBadge": "Mehrsprachig",
 		"downloadProgressAria": "Fortschritt des Modell-Downloads: {percent}%",
-		"backendAria": "Transkriptions-Backend",
+		"backendAria": "Transkriptionsmethode",
 		"backendLocalLabel": "Lokales Modell",
 		"backendLocalDescription": "Laden Sie ein Modell auf Ihr Gerät herunter. Die Transkription läuft vollständig offline: Ihr Audio verlässt niemals Ihren Computer.",
 		"backendCloudLabel": "Cloud API",
@@ -1698,7 +1699,7 @@
 		"resetSettingsHint": "Alle Einstellungen auf Standard zurücksetzen und neu laden – nützlich, wenn ein falscher Konfigurationswert diesen Absturz verursacht hat",
 		"openLogs": "Protokolle öffnen",
 		"reportBug": "Diesen Fehler melden",
-		"resetFailedNotice": "Backend-Reset fehlgeschlagen – lokaler Zustand wird gelöscht und neu geladen.",
+		"resetFailedNotice": "Einstellungen konnten nicht zurückgesetzt werden, es wird trotzdem neu geladen.",
 		"resetSettings": "Einstellungen zurücksetzen",
 		"copied": "Kopiert!",
 		"resetting": "Wird zurückgesetzt…",
@@ -1913,18 +1914,18 @@
 		"unknown": "Die App ist auf einen unerwarteten Fehler gestoßen. Ihre Daten sind sicher.",
 		"cudaOom": "GPU-Speicher ausgeschöpft. Versuchen Sie ein kleineres Modell, schließen Sie andere GPU-Apps oder wechseln Sie in den CPU-Modus.",
 		"rateLimited": "Zu viele Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
-		"unknownBackend": "Das Transkriptions-Backend hat einen unerwarteten Fehler verursacht. Ihre Daten sind sicher – versuchen Sie es erneut.",
+		"unknownBackend": "Bei der Transkription ist ein unerwarteter Fehler aufgetreten. Ihre Daten sind sicher. Versuchen Sie es erneut.",
 		"viewLogsAction": "Protokolle anzeigen",
 		"copyErrorAction": "Fehler kopieren",
 		"commandTimeout": "Die Anfrage hat das Zeitlimit überschritten – die Engine lädt möglicherweise noch. Versuchen Sie es gleich erneut.",
-		"backendNotConnected": "Der Hintergrunddienst ist noch nicht verbunden. Warten Sie, bis er gestartet ist, und versuchen Sie es dann erneut.",
+		"backendNotConnected": "Die App ist noch nicht bereit. Warten Sie, bis sie vollständig gestartet ist, und versuchen Sie es dann erneut.",
 		"invalidFields": "{count} Werte wurden als ungültig abgelehnt. Überprüfen Sie die geänderten Einstellungen und korrigieren Sie sie.",
 		"invalidValue": "Einer der angegebenen Werte wurde als ungültig abgelehnt. Überprüfen Sie die Einstellung und versuchen Sie es erneut."
 	},
 	"connection": {
-		"respawnFailed": "Backend konnte nicht automatisch neu gestartet werden",
-		"respawnFailedHint": "{appName} hat mehrmals versucht, sein Backend wiederherzustellen, und aufgegeben. Starten Sie die App neu, und prüfen Sie bei anhaltendem Problem die Protokolle oder installieren Sie neu.",
-		"restartBackendHint": "Das Backend konnte nicht aus diesem Fenster neu gestartet werden. Es wird möglicherweise extern verwaltet – bitte starten Sie die App neu."
+		"respawnFailed": "{appName} konnte nicht automatisch wiederhergestellt werden",
+		"respawnFailedHint": "{appName} hat mehrmals versucht, sich zu erholen, und aufgegeben. Starten Sie die App neu. Falls es weiterhin passiert, installieren Sie die App neu.",
+		"restartBackendHint": "Die App konnte sich hier nicht selbst neu starten. Bitte schließen Sie sie und öffnen Sie sie erneut."
 	},
 	"dialog": {
 		"discardChangesTitle": "Änderungen verwerfen?",
@@ -1932,21 +1933,21 @@
 		"discardChangesConfirm": "Verwerfen",
 		"discardChangesStay": "Weiter bearbeiten",
 		"pythonCrash": {
-			"title": "Python-Backend abgestürzt",
-			"body": "{appName}s Python-Backend wurde unerwartet mit Code {code} beendet und wird jetzt beendet.",
-			"signalBody": "{appName}s Python-Backend wurde durch Signal {signal} beendet und wird jetzt beendet."
+			"title": "Etwas ist schiefgelaufen",
+			"body": "{appName} wurde unerwartet geschlossen. Bitte starten Sie die App neu.",
+			"signalBody": "{appName} wurde unerwartet beendet. Bitte starten Sie die App neu."
 		},
 		"pythonNotFound": {
-			"title": "Python-Backend nicht gefunden",
-			"body": "{appName} konnte sein Python-Backend nicht finden. Bitte installieren Sie die Anwendung neu."
+			"title": "Installationsproblem",
+			"body": "{appName} konnte nicht richtig gestartet werden. Bitte installieren Sie die App neu."
 		},
 		"pythonStartupTimeout": {
-			"title": "Python-Backend konnte nicht gestartet werden",
-			"body": "{appName} konnte sich nicht innerhalb von {seconds} Sekunden mit seinem Python-Backend verbinden."
+			"title": "Start fehlgeschlagen",
+			"body": "{appName} braucht zu lange zum Starten. Bitte starten Sie die App neu."
 		},
 		"restartLoopBreak": {
 			"title": "{appName} kann nicht sicher neu gestartet werden",
-			"body": "Das Python-Backend stürzt beim Start ab. Nach {count} Versuchen über {seconds} Sekunden wurde der Neustart-Schutz aktiviert. Bitte prüfen Sie die Protokolldateien und installieren Sie neu, falls das Problem besteht."
+			"body": "{appName} hat weiterhin Probleme beim Starten. Bitte starten Sie Ihren Computer neu, und installieren Sie die App neu, falls es weiterhin passiert."
 		}
 	},
 	"notify": {
@@ -1966,7 +1967,7 @@
 			"xrun_warning_title": "{appName}",
 			"xrun_warning_body": "Audio-Pufferüberlauf erkannt. Versuche eine höhere Puffergröße.",
 			"cancelled_timeout": "Die Transkription hat zu lange gedauert und wurde abgebrochen.\nDrücken Sie {hotkey}, um es erneut zu versuchen.",
-			"start_failed": "Aufnahme konnte nicht gestartet werden.\nSiehe logs/lausu.log für die Fehlermeldung.",
+			"start_failed": "Aufnahme konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
 			"stop_failed": "Aufnahme konnte nicht gestoppt werden.",
 			"silence_warning": "Kein Audio erkannt. Prüfen Sie, ob Ihr Mikrofon angeschlossen und funktionsfähig ist.",
 			"consent_required": "Die Zustimmung zur Stimmbiometrie ist erforderlich, um die Aufnahme zu starten.\nAktiviere sie unter Einstellungen > Datenschutz > Zustimmung zur Stimmbiometrie.",
@@ -2106,7 +2107,13 @@
 		"packStateWorkerCrashed": "Engine abgestürzt",
 		"packStateWorkerUnloaded": "Engine entladen",
 		"packRetryDownload": "Download wiederholen",
-		"packRepairPack": "Paket reparieren"
+		"packRepairPack": "Paket reparieren",
+		"updateTitle": "Sprach-Update",
+		"updateVerifying": "Download wird überprüft…",
+		"updateReady": "Sprach-Update bereit",
+		"updateFailed": "Sprach-Update fehlgeschlagen",
+		"outdatedDescription": "Das installierte Sprachpaket ist veraltet. Eine frische Kopie wird heruntergeladen…",
+		"viewDetails": "Details ansehen"
 	},
 	"consentDialog": {
 		"title": "Zustimmung erforderlich",

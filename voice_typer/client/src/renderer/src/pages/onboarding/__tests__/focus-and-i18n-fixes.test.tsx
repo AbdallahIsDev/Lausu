@@ -69,9 +69,9 @@ describe("onboarding.backendAria is genuinely translated (C-I18N-1/2)", () => {
 		}
 	});
 
-	it("non-English locales are NOT English copies of 'Transcription backend'", () => {
+	it("non-English locales are NOT English copies of 'Transcription method'", () => {
 		const english = en.onboarding.backendAria;
-		expect(english).toBe("Transcription backend");
+		expect(english).toBe("Transcription method");
 		for (const [code, dict] of ALL_LOCALES) {
 			if (code === "en") continue;
 			const value = (dict as typeof en).onboarding.backendAria;
