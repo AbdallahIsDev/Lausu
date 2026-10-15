@@ -62,30 +62,41 @@ def get_level_diagnostics() -> dict:
 
 def update_level_processor(config_dict: dict) -> None:
     """Create or update the audio processor for the live level bar."""
-    # Stash the config_dict BEFORE the early-return disable path so the
     try:
-        _state._level_processor_config = dict(config_dict)
+        new_config: dict | None = dict(config_dict)
     except Exception:
-        _state._level_processor_config = None
+        new_config = None
 
-    # Stash the ``level_bar_filtered`` flag on _state so the worker can
+    # The worker reads this flag off _state to pick the filtered vs raw RMS path.
     level_bar_filtered = bool(config_dict.get("level_bar_filtered", False))
-    with _state._monitor_lock:
-        _state._level_bar_filtered = level_bar_filtered
+    filter_enabled = bool(config_dict.get("noise_filter_enabled", True))
 
-    if not config_dict.get("noise_filter_enabled", True):
+    # One page open reaches here 2-3x with the same effective config (post-restart
+    # rebuild, service seed, filter-chain handler): rebuild + re-log on a real
+    # transition only. The presence term keeps a FAILED construction retryable.
+    with _state._monitor_lock:
+        sample_rate = _state._monitor_sample_rate
+        if (
+            _state._level_processor_config == new_config
+            and _state._level_processor_sample_rate == sample_rate
+            and _state._level_bar_filtered == level_bar_filtered
+            and (_state._level_processor is not None) == filter_enabled
+        ):
+            return
+        _state._level_processor_config = new_config
+        _state._level_bar_filtered = level_bar_filtered
+        _state._level_processor_sample_rate = sample_rate
+
+    if not filter_enabled:
         with _state._monitor_lock:
             _state._level_processor = None
-        log.debug("[LEVEL-MON] Level processor disabled")
+        # Not a failure: with the noise filter off the meter reads RAW RMS.
+        log.debug("[LEVEL-MON] Level processor bypassed: raw meter (noise filter off)")
         return
 
     try:
         # ADR 0007: AudioProcessor takes a config-like object (anything
         from voice_typer.server.audio_processor import AudioProcessor
-
-        # Snapshot the current monitor sample rate under the lock so
-        with _state._monitor_lock:
-            sample_rate = _state._monitor_sample_rate
 
         # Construct the processor OUTSIDE the lock: ``AudioProcessor.__init__``
         ap_config = types.SimpleNamespace(**config_dict)

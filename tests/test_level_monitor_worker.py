@@ -27,6 +27,7 @@ def _reset_level_monitor_state():
     lm._monitor_mic_id = None
     lm._level_processor = None
     lm._level_processor_config = None
+    lm._level_processor_sample_rate = 0
     lm._level_bar_filtered = False
     lm._dropped_level_chunks = 0
     lm._last_drop_log_time = 0.0

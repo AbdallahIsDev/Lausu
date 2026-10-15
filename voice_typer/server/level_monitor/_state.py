@@ -34,6 +34,10 @@ class _State:
         self._level_processor: Any | None = None  # AudioProcessor instance
         # Stash of the config_dict last passed to ``update_level_processor``.
         self._level_processor_config: dict | None = None
+        # Sample rate the stashed config was applied at; 0 is a sentinel no real
+        # device rate equals, so the first apply always differs. A device switch
+        # changes the rate alone, so it must stay part of the dedupe key.
+        self._level_processor_sample_rate: int = 0
         # Lightweight level-bar mode. When False (default), the cosmetic
         self._level_bar_filtered: bool = False
 
