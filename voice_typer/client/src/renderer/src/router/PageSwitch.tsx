@@ -11,12 +11,13 @@ import { useT } from "@/i18n/i18n";
 // resolves to the page module's default export. The lazy-import
 // REGISTRY (the single `PAGE_LOADERS` map this switch and
 // router/prefetch.ts both consume) lives in router/pageLoaders.ts.
-// Chunks are ALSO prefetched at idle + sidebar hover (router/prefetch.ts),
-// so the Suspense fallback below is a one-frame affordance, not a wait.
+// `<RouteChunk>` renders a WARM chunk (idle warm-up or sidebar hover)
+// synchronously, so the Suspense fallback below only appears for a
+// genuinely cold chunk — see router/RouteChunk.tsx.
 import Home from "@/pages/Home";
 import type { Page } from "@/types/ipc";
 
-import { LAZY_PAGES } from "./pageLoaders";
+import { RouteChunk } from "./RouteChunk";
 
 function RouteSuspenseFallback() {
 	return <RouteSkeleton />;
@@ -43,48 +44,51 @@ export function PageSwitch({
 			case "home":
 				return <Home />;
 			case "history":
-				return <LAZY_PAGES.history />;
+				return <RouteChunk page="history" />;
 			case "templates":
-				return <LAZY_PAGES.templates />;
+				return <RouteChunk page="templates" />;
 			case "vocabulary":
-				return <LAZY_PAGES.vocabulary />;
+				return <RouteChunk page="vocabulary" />;
 			case "media":
-				return <LAZY_PAGES.media />;
+				return <RouteChunk page="media" />;
 			case "models":
-				return <LAZY_PAGES.models />;
+				return <RouteChunk page="models" />;
 			case "microphone":
-				return <LAZY_PAGES.microphone />;
+				return <RouteChunk page="microphone" />;
 			case "plugins":
-				return <LAZY_PAGES.plugins />;
+				return <RouteChunk page="plugins" />;
 			case "analytics":
-				return <LAZY_PAGES.analytics />;
+				return <RouteChunk page="analytics" />;
 			// The Settings surface is HUB + nested section pages. "settings"
 			// renders the hub (one card whose rows open the section pages —
 			// see SettingsHub + settingsSections.ts); each section literal
 			// renders `<SettingsPage page={...} />` with exactly that
-			// domain's cards. All literals resolve to the same lazy chunk.
+			// domain's cards. All literals resolve to the same lazy chunk
+			// (`page` is forwarded to the component, see RouteChunk).
 			case "settings":
-				return <LAZY_PAGES.settings page="settings" />;
+				return <RouteChunk page="settings" />;
 			case "settingsGeneral":
-				return <LAZY_PAGES.settings page="settingsGeneral" />;
+				return <RouteChunk page="settingsGeneral" />;
 			case "settingsOverlay":
-				return <LAZY_PAGES.settings page="settingsOverlay" />;
+				return <RouteChunk page="settingsOverlay" />;
 			case "settingsHotkeys":
-				return <LAZY_PAGES.settings page="settingsHotkeys" />;
+				return <RouteChunk page="settingsHotkeys" />;
 			case "settingsTranscription":
-				return <LAZY_PAGES.settings page="settingsTranscription" />;
+				return <RouteChunk page="settingsTranscription" />;
 			case "settingsAudio":
-				return <LAZY_PAGES.settings page="settingsAudio" />;
+				return <RouteChunk page="settingsAudio" />;
 			case "settingsAppearance":
-				return <LAZY_PAGES.settings page="settingsAppearance" />;
+				return <RouteChunk page="settingsAppearance" />;
 			case "settingsPrivacy":
-				return <LAZY_PAGES.settings page="settingsPrivacy" />;
+				return <RouteChunk page="settingsPrivacy" />;
 			case "settingsAdvanced":
-				return <LAZY_PAGES.settings page="settingsAdvanced" />;
+				return <RouteChunk page="settingsAdvanced" />;
 			case "aboutAndPrivacy":
-				return <LAZY_PAGES.aboutAndPrivacy />;
+				return <RouteChunk page="aboutAndPrivacy" />;
 			case "onboarding":
-				return <LAZY_PAGES.onboarding onComplete={onOnboardingComplete} />;
+				return (
+					<RouteChunk page="onboarding" onComplete={onOnboardingComplete} />
+				);
 			default:
 				// Page-not-found fallback now resolves via i18n
 				// (`app.pageNotFoundTitle` / `app.pageNotFoundDescription`)

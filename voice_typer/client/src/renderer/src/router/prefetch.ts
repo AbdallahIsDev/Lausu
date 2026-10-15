@@ -1,19 +1,21 @@
 // Route-chunk + data prefetching (vercel-react-best-practices:
 // bundle-preload; TanStack prefetchQuery / Next.js hover-prefetch).
-// The 10 secondary routes are React.lazy chunks (see PageSwitch.tsx).
+// The secondary routes are React.lazy chunks (see PageSwitch.tsx).
 // Without prefetching, the FIRST navigation to each page waits on a
 // dynamic import before anything renders. This module closes that gap:
 //   1. `prefetchRouteChunks()`, called once from App after mount, on
 //      `requestIdleCallback`, warms every route chunk. The app is a
 //      desktop shell (local files, small chunks), so warming all of
-//      them at idle is effectively free and makes every subsequent
-//      route switch render synchronously from React.lazy's module
-//      cache, no Suspense fallback at all.
+//      them at idle is effectively free. Warming RECORDS the resolved
+//      module (`pageLoaders.resolvedChunks`), which `<RouteChunk>`
+//      renders synchronously — React.lazy on its own still suspends on
+//      its first render even when the module is in memory, so the
+//      fallback used to flash on every route switch regardless.
 //   2. `prefetchPage(page)`, intent-based backup for the idle pass:
 //      the Sidebar calls it on nav-item hover/focus so the chunk is
-//      already streaming before the click lands. For data-heavy pages
-//      (analytics today) it ALSO warms the data cache via a dynamic
-//      import, so the click lands on cached data, not a fetch.
+//      already loaded (and recorded) before the click lands, and the
+//      page's DATA cache is warmed too, so the click lands on a page
+//      that renders its content on the first paint.
 // Fire-and-forget: a failed prefetch (dev HMR race, crash) must never
 // surface, the normal lazy import path still handles the load.
 
@@ -55,7 +57,7 @@ export function prefetchPage(page: Page): void {
 	prefetchPageData(page);
 }
 
-// Data prefetch per page (C-CACHE-4). Dynamic import keeps the page
+// Data prefetch per page (C-CACHE-4). Dynamic import keeps each page's
 // query code out of the main chunk; the callee's own TTL + in-flight
 // guards make repeated hovers free, and the mount fetch piggybacks an
 // in-flight prefetch instead of duplicating it.
@@ -75,68 +77,91 @@ function bridgePrefetchCall(): PrefetchCall | null {
 		bridge.call({ type, data });
 }
 
+/** A page's warm-up routine, loaded lazily with its own module. */
+type DataPrefetcher = (call: PrefetchCall) => Promise<unknown>;
+
+/** `() => import(module)` thunk that resolves the page's prefetcher. */
+type PrefetcherLoader = () => Promise<DataPrefetcher>;
+
+// Pages whose content gates the first paint behind a fetch. A page that
+// has no such gate (Media, AboutAndPrivacy, Onboarding) has no entry:
+// its chunk is warmed, nothing else is needed.
+const PAGE_DATA_PREFETCHERS: Partial<Record<Page, PrefetcherLoader[]>> = {
+	analytics: [
+		() =>
+			import("@/pages/dashboard/hooks/useDashboardData").then(
+				(m) => m.prefetchDashboardData,
+			),
+	],
+	history: [
+		() =>
+			import("@/pages/history/hooks/useHistoryCache").then(
+				(m) => m.prefetchHistoryData,
+			),
+	],
+	microphone: [
+		() =>
+			import("@/pages/microphone/hooks/useMicrophoneData").then(
+				(m) => m.prefetchMicrophoneData,
+			),
+	],
+	models: [
+		// The disk stat is the expensive leg of the Models page.
+		() =>
+			import("@/hooks/models/modelStatusCache").then(
+				(m) => m.prefetchModelsStatus,
+			),
+		// …and the config gates the page's first paint (`!config`).
+		() =>
+			import("@/hooks/models/useModelConfig").then(
+				(m) => m.prefetchModelsConfig,
+			),
+	],
+	plugins: [
+		() =>
+			import("@/pages/plugins/hooks/usePlugins").then(
+				(m) => m.prefetchPluginsData,
+			),
+	],
+	settings: [
+		() =>
+			import("@/components/settings/useSettingsConfig").then(
+				(m) => m.prefetchSettingsConfig,
+			),
+	],
+	templates: [
+		() =>
+			import("@/pages/templates/hooks/useTemplates").then(
+				(m) => m.prefetchTemplatesData,
+			),
+	],
+	vocabulary: [
+		() =>
+			import("@/pages/vocabulary/hooks/useVocabulary").then(
+				(m) => m.prefetchVocabularyData,
+			),
+	],
+};
+
+/** The prefetchers backing `page` (every settings-section literal shares
+ *  the Settings page's config warm-up). */
+function prefetchersFor(page: Page): PrefetcherLoader[] | undefined {
+	const direct = PAGE_DATA_PREFETCHERS[page];
+	if (direct) return direct;
+	if (page.startsWith("settings")) return PAGE_DATA_PREFETCHERS.settings;
+	return undefined;
+}
+
 function prefetchPageData(page: Page): void {
-	if (page === "analytics") {
-		import("@/pages/dashboard/hooks/useDashboardData")
-			.then(({ prefetchDashboardData }) => {
-				const call = bridgePrefetchCall();
-				if (!call) return;
-				void prefetchDashboardData(call);
-			})
+	const loaders = prefetchersFor(page);
+	if (!loaders || loaders.length === 0) return;
+	const call = bridgePrefetchCall();
+	if (!call) return;
+	for (const load of loaders) {
+		load()
+			.then((run) => run(call))
 			.catch(() => {
 				// Swallow: the mount fetch stays authoritative.
 			});
-		return;
-	}
-	if (page === "history") {
-		import("@/pages/history/hooks/useHistoryCache")
-			.then(({ prefetchHistoryData }) => {
-				const call = bridgePrefetchCall();
-				if (!call) return;
-				void prefetchHistoryData(call);
-			})
-			.catch(() => {
-				// Swallow: the mount fetch stays authoritative.
-			});
-		return;
-	}
-	if (page === "vocabulary") {
-		import("@/pages/vocabulary/hooks/useVocabulary")
-			.then(({ prefetchVocabularyData }) => {
-				const call = bridgePrefetchCall();
-				if (!call) return;
-				void prefetchVocabularyData(call);
-			})
-			.catch(() => {
-				// Swallow: the mount fetch stays authoritative.
-			});
-		return;
-	}
-	if (page === "templates") {
-		import("@/pages/templates/hooks/useTemplates")
-			.then(({ prefetchTemplatesData }) => {
-				const call = bridgePrefetchCall();
-				if (!call) return;
-				void prefetchTemplatesData(call);
-			})
-			.catch(() => {
-				// Swallow: the mount fetch stays authoritative.
-			});
-		return;
-	}
-	if (page === "models") {
-		// Status-only prefetch (the disk stat is the expensive leg;
-		// config + catalog still fetch on mount). The cache module is
-		// tiny, no page chunk is pulled in.
-		import("@/hooks/models/modelStatusCache")
-			.then(({ prefetchModelsStatus }) => {
-				const call = bridgePrefetchCall();
-				if (!call) return;
-				void prefetchModelsStatus(call);
-			})
-			.catch(() => {
-				// Swallow: the mount fetch stays authoritative.
-			});
-		return;
 	}
 }
