@@ -30,6 +30,7 @@ import { useNavigation } from "@/hooks/useNavigation";
 import { useNetworkOnline } from "@/hooks/useNetworkOnline";
 import { useOnboardingComplete } from "@/hooks/useOnboardingComplete";
 import { useOnboardingRouteGuard } from "@/hooks/useOnboardingRouteGuard";
+import { usePackUpdateToast } from "@/hooks/usePackUpdateToast";
 import { usePasteDeferredToast } from "@/hooks/usePasteDeferredToast";
 import { usePasteFailedToast } from "@/hooks/usePasteFailedToast";
 import { usePython } from "@/hooks/usePython";
@@ -166,6 +167,7 @@ export default function App() {
 	useHistoryIntegrityToast(t);
 	usePasteDeferredToast(t);
 	useLastResortUnloadedToast(t, () => navigate("models"));
+	usePackUpdateToast(t, () => navigate("aboutAndPrivacy"));
 	useConsentRequiredEvent({ call });
 
 	const connectingProgress = useConnectingProgress(connectionStatus);

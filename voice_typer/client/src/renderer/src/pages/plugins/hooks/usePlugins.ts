@@ -12,6 +12,7 @@ import { useLatestRef } from "@/hooks/useLatestRef";
 import { loadPluginCatalog } from "@/hooks/usePluginCatalog";
 import { usePython, usePythonEvent } from "@/hooks/usePython";
 import { t } from "@/i18n/i18n";
+import { type PrefetchCall, runPrefetchFlight } from "@/lib/snapshotCache";
 import { useAppStore } from "@/stores/appStore";
 import type { LausuConfig } from "@/types/config";
 import type { PluginInfo } from "@/types/plugins";
@@ -19,6 +20,42 @@ import type { PluginInfo } from "@/types/plugins";
 // Module-level cache, mirrors the microphone page's `_cachedMicrophones`:
 // the list survives unmount so re-visiting does not flash a skeleton.
 let _cachedPlugins: PluginInfo[] | null = null;
+
+// Sidebar-hover prefetch bookkeeping (C-CACHE-4). `_prefetchedAt` is set
+// ONLY by `prefetchPluginsData`, so repeated hovers stay free while an
+// ordinary navigation keeps the mount reload it always had.
+let _prefetchedAt = 0;
+const PLUGINS_PREFETCH_KEY = "plugins.list";
+export const PLUGINS_CACHE_TTL_MS = 30_000;
+
+/** Test-only reset for the module-level list cache + prefetch stamp
+ *  (module state outlives a test file's `beforeEach` otherwise). */
+export function __resetPluginsPrefetchForTests(): void {
+	_cachedPlugins = null;
+	_prefetchedAt = 0;
+}
+
+/**
+ * Warm the Plugins page's list on sidebar hover/focus (C-CACHE-4):
+ * short-circuits on a fresh cache, shares one in-flight request across
+ * repeated hovers, and stays best-effort — a failure leaves the cache
+ * untouched and the mount load stays authoritative.
+ */
+export function prefetchPluginsData(call: PrefetchCall): Promise<void> {
+	if (
+		_cachedPlugins !== null &&
+		_prefetchedAt > 0 &&
+		Date.now() - _prefetchedAt < PLUGINS_CACHE_TTL_MS
+	) {
+		return Promise.resolve();
+	}
+	return runPrefetchFlight(PLUGINS_PREFETCH_KEY, async () => {
+		const catalog = await loadPluginCatalog(call);
+		if (!Array.isArray(catalog.plugins)) return;
+		_cachedPlugins = catalog.plugins;
+		_prefetchedAt = Date.now();
+	});
+}
 
 export interface UsePluginsResult {
 	plugins: PluginInfo[];

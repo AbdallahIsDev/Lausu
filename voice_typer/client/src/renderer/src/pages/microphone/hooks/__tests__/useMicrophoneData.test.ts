@@ -50,7 +50,12 @@ vi.mock("@/i18n/i18n", () => ({
 
 import type { LausuConfig, MicrophoneDevice } from "@/types/config";
 // ── Helpers ──────────────────────────────────────────────────────────
-import { useMicrophoneData } from "../useMicrophoneData";
+import {
+	__resetMicrophonePrefetchForTests,
+	isMicrophonePrefetchFresh,
+	prefetchMicrophoneData,
+	useMicrophoneData,
+} from "../useMicrophoneData";
 
 function makeMic(id: string, name = id): MicrophoneDevice {
 	return { id, name, index: 0 } as MicrophoneDevice;
@@ -784,5 +789,145 @@ describe("useMicrophoneData, empty-list boot-race retry", () => {
 		} finally {
 			vi.useRealTimers();
 		}
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// PG-1: sidebar-hover prefetch. `prefetchMicrophoneData` warms the
+// module caches so the mount effect skips its reload (C-CACHE-2) and the
+// first commit already shows the device list — that is what removes the
+// spinner on a hovered click. Two contracts protect the ordinary path:
+// a mount with no hover still reloads (keeping the hot-unplug
+// reconciliation), and an EMPTY prefetch result must NOT arm the skip —
+// that is the documented boot race, where the mount load's bounded
+// retry is the only thing that heals the page.
+// ─────────────────────────────────────────────────────────────────────
+describe("useMicrophoneData, hover-prefetch mount skip (PG-1 / C-CACHE-2)", () => {
+	beforeEach(() => {
+		__resetMicrophonePrefetchForTests();
+	});
+
+	afterEach(() => {
+		// Module state outlives the test file: without this the NEXT
+		// prefetch would short-circuit on the stale stamp.
+		__resetMicrophonePrefetchForTests();
+	});
+
+	function countCmd(cmd: string): number {
+		return callMock.mock.calls.filter((c) => c[0] === cmd).length;
+	}
+
+	it("skips the mount load when a hover prefetch already warmed the device list", async () => {
+		const mics = [makeMic("mic-1", "USB Mic"), makeMic("mic-2", "Built-in")];
+		const cfg = makeConfig({ microphone: "mic-1" });
+		callMock.mockImplementation((cmd: string) => {
+			if (cmd === "get_microphones") return Promise.resolve(mics);
+			if (cmd === "get_config") return Promise.resolve(cfg);
+			return Promise.resolve({});
+		});
+
+		await prefetchMicrophoneData((type) => callMock(type));
+		expect(isMicrophonePrefetchFresh()).toBe(true);
+		const callsAfterPrefetch = callMock.mock.calls.length;
+
+		const selectMicrophoneRef = makeSelectMicrophoneRef();
+		const { result } = renderHook(() =>
+			useMicrophoneData({ selectMicrophoneRef }),
+		);
+
+		// First commit already holds the prefetched data.
+		expect(result.current.microphones).toEqual(mics);
+		expect(result.current.config?.microphone).toBe("mic-1");
+		await waitFor(() => {
+			expect(result.current.loading).toBe(false);
+		});
+		// The mount reload (and its reconciliation pass) was skipped, so
+		// the prefetch's round-trip is not paid for twice.
+		expect(callMock.mock.calls.length).toBe(callsAfterPrefetch);
+	});
+
+	it("still loads on an ordinary mount (no hover)", async () => {
+		const mics = [makeMic("mic-1")];
+		callMock.mockImplementation((cmd: string) => {
+			if (cmd === "get_microphones") return Promise.resolve(mics);
+			if (cmd === "get_config")
+				return Promise.resolve(makeConfig({ microphone: "mic-1" }));
+			return Promise.resolve({});
+		});
+
+		expect(isMicrophonePrefetchFresh()).toBe(false);
+
+		const selectMicrophoneRef = makeSelectMicrophoneRef();
+		const { result } = renderHook(() =>
+			useMicrophoneData({ selectMicrophoneRef }),
+		);
+
+		await waitFor(() => {
+			expect(result.current.microphones.length).toBe(1);
+		});
+		expect(countCmd("get_microphones")).toBe(1);
+		expect(result.current.loadError).toBeNull();
+	});
+
+	it("keeps the mount load armed when the prefetch saw an empty list (boot race)", async () => {
+		let micsCalls = 0;
+		callMock.mockImplementation((cmd: string) => {
+			if (cmd === "get_microphones") {
+				micsCalls += 1;
+				// 1st call = the hover prefetch, while the backend's
+				// device registry is still empty; 2nd = the mount load,
+				// after enumeration landed.
+				return micsCalls === 1
+					? Promise.resolve([])
+					: Promise.resolve([makeMic("late-mic", "Late USB Mic")]);
+			}
+			if (cmd === "get_config")
+				return Promise.resolve(makeConfig({ microphone: "late-mic" }));
+			return Promise.resolve({});
+		});
+
+		await prefetchMicrophoneData((type) => callMock(type));
+		// An empty result must NOT arm the mount-skip: the page would
+		// otherwise render a permanently empty list.
+		expect(isMicrophonePrefetchFresh()).toBe(false);
+
+		const selectMicrophoneRef = makeSelectMicrophoneRef();
+		const { result } = renderHook(() =>
+			useMicrophoneData({ selectMicrophoneRef }),
+		);
+
+		await waitFor(() => {
+			expect(result.current.microphones.length).toBe(1);
+		});
+		expect(result.current.microphones[0]?.id).toBe("late-mic");
+	});
+
+	it("leaves the mount load armed when the prefetch failed", async () => {
+		let micsCalls = 0;
+		callMock.mockImplementation((cmd: string) => {
+			if (cmd === "get_microphones") {
+				micsCalls += 1;
+				return micsCalls === 1
+					? Promise.reject(new Error("backend unreachable"))
+					: Promise.resolve([makeMic("mic-1")]);
+			}
+			if (cmd === "get_config")
+				return Promise.resolve(makeConfig({ microphone: "mic-1" }));
+			return Promise.resolve({});
+		});
+
+		// Never rejects: hover must not surface errors.
+		await prefetchMicrophoneData((type) => callMock(type));
+		expect(isMicrophonePrefetchFresh()).toBe(false);
+
+		const selectMicrophoneRef = makeSelectMicrophoneRef();
+		const { result } = renderHook(() =>
+			useMicrophoneData({ selectMicrophoneRef }),
+		);
+
+		await waitFor(() => {
+			expect(result.current.microphones.length).toBe(1);
+		});
+		expect(result.current.loadError).toBeNull();
 	});
 });

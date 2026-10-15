@@ -41,7 +41,12 @@ vi.mock("@/stores/appStore", () => ({
 	},
 }));
 
-import { useSettingsConfig } from "@/components/settings/useSettingsConfig";
+import {
+	__resetSettingsConfigPrefetchForTests,
+	isSettingsConfigPrefetchFresh,
+	prefetchSettingsConfig,
+	useSettingsConfig,
+} from "@/components/settings/useSettingsConfig";
 import type { LausuConfig } from "@/types/config";
 
 const baseConfig: LausuConfig = {
@@ -623,5 +628,122 @@ describe("useSettingsConfig, mergeExternalConfig contract", () => {
 			expect(result.current.config?.hotkey).toBe("F3");
 			expect(result.current.config?.model_size).toBe("qwen");
 		});
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// PG-1: sidebar-hover prefetch. `prefetchSettingsConfig` warms the
+// module cache so `loadConfigOnMount` skips its round-trip (C-CACHE-2)
+// and the page's FIRST commit already holds the config — that is what
+// removes the skeleton on a hovered click. The two contracts that keep
+// this from regressing the ordinary path are pinned here too: a mount
+// with no hover still revalidates exactly as before, and an explicit
+// Retry is NEVER skipped.
+// ─────────────────────────────────────────────────────────────────────
+describe("useSettingsConfig, hover-prefetch mount skip (PG-1 / C-CACHE-2)", () => {
+	beforeEach(() => {
+		resetStableMocks();
+		__resetSettingsConfigPrefetchForTests();
+	});
+
+	afterEach(() => {
+		cleanup();
+		// The module cache outlives the test file otherwise, which would
+		// make the NEXT test's prefetch short-circuit.
+		__resetSettingsConfigPrefetchForTests();
+	});
+
+	function getConfigCallCount(): number {
+		return mockCall.mock.calls.filter((args) => args[0] === "get_config")
+			.length;
+	}
+
+	function mockBackend() {
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config") return Promise.resolve(baseConfig);
+			if (type === "set_config") return Promise.resolve({ type: "ack" });
+			return Promise.resolve({});
+		});
+	}
+
+	it("skips the mount fetch when a hover prefetch already warmed the config", async () => {
+		mockBackend();
+
+		// The Sidebar's hover/focus path.
+		await prefetchSettingsConfig((type) => mockCall(type));
+		expect(isSettingsConfigPrefetchFresh()).toBe(true);
+
+		const { result } = renderHook(() => useSettingsConfig());
+		await result.current.loadConfigOnMount();
+
+		// The prefetch's round-trip is reused, not repeated.
+		expect(getConfigCallCount()).toBe(1);
+		// …and the config is present on the first commit, so the page
+		// renders content instead of its loading state.
+		expect(result.current.config?.model_size).toBe("tiny");
+	});
+
+	it("still fetches on an ordinary mount (no hover)", async () => {
+		mockBackend();
+		expect(isSettingsConfigPrefetchFresh()).toBe(false);
+
+		const { result } = renderHook(() => useSettingsConfig());
+		await result.current.loadConfigOnMount();
+
+		expect(getConfigCallCount()).toBe(1);
+		await waitFor(() => {
+			expect(result.current.config?.model_size).toBe("tiny");
+		});
+	});
+
+	it("never skips an explicit Retry, even right after a hover prefetch", async () => {
+		mockBackend();
+		await prefetchSettingsConfig((type) => mockCall(type));
+		expect(getConfigCallCount()).toBe(1);
+
+		const { result } = renderHook(() => useSettingsConfig());
+		// `loadConfig` is the Retry / explicit-reload path: a user asking
+		// for a reload must reach the backend, cache or no cache.
+		await result.current.loadConfig();
+
+		expect(getConfigCallCount()).toBe(2);
+		// A real load supersedes the prefetch, so the mount-skip is
+		// disarmed until the next hover.
+		expect(isSettingsConfigPrefetchFresh()).toBe(false);
+	});
+
+	it("does not re-issue IPC on a repeated hover inside the TTL", async () => {
+		mockBackend();
+		await prefetchSettingsConfig((type) => mockCall(type));
+		await prefetchSettingsConfig((type) => mockCall(type));
+		await prefetchSettingsConfig((type) => mockCall(type));
+
+		expect(getConfigCallCount()).toBe(1);
+	});
+
+	it("leaves the mount fetch armed when the prefetch failed", async () => {
+		let failNext = true;
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config") {
+				if (failNext) {
+					failNext = false;
+					return Promise.reject(new Error("backend unreachable"));
+				}
+				return Promise.resolve(baseConfig);
+			}
+			return Promise.resolve({});
+		});
+
+		// Never rejects: hover must not surface errors.
+		await prefetchSettingsConfig((type) => mockCall(type));
+		expect(isSettingsConfigPrefetchFresh()).toBe(false);
+
+		const { result } = renderHook(() => useSettingsConfig());
+		await result.current.loadConfigOnMount();
+
+		await waitFor(() => {
+			expect(result.current.config?.model_size).toBe("tiny");
+		});
+		expect(result.current.loadError).toBeNull();
 	});
 });
