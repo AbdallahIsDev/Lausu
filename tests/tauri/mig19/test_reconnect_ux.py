@@ -546,8 +546,8 @@ def test_app_tsx_renders_retry_button_when_disconnected(
     # The disconnected branch must use the lostConnection i18n key.
     assert "lostConnection" in connection_status_screen_source, (
         "ConnectionStatusScreen.tsx must use the app.lostConnection "
-        "i18n key in the 'disconnected' branch, surfaces 'Lost "
-        "connection to Python backend' to the user."
+        "i18n key in the 'disconnected' branch, surfaces 'Connection "
+        "lost' to the user."
     )
 
 

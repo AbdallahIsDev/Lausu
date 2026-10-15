@@ -239,6 +239,72 @@ describe("useMicrophoneLevelMonitor rAF loop pauses on idle", () => {
 	});
 });
 
+describe("useMicrophoneLevelMonitor, the liveness flag is never gated by itself", () => {
+	it("a stale `active:false` cannot latch out later `active:true` pushes", async () => {
+		const refs = makeRefs();
+		const { captures } = await renderProbe(refs);
+		const micLevelHandler = usePythonEventMock.mock.calls.find(
+			(c) => c[0] === "mic_level",
+		)?.[1] as ((data?: Record<string, unknown>) => unknown) | undefined;
+		expect(typeof micLevelHandler).toBe("function");
+
+		// A poll that raced the stream open reported "not monitoring".
+		act(() => {
+			micLevelHandler?.({ level: 0, peak: 0, active: false });
+		});
+		expect(captures.hook?.micMonitoring).toBe(false);
+
+		// The very next authoritative push carries `active: true` + a level.
+		perfNowValue = 100;
+		act(() => {
+			micLevelHandler?.({ level: 0.5, peak: 0.7, active: true });
+		});
+		expect(captures.hook?.micMonitoring).toBe(true);
+
+		perfNowValue = 150;
+		act(() => {
+			fireNextFrame();
+		});
+		const fill = refs.meterRef.current?.querySelector<HTMLElement>(
+			'[role="progressbar"] > div',
+		);
+		expect(fill?.style.transform).toContain("scaleX(0.5");
+	});
+
+	it("issues the one-shot poll only AFTER `level_monitor_start` resolves", async () => {
+		// The backend answers reads on a reserved pool, so a poll fired
+		// alongside the start wins the race and reads `active:false` off the
+		// not-yet-opened stream.
+		const order: string[] = [];
+		let resolveStart!: (value: { success: boolean }) => void;
+		callMock.mockImplementation((cmd: string) => {
+			order.push(cmd);
+			if (cmd === "level_monitor_start") {
+				return new Promise<{ success: boolean }>((resolve) => {
+					resolveStart = resolve;
+				});
+			}
+			return Promise.resolve({ level: 0.4, peak: 0.6, active: true });
+		});
+
+		const refs = makeRefs();
+		const { captures } = await renderProbe(refs);
+
+		expect(order).toEqual(["level_monitor_start"]);
+
+		await act(async () => {
+			resolveStart({ success: true });
+			await Promise.resolve();
+			await new Promise((r) => setTimeout(r, 0));
+		});
+
+		expect(order).toEqual(["level_monitor_start", "microphone_test_get_level"]);
+		// Live meter, no wait for the 30s heartbeat keep-alive poll.
+		expect(captures.hook?.micMonitoring).toBe(true);
+		expect(captures.hook?.level).toBe(0.4);
+	});
+});
+
 describe("useMicrophoneLevelMonitor, consent refusal surfaces the deep-link callback", () => {
 	it("invokes onConsentRequired with the envelope's consent_field when level_monitor_start is refused", async () => {
 		// Race path: consent revoked between the renderer's client-side

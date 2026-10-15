@@ -141,6 +141,41 @@ export function useMicrophoneLevelMonitor({
 		let issuedStartSeq = 0;
 		let deferredVisibleCleanup: (() => void) | null = null;
 
+		// One-shot read of the backend's authoritative level + monitor flag.
+		const runOneShotLevelPoll = (): void => {
+			void (async () => {
+				if (
+					typeof document !== "undefined" &&
+					document.visibilityState !== "visible"
+				)
+					return;
+				if (playingRef.current) return;
+				try {
+					const levelData = await callRef.current<{
+						level: number;
+						peak: number;
+						active: boolean;
+					}>("microphone_test_get_level");
+					if (levelData && typeof levelData.level === "number") {
+						levelRef.current = levelData.level;
+						setLevel(levelData.level);
+					}
+					if (levelData && typeof levelData.peak === "number") {
+						peakRef.current = levelData.peak;
+						setPeak(levelData.peak);
+					}
+					if (levelData && typeof levelData.active === "boolean") {
+						micMonitoringRef.current = levelData.active;
+						setMicMonitoring(levelData.active);
+					}
+				} catch (e) {
+					console.warn(
+						"[renderer:useMicrophoneLevelMonitor] one-shot level poll failed:",
+						e,
+					);
+				}
+			})();
+		};
 		const startMonitor = (): void => {
 			issuedStartSeq = ++monitorStartIssuedSeq;
 			callRef
@@ -151,6 +186,10 @@ export function useMicrophoneLevelMonitor({
 					// flight sets `cancelled`, so the cleanup must NOT stop
 					if (!cancelled) {
 						startedHere = true;
+						// Poll only AFTER the start commits: reads ride a
+						// reserved pool, so a poll fired alongside the start can
+						// win the race and read `active:false` off the unopened stream.
+						runOneShotLevelPoll();
 						return;
 					}
 					if (monitorStartIssuedSeq === issuedStartSeq) {
@@ -182,40 +221,6 @@ export function useMicrophoneLevelMonitor({
 					}
 				});
 		};
-		// ``mic_level`` push handler below is the path that must avoid
-		const runOneShotLevelPoll = (): void => {
-			void (async () => {
-				if (
-					typeof document !== "undefined" &&
-					document.visibilityState !== "visible"
-				)
-					return;
-				if (playingRef.current) return;
-				try {
-					const levelData = await callRef.current<{
-						level: number;
-						peak: number;
-						active: boolean;
-					}>("microphone_test_get_level");
-					if (levelData && typeof levelData.level === "number") {
-						levelRef.current = levelData.level;
-						setLevel(levelData.level);
-					}
-					if (levelData && typeof levelData.peak === "number") {
-						peakRef.current = levelData.peak;
-						setPeak(levelData.peak);
-					}
-					if (levelData && typeof levelData.active === "boolean") {
-						setMicMonitoring(levelData.active);
-					}
-				} catch (e) {
-					console.warn(
-						"[renderer:useMicrophoneLevelMonitor] one-shot level poll failed:",
-						e,
-					);
-				}
-			})();
-		};
 		// NOTE: this branch must NOT early-return its own listener-only
 		// cleanup, the deferred start must fall through to the shared
 		if (isHiddenAtStart) {
@@ -231,7 +236,6 @@ export function useMicrophoneLevelMonitor({
 						deferredVisibleCleanup = null;
 					}
 					startMonitor();
-					runOneShotLevelPoll();
 				}
 			};
 			document.addEventListener("visibilitychange", onVisible);
@@ -239,7 +243,6 @@ export function useMicrophoneLevelMonitor({
 				document.removeEventListener("visibilitychange", onVisible);
 		} else {
 			startMonitor();
-			runOneShotLevelPoll();
 		}
 
 		// Keep-alive heartbeat: the backend auto-stops the monitor
@@ -357,13 +360,20 @@ export function useMicrophoneLevelMonitor({
 					document.visibilityState !== "visible"
 				)
 					return undefined;
-				if (!testRunningRef.current && !micMonitoringRef.current)
-					return undefined;
-				if (playingRef.current) return undefined;
 				const levelData = data as
 					| { level?: unknown; peak?: unknown; active?: unknown }
 					| undefined;
 				if (!levelData) return undefined;
+				// Applied BEFORE every local gate: gating the flag by the state
+				// it sets let one stale ``active:false`` latch the meter off for
+				// a whole heartbeat. The ref mirrors it for this same event.
+				if (typeof levelData.active === "boolean") {
+					micMonitoringRef.current = levelData.active;
+					setMicMonitoring(levelData.active);
+				}
+				if (!testRunningRef.current && !micMonitoringRef.current)
+					return undefined;
+				if (playingRef.current) return undefined;
 				if (typeof levelData.level === "number") {
 					levelRef.current = levelData.level;
 				}
@@ -372,9 +382,6 @@ export function useMicrophoneLevelMonitor({
 				}
 				lastLevelEventAtRef.current = performance.now();
 				wakeRef.current?.();
-				if (typeof levelData.active === "boolean") {
-					setMicMonitoring(levelData.active);
-				}
 				return undefined;
 			},
 			[playingRef, testRunningRef],

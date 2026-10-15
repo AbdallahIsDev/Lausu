@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
+import sys
 import threading
 import time
+import types
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -34,6 +37,7 @@ def _reset_level_monitor_state():
     lm._level_processor = None
     # Reset the processor-config stash + cosmetic-bar flag too, without
     lm._level_processor_config = None
+    lm._level_processor_sample_rate = 0
     lm._level_bar_filtered = False
     lm._dropped_level_chunks = 0
     lm._last_drop_log_time = 0.0
@@ -1084,3 +1088,123 @@ class TestRecordingsDirRemoval:
         from pathlib import Path as _Path
 
         assert _Path(ref["path"]).is_file()
+
+
+_LM_LOGGER = "voice_typer.server.level_monitor"
+_PROCESSOR_LOG_MARKER = "[LEVEL-MON] Level processor"
+
+
+def _processor_log_records(caplog):
+    """The level-processor rebuild/bypass lines captured by ``caplog``."""
+    return [r for r in caplog.records if _PROCESSOR_LOG_MARKER in r.getMessage()]
+
+
+class TestLevelProcessorRebuildDedupe:
+    """One page open reaches ``update_level_processor`` 2-3x with the SAME
+    effective config (the post-restart rebuild in ``start_monitoring``, the
+    service-layer seed, and the filter-chain config handler). Only a real
+    transition (config, cosmetic-bar flag, or sample rate) may rebuild+log."""
+
+    def test_repeated_identical_config_logs_once(self, caplog):
+        import voice_typer.server.level_monitor as lm
+
+        with caplog.at_level(logging.DEBUG, logger=_LM_LOGGER):
+            lm.update_level_processor({"noise_filter_enabled": False})
+            lm.update_level_processor({"noise_filter_enabled": False})
+            lm.update_level_processor({"noise_filter_enabled": False})
+
+        records = _processor_log_records(caplog)
+        assert len(records) == 1, f"3 identical calls must log once, got {[r.getMessage() for r in records]}"
+        # The line must read as a filter BYPASS, not a failure.
+        assert "bypassed" in records[0].getMessage()
+
+    def test_config_change_logs_again(self, caplog):
+        import voice_typer.server.level_monitor as lm
+
+        with caplog.at_level(logging.DEBUG, logger=_LM_LOGGER):
+            lm.update_level_processor({"noise_filter_enabled": False, "noise_filter_highpass": True})
+            lm.update_level_processor({"noise_filter_enabled": False, "noise_filter_highpass": False})
+
+        assert len(_processor_log_records(caplog)) == 2
+
+    def test_sample_rate_change_rebuilds_unchanged_config(self, caplog):
+        """A device switch changes the sample rate ALONE, that rebuild is the
+        reason the post-restart call exists and must survive the dedupe."""
+        import voice_typer.server.level_monitor as lm
+
+        with caplog.at_level(logging.DEBUG, logger=_LM_LOGGER):
+            lm._monitor_sample_rate = 16000
+            lm.update_level_processor({"noise_filter_enabled": False})
+            lm._monitor_sample_rate = 44100
+            lm.update_level_processor({"noise_filter_enabled": False})
+
+        assert len(_processor_log_records(caplog)) == 2
+
+    def test_enabled_path_builds_and_logs_once(self, monkeypatch, caplog):
+        import voice_typer.server.level_monitor as lm
+
+        built: list[int] = []
+
+        class _FakeAudioProcessor:
+            def __init__(self, config, sample_rate, **kwargs):
+                built.append(sample_rate)
+
+            def reset(self):
+                pass
+
+        fake_module = types.ModuleType("voice_typer.server.audio_processor")
+        fake_module.AudioProcessor = _FakeAudioProcessor
+        monkeypatch.setitem(sys.modules, "voice_typer.server.audio_processor", fake_module)
+
+        cfg = {"noise_filter_enabled": True, "noise_filter_highpass": True}
+        with caplog.at_level(logging.DEBUG, logger=_LM_LOGGER):
+            lm.update_level_processor(cfg)
+            lm.update_level_processor(dict(cfg))
+
+        assert built == [16000], "the enabled path must construct exactly one processor at the live rate"
+        assert len(_processor_log_records(caplog)) == 1
+
+
+class TestLevelMonitorStartProcessorLogCount:
+    """End-to-end: ONE ``level_monitor_start`` ⇒ at most ONE processor line."""
+
+    @staticmethod
+    def _service(config):
+        from voice_typer.server.service.microphone_test import MicrophoneTestMixin
+
+        mixin = MicrophoneTestMixin()
+        mixin._app = types.SimpleNamespace(config=config)
+        return mixin
+
+    def test_open_stop_open_reopen_is_silent_and_real_change_logs_once(self, monkeypatch, caplog):
+        import voice_typer.server.level_monitor as lm
+        from voice_typer.server.config import Config
+
+        _wire_stream_with_callback_capture(monkeypatch)
+        config = Config()
+        config.noise_filter_enabled = False
+        mixin = self._service(config)
+
+        try:
+            with caplog.at_level(logging.DEBUG, logger=_LM_LOGGER):
+                mixin.level_monitor_start(mic_id=None)
+                first = _processor_log_records(caplog)
+                assert len(first) == 1, f"the first open must log once, got {[r.getMessage() for r in first]}"
+
+                mixin.level_monitor_stop()
+                caplog.clear()
+
+                # The reported symptom: this reopen re-applied the unchanged
+                # config from BOTH the post-restart rebuild and the seed.
+                mixin.level_monitor_start(mic_id=None)
+                second = _processor_log_records(caplog)
+                assert second == [], f"an unchanged config must not re-log, got {[r.getMessage() for r in second]}"
+
+                mixin.level_monitor_stop()
+                caplog.clear()
+                config.noise_filter_highpass = False
+                mixin.level_monitor_start(mic_id=None)
+                third = _processor_log_records(caplog)
+                assert len(third) == 1, f"a genuine change must log once, got {[r.getMessage() for r in third]}"
+        finally:
+            lm.stop_monitoring()
