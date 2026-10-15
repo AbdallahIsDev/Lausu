@@ -29,6 +29,9 @@
 //   info    → 4000ms  (neutral context, e.g. "model loaded")
 //   warning → 6000ms  (recoverable issues, undo affordances)
 //   error   → 8000ms  (failures the user must act on)
+// Pass `{ persistent: true }` for a sticky toast that never
+// auto-dismisses (update downloads, long operations); the user
+// closes it with the close button or the caller clears it by id.
 
 import { useCallback } from "react";
 import { toast } from "sonner";
@@ -51,6 +54,11 @@ export const SNACKBAR_DEFAULT_DURATION_MS: Record<SnackbarType, number> = {
 export interface ShowSnackOptions {
 	/** Override the per-type default duration (ms). */
 	duration?: number;
+	/** Never auto-dismiss: the toast stays until the user closes it
+	 *  with the close button or the caller clears it by id. Takes
+	 *  precedence over `duration` (an explicit duration with
+	 *  `persistent` is contradictory; staying wins). */
+	persistent?: boolean;
 	/** Optional id, passing the same id replaces the existing toast. */
 	id?: string | number;
 	/** Optional secondary line rendered under the toast message. */
@@ -65,6 +73,9 @@ function resolveDuration(
 	type: SnackbarType,
 	options?: ShowSnackOptions,
 ): number {
+	// Sticky toasts never auto-dismiss (sonner's Infinity duration);
+	// the global close button and clearSnack(id) still dismiss them.
+	if (options?.persistent) return Number.POSITIVE_INFINITY;
 	if (options?.duration !== undefined) return options.duration;
 	return SNACKBAR_DEFAULT_DURATION_MS[type];
 }

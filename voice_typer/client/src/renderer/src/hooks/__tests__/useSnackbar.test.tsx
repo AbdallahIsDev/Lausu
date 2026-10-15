@@ -125,6 +125,37 @@ describe("useSnackbar, ZU-33 action option", () => {
 		});
 	});
 
+	it("forwards duration Infinity for persistent toasts (never auto-dismiss)", async () => {
+		const { showSnack } = await renderWithHook();
+		const onClick = vi.fn();
+		act(() => {
+			showSnack("update downloading", "info", {
+				id: "pack-update",
+				persistent: true,
+				action: { label: "View details", onClick },
+			});
+		});
+		expect(toastSpies.info).toHaveBeenCalledTimes(1);
+		const [, opts] = toastSpies.info.mock.calls[0] ?? [];
+		expect(opts).toMatchObject({
+			id: "pack-update",
+			duration: Number.POSITIVE_INFINITY,
+			action: { label: "View details", onClick },
+		});
+	});
+
+	it("persistent wins over an explicit duration (staying beats timing out)", async () => {
+		const { showSnack } = await renderWithHook();
+		act(() => {
+			showSnack("update downloading", "info", {
+				duration: 1000,
+				persistent: true,
+			});
+		});
+		const [, opts] = toastSpies.info.mock.calls[0] ?? [];
+		expect(opts).toHaveProperty("duration", Number.POSITIVE_INFINITY);
+	});
+
 	it("omits action and id from the forwarded opts when not provided", async () => {
 		const { showSnack } = await renderWithHook();
 		act(() => {

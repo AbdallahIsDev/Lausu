@@ -100,6 +100,7 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 		updateConfig,
 		updateConfigDebounced,
 		loadConfig,
+		loadConfigOnMount,
 		loadError,
 		error: saveError,
 		mergeExternalConfig,
@@ -188,12 +189,14 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 	// edits made while Settings was unmounted were lost on re-mount.
 	// The page still renders instantly from the cached value (the
 	// state initializer seeds `config` from `_cachedConfig`), then
-	// re-renders with the fresh value when `loadConfig` resolves —
+	// re-renders with the fresh value when the load resolves —
 	// matching how `useModelConfig` (Models page) and the Microphone
-	// page already behave.
+	// page already behave. A sidebar-hover prefetch that already
+	// warmed the cache makes the load a no-op (C-CACHE-2), so hovering
+	// Settings then clicking it opens the page with no skeleton.
 	useEffect(() => {
-		void loadConfig();
-	}, [loadConfig]);
+		void loadConfigOnMount();
+	}, [loadConfigOnMount]);
 
 	// Live config sync, merge external `config_changed` pushes (e.g.
 	// Ctrl+MouseWheel zoom, sidebar ThemeSwitch) into local state.

@@ -29,6 +29,7 @@ import { useLatestRef } from "@/hooks/useLatestRef";
 import { usePython, usePythonEvent } from "@/hooks/usePython";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
+import { type PrefetchCall, runPrefetchFlight } from "@/lib/snapshotCache";
 import type { LausuConfig, MicrophoneDevice } from "@/types/config";
 
 // Module-level cache, persists across page navigations so microphone
@@ -36,6 +37,57 @@ import type { LausuConfig, MicrophoneDevice } from "@/types/config";
 // spinner.
 let _cachedMicrophones: MicrophoneDevice[] = [];
 let _cachedConfig: LausuConfig | null = null;
+
+// Sidebar-hover prefetch bookkeeping (C-CACHE-4). `_prefetchedAt` is set
+// ONLY by `prefetchMicrophoneData`, so an ordinary navigation keeps the
+// mount reload (and its hot-unplug reconciliation) while a hover-warmed
+// cache is served without a second round-trip (C-CACHE-2).
+let _prefetchedAt = 0;
+const MICROPHONE_PREFETCH_KEY = "microphone.data";
+export const MICROPHONE_CACHE_TTL_MS = 30_000;
+
+/** True when a hover prefetch populated the caches inside the TTL. */
+export function isMicrophonePrefetchFresh(): boolean {
+	return (
+		_cachedConfig !== null &&
+		_prefetchedAt > 0 &&
+		Date.now() - _prefetchedAt < MICROPHONE_CACHE_TTL_MS
+	);
+}
+
+/** Test-only reset for the module-level caches + prefetch stamp
+ *  (module state outlives a test file's `beforeEach` otherwise). */
+export function __resetMicrophonePrefetchForTests(): void {
+	_cachedMicrophones = [];
+	_cachedConfig = null;
+	_prefetchedAt = 0;
+}
+
+/**
+ * Warm the Microphone page's device list + config on sidebar
+ * hover/focus (C-CACHE-4): short-circuits on a fresh cache, shares one
+ * in-flight request across repeated hovers, and stays best-effort — a
+ * failure leaves the caches untouched and the mount load stays
+ * authoritative.
+ */
+export function prefetchMicrophoneData(call: PrefetchCall): Promise<void> {
+	if (isMicrophonePrefetchFresh()) return Promise.resolve();
+	return runPrefetchFlight(MICROPHONE_PREFETCH_KEY, async () => {
+		const [mics, cfg] = await Promise.all([
+			call("get_microphones"),
+			call("get_config"),
+		]);
+		if (!cfg || typeof cfg !== "object" || !("model_size" in cfg)) return;
+		_cachedMicrophones = Array.isArray(mics)
+			? (mics as MicrophoneDevice[])
+			: [];
+		_cachedConfig = cfg as LausuConfig;
+		// An empty list is the documented boot race (the backend's device
+		// registry is not populated yet): leave the mount load armed so
+		// its bounded retry still runs.
+		if (_cachedMicrophones.length > 0) _prefetchedAt = Date.now();
+	});
+}
 
 // Boot-race recovery: on cold start the renderer can connect (and this
 // page can fetch ``get_microphones``) BEFORE the backend's startup
@@ -211,6 +263,9 @@ export function useMicrophoneData({
 				if (isCancelled()) return;
 				_cachedMicrophones = Array.isArray(mics) ? mics : [];
 				_cachedConfig = cfg;
+				// A real load supersedes the hover prefetch, so the
+				// mount-skip no longer applies until the next hover.
+				_prefetchedAt = 0;
 				if (!isCancelled()) {
 					setMicrophones(_cachedMicrophones);
 					setConfig(cfg);
@@ -276,6 +331,16 @@ export function useMicrophoneData({
 	// closure passed into ``loadData``.
 	useEffect(() => {
 		let cancelled = false;
+		// A sidebar-hover prefetch already fetched the device list + config
+		// (C-CACHE-2): the seeded state renders them, so this mount skips
+		// the reload (and its reconciliation) — the `microphones_changed` /
+		// `config_changed` subscriptions and the next visit keep it honest.
+		if (isMicrophonePrefetchFresh()) {
+			setLoading(false);
+			return () => {
+				cancelled = true;
+			};
+		}
 		loadData(() => cancelled);
 		return () => {
 			cancelled = true;

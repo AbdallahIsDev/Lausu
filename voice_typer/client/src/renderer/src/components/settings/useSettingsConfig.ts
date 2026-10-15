@@ -3,10 +3,51 @@ import { useLatestRef } from "@/hooks/useLatestRef";
 import { usePython } from "@/hooks/usePython";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
+import { type PrefetchCall, runPrefetchFlight } from "@/lib/snapshotCache";
 import { useAppStore } from "@/stores/appStore";
 import type { LausuConfig } from "@/types/config";
 
 let _cachedConfig: LausuConfig | null = null;
+
+// Sidebar-hover prefetch bookkeeping (C-CACHE-4). `_prefetchedAt` is set
+// ONLY by `prefetchSettingsConfig`, so an ordinary navigation keeps the
+// mount revalidation it always had while a hover-warmed cache is served
+// without a second round-trip (C-CACHE-2).
+let _prefetchedAt = 0;
+const SETTINGS_CONFIG_PREFETCH_KEY = "settings.config";
+export const SETTINGS_CONFIG_TTL_MS = 30_000;
+
+/** True when a hover prefetch populated the cache inside the TTL. */
+export function isSettingsConfigPrefetchFresh(): boolean {
+	return (
+		_cachedConfig !== null &&
+		_prefetchedAt > 0 &&
+		Date.now() - _prefetchedAt < SETTINGS_CONFIG_TTL_MS
+	);
+}
+
+/** Test-only reset for the module-level config cache + prefetch stamp
+ *  (module state outlives a test file's `beforeEach` otherwise). */
+export function __resetSettingsConfigPrefetchForTests(): void {
+	_cachedConfig = null;
+	_prefetchedAt = 0;
+}
+
+/**
+ * Warm the Settings page's config cache on sidebar hover/focus
+ * (C-CACHE-4): short-circuits on a fresh cache, shares one in-flight
+ * request across repeated hovers, and stays best-effort — a failure
+ * leaves the cache untouched and the mount fetch stays authoritative.
+ */
+export function prefetchSettingsConfig(call: PrefetchCall): Promise<void> {
+	if (isSettingsConfigPrefetchFresh()) return Promise.resolve();
+	return runPrefetchFlight(SETTINGS_CONFIG_PREFETCH_KEY, async () => {
+		const cfg = await call("get_config");
+		if (!cfg || typeof cfg !== "object" || !("model_size" in cfg)) return;
+		_cachedConfig = cfg as LausuConfig;
+		_prefetchedAt = Date.now();
+	});
+}
 
 // Initial-load auto-retry: the first get_config after connect races the
 // backend's boot storm (VAD/mic/hotkey/CUDA threads + keyring first-probe)
@@ -84,6 +125,13 @@ export interface UseSettingsConfigResult {
 		delayMs?: number,
 	) => void;
 	loadConfig: () => Promise<void>;
+	/**
+	 * Mount-path load: identical to {@link UseSettingsConfigResult.loadConfig}
+	 * except it is skipped when a sidebar-hover prefetch already warmed
+	 * the cache inside its TTL (C-CACHE-2). Use this for the page's
+	 * mount effect; use `loadConfig` for Retry / explicit reloads.
+	 */
+	loadConfigOnMount: () => Promise<void>;
 	/**
 	 * Merge an externally-pushed config update (e.g. the
 	 * `config_changed` Python event) into local state AND the diff
@@ -185,6 +233,9 @@ export function useSettingsConfig(): UseSettingsConfigResult {
 				clearPendingLoadRetry();
 				setLoadError(null);
 				_cachedConfig = result;
+				// A real fetch supersedes the hover prefetch, so the
+				// mount-skip no longer applies until the next hover.
+				_prefetchedAt = 0;
 				lastSavedConfigRef.current = result;
 				setConfig(result);
 			} catch (err) {
@@ -203,6 +254,15 @@ export function useSettingsConfig(): UseSettingsConfigResult {
 
 	useEffect(() => {
 		loadConfigRef.current = loadConfig;
+	}, [loadConfig]);
+
+	// Mount path (C-CACHE-2): a hover-warmed cache renders the page
+	// immediately, so re-fetching on mount would waste the round-trip
+	// the prefetch just paid for. Any other mount revalidates exactly
+	// as before. Manual Retry always uses `loadConfig` (never skipped).
+	const loadConfigOnMount = useCallback((): Promise<void> => {
+		if (isSettingsConfigPrefetchFresh()) return Promise.resolve();
+		return loadConfig();
 	}, [loadConfig]);
 
 	const flushPendingUpdates = useCallback(async () => {
@@ -376,6 +436,7 @@ export function useSettingsConfig(): UseSettingsConfigResult {
 		updateConfig,
 		updateConfigDebounced,
 		loadConfig,
+		loadConfigOnMount,
 		mergeExternalConfig,
 		flushPendingUpdates,
 	};

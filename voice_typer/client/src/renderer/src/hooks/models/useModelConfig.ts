@@ -6,6 +6,8 @@ import { peekIpcCache, writeIpcCache } from "@/lib/ipcCache";
 import {
 	isSnapshotFresh,
 	MOUNT_RERACE_FAST_WINDOW_MS,
+	type PrefetchCall,
+	runPrefetchFlight,
 } from "@/lib/snapshotCache";
 import {
 	applyActiveState,
@@ -27,6 +29,43 @@ import {
 
 // Module-cache key for the SWR seed (see lib/ipcCache.ts).
 const MODELS_CONFIG_CACHE_KEY = "models.config";
+
+// Sidebar-hover prefetch bookkeeping (C-CACHE-4). Unlike the other data
+// pages the Models MOUNT load is a full lifecycle load (config + status +
+// catalog, applying the active-state mapping and api keys), so it always
+// runs; warming the config cache only makes sure the page's `!config`
+// gate is already satisfied when the click lands, i.e. no skeleton.
+let _configPrefetchedAt = 0;
+const MODELS_CONFIG_PREFETCH_KEY = "models.config.prefetch";
+export const MODELS_CONFIG_TTL_MS = 30_000;
+
+/** Test-only reset for the prefetch stamp (module state outlives a test
+ *  file's `beforeEach` otherwise; the config cache itself lives in the
+ *  ipcCache store, which has its own reset). */
+export function __resetModelsConfigPrefetchForTests(): void {
+	_configPrefetchedAt = 0;
+}
+
+/**
+ * Warm the Models page's config cache on sidebar hover/focus
+ * (C-CACHE-4): short-circuits on a fresh cache, shares one in-flight
+ * request across repeated hovers, and stays best-effort — a failure
+ * leaves the cache untouched and the mount load stays authoritative.
+ */
+export function prefetchModelsConfig(call: PrefetchCall): Promise<void> {
+	if (
+		_configPrefetchedAt > 0 &&
+		Date.now() - _configPrefetchedAt < MODELS_CONFIG_TTL_MS
+	) {
+		return Promise.resolve();
+	}
+	return runPrefetchFlight(MODELS_CONFIG_PREFETCH_KEY, async () => {
+		const cfg = await call("get_config");
+		if (!cfg || typeof cfg !== "object" || !("model_size" in cfg)) return;
+		writeIpcCache(MODELS_CONFIG_CACHE_KEY, cfg as LausuConfig);
+		_configPrefetchedAt = Date.now();
+	});
+}
 
 interface UseModelConfigArgs {
 	call: PythonCall;
