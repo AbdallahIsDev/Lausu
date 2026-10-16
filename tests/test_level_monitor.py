@@ -35,6 +35,8 @@ def _reset_level_monitor_state():
     lm._monitor_peak = 0.0
     lm._monitor_mic_id = None
     lm._level_processor = None
+    lm._stream_recovery_token = None
+    lm._stream_recovery_episodes = 0
     # Reset the processor-config stash + cosmetic-bar flag too, without
     lm._level_processor_config = None
     lm._level_processor_sample_rate = 0
@@ -1253,12 +1255,20 @@ class TestZeroChunkDetectorUsesRawAudio:
         assert emitted == []
         assert lm._consecutive_zero_chunks == 0
 
-    def test_true_raw_zeros_still_emit(self, monkeypatch):
-        """Genuinely dead input still trips the detector at threshold."""
+    def test_true_raw_zeros_still_emit_when_reopen_fails(self, monkeypatch):
+        """Genuinely dead input trips the detector; unopenable device emits."""
+        from voice_typer.server.level_monitor import monitoring as mon
         from voice_typer.server.level_monitor import worker as _w
 
+        monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
+        monkeypatch.setattr(
+            mon, "start_monitoring", lambda mic_id=None: {"success": False, "message": "no device"}
+        )
         emitted = self._arm(monkeypatch, None)
         dead = np.zeros(1411, dtype=np.float32)
         for _ in range(12):
             _w._process_level_chunk(dead.copy(), None)
-        assert emitted, "raw-zero input must still emit device_lost"
+        deadline = time.perf_counter() + 5.0
+        while time.perf_counter() < deadline and not emitted:
+            time.sleep(0.01)
+        assert emitted == ["zero_chunks"], "raw-zero input must still emit device_lost"

@@ -358,6 +358,10 @@ def _process_level_chunk(indata: np.ndarray, status: Any) -> None:
                 raw_peak_for_quality = 0.0
 
     # -- Shared-state writes UNDER the lock (quick) --
+    # ``dead_trip`` is set inside and acted on AFTER the block: the
+    # dead-stream handler takes the same lock, so it must never run
+    # while this thread holds it (self-deadlock on a non-reentrant lock).
+    dead_trip = False
     with _state._monitor_lock:
         if not _state._monitor_active:
             return  # monitor stopped while we were computing
@@ -396,15 +400,21 @@ def _process_level_chunk(indata: np.ndarray, status: Any) -> None:
         if rms is not None and peak is not None and rms == 0.0 and peak == 0.0:
             if np.any(flat != 0.0):
                 _state._consecutive_zero_chunks = 0
+                if _state._stream_recovery_episodes:
+                    # Raw audio is live (gate merely closed): loop cap reset.
+                    _state._stream_recovery_episodes = 0
             else:
                 _state._consecutive_zero_chunks += 1
                 if _state._consecutive_zero_chunks >= _state._LEVEL_ZERO_CHUNK_DISCONNECT_THRESHOLD:
-                    # Local import to avoid a top-level circular dependency
-                    from .monitoring import _emit_device_lost
-
-                    _emit_device_lost("zero_chunks")
+                    # Starved stream (e.g. Linux suspend zero-fill): flag
+                    # for the retry-then-banner below, OUTSIDE the lock.
+                    dead_trip = True
         else:
             _state._consecutive_zero_chunks = 0
+            if _state._stream_recovery_episodes:
+                # Live audio resets the reopen-loop cap (steady-state:
+                # no write, the guard above skips it).
+                _state._stream_recovery_episodes = 0
         # Push the DISPLAY values, not the raw chunk values. The
         if _state._monitor_active and rms is not None and peak is not None:
             from .monitoring import _push_mic_level
@@ -414,3 +424,9 @@ def _process_level_chunk(indata: np.ndarray, status: Any) -> None:
                 _state._monitor_peak,
                 _state._monitor_active,
             )
+    if dead_trip:
+        # Lock released: same retry-then-banner as a finished callback.
+        # Local import avoids a top-level circular dependency.
+        from .monitoring import _handle_dead_stream
+
+        _handle_dead_stream("zero_chunks")

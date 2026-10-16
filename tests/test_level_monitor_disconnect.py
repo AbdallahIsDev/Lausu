@@ -32,6 +32,7 @@ def _reset_level_monitor_state():
     lm._consecutive_zero_chunks = 0
     lm._device_lost_emitted = False
     lm._stream_recovery_token = None
+    lm._stream_recovery_episodes = 0
     # Stop any worker threads from a previous test.
     lm._stop_level_worker()
     lm._stop_mic_level_worker()
@@ -268,10 +269,51 @@ class TestDeviceLostEventEmitted:
         )
         assert len(opened) == n_opens_at_death, "no reopen attempt may run after a user stop"
 
-    def test_zero_chunk_detector_emits_device_lost(self, monkeypatch):
-        """The worker's zero-fill detector publishes a ``device_lost``"""
+    def test_zero_chunk_detector_emits_device_lost_when_reopen_fails(self, monkeypatch):
+        """Starved stream + unopenable device → exactly one ``device_lost``."""
         import voice_typer.server.level_monitor as lm
+        import voice_typer.server.level_monitor.monitoring as mon
 
+        monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
+        holder = _wire_stream_with_callback_capture(monkeypatch)
+        captured = _patch_event_bus_publish(monkeypatch)
+        lm.start_monitoring(mic_id=None)
+
+        def _fail_open(mic_id=None):
+            return {"success": False, "message": "no device"}
+
+        monkeypatch.setattr(mon, "start_monitoring", _fail_open)
+
+        n = lm._LEVEL_ZERO_CHUNK_DISCONNECT_THRESHOLD
+        zero_chunk = np.zeros((512, 1), dtype=np.float32)
+        for _ in range(n):
+            holder["callback"](zero_chunk, 512, None, None)
+
+        # Wait for the worker thread to drain + the retry to exhaust.
+        deadline = time.perf_counter() + 5.0
+        while time.perf_counter() < deadline:
+            if any(e.get("type") == "device_lost" for e in captured):
+                break
+            time.sleep(0.01)
+
+        device_lost_events = [e for e in captured if e.get("type") == "device_lost"]
+        assert len(device_lost_events) == 1, (
+            f"starved stream with failing reopen must publish exactly one "
+            f"device_lost event; got {captured}"
+        )
+        evt = device_lost_events[0]
+        assert evt["data"]["source"] == "zero_chunks", (
+            f"source must be 'zero_chunks' for the worker path; got {evt['data']['source']!r}"
+        )
+
+        lm.stop_monitoring()
+
+    def test_zero_chunk_recovers_silently_when_reopen_succeeds(self, monkeypatch):
+        """Linux-suspend shape: zero-fill trip, device still there → reopen, no banner."""
+        import voice_typer.server.level_monitor as lm
+        import voice_typer.server.level_monitor.monitoring as mon
+
+        monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
         holder = _wire_stream_with_callback_capture(monkeypatch)
         captured = _patch_event_bus_publish(monkeypatch)
         lm.start_monitoring(mic_id=None)
@@ -281,21 +323,73 @@ class TestDeviceLostEventEmitted:
         for _ in range(n):
             holder["callback"](zero_chunk, 512, None, None)
 
-        # Wait for the worker thread to drain + publish.
-        deadline = time.perf_counter() + 2.0
+        deadline = time.perf_counter() + 5.0
+        while time.perf_counter() < deadline:
+            if lm._monitor_active:
+                break
+            time.sleep(0.01)
+
+        assert lm._monitor_active is True, "retry must reopen a still-present device"
+        device_lost_events = [e for e in captured if e.get("type") == "device_lost"]
+        assert len(device_lost_events) == 0, (
+            f"recovered starved stream must NOT emit device_lost; got {device_lost_events}"
+        )
+
+        lm.stop_monitoring()
+
+    def test_persistent_silence_loop_emits_after_episode_cap(self, monkeypatch):
+        """Reopen succeeds but streams keep yielding only silence → banner after the cap."""
+        import voice_typer.server.level_monitor as lm
+        import voice_typer.server.level_monitor.monitoring as mon
+
+        monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
+        holder = _wire_stream_with_callback_capture(monkeypatch)
+        captured = _patch_event_bus_publish(monkeypatch)
+        lm.start_monitoring(mic_id=None)
+
+        # Every episode needs a full threshold run of zero chunks (the
+        # commit resets the counter, never the episode count). Batches
+        # are pushed only while recovered, so none are dropped while
+        # parked: push → trip → outcome, serialized per episode.
+        zero_chunk = np.zeros((512, 1), dtype=np.float32)
+        for _ in range(7):
+            deadline = time.perf_counter() + 5.0
+            while time.perf_counter() < deadline:
+                if lm._monitor_active or any(
+                    e.get("type") == "device_lost" for e in captured
+                ):
+                    break
+                time.sleep(0.01)
+            if any(e.get("type") == "device_lost" for e in captured):
+                break
+            for _ in range(lm._LEVEL_ZERO_CHUNK_DISCONNECT_THRESHOLD):
+                holder["callback"](zero_chunk, 512, None, None)
+            deadline = time.perf_counter() + 5.0
+            while time.perf_counter() < deadline:
+                if not lm._monitor_active or any(
+                    e.get("type") == "device_lost" for e in captured
+                ):
+                    break
+                time.sleep(0.01)
+            deadline = time.perf_counter() + 5.0
+            while time.perf_counter() < deadline:
+                if lm._monitor_active or any(
+                    e.get("type") == "device_lost" for e in captured
+                ):
+                    break
+                time.sleep(0.01)
+            if any(e.get("type") == "device_lost" for e in captured):
+                break
+
+        deadline = time.perf_counter() + 5.0
         while time.perf_counter() < deadline:
             if any(e.get("type") == "device_lost" for e in captured):
                 break
             time.sleep(0.01)
 
         device_lost_events = [e for e in captured if e.get("type") == "device_lost"]
-        assert len(device_lost_events) >= 1, (
-            f"TY-4: zero-chunk detector must publish a device_lost event "
-            f"after {n} consecutive zero-filled chunks; got {captured}"
-        )
-        evt = device_lost_events[0]
-        assert evt["data"]["source"] == "zero_chunks", (
-            f"TY-4: source must be 'zero_chunks' for the worker path; got {evt['data']['source']!r}"
+        assert len(device_lost_events) == 1, (
+            f"silence loop must emit exactly once after the episode cap; got {captured}"
         )
 
         lm.stop_monitoring()
@@ -369,21 +463,28 @@ class TestIdempotency:
         lm.stop_monitoring()
 
     def test_zero_chunk_then_finished_callback_emits_once(self, monkeypatch):
-        """If the zero-chunk detector fires AND THEN the finished_callback"""
+        """A zero-trip emit followed by a finished-callback death stays ONE event."""
         import voice_typer.server.level_monitor as lm
+        import voice_typer.server.level_monitor.monitoring as mon
 
+        monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
+
+        def _fail_open(mic_id=None):
+            return {"success": False, "message": "no device"}
+
+        monkeypatch.setattr(mon, "start_monitoring", _fail_open)
         holder = _wire_stream_with_callback_capture(monkeypatch)
         captured = _patch_event_bus_publish(monkeypatch)
         lm.start_monitoring(mic_id=None)
 
-        # Trigger zero-chunk detector first.
+        # Trigger zero-chunk detector first (reopen fails → emit).
         n = lm._LEVEL_ZERO_CHUNK_DISCONNECT_THRESHOLD
         zero_chunk = np.zeros((512, 1), dtype=np.float32)
         for _ in range(n):
             holder["callback"](zero_chunk, 512, None, None)
 
         # Wait for the zero-chunk emit.
-        deadline = time.perf_counter() + 2.0
+        deadline = time.perf_counter() + 5.0
         while time.perf_counter() < deadline:
             if any(e.get("type") == "device_lost" for e in captured):
                 break
@@ -393,11 +494,11 @@ class TestIdempotency:
         holder["finished_callback"]()
 
         # Wait briefly for any trailing publish.
-        time.sleep(0.2)
+        time.sleep(0.5)
 
         device_lost_events = [e for e in captured if e.get("type") == "device_lost"]
         assert len(device_lost_events) == 1, (
-            f"TY-4: zero-chunk + finished_callback must coalesce to ONE "
+            f"zero-chunk + finished_callback must coalesce to ONE "
             f"device_lost event (via _device_lost_emitted); got "
             f"{len(device_lost_events)} events"
         )

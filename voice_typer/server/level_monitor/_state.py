@@ -89,10 +89,13 @@ class _State:
         self._device_lost_emitted: bool = False
         self._LEVEL_ZERO_CHUNK_DISCONNECT_THRESHOLD: int = 10
         # Generation token for the unexpected-death stream retry: set
-        # by the finished-callback guard, cleared by stop/user-start.
+        # by the dead-stream handler, cleared by stop/user-start.
         # Lets the retry tell "user intervened" (abort) from "our own
         # failed attempt" (keep trying) without touching the epoch.
         self._stream_recovery_token: object | None = None
+        # Consecutive recovery episodes without intervening live audio:
+        # caps reopen loops whose fresh streams keep yielding silence.
+        self._stream_recovery_episodes: int = 0
 
         # mic_level push-event publishing state: coalesces level updates
         self._mic_level_queue: collections.deque = collections.deque(maxlen=16)
