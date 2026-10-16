@@ -1,4 +1,4 @@
-"""Microphone-test IPC handler mixin: 4 microphone_test_* commands."""
+"""Microphone-test IPC handler mixin: 5 microphone_test_* commands."""
 
 from typing import cast
 
@@ -130,4 +130,15 @@ class MicrophoneTestHandlersMixin(HandlerBase):
         except Exception as exc:
             # generic WS-path envelope (no ``str(exc)`` leak).
             self._respond_with_error(resp, exc, "microphone_test_get_level")
+        return resp
+
+    def _handle_microphone_test_status(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
+        """Handle the ``microphone_test_status`` IPC command (mount reattach)."""
+        try:
+            result = self.service.microphone_test_status()
+            resp["type"] = "microphone_test_status"
+            resp["data"] = result
+        except Exception as exc:
+            # generic WS-path envelope (no ``str(exc)`` leak).
+            self._respond_with_error(resp, exc, "microphone_test_status")
         return resp

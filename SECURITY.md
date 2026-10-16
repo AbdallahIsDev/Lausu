@@ -34,7 +34,7 @@ process can connect without this token.
 ### Command Allowlist (SEC-019)
 
 The Tauri Rust host enforces an allowlist of IPC commands. The renderer
-cannot invoke arbitrary commands: only the **81** commands listed in
+cannot invoke arbitrary commands: only the **82** commands listed in
 `allowed_commands()` (defined in
 `src-tauri/src/commands/sidecar_cmds/allowlist.rs`) are forwarded to
 the Python backend. The authoritative count is enforced by CI (see

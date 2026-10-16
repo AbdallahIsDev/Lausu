@@ -24,6 +24,84 @@ _facade = lazy_module("voice_typer.server.level_monitor.test_recording")
 
 log = logging.getLogger("voice_typer.server.level_monitor")
 
+# Last completed test, for UI reattach after navigation/refresh. Stored
+# on successful stop (audio persisted); cleared on cancel and on every
+# new start. Entries older than the WAV TTL are treated as absent (the
+# files they point at are gone).
+_last_test_result: dict | None = None
+_last_test_completed_at: float = 0.0
+
+
+def _store_last_test(result: dict) -> None:
+    """Snapshot a completed test's review payload (small dict, no audio bytes)."""
+    global _last_test_result, _last_test_completed_at
+    import time as _time
+
+    audio_file = result.get("audio_file")
+    if not result.get("success") or not isinstance(audio_file, dict) or not audio_file.get("path"):
+        return
+    raw_file = result.get("raw_audio_file")
+    _last_test_result = {
+        "duration_ms": result.get("duration_ms", 0),
+        "sample_rate": result.get("sample_rate", 16000),
+        "quality": result.get("quality") or {},
+        "audio_file": {"path": audio_file.get("path"), "bytes": audio_file.get("bytes", 0)},
+        "raw_audio_file": (
+            {"path": raw_file.get("path"), "bytes": raw_file.get("bytes", 0)}
+            if isinstance(raw_file, dict) and raw_file.get("path")
+            else None
+        ),
+        "transcription": result.get("transcription"),
+        "transcription_unavailable": result.get("transcription_unavailable", False),
+        "transcription_reason": result.get("transcription_reason"),
+    }
+    _last_test_completed_at = _time.monotonic()
+
+
+def note_test_transcription(
+    transcription: str | None, unavailable: bool, reason: str | None
+) -> None:
+    """Merge the service-layer transcription outcome into the stored summary."""
+    global _last_test_result
+    if _last_test_result is None:
+        return
+    if transcription:
+        _last_test_result["transcription"] = transcription
+    _last_test_result["transcription_unavailable"] = unavailable
+    _last_test_result["transcription_reason"] = reason
+
+
+def clear_last_test() -> None:
+    """Forget the stored summary (cancel discards; a new start supersedes)."""
+    global _last_test_result, _last_test_completed_at
+    _last_test_result = None
+    _last_test_completed_at = 0.0
+
+
+def get_test_status() -> dict:
+    """Snapshot for UI reattach: running test progress + fresh last result."""
+    import time as _time
+
+    from .test_recording_files import MIC_TEST_RECORDING_TTL_SEC
+
+    with _state._monitor_lock:
+        running = _state._test_mode
+        elapsed = max(0.0, _time.perf_counter() - _state._test_start_time) if running else 0.0
+        duration = float(_state._test_duration) if running else 0.0
+        last = dict(_last_test_result) if _last_test_result is not None else None
+        age = _time.monotonic() - _last_test_completed_at if last is not None else 0.0
+    if last is not None:
+        if age >= MIC_TEST_RECORDING_TTL_SEC:
+            last = None
+        else:
+            last["completed_age_sec"] = round(age, 1)
+    return {
+        "running": running,
+        "elapsed_sec": round(elapsed, 1),
+        "duration_sec": duration,
+        "last_test": last,
+    }
+
 def _secure_clear_test_chunks(*deques: collections.deque) -> None:
     """securely zero the np.ndarray chunks in the test"""
     try:
@@ -89,6 +167,8 @@ def _begin_test_locked(duration: float, filters: dict | None) -> dict:
     _state._test_mode = True
     _state._test_start_time = time.perf_counter()
     _state._test_duration = max(1.0, min(30.0, duration))
+    # A new test supersedes any stored previous result.
+    clear_last_test()
     # (re)create bounded deques sized to this start's duration
     _reset_test_chunks(locked=True)
     _state._test_filters = dict(filters) if filters else {}
@@ -190,6 +270,8 @@ def cancel_test_recording() -> dict:
     was_active = _cancel_test_locked()
 
     log.info("[LEVEL-MON] Test cancelled")
+    # Cancelled audio is discarded: nothing to reattach to or review.
+    clear_last_test()
     if not was_active:
         return {"success": True, "message": "No test running"}
     return {"success": True, "message": "Test cancelled"}

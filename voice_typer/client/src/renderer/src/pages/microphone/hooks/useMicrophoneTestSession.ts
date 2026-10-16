@@ -236,21 +236,15 @@ export function useMicrophoneTestSession({
 		testRunningRef.current = testRunning;
 	}, [testRunning, testRunningRef]);
 
-	const stopTest = useCallback(async () => {
-		if (stoppingRef.current) return;
-		stoppingRef.current = true;
-		recordingActiveRef.current = false;
-
-		setTestRunning(false);
-		if (testTimerRef.current) {
-			clearInterval(testTimerRef.current);
-			testTimerRef.current = null;
-		}
-		setLevel(0);
-
-		try {
-			const result = await call<TestStopResult>("microphone_test_stop");
-
+	const finalizeTestResult = useCallback(
+		async (
+			result: TestStopResult | null,
+			announce: boolean,
+		): Promise<boolean> => {
+			// Success-with-audio branch of the stop flow, shared by manual
+			// stop and post-navigation recovery (last-test hydration).
+			// Returns whether it handled the result; anything else falls
+			// through to the stale/no-audio/error branches below.
 			const audioRef = result?.success ? result.audio_file : null;
 			if (result?.success && audioRef?.path) {
 				// File-reference transport: fetch the persisted WAVs chunked
@@ -318,13 +312,40 @@ export function useMicrophoneTestSession({
 					setTestTranscriptionUnavailable(false);
 					_resetMicrophoneTestCache();
 				}, MIC_TEST_RECORDING_TTL_MS);
-				showSnack(
-					t("microphone.recorded", {
-						seconds: (result.duration_ms / 1000).toFixed(1),
-					}),
-					"success",
-				);
-			} else if (
+				if (announce) {
+					showSnack(
+						t("microphone.recorded", {
+							seconds: (result.duration_ms / 1000).toFixed(1),
+						}),
+						"success",
+					);
+				}
+				return true;
+			}
+
+			return false;
+		},
+		[call, showSnack, t, stopPlaybackRef],
+	);
+
+	const stopTest = useCallback(async () => {
+		if (stoppingRef.current) return;
+		stoppingRef.current = true;
+		recordingActiveRef.current = false;
+
+		setTestRunning(false);
+		if (testTimerRef.current) {
+			clearInterval(testTimerRef.current);
+			testTimerRef.current = null;
+		}
+		setLevel(0);
+
+		try {
+			const result = await call<TestStopResult>("microphone_test_stop");
+			if (await finalizeTestResult(result, true)) {
+				return;
+			}
+			if (
 				result?.success === false &&
 				typeof result.message === "string" &&
 				/no test running/i.test(result.message)
@@ -358,7 +379,49 @@ export function useMicrophoneTestSession({
 		} finally {
 			stoppingRef.current = false;
 		}
-	}, [call, config, showSnack, t, setLevel, stopPlaybackRef]);
+	}, [call, config, showSnack, t, setLevel, finalizeTestResult]);
+
+	// SINGLE lifecycle-synced timer. Drives BOTH the visible
+	// "Recording... 00:NN" readout AND the fallback auto-stop.
+	// Created only AFTER the backend confirmed a recording exists
+	// (fresh startTest success, or a recovered running test — never
+	// speculatively), and cleared ONLY by ``stopTest`` /
+	// ``selectMicrophone`` / unmount. The backend's own auto-stop
+	// remains the primary clock; the +750ms grace below exists only
+	// as a safety net for a lost push event, not as the clock source.
+	// ``elapsedOffsetMs`` resumes the readout mid-recording (reattach).
+	const beginElapsedTimer = useCallback(
+		(totalDurationMs: number, elapsedOffsetMs: number) => {
+			if (testTimerRef.current) clearInterval(testTimerRef.current);
+			const startTime = Date.now() - elapsedOffsetMs;
+			let lastWholeSecond = -1;
+			const tickInterval = setInterval(() => {
+				const elapsedMs = Date.now() - startTime;
+				const wholeSecond = Math.min(
+					MICROPHONE_TEST_DURATION_SEC,
+					Math.floor(elapsedMs / 1000),
+				);
+				if (wholeSecond !== lastWholeSecond) {
+					lastWholeSecond = wholeSecond;
+					setTestElapsed(wholeSecond);
+				}
+				// Safety net ONLY: normally the backend's
+				// ``microphone_test_complete`` event drives ``stopTest``
+				// first. The +750ms grace prevents racing the backend's
+				// own auto-stop/finalization.
+				if (
+					elapsedMs >= totalDurationMs + 750 &&
+					testTimerRef.current === tickInterval
+				) {
+					clearInterval(tickInterval);
+					testTimerRef.current = null;
+					void stopTest();
+				}
+			}, 250);
+			testTimerRef.current = tickInterval;
+		},
+		[stopTest],
+	);
 
 	const startTest = useCallback(async () => {
 		// Invalidate any pending silent-expiry timer: a newer test must
@@ -459,46 +522,10 @@ export function useMicrophoneTestSession({
 			recordingActiveRef.current = true;
 			setTestElapsed(0);
 
-			// SINGLE lifecycle-synced timer. Drives BOTH the visible
-			// "Recording... 00:NN" readout AND the fallback auto-stop.
-			//
-			// LIFECYCLE INVARIANT (C-MIC-18): this interval must be created
-			// only AFTER the backend confirmed the recording started
-			// (``result.success`` above) and is cleared ONLY by
-			// ``stopTest`` / ``selectMicrophone`` / unmount, never by a
-			// creation and froze the timer at 00:00 while the backend kept
-			// recording. The backend's own auto-stop remains the primary
-			// grace-period trigger below exists only as a safety net for a
-			// lost push event, not as the clock source.
-			if (testTimerRef.current) clearInterval(testTimerRef.current);
-			const startTime = Date.now();
-			const totalDurationMs =
-				(result.duration || MICROPHONE_TEST_DURATION_SEC) * 1000;
-			let lastWholeSecond = -1;
-			const tickInterval = setInterval(() => {
-				const elapsedMs = Date.now() - startTime;
-				const wholeSecond = Math.min(
-					MICROPHONE_TEST_DURATION_SEC,
-					Math.floor(elapsedMs / 1000),
-				);
-				if (wholeSecond !== lastWholeSecond) {
-					lastWholeSecond = wholeSecond;
-					setTestElapsed(wholeSecond);
-				}
-				// Safety net ONLY: normally the backend's
-				// ``microphone_test_complete`` event drives ``stopTest``
-				// first. The +750ms grace prevents racing the backend's
-				// own auto-stop/finalization.
-				if (
-					elapsedMs >= totalDurationMs + 750 &&
-					testTimerRef.current === tickInterval
-				) {
-					clearInterval(tickInterval);
-					testTimerRef.current = null;
-					void stopTest();
-				}
-			}, 250);
-			testTimerRef.current = tickInterval;
+			beginElapsedTimer(
+				(result.duration || MICROPHONE_TEST_DURATION_SEC) * 1000,
+				0,
+			);
 		} catch (err) {
 			// The predecessor path surfaces the backend's
 			// generic failure toast.
@@ -530,7 +557,16 @@ export function useMicrophoneTestSession({
 			startingRef.current = false;
 			setTestStarting(false);
 		}
-	}, [call, config, showSnack, t, stopPlayback, stopTest, setLevel, setPeak]);
+	}, [
+		call,
+		config,
+		showSnack,
+		t,
+		stopPlayback,
+		beginElapsedTimer,
+		setLevel,
+		setPeak,
+	]);
 	// Keep the consent-retry ref pointed at the latest closure.
 	startTestRef.current = startTest;
 
@@ -649,11 +685,80 @@ export function useMicrophoneTestSession({
 		),
 	);
 
-	// mic stream open after navigation. MUST NOT depend on
-	// ``testRunning``: a dep-driven cleanup re-runs on every
-	// which are exactly the intervals ``startTest`` created one commit
-	// earlier (the frozen-00:00 timer bug). Audio-pausing on unmount is
-	// owned by ``useMicrophonePlayback`` (its own cleanup effect).
+	// Mount recovery: a test outlives page navigation, HMR refreshes,
+	// and full reloads (the backend owns it; nothing cancels it on
+	// unmount anymore). Once per mount, ask the backend for the truth:
+	// a running test reattaches here (timer resumes from the backend
+	// elapsed, the complete-event subscription is already mounted at
+	// hook level and re-arms via testRunning), and a fresh completed
+	// test hydrates the review panel silently. Anything else (idle,
+	// stale, unreachable) renders the normal idle UI. Never throws.
+	const recoveredRef = useRef(false);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: mount-only recovery reads latest call/finalize/timer through stable closures by design
+	useEffect(() => {
+		if (recoveredRef.current) return;
+		recoveredRef.current = true;
+		void (async () => {
+			let status:
+				| {
+						running?: boolean;
+						elapsed_sec?: number;
+						duration_sec?: number;
+						last_test?: {
+							duration_ms?: number;
+							quality?: TestResultQuality | null;
+							transcription?: string | null;
+							transcription_unavailable?: boolean;
+							audio_file?: { path?: string } | null;
+							raw_audio_file?: { path?: string } | null;
+						} | null;
+				  }
+				| null
+				| undefined;
+			try {
+				// Awaited (not .then-chained) so bare-vi.fn() mocks
+				// returning undefined degrade to idle instead of throwing.
+				status = await call("microphone_test_status");
+			} catch {
+				// Old backend without the command, or unreachable: idle UI.
+				return;
+			}
+			if (status?.running) {
+				const elapsedMs = Math.max(0, (status.elapsed_sec || 0) * 1000);
+				const totalMs =
+					(status.duration_sec || MICROPHONE_TEST_DURATION_SEC) * 1000;
+				recordingActiveRef.current = true;
+				setTestElapsed(Math.floor(elapsedMs / 1000));
+				setTestDurationMs(totalMs);
+				setTestRunning(true);
+				beginElapsedTimer(totalMs, elapsedMs);
+				return;
+			}
+			const last = status?.last_test;
+			if (last != null) {
+				await finalizeTestResult(
+					{
+						success: true,
+						audio_file: last.audio_file ?? null,
+						raw_audio_file: last.raw_audio_file ?? null,
+						duration_ms: last.duration_ms ?? 0,
+						quality: last.quality ?? null,
+						transcription: last.transcription ?? null,
+						transcription_unavailable: last.transcription_unavailable === true,
+					} as TestStopResult,
+					false,
+				);
+			}
+		})();
+		// Mount-only by design (recoveredRef guard): re-running on every
+		// render would re-hydrate stale results over live user actions.
+	}, []);
+
+	// Unmount cleanup: timers and silent-expiry only. A running test is
+	// deliberately NOT cancelled here: the backend owns it and it
+	// survives navigation/refresh; remount recovery reattaches above.
+	// (The old cancel-on-unmount is what made navigation silently kill
+	// tests while HMR refreshes left ghost "still running" ones.)
 	useEffect(() => {
 		return () => {
 			// Invalidate any pending silent-expiry timer so an unmounted
@@ -667,19 +772,8 @@ export function useMicrophoneTestSession({
 				clearInterval(testTimerRef.current);
 				testTimerRef.current = null;
 			}
-			if (recordingActiveRef.current) {
-				recordingActiveRef.current = false;
-				callRef
-					.current("microphone_test_cancel")
-					.catch((err) =>
-						console.warn(
-							"[renderer:useMicrophoneTestSession] microphone command failed: microphone_test_cancel:",
-							err,
-						),
-					);
-			}
 		};
-	}, [callRef]);
+	}, []);
 
 	// Keep ``selectMicrophoneRef`` pointed at the latest stable
 	//``selectMicrophone`` closure (). The assignment now happens

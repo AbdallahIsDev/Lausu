@@ -40,8 +40,12 @@ from .test_recording_lifecycle import (  # noqa: F401  # facade re-export
     _do_auto_stop_test,
     _reset_test_chunks,
     _secure_clear_test_chunks,
+    _store_last_test,
     cancel_test_recording,
+    clear_last_test,
+    get_test_status,
     is_test_active,
+    note_test_transcription,
     start_test_recording,
     update_test_filters,
 )
@@ -322,6 +326,19 @@ def stop_test_recording() -> dict:
         len(raw_buf.getvalue()),
         len(buf.getvalue()),
         _TEST_RECORDINGS_DIRNAME,
+    )
+
+    # Store the review payload so a UI that mounted after the stop
+    # (navigation, refresh) can hydrate it via get_test_status().
+    _store_last_test(
+        {
+            "success": True,
+            "audio_file": audio_file,
+            "raw_audio_file": raw_audio_file,
+            "duration_ms": duration_ms,
+            "sample_rate": sr,
+            "quality": quality,
+        }
     )
 
     return {

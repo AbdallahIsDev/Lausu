@@ -863,7 +863,7 @@ describe("useMicrophoneTestSession, selectMicrophoneRef assignment", () => {
 });
 
 describe("useMicrophoneTestSession, unmount cleanup", () => {
-	it("cancels the in-flight test on unmount + clears timers", async () => {
+	it("does NOT cancel the in-flight test on unmount (backend owns it) + clears timers", async () => {
 		callMock.mockImplementation((cmd: string) => {
 			if (cmd === "microphone_test_start")
 				return Promise.resolve({
@@ -885,10 +885,11 @@ describe("useMicrophoneTestSession, unmount cleanup", () => {
 		});
 		expect(result.current.testRunning).toBe(true);
 
-		// Unmount, the cleanup should send microphone_test_cancel.
+		// Unmount: the backend test must SURVIVE navigation/refresh so
+		// the remount recovery below can reattach to it. No cancel call.
 		unmount();
 
-		// Flush the microtask queue so the cancel Promise resolves.
+		// Flush the microtask queue so any stray cancel would resolve.
 		await act(async () => {
 			await new Promise((r) => setTimeout(r, 0));
 		});
@@ -896,7 +897,7 @@ describe("useMicrophoneTestSession, unmount cleanup", () => {
 		const cancelCalls = callMock.mock.calls.filter(
 			(c) => c[0] === "microphone_test_cancel",
 		);
-		expect(cancelCalls.length).toBe(1);
+		expect(cancelCalls.length).toBe(0);
 	});
 
 	it("does NOT send microphone_test_cancel on unmount when no test is running", () => {
@@ -1293,5 +1294,103 @@ describe("useMicrophoneTestSession, silent 5-min UI expiry", () => {
 		} finally {
 			vi.useRealTimers();
 		}
+	});
+});
+
+describe("useMicrophoneTestSession mount recovery", () => {
+	it("reattaches a running backend test (timer resumes, no new start)", async () => {
+		_resetMicrophoneTestCache();
+		callMock.mockImplementation((cmd: string) => {
+			if (cmd === "microphone_test_status") {
+				return Promise.resolve({
+					running: true,
+					elapsed_sec: 4.0,
+					duration_sec: 10.0,
+					last_test: null,
+				});
+			}
+			return Promise.resolve({ success: true });
+		});
+		const { result } = renderHook(() =>
+			useMicrophoneTestSession(makeHookArgs()),
+		);
+
+		await act(async () => {
+			await new Promise<void>((resolve) => setTimeout(resolve, 0));
+		});
+
+		expect(result.current.testRunning).toBe(true);
+		expect(result.current.testElapsed).toBe(4);
+		// Recovery resumes; it never starts a second recording.
+		const starts = callMock.mock.calls.filter(
+			(c) => c[0] === "microphone_test_start",
+		);
+		expect(starts.length).toBe(0);
+	});
+
+	it("hydrates a fresh completed test without announcing", async () => {
+		_resetMicrophoneTestCache();
+		callMock.mockImplementation((cmd: string) => {
+			if (cmd === "microphone_test_status") {
+				return Promise.resolve({
+					running: false,
+					elapsed_sec: 0,
+					duration_sec: 0,
+					last_test: {
+						duration_ms: 9982,
+						quality: { volume_level: "good" },
+						transcription: null,
+						transcription_unavailable: false,
+						audio_file: { path: "gone.wav", bytes: 10 },
+						raw_audio_file: null,
+					},
+				});
+			}
+			return Promise.resolve({ success: true });
+		});
+		const args = makeHookArgs();
+		const { result } = renderHook(() => useMicrophoneTestSession(args));
+
+		await act(async () => {
+			await new Promise<void>((resolve) => setTimeout(resolve, 0));
+		});
+
+		expect(result.current.testRunning).toBe(false);
+		expect(result.current.testDurationMs).toBe(9982);
+		expect(result.current.testQuality).toEqual({ volume_level: "good" });
+	});
+
+	it("stays idle when the backend reports nothing running", async () => {
+		_resetMicrophoneTestCache();
+		callMock.mockImplementation(() => Promise.resolve({ success: true }));
+		const { result } = renderHook(() =>
+			useMicrophoneTestSession(makeHookArgs()),
+		);
+
+		await act(async () => {
+			await new Promise<void>((resolve) => setTimeout(resolve, 0));
+		});
+
+		expect(result.current.testRunning).toBe(false);
+		expect(result.current.testDurationMs).toBe(0);
+	});
+
+	it("stays idle when the status call fails (old backend)", async () => {
+		_resetMicrophoneTestCache();
+		callMock.mockImplementation((cmd: string) => {
+			if (cmd === "microphone_test_status") {
+				return Promise.reject(new Error("unknown command"));
+			}
+			return Promise.resolve({ success: true });
+		});
+		const { result } = renderHook(() =>
+			useMicrophoneTestSession(makeHookArgs()),
+		);
+
+		await act(async () => {
+			await new Promise<void>((resolve) => setTimeout(resolve, 0));
+		});
+
+		expect(result.current.testRunning).toBe(false);
 	});
 });
