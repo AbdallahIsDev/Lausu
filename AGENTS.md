@@ -1021,8 +1021,8 @@ Applies to: All agents, all modes.
 
 ```
 C-MIC-22
-Rule: Do NOT surface device_lost for a transient mic-stream death without retrying the open first. Unexpected PortAudio stream death retries the open (bounded attempts, presence-checked, abortable by user stop); only a provably-gone device or exhausted retries emits device_lost.
-Rationale: OS-side mic reconfigures (format/effects toggles) kill the stream with the device still present; instant banners stranded users in "Monitoring off" until they manually restarted.
+Rule: Do NOT surface device_lost for a transient mic-stream death without retrying the open first. Both death signatures (PortAudio finished-callback AND zero-fill starvation, the Linux-suspend shape) retry the open (bounded attempts, presence-checked, abortable by user stop, episode-capped against silence loops); only a provably-gone device, exhausted retries, or a capped loop emits device_lost.
+Rationale: OS-side mic reconfigures (format/effects toggles, suspend) kill or starve the stream with the device still present; instant banners stranded users in "Monitoring off" until they manually restarted.
 Applies to: All agents, all modes, all sub-agents.
 ```
 
