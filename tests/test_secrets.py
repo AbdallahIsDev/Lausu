@@ -331,6 +331,29 @@ class TestPublicIpcCommandNamesNotRedacted:
         assert redact_secret(token) == "***"
 
 
+class TestPublicWorkerEventNamesNotRedacted:
+    """Worker/offline-pack event NAMES are public protocol vocabulary"""
+
+    def test_long_event_names_survive_redact_secret(self):
+        from voice_typer.server.service.offline_pack.events import (
+            OFFLINE_PACK_EVENT_TYPES,
+        )
+
+        long_events = sorted(n for n in OFFLINE_PACK_EVENT_TYPES if len(n) >= 20)
+        assert "transcribe_offline_result" in long_events
+        for name in long_events:
+            assert redact_secret(name) == name, f"worker event name {name!r} was redacted; got {redact_secret(name)!r}"
+        # The exact reported line shape.
+        line = "[WORKER] transcribe_offline_result (len=101 chars) 16.6s"
+        assert redact_secret(line) == line
+
+    def test_event_like_nonevent_still_redacted(self):
+        """Fail-closed: a long token that is NOT a registered event"""
+        token = "transcribe_offline_resultXtra"
+        assert len(token) >= 20
+        assert redact_secret(token) == "***"
+
+
 class TestThreadLabelShield:
     """``thread=<name>`` lifecycle tracing (hotkey/dispatch threads)"""
 

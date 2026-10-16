@@ -68,6 +68,7 @@ from voice_typer.server.security.secret_patterns import (  # noqa: F401  # facad
     _flag_sub,
     _public_config_field_names,
     _public_ipc_command_names,
+    _public_worker_event_names,
 )
 from voice_typer.server.security.secret_redaction import (  # noqa: F401  # facade re-export
     redact_api_keys,

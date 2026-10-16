@@ -26,6 +26,7 @@ from voice_typer.server.security.secret_patterns import (
     _flag_sub,
     _public_config_field_names,
     _public_ipc_command_names,
+    _public_worker_event_names,
 )
 
 
@@ -192,6 +193,8 @@ def redact_api_keys(text: str, *, replacement: str = "***") -> str:
         if token in _public_config_field_names():
             return token
         if token in _public_ipc_command_names():
+            return token
+        if token in _public_worker_event_names():
             return token
         return replacement
 

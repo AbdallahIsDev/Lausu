@@ -49,6 +49,7 @@ _TEARDOWN_LABEL_RE = re.compile(r"\bteardown_[A-Za-z0-9_\-]{1,55}(?![A-Za-z0-9_\
 # Caches for the public-vocabulary sets (see
 _PUBLIC_CONFIG_FIELD_NAMES_CACHE: frozenset[str] | None = None
 _PUBLIC_IPC_COMMAND_NAMES_CACHE: frozenset[str] | None = None
+_PUBLIC_WORKER_EVENT_NAMES_CACHE: frozenset[str] | None = None
 
 
 def _public_ipc_command_names() -> frozenset[str]:
@@ -96,6 +97,32 @@ def _public_config_field_names() -> frozenset[str]:
         except Exception:
             cached = frozenset()
         _PUBLIC_CONFIG_FIELD_NAMES_CACHE = cached
+    return cached
+
+
+def _public_worker_event_names() -> frozenset[str]:
+    """Worker/offline-pack event NAMES as a set (public protocol vocabulary).
+
+    Frame types like ``transcribe_offline_result`` are 20+ char tokens,
+    so the generic catch-all masked the worker's own completion line as
+    ``[WORKER] *** (len=101 chars)``. Same exemption shape as the IPC
+    command and config-field sets: NAMES stay readable, payload VALUES
+    still redact. Resolved lazily from the protocol authority
+    (``OFFLINE_PACK_EVENT_TYPES``) and cached; unimportable resolves
+    to empty (fail closed).
+    """
+    global _PUBLIC_WORKER_EVENT_NAMES_CACHE
+    cached = _PUBLIC_WORKER_EVENT_NAMES_CACHE
+    if cached is None:
+        try:
+            from voice_typer.server.service.offline_pack.events import (
+                OFFLINE_PACK_EVENT_TYPES,
+            )
+
+            cached = frozenset(OFFLINE_PACK_EVENT_TYPES)
+        except Exception:
+            cached = frozenset()
+        _PUBLIC_WORKER_EVENT_NAMES_CACHE = cached
     return cached
 
 
