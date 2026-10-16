@@ -277,8 +277,15 @@ def start_monitoring(mic_id: str | None = None) -> dict:
 def stop_monitoring() -> dict:
     """Stop the continuous level monitor stream.
 
+    A running mic test HOLDS the stream: navigating away stops the
+    meter, never the recording. The test owns the mic until it
+    auto-stops/finalizes; the idle timeout releases it after.
+
     Returns:
     """
+    with _state._monitor_lock:
+        if _state._test_mode:
+            return {"success": True, "message": "Test running, stream held"}
     # Cancel any active test first.
     from .test_recording import _cancel_test_locked
     from .worker import _stop_level_worker
@@ -330,6 +337,9 @@ def stop_monitoring() -> dict:
 def _idle_timeout_auto_stop() -> bool:
     """auto-stop the monitor stream if the IPC idle-timeout has fired."""
     if not _state._monitor_active:
+        return False
+    if _state._test_mode:
+        # A recording test holds the mic regardless of poll idle.
         return False
     # Polls ONLY. Push timestamps self-perpetuate (every push refreshes
     # the clock, so counting them kept the mic open 24/7 and defeated
