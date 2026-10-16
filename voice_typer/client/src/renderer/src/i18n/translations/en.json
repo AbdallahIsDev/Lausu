@@ -1849,7 +1849,6 @@
 		"playRecording": "Play Recording",
 		"stop": "Stop",
 		"qualityFeedback": {
-			"recording": "Recording…",
 			"qualityNotApplicable": "N/A: transcription unavailable"
 		},
 		"liveListen": "Listen live",

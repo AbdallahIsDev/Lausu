@@ -64,6 +64,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
 			containerAriaLabel={t("a11y.notifications")}
 			toastOptions={{
 				closeButtonAriaLabel: t("a11y.close"),
+				// Sonner's <li> ships class-less, so it never matched the
+				// squircle family index.css shapes via :where(.rounded-lg).
+				classNames: { toast: "rounded-lg" },
 			}}
 			duration={4000}
 			visibleToasts={6}

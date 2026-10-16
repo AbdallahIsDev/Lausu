@@ -1827,7 +1827,6 @@
 		"playRecording": "Воспроизвести запись",
 		"stop": "Стоп",
 		"qualityFeedback": {
-			"recording": "Запись…",
 			"qualityNotApplicable": "Н/Д: расшифровка недоступна"
 		},
 		"detectedIssueCodes": {

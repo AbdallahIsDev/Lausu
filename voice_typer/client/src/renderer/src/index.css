@@ -368,7 +368,7 @@
 	   Full circles and pills explicitly keep their circular caps. */
 	@supports (corner-shape: squircle) {
 		:root {
-			--radius: 1.625rem !important; /* 26px, matches the Tauri shell's default */
+			--radius: 1.625rem !important;
 		}
 
 		:where(
