@@ -23,8 +23,12 @@
 
 import { ArrowDown01Icon, FilterIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AudioFilterChain } from "@/components/audio/AudioFilterChain";
+import {
+	filterFactoryDefaults,
+	MIC_ADVANCED_ROW_KEYS,
+} from "@/components/audio/audioFilterRowDescriptors";
 import { SelectableRow } from "@/components/common/SelectableRow";
 import { InfoTooltip } from "@/components/feedback/InfoTooltip";
 import {
@@ -33,6 +37,7 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { t } from "@/i18n/i18n";
@@ -41,7 +46,13 @@ import {
 	AUDIO_PRESET_OPTIONS,
 	type AudioPreset,
 } from "@/lib/utils/audioPresets";
-import type { LausuConfig } from "@/types/config";
+import type { CustomMicPreset, LausuConfig } from "@/types/config";
+import {
+	type FilterSnapshot,
+	filterSnapshotsEqual,
+	snapshotFilterValues,
+} from "../lib/filterSnapshot";
+import { SavePresetDialog } from "./SavePresetDialog";
 
 interface PresetAccordionSelectorProps {
 	preset: AudioPreset;
@@ -54,24 +65,46 @@ interface PresetAccordionSelectorProps {
 	onToggleAdvanced: () => void;
 	/** Called when any individual filter field changes. */
 	onConfigChange: (updates: Partial<LausuConfig>) => void;
+	/** Saved custom presets (from config). */
+	customPresets?: CustomMicPreset[];
+	/** Selected saved preset id while preset === "custom". */
+	activeCustomPresetId?: string | null;
+	/** Called with a saved preset id (values applied by the caller). */
+	onSelectCustomPreset?: (id: string) => void;
+	/** Called with a new preset name (current values snapshotted by the caller). */
+	onSaveCustomPreset?: (name: string) => void;
+	/** Called to restore factory filter values. */
+	onRestoreMicDefaults?: () => void;
 }
 
 interface PresetOption {
-	value: AudioPreset;
+	value: string;
 	label: string;
 	description: string;
+	isCustom: boolean;
 }
 
 // Resolve the shared registry's label/description keys through `t`
 // (one lookup per key per mount, memoized per mount). The DATA
 // (values + keys) lives in `lib/utils/audioPresets.ts`; only the
-// locale resolution happens here.
-function getPresetOptions(): PresetOption[] {
-	return AUDIO_PRESET_OPTIONS.map((option) => ({
+// locale resolution happens here. Saved customs append after the
+// stock options (no description → no tooltip).
+function getPresetOptions(customPresets: CustomMicPreset[]): PresetOption[] {
+	const stock: PresetOption[] = AUDIO_PRESET_OPTIONS.map((option) => ({
 		value: option.value,
 		label: t(option.labelKey),
 		description: t(option.descriptionKey),
+		isCustom: false,
 	}));
+	for (const custom of customPresets) {
+		stock.push({
+			value: `custom:${custom.id}`,
+			label: custom.name,
+			description: "",
+			isCustom: true,
+		});
+	}
+	return stock;
 }
 
 const ACCORDION_ITEM_VALUE = "microphone-quality";
@@ -83,37 +116,119 @@ export function PresetAccordionSelector({
 	onPresetChange,
 	onToggleAdvanced,
 	onConfigChange,
+	customPresets = [],
+	activeCustomPresetId = null,
+	onSelectCustomPreset = () => {},
+	onSaveCustomPreset = () => {},
+	onRestoreMicDefaults = () => {},
 }: PresetAccordionSelectorProps) {
-	const presetOptions = useMemo(() => getPresetOptions(), []);
+	const presetOptions = useMemo(
+		() => getPresetOptions(customPresets),
+		[customPresets],
+	);
 	// "off" is not a radio option (disabling is the enable-Switch's
 	// job); the header chip still needs a display label for it.
 	const selectableOptions = presetOptions.filter((o) => o.value !== "off");
+	// Radio value: a selected saved preset addresses its own option,
+	// everything else uses the preset name (incl. ad-hoc "custom").
+	const radioValue =
+		preset === "custom" && activeCustomPresetId
+			? `custom:${activeCustomPresetId}`
+			: preset;
+	const activeCustom = activeCustomPresetId
+		? (customPresets.find((c) => c.id === activeCustomPresetId) ?? null)
+		: null;
 	const current =
-		preset === "off"
+		activeCustom != null
 			? {
-					value: "off" as AudioPreset,
-					label: t("settings.audioEnhancement.presetOff"),
+					value: `custom:${activeCustom.id}`,
+					label: activeCustom.name,
 					description: "",
 				}
-			: presetOptions.find((o) => o.value === preset);
+			: preset === "off"
+				? {
+						value: "off",
+						label: t("settings.audioEnhancement.presetOff"),
+						description: "",
+					}
+				: presetOptions.find((o) => o.value === preset);
 	const enabled = preset !== "off";
 	const isCustom = preset === "custom";
 	const panelId = "mic-preset-custom-panel";
 
-	// Remembers the last non-"off" preset so flipping the Switch back
+	// Remembers the last non-"off" option value so flipping the Switch back
 	// on restores the user's choice instead of resetting to "auto".
-	const lastNonOffPresetRef = useRef<AudioPreset>(
-		preset === "off" ? "auto" : preset,
-	);
+	const lastNonOffRef = useRef<string>(preset === "off" ? "auto" : "");
 	useEffect(() => {
 		if (preset !== "off") {
-			lastNonOffPresetRef.current = preset;
+			lastNonOffRef.current =
+				preset === "custom" && activeCustomPresetId
+					? `custom:${activeCustomPresetId}`
+					: preset;
 		}
-	}, [preset]);
+	}, [preset, activeCustomPresetId]);
 
 	const handleEnabledChange = (checked: boolean) => {
-		onPresetChange(checked ? lastNonOffPresetRef.current : "off");
+		if (checked) {
+			selectOption(lastNonOffRef.current);
+		} else {
+			onPresetChange("off");
+		}
 	};
+
+	const selectOption = (value: string) => {
+		if (value.startsWith("custom:")) {
+			const id = value.slice("custom:".length);
+			if (preset === "custom" && activeCustomPresetId === id) return;
+			onSelectCustomPreset(id);
+			return;
+		}
+		if (preset === (value as AudioPreset)) return;
+		onPresetChange(value as AudioPreset);
+	};
+
+	// ── Dirty tracking for "Save as preset" ──────────────────────
+	// A preset name prop only ever changes together with its applied
+	// values (one backend push carries both), so the current config
+	// always owns the current selection's values. Baselines:
+	// - named custom → its saved snapshot (exact, derived, no waiting);
+	// - stock/ad-hoc → learned from the first config seen under that
+	//   key (the renaming push already carries applied values);
+	// - just-restored factory values → clean until the next edit.
+	// Until any baseline exists, save stays disabled rather than guessing.
+	const [learned, setLearned] = useState<Record<string, FilterSnapshot>>({});
+	const [restored, setRestored] = useState<{
+		key: string;
+		values: FilterSnapshot;
+	} | null>(null);
+	const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+	const presetKey = `${preset}:${activeCustomPresetId ?? ""}`;
+	useEffect(() => {
+		if (activeCustom != null) return;
+		if (learned[presetKey] !== undefined) return;
+		const snap = snapshotFilterValues(config);
+		setLearned((prev) =>
+			prev[presetKey] !== undefined ? prev : { ...prev, [presetKey]: snap },
+		);
+	}, [config, presetKey, activeCustom, learned]);
+	const savedValues =
+		activeCustom != null
+			? ((activeCustom.values as FilterSnapshot) ?? null)
+			: null;
+	const currentValues = snapshotFilterValues(config);
+	const baselineValues = savedValues ?? learned[presetKey] ?? null;
+	const matchesBaseline =
+		baselineValues != null &&
+		filterSnapshotsEqual(baselineValues, currentValues);
+	const matchesRestored =
+		restored != null &&
+		restored.key === presetKey &&
+		filterSnapshotsEqual(restored.values, currentValues);
+	const dirty =
+		(baselineValues !== null ||
+			(restored != null && restored.key === presetKey)) &&
+		!matchesBaseline &&
+		!matchesRestored;
 
 	return (
 		<Accordion
@@ -178,23 +293,14 @@ export function PresetAccordionSelector({
 						/>
 					</div>
 				</AccordionTrigger>
-				{/* Padding contract (C-MIC-15): the shared primitive's
-                                AccordionContent supplies NO horizontal padding — only the
-                                inner pb-4 bottom gap. Horizontal insets come from THIS
-                                instance: the RadioGroup/switch row carry px-4, and each
-                                option row adds p-2, so option text and right-aligned
-                                radios land at the pinned 24px total (16 + 8) and never
-                                touch the container edges. Do not "restore" a px-4 on the
-                                primitive: that would double the inset. The hairline
-                                separates options from header. Rows keep the radio FIRST
-                                in DOM (Radix roving-tabindex/reading order) and push it to
-                                the visual far end via ms-auto, aligning its inset with the
-                                header chevron. */}
+				{/* Padding contract (C-MIC-15): AccordionContent supplies NO
+                                horizontal padding, so the shared 16px inset is set HERE
+                                (switch row px-4; options px-2 + row p-2), never on the primitive. */}
 				<AccordionContent className="flex flex-col gap-2">
 					{/* Master enable-Switch (first row): "off" lives ONLY
                                         here, never among the radios below. The radios
                                         (and the Custom panel) render only while enabled. */}
-					<div className="flex items-center gap-3 px-4">
+					<div className="flex items-center gap-3 px-4 py-2.5">
 						{/* Distinct from the trigger's label: reusing
                                         `microphoneQuality` here echoed the section title
                                         twice on screen while the panel was expanded. */}
@@ -214,9 +320,9 @@ export function PresetAccordionSelector({
 					{enabled && (
 						<div className="border-t border-border/8 pt-4">
 							<RadioGroup
-								value={preset}
-								onValueChange={(v) => onPresetChange(v as AudioPreset)}
-								className="gap-1 px-4"
+								value={radioValue}
+								onValueChange={(v) => selectOption(v)}
+								className="gap-1 px-2"
 								data-testid="mic-preset-radio-group"
 							>
 								{selectableOptions.map((option) => (
@@ -235,19 +341,12 @@ export function PresetAccordionSelector({
 										data-testid={`mic-preset-option-${option.value}`}
 										ignoreClicksFrom={["button"]}
 										onRowSelect={() => {
-											if (preset === option.value) return;
-											onPresetChange(option.value);
+											selectOption(option.value);
 										}}
 									>
-										{/* Explicit aria-label keeps the radio's accessible
-                                                                    name to the preset LABEL, an implicit-label
-                                                                    fallback would concatenate the whole row text.
-                                                                    The radio stays FIRST in DOM (Radix roving
-                                                                    tabindex + screen-reader reading order hit the
-                                                                    control before the descriptive text) and is
-                                                                    moved to the visual far end via order-last +
-                                                                    ms-auto, aligning its inset with the header "+"
-                                                                    glyph. */}
+										{/* Explicit aria-label keeps the radio's name to the
+                                                                    preset LABEL; the radio stays FIRST in DOM and is
+                                                                    pushed visual-last (order-last ms-auto) onto the rail. */}
 										<RadioGroupItem
 											value={option.value}
 											aria-label={option.label}
@@ -264,10 +363,12 @@ export function PresetAccordionSelector({
 											<span className="text-sm font-medium text-foreground truncate">
 												{option.label}
 											</span>
-											<InfoTooltip
-												text={option.description}
-												contextLabel={option.label}
-											/>
+											{option.description !== "" && (
+												<InfoTooltip
+													text={option.description}
+													contextLabel={option.label}
+												/>
+											)}
 										</span>
 									</SelectableRow>
 								))}
@@ -277,36 +378,80 @@ export function PresetAccordionSelector({
 
 					{isCustom && (
 						<>
-							<button
-								type="button"
-								className="flex w-full items-center justify-between rounded-lg border border-border/8 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
-								onClick={onToggleAdvanced}
-								aria-expanded={showAdvanced}
-								aria-controls={panelId}
-							>
-								<span className="flex items-center gap-2 font-medium tracking-wide">
+							{/* px-4 wrapper: the disclosure is a bordered pill, so it
+                                                must sit on the same 16px rail as every other row
+                                                instead of running flush into the card's borders. */}
+							<div className="px-4">
+								<button
+									type="button"
+									className="flex w-full items-center justify-between rounded-lg border border-border/8 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
+									onClick={onToggleAdvanced}
+									aria-expanded={showAdvanced}
+									aria-controls={panelId}
+								>
+									<span className="flex items-center gap-2 font-medium tracking-wide">
+										<HugeiconsIcon
+											icon={FilterIcon}
+											strokeWidth={2}
+											className="h-4 w-4 text-muted-foreground"
+										/>
+										{t("settings.audioEnhancement.customFiltersTitle")}
+									</span>
 									<HugeiconsIcon
-										icon={FilterIcon}
-										strokeWidth={2}
-										className="h-4 w-4 text-muted-foreground"
+										icon={ArrowDown01Icon}
+										strokeWidth={1.625}
+										className={cn(
+											"h-3.5 w-3.5 transition-transform duration-200",
+											showAdvanced && "rotate-180",
+										)}
 									/>
-									{t("settings.audioEnhancement.customFiltersTitle")}
-								</span>
-								<HugeiconsIcon
-									icon={ArrowDown01Icon}
-									strokeWidth={1.625}
-									className={cn(
-										"h-3.5 w-3.5 transition-transform duration-200",
-										showAdvanced && "rotate-180",
-									)}
-								/>
-							</button>
+								</button>
+							</div>
 
 							{showAdvanced && (
-								<div id={panelId}>
+								<div id={panelId} className="flex flex-col gap-3 px-4 pb-1">
 									<AudioFilterChain
 										config={config}
 										onConfigChange={onConfigChange}
+										rowKeys={MIC_ADVANCED_ROW_KEYS}
+									/>
+									{/* Custom-preset actions: restore is always
+									available (idempotent); save enables the
+									moment any value drifts from the selection. */}
+									<div className="flex flex-wrap items-center gap-2">
+										<Button
+											variant="outline"
+											size="sm"
+											className="gap-2"
+											onClick={() => {
+												const factory = snapshotFilterValues({
+													...config,
+													...filterFactoryDefaults(),
+												} as LausuConfig);
+												setRestored({ key: presetKey, values: factory });
+												onRestoreMicDefaults();
+											}}
+										>
+											{t("microphoneTest.restoreMicDefaults")}
+										</Button>
+										<Button
+											variant="default"
+											size="sm"
+											className="gap-2"
+											disabled={!dirty}
+											onClick={() => setSaveDialogOpen(true)}
+										>
+											{t("microphoneTest.saveAsPreset")}
+										</Button>
+									</div>
+									<SavePresetDialog
+										open={saveDialogOpen}
+										takenNames={customPresets.map((c) => c.name)}
+										onSave={(name) => {
+											setSaveDialogOpen(false);
+											onSaveCustomPreset(name);
+										}}
+										onClose={() => setSaveDialogOpen(false)}
 									/>
 								</div>
 							)}

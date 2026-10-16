@@ -86,36 +86,65 @@ def test_noise_suppressor_reset_zeros_frame_buffers():
     assert np.all(ns._frame_i16_buf == 0)
 
 
-def test_noise_suppressor_reset_zeros_resampler_x_up_buf():
-    """NoiseSuppressor.reset() must cascade to _StreamingResampler._x_up_buf."""
+def test_noise_suppressor_reset_clears_resampler_history():
+    """NoiseSuppressor.reset() must cascade to the resamplers' history tails."""
     ns = NoiseSuppressor(method="none", sample_rate=_SR)
     # Force the resamplers to exist by calling _ensure_resamplers
     ns._ensure_resamplers(_SR)
     assert ns._upsampler is not None
     ns._upsampler.process(_nonzero_chunk(64))
-    assert ns._upsampler._x_up_buf is not None
-    assert not np.all(ns._upsampler._x_up_buf == 0)
+    assert ns._upsampler._hist is not None
     ns.reset()
-    assert ns._upsampler._x_up_buf is not None
-    assert np.all(ns._upsampler._x_up_buf == 0)
+    assert ns._upsampler._hist is not None
+    assert np.all(ns._upsampler._hist == 0)
 
 
-def test_streaming_resampler_reset_zeros_x_up_buf():
+def test_streaming_resampler_reset_clears_history_and_phase():
     # 16k -> 48k upsampler (up=3, down=1)
     rs = _StreamingResampler(up=3, down=1)
     rs.process(_nonzero_chunk(64))
-    assert rs._x_up_buf is not None
-    assert not np.all(rs._x_up_buf == 0)
+    assert rs._hist is not None
     rs.reset()
-    assert rs._x_up_buf is not None
-    assert np.all(rs._x_up_buf == 0)
+    assert rs._hist is not None
+    assert np.all(rs._hist == 0)
+    assert rs._phase == 0
 
 
 def test_streaming_resampler_reset_before_process_does_not_crash():
     rs = _StreamingResampler(up=3, down=1)
-    assert rs._x_up_buf is None
+    assert rs._hist is None
     rs.reset()
-    assert rs._x_up_buf is None
+    assert rs._hist is None
+
+
+def test_streaming_resampler_chunked_matches_oneshot():
+    """Chunked streaming must be bit-identical to one-shot resampling."""
+    rng = np.random.default_rng(7)
+    a = rng.standard_normal(1411)
+    b = rng.standard_normal(1411)
+    ref = _StreamingResampler(up=160, down=441).process(np.concatenate([a, b]))
+    rs = _StreamingResampler(up=160, down=441)
+    streamed = np.concatenate([rs.process(a), rs.process(b)])
+    assert len(ref) == len(streamed)
+    assert np.max(np.abs(ref - streamed)) == 0.0
+
+
+def test_streaming_resampler_chunk_cost_within_budget():
+    """A 32 ms chunk (44.1 kHz -> 16 kHz) must process far inside its budget."""
+    import time
+
+    rng = np.random.default_rng(1)
+    chunk = rng.standard_normal(1411).astype(np.float32)
+    rs = _StreamingResampler(up=160, down=441)
+    for _ in range(5):
+        rs.process(chunk)
+    t0 = time.perf_counter()
+    for _ in range(20):
+        rs.process(chunk)
+    mean_ms = (time.perf_counter() - t0) / 20 * 1000
+    # True polyphase cost is ~0.1 ms; 10 ms leaves 100x headroom while
+    # still catching the old dense-lfilter 200 ms regression on any box.
+    assert mean_ms < 10.0, f"resampler too slow: {mean_ms:.1f} ms/chunk"
 
 
 def test_notch_reset_zeros_state():

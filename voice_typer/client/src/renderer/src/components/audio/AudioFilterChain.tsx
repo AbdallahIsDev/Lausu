@@ -49,6 +49,11 @@ export interface AudioFilterChainProps {
 	 * discovered, but cannot be edited until the custom preset is picked.
 	 */
 	disabled?: boolean;
+	/**
+	 * Render only these config keys (e.g. the simplified Microphone
+	 * page set). Omitted = the full registry (Settings → Audio).
+	 */
+	rowKeys?: readonly string[];
 }
 
 export function AudioFilterChain({
@@ -56,6 +61,7 @@ export function AudioFilterChain({
 	onConfigChange,
 	isVisible,
 	disabled,
+	rowKeys,
 }: AudioFilterChainProps) {
 	// Permissive default so non-Settings call sites (the
 	// Microphone test page's preset selector) keep rendering
@@ -112,6 +118,9 @@ export function AudioFilterChain({
 	return (
 		<>
 			{audioFilterRowDescriptors.map((descriptor) => {
+				if (rowKeys && !rowKeys.includes(descriptor.configKey as string)) {
+					return null;
+				}
 				const label = labels[descriptor.labelKey] ?? descriptor.labelKey;
 				const infoSearch =
 					labels[descriptor.infoSearchKey] ?? descriptor.infoSearchKey;

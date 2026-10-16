@@ -32,7 +32,7 @@ import { Button } from "@/components/ui/button";
 import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import type { AudioPreset } from "@/lib/utils/audioPresets";
-import type { LausuConfig } from "@/types/config";
+import type { CustomMicPreset, LausuConfig } from "@/types/config";
 import type { LiveListenError } from "../hooks/useLiveListen";
 import { MICROPHONE_TEST_DURATION_SEC } from "../hooks/useMicrophoneTestSession";
 import type { TestResultQuality } from "../lib/types";
@@ -70,6 +70,11 @@ export interface ActiveMicrophoneCardProps {
 	hasFiltersEnabled: boolean;
 	showAdvanced: boolean;
 	config: LausuConfig | null;
+	customPresets: CustomMicPreset[];
+	activeCustomPresetId: string | null;
+	onSelectCustomPreset: (id: string) => void;
+	onSaveCustomPreset: (name: string) => void;
+	onRestoreMicDefaults: () => void;
 	/** Live monitor ("hear yourself") state, owned by useLiveListen in the page. */
 	liveListening: boolean;
 	liveStarting: boolean;
@@ -109,6 +114,11 @@ export function ActiveMicrophoneCard({
 	hasFiltersEnabled,
 	showAdvanced,
 	config,
+	customPresets,
+	activeCustomPresetId,
+	onSelectCustomPreset,
+	onSaveCustomPreset,
+	onRestoreMicDefaults,
 	liveListening,
 	liveStarting,
 	liveListenError,
@@ -346,6 +356,11 @@ export function ActiveMicrophoneCard({
 						onPresetChange={onPresetChange}
 						onToggleAdvanced={onToggleAdvanced}
 						onConfigChange={onConfigChange}
+						customPresets={customPresets}
+						activeCustomPresetId={activeCustomPresetId}
+						onSelectCustomPreset={onSelectCustomPreset}
+						onSaveCustomPreset={onSaveCustomPreset}
+						onRestoreMicDefaults={onRestoreMicDefaults}
 					/>
 				)}
 			</div>
@@ -414,7 +429,12 @@ const MemoizedPresetAccordionSelector = memo(
 		prev.config === next.config &&
 		prev.showAdvanced === next.showAdvanced &&
 		prev.onConfigChange === next.onConfigChange &&
-		prev.onPresetChange === next.onPresetChange,
+		prev.onPresetChange === next.onPresetChange &&
+		prev.customPresets === next.customPresets &&
+		prev.activeCustomPresetId === next.activeCustomPresetId &&
+		prev.onSelectCustomPreset === next.onSelectCustomPreset &&
+		prev.onSaveCustomPreset === next.onSaveCustomPreset &&
+		prev.onRestoreMicDefaults === next.onRestoreMicDefaults,
 );
 
 const MemoizedTestReviewPanel = memo(

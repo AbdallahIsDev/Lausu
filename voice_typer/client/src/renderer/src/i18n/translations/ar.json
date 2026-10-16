@@ -1852,7 +1852,16 @@
 		"liveListenHint": "يجب أن تسمع نفسك الآن. استخدم سماعات الرأس لتجنب الصدى.",
 		"liveListenFailed": "فشل الاستماع المباشر. تحقق من الميكروفون وحاول مرة أخرى.",
 		"liveListenDenied": "تم حظر الوصول إلى الميكروفون. اسمح بالوصول وحاول مرة أخرى.",
-		"liveListenUnavailable": "الاستماع المباشر غير متاح في هذه النافذة."
+		"liveListenUnavailable": "الاستماع المباشر غير متاح في هذه النافذة.",
+		"restoreMicDefaults": "استعادة إعدادات الميكروفون الافتراضية",
+		"saveAsPreset": "حفظ كإعداد مسبق",
+		"savePresetTitle": "حفظ الإعداد المسبق",
+		"savePresetHint": "احفظ إعدادات الميكروفون الحالية كإعداد مسبق قابل لإعادة الاستخدام.",
+		"savePresetName": "اسم الإعداد المسبق",
+		"savePresetPlaceholder": "مثال: مكالمات الليل",
+		"savePresetSave": "حفظ",
+		"savePresetNameTaken": "يوجد إعداد مسبق بهذا الاسم بالفعل",
+		"presetSaved": "تم حفظ الإعداد المسبق {name}"
 	},
 	"dashboard": {
 		"cards": {

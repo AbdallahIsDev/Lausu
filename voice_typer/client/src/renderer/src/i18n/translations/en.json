@@ -1857,7 +1857,16 @@
 		"liveListenHint": "You should hear yourself now. Use headphones to avoid echo.",
 		"liveListenFailed": "Live listening failed. Check the microphone and try again.",
 		"liveListenDenied": "Microphone access was blocked. Allow access and try again.",
-		"liveListenUnavailable": "Live listening is not available in this window."
+		"liveListenUnavailable": "Live listening is not available in this window.",
+		"restoreMicDefaults": "Restore microphone defaults",
+		"saveAsPreset": "Save as preset",
+		"savePresetTitle": "Save preset",
+		"savePresetHint": "Save the current microphone settings as a reusable preset.",
+		"savePresetName": "Preset name",
+		"savePresetPlaceholder": "e.g. Late-night calls",
+		"savePresetSave": "Save preset",
+		"savePresetNameTaken": "A preset with this name already exists",
+		"presetSaved": "Preset {name} saved"
 	},
 	"stats": {
 		"shareImage": {

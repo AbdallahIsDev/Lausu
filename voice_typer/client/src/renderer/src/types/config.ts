@@ -28,6 +28,17 @@ export interface LinuxWindowButtonsSystemInfo {
 	layout: { side: "left" | "right"; buttons: string[] } | null;
 }
 
+/**
+ * A user-saved microphone preset (persisted `custom_presets` entry).
+ * Mirrors the backend validator shape: stable id, display name,
+ * and a bag of noise-filter values.
+ */
+export interface CustomMicPreset {
+	id: string;
+	name: string;
+	values: Record<string, boolean | number | string>;
+}
+
 export interface LausuConfig {
 	schema_version: number;
 
@@ -231,6 +242,11 @@ export interface LausuConfig {
 	volume_duck_smart_poll_interval_ms: number;
 
 	audio_preset: "auto" | "studio" | "noisy_room" | "off" | "custom";
+
+	/** A user-saved microphone preset: stable id, display name, filter values. */
+	custom_presets?: CustomMicPreset[];
+	/** Selected saved preset while `audio_preset === "custom"`; null = ad-hoc values. */
+	active_custom_preset?: string | null;
 
 	noise_filter_enabled: boolean; // DEPRECATED
 	noise_filter_highpass: boolean;

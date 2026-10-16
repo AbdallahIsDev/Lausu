@@ -216,3 +216,44 @@ describe("audioFilterRowDescriptors, registry sanity", () => {
 		}
 	});
 });
+
+describe("audioFilterRowDescriptors, backend range contract", () => {
+	it("slider bounds stay inside the backend allowlist ranges", () => {
+		// Mirrors voice_typer/server/config_validators/allowlist.py.
+		// A slider that admits rejected values shows numbers that never
+		// apply (e.g. notch 733/1000 rejected at max 500); a slider that
+		// excludes legal values (e.g. notch 0 = auto-detect) hides real
+		// options. Update both sides together.
+		const backendRanges: Record<string, [number, number]> = {
+			noise_filter_highpass_cutoff_hz: [20, 500],
+			noise_filter_gate_open_threshold_db: [-96, 0],
+			noise_filter_gate_close_threshold_db: [-96, 0],
+			noise_filter_gate_attack_ms: [0, 10000],
+			noise_filter_gate_hold_ms: [0, 1000],
+			noise_filter_gate_release_ms: [0, 10000],
+			noise_filter_eq_low_db: [-20, 20],
+			noise_filter_eq_mid_db: [-20, 20],
+			noise_filter_eq_high_db: [-20, 20],
+			noise_filter_compressor_threshold_db: [-60, 0],
+			noise_filter_compressor_ratio: [1, 32],
+			noise_filter_compressor_attack_ms: [1, 500],
+			noise_filter_compressor_release_ms: [1, 1000],
+			noise_filter_compressor_output_gain_db: [-32, 32],
+			noise_filter_limiter_ceiling_db: [-60, 0],
+			noise_filter_limiter_release_ms: [1, 1000],
+			noise_filter_notch_frequency_hz: [0, 500],
+		};
+		for (const d of audioFilterRowDescriptors) {
+			if (d.kind !== "slider") continue;
+			const bounds = backendRanges[d.configKey as string];
+			expect(bounds, `${d.configKey} missing backend range`).toBeDefined();
+			if (bounds === undefined) continue;
+			expect(d.min, `${d.configKey} min below backend`).toBeGreaterThanOrEqual(
+				bounds[0],
+			);
+			expect(d.max, `${d.configKey} max above backend`).toBeLessThanOrEqual(
+				bounds[1],
+			);
+		}
+	});
+});

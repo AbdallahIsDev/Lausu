@@ -108,6 +108,26 @@ class NoiseSuppressor(AudioFilter):
             self._method = "none"
             self._backend = None
 
+    def _try_gtcrn_substitute(self) -> bool:
+        """Serve gtcrn when the configured backend is unavailable (no recursion).
+
+        Used ONLY from the rnnoise-unavailable path: constructs the bundled
+        gtcrn backend directly (never via _init_gtcrn, which would route back
+        here on failure). Returns True when serving gtcrn.
+        """
+        try:
+            from voice_typer.server.audio_filters.gtcrn_backend import GtcrnBackend
+
+            self._backend = GtcrnBackend()
+        except Exception:
+            return False
+        self._method = "gtcrn"
+        if not self._quiet:
+            _log_backend_ready_once(
+                "gtcrn-substitute", "[NOISE-SUPPRESS] rnnoise unavailable, serving bundled gtcrn instead"
+            )
+        return True
+
     def _init_rnnoise(self) -> None:
         try:
             from pyrnnoise import RNNoise
@@ -116,13 +136,20 @@ class NoiseSuppressor(AudioFilter):
             if not self._quiet:
                 _log_backend_ready_once("rnnoise", "[NOISE-SUPPRESS] RNNoise backend ready")
         except ImportError:
+            # pyrnnoise (or its own audiolab/av chain) is not importable:
+            # serve the bundled gtcrn model instead of running with no
+            # neural denoising while the preset advertises it.
+            self._degraded = True
+            rnnoise_reason = "rnnoise library not installed"
+            if self._try_gtcrn_substitute():
+                self._degraded_reason = f"{rnnoise_reason}, serving bundled gtcrn instead"
+                return
             if not self._quiet:
                 log.warning(
-                    "[NOISE-SUPPRESS] pyrnnoise not installed, falling back to none. "
+                    "[NOISE-SUPPRESS] pyrnnoise not installed and gtcrn unavailable, falling back to none. "
                     "Install with: pip install pyrnnoise"
                 )
-            self._degraded = True
-            self._degraded_reason = "rnnoise library not installed"
+            self._degraded_reason = rnnoise_reason
             self._method = "none"
         except Exception as exc:
             if not self._quiet:

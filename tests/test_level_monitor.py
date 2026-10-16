@@ -1208,3 +1208,57 @@ class TestLevelMonitorStartProcessorLogCount:
                 assert len(third) == 1, f"a genuine change must log once, got {[r.getMessage() for r in third]}"
         finally:
             lm.stop_monitoring()
+
+
+class TestZeroChunkDetectorUsesRawAudio:
+    """A closed noise gate outputs exact zeros while the mic is alive.
+
+    The disconnect detector must watch RAW input, not the filtered
+    values: filtered zeros mean "gate working", only raw zeros mean a
+    dead stream. Regression for the Start-Test instant device_lost
+    (monitor ran raw, test mode switched RMS to filtered, gate closed
+    on room noise, 10 zero chunks -> false disconnect -> monitor stop).
+    """
+
+    def _arm(self, monkeypatch, processor):
+        import voice_typer.server.level_monitor as lm
+        from voice_typer.server.level_monitor import monitoring as mon
+
+        emitted = []
+        monkeypatch.setattr(mon, "_emit_device_lost", lambda source: emitted.append(source))
+        monkeypatch.setattr(mon, "_push_mic_level", lambda *a: None)
+        lm._monitor_active = True
+        lm._monitor_stream = object()
+        lm._test_mode = True
+        lm._level_processor = processor
+        lm._consecutive_zero_chunks = 0
+        lm._device_lost_emitted = False
+        return emitted
+
+    def test_filtered_zeros_with_live_raw_never_emit(self, monkeypatch):
+        """Gate-style zero output over live input: no disconnect, counter reset."""
+        import voice_typer.server.level_monitor as lm
+        from voice_typer.server.level_monitor import worker as _w
+
+        class _ClosedGate:
+            def process_chunk(self, chunk, input_sample_rate=None):
+                return np.zeros_like(chunk, dtype=np.float32)
+
+        emitted = self._arm(monkeypatch, _ClosedGate())
+        rng = np.random.default_rng(3)
+        fan = (rng.standard_normal(1411).astype(np.float32) * 0.002)
+        assert np.any(fan != 0.0)
+        for _ in range(15):
+            _w._process_level_chunk(fan.copy(), None)
+        assert emitted == []
+        assert lm._consecutive_zero_chunks == 0
+
+    def test_true_raw_zeros_still_emit(self, monkeypatch):
+        """Genuinely dead input still trips the detector at threshold."""
+        from voice_typer.server.level_monitor import worker as _w
+
+        emitted = self._arm(monkeypatch, None)
+        dead = np.zeros(1411, dtype=np.float32)
+        for _ in range(12):
+            _w._process_level_chunk(dead.copy(), None)
+        assert emitted, "raw-zero input must still emit device_lost"

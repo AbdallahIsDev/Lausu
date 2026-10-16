@@ -103,23 +103,24 @@ class TestStreamingResamplerReset:
         r = _StreamingResampler(3, 1)
         x = np.random.randn(100).astype(np.float32) * 0.1
         r.process(x)
-        assert r._zi.size > 0
+        assert r._hist is not None
         assert r._in_total > 0
         assert r._out_total > 0
         r.reset()
         assert r._in_total == 0
         assert r._out_total == 0
         assert r._phase == 0
-        assert np.all(r._zi == 0)
+        assert np.all(r._hist == 0)
 
     def test_reset_zeros_state_buffers(self):
         r = _StreamingResampler(3, 1)
         x = np.random.randn(100).astype(np.float32) * 0.1
         r.process(x)
-        old_zi = r._zi
-        old_zi.fill(0.5)
+        old_hist = r._hist
+        assert old_hist is not None
+        old_hist.fill(0.5)
         r.reset()
-        assert np.all(old_zi == 0), "reset() must zero the old state array in place"
+        assert np.all(old_hist == 0), "reset() must zero the old state array in place"
 
 
 class TestStreamingResamplerEdgeCases:

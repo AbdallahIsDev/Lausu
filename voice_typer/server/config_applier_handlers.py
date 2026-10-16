@@ -133,6 +133,27 @@ def _apply_audio_preset(preset: str) -> dict[str, Any]:
     return get_preset_filters(normalized)
 
 
+def _custom_preset_filters(config: Any) -> dict[str, Any]:
+    """Resolve the selected saved preset to its filter values (or {} to keep current).
+
+    ``audio_preset == "custom"`` with a matching ``active_custom_preset`` id
+    applies that snapshot; unknown/missing id is today's no-op behavior.
+    Only known filter keys are returned (defense in depth: the validator
+    already constrains stored shapes).
+    """
+    active = getattr(config, "active_custom_preset", None)
+    saved = getattr(config, "custom_presets", None)
+    if not active or not isinstance(saved, list):
+        return {}
+    for entry in saved:
+        if isinstance(entry, dict) and entry.get("id") == active:
+            values = entry.get("values")
+            if isinstance(values, dict):
+                return {k: v for k, v in values.items() if isinstance(k, str)}
+            return {}
+    return {}
+
+
 # Registered ConfigSideEffect handlers. Order matters:
 
 
@@ -418,7 +439,9 @@ class _AudioPresetHandler:
         updates = ctx.updates
         try:
             preset = updates["audio_preset"]
-            preset_filters = _apply_audio_preset(preset)
+            preset_filters = (
+                _custom_preset_filters(config) if preset == "custom" else _apply_audio_preset(preset)
+            )
             # Set individual filter toggles from the preset
             for k, v in preset_filters.items():
                 setattr(config, k, v)

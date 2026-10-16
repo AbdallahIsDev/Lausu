@@ -10,14 +10,15 @@
 
 import { AlertCircleIcon } from "@hugeicons/core-free-icons";
 import { useCallback, useRef, useState } from "react";
+import { filterFactoryDefaults } from "@/components/audio/audioFilterRowDescriptors";
 import PageHeading from "@/components/common/PageHeading";
 import { EmptyState } from "@/components/feedback/EmptyState";
-import { OfflinePackPreparingBanner } from "@/components/feedback/OfflinePackPreparingBanner";
-import { useOfflinePackDownload } from "@/hooks/useOfflinePackDownload";
+import { useSnackbar } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
 import { VOICE_BIOMETRIC_CONSENT_FIELD } from "@/lib/consent";
 import { consentBodyKey, openConsentGate } from "@/lib/consentGate";
 import { useDeviceLostStore } from "@/stores/deviceLostStore";
+import type { LausuConfig } from "@/types/config";
 import { ActiveMicrophoneCard } from "./microphone/components/ActiveMicrophoneCard";
 import { AvailableMicrophonesList } from "./microphone/components/AvailableMicrophonesList";
 import { MicrophonePermissionBanner } from "./microphone/components/MicrophonePermissionBanner";
@@ -27,6 +28,7 @@ import { useMicrophoneData } from "./microphone/hooks/useMicrophoneData";
 import { useMicrophonePermission } from "./microphone/hooks/useMicrophonePermission";
 import { useMicrophoneTest } from "./microphone/hooks/useMicrophoneTest";
 import { computeAudioKey } from "./microphone/lib/computeAudioKey";
+import { snapshotFilterValues } from "./microphone/lib/filterSnapshot";
 
 export default function MicrophonePage() {
 	// ref-to-latest-selectMicrophone so the
@@ -70,23 +72,11 @@ export default function MicrophonePage() {
 	const lostSource = useDeviceLostStore((s) => s.lostSource);
 	const clearLost = useDeviceLostStore((s) => s.clearLost);
 
-	// Runtime-pack readiness, drives the "Preparing offline engine…"
-	// banner below. The mic test itself uses RMS only and works without
-	// the pack (§4.9: "RMS meter works; VAD 'smartness' degrades
-	// silently"), so the banner is purely informational, it does NOT
-	// block the test.
-	const {
-		status: packStatus,
-		progress: packProgress,
-		isReady: packReady,
-	} = useOfflinePackDownload();
-	// Tracks whether the user has attempted an action that would
-	// normally require the pack (startTest or selectMicrophone). The
-	// banner is gated on this so a fresh page load with a missing pack
-	// doesn't surface the "Preparing…" line until the user actually
-	// interacts with the mic-test surface.
-	const [hasAttempted, setHasAttempted] = useState(false);
-
+	// Pack progress is NOT rendered here: the mic test uses RMS only
+	// and works without the pack (§4.9: "RMS meter works; VAD
+	// 'smartness' degrades silently"), and pack states surface via
+	// the App-level usePackUpdateToast, so this page needs no
+	// pack-driven element at all.
 	// Live-monitor stop signal. Bumped whenever the mic stream is
 	// claimed elsewhere (test start, device switch): the monitor must
 	// release it so only one consumer holds the device.
@@ -140,7 +130,6 @@ export default function MicrophonePage() {
 	// hotkey-triggered tests and config races.
 	const startTest = useCallback(
 		(...args: Parameters<typeof rawStartTest>) => {
-			setHasAttempted(true);
 			bumpLiveListenStop();
 			if (config && !config.voice_biometric_consent) {
 				openConsentGate({
@@ -156,15 +145,14 @@ export default function MicrophonePage() {
 		[rawStartTest, config, bumpLiveListenStop],
 	);
 
-	// Wrap selectMicrophone so the first invocation flips `hasAttempted`
-	// to true. Selecting a microphone WHILE a device-lost flag is active
-	// clears that flag first, otherwise the stale banner + frozen meter
-	// linger over a now-working device. If the picked mic is still gone
-	// the backend re-emits ``device_lost`` and the banner returns. A data
-	// refresh follows so the device list reflects the switch immediately.
+	// Wrap selectMicrophone so selecting a microphone WHILE a
+	// device-lost flag is active clears that flag first, otherwise the
+	// stale banner + frozen meter linger over a now-working device. If
+	// the picked mic is still gone the backend re-emits ``device_lost``
+	// and the banner returns. A data refresh follows so the device list
+	// reflects the switch immediately.
 	const selectMicrophone = useCallback(
 		async (...args: Parameters<typeof rawSelectMicrophone>) => {
-			setHasAttempted(true);
 			bumpLiveListenStop();
 			if (lostSource !== null) {
 				clearLost();
@@ -179,6 +167,61 @@ export default function MicrophonePage() {
 		},
 		[rawSelectMicrophone, lostSource, clearLost, loadData, bumpLiveListenStop],
 	);
+
+	// ── Custom presets + Advanced restore ─────────────────────────
+	// Saved customs live in config (backend-canonical); selecting one
+	// sends its values explicitly AND names it active, so the backend
+	// snapshot applier and the UI agree even if a push lags. Returning
+	// to Advanced later shows whatever the selected preset holds —
+	// no separate "last saved" state exists anywhere.
+	const { showSnack } = useSnackbar();
+	const customs = config?.custom_presets ?? [];
+	const activeCustomPresetId =
+		config?.audio_preset === "custom"
+			? (config?.active_custom_preset ?? null)
+			: null;
+
+	const selectCustomPreset = useCallback(
+		(id: string) => {
+			const custom = (config?.custom_presets ?? []).find((c) => c.id === id);
+			if (!custom) return;
+			updateConfig({
+				audio_preset: "custom",
+				active_custom_preset: id,
+				...custom.values,
+			} as Partial<LausuConfig>);
+		},
+		[config, updateConfig],
+	);
+
+	const saveCustomPreset = useCallback(
+		(name: string) => {
+			const values: Record<string, boolean | number | string> = {};
+			for (const [key, value] of Object.entries(snapshotFilterValues(config))) {
+				if (
+					typeof value === "boolean" ||
+					typeof value === "number" ||
+					typeof value === "string"
+				) {
+					values[key] = value;
+				}
+			}
+			const id = `custom-${Date.now().toString(36)}`;
+			const entry = { id, name, values };
+			updateConfig({
+				custom_presets: [...(config?.custom_presets ?? []), entry],
+				audio_preset: "custom",
+				active_custom_preset: id,
+				...values,
+			} as Partial<LausuConfig>);
+			showSnack(t("microphoneTest.presetSaved", { name }), "success");
+		},
+		[config, updateConfig, showSnack],
+	);
+
+	const restoreMicDefaults = useCallback(() => {
+		updateConfig({ ...filterFactoryDefaults() } as Partial<LausuConfig>);
+	}, [updateConfig]);
 
 	// ── Derived state ─────────────────────────────────────────────
 
@@ -263,18 +306,6 @@ export default function MicrophonePage() {
 			<div className="flex flex-col gap-6">
 				<MicrophonePermissionBanner micPermission={micPermission} />
 
-				{/* Runtime-pack readiness banner, §4.8 / §4.9. Visible only
-				when the pack isn't ready AND the user has actually
-				started a test or picked a microphone. The mic test
-				itself works without the pack (RMS only, §4.9), so
-				this banner is purely informational; it does NOT block
-				the Start Test button. */}
-				<OfflinePackPreparingBanner
-					visible={!packReady && hasAttempted}
-					status={packStatus}
-					progress={packProgress}
-				/>
-
 				{/* ``meterRef`` wrapper. The level monitor's rAF
 					loop queries inside this div for the ``LevelBar``'s fill
 					node (``[role="progressbar"] > div``) and imperatively
@@ -307,6 +338,11 @@ export default function MicrophonePage() {
 						hasFiltersEnabled={hasFiltersEnabled}
 						showAdvanced={showAdvanced}
 						config={config}
+						customPresets={customs}
+						activeCustomPresetId={activeCustomPresetId}
+						onSelectCustomPreset={selectCustomPreset}
+						onSaveCustomPreset={saveCustomPreset}
+						onRestoreMicDefaults={restoreMicDefaults}
 						liveListening={liveListening}
 						liveStarting={liveStarting}
 						liveListenError={liveListenError}

@@ -12,7 +12,6 @@ import math
 from voice_typer.server._lazy_import import lazy_module
 
 np = lazy_module("numpy")
-from voice_typer.server.audio_filters.base import _get_lfilter  # noqa: E402
 
 
 def _resampler_fir_num_taps(up: int, down: int) -> int:
@@ -34,7 +33,17 @@ def _resampler_group_delay_ms(up: int, down: int, input_rate: int) -> float:
 
 
 class _StreamingResampler:
-    """Streaming polyphase resampler ( / )."""
+    """Streaming polyphase resampler ( / ).
+
+    True polyphase form: the FIR is split into ``up`` phase banks and
+    each output samples ONLY its bank (``taps / up`` MACs). The naive
+    dense form (zero-stuff, full ``lfilter``, decimate) computes
+    ``down - 1`` of every ``down`` filtered samples only to discard
+    them -- ~440x wasted work at 44.1 kHz -> 16 kHz -- and a reused
+    zero-stuff working buffer leaks stale input across chunks. Both
+    are fixed here by construction: no upsample buffer exists, and
+    per-output cost is ``len(bank)`` MACs in float32.
+    """
 
     def __init__(self, up: int, down: int) -> None:
         if up <= 0:
@@ -52,59 +61,81 @@ class _StreamingResampler:
         down_reduced = self._down // rate_gcd
         cutoff = 1.0 / max(up_reduced, down_reduced)
         num_taps = _resampler_fir_num_taps(self._up, self._down)
-        self._h = np.asarray(firwin(num_taps, cutoff, fs=2.0), dtype=np.float64)
+        h64 = np.asarray(firwin(num_taps, cutoff, fs=2.0), dtype=np.float64)
+        self._h = h64.astype(np.float32)
 
-        # Persistent lfilter state (len = len(h) - 1 for an FIR filter).
-        self._zi: np.ndarray = np.zeros(max(len(self._h) - 1, 0), dtype=np.float64)
+        # Polyphase banks: bank[p] holds every up-th tap starting at p.
+        # Output sample at upsampled index m uses bank[m % up] dotted
+        # against the input window ending at input sample (m - m%up)/up.
+        self._banks: list[np.ndarray] = [
+            np.ascontiguousarray(self._h[p :: self._up]) for p in range(self._up)
+        ]
+        self._max_bank_len: int = max(len(b) for b in self._banks)
+
+        # Input history tail (zero-initial = zero filter state, same as
+        # the old lfilter zi=0). Length covers the longest bank window.
+        self._hist_len: int = self._max_bank_len
+        self._hist: np.ndarray | None = None
 
         # Counters and phase for the output-length invariant () and for
         self._in_total: int = 0
         self._out_total: int = 0
         self._phase: int = 0
-        # pre-allocated upsample buffer (zero-filled, reused across
-        self._x_up_buf: np.ndarray | None = None
 
     def process(self, x: np.ndarray) -> np.ndarray:
         """Resample ``x`` (float32/float64) by ``up / down``."""
         if x.size == 0:
             return np.zeros(0, dtype=np.float32)
 
-        x64 = np.asarray(x, dtype=np.float64)
-        n_in = x64.size
+        x32 = np.ascontiguousarray(x, dtype=np.float32).reshape(-1)
+        n_in = x32.size
         up = self._up
         down = self._down
 
-        # Upsample: insert up-1 zeros between samples.
-        up_len = n_in * up
-        if self._x_up_buf is None or self._x_up_buf.shape[0] < up_len:
-            self._x_up_buf = np.zeros(max(up_len, 1024), dtype=np.float64)
-        x_up = self._x_up_buf[:up_len]
-        # Only the stride slots are ever written (``x_up[::up] = x64``);
-        x_up[::up] = x64
+        # Output upsampled positions, same count contract as before:
+        # every down-th position starting at the carried phase.
+        m_total = n_in * up
+        count = (m_total - self._phase + down - 1) // down if m_total > self._phase else 0
+        out = np.empty(count, dtype=np.float32)
 
-        # Apply FIR filter with persistent state.
-        y, self._zi = _get_lfilter()(self._h, [1.0], x_up, zi=self._zi)
+        hist = self._hist
+        if hist is None:
+            hist = np.zeros(self._hist_len, dtype=np.float32)
+        ext = np.concatenate([hist, x32])
+        base = hist.size  # ext index of x32[0]
 
-        # Downsample: pick every `down`-th sample starting at current phase.
-        m = y.size  # == n_in * up
-        idx = np.arange(self._phase, m, down)
-        out = y[idx]
+        for j in range(count):
+            m = self._phase + j * down
+            bank = self._banks[m % up]
+            s = (m - (m % up)) // up + base
+            lo = s - len(bank) + 1
+            out[j] = float(np.dot(bank, ext[lo : s + 1]))
 
-        # Advance phase: the next chunk's first downsample sample is offset by
-        self._phase = (self._phase + m) % down
+        # Carry the tail forward for the next chunk.
+        tail = ext[-self._hist_len :] if ext.size >= self._hist_len else ext
+        if tail.size < self._hist_len:
+            pad = np.zeros(self._hist_len - tail.size, dtype=np.float32)
+            tail = np.concatenate([pad, tail])
+        self._hist = np.ascontiguousarray(tail)
+
+        # Advance phase: the next chunk's first output sits at the next
+        # grid point at or after this chunk's end. Grid points are global
+        # (0, down, 2*down, ...), so with this chunk spanning m_total
+        # upsampled samples the offset is (phase - m_total) mod down.
+        # (The old dense form used (phase + m_total) mod down, which
+        # lands off-grid whenever m_total % down != 0 and drifts one
+        # sample per chunk -- invisible at down=1, which is all the old
+        # tests exercised.)
+        self._phase = (self._phase - m_total) % down
 
         self._in_total += n_in
-        self._out_total += out.size
-        return out.astype(np.float32, copy=False)
+        self._out_total += count
+        return out
 
     def reset(self) -> None:
-        """Clear all internal state (zeros ``_zi`` in place)."""
-        #  (mirrored from NoiseSuppressor.reset): zero the existing
-        if self._zi.size > 0:
-            self._zi.fill(0)
+        """Clear all internal state (history tail, phase, counters)."""
+        if self._hist is not None:
+            self._hist.fill(0)
         self._in_total = 0
         self._out_total = 0
         self._phase = 0
-        # Zero the pre-allocated upsample working buffer so the
-        if self._x_up_buf is not None:
-            self._x_up_buf.fill(0)

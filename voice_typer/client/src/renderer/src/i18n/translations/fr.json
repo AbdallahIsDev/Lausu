@@ -1852,7 +1852,16 @@
 		"liveListenHint": "Vous devriez vous entendre. Utilisez un casque pour éviter l'écho.",
 		"liveListenFailed": "L'écoute en direct a échoué. Vérifiez le microphone et réessayez.",
 		"liveListenDenied": "L'accès au microphone a été bloqué. Autorisez l'accès et réessayez.",
-		"liveListenUnavailable": "L'écoute en direct n'est pas disponible dans cette fenêtre."
+		"liveListenUnavailable": "L'écoute en direct n'est pas disponible dans cette fenêtre.",
+		"restoreMicDefaults": "Restaurer les réglages micro par défaut",
+		"saveAsPreset": "Enregistrer comme préréglage",
+		"savePresetTitle": "Enregistrer le préréglage",
+		"savePresetHint": "Enregistrez les réglages micro actuels comme préréglage réutilisable.",
+		"savePresetName": "Nom du préréglage",
+		"savePresetPlaceholder": "p. ex. Appels tardifs",
+		"savePresetSave": "Enregistrer",
+		"savePresetNameTaken": "Un préréglage portant ce nom existe déjà",
+		"presetSaved": "Préréglage {name} enregistré"
 	},
 	"dashboard": {
 		"cards": {

@@ -386,13 +386,23 @@ def _process_level_chunk(indata: np.ndarray, status: Any) -> None:
                     _state._test_silence_blocks += 1
                 if raw_peak_for_quality >= AUDIO_CLIPPING_THRESHOLD:
                     _state._test_clip_count += 1
+        # Disconnect detection MUST see RAW input, never filtered output:
+        # a closed noise gate legitimately emits exact zeros while the
+        # device is alive (test mode runs the chain; the bar runs raw),
+        # so filtered zeros are "gate working", not "mic dead". Only
+        # exact-zero RAW input means a dead stream. The np.any scan runs
+        # solely on this rare all-zero-filtered path and short-circuits
+        # on the first live sample.
         if rms is not None and peak is not None and rms == 0.0 and peak == 0.0:
-            _state._consecutive_zero_chunks += 1
-            if _state._consecutive_zero_chunks >= _state._LEVEL_ZERO_CHUNK_DISCONNECT_THRESHOLD:
-                # Local import to avoid a top-level circular dependency
-                from .monitoring import _emit_device_lost
+            if np.any(flat != 0.0):
+                _state._consecutive_zero_chunks = 0
+            else:
+                _state._consecutive_zero_chunks += 1
+                if _state._consecutive_zero_chunks >= _state._LEVEL_ZERO_CHUNK_DISCONNECT_THRESHOLD:
+                    # Local import to avoid a top-level circular dependency
+                    from .monitoring import _emit_device_lost
 
-                _emit_device_lost("zero_chunks")
+                    _emit_device_lost("zero_chunks")
         else:
             _state._consecutive_zero_chunks = 0
         # Push the DISPLAY values, not the raw chunk values. The

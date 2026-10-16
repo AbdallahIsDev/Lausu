@@ -396,10 +396,13 @@ class TestNoiseSuppressor:
         assert ns._method == "none"
 
     def test_rnnoise_degrades_gracefully_if_missing(self):
-        """If pyrnnoise isn't installed, should fall back to none."""
+        """If pyrnnoise isn't installed, serve bundled gtcrn (or none if that fails too)."""
         ns = NoiseSuppressor(method="rnnoise", sample_rate=16000)
-        # Either rnnoise is installed (not degraded) or it fell back (degraded)
-        if ns._method == "none":
+        # Either rnnoise is installed (not degraded) or a fallback served (degraded).
+        if ns._method == "rnnoise":
+            assert ns.is_degraded is False
+        else:
+            assert ns._method in ("gtcrn", "none")
             assert ns.is_degraded is True
             assert "rnnoise" in ns.degraded_reason.lower()
 

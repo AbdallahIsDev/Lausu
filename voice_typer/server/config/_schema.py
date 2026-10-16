@@ -370,6 +370,12 @@ class _ConfigSchema:
     noise_filter_notch: bool = False
     noise_filter_notch_frequency_hz: float = 0.0  # 0 = auto-detect (60Hz Americas default)
 
+    # User-saved microphone presets ("Save as preset" on the Microphone
+    # page). Each entry: {id, name, values(filter_key -> value)}.
+    custom_presets: list = field(default_factory=list)
+    # Selected saved preset while audio_preset == "custom"; None = ad-hoc values.
+    active_custom_preset: str | None = None
+
     # Rule-based, offline enhancement applied AFTER LLM polish and
     ai_enhancement_enabled: bool = False  # master toggle (opt-in)
     auto_capitalize: bool = True  # capitalize sentence starts + proper nouns

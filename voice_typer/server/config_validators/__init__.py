@@ -131,6 +131,7 @@ from voice_typer.server.config_validators.scalar import (  # noqa: F401
     _is_float_or_int_not_bool,
     _is_int_not_bool,
     _is_str,
+    _make_custom_presets_validator,
     _make_custom_theme_validator,
     _make_enum_validator,
     _make_float_validator,
@@ -171,6 +172,7 @@ __all__ = [
     "_make_float_validator",
     "_make_optional_float_validator",
     "_make_enum_validator",
+    "_make_custom_presets_validator",
     "_make_custom_theme_validator",
     "_make_url_validator",
     # Pre-built validator instances
