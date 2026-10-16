@@ -146,8 +146,7 @@ export function ActiveMicrophoneCard({
 				// of their own. The direct children are the header, the
 				// LevelBar, the test controls row, `TestReviewPanel` and
 				// the preset-selector wrapper.
-				"flex flex-col gap-3 rounded-lg border border-border/8 p-4 transition-colors",
-				"bg-surface-subtle",
+				"flex flex-col gap-3",
 			)}
 		>
 			{/* Mic header. The level readout rides this row's trailing edge

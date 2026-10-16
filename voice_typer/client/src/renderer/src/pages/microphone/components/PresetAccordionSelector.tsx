@@ -231,11 +231,7 @@ export function PresetAccordionSelector({
 		!matchesRestored;
 
 	return (
-		<Accordion
-			type="single"
-			collapsible
-			className="rounded-lg border border-border/8 bg-surface-subtle overflow-hidden"
-		>
+		<Accordion type="single" collapsible className="rounded-lg overflow-hidden">
 			<AccordionItem
 				value={ACCORDION_ITEM_VALUE}
 				className="border-border/8 data-open:bg-transparent"
