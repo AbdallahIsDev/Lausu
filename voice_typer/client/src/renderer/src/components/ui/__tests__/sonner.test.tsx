@@ -126,7 +126,16 @@ describe("Sonner Toaster, ZU-33 stacking configuration", () => {
 			"--normal-bg": "var(--surface)",
 			"--normal-text": "var(--foreground)",
 			"--normal-border": "color-mix(in srgb, var(--border) 10%, transparent)",
-			"--border-radius": "var(--radius)",
+			// The toast radius is the shared surface step, never a literal
+			// (`--radius-lg` → `--radius`: 1.625rem on a native corner-shape
+			// engine, 0.625rem otherwise).
+			"--border-radius": "var(--radius-lg)",
+		});
+		// The squircle opt-in: `rounded-lg` is the only class the
+		// corner-shape gate in index.css shapes, and sonner's toast <li>
+		// ships with no class of its own.
+		expect(lastToasterProps?.toastOptions?.classNames).toEqual({
+			toast: "rounded-lg",
 		});
 		// Scoping class for the index.css .toaster overrides.
 		expect(lastToasterProps?.className).toBe("toaster group");

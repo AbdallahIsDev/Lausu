@@ -1,26 +1,15 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-// vi.mock is HOISTED to the top of the file (before any imports), so
-// the mocked `t` is in place by the time LiveQualityFeedback imports
-// it. We use importOriginal to preserve setLocale / registerTranslations
-// (which the test doesn't override) and only mock `t` when the
-// `useSentinel` flag is set.
-let useSentinel = false;
-vi.mock("@/i18n/i18n", async (importOriginal) => {
-	const actual = await importOriginal<typeof import("@/i18n/i18n")>();
-	return {
-		...actual,
-		t: (key: string, params?: Record<string, string>) => {
-			if (useSentinel) {
-				return `SENTINEL:${key}:${JSON.stringify(params ?? {})}`;
-			}
-			return actual.t(key, params);
-		},
-	};
-});
-
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LiveQualityFeedback } from "@/components/feedback/LiveQualityFeedback";
+
+// The readout is the trailing element of the card's test-controls row: a
+// pulsing red dot + the countdown, and nothing else. It replaced the old
+// "Recording… 00:0N / 00:10" line that sat between the level bar and the
+// buttons and pushed the buttons down the moment a test started. jsdom has
+// no layout, so the "no layout shift" half is pinned as class facts (the
+// component renders null while idle, and the dot is the same size/token as
+// the bubble's recording dot) plus the card-level document-order test in
+// `microphone-page-interactions.test.tsx`.
 
 const baseProps = {
 	isRecording: true,
@@ -28,26 +17,25 @@ const baseProps = {
 	totalSeconds: 10,
 };
 
-describe("LiveQualityFeedback, single timer readout", () => {
+describe("LiveQualityFeedback, recording dot + countdown", () => {
 	afterEach(() => {
 		cleanup();
-		useSentinel = false;
 	});
 
 	beforeEach(() => {
-		useSentinel = false;
+		cleanup();
 	});
 
-	it("renders nothing when isRecording is false (preserved behavior)", () => {
+	it("renders nothing when isRecording is false, so the row cannot grow", () => {
 		const { container } = render(
 			<LiveQualityFeedback {...baseProps} isRecording={false} />,
 		);
 		expect(container.firstChild).toBeNull();
 	});
 
-	it("renders the progressing timer 00:03 / 00:10 from the i18n catalog", () => {
+	it("renders the countdown 00:03 / 00:10", () => {
 		render(<LiveQualityFeedback {...baseProps} />);
-		expect(screen.getByText("Recording… 00:03 / 00:10")).toBeInTheDocument();
+		expect(screen.getByText("00:03 / 00:10")).toBeInTheDocument();
 	});
 
 	it("pads minutes and seconds (MM:SS format)", () => {
@@ -58,7 +46,41 @@ describe("LiveQualityFeedback, single timer readout", () => {
 				totalSeconds={600}
 			/>,
 		);
-		expect(screen.getByText("Recording… 01:05 / 10:00")).toBeInTheDocument();
+		expect(screen.getByText("01:05 / 10:00")).toBeInTheDocument();
+	});
+
+	it("renders the dot and NO text label at all", () => {
+		// The word "Recording…" was removed (and its i18n key deleted from
+		// all 8 locales). Asserting the whole text content leaves no room
+		// for a label to come back, in any language.
+		const { container } = render(<LiveQualityFeedback {...baseProps} />);
+		const root = container.firstElementChild;
+		if (!root) throw new Error("readout did not render");
+		expect(root.textContent).toBe("00:03 / 00:10");
+		expect(screen.queryByText(/recording/i)).toBeNull();
+	});
+
+	it("uses the shared pulsing red dot (same token + size as the bubble's)", () => {
+		const { container } = render(<LiveQualityFeedback {...baseProps} />);
+		const dot = container.querySelector(
+			"[data-slot='microphone-recording-dot']",
+		);
+		expect(dot).not.toBeNull();
+		// Class assertions, not computed styles: jsdom resolves neither
+		// `animate-pulse` nor the `--destructive` token.
+		expect(dot?.className).toBe(
+			"w-1.5 h-1.5 rounded-full bg-destructive animate-pulse",
+		);
+		expect(dot?.getAttribute("aria-hidden")).not.toBeNull();
+	});
+
+	it("pushes itself to the trailing edge with a logical margin", () => {
+		// `ms-auto` (not `ml-auto`): mirrors correctly under RTL, and the
+		// readout must never wrap onto a second line.
+		const { container } = render(<LiveQualityFeedback {...baseProps} />);
+		const root = container.firstElementChild;
+		expect(root?.className).toContain("ms-auto");
+		expect(root?.className).not.toContain("ml-auto");
 	});
 
 	it("does NOT render the removed voice-quality status messages", () => {
@@ -69,15 +91,5 @@ describe("LiveQualityFeedback, single timer readout", () => {
 		expect(screen.queryByText(/Waiting for voice/i)).toBeNull();
 		expect(screen.queryByText(/Low volume/i)).toBeNull();
 		expect(container.querySelector("[aria-live]")).toBeNull();
-	});
-
-	it("renders the t() sentinel when the i18n mock is active (proves no hardcoded literal)", () => {
-		useSentinel = true;
-		render(<LiveQualityFeedback {...baseProps} />);
-		expect(
-			screen.getByText(
-				/SENTINEL:microphoneTest\.qualityFeedback\.recording:\{\}/,
-			),
-		).toBeInTheDocument();
 	});
 });

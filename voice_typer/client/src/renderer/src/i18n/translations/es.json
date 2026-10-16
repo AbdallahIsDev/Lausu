@@ -1827,7 +1827,6 @@
 		"playRecording": "Reproducir grabación",
 		"stop": "Detener",
 		"qualityFeedback": {
-			"recording": "Grabando…",
 			"qualityNotApplicable": "N/D: transcripción no disponible"
 		},
 		"detectedIssueCodes": {

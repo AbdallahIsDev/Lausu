@@ -1827,7 +1827,6 @@
 		"playRecording": "播放录音",
 		"stop": "停止",
 		"qualityFeedback": {
-			"recording": "正在录音…",
 			"qualityNotApplicable": "不适用: 转写不可用"
 		},
 		"detectedIssueCodes": {

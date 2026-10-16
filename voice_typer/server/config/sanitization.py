@@ -95,6 +95,7 @@ def _validate_non_numeric_fields(cls: type[Config], data: dict[str, Any]) -> dic
         "qwen_model_path",
         "microphone",
         "corrections_path",
+        "active_custom_preset",
     }
     # ``int | None`` / ``float | None`` fields where ``None`` is a
     optional_numeric_fields = {

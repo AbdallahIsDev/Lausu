@@ -13,6 +13,10 @@
  *      the flag AND refreshes the device list (stale-banner fix).
  *   4. Fixed test duration: the duration RangeSlider is gone from the
  *      card (no slider role anywhere on the page).
+ *
+ * The card's LAYOUT contract (readout placement, no shift when a test
+ * starts) lives in `ActiveMicrophoneCard-layout.test.tsx` — it needs the
+ * RUNNING state, which this page-level suite never reaches.
  */
 
 import {

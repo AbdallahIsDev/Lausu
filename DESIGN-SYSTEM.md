@@ -233,6 +233,19 @@ Base unit **4px** (`--spacing: 0.25rem`).
 Rule: every control and panel uses `rounded-lg` (10px). Pills, switches, radios,
 avatars, icon discs use `rounded-full`. Checkbox keeps `rounded-sm`.
 
+Progressive enhancement, native corner-shape engines only: `index.css` raises
+`--radius` to **1.625rem** (26px) inside `@supports (corner-shape: squircle)` and
+paints `corner-shape: var(--corner-shape, squircle)` on the `rounded-*` family, so
+every `rounded-lg` surface becomes a superellipse; `rounded-full` is explicitly reset
+to `round`. Engines without support keep `--radius: 0.625rem` → 10px circular arcs.
+
+The opt-in is the **class**, never a bare `border-radius`: a surface that paints its
+own radius — sonner's toast `<li>` (`--border-radius` → `--radius-lg`), the vendored
+date-range picker panel — must also carry `rounded-lg`, otherwise it renders a plain
+arc at the raised 26px radius while everything around it is a squircle. Guarded by
+`index-css-corner-shape.test.ts`, `sonner-toast-squircle.test.tsx`, and
+`date-range-picker-card-look.test.ts`.
+
 ## 9. Elevation
 
 | Token | Value |

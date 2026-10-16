@@ -470,7 +470,7 @@ footer.doc-footer code{color:var(--text-secondary)}
  :where(.radius-box[data-corner-shape="squircle"],.radius-comparison-box[data-corner-shape="squircle"],
   .border-swatch,.scope,.tok,.chip,
   .type-card,.btn,.input,.select-trigger,.seg,.seg .seg-btn,
-  .card,.focus-card,.motion-item,.m-box,.preset,.dlg-demo){
+  .card,.focus-card,.motion-item,.m-box,.preset,.dlg-demo,.toast){
   corner-shape:var(--corner-shape,squircle)}
  :where(.radius-box[data-corner-shape="round"],.radius-comparison-box[data-corner-shape="round"],
   .scope-label,.select-trigger,
@@ -762,6 +762,7 @@ function renderStatus(){
   <button type="button" class="t-close" aria-label="Close">✕</button></div>`;
  return sec(`<h2>Status, pills & toasts</h2><p>Status tokens (<code>--success/-warning/-info/-destructive</code>) drive pill/ toast icon colours.
   Toast surface = <code>--surface</code>, description = <code>--muted-foreground</code>, action = solid primary, cancel = muted fill (index.css sonner block).
+  Corners = the shared <code>rounded-lg</code> squircle — the class, not a bare <code>border-radius</code>, is what the corner-shape gate shapes.
   Layout is stacked — <strong>title → description → action</strong>. The action never sits beside the copy; index.css overrides sonner's single flex row with a 2-column grid (icon · content) so the action lands on the content column's second row.</p>`,
  `<div class="stack"><div class="row">${pills}</div>
   <div class="row" style="align-items:flex-start;gap:12px">

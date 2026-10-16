@@ -101,3 +101,32 @@ def test_handler_stock_preset_unchanged():
     )
     _AudioPresetHandler().apply(_ctx(config, {"audio_preset": "studio"}))
     assert config.noise_filter_gate is False
+
+
+def test_sanitizer_accepts_none_custom_preset_silently(caplog):
+    """None is the legitimate default: no warn, no reset (×N loads = log spam)."""
+    import logging
+
+    from voice_typer.server.config import Config
+
+    with caplog.at_level(logging.WARNING):
+        out = Config._validate_non_numeric_fields(
+            {"active_custom_preset": None, "custom_presets": []}
+        )
+    assert out["active_custom_preset"] is None
+    assert not [
+        r for r in caplog.records if "active_custom_preset" in r.getMessage()
+    ]
+
+
+def test_sanitizer_still_rejects_non_string_custom_preset(caplog):
+    import logging
+
+    from voice_typer.server.config import Config
+
+    with caplog.at_level(logging.WARNING):
+        out = Config._validate_non_numeric_fields({"active_custom_preset": 42})
+    assert out["active_custom_preset"] is None
+    assert [
+        r for r in caplog.records if "active_custom_preset" in r.getMessage()
+    ]
