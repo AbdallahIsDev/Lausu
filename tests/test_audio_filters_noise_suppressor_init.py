@@ -225,4 +225,35 @@ class TestInitFailureClearError:
         assert "rnnoise" in ns.degraded_reason.lower(), (
             f"degraded_reason must mention 'rnnoise' on import failure; got {ns.degraded_reason!r}"
         )
-        assert ns._method == "none", "_method must fall back to 'none' on import failure"
+        # rnnoise unavailable: the bundled gtcrn substitute serves instead
+        # of silent none (real GtcrnBackend constructs in this env).
+        assert ns._method == "gtcrn", (
+            f"_method must substitute bundled 'gtcrn' on pyrnnoise import failure; got {ns._method!r}"
+        )
+        assert ns._backend is not None, "substitute backend must be live"
+
+    def test_import_error_both_missing_falls_back_to_none(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """pyrnnoise missing AND gtcrn unloadable → method=none, degraded, both named."""
+
+        class _ImportFailingModule:
+            def __getattr__(self, name):
+                raise ImportError(f"cannot import name {name!r} from 'pyrnnoise'")
+
+        monkeypatch.setitem(sys.modules, "pyrnnoise", _ImportFailingModule())
+
+        class _FailingGtcrn:
+            def __init__(self) -> None:
+                raise RuntimeError("gtcrn model unavailable in test")
+
+        from voice_typer.server.audio_filters import gtcrn_backend as _gtcrn_module
+
+        monkeypatch.setattr(_gtcrn_module, "GtcrnBackend", _FailingGtcrn)
+
+        ns = NoiseSuppressor(method="rnnoise", sample_rate=16000)
+
+        assert ns.is_degraded is True
+        assert ns._method == "none", f"both backends down must yield 'none'; got {ns._method!r}"
+        assert "rnnoise" in ns.degraded_reason.lower()

@@ -506,6 +506,7 @@ describe("useMicrophoneTest, handlePresetChange / handleConfigChange", () => {
 
 		expect(args.updateConfig).toHaveBeenCalledWith({
 			audio_preset: "studio",
+			active_custom_preset: null,
 		});
 	});
 

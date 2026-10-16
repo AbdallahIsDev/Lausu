@@ -171,7 +171,9 @@ export function useMicrophoneTest({
 	const handlePresetChange = useCallback(
 		(preset: AudioPreset) => {
 			// ADR 0007: backend applies preset → filter mapping.
-			updateConfig({ audio_preset: preset });
+			// Leaving a stock preset also clears any selected saved
+			// preset (stale ids must not linger into custom mode).
+			updateConfig({ audio_preset: preset, active_custom_preset: null });
 		},
 		[updateConfig],
 	);

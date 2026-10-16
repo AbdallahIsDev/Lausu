@@ -27,6 +27,49 @@ import type { LausuConfig } from "@/types/config";
 
 export const AUDIO_SECTION_TITLE_KEY = "settings.audioEnhancement.title";
 
+/**
+ * High-impact subset rendered on the Microphone page's Advanced panel.
+ * The full 24-row registry stays available in Settings → Audio; here
+ * only the controls where a change is immediately feelable survive
+ * (method, gate + sensitivity, high-pass + cutoff, compressor,
+ * notch + frequency). EQ/limiter/timings stay Settings-only.
+ */
+export const MIC_ADVANCED_ROW_KEYS: readonly string[] = [
+	"noise_suppression_method",
+	"noise_filter_gate",
+	"noise_filter_gate_open_threshold_db",
+	"noise_filter_highpass",
+	"noise_filter_highpass_cutoff_hz",
+	"noise_filter_compressor",
+	"noise_filter_notch",
+	"noise_filter_notch_frequency_hz",
+];
+
+/** Every filter config key in render order (derived from the registry). */
+export function audioFilterConfigKeys(): string[] {
+	return audioFilterRowDescriptors.map((d) => d.configKey as string);
+}
+
+/**
+ * Factory defaults for every filter key, derived from the row
+ * descriptors (single source: the `defaultValue` each row renders).
+ * Exception: `noise_filter_notch_frequency_hz` uses the backend
+ * schema default (0 = auto-detect) instead of the row's 60 Hz display
+ * default, so a restore keeps hum detection automatic outside 60 Hz
+ * regions.
+ */
+export function filterFactoryDefaults(): Record<
+	string,
+	number | boolean | string
+> {
+	const out: Record<string, number | boolean | string> = {};
+	for (const descriptor of audioFilterRowDescriptors) {
+		out[descriptor.configKey as string] = descriptor.defaultValue;
+	}
+	out.noise_filter_notch_frequency_hz = 0;
+	return out;
+}
+
 export interface AudioFilterSelectOption {
 	value: string;
 	/** Plain (non-i18n) label. Mutually exclusive with `labelKey`. */
@@ -307,7 +350,7 @@ export const audioFilterRowDescriptors: readonly AudioFilterRowDescriptor[] = [
 		infoKey: "settings.audioEnhancement.compressorAttackInfo",
 		ariaKey: "settings.audioEnhancement.compressorAttackAria",
 		defaultValue: 6,
-		min: 0,
+		min: 1,
 		max: 200,
 		step: 1,
 		suffix: "ms",
@@ -322,7 +365,7 @@ export const audioFilterRowDescriptors: readonly AudioFilterRowDescriptor[] = [
 		infoKey: "settings.audioEnhancement.compressorReleaseInfo",
 		ariaKey: "settings.audioEnhancement.compressorReleaseAria",
 		defaultValue: 60,
-		min: 0,
+		min: 1,
 		max: 1000,
 		step: 5,
 		suffix: "ms",
@@ -379,7 +422,7 @@ export const audioFilterRowDescriptors: readonly AudioFilterRowDescriptor[] = [
 		infoKey: "settings.audioEnhancement.limiterReleaseInfo",
 		ariaKey: "settings.audioEnhancement.limiterReleaseAria",
 		defaultValue: 60,
-		min: 0,
+		min: 1,
 		max: 1000,
 		step: 5,
 		suffix: "ms",
@@ -406,8 +449,8 @@ export const audioFilterRowDescriptors: readonly AudioFilterRowDescriptor[] = [
 		infoKey: "settings.audioEnhancement.notchFrequencyInfo",
 		ariaKey: "settings.audioEnhancement.notchFrequencyAria",
 		defaultValue: 60,
-		min: 50,
-		max: 1000,
+		min: 0,
+		max: 500,
 		step: 1,
 		suffix: "Hz",
 		parentToggle: "noise_filter_notch",

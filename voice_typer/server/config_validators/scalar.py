@@ -139,6 +139,88 @@ def _make_enum_validator(allowed: frozenset[str]) -> ValidatorFn:
     return _validate
 
 
+def _make_custom_presets_validator() -> ValidatorFn:
+    """Validate the user-saved microphone preset list.
+
+    Shape: ``[{id: str(1..64), name: str(1..80), values: {filter_key: typed value}}]``,
+    at most 32 entries, ids unique. Value types mirror the per-field
+    allowlist entries (bools stay bools, numbers stay numbers, the method
+    stays in its enum) so a crafted entry cannot smuggle mistyped config
+    through ``set_config``.
+    """
+    bool_keys = frozenset(
+        {
+            "noise_filter_enabled",
+            "noise_filter_highpass",
+            "noise_filter_gate",
+            "noise_filter_eq",
+            "noise_filter_compressor",
+            "noise_filter_limiter",
+            "noise_filter_notch",
+        }
+    )
+    float_keys = frozenset(
+        {
+            "noise_filter_highpass_cutoff_hz",
+            "noise_filter_gate_open_threshold_db",
+            "noise_filter_gate_close_threshold_db",
+            "noise_filter_gate_attack_ms",
+            "noise_filter_gate_hold_ms",
+            "noise_filter_gate_release_ms",
+            "noise_filter_eq_low_db",
+            "noise_filter_eq_mid_db",
+            "noise_filter_eq_high_db",
+            "noise_filter_compressor_threshold_db",
+            "noise_filter_compressor_ratio",
+            "noise_filter_compressor_attack_ms",
+            "noise_filter_compressor_release_ms",
+            "noise_filter_compressor_output_gain_db",
+            "noise_filter_limiter_ceiling_db",
+            "noise_filter_limiter_release_ms",
+            "noise_filter_notch_frequency_hz",
+        }
+    )
+    filter_keys = bool_keys | float_keys | {"noise_suppression_method"}
+
+    def _validate(v: object) -> str | None:
+        if not isinstance(v, list):
+            return f"must be a list, got {type(v).__name__}"
+        if len(v) > 32:
+            return "too many presets (max 32)"
+        seen: set[str] = set()
+        for i, entry in enumerate(v):
+            if not isinstance(entry, dict):
+                return f"preset #{i} must be a dict"
+            pid = entry.get("id")
+            if not isinstance(pid, str) or not (1 <= len(pid) <= 64):
+                return f"preset #{i} id must be a 1..64 char string"
+            if pid in seen:
+                return f"duplicate preset id {pid!r}"
+            seen.add(pid)
+            name = entry.get("name")
+            if not isinstance(name, str) or not (1 <= len(name) <= 80):
+                return f"preset #{i} name must be a 1..80 char string"
+            values = entry.get("values")
+            if not isinstance(values, dict):
+                return f"preset #{i} values must be a dict"
+            if len(values) > len(filter_keys):
+                return f"preset #{i} has too many values"
+            for key, val in values.items():
+                if key not in filter_keys:
+                    return f"preset #{i} has unknown filter key {key!r}"
+                if key == "noise_suppression_method":
+                    if val not in ("rnnoise", "gtcrn", "none"):
+                        return f"preset #{i} has bad suppression method {val!r}"
+                elif key in bool_keys:
+                    if not isinstance(val, bool):
+                        return f"preset #{i} value for {key!r} must be a bool"
+                elif not isinstance(val, (int, float)) or isinstance(val, bool):
+                    return f"preset #{i} value for {key!r} must be a number"
+        return None
+
+    return _validate
+
+
 def _make_custom_theme_validator() -> ValidatorFn:
     """``IPC_CONFIG_ALLOWLIST["custom_theme"]`` entry is also widened to"""
     key_keys = {"--background", "--foreground", "--primary", "--bg-subtle", "--border", "--text-muted"}

@@ -3,6 +3,7 @@
 import contextlib
 import logging
 
+from voice_typer.server._audio_constants import WHISPER_SAMPLE_RATE
 from voice_typer.server.service._app_internals import app_microphones, set_app_microphones
 from voice_typer.server.service._base import ServiceMixinBase
 
@@ -97,10 +98,19 @@ class MicrophoneTestMixin(ServiceMixinBase):
                 with open(wav_path, "rb") as fh:
                     wav_bytes = fh.read()
 
-                # Decode WAV to float32
+                # Decode WAV to float32. The test records at the device
+                # NATIVE rate (44100/48000 Hz); every transcription engine
+                # consumes 16 kHz, so resample here. Skipping this fed
+                # 44.1 kHz audio labeled as 16 kHz and Whisper heard it
+                # ~2.8x slowed down ("no speech" in real speech).
                 with wave.open(io.BytesIO(wav_bytes), "rb") as wf:
+                    wav_rate = wf.getframerate()
                     frames = wf.readframes(wf.getnframes())
                     audio_f32 = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32767
+                if wav_rate != WHISPER_SAMPLE_RATE:
+                    from voice_typer.server.recording.resampling import resample_audio
+
+                    audio_f32 = resample_audio(audio_f32, wav_rate, WHISPER_SAMPLE_RATE)
 
                 # Use the app's already-loaded active engine
                 models = getattr(self._app, "models", None)

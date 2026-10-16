@@ -1852,7 +1852,16 @@
 		"liveListenHint": "Deberías escucharte ahora. Usa auriculares para evitar el eco.",
 		"liveListenFailed": "La escucha en directo falló. Comprueba el micrófono e inténtalo de nuevo.",
 		"liveListenDenied": "Se bloqueó el acceso al micrófono. Permite el acceso e inténtalo de nuevo.",
-		"liveListenUnavailable": "La escucha en directo no está disponible en esta ventana."
+		"liveListenUnavailable": "La escucha en directo no está disponible en esta ventana.",
+		"restoreMicDefaults": "Restaurar valores del micrófono",
+		"saveAsPreset": "Guardar como ajuste",
+		"savePresetTitle": "Guardar ajuste",
+		"savePresetHint": "Guarda los ajustes actuales del micrófono como ajuste reutilizable.",
+		"savePresetName": "Nombre del ajuste",
+		"savePresetPlaceholder": "p. ej., Llamadas nocturnas",
+		"savePresetSave": "Guardar",
+		"savePresetNameTaken": "Ya existe un ajuste con ese nombre",
+		"presetSaved": "Ajuste {name} guardado"
 	},
 	"stats": {
 		"shareImage": {

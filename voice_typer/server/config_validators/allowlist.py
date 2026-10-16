@@ -50,6 +50,7 @@ from voice_typer.server.config_validators.scalar import (
     _MAX_API_KEY_LEN,
     FieldSpec,
     _bool_validator,
+    _make_custom_presets_validator,
     _make_custom_theme_validator,
     _make_enum_validator,
     _make_float_validator,
@@ -338,4 +339,7 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "noise_filter_limiter_release_ms": (float, _make_float_validator(lo=1.0, hi=1000.0)),
     "noise_filter_notch": (bool, _bool_validator),
     "noise_filter_notch_frequency_hz": (float, _make_float_validator(lo=0.0, hi=500.0)),
+    # User-saved microphone presets (Microphone page "Save as preset").
+    "custom_presets": (list, _make_custom_presets_validator()),
+    "active_custom_preset": ((str, type(None)), _make_optional_str_validator(max_len=64)),
 }
