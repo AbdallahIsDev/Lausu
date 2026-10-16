@@ -23,6 +23,7 @@ import { useHistoryIntegrityToast } from "@/hooks/useHistoryIntegrityToast";
 import { useLastResortUnloadedToast } from "@/hooks/useLastResortUnloadedToast";
 import { useLinuxWindowButtons } from "@/hooks/useLinuxWindowButtons";
 import { useLlmPolishFailedToast } from "@/hooks/useLlmPolishFailedToast";
+import { useMicGuardToast } from "@/hooks/useMicGuardToast";
 import { useMicPermissionRevokedToast } from "@/hooks/useMicPermissionRevokedToast";
 import { useMicrophoneDisconnectedToast } from "@/hooks/useMicrophoneDisconnectedToast";
 import { useNavigateEvent } from "@/hooks/useNavigateEvent";
@@ -168,6 +169,9 @@ export default function App() {
 	usePasteDeferredToast(t);
 	useLastResortUnloadedToast(t, () => navigate("models"));
 	usePackUpdateToast(t, () => navigate("aboutAndPrivacy"));
+	// Mic guard: sticky [Back to 100%] note when an outside write lowered the
+	// OS capture knob and the backend could not put it back itself.
+	useMicGuardToast(t);
 	useConsentRequiredEvent({ call });
 
 	const connectingProgress = useConnectingProgress(connectionStatus);

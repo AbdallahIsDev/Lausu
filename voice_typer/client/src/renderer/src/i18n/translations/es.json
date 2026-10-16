@@ -1849,6 +1849,12 @@
 		"liveListen": "Escucha en directo",
 		"stopListening": "Dejar de escuchar",
 		"liveListenHint": "Deberías escucharte ahora. Usa auriculares para evitar el eco.",
+		"previewVolume": "Volumen de vista previa",
+		"liveListenGuideNote": "Se recomiendan auriculares para la escucha en directo con los altavoces del portátil o de sobremesa.",
+		"speakerOfferTitle": "Tus altavoces suenan muy fuerte",
+		"speakerOfferMessage": "La escucha en directo puede captar los altavoces a este nivel.",
+		"speakerOfferLower": "Bajar al 75%",
+		"speakerOfferKeep": "Dejarlo como está",
 		"liveListenFailed": "La escucha en directo falló. Comprueba el micrófono e inténtalo de nuevo.",
 		"liveListenDenied": "Se bloqueó el acceso al micrófono. Permite el acceso e inténtalo de nuevo.",
 		"liveListenUnavailable": "La escucha en directo no está disponible en esta ventana.",
@@ -1861,6 +1867,11 @@
 		"savePresetSave": "Guardar",
 		"savePresetNameTaken": "Ya existe un ajuste con ese nombre",
 		"presetSaved": "Ajuste {name} guardado"
+	},
+	"micGuard": {
+		"loweredTitle": "El micrófono se redujo al {percent}%",
+		"loweredMessage": "Un cambio externo bajó el nivel de entrada y no se pudo restablecer automáticamente.",
+		"backTo100": "Volver al 100%"
 	},
 	"stats": {
 		"shareImage": {

@@ -1849,6 +1849,12 @@
 		"liveListen": "Live mithören",
 		"stopListening": "Stoppen",
 		"liveListenHint": "Sie sollten sich jetzt hören. Verwenden Sie Kopfhörer, um Echo zu vermeiden.",
+		"previewVolume": "Vorschau-Lautstärke",
+		"liveListenGuideNote": "Für das Live-Mithören über Laptop- oder Desktop-Lautsprecher werden Kopfhörer empfohlen.",
+		"speakerOfferTitle": "Ihre Lautsprecher sind sehr laut",
+		"speakerOfferMessage": "Bei diesem Pegel kann das Live-Mithören die Lautsprecher aufnehmen.",
+		"speakerOfferLower": "Auf 75 % senken",
+		"speakerOfferKeep": "So lassen",
 		"liveListenFailed": "Live-Mithören fehlgeschlagen. Prüfen Sie das Mikrofon und versuchen Sie es erneut.",
 		"liveListenDenied": "Mikrofonzugriff wurde blockiert. Erlauben Sie den Zugriff und versuchen Sie es erneut.",
 		"liveListenUnavailable": "Live-Mithören ist in diesem Fenster nicht verfügbar.",
@@ -1866,6 +1872,11 @@
 		"cards": {
 			"dictations": "Diktate"
 		}
+	},
+	"micGuard": {
+		"loweredTitle": "Mikrofon wurde auf {percent} % gesenkt",
+		"loweredMessage": "Eine externe Änderung hat den Eingangspegel gesenkt; er konnte nicht automatisch wiederhergestellt werden.",
+		"backTo100": "Zurück auf 100 %"
 	},
 	"stats": {
 		"shareImage": {

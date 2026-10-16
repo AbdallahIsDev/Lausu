@@ -315,6 +315,18 @@ class _ConfigSchema:
     #  ``volume_duck_smart`` REMOVED from the Config dataclass —
     volume_duck_smart_poll_interval_ms: int = _DEFAULT_SMART_DUCK_POLL_MS
 
+    # Preview-tap volume for Listen Live (Microphone page). Controls ONLY
+    # the monitor gain node; the capture gain and the level meter are
+    # untouched. 0.5 is deliberately below the loop-gain point on adjacent
+    # laptop hardware; the renderer clamps to LIVE_LISTEN_MAX on top.
+    live_listen_level: float = 0.5
+
+    # Keep the OS capture knob pinned at 100%. Windows/driver auto-gain
+    # slides it down after a loud close-range event; the guard notices
+    # within a couple of seconds and writes 100% back (bounded by an
+    # anti-flap budget). Settings → Microphone toggle.
+    mic_guard_enabled: bool = True
+
     # Preset name that controls the entire filter chain:
     audio_preset: Literal[
         "auto",

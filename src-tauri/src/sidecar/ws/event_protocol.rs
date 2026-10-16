@@ -84,6 +84,8 @@ pub(super) const ALLOWED_EVENT_TYPES: &[&str] = &[
     // History-store integrity.
     "history_corrupted",
     "history_fts5_rebuild_failed",
+    // Mic guard (S5): an outside write moved the OS capture knob.
+    "microphone_volume_lowered",
     // Clipboard paste safety (paste keystroke dropped / deferred).
     "paste_deferred",
     // Pack + worker IPC events (runtime-pack split). Parity pinned by

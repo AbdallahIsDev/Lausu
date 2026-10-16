@@ -169,6 +169,39 @@ describe("useSnackbar, ZU-33 action option", () => {
 		expect(opts).toHaveProperty("duration", 4000);
 	});
 
+	it("forwards the cancel option as the second button (two-choice toasts)", async () => {
+		const { showSnack } = await renderWithHook();
+		const onLower = vi.fn();
+		const onKeep = vi.fn();
+		act(() => {
+			showSnack("speakers are loud", "info", {
+				id: "live-speaker-offer",
+				persistent: true,
+				action: { label: "Lower to 75%", onClick: onLower },
+				cancel: { label: "Keep as is", onClick: onKeep },
+			});
+		});
+		expect(toastSpies.info).toHaveBeenCalledTimes(1);
+		const [, opts] = toastSpies.info.mock.calls[0] ?? [];
+		expect(opts).toMatchObject({
+			id: "live-speaker-offer",
+			duration: Number.POSITIVE_INFINITY,
+			action: { label: "Lower to 75%", onClick: onLower },
+			cancel: { label: "Keep as is", onClick: onKeep },
+		});
+	});
+
+	it("omits cancel from the forwarded opts when not provided", async () => {
+		const { showSnack } = await renderWithHook();
+		act(() => {
+			showSnack("hello", "info", {
+				action: { label: "View", onClick: vi.fn() },
+			});
+		});
+		const [, opts] = toastSpies.info.mock.calls[0] ?? [];
+		expect(opts).not.toHaveProperty("cancel");
+	});
+
 	it("clearSnack(id) delegates to toast.dismiss(id)", async () => {
 		const { clearSnack } = await renderWithHook();
 		act(() => {

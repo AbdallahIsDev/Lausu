@@ -1854,6 +1854,12 @@
 		"liveListen": "Listen live",
 		"stopListening": "Stop listening",
 		"liveListenHint": "You should hear yourself now. Use headphones to avoid echo.",
+		"previewVolume": "Preview volume",
+		"liveListenGuideNote": "Headphones are recommended for Listen live on laptop or desktop speakers.",
+		"speakerOfferTitle": "Your speakers are very loud",
+		"speakerOfferMessage": "Listen live can pick up the speakers at this level.",
+		"speakerOfferLower": "Lower to 75%",
+		"speakerOfferKeep": "Keep as is",
 		"liveListenFailed": "Live listening failed. Check the microphone and try again.",
 		"liveListenDenied": "Microphone access was blocked. Allow access and try again.",
 		"liveListenUnavailable": "Live listening is not available in this window.",
@@ -1866,6 +1872,11 @@
 		"savePresetSave": "Save preset",
 		"savePresetNameTaken": "A preset with this name already exists",
 		"presetSaved": "Preset {name} saved"
+	},
+	"micGuard": {
+		"loweredTitle": "Microphone was lowered to {percent}%",
+		"loweredMessage": "An outside change moved the input level and it could not be restored automatically.",
+		"backTo100": "Back to 100%"
 	},
 	"stats": {
 		"shareImage": {

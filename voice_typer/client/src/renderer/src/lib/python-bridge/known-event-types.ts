@@ -101,6 +101,8 @@ export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
 	// distinct from the level-monitor's `device_lost`):
 	"microphone_permission_revoked",
 	"microphone_disconnected",
+	// Mic guard (S5): an outside write moved the OS capture knob.
+	"microphone_volume_lowered",
 	// Engine / pipeline degradation observability:
 	"cloud_fallback_used",
 	"dictation_suppressed",

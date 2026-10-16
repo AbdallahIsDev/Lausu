@@ -70,6 +70,12 @@ Events emitted via ``event_bus.publish`` (the modern path):
   ``history_fts5_rebuild_failed``.
 * ADR-0023 media jobs: ``media_transcribe_progress``,
   ``media_transcribe_complete``, ``media_transcribe_error``.
+* Mic guard (S5): ``microphone_volume_lowered`` (``{level:float,
+  restored:bool, can_set:bool}``, published by ``mic_volume_guard.py``
+  via the ``app_lazy_hub`` callback when an outside write moves the OS
+  capture knob off 100%; ``restored`` tells the renderer whether the
+  guard already put it back or the user must press ``[Back to 100%]``,
+  and ``can_set`` says whether that press can work at all).
 
 Master plan §7.4, runtime-pack / worker IPC events (13 event
 types introduced by the slim-core / runtime-pack split, plus the PK-1
@@ -121,7 +127,7 @@ server):
   former is a per-transition signal with just ``status``; the latter
   is the connect-time snapshot with a ``message`` field.
 
-Total: 51 events, the live count is ``len(EVENT_TYPES)`` and this
+Total: 52 events, the live count is ``len(EVENT_TYPES)`` and this
 sentence is kept in lockstep with it by
 ``tests/test_event_bus.py::TestCanonicalCatalogue
 ::test_catalogue_total_count_updated``. Update this docstring whenever
@@ -220,6 +226,8 @@ EVENT_TYPES: frozenset[str] = frozenset(
         # already in Rust ALLOWED_EVENT_TYPES + renderer known-event-types):
         "media_transcribe_complete",
         "media_transcribe_progress",
+        # Mic guard (S5): an outside write moved the OS capture knob.
+        "microphone_volume_lowered",
     }
 )
 

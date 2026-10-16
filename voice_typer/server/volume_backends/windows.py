@@ -8,7 +8,11 @@ import re
 from typing import Any
 
 from voice_typer.server._paths import APP_SLUG
-from voice_typer.server.volume_backend_base import VolumeBackend, VolumeState
+from voice_typer.server.volume_backend_base import (
+    MicVolumeBackend,
+    VolumeBackend,
+    VolumeState,
+)
 
 log = logging.getLogger(__name__)
 
@@ -203,3 +207,68 @@ class WinVolumeBackend(VolumeBackend):
                 log.debug("[VOLUME-WIN] restore session failed: %s", exc)
         self._sessions = []
         return True
+
+
+class WinMicVolumeBackend(MicVolumeBackend):
+    """Windows capture-endpoint gain via pycaw / COM.
+
+    Same COM family as :class:`WinVolumeBackend`, pointed at the default
+    capture endpoint instead of the render endpoint. This is the knob
+    Windows/driver auto-gain slides down after a loud close-range event.
+    """
+
+    def __init__(self) -> None:
+        self._vol: Any = None  # IAudioEndpointVolume COM pointer
+
+    @property
+    def name(self) -> str:
+        return "pycaw (WASAPI capture)"
+
+    @property
+    def supports_set(self) -> bool:
+        return True
+
+    def initialize(self) -> bool:
+        if self._vol is not None:
+            return True
+        try:
+            from ctypes import POINTER, cast
+
+            from comtypes import CLSCTX_ALL
+            from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+
+            device = AudioUtilities.GetMicrophone()
+            if device is None:
+                log.warning("[MIC-VOLUME-WIN] No capture endpoint found")
+                return False
+            # The capture endpoint is a raw IMMDevice in every pycaw
+            # release (unlike ``GetSpeakers()`` it has no AudioDevice
+            # wrapper), so Activate is the only path here.
+            interface = device.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+            self._vol = cast(interface, POINTER(IAudioEndpointVolume))
+            return True
+        except ImportError:
+            log.info("[MIC-VOLUME-WIN] pycaw not installed, mic guard disabled")
+            return False
+        except Exception as exc:
+            log.warning("[MIC-VOLUME-WIN] initialize failed: %s", exc)
+            return False
+
+    def get_level(self) -> float | None:
+        if self._vol is None:
+            return None
+        try:
+            return max(0.0, min(1.0, float(self._vol.GetMasterVolumeLevelScalar())))
+        except Exception as exc:
+            log.debug("[MIC-VOLUME-WIN] get_level failed: %s", exc)
+            return None
+
+    def set_level(self, level: float) -> bool:
+        if self._vol is None:
+            return False
+        try:
+            self._vol.SetMasterVolumeLevelScalar(max(0.0, min(1.0, level)), None)
+            return True
+        except Exception as exc:
+            log.debug("[MIC-VOLUME-WIN] set_level failed: %s", exc)
+            return False

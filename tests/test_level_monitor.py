@@ -1257,8 +1257,7 @@ class TestZeroChunkDetectorUsesRawAudio:
 
     def test_true_raw_zeros_still_emit_when_reopen_fails(self, monkeypatch):
         """Genuinely dead input trips the detector; unopenable device emits."""
-        from voice_typer.server.level_monitor import monitoring as mon
-        from voice_typer.server.level_monitor import worker as _w
+        from voice_typer.server.level_monitor import monitoring as mon, worker as _w
 
         monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
         monkeypatch.setattr(

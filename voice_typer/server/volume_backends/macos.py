@@ -8,7 +8,11 @@ import sys
 from types import SimpleNamespace
 
 from voice_typer.server.platform_utils import is_macos
-from voice_typer.server.volume_backend_base import VolumeBackend, VolumeState
+from voice_typer.server.volume_backend_base import (
+    MicVolumeBackend,
+    VolumeBackend,
+    VolumeState,
+)
 
 log = logging.getLogger(__name__)
 
@@ -470,3 +474,145 @@ class MacVolumeBackend(VolumeBackend):
             mute_str = "true" if muted else "false"
             self._osascript_run(f"set volume output muted {mute_str}")
         return ok
+
+
+def _try_import_coreaudio_input() -> SimpleNamespace:
+    """Isolated CoreAudio symbols for the default *input* device.
+
+    Deliberately separate from :func:`_try_import_coreaudio`: if these
+    symbols are missing on a given pyobjc build, only the mic side
+    degrades. Folding them into the speaker import would take ducking
+    down with them.
+    """
+    if not is_macos():
+        raise ImportError(f"CoreAudio input path is macOS-only (current platform: {sys.platform}).")
+    from CoreAudio import (  # noqa: PLC0415, lazy import is the point
+        AudioObjectGetPropertyData,
+        AudioObjectSetPropertyData,
+        kAudioDevicePropertyVolumeScalar,
+        kAudioHardwarePropertyDefaultInputDevice,
+        kAudioObjectPropertyElementMaster,
+        kAudioObjectPropertyScopeGlobal,
+        kAudioObjectPropertyScopeInput,
+        kAudioObjectSystemObject,
+    )
+
+    return SimpleNamespace(
+        get_property=AudioObjectGetPropertyData,
+        set_property=AudioObjectSetPropertyData,
+        prop_default_input_device=kAudioHardwarePropertyDefaultInputDevice,
+        prop_volume_scalar=kAudioDevicePropertyVolumeScalar,
+        system_object=kAudioObjectSystemObject,
+        scope_global=kAudioObjectPropertyScopeGlobal,
+        scope_input=kAudioObjectPropertyScopeInput,
+        element_master=kAudioObjectPropertyElementMaster,
+    )
+
+
+class MacMicVolumeBackend(MicVolumeBackend):
+    """macOS capture gain, best-effort.
+
+    Most built-in mics expose no settable input gain at all. When the
+    ``kAudioDevicePropertyVolumeScalar`` read on the input scope fails,
+    the backend reports ``supports_set = False`` and a ``None`` level, so
+    the guard never claims a restore it cannot perform.
+    """
+
+    def __init__(self) -> None:
+        self._ca: SimpleNamespace | None = None
+        # Downgraded to False the first time a write is refused: the
+        # property can be readable while the device still rejects writes.
+        self._settable = False
+
+    @property
+    def name(self) -> str:
+        return "CoreAudio (input, best-effort)" if self._ca is not None else "unavailable (no input gain)"
+
+    @property
+    def supports_set(self) -> bool:
+        return self._settable
+
+    def initialize(self) -> bool:
+        try:
+            self._ca = _try_import_coreaudio_input()
+        except ImportError as exc:
+            self._ca = None
+            log.info("[MIC-VOLUME-MAC] no settable input gain path (%s)", exc)
+            return False
+        # A readable property is the only honest evidence available
+        # without writing to the user's device to probe it.
+        self._settable = self.get_level() is not None
+        if not self._settable:
+            log.info("[MIC-VOLUME-MAC] input volume property not readable, message-only mode")
+        return self._settable
+
+    def _default_input_device(self) -> int | None:
+        ca = self._ca
+        if ca is None:
+            return None
+        try:
+            import ctypes  # noqa: PLC0415, stdlib, kept lazy to mirror existing style
+
+            address = (ca.prop_default_input_device, ca.scope_global, ca.element_master)
+            device_id = ctypes.c_uint32(0)
+            size = ctypes.c_uint32(ctypes.sizeof(device_id))
+            status = ca.get_property(
+                ca.system_object,
+                address,
+                0,
+                None,
+                ctypes.byref(size),
+                ctypes.byref(device_id),
+            )
+            if status != 0:
+                log.debug("[MIC-VOLUME-MAC] default input device status=%d", status)
+                return None
+            return device_id.value
+        except Exception as exc:
+            log.debug("[MIC-VOLUME-MAC] _default_input_device failed: %s", exc)
+            return None
+
+    def get_level(self) -> float | None:
+        ca = self._ca
+        if ca is None:
+            return None
+        dev = self._default_input_device()
+        if dev is None:
+            return None
+        try:
+            import ctypes  # noqa: PLC0415, stdlib, kept lazy to mirror existing style
+
+            address = (ca.prop_volume_scalar, ca.scope_input, ca.element_master)
+            volume = ctypes.c_float(0.0)
+            size = ctypes.c_uint32(ctypes.sizeof(volume))
+            status = ca.get_property(dev, address, 0, None, ctypes.byref(size), ctypes.byref(volume))
+            if status != 0:
+                log.debug("[MIC-VOLUME-MAC] input volume read status=%d", status)
+                return None
+            return max(0.0, min(1.0, float(volume.value)))
+        except Exception as exc:
+            log.debug("[MIC-VOLUME-MAC] get_level failed: %s", exc)
+            return None
+
+    def set_level(self, level: float) -> bool:
+        ca = self._ca
+        if ca is None or not self._settable:
+            return False
+        dev = self._default_input_device()
+        if dev is None:
+            return False
+        try:
+            import ctypes  # noqa: PLC0415, stdlib, kept lazy to mirror existing style
+
+            address = (ca.prop_volume_scalar, ca.scope_input, ca.element_master)
+            volume = ctypes.c_float(float(max(0.0, min(1.0, level))))
+            status = ca.set_property(dev, address, 0, None, ctypes.sizeof(volume), ctypes.byref(volume))
+            if status != 0:
+                log.debug("[MIC-VOLUME-MAC] input volume write status=%d", status)
+                self._settable = False
+                return False
+            return True
+        except Exception as exc:
+            log.debug("[MIC-VOLUME-MAC] set_level failed: %s", exc)
+            self._settable = False
+            return False

@@ -122,6 +122,7 @@ fn test_allowlist_is_exact_canonical_set() {
         "asr_backend_load_failed",
         "microphone_permission_revoked",
         "microphone_disconnected",
+        "microphone_volume_lowered",
         "cloud_fallback_used",
         "dictation_suppressed",
         "media_transcribe_progress",

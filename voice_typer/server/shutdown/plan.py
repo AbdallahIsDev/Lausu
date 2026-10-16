@@ -223,6 +223,7 @@ def build_parallel_plan(
     all_parallel_items: list[tuple[str, object, float, str | None, bool]] = [
         ("teardown_asr_models", controller._teardown_asr_models, 10.0, None, False),
         ("teardown_restore_volume", controller._teardown_restore_volume, 10.0, None, False),
+        ("teardown_mic_guard", controller._teardown_mic_guard, 10.0, None, False),
         ("teardown_waveform_wiring", controller._teardown_waveform_wiring, 10.0, None, False),
         ("teardown_sounddevice", controller._teardown_sounddevice, 10.0, "teardown_recorder", True),
         ("teardown_pid_file", controller._teardown_pid_file, 10.0, None, False),

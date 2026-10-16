@@ -120,6 +120,7 @@ from voice_typer.server.handlers.level_monitor_handlers import (  # noqa: E402
     LevelMonitorHandlersMixin,
 )
 from voice_typer.server.handlers.media_handlers import MediaHandlersMixin  # noqa: E402
+from voice_typer.server.handlers.mic_volume_handlers import MicVolumeHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.microphone_handlers import MicrophoneHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.microphone_test_handlers import (  # noqa: E402
     MicrophoneTestHandlersMixin,
@@ -170,6 +171,7 @@ class IPCServer(
     MicrophoneTestHandlersMixin,
     LevelMonitorHandlersMixin,
     MediaHandlersMixin,
+    MicVolumeHandlersMixin,
     ModelHandlersMixin,
     SystemHandlersMixin,
     VocabularyAutomationHandlersMixin,

@@ -8,7 +8,11 @@ import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
-from voice_typer.server.volume_backend_base import VolumeBackend, VolumeState
+from voice_typer.server.volume_backend_base import (
+    MicVolumeBackend,
+    VolumeBackend,
+    VolumeState,
+)
 
 log = logging.getLogger(__name__)
 
@@ -16,8 +20,25 @@ log = logging.getLogger(__name__)
 # Smart-duck polling on Linux is expensive: every ``is_speaker_active()``
 _LINUX_MIN_SMART_DUCK_POLL_MS = 1500
 
+# The capture-side guard polls the same subprocess tools, so it needs a
+# floor too: 1 ``pactl get-source-volume`` every 2s is 0.5 spawns/s.
+_LINUX_MIN_MIC_GUARD_POLL_MS = 2000
+
 # number of consecutive backend failures before a WARNING is
 _BACKEND_ERROR_WARN_THRESHOLD = 3
+
+
+def _run_volume_tool(cmd: list[str], timeout: float = 2.0, tag: str = "VOLUME-LINUX") -> str | None:
+    """Run one audio-control subprocess; ``None`` on non-zero exit/error."""
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        if result.returncode != 0:
+            log.debug("[%s] %s error: %s", tag, cmd[0], result.stderr.strip())
+            return None
+        return result.stdout.strip()
+    except Exception as exc:
+        log.debug("[%s] %s failed: %s", tag, cmd[0], exc)
+        return None
 
 
 class LinuxVolumeBackend(VolumeBackend):
@@ -148,15 +169,7 @@ class LinuxVolumeBackend(VolumeBackend):
             return True  # safe default
 
     def _run(self, cmd: list[str], timeout: float = 2.0) -> str | None:
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-            if result.returncode != 0:
-                log.debug("[VOLUME-LINUX] %s error: %s", cmd[0], result.stderr.strip())
-                return None
-            return result.stdout.strip()
-        except Exception as exc:
-            log.debug("[VOLUME-LINUX] %s failed: %s", cmd[0], exc)
-            return None
+        return _run_volume_tool(cmd, timeout, "VOLUME-LINUX")
 
     def _pactl_get(self) -> VolumeState | None:
         # ``pactl get-sink-volume`` and ``pactl get-sink-mute`` are
@@ -221,3 +234,66 @@ class LinuxVolumeBackend(VolumeBackend):
             mute_val = "mute" if muted else "unmute"
             self._run(["amixer", "-D", "default", "sset", "Master", mute_val])
         return ok
+
+
+class LinuxMicVolumeBackend(MicVolumeBackend):
+    """Linux capture-gain control via the PulseAudio/PipeWire source path.
+
+    ``pactl``/``wpctl`` address the default *source*; the ALSA fallback
+    targets the ``Capture`` mixer control. Every call spawns a subprocess,
+    hence the 2s poll floor.
+    """
+
+    def __init__(self) -> None:
+        self._tool: str | None = None
+
+    @property
+    def name(self) -> str:
+        return f"linux capture ({self._tool})" if self._tool else "linux capture (uninitialised)"
+
+    @property
+    def supports_set(self) -> bool:
+        return self._tool is not None
+
+    @property
+    def min_poll_interval_ms(self) -> int:
+        return _LINUX_MIN_MIC_GUARD_POLL_MS
+
+    def initialize(self) -> bool:
+        if self._tool is not None:
+            return True
+        for tool in ("pactl", "wpctl", "amixer"):
+            if shutil.which(tool):
+                self._tool = tool
+                log.info("[MIC-VOLUME-LINUX] Using %s", tool)
+                return True
+        log.info("[MIC-VOLUME-LINUX] No capture-gain tool found (pactl/wpctl/amixer)")
+        return False
+
+    def _run(self, cmd: list[str], timeout: float = 2.0) -> str | None:
+        return _run_volume_tool(cmd, timeout, "MIC-VOLUME-LINUX")
+
+    def get_level(self) -> float | None:
+        if self._tool == "pactl":
+            out = self._run(["pactl", "get-source-volume", "@DEFAULT_SOURCE@"])
+            match = re.search(r"(\d+)%", out or "")
+            return int(match.group(1)) / 100.0 if match else None
+        if self._tool == "wpctl":
+            out = self._run(["wpctl", "get-volume", "@DEFAULT_AUDIO_SOURCE@"])
+            match = re.search(r"Volume:\s*([\d.]+)", out or "")
+            return max(0.0, min(1.0, float(match.group(1)))) if match else None
+        if self._tool == "amixer":
+            out = self._run(["amixer", "-D", "default", "sget", "Capture"])
+            match = re.search(r"\[(\d+)%\]", out or "")
+            return int(match.group(1)) / 100.0 if match else None
+        return None
+
+    def set_level(self, level: float) -> bool:
+        level = max(0.0, min(1.0, level))
+        if self._tool == "pactl":
+            return self._run(["pactl", "set-source-volume", "@DEFAULT_SOURCE@", f"{int(level * 100)}%"]) is not None
+        if self._tool == "wpctl":
+            return self._run(["wpctl", "set-volume", "@DEFAULT_AUDIO_SOURCE@", f"{level:.2f}"]) is not None
+        if self._tool == "amixer":
+            return self._run(["amixer", "-D", "default", "sset", "Capture", f"{int(level * 100)}%"]) is not None
+        return False

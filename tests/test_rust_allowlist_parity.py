@@ -52,7 +52,11 @@ def test_rust_allowlist_does_not_contain_removed_commands() -> None:
         "get_rms_level",
         "get_vocabulary_suggestions",
         "level_monitor_status",
-        "microphone_test_status",
+        # ``microphone_test_status`` was removed here per the rule below:
+        # it is back in the Python registry + the Rust allowlist and now has
+        # a live renderer caller (``useMicrophoneTestSession.ts`` reads the
+        # running-state on mount), so the intentional re-addition is
+        # acknowledged rather than flagged.
         "onboarding_get_model_catalog",
         "onboarding_get_step",
         "onboarding_request_keyboard_permission",
@@ -62,7 +66,7 @@ def test_rust_allowlist_does_not_contain_removed_commands() -> None:
     leaked = yj10_removed & rust
     assert not leaked, (
         f"YJ-10 negative-regression guard: {sorted(leaked)} re-appeared "
-        f"in the Rust ALLOWED_COMMANDS. These 16 commands were "
+        f"in the Rust ALLOWED_COMMANDS. These commands were "
         f"deliberately removed in the YJ-10 fix because they had ZERO "
         f"renderer callers (audit: "
         f"`rg --type=ts '<cmd>' voice_typer/client/src/renderer/src/`). "

@@ -306,6 +306,10 @@ class AppConstruction:
         self._volume_ducker_backing: Any = None
         # Monotonic-clock timestamp of the most recent lazy-init failure
         self._volume_ducker_failed_at: Any = None
+        # Mic guard: keeps the capture knob pinned at 100%.
+        self._mic_guard_backing: Any = None
+        # Monotonic-clock timestamp of the most recent lazy-init failure
+        self._mic_guard_failed_at: Any = None
 
     def _init_misc_backings(self) -> None:
         """Declare the remaining lazy backings + IPC/polisher fields."""

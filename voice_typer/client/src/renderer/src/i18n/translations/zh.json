@@ -1849,6 +1849,12 @@
 		"liveListen": "实时试听",
 		"stopListening": "停止试听",
 		"liveListenHint": "您现在应该能听到自己的声音。请使用耳机以避免回声。",
+		"previewVolume": "试听音量",
+		"liveListenGuideNote": "在笔记本或台式机扬声器上使用实时试听时，建议佩戴耳机。",
+		"speakerOfferTitle": "扬声器音量过高",
+		"speakerOfferMessage": "此音量下实时试听会拾取到扬声器的声音。",
+		"speakerOfferLower": "降低到 75%",
+		"speakerOfferKeep": "保持原样",
 		"liveListenFailed": "实时试听失败。请检查麦克风后重试。",
 		"liveListenDenied": "麦克风访问被阻止。请允许访问后重试。",
 		"liveListenUnavailable": "此窗口不支持实时试听。",
@@ -1866,6 +1872,11 @@
 		"cards": {
 			"dictations": "听写"
 		}
+	},
+	"micGuard": {
+		"loweredTitle": "麦克风音量已被降低至 {percent}%",
+		"loweredMessage": "外部更改调低了输入音量，且无法自动恢复。",
+		"backTo100": "恢复到 100%"
 	},
 	"stats": {
 		"shareImage": {

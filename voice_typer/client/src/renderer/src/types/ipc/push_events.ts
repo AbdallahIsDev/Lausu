@@ -593,6 +593,19 @@ export interface MicrophoneDisconnectedEvent {
 }
 
 /**
+ * Pushed by the backend mic guard (`mic_volume_guard.py` → `app_lazy_hub`)
+ * when an outside write moves the OS capture knob off 100%. `restored` =
+ * the guard already wrote 100% back (nothing for the user to do), so the
+ * renderer only surfaces the sticky `[Back to 100%]` toast when it is
+ * false; `can_set` = the device exposes a writable gain, so a message-only
+ * device drops the button.
+ */
+export interface MicrophoneVolumeLoweredEvent {
+	type: "microphone_volume_lowered";
+	data: { level: number; restored: boolean; can_set: boolean };
+}
+
+/**
  * Pushed by `cloud/_engine.py` when a cloud ASR provider fails and the
  * local engine takes over for that transcription. `reason` is the
  * truncated exception message (max 200 chars). `kind` names the cause:
@@ -720,6 +733,7 @@ export type PythonPushEvent =
 	| AsrBackendLoadFailedEvent
 	| MicrophonePermissionRevokedEvent
 	| MicrophoneDisconnectedEvent
+	| MicrophoneVolumeLoweredEvent
 	| CloudFallbackUsedEvent
 	| DictationSuppressedEvent
 	| HistoryCorruptedEvent

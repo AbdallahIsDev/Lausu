@@ -241,6 +241,13 @@ export interface LausuConfig {
 	volume_duck_smart?: boolean;
 	volume_duck_smart_poll_interval_ms: number;
 
+	/** Listen Live preview-tap level (0–1). Optional for back-compat with
+	 *  sidecars predating the key; the renderer defaults to 0.5 and clamps
+	 *  the resulting gain to LIVE_LISTEN_MAX. */
+	live_listen_level?: number;
+	/** Mic guard master toggle (default ON). Optional for back-compat. */
+	mic_guard_enabled?: boolean;
+
 	audio_preset: "auto" | "studio" | "noisy_room" | "off" | "custom";
 
 	/** A user-saved microphone preset: stable id, display name, filter values. */

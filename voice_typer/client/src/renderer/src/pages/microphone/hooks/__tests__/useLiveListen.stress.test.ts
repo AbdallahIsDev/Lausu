@@ -33,6 +33,15 @@ function makeMocks() {
 		disconnect: vi.fn(),
 	});
 	const sourceNode = () => ({ connect: vi.fn(), disconnect: vi.fn() });
+	const limiterNode = () => ({
+		threshold: { value: 0 },
+		knee: { value: 0 },
+		ratio: { value: 0 },
+		attack: { value: 0 },
+		release: { value: 0 },
+		connect: vi.fn(),
+		disconnect: vi.fn(),
+	});
 	class MockAudioContext {
 		state = "running";
 		destination = {};
@@ -40,6 +49,7 @@ function makeMocks() {
 		close: ReturnType<typeof vi.fn>;
 		createMediaStreamSource = vi.fn().mockImplementation(() => sourceNode());
 		createGain = vi.fn().mockImplementation(() => gainNode());
+		createDynamicsCompressor = vi.fn().mockImplementation(() => limiterNode());
 		constructor() {
 			const entry = created[created.length - 1];
 			if (entry) entry.ctxBuilt = true;
