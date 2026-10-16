@@ -27,7 +27,6 @@ import { useLiveListen } from "./microphone/hooks/useLiveListen";
 import { useMicrophoneData } from "./microphone/hooks/useMicrophoneData";
 import { useMicrophonePermission } from "./microphone/hooks/useMicrophonePermission";
 import { useMicrophoneTest } from "./microphone/hooks/useMicrophoneTest";
-import { computeAudioKey } from "./microphone/lib/computeAudioKey";
 import { snapshotFilterValues } from "./microphone/lib/filterSnapshot";
 
 export default function MicrophonePage() {
@@ -99,7 +98,6 @@ export default function MicrophonePage() {
 		level,
 		micMonitoring,
 		showAdvanced,
-		filtersSinceLastTest,
 		playingEnhanced,
 		playingOriginal,
 		startTest: rawStartTest,
@@ -233,10 +231,6 @@ export default function MicrophonePage() {
 			: (microphones.find((m) => (m.id ?? String(m.index)) === activeMicId)
 					?.name ?? t("microphone.unknown"));
 
-	const filtersChangedSinceTest: string | false =
-		filtersSinceLastTest && filtersSinceLastTest !== computeAudioKey(config)
-			? filtersSinceLastTest
-			: false;
 	const hasFiltersEnabled = (config?.audio_preset ?? "auto") !== "off";
 
 	// Live monitor ("hear yourself"). Frontend-only passthrough, no
@@ -333,8 +327,6 @@ export default function MicrophonePage() {
 						testTranscriptionUnavailable={testTranscriptionUnavailable}
 						playing={playingEnhanced || playingOriginal}
 						playingOriginal={playingOriginal}
-						filtersSinceLastTest={filtersSinceLastTest}
-						filtersChangedSinceTest={filtersChangedSinceTest}
 						hasFiltersEnabled={hasFiltersEnabled}
 						showAdvanced={showAdvanced}
 						config={config}

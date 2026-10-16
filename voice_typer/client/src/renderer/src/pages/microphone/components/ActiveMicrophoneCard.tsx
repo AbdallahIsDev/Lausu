@@ -1,10 +1,11 @@
 // Active-microphone card.
 // Renders the currently-selected microphone (or "System Default")
-// header, the live LevelBar, the LiveQualityFeedback during a test,
-// the start/stop test buttons, the "filters changed" invalidation
-// notice, the TestReviewPanel (post-test transcription, quality +
-// playback), and the PresetAccordionSelector. This is the primary
-// interactive surface of the Microphone page.
+// header (with the level readout on its trailing edge), the live
+// LevelBar, the start/stop test buttons (with the recording dot +
+// countdown on their trailing edge while a test runs), the
+// TestReviewPanel (post-test transcription, quality + playback),
+// and the PresetAccordionSelector.
+// This is the primary interactive surface of the Microphone page.
 // Pure presentational component, all state and handlers are passed in
 // from the page (which wires them from ``useMicrophoneData`` /
 // ``useMicrophoneTest``). The card owns no business logic.
@@ -14,8 +15,6 @@
 // metrics + playback controls), are wrapped in `React.memo` with a
 // custom comparator so a 10 Hz `mic_level` push (which updates
 // `level`/`peak` and re-renders this card) doesn't re-render them.
-// Only `LevelBarContainer` (the `LevelBar` + `LiveQualityFeedback`
-// pair that actually consumes `level`/`peak`) re-renders on each push.
 
 import {
 	Mic02Icon,
@@ -63,10 +62,6 @@ export interface ActiveMicrophoneCardProps {
 	/** Whether enhanced OR original playback is in flight. */
 	playing: boolean;
 	playingOriginal: boolean;
-	/** Snapshot of the audio key at last test start ("" = no test yet). */
-	filtersSinceLastTest: string;
-	/** Non-empty when filters have drifted since the last test. */
-	filtersChangedSinceTest: string | false;
 	hasFiltersEnabled: boolean;
 	showAdvanced: boolean;
 	config: LausuConfig | null;
@@ -109,8 +104,6 @@ export function ActiveMicrophoneCard({
 	testTranscriptionUnavailable,
 	playing,
 	playingOriginal,
-	filtersSinceLastTest,
-	filtersChangedSinceTest,
 	hasFiltersEnabled,
 	showAdvanced,
 	config,
@@ -140,55 +133,66 @@ export function ActiveMicrophoneCard({
 				// Inter-child spacing is owned by this flex stack (one
 				// consistent `gap-3` rhythm): the children carry no `mt-*`
 				// of their own. The direct children are the header, the
-				// fragment children of `LevelBarContainer` (the LevelBar
-				// wrapper plus the conditionally rendered
-				// `LiveQualityFeedback`), the test controls row, the
-				// filter-invalidation notice, `TestReviewPanel` and the
-				// preset-selector wrapper.
+				// LevelBar, the test controls row, `TestReviewPanel` and
+				// the preset-selector wrapper.
 				"flex flex-col gap-3 rounded-lg border border-border/8 p-4 transition-colors",
 				"bg-surface-subtle",
 			)}
 		>
-			{/* Mic header */}
-			<div className="flex items-center gap-3 min-w-0">
-				<HugeiconsIcon
-					icon={Mic02Icon}
-					strokeWidth={1.625}
-					className="h-4 w-4 shrink-0"
-				/>
-				<div className="min-w-0">
-					<p className="text-sm font-medium text-foreground truncate">
-						{activeMicName}
-					</p>
-					{/* Description only for System Default, its text carries
+			{/* Mic header. The level readout rides this row's trailing edge
+			    (above the bar) rather than the controls row's, so the space
+			    under the bar is reserved for the test readout alone and the
+			    controls never shift when a test starts.
+			    Two groups: the outer row is `items-end` so the level readout
+			    sits on the bottom edge, while the icon + title/subtitle group
+			    keeps its own `items-center` (an `items-end` on the row alone
+			    would drag the icon down with it). */}
+			<div className="flex items-end gap-3 min-w-0">
+				<div className="flex items-center gap-3 min-w-0">
+					<HugeiconsIcon
+						icon={Mic02Icon}
+						strokeWidth={1.625}
+						className="h-4 w-4 shrink-0"
+					/>
+					<div className="min-w-0">
+						<p className="text-sm font-medium text-foreground truncate">
+							{activeMicName}
+						</p>
+						{/* Description only for System Default, its text carries
                                         information (which device the OS routes to). For a selected
                                         device a "Selected microphone" line is redundant with the
                                         radio list + card context (C-MIC-13), so no desc renders. */}
-					{isSystemDefault && (
-						<p className="text-xs text-muted-foreground">
-							{t("microphone.systemDefaultDesc")}
-						</p>
-					)}
+						{isSystemDefault && (
+							<p className="text-xs text-muted-foreground">
+								{t("microphone.systemDefaultDesc")}
+							</p>
+						)}
+					</div>
 				</div>
+
+				{/*(a11y): the live level is NOT announced — it fluctuates at up
+                                    to 30 Hz (the ``mic_level`` push rate) and would spam a
+                                    screen reader. ``aria-hidden`` is therefore unconditional:
+                                    the sibling ``LevelBar`` already exposes the same value to
+                                    assistive tech via its ``role="progressbar"`` +
+                                    ``aria-valuenow``, so this text is the visual duplicate. */}
+				<span
+					className="text-xs text-muted-foreground ms-auto shrink-0"
+					aria-hidden={true}
+				>
+					{testRunning || micMonitoring
+						? t("microphone.level", {
+								percent: String(Math.round(level * 100)),
+							})
+						: t("microphone.monitoringOff")}
+				</span>
 			</div>
 
-			{/* : LevelBarContainer bundles the level-driven children
-                            (LevelBar + LiveQualityFeedback) so the rest of the card
-                            (TestReviewPanel, PresetAccordionSelector, test controls) can be
-                            memoised against level/peak changes. The container itself
-                            re-renders on every mic_level push (it consumes `level` and
-                            `peak` directly), that's the intended behavior, since
-                            LevelBar's visual height + LiveQualityFeedback's peak marker
-                            both depend on the latest values. */}
-			<LevelBarContainer
-				level={level}
-				playing={playing}
-				testRunning={testRunning}
-				testElapsed={testElapsed}
-			/>
+			{/* Level bar */}
+			<LevelBar level={level} playing={playing} />
 
 			{/* Test controls */}
-			<div className="flex items-center gap-3">
+			<div className="flex items-center gap-2">
 				{!testRunning ? (
 					<Button
 						variant="default"
@@ -244,38 +248,14 @@ export function ActiveMicrophoneCard({
 					</Button>
 				)}
 
-				{/*(a11y): split the live level indicator from
-                                    the post-test duration readout. The live level
-                                    (rapidly fluctuating during recording) is NOT
-                                    announced to avoid screen-reader spam; the post-test
-                                    duration (a single, stable value) IS announced via
-                                    aria-live="polite" so users with AT know when a test
-                                    completes and how long it ran. Only the FIRST trailing
-                                    span carries ``ms-auto``, a second one would fight it
-                                    for the free space and push the duration readout off.
-
-                                    aria-hidden={true} is UNCONDITIONAL on the live-level
-                                    span, the sibling ``LevelBar`` exposes the live value to
-                                    assistive tech via its ``role="progressbar"`` +
-                                    ``aria-valuenow`` attributes (the bar element is the
-                                    accessible source of truth for the level). Letting
-                                    this textual "Level: NN%" readout be announced too
-                                    would duplicate the value AND spam AT at up to 30 Hz
-                                    (the ``mic_level`` push rate). */}
-				<span
-					className="text-xs text-muted-foreground ms-auto"
-					aria-hidden={true}
-				>
-					{testRunning
-						? t("microphone.level", {
-								percent: String(Math.round(level * 100)),
-							})
-						: micMonitoring
-							? t("microphone.level", {
-									percent: String(Math.round(level * 100)),
-								})
-							: t("microphone.monitoringOff")}
-				</span>
+				{/* Test readout (recording dot + countdown), trailing edge of
+                                    this row. Renders nothing while no test runs, so the row
+                                    keeps its button-driven height and nothing jumps. */}
+				<LiveQualityFeedback
+					isRecording={testRunning}
+					elapsedSeconds={testElapsed}
+					totalSeconds={MICROPHONE_TEST_DURATION_SEC}
+				/>
 			</div>
 
 			{/* Live-monitor hint + error. The hint shows while
@@ -296,13 +276,6 @@ export function ActiveMicrophoneCard({
 								: "microphoneTest.liveListenFailed",
 					)}
 				</p>
-			)}
-
-			{/* Filter invalidation notice */}
-			{filtersSinceLastTest && filtersChangedSinceTest && !testRunning && (
-				<div className="px-3 py-2 rounded-lg bg-warning/10 border border-warning/20 text-xs text-warning">
-					{t("microphone.filtersChangedNotice")}
-				</div>
 			)}
 
 			{/* : Test Review Panel, memoised. Re-renders only when
@@ -365,48 +338,6 @@ export function ActiveMicrophoneCard({
 				)}
 			</div>
 		</div>
-	);
-}
-
-// ── : LevelBarContainer ─────────────────────────────────────────
-// Bundles the two children that consume `level` / `peak`:
-// - `<LevelBar>`, the live horizontal bar.
-// - `<LiveQualityFeedback>`, peak marker + test progress readout.
-// `level` updates at 10 Hz (or ≤30 Hz once 's `mic_level` push
-// lands), this container re-renders on every push, which is the
-// intended behavior. The point of the split is that the SIBLING
-// subtrees (`MemoizedTestReviewPanel`, `MemoizedPresetAccordionSelector`)
-// are wrapped in `React.memo` and skip re-render on level-only
-// changes, so a 30 Hz level push only re-renders this container +
-// the two feedback children, not the entire card.
-
-interface LevelBarContainerProps {
-	level: number;
-	playing: boolean;
-	testRunning: boolean;
-	testElapsed: number;
-}
-
-function LevelBarContainer({
-	level,
-	playing,
-	testRunning,
-	testElapsed,
-}: LevelBarContainerProps) {
-	return (
-		<>
-			{/* Level bar */}
-			<div>
-				<LevelBar level={level} playing={playing} />
-			</div>
-
-			{/* Live quality feedback during test */}
-			<LiveQualityFeedback
-				isRecording={testRunning}
-				elapsedSeconds={testElapsed}
-				totalSeconds={MICROPHONE_TEST_DURATION_SEC}
-			/>
-		</>
 	);
 }
 

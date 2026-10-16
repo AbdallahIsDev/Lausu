@@ -147,7 +147,6 @@ export interface UseMicrophoneTestSessionResult {
 	testTranscription: string | null;
 	/** True when the backend could not transcribe the last test recording. */
 	testTranscriptionUnavailable: boolean;
-	filtersSinceLastTest: string;
 	startTest: () => Promise<void>;
 	stopTest: () => Promise<void>;
 	selectMicrophone: (micId: string | null) => Promise<void>;
@@ -210,7 +209,7 @@ export function useMicrophoneTestSession({
 	);
 	const [testTranscriptionUnavailable, setTestTranscriptionUnavailable] =
 		useState(initialSession.transcriptionUnavailable);
-	// Tracks whether filters have changed since last test (invalidation).
+	// Tracks the filter snapshot at last test start ("" = no test yet).
 	const [filtersSinceLastTest, setFiltersSinceLastTest] = useState<string>("");
 
 	const testTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -235,6 +234,53 @@ export function useMicrophoneTestSession({
 	useEffect(() => {
 		testRunningRef.current = testRunning;
 	}, [testRunning, testRunningRef]);
+
+	// Settings change discards the last results: the review panel
+	// falls back to its empty state, which IS the retest prompt (no
+	// banner). The backend's stored summary is discarded too, so a
+	// later remount cannot resurrect stale results. Never fires
+	// mid-test (startTest owns state then) or when idle-empty.
+	useEffect(() => {
+		if (testRunning || testStarting) return;
+		if (!filtersSinceLastTest) return;
+		if (computeAudioKey(config) === filtersSinceLastTest) return;
+		const hadResults =
+			testDurationMs > 0 ||
+			testQuality !== null ||
+			testAudioBase64 !== null ||
+			rawAudioBase64 !== null ||
+			testTranscription !== null;
+		setFiltersSinceLastTest("");
+		if (!hadResults) return;
+		stopPlaybackRef.current();
+		_resetMicrophoneTestCache();
+		setTestAudioBase64(null);
+		setRawAudioBase64(null);
+		setTestDurationMs(0);
+		setTestQuality(null);
+		setTestTranscription(null);
+		setTestTranscriptionUnavailable(false);
+		callRef
+			.current("microphone_test_cancel")
+			.catch((err) =>
+				console.warn(
+					"[renderer:useMicrophoneTestSession] microphone command failed: microphone_test_cancel:",
+					err,
+				),
+			);
+	}, [
+		config,
+		filtersSinceLastTest,
+		testRunning,
+		testStarting,
+		testDurationMs,
+		testQuality,
+		testAudioBase64,
+		rawAudioBase64,
+		testTranscription,
+		callRef,
+		stopPlaybackRef,
+	]);
 
 	const finalizeTestResult = useCallback(
 		async (
@@ -748,6 +794,10 @@ export function useMicrophoneTestSession({
 					} as TestStopResult,
 					false,
 				);
+				// Hydrated results match the persisted config by
+				// construction (filters only change on this page), so
+				// snapshot the current key: later tweaks clear them.
+				setFiltersSinceLastTest(computeAudioKey(config));
 			}
 		})();
 		// Mount-only by design (recoveredRef guard): re-running on every
@@ -798,7 +848,6 @@ export function useMicrophoneTestSession({
 		testQuality,
 		testTranscription,
 		testTranscriptionUnavailable,
-		filtersSinceLastTest,
 		startTest,
 		stopTest,
 		selectMicrophone,

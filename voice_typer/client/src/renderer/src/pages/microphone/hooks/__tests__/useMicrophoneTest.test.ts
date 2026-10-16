@@ -209,7 +209,7 @@ describe("useMicrophoneTest, composition smoke test (renders without crashing)",
 		expect(typeof r.testElapsed).toBe("number");
 		expect(typeof r.testDurationMs).toBe("number");
 		expect(typeof r.showAdvanced).toBe("boolean");
-		expect(typeof r.filtersSinceLastTest).toBe("string");
+		expect("filtersSinceLastTest" in r).toBe(false);
 		expect(typeof r.playingEnhanced).toBe("boolean");
 		expect(typeof r.playingOriginal).toBe("boolean");
 		expect(typeof r.level).toBe("number");

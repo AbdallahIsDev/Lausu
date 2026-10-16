@@ -178,7 +178,7 @@ describe("useMicrophoneTestSession, initial state", () => {
 		expect(result.current.rawAudioBase64).toBeNull();
 		expect(result.current.testDurationMs).toBe(0);
 		expect(result.current.testQuality).toBeNull();
-		expect(result.current.filtersSinceLastTest).toBe("");
+		expect("filtersSinceLastTest" in result.current).toBe(false);
 	});
 });
 
@@ -1392,5 +1392,84 @@ describe("useMicrophoneTestSession mount recovery", () => {
 		});
 
 		expect(result.current.testRunning).toBe(false);
+	});
+});
+
+describe("useMicrophoneTestSession settings-change invalidation", () => {
+	const hydrateArgs = () => {
+		_resetMicrophoneTestCache();
+		callMock.mockImplementation((cmd: string) => {
+			if (cmd === "microphone_test_status") {
+				return Promise.resolve({
+					running: false,
+					elapsed_sec: 0,
+					duration_sec: 0,
+					last_test: {
+						duration_ms: 9982,
+						quality: { volume_level: "good" },
+						transcription: null,
+						transcription_unavailable: false,
+						audio_file: { path: "gone.wav", bytes: 10 },
+						raw_audio_file: null,
+					},
+				});
+			}
+			return Promise.resolve({ success: true });
+		});
+		return makeHookArgs();
+	};
+	const flush = async () => {
+		await act(async () => {
+			await new Promise<void>((resolve) => setTimeout(resolve, 0));
+		});
+	};
+
+	it("clears results + discards the backend summary when filters change", async () => {
+		const args = hydrateArgs();
+		const { result, rerender } = renderHook(
+			({ config }: { config: LausuConfig }) =>
+				useMicrophoneTestSession({ ...args, config }),
+			{ initialProps: { config: args.config } },
+		);
+		await flush();
+		expect(result.current.testDurationMs).toBe(9982);
+
+		act(() => {
+			rerender({ config: makeConfig({ audio_preset: "noisy_room" }) });
+		});
+		await flush();
+
+		// Empty state IS the retest prompt (no banner).
+		expect(result.current.testDurationMs).toBe(0);
+		expect(result.current.testQuality).toBeNull();
+		expect(result.current.testAudioBase64).toBeNull();
+		expect(result.current.testTranscription).toBeNull();
+		const cancels = callMock.mock.calls.filter(
+			(c) => c[0] === "microphone_test_cancel",
+		);
+		expect(cancels.length).toBe(1);
+	});
+
+	it("keeps results when unrelated settings change", async () => {
+		const args = hydrateArgs();
+		const { result, rerender } = renderHook(
+			({ config }: { config: LausuConfig }) =>
+				useMicrophoneTestSession({ ...args, config }),
+			{ initialProps: { config: args.config } },
+		);
+		await flush();
+		expect(result.current.testDurationMs).toBe(9982);
+
+		act(() => {
+			rerender({ config: makeConfig({ hotkey: "<f3>" }) });
+		});
+		await flush();
+
+		expect(result.current.testDurationMs).toBe(9982);
+		expect(result.current.testQuality).toEqual({ volume_level: "good" });
+		const cancels = callMock.mock.calls.filter(
+			(c) => c[0] === "microphone_test_cancel",
+		);
+		expect(cancels.length).toBe(0);
 	});
 });

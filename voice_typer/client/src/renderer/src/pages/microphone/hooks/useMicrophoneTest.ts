@@ -61,7 +61,6 @@ export interface UseMicrophoneTestResult {
 	peakRef: RefObject<number>;
 	micMonitoring: boolean;
 	showAdvanced: boolean;
-	filtersSinceLastTest: string;
 	playingEnhanced: boolean;
 	playingOriginal: boolean;
 	// Handlers
@@ -203,7 +202,6 @@ export function useMicrophoneTest({
 		testQuality: session.testQuality,
 		testTranscription: session.testTranscription,
 		testTranscriptionUnavailable: session.testTranscriptionUnavailable,
-		filtersSinceLastTest: session.filtersSinceLastTest,
 		playingEnhanced: playback.playingEnhanced,
 		playingOriginal: playback.playingOriginal,
 		showAdvanced,
