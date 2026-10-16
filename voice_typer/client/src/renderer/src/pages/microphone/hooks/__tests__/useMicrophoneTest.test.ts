@@ -534,8 +534,8 @@ describe("useMicrophoneTest, setter pass-through", () => {
 	});
 });
 
-describe("useMicrophoneTest, unmount cleanup cancels in-flight test", () => {
-	it("does NOT throw on unmount while a test is running (cleanup cancels the test)", async () => {
+describe("useMicrophoneTest, unmount keeps in-flight test alive", () => {
+	it("does NOT throw on unmount while a test is running (backend owns it)", async () => {
 		callMock.mockImplementation((cmd: string) => {
 			if (cmd === "microphone_test_start")
 				return Promise.resolve({
@@ -557,19 +557,19 @@ describe("useMicrophoneTest, unmount cleanup cancels in-flight test", () => {
 		});
 		expect(result.current.testRunning).toBe(true);
 
-		// Unmount while the test is running, the session hook's cleanup
-		// should send microphone_test_cancel + clear the timers.
+		// Unmount while the test is running: the backend owns it, so no
+		// cancel is sent — remount recovery reattaches instead.
 		expect(() => unmount()).not.toThrow();
 
-		// Wait for any pending async cleanup (microphone_test_cancel).
+		// Wait for any pending async cleanup (no cancel should fire).
 		await act(async () => {
 			await new Promise((r) => setTimeout(r, 0));
 		});
 
-		// microphone_test_cancel was sent by the cleanup.
+		// No cancel: the test survives navigation/refresh.
 		const cancelCalls = callMock.mock.calls.filter(
 			(c) => c[0] === "microphone_test_cancel",
 		);
-		expect(cancelCalls.length).toBe(1);
+		expect(cancelCalls.length).toBe(0);
 	});
 });

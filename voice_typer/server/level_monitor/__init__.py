@@ -130,7 +130,10 @@ from .test_recording import (  # noqa: E402
     _reset_test_chunks,  # noqa: F401
     _secure_clear_test_chunks,  # noqa: F401
     cancel_test_recording,
+    clear_last_test,
+    get_test_status,
     is_test_active,
+    note_test_transcription,
     read_test_recording_slice,
     start_test_recording,
     stop_test_recording,
@@ -161,6 +164,9 @@ __all__ = [
     "update_test_filters",
     "cancel_test_recording",
     "read_test_recording_slice",
+    "get_test_status",
+    "clear_last_test",
+    "note_test_transcription",
     # ThreadRegistry wiring (app construction / tests)
     "set_thread_registry",
     "LEVEL_WORKER_NAME",

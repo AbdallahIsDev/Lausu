@@ -3,6 +3,26 @@
 from __future__ import annotations
 
 
+class TestMicrophoneTestStatus:
+    """``_handle_microphone_test_status``, mount reattach snapshot."""
+
+    def test_happy_path_returns_status(self, ipc_server, fake_service):
+        fake_service.microphone_test_status.return_value = {
+            "running": True,
+            "elapsed_sec": 3.0,
+            "duration_sec": 10.0,
+            "last_test": None,
+        }
+        resp = ipc_server._handle_microphone_test_status({}, {})
+        assert resp["type"] == "microphone_test_status"
+        assert resp["data"]["running"] is True
+
+    def test_service_raises_returns_error(self, ipc_server, fake_service):
+        fake_service.microphone_test_status.side_effect = RuntimeError("boom")
+        resp = ipc_server._handle_microphone_test_status({}, {})
+        assert resp["type"] == "error"
+
+
 class TestMicrophoneTestStart:
     """``_handle_microphone_test_start``, start a recording test."""
 

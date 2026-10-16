@@ -151,7 +151,36 @@ class MicrophoneTestMixin(ServiceMixinBase):
                 result.setdefault("transcription_unavailable", True)
                 result["transcription_reason"] = "transcription_failed"
 
+        # Merge the outcome into the stored last-test summary so a UI
+        # that mounts later can hydrate it via microphone_test_status.
+        # Derived from the same keys set above (no behavior change).
+        try:
+            from voice_typer.server.level_monitor import note_test_transcription
+
+            _tx = result.get("transcription")
+            note_test_transcription(
+                _tx if isinstance(_tx, str) and _tx else None,
+                result.get("transcription_unavailable") is True,
+                result.get("transcription_reason")
+                if isinstance(result.get("transcription_reason"), str)
+                else None,
+            )
+        except Exception:
+            log.debug("[SERVICE] Test transcription note failed", exc_info=True)
+
         return result
+
+    def microphone_test_status(self) -> dict[str, object]:
+        """Snapshot for UI reattach after navigation/refresh.
+
+        Returns ``{running, elapsed_sec, duration_sec, last_test}`` where
+        ``last_test`` is the fresh completed-test review payload (or None
+        past the WAV TTL). Lets a newly mounted page resume a running
+        test or hydrate finished results instead of showing idle.
+        """
+        from voice_typer.server.level_monitor import get_test_status
+
+        return get_test_status()
 
     def microphone_test_read_audio(self, path: str, offset: int, length: int) -> dict[str, object]:
         """Read a chunked slice of a persisted mic-test WAV."""
@@ -164,12 +193,6 @@ class MicrophoneTestMixin(ServiceMixinBase):
         from voice_typer.server.level_monitor import cancel_test_recording as cancel_test
 
         return cancel_test()
-
-    def microphone_test_status(self) -> dict[str, object]:
-        """Check if a microphone test is currently active."""
-        from voice_typer.server.level_monitor import is_test_active
-
-        return {"active": is_test_active()}
 
     def microphone_test_get_level(self) -> dict[str, object]:
         """Get the current real-time audio level.
