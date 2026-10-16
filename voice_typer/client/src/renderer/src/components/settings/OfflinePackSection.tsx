@@ -2,7 +2,7 @@
 // One status query (`get_status` → `offline_pack {state, installed_version,
 // download_progress}`) seeds the card on mount; the shared
 // `useOfflinePackDownload` hook drives live updates, so this card and the
-// `OfflinePackPreparingBanner` point-of-use surface never disagree.
+// App-level pack toast (usePackUpdateToast) never disagree.
 // Every recovery action reuses `check_offline_pack_update`; there is no
 // remove IPC, so there is no Remove button.
 

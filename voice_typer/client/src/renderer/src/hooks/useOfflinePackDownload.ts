@@ -6,10 +6,9 @@
 // consent (§8.4, the pack download phones home to GitHub Releases, so
 // it MUST be consent-gated exactly like model downloads). The renderer
 // never shows a progress bar (§4.8, "no progress bar in the main UI"),
-// only a small "Preparing offline engine…" line in the mic-test /
-// transcription areas when the user attempts offline transcription
-// before the pack is ready (§4.9, local whisper / Parakeet degrade
-// silently to "silent download starts, 'Preparing…' line, then works").
+// only the App-level pack toast (usePackUpdateToast) when the pack
+// isn't ready (§4.9, local whisper / Parakeet degrade silently to
+// "silent download starts, toast, then works").
 // ── Subscribed push events (§7.4 + PK-1, 12 pack/worker events) ─────
 // The hook subscribes to the 12 pack/worker lifecycle push events.
 // The other 2 events in §7.4 (`transcribe_offline` request and
@@ -112,9 +111,9 @@ export interface UseOfflinePackDownloadResult {
 	 *  Cleared on `offline_pack_ready`. `null` when no error has been recorded
 	 *  (or when the latest event was a success). */
 	error: string | null;
-	/** `true` ONLY when `status === "ready"`. Consumers gate the
-	 *  "Preparing offline engine…" UI on `!isReady` (plus a "user has
-	 *  attempted offline transcription" flag they own). */
+	/** `true` ONLY when `status === "ready"`. The Settings pack card
+	 *  reads this for its status row; transient states surface via
+	 *  the App-level pack toast (usePackUpdateToast). */
 	isReady: boolean;
 	/** Live download percent 0-100, non-null ONLY while
 	 *  `status === "downloading"`. Consumers show

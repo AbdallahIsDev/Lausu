@@ -8,9 +8,8 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Controllable hook state + backend snapshot (hoisted so the vi.mock
-// factories can reference them). Follows the OfflinePackPreparingBanner
-// test pattern: mock the bridge, drive the component, assert copy +
-// the IPC call.
+// factories can reference them): mock the bridge, drive the
+// component, assert copy + the IPC call.
 const { callMock, hookState, backend } = vi.hoisted(() => ({
 	callMock: vi.fn(),
 	hookState: {

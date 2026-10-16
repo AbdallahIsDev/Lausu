@@ -11,8 +11,8 @@
  *     text inside the single dynamic status line below the mic button
  *     (not a separate error card above it).
  *   - The single dynamic status line swaps between the default
- *     "Press <hotkey> or click to dictate" hint, the
- *     "Preparing offline engine…" message, and red error text.
+ *     "Press <hotkey> or click to dictate" hint and red error text
+ *     (pack progress is a toast, never this line).
  *   - A live MM:SS recording timer is rendered above the mic button
  *     while recording.
  *   - No task-ID / session-prefix comments remain in the owned files.
@@ -45,7 +45,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useConsentGateStore } from "@/lib/consentGate";
 
-const { mockCall, mockPythonEvent, mockNavigate, toastWarning } = stableMocks;
+const { mockCall, mockNavigate, toastWarning } = stableMocks;
 
 vi.mock("@/hooks/usePython", () => pythonMock());
 vi.mock("@/hooks/useNavigation", () => navigationMock());
@@ -172,8 +172,8 @@ describe("QV-49(a): Home renders a live MM:SS timer while recording", () => {
 
 // Single dynamic status line below the mic button ──
 //
-// All state-driven copy (default hotkey hint, "Preparing offline
-// engine…", red errors) lives in ONE <output aria-live="polite">
+// All state-driven copy (default hotkey hint, red errors) lives in ONE
+// <output aria-live="polite">
 // element under the button. Nothing else renders above the button as a
 // separate status line (only the recording timer while recording).
 
@@ -321,35 +321,23 @@ describe("Home renders the single dynamic status line below the mic button", () 
 		expect(screen.queryByText("ERROR")).toBeNull();
 	});
 
-	it("renders 'Preparing offline engine…' in the status line after an attempted dictation with the pack not ready", async () => {
+	it("keeps the default hint in the status line after an attempted dictation with the pack not ready (pack progress is a toast)", async () => {
 		const { useAppStore } = await import("@/stores/appStore");
 		useAppStore.setState({ recordingState: "idle", lastError: null });
 
 		await renderHome();
 
-		// Fire offline_pack_missing so the pack is not ready, then
-		// simulate a dictation attempt (the same path handleToggle
-		// uses) so the preparing state activates.
-		const missingCall = mockPythonEvent.mock.calls.find(
-			(c) => c[0] === "offline_pack_missing",
-		);
-		expect(missingCall).toBeDefined();
-		await act(async () => {
-			missingCall?.[1]?.({});
-		});
-
+		// Simulate a dictation attempt (the same path handleToggle
+		// uses). Pack progress surfaces via the App-level toast, so
+		// the status line keeps the default hotkey hint even though
+		// the pack was never reported ready.
 		const micButton = screen.getByRole("button", {
 			name: /start dictation/i,
 		});
 		fireEvent.click(micButton);
 
-		// The single status line now shows the preparing message instead
-		// of the default hotkey hint. en.json value for
-		// pack.preparingOfflineEngine.
-		const line = await screen.findByText("Preparing offline engine…");
-		const output = line.closest("output");
-		expect(output?.className).toContain("text-muted-foreground");
-		expect(screen.queryByText("or click to dictate")).toBeNull();
+		expect(await screen.findByText("or click to dictate")).toBeInTheDocument();
+		expect(screen.queryByText("Preparing offline engine…")).toBeNull();
 	});
 });
 

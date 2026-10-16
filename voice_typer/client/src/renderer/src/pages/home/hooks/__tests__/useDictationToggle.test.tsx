@@ -41,10 +41,9 @@ beforeEach(() => {
 });
 
 describe("useDictationToggle", () => {
-	it("starts idle with no attempt flag", () => {
+	it("starts idle", () => {
 		const { result } = renderToggle(makeConfig());
 		expect(result.current.toggling).toBe(false);
-		expect(result.current.hasAttemptedDictation).toBe(false);
 	});
 
 	it("opens the consent gate and skips the IPC when consent is off", async () => {
@@ -64,8 +63,6 @@ describe("useDictationToggle", () => {
 		);
 		expect(mockCall).not.toHaveBeenCalled();
 		expect(result.current.toggling).toBe(false);
-		// The attempt flag is set BEFORE the gate (banner contract).
-		expect(result.current.hasAttemptedDictation).toBe(true);
 	});
 
 	it("retry from the gate's onAllow starts dictation", async () => {
@@ -95,7 +92,6 @@ describe("useDictationToggle", () => {
 		await waitFor(() => {
 			expect(result.current.toggling).toBe(false);
 		});
-		expect(result.current.hasAttemptedDictation).toBe(true);
 	});
 
 	it("skips the gate when the config snapshot has not loaded yet", async () => {

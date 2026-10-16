@@ -3,16 +3,20 @@
 // The runtime-pack updater runs silently in the background
 // (`check_offline_pack_update` on launch + on reconnect); the user
 // otherwise never learns a voice-pack update is downloading. This
-// hook surfaces the two states that deserve attention as ONE sticky
-// toast (fixed sonner id, replaced in place, never auto-dismissed):
-//   - downloading / verifying: info toast with live percent, Details
-//     action jumps to the About page (pack status + update outcome).
+// hook is the ONLY transient pack surface (the Home hint line and the
+// Microphone preparing banner were removed): it surfaces every
+// non-ready state as ONE sticky toast (fixed sonner id, replaced in
+// place, never auto-dismissed):
+//   - downloading / verifying / verified / worker-starting / missing:
+//     info toast (live percent while downloading), Details action
+//     jumps to the About page (pack status + update outcome).
 //   - outdated (stale pack refused at launch): warning toast, same
 //     Details action; a fresh download replaces it when it starts.
 // Terminal states clear the sticky toast and show a normal toast:
-// ready → success, failed / corrupt → error. The close button always
-// dismisses (sonner global); nothing re-fires until the next download
-// or outdated event.
+// ready → success, failed / corrupt / worker-crashed → error,
+// worker-unloaded (benign RAM unload) → plain info. The close button
+// always dismisses (sonner global); nothing re-fires until the next
+// pack event.
 
 import { usePythonEvent } from "@/hooks/usePython";
 import type { TranslateFn } from "@/i18n/translate-types";
@@ -112,6 +116,41 @@ export function usePackUpdateToast(
 			persistent: true,
 			action: detailsAction,
 		});
+		return undefined;
+	});
+
+	const showPreparing = (): void => {
+		showSnack(t("pack.updateTitle"), "info", {
+			id: PACK_UPDATE_TOAST_ID,
+			description: t("pack.preparingOfflineEngine"),
+			persistent: true,
+			action: detailsAction,
+		});
+	};
+
+	usePythonEvent("offline_pack_missing", (): (() => void) | undefined => {
+		showPreparing();
+		return undefined;
+	});
+
+	usePythonEvent("offline_pack_verified", (): (() => void) | undefined => {
+		showPreparing();
+		return undefined;
+	});
+
+	usePythonEvent("worker_started", (): (() => void) | undefined => {
+		showPreparing();
+		return undefined;
+	});
+
+	usePythonEvent("worker_crashed", (): (() => void) | undefined => {
+		fail(t("pack.packStateWorkerCrashed"));
+		return undefined;
+	});
+
+	usePythonEvent("worker_unloaded", (): (() => void) | undefined => {
+		clearSnack(PACK_UPDATE_TOAST_ID);
+		showSnack(t("pack.packStateWorkerUnloaded"), "info");
 		return undefined;
 	});
 }
