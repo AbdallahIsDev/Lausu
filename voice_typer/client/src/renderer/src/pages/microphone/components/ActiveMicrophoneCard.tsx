@@ -24,6 +24,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { memo } from "react";
+import { RangeSlider } from "@/components/common/RangeSlider";
 import { LevelBar } from "@/components/feedback/LevelBar";
 import { LiveQualityFeedback } from "@/components/feedback/LiveQualityFeedback";
 import { TestReviewPanel } from "@/components/microphone/TestReviewPanel";
@@ -32,10 +33,20 @@ import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import type { AudioPreset } from "@/lib/utils/audioPresets";
 import type { CustomMicPreset, LausuConfig } from "@/types/config";
-import type { LiveListenError } from "../hooks/useLiveListen";
+import {
+	LIVE_LISTEN_DEFAULT_LEVEL,
+	type LiveListenError,
+} from "../hooks/useLiveListen";
 import { MICROPHONE_TEST_DURATION_SEC } from "../hooks/useMicrophoneTestSession";
 import type { TestResultQuality } from "../lib/types";
 import { PresetAccordionSelector } from "./PresetAccordionSelector";
+
+/** Slider position for a persisted 0–1 preview level, clamped to 0–100 so a
+ *  hand-edited config.json can never render an out-of-range thumb. */
+function previewPercent(level: number | undefined): number {
+	const pct = Math.round((level ?? LIVE_LISTEN_DEFAULT_LEVEL) * 100);
+	return Math.min(100, Math.max(0, pct));
+}
 
 export interface ActiveMicrophoneCardProps {
 	activeMicName: string;
@@ -225,28 +236,26 @@ export function ActiveMicrophoneCard({
 				)}
 
 				{/* Live monitor ("hear yourself"): pure frontend
-				passthrough, no recording. Disabled while a test,
-				playback, or start is in flight (one mic stream at a
-				time). */}
-				{!testRunning && (
-					<Button
-						variant="outline"
-						size="sm"
-						className="gap-2"
-						disabled={liveListenDisabled || liveStarting}
-						onClick={onToggleLiveListen}
-						aria-pressed={liveListening}
-					>
-						<HugeiconsIcon
-							icon={liveListening ? StopIcon : VolumeHighIcon}
-							strokeWidth={1.625}
-							className="h-4 w-4"
-						/>
-						{liveListening
-							? t("microphoneTest.stopListening")
-							: t("microphoneTest.liveListen")}
-					</Button>
-				)}
+				passthrough, no recording. Always mounted (C-CACHE-6);
+				disabled while a test, playback, or start is in flight
+				(one mic stream at a time). */}
+				<Button
+					variant="outline"
+					size="sm"
+					className="gap-2"
+					disabled={liveListenDisabled || liveStarting}
+					onClick={onToggleLiveListen}
+					aria-pressed={liveListening}
+				>
+					<HugeiconsIcon
+						icon={liveListening ? StopIcon : VolumeHighIcon}
+						strokeWidth={1.625}
+						className="h-4 w-4"
+					/>
+					{liveListening
+						? t("microphoneTest.stopListening")
+						: t("microphoneTest.liveListen")}
+				</Button>
 
 				{/* Test readout (recording dot + countdown), trailing edge of
                                     this row. Renders nothing while no test runs, so the row
@@ -277,6 +286,34 @@ export function ActiveMicrophoneCard({
 					)}
 				</p>
 			)}
+
+			{/* Preview volume + S0 guidance. Both render unconditionally: a
+			    control that appeared only while listening would push the
+			    buttons above it (C-UI-5). The slider owns the persisted
+			    `live_listen_level` (committed on release); the preview gain is
+			    additionally capped at `LIVE_LISTEN_MAX`, so a hand-edited
+			    config.json cannot exceed the ceiling either. */}
+			<div className="flex flex-col gap-2">
+				<div className="flex items-center gap-3 min-w-0">
+					<span className="text-xs text-muted-foreground">
+						{t("microphoneTest.previewVolume")}
+					</span>
+					<RangeSlider
+						className="ms-auto"
+						value={previewPercent(config?.live_listen_level)}
+						min={0}
+						max={100}
+						step={5}
+						deferApply={true}
+						onChange={(v) => onConfigChange({ live_listen_level: v / 100 })}
+						ariaLabel={t("microphoneTest.previewVolume")}
+						suffix="%"
+					/>
+				</div>
+				<p className="text-xs text-muted-foreground">
+					{t("microphoneTest.liveListenGuideNote")}
+				</p>
+			</div>
 
 			{/* : Test Review Panel, memoised. Re-renders only when
                             the post-test data (duration, quality, audio, playback
