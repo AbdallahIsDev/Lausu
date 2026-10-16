@@ -31,6 +31,7 @@ def _reset_level_monitor_state():
     lm._level_ring_buffer.clear()
     lm._consecutive_zero_chunks = 0
     lm._device_lost_emitted = False
+    lm._stream_recovery_token = None
     # Stop any worker threads from a previous test.
     lm._stop_level_worker()
     lm._stop_mic_level_worker()
@@ -136,30 +137,136 @@ class TestFinishedCallbackWiring:
 
 
 class TestDeviceLostEventEmitted:
-    """TY-4: a ``device_lost`` IPC event is published on disconnect."""
+    """Unexpected death retries the open first; ``device_lost`` only when truly gone."""
 
-    def test_finished_callback_emits_device_lost(self, monkeypatch):
-        """The finished_callback path publishes a ``device_lost`` event"""
+    def test_finished_callback_recovers_when_reopen_succeeds(self, monkeypatch):
+        """The user's OS-effects-toggle scenario: the stream dies but the
+        device is still there, so the retry reopens it and NO banner fires."""
         import voice_typer.server.level_monitor as lm
+        import voice_typer.server.level_monitor.monitoring as mon
 
+        monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
         holder = _wire_stream_with_callback_capture(monkeypatch)
         captured = _patch_event_bus_publish(monkeypatch)
         lm.start_monitoring(mic_id=None)
 
-        # Fire the finished_callback (simulates PortAudio device-lost).
+        # Fire the finished_callback (simulates the OS killing the stream).
         holder["finished_callback"]()
 
+        # Wait for the retry to reopen the stream.
+        deadline = time.perf_counter() + 5.0
+        while time.perf_counter() < deadline:
+            if lm._monitor_active:
+                break
+            time.sleep(0.01)
+
+        assert lm._monitor_active is True, "retry must reopen a still-present device"
         device_lost_events = [e for e in captured if e.get("type") == "device_lost"]
-        assert len(device_lost_events) == 1, (
-            f"TY-4: finished_callback must publish exactly one device_lost "
-            f"event; got {len(device_lost_events)} (all events: {captured})"
-        )
-        evt = device_lost_events[0]
-        assert evt["data"]["source"] == "stream_finished", (
-            f"TY-4: source must be 'stream_finished' for the callback path; got {evt['data']['source']!r}"
+        assert len(device_lost_events) == 0, (
+            f"recovered stream must NOT emit device_lost; got {device_lost_events}"
         )
 
         lm.stop_monitoring()
+
+    def test_finished_callback_emits_device_lost_when_reopen_fails(self, monkeypatch):
+        """Exhausted retries (device really gone/unopenable) emit exactly one."""
+        import voice_typer.server.level_monitor as lm
+        import voice_typer.server.level_monitor.monitoring as mon
+
+        monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
+        holder = _wire_stream_with_callback_capture(monkeypatch)
+        captured = _patch_event_bus_publish(monkeypatch)
+        lm.start_monitoring(mic_id=None)
+
+        attempts: list[str | None] = []
+
+        def _fail_open(mic_id=None):
+            attempts.append(mic_id)
+            return {"success": False, "message": "no device"}
+
+        monkeypatch.setattr(mon, "start_monitoring", _fail_open)
+        holder["finished_callback"]()
+
+        deadline = time.perf_counter() + 5.0
+        while time.perf_counter() < deadline:
+            if any(e.get("type") == "device_lost" for e in captured):
+                break
+            time.sleep(0.01)
+
+        device_lost_events = [e for e in captured if e.get("type") == "device_lost"]
+        assert len(device_lost_events) == 1, (
+            f"exhausted retry must publish exactly one device_lost event; "
+            f"got {len(device_lost_events)} (all events: {captured})"
+        )
+        evt = device_lost_events[0]
+        assert evt["data"]["source"] == "stream_finished", (
+            f"source must be 'stream_finished' for the callback path; got {evt['data']['source']!r}"
+        )
+        assert len(attempts) == mon._STREAM_REOPEN_ATTEMPTS, (
+            f"must try the open {mon._STREAM_REOPEN_ATTEMPTS}x before giving up; tried {len(attempts)}x"
+        )
+        assert lm._monitor_active is False
+
+        lm.stop_monitoring()
+
+    def test_finished_callback_emits_immediately_when_device_gone(self, monkeypatch):
+        """A provably-absent device skips the retry loop (fast banner)."""
+        import voice_typer.server.level_monitor as lm
+        import voice_typer.server.level_monitor.monitoring as mon
+
+        monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
+        monkeypatch.setattr(mon, "_monitor_device_present", lambda mic_id: False)
+        opened: list[str | None] = []
+        monkeypatch.setattr(
+            mon, "start_monitoring", lambda mic_id=None: opened.append(mic_id) or {"success": True}
+        )
+        holder = _wire_stream_with_callback_capture(monkeypatch)
+        captured = _patch_event_bus_publish(monkeypatch)
+        lm.start_monitoring(mic_id=None)
+
+        holder["finished_callback"]()
+
+        deadline = time.perf_counter() + 5.0
+        while time.perf_counter() < deadline:
+            if any(e.get("type") == "device_lost" for e in captured):
+                break
+            time.sleep(0.01)
+
+        device_lost_events = [e for e in captured if e.get("type") == "device_lost"]
+        assert len(device_lost_events) == 1
+        assert opened == [], "gone device must not attempt any reopen"
+
+        lm.stop_monitoring()
+
+    def test_retry_aborts_when_user_stops_meanwhile(self, monkeypatch):
+        """A user stop (nav away) during the retry window kills the retry silently."""
+        import voice_typer.server.level_monitor as lm
+        import voice_typer.server.level_monitor.monitoring as mon
+
+        monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.3)
+        opened: list[str | None] = []
+        real_open = mon.start_monitoring
+
+        def _counting_open(mic_id=None):
+            opened.append(mic_id)
+            return real_open(mic_id=mic_id)
+
+        monkeypatch.setattr(mon, "start_monitoring", _counting_open)
+        holder = _wire_stream_with_callback_capture(monkeypatch)
+        captured = _patch_event_bus_publish(monkeypatch)
+        lm.start_monitoring(mic_id=None)
+        n_opens_at_death = len(opened)
+
+        holder["finished_callback"]()
+        # User navigates away before the first retry fires.
+        lm.stop_monitoring()
+
+        time.sleep(0.8)
+        device_lost_events = [e for e in captured if e.get("type") == "device_lost"]
+        assert len(device_lost_events) == 0, (
+            f"user-stopped retry must stay silent; got {device_lost_events}"
+        )
+        assert len(opened) == n_opens_at_death, "no reopen attempt may run after a user stop"
 
     def test_zero_chunk_detector_emits_device_lost(self, monkeypatch):
         """The worker's zero-fill detector publishes a ``device_lost``"""
@@ -230,19 +337,33 @@ class TestIdempotency:
     def test_finished_callback_idempotent(self, monkeypatch):
         """Calling the finished_callback twice publishes only one"""
         import voice_typer.server.level_monitor as lm
+        import voice_typer.server.level_monitor.monitoring as mon
 
+        monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
         holder = _wire_stream_with_callback_capture(monkeypatch)
         captured = _patch_event_bus_publish(monkeypatch)
         lm.start_monitoring(mic_id=None)
 
+        def _fail_open(mic_id=None):
+            return {"success": False, "message": "no device"}
+
+        monkeypatch.setattr(mon, "start_monitoring", _fail_open)
         # Fire the finished_callback twice (PortAudio shouldn't do this,
         holder["finished_callback"]()
         holder["finished_callback"]()
 
+        deadline = time.perf_counter() + 5.0
+        while time.perf_counter() < deadline:
+            if any(e.get("type") == "device_lost" for e in captured):
+                break
+            time.sleep(0.01)
+        # Let any second retry finish so a double-emit would show.
+        time.sleep(0.2)
+
         device_lost_events = [e for e in captured if e.get("type") == "device_lost"]
         assert len(device_lost_events) == 1, (
-            f"TY-4: finished_callback must be idempotent, _device_lost_emitted "
-            f"guards re-entry; got {len(device_lost_events)} events"
+            f"finished_callback must be idempotent, second fire is ignored "
+            f"while inactive; got {len(device_lost_events)} events"
         )
 
         lm.stop_monitoring()
@@ -286,13 +407,28 @@ class TestIdempotency:
     def test_device_lost_flag_cleared_on_restart(self, monkeypatch):
         """``_device_lost_emitted`` flag is cleared so a fresh disconnect"""
         import voice_typer.server.level_monitor as lm
+        import voice_typer.server.level_monitor.monitoring as mon
 
+        monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
+
+        def _fail_open(mic_id=None):
+            return {"success": False, "message": "no device"}
+
+        monkeypatch.setattr(mon, "start_monitoring", _fail_open)
         holder = _wire_stream_with_callback_capture(monkeypatch)
         captured = _patch_event_bus_publish(monkeypatch)
         lm.start_monitoring(mic_id=None)
 
-        # First disconnect.
+        def _wait_for_count(n: int) -> None:
+            deadline = time.perf_counter() + 5.0
+            while time.perf_counter() < deadline:
+                if sum(1 for e in captured if e.get("type") == "device_lost") >= n:
+                    return
+                time.sleep(0.01)
+
+        # First disconnect (reopen fails → emit).
         holder["finished_callback"]()
+        _wait_for_count(1)
         first_count = sum(1 for e in captured if e.get("type") == "device_lost")
         assert first_count == 1, "fixture: first disconnect should emit once"
 
@@ -302,15 +438,16 @@ class TestIdempotency:
         lm.start_monitoring(mic_id=None)
 
         assert lm._device_lost_emitted is False, (
-            "TY-4: start_monitoring must clear _device_lost_emitted so a "
+            "start_monitoring must clear _device_lost_emitted so a "
             "fresh disconnect can emit a new device_lost event"
         )
 
         # Second disconnect should emit a new event.
         holder2["finished_callback"]()
+        _wait_for_count(2)
         second_count = sum(1 for e in captured if e.get("type") == "device_lost")
         assert second_count == 2, (
-            f"TY-4: after restart, a new disconnect must emit a new "
+            f"after restart, a new disconnect must emit a new "
             f"device_lost event; expected 2 total, got {second_count}"
         )
 

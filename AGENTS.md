@@ -1,6 +1,6 @@
 ## How to talk to the user (communication style)
 
-Talk like an excited teammate, not a machine. Be warm, expressive, and alive: casual language, genuine enthusiasm, light humor where it fits. When a breakthrough lands — root cause found, elusive bug reproduced, big green suite — say so like you mean it ("Found the smoking gun. Hell yeah.", "Boom. Got it."). Never robotic, never a dry status dump. Keep replies tight and plain-spoken (brevity still counts), but let personality through. Code blocks, commands, file paths, and error quotes stay exact — precision there, party everywhere else.
+Talk like an excited teammate, not a machine. Be warm, expressive, human and alive: casual language, genuine enthusiasm, light humor where it fits. When a breakthrough lands — root cause found, elusive bug reproduced, big green suite — say so like you mean it ("Found the smoking gun", "Boom. Got it"). Never robotic, never a dry status dump. Keep replies tight and plain-spoken (brevity still counts), but let personality through. Code blocks, commands, file paths, and error quotes stay exact — precision there, party everywhere else. always use human like words like "WTF", "Damn", "OMG", "this is fucking insaine", "Hell yeah", etc...
 
 ## AGENTS.md read confirmation (breadline first)
 
@@ -186,6 +186,13 @@ Applies to: All agents, all modes, all sub-agents.
 C-UI-4
 Rule: Do NOT space flex/grid children with margins or `space-y/x-*`. Inter-child spacing is parent `gap-*` only. Margins allowed only: outer-edge spacing with no parent gap, inline-text `mr/ml`, documented alignment nudges, non-flex parents.
 Rationale: Margins leak/collapse/fragile on reorder; `gap` is the self-contained RTL-safe contract (migrated app-wide 2026-09-03).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-UI-5
+Rule: Do NOT render a conditional status readout where appearing/disappearing displaces a persistent control. A readout that exists only while an action runs (countdown, pulsing dot, "recording" word) goes into space that is ALREADY reserved: move the always-on readout to the row above and put the transient one in the vacated trailing slot, so starting/stopping never moves a button. Pin the order with `compareDocumentPosition`, not a class-only assertion.
+Rationale: The mic test card's "Recording… 00:0N / 00:10" line was inserted between the level bar and the buttons, so Start Test pushed the buttons down (user report 2026-10-16).
 Applies to: All agents, all modes, all sub-agents.
 ```
 
@@ -566,6 +573,13 @@ C-DESIGN-4
 Rule: Type scale is Tailwind's steps plus exactly one app addition: `text-xs-plus` (13px, `--text-xs-plus` theme keys — real utility, never `text-[0.8125rem]`/`13px` literals). Further steps need a `--text-*` key + `design-system.html` + `DESIGN-SYSTEM.md` in the same change (C-DESIGN-1). Only sanctioned literals: `StatsShareImage.tsx` (px-based export, token-free by design). Guarded by `index-css-type-scale.test.ts`.
 Rationale: 13px existed unnamed in five places and drifted per file (user decision 2026-10-10).
 Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-DESIGN-5
+Rule: Do NOT shape a corner with a bare `border-radius` on a surface that paints its own radius (a vendored component's panel, a third-party widget like sonner's toast `<li>`, any inline `border-radius`): the squircle corner-shape is applied BY CLASS (`:where(.rounded-lg)` inside `index.css`'s `@supports (corner-shape: squircle)`), so such a surface must ALSO carry `rounded-lg`. Never compensate by adding an attribute/element selector to that gate.
+Rationale: The vendored picker panel and the sonner toast both painted `--radius-lg` but missed `corner-shape` — a plain superellipse(1) corner at 26px while every card renders superellipse(2).
+Applies to: All agents, all modes, all sub-agents. Guarded by `date-range-picker-card-look.test.ts` and `sonner-toast-squircle.test.tsx`.
 ```
 
 ## Category: Models Page UI
@@ -1003,6 +1017,13 @@ C-MIC-21
 Rule: Chunked base64 reassembly must slice on 3-byte-aligned boundaries (interior fragments carry no `=` padding). No unaligned interior slices (raw 256 KiB % 3 == 1), no oversized inline audio payloads, and multi-buffer byte logs name each buffer (raw vs filtered, never bare `N+N`).
 Rationale: Mid-stream padding silently corrupted every multi-chunk playback; ambiguous logs read as duplication.
 Applies to: All agents, all modes.
+```
+
+```
+C-MIC-22
+Rule: Do NOT surface device_lost for a transient mic-stream death without retrying the open first. Unexpected PortAudio stream death retries the open (bounded attempts, presence-checked, abortable by user stop); only a provably-gone device or exhausted retries emits device_lost.
+Rationale: OS-side mic reconfigures (format/effects toggles) kill the stream with the device still present; instant banners stranded users in "Monitoring off" until they manually restarted.
+Applies to: All agents, all modes, all sub-agents.
 ```
 
 ---
