@@ -13,9 +13,9 @@
 //   - `./home/components/RecordingStatusPill.tsx`    , status pill
 // Status is kept minimal: the coloured status pill + a live MM:SS
 // timer appear above the mic button, and a single dynamic line below
-// it swaps between the default hotkey hint, the "Preparing offline
-// engine…" message, and red error text (e.g. "No model selected")
-// based on the current state.
+// it swaps between the default hotkey hint and red error text
+// (e.g. "No model selected") based on the current state. Pack
+// progress never renders here, it is a toast (usePackUpdateToast).
 // The `export default function Home` signature is unchanged so App.tsx
 // routing and existing tests (Home.test.tsx, pages-improvements.test.tsx
 // changes.
@@ -41,7 +41,7 @@ import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 import { useLastUpdated } from "@/hooks/useLastUpdated";
 import { useLatestRef } from "@/hooks/useLatestRef";
 import { useNavigation } from "@/hooks/useNavigation";
-import { useOfflinePackDownload } from "@/hooks/useOfflinePackDownload";
+
 import { usePython, usePythonEvent } from "@/hooks/usePython";
 import {
 	canShareStats,
@@ -123,10 +123,7 @@ export default function Home() {
 	// wiring sits after the config state above.
 	const downloadPct = useDownloadProgressEvent(recordingState);
 	const forceCancel = useForceCancel(call);
-	const { handleToggle, toggling, hasAttemptedDictation } = useDictationToggle(
-		call,
-		cfg,
-	);
+	const { handleToggle, toggling } = useDictationToggle(call, cfg);
 	const { agoLabel, markUpdated } = useLastUpdated();
 	// Ref mirror of `markUpdated` (declared above via useLastUpdated) so
 	// the mount-load effect keeps `[]` deps, see the callRef comment.
@@ -136,18 +133,12 @@ export default function Home() {
 	}, [markUpdated]);
 	const [refreshing, setRefreshing] = useState(false);
 
-	// Runtime-pack readiness, drives the "Preparing offline engine…"
-	// banner. Local whisper / Parakeet transcription degrades silently
-	// to "silent download starts, 'Preparing…' line, then works" when
-	// the pack isn't ready (§4.9). Cloud transcription (Groq/OpenAI/
-	// Deepgram) never needs the pack, so we suppress the banner when
-	// the active ASR backend is a cloud one (§4.9: "works, cloud
-	// never needs the pack").
-	const {
-		status: packStatus,
-		progress: packProgress,
-		isReady: packReady,
-	} = useOfflinePackDownload();
+	// Pack progress is NOT rendered here: local whisper / Parakeet
+	// transcription degrades silently to "silent download starts,
+	// toast, then works" when the pack isn't ready (§4.9), surfaced
+	// by the App-level usePackUpdateToast. Cloud transcription
+	// (Groq/OpenAI/Deepgram) never needs the pack (§4.9: "works,
+	// cloud never needs the pack").
 	const {
 		imageRef,
 		downloadImage,
@@ -471,21 +462,19 @@ export default function Home() {
 	const micDisabledReason = micDisabled && !toggling ? inlineStatus : undefined;
 
 	// Single dynamic status line under the mic button, ONE element that
-	// swaps its content (and color) based on the current state, instead
-	// of separate hotkey-hint / "Preparing offline engine…" / inline
-	// status lines (or a status pill above the button):
+	// swaps its content (and color) based on the current state:
 	//   1. No model selected (neither a local model nor a cloud provider
 	//      chosen as the backend) → red "No model selected…" error.
 	//   2. Recording error with a message → red error text.
 	//   3. Transcribing / loading model → the inline status hint.
-	//   4. Offline engine still preparing (pack not ready AND the user
-	//      attempted dictation) → "Preparing offline engine…".
-	//   5. Otherwise → "Press <hotkey> or click to dictate".
+	//   4. Otherwise → "Press <hotkey> or click to dictate".
+	// Pack progress is deliberately NOT a branch here, it is a toast
+	// (usePackUpdateToast), so a background download never pushes
+	// this line around.
 	// The check is `isNoModelSelected`, NOT `cfg.model_size === ""`: an
 	// active CLOUD model leaves `model_size` untouched, so the raw check
 	// told cloud users their model was missing while dictation worked.
 	const noModelSelected = isNoModelSelected(cfg);
-	const preparingOffline = !packReady && hasAttemptedDictation;
 	let hint:
 		| { variant: "error"; text: string }
 		| { variant: "status"; text: string }
@@ -496,17 +485,6 @@ export default function Home() {
 		hint = { variant: "error", text: lastError };
 	} else if (inlineStatus) {
 		hint = { variant: "status", text: inlineStatus };
-	} else if (preparingOffline) {
-		const showPct =
-			packStatus === "downloading" && typeof packProgress === "number";
-		hint = {
-			variant: "status",
-			text: showPct
-				? t("pack.downloadingOfflineEngine", {
-						percent: String(packProgress),
-					})
-				: t("pack.preparingOfflineEngine"),
-		};
 	}
 
 	// Status pill, computed AFTER the dynamic line so the pill always

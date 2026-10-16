@@ -50,6 +50,11 @@ describe("usePackUpdateToast", () => {
 			"offline_pack_download_failed",
 			"offline_pack_corrupt",
 			"offline_pack_outdated",
+			"offline_pack_missing",
+			"offline_pack_verified",
+			"worker_started",
+			"worker_crashed",
+			"worker_unloaded",
 		]) {
 			expect(registered.has(type), `missing handler for ${type}`).toBe(true);
 		}
@@ -103,6 +108,64 @@ describe("usePackUpdateToast", () => {
 
 		expect(toast.dismiss).toHaveBeenCalledWith(PACK_UPDATE_TOAST_ID);
 		expect(toast.error).toHaveBeenCalledTimes(1);
+	});
+
+	it("shows the sticky preparing toast with Details when the pack is missing", () => {
+		renderHook(() => usePackUpdateToast(mockT, onViewDetails));
+		fire("offline_pack_missing");
+
+		expect(toast.info).toHaveBeenCalledTimes(1);
+		const [, opts] =
+			(toast.info as ReturnType<typeof vi.fn>).mock.calls[0] ?? [];
+		expect(opts).toMatchObject({
+			id: PACK_UPDATE_TOAST_ID,
+			duration: Number.POSITIVE_INFINITY,
+		});
+		const action = (opts as { action?: { label: string; onClick: () => void } })
+			.action;
+		expect(action?.label).toBe("pack.viewDetails");
+		action?.onClick();
+		expect(onViewDetails).toHaveBeenCalledTimes(1);
+	});
+
+	it("shows the sticky preparing toast on verified and worker-started", () => {
+		renderHook(() => usePackUpdateToast(mockT, onViewDetails));
+		fire("offline_pack_verified");
+		fire("worker_started");
+
+		expect(toast.info).toHaveBeenCalledTimes(2);
+		for (const call of (toast.info as ReturnType<typeof vi.fn>).mock.calls) {
+			expect(call[1]).toMatchObject({
+				id: PACK_UPDATE_TOAST_ID,
+				duration: Number.POSITIVE_INFINITY,
+			});
+		}
+	});
+
+	it("clears the sticky toast and shows an error when the worker crashes", () => {
+		renderHook(() => usePackUpdateToast(mockT, onViewDetails));
+		fire("offline_pack_download_started");
+		fire("worker_crashed");
+
+		expect(toast.dismiss).toHaveBeenCalledWith(PACK_UPDATE_TOAST_ID);
+		expect(toast.error).toHaveBeenCalledTimes(1);
+		expect(toast.error).toHaveBeenCalledWith(
+			"pack.packStateWorkerCrashed",
+			expect.objectContaining({ duration: 8000 }),
+		);
+	});
+
+	it("clears the sticky toast and shows info when the worker unloads", () => {
+		renderHook(() => usePackUpdateToast(mockT, onViewDetails));
+		fire("offline_pack_download_started");
+		fire("worker_unloaded");
+
+		expect(toast.dismiss).toHaveBeenCalledWith(PACK_UPDATE_TOAST_ID);
+		expect(toast.info).toHaveBeenCalledTimes(2);
+		expect(toast.info).toHaveBeenLastCalledWith(
+			"pack.packStateWorkerUnloaded",
+			expect.objectContaining({ duration: 4000 }),
+		);
 	});
 
 	it("shows a sticky warning with the Details action when outdated", () => {

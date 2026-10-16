@@ -4,13 +4,6 @@
 // (attempt-flag BEFORE the consent check) is privacy-contract surface
 // and must not be reordered.
 // Owns:
-//   - `hasAttemptedDictation`, set the moment the user presses the
-//     dictation toggle. The "Preparing offline engine…" banner (gated
-//     on `!packReady && hasAttemptedDictation` in the page root) may
-//     only surface after an actual attempt. It is set BEFORE the
-//     consent gate so the banner appears even if consent is missing —
-//     the user has still pressed the mic button, which counts as an
-//     "attempted offline transcription".
 //   - `handleToggle`, the GDPR Art. 9 gate: the backend refuses to
 //     start recording without `voice_biometric_consent`, but the
 //     refusal is silent over IPC (`toggle_dictation` returns `ack` and
@@ -32,17 +25,8 @@ import type { LausuConfig } from "@/types/config";
 
 export function useDictationToggle(call: PythonCall, cfg: LausuConfig | null) {
 	const [toggling, setToggling] = useState(false);
-	const [hasAttemptedDictation, setHasAttemptedDictation] = useState(false);
 
 	const handleToggle = useCallback(async () => {
-		// Mark that the user has attempted dictation so the
-		// "Preparing offline engine…" banner (gated on
-		// `!packReady && hasAttemptedDictation`) can surface if the
-		// runtime pack isn't ready yet. Set BEFORE the consent gate
-		// so the banner appears even if consent is missing, the
-		// user has still pressed the mic button, which counts as an
-		// "attempted offline transcription".
-		setHasAttemptedDictation(true);
 		// GDPR Art. 9 gate: the backend refuses to start recording without
 		// ``voice_biometric_consent``, but the refusal is silent over
 		// IPC (``toggle_dictation`` returns ``ack`` and only the tray
@@ -75,5 +59,5 @@ export function useDictationToggle(call: PythonCall, cfg: LausuConfig | null) {
 		// useExhaustiveDependencies flags it as unnecessary).
 	}, [call, cfg]);
 
-	return { handleToggle, toggling, hasAttemptedDictation };
+	return { handleToggle, toggling };
 }
