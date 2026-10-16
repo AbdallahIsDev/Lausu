@@ -113,3 +113,42 @@ def test_transcription_note_merges():
     lc.clear_last_test()
     lc.note_test_transcription("x", True, "r")
     assert lc.get_test_status()["last_test"] is None
+
+
+def test_stop_monitoring_holds_stream_while_test_runs():
+    """Navigating away (level_monitor_stop) must NOT kill a running test."""
+    import voice_typer.server.level_monitor as lm
+
+    lm._test_mode = True
+    sentinel = object()
+    lm._monitor_active = True
+    lm._monitor_stream = sentinel
+    try:
+        result = lm.stop_monitoring()
+        held_stream = lm._monitor_stream is sentinel
+        still_monitoring = lm._monitor_active
+        test_alive = lm._test_mode
+    finally:
+        lm._test_mode = False
+        lm._monitor_active = False
+        lm._monitor_stream = None
+    assert result["success"] is True
+    assert test_alive is True
+    assert held_stream is True
+    assert still_monitoring is True
+    assert "held" in result["message"].lower()
+
+
+def test_idle_timeout_skips_while_test_runs():
+    """No-poll idle must NOT close the mic mid-recording."""
+    import voice_typer.server.level_monitor as lm
+    from voice_typer.server.level_monitor.monitoring import _idle_timeout_auto_stop
+
+    lm._test_mode = True
+    lm._monitor_active = True
+    try:
+        assert _idle_timeout_auto_stop() is False
+        assert lm._monitor_active is True
+    finally:
+        lm._test_mode = False
+        lm._monitor_active = False
