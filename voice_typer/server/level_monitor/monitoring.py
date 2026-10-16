@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import threading
 import time
 from typing import TYPE_CHECKING
 
@@ -55,16 +56,72 @@ def _make_stream_finished_guard(stream_cell: dict[str, object]):
         with _state._monitor_lock:
             current = _state._monitor_stream
             active = _state._monitor_active
+            mic_id = _state._monitor_mic_id
         if stream_cell.get("stream") is not current or not active:
             # Intentional stop / replaced by a newer stream, not a loss.
             log.debug("[LEVEL-MON] finished callback ignored (stream replaced or intentionally stopped)")
             return
         with _state._monitor_lock:
             _state._monitor_active = False
-        log.warning("[LEVEL-MON] InputStream finished - device disconnected")
-        _emit_device_lost("stream_finished")
+            # Recovery token: a later stop_monitoring / successful start
+            # clears it, which aborts the retry below. Our own failed
+            # reopen attempts never touch it, so only real user action
+            # (or a concurrent recovery) can cancel the retry.
+            token = object()
+            _state._stream_recovery_token = token
+        log.info("[LEVEL-MON] InputStream finished unexpectedly, retrying open")
+        retry = threading.Thread(
+            target=_recover_stream_reopen,
+            args=(mic_id, token),
+            daemon=True,  # RACE-008: fire-and-forget retry must never block exit
+            name="level-monitor-stream-retry",
+        )
+        retry.start()
 
     return _on_stream_finished
+
+
+# An OS-side mic reconfigure (format/effects change, transient driver
+# restart) kills the PortAudio stream while the device is still there:
+# a reopen a second later succeeds. Only a provably-gone device (or
+# exhausted retries) becomes a device_lost banner (C-MIC-16: banners
+# fire on real unavailability, never on transient blips).
+_STREAM_REOPEN_ATTEMPTS = 3
+_STREAM_REOPEN_DELAY_SEC = 1.0
+
+
+def _monitor_device_present(mic_id: str | None) -> bool:
+    """Fail-open presence check: only a provably-absent device skips the retry."""
+    if mic_id is None:
+        return True
+    try:
+        from voice_typer.server.server_platform import find_microphone_by_id
+
+        return find_microphone_by_id(str(mic_id)) is not None
+    except Exception:
+        return True
+
+
+def _recover_stream_reopen(mic_id: str | None, token: object) -> None:
+    """Reopen a dead monitor stream; emit device_lost only when truly gone."""
+    import time as _time
+
+    for attempt in range(1, _STREAM_REOPEN_ATTEMPTS + 1):
+        _time.sleep(_STREAM_REOPEN_DELAY_SEC)
+        with _state._monitor_lock:
+            if _state._stream_recovery_token is not token or _state._monitor_active:
+                return
+        if not _monitor_device_present(mic_id):
+            break
+        if start_monitoring(mic_id=mic_id).get("success"):
+            log.info("[LEVEL-MON] Stream recovered after OS-side restart (attempt %d)", attempt)
+            return
+    with _state._monitor_lock:
+        if _state._stream_recovery_token is not token or _state._monitor_active:
+            return
+        _state._stream_recovery_token = None
+    log.warning("[LEVEL-MON] InputStream finished - device disconnected")
+    _emit_device_lost("stream_finished")
 
 
 def _level_stream_finished() -> None:
@@ -215,6 +272,7 @@ def start_monitoring(mic_id: str | None = None) -> dict:
             _state._monitor_active = True
             _state._monitor_mic_id = mic_id
             _state._device_lost_emitted = False
+            _state._stream_recovery_token = None
             _state._consecutive_zero_chunks = 0
             # seed the idle-timeout poll timestamp so the worker
             _state._last_get_level_poll_ts = time.monotonic()
@@ -286,6 +344,8 @@ def stop_monitoring() -> dict:
     with _state._monitor_lock:
         if _state._test_mode:
             return {"success": True, "message": "Test running, stream held"}
+        # A user stop aborts any in-flight stream recovery.
+        _state._stream_recovery_token = None
     # Cancel any active test first.
     from .test_recording import _cancel_test_locked
     from .worker import _stop_level_worker
