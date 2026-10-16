@@ -603,6 +603,33 @@ describe("PresetAccordionSelector memoizes getPresetOptions() to a single call p
 			document.querySelector('[data-testid="audio-filter-chain"]'),
 		).toBeTruthy();
 	});
+
+	it("keeps the option rows and the Custom-filters pill on one 16px rail", () => {
+		render(
+			<PresetAccordionSelector
+				preset="custom"
+				config={minimalConfig}
+				showAdvanced={false}
+				onPresetChange={() => {}}
+				onToggleAdvanced={() => {}}
+				onConfigChange={() => {}}
+			/>,
+		);
+		fireEvent.click(screen.getByRole("button", { expanded: false }));
+
+		// Exactly one inset on the options container (C-MIC-15): px-2 here
+		// plus each row's own p-2 lands the labels on the same 16px rail as
+		// the switch row above and every filter row below. A px-4 here
+		// double-insets them to 24px, which is the drift this pins.
+		const group = screen.getByTestId("mic-preset-radio-group");
+		expect(group.className).toContain("px-2");
+		expect(group.className).not.toContain("px-4");
+
+		// The bordered disclosure pill is inset by the same 16px, instead of
+		// running flush into the card's own borders (a cramped double line).
+		const pill = screen.getByText("Custom filters").closest("button");
+		expect(pill?.parentElement?.className).toContain("px-4");
+	});
 });
 
 //PresetAccordionSelector compact rows: option descriptions are NOT
