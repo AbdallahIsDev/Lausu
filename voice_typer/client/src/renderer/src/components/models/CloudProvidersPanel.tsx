@@ -119,9 +119,6 @@ export const CloudProvidersPanel = memo(function CloudProvidersPanel({
 
 	return (
 		<div className="flex flex-col gap-4">
-			<p className="text-sm text-muted-foreground">
-				{t("models.cloudModelsDescription")}
-			</p>
 			<ModelGroupAccordion
 				type="multiple"
 				value={accordionValue}
