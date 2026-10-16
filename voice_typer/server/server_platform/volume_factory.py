@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - type-checker-only
-    from voice_typer.server.volume_backend_base import VolumeBackend
+    from voice_typer.server.volume_backend_base import MicVolumeBackend, VolumeBackend
 
 # Patch-path bridge: read ``SYSTEM`` through the owning
 from voice_typer.server.server_platform import platform_flags as _platform_flags
@@ -37,4 +37,32 @@ def get_volume_backend() -> VolumeBackend | None:
             return None
     except Exception as exc:
         log.warning("[VOLUME] Failed to create backend for %s: %s", _platform_flags.SYSTEM, exc)
+        return None
+
+
+def get_mic_volume_backend() -> MicVolumeBackend | None:
+    """Return the capture-endpoint backend for this platform.
+
+    Same shape as :func:`get_volume_backend`; ``None`` on an unsupported
+    platform. A returned backend may still report ``supports_set=False``
+    after ``initialize()`` (macOS built-in mics) — the caller must ask.
+    """
+    try:
+        if _platform_flags.SYSTEM == "win32":
+            from voice_typer.server.volume_backends import WinMicVolumeBackend
+
+            return WinMicVolumeBackend()
+        elif _platform_flags.SYSTEM == "darwin":
+            from voice_typer.server.volume_backends import MacMicVolumeBackend
+
+            return MacMicVolumeBackend()
+        elif _platform_flags.SYSTEM == "linux":
+            from voice_typer.server.volume_backends import LinuxMicVolumeBackend
+
+            return LinuxMicVolumeBackend()
+        else:
+            log.debug("[MIC-VOLUME] Unsupported platform: %s", _platform_flags.SYSTEM)
+            return None
+    except Exception as exc:
+        log.warning("[MIC-VOLUME] Failed to create backend for %s: %s", _platform_flags.SYSTEM, exc)
         return None

@@ -370,6 +370,35 @@ class VolumeDucker(SmartDuckMonitorMixin):
             self._actually_ducked = False
             return ok
 
+    def set_level(self, level: float, fade_ms: int = 150) -> bool:
+        """Move the master volume to *level* (0.0–1.0 perceptual-linear).
+
+        The user-initiated counterpart to :meth:`duck` / :meth:`restore`:
+        it does NOT save or consume duck state. Used only by the explicit
+        ``[Lower to 75%]`` offer on the Microphone page, never
+        automatically — Live monitoring must not move the speakers on its
+        own.
+
+        If a dictation duck is currently in effect, the saved pre-duck
+        state is rewritten to the new level, so the eventual
+        :meth:`restore` returns to what the user just chose instead of
+        snapping the volume back to the loud value they just rejected.
+        """
+        if not self._initialized or self._backend is None:
+            return False
+        level = max(0.0, min(1.0, level))
+        with self._lock:
+            backend = self._backend
+            if self._saved_state is not None:
+                self._saved_state = VolumeState(linear=level, muted=self._saved_state.muted)
+        try:
+            ok = backend.fade_to(level, fade_ms)
+        except Exception:
+            log.warning("[VOLUME] set_level fade failed", exc_info=True)
+            return False
+        log.info("[VOLUME] Output level set -> %.0f%%", level * 100)
+        return bool(ok)
+
     @property
     def is_ducked(self) -> bool:
         """``True`` if volume is currently ducked (logically, may be a smart-duck skip)."""

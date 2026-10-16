@@ -165,6 +165,25 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         # `cloud._defaults._PROVIDER_DEFAULTS` table, so a renderer cannot
         # point a stored key at an arbitrary host.
         "cloud_provider",
+        # Added 2026-10-16 (Microphone page "Save as preset"). List-validated
+        # by `_make_custom_presets_validator`; a preset is a bounded bag of
+        # the SAME filter fields already allowlisted individually, so it
+        # grants no new capability.
+        "custom_presets",
+        # Added 2026-10-16 (which saved preset is active). Optional slug,
+        # `None` = no preset; `_make_optional_str_validator(max_len=64)`.
+        "active_custom_preset",
+        # Added 2026-10-16 (Listen Live preview-tap volume, S1). Float
+        # clamped to [0.0, 1.0]; controls ONLY the renderer's monitor gain
+        # node — the capture gain and the level meter are untouched, so it
+        # cannot move the mic or the speakers.
+        "live_listen_level",
+        # Added 2026-10-16 (mic guard master toggle, S5). Bool-validated;
+        # gates the watcher that keeps the OS capture knob at 100%. The
+        # write it performs is always to the fixed 100% target, never to a
+        # renderer-supplied value, so the toggle cannot be used as a
+        # general device-write primitive.
+        "mic_guard_enabled",
     }
 )
 
@@ -173,12 +192,20 @@ class TestAllowlistSnapshot:
     """SEC-002 byte-for-byte parity for ``IPC_CONFIG_ALLOWLIST``."""
 
     def test_allowlist_size_unchanged(self) -> None:
-        """The allowlist must still contain exactly 135 keys."""
-        assert len(IPC_CONFIG_ALLOWLIST) == 135, (
-            f"IPC_CONFIG_ALLOWLIST size drifted: expected 135, got {len(IPC_CONFIG_ALLOWLIST)}. "
+        """The allowlist must still contain exactly 139 keys."""
+        assert len(IPC_CONFIG_ALLOWLIST) == 139, (
+            f"IPC_CONFIG_ALLOWLIST size drifted: expected 139, got {len(IPC_CONFIG_ALLOWLIST)}. "
             "SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a "
             "security-sensitive change that must be reviewed explicitly. "
-            "Latest reviewed growth: 134 → 135, `cloud_provider` (cloud ASR "
+            "Latest reviewed growth: 137 → 139, `live_listen_level` + "
+            "`mic_guard_enabled` (Listen Live preview-tap volume, float "
+            "clamped [0,1], and the mic-guard master toggle, bool; neither "
+            "can address the capture device or the speakers with a "
+            "renderer-supplied value). "
+            "Prior 135 → 137 growth (unpinned by this test until now): "
+            "`custom_presets` + `active_custom_preset` (Microphone page "
+            "saved presets; list- and slug-validated). "
+            "Prior 134 → 135 growth: `cloud_provider` (cloud ASR "
             "became a first-class `asr_backend` value, so the renderer needs "
             "to say WHICH provider is active; enum-validated, not a secret, "
             "and it cannot redirect the endpoint). "

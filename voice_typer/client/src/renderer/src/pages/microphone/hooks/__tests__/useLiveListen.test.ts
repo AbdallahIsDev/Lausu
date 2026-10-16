@@ -1,7 +1,12 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useLiveListen } from "../useLiveListen";
+import {
+	LIVE_LISTEN_DEFAULT_LEVEL,
+	LIVE_LISTEN_MAX,
+	previewGain,
+	useLiveListen,
+} from "../useLiveListen";
 
 // ── Mocks ─────────────────────────────────────────────────────────
 // Minimal AudioContext double: only the surface useLiveListen touches.
@@ -22,6 +27,15 @@ function makeMocks() {
 		connect: vi.fn(),
 		disconnect: vi.fn(),
 	};
+	const limiterNode = {
+		threshold: { value: 0 },
+		knee: { value: 0 },
+		ratio: { value: 0 },
+		attack: { value: 0 },
+		release: { value: 0 },
+		connect: vi.fn(),
+		disconnect: vi.fn(),
+	};
 	const sourceNode = { connect: vi.fn(), disconnect: vi.fn() };
 	const ctx = {
 		state: "running",
@@ -29,6 +43,7 @@ function makeMocks() {
 		close: vi.fn().mockResolvedValue(undefined),
 		createMediaStreamSource: vi.fn().mockReturnValue(sourceNode),
 		createGain: vi.fn().mockReturnValue(gainNode),
+		createDynamicsCompressor: vi.fn().mockReturnValue(limiterNode),
 		destination: {},
 	};
 	const getUserMedia = vi.fn().mockResolvedValue(stream);
@@ -37,6 +52,7 @@ function makeMocks() {
 		tracks,
 		stream,
 		gainNode,
+		limiterNode,
 		sourceNode,
 		ctx,
 		getUserMedia,
@@ -67,6 +83,7 @@ function installMocks(m: Mocks) {
 		close = m.ctx.close;
 		createMediaStreamSource = m.ctx.createMediaStreamSource;
 		createGain = m.ctx.createGain;
+		createDynamicsCompressor = m.ctx.createDynamicsCompressor;
 	}
 	Object.defineProperty(window, "AudioContext", {
 		value: MockAudioContext,
@@ -97,7 +114,7 @@ describe("useLiveListen", () => {
 		});
 	});
 
-	it("starts the passthrough graph on toggle (source -> gain 0.8 -> destination)", async () => {
+	it("starts the capped passthrough graph on toggle (source -> gain -> limiter -> destination)", async () => {
 		const { result } = renderHook(() =>
 			useLiveListen({ activeMicName: null, isSystemDefault: true }),
 		);
@@ -110,10 +127,82 @@ describe("useLiveListen", () => {
 
 		expect(result.current.listening).toBe(true);
 		expect(result.current.error).toBeNull();
-		expect(mocks.getUserMedia).toHaveBeenCalledWith({ audio: true });
-		expect(mocks.gainNode.gain.value).toBe(0.8);
+		// S2: the browser's own canceller is asked for; NS and AGC stay OFF
+		// so they cannot fight the user's filter tuning or move gain.
+		expect(mocks.getUserMedia).toHaveBeenCalledWith({
+			audio: {
+				echoCancellation: true,
+				noiseSuppression: false,
+				autoGainControl: false,
+			},
+		});
+		// S1: the preview is the user level times the hard ceiling, well
+		// below the old fixed 0.8 that rang on laptop speakers.
+		expect(mocks.gainNode.gain.value).toBe(
+			previewGain(LIVE_LISTEN_DEFAULT_LEVEL),
+		);
+		expect(mocks.gainNode.gain.value).toBeLessThan(0.8);
 		expect(mocks.sourceNode.connect).toHaveBeenCalledWith(mocks.gainNode);
-		expect(mocks.gainNode.connect).toHaveBeenCalledWith(mocks.ctx.destination);
+		expect(mocks.gainNode.connect).toHaveBeenCalledWith(mocks.limiterNode);
+		expect(mocks.limiterNode.connect).toHaveBeenCalledWith(
+			mocks.ctx.destination,
+		);
+		// Ceiling node configured as a fast limiter, not an effect.
+		expect(mocks.limiterNode.ratio.value).toBeGreaterThanOrEqual(20);
+		expect(mocks.limiterNode.attack.value).toBeLessThanOrEqual(0.005);
+	});
+
+	it("never lets a level exceed the hard ceiling", async () => {
+		const { result } = renderHook(() =>
+			useLiveListen({
+				activeMicName: null,
+				isSystemDefault: true,
+				level: 1,
+			}),
+		);
+
+		act(() => {
+			result.current.toggle();
+		});
+		await flush();
+
+		expect(mocks.gainNode.gain.value).toBe(LIVE_LISTEN_MAX);
+	});
+
+	it("applies the configured preview level", async () => {
+		const { result } = renderHook(() =>
+			useLiveListen({
+				activeMicName: null,
+				isSystemDefault: true,
+				level: 0.2,
+			}),
+		);
+
+		act(() => {
+			result.current.toggle();
+		});
+		await flush();
+
+		expect(mocks.gainNode.gain.value).toBeCloseTo(0.2 * LIVE_LISTEN_MAX);
+	});
+
+	it("follows a level change while listening (config arrives late)", async () => {
+		const { result, rerender } = renderHook(
+			({ level }: { level: number }) =>
+				useLiveListen({ activeMicName: null, isSystemDefault: true, level }),
+			{ initialProps: { level: LIVE_LISTEN_DEFAULT_LEVEL } },
+		);
+
+		act(() => {
+			result.current.toggle();
+		});
+		await flush();
+		expect(mocks.gainNode.gain.value).toBe(
+			previewGain(LIVE_LISTEN_DEFAULT_LEVEL),
+		);
+
+		rerender({ level: 1 });
+		expect(mocks.gainNode.gain.value).toBe(LIVE_LISTEN_MAX);
 	});
 
 	it("stops everything on second toggle (tracks, nodes, context)", async () => {
@@ -133,6 +222,7 @@ describe("useLiveListen", () => {
 		for (const track of mocks.tracks) expect(track.stop).toHaveBeenCalled();
 		expect(mocks.sourceNode.disconnect).toHaveBeenCalled();
 		expect(mocks.gainNode.disconnect).toHaveBeenCalled();
+		expect(mocks.limiterNode.disconnect).toHaveBeenCalled();
 		expect(mocks.ctx.close).toHaveBeenCalled();
 	});
 
@@ -254,7 +344,29 @@ describe("useLiveListen", () => {
 
 		expect(result.current.listening).toBe(true);
 		expect(mocks.getUserMedia).toHaveBeenCalledWith({
-			audio: { deviceId: { exact: "usb1" } },
+			audio: {
+				deviceId: { exact: "usb1" },
+				echoCancellation: true,
+				noiseSuppression: false,
+				autoGainControl: false,
+			},
 		});
+	});
+});
+
+describe("previewGain", () => {
+	it("scales the user level by the ceiling and clamps out-of-range input", () => {
+		expect(previewGain(LIVE_LISTEN_DEFAULT_LEVEL)).toBeCloseTo(
+			LIVE_LISTEN_DEFAULT_LEVEL * LIVE_LISTEN_MAX,
+		);
+		expect(previewGain(1)).toBe(LIVE_LISTEN_MAX);
+		expect(previewGain(4)).toBe(LIVE_LISTEN_MAX);
+		expect(previewGain(-1)).toBe(0);
+	});
+
+	it("falls back to the default level for a non-finite value", () => {
+		expect(previewGain(Number.NaN)).toBe(
+			LIVE_LISTEN_DEFAULT_LEVEL * LIVE_LISTEN_MAX,
+		);
 	});
 });

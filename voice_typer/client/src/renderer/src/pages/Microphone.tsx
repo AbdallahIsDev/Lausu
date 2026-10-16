@@ -24,6 +24,7 @@ import { AvailableMicrophonesList } from "./microphone/components/AvailableMicro
 import { MicrophonePermissionBanner } from "./microphone/components/MicrophonePermissionBanner";
 import { MicrophoneSkeleton } from "./microphone/components/MicrophoneSkeleton";
 import { useLiveListen } from "./microphone/hooks/useLiveListen";
+import { useLiveSpeakerOffer } from "./microphone/hooks/useLiveSpeakerOffer";
 import { useMicrophoneData } from "./microphone/hooks/useMicrophoneData";
 import { useMicrophonePermission } from "./microphone/hooks/useMicrophonePermission";
 import { useMicrophoneTest } from "./microphone/hooks/useMicrophoneTest";
@@ -246,7 +247,12 @@ export default function MicrophonePage() {
 		activeMicName: isSystemDefault ? null : activeMicName,
 		isSystemDefault,
 		stopSignal: liveListenStopSignal,
+		// Persisted preview level (`LIVE_LISTEN_DEFAULT_LEVEL` applies until
+		// the config lands). The hook caps the resulting gain itself.
+		level: config?.live_listen_level,
 	});
+	// One-time offer to lower loud speakers when the preview starts (S1).
+	useLiveSpeakerOffer(liveListening);
 	const liveListenDisabled =
 		testRunning ||
 		testStarting ||

@@ -67,6 +67,15 @@ export interface ShowSnackOptions {
 		label: string;
 		onClick: () => void;
 	};
+	/** Optional SECOND button, rendered next to `action` (sonner's
+	 *  "cancel" slot). Needed when a decision offers two real choices
+	 *  and neither is a dismissal — e.g. the Listen-Live speaker offer's
+	 *  [Lower to 75%] / [Keep as is] pair, where closing the toast by
+	 *  its X would be a third, undocumented answer. */
+	cancel?: {
+		label: string;
+		onClick: () => void;
+	};
 }
 
 function resolveDuration(
@@ -88,6 +97,7 @@ function dispatchToast(
 		id?: string | number;
 		description?: string;
 		action?: { label: string; onClick: () => void };
+		cancel?: { label: string; onClick: () => void };
 	},
 ): void {
 	switch (type) {
@@ -123,6 +133,7 @@ export function useSnackbar() {
 				id?: string | number;
 				description?: string;
 				action?: { label: string; onClick: () => void };
+				cancel?: { label: string; onClick: () => void };
 			} = {
 				duration: resolveDuration(type, options),
 			};
@@ -134,6 +145,9 @@ export function useSnackbar() {
 			}
 			if (options?.action) {
 				opts.action = options.action;
+			}
+			if (options?.cancel) {
+				opts.cancel = options.cancel;
 			}
 			dispatchToast(type, message, opts);
 		},

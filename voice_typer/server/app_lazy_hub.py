@@ -176,6 +176,41 @@ def _build_volume_ducker(app: Any) -> Any:
     )
 
 
+def _build_mic_guard(app: Any) -> Any:
+    from voice_typer.server.mic_volume_guard import MicVolumeGuard
+
+    def _enabled() -> bool:
+        # Read live rather than snapshot: ``set_config`` can flip
+        # ``mic_guard_enabled`` without an app restart.
+        return bool(getattr(app.config, "mic_guard_enabled", True))
+
+    def _on_lowered(level: float, restored: bool) -> None:
+        # ``can_set`` is read from the live guard (not snapshotted at build
+        # time) because the macOS backend can revoke settability after a
+        # refused write; the renderer must not offer a button that cannot
+        # work. ``guard`` resolves at call time, after this function returns.
+        _publish_mic_volume_lowered(level, restored, bool(guard.supports_set))
+
+    guard = MicVolumeGuard(enabled=_enabled, on_lowered=_on_lowered)
+    return guard
+
+
+def _publish_mic_volume_lowered(level: float, restored: bool, can_set: bool) -> None:
+    """Push the mic-guard detection to the renderer (sticky toast)."""
+    from voice_typer.server import event_bus
+
+    event_bus.publish(
+        {
+            "type": "microphone_volume_lowered",
+            "data": {
+                "level": round(float(level), 4),
+                "restored": bool(restored),
+                "can_set": bool(can_set),
+            },
+        }
+    )
+
+
 def _build_history_db(app: Any) -> Any:
     # Resolve ``HistoryDB`` through the app module at call time so the
     from voice_typer.server import app as _app_module
@@ -470,6 +505,12 @@ class AppLazyHub:
         "_volume_ducker_backing",
         _build_volume_ducker,
         "VolumeDucker",
+    )
+
+    _mic_guard = LazyProperty(
+        "_mic_guard_backing",
+        _build_mic_guard,
+        "MicVolumeGuard",
     )
 
     # ``AudioProcessor`` construction is deferred to first attribute

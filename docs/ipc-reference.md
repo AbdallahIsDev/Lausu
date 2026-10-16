@@ -42,7 +42,7 @@ host-dispatched / host-only set (`heartbeat`, `relaunch_ack`,
 `allowed_commands()` are host-internal (invoked by the Rust host via
 `dispatch_inner` or host-supervised shutdown), never by the renderer.
 
-## Commands (85 total: 81 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
+## Commands (89 total: 85 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
 
 Grouped by namespace. "✓" in the Allowlist column means the command is
 in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
@@ -112,7 +112,8 @@ in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
 | `get_download_queue` | `_handle_get_download_queue` | ✓ | Models page: read-only pending-download FIFO snapshot (model names, front first) for mount hydration of the queue chips. |
 | `get_model_catalog` | `_handle_get_model_catalog` | ✓ | Models page: VRAM, languages, speed/accuracy ratings. |
 | `get_model_status` | `_handle_get_model_status` | ✓ |  |
-| `get_volume_backend_status` | `_handle_get_volume_backend_status` | ✓ |  |
+| `get_volume_backend_status` | `_handle_get_volume_backend_status` | ✓ | Ducking-backend name + capability flags, plus a LIVE `output_level` (never cached — the Microphone page decides its one-time "your speakers are loud" offer from it). |
+| `set_output_volume` | `_handle_set_output_volume` | ✓ | Listen-Live S1 `[Lower to 75%]` offer: the only user-pressed speaker-knob write outside dictation ducking. Payload `{ level }` clamped to `[0, 1]`. Response: `{ ok, level }`. |
 | `get_prewarm_status` | `_handle_get_prewarm_status` | ✓ | RESTORED 2026-08-14 (plan §6.3 addendum): Cache Status card probe, reads the worker's cache stats (status file `prewarm-status.json` under the config dir). Response: `{ enabled, cache_ratio, cache_label, cached_bytes, total_bytes, last_run, elapsed_s }`. |
 | `open_prewarm_log` | `_handle_open_prewarm_log` | ✓ | RESTORED 2026-08-14 (plan §6.3 addendum): opens the worker log (`worker.log` The retired `prewarm.log` no longer exists). |
 | `open_data_folder` | `_handle_open_data_folder` | ✓ | Models storage card + Diagnostics button: opens the app config (data) dir in the OS file manager (support case, not the raw hub). Response: `{ opened, path, reason? }`. |
@@ -183,8 +184,11 @@ in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
 | `microphone_test_cancel` | `_handle_microphone_test_cancel` | ✓ |  |
 | `microphone_test_get_level` | `_handle_microphone_test_get_level` | ✓ |  |
 | `microphone_test_start` | `_handle_microphone_test_start` | ✓ | Microphone test commands |
+| `microphone_test_status` | `_handle_microphone_test_status` | ✓ | Running-state read used by the Microphone page on mount to re-attach to a test already in flight. |
 | `microphone_test_stop` | `_handle_microphone_test_stop` | ✓ |  |
 | `microphone_test_read_audio` | `_handle_microphone_test_read_audio` | ✓ | Chunked slice of a persisted mic-test WAV (path/offset/length); recordings-dir containment enforced |
+| `get_microphone_volume` | `_handle_get_microphone_volume` | ✓ | Mic guard (S5): reads the real OS capture gain. Response: `{ available, level, supports_set, name }`; `supports_set: false` (most built-in macOS mics) means the renderer shows the guard message WITHOUT a restore button. |
+| `set_microphone_volume` | `_handle_set_microphone_volume` | ✓ | Mic guard (S5): the `[Back to 100%]` write. Payload `{ level }` clamped to `[0, 1]`; always writes (the guard's anti-flap budget only bounds its OWN automatic restores). Response: `{ ok, level }`. |
 
 ### Screenshot (beta capture + consent)
 
@@ -219,10 +223,15 @@ this page find the canonical "this command does not exist" answer:
 `delete_all_personal_data`, `dismiss_vocabulary_suggestion`,
 `export_diagnostics`, `export_gdpr_bundle`, `get_audio_status`,
 `get_rms_level`, `get_vocabulary_suggestions`,
-`level_monitor_status`, `microphone_test_status`,
+`level_monitor_status`,
 `onboarding_get_model_catalog`, `onboarding_get_step`,
 `onboarding_request_keyboard_permission`,
 `refresh_microphones`, `test_llm_connection`.
+
+> Note: microphone_test_status was listed here (YJ-10 cleanup, zero
+> renderer callers) but was RESTORED: the Microphone page reads it on
+> mount to re-attach to a test already in flight. It now has a live row
+> in the Microphone test table above.
 
 > Note: `check_accessibility` was previously listed here (removed in the
 > GT-32 cleanup) but was RE-ADDED on 2026-08-10 (finding #919 part b) —
@@ -252,7 +261,7 @@ restored `get_prewarm_status` / `run_prewarm` (worker status file +
 in-process warm pass), not the old
 `sentinel` / `PID`-file probe.
 
-## Push events (63 typed)
+## Push events (64 typed)
 
 Push events flow server to renderer via `window.python.onEvent(callback)`.
 The `PythonPushEvent` union in `types/ipc/push_events.ts` is the canonical
@@ -316,6 +325,7 @@ list: events not in the union fall through to the `string` overload of
 | `asr_backend_load_failed` | `AsrBackendLoadFailedEvent` | `{ backend: string, model_size: string, failure_reason: string }` Background model load failed after `set_config` already acked; surfaced as an error toast with an Open Models action. |
 | `microphone_permission_revoked` | `MicrophonePermissionRevokedEvent` | bare frame: OS microphone permission was revoked mid-session; the renderer shows the localized permission-revoked bubble surface. |
 | `microphone_disconnected` | `MicrophoneDisconnectedEvent` | bare frame: the active recording stream lost the selected device (distinct from `device_lost`, which covers level-monitor paths); renderer shows the shared device-lost toast (deduplicated). |
+| `microphone_volume_lowered` | `MicrophoneVolumeLoweredEvent` | `{ level: number, restored: boolean, can_set: boolean }` Mic guard (S5): an outside write moved the OS capture gain off 100%. `restored: true` means the guard already wrote it back (renderer stays silent); otherwise the renderer shows the sticky `[Back to 100%]` note, with the button only when `can_set` (a device with no writable gain gets the message alone). |
 | `cloud_fallback_used` | `CloudFallbackUsedEvent` | `{ provider: string, kind: "key" \| "provider" \| "network", reason: string }` A cloud ASR provider failed and the pipeline fell back (typed in the union; renderer consumer optional). |
 | `dictation_suppressed` | `DictationSuppressedEvent` | `{ duration: number, recorded_rms: number, reason: string }` A dictation was suppressed before transcription (typed in the union; renderer consumer optional). |
 | `history_corrupted` | `HistoryCorruptedEvent` | `{ path: string, db_path: string, recovered_count: number }` History DB corruption was detected and recovered (typed in the union; renderer consumer optional). |

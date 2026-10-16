@@ -53,6 +53,11 @@ pub(crate) fn allowed_commands() -> &'static HashSet<&'static str> {
             "toggle_favorite",
             "get_favorites",
             "get_microphones",
+            // Mic guard (S5): capture-gain read + the user-pressed
+            // [Back to 100%] write; S1 [Lower to 75%] output write.
+            "get_microphone_volume",
+            "set_microphone_volume",
+            "set_output_volume",
             // Plugins page: installed-plugin discovery (read-only).
             "get_plugins",
             "restart_app",

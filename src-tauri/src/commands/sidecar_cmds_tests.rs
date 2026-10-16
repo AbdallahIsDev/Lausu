@@ -151,9 +151,9 @@ fn test_allowed_commands_set_is_nonempty() {
 #[test]
 fn test_allowed_commands_count_matches_python_registry_parity() {
     // The Rust literal is exactly the renderer-reachable subset of the
-    // Python `_COMMAND_REGISTRY`: 85 registry entries minus the four
+    // Python `_COMMAND_REGISTRY`: 89 registry entries minus the four
     // host-dispatched commands (`heartbeat`, `relaunch_ack`, `shutdown`,
-    // `tray_click`) = 81. The Python parity test
+    // `tray_click`) = 85. The Python parity test
     // `tests/test_ipc_command_parity.py::test_registry_minus_rust_equals_host_dispatched_delta`
     // asserts the entries match exactly; this Rust-side test pins the
     // COUNT so a local `cargo test` catches drift before the Python test
@@ -161,8 +161,8 @@ fn test_allowed_commands_count_matches_python_registry_parity() {
     // (see `dispatch_inner`), so they are intentionally ABSENT here.
     assert_eq!(
         allowed_commands().len(),
-        81,
-        "must match the Python registry (85 entries) minus the 4 host-dispatched \
+        85,
+        "must match the Python registry (89 entries) minus the 4 host-dispatched \
          commands (heartbeat, relaunch_ack, shutdown, tray_click)"
     );
 }
@@ -170,9 +170,9 @@ fn test_allowed_commands_count_matches_python_registry_parity() {
 #[test]
 fn test_allowed_commands_set_contains_no_duplicates() {
     let set = allowed_commands();
-    // 81 entries: must match the cmds literal below (single
+    // 85 entries: must match the cmds literal below (single
     // source of truth). A duplicate in the literal would make
-    // set.len() < 81.
+    // set.len() < 85.
     // 66 → 67: `run_prewarm` restored 2026-08-14 (§6.3 addendum
     // second half: re-implemented to re-run the warm phase
     // in-process instead of spawning the deleted subprocess).
@@ -187,10 +187,16 @@ fn test_allowed_commands_set_contains_no_duplicates() {
     // 75 → 76: `get_plugins` (Plugins page installed-plugin discovery).
     // 76 → 80: `screenshot_capture/clear_cycle/get_status/set_consent`
     // (one-shot screenshot beta, Windows-only).
+    // 80 → 82: `open_mic_settings` (mic-permission refusal) +
+    // `microphone_test_status` (mic-test running-state read; the
+    // snapshot below had lagged the literal since that restore).
+    // 82 → 85: mic-guard / output-level surface —
+    // `get_microphone_volume`, `set_microphone_volume`,
+    // `set_output_volume` (2026-10-16).
     assert_eq!(
         set.len(),
-        81,
-        "ALLOWED_COMMANDS contains a duplicate entry: set len ({}) < literal len (81). \
+        85,
+        "ALLOWED_COMMANDS contains a duplicate entry: set len ({}) < literal len (85). \
          Check the constructor log for the duplicate name.",
         set.len()
     );
@@ -198,7 +204,7 @@ fn test_allowed_commands_set_contains_no_duplicates() {
 
 #[test]
 fn test_allowed_commands_exact_snapshot() {
-    //Stricter parity test: pin the EXACT 81-entry set (sorted)
+    //Stricter parity test: pin the EXACT 85-entry set (sorted)
     // so any drift between the Rust literal and the Python registry is
     // caught at `cargo test` time, BEFORE the cross-layer Python
     // parity test in `tests/test_ipc_command_parity.py` runs. The
@@ -209,7 +215,7 @@ fn test_allowed_commands_exact_snapshot() {
     // entry.
     //
     // The expected list is the alphabetically-sorted union of:
-    //   - the Python `_COMMAND_REGISTRY` literal (84 entries, once the
+    //   - the Python `_COMMAND_REGISTRY` literal (89 entries, once the
     //     backend slice lands the four screenshot handlers)
     //   - minus the four host-dispatched commands: `heartbeat`
     //     (Rust WS-reader task), `relaunch_ack` (Rust `relaunch_app`
@@ -239,13 +245,21 @@ fn test_allowed_commands_exact_snapshot() {
     // One-shot screenshot beta (Windows-only, 2026-10):
     // + `screenshot_capture/clear_cycle/get_status/set_consent`
     // → 80. Mic-permission refusal (2026-10):
-    // + `open_mic_settings` → 81. This snapshot is the current
-    // 81-entry set (2026-08: + microphone_test_read_audio,
-    // chunked file-reference transport for mic-test WAVs;
-    // 2026-09: + get_download_queue, pending-download queue snapshot;
-    // + open_data_folder, Models storage card + Diagnostics;
-    // + ADR-0023 media_transcribe_start/cancel/status;
-    // + get_plugins, Plugins page installed-plugin discovery).
+    // + `open_mic_settings` → 81.
+    // Mic-test running-state read restored (2026-10):
+    // + `microphone_test_status` → 82 (the snapshot below had lagged
+    // the literal since that restore; fixed here).
+    // Listen-Live feedback (2026-10-16):
+    // + `get_microphone_volume` / `set_microphone_volume` (mic guard
+    // read + [Back to 100%] write) and + `set_output_volume`
+    // (S1 [Lower to 75%] offer) → 85.
+    // This snapshot is the current 85-entry set (2026-08:
+    // + microphone_test_read_audio, chunked file-reference transport
+    // for mic-test WAVs; 2026-09: + get_download_queue,
+    // pending-download queue snapshot; + open_data_folder, Models
+    // storage card + Diagnostics; + ADR-0023
+    // media_transcribe_start/cancel/status; + get_plugins, Plugins
+    // page installed-plugin discovery).
     let mut actual: Vec<&str> = allowed_commands().iter().copied().collect();
     actual.sort();
     let expected: &[&str] = &[
@@ -265,6 +279,7 @@ fn test_allowed_commands_exact_snapshot() {
         "get_favorites",
         "get_history",
         "get_history_count",
+        "get_microphone_volume",
         "get_microphones",
         "get_model_catalog",
         "get_model_status",
@@ -286,6 +301,7 @@ fn test_allowed_commands_exact_snapshot() {
         "microphone_test_get_level",
         "microphone_test_read_audio",
         "microphone_test_start",
+        "microphone_test_status",
         "microphone_test_stop",
         "onboarding_apply",
         "onboarding_check_permissions",
@@ -323,6 +339,8 @@ fn test_allowed_commands_exact_snapshot() {
         "search_history",
         "set_config",
         "set_esc_cancel_paused",
+        "set_microphone_volume",
+        "set_output_volume",
         "set_tray_locale",
         "test_cloud_connection",
         "test_vocabulary_correction",
@@ -336,14 +354,14 @@ fn test_allowed_commands_exact_snapshot() {
         expected.len(),
         "snapshot length mismatch: actual Rust set has {} entries, snapshot expected {}. \
          If you added/removed a command, update BOTH this snapshot AND the cmds literal AND \
-         the Python `_COMMAND_REGISTRY` (= 85 entries with open_mic_settings).",
+         the Python `_COMMAND_REGISTRY` (= 89 entries with open_mic_settings).",
         actual.len(),
         expected.len()
     );
     assert_eq!(
         actual, expected,
         "ALLOWED_COMMANDS snapshot drift: the Rust literal no longer matches the pinned \
-         81-entry snapshot. Diff the actual vs expected Vec above. If the change is \
+         85-entry snapshot. Diff the actual vs expected Vec above. If the change is \
          intentional, update this snapshot in lockstep with the cmds literal AND the \
          Python `_COMMAND_REGISTRY` (see MAINTENANCE note above)."
     );

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -182,10 +183,56 @@ class TestVolumeBackendStatusCache:
             "available": False,
             "name": "disabled",
             "supports_per_session": False,
+            # ``output_level`` is part of the response shape on every path
+            # (the renderer reads it to decide its one-time "your speakers
+            # are loud" offer) so it is present-and-None rather than absent.
+            "output_level": None,
         }
         # Cache should NOT be populated (we returned early).
         assert mixin._volume_backend_status_cache is None
         assert ducker.initialize.call_count == 0
+
+    def test_output_level_is_read_live_and_never_cached(self, status_mixin_with_mock_ducker):
+        """``output_level`` must bypass the capability-flag cache.
+
+        A 30s-old level would make the renderer offer "lower your speakers"
+        against a value the user has already changed, so the level is read
+        on EVERY call while the flags stay cached.
+        """
+        mixin, ducker = status_mixin_with_mock_ducker
+        ducker._backend.get_state.return_value = SimpleNamespace(linear=0.95, muted=False)
+
+        first = mixin.get_volume_backend_status()
+        assert first["output_level"] == 0.95
+        # The capability flags WERE cached...
+        assert mixin._volume_backend_status_cache is not None
+        assert "output_level" not in mixin._volume_backend_status_cache, (
+            "output_level leaked into the TTL cache; it must be re-read on every call."
+        )
+
+        # ...but the level was not: a fresh read is visible immediately,
+        # with no TTL expiry and no second initialize().
+        ducker._backend.get_state.return_value = SimpleNamespace(linear=0.4, muted=False)
+        second = mixin.get_volume_backend_status()
+        assert ducker.initialize.call_count == 1, "the cached flags must not re-run initialize()"
+        assert second["output_level"] == 0.4
+
+    def test_output_level_is_none_when_the_backend_cannot_be_read(self, status_mixin_with_mock_ducker):
+        """An unreadable backend degrades to ``None``, never a guess."""
+        mixin, ducker = status_mixin_with_mock_ducker
+        ducker._backend.get_state.side_effect = RuntimeError("no device")
+
+        result = mixin.get_volume_backend_status()
+        assert result["output_level"] is None
+        assert result["name"] == "fake (test)"
+
+    def test_output_level_is_none_when_ducker_has_no_backend(self, status_mixin_with_mock_ducker):
+        """Before ``initialize()`` resolves a backend, the level is unknown."""
+        mixin, ducker = status_mixin_with_mock_ducker
+        del ducker._backend
+
+        result = mixin.get_volume_backend_status()
+        assert result["output_level"] is None
 
     def test_cache_is_per_instance_not_shared_across_instances(self, status_mixin_with_mock_ducker):
         """Each :class:`StatusMixin` instance has its own cache."""

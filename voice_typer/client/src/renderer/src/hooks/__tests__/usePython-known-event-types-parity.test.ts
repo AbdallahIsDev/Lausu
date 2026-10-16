@@ -78,6 +78,7 @@ const _PARITY = {
 	asr_backend_load_failed: true,
 	microphone_permission_revoked: true,
 	microphone_disconnected: true,
+	microphone_volume_lowered: true,
 	cloud_fallback_used: true,
 	dictation_suppressed: true,
 	media_transcribe_progress: true,

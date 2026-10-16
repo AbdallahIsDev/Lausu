@@ -41,6 +41,7 @@ _READONLY_COMMANDS: frozenset[str] = frozenset(
         "get_favorites",
         "get_transcription_text",
         "get_microphones",
+        "get_microphone_volume",
         "get_plugins",
         "get_volume_backend_status",
         "get_model_status",
@@ -94,7 +95,7 @@ _SELF_SERIALIZED_COMMANDS: frozenset[str] = frozenset(
 # Host-only commands: registered here, never invoked by the renderer
 _PYTHON_ONLY_COMMANDS: frozenset[str] = frozenset({"shutdown", "tray_click"})
 
-# Maps IPC command name → handler method on IPCServer. Count pinned at 84
+# Maps IPC command name → handler method on IPCServer. Count pinned at 89
 _COMMAND_REGISTRY: dict[str, str] = {
     "get_status": "_handle_get_status",
     "toggle_dictation": "_handle_toggle_dictation",
@@ -114,6 +115,13 @@ _COMMAND_REGISTRY: dict[str, str] = {
     "get_history_count": "_handle_get_history_count",
     "get_transcription_text": "_handle_get_transcription_text",
     "get_microphones": "_handle_get_microphones",
+    # Mic guard (S5): capture-gain read + the explicit [Back to 100%] write.
+    # ``get_microphone_volume`` is classified pure-read above; the two
+    # writes stay behind ``_dispatch_lock`` (real device I/O).
+    "get_microphone_volume": "_handle_get_microphone_volume",
+    "set_microphone_volume": "_handle_set_microphone_volume",
+    # S1 [Lower to 75%] offer — the only user-pressed speaker-knob write.
+    "set_output_volume": "_handle_set_output_volume",
     # Plugins page: installed-plugin discovery (read-only).
     "get_plugins": "_handle_get_plugins",
     "get_volume_backend_status": "_handle_get_volume_backend_status",

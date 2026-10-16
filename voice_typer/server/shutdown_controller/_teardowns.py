@@ -38,6 +38,14 @@ class TeardownsMixin:
 
         teardown_restore_volume(self)
 
+    def _teardown_mic_guard(self) -> None:
+        """stop the capture-gain watcher thread."""
+        from voice_typer.server.shutdown.teardowns.mic_guard import (
+            teardown_mic_guard,
+        )
+
+        teardown_mic_guard(self)
+
     def _teardown_hotkeys(self) -> None:
         """stop all three hotkey backends (dictation / ESC / repaste)"""
         from voice_typer.server.shutdown.teardowns.hotkeys import (

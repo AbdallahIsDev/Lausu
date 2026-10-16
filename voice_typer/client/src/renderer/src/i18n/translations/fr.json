@@ -1849,6 +1849,12 @@
 		"liveListen": "Écoute en direct",
 		"stopListening": "Arrêter l'écoute",
 		"liveListenHint": "Vous devriez vous entendre. Utilisez un casque pour éviter l'écho.",
+		"previewVolume": "Volume de l'écoute",
+		"liveListenGuideNote": "Un casque est recommandé pour l'écoute en direct sur les haut-parleurs d'un ordinateur portable ou de bureau.",
+		"speakerOfferTitle": "Vos haut-parleurs sont très forts",
+		"speakerOfferMessage": "À ce niveau, l'écoute en direct peut capter les haut-parleurs.",
+		"speakerOfferLower": "Baisser à 75 %",
+		"speakerOfferKeep": "Garder tel quel",
 		"liveListenFailed": "L'écoute en direct a échoué. Vérifiez le microphone et réessayez.",
 		"liveListenDenied": "L'accès au microphone a été bloqué. Autorisez l'accès et réessayez.",
 		"liveListenUnavailable": "L'écoute en direct n'est pas disponible dans cette fenêtre.",
@@ -1866,6 +1872,11 @@
 		"cards": {
 			"dictations": "Dictées"
 		}
+	},
+	"micGuard": {
+		"loweredTitle": "Le microphone a été baissé à {percent} %",
+		"loweredMessage": "Une modification externe a baissé le niveau d'entrée et il n'a pas pu être rétabli automatiquement.",
+		"backTo100": "Revenir à 100 %"
 	},
 	"stats": {
 		"shareImage": {

@@ -2048,9 +2048,13 @@ class TestRegistryExtraction:
         assert registry._COMMAND_REGISTRY["media_transcribe_status"] == "_handle_media_transcribe_status"
         assert registry._COMMAND_REGISTRY["get_plugins"] == "_handle_get_plugins"
         assert registry._COMMAND_REGISTRY["open_mic_settings"] == "_handle_open_mic_settings"
-        assert len(registry._COMMAND_REGISTRY) == 85, (
-            f"registry._COMMAND_REGISTRY must contain 85 entries "
-            f"(81 forwarded in the Rust allowlist + shutdown + "
+        # Listen-Live feedback (2026-10-16): mic guard + preview tap.
+        assert registry._COMMAND_REGISTRY["get_microphone_volume"] == "_handle_get_microphone_volume"
+        assert registry._COMMAND_REGISTRY["set_microphone_volume"] == "_handle_set_microphone_volume"
+        assert registry._COMMAND_REGISTRY["set_output_volume"] == "_handle_set_output_volume"
+        assert len(registry._COMMAND_REGISTRY) == 89, (
+            f"registry._COMMAND_REGISTRY must contain 89 entries "
+            f"(85 forwarded in the Rust allowlist + shutdown + "
             f"tray_click python-only + heartbeat + relaunch_ack host-dispatched); got "
             f"{len(registry._COMMAND_REGISTRY)}. "
             f"If the count drifted, update this test together with the "
@@ -2100,6 +2104,9 @@ class TestRegistryExtraction:
                 "get_templates",
                 "get_download_queue",
                 "microphone_test_get_level",
+                "microphone_test_status",
+                # Mic guard: capture-gain read only (the write is a mutator).
+                "get_microphone_volume",
                 "onboarding_is_first_run",
                 "onboarding_get_microphones",
                 "onboarding_get_model_options",

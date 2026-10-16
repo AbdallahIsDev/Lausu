@@ -1,4 +1,4 @@
-"""VolumeBackend ABC + VolumeState."""
+"""VolumeBackend / MicVolumeBackend ABCs + VolumeState."""
 
 from __future__ import annotations
 
@@ -119,3 +119,44 @@ class VolumeBackend(ABC):
         Only meaningful on Windows with per-session support enabled.
         """
         return False
+
+
+class MicVolumeBackend(ABC):
+    """Abstract platform controller for the capture-endpoint input gain.
+
+    A separate ABC from :class:`VolumeBackend` (not a subclass): an input
+    endpoint has no mute and no per-session surface, so inheriting the
+    duck/restore/session API would only produce no-op stubs. The two share
+    only the ``initialize`` / read / write shape.
+
+    Failure logging is deliberately left to the caller: the guard polls
+    every couple of seconds and owns the "warn after N consecutive
+    failures" policy in ONE place, so per-platform backends log at DEBUG.
+    """
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Human-readable backend identifier, e.g. ``'pycaw (WASAPI capture)'``."""
+
+    @property
+    @abstractmethod
+    def supports_set(self) -> bool:
+        """``False`` when the OS exposes no settable input gain.
+
+        Most built-in macOS mics have none. The renderer then shows the
+        guard message WITHOUT a restore button rather than pretending a
+        write that the OS will ignore.
+        """
+
+    @abstractmethod
+    def initialize(self) -> bool:
+        """Set up the backend. ``False`` = no usable capture endpoint."""
+
+    @abstractmethod
+    def get_level(self) -> float | None:
+        """Read the capture gain in [0.0, 1.0]; ``None`` on failure."""
+
+    @abstractmethod
+    def set_level(self, level: float) -> bool:
+        """Write the capture gain; ``False`` on failure."""

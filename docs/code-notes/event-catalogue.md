@@ -51,6 +51,7 @@ TS unions: `types/ipc/push_events.ts` + `types/ipc/requests.ts`. Parity: `tests/
 | `media_transcribe_progress` | `{job_id, progress}` | ADR-0023 chunked job progress |
 | `media_transcribe_complete` | `{job_id, row_id, chars}` | ADR-0023 job completion |
 | `media_transcribe_error` | `{job_id, code, message}` | ADR-0023 job failure |
+| `microphone_volume_lowered` | `{level, restored, can_set}` | Mic guard (S5): an outside write moved the OS capture knob off 100%; `restored` = the guard already put it back, else the renderer shows the sticky `[Back to 100%]` toast; `can_set` = the device exposes a writable gain (button renders only when true) |
 | `asr_backend_ready` | `{backend, model_size}` | Background model load ok |
 | `asr_backend_load_failed` | `{backend, model_size, failure_reason}` | |
 | `asr_backend_disabled` | `{backend, failure_count, timestamp}` | Circuit-breaker disabled backend |

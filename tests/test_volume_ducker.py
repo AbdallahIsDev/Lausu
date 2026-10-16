@@ -918,3 +918,84 @@ class TestRetroactiveDuckDropsLockDuringFade:
         )
 
         ducker.restore()
+
+
+class TestSetLevel:
+    """``VolumeDucker.set_level``, the explicit ``[Lower to 75%]`` write (S1).
+
+    Distinct from ``duck`` / ``restore``: it neither saves nor consumes duck
+    state, and it is never called automatically — Live monitoring must not
+    move the speakers on its own.
+    """
+
+    def test_writes_the_requested_level(self) -> None:
+        backend = FakeBackend(current=1.0)
+        ducker = VolumeDucker(backend=backend)
+        assert ducker.initialize() is True
+
+        assert ducker.set_level(0.75) is True
+
+        assert backend._fade_calls[-1][0] == 0.75
+        assert backend.get_state().linear == 0.75
+
+    def test_does_not_mark_the_volume_as_ducked(self) -> None:
+        backend = FakeBackend(current=1.0)
+        ducker = VolumeDucker(backend=backend)
+        ducker.initialize()
+
+        ducker.set_level(0.75)
+
+        assert ducker.is_ducked is False, (
+            "set_level is a plain user write, not a dictation duck; "
+            "is_ducked must stay False so restore() has nothing to undo."
+        )
+        assert ducker.actually_ducked is False
+
+    def test_rewrites_the_saved_pre_duck_level_when_currently_ducked(self) -> None:
+        """Otherwise the eventual restore snaps back to the loud value."""
+        backend = FakeBackend(current=1.0)
+        ducker = VolumeDucker(backend=backend)
+        ducker.initialize()
+        ducker.duck(level=0.2, fade_ms=0)
+
+        # The user accepts [Lower to 75%] while dictation is ducking.
+        ducker.set_level(0.75)
+        assert ducker.is_ducked is True
+
+        ducker.restore(fade_ms=0)
+
+        assert backend.get_state().linear == 0.75, (
+            "restore() must return to the level the user just chose (0.75), "
+            "not the loud pre-duck value (1.0) they just rejected."
+        )
+
+    def test_clamps_out_of_range_input(self) -> None:
+        backend = FakeBackend(current=0.5)
+        ducker = VolumeDucker(backend=backend)
+        ducker.initialize()
+
+        ducker.set_level(2.5)
+        assert backend.get_state().linear == 1.0
+
+        ducker.set_level(-3.0)
+        assert backend.get_state().linear == 0.0
+
+    def test_before_initialize_is_a_safe_false(self) -> None:
+        backend = FakeBackend(current=1.0)
+        ducker = VolumeDucker(backend=backend)
+        assert ducker.set_level(0.75) is False
+        assert backend._fade_calls == []
+
+    def test_backend_fade_failure_reports_false(self) -> None:
+        backend = FakeBackend(current=1.0)
+
+        def boom(target_linear: float, duration_ms: int = 150, steps: int = 10) -> bool:
+            raise RuntimeError("device vanished")
+
+        backend.fade_to = boom  # type: ignore[assignment]
+        ducker = VolumeDucker(backend=backend)
+        ducker.initialize()
+
+        assert ducker.set_level(0.75) is False
+
+

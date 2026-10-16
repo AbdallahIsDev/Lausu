@@ -200,7 +200,13 @@ def test_ipc_reference_doc_mentions_host_only_commands() -> None:
 
 
 def test_ipc_reference_doc_removed_section_lists_known_dead_commands() -> None:
-    """The 'Removed / never-existed commands' section lists the 15 dead names."""
+    """The 'Removed / never-existed commands' section lists the 14 dead names.
+
+    ``microphone_test_status`` was in this set (YJ-10 cleanup, zero renderer
+    callers) but was RESTORED: the Microphone page reads it on mount to
+    re-attach to a test already in flight, so it now has a live row in the
+    Microphone test table and is intentionally absent here.
+    """
     removed_section = _doc_removed_commands_section()
     expected_dead = {
         "apply_vocabulary_suggestion",
@@ -212,7 +218,6 @@ def test_ipc_reference_doc_removed_section_lists_known_dead_commands() -> None:
         "get_rms_level",
         "get_vocabulary_suggestions",
         "level_monitor_status",
-        "microphone_test_status",
         "onboarding_get_model_catalog",
         "onboarding_get_step",
         "onboarding_request_keyboard_permission",

@@ -192,21 +192,51 @@ class StatusMixin(ServiceMixinBase):
             "offline_pack": self._get_offline_pack_status(),
         }
 
+    def _read_output_level(self) -> float | None:
+        """Live master-output level in ``[0.0, 1.0]``; ``None`` when unreadable.
+
+        Deliberately NOT stored in ``_volume_backend_status_cache``: the
+        renderer decides its one-time "your speakers are loud" offer from
+        this value, and a 30s-old reading would offer against a level the
+        user has already moved. Only the capability flags are cached.
+        """
+        backend = getattr(getattr(self._app, "_volume_ducker", None), "_backend", None)
+        if backend is None:
+            return None
+        try:
+            state = backend.get_state()
+        except Exception:
+            log.debug("[SERVICE] output level read failed", exc_info=True)
+            return None
+        if state is None:
+            return None
+        try:
+            return max(0.0, min(1.0, float(state.linear)))
+        except (TypeError, ValueError):
+            return None
+
     def get_volume_backend_status(self, *, _force_refresh: bool = False) -> dict[str, object]:
-        """Return the volume ducking backend status."""
+        """Return the volume ducking backend status.
+
+        ``output_level`` is read live on every call (see
+        :meth:`_read_output_level`); the rest of the dict is TTL-cached.
+        """
         ducker = getattr(self._app, "_volume_ducker", None)
         if ducker is None:
             return {
                 "available": False,
                 "name": "disabled",
                 "supports_per_session": False,
+                "output_level": None,
             }
 
         # Fast path: serve from cache when available and the caller
         cache = self._volume_backend_status_cache
         cache_fresh = (time.monotonic() - self._volume_backend_status_cached_at) < self._VOLUME_BACKEND_STATUS_TTL_S
         if cache is not None and not _force_refresh and cache_fresh:
-            return dict(cache)
+            fresh = dict(cache)
+            fresh["output_level"] = self._read_output_level()
+            return fresh
 
         try:
             # Trigger initialize() so the backend name reflects
@@ -239,7 +269,9 @@ class StatusMixin(ServiceMixinBase):
             if init_ok or _force_refresh:
                 self._volume_backend_status_cache = status
                 self._volume_backend_status_cached_at = time.monotonic()
-            return dict(status)
+            fresh = dict(status)
+            fresh["output_level"] = self._read_output_level()
+            return fresh
         except Exception as exc:
             # redact exc string before returning to IPC layer.
             log.warning(
@@ -251,7 +283,66 @@ class StatusMixin(ServiceMixinBase):
                 "name": "disabled",
                 "supports_per_session": False,
                 "reason": redact_secret(redact_url(str(exc))),
+                "output_level": None,
             }
+
+    def get_microphone_volume(self) -> dict[str, object]:
+        """Current capture-gain state for the mic guard surface.
+
+        ``available`` is False until the guard's backend resolves, so the
+        renderer can tell "no capture endpoint" from "level is 0". When
+        ``supports_set`` is False (most built-in macOS mics) the renderer
+        shows the guard message WITHOUT a restore button.
+        """
+        guard = getattr(self._app, "_mic_guard", None)
+        if guard is None:
+            return {"available": False, "level": None, "supports_set": False, "name": "disabled"}
+        return {
+            "available": bool(getattr(guard, "is_available", False)),
+            "level": guard.get_level(),
+            "supports_set": bool(getattr(guard, "supports_set", False)),
+            "name": str(getattr(guard, "backend_name", "") or "disabled"),
+        }
+
+    def set_microphone_volume(self, level: float) -> dict[str, object]:
+        """Write the REAL device capture gain. Used by ``[Back to 100%]``.
+
+        Deliberately not a slider and not restore-previous: the previous
+        value is the broken one, and a slider becomes a tug toy while a
+        driver keeps pulling. The user's own write never consumes the
+        anti-flap budget.
+        """
+        guard = getattr(self._app, "_mic_guard", None)
+        if guard is None:
+            return {"ok": False, "level": None}
+        try:
+            target = max(0.0, min(1.0, float(level)))
+        except (TypeError, ValueError):
+            return {"ok": False, "level": None}
+        return {"ok": bool(guard.set_level(target)), "level": target}
+
+    def set_output_volume(self, level: float) -> dict[str, object]:
+        """Set the master output level. Backs the S1 ``[Lower to 75%]`` offer.
+
+        This is the ONLY place the app writes the speaker knob outside
+        dictation ducking, and it only ever runs from an explicit user
+        press — Live monitoring never moves the speakers on its own.
+        """
+        ducker = getattr(self._app, "_volume_ducker", None)
+        if ducker is None:
+            return {"ok": False, "level": None}
+        try:
+            target = max(0.0, min(1.0, float(level)))
+        except (TypeError, ValueError):
+            return {"ok": False, "level": None}
+        try:
+            if not ducker.initialize():
+                return {"ok": False, "level": None}
+            ok = bool(ducker.set_level(target))
+        except Exception:
+            log.debug("[SERVICE] set_output_volume failed", exc_info=True)
+            return {"ok": False, "level": None}
+        return {"ok": ok, "level": target}
 
     def get_audio_status(self) -> dict:
         """Return the audio filter chain status (ADR 0007)."""

@@ -123,9 +123,18 @@ EXPECTED_COMMANDS: frozenset[str] = frozenset(
         "media_transcribe_start",
         "media_transcribe_cancel",
         "media_transcribe_status",
+        # ADR-0020 §16 addendum (2026-10-16, Listen-Live feedback): the mic
+        # guard's capture-gain read + the user-pressed [Back to 100%] write,
+        # plus the S1 [Lower to 75%] speaker write behind its one-time offer.
+        # Real handlers, Rust allowlist entries, ipc-reference.md rows,
+        # COMMAND_COSTS entries, ServiceProtocol methods and their own
+        # handler/service/wiring tests.
+        "get_microphone_volume",
+        "set_microphone_volume",
+        "set_output_volume",
     }
 )
-assert len(EXPECTED_COMMANDS) == 74, (
+assert len(EXPECTED_COMMANDS) == 77, (
     "ADR-0020 §2 freezes the command table. 69 = post-cleanup baseline "
     "after ZR-45 + the Tauri/Rust allowlist narrowing (+ ``onboarding_set_backend``, "
     "§16 addendum 2026-08-06; + ``reset_macos_accessibility``, "
@@ -201,6 +210,13 @@ KNOWN_UNDOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "screenshot_clear_cycle",
         "screenshot_get_status",
         "screenshot_set_consent",
+        # Pre-existing gap (NOT this feature's): ``microphone_test_status``
+        # was deliberately removed from the wire contract during the Tauri
+        # narrowing (see the REMOVED note in EXPECTED_COMMANDS above) and is
+        # registered in ``_COMMAND_REGISTRY`` again at HEAD, so it is
+        # reported here rather than blessed into the frozen table. Do NOT
+        # move it into EXPECTED_COMMANDS without the (b) paperwork.
+        "microphone_test_status",
     }
 )
 

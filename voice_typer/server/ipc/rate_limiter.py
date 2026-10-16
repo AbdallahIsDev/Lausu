@@ -95,6 +95,9 @@ COMMAND_COSTS: dict[str, int] = {
     "restore_history": 2,
     "pause_model_download": 2,
     "cancel_model_download": 2,
+    # Single device-knob writes (no I/O beyond the COM call / one subprocess).
+    "set_microphone_volume": 2,  # mic guard [Back to 100%]
+    "set_output_volume": 2,  # Listen-Live [Lower to 75%] offer
     # Reads / cheap ops (cost 1), explicitly listed so future DEFAULT_COST
     "check_accessibility": 1,
     "heartbeat": 1,
@@ -105,6 +108,8 @@ COMMAND_COSTS: dict[str, int] = {
     "get_history": 1,
     "get_history_count": 1,
     "get_microphones": 1,
+    # Mic-guard capture-gain read (COM/subprocess read, no write).
+    "get_microphone_volume": 1,
     # Plugins page: reads the on-disk manifest set, no shared-state write.
     "get_plugins": 1,
     "get_model_catalog": 1,
@@ -120,6 +125,7 @@ COMMAND_COSTS: dict[str, int] = {
     "level_monitor_stop": 1,
     "microphone_test_cancel": 1,
     "microphone_test_get_level": 1,
+    "microphone_test_status": 1,
     "microphone_test_stop": 1,
     # Chunked WAV-slice reads: each call is a CHEAP bounded disk read
     "microphone_test_read_audio": 1,

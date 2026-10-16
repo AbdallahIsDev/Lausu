@@ -296,6 +296,10 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "volume_duck_level": (float, _make_float_validator(lo=0.0, hi=1.0)),
     "volume_duck_fade_ms": (int, _make_int_validator(lo=0, hi=1000)),
     "volume_duck_smart_poll_interval_ms": (int, _make_int_validator(lo=50, hi=5000)),
+    # Listen Live preview-tap volume (own control; never the capture gain).
+    "live_listen_level": (float, _make_float_validator(lo=0.0, hi=1.0)),
+    # Mic guard master toggle (default ON; Settings → Microphone).
+    "mic_guard_enabled": (bool, _bool_validator),
     # (partial): legacy aliases ``"none"`` and ``"recommended"``
     "audio_preset": (
         str,

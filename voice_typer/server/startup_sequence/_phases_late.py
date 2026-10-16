@@ -300,6 +300,26 @@ class LatePhases:
 
         log.debug("[STARTUP] Running mic enumeration (bounded pool)")
 
+        # Mic guard: driver auto-gain slides the capture knob down after
+        # loud events; the watcher restores it. Fire-and-forget because
+        # initialize() touches a COM endpoint / spawns a subprocess.
+        def _mic_guard_task() -> None:
+            guard = app._mic_guard
+            if guard is None:
+                log.info("[STARTUP] Mic guard unavailable, capture gain not pinned")
+                return
+            if not guard.initialize():
+                return
+            guard.start()
+
+        guard_thread = threading.Thread(
+            target=_mic_guard_task,
+            name="startup-mic-guard",
+            daemon=True,
+        )
+        guard_thread.start()
+        log.debug("[STARTUP] Mic guard dispatched to fire-and-forget daemon thread (no wait, no timeout)")
+
         # RACE-020: check for shutdown after parallel work
         if app._shutting_down:
             log.debug("[STARTUP] Interrupted after mic enumeration")
