@@ -139,15 +139,6 @@ export const LocalModelsPanel = memo(function LocalModelsPanel({
 
 	return (
 		<div className="flex flex-col gap-4">
-			{/* Localized descriptive subtitle under the panel heading
-                            (key exists in all 8 locales). */}
-			<p
-				className="text-sm text-muted-foreground"
-				data-testid="local-models-description"
-			>
-				{t("models.localModelsDescription")}
-			</p>
-
 			{/* low-disk warning banner. Only shown when the backend
                             exposes `get_disk_info` AND free space is below the threshold. */}
 			{showLowDiskWarning && diskInfo && (
