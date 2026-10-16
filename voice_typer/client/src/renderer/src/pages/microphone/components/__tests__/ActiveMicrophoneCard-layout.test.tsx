@@ -168,3 +168,21 @@ describe("ActiveMicrophoneCard, test readout placement", () => {
 		).toBeTruthy();
 	});
 });
+
+describe("ActiveMicrophoneCard, live-listen button during a test", () => {
+	it("stays mounted but disabled while a test runs (C-CACHE-6)", () => {
+		renderCard({ testRunning: true, liveListenDisabled: true });
+
+		const listen = screen.getByRole("button", { name: /listen live/i });
+		expect(listen).toBeInTheDocument();
+		expect(listen).toBeDisabled();
+	});
+
+	it("is enabled when idle", () => {
+		renderCard({ testRunning: false, liveListenDisabled: false });
+
+		const listen = screen.getByRole("button", { name: /listen live/i });
+		expect(listen).toBeInTheDocument();
+		expect(listen).not.toBeDisabled();
+	});
+});
