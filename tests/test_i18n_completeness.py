@@ -137,6 +137,10 @@ ALLOWED_UNTRANSLATED = {
     "about.httpError",  # "HTTP {status}"
     # (UI/UX overhaul 2026-08-20): "VRAM" and "WER" are universal
     "models.card.vramLabel",  # "VRAM"
+    # Same metadata line, CPU-only branch: the SAME figure is labelled "RAM"
+    # instead of "VRAM" (LocalModelsPanel's gpuAvailable ternary), so it is
+    # the same universal hardware acronym and stays identical everywhere.
+    "models.card.ramLabel",  # "RAM"
     "models.card.werLabel",  # "WER"
     "models.cloud.tagCloud",  # "Cloud"
     # Duration suffix abbreviations: "min" and "s" are SI-standard
