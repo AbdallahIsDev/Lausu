@@ -37,6 +37,7 @@ vi.mock("@/hooks/usePython", () => pythonMock());
 
 import { useConnection } from "@/hooks/useConnection";
 import { _resetNavigationForTest, useNavigation } from "@/hooks/useNavigation";
+import en from "@/i18n/translations/en.json";
 import { useAppStore } from "@/stores/appStore";
 
 // Stub localStorage (jsdom 29 with opaque origin doesn't expose it).
@@ -196,9 +197,12 @@ describe("useConnection, OPTION-A retry escalation (probe → backend restart)",
 		});
 		expect(restartBackend).toHaveBeenCalledTimes(1);
 		// User-visible hint that single-click recovery was attempted
-		// but the backend is parent-managed.
+		// but the backend is parent-managed. Asserted against the
+		// `connection.restartBackendHint` source of truth (en) rather
+		// than a copy literal: the wording is a product decision, the
+		// wiring is what this test owns.
 		expect(screen.getByTestId("last-error").textContent).toContain(
-			"could not be restarted",
+			en.connection.restartBackendHint,
 		);
 	});
 
@@ -217,7 +221,7 @@ describe("useConnection, OPTION-A retry escalation (probe → backend restart)",
 			expect(screen.getByTestId("status").textContent).toBe("disconnected");
 		});
 		expect(screen.getByTestId("last-error").textContent).toContain(
-			"could not be restarted",
+			en.connection.restartBackendHint,
 		);
 	});
 

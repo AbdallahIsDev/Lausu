@@ -750,7 +750,14 @@ describe("Models page, cloud consent toggles", () => {
 	 *  localized provider name (en.json models.providers.{key}.label,
 	 *  e.g. "OpenAI"). */
 	function openApiKeyForm(providerLabel: string): void {
-		fireEvent.click(screen.getByRole("button", { name: providerLabel }));
+		// The row trigger's accessible name now carries the trailing
+		// Configure action (the action button rides INSIDE the trigger
+		// `<button>` so the row is one hover surface), e.g.
+		// "OpenAI Configure". Anchor on the LEADING provider name: the
+		// dialog's own "Configure OpenAI" button must not match.
+		fireEvent.click(
+			screen.getByRole("button", { name: new RegExp(`^${providerLabel}`) }),
+		);
 		fireEvent.click(
 			screen.getByRole("button", { name: `Configure ${providerLabel}` }),
 		);
