@@ -1824,7 +1824,6 @@
 		"detectedIssues": "Erkannte Probleme:",
 		"playEnhanced": "Verbessert abspielen",
 		"playOriginal": "Original abspielen",
-		"playRecording": "Aufnahme abspielen",
 		"stop": "Stopp",
 		"qualityFeedback": {
 			"qualityNotApplicable": "N/V: Transkription nicht verfügbar"
@@ -1848,8 +1847,6 @@
 		},
 		"liveListen": "Live mithören",
 		"stopListening": "Stoppen",
-		"liveListenHint": "Sie sollten sich jetzt hören. Verwenden Sie Kopfhörer, um Echo zu vermeiden.",
-		"previewVolume": "Vorschau-Lautstärke",
 		"liveListenGuideNote": "Für das Live-Mithören über Laptop- oder Desktop-Lautsprecher werden Kopfhörer empfohlen.",
 		"speakerOfferTitle": "Ihre Lautsprecher sind sehr laut",
 		"speakerOfferMessage": "Bei diesem Pegel kann das Live-Mithören die Lautsprecher aufnehmen.",

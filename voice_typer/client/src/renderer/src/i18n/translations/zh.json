@@ -1824,7 +1824,6 @@
 		"detectedIssues": "检测到的问题：",
 		"playEnhanced": "播放增强版",
 		"playOriginal": "播放原版",
-		"playRecording": "播放录音",
 		"stop": "停止",
 		"qualityFeedback": {
 			"qualityNotApplicable": "不适用: 转写不可用"
@@ -1848,8 +1847,6 @@
 		},
 		"liveListen": "实时试听",
 		"stopListening": "停止试听",
-		"liveListenHint": "您现在应该能听到自己的声音。请使用耳机以避免回声。",
-		"previewVolume": "试听音量",
 		"liveListenGuideNote": "在笔记本或台式机扬声器上使用实时试听时，建议佩戴耳机。",
 		"speakerOfferTitle": "扬声器音量过高",
 		"speakerOfferMessage": "此音量下实时试听会拾取到扬声器的声音。",

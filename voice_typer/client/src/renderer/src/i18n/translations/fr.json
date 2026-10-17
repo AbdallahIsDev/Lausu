@@ -1824,7 +1824,6 @@
 		"detectedIssues": "Problèmes détectés :",
 		"playEnhanced": "Lire amélioré",
 		"playOriginal": "Lire original",
-		"playRecording": "Lire l'enregistrement",
 		"stop": "Arrêter",
 		"qualityFeedback": {
 			"qualityNotApplicable": "N/D: transcription indisponible"
@@ -1848,8 +1847,6 @@
 		},
 		"liveListen": "Écoute en direct",
 		"stopListening": "Arrêter l'écoute",
-		"liveListenHint": "Vous devriez vous entendre. Utilisez un casque pour éviter l'écho.",
-		"previewVolume": "Volume de l'écoute",
 		"liveListenGuideNote": "Un casque est recommandé pour l'écoute en direct sur les haut-parleurs d'un ordinateur portable ou de bureau.",
 		"speakerOfferTitle": "Vos haut-parleurs sont très forts",
 		"speakerOfferMessage": "À ce niveau, l'écoute en direct peut capter les haut-parleurs.",
