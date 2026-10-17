@@ -49,6 +49,18 @@ export interface LevelMonitorStopRequest {
 	type: "level_monitor_stop";
 }
 
+/**
+ * Start/stop the backend-streamed Listen Live preview. Replies with
+ * `live_preview_status` = `{active, monitoring, sample_rate, filtered}`; the
+ * frames themselves arrive as `live_preview_audio` push events. Requires a
+ * running level monitor (the preview has no capture path of its own,
+ * C-MIC-10), so `active` is `false` when there is nothing to filter.
+ */
+export interface LivePreviewRequest {
+	type: "live_preview";
+	data: { enabled: boolean };
+}
+
 export interface MicrophoneTestGetLevelRequest {
 	type: "microphone_test_get_level";
 }
@@ -451,6 +463,7 @@ export type PythonRequest =
 	| GetStatusRequest
 	| LevelMonitorStartRequest
 	| LevelMonitorStopRequest
+	| LivePreviewRequest
 	| MicrophoneTestGetLevelRequest
 	| SetTrayLocaleRequest
 	| OnboardingResetRequest

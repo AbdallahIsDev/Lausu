@@ -4,78 +4,116 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useLiveListen } from "../useLiveListen";
 
 // ── Mocks ─────────────────────────────────────────────────────────
-// Same shape as useLiveListen.test.ts: real class so `new` works.
+// Same shape as useLiveListen.test.ts: real class so `new` works, and a
+// `window.python` bridge that records every `live_preview` toggle.
 
-interface MockTrack {
-	stop: ReturnType<typeof vi.fn>;
+const ENABLED_REPLY = {
+	active: true,
+	monitoring: true,
+	sample_rate: 48000,
+	filtered: true,
+};
+
+interface CreatedContext {
+	close: ReturnType<typeof vi.fn>;
+}
+
+interface BridgeMock {
+	call: ReturnType<typeof vi.fn>;
+	onEvent: ReturnType<typeof vi.fn>;
+	enables: () => number;
+	disables: () => number;
 }
 
 function makeMocks() {
-	const created: {
-		tracks: MockTrack[];
-		close: ReturnType<typeof vi.fn>;
-		ctxBuilt: boolean;
-	}[] = [];
-	const getUserMedia = vi.fn().mockImplementation(async () => {
-		const tracks: MockTrack[] = [{ stop: vi.fn() }, { stop: vi.fn() }];
-		const stream = { getTracks: () => tracks };
-		created.push({
-			tracks,
-			close: vi.fn().mockResolvedValue(undefined),
-			ctxBuilt: false,
-		});
-		return stream;
-	});
-	const enumerateDevices = vi.fn().mockResolvedValue([]);
-	const gainNode = () => ({
-		gain: { value: 0 },
-		connect: vi.fn(),
-		disconnect: vi.fn(),
-	});
-	const sourceNode = () => ({ connect: vi.fn(), disconnect: vi.fn() });
-	const limiterNode = () => ({
-		threshold: { value: 0 },
-		knee: { value: 0 },
-		ratio: { value: 0 },
-		attack: { value: 0 },
-		release: { value: 0 },
-		connect: vi.fn(),
-		disconnect: vi.fn(),
-	});
+	const created: CreatedContext[] = [];
+
 	class MockAudioContext {
 		state = "running";
-		destination = {};
+		currentTime = 0;
+		destination = { id: "destination" };
 		resume = vi.fn().mockResolvedValue(undefined);
 		close: ReturnType<typeof vi.fn>;
-		createMediaStreamSource = vi.fn().mockImplementation(() => sourceNode());
-		createGain = vi.fn().mockImplementation(() => gainNode());
-		createDynamicsCompressor = vi.fn().mockImplementation(() => limiterNode());
+		createGain = vi.fn(() => ({
+			gain: { value: 0 },
+			connect: vi.fn(),
+			disconnect: vi.fn(),
+		}));
+		createDynamicsCompressor = vi.fn(() => ({
+			threshold: { value: 0 },
+			knee: { value: 0 },
+			ratio: { value: 0 },
+			attack: { value: 0 },
+			release: { value: 0 },
+			connect: vi.fn(),
+			disconnect: vi.fn(),
+		}));
+		createBuffer = vi.fn((_channels: number, length: number, rate: number) => ({
+			duration: length / rate,
+			length,
+			sampleRate: rate,
+			copyToChannel: vi.fn(),
+		}));
+		createBufferSource = vi.fn(() => ({
+			buffer: null,
+			onended: null,
+			connect: vi.fn(),
+			disconnect: vi.fn(),
+			start: vi.fn(),
+			stop: vi.fn(),
+		}));
 		constructor() {
-			const entry = created[created.length - 1];
-			if (entry) entry.ctxBuilt = true;
-			this.close = entry?.close ?? vi.fn().mockResolvedValue(undefined);
+			this.close = vi.fn().mockResolvedValue(undefined);
+			created.push({ close: this.close });
 		}
 	}
-	return { created, getUserMedia, enumerateDevices, MockAudioContext };
+
+	return { created, MockAudioContext };
 }
 
 type Mocks = ReturnType<typeof makeMocks>;
 let mocks: Mocks;
+let bridge: BridgeMock;
 
-function installMocks(m: Mocks) {
-	Object.defineProperty(navigator, "mediaDevices", {
-		value: {
-			getUserMedia: m.getUserMedia,
-			enumerateDevices: m.enumerateDevices,
-		},
-		configurable: true,
-		writable: true,
-	});
+function installAudio(m: Mocks) {
 	Object.defineProperty(window, "AudioContext", {
 		value: m.MockAudioContext,
 		configurable: true,
 		writable: true,
 	});
+}
+
+function installBridge(
+	handler: (req: {
+		type: string;
+		data?: Record<string, unknown>;
+	}) => unknown = (req) =>
+		req.data?.enabled ? ENABLED_REPLY : { active: false, monitoring: true },
+): BridgeMock {
+	const call = vi.fn(
+		async (req: { type: string; data?: Record<string, unknown> }) =>
+			handler(req),
+	);
+	const onEvent = vi.fn(() => () => {});
+	(window as unknown as { python?: unknown }).python = { call, onEvent };
+	const toggles = () =>
+		call.mock.calls.filter(
+			(c) => (c[0] as { type: string }).type === "live_preview",
+		);
+	return {
+		call,
+		onEvent,
+		enables: () =>
+			toggles().filter(
+				(c) =>
+					(c[0] as { data?: { enabled?: boolean } }).data?.enabled === true,
+			).length,
+		disables: () =>
+			toggles().filter(
+				(c) =>
+					(c[0] as { data?: { enabled?: boolean } }).data?.enabled === false,
+			).length,
+	};
 }
 
 function flush() {
@@ -84,15 +122,17 @@ function flush() {
 	});
 }
 
-describe("useLiveListen stress", () => {
+describe("useLiveListen stress (backend-streamed)", () => {
 	beforeEach(() => {
 		mocks = makeMocks();
-		installMocks(mocks);
+		installAudio(mocks);
+		bridge = installBridge();
 	});
 
 	afterEach(() => {
 		cleanup();
 		vi.restoreAllMocks();
+		delete (window as unknown as { python?: unknown }).python;
 		Object.defineProperty(window, "AudioContext", {
 			value: undefined,
 			configurable: true,
@@ -100,7 +140,7 @@ describe("useLiveListen stress", () => {
 		});
 	});
 
-	it("toggle storm ends in a consistent stopped state with no leaks", async () => {
+	it("toggle storm ends stopped, with every context closed and the stream off", async () => {
 		const { result } = renderHook(() =>
 			useLiveListen({ activeMicName: null, isSystemDefault: true }),
 		);
@@ -116,21 +156,18 @@ describe("useLiveListen stress", () => {
 
 		expect(result.current.listening).toBe(false);
 		expect(result.current.starting).toBe(false);
-		// Every created stream was stopped; every BUILT context closed.
-		// (Late streams from superseded starts never reach the context
-		// step by design: nothing built, nothing to close.)
-		for (const c of mocks.created) {
-			for (const track of c.tracks) expect(track.stop).toHaveBeenCalled();
-			if (c.ctxBuilt) expect(c.close).toHaveBeenCalled();
-		}
+		for (const ctx of mocks.created) expect(ctx.close).toHaveBeenCalled();
+		// The stream is never left enabled: the last word is always "off".
+		expect(bridge.disables()).toBeGreaterThanOrEqual(1);
+		expect(bridge.enables()).toBe(bridge.disables());
 	});
 
-	it("stop during a pending permission prompt releases the late stream", async () => {
-		let release!: (s: unknown) => void;
-		mocks.getUserMedia.mockImplementationOnce(
+	it("stop during a pending enable releases the late reply", async () => {
+		let release!: (value: unknown) => void;
+		bridge = installBridge(
 			() =>
 				new Promise((resolve) => {
-					release = resolve as (s: unknown) => void;
+					release = resolve;
 				}),
 		);
 		const { result } = renderHook(() =>
@@ -141,29 +178,28 @@ describe("useLiveListen stress", () => {
 			result.current.toggle();
 		});
 		expect(result.current.starting).toBe(true);
-		// Stop BEFORE the permission resolves.
 		act(() => {
 			result.current.toggle();
 		});
-		// Permission granted late.
-		const stopMock = vi.fn();
-		const tracks = [{ stop: stopMock }];
+
 		await act(async () => {
-			release({ getTracks: () => tracks });
+			release(ENABLED_REPLY);
 			await new Promise<void>((resolve) => setTimeout(resolve, 0));
 		});
 
 		expect(result.current.listening).toBe(false);
 		expect(result.current.starting).toBe(false);
-		expect(stopMock).toHaveBeenCalled();
+		// The enable that landed after the stop is undone.
+		expect(bridge.disables()).toBe(1);
+		for (const ctx of mocks.created) expect(ctx.close).toHaveBeenCalled();
 	});
 
-	it("unmount during a pending start warns nothing and leaks nothing", async () => {
-		let release!: (s: unknown) => void;
-		mocks.getUserMedia.mockImplementationOnce(
+	it("unmount during a pending enable warns nothing and leaves the stream off", async () => {
+		let release!: (value: unknown) => void;
+		bridge = installBridge(
 			() =>
 				new Promise((resolve) => {
-					release = resolve as (s: unknown) => void;
+					release = resolve;
 				}),
 		);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -175,14 +211,12 @@ describe("useLiveListen stress", () => {
 			result.current.toggle();
 		});
 		unmount();
-		const stopMock = vi.fn();
-		const tracks = [{ stop: stopMock }];
 		await act(async () => {
-			release({ getTracks: () => tracks });
+			release(ENABLED_REPLY);
 			await new Promise<void>((resolve) => setTimeout(resolve, 0));
 		});
 
-		expect(stopMock).toHaveBeenCalled();
+		expect(bridge.disables()).toBe(1);
 		const reactWarnings = errSpy.mock.calls.filter(
 			(args) =>
 				typeof args[0] === "string" && args[0].includes("unmounted component"),
@@ -191,7 +225,7 @@ describe("useLiveListen stress", () => {
 		errSpy.mockRestore();
 	});
 
-	it("five sequential cycles each build and release exactly one graph", async () => {
+	it("five sequential cycles each enable, build and release exactly one graph", async () => {
 		const { result } = renderHook(() =>
 			useLiveListen({ activeMicName: null, isSystemDefault: true }),
 		);
@@ -208,12 +242,10 @@ describe("useLiveListen stress", () => {
 			expect(result.current.listening).toBe(false);
 		}
 
-		expect(mocks.getUserMedia).toHaveBeenCalledTimes(5);
+		expect(bridge.enables()).toBe(5);
+		expect(bridge.disables()).toBe(5);
 		expect(mocks.created.length).toBe(5);
-		for (const c of mocks.created) {
-			for (const track of c.tracks) expect(track.stop).toHaveBeenCalledTimes(1);
-			expect(c.close).toHaveBeenCalledTimes(1);
-		}
+		for (const ctx of mocks.created) expect(ctx.close).toHaveBeenCalledTimes(1);
 		expect(result.current.error).toBeNull();
 	});
 });
