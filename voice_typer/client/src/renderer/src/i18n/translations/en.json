@@ -1846,15 +1846,12 @@
 		},
 		"playEnhanced": "Play Enhanced",
 		"playOriginal": "Play Original",
-		"playRecording": "Play Recording",
 		"stop": "Stop",
 		"qualityFeedback": {
 			"qualityNotApplicable": "N/A: transcription unavailable"
 		},
 		"liveListen": "Listen live",
 		"stopListening": "Stop listening",
-		"liveListenHint": "You should hear yourself now. Use headphones to avoid echo.",
-		"previewVolume": "Preview volume",
 		"liveListenGuideNote": "Headphones are recommended for Listen live on laptop or desktop speakers.",
 		"speakerOfferTitle": "Your speakers are very loud",
 		"speakerOfferMessage": "Listen live can pick up the speakers at this level.",

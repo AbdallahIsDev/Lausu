@@ -252,7 +252,6 @@ describe("TestReviewPanel quality block is announced to AT", () => {
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
 				onRetest={() => {}}
-				hasFiltersEnabled={false}
 			/>,
 		);
 	}
@@ -319,7 +318,6 @@ describe("TestReviewPanel test-transcription display", () => {
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
 				onRetest={() => {}}
-				hasFiltersEnabled={false}
 			/>,
 		);
 
@@ -344,7 +342,6 @@ describe("TestReviewPanel test-transcription display", () => {
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
 				onRetest={() => {}}
-				hasFiltersEnabled={false}
 			/>,
 		);
 
@@ -369,7 +366,6 @@ describe("TestReviewPanel test-transcription display", () => {
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
 				onRetest={() => {}}
-				hasFiltersEnabled={false}
 			/>,
 		);
 

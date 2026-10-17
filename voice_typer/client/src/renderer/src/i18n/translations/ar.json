@@ -1824,7 +1824,6 @@
 		"detectedIssues": "المشكلات المكتشفة:",
 		"playEnhanced": "تشغيل المُحسَّن",
 		"playOriginal": "تشغيل الأصلي",
-		"playRecording": "تشغيل التسجيل",
 		"stop": "إيقاف",
 		"qualityFeedback": {
 			"qualityNotApplicable": "غير متاح: التعرف غير متوفر"
@@ -1848,8 +1847,6 @@
 		},
 		"liveListen": "استمع مباشرة",
 		"stopListening": "إيقاف الاستماع",
-		"liveListenHint": "يجب أن تسمع نفسك الآن. استخدم سماعات الرأس لتجنب الصدى.",
-		"previewVolume": "مستوى الاستماع التجريبي",
 		"liveListenGuideNote": "يُنصح باستخدام سماعات الرأس عند الاستماع المباشر عبر مكبرات صوت الحاسوب المحمول أو المكتبي.",
 		"speakerOfferTitle": "مكبرات الصوت عالية جدًا",
 		"speakerOfferMessage": "قد يلتقط الاستماع المباشر صوت المكبرات عند هذا المستوى.",

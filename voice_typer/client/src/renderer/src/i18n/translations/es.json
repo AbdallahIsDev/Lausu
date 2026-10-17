@@ -1824,7 +1824,6 @@
 		"detectedIssues": "Problemas detectados:",
 		"playEnhanced": "Reproducir mejorado",
 		"playOriginal": "Reproducir original",
-		"playRecording": "Reproducir grabación",
 		"stop": "Detener",
 		"qualityFeedback": {
 			"qualityNotApplicable": "N/D: transcripción no disponible"
@@ -1848,8 +1847,6 @@
 		},
 		"liveListen": "Escucha en directo",
 		"stopListening": "Dejar de escuchar",
-		"liveListenHint": "Deberías escucharte ahora. Usa auriculares para evitar el eco.",
-		"previewVolume": "Volumen de vista previa",
 		"liveListenGuideNote": "Se recomiendan auriculares para la escucha en directo con los altavoces del portátil o de sobremesa.",
 		"speakerOfferTitle": "Tus altavoces suenan muy fuerte",
 		"speakerOfferMessage": "La escucha en directo puede captar los altavoces a este nivel.",
