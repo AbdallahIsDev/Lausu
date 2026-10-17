@@ -219,6 +219,8 @@ const _SERVER_REGISTRY_MINUS_PYTHON_ONLY = {
 	microphone_test_get_level: true,
 	level_monitor_start: true,
 	level_monitor_stop: true,
+	// Listen Live preview: enable/disable the backend-streamed preview.
+	live_preview: true,
 	import_model: true,
 	download_model: true,
 	cancel_model_download: true,
