@@ -76,7 +76,6 @@ function renderNoModelPanel() {
 			onPlayOriginal={() => {}}
 			onStop={() => {}}
 			onRetest={() => {}}
-			hasFiltersEnabled={false}
 		/>,
 	);
 }
@@ -126,7 +125,6 @@ describe("TestReviewPanel no-model state renders translated text (never a raw ke
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
 				onRetest={() => {}}
-				hasFiltersEnabled={false}
 			/>,
 		);
 
@@ -200,7 +198,6 @@ describe("TestReviewPanel fetch-failure verdict fallback (playback missing, verd
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
 				onRetest={() => {}}
-				hasFiltersEnabled={false}
 			/>,
 		);
 
@@ -226,7 +223,6 @@ describe("TestReviewPanel fetch-failure verdict fallback (playback missing, verd
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
 				onRetest={() => {}}
-				hasFiltersEnabled={false}
 			/>,
 		);
 
@@ -236,9 +232,8 @@ describe("TestReviewPanel fetch-failure verdict fallback (playback missing, verd
 		expect(
 			screen.queryByText(enText("microphoneTest.playOriginal")),
 		).toBeNull();
-		expect(
-			screen.queryByText(enText("microphoneTest.playRecording")),
-		).toBeNull();
+		// No third label exists: Enhanced covers every test (with the chain
+		// off all-test, Enhanced IS the recording).
 		expect(screen.getByText(enText("microphoneTest.retest"))).toBeTruthy();
 	});
 
@@ -257,11 +252,37 @@ describe("TestReviewPanel fetch-failure verdict fallback (playback missing, verd
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
 				onRetest={() => {}}
-				hasFiltersEnabled={false}
 			/>,
 		);
 
 		expect(container.textContent).toBe("");
+	});
+
+	it("always renders Enhanced-left / Original-right (no order swap, no third label)", () => {
+		render(
+			<TestReviewPanel
+				durationMs={5200}
+				quality={{ ...qualityData, estimated_transcription_quality: 100 }}
+				transcription={null}
+				transcriptionUnavailable={false}
+				testAudioBase64="AAA="
+				rawAudioBase64="AAA="
+				playing={false}
+				playingOriginal={false}
+				onPlayEnhanced={() => {}}
+				onPlayOriginal={() => {}}
+				onStop={() => {}}
+				onRetest={() => {}}
+			/>,
+		);
+
+		const enhanced = screen.getByText(enText("microphoneTest.playEnhanced"));
+		const original = screen.getByText(enText("microphoneTest.playOriginal"));
+		// DOM order: Enhanced first (left in LTR), Original second (right).
+		expect(
+			enhanced.compareDocumentPosition(original) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
 	});
 });
 
@@ -286,7 +307,6 @@ describe("TestReviewPanel unknown-issue fallback contract (no recommendation, no
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
 				onRetest={() => {}}
-				hasFiltersEnabled={false}
 				onApplyPreset={() => {}}
 				currentPreset="auto"
 			/>,

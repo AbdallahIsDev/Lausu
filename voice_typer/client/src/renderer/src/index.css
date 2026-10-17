@@ -368,7 +368,7 @@
 	   Full circles and pills explicitly keep their circular caps. */
 	@supports (corner-shape: squircle) {
 		:root {
-			--radius: 1.625rem !important;
+			--radius: 1.225rem !important;
 		}
 
 		:where(
@@ -443,6 +443,7 @@
 	-webkit-user-select: none;
 	user-select: none;
 }
+
 #bubble-root ::selection {
 	background: transparent;
 	color: inherit;
@@ -711,16 +712,19 @@
 		height: 0;
 		opacity: 0;
 	}
+
 	to {
 		height: var(--radix-collapsible-content-height);
 		opacity: 1;
 	}
 }
+
 @keyframes collapsibleUp {
 	from {
 		height: var(--radix-collapsible-content-height);
 		opacity: 1;
 	}
+
 	to {
 		height: 0;
 		opacity: 0;
@@ -739,9 +743,11 @@
 	grid-template-rows: 0fr;
 	transition: grid-template-rows 200ms ease-out;
 }
+
 .collapse-root[data-open="true"] {
 	grid-template-rows: 1fr;
 }
+
 .collapse-root > * {
 	overflow: hidden;
 	min-height: 0;
@@ -756,10 +762,12 @@
 	from {
 		opacity: 0;
 	}
+
 	to {
 		opacity: 1;
 	}
 }
+
 .mount-fade {
 	animation: mountFade 150ms ease-out;
 }
@@ -771,6 +779,7 @@
 	.collapse-root {
 		transition: none;
 	}
+
 	.mount-fade {
 		animation: none;
 	}
@@ -915,32 +924,49 @@
 	border-style: solid;
 	border-color: color-mix(in srgb, var(--border) 10%, transparent);
 }
-.toaster
-	[data-sonner-toast][data-styled="true"][data-type="success"]
-	[data-icon] {
-	color: var(--success);
-}
 
-.toaster
-	[data-sonner-toast][data-styled="true"][data-type="warning"]
-	[data-icon] {
-	color: var(--warning);
-}
-
-.toaster [data-sonner-toast][data-styled="true"][data-type="info"] [data-icon] {
-	color: var(--info);
-}
-
-.toaster
-	[data-sonner-toast][data-styled="true"][data-type="error"]
-	[data-icon] {
+/* Title carries the type signal (no glyph). Error = destructive,
+   warning = warning, everything else = foreground. */
+.toaster [data-sonner-toast][data-styled="true"][data-type="error"] .title {
 	color: var(--destructive);
 }
 
-.toaster
-	[data-sonner-toast][data-styled="true"][data-type="loading"]
-	[data-icon] {
-	color: var(--muted-foreground);
+/* Toast action/cancel buttons: EVERY sonner-native button is outline-xs,
+   globally (mic-guard, Retry, Undo, all of them — not just one toast).
+   Sonner's `cn()` is a plain join (no tailwind-merge) and its native
+   stylesheet injects AFTER this file, so Tailwind variant classes alone
+   can never win: sonner native (0,3,0 unlayered) beats utilities (0,1,0
+   layered), and any transparent neutralize here beats the variant too
+   (the mic-guard ghost bug). So this rule OWNS the fill directly,
+   mirroring button.tsx `outline` (bg-border/5, 1px border/8, foreground)
+   at (0,4,0). Left edge via align-self + zeroed margins (flex column
+   parent; sonner's margin-start:auto otherwise shoves lone buttons
+   right). Hover comes from the Button classes (no conflict here). */
+.toaster [data-sonner-toast][data-styled="true"] [data-button] {
+	border-radius: var(--radius-lg);
+	padding-left: 0.625rem;
+	padding-right: 0.625rem;
+	padding-top: 0.25rem;
+	padding-bottom: 0.25rem;
+	height: auto;
+	font-size: 0.75rem;
+	font-weight: 500;
+	gap: 0.25rem;
+	background: color-mix(in srgb, var(--border) 5%, transparent);
+	color: var(--foreground);
+	border-width: 1px;
+	border-style: solid;
+	border-color: color-mix(in srgb, var(--border) 8%, transparent);
+	margin: 0;
+	align-self: flex-start;
+}
+
+.toaster [data-sonner-toast][data-styled="true"][data-type="warning"] .title {
+	color: var(--warning);
+}
+
+.toaster [data-sonner-toast][data-styled="true"] .title {
+	color: var(--foreground);
 }
 
 /* Sonner hardcodes the description to #3f3f3f (light) / hsl(0,0%,91%)
@@ -949,67 +975,20 @@
 	color: var(--muted-foreground);
 }
 
-/* Action button (Undo/Retry/Open Models): muted outline like collection
-   toolbar buttons (Import), not primary blue. */
-.toaster [data-sonner-toast][data-styled="true"] [data-button] {
-	background: var(--surface);
-	color: var(--foreground);
-	border: 1px solid color-mix(in srgb, var(--border) 10%, transparent);
-}
-
-.toaster [data-sonner-toast][data-styled="true"] [data-button]:hover {
-	background: color-mix(in srgb, var(--foreground) 5%, transparent);
-}
-
-/* Action placement: title → description → button, stacked. Sonner lays the
-   toast out as ONE flex row (icon | content | button) with the button pushed
-   right by --toast-button-margin-start: auto, so a wrapping description got
-   squeezed into a narrow column beside it. design-system.html stacks the
-   action under the description instead (.t-actions inside .t-body), so mirror
-   that here with a 2-column grid: icon col 1, content col 2, action on the
-   content column's second row. */
+/* Two-row toast: row 1 = content (title + description) full width, never
+   squeezed; row 2 = the action div group (the offer renders ONE container
+   holding both buttons side-by-side). Single-button toasts keep sonner's
+   native inline placement. Gaps: 1rem text-to-actions — parent gap only,
+   never margins (C-UI-4); the group owns its own gap-2 internally. */
 .toaster [data-sonner-toast][data-styled="true"] {
-	display: grid;
-	grid-template-columns: auto minmax(0, 1fr);
-	gap: 6px;
-}
-
-.toaster [data-sonner-toast][data-styled="true"] [data-icon] {
-	grid-column: 1;
-	grid-row: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	row-gap: 1rem;
 }
 
 .toaster [data-sonner-toast][data-styled="true"] [data-content] {
-	grid-column: 2;
-	grid-row: 1;
-}
-
-/* justify-self: start + zeroed margins: grid items stretch by default, and
-   the inherited margin-left: auto (LTR) / margin-right: auto (RTL) would
-   otherwise push the action to the far edge of the content column. */
-.toaster [data-sonner-toast][data-styled="true"] [data-button] {
-	grid-column: 2;
-	grid-row: 2;
-	justify-self: start;
-	margin-left: 0;
-	margin-right: 0;
-}
-
-/* A toast carrying both cancel and action (sonner renders cancel first) must
-   not stack them in the same cell — put the action on its own row. */
-.toaster [data-sonner-toast][data-styled="true"] [data-button] ~ [data-button] {
-	grid-row: 3;
-}
-
-/* Cancel button: secondary surface. The .toaster[data-sonner-toaster]
-   chain (0,5,0) is deliberate: sonner's dark-theme cancel rule ties a
-   plain .toaster prefix at 0,4,0, and sonner's runtime-injected
-   stylesheet wins ties by source order. */
-.toaster[data-sonner-toaster]
-	[data-sonner-toast][data-styled="true"]
-	[data-cancel] {
-	color: var(--foreground);
-	background: var(--muted);
+	min-width: 0;
 }
 
 /* Close button: same 1px faded border as the toast card (10%). */

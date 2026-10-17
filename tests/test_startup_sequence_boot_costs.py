@@ -331,3 +331,45 @@ class TestHotkeyRegistersBeforeMicTask:
         assert result.success is False
         assert result.data == {"shutdown": True}
         assert mic_calls == [], "mic enumeration must NOT run when shutdown aborts phase 6 after hotkey registration."
+
+
+class TestGtcrnPreloadSpawn:
+    """StartupSequence phase 1 (``gtcrn-preload-startup``)."""
+
+    def test_gtcrn_preload_spawns_exactly_one_worker_per_boot(self, tmp_config_dir, monkeypatch):
+        from voice_typer.server.audio_filters import gtcrn_backend as _gtcrn
+
+        calls: list[str] = []
+        monkeypatch.setattr(_gtcrn, "preload", lambda: calls.append("preload") or True)
+        _stub_platform_helpers(monkeypatch)
+
+        threads_before = set(threading.enumerate())
+
+        from voice_typer.server.app import LausuApp
+
+        app = LausuApp()
+        app.config.esc_cancel_enabled = False
+        app.config.voice_biometric_consent = True
+        app.config.bubble_behavior = "hidden"
+        app.config.bubble_show_on_startup = False
+        app.hotkeys = MagicMock()
+        app.models = MagicMock()
+
+        _stub_startup_io(app, monkeypatch)
+
+        from voice_typer.server.startup_sequence import StartupSequence
+
+        StartupSequence(app).run()
+
+        preload_threads = [
+            t for t in threading.enumerate()
+            if t not in threads_before and "gtcrn-preload" in t.name
+        ]
+        for t in preload_threads:
+            t.join(timeout=5.0)
+
+        assert len(calls) == 1, (
+            "gtcrn_backend.preload() must be invoked by exactly ONE worker per boot "
+            f"(observed {len(calls)} invocations from threads "
+            f"{[t.name for t in preload_threads]})."
+        )

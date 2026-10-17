@@ -135,28 +135,44 @@ class _BubbleLevelExclusionFilter(logging.Filter):
         return self._MARKER not in record.getMessage()
 
 
+def _one_line(text: str, terminator: str = "\n") -> str:
+    """Return *text* with exactly ONE trailing terminator.
+
+    A record must occupy exactly one row. A formatter that already ends
+    with a newline (the traceback path) must not gain a second one, and a
+    record whose text lost its break must not glue onto the next record.
+    """
+    return text.rstrip("\r\n") + terminator
+
+
 class _FlushingStreamHandler(logging.StreamHandler):
-    """StreamHandler that flushes after every emit.
+    """StreamHandler that writes ONE complete line per emit and flushes it.
 
-    the standard ``logging.StreamHandler`` only flushes on
-    ``close()`` (or when its internal buffer fills up).  For an
-    interactive terminal session this means startup logs can sit in
-    the buffer for several seconds, making Lausu look like it's
-    hanging silently.  Subclassing and calling ``self.flush()`` after
-    every ``emit()`` guarantees each log line is written to the
-    terminal immediately.
+    Two contracts, both learned from a shipped bug where a WARN record and
+    the next record rendered on the same terminal row:
 
-    This subclass is also used as the dedup key in
-    :func:`setup_logging` so calling ``setup_logging`` multiple times
-    doesn't add duplicate console handlers.
+    1. **Terminator included, exactly once** (:func:`_one_line`), in the
+       SAME write as the payload. A payload written without its break stays
+       in the stream's buffer and the next record appends to it.
+    2. **No short write is silently truncated.** ``write()`` on a raw or
+       buffered binary stream may accept fewer bytes than offered; the
+       remainder must be written, never dropped (a dropped tail is usually
+       the newline).
+
+    The record therefore goes out through the stream's binary buffer as one
+    ``write`` of ``payload + "\\n"`` (atomic for a line-sized write on both
+    POSIX and Windows pipes), with the short-write loop above it. Text-only
+    streams (``StringIO`` in tests, a replaced ``sys.stderr``) keep the text
+    path with the same two guarantees.
+
+    This subclass is also used as the dedup key in :func:`setup_logging` so
+    calling ``setup_logging`` multiple times doesn't add duplicate console
+    handlers.
 
     On Windows, ``FlushFileBuffers`` on a console handle returns
-    ``ERROR_INVALID_FUNCTION`` (WinError 1).  That is EXPECTED console
-    behaviour, the write already reached the OS (the stream is
-    configured ``write_through=True``), so a failing flush is not
-    degradation.  ``emit`` swallows flush errors silently and only
-    surfaces a diagnostic when the WRITE itself fails (a genuinely
-    broken stream).
+    ``ERROR_INVALID_FUNCTION`` (WinError 1). That is EXPECTED console
+    behaviour, the write already reached the OS, so it is not degradation
+    and no diagnostic is emitted.
     """
 
     # One-shot diagnostic guard: a genuinely broken stream (write
@@ -164,8 +180,7 @@ class _FlushingStreamHandler(logging.StreamHandler):
 
     def emit(self, record: logging.LogRecord) -> None:  # noqa: D401
         try:
-            # Write the record directly instead of delegating to the
-            self.stream.write(self.format(record) + self.terminator)
+            self._write_record(_one_line(self.format(record)))
         except OSError as exc:
             # On Windows, ``write()`` on a console handle with
             if os.name == "nt" and getattr(exc, "winerror", None) == 1:
@@ -176,9 +191,58 @@ class _FlushingStreamHandler(logging.StreamHandler):
             # Only reach here when the WRITE itself failed, a genuinely
             self._handle_broken_stream()
             return
-        # Best-effort: with ``line_buffering=True`` each newline already
-        with contextlib.suppress(Exception):
-            self.flush()
+
+    def _write_record(self, line: str) -> None:
+        """Write *line* (terminator included) as one complete unit."""
+        stream = self.stream
+        buffer = getattr(stream, "buffer", None)
+        if buffer is not None:
+            # Flush text another writer may have buffered, so our byte-level
+            # write cannot overtake it.
+            with contextlib.suppress(Exception):
+                stream.flush()
+            encoding = getattr(stream, "encoding", None) or "utf-8"
+            errors = getattr(stream, "errors", None) or "backslashreplace"
+            self._write_bytes(buffer, line.encode(encoding, errors))
+            return
+        self._write_text(stream, line)
+
+    @staticmethod
+    def _flush_with_retry(buffer) -> None:
+        """Flush, retrying once; a failing FLUSH is benign, never diagnostic.
+
+        The record's bytes are already in the stream's buffer, so a flush
+        error (Windows ``ERROR_INVALID_FUNCTION`` on a console handle, a
+        transient pipe hiccup) is not a broken stream — the next flush
+        completes it. The one retry covers the common transient case.
+        """
+        try:
+            buffer.flush()
+        except OSError:
+            with contextlib.suppress(OSError):
+                buffer.flush()
+
+    @classmethod
+    def _write_bytes(cls, buffer, data: bytes) -> None:
+        view = memoryview(data)
+        while view:
+            written = buffer.write(view)
+            if not written:
+                # A stream that accepts nothing would spin forever; hand the
+                # rest to flush and let the caller surface the failure.
+                break
+            view = view[written:]
+        cls._flush_with_retry(buffer)
+
+    @classmethod
+    def _write_text(cls, stream, line: str) -> None:
+        pending = line
+        while pending:
+            written = stream.write(pending)
+            if written is None:
+                break
+            pending = pending[written:]
+        cls._flush_with_retry(stream)
 
     def handleError(self, record: logging.LogRecord) -> None:  # noqa: N802, override of logging.Handler.handleError
         # Safety net: log once, never detach, never spam.

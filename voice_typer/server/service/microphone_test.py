@@ -237,3 +237,15 @@ class MicrophoneTestMixin(ServiceMixinBase):
         from voice_typer.server.level_monitor import is_monitoring
 
         return {"active": is_monitoring()}
+
+    def live_preview(self, *, enabled: bool) -> dict[str, object]:
+        """Toggle the filtered Listen Live stream.
+
+        Frames flow from the level monitor's own capture through the same
+        ``AudioProcessor`` the meter and the 10 s test use, pushed as
+        ``live_preview_audio`` events. Without an active monitor there is
+        nothing to filter, and the reply says so instead of pretending.
+        """
+        from voice_typer.server.level_monitor import set_live_preview_enabled
+
+        return set_live_preview_enabled(enabled)

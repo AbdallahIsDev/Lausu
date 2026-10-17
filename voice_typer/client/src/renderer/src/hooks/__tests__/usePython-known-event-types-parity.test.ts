@@ -50,6 +50,9 @@ const _PARITY = {
 	reconnecting: true,
 	reconnected: true,
 	mic_level: true,
+	// Live-listen preview frames from the level monitor's own
+	// AudioProcessor chain (`level_monitor/preview_stream.py`).
+	live_preview_audio: true,
 	transcription_partial: true,
 	// slim-core / runtime-pack split. Pinned by
 	// `tests/test_event_types_parity.py` (Python-side cross-layer

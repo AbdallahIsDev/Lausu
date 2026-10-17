@@ -95,6 +95,9 @@ def stop_test_recording() -> dict:
         rms_hist = list(_state._test_rms_history)
         clip_count = _state._test_clip_count
         silence_blocks = _state._test_silence_blocks
+        # Snapshot under the same lock: a stitched live timeline must NEVER
+        # be wholesale re-filtered with end-state config (see below).
+        test_did_filter = bool(_state._test_did_filter)
 
         # Clear test state
         _secure_clear_test_chunks(
@@ -250,7 +253,13 @@ def stop_test_recording() -> dict:
     quality["estimated_transcription_quality"] = max(0, min(100, est_score))
 
     # skip the post-hoc filter when ``filtered_chunks`` was
-    if not filtered_chunks and filters and filters.get("noise_filter_enabled", True):
+    # Live-captured timeline present (stitched per-chunk across toggles):
+    # NEVER wholesale re-filter — the end-state config would smear one
+    # toggle position over the whole recording (off→on = all-silence,
+    # on→off = stale/empty buffer). Only the never-live-filtered path
+    # (chain off for the ENTIRE test → filtered_chunks hold raw splices
+    # identical to raw) takes the post-hoc pass with the live filters.
+    if not test_did_filter and filters and filters.get("noise_filter_enabled", True):
         try:
             # ADR 0007: AudioProcessor takes a config-like object directly.
             from voice_typer.server.audio_processor import AudioProcessor

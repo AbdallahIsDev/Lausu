@@ -1,6 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buttonVariants } from "@/components/ui/button";
 import { MIC_GUARD_TOAST_ID, useMicGuardToast } from "@/hooks/useMicGuardToast";
 import type { TranslateFn } from "@/i18n/translate-types";
 
@@ -43,6 +44,7 @@ interface ToastOpts {
 	description?: string;
 	action?: { label: string; onClick: () => void };
 	cancel?: { label: string; onClick: () => void };
+	classNames?: { actionButton?: string };
 }
 
 function lastWarningOpts(): ToastOpts {
@@ -105,12 +107,40 @@ describe("useMicGuardToast", () => {
 		expect(call).toHaveBeenCalledWith("set_microphone_volume", { level: 1 });
 	});
 
+	it("pins the [Back to 100%] action to the outline xs Button (per-toast)", () => {
+		// The button carries its OWN classes on the toast, so sonner's
+		// per-toast merge (after the global default) renders it as the
+		// outline xs Button regardless of how the global default evolves.
+		renderHook(() => useMicGuardToast(mockT));
+		fire({ level: 0.92, restored: false, can_set: true });
+
+		expect(lastWarningOpts().classNames?.actionButton).toBe(
+			buttonVariants({ variant: "outline", size: "xs" }),
+		);
+	});
+
+	it("lone action button carries outline geometry classes (left edge owned by CSS)", () => {
+		// The class string owns geometry (xs padding/font); the CSS
+		// kind-scoped rule owns fill + left edge (see index.css: sonner's
+		// cn() is a plain join, so per-toast classes land beside globals
+		// and the cascade decides — the rule pins the lone-button look).
+		renderHook(() => useMicGuardToast(mockT));
+		fire({ level: 0.92, restored: false, can_set: true });
+
+		const cls = lastWarningOpts().classNames?.actionButton ?? "";
+		expect(cls).toContain("px-2.5");
+		expect(cls).toContain("text-xs");
+		expect(cls).not.toContain("bg-primary");
+	});
+
 	it("drops the button on a device without settable gain (message only)", () => {
 		renderHook(() => useMicGuardToast(mockT));
 		fire({ level: 0.5, restored: false, can_set: false });
 
 		expect(toast.warning).toHaveBeenCalledTimes(1);
 		expect(lastWarningOpts().action).toBeUndefined();
+		// No button → no per-toast button classes either.
+		expect(lastWarningOpts().classNames).toBeUndefined();
 	});
 
 	it("ignores a payload with no usable level", () => {

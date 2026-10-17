@@ -83,6 +83,55 @@ class TestCaptureNativeStderr:
             pass
 
 
+class TestWriteAll:
+    """Forwarded bytes must land completely: the tail is usually a newline."""
+
+    def test_short_writes_are_retried(self, tmp_path, monkeypatch):
+        import voice_typer.worker.whisper.native_stderr as mod
+
+        sink = tmp_path / "forwarded.bin"
+        payload = b"15:47:41  WARN  [MIC-GUARD] Microphone at 45%\n"
+        real_write = os.write
+        with open(sink, "wb") as handle:
+            fd = handle.fileno()
+
+            def short_write(target_fd, data):
+                if target_fd == fd:
+                    data = bytes(data)[:4]
+                return real_write(target_fd, data)
+
+            monkeypatch.setattr(mod.os, "write", short_write)
+            mod._write_all(fd, payload)
+
+        assert sink.read_bytes() == payload
+
+    def test_passthrough_line_keeps_its_newline_under_short_writes(self, tmp_path, monkeypatch):
+        import voice_typer.worker.whisper.native_stderr as mod
+
+        sink = tmp_path / "stderr_short.bin"
+        real_write = os.write
+        with open(sink, "wb") as handle:
+            saved = os.dup(2)
+            os.dup2(handle.fileno(), 2)
+            forward_fd = saved
+
+            def short_write(target_fd, data):
+                if target_fd == forward_fd:
+                    data = bytes(data)[:5]
+                return real_write(target_fd, data)
+
+            monkeypatch.setattr(mod.os, "write", short_write)
+            try:
+                with capture_native_stderr(target=logging.getLogger("test_native_stderr")):
+                    real_write(2, b"plain passthrough\n")
+            finally:
+                monkeypatch.undo()
+                os.dup2(saved, 2)
+                os.close(saved)
+
+        assert sink.read_bytes() == b"plain passthrough\n"
+
+
 class TestSystemWhisperWrapped:
     def test_both_model_constructions_capture_native_stderr(self):
         # Both WhisperModel sites in system_whisper.py must route through

@@ -1,9 +1,10 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, render, renderHook, screen } from "@testing-library/react";
+import { createElement, isValidElement } from "react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SpeakerOfferActions } from "../SpeakerOfferActions";
 import {
 	__resetLiveSpeakerOfferForTests,
-	SPEAKER_OFFER_TARGET_LEVEL,
 	SPEAKER_OFFER_TOAST_ID,
 	useLiveSpeakerOffer,
 } from "../useLiveSpeakerOffer";
@@ -28,8 +29,8 @@ interface ToastOpts {
 	id?: string;
 	duration?: number;
 	description?: string;
-	action?: { label: string; onClick: () => void };
-	cancel?: { label: string; onClick: () => void };
+	action?: unknown;
+	cancel?: unknown;
 }
 
 function offerOpts(): ToastOpts {
@@ -65,7 +66,7 @@ describe("useLiveSpeakerOffer", () => {
 		expect(toast.info).not.toHaveBeenCalled();
 	});
 
-	it("offers [Lower to 75%] and [Keep as is] when the output is above 90%", async () => {
+	it("offers Lower + Keep as ONE div group when the output is above 90%", async () => {
 		call.mockResolvedValue({ output_level: 0.95 });
 		renderHook(() => useLiveSpeakerOffer(true));
 		await settle();
@@ -75,34 +76,45 @@ describe("useLiveSpeakerOffer", () => {
 		const opts = offerOpts();
 		expect(opts.id).toBe(SPEAKER_OFFER_TOAST_ID);
 		expect(opts.duration).toBe(Number.POSITIVE_INFINITY);
-		// Real i18n copy (not a mocked t): proves the en locale keys resolve.
-		expect(opts.action?.label).toContain("75%");
-		expect(opts.cancel?.label.length).toBeGreaterThan(0);
+		// Honest DOM: the action slot carries ONE element holding both buttons.
+		expect(isValidElement(opts.action)).toBe(true);
+		expect(opts.cancel).toBeUndefined();
 	});
 
-	it("writes 75% only when the user presses the offer's button", async () => {
-		call.mockResolvedValue({ output_level: 0.95 });
-		renderHook(() => useLiveSpeakerOffer(true));
-		await settle();
-
-		expect(call).toHaveBeenCalledTimes(1);
-		offerOpts().action?.onClick();
-
-		expect(call).toHaveBeenLastCalledWith("set_output_volume", {
-			level: SPEAKER_OFFER_TARGET_LEVEL,
-		});
-		expect(toast.dismiss).toHaveBeenCalledWith(SPEAKER_OFFER_TOAST_ID);
+	it("the action group renders Lower + Keep side-by-side (Lower left, Keep right)", () => {
+		render(
+			createElement(SpeakerOfferActions, {
+				lowerLabel: "Lower to 75%",
+				keepLabel: "Keep as is",
+				onLower: () => undefined,
+				onKeep: () => undefined,
+			}),
+		);
+		const keep = screen.getByRole("button", { name: "Keep as is" });
+		const lower = screen.getByRole("button", { name: "Lower to 75%" });
+		// DOM order: Lower first (the offered action, left in LTR), Keep
+		// second (de-emphasized ghost, right) — matches the pre-div-group
+		// action/cancel order the toast used before the honest group landed.
+		expect(
+			lower.compareDocumentPosition(keep) & Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
 	});
 
-	it("dismisses without touching the speakers on [Keep as is]", async () => {
-		call.mockResolvedValue({ output_level: 0.95 });
-		renderHook(() => useLiveSpeakerOffer(true));
-		await settle();
-
-		offerOpts().cancel?.onClick();
-
-		expect(toast.dismiss).toHaveBeenCalledWith(SPEAKER_OFFER_TOAST_ID);
-		expect(call).toHaveBeenCalledTimes(1); // the read only
+	it("the group buttons call through (Lower writes, Keep only dismisses)", () => {
+		const onLower = vi.fn();
+		const onKeep = vi.fn();
+		render(
+			createElement(SpeakerOfferActions, {
+				lowerLabel: "Lower to 75%",
+				keepLabel: "Keep as is",
+				onLower,
+				onKeep,
+			}),
+		);
+		screen.getByRole("button", { name: "Lower to 75%" }).click();
+		expect(onLower).toHaveBeenCalledTimes(1);
+		screen.getByRole("button", { name: "Keep as is" }).click();
+		expect(onKeep).toHaveBeenCalledTimes(1);
 	});
 
 	it("never offers at or below the threshold", async () => {
@@ -128,6 +140,33 @@ describe("useLiveSpeakerOffer", () => {
 
 		expect(call).toHaveBeenCalledTimes(1);
 		expect(toast.info).toHaveBeenCalledTimes(1);
+	});
+
+	it("dismisses the offer exactly once when listening stops", async () => {
+		call.mockResolvedValue({ output_level: 0.95 });
+		const { rerender } = renderHook(
+			({ listening }: { listening: boolean }) => useLiveSpeakerOffer(listening),
+			{ initialProps: { listening: true } },
+		);
+		await settle();
+		expect(toast.info).toHaveBeenCalledTimes(1);
+
+		rerender({ listening: false });
+
+		expect(toast.dismiss).toHaveBeenCalledTimes(1);
+		expect(toast.dismiss).toHaveBeenCalledWith(SPEAKER_OFFER_TOAST_ID);
+		// The stop does not break the session memory: a restart re-checks
+		// nothing and never re-offers.
+		rerender({ listening: true });
+		await settle();
+		expect(toast.info).toHaveBeenCalledTimes(1);
+		expect(toast.dismiss).toHaveBeenCalledTimes(1);
+	});
+
+	it("never dismisses while the preview stays stopped", () => {
+		renderHook(() => useLiveSpeakerOffer(false));
+
+		expect(toast.dismiss).not.toHaveBeenCalled();
 	});
 
 	it("re-arms when the preview stops mid-check", async () => {

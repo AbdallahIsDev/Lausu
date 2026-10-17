@@ -68,7 +68,10 @@ def update_level_processor(config_dict: dict) -> None:
         new_config = None
 
     # The worker reads this flag off _state to pick the filtered vs raw RMS path.
-    level_bar_filtered = bool(config_dict.get("level_bar_filtered", False))
+    # Default True: no producer writes the key (to_filter_dict never includes it);
+    # the choke-point default makes the bar follow the preset without touching
+    # the three seeding sites. Explicit False remains the escape hatch.
+    level_bar_filtered = bool(config_dict.get("level_bar_filtered", True))
     filter_enabled = bool(config_dict.get("noise_filter_enabled", True))
 
     # One page open reaches here 2-3x with the same effective config (post-restart

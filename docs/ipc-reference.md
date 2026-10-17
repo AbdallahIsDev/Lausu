@@ -205,6 +205,7 @@ in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
 |---------|---------|-----------|-------|
 | `level_monitor_start` | `_handle_level_monitor_start` | ✓ | Continuous level monitor |
 | `level_monitor_stop` | `_handle_level_monitor_stop` | ✓ |  |
+| `live_preview` | `_handle_live_preview` | ✓ | `{enabled: bool}` → `{active, monitoring, sample_rate, filtered}`; frames arrive as `live_preview_audio` push events (post-chain PCM16, base64) |
 
 ### Hotkey / ESC cancel
 

@@ -31,7 +31,6 @@ interface TestReviewPanelProps {
 	onPlayOriginal: () => void;
 	onStop: () => void;
 	onRetest: () => void;
-	hasFiltersEnabled: boolean;
 	onApplyPreset?: (preset: AudioPreset) => void;
 	/** Current preset so the CTA can disable when already applied. */
 	currentPreset?: AudioPreset;
@@ -113,7 +112,6 @@ export function TestReviewPanel({
 	onPlayOriginal,
 	onStop,
 	onRetest,
-	hasFiltersEnabled,
 	onApplyPreset,
 	currentPreset,
 }: TestReviewPanelProps) {
@@ -309,9 +307,13 @@ export function TestReviewPanel({
 				</>
 			)}
 
-			{/* Playback controls */}
+			{/* Playback controls: ALWAYS Enhanced-left / Original-right.
+				Enhanced is the stitched per-chunk timeline (filtered spans +
+				raw splices for chain-off spans) — it exists for EVERY test,
+				so there is no third "Play Recording" label and no order swap.
+				With the chain off all-test, Enhanced IS the recording. */}
 			<div className="flex flex-wrap items-center gap-2">
-				{testAudioBase64 && hasFiltersEnabled && (
+				{testAudioBase64 && (
 					<Button
 						variant="outline"
 						size="sm"
@@ -344,24 +346,6 @@ export function TestReviewPanel({
 						{playing && playingOriginal
 							? t("microphoneTest.stop")
 							: t("microphoneTest.playOriginal")}
-					</Button>
-				)}
-
-				{!hasFiltersEnabled && testAudioBase64 && (
-					<Button
-						variant="outline"
-						size="sm"
-						className="gap-2"
-						onClick={playing ? onStop : onPlayEnhanced}
-					>
-						<HugeiconsIcon
-							icon={playing ? StopIcon : PlayIcon}
-							strokeWidth={1.625}
-							className="h-3.5 w-3.5"
-						/>
-						{playing
-							? t("microphoneTest.stop")
-							: t("microphoneTest.playRecording")}
 					</Button>
 				)}
 			</div>

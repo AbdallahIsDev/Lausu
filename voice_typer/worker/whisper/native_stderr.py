@@ -55,6 +55,22 @@ def parse_native_line(line: str) -> tuple[int, str] | None:
     )
 
 
+def _write_all(fd: int, data: bytes) -> None:
+    """Write *data* to *fd* completely.
+
+    ``os.write`` may accept fewer bytes than offered (a pipe whose buffer is
+    nearly full, exactly the state a ctranslate2 log flood leaves behind).
+    The tail is usually the line's ``\\n``; dropping it glues the next log
+    record onto this row, so the remainder is retried instead of ignored.
+    """
+    view = memoryview(data)
+    while view:
+        written = os.write(fd, view)
+        if written <= 0:
+            return
+        view = view[written:]
+
+
 @contextlib.contextmanager
 def capture_native_stderr(
     target: logging.Logger | None = None,
@@ -76,7 +92,7 @@ def capture_native_stderr(
         _parsed = parse_native_line(_raw.decode("utf-8", errors="replace"))
         if _parsed is None:
             with contextlib.suppress(OSError):
-                os.write(_saved, _raw)
+                _write_all(_saved, _raw)
         else:
             _dest.log(_parsed[0], "[ctranslate2] %s", _shorten(_parsed[1]))
 
