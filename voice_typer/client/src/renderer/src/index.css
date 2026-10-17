@@ -368,7 +368,10 @@
 	   Full circles and pills explicitly keep their circular caps. */
 	@supports (corner-shape: squircle) {
 		:root {
-			--radius: 1.225rem !important;
+			/* 26px. DESIGN-SYSTEM.md §8 documents this value and
+			   design-system.html mirrors it; `index-css-corner-shape.test.ts`
+			   pins it. Do not edit this in isolation. */
+			--radius: 1.625rem !important;
 		}
 
 		:where(
