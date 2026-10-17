@@ -16,6 +16,7 @@ TS unions: `types/ipc/push_events.ts` + `types/ipc/requests.ts`. Parity: `tests/
 | `bubble_config` | `{}` | Bubble config snapshot |
 | `bubble_level` | `{rms, peak}` | ~60 Hz RMS/peak |
 | `mic_level` | `{level, peak, active}` | Level-monitor push (coalesced) |
+| `live_preview_audio` | `{pcm, sample_rate, seq}` | Live-listen preview: one base64 PCM16 LE mono frame per processed chunk, post-chain (`level_monitor/preview_stream.py`); renderer schedules playback only |
 | `bubble_set_state` | `{state}` | Bubble state machine |
 | `transcription_final` | `{text, quality?}` | quality only from Whisper batch path |
 | `transcription_partial` | `{text, cycle_id, supported?}` | ≤4 Hz live preview; `supported:false` once when engine lacks words |

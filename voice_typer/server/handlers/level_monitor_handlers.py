@@ -1,4 +1,4 @@
-"""Level-monitor IPC handler mixin: 2 level_monitor_* commands."""
+"""Level-monitor IPC handler mixin: level_monitor_* + live_preview commands."""
 
 from voice_typer.server.asr_errors import ConsentRequiredError
 from voice_typer.server.handlers._base import HandlerBase, log
@@ -62,3 +62,31 @@ class LevelMonitorHandlersMixin(HandlerBase):
             # generic WS-path envelope (no ``str(exc)`` leak).
             self._respond_with_error(resp, exc, "level_monitor_stop")
         return resp
+
+    def _handle_live_preview(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
+        """Handle the ``live_preview`` IPC command (filtered Listen Live).
+
+        Frames arrive as ``live_preview_audio`` push events; this command only
+        flips the stream and answers with its real state (including
+        ``monitoring``), so the renderer can say "unavailable" instead of
+        showing a dead button.
+        """
+
+        def body(d: dict) -> dict:
+            validated, error = _validate_dict_payload(
+                d,
+                {"enabled": {"type": bool, "required": True}},
+            )
+            if error:
+                return error
+            assert validated is not None
+            result = self.service.live_preview(enabled=bool(validated["enabled"]))
+            return {"type": "live_preview_status", "data": result}
+
+        return self._wrap(
+            cmd_name="live_preview",
+            resp_type="live_preview_status",
+            data=data,
+            resp=resp,
+            body=body,
+        )

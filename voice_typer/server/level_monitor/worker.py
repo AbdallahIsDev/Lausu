@@ -326,8 +326,18 @@ def _process_level_chunk(indata: np.ndarray, status: Any) -> None:
     raw_peak_for_quality: float | None = None
     # filtered audio to append to ``_test_filtered_chunks``
     filtered_chunk_for_test: np.ndarray | None = None
+    # True when this chunk ran the live chain (marks _test_did_filter
+    # with the append, under the lock — never on the hot unlocked path).
+    filtered_chunk_live: bool = False
+    # Post-chain copy for the Listen Live stream, captured only while the
+    # preview is active (the PortAudio buffer is reused by the callback, so
+    # the frame must own its samples).
+    preview_frame: np.ndarray | None = None
+    sample_rate_for_preview = _state._monitor_sample_rate
+    preview_wanted = _state._live_preview_active
     if len(flat) > 0:
-        # Lightweight level-bar mode. When ``_level_bar_filtered``
+        # Filtered by default (``_level_bar_filtered`` defaults True, see
+        # ``update_level_processor``); raw path only on explicit opt-out.
         processor = _state._level_processor
         run_filter_chain = processor is not None and (test_mode or _state._level_bar_filtered)
         if run_filter_chain:
@@ -338,15 +348,33 @@ def _process_level_chunk(indata: np.ndarray, status: Any) -> None:
                 rms = float(np.sqrt(np.dot(flat_filtered, flat_filtered) / flat_filtered.size))
             else:
                 rms = 0.0
-            # capture the filtered audio for the test's
-            if test_mode and filtered is not None:
+            # Capture EVERY test-mode chunk for the Enhanced timeline:
+            # filtered spans append post-chain audio; the chain is stateful
+            # (RNNoise/GTCRN carry recurrent state), so off-spans splice RAW
+            # in place — never an end-state wholesale re-filter. Gaps with
+            # NO capture (chain off) used to poison Play Enhanced into total
+            # silence after any mid-test toggle; the splice keeps
+            # audio/silence/audio/silence faithful across N toggles.
+            # (The _test_did_filter mark lands with the append, under the
+            # lock below — never on the hot unlocked path.)
+            if test_mode:
                 filtered_chunk_for_test = flat_filtered.copy()
+                filtered_chunk_live = True
+            else:
+                filtered_chunk_live = False
         else:
-            # No live processor, OR cosmetic-bar-only mode: use the raw
+            # No live processor (filtering disabled), OR explicit raw opt-out:
             flat_filtered = flat
             rms = float(np.sqrt(np.dot(flat, flat) / flat.size)) if flat.size > 0 else 0.0
+            # Chain off DURING a test is still timeline: splice raw so the
+            # Enhanced stitch stays length-locked to the Original recording.
+            if test_mode:
+                filtered_chunk_for_test = flat.copy()
         # Allocation-free peak: max(abs(x)) is computed as max(max(x), -min(x))
         peak = max(float(flat_filtered.max()), -float(flat_filtered.min())) if flat_filtered.size > 0 else 0.0
+
+        if preview_wanted and flat_filtered.size > 0:
+            preview_frame = flat_filtered.copy()
 
         # compute test-quality metrics from RAW audio outside
         if test_mode:
@@ -384,6 +412,8 @@ def _process_level_chunk(indata: np.ndarray, status: Any) -> None:
             # append the filtered chunk (if captured) so
             if filtered_chunk_for_test is not None:
                 _state._test_filtered_chunks.append(filtered_chunk_for_test)
+                if filtered_chunk_live:
+                    _state._test_did_filter = True
             if raw_peak_for_quality is not None:
                 _state._test_peak_history.append(raw_peak_for_quality)
                 if raw_rms_for_quality is not None and raw_rms_for_quality < AUDIO_SILENCE_RMS:
@@ -392,10 +422,10 @@ def _process_level_chunk(indata: np.ndarray, status: Any) -> None:
                     _state._test_clip_count += 1
         # Disconnect detection MUST see RAW input, never filtered output:
         # a closed noise gate legitimately emits exact zeros while the
-        # device is alive (test mode runs the chain; the bar runs raw),
-        # so filtered zeros are "gate working", not "mic dead". Only
-        # exact-zero RAW input means a dead stream. The np.any scan runs
-        # solely on this rare all-zero-filtered path and short-circuits
+        # device is alive (test mode and the default filtered bar both run
+        # the chain), so filtered zeros are "gate working", not "mic dead".
+        # Only exact-zero RAW input means a dead stream. The np.any scan
+        # runs solely on this rare all-zero-filtered path and short-circuits
         # on the first live sample.
         if rms is not None and peak is not None and rms == 0.0 and peak == 0.0:
             if np.any(flat != 0.0):
@@ -430,3 +460,11 @@ def _process_level_chunk(indata: np.ndarray, status: Any) -> None:
         from .monitoring import _handle_dead_stream
 
         _handle_dead_stream("zero_chunks")
+
+    # Listen Live: the post-chain buffer IS the preview source (no second
+    # capture path, no second filter chain). Published after the lock so the
+    # event bus never runs under the monitor lock.
+    if preview_frame is not None:
+        from .preview_stream import publish_preview_frame
+
+        publish_preview_frame(preview_frame, sample_rate_for_preview)
