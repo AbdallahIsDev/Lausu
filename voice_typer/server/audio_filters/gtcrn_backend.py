@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from pathlib import Path
 
 from voice_typer.server._lazy_import import lazy_module
+from voice_typer.server.duration import format_duration
 from voice_typer.server.log_rate_limit import log_rate_limited
 
 np = lazy_module("numpy")
@@ -27,7 +30,108 @@ CACHE_SHAPES: tuple[tuple[int, ...], ...] = (
     (2, 1, 33, 16),
 )
 
-# One warmup inference at construction pays the ORT graph-optimization
+# Shared session cache. GTCRN construction used to build a fresh
+# InferenceSession on every call (recorder chain + level-monitor chain
+# each paid ~23s). ORT InferenceSession.run is thread-safe, so a single
+# session is shared; per-instance streaming state (caches, buffers)
+# stays per-instance. Cache SUCCESS only — failures must NOT be cached
+# so the next construction retries and the rnnoise fallback still works.
+_shared_session: object | None = None
+_shared_session_lock: threading.Lock = threading.Lock()
+_shared_session_input_names: tuple[str, ...] | None = None
+_preload_warmed_logged: bool = False
+
+
+def _get_or_create_session() -> tuple[object, tuple[str, ...]]:
+    """Return ``(session, input_names)`` from the shared cache.
+
+    Double-checked locking: fast path under no lock, construction under
+    the lock. The onnxruntime import stays lazy (ADR-0024). Raises
+    RuntimeError on any failure so callers can fall back to rnnoise;
+    failures are NOT cached.
+    """
+    global _shared_session, _shared_session_input_names
+    # Fast path.
+    if _shared_session is not None and _shared_session_input_names is not None:
+        return _shared_session, _shared_session_input_names
+
+    with _shared_session_lock:
+        if _shared_session is not None and _shared_session_input_names is not None:
+            return _shared_session, _shared_session_input_names
+
+        # Lazy ORT import (ADR-0024).
+        try:
+            import onnxruntime as _ort
+        except ImportError as exc:
+            raise RuntimeError("onnxruntime not importable, cannot load the GTCRN model") from exc
+
+        if not MODEL_PATH.exists():
+            raise RuntimeError(f"bundled GTCRN model not found at {MODEL_PATH}")
+
+        try:
+            session_options = _ort.SessionOptions()
+            session_options.intra_op_num_threads = 1
+            session_options.inter_op_num_threads = 1
+            session = _ort.InferenceSession(
+                str(MODEL_PATH),
+                sess_options=session_options,
+                providers=["CPUExecutionProvider"],
+            )
+        except Exception as exc:
+            # NOT cached: next construction retries.
+            raise RuntimeError(f"failed to load the bundled GTCRN model: {exc}") from exc
+
+        input_names = tuple(i.name for i in session.get_inputs())
+        if len(input_names) != 1 + len(CACHE_SHAPES):
+            raise RuntimeError(f"unexpected GTCRN graph input arity: {input_names!r}")
+
+        _shared_session = session
+        _shared_session_input_names = input_names
+        return session, input_names
+
+
+def _reset_shared_session_for_tests() -> None:
+    """Clear the shared session cache (test isolation)."""
+    global _shared_session, _shared_session_input_names, _preload_warmed_logged
+    with _shared_session_lock:
+        _shared_session = None
+        _shared_session_input_names = None
+        _preload_warmed_logged = False
+
+
+def preload() -> bool:
+    """Eagerly load + warm the shared GTCRN session (fire-and-forget safe).
+
+    Returns True on success. Never raises. Emits one INFO line with a
+    C-LOG-2 duration suffix on the first successful warm; repeat calls
+    are a no-op log-wise.
+    """
+    global _preload_warmed_logged
+    _t0 = time.perf_counter()
+    try:
+        session, input_names = _get_or_create_session()
+    except Exception as exc:
+        log.debug("[GTCRN] preload failed: %s", exc, exc_info=True)
+        return False
+    # Warmup hop (zeros) validates the I/O contract; run once.
+    try:
+        import numpy as _np
+
+        mix = _np.zeros((1, NUM_BINS, 1, 2), dtype=_np.float32)
+        caches = tuple(_np.zeros(shape, dtype=_np.float32) for shape in CACHE_SHAPES)
+        session.run(None, {name: value for name, value in zip(input_names, (mix, *caches), strict=True)})
+    except Exception as exc:
+        log.debug("[GTCRN] preload warmup failed: %s", exc, exc_info=True)
+        return False
+    if not _preload_warmed_logged:
+        _preload_warmed_logged = True
+        log.info(
+            "[GTCRN] GTCRN model loaded from bundled ONNX, preloaded + warmed%s",
+            format_duration(time.perf_counter() - _t0),
+        )
+    else:
+        log.debug("[GTCRN] GTCRN model preloaded + warmed (repeat call)")
+    return True
 
 # Rate-limit cadence for the construction failure logs. The suppressor
 _LOAD_FAILURE_EVERY_N: int = 0
@@ -46,55 +150,23 @@ class GtcrnBackend:
     """Streaming GTCRN denoiser over a bundled ONNX ``InferenceSession``."""
 
     def __init__(self) -> None:
+        # Obtain the shared session from the cache (thread-safe). Per-
+        # instance streaming state (buffers, caches, warmup hop, reset)
+        # stays per-instance and is set up below.
         try:
-            import onnxruntime as _ort
-        except ImportError as exc:
+            session, input_names = _get_or_create_session()
+        except RuntimeError as exc:
+            # Preserve the rnnoise-fallback contract: construction raises
+            # RuntimeError so NoiseSuppressor can fall back to rnnoise.
             log_rate_limited(
                 log,
                 logging.ERROR,
-                "[GTCRN] onnxruntime not importable. GTCRN noise suppression unavailable",
-                every_n=_LOAD_FAILURE_EVERY_N,
-            )
-            raise RuntimeError("onnxruntime not importable, cannot load the GTCRN model") from exc
-
-        if not MODEL_PATH.exists():
-            log_rate_limited(
-                log,
-                logging.ERROR,
-                "[GTCRN] bundled model not found at %s. GTCRN noise suppression "
-                "unavailable (no network fetch is attempted)",
-                MODEL_PATH,
-                every_n=_LOAD_FAILURE_EVERY_N,
-            )
-            raise RuntimeError(f"bundled GTCRN model not found at {MODEL_PATH}")
-
-        try:
-            # CPU-only by design (mirrors vad.py): the model is tiny and runs
-            # per 512-sample hop, so single-threaded pools avoid spin-wait
-            # costing more than the sub-millisecond forward pass saves.
-            session_options = _ort.SessionOptions()
-            session_options.intra_op_num_threads = 1
-            session_options.inter_op_num_threads = 1
-            session = _ort.InferenceSession(
-                str(MODEL_PATH),
-                sess_options=session_options,
-                providers=["CPUExecutionProvider"],
-            )
-        except Exception as exc:
-            log_rate_limited(
-                log,
-                logging.ERROR,
-                "[GTCRN] bundled ONNX model load failed: %s. GTCRN noise "
-                "suppression unavailable (no network fetch is attempted)",
+                "[GTCRN] %s. GTCRN noise suppression unavailable",
                 exc,
                 every_n=_LOAD_FAILURE_EVERY_N,
             )
-            raise RuntimeError(f"failed to load the bundled GTCRN model: {exc}") from exc
-
-        # Discover the input/output names from the graph instead of
-        self._input_names = [i.name for i in session.get_inputs()]
-        if len(self._input_names) != 1 + len(CACHE_SHAPES):
-            raise RuntimeError(f"unexpected GTCRN graph input arity: {self._input_names!r}")
+            raise
+        self._input_names = list(input_names)
         self._session = session
 
         # sqrt-Hann analysis/synthesis window, designed ONCE. Periodic

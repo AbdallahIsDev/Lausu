@@ -219,6 +219,13 @@ def _validate_non_numeric_fields(cls: type[Config], data: dict[str, Any]) -> dic
                     )
                     continue
                 continue
+            if isinstance(val, int):
+                # JSON has no float/int distinction: a persisted `1` for a
+                # float field is the SAME value as `1.0`, not corruption.
+                # Coerce silently (no WARNING) so startup logs stay clean;
+                # genuine mistypes (strings, bools, NaN) still warn below.
+                data[field_name] = float(val)
+                continue
             try:
                 coerced = float(val)
             except (TypeError, ValueError):

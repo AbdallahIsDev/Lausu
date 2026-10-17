@@ -506,3 +506,25 @@ class TestCoercionHelpers:
         assert recs
         assert "sample_rate" in recs[0].message
         assert "resetting to default" in recs[0].message
+
+    def test_validate_non_numeric_fields_silently_coerces_int_to_float(self, caplog):
+        """JSON `1` for a float field is the same value as `1.0`: coerce with
+        ZERO warnings (startup log spam — the persisted live_listen_level)."""
+        data = {"live_listen_level": 1}
+        with caplog.at_level(logging.WARNING, logger="voice_typer.server.config"):
+            validated = Config._validate_non_numeric_fields(data)
+        assert validated["live_listen_level"] == 1.0
+        assert isinstance(validated["live_listen_level"], float)
+        recs = _warning_records(caplog)
+        assert recs == [], f"int→float for the same value must not warn, got {[r.message for r in recs]}"
+
+    def test_validate_non_numeric_fields_still_warns_on_string_for_float(self, caplog):
+        """Genuine mistypes (strings) still warn — only lossless int→float
+        is silent."""
+        data = {"live_listen_level": "loud"}
+        with caplog.at_level(logging.WARNING, logger="voice_typer.server.config"):
+            validated = Config._validate_non_numeric_fields(data)
+        assert validated["live_listen_level"] == Config().live_listen_level
+        recs = _warning_records(caplog)
+        assert recs, "a string for a float field must still warn"
+        assert "live_listen_level" in recs[0].message
