@@ -111,6 +111,10 @@ fn test_allowlist_is_exact_canonical_set() {
         "state_changed",
         "error",
         "mic_level",
+        // Listen-Live preview audio frames, streamed from the sidecar's
+        // post-chain buffer (2026-10-17). Same high-rate transport class
+        // as `mic_level` but NOT coalesced: every frame is playback data.
+        "live_preview_audio",
         "llm_polish_failed",
         "device_lost",
         "asr_backend_disabled",

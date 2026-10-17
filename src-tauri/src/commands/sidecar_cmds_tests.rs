@@ -151,9 +151,9 @@ fn test_allowed_commands_set_is_nonempty() {
 #[test]
 fn test_allowed_commands_count_matches_python_registry_parity() {
     // The Rust literal is exactly the renderer-reachable subset of the
-    // Python `_COMMAND_REGISTRY`: 89 registry entries minus the four
+    // Python `_COMMAND_REGISTRY`: 90 registry entries minus the four
     // host-dispatched commands (`heartbeat`, `relaunch_ack`, `shutdown`,
-    // `tray_click`) = 85. The Python parity test
+    // `tray_click`) = 86. The Python parity test
     // `tests/test_ipc_command_parity.py::test_registry_minus_rust_equals_host_dispatched_delta`
     // asserts the entries match exactly; this Rust-side test pins the
     // COUNT so a local `cargo test` catches drift before the Python test
@@ -161,8 +161,8 @@ fn test_allowed_commands_count_matches_python_registry_parity() {
     // (see `dispatch_inner`), so they are intentionally ABSENT here.
     assert_eq!(
         allowed_commands().len(),
-        85,
-        "must match the Python registry (89 entries) minus the 4 host-dispatched \
+        86,
+        "must match the Python registry (90 entries) minus the 4 host-dispatched \
          commands (heartbeat, relaunch_ack, shutdown, tray_click)"
     );
 }
@@ -170,9 +170,9 @@ fn test_allowed_commands_count_matches_python_registry_parity() {
 #[test]
 fn test_allowed_commands_set_contains_no_duplicates() {
     let set = allowed_commands();
-    // 85 entries: must match the cmds literal below (single
+    // 86 entries: must match the cmds literal below (single
     // source of truth). A duplicate in the literal would make
-    // set.len() < 85.
+    // set.len() < 86.
     // 66 → 67: `run_prewarm` restored 2026-08-14 (§6.3 addendum
     // second half: re-implemented to re-run the warm phase
     // in-process instead of spawning the deleted subprocess).
@@ -193,9 +193,11 @@ fn test_allowed_commands_set_contains_no_duplicates() {
     // 82 → 85: mic-guard / output-level surface —
     // `get_microphone_volume`, `set_microphone_volume`,
     // `set_output_volume` (2026-10-16).
+    // 85 → 86: `live_preview` (Listen Live routed through the sidecar
+    // audio chain, 2026-10-17).
     assert_eq!(
         set.len(),
-        85,
+        86,
         "ALLOWED_COMMANDS contains a duplicate entry: set len ({}) < literal len (86). \
          Check the constructor log for the duplicate name.",
         set.len()
@@ -215,7 +217,7 @@ fn test_allowed_commands_exact_snapshot() {
     // entry.
     //
     // The expected list is the alphabetically-sorted union of:
-    //   - the Python `_COMMAND_REGISTRY` literal (89 entries, once the
+    //   - the Python `_COMMAND_REGISTRY` literal (90 entries, once the
     //     backend slice lands the four screenshot handlers)
     //   - minus the four host-dispatched commands: `heartbeat`
     //     (Rust WS-reader task), `relaunch_ack` (Rust `relaunch_app`
