@@ -53,6 +53,13 @@ export function useLiveSpeakerOffer(listening: boolean): void {
 	const { showSnack, clearSnack } = useSnackbar();
 	const { call } = usePython();
 	const wasListening = useRef(listening);
+	// `call` is a fresh identity every render (usePython), so it must never
+	// appear in an effect dep array — that is the re-run-every-render OOM
+	// class pinned by `useEffect-call-dep-guard.test.ts`. Mirrored into a
+	// ref instead (same idiom as the sibling `useLiveListen`), so the
+	// effect below depends only on real inputs.
+	const callRef = useRef(call);
+	callRef.current = call;
 
 	// Auto-dismiss on stop: the offer only makes sense while the preview
 	// runs. Gated on the actual listening true→false flip so a stopped
@@ -73,7 +80,7 @@ export function useLiveSpeakerOffer(listening: boolean): void {
 			let level: number | null = null;
 			try {
 				level = readOutputLevel(
-					await call<{ output_level?: number | null }>(
+					await callRef.current<{ output_level?: number | null }>(
 						"get_volume_backend_status",
 					),
 				);
@@ -107,9 +114,11 @@ export function useLiveSpeakerOffer(listening: boolean): void {
 					keepLabel,
 					onLower: () => {
 						clearSnack(SPEAKER_OFFER_TOAST_ID);
-						void call("set_output_volume", {
-							level: SPEAKER_OFFER_TARGET_LEVEL,
-						}).catch(() => undefined);
+						void callRef
+							.current("set_output_volume", {
+								level: SPEAKER_OFFER_TARGET_LEVEL,
+							})
+							.catch(() => undefined);
 					},
 					onKeep: () => clearSnack(SPEAKER_OFFER_TOAST_ID),
 				}),
@@ -118,5 +127,5 @@ export function useLiveSpeakerOffer(listening: boolean): void {
 		return () => {
 			cancelled = true;
 		};
-	}, [listening, call, showSnack, clearSnack]);
+	}, [listening, showSnack, clearSnack]);
 }
