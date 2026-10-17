@@ -196,7 +196,7 @@ fn test_allowed_commands_set_contains_no_duplicates() {
     assert_eq!(
         set.len(),
         85,
-        "ALLOWED_COMMANDS contains a duplicate entry: set len ({}) < literal len (85). \
+        "ALLOWED_COMMANDS contains a duplicate entry: set len ({}) < literal len (86). \
          Check the constructor log for the duplicate name.",
         set.len()
     );
@@ -204,7 +204,7 @@ fn test_allowed_commands_set_contains_no_duplicates() {
 
 #[test]
 fn test_allowed_commands_exact_snapshot() {
-    //Stricter parity test: pin the EXACT 85-entry set (sorted)
+    //Stricter parity test: pin the EXACT 86-entry set (sorted)
     // so any drift between the Rust literal and the Python registry is
     // caught at `cargo test` time, BEFORE the cross-layer Python
     // parity test in `tests/test_ipc_command_parity.py` runs. The
@@ -253,7 +253,9 @@ fn test_allowed_commands_exact_snapshot() {
     // + `get_microphone_volume` / `set_microphone_volume` (mic guard
     // read + [Back to 100%] write) and + `set_output_volume`
     // (S1 [Lower to 75%] offer) → 85.
-    // This snapshot is the current 85-entry set (2026-08:
+    // + `live_preview` (Listen Live streamed through the sidecar filter
+    // chain) → 86.
+    // This snapshot is the current 86-entry set (2026-08:
     // + microphone_test_read_audio, chunked file-reference transport
     // for mic-test WAVs; 2026-09: + get_download_queue,
     // pending-download queue snapshot; + open_data_folder, Models
@@ -294,6 +296,7 @@ fn test_allowed_commands_exact_snapshot() {
         "import_model",
         "level_monitor_start",
         "level_monitor_stop",
+        "live_preview",
         "media_transcribe_cancel",
         "media_transcribe_start",
         "media_transcribe_status",
@@ -361,7 +364,7 @@ fn test_allowed_commands_exact_snapshot() {
     assert_eq!(
         actual, expected,
         "ALLOWED_COMMANDS snapshot drift: the Rust literal no longer matches the pinned \
-         85-entry snapshot. Diff the actual vs expected Vec above. If the change is \
+         86-entry snapshot. Diff the actual vs expected Vec above. If the change is \
          intentional, update this snapshot in lockstep with the cmds literal AND the \
          Python `_COMMAND_REGISTRY` (see MAINTENANCE note above)."
     );

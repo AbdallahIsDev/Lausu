@@ -70,3 +70,62 @@ class TestLevelMonitorStop:
         assert resp["type"] == "error"
         assert resp["data"]["code"] == "server.internal_error"
         assert resp["data"]["message"] == "internal error"
+
+
+class TestLivePreview:
+    """``_handle_live_preview``, start/stop the backend-streamed Listen Live."""
+
+    def test_enable_returns_the_real_state(self, ipc_server, fake_service):
+        fake_service.live_preview.return_value = {
+            "active": True,
+            "monitoring": True,
+            "sample_rate": 48000,
+            "filtered": True,
+        }
+        resp = ipc_server._handle_live_preview({"enabled": True}, {})
+        assert resp["type"] == "live_preview_status"
+        assert resp["data"] == {
+            "active": True,
+            "monitoring": True,
+            "sample_rate": 48000,
+            "filtered": True,
+        }
+        fake_service.live_preview.assert_called_once_with(enabled=True)
+
+    def test_disable_passes_false(self, ipc_server, fake_service):
+        fake_service.live_preview.return_value = {"active": False, "monitoring": True}
+        resp = ipc_server._handle_live_preview({"enabled": False}, {})
+        assert resp["type"] == "live_preview_status"
+        fake_service.live_preview.assert_called_once_with(enabled=False)
+
+    def test_backend_down_reports_inactive_not_an_optimistic_true(
+        self, ipc_server, fake_service
+    ):
+        """No monitor -> the honest ``active: False`` reaches the renderer."""
+        fake_service.live_preview.return_value = {
+            "active": False,
+            "monitoring": False,
+            "sample_rate": 16000,
+            "filtered": False,
+        }
+        resp = ipc_server._handle_live_preview({"enabled": True}, {})
+        assert resp["type"] == "live_preview_status"
+        assert resp["data"]["active"] is False
+        assert resp["data"]["monitoring"] is False
+
+    def test_missing_enabled_is_a_validation_error(self, ipc_server, fake_service):
+        resp = ipc_server._handle_live_preview({}, {})
+        assert resp["type"] == "error"
+        fake_service.live_preview.assert_not_called()
+
+    def test_non_bool_enabled_is_a_validation_error(self, ipc_server, fake_service):
+        resp = ipc_server._handle_live_preview({"enabled": "yes"}, {})
+        assert resp["type"] == "error"
+        fake_service.live_preview.assert_not_called()
+
+    def test_service_raises_returns_error(self, ipc_server, fake_service):
+        fake_service.live_preview.side_effect = RuntimeError("boom")
+        resp = ipc_server._handle_live_preview({"enabled": True}, {})
+        assert resp["type"] == "error"
+        assert resp["data"]["code"] == "server.internal_error"
+        assert resp["data"]["message"] == "internal error"

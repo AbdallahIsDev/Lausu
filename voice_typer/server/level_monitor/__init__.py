@@ -124,6 +124,13 @@ from .monitoring import (  # noqa: E402
     stop_monitoring,
     update_level_processor,
 )
+from .preview_stream import (  # noqa: E402
+    PREVIEW_EVENT_TYPE,
+    clear_live_preview,
+    is_live_preview_active,
+    publish_preview_frame,
+    set_live_preview_enabled,
+)
 from .test_recording import (  # noqa: E402
     _cancel_test_locked,  # noqa: F401
     _do_auto_stop_test,  # noqa: F401
@@ -157,6 +164,12 @@ __all__ = [
     "update_level_processor",
     "start_monitoring",
     "stop_monitoring",
+    # Filtered live-preview stream (Listen Live through the same chain)
+    "set_live_preview_enabled",
+    "is_live_preview_active",
+    "clear_live_preview",
+    "publish_preview_frame",
+    "PREVIEW_EVENT_TYPE",
     # Public test-recording API
     "is_test_active",
     "start_test_recording",

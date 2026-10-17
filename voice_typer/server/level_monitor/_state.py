@@ -38,8 +38,12 @@ class _State:
         # device rate equals, so the first apply always differs. A device switch
         # changes the rate alone, so it must stay part of the dedupe key.
         self._level_processor_sample_rate: int = 0
-        # Lightweight level-bar mode. When False (default), the cosmetic
-        self._level_bar_filtered: bool = False
+        # Lightweight level-bar mode. When True (default), the cosmetic
+        # bar runs the filter chain (follows the audio preset). False opts
+        # out to a raw-RMS meter. First update_level_processor call sets it;
+        # this default only governs the pre-seed window (processor is None
+        # there, so the worker reads raw regardless).
+        self._level_bar_filtered: bool = True
 
         # ──  (c-review PERF-03): SPSC ring buffer + worker ──
         self._LEVEL_RING_BUFFER_CAPACITY: int = 64
@@ -73,6 +77,13 @@ class _State:
         self._test_duration: float = 10.0
         self._test_filters: dict = {}
         self._test_auto_stop_timer: threading.Timer | None = None
+        # True once ANY test-mode chunk ran through the live chain this
+        # test (set in worker._process_level_chunk on the run_filter_chain
+        # path). Gates the stop-time post-hoc re-filter: a stitched live
+        # timeline must NEVER be wholesale re-filtered with end-state
+        # config; only the never-live-filtered path takes post-hoc.
+        # Reset per test in _reset_test_chunks.
+        self._test_did_filter: bool = False
 
         # Quality metrics accumulated during test
         self._test_peak_history: collections.deque = collections.deque(
@@ -105,6 +116,12 @@ class _State:
         self._mic_level_worker_wake_event: threading.Event = threading.Event()
         self._mic_level_worker_stop: bool = False
         self._MIC_LEVEL_COALESCE_SEC: float = 1.0 / 30.0
+
+        # Filtered live-preview stream ("Listen Live"): when True the level
+        # worker pushes post-chain PCM frames as ``live_preview_audio``.
+        # Requires an active monitor (the preview owns no capture path).
+        self._live_preview_active: bool = False
+        self._live_preview_seq: int = 0
 
         # When no IPC ``get_level`` poll has been received in
         self._last_get_level_poll_ts: float = 0.0
