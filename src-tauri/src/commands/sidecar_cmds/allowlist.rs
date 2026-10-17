@@ -109,6 +109,7 @@ pub(crate) fn allowed_commands() -> &'static HashSet<&'static str> {
             "microphone_test_status",
             "level_monitor_start",
             "level_monitor_stop",
+            "live_preview",
             "set_esc_cancel_paused",
             "set_tray_locale",
             // macOS troubleshooting (Settings → Troubleshooting).

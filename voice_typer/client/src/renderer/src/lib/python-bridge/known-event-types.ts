@@ -111,6 +111,11 @@ export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
 	"history_fts5_rebuild_failed",
 	// Clipboard paste safety (Secure Input / deferred paste):
 	"paste_deferred",
+	// Live-listen preview frames, published by the level monitor's own
+	// AudioProcessor chain (`level_monitor/preview_stream.py`). The
+	// renderer only schedules playback — it never runs a second filter
+	// chain (E13 / C-CONF-1).
+	"live_preview_audio",
 	// Tray-unavailable fallback (predecessor/headless path only):
 	"tray_fallback_notification",
 	// ADR-0023 universal media-to-text job events:

@@ -369,7 +369,6 @@ describe("XA-5-8, TestReviewPanel renders per-issue recommendations", () => {
 		onPlayOriginal: vi.fn(),
 		onStop: vi.fn(),
 		onRetest: vi.fn(),
-		hasFiltersEnabled: false,
 	};
 
 	const qualityWithIssues = {

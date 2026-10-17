@@ -63,7 +63,6 @@ const baseProps: ActiveMicrophoneCardProps = {
 	testTranscriptionUnavailable: false,
 	playing: false,
 	playingOriginal: false,
-	hasFiltersEnabled: false,
 	showAdvanced: false,
 	config: makeConfig({}),
 	customPresets: [],

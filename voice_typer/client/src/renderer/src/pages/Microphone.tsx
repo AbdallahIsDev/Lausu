@@ -232,12 +232,12 @@ export default function MicrophonePage() {
 			: (microphones.find((m) => (m.id ?? String(m.index)) === activeMicId)
 					?.name ?? t("microphone.unknown"));
 
-	const hasFiltersEnabled = (config?.audio_preset ?? "auto") !== "off";
-
-	// Live monitor ("hear yourself"). Frontend-only passthrough, no
-	// consent gate: nothing is recorded, processed, stored, or
-	// transmitted. Stops on test start / device switch (stopSignal),
-	// tab-hide, and unmount (all inside the hook).
+	// Live monitor ("hear yourself"). Backend-streamed: the level
+	// monitor's own AudioProcessor chain filters it and the renderer only
+	// schedules playback, so the preview sounds exactly like the 10 s
+	// test. Nothing is recorded. Stops on test start / device switch
+	// (stopSignal), tab-hide, and unmount (all inside the hook), each of
+	// which also disables the sidecar stream.
 	const {
 		listening: liveListening,
 		starting: liveStarting,
@@ -247,9 +247,6 @@ export default function MicrophonePage() {
 		activeMicName: isSystemDefault ? null : activeMicName,
 		isSystemDefault,
 		stopSignal: liveListenStopSignal,
-		// Persisted preview level (`LIVE_LISTEN_DEFAULT_LEVEL` applies until
-		// the config lands). The hook caps the resulting gain itself.
-		level: config?.live_listen_level,
 	});
 	// One-time offer to lower loud speakers when the preview starts (S1).
 	useLiveSpeakerOffer(liveListening);
@@ -333,7 +330,6 @@ export default function MicrophonePage() {
 						testTranscriptionUnavailable={testTranscriptionUnavailable}
 						playing={playingEnhanced || playingOriginal}
 						playingOriginal={playingOriginal}
-						hasFiltersEnabled={hasFiltersEnabled}
 						showAdvanced={showAdvanced}
 						config={config}
 						customPresets={customs}

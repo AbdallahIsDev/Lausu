@@ -368,6 +368,19 @@ export interface MicLevelEvent {
 	data: { level: number; peak: number; active: boolean };
 }
 
+/**
+ * One live-listen preview frame, published by
+ * `voice_typer/server/level_monitor/preview_stream.py` from the level
+ * monitor's own `AudioProcessor` chain (the SAME chain the 10s mic test
+ * and the level meter use). `pcm` is base64 PCM16 little-endian mono at
+ * `sample_rate`. The renderer schedules playback only — it must never
+ * run a second filter chain (E13 / C-CONF-1).
+ */
+export interface LivePreviewAudioEvent {
+	type: "live_preview_audio";
+	data: { pcm: string; sample_rate: number; seq: number };
+}
+
 // `src-tauri/src/sidecar/ws/event_protocol.rs` includes every name
 // here so the host does not silently drop the frames. Pinned by
 
@@ -709,6 +722,9 @@ export type PythonPushEvent =
 	//coalesced mic-level push event (≤30 Hz).
 	// See `MicLevelEvent` above for the wire shape + emitter.
 	| MicLevelEvent
+	// Live-listen preview frames from the level monitor's own
+	// AudioProcessor chain. See `LivePreviewAudioEvent` above.
+	| LivePreviewAudioEvent
 	// docstrings above for the wire shapes + emitters. The 13th
 	// Pinned by `tests/test_event_types_parity.py`.
 	| OfflinePackDownloadStartedEvent

@@ -1824,7 +1824,6 @@
 		"detectedIssues": "पाई गई समस्याएँ:",
 		"playEnhanced": "संवर्धित चलाएँ",
 		"playOriginal": "मूल चलाएँ",
-		"playRecording": "रिकॉर्डिंग चलाएँ",
 		"stop": "रोकें",
 		"qualityFeedback": {
 			"qualityNotApplicable": "लागू नहीं: ट्रांसक्रिप्शन अनुपलब्ध"
@@ -1848,8 +1847,6 @@
 		},
 		"liveListen": "लाइव सुनें",
 		"stopListening": "सुनना बंद करें",
-		"liveListenHint": "अब आपको अपनी आवाज़ सुनाई देनी चाहिए। प्रतिध्वनि से बचने के लिए हेडफ़ोन का उपयोग करें।",
-		"previewVolume": "पूर्वावलोकन वॉल्यूम",
 		"liveListenGuideNote": "लैपटॉप या डेस्कटॉप स्पीकर पर लाइव सुनने के लिए हेडफ़ोन की सलाह दी जाती है।",
 		"speakerOfferTitle": "आपके स्पीकर बहुत तेज़ हैं",
 		"speakerOfferMessage": "इस स्तर पर लाइव सुनना स्पीकर की आवाज़ भी पकड़ सकता है।",

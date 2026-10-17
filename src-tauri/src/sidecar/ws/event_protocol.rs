@@ -48,6 +48,8 @@ pub(super) const ALLOWED_EVENT_TYPES: &[&str] = &[
     // Microphone settings:
     "microphone_test_complete",
     "microphones_changed",
+    // Listen Live: filtered preview frames from the level-monitor chain.
+    "live_preview_audio",
     // Model download (server emits `download_progress`; the spec list
     // above has the umbrella `model_download_progress`):
     "download_progress",

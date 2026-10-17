@@ -95,7 +95,7 @@ _SELF_SERIALIZED_COMMANDS: frozenset[str] = frozenset(
 # Host-only commands: registered here, never invoked by the renderer
 _PYTHON_ONLY_COMMANDS: frozenset[str] = frozenset({"shutdown", "tray_click"})
 
-# Maps IPC command name → handler method on IPCServer. Count pinned at 89
+# Maps IPC command name → handler method on IPCServer. Count pinned at 90
 _COMMAND_REGISTRY: dict[str, str] = {
     "get_status": "_handle_get_status",
     "toggle_dictation": "_handle_toggle_dictation",
@@ -165,6 +165,9 @@ _COMMAND_REGISTRY: dict[str, str] = {
     "microphone_test_status": "_handle_microphone_test_status",
     "level_monitor_start": "_handle_level_monitor_start",
     "level_monitor_stop": "_handle_level_monitor_stop",
+    # Listen Live through the sidecar chain (frames are ``live_preview_audio``
+    # push events; this command only flips the stream).
+    "live_preview": "_handle_live_preview",
     "import_model": "_handle_import_model",
     "download_model": "_handle_download_model",
     "cancel_model_download": "_handle_cancel_model_download",

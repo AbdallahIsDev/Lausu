@@ -380,6 +380,9 @@ def stop_monitoring() -> dict:
         # the episode count (next start is a fresh slate).
         _state._stream_recovery_token = None
         _state._stream_recovery_episodes = 0
+        # The preview has no capture path of its own: no monitor, no preview.
+        _state._live_preview_active = False
+        _state._live_preview_seq = 0
     # Cancel any active test first.
     from .test_recording import _cancel_test_locked
     from .worker import _stop_level_worker
@@ -434,6 +437,9 @@ def _idle_timeout_auto_stop() -> bool:
         return False
     if _state._test_mode:
         # A recording test holds the mic regardless of poll idle.
+        return False
+    if _state._live_preview_active:
+        # An active Listen Live stream holds the mic the same way.
         return False
     # Polls ONLY. Push timestamps self-perpetuate (every push refreshes
     # the clock, so counting them kept the mic open 24/7 and defeated

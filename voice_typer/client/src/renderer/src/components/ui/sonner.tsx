@@ -1,16 +1,9 @@
 "use client";
 
-import {
-	Alert02Icon,
-	CheckmarkCircle02Icon,
-	InformationCircleIcon,
-	Loading03Icon,
-	MultiplicationSignCircleIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 import { getLocale, isRtlLocale, subscribeLocale, t } from "@/i18n/i18n";
+import { buttonVariants } from "./button";
 
 function useResolvedTheme(): "light" | "dark" {
 	const [resolved, setResolved] = useState<"light" | "dark">(() => {
@@ -60,55 +53,37 @@ const Toaster = ({ ...props }: ToasterProps) => {
 		<Sonner
 			theme={theme}
 			closeButton
+			// Explicit nulls kill sonner's built-in per-type glyphs: omitting the
+			// prop falls back to getAsset(type) (sonner index.js ~649). Nulls are
+			// the documented kill-shot (sonner issue #600->#610). The close (X)
+			// stays — it is a control, not a status icon.
+			icons={{
+				success: null,
+				info: null,
+				warning: null,
+				error: null,
+				loading: null,
+			}}
 			position={rtl ? "bottom-left" : "bottom-right"}
 			containerAriaLabel={t("a11y.notifications")}
 			toastOptions={{
 				closeButtonAriaLabel: t("a11y.close"),
 				// Sonner's <li> ships class-less, so it never matched the
 				// squircle family index.css shapes via :where(.rounded-lg).
-				classNames: { toast: "rounded-lg" },
+				classNames: {
+					toast: "rounded-lg",
+					// Shared Button (xs) so toast action/cancel buttons read as
+					// the same family as the card controls, denser. Hierarchy
+					// via VARIANT only: Lower = outline (visible, neutral),
+					// Keep = ghost (de-emphasized). No white/blue fills here.
+					actionButton: buttonVariants({ variant: "outline", size: "xs" }),
+					cancelButton: buttonVariants({ variant: "ghost", size: "xs" }),
+				},
 			}}
 			duration={4000}
 			visibleToasts={6}
 			expand={false}
 			className="toaster group"
-			icons={{
-				success: (
-					<HugeiconsIcon
-						icon={CheckmarkCircle02Icon}
-						strokeWidth={1.625}
-						className="size-4"
-					/>
-				),
-				info: (
-					<HugeiconsIcon
-						icon={InformationCircleIcon}
-						strokeWidth={1.625}
-						className="size-4"
-					/>
-				),
-				warning: (
-					<HugeiconsIcon
-						icon={Alert02Icon}
-						strokeWidth={1.625}
-						className="size-4"
-					/>
-				),
-				error: (
-					<HugeiconsIcon
-						icon={MultiplicationSignCircleIcon}
-						strokeWidth={1.625}
-						className="size-4"
-					/>
-				),
-				loading: (
-					<HugeiconsIcon
-						icon={Loading03Icon}
-						strokeWidth={1.625}
-						className="size-4 animate-spin"
-					/>
-				),
-			}}
 			style={
 				{
 					"--normal-bg": "var(--surface)",

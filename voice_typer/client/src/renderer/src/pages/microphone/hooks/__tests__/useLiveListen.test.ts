@@ -2,91 +2,196 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+	decodePreviewFrame,
 	LIVE_LISTEN_DEFAULT_LEVEL,
 	LIVE_LISTEN_MAX,
+	LIVE_PREVIEW_MAX_BACKLOG_S,
 	previewGain,
 	useLiveListen,
 } from "../useLiveListen";
 
 // ── Mocks ─────────────────────────────────────────────────────────
-// Minimal AudioContext double: only the surface useLiveListen touches.
+// Minimal AudioContext double: only the surface useLiveListen touches. The
+// hook no longer calls getUserMedia at all (the sidecar owns the mic), so the
+// only browser surface left is playback.
 
-interface MockTrack {
+interface MockGainNode {
+	gain: { value: number };
+	connect: ReturnType<typeof vi.fn>;
+	disconnect: ReturnType<typeof vi.fn>;
+}
+
+interface MockLimiterNode {
+	threshold: { value: number };
+	knee: { value: number };
+	ratio: { value: number };
+	attack: { value: number };
+	release: { value: number };
+	connect: ReturnType<typeof vi.fn>;
+	disconnect: ReturnType<typeof vi.fn>;
+}
+
+interface MockBuffer {
+	duration: number;
+	length: number;
+	sampleRate: number;
+	copyToChannel: ReturnType<typeof vi.fn>;
+}
+
+interface MockSourceNode {
+	buffer: MockBuffer | null;
+	onended: (() => void) | null;
+	connect: ReturnType<typeof vi.fn>;
+	disconnect: ReturnType<typeof vi.fn>;
+	start: ReturnType<typeof vi.fn>;
 	stop: ReturnType<typeof vi.fn>;
 }
 
-interface MockStream {
-	getTracks: () => MockTrack[];
+function makeMocks() {
+	const gains: MockGainNode[] = [];
+	const limiters: MockLimiterNode[] = [];
+	const buffers: MockBuffer[] = [];
+	const sources: MockSourceNode[] = [];
+	const closes: ReturnType<typeof vi.fn>[] = [];
+	let currentTime = 0;
+
+	class MockAudioContext {
+		state = "running";
+		destination = { id: "destination" };
+		resume = vi.fn().mockResolvedValue(undefined);
+		close: ReturnType<typeof vi.fn>;
+		createGain = vi.fn(() => {
+			const node: MockGainNode = {
+				gain: { value: 0 },
+				connect: vi.fn(),
+				disconnect: vi.fn(),
+			};
+			gains.push(node);
+			return node;
+		});
+		createDynamicsCompressor = vi.fn(() => {
+			const node: MockLimiterNode = {
+				threshold: { value: 0 },
+				knee: { value: 0 },
+				ratio: { value: 0 },
+				attack: { value: 0 },
+				release: { value: 0 },
+				connect: vi.fn(),
+				disconnect: vi.fn(),
+			};
+			limiters.push(node);
+			return node;
+		});
+		createBuffer = vi.fn((_channels: number, length: number, rate: number) => {
+			const buffer: MockBuffer = {
+				duration: length / rate,
+				length,
+				sampleRate: rate,
+				copyToChannel: vi.fn(),
+			};
+			buffers.push(buffer);
+			return buffer;
+		});
+		createBufferSource = vi.fn(() => {
+			const node: MockSourceNode = {
+				buffer: null,
+				onended: null,
+				connect: vi.fn(),
+				disconnect: vi.fn(),
+				start: vi.fn(),
+				stop: vi.fn(),
+			};
+			sources.push(node);
+			return node;
+		});
+		get currentTime() {
+			return currentTime;
+		}
+		set currentTime(value: number) {
+			currentTime = value;
+		}
+		constructor() {
+			this.close = vi.fn().mockResolvedValue(undefined);
+			closes.push(this.close);
+		}
+	}
+
+	return {
+		gains,
+		limiters,
+		buffers,
+		sources,
+		closes,
+		MockAudioContext,
+		setCurrentTime: (value: number) => {
+			currentTime = value;
+		},
+	};
 }
 
-function makeMocks() {
-	const tracks: MockTrack[] = [{ stop: vi.fn() }, { stop: vi.fn() }];
-	const stream: MockStream = { getTracks: () => tracks };
-	const gainNode = {
-		gain: { value: 0 },
-		connect: vi.fn(),
-		disconnect: vi.fn(),
-	};
-	const limiterNode = {
-		threshold: { value: 0 },
-		knee: { value: 0 },
-		ratio: { value: 0 },
-		attack: { value: 0 },
-		release: { value: 0 },
-		connect: vi.fn(),
-		disconnect: vi.fn(),
-	};
-	const sourceNode = { connect: vi.fn(), disconnect: vi.fn() };
-	const ctx = {
-		state: "running",
-		resume: vi.fn().mockResolvedValue(undefined),
-		close: vi.fn().mockResolvedValue(undefined),
-		createMediaStreamSource: vi.fn().mockReturnValue(sourceNode),
-		createGain: vi.fn().mockReturnValue(gainNode),
-		createDynamicsCompressor: vi.fn().mockReturnValue(limiterNode),
-		destination: {},
-	};
-	const getUserMedia = vi.fn().mockResolvedValue(stream);
-	const enumerateDevices = vi.fn().mockResolvedValue([]);
+interface BridgeMock {
+	call: ReturnType<typeof vi.fn>;
+	onEvent: ReturnType<typeof vi.fn>;
+	emit: (type: string, data: Record<string, unknown>) => void;
+}
+
+/** Default `live_preview` reply: a live monitor stream is available. */
+const ENABLED_REPLY = {
+	active: true,
+	monitoring: true,
+	sample_rate: 48000,
+	filtered: true,
+};
+
+function installBridge(
+	reply: (req: { type: string; data?: Record<string, unknown> }) => unknown = (
+		req,
+	) =>
+		req.data?.enabled ? ENABLED_REPLY : { active: false, monitoring: true },
+): BridgeMock {
+	let listener:
+		| ((event: { type: string; data?: Record<string, unknown> }) => void)
+		| null = null;
+	const call = vi.fn(
+		async (req: { type: string; data?: Record<string, unknown> }) => reply(req),
+	);
+	const onEvent = vi.fn(
+		(cb: (event: { type: string; data?: Record<string, unknown> }) => void) => {
+			listener = cb;
+			return () => {
+				listener = null;
+			};
+		},
+	);
+	(window as unknown as { python?: unknown }).python = { call, onEvent };
 	return {
-		tracks,
-		stream,
-		gainNode,
-		limiterNode,
-		sourceNode,
-		ctx,
-		getUserMedia,
-		enumerateDevices,
+		call,
+		onEvent,
+		emit: (type, data) => listener?.({ type, data }),
 	};
+}
+
+/** Encode float samples the way the sidecar does: PCM16 little-endian mono. */
+function pcm16Base64(values: number[]): string {
+	const bytes = new Uint8Array(values.length * 2);
+	values.forEach((value, index) => {
+		const clamped = Math.max(-1, Math.min(1, value));
+		const int = Math.round(clamped * 32767);
+		bytes[index * 2] = int & 0xff;
+		bytes[index * 2 + 1] = (int >> 8) & 0xff;
+	});
+	let binary = "";
+	for (const byte of bytes) binary += String.fromCharCode(byte);
+	return btoa(binary);
 }
 
 type Mocks = ReturnType<typeof makeMocks>;
 let mocks: Mocks;
+let bridge: BridgeMock;
 
-function installMocks(m: Mocks) {
-	Object.defineProperty(navigator, "mediaDevices", {
-		value: {
-			getUserMedia: m.getUserMedia,
-			enumerateDevices: m.enumerateDevices,
-		},
-		configurable: true,
-		writable: true,
-	});
-	// Real class (not vi.fn): `new` on a bare vi.fn trips the
-	// "mock did not use function or class" warning, and stubGlobal does
-	// not reach `window.AudioContext` in jsdom (repo precedent in
-	// renderer-perf-regressions.test.tsx assigns window directly).
-	class MockAudioContext {
-		state = "running";
-		destination = {};
-		resume = m.ctx.resume;
-		close = m.ctx.close;
-		createMediaStreamSource = m.ctx.createMediaStreamSource;
-		createGain = m.ctx.createGain;
-		createDynamicsCompressor = m.ctx.createDynamicsCompressor;
-	}
+function installAudio(m: Mocks) {
 	Object.defineProperty(window, "AudioContext", {
-		value: MockAudioContext,
+		value: m.MockAudioContext,
 		configurable: true,
 		writable: true,
 	});
@@ -98,15 +203,44 @@ function flush() {
 	});
 }
 
-describe("useLiveListen", () => {
+/** Non-optional array read (the tsconfig enables noUncheckedIndexedAccess). */
+function at<T>(items: T[], index: number): T {
+	const item = items[index];
+	if (item === undefined) throw new Error(`no element at index ${index}`);
+	return item;
+}
+
+/** First argument of the nth recorded call, non-optional. */
+function callArg<T>(
+	mock: { mock: { calls: readonly unknown[][] } },
+	index: number,
+): T {
+	const call = mock.mock.calls[index];
+	if (!call) throw new Error(`no call recorded at index ${index}`);
+	return call[0] as T;
+}
+
+/** Toggle on and let the enable IPC settle. */
+async function startListening(result: {
+	current: ReturnType<typeof useLiveListen>;
+}) {
+	act(() => {
+		result.current.toggle();
+	});
+	await flush();
+}
+
+describe("useLiveListen (backend-streamed)", () => {
 	beforeEach(() => {
 		mocks = makeMocks();
-		installMocks(mocks);
+		installAudio(mocks);
+		bridge = installBridge();
 	});
 
 	afterEach(() => {
 		cleanup();
 		vi.restoreAllMocks();
+		delete (window as unknown as { python?: unknown }).python;
 		Object.defineProperty(window, "AudioContext", {
 			value: undefined,
 			configurable: true,
@@ -114,7 +248,7 @@ describe("useLiveListen", () => {
 		});
 	});
 
-	it("starts the capped passthrough graph on toggle (source -> gain -> limiter -> destination)", async () => {
+	it("asks the sidecar to stream and builds the capped playback graph", async () => {
 		const { result } = renderHook(() =>
 			useLiveListen({ activeMicName: null, isSystemDefault: true }),
 		);
@@ -127,29 +261,205 @@ describe("useLiveListen", () => {
 
 		expect(result.current.listening).toBe(true);
 		expect(result.current.error).toBeNull();
-		// S2: the browser's own canceller is asked for; NS and AGC stay OFF
-		// so they cannot fight the user's filter tuning or move gain.
-		expect(mocks.getUserMedia).toHaveBeenCalledWith({
-			audio: {
-				echoCancellation: true,
-				noiseSuppression: false,
-				autoGainControl: false,
-			},
+		// The preview is the sidecar's job: it is enabled, never captured here.
+		expect(bridge.call).toHaveBeenCalledWith({
+			type: "live_preview",
+			data: { enabled: true },
 		});
 		// S1: the preview is the user level times the hard ceiling, well
 		// below the old fixed 0.8 that rang on laptop speakers.
-		expect(mocks.gainNode.gain.value).toBe(
+		expect(mocks.gains).toHaveLength(1);
+		expect(at(mocks.gains, 0).gain.value).toBe(
 			previewGain(LIVE_LISTEN_DEFAULT_LEVEL),
 		);
-		expect(mocks.gainNode.gain.value).toBeLessThan(0.8);
-		expect(mocks.sourceNode.connect).toHaveBeenCalledWith(mocks.gainNode);
-		expect(mocks.gainNode.connect).toHaveBeenCalledWith(mocks.limiterNode);
-		expect(mocks.limiterNode.connect).toHaveBeenCalledWith(
-			mocks.ctx.destination,
+		expect(at(mocks.gains, 0).gain.value).toBeLessThan(0.8);
+		expect(at(mocks.gains, 0).connect).toHaveBeenCalledWith(
+			at(mocks.limiters, 0),
+		);
+		expect(at(mocks.limiters, 0).connect).toHaveBeenCalledWith(
+			expect.objectContaining({ id: "destination" }),
 		);
 		// Ceiling node configured as a fast limiter, not an effect.
-		expect(mocks.limiterNode.ratio.value).toBeGreaterThanOrEqual(20);
-		expect(mocks.limiterNode.attack.value).toBeLessThanOrEqual(0.005);
+		expect(at(mocks.limiters, 0).ratio.value).toBeGreaterThanOrEqual(20);
+		expect(at(mocks.limiters, 0).attack.value).toBeLessThanOrEqual(0.005);
+	});
+
+	it("plays a streamed frame through the final gain, unmodified", async () => {
+		const { result } = renderHook(() =>
+			useLiveListen({ activeMicName: null, isSystemDefault: true }),
+		);
+		await startListening(result);
+
+		const frame = [0, 0.5, -0.5, 1, -1];
+		act(() => {
+			bridge.emit("live_preview_audio", {
+				pcm: pcm16Base64(frame),
+				sample_rate: 48000,
+				seq: 1,
+			});
+		});
+
+		// One buffer per chunk, at the frame's own rate, sample-for-sample.
+		expect(mocks.buffers).toHaveLength(1);
+		expect(at(mocks.buffers, 0).length).toBe(frame.length);
+		expect(at(mocks.buffers, 0).sampleRate).toBe(48000);
+		const written = callArg<Float32Array>(
+			at(mocks.buffers, 0).copyToChannel,
+			0,
+		);
+		// No JS filter chain (E13 / C-CONF-1): the post-chain samples the
+		// sidecar sent are exactly what reaches the gain node. The only
+		// difference allowed is PCM16 quantisation (< 1/32767).
+		expect(
+			Array.from(written).map((value) => Math.round(value * 1e4) / 1e4),
+		).toEqual(frame);
+
+		expect(mocks.sources).toHaveLength(1);
+		expect(at(mocks.sources, 0).buffer).toBe(at(mocks.buffers, 0));
+		expect(at(mocks.sources, 0).connect).toHaveBeenCalledWith(
+			at(mocks.gains, 0),
+		);
+		expect(at(mocks.sources, 0).start).toHaveBeenCalledTimes(1);
+	});
+
+	it("queues consecutive frames end-to-end instead of overlapping them", async () => {
+		const { result } = renderHook(() =>
+			useLiveListen({ activeMicName: null, isSystemDefault: true }),
+		);
+		await startListening(result);
+
+		act(() => {
+			bridge.emit("live_preview_audio", {
+				pcm: pcm16Base64([0.1, 0.1]),
+				sample_rate: 48000,
+				seq: 1,
+			});
+			bridge.emit("live_preview_audio", {
+				pcm: pcm16Base64([0.1, 0.1]),
+				sample_rate: 48000,
+				seq: 2,
+			});
+		});
+
+		const firstStart = callArg<number>(at(mocks.sources, 0).start, 0);
+		const secondStart = callArg<number>(at(mocks.sources, 1).start, 0);
+		expect(secondStart).toBeGreaterThan(firstStart);
+	});
+
+	it("resyncs instead of queueing an unbounded backlog", async () => {
+		const { result } = renderHook(() =>
+			useLiveListen({ activeMicName: null, isSystemDefault: true }),
+		);
+		await startListening(result);
+		mocks.setCurrentTime(0);
+
+		// One full second of audio: the queue is now far past the ceiling.
+		const longFrame = new Array(48000).fill(0.1);
+		act(() => {
+			bridge.emit("live_preview_audio", {
+				pcm: pcm16Base64(longFrame),
+				sample_rate: 48000,
+				seq: 1,
+			});
+		});
+		act(() => {
+			bridge.emit("live_preview_audio", {
+				pcm: pcm16Base64([0.1]),
+				sample_rate: 48000,
+				seq: 2,
+			});
+		});
+
+		// The stale source is dropped and the new one restarts near "now".
+		expect(at(mocks.sources, 0).stop).toHaveBeenCalled();
+		const restarted = callArg<number>(at(mocks.sources, 1).start, 0);
+		expect(restarted).toBeLessThanOrEqual(LIVE_PREVIEW_MAX_BACKLOG_S);
+	});
+
+	it("ignores frames while not listening", async () => {
+		renderHook(() =>
+			useLiveListen({ activeMicName: null, isSystemDefault: true }),
+		);
+
+		act(() => {
+			bridge.emit("live_preview_audio", {
+				pcm: pcm16Base64([0.5]),
+				sample_rate: 48000,
+				seq: 1,
+			});
+		});
+
+		expect(mocks.buffers).toHaveLength(0);
+		expect(mocks.sources).toHaveLength(0);
+	});
+
+	it("keeps the stream alive when a frame is malformed", async () => {
+		const { result } = renderHook(() =>
+			useLiveListen({ activeMicName: null, isSystemDefault: true }),
+		);
+		await startListening(result);
+
+		act(() => {
+			bridge.emit("live_preview_audio", { pcm: "!!!", sample_rate: 48000 });
+			bridge.emit("live_preview_audio", { pcm: pcm16Base64([0.2]) });
+			bridge.emit("live_preview_audio", {
+				pcm: pcm16Base64([0.2]),
+				sample_rate: 0,
+			});
+		});
+
+		expect(mocks.buffers).toHaveLength(0);
+		expect(result.current.listening).toBe(true);
+	});
+
+	it("reports unavailable when the sidecar has no monitor stream", async () => {
+		// The preview has no capture path of its own: no monitor, no preview.
+		bridge = installBridge(() => ({ active: false, monitoring: false }));
+		const { result } = renderHook(() =>
+			useLiveListen({ activeMicName: null, isSystemDefault: true }),
+		);
+
+		await startListening(result);
+
+		expect(result.current.listening).toBe(false);
+		expect(result.current.error).toBe("unavailable");
+		// Nothing was built and the context we opened for the gesture is closed.
+		expect(mocks.gains).toHaveLength(0);
+		expect(mocks.closes).toHaveLength(1);
+		expect(at(mocks.closes, 0)).toHaveBeenCalled();
+	});
+
+	it("reports failed when the IPC call rejects (backend down)", async () => {
+		bridge = installBridge(() => {
+			throw new Error("Python bridge not available");
+		});
+		const { result } = renderHook(() =>
+			useLiveListen({ activeMicName: null, isSystemDefault: true }),
+		);
+
+		await startListening(result);
+
+		expect(result.current.listening).toBe(false);
+		expect(result.current.error).toBe("failed");
+		expect(mocks.gains).toHaveLength(0);
+		expect(at(mocks.closes, 0)).toHaveBeenCalled();
+	});
+
+	it("reports unavailable when the renderer has no AudioContext", async () => {
+		Object.defineProperty(window, "AudioContext", {
+			value: undefined,
+			configurable: true,
+			writable: true,
+		});
+		const { result } = renderHook(() =>
+			useLiveListen({ activeMicName: null, isSystemDefault: true }),
+		);
+
+		await startListening(result);
+
+		expect(result.current.error).toBe("unavailable");
+		// No point enabling a stream we cannot play.
+		expect(bridge.call).not.toHaveBeenCalled();
 	});
 
 	it("never lets a level exceed the hard ceiling", async () => {
@@ -161,12 +471,9 @@ describe("useLiveListen", () => {
 			}),
 		);
 
-		act(() => {
-			result.current.toggle();
-		});
-		await flush();
+		await startListening(result);
 
-		expect(mocks.gainNode.gain.value).toBe(LIVE_LISTEN_MAX);
+		expect(at(mocks.gains, 0).gain.value).toBe(LIVE_LISTEN_MAX);
 	});
 
 	it("applies the configured preview level", async () => {
@@ -178,12 +485,9 @@ describe("useLiveListen", () => {
 			}),
 		);
 
-		act(() => {
-			result.current.toggle();
-		});
-		await flush();
+		await startListening(result);
 
-		expect(mocks.gainNode.gain.value).toBeCloseTo(0.2 * LIVE_LISTEN_MAX);
+		expect(at(mocks.gains, 0).gain.value).toBeCloseTo(0.2 * LIVE_LISTEN_MAX);
 	});
 
 	it("follows a level change while listening (config arrives late)", async () => {
@@ -193,58 +497,77 @@ describe("useLiveListen", () => {
 			{ initialProps: { level: LIVE_LISTEN_DEFAULT_LEVEL } },
 		);
 
-		act(() => {
-			result.current.toggle();
-		});
-		await flush();
-		expect(mocks.gainNode.gain.value).toBe(
+		await startListening(result);
+		expect(at(mocks.gains, 0).gain.value).toBe(
 			previewGain(LIVE_LISTEN_DEFAULT_LEVEL),
 		);
 
 		rerender({ level: 1 });
-		expect(mocks.gainNode.gain.value).toBe(LIVE_LISTEN_MAX);
+		expect(at(mocks.gains, 0).gain.value).toBe(LIVE_LISTEN_MAX);
 	});
 
-	it("stops everything on second toggle (tracks, nodes, context)", async () => {
+	it("disables the backend stream and releases the graph on toggle-off", async () => {
 		const { result } = renderHook(() =>
 			useLiveListen({ activeMicName: null, isSystemDefault: true }),
 		);
-
-		act(() => {
-			result.current.toggle();
-		});
-		await flush();
-		act(() => {
-			result.current.toggle();
-		});
-
-		expect(result.current.listening).toBe(false);
-		for (const track of mocks.tracks) expect(track.stop).toHaveBeenCalled();
-		expect(mocks.sourceNode.disconnect).toHaveBeenCalled();
-		expect(mocks.gainNode.disconnect).toHaveBeenCalled();
-		expect(mocks.limiterNode.disconnect).toHaveBeenCalled();
-		expect(mocks.ctx.close).toHaveBeenCalled();
-	});
-
-	it("tears down on unmount while listening", async () => {
-		const { result, unmount } = renderHook(() =>
-			useLiveListen({ activeMicName: null, isSystemDefault: true }),
-		);
-
-		act(() => {
-			result.current.toggle();
-		});
-		await flush();
+		await startListening(result);
 		expect(result.current.listening).toBe(true);
 
-		unmount();
-		for (const track of mocks.tracks) expect(track.stop).toHaveBeenCalled();
-		expect(mocks.ctx.close).toHaveBeenCalled();
+		act(() => {
+			result.current.toggle();
+		});
+
+		expect(result.current.listening).toBe(false);
+		expect(bridge.call).toHaveBeenLastCalledWith({
+			type: "live_preview",
+			data: { enabled: false },
+		});
+		expect(at(mocks.gains, 0).disconnect).toHaveBeenCalled();
+		expect(at(mocks.limiters, 0).disconnect).toHaveBeenCalled();
+		expect(at(mocks.closes, 0)).toHaveBeenCalled();
 	});
 
-	it("reports denied when the browser rejects the permission prompt", async () => {
-		const err = new DOMException("denied", "NotAllowedError");
-		mocks.getUserMedia.mockRejectedValueOnce(err);
+	it("stops queued frames when it stops", async () => {
+		const { result } = renderHook(() =>
+			useLiveListen({ activeMicName: null, isSystemDefault: true }),
+		);
+		await startListening(result);
+
+		act(() => {
+			bridge.emit("live_preview_audio", {
+				pcm: pcm16Base64([0.3, 0.3]),
+				sample_rate: 48000,
+				seq: 1,
+			});
+		});
+		act(() => {
+			result.current.stop();
+		});
+
+		expect(at(mocks.sources, 0).stop).toHaveBeenCalled();
+		expect(at(mocks.sources, 0).disconnect).toHaveBeenCalled();
+	});
+
+	it("never talks to the backend when it never started", async () => {
+		const { result } = renderHook(() =>
+			useLiveListen({ activeMicName: null, isSystemDefault: true }),
+		);
+
+		act(() => {
+			result.current.stop();
+		});
+
+		expect(bridge.call).not.toHaveBeenCalled();
+	});
+
+	it("releases the stream when stopped while the enable is in flight", async () => {
+		let release!: (value: unknown) => void;
+		bridge = installBridge(
+			() =>
+				new Promise((resolve) => {
+					release = resolve;
+				}),
+		);
 		const { result } = renderHook(() =>
 			useLiveListen({ activeMicName: null, isSystemDefault: true }),
 		);
@@ -252,29 +575,25 @@ describe("useLiveListen", () => {
 		act(() => {
 			result.current.toggle();
 		});
-		await flush();
-
-		expect(result.current.listening).toBe(false);
-		expect(result.current.error).toBe("denied");
-	});
-
-	it("reports unavailable when getUserMedia does not exist", async () => {
-		Object.defineProperty(navigator, "mediaDevices", {
-			value: {},
-			configurable: true,
-			writable: true,
-		});
-		const { result } = renderHook(() =>
-			useLiveListen({ activeMicName: null, isSystemDefault: true }),
-		);
-
+		expect(result.current.starting).toBe(true);
 		act(() => {
 			result.current.toggle();
 		});
-		await flush();
+
+		await act(async () => {
+			release(ENABLED_REPLY);
+			await new Promise<void>((resolve) => setTimeout(resolve, 0));
+		});
 
 		expect(result.current.listening).toBe(false);
-		expect(result.current.error).toBe("unavailable");
+		expect(result.current.starting).toBe(false);
+		// Both halves acquired by the superseded start are released.
+		expect(mocks.gains).toHaveLength(0);
+		expect(at(mocks.closes, 0)).toHaveBeenCalled();
+		expect(bridge.call).toHaveBeenLastCalledWith({
+			type: "live_preview",
+			data: { enabled: false },
+		});
 	});
 
 	it("stops when the stopSignal changes (test start / device switch)", async () => {
@@ -288,28 +607,24 @@ describe("useLiveListen", () => {
 				}),
 			{ initialProps: { stopSignal: signal } },
 		);
-
-		act(() => {
-			result.current.toggle();
-		});
-		await flush();
+		await startListening(result);
 		expect(result.current.listening).toBe(true);
 
 		signal += 1;
 		rerender({ stopSignal: signal });
+
 		expect(result.current.listening).toBe(false);
-		for (const track of mocks.tracks) expect(track.stop).toHaveBeenCalled();
+		expect(bridge.call).toHaveBeenLastCalledWith({
+			type: "live_preview",
+			data: { enabled: false },
+		});
 	});
 
 	it("stops when the tab hides (C-BG-1)", async () => {
 		const { result } = renderHook(() =>
 			useLiveListen({ activeMicName: null, isSystemDefault: true }),
 		);
-
-		act(() => {
-			result.current.toggle();
-		});
-		await flush();
+		await startListening(result);
 		expect(result.current.listening).toBe(true);
 
 		Object.defineProperty(document, "visibilityState", {
@@ -325,32 +640,47 @@ describe("useLiveListen", () => {
 		});
 
 		expect(result.current.listening).toBe(false);
-		for (const track of mocks.tracks) expect(track.stop).toHaveBeenCalled();
+		expect(bridge.call).toHaveBeenLastCalledWith({
+			type: "live_preview",
+			data: { enabled: false },
+		});
 	});
 
-	it("picks the browser input matching the selected mic label", async () => {
-		mocks.enumerateDevices.mockResolvedValue([
-			{ kind: "audioinput", label: "Default Microphone", deviceId: "def" },
-			{ kind: "audioinput", label: "USB Headset Microphone", deviceId: "usb1" },
-		]);
-		const { result } = renderHook(() =>
-			useLiveListen({ activeMicName: "USB Headset", isSystemDefault: false }),
+	it("tears down and disables the stream on unmount", async () => {
+		const { result, unmount } = renderHook(() =>
+			useLiveListen({ activeMicName: null, isSystemDefault: true }),
 		);
-
-		act(() => {
-			result.current.toggle();
-		});
-		await flush();
-
+		await startListening(result);
 		expect(result.current.listening).toBe(true);
-		expect(mocks.getUserMedia).toHaveBeenCalledWith({
-			audio: {
-				deviceId: { exact: "usb1" },
-				echoCancellation: true,
-				noiseSuppression: false,
-				autoGainControl: false,
-			},
+
+		unmount();
+
+		expect(at(mocks.closes, 0)).toHaveBeenCalled();
+		expect(bridge.call).toHaveBeenLastCalledWith({
+			type: "live_preview",
+			data: { enabled: false },
 		});
+	});
+});
+
+describe("decodePreviewFrame", () => {
+	it("decodes PCM16 little-endian mono to float samples", () => {
+		const frame = [0, 0.5, -0.5, 1, -1];
+		const decoded = decodePreviewFrame(pcm16Base64(frame));
+		expect(
+			Array.from(decoded).map((value) => Math.round(value * 1e4) / 1e4),
+		).toEqual(frame);
+	});
+
+	it("round-trips a negative sample that would flip if the byte order were swapped", () => {
+		// 0x0100 (LE: 00 01) is 256; byte-swapped it is 1. A -1/256 sample
+		// distinguishes the two unambiguously.
+		const decoded = decodePreviewFrame(pcm16Base64([-1 / 256]));
+		expect(decoded[0]).toBeCloseTo(-1 / 256, 5);
+	});
+
+	it("returns an empty buffer for an empty frame", () => {
+		expect(decodePreviewFrame("").length).toBe(0);
 	});
 });
 

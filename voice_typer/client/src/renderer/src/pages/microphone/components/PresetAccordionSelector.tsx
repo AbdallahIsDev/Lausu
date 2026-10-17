@@ -109,6 +109,11 @@ function getPresetOptions(customPresets: CustomMicPreset[]): PresetOption[] {
 
 const ACCORDION_ITEM_VALUE = "microphone-quality";
 
+// Stable identity for the "no saved presets" case: an inline `[]` default
+// would be a fresh array on every render, invalidating the presetOptions
+// memo each time (two t() lookups per key per mount instead of one).
+const EMPTY_CUSTOM_PRESETS: CustomMicPreset[] = [];
+
 export function PresetAccordionSelector({
 	preset,
 	config,
@@ -116,7 +121,7 @@ export function PresetAccordionSelector({
 	onPresetChange,
 	onToggleAdvanced,
 	onConfigChange,
-	customPresets = [],
+	customPresets = EMPTY_CUSTOM_PRESETS,
 	activeCustomPresetId = null,
 	onSelectCustomPreset = () => {},
 	onSaveCustomPreset = () => {},

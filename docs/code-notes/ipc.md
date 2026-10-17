@@ -10,10 +10,10 @@ Source: `voice_typer/server/ipc/registry.py`. Parity contract: CONTRIBUTING.md
 lockstep. Host-dispatched commands (`shutdown`, `tray_click`, `heartbeat`,
 `relaunch_ack`) are intentionally absent from the Rust renderer allowlist.
 
-Pinned sets (counts verified against code: 89-entry `_COMMAND_REGISTRY`
-minus the 4 host-dispatched commands = 85-entry Rust allowlist):
-- `_COMMAND_REGISTRY` — 89 keys (tests/test_ipc_server.py).
-- `allowed_commands()` (Rust renderer allowlist) — 85 keys; the registry minus
+Pinned sets (counts verified against code: 90-entry `_COMMAND_REGISTRY`
+minus the 4 host-dispatched commands = 86-entry Rust allowlist):
+- `_COMMAND_REGISTRY` — 90 keys (tests/test_ipc_server.py).
+- `allowed_commands()` (Rust renderer allowlist) — 86 keys; the registry minus
   the four host-dispatched commands (SECURITY.md, `sidecar_cmds_tests.rs`).
 - `_READONLY_COMMANDS` — 28 pure-read commands (full set in
   `voice_typer/server/ipc/registry.py`): `get_status`, `get_config`,

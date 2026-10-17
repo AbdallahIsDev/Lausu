@@ -66,6 +66,13 @@ Events emitted via ``event_bus.publish`` (the modern path):
   ``asr_last_resort_unloaded``.
 * Pipeline / device observability: ``dictation_suppressed``,
   ``dictation_lost``, ``device_lost``, ``mic_level``.
+* Live-preview audio (Part 2 of the listen-live work): the level
+  monitor's own ``AudioProcessor`` chain publishes one
+  ``live_preview_audio`` frame per processed chunk while the renderer
+  has preview enabled (``{pcm:str (base64 PCM16 LE mono),
+  sample_rate:int, seq:int}``, from ``level_monitor/preview_stream.py``).
+  The renderer only schedules playback; it never runs a second filter
+  chain (E13 / C-CONF-1).
 * History-store integrity: ``history_corrupted``,
   ``history_fts5_rebuild_failed``.
 * ADR-0023 media jobs: ``media_transcribe_progress``,
@@ -127,7 +134,7 @@ server):
   former is a per-transition signal with just ``status``; the latter
   is the connect-time snapshot with a ``message`` field.
 
-Total: 52 events, the live count is ``len(EVENT_TYPES)`` and this
+Total: 53 events, the live count is ``len(EVENT_TYPES)`` and this
 sentence is kept in lockstep with it by
 ``tests/test_event_bus.py::TestCanonicalCatalogue
 ::test_catalogue_total_count_updated``. Update this docstring whenever
@@ -228,6 +235,9 @@ EVENT_TYPES: frozenset[str] = frozenset(
         "media_transcribe_progress",
         # Mic guard (S5): an outside write moved the OS capture knob.
         "microphone_volume_lowered",
+        # Live listen preview: post-chain frames streamed to the renderer
+        # (level_monitor/preview_stream.py).
+        "live_preview_audio",
     }
 )
 

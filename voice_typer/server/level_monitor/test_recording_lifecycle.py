@@ -142,11 +142,15 @@ def _reset_test_chunks(locked: bool) -> None:
         _state._test_chunks = new_chunks
         _state._test_raw_chunks = new_raw
         _state._test_filtered_chunks = new_filtered
+        # New timeline: no chunk has run the live chain yet (see
+        # _state._test_did_filter). Set on the first run_filter_chain chunk.
+        _state._test_did_filter = False
     else:
         with _state._monitor_lock:
             _state._test_chunks = new_chunks
             _state._test_raw_chunks = new_raw
             _state._test_filtered_chunks = new_filtered
+            _state._test_did_filter = False
 
 
 def is_test_active() -> bool:
@@ -172,6 +176,7 @@ def _begin_test_locked(duration: float, filters: dict | None) -> dict:
     # (re)create bounded deques sized to this start's duration
     _reset_test_chunks(locked=True)
     _state._test_filters = dict(filters) if filters else {}
+    _state._test_did_filter = False
     _state._test_peak_history.clear()
     _state._test_rms_history.clear()
     _state._test_clip_count = 0
