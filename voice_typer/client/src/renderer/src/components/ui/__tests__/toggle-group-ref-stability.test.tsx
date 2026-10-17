@@ -306,11 +306,15 @@ describe("ToggleGroup per-option label ref stability + value-change behaviour", 
 			/>,
 		);
 		mockMeasureRects(container, { 0: 0, 1: 48 });
+		// `/` is the Tailwind opacity separator, a legal character in an
+		// HTML class token but a CSS escape hazard: `.bg-border/10`
+		// throws SYNTAX_ERR in jsdom's selector engine. Escape it.
+		const TABS_INDICATOR = ".bg-border\\/10";
 		await waitFor(() =>
-			expect(container.querySelector(".bg-border/10")).toBeTruthy(),
+			expect(container.querySelector(TABS_INDICATOR)).toBeTruthy(),
 		);
 
-		const indicator = container.querySelector<HTMLElement>(".bg-border/10");
+		const indicator = container.querySelector<HTMLElement>(TABS_INDICATOR);
 		expect(indicator?.className).toContain("rounded-lg");
 		expect(indicator?.className).toContain(
 			"not-supports-[corner-shape:squircle]:rounded-[calc(var(--radius)-0.25rem)]",
