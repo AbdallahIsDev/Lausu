@@ -13,10 +13,11 @@
 // dismissing it never brings it back until the next app launch. Only a
 // completed check marks it; a failed read leaves the offer armed.
 
-import { useEffect } from "react";
+import { createElement, useEffect, useRef } from "react";
 import { usePython } from "@/hooks/usePython";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
+import { SpeakerOfferActions } from "./SpeakerOfferActions";
 
 /** Sonner id: the offer replaces itself in place. */
 export const SPEAKER_OFFER_TOAST_ID = "live-speaker-offer";
@@ -51,6 +52,18 @@ function readOutputLevel(status: unknown): number | null {
 export function useLiveSpeakerOffer(listening: boolean): void {
 	const { showSnack, clearSnack } = useSnackbar();
 	const { call } = usePython();
+	const wasListening = useRef(listening);
+
+	// Auto-dismiss on stop: the offer only makes sense while the preview
+	// runs. Gated on the actual listening true→false flip so a stopped
+	// mount never touches an unrelated toast; dismissing an absent sonner
+	// id is a silent no-op.
+	useEffect(() => {
+		if (wasListening.current && !listening) {
+			clearSnack(SPEAKER_OFFER_TOAST_ID);
+		}
+		wasListening.current = listening;
+	}, [listening, clearSnack]);
 
 	useEffect(() => {
 		if (!listening || _checkState !== "idle") return;
@@ -80,23 +93,26 @@ export function useLiveSpeakerOffer(listening: boolean): void {
 			_checkState = "done";
 			if (level === null || level <= SPEAKER_OFFER_THRESHOLD) return;
 
+			const lowerLabel = t("microphoneTest.speakerOfferLower");
+			const keepLabel = t("microphoneTest.speakerOfferKeep");
 			showSnack(t("microphoneTest.speakerOfferTitle"), "info", {
 				id: SPEAKER_OFFER_TOAST_ID,
 				description: t("microphoneTest.speakerOfferMessage"),
 				persistent: true,
-				action: {
-					label: t("microphoneTest.speakerOfferLower"),
-					onClick: () => {
+				// Real div group (honest DOM): sonner's action slot takes raw
+				// JSX, so both buttons share ONE container — no sibling hacks.
+				// createElement (not JSX syntax) so this file stays .ts.
+				action: createElement(SpeakerOfferActions, {
+					lowerLabel,
+					keepLabel,
+					onLower: () => {
 						clearSnack(SPEAKER_OFFER_TOAST_ID);
 						void call("set_output_volume", {
 							level: SPEAKER_OFFER_TARGET_LEVEL,
 						}).catch(() => undefined);
 					},
-				},
-				cancel: {
-					label: t("microphoneTest.speakerOfferKeep"),
-					onClick: () => clearSnack(SPEAKER_OFFER_TOAST_ID),
-				},
+					onKeep: () => clearSnack(SPEAKER_OFFER_TOAST_ID),
+				}),
 			});
 		})();
 		return () => {
