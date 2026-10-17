@@ -131,6 +131,34 @@ class EarlyPhases:
         except Exception:
             log.debug("[STARTUP] could not spawn vad-preload thread", exc_info=True)
 
+        # Preload GTCRN so the first NS-enabled preset applies without a
+        # synchronous ~23s InferenceSession build under _dispatch_lock.
+        try:
+            from voice_typer.server.audio_filters import gtcrn_backend
+
+            def _gtcrn_preload_worker() -> None:
+                try:
+                    gtcrn_backend.preload()
+                except Exception:
+                    log.debug("[STARTUP] gtcrn_backend.preload() failed", exc_info=True)
+
+            registry = getattr(app, "_thread_registry", None)
+            if registry is not None and hasattr(registry, "spawn_and_register"):
+                registry.spawn_and_register(
+                    "gtcrn-preload-startup",
+                    _gtcrn_preload_worker,
+                    daemon=True,
+                    join_timeout=2.0,
+                )
+            else:
+                threading.Thread(
+                    target=_gtcrn_preload_worker,
+                    name="gtcrn-preload-startup",
+                    daemon=True,
+                ).start()
+        except Exception:
+            log.debug("[STARTUP] could not spawn gtcrn-preload thread", exc_info=True)
+
         return StageResult(success=True)
 
     def _phase_2_crash_diagnostics(self) -> StageResult:

@@ -59,6 +59,13 @@ class _FakeIdentitySession:
         return [mix.copy()] + [np.asarray(c, dtype=np.float32) + 1.0 for c in caches]
 
 
+@pytest.fixture(autouse=True)
+def _reset_gtcrn_shared_session():
+    gtcrn_module._reset_shared_session_for_tests()
+    yield
+    gtcrn_module._reset_shared_session_for_tests()
+
+
 @pytest.fixture
 def fake_identity_backend(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> GtcrnBackend:
     """Construct a ``GtcrnBackend`` over the fake identity session."""
@@ -529,3 +536,137 @@ class TestRealModel:
         in_rms = float(np.sqrt(np.mean(audio[seg].astype(np.float64) ** 2)))
         out_rms = float(np.sqrt(np.mean(result[seg].astype(np.float64) ** 2)))
         assert out_rms < in_rms
+
+
+class _CountingSession:
+    """Fake session that counts constructor invocations."""
+
+    constructor_calls = 0
+
+    def __init__(self, path, providers=None, sess_options=None):
+        _CountingSession.constructor_calls += 1
+        self.path = path
+        self.run_calls = 0
+        self.input_names = ["mix", "conv_cache", "tra_cache", "inter_cache"]
+
+    def get_inputs(self):
+        return [_FakeGraphInput(n) for n in self.input_names]
+
+    def run(self, output_names, feed):
+        self.run_calls += 1
+        mix = feed[self.input_names[0]]
+        caches = [feed[n] for n in self.input_names[1:]]
+        return [mix.copy()] + [np.asarray(c, dtype=np.float32) + 1.0 for c in caches]
+
+
+class TestGtcrnSharedSession:
+    """Shared ONNX session cache + preload (Part B)."""
+
+    def test_session_reuse_across_backends(self, monkeypatch, tmp_path):
+        _CountingSession.constructor_calls = 0
+        scratch = tmp_path / "m.onnx"
+        scratch.write_bytes(b"x")
+        monkeypatch.setattr(ort, "InferenceSession", _CountingSession)
+        monkeypatch.setattr(gtcrn_module, "MODEL_PATH", scratch)
+        gtcrn_module._reset_shared_session_for_tests()
+
+        a = GtcrnBackend()
+        b = GtcrnBackend()
+        assert _CountingSession.constructor_calls == 1, (
+            "two backends must share one session construction"
+        )
+        assert a._session is b._session
+
+    def test_concurrent_getter_single_construction(self, monkeypatch, tmp_path):
+        import threading
+
+        _CountingSession.constructor_calls = 0
+        scratch = tmp_path / "m.onnx"
+        scratch.write_bytes(b"x")
+        monkeypatch.setattr(ort, "InferenceSession", _CountingSession)
+        monkeypatch.setattr(gtcrn_module, "MODEL_PATH", scratch)
+        gtcrn_module._reset_shared_session_for_tests()
+
+        results = []
+        barrier = threading.Barrier(8)
+
+        def worker():
+            barrier.wait()
+            s, names = gtcrn_module._get_or_create_session()
+            results.append((s, names))
+
+        threads = [threading.Thread(target=worker) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert _CountingSession.constructor_calls == 1
+        assert len({id(r[0]) for r in results}) == 1
+
+    def test_independent_streaming_state(self, monkeypatch, tmp_path):
+        scratch = tmp_path / "m.onnx"
+        scratch.write_bytes(b"x")
+        monkeypatch.setattr(ort, "InferenceSession", _FakeIdentitySession)
+        monkeypatch.setattr(gtcrn_module, "MODEL_PATH", scratch)
+        gtcrn_module._reset_shared_session_for_tests()
+
+        a = GtcrnBackend()
+        b = GtcrnBackend()
+        hop = np.ones(HOP, dtype=np.float32) * 0.1
+        a.process_hop(hop)
+        a.process_hop(hop)
+        # b never ran a hop: its caches stay zero.
+        assert all(np.all(c == 0.0) for c in b.caches), (
+            "backend B streaming state must stay independent of A"
+        )
+        assert all(np.all(c == 2.0) for c in a.caches)
+
+    def test_cache_reset_recreates(self, monkeypatch, tmp_path):
+        _CountingSession.constructor_calls = 0
+        scratch = tmp_path / "m.onnx"
+        scratch.write_bytes(b"x")
+        monkeypatch.setattr(ort, "InferenceSession", _CountingSession)
+        monkeypatch.setattr(gtcrn_module, "MODEL_PATH", scratch)
+        gtcrn_module._reset_shared_session_for_tests()
+
+        GtcrnBackend()
+        first = _CountingSession.constructor_calls
+        assert first == 1
+        gtcrn_module._reset_shared_session_for_tests()
+        GtcrnBackend()
+        assert _CountingSession.constructor_calls == 2
+
+    def test_preload_happy_path(self, monkeypatch, tmp_path):
+        _CountingSession.constructor_calls = 0
+        scratch = tmp_path / "m.onnx"
+        scratch.write_bytes(b"x")
+        monkeypatch.setattr(ort, "InferenceSession", _CountingSession)
+        monkeypatch.setattr(gtcrn_module, "MODEL_PATH", scratch)
+        gtcrn_module._reset_shared_session_for_tests()
+
+        assert gtcrn_module.preload() is True
+        assert _CountingSession.constructor_calls == 1
+
+    def test_preload_failure_returns_false(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(ort, "InferenceSession", _CountingSession)
+        monkeypatch.setattr(gtcrn_module, "MODEL_PATH", tmp_path / "absent.onnx")
+        gtcrn_module._reset_shared_session_for_tests()
+
+        assert gtcrn_module.preload() is False
+
+    def test_preload_second_call_noop_log(self, monkeypatch, tmp_path, caplog):
+        import logging
+
+        scratch = tmp_path / "m.onnx"
+        scratch.write_bytes(b"x")
+        monkeypatch.setattr(ort, "InferenceSession", _CountingSession)
+        monkeypatch.setattr(gtcrn_module, "MODEL_PATH", scratch)
+        gtcrn_module._reset_shared_session_for_tests()
+        _CountingSession.constructor_calls = 0
+
+        assert gtcrn_module.preload() is True
+        with caplog.at_level(logging.INFO, logger="voice_typer.server.audio_filters.gtcrn_backend"):
+            assert gtcrn_module.preload() is True
+        # second call should not emit the warmed INFO again
+        warmed = [r for r in caplog.records if "preloaded + warmed" in r.getMessage()]
+        assert warmed == [], "second preload must not re-emit the warmed INFO line"
