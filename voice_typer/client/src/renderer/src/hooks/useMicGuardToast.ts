@@ -25,6 +25,7 @@
 // message WITHOUT a button — the plan is explicit that we never render a
 // control that cannot work.
 
+import { buttonVariants } from "@/components/ui/button";
 import { usePython, usePythonEvent } from "@/hooks/usePython";
 import type { TranslateFn } from "@/i18n/translate-types";
 import { type ShowSnackOptions, useSnackbar } from "./useSnackbar";
@@ -64,6 +65,13 @@ export function useMicGuardToast(t: TranslateFn): void {
 				persistent: true,
 			};
 			if (canSet) {
+				// Per-toast pin: the button carries its OWN outline-xs
+				// classes, so sonner's per-toast merge (after the global
+				// default) keeps it identical to the speaker offer's Lower
+				// button however the global actionButton default evolves.
+				options.classNames = {
+					actionButton: buttonVariants({ variant: "outline", size: "xs" }),
+				};
 				options.action = {
 					label: t("micGuard.backTo100"),
 					onClick: () => {
