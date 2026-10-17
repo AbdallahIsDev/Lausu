@@ -33,8 +33,9 @@
 // auto-dismisses (update downloads, long operations); the user
 // closes it with the close button or the caller clears it by id.
 
+import type { ReactNode } from "react";
 import { useCallback } from "react";
-import { toast } from "sonner";
+import { type ToastClassnames, toast } from "sonner";
 import { t } from "@/i18n/i18n";
 
 export type SnackbarType = "success" | "error" | "warning" | "info";
@@ -63,19 +64,21 @@ export interface ShowSnackOptions {
 	id?: string | number;
 	/** Optional secondary line rendered under the toast message. */
 	description?: string;
-	action?: {
-		label: string;
-		onClick: () => void;
-	};
+	// Sonner takes `{label, onClick}` OR raw JSX here. The speaker offer
+	// passes a real div group (<SpeakerOfferActions/>) so both buttons
+	// share ONE container; every other caller passes the label shape.
+	action?: { label: string; onClick: () => void } | ReactNode;
 	/** Optional SECOND button, rendered next to `action` (sonner's
 	 *  "cancel" slot). Needed when a decision offers two real choices
 	 *  and neither is a dismissal — e.g. the Listen-Live speaker offer's
 	 *  [Lower to 75%] / [Keep as is] pair, where closing the toast by
 	 *  its X would be a third, undocumented answer. */
-	cancel?: {
-		label: string;
-		onClick: () => void;
-	};
+	cancel?: { label: string; onClick: () => void } | ReactNode;
+	/** Per-toast sonner class overrides (merged AFTER the global Toaster
+	 *  classNames; tailwind-merge keeps the per-toast classes on conflict),
+	 *  so a single toast can pin its button variant without moving the
+	 *  global default. */
+	classNames?: ToastClassnames;
 }
 
 function resolveDuration(
@@ -96,8 +99,9 @@ function dispatchToast(
 		duration: number;
 		id?: string | number;
 		description?: string;
-		action?: { label: string; onClick: () => void };
-		cancel?: { label: string; onClick: () => void };
+		action?: { label: string; onClick: () => void } | ReactNode;
+		cancel?: { label: string; onClick: () => void } | ReactNode;
+		classNames?: ToastClassnames;
 	},
 ): void {
 	switch (type) {
@@ -125,15 +129,17 @@ export function useSnackbar() {
 		) => {
 			//delegate to sonner so there is exactly ONE toast
 			// system in the renderer.  Each ``type`` maps to the matching
-			// sonner method so the icon and color come from the global
-			// Toaster configuration in ``components/ui/sonner.tsx``.
+			// sonner method so the type styling (title color) comes from
+			// the global Toaster configuration in
+			// ``components/ui/sonner.tsx``.
 			//per-type default durations with per-call override.
 			const opts: {
 				duration: number;
 				id?: string | number;
 				description?: string;
-				action?: { label: string; onClick: () => void };
-				cancel?: { label: string; onClick: () => void };
+				action?: { label: string; onClick: () => void } | ReactNode;
+				cancel?: { label: string; onClick: () => void } | ReactNode;
+				classNames?: ToastClassnames;
 			} = {
 				duration: resolveDuration(type, options),
 			};
@@ -148,6 +154,9 @@ export function useSnackbar() {
 			}
 			if (options?.cancel) {
 				opts.cancel = options.cancel;
+			}
+			if (options?.classNames !== undefined) {
+				opts.classNames = options.classNames;
 			}
 			dispatchToast(type, message, opts);
 		},

@@ -17,6 +17,7 @@ vi.mock("sonner", () => ({
 // `setLocale` is imported lazily inside each test's `act` so we can
 // reset to a known baseline without polluting other test files.
 import { type Locale, setLocale } from "@/i18n/i18n";
+import { buttonVariants } from "../button";
 import { Toaster } from "../sonner";
 
 afterEach(() => {
@@ -110,17 +111,25 @@ describe("Sonner Toaster, ZU-33 stacking configuration", () => {
 		expect(lastToasterProps?.duration).toBe(4000);
 	});
 
-	it("keeps the custom icons, popover style vars, position, and aria labels intact", () => {
+	it("no per-type icons, outline/ghost buttons, popover style vars, position, and aria labels intact", () => {
 		render(<Toaster />);
 		expect(lastToasterProps).not.toBeNull();
-		// Custom Hugeicons per type (the semantic signal in neutral mode).
-		expect(Object.keys(lastToasterProps?.icons ?? {}).sort()).toEqual([
-			"error",
-			"info",
-			"loading",
-			"success",
-			"warning",
-		]);
+		// Explicit nulls kill sonner's built-in glyphs (omit -> getAsset fallback).
+		expect(lastToasterProps?.icons).toEqual({
+			success: null,
+			info: null,
+			warning: null,
+			error: null,
+			loading: null,
+		});
+		// Lower = outline (visible, neutral), Keep = ghost (de-emphasized).
+		// No white/blue fills in toasts — both are the neutral family.
+		expect(lastToasterProps?.toastOptions?.classNames?.actionButton).toBe(
+			buttonVariants({ variant: "outline", size: "xs" }),
+		);
+		expect(lastToasterProps?.toastOptions?.classNames?.cancelButton).toBe(
+			buttonVariants({ variant: "ghost", size: "xs" }),
+		);
 		// Neutral surface mapping consumed by sonner's --normal-* vars.
 		expect(lastToasterProps?.style).toMatchObject({
 			"--normal-bg": "var(--surface)",
@@ -134,11 +143,12 @@ describe("Sonner Toaster, ZU-33 stacking configuration", () => {
 		// The squircle opt-in: `rounded-lg` is the only class the
 		// corner-shape gate in index.css shapes, and sonner's toast <li>
 		// ships with no class of its own.
-		expect(lastToasterProps?.toastOptions?.classNames).toEqual({
-			toast: "rounded-lg",
-		});
+		expect(lastToasterProps?.toastOptions?.classNames?.toast).toBe(
+			"rounded-lg",
+		);
 		// Scoping class for the index.css .toaster overrides.
 		expect(lastToasterProps?.className).toBe("toaster group");
+
 		// Stacking + expansion config.
 		expect(lastToasterProps?.visibleToasts).toBe(6);
 		expect(lastToasterProps?.expand).toBe(false);
@@ -147,6 +157,17 @@ describe("Sonner Toaster, ZU-33 stacking configuration", () => {
 		expect(typeof lastToasterProps?.containerAriaLabel).toBe("string");
 		expect(typeof lastToasterProps?.toastOptions?.closeButtonAriaLabel).toBe(
 			"string",
+		);
+	});
+
+	it("wires actionButton to outline-xs and cancelButton to ghost-xs via buttonVariants", () => {
+		render(<Toaster />);
+		expect(lastToasterProps).not.toBeNull();
+		expect(lastToasterProps?.toastOptions?.classNames?.actionButton).toBe(
+			buttonVariants({ variant: "outline", size: "xs" }),
+		);
+		expect(lastToasterProps?.toastOptions?.classNames?.cancelButton).toBe(
+			buttonVariants({ variant: "ghost", size: "xs" }),
 		);
 	});
 });
