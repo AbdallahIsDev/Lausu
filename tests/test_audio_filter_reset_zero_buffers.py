@@ -138,13 +138,23 @@ def test_streaming_resampler_chunk_cost_within_budget():
     rs = _StreamingResampler(up=160, down=441)
     for _ in range(5):
         rs.process(chunk)
-    t0 = time.perf_counter()
+    # Time each chunk separately and judge the FASTEST. A wall-clock mean on
+    # a shared CI runner measures the scheduler, not the algorithm: one
+    # descheduled iteration (xdist workers + coverage tracing on 2 cores)
+    # drags the mean to 18 ms and fails a test whose true cost is ~0.1 ms.
+    # The minimum is what the code actually costs, and a real regression
+    # (the old dense-lfilter form, ~200 ms) raises the minimum too, so the
+    # guard keeps its teeth.
+    per_chunk_ms: list[float] = []
     for _ in range(20):
+        t0 = time.perf_counter()
         rs.process(chunk)
-    mean_ms = (time.perf_counter() - t0) / 20 * 1000
+        per_chunk_ms.append((time.perf_counter() - t0) * 1000)
+    best_ms = min(per_chunk_ms)
+    mean_ms = sum(per_chunk_ms) / len(per_chunk_ms)
     # True polyphase cost is ~0.1 ms; 10 ms leaves 100x headroom while
     # still catching the old dense-lfilter 200 ms regression on any box.
-    assert mean_ms < 10.0, f"resampler too slow: {mean_ms:.1f} ms/chunk"
+    assert best_ms < 10.0, f"resampler too slow: best {best_ms:.1f} ms/chunk (mean {mean_ms:.1f})"
 
 
 def test_notch_reset_zeros_state():

@@ -14,6 +14,55 @@ def _old_rms(flat: np.ndarray) -> float:
     return float(np.sqrt(np.mean(flat**2)))
 
 
+def _reset_level_monitor_state() -> None:
+    """Reset the module-level monitor state between tests.
+
+    ``TestProcessLevelChunkEndToEnd`` drives the real ``start_monitoring``
+    and relies on ``stop_monitoring`` in a ``finally``. That is not enough:
+    a leftover ``_monitor_active``/``_monitor_mic_id`` makes the next
+    ``start_monitoring(None)`` take the "Already monitoring" short-circuit,
+    so no stream is opened (``holder["callback"]`` stays None) or the level
+    carries over from the previous test. Same explicit reset as the sibling
+    level-monitor suites (e.g. ``test_level_monitor_idle_push_events``).
+    """
+    import voice_typer.server.level_monitor as lm
+
+    # Stop worker threads FIRST: they write through the module-level state
+    # object, so clearing state before they stop lets them repopulate it.
+    lm._stop_level_worker()
+    lm._stop_mic_level_worker()
+    lm._test_mode = False
+    lm._test_chunks.clear()
+    lm._test_raw_chunks.clear()
+    lm._test_filtered_chunks.clear()
+    lm._test_start_time = 0.0
+    lm._monitor_sample_rate = 16000
+    lm._monitor_active = False
+    lm._monitor_stream = None
+    lm._monitor_level = 0.0
+    lm._monitor_peak = 0.0
+    lm._monitor_mic_id = None
+    lm._level_processor = None
+    lm._dropped_level_chunks = 0
+    lm._level_ring_buffer.clear()
+    lm._consecutive_zero_chunks = 0
+    lm._device_lost_emitted = False
+    while lm._mic_level_queue:
+        try:
+            lm._mic_level_queue.popleft()
+        except Exception:
+            break
+    lm._mic_level_last_push_ts = 0.0
+    lm._last_get_level_poll_ts = 0.0
+
+
+@pytest.fixture(autouse=True)
+def _reset_level_monitor():
+    _reset_level_monitor_state()
+    yield
+    _reset_level_monitor_state()
+
+
 def _old_peak(flat: np.ndarray) -> float:
     """OLD level_monitor peak, previously pattern (allocates np.abs(x))."""
     return float(np.abs(flat).max())
@@ -229,6 +278,11 @@ class TestProcessLevelChunkEndToEnd:
         lm._level_processor = None
 
         lm.start_monitoring(mic_id=None)
+        # Guard the fixture: a leftover active monitor makes
+        # start_monitoring() short-circuit with "Already monitoring", no
+        # stream is opened, and the chunk push below would die with a bare
+        # "NoneType is not callable" instead of naming the real problem.
+        assert callable(holder["callback"]), "start_monitoring did not open a stream"
         try:
             # Push a chunk with known RMS/peak.
             chunk = np.ones((512, 1), dtype=np.float32) * 0.25
@@ -291,6 +345,7 @@ class TestProcessLevelChunkEndToEnd:
         lm._level_bar_filtered = True
 
         lm.start_monitoring(mic_id=None)
+        assert callable(holder["callback"]), "start_monitoring did not open a stream"
         try:
             # Mixed-sign chunk so peak is on the negative side.
             chunk = np.array([[0.1], [-0.4], [0.3], [-0.2]] * 128, dtype=np.float32)  # 512 samples

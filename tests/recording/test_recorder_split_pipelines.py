@@ -390,10 +390,20 @@ class TestStopRecordingPrepareAudioPipelining:
     def test_stats_overlap_with_prepare_audio(self, monkeypatch):
         """``_prepare_audio`` (on the resample thread) must OVERLAP"""
         times: dict[str, float] = {}
+        # Handshake instead of a fixed sleep: the resample thread waits for
+        # the stats computation to announce itself, so the overlap is a
+        # guaranteed ordering, not a race against the clock. A fixed
+        # ``time.sleep(2.0)`` sat EXACTLY on the 2.0 s worker-join watchdog
+        # and timed out whenever the runner was busy.
+        stats_started = threading.Event()
+        # Bounded well below the join budget so a NOT-pipelined regression
+        # still returns (and fails the ordering assertion) instead of
+        # tripping the watchdog with a misleading ResampleError.
+        stats_wait_s = 1.0
 
         def _slow_prepare(rec, audio, effective_sr_in, **kw):
             times["prepare_started"] = time.perf_counter()
-            time.sleep(2.0)
+            stats_started.wait(timeout=stats_wait_s)
             times["prepare_finished"] = time.perf_counter()
             return audio
 
@@ -406,6 +416,7 @@ class TestStopRecordingPrepareAudioPipelining:
 
         def _probing_dot(a, b, out=None):
             times.setdefault("stats_started", time.perf_counter())
+            stats_started.set()
             return real_dot(a, b) if out is None else real_dot(a, b, out)
 
         monkeypatch.setattr(np, "dot", _probing_dot)
