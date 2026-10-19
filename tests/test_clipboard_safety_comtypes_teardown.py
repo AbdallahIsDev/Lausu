@@ -8,24 +8,26 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
-from voice_typer.server import clipboard as clip_mod  # noqa: E402
+from voice_typer.server import (
+    _com,  # noqa: E402
+    clipboard as clip_mod,  # noqa: E402
+)
 from voice_typer.server.clipboard.safety import _is_safe_paste_target_impl  # noqa: E402
-from voice_typer.server.clipboard_target_safety import injection as _injection  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
 def _reset_com_ready():
     """Forget the per-thread "COM is up" flag between tests.
 
-    ``_ensure_com_initialized`` deliberately initialises once per *thread* and
+    ``ensure_com_initialized`` deliberately initialises once per *thread* and
     never tears down, so the flag outlives a single test on the shared pytest
     thread. Clearing it keeps each test's ``CoInitialize`` accounting honest.
     """
-    if hasattr(_injection._COM_READY, "initialized"):
-        del _injection._COM_READY.initialized
+    if hasattr(_com._READY, "initialized"):
+        del _com._READY.initialized
     yield
-    if hasattr(_injection._COM_READY, "initialized"):
-        del _injection._COM_READY.initialized
+    if hasattr(_com._READY, "initialized"):
+        del _com._READY.initialized
 
 
 @pytest.fixture()
@@ -141,7 +143,7 @@ class TestComtypesTeardown:
         fake_comtypes.CoInitialize.assert_called_once_with()
         fake_comtypes.CoUninitialize.assert_not_called()
         # The failed init must not be recorded as success: a later call retries.
-        assert not hasattr(_injection._COM_READY, "initialized")
+        assert not hasattr(_com._READY, "initialized")
 
 
 class _ComPointerProbe(ctypes.c_void_p):
