@@ -53,7 +53,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           # fetch-depth 2 so the pyrefly baseline audit step
           fetch-depth: 2
@@ -207,7 +207,7 @@ jobs:
       # CI-ERRORS-AUTO: preserve the JUnit XML so the ci-errors-doc job
       - name: Upload pytest JUnit for CI-errors aggregation
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: pytest-results-${{ matrix.os }}-${{ matrix.python-version }}
           path: pytest-results.xml
@@ -216,7 +216,7 @@ jobs:
       - name: Upload coverage to Codecov
         # Only Linux×3.12 uploads coverage (per-OS deltas drown the signal).
         if: always() && matrix.os == 'ubuntu-22.04' && matrix.python-version == '3.12'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: ./coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -246,7 +246,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v7
@@ -255,7 +255,7 @@ jobs:
 
       # subdirectory (merge-multiple MUST stay false: every leg
       - name: Download all pytest JUnit artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           path: junit/
           pattern: pytest-results-*
@@ -293,7 +293,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v7
@@ -317,7 +317,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v7
@@ -342,7 +342,7 @@ jobs:
       contents: read
       issues: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v7
@@ -372,7 +372,7 @@ jobs:
 
       - name: Open issue if findings
         if: steps.audit.outcome == 'failure'
-        uses: peter-evans/create-issue-from-file@v5
+        uses: peter-evans/create-issue-from-file@v6
         with:
           title: "[Weekly pip-audit] New vulnerabilities detected"
           content-filepath: /tmp/audit.txt
@@ -391,7 +391,7 @@ jobs:
       contents: read
       issues: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v7
@@ -422,7 +422,7 @@ jobs:
       # are not buried in CI logs. Mirrors the pip-audit-weekly pattern.
       - name: Open issue on slow-test failure
         if: failure()
-        uses: peter-evans/create-issue-from-file@v5
+        uses: peter-evans/create-issue-from-file@v6
         with:
           title: "[slow-tests] Regression detected in tests/test_manual_slow.py"
           content-filepath: /tmp/slow-tests-failure.txt
@@ -436,7 +436,7 @@ jobs:
     # cap version-check runtime.
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
@@ -463,7 +463,7 @@ jobs:
     # cap branding-check runtime.
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v7
@@ -487,7 +487,7 @@ jobs:
       contents: read
       checks: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@v1
         with:
@@ -544,7 +544,7 @@ jobs:
     # cap client-build runtime (npm ci + format:check + build:renderer).
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Set up Node 24
         uses: actions/setup-node@v7
@@ -577,7 +577,7 @@ jobs:
         run: npm run build:renderer
 
       - name: Upload renderer artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: lausu-renderer-dist
           path: voice_typer/client/out/renderer/
@@ -616,7 +616,7 @@ jobs:
     # cap native-binary compile runtime (Swift / MSVC / gcc).
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Compile native binary (${{ matrix.platform }})
         run: ${{ matrix.script }}
@@ -687,7 +687,7 @@ jobs:
           echo "Ad-hoc signed: ${{ matrix.binary }}"
 
       - name: Upload native binary artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: native-${{ matrix.platform }}
           path: ${{ matrix.binary }}
@@ -702,7 +702,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # fetch-depth 0 so check-added-large-files can see the full history
           fetch-depth: 0
