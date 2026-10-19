@@ -17,6 +17,51 @@ log = logging.getLogger("voice_typer.server.shutdown_controller")
 __all__ = ["do_cleanup", "do_fast_cleanup"]
 
 
+def _mark_active_cycle_cancelled(controller) -> None:
+    """Discard-on-shutdown: mark the app's live cycle cancelled.
+
+    The store/paste guards (``is_cycle_live``) then drop the late result of
+    a worker the 3s transcription join could not finish. Finish-first was
+    rejected: the join budget is 3s inside the 20s shutdown budget, and a
+    hung engine would stall quit.
+    """
+    try:
+        app = controller._app
+        cycle_id = getattr(app, "_cycle_id", None)
+        recording = getattr(app, "recording", None)
+        if not isinstance(cycle_id, str) or not cycle_id or recording is None:
+            return
+        recording._mark_cycle_cancelled(cycle_id)
+        log.info(
+            "[SHUTDOWN] cycle %s marked cancelled, late transcription will be dropped",
+            cycle_id,
+        )
+    except Exception:
+        log.debug("[SHUTDOWN] failed to mark live cycle cancelled", exc_info=True)
+
+
+def _restore_clipboard_before_teardown(controller, *, timeout: float, label: str) -> None:
+    """Clipboard-on-quit: run pending restores before the daemon dies.
+
+    The delayed-restore daemon is killed with the process and the quit path
+    ends in ``os._exit`` (atexit skipped), so the user's original clipboard
+    would never come back. Bounded + best-effort; a violent kill or power
+    loss cannot run code at all (accepted, see the edge-cases doc).
+    """
+    try:
+        from voice_typer.server.clipboard import restore as _clipboard_restore
+
+        result = _run_with_timeout(
+            f"clipboard pending restore ({label})",
+            _clipboard_restore.restore_pending_before_shutdown,
+            timeout=timeout,
+        )
+        if result is TIMEOUT:
+            log.warning("[SHUTDOWN] clipboard pending restore timed out in %s", label)
+    except Exception:
+        log.debug("[SHUTDOWN] clipboard pending restore failed", exc_info=True)
+
+
 def do_cleanup(controller) -> None:
     """shared cleanup body used by ``quit()``, ``restart_app()``,"""
     app = controller._app
@@ -30,6 +75,12 @@ def do_cleanup(controller) -> None:
     _cleanup_t0 = time.perf_counter()
 
     # Session-liveness marker: the session ends HERE. The marker is
+
+    # Discard-on-shutdown + clipboard-on-quit run BEFORE any join or drain:
+    # the marker above ends the session, and both must land before workers
+    # or the restore daemon can be orphaned by the teardown phases below.
+    _mark_active_cycle_cancelled(controller)
+    _restore_clipboard_before_teardown(controller, timeout=3.0, label="quit")
 
     #  reset the shared state between ``_teardown_recorder``
     controller._recorder_teardown_done.clear()
@@ -104,6 +155,12 @@ def do_fast_cleanup(controller) -> None:
         "[SHUTDOWN] fast cleanup path (Windows logoff/shutdown "
         "— ~5s OS deadline); running critical-only teardown with 1s timeouts"
     )
+
+    # Same shutdown bookkeeping as the full path, bounded to the 1s budget:
+    # mark the live cycle cancelled before the flushes, and best-effort
+    # restore the user's clipboard while code still runs.
+    _mark_active_cycle_cancelled(controller)
+    _restore_clipboard_before_teardown(controller, timeout=1.0, label="fast-path")
 
     # 1. crash_recovery.flush()
     try:

@@ -15,6 +15,28 @@ def mock_heavy_imports():
     yield
 
 
+@pytest.fixture(autouse=True)
+def _fresh_refusal_notify_state():
+    """Reset the mic-refusal OS-notification dedup so each test notifies fresh.
+
+    ``refusal_notify._last_notified`` is module-global: an earlier test in the
+    same xdist worker that publishes the same (title, message) refusal would
+    otherwise suppress this file's fallback ``notify_safety`` call and the
+    ``call_args`` assertion would see ``None``. The event-bus subscriber set
+    is global too: a leaked subscriber makes ``publish`` return True, which
+    also skips the fallback.
+    """
+    from voice_typer.server import event_bus
+    from voice_typer.server.permissions import refusal_notify
+
+    prior_notified = refusal_notify._last_notified
+    refusal_notify._last_notified = None
+    event_bus._subscribers.clear()
+    yield
+    refusal_notify._last_notified = prior_notified
+    event_bus._subscribers.clear()
+
+
 def _make_app_with_mock_recorder() -> MagicMock:
     """Build a minimal mock app/controller for RecordingLifecycle tests."""
     app = MagicMock(name="app")
@@ -448,7 +470,7 @@ class TestRecordingStartFailureReason:
         assert "no microphone found" in notify_msg, f"notification must carry the no-device reason, got: {notify_msg!r}"
 
     def test_unknown_error_keeps_generic_label(self) -> None:
-        """An unknown start failure falls back to the generic"""
+        """An unknown start failure falls back to the generic guidance and must NOT contain raw exception text."""
         from voice_typer.server.tray_types import AppState
 
         app = _make_app_with_mock_recorder()
@@ -464,10 +486,9 @@ class TestRecordingStartFailureReason:
             AppState.ERROR,
             "Recording failed",
         )
-        # guidance and must NOT contain the raw exception text.
         notify_msg = str(app.tray.notify.call_args.args[1])
-        assert "check logs/lausu.log" in notify_msg.lower(), (
-            f"unknown failure notification should point at the log, got: {notify_msg!r}"
+        assert notify_msg == "Could not start recording. Please try again.", (
+            f"unknown failure must use the generic user-facing text, got: {notify_msg!r}"
         )
         assert "device busy" not in notify_msg
 

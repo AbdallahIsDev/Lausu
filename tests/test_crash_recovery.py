@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -737,3 +737,86 @@ class TestDiagnosticBundleSurfaceRemoved:
         from voice_typer.server.crash_recovery import CrashRecovery
 
         assert callable(CrashRecovery.entries_metadata_snapshot)
+
+
+class TestPartialWriteTolerance:
+    """A kill mid-flush can leave a truncated/empty recovery.json;
+    the next boot must survive it without crashing and must keep the
+    partial bytes in the quarantine file (nothing silently destroyed)."""
+
+    def test_truncated_mid_entry_file_is_quarantined_and_preserved(self, recovery_dir):
+        from voice_typer.server.crash_recovery import CrashRecovery
+
+        path = recovery_dir / "recovery.json"
+        truncated = '{"entries": [{"text": "hello wor'
+        path.write_text(truncated, encoding="utf-8")
+
+        cr = CrashRecovery(config_dir=recovery_dir)
+        assert cr.count == 0
+        quarantined = list(recovery_dir.glob("recovery.json.corrupt.*"))
+        assert len(quarantined) == 1
+        assert quarantined[0].read_text(encoding="utf-8") == truncated
+        # The store keeps working for new entries afterwards.
+        cr.add("fresh after truncation", pasted=False)
+        cr.flush(timeout=2.0)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        assert data["entries"][0]["text"] == "fresh after truncation"
+        cr.shutdown()
+
+    def test_empty_file_is_tolerated(self, recovery_dir):
+        from voice_typer.server.crash_recovery import CrashRecovery
+
+        path = recovery_dir / "recovery.json"
+        path.write_text("", encoding="utf-8")
+
+        cr = CrashRecovery(config_dir=recovery_dir)
+        assert cr.count == 0
+        assert not path.exists(), "the zero-byte file must be quarantined"
+        cr.shutdown()
+
+
+class TestStartupNeverReDrives:
+    """check_on_startup only READS unpasted entries for display/export;
+    no code path re-drives audio or re-submits a recording (regression
+    guard, docs/voice_typer_recording_edge_cases.md §5)."""
+
+    def test_check_on_startup_only_reads_and_leaves_entries_untouched(self, recovery_dir, cr):
+        cr.add("unpasted dictation", pasted=False)
+        cr.flush(timeout=2.0)
+        path = recovery_dir / "recovery.json"
+        before = path.read_text(encoding="utf-8")
+
+        result = cr.check_on_startup()
+
+        assert result is not None and result[0]["text"] == "unpasted dictation"
+        assert path.read_text(encoding="utf-8") == before, "check_on_startup must not rewrite/consume the recovery file"
+        assert cr.count == 1
+        assert cr.get_unpasted()[0]["text"] == "unpasted dictation"
+        cr.shutdown()
+
+    def test_check_on_startup_never_touches_pipeline_or_paste(self, recovery_dir, cr):
+        """The boot read must not construct a pipeline or paste anything."""
+        cr.add("never re-driven", pasted=False)
+        cr.flush(timeout=2.0)
+
+        with (
+            patch("voice_typer.server.dictation_pipeline.DictationPipeline") as pipeline,
+            patch("voice_typer.server.clipboard._paste_from_clipboard") as paste,
+        ):
+            result = cr.check_on_startup()
+
+        assert result is not None
+        pipeline.assert_not_called()
+        paste.assert_not_called()
+        cr.shutdown()
+
+    def test_check_on_startup_publishes_nothing_when_no_sentinel(self, recovery_dir, cr, monkeypatch):
+        published: list[dict] = []
+        monkeypatch.setattr("voice_typer.server.event_bus.publish", lambda msg: published.append(msg) or True)
+        cr.add("lost text", pasted=False)
+        cr.flush(timeout=2.0)
+
+        cr.check_on_startup()
+
+        assert published == [], f"check_on_startup must not re-submit or re-drive anything; published {published}"
+        cr.shutdown()

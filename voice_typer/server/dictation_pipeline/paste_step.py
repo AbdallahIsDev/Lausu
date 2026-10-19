@@ -9,6 +9,8 @@ from typing import Any
 
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.clipboard import ClipboardCopyError
+from voice_typer.server.clipboard.fingerprint import text_fingerprint
+from voice_typer.server.cycle_guard import is_cycle_live
 from voice_typer.server.i18n import t as _i18n_t
 from voice_typer.server.tray_types import AppState
 
@@ -30,6 +32,15 @@ class _PasteStepMixin:
 
     def _copy_and_paste(self, text: str) -> None:
         """Step 9: Copy to clipboard and attempt paste."""
+        # Gate 1: a zombie (stale or force-cancelled cycle) must not touch
+        # the clipboard or the live cycle's bubble/tray at all.
+        if not is_cycle_live(self._app, self._cycle_id):
+            log.warning(
+                "[HOTKEY BLOCKED] stale dictation cycle (cycle=%s) reached the paste "
+                "step; nothing copied, nothing pasted",
+                self._cycle_id,
+            )
+            return
         # ── OPTIMIZATION (§9.2): skip the clipboard borrow entirely when
         skip_clipboard = not self._app.config.paste_on_stop and self._app.config.clipboard_save_restore
 
@@ -108,7 +119,20 @@ class _PasteStepMixin:
                 return
             # ② PASTE (if enabled), paste() schedules the restore thread
             if self._app.config.paste_on_stop:
-                pasted = self._app.clipboard.paste(snapshot, pasted_text=text, pasted_seq=paste_seq)
+                # A watchdog cancellation landing during the (slow) clipboard
+                # borrow must not reach the keystroke; leave tray/bubble alone.
+                if not is_cycle_live(self._app, self._cycle_id):
+                    log.warning(
+                        "[HOTKEY BLOCKED] cycle %s lost liveness during the clipboard borrow; paste suppressed",
+                        self._cycle_id,
+                    )
+                    return
+                pasted = self._app.clipboard.paste(
+                    snapshot,
+                    pasted_text=text,
+                    pasted_seq=paste_seq,
+                    expected_fingerprint=text_fingerprint(text),
+                )
             else:
                 # paste_on_stop is False + save/restore OFF: leave the
                 log.info(

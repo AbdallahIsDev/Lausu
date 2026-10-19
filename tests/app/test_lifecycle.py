@@ -57,8 +57,10 @@ class TestAppStateTransitions:
 
         app.recorder = MagicMock()
         app.recorder.recording = True
-        # Return 0.1s of audio (less than 0.5s threshold)
+        # 0.1s of silence: short (< MIN_DURATION_S) AND below the energy gate
         app.recorder.stop = MagicMock(return_value=np.zeros(int(0.1 * 16000), dtype=np.float32))
+        app.recorder.last_rms = 0.0
+        app.recorder._last_audio_stats = (0.0, 0.0, 100.0)
 
         app._stop_dictation()
 

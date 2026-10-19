@@ -8,6 +8,7 @@ from typing import Any
 
 from voice_typer.server import i18n
 from voice_typer.server.branding import APP_NAME
+from voice_typer.server.cycle_guard import is_cycle_live
 
 log = logging.getLogger(__name__)
 
@@ -23,6 +24,14 @@ class _StorageStepMixin:
 
     def _store_result(self, text: str) -> None:
         """Step 8: Store in history DB and crash recovery."""
+        # C-CONC-2: a cancel landing after the stage guard's check must
+        # still write nothing for this cycle.
+        if not is_cycle_live(self._app, self._cycle_id):
+            log.warning(
+                "[DICTATION] skipping store of late transcription (cycle %s is stale or force-cancelled)",
+                self._cycle_id,
+            )
+            return
         # gate the entire history-DB block on history_enabled.
         history_enabled = getattr(self._app.config, "history_enabled", True)
         if history_enabled:

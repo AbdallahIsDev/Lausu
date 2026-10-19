@@ -34,6 +34,8 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import math
+import numbers
 import threading
 
 from voice_typer.server import i18n
@@ -72,6 +74,60 @@ _NO_INPUT_DEVICE_MARKER = "No input device could be opened"
 _PERMISSION_REVOKED_BUBBLE_SECONDS = 5.0
 
 
+#: Too-short boundary: sub-threshold clips pass the short-audio gate only
+#: with speech-like energy; >= this duration is unchanged historical behavior.
+MIN_DURATION_S = 0.5
+
+#: Speech-energy floor for sub-``MIN_DURATION_S`` clips. Matches the
+#: VAD-unavailable fallback (vad.py: ``rms > 0.01``) and the hallucination
+#: Tier-1 near-silence boundary (``rms < 0.01`` reads as no speech).
+MIN_SHORT_RMS = 0.01
+
+#: Silence ceiling for sub-``MIN_DURATION_S`` clips: at/above this the clip is
+#: a tap or near-silence, not a word. Same 95.0 tier as the hallucination
+#: near-silence check (``silence_pct >= 95.0``).
+MAX_SHORT_SILENCE_PCT = 95.0
+
+
+def _short_clip_silence_pct(recorder) -> float | None:
+    """Silence percentage from the recorder's stop-time stats, or None when
+    the stats are unavailable (mock recorders / non-tuple shapes)."""
+    stats = getattr(recorder, "_last_audio_stats", None)
+    if isinstance(stats, tuple) and len(stats) == 3:
+        try:
+            return float(stats[2])
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _short_clip_rms(recorder) -> float | None:
+    """Stop-time RMS as a usable float, or None when missing/unusable.
+
+    Mock-like values are rejected deliberately: ``float(MagicMock())`` is
+    1.0 and would silently pass the energy floor; NaN would fail open
+    (``nan < MIN_SHORT_RMS`` is False)."""
+    value = getattr(recorder, "last_rms", None)
+    if isinstance(value, bool) or not isinstance(value, numbers.Real):
+        return None
+    value = float(value)
+    return value if math.isfinite(value) else None
+
+
+def _short_clip_has_speech_energy(recorded_rms: float, silence_pct: float | None) -> bool:
+    """Short-audio gate rule: proceed only with speech-like energy.
+
+    Deliberate inclusivity: RMS at exactly ``MIN_SHORT_RMS`` passes (the
+    hallucination tier treats ``rms < 0.01`` as near-silence, so its
+    complement starts at 0.01); silence at exactly ``MAX_SHORT_SILENCE_PCT``
+    fails (same ``>= 95.0`` near-silence comparison). Missing silence stats
+    (None) fall back to the energy test alone.
+    """
+    if recorded_rms < MIN_SHORT_RMS:
+        return False
+    return silence_pct is None or silence_pct < MAX_SHORT_SILENCE_PCT
+
+
 class RecordingLifecycle(
     RecordingLifecycleStartMixin, RecordingLifecycleStopMixin, RecordingLifecyclePermissionsMixin
 ):
@@ -83,6 +139,18 @@ class RecordingLifecycle(
 
     def _run_public_entry(self, controller, impl_method) -> None:
         """Run a public lifecycle entry (``toggle`` / ``start``)."""
+        app = controller._app
+        # Shutdown gate: a press arriving after ``_shutting_down_event`` is
+        # set must not start a new cycle while teardown is still running
+        # (hotkey backends stop only in the parallel phase). Strict ``is
+        # True`` keeps unit stubs (MagicMock ``is_set()``) off the gate.
+        shutting_down = getattr(app, "_shutting_down_event", None)
+        if shutting_down is not None and shutting_down.is_set() is True:
+            log.warning(
+                "[HOTKEY BLOCKED] shutdown in progress, refusing dictation entry (cycle=%s)",
+                getattr(app, "_cycle_id", None),
+            )
+            return
         outermost = not getattr(self._public_entry_depth, "active", False)
         if outermost:
             self._public_entry_depth.active = True
@@ -361,7 +429,8 @@ class RecordingLifecycle(
         3. Compute ``duration`` + ``recorded_rms``.
         4. Finalize the audio-quality report (revived
            AudioQualityAnalyzer).
-        5. Short-circuit on ``duration < 0.5s`` (too short).
+        5. Short-audio gate (``MIN_DURATION_S``): sub-0.5s clips proceed
+           only with speech-like energy; taps/near-silence discard.
         6. Set tray to TRANSCRIBING + reset watchdog counter.
         7. Pop + stash the streaming session so the pipeline's
            ``pop_streaming_session()`` can retrieve it and call
@@ -400,8 +469,8 @@ class RecordingLifecycle(
         # Audio has already been resampled to config.sample_rate by Recorder.stop()
         duration = len(audio) / app.config.sample_rate if len(audio) > 0 else 0
         # Capture RMS before starting transcription (race-safe).
-        recorded_rms = app.recorder.last_rms
-
+        recorded_rms = _short_clip_rms(app.recorder)
+        rms_txt = f"{recorded_rms:.4f}" if recorded_rms is not None else "n/a"
         # Run the revived AudioQualityAnalyzer on the captured audio.
         if duration > 0:
             try:
@@ -409,30 +478,49 @@ class RecordingLifecycle(
             except Exception:
                 log.debug("[AUDIO_QUALITY] finalize failed", exc_info=True)
         log.info(
-            "[DICTATION] Recording stopped%s of audio | recorded_rms=%.4f | busy=True (cycle=%s)",
+            "[DICTATION] Recording stopped%s of audio | recorded_rms=%s | busy=True (cycle=%s)",
             format_duration(duration),
-            recorded_rms,
+            rms_txt,
             cycle_id,
         )
 
-        if duration < 0.5:
-            log.info("[DICTATION] Audio too short, skipping transcription")
-            controller._cancel_streaming_session()
-            if duration <= 0 and recorded_rms <= 0.0001:
-                self._publish_permission_denied_refusal(app, "denied")
-                app._busyness.set_idle()
+        if duration < MIN_DURATION_S:
+            short_silence_pct = _short_clip_silence_pct(app.recorder)
+            silence_txt = f"{short_silence_pct:.1f}%" if short_silence_pct is not None else "n/a"
+            if recorded_rms is not None and _short_clip_has_speech_energy(recorded_rms, short_silence_pct):
+                log.info(
+                    "[DICTATION] Short recording kept (duration=%.2fs, recorded_rms=%s, "
+                    "silence=%s): speech-like energy above the short-audio gate (cycle=%s)",
+                    duration,
+                    rms_txt,
+                    silence_txt,
+                    cycle_id,
+                )
+            else:
+                log.info(
+                    "[DICTATION] Audio too short, skipping transcription "
+                    "(duration=%.2fs, recorded_rms=%s, silence=%s) (cycle=%s)",
+                    duration,
+                    rms_txt,
+                    silence_txt,
+                    cycle_id,
+                )
+                controller._cancel_streaming_session()
+                if duration <= 0 and recorded_rms is not None and recorded_rms <= 0.0001:
+                    self._publish_permission_denied_refusal(app, "denied")
+                    app._busyness.set_idle()
+                    return
+                try:
+                    if getattr(app.config, "bubble_behavior", "show_on_record") == "always_visible":
+                        app._waveform_bubble.set_state("idle")
+                    else:
+                        app._waveform_bubble.hide()
+                except Exception:
+                    log.debug("[DICTATION] too-short bubble reset failed", exc_info=True)
+                app.tray.set_state(AppState.IDLE, i18n.t("state.recording_controller.too_short"))
+                app._busyness.set_idle()  # busy = False (coordinator)
+                app._schedule_timer(2.0, lambda: app.tray.set_state(AppState.IDLE))
                 return
-            try:
-                if getattr(app.config, "bubble_behavior", "show_on_record") == "always_visible":
-                    app._waveform_bubble.set_state("idle")
-                else:
-                    app._waveform_bubble.hide()
-            except Exception:
-                log.debug("[DICTATION] too-short bubble reset failed", exc_info=True)
-            app.tray.set_state(AppState.IDLE, i18n.t("state.recording_controller.too_short"))
-            app._busyness.set_idle()  # busy = False (coordinator)
-            app._schedule_timer(2.0, lambda: app.tray.set_state(AppState.IDLE))
-            return
 
         log.info(
             "[DICTATION] Starting transcription (stop+transcribe worker)... (cycle=%s)",
@@ -466,7 +554,7 @@ class RecordingLifecycle(
         pipeline.run(
             audio=audio_bytes,
             duration=duration,
-            recorded_rms=recorded_rms,
+            recorded_rms=recorded_rms if recorded_rms is not None else 0.0,
             cycle_id=cycle_id,
         )
         # Now that the transcription pipeline has fully returned (the
