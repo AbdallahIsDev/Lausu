@@ -183,6 +183,11 @@ def _is_content_editable(focused: Any = None) -> bool:
             if owns_com:
                 import contextlib
 
+                # Release the element before ``CoUninitialize()``: comtypes
+                # releases from ``__del__``, which would then run against a
+                # destroyed object. See ``_release_uia_pointer``.
+                _pkg._release_uia_pointer(focused)
+                focused = None
                 with contextlib.suppress(Exception):
                     comtypes.CoUninitialize()
     except ImportError:

@@ -93,6 +93,7 @@ from .injection import (  # noqa: E402,F401
     UiaUnavailableError,
     _get_uia_focused_element,
     _get_uia_singleton,
+    _release_uia_pointer,
 )
 from .targets import (  # noqa: E402,F401
     _find_focused_atspi_accessible,
@@ -140,6 +141,7 @@ __all__ = [
     "UiaUnavailableError",
     "_get_uia_focused_element",
     "_get_uia_singleton",
+    "_release_uia_pointer",
     # Focused text-input detection (focused_text.py)
     "_is_text_field_focused",
     "_is_text_field_focused_linux",
