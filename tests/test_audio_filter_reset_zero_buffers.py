@@ -147,6 +147,7 @@ def test_streaming_resampler_chunked_matches_oneshot():
 
 def test_streaming_resampler_chunk_cost_within_budget():
     """A 32 ms chunk (44.1 kHz -> 16 kHz) must process far inside its budget."""
+    import sys
     import time
 
     rng = np.random.default_rng(1)
@@ -156,11 +157,8 @@ def test_streaming_resampler_chunk_cost_within_budget():
         rs.process(chunk)
     # Time each chunk separately and judge the FASTEST. A wall-clock mean on
     # a shared CI runner measures the scheduler, not the algorithm: one
-    # descheduled iteration (xdist workers + coverage tracing on 2 cores)
-    # drags the mean to 18 ms and fails a test whose true cost is ~0.1 ms.
-    # The minimum is what the code actually costs, and a real regression
-    # (the old dense-lfilter form, ~200 ms) raises the minimum too, so the
-    # guard keeps its teeth.
+    # descheduled iteration (xdist workers on 2 cores) drags the mean to
+    # 18.7 ms while the best iteration is 14.8 ms.
     per_chunk_ms: list[float] = []
     for _ in range(20):
         t0 = time.perf_counter()
@@ -168,9 +166,18 @@ def test_streaming_resampler_chunk_cost_within_budget():
         per_chunk_ms.append((time.perf_counter() - t0) * 1000)
     best_ms = min(per_chunk_ms)
     mean_ms = sum(per_chunk_ms) / len(per_chunk_ms)
-    # True polyphase cost is ~0.1 ms; 10 ms leaves 100x headroom while
-    # still catching the old dense-lfilter 200 ms regression on any box.
-    assert best_ms < 10.0, f"resampler too slow: best {best_ms:.1f} ms/chunk (mean {mean_ms:.1f})"
+    # The ceiling has to account for what is actually being timed. `process`
+    # is a Python loop of ~512 `np.dot` calls per chunk, so under coverage's
+    # tracer every one of those lines is instrumented: the same code that
+    # costs 0.7 ms here costs ~15 ms on a windows-2022 runner running the
+    # suite with `--cov`. Judging it against 10 ms there fails a healthy
+    # resampler. The regression this guards against -- the old dense
+    # `lfilter` form -- is ~200 ms, so a 60 ms ceiling under tracing still
+    # has 3x of teeth, and 10 ms is kept for the untraced case.
+    ceiling_ms = 10.0 if sys.gettrace() is None else 60.0
+    assert best_ms < ceiling_ms, (
+        f"resampler too slow: best {best_ms:.1f} ms/chunk (mean {mean_ms:.1f}, ceiling {ceiling_ms})"
+    )
 
 
 def test_notch_reset_zeros_state():
