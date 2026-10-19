@@ -60,9 +60,9 @@ E   TypeError: 'NoneType' object is not callable
 
 AssertionError: second preload must not re-emit the warmed INFO line
 assert [<LogRecord: ... + warmed%s">] == []
-  
+
   Left contains one more item: <LogRecord: voice_typer.server.audio_filters.gtcrn_backend, 20, /home/runner/work/Lausu/Lausu/voice_typer/server/audio_filters/gtcrn_backend.py, 128, "[GTCRN] GTCRN model loaded from bundled ONNX, preloaded + warmed%s">
-  
+
   Full diff:
   - []
   + [
@@ -72,9 +72,9 @@ tests/test_noise_suppressor_gtcrn.py:672: in test_preload_second_call_noop_log
     assert warmed == [], "second preload must not re-emit the warmed INFO line"
 E   AssertionError: second preload must not re-emit the warmed INFO line
 E   assert [<LogRecord: ... + warmed%s">] == []
-E     
+E
 E     Left contains one more item: <LogRecord: voice_typer.server.audio_filters.gtcrn_backend, 20, /home/runner/work/Lausu/Lausu/voice_typer/server/audio_filters/gtcrn_backend.py, 128, "[GTCRN] GTCRN model loaded from bundled ONNX, preloaded + warmed%s">
-E     
+E
 E     Full diff:
 E     - []
 E     + [

@@ -418,4 +418,3 @@ class TestMidTestToggleStitch:
 
         assert lm._test_did_filter is False
         assert len(lm._test_filtered_chunks) == 2
-
