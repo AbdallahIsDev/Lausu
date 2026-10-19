@@ -385,6 +385,16 @@ class LatePhases:
         except Exception:
             log.debug("[STARTUP] Stale bubble position reset failed", exc_info=True)
 
+        # Push the bubble-relevant config FIRST, in every behavior: the
+        # host places the pill from `bubble_position` before it shows the
+        # window (a show-then-config order painted the OS default spot).
+        try:
+            cb = app._waveform_bubble.on_config
+            if cb is not None:
+                cb(app.config)
+        except Exception as e:
+            log.debug("[STARTUP] Failed to push bubble config: %s", e)
+
         # Show the bubble at startup if always_visible mode is enabled AND
         # the backend-ready show (first WS auth) hasn't already shown it.
         # Skipping a redundant show keeps one `[WAVEFORM] Bubble shown`
@@ -399,13 +409,6 @@ class LatePhases:
                     log.debug("[STARTUP] Bubble already visible (backend-ready show), skipping startup show")
             except Exception as e:
                 log.warning("[STARTUP] Failed to show bubble at startup: %s", e)
-            # push the bubble-relevant config (bubble_behavior
-            try:
-                cb = app._waveform_bubble.on_config
-                if cb is not None:
-                    cb(app.config)
-            except Exception as e:
-                log.debug("[STARTUP] Failed to push bubble config: %s", e)
 
         # Honest completion line: the old static "(model still loading
         from voice_typer.server.i18n import t as _t

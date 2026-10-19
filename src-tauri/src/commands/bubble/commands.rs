@@ -17,7 +17,8 @@ use super::math::{
     round_f64_to_u32_saturating, RectPx,
 };
 use super::placement::{
-    bubble_edge_for_reanchor, note_bubble_edge_position, note_bubble_user_moved,
+    bubble_edge_for_reanchor, note_bubble_configured_edge, note_bubble_edge_position,
+    note_bubble_user_moved,
 };
 use super::rate_limit::toggle_rate_limiter_allows;
 use super::window::{hide_bubble_window, show_bubble_window};
@@ -58,7 +59,42 @@ pub async fn bubble_set_position(
     let window = app
         .get_webview_window("bubble")
         .ok_or(LausuError::Host("bubble window not found".into()))?;
-    let monitor = resolve_cursor_monitor(&app)?;
+    place_bubble_on_edge(&app, &window, &position, "")
+        .map(|_| ())
+        .map_err(LausuError::Host)
+}
+
+/// Place the bubble on a configured edge on behalf of the sidecar.
+///
+/// The sidecar pushes `bubble_config` (carrying `bubble_position`) on
+/// every authenticated connection, which reaches this BEFORE the first
+/// show. That ordering is the contract: a host-side show (backend-ready
+/// or recording start) no longer paints the pill at the OS default
+/// position while the main window's hydration is still pending.
+/// Returns `false` when the user moved the pill this session.
+pub(crate) fn apply_bubble_config_edge(app: &tauri::AppHandle, edge: &str) -> Result<bool, String> {
+    if !note_bubble_configured_edge(edge) {
+        log::debug!("[BUBBLE] config edge {edge} ignored (user-moved session or unknown keyword)");
+        return Ok(false);
+    }
+    let window = app
+        .get_webview_window("bubble")
+        .ok_or("bubble window not found")?;
+    place_bubble_on_edge(app, &window, edge, " (config)")?;
+    Ok(true)
+}
+
+/// Shared edge placement: resolve the cursor's monitor, center the pill
+/// on the work area for `edge`, move only when it actually moved, and
+/// arm the re-anchor edge. `source` tags the log line (config vs
+/// renderer hydration) so one placement is traceable to its caller.
+fn place_bubble_on_edge(
+    app: &tauri::AppHandle,
+    window: &tauri::WebviewWindow,
+    edge: &str,
+    source: &str,
+) -> Result<(i32, i32), String> {
+    let monitor = resolve_cursor_monitor(app)?;
     // Physical work area (bounds minus taskbar/dock).
     let wa = monitor.work_area();
     let wa_rect = RectPx::new(wa.position.x, wa.position.y, wa.size.width, wa.size.height);
@@ -68,18 +104,27 @@ pub async fn bubble_set_position(
     let bubble_h = i32::try_from(bubble_size.height).unwrap_or(i32::MAX);
     // Edge offset is DIPs; scale to this monitor's physical pixels.
     let margin = edge_margin_physical(monitor.scale_factor());
-    let (px, py) = bubble_position_in_work_area(&position, &wa_rect, bubble_w, bubble_h, margin)?;
-    window
-        .set_position(PhysicalPosition::new(px, py))
-        .map_err(|e| LausuError::Host(e.to_string()))?;
+    let (px, py) = bubble_position_in_work_area(edge, &wa_rect, bubble_w, bubble_h, margin)?;
+    let already_there = window
+        .outer_position()
+        .is_ok_and(|p| p.x == px && p.y == py);
+    if !already_there {
+        window
+            .set_position(PhysicalPosition::new(px, py))
+            .map_err(|e| e.to_string())?;
+    }
     // Remember the edge so later auto-fit resizes re-anchor instead of
     // sticking top-left (user drags clear it, see `note_bubble_user_moved`).
-    note_bubble_edge_position(&position);
-    // One line per placement (hydration + settings changes only, never
-    // drags): proves in lausu.log that the session started on the
-    // configured edge instead of the OS default position.
-    log::info!("[BUBBLE] positioned at ({px},{py}) edge={position}");
-    Ok(())
+    note_bubble_edge_position(edge);
+    // One line per real placement (config + hydration + settings
+    // changes only, never drags): proves in lausu.log that the session
+    // started on the configured edge instead of the OS default position.
+    if already_there {
+        log::debug!("[BUBBLE] already at ({px},{py}) edge={edge}{source}");
+    } else {
+        log::info!("[BUBBLE] positioned at ({px},{py}) edge={edge}{source}");
+    }
+    Ok((px, py))
 }
 
 /// Resolve the monitor containing a physical point (cursor or window

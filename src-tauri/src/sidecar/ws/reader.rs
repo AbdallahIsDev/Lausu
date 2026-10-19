@@ -119,6 +119,32 @@ pub(super) fn spawn_reader_task(
                             continue;
                         }
 
+                        // bubble_config: place the (still hidden) pill BEFORE
+                        // any show in this stream. The sidecar pushes it on
+                        // every authenticated connection ahead of the
+                        // backend-ready show, so the first paint is the
+                        // configured edge — never the OS default position.
+                        // Placement used to exist only in the main window's
+                        // hydration, which loses this race on hidden
+                        // autostart / dev reload, stranding the pill at the
+                        // top-left of the screen.
+                        if event_type == "bubble_config" {
+                            let configured_edge =
+                                crate::commands::bubble::configured_edge_from_payload(&payload);
+                            if let Some(edge) = configured_edge {
+                                if let Err(e) = crate::commands::bubble::apply_bubble_config_edge(
+                                    &app_for_reader,
+                                    edge,
+                                ) {
+                                    log::warn!(
+                                        "[BUBBLE] configured-edge placement failed (edge={}): {}",
+                                        edge,
+                                        e
+                                    );
+                                }
+                            }
+                        }
+
                         // bubble_level: typed-only coalesced fast path (≤30 Hz).
                         if event_type == "bubble_level" {
                             let now = Instant::now();

@@ -217,6 +217,36 @@ def _emit_initial_state_snapshot(server: IPCServer) -> None:
         )
 
 
+def _emit_bubble_config_snapshot(server: IPCServer) -> None:
+    """Push the bubble-relevant config on EVERY authenticated connection.
+
+    The Tauri host places the pill from ``bubble_position`` before it
+    shows the window, so this frame must reach the host ahead of any
+    ``bubble_show``. Once-per-process pushes are not enough: a restarted
+    host has an empty placement tracker and would paint the pill at the
+    OS default (top-left) until the main window's hydration happened to
+    run. Idempotent on the host (it skips when already at the edge) and
+    ignored after a user drag.
+    """
+    try:
+        app = getattr(server, "app", None)
+        config = getattr(app, "config", None)
+        bubble = getattr(app, "_waveform_bubble", None)
+        on_config = getattr(bubble, "on_config", None)
+        if config is None or on_config is None:
+            return
+        on_config(config)
+        log.info(
+            "[SIDECAR-WS] bubble config pushed on connect (position=%s)",
+            getattr(config, "bubble_position", "bottom"),
+        )
+    except Exception:
+        log.debug(
+            "[SIDECAR-WS] bubble config push on connect failed",
+            exc_info=True,
+        )
+
+
 def _emit_bubble_startup_show(server: IPCServer) -> bool:
     """Show the always-visible bubble at backend-ready (first WS auth).
 
@@ -253,11 +283,13 @@ def _emit_bubble_startup_show(server: IPCServer) -> bool:
             return False
         if getattr(bubble, "state", "idle") in ("recording", "transcribing"):
             return False
-        bubble.show()
-        bubble.set_state("idle")
+        # Config BEFORE show: the host places the hidden window from this
+        # frame, so the first paint is the configured edge.
         on_config = getattr(bubble, "on_config", None)
         if on_config is not None:
             on_config(config)
+        bubble.show()
+        bubble.set_state("idle")
         log.info("[STARTUP] Bubble shown at backend-ready (always_visible mode)")
         return True
     except Exception:

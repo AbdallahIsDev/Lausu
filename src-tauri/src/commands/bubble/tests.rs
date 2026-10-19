@@ -29,7 +29,8 @@ use super::math::{
 };
 use super::parse::parse_position;
 use super::window::{
-    hide_bubble_window, is_active_bubble_state, show_bubble_window, wants_bubble_show,
+    configured_edge_from_payload, hide_bubble_window, is_active_bubble_state, show_bubble_window,
+    wants_bubble_show,
 };
 use crate::commands::main_window_label_check;
 use serde_json::{json, Value};
@@ -1069,6 +1070,39 @@ fn test_bubble_dismiss_rejection_envelope_is_valid_json() {
         msg.contains("bubble"),
         "bubble_dismiss rejection message must name the bubble window, got: {}",
         msg
+    );
+}
+
+#[test]
+fn test_configured_edge_from_payload_reads_known_edges() {
+    // The reader places the pill from this exact key before the first
+    // show; the sidecar payload carries it on every connection.
+    assert_eq!(
+        configured_edge_from_payload(&json!({"bubble_position": "top"})),
+        Some("top")
+    );
+    assert_eq!(
+        configured_edge_from_payload(&json!({"bubble_position": "bottom"})),
+        Some("bottom")
+    );
+}
+
+#[test]
+fn test_configured_edge_from_payload_fails_closed() {
+    // No key (older sidecar), wrong type, unknown keyword, or a payload
+    // without `data` must never guess an edge.
+    assert_eq!(configured_edge_from_payload(&json!({})), None);
+    assert_eq!(
+        configured_edge_from_payload(&json!({"bubble_position": null})),
+        None
+    );
+    assert_eq!(
+        configured_edge_from_payload(&json!({"bubble_position": 3})),
+        None
+    );
+    assert_eq!(
+        configured_edge_from_payload(&json!({"bubble_position": "middle"})),
+        None
     );
 }
 

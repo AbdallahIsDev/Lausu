@@ -180,6 +180,7 @@ from voice_typer.server.sidecar_ws_internals import (  # C-ARCH-2 canonical call
 # by source-grep tests. C-ARCH-2: production resolves sibling names via
 from voice_typer.server.sidecar_ws_internals.connection import (  # noqa: F401
     _check_duplicate_auth,
+    _emit_bubble_config_snapshot,
     _emit_bubble_startup_show,
     _emit_initial_state_snapshot,
     _emit_ready_if_first,
@@ -336,6 +337,11 @@ async def _handle_connection_inner(websocket, server: IPCServer, dispatch, peer)
     _push_to_ws = _install_subscriber(server, loop, outbound)
     _emit_ready_if_first(server)
     _emit_initial_state_snapshot(server)
+    # Bubble placement before any show: the host owns the pill's startup
+    # position and can only place from this frame. Every authenticated
+    # connection (not just the first) so a restarted host never falls
+    # back to the OS default position.
+    _emit_bubble_config_snapshot(server)
     # Backend-ready bubble show (always_visible only): the host displays
     # the pill as soon as this WS is up instead of waiting for the late
     # startup phases (mic/model/worker). Runs after `ready` + snapshot
