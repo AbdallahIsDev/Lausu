@@ -133,9 +133,11 @@ def test_backend_ready_show_fires_once_for_always_visible() -> None:
 
     server = _ready_show_server()
     assert conn._emit_bubble_startup_show(server) is True
-    assert server.fired[0] == "show"  # type: ignore[attr-defined]
-    assert server.fired[1] == ("state", "idle")  # type: ignore[attr-defined]
-    assert server.fired[2][0] == "config"  # type: ignore[attr-defined]
+    # Config BEFORE show: the host places the hidden pill from this
+    # frame, so the first paint is the configured edge.
+    assert server.fired[0][0] == "config"  # type: ignore[attr-defined]
+    assert server.fired[1] == "show"  # type: ignore[attr-defined]
+    assert server.fired[2] == ("state", "idle")  # type: ignore[attr-defined]
     assert server.bubble.visible is True  # type: ignore[attr-defined]
     assert server.bubble.state == "idle"  # type: ignore[attr-defined]
     # Second call (reconnect) never re-fires: no state clobber.
@@ -235,8 +237,10 @@ def test_phase_8_shows_when_not_yet_visible(monkeypatch) -> None:
     seq = StartupSequence(app)
     seq._t0 = time.perf_counter()
     seq._phase_8_finalize_and_signal()
-    assert pushed[0] == "show"
-    assert pushed[1] == ("state", "idle")
+    # Config first, then show: the host places from the config frame.
+    assert pushed[0] == "config"
+    assert pushed[1] == "show"
+    assert pushed[2] == ("state", "idle")
     assert bubble.visible is True
 
 

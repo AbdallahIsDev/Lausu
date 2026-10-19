@@ -163,6 +163,9 @@ class WaveformBubbleWiring:
                 {
                     "type": "bubble_config",
                     "data": {
+                        # The host places the pill from this edge BEFORE
+                        # the first show (no renderer round-trip).
+                        "bubble_position": getattr(cfg, "bubble_position", None) or "bottom",
                         "bubble_behavior": getattr(cfg, "bubble_behavior", None) or "show_on_record",
                         "bubble_click_to_toggle": getattr(cfg, "bubble_click_to_toggle", None) or True,
                         "bubble_mic_button": getattr(cfg, "bubble_mic_button", None) or True,

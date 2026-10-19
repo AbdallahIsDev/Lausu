@@ -27,14 +27,14 @@ mod window;
 // body the bubble's '×' button uses, so the keyboard path can never
 // drift from the click path (E7).
 pub(crate) use window::{
-    ensure_bubble_msg_hook, harden_bubble_chrome, hide_bubble_window, is_active_bubble_state,
-    show_bubble_window, wants_bubble_show,
+    configured_edge_from_payload, ensure_bubble_msg_hook, harden_bubble_chrome, hide_bubble_window,
+    is_active_bubble_state, show_bubble_window, wants_bubble_show,
 };
 
 pub(crate) use commands::{
-    bubble_dismiss, bubble_hide_complete, bubble_move_by, bubble_request_screenshot_capture,
-    bubble_resize, bubble_set_draggable, bubble_set_position, bubble_show, bubble_signal_ready,
-    bubble_toggle_dictation,
+    apply_bubble_config_edge, bubble_dismiss, bubble_hide_complete, bubble_move_by,
+    bubble_request_screenshot_capture, bubble_resize, bubble_set_draggable, bubble_set_position,
+    bubble_show, bubble_signal_ready, bubble_toggle_dictation,
 };
 
 pub(crate) use placement::note_bubble_user_moved;

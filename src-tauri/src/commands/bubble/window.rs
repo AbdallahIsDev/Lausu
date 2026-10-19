@@ -5,6 +5,17 @@ pub(crate) fn wants_bubble_show(event_type: &str) -> bool {
     event_type == "bubble_show"
 }
 
+/// `bubble_position` from a `bubble_config` payload, if it names an edge.
+/// Anything else (missing key, wrong type, unknown keyword) yields
+/// `None` so the reader places nothing (fail-closed, no guessed edge).
+pub(crate) fn configured_edge_from_payload(payload: &Value) -> Option<&str> {
+    match payload.get("bubble_position").and_then(|v| v.as_str()) {
+        Some("top") => Some("top"),
+        Some("bottom") => Some("bottom"),
+        _ => None,
+    }
+}
+
 /// Recording/transcribing implies a visible bubble. A host-side dismiss
 /// (shortcut or Schneider button) hides the window without touching the
 /// sidecar coordinator, so the next `bubble_show` would no-op there and
@@ -24,10 +35,10 @@ pub(crate) fn show_bubble_window(app: &tauri::AppHandle) -> Result<(), String> {
         .get_webview_window("bubble")
         .ok_or("bubble window not found")?;
     // Show never repositions: the pill stays where the user put it
-    // across visibility and mode transitions. Initial placement is the
-    // configured default edge (bubble_set_position from the main
-    // window's connection hydration); drags are session-local and are
-    // never persisted.
+    // across visibility and mode transitions. Initial placement runs
+    // from the sidecar's `bubble_config` frame before the first show
+    // (WS reader -> `apply_bubble_config_edge`); drags are session-local
+    // and are never persisted.
     window.show().map_err(|e| e.to_string())?;
     harden_bubble_chrome(&window, true);
     Ok(())
