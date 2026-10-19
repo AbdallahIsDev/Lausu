@@ -366,7 +366,7 @@ class TestImeCompositionGuard:
         mock_key = MagicMock()
         monkeypatch.setattr(clip_mod, "_Key", mock_key)
 
-        monkeypatch.setattr(cm, "_send_ctrl_v_win32", lambda: True)
+        monkeypatch.setattr(cm, "_send_ctrl_v_win32", lambda **_kwargs: True)
 
         result = cm.paste()
 

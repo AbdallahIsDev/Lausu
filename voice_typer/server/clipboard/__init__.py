@@ -82,6 +82,7 @@ from .manager import (  # noqa: E402,F401
     _force_restore_pending_at_exit,
     _pending_restores,
     _pending_restores_lock,
+    restore_pending_before_shutdown,
 )
 from .windows import (  # noqa: E402,F401
     Win32Clipboard,
@@ -121,6 +122,7 @@ __all__ = [
     "_force_restore_pending_at_exit",
     "_pending_restores",
     "_pending_restores_lock",
+    "restore_pending_before_shutdown",
     # Pynput lazy-import state (mutated by _ensure_pynput_imported)
     "_Controller",
     "_Key",

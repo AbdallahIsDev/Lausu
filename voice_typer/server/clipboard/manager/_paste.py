@@ -7,6 +7,7 @@ import threading
 from typing import Any
 
 from voice_typer.server import clipboard as _cb
+from voice_typer.server.clipboard.fingerprint import clipboard_holds
 from voice_typer.server.clipboard.restore import (
     _MAX_PENDING_RESTORES,
     _pending_restores,
@@ -25,13 +26,16 @@ class PasteMixin:
         pasted_text: str | None = None,
         force: bool = False,
         pasted_seq: int | None = None,
+        expected_fingerprint: tuple[int, str] | None = None,
     ) -> bool:
         """Send a paste keystroke into the focused window."""
         # Register the restore entry first (so the cap-overflow
         entry = self._register_pending_restore(snapshot, restore_delay, pasted_text)
         dispatched_ok = False
         try:
-            dispatched_ok = self._attempt_paste_dispatch(snapshot, pasted_text, pasted_seq, force)
+            dispatched_ok = self._attempt_paste_dispatch(
+                snapshot, pasted_text, pasted_seq, force, expected_fingerprint=expected_fingerprint
+            )
             return dispatched_ok
         except Exception as e:
             _cb.log.warning("[CLIPBOARD] Auto-paste failed (clipboard still has the text): %s", e)
@@ -45,6 +49,7 @@ class PasteMixin:
         pasted_text: str | None,
         pasted_seq: int | None,
         force: bool,
+        expected_fingerprint: tuple[int, str] | None = None,
     ) -> bool:
         """Run the gate chain + keystroke dispatch. Returns True iff delivered."""
         # Early-return gates (original order: pynput → rate-limit → paste_enabled).
@@ -74,7 +79,9 @@ class PasteMixin:
         # password / elevated / Secure Input checks above stay fail-closed.
         if not force and not is_terminal and not self._check_text_field_focus()[0]:
             return False
-        if not self._dispatch_keystroke(is_terminal, safe_hwnd, safe_macos_pid, pasted_text):
+        if not self._dispatch_keystroke(
+            is_terminal, safe_hwnd, safe_macos_pid, pasted_text, expected_fingerprint=expected_fingerprint
+        ):
             return False
         return self._finalize_paste(is_terminal, process_name, snapshot)
 
@@ -94,9 +101,7 @@ class PasteMixin:
             _pending_restores.remove(pending_entry)
         # Delivery is unconfirmed, not known-failed: SendInput may have
         # delivered nothing while the fallback keystroke still landed.
-        _cb.log.info(
-            "[CLIPBOARD] Paste delivery unconfirmed; keeping dictated text in clipboard for manual paste"
-        )
+        _cb.log.info("[CLIPBOARD] Paste delivery unconfirmed; keeping dictated text in clipboard for manual paste")
 
     # Each helper has an explicit error contract: returns a result tuple
 
@@ -406,10 +411,20 @@ class PasteMixin:
         safe_hwnd: int,
         safe_macos_pid: int | None,
         pasted_text: str | None,
+        expected_fingerprint: tuple[int, str] | None = None,
     ) -> bool:
         """Platform-specific keystroke dispatch (4 platform branches × terminal/non)."""
         paste_succeeded = True
         use_wayland_wtype = _cb.is_linux() and _cb._is_wayland_paste_session() and _cb._have_wtype()
+        # Gate 2: the clipboard must still hold our dictation right before
+        # the keystroke; a confirmed mismatch dispatches nothing. wtype
+        # types the text directly, so the clipboard is not its source.
+        if not use_wayland_wtype and clipboard_holds(expected_fingerprint) is False:
+            _cb.log.warning(
+                "[CLIPBOARD] Clipboard no longer holds the dictation (fingerprint mismatch); "
+                "aborting paste, no keystroke dispatched"
+            )
+            return False
         # Thread ``pasted_text`` (request-scoped value parameter)
         wtype_text = pasted_text if pasted_text is not None else self._last_copied_text
         if is_terminal:
@@ -428,7 +443,7 @@ class PasteMixin:
                     return False
                 if self._keyboard is None:
                     # pynput unavailable: use the Win32 SendInput
-                    paste_succeeded = self._send_shift_insert_win32()
+                    paste_succeeded = self._send_shift_insert_win32(expected_fingerprint=expected_fingerprint)
                 else:
                     assert _cb._Key is not None
                     self._safe_key_press(_cb._Key.shift, _cb._Key.insert)
@@ -446,7 +461,7 @@ class PasteMixin:
             if not self._recheck_toctou(safe_hwnd, "Ctrl+V"):
                 return False
             # Check the return value of _send_ctrl_v_win32. A False
-            paste_succeeded = self._send_ctrl_v_win32()
+            paste_succeeded = self._send_ctrl_v_win32(expected_fingerprint=expected_fingerprint)
         elif use_wayland_wtype:
             _cb._linux_paste_via_wtype(wtype_text)
         else:
@@ -465,9 +480,7 @@ class PasteMixin:
                     "dispatched, delivery unverified (clipboard keeps the text)"
                 )
             else:
-                _cb.log.warning(
-                    "[CLIPBOARD] Auto-paste failed (SendInput partial success, UIPI may have blocked)"
-                )
+                _cb.log.warning("[CLIPBOARD] Auto-paste failed (SendInput partial success, UIPI may have blocked)")
         return paste_succeeded
 
     def _finalize_paste(
@@ -486,20 +499,38 @@ class PasteMixin:
         )
         return True
 
-    def _send_ctrl_v_win32(self) -> bool:
+    def _send_ctrl_v_win32(self, expected_fingerprint: tuple[int, str] | None = None) -> bool:
         """Send Ctrl+V via a single atomic SendInput batch."""
         # Delegate to the package-level _send_ctrl_v_win32 helper. The probe
         # captures the raw event count so the caller can report the 0-event
         # (fallback-dispatched) case honestly instead of calling it a failure.
+        key = _cb._Key
+        assert key is not None
         probe: list[int] = []
         ok = _cb._send_ctrl_v_win32(
-            fallback=lambda: self._safe_key_press(_cb._Key.ctrl, "v"),
+            fallback=lambda: self._fallback_key_press(key.ctrl, "v", expected_fingerprint),
             probe=probe,
         )
         self._last_sendinput_events = probe[0] if probe else None
         return ok
 
-    def _send_shift_insert_win32(self) -> bool:
+    def _send_shift_insert_win32(self, expected_fingerprint: tuple[int, str] | None = None) -> bool:
         """Send Shift+Insert via a single atomic SendInput batch."""
         # Delegate to the package-level _send_shift_insert_win32 helper
-        return _cb._send_shift_insert_win32(fallback=lambda: self._safe_key_press(_cb._Key.shift, _cb._Key.insert))
+        key = _cb._Key
+        assert key is not None
+        return _cb._send_shift_insert_win32(
+            fallback=lambda: self._fallback_key_press(key.shift, key.insert, expected_fingerprint)
+        )
+
+    def _fallback_key_press(
+        self,
+        modifier: object,
+        key: object,
+        expected_fingerprint: tuple[int, str] | None,
+    ) -> None:
+        """Second-chance keystroke: dispatch only while the clipboard is ours."""
+        if clipboard_holds(expected_fingerprint) is False:
+            _cb.log.warning("[CLIPBOARD] Clipboard changed before the fallback keystroke; fallback not dispatched")
+            return
+        self._safe_key_press(modifier, key)

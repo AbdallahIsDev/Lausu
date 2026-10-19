@@ -110,6 +110,7 @@ class RecordingClipboard:
         pasted_text: str | None = None,
         force: bool = False,
         pasted_seq: int | None = None,
+        expected_fingerprint: tuple[int, str] | None = None,
     ) -> bool:
         self.pasted.append(pasted_text)
         return True

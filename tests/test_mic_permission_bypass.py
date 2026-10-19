@@ -280,17 +280,22 @@ def test_silent_zero_audio_routes_to_permission_refusal():
     app._waveform_bubble.hide.assert_not_called()
 
 
-def test_short_but_audible_audio_still_resets_idle():
-    """0.3s of real audio keeps the plain idle reset, not the refusal."""
+def test_short_but_audible_audio_proceeds_instead_of_idle_reset():
+    """0.3s of real audio with speech-like energy reaches transcription
+    (short-audio energy gate), not the too-short idle reset and never the
+    refusal."""
     import threading
+    from unittest.mock import patch
 
     import numpy as np
     from voice_typer.server.recording_lifecycle import RecordingLifecycle
+    from voice_typer.server.tray_types import AppState
 
     app = MagicMock(name="app")
     app.recorder = MagicMock(name="recorder")
     app.recorder._dropped_ring_chunks = 0
     app.recorder.last_rms = 0.05
+    app.recorder._last_audio_stats = (0.05, 0.9, 5.0)
     app.config = MagicMock()
     app.config.sample_rate = 16000
     app.config.bubble_behavior = "show_on_record"
@@ -308,8 +313,14 @@ def test_short_but_audible_audio_still_resets_idle():
     controller._maybe_restart_level_monitor_for_always_visible_bubble = MagicMock()
     lifecycle = RecordingLifecycle()
     audio = np.ones(4800, dtype=np.float32)
-    lifecycle._run_stop_and_transcribe(controller, audio, "#10")
-    app._waveform_bubble.hide.assert_called_once_with()
+    with patch("voice_typer.server.dictation_pipeline.DictationPipeline") as pipeline_cls:
+        lifecycle._run_stop_and_transcribe(controller, audio, "#10")
+    pipeline_cls.return_value.run.assert_called_once()
+    assert pipeline_cls.return_value.run.call_args.kwargs["cycle_id"] == "#10"
+    app.tray.set_state.assert_called_once()
+    assert app.tray.set_state.call_args.args[0] == AppState.TRANSCRIBING
+    controller._cancel_streaming_session.assert_not_called()
+    app._waveform_bubble.hide.assert_not_called()
     app._waveform_bubble.set_state.assert_not_called()
 
 

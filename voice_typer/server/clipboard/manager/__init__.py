@@ -15,6 +15,7 @@ from voice_typer.server.clipboard.restore import (  # noqa: E402,F401
     _pending_restores,
     _pending_restores_lock,
     _restore_now_impl,
+    restore_pending_before_shutdown,
 )
 
 # Paste-target safety re-exports
@@ -151,4 +152,5 @@ __all__ = [
     "_force_restore_pending_at_exit",
     "_pending_restores",
     "_pending_restores_lock",
+    "restore_pending_before_shutdown",
 ]

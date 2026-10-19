@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 from voice_typer.server import i18n
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.clipboard import ClipboardCopyError
+from voice_typer.server.clipboard.fingerprint import text_fingerprint
 
 if TYPE_CHECKING:
     # Type-only import to avoid the import cycle (``app`` imports
@@ -61,7 +62,13 @@ class UndoRepasteController:
             return
 
         # ③ PASTE (keystroke + delayed restore scheduled inside paste()).
-        pasted = app.clipboard.paste(snapshot, pasted_text=text, force=True, pasted_seq=pasted_seq)
+        pasted = app.clipboard.paste(
+            snapshot,
+            pasted_text=text,
+            force=True,
+            pasted_seq=pasted_seq,
+            expected_fingerprint=text_fingerprint(text),
+        )
         if pasted:
             log.info("[REPASTE] Repasted transcription (%d chars)", len(text))
             # Use the i18n key so the tray notification renders in the

@@ -8,6 +8,7 @@ import threading
 from typing import Any
 
 from voice_typer.server import clipboard as _cb
+from voice_typer.server.clipboard.fingerprint import clipboard_holds, text_fingerprint
 
 # When paste() schedules a daemon-thread restore, it also appends an
 _pending_restores: list[tuple[Any, Any, str, float]] = []
@@ -15,32 +16,53 @@ _pending_restores_lock = threading.Lock()
 _MAX_PENDING_RESTORES = 8
 
 
-def _force_restore_pending_at_exit() -> None:
-    """atexit handler, force-restore any pending snapshots."""
+def _flush_pending_restores(reason: str) -> int:
+    """Claim + restore every pending snapshot now (best-effort; returns how
+    many were restored).
+
+    Gate 3: only a clipboard PROVABLY holding something else is left alone
+    (an unreadable clipboard cannot belong to a newer cycle). Shared by the
+    atexit handler and the graceful-shutdown flush so the two paths cannot
+    drift apart.
+    """
     with _pending_restores_lock:
         items = list(_pending_restores)
         _pending_restores.clear()
+    restored = 0
     for _cm, snapshot, pasted_text, delay in items:
         try:
-            # Try to read the clipboard to decide whether to restore.
-            try:
-                current = _cb._paste_from_clipboard()
-            except Exception:
-                current = None
-            if current is None or current == pasted_text:
+            if clipboard_holds(text_fingerprint(pasted_text)) is not False:
                 snapshot.restore()
+                restored += 1
                 _cb.log.info(
-                    "[CLIPBOARD-AUDIT] Atexit: restored snapshot (delay was %.3fs)",
+                    "[CLIPBOARD-AUDIT] %s: restored snapshot (delay was %.3fs)",
+                    reason,
                     delay,
                 )
             else:
                 _cb.log.debug(
-                    "[CLIPBOARD-AUDIT] Atexit: skip restore (clipboard changed, current=%d chars, expected=%d chars)",
-                    len(current) if current else 0,
+                    "[CLIPBOARD-AUDIT] %s: skip restore (clipboard changed, expected=%d chars)",
+                    reason,
                     len(pasted_text),
                 )
         except Exception:
-            _cb.log.exception("[CLIPBOARD] Atexit restore failed")
+            _cb.log.exception("[CLIPBOARD] %s restore failed", reason)
+    return restored
+
+
+def _force_restore_pending_at_exit() -> None:
+    """atexit handler, force-restore any pending snapshots."""
+    _flush_pending_restores("Atexit")
+
+
+def restore_pending_before_shutdown() -> int:
+    """Run the pending restores synchronously during a graceful quit.
+
+    The delayed-restore daemon dies with the process and the quit paths
+    end in ``os._exit`` (atexit skipped), so teardown itself must run the
+    restore; the caller wraps this in a bounded timeout.
+    """
+    return _flush_pending_restores("Shutdown")
 
 
 # Register the atexit handler once at module import. Idempotent guard
@@ -81,12 +103,9 @@ def _delayed_restore_impl(
                 _cb.log.exception("[CLIPBOARD] Failed to claim pending restore entry, proceeding with restore")
                 # Continue with restore anyway (best-effort). The
 
-        try:
-            # uses `wl-paste` so the defensive check actually reads
-            current = _cb._paste_from_clipboard()
-        except Exception:
-            current = None
-        if current == pasted_text:
+        # Gate 3: restore the saved user clipboard only while it still
+        # holds exactly our text; a newer cycle's content stays untouched.
+        if clipboard_holds(text_fingerprint(pasted_text)) is True:
             snapshot.restore()
             _cb.log.info(
                 "[CLIPBOARD-AUDIT] Restored snapshot after %.3fs delay",
@@ -94,8 +113,7 @@ def _delayed_restore_impl(
             )
         else:
             _cb.log.debug(
-                "[CLIPBOARD-AUDIT] Restore skipped, clipboard changed (current=%d chars, expected=%d chars)",
-                len(current) if current else 0,
+                "[CLIPBOARD-AUDIT] Restore skipped, clipboard changed or unreadable (expected=%d chars)",
                 len(pasted_text),
             )
     except Exception:
@@ -135,8 +153,10 @@ __all__ = [
     "_ATEXIT_REGISTERED",
     "_MAX_PENDING_RESTORES",
     "_delayed_restore_impl",
+    "_flush_pending_restores",
     "_force_restore_pending_at_exit",
     "_pending_restores",
     "_pending_restores_lock",
     "_restore_now_impl",
+    "restore_pending_before_shutdown",
 ]
