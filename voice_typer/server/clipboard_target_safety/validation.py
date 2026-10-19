@@ -113,6 +113,11 @@ def _is_password_field(focused: Any = None, hwnd: int | None = None) -> bool:
                         return True
             finally:
                 if owns_com:
+                    # Release the element before ``CoUninitialize()``: comtypes
+                    # releases from ``__del__``, which would then run against a
+                    # destroyed object. See ``_release_uia_pointer``.
+                    _pkg._release_uia_pointer(focused)
+                    focused = None
                     with contextlib.suppress(Exception):
                         comtypes.CoUninitialize()
         except ImportError:

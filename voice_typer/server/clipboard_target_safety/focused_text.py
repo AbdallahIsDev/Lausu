@@ -264,6 +264,11 @@ def _is_text_field_focused_windows(focused: Any = None) -> bool:
             return control_type not in _WIN_NON_TEXT_CONTROL_TYPES
         finally:
             if owns_com:
+                # Release the element before ``CoUninitialize()``: comtypes
+                # releases from ``__del__``, which would then run against a
+                # destroyed object. See ``_release_uia_pointer``.
+                _pkg._release_uia_pointer(focused)
+                focused = None
                 with contextlib.suppress(Exception):
                     comtypes.CoUninitialize()
     except Exception:

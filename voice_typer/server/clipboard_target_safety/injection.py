@@ -4,9 +4,40 @@ from __future__ import annotations
 
 import atexit
 import contextlib
+import ctypes
+from typing import Any, cast
 
 # Call-time _pkg lookups (C-ARCH-2).
 import voice_typer.server.clipboard_target_safety as _pkg
+
+
+def _release_uia_pointer(obj: Any) -> None:
+    """Release a UIA interface pointer *while its COM apartment is still up*.
+
+    comtypes releases the COM refcount from ``_compointer_base.__del__``, which
+    is too late for us: the call sites below call ``CoUninitialize()``
+    themselves, and that destroys the object while a Python wrapper may still
+    be reachable (a ``LogRecord``'s ``exc_info`` traceback pins the frames that
+    hold it). The later ``Release()`` then calls through a dead vtable — the
+    access violation that killed the Windows CI workers. comtypes only guards
+    that finaliser with ``_com_shutting_down``, which it sets at *atexit*.
+
+    So: release here, then clear the raw pointer. ``__del__`` guards on
+    truthiness, so clearing it turns the finaliser into a no-op instead of a
+    second ``Release()``.
+
+    Test doubles have no ``c_void_p`` value to clear; the explicit ``Release()``
+    is then all that happens, which is exactly what they assert on.
+    """
+    if obj is None:
+        return
+    with contextlib.suppress(Exception):
+        obj.Release()
+    with contextlib.suppress(Exception):
+        # ``_compointer_base`` re-declares ``value`` as a read-only property, so
+        # this has to go through the base descriptor. ``cast`` keeps mypy out of
+        # the "generic instance variable via class" hole.
+        cast(Any, ctypes.c_void_p).value.__set__(obj, None)
 
 
 def _release_uia_resources_at_exit() -> None:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ctypes
+import logging
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -122,3 +124,100 @@ class TestComtypesTeardown:
         assert result is True
         fake_comtypes.CoInitialize.assert_called_once_with()
         fake_comtypes.CoUninitialize.assert_not_called()
+
+
+class _ComPointerProbe(ctypes.c_void_p):
+    """Stand-in for a comtypes interface pointer.
+
+    Mirrors ``comtypes._post_coinit.unknwn._compointer_base``: the COM refcount
+    is released from ``__del__``, guarded by truthiness of the raw pointer. So
+    ``Release()`` followed by clearing the pointer means exactly one release —
+    which is what the ordering assertions below count.
+    """
+
+    def __get_value(self):
+        return self
+
+    value = property(__get_value)
+
+    def __init__(self, events: list[str]) -> None:
+        super().__init__(0x1)
+        self._events = events
+
+    def GetCurrentPropertyValue(self, _property_id: int) -> bool:  # noqa: N802 - UIA API name
+        return False
+
+    def Release(self) -> None:  # noqa: N802 - COM interface method name
+        self._events.append("release")
+
+    def __del__(self) -> None:
+        if self:
+            self._events.append("release")
+
+
+class TestElementReleasedBeforeComTeardown:
+    """The UIA element must be released *before* ``CoUninitialize()``.
+
+    Releasing it afterwards is what crashed the Windows CI workers: comtypes
+    only suppresses ``Release()`` once ``_com_shutting_down`` is set at
+    *atexit*, so a pointer finalised after our own teardown calls ``Release()``
+    on an object the apartment already destroyed — a native access violation
+    that kills the whole pytest worker ("replacing crashed worker gwN").
+    """
+
+    @staticmethod
+    def _fake_comtypes(events: list[str]) -> tuple[MagicMock, MagicMock]:
+        fake_comtypes, fake_client = _install_fake_comtypes()
+        fake_comtypes.CoUninitialize.side_effect = lambda: events.append("couninitialize")
+        return fake_comtypes, fake_client
+
+    def test_safe_target_releases_element_before_couninitialize(self, fake_win32):
+        """Plain path: no password field, no contentEditable."""
+        events: list[str] = []
+        fake_comtypes, fake_client = self._fake_comtypes(events)
+
+        with (
+            patch.dict(sys.modules, {"comtypes": fake_comtypes, "comtypes.client": fake_client}),
+            # A fresh probe per call, referenced only by the local under test.
+            patch.object(clip_mod, "_get_uia_focused_element", lambda: _ComPointerProbe(events)),
+            patch.object(clip_mod, "_is_password_field", lambda focused, hwnd: False),
+            patch.object(clip_mod, "_is_content_editable", lambda focused: False),
+        ):
+            result = _is_safe_paste_target_impl()
+
+        assert result is True
+        assert events == ["release", "couninitialize"], (
+            "the UIA element must be released exactly once, while COM is still "
+            f"initialised; observed order: {events}"
+        )
+
+    def test_fail_closed_path_releases_element_before_couninitialize(self, fake_win32, caplog, monkeypatch):
+        """The fail-closed path is the one that crashed CI.
+
+        ``exc_info=True`` stores the traceback on the ``LogRecord``, and that
+        traceback pins both this frame and the probe's parameter frame — so
+        merely dropping the local is not enough. The explicit release must
+        happen first anyway.
+        """
+        events: list[str] = []
+        fake_comtypes, fake_client = self._fake_comtypes(events)
+        monkeypatch.setattr(clip_mod, "log", logging.getLogger("voice_typer.server.clipboard"))
+
+        def _uia_raised(_focused, _hwnd):
+            raise RuntimeError("UIA password probe failed")
+
+        with (
+            caplog.at_level(logging.DEBUG, logger="voice_typer.server.clipboard"),
+            patch.dict(sys.modules, {"comtypes": fake_comtypes, "comtypes.client": fake_client}),
+            patch.object(clip_mod, "_get_uia_focused_element", lambda: _ComPointerProbe(events)),
+            patch.object(clip_mod, "_is_password_field", _uia_raised),
+            patch.object(clip_mod, "_is_content_editable", lambda focused: False),
+        ):
+            result = _is_safe_paste_target_impl()
+
+        assert result is False, "a raising password probe must fail closed"
+        assert any(record.exc_info for record in caplog.records), "the traceback must be captured on the record"
+        assert events == ["release", "couninitialize"], (
+            "the pinned traceback must not keep the UIA element alive past "
+            f"CoUninitialize(); observed order: {events}"
+        )

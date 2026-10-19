@@ -186,8 +186,15 @@ def _is_safe_paste_target_impl() -> bool:
                 _cb.log.debug("[CLIPBOARD] contentEditable check failed", exc_info=True)
         finally:
             if com_initialized:
+                # Release the UIA element BEFORE tearing COM down. comtypes
+                # releases from ``__del__``, and our own ``CoUninitialize()``
+                # destroys the object first, so a wrapper that outlives this
+                # frame (the ``exc_info=True`` log records above pin it via
+                # their traceback) would call ``Release()`` through a dead
+                # vtable. See ``_release_uia_pointer``.
+                _cb._release_uia_pointer(focused)
+                focused = None
                 with contextlib.suppress(Exception):
-                    # ``import comtypes as _ct`` was a defensive
                     comtypes.CoUninitialize()
 
         return True
