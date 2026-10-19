@@ -85,6 +85,7 @@ COMMAND_COSTS: dict[str, int] = {
     # Moderate (cost 20).
     "microphone_test_start": 20,  # was 5, opens a PortAudio stream
     "level_monitor_start": 20,  # was 3, opens a PortAudio stream + spawns thread
+    "live_preview": 5,  # toggles the preview frame stream on the level monitor, no device open
     "shutdown": 5,
     "onboarding_apply": 5,
     # Small file writes / single-row mutations (cost 10).

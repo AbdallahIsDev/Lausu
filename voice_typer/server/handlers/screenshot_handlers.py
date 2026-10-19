@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import logging
 import time
 
 from voice_typer.server.duration import format_duration
 from voice_typer.server.handlers._base import HandlerBase
+from voice_typer.server.handlers._log import log
 from voice_typer.server.ipc.validation import ErrorCodes, ResponseEnvelope
-
-log = logging.getLogger(__name__)
 
 
 class ScreenshotHandlersMixin(HandlerBase):

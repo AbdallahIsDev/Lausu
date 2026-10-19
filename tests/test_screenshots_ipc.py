@@ -62,11 +62,11 @@ def test_capture_logs_success_then_refusal(monkeypatch, tmp_path: Path, caplog) 
     server, _, _ = make_ipc_server_with_fakes()
     _enable(server)
     payload = {"cycle_id": "2026-10-07_X", "rect": dict(_RECT)}
-    with caplog.at_level(logging.INFO, logger="voice_typer.server.handlers.screenshot_handlers"):
+    with caplog.at_level(logging.INFO, logger="voice_typer.server.ipc_server"):
         assert server._handle_screenshot_capture(payload, {})["type"] == "screenshot_captured"
     assert "[SCREENSHOT] captured" in caplog.text
     dest.write_bytes(b"\x89PNG" + b"0" * 16)
-    with caplog.at_level(logging.INFO, logger="voice_typer.server.handlers.screenshot_handlers"):
+    with caplog.at_level(logging.INFO, logger="voice_typer.server.ipc_server"):
         assert _code(server, payload) == "screenshot_already_captured"
     assert "already captured" in caplog.text
 

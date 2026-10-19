@@ -2052,9 +2052,11 @@ class TestRegistryExtraction:
         assert registry._COMMAND_REGISTRY["get_microphone_volume"] == "_handle_get_microphone_volume"
         assert registry._COMMAND_REGISTRY["set_microphone_volume"] == "_handle_set_microphone_volume"
         assert registry._COMMAND_REGISTRY["set_output_volume"] == "_handle_set_output_volume"
-        assert len(registry._COMMAND_REGISTRY) == 89, (
-            f"registry._COMMAND_REGISTRY must contain 89 entries "
-            f"(85 forwarded in the Rust allowlist + shutdown + "
+        # Listen-Live filtered preview (2026-10-17): renderer-callable stream toggle.
+        assert registry._COMMAND_REGISTRY["live_preview"] == "_handle_live_preview"
+        assert len(registry._COMMAND_REGISTRY) == 90, (
+            f"registry._COMMAND_REGISTRY must contain 90 entries "
+            f"(86 forwarded in the Rust allowlist + shutdown + "
             f"tray_click python-only + heartbeat + relaunch_ack host-dispatched); got "
             f"{len(registry._COMMAND_REGISTRY)}. "
             f"If the count drifted, update this test together with the "
