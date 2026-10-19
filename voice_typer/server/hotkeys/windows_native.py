@@ -203,8 +203,12 @@ class WindowsNativeHotkey(HotkeyBackend):
                 elif simple_key and self._install_low_level_hook(callback):
                     log.info(
                         "[HOTKEY] Starting hotkey detection via WH_KEYBOARD_LL "
-                        "low-level hook (vk=0x%X), robust ESC/system-key delivery",
-                        self._vk,
+                        "low-level hook (vk=%s), robust ESC/system-key delivery",
+                        # ``_vk`` is None for a modifier-only spec, and ``%X``
+                        # on None raises at emit time -- inside this thread's
+                        # ``except Exception``, which would abandon a hook that
+                        # installed fine.
+                        "modifier-only" if self._vk is None else f"0x{self._vk:X}",
                     )
                     self._using_polling = False
                     # re-evaluate ``_success`` now that the LL hook

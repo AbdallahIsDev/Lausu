@@ -39,8 +39,9 @@ def run_message_loop(self, callback, low_level_hook=False):
 
     if low_level_hook:
         log.info(
-            "[HOTKEY] Message loop running with WH_KEYBOARD_LL hook (vk=0x%X, mods=0x%X)",
-            self._vk,
+            "[HOTKEY] Message loop running with WH_KEYBOARD_LL hook (vk=%s, mods=0x%X)",
+            # None for a modifier-only spec; ``%X`` on None raises at emit time.
+            "modifier-only" if self._vk is None else f"0x{self._vk:X}",
             self._modifiers,
         )
     else:
