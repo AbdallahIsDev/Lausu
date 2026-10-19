@@ -349,6 +349,11 @@ class IPCServer(
         self._ws_graceful_shutdown_installed: bool = False
         self._ws_encode_pool: ThreadPoolExecutor | None = None
 
+        # Single active WS connection slot: set by sidecar_ws_internals.connection
+        # on attach, cleared on detach (sidecar_ws.py).
+        self._active_ws_connection: object | None = None
+        self._bubble_startup_show_done: bool = False
+
         # Explicit hook slot for the WS graceful-shutdown wrapper (see
         self.ws_graceful_shutdown: typing.Callable[[], None] | None = None
         self._ws_stop_hook: typing.Callable[[], None] | None = None
