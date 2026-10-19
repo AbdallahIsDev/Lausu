@@ -40,6 +40,7 @@ _Controller: type | None = None
 from voice_typer.server.clipboard_target_safety import (  # noqa: E402,F401
     _CRED_DIALOG_CLASSES,
     UiaUnavailableError,
+    _ensure_com_initialized,
     _find_focused_atspi_accessible,
     _focused_window_is_credential_dialog,
     _get_uia_focused_element,
@@ -138,6 +139,7 @@ __all__ = [
     "_UIA_SINGLETON_INIT_ATTEMPTED",
     "_WE_ELEVATED",
     "UiaUnavailableError",
+    "_ensure_com_initialized",
     "_find_focused_atspi_accessible",
     "_focused_window_is_credential_dialog",
     "_get_uia_focused_element",

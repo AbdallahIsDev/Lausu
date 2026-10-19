@@ -5,22 +5,63 @@ from __future__ import annotations
 import atexit
 import contextlib
 import ctypes
+import threading
 from typing import Any, cast
 
 # Call-time _pkg lookups (C-ARCH-2).
 import voice_typer.server.clipboard_target_safety as _pkg
+
+# Per-thread "COM is up on this thread" flag. See ``_ensure_com_initialized``.
+_COM_READY = threading.local()
+
+
+def _ensure_com_initialized() -> None:
+    """Enter a COM apartment on this thread, once, and never leave it.
+
+    The call sites used to pair ``comtypes.CoInitialize()`` with
+    ``comtypes.CoUninitialize()`` per call. That is what killed the Windows
+    CI workers: ``CoUninitialize()`` drops the thread's init count, and when
+    it reaches zero the apartment goes down and every COM proxy created in it
+    becomes a dangling vtable. Our UIA wrappers outlive the call by design --
+    a ``LogRecord``'s ``exc_info`` traceback pins the frame that holds one --
+    so the eventual ``__del__`` called ``Release()`` through freed memory
+    ("Windows fatal exception: access violation", reported as
+    ``worker 'gwN' crashed``). comtypes' own ``__del__`` comment describes
+    exactly this and only guards it at *atexit*, because its contract is
+    "COM stays initialised for the process".
+
+    The count is thread-local and only ever incremented, so a thread that
+    pastes once keeps one apartment until the process exits. comtypes already
+    does the same for the importing thread at import time, and it balances
+    nothing until its own atexit handler runs.
+
+    Raises ``ImportError`` when comtypes is missing and whatever
+    ``CoInitialize`` raises when the apartment cannot be entered, so every
+    existing ``except ImportError`` / ``except Exception`` branch keeps its
+    current behaviour.
+    """
+    if getattr(_COM_READY, "initialized", False):
+        return
+    import comtypes
+
+    comtypes.CoInitialize()
+    _COM_READY.initialized = True
 
 
 def _release_uia_pointer(obj: Any) -> None:
     """Release a UIA interface pointer *while its COM apartment is still up*.
 
     comtypes releases the COM refcount from ``_compointer_base.__del__``, which
-    is too late for us: the call sites below call ``CoUninitialize()``
-    themselves, and that destroys the object while a Python wrapper may still
-    be reachable (a ``LogRecord``'s ``exc_info`` traceback pins the frames that
-    hold it). The later ``Release()`` then calls through a dead vtable — the
-    access violation that killed the Windows CI workers. comtypes only guards
-    that finaliser with ``_com_shutting_down``, which it sets at *atexit*.
+    is too late for us: the wrapper can outlive the call that fetched it (a
+    ``LogRecord``'s ``exc_info`` traceback pins the frame that holds it), so the
+    finaliser runs at an arbitrary later point, on someone else's stack. Doing
+    it here — while we know the apartment is up — keeps that ordering under our
+    control. comtypes only guards the finaliser with ``_com_shutting_down``,
+    which it sets at *atexit*.
+
+    The apartment itself is never torn down (see
+    ``_ensure_com_initialized``), so a late ``Release()`` is safe as long as it
+    happens exactly once; that is what the pointer-clearing below guarantees.
 
     So: release here, then clear the raw pointer. ``__del__`` guards on
     truthiness, so clearing it turns the finaliser into a no-op instead of a

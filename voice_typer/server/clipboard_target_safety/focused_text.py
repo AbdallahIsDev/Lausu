@@ -19,7 +19,6 @@ patches on the package propagate (same pattern as :mod:`.validation`).
 
 from __future__ import annotations
 
-import contextlib
 from typing import Any  # noqa: F401  (used in type hints)
 
 # Call-time _pkg lookups (C-ARCH-2): package is partial at module load.
@@ -243,14 +242,16 @@ def _is_text_field_focused_windows(focused: Any = None) -> bool:
     if not _pkg.is_windows():
         return True
     try:
-        import comtypes
+        import comtypes  # noqa: F401  (availability probe; the helper owns init)
     except ImportError:
         _warn_text_focus_unavailable("comtypes not installed")
         return True
     try:
         owns_com = focused is None
         if owns_com:
-            comtypes.CoInitialize()
+            # Initialise COM once per thread; never tear it down. See
+            # ``_ensure_com_initialized``.
+            _pkg._ensure_com_initialized()
         try:
             if focused is None:
                 focused = _pkg._get_uia_focused_element()
@@ -264,13 +265,10 @@ def _is_text_field_focused_windows(focused: Any = None) -> bool:
             return control_type not in _WIN_NON_TEXT_CONTROL_TYPES
         finally:
             if owns_com:
-                # Release the element before ``CoUninitialize()``: comtypes
-                # releases from ``__del__``, which would then run against a
-                # destroyed object. See ``_release_uia_pointer``.
+                # Release the element while the apartment is still up rather
+                # than leaving it to ``__del__``. See ``_release_uia_pointer``.
                 _pkg._release_uia_pointer(focused)
                 focused = None
-                with contextlib.suppress(Exception):
-                    comtypes.CoUninitialize()
     except Exception:
         _pkg._log().debug("[CLIPBOARD] Windows text-field focus check failed, failing open", exc_info=True)
         return True
