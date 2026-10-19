@@ -997,5 +997,3 @@ class TestSetLevel:
         ducker.initialize()
 
         assert ducker.set_level(0.75) is False
-
-

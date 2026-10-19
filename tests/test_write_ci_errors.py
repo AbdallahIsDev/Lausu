@@ -94,3 +94,33 @@ def test_empty_classname_renders_without_leading_dot(tmp_path: Path, capsys, mon
 def test_leg_label_from_artifact_layout(tmp_path: Path) -> None:
     mod = _load()
     assert mod._leg_of(tmp_path / "junit" / "pytest-results-windows-2022-3.13" / "x.xml") == "windows-2022-3.13"
+
+
+def test_rendered_file_has_no_trailing_whitespace(tmp_path: Path, monkeypatch) -> None:
+    """The pre-commit hygiene job runs ``trailing-whitespace`` over this file.
+
+    pytest pads captured lines (``E     AssertionError: ...``) and indents blank
+    ones. Those landed verbatim in the fenced block, so CI failed its own
+    hygiene job on the ``CI-errors.md`` commit it had just pushed.
+    """
+    mod = _load()
+    monkeypatch.setattr(mod, "OUTPUT", tmp_path / "CI-errors.md")
+    d = tmp_path / "junit" / "pytest-results-ubuntu-22.04-3.12"
+    d.mkdir(parents=True)
+    f = d / "pytest-results.xml"
+    f.write_bytes(
+        _junit(
+            '<testcase classname="tests.test_x" name="test_boom">'
+            '<failure message="boom">'
+            "tests/test_x.py:12: in test_boom\n"
+            "  \n"
+            "E     AssertionError: boom   "
+            "</failure></testcase>"
+        )
+    )
+
+    assert mod.main([str(f)]) == 0
+
+    text = (tmp_path / "CI-errors.md").read_text(encoding="utf-8")
+    offenders = [line for line in text.splitlines() if line != line.rstrip()]
+    assert offenders == [], f"trailing whitespace would fail the hygiene hook: {offenders!r}"

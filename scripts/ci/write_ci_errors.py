@@ -201,7 +201,11 @@ def _extract_failures(xml_path: Path) -> tuple[list[tuple[str, str, str, str, st
 
 
 def _trim_body(body: str) -> str:
-    lines = body.splitlines()[:_MAX_BODY_LINES]
+    # rstrip each line, not just the body: pytest pads captured output
+    # ("E     AssertionError: ...") and indents blank lines, and the pre-commit
+    # ``trailing-whitespace`` hook runs over this file. The un-stripped version
+    # made CI fail its own hygiene job on the commit it had just pushed.
+    lines = [line.rstrip() for line in body.splitlines()[:_MAX_BODY_LINES]]
     trimmed = "\n".join(lines).strip()
     if len(trimmed) > _MAX_BODY_CHARS:
         trimmed = trimmed[:_MAX_BODY_CHARS].rstrip() + "\n… (truncated)"
