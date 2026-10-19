@@ -27,18 +27,20 @@ def _read(path: Path) -> str:
 
 
 def test_event_bus_count_matches_doc_and_code():
-    """Doc must say \"52-event bus\" and ``EVENT_TYPES`` must have 52 entries."""
+    """Doc must say \"53-event bus\" and ``EVENT_TYPES`` must have 53 entries."""
     doc = _read(ARCH_DOC)
-    assert "52-event bus" in doc, "ARCHITECTURE.md must describe the bus as '52-event bus' ."
+    assert "53-event bus" in doc, "ARCHITECTURE.md must describe the bus as '53-event bus' ."
+    assert "52-event bus" not in doc, "Stale '52-event bus' must not appear in ARCHITECTURE.md ."
     assert "51-event bus" not in doc, "Stale '51-event bus' must not appear in ARCHITECTURE.md ."
-    # And the IPC-contract section's frozen-surface count must also say 89 / 52.
-    assert "89 commands / 52 events" in doc, "IPC contract section must say '89 commands / 52 events'."
+    # And the IPC-contract section's frozen-surface count must also say 90 / 53.
+    assert "90 commands / 53 events" in doc, "IPC contract section must say '90 commands / 53 events'."
+    assert "89 commands / 52 events" not in doc, "Stale '89 commands / 52 events' must not appear in ARCHITECTURE.md ."
     assert "85 commands / 51 events" not in doc, "Stale '85 commands / 51 events' must not appear in ARCHITECTURE.md ."
 
     from voice_typer.server.event_bus import EVENT_TYPES
 
-    assert len(EVENT_TYPES) == 52, (
-        f"EVENT_TYPES in voice_typer/server/event_bus.py must have 52 "
+    assert len(EVENT_TYPES) == 53, (
+        f"EVENT_TYPES in voice_typer/server/event_bus.py must have 53 "
         f"entries (actual: {len(EVENT_TYPES)}). Update doc + test together."
     )
 
@@ -278,7 +280,7 @@ def test_module_paths_use_package_form():
     crash_files = list((ROOT / "voice_typer/server/crash_handler").glob("*.py"))
     assert len(crash_files) == 8, f"crash_handler/ must be an 8-file package (actual: {len(crash_files)})."
     level_files = list((ROOT / "voice_typer/server/level_monitor").glob("*.py"))
-    assert len(level_files) == 9, f"level_monitor/ must be a 9-file package (actual: {len(level_files)})."
+    assert len(level_files) == 10, f"level_monitor/ must be a 10-file package (actual: {len(level_files)})."
     cts_files = list((ROOT / "voice_typer/server/clipboard_target_safety").glob("*.py"))
     assert len(cts_files) == 5, f"clipboard_target_safety/ must be a 5-file package (actual: {len(cts_files)})."
 

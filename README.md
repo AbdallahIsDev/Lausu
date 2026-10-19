@@ -459,6 +459,8 @@ The paste keystroke is **terminal-aware**: the app checks the focused window's p
 
 The clipboard always gets the transcribed text when transcription succeeds. The app never pastes provisional streaming text.
 
+**Where the text lands (Option A, pinned):** the paste target is whatever window is focused at the moment the Ctrl+V keystroke is sent — a "typewriter" model. The app does **not** remember or refocus the window you dictated into; if you switch apps during transcription, the text lands in whatever you switched to. The password/UAC/elevated-window safety gate still runs at paste time. This contract is pinned by `tests/test_paste_target_contract.py` and AGENTS.md `C-PASTE-1`.
+
 ## Text Corrections
 
 ### Self-Correction Detection
@@ -585,6 +587,7 @@ Key design decisions:
 - **Tray-first**: The tray icon is the primary UI. It appears before model loading starts.
 - **Graceful degradation**: GPU → CPU → tiny.en fallback chain. If auto-paste fails, clipboard still has the text. If hotkey fails, tray menu still works. If model loading fails, app stays alive and retries.
 - **Thread safety**: Busy state guarded by `threading.Event`, streaming session access protected by `threading.Lock`.
+- **Single-flight dictation**: Exactly one dictation operation at a time (record → transcribe → deliver → idle). Pressing the recording hotkey while an operation is in flight is refused; there is no recording/transcription overlap or recording queue.
 - **Config schema versioning**: `schema_version` field enables future migration support.
 
 ## Log File

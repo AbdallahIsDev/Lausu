@@ -42,7 +42,7 @@ host-dispatched / host-only set (`heartbeat`, `relaunch_ack`,
 `allowed_commands()` are host-internal (invoked by the Rust host via
 `dispatch_inner` or host-supervised shutdown), never by the renderer.
 
-## Commands (89 total: 85 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
+## Commands (90 total: 86 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
 
 Grouped by namespace. "✓" in the Allowlist column means the command is
 in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
@@ -262,7 +262,7 @@ restored `get_prewarm_status` / `run_prewarm` (worker status file +
 in-process warm pass), not the old
 `sentinel` / `PID`-file probe.
 
-## Push events (64 typed)
+## Push events (65 typed)
 
 Push events flow server to renderer via `window.python.onEvent(callback)`.
 The `PythonPushEvent` union in `types/ipc/push_events.ts` is the canonical
@@ -308,6 +308,7 @@ list: events not in the union fall through to the `string` overload of
 | `reconnected` | `ReconnectedEvent` | `{ reason: string }` |
 | `mic_level` | `MicLevelEvent` | `{ rms: number, peak: number, active: boolean }` Continuous level monitor stream for the Settings microphone level meter. |
 | `device_lost` | `DeviceLostEvent` | `{ source: string }` The active input device disappeared mid-monitoring; the level monitor auto-stops and the Microphone page surfaces a recovery banner + toast. |
+| `live_preview_audio` | `LivePreviewAudioEvent` | `{ pcm: string, sample_rate: number, seq: number }` Listen-Live filtered preview frames: one base64 PCM16 LE mono frame per processed chunk while `live_preview` is enabled; published from the level monitor's own `AudioProcessor` chain (`level_monitor/preview_stream.py`) and scheduled for playback by the renderer only. |
 | `transcription_partial` | `TranscriptionPartialEvent` | `{ text: string, cycle_id: string, supported?: boolean }` Live partial text pushed ≤4 Hz by the hidden streaming session's coalescing broadcaster; mirrored onto the bubble channel as a `bubble_set_state` transcript so the pill paints words mid-recording. One-time `supported: false` payload signals engines without word-level transcription. |
 | `offline_pack_download_started` | `OfflinePackDownloadStartedEvent` | `{ version: string, url: string, total_bytes: number }` Runtime-pack download began; payload mirrors the model-download `download_progress` shape so a `useOfflinePackDownload` hook can reuse the `useModelDownload` UI pattern. |
 | `offline_pack_download_progress` | `OfflinePackDownloadProgressEvent` | `{ version: string, progress: number, downloaded_bytes: number, total_bytes: number, speed_bytes_per_sec: number, eta_seconds: number }` Emitted ~1 Hz while the pack is downloading (currently silent, no UI surface, surfaced for diagnostics). |

@@ -136,7 +136,7 @@ New tags: add here + link `CONTRIBUTING.md` or a rationale comment at first occu
 ## Working protocols
 
 **Validation pipeline (in order; fix root causes, never leak to CI):** `ruff check … --fix` → `pytest --import-mode=importlib --co -q` → `pyrefly check` → `pip-audit --strict --require-hashes` → `sync_versions.py --check` → `check_branding.py` → client `npm ci && typecheck:ci && lint:fix:unsafe && format:check && test:coverage && build` → `generate_beeps.py --check` → full pytest (`-n auto --dist=loadgroup`, `--cov-fail-under=78`, split, background if needed — C-TEST-6 gate: green full suite on final state, no ship without it) → `coverage_ratchet_check.py` + `ruff_ratchet_check.py` → `cargo check` (even if Rust untouched) → wiring audit (every `#[tauri::command]` in `generate_handler!`, every `mod` declared, every route/IPC channel registered both sides).
-**One full-suite run per code state.** The forbidden pattern is running the suite twice to learn failures the first run already printed. Canonical single run (names + counts, no tracebacks): `pytest tests/ -n auto --dist=loadgroup -q --no-cov --tb=no 2>&1 | tail -40`. Never `tail -5`/`head`/`grep` it into partial output; use `--lf` (failed-only replay) or targeted per-file runs for follow-ups.
+**One full-suite run per code state.** The forbidden pattern is running the suite twice to learn failures the first run already printed. Canonical single run: redirect the ENTIRE output, tracebacks included, to a file — `pytest tests/ -n auto --dist=loadgroup -q --no-cov --tb=short > pytest-run.txt 2>&1` (any run: repeat the redirect, never a pipe into `tail`/`head`/`grep`, so the file always holds the full evidence). Every investigation — failure names, tracebacks, counts — reads that file (Read/Grep it, read any offset); never re-run the suite to rediscover what the file already contains. `--lf` (failed-only replay) or targeted per-file runs are for iterating on fixes only; post-fix verification is a new code state (fresh full run per C-TEST-6).
 **Manual verification (mandatory before packaging).** Boot like a user (`npm run tauri:dev`, `xvfb-run` if headless), drive the UI like a tester, screenshot evidence. No evidence = not verified. Record in `worklog.md` (`## Validation Performed`); if the GUI truly can't run, record the exact error under `## Known Limitations` and cover via suite.
 **Browser automation:** drive the running app as a manual tester (launch, click main flows, screenshot). No "manual verification passed" without evidence.
 
@@ -449,6 +449,15 @@ Applies to: All agents, all modes, all sub-agents.
 C-LIFE-4
 Rule: Do NOT claim a lifecycle/animation fix without UI or test evidence: rerender-identity + first-paint-reservation assertions + related suites green. Source reading never proves mount behavior.
 Rationale: A data-path green hid a remount regression for lack of mount assertions.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+## Category: Window Lifecycle & Startup Placement
+
+```
+C-WIN-1
+Rule: Do NOT let a window's startup geometry depend on another surface's data round-trip. The owner of the window applies the configured/default position BEFORE its first show (here: the host places the bubble from the sidecar's `bubble_config` frame); renderer hydration and settings-change handlers are idempotent backstops only.
+Rationale: The overlay pill was positioned solely by the main window's `get_config` hydration, so every show that won that race (hidden autostart, Rust rebuild, slow cold start) painted it at the OS default position — the top-left of the screen — for the whole session, through two "fixes".
 Applies to: All agents, all modes, all sub-agents.
 ```
 
@@ -1190,5 +1199,41 @@ Every rule above was added because an agent did the prohibited thing and the use
 C-TRANS-1
 Rule: Do NOT surface transcription text during recording or deliver it before the stop trigger, regardless of backend transport (one-shot POST, chunked upload, hidden streaming, realtime WS). The transcript is delivered once, at the end, after stop; realtime backends buffer and release at stop, never live partials.
 Rationale: Live text distracts while dictating; end-only delivery keeps backends interchangeable (user decision 2026-10-14).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+---
+
+## Category: Dictation Concurrency
+
+```
+C-CONC-1
+Rule: Do NOT implement overlapping dictation (record-while-transcribing, queued multi-cycle recording, parallel transcription pipelines, "multicore-style" dictation). Dictation is SINGLE-FLIGHT: exactly one operation at a time — recording XOR transcription+delivery; a hotkey press while busy is refused by design (visible feedback for that refusal is a separate UX item, see docs/voice_typer_recording_edge_cases.md §2).
+Rationale: one mic + one model + one bubble state machine + one paste path; overlap would need per-cycle audio slots, watchdogs, delivery ordering, and per-cycle undo isolation (user decision 2026-10-17 after reviewing and rejecting the overlap idea).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-CONC-2
+Rule: Do NOT gate a late side effect on one flag or registry entry alone. Re-verify the owning token at the moment of the effect — the cycle is still current, its cancellation marker is absent, and the borrowed resource (clipboard text) is byte-identical to what this operation wrote.
+Rationale: `_cancelled_cycle_ids` is bounded (1000) and discardable after each run, so a registry-only gate can let a force-recovered zombie worker past; ownership checks are the durable truth (paste gates in `server/cycle_guard.py` + `clipboard/fingerprint.py`).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-PASTE-1
+Rule: Do NOT capture the target window at recording stop or refocus it at paste time. Paste goes into whatever window is focused at the moment the Ctrl+V keystroke is dispatched (Option A "typewriter model"); the password/UAC/elevated-window safety gate is checked at paste time and stays as-is. Per-app dictation analytics (focused-process probe) is logging-only and must not be wired to any UI without a fresh user decision.
+Rationale: Option A chosen 2026-10-17 — Option B (HWND capture at stop + refocus at paste) steals focus back, breaks if the user switched on purpose, and fails entirely if the target window closed. Pinned by tests/test_paste_target_contract.py.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+---
+
+## Category: Numeric Guards
+
+```
+C-NUM-1
+Rule: Do NOT rely on a bare `float(x)` try/except as the only guard on a numeric read. `float(MagicMock())` returns 1.0 without raising, so mocks slip through and fail OPEN; guard the raw value with `isinstance(value, numbers.Real)` (numpy scalars register, so production np.float32/64 stay valid) and reject non-finite values with `math.isfinite` (NaN fails open on `<` comparisons) before converting.
+Rationale: The short-audio gate's RMS hardening hit this exactly (2026-10-18): the naive try/except helper accepted a MagicMock as 1.0 "loud" energy; only the Real-guard + isfinite version discards mocks/garbage.
 Applies to: All agents, all modes, all sub-agents.
 ```
