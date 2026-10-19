@@ -454,6 +454,7 @@ RECORDING_LIFECYCLE_MIXINS: dict[str, tuple[str, set[str]]] = {
             "_publish_recording_started_event",
             "_spawn_dictation_start_worker",
             "_teardown_failed_recorder_start",
+            "_surface_busy_refusal",
         },
     ),
     "voice_typer.server.recording_lifecycle_stop": (
@@ -505,6 +506,7 @@ EXPECTED_RECORDING_LIFECYCLE_SURFACE = {
     "_stop_and_transcribe_worker_entry",
     "_run_stop_and_transcribe",
     "_cancel_impl",
+    "_surface_busy_refusal",
 }
 
 # Method bodies the source-text pins in other suites read out of the
@@ -628,8 +630,8 @@ class TestRecordingLifecycleStageOrderParity:
     STOP_STAGE_ORDER = [
         "app._restore_volume()",
         "duration = len(audio)",
-        "recorded_rms = app.recorder.last_rms",
-        "if duration < 0.5:",
+        "recorded_rms = _short_clip_rms(app.recorder)",
+        "if duration < MIN_DURATION_S:",
         "AppState.TRANSCRIBING",
         "_start_watchdog_thread",
         "pipeline.run(",

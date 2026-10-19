@@ -1658,6 +1658,8 @@
 	"bubble": {
 		"recordingIndicatorAria": "Indicador de grabación de {appName}",
 		"transcribingLabel": "Transcribiendo",
+		"stillTranscribingLabel": "Todavía transcribiendo",
+		"cloudCancelRequestedLabel": "Cancelación solicitada",
 		"loadingLabel": "Cargando el modelo",
 		"idleLabel": "Listo",
 		"blockedLabel": "Bloqueado",
@@ -1989,6 +1991,7 @@
 			"xrun_warning_title": "{appName}",
 			"xrun_warning_body": "Se detectó un desbordamiento del búfer de audio. Prueba con un tamaño de búfer mayor.",
 			"cancelled_timeout": "La transcripción tardó demasiado y se canceló.\nPulse {hotkey} para reintentar.",
+			"cloud_cancel_requested": "Se solicitó la cancelación.\nEl proveedor en la nube aún puede terminar de procesar; el resultado se descartará.",
 			"start_failed": "No se pudo iniciar la grabación. Inténtalo de nuevo.",
 			"stop_failed": "No se pudo detener la grabación.",
 			"silence_warning": "No se detectó audio. Compruebe que el micrófono esté conectado y funcionando.",
@@ -2202,6 +2205,7 @@
 			"cancelled": "Cancelado",
 			"recovered": "Recuperado | la transcripción agotó el tiempo de espera",
 			"stillTranscribing": "Todavía transcribiendo...",
+			"cloudCancelRequested": "Cancelación solicitada | el proveedor en la nube aún puede terminar; el resultado se descartará",
 			"awaitingModel": "Finalizando la carga del modelo | tu grabación está guardada y se transcribirá en breve",
 			"modelLoadRetry": "Cargando el modelo | tu dictado se iniciará automáticamente.",
 			"modelLoading": "Cargando el modelo..."

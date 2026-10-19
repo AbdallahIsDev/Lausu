@@ -97,6 +97,11 @@ _INITIAL_LABELS: dict[str, str] = {
     "state.recording_controller.cancelled": "Cancelled",
     "state.recording_controller.recovered": "Recovered | transcription timed out",
     "state.recording_controller.still_transcribing": "Still transcribing...",
+    # Cloud cancel is best-effort (the abort is checked between attempts
+    # only): never claim the remote stopped.
+    "state.recording_controller.cloud_cancel_requested": (
+        "Cancel requested | cloud provider may still finish; result will be discarded"
+    ),
     "state.model_manager.loading": "Loading model | press your hotkey to queue...",
     "state.model_manager.ready_whisper": "Ready | {device_info}",
     "state.model_manager.load_failed_retry": "Model load failed | press your hotkey to retry",
@@ -288,6 +293,9 @@ _INITIAL_LABELS: dict[str, str] = {
     # ``{hotkey}`` is the user's CONFIGURED hotkey, formatted via
     "notify.recording_controller.cancelled_timeout": (
         "Transcription took too long and was cancelled.\nPress {hotkey} to try again."
+    ),
+    "notify.recording_controller.cloud_cancel_requested": (
+        "Cancellation requested.\nThe cloud provider may still finish processing; the result will be discarded."
     ),
     "notify.model_manager.backend_init_failed": "Could not initialize the {backend} backend.{hint}",
     "notify.model_manager.load_failed_critical": (

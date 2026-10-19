@@ -1658,6 +1658,8 @@
 	"bubble": {
 		"recordingIndicatorAria": "{appName}-Aufnahmeanzeige",
 		"transcribingLabel": "Transkribieren",
+		"stillTranscribingLabel": "Wird noch transkribiert",
+		"cloudCancelRequestedLabel": "Abbruch angefordert",
 		"loadingLabel": "Modell wird geladen",
 		"idleLabel": "Bereit",
 		"blockedLabel": "Blockiert",
@@ -1989,6 +1991,7 @@
 			"xrun_warning_title": "{appName}",
 			"xrun_warning_body": "Audio-Pufferüberlauf erkannt. Versuche eine höhere Puffergröße.",
 			"cancelled_timeout": "Die Transkription hat zu lange gedauert und wurde abgebrochen.\nDrücken Sie {hotkey}, um es erneut zu versuchen.",
+			"cloud_cancel_requested": "Abbruch angefordert.\nDer Cloud-Anbieter kann die Verarbeitung dennoch abschließen; das Ergebnis wird verworfen.",
 			"start_failed": "Aufnahme konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
 			"stop_failed": "Aufnahme konnte nicht gestoppt werden.",
 			"silence_warning": "Kein Audio erkannt. Prüfen Sie, ob Ihr Mikrofon angeschlossen und funktionsfähig ist.",
@@ -2202,6 +2205,7 @@
 			"cancelled": "Abgebrochen",
 			"recovered": "Wiederhergestellt | Transkription abgelaufen",
 			"stillTranscribing": "Wird noch transkribiert...",
+			"cloudCancelRequested": "Abbruch angefordert | Cloud-Anbieter kann dennoch fertigstellen; das Ergebnis wird verworfen",
 			"awaitingModel": "Model-Laden wird abgeschlossen | Ihre Aufnahme ist gespeichert und wird in Kürze transkribiert",
 			"modelLoadRetry": "Modell wird geladen | Ihre Diktierung startet automatisch.",
 			"modelLoading": "Modell wird geladen..."

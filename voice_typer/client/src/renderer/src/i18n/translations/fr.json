@@ -1594,6 +1594,8 @@
 	"bubble": {
 		"recordingIndicatorAria": "Indicateur d'enregistrement {appName}",
 		"transcribingLabel": "Transcription en cours",
+		"stillTranscribingLabel": "Toujours en cours de transcription",
+		"cloudCancelRequestedLabel": "Annulation demandée",
 		"loadingLabel": "Chargement du modèle",
 		"idleLabel": "Prêt",
 		"blockedLabel": "Bloqué",
@@ -1989,6 +1991,7 @@
 			"xrun_warning_title": "{appName}",
 			"xrun_warning_body": "Dépassement de tampon audio détecté. Essayez une taille de tampon plus grande.",
 			"cancelled_timeout": "La transcription a pris trop de temps et a été annulée.\nAppuyez sur {hotkey} pour réessayer.",
+			"cloud_cancel_requested": "Annulation demandée.\nLe fournisseur cloud peut encore terminer le traitement ; le résultat sera ignoré.",
 			"start_failed": "Impossible de démarrer l'enregistrement. Veuillez réessayer.",
 			"stop_failed": "Impossible d'arrêter l'enregistrement.",
 			"silence_warning": "Aucun audio détecté. Vérifiez que votre microphone est connecté et fonctionne.",
@@ -2202,6 +2205,7 @@
 			"cancelled": "Annulé",
 			"recovered": "Récupéré | la transcription a expiré",
 			"stillTranscribing": "Toujours en cours de transcription...",
+			"cloudCancelRequested": "Annulation demandée | le fournisseur cloud peut encore terminer ; le résultat sera ignoré",
 			"awaitingModel": "Finalisation du chargement du modèle | votre enregistrement est enregistré et sera transcrit sous peu",
 			"modelLoadRetry": "Chargement du modèle | votre dictée démarrera automatiquement.",
 			"modelLoading": "Chargement du modèle..."

@@ -22,6 +22,10 @@ export interface BubbleStateMachine {
 	/** Short reason string for the current error mode, or `null`. */
 	errorMessage: string | null;
 	transcript: string | null;
+	/** True while showing the "Still transcribing" busy-refusal hint. */
+	stillLabel: boolean;
+	/** True while showing the "Cancel requested" cloud-honesty hint. */
+	cloudCancelLabel: boolean;
 }
 
 export function useBubbleStateMachine(): BubbleStateMachine {
@@ -36,6 +40,15 @@ export function useBubbleStateMachine(): BubbleStateMachine {
 	// transition so the partial text fades out smoothly with the pill.
 	// Cleared on transition to any other mode.
 	const [transcript, setTranscript] = useState<string | null>(null);
+	// Busy-refusal hint: set when the backend re-pushes the bubble state
+	// because the user pressed the hotkey mid-transcription. Label-only
+	// ("Transcribing" → "Still transcribing"); the mode itself stays
+	// "transcribing". Cleared by the next non-hint state push.
+	const [stillLabel, setStillLabel] = useState(false);
+	// Cloud-cancel honesty hint: set when the backend reports an ESC
+	// cancel of a cloud cycle (the provider may still finish; the result
+	// is dropped). Label-only; cleared by the next non-hint state push.
+	const [cloudCancelLabel, setCloudCancelLabel] = useState(false);
 	// Latest-mode ref so the `onSetState` callback can read the current
 	// mode synchronously without re-subscribing on every mode change
 	// (which would cancel + re-arm the rAF loop in `useAudioLevels`,
@@ -87,6 +100,11 @@ export function useBubbleStateMachine(): BubbleStateMachine {
 				transcript: newTranscript,
 			} = parseSetStatePayload(stateArg);
 
+			// Hint labels: any non-hint state push clears them (a fresh
+			// cycle, idle, error… all restore the plain label).
+			setStillLabel(state === "still_transcribing");
+			setCloudCancelLabel(state === "cloud_cancel_requested");
+
 			// Recording interrupts the fading→exit transition (e.g.
 			// user starts a new dictation while the previous
 			// transcribing pill is still fading out). Without this
@@ -131,9 +149,15 @@ export function useBubbleStateMachine(): BubbleStateMachine {
 			// a frame before the exit animation kicks in.
 			if (state === "transcribing" || state === "recording") {
 				setTranscript(newTranscript);
-			} else if (state === "fading") {
+			} else if (
+				state === "fading" ||
+				state === "still_transcribing" ||
+				state === "cloud_cancel_requested"
+			) {
 				// No-op: preserve the existing transcript so the
-				// fade-out renders the last partial text.
+				// fade-out renders the last partial text. The
+				// busy-refusal / cloud-cancel hints carry no transcript
+				// payload, so they must not wipe the live preview either.
 			} else {
 				setTranscript(null);
 			}
@@ -149,5 +173,7 @@ export function useBubbleStateMachine(): BubbleStateMachine {
 		setExitTick,
 		errorMessage,
 		transcript,
+		stillLabel,
+		cloudCancelLabel,
 	};
 }

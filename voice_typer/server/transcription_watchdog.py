@@ -54,8 +54,14 @@ class TranscriptionWatchdog:
             with contextlib.suppress(KeyError):
                 controller._cancelled_cycle_ids.pop(cycle_id)
 
-    def force_recover(self, controller, force: bool = False) -> None:
+    def force_recover(self, controller, force: bool = False, *, cloud_cancel_requested: bool = False) -> None:
         """Safety net: recover from stuck transcription state.
+
+        ``cloud_cancel_requested=True`` marks a user ESC-cancel of a cloud
+        cycle: the abort is best-effort (checked between attempts only), so
+        the surface must NOT claim the remote stopped — it shows the honest
+        "cancel requested / result will be discarded" text instead of the
+        local timeout wording.
 
         When the transcription thread is still alive at the time the
         watchdog fires, we used to leave the app busy and return. That
@@ -147,15 +153,21 @@ class TranscriptionWatchdog:
                     exc_info=True,
                 )
         app._busyness.set_idle()  # busy = False (coordinator-routed)
-        app.tray.set_state(AppState.IDLE, i18n.t("state.recording_controller.recovered"))
-        # HOTKEY-THREAD: name the user's ACTUAL configured hotkey in the
-        app.tray.notify(
-            APP_NAME,
-            i18n.t(
-                "notify.recording_controller.cancelled_timeout",
-                hotkey=notification_hotkey_label(app.config.hotkey),
-            ),
-        )
+        if cloud_cancel_requested:
+            app.tray.set_state(AppState.CANCELLING, i18n.t("state.recording_controller.cloud_cancel_requested"))
+            app.tray.notify(APP_NAME, i18n.t("notify.recording_controller.cloud_cancel_requested"))
+            with contextlib.suppress(Exception):
+                app._waveform_bubble.set_state("cloud_cancel_requested")
+        else:
+            app.tray.set_state(AppState.IDLE, i18n.t("state.recording_controller.recovered"))
+            # HOTKEY-THREAD: name the user's ACTUAL configured hotkey in the
+            app.tray.notify(
+                APP_NAME,
+                i18n.t(
+                    "notify.recording_controller.cancelled_timeout",
+                    hotkey=notification_hotkey_label(app.config.hotkey),
+                ),
+            )
         app._schedule_timer(5.0, lambda: app.tray.set_state(AppState.IDLE))
         # Privacy: clear the shared audio slot so the raw voice bytes can
         controller._current_audio = None

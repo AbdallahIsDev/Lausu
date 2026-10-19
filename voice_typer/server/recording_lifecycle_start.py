@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 
 from voice_typer.server import event_bus
 from voice_typer.server.keyboard_ownership import keyboard_ownership
+from voice_typer.server.tray_types import AppState
 
 log = logging.getLogger("voice_typer.server.recording_lifecycle")
 
@@ -51,7 +52,8 @@ class RecordingLifecycleStartMixin:
             app._cycle_id,
         )
         if not app._busy_event.is_set():  # busy
-            log.warning("[F2 BLOCKED] Busy transcribing, ignoring toggle (cycle=%s)", app._cycle_id)
+            log.warning("[HOTKEY BLOCKED] Busy transcribing, ignoring toggle (cycle=%s)", app._cycle_id)
+            self._surface_busy_refusal(app)
             return
 
         # Record-while-loading: an in-flight loader is no reason to
@@ -117,6 +119,26 @@ class RecordingLifecycleStartMixin:
             app._stop_dictation()
         else:
             app._start_dictation()
+
+    def _surface_busy_refusal(self, app) -> None:
+        """Visible feedback for a hotkey press during transcription.
+
+        The toggle is refused by design (single-flight, C-CONC-1) but
+        the refusal must not be silent: the bubble label flips to
+        "Still transcribing..." and the tray status line matches.
+        Exception-shielded: feedback must never break the toggle path.
+        """
+        try:
+            app.tray.set_state(
+                AppState.TRANSCRIBING,
+                _facade().i18n.t("state.recording_controller.still_transcribing"),
+            )
+        except Exception:
+            log.debug("[HOTKEY BLOCKED] tray still-transcribing feedback failed", exc_info=True)
+        try:
+            app._waveform_bubble.set_state("still_transcribing")
+        except Exception:
+            log.debug("[HOTKEY BLOCKED] bubble still-transcribing feedback failed", exc_info=True)
 
     def _wire_recorder_start_callbacks(self, controller, app) -> None:
         """Wire recorder callbacks + pre-start cleanup before open."""

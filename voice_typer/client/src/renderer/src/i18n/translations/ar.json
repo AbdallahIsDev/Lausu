@@ -1658,6 +1658,8 @@
 	"bubble": {
 		"recordingIndicatorAria": "مؤشر تسجيل {appName}",
 		"transcribingLabel": "جارٍ الكتابة",
+		"stillTranscribingLabel": "لا يزال النسخ جاريًا",
+		"cloudCancelRequestedLabel": "طُلب الإلغاء",
 		"loadingLabel": "جارٍ تحميل النموذج",
 		"idleLabel": "جاهز",
 		"blockedLabel": "محظور",
@@ -1989,6 +1991,7 @@
 			"xrun_warning_title": "{appName}",
 			"xrun_warning_body": "تم اكتشاف فيض في الذاكرة المؤقتة للصوت. جرّب حجمًا أكبر للذاكرة المؤقتة.",
 			"cancelled_timeout": "استغرق التفريغ الصوتي وقتًا طويلًا وتم إلغاؤه.\nاضغط {hotkey} لإعادة المحاولة.",
+			"cloud_cancel_requested": "طُلب الإلغاء.\nقد لا يزال مزود السحابة يُكمل المعالجة؛ وسيُهمل الناتج.",
 			"start_failed": "تعذر بدء التسجيل. يرجى المحاولة مرة أخرى.",
 			"stop_failed": "تعذّر إيقاف التسجيل.",
 			"silence_warning": "لم يتم اكتشاف أي صوت. تأكد من توصيل الميكروفون وأنه يعمل.",
@@ -2202,6 +2205,7 @@
 			"cancelled": "تم الإلغاء",
 			"recovered": "تم الاسترداد | انتهت مهلة النسخ",
 			"stillTranscribing": "لا يزال النسخ جاريًا...",
+			"cloudCancelRequested": "طُلب الإلغاء | قد يُكمل مزود السحابة المعالجة؛ وسيُهمل الناتج",
 			"awaitingModel": "جارٍ إنهاء تحميل النموذج | تسجيلك محفوظ وسيتم تحويله إلى نص قريباً",
 			"modelLoadRetry": "جارٍ تحميل النموذج | سيبدأ الإملاء تلقائيًا.",
 			"modelLoading": "جارٍ تحميل النموذج..."

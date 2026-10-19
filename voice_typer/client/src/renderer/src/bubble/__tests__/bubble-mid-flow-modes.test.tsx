@@ -83,6 +83,15 @@ function setBubbleState(state: string) {
 	});
 }
 
+function setBubblePayload(payload: unknown) {
+	const cbs = mockBubble._listeners.setState ?? [];
+	act(() => {
+		for (const cb of cbs) {
+			(cb as (s: unknown) => void)(payload);
+		}
+	});
+}
+
 describe("bubble mid-flow modes (blocked / cancelling / permission_revoked / paste_failed)", () => {
 	it("renders the 'Blocked' label when state becomes 'blocked'", () => {
 		render(<Bubble />);
@@ -217,5 +226,120 @@ describe("bubble mid-flow modes (blocked / cancelling / permission_revoked / pas
 			setBubbleState(state);
 			expect(document.querySelectorAll(".gap-0\\.75 > span").length).toBe(0);
 		}
+	});
+});
+
+describe("bubble busy-refusal hint (still_transcribing)", () => {
+	it("swaps the transcribing label to 'Still transcribing' while staying in transcribing mode", () => {
+		render(<Bubble />);
+
+		setBubbleState("transcribing");
+		expect(screen.getByText("Transcribing")).toBeTruthy();
+
+		// Backend re-push on hotkey press during transcription.
+		setBubbleState("still_transcribing");
+
+		expect(screen.getByText("Still transcribing")).toBeTruthy();
+		expect(screen.queryByText("Transcribing")).toBeNull();
+		// Still transcribing mode: no visualizer bars.
+		expect(document.querySelectorAll(".gap-0\\.75 > span").length).toBe(0);
+	});
+
+	it("clears the hint on the next real state (e.g. a fresh recording cycle)", () => {
+		render(<Bubble />);
+
+		setBubbleState("transcribing");
+		setBubbleState("still_transcribing");
+		expect(screen.getByText("Still transcribing")).toBeTruthy();
+
+		// A fresh cycle's "transcribing" push restores the plain label.
+		setBubbleState("idle");
+		setBubbleState("transcribing");
+
+		expect(screen.getByText("Transcribing")).toBeTruthy();
+		expect(screen.queryByText("Still transcribing")).toBeNull();
+	});
+
+	it("preserves the live transcript preview across the hint", () => {
+		render(<Bubble />);
+
+		setBubblePayload({ state: "transcribing", transcript: "hello wor" });
+		expect(screen.getByText("hello wor")).toBeTruthy();
+
+		// The hint carries no transcript payload — the preview must not wipe.
+		setBubbleState("still_transcribing");
+
+		expect(screen.getByText("hello wor")).toBeTruthy();
+		expect(screen.getByText("Still transcribing")).toBeTruthy();
+	});
+
+	it("does not resurrect a fading bubble (fading guard wins)", () => {
+		render(<Bubble />);
+
+		setBubbleState("transcribing");
+		// hide → two-stage fade-out begins (mode = fading): the label
+		// stays in-DOM but its wrapper fades out at opacity 0.
+		act(() => {
+			for (const cb of mockBubble._listeners.hide ?? []) {
+				(cb as () => void)();
+			}
+		});
+		const fadingLabel = screen.getByText("Transcribing");
+		expect(fadingLabel.closest("div")?.style.opacity).toBe("0");
+
+		// A late hint push must not pull the fading pill back: mode
+		// stays "fading" — the wrapper is still opacity-0 (the exit
+		// sequence untouched) while only the label text swaps.
+		setBubbleState("still_transcribing");
+		expect(
+			screen.getByText("Still transcribing").closest("div")?.style.opacity,
+		).toBe("0");
+		expect(screen.queryByText("Transcribing")).toBeNull();
+	});
+});
+
+describe("bubble cloud-cancel honesty hint (cloud_cancel_requested)", () => {
+	it("swaps the transcribing label to 'Cancel requested' while staying in transcribing mode", () => {
+		render(<Bubble />);
+
+		setBubbleState("transcribing");
+		expect(screen.getByText("Transcribing")).toBeTruthy();
+
+		// ESC during a cloud cycle: the provider may still finish.
+		setBubbleState("cloud_cancel_requested");
+
+		expect(screen.getByText("Cancel requested")).toBeTruthy();
+		expect(screen.queryByText("Transcribing")).toBeNull();
+	});
+
+	it("clears the hint on the next real state (e.g. a fresh recording cycle)", () => {
+		render(<Bubble />);
+
+		setBubbleState("transcribing");
+		setBubbleState("cloud_cancel_requested");
+		expect(screen.getByText("Cancel requested")).toBeTruthy();
+
+		setBubbleState("idle");
+		setBubbleState("transcribing");
+
+		expect(screen.getByText("Transcribing")).toBeTruthy();
+		expect(screen.queryByText("Cancel requested")).toBeNull();
+	});
+
+	it("does not resurrect a fading bubble (fading guard wins)", () => {
+		render(<Bubble />);
+
+		setBubbleState("transcribing");
+		act(() => {
+			for (const cb of mockBubble._listeners.hide ?? []) {
+				(cb as () => void)();
+			}
+		});
+
+		setBubbleState("cloud_cancel_requested");
+		expect(
+			screen.getByText("Cancel requested").closest("div")?.style.opacity,
+		).toBe("0");
+		expect(screen.queryByText("Transcribing")).toBeNull();
 	});
 });

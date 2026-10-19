@@ -15,6 +15,7 @@ import threading
 from typing import TYPE_CHECKING
 
 from voice_typer.server import event_bus
+from voice_typer.server.cloud_backend import active_engine_is_cloud
 from voice_typer.server.keyboard_ownership import keyboard_ownership
 from voice_typer.server.tray_types import AppState
 
@@ -150,15 +151,21 @@ class RecordingLifecycleStopMixin:
                 )
                 cycle_id = getattr(app, "_cycle_id", None)
                 if cycle_id is not None:
-                    # Use the bounded-registry helper so the set cannot
+                    # Use the bounded-registry helper so the set cannot be
                     controller._mark_cycle_cancelled(cycle_id)
                     log.info(
                         "[CANCEL] cycle %s marked cancelled, late transcription will not be pasted",
                         cycle_id,
                     )
-                # ``_force_recover_from_stuck_transcription`` now also
+                # Cloud honesty: the abort token is checked only BETWEEN
+                # attempts, so an in-flight provider request may still
+                # finish. Detect the engine BEFORE the recovery unloads it
+                # so the surface never claims the remote stopped.
+                cloud_cancelled = active_engine_is_cloud(app)
                 try:
-                    controller._force_recover_from_stuck_transcription(force=True)
+                    controller._force_recover_from_stuck_transcription(
+                        force=True, cloud_cancel_requested=cloud_cancelled
+                    )
                 except Exception:
                     log.exception(
                         "[CANCEL] _force_recover_from_stuck_transcription raised during cancel (cycle=%s)",

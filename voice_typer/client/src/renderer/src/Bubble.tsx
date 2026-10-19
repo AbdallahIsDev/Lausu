@@ -140,6 +140,8 @@ function BubbleInner() {
 		setExitTick: _setExitTick,
 		errorMessage,
 		transcript,
+		stillLabel,
+		cloudCancelLabel,
 	} = useBubbleStateMachine();
 	// `_isVisible` is consumed inside useBubbleLifecycle (gates the rAF
 	// loop). We acknowledge it here so eslint doesn't flag it as unused.
@@ -398,7 +400,9 @@ function BubbleInner() {
 		// zone (the pill has no visible border at the pixel level).
 		getBubbleApi()?.resizeTo?.(w + 1, h + 1);
 		void mode; // semantic dep, pill content size changes between modes
-	}, [animState, mode]);
+		void stillLabel; // semantic dep, the hint label is wider than "Transcribing"
+		void cloudCancelLabel; // semantic dep, same wider-than-base label swap
+	}, [animState, mode, stillLabel, cloudCancelLabel]);
 
 	// Fading → exit transition. When the transcribing content fade-out
 	// completes, trigger the bubble exit animation. For non-transcribing
@@ -517,6 +521,8 @@ function BubbleInner() {
 					<BubbleModeContent
 						mode={mode}
 						transcript={transcript}
+						stillLabel={stillLabel}
+						cloudCancelLabel={cloudCancelLabel}
 						showTimer={showTimer}
 						dotRefs={dotRefs}
 						annotateEnabled={screenshotBeta && !screenshotOverlayOpen}

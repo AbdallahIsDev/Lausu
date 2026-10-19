@@ -400,5 +400,53 @@ class TestBusyEventSemanticsDocumented:
         assert "_busy_event" in docstring, "UE-9-F8: docstring must reference _busy_event by name."
 
 
+# Busy-refusal feedback: the refused hotkey press must be VISIBLE ──
+
+
+class TestBusyToggleSurfacesStillTranscribing:
+    """A hotkey press during transcription is refused by design
+    (single-flight), but the refusal must not be silent: the tray
+    status line and the bubble label flip to "Still transcribing"."""
+
+    def test_busy_toggle_pushes_still_transcribing_to_tray_and_bubble(self):
+        from voice_typer.server import i18n
+        from voice_typer.server.tray_types import AppState
+
+        ctrl, app = _make_controller()
+        app._busy_event.clear()  # busy = True (inverted semantics)
+
+        ctrl.toggle()
+
+        app.tray.set_state.assert_called_once_with(
+            AppState.TRANSCRIBING,
+            i18n.t("state.recording_controller.still_transcribing"),
+        )
+        app._waveform_bubble.set_state.assert_called_once_with("still_transcribing")
+
+    def test_busy_toggle_feedback_is_exception_shielded(self):
+        """A dead tray must not break the toggle; bubble feedback still fires."""
+        ctrl, app = _make_controller()
+        app._busy_event.clear()
+        app.tray.set_state.side_effect = RuntimeError("tray dead")
+
+        ctrl.toggle()  # must not raise
+
+        app._waveform_bubble.set_state.assert_called_once_with("still_transcribing")
+
+    def test_non_busy_toggle_does_not_push_still_transcribing(self):
+        ctrl, app = _make_controller()
+        app._busy_event.set()  # not busy
+        app.recorder.recording = False
+        app.models.active_transcriber.return_value = None
+        app.models._model_load_thread = None
+
+        ctrl.toggle()
+
+        pushed_states = [c.args[0] for c in app._waveform_bubble.set_state.call_args_list]
+        assert "still_transcribing" not in pushed_states, (
+            "the still-transcribing hint must only fire on the busy-refusal path"
+        )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

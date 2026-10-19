@@ -185,18 +185,19 @@ class TestPublicForceRecoverWrapper:
 
     def test_public_wrapper_delegates_with_force_kwarg(self) -> None:
         controller = RecordingController.__new__(RecordingController)
-        delegated: list[tuple[object, bool]] = []
+        delegated: list[tuple[object, bool, bool]] = []
 
         class _SpyWatchdog:
-            def force_recover(self, ctrl, *, force: bool = False) -> None:
-                delegated.append((ctrl, force))
+            def force_recover(self, ctrl, force: bool = False, *, cloud_cancel_requested: bool = False) -> None:
+                delegated.append((ctrl, force, cloud_cancel_requested))
 
         object.__setattr__(controller, "_watchdog_helper", _SpyWatchdog())
 
         controller.force_recover(force=True)
         controller.force_recover()
 
-        assert delegated == [(controller, True), (controller, False)], (
+        # The public wrapper is local-only; the cloud-honesty flag stays off there.
+        assert delegated == [(controller, True, False), (controller, False, False)], (
             "the public wrapper must forward the force flag positionally-clean as a keyword to the watchdog helper"
         )
 
