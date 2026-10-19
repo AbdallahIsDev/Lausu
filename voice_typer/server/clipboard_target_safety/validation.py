@@ -36,7 +36,6 @@ the package, hence the ``_pkg.NAME`` access pattern.
 
 from __future__ import annotations
 
-import contextlib
 from typing import Any  # noqa: F401  (used in type hints)
 
 # Call-time _pkg lookups (C-ARCH-2): package is partial at module load.
@@ -92,13 +91,15 @@ def _is_password_field(focused: Any = None, hwnd: int | None = None) -> bool:
     try:
         # Try using comtypes for UI Automation (preferred path)
         try:
-            import comtypes
-            import comtypes.client
+            import comtypes  # noqa: F401  (availability probe; helper owns init)
+            import comtypes.client  # noqa: F401  (registers the typelib)
 
             # When called via _is_safe_paste_target with a pre-fetched
             owns_com = focused is None
             if owns_com:
-                comtypes.CoInitialize()
+                # Initialise COM once per thread; never tear it down. See
+                # ``_ensure_com_initialized``.
+                _pkg._ensure_com_initialized()
             try:
                 if focused is None:
                     focused = _pkg._get_uia_focused_element()
@@ -113,13 +114,11 @@ def _is_password_field(focused: Any = None, hwnd: int | None = None) -> bool:
                         return True
             finally:
                 if owns_com:
-                    # Release the element before ``CoUninitialize()``: comtypes
-                    # releases from ``__del__``, which would then run against a
-                    # destroyed object. See ``_release_uia_pointer``.
+                    # Release the element while the apartment is still up
+                    # rather than leaving it to ``__del__``. See
+                    # ``_release_uia_pointer``.
                     _pkg._release_uia_pointer(focused)
                     focused = None
-                    with contextlib.suppress(Exception):
-                        comtypes.CoUninitialize()
         except ImportError:
             # comtypes missing: the focused field's password state is UNKNOWN,
             # and an unknown target is treated as UNSAFE (fail closed).

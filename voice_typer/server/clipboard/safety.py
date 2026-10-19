@@ -35,9 +35,6 @@ Design contract (preserved verbatim from the pre-split ``manager.py``):
 
 from __future__ import annotations
 
-import contextlib
-from typing import Any
-
 from voice_typer.server import clipboard as _cb
 
 
@@ -71,11 +68,13 @@ def _is_safe_paste_target_impl() -> bool:
     Previously each helper fetched the focused element separately
     (2x ``GetFocusedElement`` RPCs per paste).
 
-     (Perf): ``CoInitialize`` / ``CoUninitialize`` are
-    hoisted here to wrap both ``_is_password_field`` and
-    ``_is_content_editable`` calls. Previously each helper did
-    its own init/teardown (2x ``CoInitialize`` + 2x
-    ``CoUninitialize`` per paste).
+     (Perf): the COM apartment is entered here, once, and wraps
+    both ``_is_password_field`` and ``_is_content_editable``.
+    Previously each helper did its own ``CoInitialize``. It is
+    deliberately never torn down: ``CoUninitialize`` invalidates
+    every proxy in the apartment, and our UIA wrappers can outlive
+    this call through a ``LogRecord`` traceback. See
+    ``_ensure_com_initialized``.
 
      (Perf): ``GetForegroundWindow`` is fetched ONCE at
     the top and passed to ``_is_elevated_target`` and
@@ -141,14 +140,13 @@ def _is_safe_paste_target_impl() -> bool:
 
         # 5: fetch the focused UIA element ONCE and hoist
         focused = None
-        com_initialized = False
-        # Pre-bind ``comtypes`` to None so the ``finally`` block
-        comtypes: Any = None
         try:
-            import comtypes
+            import comtypes  # noqa: F401  (availability probe; the helper owns init)
 
-            comtypes.CoInitialize()
-            com_initialized = True
+            # Initialise COM on this thread; never tear it down. See
+            # ``_ensure_com_initialized`` for why the paired
+            # ``CoUninitialize()`` was the crash.
+            _cb._ensure_com_initialized()
             focused = _cb._get_uia_focused_element()
         except ImportError:
             # comtypes unavailable, _is_password_field will fall
@@ -185,17 +183,13 @@ def _is_safe_paste_target_impl() -> bool:
             except Exception:
                 _cb.log.debug("[CLIPBOARD] contentEditable check failed", exc_info=True)
         finally:
-            if com_initialized:
-                # Release the UIA element BEFORE tearing COM down. comtypes
-                # releases from ``__del__``, and our own ``CoUninitialize()``
-                # destroys the object first, so a wrapper that outlives this
-                # frame (the ``exc_info=True`` log records above pin it via
-                # their traceback) would call ``Release()`` through a dead
-                # vtable. See ``_release_uia_pointer``.
-                _cb._release_uia_pointer(focused)
-                focused = None
-                with contextlib.suppress(Exception):
-                    comtypes.CoUninitialize()
+            # Release the element here rather than leaving it to ``__del__``:
+            # the ``exc_info=True`` records above pin this frame through their
+            # traceback, so the wrapper can be finalised at an arbitrary later
+            # point. Releasing while the apartment is still up keeps that
+            # finaliser a no-op. See ``_release_uia_pointer``.
+            _cb._release_uia_pointer(focused)
+            focused = None
 
         return True
     except (ImportError, AttributeError):

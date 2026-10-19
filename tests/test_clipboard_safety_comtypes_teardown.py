@@ -10,6 +10,22 @@ from unittest.mock import MagicMock, patch
 import pytest
 from voice_typer.server import clipboard as clip_mod  # noqa: E402
 from voice_typer.server.clipboard.safety import _is_safe_paste_target_impl  # noqa: E402
+from voice_typer.server.clipboard_target_safety import injection as _injection  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _reset_com_ready():
+    """Forget the per-thread "COM is up" flag between tests.
+
+    ``_ensure_com_initialized`` deliberately initialises once per *thread* and
+    never tears down, so the flag outlives a single test on the shared pytest
+    thread. Clearing it keeps each test's ``CoInitialize`` accounting honest.
+    """
+    if hasattr(_injection._COM_READY, "initialized"):
+        del _injection._COM_READY.initialized
+    yield
+    if hasattr(_injection._COM_READY, "initialized"):
+        del _injection._COM_READY.initialized
 
 
 @pytest.fixture()
@@ -41,12 +57,12 @@ def _install_fake_comtypes() -> tuple[MagicMock, MagicMock]:
 
 
 class TestComtypesTeardown:
-    """``CoUninitialize`` must run in the ``finally`` whenever"""
+    """COM is entered once per thread and never torn down."""
 
     def test_password_field_blocks_paste_and_still_tears_down_com(self, fake_win32):
         """
-        finally-block ``CoUninitialize`` still runs exactly once.
-        This is the headline teardown contract: the early ``return
+        the early ``return`` must not skip the per-thread COM init, and
+        nothing may uninitialise the apartment afterwards.
         """
         fake_comtypes, _fake_client = _install_fake_comtypes()
         password_field = MagicMock(return_value=True)
@@ -61,7 +77,7 @@ class TestComtypesTeardown:
 
         assert result is False, "password field must block paste"
         fake_comtypes.CoInitialize.assert_called_once_with()
-        fake_comtypes.CoUninitialize.assert_called_once_with()
+        fake_comtypes.CoUninitialize.assert_not_called()
         # Early return means the contentEditable probe never ran.
         content_editable.assert_not_called()
 
@@ -78,7 +94,7 @@ class TestComtypesTeardown:
 
         assert result is True
         fake_comtypes.CoInitialize.assert_called_once_with()
-        fake_comtypes.CoUninitialize.assert_called_once_with()
+        fake_comtypes.CoUninitialize.assert_not_called()
 
     def test_content_editable_probe_raising_still_tears_down_com(self, fake_win32):
         """The contentEditable probe is fail-open (logs, continues) and"""
@@ -96,7 +112,7 @@ class TestComtypesTeardown:
 
         assert result is True, "contentEditable failure must fail open"
         fake_comtypes.CoInitialize.assert_called_once_with()
-        fake_comtypes.CoUninitialize.assert_called_once_with()
+        fake_comtypes.CoUninitialize.assert_not_called()
 
     def test_comtypes_import_error_skips_teardown(self, fake_win32):
         """comtypes unavailable (ImportError) → no CoInitialize, no"""
@@ -110,7 +126,7 @@ class TestComtypesTeardown:
         assert result is True, "no comtypes → heuristic path must still allow paste"
 
     def test_coinitialize_raising_skips_teardown_but_proceeds(self, fake_win32):
-        """tolerated: ``com_initialized`` stays False so the finally does"""
+        """A failing ``CoInitialize`` is tolerated: paste still goes through."""
         fake_comtypes, _fake_client = _install_fake_comtypes()
         fake_comtypes.CoInitialize.side_effect = OSError("COM init failed")
 
@@ -124,6 +140,8 @@ class TestComtypesTeardown:
         assert result is True
         fake_comtypes.CoInitialize.assert_called_once_with()
         fake_comtypes.CoUninitialize.assert_not_called()
+        # The failed init must not be recorded as success: a later call retries.
+        assert not hasattr(_injection._COM_READY, "initialized")
 
 
 class _ComPointerProbe(ctypes.c_void_p):
@@ -155,14 +173,20 @@ class _ComPointerProbe(ctypes.c_void_p):
             self._events.append("release")
 
 
-class TestElementReleasedBeforeComTeardown:
-    """The UIA element must be released *before* ``CoUninitialize()``.
+class TestElementReleasedExactlyOnce:
+    """The UIA element must be released exactly once, and COM must stay up.
 
-    Releasing it afterwards is what crashed the Windows CI workers: comtypes
-    only suppresses ``Release()`` once ``_com_shutting_down`` is set at
-    *atexit*, so a pointer finalised after our own teardown calls ``Release()``
-    on an object the apartment already destroyed — a native access violation
-    that kills the whole pytest worker ("replacing crashed worker gwN").
+    The Windows CI workers used to die with "Windows fatal exception: access
+    violation" inside ``comtypes._compointer_base.__del__ -> Release()`` while
+    pytest dropped a test's captured ``LogRecord``s. A record's ``exc_info``
+    traceback pins the frame that holds the element, so the wrapper is
+    finalised at an arbitrary later point — and if the apartment has been
+    torn down in the meantime, ``Release()`` calls through a dead vtable and
+    takes the whole worker with it.
+
+    Both halves are pinned here: the element is released while COM is up (so
+    the late finaliser is a no-op), and nothing ever calls ``CoUninitialize``
+    (so the apartment is never torn down under a live wrapper).
     """
 
     @staticmethod
@@ -171,7 +195,7 @@ class TestElementReleasedBeforeComTeardown:
         fake_comtypes.CoUninitialize.side_effect = lambda: events.append("couninitialize")
         return fake_comtypes, fake_client
 
-    def test_safe_target_releases_element_before_couninitialize(self, fake_win32):
+    def test_safe_target_releases_element_once(self, fake_win32):
         """Plain path: no password field, no contentEditable."""
         events: list[str] = []
         fake_comtypes, fake_client = self._fake_comtypes(events)
@@ -186,18 +210,18 @@ class TestElementReleasedBeforeComTeardown:
             result = _is_safe_paste_target_impl()
 
         assert result is True
-        assert events == ["release", "couninitialize"], (
-            "the UIA element must be released exactly once, while COM is still "
-            f"initialised; observed order: {events}"
+        assert events == ["release"], (
+            "the UIA element must be released exactly once and the apartment must "
+            f"stay initialised; observed: {events}"
         )
 
-    def test_fail_closed_path_releases_element_before_couninitialize(self, fake_win32, caplog, monkeypatch):
+    def test_fail_closed_path_releases_element_once(self, fake_win32, caplog, monkeypatch):
         """The fail-closed path is the one that crashed CI.
 
         ``exc_info=True`` stores the traceback on the ``LogRecord``, and that
-        traceback pins both this frame and the probe's parameter frame — so
-        merely dropping the local is not enough. The explicit release must
-        happen first anyway.
+        traceback pins this frame — so merely dropping the local is not enough.
+        The explicit release must happen, and it must be the only one: a
+        second ``Release()`` from ``__del__`` is the access violation.
         """
         events: list[str] = []
         fake_comtypes, fake_client = self._fake_comtypes(events)
@@ -217,7 +241,25 @@ class TestElementReleasedBeforeComTeardown:
 
         assert result is False, "a raising password probe must fail closed"
         assert any(record.exc_info for record in caplog.records), "the traceback must be captured on the record"
-        assert events == ["release", "couninitialize"], (
-            "the pinned traceback must not keep the UIA element alive past "
-            f"CoUninitialize(); observed order: {events}"
+        assert events == ["release"], (
+            "the pinned traceback must not cause a second release, and COM must "
+            f"never be uninitialised; observed: {events}"
         )
+
+
+class TestComInitialisedOncePerThread:
+    """``_ensure_com_initialized`` enters the apartment once and stays."""
+
+    def test_second_call_on_same_thread_does_not_reinit(self, fake_win32):
+        fake_comtypes, fake_client = _install_fake_comtypes()
+
+        with (
+            patch.dict(sys.modules, {"comtypes": fake_comtypes, "comtypes.client": fake_client}),
+            patch.object(clip_mod, "_is_password_field", lambda focused, hwnd: False),
+            patch.object(clip_mod, "_is_content_editable", lambda focused: False),
+        ):
+            assert _is_safe_paste_target_impl() is True
+            assert _is_safe_paste_target_impl() is True
+
+        fake_comtypes.CoInitialize.assert_called_once_with()
+        fake_comtypes.CoUninitialize.assert_not_called()

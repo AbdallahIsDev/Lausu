@@ -91,6 +91,7 @@ from .focused_text import (  # noqa: E402,F401
 )
 from .injection import (  # noqa: E402,F401
     UiaUnavailableError,
+    _ensure_com_initialized,
     _get_uia_focused_element,
     _get_uia_singleton,
     _release_uia_pointer,
@@ -139,6 +140,7 @@ __all__ = [
     "_is_elevated_target",
     # UIA infrastructure (injection.py)
     "UiaUnavailableError",
+    "_ensure_com_initialized",
     "_get_uia_focused_element",
     "_get_uia_singleton",
     "_release_uia_pointer",

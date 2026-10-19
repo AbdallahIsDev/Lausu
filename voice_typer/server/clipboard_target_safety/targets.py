@@ -159,12 +159,14 @@ def _is_content_editable(focused: Any = None) -> bool:
     if not _pkg.is_windows():
         return False
     try:
-        import comtypes
+        import comtypes  # noqa: F401  (availability probe; the helper owns init)
 
         # Skip per-call COM init when caller pre-fetched the element.
         owns_com = focused is None
         if owns_com:
-            comtypes.CoInitialize()
+            # Initialise COM once per thread; never tear it down. See
+            # ``_ensure_com_initialized``.
+            _pkg._ensure_com_initialized()
         try:
             if focused is None:
                 focused = _pkg._get_uia_focused_element()
@@ -181,15 +183,10 @@ def _is_content_editable(focused: Any = None) -> bool:
             return False
         finally:
             if owns_com:
-                import contextlib
-
-                # Release the element before ``CoUninitialize()``: comtypes
-                # releases from ``__del__``, which would then run against a
-                # destroyed object. See ``_release_uia_pointer``.
+                # Release the element while the apartment is still up rather
+                # than leaving it to ``__del__``. See ``_release_uia_pointer``.
                 _pkg._release_uia_pointer(focused)
                 focused = None
-                with contextlib.suppress(Exception):
-                    comtypes.CoUninitialize()
     except ImportError:
         return False
     except Exception as exc:
