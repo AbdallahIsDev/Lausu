@@ -665,6 +665,13 @@ class TestGtcrnSharedSession:
         _CountingSession.constructor_calls = 0
 
         assert gtcrn_module.preload() is True
+        # Discard anything the FIRST call logged. Whether that INFO record
+        # is captured at all depends on the worker's effective log level,
+        # which an earlier test can leave at INFO (``logging_setup`` runs in
+        # the same worker) — so relying on "it happened before at_level" made
+        # this assertion order-dependent across CI legs. Clear, then assert
+        # on the second call alone.
+        caplog.clear()
         with caplog.at_level(logging.INFO, logger="voice_typer.server.audio_filters.gtcrn_backend"):
             assert gtcrn_module.preload() is True
         # second call should not emit the warmed INFO again

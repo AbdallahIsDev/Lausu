@@ -48,6 +48,11 @@ class TestMainBannerNamesProcess:
 class TestCudaDllLine:
     def test_line_names_process_purpose_and_duration(self, tmp_path, caplog, monkeypatch):
         monkeypatch.delitem(sys.modules, "voice_typer.worker", raising=False)
+        # The DLL scan is Windows-loader bookkeeping, so ``_configure_locked``
+        # returns early off Windows and the INFO line never exists. Pin the
+        # Windows branch instead of skipping: the scan below is pure
+        # os/site code, so it exercises identically on every CI leg.
+        monkeypatch.setattr(nv, "is_windows", lambda: True)
         pkgroot = tmp_path / "Lib" / "site-packages"
         bindir = pkgroot / "nvidia" / "cublas" / "bin"
         bindir.mkdir(parents=True)

@@ -224,12 +224,33 @@ class TestCancellationGuardUsesLiveness:
 @patch.object(clip_mod, "is_windows", return_value=False)
 @patch.object(clip_mod, "is_macos", return_value=False)
 class TestFingerprintGate:
+    """The fingerprint gate is the subject here, so the two gates that are
+    NOT platform-neutral are stubbed out of the way:
+
+    - ``_check_target_safety`` fails CLOSED on Linux when ``pyatspi`` is
+      absent ("treating the focused field as unsafe", see
+      ``safety._is_safe_paste_target_impl``), which short-circuits the
+      dispatch before the fingerprint gate ever runs. Leaving it live made
+      these tests pass for the wrong reason on Linux and fail on CI.
+    - ``_check_text_field_focus`` is stubbed per test below for the same
+      reason (no focused window exists in a test process).
+    """
+
+    @staticmethod
+    def _safe_target():
+        return patch.object(
+            ClipboardManager,
+            "_check_target_safety",
+            return_value=(True, None),
+        )
+
     def test_mismatch_aborts_before_any_keystroke(self, _macos, _windows, fake_clipboard):
         manager = make_clipboard_manager()
         fake_clipboard.text = "a newer cycle's text"
         keystrokes = fake_clipboard.keystrokes
 
         with (
+            self._safe_target(),
             patch.object(clip_mod, "_Controller", MagicMock()),
             patch.object(clip_mod, "_Key", MagicMock()),
             patch.object(ClipboardManager, "_check_text_field_focus", return_value=(True, None)),
@@ -253,6 +274,7 @@ class TestFingerprintGate:
         keystrokes = fake_clipboard.keystrokes
 
         with (
+            self._safe_target(),
             patch.object(clip_mod, "_Controller", MagicMock()),
             patch.object(clip_mod, "_Key", MagicMock()),
             patch.object(ClipboardManager, "_check_text_field_focus", return_value=(True, None)),
@@ -273,6 +295,7 @@ class TestFingerprintGate:
     def test_unreadable_clipboard_fails_open(self, _macos, _windows, fake_clipboard):
         manager = make_clipboard_manager()
         with (
+            self._safe_target(),
             patch.object(clip_mod, "_paste_from_clipboard", side_effect=OSError("locked")),
             patch.object(clip_mod, "_Controller", MagicMock()),
             patch.object(clip_mod, "_Key", MagicMock()),
