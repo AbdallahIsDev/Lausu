@@ -28,7 +28,7 @@ class _correlation_id:  # noqa: N801, lowercase-by-design context manager
 
     def __init__(self, correlation_id: str) -> None:
         self._correlation_id = correlation_id
-        self._token = None
+        self._token: contextvars.Token[str] | None = None
 
     def __enter__(self) -> _correlation_id:
         if self._correlation_id:

@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+
+from voice_typer.server.cycle_guard import is_cycle_live
+
+if TYPE_CHECKING:
+    from voice_typer.server.dictation_pipeline import DictationPipeline
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +33,7 @@ class PipelineContext:
     cycle_id: str
     audio: Any
     app: Any
-    pipeline: Any
+    pipeline: DictationPipeline
     # Future-proofing: a free-form bag for stages to stash per-cycle
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -156,43 +161,46 @@ class PasteStage:
 
 
 class CancellationGuard:
-    """lock or set is missing (defensive, the attrs always exist on a"""
+    """Refuse a wrapped stage's side effect for a no-longer-live cycle.
 
-    def __init__(self, wrapped: PipelineStage) -> None:
+    ``preserve_on_cancel`` follows the consumer: the paste guard keeps the
+    late text in crash recovery (default ``True``), the store guard must
+    leave no trace at all (``False``).
+    """
+
+    def __init__(self, wrapped: PipelineStage, *, preserve_on_cancel: bool = True) -> None:
         self._wrapped = wrapped
-        # Inherit the wrapped stage's name so the run loop's
+        # Inherit the wrapped stage's name so per-stage timing logs stay unchanged.
         self.name = wrapped.name
         self.timed = True
+        self._preserve_on_cancel = preserve_on_cancel
 
     def run(self, text: str, ctx: PipelineContext) -> str:
         app = ctx.app
         cycle_id = ctx.cycle_id
 
-        _cancelled_set = getattr(app.recording, "_cancelled_cycle_ids", None)
-        _cancelled_lock = getattr(app.recording, "_cancelled_cycle_ids_lock", None)
-        if _cancelled_set is not None and _cancelled_lock is not None:
-            with _cancelled_lock:
-                _is_cancelled = cycle_id in _cancelled_set
-        else:
-            _is_cancelled = False
-
-        if _is_cancelled:
+        if not is_cycle_live(app, cycle_id):
             log.warning(
-                "[DICTATION] skipping paste of late transcription (cycle %s was force-cancelled by watchdog)",
+                "[DICTATION] skipping %s of late transcription (cycle %s is stale or force-cancelled)",
+                self.name,
                 cycle_id,
             )
-            try:
-                # Persist to crash-recovery so the user can review the
-                if hasattr(app, "_crash_recovery") and getattr(app.config, "crash_recovery_enabled", False):
-                    app._crash_recovery.add(text, pasted=False, cycle_id=cycle_id)
-            except Exception:
-                log.debug(
-                    "[DICTATION] crash-recovery write for cancelled cycle failed",
-                    exc_info=True,
-                )
-            # Tear down the bubble + tray state, the watchdog already
-            ctx.pipeline._hide_or_idle_bubble("bubble hide on cancelled cycle")
-            # Skip the wrapped paste stage, the cycle was cancelled.
+            if self._preserve_on_cancel:
+                try:
+                    # Persist to crash-recovery so the user can review the late text.
+                    if hasattr(app, "_crash_recovery") and getattr(app.config, "crash_recovery_enabled", False):
+                        app._crash_recovery.add(text, pasted=False, cycle_id=cycle_id)
+                except Exception:
+                    log.debug(
+                        "[DICTATION] crash-recovery write for cancelled cycle failed",
+                        exc_info=True,
+                    )
+            # A live newer cycle owns the bubble: only tear it down when no
+            # different current cycle id is recorded (see ``is_cycle_live``).
+            current = getattr(app, "_cycle_id", None)
+            if not (isinstance(current, str) and current and current != cycle_id):
+                ctx.pipeline._hide_or_idle_bubble("bubble hide on cancelled cycle")
+            # Skip the wrapped stage, the cycle is no longer live.
             raise _PipelineAbortCancelled()
 
         return self._wrapped.run(text, ctx)
@@ -212,7 +220,8 @@ def build_default_stages() -> list[PipelineStage]:
         PunctuationStage(),
         LLMPolishStage(),
         VocabularyAutomationStage(),
-        StoreResultStage(),
-        # wrap PasteStage in CancellationGuard so the
+        # A cancelled cycle must leave no trace: the store guard writes
+        # nothing, the paste guard keeps its late-text recovery write.
+        CancellationGuard(StoreResultStage(), preserve_on_cancel=False),
         CancellationGuard(PasteStage()),
     ]

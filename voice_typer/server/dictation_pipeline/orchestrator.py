@@ -6,7 +6,7 @@ import contextlib
 import logging
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -24,6 +24,9 @@ from voice_typer.server.dictation_stages import (
 from voice_typer.server.duration import format_duration
 from voice_typer.server.tray_types import AppState
 
+if TYPE_CHECKING:
+    from voice_typer.server.dictation_pipeline import DictationPipeline
+
 log = logging.getLogger(__name__)
 
 
@@ -35,6 +38,10 @@ class _OrchestratorMixin:
 
     # Lazily-built 11-stage template shared across all pipeline
     _SHARED_STAGES: list | None = None
+
+    # Class default matches ``__init__`` so ``__new__``-built pipelines
+    # (tests) still read a str and cycle checks fail open instead of raising.
+    _cycle_id: str = ""
 
     # Step methods owned by ``_TranscribeStepMixin`` and reached via
     _check_resources_throttled: Callable[[], None]
@@ -143,7 +150,8 @@ class _OrchestratorMixin:
                 cycle_id=self._cycle_id,
                 audio=self._audio,
                 app=self._app,
-                pipeline=self,
+                # Mixin self is the composed DictationPipeline at runtime.
+                pipeline=cast("DictationPipeline", self),
             )
             # ``text = ""`` was hoisted to before the try block
             for stage in stages:

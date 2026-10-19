@@ -36,6 +36,7 @@ class _RecoveryIO:
     _path: Path
     _lock: threading.Lock
     _save_lock: threading.Lock
+    _final_save_done: bool
 
     def _load(self) -> None:
         """during ``LausuApp.__init__``. In production,"""
