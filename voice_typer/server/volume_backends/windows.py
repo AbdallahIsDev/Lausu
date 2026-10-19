@@ -50,6 +50,13 @@ class WinVolumeBackend(VolumeBackend):
             from comtypes import CLSCTX_ALL
             from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
+            from voice_typer.server._com import ensure_com_initialized
+
+            # pycaw creates COM objects, and comtypes only initialises the
+            # thread that imported it. Without this the calls below raise
+            # CO_E_NOTINITIALIZED on any worker thread.
+            ensure_com_initialized()
+
             devices = AudioUtilities.GetSpeakers()
             if devices is None:
                 log.warning("[VOLUME-WIN] No speakers endpoint found")
@@ -78,7 +85,7 @@ class WinVolumeBackend(VolumeBackend):
             log.info("[VOLUME-WIN] pycaw not installed, ducking disabled")
             return False
         except Exception as exc:
-            log.warning("[VOLUME-WIN] initialize failed: %s", exc)
+            log.warning("[VOLUME-WIN] initialize failed: %s", str(exc))
             return False
 
     # ``_record_error`` increments the consecutive-failure counter and
@@ -91,7 +98,7 @@ class WinVolumeBackend(VolumeBackend):
                 "— safe-default returned, duck state preserved",
                 context,
                 self._consecutive_errors,
-                exc,
+                str(exc),
             )
 
     def _record_success(self) -> None:
@@ -109,7 +116,7 @@ class WinVolumeBackend(VolumeBackend):
             return VolumeState(linear=scalar, muted=muted)
         except Exception as exc:
             # per-failure DEBUG only; the threshold-based WARNING
-            log.debug("[VOLUME-WIN] get_state failed: %s", exc)
+            log.debug("[VOLUME-WIN] get_state failed: %s", str(exc))
             self._record_error("get_state", exc)
             return None
 
@@ -124,7 +131,7 @@ class WinVolumeBackend(VolumeBackend):
             return True
         except Exception as exc:
             # per-failure DEBUG; threshold WARNING handled by _record_error.
-            log.debug("[VOLUME-WIN] set_linear failed: %s", exc)
+            log.debug("[VOLUME-WIN] set_linear failed: %s", str(exc))
             self._record_error("set_linear", exc)
             return False
 
@@ -139,7 +146,7 @@ class WinVolumeBackend(VolumeBackend):
             self._record_success()
             return active
         except Exception as exc:
-            log.debug("[VOLUME-WIN] is_speaker_active failed: %s", exc)
+            log.debug("[VOLUME-WIN] is_speaker_active failed: %s", str(exc))
             self._record_error("is_speaker_active", exc)
             return True
 
@@ -147,6 +154,11 @@ class WinVolumeBackend(VolumeBackend):
         """Return foreign pycaw ``AudioSession`` objects (excluding own process)."""
         try:
             from pycaw.pycaw import AudioUtilities
+
+            from voice_typer.server._com import ensure_com_initialized
+
+            # The ducker runs on its own worker thread; GetAllSessions is COM.
+            ensure_com_initialized()
 
             # PROC-FILTER-FIX: previously only excluded processes whose
             own_pid = os.getpid()
@@ -173,7 +185,7 @@ class WinVolumeBackend(VolumeBackend):
                 sessions.append(session)
             return sessions
         except Exception as exc:
-            log.debug("[VOLUME-WIN] get_other_sessions failed: %s", exc)
+            log.debug("[VOLUME-WIN] get_other_sessions failed: %s", str(exc))
             return []
 
     def duck_other_sessions(self, level: float) -> bool:
@@ -193,7 +205,7 @@ class WinVolumeBackend(VolumeBackend):
                 vol.SetMasterVolume(level, None)
                 self._sessions.append((vol, original))
             except Exception as exc:
-                log.debug("[VOLUME-WIN] duck session failed: %s", exc)
+                log.debug("[VOLUME-WIN] duck session failed: %s", str(exc))
         return len(self._sessions) > 0
 
     def restore_other_sessions(self) -> bool:
@@ -204,7 +216,7 @@ class WinVolumeBackend(VolumeBackend):
             try:
                 vol.SetMasterVolume(original, None)
             except Exception as exc:
-                log.debug("[VOLUME-WIN] restore session failed: %s", exc)
+                log.debug("[VOLUME-WIN] restore session failed: %s", str(exc))
         self._sessions = []
         return True
 
@@ -237,6 +249,14 @@ class WinMicVolumeBackend(MicVolumeBackend):
             from comtypes import CLSCTX_ALL
             from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
+            from voice_typer.server._com import ensure_com_initialized
+
+            # Same apartment requirement as the render backend: this runs on
+            # the mic-gain guard's worker thread, which comtypes never
+            # initialised. Without it the Activate call below raises
+            # CO_E_NOTINITIALIZED ("CoInitialize has not been called").
+            ensure_com_initialized()
+
             device = AudioUtilities.GetMicrophone()
             if device is None:
                 log.warning("[MIC-VOLUME-WIN] No capture endpoint found")
@@ -251,7 +271,7 @@ class WinMicVolumeBackend(MicVolumeBackend):
             log.info("[MIC-VOLUME-WIN] pycaw not installed, mic guard disabled")
             return False
         except Exception as exc:
-            log.warning("[MIC-VOLUME-WIN] initialize failed: %s", exc)
+            log.warning("[MIC-VOLUME-WIN] initialize failed: %s", str(exc))
             return False
 
     def get_level(self) -> float | None:
@@ -260,7 +280,7 @@ class WinMicVolumeBackend(MicVolumeBackend):
         try:
             return max(0.0, min(1.0, float(self._vol.GetMasterVolumeLevelScalar())))
         except Exception as exc:
-            log.debug("[MIC-VOLUME-WIN] get_level failed: %s", exc)
+            log.debug("[MIC-VOLUME-WIN] get_level failed: %s", str(exc))
             return None
 
     def set_level(self, level: float) -> bool:
@@ -270,5 +290,5 @@ class WinMicVolumeBackend(MicVolumeBackend):
             self._vol.SetMasterVolumeLevelScalar(max(0.0, min(1.0, level)), None)
             return True
         except Exception as exc:
-            log.debug("[MIC-VOLUME-WIN] set_level failed: %s", exc)
+            log.debug("[MIC-VOLUME-WIN] set_level failed: %s", str(exc))
             return False

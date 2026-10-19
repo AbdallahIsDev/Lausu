@@ -783,6 +783,33 @@ class TestWinBackendPycaw:
         assert b.initialize() is True
         assert b._vol is sentinel
 
+    def test_initialize_enters_com_apartment_before_touching_pycaw(self, monkeypatch):
+        """pycaw needs an apartment on the calling thread.
+
+        ``comtypes`` only initialises the thread that imported it, so on the
+        ducker's worker thread ``GetSpeakers`` used to raise
+        ``[WinError -2147221008] CoInitialize has not been called``. The
+        failure was swallowed into a WARNING whose ``COMError`` argument kept
+        the traceback -- and the half-built COM wrapper in it -- alive inside a
+        ``LogRecord``, which is what crashed the Windows CI workers when pytest
+        dropped the records. Pin the ordering, not just the outcome.
+        """
+        from unittest.mock import MagicMock
+
+        events: list[str] = []
+        vol_ptr, _meter, audio_utilities = self._install_fake_pycaw(monkeypatch)
+        audio_utilities.GetSpeakers.side_effect = lambda: events.append("get_speakers") or MagicMock(
+            EndpointVolume=vol_ptr
+        )
+        monkeypatch.setattr(
+            "voice_typer.server._com.ensure_com_initialized",
+            lambda: events.append("ensure_com"),
+        )
+
+        b = WinVolumeBackend()
+        assert b.initialize() is True
+        assert events == ["ensure_com", "get_speakers"], f"COM must be up before pycaw is touched; got {events}"
+
     def test_initialize_returns_false_when_no_speakers(self, monkeypatch):
         """If GetSpeakers() returns None, initialize() returns False."""
         import sys
