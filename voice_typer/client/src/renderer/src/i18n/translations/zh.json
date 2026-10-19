@@ -1658,6 +1658,8 @@
 	"bubble": {
 		"recordingIndicatorAria": "{appName} 录音指示器",
 		"transcribingLabel": "转写中",
+		"stillTranscribingLabel": "仍在转录",
+		"cloudCancelRequestedLabel": "已请求取消",
 		"loadingLabel": "正在加载模型",
 		"idleLabel": "就绪",
 		"blockedLabel": "已屏蔽",
@@ -1989,6 +1991,7 @@
 			"xrun_warning_title": "{appName}",
 			"xrun_warning_body": "检测到音频缓冲区溢出。请尝试更大的缓冲区大小。",
 			"cancelled_timeout": "转录耗时过长，已取消。\n按 {hotkey} 重试。",
+			"cloud_cancel_requested": "已请求取消。\n云服务商可能仍会完成处理；结果将被丢弃。",
 			"start_failed": "无法开始录音。请重试。",
 			"stop_failed": "无法停止录音。",
 			"silence_warning": "未检测到音频。请检查麦克风是否已连接并正常工作。",
@@ -2202,6 +2205,7 @@
 			"cancelled": "已取消",
 			"recovered": "已恢复 | 转录超时",
 			"stillTranscribing": "仍在转录...",
+			"cloudCancelRequested": "已请求取消 | 云服务商可能仍会完成；结果将被丢弃",
 			"awaitingModel": "正在完成模型加载 | 您的录音已保存，稍后会自动转写",
 			"modelLoadRetry": "正在加载模型 | 您的听写将自动开始。",
 			"modelLoading": "正在加载模型..."

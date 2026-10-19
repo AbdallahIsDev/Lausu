@@ -125,6 +125,10 @@ export function trayLabelsForLocale(): Record<string, string> {
 			"state.recording_controller.still_transcribing",
 			"trayState.recordingController.stillTranscribing",
 		],
+		[
+			"state.recording_controller.cloud_cancel_requested",
+			"trayState.recordingController.cloudCancelRequested",
+		],
 		// ── model_manager state messages ──────────────────────────────
 		["state.model_manager.loading", "trayState.modelManager.loading"],
 		[
@@ -192,6 +196,10 @@ export function trayLabelsForLocale(): Record<string, string> {
 		[
 			"notify.recording_controller.cancelled_timeout",
 			"notify.recording_controller.cancelled_timeout",
+		],
+		[
+			"notify.recording_controller.cloud_cancel_requested",
+			"notify.recording_controller.cloud_cancel_requested",
 		],
 		[
 			"notify.recording_controller.start_failed",

@@ -151,3 +151,30 @@ class CloudAsrBackend(CloudEngine):
         is nothing to release.
         """
         return
+
+
+def is_cloud_backend(backend: object) -> bool:
+    """True when ``backend`` is a cloud (network) engine.
+
+    Name check first: test doubles share the class name without sharing
+    the import identity.
+    """
+    if backend is None:
+        return False
+    if type(backend).__name__ == "CloudEngine":
+        return True
+    return isinstance(backend, CloudEngine)
+
+
+def active_engine_is_cloud(app: Any) -> bool:
+    """True when the app's active transcriber is a cloud engine.
+
+    Exception-shielded: a probe failure must never break the caller (the
+    ESC-cancel path calls this mid-flight).
+    """
+    try:
+        models = getattr(app, "models", None)
+        active = models.active_transcriber() if models is not None else None
+    except Exception:
+        return False
+    return is_cloud_backend(active)

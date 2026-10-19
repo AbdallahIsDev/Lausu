@@ -10,25 +10,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from voice_typer.server.cloud_backend import is_cloud_backend
 from voice_typer.server.log_rate_limit import log_rate_limited
 
 log = logging.getLogger(__name__)
-
-
-def _is_cloud_backend(backend: object) -> bool:
-    """True when ``backend`` is a cloud (network) engine.
-
-    Name check first: test doubles share the class name without sharing
-    the import, and the import itself must never block a caller.
-    """
-    if type(backend).__name__ == "CloudEngine":
-        return True
-    try:
-        from voice_typer.server.cloud_engines import CloudEngine
-
-        return isinstance(backend, CloudEngine)
-    except Exception:  # noqa: BLE001, import must never block a caller
-        return False
 
 
 def worker_path_for_backend(backend: object) -> tuple[bool, str]:
@@ -38,7 +23,7 @@ def worker_path_for_backend(backend: object) -> tuple[bool, str]:
     no app (media ingest). Same three legs and reasons as
     :func:`worker_path_available`, single implementation (E7).
     """
-    if _is_cloud_backend(backend):
+    if is_cloud_backend(backend):
         # WHY: cloud audio must never be re-routed to the offline worker.
         log_rate_limited(log, logging.INFO, "[WORKER-PATH] gate off: cloud backend", key="worker-path:cloud")
         return False, "cloud_backend"

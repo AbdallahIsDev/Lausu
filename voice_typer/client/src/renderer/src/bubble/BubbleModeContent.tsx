@@ -9,6 +9,17 @@ import { TranscribingLabel } from "./TranscribingLabel";
 
 const TRANSCRIPT_PREVIEW_MAX_CHARS = 60;
 
+/** Label-only hint swap: cloud-cancel honesty wins over the busy hint. */
+function transcribingLabelKey(
+	stillLabel: boolean | undefined,
+	cloudCancelLabel: boolean | undefined,
+): string {
+	if (cloudCancelLabel) return "bubble.cloudCancelRequestedLabel";
+	return stillLabel
+		? "bubble.stillTranscribingLabel"
+		: "bubble.transcribingLabel";
+}
+
 function truncateTranscript(text: string): string {
 	if (text.length <= TRANSCRIPT_PREVIEW_MAX_CHARS) return text;
 	// Reserve 1 character for the ellipsis.
@@ -18,6 +29,10 @@ function truncateTranscript(text: string): string {
 export interface BubbleModeContentProps {
 	mode: BubbleMode;
 	transcript?: string | null;
+	/** Busy-refusal hint: swaps "Transcribing" → "Still transcribing". */
+	stillLabel?: boolean;
+	/** Cloud-cancel hint: swaps "Transcribing" → "Cancel requested". */
+	cloudCancelLabel?: boolean;
 	showTimer: boolean;
 	dotRefs: RefObject<(HTMLSpanElement | null)[]>;
 	// One-shot screenshot beta: the annotate button renders ONLY in
@@ -31,6 +46,8 @@ export interface BubbleModeContentProps {
 export function BubbleModeContent({
 	mode,
 	transcript,
+	stillLabel,
+	cloudCancelLabel,
 	showTimer,
 	dotRefs,
 	annotateEnabled,
@@ -45,7 +62,9 @@ export function BubbleModeContent({
 					: null;
 			return (
 				<div className="flex h-6 items-center gap-2 text-xs font-medium text-(--text-secondary)">
-					<TranscribingLabel />
+					<TranscribingLabel
+						labelKey={transcribingLabelKey(stillLabel, cloudCancelLabel)}
+					/>
 					{preview && (
 						<output
 							// `<output>` is the semantic element for
@@ -86,7 +105,7 @@ export function BubbleModeContent({
 						transition: `opacity ${FADEOUT_DURATION_MS}ms ease-out, transform ${FADEOUT_DURATION_MS}ms ease-out`,
 					}}
 				>
-					<span>{t("bubble.transcribingLabel")}</span>
+					<span>{t(transcribingLabelKey(stillLabel, cloudCancelLabel))}</span>
 					{preview && (
 						<output
 							aria-label={tf(

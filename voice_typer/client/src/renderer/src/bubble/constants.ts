@@ -129,6 +129,17 @@ export function nextBubbleMode(
 			// in progress).
 			if (prev === "fading") return prev;
 			if (s === "transcribing") return "transcribing";
+			// Busy-refusal feedback: the backend re-pushes this when the
+			// user presses the hotkey during transcription. Label-only
+			// hint — the mode itself stays "transcribing" so every
+			// transcribing-phase behavior (dismiss arming, fade-out,
+			// visualizer gating) keeps applying unchanged.
+			if (s === "still_transcribing") return "transcribing";
+			// Cloud-cancel honesty hint: the aborted provider request may
+			// still finish remotely. Label-only swap, same as the busy hint;
+			// the mode stays "transcribing" so every transcribing-phase
+			// behavior (fade-out, dismiss arming) keeps applying.
+			if (s === "cloud_cancel_requested") return "transcribing";
 			if (s === "loading") return "loading";
 			if (s === "idle") return "idle";
 			if (s === "recording") return "recording";

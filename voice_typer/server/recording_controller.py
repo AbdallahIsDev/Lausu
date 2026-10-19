@@ -202,9 +202,11 @@ class RecordingController:
         """1-line delegator → :meth:`TranscriptionWatchdog.discard_cancelled_cycle_id`."""
         return self._watchdog_helper.discard_cancelled_cycle_id(self, cycle_id)
 
-    def _force_recover_from_stuck_transcription(self, force: bool = False) -> None:
+    def _force_recover_from_stuck_transcription(
+        self, force: bool = False, *, cloud_cancel_requested: bool = False
+    ) -> None:
         """1-line delegator → :meth:`TranscriptionWatchdog.force_recover`."""
-        return self._watchdog_helper.force_recover(self, force=force)
+        return self._watchdog_helper.force_recover(self, force=force, cloud_cancel_requested=cloud_cancel_requested)
 
     def force_recover(self, *, force: bool = False) -> None:
         """Public force-cancel of a stuck transcription."""
