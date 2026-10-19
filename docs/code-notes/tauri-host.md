@@ -280,6 +280,21 @@ because OS-IPC at ~60 Hz mousemove must not pin an async worker.
 Resize clamps to predecessor pill MIN/MAX (cross-host consistency + SEC-016
 phishing-overlay bound).
 
+### Startup placement (who owns it)
+
+The HOST owns the pill's initial geometry. The sidecar pushes
+`bubble_config` (carrying `bubble_position`) on every authenticated WS
+connection, ahead of any `bubble_show`; the WS reader calls
+`apply_bubble_config_edge`, which places the still-hidden window and arms
+the re-anchor edge. Placement that only lived in the main window's
+`get_config` hydration raced every host-initiated show (hidden autostart,
+dev rebuild, slow cold start) and lost, leaving the pill at the OS default
+position (top-left) for the session. `bubble_set_position` remains as the
+renderer's idempotent backstop; a user drag (or `bubble_move_by`) disarms
+the edge so config frames never undo it. Drags stay session-local: the
+config edge is the only persisted placement intent, and `bubble_x` /
+`bubble_y` are cleared at startup.
+
 ## Bubble system-menu kill + drag frame sync
 
 Right-click on the caption drag region summoned the OS system menu even

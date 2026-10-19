@@ -17,6 +17,7 @@ voice_typer/client/src/renderer/dist/
 *.tsbuildinfo
 *.log
 runtime_log*.txt
+pytest-run*.txt
 
 # MSYS2/mingw-w64 GNU linker shim (x86_64-pc-windows-gnu, Windows-without-MSVC
 # hosts). The SOURCE (src-tauri/toolchain/linker_wrap.c) and its generator
