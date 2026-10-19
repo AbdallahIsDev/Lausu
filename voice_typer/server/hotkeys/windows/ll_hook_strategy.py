@@ -189,7 +189,14 @@ def install_low_level_hook(self, callback) -> bool:
             self._hook_proc = None
             return False
         self._hook_handle = handle
-        log.info("[HOTKEY] WH_KEYBOARD_LL hook installed (vk=0x%X)", self._vk)
+        # ``_vk`` is None for a modifier-only hotkey (<alt>, <ctrl>, ...), and
+        # ``%X`` on None raises at *emit* time -- inside this try, which then
+        # undid a hook that had installed fine and reported it as a failure.
+        # Modifier-only specs silently fell back to the polling loop.
+        log.info(
+            "[HOTKEY] WH_KEYBOARD_LL hook installed (vk=%s)",
+            "modifier-only" if self._vk is None else f"0x{self._vk:X}",
+        )
         return True
     except Exception:
         log.exception("[HOTKEY] Failed to install WH_KEYBOARD_LL hook")

@@ -2,6 +2,7 @@
 
 import ctypes
 import ctypes.wintypes
+import logging
 import time
 from unittest.mock import MagicMock, patch
 
@@ -302,6 +303,36 @@ class TestModifierOnlyHotkeys:
             assert backend2._hook_handle is None
         finally:
             backend2.stop()
+
+    def test_modifier_only_hook_installed_log_formats_without_error(self, mock_win32, caplog):
+        """The success log must not ``%X`` a None vk.
+
+        ``self._vk`` is None for a modifier-only spec, and ``%X`` on None
+        raises ``TypeError`` at *emit* time -- inside the ``try`` that wraps
+        the install. The hook had already been installed, but the exception
+        sent control to ``except Exception``, which cleared ``_hook_handle``
+        and logged "Failed to install WH_KEYBOARD_LL hook", so modifier-only
+        hotkeys silently fell back to the polling loop. Ubuntu CI caught it
+        because pytest's capture handler formats eagerly.
+        """
+        _mock_user32, _ = mock_win32
+        from voice_typer.server.hotkeys import WindowsNativeHotkey
+
+        backend = WindowsNativeHotkey("<alt>")
+        try:
+            with caplog.at_level(logging.INFO, logger="voice_typer.server.hotkeys"):
+                backend.start(MagicMock())
+                _wait_until(
+                    lambda: backend._hook_handle is not None,
+                    msg="LL hook handle never installed for modifier-only spec",
+                )
+            installed = [r for r in caplog.records if "hook installed" in r.getMessage()]
+            assert installed, "the install success line must be logged"
+            # Formatting is what raised; a record that survives it is the pin.
+            for record in caplog.records:
+                record.getMessage()
+        finally:
+            backend.stop()
 
     def test_modifier_only_hotkey_skips_register_hotkey(self, mock_win32):
         """RegisterHotKey must NOT be called for modifier-only hotkeys"""
