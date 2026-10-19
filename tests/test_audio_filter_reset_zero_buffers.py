@@ -118,15 +118,31 @@ def test_streaming_resampler_reset_before_process_does_not_crash():
 
 
 def test_streaming_resampler_chunked_matches_oneshot():
-    """Chunked streaming must be bit-identical to one-shot resampling."""
+    """Chunked streaming must match one-shot resampling to float32 precision.
+
+    This is the guard for the phase-carry contract: the resampler must be
+    stateless across a chunk boundary beyond its history tail, so feeding
+    ``a`` then ``b`` has to reconstruct the same output as feeding ``a+b``.
+
+    Exact equality is deliberately not asserted. Each output tap is a
+    float32 ``np.dot``, and BLAS is free to order that reduction by SIMD
+    lane, which depends on the *alignment* of the operand buffer -- the
+    one-shot call slices a longer ``ext`` than the chunked one. Locally the
+    two agree bit-for-bit; on macOS (Accelerate) they differ by ~9e-10,
+    which is float32 noise on a 1.3e-2 signal, not a phase error. A real
+    phase or history bug shifts output by a whole sample and lands at
+    ~1e-2, four orders of magnitude above this tolerance, so the guard
+    keeps its teeth.
+    """
     rng = np.random.default_rng(7)
     a = rng.standard_normal(1411)
     b = rng.standard_normal(1411)
     ref = _StreamingResampler(up=160, down=441).process(np.concatenate([a, b]))
     rs = _StreamingResampler(up=160, down=441)
     streamed = np.concatenate([rs.process(a), rs.process(b)])
-    assert len(ref) == len(streamed)
-    assert np.max(np.abs(ref - streamed)) == 0.0
+    assert len(ref) == len(streamed), "chunking must not change the output length"
+    worst = float(np.max(np.abs(ref - streamed)))
+    assert worst < 1e-6, f"chunked output diverges from one-shot by {worst:.3e}"
 
 
 def test_streaming_resampler_chunk_cost_within_budget():
