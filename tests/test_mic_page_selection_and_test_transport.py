@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import struct
+import time
 import wave
 from pathlib import Path
 from typing import Any, cast
@@ -153,32 +154,50 @@ class TestFinishedCallbackIdentityGuard:
 
         assert _device_lost(captured) == []
 
-    def test_genuine_finish_of_current_stream_still_emits(self, monitor_env):
-        """A REAL unplug finishes the CURRENT active stream → one event."""
+    def test_genuine_finish_of_current_stream_still_emits(self, monitor_env, monkeypatch):
+        """A REAL unplug finishes the CURRENT active stream → one event (retry-first, absent device = fast banner)."""
         import voice_typer.server.level_monitor as lm
+        import voice_typer.server.level_monitor.monitoring as mon
 
         captured = monitor_env["captured"]
+        monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
+        monkeypatch.setattr(mon, "_monitor_device_present", lambda mic_id: False)
         assert lm.start_monitoring(mic_id=None)["success"]
         cb = _current_finished_cb()
 
         cb()
 
+        deadline = time.perf_counter() + 5.0
+        while time.perf_counter() < deadline:
+            if _device_lost(captured) and lm.is_monitoring() is False:
+                break
+            time.sleep(0.01)
         events = _device_lost(captured)
         assert len(events) == 1
         assert events[0]["data"]["source"] == "stream_finished"
         assert lm.is_monitoring() is False
+        lm.stop_monitoring()
 
-    def test_guard_is_idempotent_per_episode(self, monitor_env):
+    def test_guard_is_idempotent_per_episode(self, monitor_env, monkeypatch):
+        """Double fire within one episode still yields exactly one device_lost (retry-first path)."""
         import voice_typer.server.level_monitor as lm
+        import voice_typer.server.level_monitor.monitoring as mon
         from voice_typer.server.level_monitor._state import _state
 
         captured = monitor_env["captured"]
+        monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
+        monkeypatch.setattr(mon, "_monitor_device_present", lambda mic_id: False)
         assert lm.start_monitoring(mic_id=None)["success"]
         cb = _current_finished_cb()
         cb()
         cb()  # double fire within the same episode
+
+        deadline = time.perf_counter() + 5.0
+        while time.perf_counter() < deadline and not _device_lost(captured):
+            time.sleep(0.01)
         assert len(_device_lost(captured)) == 1
         assert _state._device_lost_emitted is True
+        lm.stop_monitoring()
 
 
 def _tiny_wav_bytes(sample_rate=16000, seconds=0.05) -> bytes:

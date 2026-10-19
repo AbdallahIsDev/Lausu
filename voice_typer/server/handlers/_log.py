@@ -17,7 +17,7 @@ logger name. Mixins import ``log`` from here::
     from voice_typer.server.handlers._log import log
 
 The consolidation is COMPLETE: 0 handler mixins declare
-``log = logging.getLogger(...)`` inline. 10 handler modules plus the
+``log = logging.getLogger(...)`` inline. 11 handler modules plus the
 shared base class import ``log`` from this module:
 
 - ``_base.py`` (the HandlerBase base class, uses ``log`` in
@@ -28,6 +28,7 @@ shared base class import ``log`` from this module:
 - ``model_handlers.py``
 - ``onboarding_handlers.py``
 - ``privacy_handlers.py``
+- ``screenshot_handlers.py``
 - ``status_handlers.py``
 - ``system_handlers.py``
 - ``system_permissions_handlers.py``

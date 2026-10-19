@@ -2695,6 +2695,10 @@ fn test_expected_topic_colours_are_pinned() {
         ("KILL-TREE", "38;5;103"),
         ("WS-WRITER", "38;5;110"),
         ("HEARTBEAT", "38;5;110"),
+        ("GTCRN", "38;5;69"),
+        ("MIC-GUARD", "38;5;215"),
+        ("WS-READER", "38;5;110"),
+        ("dispatch", "38;5;110"),
     ] {
         assert_eq!(topic_color_for(topic), Some(color), "topic {topic}");
     }

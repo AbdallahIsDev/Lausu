@@ -95,6 +95,10 @@ EXPECTED_COMMANDS: frozenset[str] = frozenset(
         "microphone_test_get_level",
         "level_monitor_start",
         "level_monitor_stop",
+        # ADR-0020 §16 addendum (2026-10-17, Listen-Live filtered preview):
+        # the renderer-callable stream toggle; frames arrive as
+        # ``live_preview_audio`` push events from the level monitor's chain.
+        "live_preview",
         # REMOVED: ``level_monitor_status``, the renderer subscribes
         "download_model",
         "cancel_model_download",
@@ -134,7 +138,7 @@ EXPECTED_COMMANDS: frozenset[str] = frozenset(
         "set_output_volume",
     }
 )
-assert len(EXPECTED_COMMANDS) == 77, (
+assert len(EXPECTED_COMMANDS) == 78, (
     "ADR-0020 §2 freezes the command table. 69 = post-cleanup baseline "
     "after ZR-45 + the Tauri/Rust allowlist narrowing (+ ``onboarding_set_backend``, "
     "§16 addendum 2026-08-06; + ``reset_macos_accessibility``, "
@@ -172,7 +176,8 @@ assert len(EXPECTED_COMMANDS) == 77, (
     "``reset_linux_permissions``, ``check_accessibility``; + 3 "
     "``media_transcribe_start`` / ``media_transcribe_cancel`` / "
     "``media_transcribe_status`` §16 addendum 2026-09-24 (ADR-0023 universal "
-    "media-to-text). Update this "
+    "media-to-text); + ``live_preview`` §16 addendum 2026-10-17 "
+    "(Listen-Live filtered preview stream). Update this "
     "set + the ADR addendum together "
     "(§16). Note: ``relaunch_ack`` and ``tray_click`` are tracked "
     "separately in KNOWN_UNDOCUMENTED_COMMANDS, not here."
