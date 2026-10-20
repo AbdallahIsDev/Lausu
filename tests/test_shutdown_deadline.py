@@ -78,6 +78,34 @@ def controller(fake_app):
     return ctrl
 
 
+def _install_spent_budget_clock(monkeypatch, controller) -> None:
+    """Fake ``time.monotonic`` so the 20s shutdown budget is already spent.
+
+    The fake is keyed on the deadline the controller *publishes*
+    (``_shutdown_deadline`` stays ``None`` until ``do_cleanup`` computes
+    it), NOT on a call count. ``monkeypatch.setattr(_sc.time, ...)``
+    patches the shared stdlib ``time`` module, so every thread in the
+    process sees the fake — and ``threading.Event.wait`` /
+    ``Condition.wait`` call ``time.monotonic`` internally, as does the
+    concurrently-running clipboard-restore worker. A "first call returns
+    the real clock" fake therefore loses its one real reading to whichever
+    background thread asks first, the controller then computes a fresh
+    20s budget, and no teardown is ever skipped.
+    """
+    import voice_typer.server.shutdown_controller as _sc
+
+    _base = time.monotonic()
+    # Explicit: the gate below must start closed.
+    controller._shutdown_deadline = None
+
+    def _fake_monotonic() -> float:
+        if controller._shutdown_deadline is None:
+            return _base
+        return _base + 25.0
+
+    monkeypatch.setattr(_sc.time, "monotonic", _fake_monotonic)
+
+
 class TestOverallDeadline:
     """remaining budget drops below 5s, non-critical teardowns are SKIPPED"""
 
@@ -112,18 +140,7 @@ class TestOverallDeadline:
         for attr_name, desc in all_teardowns:
             setattr(controller, attr_name, MagicMock(side_effect=_make_spy(desc)))
 
-        import voice_typer.server.shutdown_controller as _sc
-
-        _real_monotonic = time.monotonic
-        _first_call = [True]
-
-        def _fake_monotonic():
-            if _first_call[0]:
-                _first_call[0] = False
-                return _real_monotonic()
-            return _real_monotonic() + 25.0
-
-        monkeypatch.setattr(_sc.time, "monotonic", _fake_monotonic)
+        _install_spent_budget_clock(monkeypatch, controller)
 
         controller._do_cleanup()
 
@@ -227,19 +244,9 @@ class TestOverallDeadline:
         ]:
             setattr(controller, name, MagicMock())
 
-        # Mock time.monotonic so deadline is near after first call.
-        import voice_typer.server.shutdown_controller as _sc
-
-        _real_monotonic = time.monotonic
-        _first_call = [True]
-
-        def _fake_monotonic():
-            if _first_call[0]:
-                _first_call[0] = False
-                return _real_monotonic()
-            return _real_monotonic() + 25.0
-
-        monkeypatch.setattr(_sc.time, "monotonic", _fake_monotonic)
+        # Mock time.monotonic so the budget is already spent by the time
+        # the plan is built.
+        _install_spent_budget_clock(monkeypatch, controller)
 
         with caplog.at_level("WARNING", logger="voice_typer.server.shutdown_controller"):
             controller._do_cleanup()
