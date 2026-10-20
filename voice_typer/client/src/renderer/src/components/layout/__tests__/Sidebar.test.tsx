@@ -33,6 +33,7 @@ vi.mock("@/hooks/usePluginCatalog", () => ({
 
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAppStore } from "@/stores/appStore";
 
 // Sidebar renders real Radix Tooltips (via HotkeyTooltip on the nav
 // items), which REQUIRE a TooltipProvider ancestor, the app shell
@@ -66,12 +67,41 @@ describe("Sidebar", () => {
 
 	afterEach(() => {
 		cleanup();
+		useAppStore.setState({ config: null });
 	});
 
 	const baseProps = {
 		currentPage: "home" as const,
 		onNavigate: vi.fn(),
 	};
+
+	it("shows the active model directly above the CPU/GPU switch (both hidden when collapsed)", () => {
+		useAppStore.setState({
+			config: {
+				asr_backend: "whisper",
+				model_size: "large-v3",
+				device: "cuda",
+				gpu_available: true,
+			} as never,
+		});
+		const { rerender } = renderWithProviders(<Sidebar {...baseProps} />);
+
+		const model = screen.getByTestId("sidebar-active-model");
+		const deviceSwitch = screen.getByRole("radiogroup", {
+			name: "Compute device",
+		});
+		expect(
+			model.compareDocumentPosition(deviceSwitch) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+
+		rerender(
+			<TooltipProvider delayDuration={200} skipDelayDuration={500}>
+				<Sidebar {...baseProps} collapsed />
+			</TooltipProvider>,
+		);
+		expect(screen.queryByTestId("sidebar-active-model")).toBeNull();
+	});
 
 	//active nav item visual hierarchy ───────────────────────
 

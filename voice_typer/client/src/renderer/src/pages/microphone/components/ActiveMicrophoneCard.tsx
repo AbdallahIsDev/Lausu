@@ -4,7 +4,7 @@
 // LevelBar, the start/stop test buttons (with the recording dot +
 // countdown on their trailing edge while a test runs) in one standard
 // card, then the TestReviewPanel (post-test transcription, quality +
-// playback) and the PresetAccordionSelector as sibling cards.
+// playback) and the PresetAccordionSelector quality section as siblings.
 // This is the primary interactive surface of the Microphone page.
 // Pure presentational component, all state and handlers are passed in
 // from the page (which wires them from ``useMicrophoneData`` /
@@ -58,10 +58,11 @@ export interface ActiveMicrophoneCardProps {
 	testTranscription?: string | null;
 	/** True when no speech model is loaded, so no transcription can exist. */
 	testTranscriptionUnavailable?: boolean;
+	/** True while the microphone-quality chain is active (audio_preset !== "off"). */
+	enhancementActive: boolean;
 	/** Whether enhanced OR original playback is in flight. */
 	playing: boolean;
 	playingOriginal: boolean;
-	showAdvanced: boolean;
 	config: LausuConfig | null;
 	customPresets: CustomMicPreset[];
 	activeCustomPresetId: string | null;
@@ -79,7 +80,6 @@ export interface ActiveMicrophoneCardProps {
 	onPlayEnhanced: () => void;
 	onPlayOriginal: () => void;
 	onStopPlayback: () => void;
-	onToggleAdvanced: () => void;
 	onPresetChange: (preset: AudioPreset) => void;
 	onConfigChange: (updates: Partial<LausuConfig>) => void;
 }
@@ -99,9 +99,9 @@ export function ActiveMicrophoneCard({
 	testQuality,
 	testTranscription,
 	testTranscriptionUnavailable,
+	enhancementActive,
 	playing,
 	playingOriginal,
-	showAdvanced,
 	config,
 	customPresets,
 	activeCustomPresetId,
@@ -118,7 +118,6 @@ export function ActiveMicrophoneCard({
 	onPlayEnhanced,
 	onPlayOriginal,
 	onStopPlayback,
-	onToggleAdvanced,
 	onPresetChange,
 	onConfigChange,
 }: ActiveMicrophoneCardProps) {
@@ -241,6 +240,7 @@ export function ActiveMicrophoneCard({
 				quality={testQuality}
 				transcription={testTranscription}
 				transcriptionUnavailable={testTranscriptionUnavailable}
+				enhancementActive={enhancementActive}
 				testAudioBase64={testAudioBase64}
 				rawAudioBase64={rawAudioBase64}
 				playing={playing}
@@ -254,9 +254,7 @@ export function ActiveMicrophoneCard({
 				<MemoizedPresetAccordionSelector
 					preset={(config.audio_preset as AudioPreset) ?? "auto"}
 					config={config}
-					showAdvanced={showAdvanced}
 					onPresetChange={onPresetChange}
-					onToggleAdvanced={onToggleAdvanced}
 					onConfigChange={onConfigChange}
 					customPresets={customPresets}
 					activeCustomPresetId={activeCustomPresetId}
@@ -286,7 +284,6 @@ const MemoizedPresetAccordionSelector = memo(
 	(prev, next) =>
 		prev.preset === next.preset &&
 		prev.config === next.config &&
-		prev.showAdvanced === next.showAdvanced &&
 		prev.onConfigChange === next.onConfigChange &&
 		prev.onPresetChange === next.onPresetChange &&
 		prev.customPresets === next.customPresets &&
@@ -303,6 +300,7 @@ const MemoizedTestReviewPanel = memo(
 		prev.quality === next.quality &&
 		prev.transcription === next.transcription &&
 		prev.transcriptionUnavailable === next.transcriptionUnavailable &&
+		prev.enhancementActive === next.enhancementActive &&
 		prev.testAudioBase64 === next.testAudioBase64 &&
 		prev.rawAudioBase64 === next.rawAudioBase64 &&
 		prev.playing === next.playing &&

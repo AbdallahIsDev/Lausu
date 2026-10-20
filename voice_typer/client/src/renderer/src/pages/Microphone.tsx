@@ -98,7 +98,6 @@ export default function MicrophonePage() {
 		testTranscriptionUnavailable,
 		level,
 		micMonitoring,
-		showAdvanced,
 		playingEnhanced,
 		playingOriginal,
 		startTest: rawStartTest,
@@ -108,7 +107,6 @@ export default function MicrophonePage() {
 		stopPlayback,
 		handlePresetChange,
 		handleConfigChange,
-		setShowAdvanced,
 	} = useMicrophoneTest({
 		config,
 		microphones,
@@ -328,9 +326,9 @@ export default function MicrophonePage() {
 						testQuality={testQuality}
 						testTranscription={testTranscription}
 						testTranscriptionUnavailable={testTranscriptionUnavailable}
+						enhancementActive={config?.audio_preset !== "off"}
 						playing={playingEnhanced || playingOriginal}
 						playingOriginal={playingOriginal}
-						showAdvanced={showAdvanced}
 						config={config}
 						customPresets={customs}
 						activeCustomPresetId={activeCustomPresetId}
@@ -351,7 +349,6 @@ export default function MicrophonePage() {
 							rawAudioBase64 ? playAudio(rawAudioBase64, false) : undefined
 						}
 						onStopPlayback={stopPlayback}
-						onToggleAdvanced={() => setShowAdvanced((v) => !v)}
 						onPresetChange={handlePresetChange}
 						onConfigChange={handleConfigChange}
 					/>

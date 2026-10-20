@@ -244,6 +244,7 @@ describe("TestReviewPanel quality block is announced to AT", () => {
 				quality={qualityWithIssues}
 				transcription="test transcription"
 				transcriptionUnavailable={false}
+				enhancementActive={true}
 				testAudioBase64="AAAA"
 				rawAudioBase64={null}
 				playing={false}
@@ -309,6 +310,7 @@ describe("TestReviewPanel test-transcription display", () => {
 				quality={null}
 				transcription="hello world"
 				transcriptionUnavailable={false}
+				enhancementActive={true}
 				testAudioBase64="AAAA"
 				rawAudioBase64={null}
 				playing={false}
@@ -332,6 +334,7 @@ describe("TestReviewPanel test-transcription display", () => {
 				quality={null}
 				transcription={null}
 				transcriptionUnavailable={true}
+				enhancementActive={true}
 				testAudioBase64="AAAA"
 				rawAudioBase64={null}
 				playing={false}
@@ -355,6 +358,7 @@ describe("TestReviewPanel test-transcription display", () => {
 				quality={null}
 				transcription={longTranscription}
 				transcriptionUnavailable={false}
+				enhancementActive={true}
 				testAudioBase64="AAAA"
 				rawAudioBase64={null}
 				playing={false}
@@ -378,6 +382,7 @@ describe("TestReviewPanel test-transcription display", () => {
 				quality={null}
 				transcription={null}
 				transcriptionUnavailable={false}
+				enhancementActive={true}
 				testAudioBase64="AAAA"
 				rawAudioBase64={null}
 				playing={false}
@@ -464,9 +469,7 @@ describe("PresetAccordionSelector memoizes getPresetOptions() to a single call p
 			<PresetAccordionSelector
 				preset="auto"
 				config={minimalConfig}
-				showAdvanced={true}
 				onPresetChange={() => {}}
-				onToggleAdvanced={() => {}}
 				onConfigChange={() => {}}
 			/>,
 		);
@@ -489,9 +492,7 @@ describe("PresetAccordionSelector memoizes getPresetOptions() to a single call p
 			<PresetAccordionSelector
 				preset="auto"
 				config={minimalConfig}
-				showAdvanced={true}
 				onPresetChange={() => {}}
-				onToggleAdvanced={() => {}}
 				onConfigChange={() => {}}
 			/>,
 		);
@@ -508,9 +509,7 @@ describe("PresetAccordionSelector memoizes getPresetOptions() to a single call p
 			<PresetAccordionSelector
 				preset="studio"
 				config={minimalConfig}
-				showAdvanced={true}
 				onPresetChange={() => {}}
-				onToggleAdvanced={() => {}}
 				onConfigChange={() => {}}
 			/>,
 		);
@@ -521,43 +520,39 @@ describe("PresetAccordionSelector memoizes getPresetOptions() to a single call p
 		expect(callsAfterRerender).toBe(1);
 	});
 
-	it("shows the current selection in the collapsed header and toggles via the enable-Switch", () => {
+	it("renders a flat header with no chip or disclosure, and restores the stashed preset", () => {
 		const handlePresetChange = vi.fn();
 		const { rerender } = render(
 			<PresetAccordionSelector
 				preset="studio"
 				config={minimalConfig}
-				showAdvanced={false}
 				onPresetChange={handlePresetChange}
-				onToggleAdvanced={() => {}}
 				onConfigChange={() => {}}
 			/>,
 		);
 
-		// Collapsed header shows the section label + CURRENT selection.
 		expect(screen.getByText("Microphone Quality")).toBeTruthy();
-		expect(screen.getByTestId("mic-preset-current").textContent).toBe("Studio");
+		// The old compact header affordances are gone: no value chip, no
+		// accordion trigger, no second reveal step.
+		expect(screen.queryByTestId("mic-preset-current")).toBeNull();
+		expect(screen.queryByRole("button", { expanded: false })).toBeNull();
+		expect(screen.getByTestId("mic-preset-radio-group")).toBeTruthy();
+		expect(
+			screen.getByRole("radio", { name: "Studio", checked: true }),
+		).toBeTruthy();
 
-		// Expand, then flip the enable-Switch off: "off" lives ONLY
-		// behind the Switch, there is no OFF radio anymore.
-		fireEvent.click(screen.getByRole("button", { expanded: false }));
-		expect(screen.queryByTestId("mic-preset-radio-group")).toBeTruthy();
+		// "off" lives ONLY behind the Switch, there is no OFF radio.
 		fireEvent.click(screen.getByTestId("mic-quality-switch"));
 		expect(handlePresetChange).toHaveBeenCalledWith("off");
 
-		// After the prop flips, the collapsed label follows and the
-		// radios unmount (revealed only while enabled).
 		rerender(
 			<PresetAccordionSelector
 				preset="off"
 				config={minimalConfig}
-				showAdvanced={false}
 				onPresetChange={handlePresetChange}
-				onToggleAdvanced={() => {}}
 				onConfigChange={() => {}}
 			/>,
 		);
-		expect(screen.getByTestId("mic-preset-current").textContent).toBe("OFF");
 		expect(screen.queryByTestId("mic-preset-radio-group")).toBeNull();
 
 		// Flipping the Switch back on restores the stashed preset.
@@ -565,85 +560,54 @@ describe("PresetAccordionSelector memoizes getPresetOptions() to a single call p
 		expect(handlePresetChange).toHaveBeenCalledWith("studio");
 	});
 
-	it("reveals the Custom-filters disclosure only under the custom preset", () => {
-		let showAdvanced = false;
-		const handleToggleAdvanced = () => {
-			showAdvanced = !showAdvanced;
-		};
+	it("reveals the filter chain inline under Advanced with no disclosure step", () => {
 		const { rerender } = render(
 			<PresetAccordionSelector
 				preset="auto"
 				config={minimalConfig}
-				showAdvanced={showAdvanced}
 				onPresetChange={() => {}}
-				onToggleAdvanced={handleToggleAdvanced}
 				onConfigChange={() => {}}
 			/>,
 		);
 
-		fireEvent.click(screen.getByRole("button", { expanded: false }));
-
-		// Not custom → no Custom-filters toggle, no filter chain.
+		// Not Advanced → no chain and no intermediate disclosure control.
 		expect(screen.queryByText("Custom filters")).toBeNull();
-
-		rerender(
-			<PresetAccordionSelector
-				preset="custom"
-				config={minimalConfig}
-				showAdvanced={showAdvanced}
-				onPresetChange={() => {}}
-				onToggleAdvanced={handleToggleAdvanced}
-				onConfigChange={() => {}}
-			/>,
-		);
-
-		expect(screen.getByText("Custom filters")).toBeTruthy();
 		expect(
 			document.querySelector('[data-testid="audio-filter-chain"]'),
 		).toBeFalsy();
 
-		// Progressive disclosure: the toggle reveals the filter chain.
-		fireEvent.click(screen.getByText("Custom filters"));
 		rerender(
 			<PresetAccordionSelector
 				preset="custom"
 				config={minimalConfig}
-				showAdvanced={showAdvanced}
 				onPresetChange={() => {}}
-				onToggleAdvanced={handleToggleAdvanced}
 				onConfigChange={() => {}}
 			/>,
 		);
+
+		// Advanced selected → the chain is already open (no second click).
 		expect(
 			document.querySelector('[data-testid="audio-filter-chain"]'),
 		).toBeTruthy();
+		expect(screen.queryByText("Custom filters")).toBeNull();
 	});
 
-	it("keeps the option rows and the Custom-filters pill on one 16px rail", () => {
+	it("keeps one horizontal inset on the section, never a second one on the list", () => {
 		render(
 			<PresetAccordionSelector
 				preset="custom"
 				config={minimalConfig}
-				showAdvanced={false}
 				onPresetChange={() => {}}
-				onToggleAdvanced={() => {}}
 				onConfigChange={() => {}}
 			/>,
 		);
-		fireEvent.click(screen.getByRole("button", { expanded: false }));
 
-		// Exactly one inset on the options container (C-MIC-15): px-2 here
-		// plus each row's own p-2 lands the labels on the same 16px rail as
-		// the switch row above and every filter row below. A px-4 here
-		// double-insets them to 24px, which is the drift this pins.
+		// The section owns the 16px inset; rows are pills inside it, so the
+		// list itself must not add horizontal padding of its own.
 		const group = screen.getByTestId("mic-preset-radio-group");
-		expect(group.className).toContain("px-2");
+		expect(group.className).not.toContain("px-2");
 		expect(group.className).not.toContain("px-4");
-
-		// The bordered disclosure pill is inset by the same 16px, instead of
-		// running flush into the card's own borders (a cramped double line).
-		const pill = screen.getByText("Custom filters").closest("button");
-		expect(pill?.parentElement?.className).toContain("px-4");
+		expect(group.closest("section")?.className).toContain("p-4");
 	});
 });
 
@@ -654,8 +618,6 @@ describe("PresetAccordionSelector memoizes getPresetOptions() to a single call p
 describe("PresetAccordionSelector descriptions live behind InfoTooltip triggers", () => {
 	const baseProps = {
 		config: minimalConfig,
-		showAdvanced: false,
-		onToggleAdvanced: () => {},
 		onConfigChange: () => {},
 	};
 
@@ -667,8 +629,6 @@ describe("PresetAccordionSelector descriptions live behind InfoTooltip triggers"
 				onPresetChange={() => {}}
 			/>,
 		);
-
-		fireEvent.click(screen.getByRole("button", { expanded: false }));
 
 		expect(
 			screen.queryByText(
@@ -691,21 +651,17 @@ describe("PresetAccordionSelector descriptions live behind InfoTooltip triggers"
 			/>,
 		);
 
-		fireEvent.click(screen.getByRole("button", { expanded: false }));
-
-		// 4 option triggers (role=button) + the header trigger, which is
-		// the INLINE span variant (it lives inside the AccordionTrigger
-		// button, where a nested button would be invalid DOM), asserted
-		// via its aria-label, not a role.
+		// 4 built-in option triggers + the section trigger, all real
+		// buttons in the flat list (no wrapping accordion trigger exists
+		// anymore, so the inline-span workaround is gone too).
 		const infoTriggers = screen.getAllByRole("button", {
 			name: /^More info about/,
 		});
-		expect(infoTriggers.length).toBe(4);
+		expect(infoTriggers.length).toBe(5);
 		const headerTrigger = screen.getByLabelText(
 			"More info about Microphone Quality",
 		);
-		expect(headerTrigger.tagName).toBe("SPAN");
-		expect(headerTrigger.getAttribute("tabindex")).toBe("0");
+		expect(headerTrigger.tagName).toBe("BUTTON");
 		expect(screen.getByLabelText("More info about Studio")).toBeTruthy();
 	});
 
@@ -718,8 +674,6 @@ describe("PresetAccordionSelector descriptions live behind InfoTooltip triggers"
 				onPresetChange={handlePresetChange}
 			/>,
 		);
-
-		fireEvent.click(screen.getByRole("button", { expanded: false }));
 
 		// The Switch flips enablement only: on → "off" (stashing
 		// "auto"), it never selects a radio preset.

@@ -41,6 +41,24 @@ def _mixin(app) -> MicrophoneTestMixin:
     return mixin
 
 
+class _ContractOnlyEngine:
+    """Ready backend shaped like the worker proxies: contract method only.
+
+    ``transcribe_with_fallback`` is the one method ``AsrBackend``
+    guarantees; a backend is not required to expose ``transcribe``.
+    """
+
+    is_loaded = True
+
+    def __init__(self, text: str) -> None:
+        self._text = text
+        self.received: list = []
+
+    def transcribe_with_fallback(self, audio, *args, **kwargs) -> str:
+        self.received.append(audio)
+        return self._text
+
+
 class TestMicTestDegradation:
     def test_no_engine_loaded_marks_transcription_unavailable(self, monkeypatch, tmp_path):
         """Engine absent → marker set so the UI can explain the gap."""
@@ -75,7 +93,11 @@ class TestMicTestDegradation:
         assert result["transcription_reason"] == "no_engine_loaded"
 
     def test_loaded_engine_transcribes_without_marker(self, monkeypatch, tmp_path):
-        """Engine loaded → transcription present, no degradation marker."""
+        """Engine loaded → transcription present, no degradation marker.
+
+        The engine exposes only ``transcribe`` (legacy duck-typed backend),
+        so this pins the compatibility branch of the gate.
+        """
         from voice_typer.server import level_monitor
 
         monkeypatch.setattr(
@@ -83,9 +105,7 @@ class TestMicTestDegradation:
             "stop_test_recording",
             lambda: _tiny_wav_result(tmp_path),
         )
-        engine = MagicMock()
-        engine.is_loaded = True
-        engine.transcribe.return_value = "hello world"
+        engine = SimpleNamespace(is_loaded=True, transcribe=lambda _audio: "hello world")
         app = SimpleNamespace(models=SimpleNamespace(active_transcriber=lambda: engine))
         result = _mixin(app).microphone_test_stop()
         assert result["transcription"] == "hello world"
@@ -119,6 +139,41 @@ class TestMicTestDegradation:
         app = SimpleNamespace(models=SimpleNamespace(active_transcriber=lambda: engine))
         result = _mixin(app).microphone_test_stop()
         assert result["transcription"] == "worker mic"
+        assert "transcription_unavailable" not in result
+
+    def test_contract_only_backend_transcribes(self, monkeypatch, tmp_path):
+        """A ready backend exposing only ``transcribe_with_fallback`` yields text.
+
+        The gate used to call ``transcribe``, which worker proxies do not
+        define, so a ready model silently reported no transcription.
+        """
+        from voice_typer.server import level_monitor
+
+        monkeypatch.setattr(
+            level_monitor,
+            "stop_test_recording",
+            lambda: _tiny_wav_result(tmp_path),
+        )
+        engine = _ContractOnlyEngine("ready model text")
+        app = SimpleNamespace(models=SimpleNamespace(active_transcriber=lambda: engine))
+        result = _mixin(app).microphone_test_stop()
+        assert result["transcription"] == "ready model text"
+        assert "transcription_unavailable" not in result
+        assert engine.received, "engine must receive the decoded test audio"
+
+    def test_loaded_backend_without_speech_reports_no_text(self, monkeypatch, tmp_path):
+        """Empty engine output IS no speech, not an unavailable-model marker."""
+        from voice_typer.server import level_monitor
+
+        monkeypatch.setattr(
+            level_monitor,
+            "stop_test_recording",
+            lambda: _tiny_wav_result(tmp_path),
+        )
+        engine = _ContractOnlyEngine("   ")
+        app = SimpleNamespace(models=SimpleNamespace(active_transcriber=lambda: engine))
+        result = _mixin(app).microphone_test_stop()
+        assert "transcription" not in result
         assert "transcription_unavailable" not in result
 
     def test_no_recording_audio_skips_marker(self, monkeypatch):

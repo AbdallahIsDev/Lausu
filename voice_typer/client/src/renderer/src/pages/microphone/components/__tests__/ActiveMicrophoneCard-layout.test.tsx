@@ -78,9 +78,9 @@ const baseProps: ActiveMicrophoneCardProps = {
 	testQuality: null,
 	testTranscription: null,
 	testTranscriptionUnavailable: false,
+	enhancementActive: true,
 	playing: false,
 	playingOriginal: false,
-	showAdvanced: false,
 	config: makeConfig({}),
 	customPresets: [],
 	activeCustomPresetId: null,
@@ -97,7 +97,6 @@ const baseProps: ActiveMicrophoneCardProps = {
 	onPlayEnhanced: noop,
 	onPlayOriginal: noop,
 	onStopPlayback: noop,
-	onToggleAdvanced: noop,
 	onPresetChange: noop,
 	onConfigChange: noop,
 };
@@ -226,6 +225,34 @@ describe("ActiveMicrophoneCard, test result expansion", () => {
 		await waitFor(() =>
 			expect(screen.queryByTestId("audio-quality-value")).toBeNull(),
 		);
+	});
+
+	it("updates the playback buttons when the quality chain is toggled (memo comparator)", () => {
+		const withAudio = {
+			...completedResultProps,
+			testAudioBase64: "AAAA",
+			rawAudioBase64: "BBBB",
+		};
+		const { rerender } = renderCard({
+			...withAudio,
+			enhancementActive: false,
+		});
+
+		expect(screen.queryByText(/^Play Enhanced$/i)).toBeNull();
+		expect(screen.getByText(/^Play Original$/i)).toBeInTheDocument();
+
+		rerender(
+			<TooltipProvider delayDuration={200}>
+				<ActiveMicrophoneCard
+					{...baseProps}
+					{...withAudio}
+					enhancementActive={true}
+				/>
+			</TooltipProvider>,
+		);
+
+		expect(screen.getByText(/^Play Enhanced$/i)).toBeInTheDocument();
+		expect(screen.getByText(/^Play Original$/i)).toBeInTheDocument();
 	});
 });
 

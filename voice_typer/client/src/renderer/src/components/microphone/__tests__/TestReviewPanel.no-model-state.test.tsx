@@ -68,6 +68,7 @@ function renderNoModelPanel() {
 			quality={qualityData}
 			transcription={null}
 			transcriptionUnavailable={true}
+			enhancementActive={true}
 			testAudioBase64="AAAA"
 			rawAudioBase64={null}
 			playing={false}
@@ -104,6 +105,7 @@ describe("TestReviewPanel without transcription renders translated text (never a
 				quality={qualityData}
 				transcription={null}
 				transcriptionUnavailable={false}
+				enhancementActive={true}
 				testAudioBase64="AAAA"
 				rawAudioBase64={null}
 				playing={false}
@@ -138,6 +140,7 @@ describe("TestReviewPanel without transcription renders translated text (never a
 				quality={{ ...qualityData, speech_quality: 0 }}
 				transcription={null}
 				transcriptionUnavailable={true}
+				enhancementActive={true}
 				testAudioBase64="AAAA"
 				rawAudioBase64={null}
 				playing={false}
@@ -158,6 +161,7 @@ describe("TestReviewPanel without transcription renders translated text (never a
 				quality={{ ...qualityData, estimated_transcription_quality: 72 }}
 				transcription="hello world"
 				transcriptionUnavailable={false}
+				enhancementActive={true}
 				testAudioBase64="AAAA"
 				rawAudioBase64={null}
 				playing={false}
@@ -223,6 +227,7 @@ describe("TestReviewPanel fetch-failure verdict fallback (playback missing, verd
 				quality={{ ...qualityData, estimated_transcription_quality: 64 }}
 				transcription="hello world"
 				transcriptionUnavailable={false}
+				enhancementActive={true}
 				testAudioBase64={null}
 				rawAudioBase64={null}
 				playing={false}
@@ -249,6 +254,7 @@ describe("TestReviewPanel fetch-failure verdict fallback (playback missing, verd
 				quality={{ ...qualityData, estimated_transcription_quality: 64 }}
 				transcription={null}
 				transcriptionUnavailable={false}
+				enhancementActive={true}
 				testAudioBase64={null}
 				rawAudioBase64={null}
 				playing={false}
@@ -277,6 +283,7 @@ describe("TestReviewPanel fetch-failure verdict fallback (playback missing, verd
 				quality={null}
 				transcription={null}
 				transcriptionUnavailable={false}
+				enhancementActive={true}
 				testAudioBase64={null}
 				rawAudioBase64={null}
 				playing={false}
@@ -300,6 +307,7 @@ describe("TestReviewPanel fetch-failure verdict fallback (playback missing, verd
 				quality={{ ...qualityData, estimated_transcription_quality: 100 }}
 				transcription={null}
 				transcriptionUnavailable={false}
+				enhancementActive={true}
 				testAudioBase64="AAA="
 				rawAudioBase64="AAA="
 				playing={false}
@@ -333,6 +341,7 @@ describe("TestReviewPanel unknown-issue fallback contract (no recommendation, no
 				quality={{ ...qualityData, detected_issues: [rawIssue] }}
 				transcription={null}
 				transcriptionUnavailable={false}
+				enhancementActive={true}
 				testAudioBase64="AAAA"
 				rawAudioBase64={null}
 				playing={false}
