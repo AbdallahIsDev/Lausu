@@ -14,7 +14,7 @@ SAMPLE_RATE = 16000
 def _isolated_state_and_recordings(tmp_path, monkeypatch):
     """Reset level-monitor state and scope the WAV transport per test."""
     import voice_typer.server.level_monitor as lm
-    from voice_typer.server.level_monitor import test_recording as _tr
+    from voice_typer.server.level_monitor import test_recording as _tr, test_recording_quality as _tq
 
     lm._reset_state_for_tests()
     recordings = tmp_path / "mic-test-recordings"
@@ -24,6 +24,14 @@ def _isolated_state_and_recordings(tmp_path, monkeypatch):
         return recordings
 
     monkeypatch.setattr(_tr, "_test_recordings_dir", _isolated_dir)
+    # These cases pin the energy fallback; VAD scoring has its own module.
+    monkeypatch.setattr(
+        _tq,
+        "analyze_speech",
+        lambda audio, sample_rate: _tq.SpeechAnalysis(
+            False, 0.0, 0.0, 0.0, 0.0, False
+        ),
+    )
     yield
     lm._reset_state_for_tests()
 

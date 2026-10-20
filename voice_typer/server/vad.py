@@ -40,11 +40,15 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from voice_typer.server._audio_constants import WHISPER_SAMPLE_RATE
 from voice_typer.server._lazy_import import lazy_module
 from voice_typer.server.duration import format_duration
 from voice_typer.server.log_rate_limit import log_rate_limited
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 np = lazy_module("numpy")
 
@@ -218,26 +222,35 @@ def _reflect_pad_to(chunk: np.ndarray, expected: int) -> np.ndarray:
     return np.concatenate([chunk, reflect], dtype=out_dtype)
 
 
-def _run_one_inference(audio_1d: np.ndarray, sr: int) -> float:
-    """Run one ORT forward pass and thread the hidden state + context."""
-    global _state, _context
+def _infer_window(
+    audio_1d: NDArray[Any],
+    sr: int,
+    state: NDArray[Any] | None,
+    context: NDArray[Any] | None,
+) -> tuple[float, NDArray[Any], NDArray[Any]]:
+    """Run one ORT forward pass with caller-owned streaming state."""
     # ``_load_model`` sets these names before returning a non-None
     assert _input_name is not None
     assert _state_name is not None
     context_size = _CONTEXT_SAMPLES.get(sr, 64)
-    if _context is None or _context.shape[0] != context_size:
+    if (
+        context is None
+        or context.shape[0] != context_size
+        or state is None
+        or state.shape != _VAD_STATE_SHAPE
+    ):
         # First call after load/reset, or a sample-rate switch: restart the
         # stream with a zero context and a clean LSTM state (a state threaded
         # across rates is garbage), matching the official wrappers.
-        _context = np.zeros(context_size, dtype=np.float32)
-        _state = np.zeros(_VAD_STATE_SHAPE, dtype=np.float32)
+        context = np.zeros(context_size, dtype=np.float32)
+        state = np.zeros(_VAD_STATE_SHAPE, dtype=np.float32)
     window = np.asarray(audio_1d, dtype=np.float32)
     # Silero streaming contract: input = context + window (576/288 samples),
     # batch dim of 1.
-    audio_batched = np.concatenate([_context, window]).reshape(1, -1)
+    audio_batched = np.concatenate([context, window]).reshape(1, -1)
     feed: dict[str, np.ndarray] = {
         _input_name: audio_batched,
-        _state_name: _state,
+        _state_name: state,
     }
     if _sr_name is not None:
         feed[_sr_name] = np.array(sr, dtype=np.int64)
@@ -246,9 +259,57 @@ def _run_one_inference(audio_1d: np.ndarray, sr: int) -> float:
     prob = float(np.asarray(out[0]).reshape(-1)[0])
     # Thread the new hidden state + trailing context forward, the two
     # critical steps for a stateless ORT session.
-    _state = np.asarray(out[1], dtype=np.float32)
-    _context = audio_batched[0, -context_size:].copy()
+    new_state = np.asarray(out[1], dtype=np.float32)
+    new_context = audio_batched[0, -context_size:].copy()
+    return prob, new_state, new_context
+
+
+def _run_one_inference(audio_1d: np.ndarray, sr: int) -> float:
+    """Run one ORT forward pass and thread the module streaming state."""
+    global _state, _context
+    prob, _state, _context = _infer_window(audio_1d, sr, _state, _context)
     return prob
+
+
+def compute_speech_probabilities(
+    audio_chunk: NDArray[Any],
+    sample_rate: int = WHISPER_SAMPLE_RATE,
+) -> list[float] | None:
+    """Return one VAD probability per 512/256-sample window, offline.
+
+    Uses a local LSTM state and rolling context so a completed mic-test
+    recording never disturbs the live dictation stream. Returns ``None``
+    when the model is unavailable.
+    """
+    session, _names = _load_model()
+    if session is None:
+        return None
+    if sample_rate not in _EXPECTED_SAMPLES:
+        raise ValueError(f"Silero VAD does not support {sample_rate} Hz")
+
+    try:
+        audio = np.asarray(audio_chunk, dtype=np.float32).reshape(-1)
+        if audio.size == 0:
+            return []
+
+        expected = _EXPECTED_SAMPLES[sample_rate]
+        window_count = max(1, -(-audio.size // expected))
+        probs: list[float] = []
+        state = np.zeros(_VAD_STATE_SHAPE, dtype=np.float32)
+        context: NDArray[Any] | None = None
+        for index in range(window_count):
+            start = index * expected
+            window = audio[start : start + expected]
+            if window.size < expected:
+                window = _reflect_pad_to(window, expected)
+            prob, state, context = _infer_window(
+                window, sample_rate, state, context
+            )
+            probs.append(prob)
+        return probs
+    except Exception as exc:
+        log.debug("[VAD] Offline inference failed: %s", exc)
+        return None
 
 
 def compute_vad_prob(audio_chunk: np.ndarray, sample_rate: int = WHISPER_SAMPLE_RATE) -> float | None:
