@@ -71,6 +71,16 @@ class SubprocessHotkeyBackend(_SpawnMixin, _ReaderMixin, _WatchdogMixin, _Matchi
         self._held_modifiers: set[str] = set()
         self._fn_down: bool = False
         self._main_key_down: bool = False
+        # Non-modifier keys currently held: per-key tracking keeps one fire
+        # per press-release cycle and lets an unrelated key edge in the
+        # middle of a chord neither swallow nor duplicate the release.
+        self._held_keys: set[str] = set()
+        # Roles whose press completed the spec and whose release has not
+        # fired yet: one fire per press-release cycle, whatever the order
+        # the keys come up in.
+        self._armed_roles: set[str] = set()
+        # macOS Caps Lock release synthesis timer (see _matching.py).
+        self._caps_release_timer: threading.Timer | None = None
         self._match_lock = threading.Lock()
         # VERSION reporter: the binary's reported wire-protocol version (set by
         self._binary_version: str | None = None
@@ -209,6 +219,8 @@ class SubprocessHotkeyBackend(_SpawnMixin, _ReaderMixin, _WatchdogMixin, _Matchi
         self._stop_event.clear()
         self._ready_event.clear()
         self._failed = False
+        with self._match_lock:
+            self._armed_roles.clear()
 
         # Spawn the binary
         self._spawn_process()
@@ -233,6 +245,9 @@ class SubprocessHotkeyBackend(_SpawnMixin, _ReaderMixin, _WatchdogMixin, _Matchi
 
     def stop(self, *, shutdown: bool = True) -> None:
         """Stop the binary cleanly."""
+        self._cancel_caps_release_synthesis()
+        with self._match_lock:
+            self._armed_roles.clear()
         if shutdown:
             # latch BEFORE the idempotency guard so a concurrent
             self._shutdown_requested = True

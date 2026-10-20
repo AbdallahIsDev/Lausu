@@ -504,3 +504,82 @@ class TestCapsLockNotAModifier:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestReservedMatchingIsFormatAndAliasAgnostic:
+    """The picker writes pynput-style specs (``<alt>+space``) while the
+    reserved tables are canonical (``<alt>+<space>``), and ``<win>``,
+    ``<super>`` and ``<cmd>`` are three names for one physical key that
+    every listener maps to the same wire name. Both must resolve to the
+    same rejection, otherwise an OS-reserved shortcut reaches the native
+    listener from the config file or a hand-edited spec.
+    """
+
+    def test_universal_reserved_matches_pynput_style_spelling(self) -> None:
+        for spelling in ("<alt>+space", "<alt>+<space>", "<ALT>+SPACE"):
+            assert _validate_hotkey(spelling) is not None, spelling
+
+    def test_platform_reserved_matches_pynput_style_spelling(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(sys, "platform", "linux")
+        for spelling in ("<super>+l", "<super>+<l>"):
+            assert _validate_hotkey(spelling) is not None, spelling
+        monkeypatch.setattr(sys, "platform", "darwin")
+        for spelling in ("<cmd>+space", "<cmd>+<space>"):
+            assert _validate_hotkey(spelling) is not None, spelling
+
+    def test_shell_key_spellings_hit_the_same_table_rows(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(sys, "platform", "win32")
+        assert _validate_hotkey("<cmd>+<m>") is not None  # Win+M
+        monkeypatch.setattr(sys, "platform", "linux")
+        assert _validate_hotkey("<cmd>+<l>") is not None  # Super+L locks
+        monkeypatch.setattr(sys, "platform", "darwin")
+        assert _validate_hotkey("<win>+<e>") is not None  # Cmd+E
+
+    def test_bare_modifier_only_shell_key_stays_blocked(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(sys, "platform", "linux")
+        assert _validate_hotkey("<super>") is not None
+        assert _validate_hotkey("<win>") is not None
+        # The left/right variant of a NON-shell modifier stays assignable
+        # (the native listener swallows it, so it cannot open a shell UI).
+        assert _validate_hotkey("<alt_l>") is None
+        assert _validate_hotkey("<ctrl_l>") is None
+
+    def test_esc_is_the_app_cancel_key_and_never_a_trigger(self) -> None:
+        result = _validate_hotkey("<esc>")
+        assert result is not None
+        assert "reserved" in result.lower(), result
+
+    def test_ctrl_alt_delete_is_windows_secure_attention_only(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(sys, "platform", "win32")
+        for spelling in ("<ctrl>+<alt>+<delete>", "<ctrl>+<alt>+<del>"):
+            assert _validate_hotkey(spelling) is not None, spelling
+        monkeypatch.setattr(sys, "platform", "linux")
+        assert _validate_hotkey("<ctrl>+<alt>+<delete>") is None
+
+    def test_modifier_order_matches_the_renderer_rule(self) -> None:
+        assert _validate_hotkey("<ctrl>+v+<alt>") is not None
+        assert _validate_hotkey("<ctrl>+<alt>+v") is None
+
+    def test_assignable_combos_are_not_caught_by_the_normalisation(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        for platform in ("win32", "linux", "darwin"):
+            monkeypatch.setattr(sys, "platform", platform)
+            for hotkey in (
+                "<alt>+q",
+                "<ctrl>+<alt>+v",
+                "<f9>",
+                "<caps_lock>",
+                "<alt>",
+                "<num_0>",
+                "<ctrl>+<f5>",
+            ):
+                assert _validate_hotkey(hotkey) is None, f"{hotkey} on {platform}"

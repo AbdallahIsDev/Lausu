@@ -27,6 +27,27 @@ function _isModifier(p: string): boolean {
 	return _MODIFIER_KEYS_SET.has(p);
 }
 
+// ``<win>``, ``<super>`` and ``<cmd>`` are three names for one physical
+// shell key: the native listeners map all three to a single wire name, so
+// ``<cmd>+<m>`` really is Win+M on Windows and ``<win>+<e>`` is Cmd+E on
+// macOS. Reserved lookups collapse them, or the "wrong platform" spelling
+// slips past the table.
+const _SHELL_MODIFIER_KEYS = new Set([
+	"win",
+	"win_l",
+	"win_r",
+	"super",
+	"super_l",
+	"super_r",
+	"cmd",
+	"cmd_l",
+	"cmd_r",
+]);
+
+function _isShellModifier(p: string): boolean {
+	return _SHELL_MODIFIER_KEYS.has(p);
+}
+
 const _MESSAGE_SPECIAL_LABELS: Readonly<Record<string, string>> = {
 	ctrl: "Ctrl",
 	ctrl_l: "Ctrl",
@@ -113,7 +134,18 @@ export function isReserved(hotkey: string, platform: string): boolean {
 	// despite being OS-reserved. Normalizing both sides makes the
 	// comparison bracket-agnostic.
 	const normalized = normalizeHotkey(hotkey);
-	return reserved.some((r) => normalizeHotkey(r) === normalized);
+	// Bare modifiers keep their own spelling (``<cmd_l>`` alone is a
+	// deliberate modifier-only trigger); combos collapse the three shell
+	// spellings into one key, matching the backend's _normalize_spec.
+	const canonical = (value: string): string => {
+		const parts = normalizeHotkey(value).split("+");
+		if (parts.length < 2) return value === "" ? "" : parts.join("+");
+		return parts
+			.map((part) => (_SHELL_MODIFIER_KEYS.has(part) ? "shell" : part))
+			.join("+");
+	};
+	const normalizedReserved = reserved.map(canonical);
+	return normalizedReserved.includes(canonical(normalized));
 }
 
 export function normalizeHotkey(hotkey: string): string {
@@ -218,9 +250,10 @@ export function validateHotkey(
 	// blanket block now applies only on Windows (where the Win key is
 	// heavily reserved by the OS shell). On Linux, Super combos are
 	// checked against the per-platform reserved list (Super+L, Super+D,
-	// Super+Tab), all other Super combos are allowed.
-	const hasWin = parts.some((p) => p === "win" || p === "super");
-	if (hasWin && platform === "win32") {
+	// Super+Tab), all other Super combos are allowed. Every spelling of
+	// the shell key counts, the listeners map them to one wire name.
+	const hasShell = parts.some((p) => _isShellModifier(p));
+	if (hasShell && platform === "win32") {
 		//include the conflicting combo.
 		const label = _formatForMessage(hotkey);
 		return {
@@ -230,10 +263,7 @@ export function validateHotkey(
 	}
 
 	// 7. Cmd+<letter> block (macOS).
-	const hasCmd = parts.some(
-		(p) => p === "cmd" || p === "cmd_l" || p === "cmd_r",
-	);
-	if (hasCmd && platform === "darwin" && parts.length > 1) {
+	if (hasShell && platform === "darwin" && parts.length > 1) {
 		for (const nm of nonMods) {
 			if (nm.length === 1 && /^[a-z]$/.test(nm)) {
 				return {

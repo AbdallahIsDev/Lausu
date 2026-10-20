@@ -107,6 +107,9 @@ class HotkeyPoolMixin:
         try:
             shared_native.add_extra_matcher(role, spec)
             shared_native.set_role_callback(role, callback)
+            # Every hotkey action fires on release, including pooled
+            # roles, so the matcher defers its callback to key-up.
+            shared_native.set_role_toggle_on_keyup(role, True)
             # Mark the aux backend as delegated so its start() skips
             aux_native = self._native_of(aux_backend)
             if aux_native is not None:
@@ -150,12 +153,17 @@ class HotkeyPoolMixin:
             try:
                 shared_native.add_extra_matcher("esc", self._esc_spec)
                 shared_native.set_role_callback("esc", self._esc_callback)
+                # Fresh matcher on a fresh backend: release firing must be
+                # re-enabled or the role would silently fall back to
+                # firing on key-down.
+                shared_native.set_role_toggle_on_keyup("esc", True)
             except Exception:
                 log.debug("[HOTKEY] Failed to re-pool ESC after shared-backend swap", exc_info=True)
         if self._repaste_spec is not None and self._repaste_callback is not None:
             try:
                 shared_native.add_extra_matcher("repaste", self._repaste_spec)
                 shared_native.set_role_callback("repaste", self._repaste_callback)
+                shared_native.set_role_toggle_on_keyup("repaste", True)
             except Exception:
                 log.debug("[HOTKEY] Failed to re-pool repaste after shared-backend swap", exc_info=True)
 
