@@ -229,24 +229,22 @@ class RecordingLifecycle(
         # instead of losing the first words. See _start_dictation_worker_entry.
 
         log.info("[DICTATION] Starting recording... (cycle=%s)", app._cycle_id)
+        # INSTANT-FEEDBACK: surface tray + bubble + start cue BEFORE the
+        # blocking recorder.start() so a cold PortAudio open never delays
+        # the visible/audible ack. Teardown on failure hides them again.
+        self._publish_instant_start_feedback(controller, app)
         try:
             self._wire_recorder_start_callbacks(controller, app)
 
             app.recorder.start()
             self._notify_mic_watcher_of_active_device(app)
-            app.tray.set_state(AppState.RECORDING, i18n.t("state.recording_controller.recording"))
-            # Show the floating bubble once we know the stream is open,
-            # unless the user hid it entirely ("hidden" behavior).
-            if getattr(app.config, "bubble_behavior", "show_on_record") != "hidden":
-                app._waveform_bubble.show()
-                app._waveform_bubble.set_state("recording")
             # System-volume ducking moved OFF this thread: it now runs at
             log.info("[DICTATION] Recording started OK (cycle=%s)", app._cycle_id)
             self._claim_keyboard_ownership_for_recording(app)
             self._rearm_esc_cancel_if_enabled(app)
-            self._publish_recording_started_event()
             self._spawn_dictation_start_worker(controller, app)
         except Exception as e:
+            self._hide_instant_start_feedback(app)
             log.exception("[DICTATION] Failed to start recording: %s", e)
             self._teardown_failed_recorder_start(
                 controller,
@@ -255,6 +253,35 @@ class RecordingLifecycle(
                 discard_log_label="start-failure teardown",
             )
             self._publish_start_failure_notification(app, e)
+
+    def _publish_instant_start_feedback(self, controller, app) -> None:
+        """Show tray + bubble recording state before recorder.start()."""
+        try:
+            app.tray.set_state(AppState.RECORDING, i18n.t("state.recording_controller.recording"))
+        except Exception:
+            log.debug("[DICTATION] instant tray feedback failed", exc_info=True)
+        try:
+            # Show the floating bubble once we know the stream is open,
+            # unless the user hid it entirely ("hidden" behavior).
+            if getattr(app.config, "bubble_behavior", "show_on_record") != "hidden":
+                app._waveform_bubble.show()
+                app._waveform_bubble.set_state("recording")
+        except Exception:
+            log.debug("[DICTATION] instant bubble feedback failed", exc_info=True)
+        try:
+            self._publish_recording_started_event()
+        except Exception:
+            log.debug("[DICTATION] instant sound feedback failed", exc_info=True)
+
+    def _hide_instant_start_feedback(self, app) -> None:
+        """Hide the optimistic start UI after a failed recorder.start()."""
+        try:
+            if getattr(app.config, "bubble_behavior", "show_on_record") == "always_visible":
+                app._waveform_bubble.set_state("idle")
+            else:
+                app._waveform_bubble.hide()
+        except Exception:
+            log.debug("[DICTATION] instant bubble rollback failed", exc_info=True)
 
     def _start_dictation_worker_entry(
         self,
