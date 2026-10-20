@@ -238,7 +238,7 @@ describe("History date-grouped list", () => {
 		expect(headingRow?.querySelector("h1")).not.toBeNull();
 		expect(headingRow?.className).toContain("justify-between");
 
-		// Page rhythm: the root keeps gap-6 between the heading and the
+		// Page rhythm: the root keeps gap-4 between the heading and the
 		// controls block, and the block itself uses gap-4 between the
 		// controls and the list card. The indicator is NOT inside that
 		// block any more.
@@ -251,7 +251,7 @@ describe("History date-grouped list", () => {
 			block?.querySelector('[data-testid="last-updated-indicator"]'),
 		).toBeNull();
 		const root = block?.parentElement;
-		expect(root?.className).toContain("gap-6");
+		expect(root?.className).toContain("gap-4");
 		expect(root?.querySelector("h1")).not.toBeNull();
 	});
 });

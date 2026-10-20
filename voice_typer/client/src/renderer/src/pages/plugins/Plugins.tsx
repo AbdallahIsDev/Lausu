@@ -32,7 +32,7 @@ export default function PluginsPage() {
 	if (loading) return <PluginsSkeleton />;
 	if (loadError) {
 		return (
-			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 				<PageHeading
 					title={t("plugins.title")}
 					description={t("plugins.description")}
@@ -50,7 +50,7 @@ export default function PluginsPage() {
 	}
 
 	return (
-		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 			<PageHeading
 				title={t("plugins.title")}
 				description={t("plugins.description")}

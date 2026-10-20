@@ -204,7 +204,7 @@ export default function ModelsPage() {
 				// with no `mx-auto max-w-4xl` and no `px-16` stretched it
 				// edge-to-edge across the pane, so the 8% border touched the
 				// window chrome and the measure ignored the page's column.
-				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-6 px-16 pt-20 pb-6">
+				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-4 px-16 pt-20 pb-6">
 					<EmptyState
 						variant="error"
 						icon={AlertCircleIcon}
@@ -222,7 +222,7 @@ export default function ModelsPage() {
 	}
 	return (
 		<>
-			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 				<PageHeading
 					title={t("models.asrTitle")}
 					description={t("models.asrSubtitle")}
@@ -354,11 +354,11 @@ export default function ModelsPage() {
 				    leaving the old markup would have produced.
 				    A `<section>` with an accessible name IS `role="region"`,
 				    so the native element carries the role for free. */}
-				<div className="flex flex-col gap-6">
+				<div className="flex flex-col gap-4">
 					{activeTab === "local" ? (
 						<section
 							aria-label={t("models.localModels")}
-							className="flex flex-col gap-6 scroll-mt-32"
+							className="flex flex-col gap-4 scroll-mt-32"
 						>
 							<LocalModelsPanel
 								modelFamilies={modelFamilies}
@@ -391,7 +391,7 @@ export default function ModelsPage() {
 					) : (
 						<section
 							aria-label={t("models.cloudModels")}
-							className="flex flex-col gap-6 scroll-mt-32"
+							className="flex flex-col gap-4 scroll-mt-32"
 						>
 							<CloudProvidersPanel
 								config={lifecycle.config}

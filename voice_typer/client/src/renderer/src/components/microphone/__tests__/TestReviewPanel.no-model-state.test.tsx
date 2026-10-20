@@ -75,27 +75,49 @@ function renderNoModelPanel() {
 			onPlayEnhanced={() => {}}
 			onPlayOriginal={() => {}}
 			onStop={() => {}}
-			onRetest={() => {}}
 		/>,
 	);
 }
 
-describe("TestReviewPanel no-model state renders translated text (never a raw key)", () => {
+describe("TestReviewPanel without transcription renders translated text (never a raw key)", () => {
 	afterEach(() => {
 		cleanup();
 	});
 
-	it("renders the localized not-applicable value for the estimated-quality row", () => {
+	it("renders Speech Quality but hides Estimated Transcription Quality", () => {
 		renderNoModelPanel();
 
-		// The not-applicable value must be the en.json VALUE for the
-		// microphoneTest.qualityFeedback.qualityNotApplicable key
-		// ("N/A: transcription unavailable"), translated, not the key.
 		expect(
-			screen.getByText(
-				enText("microphoneTest.qualityFeedback.qualityNotApplicable"),
-			),
+			screen.getByText(enText("microphoneTest.audioQuality")),
 		).toBeTruthy();
+		expect(screen.getByTestId("audio-quality-value").textContent).toBe("88%");
+		expect(
+			screen.queryByText(enText("microphoneTest.estimatedQuality")),
+		).toBeNull();
+		expect(screen.queryByTestId("estimated-quality-value")).toBeNull();
+	});
+
+	it("hides the estimated row for an empty transcription without a model", () => {
+		render(
+			<TestReviewPanel
+				durationMs={5000}
+				quality={qualityData}
+				transcription={null}
+				transcriptionUnavailable={false}
+				testAudioBase64="AAAA"
+				rawAudioBase64={null}
+				playing={false}
+				playingOriginal={false}
+				onPlayEnhanced={() => {}}
+				onPlayOriginal={() => {}}
+				onStop={() => {}}
+			/>,
+		);
+
+		expect(
+			screen.queryByText(enText("microphoneTest.estimatedQuality")),
+		).toBeNull();
+		expect(screen.getByTestId("audio-quality-value")).toBeTruthy();
 	});
 
 	it("never renders the raw translation key anywhere in the panel", () => {
@@ -106,8 +128,27 @@ describe("TestReviewPanel no-model state renders translated text (never a raw ke
 		// key (dot-separated, camelCase) leaks into the visible text.
 		const panelText = document.body.textContent ?? "";
 		expect(panelText).not.toContain("microphoneTest.qualityNotApplicable");
-		expect(panelText).not.toContain("qualityFeedback.qualityNotApplicable");
 		expect(panelText).not.toMatch(/\bmicrophoneTest\.[a-zA-Z.]+\b/);
+	});
+
+	it("shows the backend speech score instead of the capture heuristic", () => {
+		render(
+			<TestReviewPanel
+				durationMs={5000}
+				quality={{ ...qualityData, speech_quality: 0 }}
+				transcription={null}
+				transcriptionUnavailable={true}
+				testAudioBase64="AAAA"
+				rawAudioBase64={null}
+				playing={false}
+				playingOriginal={false}
+				onPlayEnhanced={() => {}}
+				onPlayOriginal={() => {}}
+				onStop={() => {}}
+			/>,
+		);
+
+		expect(screen.getByTestId("audio-quality-value").textContent).toBe("0%");
 	});
 
 	it("still renders the numeric quality score when a model IS available", () => {
@@ -124,18 +165,13 @@ describe("TestReviewPanel no-model state renders translated text (never a raw ke
 				onPlayEnhanced={() => {}}
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
-				onRetest={() => {}}
 			/>,
 		);
 
-		// With a model available the row shows the computed percentage —
-		// the not-applicable branch must not swallow the numeric path.
-		expect(screen.getByText("72%")).toBeTruthy();
-		expect(
-			screen.queryByText(
-				enText("microphoneTest.qualityFeedback.qualityNotApplicable"),
-			),
-		).toBeNull();
+		expect(screen.getByTestId("estimated-quality-value").textContent).toBe(
+			"72%",
+		);
+		expect(screen.getByTestId("audio-quality-value").textContent).toBe("88%");
 	});
 });
 
@@ -144,33 +180,30 @@ describe("TestReviewPanel result-card redesign (declutter)", () => {
 		cleanup();
 	});
 
-	it("uses the standard card surface, not the legacy primary tint", () => {
+	it("uses the standard subtle surface as a divider section, not the legacy primary tint", () => {
 		renderNoModelPanel();
 
-		// The card root is the standard design-system surface
-		// (rounded-lg + card border + subtle bg). The legacy
-		// primary-tinted surface (border-primary/20 bg-primary/5)
-		// must not return. Anchor on the surface class rather than a
-		// spacing utility: the card is rendered as a child of the
-		// parent's `flex flex-col gap-3` stack, which owns inter-child
-		// spacing, so the root itself carries no margin.
-		const card = screen
+		// The panel is a section of the parent card now, separated by a
+		// top divider, so it carries the standard subtle surface but no
+		// own rounded border. The legacy primary-tinted surface
+		// (border-primary/20 bg-primary/5) must not return.
+		const panel = screen
 			.getByText(enText("microphoneTest.title"))
-			.closest("div.rounded-lg");
-		expect(card).toBeTruthy();
-		expect(card?.className).toContain("rounded-lg");
-		expect(card?.className).toContain("bg-surface-subtle");
-		expect(card?.className).not.toContain("bg-primary/5");
-		expect(card?.className).not.toContain("border-primary/20");
+			.closest("div.bg-surface-subtle");
+		expect(panel).toBeTruthy();
+		expect(panel?.className).toContain("border-t");
+		expect(panel?.className).toContain("border-border/8");
+		expect(panel?.className).not.toContain("rounded-lg");
+		expect(panel?.className).not.toContain("bg-primary/5");
+		expect(panel?.className).not.toContain("border-primary/20");
 	});
 
 	it("does not render the redundant per-metric grid", () => {
 		renderNoModelPanel();
 
 		// Every non-good metric state already surfaces as a detected
-		// issue with a recommendation, so the Volume / Noise /
-		// Clipping / Voice grid duplicated the issues list. Assert
-		// none of its labels render.
+		// issue, so the Volume / Noise / Clipping / Voice grid
+		// duplicated the issues list. Assert none of its labels render.
 		const panelText = document.body.textContent ?? "";
 		expect(panelText).not.toContain(enText("microphoneTest.volume"));
 		expect(panelText).not.toContain(enText("microphoneTest.backgroundNoise"));
@@ -197,12 +230,13 @@ describe("TestReviewPanel fetch-failure verdict fallback (playback missing, verd
 				onPlayEnhanced={() => {}}
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
-				onRetest={() => {}}
 			/>,
 		);
 
 		expect(screen.getByText(enText("microphoneTest.title"))).toBeTruthy();
-		expect(screen.getByText("64%")).toBeTruthy();
+		expect(screen.getByTestId("estimated-quality-value").textContent).toBe(
+			"64%",
+		);
 		expect(screen.getByTestId("test-transcription").textContent).toBe(
 			"hello world",
 		);
@@ -222,7 +256,6 @@ describe("TestReviewPanel fetch-failure verdict fallback (playback missing, verd
 				onPlayEnhanced={() => {}}
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
-				onRetest={() => {}}
 			/>,
 		);
 
@@ -232,12 +265,12 @@ describe("TestReviewPanel fetch-failure verdict fallback (playback missing, verd
 		expect(
 			screen.queryByText(enText("microphoneTest.playOriginal")),
 		).toBeNull();
-		// No third label exists: Enhanced covers every test (with the chain
-		// off all-test, Enhanced IS the recording).
-		expect(screen.getByText(enText("microphoneTest.retest"))).toBeTruthy();
+		// No controls remain: Retest was removed, and playback is unavailable
+		// without audio refs.
+		expect(screen.queryAllByRole("button")).toHaveLength(0);
 	});
 
-	it("still returns null when no audio and no verdict exist", () => {
+	it("keeps an empty closed collapse wrapper when no audio and no verdict exist", () => {
 		const { container } = render(
 			<TestReviewPanel
 				durationMs={0}
@@ -251,10 +284,12 @@ describe("TestReviewPanel fetch-failure verdict fallback (playback missing, verd
 				onPlayEnhanced={() => {}}
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
-				onRetest={() => {}}
 			/>,
 		);
 
+		const root = container.firstElementChild;
+		expect(root).toHaveClass("collapse-root");
+		expect(root).toHaveAttribute("data-open", "false");
 		expect(container.textContent).toBe("");
 	});
 
@@ -272,7 +307,6 @@ describe("TestReviewPanel fetch-failure verdict fallback (playback missing, verd
 				onPlayEnhanced={() => {}}
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
-				onRetest={() => {}}
 			/>,
 		);
 
@@ -306,9 +340,6 @@ describe("TestReviewPanel unknown-issue fallback contract (no recommendation, no
 				onPlayEnhanced={() => {}}
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
-				onRetest={() => {}}
-				onApplyPreset={() => {}}
-				currentPreset="auto"
 			/>,
 		);
 

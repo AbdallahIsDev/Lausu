@@ -70,7 +70,7 @@ export default function MediaPage() {
 	};
 
 	return (
-		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 			<PageHeading
 				title={t("media.title")}
 				description={t("media.description")}
@@ -92,7 +92,7 @@ export default function MediaPage() {
 				}}
 			/>
 
-			<div className="flex flex-col gap-3 rounded-lg border border-border/10 bg-surface-subtle">
+			<div className="flex flex-col rounded-lg border border-border/10 bg-surface-subtle">
 				{/* Drop zone + link field share one clean row stack. */}
 				<div className="flex flex-col gap-3 p-4">
 					<button
@@ -132,11 +132,11 @@ export default function MediaPage() {
 					</button>
 
 					<div className="flex items-center gap-3">
-						<div className="h-px flex-1 bg-border/5" />
+						<div className="h-px flex-1 bg-border/10" />
 						<span className="text-[11px] uppercase tracking-wide text-muted-foreground">
 							{t("media.orLink")}
 						</span>
-						<div className="h-px flex-1 bg-border/5" />
+						<div className="h-px flex-1 bg-border/10" />
 					</div>
 
 					<div className="flex flex-wrap items-center gap-2">
@@ -170,24 +170,25 @@ export default function MediaPage() {
 						)}
 					</div>
 				</div>
-
-				<SettingRow
-					label={t("media.useSubtitlesLabel")}
-					info={t("media.useSubtitlesInfo")}
-				>
-					<Switch
-						checked={useSubtitles}
-						onCheckedChange={setUseSubtitles}
-						disabled={running}
-						aria-label={t("media.useSubtitlesLabel")}
-					/>
-				</SettingRow>
+				<div className="border-t border-border/10">
+					<SettingRow
+						label={t("media.useSubtitlesLabel")}
+						info={t("media.useSubtitlesInfo")}
+					>
+						<Switch
+							checked={useSubtitles}
+							onCheckedChange={setUseSubtitles}
+							disabled={running}
+							aria-label={t("media.useSubtitlesLabel")}
+						/>
+					</SettingRow>
+				</div>
 			</div>
 
 			{/* Same progress card for link and local file sources. */}
 			{running && (
 				<div
-					className="flex flex-col gap-3 rounded-lg border border-border/10 bg-surface-subtle p-4"
+					className="flex flex-col rounded-lg border border-border/10 bg-surface-subtle p-4"
 					role="status"
 					aria-live="polite"
 				>
@@ -230,7 +231,7 @@ export default function MediaPage() {
 
 			{job.phase === "done" && (
 				<div
-					className="flex flex-col gap-3 rounded-lg border border-border/10 bg-surface-subtle p-4"
+					className="flex flex-col rounded-lg border border-border/10 bg-surface-subtle p-4"
 					role="status"
 				>
 					<div className="flex items-center gap-2">
@@ -273,7 +274,7 @@ export default function MediaPage() {
 
 			{job.phase === "error" && (
 				<div
-					className="flex flex-col gap-3 rounded-lg border border-border/10 bg-surface-subtle p-4"
+					className="flex flex-col rounded-lg border border-border/10 bg-surface-subtle p-4"
 					role="alert"
 				>
 					<div className="flex items-center gap-2">

@@ -17,6 +17,7 @@ import {
 	RADIO_GROUP_ITEM_SELECTOR,
 	SelectableRow,
 } from "@/components/common/SelectableRow";
+import { SettingsSection } from "@/components/common/SettingsSection";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { MicrophoneListItem } from "@/components/microphone/MicrophoneListItem";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -64,15 +65,11 @@ export function AvailableMicrophonesList({
 	};
 
 	return (
-		<div className="flex flex-col gap-2">
-			<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground px-1">
-				{t("microphone.availableMicrophones")}
-			</p>
+		<SettingsSection title={t("microphone.availableMicrophones")}>
 			<RadioGroup
 				value={value}
 				onValueChange={handleValueChange}
 				disabled={testRunning}
-				className="rounded-lg"
 				data-testid="microphone-radio-list"
 			>
 				{/* native <ul>/<li> list semantics around the radio rows, the
@@ -81,13 +78,13 @@ export function AvailableMicrophonesList({
 				<ul className="divide-y divide-border/8">
 					<li className={testRunning ? "opacity-50" : undefined}>
 						{/* The a11y pair (nested RadioGroupItem is the accessible
-						    control; row click is pointer-only convenience) + the
-						    skip-nested-radio click gating live in the shared
-						    SelectableRow wrapper, same contract as the device rows
-						    in MicrophoneListItem. */}
+							    control; row click is pointer-only convenience) + the
+							    skip-nested-radio click gating live in the shared
+							    SelectableRow wrapper, same contract as the device rows
+							    in MicrophoneListItem. */}
 						<SelectableRow
 							className={
-								"flex items-center gap-3 p-4 transition-colors" +
+								"flex items-center gap-3 px-4 py-2.5 transition-colors" +
 								(testRunning || activeMicId === null
 									? ""
 									: " cursor-pointer hover:bg-foreground/5")
@@ -138,6 +135,6 @@ export function AvailableMicrophonesList({
 					))}
 				</ul>
 			</RadioGroup>
-		</div>
+		</SettingsSection>
 	);
 }

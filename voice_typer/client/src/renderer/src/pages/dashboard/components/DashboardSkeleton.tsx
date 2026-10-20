@@ -1,6 +1,6 @@
 // Dashboard loading skeleton.
 // Mirrors the loaded Dashboard layout (`pages/Dashboard.tsx`): shell
-// (gap-6) → PageHeading with an action row (share + refresh icon
+// (gap-4) → PageHeading with an action row (share + refresh icon
 // buttons) → the merged stat card (ONE bordered surface holding SIX
 // `min-h-24` p-3 cells in two divided rows of three, icon+label row on
 // top, value pinned bottom via mt-auto) → the activity chart card
@@ -108,7 +108,7 @@ export function DashboardSkeletonBody() {
 					<Skeleton className="h-5 w-32" />
 					<Skeleton className="h-4 w-20 shrink-0" />
 				</div>
-				<Skeleton className="aspect-[6/1] min-h-16 w-full" />
+				<Skeleton className="aspect-6/1 min-h-16 w-full" />
 				<div className="flex items-center justify-between gap-3">
 					<Skeleton className="h-3 w-24" />
 					<Skeleton className="h-3 w-16 shrink-0" />
@@ -123,7 +123,7 @@ export function DashboardSkeleton() {
 		<section
 			aria-label={t("analytics.loadingAria")}
 			aria-busy="true"
-			className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6"
+			className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6"
 		>
 			{/* The heading's action row: the share trigger and the refresh
 			    button, both `size="icon"` (36px) squares. Reserving them

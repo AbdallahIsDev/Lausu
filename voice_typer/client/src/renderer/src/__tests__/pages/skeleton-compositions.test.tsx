@@ -123,7 +123,7 @@ describe("SettingsPageSkeleton (hub)", () => {
 		render(<SettingsPageSkeleton />);
 		const status = screen.getByRole("status", { name: LOADING_LABEL });
 		// The shell's heading→card tier must match the real page
-		// (`pages/Settings.tsx`): gap-4, NOT the data pages' gap-6 and
+		// (`pages/Settings.tsx`): gap-4, NOT the data pages' gap-4 and
 		// not the stale gap-8 this skeleton carried while the page moved
 		// on. A skeleton with a wider shell shifts the card on hydration.
 		expect(status.className).toContain("gap-4");

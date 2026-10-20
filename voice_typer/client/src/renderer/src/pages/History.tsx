@@ -234,7 +234,7 @@ export default function HistoryPage() {
 
 	return (
 		<>
-			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 				<PageHeading
 					title={t("history.title")}
 					description={
@@ -265,7 +265,7 @@ export default function HistoryPage() {
 				</PageHeading>
 
 				{/* Controls and the list are ONE block: the page root's
-				    gap-6 separates the heading from this block, and the
+				    gap-4 separates the heading from this block, and the
 				    4px here separates the controls from the card. */}
 				<div className="flex w-full flex-col gap-4">
 					<div className="flex w-full flex-wrap items-center justify-between gap-2">

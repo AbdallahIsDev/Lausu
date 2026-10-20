@@ -207,7 +207,7 @@ export default function OnboardingPage({
 			{/* Parent card (ONB-3): widened max-w-lg → max-w-xl for
 			    breathing room around the consent rows and the model
 			    accordion. */}
-			<div className="flex w-full flex-col gap-6 rounded-lg border border-border/8 bg-surface p-8">
+			<div className="flex w-full flex-col gap-4 rounded-lg border border-border/8 bg-surface p-8">
 				{step.step_name === "Welcome" && (
 					<WelcomeStep headingRef={headingRef} />
 				)}

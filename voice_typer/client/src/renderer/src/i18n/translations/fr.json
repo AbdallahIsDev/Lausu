@@ -1152,7 +1152,6 @@
 		"osDefaultBadge": "Par défaut",
 		"unknown": "Inconnu",
 		"youSaid": "Vous avez dit",
-		"transcriptionUnavailable": "Aucun modèle vocal n'est chargé pour le moment. Chargez un modèle pour voir une transcription en direct de votre enregistrement de test.",
 		"availableMicrophones": "Microphones disponibles",
 		"microphone": "Micro",
 		"usingMic": "Utilisé : {name}",
@@ -1805,9 +1804,9 @@
 		"permissionsTestSuccess": "Raccourci détecté ! Ça fonctionne."
 	},
 	"microphoneTest": {
-		"title": "Test terminé",
+		"title": "Résultat du test",
 		"duration": "Durée : {duration}s",
-		"retest": "Re-tester",
+		"audioQuality": "Qualité de la parole",
 		"estimatedQuality": "Qualité de transcription estimée",
 		"volume": "Volume",
 		"good": "Bon ✓",
@@ -1827,25 +1826,13 @@
 		"playEnhanced": "Lire amélioré",
 		"playOriginal": "Lire original",
 		"stop": "Arrêter",
-		"qualityFeedback": {
-			"qualityNotApplicable": "N/D: transcription indisponible"
-		},
 		"detectedIssueCodes": {
 			"high_noise": "Bruit de fond élevé",
-			"moderate_noise": "Bruit de fond modéré",
+			"moderate_noise": "Bruit de fond détecté",
 			"clipping": "Écrêtage audio détecté",
-			"volume_too_low": "Volume trop faible: parlez plus près du microphone",
-			"volume_low": "Volume faible: envisagez d'augmenter le gain d'entrée",
-			"no_voice": "Aucune voix détectée: essayez de parler pendant le test"
-		},
-		"recommendations": {
-			"high_noise": "Essayez le préréglage « Pièce bruyante » pour supprimer le bruit de fond.",
-			"moderate_noise": "Essayez le préréglage « Pièce bruyante » pour une capture plus claire.",
-			"clipping": "Réduisez le gain d'entrée ou éloignez-vous un peu du microphone.",
-			"volume_too_low": "Parlez plus fort ou rapprochez-vous du microphone.",
-			"volume_low": "Augmentez le gain d'entrée dans les réglages son de votre système.",
-			"no_voice": "Parlez en continu pendant le test pour que la voix soit détectée.",
-			"applyNoisyRoom": "Appliquer le préréglage « Pièce bruyante »"
+			"volume_too_low": "Volume trop faible",
+			"volume_low": "Volume faible",
+			"no_voice": "Aucune voix détectée"
 		},
 		"liveListen": "Écoute en direct",
 		"stopListening": "Arrêter l'écoute",

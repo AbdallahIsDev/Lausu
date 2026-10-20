@@ -190,7 +190,6 @@
 		"osDefaultBadge": "Predeterminado",
 		"unknown": "Desconocido",
 		"youSaid": "Has dicho",
-		"transcriptionUnavailable": "Todavía no hay ningún modelo de voz cargado. Carga un modelo para ver una transcripción en directo de tu grabación de prueba.",
 		"availableMicrophones": "Micrófonos disponibles",
 		"microphone": "Micrófono",
 		"usingMic": "Usando: {name}",
@@ -1805,9 +1804,9 @@
 		"notchFilter": "Filtro notch (zumbido)"
 	},
 	"microphoneTest": {
-		"title": "Prueba completada",
+		"title": "Resultado de la prueba",
 		"duration": "Duración: {duration}s",
-		"retest": "Repetir prueba",
+		"audioQuality": "Calidad de voz",
 		"estimatedQuality": "Calidad de transcripción estimada",
 		"volume": "Volumen",
 		"good": "Bueno ✓",
@@ -1827,25 +1826,13 @@
 		"playEnhanced": "Reproducir mejorado",
 		"playOriginal": "Reproducir original",
 		"stop": "Detener",
-		"qualityFeedback": {
-			"qualityNotApplicable": "N/D: transcripción no disponible"
-		},
 		"detectedIssueCodes": {
 			"high_noise": "Ruido de fondo alto",
-			"moderate_noise": "Ruido de fondo moderado",
+			"moderate_noise": "Ruido de fondo detectado",
 			"clipping": "Saturación de audio detectada",
-			"volume_too_low": "Volumen demasiado bajo: habla más cerca del micrófono",
-			"volume_low": "El volumen es bajo: considera aumentar la ganancia de entrada",
-			"no_voice": "No se detectó voz: intenta hablar durante la prueba"
-		},
-		"recommendations": {
-			"high_noise": "Prueba el ajuste de habitación ruidosa para suprimir el ruido de fondo.",
-			"moderate_noise": "Prueba el ajuste de habitación ruidosa para una captura más clara.",
-			"clipping": "Baja la ganancia de entrada o aléjate un poco del micrófono.",
-			"volume_too_low": "Habla más alto o acércate al micrófono.",
-			"volume_low": "Sube la ganancia de entrada en los ajustes de sonido del sistema.",
-			"no_voice": "Habla de forma continua durante la prueba para que se detecte la voz.",
-			"applyNoisyRoom": "Aplicar ajuste de habitación ruidosa"
+			"volume_too_low": "Volumen demasiado bajo",
+			"volume_low": "Volumen bajo",
+			"no_voice": "No se detectó voz"
 		},
 		"liveListen": "Escucha en directo",
 		"stopListening": "Dejar de escuchar",

@@ -438,7 +438,9 @@ describe("ActivityList click-to-expand rows", () => {
 		const root = metaRow?.parentElement;
 		expect(root?.className).toContain("flex-col");
 		expect(root?.firstElementChild?.querySelector("p")).not.toBeNull();
-		expect(container.querySelector("p")?.closest("div.gap-3")).toBeNull();
+		const transcript = container.querySelector("p");
+		expect(transcript).not.toBeNull();
+		expect(metaRow?.contains(transcript)).toBe(false);
 	});
 });
 

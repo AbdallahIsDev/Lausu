@@ -242,7 +242,7 @@ describe("TestReviewPanel quality block is announced to AT", () => {
 			<TestReviewPanel
 				durationMs={5000}
 				quality={qualityWithIssues}
-				transcription={null}
+				transcription="test transcription"
 				transcriptionUnavailable={false}
 				testAudioBase64="AAAA"
 				rawAudioBase64={null}
@@ -251,7 +251,6 @@ describe("TestReviewPanel quality block is announced to AT", () => {
 				onPlayEnhanced={() => {}}
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
-				onRetest={() => {}}
 			/>,
 		);
 	}
@@ -261,9 +260,11 @@ describe("TestReviewPanel quality block is announced to AT", () => {
 
 		// The quality summary (containing the "Estimated Transcription
 		// Quality" label) is wrapped in an aria-live region.
-		const qualityLabel = document.querySelector("span.text-xs.font-medium");
+		const qualityLabel = screen.getByText(
+			enText("microphoneTest.estimatedQuality"),
+		);
 		// Find the live region ancestor of the quality label.
-		const liveRegion = qualityLabel?.closest('[aria-live="polite"]');
+		const liveRegion = qualityLabel.closest('[aria-live="polite"]');
 		expect(liveRegion).toBeTruthy();
 		expect(liveRegion?.getAttribute("aria-atomic")).toBe("true");
 	});
@@ -271,37 +272,35 @@ describe("TestReviewPanel quality block is announced to AT", () => {
 	it("marks the detected-issues heading with role=status", () => {
 		renderReviewPanel();
 
-		// The "Detected Issues:" heading carries role="status" so SR
-		// users are alerted when issues appear after a test. It renders as
-		// an <output> element, the semantic status live-region element,
+		// The "Detected Issues" heading carries role="status" so SR users
+		// are alerted when issues appear after a test. It renders as an
+		// <output> element, the semantic status live-region element,
 		// whose implicit ARIA role is status. Assert the COMPUTED role via
 		// toHaveRole (the literal role attribute is absent on <output>).
 		const detectedIssuesHeading = Array.from(
 			document.querySelectorAll("output"),
-		).find((el) => el.textContent === "Detected Issues:");
+		).find((el) => el.textContent === enText("microphoneTest.detectedIssues"));
 		expect(detectedIssuesHeading).toBeTruthy();
 		expect(detectedIssuesHeading).toHaveRole("status");
 	});
 
-	it("hides the decorative bullet glyph from assistive tech", () => {
+	it("hides the decorative issue marker from assistive tech", () => {
 		renderReviewPanel();
 
-		// The "•" bullet is purely decorative, its meaning is conveyed
-		// by list structure, so it must be aria-hidden. It uses the theme
-		// warning TOKEN (text-warning), never a hardcoded palette class
-		// like text-amber-500.
-		const bulletSpans = Array.from(
-			document.querySelectorAll("span.text-warning"),
-		).filter((el) => el.textContent === "•");
-		expect(bulletSpans.length).toBeGreaterThanOrEqual(1);
-		for (const span of bulletSpans) {
-			expect(span.getAttribute("aria-hidden")).toBe("true");
-			expect(span.className).not.toContain("amber");
+		// The marker is purely decorative; the list structure conveys its
+		// meaning, so it must be aria-hidden. It uses the theme warning
+		// TOKEN, never a hardcoded palette class like text-amber-500.
+		const markers = Array.from(document.querySelectorAll("span.bg-warning"));
+		expect(markers.length).toBeGreaterThanOrEqual(1);
+		for (const marker of markers) {
+			expect(marker.getAttribute("aria-hidden")).toBe("true");
+			expect(marker.className).not.toContain("amber");
+			expect(marker.className).toContain("rounded-full");
 		}
 	});
 });
 
-//TestReviewPanel transcription display ("You said" / unavailable copy).
+//TestReviewPanel transcription display (present-only; no explanatory block).
 describe("TestReviewPanel test-transcription display", () => {
 	it("renders the transcription under the You-said label when present", () => {
 		render(
@@ -317,7 +316,6 @@ describe("TestReviewPanel test-transcription display", () => {
 				onPlayEnhanced={() => {}}
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
-				onRetest={() => {}}
 			/>,
 		);
 
@@ -327,7 +325,7 @@ describe("TestReviewPanel test-transcription display", () => {
 		);
 	});
 
-	it("renders the localized explanation when no model can transcribe", () => {
+	it("omits the You-said block when no model can transcribe", () => {
 		render(
 			<TestReviewPanel
 				durationMs={5000}
@@ -341,14 +339,36 @@ describe("TestReviewPanel test-transcription display", () => {
 				onPlayEnhanced={() => {}}
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
-				onRetest={() => {}}
 			/>,
 		);
 
-		expect(screen.getByText("You said")).toBeTruthy();
-		expect(
-			screen.getByTestId("test-transcription-unavailable").textContent,
-		).toBe(enFlat.get("microphone.transcriptionUnavailable"));
+		expect(screen.queryByText("You said")).toBeNull();
+		expect(screen.queryByTestId("test-transcription")).toBeNull();
+		expect(screen.queryByTestId("test-transcription-unavailable")).toBeNull();
+	});
+
+	it("clamps long transcriptions to three lines and keeps the full text in title", () => {
+		const longTranscription = "word ".repeat(120).trim();
+		render(
+			<TestReviewPanel
+				durationMs={5000}
+				quality={null}
+				transcription={longTranscription}
+				transcriptionUnavailable={false}
+				testAudioBase64="AAAA"
+				rawAudioBase64={null}
+				playing={false}
+				playingOriginal={false}
+				onPlayEnhanced={() => {}}
+				onPlayOriginal={() => {}}
+				onStop={() => {}}
+			/>,
+		);
+
+		const transcript = screen.getByTestId("test-transcription");
+		expect(transcript.className).toContain("line-clamp-3");
+		expect(transcript.getAttribute("title")).toBe(longTranscription);
+		expect(transcript.textContent).toBe(longTranscription);
 	});
 
 	it("renders neither line without transcription data", () => {
@@ -365,7 +385,6 @@ describe("TestReviewPanel test-transcription display", () => {
 				onPlayEnhanced={() => {}}
 				onPlayOriginal={() => {}}
 				onStop={() => {}}
-				onRetest={() => {}}
 			/>,
 		);
 

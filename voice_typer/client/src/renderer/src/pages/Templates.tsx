@@ -134,7 +134,7 @@ export default function TemplatesPage() {
 	// backend connectivity problem.
 	if (loadError && templates.length === 0) {
 		return (
-			<div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+			<div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 				<PageHeading
 					title={t("templates.title")}
 					description={t("templates.description")}
@@ -153,7 +153,7 @@ export default function TemplatesPage() {
 
 	return (
 		<>
-			<div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+			<div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 				{/* Heading, then the toolbar on its OWN full-width row BELOW
                                     it (not inside PageHeading's children slot), mirrors
                                     the Vocabulary page layout exactly. */}

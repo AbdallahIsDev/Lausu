@@ -354,7 +354,7 @@ describe("XA-5-4, useFilterState persists values across re-mounts", () => {
 	});
 });
 
-describe("XA-5-8, TestReviewPanel renders per-issue recommendations", () => {
+describe("XA-5-8, TestReviewPanel renders concise issue labels", () => {
 	afterEach(() => {
 		cleanup();
 	});
@@ -368,7 +368,6 @@ describe("XA-5-8, TestReviewPanel renders per-issue recommendations", () => {
 		onPlayEnhanced: vi.fn(),
 		onPlayOriginal: vi.fn(),
 		onStop: vi.fn(),
-		onRetest: vi.fn(),
 	};
 
 	const qualityWithIssues = {
@@ -383,42 +382,12 @@ describe("XA-5-8, TestReviewPanel renders per-issue recommendations", () => {
 		silence_ratio: 0.1,
 	};
 
-	it("renders the recommendation text for a detected issue", () => {
+	it("renders the issue label without recommendations or a preset CTA", () => {
 		render(<TestReviewPanel {...basePanelProps} quality={qualityWithIssues} />);
-		// The recommendation text is rendered inside a
-		// data-testid="issue-recommendation" element so a future
-		// refactor that drops the recommendation surfaces
-		// immediately.
-		const rec = screen.getByTestId("issue-recommendation");
-		expect(rec.textContent).toMatch(
-			/\[t\]microphoneTest\.recommendations\.high_noise/,
-		);
-	});
-
-	it("renders the one-click Apply-preset CTA when onApplyPreset is wired", () => {
-		const onApplyPreset = vi.fn();
-		render(
-			<TestReviewPanel
-				{...basePanelProps}
-				quality={qualityWithIssues}
-				onApplyPreset={onApplyPreset}
-				currentPreset="auto"
-			/>,
-		);
-		const cta = screen.getByTestId("issue-apply-preset");
-		fireEvent.click(cta);
-		expect(onApplyPreset).toHaveBeenCalledWith("noisy_room");
-	});
-
-	it("does NOT render the Apply-preset CTA when currentPreset already matches", () => {
-		render(
-			<TestReviewPanel
-				{...basePanelProps}
-				quality={qualityWithIssues}
-				onApplyPreset={vi.fn()}
-				currentPreset="noisy_room"
-			/>,
-		);
+		expect(
+			screen.getByText("[t]microphoneTest.detectedIssueCodes.high_noise"),
+		).toBeTruthy();
+		expect(screen.queryByTestId("issue-recommendation")).toBeNull();
 		expect(screen.queryByTestId("issue-apply-preset")).toBeNull();
 	});
 });
@@ -533,13 +502,7 @@ describe("XA-5-20, Import buttons carry a format-hint title attribute", () => {
 
 describe("XA-5 locale parity for the new keys", () => {
 	const NEW_KEYS = [
-		"microphoneTest.recommendations.high_noise",
-		"microphoneTest.recommendations.moderate_noise",
-		"microphoneTest.recommendations.clipping",
-		"microphoneTest.recommendations.volume_too_low",
-		"microphoneTest.recommendations.volume_low",
-		"microphoneTest.recommendations.no_voice",
-		"microphoneTest.recommendations.applyNoisyRoom",
+		"microphoneTest.audioQuality",
 		"models.cloud.apiKeyShowAria",
 		"models.cloud.apiKeyHideAria",
 		"models.snack.apiKeyInvalid",

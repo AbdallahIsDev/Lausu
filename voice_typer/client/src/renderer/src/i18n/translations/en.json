@@ -195,7 +195,6 @@
 		"osDefaultBadge": "Default",
 		"unknown": "Unknown",
 		"youSaid": "You said",
-		"transcriptionUnavailable": "No speech model is loaded yet. Load a model to see a live transcription of your test recording.",
 		"availableMicrophones": "Available Microphones",
 		"microphone": "Microphone",
 		"usingMic": "Using: {name}",
@@ -1810,9 +1809,9 @@
 		"notchFilter": "Notch Filter (Hum)"
 	},
 	"microphoneTest": {
-		"title": "Test Complete",
+		"title": "Test Result",
 		"duration": "Duration: {duration}s",
-		"retest": "Retest",
+		"audioQuality": "Speech Quality",
 		"estimatedQuality": "Estimated Transcription Quality",
 		"volume": "Volume",
 		"good": "Good ✓",
@@ -1831,27 +1830,15 @@
 		"detectedIssues": "Detected Issues:",
 		"detectedIssueCodes": {
 			"high_noise": "High background noise",
-			"moderate_noise": "Moderate background noise",
+			"moderate_noise": "Detected background noise",
 			"clipping": "Audio clipping detected",
-			"volume_too_low": "Volume too low: speak closer to the microphone",
-			"volume_low": "Volume is low: consider raising input gain",
-			"no_voice": "No voice detected: try speaking during the test"
-		},
-		"recommendations": {
-			"high_noise": "Try the Noisy Room preset to suppress background noise.",
-			"moderate_noise": "Try the Noisy Room preset for clearer capture.",
-			"clipping": "Lower your input gain or move slightly farther from the microphone.",
-			"volume_too_low": "Speak louder or move closer to the microphone.",
-			"volume_low": "Raise the input gain in your OS sound settings.",
-			"no_voice": "Speak continuously during the test so voice activity is detected.",
-			"applyNoisyRoom": "Apply Noisy Room preset"
+			"volume_too_low": "Volume too low",
+			"volume_low": "Volume low",
+			"no_voice": "No voice detected"
 		},
 		"playEnhanced": "Play Enhanced",
 		"playOriginal": "Play Original",
 		"stop": "Stop",
-		"qualityFeedback": {
-			"qualityNotApplicable": "N/A: transcription unavailable"
-		},
 		"liveListen": "Listen live",
 		"stopListening": "Stop listening",
 		"liveListenGuideNote": "Headphones are recommended for Listen live on laptop or desktop speakers.",

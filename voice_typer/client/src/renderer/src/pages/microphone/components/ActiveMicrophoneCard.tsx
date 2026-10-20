@@ -2,9 +2,9 @@
 // Renders the currently-selected microphone (or "System Default")
 // header (with the level readout on its trailing edge), the live
 // LevelBar, the start/stop test buttons (with the recording dot +
-// countdown on their trailing edge while a test runs), the
-// TestReviewPanel (post-test transcription, quality + playback),
-// and the PresetAccordionSelector.
+// countdown on their trailing edge while a test runs) in one standard
+// card, then the TestReviewPanel (post-test transcription, quality +
+// playback) and the PresetAccordionSelector as sibling cards.
 // This is the primary interactive surface of the Microphone page.
 // Pure presentational component, all state and handlers are passed in
 // from the page (which wires them from ``useMicrophoneData`` /
@@ -29,7 +29,6 @@ import { LiveQualityFeedback } from "@/components/feedback/LiveQualityFeedback";
 import { TestReviewPanel } from "@/components/microphone/TestReviewPanel";
 import { Button } from "@/components/ui/button";
 import { t } from "@/i18n/i18n";
-import { cn } from "@/lib/utils";
 import type { AudioPreset } from "@/lib/utils/audioPresets";
 import type { CustomMicPreset, LausuConfig } from "@/types/config";
 import type { LiveListenError } from "../hooks/useLiveListen";
@@ -80,7 +79,6 @@ export interface ActiveMicrophoneCardProps {
 	onPlayEnhanced: () => void;
 	onPlayOriginal: () => void;
 	onStopPlayback: () => void;
-	onRetest: () => void;
 	onToggleAdvanced: () => void;
 	onPresetChange: (preset: AudioPreset) => void;
 	onConfigChange: (updates: Partial<LausuConfig>) => void;
@@ -120,169 +118,124 @@ export function ActiveMicrophoneCard({
 	onPlayEnhanced,
 	onPlayOriginal,
 	onStopPlayback,
-	onRetest,
 	onToggleAdvanced,
 	onPresetChange,
 	onConfigChange,
 }: ActiveMicrophoneCardProps) {
 	return (
-		<div
-			className={cn(
-				// Inter-child spacing is owned by this flex stack (one
-				// consistent `gap-3` rhythm): the children carry no `mt-*`
-				// of their own. The direct children are the header, the
-				// LevelBar, the test controls row, `TestReviewPanel` and
-				// the preset-selector wrapper.
-				"flex flex-col gap-3",
-			)}
-		>
-			{/* Mic header. The level readout rides this row's trailing edge
-			    (above the bar) rather than the controls row's, so the space
-			    under the bar is reserved for the test readout alone and the
-			    controls never shift when a test starts.
-			    Two groups: the outer row is `items-end` so the level readout
-			    sits on the bottom edge, while the icon + title/subtitle group
-			    keeps its own `items-center` (an `items-end` on the row alone
-			    would drag the icon down with it). */}
-			<div className="flex items-end gap-3 min-w-0">
-				<div className="flex items-center gap-3 min-w-0">
-					<HugeiconsIcon
-						icon={Mic02Icon}
-						strokeWidth={1.625}
-						className="h-4 w-4 shrink-0"
-					/>
-					<div className="min-w-0">
-						<p className="text-sm font-medium text-foreground truncate">
-							{activeMicName}
-						</p>
-						{/* Description only for System Default, its text carries
-                                        information (which device the OS routes to). For a selected
-                                        device a "Selected microphone" line is redundant with the
-                                        radio list + card context (C-MIC-13), so no desc renders. */}
-						{isSystemDefault && (
-							<p className="text-xs text-muted-foreground">
-								{t("microphone.systemDefaultDesc")}
+		<div className="flex flex-col overflow-hidden rounded-lg border border-border/8 bg-surface-subtle">
+			<div className="flex items-start justify-center flex-col gap-3 min-w-0 px-4 py-2.5">
+				<div className="w-full flex items-end justify-between gap-3 min-w-0">
+					<div className="flex items-center justify-between gap-3 min-w-0">
+						<HugeiconsIcon
+							icon={Mic02Icon}
+							strokeWidth={1.625}
+							className="h-4 w-4 shrink-0"
+						/>
+						<div className="min-w-0">
+							<p className="text-sm font-medium text-foreground truncate">
+								{activeMicName}
 							</p>
-						)}
+
+							{isSystemDefault && (
+								<p className="text-xs text-muted-foreground">
+									{t("microphone.systemDefaultDesc")}
+								</p>
+							)}
+						</div>
 					</div>
+					<span
+						className="text-xs text-muted-foreground ms-auto shrink-0"
+						aria-hidden={true}
+					>
+						{testRunning || micMonitoring
+							? t("microphone.level", {
+									percent: String(Math.round(level * 100)),
+								})
+							: t("microphone.monitoringOff")}
+					</span>
 				</div>
 
-				{/*(a11y): the live level is NOT announced — it fluctuates at up
-                                    to 30 Hz (the ``mic_level`` push rate) and would spam a
-                                    screen reader. ``aria-hidden`` is therefore unconditional:
-                                    the sibling ``LevelBar`` already exposes the same value to
-                                    assistive tech via its ``role="progressbar"`` +
-                                    ``aria-valuenow``, so this text is the visual duplicate. */}
-				<span
-					className="text-xs text-muted-foreground ms-auto shrink-0"
-					aria-hidden={true}
-				>
-					{testRunning || micMonitoring
-						? t("microphone.level", {
-								percent: String(Math.round(level * 100)),
-							})
-						: t("microphone.monitoringOff")}
-				</span>
-			</div>
+				{/* Level bar */}
+				<LevelBar level={level} playing={playing} />
 
-			{/* Level bar */}
-			<LevelBar level={level} playing={playing} />
+				{/* Test controls */}
+				<div className="w-full flex items-center justify-between gap-2">
+					<div className="flex items-center gap-2">
+						{!testRunning ? (
+							<Button
+								variant="default"
+								size="sm"
+								className="gap-2"
+								disabled={playing || !canTest || testStarting}
+								onClick={onStartTest}
+							>
+								<HugeiconsIcon
+									icon={PlayIcon}
+									strokeWidth={1.625}
+									className="h-4 w-4"
+								/>
+								{t("microphone.startTest")}
+							</Button>
+						) : (
+							<Button
+								variant="default"
+								size="sm"
+								className="gap-2 animate-pulse"
+								onClick={onStopTest}
+							>
+								<HugeiconsIcon
+									icon={StopIcon}
+									strokeWidth={1.625}
+									className="h-4 w-4"
+								/>
+								{t("microphone.stopTest")}
+							</Button>
+						)}
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2"
+							disabled={liveListenDisabled || liveStarting}
+							onClick={onToggleLiveListen}
+							aria-pressed={liveListening}
+						>
+							<HugeiconsIcon
+								icon={liveListening ? StopIcon : VolumeHighIcon}
+								strokeWidth={1.625}
+								className="h-4 w-4"
+							/>
+							{liveListening
+								? t("microphoneTest.stopListening")
+								: t("microphoneTest.liveListen")}
+						</Button>
+					</div>
 
-			{/* Test controls */}
-			<div className="flex items-center gap-2">
-				{!testRunning ? (
-					<Button
-						variant="default"
-						size="sm"
-						className="gap-2"
-						disabled={playing || !canTest || testStarting}
-						onClick={onStartTest}
-					>
-						<HugeiconsIcon
-							icon={PlayIcon}
-							strokeWidth={1.625}
-							className="h-4 w-4"
-						/>
-						{t("microphone.startTest")}
-					</Button>
-				) : (
-					<Button
-						variant="default"
-						size="sm"
-						className="gap-2 animate-pulse"
-						onClick={onStopTest}
-					>
-						<HugeiconsIcon
-							icon={StopIcon}
-							strokeWidth={1.625}
-							className="h-4 w-4"
-						/>
-						{t("microphone.stopTest")}
-					</Button>
-				)}
-
-				{/* Live monitor ("hear yourself"): the sidecar's own
-				filtered stream, played back here, never recorded.
-				Always mounted (C-CACHE-6); disabled while a test,
-				playback, or start is in flight (one mic stream at a
-				time). */}
-				<Button
-					variant="outline"
-					size="sm"
-					className="gap-2"
-					disabled={liveListenDisabled || liveStarting}
-					onClick={onToggleLiveListen}
-					aria-pressed={liveListening}
-				>
-					<HugeiconsIcon
-						icon={liveListening ? StopIcon : VolumeHighIcon}
-						strokeWidth={1.625}
-						className="h-4 w-4"
+					<LiveQualityFeedback
+						isRecording={testRunning}
+						elapsedSeconds={testElapsed}
+						totalSeconds={MICROPHONE_TEST_DURATION_SEC}
 					/>
-					{liveListening
-						? t("microphoneTest.stopListening")
-						: t("microphoneTest.liveListen")}
-				</Button>
+				</div>
 
-				{/* Test readout (recording dot + countdown), trailing edge of
-                                    this row. Renders nothing while no test runs, so the row
-                                    keeps its button-driven height and nothing jumps. */}
-				<LiveQualityFeedback
-					isRecording={testRunning}
-					elapsedSeconds={testElapsed}
-					totalSeconds={MICROPHONE_TEST_DURATION_SEC}
-				/>
-			</div>
-
-			{/* Live-monitor hint + error. The hint shows while
-			listening (headphones warning against feedback); errors
-			map the hook's code to copy. */}
-			{liveListenError && !testRunning && (
-				<p className="text-xs text-destructive" role="alert">
-					{t(
-						liveListenError === "denied"
-							? "microphoneTest.liveListenDenied"
-							: liveListenError === "unavailable"
-								? "microphoneTest.liveListenUnavailable"
-								: "microphoneTest.liveListenFailed",
-					)}
+				{/* Live-monitor hint + error. The hint shows while
+					listening (headphones warning against feedback); errors
+					map the hook's code to copy. */}
+				{liveListenError && !testRunning && (
+					<p className="px-4 pb-2.5 text-xs text-destructive" role="alert">
+						{t(
+							liveListenError === "denied"
+								? "microphoneTest.liveListenDenied"
+								: liveListenError === "unavailable"
+									? "microphoneTest.liveListenUnavailable"
+									: "microphoneTest.liveListenFailed",
+						)}
+					</p>
+				)}
+				<p className="text-xs text-muted-foreground">
+					{t("microphoneTest.liveListenGuideNote")}
 				</p>
-			)}
-
-			{/* S0 guidance note (unconditional, C-UI-5): a control that
-			    appeared only while listening would push the buttons above it. */}
-			<p className="text-xs text-muted-foreground">
-				{t("microphoneTest.liveListenGuideNote")}
-			</p>
-
-			{/* : Test Review Panel, memoised. Re-renders only when
-                            the post-test data (duration, quality, audio, playback
-                            state) actually changes, NOT on every mic_level push.
-                            The comparator ignores callback identity (the parent
-                            Microphone.tsx creates fresh inline closures for
-                            onPlayEnhanced / onPlayOriginal / onStop / onRetest on
-                            every render, those don't affect TestReviewPanel's
-                            rendered output, so skipping the re-render is safe). */}
+			</div>
 			<MemoizedTestReviewPanel
 				durationMs={testDurationMs}
 				quality={testQuality}
@@ -295,49 +248,28 @@ export function ActiveMicrophoneCard({
 				onPlayEnhanced={onPlayEnhanced}
 				onPlayOriginal={onPlayOriginal}
 				onStop={onStopPlayback}
-				onRetest={onRetest}
-				// Wire the preset-applier so detected-noise
-				// issues render a one-click "Apply Noisy Room preset"
-				// CTA. ``onPresetChange`` is useCallback-stable in
-				// useMicrophoneTest, so identity churn never re-renders
-				// the panel (verified by the custom memo comparator below,
-				// which now includes ``onApplyPreset`` + ``currentPreset``).
-				onApplyPreset={onPresetChange}
-				currentPreset={
-					config ? ((config.audio_preset as AudioPreset) ?? "auto") : undefined
-				}
 			/>
 
-			{/* : Preset selector (accordion + radio), memoised.
-                            Re-renders only when the preset / config / showAdvanced
-                            flag changes, NOT on every mic_level push. The
-                            comparator includes `onConfigChange` and `onPresetChange`
-                            (both useCallback-stable in `useMicrophoneTest`) but
-                            excludes `onToggleAdvanced` (inline closure in
-                            Microphone.tsx, identity changes per render but the
-                            behavior is identical, so skipping is safe). */}
-			<div>
-				{config && (
-					<MemoizedPresetAccordionSelector
-						preset={(config.audio_preset as AudioPreset) ?? "auto"}
-						config={config}
-						showAdvanced={showAdvanced}
-						onPresetChange={onPresetChange}
-						onToggleAdvanced={onToggleAdvanced}
-						onConfigChange={onConfigChange}
-						customPresets={customPresets}
-						activeCustomPresetId={activeCustomPresetId}
-						onSelectCustomPreset={onSelectCustomPreset}
-						onSaveCustomPreset={onSaveCustomPreset}
-						onRestoreMicDefaults={onRestoreMicDefaults}
-					/>
-				)}
-			</div>
+			{config && (
+				<MemoizedPresetAccordionSelector
+					preset={(config.audio_preset as AudioPreset) ?? "auto"}
+					config={config}
+					showAdvanced={showAdvanced}
+					onPresetChange={onPresetChange}
+					onToggleAdvanced={onToggleAdvanced}
+					onConfigChange={onConfigChange}
+					customPresets={customPresets}
+					activeCustomPresetId={activeCustomPresetId}
+					onSelectCustomPreset={onSelectCustomPreset}
+					onSaveCustomPreset={onSaveCustomPreset}
+					onRestoreMicDefaults={onRestoreMicDefaults}
+				/>
+			)}
 		</div>
 	);
 }
 
-// ── : Memoised children ─────────────────────────────────────────
+// ── Memoised children ─────────────────────────────────────────
 // `React.memo` with a custom comparator. The comparator focuses on the
 // props that actually affect the rendered output, callback identity
 // changes (which happen on every Microphone.tsx render due to inline
@@ -374,13 +306,5 @@ const MemoizedTestReviewPanel = memo(
 		prev.testAudioBase64 === next.testAudioBase64 &&
 		prev.rawAudioBase64 === next.rawAudioBase64 &&
 		prev.playing === next.playing &&
-		prev.playingOriginal === next.playingOriginal &&
-		// Include the new preset-applier + current preset in
-		// the comparator. ``onApplyPreset`` is useCallback-stable
-		// (delegated to ``onPresetChange`` in useMicrophoneTest) so
-		// identity churn is rare; ``currentPreset`` flips when the
-		// user picks a new preset, which SHOULD re-render so the
-		// recommendation CTA's disabled-state updates.
-		prev.onApplyPreset === next.onApplyPreset &&
-		prev.currentPreset === next.currentPreset,
+		prev.playingOriginal === next.playingOriginal,
 );

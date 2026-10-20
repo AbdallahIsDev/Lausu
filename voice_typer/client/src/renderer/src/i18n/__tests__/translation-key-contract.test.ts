@@ -25,8 +25,7 @@ import type {
 // real catalog shape.
 
 /** A real catalog key must be assignable to the strict key union. */
-const validKey: TranslationKey =
-	"microphoneTest.qualityFeedback.qualityNotApplicable";
+const validKey: TranslationKey = "microphoneTest.audioQuality";
 
 /** A plural-family base must be assignable to the tChoice key union. */
 const validChoiceBase: TranslationChoiceKey = "analytics.dayCountTooltip";
@@ -43,11 +42,9 @@ const invalidChoiceKey: TranslationChoiceKey = "not.a.plural.base";
 describe("t() compile-time catalog contract (type-level assertions)", () => {
 	it("accepts a real catalog key and rejects a typo'd path at compile time", () => {
 		// Valid: the full nested path exists in en.json (all 8 locales).
-		expect(t("microphoneTest.qualityFeedback.qualityNotApplicable")).toBe(
-			"N/A: transcription unavailable",
-		);
+		expect(t("microphoneTest.audioQuality")).toBe("Speech Quality");
 
-		// The typo'd key (missing `qualityFeedback.` segment) resolves to
+		// The typo'd key (missing the `audioQuality` segment) resolves to
 		// the raw key at RUNTIME, the exact production bug the compile
 		// guard exists to prevent. Kept as a dynamic (string-typed) key so
 		// this test can document the fallback behavior:
@@ -56,9 +53,7 @@ describe("t() compile-time catalog contract (type-level assertions)", () => {
 
 		// The type-assertion constants above resolve to exactly the
 		// literals they declare, pinning both halves of the contract.
-		expect(validKey).toBe(
-			"microphoneTest.qualityFeedback.qualityNotApplicable",
-		);
+		expect(validKey).toBe("microphoneTest.audioQuality");
 		expect(validChoiceBase).toBe("analytics.dayCountTooltip");
 		expect(validBareChoiceKey).toBe("common.lastUpdated");
 		expect(invalidKey).toBe("microphoneTest.qualityNotApplicable");
