@@ -83,21 +83,22 @@ class TestKeyAutoRepeatFilter:
         b._handle_line("KEY_UP:F2")
         assert fired == ["toggle"]
 
-    def test_caps_lock_toggle_on_keyup_fires_on_keydown(self, monkeypatch):
-        """Caps Lock alone fires on KEY_DOWN even with toggle_on_keyup.
+    def test_caps_lock_toggle_on_keyup_fires_on_keyup(self, monkeypatch):
+        """Caps Lock alone fires on KEY_UP, like every other key.
 
-        Native listeners swallow KEY_UP after suppressing KEY_DOWN (OS
-        Caps toggle), so waiting for KEY_UP would never start recording.
+        Updated 2026-10-20 (release contract): the Windows and Linux
+        listeners emit KEY_UP:CapsLock BEFORE swallowing the suppressed
+        key, so waiting for the release is safe; macOS, which has no caps
+        key-up at all, gets the synthesized release in _matching.py.
         """
         b = _make_linux_backend(monkeypatch, "<caps_lock>")
         b.set_toggle_on_keyup(True)
         fired: list[str] = []
         b._callback = lambda: fired.append("toggle")  # noqa: E731
         b._handle_line("KEY_DOWN:CapsLock")
-        assert fired == ["toggle"]
-        # KEY_UP must NOT fire a second toggle (would start+stop).
+        assert fired == [], f"key-down must not fire, got {fired}"
         b._handle_line("KEY_UP:CapsLock")
-        assert fired == ["toggle"]
+        assert fired == ["toggle"], f"expected toggle on KEY_UP, got {fired}"
 
     def test_wrong_key_doesnt_set_main_key_down(self, monkeypatch):
         """A KEY_DOWN for the wrong key does not latch _main_key_down"""

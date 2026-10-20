@@ -32,15 +32,21 @@ def _make_windows_hook_backend(monkeypatch, hotkey_str: str):
 
 
 class TestCapsLockToggleOnKeyup:
-    """Case 1: Caps Lock + toggle_on_keyup fires once on KEY_DOWN."""
+    """Case 1: Caps Lock + toggle_on_keyup fires once, on KEY_UP."""
 
-    def test_keydown_fires_once_keyup_does_not_double(self, monkeypatch):
+    def test_keyup_fires_once_and_keydown_never_fires(self, monkeypatch):
+        """Updated 2026-10-20 for the release contract: both listeners emit
+        KEY_UP:CapsLock before swallowing the suppressed key, so the
+        toggle fires on release like every other key."""
         b = _make_linux_backend(monkeypatch, "<caps_lock>")
         b.set_toggle_on_keyup(True)
         fired: list[str] = []
         b._callback = lambda: fired.append("toggle")  # noqa: E731
         b._handle_line("KEY_DOWN:CapsLock")
-        assert fired == ["toggle"]
+        assert fired == [], "key-down must not fire the toggle"
+        b._handle_line("KEY_UP:CapsLock")
+        assert fired == ["toggle"], f"toggle must fire on release, got {fired}"
+        # A duplicated KEY_UP line cannot toggle a second time.
         b._handle_line("KEY_UP:CapsLock")
         assert fired == ["toggle"], f"KEY_UP must not double-toggle, got {fired}"
 
@@ -50,15 +56,25 @@ class TestCapsLockToggleOnKeyup:
         fired: list[str] = []
         b._callback = lambda: fired.append("toggle")  # noqa: E731
         b._handle_line("KEY_DOWN:CapsLock")
+        assert fired == []
         b._handle_line("KEY_UP:CapsLock")
         assert fired == ["toggle"]
 
     def test_same_contract_on_macos_backend(self, monkeypatch):
+        """macOS has no caps key-up, the release is synthesized instead.
+
+        The synthesized release must still leave the KEY_UP path (should a
+        future listener deliver one) as a non-firing duplicate.
+        """
         b = _make_macos_backend(monkeypatch, "<caps_lock>")
+        b._CAPS_RELEASE_SYNTHESIS_SECONDS = 0.02
         b.set_toggle_on_keyup(True)
         fired: list[str] = []
         b._callback = lambda: fired.append("toggle")  # noqa: E731
         b._handle_line("KEY_DOWN:CapsLock")
+        assert fired == []
+        b._caps_release_timer.join(timeout=1.0)
+        assert fired == ["toggle"]
         b._handle_line("KEY_UP:CapsLock")
         assert fired == ["toggle"]
 
@@ -125,6 +141,7 @@ class TestAutorepeatDoesNotRefire:
     """Case 3: a second KEY_DOWN without KEY_UP does not re-fire."""
 
     def test_caps_toggle_autorepeat_suppressed(self, monkeypatch):
+        """Autorepeat KEY_DOWNs never fire and never re-arm a second cycle."""
         b = _make_linux_backend(monkeypatch, "<caps_lock>")
         b.set_toggle_on_keyup(True)
         fired: list[str] = []
@@ -132,7 +149,9 @@ class TestAutorepeatDoesNotRefire:
         b._handle_line("KEY_DOWN:CapsLock")
         b._handle_line("KEY_DOWN:CapsLock")
         b._handle_line("KEY_DOWN:CapsLock")
-        assert fired == ["toggle"], f"autorepeat must not re-toggle, got {fired}"
+        assert fired == [], f"autorepeat must not fire on key-down, got {fired}"
+        b._handle_line("KEY_UP:CapsLock")
+        assert fired == ["toggle"], f"one press-release cycle fires once, got {fired}"
 
     def test_caps_ptt_autorepeat_does_not_restarts(self, monkeypatch):
         b = _make_linux_backend(monkeypatch, "<caps_lock>")

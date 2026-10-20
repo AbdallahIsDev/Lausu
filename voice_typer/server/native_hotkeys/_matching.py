@@ -1,4 +1,31 @@
-"""Native hotkey backend, {name}."""
+"""Native hotkey backend, {name}.
+
+Event-kind routing
+~~~~~~~~~~~~~~~~~~
+Each registered spec answers to ONE wire event kind, so a matcher can
+never fire off an event that does not belong to it:
+
+* ``is_fn_only`` specs -> ``FN_DOWN`` / ``FN_UP``;
+* ``is_modifier_only`` specs -> ``MOD_DOWN`` / ``MOD_UP``;
+* single-key / combo specs -> ``KEY_DOWN`` / ``KEY_UP`` of the main key.
+
+Fire point
+~~~~~~~~~~
+Actions fire on RELEASE: key-up / mod-up / fn-up. Key-down only arms the
+press cycle (and starts the recording in push-to-talk). Hold autorepeat
+never re-fires: a repeat is a KEY/MOD/FN down that arrives while that key
+is already tracked as held, and it is dropped before matching.
+
+Caps Lock
+~~~~~~~~~
+Windows and Linux listeners emit ``KEY_UP:CapsLock`` before swallowing the
+suppressed key, so Caps Lock fires on release like every other key. The
+macOS listener cannot: Caps Lock is delivered as a ``flagsChanged`` event
+with no key-up at all (``macos-key-listener.swift``), so the release is
+synthesized after a short quiet window. Without that the default hotkey
+would fire once per session, the press latch never being cleared by a
+KEY_UP that macOS never sends.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +41,8 @@ from voice_typer.server.native_hotkeys.modifiers import (
 
 log = logging.getLogger(__name__)
 
+_WIRE_EVENT_KINDS = frozenset({"key", "mod", "fn"})
+
 
 class _MatchingMixin:
     # Members provided by the composed ``SubprocessHotkeyBackend``
@@ -22,15 +51,20 @@ class _MatchingMixin:
     _held_modifiers: set[str]
     _fn_down: bool
     _main_key_down: bool
+    _held_keys: set[str]
+    _armed_roles: set[str]
+    _caps_release_timer: threading.Timer | None
     _parsed: dict[str, Any] | None
     _extra_matchers: list[dict[str, Any]]
     _on_release_callback: Callable[[], None] | None
 
+    # Quiet window used to synthesize the Caps Lock release on platforms
+    # whose listener never emits KEY_UP:CapsLock (macOS only).
+    _CAPS_RELEASE_SYNTHESIS_SECONDS: float = 0.15
+
     def _on_fn_event(self, payload: str = "", *, down: bool) -> None:
         """Handle FN_DOWN / FN_UP. Used by the macOS backend only."""
-        with self._match_lock:
-            self._fn_down = down
-        self._try_match(down)
+        self._try_match("fn", down)
 
     def _on_modifier_event(self, mod_name: str, *, down: bool) -> None:
         """Handle MOD_DOWN / MOD_UP events."""
@@ -39,30 +73,44 @@ class _MatchingMixin:
             return
         with self._match_lock:
             if down:
-                # auto-repeat filter: if the modifier is
                 if canonical in self._held_modifiers:
-                    return
+                    return  # autorepeat of a held modifier
                 self._held_modifiers.add(canonical)
             else:
+                # A MOD_UP for a modifier we never saw go down still reaches
+                # the matchers: the cycle is disarmed so no action can fire,
+                # but a push-to-talk stop must never be gated on a press we
+                # may have missed.
                 self._held_modifiers.discard(canonical)
-        # For modifier-only hotkeys (e.g. <alt> alone), the modifier
-        if self._parsed and self._parsed["is_modifier_only"]:
-            self._try_match(down)
+        self._try_match("mod", down)
 
     def _on_key_event(self, key_name: str, *, down: bool) -> None:
         """Handle KEY_DOWN / KEY_UP events."""
         with self._match_lock:
             if down:
-                # auto-repeat filter, if the main key is
-                if self._main_key_down:
-                    return
-                self._main_key_down = True
+                if key_name in self._held_keys:
+                    return  # autorepeat of a held key
+                self._held_keys.add(key_name)
             else:
-                self._main_key_down = False
-        self._try_match(down, key_name=key_name)
+                # A KEY_UP for a key we never saw go down still reaches the
+                # matchers: the cycle is disarmed so the action cannot fire
+                # twice, but a push-to-talk stop must never be gated on a
+                # press we may have missed.
+                self._held_keys.discard(key_name)
+            self._main_key_down = bool(self._held_keys)
+        self._try_match("key", down, key_name=key_name)
+        if not down and key_name == "CapsLock":
+            # A real release made the synthesized one unnecessary.
+            self._cancel_caps_release_synthesis()
 
-    def _try_match(self, down: bool, *, key_name: str | None = None) -> None:
-        """Check if the current event matches any registered hotkey spec."""
+    def _try_match(
+        self,
+        event_kind: str,
+        down: bool,
+        *,
+        key_name: str | None = None,
+    ) -> None:
+        """Check the current event against every registered hotkey spec."""
         # Primary matcher (role "dictation"). Uses the legacy
         primary = {
             "role": "dictation",
@@ -71,16 +119,17 @@ class _MatchingMixin:
             "on_release_callback": self._on_release_callback,
             "toggle_on_keyup": getattr(self, "_toggle_on_keyup", False),
         }
-        if self._try_match_one(primary, down, key_name=key_name):
+        if self._try_match_one(primary, event_kind, down, key_name=key_name):
             return
         # Extra matchers (roles "esc", "repaste", etc.). Each is
         for matcher in self._extra_matchers:
-            if self._try_match_one(matcher, down, key_name=key_name):
+            if self._try_match_one(matcher, event_kind, down, key_name=key_name):
                 return
 
     def _try_match_one(
         self,
         matcher: dict[str, Any],
+        event_kind: str,
         down: bool,
         *,
         key_name: str | None = None,
@@ -88,47 +137,51 @@ class _MatchingMixin:
         """Try a single matcher against the current event.
 
         Returns True if the matcher matched (and fired its callback or
+        decided to defer it to the release edge).
+
+        A cycle is ARMED when the press completes the spec (the main key
+        down with every required modifier held, or the last modifier of a
+        modifier-only chord down). It fires on the matching release in any
+        order, and it disarms so a duplicated release cannot fire twice.
         """
         parsed = matcher["parsed"]
         if parsed is None:
             return False
+        if event_kind not in _WIRE_EVENT_KINDS:
+            return False
 
-        # FN-only hotkey
+        # FN-only hotkey (macOS Globe/Fn): own event kind, release fires.
         if parsed["is_fn_only"]:
-            if down:
-                self._fire_callback_for(matcher)
-            else:
-                self._fire_on_release_for(matcher)
-            return True
+            if event_kind != "fn":
+                return False
+            return self._arm_and_fire(matcher, down, complete=True)
 
         # Modifier-only hotkey (e.g. <alt>, or <ctrl>+<alt>)
         if parsed["is_modifier_only"]:
-            required = parsed["modifiers"]
-            if "fn" in required:
-                # Already handled by FN_DOWN/FN_UP above
+            if event_kind != "mod":
                 return False
-            # Convert spec tokens to canonical modifier names
-            required_canonical = set()
-            for token in required:
+            required_canonical: set[str] = set()
+            for token in parsed["modifiers"]:
+                if token == "fn":
+                    # Fn cannot complete a modifier-only chord here: the
+                    # wire protocol has no Fn state for it, so only the
+                    # non-Fn modifiers decide the match.
+                    continue
                 c = _canonical_modifier_name_for_token(token)
                 if c is not None:
                     required_canonical.add(c)
             if not required_canonical:
                 return False
             with self._match_lock:
-                held = set(self._held_modifiers)
-            # The hotkey is "these exact modifiers and no others"
-            if held != required_canonical:
-                return False
-            if down:
-                self._fire_callback_for(matcher)
-            else:
-                self._fire_on_release_for(matcher)
-            return True
+                # The hotkey is "these exact modifiers and no others"
+                complete = set(self._held_modifiers) == required_canonical
+            return self._arm_and_fire(matcher, down, complete=complete)
 
-        # Regular hotkey (single key or combo)
-        main_key = parsed["main_key"]
-        if key_name != main_key:
+        # Regular hotkey (single key or combo): own event kind, and the
+        # event must carry its main key.
+        if event_kind != "key":
+            return False
+        if key_name != parsed["main_key"]:
             return False
 
         required_mods = parsed["modifiers"]
@@ -137,47 +190,122 @@ class _MatchingMixin:
             # For FN-containing combos, add 'fn' to held_mods if FN is down
             if self._fn_down:
                 held_mods.add("fn")
+        # The chord completes when every required modifier is held and
+        # nothing else is (the shortcut is judged at the press, like the
+        # OS does), then it fires at the release whatever is still held.
+        complete = required_mods.issubset(held_mods) and not (held_mods - required_mods)
+        return self._arm_and_fire(matcher, down, complete=complete)
 
-        # All required modifiers must be held
-        if not required_mods.issubset(held_mods):
-            return False
-
-        # No extra modifiers should be held (unless they're required)
-        extra = held_mods - required_mods
-        if extra:
-            return False
-
-        toggle_on_keyup = bool(matcher.get("toggle_on_keyup", False))
-        on_release = matcher.get("on_release_callback")
-        # Caps Lock alone: native listeners historically swallowed KEY_UP
-        # after suppressing KEY_DOWN (OS Caps toggle). Fire the toggle on
-        # KEY_DOWN so recording starts even when KEY_UP never arrives; when
-        # KEY_UP does arrive (patched listener), ignore it so one press is
-        # one toggle. Autorepeat is already filtered by _main_key_down.
-        is_caps_only = bool(parsed.get("is_caps_lock")) and not parsed.get("modifiers")
-        if is_caps_only and toggle_on_keyup and on_release is None:
+    def _arm_and_fire(self, matcher: dict[str, Any], down: bool, *, complete: bool) -> bool:
+        """Arm the cycle on a completing press, fire it on its release."""
+        role = matcher.get("role", "dictation")
+        with self._match_lock:
             if down:
-                self._fire_callback_for(matcher)
-            return True
+                if not complete:
+                    self._armed_roles.discard(role)
+                    return False
+                self._armed_roles.add(role)
+            else:
+                if role not in self._armed_roles:
+                    # A stop is never gated on a press we may have missed
+                    # (listener starting mid-press): push-to-talk must be
+                    # able to end a recording whose press it never saw.
+                    if matcher.get("on_release_callback") is not None:
+                        self._fire_on_release_for(matcher)
+                        return True
+                    return False
+                self._armed_roles.discard(role)
+        return self._fire_edge(matcher, down)
+
+    def _fire_edge(self, matcher: dict[str, Any], down: bool) -> bool:
+        """Fire one matched edge: release owns the action.
+
+        * push-to-talk (``on_release_callback``): press starts, release stops;
+        * ``toggle_on_keyup``: press is deferred, release fires the action;
+        * legacy press-fire (neither): fires on press, release is a no-op.
+        """
+        release_cb = matcher.get("on_release_callback")
+        deferred = bool(matcher.get("toggle_on_keyup", False))
         if down:
-            if on_release is not None:
+            if release_cb is not None:
                 # Push-to-talk: start recording on press.
                 self._fire_callback_for(matcher)
-            elif toggle_on_keyup:
-                # Toggle mode with toggle_on_keyup: defer the toggle to
-                pass
-            else:
-                # Legacy toggle (e.g. ESC, repaste): fire on press.
+            elif not deferred:
+                # Legacy toggle (e.g. a role not wired for release firing)
                 self._fire_callback_for(matcher)
-        else:
-            if on_release is not None:
-                # Push-to-talk: stop recording on release.
-                self._fire_on_release_for(matcher)
-            elif toggle_on_keyup:
-                # Toggle mode: fire the toggle exactly once on key-up.
-                self._fire_callback_for(matcher)
-            # else: legacy toggle-on-keydown -> nothing to do on key-up.
+            # else: release-firing mode, the action waits for the release
+            self._arm_caps_release_synthesis_if_needed(matcher)
+            return True
+        if release_cb is not None:
+            # Push-to-talk: stop recording on release.
+            self._fire_on_release_for(matcher)
+        elif deferred:
+            # Release-firing mode: the action fires exactly once here.
+            self._fire_callback_for(matcher)
+        # else: legacy press-fire, nothing to do on release
         return True
+
+    # Caps Lock release synthesis ──────────────────────────────────────
+
+    def _arm_caps_release_synthesis_if_needed(self, matcher: dict[str, Any]) -> None:
+        """Arm the macOS-only Caps Lock release fallback (see module docs).
+
+        Windows and Linux listeners emit ``KEY_UP:CapsLock``, which cancels
+        this timer through the normal release path; arming it there would
+        make a held Caps Lock fire while still down.
+        """
+        if self.platform_name != "macOS":
+            return
+        parsed = matcher.get("parsed")
+        if not parsed or not parsed.get("is_caps_lock") or parsed.get("modifiers"):
+            return
+        if matcher.get("on_release_callback") is not None:
+            return  # push-to-talk needs a real release, never a guess
+        if not matcher.get("toggle_on_keyup", False):
+            return
+        with self._match_lock:
+            if self._caps_release_timer is not None:
+                return
+            timer = threading.Timer(
+                self._CAPS_RELEASE_SYNTHESIS_SECONDS, self._synthesize_caps_release
+            )
+            # RACE-008: daemon because a queued release synthesis must never
+            # hold up process exit; it is cancelled on every real KEY_UP.
+            timer.daemon = True
+            self._caps_release_timer = timer
+        timer.start()
+        log.debug(
+            "[NATIVE-HOTKEY] %s Caps Lock release synthesis armed (%.3fs)",
+            self.platform_name,
+            self._CAPS_RELEASE_SYNTHESIS_SECONDS,
+        )
+
+    def _synthesize_caps_release(self) -> None:
+        """Fire the Caps Lock release the OS will never deliver (macOS)."""
+        with self._match_lock:
+            timer = self._caps_release_timer
+            self._caps_release_timer = None
+            if "CapsLock" not in self._held_keys:
+                return  # a real KEY_UP already closed the cycle
+            self._held_keys.discard("CapsLock")
+            self._main_key_down = bool(self._held_keys)
+        if timer is not None:
+            timer.cancel()
+        log.debug(
+            "[NATIVE-HOTKEY] %s synthesized the Caps Lock release",
+            self.platform_name,
+        )
+        self._try_match("key", False, key_name="CapsLock")
+
+    def _cancel_caps_release_synthesis(self) -> None:
+        """Drop a pending Caps Lock release synthesis (real release/stop)."""
+        with self._match_lock:
+            timer = self._caps_release_timer
+            self._caps_release_timer = None
+        if timer is not None:
+            timer.cancel()
+
+    # Callback invocation ──────────────────────────────────────────────
 
     def _fire_callback(self) -> None:
         """Invoke the press callback (with exception shielding)."""

@@ -70,13 +70,15 @@ describe("isReserved", () => {
 		expect(isReserved("<cmd>+space", "freebsd")).toBe(false);
 	});
 
-	it("does NOT cross-contaminate platforms (Cmd+Space is not reserved on Windows)", () => {
-		// Cmd+Space is macOS-only reserved; on Windows it's a no-op
-		// (Cmd doesn't exist), and on Linux it's a regular combo.
-		expect(isReserved("<cmd>+space", "win32")).toBe(false);
+	it("treats the shell-key spellings as one physical key in the tables", () => {
+		// Updated 2026-10-20: <win>, <super> and <cmd> are one key in every
+		// native listener, so <cmd>+Space on Windows IS Win+Space (the
+		// input-language switcher) and must hit the same table row.
+		expect(isReserved("<cmd>+space", "win32")).toBe(true);
+		// Linux has no Space row, so the same combo stays assignable there.
 		expect(isReserved("<cmd>+space", "linux")).toBe(false);
-		// Symmetric: Win+E is Windows-only reserved; on macOS and
-		// Linux it's just an unbound combo.
+		// Win+E has no macOS row either (Cmd+E is caught by the Cmd+letter
+		// rule in validateHotkey, not by the table lookup).
 		expect(isReserved("<win>+e", "darwin")).toBe(false);
 		expect(isReserved("<win>+e", "linux")).toBe(false);
 	});
@@ -357,5 +359,84 @@ describe("normalizeHotkey", () => {
 
 	it("drops empty parts", () => {
 		expect(normalizeHotkey("<Ctrl>++<V>")).toBe("ctrl+v");
+	});
+});
+
+describe("shell-key spellings and table format parity", () => {
+	// <win>, <super> and <cmd> are one physical key in every native
+	// listener, so a reserved combo must be rejected under each spelling.
+	it("rejects Cmd+M on Windows (Win+M minimizes all windows)", () => {
+		expect(validateHotkey("<cmd>+<m>", "win32").valid).toBe(false);
+	});
+
+	it("rejects Cmd+L on Linux (Super+L locks the screen)", () => {
+		expect(validateHotkey("<cmd>+<l>", "linux").valid).toBe(false);
+	});
+
+	it("rejects Win+E on macOS (Cmd+E is a menu shortcut)", () => {
+		expect(validateHotkey("<win>+e", "darwin").valid).toBe(false);
+	});
+
+	it("treats every shell spelling as reserved in isReserved", () => {
+		expect(isReserved("<cmd>+<e>", "win32")).toBe(true);
+		expect(isReserved("<super>+<l>", "linux")).toBe(true);
+	});
+
+	it("keeps a bare non-shell modifier assignable", () => {
+		expect(validateHotkey("<alt_l>", "linux").valid).toBe(true);
+		expect(validateHotkey("<ctrl>", "win32").valid).toBe(true);
+	});
+
+	it("still blocks the bare shell key everywhere", () => {
+		for (const platform of ["win32", "linux", "darwin"]) {
+			expect(validateHotkey("<super>", platform).valid).toBe(false);
+			expect(validateHotkey("<win>", platform).valid).toBe(false);
+			expect(validateHotkey("<cmd>", platform).valid).toBe(false);
+		}
+	});
+});
+
+describe("app-reserved and uninterceptable shortcuts", () => {
+	// Esc cancels dictation and exits hotkey capture: it can never be a
+	// trigger, so the shared table blocks it on every platform.
+	it("rejects Esc as a hotkey on every platform", () => {
+		for (const platform of ["win32", "linux", "darwin"]) {
+			const result = validateHotkey("<esc>", platform);
+			expect(result.valid).toBe(false);
+			expect(result.reason).toBeTruthy();
+		}
+	});
+
+	// Ctrl+Alt+Del is the Windows secure-attention sequence: low-level
+	// hooks never see it, so the hotkey would be silently dead.
+	it("rejects Ctrl+Alt+Delete on Windows but not on Linux", () => {
+		expect(validateHotkey("<ctrl>+<alt>+<delete>", "win32").valid).toBe(false);
+		expect(validateHotkey("<ctrl>+<alt>+<del>", "win32").valid).toBe(false);
+		expect(validateHotkey("<ctrl>+<alt>+<delete>", "linux").valid).toBe(true);
+	});
+});
+
+describe("combo shape parity", () => {
+	it("rejects a combo that ends with a modifier", () => {
+		expect(validateHotkey("<ctrl>+v+<alt>", "win32").valid).toBe(false);
+		expect(validateHotkey("<ctrl>+<alt>+v", "win32").valid).toBe(true);
+	});
+
+	it("keeps the assignable combos assignable", () => {
+		for (const platform of ["win32", "linux", "darwin"]) {
+			for (const hotkey of [
+				"<alt>+q",
+				"<ctrl>+<alt>+v",
+				"<f9>",
+				"<caps_lock>",
+				"<num_0>",
+				"<ctrl>+<f5>",
+			]) {
+				expect(
+					validateHotkey(hotkey, platform).valid,
+					`${hotkey} on ${platform}`,
+				).toBe(true);
+			}
+		}
 	});
 });

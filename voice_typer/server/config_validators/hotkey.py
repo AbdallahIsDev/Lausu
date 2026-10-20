@@ -64,6 +64,65 @@ def _parse_hotkey_parts(hotkey: str) -> list[str]:
     return list(spec.modifiers) + list(spec.keys)
 
 
+# ``<win>``, ``<super>`` and ``<cmd>`` are three names for the same physical
+# shell key: every listener maps all three to one wire name (the Windows
+# hook reports ``Win``, the macOS tap reports ``Cmd``, evdev reports
+# ``Super``), so a spec spelling one of them must hit the same table rows.
+_SHELL_ALIASES: dict[str, str] = {
+    name: "super"
+    for name in (
+        "super",
+        "super_l",
+        "super_r",
+        "win",
+        "win_l",
+        "win_r",
+        "cmd",
+        "cmd_l",
+        "cmd_r",
+    )
+}
+
+
+def _tokenize_spec(value: str) -> list[str]:
+    """Split a spec into lowercase bracket-free tokens, keeping order."""
+    tokens: list[str] = []
+    for raw in value.split("+"):
+        token = raw.replace("<", "").replace(">", "").strip().lower()
+        if token:
+            tokens.append(token)
+    return tokens
+
+
+def _normalize_spec(value: str) -> str:
+    """Bracket-agnostic, case-insensitive, shell-alias-aware spec key.
+
+    Mirrors the renderer's ``normalizeHotkey`` (so both sides reject the
+    same shortcuts) and collapses the three shell-key spellings, otherwise
+    ``<alt>+space`` or ``<cmd>+m`` slip past a table written as
+    ``<alt>+<space>`` / ``<win>+<m>``.
+    """
+    tokens = _tokenize_spec(value)
+    if len(tokens) < 2:
+        # Bare modifiers keep their own spelling: ``<cmd_l>`` is a
+        # deliberate modifier-only trigger (the native listener can
+        # swallow it), not the shell key the table blocks bare.
+        return "+".join(tokens)
+    return "+".join(_SHELL_ALIASES.get(t, t) for t in tokens)
+
+
+# Normalised lookups: the tables are written in canonical bracketed form
+# (``<alt>+<space>``) while specs arrive pynput-style (``<alt>+space``),
+# so both sides go through ``_normalize_spec`` before comparison.
+_UNIVERSAL_RESERVED_NORMALIZED: frozenset[str] = frozenset(
+    _normalize_spec(entry) for entry in _UNIVERSAL_RESERVED_HOTKEYS
+)
+_RESERVED_NORMALIZED: dict[str, frozenset[str]] = {
+    platform: frozenset(_normalize_spec(entry) for entry in entries)
+    for platform, entries in _RESERVED_HOTKEYS.items()
+}
+
+
 def _check_basic_shape(value: object) -> str | None:
     """Stage 1: type / length / emptiness guards (shared by all hotkeys)."""
     if not isinstance(value, str):
@@ -77,22 +136,32 @@ def _check_basic_shape(value: object) -> str | None:
 
 def _check_universal_reserved(normalized: str) -> str | None:
     """Stage 2: OS / common-app shortcuts blocked on EVERY platform."""
-    if normalized in _UNIVERSAL_RESERVED_HOTKEYS:
+    if normalized in _UNIVERSAL_RESERVED_NORMALIZED:
         return "reserved, conflicts with operating system or common app shortcuts"
     return None
 
 
 def _check_platform_reserved(normalized: str, platform: str) -> str | None:
     """Stage 3: per-platform OS-reserved shortcuts."""
-    reserved = _RESERVED_HOTKEYS.get(platform, set())
-    if not reserved:
+    if normalized in _RESERVED_NORMALIZED.get(platform, frozenset()):
+        return f"reserved by operating system ({platform})"
+    return None
+
+
+def _check_modifier_order(value: str) -> str | None:
+    """Stage 5b: a combo mixing keys and modifiers must END with the key.
+
+    ``<ctrl>+<alt>+v`` is the canonical form; ``<ctrl>+v+<alt>`` is the
+    same chord typed in the wrong order and would otherwise be accepted
+    here while the renderer rejects it (the renderer's
+    ``mustEndWithNonModifier`` rule).
+    """
+    tokens = _tokenize_spec(value)
+    if len(tokens) < 2:
         return None
-    lookup = normalized
-    if platform == "linux":
-        lookup = normalized.replace("<win>", "<super>")
-    for r in reserved:
-        if r == lookup:
-            return f"reserved by operating system ({platform})"
+    non_mods = [t for t in tokens if t not in _HOTKEY_MODIFIERS]
+    if non_mods and tokens[-1] in _HOTKEY_MODIFIERS:
+        return f"a combo must end with its key, e.g. <ctrl>+<alt>+{non_mods[0]} (got {tokens[-1]} last)"
     return None
 
 
@@ -115,13 +184,17 @@ def _check_multi_non_modifier(parts: list[str]) -> str | None:
     return None
 
 
-def _check_os_shell_combos(parts: list[str], platform: str) -> str | None:
-    """Stage 6: Win+* / Super+* (Windows shell) and Cmd+<letter> (macOS)."""
-    has_win = any(p in ("win", "super") for p in parts)
-    has_cmd = any(p in ("cmd", "cmd_l", "cmd_r") for p in parts)
-    if has_win and platform == "win32":
+def _check_os_shell_combos(parts: list[str], platform: str, normalized_tokens: list[str]) -> str | None:
+    """Stage 6: shell-key combos (Windows) and Cmd+<letter> (macOS).
+
+    ``normalized_tokens`` carries the shell-alias-collapsed spelling, so
+    ``<cmd>+e`` on Windows and ``<win>+e`` on macOS are caught even though
+    each is spelled with the other platform's name.
+    """
+    has_shell = "super" in normalized_tokens
+    if has_shell and platform == "win32":
         return "Windows key combinations are reserved by the OS shell"
-    if has_cmd and platform == "darwin" and len(parts) > 1:
+    if has_shell and platform == "darwin" and len(parts) > 1:
         non_mods = [p for p in parts if p not in _HOTKEY_MODIFIERS]
         for nm in non_mods:
             if len(nm) == 1 and nm.isalpha():
@@ -183,14 +256,17 @@ def _validate_hotkey(value: object) -> str | None:
 
     # Strip leading/trailing whitespace BEFORE lowercasing so a padded
     normalized = value.strip().lower()
+    normalized_spec = _normalize_spec(value)
+    normalized_tokens = normalized_spec.split("+") if normalized_spec else []
 
     # Stages run in priority order; the first rejection wins.
     for check in (
-        lambda: _check_universal_reserved(normalized),
-        lambda: _check_platform_reserved(normalized, _platform_key()),
+        lambda: _check_universal_reserved(normalized_spec),
+        lambda: _check_platform_reserved(normalized_spec, _platform_key()),
         lambda: _check_single_alphanumeric(parts),
         lambda: _check_multi_non_modifier(parts),
-        lambda: _check_os_shell_combos(parts, _platform_key()),
+        lambda: _check_modifier_order(normalized),
+        lambda: _check_os_shell_combos(parts, _platform_key(), normalized_tokens),
         lambda: _check_alt_shift(parts, _platform_key()),
         lambda: _check_ctrl_letter(parts),
         lambda: _check_shift_letter(parts),
@@ -213,12 +289,16 @@ __all__ = [
     # Platform helpers
     "_platform_key",
     "_parse_hotkey_parts",
+    "_tokenize_spec",
+    "_normalize_spec",
+    "_SHELL_ALIASES",
     # Stage helpers (9 stages)
     "_check_basic_shape",
     "_check_universal_reserved",
     "_check_platform_reserved",
     "_check_single_alphanumeric",
     "_check_multi_non_modifier",
+    "_check_modifier_order",
     "_check_os_shell_combos",
     "_check_alt_shift",
     "_check_ctrl_letter",

@@ -69,16 +69,31 @@ def test_is_reserved_hotkey_linux(monkeypatch: pytest.MonkeyPatch) -> None:
     assert _validate_hotkey("<super>+<d>") is not None
 
 
-def test_is_reserved_hotkey_cross_platform(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A shortcut reserved on one platform is NOT reserved on another."""
+def test_shell_spellings_are_one_physical_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``<win>`` / ``<super>`` / ``<cmd>`` name the same shell key.
+
+    Updated 2026-10-20: every listener maps the three spellings to one
+    wire name (Win / Super / Cmd), so ``<cmd>+<tab>`` really IS Win+Tab
+    on Windows and Super+Tab on Linux. The old expectations accepted
+    those combos under the "wrong platform" spelling, which let an
+    OS-reserved shortcut through the backend gate.
+    """
     monkeypatch.setattr(sys, "platform", "win32")
-    assert _validate_hotkey("<cmd>+<tab>") is None
+    assert _validate_hotkey("<cmd>+<tab>") is not None
+    assert _validate_hotkey("<super>+<e>") is not None
 
     monkeypatch.setattr(sys, "platform", "linux")
-    assert _validate_hotkey("<cmd>+<tab>") is None
+    assert _validate_hotkey("<cmd>+<l>") is not None
 
     monkeypatch.setattr(sys, "platform", "darwin")
-    assert _validate_hotkey("<win>+<e>") is None
+    assert _validate_hotkey("<win>+<e>") is not None
+
+
+def test_other_platform_shortcuts_still_pass(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A combo that is reserved nowhere stays assignable everywhere."""
+    for platform in ("win32", "linux", "darwin"):
+        monkeypatch.setattr(sys, "platform", platform)
+        assert _validate_hotkey("<alt>+<q>") is None, platform
 
 
 def test_is_reserved_hotkey_case_insensitive(monkeypatch: pytest.MonkeyPatch) -> None:

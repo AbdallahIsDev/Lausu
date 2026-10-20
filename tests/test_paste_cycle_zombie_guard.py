@@ -180,6 +180,8 @@ class TestLiveCycleStillPastes:
 
         with (
             patch.object(ClipboardManager, "_is_safe_paste_target", return_value=True),
+            patch.object(ClipboardManager, "_check_target_safety", return_value=(True, None)),
+            patch.object(ClipboardManager, "_check_text_field_focus", return_value=(True, None)),
             patch.object(ClipboardManager, "_dispatch_keystroke", return_value=True) as dispatch,
         ):
             pipeline._copy_and_paste("live dictation")

@@ -312,6 +312,10 @@ class HotkeyRegistrationMixin:
             # prefer the event-driven WM_HOTKEY message loop over
             with contextlib.suppress(AttributeError, TypeError):
                 self._esc_backend._prefer_message_loop_first = True
+            # ESC is an action like any other: it fires on release, both
+            # on the pooled shared backend and on a standalone legacy one.
+            with contextlib.suppress(AttributeError, TypeError):
+                self._esc_backend.set_toggle_on_keyup(True)
 
             def _esc_callback() -> None:
                 # shutdown guard (see _dictation_callback).
@@ -320,16 +324,12 @@ class HotkeyRegistrationMixin:
                     return
                 # centralized ownership check.
                 if keyboard_ownership().is_hotkey_capture_active():
-                    log.info("[HOTKEY] ESC pressed during hotkey capture, waiting for key-up")
-                    # Set the pending flag and install
+                    # The press callback already runs on release, so the
+                    # capture exit completes here; waiting for a second
+                    # release callback would need a second ESC press.
+                    log.info("[HOTKEY] ESC released during hotkey capture, ending capture")
                     self._esc_pending_capture_exit_event.set()
-                    # Route the release callback through the shared
-                    shared_native = self._shared_native()
-                    if shared_native is not None:
-                        with contextlib.suppress(Exception):
-                            shared_native.set_role_on_release("esc", self._on_esc_release)
-                    if self._esc_backend is not None:
-                        self._esc_backend.set_on_release(self._on_esc_release)
+                    self._on_esc_release()
                     return
                 self._app._cancel_dictation()
 
@@ -404,6 +404,19 @@ class HotkeyRegistrationMixin:
             self._remove_shared_extra_matcher("repaste")
             self._repaste_callback = None
             return
+        # A spec shared with the dictation hotkey can never fire: the
+        # matchers are evaluated in role order and the first match wins,
+        # so repaste would stay silently dead. Disable it instead.
+        if self._app.config.repaste_hotkey == self._app.config.hotkey:
+            log.warning(
+                "[HOTKEY] repaste_hotkey %r equals the dictation hotkey; "
+                "disabling repaste (one key cannot own two actions)",
+                self._app.config.repaste_hotkey,
+            )
+            self._app.config.repaste_hotkey = ""
+            self._remove_shared_extra_matcher("repaste")
+            self._repaste_callback = None
+            return
         # validate the configured repaste hotkey BEFORE
         from voice_typer.server.config_validators import _validate_hotkey
 
@@ -429,6 +442,9 @@ class HotkeyRegistrationMixin:
             # same WM_HOTKEY-preference flag as the ESC backend
             with contextlib.suppress(AttributeError, TypeError):
                 self._repaste_backend._prefer_message_loop_first = True
+            # repaste is an action like any other: fire on release
+            with contextlib.suppress(AttributeError, TypeError):
+                self._repaste_backend.set_toggle_on_keyup(True)
             _repaste_cb = self._make_repaste_callback()
             # Stash the callback so :meth:`_repool_aux_into_shared`
             self._repaste_callback = _repaste_cb

@@ -98,6 +98,9 @@ def _make_matching_backend(
             self._held_modifiers: set[str] = set()
             self._fn_down = False
             self._main_key_down = False
+            self._held_keys: set[str] = set()
+            self._armed_roles: set[str] = set()
+            self._caps_release_timer = None
             self._parsed = {
                 "modifiers": set(),
                 "main_key": hotkey,
@@ -117,11 +120,21 @@ def _make_matching_backend(
     return _Fake()
 
 
-def test_matching_fires_caps_lock_toggle_on_keydown() -> None:
-    """Caps Lock + toggle_on_keyup fires on KEY_DOWN (KEY_UP may never arrive)."""
+def test_matching_fires_caps_lock_toggle_on_keyup() -> None:
+    """Caps Lock + toggle_on_keyup fires on KEY_UP, never on KEY_DOWN.
+
+    Updated 2026-10-20 for the release contract: both Windows and Linux
+    listeners emit KEY_UP:CapsLock before swallowing the suppressed key
+    (``test_windows_listener_emits_keyup_before_swallow``), so the old
+    key-down special case made the default hotkey fire on press.
+    macOS, which has no caps key-up, is covered by the release synthesis.
+    """
     b = _make_matching_backend(toggle_on_keyup=True, on_release=None)
     b._on_key_event("CapsLock", down=True)
-    assert b.fired == ["toggle"], f"expected toggle on KEY_DOWN, got {b.fired}"
+    assert b.fired == [], f"key-down must not fire the toggle, got {b.fired}"
+    b._on_key_event("CapsLock", down=False)
+    assert b.fired == ["toggle"], f"expected toggle on KEY_UP, got {b.fired}"
+    # A duplicated KEY_UP cannot fire a second toggle.
     b._on_key_event("CapsLock", down=False)
     assert b.fired == ["toggle"], f"KEY_UP must not double-fire, got {b.fired}"
 
