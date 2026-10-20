@@ -157,6 +157,17 @@ describe("SoundManager", () => {
 		expect(mockCtor).toHaveBeenCalled();
 	});
 
+	it("warmSoundCue constructs context and attempts resume when suspended", async () => {
+		const { warmSoundCue, _resetSoundManagerForTests } = await import(
+			"@/lib/sound-manager"
+		);
+		_resetSoundManagerForTests();
+
+		// Mock starts suspended; warm must construct + resume attempt.
+		expect(warmSoundCue()).toBe(false);
+		expect(mockCtor).toHaveBeenCalled();
+	});
+
 	it("isEnabled logs debug message when localStorage.getItem throws", async () => {
 		const { isSoundFeedbackEnabled, _resetSoundManagerForTests } = await import(
 			"@/lib/sound-manager"

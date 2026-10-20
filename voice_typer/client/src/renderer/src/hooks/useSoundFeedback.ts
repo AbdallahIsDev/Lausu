@@ -13,6 +13,7 @@ import {
 	initAudioContext,
 	isSoundFeedbackEnabled,
 	playSoundCue,
+	warmSoundCue,
 } from "@/lib/sound-manager";
 
 // Re-export the canonical API so existing importers of this module
@@ -66,6 +67,7 @@ export function useSoundFeedback(options?: UseSoundFeedbackOptions): void {
 	useEffect(() => {
 		if (isSoundFeedbackEnabled()) {
 			initAudioContext();
+			warmSoundCue();
 		}
 		return () => {
 			//on unmount, release the AudioContext + gesture
@@ -102,6 +104,7 @@ export function useSoundFeedback(options?: UseSoundFeedbackOptions): void {
 	});
 
 	usePythonEvent("recording_started", (): (() => void) | undefined => {
+		warmSoundCue();
 		playSoundCue("start");
 		// Deaf-accessibility visual mirror: invoke AFTER playSoundCue so
 		// the audio cue is scheduled first (minimises perceived AV skew).

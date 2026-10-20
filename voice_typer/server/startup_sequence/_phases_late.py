@@ -327,12 +327,30 @@ class LatePhases:
 
         return StageResult(success=True)
 
+    def _prewarm_recorder_subsystem(self, app) -> None:
+        """Resolve recorder + controller early so first hotkey never waits."""
+        try:
+            recorder = app.recorder
+        except Exception:
+            log.debug("[STARTUP] recorder prewarm failed", exc_info=True)
+            return
+        if recorder is None:
+            return
+        try:
+            controller = app.recording
+        except Exception:
+            log.debug("[STARTUP] recording controller prewarm failed", exc_info=True)
+            return
+        if controller is None:
+            return
+        log.debug("[STARTUP] recorder subsystem prewarmed")
+
     def _phase_7_hotkey_and_model_load(self) -> StageResult:
         """model fails to load (RACE-020 invariant: see package docstring
         (a)). A RACE-020 shutdown check after the load start aborts
         """
         app = self._app
-        # Warmup handled synchronously in recording.py on first recording start.
+        self._prewarm_recorder_subsystem(app)
 
         # 4. Create transcription engine and load model -- IN THE BACKGROUND.
         log.debug("[STARTUP] Loading model in background")

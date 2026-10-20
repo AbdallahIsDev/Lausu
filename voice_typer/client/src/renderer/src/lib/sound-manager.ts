@@ -70,6 +70,30 @@ function isEnabled(): boolean {
 }
 
 /**
+ * Warm the shared AudioContext so the first cue plays instantly.
+ *
+ * Idempotent: safe to call on boot and before every cue. When the
+ * context is still suspended (no user gesture yet) this only attempts
+ * a resume; browsers resolve it once a gesture arrives.
+ */
+export function warmSoundCue(): boolean {
+	if (!isEnabled()) return false;
+	if (!initAudioContext()) return false;
+	const ctx = _sharedAudioContext;
+	if (!ctx || ctx.state === "closed") return false;
+	if (ctx.state === "suspended") {
+		ctx.resume().catch((err: unknown) => {
+			console.debug(
+				"[renderer:sound-manager] warmSoundCue resume() rejected:",
+				err,
+			);
+		});
+		return false;
+	}
+	return ctx.state === "running";
+}
+
+/**
  * Eagerly construct the shared AudioContext and attempt to resume it.
  *
  */

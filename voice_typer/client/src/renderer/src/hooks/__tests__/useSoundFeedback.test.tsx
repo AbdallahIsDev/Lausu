@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/sound-manager", () => ({
 	initAudioContext: vi.fn((): boolean => true),
 	playSoundCue: vi.fn((): void => {}),
+	warmSoundCue: vi.fn((): boolean => true),
 	// Re-export the reset helper so any other code that imports it via
 	// the hook's transitive import graph doesn't blow up.
 	_resetSoundManagerForTests: vi.fn((): void => {}),
