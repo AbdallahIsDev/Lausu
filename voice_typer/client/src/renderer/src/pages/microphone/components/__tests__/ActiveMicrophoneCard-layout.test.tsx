@@ -16,7 +16,7 @@
  * jsdom measures no geometry, so both are pinned as document ORDER
  * (`compareDocumentPosition`) plus the flex classes that produce them.
  */
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeConfig } from "@/__tests__/helpers/fixtures";
 import {
@@ -45,6 +45,23 @@ vi.mock("@/pages/microphone/hooks/useMicrophoneTestSession", () => ({
 const FOLLOWING = Node.DOCUMENT_POSITION_FOLLOWING;
 
 const noop = () => undefined;
+
+const completedResultProps = {
+	testDurationMs: 5000,
+	testQuality: {
+		volume_level: "good",
+		volume_rms: 0.1,
+		peak_level: 0.5,
+		noise_level: "low",
+		has_voice: true,
+		has_clipping: false,
+		detected_issues: [],
+		estimated_transcription_quality: 88,
+		silence_ratio: 0.1,
+	},
+	testTranscription: "hello world",
+	testTranscriptionUnavailable: false,
+} satisfies Partial<ActiveMicrophoneCardProps>;
 
 const baseProps: ActiveMicrophoneCardProps = {
 	activeMicName: "System Default",
@@ -80,7 +97,6 @@ const baseProps: ActiveMicrophoneCardProps = {
 	onPlayEnhanced: noop,
 	onPlayOriginal: noop,
 	onStopPlayback: noop,
-	onRetest: noop,
 	onToggleAdvanced: noop,
 	onPresetChange: noop,
 	onConfigChange: noop,
@@ -152,11 +168,13 @@ describe("ActiveMicrophoneCard, test readout placement", () => {
 		const timer = screen.getByText("00:02 / 00:10");
 
 		// Same row as the Stop button: the row is not a new one inserted
-		// between the bar and the buttons.
+		// between the bar and the buttons. The buttons sit in a cluster
+		// inside that row so the readout can take the trailing edge.
 		const stop = screen.getByRole("button", { name: /Stop Test/i });
 		const readoutRoot = dot?.parentElement;
 		const controlsRow = readoutRoot?.parentElement;
-		expect(controlsRow).toBe(stop.parentElement);
+		expect(controlsRow).not.toBeNull();
+		expect(stop.parentElement?.parentElement).toBe(controlsRow);
 		expect(controlsRow?.contains(timer)).toBe(true);
 		// Trailing edge, i.e. after the button in document order.
 		expect(stop.compareDocumentPosition(dot as Node) & FOLLOWING).toBeTruthy();
@@ -165,6 +183,49 @@ describe("ActiveMicrophoneCard, test readout placement", () => {
 		expect(
 			bar.compareDocumentPosition(controlsRow as Node) & FOLLOWING,
 		).toBeTruthy();
+	});
+});
+
+describe("ActiveMicrophoneCard, test result expansion", () => {
+	it("keeps one collapse wrapper mounted and opens it when a result arrives", () => {
+		const { container, rerender } = renderCard();
+		const closed = container.querySelector(".collapse-root");
+		expect(closed).toHaveClass("collapse-root");
+		expect(closed).toHaveAttribute("data-open", "false");
+
+		rerender(
+			<TooltipProvider delayDuration={200}>
+				<ActiveMicrophoneCard {...baseProps} {...completedResultProps} />
+			</TooltipProvider>,
+		);
+
+		const open = container.querySelector(".collapse-root");
+		expect(open).toBe(closed);
+		expect(open).toHaveAttribute("data-open", "true");
+		expect(screen.getByTestId("audio-quality-value")).toBeInTheDocument();
+	});
+
+	it("keeps the result content through the close animation, then unmounts it", async () => {
+		const { container, rerender } = renderCard(completedResultProps);
+		const open = container.querySelector(".collapse-root");
+		expect(open).toHaveAttribute("data-open", "true");
+		expect(screen.getByTestId("audio-quality-value")).toBeInTheDocument();
+
+		rerender(
+			<TooltipProvider delayDuration={200}>
+				<ActiveMicrophoneCard {...baseProps} />
+			</TooltipProvider>,
+		);
+
+		const closing = container.querySelector(".collapse-root");
+		expect(closing).toBe(open);
+		expect(closing).toHaveAttribute("data-open", "false");
+		expect(closing?.firstElementChild).toHaveAttribute("inert");
+		expect(screen.getByTestId("audio-quality-value")).toBeInTheDocument();
+
+		await waitFor(() =>
+			expect(screen.queryByTestId("audio-quality-value")).toBeNull(),
+		);
 	});
 });
 

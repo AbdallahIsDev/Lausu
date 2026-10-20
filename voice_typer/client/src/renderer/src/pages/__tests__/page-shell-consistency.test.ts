@@ -3,7 +3,7 @@
  *
  * The app has one page shell, and 20+ places declare it verbatim:
  *
- *   mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6
+ *   mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6
  *
  * `mx-auto` + `max-w-4xl` give the 896px measure (DESIGN-SYSTEM.md §12),
  * `px-16` the 64px side padding, `pt-20 pb-6` the 80/24 vertical rhythm.
@@ -34,7 +34,7 @@ const PAGES = resolve(__dirname, "..");
 
 /** The shell every page-level state screen must use. */
 const STATE_SHELL =
-	"mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-6 px-16 pt-20 pb-6";
+	"mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-4 px-16 pt-20 pb-6";
 
 /**
  * The off-shell container this guard exists to prevent: full height,
@@ -109,7 +109,7 @@ describe("page shell — one shell for every page-level state screen", () => {
 		// canonical loaded-page shell (no centring) must also be present.
 		const loaded = FILES.filter((f) =>
 			f.text.includes(
-				"mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6",
+				"mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6",
 			),
 		);
 		expect(loaded.length).toBeGreaterThan(5);

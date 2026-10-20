@@ -190,7 +190,6 @@
 		"osDefaultBadge": "默认",
 		"unknown": "未知",
 		"youSaid": "您说的是",
-		"transcriptionUnavailable": "尚未加载语音模型。请先加载模型，即可实时查看测试录音的转写结果。",
 		"availableMicrophones": "可用麦克风",
 		"microphone": "麦克风",
 		"usingMic": "使用中：{name}",
@@ -1805,9 +1804,9 @@
 		"notchFilter": "陷波滤波器（嗡声）"
 	},
 	"microphoneTest": {
-		"title": "测试完成",
+		"title": "测试结果",
 		"duration": "时长：{duration}秒",
-		"retest": "重新测试",
+		"audioQuality": "语音质量",
 		"estimatedQuality": "预计转写质量",
 		"volume": "音量",
 		"good": "良好 ✓",
@@ -1827,25 +1826,13 @@
 		"playEnhanced": "播放增强版",
 		"playOriginal": "播放原版",
 		"stop": "停止",
-		"qualityFeedback": {
-			"qualityNotApplicable": "不适用: 转写不可用"
-		},
 		"detectedIssueCodes": {
 			"high_noise": "背景噪音过高",
-			"moderate_noise": "背景噪音中等",
+			"moderate_noise": "检测到背景噪音",
 			"clipping": "检测到音频削波",
-			"volume_too_low": "音量过低: 请靠近麦克风说话",
-			"volume_low": "音量偏低: 请考虑提高输入增益",
-			"no_voice": "未检测到语音: 请在测试时说话"
-		},
-		"recommendations": {
-			"high_noise": "尝试使用“嘈杂房间”预设来抑制背景噪音。",
-			"moderate_noise": "尝试使用“嘈杂房间”预设以获得更清晰的录音。",
-			"clipping": "降低输入增益，或稍微远离麦克风。",
-			"volume_too_low": "请大声说话或靠近麦克风。",
-			"volume_low": "在系统声音设置中提高输入增益。",
-			"no_voice": "测试期间请持续说话，以便检测到语音。",
-			"applyNoisyRoom": "应用“嘈杂房间”预设"
+			"volume_too_low": "音量过低",
+			"volume_low": "音量偏低",
+			"no_voice": "未检测到语音"
 		},
 		"liveListen": "实时试听",
 		"stopListening": "停止试听",

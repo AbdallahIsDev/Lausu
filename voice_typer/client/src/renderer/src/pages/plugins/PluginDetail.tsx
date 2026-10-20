@@ -70,7 +70,7 @@ export default function PluginDetail() {
 	// Nothing selected: the page still offers the way back to the list.
 	if (!plugin) {
 		return (
-			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 				{backButton}
 				<EmptyState
 					icon={Plug01Icon}
@@ -84,12 +84,12 @@ export default function PluginDetail() {
 	const isActive = activePluginId === plugin.id;
 
 	return (
-		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 			{backButton}
 
 			<PageHeading title={plugin.name} description={plugin.description} />
 
-			<div className="flex flex-col gap-6">
+			<div className="flex flex-col gap-4">
 				<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle">
 					<SettingRow
 						label={t("plugins.activateLabel")}

@@ -190,7 +190,6 @@
 		"osDefaultBadge": "Standard",
 		"unknown": "Unbekannt",
 		"youSaid": "Sie sagten",
-		"transcriptionUnavailable": "Es ist noch kein Sprachmodell geladen. Laden Sie ein Modell, um eine Live-Transkription Ihrer Testaufnahme zu sehen.",
 		"availableMicrophones": "Verfügbare Mikrofone",
 		"microphone": "Mikrofon",
 		"usingMic": "Verwendet: {name}",
@@ -1805,9 +1804,9 @@
 		"notchFilter": "Kerfilter (Brummen)"
 	},
 	"microphoneTest": {
-		"title": "Test abgeschlossen",
+		"title": "Testergebnis",
 		"duration": "Dauer: {duration}s",
-		"retest": "Erneut testen",
+		"audioQuality": "Sprachqualität",
 		"estimatedQuality": "Geschätzte Transkriptionsqualität",
 		"volume": "Lautstärke",
 		"good": "Gut ✓",
@@ -1827,25 +1826,13 @@
 		"playEnhanced": "Verbessert abspielen",
 		"playOriginal": "Original abspielen",
 		"stop": "Stopp",
-		"qualityFeedback": {
-			"qualityNotApplicable": "N/V: Transkription nicht verfügbar"
-		},
 		"detectedIssueCodes": {
 			"high_noise": "Hohe Hintergrundgeräusche",
-			"moderate_noise": "Mäßige Hintergrundgeräusche",
+			"moderate_noise": "Hintergrundgeräusche erkannt",
 			"clipping": "Audio-Übersteuerung erkannt",
-			"volume_too_low": "Lautstärke zu niedrig – sprechen Sie näher am Mikrofon",
-			"volume_low": "Lautstärke ist niedrig – erwägen Sie, die Eingangsverstärkung zu erhöhen",
-			"no_voice": "Keine Stimme erkannt – versuchen Sie, während des Tests zu sprechen"
-		},
-		"recommendations": {
-			"high_noise": "Probieren Sie das Preset „Noisy Room“, um Hintergrundgeräusche zu unterdrücken.",
-			"moderate_noise": "Probieren Sie das Preset „Noisy Room“, um eine klarere Aufnahme zu erzielen.",
-			"clipping": "Verringern Sie die Eingangsverstärkung oder halten Sie etwas mehr Abstand zum Mikrofon.",
-			"volume_too_low": "Sprechen Sie lauter oder rücken Sie näher an das Mikrofon.",
-			"volume_low": "Erhöhen Sie die Eingangsverstärkung in den Soundeinstellungen Ihres Betriebssystems.",
-			"no_voice": "Sprechen Sie während des Tests durchgehend, damit Stimmaktivität erkannt wird.",
-			"applyNoisyRoom": "Preset „Noisy Room“ anwenden"
+			"volume_too_low": "Lautstärke zu niedrig",
+			"volume_low": "Lautstärke niedrig",
+			"no_voice": "Keine Stimme erkannt"
 		},
 		"liveListen": "Live mithören",
 		"stopListening": "Stoppen",

@@ -36,7 +36,7 @@ export default function PageHeading({
 		<div className="flex flex-col">
 			{children ? (
 				// Title + description on the left, action row on the right
-				// with clear separation (gap-6) so a 4-button toolbar never
+				// with clear separation (gap-4) so a 4-button toolbar never
 				// runs into the heading text. items-start keeps a tall
 				// button group from stretching the heading; flex-wrap lets
 				// the action row drop below on narrow windows instead of

@@ -340,7 +340,7 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 				// — the old `max-w-lg px-6 py-12` was the full-window
 				// `ConnectionStatusScreen` shell, which made the error card
 				// jump width and sit 68px higher than the page it replaced.
-				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-6 px-16 pt-20 pb-6">
+				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-4 px-16 pt-20 pb-6">
 					<EmptyState
 						variant="error"
 						icon={AlertCircleIcon}

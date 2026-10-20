@@ -25,6 +25,12 @@ export interface TestResultQuality {
 	detected_issues: string[];
 	estimated_transcription_quality: number;
 	silence_ratio: number;
+	speech_quality?: number;
+	speech_ratio?: number;
+	speech_rms?: number;
+	speech_peak?: number;
+	noise_floor_rms?: number;
+	vad_used?: boolean;
 }
 
 /** One slice of a ``microphone_test_read_audio`` response. */

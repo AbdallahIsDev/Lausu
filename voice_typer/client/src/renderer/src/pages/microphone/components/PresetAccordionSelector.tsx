@@ -236,7 +236,11 @@ export function PresetAccordionSelector({
 		!matchesRestored;
 
 	return (
-		<Accordion type="single" collapsible className="rounded-lg overflow-hidden">
+		<Accordion
+			type="single"
+			collapsible
+			className="overflow-hidden border-t border-border/8 bg-surface-subtle"
+		>
 			<AccordionItem
 				value={ACCORDION_ITEM_VALUE}
 				className="border-border/8 data-open:bg-transparent"
@@ -257,7 +261,7 @@ export function PresetAccordionSelector({
 					className="items-center gap-3 px-4 py-2.5 hover:bg-foreground/5 hover:no-underline focus-visible:ring-ring"
 				>
 					<div className="flex items-center gap-2 min-w-0">
-						<span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+						<span className="text-sm font-medium text-foreground">
 							{t("settings.audioEnhancement.microphoneQuality")}
 						</span>
 						{/* Inline (span) trigger: this tooltip lives INSIDE the
@@ -297,7 +301,7 @@ export function PresetAccordionSelector({
 				{/* Padding contract (C-MIC-15): AccordionContent supplies NO
                                 horizontal padding, so the shared 16px inset is set HERE
                                 (switch row px-4; options px-2 + row p-2), never on the primitive. */}
-				<AccordionContent className="flex flex-col gap-2">
+				<AccordionContent className="flex flex-col gap-2 border-t border-border/8">
 					{/* Master enable-Switch (first row): "off" lives ONLY
                                         here, never among the radios below. The radios
                                         (and the Custom panel) render only while enabled. */}

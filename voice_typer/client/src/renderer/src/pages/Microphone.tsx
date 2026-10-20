@@ -272,7 +272,7 @@ export default function MicrophonePage() {
 	// a microphone when the real issue is the backend is unreachable.
 	if (loadError && microphones.length === 0) {
 		return (
-			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 				<PageHeading
 					title={t("microphone.microphone")}
 					description={t("microphone.description")}
@@ -294,13 +294,13 @@ export default function MicrophonePage() {
 	}
 
 	return (
-		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 			<PageHeading
 				title={t("microphone.microphone")}
 				description={t("microphone.description")}
 			/>
 
-			<div className="flex flex-col gap-6">
+			<div className="flex flex-col gap-4">
 				<MicrophonePermissionBanner micPermission={micPermission} />
 
 				{/* ``meterRef`` wrapper. The level monitor's rAF
@@ -351,7 +351,6 @@ export default function MicrophonePage() {
 							rawAudioBase64 ? playAudio(rawAudioBase64, false) : undefined
 						}
 						onStopPlayback={stopPlayback}
-						onRetest={startTest}
 						onToggleAdvanced={() => setShowAdvanced((v) => !v)}
 						onPresetChange={handlePresetChange}
 						onConfigChange={handleConfigChange}

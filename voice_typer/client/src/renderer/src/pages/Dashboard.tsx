@@ -211,7 +211,7 @@ export default function DashboardPage() {
 	if (!data || (range === "custom" && !customReady)) {
 		if (fetchError) {
 			return (
-				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-6 px-16 pt-20 pb-6">
+				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-4 px-16 pt-20 pb-6">
 					<EmptyState
 						variant="error"
 						icon={AlertCircleIcon}
@@ -228,7 +228,7 @@ export default function DashboardPage() {
 		// heading keeps zero live regions (no LastUpdatedIndicator here).
 		if (!data) {
 			return (
-				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 					<PageHeading
 						title={t("analytics.title")}
 						description={t("analytics.description")}
@@ -263,7 +263,7 @@ export default function DashboardPage() {
 			: null;
 
 	return (
-		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-6 px-16 pt-20 pb-6">
+		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 			<PageHeading
 				title={t("analytics.title")}
 				description={t("analytics.description")}
