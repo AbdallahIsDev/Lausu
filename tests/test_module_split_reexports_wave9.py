@@ -481,7 +481,7 @@ RECORDING_LIFECYCLE_HELPERS = (
 )
 
 # The facade class surface captured from the pre-split definition
-# (24 methods incl. ``__init__``; ``dir()`` drops the dunder).
+# (26 methods incl. ``__init__``; ``dir()`` drops the dunder).
 EXPECTED_RECORDING_LIFECYCLE_SURFACE = {
     "_run_public_entry",
     "toggle",
@@ -494,6 +494,8 @@ EXPECTED_RECORDING_LIFECYCLE_SURFACE = {
     "_notify_mic_watcher_of_active_device",
     "_claim_keyboard_ownership_for_recording",
     "_rearm_esc_cancel_if_enabled",
+    "_publish_instant_start_feedback",
+    "_hide_instant_start_feedback",
     "_publish_recording_started_event",
     "_spawn_dictation_start_worker",
     "_teardown_failed_recorder_start",
@@ -613,18 +615,28 @@ class TestRecordingLifecyclePatchSeams:
 
 
 class TestRecordingLifecycleStageOrderParity:
-    """The pipelines' stage order was captured before the split and must hold."""
+    """The pipelines' stage order is a pinned contract.
+
+    The start order was captured before the split and then intentionally
+    changed by the instant-acknowledge feature: the tray/bubble/start-cue
+    feedback now precedes the blocking ``recorder.start()``, and the
+    recorder-start failure path rolls that feedback back.
+    """
 
     START_STAGE_ORDER = [
+        "_publish_instant_start_feedback",
         "_wire_recorder_start_callbacks",
         "app.recorder.start()",
-        "AppState.RECORDING",
-        '_waveform_bubble.show()',
-        'set_state("recording")',
         "_claim_keyboard_ownership_for_recording",
         "_rearm_esc_cancel_if_enabled",
-        "_publish_recording_started_event",
         "_spawn_dictation_start_worker",
+    ]
+
+    INSTANT_START_FEEDBACK_ORDER = [
+        "app.tray.set_state(AppState.RECORDING",
+        "app._waveform_bubble.show()",
+        'set_state("recording")',
+        "_publish_recording_started_event",
     ]
 
     STOP_STAGE_ORDER = [
@@ -645,9 +657,9 @@ class TestRecordingLifecycleStageOrderParity:
         assert not missing, f"missing stage markers: {missing}"
         return [m for _, m in positions]
 
-    def test_pipeline_stage_order_matches_pre_split(self):
-        """Captured pre-split from the old recording_lifecycle.py and compared
-        against the composed class after the split (both pipelines)."""
+    def test_pipeline_stage_order_matches_the_contract(self):
+        """Start ack, recorder open, ownership, and stop pipeline keep their
+        pinned relative order after the split + instant-acknowledge change."""
         import inspect
 
         from voice_typer.server.recording_lifecycle import RecordingLifecycle
@@ -655,7 +667,13 @@ class TestRecordingLifecycleStageOrderParity:
         start_src = inspect.getsource(RecordingLifecycle._start_impl)
         assert (
             self._ordered_markers(start_src, self.START_STAGE_ORDER) == self.START_STAGE_ORDER
-        ), "start-pipeline stage order drifted from the pre-split capture"
+        ), "start-pipeline stage order drifted from the pinned contract"
+
+        feedback_src = inspect.getsource(RecordingLifecycle._publish_instant_start_feedback)
+        assert (
+            self._ordered_markers(feedback_src, self.INSTANT_START_FEEDBACK_ORDER)
+            == self.INSTANT_START_FEEDBACK_ORDER
+        ), "instant-start feedback order drifted from the pinned contract"
 
         stop_src = inspect.getsource(RecordingLifecycle._run_stop_and_transcribe)
         assert (
