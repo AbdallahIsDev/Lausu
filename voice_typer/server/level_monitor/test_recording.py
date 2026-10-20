@@ -3,8 +3,9 @@
 Split (create-first, every moved name re-exported here so the historical
 import path keeps resolving): :mod:`.test_recording_files` (mic-test WAV
 disk transport: recordings dir, persist, TTL expiry, slices) and
-:mod:`.test_recording_lifecycle` (arm/start/cancel/auto-stop). This
-module keeps the quality-band constants and the stop/finalize path.
+:mod:`.test_recording_lifecycle` (arm/start/cancel/auto-stop) and
+:mod:`.test_recording_quality` (VAD-based scoring). This module keeps
+the stop/finalize path and re-exports the quality bands.
 """
 
 from __future__ import annotations
@@ -13,11 +14,9 @@ import io
 import logging
 import types
 import wave
-from typing import TYPE_CHECKING
 
 import numpy as np
 
-from voice_typer.server._audio_constants import AUDIO_LOW_VOLUME_RMS, AUDIO_SILENCE_RMS
 from voice_typer.server.duration import format_duration
 
 from ._state import _state
@@ -49,26 +48,13 @@ from .test_recording_lifecycle import (  # noqa: F401  # facade re-export
     start_test_recording,
     update_test_filters,
 )
-
-if TYPE_CHECKING:
-    from typing import Any
+from .test_recording_quality import (  # noqa: F401  # facade re-export
+    MIC_TEST_GOOD_VOLUME_RMS,
+    MIC_TEST_VERY_LOW_VOLUME_RMS,
+    grade_test_quality,
+)
 
 log = logging.getLogger("voice_typer.server.level_monitor")
-
-
-# Volume bands share the dictation path's boundaries (see
-MIC_TEST_GOOD_VOLUME_RMS = AUDIO_LOW_VOLUME_RMS
-MIC_TEST_VERY_LOW_VOLUME_RMS = AUDIO_SILENCE_RMS
-
-# Background-noise bands apply to the noise FLOOR (the quietest
-_MIC_TEST_NOISE_LOW_RMS = 0.005
-_MIC_TEST_NOISE_HIGH_RMS = 0.05
-
-# Voice presence: a peak above this fraction of full scale in a block
-_MIC_TEST_VOICE_PEAK = 0.05
-# ... but one loud transient (click/pop) in an otherwise silent test
-_MIC_TEST_VOICE_MAX_SILENCE_RATIO = 0.95
-_MIC_TEST_VOICE_MIN_NON_SILENT_BLOCKS = 3
 
 
 def stop_test_recording() -> dict:
@@ -169,88 +155,13 @@ def stop_test_recording() -> dict:
 
     duration_ms = int(len(audio) / sr * 1000)
 
-    raw_abs = np.abs(raw_audio)
-    raw_rms = float(np.sqrt(np.mean(np.square(raw_audio.astype(np.float32)))))
-    raw_peak = float(raw_abs.max())
-    total_blocks = len(rms_hist) if rms_hist else 0
-    silence_ratio_value = round(silence_blocks / max(1, total_blocks), 4)
-    non_silent_blocks = total_blocks - silence_blocks
-    if total_blocks > 0:
-        # Voice requires a loud peak AND a non-trivial non-silent share:
-        has_voice = (
-            raw_peak > _MIC_TEST_VOICE_PEAK
-            and silence_ratio_value < _MIC_TEST_VOICE_MAX_SILENCE_RATIO
-            and non_silent_blocks >= _MIC_TEST_VOICE_MIN_NON_SILENT_BLOCKS
-        )
-    else:
-        # No per-block history to assess the share from (e.g. chunks
-        has_voice = raw_peak > _MIC_TEST_VOICE_PEAK
-
-    # Background noise is graded on the noise FLOOR (quietest ~32 ms
-    noise_floor = float(min(rms_hist)) if rms_hist else raw_rms
-    if noise_floor < _MIC_TEST_NOISE_LOW_RMS:
-        noise_level = "low"
-    elif noise_floor < _MIC_TEST_NOISE_HIGH_RMS:
-        noise_level = "moderate"
-    else:
-        noise_level = "high"
-    if has_voice and noise_level == "high":
-        # A sustained voice signal dominates the total energy: the
-        noise_level = "moderate"
-
-    # annotate ``quality`` as ``dict[str, Any]`` so that
-    quality: dict[str, Any] = {
-        "volume_level": (
-            "good"
-            if raw_rms >= MIC_TEST_GOOD_VOLUME_RMS
-            else ("very_low" if raw_rms < MIC_TEST_VERY_LOW_VOLUME_RMS else "low")
-        ),
-        "volume_rms": round(raw_rms, 6),
-        "peak_level": round(raw_peak, 4),
-        "noise_level": noise_level,
-        "has_voice": has_voice,
-        "has_clipping": clip_count > 0,
-        "clipping_blocks": clip_count,
-        "total_blocks": total_blocks,
-        "silence_ratio": silence_ratio_value,
-        "avg_rms": round(float(np.mean(rms_hist) if rms_hist else 0), 6),
-        "peak_rms": round(float(np.max(rms_hist) if rms_hist else 0), 6),
-    }
-
-    # Detected issues list
-    detected_issues = []
-    if quality["noise_level"] == "high":
-        detected_issues.append("High background noise")
-    elif quality["noise_level"] == "moderate":
-        detected_issues.append("Moderate background noise")
-    if quality["has_clipping"]:
-        detected_issues.append("Audio clipping detected")
-    if quality["volume_level"] == "very_low":
-        detected_issues.append("Volume too low, speak closer to the microphone")
-    elif quality["volume_level"] == "low":
-        detected_issues.append("Volume is low, consider raising input gain")
-    if not quality["has_voice"]:
-        detected_issues.append("No voice detected, try speaking during the test")
-    quality["detected_issues"] = detected_issues
-
-    # Estimate transcription quality (0-100)
-    est_score = 100
-    if quality["noise_level"] == "high":
-        est_score -= 30
-    elif quality["noise_level"] == "moderate":
-        est_score -= 10
-    if quality["has_clipping"]:
-        est_score -= 20
-    if quality["volume_level"] == "very_low":
-        est_score -= 40
-    elif quality["volume_level"] == "low":
-        est_score -= 15
-    if not quality["has_voice"]:
-        est_score = 0
-    # Inaudible input is already charged once via the very_low -40
-    if raw_rms > 0.1:
-        est_score = max(0, est_score - 10)
-    quality["estimated_transcription_quality"] = max(0, min(100, est_score))
+    quality = grade_test_quality(
+        raw_audio=raw_audio,
+        sample_rate=sr,
+        rms_history=rms_hist,
+        clip_count=clip_count,
+        silence_blocks=silence_blocks,
+    )
 
     # skip the post-hoc filter when ``filtered_chunks`` was
     # Live-captured timeline present (stitched per-chunk across toggles):

@@ -834,3 +834,75 @@ class TestPreloadWarmup:
         assert vad.preload() is False
         assert vad._model is None
         vad.reset()
+
+class TestOfflineSpeechProbabilities:
+    """Offline scoring must not touch the live streaming VAD state."""
+
+    def _load(self, monkeypatch, session):
+        import voice_typer.server.vad as vad
+
+        _install_fake_ort(monkeypatch, session)
+        monkeypatch.setattr(vad, "_VAD_MODEL_PATH", Path(__file__))
+        vad.reset()
+        vad._load_model()
+        return vad
+
+    def test_returns_one_probability_per_window(self, monkeypatch):
+        session = FakeOrtSession(prob_sequence=[0.2, 0.8])
+        vad = self._load(monkeypatch, session)
+
+        probs = vad.compute_speech_probabilities(
+            np.ones(1024, dtype=np.float32) * 0.1,
+            sample_rate=16000,
+        )
+
+        assert probs == pytest.approx([0.2, 0.8])
+        assert len(session.calls) == 2
+        assert session.calls[0]["input"].shape == (1, 576)
+        vad.reset()
+
+    def test_keeps_live_state_and_context_untouched(self, monkeypatch):
+        session = FakeOrtSession(prob_sequence=[0.2, 0.8])
+        vad = self._load(monkeypatch, session)
+        live_state = np.full((2, 1, 128), 7.0, dtype=np.float32)
+        live_context = np.full(64, 0.25, dtype=np.float32)
+        vad._state = live_state.copy()
+        vad._context = live_context.copy()
+
+        vad.compute_speech_probabilities(
+            np.ones(1024, dtype=np.float32) * 0.1,
+            sample_rate=16000,
+        )
+
+        np.testing.assert_array_equal(vad._state, live_state)
+        np.testing.assert_array_equal(vad._context, live_context)
+        vad.reset()
+
+    def test_reflect_pads_a_partial_tail_window(self, monkeypatch):
+        session = FakeOrtSession(prob_sequence=[0.1, 0.9])
+        vad = self._load(monkeypatch, session)
+
+        probs = vad.compute_speech_probabilities(
+            np.ones(513, dtype=np.float32) * 0.1,
+            sample_rate=16000,
+        )
+
+        assert probs == pytest.approx([0.1, 0.9])
+        assert len(session.calls) == 2
+        vad.reset()
+
+    def test_returns_none_when_model_unavailable(self, monkeypatch):
+        import voice_typer.server.vad as vad
+
+        vad.reset()
+        monkeypatch.setattr(vad, "_load_model", lambda: (None, None))
+        assert vad.compute_speech_probabilities(np.ones(512, dtype=np.float32)) is None
+        vad.reset()
+
+    def test_rejects_unsupported_sample_rate(self, monkeypatch):
+        session = FakeOrtSession(prob_sequence=[0.5])
+        vad = self._load(monkeypatch, session)
+
+        with pytest.raises(ValueError):
+            vad.compute_speech_probabilities(np.ones(1024, dtype=np.float32), 44100)
+        vad.reset()
