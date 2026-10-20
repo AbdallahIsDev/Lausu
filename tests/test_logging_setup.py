@@ -421,24 +421,28 @@ class TestStartupBanner:  # noqa: N801
         logging_setup._setup_logging()
         # ``setup_logging`` installs the process-global handler, so from
         # that moment on ANY thread in the worker can append to this file —
-        # a leaked background thread from an earlier test (e.g. a
-        # microphone-watcher ``stop()`` finishing its 2s join) does exactly
-        # that, and its line then lands ahead of the banner. Cut the file at
-        # the point the banner emission begins: the contract under test is
-        # that the banner is the first line THE BANNER writes, not that no
-        # other thread ever logs.
+        # a leaked background thread from an earlier test (a
+        # microphone-watcher ``stop()`` finishing its 2s join does exactly
+        # that) writes its line before the banner and owns line 0. Cut the
+        # file at the point the banner emission begins: the contract under
+        # test is that the banner is the first line THE BANNER writes, not
+        # that no other thread in the worker ever logs.
+        #
+        # The cut is a BYTE offset, so slice BYTES: ``read_text`` normalises
+        # CRLF to LF and the slice would then land one char late per line.
         _banner_offset = log_path.stat().st_size if log_path.exists() else 0
 
         logging_setup._emit_startup_banner()
         _flush_all()
-        content = log_path.read_text(encoding="utf-8")
+        _raw = log_path.read_bytes()
+        content = _raw.decode("utf-8")
         session_id = _log_module._session_id
         assert session_id, "setup_logging did not populate _session_id"
         assert re.fullmatch(r"[0-9a-f]{8}", session_id), (
             f"GT-B1-15: _session_id is not an 8-char hex id; got: {session_id!r}"
         )
         # The session id must sit on the very first line the banner emits.
-        lines = content[_banner_offset:].splitlines()
+        lines = _raw[_banner_offset:].decode("utf-8").splitlines()
         assert lines, f"GT-B1-15: banner wrote nothing; got: {content!r}"
         assert f"session={session_id}" in lines[0], (
             f"GT-B1-15: first log line must carry session=<id>; got: {lines[0]!r}"
