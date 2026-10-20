@@ -349,12 +349,25 @@ export function isCloudModelActive(
 ): boolean {
 	// A guard-only row is never the active one, even if the config names it.
 	if (isRealtimeGuardOnly(provider.key, modelId)) return false;
-	if (cfg?.asr_backend !== "cloud") return false;
-	if ((cfg.cloud_provider ?? "") !== provider.key) return false;
-	const selected = cfg.cloud_model?.trim()
-		? cfg.cloud_model
-		: provider.defaultModel;
-	return selected === modelId;
+	const active = activeCloudModel(cfg);
+	return active?.provider === provider.key && active.model === modelId;
+}
+
+/**
+ * The cloud model the config actually serves: the configured `cloud_model`,
+ * or the provider's default when none has been chosen yet (picking a
+ * PROVIDER without a model still runs one). `null` when the cloud backend
+ * is not active or no provider is selected — the same "nothing usable"
+ * line `hasActiveSpeechModel` draws.
+ */
+export function activeCloudModel(
+	cfg: Partial<LausuConfig> | null,
+): { provider: string; model: string } | null {
+	if (cfg?.asr_backend !== "cloud") return null;
+	const provider = (cfg.cloud_provider ?? "").trim();
+	if (provider === "") return null;
+	const model = cfg.cloud_model?.trim() || cloudDefaultModel(provider);
+	return model === "" ? null : { provider, model };
 }
 
 /**

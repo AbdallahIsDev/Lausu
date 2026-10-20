@@ -18,6 +18,7 @@ import { HotkeyTooltip } from "@/components/hotkey/HotkeyTooltip";
 import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 import { SHORTCUTS } from "@/components/hotkey/shortcuts";
 import { DeviceToggle } from "@/components/layout/DeviceToggle";
+import { SidebarActiveModel } from "@/components/layout/SidebarActiveModel";
 import { isSettingsSurface } from "@/components/settings/settingsSections";
 import { Button } from "@/components/ui/button";
 import { usePluginsAvailable } from "@/hooks/usePluginCatalog";
@@ -395,12 +396,16 @@ function SidebarInner({
 									group.pinnedToBottom && "mt-auto",
 								)}
 							>
-								{/* Compute-device switch lives at the top of the
-								    System cluster so it rides the same bottom
-								    pin: one quick toggle, no settings detour.
-								    Hidden when collapsed or GPU-less (the
-								    component nulls itself), keeping the icon
+								{/* Active model + compute-device switch live at the
+								    top of the System cluster so they ride the same
+								    bottom pin: the running model is readable from
+								    every page, one quick toggle, no settings
+								    detour. Both null themselves when collapsed
+								    (or GPU-less / no model), keeping the icon
 								    column geometry untouched. */}
+								{group.pinnedToBottom && (
+									<SidebarActiveModel collapsed={collapsed} />
+								)}
 								{group.pinnedToBottom && <DeviceToggle collapsed={collapsed} />}
 								{group.items.map((item) => {
 									return (

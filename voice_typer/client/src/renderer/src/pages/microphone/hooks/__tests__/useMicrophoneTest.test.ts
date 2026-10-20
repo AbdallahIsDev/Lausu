@@ -208,7 +208,6 @@ describe("useMicrophoneTest, composition smoke test (renders without crashing)",
 		expect(typeof r.testRunning).toBe("boolean");
 		expect(typeof r.testElapsed).toBe("number");
 		expect(typeof r.testDurationMs).toBe("number");
-		expect(typeof r.showAdvanced).toBe("boolean");
 		expect("filtersSinceLastTest" in r).toBe(false);
 		expect(typeof r.playingEnhanced).toBe("boolean");
 		expect(typeof r.playingOriginal).toBe("boolean");
@@ -226,7 +225,6 @@ describe("useMicrophoneTest, composition smoke test (renders without crashing)",
 		expect(MICROPHONE_TEST_DURATION_SEC).toBe(10);
 
 		const { result } = renderHook(() => useMicrophoneTest(makeHookArgs()));
-		expect(result.current.showAdvanced).toBe(false);
 		expect("testDurationSec" in result.current).toBe(false);
 		expect("setTestDurationSec" in result.current).toBe(false);
 	});
@@ -519,18 +517,6 @@ describe("useMicrophoneTest, handlePresetChange / handleConfigChange", () => {
 		});
 
 		expect(args.updateConfig).toHaveBeenCalledWith({ vad_threshold: 0.5 });
-	});
-});
-
-describe("useMicrophoneTest, setter pass-through", () => {
-	it("setShowAdvanced toggles the showAdvanced state", () => {
-		const { result } = renderHook(() => useMicrophoneTest(makeHookArgs()));
-		expect(result.current.showAdvanced).toBe(false);
-
-		act(() => {
-			result.current.setShowAdvanced(true);
-		});
-		expect(result.current.showAdvanced).toBe(true);
 	});
 });
 

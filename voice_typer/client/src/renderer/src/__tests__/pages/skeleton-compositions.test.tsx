@@ -103,13 +103,14 @@ describe("ModelsSkeleton", () => {
 });
 
 describe("MicrophoneSkeleton", () => {
-	it("renders test card (level bar + controls) + preset row + device radios", () => {
+	it("renders test card (level bar + controls) + quality switch row + device radios", () => {
 		render(<MicrophoneSkeleton />);
 		const status = screen.getByRole("status", { name: LOADING_LABEL });
 		// LevelBar track placeholder (h-1.5) inside the test card.
 		expect(status.querySelector(".h-1\\.5")).not.toBeNull();
-		// Preset accordion value-chip placeholder.
-		expect(status.querySelector(".h-6.w-20.rounded-lg")).not.toBeNull();
+		// Flat quality section: the enable-Switch placeholder (h-5 w-11)
+		// replaces the old accordion value-chip + chevron pair.
+		expect(status.querySelector(".h-5.w-11.rounded-full")).not.toBeNull();
 		// 3 device rows with trailing radio placeholders.
 		const deviceRows = status.querySelectorAll(
 			".rounded-lg.border .divide-y > .flex.items-center.gap-3",

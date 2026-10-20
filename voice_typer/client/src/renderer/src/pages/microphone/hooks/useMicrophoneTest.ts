@@ -1,7 +1,6 @@
 //Test-recording lifecycle hook for the Microphone page ( split).
 // focused hooks (``useMicrophoneLevelMonitor`` /
 // ``useMicrophoneTestSession`` / ``useMicrophonePlayback``) plus the
-// trivial UI-only state (showAdvanced) +
 // ``handlePresetChange`` / ``handleConfigChange`` wrappers + the
 // cross-hook ``testRunningRef`` (synced by the session hook, read by
 // the level monitor). Public return shape unchanged.
@@ -15,7 +14,6 @@ import {
 	useCallback,
 	useRef,
 } from "react";
-import { useFilterState } from "@/hooks/useFilterState";
 import { usePython } from "@/hooks/usePython";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
@@ -60,7 +58,6 @@ export interface UseMicrophoneTestResult {
 	/** Live peak ref (mutated at ≤30 Hz by ``mic_level`` events). */
 	peakRef: RefObject<number>;
 	micMonitoring: boolean;
-	showAdvanced: boolean;
 	playingEnhanced: boolean;
 	playingOriginal: boolean;
 	// Handlers
@@ -71,8 +68,6 @@ export interface UseMicrophoneTestResult {
 	stopPlayback: () => void;
 	handlePresetChange: (preset: AudioPreset) => void;
 	handleConfigChange: (updates: Partial<LausuConfig>) => void;
-	// Setters
-	setShowAdvanced: Dispatch<SetStateAction<boolean>>;
 }
 
 export function useMicrophoneTest({
@@ -86,18 +81,6 @@ export function useMicrophoneTest({
 }: UseMicrophoneTestOptions): UseMicrophoneTestResult {
 	const { call } = usePython();
 	const { showSnack } = useSnackbar();
-
-	// ADR 0007: Audio preset + filter state lives in ``config`` directly.
-	// Persist the "Show advanced filters" expand toggle across
-	// page navigation so a user who expanded the advanced panel to tweak
-	// a noise gate threshold doesn't have to re-expand it after a
-	// navigation. The toggle is purely a UI affordance (no behaviour
-	// change), so persisting it is safe.
-	const [showAdvanced, setShowAdvanced] = useFilterState<boolean>(
-		"microphone",
-		"showAdvanced",
-		false,
-	);
 
 	// Cross-hook ``testRunningRef``, owned here so the level monitor
 	// (reads it) and the session hook (syncs it via internal effect)
@@ -204,7 +187,6 @@ export function useMicrophoneTest({
 		testTranscriptionUnavailable: session.testTranscriptionUnavailable,
 		playingEnhanced: playback.playingEnhanced,
 		playingOriginal: playback.playingOriginal,
-		showAdvanced,
 		startTest: session.startTest,
 		stopTest: session.stopTest,
 		selectMicrophone: session.selectMicrophone,
@@ -212,6 +194,5 @@ export function useMicrophoneTest({
 		stopPlayback: playback.stopPlayback,
 		handlePresetChange,
 		handleConfigChange,
-		setShowAdvanced,
 	};
 }

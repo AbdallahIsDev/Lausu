@@ -2,12 +2,28 @@
 
 import contextlib
 import logging
+from typing import Any
 
 from voice_typer.server._audio_constants import WHISPER_SAMPLE_RATE
 from voice_typer.server.service._app_internals import app_microphones, set_app_microphones
 from voice_typer.server.service._base import ServiceMixinBase
 
 log = logging.getLogger(__name__)
+
+
+def _transcribe_with_engine(engine: Any, audio_f32: Any) -> str:
+    """Transcribe through the backend contract, not a concrete method name.
+
+    ``transcribe_with_fallback`` is what every ``AsrBackend`` implements
+    (worker proxies expose no ``transcribe`` at all, and it is the method
+    the dictation pipeline itself calls).
+    """
+    transcribe = getattr(engine, "transcribe_with_fallback", None)
+    if not callable(transcribe):
+        transcribe = getattr(engine, "transcribe", None)
+    if not callable(transcribe):
+        raise AttributeError(f"{type(engine).__name__} exposes no transcription method")
+    return str(transcribe(audio_f32) or "")
 
 
 class MicrophoneTestMixin(ServiceMixinBase):
@@ -123,8 +139,7 @@ class MicrophoneTestMixin(ServiceMixinBase):
                     engine = models.active_transcriber()
                     if engine is not None and getattr(engine, "is_loaded", False):
                         try:
-                            transcription = engine.transcribe(audio_f32)
-                            text = str(transcription) if transcription else ""
+                            text = _transcribe_with_engine(engine, audio_f32)
                             if text.strip():
                                 result["transcription"] = text
                                 result["transcription_confidence"] = None

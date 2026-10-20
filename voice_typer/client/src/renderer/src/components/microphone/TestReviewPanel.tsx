@@ -31,6 +31,8 @@ interface TestReviewPanelProps {
 	transcription?: string | null;
 	/** True when no speech model is loaded, so no transcription can exist. */
 	transcriptionUnavailable?: boolean;
+	/** True while the microphone-quality chain is active (audio_preset !== "off"). */
+	enhancementActive: boolean;
 	testAudioBase64: string | null;
 	rawAudioBase64: string | null;
 	playing: boolean;
@@ -45,6 +47,7 @@ interface TestResultSnapshot {
 	quality: QualityData | null;
 	transcription: string | null;
 	transcriptionUnavailable: boolean;
+	enhancementActive: boolean;
 	testAudioBase64: string | null;
 	rawAudioBase64: string | null;
 }
@@ -96,6 +99,7 @@ export function TestReviewPanel({
 	quality,
 	transcription,
 	transcriptionUnavailable,
+	enhancementActive,
 	testAudioBase64,
 	rawAudioBase64,
 	playing,
@@ -119,6 +123,7 @@ export function TestReviewPanel({
 		quality,
 		transcription: transcription ?? null,
 		transcriptionUnavailable: transcriptionUnavailable === true,
+		enhancementActive,
 		testAudioBase64,
 		rawAudioBase64,
 	};
@@ -139,6 +144,7 @@ export function TestReviewPanel({
 			quality,
 			transcription: transcription ?? null,
 			transcriptionUnavailable: transcriptionUnavailable === true,
+			enhancementActive,
 			testAudioBase64,
 			rawAudioBase64,
 		});
@@ -148,6 +154,7 @@ export function TestReviewPanel({
 		quality,
 		transcription,
 		transcriptionUnavailable,
+		enhancementActive,
 		testAudioBase64,
 		rawAudioBase64,
 	]);
@@ -259,28 +266,30 @@ export function TestReviewPanel({
 							</div>
 						)}
 
-						{/* Enhanced-left / Original-right is fixed: Enhanced exists for
-			    every test and equals the recording when the chain is off. */}
+						{/* Enhanced-left / Original-right: Enhanced is the A/B compare
+					    partner, so it exists only while the quality chain is active
+					    (chain off makes it byte-identical to Original). */}
 						<div className="flex flex-wrap items-center gap-2">
-							{displayedResult.testAudioBase64 && (
-								<Button
-									variant="outline"
-									size="sm"
-									className="gap-2"
-									onClick={
-										playing && !playingOriginal ? onStop : onPlayEnhanced
-									}
-								>
-									<HugeiconsIcon
-										icon={playing && !playingOriginal ? StopIcon : PlayIcon}
-										strokeWidth={1.625}
-										className="h-4 w-4"
-									/>
-									{playing && !playingOriginal
-										? t("microphoneTest.stop")
-										: t("microphoneTest.playEnhanced")}
-								</Button>
-							)}
+							{displayedResult.enhancementActive &&
+								displayedResult.testAudioBase64 && (
+									<Button
+										variant="outline"
+										size="sm"
+										className="gap-2"
+										onClick={
+											playing && !playingOriginal ? onStop : onPlayEnhanced
+										}
+									>
+										<HugeiconsIcon
+											icon={playing && !playingOriginal ? StopIcon : PlayIcon}
+											strokeWidth={1.625}
+											className="h-4 w-4"
+										/>
+										{playing && !playingOriginal
+											? t("microphoneTest.stop")
+											: t("microphoneTest.playEnhanced")}
+									</Button>
+								)}
 
 							{displayedResult.rawAudioBase64 && (
 								<Button

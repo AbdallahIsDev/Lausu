@@ -188,6 +188,17 @@ def mock_heavy_imports_session():
                 "(missing third-party dep); volume-backend patch skipped",
             )
 
+        try:
+            from tests.fixtures.config_helpers import preimport_config_modules
+
+            preimport_config_modules()
+        except ImportError:
+            _warn_once(
+                "config_helpers",
+                "mock_heavy_imports_session: config modules unimportable "
+                "(missing third-party dep); config-dir patches stay lazy",
+            )
+
         yield
     finally:
         mp.undo()

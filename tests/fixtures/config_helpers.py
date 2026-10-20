@@ -2,27 +2,48 @@
 
 from __future__ import annotations
 
+import importlib
 from pathlib import Path
+from types import ModuleType
 
-__all__ = ["patch_config_dir_refs", "FakeConfig"]
+__all__ = ["patch_config_dir_refs", "preimport_config_modules", "FakeConfig"]
+
+_CONFIG_MODULE_NAMES = (
+    "voice_typer.server.config",
+    "voice_typer.server.app",
+    "voice_typer.server._paths",
+    "voice_typer.server.config_internals.paths",
+    "voice_typer.server.logging_setup",
+    "voice_typer.server.startup_sequence._phases_early",
+)
+_config_modules: dict[str, ModuleType] = {}
+
+
+def preimport_config_modules() -> None:
+    """Import every config-dir consumer once, at session start.
+
+    CPython's ``_ModuleLock.acquire`` is not re-entrant safe when an
+    import callback imports mid-acquire (bpo-43546 / cpython#87712):
+    the outer acquire raises ``KeyError: <thread id>``. First imports
+    must not happen inside per-test fixture setup, so pay them here.
+    """
+    for name in _CONFIG_MODULE_NAMES:
+        if name not in _config_modules:
+            _config_modules[name] = importlib.import_module(name)
+
+
+def _config_module(name: str) -> ModuleType:
+    module = _config_modules.get(name)
+    if module is None:
+        module = importlib.import_module(name)
+        _config_modules[name] = module
+    return module
 
 
 def patch_config_dir_refs(monkeypatch, path: Path) -> None:
     """Redirect every ``_config_dir`` binding to *path* for one test."""
-    monkeypatch.setattr("voice_typer.server.config._config_dir", lambda: path)
-    monkeypatch.setattr("voice_typer.server.app._config_dir", lambda: path)
-    import voice_typer.server._paths as _paths_mod
-
-    monkeypatch.setattr(_paths_mod, "_config_dir", lambda: path)
-    import voice_typer.server.config_internals.paths as _paths_impl_mod
-
-    monkeypatch.setattr(_paths_impl_mod, "_config_dir", lambda: path)
-    import voice_typer.server.logging_setup as _logging_setup_mod
-
-    monkeypatch.setattr(_logging_setup_mod, "_config_dir", lambda: path)
-    import voice_typer.server.startup_sequence._phases_early as _phases_early_mod
-
-    monkeypatch.setattr(_phases_early_mod, "_config_dir", lambda: path)
+    for name in _CONFIG_MODULE_NAMES:
+        monkeypatch.setattr(_config_module(name), "_config_dir", lambda: path)
 
 
 class FakeConfig:

@@ -41,6 +41,12 @@ vi.mock("@/components/feedback/InfoTooltip", () => ({
 	),
 }));
 
+// The quality section reveals the real filter chain under Advanced; this
+// suite only asserts the reveal, so the chain stays a marker element.
+vi.mock("@/components/audio/AudioFilterChain", () => ({
+	AudioFilterChain: () => <div data-testid="audio-filter-chain" />,
+}));
+
 // CollectionToolbar shell (the page injects its label keys); the XA-5-15
 // sort-in-toolbar contract now pins the shared shell wired with the
 // Vocabulary page's keys, exactly what pages/Vocabulary.tsx renders.
@@ -222,74 +228,55 @@ describe("XA-5-6, cancel-confirm locale keys exist in ALL 8 locale files", () =>
 	});
 });
 
-describe("XA-5-12, preset selector keeps the primary CTA outside any disclosure", () => {
+describe("XA-5-12, preset selector is a flat switch + list (no disclosure step)", () => {
 	afterEach(() => {
 		cleanup();
 	});
 
-	it("renders the collapsed selector header (label + current preset) without expanding", () => {
+	it("renders the section label, switch and preset rows without expanding anything", () => {
 		render(
 			<PresetAccordionSelector
 				preset="auto"
 				config={{} as never}
-				showAdvanced={false}
 				onPresetChange={vi.fn()}
-				onToggleAdvanced={vi.fn()}
 				onConfigChange={vi.fn()}
 			/>,
 		);
-		// The collapsed header always shows the section label, the
-		// primary "improve your mic" control is visible without
-		// expanding anything (the same friction guarantee the old
-		// always-visible Select provided).
-		const trigger = screen.getByRole("button", {
-			name: /\[t\]settings\.audioEnhancement\.microphoneQuality/,
-		});
-		expect(trigger).toBeInTheDocument();
-		expect(trigger.getAttribute("aria-expanded")).toBe("false");
 
-		// The current selection chip sits in the collapsed header, so the
-		// active preset is readable without expanding either.
-		expect(screen.getByTestId("mic-preset-current").textContent).toBe(
-			"[t]settings.audioEnhancement.presetAuto",
-		);
+		expect(
+			screen.getByText("[t]settings.audioEnhancement.microphoneQuality"),
+		).toBeInTheDocument();
+		expect(screen.getByTestId("mic-quality-switch")).toBeInTheDocument();
+		expect(screen.getByTestId("mic-preset-radio-group")).toBeInTheDocument();
+		// The compact header affordances are gone: no value chip, no
+		// accordion trigger.
+		expect(screen.queryByTestId("mic-preset-current")).toBeNull();
+		expect(screen.queryByRole("button", { expanded: false })).toBeNull();
 	});
 
-	it("reveals the Custom Filters disclosure only under the custom preset", () => {
+	it("reveals the filter chain inline under Advanced without a disclosure step", () => {
 		const { rerender } = render(
 			<PresetAccordionSelector
 				preset="auto"
 				config={{} as never}
-				showAdvanced={false}
 				onPresetChange={vi.fn()}
-				onToggleAdvanced={vi.fn()}
 				onConfigChange={vi.fn()}
 			/>,
 		);
-		// Expand the accordion so the option list is mounted.
-		fireEvent.click(screen.getByRole("button", { expanded: false }));
-
-		// Non-custom preset → no Custom-filters toggle (nothing to
-		// reveal).
-		expect(
-			screen.queryByText(/\[t\]settings\.audioEnhancement\.customFiltersTitle/),
-		).toBeNull();
+		expect(screen.queryByTestId("audio-filter-chain")).toBeNull();
 
 		rerender(
 			<PresetAccordionSelector
 				preset="custom"
 				config={{} as never}
-				showAdvanced={false}
 				onPresetChange={vi.fn()}
-				onToggleAdvanced={vi.fn()}
 				onConfigChange={vi.fn()}
 			/>,
 		);
-		// Custom preset → the disclosure toggle is now visible inside
-		// the expanded region.
+		expect(screen.getByTestId("audio-filter-chain")).toBeInTheDocument();
 		expect(
-			screen.getByText(/\[t\]settings\.audioEnhancement\.customFiltersTitle/),
-		).toBeInTheDocument();
+			screen.queryByText("[t]settings.audioEnhancement.customFiltersTitle"),
+		).toBeNull();
 	});
 });
 
@@ -361,6 +348,7 @@ describe("XA-5-8, TestReviewPanel renders concise issue labels", () => {
 
 	const basePanelProps = {
 		durationMs: 5000,
+		enhancementActive: true,
 		testAudioBase64: "AAAA",
 		rawAudioBase64: null,
 		playing: false,
