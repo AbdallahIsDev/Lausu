@@ -21,10 +21,14 @@ Caps Lock
 Windows and Linux listeners emit ``KEY_UP:CapsLock`` before swallowing the
 suppressed key, so Caps Lock fires on release like every other key. The
 macOS listener cannot: Caps Lock is delivered as a ``flagsChanged`` event
-with no key-up at all (``macos-key-listener.swift``), so the release is
-synthesized after a short quiet window. Without that the default hotkey
-would fire once per session, the press latch never being cleared by a
-KEY_UP that macOS never sends.
+with no key-up at all (``macos-key-listener.swift`` maps key code 57 to
+``nil`` in ``nameForCGEvent``, so the CGEventTap never emits a
+``KEY_UP:CapsLock`` either). The release is therefore synthesized after a
+short quiet window, for EVERY Caps Lock spec -- bare ``<caps_lock>`` and
+combined ones like ``<ctrl>+<caps_lock>`` alike. Without that the default
+hotkey would fire once per session, the press latch never being cleared by
+a KEY_UP that macOS never sends, and a combined Caps Lock hotkey would
+never fire at all.
 """
 
 from __future__ import annotations
@@ -253,11 +257,15 @@ class _MatchingMixin:
         Windows and Linux listeners emit ``KEY_UP:CapsLock``, which cancels
         this timer through the normal release path; arming it there would
         make a held Caps Lock fire while still down.
+
+        Every Caps Lock spec is covered, combined ones included: macOS
+        sends no ``KEY_UP:CapsLock`` for ``<ctrl>+<caps_lock>`` either, so
+        skipping those left the hotkey permanently dead.
         """
         if self.platform_name != "macOS":
             return
         parsed = matcher.get("parsed")
-        if not parsed or not parsed.get("is_caps_lock") or parsed.get("modifiers"):
+        if not parsed or not parsed.get("is_caps_lock"):
             return
         if matcher.get("on_release_callback") is not None:
             return  # push-to-talk needs a real release, never a guess
@@ -266,9 +274,7 @@ class _MatchingMixin:
         with self._match_lock:
             if self._caps_release_timer is not None:
                 return
-            timer = threading.Timer(
-                self._CAPS_RELEASE_SYNTHESIS_SECONDS, self._synthesize_caps_release
-            )
+            timer = threading.Timer(self._CAPS_RELEASE_SYNTHESIS_SECONDS, self._synthesize_caps_release)
             # RACE-008: daemon because a queued release synthesis must never
             # hold up process exit; it is cancelled on every real KEY_UP.
             timer.daemon = True

@@ -7,8 +7,10 @@ from voice_typer.server.config_validators.hotkey import (
     _check_alt_shift,
     _check_os_shell_combos,
     _check_platform_reserved,
+    _normalize_spec,
     _parse_hotkey_parts,
     _platform_key,
+    _tokenize_spec,
 )
 
 # cross-field hotkey conflict check and cross-platform
@@ -98,6 +100,27 @@ def _check_cross_field_cloud_config(
     return errors
 
 
+# Physical shell key spelling -> the platform whose semantics that spelling
+# implies. ``<cmd>+<b>`` is an Apple chord, so its warning quotes macOS
+# ("Cmd+B is reserved by macOS") rather than the Windows shell rule the same
+# physical chord would also hit; ``<win>+<a>`` is the mirror case. Every other
+# platform is still checked, in table order.
+_SHELL_SPELLING_PLATFORMS: tuple[tuple[str, str], ...] = (
+    ("cmd", "darwin"),
+    ("win", "win32"),
+    ("super", "linux"),
+)
+
+
+def _warning_platform_order(spelling_tokens: list[str], current: str) -> list[str]:
+    """Order the non-current platforms, the spec's own spelling first."""
+    others = [platform for platform in _RESERVED_HOTKEYS if platform != current]
+    for prefix, platform in _SHELL_SPELLING_PLATFORMS:
+        if platform in others and any(token.startswith(prefix) for token in spelling_tokens):
+            return [platform, *(other for other in others if other != platform)]
+    return others
+
+
 def _cross_platform_hotkey_warning(value: str, field_name: str) -> str | None:
     """Return a portability warning if ``value`` is reserved on a non-current platform.
 
@@ -105,18 +128,19 @@ def _cross_platform_hotkey_warning(value: str, field_name: str) -> str | None:
     """
     if not isinstance(value, str) or not value.strip():
         return None
-    normalized = value.strip().lower()
+    # The tables are compared in ``_normalize_spec`` form (bracket-free,
+    # shell-alias-collapsed), so the raw bracketed string never matches.
+    normalized = _normalize_spec(value)
+    normalized_tokens = normalized.split("+") if normalized else []
     parts = _parse_hotkey_parts(value)
     if not parts:
         return None
     current_platform = _platform_key()
-    for platform in _RESERVED_HOTKEYS:
-        if platform == current_platform:
-            continue
+    for platform in _warning_platform_order(_tokenize_spec(value), current_platform):
         # Run the same platform-specific stage helpers that
         err = _check_platform_reserved(normalized, platform)
         if err is None:
-            err = _check_os_shell_combos(parts, platform)
+            err = _check_os_shell_combos(parts, platform, normalized_tokens)
         if err is None:
             err = _check_alt_shift(parts, platform)
         if err is not None:

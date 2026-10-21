@@ -1735,6 +1735,7 @@
 		"reservedUniversal": "\"{label}\" is reserved: it conflicts with operating system or common app shortcuts",
 		"reservedOs": "\"{label}\" is reserved by the operating system",
 		"singleLetterDigit": "Single letters and digits can't be used as hotkeys: '{key}' would interfere with typing",
+		"multipleKeys": "\"{label}\" has {count} keys: a hotkey combines modifiers with a single key",
 		"mustEndWithNonModifier": "\"{label}\" must end with a non-modifier key (e.g. Ctrl+Alt+V, not Ctrl+Alt+V+Shift)",
 		"reservedWindows": "\"{label}\" is reserved by the Windows OS shell",
 		"reservedMacosCmd": "Cmd+{key} is reserved by macOS / common apps",

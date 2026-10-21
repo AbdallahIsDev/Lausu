@@ -45,7 +45,12 @@ async function waitForError(): Promise<string> {
 	return alert.textContent ?? "";
 }
 
-describe("HotkeyPicker, HOTKEY-MULTIKEY-001 multi-key capture", () => {
+// The picker captures ONE non-modifier key plus modifiers. A combo with two
+// keys (Delete+End) can be captured but never fires: the native listeners
+// match a single main key and the backend validator
+// (``_check_multi_non_modifier``) rejects it, so the picker refuses it here
+// with the same rule instead of committing an unsavable hotkey.
+describe("HotkeyPicker, single-key capture contract", () => {
 	afterEach(() => {
 		cleanup();
 	});
@@ -106,7 +111,7 @@ describe("HotkeyPicker, HOTKEY-MULTIKEY-001 multi-key capture", () => {
 		expect(onChange).toHaveBeenCalledWith("<ctrl>+<shift>");
 	});
 
-	it("captures a multi-non-modifier combo in combo mode (Delete+End)", async () => {
+	it("refuses a multi-non-modifier combo in combo mode (Delete+End)", async () => {
 		const onChange = vi.fn();
 		render(
 			<HotkeyPicker
@@ -124,7 +129,10 @@ describe("HotkeyPicker, HOTKEY-MULTIKEY-001 multi-key capture", () => {
 		expect(onChange).not.toHaveBeenCalled();
 		dispatchKey({ code: "Delete", key: "Delete", type: "keyup" });
 
-		expect(onChange).toHaveBeenCalledWith("<delete>+<end>");
+		expect(onChange).not.toHaveBeenCalled();
+		const err = await waitForError();
+		expect(err).toMatch(/Delete\+End/);
+		expect(err).toMatch(/single key/i);
 	});
 
 	it("is release-order independent: Ctrl+Shift release order doesn't matter", async () => {

@@ -224,9 +224,31 @@ class TestCapsLockFiresOnRelease:
         b.set_toggle_on_keyup(True)
         b._callback = lambda: None  # noqa: E731
         b._handle_line("KEY_DOWN:CapsLock")
-        assert b._caps_release_timer is None, (
-            "platforms that deliver KEY_UP:CapsLock must fire on the real release"
-        )
+        assert b._caps_release_timer is None, "platforms that deliver KEY_UP:CapsLock must fire on the real release"
+
+    def test_macos_synthesizes_the_release_for_a_caps_lock_combo(self, monkeypatch):
+        """A Caps Lock COMBO must fire too, not just the bare key.
+
+        macOS never delivers ``KEY_UP:CapsLock`` (``nameForCGEvent`` maps
+        key code 57 to ``nil``), so the release of ``<ctrl>+<caps_lock>``
+        is synthesized exactly like the bare ``<caps_lock>`` one. The
+        synthesis used to be skipped for specs carrying modifiers, which
+        left every combined Caps Lock hotkey permanently dead on macOS.
+        """
+        b = _make_macos_backend(monkeypatch, "<ctrl>+<caps_lock>")
+        b._CAPS_RELEASE_SYNTHESIS_SECONDS = 0.02
+        b.set_toggle_on_keyup(True)
+        fired: list[str] = []
+        b._callback = lambda: fired.append("toggle")  # noqa: E731
+        b._handle_line("MOD_DOWN:Ctrl")
+        b._handle_line("KEY_DOWN:CapsLock")
+        assert fired == [], "must not fire on key-down"
+        b._caps_release_timer.join(timeout=1.0)
+        assert fired == ["toggle"], f"synthesized release must fire once, got {fired}"
+        # A second tap is a fresh cycle.
+        b._handle_line("KEY_DOWN:CapsLock")
+        b._caps_release_timer.join(timeout=1.0)
+        assert fired == ["toggle", "toggle"], f"got {fired}"
 
 
 class TestComboSingleFlight:
@@ -302,12 +324,8 @@ class TestDispatcherWiresEveryRoleToKeyUp:
         shared._native = MagicMock()
         dispatcher._shared_backend = shared
 
-        assert dispatcher._pool_aux_into_shared(
-            "repaste", "<ctrl>+<alt>+v", MagicMock(), None
-        )
-        shared._native.add_extra_matcher.assert_called_once_with(
-            "repaste", "<ctrl>+<alt>+v"
-        )
+        assert dispatcher._pool_aux_into_shared("repaste", "<ctrl>+<alt>+v", MagicMock(), None)
+        shared._native.add_extra_matcher.assert_called_once_with("repaste", "<ctrl>+<alt>+v")
         shared._native.set_role_toggle_on_keyup.assert_called_once_with("repaste", True)
 
     def test_repool_after_shared_swap_keeps_keyup_for_the_role(self):
@@ -342,9 +360,7 @@ class TestDispatcherWiresEveryRoleToKeyUp:
 
         aux.set_toggle_on_keyup.assert_called_with(True)
 
-    def test_register_repaste_enables_keyup_on_the_standalone_backend(
-        self, monkeypatch
-    ):
+    def test_register_repaste_enables_keyup_on_the_standalone_backend(self, monkeypatch):
         from voice_typer.server import hotkey_dispatcher as facade
         from voice_typer.server.hotkey_dispatcher import HotkeyDispatcher
 
@@ -385,9 +401,7 @@ class TestDispatcherWiresEveryRoleToKeyUp:
 class TestStartupReconciliation:
     """Startup never leaves a dead or invalid hotkey silently."""
 
-    def test_invalid_hotkey_reconciles_to_default_with_one_warning(
-        self, monkeypatch, caplog
-    ):
+    def test_invalid_hotkey_reconciles_to_default_with_one_warning(self, monkeypatch, caplog):
         import logging
 
         from voice_typer.server import hotkey_dispatcher as facade
@@ -415,7 +429,6 @@ class TestStartupReconciliation:
         assert len(warnings) == 1, f"exactly one WARNING expected, got {warnings}"
         assert "falling back to default" in warnings[0]
         assert backend.start.called, "the default hotkey must actually be registered"
-
 
     def test_registration_failure_surfaces_exactly_once(self, monkeypatch, caplog):
         import logging

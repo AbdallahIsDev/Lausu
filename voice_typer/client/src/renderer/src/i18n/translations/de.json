@@ -1730,6 +1730,7 @@
 		"reservedUniversal": "\"{label}\" ist reserviert – es steht im Konflikt mit Betriebssystem- oder allgemeinen App-Verknüpfungen",
 		"reservedOs": "\"{label}\" ist vom Betriebssystem reserviert",
 		"singleLetterDigit": "Einzelne Buchstaben und Ziffern können nicht als Tastenkombination verwendet werden – \"{key}\" würde die Eingabe beeinträchtigen",
+		"multipleKeys": "\"{label}\" enthält {count} Tasten: ein Hotkey kombiniert Modifikatoren mit einer einzigen Taste",
 		"mustEndWithNonModifier": "\"{label}\" muss mit einer Nicht-Modifikator-Taste enden (z. B. Strg+Alt+E, nicht Strg+Alt+E+Umschalt)",
 		"reservedWindows": "\"{label}\" ist von der Windows-OS-Shell reserviert",
 		"reservedMacosCmd": "Cmd+{key} ist von macOS / gängigen Apps reserviert",

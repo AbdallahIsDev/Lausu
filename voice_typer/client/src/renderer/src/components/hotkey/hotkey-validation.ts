@@ -220,7 +220,24 @@ export function validateHotkey(
 		}
 	}
 
-	// 5. Structural: a combo that includes a NON-MODIFIER must NOT end with
+	// 5. A hotkey combines modifiers with exactly ONE key.
+	//    The backend enforces this (``_check_multi_non_modifier`` in
+	//    ``config_validators/hotkey.py``): the native listeners match a
+	//    single main key, so ``<ctrl>+<v>+<b>`` can never fire. Without
+	//    this rule the picker accepted such a combo and the save was
+	//    rejected by the backend with a raw error.
+	if (nonMods.length > 1) {
+		const label = _formatForMessage(hotkey);
+		return {
+			valid: false,
+			reason: t("hotkeyValidation.multipleKeys", {
+				label,
+				count: String(nonMods.length),
+			}),
+		};
+	}
+
+	// 6. Structural: a combo that includes a NON-MODIFIER must NOT end with
 	//    a modifier (e.g. ``Ctrl+Alt+V`` is fine, ``Ctrl+V+Alt`` is not).
 	//    pure-modifier combos (e.g.
 	//    ``Ctrl+Shift``, ``Ctrl+Alt``) are now ALLOWED, they're valid
@@ -244,7 +261,7 @@ export function validateHotkey(
 		}
 	}
 
-	// 6. Win+anything block (Windows only).
+	// 7. Win+anything block (Windows only).
 	// Super+anything on Linux too, which incorrectly rejected
 	// <super>+<space> (a combo most Linux DEs allow reassigning). The
 	// blanket block now applies only on Windows (where the Win key is
@@ -252,8 +269,15 @@ export function validateHotkey(
 	// checked against the per-platform reserved list (Super+L, Super+D,
 	// Super+Tab), all other Super combos are allowed. Every spelling of
 	// the shell key counts, the listeners map them to one wire name.
+	//
+	// Only COMBOS are blocked. A BARE shell modifier (``<cmd_l>``) is a
+	// modifier-only trigger, not a shell shortcut: the backend allows it
+	// on every platform (the native listener can swallow the key) and
+	// the backend normalises bare modifiers to their own spelling, so
+	// blocking it here would make the picker refuse a hotkey the
+	// backend accepts.
 	const hasShell = parts.some((p) => _isShellModifier(p));
-	if (hasShell && platform === "win32") {
+	if (hasShell && platform === "win32" && parts.length > 1) {
 		//include the conflicting combo.
 		const label = _formatForMessage(hotkey);
 		return {
@@ -262,7 +286,7 @@ export function validateHotkey(
 		};
 	}
 
-	// 7. Cmd+<letter> block (macOS).
+	// 8. Cmd+<letter> block (macOS).
 	if (hasShell && platform === "darwin" && parts.length > 1) {
 		for (const nm of nonMods) {
 			if (nm.length === 1 && /^[a-z]$/.test(nm)) {
@@ -276,7 +300,7 @@ export function validateHotkey(
 		}
 	}
 
-	// 8. Alt+Shift block (Windows language switching).
+	// 9. Alt+Shift block (Windows language switching).
 	if (platform === "win32") {
 		const hasAlt = parts.some((p) => p.startsWith("alt"));
 		const hasShift = parts.some((p) => p.startsWith("shift"));
@@ -290,7 +314,7 @@ export function validateHotkey(
 		}
 	}
 
-	// 9. Ctrl+<common-letter> block (PURE Ctrl+<letter> only).
+	// 10. Ctrl+<common-letter> block (PURE Ctrl+<letter> only).
 	const hasCtrl = parts.some((p) => p.startsWith("ctrl"));
 	if (hasCtrl) {
 		const modifiersNonCtrl = parts.filter(
@@ -310,7 +334,7 @@ export function validateHotkey(
 		}
 	}
 
-	// 10. Shift+<letter> block (PURE Shift+<letter> only).
+	// 11. Shift+<letter> block (PURE Shift+<letter> only).
 	const hasShiftAny = parts.some((p) => p.startsWith("shift"));
 	if (hasShiftAny) {
 		const modifiersNonShift = parts.filter(

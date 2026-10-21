@@ -1730,6 +1730,7 @@
 		"reservedUniversal": "\"{label}\" está reservado: entra en conflicto con atajos del sistema operativo o de aplicaciones comunes",
 		"reservedOs": "\"{label}\" está reservado por el sistema operativo",
 		"singleLetterDigit": "Las letras y dígitos individuales no se pueden usar como atajos: '{key}' interferiría con la escritura",
+		"multipleKeys": "\"{label}\" tiene {count} teclas: un atajo combina modificadores con una sola tecla",
 		"mustEndWithNonModifier": "\"{label}\" debe terminar con una tecla que no sea modificadora (p. ej., Ctrl+Alt+V, no Ctrl+Alt+V+Shift)",
 		"reservedWindows": "\"{label}\" está reservado por el shell del sistema Windows",
 		"reservedMacosCmd": "Cmd+{key} está reservado por macOS / aplicaciones comunes",

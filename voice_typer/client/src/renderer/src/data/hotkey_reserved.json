@@ -4,7 +4,7 @@
     "universal_reserved": "Array of hotkey strings blocked on EVERY platform (Esc: the app's own cancel key for dictation and hotkey capture; window management: Alt+Tab, Alt+F4, Alt+Esc, Alt+Space). Stored lowercase with angle brackets, e.g. \"<alt>+<tab>\".",
     "per_platform_reserved": "Object mapping platform key (win32/darwin/linux) to array of hotkey strings blocked on that platform only. win32 also carries Ctrl+Alt+Delete (both spellings), the secure-attention sequence low-level hooks never see.",
     "blocked_ctrl_letters": "Array of single lowercase letters blocked when the hotkey is PURE Ctrl+<letter> (no other modifier). Covers Copy/Paste/Undo/Save/Select All/etc.",
-    "modifiers": "Array of modifier key names recognized in hotkey strings (pynput-style, lowercase)."
+    "modifiers": "Array of modifier key names AND their alias spellings recognized in hotkey strings (pynput-style, lowercase). Must equal the keys of hotkey_spec.MODIFIER_ALIASES: the renderer classifies raw tokens with this list while the backend classifies canonicalized ones, so a missing alias makes the two count a combo's keys differently."
   },
   "universal_reserved": [
     "<esc>",
@@ -74,11 +74,12 @@
     "l", "r", "h", "j", "k", "b", "i", "u", "d", "e", "g", "m"
   ],
   "modifiers": [
-    "ctrl", "ctrl_l", "ctrl_r",
+    "ctrl", "ctrl_l", "ctrl_r", "control",
     "shift", "shift_l", "shift_r",
-    "alt", "alt_l", "alt_r", "alt_gr",
+    "alt", "alt_l", "alt_r", "alt_gr", "altgr", "right_alt", "ralt",
     "cmd", "cmd_l", "cmd_r",
-    "win", "super",
+    "win", "win_l", "win_r",
+    "super", "super_l", "super_r",
     "fn", "globe"
   ]
 }
