@@ -1237,3 +1237,14 @@ Rule: Do NOT rely on a bare `float(x)` try/except as the only guard on a numeric
 Rationale: The short-audio gate's RMS hardening hit this exactly (2026-10-18): the naive try/except helper accepted a MagicMock as 1.0 "loud" energy; only the Real-guard + isfinite version discards mocks/garbage.
 Applies to: All agents, all modes, all sub-agents.
 ```
+
+---
+
+## Category: Cross-Layer Contract Parity
+
+```
+C-PARITY-1
+Rule: Do NOT tighten or add a validation rule on one side of a cross-layer contract (renderer picker ↔ Python validator ↔ native listener) without a test proving both sides classify the SAME inputs the same way, and keep the shared vocabulary in one table rather than a second copy in the other language.
+Rationale: The picker accepted `<ctrl>+<v>+<b>` (unmatchable by the listener, rejected by `_check_multi_non_modifier`) while counting alias spellings as keys the backend canonicalizes (`<super_l>+<f5>` = 2 keys vs 1), so it both accepted unsavable hotkeys and refused valid ones; `hotkey_reserved.json` `modifiers[]` now equals `hotkey_spec.MODIFIER_ALIASES` and both are pinned by tests.
+Applies to: All agents, all modes, all sub-agents.
+```

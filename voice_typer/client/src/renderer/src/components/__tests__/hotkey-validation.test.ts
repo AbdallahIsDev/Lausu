@@ -439,4 +439,72 @@ describe("combo shape parity", () => {
 			}
 		}
 	});
+
+	// The backend rejects a combo carrying more than one non-modifier key
+	// (``_check_multi_non_modifier``): the native listeners match a single
+	// main key, so such a hotkey could never fire. The picker must refuse
+	// it too, otherwise the save is rejected with a raw backend error.
+	it("rejects a combo with more than one key", () => {
+		for (const platform of ["win32", "linux", "darwin"]) {
+			expect(
+				validateHotkey("<ctrl>+v+b", platform).valid,
+				`two keys on ${platform}`,
+			).toBe(false);
+			expect(
+				validateHotkey("<ctrl>+<alt>+v+b", platform).valid,
+				`two keys with two modifiers on ${platform}`,
+			).toBe(false);
+		}
+	});
+
+	it("still accepts a combo with exactly one key", () => {
+		for (const platform of ["win32", "linux", "darwin"]) {
+			// ``q`` is deliberately not in BLOCKED_CTRL_LETTERS (``v`` is:
+			// a pure Ctrl+V is the app's paste shortcut on every platform).
+			expect(validateHotkey("<ctrl>+q", platform).valid).toBe(true);
+			expect(validateHotkey("<ctrl>+<alt>+v", platform).valid).toBe(true);
+		}
+	});
+
+	// The picker classifies the RAW tokens while the backend classifies
+	// canonicalized parts, so the shared modifier table carries every alias
+	// spelling the parser folds (``<control>`` → ctrl, ``<super_l>`` →
+	// super). Without them ``<super_l>+<f5>`` looked like TWO keys here and
+	// one key there, and the picker refused a hotkey the backend accepts.
+	it("counts alias spellings as modifiers", () => {
+		expect(validateHotkey("<super_l>+<f5>", "linux").valid).toBe(true);
+		expect(validateHotkey("<control>+q", "win32").valid).toBe(true);
+		expect(validateHotkey("<right_alt>+q", "darwin").valid).toBe(true);
+		expect(validateHotkey("<altgr>+q", "linux").valid).toBe(true);
+	});
+
+	it("counts an aliased shell modifier as a shell combo", () => {
+		expect(validateHotkey("<win_l>+<f5>", "win32").valid).toBe(false);
+		expect(validateHotkey("<super_r>+<f5>", "win32").valid).toBe(false);
+	});
+});
+
+describe("bare shell modifiers stay assignable", () => {
+	// The backend allows a BARE shell modifier (``<cmd_l>``) on every
+	// platform: it is a modifier-only trigger the native listener can
+	// swallow, and the backend normalises bare modifiers to their own
+	// spelling (only COMBOS collapse the shell spellings). The picker
+	// must agree, or it refuses a hotkey the backend accepts.
+	it("accepts a bare shell modifier on Windows", () => {
+		expect(validateHotkey("<cmd_l>", "win32").valid).toBe(true);
+		expect(validateHotkey("<cmd_r>", "win32").valid).toBe(true);
+	});
+
+	it("still rejects a shell COMBO on Windows", () => {
+		expect(validateHotkey("<cmd_l>+<f5>", "win32").valid).toBe(false);
+		expect(validateHotkey("<win>+<e>", "win32").valid).toBe(false);
+	});
+
+	it("still rejects the bare shell key spellings everywhere", () => {
+		for (const platform of ["win32", "linux", "darwin"]) {
+			expect(validateHotkey("<win>", platform).valid).toBe(false);
+			expect(validateHotkey("<cmd>", platform).valid).toBe(false);
+			expect(validateHotkey("<super>", platform).valid).toBe(false);
+		}
+	});
 });

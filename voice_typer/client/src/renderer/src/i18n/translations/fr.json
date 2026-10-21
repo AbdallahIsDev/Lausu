@@ -1666,6 +1666,7 @@
 		"reservedUniversal": "\"{label}\" est réservé: il entre en conflit avec le système d'exploitation ou les raccourcis d'application courants",
 		"reservedOs": "\"{label}\" est réservé par le système d'exploitation",
 		"singleLetterDigit": "Les lettres et chiffres seuls ne peuvent pas être utilisés comme raccourcis: '{key}' interférerait avec la saisie",
+		"multipleKeys": "\"{label}\" contient {count} touches : un raccourci associe les modificateurs à une seule touche",
 		"mustEndWithNonModifier": "\"{label}\" doit se terminer par une touche non modificatrice (p. ex. Ctrl+Alt+V, pas Ctrl+Alt+V+Maj)",
 		"reservedWindows": "\"{label}\" est réservé par le shell Windows",
 		"reservedMacosCmd": "Cmd+{key} est réservé par macOS / les applications courantes",

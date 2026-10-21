@@ -1730,6 +1730,7 @@
 		"reservedUniversal": "\"{label}\" 已被占用: 与操作系统或常用应用快捷键冲突",
 		"reservedOs": "\"{label}\" 已被操作系统保留",
 		"singleLetterDigit": "单个字母和数字不能用作快捷键: '{key}' 会干扰输入",
+		"multipleKeys": "\"{label}\" 包含 {count} 个按键：快捷键只能将修饰键与单个按键组合",
 		"mustEndWithNonModifier": "\"{label}\" 必须以非修饰键结尾（例如 Ctrl+Alt+V，而非 Ctrl+Alt+V+Shift）",
 		"reservedWindows": "\"{label}\" 已被 Windows 系统外壳保留",
 		"reservedMacosCmd": "Cmd+{key} 已被 macOS / 常用应用保留",

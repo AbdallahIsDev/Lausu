@@ -87,6 +87,27 @@ class TestBareShellModifiersStillBlocked:
         )
 
 
+class TestBareShellAliasAllowedOnEveryPlatform:
+    """A bare shell ALIAS (``<cmd_l>``) is a modifier-only trigger.
+
+    The universal table blocks the canonical bare spellings
+    (``<win>``, ``<cmd>``, ``<super>``) only; the ``_l`` / ``_r``
+    aliases keep their own spelling because the native listener can
+    swallow a lone modifier key. The renderer must agree, or the
+    picker refuses a hotkey the backend accepts.
+    """
+
+    @pytest.mark.parametrize("hotkey", ["<cmd_l>", "<cmd_r>", "<win_l>", "<super_r>"])
+    def test_bare_shell_alias_allowed(self, hotkey: str, windows_platform: None) -> None:
+        _assert_allowed(hotkey)
+
+    def test_shell_combo_still_rejected_on_windows(self, windows_platform: None) -> None:
+        """A COMBO collapses the shell spellings, so it hits the win32 rule."""
+        result = _validate_hotkey("<cmd_l>+<f5>")
+        assert result is not None, "<cmd_l>+<f5> is a Windows shell combo and must be rejected"
+        assert "shell" in result.lower(), f"unexpected rejection reason: {result!r}"
+
+
 class TestAltShiftStillBlockedOnWindows:
     """Stage 7 (Alt+Shift = Windows language switching) still applies —"""
 

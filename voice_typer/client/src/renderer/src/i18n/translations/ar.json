@@ -1730,6 +1730,7 @@
 		"reservedUniversal": "\"{label}\" محجوز: يتعارض مع اختصارات نظام التشغيل أو التطبيقات الشائعة",
 		"reservedOs": "\"{label}\" محجوز من قبل نظام التشغيل",
 		"singleLetterDigit": "لا يمكن استخدام الأحرف والأرقام المنفردة كمفاتيح اختصار: '{key}' سيتداخل مع الكتابة",
+		"multipleKeys": "\"{label}\" يحتوي على {count} مفاتيح: الاختصار يجمع بين المفاتيح المعدِّلة ومفتاح واحد فقط",
 		"mustEndWithNonModifier": "\"{label}\" يجب أن ينتهي بمفتاح غير معدّل (مثل Ctrl+Alt+V، وليس Ctrl+Alt+V+Shift)",
 		"reservedWindows": "\"{label}\" محجوز من قبل شل نظام Windows",
 		"reservedMacosCmd": "Cmd+{key} محجوز من قبل macOS / التطبيقات الشائعة",

@@ -150,6 +150,26 @@ class TestBackendLoadsFromJson:
         assert JSON_PATH.exists(), f"Canonical reserved-hotkey JSON file not found at {JSON_PATH}"
 
 
+class TestModifierAliasesMatchParser:
+    """The shared modifier table must equal the parser's alias vocabulary.
+
+    The renderer classifies RAW spec tokens against this list while the
+    backend classifies canonicalized parts (``parse_hotkey`` folds every
+    alias to one canonical name). A missing alias therefore makes the two
+    sides count a combo's keys differently: ``<super_l>+<f5>`` would look
+    like two keys to the picker and one key to the backend, so the picker
+    refuses a hotkey the backend accepts.
+    """
+
+    def test_modifiers_equal_parser_alias_keys(self, json_data: dict) -> None:
+        from voice_typer.server.hotkey_spec import MODIFIER_ALIASES
+
+        missing = sorted(set(MODIFIER_ALIASES) - set(json_data["modifiers"]))
+        extra = sorted(set(json_data["modifiers"]) - set(MODIFIER_ALIASES))
+        assert not missing, f"modifiers[] is missing parser aliases {missing} (renderer would miscount keys)"
+        assert not extra, f"modifiers[] carries names the parser does not canonicalize {extra}"
+
+
 class TestJsonStructure:
     """Verify the JSON file's structural invariants."""
 

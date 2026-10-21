@@ -1730,6 +1730,7 @@
 		"reservedUniversal": "\"{label}\" आरक्षित है: यह ऑपरेटिंग सिस्टम या सामान्य ऐप शॉर्टकट से टकराता है",
 		"reservedOs": "\"{label}\" ऑपरेटिंग सिस्टम द्वारा आरक्षित है",
 		"singleLetterDigit": "एकल अक्षर और अंक हॉटकी के रूप में उपयोग नहीं किए जा सकते: '{key}' टाइपिंग में बाधा डालेगा",
+		"multipleKeys": "\"{label}\" में {count} कुंजियाँ हैं: एक हॉटकी मॉडिफ़ायर को एक ही कुंजी के साथ जोड़ती है",
 		"mustEndWithNonModifier": "\"{label}\" एक गैर-मॉडिफ़ायर कुंजी पर समाप्त होना चाहिए (जैसे Ctrl+Alt+V, Ctrl+Alt+V+Shift नहीं)",
 		"reservedWindows": "\"{label}\" Windows OS शेल द्वारा आरक्षित है",
 		"reservedMacosCmd": "Cmd+{key} macOS / सामान्य ऐप्स द्वारा आरक्षित है",
