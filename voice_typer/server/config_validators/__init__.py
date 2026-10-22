@@ -90,6 +90,7 @@ from voice_typer.server.config_validators.cross_field import (  # noqa: F401
     _HOTKEY_FIELD_NAMES,
     _check_cross_field_cloud_config,
     _check_cross_field_hotkey_conflicts,
+    _check_cross_field_push_to_talk,
     _cross_platform_hotkey_warning,
     cross_platform_hotkey_warnings,
 )
@@ -101,6 +102,8 @@ from voice_typer.server.config_validators.entry_points import (  # noqa: F401
 from voice_typer.server.config_validators.hotkey import (  # noqa: F401
     _BLOCKED_CTRL_LETTERS,
     _HOTKEY_MODIFIERS,
+    _KEY_ALIASES,
+    _KEY_VOCABULARY,
     _RESERVED_HOTKEYS,
     _UNIVERSAL_RESERVED_HOTKEYS,
     _check_alt_shift,
@@ -115,6 +118,7 @@ from voice_typer.server.config_validators.hotkey import (  # noqa: F401
     _parse_hotkey_parts,
     _platform_key,
     _validate_hotkey,
+    _validate_hotkey_code,
 )
 from voice_typer.server.config_validators.language import (
     _ALLOWED_LANGUAGES,
@@ -200,9 +204,13 @@ __all__ = [
     "_check_alt_shift",
     "_check_ctrl_letter",
     "_check_shift_letter",
+    "_KEY_ALIASES",
+    "_KEY_VOCABULARY",
+    "_validate_hotkey_code",
     # cross-field hotkey conflict check.
     "_HOTKEY_FIELD_NAMES",
     "_check_cross_field_hotkey_conflicts",
+    "_check_cross_field_push_to_talk",
     # cross-platform hotkey portability warnings.
     "_cross_platform_hotkey_warning",
     "cross_platform_hotkey_warnings",

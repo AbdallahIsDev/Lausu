@@ -413,6 +413,17 @@ def run_modifier_only_polling_loop(self, callback):
                     "(user was doing a combo like Alt+C)",
                     self._modifiers,
                 )
+                # PTT chord-cancel: stop now, not on the later release.
+                if is_ptt and press_fired and self._on_release_callback is not None:
+                    press_fired = False
+                    log.info(
+                        "[HOTKEY] Non-modifier key during PTT hold (mods=0x%X), stopping immediately",
+                        self._modifiers,
+                    )
+                    try:
+                        self._on_release_callback()
+                    except Exception:
+                        log.exception("[HOTKEY] on_release (chord cancel) raised in modifier-only polling loop")
 
             if not is_held and modifier_was_pressed:
                 if not other_key_pressed:

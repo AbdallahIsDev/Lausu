@@ -1,13 +1,11 @@
 /**
- * Reserved OS shortcuts that should never be assignable.
- * loaded from the canonical JSON file at
- * ``voice_typer/server/hotkey_reserved.json``. A copy lives at
- * ``voice_typer/client/src/renderer/src/data/hotkey_reserved.json``
- * and is imported with a project-relative path so the import doesn't
- * depend on a Vite alias that resolves outside the renderer root
- * (which can crash Vite's dev server during HMR on locale switch).
- * The sync test ``test_hotkey_reserved_sync.py`` verifies the copy
- * matches the server original.
+ * Hotkey validation shared with the Python validators.
+ *
+ * Everything vocabulary-shaped comes from ``hotkey_reserved.json``; the
+ * copy under ``data/`` is byte-identical to the server file and pinned by
+ * ``test_hotkey_reserved_sync.py``. Validation order mirrors
+ * ``config_validators/hotkey.py`` so the picker and the backend classify
+ * the same spec the same way.
  */
 
 import { t } from "@/i18n/i18n";
@@ -21,51 +19,146 @@ export const BLOCKED_CTRL_LETTERS: readonly string[] =
 	hotkeyReserved.blocked_ctrl_letters;
 export const MODIFIER_KEYS_SHARED: readonly string[] = hotkeyReserved.modifiers;
 
-const _MODIFIER_KEYS_SET = new Set(MODIFIER_KEYS_SHARED);
+export const KEY_ALIASES: Readonly<Record<string, string>> =
+	hotkeyReserved.key_aliases;
+export const KEY_VOCABULARY: Readonly<
+	Record<string, { wire: string; platforms: readonly string[] }>
+> = hotkeyReserved.keys;
 
-function _isModifier(p: string): boolean {
-	return _MODIFIER_KEYS_SET.has(p);
+export type ValidationCode =
+	| "empty"
+	| "no_keys"
+	| "unknown_key"
+	| "not_string"
+	| "too_long"
+	| "reserved_universal"
+	| "reserved_platform"
+	| "single_alnum"
+	| "multiple_keys"
+	| "modifier_order"
+	| "shell_combo"
+	| "alt_shift"
+	| "ctrl_letter"
+	| "shift_letter"
+	| "altgr"
+	| "fn_platform"
+	| "key_not_delivered"
+	| "ptt_modifier_only"
+	| "ptt_caps_lock";
+
+export interface ValidationResult {
+	valid: boolean;
+	/** Human-readable reason when valid is false. */
+	reason?: string;
+	/** Stable classifier shared with the Python validators. */
+	code?: ValidationCode;
+	partial?: never;
 }
 
-// ``<win>``, ``<super>`` and ``<cmd>`` are three names for one physical
-// shell key: the native listeners map all three to a single wire name, so
-// ``<cmd>+<m>`` really is Win+M on Windows and ``<win>+<e>`` is Cmd+E on
-// macOS. Reserved lookups collapse them, or the "wrong platform" spelling
-// slips past the table.
-const _SHELL_MODIFIER_KEYS = new Set([
-	"win",
-	"win_l",
-	"win_r",
-	"super",
-	"super_l",
-	"super_r",
-	"cmd",
-	"cmd_l",
-	"cmd_r",
-]);
+export interface ValidationOptions {
+	/** Push-to-talk needs a key that reports a release after its press. */
+	pushToTalk?: boolean;
+}
 
-function _isShellModifier(p: string): boolean {
-	return _SHELL_MODIFIER_KEYS.has(p);
+const _MODIFIER_KEYS_SET = new Set(MODIFIER_KEYS_SHARED);
+
+// ``right_alt``/``ralt`` arrive as genuine modifiers from pynput but the
+// listeners report them as Alt/AltGr interchangeably, so they can never match.
+const _ALTGR_ALIASES = new Set(["altgr", "alt_gr", "right_alt", "ralt"]);
+
+function _canonicalModifier(token: string): string | null {
+	if (!_MODIFIER_KEYS_SET.has(token)) return null;
+	const base = token.replace(/_[lr]$/, "");
+	if (_ALTGR_ALIASES.has(base)) return "alt_gr";
+	switch (base) {
+		case "control":
+			return "ctrl";
+		case "option":
+			return "alt";
+		case "globe":
+			return "fn";
+		case "win":
+		case "super":
+		case "cmd":
+			return "cmd";
+		default:
+			return base;
+	}
+}
+
+function _isModifierToken(token: string): boolean {
+	return _canonicalModifier(token) !== null;
+}
+
+function _parseParts(hotkey: string): string[] {
+	const seen = new Set<string>();
+	const parts: string[] = [];
+	for (const raw of hotkey.split("+")) {
+		const token = raw.replace(/[<>]/g, "").trim().toLowerCase();
+		if (!token) continue;
+		const canonical = _canonicalModifier(token) ?? KEY_ALIASES[token] ?? token;
+		if (!seen.has(canonical)) {
+			seen.add(canonical);
+			parts.push(canonical);
+		}
+	}
+	return parts;
+}
+
+function _specString(parts: readonly string[]): string {
+	const modifiers = parts.filter((part) => _isModifierToken(part)).sort();
+	const keys = parts.filter((part) => !_isModifierToken(part));
+	return [...modifiers, ...keys].map((part) => `<${part}>`).join("+");
+}
+
+const _UNIVERSAL_RESERVED_SET = new Set(
+	UNIVERSAL_RESERVED_SHORTCUTS.map((entry) => _specString(_parseParts(entry))),
+);
+
+const _RESERVED_SETS = new Map<string, Set<string>>();
+function _reservedSet(platform: string): Set<string> {
+	const cached = _RESERVED_SETS.get(platform);
+	if (cached) return cached;
+	const entries = (RESERVED_SHORTCUTS[platform] ?? []).map((entry) =>
+		_specString(_parseParts(entry)),
+	);
+	const built = new Set(entries);
+	_RESERVED_SETS.set(platform, built);
+	return built;
+}
+
+export function detectPlatform(): string {
+	if (typeof navigator === "undefined") return "unknown";
+	const ua = navigator.userAgent.toLowerCase();
+	if (ua.includes("mac")) return "darwin";
+	if (ua.includes("win")) return "win32";
+	if (ua.includes("linux")) return "linux";
+	return "unknown";
+}
+
+export function normalizeHotkey(hotkey: string): string {
+	if (!hotkey) return "";
+	return hotkey
+		.split("+")
+		.map((p) => p.replace(/[<>]/g, "").trim().toLowerCase())
+		.filter(Boolean)
+		.join("+");
+}
+
+export function isReserved(hotkey: string, platform: string): boolean {
+	if (!hotkey?.trim()) return false;
+	const normalized = _specString(_parseParts(hotkey));
+	if (!normalized) return false;
+	return _reservedSet(platform).has(normalized);
 }
 
 const _MESSAGE_SPECIAL_LABELS: Readonly<Record<string, string>> = {
 	ctrl: "Ctrl",
-	ctrl_l: "Ctrl",
-	ctrl_r: "Ctrl",
 	shift: "Shift",
-	shift_l: "Shift",
-	shift_r: "Shift",
 	alt: "Alt",
-	alt_l: "Alt",
-	alt_r: "Alt",
 	alt_gr: "AltGr",
 	cmd: "Cmd",
-	cmd_l: "Cmd",
-	cmd_r: "Cmd",
-	win: "Win",
-	super: "Super",
 	fn: "Fn",
-	globe: "Globe",
 	space: "Space",
 	enter: "Enter",
 	tab: "Tab",
@@ -88,270 +181,203 @@ const _MESSAGE_SPECIAL_LABELS: Readonly<Record<string, string>> = {
 	backspace: "Backspace",
 };
 
-function _formatForMessage(hotkey: string): string {
-	if (!hotkey) return "";
-	return hotkey
-		.split("+")
-		.map((part) => part.replace(/[<>]/g, "").trim())
-		.filter(Boolean)
+function _formatForMessage(parts: readonly string[]): string {
+	return parts
 		.map((part) => {
-			const lower = part.toLowerCase();
-			if (_MESSAGE_SPECIAL_LABELS[lower]) return _MESSAGE_SPECIAL_LABELS[lower];
-			if (/^f\d{1,2}$/.test(lower)) return lower.toUpperCase();
-			if (lower.length === 1) return lower.toUpperCase();
+			if (_MESSAGE_SPECIAL_LABELS[part]) return _MESSAGE_SPECIAL_LABELS[part];
+			if (/^f\d{1,2}$/.test(part)) return part.toUpperCase();
+			if (part.length === 1) return part.toUpperCase();
 			return part.charAt(0).toUpperCase() + part.slice(1);
 		})
 		.join("+");
 }
 
-export interface ValidationResult {
-	valid: boolean;
-	/** Human-readable reason when valid is false. */
-	reason?: string;
-	partial?: never;
-}
-
-export function detectPlatform(): string {
-	if (typeof navigator === "undefined") return "unknown";
-	const ua = navigator.userAgent.toLowerCase();
-	if (ua.includes("mac")) return "darwin";
-	if (ua.includes("win")) return "win32";
-	if (ua.includes("linux")) return "linux";
-	return "unknown";
-}
-
-export function isReserved(hotkey: string, platform: string): boolean {
-	if (!hotkey) return false;
-	const reserved = RESERVED_SHORTCUTS[platform] || [];
-	// normalize both sides via normalizeHotkey()
-	// (which strips angle brackets and lowercases) before comparing. The
-	// RESERVED_SHORTCUTS table stores entries with brackets on both parts
-	// (e.g. ``"<win>+<e>"``), but callers pass hotkeys using the pynput
-	// convention with brackets only on the modifier (e.g. ``"<win>+e"``).
-	// The previous raw-lowercase comparison only matched when the caller
-	// used the exact same bracket convention as the table, so Win+E,
-	// Cmd+Space, Super+L, etc. were all silently accepted as valid
-	// despite being OS-reserved. Normalizing both sides makes the
-	// comparison bracket-agnostic.
-	const normalized = normalizeHotkey(hotkey);
-	// Bare modifiers keep their own spelling (``<cmd_l>`` alone is a
-	// deliberate modifier-only trigger); combos collapse the three shell
-	// spellings into one key, matching the backend's _normalize_spec.
-	const canonical = (value: string): string => {
-		const parts = normalizeHotkey(value).split("+");
-		if (parts.length < 2) return value === "" ? "" : parts.join("+");
-		return parts
-			.map((part) => (_SHELL_MODIFIER_KEYS.has(part) ? "shell" : part))
-			.join("+");
-	};
-	const normalizedReserved = reserved.map(canonical);
-	return normalizedReserved.includes(canonical(normalized));
-}
-
-export function normalizeHotkey(hotkey: string): string {
-	if (!hotkey) return "";
-	return hotkey
-		.split("+")
-		.map((p) => p.replace(/[<>]/g, "").trim().toLowerCase())
-		.filter(Boolean)
-		.join("+");
+function _failure(code: ValidationCode, reason: string): ValidationResult {
+	return { valid: false, code, reason };
 }
 
 export function validateHotkey(
 	hotkey: string,
 	platform: string,
+	options?: ValidationOptions,
 ): ValidationResult {
-	// 1. Non-empty
 	if (!hotkey?.trim()) {
-		return { valid: false, reason: t("hotkeyValidation.empty") };
+		return _failure("empty", t("hotkeyValidation.empty"));
+	}
+	if (hotkey.length > 256) {
+		return _failure("too_long", t("hotkeyValidation.invalidHotkey"));
 	}
 
-	// Parse parts once, used by rules 3-10.
-	const parts = hotkey
+	const rawParts = hotkey
 		.split("+")
 		.map((p) => p.replace(/[<>]/g, "").trim().toLowerCase())
 		.filter(Boolean);
+	const parts = _parseParts(hotkey);
 	if (parts.length === 0) {
-		return { valid: false, reason: t("hotkeyValidation.noKeys") };
+		return _failure("no_keys", t("hotkeyValidation.noKeys"));
+	}
+	const spec = _specString(parts);
+	const label = _formatForMessage(parts);
+	const nonMods = parts.filter((part) => !_isModifierToken(part));
+
+	if (_UNIVERSAL_RESERVED_SET.has(spec)) {
+		return _failure(
+			"reserved_universal",
+			t("hotkeyValidation.reservedUniversal", { label }),
+		);
 	}
 
-	// 2. Universal reserved (Alt+Tab/F4/Esc/Space), every platform.
-	const normalized = parts.map((p) => `<${p}>`).join("+");
+	if (_reservedSet(platform).has(spec)) {
+		return _failure(
+			"reserved_platform",
+			t("hotkeyValidation.reservedOs", { label }),
+		);
+	}
+
+	// A combo mixing a key and modifiers must put the key last; a bare
+	// modifier spelling is still a valid modifier-only trigger.
+	const trailing = rawParts[rawParts.length - 1];
 	if (
-		UNIVERSAL_RESERVED_SHORTCUTS.some(
-			(r) => normalizeHotkey(r) === normalizeHotkey(normalized),
-		)
+		rawParts.length >= 2 &&
+		nonMods.length > 0 &&
+		trailing !== undefined &&
+		_isModifierToken(trailing)
 	) {
-		//include the conflicting combo in the message
-		// so the user sees exactly which shortcut is reserved.
-		const label = _formatForMessage(normalized);
-		return {
-			valid: false,
-			reason: t("hotkeyValidation.reservedUniversal", { label }),
-		};
+		return _failure(
+			"modifier_order",
+			t("hotkeyValidation.mustEndWithNonModifier", { label }),
+		);
 	}
 
-	// 3. Per-platform reserved.
-	if (isReserved(hotkey, platform)) {
-		//include the conflicting combo in the message.
-		const label = _formatForMessage(hotkey);
-		return {
-			valid: false,
-			reason: t("hotkeyValidation.reservedOs", { label }),
-		};
-	}
-
-	// Helper: classify parts.
-	const isModifier = (p: string): boolean => _isModifier(p);
-	const nonMods = parts.filter((p) => !isModifier(p));
-
-	// 4. Single letter/digit rejection.
-	//    A standalone <a>, <1>, etc. would trigger on every keypress
-	//    of that character during normal typing.
 	if (parts.length === 1) {
-		// noUncheckedIndexedAccess: parts[0] is `string | undefined`;
-		// the length===1 guard proves it exists.
 		const sole = parts[0];
 		if (sole !== undefined && /^[a-z0-9]$/.test(sole)) {
-			return {
-				valid: false,
-				reason: t("hotkeyValidation.singleLetterDigit", { key: sole }),
-			};
+			return _failure(
+				"single_alnum",
+				t("hotkeyValidation.singleLetterDigit", { key: sole }),
+			);
 		}
 	}
 
-	// 5. A hotkey combines modifiers with exactly ONE key.
-	//    The backend enforces this (``_check_multi_non_modifier`` in
-	//    ``config_validators/hotkey.py``): the native listeners match a
-	//    single main key, so ``<ctrl>+<v>+<b>`` can never fire. Without
-	//    this rule the picker accepted such a combo and the save was
-	//    rejected by the backend with a raw error.
 	if (nonMods.length > 1) {
-		const label = _formatForMessage(hotkey);
-		return {
-			valid: false,
-			reason: t("hotkeyValidation.multipleKeys", {
+		return _failure(
+			"multiple_keys",
+			t("hotkeyValidation.multipleKeys", {
 				label,
 				count: String(nonMods.length),
 			}),
-		};
+		);
 	}
 
-	// 6. Structural: a combo that includes a NON-MODIFIER must NOT end with
-	//    a modifier (e.g. ``Ctrl+Alt+V`` is fine, ``Ctrl+V+Alt`` is not).
-	//    pure-modifier combos (e.g.
-	//    ``Ctrl+Shift``, ``Ctrl+Alt``) are now ALLOWED, they're valid
-	//    modifier-only release triggers in the native backends. The
-	//    previous blanket rule "combo must not end with a modifier"
-	//    incorrectly rejected these, causing a frontend/backend mismatch
-	//    (the backend ``_validate_hotkey`` in config_validators.py has
-	//    never had this rule). Now we only reject combos that mix
-	//    modifiers AND non-modifiers but end with a modifier.
-	if (parts.length >= 2 && nonMods.length > 0) {
-		// noUncheckedIndexedAccess: parts[parts.length-1] is
-		// `string | undefined`; the length>=2 guard proves it exists.
-		const lastKey = parts[parts.length - 1];
-		if (lastKey !== undefined && isModifier(lastKey)) {
-			//include the conflicting combo.
-			const label = _formatForMessage(hotkey);
-			return {
-				valid: false,
-				reason: t("hotkeyValidation.mustEndWithNonModifier", { label }),
-			};
+	if (parts.includes("alt_gr")) {
+		return _failure("altgr", t("hotkeyValidation.altGrUnsupported"));
+	}
+
+	if (parts.includes("fn") && platform !== "darwin") {
+		return _failure("fn_platform", t("hotkeyValidation.fnMacosOnly"));
+	}
+
+	if (parts.includes("cmd")) {
+		if (platform === "win32") {
+			return _failure(
+				"shell_combo",
+				t("hotkeyValidation.reservedWindows", { label }),
+			);
 		}
-	}
-
-	// 7. Win+anything block (Windows only).
-	// Super+anything on Linux too, which incorrectly rejected
-	// <super>+<space> (a combo most Linux DEs allow reassigning). The
-	// blanket block now applies only on Windows (where the Win key is
-	// heavily reserved by the OS shell). On Linux, Super combos are
-	// checked against the per-platform reserved list (Super+L, Super+D,
-	// Super+Tab), all other Super combos are allowed. Every spelling of
-	// the shell key counts, the listeners map them to one wire name.
-	//
-	// Only COMBOS are blocked. A BARE shell modifier (``<cmd_l>``) is a
-	// modifier-only trigger, not a shell shortcut: the backend allows it
-	// on every platform (the native listener can swallow the key) and
-	// the backend normalises bare modifiers to their own spelling, so
-	// blocking it here would make the picker refuse a hotkey the
-	// backend accepts.
-	const hasShell = parts.some((p) => _isShellModifier(p));
-	if (hasShell && platform === "win32" && parts.length > 1) {
-		//include the conflicting combo.
-		const label = _formatForMessage(hotkey);
-		return {
-			valid: false,
-			reason: t("hotkeyValidation.reservedWindows", { label }),
-		};
-	}
-
-	// 8. Cmd+<letter> block (macOS).
-	if (hasShell && platform === "darwin" && parts.length > 1) {
-		for (const nm of nonMods) {
-			if (nm.length === 1 && /^[a-z]$/.test(nm)) {
-				return {
-					valid: false,
-					reason: t("hotkeyValidation.reservedMacosCmd", {
-						key: nm.toUpperCase(),
+		if (platform === "darwin") {
+			const letter = nonMods.find(
+				(part) => part.length === 1 && /^[a-z]$/.test(part),
+			);
+			if (letter !== undefined) {
+				return _failure(
+					"shell_combo",
+					t("hotkeyValidation.reservedMacosCmd", {
+						key: letter.toUpperCase(),
 					}),
-				};
+				);
 			}
 		}
 	}
 
-	// 9. Alt+Shift block (Windows language switching).
-	if (platform === "win32") {
-		const hasAlt = parts.some((p) => p.startsWith("alt"));
-		const hasShift = parts.some((p) => p.startsWith("shift"));
-		if (hasAlt && hasShift && nonMods.length === 0) {
-			//include the conflicting combo.
-			const label = _formatForMessage(hotkey);
-			return {
-				valid: false,
-				reason: t("hotkeyValidation.reservedWindowsAltShift", { label }),
-			};
-		}
-	}
-
-	// 10. Ctrl+<common-letter> block (PURE Ctrl+<letter> only).
-	const hasCtrl = parts.some((p) => p.startsWith("ctrl"));
-	if (hasCtrl) {
-		const modifiersNonCtrl = parts.filter(
-			(p) => isModifier(p) && !p.startsWith("ctrl"),
+	if (
+		platform === "win32" &&
+		parts.includes("alt") &&
+		parts.includes("shift") &&
+		nonMods.length === 0
+	) {
+		return _failure(
+			"alt_shift",
+			t("hotkeyValidation.reservedWindowsAltShift", { label }),
 		);
-		if (modifiersNonCtrl.length === 0) {
-			for (const nm of nonMods) {
-				if (BLOCKED_CTRL_LETTERS.includes(nm)) {
-					return {
-						valid: false,
-						reason: t("hotkeyValidation.reservedAppCtrl", {
-							key: nm.toUpperCase(),
-						}),
-					};
-				}
+	}
+
+	if (parts.includes("ctrl")) {
+		const otherModifiers = parts.filter(
+			(part) => _isModifierToken(part) && part !== "ctrl",
+		);
+		if (otherModifiers.length === 0) {
+			const blocked = nonMods.find((part) =>
+				BLOCKED_CTRL_LETTERS.includes(part),
+			);
+			if (blocked !== undefined) {
+				return _failure(
+					"ctrl_letter",
+					t("hotkeyValidation.reservedAppCtrl", {
+						key: blocked.toUpperCase(),
+					}),
+				);
 			}
 		}
 	}
 
-	// 11. Shift+<letter> block (PURE Shift+<letter> only).
-	const hasShiftAny = parts.some((p) => p.startsWith("shift"));
-	if (hasShiftAny) {
-		const modifiersNonShift = parts.filter(
-			(p) => isModifier(p) && !p.startsWith("shift"),
+	if (parts.includes("shift")) {
+		const otherModifiers = parts.filter(
+			(part) => _isModifierToken(part) && part !== "shift",
 		);
-		if (modifiersNonShift.length === 0) {
-			for (const nm of nonMods) {
-				if (nm.length === 1 && /^[a-z0-9]$/.test(nm)) {
-					return {
-						valid: false,
-						reason: t("hotkeyValidation.shiftLetterInterferes", {
-							key: nm.toUpperCase(),
-						}),
-					};
-				}
+		if (otherModifiers.length === 0) {
+			const alnum = nonMods.find((part) => /^[a-z0-9]$/.test(part));
+			if (alnum !== undefined) {
+				return _failure(
+					"shift_letter",
+					t("hotkeyValidation.shiftLetterInterferes", {
+						key: alnum.toUpperCase(),
+					}),
+				);
 			}
 		}
+	}
+
+	for (const key of nonMods) {
+		const meta = KEY_VOCABULARY[key];
+		if (meta === undefined) {
+			return _failure(
+				"unknown_key",
+				t("hotkeyValidation.keyNotSupported", { label: key }),
+			);
+		}
+		if (
+			(platform === "win32" || platform === "darwin" || platform === "linux") &&
+			!meta.platforms.includes(platform)
+		) {
+			return _failure(
+				"key_not_delivered",
+				t("hotkeyValidation.keyNotDelivered", { key }),
+			);
+		}
+	}
+
+	if (options?.pushToTalk === true && nonMods.length === 0) {
+		return _failure(
+			"ptt_modifier_only",
+			t("hotkeyValidation.modifierOnlyNotForPushToTalk"),
+		);
+	}
+
+	if (options?.pushToTalk === true && nonMods.includes("caps_lock")) {
+		return _failure(
+			"ptt_caps_lock",
+			t("hotkeyValidation.capsLockNotForPushToTalk"),
+		);
 	}
 
 	return { valid: true };

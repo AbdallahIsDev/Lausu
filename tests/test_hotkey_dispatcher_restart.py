@@ -116,14 +116,14 @@ def test_restart_failure_in_factory_restores_old_hotkey_spec(dispatcher: HotkeyD
     )
     monkeypatch.setattr("voice_typer.server.hotkey_dispatcher.create_hotkey_backend", factory)
 
-    dispatcher.restart("<bad>")
+    dispatcher.restart("<f9>")
 
     # OLD backend's stop() WAS called (before register)
     old_backend.stop.assert_called_once()
 
     # Factory was called twice: once for the new (failing) hotkey,
     assert factory.call_count == 2
-    factory.assert_any_call("<bad>", role="dictation")
+    factory.assert_any_call("<f9>", role="dictation")
     factory.assert_any_call("<f2>", role="dictation")  # old hotkey spec
 
     # Restored backend is installed (a NEW instance, NOT old_backend,
@@ -135,8 +135,8 @@ def test_restart_failure_in_factory_restores_old_hotkey_spec(dispatcher: HotkeyD
     dispatcher._app.tray.set_hotkey.assert_called_once_with("<f2>")
 
     notify_calls = dispatcher._app.tray.notify.call_args_list
-    assert any("<bad>" in str(call) for call in notify_calls), (
-        f"Expected tray notification naming the rejected hotkey '<bad>', got: {notify_calls}"
+    assert any("<f9>" in str(call) for call in notify_calls), (
+        f"Expected tray notification naming the rejected hotkey '<f9>', got: {notify_calls}"
     )
 
 
@@ -149,12 +149,12 @@ def test_restart_failure_in_factory_with_failed_restore_leaves_no_backend(dispat
     factory = MagicMock(side_effect=RuntimeError("display gone"))
     monkeypatch.setattr("voice_typer.server.hotkey_dispatcher.create_hotkey_backend", factory)
 
-    dispatcher.restart("<bad>")
+    dispatcher.restart("<f9>")
 
     # OLD backend's stop() WAS called (we stop before register).
     old_backend.stop.assert_called_once()
 
-    # Factory was called twice (once for "<bad>", once for "<f2>")
+    # Factory was called twice (once for "<f9>", once for "<f2>")
     assert factory.call_count == 2
 
     # No backend installed, restore also failed.
@@ -166,8 +166,8 @@ def test_restart_failure_in_factory_with_failed_restore_leaves_no_backend(dispat
 
     # A tray notification was shown naming the rejected hotkey
     notify_calls = dispatcher._app.tray.notify.call_args_list
-    assert any("<bad>" in str(call) for call in notify_calls), (
-        f"Expected tray notification naming the rejected hotkey '<bad>', got: {notify_calls}"
+    assert any("<f9>" in str(call) for call in notify_calls), (
+        f"Expected tray notification naming the rejected hotkey '<f9>', got: {notify_calls}"
     )
 
 

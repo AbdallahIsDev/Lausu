@@ -26,7 +26,10 @@ from voice_typer.server.config_validators.cross_field import (
 log = logging.getLogger("voice_typer.server.config_validators")
 
 
-def validate_config_update(data: dict[str, object]) -> tuple[dict[str, object], list[str]]:
+def validate_config_update(
+    data: dict[str, object],
+    current: object | None = None,
+) -> tuple[dict[str, object], list[str]]:
     """:data:`IPC_CONFIG_ALLOWLIST` and whose values passed their"""
     validated: dict[str, object] = {}
     errors: list[str] = []
@@ -79,9 +82,24 @@ def validate_config_update(data: dict[str, object]) -> tuple[dict[str, object], 
     from voice_typer.server.config_validators import (
         _check_cross_field_cloud_config,
         _check_cross_field_hotkey_conflicts,
+        _check_cross_field_push_to_talk,
     )
 
     errors.extend(_check_cross_field_hotkey_conflicts(hotkey_values))
+    if "hotkey" in validated or "recording_mode" in validated:
+        hotkey = hotkey_values["hotkey"]
+        mode = validated.get("recording_mode")
+        if current is not None:
+            if "hotkey" not in validated:
+                hotkey = getattr(current, "hotkey", None)
+            if "recording_mode" not in validated:
+                mode = getattr(current, "recording_mode", None)
+        errors.extend(
+            _check_cross_field_push_to_talk(
+                hotkey if isinstance(hotkey, str) else None,
+                mode,
+            )
+        )
     # cross-field cloud/LLM config consistency check.
     cloud_field_values: dict[str, object] = {}
     for cloud_name in (
@@ -125,9 +143,16 @@ def validate_config(cfg: object) -> list[str]:
     from voice_typer.server.config_validators import (
         _check_cross_field_cloud_config,
         _check_cross_field_hotkey_conflicts,
+        _check_cross_field_push_to_talk,
     )
 
     errors.extend(_check_cross_field_hotkey_conflicts(hotkey_values))
+    errors.extend(
+        _check_cross_field_push_to_talk(
+            getattr(cfg, "hotkey", None),
+            getattr(cfg, "recording_mode", None),
+        )
+    )
     # cross-field cloud/LLM config consistency check
     cloud_field_values: dict[str, object] = {}
     for cloud_name in (

@@ -33,8 +33,10 @@ class HotkeyDispatchMixin:
     _esc_pending_capture_exit_event: threading.Event
 
     if TYPE_CHECKING:
-        def _shared_native(self) -> Any: ...
 
+        def _shared_native(self) -> Any: ...
+        def _start_ptt_safety_timer(self) -> None: ...
+        def _cancel_ptt_safety_timer(self) -> None: ...
 
     def _make_dictation_callback(self):
         """Create a dictation hotkey callback that respects keyboard ownership.
@@ -60,9 +62,20 @@ class HotkeyDispatchMixin:
             if keyboard_ownership().is_hotkey_capture_active():
                 log.debug("[HOTKEY] dictation ignored, frontend hotkey capture active")
                 return
+            if getattr(self._app.config, "recording_mode", "toggle") == "push_to_talk":
+                self._start_ptt_safety_timer()
             self._app.toggle_dictation()
 
         return _dictation_callback
+
+    def _make_ptt_release_callback(self):
+        """Wrap the PTT stop so the safety timer is canceled on key-up."""
+
+        def _release_callback() -> None:
+            self._cancel_ptt_safety_timer()
+            self._app._stop_dictation()
+
+        return _release_callback
 
     def _make_repaste_callback(self):
         """Create a repaste hotkey callback that respects keyboard ownership.

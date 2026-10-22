@@ -484,6 +484,49 @@ class TestModifierOnlyPollingLoop:
             backend._stop_event.set()
             thread.join(timeout=2.0)
 
+    def test_ptt_chord_cancel_stops_while_modifier_still_held(self, mock_windll):
+        backend = _make_backend(mock_windll, _modifiers=_MOD_ALT)
+        mock_user32 = mock_windll.user32
+
+        state = {"alt": 0, "c": 0}
+
+        def fake_get_async_key_state(vk):
+            if vk == _VK_MENU:
+                return 0x8000 if state["alt"] else 0
+            if vk == 0x43:  # 'C'
+                return 0x8000 if state["c"] else 0
+            return 0
+
+        mock_user32.GetAsyncKeyState.side_effect = fake_get_async_key_state
+
+        press_callback = MagicMock()
+        release_callback = MagicMock()
+        backend._on_release_callback = release_callback
+
+        thread = _run_in_thread_and_join(backend._run_modifier_only_polling_loop, args=(press_callback,))
+        try:
+            state["alt"] = 1
+            _wait_until(
+                lambda: press_callback.call_count >= 1,
+                timeout=2.0,
+                msg="PTT press callback did not fire on press",
+            )
+            state["c"] = 1
+            _wait_until(
+                lambda: release_callback.call_count >= 1,
+                timeout=2.0,
+                msg="PTT chord-cancel did not stop while the modifier was still held",
+            )
+            assert release_callback.call_count == 1
+            state["alt"] = 0
+            state["c"] = 0
+            assert not wait_for(lambda: release_callback.call_count > 1, timeout=0.1), (
+                f"PTT release fired twice: {release_callback.call_count}"
+            )
+        finally:
+            backend._stop_event.set()
+            thread.join(timeout=2.0)
+
 
 class TestAnyNonModifierKeyPressedThrottled:
     """The throttled wrapper caches False results for 50ms to avoid"""

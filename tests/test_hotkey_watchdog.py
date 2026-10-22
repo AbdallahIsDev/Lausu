@@ -180,26 +180,57 @@ class TestPynputWatchdog:
 class TestPTTSafetyTimeout:
     """the dispatcher arms a 60s PTT safety timer that auto-stops"""
 
-    def test_ptt_timer_armed_in_push_to_talk_mode(self, dispatcher: HotkeyDispatcher):
-        """In push_to_talk mode, ``_create_and_start_main_backend`` arms"""
+    def test_ptt_timer_not_armed_at_registration(self, dispatcher: HotkeyDispatcher):
+        """The PTT safety timer arms per press, not at registration."""
         dispatcher._app.config.recording_mode = "push_to_talk"
-        # Use a very short timeout so the test doesn't wait 60s.
-        dispatcher._PTT_SAFETY_TIMEOUT_SECONDS = 100.0  # won't fire in test
-        # Mock create_hotkey_backend so no real backend is created.
+        dispatcher._PTT_SAFETY_TIMEOUT_SECONDS = 100.0
         fake_backend = MagicMock()
         fake_backend.is_alive.return_value = True
         dispatcher._app.config.hotkey = "<f2>"
-        # Patch the module-level create_hotkey_backend reference.
         import voice_typer.server.hotkey_dispatcher as hd_mod
 
         orig_factory = hd_mod.create_hotkey_backend
         hd_mod.create_hotkey_backend = lambda spec, role=None: fake_backend
         try:
             dispatcher._create_and_start_main_backend("<f2>")
-            assert dispatcher._ptt_safety_timer is not None, "PTT safety timer should be armed in push_to_talk mode"
+            assert dispatcher._ptt_safety_timer is None
         finally:
             hd_mod.create_hotkey_backend = orig_factory
             dispatcher._cancel_ptt_safety_timer()
+
+    def test_ptt_release_wired_before_start(self, dispatcher: HotkeyDispatcher):
+        """PTT callbacks must be installed before the backend starts."""
+        dispatcher._app.config.recording_mode = "push_to_talk"
+        fake_backend = MagicMock()
+        fake_backend.is_alive.return_value = True
+        import voice_typer.server.hotkey_dispatcher as hd_mod
+
+        orig_factory = hd_mod.create_hotkey_backend
+        hd_mod.create_hotkey_backend = lambda spec, role=None: fake_backend
+        try:
+            dispatcher._create_and_start_main_backend("<f2>")
+            names = [call[0] for call in fake_backend.method_calls]
+            assert "set_on_release" in names
+            assert names.index("set_on_release") < names.index("start")
+        finally:
+            hd_mod.create_hotkey_backend = orig_factory
+            dispatcher._cancel_ptt_safety_timer()
+
+    def test_ptt_press_arms_timer(self, dispatcher: HotkeyDispatcher):
+        """Each PTT press re-arms the safety timer."""
+        dispatcher._app.config.recording_mode = "push_to_talk"
+        dispatcher._PTT_SAFETY_TIMEOUT_SECONDS = 100.0
+        dispatcher._make_dictation_callback()()
+        assert dispatcher._ptt_safety_timer is not None
+        dispatcher._cancel_ptt_safety_timer()
+
+    def test_ptt_release_cancels_timer_and_stops(self, dispatcher: HotkeyDispatcher):
+        """The PTT release callback cancels the timer and stops dictation."""
+        dispatcher._PTT_SAFETY_TIMEOUT_SECONDS = 100.0
+        dispatcher._start_ptt_safety_timer()
+        dispatcher._make_ptt_release_callback()()
+        assert dispatcher._ptt_safety_timer is None
+        dispatcher._app._stop_dictation.assert_called_once()
 
     def test_ptt_timer_not_armed_in_toggle_mode(self, dispatcher: HotkeyDispatcher):
         """In toggle mode, no PTT safety timer is armed."""
@@ -218,6 +249,7 @@ class TestPTTSafetyTimeout:
 
     def test_ptt_timeout_auto_stops_and_notifies(self, dispatcher: HotkeyDispatcher):
         """When the PTT safety timer fires, it calls"""
+        dispatcher._app.recorder = SimpleNamespace(recording=True)
         dispatcher._PTT_SAFETY_TIMEOUT_SECONDS = 0.05  # fire quickly
         dispatcher._start_ptt_safety_timer()
         # Wait for the timer to fire.
@@ -231,6 +263,17 @@ class TestPTTSafetyTimeout:
         call_args = dispatcher._app.tray.notify_safety.call_args
         message = call_args[0][1] if call_args[0] else call_args[1].get("message", "")
         assert "PTT" in message or "60s" in message, f"Tray notification should mention PTT/60s; got: {message!r}"
+
+    def test_ptt_timeout_ignored_when_idle(self, dispatcher: HotkeyDispatcher):
+        """A stale timer must never stop an idle app."""
+        dispatcher._app.recorder = SimpleNamespace(recording=False)
+        dispatcher._PTT_SAFETY_TIMEOUT_SECONDS = 0.05
+        dispatcher._start_ptt_safety_timer()
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline and dispatcher._ptt_safety_timer is not None:
+            time.sleep(0.02)
+        assert not dispatcher._app._stop_dictation.called
+        assert not dispatcher._app.tray.notify_safety.called
 
     def test_cancel_ptt_timer_is_noop_when_not_armed(self, dispatcher: HotkeyDispatcher):
         """``_cancel_ptt_safety_timer`` must be safe to call when no"""

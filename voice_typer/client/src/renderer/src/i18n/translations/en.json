@@ -1748,6 +1748,10 @@
 		"invalidHotkey": "Invalid hotkey",
 		"dictationKeySingle": "Dictation key must be a single key (no modifiers). Use the re-paste key for combos.",
 		"dictationKeySingleShort": "Dictation key must be a single key",
+		"altGrUnsupported": "AltGr can't be used as a hotkey: the listeners report it as Alt, so the shortcut would never match. Use Alt instead.",
+		"keyNotDelivered": "\"{key}\" can't be used as a hotkey on this platform.",
+		"modifierOnlyNotForPushToTalk": "Push-to-talk needs a key that reports a release. Modifier-only shortcuts work for toggle mode only.",
+		"capsLockNotForPushToTalk": "Caps Lock can't be used for push-to-talk: macOS never reports its release. Choose another key.",
 		"fnMacosOnly": "Fn key is only supported on macOS",
 		"holding": "Holding",
 		"bareModifierInterferes": "Bare modifier keys (Shift, Cmd, Win) interfere with typing. Please choose a different key."
@@ -1776,6 +1780,10 @@
 		"enter": "Enter",
 		"tab": "Tab",
 		"esc": "Esc",
+		"mediaPlay": "Play/Pause",
+		"mediaStop": "Stop",
+		"mediaNext": "Next Track",
+		"mediaPrev": "Previous Track",
 		"fnGlobeMacos": "Fn / Globe 🌐 (macOS only)"
 	},
 	"activityList": {

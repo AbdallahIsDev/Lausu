@@ -49,6 +49,7 @@ class _NativeBackendAdapter(HotkeyBackend):
         self._native = native_backend
         self.hotkey_str = native_backend.hotkey_str
         self._on_release_callback: Callable[[], None] | None = None
+        self._toggle_on_keyup = False
         self._callback: Callable[[], None] | None = None
         self._legacy: HotkeyBackend | None = None
         # state-change hook for the dispatcher. The
@@ -242,6 +243,8 @@ class _NativeBackendAdapter(HotkeyBackend):
                         self._state = self._STATE_NATIVE
                 if self._on_release_callback is not None:
                     self._native.set_on_release(self._on_release_callback)
+                with contextlib.suppress(AttributeError, TypeError):
+                    self._native.set_toggle_on_keyup(self._toggle_on_keyup)
                 log.info("[HOTKEY] Native backend restarted after permission grant")
                 self._permission_notification_shown = False
                 # same re-pool signal as native recovery
@@ -296,6 +299,8 @@ class _NativeBackendAdapter(HotkeyBackend):
             legacy.start(cb)
             if self._on_release_callback is not None:
                 legacy.set_on_release(self._on_release_callback)
+            with contextlib.suppress(AttributeError, TypeError):
+                legacy.set_toggle_on_keyup(self._toggle_on_keyup)
             with self._swap_lock:
                 if self._state == self._STATE_STOPPED:
                     # stop() was called during the swap, clean up
@@ -381,6 +386,8 @@ class _NativeBackendAdapter(HotkeyBackend):
                     self._legacy = None
                 if self._on_release_callback is not None:
                     self._native.set_on_release(self._on_release_callback)
+                with contextlib.suppress(AttributeError, TypeError):
+                    self._native.set_toggle_on_keyup(self._toggle_on_keyup)
                 log.info("[HOTKEY] Native backend recovered, swapped back from legacy")
                 self._show_recovery_notification()
                 self._permission_notification_shown = False
@@ -400,6 +407,8 @@ class _NativeBackendAdapter(HotkeyBackend):
             legacy.start(cb)
             if self._on_release_callback is not None:
                 legacy.set_on_release(self._on_release_callback)
+            with contextlib.suppress(AttributeError, TypeError):
+                legacy.set_toggle_on_keyup(self._toggle_on_keyup)
             # (cont.): propagate _tray via the public
             with contextlib.suppress(AttributeError, TypeError):
                 legacy.set_tray(self._tray)

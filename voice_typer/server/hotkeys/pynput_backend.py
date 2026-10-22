@@ -248,18 +248,41 @@ class PynputHotkey(HotkeyBackend):
         else:
             modifier_keys, match_key = (), target
 
-        # Track currently-held modifier keys so we can check the full
-        held_modifiers = set()
+        # Track raw modifier keys so left/right variants collapse to one
+        # family and an EXTRA held modifier blocks the match (contract #5).
+        modifier_families: dict[object, str] = {}
+        for family, names in {
+            "ctrl": ("ctrl", "ctrl_l", "ctrl_r"),
+            "shift": ("shift", "shift_l", "shift_r"),
+            "alt": ("alt", "alt_l", "alt_r"),
+            "alt_gr": ("alt_gr",),
+            "cmd": ("cmd", "cmd_l", "cmd_r"),
+            "fn": ("fn",),
+        }.items():
+            for name in names:
+                if hasattr(key, name):
+                    modifier_families[getattr(key, name)] = family
+
+        held_modifier_keys: set[object] = set()
+        required_families = {modifier_families.get(mod_key) for mod_key in modifier_keys}
+        required_families.discard(None)
+        if not required_families:
+            match_family = modifier_families.get(match_key)
+            if match_family is not None:
+                required_families = {match_family}
+
+        def held_families() -> set[str]:
+            return {modifier_families[k] for k in held_modifier_keys if k in modifier_families}
+
         # track whether the matched key is currently held down
         held = {"value": False}
 
         def on_press(key):
-            # Track modifier presses.
-            if modifier_keys and key in modifier_keys:
-                held_modifiers.add(key)
+            if key in modifier_families:
+                held_modifier_keys.add(key)
             if key == match_key:
-                # only fire if ALL modifiers are held.
-                if modifier_keys and len(held_modifiers) < len(modifier_keys):
+                # Exact match: every required modifier held, no extras.
+                if held_families() != required_families:
                     return
                 if not held["value"]:
                     held["value"] = True
@@ -277,15 +300,23 @@ class PynputHotkey(HotkeyBackend):
                         log.info(
                             "[HOTKEY FALLBACK] Matched key: %s (mods=%d/%d)",
                             key,
-                            len(held_modifiers),
-                            len(modifier_keys),
+                            len(held_modifier_keys),
+                            len(required_families),
                         )
                         callback()
+            elif self._on_release_callback is not None and held["value"] and key not in modifier_families:
+                # PTT chord-cancel: a non-modifier key during the hold means
+                # the user was typing a combo, so stop immediately.
+                held["value"] = False
+                log.info("[HOTKEY FALLBACK] Chord key %s during PTT, stopping", key)
+                try:
+                    self._on_release_callback()
+                except Exception:
+                    log.exception("[HOTKEY FALLBACK] on_release callback raised")
 
         def on_release(key):
-            # track modifier releases so the held_modifiers
-            if modifier_keys and key in modifier_keys:
-                held_modifiers.discard(key)
+            # track modifier releases so the held set stays exact
+            held_modifier_keys.discard(key)
             # invoke the on_release callback (used by
             if key == match_key and held["value"]:
                 held["value"] = False

@@ -1743,6 +1743,10 @@
 		"invalidHotkey": "Ungültige Tastenkombination",
 		"dictationKeySingle": "Die Diktier taste muss eine einzelne Taste sein (keine Modifikatoren). Verwenden Sie die Taste für erneutes Einfügen für Kombinationen.",
 		"dictationKeySingleShort": "Diktier taste muss eine einzelne Taste sein",
+		"altGrUnsupported": "AltGr kann nicht als Tastenkürzel verwendet werden: Die Listener melden es als Alt, daher würde das Kürzel nie auslösen. Verwenden Sie stattdessen Alt.",
+		"keyNotDelivered": "\"{key}\" kann auf dieser Plattform nicht als Tastenkürzel verwendet werden.",
+		"modifierOnlyNotForPushToTalk": "Push-to-Talk benötigt eine Taste, die ein Loslassen meldet. Kürzel nur aus Modifikatoren funktionieren nur im Umschaltmodus.",
+		"capsLockNotForPushToTalk": "Feststelltaste kann nicht für Push-to-Talk verwendet werden: macOS meldet das Loslassen nie. Wähle eine andere Taste.",
 		"fnMacosOnly": "Fn-Taste wird nur unter macOS unterstützt",
 		"holding": "Gedrückt",
 		"bareModifierInterferes": "Einzelne Modifikatortasten (Shift, Cmd, Win) beeinträchtigen die Eingabe. Bitte wählen Sie eine andere Taste."
@@ -1771,6 +1775,10 @@
 		"enter": "Eingabe",
 		"tab": "Tab",
 		"esc": "Esc",
+		"mediaPlay": "Wiedergabe/Pause",
+		"mediaStop": "Stopp",
+		"mediaNext": "Nächster Titel",
+		"mediaPrev": "Vorheriger Titel",
 		"fnGlobeMacos": "Fn / Globe 🌐 (nur macOS)"
 	},
 	"activityList": {

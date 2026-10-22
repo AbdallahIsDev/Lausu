@@ -1,4 +1,5 @@
 import { t } from "@/i18n/i18n";
+import hotkeyReserved from "../../data/hotkey_reserved.json";
 import { formatHotkey } from "./hotkey-format";
 import { detectPlatform, isReserved } from "./hotkey-validation";
 
@@ -136,26 +137,7 @@ export const KEY_CODE_TO_PYNPUT: Record<string, string> = {
 	AudioVolumeDown: "volume_down",
 };
 
-export const MODIFIER_KEYS = [
-	"ctrl",
-	"ctrl_l",
-	"ctrl_r",
-	"shift",
-	"shift_l",
-	"shift_r",
-	"alt",
-	"alt_l",
-	"alt_r",
-	"alt_gr",
-	"cmd",
-	"cmd_l",
-	"cmd_r",
-	"win",
-	"fn",
-	"globe",
-	"caps_lock",
-	"capslock",
-] as const;
+export const MODIFIER_KEYS: readonly string[] = hotkeyReserved.modifiers;
 
 export function getModifierCodeMap(isMac: boolean): Record<string, string> {
 	return {
@@ -237,7 +219,6 @@ export function getComboPresets(): { value: string; label: string }[] {
 	return [
 		{ value: "<ctrl>+<shift>+v", label: formatHotkey("<ctrl>+<shift>+v") },
 		{ value: "<ctrl>+<alt>+v", label: formatHotkey("<ctrl>+<alt>+v") },
-		{ value: "<ctrl>+<space>", label: formatHotkey("<ctrl>+<space>") },
 		...(isMac
 			? [
 					{

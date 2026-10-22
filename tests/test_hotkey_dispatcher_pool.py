@@ -135,13 +135,13 @@ def test_restart_failure_then_restore_tracks_restored_backend(dispatcher: Hotkey
     factory = MagicMock(side_effect=[broken_backend, restored_backend])
     monkeypatch.setattr("voice_typer.server.hotkey_dispatcher.create_hotkey_backend", factory)
 
-    dispatcher.restart("<bad>")
+    dispatcher.restart("<f9>")
 
     assert dispatcher._hotkey_backend is restored_backend
     assert dispatcher.get_active_backend_count() == 1
     assert dispatcher._shared_backend_pool.get("<f2>") is restored_backend
-    # Broken backend (for "<bad>") is NOT in the pool, its start() raised.
-    assert "<bad>" not in dispatcher._shared_backend_pool
+    # Broken backend (for "<f9>") is NOT in the pool, its start() raised.
+    assert "<f9>" not in dispatcher._shared_backend_pool
 
 
 def test_get_active_backend_count_purges_dead_entries(dispatcher: HotkeyDispatcher):

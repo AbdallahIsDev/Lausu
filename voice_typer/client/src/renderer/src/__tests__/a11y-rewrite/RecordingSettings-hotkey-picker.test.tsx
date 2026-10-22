@@ -293,9 +293,12 @@ describe("RecordingSettings repaste HotkeyPicker, RW-0 rewrite of test_repaste_k
 		);
 		expect(repastePicker).toBeTruthy();
 		repastePicker?.onChange("<cmd>+<shift>+v");
-		expect(updateConfig).toHaveBeenCalledWith({
-			repaste_hotkey: "<cmd>+<shift>+v",
-		});
+		expect(updateConfig).toHaveBeenCalledWith(
+			{
+				repaste_hotkey: "<cmd>+<shift>+v",
+			},
+			{ revertOnFailure: true },
+		);
 	});
 
 	it("does NOT render a free-text <input> bound to config.repaste_hotkey", () => {

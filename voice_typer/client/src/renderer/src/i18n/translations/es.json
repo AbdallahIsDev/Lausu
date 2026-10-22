@@ -1743,6 +1743,10 @@
 		"invalidHotkey": "Atajo no válido",
 		"dictationKeySingle": "La tecla de dictado debe ser una tecla única (sin modificadores). Usa la tecla de re-pegado para combinaciones.",
 		"dictationKeySingleShort": "La tecla de dictado debe ser una tecla única",
+		"altGrUnsupported": "AltGr no se puede usar como atajo: los listeners lo informan como Alt, así que el atajo nunca coincidiría. Usa Alt en su lugar.",
+		"keyNotDelivered": "\"{key}\" no se puede usar como atajo en esta plataforma.",
+		"modifierOnlyNotForPushToTalk": "Push-to-talk necesita una tecla que informe de su liberación. Los atajos solo de modificadores funcionan únicamente en modo alternar.",
+		"capsLockNotForPushToTalk": "Bloq Mayús no sirve para pulsar para hablar: macOS nunca informa de su liberación. Elige otra tecla.",
 		"fnMacosOnly": "La tecla Fn solo es compatible con macOS",
 		"holding": "Manteniendo",
 		"bareModifierInterferes": "Las teclas modificadoras solas (Shift, Cmd, Win) interfieren con la escritura. Elige otra tecla."
@@ -1771,6 +1775,10 @@
 		"enter": "Intro",
 		"tab": "Tabulador",
 		"esc": "Esc",
+		"mediaPlay": "Reproducir/Pausa",
+		"mediaStop": "Detener",
+		"mediaNext": "Pista siguiente",
+		"mediaPrev": "Pista anterior",
 		"fnGlobeMacos": "Fn / Globe 🌐 (solo macOS)"
 	},
 	"activityList": {

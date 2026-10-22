@@ -28,12 +28,14 @@ def _facade():
 
     return module
 
+
 _BACKEND_KIND_LABELS = {
     "_NativeBackendAdapter": "native",
     "WindowsNativeHotkey": "native-poll",
     "PynputHotkey": "pynput",
     "WaylandHotkey": "wayland",
 }
+
 
 def _backend_kind_label(backend) -> str:
     name = type(backend).__name__
@@ -63,8 +65,10 @@ class HotkeyRegistrationMixin:
     _shared_backend_pool: dict[str, HotkeyBackend]
 
     if TYPE_CHECKING:
+
         def _handle_shared_native_state_changed(self, state: str) -> None: ...
         def _make_dictation_callback(self): ...
+        def _make_ptt_release_callback(self): ...
         def _make_repaste_callback(self): ...
         def _maybe_warn_wayland_caps_lock(self, hotkey_str: str) -> None: ...
         def _on_esc_release(self) -> None: ...
@@ -77,7 +81,6 @@ class HotkeyRegistrationMixin:
         def _start_ptt_safety_timer(self) -> None: ...
         def _track_pooled_backend(self, spec: str, backend: HotkeyBackend) -> None: ...
         def _untrack_pooled_backend(self, backend: HotkeyBackend | None) -> None: ...
-
 
     def register(self, skip_aux: bool = False) -> bool:
         """Register global hotkey using the platform-appropriate backend.
@@ -134,18 +137,17 @@ class HotkeyRegistrationMixin:
             # name the hotkey in the notification so the user
             log.warning("[HOTKEY] Registration FAILED -- %s: %s", hotkey_str, exc)
             log.debug("Hotkey registration error", exc_info=True)
-            app.tray.notify(
-                APP_NAME,
-                i18n_t("notify.hotkey_dispatcher.register_failed", hotkey=hotkey_str),
-            )
+            with contextlib.suppress(Exception):
+                app.tray.notify(
+                    APP_NAME,
+                    i18n_t("notify.hotkey_dispatcher.register_failed", hotkey=hotkey_str),
+                )
 
         # Feature: ESC to cancel -- register ESC hotkey when enabled
         if not skip_aux:
             if app.config.esc_cancel_enabled:
                 esc_already_alive = (
-                    self._esc_backend is not None
-                    and self._esc_backend.is_alive()
-                    and self._esc_spec == "<esc>"
+                    self._esc_backend is not None and self._esc_backend.is_alive() and self._esc_spec == "<esc>"
                 )
                 if not esc_already_alive:
                     self.register_esc()
@@ -241,17 +243,14 @@ class HotkeyRegistrationMixin:
             new_backend._on_state_change_callback = self._handle_shared_native_state_changed
         # surface a tray notification when the user binds Caps
         self._maybe_warn_wayland_caps_lock(hotkey_str)
-        # PTT safety timeout, if a recording started via
-        if app.config.recording_mode == "push_to_talk":
-            self._start_ptt_safety_timer()
         # USER-REQUESTED FIX: in toggle mode, fire the toggle on key-up
         if app.config.recording_mode == "toggle":
             with contextlib.suppress(AttributeError, TypeError):
                 new_backend.set_toggle_on_keyup(True)
+        # Wire callbacks BEFORE start() so the first event cannot race
+        elif app.config.recording_mode == "push_to_talk":
+            new_backend.set_on_release(self._make_ptt_release_callback())
         new_backend.start(self._make_dictation_callback())
-        # P1: Push-to-talk mode -- set release callback
-        if app.config.recording_mode == "push_to_talk":
-            new_backend.set_on_release(app._stop_dictation)
         log.info(
             "[HOTKEY] Registration OK: %s (backend=%s, alive=%s)",
             format_hotkey_label(hotkey_str),
@@ -436,9 +435,7 @@ class HotkeyRegistrationMixin:
             return
         try:
             # pass role="repaste" so the WaylandHotkey backend
-            self._repaste_backend = _facade().create_hotkey_backend(
-                self._app.config.repaste_hotkey, role="repaste"
-            )
+            self._repaste_backend = _facade().create_hotkey_backend(self._app.config.repaste_hotkey, role="repaste")
             # same WM_HOTKEY-preference flag as the ESC backend
             with contextlib.suppress(AttributeError, TypeError):
                 self._repaste_backend._prefer_message_loop_first = True

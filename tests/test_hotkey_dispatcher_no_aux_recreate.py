@@ -208,7 +208,7 @@ def test_restart_failure_path_does_not_call_aux_backends(dispatcher: HotkeyDispa
 
     restored_backend = MagicMock()
     restored_backend.is_alive.return_value = True
-    # First call (for "<bad>") raises; second call (for "<f2>") returns
+    # First call (for "<f9>") raises; second call (for "<f2>") returns
     factory = MagicMock(side_effect=[RuntimeError("invalid"), restored_backend])
     monkeypatch.setattr("voice_typer.server.hotkey_dispatcher.create_hotkey_backend", factory)
 
@@ -217,7 +217,7 @@ def test_restart_failure_path_does_not_call_aux_backends(dispatcher: HotkeyDispa
     dispatcher.register_esc = lambda: register_esc_calls.append(1)  # type: ignore[assignment]
     dispatcher.register_repaste = lambda: register_repaste_calls.append(1)  # type: ignore[assignment]
 
-    dispatcher.restart("<bad>")
+    dispatcher.restart("<f9>")
 
     assert dispatcher._hotkey_backend is restored_backend
     assert dispatcher._app.config.hotkey == "<f2>"

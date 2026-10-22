@@ -1743,6 +1743,10 @@
 		"invalidHotkey": "快捷键无效",
 		"dictationKeySingle": "听写键必须是单个按键（不能带修饰键）。组合键请使用重新粘贴键。",
 		"dictationKeySingleShort": "听写键必须是单个按键",
+		"altGrUnsupported": "AltGr 不能用作快捷键：监听器会将其报告为 Alt，因此快捷键永远不会匹配。请改用 Alt。",
+		"keyNotDelivered": "\"{key}\" 无法在此平台上用作快捷键。",
+		"modifierOnlyNotForPushToTalk": "按住说话需要能报告松开事件的按键。仅由修饰键组成的快捷键只适用于切换模式。",
+		"capsLockNotForPushToTalk": "Caps Lock 不能用于按住说话：macOS 从不上报其释放。请选择其他按键。",
 		"fnMacosOnly": "Fn 键仅在 macOS 上受支持",
 		"holding": "按住",
 		"bareModifierInterferes": "单独使用修饰键可能与其他功能冲突"
@@ -1771,6 +1775,10 @@
 		"enter": "回车",
 		"tab": "Tab",
 		"esc": "Esc",
+		"mediaPlay": "播放/暂停",
+		"mediaStop": "停止",
+		"mediaNext": "下一曲",
+		"mediaPrev": "上一曲",
 		"fnGlobeMacos": "Fn / Globe 🌐 (仅 macOS)"
 	},
 	"activityList": {

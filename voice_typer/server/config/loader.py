@@ -46,10 +46,12 @@ from voice_typer.server.config_internals.migrations import (
     _run_migrations,
 )
 from voice_typer.server.config_validators import (
+    _check_cross_field_push_to_talk,
     _make_custom_theme_validator,
     _validate_hotkey,
     cross_platform_hotkey_warnings,
 )
+from voice_typer.server.config_validators.hotkey import _check_push_to_talk
 
 if TYPE_CHECKING:  # pragma: no cover, typing-only, never imported at runtime
     from voice_typer.server.config import Config
@@ -331,18 +333,19 @@ def _load_config(cls) -> "Config":
                 continue
             err = _validate_hotkey(value)
             if err is not None:
+                fallback = "" if hotkey_field == "repaste_hotkey" else default_hotkey
                 log.warning(
-                    "[CONFIG] %s=%r rejected by hotkey validator (%s) -- resetting to platform default %r",
+                    "[CONFIG] %s=%r rejected by hotkey validator (%s) -- resetting to %r",
                     hotkey_field,
                     value,
                     err,
-                    default_hotkey,
+                    fallback,
                 )
                 data.setdefault("_load_warnings", []).append(
                     f"Config field {hotkey_field!r}={value!r} rejected by "
-                    f"hotkey validator ({err}) -- reset to {default_hotkey!r}"
+                    f"hotkey validator ({err}) -- reset to {fallback!r}"
                 )
-                data[hotkey_field] = default_hotkey
+                data[hotkey_field] = fallback
 
         # validate ``custom_theme`` on load (mirrors the IPC
         if "custom_theme" in data and data["custom_theme"] is not None:
@@ -361,6 +364,19 @@ def _load_config(cls) -> "Config":
         load_warnings = data.pop("_load_warnings", [])
 
         instance = cls(**data)
+        if _check_cross_field_push_to_talk(instance.hotkey, instance.recording_mode):
+            fallback = default_hotkey
+            if _validate_hotkey(fallback) is not None or _check_push_to_talk(fallback)[0] is not None:
+                fallback = "<f2>"
+            log.warning(
+                "[CONFIG] hotkey=%r is invalid for push-to-talk -- resetting to %r",
+                instance.hotkey,
+                fallback,
+            )
+            load_warnings.append(
+                f"Config hotkey={instance.hotkey!r} is invalid for push-to-talk -- reset to {fallback!r}"
+            )
+            instance.hotkey = fallback
         load_warnings.extend(cross_platform_hotkey_warnings(instance))
         instance.last_load_warnings = load_warnings
 

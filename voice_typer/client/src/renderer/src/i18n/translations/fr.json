@@ -1679,6 +1679,10 @@
 		"invalidHotkey": "Raccourci non valide",
 		"dictationKeySingle": "La touche de dictée doit être une seule touche (sans modificateurs). Utilisez la touche de re-collage pour les combinaisons.",
 		"dictationKeySingleShort": "La touche de dictée doit être une seule touche",
+		"altGrUnsupported": "AltGr ne peut pas servir de raccourci : les listeners le signalent comme Alt, donc le raccourci ne correspondrait jamais. Utilisez Alt à la place.",
+		"keyNotDelivered": "\"{key}\" ne peut pas servir de raccourci sur cette plateforme.",
+		"modifierOnlyNotForPushToTalk": "Le push-to-talk nécessite une touche qui signale son relâchement. Les raccourcis uniquement composés de modificateurs ne fonctionnent qu'en mode bascule.",
+		"capsLockNotForPushToTalk": "Verrouillage majuscules ne convient pas à l'appui pour parler : macOS ne signale jamais son relâchement. Choisissez une autre touche.",
 		"fnMacosOnly": "La touche Fn n'est prise en charge que sur macOS",
 		"holding": "Maintenu",
 		"bareModifierInterferes": "Les touches modificatrices seules (Maj, Cmd, Win) interfèrent avec la saisie. Choisissez une autre touche."
@@ -1707,6 +1711,10 @@
 		"enter": "Entrée",
 		"tab": "Tabulation",
 		"esc": "Échap",
+		"mediaPlay": "Lecture/Pause",
+		"mediaStop": "Arrêter",
+		"mediaNext": "Piste suivante",
+		"mediaPrev": "Piste précédente",
 		"fnGlobeMacos": "Fn / Globe 🌐 (macOS uniquement)"
 	},
 	"activityList": {

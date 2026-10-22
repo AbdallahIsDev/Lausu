@@ -224,10 +224,24 @@ describe("validateHotkey, partial-assign contract", () => {
 		// still valid on darwin where the Win/Super key doesn't
 		// exist as a system modifier.
 		for (const mod of MODIFIER_KEYS_SHARED) {
-			// `<win>`, `<super>`, and `<cmd>`
-			// are excluded on win32 because they're in
-			// UNIVERSAL_RESERVED_SHORTCUTS (system gestures).
-			if (mod === "win" || mod === "super" || mod === "cmd") continue;
+			// Shell spellings are OS-reserved, AltGr can never match, and
+			// Fn/Globe is macOS-only.
+			if (
+				mod === "win" ||
+				mod === "super" ||
+				mod === "cmd" ||
+				mod.startsWith("win_") ||
+				mod.startsWith("super_") ||
+				mod.startsWith("cmd_")
+			) {
+				continue;
+			}
+			if (mod === "alt_gr" || mod === "altgr" || mod === "right_alt") continue;
+			if (mod === "ralt") continue;
+			if (mod === "fn" || mod === "globe") {
+				expect(validateHotkey(`<${mod}>`, "win32").valid).toBe(false);
+				continue;
+			}
 			const result = validateHotkey(`<${mod}>`, "win32");
 			expect(result.valid).toBe(true);
 			expect(result).not.toHaveProperty("partial");
@@ -429,7 +443,6 @@ describe("combo shape parity", () => {
 				"<ctrl>+<alt>+v",
 				"<f9>",
 				"<caps_lock>",
-				"<num_0>",
 				"<ctrl>+<f5>",
 			]) {
 				expect(
@@ -474,8 +487,46 @@ describe("combo shape parity", () => {
 	it("counts alias spellings as modifiers", () => {
 		expect(validateHotkey("<super_l>+<f5>", "linux").valid).toBe(true);
 		expect(validateHotkey("<control>+q", "win32").valid).toBe(true);
-		expect(validateHotkey("<right_alt>+q", "darwin").valid).toBe(true);
-		expect(validateHotkey("<altgr>+q", "linux").valid).toBe(true);
+	});
+
+	it("rejects AltGr aliases everywhere (reported as Alt by listeners)", () => {
+		for (const platform of ["win32", "linux", "darwin"]) {
+			for (const hotkey of [
+				"<right_alt>+q",
+				"<altgr>+q",
+				"<alt_gr>+q",
+				"<ralt>+q",
+			]) {
+				expect(
+					validateHotkey(hotkey, platform).valid,
+					`${hotkey} on ${platform}`,
+				).toBe(false);
+			}
+		}
+	});
+
+	it("rejects orphaned keys that no native listener delivers", () => {
+		for (const platform of ["win32", "linux", "darwin"]) {
+			expect(validateHotkey("<num_0>", platform).valid).toBe(false);
+			expect(validateHotkey("<numpad_0>", platform).valid).toBe(false);
+			expect(validateHotkey("<volume_mute>", platform).valid).toBe(false);
+		}
+	});
+
+	it("rejects a bare modifier for push-to-talk", () => {
+		expect(validateHotkey("<ctrl>", "win32", { pushToTalk: true }).valid).toBe(
+			false,
+		);
+		expect(validateHotkey("<ctrl>", "win32").valid).toBe(true);
+	});
+
+	it("rejects Caps Lock for push-to-talk", () => {
+		const result = validateHotkey("<caps_lock>", "win32", {
+			pushToTalk: true,
+		});
+		expect(result.valid).toBe(false);
+		expect(result.code).toBe("ptt_caps_lock");
+		expect(validateHotkey("<caps_lock>", "win32").valid).toBe(true);
 	});
 
 	it("counts an aliased shell modifier as a shell combo", () => {
@@ -484,15 +535,12 @@ describe("combo shape parity", () => {
 	});
 });
 
-describe("bare shell modifiers stay assignable", () => {
-	// The backend allows a BARE shell modifier (``<cmd_l>``) on every
-	// platform: it is a modifier-only trigger the native listener can
-	// swallow, and the backend normalises bare modifiers to their own
-	// spelling (only COMBOS collapse the shell spellings). The picker
-	// must agree, or it refuses a hotkey the backend accepts.
-	it("accepts a bare shell modifier on Windows", () => {
-		expect(validateHotkey("<cmd_l>", "win32").valid).toBe(true);
-		expect(validateHotkey("<cmd_r>", "win32").valid).toBe(true);
+describe("bare shell modifiers are reserved shell keys", () => {
+	// The shell spellings canonicalise to one physical key, so a bare
+	// <cmd_l> is the same spec as <cmd> and hits the universal table.
+	it("rejects a bare shell modifier on Windows", () => {
+		expect(validateHotkey("<cmd_l>", "win32").valid).toBe(false);
+		expect(validateHotkey("<cmd_r>", "win32").valid).toBe(false);
 	});
 
 	it("still rejects a shell COMBO on Windows", () => {

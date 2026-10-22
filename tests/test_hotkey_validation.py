@@ -519,9 +519,7 @@ class TestReservedMatchingIsFormatAndAliasAgnostic:
         for spelling in ("<alt>+space", "<alt>+<space>", "<ALT>+SPACE"):
             assert _validate_hotkey(spelling) is not None, spelling
 
-    def test_platform_reserved_matches_pynput_style_spelling(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_platform_reserved_matches_pynput_style_spelling(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(sys, "platform", "linux")
         for spelling in ("<super>+l", "<super>+<l>"):
             assert _validate_hotkey(spelling) is not None, spelling
@@ -529,9 +527,7 @@ class TestReservedMatchingIsFormatAndAliasAgnostic:
         for spelling in ("<cmd>+space", "<cmd>+<space>"):
             assert _validate_hotkey(spelling) is not None, spelling
 
-    def test_shell_key_spellings_hit_the_same_table_rows(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_shell_key_spellings_hit_the_same_table_rows(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(sys, "platform", "win32")
         assert _validate_hotkey("<cmd>+<m>") is not None  # Win+M
         monkeypatch.setattr(sys, "platform", "linux")
@@ -539,9 +535,7 @@ class TestReservedMatchingIsFormatAndAliasAgnostic:
         monkeypatch.setattr(sys, "platform", "darwin")
         assert _validate_hotkey("<win>+<e>") is not None  # Cmd+E
 
-    def test_bare_modifier_only_shell_key_stays_blocked(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_bare_modifier_only_shell_key_stays_blocked(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(sys, "platform", "linux")
         assert _validate_hotkey("<super>") is not None
         assert _validate_hotkey("<win>") is not None
@@ -555,9 +549,7 @@ class TestReservedMatchingIsFormatAndAliasAgnostic:
         assert result is not None
         assert "reserved" in result.lower(), result
 
-    def test_ctrl_alt_delete_is_windows_secure_attention_only(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_ctrl_alt_delete_is_windows_secure_attention_only(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(sys, "platform", "win32")
         for spelling in ("<ctrl>+<alt>+<delete>", "<ctrl>+<alt>+<del>"):
             assert _validate_hotkey(spelling) is not None, spelling
@@ -568,9 +560,7 @@ class TestReservedMatchingIsFormatAndAliasAgnostic:
         assert _validate_hotkey("<ctrl>+v+<alt>") is not None
         assert _validate_hotkey("<ctrl>+<alt>+v") is None
 
-    def test_assignable_combos_are_not_caught_by_the_normalisation(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_assignable_combos_are_not_caught_by_the_normalisation(self, monkeypatch: pytest.MonkeyPatch) -> None:
         for platform in ("win32", "linux", "darwin"):
             monkeypatch.setattr(sys, "platform", platform)
             for hotkey in (
@@ -579,7 +569,11 @@ class TestReservedMatchingIsFormatAndAliasAgnostic:
                 "<f9>",
                 "<caps_lock>",
                 "<alt>",
-                "<num_0>",
                 "<ctrl>+<f5>",
             ):
                 assert _validate_hotkey(hotkey) is None, f"{hotkey} on {platform}"
+
+    def test_numpad_keys_are_rejected_where_they_cannot_be_delivered(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for platform in ("win32", "linux", "darwin"):
+            monkeypatch.setattr(sys, "platform", platform)
+            assert _validate_hotkey("<num_0>") is not None, platform

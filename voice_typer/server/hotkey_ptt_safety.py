@@ -36,7 +36,6 @@ class HotkeyPttSafetyMixin:
     _app: Any
     _ptt_safety_timer: threading.Timer | None
 
-
     def _start_ptt_safety_timer(self) -> None:
         """Arm the 60s PTT safety timer. Called from
         ``_create_and_start_main_backend`` when PTT mode is active.
@@ -87,6 +86,12 @@ class HotkeyPttSafetyMixin:
         cancels this timer; if the timer fires, it means the release
         event was lost.
         """
+        self._ptt_safety_timer = None
+        _facade()._LIVE_PTT_TIMER_DISPATCHERS.discard(self)
+        recorder = getattr(self._app, "recorder", None)
+        if recorder is None or not getattr(recorder, "recording", False):
+            log.debug("[HOTKEY] PTT safety timeout fired while idle, ignoring")
+            return
         log.warning(
             "[HOTKEY] PTT release event missed, auto-stopping recording after %.0fs safety timeout",
             self._PTT_SAFETY_TIMEOUT_SECONDS,

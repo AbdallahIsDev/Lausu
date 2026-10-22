@@ -392,13 +392,13 @@ class TestCanonicalParser:
         assert parse_hotkey("<right_alt>").modifiers == ("alt_gr",)
         assert parse_hotkey("<ralt>").modifiers == ("alt_gr",)
         assert parse_hotkey("<cmd_l>").modifiers == ("cmd",)
-        assert parse_hotkey("<super_r>").modifiers == ("super",)
-        assert parse_hotkey("<win_l>").modifiers == ("win",)
+        assert parse_hotkey("<super_r>").modifiers == ("cmd",)
+        assert parse_hotkey("<win_l>").modifiers == ("cmd",)
 
-    def test_distinction_preserved(self) -> None:
-        """win/super/cmd are distinct canonical names."""
-        assert parse_hotkey("<win>").modifiers == ("win",)
-        assert parse_hotkey("<super>").modifiers == ("super",)
+    def test_alias_spellings_collapse_to_cmd(self) -> None:
+        """win/super/cmd alias spellings collapse to one canonical modifier."""
+        assert parse_hotkey("<win>").modifiers == ("cmd",)
+        assert parse_hotkey("<super>").modifiers == ("cmd",)
         assert parse_hotkey("<cmd>").modifiers == ("cmd",)
         assert parse_hotkey("<alt>").modifiers == ("alt",)
         assert parse_hotkey("<alt_gr>").modifiers == ("alt_gr",)
