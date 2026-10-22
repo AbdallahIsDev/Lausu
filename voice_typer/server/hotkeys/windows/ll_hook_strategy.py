@@ -61,6 +61,97 @@ def enqueue_hook_callback(self, fn: Callable[[], None] | None) -> None:
         )
 
 
+def handle_ll_key_event(self, w_param: int, vk: int, callback: Callable[[], None]) -> bool:
+    """Apply one LL-hook key event; return True when it must be swallowed.
+
+    Release matching deliberately ignores the live modifier state: the user may
+    let go of Ctrl/Alt before the main key, and the action must still fire once.
+    """
+    is_down = w_param in (_WM_KEYDOWN, _WM_SYSKEYDOWN)
+    is_up = w_param in (_WM_KEYUP, _WM_SYSKEYUP)
+    if not (is_down or is_up):
+        return False
+
+    is_caps = self._is_caps_lock_hotkey
+    is_ptt = self._on_release_callback is not None
+    toggle_on_keyup = bool(getattr(self, "_toggle_on_keyup", False))
+
+    if self._vk is not None:
+        if vk != self._vk:
+            return False
+        if is_caps:
+            if is_down:
+                if not self._modifiers_pressed():
+                    return False
+                self._ll_armed = True
+                log.info("[HOTKEY] Swallowed Caps Lock keydown (suppress OS toggle)")
+                return True
+            if not self._ll_armed:
+                return False
+            self._ll_armed = False
+            log.info("[HOTKEY FIRED] WH_KEYBOARD_LL Caps Lock key-up (toggle)")
+            self._enqueue_hook_callback(callback)
+            return True
+
+        if is_down:
+            if not self._modifiers_pressed():
+                return False
+            if self._ll_armed:
+                return False
+            self._ll_armed = True
+            if is_ptt:
+                log.info("[HOTKEY FIRED] WH_KEYBOARD_LL caught vk=0x%X (PTT)", vk)
+                self._enqueue_hook_callback(callback)
+            elif toggle_on_keyup:
+                pass
+            else:
+                log.info("[HOTKEY FIRED] WH_KEYBOARD_LL caught vk=0x%X (%s)", vk, self.hotkey_str)
+                self._enqueue_hook_callback(callback)
+            return False
+
+        if not self._ll_armed:
+            return False
+        self._ll_armed = False
+        if is_ptt:
+            log.info("[HOTKEY] Key released via WH_KEYBOARD_LL hook (vk=0x%X)", vk)
+            self._enqueue_hook_callback(self._on_release_callback)
+        elif toggle_on_keyup:
+            log.info("[HOTKEY FIRED] WH_KEYBOARD_LL key-up (toggle, vk=0x%X)", vk)
+            self._enqueue_hook_callback(callback)
+        return False
+
+    required = self._modifier_vks_for_hook
+    if vk not in required:
+        return False
+    held = self._ll_held_modifiers
+    if is_down:
+        held.add(vk)
+        if self._ll_armed or not all(code in held for code in required):
+            return False
+        self._ll_armed = True
+        if is_ptt:
+            log.info("[HOTKEY FIRED] WH_KEYBOARD_LL modifier chord (PTT)")
+            self._enqueue_hook_callback(callback)
+        elif toggle_on_keyup:
+            pass
+        else:
+            log.info("[HOTKEY FIRED] WH_KEYBOARD_LL modifier chord (%s)", self.hotkey_str)
+            self._enqueue_hook_callback(callback)
+        return False
+
+    held.discard(vk)
+    if not self._ll_armed or all(code in held for code in required):
+        return False
+    self._ll_armed = False
+    if is_ptt:
+        log.info("[HOTKEY] Modifier chord released via WH_KEYBOARD_LL hook")
+        self._enqueue_hook_callback(self._on_release_callback)
+    elif toggle_on_keyup:
+        log.info("[HOTKEY FIRED] WH_KEYBOARD_LL modifier chord key-up (toggle)")
+        self._enqueue_hook_callback(callback)
+    return False
+
+
 def install_low_level_hook(self, callback) -> bool:
     """Install a WH_KEYBOARD_LL low-level keyboard hook for this hotkey."""
     if not self._user32 or not self._kernel32:
@@ -93,63 +184,8 @@ def install_low_level_hook(self, callback) -> bool:
             try:
                 if n_code == 0:  # HC_ACTION
                     ks = ctypes.cast(l_param, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
-                    vk = ks.vkCode
-                    is_caps = backend._is_caps_lock_hotkey
-                    # Match the configured key. For main-key
-                    if backend._vk is not None:
-                        vk_matches = vk == backend._vk and backend._modifiers_pressed()
-                    else:
-                        vk_matches = vk in backend._modifier_vks_for_hook
-                    # Key-down path
-                    if w_param in (_WM_KEYDOWN, _WM_SYSKEYDOWN) and vk_matches:
-                        if is_caps:
-                            # Caps Lock: swallow the keydown so the OS
-                            log.info("[HOTKEY] Swallowed Caps Lock keydown (suppress OS toggle)")
-                            return 1  # swallow, do not call CallNextHookEx
-                        if backend._on_release_callback is not None:
-                            # Push-to-talk: start recording on press.
-                            log.info(
-                                "[HOTKEY FIRED] WH_KEYBOARD_LL caught vk=0x%X (PTT)",
-                                vk,
-                            )
-                            # Dispatch to worker thread.
-                            backend._enqueue_hook_callback(callback)
-                        elif getattr(backend, "_toggle_on_keyup", False):
-                            # Toggle mode (user requested): defer the
-                            pass
-                        else:
-                            # Legacy toggle (e.g. ESC cancel): fire on
-                            log.info(
-                                "[HOTKEY FIRED] WH_KEYBOARD_LL caught vk=0x%X (%s)",
-                                vk,
-                                backend.hotkey_str,
-                            )
-                            # Dispatch to worker thread.
-                            backend._enqueue_hook_callback(callback)
-                    # Key-up path
-                    elif w_param in (_WM_KEYUP, _WM_SYSKEYUP) and vk_matches:
-                        if is_caps:
-                            # Caps Lock: fire the toggle exactly once on
-                            log.info("[HOTKEY FIRED] WH_KEYBOARD_LL Caps Lock key-up (toggle)")
-                            # Dispatch to worker thread.
-                            backend._enqueue_hook_callback(callback)
-                            return 1  # swallow keyup
-                        if backend._on_release_callback is not None:
-                            # Push-to-talk: stop recording on release.
-                            log.info(
-                                "[HOTKEY] Key released via WH_KEYBOARD_LL hook (vk=0x%X)",
-                                vk,
-                            )
-                            # Dispatch to worker thread.
-                            backend._enqueue_hook_callback(backend._on_release_callback)
-                        elif getattr(backend, "_toggle_on_keyup", False):
-                            # Toggle mode: fire the toggle on key-up.
-                            log.info(
-                                "[HOTKEY FIRED] WH_KEYBOARD_LL key-up (toggle, vk=0x%X)",
-                                vk,
-                            )
-                            # Dispatch to worker thread.
-                            backend._enqueue_hook_callback(callback)
+                    if backend.handle_ll_key_event(w_param, ks.vkCode, callback):
+                        return 1  # swallow, do not call CallNextHookEx
             except Exception:
                 log.debug("[HOTKEY] LL hook proc error", exc_info=True)
             # Pass to the next hook so we don't break other hooks.

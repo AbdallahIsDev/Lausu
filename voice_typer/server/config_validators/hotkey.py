@@ -1,9 +1,8 @@
-"""``IPC_CONFIG_ALLOWLIST``.
-Extracted from the original monolithic ``config_validators.py`` (package
-  ``voice_typer/server/hotkey_reserved.json``),
-* the 9 ``_check_*`` stage helpers that make up :func:`_validate_hotkey`,
-orchestrator (``_validate_hotkey``) stays readable. Each helper returns
-an error string or ``None``; the first non-``None`` wins, preserving
+"""Hotkey validators: reserved-shortcut table plus the delivery/alias contract.
+
+The shared vocabulary lives in ``voice_typer/server/hotkey_reserved.json``;
+this module loads it and exposes one ``(code, message)`` verdict so the
+renderer can mirror the same decisions from the byte-identical copy.
 """
 
 from __future__ import annotations
@@ -13,24 +12,18 @@ from pathlib import Path as _Path
 
 from voice_typer.server.platform_utils import is_macos as _is_macos, is_windows as _is_windows
 
-# OS-reserved shortcuts that must never be assigned
-
-# load the canonical reserved-shortcut table from the
 _RESERVED_DATA_PATH = _Path(__file__).resolve().parent.parent / "hotkey_reserved.json"
 
 
 def _load_reserved_data() -> dict:
-    """Load and cache the reserved-hotkey JSON config.
-
-    Returns a dict with keys:
-    """
+    """Load the reserved-hotkey JSON config (single source of truth)."""
     with _RESERVED_DATA_PATH.open("r", encoding="utf-8") as f:
         return _json.load(f)
 
 
 _RESERVED_DATA = _load_reserved_data()
 
-# Per-platform reserved shortcuts. Stored in the SAME format as user input
+# Per-platform reserved shortcuts, compared after canonicalization.
 _RESERVED_HOTKEYS: dict[str, set[str]] = {
     platform: set(entries) for platform, entries in _RESERVED_DATA["per_platform_reserved"].items()
 }
@@ -38,11 +31,15 @@ _RESERVED_HOTKEYS: dict[str, set[str]] = {
 # Universal window-management shortcuts blocked on EVERY platform.
 _UNIVERSAL_RESERVED_HOTKEYS = frozenset(_RESERVED_DATA["universal_reserved"])
 
-# Common Ctrl+<letter> shortcuts that are universally expected by users
+# Common Ctrl+<letter> shortcuts that are universally expected by users.
 _BLOCKED_CTRL_LETTERS = frozenset(_RESERVED_DATA["blocked_ctrl_letters"])
 
-# Modifier keys recognized in the hotkey string (pynput-style, lowercase).
+# Modifier spellings recognized in a hotkey string (pynput-style, lowercase).
 _HOTKEY_MODIFIERS = frozenset(_RESERVED_DATA["modifiers"])
+
+# Non-modifier spellings and the per-platform delivery matrix.
+_KEY_ALIASES: dict[str, str] = dict(_RESERVED_DATA["key_aliases"])
+_KEY_VOCABULARY: dict[str, dict] = dict(_RESERVED_DATA["keys"])
 
 
 def _platform_key() -> str:
@@ -55,33 +52,13 @@ def _platform_key() -> str:
 
 
 def _parse_hotkey_parts(hotkey: str) -> list[str]:
-    """Parse a hotkey string like ``"<ctrl>+<alt>+v"`` into ``["ctrl","alt","v"]``."""
+    """Parse a hotkey string into canonical ``[modifiers..., keys...]``."""
     from voice_typer.server.hotkey_spec import parse_hotkey
 
     spec = parse_hotkey(hotkey)
     if spec.is_empty:
         return []
     return list(spec.modifiers) + list(spec.keys)
-
-
-# ``<win>``, ``<super>`` and ``<cmd>`` are three names for the same physical
-# shell key: every listener maps all three to one wire name (the Windows
-# hook reports ``Win``, the macOS tap reports ``Cmd``, evdev reports
-# ``Super``), so a spec spelling one of them must hit the same table rows.
-_SHELL_ALIASES: dict[str, str] = {
-    name: "super"
-    for name in (
-        "super",
-        "super_l",
-        "super_r",
-        "win",
-        "win_l",
-        "win_r",
-        "cmd",
-        "cmd_l",
-        "cmd_r",
-    )
-}
 
 
 def _tokenize_spec(value: str) -> list[str]:
@@ -95,190 +72,228 @@ def _tokenize_spec(value: str) -> list[str]:
 
 
 def _normalize_spec(value: str) -> str:
-    """Bracket-agnostic, case-insensitive, shell-alias-aware spec key.
+    """Canonical bracketed spec shared with the renderer and the parser.
 
-    Mirrors the renderer's ``normalizeHotkey`` (so both sides reject the
-    same shortcuts) and collapses the three shell-key spellings, otherwise
-    ``<alt>+space`` or ``<cmd>+m`` slip past a table written as
-    ``<alt>+<space>`` / ``<win>+<m>``.
+    Alias spellings collapse first, so ``<cmd_l>``, ``<win>`` and ``<super>``
+    cannot slip past a table written as ``<cmd>``, and a bare modifier keeps
+    its canonical name.
     """
-    tokens = _tokenize_spec(value)
-    if len(tokens) < 2:
-        # Bare modifiers keep their own spelling: ``<cmd_l>`` is a
-        # deliberate modifier-only trigger (the native listener can
-        # swallow it), not the shell key the table blocks bare.
-        return "+".join(tokens)
-    return "+".join(_SHELL_ALIASES.get(t, t) for t in tokens)
+    from voice_typer.server.hotkey_spec import parse_hotkey
+
+    return parse_hotkey(value).to_spec_string()
 
 
-# Normalised lookups: the tables are written in canonical bracketed form
-# (``<alt>+<space>``) while specs arrive pynput-style (``<alt>+space``),
-# so both sides go through ``_normalize_spec`` before comparison.
 _UNIVERSAL_RESERVED_NORMALIZED: frozenset[str] = frozenset(
     _normalize_spec(entry) for entry in _UNIVERSAL_RESERVED_HOTKEYS
 )
 _RESERVED_NORMALIZED: dict[str, frozenset[str]] = {
-    platform: frozenset(_normalize_spec(entry) for entry in entries)
-    for platform, entries in _RESERVED_HOTKEYS.items()
+    platform: frozenset(_normalize_spec(entry) for entry in entries) for platform, entries in _RESERVED_HOTKEYS.items()
 }
 
 
-def _check_basic_shape(value: object) -> str | None:
-    """Stage 1: type / length / emptiness guards (shared by all hotkeys)."""
+def _check_basic_shape(value: object) -> tuple[str | None, str | None]:
+    """Stage 1: type / length / emptiness guards."""
     if not isinstance(value, str):
-        return f"must be a string, got {type(value).__name__}"
+        return "not_string", f"must be a string, got {type(value).__name__}"
     if len(value) > 256:
-        return "exceeds maximum length 256"
+        return "too_long", "exceeds maximum length 256"
     if not value.strip():
-        return "must not be empty"
-    return None
+        return "empty", "must not be empty"
+    return None, None
 
 
-def _check_universal_reserved(normalized: str) -> str | None:
+def _check_universal_reserved(normalized: str) -> tuple[str | None, str | None]:
     """Stage 2: OS / common-app shortcuts blocked on EVERY platform."""
     if normalized in _UNIVERSAL_RESERVED_NORMALIZED:
-        return "reserved, conflicts with operating system or common app shortcuts"
-    return None
+        return "reserved_universal", "reserved, conflicts with operating system or common app shortcuts"
+    return None, None
 
 
-def _check_platform_reserved(normalized: str, platform: str) -> str | None:
+def _check_platform_reserved(normalized: str, platform: str) -> tuple[str | None, str | None]:
     """Stage 3: per-platform OS-reserved shortcuts."""
     if normalized in _RESERVED_NORMALIZED.get(platform, frozenset()):
-        return f"reserved by operating system ({platform})"
-    return None
+        return "reserved_platform", f"reserved by operating system ({platform})"
+    return None, None
 
 
-def _check_modifier_order(value: str) -> str | None:
-    """Stage 5b: a combo mixing keys and modifiers must END with the key.
-
-    ``<ctrl>+<alt>+v`` is the canonical form; ``<ctrl>+v+<alt>`` is the
-    same chord typed in the wrong order and would otherwise be accepted
-    here while the renderer rejects it (the renderer's
-    ``mustEndWithNonModifier`` rule).
-    """
+def _check_modifier_order(value: str) -> tuple[str | None, str | None]:
+    """Stage 4: a combo mixing keys and modifiers must END with the key."""
     tokens = _tokenize_spec(value)
     if len(tokens) < 2:
-        return None
+        return None, None
     non_mods = [t for t in tokens if t not in _HOTKEY_MODIFIERS]
     if non_mods and tokens[-1] in _HOTKEY_MODIFIERS:
-        return f"a combo must end with its key, e.g. <ctrl>+<alt>+{non_mods[0]} (got {tokens[-1]} last)"
-    return None
+        return (
+            "modifier_order",
+            f"a combo must end with its key, e.g. <ctrl>+<alt>+{non_mods[0]} (got {tokens[-1]} last)",
+        )
+    return None, None
 
 
-def _check_single_alphanumeric(parts: list[str]) -> str | None:
-    """Stage 4: reject a standalone single letter/digit."""
+def _check_single_alphanumeric(parts: list[str]) -> tuple[str | None, str | None]:
+    """Stage 5: reject a standalone single letter/digit."""
     if len(parts) == 1:
         sole = parts[0]
         if len(sole) == 1 and sole.isalnum():
-            return f"single letters and digits can't be used as hotkeys, '{sole}' would interfere with typing"
-    return None
+            return (
+                "single_alnum",
+                f"single letters and digits can't be used as hotkeys, '{sole}' would interfere with typing",
+            )
+    return None, None
 
 
-def _check_multi_non_modifier(parts: list[str]) -> str | None:
-    """Stage 5: reject combos with MORE than one non-modifier key."""
+def _check_multi_non_modifier(parts: list[str]) -> tuple[str | None, str | None]:
+    """Stage 6: reject combos with MORE than one non-modifier key."""
     if not parts:
-        return "hotkey has no keys"
+        return "no_keys", "hotkey has no keys"
     non_mods = [p for p in parts if p not in _HOTKEY_MODIFIERS]
     if len(non_mods) > 1:
-        return f"hotkey must have exactly one non-modifier key (got {len(non_mods)})"
-    return None
+        return "multiple_keys", f"hotkey must have exactly one non-modifier key (got {len(non_mods)})"
+    return None, None
 
 
-def _check_os_shell_combos(parts: list[str], platform: str, normalized_tokens: list[str]) -> str | None:
-    """Stage 6: shell-key combos (Windows) and Cmd+<letter> (macOS).
-
-    ``normalized_tokens`` carries the shell-alias-collapsed spelling, so
-    ``<cmd>+e`` on Windows and ``<win>+e`` on macOS are caught even though
-    each is spelled with the other platform's name.
-    """
-    has_shell = "super" in normalized_tokens
-    if has_shell and platform == "win32":
-        return "Windows key combinations are reserved by the OS shell"
-    if has_shell and platform == "darwin" and len(parts) > 1:
-        non_mods = [p for p in parts if p not in _HOTKEY_MODIFIERS]
-        for nm in non_mods:
-            if len(nm) == 1 and nm.isalpha():
-                return f"Cmd+{nm.upper()} is reserved by macOS / common apps"
-    return None
+def _check_altgr(parts: list[str]) -> tuple[str | None, str | None]:
+    """Stage 7: AltGr is reported as Alt by every listener, so it cannot match."""
+    if "alt_gr" in parts:
+        return (
+            "altgr",
+            "AltGr is reported as Alt by the keyboard listener, so an AltGr shortcut can't fire. Use Alt instead.",
+        )
+    return None, None
 
 
-def _check_alt_shift(parts: list[str], platform: str) -> str | None:
-    """Stage 7: Alt+Shift block (Windows language switching)."""
+def _check_fn_platform(parts: list[str], platform: str) -> tuple[str | None, str | None]:
+    """Stage 8: Fn/Globe is only reportable by the macOS event tap."""
+    if "fn" in parts and platform != "darwin":
+        return "fn_platform", "Fn is only available on macOS"
+    return None, None
+
+
+def _check_os_shell_combos(parts: list[str], platform: str) -> tuple[str | None, str | None]:
+    """Stage 9: shell-key combos (Windows) and Cmd+<letter> (macOS)."""
+    if "cmd" not in parts:
+        return None, None
     if platform == "win32":
-        non_mods = [p for p in parts if p not in _HOTKEY_MODIFIERS]
-        has_alt = any(p.startswith("alt") for p in parts)
-        has_shift = any(p.startswith("shift") for p in parts)
-        if has_alt and has_shift and not non_mods:
-            return "Alt+Shift is reserved by Windows for language switching"
-    return None
+        return "shell_combo", "Windows key combinations are reserved by the OS shell"
+    if platform == "darwin":
+        for key in parts:
+            if len(key) == 1 and key.isalpha():
+                return "shell_combo", f"Cmd+{key.upper()} is reserved by macOS / common apps"
+    return None, None
 
 
-def _check_ctrl_letter(parts: list[str]) -> str | None:
-    """Stage 8: Ctrl+<common-letter> block (Copy/Paste/Undo/Save/etc.)."""
-    has_ctrl = any(p.startswith("ctrl") for p in parts)
-    if has_ctrl:
+def _check_alt_shift(parts: list[str], platform: str) -> tuple[str | None, str | None]:
+    """Stage 10: Alt+Shift block (Windows language switching)."""
+    if platform == "win32" and "alt" in parts and "shift" in parts:
         non_mods = [p for p in parts if p not in _HOTKEY_MODIFIERS]
-        modifiers_non_ctrl = [p for p in parts if p in _HOTKEY_MODIFIERS and not p.startswith("ctrl")]
+        if not non_mods:
+            return "alt_shift", "Alt+Shift is reserved by Windows for language switching"
+    return None, None
+
+
+def _check_ctrl_letter(parts: list[str]) -> tuple[str | None, str | None]:
+    """Stage 11: Ctrl+<common-letter> block (Copy/Paste/Undo/Save/etc.)."""
+    if "ctrl" in parts:
+        non_mods = [p for p in parts if p not in _HOTKEY_MODIFIERS]
+        modifiers_non_ctrl = [p for p in parts if p in _HOTKEY_MODIFIERS and p != "ctrl"]
         if not modifiers_non_ctrl:
             for nm in non_mods:
                 if nm in _BLOCKED_CTRL_LETTERS:
-                    return f"Ctrl+{nm.upper()} is a reserved application shortcut"
-    return None
+                    return "ctrl_letter", f"Ctrl+{nm.upper()} is a reserved application shortcut"
+    return None, None
 
 
-def _check_shift_letter(parts: list[str]) -> str | None:
-    """Stage 9: Shift+<letter> block (interferes with capitalization)."""
-    has_shift = any(p.startswith("shift") for p in parts)
-    if has_shift:
+def _check_shift_letter(parts: list[str]) -> tuple[str | None, str | None]:
+    """Stage 12: Shift+<letter> block (interferes with capitalization)."""
+    if "shift" in parts:
         non_mods = [p for p in parts if p not in _HOTKEY_MODIFIERS]
-        modifiers_non_shift = [p for p in parts if p in _HOTKEY_MODIFIERS and not p.startswith("shift")]
+        modifiers_non_shift = [p for p in parts if p in _HOTKEY_MODIFIERS and p != "shift"]
         if not modifiers_non_shift:
             for nm in non_mods:
                 if len(nm) == 1 and (nm.isalpha() or nm.isdigit()):
-                    return f"Shift+{nm.upper()} interferes with text capitalization or symbol input"
-    return None
+                    return (
+                        "shift_letter",
+                        f"Shift+{nm.upper()} interferes with text capitalization or symbol input",
+                    )
+    return None, None
 
 
-def _validate_hotkey(value: object) -> str | None:
-    """Validate a hotkey string against the reserved-shortcut denylist.
+def _check_key_delivery(keys: list[str], platform: str) -> tuple[str | None, str | None]:
+    """Stage 13: the current listener must actually deliver the key."""
+    for key in keys:
+        meta = _KEY_VOCABULARY.get(key)
+        if meta is None:
+            return "unknown_key", f"unknown key '{key}'"
+        if platform not in meta["platforms"]:
+            return "key_not_delivered", f"'{key}' is not delivered by the {platform} keyboard listener"
+    return None, None
 
-    Returns ``None`` if valid, or a human-readable error string if invalid.
-    """
-    if (err := _check_basic_shape(value)) is not None:
+
+def _check_push_to_talk(value: object) -> tuple[str | None, str | None]:
+    """Push-to-talk needs a key that reports a release after its press."""
+    if not isinstance(value, str) or not value.strip():
+        return None, None
+
+    from voice_typer.server.hotkey_spec import parse_hotkey
+
+    spec = parse_hotkey(value)
+    if not spec.keys:
+        return (
+            "ptt_modifier_only",
+            "Push-to-talk needs a key that reports a release; a modifier-only shortcut only works in toggle mode",
+        )
+    if "caps_lock" in spec.keys:
+        return (
+            "ptt_caps_lock",
+            "Caps Lock can't be used for push-to-talk: macOS never reports its release",
+        )
+    return None, None
+
+
+def _validate_hotkey_code(value: object) -> tuple[str | None, str | None]:
+    """Return ``(error_code, message)``; both ``None`` means valid."""
+    err = _check_basic_shape(value)
+    if err[0] is not None:
         return err
-    # `_check_basic_shape` already rejected non-strings above, but pyrefly
-    if not isinstance(value, str):
-        return f"must be a string, got {type(value).__name__}"
+    assert isinstance(value, str)
 
     parts = _parse_hotkey_parts(value)
     if not parts:
-        return "hotkey has no keys"
+        return "no_keys", "hotkey has no keys"
 
-    # Strip leading/trailing whitespace BEFORE lowercasing so a padded
-    normalized = value.strip().lower()
-    normalized_spec = _normalize_spec(value)
-    normalized_tokens = normalized_spec.split("+") if normalized_spec else []
+    from voice_typer.server.hotkey_spec import parse_hotkey
 
-    # Stages run in priority order; the first rejection wins.
+    spec = parse_hotkey(value)
+    normalized_spec = spec.to_spec_string()
+    platform = _platform_key()
+
     for check in (
         lambda: _check_universal_reserved(normalized_spec),
-        lambda: _check_platform_reserved(normalized_spec, _platform_key()),
+        lambda: _check_platform_reserved(normalized_spec, platform),
+        lambda: _check_modifier_order(value),
         lambda: _check_single_alphanumeric(parts),
         lambda: _check_multi_non_modifier(parts),
-        lambda: _check_modifier_order(normalized),
-        lambda: _check_os_shell_combos(parts, _platform_key(), normalized_tokens),
-        lambda: _check_alt_shift(parts, _platform_key()),
+        lambda: _check_altgr(parts),
+        lambda: _check_fn_platform(parts, platform),
+        lambda: _check_os_shell_combos(parts, platform),
+        lambda: _check_alt_shift(parts, platform),
         lambda: _check_ctrl_letter(parts),
         lambda: _check_shift_letter(parts),
+        lambda: _check_key_delivery(list(spec.keys), platform),
     ):
-        if (err := check()) is not None:
-            return err
+        code, message = check()
+        if code is not None:
+            return code, message
 
-    return None
+    return None, None
+
+
+def _validate_hotkey(value: object) -> str | None:
+    """Validate a hotkey string; return ``None`` when valid, else a message."""
+    return _validate_hotkey_code(value)[1]
 
 
 __all__ = [
-    # Reserved-shortcut table
     "_RESERVED_DATA_PATH",
     "_load_reserved_data",
     "_RESERVED_DATA",
@@ -286,23 +301,26 @@ __all__ = [
     "_UNIVERSAL_RESERVED_HOTKEYS",
     "_BLOCKED_CTRL_LETTERS",
     "_HOTKEY_MODIFIERS",
-    # Platform helpers
+    "_KEY_ALIASES",
+    "_KEY_VOCABULARY",
     "_platform_key",
     "_parse_hotkey_parts",
     "_tokenize_spec",
     "_normalize_spec",
-    "_SHELL_ALIASES",
-    # Stage helpers (9 stages)
     "_check_basic_shape",
     "_check_universal_reserved",
     "_check_platform_reserved",
+    "_check_modifier_order",
     "_check_single_alphanumeric",
     "_check_multi_non_modifier",
-    "_check_modifier_order",
+    "_check_altgr",
+    "_check_fn_platform",
     "_check_os_shell_combos",
     "_check_alt_shift",
     "_check_ctrl_letter",
     "_check_shift_letter",
-    # Main validator
+    "_check_key_delivery",
+    "_check_push_to_talk",
+    "_validate_hotkey_code",
     "_validate_hotkey",
 ]

@@ -1743,6 +1743,10 @@
 		"invalidHotkey": "مفتاح اختصار غير صالح",
 		"dictationKeySingle": "يجب أن يكون مفتاح الإملاء مفتاحًا واحدًا (بدون معدّلات). استخدم مفتاح إعادة اللصق للمفاتيح المركبة.",
 		"dictationKeySingleShort": "يجب أن يكون مفتاح الإملاء مفتاحًا واحدًا",
+		"altGrUnsupported": "لا يمكن استخدام AltGr كاختصار: تُبلغ عنه المستمعات باسم Alt، لذا لن يتطابق الاختصار أبدًا. استخدم Alt بدلاً من ذلك.",
+		"keyNotDelivered": "لا يمكن استخدام \"{key}\" كاختصار على هذا النظام الأساسي.",
+		"modifierOnlyNotForPushToTalk": "يتطلب Push-to-talk مفتاحًا يبلغ عن تحريره. الاختصارات المكوّنة من مفاتيح تعديل فقط تعمل في وضع التبديل وحده.",
+		"capsLockNotForPushToTalk": "لا يمكن استخدام Caps Lock للضغط للتحدث: لا يبلغ macOS عن تحريره أبدًا. اختر مفتاحًا آخر.",
 		"fnMacosOnly": "مفتاح Fn مدعوم فقط على macOS",
 		"holding": "مضغوط",
 		"bareModifierInterferes": "المفاتيح المعدّلة المفردة (Shift، Cmd، Win) تتعارض مع الكتابة. يرجى اختيار مفتاح مختلف."
@@ -1771,6 +1775,10 @@
 		"enter": "Enter",
 		"tab": "Tab",
 		"esc": "Esc",
+		"mediaPlay": "تشغيل/إيقاف مؤقت",
+		"mediaStop": "إيقاف",
+		"mediaNext": "المقطع التالي",
+		"mediaPrev": "المقطع السابق",
 		"fnGlobeMacos": "Fn / Globe 🌐 (على macOS فقط)"
 	},
 	"activityList": {

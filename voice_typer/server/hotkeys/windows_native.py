@@ -20,6 +20,7 @@ from .windows.context import compute_modifier_vks, setup_main_argtypes
 from .windows.ime_guard import is_ime_composing, is_ime_composing_throttled
 from .windows.ll_hook_strategy import (
     enqueue_hook_callback,
+    handle_ll_key_event,
     install_low_level_hook,
     start_hook_callback_worker,
 )
@@ -83,6 +84,10 @@ class WindowsNativeHotkey(HotkeyBackend):
         self._hook_callback_thread: threading.Thread | None = None
         # VK codes the LL hook matches when _vk is None
         self._modifier_vks_for_hook: list[int] = []
+        # One armed cycle per physical chord: autorepeat and later modifier
+        # releases must not re-fire, and release order must not matter.
+        self._ll_armed: bool = False
+        self._ll_held_modifiers: set[int] = set()
 
     # Strategy method bindings (implementations live in the
     _compute_modifier_vks = staticmethod(compute_modifier_vks)
@@ -92,6 +97,7 @@ class WindowsNativeHotkey(HotkeyBackend):
     _run_modifier_only_polling_loop = run_modifier_only_polling_loop
     _run_message_loop = run_message_loop
     _install_low_level_hook = install_low_level_hook
+    handle_ll_key_event = handle_ll_key_event
     _start_hook_callback_worker = start_hook_callback_worker
     _enqueue_hook_callback = enqueue_hook_callback
     _suppress_caps_lock_toggle = suppress_caps_lock_toggle
@@ -124,6 +130,8 @@ class WindowsNativeHotkey(HotkeyBackend):
         self._success = False
         self._degraded_registration = False
         self._last_error = None  # captured GetLastError() on failure
+        self._ll_armed = False
+        self._ll_held_modifiers.clear()
 
         # Without these, ctypes defaults to c_int which truncates 64-bit pointers.
         setup_main_argtypes(self._user32, self._kernel32)
@@ -186,10 +194,18 @@ class WindowsNativeHotkey(HotkeyBackend):
                     self._ensure_caps_lock_off()
                 # 125Hz polling loop, burning CPU even when idle.
                 simple_key = self._on_release_callback is None
+                # WM_HOTKEY cannot report key-up, so press-only delivery is
+                # only safe when neither PTT nor toggle-on-keyup needs it.
+                needs_release = self._on_release_callback is not None or getattr(self, "_toggle_on_keyup", False)
                 # Populate the per-instance modifier VK list so the
                 self._modifier_vks_for_hook = self._compute_modifier_vks(self._modifiers)
                 # when ``_prefer_message_loop_first`` is set (ESC and
-                prefer_message_loop = self._prefer_message_loop_first and self._registered and not is_caps_lock_hotkey
+                prefer_message_loop = (
+                    self._prefer_message_loop_first
+                    and self._registered
+                    and not is_caps_lock_hotkey
+                    and not needs_release
+                )
                 if prefer_message_loop:
                     # WM_HOTKEY message loop, event-driven, ~0% CPU
                     log.info(
@@ -200,7 +216,7 @@ class WindowsNativeHotkey(HotkeyBackend):
                     )
                     self._using_polling = False
                     self._run_message_loop(callback, low_level_hook=False)
-                elif simple_key and self._install_low_level_hook(callback):
+                elif (simple_key or needs_release) and self._install_low_level_hook(callback):
                     log.info(
                         "[HOTKEY] Starting hotkey detection via WH_KEYBOARD_LL "
                         "low-level hook (vk=%s), robust ESC/system-key delivery",
@@ -223,7 +239,7 @@ class WindowsNativeHotkey(HotkeyBackend):
                             self._vk if self._vk is not None else -1,
                         )
                     self._run_message_loop(callback, low_level_hook=True)
-                elif self._registered and not is_caps_lock_hotkey:
+                elif self._registered and not is_caps_lock_hotkey and not needs_release:
                     # RegisterHotKey succeeded (and not caps-lock) → WM_HOTKEY
                     log.info(
                         "[HOTKEY] Starting hotkey detection via WM_HOTKEY message loop (registered VK=0x%X, id=%d)",
@@ -301,6 +317,8 @@ class WindowsNativeHotkey(HotkeyBackend):
                 log.debug("[HOTKEY] UnhookWindowsHookEx failed", exc_info=True)
             self._hook_handle = None
             self._hook_proc = None
+        self._ll_armed = False
+        self._ll_held_modifiers.clear()
         # PERF- skip the useless PostThreadMessageW call on the
         if self._thread is not None:
             self._thread.join(timeout=0.5)  # was 3.0; 100ms poll = 500ms is plenty

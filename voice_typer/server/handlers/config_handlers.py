@@ -56,7 +56,7 @@ class ConfigHandlersMixin(HandlerBase):
                 [],
             )
         # SEC-002: validate against IPC_CONFIG_ALLOWLIST before touching
-        validated, errors = validate_config_update(data)
+        validated, errors = validate_config_update(data, current=self.app.config)
         if errors:
             log.warning("[IPC] set_config rejected: %s", "; ".join(errors))
             resp["type"] = "error"

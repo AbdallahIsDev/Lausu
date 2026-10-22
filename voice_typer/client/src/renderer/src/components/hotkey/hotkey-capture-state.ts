@@ -1,92 +1,32 @@
 import { t } from "@/i18n/i18n";
 import { checkHotkeyConflict } from "./checkHotkeyConflict";
-import { formatHotkey, formatHotkeyLabel } from "./hotkey-format";
-import { IS_MAC, MODIFIER_KEYS } from "./hotkey-keymap";
+import { formatHotkeyLabel } from "./hotkey-format";
 import {
 	detectPlatform,
 	validateHotkey as validateHotkeyShared,
 } from "./hotkey-validation";
 
-// Note: the shared validation primitives (``detectPlatform`` /
-// ``isReserved`` / ``normalizeHotkey`` / ``RESERVED_SHORTCUTS``) are
-// re-exported from ``hotkey-keymap.ts`` (the platform-detection home).
-// They are NOT re-exported here to avoid an ambiguous-export conflict
-// when ``hotkey-utils.ts`` (the backward-compat shim) does
-// ``export *`` from both modules. Callers wanting them via the shim
-// still resolve them through the keymap re-export.
-
 /**
- * Validate a hotkey for the UI, with an additional mode parameter
- * for single-key vs. combo constraints.
- * For single mode: must be exactly one key (no modifiers together).
- * For combo mode: delegates to the shared validateHotkey.
- * Returns null on success, or an error message string on failure.
+ * Validate a hotkey for the UI.
+ *
+ * The shared validator owns every cross-layer rule; this wrapper adds only
+ * the picker's single-key mode constraint (dictation key = one key, no combo).
+ * Returns null on success, or a localized message on failure.
  */
 export function validateHotkey(
 	hotkey: string,
 	mode: "single" | "combo",
 ): string | null {
-	// delegate to the shared validation system.
-	// The shared validateHotkey handles:
-	//  - empty / no-keys check
-	//  - reserved-shortcut check (OS-specific)
-	//  - structural check (combo must end with non-modifier)
-	// We add mode-specific checks (single key constraint, Fn-on-macOS-only)
-	// on top, since those are UI-mode concerns the shared validator
-	// doesn't know about.
-	if (!hotkey?.trim()) {
-		return t("hotkeyValidation.empty");
-	}
-
-	// Delegate reserved + structural checks to the shared validator.
-	const platform = detectPlatform();
-	const sharedResult = validateHotkeyShared(hotkey, platform);
+	const sharedResult = validateHotkeyShared(hotkey, detectPlatform());
 	if (!sharedResult.valid) {
 		return sharedResult.reason ?? t("hotkeyValidation.invalidHotkey");
 	}
 
-	const parts = hotkey
-		.split("+")
-		.map((p) => p.replace(/[<>]/g, "").trim())
-		.filter(Boolean);
-	if (parts.length === 0) {
-		return t("hotkeyValidation.noKeys");
-	}
-	// allow single modifiers (alt, ctrl, shift, fn, cmd, win)
-	// as the dictation key. The native backends support modifier-only
-	// release detection.
-	if (mode === "single") {
-		if (parts.length > 1) {
-			return t("hotkeyValidation.dictationKeySingle");
-		}
-		// Reject Fn on non-macOS platforms
-		if (!IS_MAC && (parts[0] === "fn" || parts[0] === "globe")) {
-			return t("hotkey.errors.fnMacOnly");
-		}
-		// Accept any single key (including modifiers and caps_lock)
-		return null;
-	}
-	// Combo mode: pure-modifier combos (e.g.
-	// ``<ctrl>+<shift>``, ``<ctrl>+<alt>``) are now ALLOWED. The structural
-	// "must end with non-modifier" rule only applies to MIXED combos
-	// (modifiers + non-modifiers). The shared validator already enforces
-	// this; the redundant check below is kept only for mixed combos as
-	// a defense-in-depth guard.
-	const lastKey = parts[parts.length - 1];
-	const hasNonModifier = parts.some(
-		(p) => !MODIFIER_KEYS.includes(p as (typeof MODIFIER_KEYS)[number]),
-	);
-	if (
-		hasNonModifier &&
-		MODIFIER_KEYS.includes(lastKey as (typeof MODIFIER_KEYS)[number])
-	) {
-		return t("hotkeyValidation.mustEndWithNonModifier", {
-			label: formatHotkey(hotkey),
-		});
-	}
-	// Reject Fn in combos on non-macOS
-	if (!IS_MAC && parts.some((p) => p === "fn" || p === "globe")) {
-		return t("hotkey.errors.fnMacOnlyShort");
+	if (mode !== "single") return null;
+
+	const parts = hotkey.split("+").filter((p) => p.replace(/[<>]/g, "").trim());
+	if (parts.length > 1) {
+		return t("hotkeyValidation.dictationKeySingle");
 	}
 	return null;
 }

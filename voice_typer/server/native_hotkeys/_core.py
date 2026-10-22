@@ -79,6 +79,9 @@ class SubprocessHotkeyBackend(_SpawnMixin, _ReaderMixin, _WatchdogMixin, _Matchi
         # fired yet: one fire per press-release cycle, whatever the order
         # the keys come up in.
         self._armed_roles: set[str] = set()
+        # Roles whose push-to-talk stop already fired via chord cancel, so
+        # the following modifier release does not stop a second time.
+        self._stopped_roles: set[str] = set()
         # macOS Caps Lock release synthesis timer (see _matching.py).
         self._caps_release_timer: threading.Timer | None = None
         self._match_lock = threading.Lock()
@@ -221,6 +224,7 @@ class SubprocessHotkeyBackend(_SpawnMixin, _ReaderMixin, _WatchdogMixin, _Matchi
         self._failed = False
         with self._match_lock:
             self._armed_roles.clear()
+            self._stopped_roles.clear()
 
         # Spawn the binary
         self._spawn_process()

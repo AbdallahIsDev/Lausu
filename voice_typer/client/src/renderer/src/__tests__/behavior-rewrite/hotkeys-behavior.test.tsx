@@ -450,9 +450,12 @@ describe("repaste hotkey is NOT editable via a free-text <input> (rewrite of tes
 		);
 		expect(repastePicker).toBeTruthy();
 		repastePicker?.onChange("<cmd>+<shift>+v");
-		expect(updateConfig).toHaveBeenCalledWith({
-			repaste_hotkey: "<cmd>+<shift>+v",
-		});
+		expect(updateConfig).toHaveBeenCalledWith(
+			{
+				repaste_hotkey: "<cmd>+<shift>+v",
+			},
+			{ revertOnFailure: true },
+		);
 	});
 });
 
@@ -524,6 +527,9 @@ describe("RecordingSettingsSection HotkeyPicker wiring (defense-in-depth)", () =
 		);
 		expect(dictationPicker).toBeTruthy();
 		dictationPicker?.onChange("<alt>");
-		expect(updateConfig).toHaveBeenCalledWith({ hotkey: "<alt>" });
+		expect(updateConfig).toHaveBeenCalledWith(
+			{ hotkey: "<alt>" },
+			{ revertOnFailure: true },
+		);
 	});
 });

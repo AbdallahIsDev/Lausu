@@ -2,40 +2,35 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 
+_RESERVED_DATA_PATH = Path(__file__).resolve().parent / "hotkey_reserved.json"
+_RESERVED_DATA = json.loads(_RESERVED_DATA_PATH.read_text(encoding="utf-8"))
 
-# Canonical modifier names (lowercase). All aliases normalise to one of
-MODIFIER_ALIASES: dict[str, str] = {
-    "ctrl": "ctrl",
-    "control": "ctrl",
-    "ctrl_l": "ctrl",
-    "ctrl_r": "ctrl",
-    "shift": "shift",
-    "shift_l": "shift",
-    "shift_r": "shift",
-    "alt": "alt",
-    "alt_l": "alt",
-    "alt_r": "alt",
-    "altgr": "alt_gr",
-    "alt_gr": "alt_gr",
-    "right_alt": "alt_gr",
-    "ralt": "alt_gr",
-    "cmd": "cmd",
-    "cmd_l": "cmd",
-    "cmd_r": "cmd",
-    "win": "win",
-    "win_l": "win",
-    "win_r": "win",
-    "super": "super",
-    "super_l": "super",
-    "super_r": "super",
-    "fn": "fn",
-    "globe": "fn",
-}
+
+def _canonical_modifier(alias: str) -> str:
+    """Collapse an alias spelling; L/R and shell names are indistinguishable on the wire."""
+    base = alias[:-2] if alias.endswith(("_l", "_r")) else alias
+    if base == "control":
+        return "ctrl"
+    if base in ("altgr", "alt_gr", "right_alt", "ralt"):
+        return "alt_gr"
+    if base == "globe":
+        return "fn"
+    if base in ("win", "super", "cmd"):
+        return "cmd"
+    if base == "option":
+        return "alt"
+    return base
+
+
+MODIFIER_ALIASES: dict[str, str] = {alias: _canonical_modifier(alias) for alias in _RESERVED_DATA["modifiers"]}
+KEY_ALIASES: dict[str, str] = dict(_RESERVED_DATA["key_aliases"])
 
 
 @dataclass(frozen=True)
@@ -80,8 +75,9 @@ def parse_hotkey(spec: str) -> HotkeySpec:
             if mod not in modifiers:
                 modifiers.append(mod)
         else:
-            if part not in keys:
-                keys.append(part)
+            key = KEY_ALIASES.get(part, part)
+            if key not in keys:
+                keys.append(key)
 
     # Sort modifiers for deterministic comparison (so ``<alt>+<ctrl>``
     modifiers.sort()
@@ -95,6 +91,7 @@ def parse_hotkey(spec: str) -> HotkeySpec:
 
 
 __all__ = [
+    "KEY_ALIASES",
     "MODIFIER_ALIASES",
     "HotkeySpec",
     "parse_hotkey",

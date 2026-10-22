@@ -97,6 +97,16 @@ function _extractSaveWarning(response: unknown): string | null {
 	return null;
 }
 
+export interface UpdateConfigOptions {
+	/**
+	 * Roll the affected keys back to their last saved values when the
+	 * backend rejects the write. For discrete controls (radio/select/
+	 * captured hotkey) whose optimistic value can disagree with config;
+	 * text fields leave this off so XA-14-9's edit-and-retry value stays.
+	 */
+	revertOnFailure?: boolean;
+}
+
 export interface UseSettingsConfigResult {
 	config: LausuConfig | null;
 	saving: boolean;
@@ -118,7 +128,10 @@ export interface UseSettingsConfigResult {
 	 * is in flight.  Consumers (Settings.tsx) can use this to
 	 */
 	hasPendingOrSaving: boolean;
-	updateConfig: (updates: Partial<LausuConfig>) => Promise<void>;
+	updateConfig: (
+		updates: Partial<LausuConfig>,
+		options?: UpdateConfigOptions,
+	) => Promise<void>;
 	updateConfigDebounced: (
 		key: keyof LausuConfig,
 		value: unknown,
@@ -155,6 +168,10 @@ export function useSettingsConfig(): UseSettingsConfigResult {
 
 	const lastSavedConfigRef = useRef<LausuConfig | null>(_cachedConfig);
 	const pendingUpdatesRef = useRef<Partial<LausuConfig>>({});
+	// Keys whose optimistic value must be rolled back to lastSaved when a
+	// flush is rejected (discrete controls only; text fields keep
+	// XA-14-9's edit-and-retry value).
+	const revertOnFailureKeysRef = useRef<Set<keyof LausuConfig>>(new Set());
 	const flushScheduledRef = useRef(false);
 	const flushPromiseResolversRef = useRef<Array<() => void>>([]);
 	const flushPendingUpdatesRef = useRef<() => Promise<void>>(async () => {});
@@ -163,9 +180,6 @@ export function useSettingsConfig(): UseSettingsConfigResult {
 	// pending auto-retry timer, at most one (manual Retry clears it).
 	const loadFailuresRef = useRef(0);
 	const loadRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	useEffect(() => {
-		configRef.current = config;
-	}, [config]);
 
 	// callRef mirror (Home.tsx pattern): `loadConfig` must keep a STABLE
 	const callRef = useLatestRef(call);
@@ -237,6 +251,7 @@ export function useSettingsConfig(): UseSettingsConfigResult {
 				// mount-skip no longer applies until the next hover.
 				_prefetchedAt = 0;
 				lastSavedConfigRef.current = result;
+				configRef.current = result;
 				setConfig(result);
 			} catch (err) {
 				if (!isCancelled()) {
@@ -285,6 +300,9 @@ export function useSettingsConfig(): UseSettingsConfigResult {
 			if (!Object.is(lastSavedRecord[key], value)) diff[key] = value;
 		}
 		if (Object.keys(diff).length === 0) {
+			for (const key of Object.keys(updates)) {
+				revertOnFailureKeysRef.current.delete(key as keyof LausuConfig);
+			}
 			resolveAll();
 			return;
 		}
@@ -301,6 +319,9 @@ export function useSettingsConfig(): UseSettingsConfigResult {
 				...lastSaved,
 				...(diff as Partial<LausuConfig>),
 			};
+			for (const key of Object.keys(updates)) {
+				revertOnFailureKeysRef.current.delete(key as keyof LausuConfig);
+			}
 		} catch (err) {
 			const message =
 				err instanceof Error && err.message ? err.message : "unknown error";
@@ -315,6 +336,24 @@ export function useSettingsConfig(): UseSettingsConfigResult {
 					: `${t("settings.saveFailedToast")}: ${message}`;
 			showSnack(display, "error");
 			setError(display);
+			const reverted: Partial<LausuConfig> = {};
+			for (const key of Object.keys(diff) as Array<keyof LausuConfig>) {
+				if (!revertOnFailureKeysRef.current.has(key)) continue;
+				if (key in pendingUpdatesRef.current) continue;
+				(reverted as Record<string, unknown>)[key] =
+					lastSavedRecord[key as string];
+				revertOnFailureKeysRef.current.delete(key);
+			}
+			if (Object.keys(reverted).length > 0) {
+				setConfig((prev) => {
+					if (!prev) return prev;
+					const restored = { ...prev, ...reverted };
+					_cachedConfig = restored;
+					configRef.current = restored;
+					return restored;
+				});
+				useAppStore.getState().mergeConfig(reverted);
+			}
 		} finally {
 			setSaving(false);
 			resolveAll();
@@ -326,12 +365,21 @@ export function useSettingsConfig(): UseSettingsConfigResult {
 	}, [flushPendingUpdates]);
 
 	const updateConfig = useCallback(
-		async (updates: Partial<LausuConfig>) => {
+		async (updates: Partial<LausuConfig>, options?: UpdateConfigOptions) => {
 			const currentConfig = configRef.current;
 			if (!currentConfig) return;
+			if (options?.revertOnFailure) {
+				for (const key of Object.keys(updates)) {
+					revertOnFailureKeysRef.current.add(key as keyof LausuConfig);
+				}
+			}
 			setSaving(true);
 			const newConfig = { ...currentConfig, ...updates };
 			_cachedConfig = newConfig;
+			// Mirror synchronously: two awaited updates inside one tick
+			// would otherwise build the second on a pre-render ref and drop
+			// the first optimistic value.
+			configRef.current = newConfig;
 			setConfig(newConfig);
 			useAppStore.getState().mergeConfig(updates);
 			pendingUpdatesRef.current = {
@@ -362,6 +410,7 @@ export function useSettingsConfig(): UseSettingsConfigResult {
 			if (currentConfig) {
 				const newConfig = { ...currentConfig, [key]: value };
 				_cachedConfig = newConfig;
+				configRef.current = newConfig;
 				setConfig(newConfig);
 			}
 			if (debouncedTimers.current[key as string]) {

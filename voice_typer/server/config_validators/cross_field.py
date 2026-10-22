@@ -7,6 +7,7 @@ from voice_typer.server.config_validators.hotkey import (
     _check_alt_shift,
     _check_os_shell_combos,
     _check_platform_reserved,
+    _check_push_to_talk,
     _normalize_spec,
     _parse_hotkey_parts,
     _platform_key,
@@ -47,6 +48,16 @@ def _check_cross_field_hotkey_conflicts(
             for other in fields[1:]:
                 errors.append(f"Hotkey conflict: {canonical} is assigned to both '{fields[0]}' and '{other}'")
     return errors
+
+
+def _check_cross_field_push_to_talk(hotkey: object, recording_mode: object) -> list[str]:
+    """Reject a push-to-talk hotkey that cannot report a release."""
+    if recording_mode != "push_to_talk":
+        return []
+    code, message = _check_push_to_talk(hotkey)
+    if code is None:
+        return []
+    return [f"hotkey is invalid for push-to-talk: {message}"]
 
 
 # Cloud/LLM cross-field config field names that participate in the
@@ -131,18 +142,17 @@ def _cross_platform_hotkey_warning(value: str, field_name: str) -> str | None:
     # The tables are compared in ``_normalize_spec`` form (bracket-free,
     # shell-alias-collapsed), so the raw bracketed string never matches.
     normalized = _normalize_spec(value)
-    normalized_tokens = normalized.split("+") if normalized else []
     parts = _parse_hotkey_parts(value)
     if not parts:
         return None
     current_platform = _platform_key()
     for platform in _warning_platform_order(_tokenize_spec(value), current_platform):
         # Run the same platform-specific stage helpers that
-        err = _check_platform_reserved(normalized, platform)
+        _, err = _check_alt_shift(parts, platform)
         if err is None:
-            err = _check_os_shell_combos(parts, platform, normalized_tokens)
+            _, err = _check_platform_reserved(normalized, platform)
         if err is None:
-            err = _check_alt_shift(parts, platform)
+            _, err = _check_os_shell_combos(parts, platform)
         if err is not None:
             return f"{field_name} ({value!r}) is {err}, this config will not be portable to that platform"
     return None
@@ -171,6 +181,7 @@ __all__ = [
     "_HOTKEY_FIELD_NAMES",
     "_CLOUD_CONSENT_FIELD_NAMES",
     "_check_cross_field_hotkey_conflicts",
+    "_check_cross_field_push_to_talk",
     "_check_cross_field_cloud_config",
     "_cross_platform_hotkey_warning",
     "cross_platform_hotkey_warnings",

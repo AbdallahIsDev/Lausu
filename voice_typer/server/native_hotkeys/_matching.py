@@ -57,6 +57,7 @@ class _MatchingMixin:
     _main_key_down: bool
     _held_keys: set[str]
     _armed_roles: set[str]
+    _stopped_roles: set[str]
     _caps_release_timer: threading.Timer | None
     _parsed: dict[str, Any] | None
     _extra_matchers: list[dict[str, Any]]
@@ -65,6 +66,17 @@ class _MatchingMixin:
     # Quiet window used to synthesize the Caps Lock release on platforms
     # whose listener never emits KEY_UP:CapsLock (macOS only).
     _CAPS_RELEASE_SYNTHESIS_SECONDS: float = 0.15
+
+    def _reset_match_state(self) -> None:
+        """Forget held keys/chords before a spawn or respawn."""
+        self._cancel_caps_release_synthesis()
+        with self._match_lock:
+            self._held_modifiers.clear()
+            self._held_keys.clear()
+            self._fn_down = False
+            self._main_key_down = False
+            self._armed_roles.clear()
+            self._stopped_roles.clear()
 
     def _on_fn_event(self, payload: str = "", *, down: bool) -> None:
         """Handle FN_DOWN / FN_UP. Used by the macOS backend only."""
@@ -129,6 +141,38 @@ class _MatchingMixin:
         for matcher in self._extra_matchers:
             if self._try_match_one(matcher, event_kind, down, key_name=key_name):
                 return
+        if event_kind == "key" and down:
+            # A different key pressed while a modifier-only chord is held
+            # means the user is typing a shortcut, not tapping the hotkey.
+            self._cancel_armed_modifier_only()
+
+    def _cancel_armed_modifier_only(self) -> None:
+        """Disarm modifier-only cycles after an unrelated key press."""
+        matchers = [
+            {
+                "role": "dictation",
+                "parsed": self._parsed,
+                "on_release_callback": self._on_release_callback,
+            },
+            *self._extra_matchers,
+        ]
+        with self._match_lock:
+            armed = set(self._armed_roles)
+        for matcher in matchers:
+            parsed = matcher.get("parsed")
+            if not parsed or not parsed.get("is_modifier_only"):
+                continue
+            role = matcher.get("role", "dictation")
+            if role not in armed:
+                continue
+            # Toggle roles keep their armed cycle: their action fires on
+            # the modifier release (pinned by test_hotkey_release_contract).
+            if matcher.get("on_release_callback") is None:
+                continue
+            with self._match_lock:
+                self._armed_roles.discard(role)
+                self._stopped_roles.add(role)
+            self._fire_on_release_for(matcher)
 
     def _try_match_one(
         self,
@@ -205,12 +249,18 @@ class _MatchingMixin:
         role = matcher.get("role", "dictation")
         with self._match_lock:
             if down:
+                self._stopped_roles.discard(role)
                 if not complete:
                     self._armed_roles.discard(role)
                     return False
                 self._armed_roles.add(role)
             else:
                 if role not in self._armed_roles:
+                    # The chord-cancel already stopped this cycle; the
+                    # remaining modifier release must not stop it again.
+                    if role in self._stopped_roles:
+                        self._stopped_roles.discard(role)
+                        return True
                     # A stop is never gated on a press we may have missed
                     # (listener starting mid-press): push-to-talk must be
                     # able to end a recording whose press it never saw.

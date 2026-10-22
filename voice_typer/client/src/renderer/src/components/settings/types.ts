@@ -31,7 +31,10 @@ export interface SettingsSectionSharedProps {
 	/** Current Lausu config (null while the page is still loading). */
 	config: LausuConfig | null;
 	/** Commit a partial config update (also persists to the Python backend). */
-	updateConfig: (updates: Partial<LausuConfig>) => void;
+	updateConfig: (
+		updates: Partial<LausuConfig>,
+		options?: { revertOnFailure?: boolean },
+	) => void;
 	/**
 	 * Debounced commit for inputs that fire on every keystroke (text fields,
 	 * sliders). Updates local state immediately and schedules an IPC commit

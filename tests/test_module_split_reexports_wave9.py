@@ -59,6 +59,7 @@ EXPECTED_SURFACE = {
     "_cancel_ptt_safety_timer",
     "_on_ptt_safety_timeout",
     "_make_dictation_callback",
+    "_make_ptt_release_callback",
     "_make_repaste_callback",
     "register_esc",
     "_on_esc_release",
@@ -98,6 +99,7 @@ OWNED: dict[str, set[str]] = {
     },
     "voice_typer.server.hotkey_dispatch": {
         "_make_dictation_callback",
+        "_make_ptt_release_callback",
         "_make_repaste_callback",
         "_on_esc_release",
     },
@@ -130,23 +132,16 @@ class TestHotkeyMixinComposition:
             assert base in HotkeyDispatcher.__mro__, base.__name__
 
     @pytest.mark.parametrize("module_path,owned", sorted(OWNED.items()))
-    def test_each_method_is_the_mixin_function_itself(
-        self, module_path: str, owned: set[str]
-    ):
+    def test_each_method_is_the_mixin_function_itself(self, module_path: str, owned: set[str]):
         import importlib
 
         from voice_typer.server.hotkey_dispatcher import HotkeyDispatcher
 
         mixin_mod = importlib.import_module(module_path)
-        mixin_cls = next(
-            v
-            for k, v in vars(mixin_mod).items()
-            if isinstance(v, type) and k.endswith("Mixin")
-        )
+        mixin_cls = next(v for k, v in vars(mixin_mod).items() if isinstance(v, type) and k.endswith("Mixin"))
         for name in owned:
             assert getattr(HotkeyDispatcher, name) is getattr(mixin_cls, name), (
-                f"{module_path}.{name} must be the same function object "
-                f"the facade resolves to"
+                f"{module_path}.{name} must be the same function object the facade resolves to"
             )
 
     def test_surface_matches_the_presplit_class(self):
@@ -154,8 +149,7 @@ class TestHotkeyMixinComposition:
 
         surface = {n for n in dir(HotkeyDispatcher) if not n.startswith("__")}
         assert surface == EXPECTED_SURFACE, (
-            f"missing: {sorted(EXPECTED_SURFACE - surface)}; "
-            f"unexpected: {sorted(surface - EXPECTED_SURFACE)}"
+            f"missing: {sorted(EXPECTED_SURFACE - surface)}; unexpected: {sorted(surface - EXPECTED_SURFACE)}"
         )
 
     def test_module_level_state_stays_on_the_facade(self):
@@ -183,9 +177,7 @@ class TestHotkeyMixinComposition:
 class TestHotkeyFacadePatchSeams:
     """Names tests monkeypatch on the facade are read at call time."""
 
-    def test_create_hotkey_backend_seam_resolves_through_the_facade(
-        self, monkeypatch
-    ):
+    def test_create_hotkey_backend_seam_resolves_through_the_facade(self, monkeypatch):
         from voice_typer.server import hotkey_dispatcher as hd, hotkey_registration as hr
 
         sentinel = object()
@@ -209,9 +201,7 @@ class TestHotkeyFacadePatchSeams:
         assert hd._LIVE_PTT_TIMER_DISPATCHERS is registry
 
         HotkeyPttSafetyMixin._cancel_ptt_safety_timer(fake)
-        assert fake not in registry, (
-            "the ptt mixin must discard from the facade registry"
-        )
+        assert fake not in registry, "the ptt mixin must discard from the facade registry"
 
     def test_concurrent_futures_patch_reaches_the_lifecycle_leaf(self, monkeypatch):
         import voice_typer.server.hotkey_lifecycle as hl
@@ -236,9 +226,9 @@ class TestHotkeyGetSourcePinsStillReadRealBodies:
 
         from voice_typer.server.hotkey_dispatcher import HotkeyDispatcher
 
-        combined = inspect.getsource(
-            HotkeyDispatcher.register
-        ) + inspect.getsource(HotkeyDispatcher._create_and_start_main_backend)
+        combined = inspect.getsource(HotkeyDispatcher.register) + inspect.getsource(
+            HotkeyDispatcher._create_and_start_main_backend
+        )
         assert "set_on_release" in combined
         assert "push_to_talk" in combined
         assert "_stop_dictation" in combined
@@ -280,8 +270,7 @@ DOWNLOAD_GROUP_OWNERS = {
     ),
 }
 
-EXPECTED_DOWNLOAD_SURFACE = set().union(
-    *(owned for _, owned in DOWNLOAD_GROUP_OWNERS.values()))
+EXPECTED_DOWNLOAD_SURFACE = set().union(*(owned for _, owned in DOWNLOAD_GROUP_OWNERS.values()))
 EXPECTED_DOWNLOAD_SURFACE.add("_download_whisper_family")
 
 
@@ -323,12 +312,7 @@ class TestDownloadsComposite:
         from pathlib import Path
 
         src = (
-            Path(__file__).resolve().parent.parent
-            / "voice_typer"
-            / "server"
-            / "service"
-            / "model"
-            / "_downloads.py"
+            Path(__file__).resolve().parent.parent / "voice_typer" / "server" / "service" / "model" / "_downloads.py"
         ).read_text(encoding="utf-8")
         assert "poll_outcome, last_total_bytes_seen = poll_download_progress(" in src
         assert src.count("clear_download_pause_state()") >= 4
@@ -550,8 +534,7 @@ class TestRecordingLifecycleSplitFacade:
         mixin_cls = getattr(importlib.import_module(module_path), cls_name)
         for name in owned:
             assert getattr(RecordingLifecycle, name) is getattr(mixin_cls, name), (
-                f"{module_path}.{name} must be the same function object "
-                f"the facade resolves to"
+                f"{module_path}.{name} must be the same function object the facade resolves to"
             )
 
     def test_helpers_resolve_to_the_permissions_sibling(self):
@@ -665,17 +648,16 @@ class TestRecordingLifecycleStageOrderParity:
         from voice_typer.server.recording_lifecycle import RecordingLifecycle
 
         start_src = inspect.getsource(RecordingLifecycle._start_impl)
-        assert (
-            self._ordered_markers(start_src, self.START_STAGE_ORDER) == self.START_STAGE_ORDER
-        ), "start-pipeline stage order drifted from the pinned contract"
+        assert self._ordered_markers(start_src, self.START_STAGE_ORDER) == self.START_STAGE_ORDER, (
+            "start-pipeline stage order drifted from the pinned contract"
+        )
 
         feedback_src = inspect.getsource(RecordingLifecycle._publish_instant_start_feedback)
         assert (
-            self._ordered_markers(feedback_src, self.INSTANT_START_FEEDBACK_ORDER)
-            == self.INSTANT_START_FEEDBACK_ORDER
+            self._ordered_markers(feedback_src, self.INSTANT_START_FEEDBACK_ORDER) == self.INSTANT_START_FEEDBACK_ORDER
         ), "instant-start feedback order drifted from the pinned contract"
 
         stop_src = inspect.getsource(RecordingLifecycle._run_stop_and_transcribe)
-        assert (
-            self._ordered_markers(stop_src, self.STOP_STAGE_ORDER) == self.STOP_STAGE_ORDER
-        ), "stop-pipeline stage order drifted from the pre-split capture"
+        assert self._ordered_markers(stop_src, self.STOP_STAGE_ORDER) == self.STOP_STAGE_ORDER, (
+            "stop-pipeline stage order drifted from the pre-split capture"
+        )

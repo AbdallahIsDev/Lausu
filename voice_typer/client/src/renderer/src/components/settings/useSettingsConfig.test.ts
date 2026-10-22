@@ -747,3 +747,94 @@ describe("useSettingsConfig, hover-prefetch mount skip (PG-1 / C-CACHE-2)", () =
 		expect(result.current.loadError).toBeNull();
 	});
 });
+
+describe("useSettingsConfig, discrete-control rollback", () => {
+	beforeEach(() => {
+		resetStableMocks();
+		vi.resetModules();
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	it("rolls a rejected discrete value back to the last saved value", async () => {
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config") return Promise.resolve(baseConfig);
+			if (type === "set_config") {
+				return Promise.reject(
+					new Error("hotkey is invalid for push-to-talk: nope"),
+				);
+			}
+			return Promise.resolve({});
+		});
+
+		const { result } = renderHook(() => useSettingsConfig());
+		await result.current.loadConfig();
+		await waitFor(() => {
+			expect(result.current.config).not.toBeNull();
+		});
+
+		await result.current.updateConfig(
+			{ hotkey: "<alt>" },
+			{ revertOnFailure: true },
+		);
+
+		// The pill/capture field must not keep showing a value the backend
+		// refused (it re-rendered "Alt" while config stayed F2).
+		await waitFor(() => {
+			expect(result.current.config?.hotkey).toBe("F2");
+		});
+		expect(mockShowSnack).toHaveBeenCalledWith(
+			expect.stringContaining("push-to-talk"),
+			"error",
+		);
+	});
+
+	it("reverts only the rejected keys and keeps the last saved neighbours", async () => {
+		let rejectHotkey = false;
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config") return Promise.resolve(baseConfig);
+			if (type === "set_config") {
+				if (rejectHotkey) return Promise.reject(new Error("invalid"));
+				return Promise.resolve({ type: "ack" });
+			}
+			return Promise.resolve({});
+		});
+
+		const { result } = renderHook(() => useSettingsConfig());
+		await result.current.loadConfig();
+		await waitFor(() => {
+			expect(result.current.config).not.toBeNull();
+		});
+
+		// Persist PTT first: the rollback must return to THIS saved value,
+		// not to the initial toggle from load time.
+		await result.current.updateConfig(
+			{ recording_mode: "push_to_talk" },
+			{ revertOnFailure: true },
+		);
+		rejectHotkey = true;
+		await result.current.updateConfig(
+			{ hotkey: "<alt>" },
+			{ revertOnFailure: true },
+		);
+
+		// Both assertions live in waitFor: React commits the optimistic
+		// updates asynchronously, and the base config already has F2, so a
+		// hotkey-only wait would resolve before recording_mode re-renders.
+		await waitFor(() => {
+			expect(result.current.config?.hotkey).toBe("F2");
+			expect(result.current.config?.recording_mode).toBe("push_to_talk");
+		});
+
+		// A later save carries only the new key: the reverted value matches
+		// the backend again, so no stale field is re-sent.
+		rejectHotkey = false;
+		await result.current.updateConfig(
+			{ sound_volume: 0.5 },
+			{ revertOnFailure: true },
+		);
+		expect(lastSetConfigPayload()).toEqual({ sound_volume: 0.5 });
+	});
+});

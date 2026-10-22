@@ -343,7 +343,7 @@ class TestPttFunctionalFlow:
     """Functional test: simulate the PTT wiring end-to-end."""
 
     def test_ptt_wiring_calls_stop_dictation_on_key_release(self):
-        """``app._stop_dictation``."""
+        """The PTT release callback must stop dictation when invoked."""
         app = MagicMock()
         app.config.hotkey = "<f2>"
         app.config.recording_mode = "push_to_talk"
@@ -364,7 +364,11 @@ class TestPttFunctionalFlow:
         ):
             dispatcher.register()
 
-        fake_backend.set_on_release.assert_called_once_with(app._stop_dictation)
+        fake_backend.set_on_release.assert_called_once()
+        release_callback = fake_backend.set_on_release.call_args.args[0]
+        app._stop_dictation.assert_not_called()
+        release_callback()
+        app._stop_dictation.assert_called_once_with()
 
     def test_toggle_mode_does_not_set_on_release(self):
         """In toggle mode (not push_to_talk), set_on_release must NOT"""

@@ -114,7 +114,7 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 	//ESC-: useCallback calls MUST be before any early return
 	// per React's Rules of Hooks.
 	const handleDictationChange = useCallback(
-		(h: string) => updateConfig({ hotkey: h }),
+		(h: string) => updateConfig({ hotkey: h }, { revertOnFailure: true }),
 		[updateConfig],
 	);
 	// While EITHER hotkey picker is capturing a key, the ESC-to-cancel
@@ -134,7 +134,8 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 	}, []);
 
 	const handleRepasteChange = useCallback(
-		(h: string) => updateConfig({ repaste_hotkey: h }),
+		(h: string) =>
+			updateConfig({ repaste_hotkey: h }, { revertOnFailure: true }),
 		[updateConfig],
 	);
 
@@ -150,7 +151,10 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 		);
 
 	const handleRecordingModeChange = (v: string) =>
-		updateConfig({ recording_mode: v as "toggle" | "push_to_talk" });
+		updateConfig(
+			{ recording_mode: v as "toggle" | "push_to_talk" },
+			{ revertOnFailure: true },
+		);
 
 	const handleStopOnSilenceChange = (v: string) =>
 		updateConfig({ stop_on_silence_seconds: Number(v) });

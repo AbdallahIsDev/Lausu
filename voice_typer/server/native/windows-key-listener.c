@@ -382,6 +382,10 @@ static const struct { const char* in; const char* out; } KEY_NAME_MAP[] = {
     { "scroll_lock", "ScrollLock" }, { "scrolllock", "ScrollLock" },
     { "print_screen", "PrintScreen" }, { "printscreen", "PrintScreen" },
     { "pause", "Pause" },
+    /* Media keys */
+    { "media_play_pause", "MediaPlay" }, { "media_play", "MediaPlay" },
+    { "media_stop", "MediaStop" }, { "media_next", "MediaNext" },
+    { "media_prev", "MediaPrev" }, { "media_previous", "MediaPrev" },
     /* Arrows */
     { "up", "Up" }, { "down", "Down" },
     { "left", "Left" }, { "right", "Right" },

@@ -11,9 +11,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WINDOWS_C = REPO_ROOT / "voice_typer" / "server" / "native" / "windows-key-listener.c"
-MACOS_SWIFT = (
-    REPO_ROOT / "voice_typer" / "server" / "native" / "macos-key-listener.swift"
-)
+MACOS_SWIFT = REPO_ROOT / "voice_typer" / "server" / "native" / "macos-key-listener.swift"
 
 
 def test_windows_listener_emits_keyup_before_swallow() -> None:
@@ -30,7 +28,7 @@ def test_windows_listener_emits_keyup_before_swallow() -> None:
         "KEY_UP must be emitted BEFORE the suppressed-keyup swallow "
         "(otherwise toggle-on-keyup / PTT-release never fires)"
     )
-    assert 'KEY_UP:%s' in keyup_block or "KEY_UP:" in keyup_block
+    assert "KEY_UP:%s" in keyup_block or "KEY_UP:" in keyup_block
 
 
 def test_windows_listener_keydown_emits_before_swallow() -> None:
@@ -44,8 +42,7 @@ def test_windows_listener_keydown_emits_before_swallow() -> None:
     assert first_emit != -1, "KEY_DOWN block must emit a wire event"
     assert first_swallow_return != -1
     assert first_emit < first_swallow_return, (
-        "KEY_DOWN must be emitted BEFORE the suppression swallow "
-        "(otherwise Caps toggle / PTT start never fires)"
+        "KEY_DOWN must be emitted BEFORE the suppression swallow (otherwise Caps toggle / PTT start never fires)"
     )
 
 
@@ -70,12 +67,8 @@ def test_macos_listener_emits_keyup_before_swallow() -> None:
     first_swallow = block.find("return nil")
     assert first_emit != -1, "keyUp case must emit KEY_UP"
     assert first_swallow != -1
-    assert first_emit < first_swallow, (
-        "KEY_UP must be emitted BEFORE the suppressed-keyup swallow on macOS"
-    )
-    assert "suppressedKeyCode" in block, (
-        "keyUp swallow must be gated on the remembered suppressed keyDown"
-    )
+    assert first_emit < first_swallow, "KEY_UP must be emitted BEFORE the suppressed-keyup swallow on macOS"
+    assert "suppressedKeyCode" in block, "keyUp swallow must be gated on the remembered suppressed keyDown"
 
 
 def _make_matching_backend(
@@ -100,6 +93,7 @@ def _make_matching_backend(
             self._main_key_down = False
             self._held_keys: set[str] = set()
             self._armed_roles: set[str] = set()
+            self._stopped_roles: set[str] = set()
             self._caps_release_timer = None
             self._parsed = {
                 "modifiers": set(),

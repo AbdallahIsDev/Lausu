@@ -472,5 +472,68 @@ class TestCapsLockForceOffAtStartup:
         assert order == ["force-off", "native-start"]
 
 
+class TestToggleOnKeyupPropagation:
+    """Every backend swap must carry the toggle-on-keyup mode forward."""
+
+    def _adapter(self) -> object:
+        from voice_typer.server.hotkeys.native_adapter import _NativeBackendAdapter
+
+        native = MagicMock()
+        native.hotkey_str = "<alt>"
+        return _NativeBackendAdapter(native)
+
+    def test_swap_to_legacy_propagates(self):
+        adapter = self._adapter()
+        adapter._callback = lambda: None
+        adapter._toggle_on_keyup = True
+        legacy = MagicMock()
+        adapter._create_legacy_backend = lambda: legacy
+        adapter._show_fallback_notification = lambda: None
+        adapter._schedule_native_retry = lambda: None
+        adapter._notify_state_change = lambda _state: None
+
+        adapter._swap_to_legacy()
+
+        legacy.set_toggle_on_keyup.assert_called_once_with(True)
+
+    def test_retry_recovery_propagates_to_native(self):
+        adapter = self._adapter()
+        adapter._callback = lambda: None
+        adapter._toggle_on_keyup = True
+        adapter._state = adapter._STATE_FALLBACK
+        adapter._native.is_alive.return_value = True
+        adapter._show_recovery_notification = lambda: None
+        adapter._notify_state_change = lambda _state: None
+
+        adapter._retry_native()
+
+        adapter._native.set_toggle_on_keyup.assert_called_once_with(True)
+
+    def test_retry_failure_propagates_to_warm_spare(self):
+        adapter = self._adapter()
+        adapter._callback = lambda: None
+        adapter._toggle_on_keyup = True
+        adapter._state = adapter._STATE_FALLBACK
+        warm_spare = MagicMock()
+        adapter._legacy = warm_spare
+        adapter._native.is_alive.return_value = False
+        adapter._schedule_native_retry = lambda: None
+
+        adapter._retry_native()
+
+        warm_spare.set_toggle_on_keyup.assert_called_once_with(True)
+
+    def test_permission_grant_recovery_propagates(self):
+        adapter = self._adapter()
+        adapter._callback = lambda: None
+        adapter._toggle_on_keyup = True
+        adapter._native.is_alive.return_value = True
+        adapter._notify_state_change = lambda _state: None
+
+        adapter._on_permission_granted()
+
+        adapter._native.set_toggle_on_keyup.assert_called_once_with(True)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--timeout=30"])

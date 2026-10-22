@@ -62,13 +62,13 @@ class TestModifierOnlyCombosAllowed:
         """``<shift>`` alone, the frontend pins this exact case"""
         _assert_allowed("<shift>")
 
-    def test_bare_cmd_l_allowed(self, linux_platform: None) -> None:
-        """valid modifier-only trigger. (The canonical parser resolves"""
-        _assert_allowed("<cmd_l>")
+    def test_bare_cmd_l_rejected_as_bare_shell_key(self, linux_platform: None) -> None:
+        """L/R aliases canonicalize to the bare shell key, which stays blocked."""
+        assert _validate_hotkey("<cmd_l>") is not None
 
-    def test_cmd_l_plus_cmd_r_allowed(self, linux_platform: None) -> None:
-        """``<cmd_l>+<cmd_r>``, both canonicalize to ``cmd``, yielding"""
-        _assert_allowed("<cmd_l>+<cmd_r>")
+    def test_cmd_l_plus_cmd_r_rejected_as_duplicate_shell(self, linux_platform: None) -> None:
+        """``<cmd_l>+<cmd_r>`` canonicalizes to one bare ``cmd`` modifier."""
+        assert _validate_hotkey("<cmd_l>+<cmd_r>") is not None
 
 
 class TestBareShellModifiersStillBlocked:
@@ -87,19 +87,20 @@ class TestBareShellModifiersStillBlocked:
         )
 
 
-class TestBareShellAliasAllowedOnEveryPlatform:
-    """A bare shell ALIAS (``<cmd_l>``) is a modifier-only trigger.
+class TestBareShellAliasesBlockedOnEveryPlatform:
+    """A bare shell ALIAS (``<cmd_l>``) canonicalizes to the bare shell key.
 
-    The universal table blocks the canonical bare spellings
-    (``<win>``, ``<cmd>``, ``<super>``) only; the ``_l`` / ``_r``
-    aliases keep their own spelling because the native listener can
-    swallow a lone modifier key. The renderer must agree, or the
-    picker refuses a hotkey the backend accepts.
+    The universal table blocks ``<win>``, ``<cmd>`` and ``<super>``; the
+    ``_l`` / ``_r`` spellings resolve to the same canonical modifier, so
+    they must hit the same reserved-shortcut rule. The renderer must
+    agree, or the picker accepts a hotkey the backend refuses.
     """
 
     @pytest.mark.parametrize("hotkey", ["<cmd_l>", "<cmd_r>", "<win_l>", "<super_r>"])
-    def test_bare_shell_alias_allowed(self, hotkey: str, windows_platform: None) -> None:
-        _assert_allowed(hotkey)
+    def test_bare_shell_alias_blocked(self, hotkey: str, windows_platform: None) -> None:
+        result = _validate_hotkey(hotkey)
+        assert result is not None, f"{hotkey!r} canonicalizes to a bare shell key"
+        assert "reserved" in result.lower(), f"unexpected rejection reason: {result!r}"
 
     def test_shell_combo_still_rejected_on_windows(self, windows_platform: None) -> None:
         """A COMBO collapses the shell spellings, so it hits the win32 rule."""
@@ -190,32 +191,32 @@ class TestCheckMultiNonModifierHelperContract:
     """Direct unit tests for the Stage 5 helper."""
 
     def test_zero_non_modifiers_returns_none(self) -> None:
-        assert _check_multi_non_modifier(["ctrl", "shift"]) is None
-        assert _check_multi_non_modifier(["cmd"]) is None
-        assert _check_multi_non_modifier(["alt", "shift"]) is None
-        assert _check_multi_non_modifier(["alt"]) is None
+        assert _check_multi_non_modifier(["ctrl", "shift"])[0] is None
+        assert _check_multi_non_modifier(["cmd"])[0] is None
+        assert _check_multi_non_modifier(["alt", "shift"])[0] is None
+        assert _check_multi_non_modifier(["alt"])[0] is None
 
     def test_empty_list_returns_error(self) -> None:
-        assert _check_multi_non_modifier([]) is not None
+        assert _check_multi_non_modifier([])[0] is not None
 
     def test_one_non_modifier_returns_none(self) -> None:
-        assert _check_multi_non_modifier(["v"]) is None
-        assert _check_multi_non_modifier(["ctrl", "v"]) is None
-        assert _check_multi_non_modifier(["ctrl", "alt", "v"]) is None
-        assert _check_multi_non_modifier(["shift", "f5"]) is None
+        assert _check_multi_non_modifier(["v"])[0] is None
+        assert _check_multi_non_modifier(["ctrl", "v"])[0] is None
+        assert _check_multi_non_modifier(["ctrl", "alt", "v"])[0] is None
+        assert _check_multi_non_modifier(["shift", "f5"])[0] is None
 
     def test_two_non_modifiers_returns_error(self) -> None:
-        assert _check_multi_non_modifier(["a", "b"]) is not None
-        assert _check_multi_non_modifier(["ctrl", "a", "b"]) is not None
-        assert _check_multi_non_modifier(["a", "b", "c"]) is not None
+        assert _check_multi_non_modifier(["a", "b"])[0] is not None
+        assert _check_multi_non_modifier(["ctrl", "a", "b"])[0] is not None
+        assert _check_multi_non_modifier(["a", "b", "c"])[0] is not None
 
     def test_error_message_includes_count_for_two(self) -> None:
-        result = _check_multi_non_modifier(["a", "b"])
+        result = _check_multi_non_modifier(["a", "b"])[1]
         assert result is not None
         assert "got 2" in result, f"two-non-mod error should include 'got 2'; got: {result!r}"
 
     def test_error_message_includes_count_for_three(self) -> None:
-        result = _check_multi_non_modifier(["a", "b", "c"])
+        result = _check_multi_non_modifier(["a", "b", "c"])[1]
         assert result is not None
         assert "got 3" in result, f"three-non-mod error should include 'got 3'; got: {result!r}"
 

@@ -537,6 +537,7 @@ class TestModifierOnlyHotkeys:
         press_callback = MagicMock()
         release_callback = MagicMock()
         backend.set_on_release(release_callback)
+        mock_user32.SetWindowsHookExW.return_value = 0  # exercise polling path
         try:
             backend.start(press_callback)
 

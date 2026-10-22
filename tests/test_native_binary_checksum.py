@@ -138,7 +138,7 @@ class TestGetExpectedSha256:
 
     def test_windows_x86_64_sha256_is_pre_populated(self):
         """(Critical): the Windows x86_64 sha256 MUST be pre-populated"""
-        expected = "0b879e09d9191928b6bca4bd43a6a1b9100aa8f16de9a9b2196630acc9722c0d"
+        expected = "6a8e3530b7d287ed3d3653759e5eb4d2350288d8b0fcb43abf1af65dbae506ac"
         # Direct (arch-suffixed) entry.
         arch_sha = get_expected_sha256("windows-key-listener-x86_64.exe")
         assert arch_sha == expected, (

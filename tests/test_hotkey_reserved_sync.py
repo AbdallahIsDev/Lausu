@@ -33,12 +33,14 @@ TS_PATH = (
     / "hotkey-validation.ts"
 )
 
-# The four fields that must be re-exported from the JSON import.
+# Every shared field the renderer and backend must read from one source.
 _JSON_FIELDS = (
     "universal_reserved",
     "per_platform_reserved",
     "blocked_ctrl_letters",
     "modifiers",
+    "key_aliases",
+    "keys",
 )
 
 
@@ -94,7 +96,7 @@ class TestFrontendImportsFromJson:
         )
 
     def test_ts_re_exports_all_fields(self, ts_content: str) -> None:
-        """The TS file must re-export all four data fields from the JSON."""
+        """The TS file must re-export every shared data field from the JSON."""
         for field in _JSON_FIELDS:
             # Expect: export const UNIVERSAL_RESERVED_SHORTCUTS = hotkeyReserved.universal_reserved
             _field_to_ts_var = {
@@ -102,6 +104,8 @@ class TestFrontendImportsFromJson:
                 "per_platform_reserved": "RESERVED_SHORTCUTS",
                 "blocked_ctrl_letters": "BLOCKED_CTRL_LETTERS",
                 "modifiers": "MODIFIER_KEYS_SHARED",
+                "key_aliases": "KEY_ALIASES",
+                "keys": "KEY_VOCABULARY",
             }
             ts_var = _field_to_ts_var[field]
             # The TS file has a type annotation between the name and `=`

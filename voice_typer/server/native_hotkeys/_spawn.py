@@ -203,6 +203,7 @@ class _SpawnMixin:
         the assumption that the install dir is not writable by an
         untrusted user.
         """
+        self._reset_match_state()
         if self._binary_path is None:
             self._failed = True
             self._error_message = (
