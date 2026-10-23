@@ -352,3 +352,86 @@ def test_restart_does_not_restore_hotkey_on_success(dispatcher: HotkeyDispatcher
 
     # Tray label shows the new hotkey.
     dispatcher._app.tray.set_hotkey.assert_called_once_with("<f8>")
+
+
+# ── platform-gated push-to-talk guard (register / restart) ─────────
+
+
+class TestPushToTalkRegistrationGuard:
+    """A direct register()/restart() call must not install a PTT spec the
+    listeners cannot deliver, whatever the caller passes."""
+
+    @pytest.mark.parametrize("entry_point", ["register", "restart"])
+    def test_macos_caps_push_to_talk_falls_back_to_f2(self, entry_point: str, monkeypatch) -> None:
+        from voice_typer.server.config_validators import hotkey as hotkey_validators
+
+        monkeypatch.setattr(hotkey_validators, "_platform_key", lambda: "darwin")
+        app = _make_mock_app(hotkey="<caps_lock>", recording_mode="push_to_talk")
+        dispatcher = HotkeyDispatcher(app)
+        backend = MagicMock()
+        backend.is_alive.return_value = True
+        factory = MagicMock(return_value=backend)
+        monkeypatch.setattr("voice_typer.server.hotkey_dispatcher.create_hotkey_backend", factory)
+
+        if entry_point == "register":
+            dispatcher.register()
+        else:
+            dispatcher.restart("<caps_lock>")
+
+        factory.assert_any_call("<f2>", role="dictation")
+        assert app.config.hotkey == "<f2>"
+
+    @pytest.mark.parametrize("entry_point", ["register", "restart"])
+    def test_windows_caps_push_to_talk_registers_untouched(self, entry_point: str, monkeypatch) -> None:
+        from voice_typer.server.config_validators import hotkey as hotkey_validators
+
+        monkeypatch.setattr(hotkey_validators, "_platform_key", lambda: "win32")
+        app = _make_mock_app(hotkey="<caps_lock>", recording_mode="push_to_talk")
+        dispatcher = HotkeyDispatcher(app)
+        backend = MagicMock()
+        backend.is_alive.return_value = True
+        monkeypatch.setattr(
+            "voice_typer.server.hotkey_dispatcher.create_hotkey_backend",
+            MagicMock(return_value=backend),
+        )
+
+        if entry_point == "register":
+            dispatcher.register()
+        else:
+            dispatcher.restart("<caps_lock>")
+
+        assert app.config.hotkey == "<caps_lock>"
+
+
+def test_dispatcher_test_spec_is_valid_on_every_platform(monkeypatch) -> None:
+    """The spec these dispatcher tests standardise on must be bindable
+    everywhere, or macOS CI silently exercises a rejected hotkey."""
+    from voice_typer.server.config_validators import hotkey as hotkey_validators
+
+    for platform in ("win32", "darwin", "linux"):
+        # Bind ``platform`` as a default arg so each iteration checks its own
+        # platform (a bare ``lambda: platform`` would late-bind the loop var).
+        monkeypatch.setattr(hotkey_validators, "_platform_key", lambda p=platform: p)
+        code, message = hotkey_validators._validate_hotkey_code("<f9>")
+        assert code is None, f"<f9> is invalid on {platform}: {code} ({message})"
+
+
+def test_dispatcher_test_specs_are_valid_on_every_platform():
+    """The specs these dispatcher tests bind must validate on win32, darwin and linux.
+
+    Regression guard: a platform-only spec (e.g. ``<f13>`` on darwin, or a
+    media key off the Linux listener) turns a suite green on one OS and red
+    on CI.
+    """
+    from voice_typer.server.config_validators.hotkey import _KEY_VOCABULARY, _validate_hotkey_code
+    from voice_typer.server.hotkey_spec import parse_hotkey
+
+    for spec in ("<f2>", "<f3>", "<f4>", "<f5>", "<f6>", "<f7>", "<f8>", "<f9>"):
+        parsed = parse_hotkey(spec)
+        assert parsed.keys, f"{spec} has no keys"
+        for key in parsed.keys:
+            meta = _KEY_VOCABULARY.get(key)
+            assert meta is not None, f"{spec}: unknown key {key!r}"
+            for platform in ("win32", "darwin", "linux"):
+                assert platform in meta["platforms"], f"{spec}: {key!r} is not delivered on {platform}"
+        assert _validate_hotkey_code(spec)[0] is None, f"{spec} is invalid on the running platform"

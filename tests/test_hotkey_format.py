@@ -80,8 +80,14 @@ class TestFormatHotkeyLabelBranches:
 
     def test_default_fallback_capitalizes_first_letter(self) -> None:
         """Unknown multi-char tokens get the first letter capitalized."""
-        # "media_play_pause" isn't in the displayMap, so it falls
-        assert format_hotkey_label("<media_play_pause>") == "Media_play_pause"
+        assert format_hotkey_label("<media_rewind>") == "Media_rewind"
+
+    def test_media_keys_use_readable_labels(self) -> None:
+        """Media tokens read as labels, never as raw ``media_*`` ids."""
+        assert format_hotkey_label("<media_play_pause>") == "Play/Pause"
+        assert format_hotkey_label("<media_stop>") == "Stop"
+        assert format_hotkey_label("<media_next>") == "Next Track"
+        assert format_hotkey_label("<media_prev>") == "Previous Track"
 
     def test_empty_string_returns_none(self) -> None:
         """Empty input → 'None' (matches TS early-return)."""

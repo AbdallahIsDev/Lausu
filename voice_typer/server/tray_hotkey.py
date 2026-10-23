@@ -42,6 +42,10 @@ _DISPLAY_MAP: dict[str, str] = {
     "end": "End",
     "page_up": "Page Up",
     "page_down": "Page Down",
+    "media_play_pause": "Play/Pause",
+    "media_stop": "Stop",
+    "media_next": "Next Track",
+    "media_prev": "Previous Track",
     "up": "\u2191",  # ↑
     "down": "\u2193",  # ↓
     "left": "\u2190",  # ←

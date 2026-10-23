@@ -340,6 +340,7 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 							value={config.hotkey}
 							onChange={handleDictationChange}
 							mode="single"
+							pushToTalk={config.recording_mode === "push_to_talk"}
 							presets={dictationKeyPresets}
 							occupiedHotkeys={
 								config.repaste_hotkey ? [config.repaste_hotkey] : undefined

@@ -5,12 +5,13 @@ import { t } from "@/i18n/i18n";
 import {
 	CANONICAL_MOD_ORDER,
 	CAPTURE_TIMEOUT_SECONDS,
+	detectPlatform,
 	formatHotkeyLabel,
 	getModifierCodeMap,
 	hotkeyCaptureReducer,
 	IS_MAC,
 	initialHotkeyCaptureState,
-	KEY_CODE_TO_PYNPUT,
+	resolveCharKey,
 	tryCommitHotkey,
 } from "./hotkey-utils";
 
@@ -30,6 +31,8 @@ export interface UseHotkeyCaptureParams {
 	onCaptureStart?: () => void;
 	onCaptureEnd?: () => void;
 	occupiedHotkeys?: string[];
+	/** Show the push-to-talk incompatibility at capture time, not on save. */
+	pushToTalk?: boolean;
 }
 
 export interface UseHotkeyCaptureResult {
@@ -50,6 +53,7 @@ export function useHotkeyCapture({
 	onCaptureStart,
 	onCaptureEnd,
 	occupiedHotkeys,
+	pushToTalk,
 }: UseHotkeyCaptureParams): UseHotkeyCaptureResult {
 	const [state, dispatch] = useReducer(
 		hotkeyCaptureReducer,
@@ -219,6 +223,7 @@ export function useHotkeyCapture({
 			mode,
 			value,
 			occupiedHotkeys,
+			pushToTalk,
 			t,
 			resetSession: true,
 		});
@@ -259,6 +264,7 @@ export function useHotkeyCapture({
 			mode,
 			value,
 			occupiedHotkeys,
+			pushToTalk,
 			t,
 			resetSession: true,
 		});
@@ -330,7 +336,7 @@ export function useHotkeyCapture({
 				return;
 			}
 
-			const pynputName = KEY_CODE_TO_PYNPUT[e.code];
+			const pynputName = resolveCharKey(e, detectPlatform());
 
 			// Snapshot currently-held modifiers from the event flags —
 			// even if the user pressed the modifier BEFORE entering
@@ -412,7 +418,7 @@ export function useHotkeyCapture({
 				return;
 			}
 
-			const pynputName = KEY_CODE_TO_PYNPUT[e.code];
+			const pynputName = resolveCharKey(e, detectPlatform());
 			if (pynputName) {
 				heldNonModifiersRef.current.delete(pynputName);
 			}

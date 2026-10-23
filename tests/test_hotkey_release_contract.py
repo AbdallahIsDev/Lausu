@@ -90,11 +90,13 @@ class TestModifierOnlyFiresOnRelease:
         b._handle_line("MOD_UP:Alt")
         assert fired == []
 
-    def test_unrelated_key_release_does_not_fire_modifier_only(self, monkeypatch):
+    def test_unrelated_key_cancels_the_modifier_only_cycle(self, monkeypatch):
         """Typing while the hotkey modifier is held must not fire it.
 
-        The old matcher evaluated modifier-only specs on KEY events too,
-        so releasing any unrelated key while Alt was held fired the hotkey.
+        The old matcher evaluated modifier-only specs on KEY events too, so
+        releasing any unrelated key while Alt was held fired the hotkey. The
+        cycle is now cancelled by the unrelated press and stays dead through
+        the modifier release (Alt+Q is a shortcut, not a tap).
         """
         b = _make_linux_backend(monkeypatch, "<alt>")
         b.set_toggle_on_keyup(True)
@@ -103,9 +105,9 @@ class TestModifierOnlyFiresOnRelease:
         b._handle_line("MOD_DOWN:Alt")
         b._handle_line("KEY_DOWN:Q")
         b._handle_line("KEY_UP:Q")
-        assert fired == [], "an unrelated key release must never fire a modifier-only hotkey"
+        assert fired == [], "an unrelated key press must never fire a modifier-only hotkey"
         b._handle_line("MOD_UP:Alt")
-        assert fired == ["toggle"]
+        assert fired == [], "the cancelled cycle must not fire on the modifier release"
 
 
 class TestFnOnlyFiresOnRelease:
@@ -379,7 +381,9 @@ class TestDispatcherWiresEveryRoleToKeyUp:
         """One key cannot own two actions: the first matcher wins silently.
 
         A duplicate spec would leave repaste dead with no trace, so the
-        registration disables it and says why in the log.
+        registration skips it and says why in the log. Runtime registration
+        must NEVER rewrite config: only the loader's startup reconciliation
+        may clear a duplicate ``repaste_hotkey``.
         """
         from voice_typer.server import hotkey_dispatcher as facade
         from voice_typer.server.hotkey_dispatcher import HotkeyDispatcher
@@ -394,7 +398,8 @@ class TestDispatcherWiresEveryRoleToKeyUp:
         dispatcher = HotkeyDispatcher(app)
         dispatcher.register_repaste()
 
-        assert app.config.repaste_hotkey == "", "duplicate spec must be cleared"
+        # The backend is never created, but the config value is left intact
+        assert app.config.repaste_hotkey == "<f2>", "register_repaste must not mutate config"
         aux.start.assert_not_called()
 
 
@@ -454,3 +459,48 @@ class TestStartupReconciliation:
         assert dispatcher._hotkey_backend is None, "no half-installed backend"
         assert app.tray.notify.call_count == 1, "the user hears about it exactly once"
         assert any("Registration FAILED" in r.getMessage() for r in caplog.records)
+
+
+class TestChordCancelAcrossRoles:
+    """An unrelated key cancels every armed modifier-only role.
+
+    The cancel runs before the matcher loop, so a role that matches the
+    key first (repaste `<ctrl>+<alt>+r`) can no longer leave the
+    dictation role's toggle arm armed for the following release.
+    """
+
+    def test_toggle_arm_is_dropped_when_a_combo_role_fires(self, monkeypatch):
+        backend = _make_linux_backend(monkeypatch, "<ctrl>+<alt>")
+        backend.set_toggle_on_keyup(True)
+        dictation: list[str] = []
+        repaste: list[str] = []
+        backend._callback = lambda: dictation.append("toggle")
+        backend.add_extra_matcher("repaste", "<ctrl>+<alt>+r")
+        backend.set_role_callback("repaste", lambda: repaste.append("paste"))
+        backend.set_role_toggle_on_keyup("repaste", True)
+
+        backend._handle_line("MOD_DOWN:Ctrl")
+        backend._handle_line("MOD_DOWN:Alt")
+        backend._handle_line("KEY_DOWN:R")
+        backend._handle_line("KEY_UP:R")
+        backend._handle_line("MOD_UP:Alt")
+        backend._handle_line("MOD_UP:Ctrl")
+
+        assert repaste == ["paste"]
+        assert dictation == []
+
+    def test_ptt_role_cancelled_once_and_the_following_release_is_silent(self, monkeypatch):
+        """A PTT chord-cancel records the role so the release can't stop twice."""
+        backend = _make_linux_backend(monkeypatch, "<alt>")
+        stopped: list[str] = []
+        started: list[str] = []
+        backend._callback = lambda: started.append("start")
+        backend.set_on_release(lambda: stopped.append("stop"))
+
+        backend._handle_line("MOD_DOWN:Alt")
+        assert started == ["start"]
+        backend._handle_line("KEY_DOWN:Tab")
+        assert stopped == ["stop"]
+        backend._handle_line("KEY_UP:Tab")
+        backend._handle_line("MOD_UP:Alt")
+        assert stopped == ["stop"], "the modifier release must not stop a second time"

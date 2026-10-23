@@ -22,10 +22,10 @@ def _load_cases() -> list[dict[str, Any]]:
         return json.load(f)["cases"]
 
 
-def _verdict(hotkey: str, push_to_talk: bool) -> str | None:
+def _verdict(hotkey: str, push_to_talk: bool, platform: str) -> str | None:
     code, _ = hotkey_validators._validate_hotkey_code(hotkey)
     if code is None and push_to_talk:
-        code, _ = hotkey_validators._check_push_to_talk(hotkey)
+        code, _ = hotkey_validators._check_push_to_talk(hotkey, platform)
     return code
 
 
@@ -36,4 +36,4 @@ def _verdict(hotkey: str, push_to_talk: bool) -> str | None:
 )
 def test_python_matches_shared_verdict_fixture(case: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(hotkey_validators, "_platform_key", lambda: case["platform"])
-    assert _verdict(case["hotkey"], case["pushToTalk"]) == case["code"]
+    assert _verdict(case["hotkey"], case["pushToTalk"], case["platform"]) == case["code"]

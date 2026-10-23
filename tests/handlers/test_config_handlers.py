@@ -188,6 +188,24 @@ class TestFailedModelConfigNotPersisted:
             f"DE-6: config_changed event must still carry non-failed keys; got: {event_data!r}"
         )
 
+    def test_config_changed_event_carries_the_restored_hotkey(self, ipc_server, fake_app, fake_service, monkeypatch):
+        """A failed re-registration restores the old spec; Settings must see it."""
+        # ``restart()`` restored the previous hotkey on ``app.config`` while the
+        # renderer asked for ``<f3>``: the push must carry the effective value.
+        fake_app.config.hotkey = "<f1>"
+
+        published_events: list[dict] = []
+        import voice_typer.server.handlers.config_handlers as ch_mod
+
+        monkeypatch.setattr(ch_mod.event_bus, "publish", published_events.append)
+
+        ipc_server._handle_set_config({"hotkey": "<f3>"}, {})
+
+        event_data = [e for e in published_events if e.get("type") == "config_changed"][0]["data"]
+        assert event_data["hotkey"] == "<f1>", (
+            f"config_changed must publish the effective (restored) hotkey; got: {event_data!r}"
+        )
+
 
 class TestMissingConfigLockWarning:
     """handler logs a WARNING once per process (instead of silently"""

@@ -177,6 +177,9 @@ _INITIAL_LABELS: dict[str, str] = {
     "notify.hotkey_dispatcher.repaste_register_failed": (
         "Repaste hotkey could not be registered. Another app may have claimed it."
     ),
+    "notify.hotkey_dispatcher.repaste_duplicate": (
+        "Repaste hotkey is the same as the dictation hotkey. Pick a different shortcut."
+    ),
     "notify.hotkey_dispatcher.invalid_hotkey": (
         "Hotkey {hotkey} is not valid: {validation_error}. Keeping the previous hotkey."
     ),

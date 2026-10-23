@@ -242,6 +242,15 @@ private let modifierKeyCodes: Set<UInt16> = [
     63,       // Fn
 ]
 
+/// Physical ANSI top-row digit keyCodes → digit. Fallback for layouts where
+/// `charactersIgnoringModifiers` is not a digit (e.g. AZERTY, where the
+/// unshifted char is a punctuation glyph), so a digit hotkey still binds to
+/// the physical digit key the user pressed.
+private let ansiDigitKeyCodes: [UInt16: String] = [
+    29: "0", 18: "1", 19: "2", 20: "3", 21: "4", 23: "5",
+    22: "6", 26: "7", 28: "8", 25: "9",
+]
+
 /// Map an NSEvent to its wire-protocol name. Returns nil for modifier keys
 /// (handled separately) or unrecognized printable keys.
 func nameForNSEvent(_ event: NSEvent) -> String? {
@@ -253,7 +262,9 @@ func nameForNSEvent(_ event: NSEvent) -> String? {
        first.isASCII, (first.isLetter || first.isNumber) {
         return String(first)
     }
-    return nil
+    // Layout fallback: a physical ANSI digit key whose unshifted character is
+    // not a digit still resolves to that digit.
+    return ansiDigitKeyCodes[event.keyCode]
 }
 
 /// Same as `nameForNSEvent` but for a CGEvent (used in the CGEventTap callback).
@@ -268,7 +279,8 @@ func nameForCGEvent(_ cgEvent: CGEvent) -> String? {
        first.isASCII, (first.isLetter || first.isNumber) {
         return String(first)
     }
-    return nil
+    // Same ANSI-digit fallback as `nameForNSEvent` for non-digit layouts.
+    return ansiDigitKeyCodes[keyCode]
 }
 
 // MARK: - Shared state (mutated from main-thread callbacks only)

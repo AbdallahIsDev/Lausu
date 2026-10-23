@@ -1,43 +1,2993 @@
 {
   "_comment": "Cross-layer hotkey verdict fixture. Python and renderer validators must classify every case identically. `code` is null for a valid hotkey; `pushToTalk` mirrors the picker's PTT option.",
   "cases": [
-    { "hotkey": "", "platform": "win32", "pushToTalk": false, "code": "empty" },
-    { "hotkey": "<>", "platform": "win32", "pushToTalk": false, "code": "no_keys" },
-    { "hotkey": "<ctrl>+<bad>", "platform": "win32", "pushToTalk": false, "code": "unknown_key" },
-    { "hotkey": "<esc>", "platform": "win32", "pushToTalk": false, "code": "reserved_universal" },
-    { "hotkey": "<alt>+<tab>", "platform": "linux", "pushToTalk": false, "code": "reserved_universal" },
-    { "hotkey": "<ctrl>+<alt>+<delete>", "platform": "win32", "pushToTalk": false, "code": "reserved_platform" },
-    { "hotkey": "<win>+<e>", "platform": "win32", "pushToTalk": false, "code": "reserved_platform" },
-    { "hotkey": "<alt>+<shift>", "platform": "win32", "pushToTalk": false, "code": "reserved_platform" },
-    { "hotkey": "<super>+<l>", "platform": "linux", "pushToTalk": false, "code": "reserved_platform" },
-    { "hotkey": "<cmd>+<space>", "platform": "darwin", "pushToTalk": false, "code": "reserved_platform" },
-    { "hotkey": "<cmd>+<q>", "platform": "darwin", "pushToTalk": false, "code": "reserved_platform" },
-    { "hotkey": "<ctrl>+<v>+<shift>", "platform": "win32", "pushToTalk": false, "code": "modifier_order" },
-    { "hotkey": "q", "platform": "win32", "pushToTalk": false, "code": "single_alnum" },
-    { "hotkey": "7", "platform": "linux", "pushToTalk": false, "code": "single_alnum" },
-    { "hotkey": "<ctrl>+a+b", "platform": "win32", "pushToTalk": false, "code": "multiple_keys" },
-    { "hotkey": "<altgr>+x", "platform": "win32", "pushToTalk": false, "code": "altgr" },
-    { "hotkey": "<fn>+<f2>", "platform": "win32", "pushToTalk": false, "code": "fn_platform" },
-    { "hotkey": "<win>+<f2>", "platform": "win32", "pushToTalk": false, "code": "shell_combo" },
-    { "hotkey": "<cmd>+<f2>", "platform": "win32", "pushToTalk": false, "code": "shell_combo" },
-    { "hotkey": "<ctrl>+<alt>+<shift>", "platform": "win32", "pushToTalk": false, "code": "alt_shift" },
-    { "hotkey": "<ctrl>+c", "platform": "win32", "pushToTalk": false, "code": "ctrl_letter" },
-    { "hotkey": "<shift>+a", "platform": "linux", "pushToTalk": false, "code": "shift_letter" },
-    { "hotkey": "<volume_up>", "platform": "win32", "pushToTalk": false, "code": "key_not_delivered" },
-    { "hotkey": "<media_next>", "platform": "darwin", "pushToTalk": false, "code": "key_not_delivered" },
-    { "hotkey": "<ctrl>+<shift>", "platform": "win32", "pushToTalk": true, "code": "ptt_modifier_only" },
-    { "hotkey": "<caps_lock>", "platform": "win32", "pushToTalk": true, "code": "ptt_caps_lock" },
-    { "hotkey": "<f2>", "platform": "win32", "pushToTalk": false, "code": null },
-    { "hotkey": "<caps_lock>", "platform": "win32", "pushToTalk": false, "code": null },
-    { "hotkey": "<ctrl>+<alt>+v", "platform": "win32", "pushToTalk": false, "code": null },
-    { "hotkey": "<ctrl>+<alt>+c", "platform": "win32", "pushToTalk": false, "code": null },
-    { "hotkey": "<super>+<space>", "platform": "linux", "pushToTalk": false, "code": null },
-    { "hotkey": "<win>+<e>", "platform": "linux", "pushToTalk": false, "code": null },
-    { "hotkey": "<fn>+<f2>", "platform": "darwin", "pushToTalk": false, "code": null },
-    { "hotkey": "<cmd>+<shift>+<f2>", "platform": "darwin", "pushToTalk": false, "code": null },
-    { "hotkey": "<media_play_pause>", "platform": "win32", "pushToTalk": false, "code": null },
-    { "hotkey": "<media_next>", "platform": "linux", "pushToTalk": false, "code": null },
-    { "hotkey": "<f13>", "platform": "win32", "pushToTalk": false, "code": null },
-    { "hotkey": "<f2>", "platform": "win32", "pushToTalk": true, "code": null }
+    {
+      "hotkey": "",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "empty"
+    },
+    {
+      "hotkey": "",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "empty"
+    },
+    {
+      "hotkey": "",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "empty"
+    },
+    {
+      "hotkey": "",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "empty"
+    },
+    {
+      "hotkey": "",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "empty"
+    },
+    {
+      "hotkey": "",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "empty"
+    },
+    {
+      "hotkey": "   ",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "empty"
+    },
+    {
+      "hotkey": "   ",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "empty"
+    },
+    {
+      "hotkey": "   ",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "empty"
+    },
+    {
+      "hotkey": "   ",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "empty"
+    },
+    {
+      "hotkey": "   ",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "empty"
+    },
+    {
+      "hotkey": "   ",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "empty"
+    },
+    {
+      "hotkey": "<ctrl>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<ctrl>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<ctrl>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<alt>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<alt>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<alt>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<shift>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<shift>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<shift>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<ctrl>+<alt>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<ctrl>+<alt>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<ctrl>+<alt>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<cmd>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<cmd>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<cmd>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<cmd>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<cmd>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<cmd>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<fn>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "fn_platform"
+    },
+    {
+      "hotkey": "<fn>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "fn_platform"
+    },
+    {
+      "hotkey": "<fn>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<fn>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<fn>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "fn_platform"
+    },
+    {
+      "hotkey": "<fn>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "fn_platform"
+    },
+    {
+      "hotkey": "<not_a_key>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<not_a_key>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<not_a_key>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<not_a_key>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<not_a_key>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<not_a_key>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<bogus>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<bogus>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<bogus>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<bogus>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<bogus>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<bogus>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<hyper>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<hyper>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<hyper>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<hyper>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<hyper>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<hyper>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "unknown_key"
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<shift>+<a>+<b>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "multiple_keys"
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<shift>+<a>+<b>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "multiple_keys"
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<shift>+<a>+<b>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "multiple_keys"
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<shift>+<a>+<b>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "multiple_keys"
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<shift>+<a>+<b>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "multiple_keys"
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<shift>+<a>+<b>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "multiple_keys"
+    },
+    {
+      "hotkey": "a",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "a",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "a",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "a",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "a",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "a",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "5",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "5",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "5",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "5",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "5",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "5",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "q",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "q",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "q",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "q",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "q",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "q",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "single_alnum"
+    },
+    {
+      "hotkey": "<f2>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<f2>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<f2>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<f2>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<f2>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<f2>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<f9>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<f9>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<f9>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<f9>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<f9>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<f9>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<f13>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<f13>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<f13>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<f13>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<f13>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<f13>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<space>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<space>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<space>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<space>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<space>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<space>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<caps_lock>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<caps_lock>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<caps_lock>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<caps_lock>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "ptt_caps_lock"
+    },
+    {
+      "hotkey": "<caps_lock>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<caps_lock>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<esc>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<esc>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<esc>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<esc>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<esc>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<esc>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<tab>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<tab>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<tab>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<tab>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<tab>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<tab>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<enter>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<enter>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<enter>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<enter>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<enter>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<enter>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<backspace>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<backspace>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<backspace>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<backspace>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<backspace>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<backspace>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<insert>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<insert>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<insert>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<insert>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<insert>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<insert>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<delete>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<delete>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<delete>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<delete>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<delete>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<delete>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<home>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<home>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<home>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<home>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<home>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<home>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<end>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<end>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<end>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<end>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<end>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<end>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<page_up>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<page_up>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<page_up>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<page_up>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<page_up>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<page_up>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<page_down>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<page_down>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<page_down>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<page_down>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<page_down>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<page_down>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<up>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<up>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<up>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<up>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<up>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<up>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<down>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<down>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<down>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<down>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<down>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<down>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<left>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<left>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<left>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<left>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<left>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<left>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<right>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<right>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<right>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<right>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<right>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<right>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<print_screen>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<print_screen>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<print_screen>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<print_screen>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<print_screen>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<print_screen>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<pause>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<pause>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<pause>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<pause>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<pause>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<pause>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<num_lock>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<num_lock>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<num_lock>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<num_lock>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<num_lock>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<num_lock>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<scroll_lock>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<scroll_lock>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<scroll_lock>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<scroll_lock>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<scroll_lock>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<scroll_lock>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+v",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+v",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+v",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+v",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+v",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+v",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<shift>+v",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<shift>+v",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<shift>+v",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<shift>+v",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<shift>+v",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<shift>+v",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<space>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<ctrl>+<space>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<ctrl>+<space>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<ctrl>+<space>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<ctrl>+<space>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<ctrl>+<space>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<alt>+q",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+q",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+q",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+q",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+q",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+q",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<f9>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<f9>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<f9>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<f9>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<f9>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<f9>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<f9>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<f9>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<f9>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<f9>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<f9>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<f9>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>+<f2>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>+<f2>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>+<f2>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>+<f2>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>+<f2>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>+<f2>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<cmd>+<shift>+v",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "shell_combo"
+    },
+    {
+      "hotkey": "<cmd>+<shift>+v",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "shell_combo"
+    },
+    {
+      "hotkey": "<cmd>+<shift>+v",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "shell_combo"
+    },
+    {
+      "hotkey": "<cmd>+<shift>+v",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "shell_combo"
+    },
+    {
+      "hotkey": "<cmd>+<shift>+v",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<cmd>+<shift>+v",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<super>+<space>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<super>+<space>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<super>+<space>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<super>+<space>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<super>+<space>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<super>+<space>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<esc>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<ctrl>+<esc>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<ctrl>+<esc>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<esc>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<esc>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<esc>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<enter>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<ctrl>+<enter>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<ctrl>+<enter>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<ctrl>+<enter>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<ctrl>+<enter>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<ctrl>+<enter>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<alt>+<ctrl>+v",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+<ctrl>+v",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+<ctrl>+v",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+<ctrl>+v",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+<ctrl>+v",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+<ctrl>+v",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>+<ctrl>+v",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>+<ctrl>+v",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>+<ctrl>+v",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>+<ctrl>+v",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>+<ctrl>+v",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<shift>+<ctrl>+v",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<alt_gr>+e",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<alt_gr>+e",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<alt_gr>+e",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<alt_gr>+e",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<alt_gr>+e",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<alt_gr>+e",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<alt_gr>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<alt_gr>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<alt_gr>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<alt_gr>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<alt_gr>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<alt_gr>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<ralt>+q",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<ralt>+q",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<ralt>+q",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<ralt>+q",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<ralt>+q",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<ralt>+q",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "altgr"
+    },
+    {
+      "hotkey": "<ctrl>+c",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "ctrl_letter"
+    },
+    {
+      "hotkey": "<ctrl>+c",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "ctrl_letter"
+    },
+    {
+      "hotkey": "<ctrl>+c",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "ctrl_letter"
+    },
+    {
+      "hotkey": "<ctrl>+c",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "ctrl_letter"
+    },
+    {
+      "hotkey": "<ctrl>+c",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "ctrl_letter"
+    },
+    {
+      "hotkey": "<ctrl>+c",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "ctrl_letter"
+    },
+    {
+      "hotkey": "<shift>+a",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "shift_letter"
+    },
+    {
+      "hotkey": "<shift>+a",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "shift_letter"
+    },
+    {
+      "hotkey": "<shift>+a",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "shift_letter"
+    },
+    {
+      "hotkey": "<shift>+a",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "shift_letter"
+    },
+    {
+      "hotkey": "<shift>+a",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "shift_letter"
+    },
+    {
+      "hotkey": "<shift>+a",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "shift_letter"
+    },
+    {
+      "hotkey": "<ctrl>+a",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "ctrl_letter"
+    },
+    {
+      "hotkey": "<ctrl>+a",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "ctrl_letter"
+    },
+    {
+      "hotkey": "<ctrl>+a",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "ctrl_letter"
+    },
+    {
+      "hotkey": "<ctrl>+a",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "ctrl_letter"
+    },
+    {
+      "hotkey": "<ctrl>+a",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "ctrl_letter"
+    },
+    {
+      "hotkey": "<ctrl>+a",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "ctrl_letter"
+    },
+    {
+      "hotkey": "<alt>+a",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+a",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+a",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+a",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+a",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+a",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<delete>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<delete>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<delete>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<delete>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<delete>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<alt>+<delete>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<cmd>+<space>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+<space>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+<space>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+<space>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+<space>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<cmd>+<space>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+<tab>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<alt>+<tab>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<alt>+<tab>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<alt>+<tab>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<alt>+<tab>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<alt>+<tab>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "reserved_universal"
+    },
+    {
+      "hotkey": "<super>+l",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<super>+l",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<super>+l",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "shell_combo"
+    },
+    {
+      "hotkey": "<super>+l",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "shell_combo"
+    },
+    {
+      "hotkey": "<super>+l",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<super>+l",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+q",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "shell_combo"
+    },
+    {
+      "hotkey": "<cmd>+q",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "shell_combo"
+    },
+    {
+      "hotkey": "<cmd>+q",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+q",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+q",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<cmd>+q",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<cmd>+w",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "shell_combo"
+    },
+    {
+      "hotkey": "<cmd>+w",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "shell_combo"
+    },
+    {
+      "hotkey": "<cmd>+w",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+w",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+w",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<cmd>+w",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<cmd>+tab",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+tab",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+tab",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+tab",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+tab",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+tab",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<ctrl>+<shift>+<escape>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<ctrl>+<shift>+<escape>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<ctrl>+<shift>+<escape>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<shift>+<escape>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<shift>+<escape>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<ctrl>+<shift>+<escape>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<alt>+<shift>+f2",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+<shift>+f2",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+<shift>+f2",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+<shift>+f2",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+<shift>+f2",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt>+<shift>+f2",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<numpad_5>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<numpad_5>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<numpad_5>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<numpad_5>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<numpad_5>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<numpad_5>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<volume_up>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<volume_up>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<volume_up>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<volume_up>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<volume_up>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<volume_up>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<volume_mute>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<volume_mute>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<volume_mute>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<volume_mute>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<volume_mute>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<volume_mute>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<menu>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<menu>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<menu>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<menu>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<menu>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<menu>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_next>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<media_next>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<media_next>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_next>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_next>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_next>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_play_pause>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<media_play_pause>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<media_play_pause>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_play_pause>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_play_pause>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_play_pause>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_stop>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<media_stop>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<media_stop>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_stop>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_stop>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_stop>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_prev>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<media_prev>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<media_prev>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_prev>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_prev>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<media_prev>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<f14>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<f14>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<f14>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<f14>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "key_not_delivered"
+    },
+    {
+      "hotkey": "<f14>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<f14>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<cmd>+<tab>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+<tab>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+<tab>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+<tab>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+<tab>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<cmd>+<tab>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<ctrl_l>+<f9>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl_l>+<f9>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl_l>+<f9>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl_l>+<f9>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl_l>+<f9>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl_l>+<f9>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<alt_l>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt_l>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<alt_l>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt_l>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<alt_l>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<alt_l>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "ptt_modifier_only"
+    },
+    {
+      "hotkey": "<option>+q",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<option>+q",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<option>+q",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<option>+q",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<option>+q",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<option>+q",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<control>+<f2>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<control>+<f2>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<control>+<f2>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<control>+<f2>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<control>+<f2>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<control>+<f2>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<win>+<space>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<win>+<space>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<win>+<space>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<win>+<space>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "reserved_platform"
+    },
+    {
+      "hotkey": "<win>+<space>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<win>+<space>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<super>+<f2>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "shell_combo"
+    },
+    {
+      "hotkey": "<super>+<f2>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "shell_combo"
+    },
+    {
+      "hotkey": "<super>+<f2>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<super>+<f2>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<super>+<f2>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<super>+<f2>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    }
   ]
 }

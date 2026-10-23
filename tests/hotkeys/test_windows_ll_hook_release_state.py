@@ -22,16 +22,13 @@ class _FakeBackend:
         ptt: bool = True,
         toggle_on_keyup: bool = False,
         caps: bool = False,
-        modifier_vks: list[int] | None = None,
     ) -> None:
         self._vk = vk
         self._modifiers_pressed = lambda: modifiers_pressed
         self._on_release_callback: Callable[[], None] | None = (lambda: None) if ptt else None
         self._toggle_on_keyup = toggle_on_keyup
         self._is_caps_lock_hotkey = caps
-        self._modifier_vks_for_hook = modifier_vks or []
         self._ll_armed = False
-        self._ll_held_modifiers: set[int] = set()
         self.hotkey_str = "<ctrl>+<alt>+v"
         self.fired: list[str] = []
 
@@ -114,29 +111,38 @@ def test_caps_lock_swallows_keydown_and_fires_once_on_keyup() -> None:
     assert backend.fired == ["press"]
 
 
-def test_modifier_chord_fires_once_on_release_ending_chord() -> None:
-    backend = _FakeBackend(vk=None, ptt=False, toggle_on_keyup=True, modifier_vks=[0x11, 0x12])
+def test_caps_lock_push_to_talk_uses_press_release_edges() -> None:
+    """Caps Lock PTT is a Windows/Linux-valid trigger (D11).
+
+    Press starts the recording and the release stops it; the toggle
+    callback must not fire on either edge.
+    """
+    backend = _FakeBackend(vk=0x14, ptt=True, caps=True)
     callback = _callback(backend)
 
-    handle_ll_key_event(backend, _WM_KEYDOWN, 0x11, callback)
-    handle_ll_key_event(backend, _WM_KEYDOWN, 0x12, callback)
-    assert backend.fired == []
-
-    handle_ll_key_event(backend, _WM_KEYUP, 0x11, callback)
+    assert handle_ll_key_event(backend, _WM_KEYDOWN, 0x14, callback) is True
     assert backend.fired == ["press"]
-    handle_ll_key_event(backend, _WM_KEYUP, 0x12, callback)
+    # Autorepeat while held must not start a second recording.
+    assert handle_ll_key_event(backend, _WM_KEYDOWN, 0x14, callback) is True
     assert backend.fired == ["press"]
 
-    handle_ll_key_event(backend, _WM_KEYDOWN, 0x11, callback)
-    handle_ll_key_event(backend, _WM_KEYDOWN, 0x12, callback)
-    handle_ll_key_event(backend, _WM_KEYUP, 0x12, callback)
-    assert backend.fired == ["press", "press"]
+    assert handle_ll_key_event(backend, _WM_KEYUP, 0x14, callback) is True
+    assert backend.fired == ["press", "release"]
 
 
-def test_modifier_chord_ignores_unrelated_keys() -> None:
-    backend = _FakeBackend(vk=None, ptt=False, toggle_on_keyup=True, modifier_vks=[0x11, 0x12])
-    callback = _callback(backend)
+class TestNoModifierChordBranch:
+    """The LL hook owns main-key/caps chords only.
 
-    handle_ll_key_event(backend, _WM_KEYDOWN, 0x43, callback)
-    handle_ll_key_event(backend, _WM_KEYUP, 0x43, callback)
-    assert backend.fired == []
+    Modifier-only specs are routed to the modifier-only polling loop by
+    ``WindowsNativeHotkey.start()`` because the hook cannot cancel a chord
+    (Alt+Tab / Ctrl+C would fire the hotkey).
+    """
+
+    def test_modifier_key_events_are_ignored(self) -> None:
+        backend = _FakeBackend(vk=None, ptt=False, toggle_on_keyup=True)
+        callback = _callback(backend)
+
+        handle_ll_key_event(backend, _WM_KEYDOWN, 0x12, callback)
+        handle_ll_key_event(backend, _WM_KEYUP, 0x12, callback)
+        assert backend.fired == []
+        assert backend._ll_armed is False

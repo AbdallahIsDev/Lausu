@@ -669,94 +669,56 @@ class TestLLHookCallbackWorker:
 # --------------------------------------------------------------------------- #
 
 
-class TestModifierOnlyLLHook:
-    """modifier-only hotkeys (e.g. ``<alt>``) use the LL hook"""
+class TestModifierOnlyRouting:
+    """Modifier-only specs are owned by the modifier-only polling loop.
 
-    def test_compute_modifier_vks_alt(self):
-        """``_compute_modifier_vks(_MOD_ALT)`` returns ``[VK_MENU]``."""
-        from voice_typer.server.hotkeys.win32_vk import _MOD_ALT, _VK_MENU
-        from voice_typer.server.hotkeys.windows_native import WindowsNativeHotkey
+    The LL hook cannot tell a modifier tap from the start of another
+    shortcut (Alt+Tab, Ctrl+C), and it never sees the L/R VKs the chord
+    list would need, so ``start()`` sends these specs straight to
+    ``_run_polling_loop`` (which dispatches to the modifier-only loop).
+    """
 
-        vks = WindowsNativeHotkey._compute_modifier_vks(_MOD_ALT)
-        assert _VK_MENU in vks
-
-    def test_compute_modifier_vks_win_includes_both_lwin_and_rwin(self):
-        """``_compute_modifier_vks(_MOD_WIN)`` returns BOTH ``VK_LWIN``"""
-        from voice_typer.server.hotkeys.win32_vk import _MOD_WIN, _VK_LWIN, _VK_RWIN
-        from voice_typer.server.hotkeys.windows_native import WindowsNativeHotkey
-
-        vks = WindowsNativeHotkey._compute_modifier_vks(_MOD_WIN)
-        assert _VK_LWIN in vks
-        assert _VK_RWIN in vks
-
-    def test_compute_modifier_vks_empty_for_no_modifiers(self):
-        """``_compute_modifier_vks(0)`` returns an empty list (no"""
-        from voice_typer.server.hotkeys.windows_native import WindowsNativeHotkey
-
-        vks = WindowsNativeHotkey._compute_modifier_vks(0)
-        assert vks == []
-
-    def test_modifier_vks_for_hook_populated_at_start_time(self):
-        """``start()`` so the LL hook proc closure can read it."""
+    def _start_modifier_only(self, monkeypatch, hotkey: str) -> list[str]:
         import ctypes
 
-        from voice_typer.server.hotkeys.win32_vk import _VK_MENU
         from voice_typer.server.hotkeys.windows_native import WindowsNativeHotkey
 
-        backend = WindowsNativeHotkey("<alt>")
-        # Before start(), the list is empty (initialized in __init__).
-        assert backend._modifier_vks_for_hook == []
-
-        # Mock ctypes.windll so start() doesn't raise on Linux.
-        mock_windll = MagicMock()
         mock_user32 = MagicMock()
         mock_kernel32 = MagicMock()
         mock_winmm = MagicMock()
-        mock_user32.RegisterHotKey.return_value = 0  # fail -> skip WM_HOTKEY path
-        mock_user32.SetWindowsHookExW.return_value = 0  # fail -> skip LL hook
-        mock_user32.GetAsyncKeyState.return_value = 0
+        mock_user32.RegisterHotKey.return_value = 0
         mock_kernel32.GetLastError.return_value = 0
         mock_kernel32.Sleep = MagicMock()
+        mock_windll = MagicMock()
         mock_windll.user32 = mock_user32
         mock_windll.kernel32 = mock_kernel32
         mock_windll.winmm = mock_winmm
+        monkeypatch.setattr(ctypes, "windll", mock_windll, raising=False)
 
-        original_windll = getattr(ctypes, "windll", None)
-        ctypes.windll = mock_windll  # type: ignore[attr-defined]
+        backend = WindowsNativeHotkey(hotkey)
+        calls: list[str] = []
+        backend._install_low_level_hook = lambda _cb: calls.append("hook") or True
+        backend._run_message_loop = lambda _cb, low_level_hook=False: calls.append("wm-hotkey")
+        backend._run_modifier_only_polling_loop = lambda _cb: calls.append("modifier-polling")
+        backend._run_polling_loop = lambda _cb: (
+            calls.append("modifier-polling") if backend._is_modifier_only else calls.append("polling")
+        )
         try:
             backend.start(MagicMock())
+            if backend._thread is not None:
+                backend._thread.join(timeout=2.0)
         finally:
-            if original_windll is not None:
-                ctypes.windll = original_windll  # type: ignore[attr-defined]
-            else:
-                del ctypes.windll  # type: ignore[attr-defined]
             backend.stop()
+        return calls
 
-        # After start(), the list must contain the modifier VKs for <alt>.
-        assert _VK_MENU in backend._modifier_vks_for_hook, (
-            f"IN-26: _modifier_vks_for_hook must contain VK_MENU for <alt>; got {backend._modifier_vks_for_hook}"
-        )
+    def test_alt_routes_to_the_modifier_only_polling_loop(self, monkeypatch):
+        assert self._start_modifier_only(monkeypatch, "<alt>") == ["modifier-polling"]
 
-    def test_simple_key_guard_dropped_for_modifier_only(self):
-        """LL hook path. Verified via source inspection."""
-        import inspect
+    def test_ctrl_alt_routes_to_the_modifier_only_polling_loop(self, monkeypatch):
+        assert self._start_modifier_only(monkeypatch, "<ctrl>+<alt>") == ["modifier-polling"]
 
-        from voice_typer.server.hotkeys.windows_native import WindowsNativeHotkey
-
-        source = inspect.getsource(WindowsNativeHotkey.start)
-        # The simple_key assignment must NOT contain the modifier guard.
-        assert "simple_key = self._on_release_callback is None and not self._is_modifier_only" not in source, (
-            "IN-26 regression: the ``not self._is_modifier_only`` guard on "
-            "simple_key was not removed, modifier-only hotkeys are still "
-            "forced onto the polling loop."
-        )
-        # The new simple_key assignment must be present.
-        assert "simple_key = self._on_release_callback is None" in source, (
-            "IN-26: simple_key must be ``self._on_release_callback is None`` (without the modifier-only guard)."
-        )
-
-
-# --------------------------------------------------------------------------- #
+    def test_modifier_only_never_installs_the_low_level_hook(self, monkeypatch):
+        assert "hook" not in self._start_modifier_only(monkeypatch, "<alt>")
 
 
 class TestFactoryDocstringCadence:

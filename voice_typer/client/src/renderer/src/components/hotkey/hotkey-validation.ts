@@ -366,14 +366,23 @@ export function validateHotkey(
 		}
 	}
 
-	if (options?.pushToTalk === true && nonMods.length === 0) {
+	// Push-to-talk needs a delivered release. The macOS Fn/Globe key has its
+	// own down/up pair, so it is the one modifier-only trigger that works.
+	const pttFnExempt = platform === "darwin" && parts.includes("fn");
+	if (options?.pushToTalk === true && nonMods.length === 0 && !pttFnExempt) {
 		return _failure(
 			"ptt_modifier_only",
 			t("hotkeyValidation.modifierOnlyNotForPushToTalk"),
 		);
 	}
 
-	if (options?.pushToTalk === true && nonMods.includes("caps_lock")) {
+	// Caps Lock push-to-talk works on Windows and Linux (their listeners emit
+	// the key-up); only macOS never reports its release.
+	if (
+		options?.pushToTalk === true &&
+		platform === "darwin" &&
+		nonMods.includes("caps_lock")
+	) {
 		return _failure(
 			"ptt_caps_lock",
 			t("hotkeyValidation.capsLockNotForPushToTalk"),

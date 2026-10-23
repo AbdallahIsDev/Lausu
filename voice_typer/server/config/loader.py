@@ -46,12 +46,11 @@ from voice_typer.server.config_internals.migrations import (
     _run_migrations,
 )
 from voice_typer.server.config_validators import (
-    _check_cross_field_push_to_talk,
     _make_custom_theme_validator,
     _validate_hotkey,
     cross_platform_hotkey_warnings,
 )
-from voice_typer.server.config_validators.hotkey import _check_push_to_talk
+from voice_typer.server.config_validators.hotkey import _ptt_fallback_hotkey
 
 if TYPE_CHECKING:  # pragma: no cover, typing-only, never imported at runtime
     from voice_typer.server.config import Config
@@ -364,19 +363,35 @@ def _load_config(cls) -> "Config":
         load_warnings = data.pop("_load_warnings", [])
 
         instance = cls(**data)
-        if _check_cross_field_push_to_talk(instance.hotkey, instance.recording_mode):
-            fallback = default_hotkey
-            if _validate_hotkey(fallback) is not None or _check_push_to_talk(fallback)[0] is not None:
-                fallback = "<f2>"
+        # Platform-gated: Caps Lock push-to-talk is valid on Windows/Linux, so
+        # those configs survive a load untouched; only macOS rewrites.
+        ptt_fallback = _ptt_fallback_hotkey(instance.hotkey, instance.recording_mode)
+        if ptt_fallback is not None:
             log.warning(
                 "[CONFIG] hotkey=%r is invalid for push-to-talk -- resetting to %r",
                 instance.hotkey,
-                fallback,
+                ptt_fallback,
             )
             load_warnings.append(
-                f"Config hotkey={instance.hotkey!r} is invalid for push-to-talk -- reset to {fallback!r}"
+                f"Config hotkey={instance.hotkey!r} is invalid for push-to-talk -- reset to {ptt_fallback!r}"
             )
-            instance.hotkey = fallback
+            instance.hotkey = ptt_fallback
+        # A repaste spec equal to the dictation spec can never fire (one key
+        # owns one action). Load-time reconciliation is the ONLY place allowed
+        # to clear it: runtime registration must never rewrite the config.
+        repaste_value = getattr(instance, "repaste_hotkey", "")
+        if isinstance(repaste_value, str) and repaste_value.strip():
+            from voice_typer.server.hotkey_spec import parse_hotkey
+
+            if parse_hotkey(repaste_value).to_spec_string() == parse_hotkey(instance.hotkey).to_spec_string():
+                log.warning(
+                    "[CONFIG] repaste_hotkey=%r duplicates the dictation hotkey -- clearing it",
+                    repaste_value,
+                )
+                load_warnings.append(
+                    f"Config repaste_hotkey={repaste_value!r} duplicates the dictation hotkey -- cleared"
+                )
+                instance.repaste_hotkey = ""
         load_warnings.extend(cross_platform_hotkey_warnings(instance))
         instance.last_load_warnings = load_warnings
 

@@ -71,9 +71,38 @@ class PynputHotkey(HotkeyBackend):
         self._user_callback = callback
         self._watchdog_stop_event.clear()
         self._watchdog_failure_count = 0
-        self._start_listener(callback)
+        if not self._start_listener(callback):
+            # A dead listener is not a registered hotkey: surface it so the
+            # dispatcher can fall back / notify instead of lying "OK".
+            raise RuntimeError(f"pynput listener for {self.hotkey_str!r} is not alive after start")
         # arm the watchdog AFTER the initial start so we don't
         self._start_watchdog()
+
+    def _needs_manual_listener(self) -> bool:
+        """GlobalHotKeys is press-only; a release contract needs the Listener."""
+        return bool(getattr(self, "_toggle_on_keyup", False)) or getattr(self, "_on_release_callback", None) is not None
+
+    def set_on_release(self, callback: Callable[[], None] | None) -> None:
+        before = self._needs_manual_listener()
+        super().set_on_release(callback)
+        self._restart_for_strategy(before)
+
+    def set_toggle_on_keyup(self, value: bool) -> None:
+        before = self._needs_manual_listener()
+        super().set_toggle_on_keyup(value)
+        self._restart_for_strategy(before)
+
+    def _restart_for_strategy(self, before: bool) -> None:
+        """Rebuild a live listener when its fire strategy no longer fits."""
+        if getattr(self, "_listener", None) is None or before == self._needs_manual_listener():
+            return
+        callback = getattr(self, "_user_callback", None)
+        if callback is None:
+            return
+        log.info("[HOTKEY] Fire strategy changed, restarting pynput listener for %r", self.hotkey_str)
+        self._stop_listener()
+        if not self._start_listener(callback):
+            log.error("[HOTKEY] pynput listener restart failed after a strategy change")
 
     def _start_listener(self, callback: Callable[[], None]) -> bool:
         """Start (or restart) the pynput listener. Returns True on success.
@@ -93,6 +122,12 @@ class PynputHotkey(HotkeyBackend):
 
         log.info("Registering hotkey via pynput: %r -> callback", self.hotkey_str)
 
+        if self._needs_manual_listener():
+            # GlobalHotKeys only reports presses; a toggle-on-release or
+            # push-to-talk contract must own both edges.
+            self._start_fallback(callback, Listener, Key, KeyCode)
+            return _safe_is_alive(self._listener)
+
         try:
             self._listener = GlobalHotKeys({self.hotkey_str: callback})
             self._listener.start()
@@ -108,6 +143,7 @@ class PynputHotkey(HotkeyBackend):
                 log.error("GlobalHotKeys thread died immediately; falling back to manual Listener")
                 self._stop_listener()
                 self._start_fallback(callback, Listener, Key, KeyCode)
+                return _safe_is_alive(self._listener)
             return True
         except Exception:
             log.exception("[HOTKEY] GlobalHotKeys failed; trying fallback Listener")
@@ -129,7 +165,7 @@ class PynputHotkey(HotkeyBackend):
 
             try:
                 self._start_fallback(callback, Listener, Key, KeyCode)
-                return True
+                return _safe_is_alive(self._listener)
             except Exception:
                 log.exception("[HOTKEY] Fallback Listener also failed")
 
@@ -304,15 +340,19 @@ class PynputHotkey(HotkeyBackend):
                             len(required_families),
                         )
                         callback()
-            elif self._on_release_callback is not None and held["value"] and key not in modifier_families:
-                # PTT chord-cancel: a non-modifier key during the hold means
-                # the user was typing a combo, so stop immediately.
+            elif held["value"] and key not in modifier_families:
+                # Chord-cancel: another key during the hold means the user is
+                # typing a shortcut. Toggle cycles drop the arm silently (no
+                # fire on release); push-to-talk stops immediately.
                 held["value"] = False
-                log.info("[HOTKEY FALLBACK] Chord key %s during PTT, stopping", key)
-                try:
-                    self._on_release_callback()
-                except Exception:
-                    log.exception("[HOTKEY FALLBACK] on_release callback raised")
+                if self._on_release_callback is not None:
+                    log.info("[HOTKEY FALLBACK] Chord key %s during PTT, stopping", key)
+                    try:
+                        self._on_release_callback()
+                    except Exception:
+                        log.exception("[HOTKEY FALLBACK] on_release callback raised")
+                else:
+                    log.info("[HOTKEY FALLBACK] Chord key %s during toggle hold, arm dropped", key)
 
         def on_release(key):
             # track modifier releases so the held set stays exact

@@ -83,14 +83,23 @@ def handle_ll_key_event(self, w_param: int, vk: int, callback: Callable[[], None
             if is_down:
                 if not self._modifiers_pressed():
                     return False
+                if self._ll_armed:
+                    return True  # autorepeat: keep swallowing, never re-fire
                 self._ll_armed = True
                 log.info("[HOTKEY] Swallowed Caps Lock keydown (suppress OS toggle)")
+                if is_ptt:
+                    log.info("[HOTKEY FIRED] WH_KEYBOARD_LL Caps Lock keydown (PTT)")
+                    self._enqueue_hook_callback(callback)
                 return True
             if not self._ll_armed:
                 return False
             self._ll_armed = False
-            log.info("[HOTKEY FIRED] WH_KEYBOARD_LL Caps Lock key-up (toggle)")
-            self._enqueue_hook_callback(callback)
+            if is_ptt:
+                log.info("[HOTKEY] Caps Lock released via WH_KEYBOARD_LL hook (PTT)")
+                self._enqueue_hook_callback(self._on_release_callback)
+            else:
+                log.info("[HOTKEY FIRED] WH_KEYBOARD_LL Caps Lock key-up (toggle)")
+                self._enqueue_hook_callback(callback)
             return True
 
         if is_down:
@@ -120,35 +129,9 @@ def handle_ll_key_event(self, w_param: int, vk: int, callback: Callable[[], None
             self._enqueue_hook_callback(callback)
         return False
 
-    required = self._modifier_vks_for_hook
-    if vk not in required:
-        return False
-    held = self._ll_held_modifiers
-    if is_down:
-        held.add(vk)
-        if self._ll_armed or not all(code in held for code in required):
-            return False
-        self._ll_armed = True
-        if is_ptt:
-            log.info("[HOTKEY FIRED] WH_KEYBOARD_LL modifier chord (PTT)")
-            self._enqueue_hook_callback(callback)
-        elif toggle_on_keyup:
-            pass
-        else:
-            log.info("[HOTKEY FIRED] WH_KEYBOARD_LL modifier chord (%s)", self.hotkey_str)
-            self._enqueue_hook_callback(callback)
-        return False
-
-    held.discard(vk)
-    if not self._ll_armed or all(code in held for code in required):
-        return False
-    self._ll_armed = False
-    if is_ptt:
-        log.info("[HOTKEY] Modifier chord released via WH_KEYBOARD_LL hook")
-        self._enqueue_hook_callback(self._on_release_callback)
-    elif toggle_on_keyup:
-        log.info("[HOTKEY FIRED] WH_KEYBOARD_LL modifier chord key-up (toggle)")
-        self._enqueue_hook_callback(callback)
+    # Modifier-only specs never reach this hook: windows_native.start()
+    # routes them to the modifier-only polling loop, which can tell a tap
+    # from the start of another shortcut.
     return False
 
 

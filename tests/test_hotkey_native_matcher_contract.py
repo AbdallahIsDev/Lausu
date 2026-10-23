@@ -92,3 +92,92 @@ def test_reset_match_state_drops_held_chord_before_respawn(linux_backend):
     backend._handle_line("KEY_UP:V")
     backend._handle_line("MOD_UP:Ctrl")
     assert fired == []
+
+
+# ── modifier-only taps must never hijack a real shortcut ────────────
+
+
+def test_alt_then_tab_never_fires_the_alt_toggle(linux_backend):
+    """Holding <alt> to switch windows must not toggle dictation."""
+    backend = linux_backend("<alt>")
+    fired = []
+    backend._callback = lambda: fired.append("toggle")
+    backend.set_toggle_on_keyup(True)
+
+    backend._handle_line("MOD_DOWN:Alt")
+    backend._handle_line("KEY_DOWN:Tab")
+    backend._handle_line("KEY_UP:Tab")
+    backend._handle_line("MOD_UP:Alt")
+
+    assert fired == []
+
+
+def test_ctrl_then_c_never_fires_the_ctrl_toggle(linux_backend):
+    backend = linux_backend("<ctrl>")
+    fired = []
+    backend._callback = lambda: fired.append("toggle")
+    backend.set_toggle_on_keyup(True)
+
+    backend._handle_line("MOD_DOWN:Ctrl")
+    backend._handle_line("KEY_DOWN:C")
+    backend._handle_line("KEY_UP:C")
+    backend._handle_line("MOD_UP:Ctrl")
+
+    assert fired == []
+
+
+def test_ctrl_alt_then_altgr_e_never_fires_the_chord_toggle(linux_backend):
+    """AltGr+E is a plain character on many layouts, not a hotkey tap."""
+    backend = linux_backend("<ctrl>+<alt>")
+    fired = []
+    backend._callback = lambda: fired.append("toggle")
+    backend.set_toggle_on_keyup(True)
+
+    backend._handle_line("MOD_DOWN:Ctrl")
+    backend._handle_line("MOD_DOWN:Alt")
+    backend._handle_line("KEY_DOWN:E")
+    backend._handle_line("KEY_UP:E")
+    backend._handle_line("MOD_UP:Alt")
+    backend._handle_line("MOD_UP:Ctrl")
+
+    assert fired == []
+
+
+def test_clean_modifier_tap_fires_exactly_once(linux_backend):
+    backend = linux_backend("<alt>")
+    fired = []
+    backend._callback = lambda: fired.append("toggle")
+    backend.set_toggle_on_keyup(True)
+
+    backend._handle_line("MOD_DOWN:Alt")
+    backend._handle_line("MOD_UP:Alt")
+
+    assert fired == ["toggle"]
+
+
+def test_cross_role_chord_cancel_does_not_skip_the_other_role(linux_backend):
+    """Dictation <ctrl>+<alt> must not fire when repaste <ctrl>+<alt>+r does.
+
+    The chord-cancel runs BEFORE the matcher loop, so the earlier
+    (dictation) role's early return cannot leave its toggle arm armed.
+    """
+    backend = linux_backend("<ctrl>+<alt>")
+    backend.set_toggle_on_keyup(True)
+    dictation: list[str] = []
+    repaste: list[str] = []
+    backend._callback = lambda: dictation.append("toggle")
+    backend.add_extra_matcher("repaste", "<ctrl>+<alt>+r")
+    backend.set_role_callback("repaste", lambda: repaste.append("repaste"))
+    backend.set_role_toggle_on_keyup("repaste", True)
+
+    backend._handle_line("MOD_DOWN:Ctrl")
+    backend._handle_line("MOD_DOWN:Alt")
+    assert repaste == []
+    backend._handle_line("KEY_DOWN:R")
+    backend._handle_line("KEY_UP:R")
+    assert repaste == ["repaste"]
+    backend._handle_line("MOD_UP:Alt")
+    backend._handle_line("MOD_UP:Ctrl")
+
+    assert dictation == [], f"dictation must never fire, got {dictation}"
+    assert repaste == ["repaste"], f"repaste must fire exactly once, got {repaste}"

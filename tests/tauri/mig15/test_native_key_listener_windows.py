@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -382,6 +384,72 @@ class TestKeySuppression:
         assert "caps_lock" in src or "CapsLock" in src, (
             "windows-key-listener.c must handle the caps_lock / CapsLock hotkey"
         )
+
+
+def _should_suppress_keydown_body() -> str:
+    """Return the C body of ``should_suppress_keydown`` (braces balanced)."""
+    src = WINDOWS_KEY_LISTENER_C.read_text(encoding="utf-8")
+    start = src.index("static int should_suppress_keydown")
+    body_start = src.index("{", start)
+    depth = 0
+    for index in range(body_start, len(src)):
+        if src[index] == "{":
+            depth += 1
+        elif src[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return src[body_start : index + 1]
+    raise AssertionError("unbalanced braces in should_suppress_keydown")
+
+
+class TestModifierKeySuppression:
+    """Modifier keydowns must reach the foreground app (Alt+Tab, Ctrl+C).
+
+    Swallowing a modifier keydown for a modifier-only hotkey broke every
+    system and app shortcut sharing that modifier, while detecting the tap
+    never needed suppression: the wire events are emitted before the
+    swallow decision.
+    """
+
+    def test_c_source_has_no_modifier_only_suppression_branch(self):
+        body = _should_suppress_keydown_body()
+        assert "is_modifier_only" not in body, (
+            f"should_suppress_keydown must not special-case modifier-only specs; got:\n{body}"
+        )
+        assert "mod_name_for_vk" not in body, (
+            f"should_suppress_keydown must not swallow modifier keydowns (no modifier name lookup), got:\n{body}"
+        )
+
+    def test_c_source_keeps_caps_only_suppression(self):
+        body = _should_suppress_keydown_body()
+        assert "is_caps_lock_only" in body
+        assert "VK_CAPITAL" in body
+
+    def test_c_source_keeps_combo_main_key_suppression(self):
+        body = _should_suppress_keydown_body()
+        assert "spec->main_key[0]" in body
+        assert "spec->modifier_count > 0" in body
+        assert "modifier_held" in body
+
+    def test_c_source_still_parses_modifier_only_flag(self):
+        src = WINDOWS_KEY_LISTENER_C.read_text(encoding="utf-8")
+        assert "spec->is_modifier_only" in src
+
+    def test_manifest_hash_and_version_match_the_rebuilt_binary(self):
+        manifest = json.loads(
+            (PROJECT_ROOT / "voice_typer" / "server" / "native" / "binaries.json").read_text(encoding="utf-8")
+        )
+        exe = PROJECT_ROOT / "voice_typer" / "server" / "native" / "windows-key-listener.exe"
+        digest = hashlib.sha256(exe.read_bytes()).hexdigest()
+        src = WINDOWS_KEY_LISTENER_C.read_text(encoding="utf-8")
+        version = re.search(r'#define NATIVE_BINARY_VERSION "([^"]+)"', src).group(1)
+        for key in ("windows-key-listener.exe", "windows-key-listener-x86_64.exe"):
+            entry = manifest["binaries"][key]
+            assert entry["sha256"] == digest, f"{key} sha256 is stale, run update_native_manifests.py"
+            assert entry["version"] == version, f"{key} version {entry['version']!r} != source {version!r}"
+        legacy = manifest["binaries"]["windows-key-listener.exe"]
+        if "sha256_by_arch" in legacy:
+            assert legacy["sha256_by_arch"]["x86_64"] == digest, "sha256_by_arch.x86_64 is stale"
 
 
 class TestModifierOnlyHotkeys:

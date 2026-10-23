@@ -287,3 +287,52 @@ describe("HotkeyPicker, single-key capture contract", () => {
 		await waitForError();
 	});
 });
+
+// Push-to-talk is a cross-field rule (mode + key), so the picker must show
+// the incompatibility at capture time instead of letting `set_config`
+// reject the pair after the user has already committed it.
+describe("HotkeyPicker, push-to-talk contract", () => {
+	afterEach(() => {
+		cleanup();
+	});
+
+	it("refuses modifier-only capture when push-to-talk is active", async () => {
+		const onChange = vi.fn();
+		render(
+			<HotkeyPicker
+				value=""
+				onChange={onChange}
+				mode="single"
+				pushToTalk
+				aria-label="Dictation key"
+			/>,
+		);
+		await enterCaptureMode();
+
+		dispatchKey({ code: "AltLeft", key: "Alt", type: "keydown" });
+		dispatchKey({ code: "AltLeft", key: "Alt", type: "keyup" });
+
+		expect(onChange).not.toHaveBeenCalled();
+		const err = await waitForError();
+		expect(err).toMatch(/push-to-talk/i);
+	});
+
+	it("still captures a release-reporting key in push-to-talk mode", async () => {
+		const onChange = vi.fn();
+		render(
+			<HotkeyPicker
+				value=""
+				onChange={onChange}
+				mode="single"
+				pushToTalk
+				aria-label="Dictation key"
+			/>,
+		);
+		await enterCaptureMode();
+
+		dispatchKey({ code: "Delete", key: "Delete", type: "keydown" });
+		dispatchKey({ code: "Delete", key: "Delete", type: "keyup" });
+
+		expect(onChange).toHaveBeenCalledWith("<delete>");
+	});
+});

@@ -21,6 +21,7 @@ from voice_typer.server.config import DEFAULT_HOTKEY
 
 log = logging.getLogger(__name__)
 
+
 def _notify_side_effect_failure(app: Any, field: str, exc: BaseException) -> None:
     """Toast a config side-effect failure; on-disk config already changed so runtime mismatch needs a signal."""
     notify = getattr(getattr(app, "tray", None), "notify", None)
@@ -281,8 +282,9 @@ class _DictationHotkeyHandler:
     def apply(self, ctx: SideEffectContext) -> None:
         app = ctx.app
         config = ctx.config
-        # snapshot the previous hotkey so we can restore it
-        old_hotkey = getattr(config, "hotkey", None)
+        # ``restart()`` owns the atomic swap AND the restore-on-failure
+        # (it restores ``old_hotkey_str`` and re-saves internally), so there
+        # is nothing to restore here; it never raises to this caller.
         try:
             # use ``DEFAULT_HOTKEY`` (the canonical platform default
             app.hotkeys.restart(getattr(config, "hotkey", DEFAULT_HOTKEY))
@@ -292,22 +294,6 @@ class _DictationHotkeyHandler:
             )
         except Exception as e:
             log.warning("Failed to re-register hotkey after mode change: %s", e)
-            # restore previous hotkey + re-save so a
-            if old_hotkey is not None:
-                try:
-                    config.hotkey = old_hotkey
-                    save_fn = getattr(config, "save", None)
-                    if callable(save_fn):
-                        save_fn()
-                    log.info(
-                        "[SERVICE] Restored hotkey to %r after restart failure",
-                        old_hotkey,
-                    )
-                except Exception:
-                    log.warning(
-                        "[SERVICE] Failed to restore hotkey after restart failure",
-                        exc_info=True,
-                    )
 
 
 class _TrayLeftClickHandler:
@@ -439,9 +425,7 @@ class _AudioPresetHandler:
         updates = ctx.updates
         try:
             preset = updates["audio_preset"]
-            preset_filters = (
-                _custom_preset_filters(config) if preset == "custom" else _apply_audio_preset(preset)
-            )
+            preset_filters = _custom_preset_filters(config) if preset == "custom" else _apply_audio_preset(preset)
             # Set individual filter toggles from the preset
             for k, v in preset_filters.items():
                 setattr(config, k, v)

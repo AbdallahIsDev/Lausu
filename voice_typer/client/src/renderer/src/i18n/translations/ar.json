@@ -1748,8 +1748,7 @@
 		"modifierOnlyNotForPushToTalk": "يتطلب Push-to-talk مفتاحًا يبلغ عن تحريره. الاختصارات المكوّنة من مفاتيح تعديل فقط تعمل في وضع التبديل وحده.",
 		"capsLockNotForPushToTalk": "لا يمكن استخدام Caps Lock للضغط للتحدث: لا يبلغ macOS عن تحريره أبدًا. اختر مفتاحًا آخر.",
 		"fnMacosOnly": "مفتاح Fn مدعوم فقط على macOS",
-		"holding": "مضغوط",
-		"bareModifierInterferes": "المفاتيح المعدّلة المفردة (Shift، Cmd، Win) تتعارض مع الكتابة. يرجى اختيار مفتاح مختلف."
+		"holding": "مضغوط"
 	},
 	"hotkeyKeys": {
 		"ctrl": "Ctrl",
@@ -2054,7 +2053,8 @@
 			"repaste_register_failed": "تعذّر تسجيل اختصار إعادة اللصق. ربما استحوذ عليه تطبيق آخر.",
 			"invalid_hotkey": "الاختصار {hotkey} غير صالح: {validation_error}. سيتم الاحتفاظ بالاختصار السابق.",
 			"restore_failed": "تعذّر استعادة الاختصار السابق {hotkey}. افتح الإعدادات لإعادة ربط اختصار.",
-			"wayland_hotkeys_may_fail": "تحتاج الاختصارات العامة على Wayland إلى صلاحية القراءة من أجهزة الإدخال: أضِف مستخدمك إلى مجموعة ‏'input' ثم أعد تسجيل الدخول. لا يُستخدم wtype/ydotool للاختصارات: يُستخدم wtype فقط لصق النصوص."
+			"wayland_hotkeys_may_fail": "تحتاج الاختصارات العامة على Wayland إلى صلاحية القراءة من أجهزة الإدخال: أضِف مستخدمك إلى مجموعة ‏'input' ثم أعد تسجيل الدخول. لا يُستخدم wtype/ydotool للاختصارات: يُستخدم wtype فقط لصق النصوص.",
+			"repaste_duplicate": "مفتاح إعادة اللصق مطابق لمفتاح الإملاء. اختر اختصارًا آخر."
 		},
 		"native_adapter": {
 			"warn_title": "{appName}: تحذير اختصار أصلي",

@@ -8,21 +8,24 @@ class TestHotkeyMapping:
     """Verify the hotkey registration uses the new backend abstraction."""
 
     def test_register_hotkey_creates_backend(self, app, monkeypatch):
-        """_register_hotkey should create a hotkey backend and call start()."""
+        """_register_hotkey should create a hotkey backend and call start().
 
-        # Ensure GlobalHotKeys works (mock returns a MagicMock with is_alive=True)
+        Toggle mode fires on release (``set_toggle_on_keyup(True)``), so the
+        pynput backend uses the manual ``Listener`` path, not the press-only
+        ``GlobalHotKeys``.
+        """
         mock_listener = MagicMock()
         mock_listener.is_alive.return_value = True
-        mock_ghk_cls = MagicMock(return_value=mock_listener)
+        mock_listener_cls = MagicMock(return_value=mock_listener)
 
         mock_kb = sys.modules["pynput.keyboard"]
-        mock_kb.GlobalHotKeys = mock_ghk_cls
+        mock_kb.Listener = mock_listener_cls
 
         app.hotkeys.register()
 
         assert app.hotkeys._hotkey_backend is not None
-        # Main hotkey + repaste hotkey both call GlobalHotKeys.start
-        assert mock_ghk_cls.call_count >= 1
+        # Toggle-on-release forces the manual Listener (press-only GHK can't fire on release).
+        assert mock_listener_cls.call_count >= 1
         assert mock_listener.start.call_count >= 1
 
     def test_register_hotkey_failure_does_not_crash(self, app):
@@ -38,26 +41,25 @@ class TestHotkeyMapping:
             assert app.hotkeys._hotkey_backend.is_alive() is False
 
     def test_register_esc_hotkey_creates_and_starts_backend(self, app, monkeypatch):
-        """_register_esc_hotkey should create a backend and call start()."""
+        """_register_esc_hotkey should create a backend and call start().
+
+        ESC fires on release (``set_toggle_on_keyup(True)``), so it takes the
+        manual ``Listener`` path.
+        """
 
         mock_listener = MagicMock()
         mock_listener.is_alive.return_value = True
-        mock_ghk_cls = MagicMock(return_value=mock_listener)
+        mock_listener_cls = MagicMock(return_value=mock_listener)
 
         mock_kb = sys.modules["pynput.keyboard"]
-        mock_kb.GlobalHotKeys = mock_ghk_cls
+        mock_kb.Listener = mock_listener_cls
 
         assert app.hotkeys._esc_backend is None
         app.hotkeys.register_esc()
 
         assert app.hotkeys._esc_backend is not None
-        # The callback is now a closure (), so accept any
-        mock_ghk_cls.assert_called_once()
-        call_args = mock_ghk_cls.call_args
-        assert len(call_args.args) == 1, "GlobalHotKeys must be called with the hotkey dict"
-        hotkey_dict = call_args.args[0]
-        assert "<esc>" in hotkey_dict, "hotkey dict must contain <esc>"
-        assert callable(hotkey_dict["<esc>"]), "ESC callback must be callable"
+        mock_listener_cls.assert_called_once()
+        assert app.hotkeys._esc_backend.is_alive() is True
         mock_listener.start.assert_called_once()
 
     def test_unregister_esc_hotkey_stops_and_clears_backend(self, app, monkeypatch):
@@ -238,18 +240,16 @@ class TestHotkeyCallbackChain:
         assert args[0][0] == AppState.RECORDING
 
     def test_callback_chain_register_then_fire(self, app, monkeypatch):
-        """Register hotkey, extract the callback, call it, verify recording starts."""
-        captured_mapping = {}
+        """Register hotkey, extract the callback, call it, verify recording starts.
 
-        class FakeGlobalHotKeys:
-            def __init__(self, mapping):
-                captured_mapping.update(mapping)
-
-            def start(self):
-                pass
-
+        Toggle mode fires on release, so the pynput backend takes the manual
+        ``Listener`` path; the ownership-checking dictation callback is stored
+        on the backend by ``start()``.
+        """
+        mock_listener = MagicMock()
+        mock_listener.is_alive.return_value = True
         mock_kb = sys.modules["pynput.keyboard"]
-        mock_kb.GlobalHotKeys = FakeGlobalHotKeys
+        mock_kb.Listener = MagicMock(return_value=mock_listener)
 
         # NATIVE-001: force the legacy pynput backend (skip native binary)
         from voice_typer.server import native_hotkeys
@@ -261,13 +261,12 @@ class TestHotkeyCallbackChain:
         app.tray = MagicMock()
         app._busy_event.set()  # not busy
 
-        # Register hotkey - this captures the mapping
+        # Register hotkey - the backend stores the dictation callback.
         app.hotkeys.register()
 
-        expected_hotkey = app.config.hotkey
-        assert expected_hotkey in captured_mapping
-        callback = captured_mapping[expected_hotkey]
-        # HOTKEY-: the callback is now an ownership-checking
+        assert app.hotkeys._hotkey_backend is not None
+        callback = app.hotkeys._hotkey_backend._user_callback
+        # The callback is ownership-checking (keyboard_ownership gate).
         assert callable(callback)
 
         # Simulate the hotkey being pressed (ownership = normal → should fire)

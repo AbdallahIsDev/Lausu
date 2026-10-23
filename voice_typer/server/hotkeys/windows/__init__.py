@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from .caps_lock_suppressor import ensure_caps_lock_off, suppress_caps_lock_toggle
 from .context import (
-    compute_modifier_vks,
     setup_ll_hook_argtypes,
     setup_main_argtypes,
     setup_message_pump_argtypes,
@@ -28,7 +27,6 @@ from .polling_strategy import (
 )
 
 __all__ = [
-    "compute_modifier_vks",
     "ensure_caps_lock_off",
     "enqueue_hook_callback",
     "install_low_level_hook",

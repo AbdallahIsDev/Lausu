@@ -1684,8 +1684,7 @@
 		"modifierOnlyNotForPushToTalk": "Le push-to-talk nécessite une touche qui signale son relâchement. Les raccourcis uniquement composés de modificateurs ne fonctionnent qu'en mode bascule.",
 		"capsLockNotForPushToTalk": "Verrouillage majuscules ne convient pas à l'appui pour parler : macOS ne signale jamais son relâchement. Choisissez une autre touche.",
 		"fnMacosOnly": "La touche Fn n'est prise en charge que sur macOS",
-		"holding": "Maintenu",
-		"bareModifierInterferes": "Les touches modificatrices seules (Maj, Cmd, Win) interfèrent avec la saisie. Choisissez une autre touche."
+		"holding": "Maintenu"
 	},
 	"hotkeyKeys": {
 		"ctrl": "Ctrl",
@@ -2054,7 +2053,8 @@
 			"repaste_register_failed": "Impossible d'enregistrer le raccourci de recollement. Une autre application l'a peut-être réservé.",
 			"invalid_hotkey": "Le raccourci {hotkey} n'est pas valide : {validation_error}. Le raccourci précédent est conservé.",
 			"restore_failed": "Impossible de restaurer le raccourci précédent {hotkey}. Ouvrez les réglages pour en assigner un nouveau.",
-			"wayland_hotkeys_may_fail": "Les raccourcis globaux sous Wayland nécessitent un accès en lecture aux périphériques d'entrée : ajoutez votre utilisateur au groupe « input », puis reconnectez-vous. wtype/ydotool ne sont pas utilisés pour les raccourcis : wtype ne sert qu'à coller du texte."
+			"wayland_hotkeys_may_fail": "Les raccourcis globaux sous Wayland nécessitent un accès en lecture aux périphériques d'entrée : ajoutez votre utilisateur au groupe « input », puis reconnectez-vous. wtype/ydotool ne sont pas utilisés pour les raccourcis : wtype ne sert qu'à coller du texte.",
+			"repaste_duplicate": "Le raccourci de recollage est identique à celui de dictée. Choisissez un autre raccourci."
 		},
 		"native_adapter": {
 			"warn_title": "{appName} : avertissement de raccourci natif",

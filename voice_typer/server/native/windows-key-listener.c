@@ -61,7 +61,7 @@
 /* Wire protocol version reported via ``VERSION:<x.y.z>`` immediately
  * after READY. The Python side records this and the factory
  * compares it against the manifest's ``version`` field. */
-#define NATIVE_BINARY_VERSION "1.0.1"
+#define NATIVE_BINARY_VERSION "1.0.2"
 
 /* optional diagnostic log file. NULL when no --log-file was
  * passed (diagnostics go to stderr only). */
@@ -561,19 +561,10 @@ static int should_suppress_keydown(int vk, const HotkeySpec* spec) {
         return 1;
     }
 
-    /* (2) Modifier-only hotkey, swallow the keyDown of any configured
-     *     modifier (both L and R sides, since mod_name_for_vk() collapses
-     *     them). */
-    if (spec->is_modifier_only) {
-        const char* mod_name = mod_name_for_vk(vk);
-        if (mod_name != NULL) {
-            int i;
-            for (i = 0; i < spec->modifier_count; i++) {
-                if (strcmp(spec->modifiers[i], mod_name) == 0) return 1;
-            }
-        }
-        return 0;
-    }
+    /* (2) Modifier-only hotkeys are NEVER swallowed. A bare <alt>/<ctrl>/
+     *     <shift> must keep reaching the foreground app (Alt+Tab, Ctrl+C,
+     *     Shift+letter); the modifier taps are detected from the wire
+     *     events alone. */
 
     /* (3) Combo (modifiers + main key), swallow the main key only when ALL
      *     configured modifiers are currently held. A single main-key-alone

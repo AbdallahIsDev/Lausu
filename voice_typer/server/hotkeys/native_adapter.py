@@ -301,6 +301,12 @@ class _NativeBackendAdapter(HotkeyBackend):
                 legacy.set_on_release(self._on_release_callback)
             with contextlib.suppress(AttributeError, TypeError):
                 legacy.set_toggle_on_keyup(self._toggle_on_keyup)
+            if not legacy.is_alive():
+                # A backend that reports start() but has no live listener is
+                # not a working hotkey; treat the swap as failed.
+                with contextlib.suppress(Exception):
+                    legacy.stop()
+                raise RuntimeError(f"legacy backend {type(legacy).__name__} started but is not alive")
             with self._swap_lock:
                 if self._state == self._STATE_STOPPED:
                     # stop() was called during the swap, clean up
@@ -409,6 +415,10 @@ class _NativeBackendAdapter(HotkeyBackend):
                 legacy.set_on_release(self._on_release_callback)
             with contextlib.suppress(AttributeError, TypeError):
                 legacy.set_toggle_on_keyup(self._toggle_on_keyup)
+            if not legacy.is_alive():
+                with contextlib.suppress(Exception):
+                    legacy.stop()
+                raise RuntimeError(f"legacy backend {type(legacy).__name__} restarted but is not alive")
             # (cont.): propagate _tray via the public
             with contextlib.suppress(AttributeError, TypeError):
                 legacy.set_tray(self._tray)

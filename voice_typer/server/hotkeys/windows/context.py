@@ -6,33 +6,6 @@ import ctypes
 import ctypes.wintypes
 from typing import Any
 
-from ..win32_vk import (
-    _MOD_ALT,
-    _MOD_CONTROL,
-    _MOD_SHIFT,
-    _MOD_WIN,
-    _VK_CONTROL,
-    _VK_LWIN,
-    _VK_MENU,
-    _VK_RWIN,
-    _VK_SHIFT,
-)
-
-
-def compute_modifier_vks(modifiers: int) -> list[int]:
-    """Return the VK codes for the given Win32 modifier flags."""
-    modifier_vks: list[int] = []
-    if modifiers & _MOD_ALT:
-        modifier_vks.append(_VK_MENU)
-    if modifiers & _MOD_CONTROL:
-        modifier_vks.append(_VK_CONTROL)
-    if modifiers & _MOD_SHIFT:
-        modifier_vks.append(_VK_SHIFT)
-    if modifiers & _MOD_WIN:
-        modifier_vks.append(_VK_LWIN)
-        modifier_vks.append(_VK_RWIN)
-    return modifier_vks
-
 
 def setup_main_argtypes(user32: Any, kernel32: Any) -> None:
     """Set ``argtypes``/``restype`` for the main Win32 calls used by ``start()``."""
