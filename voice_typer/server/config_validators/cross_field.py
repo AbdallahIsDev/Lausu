@@ -50,11 +50,15 @@ def _check_cross_field_hotkey_conflicts(
     return errors
 
 
-def _check_cross_field_push_to_talk(hotkey: object, recording_mode: object) -> list[str]:
+def _check_cross_field_push_to_talk(
+    hotkey: object,
+    recording_mode: object,
+    platform: str | None = None,
+) -> list[str]:
     """Reject a push-to-talk hotkey that cannot report a release."""
     if recording_mode != "push_to_talk":
         return []
-    code, message = _check_push_to_talk(hotkey)
+    code, message = _check_push_to_talk(hotkey, platform)
     if code is None:
         return []
     return [f"hotkey is invalid for push-to-talk: {message}"]

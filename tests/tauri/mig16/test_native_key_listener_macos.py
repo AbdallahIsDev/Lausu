@@ -687,3 +687,28 @@ class TestUniversalOrPerArch:
         assert "swiftc" in swift_src, "macos-key-listener.swift header must document the swiftc build command"
         assert "Cocoa" in swift_src, "macos-key-listener.swift must import Cocoa (NSEvent, NSApplication)"
         assert "CoreGraphics" in swift_src, "macos-key-listener.swift must import CoreGraphics (CGEvent tap)"
+
+
+class TestANSIDigitFallback:
+    """Physical ANSI digit keycodes fall back to their digit when the layout's
+    unshifted character is not a digit (e.g. AZERTY)."""
+
+    EXPECTED = {29: "0", 18: "1", 19: "2", 20: "3", 21: "4", 23: "5", 22: "6", 26: "7", 28: "8", 25: "9"}
+
+    def test_swift_source_has_ansi_digit_fallback_table(self):
+        src = MACOS_KEY_LISTENER_SWIFT.read_text(encoding="utf-8")
+        assert "ansiDigitKeyCodes" in src, (
+            "macos-key-listener.swift must define an ANSI-digit keycode fallback table so digit hotkeys work"
+            " on layouts where the unshifted character is not a digit"
+        )
+        for code, digit in self.EXPECTED.items():
+            assert f'{code}: "{digit}"' in src, (
+                f"macos-key-listener.swift ANSI digit table missing keyCode {code} -> {digit}"
+            )
+
+    def test_name_for_nsevent_and_cgevent_both_use_the_fallback(self):
+        src = MACOS_KEY_LISTENER_SWIFT.read_text(encoding="utf-8")
+        # Both nameForNSEvent and nameForCGEvent must consult the table.
+        assert src.count("ansiDigitKeyCodes[") >= 2, (
+            "both nameForNSEvent and nameForCGEvent must fall back to ansiDigitKeyCodes"
+        )

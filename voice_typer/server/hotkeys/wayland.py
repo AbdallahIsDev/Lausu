@@ -88,6 +88,8 @@ class WaylandHotkey(HotkeyBackend):
                 "user session."
             )
             self._start_pynput_fallback()
+            if not self.is_alive():
+                raise RuntimeError("Wayland hotkey backend has neither a socket nor a pynput listener") from None
             return
 
         # Try Unix socket first
@@ -97,7 +99,10 @@ class WaylandHotkey(HotkeyBackend):
         except Exception as exc:
             log.warning("[HOTKEY-WAYLAND] Failed to start socket server: %s", exc)
             self._start_pynput_fallback()
-            return
+            if not self.is_alive():
+                raise RuntimeError(
+                    f"Wayland hotkey backend failed: socket error ({exc}) and no pynput listener"
+                ) from exc
 
         # Start the no-client grace timer. If no IPC client connects
         self._start_no_client_timer()
@@ -247,6 +252,16 @@ class WaylandHotkey(HotkeyBackend):
                     )
                 break
 
+    def _new_pynput_fallback(self) -> PynputHotkey:
+        """Build a pynput fallback carrying this backend's release contract."""
+        fallback = PynputHotkey(self._hotkey_str)
+        # Flags must land BEFORE start(): the listener strategy depends on them.
+        if self._on_release_callback is not None:
+            fallback.set_on_release(self._on_release_callback)
+        if getattr(self, "_toggle_on_keyup", False):
+            fallback.set_toggle_on_keyup(True)
+        return fallback
+
     def _start_pynput_fallback(self) -> None:
         """Start pynput as a direct fallback (no socket)."""
         # _callback may be None if start() was never called with
@@ -254,7 +269,7 @@ class WaylandHotkey(HotkeyBackend):
             log.warning("[HOTKEY-WAYLAND] Cannot start pynput fallback, no callback registered")
             return
         try:
-            self._pynput_fallback = PynputHotkey(self._hotkey_str)
+            self._pynput_fallback = self._new_pynput_fallback()
             self._pynput_fallback.start(self._callback)
             log.info("[HOTKEY-WAYLAND] Pynput fallback started (direct)")
         except Exception as exc:
@@ -267,7 +282,7 @@ class WaylandHotkey(HotkeyBackend):
             log.warning("[HOTKEY-WAYLAND] Cannot start pynput fallback, no callback registered")
             return
         try:
-            self._pynput_fallback = PynputHotkey(self._hotkey_str)
+            self._pynput_fallback = self._new_pynput_fallback()
             self._pynput_fallback.start(self._callback)
             log.info("[HOTKEY-WAYLAND] Pynput fallback started (with timeout)")
 
@@ -320,8 +335,15 @@ class WaylandHotkey(HotkeyBackend):
         log.info("[HOTKEY-WAYLAND] Stopped")
 
     def is_alive(self) -> bool:
-        """Return True if the socket server thread is running."""
-        return self._alive and (self._thread is not None and self._thread.is_alive())
+        """Return True if EITHER delivery path is running.
+
+        A missing socket (no XDG_RUNTIME_DIR, bind failure) falls back to
+        pynput, so the socket thread alone cannot answer "is the hotkey
+        live?" — a dead pair is what the dispatcher must surface.
+        """
+        socket_alive = self._alive and (self._thread is not None and self._thread.is_alive())
+        pynput_alive = self._pynput_fallback is not None and self._pynput_fallback.is_alive()
+        return socket_alive or pynput_alive
 
     def diagnose(self) -> str:
         """Return diagnostic information about the Wayland hotkey backend."""

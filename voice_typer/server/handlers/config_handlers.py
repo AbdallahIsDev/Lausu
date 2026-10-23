@@ -187,7 +187,18 @@ class ConfigHandlersMixin(HandlerBase):
         except Exception:
             log.debug("[IPC] invalidate_model_availability_cache failed", exc_info=True)
         try:
-            event_bus.publish({"type": "config_changed", "data": to_persist})
+            # Publish the EFFECTIVE hotkey values: a failed re-registration
+            # restores the previous spec, so Settings must see that rather
+            # than the request it just sent. Every other key was applied by
+            # ``apply_config`` before its side effects, so the payload stands.
+            effective = dict(to_persist)
+            for key in ("hotkey", "repaste_hotkey"):
+                if key not in effective:
+                    continue
+                value = getattr(self.app.config, key, None)
+                if isinstance(value, str):
+                    effective[key] = value
+            event_bus.publish({"type": "config_changed", "data": effective})
         except Exception:
             log.debug("[IPC] config_changed push failed", exc_info=True)
         if any(

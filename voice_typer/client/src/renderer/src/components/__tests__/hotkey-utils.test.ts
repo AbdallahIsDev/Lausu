@@ -103,3 +103,65 @@ describe("HotkeyPicker, reusable for both recording and paste shortcuts", () => 
 		expect(typeof pickerMod.HotkeyPicker).toBe("function");
 	}, 30_000);
 });
+
+describe("resolveCharKey(), per-platform single-character capture", () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		vi.resetModules();
+	});
+
+	// Fake KeyboardEvent-shaped objects: only `key` and `code` are read.
+	const fakeEvent = (key: string, code: string) => ({ key, code });
+
+	it("digits resolve from e.code on every platform", async () => {
+		const { resolveCharKey } = await importUtils();
+		for (const platform of ["win32", "darwin", "linux"]) {
+			// e.key differs from the top-row digit (numpad / layout shift).
+			expect(resolveCharKey(fakeEvent("!", "Digit1"), platform)).toBe("1");
+			expect(resolveCharKey(fakeEvent("5", "Digit5"), platform)).toBe("5");
+		}
+	});
+
+	it("win32 and darwin resolve single characters from e.key", async () => {
+		const { resolveCharKey } = await importUtils();
+		for (const platform of ["win32", "darwin"]) {
+			// Non-US layout: physical KeyY produces the character "z".
+			expect(resolveCharKey(fakeEvent("z", "KeyY"), platform)).toBe("z");
+			expect(resolveCharKey(fakeEvent("V", "KeyV"), platform)).toBe("v");
+		}
+	});
+
+	it("linux resolves single characters from e.code (physical keycode)", async () => {
+		const { resolveCharKey } = await importUtils();
+		// Physical position wins over the shifted character.
+		expect(resolveCharKey(fakeEvent("Z", "KeyY"), "linux")).toBe("y");
+		expect(resolveCharKey(fakeEvent("v", "KeyV"), "linux")).toBe("v");
+	});
+
+	it("falls back to the code table for unmapped single characters", async () => {
+		const { resolveCharKey } = await importUtils();
+		// A multi-char e.key (e.g. "Enter") is not a single character.
+		expect(resolveCharKey(fakeEvent("Enter", "Enter"), "win32")).toBe("enter");
+		expect(resolveCharKey(fakeEvent("Spacebar", "Space"), "linux")).toBe(
+			"space",
+		);
+	});
+
+	it("resolves Space through the code table on every platform", async () => {
+		const { resolveCharKey } = await importUtils();
+		// A real Space event carries a single-space e.key: treating it as a
+		// character would collapse <ctrl>+<space> into modifier-only <ctrl>.
+		for (const platform of ["win32", "darwin", "linux"]) {
+			expect(resolveCharKey(fakeEvent(" ", "Space"), platform)).toBe("space");
+		}
+	});
+
+	it("refuses numpad codes instead of binding the top-row digit", async () => {
+		const { resolveCharKey } = await importUtils();
+		for (const platform of ["win32", "darwin", "linux"]) {
+			expect(
+				resolveCharKey(fakeEvent("0", "Numpad0"), platform),
+			).toBeUndefined();
+		}
+	});
+});

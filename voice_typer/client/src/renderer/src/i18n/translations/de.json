@@ -1748,8 +1748,7 @@
 		"modifierOnlyNotForPushToTalk": "Push-to-Talk benötigt eine Taste, die ein Loslassen meldet. Kürzel nur aus Modifikatoren funktionieren nur im Umschaltmodus.",
 		"capsLockNotForPushToTalk": "Feststelltaste kann nicht für Push-to-Talk verwendet werden: macOS meldet das Loslassen nie. Wähle eine andere Taste.",
 		"fnMacosOnly": "Fn-Taste wird nur unter macOS unterstützt",
-		"holding": "Gedrückt",
-		"bareModifierInterferes": "Einzelne Modifikatortasten (Shift, Cmd, Win) beeinträchtigen die Eingabe. Bitte wählen Sie eine andere Taste."
+		"holding": "Gedrückt"
 	},
 	"hotkeyKeys": {
 		"ctrl": "Strg",
@@ -2054,7 +2053,8 @@
 			"repaste_register_failed": "Erneutes-Einfügen-Hotkey konnte nicht registriert werden. Eine andere App hat ihn möglicherweise belegt.",
 			"invalid_hotkey": "Hotkey {hotkey} ist ungültig: {validation_error}. Der vorherige Hotkey bleibt erhalten.",
 			"restore_failed": "Der vorherige Hotkey {hotkey} konnte nicht wiederhergestellt werden. Öffnen Sie die Einstellungen, um einen Hotkey neu zu binden.",
-			"wayland_hotkeys_may_fail": "Globale Hotkeys unter Wayland benötigen Lesezugriff auf Eingabegeräte: Füge deinen Benutzer der Gruppe „input“ hinzu und melde dich neu an. wtype/ydotool werden für Hotkeys nicht benötigt: wtype dient nur zum Einfügen von Text."
+			"wayland_hotkeys_may_fail": "Globale Hotkeys unter Wayland benötigen Lesezugriff auf Eingabegeräte: Füge deinen Benutzer der Gruppe „input“ hinzu und melde dich neu an. wtype/ydotool werden für Hotkeys nicht benötigt: wtype dient nur zum Einfügen von Text.",
+			"repaste_duplicate": "Die Einfügen-Tastenkombination ist dieselbe wie die Diktat-Tastenkombination. Wählen Sie eine andere."
 		},
 		"native_adapter": {
 			"warn_title": "{appName}: Native-Hotkey-Warnung",

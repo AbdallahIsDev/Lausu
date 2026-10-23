@@ -39,10 +39,10 @@ class HotkeyLifecycleMixin:
     _shared_backend_pool: dict[str, HotkeyBackend]
 
     if TYPE_CHECKING:
+
         def _cancel_ptt_safety_timer(self) -> None: ...
         def _create_and_start_main_backend(self, hotkey_str: str) -> HotkeyBackend: ...
         def _untrack_pooled_backend(self, backend: HotkeyBackend | None) -> None: ...
-
 
     def restart(self, hotkey: str) -> None:
         """Re-register the global hotkey after settings change.
@@ -75,6 +75,7 @@ class HotkeyLifecycleMixin:
         """
         app = self._app
         from voice_typer.server.config_validators import _validate_hotkey
+        from voice_typer.server.config_validators.hotkey import _ptt_fallback_hotkey
 
         validation_error = _validate_hotkey(hotkey)
         if validation_error is not None:
@@ -89,6 +90,16 @@ class HotkeyLifecycleMixin:
                     ),
                 )
             return
+        # Same platform-gated push-to-talk guard as register(): a direct
+        # restart() call may not install an undeliverable combination.
+        ptt_fallback = _ptt_fallback_hotkey(hotkey, getattr(app.config, "recording_mode", None))
+        if ptt_fallback is not None:
+            log.warning(
+                "[HOTKEY] restart(%r) cannot drive push-to-talk, using %r instead",
+                hotkey,
+                ptt_fallback,
+            )
+            hotkey = ptt_fallback
         # capture the OLD hotkey spec BEFORE mutating
         old_hotkey_str = app.config.hotkey
         old_backend = self._hotkey_backend

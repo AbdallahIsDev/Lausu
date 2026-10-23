@@ -28,6 +28,8 @@ interface HotkeyPickerProps {
 	onCaptureEnd?: () => void;
 	occupiedHotkeys?: string[];
 	allowClear?: boolean;
+	/** Surface the push-to-talk key contract while capturing. */
+	pushToTalk?: boolean;
 }
 
 export function HotkeyPicker({
@@ -41,6 +43,7 @@ export function HotkeyPicker({
 	onCaptureEnd,
 	occupiedHotkeys,
 	allowClear = false,
+	pushToTalk = false,
 }: HotkeyPickerProps) {
 	const {
 		recording,
@@ -58,6 +61,7 @@ export function HotkeyPicker({
 		onCaptureStart,
 		onCaptureEnd,
 		occupiedHotkeys,
+		pushToTalk,
 	});
 
 	// "Custom" sentinel. When the current
@@ -176,6 +180,7 @@ export function HotkeyPicker({
 											mode,
 											value,
 											occupiedHotkeys,
+											pushToTalk,
 											t,
 											resetSession: false,
 										});

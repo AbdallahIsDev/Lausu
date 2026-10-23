@@ -379,10 +379,6 @@ static int is_valid_token(const char *t) {
     if (!strcmp(t, "end")) return 1;
     if (!strcmp(t, "page_up") || !strcmp(t, "pageup")) return 1;
     if (!strcmp(t, "page_down") || !strcmp(t, "pagedown")) return 1;
-    /* media keys */
-    if (!strcmp(t, "media_play_pause") || !strcmp(t, "media_play")) return 1;
-    if (!strcmp(t, "media_stop") || !strcmp(t, "media_next")) return 1;
-    if (!strcmp(t, "media_prev") || !strcmp(t, "media_previous")) return 1;
     /* arrows */
     if (!strcmp(t, "up") || !strcmp(t, "down") ||
         !strcmp(t, "left") || !strcmp(t, "right")) return 1;

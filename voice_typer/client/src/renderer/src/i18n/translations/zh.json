@@ -1748,8 +1748,7 @@
 		"modifierOnlyNotForPushToTalk": "按住说话需要能报告松开事件的按键。仅由修饰键组成的快捷键只适用于切换模式。",
 		"capsLockNotForPushToTalk": "Caps Lock 不能用于按住说话：macOS 从不上报其释放。请选择其他按键。",
 		"fnMacosOnly": "Fn 键仅在 macOS 上受支持",
-		"holding": "按住",
-		"bareModifierInterferes": "单独使用修饰键可能与其他功能冲突"
+		"holding": "按住"
 	},
 	"hotkeyKeys": {
 		"ctrl": "Ctrl",
@@ -2054,7 +2053,8 @@
 			"repaste_register_failed": "无法注册重新粘贴快捷键。其他应用可能已占用该按键。",
 			"invalid_hotkey": "快捷键 {hotkey} 无效：{validation_error}。将保留之前的快捷键。",
 			"restore_failed": "无法恢复之前的快捷键 {hotkey}。请打开设置重新绑定快捷键。",
-			"wayland_hotkeys_may_fail": "Wayland 下的全局快捷键需要输入设备的读取权限：请将用户加入“input”用户组后重新登录。快捷键不会使用 wtype/ydotool：wtype 仅用于粘贴文本。"
+			"wayland_hotkeys_may_fail": "Wayland 下的全局快捷键需要输入设备的读取权限：请将用户加入“input”用户组后重新登录。快捷键不会使用 wtype/ydotool：wtype 仅用于粘贴文本。",
+			"repaste_duplicate": "重新粘贴快捷键与听写快捷键相同。请选择其他组合键。"
 		},
 		"native_adapter": {
 			"warn_title": "{appName}：原生快捷键警告",

@@ -1748,8 +1748,7 @@
 		"modifierOnlyNotForPushToTalk": "Push-to-talk necesita una tecla que informe de su liberación. Los atajos solo de modificadores funcionan únicamente en modo alternar.",
 		"capsLockNotForPushToTalk": "Bloq Mayús no sirve para pulsar para hablar: macOS nunca informa de su liberación. Elige otra tecla.",
 		"fnMacosOnly": "La tecla Fn solo es compatible con macOS",
-		"holding": "Manteniendo",
-		"bareModifierInterferes": "Las teclas modificadoras solas (Shift, Cmd, Win) interfieren con la escritura. Elige otra tecla."
+		"holding": "Manteniendo"
 	},
 	"hotkeyKeys": {
 		"ctrl": "Ctrl",
@@ -2054,7 +2053,8 @@
 			"repaste_register_failed": "No se pudo registrar el atajo de re-pegado. Otra aplicación puede haberlo reclamado.",
 			"invalid_hotkey": "El atajo {hotkey} no es válido: {validation_error}. Se mantiene el atajo anterior.",
 			"restore_failed": "No se pudo restaurar el atajo anterior {hotkey}. Abra Configuración para reasignar un atajo.",
-			"wayland_hotkeys_may_fail": "Los atajos globales en Wayland necesitan acceso de lectura a los dispositivos de entrada: añade tu usuario al grupo «input» y vuelve a iniciar sesión. wtype/ydotool no se usan para los atajos: wtype solo sirve para pegar texto."
+			"wayland_hotkeys_may_fail": "Los atajos globales en Wayland necesitan acceso de lectura a los dispositivos de entrada: añade tu usuario al grupo «input» y vuelve a iniciar sesión. wtype/ydotool no se usan para los atajos: wtype solo sirve para pegar texto.",
+			"repaste_duplicate": "La tecla de repegado es la misma que la de dictado. Elige otro atajo."
 		},
 		"native_adapter": {
 			"warn_title": "{appName}: advertencia de atajo nativo",

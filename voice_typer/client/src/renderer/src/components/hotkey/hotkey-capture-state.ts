@@ -16,8 +16,9 @@ import {
 export function validateHotkey(
 	hotkey: string,
 	mode: "single" | "combo",
+	options?: { pushToTalk?: boolean },
 ): string | null {
-	const sharedResult = validateHotkeyShared(hotkey, detectPlatform());
+	const sharedResult = validateHotkeyShared(hotkey, detectPlatform(), options);
 	if (!sharedResult.valid) {
 		return sharedResult.reason ?? t("hotkeyValidation.invalidHotkey");
 	}
@@ -191,9 +192,12 @@ export function tryCommitHotkey(
 		occupiedHotkeys: string[] | undefined;
 		t: (key: string, params?: Record<string, string>) => string;
 		resetSession: boolean;
+		pushToTalk?: boolean;
 	},
 ): { ok: true } | { ok: false; error: string } {
-	const validationError = validateHotkey(newHotkey, opts.mode);
+	const validationError = validateHotkey(newHotkey, opts.mode, {
+		pushToTalk: opts.pushToTalk,
+	});
 	if (validationError) return { ok: false, error: validationError };
 	const conflict = checkHotkeyConflict(
 		newHotkey,

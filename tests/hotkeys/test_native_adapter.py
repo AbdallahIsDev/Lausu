@@ -537,3 +537,48 @@ class TestToggleOnKeyupPropagation:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--timeout=30"])
+
+
+class TestLegacySwapRequiresALiveListener:
+    """A backend that reports start() without a live listener is not a swap."""
+
+    def _adapter(self):
+        from voice_typer.server.hotkeys.native_adapter import _NativeBackendAdapter
+
+        native = MagicMock()
+        native.hotkey_str = "<alt>"
+        return _NativeBackendAdapter(native)
+
+    def test_dead_legacy_backend_is_treated_as_a_failed_swap(self):
+        adapter = self._adapter()
+        adapter._callback = lambda: None
+        legacy = MagicMock()
+        legacy.is_alive.return_value = False
+        adapter._create_legacy_backend = lambda: legacy
+        failures: list[object] = []
+        adapter._show_failure_notification = lambda exc: failures.append(exc)
+        fallbacks: list[str] = []
+        adapter._show_fallback_notification = lambda: fallbacks.append("fallback")
+
+        adapter._swap_to_legacy()
+
+        assert adapter._state == adapter._STATE_FAILED
+        assert len(failures) == 1, "the user must be told the hotkey is dead"
+        assert fallbacks == [], "a dead listener must not be announced as a fallback"
+        legacy.stop.assert_called()
+
+    def test_dead_legacy_spare_after_a_failed_native_retry_fails_the_swap(self):
+        adapter = self._adapter()
+        adapter._callback = lambda: None
+        adapter._state = adapter._STATE_FALLBACK
+        spare = MagicMock()
+        spare.is_alive.return_value = False
+        adapter._legacy = spare
+        adapter._native.is_alive.return_value = False
+        failures: list[object] = []
+        adapter._show_failure_notification = lambda exc: failures.append(exc)
+
+        adapter._retry_native()
+
+        assert adapter._state == adapter._STATE_FAILED
+        assert len(failures) == 1

@@ -70,14 +70,19 @@ def validate_config_update(
             # accumulate ALL errors, do not break on first.
             continue
         validated[k] = v
-    # cross-field hotkey conflict check.  Only fields that
+    # Cross-field hotkey conflict check over the EFFECTIVE pair: a partial
+    # update (`{"repaste_hotkey": <dictation key>}`) must be compared with the
+    # persisted value it would collide with, not with nothing.
     hotkey_values: dict[str, str | None] = {}
+    has_hotkey_field = any(name in validated for name in _HOTKEY_FIELD_NAMES)
     for name in _HOTKEY_FIELD_NAMES:
         if name in validated:
             raw = validated[name]
-            hotkey_values[name] = raw if isinstance(raw, str) else None
+        elif has_hotkey_field and current is not None:
+            raw = getattr(current, name, None)
         else:
-            hotkey_values[name] = None
+            raw = None
+        hotkey_values[name] = raw if isinstance(raw, str) else None
     # Lazy-import the cross-field helpers from the package namespace so
     from voice_typer.server.config_validators import (
         _check_cross_field_cloud_config,

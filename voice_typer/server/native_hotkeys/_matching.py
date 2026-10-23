@@ -127,6 +127,12 @@ class _MatchingMixin:
         key_name: str | None = None,
     ) -> None:
         """Check the current event against every registered hotkey spec."""
+        # A different key pressed while a modifier-only chord is held means
+        # the user is typing a shortcut, not tapping the hotkey. Cancel
+        # BEFORE the matcher loop: an early return from another role would
+        # otherwise skip it.
+        if event_kind == "key" and down:
+            self._cancel_armed_modifier_only()
         # Primary matcher (role "dictation"). Uses the legacy
         primary = {
             "role": "dictation",
@@ -141,13 +147,15 @@ class _MatchingMixin:
         for matcher in self._extra_matchers:
             if self._try_match_one(matcher, event_kind, down, key_name=key_name):
                 return
-        if event_kind == "key" and down:
-            # A different key pressed while a modifier-only chord is held
-            # means the user is typing a shortcut, not tapping the hotkey.
-            self._cancel_armed_modifier_only()
 
     def _cancel_armed_modifier_only(self) -> None:
-        """Disarm modifier-only cycles after an unrelated key press."""
+        """Disarm EVERY armed modifier-only cycle after an unrelated key press.
+
+        Toggle roles just drop the arm (their action fires on the release,
+        which would otherwise turn Alt+Tab into a dictation toggle). Push-
+        to-talk roles fire their release once and record the role so the
+        following modifier release cannot stop a second time.
+        """
         matchers = [
             {
                 "role": "dictation",
@@ -165,14 +173,13 @@ class _MatchingMixin:
             role = matcher.get("role", "dictation")
             if role not in armed:
                 continue
-            # Toggle roles keep their armed cycle: their action fires on
-            # the modifier release (pinned by test_hotkey_release_contract).
-            if matcher.get("on_release_callback") is None:
-                continue
+            release_cb = matcher.get("on_release_callback")
             with self._match_lock:
                 self._armed_roles.discard(role)
-                self._stopped_roles.add(role)
-            self._fire_on_release_for(matcher)
+                if release_cb is not None:
+                    self._stopped_roles.add(role)
+            if release_cb is not None:
+                self._fire_on_release_for(matcher)
 
     def _try_match_one(
         self,

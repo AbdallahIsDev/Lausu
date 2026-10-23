@@ -1753,8 +1753,7 @@
 		"modifierOnlyNotForPushToTalk": "Push-to-talk needs a key that reports a release. Modifier-only shortcuts work for toggle mode only.",
 		"capsLockNotForPushToTalk": "Caps Lock can't be used for push-to-talk: macOS never reports its release. Choose another key.",
 		"fnMacosOnly": "Fn key is only supported on macOS",
-		"holding": "Holding",
-		"bareModifierInterferes": "Bare modifier keys (Shift, Cmd, Win) interfere with typing. Please choose a different key."
+		"holding": "Holding"
 	},
 	"hotkeyKeys": {
 		"ctrl": "Ctrl",
@@ -2054,7 +2053,8 @@
 			"repaste_register_failed": "Repaste hotkey could not be registered. Another app may have claimed it.",
 			"invalid_hotkey": "Hotkey {hotkey} is not valid: {validation_error}. Keeping the previous hotkey.",
 			"restore_failed": "Could not restore the previous hotkey {hotkey}. Open Settings to rebind a hotkey.",
-			"wayland_hotkeys_may_fail": "Global hotkeys on Wayland need read access to input devices: add your user to the 'input' group, then log out and back in. wtype/ydotool are not used for hotkeys: wtype only pastes text."
+			"wayland_hotkeys_may_fail": "Global hotkeys on Wayland need read access to input devices: add your user to the 'input' group, then log out and back in. wtype/ydotool are not used for hotkeys: wtype only pastes text.",
+			"repaste_duplicate": "Repaste hotkey is the same as the dictation hotkey. Pick a different shortcut."
 		},
 		"native_adapter": {
 			"warn_title": "{appName}: Native hotkey warning",

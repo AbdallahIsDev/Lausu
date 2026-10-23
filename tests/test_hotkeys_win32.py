@@ -269,9 +269,11 @@ class TestModifierOnlyHotkeys:
     """FIX-HOTKEY-ARCHITECTURE: <alt>, <ctrl>, <shift>, <win> alone"""
 
     def test_alt_only_hotkey_starts_without_error(self, mock_win32):
-        """
-        <alt> no longer raises ValueError at start() time.
-        This test pins both paths: hook succeeds by default (hook mode),
+        """<alt> starts without error and ALWAYS routes to the polling loop.
+
+        The LL hook cannot distinguish a bare Alt tap from the start of
+        another shortcut (Alt+Tab, Ctrl+C), so modifier-only specs own the
+        polling loop; the LL hook is never installed for them.
         """
         mock_user32, _ = mock_win32
         from voice_typer.server.hotkeys import WindowsNativeHotkey
@@ -282,38 +284,24 @@ class TestModifierOnlyHotkeys:
             assert backend._is_modifier_only is True
             assert backend._vk is None
             assert backend._modifiers & 0x0001  # _MOD_ALT
-            # Hook installs by default → hook mode (not polling).
+            # Modifier-only always polls; no LL hook, no RegisterHotKey.
             _wait_until(
-                lambda: backend._hook_handle is not None,
-                msg="LL hook handle never installed for modifier-only spec",
+                lambda: backend._using_polling,
+                msg="modifier-only spec must route to the polling loop",
             )
-            assert backend._using_polling is False
+            assert backend._hook_handle is None
+            mock_user32.SetWindowsHookExW.assert_not_called()
         finally:
             backend.stop()
-
-        mock_user32.SetWindowsHookExW.return_value = 0
-        backend2 = WindowsNativeHotkey("<alt>")
-        try:
-            backend2.start(MagicMock())
-            _wait_until(
-                lambda: backend2._using_polling,
-                msg="modifier-only polling fallback never engaged",
-            )
-            assert backend2._using_polling is True
-            assert backend2._hook_handle is None
-        finally:
-            backend2.stop()
 
     def test_modifier_only_hook_installed_log_formats_without_error(self, mock_win32, caplog):
         """The success log must not ``%X`` a None vk.
 
         ``self._vk`` is None for a modifier-only spec, and ``%X`` on None
-        raises ``TypeError`` at *emit* time -- inside the ``try`` that wraps
-        the install. The hook had already been installed, but the exception
-        sent control to ``except Exception``, which cleared ``_hook_handle``
-        and logged "Failed to install WH_KEYBOARD_LL hook", so modifier-only
-        hotkeys silently fell back to the polling loop. Ubuntu CI caught it
-        because pytest's capture handler formats eagerly.
+        raises ``TypeError`` at *emit* time. Even though modifier-only now
+        routes to polling, the log path that could carry the None vk must
+        still format cleanly (Ubuntu CI catches it because pytest's capture
+        handler formats eagerly).
         """
         _mock_user32, _ = mock_win32
         from voice_typer.server.hotkeys import WindowsNativeHotkey
@@ -323,11 +311,9 @@ class TestModifierOnlyHotkeys:
             with caplog.at_level(logging.INFO, logger="voice_typer.server.hotkeys"):
                 backend.start(MagicMock())
                 _wait_until(
-                    lambda: backend._hook_handle is not None,
-                    msg="LL hook handle never installed for modifier-only spec",
+                    lambda: backend._using_polling,
+                    msg="modifier-only spec must route to the polling loop",
                 )
-            installed = [r for r in caplog.records if "hook installed" in r.getMessage()]
-            assert installed, "the install success line must be logged"
             # Formatting is what raised; a record that survives it is the pin.
             for record in caplog.records:
                 record.getMessage()

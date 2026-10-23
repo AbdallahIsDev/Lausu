@@ -229,25 +229,58 @@ def _check_key_delivery(keys: list[str], platform: str) -> tuple[str | None, str
     return None, None
 
 
-def _check_push_to_talk(value: object) -> tuple[str | None, str | None]:
-    """Push-to-talk needs a key that reports a release after its press."""
+def _check_push_to_talk(value: object, platform: str | None = None) -> tuple[str | None, str | None]:
+    """Push-to-talk needs a key that reports a release after its press.
+
+    Only macOS fails the Caps Lock release contract (its event tap never
+    reports one); Windows and Linux listeners emit the key-up, so Caps Lock
+    is a valid push-to-talk key there. The macOS Fn/Globe key is the mirror
+    case: it has its own down/up pair, so the modifier-only rule skips it.
+    """
     if not isinstance(value, str) or not value.strip():
         return None, None
 
     from voice_typer.server.hotkey_spec import parse_hotkey
 
+    platform_key = platform if platform is not None else _platform_key()
     spec = parse_hotkey(value)
     if not spec.keys:
+        if platform_key == "darwin" and "fn" in spec.modifiers:
+            return None, None
         return (
             "ptt_modifier_only",
             "Push-to-talk needs a key that reports a release; a modifier-only shortcut only works in toggle mode",
         )
-    if "caps_lock" in spec.keys:
+    if platform_key == "darwin" and "caps_lock" in spec.keys:
         return (
             "ptt_caps_lock",
             "Caps Lock can't be used for push-to-talk: macOS never reports its release",
         )
     return None, None
+
+
+def _ptt_fallback_hotkey(
+    hotkey: object,
+    recording_mode: object,
+    platform: str | None = None,
+) -> str | None:
+    """Return the hotkey to use instead when ``hotkey`` cannot drive push-to-talk.
+
+    One helper for every producer (load-time reconciliation, ``register``,
+    ``restart``) so a direct call can never install a combination the
+    listeners cannot deliver.
+    """
+    if recording_mode != "push_to_talk":
+        return None
+    if _check_push_to_talk(hotkey, platform)[0] is None:
+        return None
+
+    from voice_typer.server.config._defaults import _default_hotkey_for_platform
+
+    fallback = _default_hotkey_for_platform()
+    if _validate_hotkey_code(fallback)[0] is not None or _check_push_to_talk(fallback, platform)[0] is not None:
+        fallback = "<f2>"
+    return fallback
 
 
 def _validate_hotkey_code(value: object) -> tuple[str | None, str | None]:
@@ -321,6 +354,7 @@ __all__ = [
     "_check_shift_letter",
     "_check_key_delivery",
     "_check_push_to_talk",
+    "_ptt_fallback_hotkey",
     "_validate_hotkey_code",
     "_validate_hotkey",
 ]

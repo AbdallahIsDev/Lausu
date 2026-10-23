@@ -139,6 +139,30 @@ export const KEY_CODE_TO_PYNPUT: Record<string, string> = {
 
 export const MODIFIER_KEYS: readonly string[] = hotkeyReserved.modifiers;
 
+// Resolve a KeyboardEvent to a pynput-style single-character name.
+//
+// WHY the split: Windows/macOS native listeners deliver the layout-aware
+// character (`e.key`), so a non-US layout must be captured by what the user
+// sees, not by physical key position. The Linux evdev listener delivers raw
+// keycodes, so `e.code` (physical position) is the faithful source there.
+// Digits always come from `e.code` on every platform: `e.key` for a digit can
+// differ from the top-row glyph (numpad vs top row, layout shift), while the
+// listeners only ever report the digit for the top-row key. Only letters and
+// digits may come from `e.key`: single-character keys like " " (Space) or a
+// layout punctuation glyph must resolve through the code table, otherwise a
+// capture silently collapses to a different key. Numpad codes are refused
+// outright — no listener reports them under a bindable name.
+export function resolveCharKey(
+	e: Pick<KeyboardEvent, "key" | "code">,
+	platform: string,
+): string | undefined {
+	if (/^Numpad/.test(e.code)) return undefined;
+	if (/^Digit[0-9]$/.test(e.code)) return e.code.slice(5).toLowerCase();
+	if (platform === "linux") return KEY_CODE_TO_PYNPUT[e.code];
+	if (/^[a-z0-9]$/i.test(e.key)) return e.key.toLowerCase();
+	return KEY_CODE_TO_PYNPUT[e.code];
+}
+
 export function getModifierCodeMap(isMac: boolean): Record<string, string> {
 	return {
 		ControlLeft: "ctrl",

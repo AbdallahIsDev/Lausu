@@ -520,13 +520,40 @@ describe("combo shape parity", () => {
 		expect(validateHotkey("<ctrl>", "win32").valid).toBe(true);
 	});
 
-	it("rejects Caps Lock for push-to-talk", () => {
-		const result = validateHotkey("<caps_lock>", "win32", {
+	it("rejects Caps Lock for push-to-talk on macOS only", () => {
+		const result = validateHotkey("<caps_lock>", "darwin", {
 			pushToTalk: true,
 		});
 		expect(result.valid).toBe(false);
 		expect(result.code).toBe("ptt_caps_lock");
-		expect(validateHotkey("<caps_lock>", "win32").valid).toBe(true);
+		expect(validateHotkey("<caps_lock>", "darwin").valid).toBe(true);
+	});
+
+	it("accepts Caps Lock push-to-talk where the listener reports release", () => {
+		for (const platform of ["win32", "linux"]) {
+			expect(
+				validateHotkey("<caps_lock>", platform, { pushToTalk: true }).valid,
+			).toBe(true);
+		}
+	});
+
+	it("accepts Fn/Globe push-to-talk on macOS only", () => {
+		expect(validateHotkey("<fn>", "darwin", { pushToTalk: true }).valid).toBe(
+			true,
+		);
+		for (const platform of ["win32", "linux"]) {
+			const result = validateHotkey("<fn>", platform, { pushToTalk: true });
+			expect(result.code).toBe("fn_platform");
+		}
+	});
+
+	it("rejects a modifier-only push-to-talk trigger everywhere else", () => {
+		for (const platform of ["win32", "darwin", "linux"]) {
+			const result = validateHotkey("<ctrl>+<shift>", platform, {
+				pushToTalk: true,
+			});
+			expect(result.code).toBe("ptt_modifier_only");
+		}
 	});
 
 	it("counts an aliased shell modifier as a shell combo", () => {

@@ -42,6 +42,18 @@ def _backend_kind_label(backend) -> str:
     return _BACKEND_KIND_LABELS.get(name, name.lstrip("_"))
 
 
+def _canonical_hotkey_spec(hotkey: str) -> str:
+    """Canonical spec: alias spellings and L/R variants collapse to one form.
+
+    Everything downstream (native argv, matcher, pool keys, duplicate
+    detection) must agree on it: ``<ctrl_l>+<f9>`` and ``<ctrl>+<f9>`` are
+    the same press on the wire.
+    """
+    from voice_typer.server.hotkey_spec import parse_hotkey
+
+    return parse_hotkey(hotkey).to_spec_string()
+
+
 class HotkeyRegistrationMixin:
     """Global hotkey registration and role teardown.
 
@@ -114,6 +126,7 @@ class HotkeyRegistrationMixin:
 
         #  (partial, session-4): validate the configured hotkey
         from voice_typer.server.config_validators import _validate_hotkey
+        from voice_typer.server.config_validators.hotkey import _ptt_fallback_hotkey
 
         validation_error = _validate_hotkey(hotkey_str)
         if validation_error is not None:
@@ -123,6 +136,17 @@ class HotkeyRegistrationMixin:
                 validation_error,
             )
             hotkey_str = DEFAULT_HOTKEY  # platform default (see config._default_hotkey_for_platform)
+            app.config.hotkey = hotkey_str
+        # A direct register() call must never install a push-to-talk spec the
+        # listeners cannot deliver (macOS Caps Lock / modifier-only chords).
+        ptt_fallback = _ptt_fallback_hotkey(hotkey_str, getattr(app.config, "recording_mode", None))
+        if ptt_fallback is not None:
+            log.warning(
+                "[HOTKEY] hotkey %r cannot drive push-to-talk, registering %r instead",
+                hotkey_str,
+                ptt_fallback,
+            )
+            hotkey_str = ptt_fallback
             app.config.hotkey = hotkey_str
 
         log.info("[HOTKEY] Registering: %s -> toggle_dictation", format_hotkey_label(hotkey_str))
@@ -167,7 +191,7 @@ class HotkeyRegistrationMixin:
                 repaste_already_alive = (
                     self._repaste_backend is not None
                     and self._repaste_backend.is_alive()
-                    and self._repaste_spec == app.config.repaste_hotkey
+                    and self._repaste_spec == _canonical_hotkey_spec(app.config.repaste_hotkey)
                 )
                 if not repaste_already_alive:
                     self.register_repaste()
@@ -217,8 +241,11 @@ class HotkeyRegistrationMixin:
         stale entry.
         """
         app = self._app
+        # Canonical spec first: the native binary and the matcher only know
+        # the canonical spelling, and alias-equal specs must pool together.
+        canonical_spec = _canonical_hotkey_spec(hotkey_str)
         # Per-spec pool fast path: if a backend for this exact spec is
-        pooled = self._shared_backend_pool.get(hotkey_str)
+        pooled = self._shared_backend_pool.get(canonical_spec)
         if pooled is not None:
             if pooled.is_alive():
                 log.info(
@@ -231,9 +258,9 @@ class HotkeyRegistrationMixin:
                 self._repool_aux_into_shared()
                 return pooled
             # Stale entry, drop it so the factory path below can
-            self._shared_backend_pool.pop(hotkey_str, None)
+            self._shared_backend_pool.pop(canonical_spec, None)
         # pass role="dictation" so the WaylandHotkey backend (if
-        new_backend: HotkeyBackend = _facade().create_hotkey_backend(hotkey_str, role="dictation")
+        new_backend: HotkeyBackend = _facade().create_hotkey_backend(canonical_spec, role="dictation")
         log.debug("[HOTKEY] Backend created: %s", _backend_kind_label(new_backend))
         # give the backend a reference to the tray so
         with contextlib.suppress(AttributeError, TypeError):
@@ -258,7 +285,7 @@ class HotkeyRegistrationMixin:
             new_backend.is_alive(),
         )
         # Track in the per-spec pool AFTER start() succeeded so a
-        self._track_pooled_backend(hotkey_str, new_backend)
+        self._track_pooled_backend(canonical_spec, new_backend)
         # Install as the shared backend and re-pool any aux backends
         self._shared_backend = new_backend
         self._repool_aux_into_shared()
@@ -405,14 +432,20 @@ class HotkeyRegistrationMixin:
             return
         # A spec shared with the dictation hotkey can never fire: the
         # matchers are evaluated in role order and the first match wins,
-        # so repaste would stay silently dead. Disable it instead.
-        if self._app.config.repaste_hotkey == self._app.config.hotkey:
+        # so repaste would stay silently dead. Skip it, but NEVER rewrite
+        # the user's config at runtime (load-time reconciliation owns that).
+        if _canonical_hotkey_spec(self._app.config.repaste_hotkey) == _canonical_hotkey_spec(self._app.config.hotkey):
             log.warning(
-                "[HOTKEY] repaste_hotkey %r equals the dictation hotkey; "
-                "disabling repaste (one key cannot own two actions)",
+                "[HOTKEY] repaste_hotkey %r matches the dictation hotkey; "
+                "skipping repaste registration (one key cannot own two actions)",
                 self._app.config.repaste_hotkey,
             )
-            self._app.config.repaste_hotkey = ""
+            # One notification, then leave the config untouched.
+            with contextlib.suppress(Exception):
+                self._app.tray.notify(
+                    APP_NAME,
+                    i18n_t("notify.hotkey_dispatcher.repaste_duplicate"),
+                )
             self._remove_shared_extra_matcher("repaste")
             self._repaste_callback = None
             return
@@ -433,9 +466,10 @@ class HotkeyRegistrationMixin:
             self._remove_shared_extra_matcher("repaste")
             self._repaste_callback = None
             return
+        canonical_repaste = _canonical_hotkey_spec(self._app.config.repaste_hotkey)
         try:
             # pass role="repaste" so the WaylandHotkey backend
-            self._repaste_backend = _facade().create_hotkey_backend(self._app.config.repaste_hotkey, role="repaste")
+            self._repaste_backend = _facade().create_hotkey_backend(canonical_repaste, role="repaste")
             # same WM_HOTKEY-preference flag as the ESC backend
             with contextlib.suppress(AttributeError, TypeError):
                 self._repaste_backend._prefer_message_loop_first = True
@@ -448,7 +482,7 @@ class HotkeyRegistrationMixin:
             # Pool repaste into the shared backend (one subprocess
             _repaste_pooled = self._pool_aux_into_shared(
                 "repaste",
-                self._app.config.repaste_hotkey,
+                canonical_repaste,
                 _repaste_cb,
                 self._repaste_backend,
             )
@@ -460,9 +494,9 @@ class HotkeyRegistrationMixin:
                     self._remove_shared_extra_matcher("repaste")
                     self._repaste_callback = None
                 raise
-            self._repaste_spec = self._app.config.repaste_hotkey
+            self._repaste_spec = canonical_repaste
             # Track in the per-spec pool AFTER start() succeeded
-            self._track_pooled_backend(self._app.config.repaste_hotkey, self._repaste_backend)
+            self._track_pooled_backend(self._repaste_spec, self._repaste_backend)
             log.info(
                 "[HOTKEY] Repaste registered: %s%s",
                 format_hotkey_label(self._app.config.repaste_hotkey),
