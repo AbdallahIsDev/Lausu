@@ -168,30 +168,47 @@ def open_write_conn(db_path: Path) -> sqlite3.Connection:
         check_same_thread=False,
         timeout=5.0,
     )
-    # Safety net for external contention only (in-process contention
-    conn.execute("PRAGMA busy_timeout=5000")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA cache_size=-20000")  # 20 MB
-    # secure_delete=ON zeros freed pages so dictated text is not
-    conn.execute("PRAGMA secure_delete=ON")
-    conn.row_factory = sqlite3.Row
-    # SEC-007: chmod the DB file (and sidecar files if present).
-    if not is_windows():
-        for suffix in ("", "-wal", "-shm"):
-            p = db_path.with_suffix(db_path.suffix + suffix) if suffix else db_path
-            try:
-                if p.exists():
-                    os.chmod(p, 0o600)
-            except OSError:
-                pass
-    # FK enforcement is per-connection (not DB-persistent). Best-effort:
+    # LEASE-1: the connection exists from here on, so ANY failure below must
+    # close it before propagating. The caller assigns the result to its own
+    # local (``conn = db._open_write_conn()``), so a raise leaves that local
+    # None and nothing can ever close the half-configured handle. Worse, the
+    # exception is kept in ``_init_error``, whose traceback pins this frame
+    # and therefore this ``conn`` local, so the handle stays open for the
+    # whole process lifetime -- a leaked fd + a ResourceWarning that pytest
+    # attributes to some unrelated later test.
+    #
+    # ``PRAGMA synchronous`` / ``cache_size`` really do raise "file is not a
+    # database" on a corrupt or non-DB file (busy_timeout and secure_delete
+    # do not), so this is a live path, not a theoretical one.
     try:
-        conn.execute("PRAGMA foreign_keys=ON")
-    except sqlite3.Error as e:
-        log.debug(
-            "[HISTORY_DB] PRAGMA foreign_keys=ON failed (best-effort): %s",
-            e,
-        )
+        # Safety net for external contention only (in-process contention
+        conn.execute("PRAGMA busy_timeout=5000")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA cache_size=-20000")  # 20 MB
+        # secure_delete=ON zeros freed pages so dictated text is not
+        conn.execute("PRAGMA secure_delete=ON")
+        conn.row_factory = sqlite3.Row
+        # SEC-007: chmod the DB file (and sidecar files if present).
+        if not is_windows():
+            for suffix in ("", "-wal", "-shm"):
+                p = db_path.with_suffix(db_path.suffix + suffix) if suffix else db_path
+                try:
+                    if p.exists():
+                        os.chmod(p, 0o600)
+                except OSError:
+                    pass
+        # FK enforcement is per-connection (not DB-persistent). Best-effort:
+        try:
+            conn.execute("PRAGMA foreign_keys=ON")
+        except sqlite3.Error as e:
+            log.debug(
+                "[HISTORY_DB] PRAGMA foreign_keys=ON failed (best-effort): %s",
+                e,
+            )
+    except BaseException:
+        with contextlib.suppress(sqlite3.Error):
+            conn.close()
+        raise
     return conn
 
 

@@ -69,7 +69,7 @@ from typing import TYPE_CHECKING, Any
 
 from voice_typer.server._audio_constants import scaled_audio_blocksize
 from voice_typer.server._lazy_import import lazy_module
-from voice_typer.server.recording.buffer import _secure_clear_array
+from voice_typer.server.recording.buffer import _secure_clear_array, _secure_clear_deque
 from voice_typer.server.recording.format import ensure_mono
 from voice_typer.server.vad_processor import (
     DEFAULT_VAD_SILENCE_THRESHOLD_DB,
@@ -185,10 +185,7 @@ class SessionState:
         # STREAM-FIX: reset user-stop-pending flag for the new
         recorder._user_stop_pending = False
         # ADR 0007 §3.5: AGC reset deleted (method removed).
-        for chunk in recorder._preroll_buffer:
-            if isinstance(chunk, np.ndarray):
-                chunk.fill(0)
-        recorder._preroll_buffer.clear()
+        _secure_clear_deque(recorder._preroll_buffer)
         # AUDIO-HOT: reset disconnect state
         recorder._devices._device_disconnected = False
         recorder._devices._device_disconnect_retries = 0
@@ -325,8 +322,16 @@ class SessionState:
             _prev_ring_maxlen = recorder._ring_buffer.maxlen
             if new_ring_capacity > 0 and (_prev_ring_maxlen is None or new_ring_capacity != _prev_ring_maxlen):
                 # (defensive -- start() clears the ring buffer in
-                _old_ring = list(recorder._ring_buffer)
-                recorder._ring_buffer = collections.deque(_old_ring, maxlen=new_ring_capacity)
+                # Producer-fed deque: drain with popleft, never iterate
+                # (the disconnect-restart resize runs with a live stream).
+                _old_ring: collections.deque[Any] = collections.deque(maxlen=new_ring_capacity)
+                if isinstance(recorder._ring_buffer, collections.deque):
+                    while True:
+                        try:
+                            _old_ring.append(recorder._ring_buffer.popleft())
+                        except IndexError:
+                            break
+                recorder._ring_buffer = _old_ring
                 log.debug(
                     "[RECORDING] Ring buffer sized for ~%.1fs at %d Hz (blocksize=%d): %d chunks (was %d)",
                     _ring_buffer_seconds,
@@ -342,8 +347,15 @@ class SessionState:
             new_preroll_maxlen = int(recorder._preroll_seconds * sizing_sr / blocksize) + 2
             current_preroll_maxlen = recorder._preroll_buffer.maxlen or 0
             if new_preroll_maxlen != current_preroll_maxlen:
-                old_preroll = list(recorder._preroll_buffer)
-                recorder._preroll_buffer = collections.deque(old_preroll, maxlen=new_preroll_maxlen)
+                # Preroll is appended by the RT callback while not recording.
+                old_preroll: collections.deque[Any] = collections.deque(maxlen=new_preroll_maxlen)
+                if isinstance(recorder._preroll_buffer, collections.deque):
+                    while True:
+                        try:
+                            old_preroll.append(recorder._preroll_buffer.popleft())
+                        except IndexError:
+                            break
+                recorder._preroll_buffer = old_preroll
                 log.debug(
                     "[RECORDING] Pre-roll buffer sized for %.2fs at %d Hz (blocksize=%d): %d chunks (was %d)",
                     recorder._preroll_seconds,
@@ -355,38 +367,45 @@ class SessionState:
 
     def prepend_preroll_to_buffer(self, recorder: Any) -> None:
         """Prepend the preroll buffer to the main buffer (a"""
-        if recorder._preroll_buffer:
-            preroll_chunks = list(recorder._preroll_buffer)
-            if preroll_chunks:
-                for chunk in reversed(preroll_chunks):
-                    mono_chunk = ensure_mono(recorder, chunk)
-                    # Best-effort filter: if the processor raises, keep the raw chunk.
-                    if recorder._audio_processor is not None:
-                        try:
-                            filtered = recorder._audio_processor.process_chunk(
-                                mono_chunk,
-                                input_sample_rate=recorder._effective_sr,
-                            )
-                            if filtered is not None:
-                                mono_chunk = filtered
-                        except Exception:
-                            log.debug(
-                                "[RECORDING] pre-roll process_chunk failed; using raw chunk",
-                                exc_info=True,
-                            )
-                    recorder._audio_pipeline._buffer.appendleft(mono_chunk.copy())
-                # Real chunk size for the duration estimate: the
-                _preroll_chunk_s = scaled_audio_blocksize(recorder._effective_sr) / recorder._effective_sr
-                log.debug(
-                    "[RECORDING] Prepended %d pre-roll chunks (~%.1fs)",
-                    len(preroll_chunks),
-                    len(preroll_chunks) * _preroll_chunk_s,
-                )
-                # zero + clear the pre-roll deque after the
-                for _chunk in preroll_chunks:
-                    if isinstance(_chunk, np.ndarray):
-                        _chunk.fill(0)
-                recorder._preroll_buffer.clear()
+        # Drain with popleft: the RT callback appends preroll chunks once
+        # the recording gate clears, which races this worker-thread drain.
+        preroll_chunks: list[Any] = []
+        if isinstance(recorder._preroll_buffer, collections.deque):
+            while True:
+                try:
+                    preroll_chunks.append(recorder._preroll_buffer.popleft())
+                except IndexError:
+                    break
+        if not preroll_chunks:
+            return
+        for chunk in reversed(preroll_chunks):
+            mono_chunk = ensure_mono(recorder, chunk)
+            # Best-effort filter: if the processor raises, keep the raw chunk.
+            if recorder._audio_processor is not None:
+                try:
+                    filtered = recorder._audio_processor.process_chunk(
+                        mono_chunk,
+                        input_sample_rate=recorder._effective_sr,
+                    )
+                    if filtered is not None:
+                        mono_chunk = filtered
+                except Exception:
+                    log.debug(
+                        "[RECORDING] pre-roll process_chunk failed; using raw chunk",
+                        exc_info=True,
+                    )
+            recorder._audio_pipeline._buffer.appendleft(mono_chunk.copy())
+        # Real chunk size for the duration estimate: the
+        _preroll_chunk_s = scaled_audio_blocksize(recorder._effective_sr) / recorder._effective_sr
+        log.debug(
+            "[RECORDING] Prepended %d pre-roll chunks (~%.1fs)",
+            len(preroll_chunks),
+            len(preroll_chunks) * _preroll_chunk_s,
+        )
+        # zero the drained pre-roll chunks (the deque is already empty)
+        for _chunk in preroll_chunks:
+            if isinstance(_chunk, np.ndarray):
+                _chunk.fill(0)
 
 
 np = lazy_module("numpy")

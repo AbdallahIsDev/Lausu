@@ -333,7 +333,7 @@ class TestLoadPathCacheGate:
 
         # Non-Whisper sizes are handled by their own load path.
         engine._require_model_downloaded("parakeet")
-        engine._require_model_downloaded("qwen")
+        engine._require_model_downloaded("qwen3-1.7b")
         engine._require_model_downloaded("")
 
 

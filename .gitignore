@@ -31,6 +31,8 @@ REPORT.md
 nul
 # Local test/debug
 _cuda_test.py
+_gc_probe_plugin.py
+focused-*.txt
 # ruff ratchet CI artifact — produced by `ruff check ... --output-format=json`
 # and consumed by scripts/ruff_ratchet_check.py. Never commit; regenerate locally
 # with the same ruff invocation if you need it.

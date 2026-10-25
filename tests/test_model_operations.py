@@ -145,18 +145,18 @@ class TestDeleteModelUsesRegistryUnconditionally:
         assert not (cache_dir / model_dir_name).exists()
 
     def test_qwen_uses_registry_repo_id(self, tmp_config_dir):
-        """``delete_model(\"qwen\")`` no longer returns \"Unknown model\""""
+        """``delete_model("qwen3-1.7b")`` no longer returns "Unknown model"."""
         from voice_typer.server.model_registry import get_model_metadata
 
         service = self._make_service()
-        meta = get_model_metadata("qwen")
-        assert meta is not None, "qwen must be in MODEL_REGISTRY"
+        meta = get_model_metadata("qwen3-1.7b")
+        assert meta is not None, "qwen3-1.7b must be in MODEL_REGISTRY"
         assert meta.repo_id == "andrewleech/qwen3-asr-1.7b-onnx"
 
-        result = service.delete_model("qwen")
+        result = service.delete_model("qwen3-1.7b")
         assert result["success"] is False
         assert "not downloaded" in result["message"], (
-            f"Expected 'not downloaded' message for absent qwen cache, got: {result}"
+            f"Expected 'not downloaded' message for absent qwen3-1.7b cache, got: {result}"
         )
 
     def test_unknown_model_still_errors(self, tmp_config_dir):
@@ -243,13 +243,55 @@ class TestGetModelStatusCache:
 
         monkeypatch.setattr(model_availability, "is_available", _spy_is_available)
         service._compute_model_status()
-        expected = (
-            sum(1 for m in MODEL_REGISTRY.values() if m.backend in ("whisper", "distil-whisper")) + 2
-        )  # qwen + parakeet
+        expected = len(MODEL_REGISTRY)
         assert len(calls) == expected, (
             f"one availability probe per model per compute; got {len(calls)} probes for {expected} models: {calls}"
         )
         assert len(set(calls)) == expected, f"no model probed twice: {calls}"
+
+
+class TestModelStatusReportsBothQwenVariants:
+    """Each Qwen size is an independent row on the Models page."""
+
+    def _make_service(self):
+        from voice_typer.server.service import LausuService
+
+        class FakeApp:
+            config = type(
+                "FakeConfig",
+                (),
+                {"asr_backend": "qwen", "model_size": "qwen3-0.6b", "qwen_model_path": None},
+            )()
+
+        return LausuService(FakeApp())
+
+    def test_variant_rows_track_their_own_repo(self, tmp_config_dir, monkeypatch):
+        from voice_typer.server import model_availability
+
+        monkeypatch.setattr(
+            model_availability,
+            "is_available",
+            lambda repo_id, _dir, **kw: repo_id == "andrewleech/qwen3-asr-0.6b-onnx",
+        )
+        status = self._make_service()._compute_model_status()
+        assert status["qwen3-1.7b"]["downloaded"] is False
+        assert status["qwen3-0.6b"]["downloaded"] is True
+        assert status["qwen3-1.7b"]["deps_ok"] is True
+        assert status["qwen3-0.6b"]["deps_ok"] is True
+
+    def test_matching_override_counts_for_its_variant_only(self, tmp_config_dir, monkeypatch, tmp_path):
+        from voice_typer.server import model_availability
+
+        monkeypatch.setattr(model_availability, "is_available", lambda *_a, **_kw: False)
+        override = tmp_path / "small"
+        override.mkdir()
+        (override / "config.json").write_text('{"decoder": {"hidden_size": 1024}}', encoding="utf-8")
+
+        service = self._make_service()
+        service._app.config.qwen_model_path = str(override)
+        status = service._compute_model_status()
+        assert status["qwen3-0.6b"]["downloaded"] is True
+        assert status["qwen3-1.7b"]["downloaded"] is False
 
 
 class TestDownloadPollScopedToModelDir:

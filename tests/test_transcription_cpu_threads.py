@@ -119,11 +119,13 @@ class TestWhisperModelConstructorKwargs:
         engine._load_transcriber_impl([("cpu", "int8", "tiny")], acquire_lock=False)
 
         self.fw_module.WhisperModel.assert_called_once_with(
-            "tiny",
+            "Systran/faster-whisper-tiny",
             device="cpu",
             compute_type="int8",
             cpu_threads=6,
             num_workers=1,
+            revision="d90ca5fe260221311c53c58e660288d3deb8d356",
+            local_files_only=True,
         )
         assert engine._model is self.fw_module.WhisperModel.return_value
 

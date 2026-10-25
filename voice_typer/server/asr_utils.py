@@ -21,7 +21,8 @@ _MODEL_SIZE_MB = {
     # ``large-v3``: highest-accuracy multilingual Whisper (~3 GB).
     "large-v3": 3000,
     # ``large-v3-turbo`` is the fast multilingual model released by
-    "large-v3-turbo": 809,
+    # OpenAI (fp16 CTranslate2 weights, ~1.62 GB on HuggingFace).
+    "large-v3-turbo": 1618,
     # Parakeet TDT 0.6b v3 ONNX fp16 export is ~1.28 GB uncompressed
     "parakeet": 1275,
 }
@@ -98,10 +99,13 @@ def _download_with_retry(
         )
 
     def _on_give_up(exc: BaseException, attempts: int) -> None:
-        # log.exception preserves the traceback; keep max_attempts arg, drop exc.
-        log.exception(
-            "[DOWNLOAD] All %d download attempts failed.",
+        # Runs outside the except block, so the exception must be passed as
+        # ``exc_info``; ``log.exception`` there renders "NoneType: None".
+        log.error(
+            "[DOWNLOAD] All %d download attempts failed: %s",
             attempts,
+            exc,
+            exc_info=exc,
         )
 
     result: str = run_with_retry(

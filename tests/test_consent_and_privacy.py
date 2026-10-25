@@ -351,7 +351,7 @@ class TestWhisperLoadRefusesUncachedModel:
 
         engine = self._make_engine()
         engine._require_model_downloaded("parakeet")
-        engine._require_model_downloaded("qwen")
+        engine._require_model_downloaded("qwen3-1.7b")
         engine._require_model_downloaded("")
 
     def test_missing_huggingface_hub_raises_not_downloaded(self, monkeypatch):

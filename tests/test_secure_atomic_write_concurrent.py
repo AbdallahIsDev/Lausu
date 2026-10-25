@@ -17,9 +17,14 @@ def _isolated_config_dir(tmp_config_dir):
 class TestSecureAtomicWriteConcurrent:
     """_secure_atomic_write must use a unique tmp name per call."""
 
-    def test_concurrent_saves_no_false_return(self, tmp_path):
+    def test_concurrent_saves_no_false_return(self, tmp_path, monkeypatch):
         """Hammer Config.save() from 4 threads, assert no False return."""
         from voice_typer.server.config import Config
+
+        # The contract under test is the unique-tmp-name fix, not the 5s
+        # product safety valve: 80 serialized saves outrun that budget on a
+        # loaded CI box and the save would "fail" for machine-load reasons.
+        monkeypatch.setattr("voice_typer.server.config._CONFIG_LOCK_TIMEOUT_SECONDS", 120)
 
         results: list = []
         results_lock = threading.Lock()

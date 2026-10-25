@@ -426,7 +426,7 @@ describe("Model step rebuild (ONB-5)", () => {
 					return Promise.resolve({
 						models: [
 							{
-								name: "qwen",
+								name: "qwen3-1.7b",
 								download_size_mb: 0,
 								required_vram_mb: 4096,
 								backend: "qwen",
@@ -444,8 +444,12 @@ describe("Model step rebuild (ONB-5)", () => {
 
 		await screen.findByText("Step 3 of 4");
 		// Qwen family rendered via normalized catalog entry, no crash.
-		expect(screen.getByTestId("onboarding-model-select-qwen")).toBeTruthy();
-		expect(screen.getByTestId("onboarding-download-button-qwen")).toBeTruthy();
+		expect(
+			screen.getByTestId("onboarding-model-select-qwen3-1.7b"),
+		).toBeTruthy();
+		expect(
+			screen.getByTestId("onboarding-download-button-qwen3-1.7b"),
+		).toBeTruthy();
 	});
 });
 

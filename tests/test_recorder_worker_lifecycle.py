@@ -671,6 +671,32 @@ class TestStreamLifecycleLock:
         )
         assert r._stream_lifecycle._stream is None, "GT-24: _teardown_stream did not tear down the stream."
 
+    def test_teardown_stream_marks_intentional_stop(self):
+        """Teardown is a deliberate stop, so the finished callback must not warn.
+
+        PortAudio fires ``finished_callback`` on every stop; unmarked, the
+        disconnect handler logged "Stream finished unexpectedly" on each
+        intentional teardown (failed start, discard, shutdown).
+        """
+        from voice_typer.server.recording import Recorder
+
+        config = MagicMock(sample_rate=16000, microphone=None)
+        r = Recorder(config)
+        stream = MagicMock()
+        flag_during_stop: list[bool] = []
+        stream.stop.side_effect = lambda: flag_during_stop.append(r._user_stop_pending)
+        r._stream_lifecycle._stream = stream
+
+        assert r._user_stop_pending is False
+        r._teardown_stream()
+
+        assert flag_during_stop == [True], (
+            f"_teardown_stream must set _user_stop_pending BEFORE stream.stop() (observed {flag_during_stop!r})"
+        )
+        assert r._user_stop_pending is False, (
+            "_teardown_stream must restore _user_stop_pending so a later genuine disconnect still warns"
+        )
+
     def test_handle_device_disconnect_restart_uses_lock(self, monkeypatch):
         """Behavioral: the restart block of ``_handle_device_disconnect``"""
         import voice_typer.server.recording as recording_mod

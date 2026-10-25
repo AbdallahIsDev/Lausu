@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 _REPO_TINY = "Systran/faster-whisper-tiny"
-_REPO_TURBO = "mobiuslabsgmbh/faster-whisper-large-v3-turbo"
+_REPO_TURBO = "dropbox-dash/faster-whisper-large-v3-turbo"
 _REPO_PARKEET = "grikdotnet/parakeet-tdt-0.6b-fp16"
 
 

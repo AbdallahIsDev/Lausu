@@ -146,11 +146,19 @@ def _maybe_recover_from_corruption(
     # BEFORE opening the fresh DB, attempt to recover
     recovered_inserts = db._try_iterdump_recovery(corrupt_main)
     # Open a fresh connection on a new (empty) DB file.
+    new_conn: sqlite3.Connection | None = None
     try:
         new_conn = db._open_write_conn()
         db._check_wal_mode(new_conn)
     except sqlite3.Error as e:
         db._init_error = e
+        # LEASE-1: same rule as open_write_conn, the caller cannot close a
+        # handle it never received, so a failure after the open must close
+        # it here (``_open_write_conn`` already closes its own on failure,
+        # this covers a raise from ``_check_wal_mode``).
+        if new_conn is not None:
+            with contextlib.suppress(sqlite3.Error):
+                new_conn.close()
         # Even if the fresh DB can't be opened, still emit the
         db._notify_corruption_recovered(corrupt_main, 0)
         return None

@@ -961,12 +961,27 @@ class TestO2DbSubdirMigration:
             db.close()
 
     def test_legacy_wal_and_shm_sidecars_are_migrated(self, monkeypatch, tmp_path):
+        import shutil
+        import sqlite3
+
         from voice_typer.server.history_db import HistoryDB
 
         config_dir = self._redirect_config_dir(monkeypatch, tmp_path)
-        (config_dir / "history.db").write_bytes(b"db")
-        (config_dir / "history.db-wal").write_bytes(b"wal")
-        (config_dir / "history.db-shm").write_bytes(b"shm")
+        # Real WAL-mode DB: fake bytes make sqlite drop the sidecars when the
+        # rejected handle closes, which hides whether the move happened.
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        staged = staging / "history.db"
+        staged_conn = sqlite3.connect(staged)
+        try:
+            staged_conn.execute("PRAGMA journal_mode=WAL")
+            staged_conn.execute("CREATE TABLE legacy_probe(x TEXT)")
+            staged_conn.execute("INSERT INTO legacy_probe VALUES ('kept')")
+            staged_conn.commit()
+            for suffix in ("", "-wal", "-shm"):
+                shutil.copyfile(f"{staged}{suffix}", str(config_dir / f"history.db{suffix}"))
+        finally:
+            staged_conn.close()
 
         db = HistoryDB()
         try:
@@ -974,6 +989,12 @@ class TestO2DbSubdirMigration:
             assert not (config_dir / "history.db-shm").exists()
             assert (config_dir / "db" / "history.db-wal").exists()
             assert (config_dir / "db" / "history.db-shm").exists()
+            # The committed frames in the moved WAL must still replay.
+            check = sqlite3.connect(db.db_path)
+            try:
+                assert check.execute("SELECT x FROM legacy_probe").fetchall() == [("kept",)]
+            finally:
+                check.close()
         finally:
             db.close()
 

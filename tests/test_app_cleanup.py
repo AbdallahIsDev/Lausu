@@ -621,7 +621,7 @@ class TestRealHistoryDBFlushDrainsQueue:
             # Open a FRESH read connection (not the writer thread's
             import sqlite3
 
-            with sqlite3.connect(str(tmp_config_dir / "history.db")) as conn:
+            with contextlib.closing(sqlite3.connect(str(tmp_config_dir / "history.db"))) as conn:
                 conn.row_factory = sqlite3.Row
                 rows = conn.execute("SELECT text FROM transcriptions ORDER BY id").fetchall()
                 on_disk_texts = [r["text"] for r in rows]
@@ -649,7 +649,7 @@ class TestRealHistoryDBFlushDrainsQueue:
 
             import sqlite3
 
-            with sqlite3.connect(str(tmp_config_dir / "history.db")) as conn:
+            with contextlib.closing(sqlite3.connect(str(tmp_config_dir / "history.db"))) as conn:
                 count = conn.execute("SELECT COUNT(*) FROM transcriptions").fetchone()[0]
 
             assert count == 20, (

@@ -152,7 +152,7 @@ cutover complete 2026-09-17). predecessor packaging, TCP IPC, and
 | # | Feature | Status | Notes |
 |---|---|---|---|---|
 | 16 | faster-whisper (tiny.en, small.en, medium.en) | ✅ | ctranslate2 backend, GPU→CPU 4-level automatic fallback |
-| 17 | Qwen3-ASR (0.6B / 1.7B) | ✅ | ONNX Runtime backend only (pre-exported `andrewleech/qwen3-asr-*-onnx` models, local dir: PLAN_ONNX_INTEGRATION §4.3 C-2). The torch `qwen-asr` path was removed 2026-08-15 (Phase 1d), the project is torch-free. |
+| 17 | Qwen3-ASR (0.6B / 1.7B) | ✅ | ONNX Runtime backend only (pre-exported `andrewleech/qwen3-asr-*-onnx` models, downloaded from HuggingFace after consent; a local dir via `qwen_model_path` still works as an override). The torch `qwen-asr` path was removed 2026-08-15 (Phase 1d), the project is torch-free. |
 | 18 | NVIDIA Parakeet TDT v3 | ✅ | HuggingFace Transformers, auto-download weights |
 | 19 | Cloud ASR: OpenAI Whisper API | ✅ | `CloudEngine` interface, tested |
 | 20 | Cloud ASR: Groq Whisper API | ✅ | `CloudEngine` interface, tested |

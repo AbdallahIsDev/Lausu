@@ -696,7 +696,7 @@ def test_models_submenu_rows_have_callbacks_and_checked_state():
     data = [
         _models_row("tiny", True, True, lambda n="tiny": changes.append(n)),
         _models_row("large-v3", True, False, lambda n="large-v3": changes.append(n)),
-        _models_row("qwen", False, False, lambda n="qwen": changes.append(n)),
+        _models_row("qwen3-1.7b", False, False, lambda n="qwen3-1.7b": changes.append(n)),
     ]
     model, id_map = _make_model(build_models_submenu_data=lambda: data)
 
@@ -707,7 +707,7 @@ def test_models_submenu_rows_have_callbacks_and_checked_state():
     # Only downloaded models get rows.
     assert "model:tiny" in by_id
     assert "model:large-v3" in by_id
-    assert "model:qwen" not in by_id, "not-downloaded models must not render"
+    assert "model:qwen3-1.7b" not in by_id, "not-downloaded models must not render"
 
     # Native checkmark state: active True, others False.
     assert by_id["model:tiny"]["checked"] is True
@@ -805,7 +805,7 @@ def test_maybe_publish_registers_models_and_mic_dispatch(monkeypatch):
     def _fake_data(config_dir_fn, change_model_fn, config_provider=None):
         return [
             ("tiny", True, True, lambda n="tiny": change_model_fn(n)),
-            ("qwen", False, False, lambda n="qwen": change_model_fn(n)),
+            ("qwen3-1.7b", False, False, lambda n="qwen3-1.7b": change_model_fn(n)),
         ]
 
     monkeypatch.setattr("voice_typer.server.tray_models.build_models_submenu_data", _fake_data)
@@ -817,7 +817,7 @@ def test_maybe_publish_registers_models_and_mic_dispatch(monkeypatch):
     id_map = tray._tray_id_map
     for expected in ("more_models", "model:tiny", "refresh_mics", "more_microphones"):
         assert expected in id_map, f"{expected} must be dispatchable after publish"
-    assert "model:qwen" not in id_map, "not-downloaded models must not dispatch"
+    assert "model:qwen3-1.7b" not in id_map, "not-downloaded models must not dispatch"
 
     # Click dispatch reaches the real actions.
     assert tray.dispatch_tray_action("more_models") is True

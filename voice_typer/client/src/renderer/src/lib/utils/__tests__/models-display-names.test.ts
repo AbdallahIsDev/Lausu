@@ -1,8 +1,11 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	formatModelDisplayName,
 	formatModelSize,
 	getModelVariantDisplayName,
+	INITIAL_MODELS,
 	type ModelInfo,
 	requiresHuggingFaceConsent,
 } from "@/lib/utils/models";
@@ -22,7 +25,7 @@ function makeModel(name: string, backend: string): ModelInfo {
 describe("formatModelDisplayName, slug → display label (display-layer only)", () => {
 	it("capitalizes single-word slugs", () => {
 		expect(formatModelDisplayName("tiny")).toBe("Tiny");
-		expect(formatModelDisplayName("qwen")).toBe("Qwen");
+		expect(formatModelDisplayName("qwen3")).toBe("Qwen3");
 		expect(formatModelDisplayName("parakeet")).toBe("Parakeet");
 	});
 
@@ -65,14 +68,41 @@ describe("getModelVariantDisplayName, family prefix + display_name priority", ()
 			} as never),
 		).toBe("Parakeet-TDT-0.6b-V3");
 		expect(
-			getModelVariantDisplayName(makeModel("qwen", "qwen"), {
+			getModelVariantDisplayName(makeModel("qwen3-1.7b", "qwen"), {
 				display_name: "Qwen-3",
 			} as never),
 		).toBe("Qwen-3");
 	});
 
 	it("formats non-whisper slugs without a family prefix", () => {
-		expect(getModelVariantDisplayName(makeModel("qwen", "qwen"))).toBe("Qwen");
+		expect(getModelVariantDisplayName(makeModel("parakeet", "parakeet"))).toBe(
+			"Parakeet",
+		);
+	});
+
+	it("uses the catalogue displayName for the two Qwen sizes", () => {
+		for (const name of ["qwen3-1.7b", "qwen3-0.6b"]) {
+			const info = INITIAL_MODELS.find((m) => m.name === name);
+			expect(info, name).toBeDefined();
+			if (!info) continue;
+			expect(getModelVariantDisplayName(info)).toBe(info.displayName);
+		}
+	});
+
+	it("mirrors the backend registry display names (catalogue ↔ model_registry.py)", () => {
+		const source = readFileSync(
+			resolve(process.cwd(), "../../voice_typer/server/model_registry.py"),
+			"utf-8",
+		);
+		for (const name of ["qwen3-1.7b", "qwen3-0.6b"]) {
+			const block = new RegExp(
+				`"${name}": ModelMetadata\\(([\\s\\S]*?)\\n    \\),`,
+			).exec(source);
+			expect(block, `${name} entry in model_registry.py`).not.toBeNull();
+			const registryName = /display_name="([^"]+)"/.exec(block?.[1] ?? "")?.[1];
+			const info = INITIAL_MODELS.find((m) => m.name === name);
+			expect(info?.displayName, name).toBe(registryName);
+		}
 	});
 });
 
@@ -87,8 +117,13 @@ describe("requiresHuggingFaceConsent, JIT consent gate scope (point 4)", () => {
 		);
 	});
 
-	it("does NOT gate qwen (local-only, nothing phones home)", () => {
-		expect(requiresHuggingFaceConsent(makeModel("qwen", "qwen"))).toBe(false);
+	it("gates every Qwen size too (both download their ONNX export from HF)", () => {
+		expect(requiresHuggingFaceConsent(makeModel("qwen3-1.7b", "qwen"))).toBe(
+			true,
+		);
+		expect(requiresHuggingFaceConsent(makeModel("qwen3-0.6b", "qwen"))).toBe(
+			true,
+		);
 	});
 });
 

@@ -190,7 +190,7 @@ describe("useModelSelection, model-switch ordering (guards)", () => {
 		// deps guard must fire. The `depsInstallable` flag now gates
 		// Qwen exactly like Parakeet.
 		const model = makeModel({
-			name: "qwen",
+			name: "qwen3-1.7b",
 			backend: "qwen",
 			downloaded: true, // downloaded so the downloaded guard would pass
 			depsOk: false, // qwen_asr missing, deps guard must fire
@@ -238,7 +238,7 @@ describe("useModelSelection, model-switch ordering (guards)", () => {
 		const { result } = renderHook(() => useModelSelection(args));
 
 		const model = makeModel({
-			name: "qwen",
+			name: "qwen3-1.7b",
 			backend: "qwen",
 			downloaded: false,
 			depsOk: true,

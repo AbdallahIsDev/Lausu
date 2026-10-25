@@ -25,12 +25,12 @@ import type { ModelOption } from "../lib/types";
 
 // Family grouping for the onboarding accordion, mirrors the Models
 // page family headers: whisper → OpenAI, parakeet → NVIDIA, qwen →
-// Qwen. Local helper (the Models page's groupModelsByFamily consumes
-// the richer ModelInfo shape with disk state the wizard doesn't
-// fetch); a future family maps through the same two tables.
-function familyForModelName(name: string): string {
-	if (name === "qwen") return "qwen";
-	if (name === "parakeet") return "parakeet";
+// Qwen. Backend-driven (``ModelOption.backend``) so the two Qwen sizes
+// need no per-name entry; the wizard already falls back to "whisper"
+// for older backends that omit the field.
+function familyForModel(option: ModelOption): string {
+	if (option.backend === "qwen") return "qwen";
+	if (option.backend === "parakeet") return "parakeet";
 	return "whisper";
 }
 
@@ -127,7 +127,7 @@ export function ModelStep({
 	// Families appear in first-seen order (whisper, qwen, parakeet).
 	const families: { id: string; models: ModelOption[] }[] = [];
 	for (const m of modelOptions) {
-		const id = familyForModelName(m.name);
+		const id = familyForModel(m);
 		let bucket = families.find((f) => f.id === id);
 		if (!bucket) {
 			bucket = { id, models: [] };

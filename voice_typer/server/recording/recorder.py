@@ -152,6 +152,19 @@ class Recorder(RecorderInitMixin):
     def recording(self) -> bool:
         return self._recording_event.is_set()
 
+    @recording.setter
+    def recording(self, value: bool) -> None:
+        """Force-reset the recording gate.
+
+        ``start()`` / ``stop()`` / ``discard()`` own this flag normally; the
+        failed-start teardown assigns ``False`` after a best-effort discard
+        so the next ``start()`` is not refused.
+        """
+        if value:
+            self._recording_event.set()
+        else:
+            self._recording_event.clear()
+
     @property
     def _xruns(self) -> int:
         """Read-only bridge to the AudioPipeline-owned xrun counter."""
@@ -345,9 +358,15 @@ class Recorder(RecorderInitMixin):
         """Stop + close the PortAudio stream, draining any in-flight callback."""
         if not self._stream_lifecycle_lock.acquire(blocking=False):
             return
+        # Every teardown is a deliberate stop: mark it so the PortAudio
+        # finished callback does not log "Stream finished unexpectedly".
+        # ``getattr`` default keeps ``__del__`` safe on a half-built instance.
+        _prev_user_stop_pending = getattr(self, "_user_stop_pending", False)
+        self._user_stop_pending = True
         try:
             self._stream_lifecycle.teardown_stream_body(self, force=force)
         finally:
+            self._user_stop_pending = _prev_user_stop_pending
             self._stream_lifecycle_lock.release()
 
     def _start_audio_worker(self) -> None:

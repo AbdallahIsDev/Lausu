@@ -47,32 +47,24 @@ class DeleteImportMixin:
 
         # Resolve repo_id from MODEL_REGISTRY so all registered
         meta = get_model_metadata(model_name)
-        if meta is not None and meta.backend in ("whisper", "distil-whisper", "parakeet", "qwen"):
-            repo_id = meta.repo_id
-        elif model_name == "parakeet":
-            repo_id = "nvidia/parakeet-tdt-0.6b-v3"
-        elif model_name == "qwen":
-            # Qwen is registered in MODEL_REGISTRY
-            repo_id = "andrewleech/qwen3-asr-1.7b-onnx"
-        else:
-            repo_id = None
-
-        if not repo_id:
+        if meta is None or meta.backend not in ("whisper", "distil-whisper", "parakeet", "qwen"):
             log.warning("[SERVICE] delete_model: unknown model '%s'", model_name)
             return {
                 "success": False,
                 "reason": "unknown_model",
                 "message": _t("notify.model.delete.unknown_model", model=model_name),
             }
+        repo_id = meta.repo_id
 
         # Compute whether ``model_name`` is the configured active model.
         current_backend = getattr(self._app.config, "asr_backend", "whisper")
         current_model = getattr(self._app.config, "model_size", "tiny")
-        is_active = (
-            (model_name == current_model and current_backend in ("whisper", "distil-whisper"))
-            or (model_name == "parakeet" and current_backend == "parakeet")
-            or (model_name == "qwen" and current_backend == "qwen")
+        # Whisper and distil-whisper share one loader, so either name counts.
+        _whisper_family = ("whisper", "distil-whisper")
+        backend_matches = current_backend == meta.backend or (
+            current_backend in _whisper_family and meta.backend in _whisper_family
         )
+        is_active = model_name == current_model and backend_matches
 
         model_dirs = [d for d in snapshot_search_dirs(_config_dir(), repo_id) if d.exists()]
         if not model_dirs:

@@ -47,7 +47,9 @@ class TestAllowedUserModels:
             f"silently reset each to {DEFAULT_MODEL_SIZE!r} on the next launch."
         )
 
-    @pytest.mark.parametrize("model_size", ["tiny", "large-v3", "large-v3-turbo", "parakeet", "qwen"])
+    @pytest.mark.parametrize(
+        "model_size", ["tiny", "large-v3", "large-v3-turbo", "parakeet", "qwen3-1.7b", "qwen3-0.6b"]
+    )
     def test_load_preserves_valid_model_choice(self, tmp_config_dir, model_size):
         """Config.load() must preserve a valid model choice, it must"""
         from voice_typer.server.config import Config

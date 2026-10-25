@@ -21,6 +21,13 @@ export interface ModelInfo {
 	downloaded: boolean;
 	depsOk: boolean;
 	isActive: boolean;
+	/**
+	 * User-facing name for surfaces with no backend metadata at hand
+	 * (About rows, Home share image). The Models page prefers the registry
+	 * `display_name`; this mirrors it, and `models-display-names.test.ts`
+	 * pins the two against `model_registry.py`.
+	 */
+	displayName?: string;
 	// (`downloaded`). Do NOT re-add an always-available concept without
 	/**
 	 * Model requires extra system dependencies that
@@ -78,7 +85,7 @@ export const INITIAL_MODELS: ModelInfo[] = [
 	},
 	{
 		name: "large-v3-turbo",
-		size: "809 MB",
+		size: "1.6 GB",
 		speed: "Fast",
 		backend: "whisper",
 		downloaded: false,
@@ -86,15 +93,24 @@ export const INITIAL_MODELS: ModelInfo[] = [
 		isActive: false,
 	},
 	{
-		name: "qwen",
-		size: "Variable",
+		name: "qwen3-1.7b",
+		displayName: "qwen3 1.7B",
+		size: "3.9 GB",
+		speed: "Medium",
+		backend: "qwen",
+		downloaded: false,
+		depsOk: true,
+		isActive: false,
+	},
+	{
+		name: "qwen3-0.6b",
+		displayName: "qwen3 0.6B",
+		size: "1.9 GB",
 		speed: "Fast",
 		backend: "qwen",
 		downloaded: false,
-		// Qwen requires the optional `qwen_asr` pip package (probed by
 		depsOk: true,
 		isActive: false,
-		depsInstallable: true,
 	},
 	{
 		name: "parakeet",
@@ -117,6 +133,7 @@ export function getModelVariantDisplayName(
 	meta?: ModelMetadata | null,
 ): string {
 	if (meta?.display_name) return meta.display_name;
+	if (model.displayName) return model.displayName;
 	const formatted = formatModelDisplayName(model.name);
 	if (model.backend === "whisper" || model.backend === "distil-whisper") {
 		return `Whisper ${formatted}`;
@@ -180,6 +197,7 @@ export function requiresHuggingFaceConsent(model: ModelInfo): boolean {
 	return (
 		model.backend === "whisper" ||
 		model.backend === "distil-whisper" ||
+		model.backend === "qwen" ||
 		model.backend === "parakeet"
 	);
 }

@@ -53,7 +53,6 @@ def run_classic_transfer(
             allow_patterns=allow_patterns,
             # Segmented fast lane owns the big files —
             ignore_patterns=ignore_patterns,
-            resume_download=True,
             # pause/abort gate: intercepts every ~10 MB
             tqdm_class=tqdm_class,
         )
@@ -167,7 +166,6 @@ def run_segmented_fast_lane(
             repo_id=repo_id,
             revision=revision,
             allow_patterns=allow_patterns,
-            resume_download=True,
             tqdm_class=get_download_tqdm_class(),
         )
     # Self-verify the assembled snapshot by HF's own
@@ -194,7 +192,6 @@ def run_segmented_fast_lane(
             repo_id=repo_id,
             revision=revision,
             allow_patterns=allow_patterns,
-            resume_download=True,
             tqdm_class=get_download_tqdm_class(),
         )
     return None

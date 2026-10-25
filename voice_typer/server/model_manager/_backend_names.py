@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, cast
 
 # Mirrors ``Config.asr_backend`` (config/_schema.py), the four valid
 AsrBackendName = Literal["whisper", "qwen", "parakeet", "cloud"]
@@ -17,8 +17,9 @@ ASR_BACKEND_NAMES: tuple[AsrBackendName, ...] = ("whisper", "qwen", "parakeet", 
 
 def _backend_for_model_size(model_size: str) -> AsrBackendName:
     """Map a user-selected ``model_size`` to its owning ASR backend."""
-    if model_size == "parakeet":
-        return "parakeet"
-    if model_size == "qwen":
-        return "qwen"
+    from voice_typer.server.model_registry import get_model_metadata
+
+    meta = get_model_metadata(model_size)
+    if meta is not None and meta.backend in ASR_BACKEND_NAMES:
+        return cast(AsrBackendName, meta.backend)
     return "whisper"

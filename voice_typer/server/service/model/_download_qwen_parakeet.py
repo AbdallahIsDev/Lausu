@@ -31,20 +31,22 @@ class QwenParakeetDownloadMixin:
     if TYPE_CHECKING:
         def _enqueue_download(self, model_name: str) -> DownloadOutcome: ...
         def _require_huggingface_consent(self, model_name: str) -> DownloadOutcome | None: ...
+        def _download_whisper_family(self, model_name: str, model_meta, *, allow_patterns=None) -> DownloadOutcome: ...
+        def _invalidate_model_status_cache(self) -> None: ...
 
 
     def _download_qwen(self, model_name: str) -> DownloadOutcome:
         """Qwen branch of :meth:`download_model`.
 
         extracted from the original ``elif model_name == "qwen"``
-        branch of the monolithic ``download_model``.  Qwen uses a local
-        file path (no HuggingFace call) so the  consent gate does
-        not apply.  Returns a :data:`DownloadOutcome` with the same
-        runtime shape the original branch produced.
+        branch of the monolithic ``download_model``.  A manual
+        ``qwen_model_path`` that holds the requested variant short-circuits;
+        otherwise the variant is pulled from its pinned HuggingFace repo
+        through the engine-family downloader (consent gate, queue,
+        segmented fast lane and progress polling included).
         """
-        import os
-
         from voice_typer.server import event_bus
+        from voice_typer.server.qwen_layout import override_matches_variant
         from voice_typer.server.service._download_helpers import (
             notify as _notify,
             push_progress as _push_progress,
@@ -52,15 +54,30 @@ class QwenParakeetDownloadMixin:
 
         log.info("[SERVICE] Download requested for '%s' (Qwen backend)", model_name)
         qwen_path = getattr(self._app.config, "qwen_model_path", None)
-        if qwen_path and os.path.isdir(qwen_path):
+        if override_matches_variant(model_name, qwen_path):
             _push_progress(event_bus, model_name, 100, "Qwen model already cached")
+            try:
+                from voice_typer.server.tray_models import (
+                    invalidate_model_availability_cache,
+                )
+
+                invalidate_model_availability_cache()
+            except Exception:
+                log.debug(
+                    "[SERVICE] failed to invalidate tray model cache",
+                    exc_info=True,
+                )
+            self._invalidate_model_status_cache()
+            _notify(self._app.tray, model_name, APP_NAME, f"Model '{model_name}' downloaded successfully")
             return {"success": True, "model": model_name, "message": "Qwen model already cached"}
-        _notify(self._app.tray, model_name, APP_NAME, "Qwen model path not configured")
-        return {
-            "success": False,
-            "model": model_name,
-            "error": "Qwen model path not configured. Set qwen_model_path in Settings.",
-        }
+        from voice_typer.server._model_integrity import ALLOW_PATTERNS_QWEN
+        from voice_typer.server.model_registry import get_model_metadata
+
+        return self._download_whisper_family(
+            model_name,
+            get_model_metadata(model_name),
+            allow_patterns=ALLOW_PATTERNS_QWEN,
+        )
 
     def _download_parakeet(self, model_name: str) -> DownloadOutcome:
         """Parakeet branch of :meth:`download_model`.

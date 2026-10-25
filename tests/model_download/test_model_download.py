@@ -97,15 +97,15 @@ class TestDeleteModelUsesRegistryUnconditionally:
         assert not (cache_dir / model_dir_name).exists()
 
     def test_qwen_uses_registry_repo_id(self, tmp_config_dir):
-        """``delete_model(\"qwen\")`` no longer returns \"Unknown model\""""
+        """``delete_model("qwen3-1.7b")`` no longer returns "Unknown model"."""
         from voice_typer.server.model_registry import get_model_metadata
 
         service = self._make_service()
-        meta = get_model_metadata("qwen")
-        assert meta is not None, "qwen must be in MODEL_REGISTRY"
+        meta = get_model_metadata("qwen3-1.7b")
+        assert meta is not None, "qwen3-1.7b must be in MODEL_REGISTRY"
         assert meta.repo_id == "andrewleech/qwen3-asr-1.7b-onnx"
 
-        result = service.delete_model("qwen")
+        result = service.delete_model("qwen3-1.7b")
         assert result["success"] is False
         assert "not downloaded" in result["message"], (
             f"Expected 'not downloaded' message for absent qwen cache, got: {result}"

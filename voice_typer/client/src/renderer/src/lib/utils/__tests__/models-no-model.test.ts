@@ -45,11 +45,32 @@ describe("isModelActive, empty model_size means nothing is active", () => {
 		);
 	});
 
-	it("returns false for backend-keyed models (qwen/parakeet) when activeModel is empty", () => {
-		// qwen / parakeet are keyed by backend alone, without the guard
-		// they would render active even with an empty model_size.
-		expect(isModelActive(makeModel("qwen"), "qwen", "")).toBe(false);
+	it("returns false for non-whisper models (qwen/parakeet) when activeModel is empty", () => {
+		// Without the empty guard a backend-keyed family (parakeet) would
+		// render active even with an empty model_size.
+		expect(isModelActive(makeModel("qwen3-1.7b"), "qwen", "")).toBe(false);
 		expect(isModelActive(makeModel("parakeet"), "parakeet", "")).toBe(false);
+	});
+
+	it("keys a multi-variant family (two Qwen sizes) by exact name", () => {
+		// Both Qwen entries share `backend: "qwen"`, so the backend alone
+		// would mark both rows active at once.
+		expect(
+			isModelActive(makeModel("qwen", "qwen3-1.7b"), "qwen", "qwen3-0.6b"),
+		).toBe(false);
+		expect(
+			isModelActive(makeModel("qwen", "qwen3-0.6b"), "qwen", "qwen3-0.6b"),
+		).toBe(true);
+		expect(
+			isModelActive(makeModel("qwen", "qwen3-1.7b"), "qwen", "qwen3-1.7b"),
+		).toBe(true);
+	});
+
+	it("keeps backend matching for single-variant families", () => {
+		// A stale model_size must still label the one installed Parakeet.
+		expect(isModelActive(makeModel("parakeet"), "parakeet", "stale")).toBe(
+			true,
+		);
 	});
 
 	it("still returns true for a real selection", () => {
@@ -62,7 +83,7 @@ describe("applyActiveState / getActiveFamilyId with no model selected", () => {
 	it("clears every active flag when model_size is empty", () => {
 		const models = [
 			makeModel("whisper", "tiny"),
-			makeModel("qwen"),
+			makeModel("qwen", "qwen3-1.7b"),
 			makeModel("parakeet"),
 		];
 		const applied = applyActiveState(models, makeConfig(""));

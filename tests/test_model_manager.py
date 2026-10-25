@@ -324,7 +324,7 @@ class TestChangeModelBlocking:
         mm._publish_backend_ready_event = MagicMock()
         mm.cancel_idle_unload_timer = MagicMock()
 
-        mm._change_model_blocking("qwen")
+        mm._change_model_blocking("qwen3-1.7b")
 
         # Config still mutated + saved (so the next boot reflects the request).
         assert app.config.asr_backend == "qwen"
@@ -333,7 +333,7 @@ class TestChangeModelBlocking:
         mm._ensure_engine.assert_not_called()
         mm._registry.load_active.assert_not_called()
         # Pending change captured.
-        assert mm._pending_model_change == "qwen"
+        assert mm._pending_model_change == "qwen3-1.7b"
         # Event NOT published (load didn't happen).
         mm._publish_backend_ready_event.assert_not_called()
 
@@ -367,7 +367,7 @@ class TestChangeModelAckShape:
         ack = mm.change_model("parakeet")
         assert ack["pending"]["backend"] == "parakeet"
         # qwen
-        ack = mm.change_model("qwen")
+        ack = mm.change_model("qwen3-1.7b")
         assert ack["pending"]["backend"] == "qwen"
         ack = mm.change_model("base.en")
         assert ack["pending"]["backend"] == "whisper"

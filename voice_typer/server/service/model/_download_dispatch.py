@@ -15,6 +15,67 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+_NETWORK_DOWN_MESSAGE = "Could not reach HuggingFace. Check your internet connection and try again."
+_STALLED_DOWNLOAD_MESSAGE = (
+    "The download stalled. Check your connection and try again; already-downloaded files are kept."
+)
+_DISK_FULL_MESSAGE = "Not enough disk space to finish the download. Free up space and try again."
+
+_NETWORK_ERROR_MARKERS = (
+    "getaddrinfo failed",
+    "name or service not known",
+    "temporary failure in name resolution",
+    "network is unreachable",
+    "connection refused",
+    "connection reset",
+    # httpx's shared client reports the closed client, never the real cause.
+    "client has been closed",
+    "cannot send a request",
+)
+_STALLED_ERROR_MARKERS = ("timed out", "timeout", "stalled", "no progress for")
+_DISK_FULL_ERROR_MARKERS = ("no space left", "not enough space", "winerror 112")
+
+
+def _exception_chain(exc: BaseException) -> list[BaseException]:
+    """Return *exc* plus its ``__cause__``/``__context__`` chain, cycle-safe."""
+    chain: list[BaseException] = []
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        chain.append(current)
+        current = current.__cause__ or current.__context__
+    return chain
+
+
+def _transport_error_types() -> tuple[type[BaseException], ...]:
+    """Return the importable httpx/httpcore connect-error classes."""
+    try:
+        import httpx
+    except ImportError:
+        return ()
+    try:
+        import httpcore
+    except ImportError:
+        return (httpx.ConnectError,)
+    return (httpx.ConnectError, httpcore.ConnectError)
+
+
+def _friendly_download_error(exc: BaseException) -> str:
+    """Map known transport failures to short actionable text; redact the rest."""
+    chain = _exception_chain(exc)
+    transport_types = _transport_error_types()
+    if transport_types and any(isinstance(err, transport_types) for err in chain):
+        return _NETWORK_DOWN_MESSAGE
+    texts = [str(err).lower() for err in chain]
+    if any(marker in text for text in texts for marker in _NETWORK_ERROR_MARKERS):
+        return _NETWORK_DOWN_MESSAGE
+    if any(marker in text for text in texts for marker in _STALLED_ERROR_MARKERS):
+        return _STALLED_DOWNLOAD_MESSAGE
+    if any(marker in text for text in texts for marker in _DISK_FULL_ERROR_MARKERS):
+        return _DISK_FULL_MESSAGE
+    return redact_secret(redact_url(str(exc)))
+
 
 class DownloadDispatchMixin:
 
@@ -31,7 +92,7 @@ class DownloadDispatchMixin:
     if TYPE_CHECKING:
         def _download_parakeet(self, model_name: str) -> DownloadOutcome: ...
         def _download_qwen(self, model_name: str) -> DownloadOutcome: ...
-        def _download_whisper_family(self, model_name: str, model_meta) -> DownloadOutcome: ...
+        def _download_whisper_family(self, model_name: str, model_meta, *, allow_patterns=None) -> DownloadOutcome: ...
         def _start_next_queued_download(self) -> None: ...
 
 
@@ -63,17 +124,18 @@ class DownloadDispatchMixin:
         pushed once per transition.  Resume clears the flag and pushes
         a ``resumed: True`` event.
 
-        the Whisper and Parakeet branches now gate on
+        the Whisper, Qwen and Parakeet branches now gate on
         :meth:`_require_huggingface_consent` before any HuggingFace
         network call, mirroring the consent gate that already lived in
         ``TranscriptionEngine._pre_download_model`` (transcription.py:835-849).
-        The Qwen branch uses a local file path and does not phone home,
-        so it is exempt from the consent gate.
+        Qwen exports download from pinned HuggingFace repos, so a manual
+        ``qwen_model_path`` is only a short-circuit for users who already
+        have a variant on disk.
 
         daemon=True is acceptable because _do_download only
         writes to the HF cache dir, no critical cleanup. The download
         completes or fails naturally; on force-kill the partial
-        download is resumed on next start via HF's resume_download=True.
+        download is resumed on next start by HuggingFace's automatic resume.
 
         the original 558-LOC god method has been split into a
         ~40-LOC dispatcher (this method) plus three branch methods
@@ -108,7 +170,7 @@ class DownloadDispatchMixin:
             is_whisper_family = model_meta is not None and model_meta.backend in ("whisper", "distil-whisper")
             if is_whisper_family:
                 outcome = self._download_whisper_family(model_name, model_meta)
-            elif model_name == "qwen":
+            elif model_meta is not None and model_meta.backend == "qwen":
                 outcome = self._download_qwen(model_name)
             elif model_name == "parakeet":
                 outcome = self._download_parakeet(model_name)
@@ -143,6 +205,7 @@ class DownloadDispatchMixin:
             }
         except Exception as exc:
             log.exception("download_model failed for %s: %s", model_name, exc)
+            friendly = _friendly_download_error(exc)
             # The per-download Event cleanup is handled by the
             try:
                 from voice_typer.server.asr_setup import clear_download_pause_state
@@ -156,17 +219,17 @@ class DownloadDispatchMixin:
                 push_progress as _push_progress_helper,
             )
 
-            _push_progress_helper(event_bus, model_name, 0, f"Download failed: {redact_secret(redact_url(str(exc)))}")
+            _push_progress_helper(event_bus, model_name, 0, f"Download failed: {friendly}")
             _notify_helper(
                 self._app.tray,
                 model_name,
                 APP_NAME,
-                f"Failed to download {model_name}: {redact_secret(redact_url(str(exc)))}",
+                f"Failed to download {model_name}: {friendly}",
             )
             return {
                 "success": False,
                 "model": model_name,
-                "error": redact_secret(redact_url(str(exc))),
+                "error": friendly,
             }
         finally:
             # Queue drain: EVERY exit path (success, failure, cancel,

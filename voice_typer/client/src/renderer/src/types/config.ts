@@ -4,7 +4,8 @@ export type ModelSize =
 	| "tiny"
 	| "large-v3"
 	| "large-v3-turbo"
-	| "qwen"
+	| "qwen3-1.7b"
+	| "qwen3-0.6b"
 	| "parakeet";
 
 /**

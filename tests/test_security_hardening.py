@@ -105,22 +105,36 @@ class TestModelIntegrity:
 class TestQwenModelIntegrityHardFail:
     """G4-H-33: ``security.verify_model_integrity`` is the canonical"""
 
-    def test_qwen_dir_with_empty_pinned_files_hard_fails(self, isolated_integrity_cache, tmp_path):
-        """G4-H-33: a local Qwen dir with the default (empty) pinned-files"""
-        from voice_typer.server.security import verify_model_integrity
+    def test_qwen_dir_mismatching_pinned_repo_hard_fails(self, isolated_integrity_cache, tmp_path, caplog):
+        """G4-H-33: a Qwen dir that does not match its pinned repo is refused.
+
+        The legacy local-only ``qwen`` manifest key is gone: override dirs are
+        never hashed, and downloaded/cached Qwen models are verified against the
+        upstream repo's pinned files. A directory that fails those pins must
+        still hard-fail even though the structural checks pass, and the check
+        must never degrade to the empty-files NO-OP.
+        """
+        from voice_typer.server.security import MODEL_HASHES, verify_model_integrity
 
         # Construct a plausible Qwen model dir.
         (tmp_path / "model.safetensors").write_bytes(b"\x00" * 1024)
         (tmp_path / "config.json").write_text('{"model_type": "qwen2"}')
         (tmp_path / "tokenizer.json").write_text("{}")
 
-        # The default model_hashes.json has ``"qwen": {"revision":
-        result = verify_model_integrity(str(tmp_path), "qwen")
-        assert result is False, (
-            "verify_model_integrity must hard-FAIL for a local Qwen dir "
-            "when model_hashes.json has empty 'files' (NF-R18-9). A "
-            "tampered local model has no upstream SHA pin to fall back on."
-        )
+        for repo_id in ("andrewleech/qwen3-asr-1.7b-onnx", "andrewleech/qwen3-asr-0.6b-onnx"):
+            assert MODEL_HASHES[repo_id]["files"], (
+                f"{repo_id} must ship pinned file hashes; an empty 'files' dict "
+                "turns verify_model_integrity into a NO-OP for downloaded Qwen models."
+            )
+            caplog.clear()
+            with caplog.at_level(logging.WARNING):
+                assert verify_model_integrity(str(tmp_path), repo_id) is False, (
+                    "verify_model_integrity must refuse a Qwen directory whose files "
+                    "do not match the pinned upstream repo (NF-R18-9)."
+                )
+            assert not any("NO-OP" in record.getMessage() for record in caplog.records), (
+                "Qwen integrity verification must never degrade to the empty-files NO-OP."
+            )
 
     def test_qwen_dir_tampered_with_pinned_hash_mismatch(self, isolated_integrity_cache, tmp_path):
         """

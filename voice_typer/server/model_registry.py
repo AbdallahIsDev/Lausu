@@ -80,15 +80,17 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
     # ``large-v3-turbo`` is OpenAI's 2024 fast multilingual model:
     "large-v3-turbo": ModelMetadata(
         name="large-v3-turbo",
-        download_size_mb=809,
+        # Real fp16 model.bin at the pinned revision is 1,617,884,929 bytes
+        download_size_mb=1618,
         required_vram_mb=2000,
         backend="whisper",
         multilingual=True,
         supported_languages=None,
         description="Turbo model, near-large-v3 accuracy at 8x speed. Recommended for most users.",
         network_behavior="downloads-on-first-use-consent-gated",
-        # faster-whisper 1.2.1 _MODELS maps "large-v3-turbo"/"turbo" to
-        repo_id="mobiuslabsgmbh/faster-whisper-large-v3-turbo",
+        # Canonical HF org (renamed from mobiuslabsgmbh; faster-whisper
+        # 1.2.1's _MODELS alias still points at the old slug).
+        repo_id="dropbox-dash/faster-whisper-large-v3-turbo",
         speed_rating="fast",
         accuracy_rating="high",
         # WER 5.5% real-world representative: 0.5 above large-v3's 5.0,
@@ -113,20 +115,18 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         # OpenASR average (LS clean 1.93% understates everyday errors).
         wer=6.34,
     ),
-    # added to registry for status consistency. Qwen uses a
-    "qwen": ModelMetadata(
-        name="qwen",
-        display_name="Qwen-3",
-        download_size_mb=0,  # local-only, size depends on user-supplied snapshot
+    # Qwen3-ASR ships as two sizes with separate ONNX exports.
+    "qwen3-1.7b": ModelMetadata(
+        name="qwen3-1.7b",
+        display_name="qwen3 1.7B",
+        # 3,942.3 MiB of int4 ONNX files at the pinned revision.
+        download_size_mb=3943,
         required_vram_mb=4096,
         backend="qwen",
         multilingual=True,
         supported_languages=None,
-        description="Alibaba Qwen3-ASR-1.7B (ONNX), multilingual ASR via "
-        "onnxruntime. Requires manual model path setup in Settings "
-        "(pre-exported ONNX dir, see PLAN_ONNX_INTEGRATION.md §4.3 C-2).",
-        network_behavior="local-only",
-        # The pre-exported ONNX repo (torch-free, 2026-08-15), the old
+        description="Qwen3-ASR 1.7B (ONNX int4). Multilingual ASR without PyTorch.",
+        network_behavior="downloads-on-first-use-consent-gated",
         repo_id="andrewleech/qwen3-asr-1.7b-onnx",
         speed_rating="medium",
         accuracy_rating="high",
@@ -134,12 +134,37 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         # (LS clean 1.63% understates everyday errors).
         wer=5.76,
     ),
+    "qwen3-0.6b": ModelMetadata(
+        name="qwen3-0.6b",
+        display_name="qwen3 0.6B",
+        # 1,940.1 MiB of int4 ONNX files at the pinned revision.
+        download_size_mb=1940,
+        required_vram_mb=2048,
+        backend="qwen",
+        multilingual=True,
+        supported_languages=None,
+        description="Qwen3-ASR 0.6B (ONNX int4). Smaller, faster multilingual ASR without PyTorch.",
+        network_behavior="downloads-on-first-use-consent-gated",
+        repo_id="andrewleech/qwen3-asr-0.6b-onnx",
+        speed_rating="fast",
+        accuracy_rating="high",
+    ),
 }
+
+
+#: Registry keys this app used before the qwen3 rename. A ``config.json``
+#: written by an older build carries one of these, the schema v6 migration
+#: rewrites it on load, and lookups still resolve it if the migration is
+#: skipped (unreadable ``schema_version``).
+LEGACY_MODEL_ALIASES: dict[str, str] = {"qwen": "qwen3-1.7b", "qwen-0.6b": "qwen3-0.6b"}
 
 
 def get_model_metadata(model_size: str) -> ModelMetadata | None:
     """Return metadata for ``model_size`` or ``None`` if unknown."""
-    return MODEL_REGISTRY.get(model_size)
+    meta = MODEL_REGISTRY.get(model_size)
+    if meta is not None:
+        return meta
+    return MODEL_REGISTRY.get(LEGACY_MODEL_ALIASES.get(model_size, ""))
 
 
 def get_all_models() -> list[ModelMetadata]:
@@ -151,6 +176,7 @@ __all__ = [
     "ModelMetadata",
     "MODEL_REGISTRY",
     "DEFAULT_MODEL_SIZE",
+    "LEGACY_MODEL_ALIASES",
     "NO_MODEL_SIZE",
     "get_model_metadata",
     "get_all_models",

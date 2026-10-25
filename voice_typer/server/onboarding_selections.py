@@ -100,7 +100,7 @@ class _OnboardingSelectionsMixin:
         },
         {
             "name": "large-v3-turbo",
-            "size": "~809MB",
+            "size": "~1.6GB",
             "speed": "Fast",
             "description": "Multilingual, near-large-v3 accuracy at 8x speed",
             "vram_gb": 2.0,

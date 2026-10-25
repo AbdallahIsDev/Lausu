@@ -255,6 +255,7 @@ class LoadingMixin:
                 if _check_qwen_model_downloaded(
                     config_dir,
                     getattr(self._app.config, "qwen_model_path", None),
+                    name,
                 ):
                     return ("qwen", name)
             elif meta.backend == "parakeet":

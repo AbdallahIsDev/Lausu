@@ -196,7 +196,8 @@ class TestBackendForModelSize:
         ("model_size", "expected"),
         [
             ("parakeet", "parakeet"),
-            ("qwen", "qwen"),
+            ("qwen3-1.7b", "qwen"),
+            ("qwen3-0.6b", "qwen"),
             ("tiny", "whisper"),
             ("large-v3", "whisper"),
             ("large-v3-turbo", "whisper"),

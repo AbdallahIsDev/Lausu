@@ -40,7 +40,8 @@ class TestTooltipModelLabel:
 
     def test_backends_use_registry_display_names(self):
         assert tooltip_model_label(_cfg(asr_backend="parakeet", model_size="")) == "Parakeet-TDT-0.6b-V3"
-        assert tooltip_model_label(_cfg(asr_backend="qwen", model_size="")) == "Qwen-3"
+        assert tooltip_model_label(_cfg(asr_backend="qwen", model_size="")) == "qwen3 1.7B"
+        assert tooltip_model_label(_cfg(asr_backend="qwen", model_size="qwen3-0.6b")) == "qwen3 0.6B"
 
     def test_no_model_or_cloud_has_no_label(self):
         assert tooltip_model_label(_cfg(model_size="")) == ""

@@ -401,6 +401,13 @@ Rationale: Mid-boot pages error-screened instead of waiting (gRPC wait-for-ready
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-CACHE-11
+Rule: Do NOT let a third-party library's built-in model alias choose which cache entry your app loads. Load by the same canonical repo id + pinned revision the downloader used, never a bare size/name alias.
+Rationale: faster-whisper's alias still pointed at a renamed HF repo, so bare-name loading would have addressed a different cache directory than the download and silently fallen back to the network (2026-10-22).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ## Category: Component Lifecycle & Motion
 
 ```
@@ -488,6 +495,13 @@ Applies to: All agents, all modes, all sub-agents.
 C-TEST-8
 Rule: Do NOT let any test touch REAL user model caches. All tests run under the `_isolate_shared_hf_cache` autouse fixture (tmp redirect; opt out only via `real_shared_hub` for resolver-behavior tests that never write). Production resolves locations only via `model_availability` helpers (single redirectable seam); never hardcode cache paths. Model-touching tests must prove the real cache byte-identical after.
 Rationale: An unredirected test deleted a real downloaded model (2026-09-26); per-test mocking leaked, only default-hermetic isolation closes the class.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-TEST-9
+Rule: Do NOT make a unit test's hermeticity depend on whether a real optional dependency happens to be importable (`if "<pkg>" in sys.modules: return` stub guards). Patch the seam the test actually calls (module attribute / injected callable) so the test behaves identically alone and inside a full run.
+Rationale: A no-op stub guard silently turned `tests/test_asr_setup.py` into a live Hub metadata call in full runs; once the LFS planning fix landed it also entered the segmented lane with no pause/abort gate armed, failing only when run after `tests/model_download/` (2026-10-24).
 Applies to: All agents, all modes, all sub-agents.
 ```
 

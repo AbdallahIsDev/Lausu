@@ -48,7 +48,7 @@ class DownloadsMixin(DownloadPreflightMixin, DownloadQueueMixin, DownloadDispatc
         def _require_huggingface_consent(self, model_name: str) -> DownloadOutcome | None: ...
 
 
-    def _download_whisper_family(self, model_name: str, model_meta) -> DownloadOutcome:
+    def _download_whisper_family(self, model_name: str, model_meta, *, allow_patterns=None) -> DownloadOutcome:
         """Whisper / distil-whisper branch of :meth:`download_model`.
 
         extracted from the original ``is_whisper_family`` branch
@@ -89,12 +89,16 @@ class DownloadsMixin(DownloadPreflightMixin, DownloadQueueMixin, DownloadDispatc
         # reset the pause + abort flags at the start of
         from voice_typer.server.asr_setup import (
             clear_download_pause_state,
+            ensure_hf_env,
             force_http_download_path,
             get_download_tqdm_class,
             reset_download_pause_state,
         )
 
         reset_download_pause_state()
+        # hf caches its symlink/progress flags at import, so they must be
+        # applied here, before the transfer: no WinError 1314, no tqdm noise.
+        ensure_hf_env()
         force_http_download_path()
 
         _push_progress(event_bus, model_name, 0, f"Starting download for {model_name}...")
@@ -117,6 +121,10 @@ class DownloadsMixin(DownloadPreflightMixin, DownloadQueueMixin, DownloadDispatc
             )
             from voice_typer.server.security import MODEL_HASHES
 
+            _service_allow_patterns = (
+                SERVICE_ALLOW_PATTERNS_WHISPER if allow_patterns is None else allow_patterns
+            )
+
             _service_revision = MODEL_HASHES.get(repo_id, {}).get("revision", "main")
 
             _push_progress(event_bus, model_name, 5, f"Checking cache for {model_name}...")
@@ -126,14 +134,14 @@ class DownloadsMixin(DownloadPreflightMixin, DownloadQueueMixin, DownloadDispatc
                     snapshot_download(
                         repo_id=repo_id,
                         revision=_service_revision,
-                        allow_patterns=SERVICE_ALLOW_PATTERNS_WHISPER,
+                        allow_patterns=_service_allow_patterns,
                         local_files_only=True,
                     )
                 except Exception:
                     snapshot_download(
                         repo_id=repo_id,
                         revision=_service_revision,
-                        allow_patterns=SERVICE_ALLOW_PATTERNS_WHISPER,
+                        allow_patterns=_service_allow_patterns,
                         local_files_only=True,
                         cache_dir=str(_ma.app_hub_dir(_config_dir())),
                     )
@@ -154,7 +162,7 @@ class DownloadsMixin(DownloadPreflightMixin, DownloadQueueMixin, DownloadDispatc
                 seg_plan = segdl.plan_segmented_files(
                     repo_id=repo_id,
                     revision=_service_revision,
-                    allow_patterns=SERVICE_ALLOW_PATTERNS_WHISPER,
+                    allow_patterns=_service_allow_patterns,
                     file_hashes=(_MH.get(repo_id, {}) or {}).get("files", {}),
                 )
                 seg_names = [p.filename for p in seg_plan] if seg_plan else []
@@ -179,7 +187,7 @@ class DownloadsMixin(DownloadPreflightMixin, DownloadQueueMixin, DownloadDispatc
                     snapshot_download=snapshot_download,
                     repo_id=repo_id,
                     revision=_service_revision,
-                    allow_patterns=SERVICE_ALLOW_PATTERNS_WHISPER,
+                    allow_patterns=_service_allow_patterns,
                     ignore_patterns=seg_names or None,
                     tqdm_class=get_download_tqdm_class(),
                     errors=download_err,
@@ -247,7 +255,7 @@ class DownloadsMixin(DownloadPreflightMixin, DownloadQueueMixin, DownloadDispatc
                         revision=_service_revision,
                         cache_dir=cache_dir,
                         snapshot_download=snapshot_download,
-                        allow_patterns=SERVICE_ALLOW_PATTERNS_WHISPER,
+                        allow_patterns=_service_allow_patterns,
                         event_bus=event_bus,
                         model_name=model_name,
                         target_mb=target_mb,

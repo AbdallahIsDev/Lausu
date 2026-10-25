@@ -1,7 +1,7 @@
 """Repo-file planning and HF cache installation for the segmented downloader.
 
 Decides which repo files take the segmented path (threshold + manifest pin
-== tree blob_id), runs the sequential per-file phase with aggregate
+== tree content id), runs the sequential per-file phase with aggregate
 progress, and installs a verified file into the HuggingFace hub cache
 layout (blob + snapshot symlink, copy fallback without symlink privilege).
 Moved verbatim out of ``voice_typer.server.segmented_download`` (which
@@ -43,7 +43,7 @@ class PlannedFile:
     filename: str  # repo-relative path
     size: int
     blob_id: str
-    sha256: str  # manifest pin (== blob_id for LFS files)
+    sha256: str  # manifest pin: LFS content sha256
 
 
 def _matches_any_pattern(path: str, patterns: Any) -> bool:
@@ -57,7 +57,12 @@ def _matches_any_pattern(path: str, patterns: Any) -> bool:
 
 
 def _default_list_files(repo_id: str, revision: str) -> list[tuple[str, int | None, str | None]]:
-    """List (path, size, blob_id) via the Hub API (one metadata call)."""
+    """List (path, size, content_id) via the Hub API (one metadata call).
+
+    content_id is the LFS content sha256 when the entry carries LFS info
+    (``blob_id`` is then the sha1 of the pointer file, never the content),
+    else the git blob id.
+    """
     from huggingface_hub import HfApi
 
     out: list[tuple[str, int | None, str | None]] = []
@@ -65,7 +70,9 @@ def _default_list_files(repo_id: str, revision: str) -> list[tuple[str, int | No
         path = getattr(entry, "path", None)
         if path is None:
             continue
-        out.append((path, getattr(entry, "size", None), getattr(entry, "blob_id", None)))
+        lfs_sha256 = getattr(getattr(entry, "lfs", None), "sha256", None)
+        content_id = lfs_sha256 or getattr(entry, "blob_id", None)
+        out.append((path, getattr(entry, "size", None), content_id))
     return out
 
 
@@ -80,33 +87,34 @@ def plan_segmented_files(
 ) -> list[PlannedFile] | None:
     """Decide which repo files take the segmented path.
 
-    Returns the list of big, pinned files (empty list = everything is
+    Returns the list of big, pinned files (empty list = everything stays on
+    the classic path), or None when planning failed outright.
     """
     try:
         entries = list_files() if list_files is not None else _default_list_files(repo_id, revision)
         planned: list[PlannedFile] = []
-        for path, size, blob_id in entries:
+        for path, size, content_id in entries:
             if not _matches_any_pattern(path, allow_patterns):
                 continue
             if size is None or size < threshold_bytes:
                 continue
             pin = file_hashes.get(path) if isinstance(file_hashes, dict) else None
-            if not pin or not blob_id:
+            if not pin or not content_id:
                 continue
-            if str(pin).lower() != str(blob_id).lower():
+            if str(pin).lower() != str(content_id).lower():
                 log.warning(
                     "[SEGDL] manifest pin != tree blob_id for %s:%s (drift?), classic path",
                     repo_id,
                     path,
                 )
                 continue
-            planned.append(PlannedFile(filename=path, size=size, blob_id=blob_id, sha256=str(pin).lower()))
+            planned.append(PlannedFile(filename=path, size=size, blob_id=content_id, sha256=str(pin).lower()))
         return planned
-    except Exception:
+    except Exception as exc:
         log.debug(
-            "[SEGDL] file planning failed for %s, classic path",
+            "[SEGDL] file planning failed for %s, classic path: %s",
             repo_id,
-            exc_info=True,
+            exc,
         )
         return None
 

@@ -5,6 +5,7 @@ import sys
 import types
 from unittest.mock import MagicMock, patch
 
+import pytest
 from voice_typer.server import asr_setup
 from voice_typer.server.asr_setup import (
     _verify_model_integrity,
@@ -44,6 +45,15 @@ def _install_hf_stub():
 
     hf_tqdm.tqdm = _StubTqdm
     sys.modules["huggingface_hub.utils.tqdm"] = hf_tqdm
+
+
+@pytest.fixture(autouse=True)
+def _classic_download_path(monkeypatch):
+    """Keep these unit tests on the classic path: no Hub metadata call."""
+    monkeypatch.setattr(
+        "voice_typer.server.segmented_download.plan_segmented_files",
+        lambda **kwargs: [],
+    )
 
 
 class TestVerifyModelIntegrityReturnsDetails:
