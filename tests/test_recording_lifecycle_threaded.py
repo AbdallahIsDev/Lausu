@@ -492,6 +492,30 @@ class TestRecordingStartFailureReason:
         )
         assert "device busy" not in notify_msg
 
+    def test_failed_start_teardown_resets_real_recorder_gate(self) -> None:
+        """The teardown force-clears the gate through the ``recording`` setter.
+
+        A read-only property raised ``AttributeError`` here, aborting the
+        failed-start teardown after the best-effort discard.
+        """
+        from voice_typer.server.recording import Recorder
+
+        recorder = Recorder(MagicMock(sample_rate=16000, microphone=None))
+        recorder._recording_event.set()
+        app = MagicMock(name="app")
+        app.recorder = recorder
+        controller = _make_controller_with_lifecycle(app)
+
+        controller._lifecycle._teardown_failed_recorder_start(
+            controller,
+            app,
+            restart_level_monitor=False,
+            discard_log_label="test",
+        )
+
+        assert recorder.recording is False
+        controller._cancel_streaming_session.assert_called_once()
+
     def test_message_mapper_isolated(self) -> None:
         """Unit-level check of ``_recording_start_failure_message``"""
         from voice_typer.server.asr_errors import MicrophonePermissionDeniedError

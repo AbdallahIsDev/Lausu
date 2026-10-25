@@ -376,18 +376,25 @@ def _active_model_cache_dirs() -> list[Path]:
                     exc_info=True,
                 )
         elif active_backend == "qwen":
-            # Qwen auto-downloads on first use via qwen_engine.py; no fixed
-            pass
+            # Qwen exports live in the HF cache under their variant repo
+            # (a manual qwen_model_path is outside the cache and needs no
+            # prewarm).
+            from voice_typer.server.qwen_layout import qwen_repo_id
+
+            qwen_repo = qwen_repo_id(active_model_size)
+            if qwen_repo:
+                target_repo_ids.add(qwen_repo)
         else:
             # Whisper backend (ctranslate2 + faster-whisper): warm the
-            if active_model_size and active_model_size not in ("parakeet", "qwen"):
+            if active_model_size:
                 try:
                     from voice_typer.server.model_registry import get_model_metadata as _get_meta
 
                     _meta = _get_meta(active_model_size)
-                    target_repo_ids.add(
-                        _meta.repo_id if _meta and _meta.repo_id else f"Systran/faster-whisper-{active_model_size}"
-                    )
+                    if _meta is None:
+                        target_repo_ids.add(f"Systran/faster-whisper-{active_model_size}")
+                    elif _meta.backend in ("whisper", "distil-whisper") and _meta.repo_id:
+                        target_repo_ids.add(_meta.repo_id)
                 except Exception:
                     target_repo_ids.add(f"Systran/faster-whisper-{active_model_size}")
 

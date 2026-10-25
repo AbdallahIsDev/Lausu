@@ -10,6 +10,8 @@ from typing import Any
 
 import numpy as np
 
+from voice_typer.server.qwen_layout import read_decoder_hidden_size
+
 log = logging.getLogger("voice_typer.server.qwen_onnx")
 
 _MEL_SAMPLE_RATE = 16000
@@ -227,10 +229,8 @@ class QwenOnnxModel:
             self.model_path = Path(model_path)
         base = self.model_path
 
-        cfg = self._read_config()
-        text_cfg = cfg.get("text_config") if isinstance(cfg.get("text_config"), dict) else cfg
-        hidden = text_cfg.get("hidden_size") if isinstance(text_cfg, dict) else None
-        if isinstance(hidden, int) and hidden > 0:
+        hidden = read_decoder_hidden_size(self._read_config())
+        if hidden is not None:
             self._hidden_size = hidden
 
         paths = _resolve_onnx_paths(base, self.prefer_quantized)

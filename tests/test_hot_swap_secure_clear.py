@@ -294,10 +294,13 @@ class TestSourceStringContracts:
         from voice_typer.server.recording import disconnect_handler as dh_mod
 
         src = inspect.getsource(dh_mod.DisconnectHandler.restart_stream)
-        # The fix must contain the zeroing loop.
-        assert "_arr.fill(0)" in src, (
+        # The fix must route the flush through the secure drain helper.
+        assert "_secure_clear_deque(recorder._ring_buffer)" in src, (
             "disconnect_handler.restart_stream must zero each ring-buffer "
-            "chunk's numpy array via _arr.fill(0) before .clear()."
+            "chunk through _secure_clear_deque before dropping it."
+        )
+        assert "recorder._ring_buffer.clear()" not in src, (
+            "disconnect_handler.restart_stream must not bare-clear the ring buffer (chunks stay in memory)"
         )
         # The fix must call _secure_clear_array_background for _buffer.
         assert "_secure_clear_array_background(_old_buffer)" in src, (
@@ -312,10 +315,12 @@ class TestSourceStringContracts:
 
         src_start = inspect.getsource(capture_mod.AudioCallbackDispatcher.start_audio_worker_body)
         src_stop = inspect.getsource(capture_mod.AudioCallbackDispatcher.stop_audio_worker_body)
-        # Both methods must contain the zeroing loop.
-        assert "_arr.fill(0)" in src_start, (
-            "start_audio_worker_body must zero each ring-buffer chunk's numpy array via _arr.fill(0) before .clear()."
+        # Both methods must route the flush through the secure drain helper.
+        assert "_secure_clear_deque(recorder._ring_buffer)" in src_start, (
+            "start_audio_worker_body must zero each ring-buffer chunk through _secure_clear_deque before dropping it."
         )
-        assert "_arr.fill(0)" in src_stop, (
-            "stop_audio_worker_body must zero each ring-buffer chunk's numpy array via _arr.fill(0) before .clear()."
+        assert "_secure_clear_deque(recorder._ring_buffer)" in src_stop, (
+            "stop_audio_worker_body must zero each ring-buffer chunk through _secure_clear_deque before dropping it."
         )
+        assert "_ring_buffer.clear()" not in src_start, "start_audio_worker_body must not bare-clear the ring buffer"
+        assert "_ring_buffer.clear()" not in src_stop, "stop_audio_worker_body must not bare-clear the ring buffer"

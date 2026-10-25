@@ -216,7 +216,8 @@ dependencies = [
     # snapshot_download. Previously imported with # type: ignore
     # but not declared, cold pip install succeeded but first model
     # load crashed with ModuleNotFoundError.
-    "huggingface_hub>=1.24.0,<2.0",
+    # >=1.28.0 carries the upstream fix for the closed-shared-httpx-client retry.
+    "huggingface_hub>=1.28.0,<2.0",
     # Volume ducking on Windows, pycaw wraps the Win32
     # IAudioSessionManager2 COM interface (used by WinVolumeBackend to
     # duck other apps' audio while Lausu is dictating).

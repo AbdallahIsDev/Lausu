@@ -19,6 +19,7 @@ import time
 from typing import Any
 
 from voice_typer.server.log_rate_limit import log_rate_limited
+from voice_typer.server.recording.buffer import _secure_clear_deque
 
 # All submodules use the package-level logger so log records propagate.
 log = logging.getLogger("voice_typer.server.recording")
@@ -168,11 +169,10 @@ class _AudioWorkerMixin:
         recorder._worker_stop_event.clear()
         recorder._worker_wake_event.clear()
         # Clear the ring buffer of any stale chunks from a previous session.
-        for _payload in recorder._ring_buffer:
-            _arr = _payload[0] if isinstance(_payload, tuple) else _payload
-            if hasattr(_arr, "fill") and hasattr(_arr, "shape"):
-                _arr.fill(0)
-        recorder._ring_buffer.clear()
+        # Drain with popleft (atomic): the callback is already appending
+        # once ``_recording_event`` is set, so iterating the deque raises
+        # "deque mutated during iteration" and aborts the whole start.
+        _secure_clear_deque(recorder._ring_buffer)
         recorder._worker_thread = threading.Thread(
             target=self.audio_worker_loop,
             # Pass the CURRENT stop / wake events as explicit
@@ -243,11 +243,8 @@ class _AudioWorkerMixin:
             return
         if not drain:
             # discard() path: clear the ring buffer so the worker has
-            for _payload in recorder._ring_buffer:
-                _arr = _payload[0] if isinstance(_payload, tuple) else _payload
-                if hasattr(_arr, "fill") and hasattr(_arr, "shape"):
-                    _arr.fill(0)
-            recorder._ring_buffer.clear()
+            # nothing left to process (popleft drain, never iterate).
+            _secure_clear_deque(recorder._ring_buffer)
         # Signal the worker to stop.
         recorder._worker_stop_event.set()
         # Wake the worker in case it's blocked on the wait event.

@@ -108,8 +108,9 @@ def _load_model_hashes() -> dict[str, dict[str, Any]]:
                 "vocabulary.txt": "34ce3fe1c5041027b3f8d42912270993f986dbc4bb34cf27f951e34a1e453913",
             },
         },
-        # Turbo models map to mobiuslabsgmbh, not Systran.
-        "mobiuslabsgmbh/faster-whisper-large-v3-turbo": {
+        # Turbo lives under the canonical dropbox-dash org, not Systran
+        # (renamed from mobiuslabsgmbh; faster-whisper 1.2.1 still aliases it).
+        "dropbox-dash/faster-whisper-large-v3-turbo": {
             "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
             "files": {
                 "config.json": "b0253ea6c0d3bea6b1e19e91a02acfd3b53f4467362efcb5a3e6b16c9b3a9b7e",
@@ -119,10 +120,40 @@ def _load_model_hashes() -> dict[str, dict[str, Any]]:
                 "vocabulary.json": "c69260f2ab26d659b7c398f9a2b2b48ed0df16c3b47d7326782fd9cba71690c1",
             },
         },
-        # local + empty files: hard-FAIL until operators populate hashes.
-        "qwen": {
-            "revision": "local",
-            "files": {},
+        # Qwen3-ASR int4 ONNX exports (torch-free). LFS oids are the
+        # sha256 of the shipped bytes, so these pins also unlock the
+        # segmented fast lane for the multi-GB files.
+        "andrewleech/qwen3-asr-1.7b-onnx": {
+            "revision": "df916193ac67e59347769891a21e10d81d12acdd",
+            "files": {
+                "added_tokens.json": "de40784677cbd1843cabe5fbee078c7e042cd0b62155f0810af5a13842e5722a",
+                "config.json": "d82437248b7c4674fe4091f98819a2a6167355b0fa66c0198f70622d1b778b49",
+                "decoder_init.int4.onnx": "c638585ada629b3cf65ce9cb068b7b980fccc9454a7f05e2333b8813730c1999",
+                "decoder_step.int4.onnx": "fa138c025c26f6559e12be51cfbba5204a0b6993a1f3bb1177f80a0a65873bb5",
+                "decoder_weights.int4.data": "3f8d8fb695bcffc20ce8d8e823471e011404420785adf7678aac31057ef67333",
+                "embed_tokens.bin": "1489075dbd08fcd6b87bc69c5feca278014d29fa5693bd4aa61e47c1a3a160d4",
+                "encoder.int4.onnx": "c19ff8d702707693877a509ba1867472b0ad964593b93751091891a143edffec",
+                "preprocessor_config.json": "9c7c558a05f326fe4365e5e59e486383ff127dfd93ce1cd5e6e23f883cd02281",
+                "tokenizer.json": "bd2a97b55c8f7f9c328c73ee9b9178771037e9f566dfca8e238a063d41cbac92",
+                "tokenizer_config.json": "784c92a0a81fbbc440afb89842f8c16c8da28dfb9ff381fcea585b84f4eed7d1",
+                "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+            },
+        },
+        "andrewleech/qwen3-asr-0.6b-onnx": {
+            "revision": "4fc24a1402e74db89c4d2ef256875e71680128c4",
+            "files": {
+                "added_tokens.json": "de40784677cbd1843cabe5fbee078c7e042cd0b62155f0810af5a13842e5722a",
+                "config.json": "df31c4689abe9d782366fffd2454b546291d0205d082b3fd01b99fb76a45b11f",
+                "decoder_init.int4.onnx": "6d54633bbb9e6b1ecf372f218d04adb3bf6f2bfc442ce55c988526d532896faa",
+                "decoder_step.int4.onnx": "7eaa4f31d5eb6ae2937ff45222c32f692f2d5ac29b46cbae9046da332a9f317d",
+                "decoder_weights.int4.data": "d68cd1c0695a7ba42651d06b1bc1158e2e58af5f9adbb6dba874fbbb8a4f22cf",
+                "embed_tokens.bin": "e80150119fa5f7e56e85aed64c3a02d5c78eb7a37cfdcb973d0987316f15bee2",
+                "encoder.int4.onnx": "3c027f880f677615de85e1f6934906e1d5d77624b724096d33accef99c753eed",
+                "preprocessor_config.json": "9c7c558a05f326fe4365e5e59e486383ff127dfd93ce1cd5e6e23f883cd02281",
+                "tokenizer.json": "bd2a97b55c8f7f9c328c73ee9b9178771037e9f566dfca8e238a063d41cbac92",
+                "tokenizer_config.json": "784c92a0a81fbbc440afb89842f8c16c8da28dfb9ff381fcea585b84f4eed7d1",
+                "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+            },
         },
     }
 
@@ -465,6 +496,25 @@ ALLOW_PATTERNS_PARAKEET_ONNX: frozenset[str] = frozenset(
         "vocab.txt",
         "special_tokens_map.json",
         "generation_config.json",
+    }
+)
+
+# Qwen3-ASR int4 export: exact filenames only (no globs) so the fp32
+# ``*.onnx``/``decoder_weights.data`` siblings and the ``.tar.gz`` archives
+# in the same repos are never pulled down.
+ALLOW_PATTERNS_QWEN: frozenset[str] = frozenset(
+    {
+        "encoder.int4.onnx",
+        "decoder_init.int4.onnx",
+        "decoder_step.int4.onnx",
+        "decoder_weights.int4.data",
+        "embed_tokens.bin",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "added_tokens.json",
+        "vocab.json",
+        "config.json",
+        "preprocessor_config.json",
     }
 )
 

@@ -57,7 +57,15 @@ export function isModelActive(
 	if (m.backend === "whisper") {
 		return activeBackend === "whisper" && m.name === activeModel;
 	}
-	return activeBackend === m.backend;
+	if (activeBackend !== m.backend) return false;
+	// A family with more than one catalogue entry (the two Qwen sizes) is
+	// keyed by NAME: one backend can never have two active variants. Single
+	// -variant families keep the backend match so a stale `model_size`
+	// still labels the installed model.
+	const familyVariants = INITIAL_MODELS.filter(
+		(x) => x.backend === m.backend,
+	).length;
+	return familyVariants > 1 ? m.name === activeModel : true;
 }
 
 /**

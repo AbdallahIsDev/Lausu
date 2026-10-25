@@ -36,10 +36,17 @@ class ConstructionMixin:
                     },
                 )
             elif backend_name == "qwen":
+                from voice_typer.server.qwen_layout import resolve_qwen_model_dir
+
                 self._registry.create(
                     "qwen",
                     qwen_kwargs={
-                        "model_path": self._app.config.qwen_model_path,
+                        # Variant-aware: a matching manual override wins,
+                        # else the pinned HF snapshot for ``model_size``.
+                        "model_path": resolve_qwen_model_dir(
+                            self._app.config.model_size,
+                            self._app.config.qwen_model_path,
+                        ),
                         "device": self._app.config.device,
                         "language": self._app.config.language,
                         # live Config handle for the hallucination filter mode

@@ -99,7 +99,8 @@ class TestTrayModelLabelsCarryFamilyGlyphs:
             "✱ large-v3",
             "✱ large-v3-turbo",
             "◉ parakeet",
-            "⊙ qwen",
+            "⊙ qwen3-1.7b",
+            "⊙ qwen3-0.6b",
         }
         assert expected.issubset(set(labels)), (
             f"every downloaded model label must carry its family glyph, got: {labels}"

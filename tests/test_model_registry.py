@@ -48,9 +48,9 @@ class TestModelRegistryContainsWhisperVariants:
         for name in _REMOVED_WHISPER_VARIANTS:
             assert get_model_metadata(name) is None, f"{name} should have been removed from the registry"
 
-    def test_registry_has_five_entries(self):
-        """tiny + large-v3 + large-v3-turbo + parakeet + qwen = 5 entries."""
-        assert len(MODEL_REGISTRY) == 5, f"Expected 5 models, got {len(MODEL_REGISTRY)}: {sorted(MODEL_REGISTRY)}"
+    def test_registry_has_six_entries(self):
+        """tiny + large-v3 + large-v3-turbo + parakeet + Qwen 1.7B/0.6B = 6."""
+        assert len(MODEL_REGISTRY) == 6, f"Expected 6 models, got {len(MODEL_REGISTRY)}: {sorted(MODEL_REGISTRY)}"
 
     def test_default_model_size_is_the_no_model_sentinel(self):
         """DEFAULT_MODEL_SIZE is deliberately the \"no model selected\""""
@@ -90,7 +90,8 @@ class TestGetModelMetadataReturnsCorrectFields:
     def test_display_name_sets_detailed_model_names(self):
         """The Models page shows a detailed name under the family header:"""
         assert get_model_metadata("parakeet").display_name == "Parakeet-TDT-0.6b-V3"
-        assert get_model_metadata("qwen").display_name == "Qwen-3"
+        assert get_model_metadata("qwen3-1.7b").display_name == "qwen3 1.7B"
+        assert get_model_metadata("qwen3-0.6b").display_name == "qwen3 0.6B"
         for name in ("tiny", "large-v3", "large-v3-turbo"):
             assert get_model_metadata(name).display_name is None
 
@@ -107,13 +108,20 @@ class TestGetModelMetadataReturnsCorrectFields:
             "large-v3": 5.0,
             "large-v3-turbo": 5.5,
             "parakeet": 6.34,
-            "qwen": 5.76,
+            "qwen3-1.7b": 5.76,
         }
         for name, wer in expected.items():
             meta = get_model_metadata(name)
             assert meta is not None, f"{name} missing from registry"
             assert meta.wer == wer, f"{name}: expected wer={wer}, got {meta.wer!r}"
             assert meta.wer > 0, f"{name}: WER must be positive"
+
+    def test_qwen_06b_has_no_published_wer(self):
+        """No benchmark for the 0.6B export yet, so it must stay ``None``
+        (the card renders N/A) rather than inherit the 1.7B figure."""
+        meta = get_model_metadata("qwen3-0.6b")
+        assert meta is not None, "qwen3-0.6b missing from registry"
+        assert meta.wer is None, f"qwen3-0.6b: expected wer=None, got {meta.wer!r}"
 
     def test_to_dict_includes_wer(self):
         """``to_dict()`` (the ``get_model_catalog`` IPC payload) carries"""
@@ -184,10 +192,10 @@ class TestLargeV3TurboHasCorrectMetadata:
     """test_large-v3-turbo_has_correct_metadata."""
 
     def test_large_v3_turbo_has_correct_metadata(self):
-        """The ``large-v3-turbo`` entry matches: 809 MB download, 2000"""
+        """The ``large-v3-turbo`` entry matches: 1618 MB download, 2000"""
         meta = get_model_metadata("large-v3-turbo")
         assert meta is not None, "large-v3-turbo missing from registry"
-        assert meta.download_size_mb == 809, f"expected download_size_mb=809, got {meta.download_size_mb}"
+        assert meta.download_size_mb == 1618, f"expected download_size_mb=1618, got {meta.download_size_mb}"
         assert meta.required_vram_mb == 2000, f"expected required_vram_mb=2000, got {meta.required_vram_mb}"
         assert meta.multilingual is True, "expected multilingual=True"
         assert meta.supported_languages is None, "expected supported_languages=None (all languages)"
@@ -195,8 +203,8 @@ class TestLargeV3TurboHasCorrectMetadata:
         assert meta.speed_rating == "fast", f"expected speed_rating='fast', got {meta.speed_rating!r}"
         assert meta.accuracy_rating == "high", f"expected accuracy_rating='high', got {meta.accuracy_rating!r}"
         assert meta.is_distilled is False, "turbo is NOT a distilled variant"
-        assert meta.repo_id == "mobiuslabsgmbh/faster-whisper-large-v3-turbo", (
-            f"expected mobiuslabsgmbh/faster-whisper-large-v3-turbo, got {meta.repo_id}"
+        assert meta.repo_id == "dropbox-dash/faster-whisper-large-v3-turbo", (
+            f"expected dropbox-dash/faster-whisper-large-v3-turbo, got {meta.repo_id}"
         )
 
     def test_turbo_size_matches_model_size_mb(self):
@@ -301,19 +309,32 @@ class TestModelMetadataHasNetworkBehaviorField:
             "consent)."
         )
 
-    def test_qwen_is_local_only(self):
-        """Qwen is local-only, the user must manually configure the"""
-        meta = get_model_metadata("qwen")
-        assert meta is not None, "qwen missing from registry"
-        assert meta.network_behavior == "local-only", (
-            f"qwen: expected 'local-only' (user supplies the model path manually), got {meta.network_behavior!r}"
-        )
-        assert "Auto-downloaded" not in meta.description, (
-            f"qwen description must not say 'Auto-downloaded'. Got: {meta.description!r}"
-        )
-        assert "Requires manual model path setup" in meta.description, (
-            f"qwen description must say 'Requires manual model path setup in Settings'. Got: {meta.description!r}"
-        )
+    def test_qwen_variants_are_consent_gated(self):
+        """Both Qwen variants download their ONNX export from HuggingFace,
+        so they need the same explicit consent as Whisper/Parakeet."""
+        for name in ("qwen3-1.7b", "qwen3-0.6b"):
+            meta = get_model_metadata(name)
+            assert meta is not None, f"{name} missing from registry"
+            assert meta.network_behavior == "downloads-on-first-use-consent-gated", (
+                f"{name}: expected 'downloads-on-first-use-consent-gated' "
+                f"(the HF ONNX download requires explicit consent), got "
+                f"{meta.network_behavior!r}"
+            )
+            assert "manual" not in meta.description.lower(), (
+                f"{name} description must not imply manual path setup. Got: {meta.description!r}"
+            )
+            assert meta.backend == "qwen", f"{name}: expected backend='qwen', got {meta.backend!r}"
+
+    def test_qwen_variants_have_distinct_repos_and_sizes(self):
+        """Each Qwen size is a separate HF repo with its own real download
+        size (no 'Variable' sizes on the Models page)."""
+        small = get_model_metadata("qwen3-0.6b")
+        large = get_model_metadata("qwen3-1.7b")
+        assert small is not None and large is not None
+        assert small.repo_id != large.repo_id
+        assert small.download_size_mb < large.download_size_mb
+        assert small.download_size_mb == 1940, small.download_size_mb
+        assert large.download_size_mb == 3943, large.download_size_mb
 
     def test_to_dict_includes_network_behavior(self):
         """``to_dict()`` (used for IPC transport to the renderer)"""
@@ -325,3 +346,20 @@ class TestModelMetadataHasNetworkBehaviorField:
             "can show the model's network behavior on the Models page."
         )
         assert d["network_behavior"] == meta.network_behavior
+
+
+class TestRegistryRepoIdsMatchIntegrityManifest:
+    """Whisper repo ids must match pinned integrity-manifest entries."""
+
+    def test_every_whisper_repo_id_is_pinned_in_manifest(self):
+        """A repo rename must update registry + manifest together."""
+        from voice_typer.server.security import MODEL_HASHES
+
+        for name in ("tiny", "large-v3", "large-v3-turbo"):
+            meta = get_model_metadata(name)
+            assert meta is not None, f"{name} missing from registry"
+            assert meta.repo_id in MODEL_HASHES, f"{name}: repo_id {meta.repo_id!r} missing from model_hashes.json"
+            revision = MODEL_HASHES[meta.repo_id].get("revision")
+            assert revision and revision != "main", (
+                f"{name}: repo {meta.repo_id!r} must pin a commit revision, got {revision!r}"
+            )

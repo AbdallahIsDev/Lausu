@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 
 from voice_typer.server.asr_errors import (
     ModelIntegrityError,
@@ -11,6 +12,9 @@ from voice_typer.server.asr_errors import (
 
 # Use the ``transcription`` logger name so log records emitted from this
 log = logging.getLogger("voice_typer.server.transcription")
+
+_offline_probe_log_gate: set[tuple[str, str, str]] = set()
+_offline_probe_log_lock = threading.Lock()
 
 
 def _is_expected_offline_probe_error(exc: BaseException) -> bool:
@@ -22,7 +26,26 @@ def _is_expected_offline_probe_error(exc: BaseException) -> bool:
     return isinstance(exc, (EntryNotFoundError, CacheNotFound))
 
 
-def _resolve_whisper_repo_id(model_size: str) -> str:
+def _log_offline_probe_miss_once(
+    probe_kind: str,
+    key: str,
+    exc: BaseException,
+    message: str,
+) -> None:
+    """Log a routine offline miss once per probe+key+exception type.
+
+    Status/tray polling re-probes the same cache every few minutes; only the
+    first miss carries information, repeats are pure noise.
+    """
+    gate_key = (probe_kind, key, type(exc).__name__)
+    with _offline_probe_log_lock:
+        if gate_key in _offline_probe_log_gate:
+            return
+        _offline_probe_log_gate.add(gate_key)
+    log.debug(message, key, exc)
+
+
+def resolve_whisper_repo_id(model_size: str) -> str:
     """Resolve HF repo for a whisper ``model_size`` via MODEL_REGISTRY."""
     try:
         from voice_typer.server.model_registry import get_model_metadata
@@ -37,6 +60,19 @@ def _resolve_whisper_repo_id(model_size: str) -> str:
             exc_info=True,
         )
     return f"Systran/faster-whisper-{model_size}"
+
+
+def whisper_model_ref(model_size: str) -> tuple[str, str]:
+    """Canonical ``(repo_id, revision)`` so faster-whisper loads OUR cache dir.
+
+    Passing the bare size name makes faster-whisper resolve its own alias map,
+    which can point at a renamed repo and miss the snapshot this app downloaded.
+    """
+    repo_id = resolve_whisper_repo_id(model_size)
+    from voice_typer.server.security import MODEL_HASHES
+
+    revision = MODEL_HASHES.get(repo_id, {}).get("revision", "main")
+    return repo_id, revision
 
 
 def probe_cache(
@@ -61,7 +97,12 @@ def probe_cache(
         )
     except Exception as exc:
         if _is_expected_offline_probe_error(exc):
-            log.debug("[MODEL] HF cache probe miss for %s: %s", repo_id, exc)
+            _log_offline_probe_miss_once(
+                "probe_cache",
+                repo_id,
+                exc,
+                "[MODEL] HF cache probe miss for %s: %s",
+            )
         else:
             log.debug("[MODEL] HF cache probe failed, will attempt download", exc_info=True)
         return None, False
@@ -83,8 +124,11 @@ def probe_cache(
 
 def require_model_downloaded(engine, model_size: str, progress_callback=None) -> None:
     """Ensure the Whisper model is present in the local HF cache."""
-    # Skip the gate for non-Whisper model sizes (e.g. "parakeet" or
-    if not model_size or model_size in ("parakeet", "qwen"):
+    from voice_typer.server.model_registry import get_model_metadata
+
+    model_meta = get_model_metadata(model_size) if model_size else None
+    # Non-Whisper backends own their own loader/availability checks.
+    if not model_size or (model_meta is not None and model_meta.backend not in ("whisper", "distil-whisper")):
         log.debug(
             "[MODEL] Skipping download-required check for non-Whisper model '%s'",
             model_size,
@@ -93,12 +137,7 @@ def require_model_downloaded(engine, model_size: str, progress_callback=None) ->
     try:
         from huggingface_hub import snapshot_download
 
-        repo_id = _resolve_whisper_repo_id(model_size)
-
-        # Use pinned revision from the MODEL_HASHES manifest.
-        from voice_typer.server.security import MODEL_HASHES
-
-        whisper_revision = MODEL_HASHES.get(repo_id, {}).get("revision", "main")
+        repo_id, whisper_revision = whisper_model_ref(model_size)
 
         # Shared allow-pattern list (see ``_model_integrity``).
         from voice_typer.server._model_integrity import ALLOW_PATTERNS_WHISPER
@@ -146,11 +185,7 @@ def whisper_size_cached(engine, model_size: str) -> bool:
     try:
         from huggingface_hub import snapshot_download
 
-        repo_id = _resolve_whisper_repo_id(model_size)
-
-        from voice_typer.server.security import MODEL_HASHES
-
-        revision = MODEL_HASHES.get(repo_id, {}).get("revision", "main")
+        repo_id, revision = whisper_model_ref(model_size)
 
         from voice_typer.server._model_integrity import ALLOW_PATTERNS_WHISPER
 
@@ -167,7 +202,12 @@ def whisper_size_cached(engine, model_size: str) -> bool:
     except Exception as exc:
         # Cache miss (or local probe failure), never auto-download. The
         if _is_expected_offline_probe_error(exc):
-            log.debug("[MODEL] whisper_size_cached probe miss for %s: %s", model_size, exc)
+            _log_offline_probe_miss_once(
+                "whisper_size_cached",
+                model_size,
+                exc,
+                "[MODEL] whisper_size_cached probe miss for %s: %s",
+            )
         else:
             log.debug("[MODEL] whisper_size_cached probe miss for %s", model_size, exc_info=True)
         return False
@@ -180,6 +220,12 @@ def is_model_snapshot_complete(repo_id: str) -> bool:
     """
     from voice_typer.server.config import _config_dir
     from voice_typer.server.model_availability import snapshot_search_dirs
+    from voice_typer.server.qwen_layout import cached_qwen_model_dir, qwen_repo_ids
+
+    if repo_id in qwen_repo_ids():
+        # ONNX exports are only complete when the loader's own files exist;
+        # the whisper allowlist below would never match *.onnx/*.data.
+        return cached_qwen_model_dir(repo_id) is not None
 
     search_dirs = snapshot_search_dirs(_config_dir(), repo_id)
     if not any(d.is_dir() for d in search_dirs):
@@ -224,7 +270,12 @@ def is_model_snapshot_complete(repo_id: str) -> bool:
     except Exception as exc:
         # Incomplete snapshot (missing files), cache-schema mismatch, or
         if _is_expected_offline_probe_error(exc):
-            log.debug("[MODEL] is_model_snapshot_complete probe miss for %s: %s", repo_id, exc)
+            _log_offline_probe_miss_once(
+                "is_model_snapshot_complete",
+                repo_id,
+                exc,
+                "[MODEL] is_model_snapshot_complete probe miss for %s: %s",
+            )
         else:
             log.debug("[MODEL] is_model_snapshot_complete probe miss for %s", repo_id, exc_info=True)
         return False

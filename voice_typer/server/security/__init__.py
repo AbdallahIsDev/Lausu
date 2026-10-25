@@ -16,6 +16,7 @@ from .http_safety import build_secure_opener  # noqa: F401
 from .model_integrity import (  # noqa: F401
     _INTEGRITY_CACHE_VERSION,
     ALLOW_PATTERNS_PARAKEET,
+    ALLOW_PATTERNS_QWEN,
     ALLOW_PATTERNS_WHISPER,
     MODEL_HASHES,
     _integrity_cache_lock,
@@ -91,6 +92,7 @@ __all__ = [
     "build_secure_opener",
     # model_integrity
     "ALLOW_PATTERNS_PARAKEET",
+    "ALLOW_PATTERNS_QWEN",
     "ALLOW_PATTERNS_WHISPER",
     "MODEL_HASHES",
     "compute_file_sha256",

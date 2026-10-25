@@ -109,19 +109,22 @@ _HISTORY_SELECT_COLUMNS = [
 class TestHistoryEntry:
     def test_projected_row_keys_match_typeddict(self) -> None:
         conn = sqlite3.connect(":memory:")
-        conn.row_factory = sqlite3.Row
-        row = conn.execute(
-            "SELECT " + ", ".join(f"1 AS {c}" for c in _HISTORY_SELECT_COLUMNS) + " FROM (SELECT 1)"
-        ).fetchone()
-        assert row is not None
-        projected = project_text_row(row)
-        assert set(projected) == set(HistoryEntry.__annotations__), (
-            "project_text_row output keys drifted from the HistoryEntry "
-            "TypedDict, update the contract type (providers.py) or the "
-            "SELECT/projection (history_db_internals/search.py) together."
-        )
-        # The internal encryption marker must NOT cross the IPC boundary.
-        assert "text_is_encrypted" not in projected
+        try:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT " + ", ".join(f"1 AS {c}" for c in _HISTORY_SELECT_COLUMNS) + " FROM (SELECT 1)"
+            ).fetchone()
+            assert row is not None
+            projected = project_text_row(row)
+            assert set(projected) == set(HistoryEntry.__annotations__), (
+                "project_text_row output keys drifted from the HistoryEntry "
+                "TypedDict, update the contract type (providers.py) or the "
+                "SELECT/projection (history_db_internals/search.py) together."
+            )
+            # The internal encryption marker must NOT cross the IPC boundary.
+            assert "text_is_encrypted" not in projected
+        finally:
+            conn.close()
 
     def test_service_protocol_annotations_are_typed(self) -> None:
         """bare ``list`` (annotations are strings under"""

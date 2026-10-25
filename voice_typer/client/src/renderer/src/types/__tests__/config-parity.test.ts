@@ -53,7 +53,7 @@ describe("XZ-CFG-06: TS ModelSize union mirrors Python ALLOWED_USER_MODELS", () 
 		// sentinel, accepted by `ALLOWED_USER_MODELS`-derived
 		// validation. Python `ALLOWED_USER_MODELS` in
 		// `voice_typer/server/config_validators.py` now allows exactly
-		// these 5 model values plus the empty sentinel, and this union
+		// these 6 model values plus the empty sentinel, and this union
 		// mirrors it.
 		// If a future contributor removes one from the TS union, the
 		// corresponding assignment fails to compile.
@@ -62,10 +62,11 @@ describe("XZ-CFG-06: TS ModelSize union mirrors Python ALLOWED_USER_MODELS", () 
 			"tiny",
 			"large-v3",
 			"large-v3-turbo",
-			"qwen",
+			"qwen3-1.7b",
+			"qwen3-0.6b",
 			"parakeet",
 		];
-		expect(values).toHaveLength(6);
+		expect(values).toHaveLength(7);
 	});
 
 	it("includes the multilingual 'tiny' variant (positive conditional-type guard)", () => {

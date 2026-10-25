@@ -65,7 +65,7 @@ class QwenEngine:
 
     def __init__(
         self,
-        model_path: str,
+        model_path: str | None,
         device: str = "cuda",
         language: str = "en",
         config: Any = None,
@@ -124,6 +124,15 @@ class QwenEngine:
 
             from voice_typer.server.qwen_onnx_model import QwenOnnxModel, is_onnx_model_dir
 
+            if not self.model_path:
+                log.error(
+                    "[QWEN] No Qwen3-ASR model directory resolved for '%s'. "
+                    "Download the model from the Models page (or set "
+                    "qwen_model_path to an extracted ONNX export).",
+                    getattr(self.config, "model_size", None),
+                )
+                return False
+
             if not is_onnx_model_dir(self.model_path):
                 log.error(
                     "[QWEN] %s is not a Qwen3-ASR ONNX export directory. "
@@ -132,10 +141,10 @@ class QwenEngine:
                     "PLAN_ONNX_INTEGRATION.md §4.3 C-2). Download the "
                     "pre-exported ONNX model "
                     "(andrewleech/qwen3-asr-1.7b-onnx or "
-                    "qwen3-asr-0.6b-onnx) and point qwen_model_path at "
-                    "the extracted directory (needs encoder.onnx / "
-                    "decoder_init.onnx / decoder_step.onnx + "
-                    "embed_tokens.bin + tokenizer.json).",
+                    "qwen3-asr-0.6b-onnx) from the Models page (needs "
+                    "encoder.int4.onnx / decoder_init.int4.onnx / "
+                    "decoder_step.int4.onnx + embed_tokens.bin + "
+                    "tokenizer.json).",
                     self.model_path,
                 )
                 return False

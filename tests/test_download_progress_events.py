@@ -39,7 +39,7 @@ class TestDownloadModelPushesProgressEvents:
         """Qwen with an existing model_path pushes progress=100."""
         service._app.config.qwen_model_path = str(tmp_path)
         os.makedirs(tmp_path, exist_ok=True)
-        result = service.download_model("qwen")
+        result = service.download_model("qwen3-1.7b")
         assert result["success"] is True
         # Find the progress event with progress=100
         progress_events = [e for e in captured_events if e.get("type") == "download_progress"]
@@ -47,23 +47,19 @@ class TestDownloadModelPushesProgressEvents:
             f"Expected progress=100 event, got: {progress_events}"
         )
 
-    def test_qwen_not_configured_pushes_progress_and_notifies(self, service, captured_events):
-        """Qwen with no path pushes a progress event and tray notification."""
+    def test_qwen_without_override_delegates_to_hf_downloader(self, service, captured_events, monkeypatch):
+        """Qwen with no local path downloads from HuggingFace (consent-gated)."""
+        sentinel = {"success": False, "model": "qwen3-1.7b", "reason": "consent_required"}
+        monkeypatch.setattr(service, "_download_whisper_family", lambda *a, **k: sentinel)
         service._app.config.qwen_model_path = None
-        result = service.download_model("qwen")
-        assert result["success"] is False
-        # Tray should be notified
-        assert service._app.tray.notify.called
-        # Progress event should have been pushed
-        progress_events = [e for e in captured_events if e.get("type") == "download_progress"]
-        # At least one event was pushed
-        assert len(progress_events) >= 0  # may be 0 if pushed before failure
+        result = service.download_model("qwen3-1.7b")
+        assert result == sentinel
 
     def test_progress_event_shape(self, service, captured_events, tmp_path):
         """Each download_progress event must have the correct shape."""
         service._app.config.qwen_model_path = str(tmp_path)
         os.makedirs(tmp_path, exist_ok=True)
-        service.download_model("qwen")
+        service.download_model("qwen3-1.7b")
         for event in captured_events:
             if event.get("type") == "download_progress":
                 assert "data" in event
@@ -72,7 +68,7 @@ class TestDownloadModelPushesProgressEvents:
                 assert "status" in event["data"]
                 assert isinstance(event["data"]["progress"], int)
                 assert 0 <= event["data"]["progress"] <= 100
-                assert event["data"]["model"] == "qwen"
+                assert event["data"]["model"] == "qwen3-1.7b"
 
 
 class TestWhisperDownloadWithProgressEvents:

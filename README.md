@@ -240,9 +240,10 @@ needed: `pip install .` already includes `onnxruntime` + `tokenizers`.
 pip install .
 ```
 
-Then download an ONNX export (e.g. `andrewleech/qwen3-asr-0.6b-onnx`)
-and set `asr_backend: "qwen"` plus `qwen_model_path` (local ONNX dir)
-in the config file.
+Then pick either Qwen size on the Models page (or set `asr_backend: "qwen"`
+plus `model_size: "qwen3-1.7b"` / `"qwen3-0.6b"` in the config file). Both ONNX
+exports download from HuggingFace on first use after you allow the download.
+A manual `qwen_model_path` (local ONNX dir) still works as an override.
 
 ### ASR Auto-Setup
 
@@ -390,10 +391,11 @@ Available models (subject to Whisper upstream naming and sizes):
 
 | Model | Notes |
 |---|---|
-| `tiny.en` | Fastest, lower accuracy |
-| `small.en` | Default, best balance of speed and accuracy |
-| `medium.en` | Higher accuracy for difficult audio |
-| `qwen` | Qwen3-ASR via ONNX Runtime (pre-exported `andrewleech/qwen3-asr-*-onnx`, no torch needed; set `qwen_model_path` to the local ONNX dir) |
+| `tiny` | Fastest, lower accuracy |
+| `large-v3` | Highest accuracy, slow on CPU |
+| `large-v3-turbo` | Near large-v3 accuracy at 8x speed |
+| `qwen3-1.7b` | Qwen3-ASR 1.7B via ONNX Runtime (pre-exported `andrewleech/qwen3-asr-1.7b-onnx`, no torch needed; ~3.9 GB download) |
+| `qwen3-0.6b` | Qwen3-ASR 0.6B via ONNX Runtime (pre-exported `andrewleech/qwen3-asr-0.6b-onnx`, smaller and faster; ~1.9 GB download) |
 | `parakeet` | NVIDIA Parakeet TDT v3: English-only, optimized for GPU. Weights are auto-downloaded from HuggingFace on first use. Set `asr_backend = "parakeet"` in config or pick "Parakeet" from the Models submenu. |
 
 ## Silence Detection and Auto-Stop
@@ -766,7 +768,7 @@ The Windows native binary **does** suppress the Caps Lock keydown event so the O
 - If focus detection is unavailable (pyobjc / pyatspi / comtypes missing, Accessibility permission not granted on macOS, or an unrecognized control), auto-paste fails open and the keystroke is sent anyway; when a non-text control is confirmed focused the keystroke is skipped and the transcription stays on the clipboard (a toast tells you). Password fields and Secure Input always block paste.
 - Key suppression (so a `Caps Lock` hotkey doesn't toggle caps state) only works on Windows and macOS; on Linux the hotkey press reaches the foreground app and should be neutralized at the OS level via `setxkbmap -option caps:none`
 - The `Fn` key is supported only on macOS; on Windows/Linux it is firmware-only and never reaches the OS
-- First model download requires internet (model sizes vary by backend: Whisper `tiny.en` is ~75 MB, `small.en` ~466 MB, `medium.en` ~1.5 GB; Parakeet TDT v3 is ~2.5 GB; Qwen3-ASR is configured by path)
+- First model download requires internet (model sizes vary by backend: Whisper `tiny` is ~75 MB, `large-v3-turbo` ~1.6 GB, `large-v3` ~3 GB; Parakeet TDT v3 is ~2.5 GB; Qwen3-ASR is ~1.9 GB for 0.6B and ~3.9 GB for 1.7B)
 - Very long recordings (>10 min) may use significant RAM during transcription
 - The standalone installer bundles Python + dependencies (no Python installation needed)
 

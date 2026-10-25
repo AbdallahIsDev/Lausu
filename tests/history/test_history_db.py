@@ -357,14 +357,17 @@ class TestDelegationSplit:
         assert history_db._sanitize_fts_query("hello") == '"hello"'
         assert history_db._prepare_like_search_pattern("a%b") == r"%a\%b%"
         conn = sqlite3.connect(":memory:")
-        conn.row_factory = sqlite3.Row
-        row = conn.execute("SELECT 1 as id, 'x' as text, 5 as text_full_length").fetchone()
-        projected = history_db._project_text_row(row)
-        # _HISTORY_TEXT_PREVIEW_LENGTH is 500, so 5 is not truncated.
-        assert projected["text_truncated"] is False
-        assert projected["text_full_length"] == 5
-        # Same object produces same result.
-        assert search.project_text_row(row) == projected
+        try:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute("SELECT 1 as id, 'x' as text, 5 as text_full_length").fetchone()
+            projected = history_db._project_text_row(row)
+            # _HISTORY_TEXT_PREVIEW_LENGTH is 500, so 5 is not truncated.
+            assert projected["text_truncated"] is False
+            assert projected["text_full_length"] == 5
+            # Same object produces same result.
+            assert search.project_text_row(row) == projected
+        finally:
+            conn.close()
 
     def test_get_recent_delegates_to_search_module(self, db, monkeypatch):
         """``HistoryDB.get_recent`` must call"""

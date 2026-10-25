@@ -497,7 +497,7 @@ class TestBackendLoadFailedEvent:
 
         event_bus.subscribe(subscriber)
         try:
-            mm._change_model_blocking("qwen")
+            mm._change_model_blocking("qwen3-1.7b")
         finally:
             event_bus.unsubscribe(subscriber)
 

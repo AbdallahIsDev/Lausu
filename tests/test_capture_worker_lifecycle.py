@@ -10,6 +10,7 @@ import re
 import threading
 import time
 
+import numpy as np
 import pytest
 from voice_typer.server.recording.capture import AudioCallbackDispatcher
 from voice_typer.server.recording.recorder import (
@@ -44,6 +45,18 @@ class _FakeThreadRegistry:
 
     def unregister(self, name: str) -> None:
         self.unregister_calls.append(name)
+
+
+class _NonIterableRing(collections.deque):
+    """Ring deque that raises if iterated.
+
+    The PortAudio callback appends while the start/stop paths clear stale
+    chunks, and ``deque`` raises ``RuntimeError: deque mutated during
+    iteration``. Every drain must use atomic ``popleft``.
+    """
+
+    def __iter__(self):
+        raise RuntimeError("deque mutated during iteration")
 
 
 class _FakeRecorder:
@@ -139,6 +152,21 @@ class TestStartAudioWorkerBody:
         finally:
             dispatcher.stop_audio_worker_body(fake, timeout=1.0)
 
+    def test_drains_ring_with_popleft_without_iterating(self):
+        fake = _FakeRecorder()
+        fake._ring_buffer = _NonIterableRing(maxlen=64)
+        stale = np.ones(8, dtype=np.float32)
+        fake._ring_buffer.append((stale, 8, "t", "s", 0.0))
+        dispatcher = AudioCallbackDispatcher(fake)
+
+        # Must not raise "deque mutated during iteration".
+        dispatcher.start_audio_worker_body(fake)
+        try:
+            assert len(fake._ring_buffer) == 0, "stale ring contents must be drained"
+            assert not stale.any(), "stale chunk must be zeroed before deallocation"
+        finally:
+            dispatcher.stop_audio_worker_body(fake, timeout=1.0)
+
     def test_idempotent_when_worker_already_alive(self):
         fake = _FakeRecorder()
         dispatcher = AudioCallbackDispatcher(fake)
@@ -228,6 +256,25 @@ class TestStopAudioWorkerBody:
         # Ring buffer was cleared by the stop path.
         assert len(fake._ring_buffer) == 0
         # Thread was joined.
+        assert fake._worker_thread is None
+
+    def test_drain_false_drains_ring_without_iterating(self):
+        fake = _FakeRecorder()
+        # A finished thread keeps the drain=False branch reachable without a
+        # live worker racing the assertions by popping the stale chunk.
+        fake._worker_thread = threading.Thread(target=lambda: None)
+        fake._worker_thread.start()
+        fake._worker_thread.join()
+        fake._ring_buffer = _NonIterableRing(maxlen=64)
+        stale = np.ones(8, dtype=np.float32)
+        fake._ring_buffer.append((stale, 8, "t", "s", 0.0))
+        dispatcher = AudioCallbackDispatcher(fake)
+
+        # Must not raise "deque mutated during iteration".
+        dispatcher.stop_audio_worker_body(fake, timeout=0.1, drain=False)
+
+        assert len(fake._ring_buffer) == 0, "stale ring contents must be drained"
+        assert not stale.any(), "stale chunk must be zeroed before deallocation"
         assert fake._worker_thread is None
 
     def test_unregisters_with_thread_registry(self):

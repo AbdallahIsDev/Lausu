@@ -13,6 +13,17 @@ from voice_typer.server.recording.buffer import _secure_clear_array as _real_sec
 from voice_typer.server.recording.session_state import SessionState
 
 
+class _NonIterableDeque(collections.deque):
+    """Producer-fed deque that raises if iterated.
+
+    ``deque`` raises ``RuntimeError: deque mutated during iteration`` when
+    the audio callback appends mid-iteration, so drains must use popleft.
+    """
+
+    def __iter__(self):
+        raise RuntimeError("deque mutated during iteration")
+
+
 def _make_vad() -> MagicMock:
     """A mock VAD processor with a callable ``reset``."""
     vad = MagicMock(name="VadProcessor")
@@ -830,6 +841,23 @@ def test_prepend_preroll_to_buffer_zeros_and_clears_preroll_deque():
     assert np.all(chunk_b == 0), "preroll chunk must be zeroed in-place after prepend (the fix)"
 
 
+def test_prepend_preroll_to_buffer_drains_instead_of_iterating():
+    """The RT callback appends preroll once the gate clears: drain, never iterate.
+
+    ``list(preroll)`` on the worker thread raced the callback and raised
+    ``RuntimeError: deque mutated during iteration``.
+    """
+    rec = _make_recorder(config=_make_config(sample_rate=16000), effective_sr=16000)
+    chunk = np.array([0.1, 0.2], dtype=np.float32)
+    rec._preroll_buffer = _NonIterableDeque([chunk], maxlen=64)
+
+    SessionState(_make_recorder()).prepend_preroll_to_buffer(rec)
+
+    assert len(rec._preroll_buffer) == 0
+    assert not chunk.any(), "drained preroll chunk must be zeroed in-place"
+    assert len(rec._audio_pipeline._buffer) == 1
+
+
 def test_prepend_preroll_to_buffer_noop_on_empty_preroll():
     """An empty preroll buffer is a no-op (no buffer mutation, no filter call)."""
     rec = _make_recorder(config=_make_config(sample_rate=16000), effective_sr=16000)
@@ -954,3 +982,40 @@ def test_resize_buffers_ring_resize_preserves_oversized_ring_contents(
     assert "was 187" in ring_logs[0], (
         f"the ring-resize log must report the LIVE previous capacity (was 187), got: {ring_logs[0]!r}"
     )
+
+
+def test_resize_buffers_ring_resize_drains_instead_of_iterating():
+    """The ring resize must not iterate: a live stream appends concurrently.
+
+    The disconnect-restart resize runs after the new stream started, so
+    ``list(ring)`` could raise ``RuntimeError: deque mutated during
+    iteration`` and abort the restart.
+    """
+    rec = _make_recorder(config=_make_config(sample_rate=16000))
+    chunk = np.array([0.1, 0.2], dtype=np.float32)
+    rec._ring_buffer = _NonIterableDeque([chunk], maxlen=187)
+
+    SessionState(_make_recorder()).resize_buffers_for_sample_rate(
+        rec,
+        effective_sr=16000,
+        max_rec=900,
+    )
+
+    assert rec._ring_buffer.maxlen == 64
+    assert list(rec._ring_buffer) == [chunk]
+
+
+def test_resize_buffers_preroll_resize_drains_instead_of_iterating():
+    """The preroll deque is appended by the RT callback before the gate opens."""
+    rec = _make_recorder(config=_make_config(sample_rate=48000))
+    preroll_chunk = np.zeros(8, dtype=np.float32)
+    rec._preroll_buffer = _NonIterableDeque([preroll_chunk], maxlen=64)
+
+    SessionState(_make_recorder()).resize_buffers_for_sample_rate(
+        rec,
+        effective_sr=48000,
+        max_rec=900,
+    )
+
+    assert rec._preroll_buffer.maxlen != 64, "preroll must be resized for the new rate"
+    assert list(rec._preroll_buffer) == [preroll_chunk]

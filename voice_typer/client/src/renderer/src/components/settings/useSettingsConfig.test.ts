@@ -319,7 +319,7 @@ describe("useSettingsConfig, XA-14 fixes", () => {
 		});
 
 		await result.current.updateConfig({
-			model_size: "qwen",
+			model_size: "qwen3-1.7b",
 			active_plugin: "",
 			hotkey: "F3",
 		});
@@ -621,12 +621,15 @@ describe("useSettingsConfig, mergeExternalConfig contract", () => {
 		});
 
 		act(() => {
-			result.current.mergeExternalConfig({ hotkey: "F3", model_size: "qwen" });
+			result.current.mergeExternalConfig({
+				hotkey: "F3",
+				model_size: "qwen3-1.7b",
+			});
 		});
 
 		await waitFor(() => {
 			expect(result.current.config?.hotkey).toBe("F3");
-			expect(result.current.config?.model_size).toBe("qwen");
+			expect(result.current.config?.model_size).toBe("qwen3-1.7b");
 		});
 	});
 });

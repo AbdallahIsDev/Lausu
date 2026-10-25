@@ -67,7 +67,7 @@ class TestFallbackChain:
         args, kwargs = last_call[0], last_call[1] if len(last_call) > 1 else {}
         assert kwargs["device"] == "cpu"
         assert kwargs["compute_type"] == "float32"
-        assert args[0] == "tiny"
+        assert args[0] == "Systran/faster-whisper-tiny"
 
     def test_chain_tries_preferred_device_first(self):
         """First attempt should use the configured device/compute type."""
@@ -81,9 +81,11 @@ class TestFallbackChain:
             engine.load()
 
         first_call = mod_obj.WhisperModel.call_args_list[0]
-        _args, kwargs = first_call[0], first_call[1] if len(first_call) > 1 else {}
+        args, kwargs = first_call[0], first_call[1] if len(first_call) > 1 else {}
         assert kwargs["device"] == "cuda"
         assert kwargs["compute_type"] == "float16"
+        assert args[0] == "dropbox-dash/faster-whisper-large-v3-turbo"
+        assert kwargs["local_files_only"] is True
 
     def test_chain_falls_through_to_cpu_int8(self):
         """After CUDA fails, should try CPU/int8 with same model."""
@@ -102,7 +104,7 @@ class TestFallbackChain:
         args, kwargs = second[0], second[1] if len(second) > 1 else {}
         assert kwargs["device"] == "cpu"
         assert kwargs["compute_type"] == "int8"
-        assert args[0] == "large-v3-turbo"
+        assert args[0] == "dropbox-dash/faster-whisper-large-v3-turbo"
 
     def test_chain_tries_tiny_before_float32(self):
         """Should try CPU/int8/tiny before CPU/float32/tiny."""
@@ -122,7 +124,7 @@ class TestFallbackChain:
         args, kwargs = third[0], third[1] if len(third) > 1 else {}
         assert kwargs["device"] == "cpu"
         assert kwargs["compute_type"] == "int8"
-        assert args[0] == "tiny"
+        assert args[0] == "Systran/faster-whisper-tiny"
 
     def test_succeeds_on_fallback(self):
         """If preferred fails but fallback succeeds, load() should succeed."""

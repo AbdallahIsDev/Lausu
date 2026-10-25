@@ -27,6 +27,29 @@ def _secure_clear_array(arr: np.ndarray) -> None:
         arr.fill(0)  # best-effort; some array types may not support fill
 
 
+def _secure_clear_deque(deque_buffer: Any) -> None:
+    """Drain a producer-fed audio deque, zeroing every chunk.
+
+    ``popleft`` is atomic; iterating the deque is NOT safe while the
+    PortAudio callback appends (``RuntimeError: deque mutated during
+    iteration`` aborts the caller's start path).
+    """
+    if not isinstance(deque_buffer, collections.deque):
+        # Non-deque stand-ins (test doubles) are cleared without draining.
+        clear = getattr(deque_buffer, "clear", None)
+        if callable(clear):
+            clear()
+        return
+    while True:
+        try:
+            payload = deque_buffer.popleft()
+        except IndexError:
+            break
+        chunk = payload[0] if isinstance(payload, tuple) else payload
+        if isinstance(chunk, np.ndarray):
+            _secure_clear_array(chunk)
+
+
 def _secure_clear_handed_off_buffer(buffer: Any) -> None:
     """SEC-audit-008: zero one handed-off buffer in place."""
     storage = getattr(buffer, "storage", None)

@@ -5,6 +5,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from voice_typer.server.qwen_layout import DEFAULT_QWEN_VARIANT, is_qwen_variant_name
+
 log = logging.getLogger(__name__)
 
 # Availability verdicts are owned by the shared
@@ -29,7 +31,8 @@ _MODEL_BACKENDS: dict[str, str] = {
     "large-v3": "whisper",
     "large-v3-turbo": "whisper",
     "parakeet": "parakeet",
-    "qwen": "qwen",
+    "qwen3-1.7b": "qwen",
+    "qwen3-0.6b": "qwen",
 }
 
 
@@ -84,9 +87,14 @@ def tooltip_model_label(config) -> str:
 
     backend = getattr(config, "asr_backend", "whisper") or "whisper"
     if backend in ("qwen", "parakeet"):
-        meta = get_model_metadata(backend)
+        # Qwen has two sizes now: label the CONFIGURED variant, falling
+        # back to the default entry when ``model_size`` is stale.
+        size = getattr(config, "model_size", "") or ""
+        meta = get_model_metadata(size)
+        if meta is None or meta.backend != backend:
+            meta = get_model_metadata(backend)
         if meta is not None:
-            return meta.display_name or _title_case_slug(backend)
+            return meta.display_name or _title_case_slug(meta.name)
         return _title_case_slug(backend)
     if backend in ("whisper", "distil-whisper"):
         size = getattr(config, "model_size", "") or ""
@@ -146,15 +154,19 @@ def _check_hf_model_downloaded(repo_id: str, config_dir) -> bool:
     return model_availability.is_available(repo_id, config_dir)
 
 
-def _check_qwen_model_downloaded(config_dir, qwen_model_path) -> bool:
-    """Return True if the Qwen model WEIGHTS are on disk."""
-    if isinstance(qwen_model_path, str) and Path(qwen_model_path).is_dir():
-        return True
-    from voice_typer.server import model_availability
+def _check_qwen_model_downloaded(config_dir, qwen_model_path, model_name: str = DEFAULT_QWEN_VARIANT) -> bool:
+    """Return True if ``model_name``'s Qwen weights are on disk.
 
-    return model_availability.is_available(
-        _QWEN_REPO_ID, config_dir, extra_watch_dirs=[qwen_model_path] if qwen_model_path else None
-    )
+    A manual ``qwen_model_path`` counts only when its ``config.json``
+    reports the same variant; otherwise the pinned HF snapshot decides.
+    """
+    from voice_typer.server import model_availability
+    from voice_typer.server.qwen_layout import override_matches_variant, qwen_repo_id
+
+    name = model_name if is_qwen_variant_name(model_name) else DEFAULT_QWEN_VARIANT
+    if override_matches_variant(name, qwen_model_path):
+        return True
+    return model_availability.is_available(qwen_repo_id(name) or _QWEN_REPO_ID, config_dir)
 
 
 def _check_parakeet_model_downloaded(config_dir, parakeet_model_path) -> bool:
@@ -181,9 +193,14 @@ def is_active_model_downloaded(config) -> bool:
     backend = getattr(config, "asr_backend", "whisper") or "whisper"
     from voice_typer.server.model_registry import NO_MODEL_SIZE
 
-    # Qwen / Parakeet are selected via ``asr_backend``, NOT via
+    # Qwen / Parakeet are selected via ``asr_backend`` as the family; the
+    # Qwen SIZE comes from ``model_size`` (both variants share the backend).
     if backend == "qwen":
-        return _check_qwen_model_downloaded(config_dir, getattr(config, "qwen_model_path", None))
+        return _check_qwen_model_downloaded(
+            config_dir,
+            getattr(config, "qwen_model_path", None),
+            getattr(config, "model_size", "") or DEFAULT_QWEN_VARIANT,
+        )
     if backend == "parakeet":
         return _check_parakeet_model_downloaded(config_dir, getattr(config, "parakeet_model_path", None))
     # Whisper: "No model selected" (``model_size == ""``), there is
@@ -257,10 +274,11 @@ def build_models_submenu_data(
     candidates = [
         ("tiny", "whisper", "Systran/faster-whisper-tiny"),
         ("large-v3", "whisper", "Systran/faster-whisper-large-v3"),
-        # Turbo lives under mobiuslabsgmbh (faster-whisper _MODELS), not Systran.
-        ("large-v3-turbo", "whisper", "mobiuslabsgmbh/faster-whisper-large-v3-turbo"),
+        # Turbo lives under the canonical dropbox-dash org, not Systran.
+        ("large-v3-turbo", "whisper", "dropbox-dash/faster-whisper-large-v3-turbo"),
         ("parakeet", "parakeet", "nvidia/parakeet-tdt-0.6b-v3"),
-        ("qwen", "qwen", None),
+        ("qwen3-1.7b", "qwen", None),
+        ("qwen3-0.6b", "qwen", None),
     ]
 
     results = []
@@ -270,7 +288,7 @@ def build_models_submenu_data(
         downloaded = False
         if backend == "qwen":
             # Qwen is a built-in ONNX backend now (qwen_onnx_model.py —
-            downloaded = _check_qwen_model_downloaded(config_dir, qwen_model_path)
+            downloaded = _check_qwen_model_downloaded(config_dir, qwen_model_path, name)
         elif repo_id:
             # cached check with 5-second TTL, avoids
             downloaded = _check_hf_model_downloaded(repo_id, config_dir)
@@ -282,7 +300,6 @@ def build_models_submenu_data(
         is_active = not no_model and (
             (name == current_model and current_backend == backend)
             or (name == "parakeet" and current_backend == "parakeet")
-            or (name == "qwen" and current_backend == "qwen")
         )
 
         results.append((name, downloaded, is_active, lambda n=name: controller_change_model_fn(n)))

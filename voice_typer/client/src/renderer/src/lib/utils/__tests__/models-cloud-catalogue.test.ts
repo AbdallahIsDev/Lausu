@@ -407,7 +407,7 @@ describe("exactly one active model across local + cloud", () => {
 	it("never reports more than one active model in total, whatever the config", () => {
 		const configs: LausuConfig[] = [
 			makeConfig({ asr_backend: "whisper", model_size: "large-v3" }),
-			makeConfig({ asr_backend: "qwen", model_size: "qwen" }),
+			makeConfig({ asr_backend: "qwen", model_size: "qwen3-1.7b" }),
 			makeConfig({ asr_backend: "parakeet", model_size: "parakeet" }),
 			makeConfig({
 				asr_backend: "cloud",

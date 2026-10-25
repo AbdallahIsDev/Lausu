@@ -333,7 +333,7 @@ class TestBuildModelsSubmenuUsesCache:
         yield
         invalidate_model_availability_cache()
 
-    def test_two_consecutive_builds_return_five_candidates(self, tmp_path):
+    def test_two_consecutive_builds_return_six_candidates(self, tmp_path):
         """Two consecutive ``build_models_submenu_data`` calls must both"""
         # Provide a Config-like object so we skip the disk read.
         config_provider = MagicMock()
@@ -353,9 +353,9 @@ class TestBuildModelsSubmenuUsesCache:
                 config_provider=config_provider,
             )
 
-        # Both calls must succeed and return 5 candidates.
-        assert len(data1) == 5
-        assert len(data2) == 5
+        # Both calls must succeed and return 6 candidates.
+        assert len(data1) == 6
+        assert len(data2) == 6
 
 
 class TestQwenTrayAvailabilityAlignsWithModelsPage:
@@ -383,7 +383,7 @@ class TestQwenTrayAvailabilityAlignsWithModelsPage:
                 lambda name: None,
                 config_provider=config,
             )
-        qwen_row = next(row for row in data if row[0] == "qwen")
+        qwen_row = next(row for row in data if row[0] == "qwen3-1.7b")
         return qwen_row[1]
 
     def test_hidden_when_nothing_on_disk(self, tmp_path):
@@ -425,5 +425,51 @@ class TestQwenTrayAvailabilityAlignsWithModelsPage:
                 lambda name: None,
                 config_provider=None,
             )
-        qwen_row = next(row for row in data if row[0] == "qwen")
+        qwen_row = next(row for row in data if row[0] == "qwen3-1.7b")
         assert qwen_row[1] is True, "qwen_model_path from config.json must count as downloaded for the tray"
+
+    def _rows(self, tmp_path, config, monkeypatch=None):
+        with patch("voice_typer.server.asr_setup.ensure_hf_env", lambda: None):
+            return tray_models.build_models_submenu_data(
+                lambda: tmp_path,
+                lambda name: None,
+                config_provider=config,
+            )
+
+    def test_both_variants_are_listed(self, tmp_path):
+        """Each Qwen size is its own tray row; the backend alone is not
+        enough to mark either one active."""
+        data = self._rows(tmp_path, self._make_config(qwen_model_path=None))
+        names = [row[0] for row in data]
+        assert names.count("qwen3-1.7b") == 1
+        assert names.count("qwen3-0.6b") == 1
+
+    def test_only_the_selected_variant_is_active(self, tmp_path):
+        """``model_size='qwen3-0.6b'`` marks the 0.6B row active, never the
+        1.7B one (both share ``asr_backend='qwen'``)."""
+        config = self._make_config(qwen_model_path=None)
+        config.model_size = "qwen3-0.6b"
+        config.asr_backend = "qwen"
+        data = self._rows(tmp_path, config)
+        active = {row[0]: row[2] for row in data if row[0].startswith("qwen")}
+        assert active == {"qwen3-1.7b": False, "qwen3-0.6b": True}
+
+    def test_variant_repo_decides_downloaded_flag(self, tmp_path, monkeypatch):
+        """A cached 0.6B export must not make the 1.7B row look downloaded."""
+        monkeypatch.setattr(
+            "voice_typer.server.transcription_download.is_model_snapshot_complete",
+            lambda repo_id: repo_id == "andrewleech/qwen3-asr-0.6b-onnx",
+        )
+        data = self._rows(tmp_path, self._make_config(qwen_model_path=None))
+        flags = {row[0]: row[1] for row in data if row[0].startswith("qwen")}
+        assert flags == {"qwen3-1.7b": False, "qwen3-0.6b": True}
+
+    def test_override_dir_marks_only_its_own_variant(self, tmp_path):
+        """An override whose config.json reports the 0.6B width marks only
+        the 0.6B row (the 1.7B row falls back to the HF cache)."""
+        model_dir = tmp_path / "qwen-small"
+        model_dir.mkdir()
+        (model_dir / "config.json").write_text('{"decoder": {"hidden_size": 1024}}', encoding="utf-8")
+        data = self._rows(tmp_path, self._make_config(qwen_model_path=str(model_dir)))
+        flags = {row[0]: row[1] for row in data if row[0].startswith("qwen")}
+        assert flags == {"qwen3-1.7b": False, "qwen3-0.6b": True}

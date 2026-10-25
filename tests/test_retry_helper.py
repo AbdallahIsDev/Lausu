@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from email.message import Message
@@ -227,6 +228,28 @@ class TestAsrDownloadRetryMigrated:
         with pytest.raises(ModelDownloadAborted):
             _download_with_retry(_cancelled, max_attempts=3, delays=(0.0, 0.0))
         assert len(attempts) == 1
+
+    def test_give_up_logs_real_exception_with_traceback(self, caplog, monkeypatch):
+        from voice_typer.server.asr_utils import _download_with_retry
+
+        monkeypatch.setattr(time, "sleep", lambda s: None)
+
+        def _always_fails(**kwargs):
+            raise ConnectionError("[Errno 11001] getaddrinfo failed")
+
+        with (
+            caplog.at_level(logging.ERROR, logger="voice_typer.server.asr_utils"),
+            pytest.raises(ConnectionError, match="getaddrinfo failed"),
+        ):
+            _download_with_retry(_always_fails, max_attempts=2, delays=(0.0, 0.0))
+
+        errors = [record for record in caplog.records if record.levelno == logging.ERROR]
+        assert len(errors) == 1, f"give-up must log exactly one ERROR, got: {[r.getMessage() for r in errors]}"
+        assert errors[0].exc_info is not None, "the give-up record must carry the real traceback"
+        assert "All 2 download attempts failed" in errors[0].getMessage()
+        assert "getaddrinfo failed" in errors[0].getMessage()
+        assert "getaddrinfo failed" in caplog.text
+        assert "NoneType: None" not in caplog.text
 
 
 class TestCloudRetryMigrated:

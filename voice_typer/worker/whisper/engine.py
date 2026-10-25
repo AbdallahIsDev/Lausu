@@ -35,6 +35,7 @@ from voice_typer.server.transcription_cuda_probe import (
 from voice_typer.server.transcription_download import (
     probe_cache as _probe_cache_impl,
     require_model_downloaded as _require_model_downloaded_impl,
+    whisper_model_ref as _whisper_model_ref_impl,
     whisper_size_cached as _whisper_size_cached_impl,
 )
 from voice_typer.server.transcription_result import (
@@ -215,16 +216,21 @@ class TranscriptionEngine:
                     progress_callback(f"{verb} model '{model_size}'...")
                 # time WhisperModel construction to measure
                 _t0 = time.perf_counter()
+                # Canonical repo id (not faster-whisper's size alias) so the
+                # load resolves the snapshot downloaded into OUR cache dir.
+                repo_id, revision = self._whisper_model_ref(model_size)
                 # ctranslate2 logs to fd 2 in its own format, bypassing the
                 # file log; capture it so native lines land in canonical form.
                 with _capture_native_stderr(target=log):
                     # cpu_threads: CTranslate2 silently defaults to 4
                     model = WhisperModel(
-                        model_size,
+                        repo_id,
                         device=device,
                         compute_type=compute_type,
                         cpu_threads=_whisper_cpu_threads_impl(),
                         num_workers=1,
+                        revision=revision,
+                        local_files_only=True,
                     )
                 _load_elapsed = time.perf_counter() - _t0
                 if acquire_lock:
@@ -337,6 +343,10 @@ class TranscriptionEngine:
     def _whisper_size_cached(self, model_size: str) -> bool:
         """Local-only probe: is ``model_size`` fully present in the HF cache?"""
         return _whisper_size_cached_impl(self, model_size)
+
+    def _whisper_model_ref(self, model_size: str) -> tuple[str, str]:
+        """Canonical repo + pinned revision for the ``WhisperModel`` call."""
+        return _whisper_model_ref_impl(model_size)
 
     def transcribe(self, audio: np.ndarray, audio_stats: tuple[float, float, float] | None = None) -> str:
         """Transcribe audio array. Returns cleaned text string."""

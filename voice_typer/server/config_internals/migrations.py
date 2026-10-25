@@ -35,7 +35,7 @@ from typing import Any
 
 log = logging.getLogger("voice_typer.server.config")
 
-_CURRENT_SCHEMA_VERSION = 5
+_CURRENT_SCHEMA_VERSION = 6
 
 # _MIGRATIONS infrastructure for schema version migrations.
 _MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {}
@@ -148,10 +148,31 @@ def _migrate_to_v5(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
+def _migrate_to_v6(data: dict[str, Any]) -> dict[str, Any]:
+    """Migrate config from schema v5 to v6 (Qwen model keys renamed).
+
+    The two Qwen3-ASR entries were registered as ``qwen`` / ``qwen-0.6b``
+    and are now ``qwen3-1.7b`` / ``qwen3-0.6b``. ``model_size`` carries the
+    registry key, so an older config.json selects a name that no longer
+    exists; rewrite it here instead of relying on the load-time alias.
+    """
+    data.setdefault("_load_warnings", [])
+    from voice_typer.server.model_registry import LEGACY_MODEL_ALIASES
+
+    model_size = data.get("model_size")
+    renamed = LEGACY_MODEL_ALIASES.get(model_size) if isinstance(model_size, str) else None
+    if renamed is not None:
+        log.info("[CONFIG] migrating schema v5 -> v6: renaming model_size %r -> %r", model_size, renamed)
+        data["_load_warnings"].append(f"model_size {model_size!r} renamed to {renamed!r} (schema v6 migration)")
+        data["model_size"] = renamed
+    return data
+
+
 _MIGRATIONS[2] = _migrate_to_v2
 _MIGRATIONS[3] = _migrate_to_v3
 _MIGRATIONS[4] = _migrate_to_v4
 _MIGRATIONS[5] = _migrate_to_v5
+_MIGRATIONS[6] = _migrate_to_v6
 
 
 def _run_migrations(

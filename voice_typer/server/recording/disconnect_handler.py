@@ -12,6 +12,7 @@ from typing import Any
 # The mid-session device-reconnect restart opens its stream with the
 from voice_typer.server._audio_constants import scaled_audio_blocksize
 from voice_typer.server._lazy_import import lazy_module
+from voice_typer.server.recording.buffer import _secure_clear_deque
 from voice_typer.server.recording.session_state import coerce_max_recording_time
 from voice_typer.server.recording.vad_helpers import refresh_vad_caches
 
@@ -304,12 +305,10 @@ class DisconnectHandler:
             )
             # close-on-raise guard: from the successful
             try:
-                # flush stale-rate ring-buffer contents BEFORE
-                for _payload in recorder._ring_buffer:
-                    _arr = _payload[0] if isinstance(_payload, tuple) else _payload
-                    if isinstance(_arr, np.ndarray):
-                        _arr.fill(0)
-                recorder._ring_buffer.clear()
+                # flush stale-rate ring-buffer contents BEFORE starting the
+                # new stream (popleft drain, never iterate: a straggling
+                # callback from the torn-down stream may still append).
+                _secure_clear_deque(recorder._ring_buffer)
                 stream.start()
                 # re-check the stop_generation under the stream-lifecycle
                 if _captured_generation != recorder._stop_generation:

@@ -156,6 +156,25 @@ class TestStopAudioPrep:
         assert r.recording is False
         assert r._stream_lifecycle._stream is None
 
+    def test_recording_property_setter_toggles_gate(self):
+        """The failed-start teardown assigns ``recorder.recording = False``.
+
+        Without a setter that assignment raises ``AttributeError`` after the
+        best-effort discard, aborting the teardown.
+        """
+        from voice_typer.server.recording import Recorder
+
+        config = MagicMock(sample_rate=16000, microphone=None)
+        r = Recorder(config)
+
+        assert r.recording is False
+        r.recording = True
+        assert r.recording is True
+        assert r._recording_event.is_set()
+        r.recording = False
+        assert r.recording is False
+        assert not r._recording_event.is_set()
+
     def test_start_falls_back_to_same_microphone_on_another_host_api(self, monkeypatch):
         import voice_typer.server.recording as recording_mod
         from voice_typer.server.recording import Recorder

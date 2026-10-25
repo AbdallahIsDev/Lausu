@@ -16,14 +16,12 @@ import threading
 from typing import TYPE_CHECKING, Any
 
 from voice_typer.server._audio_constants import scaled_audio_blocksize
-from voice_typer.server._lazy_import import lazy_module
+from voice_typer.server.recording.buffer import _secure_clear_deque
 
 if TYPE_CHECKING:
     from .recorder import Recorder
 
 log = logging.getLogger("voice_typer.server.recording")
-
-np = lazy_module("numpy")
 
 
 def _facade():
@@ -151,10 +149,8 @@ def start_recording(recorder: Recorder) -> None:
     if sizing_sr > 0:
         sizing_blocksize = scaled_audio_blocksize(sizing_sr)
         new_ring_capacity = max(64, int(sizing_sr / sizing_blocksize * 2.0))
-        for _payload in recorder._ring_buffer:
-            _arr = _payload[0] if isinstance(_payload, tuple) else _payload
-            if isinstance(_arr, np.ndarray):
-                _arr.fill(0)
+        # popleft drain, never iterate: the callback can append at any time.
+        _secure_clear_deque(recorder._ring_buffer)
         recorder._ring_buffer = collections.deque(maxlen=new_ring_capacity)
 
     if selected_device != device and isinstance(selected_device, int):

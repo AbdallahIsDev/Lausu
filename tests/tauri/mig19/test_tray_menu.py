@@ -415,8 +415,15 @@ def test_dynamic_model_submenu_data_builder_present(
     assert "def build_models_submenu_data(" in tray_models_py_source, (
         "tray_models.py must define build_models_submenu_data, the data-gathering function for the Models submenu."
     )
-    # All 5 candidate models must be enumerated.
-    for model_name in ["tiny", "large-v3", "large-v3-turbo", "parakeet", "qwen"]:
+    # Every candidate model must be enumerated.
+    for model_name in [
+        "tiny",
+        "large-v3",
+        "large-v3-turbo",
+        "parakeet",
+        "qwen3-1.7b",
+        "qwen3-0.6b",
+    ]:
         assert f'"{model_name}"' in tray_models_py_source, (
             f"tray_models.py must enumerate the {model_name!r} model as "
             f"a candidate, the Models submenu shows each downloaded "

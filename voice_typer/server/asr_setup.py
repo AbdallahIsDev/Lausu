@@ -164,7 +164,48 @@ _MAX_DOWNLOAD_ATTEMPTS = 4
 # the local ``_check_disk_space`` and ``_ESTIMATED_MODEL_SIZES``
 
 
-def ensure_hf_env():
+# huggingface_hub resolves these into ``constants`` when it is imported, which
+# happens long before any download, so env writes alone never take effect.
+_HF_CONSTANT_FLAGS: tuple[tuple[str, bool], ...] = (
+    ("HF_HUB_DISABLE_SYMLINKS_WARNING", True),
+    ("HF_HUB_DISABLE_PROGRESS_BARS", True),
+    ("HF_HUB_DISABLE_XET", True),
+    ("HF_HUB_DISABLE_TELEMETRY", True),
+    ("HF_HUB_DISABLE_UNVERIFIED_ACCESS_WARNING", True),
+)
+
+
+def _mirror_hf_env_flags() -> None:
+    """Apply the transfer flags to the already-imported huggingface_hub."""
+    try:
+        from huggingface_hub import constants as hf_constants
+    except ImportError:
+        log.debug("[ASR_SETUP] huggingface_hub missing; env flags alone apply")
+        return
+
+    flags = _HF_CONSTANT_FLAGS
+    if os.name == "nt":
+        # No symlink privilege here: hf moves/copies files into the snapshot
+        # instead of failing with WinError 1314 on the first fresh repo.
+        flags += (("HF_HUB_DISABLE_SYMLINKS", True),)
+    for name, value in flags:
+        if not hasattr(hf_constants, name):
+            continue
+        try:
+            setattr(hf_constants, name, value)
+        except AttributeError:  # pragma: no cover - read-only in a future hf
+            log.debug("[ASR_SETUP] huggingface_hub constants.%s is read-only", name)
+
+    try:
+        # The tqdm module bound the constant at import, so the public toggle is
+        # the only switch that still lands (bars write straight into the log).
+        from huggingface_hub.utils import disable_progress_bars
+    except ImportError:  # pragma: no cover - hf layout change
+        return
+    disable_progress_bars()
+
+
+def ensure_hf_env() -> None:
     """Ensure ancillary HF transfer flags (never forces HF_HOME)."""
     # Disable symlink warnings on Windows (Developer Mode not required)
     os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
@@ -174,6 +215,12 @@ def ensure_hf_env():
     os.environ.setdefault("HF_HUB_DISABLE_UNVERIFIED_ACCESS_WARNING", "1")
     # Disable huggingface_hub telemetry (C-DATA-1: no unsolicited egress).
     os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+    # tqdm bars interleave into the sidecar log; the pause/abort gate is
+    # independent of rendering (it runs in the tqdm update override).
+    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    if os.name == "nt":
+        os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS", "1")
+    _mirror_hf_env_flags()
 
 
 def _verify_model_integrity(repo_id: str, local_dir: str) -> tuple[bool, dict[str, Any]]:
@@ -417,7 +464,6 @@ def download_parakeet_weights(
             allow_patterns=_HF_ALLOW_PATTERNS_PARAKEET_ONNX,
             # Segmented fast lane owns the big files, exclude them here.
             ignore_patterns=seg_names or None,
-            resume_download=True,
             # pause/abort gate: see get_download_tqdm_class.
             tqdm_class=get_download_tqdm_class(),
         )
@@ -450,7 +496,6 @@ def download_parakeet_weights(
                     repo_id=repo_id,
                     revision=parakeet_revision,
                     allow_patterns=_HF_ALLOW_PATTERNS_PARAKEET_ONNX,
-                    resume_download=True,
                     tqdm_class=get_download_tqdm_class(),
                 )
     except Exception as e:

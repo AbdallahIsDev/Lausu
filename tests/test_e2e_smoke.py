@@ -86,7 +86,7 @@ class TestEndToEndSmoke:
         app.config.qwen_model_path = str(temp_config)
         os.makedirs(temp_config, exist_ok=True)
         service = LausuService(app)
-        result = service.download_model("qwen")
+        result = service.download_model("qwen3-1.7b")
         assert result["success"] is True
         progress_events = [e for e in events if e.get("type") == "download_progress"]
         assert any(e["data"]["progress"] == 100 for e in progress_events)

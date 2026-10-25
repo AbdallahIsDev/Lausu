@@ -67,7 +67,7 @@ def test_model_hashes_revisions_are_pinned_commit_shas():
     from voice_typer.server.security import MODEL_HASHES
 
     assert MODEL_HASHES, "MODEL_HASHES is empty, manifest failed to load"
-    hf_repos = [r for r in MODEL_HASHES if r != "qwen"]
+    hf_repos = list(MODEL_HASHES)
     assert len(hf_repos) >= 5, f"Expected at least 5 HuggingFace repos in MODEL_HASHES, got {len(hf_repos)}: {hf_repos}"
     for repo_id in hf_repos:
         entry = MODEL_HASHES[repo_id]
@@ -85,8 +85,6 @@ def test_model_hashes_have_pinned_config_json():
     from voice_typer.server.security import MODEL_HASHES
 
     for repo_id, entry in MODEL_HASHES.items():
-        if repo_id == "qwen":
-            continue  # local model, not fetched from HuggingFace
         files = entry.get("files", {})
         assert files, (
             f"model_hashes.json entry '{repo_id}' has empty 'files' dict, "
@@ -121,8 +119,6 @@ def test_model_hashes_fallback_matches_json(monkeypatch):
     fallback_manifest = security._load_model_hashes()
 
     for repo_id, json_entry in json_manifest.items():
-        if repo_id == "qwen":
-            continue  # local model, not in the fallback (by design)
         assert repo_id in fallback_manifest, (
             f"repo '{repo_id}' is in model_hashes.json but missing from the "
             f"hardcoded fallback in security.py, add it so a missing JSON "
@@ -252,6 +248,7 @@ def test_pinned_files_are_fetchable_by_allow_patterns():
     from voice_typer.server._model_integrity import (
         ALLOW_PATTERNS_PARAKEET,
         ALLOW_PATTERNS_PARAKEET_ONNX,
+        ALLOW_PATTERNS_QWEN,
         ALLOW_PATTERNS_WHISPER,
     )
     from voice_typer.server.security import MODEL_HASHES
@@ -260,11 +257,11 @@ def test_pinned_files_are_fetchable_by_allow_patterns():
         if "parakeet" in repo_id:
             # Both parakeet download paths: the legacy safetensors
             return list(ALLOW_PATTERNS_PARAKEET) + list(ALLOW_PATTERNS_PARAKEET_ONNX)
+        if "qwen" in repo_id:
+            return list(ALLOW_PATTERNS_QWEN)
         return list(ALLOW_PATTERNS_WHISPER)
 
     for repo_id, entry in MODEL_HASHES.items():
-        if repo_id == "qwen":
-            continue  # local model, not fetched from HuggingFace
         patterns = patterns_for(repo_id)
         for filename in entry.get("files", {}):
             assert any(fnmatch.fnmatchcase(filename, pattern) for pattern in patterns), (

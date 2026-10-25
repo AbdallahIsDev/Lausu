@@ -10,6 +10,13 @@ from typing import TypedDict
 
 log = logging.getLogger(__name__)
 
+# 60 s killed transfers while huggingface_hub was still in its own retry
+# backoff; 180 s covers 5 tries plus DNS/connect timeouts.
+DOWNLOAD_STALL_TIMEOUT_S = 180.0
+# Wait for the transfer thread to unwind after signalling the abort gate so a
+# retry never races the previous transfer on the same cache directory.
+DOWNLOAD_ABORT_JOIN_S = 5.0
+
 
 class DownloadOutcome(TypedDict, total=False):
     """* ``consent_required``: present on the HuggingFace consent-gate"""
@@ -73,6 +80,23 @@ def notify(tray, model_name: str, title: str, message: str) -> None:
         log.debug("[SERVICE] tray notify failed for model '%s'", model_name, exc_info=True)
 
 
+def _abort_transfer_and_join(thread, model_name: str) -> None:
+    """Stop the daemon transfer before the caller retries or starts another."""
+    try:
+        from voice_typer.server.asr_setup import request_download_abort
+
+        request_download_abort()
+    except Exception:
+        log.debug("[SERVICE] transfer-gate abort signal failed for '%s'", model_name, exc_info=True)
+    thread.join(timeout=DOWNLOAD_ABORT_JOIN_S)
+    if thread.is_alive():
+        log.warning(
+            "[SERVICE] Download of '%s' still running after %.0fs abort join, abandoning it",
+            model_name,
+            DOWNLOAD_ABORT_JOIN_S,
+        )
+
+
 def poll_download_progress(
     *,
     thread,
@@ -85,7 +109,7 @@ def poll_download_progress(
     event_bus,
     is_cancelled_fn,
     max_duration_s: float = 1800.0,
-    max_stall_s: float = 60.0,
+    max_stall_s: float = DOWNLOAD_STALL_TIMEOUT_S,
 ) -> tuple[str, int]:
     """Poll the HF cache directory size while the download thread runs.
 
@@ -169,6 +193,7 @@ def poll_download_progress(
                 effective_elapsed,
                 last_total_bytes_seen,
             )
+            _abort_transfer_and_join(thread, model_name)
             raise TimeoutError(
                 f"Download of {model_name} exceeded max duration "
                 f"{max_duration_s}s (elapsed {effective_elapsed:.1f}s, "
@@ -182,6 +207,7 @@ def poll_download_progress(
                 max_stall_s,
                 last_total_bytes_seen,
             )
+            _abort_transfer_and_join(thread, model_name)
             raise TimeoutError(
                 f"Download of {model_name} stalled, no progress for "
                 f"{max_stall_s}s (last bytes seen: {last_total_bytes_seen})"

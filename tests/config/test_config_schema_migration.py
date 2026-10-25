@@ -210,3 +210,68 @@ class TestV5PushToTalkHotkeyPrune:
         assert loaded.schema_version == _CURRENT_SCHEMA_VERSION
         assert not hasattr(loaded, "push_to_talk_hotkey")
         assert loaded.hotkey == "<f9>"
+
+
+class TestV6QwenModelKeyRename:
+    """``model_size`` stored the old Qwen registry keys; v6 renames them."""
+
+    def test_migrate_to_v6_renames_17b_key(self):
+        from voice_typer.server.config_internals.migrations import _migrate_to_v6
+
+        result = _migrate_to_v6({"model_size": "qwen", "_load_warnings": []})
+
+        assert result["model_size"] == "qwen3-1.7b"
+        assert any("qwen3-1.7b" in warning for warning in result["_load_warnings"])
+
+    def test_migrate_to_v6_renames_06b_key(self):
+        from voice_typer.server.config_internals.migrations import _migrate_to_v6
+
+        result = _migrate_to_v6({"model_size": "qwen-0.6b", "_load_warnings": []})
+
+        assert result["model_size"] == "qwen3-0.6b"
+        assert any("qwen3-0.6b" in warning for warning in result["_load_warnings"])
+
+    def test_migrate_to_v6_noop_for_canonical_or_absent_model(self):
+        from voice_typer.server.config_internals.migrations import _migrate_to_v6
+
+        for payload in (
+            {"model_size": "qwen3-0.6b", "_load_warnings": []},
+            {"model_size": "tiny", "_load_warnings": []},
+            {"_load_warnings": []},
+        ):
+            result = _migrate_to_v6(dict(payload))
+            assert result.get("model_size") == payload.get("model_size")
+            assert result["_load_warnings"] == []
+
+    def test_load_renames_qwen_model_size_from_v5_config(self, tmp_path, tmp_config_dir):
+        """A v5 config selecting ``qwen`` keeps dictating after the rename."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "schema_version": 5,
+                    "hotkey": "<f9>",
+                    "asr_backend": "qwen",
+                    "model_size": "qwen",
+                }
+            )
+        )
+
+        loaded = Config.load()
+
+        assert loaded.schema_version == _CURRENT_SCHEMA_VERSION
+        assert loaded.model_size == "qwen3-1.7b"
+        assert loaded.asr_backend == "qwen"
+
+    def test_load_renames_qwen_model_size_without_schema_version(self, tmp_path, tmp_config_dir):
+        """No readable schema_version means no migration; the legacy-enum
+        remap is the safety net that keeps the selection instead of
+        resetting it to "no model selected"."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(
+            json.dumps({"hotkey": "<f9>", "asr_backend": "qwen", "model_size": "qwen-0.6b"})
+        )
+
+        loaded = Config.load()
+
+        assert loaded.model_size == "qwen3-0.6b"

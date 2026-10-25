@@ -51,6 +51,7 @@ from voice_typer.server.config_validators import (
     cross_platform_hotkey_warnings,
 )
 from voice_typer.server.config_validators.hotkey import _ptt_fallback_hotkey
+from voice_typer.server.model_registry import LEGACY_MODEL_ALIASES
 
 if TYPE_CHECKING:  # pragma: no cover, typing-only, never imported at runtime
     from voice_typer.server.config import Config
@@ -76,6 +77,9 @@ _LEGACY_ENUM_REMAPS: dict[str, dict[str, str]] = {
         "deepfilternet": "gtcrn",
         "speex": "rnnoise",
     },
+    # Safety net for a config.json with no readable schema_version (the v6
+    # migration is the primary path; it cannot run without a version).
+    "model_size": dict(LEGACY_MODEL_ALIASES),
 }
 
 

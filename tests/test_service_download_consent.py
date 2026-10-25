@@ -1,6 +1,5 @@
 """regression: service.download_model must gate HuggingFace"""
 
-import os
 from unittest.mock import MagicMock
 
 import pytest
@@ -137,7 +136,7 @@ class TestParakeetBranchConsentGate:
 
 
 class TestConsentGateIsAdditive:
-    """The consent gate must NOT break the existing Qwen /"""
+    """The consent gate must not change non-download branches."""
 
     def test_unknown_model_still_returns_error(self, captured_events):
         """An unknown model name still returns success=False without"""
@@ -149,28 +148,72 @@ class TestConsentGateIsAdditive:
         consent_events = [e for e in captured_events if e.get("type") == "consent_required"]
         assert consent_events == []
 
-    def test_qwen_branch_does_not_require_consent(self, captured_events, tmp_path):
-        """Qwen uses a local file path (no HuggingFace call) so the consent"""
-        service = _build_service(consent=False)
-        service._app.config.qwen_model_path = str(tmp_path)
-        os.makedirs(tmp_path, exist_ok=True)
-        result = service.download_model("qwen")
+    def test_qwen_branches_require_consent(self, captured_events, monkeypatch):
+        """Both Qwen variants download their ONNX export from HF, so a
+        missing consent blocks them before any network call."""
+        sd_calls: list[dict] = []
+
+        def fake_snapshot(*args, **kwargs):
+            sd_calls.append(kwargs)
+            return "/fake/path"
+
+        monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
+
+        for model_name in ("qwen3-1.7b", "qwen3-0.6b"):
+            service = _build_service(consent=False)
+            service._app.config.qwen_model_path = None
+            result = service.download_model(model_name)
+            assert result["success"] is False
+            assert result["consent_required"] is True
+            assert result["model"] == model_name
+
+        assert sd_calls == [], f"snapshot_download must not run before consent; got: {sd_calls}"
+        gated = [e["data"]["model"] for e in captured_events if e.get("type") == "consent_required"]
+        assert gated == ["qwen3-1.7b", "qwen3-0.6b"]
+
+    def test_qwen_not_configured_with_consent_downloads_repo(self, captured_events, monkeypatch):
+        """Without a manual path, Qwen falls through to the HF downloader
+        for its own variant repo (no config-error branch any more)."""
+        sd_calls: list[dict] = []
+
+        def fake_snapshot(*args, **kwargs):
+            sd_calls.append(kwargs)
+            return "/fake/path"
+
+        monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
+
+        service = _build_service(consent=True)
+        service._app.config.qwen_model_path = None
+        result = service.download_model("qwen3-0.6b")
+
         assert result["success"] is True
-        assert result["model"] == "qwen"
-        # No consent_required event for Qwen.
+        assert result["model"] == "qwen3-0.6b"
+        assert sd_calls, "snapshot_download must be invoked with consent"
+        assert {call["repo_id"] for call in sd_calls} == {"andrewleech/qwen3-asr-0.6b-onnx"}
         consent_events = [e for e in captured_events if e.get("type") == "consent_required"]
         assert consent_events == []
 
-    def test_qwen_not_configured_does_not_require_consent(self, captured_events):
-        """Qwen with no path still returns the existing config-error shape,"""
+    def test_qwen_matching_override_skips_download_and_consent(self, captured_events, monkeypatch, tmp_path):
+        """A manual dir holding the selected variant is used as-is: no
+        HuggingFace call and therefore no consent requirement."""
+        sd_calls: list[dict] = []
+
+        def fake_snapshot(*args, **kwargs):
+            sd_calls.append(kwargs)
+            return "/fake/path"
+
+        monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
+        (tmp_path / "config.json").write_text('{"decoder": {"hidden_size": 1024}}', encoding="utf-8")
+
         service = _build_service(consent=False)
-        service._app.config.qwen_model_path = None
-        result = service.download_model("qwen")
-        assert result["success"] is False
-        assert "Qwen model path not configured" in result["error"]
-        # No consent_required event for Qwen.
-        consent_events = [e for e in captured_events if e.get("type") == "consent_required"]
-        assert consent_events == []
+        service._app.config.qwen_model_path = str(tmp_path)
+        result = service.download_model("qwen3-0.6b")
+
+        assert result["success"] is True
+        assert result["model"] == "qwen3-0.6b"
+        assert result["message"] == "Qwen model already cached"
+        assert sd_calls == []
+        assert [e for e in captured_events if e.get("type") == "consent_required"] == []
 
 
 class TestConsentGateDefensive:

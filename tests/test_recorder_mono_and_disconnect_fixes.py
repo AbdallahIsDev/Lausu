@@ -207,7 +207,10 @@ class TestRestartStreamBufferFlush:
     def test_ring_buffer_clear_in_source(self):
         """lock block (drops stale chunks the worker would otherwise"""
         src = inspect.getsource(DisconnectHandler.restart_stream)
-        assert "recorder._ring_buffer.clear()" in src, "restart_stream must clear the ring buffer to drop stale chunks"
+        assert "_secure_clear_deque(recorder._ring_buffer)" in src, (
+            "restart_stream must drain the ring buffer to drop stale chunks "
+            "(popleft drain, never iterate: a live callback may still append)"
+        )
 
     def test_buffer_clear_inside_lock_in_source(self):
         """The buffer must be securely cleared INSIDE the lock block"""
