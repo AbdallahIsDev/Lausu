@@ -512,6 +512,13 @@ Rationale: A no-op stub guard silently turned `tests/test_asr_setup.py` into a l
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-TEST-10
+Rule: Do NOT change a runtime contract without grepping the error strings / markers you changed and updating every test that pins the old behavior in the same commit.
+Rationale: The poisoned-open change only updated its new test file, leaving three pins in `tests/test_stream_lifecycle_module.py` asserting the retired retry ladder; every CI test leg stayed red for a day (2026-10-26).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Code Style & Naming
