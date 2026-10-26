@@ -533,6 +533,13 @@ Rationale: The audit gate exists to stop known-vulnerable shipped deps; suppress
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-TEST-13
+Rule: Do NOT let a count-based gate (mypy / pyrefly / ruff ratchet) depend on an optional runtime dependency. A package that an environment may or may not install is resolved by name at runtime (`importlib.import_module` + `getattr`), never left as a static import, so the gate reports the same counts everywhere.
+Rationale: huggingface-hub 2.x swapped httpx/httpcore for httpx2/httpcore2, so a fresh `.[test]` resolve flipped the mypy gate red with `import-not-found: 0 -> 2` on a stack the lock still pinned at 1.x while the code silently lost its error classification (2026-10-26).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Code Style & Naming

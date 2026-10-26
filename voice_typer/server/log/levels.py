@@ -202,6 +202,8 @@ _THIRD_PARTY_LOGGER_LEVELS: dict[str, int] = {
     "requests": logging.WARNING,
     "httpx": logging.WARNING,
     "httpcore": logging.WARNING,
+    "httpx2": logging.WARNING,
+    "httpcore2": logging.WARNING,
     "websockets": logging.WARNING,
     "keyring": logging.WARNING,
     "sounddevice": logging.WARNING,

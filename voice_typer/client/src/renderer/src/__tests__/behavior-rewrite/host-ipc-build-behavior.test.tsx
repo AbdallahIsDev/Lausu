@@ -883,10 +883,13 @@ describe("CI runs ruff + coverage + pip-audit across Python versions (rewrite of
 		expect(readCiWorkflow()).toContain("pip-audit");
 	});
 
-	it("tests Python 3.10 and 3.11", () => {
+	it("tests every supported Python version", () => {
 		const ci = readCiWorkflow();
-		expect(ci).toContain("3.10");
+		// 3.10 was dropped (BUILD-N26: pillow 13 / filelock 4 require >=3.11).
+		expect(ci).not.toContain("3.10");
 		expect(ci).toContain("3.11");
+		expect(ci).toContain("3.12");
+		expect(ci).toContain("3.13");
 	});
 });
 

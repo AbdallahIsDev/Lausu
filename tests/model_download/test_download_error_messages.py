@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import sys
+import types
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,6 +13,7 @@ from voice_typer.server.service.model._download_dispatch import (
     _NETWORK_DOWN_MESSAGE,
     _STALLED_DOWNLOAD_MESSAGE,
     _friendly_download_error,
+    _transport_error_types,
 )
 
 NETWORK_MESSAGES = (
@@ -42,6 +45,29 @@ class TestFriendlyDownloadError:
     def test_httpcore_connect_error_maps_to_network_message(self):
         httpcore = pytest.importorskip("httpcore")
         assert _friendly_download_error(httpcore.ConnectError("boom")) == _NETWORK_DOWN_MESSAGE
+
+    @pytest.mark.parametrize("stack", ["httpx", "httpx2"])
+    def test_connect_timeout_maps_to_network_message(self, stack):
+        """httpx 2.x drops the ConnectTimeout -> ConnectError subclass link."""
+        module = pytest.importorskip(stack)
+        assert _friendly_download_error(module.ConnectTimeout("boom")) == _NETWORK_DOWN_MESSAGE
+
+    def test_httpx2_connect_error_maps_to_network_message(self):
+        httpx2 = pytest.importorskip("httpx2")
+        assert _friendly_download_error(httpx2.ConnectError("boom")) == _NETWORK_DOWN_MESSAGE
+
+    def test_connect_errors_are_collected_from_every_installed_stack(self, monkeypatch):
+        """huggingface-hub 2.x swaps httpx/httpcore for httpx2/httpcore2."""
+
+        class ConnectError(OSError):
+            """Stand-in for the next-generation stack's connect error."""
+
+        stack = types.ModuleType("httpx2")
+        stack.ConnectError = ConnectError
+        monkeypatch.setitem(sys.modules, "httpx2", stack)
+
+        assert ConnectError in _transport_error_types()
+        assert _friendly_download_error(ConnectError("boom")) == _NETWORK_DOWN_MESSAGE
 
     @pytest.mark.parametrize("message", NETWORK_MESSAGES)
     def test_network_failures(self, message):
