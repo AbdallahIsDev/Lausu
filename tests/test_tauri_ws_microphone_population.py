@@ -15,6 +15,11 @@ _AUTOSTART = "voice_typer.server.server_platform.autostart"
 _MIC_LIST = "voice_typer.server.server_platform.microphone_list"
 
 _AUTH_TOKEN = "test-token-" + "a" * 32
+# Bounded wait for the phase-6 mic task, not for the whole startup pipeline:
+# a cold 2-vCPU CI runner needs well over 10s to walk phases 1-5, and failing
+# on that latency hid a real "phase never reached" signal. Stays under the
+# suite-wide 60s pytest-timeout so a hang here reports this message instead.
+_MIC_PHASE_TIMEOUT_SEC = 40.0
 
 _DEVICES = [
     {
@@ -33,6 +38,31 @@ _DEVICES = [
     },
 ]
 _HOSTAPIS = [{"name": "PulseAudio", "default_input_device": 0}]
+# What the enumeration seam hands the startup task. Kept explicit because
+# ``sys.modules["sounddevice"]`` is owned session-wide by tests/conftest.py
+# (``query_devices.return_value = []``), so a startup test that depended on
+# "my fake wins the module slot" was green on a machine with real mics and red
+# on a headless runner (C-TEST-9: patch the seam the code actually calls).
+_CANONICAL_MICS = [
+    {
+        "id": "Test Host API|Mic Alpha",
+        "index": 0,
+        "name": "Mic Alpha",
+        "host_api": "Test Host API",
+        "channels": 2,
+        "default": True,
+        "is_bluetooth": False,
+    },
+    {
+        "id": "Test Host API|Mic Beta",
+        "index": 1,
+        "name": "Mic Beta",
+        "host_api": "Test Host API",
+        "channels": 1,
+        "default": False,
+        "is_bluetooth": False,
+    },
+]
 
 
 def _install_fake_sounddevice(monkeypatch) -> None:
@@ -43,6 +73,25 @@ def _install_fake_sounddevice(monkeypatch) -> None:
     )
     fake_sd.query_hostapis.return_value = _HOSTAPIS
     monkeypatch.setitem(sys.modules, "sounddevice", fake_sd)
+
+
+def _pin_enumeration_seam(monkeypatch) -> list[None]:
+    """Pin the seam ``startup_tasks.load_microphones`` imports at call time.
+
+    Returns a spy recording each call, so a test can prove the devices came
+    from this seam rather than from whichever ``sounddevice`` module the
+    session fixtures happen to hold.
+    """
+    from voice_typer.server.server_platform import microphone_list
+
+    calls: list[None] = []
+
+    def _list_microphones() -> list[dict]:
+        calls.append(None)
+        return [dict(mic) for mic in _CANONICAL_MICS]
+
+    monkeypatch.setattr(microphone_list, "list_microphones", _list_microphones)
+    return calls
 
 
 @pytest.fixture
@@ -82,12 +131,33 @@ class TestWsSidecarMicPopulation:
     """The fixed contract: the ws-mode process shape populates the list."""
 
     def test_ws_mode_shape_serves_devices_to_renderer(self, ws_mode_app, monkeypatch):
-        """Renderer-visible outcome of the FIXED ws-mode shape: devices."""
+        """Renderer-visible outcome of the FIXED ws-mode shape: devices.
+
+        Signal-driven: the phase-6 task itself flips the event, so a cold CI
+        runner that needs >10s to reach that phase stays green while a startup
+        that never reaches it fails fast with its own message. The device list
+        comes from the enumeration seam, never from the ``sounddevice`` module
+        slot (see ``_CANONICAL_MICS``).
+        """
         import threading
-        import time
+
+        from voice_typer.server import startup_tasks
 
         _install_fake_sounddevice(monkeypatch)
+        enumeration_calls = _pin_enumeration_seam(monkeypatch)
         server = _build_ws_mode_server(ws_mode_app)
+
+        populated = threading.Event()
+        real_load_microphones = startup_tasks.load_microphones
+
+        def _load_microphones_then_signal(*args, **kwargs):
+            try:
+                return real_load_microphones(*args, **kwargs)
+            finally:
+                populated.set()
+
+        monkeypatch.setattr(startup_tasks, "load_microphones", _load_microphones_then_signal)
+
         # Mirror the fixed entrypoint: the ws branch launches the app
         _startup = threading.Thread(
             target=ws_mode_app._do_startup,
@@ -96,22 +166,35 @@ class TestWsSidecarMicPopulation:
         )
         _startup.start()
         try:
-            _deadline = time.monotonic() + 10.0
-            while not getattr(ws_mode_app, "_microphones", None):
-                if time.monotonic() > _deadline:
+            if not populated.wait(_MIC_PHASE_TIMEOUT_SEC):
+                _startup.join(timeout=1.0)
+                if not _startup.is_alive():
                     raise AssertionError(
-                        "ws-mode startup background work did not populate "
-                        "app._microphones within 10s (renderer-visible defect "
+                        "ws-mode startup finished without ever running the "
+                        "phase-6 microphone task (renderer-visible defect "
                         "would return: empty Microphone page)"
                     )
-                time.sleep(0.05)
+                raise AssertionError(
+                    "ws-mode startup did not reach the phase-6 microphone task "
+                    f"within {_MIC_PHASE_TIMEOUT_SEC:.0f}s (renderer-visible "
+                    "defect would return: empty Microphone page)"
+                )
+            assert enumeration_calls, (
+                "the phase-6 microphone task must enumerate through "
+                "microphone_list.list_microphones; it ran without ever calling it"
+            )
+            assert getattr(ws_mode_app, "_microphones", None), (
+                "the phase-6 microphone task ran but wrote nothing to "
+                "app._microphones (renderer-visible defect would return: empty "
+                "Microphone page)"
+            )
             resp: dict = {}
             server._handle_get_microphones(None, resp)
             assert resp["type"] == "microphones"
-            assert resp["data"] != [], (
-                "ws-mode process shape must serve app._microphones verbatim; "
-                "the startup background work populates it so the renderer's "
-                "Microphone page lists the devices"
+            assert {m["name"] for m in resp["data"]} == {"Mic Alpha", "Mic Beta"}, (
+                "ws-mode process shape must serve app._microphones verbatim; the "
+                "startup background work populates it so the renderer's Microphone "
+                f"page lists the devices (served: {resp['data']!r})"
             )
         finally:
             server.stop()
@@ -134,6 +217,7 @@ class TestWsSidecarMicPopulationControl:
         from voice_typer.server import startup_tasks
 
         _install_fake_sounddevice(monkeypatch)
+        _pin_enumeration_seam(monkeypatch)
         server = _build_ws_mode_server(ws_mode_app)
         try:
             before: dict = {}
@@ -171,6 +255,7 @@ class TestWsSidecarMicRoundTrip:
         from voice_typer.server import sidecar_ws, startup_tasks
 
         _install_fake_sounddevice(monkeypatch)
+        _pin_enumeration_seam(monkeypatch)
         server = _build_ws_mode_server(ws_mode_app)
         dispatch = sidecar_ws._make_dispatch(server)
 
