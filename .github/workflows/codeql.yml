@@ -1,5 +1,7 @@
 # PINNED ACTION VERSIONS — DO NOT DOWNGRADE (verified 2026-07-24,
 #   actions/checkout@v5 — Node 24 runtime (v4 = Node 20, deprecated)
+#   actions/setup-python@v7 — installs the 3.12 toolchain the Python job needs
+#                              (ubuntu-22.04 ships 3.10, below the floor).
 #   analysis engine (v4 = Node 24). Keep at the latest v4 release; the
 #   components must stay in lockstep (same @v4 tag).
 
@@ -84,6 +86,15 @@ jobs:
           queries: security-extended, security-and-quality
 
       # ── S5-CR-75 (b): explicit build step for Python ─────────────────
+      # setup-python is required: ubuntu-22.04's system Python is 3.10, below the
+      # project floor (requires-python >=3.11), so `pip install .[test]` fails
+      # before CodeQL ever analyzes the code.
+      - name: Set up Python
+        if: matrix.language == 'python'
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
       - name: Build Python (explicit pip install .[test])
         if: matrix.language == 'python'
         run: |

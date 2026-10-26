@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
 from typing import TYPE_CHECKING
 
@@ -34,6 +35,11 @@ _NETWORK_ERROR_MARKERS = (
 )
 _STALLED_ERROR_MARKERS = ("timed out", "timeout", "stalled", "no progress for")
 _DISK_FULL_ERROR_MARKERS = ("no space left", "not enough space", "winerror 112")
+# httpx2/httpcore2 are the huggingface-hub 2.x stack; httpx/httpcore the 1.x one.
+_TRANSPORT_MODULES = ("httpx2", "httpcore2", "httpx", "httpcore")
+# ConnectTimeout is listed explicitly: httpx 1.x makes it a ConnectError
+# subclass, httpx 2.x does not, and a connect timeout is a network outage.
+_TRANSPORT_ERROR_NAMES = ("ConnectError", "ConnectTimeout")
 
 
 def _exception_chain(exc: BaseException) -> list[BaseException]:
@@ -49,16 +55,24 @@ def _exception_chain(exc: BaseException) -> list[BaseException]:
 
 
 def _transport_error_types() -> tuple[type[BaseException], ...]:
-    """Return the importable httpx/httpcore connect-error classes."""
-    try:
-        import httpx
-    except ImportError:
-        return ()
-    try:
-        import httpcore
-    except ImportError:
-        return (httpx.ConnectError,)
-    return (httpx.ConnectError, httpcore.ConnectError)
+    """Return the connect-error classes of every installed HTTP stack.
+
+    huggingface-hub 1.x ships ``httpx``/``httpcore``, 2.x ships
+    ``httpx2``/``httpcore2``; resolve both generations by name so the
+    classification keeps working (and stays importable for the type checker)
+    whichever one the environment provides.
+    """
+    found: list[type[BaseException]] = []
+    for module_name in _TRANSPORT_MODULES:
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            continue
+        for error_name in _TRANSPORT_ERROR_NAMES:
+            error_type = getattr(module, error_name, None)
+            if error_type is not None:
+                found.append(error_type)
+    return tuple(found)
 
 
 def _friendly_download_error(exc: BaseException) -> str:

@@ -14,6 +14,8 @@ KNOWN_CHATTY = [
     "requests",
     "httpx",
     "httpcore",
+    "httpx2",
+    "httpcore2",
     "websockets",
     "keyring",
     "sounddevice",
