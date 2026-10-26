@@ -130,6 +130,18 @@ class DeviceManager(_DeviceHealthMixin, _DeviceResolutionMixin):
             self._device_list_cache = devices
             self._device_list_cache_time = now
             return devices
+        except ImportError as exc:
+            # Only a missing audio backend is an install fault; any other
+            # import error belongs on the transient debug path.
+            if "sounddevice" not in str(exc):
+                log.debug("[RECORDING] Could not enumerate devices: %s", exc)
+                return self._device_list_cache or []
+            from voice_typer.server.server_platform.microphone_list import (
+                log_missing_audio_backend,
+            )
+
+            log_missing_audio_backend(exc)
+            return self._device_list_cache or []
         except Exception as e:
             log.debug("[RECORDING] Could not enumerate devices: %s", e)
             return self._device_list_cache or []

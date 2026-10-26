@@ -148,6 +148,37 @@ def _preferred_host_api_substring() -> str | None:
 _LAST_CANON_SUMMARY: tuple[str, int, int] | None = None
 
 
+# A missing audio backend is an install fault, not a transient: it empties the
+# whole mic list, and that empty list carries no reason of its own. Report the
+# fault once at ERROR, then stay quiet on later enumerations.
+_AUDIO_BACKEND_FAULT_LOGGED = False
+
+
+def log_missing_audio_backend(exc: BaseException) -> None:
+    """Report a missing ``sounddevice`` once per fault episode, at ERROR.
+
+    Called from every seam that swallows the import failure (mic listing,
+    recording device walk) so a broken install leaves ONE actionable line
+    instead of a debug traceback per enumeration.
+    """
+    global _AUDIO_BACKEND_FAULT_LOGGED
+    if _AUDIO_BACKEND_FAULT_LOGGED:
+        return
+    _AUDIO_BACKEND_FAULT_LOGGED = True
+    log.error(
+        "[PLATFORM] Audio backend unavailable (%s): no microphones can be listed "
+        "and recording/level monitoring will fail until the install is repaired "
+        "(uv pip install sounddevice, or reinstall the app).",
+        exc,
+    )
+
+
+def _clear_audio_backend_fault() -> None:
+    """Re-arm the fault report after the backend imports cleanly again."""
+    global _AUDIO_BACKEND_FAULT_LOGGED
+    _AUDIO_BACKEND_FAULT_LOGGED = False
+
+
 def _list_microphones_uncached() -> list[dict]:
     """Return available input devices with stable identifiers.
 
@@ -155,7 +186,11 @@ def _list_microphones_uncached() -> list[dict]:
     """
     try:
         import sounddevice as sd
-
+    except ImportError as exc:
+        log_missing_audio_backend(exc)
+        return []
+    _clear_audio_backend_fault()
+    try:
         default_input_raw = sd.query_devices(kind="input")
         default_input = _sd_dev_as_dict(default_input_raw)
         default_index = default_input["index"] if default_input else -1
