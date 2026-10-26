@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.fixtures.subprocess_budget import subprocess_budget
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 # The logging module is split into ``platform/logging/`` submodules;
 LOGGING_DIR = REPO_ROOT / "src-tauri" / "src" / "platform" / "logging"
@@ -29,6 +31,11 @@ _TAURI_TRIPLES = (
     "aarch64-unknown-linux-gnu",
 )
 _SIDECAR_NAMES = ("python-sidecar", "lausu-worker")
+
+# Ceiling for a cold Rust build of the tauri crate, clamped to the suite timeout
+# at call time: overrunning the pytest-timeout budget kills the worker mid-run
+# (see tests/fixtures/subprocess_budget.py).
+_CARGO_BUILD_TIMEOUT_SEC = 600.0
 
 
 def _create_cargo_build_placeholders() -> list[Path]:
@@ -197,10 +204,12 @@ def _cargo_available() -> bool:
     not _cargo_available(),
     reason="cargo not available, source-parsing layer (above) is the only guard",
 )
-def test_rust_unit_test_log_file_mode_0o600_passes():
+def test_rust_unit_test_log_file_mode_0o600_passes(request: pytest.FixtureRequest):
     """Run the Rust unit test ``test_rotating_file_writer_log_file_mode_is_0o600_on_posix``."""
     cargo = shutil.which("cargo")
     assert cargo is not None  # belt-and-suspenders (skipif above)
+
+    budget = subprocess_budget(request.node, _CARGO_BUILD_TIMEOUT_SEC)
 
     placeholders = _create_cargo_build_placeholders()
 
@@ -225,14 +234,16 @@ def test_rust_unit_test_log_file_mode_0o600_passes():
                     "test_rotating_file_writer_log_file_mode_is_0o600_on_posix",
                 ],
                 capture_output=True,
-                timeout=600,
+                timeout=budget,
                 env=env,
             )
         except subprocess.TimeoutExpired:
             pytest.skip(
-                "cargo test timed out (>600s), likely a cold dependency "
-                "build. The source-parsing layer (above) is the only guard "
-                "in this run."
+                f"cargo test did not finish within {budget:.0f}s, the largest "
+                f"budget this item can use without tripping pytest-timeout "
+                f"(which kills the whole worker mid-run). A cold Rust build "
+                f"needs more. The source-parsing layer (above) is the guard in "
+                f"this run."
             )
         except OSError as exc:
             pytest.skip(

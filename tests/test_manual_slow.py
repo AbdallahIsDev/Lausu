@@ -63,6 +63,9 @@ def _real_module_available(modname: str) -> bool:
 
 
 @pytest.mark.slow
+# The 180s subprocess budget below must stay under this item's pytest-timeout
+# budget, else a hung script kills the worker instead of failing the test.
+@pytest.mark.timeout(240)
 def test_runtime_proof_smoke() -> None:
     """Run ``runtime_proof.py`` end-to-end and assert it exits cleanly."""
     pytest.importorskip("numpy", reason="runtime_proof.py imports numpy at top level")
