@@ -15,45 +15,10 @@ def _old_rms(flat: np.ndarray) -> float:
 
 
 def _reset_level_monitor_state() -> None:
-    """Reset the module-level monitor state between tests.
+    """Delegate: one canonical reset (see tests/fixtures/level_monitor_state.py)."""
+    from tests.fixtures.level_monitor_state import reset_level_monitor_state
 
-    ``TestProcessLevelChunkEndToEnd`` drives the real ``start_monitoring``
-    and relies on ``stop_monitoring`` in a ``finally``. That is not enough:
-    a leftover ``_monitor_active``/``_monitor_mic_id`` makes the next
-    ``start_monitoring(None)`` take the "Already monitoring" short-circuit,
-    so no stream is opened (``holder["callback"]`` stays None) or the level
-    carries over from the previous test. Same explicit reset as the sibling
-    level-monitor suites (e.g. ``test_level_monitor_idle_push_events``).
-    """
-    import voice_typer.server.level_monitor as lm
-
-    # Stop worker threads FIRST: they write through the module-level state
-    # object, so clearing state before they stop lets them repopulate it.
-    lm._stop_level_worker()
-    lm._stop_mic_level_worker()
-    lm._test_mode = False
-    lm._test_chunks.clear()
-    lm._test_raw_chunks.clear()
-    lm._test_filtered_chunks.clear()
-    lm._test_start_time = 0.0
-    lm._monitor_sample_rate = 16000
-    lm._monitor_active = False
-    lm._monitor_stream = None
-    lm._monitor_level = 0.0
-    lm._monitor_peak = 0.0
-    lm._monitor_mic_id = None
-    lm._level_processor = None
-    lm._dropped_level_chunks = 0
-    lm._level_ring_buffer.clear()
-    lm._consecutive_zero_chunks = 0
-    lm._device_lost_emitted = False
-    while lm._mic_level_queue:
-        try:
-            lm._mic_level_queue.popleft()
-        except Exception:
-            break
-    lm._mic_level_last_push_ts = 0.0
-    lm._last_get_level_poll_ts = 0.0
+    reset_level_monitor_state()
 
 
 @pytest.fixture(autouse=True)
@@ -288,16 +253,18 @@ class TestProcessLevelChunkEndToEnd:
             chunk = np.ones((512, 1), dtype=np.float32) * 0.25
             holder["callback"](chunk, 512, None, None)
 
-            # Wait for the worker to process.
-            deadline = time.perf_counter() + 1.0
-            while time.perf_counter() < deadline:
-                if lm._monitor_level > 0:
-                    break
-                time.sleep(0.01)
-
             # EMA: level = 0 * 0.6 + 0.25 * 0.4 = 0.1.
             expected_rms = _new_rms(chunk.ravel())
             expected_level = 0.0 * 0.6 + expected_rms * 0.4
+            # Wait for THIS chunk's EMA, not merely a positive level: any
+            # other push would otherwise let the loop exit on a stale value
+            # and misreport the optimized path as broken.
+            deadline = time.perf_counter() + 5.0
+            while time.perf_counter() < deadline:
+                if abs(lm._monitor_level - expected_level) < 1e-6:
+                    break
+                time.sleep(0.01)
+
             assert abs(lm._monitor_level - expected_level) < 1e-6, (
                 f"_monitor_level={lm._monitor_level} != expected "
                 f"{expected_level} (NEW RMS path; chunk RMS={expected_rms})"

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import logging
 import os
 import sys
@@ -17,52 +16,11 @@ import pytest
 from tests.fixtures.wait_helpers import wait_for_event, wait_until
 
 
-def _reset_level_monitor_state():
-    """Reset all module-level state in level_monitor between tests."""
-    import voice_typer.server.level_monitor as lm
-    from voice_typer.server.level_monitor import worker as _lm_worker
+def _reset_level_monitor_state() -> None:
+    """Delegate: one canonical reset (see tests/fixtures/level_monitor_state.py)."""
+    from tests.fixtures.level_monitor_state import reset_level_monitor_state
 
-    lm._test_mode = False
-    lm._test_chunks.clear()
-    lm._test_raw_chunks.clear()
-    lm._test_filtered_chunks.clear()
-    lm._test_start_time = 0.0
-    lm._test_duration = 10.0
-    lm._monitor_sample_rate = 16000
-    lm._monitor_active = False
-    lm._monitor_stream = None
-    lm._monitor_level = 0.0
-    lm._monitor_peak = 0.0
-    lm._monitor_mic_id = None
-    lm._level_processor = None
-    lm._stream_recovery_token = None
-    lm._stream_recovery_episodes = 0
-    # Reset the processor-config stash + cosmetic-bar flag too, without
-    lm._level_processor_config = None
-    lm._level_processor_sample_rate = 0
-    lm._level_bar_filtered = False
-    lm._dropped_level_chunks = 0
-    lm._last_drop_log_time = 0.0
-    lm._level_ring_buffer.clear()
-    # Stop any worker thread from a previous test.
-    lm._stop_level_worker()
-    # Disarm a leaked auto-stop timer: a test that started a recording
-    leaked_timer = lm._test_auto_stop_timer
-    if leaked_timer is not None:
-        leaked_timer.cancel()
-    lm._test_auto_stop_timer = None
-    from voice_typer.server.level_monitor import test_recording as _tr
-
-    for _t in list(_tr._test_recording_expiry_timers):
-        with contextlib.suppress(Exception):
-            _t.cancel()
-    _tr._test_recording_expiry_timers.clear()
-    # Reset quality metrics.
-    lm._test_peak_history.clear()
-    lm._test_rms_history.clear()
-    lm._test_clip_count = 0
-    lm._test_silence_blocks = 0
-    _lm_worker._reset_worker_error_state_for_tests()
+    reset_level_monitor_state()
 
 
 @pytest.fixture(autouse=True)
@@ -1248,7 +1206,7 @@ class TestZeroChunkDetectorUsesRawAudio:
 
         emitted = self._arm(monkeypatch, _ClosedGate())
         rng = np.random.default_rng(3)
-        fan = (rng.standard_normal(1411).astype(np.float32) * 0.002)
+        fan = rng.standard_normal(1411).astype(np.float32) * 0.002
         assert np.any(fan != 0.0)
         for _ in range(15):
             _w._process_level_chunk(fan.copy(), None)
@@ -1260,9 +1218,7 @@ class TestZeroChunkDetectorUsesRawAudio:
         from voice_typer.server.level_monitor import monitoring as mon, worker as _w
 
         monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
-        monkeypatch.setattr(
-            mon, "start_monitoring", lambda mic_id=None: {"success": False, "message": "no device"}
-        )
+        monkeypatch.setattr(mon, "start_monitoring", lambda mic_id=None: {"success": False, "message": "no device"})
         emitted = self._arm(monkeypatch, None)
         dead = np.zeros(1411, dtype=np.float32)
         for _ in range(12):

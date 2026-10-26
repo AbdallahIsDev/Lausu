@@ -20,17 +20,10 @@ import pytest
 
 
 def _reset_level_monitor_state() -> None:
-    """Reset the module-level level-monitor state between tests."""
-    import voice_typer.server.level_monitor as lm
+    """Delegate: one canonical reset (see tests/fixtures/level_monitor_state.py)."""
+    from tests.fixtures.level_monitor_state import reset_level_monitor_state
 
-    lm._monitor_active = False
-    lm._monitor_sample_rate = 16000
-    lm._level_processor = None
-    lm._live_preview_active = False
-    lm._live_preview_seq = 0
-    lm._test_mode = False
-    lm._last_get_level_poll_ts = 0.0
-    lm._level_bar_filtered = True
+    reset_level_monitor_state()
 
 
 @pytest.fixture(autouse=True)

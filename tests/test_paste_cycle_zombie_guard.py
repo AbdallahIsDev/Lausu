@@ -179,6 +179,10 @@ class TestLiveCycleStillPastes:
         pipeline = _make_pipeline(app, "#1")
 
         with (
+            # The pynput gate is runner-dependent (``_Controller`` is None when
+            # the CI box cannot import pynput.keyboard), so stub it like the
+            # fingerprint tests below instead of asserting on the environment.
+            patch.object(clip_mod, "_Controller", MagicMock()),
             patch.object(ClipboardManager, "_is_safe_paste_target", return_value=True),
             patch.object(ClipboardManager, "_check_target_safety", return_value=(True, None)),
             patch.object(ClipboardManager, "_check_text_field_focus", return_value=(True, None)),

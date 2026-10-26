@@ -9,40 +9,11 @@ from unittest.mock import MagicMock
 import pytest
 
 
-def _reset_level_monitor_state():
-    """Reset all module-level state in level_monitor between tests."""
-    import voice_typer.server.level_monitor as lm
+def _reset_level_monitor_state() -> None:
+    """Delegate: one canonical reset (see tests/fixtures/level_monitor_state.py)."""
+    from tests.fixtures.level_monitor_state import reset_level_monitor_state
 
-    lm._test_mode = False
-    lm._test_chunks.clear()
-    lm._test_raw_chunks.clear()
-    lm._test_filtered_chunks.clear()
-    lm._test_start_time = 0.0
-    lm._test_duration = 10.0
-    lm._monitor_sample_rate = 16000
-    lm._monitor_active = False
-    lm._monitor_stream = None
-    lm._monitor_level = 0.0
-    lm._monitor_peak = 0.0
-    lm._monitor_mic_id = None
-    lm._level_processor = None
-    lm._level_processor_config = None
-    lm._level_processor_sample_rate = 0
-    lm._level_bar_filtered = False
-    lm._dropped_level_chunks = 0
-    lm._last_drop_log_time = 0.0
-    lm._level_ring_buffer.clear()
-    # Stop any worker thread from a previous test.
-    lm._stop_level_worker()
-    lm._stop_mic_level_worker()
-    # Reset disconnect-detection state.
-    lm._consecutive_zero_chunks = 0
-    lm._device_lost_emitted = False
-    # Reset quality metrics.
-    lm._test_peak_history.clear()
-    lm._test_rms_history.clear()
-    lm._test_clip_count = 0
-    lm._test_silence_blocks = 0
+    reset_level_monitor_state()
 
 
 @pytest.fixture(autouse=True)
