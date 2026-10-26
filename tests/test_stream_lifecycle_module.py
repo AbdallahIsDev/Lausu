@@ -250,9 +250,12 @@ class TestTransientOpenRetry:
         import time as _time_mod
 
         recorder = _make_recorder_stub()
+        # A genuinely transient hold ("busy") earns the retry; the poisoned
+        # -9999 signature goes straight to the reinit branch instead
+        # (pinned in tests/recording/test_poisoned_open_retry.py).
         calls = self._factory_with_text_error(
             monkeypatch,
-            "Error starting stream: Unanticipated host error [PaErrorCode -9999]",
+            "Error opening InputStream: Device or resource busy",
             fail_first_n=1,
         )
         recorder._devices._resolve_effective_sample_rate.return_value = (16000, None)
@@ -771,7 +774,9 @@ class TestPortAudioReinitRetry:
 
     def test_reinit_then_configured_retry_succeeds(self, monkeypatch):
         recorder = _make_recorder_stub()
-        attempts, fake_sd = self._poisoned_sd(monkeypatch, fail_first_n=2)
+        # First open poisons the state (one attempt, no plain retry); the
+        # post-reinit pass opens successfully.
+        attempts, fake_sd = self._poisoned_sd(monkeypatch, fail_first_n=1)
         lifecycle = StreamLifecycle(recorder)
 
         selected, eff_sr, _ = lifecycle.open_stream_for_candidates(
@@ -779,7 +784,7 @@ class TestPortAudioReinitRetry:
         )
 
         assert selected == 24
-        assert len(attempts) == 3
+        assert len(attempts) == 2
         fake_sd._terminate.assert_called_once()
         fake_sd._initialize.assert_called_once()
         recorder._devices._invalidate_device_cache.assert_called_once()
@@ -811,6 +816,8 @@ class TestPortAudioReinitRetry:
 
         assert selected is None
         assert isinstance(last_err, RuntimeError)
-        assert len(attempts) == 2
+        # One open attempt (poisoned skips the plain retry); the reinit attempt
+        # itself fails, so the candidate list is never retried.
+        assert len(attempts) == 1
         fake_sd._terminate.assert_called_once()
         recorder._devices._invalidate_device_cache.assert_not_called()

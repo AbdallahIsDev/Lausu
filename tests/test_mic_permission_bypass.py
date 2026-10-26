@@ -536,5 +536,3 @@ def test_registry_deny_skips_the_stream_probe(monkeypatch):
     monkeypatch.setattr(mic_mod, "_windows_microphone_consent_denied", lambda: True)
 
     assert mic_mod._check_windows_microphone() == permissions.MicrophonePermissionState.DENIED
-
-

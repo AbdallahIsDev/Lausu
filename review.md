@@ -147,4 +147,3 @@ These items are the highest-priority remaining work for the project. They block 
 **Simplified Fix:** Copy the missing window settings from the base config into each platform config.
 **Implementation Difficulty:** 🟢 Easy
 **Severity:** 🟡 Medium
-
