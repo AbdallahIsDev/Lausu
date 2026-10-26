@@ -68,9 +68,7 @@ class TestVadEnabledCache:
 
         # The next access must notice the stale timestamp and re-compute.
         assert rec._vad.vad_enabled is True
-        assert rec._vad.vad_enabled_cache_ts > stale_ts, (
-            "TTL safety net must refresh a stale cache"
-        )
+        assert rec._vad.vad_enabled_cache_ts > stale_ts, "TTL safety net must refresh a stale cache"
 
     def test_vad_enabled_cache_is_bool_not_none_after_init(self):
         """The cache attribute is a bool once the property has been read."""
@@ -80,26 +78,11 @@ class TestVadEnabledCache:
         assert isinstance(rec._vad.vad_enabled_cached, bool)
 
 
-def _reset_level_monitor_state():
-    """Reset all module-level state in level_monitor between tests."""
-    import voice_typer.server.level_monitor as lm
+def _reset_level_monitor_state() -> None:
+    """Delegate: one canonical reset (see tests/fixtures/level_monitor_state.py)."""
+    from tests.fixtures.level_monitor_state import reset_level_monitor_state
 
-    lm._test_mode = False
-    lm._test_chunks.clear()
-    lm._test_raw_chunks.clear()
-    lm._test_start_time = 0.0
-    lm._test_duration = 10.0
-    lm._monitor_sample_rate = 16000
-    lm._monitor_active = False
-    lm._monitor_stream = None
-    lm._monitor_level = 0.0
-    lm._monitor_peak = 0.0
-    lm._monitor_mic_id = None
-    lm._level_processor = None
-    lm._dropped_level_chunks = 0
-    lm._level_ring_buffer.clear()
-    # Stop any worker thread from a previous test.
-    lm._stop_level_worker()
+    reset_level_monitor_state()
 
 
 @pytest.fixture(autouse=True)

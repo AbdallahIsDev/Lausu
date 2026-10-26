@@ -423,13 +423,12 @@ class TestStopRecordingPrepareAudioPipelining:
         stop_recording(rec)
 
         assert "prepare_started" in times and "stats_started" in times
-        assert times["prepare_started"] <= times["stats_started"], (
-            " regression: the stats computation started BEFORE the "
-            "resample thread, _prepare_audio is NOT pipelined. The "
-            "resample thread must be started BEFORE the stats "
-            "computation."
-        )
-        assert times["stats_started"] < times["prepare_finished"], (
+        # NOTE: ``prepare_started`` is recorded INSIDE the resample thread, so
+        # it cannot witness the start order: a busy runner may schedule that
+        # thread after the main thread's stats pass and fail a correct build.
+        # The real invariant is overlap: stats must begin before the resample
+        # finishes, and a not-pipelined build finishes the resample first.
+        assert times["stats_started"] <= times["prepare_finished"], (
             " regression: the stats computation finished after the "
             "resample, they did NOT overlap. The resample thread "
             "must be started BEFORE the stats computation."
@@ -527,16 +526,14 @@ class TestStopRecordingResampleTimeout:
         elapsed = time.perf_counter() - started
 
         assert not worker.is_alive(), (
-            "stop_recording hung on the resample thread: the join "
-            "must be bounded so a stuck resample fails the stop."
+            "stop_recording hung on the resample thread: the join must be bounded so a stuck resample fails the stop."
         )
         assert isinstance(outcome.get("err"), ResampleError), (
             f"expected ResampleError, got {outcome!r}: a timed-out "
             f"resample must fail the stop honestly, not return audio."
         )
         assert elapsed < 10, (
-            f"stop took {elapsed:.1f}s: the resample join must be "
-            f"bounded by the worker-join budget, not unbounded."
+            f"stop took {elapsed:.1f}s: the resample join must be bounded by the worker-join budget, not unbounded."
         )
 
 

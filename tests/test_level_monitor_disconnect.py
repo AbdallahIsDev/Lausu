@@ -9,44 +9,11 @@ import numpy as np
 import pytest
 
 
-def _reset_level_monitor_state():
-    """Reset all module-level state in level_monitor between tests."""
-    import voice_typer.server.level_monitor as lm
+def _reset_level_monitor_state() -> None:
+    """Delegate: one canonical reset (see tests/fixtures/level_monitor_state.py)."""
+    from tests.fixtures.level_monitor_state import reset_level_monitor_state
 
-    lm._test_mode = False
-    lm._test_chunks.clear()
-    lm._test_raw_chunks.clear()
-    lm._test_filtered_chunks.clear()
-    lm._test_start_time = 0.0
-    lm._test_duration = 10.0
-    lm._monitor_sample_rate = 16000
-    lm._monitor_active = False
-    lm._monitor_stream = None
-    lm._monitor_level = 0.0
-    lm._monitor_peak = 0.0
-    lm._monitor_mic_id = None
-    lm._level_processor = None
-    lm._dropped_level_chunks = 0
-    lm._last_drop_log_time = 0.0
-    lm._level_ring_buffer.clear()
-    lm._consecutive_zero_chunks = 0
-    lm._device_lost_emitted = False
-    lm._stream_recovery_token = None
-    lm._stream_recovery_episodes = 0
-    # Stop any worker threads from a previous test.
-    lm._stop_level_worker()
-    lm._stop_mic_level_worker()
-    while lm._mic_level_queue:
-        try:
-            lm._mic_level_queue.popleft()
-        except Exception:
-            break
-    lm._mic_level_last_push_ts = 0.0
-    # Reset quality metrics.
-    lm._test_peak_history.clear()
-    lm._test_rms_history.clear()
-    lm._test_clip_count = 0
-    lm._test_silence_blocks = 0
+    reset_level_monitor_state()
 
 
 @pytest.fixture(autouse=True)
@@ -163,9 +130,7 @@ class TestDeviceLostEventEmitted:
 
         assert lm._monitor_active is True, "retry must reopen a still-present device"
         device_lost_events = [e for e in captured if e.get("type") == "device_lost"]
-        assert len(device_lost_events) == 0, (
-            f"recovered stream must NOT emit device_lost; got {device_lost_events}"
-        )
+        assert len(device_lost_events) == 0, f"recovered stream must NOT emit device_lost; got {device_lost_events}"
 
         lm.stop_monitoring()
 
@@ -218,9 +183,7 @@ class TestDeviceLostEventEmitted:
         monkeypatch.setattr(mon, "_STREAM_REOPEN_DELAY_SEC", 0.01)
         monkeypatch.setattr(mon, "_monitor_device_present", lambda mic_id: False)
         opened: list[str | None] = []
-        monkeypatch.setattr(
-            mon, "start_monitoring", lambda mic_id=None: opened.append(mic_id) or {"success": True}
-        )
+        monkeypatch.setattr(mon, "start_monitoring", lambda mic_id=None: opened.append(mic_id) or {"success": True})
         holder = _wire_stream_with_callback_capture(monkeypatch)
         captured = _patch_event_bus_publish(monkeypatch)
         lm.start_monitoring(mic_id=None)
@@ -264,9 +227,7 @@ class TestDeviceLostEventEmitted:
 
         time.sleep(0.8)
         device_lost_events = [e for e in captured if e.get("type") == "device_lost"]
-        assert len(device_lost_events) == 0, (
-            f"user-stopped retry must stay silent; got {device_lost_events}"
-        )
+        assert len(device_lost_events) == 0, f"user-stopped retry must stay silent; got {device_lost_events}"
         assert len(opened) == n_opens_at_death, "no reopen attempt may run after a user stop"
 
     def test_zero_chunk_detector_emits_device_lost_when_reopen_fails(self, monkeypatch):
@@ -298,8 +259,7 @@ class TestDeviceLostEventEmitted:
 
         device_lost_events = [e for e in captured if e.get("type") == "device_lost"]
         assert len(device_lost_events) == 1, (
-            f"starved stream with failing reopen must publish exactly one "
-            f"device_lost event; got {captured}"
+            f"starved stream with failing reopen must publish exactly one device_lost event; got {captured}"
         )
         evt = device_lost_events[0]
         assert evt["data"]["source"] == "zero_chunks", (
@@ -355,9 +315,7 @@ class TestDeviceLostEventEmitted:
         for _ in range(7):
             deadline = time.perf_counter() + 5.0
             while time.perf_counter() < deadline:
-                if lm._monitor_active or any(
-                    e.get("type") == "device_lost" for e in captured
-                ):
+                if lm._monitor_active or any(e.get("type") == "device_lost" for e in captured):
                     break
                 time.sleep(0.01)
             if any(e.get("type") == "device_lost" for e in captured):
@@ -366,16 +324,12 @@ class TestDeviceLostEventEmitted:
                 holder["callback"](zero_chunk, 512, None, None)
             deadline = time.perf_counter() + 5.0
             while time.perf_counter() < deadline:
-                if not lm._monitor_active or any(
-                    e.get("type") == "device_lost" for e in captured
-                ):
+                if not lm._monitor_active or any(e.get("type") == "device_lost" for e in captured):
                     break
                 time.sleep(0.01)
             deadline = time.perf_counter() + 5.0
             while time.perf_counter() < deadline:
-                if lm._monitor_active or any(
-                    e.get("type") == "device_lost" for e in captured
-                ):
+                if lm._monitor_active or any(e.get("type") == "device_lost" for e in captured):
                     break
                 time.sleep(0.01)
             if any(e.get("type") == "device_lost" for e in captured):
@@ -539,8 +493,7 @@ class TestIdempotency:
         lm.start_monitoring(mic_id=None)
 
         assert lm._device_lost_emitted is False, (
-            "start_monitoring must clear _device_lost_emitted so a "
-            "fresh disconnect can emit a new device_lost event"
+            "start_monitoring must clear _device_lost_emitted so a fresh disconnect can emit a new device_lost event"
         )
 
         # Second disconnect should emit a new event.
@@ -548,8 +501,7 @@ class TestIdempotency:
         _wait_for_count(2)
         second_count = sum(1 for e in captured if e.get("type") == "device_lost")
         assert second_count == 2, (
-            f"after restart, a new disconnect must emit a new "
-            f"device_lost event; expected 2 total, got {second_count}"
+            f"after restart, a new disconnect must emit a new device_lost event; expected 2 total, got {second_count}"
         )
 
         lm.stop_monitoring()

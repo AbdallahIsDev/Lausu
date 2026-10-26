@@ -9,13 +9,11 @@ import numpy as np
 import pytest
 
 
-def _reset_level_monitor_state():
-    """Reset level_monitor session state between tests."""
-    import voice_typer.server.level_monitor as lm
+def _reset_level_monitor_state() -> None:
+    """Delegate: one canonical reset (see tests/fixtures/level_monitor_state.py)."""
+    from tests.fixtures.level_monitor_state import reset_level_monitor_state
 
-    lm._stop_level_worker()
-    lm._stop_mic_level_worker()
-    lm._reset_state_for_tests()
+    reset_level_monitor_state()
 
 
 @pytest.fixture(autouse=True)
