@@ -138,7 +138,7 @@ No Python, no terminal, no commands needed.
 
 ## For Developers (from source)
 
-Requires **Python 3.10+**. Install from [python.org](https://python.org).
+Requires **Python 3.11+**. Install from [python.org](https://python.org).
 
 ### Using `uv` (recommended for fast setup)
 
@@ -181,7 +181,7 @@ uv run --no-sync pytest
 > You still get all of uv's speed benefits; you just don't get a
 > checked-in `uv.lock` file. See `pyproject.toml`'s `[tool.uv]` block
 > for the `environments` constraint that limits uv's resolution to
-> Python 3.10-3.14 (matching the project's supported window).
+> Python 3.11-3.14 (matching the project's supported window).
 
 For production-only deps (no test/dev tooling):
 

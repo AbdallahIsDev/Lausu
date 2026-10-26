@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -68,14 +68,14 @@ class TestParseRetryAfter:
         """#4: an HTTP-date string is parsed via"""
         from voice_typer.server.cloud import _retry
 
-        frozen_now = datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-        # The production code calls ``datetime.now(timezone.utc)`` —
+        frozen_now = datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)
+        # The production code calls ``datetime.now(UTC)`` -
         real_datetime = _retry.datetime
 
         class _FrozenDatetime(real_datetime):
             @classmethod
             def now(cls, tz=None):
-                return frozen_now if tz is timezone.utc else frozen_now.replace(tzinfo=None)
+                return frozen_now if tz is UTC else frozen_now.replace(tzinfo=None)
 
         monkeypatch.setattr(_retry, "datetime", _FrozenDatetime)
 

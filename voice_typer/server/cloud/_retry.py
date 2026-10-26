@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from voice_typer.server.asr_errors import (
     CloudAuthError,
@@ -32,4 +32,4 @@ def _parse_retry_after(header_value: str | None) -> float:
     """
     # Missing/unparsable headers fall back to 2s (shared parser default).
     # ``now`` stays module-local so tests can freeze ``_retry.datetime``.
-    return _shared_parse_retry_after(header_value, default=2.0, now=datetime.now(timezone.utc))
+    return _shared_parse_retry_after(header_value, default=2.0, now=datetime.now(UTC))

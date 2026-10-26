@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 class ConsentRequiredError(RuntimeError):
@@ -24,7 +24,7 @@ class ConsentRequiredError(RuntimeError):
         self.engine_name = engine_name
         self.consent_field = consent_field
         self.model_id = model_id
-        self.timestamp: str = datetime.now(timezone.utc).isoformat()
+        self.timestamp: str = datetime.now(UTC).isoformat()
 
     def to_dict(self) -> dict[str, str | None]:
         """Return the structured fields as a JSON-serializable dict."""

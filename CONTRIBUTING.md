@@ -31,7 +31,7 @@ locally.
 
 ### Common
 
-- **Python 3.10 or newer** (3.12 recommended; 3.13/3.14 are also
+- **Python 3.11 or newer** (3.12 recommended; 3.13/3.14 are also
   supported per `[tool.uv].environments`). Install from
   [python.org](https://python.org) or your OS package manager.
 - **Node.js 24 or newer** (matches the `"engines": {"node": ">=24"}`
@@ -189,7 +189,7 @@ completeness of the lockfile against `pyproject.toml` is enforced by
 To regenerate the lockfile after adding/removing a dependency:
 
 ```bash
-uv pip compile --generate-hashes --universal --python-version 3.10 pyproject.toml -o requirements-lock.txt
+uv pip compile --generate-hashes --universal --python-version 3.11 pyproject.toml -o requirements-lock.txt
 ```
 
 > **Always use `--universal`.** A single-platform regeneration (e.g. on a

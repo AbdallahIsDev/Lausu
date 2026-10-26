@@ -9,7 +9,7 @@ errors non-blocking.
 
 * mypy is **not** a clean gate for this codebase today: numpy 2.x's
   stubs use Python 3.12-only `type` syntax that mypy cannot even *parse*
-  at the project's mypy language level (`python_version = "3.10"`,
+  at the project's mypy language level (`python_version = "3.11"`,
   CQ-058). A parse error cannot be suppressed via `ignore_errors` or
   `follow_imports` (verified empirically on mypy 1.x and 2.x).
 * numpy is therefore **shadowed by a local Any-stub**
@@ -90,8 +90,8 @@ never imported at runtime.
 ## FAQ
 
 **Why not bump `[tool.mypy] python_version` to 3.12?** That lets
-3.11+-only typing constructs slip through mypy and break 3.10 installs
-at runtime: the whole point of the documented 3.10 floor (see the
+3.12+-only typing constructs slip through mypy and break 3.11 installs
+at runtime: the whole point of the documented 3.11 floor (see the
 divergence matrix in `pyproject.toml`). The stub shadow keeps the floor
 intact for the project's own code.
 

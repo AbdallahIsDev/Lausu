@@ -46,7 +46,7 @@ async def _authenticate(websocket) -> bool:
 
     try:
         first_raw = await asyncio.wait_for(websocket.recv(), timeout=deadline)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         log.warning("[SIDECAR-WS] auth frame timeout, closing connection")
         return False
     except Exception:

@@ -10,25 +10,29 @@ build-backend = "setuptools.build_meta"
 # the same environment as the CI matrix.
 python-preference = "managed"
 # BUILD-N25 / TASK-8: previously this block declared
-# `supported-python-versions = ["3.10","3.11","3.12","3.13","3.14"]`,
+# `supported-python-versions = ["3.11","3.12","3.13","3.14"]`,
 # but that is not a real uv field, uv 0.5+ rejects it with a TOML
-# parse warning. uv honors `[project].requires-python` (">=3.10") for
-# version gating, which already allows 3.10-3.14 and beyond. We use
+# parse warning. uv honors `[project].requires-python` (">=3.11") for
+# version gating, which already allows 3.11-3.14 and beyond. We use
 # `environments` below to cap the *resolution* envelope at <3.15 so
 # that optional extras whose upstream wheels stop at 3.14 (e.g.
 # NVIDIA CUDA wheels; historical `qwen-asr` extra removed 2026-08-15)
 # don't make `uv sync` fail for a
 # Python the user isn't even running. This matches the project's
-# documented support window (3.10-3.14, per BUILD-N25).
+# documented support window (3.11-3.14, per BUILD-N25).
 environments = [
-    "python_version >= '3.10' and python_version < '3.15'",
+    "python_version >= '3.11' and python_version < '3.15'",
 ]
 
 [project]
 name = "lausu"
 version = "1.0.0"
 description = "Background voice-to-text utility with system tray"
-requires-python = ">=3.10"
+# BUILD-N26: floor is 3.11, not 3.10. Python 3.10 reached end of security
+# support on 2026-10-01, and the audit-clean floors of two shipped deps
+# (Pillow 13.0.0, filelock 4.2.1) declare `requires-python >= 3.11`, so a
+# 3.10 leg could no longer be kept patch-clean without suppressing findings.
+requires-python = ">=3.11"
 # NEW-DOC-012: added standard project metadata fields.
 license = {text = "MIT"}
 readme = "README.md"
@@ -54,12 +58,11 @@ classifiers = [
     "Operating System :: Microsoft :: Windows :: Windows 10",
     "Operating System :: Microsoft :: Windows :: Windows 11",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    # BUILD-N25: the declared support window is 3.10-3.14 (requires-python
-    # >=3.10 + the uv `environments` cap at <3.15), 3.14 completes the
+    # BUILD-N25: the declared support window is 3.11-3.14 (requires-python
+    # >=3.11 + the uv `environments` cap at <3.15), 3.14 completes the
     # classifier list.
     "Programming Language :: Python :: 3.14",
     "Topic :: Multimedia :: Sound/Audio :: Speech",
@@ -145,8 +148,10 @@ dependencies = [
     # https://github.com/moses-palmer/pystray, a fork or replacement
     # is queued as a CR follow-up (TODO XS-76).
     "pystray>=0.19,<0.20",
-    # floor raised to >=10.3.0, 13 CVEs affect Pillow <10.3.0.
-    "Pillow>=10.3.0,<13.0",
+    # Floor is 13.0.0: 25 advisories (CVE-2026-112390..112406) affect
+    # Pillow <13.0.0, which is what pip-audit blocks on. 13.0.0 requires
+    # Python >=3.11, matching the project floor.
+    "Pillow>=13.0.0,<14",
     # pynput is the cross-platform hotkey + keyboard-event
     # listener used by keyboard_ownership.py + native_hotkeys.py.
     # The <2.0 cap is critical: pynput 2.x (released 2024) rearchitected
@@ -192,14 +197,12 @@ dependencies = [
     # only, GPU users install `onnxruntime-gpu` separately (see §6.1
     # for why onnxruntime-gpu does NOT bundle NVIDIA DLLs and
     # nvidia_dll_paths.py is still required).
-    # onnxruntime 1.24+ stopped shipping cp310 wheels (its `requires-python`
-    # metadata still claims >=3.10, which is stale), so the lockfile resolver
-    # must be told the real floor. Without the upper bound, `uv pip compile
-    # --universal` pins a 1.24+ release for the `python_version < '3.11'`
-    # branch (trusting the stale metadata), and `pip install --require-hashes`
-    # then fails on Python 3.10 with "No matching distribution found".
-    "onnxruntime>=1.20,<1.24; python_version < '3.11'",
-    "onnxruntime>=1.20; python_version >= '3.11'",
+    # The old `onnxruntime>=1.20,<1.24; python_version < '3.11'` branch was
+    # dropped with the Python 3.10 floor: 1.24+ publishes no cp310 wheels
+    # (its metadata claiming >=3.10 is stale), and the lockfile's resolution
+    # envelope now starts at 3.11, so a single unbounded-floor entry is
+    # correct and still resolves a 1.24+ release for every supported Python.
+    "onnxruntime>=1.20",
     # tokenizers is imported directly by the Qwen3-ASR ONNX backend
     # (qwen_onnx_model.py, ``Tokenizer.from_file`` for the ASR prompt
     # decode). It is pulled transitively by the declared
@@ -255,8 +258,8 @@ dependencies = [
     "comtypes>=1.1,<2.0; sys_platform == 'win32'",
     # Volume ducking on macOS (CoreAudio via pyobjc).
     # Lazy-imported in MacVolumeBackend, safe on other platforms.
-    # pyobjc 11+ has no wheels for Python 3.10/3.11 on macOS; use 9.x floor
-    # for older Python, 11.0+ for Python 3.12+ (which needs the newer ABI).
+    # pyobjc 11+ has no wheels for Python 3.11 on macOS; use 9.x floor
+    # for 3.11, 11.0+ for Python 3.12+ (which needs the newer ABI).
     #
     # `<12.0` upper bound on every pyobjc-* dep, pyobjc 12.x is
     # expected to drop support for macOS 11 (Big Sur), which is still
@@ -397,7 +400,10 @@ test = [
 # lausu.spec) was deleted with the dead prewarm packaging path; Nuitka is
 # the only freeze tool (ADR-0020 §4).
 build = [
-    "setuptools>=68.0,<84",
+    # BUILD-N26: cap raised 84 -> 85 for the 84.1.0 security fix that
+    # pip-audit requires; the old <84 cap was a blanket upper bound, not a
+    # known incompatibility.
+    "setuptools>=68.0,<85",
     # Explicit floor so `pip install .[build]` never resolves an
     # unbounded `wheel` (which has no upper bound anyway, but a floor
     # pins the bdist_wheel behavior we depend on for the installer).
@@ -767,17 +773,17 @@ filterwarnings = [
 #                          |              | `python-build-standalone`
 #                          |              | release used by the Nuitka
 #                          |              | sidecar builds (ADR-0020 §4).
-#   `[project].requires-`  | >=3.10       | The project's stated support
-#   `python`               |              | window (3.10-3.14). Users on
-#                          |              | 3.10/3.11 must be able to
+#   `[project].requires-`  | >=3.11       | The project's stated support
+#   `python`               |              | window (3.11-3.14). Users on
+#                          |              | 3.11+ must be able to
 #                          |              | install + run the app.
-#   `[tool.ruff].target-`  | py310        | Lint at the LOWEST supported
+#   `[tool.ruff].target-`  | py311        | Lint at the LOWEST supported
 #   `version`              |              | version so syntax we accept
 #                          |              | (PEP 604 unions, etc.) is
-#                          |              | flagged if it requires 3.10+.
-#   `[tool.mypy].python_`  | 3.10         | Type-check at the LOWEST
+#                          |              | flagged if it requires 3.12+.
+#   `[tool.mypy].python_`  | 3.11         | Type-check at the LOWEST
 #   `version`              |              | supported version so mypy
-#                          |              | catches 3.11+-only typing
+#                          |              | catches 3.12+-only typing
 #                          |              | constructs before they ship
 #                          |              | (see CQ-058 comment below).
 #   `[tool.pyrefly].python`| 3.12         | Pyrefly's `type` statement
@@ -788,22 +794,22 @@ filterwarnings = [
 #                          |              | 3.12 (see [tool.pyrefly].baseline).
 #
 # Do NOT "fix" this divergence by aligning all three to 3.12, that
-# would let 3.11+-only typing slip through ruff/mypy and break 3.10
-# installs at runtime. Conversely, dropping pyrefly to 3.10 would
+# would let 3.12+-only typing slip through ruff/mypy and break 3.11
+# installs at runtime. Conversely, dropping pyrefly to 3.11 would
 # prevent it from parsing the numpy 2.x stubs it needs to type-check
 # the audio pipeline. The matrix is the minimum-divergence set.
 #
 # numpy 2.x is the wrinkle mypy cannot dodge: its stubs use 3.12-only
-# `type` syntax and mypy cannot even parse them at 3.10 (see CQ-058
+# `type` syntax and mypy cannot even parse them at 3.11 (see CQ-058
 # comment on [tool.mypy]). Rather than raise mypy to 3.12, numpy is
 # shadowed by a local Any-stub (`voice_typer/mypy_stubs/` via
-# `mypy_path`) so the 3.10 floor stays intact for the project's own
+# `mypy_path`) so the 3.11 floor stays intact for the project's own
 # code, and the ~700 latent typing-debt errors that surface once numpy
 # resolves are tracked by the count-based ratchet
 # (`mypy-baseline.json` + `scripts/mypy_ratchet_check.py`).
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 # ERR-ERR-006: configure line-length explicitly rather than blanket-ignoring
 # E501. 120 matches the existing codebase style (most lines are 100-120 chars);
 # only lines exceeding 120 need wrapping. Do NOT raise this further.
@@ -847,17 +853,17 @@ combine-as-imports = true
 "tests/server/*.py" = ["F811"]
 
 [tool.mypy]
-# CQ-058: keep at 3.10 (the project's minimum) despite Python 3.12 runtime.
-# numpy 2.x `.pyi` uses `type` statement (3.12+): mypy cannot even PARSE the
-# real numpy 2.x stubs at the 3.10 language level (a parse error cannot be
-# suppressed by ignore_errors / follow_imports). numpy is therefore shadowed
-# by a local Any-stub (see `voice_typer/mypy_stubs/numpy/` + `mypy_path`
-# below), it behaves exactly as it effectively did when the stubs failed
-# to parse. The project's own typing debt in numpy-dependent modules is
+# CQ-058: keep at 3.11 (the project's minimum, BUILD-N26) despite the 3.13
+# runtime. numpy 2.x `.pyi` uses `type` statement (3.12+): mypy cannot even
+# PARSE the real numpy 2.x stubs at the 3.11 language level (a parse error
+# cannot be suppressed by ignore_errors / follow_imports). numpy is therefore
+# shadowed by a local Any-stub (see `voice_typer/mypy_stubs/numpy/` +
+# `mypy_path` below), it behaves exactly as it effectively did when the stubs
+# failed to parse. The project's own typing debt in numpy-dependent modules is
 # tracked by the count-based ratchet (see `scripts/mypy_ratchet_check.py`
 # + `mypy-baseline.json`), so `make typecheck` stays green while blocking
 # NEW errors.
-python_version = "3.10"
+python_version = "3.11"
 mypy_path = ["voice_typer/mypy_stubs"]
 warn_return_any = true
 warn_unused_configs = true
@@ -872,7 +878,7 @@ ignore_missing_imports = false
 # py.typed marker or stub package. Add new entries only after confirming
 # on https://pypi.org that no stub package exists.
 [[tool.mypy.overrides]]
-# CQ-058: numpy 2.x stubs use `type` (Python 3.12+), but project min is 3.10.
+# CQ-058: numpy 2.x stubs use `type` (Python 3.12+), but project min is 3.11.
 # The real numpy stubs are shadowed by the Any-stub in `voice_typer/mypy_stubs`
 # (see `mypy_path` above), so this override only guards the shadow itself.
 # Belt-and-braces: if the shadow is ever removed, `ignore_errors` at least

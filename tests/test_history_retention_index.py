@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -190,7 +190,7 @@ class TestRetentionTimezone:
         """
         from voice_typer.server.history_db_internals import retention as retention_mod
 
-        now_utc = datetime(2026, 7, 30, 12, 0, 0, tzinfo=timezone.utc)
+        now_utc = datetime(2026, 7, 30, 12, 0, 0, tzinfo=UTC)
 
         old_8d = (now_utc - timedelta(days=8)).strftime("%Y-%m-%d %H:%M:%S")
         old_7_5d = (now_utc - timedelta(days=7, hours=12)).strftime("%Y-%m-%d %H:%M:%S")
@@ -281,7 +281,7 @@ class TestRetentionTimezone:
 
             return original_submit(wrapped_fn, wait=wait)
 
-        old_ts = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+        old_ts = (datetime.now(UTC) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
         self._insert_rows_at_utc(db, [old_ts])
 
         db._submit_write = capturing_submit
@@ -295,7 +295,7 @@ class TestRetentionTimezone:
         assert "+" not in cutoff, f"XE-9-B: cutoff has '+' (TZ offset suffix): {cutoff!r}, bug"
         datetime.strptime(cutoff, "%Y-%m-%d %H:%M:%S")
         parsed = datetime.strptime(cutoff, "%Y-%m-%d %H:%M:%S")
-        delta = datetime.now(timezone.utc).replace(tzinfo=None) - parsed
+        delta = datetime.now(UTC).replace(tzinfo=None) - parsed
         assert timedelta(days=6, hours=23) <= delta <= timedelta(days=7, hours=1), (
             f"XE-9-B: cutoff {cutoff} is not ~7 days before now (delta={delta})"
         )
@@ -308,7 +308,7 @@ class TestRetentionFts5RebuildFailure:
         """XE-9-E: ``apply_retention`` returns a :class:`RetentionResult`"""
         from voice_typer.server.history_db_internals.retention import RetentionResult
 
-        old_ts = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+        old_ts = (datetime.now(UTC) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
 
         def _do_insert(conn):
             conn.cursor().execute(
@@ -331,7 +331,7 @@ class TestRetentionFts5RebuildFailure:
 
     def test_apply_retention_fts5_rebuild_failure_sets_flag_and_increments_counter(self, db, monkeypatch):
         """XE-9-E: when the FTS5 ``'rebuild'`` command raises"""
-        old_ts = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+        old_ts = (datetime.now(UTC) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
 
         def _do_insert(conn):
             cursor = conn.cursor()
@@ -411,7 +411,7 @@ class TestRetentionFts5RebuildFailure:
 
     def test_apply_retention_fts5_rebuild_failure_publishes_event_bus_event(self, db, monkeypatch):
         """``{\"type\": \"history_fts5_rebuild_failed\"}`` so the renderer"""
-        old_ts = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+        old_ts = (datetime.now(UTC) - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
 
         def _do_insert(conn):
             conn.cursor().execute(

@@ -167,7 +167,7 @@ async def pump(client: Any, ws: Any, generation: int, wake: asyncio.Event) -> No
                 await wake_task
         try:
             raw = recv_task.result()
-        except (asyncio.TimeoutError, TimeoutError):
+        except TimeoutError:
             # A recv that itself reports a timeout is idleness, same
             # as the wait above (the scripted-fake harness path).
             await ws.send(build_heartbeat_frame())

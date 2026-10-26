@@ -107,7 +107,7 @@ incompatibility.
 |----------|----------------|-----------|
 | Windows  | Windows 10 (10.0) | `WH_KEYBOARD_LL` requires Vista+, but the Nuitka onefile links against UCRT (bundled with Win10+). On Windows 7, users must install [UCRT](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment) manually. |
 | macOS    | macOS 13 (Ventura) | The native Swift binary uses `NSEvent.addGlobalMonitorForEvents` and `CGEvent.tapCreate` APIs available since 10.x, but the CI runners test on macOS 13 (Intel/x64) and macOS 14 (Apple Silicon/arm64). macOS 12 may work but is not tested. |
-| Linux    | Ubuntu 22.04 (glibc 2.35) | The native binary is compiled on `ubuntu-22.04` and links against glibc 2.35. Older distributions with glibc < 2.35 (e.g. Ubuntu 20.04, Debian 11) cannot run the native binary. The Python package itself works on any Linux with Python 3.10+. |
+| Linux    | Ubuntu 22.04 (glibc 2.35) | The native binary is compiled on `ubuntu-22.04` and links against glibc 2.35. Older distributions with glibc < 2.35 (e.g. Ubuntu 20.04, Debian 11) cannot run the native binary. The Python package itself works on any Linux with Python 3.11+. |
 
 CI runner pinning (CI-10):
 - `build-windows`: `windows-2022`

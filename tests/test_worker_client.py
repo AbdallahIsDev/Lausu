@@ -310,7 +310,7 @@ class TestSession:
         client, _ = _client_with_recorder()
         client._port = 5123
         monkeypatch.setattr(worker_client, "_HEARTBEAT_SECONDS", 0.01)
-        ws = _FakeWS([asyncio.TimeoutError(), asyncio.TimeoutError(), asyncio.TimeoutError(), asyncio.TimeoutError()])
+        ws = _FakeWS([TimeoutError(), TimeoutError(), TimeoutError(), TimeoutError()])
         with pytest.raises(worker_client._WorkerUnresponsiveError):
             await client._run_session(ws, client._generation)
         heartbeats = [json.loads(f) for f in ws.sent if "heartbeat" in f]

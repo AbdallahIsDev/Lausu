@@ -49,7 +49,7 @@ jobs:
     strategy:
       # PR: reduced matrix; push: full. BUILD-N03: macos-13 retired → macos-14 (Intel-parity x64 on PR).
       matrix:
-        ${{ github.event_name == 'pull_request' && fromJson('{"include":[{"os":"ubuntu-22.04","python-version":"3.12"},{"os":"windows-2022","python-version":"3.13"},{"os":"macos-14","python-version":"3.13","architecture":"x64"}]}') || fromJson('{"os":["windows-2022","ubuntu-22.04","macos-14"],"python-version":["3.10","3.11","3.12","3.13"]}') }}
+        ${{ github.event_name == 'pull_request' && fromJson('{"include":[{"os":"ubuntu-22.04","python-version":"3.12"},{"os":"windows-2022","python-version":"3.13"},{"os":"macos-14","python-version":"3.13","architecture":"x64"}]}') || fromJson('{"os":["windows-2022","ubuntu-22.04","macos-14"],"python-version":["3.11","3.12","3.13"]}') }}
       fail-fast: false
 
     steps:
