@@ -6,22 +6,8 @@ import functools
 import importlib.util
 import json
 import re
-import sys
+import tomllib
 from pathlib import Path
-
-import pytest
-
-# ``tomllib`` is stdlib only on Python >= 3.11; the 3.10 matrix legs
-if sys.version_info >= (3, 11):
-    import tomllib  # type: ignore[import-not-found]
-else:  # pragma: no cover, Python 3.10 fallback
-    try:
-        import tomli as tomllib  # type: ignore[import-not-found, no-redef]
-    except ImportError:  # pragma: no cover, tomli not in the lock
-        pytest.skip(
-            "tomli backport not installed on Python 3.10, skipping drift check",
-            allow_module_level=True,
-        )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_TAURI = PROJECT_ROOT / "src-tauri"

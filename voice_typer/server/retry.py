@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 log = logging.getLogger(__name__)
 
@@ -36,8 +36,8 @@ def parse_retry_after(
             dt = parsedate_to_datetime(value)
             if dt is not None:
                 if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
-                current = now if now is not None else datetime.now(timezone.utc)
+                    dt = dt.replace(tzinfo=UTC)
+                current = now if now is not None else datetime.now(UTC)
                 delta = (dt - current).total_seconds()
                 if delta > 0:
                     seconds = delta

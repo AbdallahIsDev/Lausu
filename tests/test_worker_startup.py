@@ -205,7 +205,7 @@ def test_worker_started_port_is_connectable() -> None:
             # Wait for either an auth_failed frame or the heartbeat_ack
             try:
                 reply = await asyncio.wait_for(ws.recv(), timeout=2.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # No reply is also fine, auth succeeded, the handler
                 return True
             try:

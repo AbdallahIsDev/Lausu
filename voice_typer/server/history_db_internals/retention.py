@@ -6,7 +6,7 @@ import contextlib
 import logging
 import sqlite3
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Final, Literal, get_args
 
 if TYPE_CHECKING:
@@ -176,7 +176,7 @@ def apply_retention(
 
             predicted_deletes = 0
             if retention_days > 0:
-                cutoff_predict = (datetime.now(timezone.utc) - timedelta(days=retention_days)).strftime(
+                cutoff_predict = (datetime.now(UTC) - timedelta(days=retention_days)).strftime(
                     "%Y-%m-%d %H:%M:%S"
                 )
                 cur = cursor.execute(
@@ -196,7 +196,7 @@ def apply_retention(
             try:
                 if retention_days > 0:
                     # compute the cutoff in UTC and format as
-                    cutoff = (datetime.now(timezone.utc) - timedelta(days=retention_days)).strftime("%Y-%m-%d %H:%M:%S")
+                    cutoff = (datetime.now(UTC) - timedelta(days=retention_days)).strftime("%Y-%m-%d %H:%M:%S")
                     while True:
                         cursor.execute(
                             "DELETE FROM transcriptions WHERE id IN ("

@@ -71,7 +71,7 @@ async def _safe_send(websocket, event: dict) -> str:
             websocket.send(raw_bytes.decode("utf-8")),
             timeout=_WS_SEND_TIMEOUT_SECONDS,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         log.warning(
             "[SIDECAR-WS] send timed out after %.1fs, closing connection",
             _WS_SEND_TIMEOUT_SECONDS,
@@ -110,7 +110,7 @@ def _start_writer(websocket, outbound: asyncio.Queue) -> asyncio.Task:
                         websocket.send(raw_str),
                         timeout=_WS_SEND_TIMEOUT_SECONDS,
                     )
-                except (asyncio.TimeoutError, TimeoutError):
+                except TimeoutError:
                     log.warning(
                         "[SIDECAR-WS] send timed out after %.1fs, closing connection",
                         _WS_SEND_TIMEOUT_SECONDS,

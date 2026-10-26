@@ -59,7 +59,7 @@ import os
 import shutil
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # ``grp`` / ``pwd`` are POSIX-only stdlib modules. This script is
@@ -824,7 +824,7 @@ def write_manifest(
         # ``caps_lock_originals`` so the uninstaller can restore the
         # user's prior XKB options instead of resetting them.
         "version": 2,
-        "installed_at": datetime.now(timezone.utc).isoformat(),
+        "installed_at": datetime.now(UTC).isoformat(),
         "target_user": username,
         "udev_rule": str(UDEV_RULE_PATH),
         "udev_backup": str(udev_backup) if udev_backup else None,

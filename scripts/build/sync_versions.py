@@ -33,15 +33,8 @@ import argparse
 import json
 import re
 import sys
+import tomllib
 from pathlib import Path
-
-if sys.version_info >= (3, 11):
-    import tomllib  # type: ignore[import-not-found]
-else:  # pragma: no cover, Python 3.10 fallback
-    try:
-        import tomli as tomllib  # type: ignore[import-not-found, no-redef]
-    except ImportError:  # pragma: no cover, tomli is a fallback dep
-        tomllib = None  # type: ignore[assignment]
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -161,19 +154,17 @@ def read_cargo_toml_version() -> str | None:
     """Read ``package.version`` from ``src-tauri/Cargo.toml``.
 
     WR-20: Cargo stores the crate version under ``[package] version =
-    "..."``. Uses stdlib ``tomllib`` (Python 3.11+) or the ``tomli``
-    backport (3.10). Falls back to a regex if neither is importable
-    (rare, packaging depends on tomli).
+    "..."``. Parses with stdlib ``tomllib`` and falls back to a regex if
+    the manifest is not valid TOML.
     """
     if not CARGO_TOML.exists():
         return None
     text = CARGO_TOML.read_text(encoding="utf-8")
-    if tomllib is not None:
-        try:
-            data = tomllib.loads(text)
-            return data.get("package", {}).get("version")
-        except Exception:
-            pass  # fall through to regex
+    try:
+        data = tomllib.loads(text)
+        return data.get("package", {}).get("version")
+    except Exception:
+        pass  # fall through to regex
     # Regex fallback, handles the common ``[package]\n...\nversion = "..."`` case.
     m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
     return m.group(1) if m else None

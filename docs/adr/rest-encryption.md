@@ -315,7 +315,7 @@ ALTER TABLE transcriptions ADD COLUMN text_enc BLOB;
 --       DROP TABLE transcriptions;
 --       ALTER TABLE transcriptions_new RENAME TO transcriptions;
 --       Recreate indexes (idx_favorite, idx_timestamp).
---    b. SQLite >= 3.35 (Lausu ships Python 3.10+ which bundles
+--    b. SQLite >= 3.35 (Lausu ships Python 3.11+ which bundles
 --       SQLite >= 3.35 on all platforms since 2021): use the simpler
 --       `ALTER TABLE transcriptions DROP COLUMN text;`. Detect at
 --       runtime via `SELECT sqlite_version()` and pick the path.

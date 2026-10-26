@@ -23,6 +23,7 @@ Usage:
 import contextlib
 import shutil
 import sys
+from datetime import UTC
 from pathlib import Path
 
 # The diagnostic entry-point modules were moved from
@@ -213,10 +214,10 @@ def export_diagnostics() -> str:
     import os
     import platform
     import tempfile
-    from datetime import datetime, timezone
+    from datetime import datetime
     from zipfile import ZIP_DEFLATED, ZipFile
 
-    timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")
     zip_filename = f"lausu-diagnostics-{timestamp}.zip"
 
     # Find the config directory

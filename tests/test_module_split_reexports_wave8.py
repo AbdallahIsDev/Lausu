@@ -300,7 +300,7 @@ class TestWorkerClientFacadeReexports:
         monkeypatch.setattr(worker_client, "_MAX_MISSED_HEARTBEATS", 7)
 
         client = worker_client.WorkerClient()
-        ws = _ScriptedWS([asyncio.TimeoutError() for _ in range(8)])
+        ws = _ScriptedWS([TimeoutError() for _ in range(8)])
 
         with pytest.raises(worker_client._WorkerUnresponsiveError):
             await client._pump(ws, client._generation, asyncio.Event())

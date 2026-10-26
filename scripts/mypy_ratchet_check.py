@@ -5,7 +5,7 @@ Compares the current mypy error counts on the server scope
 (``voice_typer/server/``) against a committed baseline
 (``mypy-baseline.json``). This exists because mypy is NOT a clean gate
 for this codebase today: numpy 2.x's PEP 695 stubs cannot be parsed at
-the project's mypy language level (``python_version = "3.10"``, CQ-058),
+the project's mypy language level (``python_version = "3.11"``, CQ-058),
 so numpy is shadowed by a local Any-stub (``voice_typer/mypy_stubs/``),
 which lets mypy type-check every server module, exposing ~700 latent
 typing-debt errors that were previously hidden by the numpy parse

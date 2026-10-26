@@ -4,20 +4,10 @@ from __future__ import annotations
 
 import re
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
-
-if sys.version_info >= (3, 11):
-    import tomllib  # type: ignore[import-not-found]
-else:  # pragma: no cover, Python 3.10 fallback
-    try:
-        import tomli as tomllib  # type: ignore[import-not-found, no-redef]
-    except ImportError:  # pragma: no cover, tomli not in the lock
-        pytest.skip(
-            "tomli backport not installed on Python 3.10, skipping lock-completeness check",
-            allow_module_level=True,
-        )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PYPROJECT = REPO_ROOT / "pyproject.toml"
@@ -182,7 +172,7 @@ _EVAL_ENVS: list[dict[str, str]] = [
         ("darwin", "posix", "Darwin"),
     )
     for machine in ("x86_64", "arm64")
-    for py in ("3.10", "3.11", "3.12")
+    for py in ("3.11", "3.12", "3.13")
 ]
 
 

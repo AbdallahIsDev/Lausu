@@ -32,7 +32,7 @@ import json
 import subprocess
 import sys
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -73,7 +73,7 @@ def build_bench_output(bench_dir: Path, runner: _Runner = subprocess.run) -> dic
         results[script.stem] = _run_one(script, runner=runner)
     return {
         "version": 1,
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "results": results,
     }
 

@@ -519,6 +519,20 @@ Rationale: The poisoned-open change only updated its new test file, leaving thre
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-TEST-11
+Rule: Do NOT declare a CI job fixed from the failure you were looking at. Enumerate EVERY non-success step of the job (and every failing job) before calling it green; steps that run after an earlier failing step are masked and only appear once the first one passes.
+Rationale: The pip-audit step sits last in the test job, so its 41 advisories were invisible for weeks behind the pytest failures that preceded it (2026-10-26).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-TEST-12
+Rule: Do NOT resolve a dependency advisory with `--ignore-vuln` / audit suppressions. Bump the package or its floor; if the fixed release requires a newer runtime than the project declares, raise the runtime floor (a documented product decision) instead of shipping a suppression.
+Rationale: The audit gate exists to stop known-vulnerable shipped deps; suppressing it keeps the vulnerable version and makes every later run blind to the same class (2026-10-26).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Code Style & Naming

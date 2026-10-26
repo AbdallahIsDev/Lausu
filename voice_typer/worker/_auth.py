@@ -58,7 +58,7 @@ async def _authenticate(websocket) -> bool:  # noqa: ANN001 - websockets type is
 
     try:
         first_raw = await asyncio.wait_for(websocket.recv(), timeout=_AUTH_TIMEOUT_SECONDS)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         log.warning("[WORKER] auth frame timeout: closing connection")
         return False
     except Exception:

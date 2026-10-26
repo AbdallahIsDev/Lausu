@@ -6,7 +6,7 @@ import contextlib
 import logging
 import threading
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 log = logging.getLogger(__name__)
 
@@ -230,7 +230,7 @@ class CircuitBreaker:
                         "data": {
                             "backend": name,
                             "failure_count": count,
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                            "timestamp": datetime.now(UTC).isoformat(),
                         },
                     }
                 )
@@ -303,7 +303,7 @@ class CircuitBreaker:
                     "type": "asr_last_resort_unloaded",
                     "data": {
                         "backend": name,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                     },
                 }
             )

@@ -6,14 +6,14 @@ import contextlib
 import logging
 import threading
 from collections.abc import Callable
-from enum import Enum
+from enum import StrEnum
 
 import voice_typer.server.permissions as _p
 
 log = logging.getLogger("voice_typer.server.permissions")
 
 
-class PermissionState(str, Enum):
+class PermissionState(StrEnum):
     """Three-state permission model."""
 
     GRANTED = "granted"
@@ -22,7 +22,7 @@ class PermissionState(str, Enum):
     ERROR = "error"
 
 
-class MicrophonePermissionState(str, Enum):
+class MicrophonePermissionState(StrEnum):
     """three-state model for OS-level microphone permission."""
 
     GRANTED = "granted"

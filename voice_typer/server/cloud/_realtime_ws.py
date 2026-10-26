@@ -126,7 +126,7 @@ async def _await_final(
             raise CloudNetworkError("realtime transcription timed out")
         try:
             raw = await asyncio.wait_for(ws.recv(), timeout=min(remaining, _ABORT_POLL_S))
-        except (TimeoutError, asyncio.TimeoutError):
+        except TimeoutError:
             continue
         except Exception as exc:
             raise _map_ws_error(exc) from exc
