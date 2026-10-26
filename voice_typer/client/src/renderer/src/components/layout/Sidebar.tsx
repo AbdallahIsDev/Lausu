@@ -14,6 +14,7 @@ import {
 import type { IconSvgElement } from "@hugeicons/react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { memo, useRef } from "react";
+import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
 import { HotkeyTooltip } from "@/components/hotkey/HotkeyTooltip";
 import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 import { SHORTCUTS } from "@/components/hotkey/shortcuts";
@@ -402,11 +403,27 @@ function SidebarInner({
 								    every page, one quick toggle, no settings
 								    detour. Both null themselves when collapsed
 								    (or GPU-less / no model), keeping the icon
-								    column geometry untouched. */}
+								    column geometry untouched.
+
+								    ISOLATION: the model caption must never depend
+								    on the device switch. They are siblings with
+								    independent data (the caption reads only
+								    asr_backend / model_size / cloud_*, never
+								    `device` or `gpu_available`), and the switch is
+								    wrapped in its own boundary so a throw inside
+								    it degrades to "no switch" instead of reaching
+								    the root boundary and taking the whole sidebar
+								    (caption included) down with it. A laggy or
+								    broken CPU/GPU control is not a reason to lose
+								    the name of the model you are running. */}
 								{group.pinnedToBottom && (
 									<SidebarActiveModel collapsed={collapsed} />
 								)}
-								{group.pinnedToBottom && <DeviceToggle collapsed={collapsed} />}
+								{group.pinnedToBottom && (
+									<ErrorBoundary fallback={null}>
+										<DeviceToggle collapsed={collapsed} />
+									</ErrorBoundary>
+								)}
 								{group.items.map((item) => {
 									return (
 										<NavLeaf

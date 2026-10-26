@@ -68,11 +68,31 @@ _TRANSIENT_OPEN_ERROR_MARKERS = (
     "in use by another",
 )
 
+# Subset of the transient markers that describe a POISONED PortAudio
+# state (WDM-KS leaking into a WASAPI open) rather than a device that is
+# momentarily held by someone else. Re-opening the same candidate cannot
+# clear it: only ``_reinitialize_portaudio`` can. Retrying first costs a
+# sleep plus a guaranteed-failing open, so these skip the same-candidate
+# retry and go straight to the reinit branch. A -9999 that reaches this
+# point has already survived ``_classify_portaudio_open_error``, so it is
+# not a permission denial.
+_POISONED_STATE_ERROR_MARKERS = (
+    "-9999",
+    "unanticipated host error",
+    "wdmsyncioctl",
+)
+
 
 def _is_transient_open_error(exc: BaseException) -> bool:
     """Whether a stream-open failure is worth one delayed retry."""
     text = str(exc).lower()
     return any(marker in text for marker in _TRANSIENT_OPEN_ERROR_MARKERS)
+
+
+def _is_poisoned_state_error(exc: BaseException) -> bool:
+    """Whether reinit (not a plain retry) is the only cure for ``exc``."""
+    text = str(exc).lower()
+    return any(marker in text for marker in _POISONED_STATE_ERROR_MARKERS)
 
 
 if TYPE_CHECKING:
@@ -264,13 +284,27 @@ class StreamLifecycle:
 
                         if isinstance(typed, MicrophonePermissionDeniedError):
                             raise
-                    if _attempt == 0 and _is_transient_open_error(e):
+                    if (
+                        _attempt == 0
+                        and _is_transient_open_error(e)
+                        and not _is_poisoned_state_error(e)
+                    ):
                         log.debug(
                             "[RECORDING] Transient open failure on [%s], retrying once",
                             candidate if candidate is not None else "default",
                         )
                         time.sleep(_TRANSIENT_OPEN_RETRY_SECONDS)
                         continue
+                    if _is_poisoned_state_error(e):
+                        # Only reinit can clear a poisoned PortAudio state;
+                        # a same-candidate retry is a guaranteed failure
+                        # plus a sleep on the dictation hotkey thread. Fall
+                        # out to the reinit branch in
+                        # open_stream_for_candidates instead.
+                        log.debug(
+                            "[RECORDING] Poisoned PortAudio state on [%s], reinit needed (skipping plain retry)",
+                            candidate if candidate is not None else "default",
+                        )
                     log.warning(
                         "[RECORDING] Failed to open input device [%s]: %s",
                         candidate if candidate is not None else "default",
