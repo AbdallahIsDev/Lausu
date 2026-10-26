@@ -98,4 +98,33 @@ describe("SidebarActiveModel", () => {
 			"Whisper Large V3",
 		);
 	});
+
+	// The caption is the sidebar half of the tray tooltip's "which model is
+	// running". Nothing about the compute-device switch may gate it: a
+	// CPU-only machine, a missing GPU probe, or a garbage `device` value are
+	// all states where DeviceToggle hides, and the model name must survive
+	// every one of them.
+	it.each([
+		[
+			"CPU-only machine (gpu_available false)",
+			{ device: "cpu", gpu_available: false },
+		],
+		["GPU probe absent (gpu_available undefined)", { device: "cuda" }],
+		["unusable device value", { device: "", gpu_available: true }],
+		["mid-toggle garbage", { device: "CUDA", gpu_available: "true" }],
+	])(
+		"stays visible when the device switch cannot render: %s",
+		(_label, deviceCfg) => {
+			setConfigSnapshot({
+				asr_backend: "whisper",
+				model_size: "large-v3",
+				...deviceCfg,
+			});
+			render(<SidebarActiveModel />);
+
+			expect(screen.getByTestId("sidebar-active-model").textContent).toBe(
+				"Whisper Large V3",
+			);
+		},
+	);
 });

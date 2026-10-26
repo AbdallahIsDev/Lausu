@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+import time
 
 import voice_typer.server.permissions as _p
 
@@ -146,6 +147,29 @@ def _classify_windows_probe_error(exc: BaseException) -> _p.MicrophonePermission
 
 def _check_windows_microphone() -> _p.MicrophonePermissionState:
     """probe Windows microphone permission via a 1-frame"""
+    # PERMISSION-FAST: the consent store is the OS's own answer, and it
+    # is a registry read (microseconds). Only fall through to the
+    # throwaway stream open when it is unreadable.
+    #
+    # Pre-fix this opened a 16 kHz InputStream on EVERY dictation start
+    # (twice per start, plus once more on the fallback sweep) even when
+    # Windows already published "Allow". On a WASAPI device whose shared
+    # format is 48 kHz that throwaway open is both expensive and hostile:
+    # after a long idle it blocked for ~12 s on the dictation hotkey
+    # thread, then left PortAudio poisoned so the real recorder open
+    # failed with -9999 (WdmSyncIoctl) and needed a full reinit + retry
+    # (2026-10-25: hotkey -> recording went from 19 s to the open cost).
+    # The probe also cannot answer anything the recorder does not answer
+    # better: a device that is present but unusable fails the real open,
+    # which re-classifies with the same registry read.
+    consent = _windows_microphone_consent_denied()
+    if consent is True:
+        log.warning("[PERMISSION] Windows mic permission DENIED (consent store reports Deny)")
+        return _p.MicrophonePermissionState.DENIED
+    if consent is False:
+        log.debug("[PERMISSION] Windows mic permission GRANTED (consent store reports Allow)")
+        return _p.MicrophonePermissionState.GRANTED
+
     try:
         # Lazy import, sounddevice loads the PortAudio C library at
         import sounddevice as _sd
@@ -159,6 +183,7 @@ def _check_windows_microphone() -> _p.MicrophonePermissionState:
 
     try:
         # Open a 1-frame InputStream. ``framesize=1`` + immediate
+        _probe_started = time.monotonic()
         stream = _sd.InputStream(
             samplerate=_p.WHISPER_SAMPLE_RATE,
             channels=1,
@@ -169,6 +194,10 @@ def _check_windows_microphone() -> _p.MicrophonePermissionState:
         stream.start()
         stream.stop()
         stream.close()
+        log.debug(
+            "[PERMISSION] Windows mic probe stream open took %.0fms (consent store unreadable)",
+            (time.monotonic() - _probe_started) * 1000.0,
+        )
         return _p.MicrophonePermissionState.GRANTED
     except OSError as exc:
         denied = _classify_windows_probe_error(exc)

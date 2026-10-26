@@ -493,3 +493,48 @@ class TestPermissionRevokedBubbleAutoReset:
         self._fire_reset(app)
         assert ("idle",) not in [c.args for c in app._waveform_bubble.set_state.call_args_list]
         app._waveform_bubble.hide.assert_not_called()
+
+
+def test_registry_allow_skips_the_stream_probe(monkeypatch):
+    """PERMISSION-FAST: an Allow consent store answers without touching audio.
+
+    Pre-fix every dictation start opened a throwaway 16 kHz InputStream
+    (twice per start, plus once on the fallback sweep). On a 48 kHz
+    WASAPI device that probe blocked for ~12 s after a long idle and left
+    PortAudio poisoned for the real open. The registry is the OS's own
+    answer, so it must be consulted first.
+    """
+    from voice_typer.server import permissions
+    from voice_typer.server.permissions import mic as mic_mod
+
+    opened: list[dict] = []
+
+    class _FakeSD:
+        def InputStream(self, **kw):  # noqa: N802 - mirrors sounddevice API
+            opened.append(kw)
+            raise AssertionError("probe must not open a stream when the registry says Allow")
+
+    monkeypatch.setitem(__import__("sys").modules, "sounddevice", _FakeSD())
+    monkeypatch.setattr(mic_mod, "_windows_microphone_consent_denied", lambda: False)
+
+    state = mic_mod._check_windows_microphone()
+
+    assert state == permissions.MicrophonePermissionState.GRANTED
+    assert opened == [], "Allow must short-circuit before any PortAudio call"
+
+
+def test_registry_deny_skips_the_stream_probe(monkeypatch):
+    """Deny is likewise answered from the registry, without an open."""
+    from voice_typer.server import permissions
+    from voice_typer.server.permissions import mic as mic_mod
+
+    class _FakeSD:
+        def InputStream(self, **kw):  # noqa: N802 - mirrors sounddevice API
+            raise AssertionError("probe must not open a stream when the registry says Deny")
+
+    monkeypatch.setitem(__import__("sys").modules, "sounddevice", _FakeSD())
+    monkeypatch.setattr(mic_mod, "_windows_microphone_consent_denied", lambda: True)
+
+    assert mic_mod._check_windows_microphone() == permissions.MicrophonePermissionState.DENIED
+
+

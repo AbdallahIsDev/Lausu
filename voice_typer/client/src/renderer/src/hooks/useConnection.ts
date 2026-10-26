@@ -72,6 +72,36 @@ export function useConnection({
 
 	const callRef = useLatestRef(call);
 
+	// CONFIG-HYDRATE: a push event can promote the app to "connected"
+	// without the startup probe ever landing its get_config payload (the
+	// probe gives up after its retry budget on a cold boot, then a
+	// `state_changed` push flips the status). Without a config the
+	// config-derived surfaces render nothing — the sidebar's active-model
+	// caption and CPU/GPU switch both bail — so hydrate on demand.
+	//
+	// The completeness test is `model_size !== undefined`: it is a persisted
+	// speech-model field, always present in a full get_config and never
+	// carried by a `config_changed` push, so its absence means the store
+	// never saw a full snapshot — including the case where an early push
+	// seeded a PARTIAL object through mergeConfig's null-base branch, which
+	// is truthy but leaves the model fields missing. Deliberately NOT
+	// `gpu_available`: the model caption must not have a GPU term in its
+	// data path, or a machine whose GPU probe is slow/absent would look
+	// like "config incomplete" forever and refetch on every status push.
+	// In the steady state the field is present and this costs no IPC.
+	const hydrateConfigIfMissing = useCallback(() => {
+		const cfg = useAppStore.getState().config;
+		if (cfg && cfg.model_size !== undefined) return;
+		callRef
+			.current<LausuConfig>("get_config")
+			.then((fresh) => {
+				if (fresh) setConfig(fresh);
+			})
+			.catch((err) =>
+				console.warn("[renderer:useConnection] config hydration failed:", err),
+			);
+	}, [callRef, setConfig]);
+
 	useEffect(() => {
 		let retries = 0;
 		const maxRetries = CONNECTION_PROBE_MAX_RETRIES;
@@ -413,6 +443,9 @@ export function useConnection({
 			(data): (() => void) | undefined => {
 				markEventReceived();
 				setConnectionStatus("connected");
+				// CONFIG-HYDRATE: connected without a config snapshot
+				// means every config-derived surface renders empty.
+				hydrateConfigIfMissing();
 
 				const rawStatus = data?.status;
 				const validated =
@@ -429,7 +462,13 @@ export function useConnection({
 				}
 				return undefined;
 			},
-			[markEventReceived, setConnectionStatus, setLastError, setRecordingState],
+			[
+				markEventReceived,
+				setConnectionStatus,
+				setLastError,
+				setRecordingState,
+				hydrateConfigIfMissing,
+			],
 		),
 	);
 
@@ -452,7 +491,18 @@ export function useConnection({
 				attempt++
 			) {
 				try {
-					await call("get_config");
+					// CONFIG-HYDRATE: install the payload. A bare
+					// ``await call("get_config")`` proves the transport is
+					// alive but leaves the store's config null, and every
+					// config-derived surface then renders nothing: the
+					// sidebar loses the active-model caption
+					// (formatActiveModel(null) === "") and the CPU/GPU
+					// switch (needs config.device + gpu_available). The
+					// app looks connected but half-built, which is exactly
+					// what a cold autostart produces once the startup probe
+					// budget is spent and the user clicks retry.
+					const cfg = await call<LausuConfig>("get_config");
+					if (cfg) setConfig(cfg);
 					setConnectionStatus("connected");
 					return;
 				} catch (err) {
@@ -490,7 +540,7 @@ export function useConnection({
 			setLastError(t("connection.restartBackendHint"));
 			setConnectionStatus("disconnected");
 		}
-	}, [call, setConnectionStatus, setLastError, t]);
+	}, [call, setConfig, setConnectionStatus, setLastError, t]);
 
 	return {
 		recordingState,

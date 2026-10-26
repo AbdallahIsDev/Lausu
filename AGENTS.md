@@ -196,6 +196,13 @@ Rationale: The mic test card's "Recording… 00:0N / 00:10" line was inserted be
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-UI-10
+Rule: Do NOT let an optional control be a single point of failure for the surface it sits in. A control that can legitimately be absent (no GPU), can lag (a `set_config` round-trip), or can fail (bad state) must render inside its OWN error boundary with `fallback={null}`, and the persistent readouts beside it must read only their own data — never the optional control's fields. Rendering as siblings is not enough: an uncaught throw propagates to the nearest boundary above, which is the ROOT one, so "the toggle broke" silently becomes "the whole app white-screened".
+Rationale: `DeviceToggle` sat unwrapped beside the sidebar's active-model caption; any throw inside it reached `main.tsx`'s root boundary and replaced the entire renderer — losing the model name that the tray tooltip was still reporting (user report 2026-10-25). A render-error boundary renders `children` directly when healthy, so isolating costs no DOM.
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Focus Indicators & Keyboard Accessibility
@@ -1049,6 +1056,13 @@ Rationale: OS-side mic reconfigures (format/effects toggles, suspend) kill or st
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-MIC-23
+Rule: Do NOT open an audio stream to answer a question a cheaper authoritative source already answers. A permission pre-flight must read the OS consent store first and only fall back to a probe stream when that read is inconclusive; and a retry ladder must distinguish a momentarily-held device from a POISONED host-API state, going straight to the reinit (never re-opening the same candidate) for the poisoned signature.
+Rationale: `_check_windows_microphone` opened a throwaway 16 kHz InputStream on every dictation start (twice per start, plus once on the fallback sweep) while the registry said Allow; on a 48 kHz WASAPI device that probe blocked ~12 s on the hotkey thread after a long idle and left PortAudio poisoned, so the real open failed -9999/WdmSyncIoctl and needed reinit + retry — 19 s from hotkey to recording, 0.5 ms once registry-first (2026-10-25).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Privacy & Background Startup
@@ -1260,5 +1274,12 @@ Applies to: All agents, all modes, all sub-agents.
 C-PARITY-1
 Rule: Do NOT tighten or add a validation rule on one side of a cross-layer contract (renderer picker ↔ Python validator ↔ native listener) without a test proving both sides classify the SAME inputs the same way, and keep the shared vocabulary in one table rather than a second copy in the other language.
 Rationale: The picker accepted `<ctrl>+<v>+<b>` (unmatchable by the listener, rejected by `_check_multi_non_modifier`) while counting alias spellings as keys the backend canonicalizes (`<super_l>+<f5>` = 2 keys vs 1), so it both accepted unsavable hotkeys and refused valid ones; `hotkey_reserved.json` `modifiers[]` now equals `hotkey_spec.MODIFIER_ALIASES` and both are pinned by tests.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-PARITY-2
+Rule: Do NOT promote a connection/readiness state without installing the payload the UI renders from. A probe that only proves the transport is alive (await the call, discard the response, set "connected") leaves every config-derived surface blank; the transition itself must carry the snapshot, and any status push that can flip the state must hydrate it when the snapshot is missing or partial.
+Rationale: `handleRetryConnection` awaited `get_config` and threw the payload away, then a `state_changed` push could promote the app the same way, so `config` stayed null and the sidebar lost BOTH its active-model caption (`formatActiveModel(null) === ""`) and its CPU/GPU switch (needs `config.device` + `gpu_available`) — the app looked connected but half-built after a cold autostart (2026-10-25).
 Applies to: All agents, all modes, all sub-agents.
 ```
