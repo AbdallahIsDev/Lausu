@@ -12,7 +12,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+from tests.fixtures.subprocess_budget import subprocess_budget
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+_PROBE_TIMEOUT_SEC = 300.0
 
 _PROBE = """
 import sys
@@ -62,14 +68,16 @@ print("SLIM-IMPORT-PROBE-OK")
 """
 
 
-def test_slim_import_closure_has_no_asr_libs():
+def test_slim_import_closure_has_no_asr_libs(request: pytest.FixtureRequest):
     """Subprocess probe: slim modules import clean with FW/CT2 blocked."""
     proc = subprocess.run(
         [sys.executable, "-c", _PROBE],
         cwd=str(REPO_ROOT),
         capture_output=True,
         text=True,
-        timeout=300,
+        # Clamped so a hung probe times out before pytest-timeout kills the
+        # worker (see tests/fixtures/subprocess_budget.py).
+        timeout=subprocess_budget(request.node, _PROBE_TIMEOUT_SEC),
     )
     assert "SLIM-IMPORT-PROBE-OK" in proc.stdout, f"stdout={proc.stdout[-2000:]}\nstderr={proc.stderr[-2000:]}"
     assert proc.returncode == 0

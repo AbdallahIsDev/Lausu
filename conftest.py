@@ -59,8 +59,8 @@ def _plugin_available(module_name: str) -> bool:
 def pytest_addoption(parser: object) -> None:
     """Register no-op stand-ins for optional-plugin flags + ini keys.
 
-    Mirrors the options pytest-cov / pytest-timeout register (and the
-    ini keys pytest-asyncio registers), so the ``addopts`` / ini in
+    Mirrors the options pytest-cov / pytest-timeout / pytest-xdist register
+    (and the ini keys pytest-asyncio registers), so the ``addopts`` / ini in
     pyproject.toml parse even when those plugins are not installed (bare
     ``pip install pytest`` CI jobs). The stand-ins are inert: they
     accept the flag / key and store the value, but nothing reads it.
@@ -122,6 +122,13 @@ def pytest_addoption(parser: object) -> None:
             action="store",
             default=None,
             help="(no-op stand-in: pytest-timeout not installed)",
+        )
+    if not _plugin_available("xdist"):
+        parser.addoption(
+            "--max-worker-restart",
+            action="store",
+            default=None,
+            help="(no-op stand-in: pytest-xdist not installed)",
         )
     if not _plugin_available("pytest_asyncio"):
         # --strict-config (in addopts) turns unknown ini keys into a hard

@@ -540,6 +540,13 @@ Rationale: huggingface-hub 2.x swapped httpx/httpcore for httpx2/httpcore2, so a
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-TEST-14
+Rule: Do NOT give a test a blocking budget (subprocess/`Popen` timeout, socket/join deadline) longer than the pytest-timeout budget that governs the same item; clamp it below that budget (`tests/fixtures/subprocess_budget.py`) or raise the item's `@pytest.mark.timeout` above it. An over-budget blocker can never fire its own timeout: pytest-timeout's `thread` method kills the whole xdist worker instead, the dead worker's queued tests are never re-run, and the session idles at ~99% until the job cap cancels it (56 minutes lost, job reported `cancelled` with no failing step).
+Rationale: `tests/tauri/test_rust_log_file_perms.py` ran `cargo test` with `timeout=600` under a 120s suite timeout, so every macOS leg killed its worker at 120.6s and the whole matrix leg died by cancellation rather than a diagnosable failure (2026-10-26).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Code Style & Naming

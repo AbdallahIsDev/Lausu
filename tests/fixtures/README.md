@@ -38,6 +38,11 @@ their inline helpers to the canonical import over time (see the
   `make_fake_sidecar_ws_server`.
 - `sidecar_ws_test_helpers.py`: `_make_fake_server` for sidecar WS
   tests.
+- `subprocess_budget.py`: `effective_item_timeout` /
+  `subprocess_budget` clamp a test's subprocess timeout below the
+  pytest-timeout budget that governs the same item (an over-budget
+  blocker kills the xdist worker instead of raising `TimeoutExpired`,
+  see `C-TEST-14`).
 - `recorder_test_helpers.py`: `make_recorder(config=None,
   **config_fields)` consolidates the recorder factories across the
   test tree (config overrides are applied BEFORE the `Recorder`
