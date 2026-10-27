@@ -79,7 +79,15 @@
 		"dropZoneTitle": "Suelta un archivo de vídeo o audio",
 		"dropZoneAria": "Elige un archivo multimedia o suéltalo aquí",
 		"browseFile": "Examinar archivos",
-		"orLink": "o pega un enlace"
+		"orLink": "o pega un enlace",
+		"slots": "{running} de {max} espacios en uso",
+		"atCapacity": "Los {max} espacios están en uso. Cancela un trabajo o espera a que uno termine.",
+		"cancelAll": "Cancelar todo",
+		"clearFinished": "Limpiar terminados",
+		"dismiss": "Descartar",
+		"duplicateTitle": "Ya está en la lista",
+		"duplicateDescription": "Ese archivo o enlace ya se está transcribiendo.",
+		"noSpeech": "No se encontró voz en este contenido."
 	},
 	"nav": {
 		"home": "Inicio",

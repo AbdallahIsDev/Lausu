@@ -276,6 +276,8 @@ export interface MediaTranscribeStartRequest {
 
 export interface MediaTranscribeCancelRequest {
 	type: "media_transcribe_cancel";
+	/** Omit `data` to cancel every running job (the page's "Cancel all"). */
+	data?: { job_id?: string };
 }
 
 export interface MediaTranscribeStatusRequest {

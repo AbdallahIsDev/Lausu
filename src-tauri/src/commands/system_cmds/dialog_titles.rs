@@ -7,7 +7,7 @@ pub(crate) enum DialogTitle {
     /// `open_model_import_dialog`'s native folder picker
     /// (HuggingFace model-cache import).
     SelectModelFolder,
-    /// `pick_media_file_command`'s native file picker (Media page
+    /// `pick_media_files_command`'s native file picker (Media page
     /// drop-zone "Browse files").
     SelectMediaFile,
     /// `export_history`'s save-file dialog.

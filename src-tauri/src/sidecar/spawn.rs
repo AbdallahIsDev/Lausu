@@ -25,7 +25,9 @@ pub(crate) mod target_triple;
 #[cfg(test)]
 pub(crate) use dev_mode::is_dev_mode_for;
 #[cfg(test)]
-pub(crate) use env_allowlist::{early_bind_env, early_bind_value, passthrough_env_allowlist, vt_start_hidden_env};
+pub(crate) use env_allowlist::{
+    early_bind_env, early_bind_value, passthrough_env_allowlist, vt_start_hidden_env,
+};
 #[cfg(test)]
 pub(crate) use handshake::{is_shutting_down, parse_server_started, parse_worker_started};
 #[cfg(test)]

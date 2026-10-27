@@ -20,7 +20,7 @@ mod stats_image;
 pub(crate) use bug_report::send_bug_report;
 pub(crate) use dialog_titles::{localized_title_for, DialogTitle};
 pub(crate) use dialogs::{
-    open_external_url_command, open_logs, open_model_import_dialog, pick_media_file_command,
+    open_external_url_command, open_logs, open_model_import_dialog, pick_media_files_command,
     reveal_path_command,
 };
 pub(crate) use export::{export_config, export_templates};

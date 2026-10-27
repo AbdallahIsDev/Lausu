@@ -48,6 +48,15 @@ class WindowsState:
 # (fraction, eta_seconds); eta is None until a stable rate is known.
 ProgressCallback = Callable[[float, float | None], None]
 
+# Serializes a decode against the ONE shared model. Supplied by the job
+# manager so concurrent media jobs interleave ingest but never inference.
+LaneFactory = Callable[[], Any]
+
+# Predicate: may this job fire the engine's shared abort signal right now?
+# Only the lane owner may — a queued job's cancel would otherwise truncate
+# the decode that actually holds the model.
+AbortGuard = Callable[[], bool]
+
 _WORKER_WINDOW_TIMEOUT_S = 300.0
 
 
@@ -156,11 +165,17 @@ def transcribe_windows(
     on_progress: ProgressCallback | None = None,
     total_seconds: float | None = None,
     state: WindowsState | None = None,
+    lane: LaneFactory | None = None,
+    abort_allowed: AbortGuard | None = None,
 ) -> WindowsState:
     """Accumulate 5 s chunks into 30 s windows; transcribe each.
 
     Cancellation stops the loop cooperatively and returns the partial
     state instead of raising, so the caller can persist it (E14).
+
+    ``lane`` wraps every decode so concurrent jobs share the single model
+    safely; ``abort_allowed`` gates the shared abort signal to the job that
+    currently owns it.
     """
     import numpy as np
 
@@ -172,13 +187,9 @@ def transcribe_windows(
     start_offset = acc.decoded_seconds
     worker_backend: WorkerWindowBackend | None = None
 
-    def _flush() -> None:
-        nonlocal window, window_samples, worker_backend
-        if not window:
-            return
-        audio = np.concatenate(window).astype(np.float32, copy=False)
-        window = []
-        window_samples = 0
+    def _decode(audio: Any) -> str:
+        """Transcribe one window (worker hop, else in-process)."""
+        nonlocal worker_backend
         if _worker_path_available(backend):
             try:
                 if worker_backend is None:
@@ -188,20 +199,39 @@ def transcribe_windows(
                 text = str(worker_backend.transcribe_with_fallback(audio) or "").strip()
                 if text:
                     acc.texts.append(text)
-                return
+                return text
             except Exception:  # noqa: BLE001, worker failure falls back in-process
                 log.debug("[MEDIA] worker window failed, falling back to in-process", exc_info=True)
         text = str(backend.transcribe_with_fallback(audio) or "").strip()
         if text:
             acc.texts.append(text)
+        return text
+
+    def _flush() -> None:
+        nonlocal window, window_samples
+        if not window:
+            return
+        audio = np.concatenate(window).astype(np.float32, copy=False)
+        window = []
+        window_samples = 0
+        if lane is None:
+            _decode(audio)
+            return
+        with lane():
+            # A job cancelled while it waited for the model must not pay for
+            # a decode nobody wants: release the lane and let the loop end.
+            if cancel_event is not None and cancel_event.is_set():
+                return
+            _decode(audio)
 
     def _cancelled() -> bool:
         if cancel_event is None or not cancel_event.is_set():
             return False
-        try:
-            backend.request_abort()
-        except Exception:  # noqa: BLE001, abort is best-effort
-            log.debug("[MEDIA] backend abort failed", exc_info=True)
+        if abort_allowed is None or abort_allowed():
+            try:
+                backend.request_abort()
+            except Exception:  # noqa: BLE001, abort is best-effort
+                log.debug("[MEDIA] backend abort failed", exc_info=True)
         if worker_backend is not None:
             try:
                 worker_backend.request_abort()

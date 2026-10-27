@@ -176,3 +176,35 @@ minimum), so the parallel `BatchedInferencePipeline` (batch_size=8) runs per
 window and chunk boundaries come from VAD speech timestamps rather than a hard
 30 s cut. The batched pipeline requires `vad_filter` (or `clip_timestamps`),
 so VAD-off audio stays on the sequential call.
+
+## Addendum (2026-10-27, later): concurrent jobs with a serialized ASR lane
+
+E14's "one active job" is replaced by a bounded concurrent manager
+(`media_ingest/jobs.py`, `MAX_CONCURRENT_JOBS = 4`). Two different limits
+apply, and conflating them would be a correctness bug:
+
+* **Ingest is concurrent.** URL resolve, audio download and container decode
+  are I/O plus cheap CPU, so up to four jobs run at once. The IPC ack is
+  immediate: `resolve_media_url` moved into the job thread, so pasting four
+  links enqueues four jobs without four network round trips in the handler.
+* **ASR is serialized.** Every job decodes against ONE ctranslate2 model that
+  is not thread-safe (`SystemWhisperEngine._inference_lock`), so a job takes
+  `manager.asr_lane(job, backend)` around its window decodes. That is also why
+  concurrency cannot change transcript quality: each window is still decoded
+  by the same model, with the same settings, alone. The measured win is the
+  ingest overlap, not the inference.
+
+The lane also owns the abort signal. `request_abort`/`clear_abort` flip one
+Event on the shared engine, so `cancel(job_id)` fires it only when that job
+currently holds the lane, `engine_loop` gates its own abort call behind
+`abort_allowed` (i.e. `owns_asr`), and the lane clears a stale flag on entry —
+the engine only checks abort BETWEEN segments, so a leftover flag would
+silently truncate the next job's first window. A job cancelled while waiting
+for the lane releases it without decoding.
+
+Cap semantics: `start` raises `job_busy` at the cap, `media_transcribe_status`
+reports `{jobs, max_jobs}` so the renderer disables its inputs from the
+backend's number, and a finished job frees its slot immediately. Cancel takes
+an optional `job_id` (one job) or none (all). Stress evidence:
+`bench/media_concurrency_stress.py` (6 jobs, cap 4, real model, real decoder)
+— see `bench/media-concurrency-stress.log`.

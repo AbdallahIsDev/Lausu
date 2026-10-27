@@ -79,7 +79,15 @@
 		"dropZoneTitle": "Video- oder Audiodatei hier ablegen",
 		"dropZoneAria": "Mediendatei wählen oder hier ablegen",
 		"browseFile": "Dateien durchsuchen",
-		"orLink": "oder Link einfügen"
+		"orLink": "oder Link einfügen",
+		"slots": "{running} von {max} Plätzen belegt",
+		"atCapacity": "Alle {max} Plätze sind belegt. Bricht einen Job ab oder wartet, bis einer fertig ist.",
+		"cancelAll": "Alle abbrechen",
+		"clearFinished": "Fertige entfernen",
+		"dismiss": "Verwerfen",
+		"duplicateTitle": "Bereits in der Liste",
+		"duplicateDescription": "Diese Datei oder dieser Link wird bereits transkribiert.",
+		"noSpeech": "In diesem Medium wurde keine Sprache gefunden."
 	},
 	"nav": {
 		"home": "Startseite",

@@ -135,9 +135,9 @@ in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
 
 | Command | Handler | Allowlist | Notes |
 |---------|---------|-----------|-------|
-| `media_transcribe_start` | `_handle_media_transcribe_start` | ✓ | ADR-0023: start a background media job (`{source, export_path?, export_format?}`); `source` is a local media path or a remote URL (URL jobs are gated by `media_url_consent`, consent error code `client.consent_required`; `server.no_model` when no speech model is selected). Progress/completion/failure arrive via `media_transcribe_progress` / `media_transcribe_complete` / `media_transcribe_error`. |
-| `media_transcribe_cancel` | `_handle_media_transcribe_cancel` | ✓ | ADR-0023: cooperative cancel of the active media job. |
-| `media_transcribe_status` | `_handle_media_transcribe_status` | ✓ | ADR-0023: active (or last finished) job snapshot; `{"job": null}` when idle. |
+| `media_transcribe_start` | `_handle_media_transcribe_start` | ✓ | ADR-0023: start a background media job (`{source, export_path?, export_format?}`); `source` is a local media path or a remote URL (URL jobs are gated by `media_url_consent`, consent error code `client.consent_required`; `server.no_model` when no speech model is selected; `server.job_busy` at the concurrency cap). Up to `max_jobs` jobs run at once — the ack is immediate and URL resolution/download happen inside the job thread. Progress/completion/failure arrive via `media_transcribe_progress` / `media_transcribe_complete` / `media_transcribe_error`, each carrying the `job_id` that produced it. |
+| `media_transcribe_cancel` | `_handle_media_transcribe_cancel` | ✓ | ADR-0023: cooperative cancel of ONE job (`{job_id}`) or of every running job (no `data`); returns `{cancelled: <count>, job_ids: [...]}`. |
+| `media_transcribe_status` | `_handle_media_transcribe_status` | ✓ | ADR-0023: `{jobs: [snapshot...], max_jobs: <int>}` for every RUNNING job, in start order. `max_jobs` is the backend's concurrency cap — the renderer disables its inputs from it instead of hardcoding a number. |
 
 ### History (CRUD, favorites, search, today stats, count, transcription text)
 

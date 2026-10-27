@@ -1,8 +1,15 @@
-// Media page (ADR-0023): link or local file → phased transcription
-// progress (same card for URL and file sources). Job lifecycle lives in
-// `media/hooks/useMediaJob`; this file is the view.
+// Media page (ADR-0023): links or local files → a queue of concurrent
+// transcription jobs, each with its own phased progress (same shared
+// LevelBar as the Microphone page). Job lifecycle lives in
+// `media/hooks/useMediaJobs`; this file is the view.
+//
+// Capacity: the backend runs a bounded number of jobs at once and reports
+// that cap in `media_transcribe_status`. At the cap the drop zone, the file
+// picker and the link field are disabled, so the user cannot enqueue past
+// it; a finished job frees its slot immediately.
 
 import {
+	Cancel01Icon,
 	CheckmarkCircle01Icon,
 	HistoryIcon,
 	PlayCircleIcon,
@@ -21,7 +28,8 @@ import { useNavigation } from "@/hooks/useNavigation";
 import { useT } from "@/i18n/i18n";
 import { formatClockDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { useMediaJob } from "./media/hooks/useMediaJob";
+import { type MediaJobRow, useMediaJobs } from "./media/hooks/useMediaJobs";
+import { describeMediaSource } from "./media/lib/sourceLabel";
 
 /** ADR-0023 E11: past this length the page warns about the total time. */
 const LONG_MEDIA_SECONDS = 4 * 3600;
@@ -29,64 +37,66 @@ const LONG_MEDIA_SECONDS = 4 * 3600;
 export default function MediaPage() {
 	const t = useT();
 	const { navigate } = useNavigation();
-	const { job, starting, running, start, cancel } = useMediaJob();
+	const {
+		jobs,
+		maxJobs,
+		activeCount,
+		atCapacity,
+		starting,
+		start,
+		startMany,
+		cancel,
+		cancelAll,
+		dismiss,
+		clearFinished,
+	} = useMediaJobs();
 	const [source, setSource] = useState("");
 	const [useSubtitles, setUseSubtitles] = useState(true);
 	const [dragOver, setDragOver] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
-	// Native drop: absolute paths (web File objects hide them).
+	// Native drop: absolute paths (web File objects hide them). Several
+	// dropped files are enqueued together.
 	useEffect(() => {
 		const api = window.window_;
 		if (!api?.onDragDropFiles) return;
 		return api.onDragDropFiles((paths) => {
-			if (Array.isArray(paths) && paths.length > 0 && paths[0]) {
-				setSource(paths[0]);
-			}
+			if (!Array.isArray(paths)) return;
+			const usable = paths.filter((p): p is string => Boolean(p));
+			if (usable.length > 0) void startMany(usable, useSubtitles);
 		});
-	}, []);
+	}, [startMany, useSubtitles]);
 
 	const trimmed = source.trim();
-	const canStart = trimmed.length > 0 && !running && !starting;
-	const percent = Math.max(0, Math.min(100, Math.round(job.progress * 100)));
-	const phaseLabel =
-		job.phase === "downloading"
-			? t("media.phaseDownloading")
-			: job.phase === "transcribing"
-				? t("media.phaseTranscribing")
-				: t("media.phaseLoadingModel");
-	const isLongMedia =
-		job.durationSeconds !== null && job.durationSeconds > LONG_MEDIA_SECONDS;
-	// Percent owns the slot above the bar; remaining time + total length
-	// read as one caption below it (owner request 2026-10-27).
-	const progressMeta = [
-		job.etaSeconds !== null
-			? t("media.eta", { time: formatClockDuration(job.etaSeconds) })
-			: null,
-		job.durationSeconds !== null
-			? t("media.duration", {
-					time: formatClockDuration(job.durationSeconds),
-				})
-			: null,
-	].filter((part): part is string => part !== null);
+	const canStart = trimmed.length > 0 && !atCapacity && !starting;
+	const hasFinished = jobs.some((row) => row.phase === "done");
 
-	const handleStart = useCallback(() => {
+	const handleStart = useCallback(async () => {
 		if (!canStart) return;
-		void start(trimmed, useSubtitles);
+		const accepted = await start(trimmed, useSubtitles);
+		// Clear the field the moment the job is accepted: the row carries the
+		// source from here, and an empty field is what keeps Transcribe
+		// disabled instead of re-submitting the same file on the next click.
+		// A refused start keeps the text so retrying is one click.
+		if (accepted) setSource("");
 	}, [canStart, start, trimmed, useSubtitles]);
 
 	// Browse goes through the HOST picker: a webview file input hands the
 	// renderer only `file.name`, which the backend cannot open (drag-drop is
-	// the only web path that carries an absolute path).
-	const onPickFile = useCallback(async () => {
+	// the only web path that carries an absolute path). The host dialog is
+	// multi-select and opens with audio AND video visible.
+	const onPickFiles = useCallback(async () => {
+		if (atCapacity) return;
 		const api = window.window_;
-		if (api?.pickMediaFile) {
-			const picked = await api.pickMediaFile();
-			if (!picked.canceled && picked.path) setSource(picked.path);
+		if (api?.pickMediaFiles) {
+			const picked = await api.pickMediaFiles();
+			if (!picked.canceled && picked.paths && picked.paths.length > 0) {
+				await startMany(picked.paths, useSubtitles);
+			}
 			return;
 		}
 		fileInputRef.current?.click();
-	}, []);
+	}, [atCapacity, startMany, useSubtitles]);
 
 	return (
 		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
@@ -100,13 +110,19 @@ export default function MediaPage() {
 				ref={fileInputRef}
 				type="file"
 				accept="audio/*,video/*"
+				multiple
 				className="sr-only"
 				aria-hidden
 				tabIndex={-1}
-				disabled={running}
+				disabled={atCapacity}
 				onChange={(e) => {
-					const file = e.target.files?.[0];
-					if (file) setSource(file.name);
+					const files = Array.from(e.target.files ?? []);
+					if (files.length > 0) {
+						void startMany(
+							files.map((file) => file.name),
+							useSubtitles,
+						);
+					}
 					e.target.value = "";
 				}}
 			/>
@@ -117,15 +133,17 @@ export default function MediaPage() {
 					<button
 						type="button"
 						aria-label={t("media.dropZoneAria")}
-						onClick={() => void onPickFile()}
+						aria-disabled={atCapacity}
+						onClick={() => void onPickFiles()}
 						onDragOver={(e) => {
 							e.preventDefault();
-							setDragOver(true);
+							if (!atCapacity) setDragOver(true);
 						}}
 						onDragLeave={() => setDragOver(false)}
 						onDrop={(e) => {
 							e.preventDefault();
 							setDragOver(false);
+							if (atCapacity) return;
 							const path =
 								e.dataTransfer.getData("text/uri-list") ||
 								e.dataTransfer.getData("text/plain");
@@ -135,6 +153,7 @@ export default function MediaPage() {
 							"flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-6 py-12 transition-colors",
 							"border-border/10 bg-background focus-visible:ring-1 focus-visible:ring-ring",
 							dragOver && "border-primary/40 bg-primary/5",
+							atCapacity && "cursor-not-allowed opacity-50",
 						)}
 					>
 						<HugeiconsIcon
@@ -164,13 +183,13 @@ export default function MediaPage() {
 							value={source}
 							onChange={(e) => setSource(e.target.value)}
 							placeholder={t("media.sourcePlaceholder")}
-							disabled={running}
+							disabled={atCapacity}
 							className="min-w-0 flex-1"
 							onKeyDown={(e) => {
-								if (e.key === "Enter") handleStart();
+								if (e.key === "Enter") void handleStart();
 							}}
 						/>
-						<Button onClick={handleStart} disabled={!canStart}>
+						<Button onClick={() => void handleStart()} disabled={!canStart}>
 							{starting ? (
 								<Spinner className="border-current" decorative />
 							) : (
@@ -182,12 +201,39 @@ export default function MediaPage() {
 							)}
 							{t("media.start")}
 						</Button>
-						{running && (
-							<Button variant="outline" onClick={() => void cancel()}>
-								{t("media.cancel")}
+						{activeCount > 1 && (
+							<Button variant="outline" onClick={() => void cancelAll()}>
+								{t("media.cancelAll")}
 							</Button>
 						)}
 					</div>
+
+					{jobs.length > 0 && (
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<span
+								className="text-xs text-muted-foreground tabular-nums"
+								data-testid="media-slots"
+							>
+								{t("media.slots", {
+									running: String(activeCount),
+									max: String(maxJobs),
+								})}
+							</span>
+							{hasFinished && (
+								<Button variant="ghost" size="sm" onClick={clearFinished}>
+									{t("media.clearFinished")}
+								</Button>
+							)}
+						</div>
+					)}
+					{atCapacity && (
+						<p
+							className="text-xs text-muted-foreground"
+							data-testid="media-capacity"
+						>
+							{t("media.atCapacity", { max: String(maxJobs) })}
+						</p>
+					)}
 				</div>
 				<div className="border-t border-border/10">
 					<SettingRow
@@ -197,95 +243,173 @@ export default function MediaPage() {
 						<Switch
 							checked={useSubtitles}
 							onCheckedChange={setUseSubtitles}
-							disabled={running}
 							aria-label={t("media.useSubtitlesLabel")}
 						/>
 					</SettingRow>
 				</div>
 			</div>
 
-			{/* Same progress card for link and local file sources. */}
-			{running && (
-				<div
-					className="flex flex-col rounded-lg border border-border/10 bg-surface-subtle p-4 gap-2"
-					role="status"
-					aria-live="polite"
-				>
-					<div className="flex flex-wrap items-baseline justify-between gap-2">
-						<span className="text-sm font-medium text-foreground">
-							{phaseLabel}
-						</span>
-						<span
-							className="text-xs text-muted-foreground tabular-nums"
-							data-testid="media-progress-percent"
-						>
-							{t("media.percent", { percent: String(percent) })}
-						</span>
-					</div>
-					{/* Shared LevelBar (same bar as the Microphone page). */}
-					<LevelBar
-						level={percent / 100}
-						playing={false}
-						ariaLabel={t("media.percent", { percent: String(percent) })}
-						ariaValueText={t("media.percent", { percent: String(percent) })}
+			{/* One row per job: same progress card for link and local sources. */}
+			{jobs.length > 0 && (
+				<div className="flex flex-col rounded-lg border border-border/10 bg-surface-subtle">
+					{jobs.map((job, index) => (
+						<JobRow
+							key={job.key}
+							job={job}
+							first={index === 0}
+							onCancel={() => void cancel(job.jobId)}
+							onDismiss={() => dismiss(job.key)}
+							onOpenHistory={() => navigate("history")}
+						/>
+					))}
+				</div>
+			)}
+		</div>
+	);
+}
+
+interface JobRowProps {
+	job: MediaJobRow;
+	first: boolean;
+	onCancel: () => void;
+	onDismiss: () => void;
+	onOpenHistory: () => void;
+}
+
+function JobRow({
+	job,
+	first,
+	onCancel,
+	onDismiss,
+	onOpenHistory,
+}: JobRowProps) {
+	const t = useT();
+	const percent = Math.max(0, Math.min(100, Math.round(job.progress * 100)));
+	const label = describeMediaSource(job.source);
+	const phaseLabel =
+		job.phase === "downloading"
+			? t("media.phaseDownloading")
+			: job.phase === "transcribing"
+				? t("media.phaseTranscribing")
+				: t("media.phaseLoadingModel");
+	const isLongMedia =
+		job.durationSeconds !== null && job.durationSeconds > LONG_MEDIA_SECONDS;
+	// Percent owns the slot above the bar; remaining time + total length
+	// read as one caption below it (owner request 2026-10-27).
+	const progressMeta = [
+		job.etaSeconds !== null
+			? t("media.eta", { time: formatClockDuration(job.etaSeconds) })
+			: null,
+		job.durationSeconds !== null
+			? t("media.duration", { time: formatClockDuration(job.durationSeconds) })
+			: null,
+	].filter((part): part is string => part !== null);
+
+	if (job.phase === "done") {
+		const chars = job.chars ?? 0;
+		return (
+			<div
+				className={cn(
+					"flex flex-col gap-2 p-4",
+					!first && "border-t border-border/10",
+				)}
+			>
+				<div className="flex items-center gap-2">
+					<HugeiconsIcon
+						icon={CheckmarkCircle01Icon}
+						strokeWidth={2}
+						className="h-4 w-4 shrink-0 text-primary"
 					/>
+					<span
+						className="min-w-0 flex-1 truncate text-sm font-medium text-foreground"
+						title={job.source}
+					>
+						{label}
+					</span>
+					<Button
+						variant="ghost"
+						size="sm"
+						aria-label={t("media.dismiss")}
+						onClick={onDismiss}
+					>
+						<HugeiconsIcon
+							icon={Cancel01Icon}
+							strokeWidth={2}
+							className="h-4 w-4"
+						/>
+					</Button>
+				</div>
+				<p className="text-sm text-muted-foreground">
+					{chars === 0
+						? t("media.noSpeech")
+						: job.partial
+							? t("media.partialDescription", { chars: String(chars) })
+							: t("media.completeDescription", { chars: String(chars) })}
+				</p>
+				{job.rowId !== null && (
+					<div>
+						<Button variant="outline" size="sm" onClick={onOpenHistory}>
+							<HugeiconsIcon
+								icon={HistoryIcon}
+								strokeWidth={2}
+								className="h-4 w-4"
+							/>
+							{t("media.openHistory")}
+						</Button>
+					</div>
+				)}
+			</div>
+		);
+	}
+
+	return (
+		<div
+			className={cn(
+				"flex flex-col gap-2 p-4",
+				!first && "border-t border-border/10",
+			)}
+		>
+			<div className="flex flex-wrap items-baseline justify-between gap-2">
+				<span
+					className="min-w-0 flex-1 truncate text-sm font-medium text-foreground"
+					title={job.source}
+				>
+					{label}
+				</span>
+				<span
+					className="text-xs text-muted-foreground tabular-nums"
+					data-testid="media-progress-percent"
+				>
+					{t("media.percent", { percent: String(percent) })}
+				</span>
+			</div>
+			{/* Shared LevelBar (same bar as the Microphone page). */}
+			<LevelBar
+				level={percent / 100}
+				playing={false}
+				ariaLabel={t("media.percent", { percent: String(percent) })}
+				ariaValueText={t("media.percent", { percent: String(percent) })}
+			/>
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<span className="text-xs text-muted-foreground">
+					{phaseLabel}
 					{progressMeta.length > 0 && (
-						<span
-							className="self-end text-xs text-muted-foreground tabular-nums"
-							data-testid="media-progress-meta"
-						>
+						<span className="tabular-nums" data-testid="media-progress-meta">
+							{" · "}
 							{progressMeta.join(" · ")}
 						</span>
 					)}
-					{isLongMedia && (
-						<p className="text-xs text-muted-foreground">
-							{t("media.longMediaNotice")}
-						</p>
-					)}
-				</div>
-			)}
-
-			{job.phase === "done" && (
-				<div
-					className="flex flex-col rounded-lg border border-border/10 bg-surface-subtle p-4 gap-2"
-					role="status"
-				>
-					<div className="flex items-center gap-2">
-						<HugeiconsIcon
-							icon={CheckmarkCircle01Icon}
-							strokeWidth={2}
-							className="h-4 w-4 text-primary"
-						/>
-						<span className="text-sm font-medium text-foreground">
-							{t("media.completeTitle")}
-						</span>
-					</div>
-					<p className="text-sm text-muted-foreground">
-						{job.partial
-							? t("media.partialDescription", {
-									chars: String(job.chars ?? 0),
-								})
-							: t("media.completeDescription", {
-									chars: String(job.chars ?? 0),
-								})}
-					</p>
-					{job.rowId !== null && (
-						<div>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => navigate("history")}
-							>
-								<HugeiconsIcon
-									icon={HistoryIcon}
-									strokeWidth={2}
-									className="h-4 w-4"
-								/>
-								{t("media.openHistory")}
-							</Button>
-						</div>
-					)}
-				</div>
+				</span>
+				{job.jobId !== "" && (
+					<Button variant="ghost" size="sm" onClick={onCancel}>
+						{t("media.cancel")}
+					</Button>
+				)}
+			</div>
+			{isLongMedia && (
+				<p className="text-xs text-muted-foreground">
+					{t("media.longMediaNotice")}
+				</p>
 			)}
 		</div>
 	);

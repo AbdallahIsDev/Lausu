@@ -162,21 +162,23 @@ export function createWindowNamespace(tauri: TauriGlobal): WindowBridge {
 		// "Browse files". A webview `<input type="file">` exposes only
 		// `file.name` (no directory), so the sidecar got a bare filename
 		// and reported decode_failed on a good file; only a host picker
-		// (or a drag-drop event) carries an absolute path.
-		pickMediaFile: async () => {
+		// (or a drag-drop event) carries an absolute path. Multi-select:
+		// the page transcribes several files at once, and the host's
+		// combined-first filter list shows audio AND video together.
+		pickMediaFiles: async () => {
 			try {
 				const result = await tauri.core.invoke<{
 					canceled: boolean;
-					path?: string;
-				}>("pick_media_file_command");
+					paths?: string[];
+				}>("pick_media_files_command");
 				return {
 					canceled: Boolean(result?.canceled),
-					path: result?.path,
+					paths: Array.isArray(result?.paths) ? result.paths : [],
 				};
 			} catch {
 				// Same shape contract as `openModelImportDialog`: errors
 				// read as a canceled pick so the call site is a no-op.
-				return { canceled: true };
+				return { canceled: true, paths: [] };
 			}
 		},
 

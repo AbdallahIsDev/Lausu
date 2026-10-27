@@ -112,6 +112,9 @@ sub-worklog-*.md
 .tmp-evidence/
 .workbuddy-ai/
 
+# Local ASR weights used by bench/media_concurrency_stress.py (not shipped).
+.tmp-tiny-model/
+
 # INTERNAL PLUGINS (experimental, still in development; never ship).
 # tools/internal_plugins is its OWN git repository, backed up to a
 # private remote; see tools/internal_plugins/README.md. The folder still

@@ -1,5 +1,7 @@
 """Media-transcribe IPC handlers: start / cancel / status (ADR-0023)."""
 
+import threading
+
 from voice_typer.server.handlers._base import HandlerBase
 from voice_typer.server.handlers._log import log
 from voice_typer.server.ipc.validation import (
@@ -13,6 +15,13 @@ from voice_typer.server.ipc.validation import (
 # re-resolve (URL_EXPIRED) / seek-resume (STREAM_STALLED) before the
 # temp-download fallback tier.
 MAX_STREAM_ATTEMPTS = 3
+
+# Concurrent media jobs all want the same lazily-loaded model. Two jobs
+# starting together would otherwise both miss `active_transcriber()` and
+# each trigger a full weight load; one lock makes the second wait for the
+# first instead. Inference itself is serialized separately, by the ASR lane
+# in `media_ingest.jobs`.
+_MODEL_LOAD_LOCK = threading.Lock()
 
 
 class MediaHandlersMixin(HandlerBase):
@@ -57,7 +66,7 @@ class MediaHandlersMixin(HandlerBase):
                 job = manager.start(classified.raw, _runner)
             except MediaIngestError as exc:
                 if exc.code == JOB_BUSY:
-                    return _error_response(resp, "a transcription job is already running", code=ErrorCodes.JOB_BUSY)
+                    return _error_response(resp, str(exc), code=ErrorCodes.JOB_BUSY)
                 raise
             return {"type": "media_transcribe_result", "data": {"job_id": job.job_id, "status": "running"}}
 
@@ -66,10 +75,16 @@ class MediaHandlersMixin(HandlerBase):
         )
 
     def _start_url_media_job(self, url: str, validated: dict, resp: ResponseEnvelope) -> dict:
-        """Consent-gate, resolve a remote URL, then stream or download only its audio."""
+        """Consent-gate, then hand the resolve+download to a job thread.
+
+        Resolution used to run inline, which made a batch of pasted links
+        start one-at-a-time (each ``resolve_media_url`` is a network round
+        trip). It now happens inside the job, so N links enqueue in N fast
+        acks and the slow part overlaps.
+        """
         from voice_typer.server.asr_errors import ConsentRequiredError
-        from voice_typer.server.media_ingest import runtime as _runtime, url_resolver as _resolver
-        from voice_typer.server.media_ingest.errors import JOB_BUSY, RESOLVE_FAILED, MediaIngestError
+        from voice_typer.server.media_ingest import runtime as _runtime
+        from voice_typer.server.media_ingest.errors import JOB_BUSY, MediaIngestError
         from voice_typer.server.media_ingest.jobs import MediaJob, get_job_manager
 
         if not getattr(self.app.config, "media_url_consent", False):
@@ -83,31 +98,25 @@ class MediaHandlersMixin(HandlerBase):
                 resp, "no speech model installed (open Models to choose one)", code=ErrorCodes.NO_MODEL
             )
         manager = get_job_manager()
+        # Cheap filesystem probe, no network: fail fast on the one site that
+        # cannot be resolved without a JavaScript runtime instead of creating
+        # a job that is guaranteed to die.
         runtime = _runtime.find_js_runtime()
-        try:
-            resolved = _resolver.resolve_media_url(
-                url,
-                js_runtimes=_runtime.js_runtime_options(runtime),
+        if runtime is None and "youtube" in url.lower():
+            return _error_response(
+                resp,
+                "YouTube needs a JavaScript runtime; install Deno",
+                code=ErrorCodes.NOT_SUPPORTED,
             )
-        except MediaIngestError as exc:
-            if exc.code == RESOLVE_FAILED and "youtube" in url.lower() and runtime is None:
-                return _error_response(
-                    resp,
-                    "YouTube needs a JavaScript runtime; install Deno",
-                    code=ErrorCodes.NOT_SUPPORTED,
-                )
-            raise
-        if resolved.is_live:
-            return _error_response(resp, "live streams are not supported", code=ErrorCodes.NOT_SUPPORTED)
 
         def _runner(job: MediaJob) -> dict:
-            return self._run_url_media_job(job, resolved, runtime, validated)
+            return self._run_url_media_job(job, url, runtime, validated)
 
         try:
             job = manager.start(url, _runner)
         except MediaIngestError as exc:
             if exc.code == JOB_BUSY:
-                return _error_response(resp, "a transcription job is already running", code=ErrorCodes.JOB_BUSY)
+                return _error_response(resp, str(exc), code=ErrorCodes.JOB_BUSY)
             raise
         return {"type": "media_transcribe_result", "data": {"job_id": job.job_id, "status": "running"}}
 
@@ -158,6 +167,13 @@ class MediaHandlersMixin(HandlerBase):
             log.debug("[MEDIA] complete publish failed", exc_info=True)
         return {"row_id": row_id, "chars": len(stripped)}
 
+    @staticmethod
+    def _asr_manager():
+        """The process-wide job manager, owner of the single ASR lane."""
+        from voice_typer.server.media_ingest.jobs import get_job_manager
+
+        return get_job_manager()
+
     def _run_local_media_job(self, job, path: str, validated: dict) -> dict:
         """Background body: lazy-load model, decode, window-transcribe, persist."""
         from voice_typer.server.media_ingest import decoder as _decoder, engine_loop as _loop
@@ -168,12 +184,15 @@ class MediaHandlersMixin(HandlerBase):
         # header so the bar reports a fraction/ETA instead of jumping 0 -> 1.
         total = _decoder.probe_duration_seconds(path)
         chunks = _decoder.decode_chunks(path)
+        manager = self._asr_manager()
         state = _loop.transcribe_windows(
             chunks,
             backend,
             cancel_event=job.cancel_event,
             on_progress=lambda frac, eta: self._publish_media_progress(job, frac, "transcribing", eta, total),
             total_seconds=total,
+            lane=lambda: manager.asr_lane(job, backend),
+            abort_allowed=lambda: manager.owns_asr(job.job_id),
         )
         return self._finish_media_job(
             job,
@@ -183,20 +202,26 @@ class MediaHandlersMixin(HandlerBase):
             validated=validated,
         )
 
-    def _run_url_media_job(self, job, resolved, runtime, validated: dict) -> dict:
-        """URL job body: subtitles fast path, audio download, stream fallback (ADR-0023 E9/E10/E12/E15)."""
+    def _run_url_media_job(self, job, url: str, runtime, validated: dict) -> dict:
+        """URL job body: resolve, subtitles fast path, download, stream fallback (ADR-0023 E9/E10/E12/E15)."""
         from voice_typer.server.media_ingest import (
             decoder as _decoder,
             downloader as _downloader,
             engine_loop as _loop,
             runtime as _runtime,
             subtitles as _subtitles,
+            url_resolver as _resolver,
         )
         from voice_typer.server.media_ingest.errors import (
             DRM_REFUSED,
+            UNSUPPORTED_LIVE,
             URL_EXPIRED,
             MediaIngestError,
         )
+
+        resolved = _resolver.resolve_media_url(url, js_runtimes=_runtime.js_runtime_options(runtime))
+        if resolved.is_live:
+            raise MediaIngestError(UNSUPPORTED_LIVE, "live streams are not supported")
 
         # E12/E13: official-subtitles fast path is OPT-IN (author-provided
         # captions; the UI states the accuracy tradeoff).
@@ -214,6 +239,7 @@ class MediaHandlersMixin(HandlerBase):
         self._publish_media_progress(job, 0.0, "loading_model")
         backend = self._ensure_media_backend()
 
+        manager = self._asr_manager()
         state = _loop.WindowsState()
         # Primary tier: download the audio-only stream once, then decode from
         # disk. Streaming the signed CDN URL spent ~15 s of ingest per 30 s of
@@ -238,6 +264,8 @@ class MediaHandlersMixin(HandlerBase):
                     ),
                     total_seconds=resolved.duration,
                     state=state,
+                    lane=lambda: manager.asr_lane(job, backend),
+                    abort_allowed=lambda: manager.owns_asr(job.job_id),
                 )
             return self._finish_media_job(
                 job,
@@ -266,15 +294,23 @@ class MediaHandlersMixin(HandlerBase):
                     remote=True,
                     start_seconds=state.decoded_seconds,
                 )
+                # Bound per attempt: a re-resolve refreshes `resolved`.
+                stream_duration = resolved.duration
+
+                def _on_stream_progress(
+                    frac: float, eta: float | None, _d: float | None = stream_duration
+                ) -> None:
+                    self._publish_media_progress(job, frac, "transcribing", eta, _d)
+
                 state = _loop.transcribe_windows(
                     chunks,
                     backend,
                     cancel_event=job.cancel_event,
-                    on_progress=lambda frac, eta, _d=resolved.duration: self._publish_media_progress(
-                        job, frac, "transcribing", eta, _d
-                    ),
+                    on_progress=_on_stream_progress,
                     total_seconds=resolved.duration,
                     state=state,
+                    lane=lambda: manager.asr_lane(job, backend),
+                    abort_allowed=lambda: manager.owns_asr(job.job_id),
                 )
                 return self._finish_media_job(
                     job,
@@ -318,6 +354,7 @@ class MediaHandlersMixin(HandlerBase):
         from voice_typer.server import event_bus
 
         job.progress = fraction
+        job.phase = phase
         try:
             event_bus.publish(
                 {
@@ -335,23 +372,30 @@ class MediaHandlersMixin(HandlerBase):
             log.debug("[MEDIA] progress publish failed", exc_info=True)
 
     def _handle_media_transcribe_cancel(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
+        """Cancel one job by id, or every running job when no id is given."""
         try:
             from voice_typer.server.media_ingest.jobs import get_job_manager
 
-            cancelled = get_job_manager().cancel()
+            job_id: str | None = None
+            if isinstance(data, dict):
+                raw = data.get("job_id")
+                if isinstance(raw, str) and raw.strip():
+                    job_id = raw.strip()
+            cancelled = get_job_manager().cancel(job_id)
             resp["type"] = "media_transcribe_result"
-            resp["data"] = {"cancelled": cancelled}
+            resp["data"] = {"cancelled": len(cancelled), "job_ids": cancelled}
         except Exception as exc:
             self._respond_with_error(resp, exc, "media_transcribe_cancel")
         return resp
 
     def _handle_media_transcribe_status(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
+        """Running jobs + the concurrency cap, so the UI never hardcodes it."""
         try:
             from voice_typer.server.media_ingest.jobs import get_job_manager
 
-            snapshot = get_job_manager().snapshot()
+            manager = get_job_manager()
             resp["type"] = "media_transcribe_result"
-            resp["data"] = {"job": snapshot}
+            resp["data"] = {"jobs": manager.snapshots(), "max_jobs": manager.max_jobs}
         except Exception as exc:
             self._respond_with_error(resp, exc, "media_transcribe_status")
         return resp
@@ -379,16 +423,20 @@ class MediaHandlersMixin(HandlerBase):
         models = getattr(self.app, "models", None)
         if models is None:
             raise MediaIngestError(NO_ENGINE, "no speech model is loaded (open Models to choose one)")
-        ensure = getattr(models, "ensure_active_engine_loaded", None)
-        if callable(ensure):
-            try:
-                ensure()
-            except (ModelNotDownloadedError, ModelIntegrityError) as exc:
-                # Pack/model missing is a user-actionable state, not a crash.
-                raise MediaIngestError(NO_ENGINE, str(exc)) from exc
-            except Exception:  # noqa: BLE001, verified by the is_loaded re-check
-                log.debug("[MEDIA] lazy model load raised", exc_info=True)
-        engine = models.active_transcriber()
+        with _MODEL_LOAD_LOCK:
+            # The lock only serializes the call: `ensure_active_engine_loaded`
+            # stays the single authority on whether a load is needed (it also
+            # handles a model switch), so behaviour is unchanged for one job.
+            ensure = getattr(models, "ensure_active_engine_loaded", None)
+            if callable(ensure):
+                try:
+                    ensure()
+                except (ModelNotDownloadedError, ModelIntegrityError) as exc:
+                    # Pack/model missing is a user-actionable state, not a crash.
+                    raise MediaIngestError(NO_ENGINE, str(exc)) from exc
+                except Exception:  # noqa: BLE001, verified by the is_loaded re-check
+                    log.debug("[MEDIA] lazy model load raised", exc_info=True)
+            engine = models.active_transcriber()
         if engine is None or not getattr(engine, "is_loaded", False):
             raise MediaIngestError(NO_ENGINE, "no speech model is loaded (open Models to choose one)")
         return engine
