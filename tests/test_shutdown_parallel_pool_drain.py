@@ -194,23 +194,70 @@ class TestParallelPoolDrain:
         )
         assert "ws_encode_pool.drain" in descs, f"early-bookend batch must contain 'ws_encode_pool.drain'; got {descs}"
         # Timeouts: ipc_server.stop outer (4.0s) must exceed the inner
-        # graceful-close bound (~3s) so a slow close warns only on real
-        # overruns; readonly outer (3.0s) must exceed its inner 2.5s join
-        # (which itself exceeds a 2s dead-peer send stall).
+        # graceful-close bound (~3s). Pool drains keep their PINNED inner
+        # joins and carry envelopes >=1s above them: a ~0.5s gap expired both
+        # deadlines in one CPU stall and lost the drain's own WARNING.
         timeouts = {desc: timeout for desc, _func, timeout in early_bookend}
         assert timeouts["ipc_server.stop"] == 4.0, (
             f"ipc_server.stop must have timeout=4.0 (outer must exceed the ~3s graceful-close bound); "
             f"got {timeouts['ipc_server.stop']}"
         )
-        assert timeouts["ws_dispatch_pool.drain"] == 5.0, (
-            f"ws_dispatch_pool.drain must have timeout=5.0; got {timeouts['ws_dispatch_pool.drain']}"
+        assert timeouts["ws_dispatch_pool.drain"] == 6.0, (
+            f"ws_dispatch_pool.drain must have timeout=6.0 (must clear the 4.5s inner join); "
+            f"got {timeouts['ws_dispatch_pool.drain']}"
         )
-        assert timeouts["ws_readonly_pool.drain"] == 3.0, (
-            f"ws_readonly_pool.drain must have timeout=3.0 (outer must exceed the 2.5s inner join); "
+        assert timeouts["ws_readonly_pool.drain"] == 4.0, (
+            f"ws_readonly_pool.drain must have timeout=4.0 (must clear the 2.5s inner join); "
             f"got {timeouts['ws_readonly_pool.drain']}"
         )
-        assert timeouts["ws_encode_pool.drain"] == 2.0, (
-            f"ws_encode_pool.drain must have timeout=2.0 (bounded encode drain); got {timeouts['ws_encode_pool.drain']}"
+        assert timeouts["ws_encode_pool.drain"] == 3.0, (
+            f"ws_encode_pool.drain must have timeout=3.0 (must clear the 1.8s inner join); "
+            f"got {timeouts['ws_encode_pool.drain']}"
+        )
+
+        # The envelopes must stay above the drains' own inner joins by a
+        # real margin, or the informative warning loses the race again.
+        import voice_typer.server.shutdown.ws_drain as _ws_drain
+
+        pairs = [
+            (_ws_drain._WS_DISPATCH_JOIN_S, timeouts["ws_dispatch_pool.drain"]),
+            (_ws_drain._WS_READONLY_JOIN_S, timeouts["ws_readonly_pool.drain"]),
+            (_ws_drain._WS_ENCODE_JOIN_S, timeouts["ws_encode_pool.drain"]),
+        ]
+        for inner, envelope in pairs:
+            assert envelope - inner >= 1.0, (
+                f"inner join {inner}s must sit at least 1.0s inside its {envelope}s envelope; "
+                f"got {envelope - inner:.1f}s of slack"
+            )
+
+
+class TestJoinBudget:
+    """``_join_budget`` derives the inner join from the envelope's start."""
+
+    def test_zero_elapsed_leaves_the_envelope_margin(self):
+        import voice_typer.server.shutdown.ws_drain as _ws_drain
+
+        start = time.monotonic()
+        budget = _ws_drain._join_budget(start, _ws_drain._WS_DISPATCH_BUDGET_S)
+        assert budget == pytest.approx(_ws_drain._WS_DISPATCH_BUDGET_S - _ws_drain._ENVELOPE_MARGIN_S, abs=0.2), (
+            f"a drain that starts immediately must get the full envelope minus the margin; got {budget:.2f}s"
+        )
+
+    def test_late_start_clamps_to_zero_instead_of_overrunning(self):
+        import voice_typer.server.shutdown.ws_drain as _ws_drain
+
+        # The item was queued long enough that its envelope already expired.
+        late_start = time.monotonic() - (_ws_drain._WS_ENCODE_BUDGET_S + 1.0)
+        assert _ws_drain._join_budget(late_start, _ws_drain._WS_ENCODE_BUDGET_S) == 0.0, (
+            "a drain whose envelope already expired must not block at all"
+        )
+
+    def test_unknown_start_falls_back_to_the_envelope(self):
+        import voice_typer.server.shutdown.ws_drain as _ws_drain
+
+        budget = _ws_drain._join_budget(0.0, _ws_drain._WS_READONLY_BUDGET_S)
+        assert budget == pytest.approx(_ws_drain._WS_READONLY_BUDGET_S - _ws_drain._ENVELOPE_MARGIN_S, abs=0.2), (
+            f"start<=0 must still bound the join by the envelope; got {budget:.2f}s"
         )
 
 
