@@ -638,10 +638,14 @@ jobs:
         if: matrix.platform == 'linux'
         shell: bash
         run: |
-          # Linux CI has no /dev/input/event* — binary should emit
+          # Linux CI has no /dev/input/event* - binary should emit
           # "ERROR:No keyboard devices found" and exit 1.
+          # Exit 1 is the EXPECTED outcome here, so the capture must not
+          # inherit bash -e: that aborts the step before rc is read.
+          set +e
           output=$(./${{ matrix.binary }} '<caps_lock>' 2>&1)
           rc=$?
+          set -e
           echo "$output"
           echo "Exit code: $rc"
           if ! echo "$output" | grep -q "ERROR:"; then
@@ -660,10 +664,21 @@ jobs:
         shell: bash
         run: |
           export VOICE_TYPER_SKIP_ACCESSIBILITY_CHECK=1
-          output=$(timeout 3 ./${{ matrix.binary }} '<f2>' 2>&1 || true)
-          rc=$?
+          # macOS ships no GNU `timeout` (coreutils): bound the run by polling
+          # for READY in a background process, then terminate it ourselves.
+          out_file=$(mktemp)
+          ./${{ matrix.binary }} '<f2>' >"$out_file" 2>&1 &
+          pid=$!
+          for _ in $(seq 1 30); do
+            if grep -q "READY" "$out_file"; then break; fi
+            if ! kill -0 "$pid" 2>/dev/null; then break; fi
+            sleep 0.1
+          done
+          kill -TERM "$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+          output=$(cat "$out_file")
+          rm -f "$out_file"
           echo "$output"
-          echo "Exit code (124=timeout, 0=exited): $rc"
           if echo "$output" | grep -q "READY"; then
             echo "Smoke test PASSED (binary emitted READY, event monitors active)"
           else
@@ -675,6 +690,12 @@ jobs:
       - name: Smoke test (Windows)
         if: matrix.platform == 'windows'
         shell: pwsh
+        env:
+          # Hosted runners never deliver synthetic SendInput to a
+          # WH_KEYBOARD_LL hook, so the hook-fire leg is a caveat there.
+          # READY is still required (it proves the hook installed) and
+          # local runs stay strict (the script's own escape hatch).
+          VOICE_TYPER_ALLOW_SKIP_HOOK_FIRE: "1"
         run: |
           pwsh scripts/build/smoke_test_windows.ps1 ".\${{ matrix.binary }}" '<caps_lock>'
 
