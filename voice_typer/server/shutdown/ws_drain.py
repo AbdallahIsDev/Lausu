@@ -12,6 +12,29 @@ from voice_typer.server.sidecar_ws_internals.encode_pool import shutdown_encode_
 
 log = logging.getLogger("voice_typer.server.shutdown_controller")
 
+# Early-bookend item budgets. Each envelope is a BACKSTOP for a drain whose
+# inner join cannot be interrupted, so it must clear that join by >=1s: at
+# ~0.5s both expire in the same CPU stall and the generic warning wins.
+_ENVELOPE_MARGIN_S = 0.5
+_WS_DISPATCH_JOIN_S = 4.5
+_WS_DISPATCH_BUDGET_S = 6.0
+_WS_READONLY_JOIN_S = 2.5
+_WS_READONLY_BUDGET_S = 4.0
+_WS_ENCODE_JOIN_S = 1.8
+_WS_ENCODE_BUDGET_S = 3.0
+
+
+def _join_budget(start: float, envelope: float) -> float:
+    """Seconds an inner join may run without outliving its own envelope.
+
+    Derived from the item's own start so a drain queued behind a busy
+    worker cannot overrun the envelope that bounds it. ``start <= 0``
+    means the start is unknown: the envelope alone still applies.
+    """
+    now = time.monotonic()
+    origin = start if start > 0.0 else now
+    return max(0.0, origin + envelope - _ENVELOPE_MARGIN_S - now)
+
 
 def _on_own_pool_worker(prefix: str) -> bool:
     """True when this thread is a worker of the pool being drained.
@@ -141,6 +164,7 @@ def drain_ws_dispatch_pool(controller, app) -> None:
         if ws_pool is not None and hasattr(ws_pool, "shutdown"):
 
             def _drain_ws_pool() -> None:
+                start = time.monotonic()
                 # ``shutdown(wait=False, cancel_futures=True)`` only
                 ws_pool.shutdown(wait=False, cancel_futures=True)
                 _mark_closed("dispatch")
@@ -157,16 +181,15 @@ def drain_ws_dispatch_pool(controller, app) -> None:
                     )
                     return
                 initiator = getattr(controller, "_quit_initiator", None)
-                if isinstance(initiator, threading.Thread) and _initiator_on_workers(
-                    "sidecar-ws-dispatch", controller
-                ):
+                join_timeout = min(_WS_DISPATCH_JOIN_S, _join_budget(start, _WS_DISPATCH_BUDGET_S))
+                if isinstance(initiator, threading.Thread) and _initiator_on_workers("sidecar-ws-dispatch", controller):
                     # Quit runs on a pool worker (dispatched shutdown
                     # command): a stock shutdown(wait=True) join would wait
                     # for the initiator itself and burn the whole budget
                     # every quit. Wait for the OTHER workers only.
 
                     def _wait_for_others() -> None:
-                        _wait_for_pool_drain(ws_pool, initiator, 4.5)
+                        _wait_for_pool_drain(ws_pool, initiator, join_timeout)
 
                     join_thread = threading.Thread(
                         target=_wait_for_others,
@@ -179,23 +202,27 @@ def drain_ws_dispatch_pool(controller, app) -> None:
                         daemon=True,
                     )
                 join_thread.start()
-                # 4.5s, deliberately UNDER this item's 5.0s parallel
-                join_thread.join(timeout=4.5)
+                # Deliberately UNDER this item's envelope (see
+                # ``_join_budget``): the join must lose the race so the
+                # warning below is the one that lands.
+                join_thread.join(timeout=join_timeout)
                 if join_thread.is_alive():
-                    # Name BOTH bounds honestly (mirrors the encode-pool
                     log.warning(
                         "[SHUTDOWN] ws_dispatch_pool did not drain within "
-                        "its 4.5s join (5.0s budget), proceeding anyway; "
+                        "its %.1fs join (%.1fs budget), proceeding anyway; "
                         "stuck: %s",
+                        join_timeout,
+                        _WS_DISPATCH_BUDGET_S,
                         _stuck_worker_summary(ws_pool),
                     )
 
-            early_items.append(("ws_dispatch_pool.drain", _drain_ws_pool, 5.0))
+            early_items.append(("ws_dispatch_pool.drain", _drain_ws_pool, _WS_DISPATCH_BUDGET_S))
 
         readonly_pool = getattr(ipc_server, "_ws_readonly_pool", None) if ipc_server is not None else None
         if readonly_pool is not None and hasattr(readonly_pool, "shutdown"):
 
             def _drain_readonly_pool() -> None:
+                start = time.monotonic()
                 # Same drain discipline as the main dispatch pool: readonly
                 # workers are short-lived status reads, so a tight budget.
                 readonly_pool.shutdown(wait=False, cancel_futures=True)
@@ -212,28 +239,33 @@ def drain_ws_dispatch_pool(controller, app) -> None:
                         "(shutdown runs on a pool worker; the join could only time out)"
                     )
                     return
+                join_timeout = min(_WS_READONLY_JOIN_S, _join_budget(start, _WS_READONLY_BUDGET_S))
                 join_thread = threading.Thread(
                     target=readonly_pool.shutdown,
                     kwargs={"wait": True},
                     daemon=True,
                 )
                 join_thread.start()
-                # Inner must exceed the longest expected handler stall
-                # (a 2s WS send to a dead peer); outer must exceed inner.
-                join_thread.join(timeout=2.5)
+                # The join must exceed the longest expected handler stall
+                # (a 2s WS send to a dead peer) and stay well inside the
+                # envelope (see ``_join_budget``).
+                join_thread.join(timeout=join_timeout)
                 if join_thread.is_alive():
                     log.warning(
-                        "[SHUTDOWN] ws_readonly_pool did not drain within its 2.5s join, "
-                        "proceeding anyway; stuck: %s",
+                        "[SHUTDOWN] ws_readonly_pool did not drain within its %.1fs join "
+                        "(%.1fs budget), proceeding anyway; stuck: %s",
+                        join_timeout,
+                        _WS_READONLY_BUDGET_S,
                         _stuck_worker_summary(readonly_pool),
                     )
 
-            early_items.append(("ws_readonly_pool.drain", _drain_readonly_pool, 3.0))
+            early_items.append(("ws_readonly_pool.drain", _drain_readonly_pool, _WS_READONLY_BUDGET_S))
 
         encode_pool = getattr(ipc_server, "_ws_encode_pool", None)
         if encode_pool is not None and hasattr(encode_pool, "shutdown"):
 
             def _drain_encode_pool() -> None:
+                start = time.monotonic()
                 # The WS frame-encode pool must be drained for the same
                 shutdown_encode_pool(ipc_server)
                 _mark_closed("encode")
@@ -249,24 +281,27 @@ def drain_ws_dispatch_pool(controller, app) -> None:
                         "(shutdown runs on a pool worker; the join could only time out)"
                     )
                     return
+                join_timeout = min(_WS_ENCODE_JOIN_S, _join_budget(start, _WS_ENCODE_BUDGET_S))
                 join_thread = threading.Thread(
                     target=encode_pool.shutdown,
                     kwargs={"wait": True},
                     daemon=True,
                 )
                 join_thread.start()
-                # 1.8s inner join, deliberately UNDER this item's 2.0s
-                join_thread.join(timeout=1.8)
+                # Encode work is pure CPU: a tight join, well inside the
+                # envelope (see ``_join_budget``).
+                join_thread.join(timeout=join_timeout)
                 if join_thread.is_alive():
-                    # Name BOTH bounds honestly: the inner join is 1.8s
                     log.warning(
-                        "[SHUTDOWN] ws_encode_pool did not drain within its 1.8s join (2.0s budget), "
-                        "proceeding anyway; stuck: %s",
+                        "[SHUTDOWN] ws_encode_pool did not drain within its %.1fs join "
+                        "(%.1fs budget), proceeding anyway; stuck: %s",
+                        join_timeout,
+                        _WS_ENCODE_BUDGET_S,
                         _stuck_worker_summary(encode_pool),
                     )
 
-            # Early + bounded (~2s): encodes are pure CPU
-            early_items.append(("ws_encode_pool.drain", _drain_encode_pool, 2.0))
+            # Early + bounded: encodes are pure CPU
+            early_items.append(("ws_encode_pool.drain", _drain_encode_pool, _WS_ENCODE_BUDGET_S))
 
         # Stop the worker-hop reconnect loop before draining: once the
         # worker is gone the client's backoff retries only spam WARNs

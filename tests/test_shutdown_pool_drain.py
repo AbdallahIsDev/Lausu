@@ -253,6 +253,19 @@ class TestDoCleanupDrainsWsPoolViaProductionPath:
             f"{[(r.name, r.message) for r in caplog.records if r.levelno == logging.WARNING]}"
         )
 
+        # (c)(2b) The drain's own WARNING must WIN this race: the item's
+        # envelope is a backstop, so the generic "did not finish in Ns" line
+        # must not appear (it means the drain was abandoned mid-report).
+        envelope_records = [
+            r
+            for r in caplog.records
+            if r.levelno == logging.WARNING and "ws_dispatch_pool.drain did not finish" in r.message
+        ]
+        assert envelope_records == [], (
+            "the drain's own WARNING must land before its envelope expires, got the "
+            f"generic envelope warning instead: {[r.message for r in envelope_records]}"
+        )
+
         # (c)(3) Subsequent teardown steps still run AFTER pool drain.
         pool_drain_end_approx = do_cleanup_start + 5.0
         for step in ("recorder.stop", "crash_recovery.flush", "history_db.flush"):
