@@ -254,8 +254,8 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-MEDIA-2
-Rule: Do NOT let two media jobs decode against the shared ASR model at the same time, and do NOT fire the engine's shared abort signal from a job that is not currently decoding. Concurrency belongs in the INGEST phases (resolve, download, container decode); each job's window decode runs inside `MediaJobManager.asr_lane`, abort is gated by `owns_asr`, and the lane clears a stale abort flag on entry.
-Rationale: There is one ctranslate2 model behind one `_inference_lock`, so parallel decode is either serialized anyway or unsafe, while one shared `_abort_event` means cancelling a QUEUED job would truncate the decode of the job that actually holds the model — and the engine only polls that flag between segments, so a stale flag silently cuts the next job's first window (2026-10-27).
+Rule: Do NOT let two media jobs decode against the shared ASR model at the same time, and do NOT fire or clear the engine's shared abort signal from media at all. Concurrency belongs in the INGEST phases (resolve, download, container decode); each job's window decode runs inside `MediaJobManager.asr_lane`, and cancellation is SCOPED: the job's own `cancel_event` is passed into its decode call as the abort source (`transcribe_windows` → `transcribe_unlocked(abort_event=…)`), so stopping one job cannot truncate a dictation recording or another job's window.
+Rationale: There is one ctranslate2 model behind one `_inference_lock`, so parallel decode is either serialized anyway or unsafe — and ONE shared `_abort_event` meant a media cancel truncated whichever decode happened to be running (silent text loss, the job still reporting "completed"), while clearing that flag on lane entry swallowed an in-flight dictation cancel. Per-job Events take the shared flag out of the media path entirely (2026-10-27).
 Applies to: All agents, all modes, all sub-agents.
 ```
 

@@ -31,6 +31,12 @@ by its own unit tests.
 Usage:
     .venv/Scripts/python.exe bench/media_concurrency_stress.py
     .venv/Scripts/python.exe bench/media_concurrency_stress.py --jobs 6 --clip 240
+    .venv/Scripts/python.exe bench/media_concurrency_stress.py \
+        --audio ~/Downloads/talk.mp3 --video ~/Downloads/talk.mp4 \
+        --device cuda --compute float16
+
+The default media is the owner's Downloads pair (the same recording as .mp3
+and .mp4); `--audio`/`--video` point it at any equivalent pair.
 """
 
 from __future__ import annotations
@@ -112,6 +118,9 @@ class RealBackend:
         import numpy as np
 
         samples = np.asarray(audio, dtype=np.float32).reshape(-1)
+        # Same contract as `system_whisper`: a scoped `abort_event` (the job's
+        # own cancel Event) wins over the engine-wide flag.
+        abort_source = kwargs.get("abort_event") or self._abort_event
         with self._inference_lock:
             self.decode_calls += 1
             started = time.perf_counter()
@@ -124,7 +133,7 @@ class RealBackend:
                 )
                 parts: list[str] = []
                 for seg in segments:
-                    if self._abort_event.is_set():
+                    if abort_source.is_set():
                         break
                     text = (seg.text or "").strip()
                     if text:
@@ -227,8 +236,7 @@ def make_runner(mgr: MediaJobManager, backend: RealBackend, tmp_dir: Path):
             cancel_event=job.cancel_event,
             on_progress=None,
             total_seconds=total,
-            lane=lambda: mgr.asr_lane(job, backend),
-            abort_allowed=lambda: mgr.owns_asr(job.job_id),
+            lane=lambda: mgr.asr_lane(job),
         )
         return {"chars": len(state.text), "text": state.text}
 
@@ -243,25 +251,47 @@ class RecordingManager(MediaJobManager):
         self.runs: dict[str, JobRun] = {}
         self._lock2 = threading.Lock()
 
-    def start(self, source, runner):  # noqa: D102 - same contract
-        job = super().start(source, runner)
+    def start(self, source, runner, *, client_id=None, export_path=None):  # noqa: D102 - same contract
+        # The run record is filled by a wrapper, not by `collect()`: a
+        # finished job leaves `_jobs` immediately (the registry only tracks
+        # running jobs), so post-hoc reads would find nothing.
+        run = JobRun(job_id="", source=source, started=time.perf_counter())
+
+        def _wrapped(job: MediaJob) -> dict:
+            run.job_id = job.job_id
+            # Read the runner's RETURN VALUE, never `job.result`: the manager
+            # assigns that (and `job.status`) only after the runner returns,
+            # so reading them here would always observe the pre-completion
+            # state and report 0 chars for a perfectly good transcript.
+            try:
+                result = runner(job)
+            except BaseException as exc:
+                run.finished = time.perf_counter()
+                run.status = "failed"
+                run.error = str(exc)
+                raise
+            run.finished = time.perf_counter()
+            run.status = "completed"
+            run.chars = int((result or {}).get("chars", 0))
+            run.text = str((result or {}).get("text", ""))
+            return result
+
+        job = super().start(source, _wrapped, client_id=client_id, export_path=export_path)
+        run.job_id = job.job_id
         with self._lock2:
-            self.runs[job.job_id] = JobRun(job_id=job.job_id, source=source, started=time.perf_counter())
+            self.runs[job.job_id] = run
         return job
 
     def collect(self) -> None:
+        """Best-effort refresh for jobs that are still running."""
         with self._lock:
             jobs = dict(self._jobs)
         for job_id, run in self.runs.items():
             job = jobs.get(job_id)
             if job is None:
                 continue
-            run.finished = time.perf_counter()
             run.status = job.status
             run.error = job.error
-            if job.result:
-                run.chars = int(job.result.get("chars", 0))
-                run.text = str(job.result.get("text", ""))
 
 
 # --------------------------------------------------------------------------
@@ -468,12 +498,29 @@ def main() -> int:
         "--device", default="auto", help="auto | cpu | cuda (what the app would pick)"
     )
     parser.add_argument("--compute", default=None, help="e.g. int8, float16 (default: model's)")
+    parser.add_argument(
+        "--audio",
+        default=str(AUDIO_SRC),
+        help="audio source file (default: the Downloads .mp3 pair)",
+    )
+    parser.add_argument(
+        "--video",
+        default=str(VIDEO_SRC),
+        help="video source with the SAME content as --audio (default: the Downloads .mp4)",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
-    for src in (AUDIO_SRC, VIDEO_SRC):
+    audio_src = Path(args.audio)
+    video_src = Path(args.video)
+    for src in (audio_src, video_src):
         if not src.is_file():
-            print(f"missing test media: {src}", file=sys.stderr)
+            print(
+                f"missing test media: {src}\n"
+                "Pass --audio/--video (the same recording in two containers) or put the "
+                "default pair in ~/Downloads.",
+                file=sys.stderr,
+            )
             return 2
     model_dir = Path(args.model)
     if not (model_dir / "model.bin").is_file():
@@ -486,8 +533,8 @@ def main() -> int:
     audio_clip = clip_dir / "clip-audio.wav"
     video_clip = clip_dir / "clip-video.wav"
     print(f"building {args.clip:.0f}s clips from the Downloads pair…")
-    write_clip(AUDIO_SRC, audio_clip, args.clip)
-    write_clip(VIDEO_SRC, video_clip, args.clip)
+    write_clip(audio_src, audio_clip, args.clip)
+    write_clip(video_src, video_clip, args.clip)
     print(f"  audio clip {audio_clip.stat().st_size / 1e6:.1f} MB, video clip {video_clip.stat().st_size / 1e6:.1f} MB")
 
     print(f"loading model {model_dir.name}…")
