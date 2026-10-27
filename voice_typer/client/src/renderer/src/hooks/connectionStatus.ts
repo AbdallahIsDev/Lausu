@@ -67,16 +67,17 @@ export const CONNECTION_PROBE_MAX_RETRIES = 5;
 /** Initial connection probe: delay between attempts. */
 export const CONNECTION_PROBE_RETRY_DELAY_MS = 2000;
 /**
- * Startup grace: a dispatch timeout within this window of the probe
- * effect mounting does not consume the disconnect budget. The backend
- * answers from a cold disk + first-import storm for ~20s after launch,
- * and a lone 15s-timeout get_config mid-storm is transient, not death.
- * Fast failures (refused before the handshake) still count: only
- * timeout-shaped errors earn extra patience, so a truly dead backend
+ * Startup grace: a dispatch timeout (or the host's "sidecar not
+ * connected" pre-bind state) within this window of the probe effect
+ * mounting does not consume the disconnect budget. The backend answers
+ * from a cold disk + first-import storm for ~20s after launch, and a
+ * lone 15s-timeout get_config mid-storm is transient, not death.
+ * Anything else (protocol errors, auth failures, a missing command)
+ * still counts against the plain budget, so a truly broken backend
  * still flips in ~10s.
  */
 export const CONNECTION_PROBE_STARTUP_GRACE_MS = 60_000;
-/** Extra attempts granted to timeout-shaped errors inside the grace. */
+/** Extra attempts granted to transient startup shapes inside the grace. */
 export const CONNECTION_PROBE_GRACE_EXTRA_RETRIES = 4;
 
 /**
@@ -89,6 +90,17 @@ export const CONNECTION_PROBE_GRACE_EXTRA_RETRIES = 4;
 export function isTransientTimeoutError(err: unknown): boolean {
 	const msg = err instanceof Error ? err.message : String(err);
 	return /timed?\s?out/i.test(msg);
+}
+
+/**
+ * Shapes meaning "the backend is not serving YET": a dispatch timeout plus
+ * the host's pre-bind `sidecar not connected`. Callers must bound the extra
+ * patience with `CONNECTION_PROBE_STARTUP_GRACE_MS`; verdict shapes stay fatal.
+ */
+export function isTransientStartupError(err: unknown): boolean {
+	if (isTransientTimeoutError(err)) return true;
+	const msg = err instanceof Error ? err.message : String(err);
+	return /sidecar not connected/i.test(msg);
 }
 
 /**

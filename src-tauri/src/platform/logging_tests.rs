@@ -2427,9 +2427,16 @@ fn test_combined_logger_file_level_gate_suppresses_info_keeps_warn() {
         content
     );
 
-    // Opt-in INFO file level: the same INFO record now lands.
-    std::fs::remove_dir_all(&tmp).ok();
-    let writer = RotatingFileWriter::new(tmp.clone(), "test-log");
+    // Opt-in INFO file level: the same INFO record now lands. Use a FRESH
+    // directory: on Windows a re-created name whose file the first writer's
+    // thread still holds is delete-pending, so the create fails AccessDenied.
+    drop(logger);
+    let tmp_optin = std::env::temp_dir().join(format!(
+        "lausu-test-{}-file-level-optin",
+        std::process::id()
+    ));
+    std::fs::remove_dir_all(&tmp_optin).ok();
+    let writer = RotatingFileWriter::new(tmp_optin.clone(), "test-log");
     let logger = CombinedLogger {
         file_writer: Some(writer),
         level_filter: log::LevelFilter::Info,
@@ -2438,13 +2445,15 @@ fn test_combined_logger_file_level_gate_suppresses_info_keeps_warn() {
     };
     logger.log(&info);
     logger.flush();
-    let content = std::fs::read_to_string(tmp.join("test-log.log")).unwrap();
+    let content = std::fs::read_to_string(tmp_optin.join("test-log.log")).unwrap();
     assert!(
         content.contains("info-must-not-land"),
         "INFO must land when the file level is opted in: {}",
         content
     );
+    drop(logger);
     std::fs::remove_dir_all(&tmp).ok();
+    std::fs::remove_dir_all(&tmp_optin).ok();
 }
 
 // ── file-sink default level ────────────────────

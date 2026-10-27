@@ -50,6 +50,7 @@ export interface WindowBridge {
 	 *  callback receives the dropped files' ABSOLUTE paths. Returns an
 	 *  unsubscribe function (no-op when the webview API is unavailable). */
 	onDragDropFiles?: (callback: (paths: string[]) => void) => () => void;
+	pickMediaFile?: () => Promise<{ canceled: boolean; path?: string }>;
 	//forward a renderer-caught error (e.g. from React's
 	// `componentDidCatch`) to the host for persistence in the host file
 	// log. The sandboxed renderer can't write to userData directly.

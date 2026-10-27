@@ -2,13 +2,24 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
+from typing import Any
 
 from voice_typer.server import event_bus
 from voice_typer.server.streaming import StreamingConfig, StreamingTranscriptionSession
 
 log = logging.getLogger(__name__)
+
+
+def _is_worker_backed(transcriber: Any) -> bool:
+    """True only for a backend that delegates decoding to the pack worker.
+
+    ``is True`` on purpose: MagicMock doubles auto-create attributes, and a
+    mock's truthy stand-in must not be mistaken for the worker hop.
+    """
+    return getattr(transcriber, "worker_backed", False) is True
 
 
 def _publish_live_preview_unsupported(cycle_id: str) -> None:
@@ -82,17 +93,24 @@ class StreamingSessionCoordinator:
         # Streaming requires word-level timestamps: in-process engines
         # expose ``transcribe_words``; the worker-backed shim instead
         # streams through the C6 worker session (checked below).
-        from voice_typer.server.worker_backed_asr import WorkerBackedAsr as _WorkerBackedAsr
-
         active = app.models.active_transcriber()
         if active is not None:
+            # A cancelled cycle leaves the engine's abort token set (the
+            # watcher calls request_abort mid-decode); this cycle's windows
+            # would all decode to nothing until the stop-time clear. Drop it
+            # at cycle start — single-flight dictation guarantees no decode
+            # of the previous cycle is still running.
+            clear_abort = getattr(active, "clear_abort", None)
+            if callable(clear_abort):
+                with contextlib.suppress(Exception):
+                    clear_abort()
             # DEBUG, not INFO: transcriber capability is static per
             # engine, re-announcing it every recording is pure noise.
             log.debug(
                 "[STREAMING] Checking transcriber: %s has transcribe_words=%s worker_backed=%s",
                 type(active).__name__,
                 hasattr(active, "transcribe_words"),
-                isinstance(active, _WorkerBackedAsr),
+                _is_worker_backed(active),
             )
         else:
             log.debug("[STREAMING] No active transcriber, skipping streaming (cycle=%s)", app._cycle_id)
@@ -142,24 +160,20 @@ class StreamingSessionCoordinator:
         thread start) is a fallback signal, logged once each.
         """
         from voice_typer.server import worker_path
-        from voice_typer.server.worker_backed_asr import WorkerBackedAsr as _WorkerBackedAsr
         from voice_typer.server.worker_client import get_shared_client
         from voice_typer.server.worker_streaming import WorkerStreamingSession
 
         try:
             app = controller._app
-            # Worker-backed backends stream via the hop despite exposing
-            # no in-process word engine (C7). isinstance, not a flag
-            # read: MagicMock doubles auto-create any attribute.
-            if (
-                active is not None
-                and not hasattr(active, "transcribe_words")
-                and not isinstance(active, _WorkerBackedAsr)
-            ):
+            # Only a worker-backed backend may use the hop (C7). An
+            # in-process engine streams against the SAME model instance its
+            # stop-time decode uses; borrowing the worker's model would mix
+            # two decode paths into one transcript.
+            if not _is_worker_backed(active):
                 return False
             ok, reason = worker_path.worker_path_available(app)
             if not ok:
-                log.info("[STREAMING] worker path off (%s), in-process session", reason)
+                log.info("[STREAMING] worker path off (%s)", reason)
                 return False
             session = WorkerStreamingSession(
                 recorder=app.recorder,
@@ -171,7 +185,7 @@ class StreamingSessionCoordinator:
                 thread_registry=getattr(app, "_thread_registry", None),
             )
             if not session.start():
-                log.info("[STREAMING] worker session open failed, in-process session")
+                log.info("[STREAMING] worker session open failed")
                 return False
             controller.set_streaming_session(session)
             log.info("[STREAMING] Hidden worker streaming session started (cycle=%s)", app._cycle_id)

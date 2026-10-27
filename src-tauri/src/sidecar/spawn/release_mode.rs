@@ -40,6 +40,7 @@ pub(crate) async fn spawn_sidecar_release(
         .env_clear()
         .envs(passthrough_env_allowlist())
         .envs(super::env_allowlist::vt_start_hidden_env())
+        .envs(super::env_allowlist::early_bind_env())
         .env("TAURI_SIDECAR", "1")
         .env("VOICE_TYPER_IPC_TOKEN", token)
         .env("KMP_DUPLICATE_LIB_OK", "TRUE")

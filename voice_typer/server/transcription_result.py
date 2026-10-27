@@ -58,6 +58,7 @@ from voice_typer.server.transcription_batching import (  # noqa: F401, re-export
     _BATCHED_BATCH_SIZE,
     _BATCHED_MIN_DURATION_S,
     _BATCHED_SUPER_CHUNK_S,
+    _DECODE_TEMPERATURES,
     _VAD_PARAMETERS,
     _batched_pipeline_for,
     _decode_segments,
@@ -334,7 +335,7 @@ def transcribe_words_unlocked(
     segments, _info = engine._model.transcribe(
         audio,
         beam_size=engine.beam_size,
-        temperature=0.0,
+        temperature=_DECODE_TEMPERATURES,
         vad_filter=use_vad_filter,
         vad_parameters=_VAD_PARAMETERS,
         language=engine.language,

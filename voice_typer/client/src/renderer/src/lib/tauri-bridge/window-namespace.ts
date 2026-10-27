@@ -158,6 +158,28 @@ export function createWindowNamespace(tauri: TauriGlobal): WindowBridge {
 			}
 		},
 
+		//(MEDIA): native audio/video file picker for the Media page's
+		// "Browse files". A webview `<input type="file">` exposes only
+		// `file.name` (no directory), so the sidecar got a bare filename
+		// and reported decode_failed on a good file; only a host picker
+		// (or a drag-drop event) carries an absolute path.
+		pickMediaFile: async () => {
+			try {
+				const result = await tauri.core.invoke<{
+					canceled: boolean;
+					path?: string;
+				}>("pick_media_file_command");
+				return {
+					canceled: Boolean(result?.canceled),
+					path: result?.path,
+				};
+			} catch {
+				// Same shape contract as `openModelImportDialog`: errors
+				// read as a canceled pick so the call site is a no-op.
+				return { canceled: true };
+			}
+		},
+
 		// Push the renderer's current locale to the Rust host so it can
 		// localize its native surfaces. Mirrors the predecessor's
 		// `i18n:set-locale` IPC handler (main-process storage); the

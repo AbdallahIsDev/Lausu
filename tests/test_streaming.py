@@ -187,6 +187,46 @@ def test_streaming_text_assembler_skips_retimed_duplicate_overlap_words():
     assert assembler.committed_text == "patching"
 
 
+def test_streaming_text_assembler_attaches_decimal_tokens():
+    """Whisper emits a decimal as separate tokens ("1" + ".0" + ".2")."""
+    assembler = StreamingTextAssembler()
+
+    committed = assembler.add_words(
+        [
+            WordTiming("version", start_seconds=0.0, end_seconds=0.3),
+            WordTiming("1", start_seconds=0.4, end_seconds=0.5),
+            WordTiming(".0", start_seconds=0.5, end_seconds=0.6),
+            WordTiming(".2", start_seconds=0.6, end_seconds=0.7),
+        ],
+        commit_horizon_seconds=1.0,
+    )
+
+    assert committed == "version 1.0.2"
+    assert assembler.committed_text == "version 1.0.2"
+
+
+def test_streaming_text_assembler_attaches_sentence_punctuation():
+    assembler = StreamingTextAssembler()
+
+    committed = assembler.add_words(
+        [
+            WordTiming("it", start_seconds=0.0, end_seconds=0.2),
+            WordTiming("took", start_seconds=0.3, end_seconds=0.5),
+            WordTiming("1", start_seconds=0.6, end_seconds=0.7),
+            WordTiming(".7", start_seconds=0.7, end_seconds=0.8),
+            WordTiming("seconds", start_seconds=0.9, end_seconds=1.2),
+            WordTiming(",", start_seconds=1.2, end_seconds=1.3),
+            WordTiming("then", start_seconds=1.4, end_seconds=1.6),
+            WordTiming("stopped", start_seconds=1.7, end_seconds=2.0),
+            WordTiming(".", start_seconds=2.0, end_seconds=2.1),
+        ],
+        commit_horizon_seconds=5.0,
+    )
+
+    assert committed == "it took 1.7 seconds, then stopped."
+    assert assembler.committed_text == "it took 1.7 seconds, then stopped."
+
+
 def test_streaming_session_finalizes_only_uncommitted_tail():
     config = StreamingConfig(
         min_first_chunk_seconds=5.0,

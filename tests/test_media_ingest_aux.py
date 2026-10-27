@@ -275,7 +275,7 @@ class TestPackDenoDiscovery:
         found = js_runtime.find_js_runtime(which=_which, pack_root=tmp_path)
         assert found is not None and found.name == "deno"
         assert found.path.endswith(f"bin{os.sep}{exe}")
-        assert js_runtime.js_runtime_options(found) == {"deno": found.path}
+        assert js_runtime.js_runtime_options(found) == {"deno": {"path": found.path}}
 
     def test_pack_without_deno_falls_back_to_path(self, tmp_path):
         self._make_pack(tmp_path, with_deno=False)
@@ -371,3 +371,26 @@ class TestPackDenoDiscovery:
                 return {"subtitles": {"en": [{"url": ""}, {}]}}
 
         assert subtitles.fetch_subtitles("https://x", factory=lambda o: InfoYDL(o)) is None
+
+
+class TestDurationProbe:
+    """`probe_duration_seconds` feeds the local-job progress contract."""
+
+    def test_reads_container_duration_and_fails_soft(self, tmp_path):
+        import wave
+
+        import numpy as np
+        from voice_typer.server.media_ingest import decoder
+
+        path = tmp_path / "clip.wav"
+        with wave.open(str(path), "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(16000)
+            wf.writeframes(np.zeros(16000, dtype=np.int16).tobytes())
+
+        probed = decoder.probe_duration_seconds(str(path))
+        assert probed is not None
+        assert abs(probed - 1.0) < 0.05
+        # Unknown/garbage sources answer None (a probe never blocks a job).
+        assert decoder.probe_duration_seconds(str(tmp_path / "missing.wav")) is None

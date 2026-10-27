@@ -92,6 +92,31 @@ def decode_chunks(source: str, *, remote: bool = False, start_seconds: float = 0
                 yield merged.astype(np.float32, copy=False)
 
 
+def probe_duration_seconds(source: str, *, remote: bool = False) -> float | None:
+    """Container duration in seconds, or ``None`` when unknown.
+
+    Local jobs need a total to report a fraction/ETA (URL jobs get it from
+    the resolver). The container header already carries it, so this costs
+    one open, no decode pass; best-effort by design.
+    """
+    try:
+        import av
+    except ImportError:
+        return None
+    options = {"open_timeout": str(OPEN_TIMEOUT_US)} if remote else None
+    try:
+        container = av.open(source, options=options) if options else av.open(source)
+        with container:
+            if container.duration:
+                return float(container.duration) / 1_000_000.0
+            stream = next((s for s in container.streams if s.type == "audio"), None)
+            if stream is not None and stream.duration and stream.time_base:
+                return float(stream.duration * stream.time_base)
+    except Exception:  # noqa: BLE001, a probe never blocks the job
+        log.debug("[MEDIA] duration probe failed", exc_info=True)
+    return None
+
+
 def _concat(parts: list):
     import numpy as np
 

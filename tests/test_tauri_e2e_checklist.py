@@ -662,6 +662,35 @@ class TestStatusFlow:
         assert snapshots[0]["data"]["status"] == data["status"]
         assert snapshots[0]["data"]["message"] == data["message"]
 
+    def test_state_snapshot_skips_cleanly_before_the_app_exists(self, bus_events, caplog):
+        """Early server-started mode accepts auth BEFORE app construction.
+
+        The connect-time snapshot must skip silently on a pre-app server
+        instead of raising ``AttributeError`` on the ``None`` app (the
+        traceback used to land in DEBUG logs on every cold start).
+        """
+        from types import SimpleNamespace
+        from typing import Any
+
+        from voice_typer.server.sidecar_ws_internals.connection import (
+            _emit_initial_state_snapshot,
+        )
+
+        # Stand-ins for IPCServer (typed Any so the type checker doesn't flag the
+        # deliberate non-server shape): pre-construction server (early bind),
+        # app up but tray not yet, and the `app` attribute absent entirely.
+        bus_events.clear()
+        with caplog.at_level(logging.DEBUG, logger="voice_typer.server.sidecar_ws"):
+            pre_app: Any = SimpleNamespace(app=None)
+            app_without_tray: Any = SimpleNamespace(app=SimpleNamespace())
+            bare: Any = SimpleNamespace()
+            _emit_initial_state_snapshot(pre_app)
+            _emit_initial_state_snapshot(app_without_tray)
+            _emit_initial_state_snapshot(bare)
+
+        assert [e for e in bus_events if e["type"] == "state_changed"] == []
+        assert "failed to emit initial state_changed on connect" not in caplog.text
+
     def test_tray_state_and_menu_reach_the_bus_in_tauri_mode(self, ws_backend, bus_events):
         """TAURI_SIDECAR=1: every tray transition publishes ``tray_state``"""
         app, server = ws_backend

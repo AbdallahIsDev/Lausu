@@ -398,7 +398,14 @@ class AudioPipeline(AudioPipelineTelemetryMixin):
                 max_duration_cb()
 
         if chunk_count == BUFFER_WARNING_THRESHOLD:
-            log.warning("[RECORDING] Buffer is large (5k chunks, ~5 min). Consider stopping recording.")
+            # Duration comes from the real elapsed time, never a hardcoded
+            # guess: the same chunk count covers a different span once the
+            # stream blocksize is rate-scaled.
+            log.warning(
+                "[RECORDING] Buffer is large (%d chunks, %.1f min recorded). Consider stopping recording.",
+                chunk_count,
+                recording_duration / 60.0,
+            )
         if _BUFFER_TELEMETRY_ENABLED and chunk_count % TELEMETRY_LOG_INTERVAL == 0:
             log.debug(
                 "[RECORDING] Buffer telemetry: chunks=%d, buffer_count=%d",

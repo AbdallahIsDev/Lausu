@@ -57,7 +57,7 @@ def resolve_media_url(
     url: str,
     *,
     factory: YoutubeDLFactory | None = None,
-    js_runtimes: dict[str, str] | None = None,
+    js_runtimes: dict[str, dict[str, str]] | None = None,
 ) -> ResolvedMedia:
     """Resolve ``url`` to a direct downloadable/streamable audio URL."""
     cleaned = (url or "").strip()

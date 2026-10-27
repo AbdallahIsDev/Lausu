@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 import threading
+import time
 import uuid
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any
+
+from voice_typer.server.duration import format_duration
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -33,6 +39,7 @@ class MediaJobManager:
         self._lock = threading.Lock()
         self._active: MediaJob | None = None
         self._last: MediaJob | None = None
+        self._thread: threading.Thread | None = None
         self._on_event = on_event or (lambda _e: None)
 
     def start(self, source: str, runner: Callable[[MediaJob], dict[str, Any]]) -> MediaJob:
@@ -50,9 +57,22 @@ class MediaJobManager:
 
         def _run() -> None:
             started.set()
+            started_at = time.perf_counter()
+            # One start line + one outcome line per job: the in-app toast is
+            # ephemeral, the log is the only durable record of the outcome.
+            log.info("[MEDIA] job start: id=%s source=%s", job.job_id, job.source)
             try:
                 job.result = runner(job)
                 job.status = "cancelled" if job.cancel_event.is_set() else "completed"
+                result = job.result or {}
+                log.info(
+                    "[MEDIA] job %s: id=%s row_id=%s chars=%s%s",
+                    job.status,
+                    job.job_id,
+                    result.get("row_id"),
+                    result.get("chars"),
+                    format_duration(time.perf_counter() - started_at),
+                )
             except Exception as exc:  # noqa: BLE001, captured into job state
                 job.status = "failed"
                 job.error = str(exc)
@@ -77,6 +97,14 @@ class MediaJobManager:
                         code = ErrorCodes.NO_MODEL
                     else:
                         code = "internal_error"
+                log.exception(
+                    "[MEDIA] job failed: id=%s code=%s source=%s error=%s%s",
+                    job.job_id,
+                    code,
+                    job.source,
+                    job.error,
+                    format_duration(time.perf_counter() - started_at),
+                )
                 with suppress(Exception):
                     self._on_event(
                         {
@@ -91,9 +119,22 @@ class MediaJobManager:
                     self._last = job
 
         thread = threading.Thread(target=_run, name="media-ingest", daemon=True)
+        with self._lock:
+            self._thread = thread
         thread.start()
         started.wait(timeout=5)
         return job
+
+    def wait(self, timeout: float = 5.0) -> None:
+        """Join the current/last job thread (deterministic outcome reads).
+
+        ``job.status`` flips before the outcome line is logged, so callers
+        that read the log or the result must join instead of polling status.
+        """
+        with self._lock:
+            thread = self._thread
+        if thread is not None:
+            thread.join(timeout)
 
     def cancel(self) -> bool:
         """Signal cancellation; True when a running job was found."""

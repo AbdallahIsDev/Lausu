@@ -16,6 +16,7 @@ import {
 	HEALTH_CHECK_INTERVAL_MS,
 	HEALTH_CHECK_MAX_RETRIES,
 	HEALTH_CHECK_RETRY_DELAY_MS,
+	isTransientStartupError,
 	isTransientTimeoutError,
 	MANUAL_RETRY_PROBE_MAX_ATTEMPTS,
 	MAX_BACKGROUND_RECONNECTS,
@@ -129,5 +130,27 @@ describe("connection timing constants", () => {
 		).toBe(true);
 		expect(isTransientTimeoutError(new Error("down"))).toBe(false);
 		expect(isTransientTimeoutError("socket closed")).toBe(false);
+	});
+
+	it("isTransientStartupError also covers the pre-bind host state", () => {
+		// The host raises `LausuError::NotConnected` ("sidecar not
+		// connected") while it holds no WS sender — the normal state for
+		// the first seconds of a cold boot. Treating it as terminal spent
+		// the whole probe budget and parked the app on the failure screen.
+		expect(isTransientStartupError(new Error("sidecar not connected"))).toBe(
+			true,
+		);
+		expect(isTransientStartupError("Sidecar Not Connected")).toBe(true);
+		// Timeout shapes stay transient through the same classifier.
+		expect(isTransientStartupError(new Error("timed out after 15s"))).toBe(
+			true,
+		);
+		// Real breakage must NOT buy patience: these are the shapes that
+		// mean the backend answered with a verdict, not "not yet".
+		expect(isTransientStartupError(new Error("auth failed"))).toBe(false);
+		expect(isTransientStartupError(new Error("unknown command: x"))).toBe(
+			false,
+		);
+		expect(isTransientStartupError(new Error("sidecar exited"))).toBe(false);
 	});
 });

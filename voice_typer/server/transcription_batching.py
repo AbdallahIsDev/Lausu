@@ -43,6 +43,11 @@ _BATCHED_MIN_DURATION_S: Final[float] = 30.0
 # batched speed, same as today's 30 s-window granularity).
 _BATCHED_SUPER_CHUNK_S: Final[float] = 120.0
 _BATCHED_BATCH_SIZE: Final[int] = 8
+# Whisper's anti-repetition guard: when a decode trips the compression-ratio
+# (repeat) or avg-logprob check, faster-whisper re-decodes at the NEXT
+# temperature. A bare ``0.0`` collapses the ladder to a single candidate, so a
+# degenerate repeat-loop (music/noise-heavy audio) is accepted verbatim.
+_DECODE_TEMPERATURES: Final[tuple[float, ...]] = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
 
 
 def _batched_pipeline_for(engine: Any) -> Any | None:
@@ -148,16 +153,30 @@ def _decode_segments(engine: Any, audio: Any, use_vad_filter: bool, duration: fl
     """
     kwargs = {
         "beam_size": engine.beam_size,
-        "temperature": 0.0,
+        "temperature": _DECODE_TEMPERATURES,
         "vad_filter": use_vad_filter,
         "vad_parameters": _VAD_PARAMETERS,
         "language": engine.language,
         "condition_on_previous_text": engine.condition_on_previous_text,
         "without_timestamps": True,
     }
-    if duration <= _BATCHED_MIN_DURATION_S:
-        return engine._model.transcribe(audio, **kwargs)
-    pipeline = _batched_pipeline_for(engine)
+    # The batched pipeline maps its chunks back through VAD speech timestamps:
+    # with the filter off and no ``clip_timestamps`` it refuses to run ("Set
+    # 'vad_filter' to True or provide 'clip_timestamps'."), so VAD-off audio
+    # stays on the sequential call.
+    pipeline = _batched_pipeline_for(engine) if duration > _BATCHED_MIN_DURATION_S and use_vad_filter else None
+    # One line per dictation: which decode policy actually ran (the pack
+    # worker and the in-process fallback engine share this body, so a
+    # divergent setting shows up here instead of in a quality mystery).
+    log.info(
+        "[TRANSCRIBE] decode path=%s device=%s beam=%s vad=%s condition_prev=%s (%.1fs audio)",
+        "batched" if pipeline is not None else "sequential",
+        getattr(engine, "_device", "unknown"),
+        engine.beam_size,
+        use_vad_filter,
+        engine.condition_on_previous_text,
+        duration,
+    )
     if pipeline is None:
         return engine._model.transcribe(audio, **kwargs)
     chunks = _split_on_silence(audio, _WHISPER_SAMPLE_RATE)

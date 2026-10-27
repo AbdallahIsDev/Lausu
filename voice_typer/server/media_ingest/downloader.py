@@ -25,7 +25,7 @@ def temp_audio_download(
     *,
     factory: Callable[..., Any] | None = None,
     on_progress: Callable[[float], None] | None = None,
-    js_runtimes: dict[str, str] | None = None,
+    js_runtimes: dict[str, dict[str, str]] | None = None,
 ) -> Iterator[Path]:
     """Download audio-only to a temp file; delete it on exit.
 

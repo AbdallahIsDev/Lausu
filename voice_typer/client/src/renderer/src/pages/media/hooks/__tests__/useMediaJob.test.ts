@@ -2,13 +2,19 @@
 // push-event transitions / status hydration (ADR-0023).
 
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { t } from "@/i18n/i18n";
 import { useConsentGateStore } from "@/lib/consentGate";
 import { type UseMediaJobResult, useMediaJob } from "../useMediaJob";
 
 const registered = new Map<string, (data?: unknown) => unknown>();
 const callMock = vi.fn();
+
+vi.mock("sonner", () => ({
+	toast: { error: vi.fn(), success: vi.fn() },
+}));
 
 vi.mock("@/hooks/usePython", () => ({
 	usePython: () => ({ call: callMock }),
@@ -100,7 +106,7 @@ describe("useMediaJob", () => {
 		});
 	});
 
-	it("maps start-time server.no_model to the no-model error copy", async () => {
+	it("surfaces start-time server.no_model as a toast carrying the Open Models action", async () => {
 		callMock.mockImplementation((cmd: string) => {
 			if (cmd === "media_transcribe_status")
 				return Promise.resolve({ job: null });
@@ -113,7 +119,22 @@ describe("useMediaJob", () => {
 			await result.current.start("/tmp/clip.wav", false);
 		});
 		expect(result.current.job.phase).toBe("error");
-		expect(result.current.job.errorKey).toBe("media.errorNoModel");
+		expect(toast.error).toHaveBeenCalledWith(
+			t("media.errorTitle"),
+			expect.objectContaining({
+				description: t("media.errorNoModel"),
+				action: expect.objectContaining({ label: t("media.noModelAction") }),
+			}),
+		);
+		// The affordance the inline card used to carry now lives on the toast.
+		const calls = vi.mocked(toast.error).mock.calls;
+		const options = calls[calls.length - 1]?.[1] as {
+			action?: { onClick?: () => void };
+		};
+		act(() => {
+			options.action?.onClick?.();
+		});
+		expect(localStorage.getItem("vt_nav_state")).toContain("models");
 	});
 
 	it("applies progress pushes (phase, fraction, ETA, duration)", async () => {
@@ -147,7 +168,7 @@ describe("useMediaJob", () => {
 		expect(result.current.job.partial).toBe(true);
 	});
 
-	it("maps media error codes to localized copy (drm_refused)", async () => {
+	it("maps media error codes to localized toast copy (drm_refused)", async () => {
 		const { result } = renderHook(() => useMediaJob());
 		await actStart(result);
 		fire("media_transcribe_error", {
@@ -156,9 +177,34 @@ describe("useMediaJob", () => {
 			message: "DRM content refused",
 		});
 		expect(result.current.job.phase).toBe("error");
-		expect(result.current.job.errorKey).toBe("media.errorDrm");
 		// The raw backend message never reaches the UI surface.
-		expect(result.current.job.errorCode).toBe("drm_refused");
+		expect(toast.error).toHaveBeenCalledWith(
+			t("media.errorTitle"),
+			expect.objectContaining({ description: t("media.errorDrm") }),
+		);
+		const calls = vi.mocked(toast.error).mock.calls;
+		const options = calls[calls.length - 1]?.[1] as {
+			action?: unknown;
+		};
+		expect(options.action).toBeUndefined();
+	});
+
+	it("shows no error toast on a clean run", async () => {
+		const { result } = renderHook(() => useMediaJob());
+		await actStart(result);
+		fire("media_transcribe_progress", {
+			job_id: "j1",
+			progress: 0.3,
+			phase: "transcribing",
+		});
+		fire("media_transcribe_complete", {
+			job_id: "j1",
+			row_id: 3,
+			chars: 10,
+			partial: false,
+		});
+		expect(result.current.job.phase).toBe("done");
+		expect(toast.error).not.toHaveBeenCalled();
 	});
 
 	it("hydrates a running job from the status probe after navigation", async () => {

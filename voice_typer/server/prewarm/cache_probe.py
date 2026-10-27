@@ -143,8 +143,14 @@ _WORKER_WARM_PACKAGES: tuple[str, ...] = (
 )
 
 
-def _warm_imports() -> None:
-    """Page the runtime-pack libraries' files into the OS cache (no import)."""
+def _warm_imports(*, include_model_weights: bool = True) -> None:
+    """Page the runtime-pack libraries' files into the OS cache (no import).
+
+    ``include_model_weights`` is False for the worker's own startup path:
+    the mandatory integrity gate that runs moments later re-hashes those
+    very files, so warming them first is a second full read of the
+    multi-GB payload for zero benefit.
+    """
     t0 = time.perf_counter()
     warmed: list[str] = []
     segments: list[str] = []
@@ -168,12 +174,15 @@ def _warm_imports() -> None:
             format_duration(time.perf_counter() - t0),
         )
     # Warm the active model's WEIGHT files too (the multi-GB payload
-    try:
-        weight_bytes = _warm_model_weights(_active_model_cache_dirs())
-        if weight_bytes > 0:
-            warmed.append("model-weights")
-    except Exception:
-        log.debug("[PREWARM] model-weights warm pass failed, continuing", exc_info=True)
+    # dominates post-reboot cold-start cost). The worker's startup path
+    # skips it: its integrity gate re-reads the same bytes moments later.
+    if include_model_weights:
+        try:
+            weight_bytes = _warm_model_weights(_active_model_cache_dirs())
+            if weight_bytes > 0:
+                warmed.append("model-weights")
+        except Exception:
+            log.debug("[PREWARM] model-weights warm pass failed, continuing", exc_info=True)
     elapsed = time.perf_counter() - t0
     # C-LOG-2: lifecycle-completion log line carries the canonical
     log.info(
@@ -184,7 +193,7 @@ def _warm_imports() -> None:
     )
 
 
-def warm_imports_for_worker() -> None:
+def warm_imports_for_worker(*, include_model_weights: bool = True) -> None:
     """Public entry point the worker exe calls once at startup.
 
     Thin wrapper around :func:`_warm_imports` so the worker entry point
@@ -198,7 +207,7 @@ def warm_imports_for_worker() -> None:
     correctness).
     """
     try:
-        _warm_imports()
+        _warm_imports(include_model_weights=include_model_weights)
     except Exception:
         log.debug("[PREWARM] warm_imports_for_worker failed, continuing with cold cache", exc_info=True)
 

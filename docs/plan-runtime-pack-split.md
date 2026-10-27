@@ -318,8 +318,15 @@ re-architecture. Three options:
 
 #### Option P-1 (DECIDED; see §14): prewarm becomes a worker startup phase
 
-The worker exe runs a prewarm phase on startup (before accepting the first
-transcription request). This eliminates:
+The worker exe runs a prewarm phase on startup. Since 2026-10-27 that phase
+is **backgrounded behind the WS bind**: the worker binds its listener, prints
+the `worker_started` handshake, and only then starts the warm pass on a daemon
+thread, so the slim core can connect and begin the model load immediately
+instead of waiting 5-10s for imports. The phase also skips the model-weights
+read (`include_model_weights=False`): the integrity gate a few seconds later
+re-hashes those same multi-GB files, so warming them here was a second full
+read for no benefit (mtime/size caching of the integrity verdict stays
+rejected — the verifier deliberately re-hashes bytes). This eliminates:
 
 - `prewarm-<triple>[.exe]` binary (3 build scripts deleted).
 - `src-tauri/src/sidecar/spawn/prewarm.rs` (54 LOC).
@@ -337,10 +344,11 @@ The prewarm logic itself (`cache_probe.py:_warm_imports`) moves into the
 worker's startup sequence. The `_warm_imports` package list becomes
 worker-internal (onnxruntime + ctranslate2 + numpy/scipy).
 
-**Trade-off:** the worker takes longer to start (it warms before accepting
-requests). But the user never sees this, the worker starts in the
-background after the pack download completes, and by the time the user
-clicks "transcribe," the worker is warm.
+**Trade-off:** the worker warms imports after its listener is up, so the first
+transcription request can arrive slightly ahead of the warm pass. That is the
+intended trade: the model load dominates the cold path anyway (device probe +
+integrity hash + weight load + CUDA smoke), and it no longer queues behind a
+warm pass that re-read the same weights.
 
 #### Option P-2: keep prewarm as a separate binary
 

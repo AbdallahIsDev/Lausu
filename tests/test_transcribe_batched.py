@@ -157,8 +157,26 @@ class TestDecodeSegments:
         assert info.language == "en"
         assert seen[1]["batch_size"] == _BATCHED_BATCH_SIZE
         assert seen[1]["beam_size"] == 1
-        assert seen[1]["temperature"] == 0.0
+        assert seen[1]["temperature"] == (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
         assert seen[1]["without_timestamps"] is True
+
+    def test_vad_off_stays_sequential(self, monkeypatch):
+        """VAD-off audio must not reach the batched pipeline: it needs the filter
+        (or clip_timestamps) to map chunks back and raises without it."""
+        engine = _make_engine()
+        engine._model = MagicMock()
+        engine._model.transcribe.return_value = (iter([_seg()]), _info())
+        built = []
+
+        class FakePipeline:
+            def __init__(self, model):
+                built.append(model)
+
+        monkeypatch.setattr("faster_whisper.BatchedInferencePipeline", FakePipeline)
+        segments, _ = _decode_segments(engine, _loud_audio(61), False, 61.0)
+        assert [s.text for s in segments] == ["hello"]
+        assert built == [], "batch pipeline must not be built when vad_filter is off"
+        engine._model.transcribe.assert_called_once()
 
 
 class TestTranscribeUnlockedBatched:

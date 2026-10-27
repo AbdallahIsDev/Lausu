@@ -7,6 +7,9 @@ pub(crate) enum DialogTitle {
     /// `open_model_import_dialog`'s native folder picker
     /// (HuggingFace model-cache import).
     SelectModelFolder,
+    /// `pick_media_file_command`'s native file picker (Media page
+    /// drop-zone "Browse files").
+    SelectMediaFile,
     /// `export_history`'s save-file dialog.
     ExportHistory,
     /// `export_vocabulary`'s save-file dialog.
@@ -49,6 +52,17 @@ pub(crate) fn localized_title(kind: DialogTitle, locale: Option<&str>) -> &'stat
             "zh" => "选择模型文件夹",
             // "en" and every unrecognized language: English fallback.
             _ => "Select Model Folder",
+        },
+        DialogTitle::SelectMediaFile => match lang.as_str() {
+            "ar" => "اختيار ملف صوت أو فيديو",
+            "de" => "Audio- oder Videodatei auswählen",
+            "es" => "Seleccionar archivo de audio o vídeo",
+            "fr" => "Sélectionner un fichier audio ou vidéo",
+            "hi" => "ऑडियो या वीडियो फ़ाइल चुनें",
+            "ru" => "Выберите аудио- или видеофайл",
+            "zh" => "选择音频或视频文件",
+            // "en" and every unrecognized language: English fallback.
+            _ => "Select Audio or Video File",
         },
         DialogTitle::ExportHistory => match lang.as_str() {
             "ar" => "تصدير السجل",

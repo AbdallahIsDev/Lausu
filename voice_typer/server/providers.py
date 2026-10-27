@@ -414,7 +414,9 @@ def build_ipc_server(app: AppProtocol) -> IPCServer:
     from voice_typer.server.ipc_server import IPCServer
 
     # Soft AppProtocol validation.  ``runtime_checkable``
-    if not isinstance(app, AppProtocol):
+    # A ``None`` app is the early-bind launch order's deliberate
+    # placeholder (bind before ``LausuApp()`` exists); skip the check.
+    if app is not None and not isinstance(app, AppProtocol):
         missing = [attr for attr in getattr(AppProtocol, "__annotations__", {}) if not hasattr(app, attr)]
         log.warning(
             "build_ipc_server: app does not satisfy AppProtocol "

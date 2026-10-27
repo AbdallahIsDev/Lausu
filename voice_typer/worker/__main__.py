@@ -54,8 +54,9 @@ def run() -> int:
 
     Wiring-only: probe websockets → parse args → set VOICE_TYPER_DEBUG →
     configure canonical logging (C-LOG-1) → acquire single-instance lock
-    → verify VOICE_TYPER_IPC_TOKEN → run prewarm phase → delegate to
-    :func:`run_worker_server` → release lock + emit SHUTDOWN log line
+    → verify VOICE_TYPER_IPC_TOKEN → delegate to
+    :func:`run_worker_server` (binds the listener, then runs the prewarm
+    phase behind it) → release lock + emit SHUTDOWN log line
     with measured duration (C-LOG-2) in ``finally``.
     """
     _force_line_buffered_stdout()
@@ -145,12 +146,6 @@ def run() -> int:
         lock_handle.release()
         return EXIT_NO_TOKEN
 
-    # Prewarm phase (master plan §6.2 P-1). Runs ONCE before the WS
-    # server accepts connections, so the cache is warm by the time the
-    # slim-core sidecar connects + sends the first ``transcribe_offline``.
-    prewarm_elapsed = _run_prewarm_phase()
-    prewarm_ran = prewarm_elapsed >= 0  # always True; tracked for log clarity
-
     import asyncio
 
     stop_event = asyncio.Event()
@@ -159,8 +154,7 @@ def run() -> int:
     try:
         success = asyncio.run(
             run_worker_server(
-                prewarm_elapsed=prewarm_elapsed,
-                prewarm_ran=prewarm_ran,
+                prewarm_ran=True,
                 stop_event=stop_event,
                 shutdown_timer=shutdown_timer,
             )

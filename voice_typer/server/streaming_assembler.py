@@ -23,6 +23,26 @@ from voice_typer.server.text_cleanup import _token_key
 # ``voice_typer.server.streaming`` for the records emitted here.
 log = logging.getLogger("voice_typer.server.streaming")
 
+# Word timestamps arrive one TOKEN at a time and whisper emits trailing
+# punctuation as its own token ("1" + ".7"), so a plain ``" ".join`` turned
+# every decimal into "1 .7". A token that starts with punctuation attaches to
+# the previous one instead of taking a space.
+_ATTACHED_PUNCTUATION = frozenset(".,!?;:%)]}…’”。")
+
+
+def _join_word_tokens(tokens: Iterable[str]) -> str:
+    """Join decoder word tokens into text, attaching punctuation tokens."""
+    parts: list[str] = []
+    for token in tokens:
+        text = token.strip()
+        if not text:
+            continue
+        if parts and text[0] not in _ATTACHED_PUNCTUATION:
+            parts.append(" ")
+        parts.append(text)
+    return "".join(parts)
+
+
 @dataclass
 class StreamingTextAssembler:
     """Commit timestamped words only after they are outside the unsafe tail."""
@@ -55,7 +75,7 @@ class StreamingTextAssembler:
             # PERF- sort at read time since we deferred sorting
             words_list = list(self._words)
             words_list.sort(key=lambda w: (w.start_seconds, w.end_seconds))
-            self._committed_text_cache = " ".join(word.word for word in words_list)
+            self._committed_text_cache = _join_word_tokens(word.word for word in words_list)
             self._words_dirty = False
             return self._committed_text_cache
 
@@ -133,7 +153,7 @@ class StreamingTextAssembler:
             if prune_threshold > 0:
                 self._prune_old_entries(prune_threshold)
         # when ``commit_horizon_seconds == math.inf`` (the
-        return " ".join(committed)
+        return _join_word_tokens(committed)
 
     def _prune_old_entries(self, threshold: float) -> None:
         """Prune dedup structures for old entries; never remove from _words.

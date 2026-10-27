@@ -19,8 +19,9 @@ use super::{localized_title, DialogTitle, SUPPORTED_LANGUAGES};
 /// All title kinds covered by the lookup, every test below iterates
 /// this list so adding a new dialog title site without extending the
 /// lookup (or the tests) fails loudly.
-const ALL_KINDS: [DialogTitle; 6] = [
+const ALL_KINDS: [DialogTitle; 7] = [
     DialogTitle::SelectModelFolder,
+    DialogTitle::SelectMediaFile,
     DialogTitle::ExportHistory,
     DialogTitle::ExportVocabulary,
     DialogTitle::ExportTemplates,

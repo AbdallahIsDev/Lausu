@@ -210,6 +210,29 @@ class TestAssemblerPortFidelity:
         tail = self._words(("world", 0.5, 0.9), ("again", 1.0, 1.4))
         assert self._worker_merge(committed, tail) == self._slim_merge(committed, tail) == "hello world again"
 
+    def test_decoder_token_punctuation_matches_on_both(self):
+        committed = self._words(
+            ("version", 0.0, 0.3),
+            ("1", 0.4, 0.5),
+            (".0", 0.5, 0.6),
+            (".2", 0.6, 0.7),
+        )
+        tail = self._words(
+            ("shipped", 0.8, 1.2),
+            (",", 1.2, 1.3),
+            ("took", 1.4, 1.6),
+            ("1", 1.7, 1.8),
+            (".7", 1.8, 1.9),
+            ("seconds", 2.0, 2.3),
+            (".", 2.3, 2.4),
+        )
+
+        slim_text = self._slim_merge(committed, tail)
+        worker_text = self._worker_merge(committed, tail)
+
+        assert worker_text == slim_text
+        assert worker_text == "version 1.0.2 shipped, took 1.7 seconds."
+
     def test_boundary_variant_merges_clean_on_both(self):
         committed = self._words(("runtime", 4.0, 4.4), ("pack", 4.5, 4.8), ("worker", 5.0, 5.4))
         tail = self._words(("PackWorker", 4.5, 4.9), ("worker", 5.0, 5.4), ("handoff", 5.5, 5.9))
@@ -221,15 +244,17 @@ class TestAssemblerPortFidelity:
 
 
 class TestCoordinatorSwitch:
-    def _controller(self, monkeypatch, gate, client):
+    def _controller(self, monkeypatch, gate, client, transcriber=None):
         import voice_typer.server.worker_path as worker_path_mod
         from voice_typer.server import streaming_session_coordinator as coord_mod, worker_client as worker_client_mod
 
         monkeypatch.setattr(worker_path_mod, "worker_path_available", lambda app: gate)
         monkeypatch.setattr(worker_client_mod, "get_shared_client", lambda: client)
+        if transcriber is None:
+            transcriber = SimpleNamespace(transcribe_words=lambda: None)
         app = SimpleNamespace(
             recorder=_recorder(),
-            models=SimpleNamespace(active_transcriber=lambda: SimpleNamespace(transcribe_words=lambda: None)),
+            models=SimpleNamespace(active_transcriber=lambda: transcriber),
             config=SimpleNamespace(
                 streaming_transcription=True,
                 streaming_chunk_seconds=12.0,
@@ -247,16 +272,60 @@ class TestCoordinatorSwitch:
         controller.set_streaming_session = lambda s: controller._sessions.__setitem__(0, s)
         return coord_mod, controller
 
-    def test_worker_session_preferred_when_gate_open(self, monkeypatch):
+    def test_in_process_engine_ignores_the_worker_gate(self, monkeypatch):
+        """An in-process engine streams against its OWN model, gate or not.
+
+        Taking the worker hop here would decode the same recording with two
+        different model instances (worker chunks + in-process tail merge).
+        """
+        made = {}
+
+        class _FakeInProcess:
+            def __init__(self, **kwargs):
+                made["transcriber"] = kwargs["transcriber"]
+                made["built"] = True
+
+            def start(self):
+                made["started"] = True
+
         coord_mod, controller = self._controller(monkeypatch, (True, "ok"), _FakeClient())
+        monkeypatch.setattr(coord_mod, "StreamingTranscriptionSession", _FakeInProcess)
         coord = coord_mod.StreamingSessionCoordinator()
+
         coord.start_streaming_session_if_enabled(controller)
-        try:
-            session = controller._sessions[0]
-            assert isinstance(session, worker_streaming.WorkerStreamingSession)
-        finally:
-            if controller._sessions[0] is not None:
-                controller._sessions[0].cancel(blocking=True)
+
+        assert made.get("started") is True
+        assert made["transcriber"] is not None
+        assert not isinstance(controller._sessions[0], worker_streaming.WorkerStreamingSession)
+
+    def test_stale_abort_is_cleared_before_the_new_cycle(self, monkeypatch):
+        """A cancelled cycle must not mute the next cycle's windows."""
+        calls = []
+
+        class _Engine:
+            worker_backed = False
+
+            def transcribe_words(self, audio, offset_seconds=0.0):
+                return []
+
+            def clear_abort(self):
+                calls.append("clear")
+
+            def request_abort(self):
+                calls.append("abort")
+
+        class _FakeInProcess:
+            def __init__(self, **kwargs):
+                pass
+
+            def start(self):
+                calls.append("start")
+
+        coord_mod, controller = self._controller(monkeypatch, (False, "no_pack"), _FakeClient(), transcriber=_Engine())
+        monkeypatch.setattr(coord_mod, "StreamingTranscriptionSession", _FakeInProcess)
+        coord_mod.StreamingSessionCoordinator().start_streaming_session_if_enabled(controller)
+
+        assert calls == ["clear", "start"]
 
     def test_gate_off_falls_back_to_in_process(self, monkeypatch):
         import voice_typer.server.streaming_session_coordinator as coord_mod
