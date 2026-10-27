@@ -61,7 +61,7 @@ The server could not process a well-formed request. The renderer surfaces a gene
 | `server.model_switch_failed` | The model-switch handler could not switch to the requested model. |
 | `server.shutting_down` | The server is mid-shutdown and refusing new work. |
 | `server.no_model` | No speech model is selected/installed (ADR-0023 media-to-text start gate; the renderer deep-links to Models). |
-| `server.job_busy` | Another media transcription job is already running (ADR-0023 single-active-job policy). |
+| `server.job_busy` | The media concurrency cap is full: `max_jobs` transcriptions are already running (ADR-0023; the cap is reported by `media_transcribe_status`, and the renderer disables its inputs at that number rather than treating this as the normal path). |
 | `server.not_supported` | The media source cannot be transcribed (no JS runtime for a YouTube challenge, live stream). |
 | `server.unknown_command` | The `type` field did not resolve to an entry in `_COMMAND_REGISTRY`. |
 | `server.unknown_tray_item` | A tray-menu RPC referenced an item the server does not know about. |

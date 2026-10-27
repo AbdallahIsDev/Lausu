@@ -205,6 +205,53 @@ for the lane releases it without decoding.
 Cap semantics: `start` raises `job_busy` at the cap, `media_transcribe_status`
 reports `{jobs, max_jobs}` so the renderer disables its inputs from the
 backend's number, and a finished job frees its slot immediately. Cancel takes
-an optional `job_id` (one job) or none (all). Stress evidence:
-`bench/media_concurrency_stress.py` (6 jobs, cap 4, real model, real decoder)
-— see `bench/media-concurrency-stress.log`.
+an optional `job_id` (one job) or none (all).
+
+**Job↔row ownership is explicit, never inferred.** Every start carries a
+renderer-minted `client_id`; the backend echoes it on the ack and on all three
+events (`progress`/`complete`/`error`), and the renderer resolves a row by
+`client_id` first and `job_id` second. An earlier "adopt the only row still
+waiting for an ack" heuristic is gone: with two starts in flight it dropped
+every event for both rows (rows pinned in `starting`, `activeCount` never
+dropping, the page permanently at capacity with no Cancel to escape) or bound
+a late event to an unrelated fresh row.
+
+**Cancel is scoped, and the target set is chosen under the manager lock.**
+`cancel()` selects its targets and sets each job's `cancel_event` inside one
+`with self._lock:` block. That Event is the abort source threaded into the
+job's own decode, so the window stops between segments and nothing else is
+touched. The engine-wide `request_abort()` / `clear_abort()` pair is never
+called from here, for two reasons: one shared flag is exactly how cancelling
+one media job used to truncate an in-flight dictation recording, and a flag
+left set by an earlier cancel used to truncate the next job's first window.
+The scoped kwarg is feature-detected (`inspect.signature`), so the cloud,
+parakeet and qwen backends — which take no `**kwargs` — are unaffected.
+Cancelling every job (`cancel(None)`) and `force_cancel_transcription()` both
+go through this path.
+
+**The picker's combined filter must stay first.** The native dialog pre-selects
+filter 0, so "Audio" in that slot hid every video in the folder (C-UI-13). The
+combined list is derived as audio ++ video with duplicates removed, and an
+"All files" escape hatch is appended last.
+
+Stress evidence (real model, real PyAV decoder, real job manager + engine
+loop; 6 jobs × 240 s clip, cap 4). `bench/media_concurrency_stress.py` prints
+`RESULT: PASS` on each of these runs:
+
+| model / device | serial | concurrent | speedup | transcripts |
+| --- | --- | --- | --- | --- |
+| `faster-whisper-tiny` int8 / CPU | 57.6 s | 30.9 s | 1.86× | 6/6, 5060 chars each, identical to the serial baseline |
+| `faster-whisper-large-v3-turbo` float16 / CUDA | 66.2 s | 39.1 s | 1.69× | 6/6, 5087 chars each, identical to the serial baseline |
+
+Reproduce:
+
+```
+.venv/Scripts/python.exe bench/media_concurrency_stress.py \
+    --jobs 6 --clip 240 --cap 4
+```
+
+The harness also asserts the cap refuses past the limit and refills, that a
+per-job cancel leaves the survivors at full length, that the same clip decoded
+concurrently is byte-identical, and that the log contract holds (one start
+line + one outcome line per job). Its own run logs are gitignored
+(`bench/*.log`); the numbers above are the record, not the files.
