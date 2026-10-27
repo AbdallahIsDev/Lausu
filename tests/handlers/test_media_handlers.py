@@ -56,7 +56,7 @@ class TestMediaCancelStatus:
         monkeypatch.setattr(jobs_mod, "_MANAGER", None)
         resp = ipc_server._handle_media_transcribe_cancel({}, {})
         assert resp["type"] == "media_transcribe_result"
-        assert resp["data"] == {"cancelled": False}
+        assert resp["data"] == {"cancelled": 0, "job_ids": []}
 
     def test_status_idle(self, ipc_server, fake_service, monkeypatch):
         import voice_typer.server.media_ingest.jobs as jobs_mod
@@ -64,20 +64,26 @@ class TestMediaCancelStatus:
         monkeypatch.setattr(jobs_mod, "_MANAGER", None)
         resp = ipc_server._handle_media_transcribe_status({}, {})
         assert resp["type"] == "media_transcribe_result"
-        assert resp["data"] == {"job": None}
+        # The cap travels with the status so the renderer never guesses it.
+        assert resp["data"] == {"jobs": [], "max_jobs": 4}
 
 
 class TestMediaUrlStart:
-    def test_url_resolves_then_starts_job(self, ipc_server, fake_service, monkeypatch):
+    def test_url_is_handed_to_the_job_without_resolving_inline(
+        self, ipc_server, fake_service, monkeypatch
+    ):
+        """Resolution is a network round trip: it belongs in the job thread,
+        otherwise a batch of links starts one-at-a-time behind the IPC ack."""
         import voice_typer.server.media_ingest.jobs as jobs_mod
         import voice_typer.server.media_ingest.runtime as js_runtime
         import voice_typer.server.media_ingest.url_resolver as resolver
 
         monkeypatch.setattr(jobs_mod, "_MANAGER", None)
+        resolved_calls = []
         monkeypatch.setattr(
             resolver,
             "resolve_media_url",
-            lambda url, factory=None, js_runtimes=None: resolver.ResolvedMedia(audio_url="https://cdn.example/a.m4a"),
+            lambda url, factory=None, js_runtimes=None: resolved_calls.append(url),
         )
         monkeypatch.setattr(js_runtime, "find_js_runtime", lambda **kwargs: None)
         started = {}
@@ -97,6 +103,7 @@ class TestMediaUrlStart:
         assert resp["type"] == "media_transcribe_result"
         assert resp["data"]["job_id"] == "url123"
         assert started["source"] == "https://example.com/v"
+        assert resolved_calls == [], "the handler resolved the URL inline"
 
     def test_missing_js_runtime_has_actionable_error(self, ipc_server, fake_service, monkeypatch):
         import voice_typer.server.media_ingest.jobs as jobs_mod
@@ -146,6 +153,11 @@ class TestMediaUrlJobTiers:
         import voice_typer.server.media_ingest.downloader as dl
         import voice_typer.server.media_ingest.engine_loop as loop
         import voice_typer.server.media_ingest.storage as storage
+        import voice_typer.server.media_ingest.url_resolver as resolver
+
+        monkeypatch.setattr(
+            resolver, "resolve_media_url", lambda url, **kw: self._resolved()
+        )
 
         calls = []
         audio = tmp_path / "a.m4a"
@@ -170,7 +182,9 @@ class TestMediaUrlJobTiers:
 
     def test_download_tier_runs_before_any_stream(self, ipc_server, fake_service, monkeypatch, tmp_path):
         calls = self._patch_pipeline(monkeypatch, tmp_path)
-        out = ipc_server._run_url_media_job(self._job(), self._resolved(), None, {"use_subtitles": False})
+        out = ipc_server._run_url_media_job(
+            self._job(), "https://example.com/v", None, {"use_subtitles": False}
+        )
         assert [c[0] for c in calls] == ["download", "decode", "transcribe"]
         assert out == {"row_id": 1, "chars": 2}
 
@@ -184,7 +198,9 @@ class TestMediaUrlJobTiers:
             download_error=MediaIngestError(DOWNLOAD_FAILED, "nope"),
         )
         monkeypatch.setattr(dec, "decode_chunks", lambda *a, **k: calls.append(("stream-decode",)) or iter(()))
-        out = ipc_server._run_url_media_job(self._job(), self._resolved(), None, {"use_subtitles": False})
+        out = ipc_server._run_url_media_job(
+            self._job(), "https://example.com/v", None, {"use_subtitles": False}
+        )
         assert [c[0] for c in calls] == ["download", "stream-decode", "transcribe"]
         assert out == {"row_id": 1, "chars": 2}
 

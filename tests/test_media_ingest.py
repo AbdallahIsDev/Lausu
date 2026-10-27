@@ -29,13 +29,37 @@ class TestJobManager:
         mgr = MediaJobManager()
         job = mgr.start("f", lambda j: {"ok": True})
         assert job.job_id
-        snap = mgr.snapshot()
-        assert snap is not None and snap["job_id"] == job.job_id
+        mgr.wait(5.0)
+        # A finished job leaves the running snapshot empty.
+        assert mgr.snapshots() == []
 
-    def test_second_start_rejected_while_running(self):
+    def test_running_snapshot_carries_phase_and_progress(self):
         import threading
 
         mgr = MediaJobManager()
+        release = threading.Event()
+        entered = threading.Event()
+
+        def _runner(job):
+            job.phase = "transcribing"
+            job.progress = 0.5
+            entered.set()
+            release.wait(timeout=5)
+            return {}
+
+        job = mgr.start("a", _runner)
+        assert entered.wait(timeout=5)
+        snaps = mgr.snapshots()
+        assert [s["job_id"] for s in snaps] == [job.job_id]
+        assert snaps[0]["phase"] == "transcribing"
+        assert snaps[0]["progress"] == 0.5
+        release.set()
+        mgr.wait(5.0)
+
+    def test_start_rejected_at_capacity(self):
+        import threading
+
+        mgr = MediaJobManager(max_jobs=2)
         gate = threading.Event()
         release = threading.Event()
 
@@ -45,10 +69,36 @@ class TestJobManager:
             return {}
 
         mgr.start("a", _runner)
+        mgr.start("b", _runner)
         assert gate.wait(timeout=5)
+        assert mgr.running_count() == 2
+        assert mgr.has_capacity() is False
         with pytest.raises(errors_mod.MediaIngestError):
-            mgr.start("b", lambda j: {})
+            mgr.start("c", lambda j: {})
         release.set()
+        mgr.wait(5.0)
+        # A freed slot accepts the next job immediately.
+        assert mgr.has_capacity() is True
+
+    def test_jobs_run_concurrently(self):
+        """Two jobs are inside their runner at the same time (the whole point)."""
+        import threading
+
+        mgr = MediaJobManager(max_jobs=2)
+        inside = threading.Semaphore(0)
+        both = threading.Barrier(2, timeout=5)
+
+        def _runner(job):
+            inside.release()
+            both.wait()  # raises BrokenBarrierError unless both threads arrive
+            return {}
+
+        mgr.start("a", _runner)
+        mgr.start("b", _runner)
+        assert inside.acquire(timeout=5)
+        assert inside.acquire(timeout=5)
+        mgr.wait(5.0)
+        assert mgr.running_count() == 0
 
     def test_cancel_signals_event(self):
         import threading
@@ -62,13 +112,154 @@ class TestJobManager:
             release.wait(timeout=5)
             return {}
 
+        job = mgr.start("a", _runner)
+        assert gate.wait(timeout=5)
+        assert mgr.cancel() == [job.job_id]
+        release.set()
+        mgr.wait(5.0)
+
+    def test_cancel_one_of_many_leaves_the_others_running(self):
+        import threading
+
+        mgr = MediaJobManager(max_jobs=3)
+        gate = threading.Event()
+        release = threading.Event()
+
+        def _runner(job):
+            gate.set()
+            release.wait(timeout=5)
+            return {}
+
+        first = mgr.start("a", _runner)
+        second = mgr.start("b", _runner)
+        assert gate.wait(timeout=5)
+        assert mgr.cancel(first.job_id) == [first.job_id]
+        assert first.cancel_event.is_set()
+        assert not second.cancel_event.is_set()
+        release.set()
+        mgr.wait(5.0)
+
+    def test_cancel_idle_returns_empty(self):
+        assert MediaJobManager().cancel() == []
+
+    def test_cancel_unknown_id_is_a_no_op(self):
+        import threading
+
+        mgr = MediaJobManager()
+        release = threading.Event()
+        gate = threading.Event()
+
+        def _runner(job):
+            gate.set()
+            release.wait(timeout=5)
+            return {}
+
         mgr.start("a", _runner)
         assert gate.wait(timeout=5)
-        assert mgr.cancel() is True
+        assert mgr.cancel("does-not-exist") == []
         release.set()
+        mgr.wait(5.0)
 
-    def test_cancel_idle_false(self):
-        assert MediaJobManager().cancel() is False
+
+class TestAsrLane:
+    """The shared model decodes one job at a time, and abort never crosses."""
+
+    @staticmethod
+    def _backend():
+        class _Backend:
+            def __init__(self) -> None:
+                self.aborts = 0
+                self.clears = 0
+
+            def request_abort(self) -> None:
+                self.aborts += 1
+
+            def clear_abort(self) -> None:
+                self.clears += 1
+
+        return _Backend()
+
+    def test_lane_serializes_decodes(self):
+        import threading
+        import time
+
+        mgr = MediaJobManager(max_jobs=2)
+        order: list[tuple[str, str]] = []
+        lock = threading.Lock()
+
+        def _runner(job):
+            with mgr.asr_lane(job, None):
+                with lock:
+                    order.append(("enter", job.job_id))
+                time.sleep(0.05)
+                with lock:
+                    order.append(("exit", job.job_id))
+            return {}
+
+        mgr.start("a", _runner)
+        mgr.start("b", _runner)
+        mgr.wait(5.0)
+        # Strictly alternating enter/exit: no two decodes overlap.
+        assert [kind for kind, _ in order] == ["enter", "exit", "enter", "exit"]
+
+    def test_lane_clears_a_stale_abort_on_entry(self):
+
+        mgr = MediaJobManager()
+        backend = self._backend()
+        with mgr.asr_lane(mgr.start("a", lambda j: {}), backend):
+            pass
+        assert backend.clears >= 1
+
+    def test_cancelling_the_lane_owner_fires_abort(self):
+        import threading
+
+        mgr = MediaJobManager()
+        backend = self._backend()
+        holding = threading.Event()
+        release = threading.Event()
+
+        def _runner(job):
+            with mgr.asr_lane(job, backend):
+                holding.set()
+                release.wait(timeout=5)
+            return {}
+
+        job = mgr.start("a", _runner)
+        assert holding.wait(timeout=5)
+        assert mgr.owns_asr(job.job_id) is True
+        mgr.cancel(job.job_id)
+        assert backend.aborts == 1
+        release.set()
+        mgr.wait(5.0)
+        assert mgr.owns_asr(job.job_id) is False
+
+    def test_cancelling_a_waiting_job_never_aborts_the_owner(self):
+        """A queued job's cancel must not truncate the decode holding the model."""
+        import threading
+
+        mgr = MediaJobManager(max_jobs=2)
+        backend = self._backend()
+        holding = threading.Event()
+        release = threading.Event()
+
+        def _holder(job):
+            with mgr.asr_lane(job, backend):
+                holding.set()
+                release.wait(timeout=5)
+            return {}
+
+        def _waiter(job):
+            with mgr.asr_lane(job, backend):
+                return {}
+
+        owner = mgr.start("a", _holder)
+        assert holding.wait(timeout=5)
+        waiter = mgr.start("b", _waiter)
+        assert mgr.cancel(waiter.job_id) == [waiter.job_id]
+        assert backend.aborts == 0, "the waiting job's cancel aborted the owner's decode"
+        assert mgr.owns_asr(owner.job_id) is True
+        release.set()
+        mgr.wait(5.0)
 
 
 class TestJobErrorCodes:
@@ -177,6 +368,104 @@ class TestEngineLoop:
         state = loop.transcribe_windows(iter(chunks), _NoopBackend(), cancel_event=event)
         assert state.text == ""
         assert state.decoded_seconds == pytest.approx(0.0)
+
+    def test_lane_wraps_every_decode(self):
+        """A window decode runs inside the caller's lane (one shared model)."""
+        import contextlib
+
+        from voice_typer.server.media_ingest import engine_loop as loop
+
+        sr = loop.TARGET_SAMPLE_RATE
+        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(25)]
+        depth = {"now": 0, "max": 0}
+        lanes: list[int] = []
+
+        @contextlib.contextmanager
+        def _lane():
+            depth["now"] += 1
+            depth["max"] = max(depth["max"], depth["now"])
+            lanes.append(1)
+            try:
+                yield
+            finally:
+                depth["now"] -= 1
+
+        class _Backend:
+            def transcribe_with_fallback(self, audio, *a, **k):
+                assert depth["now"] == 1, "decode ran outside the lane"
+                return "w"
+
+            def request_abort(self):
+                pass
+
+        state = loop.transcribe_windows(iter(chunks), _Backend(), lane=_lane)
+        assert state.text == "w w"
+        assert len(lanes) == 2, "one lane acquisition per window"
+        assert depth["max"] == 1
+
+    def test_cancelled_job_skips_the_decode_once_it_gets_the_lane(self):
+        """A job cancelled while queued must not decode when its turn comes."""
+        import contextlib
+        import threading
+
+        from voice_typer.server.media_ingest import engine_loop as loop
+
+        sr = loop.TARGET_SAMPLE_RATE
+        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(25)]
+        event = threading.Event()
+
+        @contextlib.contextmanager
+        def _lane():
+            # The cancel lands exactly while this job waits for the model.
+            event.set()
+            yield
+
+        class _Backend:
+            def transcribe_with_fallback(self, audio, *a, **k):
+                raise AssertionError("decoded a window nobody wants")
+
+            def request_abort(self):
+                pass
+
+        state = loop.transcribe_windows(
+            iter(chunks), _Backend(), cancel_event=event, lane=_lane
+        )
+        assert state.text == ""
+
+    def test_abort_guard_blocks_the_shared_abort_signal(self):
+        """Only the lane owner may abort; a queued job's cancel stays local."""
+        import threading
+
+        from voice_typer.server.media_ingest import engine_loop as loop
+
+        sr = loop.TARGET_SAMPLE_RATE
+        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(25)]
+        aborts = []
+
+        class _Backend:
+            def transcribe_with_fallback(self, audio, *a, **k):
+                return "w"
+
+            def request_abort(self):
+                aborts.append(1)
+
+        event = threading.Event()
+        event.set()
+        state = loop.transcribe_windows(
+            iter(chunks),
+            _Backend(),
+            cancel_event=event,
+            abort_allowed=lambda: False,
+        )
+        assert state.text == ""
+        assert aborts == [], "a non-owner job fired the shared abort"
+
+        # With the guard open the same cancel does fire it.
+        event.set()
+        loop.transcribe_windows(
+            iter(chunks), _Backend(), cancel_event=event, abort_allowed=lambda: True
+        )
+        assert aborts == [1]
 
     def test_progress_reports_fraction_and_eta(self):
         from voice_typer.server.media_ingest import engine_loop as loop

@@ -79,7 +79,15 @@
 		"dropZoneTitle": "拖入视频或音频文件",
 		"dropZoneAria": "选择媒体文件，或拖放到此处",
 		"browseFile": "浏览文件",
-		"orLink": "或粘贴链接"
+		"orLink": "或粘贴链接",
+		"slots": "已占用 {running}/{max} 个任务位",
+		"atCapacity": "全部 {max} 个任务位都在使用中。请取消一个任务，或等其中一个完成。",
+		"cancelAll": "全部取消",
+		"clearFinished": "清除已完成",
+		"dismiss": "关闭",
+		"duplicateTitle": "已在列表中",
+		"duplicateDescription": "该文件或链接已在转写中。",
+		"noSpeech": "这段媒体中没有检测到语音。"
 	},
 	"nav": {
 		"home": "首页",

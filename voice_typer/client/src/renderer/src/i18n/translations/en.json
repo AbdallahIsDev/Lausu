@@ -79,7 +79,15 @@
 		"dropZoneTitle": "Drop a video or audio file",
 		"dropZoneAria": "Choose a media file, or drop one here",
 		"browseFile": "Browse files",
-		"orLink": "or paste a link"
+		"orLink": "or paste a link",
+		"slots": "{running} of {max} slots in use",
+		"atCapacity": "All {max} slots are in use. Cancel a job or wait for one to finish.",
+		"cancelAll": "Cancel all",
+		"clearFinished": "Clear finished",
+		"dismiss": "Dismiss",
+		"duplicateTitle": "Already in the list",
+		"duplicateDescription": "That file or link is already being transcribed.",
+		"noSpeech": "No speech was found in this media."
 	},
 	"nav": {
 		"home": "Home",

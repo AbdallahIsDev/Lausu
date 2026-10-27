@@ -232,9 +232,30 @@ Applies to: All agents, all modes, all sub-agents.
 ```
 
 ```
+C-UI-13
+Rule: Do NOT rely on a native file dialog's filter ORDER by accident: the FIRST `add_filter` entry is the one the dialog pre-selects, so a combined "everything this surface accepts" filter must be added before any per-type filter. A per-type filter added first hides every other type until the user switches filters by hand.
+Rationale: The Media page's picker registered "Audio" first, so the dialog opened in audio-only mode and every video in the folder was invisible — the owner had to flip the filter to see the .mp4 sitting next to the .mp3, and could never select one of each (2026-10-27).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-UI-14
+Rule: Do NOT leave an accepted value in the input that submitted it. Clear the field on a SUCCESSFUL submit (the queued row carries the value from then on) and keep it only when the submit was refused, so the primary button is disabled by an empty field instead of re-firing the same work on the next click.
+Rationale: The Media page kept the picked path / pasted link after a job completed, so pressing Transcribe again re-transcribed the same file, repeatedly (owner report 2026-10-27).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
 C-MEDIA-1
 Rule: Do NOT let remote media transcription stream the signed URL as its primary tier. Download the audio-only stream once (yt-dlp `bestaudio`) and decode from disk; streaming stays the fallback. Media windows are ONE batched decode call (`WINDOW_SECONDS = _BATCHED_SUPER_CHUNK_S`, above `_BATCHED_MIN_DURATION_S`), never a free-tuning knob.
 Rationale: Streaming the CDN URL at ~0.5x realtime cost ~15 s of ingest per 30 s window while ASR cost <1 s (17-min job: ~8.5 min wall, ~35 s of ASR) — measure the phase before optimizing it, 2026-10-27.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-MEDIA-2
+Rule: Do NOT let two media jobs decode against the shared ASR model at the same time, and do NOT fire the engine's shared abort signal from a job that is not currently decoding. Concurrency belongs in the INGEST phases (resolve, download, container decode); each job's window decode runs inside `MediaJobManager.asr_lane`, abort is gated by `owns_asr`, and the lane clears a stale abort flag on entry.
+Rationale: There is one ctranslate2 model behind one `_inference_lock`, so parallel decode is either serialized anyway or unsafe, while one shared `_abort_event` means cancelling a QUEUED job would truncate the decode of the job that actually holds the model — and the engine only polls that flag between segments, so a stale flag silently cuts the next job's first window (2026-10-27).
 Applies to: All agents, all modes, all sub-agents.
 ```
 

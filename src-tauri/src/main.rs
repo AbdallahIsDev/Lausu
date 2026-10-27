@@ -53,7 +53,7 @@ use commands::sidecar_cmds::{dispatch, restart_sidecar, shutdown_sidecar};
 // Window-namespace commands + export dialogs + renderer_log_error sink.
 use commands::system_cmds::{
     export_config, export_templates, open_external_url_command, open_logs,
-    open_model_import_dialog, pick_media_file_command, renderer_heartbeat, renderer_log_error,
+    open_model_import_dialog, pick_media_files_command, renderer_heartbeat, renderer_log_error,
     reveal_path_command, save_stats_image, send_bug_report, set_host_locale,
 };
 use platform::logging::init_file_logger_or_stderr_fallback;
@@ -146,7 +146,7 @@ fn main() {
             open_external_url_command,
             reveal_path_command,
             open_model_import_dialog,
-            pick_media_file_command,
+            pick_media_files_command,
             export_templates,
             export_config,
             // Share-image Downloads-save + localized Save-As dialog

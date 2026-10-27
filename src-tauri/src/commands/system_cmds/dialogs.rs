@@ -117,11 +117,21 @@ pub async fn open_model_import_dialog(
 /// A webview `<input type="file">` hands the renderer only `file.name`
 /// (no directory), so the sidecar received a bare filename and reported
 /// `decode_failed` for a perfectly good file. Only a host picker (or a
-/// drag-drop event) carries an absolute path. Extensions mirror the
-/// renderer input's `accept="audio/*,video/*"` prefix set plus the
-/// containers PyAV decodes for this feature.
+/// drag-drop event) carries an absolute path.
+///
+/// Two things matter about the filter list, both learned from the owner
+/// opening this dialog and seeing no video files at all:
+///
+/// * The FIRST filter is the one the native dialog pre-selects, so it must
+///   be the combined one. With "Audio" first the picker opened in
+///   audio-only mode and every video in the folder was hidden — the user
+///   had to switch filters by hand to see them. Combined-first means the
+///   dialog shows both kinds immediately.
+/// * `pick_files`, not `pick_file`: the Media page transcribes several
+///   files at once, and a single-select dialog made a mixed audio+video
+///   batch impossible to express.
 #[tauri::command]
-pub async fn pick_media_file_command(
+pub async fn pick_media_files_command(
     app: tauri::AppHandle,
     window: tauri::Window,
 ) -> Result<Value, LausuError> {
@@ -132,6 +142,13 @@ pub async fn pick_media_file_command(
         .file()
         .set_title(title)
         .add_filter(
+            "Audio and video",
+            &[
+                "mp3", "wav", "m4a", "aac", "flac", "ogg", "opus", "wma", "aiff", "amr", "mp4",
+                "mkv", "webm", "mov", "avi", "m4v", "mpeg", "mpg", "ts",
+            ],
+        )
+        .add_filter(
             "Audio",
             &[
                 "mp3", "wav", "m4a", "aac", "flac", "ogg", "opus", "wma", "aiff", "amr",
@@ -139,20 +156,31 @@ pub async fn pick_media_file_command(
         )
         .add_filter(
             "Video",
-            &["mp4", "mkv", "webm", "mov", "avi", "m4v", "mpeg", "mpg", "ts"],
+            &[
+                "mp4", "mkv", "webm", "mov", "avi", "m4v", "mpeg", "mpg", "ts",
+            ],
         )
-        .pick_file(move |f| {
+        .pick_files(move |f| {
             let _ = tx.send(f);
         });
-    let file_path = await_dialog_bridge(rx).await;
-    let path = match file_path {
-        Some(fp) => fp.into_path().map_err(|e| format!("invalid path: {e}"))?,
-        None => return Ok(json!({"canceled": true})),
+    let picked = await_dialog_bridge(rx).await;
+    let Some(paths) = picked else {
+        return Ok(json!({"canceled": true}));
     };
-    Ok(json!({
-        "canceled": false,
-        "path": path.to_string_lossy().to_string(),
-    }))
+    let mut resolved = Vec::with_capacity(paths.len());
+    for file_path in paths {
+        resolved.push(
+            file_path
+                .into_path()
+                .map_err(|e| format!("invalid path: {e}"))?
+                .to_string_lossy()
+                .to_string(),
+        );
+    }
+    if resolved.is_empty() {
+        return Ok(json!({"canceled": true}));
+    }
+    Ok(json!({"canceled": false, "paths": resolved}))
 }
 
 // Unit tests for the `open_logs` target-directory helper live in the

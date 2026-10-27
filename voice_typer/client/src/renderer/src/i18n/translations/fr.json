@@ -58,7 +58,15 @@
 		"dropZoneTitle": "Déposez un fichier vidéo ou audio",
 		"dropZoneAria": "Choisir un fichier média, ou le déposer ici",
 		"browseFile": "Parcourir les fichiers",
-		"orLink": "ou collez un lien"
+		"orLink": "ou collez un lien",
+		"slots": "{running} places sur {max} utilisées",
+		"atCapacity": "Les {max} places sont occupées. Annulez une tâche ou attendez qu'une se termine.",
+		"cancelAll": "Tout annuler",
+		"clearFinished": "Effacer les terminés",
+		"dismiss": "Ignorer",
+		"duplicateTitle": "Déjà dans la liste",
+		"duplicateDescription": "Ce fichier ou ce lien est déjà en cours de transcription.",
+		"noSpeech": "Aucune parole n'a été trouvée dans ce média."
 	},
 	"nav": {
 		"home": "Accueil",
