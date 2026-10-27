@@ -9,30 +9,17 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
-def _make_engine(device: str = "cuda"):
-    from voice_typer.server.system_whisper import SystemWhisperEngine
-
-    engine = SystemWhisperEngine.__new__(SystemWhisperEngine)
-    engine._model_size = "tiny"
-    engine._weights_dir = "/tmp/fake-weights"
-    engine._device = device
-    engine._language = "en"
-    engine._beam_size = 5
-    engine._model = MagicMock(name="fw-model")
-    engine._loaded = True
-    engine._cpu_fallback_notified = False
-    return engine
+from tests.fixtures.system_whisper_helpers import decoded, make_system_engine
 
 
 class TestSystemWhisperCublasFallback:
     def test_cublas_error_rebuilds_on_cpu_and_retries(self):
         import numpy as np
 
-        engine = _make_engine(device="cuda")
+        engine = make_system_engine(device="cuda")
         engine._model.transcribe.side_effect = [
             RuntimeError("Library cublas64_12.dll is not found or cannot be loaded"),
-            ([MagicMock(text=" hello ")], MagicMock()),
+            decoded(" hello "),
         ]
         rebuilt = {}
 
@@ -51,7 +38,7 @@ class TestSystemWhisperCublasFallback:
     def test_non_cuda_error_does_not_rebuild(self):
         import numpy as np
 
-        engine = _make_engine(device="cuda")
+        engine = make_system_engine(device="cuda")
         engine._model.transcribe.side_effect = ValueError("unrelated boom")
         engine._rebuild_on_cpu = MagicMock(name="_rebuild_on_cpu")  # type: ignore[method-assign]
         with pytest.raises(ValueError, match="unrelated boom"):
@@ -61,7 +48,7 @@ class TestSystemWhisperCublasFallback:
     def test_cpu_device_never_retries(self):
         import numpy as np
 
-        engine = _make_engine(device="cpu")
+        engine = make_system_engine(device="cpu")
         engine._model.transcribe.side_effect = RuntimeError("cublas GEMM launch failed")
         engine._rebuild_on_cpu = MagicMock(name="_rebuild_on_cpu")  # type: ignore[method-assign]
         with pytest.raises(RuntimeError, match="cublas"):
@@ -69,7 +56,7 @@ class TestSystemWhisperCublasFallback:
         engine._rebuild_on_cpu.assert_not_called()
 
     def test_rebuild_uses_cpu_device(self, monkeypatch):
-        engine = _make_engine(device="cuda")
+        engine = make_system_engine(device="cuda")
         fake_fw = MagicMock(name="faster_whisper")
         monkeypatch.setitem(sys.modules, "faster_whisper", fake_fw)
         engine._rebuild_on_cpu.__wrapped__ if hasattr(engine._rebuild_on_cpu, "__wrapped__") else None
@@ -83,22 +70,22 @@ class TestSystemWhisperCublasFallback:
 
 class TestEffectiveDeviceWord:
     def test_device_info_is_gpu_word_for_cuda(self):
-        engine = _make_engine(device="cuda")
+        engine = make_system_engine(device="cuda")
         engine._effective_device = "cuda"
         assert engine.device_info == "GPU"
 
     def test_device_info_is_cpu_word_for_cpu(self):
-        engine = _make_engine(device="cpu")
+        engine = make_system_engine(device="cpu")
         engine._effective_device = "cpu"
         assert engine.device_info == "CPU"
 
     def test_device_info_falls_back_to_requested_word(self):
-        engine = _make_engine(device="auto")
+        engine = make_system_engine(device="auto")
         engine._effective_device = "auto"
         assert engine.device_info == "auto"
 
     def test_no_cuda_jargon_in_device_info(self):
-        engine = _make_engine(device="cuda")
+        engine = make_system_engine(device="cuda")
         engine._effective_device = "cuda"
         assert "cuda" not in engine.device_info
 

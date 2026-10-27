@@ -203,6 +203,41 @@ Rationale: `DeviceToggle` sat unwrapped beside the sidebar's active-model captio
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-UI-11
+Rule: Do NOT render an in-flight job's failure as an element appended under the surface that started it. Failures of background work (media transcription, downloads, imports) surface as a toast — title + the failure-code-mapped description + the action the inline block used to offer — while the page keeps only progress + completion state.
+Rationale: The Media page's "Transcription failed" block sat under the main card as a permanent-looking element on every failure; the owner asked for the toast form, which matches the design system's error toast (title + description + action) — 2026-10-27.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-UI-12
+Rule: Do NOT hand-roll a progress/level bar. Every bar renders the shared `components/feedback/LevelBar` (solid `bg-primary` fill on the neutral `border/10` track, `scaleX` + counter-scaled caps); non-mic consumers (determinate progress) extend it with the `ariaLabel`/`ariaValueText` overrides instead of forking the markup or its aria copy.
+Rationale: The Media page carried its own progressbar div (full-opacity track, width-based fill, generic `rounded-full`), so the running-job bar looked nothing like the Microphone page's meter the owner pointed at — 2026-10-27.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-ASR-1
+Rule: Do NOT pin a single decode `temperature` on the Whisper path (no bare `temperature=0.0`). Pass the full ladder `_DECODE_TEMPERATURES` `(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)` from `transcription_batching` — faster-whisper only retries at the NEXT temperature when a decode trips the compression-ratio (repeat) or avg-logprob guard (`temperatures=(temperature if isinstance(...) else [temperature])`).
+Rationale: The single 0.0 made the guard retry nothing, so a degenerate repeat-loop on music/noise-heavy media was accepted verbatim (a 17-min YouTube run returned the same confident 447-char block in 7 windows of 30s, `avg_logprob ≈ -0.15`, media entry 2026-10-27).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-ASR-2
+Rule: Do NOT select the batched decode pipeline when `use_vad_filter` is False. `BatchedInferencePipeline.transcribe` maps its chunks back through VAD speech timestamps and raises without `vad_filter`/`clip_timestamps`; VAD-off audio stays on the sequential call.
+Rationale: Without the gate, a user who disables the VAD filter crashes every decode longer than 30 s (the batched path engages by duration alone) — found by reading the library's own guard during the media batching change, 2026-10-27.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-MEDIA-1
+Rule: Do NOT let remote media transcription stream the signed URL as its primary tier. Download the audio-only stream once (yt-dlp `bestaudio`) and decode from disk; streaming stays the fallback. Media windows are ONE batched decode call (`WINDOW_SECONDS = _BATCHED_SUPER_CHUNK_S`, above `_BATCHED_MIN_DURATION_S`), never a free-tuning knob.
+Rationale: Streaming the CDN URL at ~0.5x realtime cost ~15 s of ingest per 30 s window while ASR cost <1 s (17-min job: ~8.5 min wall, ~35 s of ASR) — measure the phase before optimizing it, 2026-10-27.
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Focus Indicators & Keyboard Accessibility
@@ -598,6 +633,13 @@ Applies to: All agents, all modes, all sub-agents.
 C-LOG-4
 Rule: The app-starting banner stays the FIRST identity line, `|`-separated (`{APP_NAME} starting | model=... | hotkey=... | ...`), at most once per process, emitted from light `startup_banner.emit_app_starting_banner()` right after `_setup_logging()` (before the heavy app import). Never `--`-separated, never after IPC chatter, never moved back into `app_construction`. Anchors: `starting | model=`.
 Rationale: The banner lagged ~5s behind IPC chatter, looking like a mystery stall (user decision 2026-09-30).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-LOG-5
+Rule: Do NOT leave a background job's outcome only in an ephemeral UI notification (toast). The job owner logs exactly one start line and one outcome line (`completed`/`cancelled` with the result ids and char count, `failed` with the error code and cause), each with the C-LOG-2 duration suffix, so the file log is the durable record.
+Rationale: When the only failure report was the toast, a local transcription failure ("The media could not be decoded") left no trace of why — the user asked for success AND failure lines (owner report 2026-10-27).
 Applies to: All agents, all modes, all sub-agents.
 ```
 
@@ -1243,6 +1285,24 @@ Applies to: All agents, all modes, all sub-agents.
 
 ---
 
+## Category: Startup Latency & Launch Order
+
+```
+C-START-1
+Rule: Do NOT put best-effort warm-up work on a startup handshake path. A warm pass (import warming, cache priming, weight paging) runs AFTER the process handshake another process is waiting on (WS bind + `worker_started` / `server_started` line), on a daemon thread, and never re-reads a payload an integrity gate will re-hash moments later.
+Rationale: A blocking warm pass in front of the bind put 5–10s between launch and every downstream step (launch-to-dictation 34s → 19s), and the model-weight pass was a second full read of 1.5 GB that the verifier then read again; caching that VERDICT instead would have been a security downgrade, so the read was removed, not the re-hash.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-START-2
+Rule: Do NOT score "not serving yet" as "dead". A client startup probe classifies the pre-bind transport shape (`sidecar not connected` / not-yet-listening) with the timeout shape, and bounds that patience with an explicit startup window; verdict shapes (auth, protocol, unknown command) still fail fast outside it.
+Rationale: The mount probe burned its whole budget in ~10s on the normal cold-boot state and parked the app on the failure screen while the backend was still starting.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+---
+
 ## Final note
 
 Every rule above was added because an agent did the prohibited thing and the user reverted it. That history is why this section stays spare and binding.
@@ -1296,6 +1356,17 @@ Applies to: All agents, all modes, all sub-agents.
 
 ---
 
+## Category: Attribute Access Guards
+
+```
+C-ATTR-1
+Rule: Do NOT treat `getattr(a.b, "x", default)` as a null-safe read: the default covers only the FINAL hop, and a `None` intermediate raises from the `a.b` evaluation before `getattr` ever runs. Resolve one hop per call (`app = getattr(server, "app", None)` → `tray = getattr(app, "tray", None)`) and bail while a hop is absent.
+Rationale: The connect-time tray snapshot crashed with `'NoneType' object has no attribute 'tray'` on every cold start in early server-started mode (`server.app` is deliberately `None` until construction finishes); the sibling `_emit_bubble_*` helpers already resolved hop by hop.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+---
+
 ## Category: Cross-Layer Contract Parity
 
 ```
@@ -1309,5 +1380,19 @@ Applies to: All agents, all modes, all sub-agents.
 C-PARITY-2
 Rule: Do NOT promote a connection/readiness state without installing the payload the UI renders from. A probe that only proves the transport is alive (await the call, discard the response, set "connected") leaves every config-derived surface blank; the transition itself must carry the snapshot, and any status push that can flip the state must hydrate it when the snapshot is missing or partial.
 Rationale: `handleRetryConnection` awaited `get_config` and threw the payload away, then a `state_changed` push could promote the app the same way, so `config` stayed null and the sidebar lost BOTH its active-model caption (`formatActiveModel(null) === ""`) and its CPU/GPU switch (needs `config.device` + `gpu_available`) — the app looked connected but half-built after a cold autostart (2026-10-25).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-PARITY-3
+Rule: Do NOT encode a third-party library's option schema from memory or docs; pin the shape we hand it with a round-trip test against the INSTALLED version (construct the real object with OUR options and assert it accepts them).
+Rationale: `js_runtimes` was passed as `{"deno": "<path>"}` while the pinned yt-dlp (2026.08.19) validates `{runtime: {config}}` inside `YoutubeDL.__init__`, so every media-URL transcribe died as "The media could not be transcribed"; a construction test from our own options would have caught it (2026-10-27).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-PARITY-4
+Rule: Do NOT source a filesystem path from a webview surface that cannot produce one. `<input type="file">` and HTML5 drop data expose only `file.name`; any path-consuming flow (Media browse/drop, future imports) must take its absolute path from the host (native picker command or `onDragDropFiles`), and the value handed to the backend must be asserted by a test.
+Rationale: A perfectly good local MP3 reported `decode_failed` — "The media could not be decoded" — because only the display name reached the sidecar (owner report 2026-10-27; pinned by `Media-file-picker.test.tsx`).
 Applies to: All agents, all modes, all sub-agents.
 ```

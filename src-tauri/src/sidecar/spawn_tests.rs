@@ -462,6 +462,96 @@ fn test_vt_start_hidden_env_forwards_host_flag_verbatim() {
     }
 }
 
+// ── early_bind_env (bind-before-build launch order) ───────────────
+//
+// The host hands the sidecar `VT_EARLY_SERVER_STARTED=1` so the Python
+// entry point binds the WS listener BEFORE building the app, then serves
+// the renderer transport from a buffered placeholder while the heavy
+// construction runs behind it. Without this env the historical
+// build-then-serve order returns and the UI waits out the full boot.
+
+/// Default ON, and the host env is the rollback switch: any non-empty
+/// host value wins verbatim (so `VT_EARLY_SERVER_STARTED=0` in the host
+/// environment restores the old order), unset/empty means `"1"`.
+#[test]
+fn test_early_bind_value_defaults_on_and_host_override_wins() {
+    use std::ffi::{OsStr, OsString};
+
+    assert_eq!(
+        early_bind_value(None),
+        OsString::from("1"),
+        "unset host value must default the early-bind order ON"
+    );
+    assert_eq!(
+        early_bind_value(Some(OsStr::new(""))),
+        OsString::from("1"),
+        "an empty host value is not a rollback request"
+    );
+    assert_eq!(
+        early_bind_value(Some(OsStr::new("0"))),
+        OsString::from("0"),
+        "the rollback value must pass through verbatim"
+    );
+    assert_eq!(
+        early_bind_value(Some(OsStr::new("1"))),
+        OsString::from("1"),
+        "an explicit enable must pass through"
+    );
+}
+
+/// The helper yields the exact env pair the Python side reads, with the
+/// name pinned as a literal (a rename on either side of the contract
+/// would silently drop the flag back to the old launch order).
+#[test]
+fn test_early_bind_env_pins_the_cross_language_name() {
+    let original = std::env::var_os("VT_EARLY_SERVER_STARTED");
+
+    std::env::remove_var("VT_EARLY_SERVER_STARTED");
+    let default = early_bind_env();
+    assert_eq!(default.len(), 1);
+    assert_eq!(
+        (default[0].0.to_str(), default[0].1.to_str()),
+        (Some("VT_EARLY_SERVER_STARTED"), Some("1")),
+        "unset host env must forward VT_EARLY_SERVER_STARTED=1"
+    );
+
+    std::env::set_var("VT_EARLY_SERVER_STARTED", "0");
+    let rollback = early_bind_env();
+    assert_eq!(
+        (rollback[0].0.to_str(), rollback[0].1.to_str()),
+        (Some("VT_EARLY_SERVER_STARTED"), Some("0")),
+        "the host rollback switch must cross the env_clear boundary"
+    );
+
+    match original {
+        Some(v) => std::env::set_var("VT_EARLY_SERVER_STARTED", v),
+        None => std::env::remove_var("VT_EARLY_SERVER_STARTED"),
+    }
+}
+
+/// Both production spawn paths must APPLY the helper. The env chains are
+/// builder expressions that cannot be inspected after the fact, so this
+/// pins the source of each module.
+#[test]
+fn test_every_spawn_path_forwards_early_bind_env() {
+    const MODULES: [(&str, &str); 2] = [
+        ("release_mode.rs", include_str!("spawn/release_mode.rs")),
+        ("dev_mode.rs", include_str!("spawn/dev_mode.rs")),
+    ];
+    for (name, source) in MODULES {
+        let code: String = source
+            .lines()
+            .map(|line| line.split("//").next().unwrap_or(""))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            code.contains(".envs(super::env_allowlist::early_bind_env())"),
+            "{name} no longer forwards early_bind_env() → the sidecar \
+             falls back to the build-then-serve launch order"
+        );
+    }
+}
+
 // ── sidecar_timeline_envs (launch-timeline markers) ───────────────
 //
 // The sidecar spawn env must carry BOTH launch-timeline markers the

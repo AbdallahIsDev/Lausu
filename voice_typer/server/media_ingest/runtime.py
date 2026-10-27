@@ -64,15 +64,16 @@ def _pack_deno_path(pack_root: Path | str | None) -> Path | None:
     return candidate if candidate.is_file() else None
 
 
-def js_runtime_options(runtime: JsRuntime | None) -> dict[str, str] | None:
-    """Return yt-dlp ``js_runtimes`` options for a discovered runtime."""
-    if runtime is None:
+def js_runtime_options(runtime: JsRuntime | None) -> dict[str, dict[str, str]] | None:
+    """Return yt-dlp ``js_runtimes`` options for a discovered runtime.
+
+    yt-dlp's ``_clean_js_runtimes`` requires ``{runtime: {config}}`` and
+    raises ``ValueError: Invalid js_runtimes format`` on a bare path
+    string; the only config key it reads is ``path``.
+    """
+    if runtime is None or runtime.name not in ("deno", "node"):
         return None
-    if runtime.name == "deno":
-        return {"deno": runtime.path}
-    if runtime.name == "node":
-        return {"node": runtime.path}
-    return None
+    return {runtime.name: {"path": runtime.path}}
 
 
 def _node_ok(node_path: str, *, env: dict[str, str] | None = None) -> bool:

@@ -9,9 +9,15 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from voice_typer.server.transcription_batching import _BATCHED_SUPER_CHUNK_S
+
 log = logging.getLogger(__name__)
 
-WINDOW_SECONDS = 30.0
+# One window = one batched decode call: above the engine's batched minimum the
+# parallel (batch_size=8) pipeline runs, and at the super-chunk size that
+# pipeline gets the window as a SINGLE piece (no silence split) — so a media
+# job stops paying a sequential decode per 30 s slice.
+WINDOW_SECONDS = _BATCHED_SUPER_CHUNK_S
 TARGET_SAMPLE_RATE = 16_000
 
 

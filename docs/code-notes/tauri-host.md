@@ -190,6 +190,22 @@ Cross-language contract with `voice_typer/server/startup_timeline.py`:
 Values are decimal epoch milliseconds as strings. Absent markers mean "skip
 the timeline line" (standalone launches).
 
+## Early WS bind (launch order)
+
+`sidecar/spawn/env_allowlist.rs::early_bind_env()` forwards
+`VT_EARLY_SERVER_STARTED` into the sidecar from BOTH spawn paths
+(`dev_mode.rs`, `release_mode.rs`), default **on**: unset or empty host value
+becomes `"1"`, any non-empty host value passes through verbatim, so
+`VT_EARLY_SERVER_STARTED=0` in the host environment restores the historical
+build-then-serve order without a rebuild.
+
+Under `"1"` the Python entry point binds the WS listener (and accepts the
+renderer's `ready`) BEFORE `LausuApp()` construction, then replays the buffered
+frames once the real server exists — the UI paints and connects in ~1s instead
+of waiting out host boot + Python cold import + prewarm. Pinned by
+`spawn_tests.rs` (`test_early_bind_value_defaults_on_and_host_override_wins`,
+`..._pins_the_cross_language_name`, `..._every_spawn_path_forwards_early_bind_env`).
+
 ## WorkerState (runtime-pack split)
 
 A SECOND spawned child (ML worker exe) with its own state struct so worker

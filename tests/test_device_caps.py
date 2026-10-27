@@ -6,7 +6,6 @@ import sys
 import time
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 from voice_typer.server import device_caps, startup_tasks
@@ -218,20 +217,13 @@ class TestFallbackBroadcast:
 
     def test_system_whisper_fallback_broadcasts(self, monkeypatch) -> None:
         import numpy as np
-        from voice_typer.server.system_whisper import SystemWhisperEngine
 
-        engine = SystemWhisperEngine.__new__(SystemWhisperEngine)
-        engine._model_size = "tiny"
-        engine._weights_dir = "/tmp/fake-weights"
-        engine._device = "cuda"
-        engine._language = "en"
-        engine._beam_size = 5
-        engine._model = MagicMock(name="fw-model")
-        engine._loaded = True
-        engine._cpu_fallback_notified = False
+        from tests.fixtures.system_whisper_helpers import decoded, make_system_engine
+
+        engine = make_system_engine(device="cuda")
         engine._model.transcribe.side_effect = [
             RuntimeError("Library cublas64_12.dll is not found or cannot be loaded"),
-            ([MagicMock(text=" hi ")], MagicMock()),
+            decoded(" hi "),
         ]
         engine._rebuild_on_cpu = lambda: setattr(engine, "_device", "cpu")  # type: ignore[method-assign]
         published: list[dict] = []

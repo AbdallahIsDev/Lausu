@@ -136,4 +136,42 @@ describe("useConnection, initial-probe startup grace", () => {
 		});
 		expect(readStatus()).toBe("connected");
 	});
+
+	it("treats the host's pre-bind 'sidecar not connected' as transient", async () => {
+		// Before the WS listener exists the host answers every dispatch
+		// with LausuError::NotConnected. That is the cold-boot state, not
+		// death: it must earn the same grace as a dispatch timeout instead
+		// of burning the 5-attempt budget in ~10s and parking the app on
+		// the failure screen while the sidecar is still starting.
+		vi.useFakeTimers();
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config")
+				return Promise.reject(new Error("sidecar not connected"));
+			return Promise.resolve({});
+		});
+		render(<Harness />);
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(15_000);
+		});
+		expect(readStatus()).not.toBe("disconnected");
+	});
+
+	it("still fails fast on a poison error (not a boot state)", async () => {
+		// The grace is scoped to "not serving yet" shapes only. A backend
+		// that answers with a verdict (auth/protocol/unknown command) is
+		// broken, not booting, and must surface after the plain budget.
+		vi.useFakeTimers();
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config")
+				return Promise.reject(new Error("auth failed"));
+			return Promise.resolve({});
+		});
+		render(<Harness />);
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(10_000);
+		});
+		expect(readStatus()).toBe("disconnected");
+	});
 });

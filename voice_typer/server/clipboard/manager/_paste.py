@@ -102,6 +102,23 @@ class PasteMixin:
         # Delivery is unconfirmed, not known-failed: SendInput may have
         # delivered nothing while the fallback keystroke still landed.
         _cb.log.info("[CLIPBOARD] Paste delivery unconfirmed; keeping dictated text in clipboard for manual paste")
+        # Tell the user: without this the transcript silently never appears
+        # in the target app. ``delivery_unconfirmed`` maps to the generic
+        # hint (the keystroke was dropped; paste manually).
+        try:
+            from voice_typer.server import event_bus
+
+            event_bus.publish(
+                {
+                    "type": "paste_deferred",
+                    "data": {"reason": "delivery_unconfirmed"},
+                }
+            )
+        except Exception:
+            _cb.log.debug(
+                "[CLIPBOARD] could not publish paste_deferred event",
+                exc_info=True,
+            )
 
     # Each helper has an explicit error contract: returns a result tuple
 

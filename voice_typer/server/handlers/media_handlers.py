@@ -164,12 +164,16 @@ class MediaHandlersMixin(HandlerBase):
 
         self._publish_media_progress(job, 0.0, "loading_model")
         backend = self._ensure_media_backend()
+        # A local job has no resolver-provided total: read it off the container
+        # header so the bar reports a fraction/ETA instead of jumping 0 -> 1.
+        total = _decoder.probe_duration_seconds(path)
         chunks = _decoder.decode_chunks(path)
         state = _loop.transcribe_windows(
             chunks,
             backend,
             cancel_event=job.cancel_event,
-            on_progress=lambda frac, eta: self._publish_media_progress(job, frac, "transcribing", eta),
+            on_progress=lambda frac, eta: self._publish_media_progress(job, frac, "transcribing", eta, total),
+            total_seconds=total,
         )
         return self._finish_media_job(
             job,
@@ -180,7 +184,7 @@ class MediaHandlersMixin(HandlerBase):
         )
 
     def _run_url_media_job(self, job, resolved, runtime, validated: dict) -> dict:
-        """URL job body: subtitles fast path, then tiered audio fallback (ADR-0023 E9/E10/E12/E15)."""
+        """URL job body: subtitles fast path, audio download, stream fallback (ADR-0023 E9/E10/E12/E15)."""
         from voice_typer.server.media_ingest import (
             decoder as _decoder,
             downloader as _downloader,
@@ -190,7 +194,6 @@ class MediaHandlersMixin(HandlerBase):
         )
         from voice_typer.server.media_ingest.errors import (
             DRM_REFUSED,
-            STREAM_STALLED,
             URL_EXPIRED,
             MediaIngestError,
         )
@@ -212,6 +215,47 @@ class MediaHandlersMixin(HandlerBase):
         backend = self._ensure_media_backend()
 
         state = _loop.WindowsState()
+        # Primary tier: download the audio-only stream once, then decode from
+        # disk. Streaming the signed CDN URL spent ~15 s of ingest per 30 s of
+        # audio at ~0.5x realtime while ASR cost <1 s, so the local copy is the
+        # fast path and the stream is the fallback (2026-10-27 measurement).
+        self._publish_media_progress(job, 0.0, "downloading", None, resolved.duration)
+        try:
+            with _downloader.temp_audio_download(
+                resolved.webpage_url,
+                js_runtimes=_runtime.js_runtime_options(runtime),
+                on_progress=lambda frac: self._publish_media_progress(
+                    job, frac, "downloading", None, resolved.duration
+                ),
+            ) as tmp_path:
+                chunks = _decoder.decode_chunks(str(tmp_path))
+                state = _loop.transcribe_windows(
+                    chunks,
+                    backend,
+                    cancel_event=job.cancel_event,
+                    on_progress=lambda frac, eta: self._publish_media_progress(
+                        job, frac, "transcribing", eta, resolved.duration
+                    ),
+                    total_seconds=resolved.duration,
+                    state=state,
+                )
+            return self._finish_media_job(
+                job,
+                state.text,
+                duration=resolved.duration,
+                partial=job.cancel_event.is_set(),
+                validated=validated,
+            )
+        except MediaIngestError as exc:
+            if job.cancel_event.is_set():
+                return self._finish_media_job(
+                    job, state.text, duration=resolved.duration, partial=True, validated=validated
+                )
+            if exc.code == DRM_REFUSED:
+                raise
+            log.warning("[MEDIA] audio download failed (%s), falling back to the direct stream", exc.code)
+
+        # Fallback tier: stream the resolved signed URL (resume-aware retries).
         last_error: MediaIngestError | None = None
         for attempt in range(MAX_STREAM_ATTEMPTS):
             if job.cancel_event.is_set():
@@ -257,43 +301,8 @@ class MediaHandlersMixin(HandlerBase):
             return self._finish_media_job(
                 job, state.text, duration=resolved.duration, partial=True, validated=validated
             )
-
-        # Tier-2 (E9): download the audio once, decode from disk.
-        if last_error is not None and last_error.code in (STREAM_STALLED, URL_EXPIRED):
-            self._publish_media_progress(job, 0.0, "downloading")
-            try:
-                with _downloader.temp_audio_download(
-                    resolved.webpage_url,
-                    js_runtimes=_runtime.js_runtime_options(runtime),
-                    on_progress=lambda frac: self._publish_media_progress(
-                        job, frac, "downloading", None, resolved.duration
-                    ),
-                ) as tmp_path:
-                    chunks = _decoder.decode_chunks(str(tmp_path))
-                    state = _loop.transcribe_windows(
-                        chunks,
-                        backend,
-                        cancel_event=job.cancel_event,
-                        on_progress=lambda frac, eta: self._publish_media_progress(
-                            job, frac, "transcribing", eta, resolved.duration
-                        ),
-                        total_seconds=resolved.duration,
-                        state=state,
-                    )
-            except MediaIngestError:
-                if job.cancel_event.is_set():
-                    return self._finish_media_job(
-                        job, state.text, duration=resolved.duration, partial=True, validated=validated
-                    )
-                raise
-            return self._finish_media_job(
-                job,
-                state.text,
-                duration=resolved.duration,
-                partial=job.cancel_event.is_set(),
-                validated=validated,
-            )
-
+        # The download tier already ran (and failed) before streaming, so this
+        # is terminal: no second download attempt.
         assert last_error is not None
         raise last_error
 

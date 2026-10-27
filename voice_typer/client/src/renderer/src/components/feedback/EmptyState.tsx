@@ -63,14 +63,14 @@ export function EmptyState({
 				>
 					<HugeiconsIcon
 						icon={Alert02Icon}
-						strokeWidth={2}
+						strokeWidth={1.5}
 						className="h-10 w-10 text-destructive"
 					/>
 				</div>
 			) : (
 				<HugeiconsIcon
 					icon={icon}
-					strokeWidth={2}
+					strokeWidth={1.5}
 					className="h-10 w-10 text-muted-foreground"
 				/>
 			)}

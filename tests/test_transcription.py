@@ -281,7 +281,10 @@ class TestTranscribeWithFallback:
         assert kwargs["beam_size"] == 1
         # ``best_of`` must NOT be forwarded: faster-whisper only honors it
         assert "best_of" not in kwargs
-        assert kwargs["temperature"] == 0.0
+        # The full anti-repetition ladder: faster-whisper retries at the next
+        # temperature when a decode trips the repeat/logprob guard, so a bare
+        # 0.0 (single candidate) must never come back.
+        assert kwargs["temperature"] == (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
         assert kwargs["condition_on_previous_text"] is False
         assert kwargs["without_timestamps"] is True
 

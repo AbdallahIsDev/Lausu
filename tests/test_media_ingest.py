@@ -122,7 +122,8 @@ class TestEngineLoop:
         from voice_typer.server.media_ingest import engine_loop as loop
 
         sr = loop.TARGET_SAMPLE_RATE
-        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(7)]
+        # 25 x 5 s = one full window (120 s) + a tail flush.
+        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(25)]
 
         class _Backend:
             def __init__(self):
@@ -138,8 +139,21 @@ class TestEngineLoop:
         backend = _Backend()
         state = loop.transcribe_windows(iter(chunks), backend)
         assert state.text == "w1 w2"
-        assert state.decoded_seconds == pytest.approx(35.0)
+        assert state.decoded_seconds == pytest.approx(125.0)
         assert backend.calls == 2
+
+    def test_window_is_one_batched_super_chunk(self):
+        """The window size is the engine's batched contract, not a free knob."""
+        from voice_typer.server.media_ingest import engine_loop as loop
+        from voice_typer.server.transcription_batching import (
+            _BATCHED_MIN_DURATION_S,
+            _BATCHED_SUPER_CHUNK_S,
+        )
+
+        # Above the batched minimum the parallel (batch_size=8) pipeline runs;
+        # at the super-chunk size it receives the window as one single piece.
+        assert loop.WINDOW_SECONDS == _BATCHED_SUPER_CHUNK_S
+        assert loop.WINDOW_SECONDS > _BATCHED_MIN_DURATION_S
 
     def test_cancel_returns_partial(self):
         import threading
@@ -191,6 +205,48 @@ class TestEngineLoop:
         assert 0.0 < fracs[0] < 1.0
         assert seen[-1][0] == pytest.approx(1.0)
         assert seen[-1][1] == pytest.approx(0.0)
+
+
+class TestJobManagerOutcomeLogging:
+    """Every job outcome leaves a durable log line (the toast is ephemeral)."""
+
+    def test_success_logs_start_and_completion(self, caplog):
+        import logging
+
+        from voice_typer.server.media_ingest.jobs import MediaJobManager
+
+        manager = MediaJobManager()
+        with caplog.at_level(logging.INFO, logger="voice_typer.server.media_ingest.jobs"):
+            job = manager.start(
+                r"C:\Users\me\Downloads\clip.mp3", lambda j: {"row_id": 7, "chars": 42}
+            )
+            # Status flips before the outcome line: join, don't poll.
+            manager.wait(5.0)
+
+        assert job.status == "completed"
+        assert "[MEDIA] job start" in caplog.text
+        assert "clip.mp3" in caplog.text
+        assert "[MEDIA] job completed" in caplog.text
+        assert "row_id=7" in caplog.text
+
+    def test_failure_logs_the_real_cause(self, caplog):
+        import logging
+
+        from voice_typer.server.media_ingest.errors import DECODE_FAILED, MediaIngestError
+        from voice_typer.server.media_ingest.jobs import MediaJobManager
+
+        def _boom(job):
+            raise MediaIngestError(DECODE_FAILED, "media file not found: clip.mp3")
+
+        manager = MediaJobManager()
+        with caplog.at_level(logging.ERROR, logger="voice_typer.server.media_ingest.jobs"):
+            job = manager.start("clip.mp3", _boom)
+            manager.wait(5.0)
+
+        assert job.status == "failed"
+        assert "[MEDIA] job failed" in caplog.text
+        assert "decode_failed" in caplog.text
+        assert "media file not found" in caplog.text
 
 
 class TestStorageExport:
@@ -270,7 +326,27 @@ class TestJsRuntime:
 
         found = js_runtime.find_js_runtime(which=_which, pack_root=tmp_path)
         assert found is not None and found.name == "deno"
-        assert js_runtime.js_runtime_options(found) == {"deno": "/bin/deno"}
+        assert js_runtime.js_runtime_options(found) == {"deno": {"path": "/bin/deno"}}
+
+    def test_options_are_accepted_by_yt_dlp(self):
+        """Contract pin: yt-dlp requires ``{runtime: {config}}``.
+
+        A bare path string (``{"deno": "/bin/deno"}``) made every URL
+        resolve raise ``ValueError: Invalid js_runtimes format`` at
+        ``YoutubeDL`` construction, surfacing as "The media could not be
+        transcribed".
+        """
+        from typing import Any
+
+        from voice_typer.server.media_ingest import runtime as js_runtime
+        from yt_dlp import YoutubeDL
+
+        for name, path in (("deno", "/bin/deno"), ("node", "/bin/node")):
+            options = js_runtime.js_runtime_options(js_runtime.JsRuntime(name=name, path=path))
+            assert options == {name: {"path": path}}
+            params: Any = {"quiet": True, "no_warnings": True, "js_runtimes": options}
+            with YoutubeDL(params):  # raises ValueError on a bare path string
+                pass
 
     def test_rejects_old_node(self, monkeypatch, tmp_path):
         import subprocess

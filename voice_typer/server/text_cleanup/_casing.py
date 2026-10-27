@@ -14,6 +14,11 @@ def _capitalize_sentences(text: str) -> str:
                 chars[index] = char.upper()
             capitalize_next = False
         elif char in ".!?":
+            # ``1.7`` is a decimal, not a sentence end. Without this the
+            # next word after the number came out capitalised ("1. 7
+            # Seconds").
+            if char == "." and 0 < index < len(chars) - 1 and chars[index - 1].isdigit() and chars[index + 1].isdigit():
+                continue
             capitalize_next = True
     return "".join(chars)
 

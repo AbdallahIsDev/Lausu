@@ -18,7 +18,7 @@ import {
 	HEALTH_CHECK_INTERVAL_MS,
 	HEALTH_CHECK_MAX_RETRIES,
 	HEALTH_CHECK_RETRY_DELAY_MS,
-	isTransientTimeoutError,
+	isTransientStartupError,
 	MANUAL_RETRY_PROBE_MAX_ATTEMPTS,
 	MAX_BACKGROUND_RECONNECTS,
 	RESPAWN_EXHAUSTED_CODE,
@@ -193,12 +193,10 @@ export function useConnection({
 					err,
 				);
 				retries++;
-				// Startup grace: a dispatch timeout while the backend is
-				// still in its launch storm is transient. Grant extra
-				// attempts without flipping to "disconnected"; fast
-				// failures (pre-handshake refusal) keep the plain budget
-				// so a truly dead backend still surfaces in seconds.
-				const transient = isTransientTimeoutError(err);
+				// Startup grace covers "not serving yet": a dispatch timeout
+				// or the pre-bind "sidecar not connected". Every other shape
+				// keeps the plain budget so real breakage surfaces in ~10s.
+				const transient = isTransientStartupError(err);
 				const inGrace =
 					Date.now() - probeStartTs < CONNECTION_PROBE_STARTUP_GRACE_MS;
 				const budget =
@@ -506,11 +504,11 @@ export function useConnection({
 					setConnectionStatus("connected");
 					return;
 				} catch (err) {
-					// Fast refusals mean no transport: escalate now, as
-					// before. Only timeout-shaped errors earn another
-					// probe — a booting backend answers slowly, not never.
+					// A not-yet-serving backend earns another probe: killing
+					// it only resets its boot clock. Poison shapes (auth,
+					// protocol, unknown command) escalate immediately.
 					const last = attempt >= MANUAL_RETRY_PROBE_MAX_ATTEMPTS;
-					if (!isTransientTimeoutError(err) || last) break;
+					if (!isTransientStartupError(err) || last) break;
 					await new Promise((resolve) =>
 						setTimeout(resolve, CONNECTION_PROBE_RETRY_DELAY_MS),
 					);

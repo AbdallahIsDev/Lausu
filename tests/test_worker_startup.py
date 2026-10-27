@@ -240,7 +240,7 @@ def test_warm_imports_for_worker_calls_warm_imports(monkeypatch) -> None:
 
     actual_calls: list[bool] = []
 
-    def _fake_warm_imports() -> None:
+    def _fake_warm_imports(**_kwargs) -> None:
         actual_calls.append(True)
 
     # Patch the underscore-prefixed internal function on the package
@@ -256,6 +256,27 @@ def test_warm_imports_for_worker_calls_warm_imports(monkeypatch) -> None:
     assert actual_calls == [True], f"warm_imports_for_worker did not call _warm_imports (got calls={actual_calls})"
 
 
+def test_warm_imports_for_worker_forwards_include_model_weights(monkeypatch) -> None:
+    """The weights switch reaches ``_warm_imports`` verbatim.
+
+    The worker's own startup path passes ``False`` because the integrity
+    gate that runs moments later re-hashes the same multi-GB files, so a
+    dropped kwarg silently re-adds a second full read of the payload.
+    """
+    from voice_typer.server.prewarm import cache_probe
+
+    seen: list[bool] = []
+
+    def _fake_warm_imports(*, include_model_weights: bool = True) -> None:
+        seen.append(include_model_weights)
+
+    monkeypatch.setattr(cache_probe, "_warm_imports", _fake_warm_imports)
+
+    warm_imports_for_worker(include_model_weights=False)
+    warm_imports_for_worker()
+    assert seen == [False, True]
+
+
 def test_warm_imports_for_worker_swallows_exceptions(monkeypatch) -> None:
     """
     ``warm_imports_for_worker`` swallows exceptions from ``_warm_imports``.
@@ -264,7 +285,7 @@ def test_warm_imports_for_worker_swallows_exceptions(monkeypatch) -> None:
     from voice_typer.server import prewarm as prewarm_pkg
     from voice_typer.server.prewarm import cache_probe
 
-    def _exploding_warm_imports() -> None:
+    def _exploding_warm_imports(**_kwargs) -> None:
         raise RuntimeError("prewarm explosion (test)")
 
     monkeypatch.setattr(prewarm_pkg, "_warm_imports", _exploding_warm_imports)
@@ -285,6 +306,111 @@ def test_warm_imports_package_list_is_post_migration() -> None:
     )
     assert "transformers" not in _WORKER_WARM_PACKAGES, (
         "transformers must be DROPPED, Parakeet is now onnx-asr (master plan §6.2 P-1)"
+    )
+
+
+def test_worker_prewarm_skips_the_model_weight_pass(monkeypatch) -> None:
+    """The worker's startup prewarm never re-reads the model weights.
+
+    The integrity gate in the same process re-hashes those files seconds
+    later; warming them first was a second full read of the multi-GB
+    payload for no benefit (and it used to run BEFORE the WS bind, which
+    is what put 5-10s between launch and dictation-readiness).
+    """
+    import voice_typer.worker._ws_startup as ws_startup
+    from voice_typer.server.prewarm import status as prewarm_status
+
+    seen: list[bool] = []
+    monkeypatch.setattr(ws_startup, "_fast_startup_enabled", lambda: True)
+    monkeypatch.setattr(
+        "voice_typer.server.prewarm.warm_imports_for_worker",
+        lambda *, include_model_weights=True: seen.append(include_model_weights),
+    )
+    monkeypatch.setattr(prewarm_status, "write_prewarm_status_file", lambda **_kwargs: None)
+
+    elapsed = ws_startup._run_prewarm_phase()
+
+    assert seen == [False], f"worker prewarm must pass include_model_weights=False, got {seen}"
+    assert elapsed >= 0.0
+
+
+def test_start_prewarm_in_background_runs_on_a_daemon_thread(monkeypatch) -> None:
+    """The prewarm phase is started behind the listener, never awaited.
+
+    A blocking prewarm in front of the bind delayed the handshake by
+    5-10s on every launch; the warm pass is latency insurance for the
+    model load, not a precondition for the sidecar to connect.
+    """
+    import threading
+
+    import voice_typer.worker._ws_startup as ws_startup
+
+    ran = threading.Event()
+    monkeypatch.setattr(ws_startup, "_run_prewarm_phase", lambda: ran.set() or 0.0)
+
+    thread = ws_startup.start_prewarm_in_background()
+    assert thread.daemon is True, "RACE-008: the warm thread must never block exit"
+    assert thread.name == "worker-prewarm"
+    assert ran.wait(timeout=5.0), "start_prewarm_in_background never ran the phase"
+    thread.join(timeout=5.0)
+    assert not thread.is_alive()
+
+
+async def test_prewarm_starts_only_after_worker_started_is_emitted(monkeypatch) -> None:
+    """Ordering contract: bind → stdout handshake → warm thread.
+
+    The sidecar starts the model load as soon as it reads
+    ``worker_started``; the warm pass must ride behind that line, not in
+    front of it.
+    """
+    import voice_typer.worker._ws_server as ws_server
+
+    events: list[str] = []
+
+    class _FakeSock:
+        def getsockname(self):
+            return ("127.0.0.1", 51234)
+
+    class _FakeServe:
+        def __init__(self) -> None:
+            self.sockets = [_FakeSock()]
+
+        async def __aenter__(self):
+            events.append("bind")
+            return self
+
+        async def __aexit__(self, *_exc):
+            return False
+
+    class _FakeThread:
+        def is_alive(self) -> bool:
+            return True
+
+    monkeypatch.setattr(
+        "websockets.asyncio.server.serve",
+        lambda *_a, **_kw: _FakeServe(),
+    )
+    monkeypatch.setattr(ws_server, "_install_sigterm_handler", lambda *_a: None)
+    monkeypatch.setattr(ws_server, "start_parent_watch", lambda **_kw: None)
+    monkeypatch.setattr(ws_server, "_emit_worker_started", lambda *_a: events.append("emit"))
+
+    def _start_prewarm() -> _FakeThread:
+        events.append("prewarm")
+        return _FakeThread()
+
+    monkeypatch.setattr(ws_server, "start_prewarm_in_background", _start_prewarm)
+
+    stop_event = asyncio.Event()
+    stop_event.set()
+    ok = await ws_server.run_worker_server(
+        prewarm_ran=True,
+        stop_event=stop_event,
+        shutdown_timer=worker_main._ShutdownTimer(),
+    )
+
+    assert ok is True
+    assert events == ["bind", "emit", "prewarm"], (
+        f"prewarm must start AFTER the worker_started handshake line, got {events}"
     )
 
 

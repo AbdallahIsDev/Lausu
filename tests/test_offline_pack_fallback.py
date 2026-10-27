@@ -81,10 +81,17 @@ def _fake_faster_whisper(calls: list):
 
         def transcribe(self, audio, **kwargs):
             class _Seg:
-                def __init__(self, text):
+                def __init__(self, text, start):
                     self.text = text
+                    self.start = start
+                    self.end = start + 0.5
+                    self.avg_logprob = -0.2
+                    self.no_speech_prob = 0.01
+                    self.words = []
 
-            return ([_Seg("hello"), _Seg("world")], None)
+            segments = [_Seg("hello", 0.0), _Seg("world", 0.5)]
+            info = SimpleNamespace(language="en", language_probability=0.99)
+            return (segments, info)
 
     mod.WhisperModel = _FakeModel
     return mod

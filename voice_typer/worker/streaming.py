@@ -24,6 +24,28 @@ from typing import Any
 
 log = logging.getLogger("voice_typer.worker")
 
+# Word timestamps arrive one TOKEN at a time and whisper emits trailing
+# punctuation as its own token ("1" + ".7"), so a plain ``" ".join`` turned
+# every decimal into "1 .7". A token that starts with punctuation attaches to
+# the previous one instead of taking a space. Mirrors the slim assembler's
+# rule (kept in sync by the assembler port-fidelity test, not by an import:
+# this module must stay independent of the slim ASR package).
+_ATTACHED_PUNCTUATION = frozenset(".,!?;:%)]}…’”。")
+
+
+def _join_word_tokens(tokens: Any) -> str:
+    """Join decoder word tokens into text, attaching punctuation tokens."""
+    parts: list[str] = []
+    for token in tokens:
+        text = str(token).strip()
+        if not text:
+            continue
+        if parts and text[0] not in _ATTACHED_PUNCTUATION:
+            parts.append(" ")
+        parts.append(text)
+    return "".join(parts)
+
+
 _ASR_SAMPLE_RATE = 16_000
 # Same per-chunk ceiling as the C3 samples path: one push frame must
 # itself respect the 1 MiB WS frame cap after base64 expansion.
@@ -116,7 +138,7 @@ class TextAssembler:
             if not self._words_dirty and self._committed_text_cache is not None:
                 return self._committed_text_cache
             ordered = sorted(self._words, key=lambda w: (w.start_seconds, w.end_seconds))
-            self._committed_text_cache = " ".join(word.word for word in ordered)
+            self._committed_text_cache = _join_word_tokens(word.word for word in ordered)
             self._words_dirty = False
             return self._committed_text_cache
 
@@ -127,7 +149,7 @@ class TextAssembler:
         candidates = [word for word in normalized if word.end_seconds <= horizon]
         with self._lock:
             committed = self._add_unlocked(candidates, horizon)
-            return (" ".join(word.word for word in committed), committed)
+            return (_join_word_tokens(word.word for word in committed), committed)
 
     def add_tail(self, words: Any) -> str:
         """Merge finalize-tail words with no horizon; return the full committed text."""

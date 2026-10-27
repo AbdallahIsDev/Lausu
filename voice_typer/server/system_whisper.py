@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -93,6 +94,7 @@ def try_load_system_whisper(config: Any) -> Any | None:
             device=device,
             language=getattr(config, "language", "en") or "en",
             beam_size=int(getattr(config, "beam_size", 5) or 5),
+            config=config,
         )
         engine.load()
     except Exception:
@@ -279,6 +281,7 @@ class SystemWhisperEngine:
         device: str = "auto",
         language: str = "en",
         beam_size: int = 5,
+        config: Any | None = None,
     ) -> None:
         self._model_size = model_size
         self._weights_dir = str(weights_dir)
@@ -291,11 +294,32 @@ class SystemWhisperEngine:
         # Effective compute device, resolved from the built ctranslate2
         # model in load(); falls back to the requested device before that.
         self._effective_device: str = device or "auto"
+        # The live Config handle + decoder protocol shared with the worker
+        # engine, so this backend honours the user's own decode settings
+        # (VAD, previous-text conditioning) instead of faster-whisper defaults.
+        self.config = config
+        self.condition_on_previous_text = bool(getattr(config, "condition_on_previous_text", False))
+        self.last_quality_summary: dict[str, float] | None = None
+        self.last_rejection_reason: str | None = None
+        self._abort_event = threading.Event()
+        # One inference at a time: hidden streaming (recording) and the
+        # batch finalize (after stop) share this single ctranslate2 model.
+        self._inference_lock = threading.RLock()
 
     @property
     def is_loaded(self) -> bool:
         """True once :meth:`load` has built the model."""
         return self._loaded
+
+    @property
+    def beam_size(self) -> int:
+        """Decoder beam width (protocol attribute read by the shared decode)."""
+        return self._beam_size
+
+    @property
+    def language(self) -> str:
+        """Decode language (protocol attribute read by the shared decode)."""
+        return self._language
 
     @property
     def device_info(self) -> str:
@@ -353,6 +377,12 @@ class SystemWhisperEngine:
         effective = str(getattr(getattr(self._model, "model", None), "device", "") or "")
         if effective:
             self._effective_device = effective
+            if effective in ("cuda", "cpu"):
+                # Decode policy (batched long-audio path) and the CUDA
+                # retry gate both key off ``_device``; adopt what the model
+                # ACTUALLY runs on so an ``auto``→cpu resolve never queues
+                # a pointless CUDA retry.
+                self._device = effective
         log.info("[MODEL] system whisper model ready")
         from voice_typer.server.tray_models import describe_device
 
@@ -370,19 +400,40 @@ class SystemWhisperEngine:
         self._loaded = False
 
     def request_abort(self) -> None:
-        """No abort handle exists on faster-whisper; best-effort no-op."""
+        """Signal the shared decode loops to stop between segments."""
+        self._abort_event.set()
 
     def clear_abort(self) -> None:
-        """No abort token exists; best-effort no-op."""
+        """Clear a stale abort signal before this cycle's decode starts."""
+        self._abort_event.clear()
 
-    def _transcribe_inner(self, samples: Any, language: str) -> str:
-        """Single faster-whisper transcribe pass over *samples*."""
-        segments, _info = self._model.transcribe(
-            samples,
-            language=language,
-            beam_size=self._beam_size,
-        )
-        return " ".join(seg.text.strip() for seg in segments).strip()
+    def _transcribe_inner(self, samples: Any, audio_stats: tuple[float, float, float] | None = None) -> str:
+        """Decode through the SAME body the pack worker engine uses.
+
+        Parity contract: the configured decode settings (temperature pin,
+        VAD filter, previous-text conditioning, batched long-audio path)
+        must produce the same text here as in the worker. A bare
+        ``model.transcribe()`` call ignored every one of them.
+        """
+        from voice_typer.server.transcription_result import transcribe_unlocked
+
+        with self._inference_lock:
+            return transcribe_unlocked(self, samples, audio_stats=audio_stats)
+
+    def transcribe_words(self, audio: Any, offset_seconds: float = 0.0) -> list[Any]:
+        """Word-timestamp decode for streaming windows + the final tail merge."""
+        if self._model is None:
+            raise RuntimeError("system whisper engine is not loaded")
+        import numpy as _np
+
+        from voice_typer.server.transcription_result import transcribe_words_unlocked
+
+        samples = _np.asarray(audio, dtype=_np.float32).reshape(-1)
+        # Same single-model lock as the batch path: hidden streaming
+        # (during recording) and the stop-time decode share one
+        # ctranslate2 model, which is not thread-safe.
+        with self._inference_lock:
+            return transcribe_words_unlocked(self, samples, offset_seconds)
 
     def transcribe_with_fallback(self, audio: Any, *args: object, **kwargs: object) -> str:
         """Transcribe float PCM samples to text (possibly empty)."""
@@ -391,50 +442,55 @@ class SystemWhisperEngine:
         import numpy as _np
 
         samples = _np.asarray(audio, dtype=_np.float32).reshape(-1)
-        language = kwargs.get("language", self._language)
-        try:
-            return self._transcribe_inner(samples, language)
-        except Exception as exc:
-            from voice_typer.server.asr_utils import is_cuda_error
+        audio_stats = kwargs.get("audio_stats")
+        if not isinstance(audio_stats, tuple):
+            audio_stats = None
+        # The lock spans the CUDA retry too, so a streaming window can
+        # never decode against a half-rebuilt model.
+        with self._inference_lock:
+            try:
+                return self._transcribe_inner(samples, audio_stats)
+            except Exception as exc:
+                from voice_typer.server.asr_utils import is_cuda_error
 
-            if self._device != "cpu" and is_cuda_error(exc):
-                log.warning("[MODEL] system whisper CUDA error, retrying on CPU: %s", exc)
-                log.debug("[MODEL] system whisper CUDA traceback", exc_info=True)
-                try:
-                    self._rebuild_on_cpu()
-                except Exception as rebuild_exc:
-                    raise RuntimeError(
-                        f"system whisper CUDA failed ({exc}) and CPU rebuild also failed ({rebuild_exc})"
-                    ) from rebuild_exc
-                if not self._cpu_fallback_notified:
-                    self._cpu_fallback_notified = True
-                    with contextlib.suppress(Exception):
-                        from voice_typer.server import device_caps as _device_caps
+                if self._device != "cpu" and is_cuda_error(exc):
+                    log.warning("[MODEL] system whisper CUDA error, retrying on CPU: %s", exc)
+                    log.debug("[MODEL] system whisper CUDA traceback", exc_info=True)
+                    try:
+                        self._rebuild_on_cpu()
+                    except Exception as rebuild_exc:
+                        raise RuntimeError(
+                            f"system whisper CUDA failed ({exc}) and CPU rebuild also failed ({rebuild_exc})"
+                        ) from rebuild_exc
+                    if not self._cpu_fallback_notified:
+                        self._cpu_fallback_notified = True
+                        with contextlib.suppress(Exception):
+                            from voice_typer.server import device_caps as _device_caps
 
-                        _device_caps.publish_device_cpu_fallback(str(exc)[:200])
-                    with contextlib.suppress(Exception):
-                        from voice_typer.server import event_bus as _event_bus
+                            _device_caps.publish_device_cpu_fallback(str(exc)[:200])
+                        with contextlib.suppress(Exception):
+                            from voice_typer.server import event_bus as _event_bus
 
-                        _event_bus.publish(
-                            {
-                                "type": "notification",
-                                "data": {
-                                    "title": APP_NAME,
-                                    "message": (
-                                        "GPU transcription failed, switched to CPU. "
-                                        "Transcription will be slower until restart."
-                                    ),
-                                    "duration_ms": 10000,
-                                },
-                            }
-                        )
-                try:
-                    return self._transcribe_inner(samples, language)
-                except Exception as cpu_exc:
-                    raise RuntimeError(
-                        f"system whisper CUDA failed ({exc}) and CPU retry also failed ({cpu_exc})"
-                    ) from cpu_exc
-            raise
+                            _event_bus.publish(
+                                {
+                                    "type": "notification",
+                                    "data": {
+                                        "title": APP_NAME,
+                                        "message": (
+                                            "GPU transcription failed, switched to CPU. "
+                                            "Transcription will be slower until restart."
+                                        ),
+                                        "duration_ms": 10000,
+                                    },
+                                }
+                            )
+                    try:
+                        return self._transcribe_inner(samples, audio_stats)
+                    except Exception as cpu_exc:
+                        raise RuntimeError(
+                            f"system whisper CUDA failed ({exc}) and CPU retry also failed ({cpu_exc})"
+                        ) from cpu_exc
+                raise
 
     def _rebuild_on_cpu(self) -> None:
         """Drop the CUDA model and rebuild it on CPU."""
@@ -468,5 +524,6 @@ class SystemWhisperEngine:
                     local_files_only=True,
                 )
         self._device = "cpu"
+        self._effective_device = "cpu"
         self._loaded = True
         log.warning("[MODEL] system whisper rebuilt on CPU after CUDA failure")

@@ -83,7 +83,17 @@ async def connect_loop(client: Any, generation: int) -> None:
             if not client._is_current(generation):
                 return
             delay = backoff_delay(attempt)
-            log.warning("[WORKER] worker connection lost: retrying%s", format_duration(delay))
+            # WARN once per outage, then DEBUG: a worker that never comes
+            # up repeated the same line every ~32 s for the whole session
+            # (``attempt`` resets to 0 after a healthy connect).
+            if attempt == 0:
+                log.warning("[WORKER] worker connection lost: retrying%s", format_duration(delay))
+            else:
+                log.debug(
+                    "[WORKER] worker still unreachable (attempt=%d): retrying%s",
+                    attempt + 1,
+                    format_duration(delay),
+                )
             attempt += 1
             await asyncio.sleep(delay)
 

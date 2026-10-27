@@ -89,3 +89,24 @@ pub(crate) fn vt_start_hidden_env() -> Option<(std::ffi::OsString, std::ffi::OsS
     std::env::var_os("VT_START_HIDDEN")
         .map(|val| (std::ffi::OsString::from("VT_START_HIDDEN"), val))
 }
+
+/// Early WS bind: bind the listener before `LausuApp()` construction so the
+/// host handshake + renderer transport are live in ~1s while the heavy build
+/// (all builders, migrations, per-boot sweeps) proceeds behind it.
+///
+/// Defaults ON. `VT_EARLY_SERVER_STARTED=0` in the host env selects the
+/// historical build-then-serve order (the rollback switch).
+pub(crate) fn early_bind_env() -> [(std::ffi::OsString, std::ffi::OsString); 1] {
+    [(
+        std::ffi::OsString::from("VT_EARLY_SERVER_STARTED"),
+        early_bind_value(std::env::var_os("VT_EARLY_SERVER_STARTED").as_deref()),
+    )]
+}
+
+/// Pure form of the rollback switch so the default can be unit-tested.
+pub(crate) fn early_bind_value(host_value: Option<&std::ffi::OsStr>) -> std::ffi::OsString {
+    match host_value {
+        Some(val) if !val.is_empty() => val.to_os_string(),
+        _ => std::ffi::OsString::from("1"),
+    }
+}

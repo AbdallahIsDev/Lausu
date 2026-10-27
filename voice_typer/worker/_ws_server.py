@@ -17,7 +17,6 @@ import logging
 from typing import TYPE_CHECKING
 
 from voice_typer.server._paths import LOOPBACK_HOST
-from voice_typer.server.duration import format_duration
 from voice_typer.server.ipc.protocol_version import MAX_WS_FRAME_BYTES, PROTOCOL_VERSION
 from voice_typer.worker._parent_watch import start_parent_watch
 from voice_typer.worker._ws_connection import _handle_connection
@@ -31,6 +30,7 @@ from voice_typer.worker._ws_startup import (
     _emit_worker_started,
     _force_line_buffered_stdout,  # noqa: F401 - facade re-export
     _run_prewarm_phase,  # noqa: F401 - facade re-export
+    start_prewarm_in_background,
 )
 from voice_typer.worker.streaming import transcribe_window_words  # noqa: F401 - facade patch seam
 
@@ -58,7 +58,6 @@ _MAX_FRAME_BYTES = MAX_WS_FRAME_BYTES
 
 async def run_worker_server(  # noqa: ANN001 - websockets type is imported lazily
     *,
-    prewarm_elapsed: float,
     prewarm_ran: bool,
     stop_event: asyncio.Event,
     shutdown_timer: _ShutdownTimer,
@@ -76,8 +75,11 @@ async def run_worker_server(  # noqa: ANN001 - websockets type is imported lazil
     2. Bind ``127.0.0.1:0`` (loopback-only, ADR-0020 §1) via
        ``websockets.asyncio.server.serve`` with the 1 MiB frame cap.
     3. Print ``{"event":"worker_started","port":N,"protocol":P}`` to stdout.
-    4. Block on ``await stop_event.wait()`` until graceful shutdown.
-    5. ``async with serve()`` exits cleanly (websockets' default
+    4. Start the prewarm phase on a daemon thread (AFTER the bind: the
+       sidecar must be able to connect and start the model load without
+       waiting for the warm pass).
+    5. Block on ``await stop_event.wait()`` until graceful shutdown.
+    6. ``async with serve()`` exits cleanly (websockets' default
        close_timeout drains in-flight handlers).
 
     Mirrors :func:`voice_typer.server.sidecar_ws.run`'s shape so the
@@ -144,11 +146,14 @@ async def run_worker_server(  # noqa: ANN001 - websockets type is imported lazil
             return False
         port = first_sock.getsockname()[1]
         _emit_worker_started(port, PROTOCOL_VERSION)
+        # Warm pass AFTER the bind + stdout contract: the sidecar connects
+        # and starts the model load immediately, the warm I/O rides behind.
+        prewarm_thread = start_prewarm_in_background()
         log.info(
-            "[WORKER] listening on %s:%d (prewarm ran in%s)",
+            "[WORKER] listening on %s:%d (prewarm %s)",
             LOOPBACK_HOST,
             port,
-            format_duration(prewarm_elapsed),
+            "running" if prewarm_thread.is_alive() else "done",
         )
 
         # Run until SIGTERM (stop_event) or the asyncio loop is

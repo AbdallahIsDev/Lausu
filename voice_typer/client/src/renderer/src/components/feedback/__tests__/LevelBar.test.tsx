@@ -73,6 +73,28 @@ describe("LevelBar, aria-valuetext reflects tier", () => {
 	});
 });
 
+describe("LevelBar, aria overrides for non-mic consumers (media progress)", () => {
+	it("uses the provided label + value text and keeps the shared fill", () => {
+		render(
+			<LevelBar
+				level={0.12}
+				playing={false}
+				ariaLabel="12%"
+				ariaValueText="12%"
+			/>,
+		);
+		const bar = getProgressbar();
+		expect(bar.getAttribute("aria-label")).toBe("12%");
+		expect(bar.getAttribute("aria-valuetext")).toBe("12%");
+		expect(bar.getAttribute("aria-valuenow")).toBe("12");
+		// Same bar as the microphone page: primary fill, scaleX, no tier text.
+		const fill = bar.firstElementChild as HTMLElement;
+		expect(fill.style.transform).toBe("scaleX(0.12)");
+		expect(fill.className).toContain("bg-primary");
+		expect(bar.className).toContain("bg-border/10");
+	});
+});
+
 describe("LevelBar, compositor-friendly scaleX fill", () => {
 	function getFill(): HTMLElement {
 		const fill = getProgressbar().firstElementChild;

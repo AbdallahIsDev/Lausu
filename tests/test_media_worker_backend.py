@@ -74,7 +74,8 @@ def test_cutover_per_window_prefers_worker(monkeypatch):
     monkeypatch.setattr(loop, "_worker_path_available", lambda backend: True)
     monkeypatch.setattr(loop, "_shared_worker_client", lambda: fake)
     local = _LocalBackend()
-    state = loop.transcribe_windows(iter(_chunks(12)), local)
+    # 48 x 5 s = two full 120 s windows, one worker request each.
+    state = loop.transcribe_windows(iter(_chunks(48)), local)
     assert state.text == "worker-w1 worker-w2"
     assert local.calls == 0
     assert len(fake.requests) == 2
@@ -88,7 +89,8 @@ def test_fallback_on_worker_error(monkeypatch):
     monkeypatch.setattr(loop, "_worker_path_available", lambda backend: True)
     monkeypatch.setattr(loop, "_shared_worker_client", lambda: fake)
     local = _LocalBackend(texts=["local-w1", "local-w2"])
-    state = loop.transcribe_windows(iter(_chunks(7)), local)
+    # 25 x 5 s = one full window + a tail flush, so two local calls.
+    state = loop.transcribe_windows(iter(_chunks(25)), local)
     assert state.text == "local-w1 local-w2"
     assert local.calls == 2
 

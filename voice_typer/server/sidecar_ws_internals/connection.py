@@ -189,27 +189,33 @@ def _emit_initial_state_snapshot(server: IPCServer) -> None:
     handshake with "WS auth unexpected frame type: state_changed".
     Binding rule: AGENTS.md constraint C-WS-1.
 
-    Defensive: the tray may not be initialized yet on the very first
-    connection (the app boots the IPC server before the tray icon is
-    constructed). ``getattr(..., None)`` + the ``is not None`` guard
+    Defensive: on the very first connection the tray may not exist yet,
+    and in early server-started mode ``server.app`` ITSELF is still
+    ``None`` (the entry point late-binds it after the WS listener is
+    live). The hop-by-hop ``getattr`` chain + the ``is None`` guard
     skip the emit in that case, the host will pick up the next state
     transition via the normal ``status_change`` hook.
     """
     from voice_typer.server import event_bus
 
     try:
-        current_state = getattr(server.app.tray, "_state", None)
-        current_msg = getattr(server.app.tray, "_message", "")
-        if current_state is not None:
-            event_bus.publish(
-                {
-                    "type": "state_changed",
-                    "data": {
-                        "status": getattr(current_state, "value", str(current_state)),
-                        "message": current_msg,
-                    },
-                }
-            )
+        # ``getattr(server.app.tray, ...)`` defaults only the FINAL hop:
+        # on a pre-app server the intermediate ``.tray`` read raises, so
+        # resolve app -> tray hop by hop and bail when a hop is absent.
+        app = getattr(server, "app", None)
+        tray = getattr(app, "tray", None)
+        current_state = getattr(tray, "_state", None)
+        if current_state is None:
+            return
+        event_bus.publish(
+            {
+                "type": "state_changed",
+                "data": {
+                    "status": getattr(current_state, "value", str(current_state)),
+                    "message": getattr(tray, "_message", ""),
+                },
+            }
+        )
     except Exception:
         log.debug(
             "[SIDECAR-WS] failed to emit initial state_changed on connect",

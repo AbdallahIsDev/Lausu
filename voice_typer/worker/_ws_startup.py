@@ -12,6 +12,7 @@ import contextlib
 import json
 import logging
 import sys
+import threading
 import time
 
 from voice_typer.server.duration import format_duration
@@ -49,15 +50,19 @@ def _fast_startup_enabled() -> bool:
 
 
 def _run_prewarm_phase() -> float:
-    """Run the prewarm phase ONCE at worker startup.
+    """Run the prewarm phase ONCE, on the background warm thread.
 
     Calls :func:`voice_typer.server.prewarm.warm_imports_for_worker`,
     which pages the runtime-pack libraries' files into the OS standby
     cache (``onnxruntime`` + ``ctranslate2`` + ``numpy`` + ``scipy`` +
     ``faster_whisper``) WITHOUT importing them. The worker still has
     to execute each library's code once, in its own process, that is
-    unavoidable, but the cold-disk read is paid here, in the
-    background, BEFORE the first transcription request.
+    unavoidable, but the cold-disk read is paid here, behind the live
+    listener, instead of in front of it.
+
+    The model WEIGHT pass is skipped: the integrity gate that runs
+    moments later in this same process re-hashes those files, so
+    pre-reading them is a second full read of the multi-GB payload.
 
     Skips warming entirely when the ``fast_startup`` config toggle is
     disabled (the user's start/stop control, RESTORED 2026-08-14,
@@ -81,7 +86,7 @@ def _run_prewarm_phase() -> float:
     try:
         from voice_typer.server.prewarm import warm_imports_for_worker
 
-        warm_imports_for_worker()
+        warm_imports_for_worker(include_model_weights=False)
     except Exception:
         # Prewarm is best-effort: a failure here MUST NOT crash the
         # worker (the cold cache only costs latency, never correctness).
@@ -93,6 +98,27 @@ def _run_prewarm_phase() -> float:
     )
     log.info("[STARTUP] worker prewarm phase complete%s", format_duration(elapsed))
     return elapsed
+
+
+def start_prewarm_in_background() -> threading.Thread:
+    """Start the prewarm phase on a daemon thread and return it.
+
+    Invoked by :func:`voice_typer.worker._ws_server.run_worker_server`
+    AFTER the WS listener is bound and ``worker_started`` is on stdout:
+    the warm pass is latency insurance for the model load, never a
+    precondition for the sidecar to connect. Waiting for it before the
+    bind cost 5-10s of dictation-readiness on every launch.
+
+    RACE-008: daemon is deliberate, the pass is best-effort and process
+    shutdown must never block on a multi-hundred-MB disk read.
+    """
+    thread = threading.Thread(
+        target=_run_prewarm_phase,
+        name="worker-prewarm",
+        daemon=True,
+    )
+    thread.start()
+    return thread
 
 
 # ─── Stdout protocol ──────────────────────────────────────────────────

@@ -3,10 +3,16 @@ import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 
 interface LevelBarProps {
-	/** RMS level 0–1 */
+	/** RMS level 0–1 (the media page passes determinate progress 0–1) */
 	level: number;
 	/** Whether audio playback is active (freezes the bar) */
 	playing: boolean;
+	/** Accessible name; defaults to the microphone copy. Non-mic
+	 *  consumers (the media transcription bar) pass their own label so
+	 *  screen readers never hear microphone wording. */
+	ariaLabel?: string;
+	/** Announced value; defaults to `"<pct> percent, <tier>"`. */
+	ariaValueText?: string;
 }
 
 // ── Centralised audio-quality thresholds ──────────────────────────────
@@ -54,7 +60,12 @@ export function getVolumeTier(level: number, peak: number): VolumeTier {
 	return "low";
 }
 
-export function LevelBar({ level, playing }: LevelBarProps) {
+export function LevelBar({
+	level,
+	playing,
+	ariaLabel,
+	ariaValueText,
+}: LevelBarProps) {
 	// LevelBar doesn't receive ``peak``; pass ``level`` as both args
 	// so the centralised helper still classifies the clipping tier
 	// correctly.
@@ -66,7 +77,7 @@ export function LevelBar({ level, playing }: LevelBarProps) {
 	// the qualitative band. Without this, SR users would hear "70" with
 	// no signal that the level is clipping.
 	const pct = Math.round(level * 100);
-	const ariaValueText = `${pct} percent, ${tier}`;
+	const valueText = ariaValueText ?? `${pct} percent, ${tier}`;
 	return (
 		<div
 			className={cn(
@@ -83,14 +94,15 @@ export function LevelBar({ level, playing }: LevelBarProps) {
 			)}
 			role="progressbar"
 			aria-label={
-				playing
+				ariaLabel ??
+				(playing
 					? t("microphone.levelBarFrozenAria")
-					: t("microphone.levelBarAria")
+					: t("microphone.levelBarAria"))
 			}
 			aria-valuemin={0}
 			aria-valuemax={100}
 			aria-valuenow={pct}
-			aria-valuetext={ariaValueText}
+			aria-valuetext={valueText}
 		>
 			<div
 				className={cn(

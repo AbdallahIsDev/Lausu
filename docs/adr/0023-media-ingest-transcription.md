@@ -161,3 +161,18 @@ Open (not built; do not claim otherwise):
   remaining half of the "fixes ship in hours" story.
 - **Phase 2 per the Decision section**: PO-token plugin, playlists /
   channels, live capture, track picker.
+
+## Addendum (2026-10-27): download-first tier order + batched windows
+
+Measured on a 17-minute YouTube job: streaming the resolved signed audio URL
+(`decode_chunks(..., remote=True)`) cost ~15 s of ingest per 30 s of audio
+(~0.5x realtime) while each window's ASR cost <1 s — ASR was ~5% of wall time.
+The tier order is therefore inverted: `downloader.temp_audio_download`
+(audio-only, yt-dlp `bestaudio`) is the PRIMARY tier and the resume-aware
+stream loop is the FALLBACK (E9/E10 semantics unchanged, just demoted).
+Media windows are now one batched decode call (`WINDOW_SECONDS =
+transcription_batching._BATCHED_SUPER_CHUNK_S`, above the engine's batched
+minimum), so the parallel `BatchedInferencePipeline` (batch_size=8) runs per
+window and chunk boundaries come from VAD speech timestamps rather than a hard
+30 s cut. The batched pipeline requires `vad_filter` (or `clip_timestamps`),
+so VAD-off audio stays on the sequential call.

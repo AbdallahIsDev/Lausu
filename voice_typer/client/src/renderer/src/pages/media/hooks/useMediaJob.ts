@@ -4,11 +4,14 @@
 // job survives page navigation (ADR-0023).
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useLatestRef } from "@/hooks/useLatestRef";
+import { useNavigation } from "@/hooks/useNavigation";
 import { usePython, usePythonEvent } from "@/hooks/usePython";
-import type { TranslationKey } from "@/i18n/translation-keys";
+import { t } from "@/i18n/i18n";
 import { CONSENT_REQUIRED_CODE, MEDIA_URL_CONSENT_FIELD } from "@/lib/consent";
 import { consentBodyKey, openConsentGate } from "@/lib/consentGate";
+import type { Page } from "@/types/ipc";
 import { isNoModelError, mediaErrorKey } from "../lib/mediaErrorCopy";
 
 export type MediaJobPhase =
@@ -28,8 +31,6 @@ export interface MediaJobState {
 	rowId: number | null;
 	chars: number | null;
 	partial: boolean;
-	errorKey: TranslationKey | null;
-	errorCode: string | null;
 }
 
 const IDLE_STATE: MediaJobState = {
@@ -41,9 +42,34 @@ const IDLE_STATE: MediaJobState = {
 	rowId: null,
 	chars: null,
 	partial: false,
-	errorKey: null,
-	errorCode: null,
 };
+
+/** Localized failure toast (ADR-0023 E13): the raw backend message stays
+ * diagnostics, the user gets the copy mapped from the failure code. A
+ * stable id makes a newer failure REPLACE the previous toast (the
+ * global error handler's dedupe convention) instead of stacking. */
+function showErrorToast(
+	errorCode: string | null | undefined,
+	navigate: (page: Page) => void,
+): void {
+	const noModel = isNoModelError(errorCode);
+	toast.error(t("media.errorTitle"), {
+		id: "media-transcribe-error",
+		description: t(
+			noModel
+				? "media.errorNoModel"
+				: (mediaErrorKey(errorCode) ?? "media.errorGeneric"),
+		),
+		...(noModel
+			? {
+					action: {
+						label: t("media.noModelAction"),
+						onClick: () => navigate("models"),
+					},
+				}
+			: {}),
+	});
+}
 
 interface StatusSnapshot {
 	job: {
@@ -72,6 +98,7 @@ const RUNNING_PHASES: ReadonlySet<MediaJobPhase> = new Set([
 
 export function useMediaJob(): UseMediaJobResult {
 	const { call } = usePython();
+	const { navigate } = useNavigation();
 	const callRef = useLatestRef(call);
 	const [job, setJob] = useState<MediaJobState>(IDLE_STATE);
 	const [starting, setStarting] = useState(false);
@@ -106,19 +133,13 @@ export function useMediaJob(): UseMediaJobResult {
 					});
 					return;
 				}
-				setJob({
-					...IDLE_STATE,
-					phase: "error",
-					errorCode: typeof e.code === "string" ? e.code : null,
-					errorKey: isNoModelError(e.code)
-						? "media.errorNoModel"
-						: mediaErrorKey(e.code),
-				});
+				setJob({ ...IDLE_STATE, phase: "error" });
+				showErrorToast(e.code, navigate);
 			} finally {
 				setStarting(false);
 			}
 		},
-		[call],
+		[call, navigate],
 	);
 	startRef.current = start;
 
@@ -165,8 +186,6 @@ export function useMediaJob(): UseMediaJobResult {
 						chars: data.chars,
 						partial: data.partial,
 						etaSeconds: null,
-						errorKey: null,
-						errorCode: null,
 					},
 		);
 	});
@@ -180,11 +199,8 @@ export function useMediaJob(): UseMediaJobResult {
 			phase: "error",
 			jobId: data.job_id,
 			etaSeconds: null,
-			errorCode: data.code,
-			errorKey: isNoModelError(data.code)
-				? "media.errorNoModel"
-				: mediaErrorKey(data.code),
 		}));
+		showErrorToast(data.code, navigate);
 	});
 
 	// Hydrate a running job after navigation back to the page. One-shot
