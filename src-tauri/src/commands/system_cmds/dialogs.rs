@@ -112,6 +112,52 @@ pub async fn open_model_import_dialog(
     }))
 }
 
+/// Audio extensions the Media page accepts.
+///
+/// PyAV is the decoder (ffmpeg-backed), so this list is deliberately wider
+/// than "what a browser plays": a file the backend can decode must never be
+/// hidden by the picker.
+const MEDIA_AUDIO_EXTENSIONS: &[&str] = &[
+    "mp3", "wav", "m4a", "aac", "flac", "ogg", "opus", "wma", "aiff", "aif", "amr", "ac3", "caf",
+    "mka", "oga", "spx", "3gp",
+];
+
+/// Video extensions the Media page accepts (the audio track is what gets
+/// transcribed; the container only has to be decodable).
+const MEDIA_VIDEO_EXTENSIONS: &[&str] = &[
+    "mp4", "mkv", "webm", "mov", "avi", "m4v", "mpeg", "mpg", "ts", "m2ts", "mts", "wmv", "flv",
+    "ogv", "3gp",
+];
+
+/// The Media picker's `(label, extensions)` filters, in dialog order.
+///
+/// Two invariants, both pinned by `dialogs_tests.rs`:
+///
+/// * **The combined filter is FIRST.** The native dialog pre-selects filter
+///   0, so a per-type filter in that slot opens the picker in a mode where
+///   every other kind of file is invisible (C-UI-13).
+/// * **It is derived, not typed twice.** The combined list is audio ++ video
+///   with duplicates removed, so it cannot drift from the per-type lists and
+///   leave a supported extension unreachable in the default view.
+pub(crate) fn media_dialog_filters() -> Vec<(&'static str, Vec<&'static str>)> {
+    let mut combined: Vec<&'static str> =
+        Vec::with_capacity(MEDIA_AUDIO_EXTENSIONS.len() + MEDIA_VIDEO_EXTENSIONS.len());
+    for ext in MEDIA_AUDIO_EXTENSIONS.iter().chain(MEDIA_VIDEO_EXTENSIONS) {
+        if !combined.contains(ext) {
+            combined.push(ext);
+        }
+    }
+    vec![
+        ("Audio and video", combined),
+        ("Audio", MEDIA_AUDIO_EXTENSIONS.to_vec()),
+        ("Video", MEDIA_VIDEO_EXTENSIONS.to_vec()),
+        // Escape hatch: the backend may still decode something not listed,
+        // and hiding it entirely is the failure mode this picker exists to
+        // avoid.
+        ("All files", vec!["*"]),
+    ]
+}
+
 /// Native audio/video file picker for the Media page's "Browse files".
 ///
 /// A webview `<input type="file">` hands the renderer only `file.name`
@@ -119,17 +165,10 @@ pub async fn open_model_import_dialog(
 /// `decode_failed` for a perfectly good file. Only a host picker (or a
 /// drag-drop event) carries an absolute path.
 ///
-/// Two things matter about the filter list, both learned from the owner
-/// opening this dialog and seeing no video files at all:
-///
-/// * The FIRST filter is the one the native dialog pre-selects, so it must
-///   be the combined one. With "Audio" first the picker opened in
-///   audio-only mode and every video in the folder was hidden — the user
-///   had to switch filters by hand to see them. Combined-first means the
-///   dialog shows both kinds immediately.
-/// * `pick_files`, not `pick_file`: the Media page transcribes several
-///   files at once, and a single-select dialog made a mixed audio+video
-///   batch impossible to express.
+/// `pick_files`, not `pick_file`: the Media page transcribes several files
+/// at once, and a single-select dialog made a mixed audio+video batch
+/// impossible to express. The filter order is owned by
+/// [`media_dialog_filters`].
 #[tauri::command]
 pub async fn pick_media_files_command(
     app: tauri::AppHandle,
@@ -138,31 +177,13 @@ pub async fn pick_media_files_command(
     require_main_window(&window)?;
     let title = localized_title_for(DialogTitle::SelectMediaFile, &app);
     let (tx, rx) = oneshot::channel();
-    app.dialog()
-        .file()
-        .set_title(title)
-        .add_filter(
-            "Audio and video",
-            &[
-                "mp3", "wav", "m4a", "aac", "flac", "ogg", "opus", "wma", "aiff", "amr", "mp4",
-                "mkv", "webm", "mov", "avi", "m4v", "mpeg", "mpg", "ts",
-            ],
-        )
-        .add_filter(
-            "Audio",
-            &[
-                "mp3", "wav", "m4a", "aac", "flac", "ogg", "opus", "wma", "aiff", "amr",
-            ],
-        )
-        .add_filter(
-            "Video",
-            &[
-                "mp4", "mkv", "webm", "mov", "avi", "m4v", "mpeg", "mpg", "ts",
-            ],
-        )
-        .pick_files(move |f| {
-            let _ = tx.send(f);
-        });
+    let mut dialog = app.dialog().file().set_title(title);
+    for (label, extensions) in media_dialog_filters() {
+        dialog = dialog.add_filter(label, &extensions);
+    }
+    dialog.pick_files(move |f| {
+        let _ = tx.send(f);
+    });
     let picked = await_dialog_bridge(rx).await;
     let Some(paths) = picked else {
         return Ok(json!({"canceled": true}));

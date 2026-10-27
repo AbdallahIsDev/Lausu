@@ -271,6 +271,9 @@ export interface MediaTranscribeStartRequest {
 		export_format?: string | null;
 		/** ADR-0023 E13: opt-in subtitle fast-path (default off). */
 		use_subtitles?: boolean;
+		/** Renderer correlation token, echoed on every event for this job so
+		 * a push that beats the start ack still lands on the right row. */
+		client_id?: string | null;
 	};
 }
 

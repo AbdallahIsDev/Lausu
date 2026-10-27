@@ -188,7 +188,7 @@ class TestAsrLane:
         lock = threading.Lock()
 
         def _runner(job):
-            with mgr.asr_lane(job, None):
+            with mgr.asr_lane(job):
                 with lock:
                     order.append(("enter", job.job_id))
                 time.sleep(0.05)
@@ -202,15 +202,20 @@ class TestAsrLane:
         # Strictly alternating enter/exit: no two decodes overlap.
         assert [kind for kind, _ in order] == ["enter", "exit", "enter", "exit"]
 
-    def test_lane_clears_a_stale_abort_on_entry(self):
+    def test_lane_never_touches_the_engine_abort_flag(self):
+        """Media must not clear (or fire) the engine-wide abort signal.
 
+        The decode polls the JOB's own Event, so touching the shared flag
+        would either truncate a dictation recording or swallow its cancel.
+        """
         mgr = MediaJobManager()
         backend = self._backend()
-        with mgr.asr_lane(mgr.start("a", lambda j: {}), backend):
+        with mgr.asr_lane(mgr.start("a", lambda j: {})):
             pass
-        assert backend.clears >= 1
+        assert backend.clears == 0, "the ASR lane cleared the engine-wide abort flag"
 
-    def test_cancelling_the_lane_owner_fires_abort(self):
+    def test_cancel_never_fires_the_engine_wide_abort(self):
+        """Cancel is scoped: it sets the job's Event and nothing else."""
         import threading
 
         mgr = MediaJobManager()
@@ -219,7 +224,7 @@ class TestAsrLane:
         release = threading.Event()
 
         def _runner(job):
-            with mgr.asr_lane(job, backend):
+            with mgr.asr_lane(job):
                 holding.set()
                 release.wait(timeout=5)
             return {}
@@ -227,14 +232,18 @@ class TestAsrLane:
         job = mgr.start("a", _runner)
         assert holding.wait(timeout=5)
         assert mgr.owns_asr(job.job_id) is True
-        mgr.cancel(job.job_id)
-        assert backend.aborts == 1
+        assert mgr.cancel(job.job_id) == [job.job_id]
+        assert job.cancel_event.is_set() is True, "cancel must set the job's own Event"
+        assert backend.aborts == 0, (
+            "cancel fired the engine-wide request_abort(): one shared flag, so it "
+            "lands on whichever decode is running (dictation or another job)"
+        )
         release.set()
         mgr.wait(5.0)
         assert mgr.owns_asr(job.job_id) is False
 
     def test_cancelling_a_waiting_job_never_aborts_the_owner(self):
-        """A queued job's cancel must not truncate the decode holding the model."""
+        """A queued job's cancel must not touch the decode holding the model."""
         import threading
 
         mgr = MediaJobManager(max_jobs=2)
@@ -243,13 +252,13 @@ class TestAsrLane:
         release = threading.Event()
 
         def _holder(job):
-            with mgr.asr_lane(job, backend):
+            with mgr.asr_lane(job):
                 holding.set()
                 release.wait(timeout=5)
             return {}
 
         def _waiter(job):
-            with mgr.asr_lane(job, backend):
+            with mgr.asr_lane(job):
                 return {}
 
         owner = mgr.start("a", _holder)
@@ -257,6 +266,7 @@ class TestAsrLane:
         waiter = mgr.start("b", _waiter)
         assert mgr.cancel(waiter.job_id) == [waiter.job_id]
         assert backend.aborts == 0, "the waiting job's cancel aborted the owner's decode"
+        assert owner.cancel_event.is_set() is False, "the owner's own Event was cancelled"
         assert mgr.owns_asr(owner.job_id) is True
         release.set()
         mgr.wait(5.0)
@@ -432,8 +442,13 @@ class TestEngineLoop:
         )
         assert state.text == ""
 
-    def test_abort_guard_blocks_the_shared_abort_signal(self):
-        """Only the lane owner may abort; a queued job's cancel stays local."""
+    def test_cancelling_a_job_never_fires_the_engine_wide_abort(self):
+        """A media cancel must not touch the engine's shared abort signal.
+
+        That signal is a single flag shared with dictation: firing it here
+        truncated whichever decode was running (a recording, or another job)
+        while the job still reported "completed".
+        """
         import threading
 
         from voice_typer.server.media_ingest import engine_loop as loop
@@ -449,23 +464,84 @@ class TestEngineLoop:
             def request_abort(self):
                 aborts.append(1)
 
+            def clear_abort(self):
+                aborts.append("clear")
+
         event = threading.Event()
         event.set()
-        state = loop.transcribe_windows(
-            iter(chunks),
-            _Backend(),
-            cancel_event=event,
-            abort_allowed=lambda: False,
-        )
+        state = loop.transcribe_windows(iter(chunks), _Backend(), cancel_event=event)
         assert state.text == ""
-        assert aborts == [], "a non-owner job fired the shared abort"
+        assert aborts == [], "a media cancel fired or cleared the engine-wide abort"
 
-        # With the guard open the same cancel does fire it.
-        event.set()
-        loop.transcribe_windows(
-            iter(chunks), _Backend(), cancel_event=event, abort_allowed=lambda: True
+    def test_a_dictation_cancel_does_not_stop_a_media_window(self):
+        """The engine-wide flag belongs to dictation; media ignores it."""
+        from voice_typer.server.media_ingest import engine_loop as loop
+
+        sr = loop.TARGET_SAMPLE_RATE
+        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(25)]
+
+        class _Backend:
+            engine_abort_set = True  # a dictation cancel left the flag set
+
+            def transcribe_with_fallback(self, audio, *a, **k):
+                return "window"
+
+            def request_abort(self):
+                pass
+
+        # No media cancel event at all: the dictation flag must not shorten it.
+        # Compare against a control run rather than a hardcoded window count —
+        # the window size is a decode setting this test must not pin.
+        state = loop.transcribe_windows(iter(chunks), _Backend())
+        control = loop.transcribe_windows(iter(chunks), _Backend())
+        assert state.text, "a dictation cancel truncated a media decode"
+        assert state.text == control.text
+        assert state.texts and len(state.texts) == len(control.texts)
+
+    def test_media_passes_its_own_event_as_the_scoped_abort_source(self):
+        """The decode receives ``abort_event=<job event>``, not the engine's."""
+        import threading
+
+        from voice_typer.server.media_ingest import engine_loop as loop
+
+        sr = loop.TARGET_SAMPLE_RATE
+        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(10)]
+        seen: list[object] = []
+
+        class _Backend:
+            def transcribe_with_fallback(self, audio, *a, **k):
+                seen.append(k.get("abort_event"))
+                return "w"
+
+            def request_abort(self):
+                pass
+
+        event = threading.Event()
+        loop.transcribe_windows(iter(chunks), _Backend(), cancel_event=event)
+        assert seen and all(item is event for item in seen), (
+            "the window decode did not receive the job's own cancel event"
         )
-        assert aborts == [1]
+
+    def test_a_backend_without_scoped_abort_still_decodes(self):
+        """Cloud/parakeet/qwen have no **kwargs; they must not get the kwarg."""
+        import threading
+
+        from voice_typer.server.media_ingest import engine_loop as loop
+
+        sr = loop.TARGET_SAMPLE_RATE
+        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(10)]
+
+        class _Backend:
+            def transcribe_with_fallback(self, audio):
+                return "w"
+
+            def request_abort(self):
+                pass
+
+        state = loop.transcribe_windows(
+            iter(chunks), _Backend(), cancel_event=threading.Event()
+        )
+        assert state.text, "a backend without abort_event support stopped decoding"
 
     def test_progress_reports_fraction_and_eta(self):
         from voice_typer.server.media_ingest import engine_loop as loop

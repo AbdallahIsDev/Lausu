@@ -1,12 +1,22 @@
 // useMediaJobs, the Media page's job lifecycle for SEVERAL concurrent
 // jobs: start (with the unified consent gate + retry), progress/complete/
-// error push subscriptions keyed by job id, per-job cancel, the backend's
-// concurrency cap, and mount-time hydration via `media_transcribe_status`
-// so running jobs survive page navigation (ADR-0023).
+// error push subscriptions keyed by the renderer's own client token,
+// per-job cancel, the backend's concurrency cap, and mount-time hydration
+// via `media_transcribe_status` so running jobs survive page navigation
+// (ADR-0023).
+//
+// Ownership contract: every start mints a `clientId`, sends it as
+// `client_id`, and the backend echoes it on every event for that job. A row
+// is resolved by clientId first and jobId second, so a push that arrives
+// before the start ack still lands on the exact row that asked for it.
+// There is deliberately no "adopt the only waiting row" heuristic: with two
+// starts in flight it bound events to the wrong row (or dropped them all,
+// leaving rows stuck in `starting` forever).
 //
 // Concurrency contract: the backend runs up to `max_jobs` jobs at once and
-// rejects the next start with `job_busy`. The page disables its inputs at
-// the cap so that rejection stays a backstop, never the normal path.
+// rejects the next start with `job_busy`. `startMany` therefore only starts
+// as many sources as there are free slots and reports the rest once, so the
+// backend's rejection stays a backstop rather than the normal path.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -27,8 +37,9 @@ export type MediaJobPhase =
 	| "done";
 
 export interface MediaJobRow {
-	/** Stable React key; `jobId` is empty until the start ack lands. */
-	key: string;
+	/** Renderer-minted correlation token; also the React key. Never empty. */
+	clientId: string;
+	/** Backend id; empty until the start ack lands. */
 	jobId: string;
 	source: string;
 	phase: MediaJobPhase;
@@ -38,6 +49,13 @@ export interface MediaJobRow {
 	rowId: number | null;
 	chars: number | null;
 	partial: boolean;
+}
+
+/** Result of a batch submit: what was enqueued and what was not. */
+export interface StartManyResult {
+	accepted: number;
+	/** The sources that did NOT start, in input order (capacity + refusals). */
+	refused: string[];
 }
 
 const RUNNING_PHASES: ReadonlySet<MediaJobPhase> = new Set([
@@ -51,14 +69,14 @@ const RUNNING_PHASES: ReadonlySet<MediaJobPhase> = new Set([
 const DEFAULT_MAX_JOBS = 4;
 
 let rowSeq = 0;
-function nextKey(): string {
+function nextClientId(): string {
 	rowSeq += 1;
 	return `media-row-${rowSeq}`;
 }
 
-function makeRow(source: string, jobId = ""): MediaJobRow {
+function makeRow(source: string, clientId: string, jobId = ""): MediaJobRow {
 	return {
-		key: nextKey(),
+		clientId,
 		jobId,
 		source,
 		phase: "starting",
@@ -75,10 +93,57 @@ function isFinished(phase: MediaJobPhase): boolean {
 	return phase === "done";
 }
 
+/** Index of the row a push belongs to: client token first, then job id.
+ *
+ * The client token is authoritative because the renderer minted it; the job
+ * id is the fallback for a push that arrives after the ack (or for a job
+ * hydrated from `media_transcribe_status`, which carries both). Neither
+ * matching means the event belongs to a row that is gone — ignore it
+ * rather than inventing one.
+ */
+function findRowIndex(
+	rows: MediaJobRow[],
+	clientId: string,
+	jobId: string,
+): number {
+	if (clientId) {
+		const byClient = rows.findIndex((row) => row.clientId === clientId);
+		if (byClient !== -1) return byClient;
+	}
+	if (jobId) {
+		return rows.findIndex((row) => row.jobId === jobId);
+	}
+	return -1;
+}
+
+/** One info toast for a batch that outran the free slots.
+ *
+ * Shared by the hook and the page's drag-drop path so a batch is reported
+ * exactly once, never as one error per refused file.
+ */
+export function reportBatchLimited(
+	accepted: number,
+	total: number,
+	max: number,
+): void {
+	toast.info(
+		t("media.batchLimited", {
+			accepted: String(accepted),
+			total: String(total),
+			max: String(max),
+		}),
+		{ id: "media-batch-limited" },
+	);
+}
+
 /** Localized failure toast (ADR-0023 E13): the raw backend message stays
  * diagnostics, the user gets the copy mapped from the failure code. A
  * stable id makes a newer failure REPLACE the previous toast (the
- * global error handler's dedupe convention) instead of stacking. */
+ * global error handler's dedupe convention) instead of stacking.
+ *
+ * `label` is the failing source. It can be empty — an error that arrives
+ * after its row was dismissed has no label left — and the description then
+ * carries the reason alone instead of a dangling " — reason". */
 function showErrorToast(
 	errorCode: string | null | undefined,
 	navigate: (page: Page) => void,
@@ -90,11 +155,12 @@ function showErrorToast(
 			? "media.errorNoModel"
 			: (mediaErrorKey(errorCode) ?? "media.errorGeneric"),
 	);
+	const trimmedLabel = label.trim();
 	toast.error(t("media.errorTitle"), {
 		id: "media-transcribe-error",
 		// With several jobs in flight the copy alone does not say WHICH one
 		// died, so the row label leads the description.
-		description: `${label} — ${reason}`,
+		description: trimmedLabel ? `${trimmedLabel} — ${reason}` : reason,
 		...(noModel
 			? {
 					action: {
@@ -110,6 +176,7 @@ interface StatusSnapshot {
 	jobs:
 		| {
 				job_id: string;
+				client_id?: string | null;
 				source?: string;
 				status: string;
 				phase?: string;
@@ -130,11 +197,14 @@ export interface UseMediaJobsResult {
 	starting: boolean;
 	/** Enqueue one source. False when it was refused (duplicate, cap, error). */
 	start: (source: string, useSubtitles: boolean) => Promise<boolean>;
-	/** Enqueue several sources; returns how many were accepted. */
-	startMany: (sources: string[], useSubtitles: boolean) => Promise<number>;
+	/** Enqueue as many sources as there are free slots; reports the rest once. */
+	startMany: (
+		sources: string[],
+		useSubtitles: boolean,
+	) => Promise<StartManyResult>;
 	cancel: (jobId: string) => Promise<void>;
 	cancelAll: () => Promise<void>;
-	dismiss: (key: string) => void;
+	dismiss: (clientId: string) => void;
 	clearFinished: () => void;
 }
 
@@ -145,9 +215,12 @@ export function useMediaJobs(): UseMediaJobsResult {
 	const [jobs, setJobs] = useState<MediaJobRow[]>([]);
 	const [maxJobs, setMaxJobs] = useState(DEFAULT_MAX_JOBS);
 	const [pending, setPending] = useState(0);
-	// Synchronous mirror: the duplicate check runs in an event handler,
-	// where a passive-effect ref would still hold the previous commit.
+	// Synchronous mirrors: the duplicate check and the capacity budget run in
+	// an event handler, where a passive-effect ref would still hold the
+	// previous commit.
 	const jobsRef = useRef<MediaJobRow[]>([]);
+	const maxJobsRef = useRef(maxJobs);
+	maxJobsRef.current = maxJobs;
 	// Latest `start` identity for the consent gate's `onAllow` retry:
 	// the gate stores the callback long after this render, so it must
 	// re-invoke the CURRENT function, not a stale closure.
@@ -166,28 +239,24 @@ export function useMediaJobs(): UseMediaJobsResult {
 		[],
 	);
 
-	/** Apply a push event to the row with `jobId`.
+	/** Apply a push event to the row that owns it (client token, then job id).
 	 *
-	 * A job's first progress push can beat the start ack, so when no row
-	 * carries the id yet and exactly ONE row is still waiting for its ack,
-	 * that row adopts the id. `startMany` awaits each start before the next,
-	 * so "exactly one" is a fact, not a guess.
+	 * A job's first progress push can beat the start ack; the row is found by
+	 * its client token either way, and the job id is adopted on the spot.
 	 */
 	const applyEvent = useCallback(
-		(jobId: string, patch: (row: MediaJobRow) => Partial<MediaJobRow>) => {
+		(
+			clientId: string,
+			jobId: string,
+			patch: (row: MediaJobRow) => Partial<MediaJobRow>,
+		) => {
 			updateJobs((prev) => {
-				if (!prev.some((row) => row.jobId === jobId)) {
-					const waiting = prev.filter((row) => row.jobId === "");
-					const adopt = waiting.length === 1 ? waiting[0] : undefined;
-					if (!adopt) return prev;
-					return prev.map((row) =>
-						row.key === adopt.key
-							? { ...row, jobId, ...patch({ ...row, jobId }) }
-							: row,
-					);
-				}
-				return prev.map((row) =>
-					row.jobId === jobId ? { ...row, ...patch(row) } : row,
+				const index = findRowIndex(prev, clientId, jobId);
+				if (index === -1) return prev;
+				return prev.map((row, i) =>
+					i === index
+						? { ...row, jobId: row.jobId || jobId, ...patch(row) }
+						: row,
 				);
 			});
 		},
@@ -211,24 +280,44 @@ export function useMediaJobs(): UseMediaJobsResult {
 				return false;
 			}
 			setPending((n) => n + 1);
-			const optimistic = makeRow(trimmed);
+			const clientId = nextClientId();
+			const optimistic = makeRow(trimmed, clientId);
 			updateJobs((prev) => [...prev, optimistic]);
 			try {
-				const result = await call<{ job_id?: string }>(
-					"media_transcribe_start",
-					{ source: trimmed, use_subtitles: useSubtitles },
-				);
+				const result = await call<{
+					job_id?: string;
+					client_id?: string | null;
+				}>("media_transcribe_start", {
+					source: trimmed,
+					use_subtitles: useSubtitles,
+					client_id: clientId,
+				});
 				const jobId = typeof result?.job_id === "string" ? result.job_id : "";
+				if (!jobId) {
+					// The backend accepted the call but cannot address the job:
+					// keeping the row would leave a "starting" ghost that no
+					// event can ever finish (and no Cancel can reach).
+					updateJobs((prev) => prev.filter((row) => row.clientId !== clientId));
+					showErrorToast("internal_error", navigate, trimmed);
+					return false;
+				}
+				const ackClientId =
+					typeof result?.client_id === "string" ? result.client_id : "";
+				// An older backend echoes no client_id; the row we just created
+				// is still the right one, so fall back to our own token.
+				const targetClientId = ackClientId || clientId;
 				updateJobs((prev) =>
 					prev.map((row) =>
-						row.key === optimistic.key && !row.jobId ? { ...row, jobId } : row,
+						row.clientId === targetClientId && !row.jobId
+							? { ...row, jobId }
+							: row,
 					),
 				);
 				return true;
 			} catch (err) {
 				const e = err as { code?: string; consent_field?: string };
 				// Nothing is running for this source: drop the optimistic row.
-				updateJobs((prev) => prev.filter((row) => row.key !== optimistic.key));
+				updateJobs((prev) => prev.filter((row) => row.clientId !== clientId));
 				if (e.code === CONSENT_REQUIRED_CODE) {
 					// C-MIC-3 just-in-time gate: grant + retry the SAME action.
 					const field = e.consent_field ?? MEDIA_URL_CONSENT_FIELD;
@@ -250,15 +339,38 @@ export function useMediaJobs(): UseMediaJobsResult {
 	startRef.current = start;
 
 	const startMany = useCallback(
-		async (sources: string[], useSubtitles: boolean): Promise<number> => {
-			let accepted = 0;
-			for (const source of sources) {
-				// Sequential on purpose: each ack is fast (URL resolution and
-				// downloads live in the job thread), and one-at-a-time keeps the
-				// optimistic-row ↔ job_id handshake unambiguous.
-				if (await start(source, useSubtitles)) accepted += 1;
+		async (
+			sources: string[],
+			useSubtitles: boolean,
+		): Promise<StartManyResult> => {
+			if (sources.length === 0) return { accepted: 0, refused: [] };
+			// Capacity is read ONCE, up front: starting a batch and letting the
+			// backend reject the overflow would toast one error per file.
+			const active = jobsRef.current.filter((row) =>
+				RUNNING_PHASES.has(row.phase),
+			).length;
+			const free = Math.max(0, maxJobsRef.current - active);
+			if (free === 0) {
+				reportBatchLimited(0, sources.length, maxJobsRef.current);
+				return { accepted: 0, refused: [...sources] };
 			}
-			return accepted;
+			const toStart = sources.slice(0, free);
+			const skipped = sources.slice(free);
+			let accepted = 0;
+			const refused: string[] = [];
+			for (const source of toStart) {
+				// Sequential on purpose: each ack is fast (URL resolution and
+				// downloads live in the job thread), and one-at-a-time keeps
+				// the optimistic-row ↔ ack handshake ordered.
+				if (await start(source, useSubtitles)) accepted += 1;
+				else refused.push(source);
+			}
+			refused.push(...skipped);
+			if (skipped.length > 0) {
+				// One toast for the whole batch, never one per refused file.
+				reportBatchLimited(accepted, sources.length, maxJobsRef.current);
+			}
+			return { accepted, refused };
 		},
 		[start],
 	);
@@ -284,8 +396,8 @@ export function useMediaJobs(): UseMediaJobsResult {
 	}, [call]);
 
 	const dismiss = useCallback(
-		(key: string) => {
-			updateJobs((prev) => prev.filter((row) => row.key !== key));
+		(clientId: string) => {
+			updateJobs((prev) => prev.filter((row) => row.clientId !== clientId));
 		},
 		[updateJobs],
 	);
@@ -297,7 +409,8 @@ export function useMediaJobs(): UseMediaJobsResult {
 	// Progress pushes (phase + fraction + measured ETA + total duration).
 	usePythonEvent("media_transcribe_progress", (data) => {
 		if (!data?.job_id) return;
-		applyEvent(data.job_id, (row) =>
+		const clientId = data.client_id ?? "";
+		applyEvent(clientId, data.job_id, (row) =>
 			isFinished(row.phase)
 				? {}
 				: {
@@ -313,7 +426,7 @@ export function useMediaJobs(): UseMediaJobsResult {
 	// Completion (also fired for cancelled jobs carrying a partial).
 	usePythonEvent("media_transcribe_complete", (data) => {
 		if (!data?.job_id) return;
-		applyEvent(data.job_id, () => ({
+		applyEvent(data.client_id ?? "", data.job_id, () => ({
 			phase: "done",
 			progress: 1,
 			rowId: data.row_id,
@@ -327,10 +440,18 @@ export function useMediaJobs(): UseMediaJobsResult {
 	// diagnostics only; the copy comes from the code map).
 	usePythonEvent("media_transcribe_error", (data) => {
 		if (!data?.job_id) return;
-		const failed = jobsRef.current.find((row) => row.jobId === data.job_id);
+		const clientId = data.client_id ?? "";
+		const index = findRowIndex(jobsRef.current, clientId, data.job_id);
+		const failed = index === -1 ? undefined : jobsRef.current[index];
 		// C-UI-11: a failure is reported by the toast, not by a row left
-		// sitting under the drop zone. The row goes away; the toast names it.
-		updateJobs((prev) => prev.filter((row) => row.jobId !== data.job_id));
+		// sitting under the drop zone. The row goes away; the toast names it
+		// — unless it already went away, in which case the reason stands
+		// alone (never an empty label followed by " — ").
+		updateJobs((prev) =>
+			prev.filter(
+				(row) => row.jobId !== data.job_id && row.clientId !== clientId,
+			),
+		);
 		showErrorToast(data.code, navigate, failed?.source ?? "");
 	});
 
@@ -356,7 +477,14 @@ export function useMediaJobs(): UseMediaJobsResult {
 					const restored = running
 						.filter((job) => !known.has(job.job_id))
 						.map((job) => ({
-							...makeRow(job.source ?? "", job.job_id),
+							...makeRow(
+								job.source ?? "",
+								// A job started by an earlier page instance keeps its
+								// client token; one started before this field existed
+								// gets a fresh local one (its pushes fall back to job id).
+								job.client_id || nextClientId(),
+								job.job_id,
+							),
 							phase: (job.phase as MediaJobPhase) ?? "transcribing",
 							progress: typeof job.progress === "number" ? job.progress : 0,
 						}));

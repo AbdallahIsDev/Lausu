@@ -8,9 +8,11 @@
 // zone and the link field are disabled so nothing else can be enqueued.
 
 import { cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "@/__tests__/helpers/render";
+import { t } from "@/i18n/i18n";
 
 const callMock = vi.fn();
 const pickMediaFiles = vi.fn();
@@ -18,6 +20,10 @@ const pickMediaFiles = vi.fn();
 vi.mock("@/hooks/usePython", () => ({
 	usePython: () => ({ call: callMock }),
 	usePythonEvent: () => {},
+}));
+
+vi.mock("sonner", () => ({
+	toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
 }));
 
 afterEach(() => {
@@ -102,6 +108,94 @@ describe("Media page file picker", () => {
 
 		await waitFor(() => expect(field.value).toBe(""));
 		expect(getByRole("button", { name: /transcribe/i })).toBeDisabled();
+	});
+
+	it("starts ONE job per pasted link and clears the field", async () => {
+		const { default: MediaPage } = await import("@/pages/Media");
+		const { getAllByText, getByPlaceholderText } = renderWithProviders(
+			<MediaPage />,
+		);
+
+		const field = getByPlaceholderText(/example\.com/) as HTMLInputElement;
+		// A single-line <input> strips newlines, so the page reads the
+		// clipboard payload itself — a one-link-per-line paste is the normal
+		// case and must not arrive glued into one bogus URL.
+		fireEvent.paste(field, {
+			clipboardData: {
+				getData: () =>
+					"https://www.youtube.com/watch?v=aaa\nhttps://vimeo.com/222",
+			},
+		});
+
+		await waitFor(() => {
+			const starts = callMock.mock.calls.filter(
+				([cmd]) => cmd === "media_transcribe_start",
+			);
+			expect(
+				starts.map(([, data]) => (data as { source: string }).source),
+			).toEqual([
+				"https://www.youtube.com/watch?v=aaa",
+				"https://vimeo.com/222",
+			]);
+		});
+		// Two rows, and the field is empty so nothing can be re-submitted.
+		expect(getAllByText(/youtube\.com|vimeo\.com/)).toHaveLength(2);
+		expect(field.value).toBe("");
+	});
+
+	it("leaves a single pasted link in the field to edit", async () => {
+		const { default: MediaPage } = await import("@/pages/Media");
+		const { getByPlaceholderText } = renderWithProviders(<MediaPage />);
+
+		const field = getByPlaceholderText(/example\.com/) as HTMLInputElement;
+		fireEvent.paste(field, {
+			clipboardData: { getData: () => "https://example.com/one" },
+		});
+		expect(
+			callMock.mock.calls.filter(([cmd]) => cmd === "media_transcribe_start"),
+		).toHaveLength(0);
+	});
+
+	it("keeps a local path with spaces as a single source", async () => {
+		const { default: MediaPage } = await import("@/pages/Media");
+		const { getByPlaceholderText, getByRole } = renderWithProviders(
+			<MediaPage />,
+		);
+
+		const path = "C:\\Users\\me\\My Videos\\How To Build a Setup.mp4";
+		const field = getByPlaceholderText(/example\.com/) as HTMLInputElement;
+		fireEvent.change(field, { target: { value: path } });
+		fireEvent.click(getByRole("button", { name: /transcribe/i }));
+
+		await waitFor(() => {
+			const starts = callMock.mock.calls.filter(
+				([cmd]) => cmd === "media_transcribe_start",
+			);
+			expect(starts).toHaveLength(1);
+			const first = starts[0];
+			if (!first) throw new Error("media_transcribe_start was never called");
+			expect((first[1] as { source: string }).source).toBe(path);
+		});
+	});
+
+	it("says file picking is unavailable instead of falling back to a web input", async () => {
+		// A webview `<input type="file">` yields only `file.name`, which the
+		// backend cannot open — that fallback WAS the decode_failed bug.
+		(window as unknown as Record<string, unknown>).window_ = {};
+		const { default: MediaPage } = await import("@/pages/Media");
+		const { container, getByText } = renderWithProviders(<MediaPage />);
+
+		fireEvent.click(getByText(/browse/i).closest("button") as HTMLElement);
+
+		await waitFor(() => expect(toast.info).toHaveBeenCalled());
+		expect(toast.info).toHaveBeenCalledWith(
+			t("media.pickerUnavailable"),
+			expect.objectContaining({ id: "media-picker-unavailable" }),
+		);
+		expect(container.querySelector('input[type="file"]')).toBeNull();
+		expect(
+			callMock.mock.calls.filter(([cmd]) => cmd === "media_transcribe_start"),
+		).toHaveLength(0);
 	});
 
 	it("disables the drop zone and the link field at the backend cap", async () => {

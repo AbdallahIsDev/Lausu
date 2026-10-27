@@ -37,6 +37,10 @@ class MediaHandlersMixin(HandlerBase):
                     "export_format": {"type": (str, type(None)), "required": False, "default": None},
                     # ADR-0023 E13: subtitle fast-path is OPT-IN (default off).
                     "use_subtitles": {"type": bool, "required": False, "default": True},
+                    # Renderer correlation token, echoed on every event for
+                    # this job so a push that beats the start ack still lands
+                    # on the exact row that requested it (no guessing).
+                    "client_id": {"type": (str, type(None)), "required": False, "default": None, "max_value_len": 64},
                 },
             )
             if error:
@@ -47,12 +51,31 @@ class MediaHandlersMixin(HandlerBase):
             from voice_typer.server.media_ingest.sources import classify_source
 
             raw = str(validated["source"]).strip()
+            client_id = validated.get("client_id")
+            if not isinstance(client_id, str) or not client_id.strip():
+                client_id = None
+            export_path = validated.get("export_path")
+            export_path = export_path.strip() if isinstance(export_path, str) and export_path.strip() else None
+            # Two concurrent jobs writing the same file would clobber each
+            # other, and which text survives would be arbitrary. Refuse the
+            # second start with the standard field-validation envelope.
+            if export_path is not None and get_job_manager().export_path_in_use(export_path):
+                return {
+                    "type": "error",
+                    "data": {
+                        "code": ErrorCodes.INVALID_FIELD,
+                        "field": "export_path",
+                        "message": f"'export_path' is already the target of a running job: {export_path}",
+                    },
+                }
             try:
                 classified = classify_source(raw)
             except ValueError:
                 return _error_response(resp, "missing source", code=ErrorCodes.MISSING_FIELD)
             if classified.kind == "url":
-                return self._start_url_media_job(classified.raw, validated, resp)
+                return self._start_url_media_job(
+                    classified.raw, validated, resp, client_id, export_path
+                )
             if not self._media_model_selected():
                 return _error_response(
                     resp, "no speech model installed (open Models to choose one)", code=ErrorCodes.NO_MODEL
@@ -63,18 +86,30 @@ class MediaHandlersMixin(HandlerBase):
                 return self._run_local_media_job(job, classified.raw, validated)
 
             try:
-                job = manager.start(classified.raw, _runner)
+                job = manager.start(
+                    classified.raw, _runner, client_id=client_id, export_path=export_path
+                )
             except MediaIngestError as exc:
                 if exc.code == JOB_BUSY:
                     return _error_response(resp, str(exc), code=ErrorCodes.JOB_BUSY)
                 raise
-            return {"type": "media_transcribe_result", "data": {"job_id": job.job_id, "status": "running"}}
+            return {
+                "type": "media_transcribe_result",
+                "data": {"job_id": job.job_id, "client_id": job.client_id, "status": "running"},
+            }
 
         return self._wrap(
             cmd_name="media_transcribe_start", resp_type="media_transcribe_result", data=data, resp=resp, body=body
         )
 
-    def _start_url_media_job(self, url: str, validated: dict, resp: ResponseEnvelope) -> dict:
+    def _start_url_media_job(
+        self,
+        url: str,
+        validated: dict,
+        resp: ResponseEnvelope,
+        client_id: str | None = None,
+        export_path: str | None = None,
+    ) -> dict:
         """Consent-gate, then hand the resolve+download to a job thread.
 
         Resolution used to run inline, which made a batch of pasted links
@@ -113,12 +148,15 @@ class MediaHandlersMixin(HandlerBase):
             return self._run_url_media_job(job, url, runtime, validated)
 
         try:
-            job = manager.start(url, _runner)
+            job = manager.start(url, _runner, client_id=client_id, export_path=export_path)
         except MediaIngestError as exc:
             if exc.code == JOB_BUSY:
                 return _error_response(resp, str(exc), code=ErrorCodes.JOB_BUSY)
             raise
-        return {"type": "media_transcribe_result", "data": {"job_id": job.job_id, "status": "running"}}
+        return {
+            "type": "media_transcribe_result",
+            "data": {"job_id": job.job_id, "client_id": job.client_id, "status": "running"},
+        }
 
     def _resolve_media(self, url: str, runtime):
         """Re-resolve a URL to a fresh signed audio URL after expiry."""
@@ -160,7 +198,13 @@ class MediaHandlersMixin(HandlerBase):
             event_bus.publish(
                 {
                     "type": "media_transcribe_complete",
-                    "data": {"job_id": job.job_id, "row_id": row_id, "chars": len(stripped), "partial": partial},
+                    "data": {
+                        "job_id": job.job_id,
+                        "client_id": job.client_id,
+                        "row_id": row_id,
+                        "chars": len(stripped),
+                        "partial": partial,
+                    },
                 }
             )
         except Exception:  # noqa: BLE001, best-effort
@@ -191,8 +235,7 @@ class MediaHandlersMixin(HandlerBase):
             cancel_event=job.cancel_event,
             on_progress=lambda frac, eta: self._publish_media_progress(job, frac, "transcribing", eta, total),
             total_seconds=total,
-            lane=lambda: manager.asr_lane(job, backend),
-            abort_allowed=lambda: manager.owns_asr(job.job_id),
+            lane=lambda: manager.asr_lane(job),
         )
         return self._finish_media_job(
             job,
@@ -264,8 +307,7 @@ class MediaHandlersMixin(HandlerBase):
                     ),
                     total_seconds=resolved.duration,
                     state=state,
-                    lane=lambda: manager.asr_lane(job, backend),
-                    abort_allowed=lambda: manager.owns_asr(job.job_id),
+                    lane=lambda: manager.asr_lane(job),
                 )
             return self._finish_media_job(
                 job,
@@ -309,8 +351,7 @@ class MediaHandlersMixin(HandlerBase):
                     on_progress=_on_stream_progress,
                     total_seconds=resolved.duration,
                     state=state,
-                    lane=lambda: manager.asr_lane(job, backend),
-                    abort_allowed=lambda: manager.owns_asr(job.job_id),
+                    lane=lambda: manager.asr_lane(job),
                 )
                 return self._finish_media_job(
                     job,
@@ -361,6 +402,7 @@ class MediaHandlersMixin(HandlerBase):
                     "type": "media_transcribe_progress",
                     "data": {
                         "job_id": job.job_id,
+                        "client_id": job.client_id,
                         "progress": fraction,
                         "phase": phase,
                         "eta_seconds": eta_seconds,

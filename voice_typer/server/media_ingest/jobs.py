@@ -12,10 +12,12 @@ the same number:
   independent of how many files the user queued: every window is decoded by
   the same model, with the same settings, alone.
 
-The lane also owns the abort signal. ``request_abort`` / ``clear_abort``
-flip ONE event on the shared engine, so cancelling a job that is merely
-waiting for the lane must never fire it — that would truncate the decode
-of whichever job actually holds the model. ``owns_asr()`` is the guard.
+Cancellation is SCOPED. Each job owns a `cancel_event`, and that Event is
+threaded into the job's own decode call as its abort source, so cancelling a
+job stops its window between segments and touches nothing else — not another
+media job, not an in-flight dictation recording. The engine's single shared
+`_abort_event` is never fired or cleared from here: one shared flag is exactly
+how a cancel used to truncate whichever decode happened to be running.
 """
 
 from __future__ import annotations
@@ -40,10 +42,6 @@ log = logging.getLogger(__name__)
 # lane is serial regardless, so no value here can change transcript quality.
 MAX_CONCURRENT_JOBS: Final[int] = 4
 
-# Finished jobs stay readable for status hydration (page navigation) but the
-# registry is pruned so a long session cannot grow it without bound.
-_MAX_FINISHED_KEPT: Final[int] = 20
-
 
 @dataclass
 class MediaJob:
@@ -55,6 +53,14 @@ class MediaJob:
     # Coarse stage the renderer shows before its first progress push.
     phase: str = "starting"
     progress: float = 0.0
+    # Renderer-generated correlation token, echoed on every event this job
+    # publishes. It is what lets the renderer bind a push to the exact row
+    # it created, including a push that beats the start ack.
+    client_id: str | None = None
+    # Where this job writes its transcript, when the caller asked for an
+    # export. Two running jobs must never share one destination: they would
+    # write over each other and the survivor's content would be arbitrary.
+    export_path: str | None = None
     cancel_event: threading.Event = field(default_factory=threading.Event)
     result: dict[str, Any] | None = None
     error: str | None = None
@@ -66,7 +72,14 @@ _OnEvent = Callable[[dict], None]
 
 
 class MediaJobManager:
-    """Runs up to ``max_jobs`` ingest jobs; ASR itself is serialized."""
+    """Runs up to ``max_jobs`` ingest jobs; ASR itself is serialized.
+
+    The registry holds RUNNING jobs only: a job is dropped from ``_jobs`` the
+    moment its thread finishes. Finished state is not re-read from here —
+    ``snapshots()`` feeds mount-time hydration for jobs the user can still
+    see as in-flight, and the outcome of a finished job reaches the renderer
+    through its completion/error event (plus the durable log line).
+    """
 
     def __init__(self, on_event: _OnEvent | None = None, *, max_jobs: int = MAX_CONCURRENT_JOBS) -> None:
         self._lock = threading.Lock()
@@ -76,7 +89,6 @@ class MediaJobManager:
         # One model, one decoder at a time.
         self._asr_gate = threading.Semaphore(1)
         self._asr_owner: str | None = None
-        self._asr_backend: Any | None = None
         self._on_event = on_event or (lambda _e: None)
 
     @property
@@ -90,8 +102,22 @@ class MediaJobManager:
     def has_capacity(self) -> bool:
         return self.running_count() < self._max_jobs
 
-    def start(self, source: str, runner: Callable[[MediaJob], dict[str, Any]]) -> MediaJob:
-        """Start ``runner`` on a daemon thread; raise ``JOB_BUSY`` when full."""
+    def start(
+        self,
+        source: str,
+        runner: Callable[[MediaJob], dict[str, Any]],
+        *,
+        client_id: str | None = None,
+        export_path: str | None = None,
+    ) -> MediaJob:
+        """Start ``runner`` on a daemon thread; raise ``JOB_BUSY`` when full.
+
+        ``client_id`` is the renderer's own correlation token; it is echoed on
+        every event so the renderer can bind a push to the row it created
+        without guessing which of several in-flight starts it belongs to.
+        ``export_path`` is recorded so a second job cannot be pointed at the
+        same destination while this one is still writing there.
+        """
         from voice_typer.server.media_ingest.errors import JOB_BUSY, MediaIngestError
 
         with self._lock:
@@ -100,7 +126,12 @@ class MediaJobManager:
                 raise MediaIngestError(
                     JOB_BUSY, f"{self._max_jobs} transcription jobs are already running"
                 )
-            job = MediaJob(job_id=uuid.uuid4().hex[:12], source=source)
+            job = MediaJob(
+                job_id=uuid.uuid4().hex[:12],
+                source=source,
+                client_id=client_id,
+                export_path=export_path,
+            )
             self._jobs[job.job_id] = job
             started = threading.Event()
 
@@ -161,13 +192,22 @@ class MediaJobManager:
                     self._on_event(
                         {
                             "type": "media_transcribe_error",
-                            "data": {"job_id": job.job_id, "code": str(code), "message": job.error},
+                            "data": {
+                                "job_id": job.job_id,
+                                "client_id": job.client_id,
+                                "code": str(code),
+                                "message": job.error,
+                            },
                         }
                     )
             finally:
                 with self._lock:
                     self._threads.pop(job.job_id, None)
-                    self._prune_locked()
+                    # Finished jobs are not re-readable: the outcome has
+                    # already been published (event + log line), so keeping
+                    # the object would only grow the registry for the life of
+                    # the process.
+                    self._jobs.pop(job.job_id, None)
 
         thread = threading.Thread(target=_run, name=f"media-ingest-{job.job_id}", daemon=True)
         with self._lock:
@@ -175,13 +215,6 @@ class MediaJobManager:
         thread.start()
         started.wait(timeout=5)
         return job
-
-    def _prune_locked(self) -> None:
-        """Drop the oldest finished jobs beyond ``_MAX_FINISHED_KEPT``."""
-        finished = [job for job in self._jobs.values() if job.status != "running"]
-        excess = len(finished) - _MAX_FINISHED_KEPT
-        for job in finished[:excess] if excess > 0 else ():
-            self._jobs.pop(job.job_id, None)
 
     def wait(self, timeout: float = 5.0, *, job_id: str | None = None) -> None:
         """Join one job thread (or all of them) for deterministic reads.
@@ -201,10 +234,13 @@ class MediaJobManager:
     def cancel(self, job_id: str | None = None) -> list[str]:
         """Cancel one job (or every running job); returns the cancelled ids.
 
-        Abort is fired here, not only between windows: a job that currently
-        owns the ASR lane is mid-decode, and the engine polls its abort event
-        between segments. A job waiting for the lane is never aborted this
-        way — the lane owner's decode would be truncated instead.
+        Only ``job.cancel_event`` is set. That Event is the SCOPED abort
+        source threaded into the job's own decode call, so the engine stops
+        this job's window between segments and nothing else: not another
+        media job, and not an in-flight dictation recording. The engine-wide
+        ``request_abort()`` is deliberately NOT fired — it is a single shared
+        flag, and firing it here was the cross-talk that silently truncated
+        whichever decode happened to be running.
         """
         with self._lock:
             targets = [
@@ -214,23 +250,16 @@ class MediaJobManager:
             ]
             for job in targets:
                 job.cancel_event.set()
-            ids = [job.job_id for job in targets]
-            owner = self._asr_owner
-            backend = self._asr_backend
-        if owner is not None and owner in ids and backend is not None:
-            abort = getattr(backend, "request_abort", None)
-            if callable(abort):
-                with suppress(Exception):
-                    abort()
-        return ids
+            return [job.job_id for job in targets]
 
     def snapshots(self) -> list[dict[str, Any]]:
-        """Running-job snapshots in start order (newest finished excluded)."""
+        """Running-job snapshots in start order (finished jobs are not kept)."""
         with self._lock:
             jobs = [job for job in self._jobs.values() if job.status == "running"]
         return [
             {
                 "job_id": job.job_id,
+                "client_id": job.client_id,
                 "source": job.source,
                 "status": job.status,
                 "phase": job.phase,
@@ -245,29 +274,33 @@ class MediaJobManager:
         with self._lock:
             return self._asr_owner == job_id
 
+    def export_path_in_use(self, export_path: str) -> bool:
+        """True when a RUNNING job already writes to ``export_path``."""
+        with self._lock:
+            return any(
+                job.status == "running" and job.export_path == export_path
+                for job in self._jobs.values()
+            )
+
     @contextmanager
-    def asr_lane(self, job: MediaJob, backend: Any | None = None) -> Iterator[None]:
+    def asr_lane(self, job: MediaJob) -> Iterator[None]:
         """Serialize one decode against the shared model.
 
-        Clearing the abort flag on entry is not cosmetic: a cancelled job
-        leaves it set, and the engine only checks it BETWEEN segments, so a
-        stale flag silently truncates the next job's first window.
+        The lane deliberately does NOT touch the engine's abort flag. Media
+        decodes poll ``job.cancel_event`` (a scoped source threaded into the
+        decode call), so a stale engine-wide flag — set by a dictation cancel
+        — can no longer truncate a media window, and clearing it here would
+        swallow that dictation cancel instead.
         """
         self._asr_gate.acquire()
         try:
             with self._lock:
                 self._asr_owner = job.job_id
-                self._asr_backend = backend
-            clear = getattr(backend, "clear_abort", None)
-            if callable(clear):
-                with suppress(Exception):
-                    clear()
             yield
         finally:
             with self._lock:
                 if self._asr_owner == job.job_id:
                     self._asr_owner = None
-                    self._asr_backend = None
             self._asr_gate.release()
 
     def publish(self, event: dict) -> None:

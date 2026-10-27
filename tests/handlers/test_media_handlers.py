@@ -31,22 +31,83 @@ class TestMediaStartValidation:
         started = {}
 
         class _Mgr:
-            def start(self, source, runner):
+            def start(self, source, runner, *, client_id=None, export_path=None):
                 started["source"] = source
+                started["client_id"] = client_id
 
                 class _J:
                     job_id = "abc123"
                     status = "running"
+                    client_id = None
 
+                _J.client_id = client_id
                 return _J()
 
         monkeypatch.setattr(jobs_mod, "get_job_manager", lambda: _Mgr())
         f = tmp_path / "clip.wav"
         f.write_bytes(b"RIFF")
-        resp = ipc_server._handle_media_transcribe_start({"source": str(f)}, {})
+        resp = ipc_server._handle_media_transcribe_start(
+            {"source": str(f), "client_id": "media-row-7"}, {}
+        )
         assert resp["type"] == "media_transcribe_result"
         assert resp["data"]["job_id"] == "abc123"
         assert started["source"] == str(f)
+        # The renderer's correlation token reaches the job (and comes back
+        # on the ack), so a push can be bound to the row that asked for it.
+        assert started["client_id"] == "media-row-7"
+        assert resp["data"]["client_id"] == "media-row-7"
+
+
+class TestExportPathCollision:
+    def test_two_running_jobs_cannot_share_one_export_path(
+        self, ipc_server, fake_service, monkeypatch, tmp_path
+    ):
+        """Two jobs writing one file would clobber each other's transcript."""
+        import threading
+
+        import voice_typer.server.media_ingest.jobs as jobs_mod
+
+        monkeypatch.setattr(jobs_mod, "_MANAGER", None)
+        mgr = jobs_mod.get_job_manager()
+        release = threading.Event()
+        started = threading.Event()
+
+        def _hold(_job):
+            started.set()
+            release.wait(timeout=5)
+            return {}
+
+        target = str(tmp_path / "out.txt")
+        first = mgr.start("already-running", _hold, export_path=target)
+        assert started.wait(timeout=5)
+
+        f = tmp_path / "clip.wav"
+        f.write_bytes(b"RIFF")
+        resp = ipc_server._handle_media_transcribe_start(
+            {"source": str(f), "export_path": target}, {}
+        )
+        assert resp["type"] == "error"
+        assert resp["data"]["code"] == "client.invalid_field"
+        assert resp["data"]["field"] == "export_path"
+        assert mgr.running_count() == 1, "the refused start created a job anyway"
+
+        release.set()
+        mgr.wait(5.0)
+        assert first.job_id
+
+    def test_export_path_is_free_again_once_the_job_finishes(
+        self, ipc_server, fake_service, monkeypatch, tmp_path
+    ):
+        import voice_typer.server.media_ingest.jobs as jobs_mod
+
+        monkeypatch.setattr(jobs_mod, "_MANAGER", None)
+        mgr = jobs_mod.get_job_manager()
+        target = str(tmp_path / "out.txt")
+        done = mgr.start("done-already", lambda _j: {}, export_path=target)
+        mgr.wait(5.0)
+        assert done.job_id
+        # The registry only tracks running jobs, so the path is free again.
+        assert mgr.export_path_in_use(target) is False
 
 
 class TestMediaCancelStatus:
@@ -89,12 +150,13 @@ class TestMediaUrlStart:
         started = {}
 
         class _Mgr:
-            def start(self, source, runner):
+            def start(self, source, runner, *, client_id=None, export_path=None):
                 started["source"] = source
 
                 class _J:
                     job_id = "url123"
                     status = "running"
+                    client_id = None
 
                 return _J()
 

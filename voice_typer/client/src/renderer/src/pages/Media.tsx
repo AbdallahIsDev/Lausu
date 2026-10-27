@@ -16,7 +16,8 @@ import {
 	Upload01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ClipboardEvent, useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import PageHeading from "@/components/common/PageHeading";
 import { SettingRow } from "@/components/common/SettingRow";
 import { LevelBar } from "@/components/feedback/LevelBar";
@@ -28,8 +29,13 @@ import { useNavigation } from "@/hooks/useNavigation";
 import { useT } from "@/i18n/i18n";
 import { formatClockDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { type MediaJobRow, useMediaJobs } from "./media/hooks/useMediaJobs";
+import {
+	type MediaJobRow,
+	reportBatchLimited,
+	useMediaJobs,
+} from "./media/hooks/useMediaJobs";
 import { describeMediaSource } from "./media/lib/sourceLabel";
+import { splitSources } from "./media/lib/splitSources";
 
 /** ADR-0023 E11: past this length the page warns about the total time. */
 const LONG_MEDIA_SECONDS = 4 * 3600;
@@ -43,7 +49,6 @@ export default function MediaPage() {
 		activeCount,
 		atCapacity,
 		starting,
-		start,
 		startMany,
 		cancel,
 		cancelAll,
@@ -53,19 +58,24 @@ export default function MediaPage() {
 	const [source, setSource] = useState("");
 	const [useSubtitles, setUseSubtitles] = useState(true);
 	const [dragOver, setDragOver] = useState(false);
-	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	// Native drop: absolute paths (web File objects hide them). Several
-	// dropped files are enqueued together.
+	// dropped files are enqueued together; at the cap nothing is attempted
+	// and the batch is reported once (no silent drop, no per-file error).
 	useEffect(() => {
 		const api = window.window_;
 		if (!api?.onDragDropFiles) return;
 		return api.onDragDropFiles((paths) => {
 			if (!Array.isArray(paths)) return;
 			const usable = paths.filter((p): p is string => Boolean(p));
-			if (usable.length > 0) void startMany(usable, useSubtitles);
+			if (usable.length === 0) return;
+			if (atCapacity) {
+				reportBatchLimited(0, usable.length, maxJobs);
+				return;
+			}
+			void startMany(usable, useSubtitles);
 		});
-	}, [startMany, useSubtitles]);
+	}, [atCapacity, maxJobs, startMany, useSubtitles]);
 
 	const trimmed = source.trim();
 	const canStart = trimmed.length > 0 && !atCapacity && !starting;
@@ -73,58 +83,71 @@ export default function MediaPage() {
 
 	const handleStart = useCallback(async () => {
 		if (!canStart) return;
-		const accepted = await start(trimmed, useSubtitles);
-		// Clear the field the moment the job is accepted: the row carries the
-		// source from here, and an empty field is what keeps Transcribe
-		// disabled instead of re-submitting the same file on the next click.
-		// A refused start keeps the text so retrying is one click.
-		if (accepted) setSource("");
-	}, [canStart, start, trimmed, useSubtitles]);
+		// One field can name several sources: a pasted list of links becomes
+		// one job per link, while a local path with spaces stays ONE source.
+		const sources = splitSources(source);
+		if (sources.length === 0) return;
+		const { accepted, refused } = await startMany(sources, useSubtitles);
+		if (accepted === 0) {
+			// Nothing started (at the cap, or every source failed): keep the
+			// text so a retry is one click.
+			return;
+		}
+		// Clear the field the moment the sources are accepted: the rows carry
+		// them from here, and an empty field is what keeps Transcribe
+		// disabled instead of re-submitting the same work on the next click.
+		// Only what was REFUSED stays, so the user can retry just that.
+		setSource(refused.length > 0 ? refused.join("\n") : "");
+	}, [canStart, source, startMany, useSubtitles]);
 
 	// Browse goes through the HOST picker: a webview file input hands the
 	// renderer only `file.name`, which the backend cannot open (drag-drop is
 	// the only web path that carries an absolute path). The host dialog is
-	// multi-select and opens with audio AND video visible.
+	// multi-select and opens with audio AND video visible. There is no
+	// `<input type="file">` fallback — submitting bare file names was the
+	// `decode_failed` bug this picker exists to fix.
 	const onPickFiles = useCallback(async () => {
 		if (atCapacity) return;
 		const api = window.window_;
-		if (api?.pickMediaFiles) {
-			const picked = await api.pickMediaFiles();
-			if (!picked.canceled && picked.paths && picked.paths.length > 0) {
-				await startMany(picked.paths, useSubtitles);
-			}
+		if (!api?.pickMediaFiles) {
+			toast.info(t("media.pickerUnavailable"), {
+				id: "media-picker-unavailable",
+			});
 			return;
 		}
-		fileInputRef.current?.click();
-	}, [atCapacity, startMany, useSubtitles]);
+		const picked = await api.pickMediaFiles();
+		if (!picked.canceled && picked.paths && picked.paths.length > 0) {
+			await startMany(picked.paths, useSubtitles);
+		}
+	}, [atCapacity, startMany, t, useSubtitles]);
+
+	// A single-line `<input>` STRIPS newlines, so a one-link-per-line paste
+	// arrives glued together ("…/aaahttps://…/bbb") and resolves as one bogus
+	// URL. Read the clipboard text itself: a multi-link paste is submitted as
+	// a batch, while a single link or a path stays in the field to edit.
+	const onPaste = useCallback(
+		(event: ClipboardEvent<HTMLInputElement>) => {
+			const text = event.clipboardData?.getData("text") ?? "";
+			const sources = splitSources(text);
+			if (sources.length < 2) return;
+			event.preventDefault();
+			if (atCapacity) {
+				reportBatchLimited(0, sources.length, maxJobs);
+				return;
+			}
+			void (async () => {
+				const { accepted, refused } = await startMany(sources, useSubtitles);
+				if (accepted > 0) setSource(refused.join("\n"));
+			})();
+		},
+		[atCapacity, maxJobs, startMany, useSubtitles],
+	);
 
 	return (
 		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 			<PageHeading
 				title={t("media.title")}
 				description={t("media.description")}
-			/>
-
-			{/* Hidden file picker: drag-drop stays the primary path on Tauri. */}
-			<input
-				ref={fileInputRef}
-				type="file"
-				accept="audio/*,video/*"
-				multiple
-				className="sr-only"
-				aria-hidden
-				tabIndex={-1}
-				disabled={atCapacity}
-				onChange={(e) => {
-					const files = Array.from(e.target.files ?? []);
-					if (files.length > 0) {
-						void startMany(
-							files.map((file) => file.name),
-							useSubtitles,
-						);
-					}
-					e.target.value = "";
-				}}
 			/>
 
 			<div className="flex flex-col rounded-lg border border-border/10 bg-surface-subtle">
@@ -182,6 +205,7 @@ export default function MediaPage() {
 							id="media-source"
 							value={source}
 							onChange={(e) => setSource(e.target.value)}
+							onPaste={onPaste}
 							placeholder={t("media.sourcePlaceholder")}
 							disabled={atCapacity}
 							className="min-w-0 flex-1"
@@ -254,11 +278,11 @@ export default function MediaPage() {
 				<div className="flex flex-col rounded-lg border border-border/10 bg-surface-subtle">
 					{jobs.map((job, index) => (
 						<JobRow
-							key={job.key}
+							key={job.clientId}
 							job={job}
 							first={index === 0}
 							onCancel={() => void cancel(job.jobId)}
-							onDismiss={() => dismiss(job.key)}
+							onDismiss={() => dismiss(job.clientId)}
 							onOpenHistory={() => navigate("history")}
 						/>
 					))}

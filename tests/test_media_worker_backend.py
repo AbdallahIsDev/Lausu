@@ -128,27 +128,40 @@ def test_request_abort_noop_without_request():
     assert fake.aborts == []
 
 
-def test_cancel_calls_both_aborts(monkeypatch):
-    fake = _FakeClient(texts=["w1"])
+def test_cancel_aborts_the_worker_hop_but_never_the_local_backend(monkeypatch):
+    """A media cancel is SCOPED (ADR-0023 2026-10-27 addendum).
+
+    The job's own Event is threaded into the decode as its abort source, so
+    the in-process engine stops by itself and its SHARED abort flag is never
+    fired — firing it was what truncated a dictation recording or another
+    job's window. Only the worker hop needs an explicit abort, and that one
+    is addressed to a single request id, so it is already scoped.
+    """
+    fake = _FakeClient(fail_ids={1, 2, 3})
     monkeypatch.setattr(loop, "_worker_path_available", lambda backend: True)
     monkeypatch.setattr(loop, "_shared_worker_client", lambda: fake)
-    local = _LocalBackend(texts=["should-not-run"])
-
-    seen_abort = {}
-
-    orig_flush = local.transcribe_with_fallback
-
-    def _counting(audio, *a, **k):
-        return orig_flush(audio, *a, **k)
-
-    local.transcribe_with_fallback = _counting  # type: ignore[method-assign]
     event = threading.Event()
-    event.set()
-    state = loop.transcribe_windows(iter(_chunks(2)), local, cancel_event=event)
-    assert state.text == ""
-    assert local.aborted is True
-    seen_abort["ok"] = True
-    assert seen_abort["ok"]
+    local = _LocalBackend()
+
+    def _cancel_during_decode(audio, *a, **k):
+        # The worker hop failed, so this window runs in-process; the cancel
+        # lands while that decode is in flight.
+        local.calls += 1
+        event.set()
+        return "local-w1"
+
+    local.transcribe_with_fallback = _cancel_during_decode  # type: ignore[method-assign]
+    state = loop.transcribe_windows(iter(_chunks(48)), local, cancel_event=event)
+    # The first window still produced its text; the loop stopped after it.
+    assert state.text == "local-w1"
+    assert local.calls == 1
+    # The engine-wide flag is untouched...
+    assert local.aborted is False
+    # ...while every abort that WAS sent targets request 1, the worker hop's
+    # own id (one from the hop's failure path, one from the cancel check).
+    # Nothing outside this job is addressed.
+    assert set(fake.aborts) == {1}
+    assert set(fake.cancels) == {1}
 
 
 def test_state_resume_and_progress_intact(monkeypatch):
