@@ -26,11 +26,21 @@ afterEach(() => {
 beforeEach(() => {
 	callMock.mockReset();
 	eventHandlers.clear();
-	callMock.mockImplementation((cmd: string) =>
-		cmd === "media_transcribe_status"
-			? Promise.resolve({ job: null })
-			: Promise.resolve({}),
-	);
+	// The ack MUST carry a job_id: a start that comes back without one is a
+	// backend that cannot address the job, and the page drops the row rather
+	// than leaving a "starting" ghost no event can ever finish.
+	callMock.mockImplementation((cmd: string, args?: { client_id?: string }) => {
+		if (cmd === "media_transcribe_status") {
+			return Promise.resolve({ job: null });
+		}
+		if (cmd === "media_transcribe_start") {
+			return Promise.resolve({
+				job_id: "job-1",
+				client_id: args?.client_id ?? null,
+			});
+		}
+		return Promise.resolve({});
+	});
 });
 
 describe("Media page progress layout", () => {

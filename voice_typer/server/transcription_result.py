@@ -126,6 +126,8 @@ def transcribe_unlocked(
     engine: Any,
     audio,
     audio_stats: tuple[float, float, float] | None = None,
+    *,
+    abort_event: Any = None,
 ) -> str:
     """Body of :meth:`TranscriptionEngine._transcribe_unlocked`.
 
@@ -138,6 +140,12 @@ def transcribe_unlocked(
     Reads per-cycle state from the engine argument (``engine._model``,
     ``engine.beam_size``, ``engine.language``, ``engine._abort_event``,
     ``engine.config``) and writes the quality summary back to it.
+
+    ``abort_event`` is a SCOPED abort source for callers that must not share
+    the engine-wide signal (media transcription: each job owns its own Event,
+    so cancelling one job cannot truncate a dictation recording or another
+    job's window). ``None`` keeps the historical behaviour — poll the engine's
+    own event, which is what the dictation path does.
     """
     if engine._model is None:
         raise RuntimeError("Model not loaded. Call load() first.")
@@ -198,9 +206,12 @@ def transcribe_unlocked(
             from voice_typer.server.security import redact_pii as _redact_pii
         except Exception:
             _redact_pii = None
+    # The scoped source wins when supplied: a media job's cancel Event must
+    # never be confused with the engine-wide dictation flag.
+    abort_source = abort_event if abort_event is not None else engine._abort_event
     for seg in segments:
         # Check the abort token BETWEEN segment iterations. The
-        if engine._abort_event.is_set():
+        if abort_source.is_set():
             log.info(
                 "[TRANSCRIBE] Abort requested, stopping segment loop early (completed %d segments, %d text parts)",
                 segment_count,

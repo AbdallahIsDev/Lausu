@@ -407,18 +407,26 @@ class SystemWhisperEngine:
         """Clear a stale abort signal before this cycle's decode starts."""
         self._abort_event.clear()
 
-    def _transcribe_inner(self, samples: Any, audio_stats: tuple[float, float, float] | None = None) -> str:
+    def _transcribe_inner(
+        self,
+        samples: Any,
+        audio_stats: tuple[float, float, float] | None = None,
+        abort_event: Any = None,
+    ) -> str:
         """Decode through the SAME body the pack worker engine uses.
 
         Parity contract: the configured decode settings (temperature pin,
         VAD filter, previous-text conditioning, batched long-audio path)
         must produce the same text here as in the worker. A bare
         ``model.transcribe()`` call ignored every one of them.
+
+        ``abort_event`` is passed straight through to the decode loop so a
+        media job can stop ITS window without touching the engine-wide flag.
         """
         from voice_typer.server.transcription_result import transcribe_unlocked
 
         with self._inference_lock:
-            return transcribe_unlocked(self, samples, audio_stats=audio_stats)
+            return transcribe_unlocked(self, samples, audio_stats=audio_stats, abort_event=abort_event)
 
     def transcribe_words(self, audio: Any, offset_seconds: float = 0.0) -> list[Any]:
         """Word-timestamp decode for streaming windows + the final tail merge."""
@@ -445,11 +453,13 @@ class SystemWhisperEngine:
         audio_stats = kwargs.get("audio_stats")
         if not isinstance(audio_stats, tuple):
             audio_stats = None
+        # Scoped abort source (media jobs); None = the engine-wide flag.
+        abort_event = kwargs.get("abort_event")
         # The lock spans the CUDA retry too, so a streaming window can
         # never decode against a half-rebuilt model.
         with self._inference_lock:
             try:
-                return self._transcribe_inner(samples, audio_stats)
+                return self._transcribe_inner(samples, audio_stats, abort_event)
             except Exception as exc:
                 from voice_typer.server.asr_utils import is_cuda_error
 
@@ -485,7 +495,7 @@ class SystemWhisperEngine:
                                 }
                             )
                     try:
-                        return self._transcribe_inner(samples, audio_stats)
+                        return self._transcribe_inner(samples, audio_stats, abort_event)
                     except Exception as cpu_exc:
                         raise RuntimeError(
                             f"system whisper CUDA failed ({exc}) and CPU retry also failed ({cpu_exc})"

@@ -82,6 +82,8 @@
 		"orLink": "oder Link einfügen",
 		"slots": "{running} von {max} Plätzen belegt",
 		"atCapacity": "Alle {max} Plätze sind belegt. Bricht einen Job ab oder wartet, bis einer fertig ist.",
+		"batchLimited": "{accepted} von {total} hinzugefügt — {max} Plätze sind belegt",
+		"pickerUnavailable": "Dateiauswahl ist hier nicht verfügbar. Ziehe die Datei stattdessen auf die Seite.",
 		"cancelAll": "Alle abbrechen",
 		"clearFinished": "Fertige entfernen",
 		"dismiss": "Verwerfen",

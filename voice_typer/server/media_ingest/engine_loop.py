@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 import threading
 import time
@@ -52,12 +53,23 @@ ProgressCallback = Callable[[float, float | None], None]
 # manager so concurrent media jobs interleave ingest but never inference.
 LaneFactory = Callable[[], Any]
 
-# Predicate: may this job fire the engine's shared abort signal right now?
-# Only the lane owner may — a queued job's cancel would otherwise truncate
-# the decode that actually holds the model.
-AbortGuard = Callable[[], bool]
-
 _WORKER_WINDOW_TIMEOUT_S = 300.0
+
+
+def _accepts_scoped_abort(backend: Any) -> bool:
+    """True when this backend can take a per-call ``abort_event``.
+
+    The whisper engine threads it into the decode loop; the cloud / parakeet
+    / qwen engines have their own cancellation and no ``**kwargs``, so asking
+    them would raise ``TypeError`` rather than abort anything.
+    """
+    try:
+        params = inspect.signature(backend.transcribe_with_fallback).parameters
+    except (TypeError, ValueError):  # builtins / C callables
+        return False
+    if "abort_event" in params:
+        return True
+    return any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
 def _shared_worker_client() -> Any | None:
@@ -166,7 +178,6 @@ def transcribe_windows(
     total_seconds: float | None = None,
     state: WindowsState | None = None,
     lane: LaneFactory | None = None,
-    abort_allowed: AbortGuard | None = None,
 ) -> WindowsState:
     """Accumulate 5 s chunks into 30 s windows; transcribe each.
 
@@ -174,8 +185,9 @@ def transcribe_windows(
     state instead of raising, so the caller can persist it (E14).
 
     ``lane`` wraps every decode so concurrent jobs share the single model
-    safely; ``abort_allowed`` gates the shared abort signal to the job that
-    currently owns it.
+    safely. ``cancel_event`` is handed to the decoder as a SCOPED abort
+    source: the job's own Event, never the engine-wide flag, so cancelling a
+    media job cannot truncate a dictation recording or another job's window.
     """
     import numpy as np
 
@@ -186,6 +198,9 @@ def transcribe_windows(
     started = time.perf_counter()
     start_offset = acc.decoded_seconds
     worker_backend: WorkerWindowBackend | None = None
+    # Decided once per call: the backend cannot change under us, and this is
+    # a per-window hot path.
+    scoped_abort = cancel_event is not None and _accepts_scoped_abort(backend)
 
     def _decode(audio: Any) -> str:
         """Transcribe one window (worker hop, else in-process)."""
@@ -202,7 +217,8 @@ def transcribe_windows(
                 return text
             except Exception:  # noqa: BLE001, worker failure falls back in-process
                 log.debug("[MEDIA] worker window failed, falling back to in-process", exc_info=True)
-        text = str(backend.transcribe_with_fallback(audio) or "").strip()
+        kwargs = {"abort_event": cancel_event} if scoped_abort else {}
+        text = str(backend.transcribe_with_fallback(audio, **kwargs) or "").strip()
         if text:
             acc.texts.append(text)
         return text
@@ -227,11 +243,10 @@ def transcribe_windows(
     def _cancelled() -> bool:
         if cancel_event is None or not cancel_event.is_set():
             return False
-        if abort_allowed is None or abort_allowed():
-            try:
-                backend.request_abort()
-            except Exception:  # noqa: BLE001, abort is best-effort
-                log.debug("[MEDIA] backend abort failed", exc_info=True)
+        # The in-process decode stops on its own: the same Event is the
+        # abort source it polls between segments. Only the worker hop needs
+        # an explicit abort (it targets ITS OWN request id, so it is already
+        # scoped). Nothing here touches the engine-wide signal any more.
         if worker_backend is not None:
             try:
                 worker_backend.request_abort()

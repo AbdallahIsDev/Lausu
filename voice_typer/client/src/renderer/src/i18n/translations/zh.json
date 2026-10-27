@@ -82,6 +82,8 @@
 		"orLink": "或粘贴链接",
 		"slots": "已占用 {running}/{max} 个任务位",
 		"atCapacity": "全部 {max} 个任务位都在使用中。请取消一个任务，或等其中一个完成。",
+		"batchLimited": "已添加 {accepted}/{total} 个 — {max} 个任务槽正在使用中",
+		"pickerUnavailable": "此处无法打开文件选择器。请改为把文件拖到页面上。",
 		"cancelAll": "全部取消",
 		"clearFinished": "清除已完成",
 		"dismiss": "关闭",

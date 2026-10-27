@@ -532,6 +532,9 @@ export interface MediaTranscribeProgressEvent {
 	type: "media_transcribe_progress";
 	data: {
 		job_id: string;
+		/** Echo of the start request's `client_id` (null when the caller
+		 * did not send one); lets the renderer bind the push to its row. */
+		client_id: string | null;
 		progress: number;
 		phase: "downloading" | "loading_model" | "transcribing";
 		eta_seconds: number | null;
@@ -548,6 +551,8 @@ export interface MediaTranscribeCompleteEvent {
 	type: "media_transcribe_complete";
 	data: {
 		job_id: string;
+		/** Echo of the start request's `client_id` (null when absent). */
+		client_id: string | null;
 		/** `null` when the transcript was empty (no History row written). */
 		row_id: number | null;
 		chars: number;
@@ -562,7 +567,12 @@ export interface MediaTranscribeCompleteEvent {
  */
 export interface MediaTranscribeErrorEvent {
 	type: "media_transcribe_error";
-	data: { job_id: string; code: string; message: string };
+	data: {
+		job_id: string;
+		client_id: string | null;
+		code: string;
+		message: string;
+	};
 }
 
 // parity is pinned by `tests/test_event_types_parity.py`
