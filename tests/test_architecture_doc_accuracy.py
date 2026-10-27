@@ -177,13 +177,13 @@ def test_tauri_command_count_in_doc_matches_code():
     assert rust_row_match is not None, "Rust host row not found."
     body = rust_row_match.group("body")
 
-    # Doc must say "26 Tauri commands: 1 generic `dispatch` + 25 typed shortcuts"
-    assert "26 Tauri commands" in body, f"Rust host row must say '26 Tauri commands'. Got: {body!r}"
+    # Doc must say "27 Tauri commands: 1 generic `dispatch` + 26 typed shortcuts"
+    assert "27 Tauri commands" in body, f"Rust host row must say '27 Tauri commands'. Got: {body!r}"
     assert "1 generic `dispatch`" in body
-    assert "25 typed shortcuts" in body
+    assert "26 typed shortcuts" in body
 
     cmds = _parse_generate_handler()
-    assert len(cmds) == 26, f"generate_handler! in main.rs must register 26 commands (actual: {len(cmds)}: {cmds})"
+    assert len(cmds) == 27, f"generate_handler! in main.rs must register 27 commands (actual: {len(cmds)}: {cmds})"
     assert cmds[0] == "dispatch", f"First command must be `dispatch` (actual: {cmds[0]!r})."
     # Every typed shortcut name from the frozen §16 contract must be present.
     expected_typed = {
@@ -204,6 +204,9 @@ def test_tauri_command_count_in_doc_matches_code():
         "bubble_request_screenshot_capture",
         "open_logs",
         "open_model_import_dialog",
+        # ADR-0023: native multi-select media picker (replaced the
+        # single-select `pick_media_file_command`).
+        "pick_media_files_command",
         "renderer_log_error",
         "set_host_locale",
         # 2026-09-16 predecessor-parity additions (review.md MO-118 / MO-120 /
@@ -223,18 +226,23 @@ def test_tauri_command_count_in_doc_matches_code():
     assert "ONE generic `dispatch`" not in body, "stale 'ONE generic `dispatch`' phrase must be removed."
 
 
-def test_main_rs_line_count_is_268():
+def test_main_rs_line_count_is_269():
     """
-    Doc claims 268 lines; main.rs must actually be 268 lines.
+    Doc claims 269 lines; main.rs must actually be 269 lines.
     C-ARCH-1 / C-TOKIO-1 / C-TAURI-2 anchors kept). Still wiring-only.
+
+    2026-10-27: 268 -> 269 for the ADR-0023 multi-select media picker
+    registration (body stays in `commands/system_cmds/dialogs.rs`).
     """
     doc = _read(ARCH_DOC)
-    assert "268 lines" in doc, "Doc must claim '268 lines' for main.rs."
+    assert "269 lines" in doc, "Doc must claim '269 lines' for main.rs."
     actual = sum(1 for _ in _read(MAIN_RS).splitlines())
-    assert actual == 268, (
-        f"src-tauri/src/main.rs must be 268 lines (actual: {actual}). Update the doc + this test together."
+    assert actual == 269, (
+        f"src-tauri/src/main.rs must be 269 lines (actual: {actual}). Update the doc + this test together."
     )
-    # Stale counts must NOT be in the doc.
+    # Stale counts must NOT be in the doc. The growth note's "266→268" does
+    # not contain "268 lines", so the previous value stays legal there.
+    assert "268 lines" not in doc, "Stale '268 lines' must be removed from doc."
     assert "266 lines" not in doc, "Stale '266 lines' must be removed from doc."
     assert "261 lines" not in doc, "Stale '261 lines' must be removed from doc."
     assert "240 lines" not in doc, "Stale '240 lines' must be removed from doc."

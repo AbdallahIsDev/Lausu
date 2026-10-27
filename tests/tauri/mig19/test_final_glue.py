@@ -72,6 +72,10 @@ EXPECTED_MAIN_RS_COMMANDS = [
     "open_logs",
     # `open_host_logs` REMOVED, dead in production:
     "open_model_import_dialog",
+    # ADR-0023 media ingest: native audio+video MULTI-select picker. Replaced
+    # the single-select `pick_media_file_command` when the Media page gained
+    # concurrent jobs (one mixed audio+video batch per dialog).
+    "pick_media_files_command",
     "export_templates",
     "export_config",
     "renderer_log_error",
