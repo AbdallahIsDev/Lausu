@@ -557,21 +557,4 @@ describe("useMediaJobs", () => {
 		await result.current.cancelAll();
 		expect(callMock).toHaveBeenLastCalledWith("media_transcribe_cancel");
 	});
-
-	it("clearFinished keeps only the jobs that are still running", async () => {
-		const { result } = renderHook(() => useMediaJobs());
-		await actStart(result, "a.mp3", "j1");
-		await actStart(result, "b.mp4", "j2");
-		fire("media_transcribe_complete", {
-			job_id: "j1",
-			client_id: null,
-			row_id: 3,
-			chars: 10,
-			partial: false,
-		});
-		act(() => {
-			result.current.clearFinished();
-		});
-		expect(result.current.jobs.map((row) => row.jobId)).toEqual(["j2"]);
-	});
 });

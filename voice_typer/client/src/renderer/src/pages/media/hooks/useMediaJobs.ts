@@ -212,7 +212,6 @@ export interface UseMediaJobsResult {
 	cancel: (jobId: string) => Promise<void>;
 	cancelAll: () => Promise<void>;
 	dismiss: (clientId: string) => void;
-	clearFinished: () => void;
 }
 
 export function useMediaJobs(): UseMediaJobsResult {
@@ -420,10 +419,6 @@ export function useMediaJobs(): UseMediaJobsResult {
 		[updateJobs],
 	);
 
-	const clearFinished = useCallback(() => {
-		updateJobs((prev) => prev.filter((row) => RUNNING_PHASES.has(row.phase)));
-	}, [updateJobs]);
-
 	// Progress pushes (phase + fraction + measured ETA + total duration).
 	usePythonEvent("media_transcribe_progress", (data) => {
 		if (!data?.job_id) return;
@@ -532,6 +527,5 @@ export function useMediaJobs(): UseMediaJobsResult {
 		cancel,
 		cancelAll,
 		dismiss,
-		clearFinished,
 	};
 }

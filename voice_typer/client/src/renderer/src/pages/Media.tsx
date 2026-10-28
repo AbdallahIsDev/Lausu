@@ -53,7 +53,6 @@ export default function MediaPage() {
 		cancel,
 		cancelAll,
 		dismiss,
-		clearFinished,
 	} = useMediaJobs();
 	const [source, setSource] = useState("");
 	const [useSubtitles, setUseSubtitles] = useState(true);
@@ -79,7 +78,6 @@ export default function MediaPage() {
 
 	const trimmed = source.trim();
 	const canStart = trimmed.length > 0 && !atCapacity && !starting;
-	const hasFinished = jobs.some((row) => row.phase === "done");
 
 	const handleStart = useCallback(async () => {
 		if (!canStart) return;
@@ -243,24 +241,6 @@ export default function MediaPage() {
 						)}
 					</div>
 
-					{jobs.length > 0 && (
-						<div className="flex flex-wrap items-center justify-between gap-2">
-							<span
-								className="text-xs text-muted-foreground tabular-nums"
-								data-testid="media-slots"
-							>
-								{t("media.slots", {
-									running: String(activeCount),
-									max: String(maxJobs),
-								})}
-							</span>
-							{hasFinished && (
-								<Button variant="ghost" size="sm" onClick={clearFinished}>
-									{t("media.clearFinished")}
-								</Button>
-							)}
-						</div>
-					)}
 					{atCapacity && (
 						<p
 							className="text-xs text-muted-foreground"
