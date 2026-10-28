@@ -271,7 +271,11 @@ class RecordingManager(MediaJobManager):
                 run.error = str(exc)
                 raise
             run.finished = time.perf_counter()
-            run.status = "completed"
+            # Mirror the manager's own rule: a runner that returns normally
+            # after its cancel_event was set produced a PARTIAL job, and the
+            # manager will flip job.status to "cancelled" once we return.
+            # Claiming "completed" here made a cancelled job report success.
+            run.status = "cancelled" if job.cancel_event.is_set() else "completed"
             run.chars = int((result or {}).get("chars", 0))
             run.text = str((result or {}).get("text", ""))
             return result
@@ -381,6 +385,10 @@ def scenario_cancel(backend: RealBackend, tmp_dir: Path, url: str, jobs: int) ->
 
     survivors = [mgr.runs[j.job_id] for j in started[1:]]
     victim_run = mgr.runs[victim.job_id]
+    # Authoritative status: the manager sets job.status AFTER the runner
+    # returns, so join first and read it here instead of trusting the record
+    # the runner wrote mid-flight.
+    victim_run.status = victim.status
     ok = _report(
         "cancelling one job does not truncate the others",
         all(run.chars > 0 for run in survivors),

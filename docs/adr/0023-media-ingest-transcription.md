@@ -189,23 +189,36 @@ apply, and conflating them would be a correctness bug:
   links enqueues four jobs without four network round trips in the handler.
 * **ASR is serialized.** Every job decodes against ONE ctranslate2 model that
   is not thread-safe (`SystemWhisperEngine._inference_lock`), so a job takes
-  `manager.asr_lane(job, backend)` around its window decodes. That is also why
-  concurrency cannot change transcript quality: each window is still decoded
-  by the same model, with the same settings, alone. The measured win is the
-  ingest overlap, not the inference.
-
-The lane also owns the abort signal. `request_abort`/`clear_abort` flip one
-Event on the shared engine, so `cancel(job_id)` fires it only when that job
-currently holds the lane, `engine_loop` gates its own abort call behind
-`abort_allowed` (i.e. `owns_asr`), and the lane clears a stale flag on entry —
-the engine only checks abort BETWEEN segments, so a leftover flag would
-silently truncate the next job's first window. A job cancelled while waiting
-for the lane releases it without decoding.
+  `manager.asr_lane(job)` around each window decode. The lane is a
+  `Semaphore(1)` re-entered once per WINDOW, not once per job: a job's windows
+  interleave with another job's ingests but never with another decode. That is
+  also why concurrency cannot change transcript quality: each window is still
+  decoded by the same model, with the same settings, alone. The measured win
+  is the ingest overlap, not the inference.
 
 Cap semantics: `start` raises `job_busy` at the cap, `media_transcribe_status`
 reports `{jobs, max_jobs}` so the renderer disables its inputs from the
 backend's number, and a finished job frees its slot immediately. Cancel takes
 an optional `job_id` (one job) or none (all).
+
+**Cancel is scoped, and the target set is chosen under the manager lock.**
+`cancel()` selects its targets and sets each job's `cancel_event` inside one
+`with self._lock:` block. That Event is the abort source threaded into the
+job's own decode, so the window stops between segments and nothing else is
+touched. The lane neither reads nor writes the engine's abort flag, so there is
+nothing to clear on entry and no stale flag can leak into the next job's first
+window (the engine only checks abort BETWEEN segments, so a leftover flag used
+to truncate exactly that first window). The engine-wide `request_abort()` /
+`clear_abort()` pair is never called from here: one shared flag is exactly how
+cancelling one media job truncated an in-flight dictation recording.
+All four built-in backends take the keyword — whisper threads it into its
+decode loop, parakeet and qwen poll it between chunks, cloud uses it for the
+retry skeleton — and the probe stays feature-detected (`inspect.signature`:
+a literal `abort_event` parameter or `**kwargs`), so a third-party backend that
+only implements `transcribe_with_fallback(audio)` still decodes, just without
+scoped cancellation.
+Cancelling every job (`cancel(None)`) and `force_cancel_transcription()` both
+go through this path.
 
 **Job↔row ownership is explicit, never inferred.** Every start carries a
 renderer-minted `client_id`; the backend echoes it on the ack and on all three
@@ -216,19 +229,6 @@ every event for both rows (rows pinned in `starting`, `activeCount` never
 dropping, the page permanently at capacity with no Cancel to escape) or bound
 a late event to an unrelated fresh row.
 
-**Cancel is scoped, and the target set is chosen under the manager lock.**
-`cancel()` selects its targets and sets each job's `cancel_event` inside one
-`with self._lock:` block. That Event is the abort source threaded into the
-job's own decode, so the window stops between segments and nothing else is
-touched. The engine-wide `request_abort()` / `clear_abort()` pair is never
-called from here, for two reasons: one shared flag is exactly how cancelling
-one media job used to truncate an in-flight dictation recording, and a flag
-left set by an earlier cancel used to truncate the next job's first window.
-The scoped kwarg is feature-detected (`inspect.signature`), so the cloud,
-parakeet and qwen backends — which take no `**kwargs` — are unaffected.
-Cancelling every job (`cancel(None)`) and `force_cancel_transcription()` both
-go through this path.
-
 **The picker's combined filter must stay first.** The native dialog pre-selects
 filter 0, so "Audio" in that slot hid every video in the folder (C-UI-13). The
 combined list is derived as audio ++ video with duplicates removed, and an
@@ -238,16 +238,40 @@ Stress evidence (real model, real PyAV decoder, real job manager + engine
 loop; 6 jobs × 240 s clip, cap 4). `bench/media_concurrency_stress.py` prints
 `RESULT: PASS` on each of these runs:
 
-| model / device | serial | concurrent | speedup | transcripts |
-| --- | --- | --- | --- | --- |
-| `faster-whisper-tiny` int8 / CPU | 57.6 s | 30.9 s | 1.86× | 6/6, 5060 chars each, identical to the serial baseline |
-| `faster-whisper-large-v3-turbo` float16 / CUDA | 66.2 s | 39.1 s | 1.69× | 6/6, 5087 chars each, identical to the serial baseline |
+| model / device | flags | serial | concurrent | speedup | transcripts |
+| --- | --- | --- | --- | --- | --- |
+| `faster-whisper-tiny` int8 / CPU | `--device cpu --compute int8` | 57.6 s | 30.9 s | 1.86× | 6/6, 5060 chars each, identical to the serial baseline |
+| `faster-whisper-large-v3-turbo` float16 / CUDA | `--device cuda --compute float16` | 66.2 s | 39.1 s | 1.69× | 6/6, 5087 chars each, identical to the serial baseline |
+
+Each row is its own comparison: the speedup is serial → concurrent on the SAME
+model and compute type. The rows are not comparable to each other — the tiny
+int8 model spends far less time inferring per window, so a larger share of its
+wall time is the ingest that concurrency overlaps, and its speedup is higher for
+that reason alone. The `--device`/`--compute` defaults (`auto`, model default)
+are what the app would pick; pass the flags above to reproduce a row exactly.
+
+Re-measured 2026-10-28 (same host, same clips, `RESULT: PASS` on every
+scenario in both runs):
+
+| model / device | flags | serial | concurrent | speedup | transcripts |
+| --- | --- | --- | --- | --- | --- |
+| `faster-whisper-tiny` int8 / CPU | `--device cpu --compute int8` | 112.3 s | 83.7 s | 1.34× | 6/6, 5087 chars, identical to that run's serial baseline |
+| `faster-whisper-large-v3-turbo` float16 / CUDA | `--device cuda --compute float16` | 66.9 s | 41.7 s | 1.60× | 6/6, 5087 chars, identical to that run's serial baseline |
+
+Read the two sets as "concurrency wins", not as a benchmark score. The CUDA row
+reproduced within 1%; the CPU row's absolute wall time roughly doubled under
+normal desktop load, so its ratio fell with it — the win is the ingest overlap,
+and on a CPU the ASR half of each job moves with whatever else is running. The
+tiny row's transcript also came out 5087 chars here against 5060 in the record
+above; the harness validates identity against the run's OWN serial baseline and
+this work changes no decode setting, so the count is recorded as measured rather
+than explained.
 
 Reproduce:
 
 ```
 .venv/Scripts/python.exe bench/media_concurrency_stress.py \
-    --jobs 6 --clip 240 --cap 4
+    --jobs 6 --clip 240 --cap 4 --device cpu --compute int8
 ```
 
 The harness also asserts the cap refuses past the limit and refills, that a
