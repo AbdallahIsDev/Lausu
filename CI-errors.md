@@ -2,4 +2,4 @@
 
 > Auto-generated from the latest GitHub Actions run via `scripts/ci/write_ci_errors.py`. Do not edit by hand, it is overwritten on every CI run.
 
-No test failures in the latest CI run. ✅ (7 JUnit files checked)
+No test failures in the latest CI run. ✅ (9 JUnit files checked)
