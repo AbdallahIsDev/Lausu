@@ -189,7 +189,7 @@ apply, and conflating them would be a correctness bug:
   links enqueues four jobs without four network round trips in the handler.
 * **ASR is serialized.** Every job decodes against ONE ctranslate2 model that
   is not thread-safe (`SystemWhisperEngine._inference_lock`), so a job takes
-  `manager.asr_lane(job)` around each window decode. The lane is a
+  `manager.asr_lane()` around each window decode. The lane is a
   `Semaphore(1)` re-entered once per WINDOW, not once per job: a job's windows
   interleave with another job's ingests but never with another decode. That is
   also why concurrency cannot change transcript quality: each window is still
@@ -233,6 +233,13 @@ a late event to an unrelated fresh row.
 filter 0, so "Audio" in that slot hid every video in the folder (C-UI-13). The
 combined list is derived as audio ++ video with duplicates removed, and an
 "All files" escape hatch is appended last.
+
+**Multi-source text is links-only.** The field accepts several SOURCES only as
+links (two or more real URLs become one job each), because a refused remainder
+is written back space-joined so a single-line input cannot glue tokens — which
+also means several local PATHS are not round-trippable after a partial batch;
+multiple files go through the picker or drag-drop, which hand over a real path
+list.
 
 Stress evidence (real model, real PyAV decoder, real job manager + engine
 loop; 6 jobs × 240 s clip, cap 4). `bench/media_concurrency_stress.py` prints
@@ -279,3 +286,12 @@ per-job cancel leaves the survivors at full length, that the same clip decoded
 concurrently is byte-identical, and that the log contract holds (one start
 line + one outcome line per job). Its own run logs are gitignored
 (`bench/*.log`); the numbers above are the record, not the files.
+
+**The speedup ratio is measured, never gated (2026-10-28).** Identical flags on
+this host produced 1.34× and then 0.76× — one FAIL line from an otherwise green
+run — while every correctness scenario passed both times (serial 113.0 s
+against the recorded 112.3 s), and a third run on the same idle box gave 1.41×
+(serial 98.2 s → concurrent 69.5 s, 12 logical CPUs, 6/6 jobs at 5087 chars,
+identical to that run's serial baseline, `RESULT: PASS`). Wall clock on a shared
+CPU moves with every other process, so the harness prints the ratio and the
+logical CPU count as `[INFO]` and gates only the correctness invariants.

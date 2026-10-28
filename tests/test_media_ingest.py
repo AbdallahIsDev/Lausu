@@ -173,7 +173,7 @@ class TestAsrLane:
         lock = threading.Lock()
 
         def _runner(job):
-            with mgr.asr_lane(job):
+            with mgr.asr_lane():
                 with lock:
                     order.append(("enter", job.job_id))
                 time.sleep(0.05)
@@ -221,7 +221,7 @@ class TestAsrLane:
         release = threading.Event()
 
         def _runner(job):
-            with mgr.asr_lane(job):
+            with mgr.asr_lane():
                 holding.set()
                 release.wait(timeout=5)
             return {}
@@ -246,13 +246,13 @@ class TestAsrLane:
         release = threading.Event()
 
         def _holder(job):
-            with mgr.asr_lane(job):
+            with mgr.asr_lane():
                 holding.set()
                 release.wait(timeout=5)
             return {}
 
         def _waiter(job):
-            with mgr.asr_lane(job):
+            with mgr.asr_lane():
                 return {}
 
         owner = mgr.start("a", _holder)

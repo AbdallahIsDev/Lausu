@@ -235,7 +235,7 @@ class MediaHandlersMixin(HandlerBase):
             cancel_event=job.cancel_event,
             on_progress=lambda frac, eta: self._publish_media_progress(job, frac, "transcribing", eta, total),
             total_seconds=total,
-            lane=lambda: manager.asr_lane(job),
+            lane=manager.asr_lane,
         )
         return self._finish_media_job(
             job,
@@ -307,7 +307,7 @@ class MediaHandlersMixin(HandlerBase):
                     ),
                     total_seconds=resolved.duration,
                     state=state,
-                    lane=lambda: manager.asr_lane(job),
+                    lane=manager.asr_lane,
                 )
             return self._finish_media_job(
                 job,
@@ -351,7 +351,7 @@ class MediaHandlersMixin(HandlerBase):
                     on_progress=_on_stream_progress,
                     total_seconds=resolved.duration,
                     state=state,
-                    lane=lambda: manager.asr_lane(job),
+                    lane=manager.asr_lane,
                 )
                 return self._finish_media_job(
                     job,
