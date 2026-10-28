@@ -248,12 +248,11 @@ class TestUpdateLevelProcessorLocking:
                 return real_lock.__exit__(*exc)
 
         counting_lock = _CountingLock()
-        monkeypatch.setattr(lm, "_monitor_lock", counting_lock)
-        # Also patch the worker submodule's view of the lock, since
+        # Patch the owner (the state singleton), not the package proxy: pytest
+        # snapshots ``__dict__`` for its undo stack and a proxied name is absent.
         from voice_typer.server.level_monitor._state import _state as _state_singleton
 
-        original_state_lock = _state_singleton._monitor_lock
-        _state_singleton._monitor_lock = counting_lock
+        monkeypatch.setattr(_state_singleton, "_monitor_lock", counting_lock)
         try:
             lm._monitor_sample_rate = 48000
 
@@ -293,7 +292,6 @@ class TestUpdateLevelProcessorLocking:
                 f"got {len(enter_calls)} acquisitions"
             )
         finally:
-            _state_singleton._monitor_lock = original_state_lock
             if original_module is not None:
                 sys.modules["voice_typer.server.audio_processor"] = original_module
             else:

@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from tests.fixtures.cache_resets import clear_caches
+from tests.fixtures.mock_modules import mock_module
 
 # ── Collection-time heavy-import mocks ──
 _mock_pystray_collection = MagicMock()
@@ -160,16 +161,16 @@ def mock_heavy_imports_session():
     """Install unconditional heavy-import mocks once per worker session."""
     mp = pytest.MonkeyPatch()
     try:
-        mock_sd = MagicMock()
+        mock_sd = mock_module("sounddevice")
         mock_sd.query_devices.return_value = []
         mp.setitem(sys.modules, "sounddevice", mock_sd)
 
-        mock_whisper = MagicMock()
+        mock_whisper = mock_module("faster_whisper")
         mp.setitem(sys.modules, "faster_whisper", mock_whisper)
         mp.setitem(sys.modules, "faster_whisper.WhisperModel", MagicMock())
 
-        mp.setitem(sys.modules, "pystray", MagicMock())
-        mp.setitem(sys.modules, "pyperclip", MagicMock())
+        mp.setitem(sys.modules, "pystray", mock_module("pystray"))
+        mp.setitem(sys.modules, "pyperclip", mock_module("pyperclip"))
 
         # VAD path), so a global torch stand-in is dead weight. Contract
 
@@ -208,8 +209,8 @@ def mock_heavy_imports_session():
 def mock_heavy_imports(monkeypatch, request):
     """Per-test conditional mocks + atexit + keyboard_ownership reset."""
     if not request.node.get_closest_marker("real_pynput"):
-        mock_pynput = MagicMock()
-        mock_pynput_kb = MagicMock()
+        mock_pynput = mock_module("pynput")
+        mock_pynput_kb = mock_module("pynput.keyboard")
         monkeypatch.setitem(sys.modules, "pynput", mock_pynput)
         monkeypatch.setitem(sys.modules, "pynput.keyboard", mock_pynput_kb)
     else:
@@ -219,10 +220,12 @@ def mock_heavy_imports(monkeypatch, request):
                 del sys.modules[_key]
 
     if not request.node.get_closest_marker("real_pil"):
-        mock_pil = MagicMock()
+        mock_pil = mock_module("PIL")
         monkeypatch.setitem(sys.modules, "PIL", mock_pil)
-        monkeypatch.setitem(sys.modules, "PIL.Image", MagicMock())
-        monkeypatch.setitem(sys.modules, "PIL.ImageDraw", MagicMock())
+        monkeypatch.setitem(sys.modules, "PIL.Image", mock_module("PIL.Image"))
+        monkeypatch.setitem(
+            sys.modules, "PIL.ImageDraw", mock_module("PIL.ImageDraw")
+        )
     else:
         for _key in ("PIL", "PIL.Image", "PIL.ImageDraw"):
             _existing = sys.modules.get(_key)
@@ -546,19 +549,28 @@ def tmp_config_dir(tmp_path, monkeypatch):
 @pytest.fixture(autouse=True)
 def _isolate_user_config_dir(tmp_path, monkeypatch, request):
     """Redirect EVERY test's config dir to a per-test tmp dir."""
+    from tests.fixtures.config_helpers import (
+        heal_leaked_config_dir_patch,
+        patch_config_dir_refs,
+        real_config_dir_impl,
+    )
+
+    real_config_dir = real_config_dir_impl()
+    if heal_leaked_config_dir_patch():
+        # One aborted monkeypatch.undo() must not poison the whole worker.
+        _warn_once(
+            "leaked_config_dir",
+            "repaired a _config_dir patch leaked by an earlier test's teardown",
+        )
     if request.node.get_closest_marker("real_config_dir"):
+        # Marked tests read the real function's source at their own config.
         yield
         return
-    from voice_typer.server.config_internals import paths as _paths_impl
-
-    _real_config_dir = _paths_impl._config_dir
     monkeypatch.setenv("VOICE_TYPER_CONFIG_DIR", str(tmp_path))
-    from tests.fixtures.config_helpers import patch_config_dir_refs
-
     patch_config_dir_refs(monkeypatch, tmp_path)
-    _real_config_dir.cache_clear()
+    real_config_dir.cache_clear()
     yield
-    _real_config_dir.cache_clear()
+    real_config_dir.cache_clear()
 
 
 @pytest.fixture(autouse=True)

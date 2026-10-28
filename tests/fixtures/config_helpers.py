@@ -5,8 +5,15 @@ from __future__ import annotations
 import importlib
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
-__all__ = ["patch_config_dir_refs", "preimport_config_modules", "FakeConfig"]
+__all__ = [
+    "patch_config_dir_refs",
+    "preimport_config_modules",
+    "real_config_dir_impl",
+    "heal_leaked_config_dir_patch",
+    "FakeConfig",
+]
 
 _CONFIG_MODULE_NAMES = (
     "voice_typer.server.config",
@@ -30,6 +37,10 @@ def preimport_config_modules() -> None:
     for name in _CONFIG_MODULE_NAMES:
         if name not in _config_modules:
             _config_modules[name] = importlib.import_module(name)
+    # Capture before any test can patch it: a leak in the very first test would
+    # otherwise be mistaken for the production implementation and be "healed"
+    # back to itself on every later test.
+    real_config_dir_impl()
 
 
 def _config_module(name: str) -> ModuleType:
@@ -44,6 +55,32 @@ def patch_config_dir_refs(monkeypatch, path: Path) -> None:
     """Redirect every ``_config_dir`` binding to *path* for one test."""
     for name in _CONFIG_MODULE_NAMES:
         monkeypatch.setattr(_config_module(name), "_config_dir", lambda: path)
+
+
+_REAL_CONFIG_DIR: Any = None
+
+
+def real_config_dir_impl() -> Any:
+    """Return the production ``_config_dir`` implementation (captured once)."""
+    global _REAL_CONFIG_DIR
+    if _REAL_CONFIG_DIR is None:
+        _REAL_CONFIG_DIR = _config_module("voice_typer.server.config_internals.paths")._config_dir
+    return _REAL_CONFIG_DIR
+
+
+def heal_leaked_config_dir_patch() -> bool:
+    """Reinstall the real ``_config_dir`` when a previous test leaked a patch.
+
+    An aborted ``monkeypatch.undo()`` leaves this module's ``_config_dir`` as
+    the per-test lambda; every later test then dies in ``cache_clear()``. Repair
+    it so one broken teardown cannot poison the rest of the worker.
+    """
+    module = _config_module("voice_typer.server.config_internals.paths")
+    real = real_config_dir_impl()
+    if module._config_dir is real:
+        return False
+    module._config_dir = real
+    return True
 
 
 class FakeConfig:
