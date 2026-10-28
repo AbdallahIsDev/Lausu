@@ -39,10 +39,12 @@ contract.
     --device cuda --compute float16
 ```
 
-It prints `RESULT: PASS` only when every scenario holds. Reference numbers are
-recorded in the ADR-0023 addendum (2026-10-27): 1.37x on tiny/int8 CPU, 1.70x
-on large-v3-turbo/float16 CUDA, transcripts byte-identical to the serial
-baseline.
+It prints `RESULT: PASS` only when every scenario holds. Reference numbers and
+the exact per-row flags live in the ADR-0023 stress tables
+(`docs/adr/0023-media-ingest-transcription.md`, addendum 2026-10-27 plus its
+2026-10-28 re-measurement) — those tables are the single canonical record; do
+not duplicate the numbers here. Transcripts must stay byte-identical to the
+serial baseline.
 
 **Why this file is not named `bench_*.py`:** the CI glob runs every
 `bench/bench_*.py` as a smoke benchmark on a machine with no model weights and
