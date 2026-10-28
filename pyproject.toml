@@ -395,6 +395,20 @@ test = [
     # when ``-n auto`` (or similar) is passed. CI's pytest step
     # passes ``-n auto`` explicitly (see .github/workflows/build.yml).
     "pytest-xdist>=3.5,<4",
+    # anyio's pytest plugin imports ``_pytest.python.CallSpec2``, which
+    # pytest 9.2 renamed to ``CallSpec``. 4.14.2 still does it (deprecation
+    # warning on every run); 4.15.0 fixed it (anyio#1271) and 4.15.1 is the
+    # current patch release. The floor also stops the plugin from raising
+    # outright under ``filterwarnings = error``.
+    "anyio>=4.15.1",
+    # requests imports ``urllib3.contrib.socks`` unconditionally at import
+    # time, and urllib3 emits a DependencyWarning ("SOCKS support ...
+    # requires ... PySocks") the moment a test process builds a requests
+    # session. We never request SOCKS ourselves, but huggingface_hub honours
+    # the user's proxy environment, so the documented optional dependency is
+    # declared here: the warning goes away at its source (no filter) and a
+    # socks5:// proxy keeps working instead of raising InvalidSchema.
+    "pysocks>=1.7,<2",
 ]
 # Build extras for packaging tooling. PyInstaller fallback (scripts/build/
 # lausu.spec) was deleted with the dead prewarm packaging path; Nuitka is
