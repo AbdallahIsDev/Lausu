@@ -246,13 +246,14 @@ class TestLifecycle:
     def test_idle_timeout_never_stops_the_mic_under_an_active_preview(self, monkeypatch):
         """An active preview holds the mic exactly like an active test does."""
         import voice_typer.server.level_monitor as lm
+        from voice_typer.server.level_monitor._state import _state as lm_state
         from voice_typer.server.level_monitor.monitoring import (
             _idle_timeout_auto_stop,
         )
 
         self._activate()
         # Make the idle timeout look long expired.
-        monkeypatch.setattr(lm, "_LEVEL_IDLE_TIMEOUT_SEC", 1.0)
+        monkeypatch.setattr(lm_state, "_LEVEL_IDLE_TIMEOUT_SEC", 1.0)
         lm._last_get_level_poll_ts = 1.0
 
         assert _idle_timeout_auto_stop() is False

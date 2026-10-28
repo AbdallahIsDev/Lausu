@@ -692,6 +692,7 @@ class TestCancelTestRecordingLock:
     def test_cancel_test_recording_acquires_monitor_lock(self, monkeypatch):
         """``cancel_test_recording`` must call ``_monitor_lock.__enter__``."""
         import voice_typer.server.level_monitor as lm
+        from voice_typer.server.level_monitor._state import _state as lm_state
 
         # Reset any leftover timer from prior tests.
         lm._test_auto_stop_timer = None
@@ -715,7 +716,7 @@ class TestCancelTestRecordingLock:
                 return real_lock.__exit__(*exc)
 
         counting_lock = _CountingLock()
-        monkeypatch.setattr(lm, "_monitor_lock", counting_lock)
+        monkeypatch.setattr(lm_state, "_monitor_lock", counting_lock)
 
         # Sanity: a fresh cancel_test_recording with no test active
         result = lm.cancel_test_recording()
@@ -743,6 +744,7 @@ class TestCancelTestRecordingLock:
     def test_cancel_test_recording_waits_for_lock_contention(self, monkeypatch):
         """``cancel_test_recording`` must BLOCK on ``_monitor_lock`` if"""
         import voice_typer.server.level_monitor as lm
+        from voice_typer.server.level_monitor._state import _state as lm_state
 
         # Reset any leftover timer.
         lm._test_auto_stop_timer = None
@@ -759,7 +761,7 @@ class TestCancelTestRecordingLock:
 
         # Use the REAL _monitor_lock for this test (the autouse fixture
         real_lock = threading.Lock()
-        monkeypatch.setattr(lm, "_monitor_lock", real_lock)
+        monkeypatch.setattr(lm_state, "_monitor_lock", real_lock)
 
         # Worker thread acquires the lock and holds it until released.
         lock_held = threading.Event()

@@ -230,5 +230,15 @@ class _LevelMonitorModule(sys.modules[__name__].__class__):
         # Default: set on the package's __dict__ (normal module behaviour).
         super().__setattr__(name, value)
 
+    def __delattr__(self, name: str) -> None:
+        # A proxied name has no package-__dict__ entry, so pytest >= 9.2 undoes
+        # a patch of it with ``delattr`` instead of restoring the old value.
+        # Reset to the ``_State`` default: aborting undo() leaks every patch it
+        # had not reached yet, and deleting the real attribute breaks the app.
+        if name.startswith("_") and hasattr(_state, name):
+            setattr(_state, name, getattr(_State(), name))
+            return
+        super().__delattr__(name)
+
 
 sys.modules[__name__].__class__ = _LevelMonitorModule

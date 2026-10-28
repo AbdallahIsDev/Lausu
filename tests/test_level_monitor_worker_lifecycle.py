@@ -164,16 +164,17 @@ class TestThreadRegistryRegistration:
         """The level worker's idle-timeout exit path drops its registry"""
         import voice_typer.server.level_monitor as lm
         from voice_typer.server.level_monitor import worker
+        from voice_typer.server.level_monitor._state import _state as lm_state
 
         registry = _FakeRegistry()
         worker.set_thread_registry(registry)
 
         # Force idle-timeout to fire immediately on the next worker tick.
-        monkeypatch.setattr(lm, "_monitor_active", True)
+        monkeypatch.setattr(lm_state, "_monitor_active", True)
         # Seed BOTH activity clocks POSITIVE and older than the zeroed idle
-        monkeypatch.setattr(lm, "_last_get_level_poll_ts", 0.001)
-        monkeypatch.setattr(lm, "_mic_level_last_push_ts", 0.001)
-        monkeypatch.setattr(lm, "_LEVEL_IDLE_TIMEOUT_SEC", 0.0)
+        monkeypatch.setattr(lm_state, "_last_get_level_poll_ts", 0.001)
+        monkeypatch.setattr(lm_state, "_mic_level_last_push_ts", 0.001)
+        monkeypatch.setattr(lm_state, "_LEVEL_IDLE_TIMEOUT_SEC", 0.0)
 
         worker._ensure_level_worker_running()
         thread = lm._level_worker_thread
