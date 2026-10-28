@@ -232,6 +232,13 @@ Applies to: All agents, all modes, all sub-agents.
 ```
 
 ```
+C-ASR-3
+Rule: Do NOT join decoder word tokens with a plain `" ".join`. Word timestamps arrive one token at a time and whisper emits punctuation as its own token ("1" + ".7", a trailing "," or "."), so a token STARTING with punctuation attaches to the previous one with no space (shared `_join_word_tokens`, mirrored on the server assembler and the worker assembler).
+Rationale: Every streamed decimal came out as "1 .7" and the cleanup spacing pass then produced "1. 7", while the batch path decoded the same audio correctly — only the streaming transcript was corrupted (2026-10-27).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
 C-UI-13
 Rule: Do NOT rely on a native file dialog's filter ORDER by accident: the FIRST `add_filter` entry is the one the dialog pre-selects, so a combined "everything this surface accepts" filter must be added before any per-type filter. A per-type filter added first hides every other type until the user switches filters by hand.
 Rationale: The Media page's picker registered "Audio" first, so the dialog opened in audio-only mode and every video in the folder was invisible — the owner had to flip the filter to see the .mp4 sitting next to the .mp3, and could never select one of each (2026-10-27).
@@ -593,6 +600,20 @@ Applies to: All agents, all modes, all sub-agents.
 C-TEST-13
 Rule: Do NOT let a count-based gate (mypy / pyrefly / ruff ratchet) depend on an optional runtime dependency. A package that an environment may or may not install is resolved by name at runtime (`importlib.import_module` + `getattr`), never left as a static import, so the gate reports the same counts everywhere.
 Rationale: huggingface-hub 2.x swapped httpx/httpcore for httpx2/httpcore2, so a fresh `.[test]` resolve flipped the mypy gate red with `import-not-found: 0 -> 2` on a stack the lock still pinned at 1.x while the code silently lost its error classification (2026-10-26).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-TEST-14
+Rule: Do NOT monkeypatch a package-facade name that only resolves dynamically (`__getattr__`/`__setattr__` proxies such as `level_monitor` and `credential_store`). Patch the object that actually stores it (`_state`, the owning submodule): pytest >= 9.2 snapshots `target.__dict__` for the undo stack, so a virtual name reads as absent and undo issues `delattr`, which raises and aborts the rest of the undo.
+Rationale: One such patch (`lm._monitor_lock`) aborted `monkeypatch.undo()` in a level-monitor teardown, so the autouse fixture's `_config_dir` lambda was never undone and every later test on that worker died at setup with `'function' object has no attribute 'cache_clear'` — 8323 failures on all 7 CI legs on 2026-10-28 while a local pytest 9.1.1 venv stayed fully green.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-TEST-15
+Rule: Do NOT stand in for a third-party module with a bare `MagicMock` (`sys.modules["x"] = MagicMock()`), and do NOT monkeypatch an auto-created mock child. pytest >= 9.2 records undo state from `target.__dict__`, where such a child does not exist, so the patch is refused under `raising=True` or undone with `delattr`, which leaves the child deleted for the rest of the session. Register a `tests/fixtures/mock_modules.mock_module()` stand-in instead: its children are real `__dict__` entries, so patch/undo round-trips like a real module.
+Rationale: The session `sounddevice` mock lost `query_devices`/`InputStream` after the first test that patched them, so 25 later tests on that worker failed with `<MagicMock id=...> has no attribute 'query_devices'` (ubuntu leg, 2026-10-28) — the same pytest 9.2 `__dict__` snapshotting that C-TEST-14 covers for package facades.
 Applies to: All agents, all modes, all sub-agents.
 ```
 
