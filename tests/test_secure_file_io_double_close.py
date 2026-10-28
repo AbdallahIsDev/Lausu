@@ -284,20 +284,32 @@ class TestSecureReadTextNoDoubleClose:
 
         monkeypatch.setattr(os, "close", spy_close)
 
-        # Force the inode-mismatch check to fire by making the second
+        # Sabotage only the second fstat of the read helper's own fd, and keep
+        # every other stat field real: pytest's capture layer calls os.fstat on
+        # its own temp file and reads st_size, so a global identity-only fake
+        # dies inside contextlib's contextmanager teardown, not here.
         real_fstat = os.fstat
         call_count = {"n": 0}
 
         class FakeStat:
-            def __init__(self, ino, dev):
-                self.st_ino = ino
-                self.st_dev = dev
+            """Real stat result with only the identity fields altered."""
+
+            def __init__(self, real):
+                self.st_ino = 999999
+                self.st_dev = 999999
+                self._real = real
+
+            def __getattr__(self, name):
+                return getattr(object.__getattribute__(self, "_real"), name)
 
         def sabotaging_fstat(fd):
+            real = real_fstat(fd)
+            if not captured_fd or fd != captured_fd[0]:
+                return real
             call_count["n"] += 1
             if call_count["n"] <= 1:
-                return real_fstat(fd)
-            return FakeStat(ino=999999, dev=999999)
+                return real
+            return FakeStat(real)
 
         monkeypatch.setattr(os, "fstat", sabotaging_fstat)
 
