@@ -149,8 +149,12 @@ class TestPynputWatchdog:
         backend._watchdog_stop_event.clear()
         backend._start_watchdog()
         try:
-            # Wait one poll cycle.
-            time.sleep(0.1)
+            # A loaded runner can take longer than one poll interval to get
+            # the watchdog thread scheduled, so wait for the reset instead of
+            # assuming it already landed after a fixed sleep.
+            deadline = time.monotonic() + 5.0
+            while backend._watchdog_failure_count != 0 and time.monotonic() < deadline:
+                time.sleep(0.01)
             assert backend._watchdog_failure_count == 0, (
                 "Watchdog should reset failure count to 0 when listener is healthy"
             )
