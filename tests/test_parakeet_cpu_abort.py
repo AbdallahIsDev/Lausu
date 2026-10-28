@@ -100,14 +100,14 @@ class TestParakeetCpuFallbackAbortGate:
         import inspect
 
         src = inspect.getsource(ParakeetEngine._transcribe_chunks)
-        assert "_abort_event.is_set()" in src, (
-            "_transcribe_chunks must check _abort_event.is_set() in the "
-            "chunk loop. The gate appears to have been removed, the CPU "
-            "fallback path would no longer respect ESC."
+        assert "abort_source.is_set()" in src, (
+            "_transcribe_chunks must poll abort_source (the scoped event, "
+            "else _abort_event) in the chunk loop. The gate appears to have "
+            "been removed, the CPU fallback path would no longer respect ESC."
         )
         assert "break" in src, (
             "_transcribe_chunks must `break` out of the chunk loop when "
-            "_abort_event is set. The break appears to have been removed."
+            "abort_source is set. The break appears to have been removed."
         )
 
     def test_abort_gate_at_loop_top_in_source(self):
@@ -116,7 +116,7 @@ class TestParakeetCpuFallbackAbortGate:
 
         src = inspect.getsource(ParakeetEngine._transcribe_chunks)
         # The abort check must come before the segment call.
-        abort_idx = src.find("_abort_event.is_set()")
+        abort_idx = src.find("abort_source.is_set()")
         segment_idx = src.find("_transcribe_segment")
         assert abort_idx != -1, "abort gate (_abort_event.is_set()) missing from _transcribe_chunks source"
         assert segment_idx != -1, "_transcribe_segment call missing from _transcribe_chunks source"

@@ -202,14 +202,50 @@ class TestParakeetOnnxAbortBetweenChunks:
         import inspect
 
         src = inspect.getsource(ParakeetEngine._transcribe_chunks)
-        assert "_abort_event.is_set()" in src, (
-            "_transcribe_chunks must check _abort_event.is_set() in the "
-            "chunk loop. The gate appears to have been removed."
+        assert "abort_source.is_set()" in src, (
+            "_transcribe_chunks must poll abort_source (the scoped event, "
+            "else _abort_event) in the chunk loop. The gate appears to have "
+            "been removed."
         )
         assert "break" in src, (
             "_transcribe_chunks must `break` out of the chunk loop when "
-            "_abort_event is set. The break appears to have been removed."
+            "abort_source is set. The break appears to have been removed."
         )
+
+
+class TestParakeetScopedAbort:
+    """A media job hands ``transcribe`` its OWN Event.
+
+    The engine-wide flag is the dictation cancel signal: a scoped call must
+    poll its own token INSTEAD of that flag, in both directions — otherwise
+    cancelling a media job would truncate a dictation, and a dictation cancel
+    would truncate a media window.
+    """
+
+    def test_scoped_event_stops_the_chunk_loop(self):
+        import threading
+
+        engine, _, _ = _make_engine_with_mocks()
+        scoped = threading.Event()
+        scoped.set()
+        audio = np.ones(int(60 * 16000), dtype=np.float32)  # 3 chunks
+
+        assert engine.transcribe(audio, abort_event=scoped) == ""
+        engine._model.recognize.assert_not_called()
+        # Scoping: the engine-wide flag was never set by this call.
+        assert not engine._abort_event.is_set()
+
+    def test_engine_flag_alone_does_not_stop_a_scoped_call(self):
+        import threading
+
+        engine, _, _ = _make_engine_with_mocks()
+        engine._abort_event.set()
+        audio = np.ones(int(60 * 16000), dtype=np.float32)  # 3 chunks
+
+        result = engine.transcribe(audio, abort_event=threading.Event())
+
+        assert result == "hello world"
+        assert engine._model.recognize.call_count == 3
 
 
 class TestParakeetOnnxAbortNoRunOptionsPlumbing:

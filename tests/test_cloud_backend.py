@@ -203,6 +203,32 @@ def test_switching_provider_takes_effect_without_a_new_backend() -> None:
     assert backend.device_info == "cloud/deepgram"
 
 
+def test_a_media_jobs_scoped_abort_reaches_the_config_backed_backend() -> None:
+    """The scoped cancel source must survive the ``CloudAsrBackend`` hop.
+
+    ``CloudAsrBackend`` overrides ``transcribe`` to re-resolve the target, so
+    the keyword only reaches ``CloudEngine`` if the override forwards it. A
+    job Event that is already set must short-circuit the call while the
+    engine-wide flag stays clear, which is what proves the override wins.
+    """
+    import threading
+
+    import numpy as np
+
+    cfg = make_config(
+        cloud_provider="openai",
+        openai_api_key="sk-test",
+        cloud_openai_consent=True,
+    )
+    backend = CloudAsrBackend(cfg)
+    audio = np.zeros(16000, dtype=np.float32)
+
+    job_event = threading.Event()
+    job_event.set()
+    assert backend.transcribe(audio, abort_event=job_event) == ""
+    assert backend._abort_event.is_set() is False
+
+
 def test_load_re_resolves_so_an_activation_path_sees_a_new_key() -> None:
     cfg = make_config(cloud_provider="openai", cloud_openai_consent=True)
     backend = CloudAsrBackend(cfg)

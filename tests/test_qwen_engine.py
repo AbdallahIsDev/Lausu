@@ -154,6 +154,44 @@ class TestQwenEngineUnit:
         assert result == ""
         engine._model.transcribe.assert_not_called()
 
+    def test_scoped_event_stops_the_chunk_loop(self):
+        """A media job's own Event aborts this call, not the engine flag."""
+        import threading
+
+        engine = self._make_engine()
+        engine._model = MagicMock()
+        mock_transcription = MagicMock()
+        mock_transcription.text = "chunk text"
+        engine._model.transcribe.return_value = [mock_transcription]
+
+        from voice_typer.server.qwen_engine import _QWEN_CHUNK_SECONDS
+
+        audio = np.ones(16000 * (_QWEN_CHUNK_SECONDS + 10), dtype=np.float32)
+        scoped = threading.Event()
+        scoped.set()
+
+        assert engine.transcribe(audio, abort_event=scoped) == ""
+        engine._model.transcribe.assert_not_called()
+        assert engine._abort_event.is_set() is False
+
+    def test_engine_flag_alone_does_not_stop_a_scoped_call(self):
+        """The reverse direction: a dictation cancel must not cut a job."""
+        import threading
+
+        engine = self._make_engine()
+        engine._model = MagicMock()
+        mock_transcription = MagicMock()
+        mock_transcription.text = "chunk text"
+        engine._model.transcribe.return_value = [mock_transcription]
+
+        from voice_typer.server.qwen_engine import _QWEN_CHUNK_SECONDS
+
+        audio = np.ones(16000 * (_QWEN_CHUNK_SECONDS + 10), dtype=np.float32)
+        engine.request_abort()
+
+        assert engine.transcribe(audio, abort_event=threading.Event()) == "chunk text"
+        assert engine._model.transcribe.call_count > 0
+
 
 class TestQwenConfigKeys:
     """Verify new config keys exist and have correct defaults."""
