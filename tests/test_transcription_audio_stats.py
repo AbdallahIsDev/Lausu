@@ -135,7 +135,11 @@ class TestCloudEngineIgnoresAudioStats:
             )
 
         assert result == "local text"
-        local_engine.transcribe.assert_called_once_with(audio, audio_stats=(0.7, 0.9, 10.0))
+        # The fallback leg also carries the call's SCOPED abort source (None
+        # for dictation), so a media job's Event reaches the local decode.
+        local_engine.transcribe.assert_called_once_with(
+            audio, audio_stats=(0.7, 0.9, 10.0), abort_event=None
+        )
 
     def test_no_local_engine_still_works_without_audio_stats(self):
         """Backwards compat: calling without audio_stats must still"""

@@ -102,7 +102,9 @@ class TestCloudEngineProtocol:
             result = engine.transcribe_with_fallback(audio, local_engine=local_engine, audio_stats=(0.01, 0.5, 50.0))
 
         assert result == "local fallback text"
-        local_engine.transcribe.assert_called_once_with(audio, audio_stats=(0.01, 0.5, 50.0))
+        local_engine.transcribe.assert_called_once_with(
+            audio, audio_stats=(0.01, 0.5, 50.0), abort_event=None
+        )
 
     def test_transcribe_with_fallback_publishes_cloud_fallback_used_event(self):
         """when cloud transcribe raises and the local engine"""
@@ -160,7 +162,9 @@ class TestCloudEngineProtocol:
         assert result == "factory fallback text"
         # Factory called exactly once, lazily (only on failure).
         factory.assert_called_once_with()
-        local_engine.transcribe.assert_called_once_with(audio, audio_stats=(0.02, 0.6, 40.0))
+        local_engine.transcribe.assert_called_once_with(
+            audio, audio_stats=(0.02, 0.6, 40.0), abort_event=None
+        )
 
     def test_transcribe_with_fallback_factory_returning_none_skips_fallback(self):
         """G4-H-18: if the factory returns None (e.g. cold start, no"""
