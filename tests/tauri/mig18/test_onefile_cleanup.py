@@ -1,6 +1,5 @@
 """
 Nuitka ``--onefile`` tempdir-spec + cleanup validation.
-Gaps documented (report, do NOT fix, out of scope for this gate check):
 """
 
 from __future__ import annotations
@@ -142,18 +141,6 @@ def test_windows_tempdir_spec_per_user_cache_dir(script_texts: dict[str, str]):
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "GAP-1 (MIG-1.8): build_sidecar_macos.sh uses "
-        "`$HOME/Library/Application Support/lausu/onefile-tmp` but the "
-        "MIG-1.8 task spec requires `~/Library/Caches/lausu/onefile-tmp` "
-        "(or `$XDG_CACHE_HOME/lausu/onefile-tmp`). See "
-        "test_known_gap_macos_uses_application_support_not_caches. When this "
-        "xfail becomes xpass (strict=True → suite fails), the gap has been "
-        "fixed: remove the xfail marker here AND delete the known-gap test."
-    ),
-)
 def test_macos_tempdir_spec_per_user_cache_dir(script_texts: dict[str, str]):
     """macOS tempdir-spec must be ``~/Library/Caches/lausu/onefile-tmp``."""
     text = script_texts["macos"]
@@ -214,25 +201,4 @@ def test_assume_yes_for_downloads_set(script_texts: dict[str, str], platform: st
         f"build_sidecar_{platform}.sh must set --assume-yes-for-downloads "
         "(non-interactive CI build, Nuitka would hang on a download prompt "
         "without this flag)."
-    )
-
-
-def test_known_gap_macos_uses_application_support_not_caches(
-    script_texts: dict[str, str],
-):
-    """KNOWN GAP (MIG-1.8): ``build_sidecar_macos.sh`` uses"""
-    text = script_texts["macos"]
-    spec = _extract_resolved_tempdir_spec(text)
-    assert spec is not None, "build_sidecar_macos.sh: could not extract --onefile-tempdir-spec value."
-    # Assert the gap is present: the spec uses "Application Support" not "Caches".
-    assert "Application Support" in spec, (
-        "build_sidecar_macos.sh no longer uses `Application Support` in "
-        "--onefile-tempdir-spec, the GAP-1 may have been fixed. Update "
-        "test_macos_tempdir_spec_per_user_cache_dir to remove the xfail "
-        "marker, and remove this known-gap test."
-    )
-    assert "Caches" not in spec, (
-        "build_sidecar_macos.sh now uses `Caches` in --onefile-tempdir-spec, "
-        "the GAP-1 has been fixed. Update test_macos_tempdir_spec_per_user_cache_dir "
-        "to remove the xfail marker, and remove this known-gap test."
     )

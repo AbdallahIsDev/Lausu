@@ -170,7 +170,9 @@ NUITKA_ARGS=(
     --macos-app-name=LausuSidecar
     --macos-signed-app-name=com.Lausu.sidecar
     --macos-app-mode=background
-    --onefile-tempdir-spec="$HOME/Library/Application Support/lausu/onefile-tmp"
+    # Extract dir is purgeable cache, not user data: Application Support is
+    # backed up and survives "clear caches", the frozen extract must not.
+    --onefile-tempdir-spec="$HOME/Library/Caches/lausu/onefile-tmp"
     --output-filename="$OUTPUT_NAME"
     --output-dir="$SIDECAR_DIR"
     "$PROJECT_ROOT/voice_typer/server/ipc_server.py"
