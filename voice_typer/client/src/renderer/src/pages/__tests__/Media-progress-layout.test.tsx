@@ -86,4 +86,50 @@ describe("Media page progress layout", () => {
 			meta.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_PRECEDING,
 		).toBeTruthy();
 	});
+
+	// Owner decision 2026-10-28: the slots counter and its "Clear finished"
+	// action are gone for good. A finished row carries its own Dismiss, so the
+	// page needs no bulk clear and no capacity readout above the queue.
+	it("renders no slot counter and no clear-finished action", async () => {
+		const { default: MediaPage } = await import("@/pages/Media");
+		const {
+			container,
+			getByPlaceholderText,
+			getByRole,
+			queryByRole,
+			queryByTestId,
+		} = renderWithProviders(<MediaPage />);
+
+		fireEvent.change(getByPlaceholderText(/example\.com/), {
+			target: { value: "https://example.com/v" },
+		});
+		fireEvent.click(getByRole("button", { name: /transcribe/i }));
+
+		await waitFor(() => {
+			if (!container.querySelector('[role="progressbar"]')) {
+				throw new Error("job row not rendered yet");
+			}
+		});
+
+		act(() => {
+			eventHandlers.get("media_transcribe_complete")?.({
+				job_id: "job-1",
+				client_id: null,
+				row_id: 3,
+				chars: 10,
+				partial: false,
+			});
+		});
+
+		await waitFor(() => {
+			if (!queryByRole("button", { name: /dismiss/i })) {
+				throw new Error("completed row not rendered yet");
+			}
+		});
+
+		expect(queryByTestId("media-slots")).toBeNull();
+		expect(queryByRole("button", { name: /clear finished/i })).toBeNull();
+		// The completed row still owns its own Dismiss action.
+		expect(getByRole("button", { name: /dismiss/i })).toBeTruthy();
+	});
 });
