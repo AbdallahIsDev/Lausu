@@ -277,7 +277,7 @@ class MediaJobManager:
             )
 
     @contextmanager
-    def asr_lane(self, job: MediaJob) -> Iterator[None]:
+    def asr_lane(self) -> Iterator[None]:
         """Serialize one decode against the shared model.
 
         The lane deliberately does NOT touch the engine's abort flag. Media
@@ -285,6 +285,9 @@ class MediaJobManager:
         decode call), so a stale engine-wide flag — set by a dictation cancel
         — can no longer truncate a media window, and clearing it here would
         swallow that dictation cancel instead.
+
+        No argument is taken: the job is not needed, because the cancel
+        source travels with the decode call rather than through this gate.
         """
         self._asr_gate.acquire()
         try:
