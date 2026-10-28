@@ -293,7 +293,14 @@ class TestPreRollFiltered:
 
         r.start()
         try:
-            # The mock stream fired n_preroll_chunks callbacks during
+            # The mock stream fires its callbacks from the recorder's audio
+            # worker, so wait for them to land instead of assuming start()
+            # already drained the stream.
+            chunks_deadline = time.monotonic() + 5.0
+            while time.monotonic() < chunks_deadline:
+                if len(r._preroll_buffer) >= n_preroll_chunks or len(r._audio_pipeline._buffer) >= n_preroll_chunks:
+                    break
+                time.sleep(0.01)
             assert len(r._preroll_buffer) >= n_preroll_chunks or len(r._audio_pipeline._buffer) >= n_preroll_chunks, (
                 f"pre-roll chunks not captured, preroll_buffer has "
                 f"{len(r._preroll_buffer)}, buffer has {len(r._audio_pipeline._buffer)}"
