@@ -135,10 +135,10 @@ class CloudAsrBackend(CloudEngine):
         self._sync_from_config()
         super().load(progress_callback)
 
-    def transcribe(self, audio: Any) -> str:
+    def transcribe(self, audio: Any, *, abort_event: Any = None) -> str:
         """Re-resolve the target before every request, then transcribe."""
         self._sync_from_config()
-        return super().transcribe(audio)
+        return super().transcribe(audio, abort_event=abort_event)
 
     def unload(self) -> None:
         """No-op — deliberately does NOT clear ``_loaded``.

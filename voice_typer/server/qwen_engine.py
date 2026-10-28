@@ -173,7 +173,13 @@ class QwenEngine:
             )
             return True
 
-    def transcribe(self, audio: np.ndarray, audio_stats: "tuple[float, float, float] | None" = None) -> str:
+    def transcribe(
+        self,
+        audio: np.ndarray,
+        audio_stats: "tuple[float, float, float] | None" = None,
+        *,
+        abort_event: Any = None,
+    ) -> str:
         """Transcribe audio array. Returns cleaned text string.
 
         RACE-032: The lock is only held for state checks/updates.
@@ -217,7 +223,7 @@ class QwenEngine:
 
             if duration > _QWEN_CHUNK_SECONDS:
                 # chunk long audio to bound per-call latency and
-                return self._transcribe_chunked(model, audio, sample_rate)
+                return self._transcribe_chunked(model, audio, sample_rate, abort_event=abort_event)
 
             # Non-chunked path (audio <= _QWEN_CHUNK_SECONDS): single call
             result = model.transcribe(
@@ -260,6 +266,8 @@ class QwenEngine:
         model: Any,
         audio: np.ndarray,
         sample_rate: int,
+        *,
+        abort_event: Any = None,
     ) -> str:
         """transcribe long audio by splitting into overlapping chunks.
 
@@ -295,7 +303,7 @@ class QwenEngine:
             _QWEN_CHUNK_OVERLAP_SECONDS,
         )
         # Get raw chunk texts (batched or sequential, with per-chunk
-        chunk_texts = self._transcribe_chunks_batched(model, chunks, sample_rate)
+        chunk_texts = self._transcribe_chunks_batched(model, chunks, sample_rate, abort_event=abort_event)
 
         # Seam merge: skip overlap-duplicated words at chunk boundaries
         return merge_chunks(chunk_texts)
@@ -305,18 +313,22 @@ class QwenEngine:
         model: Any,
         chunks: list[np.ndarray],
         sample_rate: int,
+        *,
+        abort_event: Any = None,
     ) -> list[str]:
         """Delegate to :func:`voice_typer.server.qwen_chunking.transcribe_chunks_batched`."""
-        return transcribe_chunks_batched(self, model, chunks, sample_rate)
+        return transcribe_chunks_batched(self, model, chunks, sample_rate, abort_event=abort_event)
 
     def _transcribe_chunks_sequential(
         self,
         model: Any,
         chunks: list[np.ndarray],
         sample_rate: int,
+        *,
+        abort_event: Any = None,
     ) -> list[str]:
         """Delegate to :func:`voice_typer.server.qwen_chunking.transcribe_chunks_sequential`."""
-        return transcribe_chunks_sequential(self, model, chunks, sample_rate)
+        return transcribe_chunks_sequential(self, model, chunks, sample_rate, abort_event=abort_event)
 
     def _transcribe_batch(
         self,
@@ -359,6 +371,8 @@ class QwenEngine:
         audio: np.ndarray,
         audio_stats: "tuple[float, float, float] | None" = None,
         local_engine: Any = None,
+        *,
+        abort_event: Any = None,
     ) -> str:
         """Transcribe, delegating to :meth:`transcribe`.
 
@@ -372,8 +386,11 @@ class QwenEngine:
         ``local_engine`` is accepted (and ignored) for signature parity
         with the cloud engine so shared call sites can pass it
         unconditionally: this engine already IS a local backend.
+
+        ``abort_event`` is the SCOPED cancel source for this call (media
+        jobs pass their own Event); ``None`` means the engine-wide flag.
         """
-        return self.transcribe(audio, audio_stats=audio_stats)
+        return self.transcribe(audio, audio_stats=audio_stats, abort_event=abort_event)
 
     def request_abort(self) -> None:
         """Signal an in-flight ``transcribe()`` to stop early.

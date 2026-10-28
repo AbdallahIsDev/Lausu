@@ -88,7 +88,6 @@ class MediaJobManager:
         self._max_jobs = max(1, int(max_jobs))
         # One model, one decoder at a time.
         self._asr_gate = threading.Semaphore(1)
-        self._asr_owner: str | None = None
         self._on_event = on_event or (lambda _e: None)
 
     @property
@@ -269,11 +268,6 @@ class MediaJobManager:
             for job in jobs
         ]
 
-    def owns_asr(self, job_id: str) -> bool:
-        """True when ``job_id`` currently holds the single ASR lane."""
-        with self._lock:
-            return self._asr_owner == job_id
-
     def export_path_in_use(self, export_path: str) -> bool:
         """True when a RUNNING job already writes to ``export_path``."""
         with self._lock:
@@ -294,13 +288,8 @@ class MediaJobManager:
         """
         self._asr_gate.acquire()
         try:
-            with self._lock:
-                self._asr_owner = job.job_id
             yield
         finally:
-            with self._lock:
-                if self._asr_owner == job.job_id:
-                    self._asr_owner = None
             self._asr_gate.release()
 
     def publish(self, event: dict) -> None:

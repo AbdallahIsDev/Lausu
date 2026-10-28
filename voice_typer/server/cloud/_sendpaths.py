@@ -50,6 +50,8 @@ class _SendPathHost(Protocol):
         request_factory: Callable[[], Request],
         parse_response: Callable[[bytes], str],
         timeout: float | None = None,
+        *,
+        abort_event: Any = None,
     ) -> str: ...
 
     def _build_multipart_body(self, wav_bytes: bytes, filename: str, boundary: str) -> Any: ...
@@ -102,7 +104,7 @@ def _verify_cloud_peer(req: Request, resp: object) -> None:
         raise CloudNetworkError("cloud peer IP outside validated set") from exc
 
 
-def _send_openai_compatible(engine: _SendPathHost, wav_bytes: bytes, filename: str) -> str:
+def _send_openai_compatible(engine: _SendPathHost, wav_bytes: bytes, filename: str, *, abort_event: Any = None) -> str:
     """Send request to OpenAI-compatible API (OpenAI, Groq).
 
     URL allowlist: asserts the configured ``api_url`` is in the
@@ -150,10 +152,10 @@ def _send_openai_compatible(engine: _SendPathHost, wav_bytes: bytes, filename: s
         result = json.loads(raw.decode("utf-8"))
         return result.get("text", "").strip()
 
-    return engine._transcribe_with_retry(engine.provider, _build_request, _parse)
+    return engine._transcribe_with_retry(engine.provider, _build_request, _parse, abort_event=abort_event)
 
 
-def _send_deepgram(engine: _SendPathHost, wav_bytes: bytes) -> str:
+def _send_deepgram(engine: _SendPathHost, wav_bytes: bytes, *, abort_event: Any = None) -> str:
     """Send request to Deepgram API.
 
             Same URL allowlist + log redaction as the
@@ -197,10 +199,10 @@ def _send_deepgram(engine: _SendPathHost, wav_bytes: bytes) -> str:
                 return alternatives[0].get("transcript", "").strip()
         return ""
 
-    return engine._transcribe_with_retry(engine.provider, _build_request, _parse)
+    return engine._transcribe_with_retry(engine.provider, _build_request, _parse, abort_event=abort_event)
 
 
-def _send_gemini(engine: _SendPathHost, wav_bytes: bytes) -> str:
+def _send_gemini(engine: _SendPathHost, wav_bytes: bytes, *, abort_event: Any = None) -> str:
     """Send request to Gemini generateContent API.
 
     Same URL allowlist + retry skeleton as the other providers.
@@ -231,6 +233,7 @@ def _send_gemini(engine: _SendPathHost, wav_bytes: bytes) -> str:
         _build_request,
         parse_gemini_transcript,
         timeout=engine._GEMINI_REQUEST_TIMEOUT_SECONDS,
+        abort_event=abort_event,
     )
 
 

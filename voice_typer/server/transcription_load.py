@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from voice_typer.server._lazy_import import lazy_module
 
@@ -25,6 +25,8 @@ class TranscriberProtocol(Protocol):
         audio: np.ndarray,
         audio_stats: tuple[float, float, float] | None = None,
         local_engine=None,
+        *,
+        abort_event: Any = None,
     ) -> str: ...
 
     def unload(self) -> None: ...

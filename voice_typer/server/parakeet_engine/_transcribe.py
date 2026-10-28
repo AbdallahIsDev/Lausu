@@ -57,8 +57,14 @@ class TranscribeMixin:
         self,
         audio: np.ndarray,
         audio_stats: tuple[float, float, float] | None = None,
+        *,
+        abort_event: Any = None,
     ) -> str:
-        """Transcribe audio array. Returns cleaned text string."""
+        """Transcribe audio array. Returns cleaned text string.
+
+        ``abort_event`` is the SCOPED cancel source for this call (media
+        jobs pass their own Event); ``None`` means the engine-wide flag.
+        """
         with self._lock:
             if self._model is None:
                 raise RuntimeError("Parakeet model not loaded. Call load() first or check logs.")
@@ -76,7 +82,7 @@ class TranscribeMixin:
             chunks = self._split_audio(audio, _CHUNK_SECONDS, _CHUNK_OVERLAP_SECONDS)
             log.info("[PARAKEET] Splitting %.1fs audio into %d chunks", duration, len(chunks))
 
-            results = self._transcribe_chunks(chunks)
+            results = self._transcribe_chunks(chunks, abort_event=abort_event)
             if not results:
                 return ""
 
@@ -116,13 +122,16 @@ class TranscribeMixin:
             return ""
         return text
 
-    def _transcribe_chunks(self, chunks: list[np.ndarray]) -> list[str]:
+    def _transcribe_chunks(self, chunks: list[np.ndarray], *, abort_event: Any = None) -> list[str]:
         """Transcribe each chunk via ``model.recognize()``; respect abort."""
         if not chunks:
             return []
+        # Scoped cancel wins over the engine-wide flag: a media job must not
+        # be stopped by (or stop) a dictation drawn through the same engine.
+        abort_source = abort_event if abort_event is not None else self._abort_event
         results: list[str] = []
         for i, chunk in enumerate(chunks):
-            if self._abort_event.is_set():
+            if abort_source.is_set():
                 log.info(
                     "[PARAKEET] Abort requested, stopping chunk loop early (completed %d/%d chunks)",
                     i,
@@ -165,6 +174,8 @@ class TranscribeMixin:
         audio: np.ndarray,
         audio_stats: tuple[float, float, float] | None = None,
         local_engine: object = None,
+        *,
+        abort_event: Any = None,
     ) -> str:
         """Emits the ``parakeet_cpu_fallback`` event (one-time per loaded"""
         with self._lock:
@@ -175,7 +186,7 @@ class TranscribeMixin:
                 return ""
 
         try:
-            return self.transcribe(audio, audio_stats=audio_stats)
+            return self.transcribe(audio, audio_stats=audio_stats, abort_event=abort_event)
         except Exception as exc:
             # Use the shared CUDA-error classifier (PLAN_ONNX_INTEGRATION.md
             if self.device == "cuda" and _is_cuda_error_impl(exc):

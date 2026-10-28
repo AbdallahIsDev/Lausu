@@ -33,7 +33,7 @@ class _FallbackHost(Protocol):
     _abort_event: threading.Event
     _local_engine_factory: Callable[..., Any] | None
 
-    def transcribe(self, audio: np.ndarray) -> str: ...
+    def transcribe(self, audio: np.ndarray, *, abort_event: Any = None) -> str: ...
 
 
 def _fallback_kind(exc: BaseException) -> str:
@@ -56,6 +56,8 @@ def fall_back_to_local(
     audio: np.ndarray,
     local_engine=None,
     audio_stats: tuple[float, float, float] | None = None,
+    *,
+    abort_event: Any = None,
 ) -> str:
     """Try cloud transcription; fall back to local engine on failure.
 
@@ -87,12 +89,15 @@ def fall_back_to_local(
             (all three local engines accept the kwarg).
     """
     try:
-        return engine.transcribe(audio)
+        return engine.transcribe(audio, abort_event=abort_event)
     except ConsentRequiredError:
         # consent errors must propagate, do NOT fall back to
         raise
     except (RuntimeError, OSError) as cloud_err:
-        if engine._abort_event.is_set():
+        # Same source the cloud call polls: a media job's scoped Event must
+        # not be read as (or masked by) an engine-wide dictation abort.
+        abort_source = abort_event if abort_event is not None else engine._abort_event
+        if abort_source.is_set():
             # User-cancelled (ESC) or watchdog-recovered mid-request:
             # the cycle is marked cancelled, so a local fallback decode
             # would be wasted work pasted nowhere (CancellationGuard
