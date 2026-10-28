@@ -148,7 +148,7 @@ class CloudEngine:
         """
         self._abort_event.clear()
 
-    def transcribe(self, audio: np.ndarray) -> str:
+    def transcribe(self, audio: np.ndarray, *, abort_event: Any = None) -> str:
         """Transcribe audio via cloud API.
 
         refuses to send audio if consent hasn't been
@@ -156,6 +156,9 @@ class CloudEngine:
                 ConsentRequiredError / RuntimeError so existing catch clauses
                 still work) so the IPC layer can detect this case and show the
                 consent dialog.
+
+        ``abort_event`` is the SCOPED cancel source for this call (media
+        jobs pass their own Event); ``None`` means the engine-wide flag.
         """
         if not self.consent_given:
             raise CloudConsentRequiredError(
@@ -168,19 +171,22 @@ class CloudEngine:
         if len(audio) == 0:
             return ""
         # Honor a pre-set abort (e.g. ESC hit during audio finalization,
-        if self._abort_event.is_set():
+        abort_source = abort_event if abort_event is not None else self._abort_event
+        if abort_source.is_set():
             log.info("[CLOUD] %s transcribe skipped, abort requested before first request", self.provider)
             return ""
-        return self._send_request(audio)
+        return self._send_request(audio, abort_event=abort_event)
 
     def transcribe_with_fallback(
         self,
         audio: np.ndarray,
         local_engine=None,
         audio_stats: tuple[float, float, float] | None = None,
+        *,
+        abort_event: Any = None,
     ) -> str:
         """Delegate to :func:`voice_typer.server.cloud._fallback.fall_back_to_local`."""
-        return fall_back_to_local(self, audio, local_engine, audio_stats)
+        return fall_back_to_local(self, audio, local_engine, audio_stats, abort_event=abort_event)
 
 
     def unload(self) -> None:
@@ -195,7 +201,7 @@ class CloudEngine:
     def loaded_via(self) -> str:
         return f"cloud/{self.provider}/{self.model_name}"
 
-    def _send_request(self, audio: np.ndarray) -> str:
+    def _send_request(self, audio: np.ndarray, *, abort_event: Any = None) -> str:
         """Send audio to the cloud API and return transcribed text."""
         if len(audio) == 0:
             return ""
@@ -204,18 +210,18 @@ class CloudEngine:
         if is_realtime_model(self.provider, self.model_name):
             if is_ws_realtime_model(self.provider, self.model_name):
                 assert_official_realtime_host(self.api_url)
-                return self._send_realtime(audio)
+                return self._send_realtime(audio, abort_event=abort_event)
             ensure_not_realtime(self.provider, self.model_name)
         wav_bytes = _audio_to_wav_bytes(audio)
         filename = "audio.wav"
 
         if self.provider == "deepgram":
-            return self._send_deepgram(wav_bytes)
+            return self._send_deepgram(wav_bytes, abort_event=abort_event)
         if self.provider == "gemini":
-            return self._send_gemini(wav_bytes)
-        return self._send_openai_compatible(wav_bytes, filename)
+            return self._send_gemini(wav_bytes, abort_event=abort_event)
+        return self._send_openai_compatible(wav_bytes, filename, abort_event=abort_event)
 
-    def _send_realtime(self, audio: np.ndarray) -> str:
+    def _send_realtime(self, audio: np.ndarray, *, abort_event: Any = None) -> str:
         """Burst-append the finished recording over a realtime WS session."""
         from voice_typer.server.cloud import _realtime_ws
         from voice_typer.server.cloud._realtime import _REALTIME_MAX_PCM_BYTES
@@ -235,7 +241,7 @@ class CloudEngine:
             model=self.model_name.strip(),
             pcm24k_frames=frame_200ms(pcm24k),
             language_ignored=self.language,
-            abort_event=self._abort_event,
+            abort_event=abort_event if abort_event is not None else self._abort_event,
         )
 
     # All three send paths share the retry skeleton below.
@@ -245,6 +251,8 @@ class CloudEngine:
         request_factory: Callable[[], Request],
         parse_response: Callable[[bytes], str],
         timeout: float | None = None,
+        *,
+        abort_event: Any = None,
     ) -> str:
         """Shared retry/backoff skeleton for cloud transcription HTTP calls.
 
@@ -262,9 +270,13 @@ class CloudEngine:
         """
         max_retries = 3
         retried_429 = False
+        # The scoped source (a media job's own Event) replaces the engine
+        # flag for this call: cancelling the job must not look like a
+        # dictation cancel, and vice versa.
+        abort_source = abort_event if abort_event is not None else self._abort_event
         for attempt in range(max_retries):
             # Check the abort token BEFORE each (potentially 10s) HTTP
-            if self._abort_event.is_set():
+            if abort_source.is_set():
                 log.info(
                     "[CLOUD] %s abort requested, skipping retry %d/%d",
                     provider,
@@ -305,7 +317,7 @@ class CloudEngine:
                         wait,
                     )
                     # Interruptible wait: ``Event.wait`` returns True the
-                    if sleep_interruptible(wait, abort_event=self._abort_event):
+                    if sleep_interruptible(wait, abort_event=abort_source):
                         log.info(
                             "[CLOUD] %s abort requested, aborting Retry-After wait",
                             provider,
@@ -338,7 +350,7 @@ class CloudEngine:
                         redact_secret(redact_url(str(exc))),
                     )
                     # Interruptible wait (same rationale as the 429 branch
-                    if sleep_interruptible(backoff, abort_event=self._abort_event):
+                    if sleep_interruptible(backoff, abort_event=abort_source):
                         log.info(
                             "[CLOUD] %s abort requested, aborting backoff wait",
                             provider,
@@ -366,17 +378,17 @@ class CloudEngine:
         # Should not reach here, but just in case
         raise CloudEngineError(f"{provider} request failed after {max_retries} attempts")
 
-    def _send_openai_compatible(self, wav_bytes: bytes, filename: str) -> str:
+    def _send_openai_compatible(self, wav_bytes: bytes, filename: str, *, abort_event: Any = None) -> str:
         """Delegate to :func:`voice_typer.server.cloud._sendpaths._send_openai_compatible`."""
-        return _send_openai_compatible(self, wav_bytes, filename)
+        return _send_openai_compatible(self, wav_bytes, filename, abort_event=abort_event)
 
-    def _send_deepgram(self, wav_bytes: bytes) -> str:
+    def _send_deepgram(self, wav_bytes: bytes, *, abort_event: Any = None) -> str:
         """Delegate to :func:`voice_typer.server.cloud._sendpaths._send_deepgram`."""
-        return _send_deepgram(self, wav_bytes)
+        return _send_deepgram(self, wav_bytes, abort_event=abort_event)
 
-    def _send_gemini(self, wav_bytes: bytes) -> str:
+    def _send_gemini(self, wav_bytes: bytes, *, abort_event: Any = None) -> str:
         """Delegate to :func:`voice_typer.server.cloud._sendpaths._send_gemini`."""
-        return _send_gemini(self, wav_bytes)
+        return _send_gemini(self, wav_bytes, abort_event=abort_event)
 
     def _build_multipart_body(self, wav_bytes: bytes, filename: str, boundary: str):
         """Delegate to :func:`voice_typer.server.cloud._sendpaths._build_multipart_body`."""

@@ -59,9 +59,11 @@ _WORKER_WINDOW_TIMEOUT_S = 300.0
 def _accepts_scoped_abort(backend: Any) -> bool:
     """True when this backend can take a per-call ``abort_event``.
 
-    The whisper engine threads it into the decode loop; the cloud / parakeet
-    / qwen engines have their own cancellation and no ``**kwargs``, so asking
-    them would raise ``TypeError`` rather than abort anything.
+    Every built-in engine accepts the keyword (whisper threads it into the
+    decode loop, parakeet/qwen poll it between chunks, cloud uses it for the
+    retry skeleton), but the check stays a feature probe: a third-party or
+    test backend that only exposes ``transcribe_with_fallback(audio)`` must
+    not be handed a keyword it cannot take.
     """
     try:
         params = inspect.signature(backend.transcribe_with_fallback).parameters

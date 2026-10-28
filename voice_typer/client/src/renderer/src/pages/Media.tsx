@@ -97,7 +97,10 @@ export default function MediaPage() {
 		// them from here, and an empty field is what keeps Transcribe
 		// disabled instead of re-submitting the same work on the next click.
 		// Only what was REFUSED stays, so the user can retry just that.
-		setSource(refused.length > 0 ? refused.join("\n") : "");
+		// Space-separated, not newline: a single-line input drops LF, so
+		// joining with "\n" would glue the refused list into one string that
+		// neither the field nor the next split can tell apart.
+		setSource(refused.length > 0 ? refused.join(" ") : "");
 	}, [canStart, source, startMany, useSubtitles]);
 
 	// Browse goes through the HOST picker: a webview file input hands the
@@ -137,7 +140,15 @@ export default function MediaPage() {
 			}
 			void (async () => {
 				const { accepted, refused } = await startMany(sources, useSubtitles);
-				if (accepted > 0) setSource(refused.join("\n"));
+				if (accepted === 0) {
+					// Nothing started (at the cap, or every link failed): put
+					// the paste back so a retry is one click. Re-joined with
+					// SPACES: a single-line input drops LF on write, which
+					// would glue the links into one bogus token.
+					setSource(sources.join(" "));
+					return;
+				}
+				setSource(refused.length > 0 ? refused.join(" ") : "");
 			})();
 		},
 		[atCapacity, maxJobs, startMany, useSubtitles],

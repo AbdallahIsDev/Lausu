@@ -68,10 +68,17 @@ const RUNNING_PHASES: ReadonlySet<MediaJobPhase> = new Set([
 /** Fallback cap until the mount-time status read reports the real one. */
 const DEFAULT_MAX_JOBS = 4;
 
-let rowSeq = 0;
-function nextClientId(): string {
-	rowSeq += 1;
-	return `media-row-${rowSeq}`;
+/** Random per-instance token prefix.
+ *
+ * The backend echoes `client_id` on every push, so two live rows must never
+ * share one. A module-level counter alone cannot promise that: a page reload
+ * gets a fresh module registry, the counter restarts at 0, and the job that
+ * the previous instance started is still running with `media-row-1` — its
+ * progress would land on the new instance's row. A random prefix per mount
+ * makes that collision impossible instead of unlikely-per-sequence.
+ */
+function newClientIdPrefix(): string {
+	return Math.random().toString(36).slice(2, 10);
 }
 
 function makeRow(source: string, clientId: string, jobId = ""): MediaJobRow {
@@ -227,6 +234,17 @@ export function useMediaJobs(): UseMediaJobsResult {
 	const startRef = useRef<
 		(source: string, useSubtitles: boolean) => Promise<boolean>
 	>(async () => false);
+	// One mint per mount: the prefix is random, the sequence lives in a ref.
+	const [clientIdPrefix] = useState(newClientIdPrefix);
+	const clientSeq = useRef(0);
+	const mintClientId = useCallback((): string => {
+		clientSeq.current += 1;
+		return `media-row-${clientIdPrefix}-${clientSeq.current}`;
+	}, [clientIdPrefix]);
+	// Same reason as `callRef`: the hydration effect keeps `[]` deps, so it
+	// must read the mint through a mirror rather than capture this render.
+	const mintClientIdRef = useRef(mintClientId);
+	mintClientIdRef.current = mintClientId;
 
 	const updateJobs = useCallback(
 		(fn: (prev: MediaJobRow[]) => MediaJobRow[]) => {
@@ -280,7 +298,7 @@ export function useMediaJobs(): UseMediaJobsResult {
 				return false;
 			}
 			setPending((n) => n + 1);
-			const clientId = nextClientId();
+			const clientId = mintClientId();
 			const optimistic = makeRow(trimmed, clientId);
 			updateJobs((prev) => [...prev, optimistic]);
 			try {
@@ -334,7 +352,7 @@ export function useMediaJobs(): UseMediaJobsResult {
 				setPending((n) => Math.max(0, n - 1));
 			}
 		},
-		[call, navigate, updateJobs],
+		[call, mintClientId, navigate, updateJobs],
 	);
 	startRef.current = start;
 
@@ -482,7 +500,7 @@ export function useMediaJobs(): UseMediaJobsResult {
 								// A job started by an earlier page instance keeps its
 								// client token; one started before this field existed
 								// gets a fresh local one (its pushes fall back to job id).
-								job.client_id || nextClientId(),
+								job.client_id || mintClientIdRef.current(),
 								job.job_id,
 							),
 							phase: (job.phase as MediaJobPhase) ?? "transcribing",

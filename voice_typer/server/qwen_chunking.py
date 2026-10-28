@@ -37,6 +37,8 @@ class _QwenChunkingHost(Protocol):
         model: Any,
         chunks: list[np.ndarray],
         sample_rate: int,
+        *,
+        abort_event: Any = None,
     ) -> list[str]: ...
 
     def _transcribe_batch(
@@ -52,6 +54,8 @@ def transcribe_chunks_batched(
     model: Any,
     chunks: list[np.ndarray],
     sample_rate: int,
+    *,
+    abort_event: Any = None,
 ) -> list[str]:
     """Transcribe ``chunks`` in batches, falling back to sequential on OOM.
 
@@ -80,14 +84,18 @@ def transcribe_chunks_batched(
     if not chunks:
         return []
 
+    # Scoped cancel wins: a media job's Event must not be replaced by the
+    # engine-wide flag (and vice versa).
+    abort_source = abort_event if abort_event is not None else engine._abort_event
+
     if engine._INFERENCE_BATCH_SIZE <= 1 or len(chunks) == 1:
-        return engine._transcribe_chunks_sequential(model, chunks, sample_rate)
+        return engine._transcribe_chunks_sequential(model, chunks, sample_rate, abort_event=abort_event)
 
     results: list[str] = []
     i = 0
     while i < len(chunks):
         # Same abort check as the sequential branch, see above.
-        if engine._abort_event.is_set():
+        if abort_source.is_set():
             log.info(
                 "[QWEN] Abort requested, stopping batch loop early (completed %d/%d chunks)",
                 i,
@@ -114,7 +122,7 @@ def transcribe_chunks_batched(
                     exc,
                     exc_info=True,
                 )
-                seq_texts = engine._transcribe_chunks_sequential(model, batch, sample_rate)
+                seq_texts = engine._transcribe_chunks_sequential(model, batch, sample_rate, abort_event=abort_event)
                 results.extend(seq_texts)
             else:
                 raise
@@ -129,6 +137,8 @@ def transcribe_chunks_sequential(
     model: Any,
     chunks: list[np.ndarray],
     sample_rate: int,
+    *,
+    abort_event: Any = None,
 ) -> list[str]:
     """Transcribe chunks one at a time (the default path).
 
@@ -136,10 +146,11 @@ def transcribe_chunks_sequential(
     ``_transcribe_chunks_batched`` can fall back to it on OOM
     without duplicating the per-chunk hallucination-filter logic.
     """
+    abort_source = abort_event if abort_event is not None else engine._abort_event
     results: list[str] = []
     for i, chunk in enumerate(chunks):
         # Abort check: break out after the current chunk when an
-        if engine._abort_event.is_set():
+        if abort_source.is_set():
             log.info(
                 "[QWEN] Abort requested, stopping chunk loop early (completed %d/%d chunks)",
                 i,
