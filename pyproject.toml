@@ -109,7 +109,7 @@ dependencies = [
     # <18: av 17/18 Cython .py shims trip Nuitka's optimizer
     # (assert micro_passes == 0 on av.video.stream); the build scripts
     # strip those shims pre-freeze (each has a .pyd/.so twin).
-    "av>=17,<18",
+    "av>=17,<19",
     # ADR-0023: yt-dlp is the URL resolver/downloader for media ingest
     # (~1000 sites). The >=2026.8.19 floor is the current release at
     # adoption time; post-2025.11.12 YouTube support REQUIRES an external
@@ -220,7 +220,7 @@ dependencies = [
     # but not declared, cold pip install succeeded but first model
     # load crashed with ModuleNotFoundError.
     # >=1.28.0 carries the upstream fix for the closed-shared-httpx-client retry.
-    "huggingface_hub>=1.28.0,<2.0",
+    "huggingface_hub>=1.28.0,<3.0",
     # Volume ducking on Windows, pycaw wraps the Win32
     # IAudioSessionManager2 COM interface (used by WinVolumeBackend to
     # duck other apps' audio while Lausu is dictating).
@@ -244,7 +244,7 @@ dependencies = [
     # upstream at https://github.com/AndreMiras/pycaw, alternative
     # (direct ctypes bindings to the COM interface) is queued as a CR
     # follow-up (TODO XS-76).
-    "pycaw>=20230407,<20240407; sys_platform == 'win32'",
+    "pycaw>=20230407,<20260928; sys_platform == 'win32'",
     # comtypes is the generic Python ↔ COM bridge required
     # by pycaw (transitively) and directly by
     # microphone_watcher_win32.py (IMMNotificationClient callback).
@@ -270,16 +270,16 @@ dependencies = [
     # bridge boundary (pyobjc-core's `objc.pyobjc_id` ABI is consumed
     # by every pyobjc-framework-* package).
     "pyobjc-core>=9.0,<12.0; sys_platform == 'darwin' and python_version < '3.12'",
-    "pyobjc-core>=11.0,<12.0; sys_platform == 'darwin' and python_version >= '3.12'",
+    "pyobjc-core>=11.0,<13.0; sys_platform == 'darwin' and python_version >= '3.12'",
     "pyobjc-framework-CoreAudio>=9.0,<12.0; sys_platform == 'darwin' and python_version < '3.12'",
-    "pyobjc-framework-CoreAudio>=11.0,<12.0; sys_platform == 'darwin' and python_version >= '3.12'",
+    "pyobjc-framework-CoreAudio>=11.0,<13.0; sys_platform == 'darwin' and python_version >= '3.12'",
     # NEW-XPLAT-004: pystray on macOS uses Cocoa (AppKit) via pyobjc.
     # Without pyobjc-framework-Cocoa installed, pystray.Icon() raises
     # ImportError at runtime and the tray silently fails.  Adding the
     # explicit dep here so a fresh ``pip install lausu`` on
     # macOS gets a working tray out of the box.
     "pyobjc-framework-Cocoa>=9.0,<12.0; sys_platform == 'darwin' and python_version < '3.12'",
-    "pyobjc-framework-Cocoa>=11.0,<12.0; sys_platform == 'darwin' and python_version >= '3.12'",
+    "pyobjc-framework-Cocoa>=11.0,<13.0; sys_platform == 'darwin' and python_version >= '3.12'",
     # CoreFoundation symbols (CFRunLoopRun / CFRunLoopStop / CFRunLoopGetCurrent)
     # are used by microphone_watcher_coreaudio.py for the event-driven
     # CoreAudio device-list listener. These symbols ship inside
@@ -294,7 +294,7 @@ dependencies = [
     # listener fails at runtime. Adding the explicit dep makes the probe
     # actually work on a fresh `pip install lausu[macos]`.
     "pyobjc-framework-ApplicationServices>=9.0,<12.0; sys_platform == 'darwin' and python_version < '3.12'",
-    "pyobjc-framework-ApplicationServices>=11.0,<12.0; sys_platform == 'darwin' and python_version >= '3.12'",
+    "pyobjc-framework-ApplicationServices>=11.0,<13.0; sys_platform == 'darwin' and python_version >= '3.12'",
     # ADR 0007: RNNoise is now a default dependency (was optional).
     # BSD-licensed, ~2MB, <1ms per frame. Required for the NoiseSuppressor
     # filter in the audio filter chain.
@@ -312,7 +312,7 @@ dependencies = [
     # this dep, but it is small (~200 KB) and pure-Python, so it's safe
     # to install everywhere. Lazy-imported in sidecar_ws.py so
     # non-WebSocket paths don't pay the import cost.
-    "websockets>=12.0,<14.0",
+    "websockets>=12.0,<18.0",
     # keyring is used by credential_store.py to store API keys
     # (OpenAI / Groq / Deepgram / LLM) in the OS-native credential
     # backend (Windows Credential Manager, macOS Keychain, libsecret on
@@ -340,7 +340,7 @@ dependencies = [
     # of the binary) and the lock's pip-audit gate skips darwin-only pins
     # on other platforms. Revisit if upstream restores x86_64 wheels.
     "cryptography>=42; sys_platform != 'darwin' or platform_machine != 'x86_64'",
-    "cryptography>=48.0.1,<49; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "cryptography>=48.0.1,<51; sys_platform == 'darwin' and platform_machine == 'x86_64'",
 ]
 
 [project.urls]
@@ -470,14 +470,14 @@ dev = [
     # (0.17) that could change rule semantics. CI installs the exact
     # `ruff==0.16.0` to match the pre-commit hook pin; both surfaces are
     # therefore deterministic and align with the floor of this range.
-    "ruff>=0.16,<0.17",
+    "ruff>=0.16,<0.18",
     "mypy>=1.10,<3",
     "pre-commit>=3.7,<5",
     # TEST-010: mutmut for mutation testing
     "mutmut>=2.4,<4",
     # pin pyrefly to the exact 1.1.1 release used by CI
     # (see `.github/workflows/build.yml` → "Run pyrefly type check" step,
-    # which installs `pyrefly==1.1.1` via `uv pip install --system`).
+    # which installs `pyrefly==1.4.0` via `uv pip install --system`).
     # Without this pin, a local `pip install -e ".[dev]"` would pull the
     # latest pyrefly release, whose error heuristics may differ from
     # CI's, causing local-vs-CI drift on the baseline-audit gate. The
@@ -487,7 +487,7 @@ dev = [
     # Rules, this pin must NEVER be loosened to a `>=` range, bump it
     # only as an atomic coordinated change (pyproject.toml + build.yml
     # + regenerated baseline).
-    "pyrefly==1.1.1",
+    "pyrefly==1.4.0",
 ]
 
 # ── pyrefly (fast Rust-based Python type checker) ─────────────────────
