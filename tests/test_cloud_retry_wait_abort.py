@@ -277,3 +277,102 @@ class TestFallbackReadsTheSameAbortSource:
 
         assert result == "local text"
         local.transcribe.assert_called_once()
+
+
+class _ScopedLocalEngine:
+    """Local engine shape parakeet/qwen expose: keyword-only ``abort_event``."""
+
+    def __init__(self) -> None:
+        self.received: list[object] = []
+
+    def transcribe(
+        self,
+        audio: np.ndarray,
+        audio_stats: tuple[float, float, float] | None = None,
+        *,
+        abort_event: object = None,
+    ) -> str:
+        self.received.append(abort_event)
+        return "local text"
+
+
+class _WhisperShapedLocalEngine:
+    """``SystemWhisperEngine`` shape: only ``transcribe_with_fallback`` takes it."""
+
+    def __init__(self) -> None:
+        self.scoped: list[object] = []
+        self.plain_calls = 0
+
+    def transcribe(self, audio: np.ndarray, audio_stats: object = None) -> str:
+        self.plain_calls += 1
+        return "local text"
+
+    def transcribe_with_fallback(
+        self, audio: np.ndarray, audio_stats: object = None, *, abort_event: object = None
+    ) -> str:
+        self.scoped.append(abort_event)
+        return "local text"
+
+
+def _unauthorized() -> HTTPError:
+    return HTTPError(
+        url="https://api.openai.com/v1/audio/transcriptions",
+        code=401,
+        msg="Unauthorized",
+        hdrs=Message(),
+        fp=io.BytesIO(b"{}"),
+    )
+
+
+class TestLocalDecodeGetsTheScopedEvent:
+    """The fallback decode polls the caller's Event, never the engine flag."""
+
+    def test_scoped_event_reaches_the_local_decode(self) -> None:
+        engine = _make_engine()
+        engine.request_abort()
+        scoped = threading.Event()
+        local = _ScopedLocalEngine()
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "voice_typer.server.cloud_engines._opener.open",
+                lambda *a, **k: (_ for _ in ()).throw(_unauthorized()),
+            )
+            result = engine.transcribe_with_fallback(
+                _audio(), local_engine=local, abort_event=scoped
+            )
+
+        assert result == "local text"
+        assert local.received == [scoped]
+
+    def test_whisper_shaped_engine_gets_the_event_via_its_richer_surface(self) -> None:
+        engine = _make_engine()
+        scoped = threading.Event()
+        local = _WhisperShapedLocalEngine()
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "voice_typer.server.cloud_engines._opener.open",
+                lambda *a, **k: (_ for _ in ()).throw(_unauthorized()),
+            )
+            result = engine.transcribe_with_fallback(
+                _audio(), local_engine=local, abort_event=scoped
+            )
+
+        assert result == "local text"
+        assert local.scoped == [scoped]
+        assert local.plain_calls == 0
+
+    def test_dictation_fallback_without_an_event_still_decodes(self) -> None:
+        engine = _make_engine()
+        local = _ScopedLocalEngine()
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "voice_typer.server.cloud_engines._opener.open",
+                lambda *a, **k: (_ for _ in ()).throw(_unauthorized()),
+            )
+            result = engine.transcribe_with_fallback(_audio(), local_engine=local)
+
+        assert result == "local text"
+        assert local.received == [None]

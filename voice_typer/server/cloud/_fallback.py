@@ -7,6 +7,7 @@ cycle. Consent errors and user aborts never fall back.
 
 from __future__ import annotations
 
+import inspect
 import logging
 import threading
 from collections.abc import Callable
@@ -34,6 +35,47 @@ class _FallbackHost(Protocol):
     _local_engine_factory: Callable[..., Any] | None
 
     def transcribe(self, audio: np.ndarray, *, abort_event: Any = None) -> str: ...
+
+
+def _takes_abort_event(method: Any) -> bool:
+    """True when this engine method can take a per-call ``abort_event``.
+
+    Feature probe mirroring ``media_ingest.engine_loop._accepts_scoped_abort``:
+    parakeet/qwen declare the keyword, the worker/proxy methods take
+    ``**kwargs``, and a third-party backend that only exposes
+    ``transcribe(audio)`` must not be handed a keyword it cannot take.
+    """
+    try:
+        params = inspect.signature(method).parameters
+    except (TypeError, ValueError):  # builtins / C callables
+        return False
+    if "abort_event" in params:
+        return True
+    return any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+
+def _transcribe_local(
+    engine: Any,
+    audio: np.ndarray,
+    audio_stats: tuple[float, float, float] | None,
+    abort_event: Any,
+) -> str:
+    """Decode on the local engine, forwarding the SCOPED abort when it fits.
+
+    The local decode must poll the same Event the failed cloud call polled:
+    without it the decode falls back to the engine-wide flag, so a dictation
+    abort can truncate a media job that merely fell back. Whisper's local
+    engine only exposes the keyword on ``transcribe_with_fallback`` (its
+    ``transcribe`` delegates there anyway), so that surface is the fallback
+    when ``transcribe`` will not take the event.
+    """
+    scoped = getattr(engine, "transcribe", None)
+    if scoped is not None and _takes_abort_event(scoped):
+        return scoped(audio, audio_stats=audio_stats, abort_event=abort_event)
+    richer = getattr(engine, "transcribe_with_fallback", None)
+    if richer is not None and _takes_abort_event(richer):
+        return richer(audio, audio_stats=audio_stats, abort_event=abort_event)
+    return engine.transcribe(audio, audio_stats=audio_stats)
 
 
 def _fallback_kind(exc: BaseException) -> str:
@@ -148,7 +190,9 @@ def fall_back_to_local(
                     notify_exc,
                 )
             try:
-                return resolved_local_engine.transcribe(audio, audio_stats=audio_stats)
+                return _transcribe_local(
+                    resolved_local_engine, audio, audio_stats, abort_event
+                )
             except Exception as local_err:
                 # Include exc_info so the local fallback
                 log.error("[CLOUD] Local fallback also failed: %s", local_err, exc_info=True)
