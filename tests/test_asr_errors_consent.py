@@ -140,7 +140,7 @@ class TestTranscribeWithFallbackRespectsConsent:
         local_engine = MagicMock()
         local_engine.transcribe.return_value = "local fallback text"
 
-        def raise_consent(_audio):
+        def raise_consent(_audio, **_kwargs):
             raise CloudConsentRequiredError(
                 "Cloud openai consent not given",
                 provider="openai",
@@ -165,7 +165,7 @@ class TestTranscribeWithFallbackRespectsConsent:
         local_engine = MagicMock()
         local_engine.transcribe.return_value = "local fallback text"
 
-        def raise_runtime(_audio):
+        def raise_runtime(_audio, **_kwargs):
             raise RuntimeError("cloud network down")
 
         with _patch_transcribe(eng, raise_runtime):
@@ -189,7 +189,7 @@ class TestTranscribeWithFallbackRespectsConsent:
         local_engine = MagicMock()
         local_engine.transcribe.return_value = "local fallback text"
 
-        def raise_url_error(_audio):
+        def raise_url_error(_audio, **_kwargs):
             raise URLError("connection refused")
 
         with _patch_transcribe(eng, raise_url_error):
@@ -208,7 +208,7 @@ class TestTranscribeWithFallbackRespectsConsent:
         local_engine = MagicMock()
         local_engine.transcribe.return_value = "local fallback text"
 
-        def raise_type_error(_audio):
+        def raise_type_error(_audio, **_kwargs):
             raise TypeError("signature drift bug, wrong number of args")
 
         with (

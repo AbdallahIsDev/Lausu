@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import io
+import threading
 import time
 from email.message import Message
+from unittest.mock import MagicMock
 from urllib.error import HTTPError, URLError
 
 import numpy as np
 import pytest
-from voice_typer.server.asr_errors import CloudEngineError
+from voice_typer.server.asr_errors import CloudAuthError, CloudEngineError
 from voice_typer.server.cloud_engines import CloudEngine
 
 _ABORT_MESSAGE = "transcription aborted by user"
@@ -146,3 +148,132 @@ class TestNoAbortStillWaitsFullBudget:
             with pytest.raises(CloudRateLimitError):
                 engine.transcribe(_audio())
         assert not engine._abort_event.is_set()
+
+
+class TestScopedAbortSource:
+    """A media job passes its OWN Event, never the engine-wide flag.
+
+    The engine flag is the dictation cancel signal. Both directions are
+    pinned here: a scoped abort must stop the call, and a set engine flag must
+    NOT be read as that call's abort (it belongs to a different cycle).
+    """
+
+    def test_scoped_event_set_before_the_request_returns_empty(self) -> None:
+        engine = _make_engine()
+        scoped = threading.Event()
+        scoped.set()
+
+        assert engine.transcribe(_audio(), abort_event=scoped) == ""
+        assert not engine._abort_event.is_set(), "the scoped abort must not touch the engine-wide flag"
+
+    def test_scoped_event_interrupts_the_retry_after_wait(self) -> None:
+        engine = _make_engine()
+        scoped = threading.Event()
+        attempts = {"n": 0}
+
+        def rate_limited_open(*args, **kwargs):
+            attempts["n"] += 1
+            scoped.set()
+            hdrs = Message()
+            hdrs["Retry-After"] = "60"
+            raise HTTPError(
+                url="https://api.openai.com/v1/audio/transcriptions",
+                code=429,
+                msg="Too Many Requests",
+                hdrs=hdrs,
+                fp=io.BytesIO(b"{}"),
+            )
+
+        t0 = time.perf_counter()
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "voice_typer.server.cloud_engines._opener.open",
+                rate_limited_open,
+            )
+            with pytest.raises(CloudEngineError) as exc_info:
+                engine.transcribe(_audio(), abort_event=scoped)
+        elapsed = time.perf_counter() - t0
+
+        assert _ABORT_MESSAGE in str(exc_info.value)
+        assert elapsed < 5.0, f"scoped abort during the Retry-After wait must return immediately; took {elapsed:.2f}s"
+        assert attempts["n"] == 1
+        assert not engine._abort_event.is_set()
+
+    def test_engine_flag_does_not_abort_a_scoped_call(self) -> None:
+        engine = _make_engine()
+        engine.request_abort()
+        denied = HTTPError(
+            url="https://api.openai.com/v1/audio/transcriptions",
+            code=401,
+            msg="Unauthorized",
+            hdrs=Message(),
+            fp=io.BytesIO(b"{}"),
+        )
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "voice_typer.server.cloud_engines._opener.open",
+                lambda *a, **k: (_ for _ in ()).throw(denied),
+            )
+            # Reaches the network layer and fails on the HTTP status, which
+            # proves the engine-wide flag was not read as this call's abort.
+            with pytest.raises(CloudAuthError):
+                engine.transcribe(_audio(), abort_event=threading.Event())
+
+
+class TestFallbackReadsTheSameAbortSource:
+    """``fall_back_to_local`` gates on the abort source the call polled."""
+
+    def test_scoped_abort_skips_the_local_fallback(self) -> None:
+        engine = _make_engine()
+        scoped = threading.Event()
+        local = MagicMock()
+        local.transcribe.return_value = "local text"
+
+        def rate_limited_open(*args, **kwargs):
+            scoped.set()
+            hdrs = Message()
+            hdrs["Retry-After"] = "60"
+            raise HTTPError(
+                url="https://api.openai.com/v1/audio/transcriptions",
+                code=429,
+                msg="Too Many Requests",
+                hdrs=hdrs,
+                fp=io.BytesIO(b"{}"),
+            )
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "voice_typer.server.cloud_engines._opener.open",
+                rate_limited_open,
+            )
+            result = engine.transcribe_with_fallback(_audio(), local_engine=local, abort_event=scoped)
+
+        assert result == ""
+        local.transcribe.assert_not_called()
+        assert not engine._abort_event.is_set()
+
+    def test_engine_flag_does_not_skip_a_scoped_fallback(self) -> None:
+        engine = _make_engine()
+        engine.request_abort()
+        local = MagicMock()
+        local.transcribe.return_value = "local text"
+        denied = HTTPError(
+            url="https://api.openai.com/v1/audio/transcriptions",
+            code=401,
+            msg="Unauthorized",
+            hdrs=Message(),
+            fp=io.BytesIO(b"{}"),
+        )
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "voice_typer.server.cloud_engines._opener.open",
+                lambda *a, **k: (_ for _ in ()).throw(denied),
+            )
+            result = engine.transcribe_with_fallback(
+                _audio(), local_engine=local, abort_event=threading.Event()
+            )
+
+        assert result == "local text"
+        local.transcribe.assert_called_once()

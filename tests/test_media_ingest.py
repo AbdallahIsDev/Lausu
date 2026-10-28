@@ -164,21 +164,6 @@ class TestJobManager:
 class TestAsrLane:
     """The shared model decodes one job at a time, and abort never crosses."""
 
-    @staticmethod
-    def _backend():
-        class _Backend:
-            def __init__(self) -> None:
-                self.aborts = 0
-                self.clears = 0
-
-            def request_abort(self) -> None:
-                self.aborts += 1
-
-            def clear_abort(self) -> None:
-                self.clears += 1
-
-        return _Backend()
-
     def test_lane_serializes_decodes(self):
         import threading
         import time
@@ -202,24 +187,36 @@ class TestAsrLane:
         # Strictly alternating enter/exit: no two decodes overlap.
         assert [kind for kind, _ in order] == ["enter", "exit", "enter", "exit"]
 
-    def test_lane_never_touches_the_engine_abort_flag(self):
-        """Media must not clear (or fire) the engine-wide abort signal.
+    def test_the_manager_has_no_engine_handle_to_abort(self):
+        """The manager cannot fire the shared flag: it never holds a backend.
 
-        The decode polls the JOB's own Event, so touching the shared flag
-        would either truncate a dictation recording or swallow its cancel.
+        The previous version built a fake backend and asserted it saw zero
+        ``request_abort``/``clear_abort`` calls — but the manager was never
+        given that object, so the assertion held no matter what the lane did.
+        Pin the structure that makes the guarantee real instead: no attribute
+        of the manager exposes an abort-capable object, so ``asr_lane`` (and
+        ``cancel``) have nothing engine-shaped to reach.
         """
         mgr = MediaJobManager()
-        backend = self._backend()
-        with mgr.asr_lane(mgr.start("a", lambda j: {})):
-            pass
-        assert backend.clears == 0, "the ASR lane cleared the engine-wide abort flag"
+        job = mgr.start("a", lambda j: {})
+        mgr.wait(5.0)
+        assert job.status == "completed"
+        abort_capable = [
+            name
+            for name, value in vars(mgr).items()
+            if callable(getattr(value, "request_abort", None))
+            or callable(getattr(value, "clear_abort", None))
+        ]
+        assert abort_capable == [], (
+            f"the job manager holds an abort-capable handle ({abort_capable}): "
+            "the ASR lane or a cancel could then fire the shared engine flag"
+        )
 
-    def test_cancel_never_fires_the_engine_wide_abort(self):
-        """Cancel is scoped: it sets the job's Event and nothing else."""
+    def test_cancel_sets_only_the_jobs_own_event(self):
+        """Cancel is scoped: the job's Event flips and no sibling's does."""
         import threading
 
-        mgr = MediaJobManager()
-        backend = self._backend()
+        mgr = MediaJobManager(max_jobs=2)
         holding = threading.Event()
         release = threading.Event()
 
@@ -230,24 +227,21 @@ class TestAsrLane:
             return {}
 
         job = mgr.start("a", _runner)
+        # Second job blocks on the lane, so it is still running when the
+        # cancel lands on the first one.
+        other = mgr.start("b", _runner)
         assert holding.wait(timeout=5)
-        assert mgr.owns_asr(job.job_id) is True
         assert mgr.cancel(job.job_id) == [job.job_id]
         assert job.cancel_event.is_set() is True, "cancel must set the job's own Event"
-        assert backend.aborts == 0, (
-            "cancel fired the engine-wide request_abort(): one shared flag, so it "
-            "lands on whichever decode is running (dictation or another job)"
-        )
+        assert other.cancel_event.is_set() is False, "cancel leaked to another job"
         release.set()
         mgr.wait(5.0)
-        assert mgr.owns_asr(job.job_id) is False
 
     def test_cancelling_a_waiting_job_never_aborts_the_owner(self):
         """A queued job's cancel must not touch the decode holding the model."""
         import threading
 
         mgr = MediaJobManager(max_jobs=2)
-        backend = self._backend()
         holding = threading.Event()
         release = threading.Event()
 
@@ -265,9 +259,7 @@ class TestAsrLane:
         assert holding.wait(timeout=5)
         waiter = mgr.start("b", _waiter)
         assert mgr.cancel(waiter.job_id) == [waiter.job_id]
-        assert backend.aborts == 0, "the waiting job's cancel aborted the owner's decode"
         assert owner.cancel_event.is_set() is False, "the owner's own Event was cancelled"
-        assert mgr.owns_asr(owner.job_id) is True
         release.set()
         mgr.wait(5.0)
 
@@ -474,29 +466,54 @@ class TestEngineLoop:
         assert aborts == [], "a media cancel fired or cleared the engine-wide abort"
 
     def test_a_dictation_cancel_does_not_stop_a_media_window(self):
-        """The engine-wide flag belongs to dictation; media ignores it."""
+        """The engine-wide flag belongs to dictation; a scoped media call ignores it.
+
+        The previous version set an attribute nothing read and asserted the
+        transcript was non-empty, so it passed no matter what the loop passed
+        down. This fake polls the flag the way the engines do — the scoped
+        Event when it gets one, otherwise ``self.engine_abort`` — so the
+        no-argument run is a control that MUST truncate (proving the flag is
+        live) while the scoped run must be byte-identical to a clean engine.
+        """
+        import threading
+
         from voice_typer.server.media_ingest import engine_loop as loop
 
         sr = loop.TARGET_SAMPLE_RATE
         chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(25)]
 
         class _Backend:
-            engine_abort_set = True  # a dictation cancel left the flag set
+            """Polls exactly what the engines poll: scoped Event, else the flag."""
 
-            def transcribe_with_fallback(self, audio, *a, **k):
-                return "window"
+            def __init__(self, engine_abort: bool) -> None:
+                self.engine_abort = engine_abort
+                self.calls = 0
+
+            def transcribe_with_fallback(self, audio, *args, **kwargs):
+                self.calls += 1
+                scoped = kwargs.get("abort_event")
+                if scoped is not None:
+                    return "" if scoped.is_set() else "window"
+                # A dictation cancel left the engine-wide flag set.
+                return "" if self.engine_abort else "window"
 
             def request_abort(self):
                 pass
 
-        # No media cancel event at all: the dictation flag must not shorten it.
-        # Compare against a control run rather than a hardcoded window count —
-        # the window size is a decode setting this test must not pin.
-        state = loop.transcribe_windows(iter(chunks), _Backend())
-        control = loop.transcribe_windows(iter(chunks), _Backend())
-        assert state.text, "a dictation cancel truncated a media decode"
-        assert state.text == control.text
-        assert state.texts and len(state.texts) == len(control.texts)
+        # Control: the flag is live, so an unscoped call decodes nothing.
+        flagged = _Backend(engine_abort=True)
+        assert loop.transcribe_windows(iter(chunks), flagged).text == ""
+        assert flagged.calls > 0, "the control never reached the decode"
+
+        clean = _Backend(engine_abort=False)
+        expected = loop.transcribe_windows(iter(chunks), clean)
+
+        scoped = _Backend(engine_abort=True)
+        state = loop.transcribe_windows(iter(chunks), scoped, cancel_event=threading.Event())
+
+        assert expected.text, "the clean control produced no transcript"
+        assert state.text == expected.text, "a dictation cancel truncated a media decode"
+        assert len(state.texts) == len(expected.texts)
 
     def test_media_passes_its_own_event_as_the_scoped_abort_source(self):
         """The decode receives ``abort_event=<job event>``, not the engine's."""
@@ -523,7 +540,12 @@ class TestEngineLoop:
         )
 
     def test_a_backend_without_scoped_abort_still_decodes(self):
-        """Cloud/parakeet/qwen have no **kwargs; they must not get the kwarg."""
+        """A third-party backend taking only ``(audio)`` must not get the kwarg.
+
+        Every built-in engine now accepts ``abort_event``; the probe still has
+        to cover the backend that does not, or a plugin would break on a
+        keyword it cannot take.
+        """
         import threading
 
         from voice_typer.server.media_ingest import engine_loop as loop
@@ -542,6 +564,26 @@ class TestEngineLoop:
             iter(chunks), _Backend(), cancel_event=threading.Event()
         )
         assert state.text, "a backend without abort_event support stopped decoding"
+
+    @pytest.mark.parametrize("engine_name", ["ParakeetEngine", "QwenEngine", "CloudEngine"])
+    def test_every_builtin_engine_accepts_the_scoped_event(self, engine_name):
+        """Media cancel only works if the real engines take ``abort_event``.
+
+        The probe is feature-detected, so a built-in engine that dropped the
+        keyword would silently fall back to the engine-wide flag path — the
+        cross-talk this whole design removes. Pin the three real classes.
+        """
+        from voice_typer.server.cloud._engine import CloudEngine
+        from voice_typer.server.media_ingest.engine_loop import _accepts_scoped_abort
+        from voice_typer.server.parakeet_engine import ParakeetEngine
+        from voice_typer.server.qwen_engine import QwenEngine
+
+        engines = {
+            "ParakeetEngine": ParakeetEngine,
+            "QwenEngine": QwenEngine,
+            "CloudEngine": CloudEngine,
+        }
+        assert _accepts_scoped_abort(engines[engine_name]) is True
 
     def test_progress_reports_fraction_and_eta(self):
         from voice_typer.server.media_ingest import engine_loop as loop

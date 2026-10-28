@@ -7,7 +7,7 @@
 // several files (audio and video mixed), and at the backend's cap the drop
 // zone and the link field are disabled so nothing else can be enqueued.
 
-import { cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -141,6 +141,92 @@ describe("Media page file picker", () => {
 		// Two rows, and the field is empty so nothing can be re-submitted.
 		expect(getAllByText(/youtube\.com|vimeo\.com/)).toHaveLength(2);
 		expect(field.value).toBe("");
+	});
+
+	it("keeps the refused links as SEPARATE sources in the field", async () => {
+		// Two slots, four pasted links: the two that did not fit must come
+		// back as TWO sources. Joining them with "\n" put a string the field
+		// sanitizes on write (a single-line <input> drops LF), so the next
+		// split saw one glued token and the retry resolved a bogus URL.
+		let accepted = 0;
+		callMock.mockImplementation((cmd: string) => {
+			if (cmd === "media_transcribe_status") {
+				return Promise.resolve({ jobs: [], max_jobs: 2 });
+			}
+			if (cmd === "media_transcribe_start") {
+				accepted += 1;
+				return Promise.resolve({
+					job_id: `job-${accepted}`,
+					status: "running",
+				});
+			}
+			return Promise.resolve({});
+		});
+
+		const { default: MediaPage } = await import("@/pages/Media");
+		const { getByPlaceholderText } = renderWithProviders(<MediaPage />);
+
+		// Let the mount-time status read land: the cap is what refuses the
+		// overflow, and a paste before it arrives would see the default cap.
+		await act(async () => {});
+		const field = getByPlaceholderText(/example\.com/) as HTMLInputElement;
+		fireEvent.paste(field, {
+			clipboardData: {
+				getData: () =>
+					"https://e.com/a\nhttps://e.com/b\nhttps://e.com/c\nhttps://e.com/d",
+			},
+		});
+
+		await waitFor(() => expect(field.value).toContain("e.com/c"));
+		// The field is single-line, so a browser's value sanitization strips
+		// LF on write. A test that only counts whitespace-separated tokens
+		// cannot see that: jsdom KEEPS the "\n", so the old join still looked
+		// like two sources here while a real browser glued the retry into one
+		// bogus URL. Pin the contract that makes the difference: no line
+		// breaks in the field, one space between the refused links.
+		expect(field.value).not.toMatch(/[\r\n]/);
+		expect(field.value.split(" ").filter(Boolean)).toEqual([
+			"https://e.com/c",
+			"https://e.com/d",
+		]);
+	});
+
+	it("puts the pasted links back when nothing could be started", async () => {
+		// The paste handler calls preventDefault (a multi-link paste is
+		// submitted as a batch, never typed into the field), so a batch that
+		// started NOTHING must restore the text by hand — otherwise the user
+		// loses what they pasted and has to find it again.
+		callMock.mockImplementation((cmd: string) => {
+			if (cmd === "media_transcribe_status") {
+				return Promise.resolve({ jobs: [], max_jobs: 4 });
+			}
+			if (cmd === "media_transcribe_start") {
+				return Promise.reject(
+					Object.assign(new Error("busy"), { code: "media.busy" }),
+				);
+			}
+			return Promise.resolve({});
+		});
+
+		const { default: MediaPage } = await import("@/pages/Media");
+		const { getByPlaceholderText } = renderWithProviders(<MediaPage />);
+
+		const field = getByPlaceholderText(/example\.com/) as HTMLInputElement;
+		fireEvent.paste(field, {
+			clipboardData: {
+				getData: () => "https://e.com/a\nhttps://e.com/b",
+			},
+		});
+
+		await waitFor(() => expect(field.value).toContain("e.com/b"));
+		// Same contract as the refused-links test: the restored text is two
+		// space-separated sources, never an LF-joined string that a
+		// single-line input collapses on write.
+		expect(field.value).not.toMatch(/[\r\n]/);
+		expect(field.value.split(" ").filter(Boolean)).toEqual([
+			"https://e.com/a",
+			"https://e.com/b",
+		]);
 	});
 
 	it("leaves a single pasted link in the field to edit", async () => {

@@ -203,17 +203,20 @@ class TestQwenTranscribeWithFallback:
         stats = (1.0, 2.0, 3.0)
         captured = {}
 
-        def fake_transcribe(a, audio_stats=None):
+        def fake_transcribe(a, audio_stats=None, *, abort_event=None):
             captured["audio"] = a
             captured["stats"] = audio_stats
+            captured["abort_event"] = abort_event
             return "result text"
 
         engine.transcribe = fake_transcribe
 
-        result = engine.transcribe_with_fallback(audio, audio_stats=stats)
+        scoped = threading.Event()
+        result = engine.transcribe_with_fallback(audio, audio_stats=stats, abort_event=scoped)
         assert result == "result text"
         assert captured["audio"] is audio
         assert captured["stats"] is stats
+        assert captured["abort_event"] is scoped
 
     def test_exceptions_propagate_no_cpu_retry(self):
         """The ONNX path has no device to fall back from, the exception"""
@@ -227,7 +230,7 @@ class TestQwenTranscribeWithFallback:
 
         call_count = {"n": 0}
 
-        def fake_transcribe(audio, audio_stats=None):
+        def fake_transcribe(audio, audio_stats=None, *, abort_event=None):
             call_count["n"] += 1
             raise RuntimeError("CUDA error: out of memory")
 
