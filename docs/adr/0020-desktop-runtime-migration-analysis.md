@@ -511,7 +511,7 @@ python -m nuitka --standalone --onefile \
 - **CTranslate2 on macOS:** the wheels ship `libctranslate2.dylib` + `libiomp5.dylib` (OpenMP) under `$SITE/ctranslate2/lib/`. Apple Silicon wheels do NOT ship CUDA, CPU-only inference. Verify with `otool -L $SITE/ctranslate2/lib/libctranslate2.dylib` that every `@rpath` dependency resolves in the build env.
 - **`pyobjc` deps:** `pyobjc-core`, `pyobjc-framework-CoreAudio`, `pyobjc-framework-Cocoa` are required (volume ducking + tray). Add `--include-package=pyobjc` (and the framework sub-packages). Nuitka's `--include-package=pyobjc` does not always pick up the framework bridges, run the sidecar once in dev mode and watch for `ImportError: pyobjc-...` to discover missing pieces.
 - **Apple Silicon vs Intel:** Nuitka cannot produce a universal binary. Build separately per arch and let Tauri pick the right `externalBin` at runtime via `std::env::consts::ARCH`.
-- **`--onefile` temp-dir on macOS:** extracts to `$TMPDIR/onefile_*`. Pin with `--onefile-tempdir-spec=$HOME/Library/Application Support/lausu/onefile-tmp`.
+- **`--onefile` temp-dir on macOS:** extracts to `$TMPDIR/onefile_*`. Pin with `--onefile-tempdir-spec=$HOME/Library/Caches/lausu/onefile-tmp` (purgeable cache dir; `Application Support` is user data that is backed up and never reaped, so a frozen extract does not belong there).
 
 #### 4.4 Linux Nuitka command (x86_64 + aarch64)
 

@@ -255,15 +255,18 @@ def test_sidecar_script_uses_macos_create_bundle(sidecar_text: str):
     )
 
 
-def test_sidecar_script_onefile_tempdir_uses_app_support(sidecar_text: str):
+def test_sidecar_script_onefile_tempdir_uses_caches(sidecar_text: str):
     """
-    ``--onefile-tempdir-spec`` must pin to ``$HOME/Library/Application Support``.
-    ADR-0020 §4.3: pinning the extract dir prevents tempdir bloat from
+    ``--onefile-tempdir-spec`` must pin to ``$HOME/Library/Caches``.
+    ADR-0020 §4.3: pinning the extract dir keeps the frozen extract out of
+    ``$TMPDIR`` and puts it where macOS expects disposable data.
     """
-    assert "Library/Application Support" in sidecar_text, (
+    assert "Library/Caches/lausu/onefile-tmp" in sidecar_text, (
         "build_sidecar_macos.sh --onefile-tempdir-spec must use "
-        "$HOME/Library/Application Support/lausu/onefile-tmp "
-        "(macOS convention, ADR-0020 §4.3)."
+        "$HOME/Library/Caches/lausu/onefile-tmp (purgeable cache dir, "
+        "ADR-0020 §4.3). Application Support is user data: it is backed up "
+        "and is not reaped by cache cleaners, so a frozen extract does not "
+        "belong there."
     )
 
 
