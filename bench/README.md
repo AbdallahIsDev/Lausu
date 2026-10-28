@@ -46,6 +46,10 @@ the exact per-row flags live in the ADR-0023 stress tables
 not duplicate the numbers here. Transcripts must stay byte-identical to the
 serial baseline.
 
+The serial-vs-concurrent speedup is printed as `[INFO]` and is NOT a gate: run
+it on an idle machine, the ratio is not a gate (the same flags measured 1.34x
+and 0.76x on a busy box while every correctness check passed).
+
 **Why this file is not named `bench_*.py`:** the CI glob runs every
 `bench/bench_*.py` as a smoke benchmark on a machine with no model weights and
 no sample media. This script needs both (it loads a real checkpoint and decodes
