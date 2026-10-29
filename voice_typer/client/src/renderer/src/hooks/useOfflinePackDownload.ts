@@ -287,7 +287,7 @@ export function useOfflinePackDownload(): UseOfflinePackDownloadResult {
 			setStatus("outdated");
 			setProgress(null);
 			const version = pickString(data, ["version"]);
-			const proto = data?.["min_proto_version"];
+			const proto = data?.min_proto_version;
 			if (
 				version !== null &&
 				typeof proto === "number" &&

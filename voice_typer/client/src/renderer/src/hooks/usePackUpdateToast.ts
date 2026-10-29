@@ -52,7 +52,7 @@ export function usePackUpdateToast(
 	usePythonEvent(
 		"offline_pack_download_progress",
 		(data?: Record<string, unknown>): (() => void) | undefined => {
-			const raw = data?.["progress"] ?? data?.["percent"];
+			const raw = data?.progress ?? data?.percent;
 			const pct =
 				typeof raw === "number" && Number.isFinite(raw)
 					? Math.max(0, Math.min(100, Math.round(raw)))
