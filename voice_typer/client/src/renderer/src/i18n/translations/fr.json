@@ -44,6 +44,8 @@
 		"errorEngineUnavailable": "Le modèle vocal n'a pas pu être chargé. Réessayez.",
 		"modelChangedTitle": "Modèle changé",
 		"modelChangedDescription": "{count} transcriptions en cours ont été arrêtées et enregistrées partiellement.",
+		"modelSwitchRefusedTitle": "Modèle inchangé",
+		"modelSwitchRefusedDescription": "{count} transcriptions utilisent encore le modèle actuel. Réessayez lorsqu'elles seront terminées.",
 		"percent": "{percent} %",
 		"eta": "≈ {time} restantes",
 		"duration": "Durée {time}",

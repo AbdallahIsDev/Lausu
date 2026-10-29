@@ -165,7 +165,9 @@ def _unwrap_single_entry(info: dict[str, Any]) -> dict[str, Any]:
     entries = info.get("entries")
     if not isinstance(entries, list):
         if info.get("_type") == "playlist":
-            raise MediaIngestError(NO_MEDIA_URL, "this link does not contain a video or audio file")
+            # A playlist envelope we cannot enumerate is still a playlist: the
+            # actionable answer is "paste one link", not "no media here".
+            raise MediaIngestError(PLAYLIST_REJECTED, "paste one video link, not a playlist")
         return info
     playable = _playable_entries(entries)
     if len(playable) > 1:

@@ -65,6 +65,8 @@
 		"errorEngineUnavailable": "No se pudo cargar el modelo de voz. Inténtalo de nuevo.",
 		"modelChangedTitle": "Modelo cambiado",
 		"modelChangedDescription": "{count} transcripciones en curso se detuvieron y se guardaron parcialmente.",
+		"modelSwitchRefusedTitle": "Modelo sin cambiar",
+		"modelSwitchRefusedDescription": "{count} transcripciones siguen usando el modelo actual. Inténtalo de nuevo cuando terminen.",
 		"percent": "{percent} %",
 		"eta": "quedan ~{time}",
 		"duration": "Duración {time}",

@@ -105,7 +105,10 @@ class TestHandlerFilesUseHelper:
     # reason=check_failed` / `{ok: false, error: <tccutil stderr>}`) through
     # ``_wrap``, which owns the envelope. The inline-``str(e)`` guard still
     # scans this file, only the helper requirement is waived.
-    NO_ERROR_ENVELOPE_FILES = {"system_permissions_handlers.py"}
+    # media_job_runners.py is the job-body mixin (ingest/validate/persist): it
+    # never builds an envelope — the IPC surface in media_handlers.py does, and
+    # a job-thread failure becomes a `media_transcribe_error` event.
+    NO_ERROR_ENVELOPE_FILES = {"system_permissions_handlers.py", "media_job_runners.py"}
 
     @pytest.fixture(autouse=True)
     def _handlers_dir_exists(self):

@@ -614,6 +614,17 @@ export interface MediaJobsCancelledForModelChangeEvent {
 	data: { count: number };
 }
 
+/**
+ * ADR-0023 model-switch REFUSAL: a switch gave up waiting for a media job
+ * that still holds the engine, so nothing was unloaded or persisted. The
+ * `set_config` ack already reported `status: "loading"`, so the renderer
+ * needs this push to stop showing that switch as in flight.
+ */
+export interface MediaModelSwitchRefusedEvent {
+	type: "media_model_switch_refused";
+	data: { count: number };
+}
+
 // parity is pinned by `tests/test_event_types_parity.py`
 
 /**
@@ -793,6 +804,7 @@ export type PythonPushEvent =
 	| MediaTranscribeCompleteEvent
 	| MediaTranscribeErrorEvent
 	| MediaJobsCancelledForModelChangeEvent
+	| MediaModelSwitchRefusedEvent
 	// (see the per-interface docstrings above for the emitters + wire
 	// shapes; pinned by tests/test_event_types_parity.py).
 	| AsrBackendReadyEvent

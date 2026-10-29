@@ -50,6 +50,18 @@ MEDIA_TRUNCATED = "media_truncated"
 MODEL_LOADING = ErrorCodes.MODEL_LOADING
 MODEL_CHANGED = ErrorCodes.MODEL_CHANGED
 
+# Ingest hiccups worth one more attempt: the transport or the signed URL
+# flaked, nothing was learned about the media itself. Every other code is a
+# VERDICT about the media (missing audio, DRM, multi-item, truncated) and
+# retrying it would only repeat the same decode for the same answer.
+RETRYABLE_INGEST_CODES: frozenset[str] = frozenset({DOWNLOAD_FAILED, URL_EXPIRED, STREAM_STALLED})
+
+
+def is_retryable_ingest_code(code: str | None) -> bool:
+    """True when ``code`` describes a transient ingest failure."""
+    return code in RETRYABLE_INGEST_CODES
+
+
 # Every code this package can put on a job event. Used by the contract test
 # that keeps the renderer copy map in step with the backend taxonomy.
 MEDIA_JOB_CODES: frozenset[str] = frozenset(

@@ -65,6 +65,8 @@
 		"errorEngineUnavailable": "स्पीच मॉडल लोड नहीं हो सका। फिर से कोशिश करें।",
 		"modelChangedTitle": "मॉडल बदला गया",
 		"modelChangedDescription": "{count} चालू ट्रांसक्रिप्शन रोके गए और आंशिक रूप से सहेजे गए।",
+		"modelSwitchRefusedTitle": "मॉडल नहीं बदला",
+		"modelSwitchRefusedDescription": "{count} ट्रांसक्रिप्शन अभी भी मौजूदा मॉडल का उपयोग कर रहे हैं। उनके पूरा होने के बाद फिर कोशिश करें।",
 		"percent": "{percent}%",
 		"eta": "~{time} शेष",
 		"duration": "अवधि {time}",

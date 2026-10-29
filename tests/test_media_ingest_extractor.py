@@ -106,6 +106,20 @@ class TestMultiItemClassification:
         assert resolved.audio_url == "https://cdn.example/only.m4a"
         assert resolved.duration == 12.0
 
+    def test_unenumerable_playlist_is_playlist_rejected(self):
+        """A playlist envelope with no entries is still a playlist."""
+
+        class _DL:
+            def __init__(self, options):
+                pass
+
+            def extract_info(self, url, download=False):
+                return {"_type": "playlist", "entries": None}
+
+        with pytest.raises(errors_mod.MediaIngestError) as excinfo:
+            resolver.resolve_media_url("https://example.com/list", factory=_DL)
+        assert excinfo.value.code == errors_mod.PLAYLIST_REJECTED
+
     def test_empty_entries_are_no_media(self):
         class _DL:
             def __init__(self, options):

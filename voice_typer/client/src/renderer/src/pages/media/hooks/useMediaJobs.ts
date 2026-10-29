@@ -508,6 +508,18 @@ export function useMediaJobs(): UseMediaJobsResult {
 		});
 	});
 
+	// The switch was REFUSED: a media job still holds the engine, so the
+	// current model stays active and the switch spinner must stop.
+	usePythonEvent("media_model_switch_refused", (data) => {
+		const count = typeof data?.count === "number" ? data.count : 0;
+		toast.warning(t("media.modelSwitchRefusedTitle"), {
+			id: "media-model-switch-refused",
+			description: t("media.modelSwitchRefusedDescription", {
+				count: String(count),
+			}),
+		});
+	});
+
 	// Failure pushed from the backend job thread (raw message is
 	// diagnostics only; the copy comes from the code map).
 	usePythonEvent("media_transcribe_error", (data) => {

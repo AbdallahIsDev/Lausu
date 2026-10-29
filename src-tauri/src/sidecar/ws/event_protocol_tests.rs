@@ -135,6 +135,9 @@ fn test_allowlist_is_exact_canonical_set() {
         // A model switch waited for the running media jobs, then cancelled
         // them so the engine could be unloaded (2026-10-28).
         "media_jobs_cancelled_for_model_change",
+        // A model switch was refused because media jobs still hold the
+        // engine (2026-10-29).
+        "media_model_switch_refused",
         "history_corrupted",
         "history_fts5_rebuild_failed",
         "paste_deferred",
