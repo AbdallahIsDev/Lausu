@@ -246,12 +246,16 @@ class ChangeMixin(ChangeEventsMixin):
         if lease.wait_for_idle(MODEL_SWITCH_LEASE_CANCEL_GRACE_S):
             return True
 
+        stuck = lease.active()
         log.error(
             "[MEDIA] refusing the model switch: %d media job(s) still hold the engine (%s) "
             "after cancellation; keeping the current model loaded",
-            lease.active(),
+            stuck,
             ", ".join(sorted(lease.engines())),
         )
+        # The ack already said "loading", so the refusal has to reach the
+        # renderer or the switch spinner never resolves.
+        self._publish_model_switch_refused_event(stuck)
         with suppress(Exception):
             self._app.tray.notify(APP_NAME, i18n.t("notify.model_manager.switch_refused_media"))
         return False

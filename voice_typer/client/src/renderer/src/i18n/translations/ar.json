@@ -65,6 +65,8 @@
 		"errorEngineUnavailable": "تعذّر تحميل نموذج الكلام. حاول مرة أخرى.",
 		"modelChangedTitle": "تم تغيير النموذج",
 		"modelChangedDescription": "تم إيقاف {count} من عمليات التفريغ الجارية وحفظها جزئيًا.",
+		"modelSwitchRefusedTitle": "لم يتغيّر النموذج",
+		"modelSwitchRefusedDescription": "لا تزال {count} عمليات تفريغ تستخدم النموذج الحالي. حاول مرة أخرى بعد انتهائها.",
 		"percent": "{percent}٪",
 		"eta": "متبقي ~{time}",
 		"duration": "المدة {time}",

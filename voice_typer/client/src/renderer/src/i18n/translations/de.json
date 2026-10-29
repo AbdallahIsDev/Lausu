@@ -65,6 +65,8 @@
 		"errorEngineUnavailable": "Das Sprachmodell konnte nicht geladen werden. Versuche es erneut.",
 		"modelChangedTitle": "Modell geändert",
 		"modelChangedDescription": "{count} laufende Transkriptionen wurden gestoppt und teilweise gespeichert.",
+		"modelSwitchRefusedTitle": "Modell nicht gewechselt",
+		"modelSwitchRefusedDescription": "{count} Transkriptionen verwenden noch das aktuelle Modell. Versuche es erneut, wenn sie fertig sind.",
 		"percent": "{percent} %",
 		"eta": "noch ca. {time}",
 		"duration": "Dauer {time}",

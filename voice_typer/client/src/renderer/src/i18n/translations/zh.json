@@ -65,6 +65,8 @@
 		"errorEngineUnavailable": "语音模型无法加载。请重试。",
 		"modelChangedTitle": "模型已更改",
 		"modelChangedDescription": "{count} 个正在运行的转写已停止并保存了部分内容。",
+		"modelSwitchRefusedTitle": "模型未更改",
+		"modelSwitchRefusedDescription": "仍有 {count} 个转写正在使用当前模型。等它们结束后再试。",
 		"percent": "{percent}%",
 		"eta": "约剩 {time}",
 		"duration": "时长 {time}",

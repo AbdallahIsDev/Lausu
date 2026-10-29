@@ -65,6 +65,8 @@
 		"errorEngineUnavailable": "Не удалось загрузить речевую модель. Попробуйте снова.",
 		"modelChangedTitle": "Модель изменена",
 		"modelChangedDescription": "{count} текущих расшифровок остановлены и сохранены частично.",
+		"modelSwitchRefusedTitle": "Модель не изменена",
+		"modelSwitchRefusedDescription": "{count} расшифровок всё ещё используют текущую модель. Повторите попытку, когда они завершатся.",
 		"percent": "{percent} %",
 		"eta": "≈ осталось {time}",
 		"duration": "Длительность {time}",

@@ -130,6 +130,12 @@ class TestModelSwitchDeferral:
         assert cancel_calls == [MODEL_CHANGED]
         published = [e for e in events if e["type"] == "media_jobs_cancelled_for_model_change"]
         assert published and published[0]["data"]["count"] == 2
+        # The change already acked `{"status": "loading"}`, so the refusal
+        # itself must reach the renderer or the spinner never stops.
+        refused = [e for e in events if e["type"] == "media_model_switch_refused"]
+        assert refused and refused[0]["data"]["count"] == 1, (
+            f"a refused switch must publish media_model_switch_refused: {events!r}"
+        )
         assert harness.notices, "a refused switch must tell the user"
         assert gate.active() == 1
         gate.end(token)

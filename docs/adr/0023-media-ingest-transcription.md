@@ -314,12 +314,16 @@ model under a running decode: the job produced a truncated transcript that still
 reported success, or died with an unrelated `internal_error`, and nothing in
 the row said which engine had produced it.
 
-`media_ingest/lease.py` adds `ModelLeaseGate` (`begin`/`end`/`active`/
-`engines`/`wait_for_idle`) and one process-wide gate. Both job bodies take a
-lease for the WHOLE job (after `_ensure_media_backend`, released in a `finally`)
-and record `job.engine_label = "<backend>/<model>"` read from the engine they
+`media_ingest/lease.py` adds `ModelLeaseGate` (`begin`/`relabel`/`end`/
+`active`/`engines`/`wait_for_idle`) and one process-wide gate. Both job bodies
+take a lease for the WHOLE job BEFORE `_ensure_media_backend` (label `pending`,
+relabelled once the load resolves the engine, released in a `finally`) and
+record `job.engine_label = "<backend>/<model>"` read from the engine they
 actually got — never `config.model_size` at finish time, because a switch writes
 config while the job is still decoding. `_finish_media_job` persists THAT label.
+Leasing before the load is what defers a switch that arrives mid-load: the gate
+is already non-empty, so the engine being loaded cannot be unloaded first. A
+job cancelled during that load returns an empty partial without decoding.
 
 `ModelManager._change_model_blocking` and `set_active_backend` call
 `wait_for_idle(MODEL_SWITCH_LEASE_TIMEOUT_S = 30)` BEFORE the unload phase:
@@ -330,8 +334,9 @@ config while the job is still decoding. `_finish_media_job` persists THAT label.
    `media_jobs_cancelled_for_model_change` (count) for one toast, wait again
    `MODEL_SWITCH_LEASE_CANCEL_GRACE_S = 5`, then unload. Each cancelled job still
    completes with its partial transcript and `note: "model_changed"`;
-3. still not drained → log ERROR, notify, and KEEP the old engine loaded: the
-   switch is refused rather than torn down.
+3. still not drained → log ERROR, notify, publish `media_model_switch_refused`
+   (count) so the renderer stops showing the ack's `loading`, and KEEP the old
+   engine loaded: the switch is refused rather than torn down.
 
 `AsrBackendRegistry.unload` refuses while `lease.active() > 0` (defence in
 depth, same message), and `SystemWhisperEngine.unload()` / parakeet / qwen take
@@ -360,6 +365,15 @@ tier now GUARDED:
   streaming an unverified URL;
 - when the stream tier IS used, `job.note = "stream_fallback"` and one INFO line
   records the reason and the probe readings.
+
+Retries are bounded by ONE contract, `RETRYABLE_INGEST_CODES`
+(`download_failed`, `url_expired`, `stream_stalled`) in `media_ingest/errors.py`.
+Every other code is a verdict about the media (`no_audio`, `decode_failed`,
+`media_too_short`, `media_truncated`, `drm_refused`, `unsupported_live`,
+`no_media_url`, `multi_item_url`, `model_changed`) and is raised on first
+occurrence. The finish/validation step runs OUTSIDE every retry `try`, so a
+verdict costs exactly one download + decode + transcribe and never reaches the
+stream probe.
 
 The validation gate (`media_ingest/validation.py`, one place, three callers)
 runs before ANY text is persisted, for local and URL jobs alike:

@@ -76,7 +76,10 @@ Events emitted via ``event_bus.publish`` (the modern path):
 * History-store integrity: ``history_corrupted``,
   ``history_fts5_rebuild_failed``.
 * ADR-0023 media jobs: ``media_transcribe_progress``,
-  ``media_transcribe_complete``, ``media_transcribe_error``.
+  ``media_transcribe_complete``, ``media_transcribe_error``. A model
+  switch that has to touch their engine publishes
+  ``media_jobs_cancelled_for_model_change`` or
+  ``media_model_switch_refused`` (both ``{count:int}``).
 * Mic guard (S5): ``microphone_volume_lowered`` (``{level:float,
   restored:bool, can_set:bool}``, published by ``mic_volume_guard.py``
   via the ``app_lazy_hub`` callback when an outside write moves the OS
@@ -134,7 +137,7 @@ server):
   former is a per-transition signal with just ``status``; the latter
   is the connect-time snapshot with a ``message`` field.
 
-Total: 54 events, the live count is ``len(EVENT_TYPES)`` and this
+Total: 55 events, the live count is ``len(EVENT_TYPES)`` and this
 sentence is kept in lockstep with it by
 ``tests/test_event_bus.py::TestCanonicalCatalogue
 ::test_catalogue_total_count_updated``. Update this docstring whenever
@@ -235,6 +238,9 @@ EVENT_TYPES: frozenset[str] = frozenset(
         "media_transcribe_progress",
         # Model switch cancelled running media jobs (model_manager/_change.py):
         "media_jobs_cancelled_for_model_change",
+        # Model switch REFUSED because media jobs still hold the engine
+        # (model_manager/_change.py): the ack already said "loading".
+        "media_model_switch_refused",
         # Mic guard (S5): an outside write moved the OS capture knob.
         "microphone_volume_lowered",
         # Live listen preview: post-chain frames streamed to the renderer

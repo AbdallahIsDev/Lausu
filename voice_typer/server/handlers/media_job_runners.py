@@ -18,6 +18,10 @@ from voice_typer.server.handlers._log import log
 # temp-download fallback tier.
 MAX_STREAM_ATTEMPTS = 3
 
+#: History's model column for the official-subtitles tier: no engine ran, and
+#: an empty string reads as a missing transcript instead of a caption source.
+SUBTITLES_ENGINE_LABEL = "subtitles"
+
 
 def _format_optional(value: object) -> str:
     """Format a numeric quality reading for the outcome log, else ``n/a``."""
@@ -205,16 +209,25 @@ class MediaJobRunnersMixin(HandlerBase):
         )
 
     def _run_local_media_job(self, job, path: str, validated: dict) -> dict:
-        """Background body: lease the engine, decode, window-transcribe, persist."""
+        """Background body: lease the engine, load it, decode, persist."""
         from voice_typer.server.media_ingest import decoder as _decoder, validation as _validation
-        from voice_typer.server.media_ingest.lease import get_lease_gate
+        from voice_typer.server.media_ingest.lease import PENDING_ENGINE_LABEL, get_lease_gate
 
-        self._publish_media_phase(job)
-        backend, label = self._ensure_media_backend()
-        job.engine_label = label
         lease = get_lease_gate()
-        token = lease.begin(label)
+        # Lease BEFORE the load: a switch that arrives while this job is still
+        # loading would otherwise see an empty gate and unload the very model
+        # the job is about to decode with.
+        token = lease.begin(PENDING_ENGINE_LABEL)
         try:
+            self._publish_media_phase(job)
+            backend, label = self._ensure_media_backend()
+            lease.relabel(token, label)
+            job.engine_label = label
+            if job.cancel_event.is_set():
+                # Cancelled while the model loaded (a switch gave up waiting):
+                # release the engine untouched instead of decoding on a model
+                # that is about to be swapped out.
+                return self._finish_media_job(job, "", partial=True, validated=validated)
             # A local job has no resolver-provided total: read it off the
             # container header so the bar reports a fraction/ETA instead of
             # jumping 0 -> 1.
@@ -241,22 +254,13 @@ class MediaJobRunnersMixin(HandlerBase):
     def _run_url_media_job(self, job, url: str, runtime, validated: dict) -> dict:
         """URL job body: resolve, subtitles, download, guarded stream fallback."""
         from voice_typer.server.media_ingest import (
-            decoder as _decoder,
-            downloader as _downloader,
             engine_loop as _loop,
             runtime as _runtime,
             subtitles as _subtitles,
             url_resolver as _resolver,
-            validation as _validation,
         )
-        from voice_typer.server.media_ingest.errors import (
-            DOWNLOAD_FAILED,
-            DRM_REFUSED,
-            UNSUPPORTED_LIVE,
-            URL_EXPIRED,
-            MediaIngestError,
-        )
-        from voice_typer.server.media_ingest.lease import get_lease_gate
+        from voice_typer.server.media_ingest.errors import UNSUPPORTED_LIVE, MediaIngestError
+        from voice_typer.server.media_ingest.lease import PENDING_ENGINE_LABEL, get_lease_gate
 
         resolved = _resolver.resolve_media_url(url, js_runtimes=_runtime.js_runtime_options(runtime))
         if resolved.is_live:
@@ -273,150 +277,197 @@ class MediaJobRunnersMixin(HandlerBase):
                 text = None
             if text:
                 job.ingest_tier = "subtitles"
+                # No engine ran: History names the source instead of an empty
+                # model column (a blank model reads as a broken row).
+                job.engine_label = SUBTITLES_ENGINE_LABEL
                 job.expected_seconds = resolved.duration
                 return self._finish_media_job(job, text, duration=resolved.duration, validated=validated)
 
-        # E15: the model lazy-loads only once audio work is unavoidable, and
-        # the lease is taken BEFORE any decode so a switch cannot unload it.
+        # E15: the model lazy-loads only once audio work is unavoidable. The
+        # lease is taken BEFORE that load: a switch arriving mid-load would
+        # otherwise see an empty gate and unload the model being loaded.
         self._publish_media_phase(job)
-        backend, label = self._ensure_media_backend()
-        job.engine_label = label
         lease = get_lease_gate()
-        token = lease.begin(label)
+        token = lease.begin(PENDING_ENGINE_LABEL)
         try:
+            backend, label = self._ensure_media_backend()
+            lease.relabel(token, label)
+            job.engine_label = label
             manager = self._asr_manager()
             expected = resolved.duration
-            state = _loop.WindowsState()
-
-            def _run_download_tier(target, download_expected: float | None):
-                self._publish_media_progress(job, 0.0, "downloading", None, download_expected)
-                with _downloader.temp_audio_download(
-                    target,
-                    js_runtimes=_runtime.js_runtime_options(runtime),
-                    on_progress=lambda frac: self._publish_media_progress(
-                        job, frac, "downloading", None, download_expected
-                    ),
-                ) as tmp_path:
-                    # An Instagram-style resolver reports duration=None: probe
-                    # the file that was actually ingested so percent/ETA (and
-                    # the truncation gate) have a real total.
-                    total = download_expected
-                    if total is None:
-                        total = _decoder.probe_duration_seconds(str(tmp_path))
-                    job.ingest_tier = "download"
-                    job.expected_seconds = total
-                    return self._transcribe_file(tmp_path, backend, manager, job, total), total
-
-            try:
-                returned_state, expected = _run_download_tier(resolved.webpage_url, expected)
-                return self._finish_url_state(job, returned_state, expected, validated, manager)
-            except MediaIngestError as exc:
-                if job.cancel_event.is_set():
-                    return self._finish_url_state(job, state, expected, validated, manager, partial=True)
-                if exc.code == DRM_REFUSED:
-                    raise
-                log.warning("[MEDIA] audio download failed (%s); retrying once", exc.code)
-
-            # ONE re-resolve plus ONE download retry before the stream tier is
-            # even considered: the observed download failure was transient, so
-            # a single hiccup must not degrade the job to streaming.
-            try:
-                resolved = self._resolve_media(resolved.webpage_url or url, runtime)
-                if expected is None:
-                    expected = resolved.duration
-                returned_state, expected = _run_download_tier(resolved.webpage_url or url, expected)
-                return self._finish_url_state(job, returned_state, expected, validated, manager)
-            except MediaIngestError as exc:
-                if job.cancel_event.is_set():
-                    return self._finish_url_state(job, state, expected, validated, manager, partial=True)
-                if exc.code == DRM_REFUSED:
-                    raise
-                download_error = exc
-                log.warning("[MEDIA] audio download retry failed (%s)", exc.code)
-
-            # The stream tier is GUARDED: it only runs against a URL that
-            # proves itself to be a direct media resource with real audio.
-            probe = _decoder.probe_remote(resolved.audio_url)
-            probe_duration = probe.duration_seconds if probe is not None else None
-            if (
-                probe is None
-                or probe.audio_streams < 1
-                or probe_duration is None
-                or probe_duration < _validation.MIN_MEDIA_SECONDS
-            ):
-                log.warning(
-                    "[MEDIA] stream fallback refused: %s",
-                    "not a direct media resource"
-                    if probe is None
-                    else f"audio_streams={probe.audio_streams} duration={probe_duration}",
-                )
-                raise MediaIngestError(
-                    DOWNLOAD_FAILED,
-                    "the audio could not be downloaded and the stream could not be verified",
-                ) from download_error
-
-            if expected is None:
-                expected = probe_duration
-            job.ingest_tier = "stream"
-            job.note = "stream_fallback"
-            job.expected_seconds = expected
-            log.info(
-                "[MEDIA] stream fallback: download failed twice (%s); probe says audio_streams=%d duration=%.1fs",
-                download_error.code,
-                probe.audio_streams,
-                probe_duration,
-            )
-
-            last_error: MediaIngestError | None = None
-            for attempt in range(MAX_STREAM_ATTEMPTS):
-                if job.cancel_event.is_set():
-                    break
-                try:
-                    chunks = _decoder.decode_chunks(
-                        resolved.audio_url,
-                        remote=True,
-                        start_seconds=state.decoded_seconds,
-                    )
-                    stream_duration = resolved.duration or expected
-
-                    def _on_stream_progress(frac: float, eta: float | None, _d: float | None = stream_duration) -> None:
-                        self._publish_media_progress(job, frac, "transcribing", eta, _d)
-
-                    state = _loop.transcribe_windows(
-                        chunks,
-                        backend,
-                        cancel_event=job.cancel_event,
-                        on_progress=_on_stream_progress,
-                        total_seconds=stream_duration,
-                        state=state,
-                        lane=manager.asr_lane,
-                    )
-                    return self._finish_url_state(job, state, expected, validated, manager)
-                except MediaIngestError as exc:
-                    if job.cancel_event.is_set():
-                        break
-                    if exc.code == DRM_REFUSED:
-                        raise
-                    last_error = exc
-                    log.warning(
-                        "[MEDIA] stream attempt %d/%d failed (%s)",
-                        attempt + 1,
-                        MAX_STREAM_ATTEMPTS,
-                        exc.code,
-                    )
-                    if exc.code == URL_EXPIRED and attempt + 1 < MAX_STREAM_ATTEMPTS:
-                        try:
-                            resolved = self._resolve_media(resolved.webpage_url, runtime)
-                        except MediaIngestError as resolve_exc:
-                            last_error = resolve_exc
-                            break
-                    continue
             if job.cancel_event.is_set():
-                return self._finish_url_state(job, state, expected, validated, manager, partial=True)
-            assert last_error is not None
-            raise last_error
+                # Cancelled while the model loaded: report the (empty) partial
+                # and never start a decode on an engine about to be freed.
+                return self._finish_url_state(job, _loop.WindowsState(), expected, validated, manager, partial=True)
+            state, expected = self._ingest_via_downloads(job, resolved, url, runtime, backend, manager, expected)
+            return self._finish_url_state(job, state, expected, validated, manager, partial=job.cancel_event.is_set())
         finally:
             lease.end(token)
+
+    def _download_and_transcribe(self, job, resolved, runtime, backend, manager, expected):
+        """One download-tier attempt: ingest the audio, then transcribe it."""
+        from voice_typer.server.media_ingest import (
+            decoder as _decoder,
+            downloader as _downloader,
+            runtime as _runtime,
+        )
+
+        self._publish_media_progress(job, 0.0, "downloading", None, expected)
+        with _downloader.temp_audio_download(
+            resolved.webpage_url or resolved.audio_url,
+            js_runtimes=_runtime.js_runtime_options(runtime),
+            on_progress=lambda frac: self._publish_media_progress(job, frac, "downloading", None, expected),
+        ) as tmp_path:
+            # An Instagram-style resolver reports duration=None: probe the
+            # file that was actually ingested so percent/ETA (and the
+            # truncation gate) have a real total.
+            total = expected
+            if total is None:
+                total = _decoder.probe_duration_seconds(str(tmp_path))
+            job.ingest_tier = "download"
+            job.expected_seconds = total
+            return self._transcribe_file(tmp_path, backend, manager, job, total), total
+
+    def _ingest_via_downloads(self, job, resolved, url: str, runtime, backend, manager, expected):
+        """Download tier with ONE retry; returns ``(state, expected)``.
+
+        Only ``RETRYABLE_INGEST_CODES`` earn a second attempt. Every other
+        code is a verdict about the media itself (no audio track, DRM, a
+        truncated decode): it is raised on first occurrence, so a verdict
+        costs exactly one download + decode + transcribe.
+        """
+        from voice_typer.server.media_ingest import engine_loop as _loop
+        from voice_typer.server.media_ingest.errors import MediaIngestError, is_retryable_ingest_code
+
+        try:
+            return self._download_and_transcribe(job, resolved, runtime, backend, manager, expected)
+        except MediaIngestError as exc:
+            if job.cancel_event.is_set():
+                return _loop.WindowsState(), expected
+            if not is_retryable_ingest_code(exc.code):
+                raise
+            log.warning("[MEDIA] audio download failed (%s); retrying once", exc.code)
+
+        # ONE re-resolve plus ONE download retry before the stream tier is
+        # even considered: the observed download failure was transient, so
+        # a single hiccup must not degrade the job to streaming.
+        refreshed = resolved
+        try:
+            refreshed = self._resolve_media(resolved.webpage_url or url, runtime)
+            if expected is None:
+                expected = refreshed.duration
+            return self._download_and_transcribe(job, refreshed, runtime, backend, manager, expected)
+        except MediaIngestError as exc:
+            if job.cancel_event.is_set():
+                return _loop.WindowsState(), expected
+            if not is_retryable_ingest_code(exc.code):
+                raise
+            download_error = exc
+            log.warning("[MEDIA] audio download retry failed (%s)", exc.code)
+        return self._ingest_via_streams(
+            job, refreshed, runtime, backend, manager, expected, download_error=download_error
+        )
+
+    def _ingest_via_streams(self, job, resolved, runtime, backend, manager, expected, *, download_error):
+        """Guarded stream tier: probe first, retry only transient failures.
+
+        The probe keeps the tier honest (never stream a URL that does not
+        prove itself a direct media resource with real audio), and the loop
+        retries only ``RETRYABLE_INGEST_CODES``; the finish step runs OUTSIDE
+        it, so a truncated stream is one decode and one verdict.
+        """
+        from voice_typer.server.media_ingest import (
+            decoder as _decoder,
+            engine_loop as _loop,
+            validation as _validation,
+        )
+        from voice_typer.server.media_ingest.errors import (
+            DOWNLOAD_FAILED,
+            URL_EXPIRED,
+            MediaIngestError,
+            is_retryable_ingest_code,
+        )
+
+        probe = _decoder.probe_remote(resolved.audio_url)
+        probe_duration = probe.duration_seconds if probe is not None else None
+        if (
+            probe is None
+            or probe.audio_streams < 1
+            or probe_duration is None
+            or probe_duration < _validation.MIN_MEDIA_SECONDS
+        ):
+            log.warning(
+                "[MEDIA] stream fallback refused: %s",
+                "not a direct media resource"
+                if probe is None
+                else f"audio_streams={probe.audio_streams} duration={probe_duration}",
+            )
+            raise MediaIngestError(
+                DOWNLOAD_FAILED,
+                "the audio could not be downloaded and the stream could not be verified",
+            ) from download_error
+
+        if expected is None:
+            expected = probe_duration
+        job.ingest_tier = "stream"
+        job.note = "stream_fallback"
+        job.expected_seconds = expected
+        log.info(
+            "[MEDIA] stream fallback: download failed twice (%s); probe says audio_streams=%d duration=%.1fs",
+            download_error.code,
+            probe.audio_streams,
+            probe_duration,
+        )
+
+        state = _loop.WindowsState()
+        last_error: MediaIngestError | None = None
+        for attempt in range(MAX_STREAM_ATTEMPTS):
+            if job.cancel_event.is_set():
+                break
+            try:
+                chunks = _decoder.decode_chunks(
+                    resolved.audio_url,
+                    remote=True,
+                    start_seconds=state.decoded_seconds,
+                )
+                stream_duration = resolved.duration or expected
+
+                def _on_stream_progress(frac: float, eta: float | None, _d: float | None = stream_duration) -> None:
+                    self._publish_media_progress(job, frac, "transcribing", eta, _d)
+
+                state = _loop.transcribe_windows(
+                    chunks,
+                    backend,
+                    cancel_event=job.cancel_event,
+                    on_progress=_on_stream_progress,
+                    total_seconds=stream_duration,
+                    state=state,
+                    lane=manager.asr_lane,
+                )
+            except MediaIngestError as exc:
+                if job.cancel_event.is_set():
+                    break
+                last_error = exc
+                log.warning(
+                    "[MEDIA] stream attempt %d/%d failed (%s)",
+                    attempt + 1,
+                    MAX_STREAM_ATTEMPTS,
+                    exc.code,
+                )
+                if not is_retryable_ingest_code(exc.code):
+                    raise
+                if exc.code == URL_EXPIRED and attempt + 1 < MAX_STREAM_ATTEMPTS:
+                    try:
+                        resolved = self._resolve_media(resolved.webpage_url, runtime)
+                    except MediaIngestError as resolve_exc:
+                        last_error = resolve_exc
+                        break
+                continue
+            return state, expected
+        if job.cancel_event.is_set():
+            return state, expected
+        assert last_error is not None
+        raise last_error
 
     def _finish_url_state(self, job, state, expected, validated, manager, *, partial: bool = False) -> dict:
         """Common finish for every URL tier (download / retry / stream)."""

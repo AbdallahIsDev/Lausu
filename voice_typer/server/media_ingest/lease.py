@@ -6,11 +6,12 @@ unloads the model under a running decode, and the job either produces a
 truncated transcript that still reports success or dies with an unrelated
 internal error. There is also no way to say WHICH engine produced a row.
 
-A lease is taken for the whole job (after the engine is resolved, released in
-a ``finally``) and records the engine label the job actually got. The model
-layer asks :meth:`ModelLeaseGate.wait_for_idle` before it unloads anything, so
-a switch defers, then cancels with a reason, and only then frees the engine —
-it never tears down a live one.
+A lease is taken for the whole job (BEFORE the model load, relabelled once
+the engine is known, released in a ``finally``) and records the engine label
+the job actually got. The model layer asks
+:meth:`ModelLeaseGate.wait_for_idle` before it unloads anything, so a switch
+defers, then cancels with a reason, and only then frees the engine — it never
+tears down a live or loading one.
 """
 
 from __future__ import annotations
@@ -19,6 +20,10 @@ import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, Final
+
+#: Label of a lease whose job is still loading its engine (the engine name
+#: is only known after the load returns; ``relabel`` replaces this).
+PENDING_ENGINE_LABEL: Final[str] = "pending"
 
 #: How long a model switch waits for running media jobs before it cancels
 #: them. Long enough for a short clip to land, short enough that a model
@@ -43,6 +48,18 @@ class ModelLeaseGate:
         with self._condition:
             self._holders[token] = engine_label
         return token
+
+    def relabel(self, token: object, engine_label: str) -> None:
+        """Name the engine a job will use, once the load has resolved it.
+
+        A job leases itself BEFORE the model load (so the switch cannot
+        unload the model it is loading); the engine name is only known after
+        that load returns. Relabelling an already-released token is a no-op,
+        never a resurrected lease.
+        """
+        with self._condition:
+            if token in self._holders:
+                self._holders[token] = engine_label
 
     def end(self, token: object) -> None:
         """Release one job's lease (idempotent)."""

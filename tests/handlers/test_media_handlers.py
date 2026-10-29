@@ -527,6 +527,7 @@ class TestMediaUrlJobTiers:
         download_failures=99,
         probe=None,
         decoded_seconds=42.0,
+        decode_error=None,
     ):
         import contextlib
 
@@ -552,7 +553,14 @@ class TestMediaUrlJobTiers:
             yield audio
 
         monkeypatch.setattr(dl, "temp_audio_download", _download)
-        monkeypatch.setattr(dec, "decode_chunks", lambda src, **kw: calls.append(("decode", src)) or iter(()))
+
+        def _decode(src, **kw):
+            calls.append(("decode", src))
+            if decode_error is not None:
+                raise decode_error
+            return iter(())
+
+        monkeypatch.setattr(dec, "decode_chunks", _decode)
         monkeypatch.setattr(dec, "probe_remote", lambda url, **kw: calls.append(("probe", url)) or probe)
         monkeypatch.setattr(
             loop,
@@ -645,6 +653,86 @@ class TestMediaUrlJobTiers:
         assert job.ingest_tier == "download"
         assert job.note is None
         assert out == {"row_id": 1, "chars": 2}
+
+    def test_subtitles_tier_records_the_source_in_history(self, ipc_server, fake_service, monkeypatch, tmp_path):
+        """No engine ran, so the row must not claim one (nor a blank model)."""
+        import voice_typer.server.media_ingest.storage as storage_mod
+        import voice_typer.server.media_ingest.subtitles as subs
+        import voice_typer.server.media_ingest.url_resolver as resolver
+
+        resolved = self._resolved()
+        resolved.subtitles_available = True
+        monkeypatch.setattr(resolver, "resolve_media_url", lambda url, **kw: resolved)
+        monkeypatch.setattr(subs, "fetch_subtitles", lambda url, lang=None: "caption text")
+        saved: list[str] = []
+        monkeypatch.setattr(storage_mod, "persist_result", lambda *a, model="", **k: saved.append(model) or 1)
+        job = self._job()
+        out = ipc_server._run_url_media_job(job, "https://example.com/v", None, {"use_subtitles": True})
+        assert out["chars"] == len("caption text")
+        assert job.ingest_tier == "subtitles"
+        assert saved == ["subtitles"]
+
+    def test_truncated_download_costs_one_decode_and_never_probes(
+        self, ipc_server, fake_service, monkeypatch, tmp_path
+    ):
+        """A truncation verdict is already known: retrying re-decodes it."""
+        from voice_typer.server.media_ingest import storage as storage_mod
+        from voice_typer.server.media_ingest.errors import MEDIA_TRUNCATED, MediaIngestError
+
+        calls = self._patch_pipeline(monkeypatch, tmp_path, decoded_seconds=3.0)
+        persisted = []
+        monkeypatch.setattr(storage_mod, "persist_result", lambda *a, **k: persisted.append(1) or 1)
+        with pytest.raises(MediaIngestError) as excinfo:
+            ipc_server._run_url_media_job(self._job(), "https://example.com/v", None, {"use_subtitles": False})
+        assert excinfo.value.code == MEDIA_TRUNCATED
+        assert [c[0] for c in calls] == ["download", "decode", "transcribe"]
+        assert persisted == []
+
+    def test_missing_audio_track_is_not_retried(self, ipc_server, fake_service, monkeypatch, tmp_path, caplog):
+        """NO_AUDIO is a verdict: no second download, no stream probe."""
+        import logging
+
+        from voice_typer.server.media_ingest.errors import NO_AUDIO, MediaIngestError
+
+        calls = self._patch_pipeline(monkeypatch, tmp_path, decode_error=MediaIngestError(NO_AUDIO, "no audio track"))
+        with (
+            caplog.at_level(logging.WARNING),
+            pytest.raises(MediaIngestError) as excinfo,
+        ):
+            ipc_server._run_url_media_job(self._job(), "https://example.com/v", None, {"use_subtitles": False})
+        assert excinfo.value.code == NO_AUDIO
+        assert [c[0] for c in calls] == ["download", "decode"]
+        assert "retrying once" not in caplog.text
+        assert "stream fallback" not in caplog.text
+
+    def test_decode_failed_from_a_downloaded_file_is_not_retried(self, ipc_server, fake_service, monkeypatch, tmp_path):
+        from voice_typer.server.media_ingest.errors import DECODE_FAILED, MediaIngestError
+
+        calls = self._patch_pipeline(
+            monkeypatch, tmp_path, decode_error=MediaIngestError(DECODE_FAILED, "bad container")
+        )
+        with pytest.raises(MediaIngestError) as excinfo:
+            ipc_server._run_url_media_job(self._job(), "https://example.com/v", None, {"use_subtitles": False})
+        assert excinfo.value.code == DECODE_FAILED
+        assert [c[0] for c in calls] == ["download", "decode"]
+
+    def test_truncated_stream_is_one_decode(self, ipc_server, fake_service, monkeypatch, tmp_path):
+        """The stream verdict must not be re-decoded either."""
+        import types
+
+        from voice_typer.server.media_ingest.errors import DOWNLOAD_FAILED, MEDIA_TRUNCATED, MediaIngestError
+
+        calls = self._patch_pipeline(
+            monkeypatch,
+            tmp_path,
+            download_error=MediaIngestError(DOWNLOAD_FAILED, "nope"),
+            probe=types.SimpleNamespace(audio_streams=1, duration_seconds=42.0),
+            decoded_seconds=3.0,
+        )
+        with pytest.raises(MediaIngestError) as excinfo:
+            ipc_server._run_url_media_job(self._job(), "https://example.com/v", None, {"use_subtitles": False})
+        assert excinfo.value.code == MEDIA_TRUNCATED
+        assert [c[0] for c in calls] == ["download", "download", "probe", "decode", "transcribe"]
 
     def test_local_job_probes_total_so_progress_and_eta_work(self, ipc_server, fake_service, monkeypatch, tmp_path):
         """A local file has no resolver-provided total: the container probe feeds
@@ -812,7 +900,9 @@ class TestMediaEngineAttribution:
 
         def _switch() -> None:
             harness = object.__new__(ChangeMixin)
-            harness._app = types.SimpleNamespace(tray=types.SimpleNamespace(notify=lambda *a: None))
+            # Attribute map, not `harness._app = ...`: the mixin annotates
+            # `_app` as the real app, and this test only needs `.tray`.
+            harness.__dict__["_app"] = types.SimpleNamespace(tray=types.SimpleNamespace(notify=lambda *a: None))
             assert harness._defer_switch_to_running_media_jobs() is True
             switch_done.set()
 
@@ -831,4 +921,177 @@ class TestMediaEngineAttribution:
 
         assert len(labels) == 4
         assert set(labels) == {"whisper/small.en"}, f"rows mislabelled after the switch: {labels!r}"
+        assert gate.active() == 0
+
+
+class TestLeaseCoversTheModelLoad:
+    """A switch during the LOAD is deferred like one during a decode."""
+
+    @staticmethod
+    def _job():
+        import threading
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            job_id="load1",
+            cancel_event=threading.Event(),
+            progress=0.0,
+            client_id=None,
+            ingest_tier=None,
+            expected_seconds=None,
+            decoded_seconds=None,
+            note=None,
+            engine_label=None,
+            quality=None,
+            cancel_reason=None,
+        )
+
+    @staticmethod
+    def _gate(monkeypatch):
+        import voice_typer.server.media_ingest.lease as lease_mod
+
+        gate = lease_mod.ModelLeaseGate()
+        monkeypatch.setattr(lease_mod, "get_lease_gate", lambda: gate)
+        return gate
+
+    def test_switch_waits_for_the_load_and_the_job_keeps_its_engine(
+        self, ipc_server, fake_service, monkeypatch, tmp_path
+    ):
+        import threading
+        import time
+        import types
+
+        import voice_typer.server.media_ingest.decoder as dec
+        import voice_typer.server.media_ingest.engine_loop as loop
+        import voice_typer.server.media_ingest.storage as storage_mod
+        from voice_typer.server.model_manager._change import ChangeMixin
+
+        gate = self._gate(monkeypatch)
+        entered = threading.Event()
+        release = threading.Event()
+        label = "whisper/small.en"
+
+        def _load():
+            entered.set()
+            assert release.wait(5)
+            return types.SimpleNamespace(is_loaded=True), label
+
+        monkeypatch.setattr(ipc_server, "_ensure_media_backend", _load)
+        monkeypatch.setattr(dec, "probe_duration_seconds", lambda *a, **k: 10.0)
+        monkeypatch.setattr(dec, "decode_chunks", lambda *a, **k: iter(()))
+        decoded: list[int] = []
+
+        def _transcribe(chunks, backend, **kw):
+            decoded.append(1)
+            return loop.WindowsState(texts=["ok"], decoded_seconds=10.0)
+
+        monkeypatch.setattr(loop, "transcribe_windows", _transcribe)
+        labels: list[str] = []
+        monkeypatch.setattr(storage_mod, "persist_result", lambda *a, model="", **k: labels.append(model) or 1)
+
+        result: dict = {}
+        worker = threading.Thread(
+            target=lambda: result.update(
+                ipc_server._run_local_media_job(
+                    self._job(), tmp_path / "clip.wav", {"export_path": None, "export_format": None}
+                )
+            ),
+            daemon=True,
+        )
+        worker.start()
+        assert entered.wait(5)
+        # The load itself is leased, so the switch has something to wait on.
+        assert gate.engines() == {"pending"}
+
+        switch_done = threading.Event()
+
+        def _switch() -> None:
+            harness = object.__new__(ChangeMixin)
+            # Attribute map, not `harness._app = ...`: the mixin annotates
+            # `_app` as the real app, and this test only needs `.tray`.
+            harness.__dict__["_app"] = types.SimpleNamespace(tray=types.SimpleNamespace(notify=lambda *a: None))
+            assert harness._defer_switch_to_running_media_jobs() is True
+            switch_done.set()
+
+        switcher = threading.Thread(target=_switch, daemon=True)
+        switcher.start()
+        time.sleep(0.15)
+        assert not switch_done.is_set(), "the switch ran while the job was still loading its engine"
+
+        release.set()
+        worker.join(5)
+        assert switch_done.wait(5)
+        assert result.get("chars") == 2
+        assert decoded == [1]
+        assert labels == [label]
+        assert gate.active() == 0
+
+    def test_cancel_during_the_load_never_starts_a_decode(self, ipc_server, fake_service, monkeypatch, tmp_path):
+        """The timeout path cancels a PREPARING job: nothing is decoded."""
+        import types
+
+        import voice_typer.server.media_ingest.decoder as dec
+        import voice_typer.server.media_ingest.engine_loop as loop
+        import voice_typer.server.media_ingest.storage as storage_mod
+        from voice_typer.server.media_ingest.errors import MODEL_CHANGED
+
+        gate = self._gate(monkeypatch)
+        job = self._job()
+
+        def _load():
+            job.cancel_reason = MODEL_CHANGED
+            job.cancel_event.set()
+            return types.SimpleNamespace(is_loaded=True), "whisper/small.en"
+
+        monkeypatch.setattr(ipc_server, "_ensure_media_backend", _load)
+        decoded: list[int] = []
+        persisted: list[int] = []
+        monkeypatch.setattr(dec, "probe_duration_seconds", lambda *a, **k: decoded.append(1) or 10.0)
+        monkeypatch.setattr(dec, "decode_chunks", lambda *a, **k: decoded.append(1) or iter(()))
+        monkeypatch.setattr(
+            loop, "transcribe_windows", lambda *a, **k: decoded.append(1) or loop.WindowsState(texts=["x"])
+        )
+        monkeypatch.setattr(storage_mod, "persist_result", lambda *a, **k: persisted.append(1) or 1)
+
+        out = ipc_server._run_local_media_job(job, tmp_path / "clip.wav", {"export_path": None, "export_format": None})
+        assert out == {"row_id": None, "chars": 0}
+        assert decoded == [], "a job cancelled during the load started decoding anyway"
+        assert persisted == []
+        assert gate.active() == 0
+
+    def test_cancel_during_the_url_load_never_downloads(self, ipc_server, fake_service, monkeypatch, tmp_path):
+        import types
+
+        import voice_typer.server.media_ingest.decoder as dec
+        import voice_typer.server.media_ingest.downloader as dl
+        import voice_typer.server.media_ingest.url_resolver as resolver
+        from voice_typer.server.media_ingest.errors import MODEL_CHANGED
+
+        gate = self._gate(monkeypatch)
+        job = self._job()
+        monkeypatch.setattr(
+            resolver,
+            "resolve_media_url",
+            lambda url, **kw: types.SimpleNamespace(
+                audio_url="https://cdn.example/a.m4a",
+                webpage_url="https://example.com/v",
+                duration=42.0,
+                subtitles_available=False,
+                is_live=False,
+            ),
+        )
+
+        def _load():
+            job.cancel_reason = MODEL_CHANGED
+            job.cancel_event.set()
+            return types.SimpleNamespace(is_loaded=True), "whisper/small.en"
+
+        monkeypatch.setattr(ipc_server, "_ensure_media_backend", _load)
+        downloaded: list[int] = []
+        monkeypatch.setattr(dl, "temp_audio_download", lambda *a, **k: downloaded.append(1))
+        monkeypatch.setattr(dec, "decode_chunks", lambda *a, **k: downloaded.append(1) or iter(()))
+
+        out = ipc_server._run_url_media_job(job, "https://example.com/v", None, {"use_subtitles": False})
+        assert out == {"row_id": None, "chars": 0}
+        assert downloaded == [], "a cancelled URL job still downloaded or decoded"
         assert gate.active() == 0

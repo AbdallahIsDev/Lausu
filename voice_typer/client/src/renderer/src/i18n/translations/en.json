@@ -65,6 +65,8 @@
 		"errorEngineUnavailable": "The speech model could not be loaded. Try again.",
 		"modelChangedTitle": "Model changed",
 		"modelChangedDescription": "{count} running transcriptions were stopped and saved in part.",
+		"modelSwitchRefusedTitle": "Model not changed",
+		"modelSwitchRefusedDescription": "{count} transcriptions are still using the current model. Try again when they finish.",
 		"percent": "{percent}%",
 		"eta": "~{time} left",
 		"duration": "Duration {time}",

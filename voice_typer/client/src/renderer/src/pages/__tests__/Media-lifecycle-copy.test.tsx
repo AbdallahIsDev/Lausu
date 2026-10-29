@@ -177,6 +177,25 @@ describe("media row outcome copy", () => {
 	});
 });
 
+describe("media model-switch refusal", () => {
+	it("registers the refusal push and names the count that still holds the model", async () => {
+		await startOneJob();
+		const handler = eventHandlers.get("media_model_switch_refused");
+		expect(handler).toBeTypeOf("function");
+		act(() => {
+			handler?.({ count: 2 } as never);
+		});
+		expect(toastWarning).toHaveBeenCalledTimes(1);
+		const [, options] = toastWarning.mock.calls[0] as [
+			string,
+			{ id: string; description: string },
+		];
+		expect(options.id).toBe("media-model-switch-refused");
+		expect(options.description).toContain("2 transcriptions");
+		expect(options.description).toContain("current model");
+	});
+});
+
 describe("media error copy", () => {
 	it("names the item count for a multi-item link", async () => {
 		await startOneJob();
