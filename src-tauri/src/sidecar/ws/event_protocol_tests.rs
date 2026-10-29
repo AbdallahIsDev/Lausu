@@ -132,6 +132,9 @@ fn test_allowlist_is_exact_canonical_set() {
         "media_transcribe_progress",
         "media_transcribe_complete",
         "media_transcribe_error",
+        // A model switch waited for the running media jobs, then cancelled
+        // them so the engine could be unloaded (2026-10-28).
+        "media_jobs_cancelled_for_model_change",
         "history_corrupted",
         "history_fts5_rebuild_failed",
         "paste_deferred",

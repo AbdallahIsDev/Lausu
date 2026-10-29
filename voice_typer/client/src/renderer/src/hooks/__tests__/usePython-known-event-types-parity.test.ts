@@ -87,6 +87,7 @@ const _PARITY = {
 	media_transcribe_progress: true,
 	media_transcribe_complete: true,
 	media_transcribe_error: true,
+	media_jobs_cancelled_for_model_change: true,
 	history_corrupted: true,
 	history_fts5_rebuild_failed: true,
 	paste_deferred: true,

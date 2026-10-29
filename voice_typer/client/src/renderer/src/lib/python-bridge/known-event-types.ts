@@ -122,4 +122,6 @@ export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
 	"media_transcribe_progress",
 	"media_transcribe_complete",
 	"media_transcribe_error",
+	// A model switch cancelled running media jobs (explained, not silent).
+	"media_jobs_cancelled_for_model_change",
 ]);

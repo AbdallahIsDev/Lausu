@@ -262,7 +262,7 @@ restored `get_prewarm_status` / `run_prewarm` (worker status file +
 in-process warm pass), not the old
 `sentinel` / `PID`-file probe.
 
-## Push events (65 typed)
+## Push events (66 typed)
 
 Push events flow server to renderer via `window.python.onEvent(callback)`.
 The `PythonPushEvent` union in `types/ipc/push_events.ts` is the canonical
@@ -333,9 +333,10 @@ list: events not in the union fall through to the `string` overload of
 | `history_corrupted` | `HistoryCorruptedEvent` | `{ path: string, db_path: string, recovered_count: number }` History DB corruption was detected and recovered (typed in the union; renderer consumer optional). |
 | `paste_deferred` | `PasteDeferredEvent` | `{ reason: string, message?: string }` Paste was deferred (e.g. clipboard safety validation held it back; typed in the union; renderer consumer optional). |
 | `tray_fallback_notification` | `TrayFallbackNotificationEvent` | `{ title?: string, message?: string }` Tray notification fallback path fired (headless / pystray-only runtimes; Tauri host owns the tray). Generic toast consumer. |
-| `media_transcribe_progress` | `MediaTranscribeProgressEvent` | `{ job_id: string, client_id: string \| null, progress: number, phase: "downloading" \| "loading_model" \| "transcribing", eta_seconds: number \| null, duration_seconds: number \| null }` ADR-0023 media job progress (0-1); renderer drives a progress bar + cancel. `client_id` is the echo of the start request's token (null when the caller sent none). |
-| `media_transcribe_complete` | `MediaTranscribeCompleteEvent` | `{ job_id: string, client_id: string \| null, row_id: number \| null, chars: number, partial: boolean }` ADR-0023 media job done; renderer refreshes History. `partial` marks a cancelled job's saved partial transcript; `row_id: null` means the transcript was empty (nothing persisted). |
-| `media_transcribe_error` | `MediaTranscribeErrorEvent` | `{ job_id: string, client_id: string \| null, code: string, message: string }` ADR-0023 media job failed; pushed by `media_ingest/jobs.py` from the job-thread exception handler (E13). |
+| `media_transcribe_progress` | `MediaTranscribeProgressEvent` | `{ job_id: string, client_id: string \| null, progress: number, phase: "starting" \| "preparing" \| "downloading" \| "loading_model" \| "transcribing", eta_seconds: number \| null, duration_seconds: number \| null, tier: "subtitles" \| "download" \| "stream" \| null, note: string \| null }` ADR-0023 media job progress (0-1); renderer drives a progress bar + cancel. `client_id` is the echo of the start request's token (null when the caller sent none). `tier` is the ingest path in use and `note` a machine-readable degradation tag (e.g. `stream_fallback`); the ROW collapses the internal phases to "Preparing…" / "Transcribing…". |
+| `media_transcribe_complete` | `MediaTranscribeCompleteEvent` | `{ job_id: string, client_id: string \| null, row_id: number \| null, chars: number, partial: boolean, tier: "subtitles" \| "download" \| "stream" \| null, quality: {avg_logprob?, no_speech_prob?, chars_per_second?} \| null, note: string \| null }` ADR-0023 media job done; renderer refreshes History. `partial` marks a cancelled job's saved partial transcript; `row_id: null` means the transcript was empty (nothing persisted). `tier`/`quality`/`note` let the page show the degraded ingest path and the low-confidence tag without a second read. `note: "model_changed"` marks a job cancelled because the active engine changed. |
+| `media_transcribe_error` | `MediaTranscribeErrorEvent` | `{ job_id: string, client_id: string \| null, code: string, message: string, details: object \| null }` ADR-0023 media job failed; pushed by `media_ingest/jobs.py` from the job-thread exception handler (E13). `details` carries structured copy inputs (`{count}` for `multi_item_url`). |
+| `media_jobs_cancelled_for_model_change` | `MediaJobsCancelledForModelChangeEvent` | `{ count: number }` A model switch waited for the running media jobs, then cancelled them so the engine could be unloaded; each cancelled job still publishes its completion with the partial transcript and `note: "model_changed"`. The renderer shows one toast naming the count. |
 
 ## Server-only push events (string-overload, not in the typed union)
 

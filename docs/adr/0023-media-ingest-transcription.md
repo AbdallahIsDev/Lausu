@@ -295,3 +295,126 @@ against the recorded 112.3 s), and a third run on the same idle box gave 1.41×
 identical to that run's serial baseline, `RESULT: PASS`). Wall clock on a shared
 CPU moves with every other process, so the harness prints the ratio and the
 logical CPU count as `[INFO]` and gates only the correctness invariants.
+
+## Addendum 2026-10-28: lifecycle hardening
+
+Four contracts were added after reproducing three defect classes on the owner's
+machine. Ground truth for the ingest one: `resolve_media_url(<instagram post>)`
+returned a direct CDN `audio_url` with `duration=None`; PyAV opened it as ONE
+audio stream, probed 7.847 s and decoded 125,968 samples; a download of the same
+URL produced a 73,187 B `.m4a` (7.87 s). So the stream tier was carrying the
+REAL audio and the download failure was transient — the defects were in
+handling, observability and validation, not in the decoder.
+
+### 1. Model leases: a job owns the engine it started with
+
+The ASR engine is one shared object behind one lock, and a media job runs for
+minutes while a model switch is a click. Without a lease the switch freed the
+model under a running decode: the job produced a truncated transcript that still
+reported success, or died with an unrelated `internal_error`, and nothing in
+the row said which engine had produced it.
+
+`media_ingest/lease.py` adds `ModelLeaseGate` (`begin`/`end`/`active`/
+`engines`/`wait_for_idle`) and one process-wide gate. Both job bodies take a
+lease for the WHOLE job (after `_ensure_media_backend`, released in a `finally`)
+and record `job.engine_label = "<backend>/<model>"` read from the engine they
+actually got — never `config.model_size` at finish time, because a switch writes
+config while the job is still decoding. `_finish_media_job` persists THAT label.
+
+`ModelManager._change_model_blocking` and `set_active_backend` call
+`wait_for_idle(MODEL_SWITCH_LEASE_TIMEOUT_S = 30)` BEFORE the unload phase:
+
+1. leases drain in time → the switch proceeds, every job finished on the engine
+   it started with;
+2. not drained → cancel the running jobs (reason `model_changed`), publish
+   `media_jobs_cancelled_for_model_change` (count) for one toast, wait again
+   `MODEL_SWITCH_LEASE_CANCEL_GRACE_S = 5`, then unload. Each cancelled job still
+   completes with its partial transcript and `note: "model_changed"`;
+3. still not drained → log ERROR, notify, and KEEP the old engine loaded: the
+   switch is refused rather than torn down.
+
+`AsrBackendRegistry.unload` refuses while `lease.active() > 0` (defence in
+depth, same message), and `SystemWhisperEngine.unload()` / parakeet / qwen take
+their inference lock with `MODEL_UNLOAD_LOCK_TIMEOUT_S = 30` before nulling the
+model: a lock that cannot be taken means the engine stays loaded, because
+freeing a model in use is a use-after-free while refusing is merely slow.
+Cloud is not special: a job on a cloud backend is leased and labelled exactly
+the same way, so audio never silently changes destination mid-file.
+
+### 2. Ingest tiers are explicit, validated and non-silent
+
+`MediaJob` now carries `ingest_tier` (`subtitles` / `download` / `stream`),
+`expected_seconds`, `decoded_seconds`, `note`, `engine_label` and `quality`;
+the row, the progress event (`tier`/`note`) and the completion event (`tier`,
+`quality`, `note`) all read them, so a degraded run is visible instead of
+looking clean.
+
+Tier policy (order unchanged: subtitles → download → stream), with the stream
+tier now GUARDED:
+
+- a failed download gets ONE re-resolve plus ONE download retry (the observed
+  failure was transient, so a hiccup must not degrade the job);
+- if that still fails, `decoder.probe_remote(url)` must report ≥ 1 audio stream
+  AND a duration ≥ `MIN_MEDIA_SECONDS`; otherwise the job raises
+  `download_failed` with the original cause preserved in the log instead of
+  streaming an unverified URL;
+- when the stream tier IS used, `job.note = "stream_fallback"` and one INFO line
+  records the reason and the probe readings.
+
+The validation gate (`media_ingest/validation.py`, one place, three callers)
+runs before ANY text is persisted, for local and URL jobs alike:
+
+- `decoded_seconds < MIN_MEDIA_SECONDS` (1.0 s) → `media_too_short`;
+- `decoded < expected - max(2.0 s, expected × 10%)` → `media_truncated`: nothing
+  is persisted and nothing reports success;
+- silence (`rms < 0.01` AND `silence_pct ≥ 95`) → the row completes with
+  `chars: 0` and "no speech", never "characters were added";
+- an empty engine result (hallucination rejection) takes the same path.
+
+When the resolver reports no duration (Instagram), the ingested file/stream is
+probed so `total_seconds` and the percent/ETA exist. `_finish_media_job` logs
+ONE outcome line: status, chars, `done/expected` seconds, tier, engine label,
+`avg_logprob`, `no_speech_prob`, note.
+
+### 3. Extractor output goes through the app logger
+
+yt-dlp writes to stdout/stderr unless it is handed a `logger`; a sidecar has no
+console, so diagnostics were lost and errors that did surface carried signed
+query strings. `media_ingest/ytdlp_log.py` provides `YtdlpLogAdapter` (one
+formatted record per message, `[YTDLP] ` prefix, URLs through `redact_url` and
+the generic secret pass, never a stream) plus `extractor_options()`, used by
+both `resolve_media_url` and `temp_audio_download` with `no_color=True`,
+`noprogress=True`. The downloader no longer builds its target name from the
+video title: the temp dir gets a fixed `media.%(ext)s`, and the options add
+`retries: 3`, `fragment_retries: 3`, `extractor_retries: 2` and a socket
+timeout.
+
+### 4. Multi-item and non-media links: one global rule
+
+The resolver's metadata pass runs with `noplaylist: False`. `entries` with more
+than one playable item → `multi_item_url` naming the count (never "transcribe
+the first one"); a single flat entry unwraps and continues; a URL that extracts
+to no playable media and no web page result → `no_media_url`, with the raw
+extractor text at DEBUG only. Both are rules for EVERY extractor, not per-site
+special cases.
+
+### 5. Phase taxonomy: two user states
+
+Internal codes stay (`starting`, `preparing`, `loading_model`, `downloading`,
+`transcribing`, `verifying`) for logs and support, but the ROW collapses them to
+exactly two labels: "Preparing…" before the first window and "Transcribing…"
+after it, with the download/percent detail as secondary text. `loading_model` is
+emitted ONLY when a load must actually happen (the handler asks the model layer
+first); otherwise the first phase is `preparing`. `starting` renders
+"Preparing…", never "Loading model…".
+
+### 6. Media never borrows the dictation loader
+
+`ensure_active_engine_loaded` gained `queue_pending_dictation: bool = True`;
+the media path passes `False` and uses `ensure_engine_loaded_for_media()`,
+which returns `{engine | state: ready|loading|no_model|failed, reason, label}`:
+no model selected → `no_model` (Open Models); a load in flight → wait up to
+`MEDIA_MODEL_LOAD_WAIT_S = 60`, then return the engine or raise `model_loading`
+(retryable copy, no Open Models); a failed load → `failed` with the real reason
+in the log and retry copy. Media must never set `_pending_dictation`: pinning it
+would fire a phantom dictation when the load completed.

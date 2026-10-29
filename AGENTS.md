@@ -266,6 +266,20 @@ Rationale: There is one ctranslate2 model behind one `_inference_lock`, so paral
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-MEDIA-3
+Rule: Do NOT persist or report success from an unvalidated ingest. Before any window reaches the model a media job must prove it has audio: the resolved URL must probe as a direct media resource (≥1 audio stream, duration ≥ `MIN_MEDIA_SECONDS`) before the stream tier may run, and after the last window `media_ingest/validation.py` must reject `decoded < MIN_MEDIA_SECONDS` (`media_too_short`) or `decoded < expected - max(2.0 s, expected×10%)` (`media_truncated`) instead of writing a row. Zero decoded text is "no speech", never "N characters were added".
+Rationale: The decoder itself was fine — a transient download failure degraded the job to a stream nobody validated, and a job could finish on a fraction of the requested media (or on silence) while its card said the characters were added, so the only signal was a wrong History row (2026-10-28).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-MEDIA-4
+Rule: Do NOT unload or switch a speech model while a media job holds a lease. Take `ModelLeaseGate` for the WHOLE job, label the row from the engine actually leased (never `config.model_size` at finish time), and route every switch/unload through `wait_for_idle` → cancel with `model_changed` → re-wait; if the second wait fails, refuse the switch and keep the old engine loaded.
+Rationale: The engine is one shared object, so a switch during a job freed the model under a live decode and the job died as an unexplained `internal_error` with no attribution; a cancelled-for-switch job must keep its partial and say why (2026-10-28).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Focus Indicators & Keyboard Accessibility

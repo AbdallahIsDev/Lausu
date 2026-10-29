@@ -269,12 +269,24 @@ class TranscribeMixin:
         """Free model memory."""
         import gc
 
+        from voice_typer.server.asr.registry import MODEL_UNLOAD_LOCK_TIMEOUT_S
         from voice_typer.server.asr_utils import release_gpu_memory
 
         with self._inference_cond:
-            # Wait for any active transcription to finish before nulling
+            # Wait for any active transcription to finish before nulling the
+            # model, but bound the wait: a decode that never returns must
+            # leave the engine loaded, not get its model freed underneath it.
+            deadline = time.monotonic() + MODEL_UNLOAD_LOCK_TIMEOUT_S
             while self._active_inference > 0:
-                self._inference_cond.wait()
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    log.error(
+                        "[PARAKEET] refusing to unload: %d inference call(s) still running after %.0fs",
+                        self._active_inference,
+                        MODEL_UNLOAD_LOCK_TIMEOUT_S,
+                    )
+                    return
+                self._inference_cond.wait(timeout=remaining)
             self._model = None
             self._processor = None
         # gc.collect() OUTSIDE the lock.

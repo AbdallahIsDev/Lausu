@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 
 from voice_typer.worker.whisper.native_stderr import (
     _shorten,
@@ -11,10 +12,7 @@ from voice_typer.worker.whisper.native_stderr import (
     parse_native_line,
 )
 
-_NATIVE = (
-    b"[2026-10-12 03:41:25.228] [ctranslate2] [thread 22868] [warning] "
-    b"The compute type is float32.\n"
-)
+_NATIVE = b"[2026-10-12 03:41:25.228] [ctranslate2] [thread 22868] [warning] The compute type is float32.\n"
 
 
 class TestParseNativeLine:
@@ -145,4 +143,6 @@ class TestSystemWhisperWrapped:
         # …two per site: the fail-open branch (capture module absent in
         # the frozen sidecar) plus the wrapped branch. Both sites wrap.
         assert src.count("with _capture(target=log):") == 2
-        assert src.count('import_module(\n                "voice_typer.worker.whisper.native_stderr"') == 2
+        # Whitespace-insensitive: `ruff format` joins or wraps this call, and
+        # the pin must follow the import, not the line-breaking.
+        assert len(re.findall(r'import_module\(\s*"voice_typer\.worker\.whisper\.native_stderr"', src)) == 2

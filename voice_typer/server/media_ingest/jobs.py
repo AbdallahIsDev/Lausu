@@ -66,6 +66,29 @@ class MediaJob:
     error: str | None = None
     error_code: str | None = None
     started_at: float = field(default_factory=time.perf_counter)
+    # Which ingest path produced the audio ("subtitles" | "download" |
+    # "stream"). Recorded per tier so a degraded run is visible in the row,
+    # the completion event and the log instead of looking like a clean one.
+    ingest_tier: str | None = None
+    # Duration the ingest SHOULD have covered (resolver metadata or a probe
+    # of the file that was actually read), never a config value.
+    expected_seconds: float | None = None
+    # What the decoder actually produced; the validation gate compares it
+    # against ``expected_seconds`` before any text is persisted.
+    decoded_seconds: float | None = None
+    # Machine-readable degradation note (e.g. "stream_fallback",
+    # "model_changed", "no_speech") shown as secondary row text.
+    note: str | None = None
+    # The engine this job ACTUALLY ran on, captured when it was leased —
+    # reading config at finish time would label a switched job with the
+    # model the user chose mid-run.
+    engine_label: str | None = None
+    # Engine quality readings for this job's windows, when the backend
+    # exposes them.
+    quality: dict[str, float] | None = None
+    # Why the job was cancelled (e.g. the model changed under it), so the
+    # cancellation is explained rather than silent.
+    cancel_reason: str | None = None
 
 
 _OnEvent = Callable[[dict], None]
@@ -122,9 +145,7 @@ class MediaJobManager:
         with self._lock:
             running = sum(1 for job in self._jobs.values() if job.status == "running")
             if running >= self._max_jobs:
-                raise MediaIngestError(
-                    JOB_BUSY, f"{self._max_jobs} transcription jobs are already running"
-                )
+                raise MediaIngestError(JOB_BUSY, f"{self._max_jobs} transcription jobs are already running")
             job = MediaJob(
                 job_id=uuid.uuid4().hex[:12],
                 source=source,
@@ -146,11 +167,12 @@ class MediaJobManager:
                 job.phase = "done"
                 result = job.result or {}
                 log.info(
-                    "[MEDIA] job %s: id=%s row_id=%s chars=%s%s",
+                    "[MEDIA] job %s: id=%s row_id=%s chars=%s reason=%s%s",
                     job.status,
                     job.job_id,
                     result.get("row_id"),
                     result.get("chars"),
+                    job.cancel_reason or "-",
                     format_duration(time.perf_counter() - started_at),
                 )
             except Exception as exc:  # noqa: BLE001, captured into job state
@@ -187,6 +209,7 @@ class MediaJobManager:
                     job.error,
                     format_duration(time.perf_counter() - started_at),
                 )
+                details = getattr(exc, "details", None)
                 with suppress(Exception):
                     self._on_event(
                         {
@@ -196,6 +219,7 @@ class MediaJobManager:
                                 "client_id": job.client_id,
                                 "code": str(code),
                                 "message": job.error,
+                                "details": details if isinstance(details, dict) else None,
                             },
                         }
                     )
@@ -230,7 +254,7 @@ class MediaJobManager:
         for thread in threads:
             thread.join(timeout)
 
-    def cancel(self, job_id: str | None = None) -> list[str]:
+    def cancel(self, job_id: str | None = None, *, reason: str | None = None) -> list[str]:
         """Cancel one job (or every running job); returns the cancelled ids.
 
         Only ``job.cancel_event`` is set. That Event is the SCOPED abort
@@ -248,6 +272,8 @@ class MediaJobManager:
                 if job.status == "running" and (job_id is None or job.job_id == job_id)
             ]
             for job in targets:
+                if reason:
+                    job.cancel_reason = reason
                 job.cancel_event.set()
             return [job.job_id for job in targets]
 
@@ -264,6 +290,8 @@ class MediaJobManager:
                 "phase": job.phase,
                 "progress": job.progress,
                 "error": job.error,
+                "ingest_tier": job.ingest_tier,
+                "note": job.note,
             }
             for job in jobs
         ]
@@ -271,10 +299,7 @@ class MediaJobManager:
     def export_path_in_use(self, export_path: str) -> bool:
         """True when a RUNNING job already writes to ``export_path``."""
         with self._lock:
-            return any(
-                job.status == "running" and job.export_path == export_path
-                for job in self._jobs.values()
-            )
+            return any(job.status == "running" and job.export_path == export_path for job in self._jobs.values())
 
     @contextmanager
     def asr_lane(self) -> Iterator[None]:

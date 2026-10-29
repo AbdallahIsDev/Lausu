@@ -95,6 +95,8 @@ export type ErrorCodes =
 	// rest → generic failure with the server message).
 	| "server.no_model"
 	| "server.job_busy"
+	| "server.model_loading"
+	| "server.model_changed"
 	| "server.not_supported"
 	| "server.max_connections_reached"
 	| "server.duplicate_connection"

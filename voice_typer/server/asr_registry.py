@@ -191,8 +191,25 @@ class AsrBackendRegistry(RegistryCore):
             return None
 
     def unload(self, name: str | None = None) -> None:
-        """Unload a backend by name, or the active backend if name is None."""
+        """Unload a backend by name, or the active backend if name is None.
+
+        Refused while a media job holds a model lease: the switch path
+        already waits for the lease gate, so reaching this with a live lease
+        means some other caller is about to free an engine in use — defence
+        in depth, never a silent teardown.
+        """
         target = name or self.active_name
+        from voice_typer.server.media_ingest.lease import get_lease_gate
+
+        lease = get_lease_gate()
+        if lease.active() > 0:
+            log.error(
+                "[ASR_REGISTRY] refusing to unload %s: %d media job(s) still hold the engine (%s)",
+                target,
+                lease.active(),
+                ", ".join(sorted(lease.engines())),
+            )
+            return
         with self._lock:
             if self._busy.is_target_busy(target):
                 raise RuntimeError(f"cannot unload busy backend: {target}")

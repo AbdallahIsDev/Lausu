@@ -17,11 +17,14 @@ from voice_typer.server.media_ingest.errors import (
     DRM_REFUSED,
     GEO_BLOCKED,
     LOGIN_REQUIRED,
+    MULTI_ITEM_URL,
+    NO_MEDIA_URL,
     PLAYLIST_REJECTED,
     RESOLVE_FAILED,
     UNSUPPORTED_LIVE,
     MediaIngestError,
 )
+from voice_typer.server.media_ingest.ytdlp_log import extractor_options
 
 log = logging.getLogger(__name__)
 
@@ -70,10 +73,17 @@ def resolve_media_url(
         "format": RESOLVE_FORMAT,
         "quiet": True,
         "no_warnings": True,
-        "noplaylist": True,
+        # Metadata pass. A link that expands to several playable items must
+        # be CLASSIFIED as multi-item, never silently reduced to its first
+        # entry; a single-entry result unwraps and continues below.
+        "noplaylist": False,
         "skip_download": True,
         "retries": 2,
     }
+    # Extractor chatter goes to the app log, redacted, never to a stream
+    # (the sidecar has no console to write to and the raw lines carry
+    # signed URLs).
+    options.update(extractor_options(log))
     if js_runtimes:
         options["js_runtimes"] = js_runtimes
 
@@ -96,8 +106,7 @@ def resolve_media_url(
 
 
 def _resolved_from_info(info: dict[str, Any], *, source_url: str) -> ResolvedMedia:
-    if info.get("_type") == "playlist" or isinstance(info.get("entries"), list):
-        raise MediaIngestError(PLAYLIST_REJECTED, "paste one video link, not a playlist")
+    info = _unwrap_single_entry(info)
     if info.get("is_live") or info.get("live_status") == "is_live":
         raise MediaIngestError(UNSUPPORTED_LIVE, "live streams are not supported")
 
@@ -135,27 +144,101 @@ def _resolved_from_info(info: dict[str, Any], *, source_url: str) -> ResolvedMed
 
     message = str(info.get("error") or "")
     lowered = message.lower()
-    if any(token in lowered for token in ("sign in", "login", "private", "age")):
+    if any(token in lowered for token in _LOGIN_TOKENS):
         raise MediaIngestError(LOGIN_REQUIRED, "this link needs login or is private")
     if "geo" in lowered or "blocked" in lowered:
         raise MediaIngestError(GEO_BLOCKED, "this video is blocked in this region")
-    raise MediaIngestError(RESOLVE_FAILED, "no playable audio found at this link")
+    # Raw extractor text is diagnostics, never user copy.
+    if message:
+        log.debug("[MEDIA] extractor returned no playable media: %s", message)
+    raise MediaIngestError(NO_MEDIA_URL, "this link does not contain a video or audio file")
+
+
+def _unwrap_single_entry(info: dict[str, Any]) -> dict[str, Any]:
+    """Classify a multi-item result, or unwrap its single entry.
+
+    One global rule for every extractor: a carousel / gallery / playlist is
+    refused with the item count (picking the first entry would transcribe a
+    video the user never asked for), while a link that happens to extract as
+    a one-entry list continues as that entry.
+    """
+    entries = info.get("entries")
+    if not isinstance(entries, list):
+        if info.get("_type") == "playlist":
+            raise MediaIngestError(NO_MEDIA_URL, "this link does not contain a video or audio file")
+        return info
+    playable = _playable_entries(entries)
+    if len(playable) > 1:
+        raise MediaIngestError(
+            MULTI_ITEM_URL,
+            f"this link contains {len(playable)} videos; paste them one at a time",
+            details={"count": len(playable)},
+        )
+    if not playable:
+        raise MediaIngestError(NO_MEDIA_URL, "this link does not contain a video or audio file")
+    return playable[0]
+
+
+def _playable_entries(entries: list[Any]) -> list[dict[str, Any]]:
+    """Entries that identify a playable item (not nested collections)."""
+    playable: list[dict[str, Any]] = []
+    for entry in entries:
+        if not isinstance(entry, dict) or not entry:
+            continue
+        if entry.get("_type") not in (None, "url", "url_transparent"):
+            continue
+        if entry.get("url") or entry.get("webpage_url") or entry.get("formats") or entry.get("id"):
+            playable.append(entry)
+    log.debug("[MEDIA] extractor entries=%d playable=%d", len(entries), len(playable))
+    return playable
 
 
 def _classify_extract_error(exc: Exception) -> MediaIngestError:
     """Map extractor exception messages to the ADR-0023 edge taxonomy."""
-    lowered = str(exc).lower()
+    raw = str(exc)
+    lowered = raw.lower()
     if "drm" in lowered or "widevine" in lowered:
         return MediaIngestError(DRM_REFUSED, "this media is protected by DRM")
-    if any(token in lowered for token in ("sign in", "login", "private", "age")):
+    if any(token in lowered for token in _LOGIN_TOKENS):
         return MediaIngestError(LOGIN_REQUIRED, "this link needs login or is private")
     if "geo" in lowered or "blocked" in lowered:
         return MediaIngestError(GEO_BLOCKED, "this video is blocked in this region")
     if "is live" in lowered or "livestream" in lowered:
         return MediaIngestError(UNSUPPORTED_LIVE, "live streams are not supported")
+    if any(token in lowered for token in _NO_MEDIA_TOKENS):
+        # Unsupported site, a page with no video, or an extractor that gave
+        # up: all "no media here", with the raw text kept for diagnostics.
+        log.debug("[MEDIA] extractor refused the link: %s", raw)
+        return MediaIngestError(NO_MEDIA_URL, "this link does not contain a video or audio file")
     if "playlist" in lowered:
         return MediaIngestError(PLAYLIST_REJECTED, "paste one video link, not a playlist")
-    return MediaIngestError(RESOLVE_FAILED, f"could not read media link: {exc}")
+    log.debug("[MEDIA] extractor failed: %s", raw)
+    return MediaIngestError(RESOLVE_FAILED, "the media link could not be read")
+
+
+#: Login-walled shapes. Deliberately NOT the bare substring "age": it
+#: matched every URL containing "page" and turned a plain web page into a
+#: "needs login" error.
+_LOGIN_TOKENS: tuple[str, ...] = (
+    "sign in",
+    "log in",
+    "login",
+    "private video",
+    "private content",
+    "age-gated",
+    "age restricted",
+    "age-restricted",
+)
+
+_NO_MEDIA_TOKENS: tuple[str, ...] = (
+    "unsupported url",
+    "no video",
+    "not a video",
+    "no media",
+    "there's no video",
+    "unable to extract",
+    "no suitable",
+)
 
 
 def _select_audio_format(formats: list[dict[str, Any]]) -> dict[str, Any] | None:

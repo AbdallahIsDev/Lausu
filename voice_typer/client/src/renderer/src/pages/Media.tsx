@@ -30,6 +30,7 @@ import { useT } from "@/i18n/i18n";
 import { formatClockDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
+	isLowConfidence,
 	type MediaJobRow,
 	reportBatchLimited,
 	useMediaJobs,
@@ -301,12 +302,22 @@ function JobRow({
 	const t = useT();
 	const percent = Math.max(0, Math.min(100, Math.round(job.progress * 100)));
 	const label = describeMediaSource(job.source);
+	// Two user states only: everything before the first window is
+	// "Preparing…", everything after it is "Transcribing…". The internal
+	// codes stay for the detail line and for support logs, but the label
+	// must never read "Loading model…" for a job that already has an engine.
 	const phaseLabel =
+		job.phase === "transcribing"
+			? t("media.phaseTranscribing")
+			: t("media.phasePreparing");
+	// Secondary detail: what the pre-transcribe stage is actually doing.
+	const phaseDetail =
 		job.phase === "downloading"
 			? t("media.phaseDownloading")
-			: job.phase === "transcribing"
-				? t("media.phaseTranscribing")
-				: t("media.phaseLoadingModel");
+			: job.phase === "loading_model"
+				? t("media.phaseLoadingModel")
+				: null;
+	const lowConfidence = isLowConfidence(job.quality);
 	const isLongMedia =
 		job.durationSeconds !== null && job.durationSeconds > LONG_MEDIA_SECONDS;
 	// Percent owns the slot above the bar; remaining time + total length
@@ -341,6 +352,14 @@ function JobRow({
 					>
 						{label}
 					</span>
+					{lowConfidence && (
+						<span
+							className="shrink-0 rounded-md border border-border/8 px-1.5 py-0.5 text-xs text-muted-foreground"
+							data-testid="media-low-confidence"
+						>
+							{t("media.lowConfidence")}
+						</span>
+					)}
 					<Button
 						variant="ghost"
 						size="sm"
@@ -361,6 +380,15 @@ function JobRow({
 							? t("media.partialDescription", { chars: String(chars) })
 							: t("media.completeDescription", { chars: String(chars) })}
 				</p>
+				{/* Visible degradation: the row is a success, but not a clean one. */}
+				{job.tier === "stream" && (
+					<p
+						className="text-xs text-muted-foreground"
+						data-testid="media-stream-fallback-note"
+					>
+						{t("media.streamFallbackNote")}
+					</p>
+				)}
 				{job.rowId !== null && (
 					<div>
 						<Button variant="outline" size="sm" onClick={onOpenHistory}>
@@ -408,6 +436,9 @@ function JobRow({
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<span className="text-xs text-muted-foreground">
 					{phaseLabel}
+					{phaseDetail !== null && (
+						<span data-testid="media-phase-detail">{` · ${phaseDetail}`}</span>
+					)}
 					{progressMeta.length > 0 && (
 						<span className="tabular-nums" data-testid="media-progress-meta">
 							{" · "}

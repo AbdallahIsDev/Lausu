@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
+from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from voice_typer.server import i18n
@@ -34,6 +37,57 @@ MODEL_WAIT_FOR_READY_SECONDS = 60.0
 # join sites below use it so a join always outlives the load it waits
 # on (a load cannot run longer than this per backend attempt).
 MODEL_BACKGROUND_LOAD_JOIN_SECONDS = MODEL_LOAD_TIMEOUT_SECONDS + MODEL_SLOW_LOAD_GRACE_SECONDS
+
+#: How long a media job waits for an in-flight model load before it reports
+#: MODEL_LOADING (retryable) instead of holding a queue slot indefinitely.
+MEDIA_MODEL_LOAD_WAIT_S = 60.0
+
+
+@dataclass(frozen=True)
+class MediaLoadResult:
+    """Outcome of resolving an engine for one media job.
+
+    ``state`` is one of ``ready`` / ``loading`` / ``no_model`` / ``failed``.
+    ``label`` is the engine identity recorded on the job (and therefore in
+    History), captured from the engine itself rather than from config at
+    finish time.
+    """
+
+    state: str
+    engine: Any | None = None
+    reason: str = ""
+    label: str = ""
+
+
+def engine_is_ready(engine: Any | None) -> bool:
+    return engine is not None and bool(getattr(engine, "is_loaded", False))
+
+
+def engine_label(backend_name: str, engine: Any) -> str:
+    """``<backend>/<model>`` read from the engine, never from config.
+
+    A switch writes ``config.model_size`` BEFORE it waits for running jobs,
+    so finishing a job by reading config would label its transcript with a
+    model that never produced it. Each backend exposes its identity on a
+    different attribute; this is the one place that knows the chain.
+    """
+    provider = getattr(engine, "provider", None)
+    if isinstance(provider, str) and provider:
+        model_name = getattr(engine, "model_name", None)
+        return f"cloud/{provider}/{model_name or 'default'}"
+    candidates: list[Any] = [
+        getattr(engine, "_model_size", None),
+        getattr(engine, "model_size", None),
+        getattr(engine, "_kwargs", {}).get("model_size")
+        if isinstance(getattr(engine, "_kwargs", None), dict)
+        else None,
+    ]
+    for attribute in ("model_path", "_onnx_model_dir"):
+        value = getattr(engine, attribute, None)
+        if isinstance(value, str) and value:
+            candidates.append(Path(value).name)
+    size = next((str(item) for item in candidates if isinstance(item, str) and item), "unknown")
+    return f"{backend_name or 'unknown'}/{size}"
 
 
 class LoadingMixin:
@@ -408,7 +462,7 @@ class LoadingMixin:
         finally:
             self._lazy_init_lock.release()
 
-    def ensure_active_engine_loaded(self) -> Any | None:
+    def ensure_active_engine_loaded(self, *, queue_pending_dictation: bool = True) -> Any | None:
         """Called from LausuApp._start_dictation to handle the case"""
         # busy-flag rejection. The transcribe thread sets the
         try:
@@ -421,8 +475,12 @@ class LoadingMixin:
                     "the busy flag via force_unload_active().",
                     active_name,
                 )
-                # Queue the dictation so the user's F2 press is honoured
-                self._pending_dictation = True
+                # Queue the dictation so the user's F2 press is honoured —
+                # but ONLY for dictation. A media job passes False: pinning
+                # `_pending_dictation` from the media path would start a
+                # phantom dictation when the load finishes.
+                if queue_pending_dictation:
+                    self._pending_dictation = True
                 return None
         except Exception:
             log.debug(
@@ -489,4 +547,93 @@ class LoadingMixin:
                     self._on_load_success(backend)
                 except Exception:
                     log.debug("[MODEL] success ritual after reload failed", exc_info=True)
+        return self.active_transcriber()
+
+    def active_backend_name(self) -> str:
+        """Name of the backend whose engine is currently registered."""
+        try:
+            return str(self._registry.active_name or "")
+        except Exception:
+            return str(getattr(self._app.config, "asr_backend", "") or "")
+
+    def _media_model_configured(self) -> bool:
+        """True when a model is SELECTED (it may still need a load)."""
+        size = str(getattr(self._app.config, "model_size", "") or "").strip()
+        return bool(size) and size != NO_MODEL_SIZE
+
+    def _load_in_flight(self) -> bool:
+        thread = getattr(self, "_model_load_thread", None)
+        if thread is not None and thread.is_alive():
+            return True
+        return bool(getattr(self, "_sync_load_in_progress", False))
+
+    def ensure_engine_loaded_for_media(self) -> MediaLoadResult:
+        """Resolve the engine for one media job.
+
+        The media path must never behave like a dictation start: it cannot
+        queue a phantom dictation, and "still loading" is reported as
+        loading (retryable) instead of "no model". States are explicit so
+        the handler can pick the right user action.
+        """
+        from voice_typer.server.asr_errors import ModelIntegrityError, ModelNotDownloadedError
+        from voice_typer.server.media_ingest.errors import (
+            MODEL_LOADING,
+            MediaIngestError,
+        )
+
+        engine = self.active_transcriber()
+        if engine_is_ready(engine):
+            return MediaLoadResult(state="ready", engine=engine, label=engine_label(self.active_backend_name(), engine))
+
+        backend = self.active_backend_name()
+        try:
+            busy = self._registry.is_busy(backend) is True
+        except Exception:
+            log.debug("[MEDIA] ownership busy probe failed", exc_info=True)
+            busy = False
+        if busy:
+            # A stuck/finished-but-flagged backend is not a load: report it
+            # as retryable so the user retries instead of being told to
+            # pick a model.
+            log.warning("[MEDIA] refusing media start while %s is busy", backend)
+            raise MediaIngestError(MODEL_LOADING, "the speech model is still busy")
+
+        if not self._media_model_configured():
+            return MediaLoadResult(state="no_model", reason="no speech model is selected")
+
+        if self._load_in_flight():
+            log.info(
+                "[MEDIA] a model load is in flight; waiting up to %.0fs for it",
+                MEDIA_MODEL_LOAD_WAIT_S,
+            )
+            engine = self._wait_for_media_engine(MEDIA_MODEL_LOAD_WAIT_S)
+            if engine_is_ready(engine):
+                return MediaLoadResult(
+                    state="ready",
+                    engine=engine,
+                    label=engine_label(self.active_backend_name(), engine),
+                )
+            if self._load_in_flight():
+                raise MediaIngestError(MODEL_LOADING, "the speech model is still loading")
+            return MediaLoadResult(state="failed", reason="the model load did not finish")
+
+        try:
+            engine = self.ensure_active_engine_loaded(queue_pending_dictation=False)
+        except (ModelNotDownloadedError, ModelIntegrityError) as exc:
+            log.warning("[MEDIA] model load refused: %s", exc)
+            return MediaLoadResult(state="failed", reason=str(exc))
+        if engine_is_ready(engine):
+            return MediaLoadResult(state="ready", engine=engine, label=engine_label(self.active_backend_name(), engine))
+        return MediaLoadResult(state="failed", reason=f"the {backend or 'speech'} engine could not be loaded")
+
+    def _wait_for_media_engine(self, timeout: float) -> Any | None:
+        """Bounded wait for an in-flight load; never starts a second one."""
+        deadline = time.monotonic() + max(0.0, timeout)
+        while time.monotonic() < deadline:
+            engine = self.active_transcriber()
+            if engine_is_ready(engine):
+                return engine
+            if not self._load_in_flight():
+                return engine
+            time.sleep(0.1)
         return self.active_transcriber()

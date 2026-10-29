@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from contextlib import suppress
 from typing import TYPE_CHECKING, cast
 
 from voice_typer.server import i18n
@@ -128,6 +129,11 @@ class ChangeMixin(ChangeEventsMixin):
         self.cancel_idle_unload_timer()
         # outer = _config_mutation_lock (app-level, governs config
         with self._model_change_lock:
+            # A running media job owns the engine it started with. Wait for
+            # those leases BEFORE anything is unloaded or persisted; a
+            # refused wait leaves both the old engine and config untouched.
+            if not self._defer_switch_to_running_media_jobs():
+                return
             # Step 1: setattr + save + unload-old under config lock.
             with self._app._config_mutation_lock:
                 new_backend, old_backend, deferred = self._change_model_setattr_phase(model_size)
@@ -203,6 +209,79 @@ class ChangeMixin(ChangeEventsMixin):
         elif old_backend == "qwen":
             self._qwen_engine = None
 
+    def _defer_switch_to_running_media_jobs(self) -> bool:
+        """Wait for media leases; cancel and re-wait before unloading.
+
+        Returns False when the switch must be refused outright (a job still
+        holds the engine after being cancelled), so the caller can leave the
+        old engine loaded instead of tearing it down mid-flight.
+        """
+        from voice_typer.server.media_ingest.lease import (
+            MODEL_SWITCH_LEASE_CANCEL_GRACE_S,
+            MODEL_SWITCH_LEASE_TIMEOUT_S,
+            get_lease_gate,
+        )
+
+        lease = get_lease_gate()
+        running = lease.active()
+        if running == 0:
+            return True
+        log.info(
+            "[MEDIA] model switch waiting for %d running media job(s) (%s)",
+            running,
+            ", ".join(sorted(lease.engines())),
+        )
+        if lease.wait_for_idle(MODEL_SWITCH_LEASE_TIMEOUT_S):
+            log.info("[MEDIA] model switch: media jobs finished, continuing")
+            return True
+
+        cancelled = self._cancel_media_jobs_for_model_change()
+        log.warning(
+            "[MEDIA] model switch: %d job(s) still running after %.0fs; cancelled %d and waiting %.0fs",
+            lease.active(),
+            MODEL_SWITCH_LEASE_TIMEOUT_S,
+            cancelled,
+            MODEL_SWITCH_LEASE_CANCEL_GRACE_S,
+        )
+        if lease.wait_for_idle(MODEL_SWITCH_LEASE_CANCEL_GRACE_S):
+            return True
+
+        log.error(
+            "[MEDIA] refusing the model switch: %d media job(s) still hold the engine (%s) "
+            "after cancellation; keeping the current model loaded",
+            lease.active(),
+            ", ".join(sorted(lease.engines())),
+        )
+        with suppress(Exception):
+            self._app.tray.notify(APP_NAME, i18n.t("notify.model_manager.switch_refused_media"))
+        return False
+
+    def _cancel_media_jobs_for_model_change(self) -> int:
+        """Cancel every running media job with an explained reason."""
+        from voice_typer.server.media_ingest.errors import MODEL_CHANGED
+        from voice_typer.server.media_ingest.jobs import get_job_manager
+
+        cancelled = get_job_manager().cancel(reason=MODEL_CHANGED)
+        if not cancelled:
+            return 0
+        log.warning(
+            "[MEDIA] cancelled %d job(s) because the active model is changing: %s",
+            len(cancelled),
+            ", ".join(cancelled),
+        )
+        try:
+            from voice_typer.server import event_bus
+
+            event_bus.publish(
+                {
+                    "type": "media_jobs_cancelled_for_model_change",
+                    "data": {"count": len(cancelled)},
+                }
+            )
+        except Exception:  # noqa: BLE001, best-effort push
+            log.debug("[MEDIA] cancellation event publish failed", exc_info=True)
+        return len(cancelled)
+
     def unload_backend_for_delete(self, backend: str) -> None:
         """Unload + unregister ``backend`` ahead of deleting its files."""
         with self._model_change_lock:
@@ -263,8 +342,7 @@ class ChangeMixin(ChangeEventsMixin):
         """
         if backend not in ASR_BACKEND_NAMES:
             raise ValueError(
-                f"set_active_backend: unknown backend {backend!r}. "
-                f"Expected one of: {_quoted_backend_names()}."
+                f"set_active_backend: unknown backend {backend!r}. Expected one of: {_quoted_backend_names()}."
             )
         # ``backend`` passed the allowlist above; rebind to the Literal
         backend = cast(AsrBackendName, backend)
@@ -347,8 +425,7 @@ class ChangeMixin(ChangeEventsMixin):
         """Synchronous backend switch (for test compat and direct callers)."""
         if backend not in ASR_BACKEND_NAMES:
             raise ValueError(
-                f"set_active_backend: unknown backend {backend!r}. "
-                f"Expected one of: {_quoted_backend_names()}."
+                f"set_active_backend: unknown backend {backend!r}. Expected one of: {_quoted_backend_names()}."
             )
         # ``backend`` passed the allowlist above; rebind to the Literal
         backend = cast(AsrBackendName, backend)
@@ -357,6 +434,8 @@ class ChangeMixin(ChangeEventsMixin):
         # Outer = _model_change_lock (held throughout the
         load_outcome: bool | None = None
         with self._model_change_lock:
+            if not self._defer_switch_to_running_media_jobs():
+                return
             with self._app._config_mutation_lock:
                 old_backend = self._app.config.asr_backend
                 if old_backend == backend:

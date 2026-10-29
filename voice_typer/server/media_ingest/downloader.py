@@ -15,8 +15,16 @@ from pathlib import Path
 from typing import Any
 
 from voice_typer.server.media_ingest.errors import DOWNLOAD_FAILED, MediaIngestError
+from voice_typer.server.media_ingest.ytdlp_log import extractor_options
 
 log = logging.getLogger(__name__)
+
+#: Fixed on-disk name. The title is attacker/author-controlled text (path
+#: separators, 200-char unicode, a trailing dot on Windows) and naming the
+#: temp file after it made the download itself a filesystem hazard.
+DOWNLOAD_TEMPLATE = "media.%(ext)s"
+#: Floor for a stuck CDN socket; the extractor default is unlimited.
+SOCKET_TIMEOUT_SECONDS = 20
 
 
 @contextlib.contextmanager
@@ -47,21 +55,26 @@ def temp_audio_download(
 
     options: dict[str, Any] = {
         "format": "bestaudio/best",
-        "outtmpl": "%(title).64s.%(ext)s",
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
         "retries": 3,
+        "fragment_retries": 3,
+        "extractor_retries": 2,
+        "socket_timeout": SOCKET_TIMEOUT_SECONDS,
         "continuedl": True,
+        "windowsfilenames": True,
+        "restrictfilenames": False,
         "progress_hooks": [_hook],
     }
+    options.update(extractor_options(log))
     if js_runtimes:
         options["js_runtimes"] = js_runtimes
 
     maker = factory or (lambda opts: YoutubeDL(opts))
     with tempfile.TemporaryDirectory(prefix="lausu_media_") as tmp:
         out_dir = Path(tmp)
-        options["outtmpl"] = str(out_dir / "%(title).64s.%(ext)s")
+        options["outtmpl"] = str(out_dir / DOWNLOAD_TEMPLATE)
         before = set(out_dir.iterdir())
         try:
             downloader = maker(options)

@@ -18,8 +18,19 @@ const MEDIA_ERROR_KEYS: Readonly<Record<string, TranslationKey>> = {
 	stream_stalled: "media.errorDownloadFailed",
 	url_expired: "media.errorUrlExpired",
 	download_failed: "media.errorDownloadFailed",
-	no_engine_loaded: "media.errorNoModel",
+	// Selected but unusable (not installed / load failed): retry is the
+	// action, so this does NOT get the "Open Models" treatment.
+	no_engine_loaded: "media.errorEngineUnavailable",
 	job_busy: "media.errorBusy",
+	media_too_short: "media.errorTooShort",
+	media_truncated: "media.errorTruncated",
+	multi_item_url: "media.errorMultiItem",
+	no_media_url: "media.errorNoMedia",
+	// The model is still loading: retryable, never "choose a model".
+	model_loading: "media.errorModelLoading",
+	"server.model_loading": "media.errorModelLoading",
+	model_changed: "media.errorModelChanged",
+	"server.model_changed": "media.errorModelChanged",
 };
 
 /** Localized copy for a backend media/error code; `null` when unknown. */
@@ -30,7 +41,22 @@ export function mediaErrorKey(
 	return MEDIA_ERROR_KEYS[code] ?? null;
 }
 
-/** True when the failure means "no model loaded" (offers Open Models). */
+/** True when NOTHING is selected (offers Open Models).
+ *
+ * Deliberately narrower than it used to be: `no_engine_loaded` means a model
+ * IS selected but could not be loaded, and that failure offers retry copy
+ * instead of sending the user to pick a model they already picked.
+ */
 export function isNoModelError(code: string | null | undefined): boolean {
-	return code === "no_engine_loaded" || code === "server.no_model";
+	return code === "server.no_model";
+}
+
+/** True when the failure is retryable a moment later (model still loading). */
+export function isRetryableLater(code: string | null | undefined): boolean {
+	return code === "model_loading" || code === "server.model_loading";
+}
+
+/** True when a multi-item link needs the count interpolated into its copy. */
+export function isMultiItemError(code: string | null | undefined): boolean {
+	return code === "multi_item_url";
 }

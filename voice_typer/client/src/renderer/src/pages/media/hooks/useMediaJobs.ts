@@ -27,14 +27,26 @@ import { t } from "@/i18n/i18n";
 import { CONSENT_REQUIRED_CODE, MEDIA_URL_CONSENT_FIELD } from "@/lib/consent";
 import { consentBodyKey, openConsentGate } from "@/lib/consentGate";
 import type { Page } from "@/types/ipc";
-import { isNoModelError, mediaErrorKey } from "../lib/mediaErrorCopy";
+import {
+	isMultiItemError,
+	isNoModelError,
+	mediaErrorKey,
+} from "../lib/mediaErrorCopy";
 
 export type MediaJobPhase =
 	| "starting"
+	| "preparing"
 	| "loading_model"
 	| "downloading"
 	| "transcribing"
 	| "done";
+
+/** Engine quality readings for a finished job (absent when unavailable). */
+export interface MediaJobQuality {
+	avg_logprob?: number;
+	no_speech_prob?: number;
+	chars_per_second?: number;
+}
 
 export interface MediaJobRow {
 	/** Renderer-minted correlation token; also the React key. Never empty. */
@@ -49,6 +61,11 @@ export interface MediaJobRow {
 	rowId: number | null;
 	chars: number | null;
 	partial: boolean;
+	/** Ingest path that produced the audio (`null` for local files). */
+	tier: "subtitles" | "download" | "stream" | null;
+	/** Machine-readable degradation note (`stream_fallback`, `model_changed`). */
+	note: string | null;
+	quality: MediaJobQuality | null;
 }
 
 /** Result of a batch submit: what was enqueued and what was not. */
@@ -60,10 +77,25 @@ export interface StartManyResult {
 
 const RUNNING_PHASES: ReadonlySet<MediaJobPhase> = new Set([
 	"starting",
+	"preparing",
 	"loading_model",
 	"downloading",
 	"transcribing",
 ]);
+
+/** Low-confidence thresholds for the finished row's tag (C-UI-1 copy). */
+const LOW_CONFIDENCE_LOGPROB = -1.0;
+const HIGH_NO_SPEECH_PROB = 0.6;
+
+export function isLowConfidence(quality: MediaJobQuality | null): boolean {
+	if (!quality) return false;
+	const logprob = quality.avg_logprob;
+	const noSpeech = quality.no_speech_prob;
+	return (
+		(typeof logprob === "number" && logprob <= LOW_CONFIDENCE_LOGPROB) ||
+		(typeof noSpeech === "number" && noSpeech >= HIGH_NO_SPEECH_PROB)
+	);
+}
 
 /** Fallback cap until the mount-time status read reports the real one. */
 const DEFAULT_MAX_JOBS = 4;
@@ -93,6 +125,9 @@ function makeRow(source: string, clientId: string, jobId = ""): MediaJobRow {
 		rowId: null,
 		chars: null,
 		partial: false,
+		tier: null,
+		note: null,
+		quality: null,
 	};
 }
 
@@ -155,12 +190,19 @@ function showErrorToast(
 	errorCode: string | null | undefined,
 	navigate: (page: Page) => void,
 	label: string,
+	details?: Record<string, string | number> | null,
 ): void {
 	const noModel = isNoModelError(errorCode);
+	const rawKey = noModel ? "media.errorNoModel" : mediaErrorKey(errorCode);
+	const key = rawKey ?? "media.errorGeneric";
+	// The multi-item failure names the count the backend found (a carousel
+	// silently yielding one video was the defect this copy exists for).
+	const count = details?.count;
 	const reason = t(
-		noModel
-			? "media.errorNoModel"
-			: (mediaErrorKey(errorCode) ?? "media.errorGeneric"),
+		key,
+		isMultiItemError(errorCode) && typeof count !== "undefined"
+			? { count: String(count) }
+			: {},
 	);
 	const trimmedLabel = label.trim();
 	toast.error(t("media.errorTitle"), {
@@ -432,6 +474,8 @@ export function useMediaJobs(): UseMediaJobsResult {
 							typeof data.progress === "number" ? data.progress : row.progress,
 						etaSeconds: data.eta_seconds ?? null,
 						durationSeconds: data.duration_seconds ?? row.durationSeconds,
+						tier: data.tier ?? row.tier,
+						note: data.note ?? row.note,
 					},
 		);
 	});
@@ -446,7 +490,22 @@ export function useMediaJobs(): UseMediaJobsResult {
 			chars: data.chars,
 			partial: data.partial,
 			etaSeconds: null,
+			tier: data.tier ?? null,
+			note: data.note ?? null,
+			quality: data.quality ?? null,
 		}));
+	});
+
+	// A model switch cancelled running jobs (after waiting for them): the
+	// cancellation is explained here, not left as a silent vanishing row.
+	usePythonEvent("media_jobs_cancelled_for_model_change", (data) => {
+		const count = typeof data?.count === "number" ? data.count : 0;
+		toast.warning(t("media.modelChangedTitle"), {
+			id: "media-model-changed",
+			description: t("media.modelChangedDescription", {
+				count: String(count),
+			}),
+		});
 	});
 
 	// Failure pushed from the backend job thread (raw message is
@@ -465,7 +524,7 @@ export function useMediaJobs(): UseMediaJobsResult {
 				(row) => row.jobId !== data.job_id && row.clientId !== clientId,
 			),
 		);
-		showErrorToast(data.code, navigate, failed?.source ?? "");
+		showErrorToast(data.code, navigate, failed?.source ?? "", data.details);
 	});
 
 	// Hydrate running jobs after navigation back to the page. One-shot

@@ -40,10 +40,55 @@ class WindowsState:
 
     texts: list[str] = field(default_factory=list)
     decoded_seconds: float = 0.0
+    # Whole-job audio statistics, accumulated from the decoded chunks with
+    # the engine's own formulas: the post-decode gate needs them to tell a
+    # silent ingest apart from a quiet one.
+    rms: float = 0.0
+    silence_pct: float = 0.0
+    # Worst window readings the backend reported (``last_quality_summary``);
+    # None when the backend exposes no segment probs (the worker hop does
+    # not), so the renderer can tell "confident" from "unknown".
+    avg_logprob: float | None = None
+    no_speech_prob: float | None = None
+    _sum_sq: float = 0.0
+    _samples: int = 0
+    _silent_samples: int = 0
 
     @property
     def text(self) -> str:
         return " ".join(self.texts).strip()
+
+    def record_quality(self, backend: Any) -> None:
+        """Merge one window's quality summary into the worst-case reading."""
+        import math
+        import numbers
+
+        summary = getattr(backend, "last_quality_summary", None)
+        if not isinstance(summary, dict):
+            return
+        mean = summary.get("mean_logprob")
+        if isinstance(mean, numbers.Real) and math.isfinite(float(mean)):
+            value = float(mean)
+            self.avg_logprob = value if self.avg_logprob is None else min(self.avg_logprob, value)
+        no_speech = summary.get("no_speech_prob_max")
+        if isinstance(no_speech, numbers.Real) and math.isfinite(float(no_speech)):
+            value = float(no_speech)
+            self.no_speech_prob = value if self.no_speech_prob is None else max(self.no_speech_prob, value)
+
+    def add_audio(self, chunk: Any) -> None:
+        """Accumulate one chunk into the job-wide RMS / silence readings."""
+        import numpy as np
+
+        from voice_typer.server.vad_policy import _SILENCE_AMP_FLOOR
+
+        samples = int(chunk.shape[0])
+        if samples <= 0:
+            return
+        self._sum_sq += float(np.sum(np.square(chunk, dtype=np.float64)))
+        self._samples += samples
+        self._silent_samples += int(np.count_nonzero(np.abs(chunk) < _SILENCE_AMP_FLOOR))
+        self.rms = (self._sum_sq / self._samples) ** 0.5
+        self.silence_pct = self._silent_samples / self._samples * 100.0
 
 
 # (fraction, eta_seconds); eta is None until a stable rate is known.
@@ -234,6 +279,7 @@ def transcribe_windows(
         window_samples = 0
         if lane is None:
             _decode(audio)
+            acc.record_quality(backend)
             return
         with lane():
             # A job cancelled while it waited for the model must not pay for
@@ -241,6 +287,7 @@ def transcribe_windows(
             if cancel_event is not None and cancel_event.is_set():
                 return
             _decode(audio)
+            acc.record_quality(backend)
 
     def _cancelled() -> bool:
         if cancel_event is None or not cancel_event.is_set():
@@ -262,6 +309,7 @@ def transcribe_windows(
         window.append(chunk)
         window_samples += int(chunk.shape[0])
         acc.decoded_seconds += float(chunk.shape[0]) / TARGET_SAMPLE_RATE
+        acc.add_audio(chunk)
         if window_samples >= window_cap:
             _flush()
             if _cancelled():
