@@ -320,6 +320,21 @@ class TestServerQuirks:
         assert any(not r.startswith("bytes=0-") for r in ranges[1:]), f"expected a resumed Range request, got: {ranges}"
 
 
+def _wait_for_resume_state(tmp_path: Path, timeout: float = 20.0) -> bool:
+    """Wait until the engine is mid-flight (part/state files on disk).
+
+    A blind sleep races the worker: on a loaded CI box the main thread can be
+    starved past the whole 3 MB download, after which there is nothing left to
+    pause or cancel and the test fails for the wrong reason.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if any(tmp_path.rglob("*.part*")) or any(tmp_path.rglob("*.state.json")):
+            return True
+        time.sleep(0.01)
+    return False
+
+
 class TestGateIntegration:
     def test_pause_blocks_then_resumes_without_byte_loss(self, tmp_path):
         opener = FakeOpener(BODY_3MB, faults={"chunk_delay": 0.05})
@@ -335,7 +350,7 @@ class TestGateIntegration:
 
         t = threading.Thread(target=run, daemon=True)
         t.start()
-        time.sleep(0.3)
+        assert _wait_for_resume_state(tmp_path), "the download never started writing parts"
         assert t.is_alive()
         asr_setup.set_download_paused(True)
         time.sleep(1.0)
@@ -360,7 +375,7 @@ class TestGateIntegration:
 
         t = threading.Thread(target=run, daemon=True)
         t.start()
-        time.sleep(0.3)
+        assert _wait_for_resume_state(tmp_path), "the download never started writing parts"
         assert t.is_alive()
         asr_setup.request_download_abort()
         t.join(timeout=20)
