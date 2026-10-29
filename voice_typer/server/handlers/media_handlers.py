@@ -2,19 +2,14 @@
 
 import threading
 
-from voice_typer.server.handlers._base import HandlerBase
 from voice_typer.server.handlers._log import log
+from voice_typer.server.handlers.media_job_runners import MediaJobRunnersMixin
 from voice_typer.server.ipc.validation import (
     ErrorCodes,
     ResponseEnvelope,
     _error_response,
     _validate_dict_payload,
 )
-
-# ADR-0023 E9 tier-0 budget: first stream open plus retry room for one
-# re-resolve (URL_EXPIRED) / seek-resume (STREAM_STALLED) before the
-# temp-download fallback tier.
-MAX_STREAM_ATTEMPTS = 3
 
 # Concurrent media jobs all want the same lazily-loaded model. Two jobs
 # starting together would otherwise both miss `active_transcriber()` and
@@ -24,7 +19,7 @@ MAX_STREAM_ATTEMPTS = 3
 _MODEL_LOAD_LOCK = threading.Lock()
 
 
-class MediaHandlersMixin(HandlerBase):
+class MediaHandlersMixin(MediaJobRunnersMixin):
     """Mixin: local-file and URL media transcription jobs (ADR-0023)."""
 
     def _handle_media_transcribe_start(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
@@ -35,7 +30,7 @@ class MediaHandlersMixin(HandlerBase):
                     "source": {"type": str, "required": True, "max_value_len": 4096},
                     "export_path": {"type": (str, type(None)), "required": False, "default": None},
                     "export_format": {"type": (str, type(None)), "required": False, "default": None},
-                    # ADR-0023 E13: subtitle fast-path is OPT-IN (default off).
+                    # ADR-0023 E13: the renderer's toggle is the opt-in (it always sends it).
                     "use_subtitles": {"type": bool, "required": False, "default": True},
                     # Renderer correlation token, echoed on every event for
                     # this job so a push that beats the start ack still lands
@@ -73,22 +68,17 @@ class MediaHandlersMixin(HandlerBase):
             except ValueError:
                 return _error_response(resp, "missing source", code=ErrorCodes.MISSING_FIELD)
             if classified.kind == "url":
-                return self._start_url_media_job(
-                    classified.raw, validated, resp, client_id, export_path
-                )
-            if not self._media_model_selected():
-                return _error_response(
-                    resp, "no speech model installed (open Models to choose one)", code=ErrorCodes.NO_MODEL
-                )
+                return self._start_url_media_job(classified.raw, validated, resp, client_id, export_path)
+            refusal = self._media_start_refusal()
+            if refusal is not None:
+                return _error_response(resp, str(refusal["message"]), code=str(refusal["code"]))
             manager = get_job_manager()
 
             def _runner(job: MediaJob) -> dict:
                 return self._run_local_media_job(job, classified.raw, validated)
 
             try:
-                job = manager.start(
-                    classified.raw, _runner, client_id=client_id, export_path=export_path
-                )
+                job = manager.start(classified.raw, _runner, client_id=client_id, export_path=export_path)
             except MediaIngestError as exc:
                 if exc.code == JOB_BUSY:
                     return _error_response(resp, str(exc), code=ErrorCodes.JOB_BUSY)
@@ -128,10 +118,9 @@ class MediaHandlersMixin(HandlerBase):
                 engine_name="media_ingest",
                 consent_field="media_url_consent",
             )
-        if not self._media_model_selected():
-            return _error_response(
-                resp, "no speech model installed (open Models to choose one)", code=ErrorCodes.NO_MODEL
-            )
+        refusal = self._media_start_refusal()
+        if refusal is not None:
+            return _error_response(resp, str(refusal["message"]), code=str(refusal["code"]))
         manager = get_job_manager()
         # Cheap filesystem probe, no network: fail fast on the one site that
         # cannot be resolved without a JavaScript runtime instead of creating
@@ -157,261 +146,6 @@ class MediaHandlersMixin(HandlerBase):
             "type": "media_transcribe_result",
             "data": {"job_id": job.job_id, "client_id": job.client_id, "status": "running"},
         }
-
-    def _resolve_media(self, url: str, runtime):
-        """Re-resolve a URL to a fresh signed audio URL after expiry."""
-        from voice_typer.server.media_ingest import runtime as _runtime, url_resolver as _resolver
-
-        return _resolver.resolve_media_url(
-            url,
-            js_runtimes=_runtime.js_runtime_options(runtime),
-        )
-
-    def _finish_media_job(
-        self, job, text: str, *, duration: float | None = None, partial: bool = False, validated: dict
-    ) -> dict:
-        """Persist + export the final transcript and publish completion.
-
-        Empty output (silent audio, or a cancel before the first window
-        flushed) skips History so no junk row is created; the completion
-        event then carries ``row_id: null`` so the renderer still leaves
-        the running state.
-        """
-        from voice_typer.server import event_bus
-        from voice_typer.server.media_ingest import storage as _storage
-
-        stripped = text.strip()
-        row_id: int | None = None
-        if stripped:
-            row_id = _storage.persist_result(
-                self.app,
-                stripped,
-                duration=duration if duration is not None else 0.0,
-                model=str(getattr(self.app.config, "model_size", "") or ""),
-                device=str(getattr(self.app.config, "device", "") or ""),
-                partial=partial,
-            )
-            export_path = validated.get("export_path")
-            if isinstance(export_path, str) and export_path:
-                _storage.export_text(stripped, export_path, fmt=str(validated.get("export_format") or "txt"))
-        try:
-            event_bus.publish(
-                {
-                    "type": "media_transcribe_complete",
-                    "data": {
-                        "job_id": job.job_id,
-                        "client_id": job.client_id,
-                        "row_id": row_id,
-                        "chars": len(stripped),
-                        "partial": partial,
-                    },
-                }
-            )
-        except Exception:  # noqa: BLE001, best-effort
-            log.debug("[MEDIA] complete publish failed", exc_info=True)
-        return {"row_id": row_id, "chars": len(stripped)}
-
-    @staticmethod
-    def _asr_manager():
-        """The process-wide job manager, owner of the single ASR lane."""
-        from voice_typer.server.media_ingest.jobs import get_job_manager
-
-        return get_job_manager()
-
-    def _run_local_media_job(self, job, path: str, validated: dict) -> dict:
-        """Background body: lazy-load model, decode, window-transcribe, persist."""
-        from voice_typer.server.media_ingest import decoder as _decoder, engine_loop as _loop
-
-        self._publish_media_progress(job, 0.0, "loading_model")
-        backend = self._ensure_media_backend()
-        # A local job has no resolver-provided total: read it off the container
-        # header so the bar reports a fraction/ETA instead of jumping 0 -> 1.
-        total = _decoder.probe_duration_seconds(path)
-        chunks = _decoder.decode_chunks(path)
-        manager = self._asr_manager()
-        state = _loop.transcribe_windows(
-            chunks,
-            backend,
-            cancel_event=job.cancel_event,
-            on_progress=lambda frac, eta: self._publish_media_progress(job, frac, "transcribing", eta, total),
-            total_seconds=total,
-            lane=manager.asr_lane,
-        )
-        return self._finish_media_job(
-            job,
-            state.text,
-            duration=state.decoded_seconds,
-            partial=job.cancel_event.is_set(),
-            validated=validated,
-        )
-
-    def _run_url_media_job(self, job, url: str, runtime, validated: dict) -> dict:
-        """URL job body: resolve, subtitles fast path, download, stream fallback (ADR-0023 E9/E10/E12/E15)."""
-        from voice_typer.server.media_ingest import (
-            decoder as _decoder,
-            downloader as _downloader,
-            engine_loop as _loop,
-            runtime as _runtime,
-            subtitles as _subtitles,
-            url_resolver as _resolver,
-        )
-        from voice_typer.server.media_ingest.errors import (
-            DRM_REFUSED,
-            UNSUPPORTED_LIVE,
-            URL_EXPIRED,
-            MediaIngestError,
-        )
-
-        resolved = _resolver.resolve_media_url(url, js_runtimes=_runtime.js_runtime_options(runtime))
-        if resolved.is_live:
-            raise MediaIngestError(UNSUPPORTED_LIVE, "live streams are not supported")
-
-        # E12/E13: official-subtitles fast path is OPT-IN (author-provided
-        # captions; the UI states the accuracy tradeoff).
-        if resolved.subtitles_available and bool(validated.get("use_subtitles")):
-            lang = str(getattr(self.app.config, "language", "") or "").strip() or "en"
-            try:
-                text = _subtitles.fetch_subtitles(resolved.webpage_url, lang=lang)
-            except Exception:  # noqa: BLE001, fast path degrades to audio
-                log.debug("[MEDIA] subtitle fetch failed, falling back to audio", exc_info=True)
-                text = None
-            if text:
-                return self._finish_media_job(job, text, validated=validated)
-
-        # E15: the model lazy-loads only once audio work is unavoidable.
-        self._publish_media_progress(job, 0.0, "loading_model")
-        backend = self._ensure_media_backend()
-
-        manager = self._asr_manager()
-        state = _loop.WindowsState()
-        # Primary tier: download the audio-only stream once, then decode from
-        # disk. Streaming the signed CDN URL spent ~15 s of ingest per 30 s of
-        # audio at ~0.5x realtime while ASR cost <1 s, so the local copy is the
-        # fast path and the stream is the fallback (2026-10-27 measurement).
-        self._publish_media_progress(job, 0.0, "downloading", None, resolved.duration)
-        try:
-            with _downloader.temp_audio_download(
-                resolved.webpage_url,
-                js_runtimes=_runtime.js_runtime_options(runtime),
-                on_progress=lambda frac: self._publish_media_progress(
-                    job, frac, "downloading", None, resolved.duration
-                ),
-            ) as tmp_path:
-                chunks = _decoder.decode_chunks(str(tmp_path))
-                state = _loop.transcribe_windows(
-                    chunks,
-                    backend,
-                    cancel_event=job.cancel_event,
-                    on_progress=lambda frac, eta: self._publish_media_progress(
-                        job, frac, "transcribing", eta, resolved.duration
-                    ),
-                    total_seconds=resolved.duration,
-                    state=state,
-                    lane=manager.asr_lane,
-                )
-            return self._finish_media_job(
-                job,
-                state.text,
-                duration=resolved.duration,
-                partial=job.cancel_event.is_set(),
-                validated=validated,
-            )
-        except MediaIngestError as exc:
-            if job.cancel_event.is_set():
-                return self._finish_media_job(
-                    job, state.text, duration=resolved.duration, partial=True, validated=validated
-                )
-            if exc.code == DRM_REFUSED:
-                raise
-            log.warning("[MEDIA] audio download failed (%s), falling back to the direct stream", exc.code)
-
-        # Fallback tier: stream the resolved signed URL (resume-aware retries).
-        last_error: MediaIngestError | None = None
-        for attempt in range(MAX_STREAM_ATTEMPTS):
-            if job.cancel_event.is_set():
-                break
-            try:
-                chunks = _decoder.decode_chunks(
-                    resolved.audio_url,
-                    remote=True,
-                    start_seconds=state.decoded_seconds,
-                )
-                # Bound per attempt: a re-resolve refreshes `resolved`.
-                stream_duration = resolved.duration
-
-                def _on_stream_progress(
-                    frac: float, eta: float | None, _d: float | None = stream_duration
-                ) -> None:
-                    self._publish_media_progress(job, frac, "transcribing", eta, _d)
-
-                state = _loop.transcribe_windows(
-                    chunks,
-                    backend,
-                    cancel_event=job.cancel_event,
-                    on_progress=_on_stream_progress,
-                    total_seconds=resolved.duration,
-                    state=state,
-                    lane=manager.asr_lane,
-                )
-                return self._finish_media_job(
-                    job,
-                    state.text,
-                    duration=resolved.duration,
-                    partial=job.cancel_event.is_set(),
-                    validated=validated,
-                )
-            except MediaIngestError as exc:
-                if job.cancel_event.is_set():
-                    break
-                if exc.code == DRM_REFUSED:
-                    raise
-                last_error = exc
-                log.warning("[MEDIA] stream attempt %d/%d failed (%s)", attempt + 1, MAX_STREAM_ATTEMPTS, exc.code)
-                if exc.code == URL_EXPIRED and attempt + 1 < MAX_STREAM_ATTEMPTS:
-                    try:
-                        resolved = self._resolve_media(resolved.webpage_url, runtime)
-                    except MediaIngestError as resolve_exc:
-                        last_error = resolve_exc
-                        break
-                continue
-        if job.cancel_event.is_set():
-            return self._finish_media_job(
-                job, state.text, duration=resolved.duration, partial=True, validated=validated
-            )
-        # The download tier already ran (and failed) before streaming, so this
-        # is terminal: no second download attempt.
-        assert last_error is not None
-        raise last_error
-
-    def _publish_media_progress(
-        self,
-        job,
-        fraction: float,
-        phase: str,
-        eta_seconds: float | None = None,
-        duration_seconds: float | None = None,
-    ) -> None:
-        """Best-effort progress event carrying the phase + ETA (ADR-0023 E16)."""
-        from voice_typer.server import event_bus
-
-        job.progress = fraction
-        job.phase = phase
-        try:
-            event_bus.publish(
-                {
-                    "type": "media_transcribe_progress",
-                    "data": {
-                        "job_id": job.job_id,
-                        "client_id": job.client_id,
-                        "progress": fraction,
-                        "phase": phase,
-                        "eta_seconds": eta_seconds,
-                        "duration_seconds": duration_seconds,
-                    },
-                }
-            )
-        except Exception:  # noqa: BLE001, best-effort
-            log.debug("[MEDIA] progress publish failed", exc_info=True)
 
     def _handle_media_transcribe_cancel(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
         """Cancel one job by id, or every running job when no id is given."""
@@ -442,43 +176,106 @@ class MediaHandlersMixin(HandlerBase):
             self._respond_with_error(resp, exc, "media_transcribe_status")
         return resp
 
-    def _media_model_selected(self) -> bool:
-        """True when a speech model is selected (it may still need a lazy load)."""
+    def _media_model_state(self) -> tuple[str, str]:
+        """Classify which of the four start states the model layer is in.
+
+        ``ready``    - an engine is loaded and usable;
+        ``loadable`` - a model is selected and installed, a load will happen;
+        ``none``     - nothing is selected (Open Models);
+        ``failed``   - selected but not usable/installed (retry / Open Models).
+
+        A bare ``config.model_size`` string is NOT proof on its own: the
+        previous gate accepted it, so a stale config started jobs that could
+        only fail.
+        """
+        from voice_typer.server.model_registry import NO_MODEL_SIZE
+
         models = getattr(self.app, "models", None)
         if models is None:
-            return False
+            return "none", "no speech model is selected"
         try:
-            if models.active_transcriber() is not None:
-                return True
+            engine = models.active_transcriber()
         except Exception:  # noqa: BLE001, probe falls through to config
             log.debug("[MEDIA] active_transcriber probe failed", exc_info=True)
-        return bool(str(getattr(self.app.config, "model_size", "") or "").strip())
+            engine = None
+        if engine is not None and bool(getattr(engine, "is_loaded", False)):
+            return "ready", ""
+        size = str(getattr(self.app.config, "model_size", "") or "").strip()
+        if not size or size == NO_MODEL_SIZE:
+            return "none", "no speech model is selected"
+        installed = getattr(models, "_model_downloaded_precheck", None)
+        if callable(installed):
+            try:
+                if not installed():
+                    return "failed", f"the {size} model is not installed"
+            except Exception:  # noqa: BLE001, "unknown" accepts the start
+                log.debug("[MEDIA] installed-model probe failed", exc_info=True)
+        return "loadable", ""
+
+    def _media_start_refusal(self) -> dict | None:
+        """Error envelope for a start the model layer cannot honour."""
+        from voice_typer.server.media_ingest.errors import NO_ENGINE
+
+        state, reason = self._media_model_state()
+        if state == "none":
+            return {
+                "code": ErrorCodes.NO_MODEL,
+                "message": "no speech model installed (open Models to choose one)",
+            }
+        if state == "failed":
+            return {"code": NO_ENGINE, "message": reason}
+        return None
 
     def _ensure_media_backend(self):
-        """E15: lazy-load the active ASR engine inside the job thread."""
-        from voice_typer.server.asr_errors import (
-            ModelIntegrityError,
-            ModelNotDownloadedError,
-        )
-        from voice_typer.server.media_ingest.errors import NO_ENGINE, MediaIngestError
+        """E15/lease: resolve + load the engine for this job, never a dictation."""
+        from voice_typer.server.asr_errors import ModelIntegrityError, ModelNotDownloadedError
+        from voice_typer.server.media_ingest.errors import MODEL_LOADING, NO_ENGINE, MediaIngestError
+        from voice_typer.server.model_manager._loading import engine_label
 
         models = getattr(self.app, "models", None)
         if models is None:
             raise MediaIngestError(NO_ENGINE, "no speech model is loaded (open Models to choose one)")
+        loader = getattr(models, "ensure_engine_loaded_for_media", None)
         with _MODEL_LOAD_LOCK:
-            # The lock only serializes the call: `ensure_active_engine_loaded`
-            # stays the single authority on whether a load is needed (it also
-            # handles a model switch), so behaviour is unchanged for one job.
-            ensure = getattr(models, "ensure_active_engine_loaded", None)
-            if callable(ensure):
-                try:
-                    ensure()
-                except (ModelNotDownloadedError, ModelIntegrityError) as exc:
-                    # Pack/model missing is a user-actionable state, not a crash.
-                    raise MediaIngestError(NO_ENGINE, str(exc)) from exc
-                except Exception:  # noqa: BLE001, verified by the is_loaded re-check
-                    log.debug("[MEDIA] lazy model load raised", exc_info=True)
-            engine = models.active_transcriber()
-        if engine is None or not getattr(engine, "is_loaded", False):
-            raise MediaIngestError(NO_ENGINE, "no speech model is loaded (open Models to choose one)")
-        return engine
+            result = loader() if callable(loader) else None
+            # A double/older manager may answer with something mock-shaped;
+            # only a real `state: str` result is trusted, everything else uses
+            # the historical load path below.
+            state = getattr(result, "state", None) if result is not None else None
+            if isinstance(state, str):
+                reason = str(getattr(result, "reason", "") or "")
+                engine = getattr(result, "engine", None)
+                label = str(getattr(result, "label", "") or "")
+            else:
+                # Doubles/older managers: the historical load path, still
+                # without queueing a pending dictation.
+                ensure = getattr(models, "ensure_active_engine_loaded", None)
+                if callable(ensure):
+                    try:
+                        ensure(queue_pending_dictation=False)
+                    except TypeError:
+                        ensure()
+                    except (ModelNotDownloadedError, ModelIntegrityError) as exc:
+                        raise MediaIngestError(NO_ENGINE, str(exc)) from exc
+                    except Exception:  # noqa: BLE001, verified by the is_loaded re-check
+                        log.debug("[MEDIA] lazy model load raised", exc_info=True)
+                engine = models.active_transcriber()
+                state = "ready" if engine is not None and getattr(engine, "is_loaded", False) else "failed"
+                reason = "no speech model is loaded"
+                label = ""
+        if state == "ready" and engine is not None and getattr(engine, "is_loaded", False):
+            if not label:
+                backend = ""
+                namer = getattr(models, "active_backend_name", None)
+                if callable(namer):
+                    try:
+                        backend = str(namer() or "")
+                    except Exception:  # noqa: BLE001, label falls back to empty backend
+                        backend = ""
+                label = engine_label(backend, engine)
+            return engine, label
+        if state == "no_model":
+            raise MediaIngestError(ErrorCodes.NO_MODEL, reason or "no speech model is selected")
+        if state == "loading":
+            raise MediaIngestError(MODEL_LOADING, reason or "the speech model is still loading")
+        raise MediaIngestError(NO_ENGINE, reason or "no speech model is loaded")

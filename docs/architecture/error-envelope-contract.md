@@ -63,6 +63,8 @@ The server could not process a well-formed request. The renderer surfaces a gene
 | `server.no_model` | No speech model is selected/installed (ADR-0023 media-to-text start gate; the renderer deep-links to Models). |
 | `server.job_busy` | The media concurrency cap is full: `max_jobs` transcriptions are already running (ADR-0023; the cap is reported by `media_transcribe_status`, and the renderer disables its inputs at that number rather than treating this as the normal path). |
 | `server.not_supported` | The media source cannot be transcribed (no JS runtime for a YouTube challenge, live stream). |
+| `server.model_loading` | The speech model is still loading, so the media job was refused; RETRYABLE (the renderer offers "Try again in a moment", not Open Models). Distinct from `server.no_model`, which means nothing is selected. |
+| `server.model_changed` | A running media job was cancelled because the active engine changed under it (the switch waited, then cancelled). The partial transcript is kept; the row is labelled with the engine that actually ran. |
 | `server.unknown_command` | The `type` field did not resolve to an entry in `_COMMAND_REGISTRY`. |
 | `server.unknown_tray_item` | A tray-menu RPC referenced an item the server does not know about. |
 | `server.cloud_auth_failed` | PI-17: cloud provider returned 401/403: API key invalid or revoked. The renderer should prompt the user to re-enter the key. |
@@ -71,6 +73,28 @@ The server could not process a well-formed request. The renderer surfaces a gene
 | `server.cloud_network_error` | PI-17: URLError, timeout, DNS, connection reset (after retry budget exhausted). |
 | `server.cloud_config_error` | PI-17 / PI-24: cloud provider not configured (missing API key). The renderer should deep-link to Settings. |
 | `server.cloud_engine_error` | PI-17: generic cloud-engine failure (typed `CloudEngineError` base: e.g. unknown HTTP status from the cloud provider). |
+
+### Media job codes (ADR-0023), bare (un-namespaced) on `media_transcribe_error`
+
+Media transcription runs in a background job, so its failures are pushed as an
+EVENT (`media_transcribe_error`, `data.code`) rather than as a request/response
+envelope; the same values are reused as the envelope code when a start is
+refused synchronously. They are a closed set maintained as `MEDIA_JOB_CODES` in
+`voice_typer/server/media_ingest/errors.py`, and every value below has localized
+renderer copy in `pages/media/lib/mediaErrorCopy.ts`.
+
+| Code | Meaning |
+|---|---|
+| `download_failed` | The audio could not be downloaded (after one re-resolve + one retry) and the stream tier was refused because the URL did not prove itself a direct media resource. |
+| `decode_failed` | The container/stream opened but no audio frames could be decoded. |
+| `media_too_short` | The decoded audio is under `MIN_MEDIA_SECONDS` (1.0 s): nothing was persisted, nothing reported as success. |
+| `media_truncated` | The decoder read less than the expected duration beyond tolerance (`max(2.0 s, expected × 10%)`): the ingest is refused instead of persisting a partial-looking success. |
+| `multi_item_url` | The link expands to more than one playable item (carousel / playlist / gallery). Global rule, not per site; the message names the count and the renderer interpolates it from `details.count`. |
+| `no_media_url` | The URL is not media and has no web page result either (the extractor's raw text stays at DEBUG, never in the IPC message). |
+| `unsupported_live` | Live streams are out of scope (no finish line, no duration). |
+| `drm_refused` | DRM-protected media: never a retry-storm, fails fast. |
+| `no_engine_loaded` | A model is selected but could not be loaded: retry copy, NOT "choose a model". |
+| `model_loading` / `model_changed` | The namespaced forms (`server.model_loading` / `server.model_changed`) travel on envelopes; the bare forms are the media job's own aliases, mapped to the same renderer copy. |
 
 ### Legacy non-namespaced aliases (DEPRECATED)
 

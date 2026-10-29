@@ -433,15 +433,28 @@ class QwenEngine:
         ``self._lock`` in that case so the regression test still works.
         """
         import gc
+        import time
 
+        from voice_typer.server.asr.registry import MODEL_UNLOAD_LOCK_TIMEOUT_S
         from voice_typer.server.transcription import release_gpu_memory
 
         # Defensive: ``_inference_cond`` is created in ``__init__`` but
         inference_cond = getattr(self, "_inference_cond", None) or self._lock
         with inference_cond:
             if isinstance(inference_cond, threading.Condition):
+                # Bounded: an inference call that never returns must leave
+                # the model loaded instead of having it freed underneath.
+                deadline = time.monotonic() + MODEL_UNLOAD_LOCK_TIMEOUT_S
                 while getattr(self, "_active_inference", 0) > 0:
-                    inference_cond.wait()
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        log.error(
+                            "[QWEN] refusing to unload: %d inference call(s) still running after %.0fs",
+                            getattr(self, "_active_inference", 0),
+                            MODEL_UNLOAD_LOCK_TIMEOUT_S,
+                        )
+                        return
+                    inference_cond.wait(timeout=remaining)
             self._model = None
             # ONNX backend: release the ORT sessions + embedding matrix
             onnx_model = getattr(self, "_onnx_model", None)

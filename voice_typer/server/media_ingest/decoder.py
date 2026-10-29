@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 log = logging.getLogger(__name__)
 
@@ -92,6 +94,54 @@ def decode_chunks(source: str, *, remote: bool = False, start_seconds: float = 0
                 yield merged.astype(np.float32, copy=False)
 
 
+@dataclass(frozen=True)
+class RemoteProbe:
+    """What a remote URL proved about itself before we streamed it.
+
+    ``audio_streams`` is the count PyAV found (a web page served as HTML has
+    none) and ``duration_seconds`` is the container-header duration, which
+    is what a stream tier needs for percent/ETA and for the truncation gate.
+    """
+
+    audio_streams: int
+    duration_seconds: float | None
+
+
+def probe_remote(url: str) -> RemoteProbe | None:
+    """Probe a resolved URL without decoding it; ``None`` when unusable.
+
+    Streaming is the FALLBACK tier, and a signed CDN link that expired, a
+    web page, or a non-HTTP scheme must never reach it: the failure would
+    be a silent zero-chunk "success". Cheap enough to run once per job —
+    one container open, no decode pass.
+    """
+    scheme = urlparse(url).scheme.lower()
+    if scheme not in ("http", "https"):
+        return None
+    try:
+        import av
+    except ImportError:
+        return None
+    try:
+        container = av.open(url, options={"open_timeout": str(OPEN_TIMEOUT_US)})
+    except Exception as exc:  # noqa: BLE001, a probe failure IS the signal
+        log.debug("[MEDIA] remote probe failed to open (%s)", type(exc).__name__)
+        return None
+    with container:
+        audio_streams = sum(1 for s in container.streams if s.type == "audio")
+        duration = _container_duration(container)
+    return RemoteProbe(audio_streams=audio_streams, duration_seconds=duration)
+
+
+def _container_duration(container: Any) -> float | None:
+    if container.duration:
+        return float(container.duration) / 1_000_000.0
+    stream = next((s for s in container.streams if s.type == "audio"), None)
+    if stream is not None and stream.duration and stream.time_base:
+        return float(stream.duration * stream.time_base)
+    return None
+
+
 def probe_duration_seconds(source: str, *, remote: bool = False) -> float | None:
     """Container duration in seconds, or ``None`` when unknown.
 
@@ -107,11 +157,7 @@ def probe_duration_seconds(source: str, *, remote: bool = False) -> float | None
     try:
         container = av.open(source, options=options) if options else av.open(source)
         with container:
-            if container.duration:
-                return float(container.duration) / 1_000_000.0
-            stream = next((s for s in container.streams if s.type == "audio"), None)
-            if stream is not None and stream.duration and stream.time_base:
-                return float(stream.duration * stream.time_base)
+            return _container_duration(container)
     except Exception:  # noqa: BLE001, a probe never blocks the job
         log.debug("[MEDIA] duration probe failed", exc_info=True)
     return None

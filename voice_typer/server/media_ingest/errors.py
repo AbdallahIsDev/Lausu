@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+from voice_typer.server.ipc.error_codes import ErrorCodes
+
 
 class MediaIngestError(Exception):
     """User-safe ingest failure carrying a stable machine code."""
 
-    def __init__(self, code: str, message: str = "") -> None:
+    def __init__(self, code: str, message: str = "", *, details: dict | None = None) -> None:
         super().__init__(message or code)
         self.code = code
         self.message = message or code
+        # Structured extras the renderer needs to build its localized copy
+        # (e.g. {"count": 3} for a multi-item link). Never free text.
+        self.details = details
 
 
 NO_AUDIO = "no_audio"
@@ -27,3 +32,48 @@ NO_ENGINE = "no_engine_loaded"
 JOB_BUSY = "job_busy"
 NO_JOB = "no_active_job"
 CANCELLED = "cancelled"
+
+# URL classification: one link that expands to several playable items, and a
+# link that expands to no playable media at all. Both are GLOBAL rules for
+# every extractor, never per-site special cases.
+MULTI_ITEM_URL = "multi_item_url"
+NO_MEDIA_URL = "no_media_url"
+
+# Ingest validation: the audio the decoder produced does not cover the media
+# the user asked for. Never persisted, never reported as success.
+MEDIA_TOO_SHORT = "media_too_short"
+MEDIA_TRUNCATED = "media_truncated"
+
+# Model-layer states surfaced through the same taxonomy (namespaced: these
+# two also travel in IPC error envelopes, so the canonical constants live in
+# the error-code registry rather than being restated here).
+MODEL_LOADING = ErrorCodes.MODEL_LOADING
+MODEL_CHANGED = ErrorCodes.MODEL_CHANGED
+
+# Every code this package can put on a job event. Used by the contract test
+# that keeps the renderer copy map in step with the backend taxonomy.
+MEDIA_JOB_CODES: frozenset[str] = frozenset(
+    {
+        NO_AUDIO,
+        UNSUPPORTED_LIVE,
+        LOGIN_REQUIRED,
+        GEO_BLOCKED,
+        PLAYLIST_REJECTED,
+        DRM_REFUSED,
+        DECODE_FAILED,
+        RESOLVE_FAILED,
+        STREAM_STALLED,
+        URL_EXPIRED,
+        DOWNLOAD_FAILED,
+        NO_ENGINE,
+        JOB_BUSY,
+        NO_JOB,
+        CANCELLED,
+        MULTI_ITEM_URL,
+        NO_MEDIA_URL,
+        MEDIA_TOO_SHORT,
+        MEDIA_TRUNCATED,
+        MODEL_LOADING,
+        MODEL_CHANGED,
+    }
+)

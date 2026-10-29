@@ -536,9 +536,21 @@ export interface MediaTranscribeProgressEvent {
 		 * did not send one); lets the renderer bind the push to its row. */
 		client_id: string | null;
 		progress: number;
-		phase: "downloading" | "loading_model" | "transcribing";
+		/** Internal stage codes. The ROW collapses them to two user states
+		 * (Preparing / Transcribing); the detail line may name the phase. */
+		phase:
+			| "starting"
+			| "preparing"
+			| "downloading"
+			| "loading_model"
+			| "transcribing";
 		eta_seconds: number | null;
 		duration_seconds: number | null;
+		/** Ingest path in use (`null` until a tier is selected):
+		 * author subtitles, an audio download, or the guarded stream fallback. */
+		tier: "subtitles" | "download" | "stream" | null;
+		/** Machine-readable degradation note (e.g. `stream_fallback`). */
+		note: string | null;
 	};
 }
 
@@ -557,6 +569,19 @@ export interface MediaTranscribeCompleteEvent {
 		row_id: number | null;
 		chars: number;
 		partial: boolean;
+		/** Tier that produced the audio (null for local files / subtitles). */
+		tier: "subtitles" | "download" | "stream" | null;
+		/** Engine quality readings for the job, when the backend reports
+		 * segment probabilities. `chars_per_second` is always present for a
+		 * non-empty ingest. */
+		quality: {
+			avg_logprob?: number;
+			no_speech_prob?: number;
+			chars_per_second?: number;
+		} | null;
+		/** Machine-readable note: `stream_fallback`, `model_changed`,
+		 * `no_speech`, or null for a clean run. */
+		note: string | null;
 	};
 }
 
@@ -572,7 +597,21 @@ export interface MediaTranscribeErrorEvent {
 		client_id: string | null;
 		code: string;
 		message: string;
+		/** Structured extras for localized copy (`{count}` for a
+		 * multi-item link); never free text. */
+		details: Record<string, string | number> | null;
 	};
+}
+
+/**
+ * ADR-0023 model-switch notice: a switch cancelled every running media job
+ * (after waiting for them) so they could be unloaded safely. The renderer
+ * surfaces a toast naming the count; each cancelled job still completes with
+ * its partial transcript and `note: "model_changed"`.
+ */
+export interface MediaJobsCancelledForModelChangeEvent {
+	type: "media_jobs_cancelled_for_model_change";
+	data: { count: number };
 }
 
 // parity is pinned by `tests/test_event_types_parity.py`
@@ -753,6 +792,7 @@ export type PythonPushEvent =
 	| MediaTranscribeProgressEvent
 	| MediaTranscribeCompleteEvent
 	| MediaTranscribeErrorEvent
+	| MediaJobsCancelledForModelChangeEvent
 	// (see the per-interface docstrings above for the emitters + wire
 	// shapes; pinned by tests/test_event_types_parity.py).
 	| AsrBackendReadyEvent

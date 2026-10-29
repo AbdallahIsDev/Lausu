@@ -83,6 +83,8 @@ pub(super) const ALLOWED_EVENT_TYPES: &[&str] = &[
     "media_transcribe_progress",
     "media_transcribe_complete",
     "media_transcribe_error",
+    // A model switch cancelled running media jobs (explained, not silent).
+    "media_jobs_cancelled_for_model_change",
     // History-store integrity.
     "history_corrupted",
     "history_fts5_rebuild_failed",

@@ -27,20 +27,22 @@ def _read(path: Path) -> str:
 
 
 def test_event_bus_count_matches_doc_and_code():
-    """Doc must say \"53-event bus\" and ``EVENT_TYPES`` must have 53 entries."""
+    """Doc must say \"54-event bus\" and ``EVENT_TYPES`` must have 54 entries."""
     doc = _read(ARCH_DOC)
-    assert "53-event bus" in doc, "ARCHITECTURE.md must describe the bus as '53-event bus' ."
+    assert "54-event bus" in doc, "ARCHITECTURE.md must describe the bus as '54-event bus' ."
+    assert "53-event bus" not in doc, "Stale '53-event bus' must not appear in ARCHITECTURE.md ."
     assert "52-event bus" not in doc, "Stale '52-event bus' must not appear in ARCHITECTURE.md ."
     assert "51-event bus" not in doc, "Stale '51-event bus' must not appear in ARCHITECTURE.md ."
-    # And the IPC-contract section's frozen-surface count must also say 90 / 53.
-    assert "90 commands / 53 events" in doc, "IPC contract section must say '90 commands / 53 events'."
+    # And the IPC-contract section's frozen-surface count must also say 90 / 54.
+    assert "90 commands / 54 events" in doc, "IPC contract section must say '90 commands / 54 events'."
+    assert "90 commands / 53 events" not in doc, "Stale '90 commands / 53 events' must not appear in ARCHITECTURE.md ."
     assert "89 commands / 52 events" not in doc, "Stale '89 commands / 52 events' must not appear in ARCHITECTURE.md ."
     assert "85 commands / 51 events" not in doc, "Stale '85 commands / 51 events' must not appear in ARCHITECTURE.md ."
 
     from voice_typer.server.event_bus import EVENT_TYPES
 
-    assert len(EVENT_TYPES) == 53, (
-        f"EVENT_TYPES in voice_typer/server/event_bus.py must have 53 "
+    assert len(EVENT_TYPES) == 54, (
+        f"EVENT_TYPES in voice_typer/server/event_bus.py must have 54 "
         f"entries (actual: {len(EVENT_TYPES)}). Update doc + test together."
     )
 

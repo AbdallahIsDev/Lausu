@@ -234,9 +234,7 @@ class WorkerWhisperProxyEngine:
         if client.port is None:
             raise WorkerTranscriptionError("worker not connected")
         language_arg: object = kwargs.get("language", self._language)
-        language: str | None = (
-            language_arg if isinstance(language_arg, (str, type(None))) else self._language
-        )
+        language: str | None = language_arg if isinstance(language_arg, (str, type(None))) else self._language
         sample_rate_arg: object = kwargs.get("sample_rate", 16000)
         if isinstance(sample_rate_arg, bool):
             sample_rate = 16000
@@ -350,9 +348,7 @@ class SystemWhisperEngine:
         # by string like faster_whisper above so static-import scanners
         # (ratchet/Nuitka) stay green; fail-open without it.
         try:
-            _capture = importlib.import_module(
-                "voice_typer.worker.whisper.native_stderr"
-            ).capture_native_stderr
+            _capture = importlib.import_module("voice_typer.worker.whisper.native_stderr").capture_native_stderr
         except ImportError:
             _capture = None
         if _capture is None:
@@ -395,9 +391,28 @@ class SystemWhisperEngine:
         return True
 
     def unload(self) -> None:
-        """Release the model reference (GC frees the ctranslate2 state)."""
-        self._model = None
-        self._loaded = False
+        """Release the model reference (GC frees the ctranslate2 state).
+
+        Takes the inference lock with a bound: freeing ``_model`` while a
+        decode is inside ctranslate2 is a use-after-free, so a lock that
+        cannot be taken in time means the unload is REFUSED (the engine
+        stays loaded) rather than forced.
+        """
+        from voice_typer.server.asr.registry import MODEL_UNLOAD_LOCK_TIMEOUT_S
+
+        lock = getattr(self, "_inference_lock", None)
+        if lock is not None and not lock.acquire(timeout=MODEL_UNLOAD_LOCK_TIMEOUT_S):
+            log.error(
+                "[MODEL] refusing to unload the whisper engine: a decode still holds the inference lock after %.0fs",
+                MODEL_UNLOAD_LOCK_TIMEOUT_S,
+            )
+            return
+        try:
+            self._model = None
+            self._loaded = False
+        finally:
+            if lock is not None:
+                lock.release()
 
     def request_abort(self) -> None:
         """Signal the shared decode loops to stop between segments."""
@@ -513,9 +528,7 @@ class SystemWhisperEngine:
         gc.collect()
         faster_whisper = importlib.import_module("faster_whisper")
         try:
-            _capture = importlib.import_module(
-                "voice_typer.worker.whisper.native_stderr"
-            ).capture_native_stderr
+            _capture = importlib.import_module("voice_typer.worker.whisper.native_stderr").capture_native_stderr
         except ImportError:
             _capture = None
         if _capture is None:

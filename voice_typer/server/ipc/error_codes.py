@@ -58,6 +58,11 @@ class ErrorCodes:
     # ADR-0023 media ingest: another media job is running / source rejected.
     JOB_BUSY = "server.job_busy"
     NOT_SUPPORTED = "server.not_supported"
+    # ADR-0023 model layer: the selected model is still loading (retryable,
+    # no Open Models action), and a media job was stopped because the active
+    # engine changed under it (partial transcript kept).
+    MODEL_LOADING = "server.model_loading"
+    MODEL_CHANGED = "server.model_changed"
     # structured consent-required envelope emitted by the
     SERVER_CONSENT_REQUIRED = "server.consent_required"
     # Typed cloud/LLM exception hierarchy, distinct codes for

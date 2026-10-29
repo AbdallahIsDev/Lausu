@@ -134,7 +134,7 @@ server):
   former is a per-transition signal with just ``status``; the latter
   is the connect-time snapshot with a ``message`` field.
 
-Total: 53 events, the live count is ``len(EVENT_TYPES)`` and this
+Total: 54 events, the live count is ``len(EVENT_TYPES)`` and this
 sentence is kept in lockstep with it by
 ``tests/test_event_bus.py::TestCanonicalCatalogue
 ::test_catalogue_total_count_updated``. Update this docstring whenever
@@ -233,6 +233,8 @@ EVENT_TYPES: frozenset[str] = frozenset(
         # already in Rust ALLOWED_EVENT_TYPES + renderer known-event-types):
         "media_transcribe_complete",
         "media_transcribe_progress",
+        # Model switch cancelled running media jobs (model_manager/_change.py):
+        "media_jobs_cancelled_for_model_change",
         # Mic guard (S5): an outside write moved the OS capture knob.
         "microphone_volume_lowered",
         # Live listen preview: post-chain frames streamed to the renderer

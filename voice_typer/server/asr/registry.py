@@ -32,6 +32,9 @@ MODEL_LOAD_TIMEOUT_SECONDS = 120
 # then fail exactly like a plain timeout.
 MODEL_SLOW_LOAD_GRACE_SECONDS = 120.0
 
+#: Unload lock-wait bound; refusing an unload beats freeing a model in use.
+MODEL_UNLOAD_LOCK_TIMEOUT_S = 30.0
+
 
 @runtime_checkable
 class AsrBackend(Protocol):
@@ -180,9 +183,7 @@ class RegistryCore:
         finally:
             # Fire subscribers OUTSIDE the lock so a subscriber callback
             if notify_last_resort:
-                self._breaker.fire_last_resort_subscribers(
-                    name, gate_suppressed=last_resort_gate_result
-                )
+                self._breaker.fire_last_resort_subscribers(name, gate_suppressed=last_resort_gate_result)
 
     # ``load_active`` lives on the facade (patched via
 
@@ -201,8 +202,7 @@ class RegistryCore:
         if result is not TIMEOUT:
             return backend
         log.warning(
-            "[ASR_REGISTRY] %s load exceeded %ds, waiting up to %ds more "
-            "for the in-flight load (slow-machine grace)",
+            "[ASR_REGISTRY] %s load exceeded %ds, waiting up to %ds more for the in-flight load (slow-machine grace)",
             label,
             MODEL_LOAD_TIMEOUT_SECONDS,
             MODEL_SLOW_LOAD_GRACE_SECONDS,
