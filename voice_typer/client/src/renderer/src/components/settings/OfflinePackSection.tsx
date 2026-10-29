@@ -34,9 +34,9 @@ function parseBackendSnapshot(value: unknown): BackendPackSnapshot {
 	};
 	if (!value || typeof value !== "object") return blank;
 	const op = value as Record<string, unknown>;
-	const rawState = op["state"];
-	const rawVersion = op["installed_version"];
-	const rawProgress = op["download_progress"];
+	const rawState = op.state;
+	const rawVersion = op.installed_version;
+	const rawProgress = op.download_progress;
 	return {
 		state:
 			typeof rawState === "string" && rawState.length > 0 ? rawState : null,
