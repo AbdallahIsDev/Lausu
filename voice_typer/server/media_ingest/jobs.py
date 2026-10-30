@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from typing import Any, Final
 
 from voice_typer.server.duration import format_duration
+from voice_typer.server.media_ingest.errors import MediaIngestError
 
 log = logging.getLogger(__name__)
 
@@ -140,7 +141,7 @@ class MediaJobManager:
         ``export_path`` is recorded so a second job cannot be pointed at the
         same destination while this one is still writing there.
         """
-        from voice_typer.server.media_ingest.errors import JOB_BUSY, MediaIngestError
+        from voice_typer.server.media_ingest.errors import JOB_BUSY
 
         with self._lock:
             running = sum(1 for job in self._jobs.values() if job.status == "running")
@@ -175,6 +176,26 @@ class MediaJobManager:
                     job.cancel_reason or "-",
                     format_duration(time.perf_counter() - started_at),
                 )
+            except MediaIngestError as exc:
+                # A taxonomy verdict is user input (this link is a playlist,
+                # that file is DRM), not a crash: one line, no traceback. The
+                # verdict itself carries the severity.
+                job.status = "failed"
+                job.phase = "error"
+                job.error = str(exc)
+                verdict_code = str(exc.code)
+                job.error_code = verdict_code
+                details = exc.details if isinstance(exc.details, dict) else None
+                log.warning(
+                    "[MEDIA] job failed: id=%s code=%s source=%s error=%s details=%s%s",
+                    job.job_id,
+                    verdict_code,
+                    job.source,
+                    job.error,
+                    details,
+                    format_duration(time.perf_counter() - started_at),
+                )
+                self._publish_failure(job, verdict_code, details)
             except Exception as exc:  # noqa: BLE001, captured into job state
                 job.status = "failed"
                 job.phase = "error"
@@ -201,6 +222,7 @@ class MediaJobManager:
                     else:
                         code = "internal_error"
                 job.error_code = str(code)
+                # Unexpected: we want the traceback.
                 log.exception(
                     "[MEDIA] job failed: id=%s code=%s source=%s error=%s%s",
                     job.job_id,
@@ -209,20 +231,12 @@ class MediaJobManager:
                     job.error,
                     format_duration(time.perf_counter() - started_at),
                 )
-                details = getattr(exc, "details", None)
-                with suppress(Exception):
-                    self._on_event(
-                        {
-                            "type": "media_transcribe_error",
-                            "data": {
-                                "job_id": job.job_id,
-                                "client_id": job.client_id,
-                                "code": str(code),
-                                "message": job.error,
-                                "details": details if isinstance(details, dict) else None,
-                            },
-                        }
-                    )
+                raw_details = getattr(exc, "details", None)
+                self._publish_failure(
+                    job,
+                    str(code),
+                    raw_details if isinstance(raw_details, dict) else None,
+                )
             finally:
                 with self._lock:
                     self._threads.pop(job.job_id, None)
@@ -300,6 +314,22 @@ class MediaJobManager:
         """True when a RUNNING job already writes to ``export_path``."""
         with self._lock:
             return any(job.status == "running" and job.export_path == export_path for job in self._jobs.values())
+
+    def _publish_failure(self, job: MediaJob, code: str, details: dict[str, Any] | None) -> None:
+        """Publish ``media_transcribe_error``; a dead subscriber cannot kill the job."""
+        with suppress(Exception):
+            self._on_event(
+                {
+                    "type": "media_transcribe_error",
+                    "data": {
+                        "job_id": job.job_id,
+                        "client_id": job.client_id,
+                        "code": code,
+                        "message": job.error,
+                        "details": details,
+                    },
+                }
+            )
 
     @contextmanager
     def asr_lane(self) -> Iterator[None]:
