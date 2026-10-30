@@ -100,6 +100,7 @@ _TOPIC_COLOR: dict[str, str] = {
     "GTCRN": "38;5;69",
     "HEARTBEAT": "38;5;110",
     "HIGHPASS": "38;5;69",
+    "HOST-EVENTS": "38;5;102",
     "HOTKEY-WAYLAND": "38;5;141",
     "INIT": "38;5;103",
     "KILL-TREE": "38;5;103",
@@ -153,7 +154,9 @@ _TOPIC_COLOR: dict[str, str] = {
     "WS-AUTH": "38;5;110",
     "WS-READER": "38;5;110",
     "WS-WRITER": "38;5;110",
+    "WORKER-PATH": "38;5;110",
     "XRUN": "38;5;215",
+    "YTDLP": "38;5;110",
 }
 
 #: Keyword → topic mapping for messages without an explicit ``[TOPIC]`` prefix.

@@ -111,6 +111,7 @@ pub(crate) const TOPIC_COLOR: &[(&str, &str)] = &[
     ("GTCRN", "38;5;69"),
     ("HEARTBEAT", "38;5;110"),
     ("HIGHPASS", "38;5;69"),
+    ("HOST-EVENTS", "38;5;102"),
     ("HOTKEY-WAYLAND", "38;5;141"),
     ("INIT", "38;5;103"),
     ("KILL-TREE", "38;5;103"),
@@ -159,6 +160,7 @@ pub(crate) const TOPIC_COLOR: &[(&str, &str)] = &[
     ("WORKER", "38;5;110"),
     ("WORKER-DEV", "38;5;110"),
     ("WORKER-INIT", "38;5;110"),
+    ("WORKER-PATH", "38;5;110"),
     ("VOCAB", "38;5;102"),
     ("VOCAB_AUTO", "38;5;102"),
     ("VOLUME-CRASH", "38;5;167"),
@@ -170,6 +172,7 @@ pub(crate) const TOPIC_COLOR: &[(&str, &str)] = &[
     ("WS-READER", "38;5;110"),
     ("WS-WRITER", "38;5;110"),
     ("XRUN", "38;5;215"),
+    ("YTDLP", "38;5;110"),
 ];
 
 /// Look up a `[TOPIC]` label's colour.

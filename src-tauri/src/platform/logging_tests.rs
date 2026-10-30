@@ -2708,6 +2708,9 @@ fn test_expected_topic_colours_are_pinned() {
         ("MIC-GUARD", "38;5;215"),
         ("WS-READER", "38;5;110"),
         ("dispatch", "38;5;110"),
+        ("HOST-EVENTS", "38;5;102"),
+        ("WORKER-PATH", "38;5;110"),
+        ("YTDLP", "38;5;110"),
     ] {
         assert_eq!(topic_color_for(topic), Some(color), "topic {topic}");
     }
