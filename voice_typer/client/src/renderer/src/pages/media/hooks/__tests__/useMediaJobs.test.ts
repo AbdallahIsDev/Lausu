@@ -230,7 +230,7 @@ describe("useMediaJobs", () => {
 		expect(toast.error).toHaveBeenCalledWith(
 			t("media.errorTitle"),
 			expect.objectContaining({
-				description: `C:\\media\\broken.mp4 — ${t("media.errorDrm")}`,
+				description: `broken.mp4 — ${t("media.errorDrm")}`,
 			}),
 		);
 
@@ -256,10 +256,11 @@ describe("useMediaJobs", () => {
 		});
 		expect(accepted).toBe(false);
 		expect(result.current.jobs).toHaveLength(0);
+		// A link contributes NO label: the URL never renders in the toast.
 		expect(toast.error).toHaveBeenCalledWith(
 			t("media.errorTitle"),
 			expect.objectContaining({
-				description: `https://example.com/a — ${t("media.errorGeneric")}`,
+				description: t("media.errorGeneric"),
 			}),
 		);
 	});
@@ -478,16 +479,85 @@ describe("useMediaJobs", () => {
 		});
 		expect(result.current.jobs).toHaveLength(0);
 		// The raw backend message never reaches the UI surface, and with
-		// several jobs in flight the toast says WHICH one failed.
+		// several jobs in flight the toast says WHICH one failed — by file
+		// NAME, never the full path (the path stays in the row tooltip).
 		expect(toast.error).toHaveBeenCalledWith(
 			t("media.errorTitle"),
 			expect.objectContaining({
-				description: `C:\\media\\broken.mp4 — ${t("media.errorDrm")}`,
+				description: `broken.mp4 — ${t("media.errorDrm")}`,
 			}),
 		);
 		const calls = vi.mocked(toast.error).mock.calls;
 		const options = calls[calls.length - 1]?.[1] as { action?: unknown };
 		expect(options.action).toBeUndefined();
+	});
+
+	it("keeps a failed link's toast free of the URL", async () => {
+		const { result } = renderHook(() => useMediaJobs());
+		const source =
+			"https://openrouter.ai/activity?from=2026-10-29&to=2026-10-30&date_preset=past_1_day";
+		await actStart(result, source, "j6");
+		fire("media_transcribe_error", {
+			job_id: "j6",
+			client_id: null,
+			code: "no_media_url",
+			message: "Unsupported URL",
+		});
+
+		const calls = vi.mocked(toast.error).mock.calls;
+		const options = calls[calls.length - 1]?.[1] as { description: string };
+		// The link's copy names the subject itself, so the URL contributes
+		// nothing: a 90-char URL in a small toast is unreadable noise.
+		expect(options.description).toBe(t("media.errorNoMedia"));
+		expect(options.description).not.toContain("http");
+		expect(options.description.length).toBeLessThanOrEqual(80);
+	});
+
+	it("names a local file by NAME, never its path or a clipped tail", async () => {
+		const { result } = renderHook(() => useMediaJobs());
+		await actStart(result, "C:\\Users\\me\\Download\\long path name.mp4", "j7");
+		fire("media_transcribe_error", {
+			job_id: "j7",
+			client_id: null,
+			code: "decode_failed",
+			message: "decode exploded",
+		});
+
+		const calls = vi.mocked(toast.error).mock.calls;
+		const options = calls[calls.length - 1]?.[1] as { description: string };
+		// The reason copy itself contains an em dash, so split on the FIRST.
+		const sep = options.description.indexOf(" — ");
+		const label = options.description.slice(0, sep);
+		const reason = options.description.slice(sep + 3);
+		expect(options.description).toContain("long path name.mp4");
+		expect(options.description).not.toContain("C:\\");
+		expect(options.description).not.toContain("Download");
+		// The part this rule OWNS is the label: file name, never the path,
+		// never longer than the cap. The reason copy sets the floor (decode's
+		// reason alone is 74 chars) and line-clamp-2 caps the visual height.
+		expect(label).toBe("long path name.mp4");
+		expect(label.length).toBeLessThanOrEqual(40);
+		expect(reason).toBe(t("media.errorDecode"));
+		expect(options.description.length).toBeLessThanOrEqual(100);
+	});
+
+	it("caps an overlong file name with an ellipsis", async () => {
+		const { result } = renderHook(() => useMediaJobs());
+		const name = `${"a".repeat(60)}.mp4`;
+		await actStart(result, `C:\\media\\${name}`, "j8");
+		fire("media_transcribe_error", {
+			job_id: "j8",
+			client_id: null,
+			code: "decode_failed",
+			message: "decode exploded",
+		});
+
+		const calls = vi.mocked(toast.error).mock.calls;
+		const options = calls[calls.length - 1]?.[1] as { description: string };
+		const [label] = options.description.split(" — ");
+		expect(label).toHaveLength(40);
+		expect(label?.endsWith("…")).toBe(true);
+		expect(options.description).not.toContain("C:\\");
 	});
 
 	it("reports a failure whose row is already gone without an empty label", async () => {

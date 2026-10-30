@@ -32,6 +32,7 @@ import {
 	isNoModelError,
 	mediaErrorKey,
 } from "../lib/mediaErrorCopy";
+import { describeMediaSource } from "../lib/sourceLabel";
 
 export type MediaJobPhase =
 	| "starting"
@@ -178,18 +179,38 @@ export function reportBatchLimited(
 	);
 }
 
+/** Longest local-file label kept in the description; a longer name is
+ * clipped with an ellipsis. The full source still lives in the row `title`
+ * tooltip and in the log line. */
+const MAX_ERROR_LABEL_CHARS = 40;
+
+/** Description prefix naming the failing source, or `""` for none.
+ *
+ * A link contributes NOTHING: a 150-char URL renders as unreadable noise in a
+ * small toast, and every link failure's copy already names its subject ("This
+ * link does not contain a video or audio file."). A local file contributes
+ * its file NAME via `describeMediaSource`, never the full path. */
+function failureLabel(source: string): string {
+	const text = source.trim();
+	if (!text || /^https?:\/\//i.test(text)) return "";
+	const name = describeMediaSource(text);
+	if (name.length <= MAX_ERROR_LABEL_CHARS) return name;
+	return `${name.slice(0, MAX_ERROR_LABEL_CHARS - 1).trimEnd()}…`;
+}
+
 /** Localized failure toast (ADR-0023 E13): the raw backend message stays
  * diagnostics, the user gets the copy mapped from the failure code. A
  * stable id makes a newer failure REPLACE the previous toast (the
  * global error handler's dedupe convention) instead of stacking.
  *
- * `label` is the failing source. It can be empty — an error that arrives
- * after its row was dismissed has no label left — and the description then
- * carries the reason alone instead of a dangling " — reason". */
+ * `source` is the failing row's source, and it is only ever rendered through
+ * `failureLabel` — a link yields no prefix, a path yields its file name. It
+ * can be empty (an error that arrives after its row was dismissed), and the
+ * description then carries the reason alone instead of a dangling " — reason". */
 function showErrorToast(
 	errorCode: string | null | undefined,
 	navigate: (page: Page) => void,
-	label: string,
+	source: string,
 	details?: Record<string, string | number> | null,
 ): void {
 	const noModel = isNoModelError(errorCode);
@@ -204,12 +225,15 @@ function showErrorToast(
 			? { count: String(count) }
 			: {},
 	);
-	const trimmedLabel = label.trim();
+	const label = failureLabel(source);
 	toast.error(t("media.errorTitle"), {
 		id: "media-transcribe-error",
 		// With several jobs in flight the copy alone does not say WHICH one
-		// died, so the row label leads the description.
-		description: trimmedLabel ? `${trimmedLabel} — ${reason}` : reason,
+		// died, so a local file's name leads the description. A link does not:
+		// its copy names the subject and the URL stays in the row tooltip.
+		description: label ? `${label} — ${reason}` : reason,
+		// Two visual lines max, whatever the localized copy's length.
+		classNames: { description: "wrap-break-word line-clamp-2" },
 		...(noModel
 			? {
 					action: {

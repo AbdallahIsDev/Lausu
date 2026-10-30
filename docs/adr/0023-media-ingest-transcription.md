@@ -401,7 +401,11 @@ both `resolve_media_url` and `temp_audio_download` with `no_color=True`,
 `noprogress=True`. The downloader no longer builds its target name from the
 video title: the temp dir gets a fixed `media.%(ext)s`, and the options add
 `retries: 3`, `fragment_retries: 3`, `extractor_retries: 2` and a socket
-timeout.
+timeout. Extractor failures log at WARNING (the app's own verdict line carries
+the severity, so an extractor error never adds a second ERROR plus a
+traceback), and the m4a_dash ffmpeg fixup is unnecessary for our libav (PyAV)
+decoder: that warning — with the MPEG-TS-in-MP4 and duplicate-MOOV notices — is
+downgraded to DEBUG with its reason, never hidden.
 
 ### 4. Multi-item and non-media links: one global rule
 

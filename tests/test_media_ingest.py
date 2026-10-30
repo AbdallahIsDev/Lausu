@@ -204,8 +204,7 @@ class TestAsrLane:
         abort_capable = [
             name
             for name, value in vars(mgr).items()
-            if callable(getattr(value, "request_abort", None))
-            or callable(getattr(value, "clear_abort", None))
+            if callable(getattr(value, "request_abort", None)) or callable(getattr(value, "clear_abort", None))
         ]
         assert abort_capable == [], (
             f"the job manager holds an abort-capable handle ({abort_capable}): "
@@ -429,9 +428,7 @@ class TestEngineLoop:
             def request_abort(self):
                 pass
 
-        state = loop.transcribe_windows(
-            iter(chunks), _Backend(), cancel_event=event, lane=_lane
-        )
+        state = loop.transcribe_windows(iter(chunks), _Backend(), cancel_event=event, lane=_lane)
         assert state.text == ""
 
     def test_cancelling_a_job_never_fires_the_engine_wide_abort(self):
@@ -560,9 +557,7 @@ class TestEngineLoop:
             def request_abort(self):
                 pass
 
-        state = loop.transcribe_windows(
-            iter(chunks), _Backend(), cancel_event=threading.Event()
-        )
+        state = loop.transcribe_windows(iter(chunks), _Backend(), cancel_event=threading.Event())
         assert state.text, "a backend without abort_event support stopped decoding"
 
     @pytest.mark.parametrize("engine_name", ["ParakeetEngine", "QwenEngine", "CloudEngine"])
@@ -624,9 +619,7 @@ class TestJobManagerOutcomeLogging:
 
         manager = MediaJobManager()
         with caplog.at_level(logging.INFO, logger="voice_typer.server.media_ingest.jobs"):
-            job = manager.start(
-                r"C:\Users\me\Downloads\clip.mp3", lambda j: {"row_id": 7, "chars": 42}
-            )
+            job = manager.start(r"C:\Users\me\Downloads\clip.mp3", lambda j: {"row_id": 7, "chars": 42})
             # Status flips before the outcome line: join, don't poll.
             manager.wait(5.0)
 
@@ -646,7 +639,7 @@ class TestJobManagerOutcomeLogging:
             raise MediaIngestError(DECODE_FAILED, "media file not found: clip.mp3")
 
         manager = MediaJobManager()
-        with caplog.at_level(logging.ERROR, logger="voice_typer.server.media_ingest.jobs"):
+        with caplog.at_level(logging.WARNING, logger="voice_typer.server.media_ingest.jobs"):
             job = manager.start("clip.mp3", _boom)
             manager.wait(5.0)
 
@@ -654,6 +647,65 @@ class TestJobManagerOutcomeLogging:
         assert "[MEDIA] job failed" in caplog.text
         assert "decode_failed" in caplog.text
         assert "media file not found" in caplog.text
+
+    def test_taxonomy_failure_is_one_warning_without_a_traceback(self, caplog):
+        """A taxonomy verdict is user input: one WARNING line, no traceback.
+
+        The verdict line is the durable record (C-LOG-5); a chained traceback
+        around an expected answer buries the real errors in the file log.
+        """
+        import logging
+        import threading
+
+        from voice_typer.server.media_ingest.errors import NO_MEDIA_URL, MediaIngestError
+        from voice_typer.server.media_ingest.jobs import MediaJobManager
+
+        events: list[dict] = []
+        ready = threading.Event()
+        manager = MediaJobManager(on_event=lambda e: (events.append(e), ready.set()))
+
+        def _no_media(job):
+            raise MediaIngestError(NO_MEDIA_URL, "no playable media found", details={"host": "example.com"})
+
+        with caplog.at_level(logging.DEBUG, logger="voice_typer.server.media_ingest.jobs"):
+            manager.start("https://example.com/sign-in", _no_media)
+            assert ready.wait(timeout=5), "the job thread never emitted an event"
+
+        failures = [r for r in caplog.records if r.getMessage().startswith("[MEDIA] job failed")]
+        assert len(failures) == 1, caplog.text
+        record = failures[0]
+        assert record.levelno == logging.WARNING
+        assert record.exc_info is None
+        assert "Traceback" not in caplog.text
+        assert "code=no_media_url" in record.getMessage()
+        assert "details={'host': 'example.com'}" in record.getMessage()
+        assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+
+        errors = [e for e in events if e.get("type") == "media_transcribe_error"]
+        assert errors and errors[0]["data"]["code"] == NO_MEDIA_URL
+        assert errors[0]["data"]["message"] == "no playable media found"
+
+    def test_unexpected_failure_keeps_the_traceback(self, caplog):
+        """Anything outside the taxonomy is a crash we want to see in full."""
+        import logging
+
+        from voice_typer.server.media_ingest.jobs import MediaJobManager
+
+        def _boom(job):
+            raise RuntimeError("boom")
+
+        manager = MediaJobManager()
+        with caplog.at_level(logging.ERROR, logger="voice_typer.server.media_ingest.jobs"):
+            job = manager.start("clip.mp3", _boom)
+            manager.wait(5.0)
+
+        assert job.status == "failed"
+        assert job.error_code == "internal_error"
+        failures = [r for r in caplog.records if r.getMessage().startswith("[MEDIA] job failed")]
+        assert len(failures) == 1, caplog.text
+        assert failures[0].levelno == logging.ERROR
+        assert failures[0].exc_info is not None
+        assert "Traceback" in caplog.text
 
 
 class TestStorageExport:

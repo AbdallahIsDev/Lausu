@@ -12,7 +12,12 @@ from voice_typer.server.media_ingest.ytdlp_log import YtdlpLogAdapter, redact_ex
 
 class TestYtdlpLogAdapter:
     def test_error_goes_to_the_app_log_once_and_nothing_to_stderr(self, caplog, capsys):
-        """A raw extractor error line used to vanish (no console) or leak."""
+        """A raw extractor error line used to vanish (no console) or leak.
+
+        Level is WARNING: the app's own taxonomy verdict is the line that
+        carries severity, so an extractor failure must not print a second
+        ERROR (plus the app prints no traceback for user input).
+        """
         captured: dict = {}
 
         class _DL:
@@ -23,7 +28,7 @@ class TestYtdlpLogAdapter:
                 captured["logger"].error("ERROR: unable to download https://cdn.example/a.m4a?token=SUPERSECRET")
                 return {"url": "https://cdn.example/a.m4a", "title": "t"}
 
-        with caplog.at_level(logging.ERROR, logger="voice_typer.server.media_ingest.url_resolver"):
+        with caplog.at_level(logging.WARNING, logger="voice_typer.server.media_ingest.url_resolver"):
             resolver.resolve_media_url("https://example.com/v", factory=_DL)
 
         assert isinstance(captured["logger"], YtdlpLogAdapter)
@@ -31,7 +36,7 @@ class TestYtdlpLogAdapter:
         assert captured["noprogress"] is True
         records = [r for r in caplog.records if r.getMessage().startswith("[YTDLP] ")]
         assert len(records) == 1, f"expected exactly one adapter record, got {caplog.text!r}"
-        assert records[0].levelno == logging.ERROR
+        assert records[0].levelno == logging.WARNING
         assert "SUPERSECRET" not in caplog.text
         assert "***" in caplog.text
         # The sidecar has no console: the adapter never writes to a stream.
@@ -44,6 +49,40 @@ class TestYtdlpLogAdapter:
         assert "hunter2" not in cleaned
         assert "abcdef1234567890" not in cleaned
         assert "host.example/p" in cleaned
+
+
+class TestHarmlessExtractorWarnings:
+    """ffmpeg-fixup noise stays out of the log, with its reason in DEBUG."""
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "DeZJG4Oib3b: writing DASH m4a. Only some players support this container. "
+            "Install ffmpeg to fix this automatically",
+            "Possible MPEG-TS in MP4 container or malformed AAC timestamps. Install ffmpeg to fix this automatically",
+            "Possible duplicate MOOV atoms",
+        ],
+    )
+    def test_known_harmless_ffmpeg_fixup_lands_at_debug(self, caplog, message):
+        with caplog.at_level(logging.DEBUG, logger="voice_typer.server.media_ingest.ytdlp_log"):
+            YtdlpLogAdapter().warning(message)
+
+        records = [r for r in caplog.records if r.getMessage().startswith("[YTDLP] ")]
+        assert len(records) == 1, caplog.text
+        assert records[0].levelno == logging.DEBUG
+        text = records[0].getMessage()
+        assert "(harmless)" in text
+        assert message[:20] in text
+
+    def test_unrelated_extractor_warning_stays_a_warning(self, caplog):
+        """A table that swallows every warning would hide real extractor news."""
+        with caplog.at_level(logging.DEBUG, logger="voice_typer.server.media_ingest.ytdlp_log"):
+            YtdlpLogAdapter().warning("Unable to parse some genuinely new extractor field")
+
+        records = [r for r in caplog.records if r.getMessage().startswith("[YTDLP] ")]
+        assert len(records) == 1, caplog.text
+        assert records[0].levelno == logging.WARNING
+        assert "(harmless)" not in records[0].getMessage()
 
 
 class TestResolverOptions:

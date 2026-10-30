@@ -11,6 +11,7 @@ import { act, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "@/__tests__/helpers/render";
+import { t } from "@/i18n/i18n";
 
 const callMock = vi.fn();
 const toastError = vi.fn();
@@ -216,6 +217,31 @@ describe("media error copy", () => {
 			{ description: string },
 		];
 		expect(options.description).toContain("3 videos");
+	});
+
+	it("keeps the failing URL out of the toast", async () => {
+		await startOneJob();
+		act(() => {
+			eventHandlers.get("media_transcribe_error")?.({
+				job_id: "job-1",
+				client_id: null,
+				code: "no_media_url",
+				message:
+					"Unsupported URL: https://openrouter.ai/activity?from=2026-10-29&to=2026-10-30",
+				details: null,
+			} as never);
+		});
+		await waitFor(() => {
+			if (toastError.mock.calls.length === 0) throw new Error("no toast yet");
+		});
+		const [, options] = toastError.mock.calls[0] as [
+			string,
+			{ description: string },
+		];
+		// The reason copy names the subject itself, so the link contributes
+		// no prefix: a long URL must never render inside a small toast.
+		expect(options.description).toBe(t("media.errorNoMedia"));
+		expect(options.description).not.toContain("http");
 	});
 
 	it("reports a still-loading model as retryable, not as 'choose a model'", async () => {
