@@ -444,9 +444,12 @@ Diagnosed on the owner's silent-video run (a video with no audio track at all).
 Five findings, each fixed at its cause rather than in the message:
 
 * **A silent window never reaches the model or the ASR lane.** The decoder has
-already measured the audio, so `engine_loop`'s `_flush()` checks the window with
-the SAME definition validation uses (`validation.is_total_silence`) before
-`_decode(audio)` and before the lane is acquired; a silent window is counted in
+already measured the audio, so `engine_loop`'s `_flush()` checks the window by
+requiring no sample above the silence floor (`vad_policy._SILENCE_AMP_FLOOR`)
+before `_decode(audio)` and before the lane is acquired; a window that passes is
+decoded even when most of it is quiet, because a job-wide rms/silence-pct verdict
+(`validation.is_total_silence`) is too loose for a 120 s window and drops sparse
+speech. A silent window is counted in
 `WindowsState.skipped_silent_windows` and skipped. Consequence to preserve: an
 all-silent job still ends as `no_speech` / `chars=0` / `row_id=null` with the
 `media_transcribe_complete` event published (the completion event is the UI's

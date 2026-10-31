@@ -282,7 +282,7 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-MEDIA-5
-Rule: Do NOT send a media window the decoder already measured as silent to the model or the ASR lane. `engine_loop`'s `_flush()` gates every window with `validation.is_total_silence` before `_decode` and before `lane()`; the dictation path keeps its own behaviour.
+Rule: Do NOT send a media window the decoder already measured as silent to the model or the ASR lane. `engine_loop`'s `_flush()` gates every window by requiring no sample above `vad_policy._SILENCE_AMP_FLOOR` before `_decode` and before `lane()` — a job-wide rms/silence-pct verdict (`validation.is_total_silence`) is too loose for a 120 s window, it drops sparse speech; the dictation path keeps its own behaviour.
 Rationale: A file with no audio track paid a full model call plus a lane turn to return "" (694k float32 samples shipped to the worker), while the decode-side readings that prove silence were already in hand (2026-10-31).
 Applies to: All agents, all modes, all sub-agents.
 ```

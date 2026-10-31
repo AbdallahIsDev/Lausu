@@ -683,6 +683,38 @@ class TestSilentWindowShortCircuit:
         assert state.decoded_seconds == pytest.approx(125.0)
         assert state.skipped_silent_windows == 1
 
+    def test_sparse_quiet_speech_in_a_window_is_still_decoded(self):
+        """A few seconds of quiet speech in a 120 s window is speech, not silence.
+
+        The job-wide verdict (rms < 0.01 AND >= 95% under the floor) reads this
+        window as silent: 116 s of zeros drag the percentage over the line while
+        four seconds of real speech sit in the same window.
+        """
+        from voice_typer.server.media_ingest import engine_loop as loop
+
+        sr = loop.TARGET_SAMPLE_RATE
+        speech = (np.random.RandomState(0).randn(sr * 4) * 0.02).astype(np.float32)
+        window = np.concatenate([np.zeros(sr * 116, dtype=np.float32), speech])
+        backend = self._CountingBackend()
+
+        state = loop.transcribe_windows(iter([window]), backend)
+
+        assert backend.calls == 1, "a sparse-but-real speech window was skipped"
+        assert state.skipped_silent_windows == 0
+
+    def test_dither_level_window_is_still_skipped(self):
+        """Below the silence floor with no sample above it: still zero model calls."""
+        from voice_typer.server.media_ingest import engine_loop as loop
+
+        sr = loop.TARGET_SAMPLE_RATE
+        window = np.full(sr * 120, 3e-5, dtype=np.float32)
+        backend = self._CountingBackend()
+
+        state = loop.transcribe_windows(iter([window]), backend)
+
+        assert backend.calls == 0, "dither-level noise is not speech and must not cost a call"
+        assert state.skipped_silent_windows == 1
+
 
 class TestJobManagerOutcomeLogging:
     """Every job outcome leaves a durable log line (the toast is ephemeral)."""
