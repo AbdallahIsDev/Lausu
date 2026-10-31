@@ -703,6 +703,35 @@ class TestJobManagerOutcomeLogging:
         assert "clip.mp3" in caplog.text
         assert "[MEDIA] job completed" in caplog.text
         assert "row_id=7" in caplog.text
+        completed = next(r.getMessage() for r in caplog.records if r.getMessage().startswith("[MEDIA] job completed"))
+        # A labelled duration, and no reason field at all for a clean run.
+        assert "elapsed=" in completed
+        assert "reason=" not in completed
+
+    def test_cancelled_job_names_its_reason_next_to_the_elapsed_time(self, caplog):
+        import logging
+        import threading
+
+        from voice_typer.server.media_ingest.jobs import MediaJobManager
+
+        release = threading.Event()
+        manager = MediaJobManager()
+
+        def _blocked(job):
+            release.wait(timeout=10.0)
+            return {"row_id": None, "chars": 0}
+
+        with caplog.at_level(logging.INFO, logger="voice_typer.server.media_ingest.jobs"):
+            job = manager.start("clip.mp3", _blocked)
+            manager.cancel(job.job_id, reason="user")
+            release.set()
+            manager.wait(5.0)
+
+        assert job.status == "cancelled"
+        line = next(r.getMessage() for r in caplog.records if r.getMessage().startswith("[MEDIA] job cancelled"))
+        assert "reason=user" in line
+        assert "elapsed=" in line
+        assert "reason=- " not in line
 
     def test_failure_logs_the_real_cause(self, caplog):
         import logging

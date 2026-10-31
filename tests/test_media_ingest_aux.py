@@ -71,6 +71,27 @@ class _FakeContainer:
 
 
 class TestDecoderFakes:
+    def test_inventory_log_names_the_stream_counts(self, monkeypatch, caplog):
+        """``audio=1 video=0`` is what an audio-only HLS download opens as."""
+        import logging
+
+        import av
+
+        with caplog.at_level(logging.INFO, logger="voice_typer.server.media_ingest.decoder"):
+            monkeypatch.setattr(av, "open", lambda *a, **k: _FakeContainer([_FakeStream("audio")]))
+            list(decoder.decode_chunks("https://cdn/audio-only.mp4", remote=True))
+            monkeypatch.setattr(
+                av,
+                "open",
+                lambda *a, **k: _FakeContainer([_FakeStream("audio"), _FakeStream("video")]),
+            )
+            list(decoder.decode_chunks("https://cdn/with-video.mp4", remote=True))
+
+        lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("[MEDIA] ingest:")]
+        assert len(lines) == 2, caplog.text
+        assert "audio=1 video=0" in lines[0]
+        assert "audio=1 video=1" in lines[1]
+
     def test_no_audio_stream_maps_no_audio(self, monkeypatch):
         import av
 

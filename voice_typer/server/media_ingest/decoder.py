@@ -50,6 +50,15 @@ def decode_chunks(source: str, *, remote: bool = False, start_seconds: float = 0
 
                 raise MediaIngestError(STREAM_STALLED, "could not resume media stream") from exc
         streams = [s for s in container.streams if s.type == "audio"]
+        # Container inventory, once per open: a video-only fetch and an
+        # audio-only one look identical by filename alone (the extractor names
+        # every HLS rendition ``.mp4``), so ``audio=1 video=0`` is the proof.
+        log.info(
+            "[MEDIA] ingest: audio=%d video=%d (%s)",
+            len(streams),
+            sum(1 for s in container.streams if s.type == "video"),
+            "remote" if remote else "local",
+        )
         if not streams:
             from voice_typer.server.media_ingest.errors import NO_AUDIO
 

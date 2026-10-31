@@ -27,6 +27,43 @@ DOWNLOAD_TEMPLATE = "media.%(ext)s"
 SOCKET_TIMEOUT_SECONDS = 20
 
 
+def _download_with_verdict(downloader: Any, url: str) -> dict[str, Any] | None:
+    """Run the download and return the extractor's own verdict.
+
+    ``extract_info(..., download=True)`` hands back the post-download info,
+    whose ``requested_downloads[0]`` names the format actually written. A
+    double that only exposes ``download()`` still works (verdict unknown).
+    """
+    extract = getattr(downloader, "extract_info", None)
+    if callable(extract):
+        info = extract(url, download=True)
+        return info if isinstance(info, dict) else None
+    downloader.download([url])
+    return None
+
+
+def _requested_download(info: dict[str, Any] | None) -> dict[str, Any]:
+    """The format entry the extractor says it wrote (empty when unknown)."""
+    if not isinstance(info, dict):
+        return {}
+    requested = info.get("requested_downloads")
+    if isinstance(requested, list) and requested and isinstance(requested[0], dict):
+        return requested[0]
+    return info
+
+
+def _download_bytes(entry: dict[str, Any], target: Path) -> int:
+    """Size the info reports, else the file on disk."""
+    for key in ("filesize", "filesize_approx"):
+        value = entry.get(key)
+        if isinstance(value, int) and value > 0:
+            return value
+    try:
+        return target.stat().st_size
+    except OSError:
+        return 0
+
+
 @contextlib.contextmanager
 def temp_audio_download(
     url: str,
@@ -76,13 +113,14 @@ def temp_audio_download(
         out_dir = Path(tmp)
         options["outtmpl"] = str(out_dir / DOWNLOAD_TEMPLATE)
         before = set(out_dir.iterdir())
+        info: dict[str, Any] | None = None
         try:
             downloader = maker(options)
             if hasattr(downloader, "__enter__"):
                 with downloader as active:
-                    active.download([url])
+                    info = _download_with_verdict(active, url)
             else:
-                downloader.download([url])
+                info = _download_with_verdict(downloader, url)
         except MediaIngestError:
             raise
         except Exception as exc:
@@ -91,4 +129,15 @@ def temp_audio_download(
         if not produced:
             raise MediaIngestError(DOWNLOAD_FAILED, "audio download produced no file")
         target = max(produced, key=lambda p: p.stat().st_size)
+        # One auditable line: ``vcodec=none`` is the extractor's own proof that
+        # no video was fetched (the ``.mp4`` name is a forced HLS label).
+        entry = _requested_download(info)
+        log.info(
+            "[MEDIA] download: format=%s ext=%s vcodec=%s acodec=%s bytes=%d",
+            str(entry.get("format_id") or "-"),
+            str(entry.get("ext") or target.suffix.lstrip(".") or "-"),
+            str(entry.get("vcodec") or "-"),
+            str(entry.get("acodec") or "-"),
+            _download_bytes(entry, target),
+        )
         yield target
