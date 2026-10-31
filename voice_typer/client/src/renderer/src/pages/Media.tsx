@@ -10,36 +10,31 @@
 
 import {
 	Cancel01Icon,
-	CheckmarkCircle01Icon,
-	HistoryIcon,
 	PlayCircleIcon,
 	Upload01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { type ClipboardEvent, useCallback, useEffect, useState } from "react";
+import {
+	type ClipboardEvent,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { toast } from "sonner";
 import PageHeading from "@/components/common/PageHeading";
 import { SettingRow } from "@/components/common/SettingRow";
-import { LevelBar } from "@/components/feedback/LevelBar";
 import { Spinner } from "@/components/feedback/Spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useT } from "@/i18n/i18n";
-import { formatClockDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import {
-	isLowConfidence,
-	type MediaJobRow,
-	reportBatchLimited,
-	useMediaJobs,
-} from "./media/hooks/useMediaJobs";
-import { describeMediaSource } from "./media/lib/sourceLabel";
+import { useMediaSourceStore } from "@/stores/mediaSourceStore";
+import { MediaJobRowView } from "./media/components/MediaJobRow";
+import { reportBatchLimited, useMediaJobs } from "./media/hooks/useMediaJobs";
 import { splitSources } from "./media/lib/splitSources";
-
-/** ADR-0023 E11: past this length the page warns about the total time. */
-const LONG_MEDIA_SECONDS = 4 * 3600;
 
 export default function MediaPage() {
 	const t = useT();
@@ -55,9 +50,20 @@ export default function MediaPage() {
 		cancelAll,
 		dismiss,
 	} = useMediaJobs();
-	const [source, setSource] = useState("");
+	// The field lives in a store (persisted): a value typed here must survive
+	// navigation, a refresh and a restart, and only the user clears it.
+	const source = useMediaSourceStore((state) => state.source);
+	const setSource = useMediaSourceStore((state) => state.setSource);
+	const clearSource = useMediaSourceStore((state) => state.clear);
+	const inputRef = useRef<HTMLInputElement>(null);
 	const [useSubtitles, setUseSubtitles] = useState(true);
 	const [dragOver, setDragOver] = useState(false);
+
+	const onClear = useCallback(() => {
+		clearSource();
+		// Focus stays in the field so the next paste needs no extra click.
+		inputRef.current?.focus();
+	}, [clearSource]);
 
 	// Native drop: absolute paths (web File objects hide them). Several
 	// dropped files are enqueued together; at the cap nothing is attempted
@@ -100,7 +106,7 @@ export default function MediaPage() {
 		// joining with "\n" would glue the refused list into one string that
 		// neither the field nor the next split can tell apart.
 		setSource(refused.length > 0 ? refused.join(" ") : "");
-	}, [canStart, source, startMany, useSubtitles]);
+	}, [canStart, source, setSource, startMany, useSubtitles]);
 
 	// Browse goes through the HOST picker: a webview file input hands the
 	// renderer only `file.name`, which the backend cannot open (drag-drop is
@@ -150,7 +156,7 @@ export default function MediaPage() {
 				setSource(refused.length > 0 ? refused.join(" ") : "");
 			})();
 		},
-		[atCapacity, maxJobs, startMany, useSubtitles],
+		[atCapacity, maxJobs, setSource, startMany, useSubtitles],
 	);
 
 	return (
@@ -211,18 +217,39 @@ export default function MediaPage() {
 					</div>
 
 					<div className="flex flex-wrap items-center gap-2">
-						<Input
-							id="media-source"
-							value={source}
-							onChange={(e) => setSource(e.target.value)}
-							onPaste={onPaste}
-							placeholder={t("media.sourcePlaceholder")}
-							disabled={atCapacity}
-							className="min-w-0 flex-1"
-							onKeyDown={(e) => {
-								if (e.key === "Enter") void handleStart();
-							}}
-						/>
+						<div className="relative min-w-0 flex-1">
+							<Input
+								id="media-source"
+								ref={inputRef}
+								value={source}
+								onChange={(e) => setSource(e.target.value)}
+								onPaste={onPaste}
+								placeholder={t("media.sourcePlaceholder")}
+								disabled={atCapacity}
+								// Trailing room for the in-field clear button.
+								className={cn("min-w-0 w-full", source !== "" && "pe-9")}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") void handleStart();
+								}}
+							/>
+							{source !== "" && (
+								<button
+									type="button"
+									aria-label={t("media.clearInput")}
+									title={t("media.clearInput")}
+									onClick={onClear}
+									disabled={atCapacity}
+									className="absolute inset-y-0 end-2 my-auto flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+									data-testid="media-source-clear"
+								>
+									<HugeiconsIcon
+										icon={Cancel01Icon}
+										strokeWidth={2}
+										className="h-3.5 w-3.5"
+									/>
+								</button>
+							)}
+						</div>
 						<Button onClick={() => void handleStart()} disabled={!canStart}>
 							{starting ? (
 								<Spinner className="border-current" decorative />
@@ -269,7 +296,7 @@ export default function MediaPage() {
 			{jobs.length > 0 && (
 				<div className="flex flex-col rounded-lg border border-border/10 bg-surface-subtle">
 					{jobs.map((job, index) => (
-						<JobRow
+						<MediaJobRowView
 							key={job.clientId}
 							job={job}
 							first={index === 0}
@@ -279,183 +306,6 @@ export default function MediaPage() {
 						/>
 					))}
 				</div>
-			)}
-		</div>
-	);
-}
-
-interface JobRowProps {
-	job: MediaJobRow;
-	first: boolean;
-	onCancel: () => void;
-	onDismiss: () => void;
-	onOpenHistory: () => void;
-}
-
-function JobRow({
-	job,
-	first,
-	onCancel,
-	onDismiss,
-	onOpenHistory,
-}: JobRowProps) {
-	const t = useT();
-	const percent = Math.max(0, Math.min(100, Math.round(job.progress * 100)));
-	const label = describeMediaSource(job.source);
-	// Two user states only: everything before the first window is
-	// "Preparing…", everything after it is "Transcribing…". The internal
-	// codes stay for the detail line and for support logs, but the label
-	// must never read "Loading model…" for a job that already has an engine.
-	const phaseLabel =
-		job.phase === "transcribing"
-			? t("media.phaseTranscribing")
-			: t("media.phasePreparing");
-	// Secondary detail: what the pre-transcribe stage is actually doing.
-	const phaseDetail =
-		job.phase === "downloading"
-			? t("media.phaseDownloading")
-			: job.phase === "loading_model"
-				? t("media.phaseLoadingModel")
-				: null;
-	const lowConfidence = isLowConfidence(job.quality);
-	const isLongMedia =
-		job.durationSeconds !== null && job.durationSeconds > LONG_MEDIA_SECONDS;
-	// Percent owns the slot above the bar; remaining time + total length
-	// read as one caption below it (owner request 2026-10-27).
-	const progressMeta = [
-		job.etaSeconds !== null
-			? t("media.eta", { time: formatClockDuration(job.etaSeconds) })
-			: null,
-		job.durationSeconds !== null
-			? t("media.duration", { time: formatClockDuration(job.durationSeconds) })
-			: null,
-	].filter((part): part is string => part !== null);
-
-	if (job.phase === "done") {
-		const chars = job.chars ?? 0;
-		return (
-			<div
-				className={cn(
-					"flex flex-col gap-2 p-4",
-					!first && "border-t border-border/10",
-				)}
-			>
-				<div className="flex items-center gap-2">
-					<HugeiconsIcon
-						icon={CheckmarkCircle01Icon}
-						strokeWidth={2}
-						className="h-4 w-4 shrink-0 text-primary"
-					/>
-					<span
-						className="min-w-0 flex-1 truncate text-sm font-medium text-foreground"
-						title={job.source}
-					>
-						{label}
-					</span>
-					{lowConfidence && (
-						<span
-							className="shrink-0 rounded-md border border-border/8 px-1.5 py-0.5 text-xs text-muted-foreground"
-							data-testid="media-low-confidence"
-						>
-							{t("media.lowConfidence")}
-						</span>
-					)}
-					<Button
-						variant="ghost"
-						size="sm"
-						aria-label={t("media.dismiss")}
-						onClick={onDismiss}
-					>
-						<HugeiconsIcon
-							icon={Cancel01Icon}
-							strokeWidth={2}
-							className="h-4 w-4"
-						/>
-					</Button>
-				</div>
-				<p className="text-sm text-muted-foreground">
-					{chars === 0
-						? t("media.noSpeech")
-						: job.partial
-							? t("media.partialDescription", { chars: String(chars) })
-							: t("media.completeDescription", { chars: String(chars) })}
-				</p>
-				{/* Visible degradation: the row is a success, but not a clean one. */}
-				{job.tier === "stream" && (
-					<p
-						className="text-xs text-muted-foreground"
-						data-testid="media-stream-fallback-note"
-					>
-						{t("media.streamFallbackNote")}
-					</p>
-				)}
-				{job.rowId !== null && (
-					<div>
-						<Button variant="outline" size="sm" onClick={onOpenHistory}>
-							<HugeiconsIcon
-								icon={HistoryIcon}
-								strokeWidth={2}
-								className="h-4 w-4"
-							/>
-							{t("media.openHistory")}
-						</Button>
-					</div>
-				)}
-			</div>
-		);
-	}
-
-	return (
-		<div
-			className={cn(
-				"flex flex-col gap-2 p-4",
-				!first && "border-t border-border/10",
-			)}
-		>
-			<div className="flex flex-wrap items-baseline justify-between gap-2">
-				<span
-					className="min-w-0 flex-1 truncate text-sm font-medium text-foreground"
-					title={job.source}
-				>
-					{label}
-				</span>
-				<span
-					className="text-xs text-muted-foreground tabular-nums"
-					data-testid="media-progress-percent"
-				>
-					{t("media.percent", { percent: String(percent) })}
-				</span>
-			</div>
-			{/* Shared LevelBar (same bar as the Microphone page). */}
-			<LevelBar
-				level={percent / 100}
-				playing={false}
-				ariaLabel={t("media.percent", { percent: String(percent) })}
-				ariaValueText={t("media.percent", { percent: String(percent) })}
-			/>
-			<div className="flex flex-wrap items-center justify-between gap-2">
-				<span className="text-xs text-muted-foreground">
-					{phaseLabel}
-					{phaseDetail !== null && (
-						<span data-testid="media-phase-detail">{` · ${phaseDetail}`}</span>
-					)}
-					{progressMeta.length > 0 && (
-						<span className="tabular-nums" data-testid="media-progress-meta">
-							{" · "}
-							{progressMeta.join(" · ")}
-						</span>
-					)}
-				</span>
-				{job.jobId !== "" && (
-					<Button variant="ghost" size="sm" onClick={onCancel}>
-						{t("media.cancel")}
-					</Button>
-				)}
-			</div>
-			{isLongMedia && (
-				<p className="text-xs text-muted-foreground">
-					{t("media.longMediaNotice")}
-				</p>
 			)}
 		</div>
 	);

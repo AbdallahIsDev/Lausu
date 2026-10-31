@@ -80,7 +80,9 @@
 		"dismiss": "Ignorer",
 		"duplicateTitle": "Déjà dans la liste",
 		"duplicateDescription": "Ce fichier ou ce lien est déjà en cours de transcription.",
-		"noSpeech": "Aucune parole n'a été trouvée dans ce média."
+		"noSpeech": "Aucune parole n'a été trouvée dans ce média.",
+		"noSpeechTitle": "Aucune parole trouvée",
+		"clearInput": "Effacer"
 	},
 	"nav": {
 		"home": "Accueil",

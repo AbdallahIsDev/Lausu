@@ -7,19 +7,36 @@
 // several files (audio and video mixed), and at the backend's cap the drop
 // zone and the link field are disabled so nothing else can be enqueued.
 
-import { act, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import {
+	act,
+	cleanup,
+	fireEvent,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "@/__tests__/helpers/render";
 import { t } from "@/i18n/i18n";
+import {
+	MEDIA_SOURCE_STORAGE_KEY,
+	useMediaSourceStore,
+} from "@/stores/mediaSourceStore";
 
 const callMock = vi.fn();
 const pickMediaFiles = vi.fn();
+// Push handlers the page registers, so a test can deliver a real event.
+const handlers = new Map<string, (data: Record<string, unknown>) => void>();
 
 vi.mock("@/hooks/usePython", () => ({
 	usePython: () => ({ call: callMock }),
-	usePythonEvent: () => {},
+	usePythonEvent: (
+		type: string,
+		handler: (data: Record<string, unknown>) => void,
+	) => {
+		handlers.set(type, handler);
+	},
 }));
 
 vi.mock("sonner", () => ({
@@ -33,6 +50,12 @@ afterEach(() => {
 beforeEach(() => {
 	callMock.mockReset();
 	pickMediaFiles.mockReset();
+	handlers.clear();
+	// The field is a persisted store now, so a value typed by one test would
+	// otherwise survive into the next one.
+	useMediaSourceStore.getState().clear();
+	localStorage.clear();
+	vi.mocked(toast.info).mockClear();
 	let seq = 0;
 	callMock.mockImplementation((cmd: string) => {
 		if (cmd === "media_transcribe_status") {
@@ -308,5 +331,153 @@ describe("Media page file picker", () => {
 			"true",
 		);
 		expect(getByRole("button", { name: /transcribe/i })).toBeDisabled();
+	});
+});
+
+/** Enqueue one URL through the real field, then hand back its backend id. */
+async function startOne(): Promise<string> {
+	const { default: MediaPage } = await import("@/pages/Media");
+	const { getByPlaceholderText, getByRole } = renderWithProviders(
+		<MediaPage />,
+	);
+	const field = getByPlaceholderText(/example\.com/) as HTMLInputElement;
+	fireEvent.change(field, { target: { value: "https://example.com/v" } });
+	fireEvent.click(getByRole("button", { name: /transcribe/i }));
+	await waitFor(() => {
+		expect(
+			callMock.mock.calls.filter(([cmd]) => cmd === "media_transcribe_start"),
+		).toHaveLength(1);
+	});
+	return "job-1";
+}
+
+function complete(jobId: string, data: Record<string, unknown>): void {
+	const handler = handlers.get("media_transcribe_complete");
+	if (!handler)
+		throw new Error("the page never subscribed to media_transcribe_complete");
+	act(() => {
+		handler({
+			job_id: jobId,
+			client_id: null,
+			row_id: 7,
+			chars: 12,
+			partial: false,
+			tier: "download",
+			quality: null,
+			note: null,
+			title: null,
+			thumbnail_data_url: null,
+			...data,
+		});
+	});
+}
+
+describe("Media page result card", () => {
+	it("shows the real media title and the inline preview image", async () => {
+		await startOne();
+		const thumbnail = "data:image/png;base64,AAAA";
+		complete("job-1", { title: "Vercel on X", thumbnail_data_url: thumbnail });
+
+		expect(screen.getByText("Vercel on X")).toBeTruthy();
+		expect(screen.getByTestId("media-preview-thumbnail")).toHaveAttribute(
+			"src",
+			thumbnail,
+		);
+	});
+
+	it("falls back to the source label and renders no image when both are absent", async () => {
+		await startOne();
+		complete("job-1", { title: null, thumbnail_data_url: null });
+
+		expect(screen.getByText("example.com/v")).toBeTruthy();
+		expect(screen.queryByTestId("media-preview-thumbnail")).toBeNull();
+	});
+
+	it("marks the done row with a success tone, never the primary colour", async () => {
+		await startOne();
+		complete("job-1", {});
+
+		const icon = screen
+			.getByText("example.com/v")
+			.parentElement?.querySelector("svg");
+		expect(icon?.getAttribute("class") ?? "").toContain("text-success");
+		expect(icon?.getAttribute("class") ?? "").not.toContain("text-primary");
+	});
+});
+
+describe("Media page no-speech outcome", () => {
+	it("removes the row and raises a persistent notification", async () => {
+		await startOne();
+		complete("job-1", {
+			chars: 0,
+			row_id: null,
+			title: "Silent clip",
+			note: "no_speech",
+		});
+
+		expect(
+			screen.queryByRole("button", { name: t("media.dismiss") }),
+		).toBeNull();
+		expect(toast.info).toHaveBeenCalledWith(
+			t("media.noSpeechTitle"),
+			expect.objectContaining({
+				id: "media-no-speech-job-1",
+				duration: Number.POSITIVE_INFINITY,
+			}),
+		);
+	});
+
+	it("keeps a cancelled job's zero-char row and raises no notification", async () => {
+		await startOne();
+		complete("job-1", { chars: 0, partial: true, note: "model_changed" });
+
+		expect(
+			screen.getByRole("button", { name: t("media.dismiss") }),
+		).toBeTruthy();
+		expect(toast.info).not.toHaveBeenCalledWith(
+			t("media.noSpeechTitle"),
+			expect.anything(),
+		);
+	});
+});
+
+describe("Media page link field", () => {
+	it("persists the value across an unmount and a remount", async () => {
+		const { default: MediaPage } = await import("@/pages/Media");
+		const first = renderWithProviders(<MediaPage />);
+		const field = first.getByPlaceholderText(
+			/example\.com/,
+		) as HTMLInputElement;
+		fireEvent.change(field, { target: { value: "https://example.com/keep" } });
+		expect(localStorage.getItem(MEDIA_SOURCE_STORAGE_KEY)).toBe(
+			"https://example.com/keep",
+		);
+
+		first.unmount();
+		const second = renderWithProviders(<MediaPage />);
+		const again = second.getByPlaceholderText(
+			/example\.com/,
+		) as HTMLInputElement;
+		expect(again.value).toBe("https://example.com/keep");
+	});
+
+	it("shows the clear button only with a value and empties both field and storage", async () => {
+		const { default: MediaPage } = await import("@/pages/Media");
+		const { getByPlaceholderText, queryByTestId } = renderWithProviders(
+			<MediaPage />,
+		);
+
+		expect(queryByTestId("media-source-clear")).toBeNull();
+		const field = getByPlaceholderText(/example\.com/) as HTMLInputElement;
+		fireEvent.change(field, { target: { value: "https://example.com/x" } });
+		const clear = queryByTestId("media-source-clear");
+		if (!clear) throw new Error("the clear button never rendered");
+		expect(clear).toHaveAttribute("aria-label", t("media.clearInput"));
+
+		fireEvent.click(clear);
+		expect(field.value).toBe("");
+		expect(localStorage.getItem(MEDIA_SOURCE_STORAGE_KEY)).toBeNull();
+		expect(queryByTestId("media-source-clear")).toBeNull();
+		expect(document.activeElement).toBe(field);
 	});
 });

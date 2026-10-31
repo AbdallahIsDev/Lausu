@@ -12,6 +12,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlparse
 
 from voice_typer.server.media_ingest.errors import (
     DRM_REFUSED,
@@ -43,6 +44,9 @@ class ResolvedMedia:
     needs_js_runtime: bool = False
     webpage_url: str = ""
     subtitles_available: bool = False
+    #: Extractor preview image (http/https only). Fetched by the job, never
+    #: handed to the renderer as a URL: the CSP allows ``data:`` images only.
+    thumbnail_url: str | None = None
 
 
 YoutubeDLFactory = Callable[..., Any]
@@ -129,6 +133,7 @@ def _resolved_from_info(info: dict[str, Any], *, source_url: str) -> ResolvedMed
                     webpage_url=str(info.get("webpage_url") or source_url),
                     needs_js_runtime=_is_youtube_url(source_url),
                     subtitles_available=has_subs,
+                    thumbnail_url=_thumbnail_url(info.get("thumbnail")),
                 )
 
     direct = str(info.get("url") or "").strip()
@@ -140,6 +145,7 @@ def _resolved_from_info(info: dict[str, Any], *, source_url: str) -> ResolvedMed
             webpage_url=str(info.get("webpage_url") or source_url),
             needs_js_runtime=_is_youtube_url(source_url),
             subtitles_available=has_subs,
+            thumbnail_url=_thumbnail_url(info.get("thumbnail")),
         )
 
     message = str(info.get("error") or "")
@@ -266,6 +272,14 @@ def _format_score(item: dict[str, Any]) -> tuple[int, float]:
     except (TypeError, ValueError):
         rate = 0.0
     return (http, rate)
+
+
+def _thumbnail_url(value: Any) -> str | None:
+    """Extractor preview image, http(s) only (anything else is refused)."""
+    text = str(value or "").strip()
+    if not text:
+        return None
+    return text if urlparse(text).scheme.lower() in ("http", "https") else None
 
 
 def _as_seconds(value: Any) -> float | None:

@@ -125,6 +125,8 @@ class MediaJobRunnersMixin(HandlerBase):
                         "tier": job.ingest_tier,
                         "quality": quality,
                         "note": job.note,
+                        "title": job.title,
+                        "thumbnail_data_url": job.thumbnail_data_url,
                     },
                 }
             )
@@ -257,6 +259,7 @@ class MediaJobRunnersMixin(HandlerBase):
             engine_loop as _loop,
             runtime as _runtime,
             subtitles as _subtitles,
+            thumbnails as _thumbnails,
             url_resolver as _resolver,
         )
         from voice_typer.server.media_ingest.errors import UNSUPPORTED_LIVE, MediaIngestError
@@ -265,6 +268,11 @@ class MediaJobRunnersMixin(HandlerBase):
         resolved = _resolver.resolve_media_url(url, js_runtimes=_runtime.js_runtime_options(runtime))
         if resolved.is_live:
             raise MediaIngestError(UNSUPPORTED_LIVE, "live streams are not supported")
+        # The completion card shows the real title and a preview; the preview
+        # is fetched here (data URL, see ``thumbnails``) because the renderer's
+        # CSP must stay ``img-src 'self' data:``.
+        job.title = resolved.title or None
+        job.thumbnail_data_url = _thumbnails.fetch_thumbnail_data_url(resolved.thumbnail_url)
 
         # E12/E13: official-subtitles fast path is OPT-IN (author-provided
         # captions; the UI states the accuracy tradeoff).

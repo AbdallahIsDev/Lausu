@@ -16,12 +16,18 @@ import { t } from "@/i18n/i18n";
 const callMock = vi.fn();
 const toastError = vi.fn();
 const toastWarning = vi.fn();
+const toastInfo = vi.fn();
 
 type Handler = (data: never) => void;
 const eventHandlers = new Map<string, Handler>();
 
 vi.mock("sonner", () => ({
-	toast: { error: toastError, warning: toastWarning, success: vi.fn() },
+	toast: {
+		error: toastError,
+		warning: toastWarning,
+		info: toastInfo,
+		success: vi.fn(),
+	},
 }));
 
 vi.mock("@/hooks/usePython", () => ({
@@ -39,6 +45,7 @@ beforeEach(() => {
 	callMock.mockReset();
 	toastError.mockReset();
 	toastWarning.mockReset();
+	toastInfo.mockReset();
 	eventHandlers.clear();
 	callMock.mockImplementation((cmd: string, args?: { client_id?: string }) => {
 		if (cmd === "media_transcribe_status") {
@@ -145,13 +152,21 @@ describe("media row outcome copy", () => {
 		expect(note.textContent).toContain("download failed");
 	});
 
-	it("reads as 'no speech' (not a success) when nothing was transcribed", async () => {
-		const { getByText, queryByRole } = await startOneJob();
+	it("reads as 'no speech' as a persistent notification, never as a result card", async () => {
+		const { container, queryByRole } = await startOneJob();
 		pushComplete({ chars: 0, row_id: null });
-		await waitFor(() => {
-			if (!getByText(/No speech/i))
-				throw new Error("outcome copy not rendered");
-		});
+		// No speech is not a result: the row goes away and ONE notification
+		// carries the outcome until the user closes it (C-UI-11).
+		await waitFor(() => expect(toastInfo).toHaveBeenCalledTimes(1));
+		expect(toastInfo).toHaveBeenCalledWith(
+			t("media.noSpeechTitle"),
+			expect.objectContaining({
+				duration: Number.POSITIVE_INFINITY,
+				description: expect.stringContaining(t("media.noSpeech")),
+			}),
+		);
+		expect(container.querySelector('[role="progressbar"]')).toBeNull();
+		expect(container.textContent).not.toMatch(/No speech/i);
 		// Nothing was persisted, so there is no History to open.
 		expect(queryByRole("button", { name: /open history/i })).toBeNull();
 	});

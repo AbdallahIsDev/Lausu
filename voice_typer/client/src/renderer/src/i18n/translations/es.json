@@ -101,7 +101,9 @@
 		"dismiss": "Descartar",
 		"duplicateTitle": "Ya está en la lista",
 		"duplicateDescription": "Ese archivo o enlace ya se está transcribiendo.",
-		"noSpeech": "No se encontró voz en este contenido."
+		"noSpeech": "No se encontró voz en este contenido.",
+		"noSpeechTitle": "No se encontró voz",
+		"clearInput": "Borrar"
 	},
 	"nav": {
 		"home": "Inicio",

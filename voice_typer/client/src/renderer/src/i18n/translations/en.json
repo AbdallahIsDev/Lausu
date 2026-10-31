@@ -101,7 +101,9 @@
 		"dismiss": "Dismiss",
 		"duplicateTitle": "Already in the list",
 		"duplicateDescription": "That file or link is already being transcribed.",
-		"noSpeech": "No speech was found in this media."
+		"noSpeech": "No speech was found in this media.",
+		"noSpeechTitle": "No speech found",
+		"clearInput": "Clear"
 	},
 	"nav": {
 		"home": "Home",

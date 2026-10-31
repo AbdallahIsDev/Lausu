@@ -67,6 +67,10 @@ export interface MediaJobRow {
 	/** Machine-readable degradation note (`stream_fallback`, `model_changed`). */
 	note: string | null;
 	quality: MediaJobQuality | null;
+	/** Real media title (null for a local file: the row label is the fallback). */
+	title: string | null;
+	/** Inline preview image (`data:` URL) when the extractor offered one. */
+	thumbnailDataUrl: string | null;
 }
 
 /** Result of a batch submit: what was enqueued and what was not. */
@@ -129,6 +133,8 @@ function makeRow(source: string, clientId: string, jobId = ""): MediaJobRow {
 		tier: null,
 		note: null,
 		quality: null,
+		title: null,
+		thumbnailDataUrl: null,
 	};
 }
 
@@ -507,7 +513,33 @@ export function useMediaJobs(): UseMediaJobsResult {
 	// Completion (also fired for cancelled jobs carrying a partial).
 	usePythonEvent("media_transcribe_complete", (data) => {
 		if (!data?.job_id) return;
-		applyEvent(data.client_id ?? "", data.job_id, () => ({
+		const clientId = data.client_id ?? "";
+		const chars = typeof data.chars === "number" ? data.chars : 0;
+		if (chars === 0 && !data.partial) {
+			// No speech is not a result: the row goes away and ONE notification
+			// carries the outcome (C-UI-11). A cancelled job keeps its row —
+			// `partial` is true, so it never lands here.
+			const index = findRowIndex(jobsRef.current, clientId, data.job_id);
+			const rowSource =
+				(index === -1 ? undefined : jobsRef.current[index])?.source ?? "";
+			const label =
+				data.title ?? (rowSource ? describeMediaSource(rowSource) : "");
+			updateJobs((prev) =>
+				prev.filter(
+					(row) => row.jobId !== data.job_id && row.clientId !== clientId,
+				),
+			);
+			toast.info(t("media.noSpeechTitle"), {
+				id: `media-no-speech-${data.job_id}`,
+				description: label
+					? `${label} — ${t("media.noSpeech")}`
+					: t("media.noSpeech"),
+				// Stays until the user closes it (the app Toaster adds the X).
+				duration: Number.POSITIVE_INFINITY,
+			});
+			return;
+		}
+		applyEvent(clientId, data.job_id, () => ({
 			phase: "done",
 			progress: 1,
 			rowId: data.row_id,
@@ -517,6 +549,8 @@ export function useMediaJobs(): UseMediaJobsResult {
 			tier: data.tier ?? null,
 			note: data.note ?? null,
 			quality: data.quality ?? null,
+			title: data.title ?? null,
+			thumbnailDataUrl: data.thumbnail_data_url ?? null,
 		}));
 	});
 

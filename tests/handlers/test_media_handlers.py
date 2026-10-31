@@ -273,6 +273,8 @@ class TestMediaValidationGate:
             engine_label="whisper/small.en",
             quality=None,
             cancel_reason=None,
+            title=None,
+            thumbnail_data_url=None,
         )
 
     @staticmethod
@@ -392,6 +394,8 @@ class TestMediaValidationGate:
             engine_label=None,
             quality=None,
             cancel_reason=None,
+            title=None,
+            thumbnail_data_url=None,
         )
         with pytest.raises(MediaIngestError) as excinfo:
             ipc_server._run_local_media_job(job, str(tmp_path / "clip.mp3"), {"export_path": None})
@@ -426,6 +430,8 @@ class TestMediaValidationGate:
             engine_label=None,
             quality=None,
             cancel_reason=None,
+            title=None,
+            thumbnail_data_url=None,
         )
         out = ipc_server._run_local_media_job(job, str(tmp_path / "clip.mp3"), {"export_path": None})
         assert out == {"row_id": None, "chars": 0}
@@ -504,6 +510,8 @@ class TestMediaUrlJobTiers:
             engine_label=None,
             quality=None,
             cancel_reason=None,
+            title=None,
+            thumbnail_data_url=None,
         )
 
     @staticmethod
@@ -512,6 +520,8 @@ class TestMediaUrlJobTiers:
 
         return SimpleNamespace(
             audio_url="https://cdn.example/a.m4a",
+            title="",
+            thumbnail_url=None,
             webpage_url="https://example.com/v",
             duration=42.0,
             subtitles_available=False,
@@ -813,6 +823,8 @@ class TestMediaEngineAttribution:
             engine_label=label,
             quality=None,
             cancel_reason=None,
+            title=None,
+            thumbnail_data_url=None,
         )
 
     @pytest.mark.parametrize(
@@ -944,6 +956,8 @@ class TestLeaseCoversTheModelLoad:
             engine_label=None,
             quality=None,
             cancel_reason=None,
+            title=None,
+            thumbnail_data_url=None,
         )
 
     @staticmethod
@@ -1074,6 +1088,8 @@ class TestLeaseCoversTheModelLoad:
             "resolve_media_url",
             lambda url, **kw: types.SimpleNamespace(
                 audio_url="https://cdn.example/a.m4a",
+                title="",
+                thumbnail_url=None,
                 webpage_url="https://example.com/v",
                 duration=42.0,
                 subtitles_available=False,
