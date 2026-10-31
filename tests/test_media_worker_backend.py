@@ -66,7 +66,8 @@ class _LocalBackend:
 
 def _chunks(n, sr=None):
     sr = sr or loop.TARGET_SAMPLE_RATE
-    return [np.zeros(sr * 5, dtype=np.float32) for _ in range(n)]
+    # Audible filler: a digitally silent window is short-circuited undecoded.
+    return [np.full(sr * 5, 0.05, dtype=np.float32) for _ in range(n)]
 
 
 def test_cutover_per_window_prefers_worker(monkeypatch):

@@ -11,6 +11,11 @@ from voice_typer.server.media_ingest.jobs import MediaJobManager
 from voice_typer.server.media_ingest.sources import classify_source
 
 
+def _tone(samples: int, amplitude: float = 0.05) -> np.ndarray:
+    """Audible filler: the engine loop never sends a silent window to the model."""
+    return np.full(samples, amplitude, dtype=np.float32)
+
+
 class TestClassifySource:
     def test_http_url(self):
         assert classify_source("https://example.com/a.mp4").kind == "url"
@@ -315,7 +320,7 @@ class TestEngineLoop:
 
         sr = loop.TARGET_SAMPLE_RATE
         # 25 x 5 s = one full window (120 s) + a tail flush.
-        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(25)]
+        chunks = [_tone(sr * 5) for _ in range(25)]
 
         class _Backend:
             def __init__(self):
@@ -353,7 +358,7 @@ class TestEngineLoop:
         from voice_typer.server.media_ingest import engine_loop as loop
 
         sr = loop.TARGET_SAMPLE_RATE
-        chunks = [np.zeros(sr * 5, dtype=np.float32)]
+        chunks = [_tone(sr * 5)]
 
         class _NoopBackend:
             def transcribe_with_fallback(self, audio, *a, **k):
@@ -377,7 +382,7 @@ class TestEngineLoop:
         from voice_typer.server.media_ingest import engine_loop as loop
 
         sr = loop.TARGET_SAMPLE_RATE
-        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(25)]
+        chunks = [_tone(sr * 5) for _ in range(25)]
         depth = {"now": 0, "max": 0}
         lanes: list[int] = []
 
@@ -412,7 +417,7 @@ class TestEngineLoop:
         from voice_typer.server.media_ingest import engine_loop as loop
 
         sr = loop.TARGET_SAMPLE_RATE
-        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(25)]
+        chunks = [_tone(sr * 5) for _ in range(25)]
         event = threading.Event()
 
         @contextlib.contextmanager
@@ -443,7 +448,7 @@ class TestEngineLoop:
         from voice_typer.server.media_ingest import engine_loop as loop
 
         sr = loop.TARGET_SAMPLE_RATE
-        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(25)]
+        chunks = [_tone(sr * 5) for _ in range(25)]
         aborts = []
 
         class _Backend:
@@ -477,7 +482,7 @@ class TestEngineLoop:
         from voice_typer.server.media_ingest import engine_loop as loop
 
         sr = loop.TARGET_SAMPLE_RATE
-        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(25)]
+        chunks = [_tone(sr * 5) for _ in range(25)]
 
         class _Backend:
             """Polls exactly what the engines poll: scoped Event, else the flag."""
@@ -519,7 +524,7 @@ class TestEngineLoop:
         from voice_typer.server.media_ingest import engine_loop as loop
 
         sr = loop.TARGET_SAMPLE_RATE
-        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(10)]
+        chunks = [_tone(sr * 5) for _ in range(10)]
         seen: list[object] = []
 
         class _Backend:
@@ -548,7 +553,7 @@ class TestEngineLoop:
         from voice_typer.server.media_ingest import engine_loop as loop
 
         sr = loop.TARGET_SAMPLE_RATE
-        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(10)]
+        chunks = [_tone(sr * 5) for _ in range(10)]
 
         class _Backend:
             def transcribe_with_fallback(self, audio):
@@ -584,7 +589,7 @@ class TestEngineLoop:
         from voice_typer.server.media_ingest import engine_loop as loop
 
         sr = loop.TARGET_SAMPLE_RATE
-        chunks = [np.zeros(sr * 5, dtype=np.float32) for _ in range(6)]
+        chunks = [_tone(sr * 5) for _ in range(6)]
 
         class _Backend:
             def transcribe_with_fallback(self, audio, *a, **k):
@@ -607,6 +612,76 @@ class TestEngineLoop:
         assert 0.0 < fracs[0] < 1.0
         assert seen[-1][0] == pytest.approx(1.0)
         assert seen[-1][1] == pytest.approx(0.0)
+
+
+class TestSilentWindowShortCircuit:
+    """A digitally silent window is never sent to the model (or the ASR lane)."""
+
+    class _CountingBackend:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def transcribe_with_fallback(self, audio, *args, **kwargs):
+            self.calls += 1
+            return f"w{self.calls}"
+
+        def request_abort(self) -> None:
+            pass
+
+    @staticmethod
+    def _silent(sr: int, seconds: int = 5) -> np.ndarray:
+        return np.zeros(sr * seconds, dtype=np.float32)
+
+    def test_silent_job_never_decodes_and_still_reads_as_no_speech(self, caplog):
+        """The whole-file outcome is unchanged: no text, and a silent reading."""
+        import logging
+
+        from voice_typer.server.media_ingest import engine_loop as loop, validation
+
+        sr = loop.TARGET_SAMPLE_RATE
+        # 25 x 5 s = one full 120 s window + a tail flush: two windows, both silent.
+        chunks = [self._silent(sr) for _ in range(25)]
+        backend = self._CountingBackend()
+
+        with caplog.at_level(logging.INFO, logger="voice_typer.server.media_ingest.engine_loop"):
+            state = loop.transcribe_windows(iter(chunks), backend)
+
+        assert backend.calls == 0, "a silent window reached the model"
+        assert state.text == ""
+        assert validation.is_total_silence(state.rms, state.silence_pct) is True
+        assert state.skipped_silent_windows == 2
+        skips = [r for r in caplog.records if "skip ASR: silent window" in r.getMessage()]
+        assert len(skips) == 1, "the skip line must appear once per job, never per window"
+
+    def test_silent_job_never_takes_the_asr_lane(self):
+        from voice_typer.server.media_ingest import engine_loop as loop
+
+        sr = loop.TARGET_SAMPLE_RATE
+        chunks = [self._silent(sr) for _ in range(6)]
+        backend = self._CountingBackend()
+
+        def _lane():
+            raise AssertionError("a silent job acquired the shared ASR lane")
+
+        state = loop.transcribe_windows(iter(chunks), backend, lane=_lane)
+        assert state.text == ""
+        assert backend.calls == 0
+
+    def test_one_speech_window_keeps_the_transcript_parity(self):
+        """Skipping silence must not change a mixed file's transcript."""
+        from voice_typer.server.media_ingest import engine_loop as loop
+
+        sr = loop.TARGET_SAMPLE_RATE
+        # 120 s of silence is window 1 (skipped); 5 s of tone is the tail flush.
+        chunks = [self._silent(sr) for _ in range(24)] + [_tone(sr * 5)]
+        backend = self._CountingBackend()
+
+        state = loop.transcribe_windows(iter(chunks), backend)
+
+        assert backend.calls == 1, "the one audible window must be decoded"
+        assert state.texts == ["w1"]
+        assert state.decoded_seconds == pytest.approx(125.0)
+        assert state.skipped_silent_windows == 1
 
 
 class TestJobManagerOutcomeLogging:
