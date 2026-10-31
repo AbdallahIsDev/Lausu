@@ -373,6 +373,12 @@ class TestAsrTeardownRunsAfterEngineTeardown:
         assert parallel_call > sequenced_call, "IN-19: parallel plan must be run AFTER the sequenced plan returns"
 
 
+#: Cross-thread handshake budget for the start path (thread spawn +
+#: ``_start_impl`` pre-work + DictationStart spawn). Generous on purpose:
+#: this proves "the load was reached at all", not "within 1 s".
+_START_PATH_WAIT_S = 10.0
+
+
 class TestToggleLockReleasedDuringModelLoad:
     """F2 hotkey backend's single dispatch thread is not blocked."""
 
@@ -470,30 +476,59 @@ class TestToggleLockReleasedDuringModelLoad:
         def blocking_load():
             load_started.set()
             # Block here with the lock RELEASED (per IN-20). The test
-            load_can_finish.wait(timeout=2.0)
+            load_can_finish.wait(timeout=_START_PATH_WAIT_S)
 
         app.models.ensure_active_engine_loaded = blocking_load
         app.models.active_transcriber.return_value = MagicMock(is_loaded=True)
         app.models.apply_pending_model_change = MagicMock()
         app._shutting_down_event = threading.Event()
 
+        # A start-path exception on the worker thread would otherwise
+        # surface only as an unhandled-thread warning, so record it and
+        # report it with the handshake failure below.
+        start_errors: list[Exception] = []
+
+        def _run_start() -> None:
+            try:
+                ctrl.start()
+            except Exception as exc:  # recorded and surfaced by the assertion below
+                start_errors.append(exc)
+
         # Start the model load on a worker thread (so we can observe
-        worker = threading.Thread(target=ctrl.start, name="start-worker", daemon=True)
+        worker = threading.Thread(target=_run_start, name="start-worker", daemon=True)
         worker.start()
         try:
-            # Wait for the load to start (lock should now be RELEASED).
-            assert load_started.wait(timeout=1.0), "IN-20: ensure_active_engine_loaded was never called"
-            # Give the worker a moment to enter the blocking_load body.
-            time.sleep(0.05)
-            # The lock MUST be acquirable now (proving it was released
-            acquired = ctrl._toggle_lock.acquire(blocking=False)
+            # Wait for the load to start (the worker runs without the lock).
+            reached_load = load_started.wait(timeout=_START_PATH_WAIT_S)
+            assert reached_load, (
+                "IN-20: ensure_active_engine_loaded was never reached by the start "
+                f"path (waited {_START_PATH_WAIT_S:.0f}s, worker_alive={worker.is_alive()}, "
+                f"start_error={start_errors[0] if start_errors else None!r})"
+            )
+            # The lock MUST be acquirable while the load is blocked (IN-20).
+            # Poll instead of sleeping a fixed 50 ms: the start thread still
+            # holds the lock for a few instructions after spawning the
+            # worker, and a loaded CI runner stretches that window.
+            deadline = time.monotonic() + _START_PATH_WAIT_S
+            acquired = False
+            while not acquired and time.monotonic() < deadline:
+                acquired = ctrl._toggle_lock.acquire(blocking=False)
+                if not acquired:
+                    time.sleep(0.01)
             assert acquired, (
                 "IN-20: _toggle_lock was NOT released during "
                 "ensure_active_engine_loaded(), another thread cannot "
                 "acquire it (F2 hotkey backend would be blocked for 5-30s)"
             )
-            ctrl._toggle_lock.release()
+            try:
+                complete = getattr(ctrl, "_start_complete_event", None)
+                assert complete is not None and not complete.is_set(), (
+                    "IN-20: the start worker already finished, so the lock "
+                    "release was not observed DURING the model load"
+                )
+            finally:
+                ctrl._toggle_lock.release()
         finally:
             # Let the worker finish so it doesn't leak.
             load_can_finish.set()
-            worker.join(timeout=2.0)
+            worker.join(timeout=5.0)
