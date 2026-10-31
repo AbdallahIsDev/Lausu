@@ -101,7 +101,9 @@
 		"dismiss": "Verwerfen",
 		"duplicateTitle": "Bereits in der Liste",
 		"duplicateDescription": "Diese Datei oder dieser Link wird bereits transkribiert.",
-		"noSpeech": "In diesem Medium wurde keine Sprache gefunden."
+		"noSpeech": "In diesem Medium wurde keine Sprache gefunden.",
+		"noSpeechTitle": "Keine Sprache gefunden",
+		"clearInput": "Leeren"
 	},
 	"nav": {
 		"home": "Startseite",

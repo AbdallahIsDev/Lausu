@@ -101,7 +101,9 @@
 		"dismiss": "关闭",
 		"duplicateTitle": "已在列表中",
 		"duplicateDescription": "该文件或链接已在转写中。",
-		"noSpeech": "这段媒体中没有检测到语音。"
+		"noSpeech": "这段媒体中没有检测到语音。",
+		"noSpeechTitle": "未检测到语音",
+		"clearInput": "清除"
 	},
 	"nav": {
 		"home": "首页",

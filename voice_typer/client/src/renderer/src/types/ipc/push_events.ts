@@ -582,6 +582,13 @@ export interface MediaTranscribeCompleteEvent {
 		/** Machine-readable note: `stream_fallback`, `model_changed`,
 		 * `no_speech`, or null for a clean run. */
 		note: string | null;
+		/** Real media title from the resolver; `null` for a local file (the
+		 * renderer falls back to the source label). */
+		title: string | null;
+		/** Inline preview image as `data:<mime>;base64,…`; `null` when the
+		 * extractor offered none or the fetch failed. The CSP allows `data:`
+		 * images only, so a remote URL is never sent. */
+		thumbnail_data_url: string | null;
 	};
 }
 
