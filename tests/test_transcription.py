@@ -451,6 +451,99 @@ class TestTranscribeWithFallback:
         assert result == "Thanks for watching!"
 
 
+class TestSilenceAndLanguageLogging:
+    """The silence wording and the language provenance are readings, not guesses."""
+
+    def _engine(self):
+        from voice_typer.worker.whisper import TranscriptionEngine
+
+        engine = TranscriptionEngine(model_size="small.en", device="cpu")
+        engine._device = "cpu"
+        engine._compute_type = "float32"
+        model = MagicMock()
+        engine._model = model
+        return engine, model
+
+    @staticmethod
+    def _segments(*texts):
+        return [
+            MagicMock(text=text, start=float(i), end=float(i) + 1.0, avg_logprob=-0.2, no_speech_prob=0.01)
+            for i, text in enumerate(texts)
+        ]
+
+    def test_digital_silence_is_silence_not_near_silence(self, caplog):
+        import logging
+
+        engine, model = self._engine()
+        model.transcribe.return_value = ([], MagicMock(language="en", language_probability=1.0))
+
+        with caplog.at_level(logging.WARNING, logger="voice_typer.server.transcription"):
+            engine.transcribe_with_fallback(np.zeros(16000 * 2, dtype=np.float32))
+
+        assert "Silence input" in caplog.text
+        assert "Near-silence" not in caplog.text
+
+    def test_very_quiet_audio_is_near_silence(self, caplog):
+        import logging
+
+        engine, model = self._engine()
+        model.transcribe.return_value = ([], MagicMock(language="en", language_probability=1.0))
+
+        with caplog.at_level(logging.WARNING, logger="voice_typer.server.transcription"):
+            engine.transcribe_with_fallback(np.full(16000 * 2, 1e-5, dtype=np.float32))
+
+        assert "Near-silence" in caplog.text
+        assert "Silence input" not in caplog.text
+
+    def test_configured_language_is_not_reported_as_detected(self, caplog):
+        """faster-whisper echoes the configured language with prob=1.00."""
+        import logging
+
+        engine, model = self._engine()
+        engine.language = "en"
+        model.transcribe.return_value = (
+            self._segments("hello"),
+            MagicMock(language="en", language_probability=1.0),
+        )
+
+        with caplog.at_level(logging.INFO, logger="voice_typer.server.transcription"):
+            engine.transcribe_with_fallback(np.full(16000 * 2, 0.05, dtype=np.float32))
+
+        line = next(r.getMessage() for r in caplog.records if "language:" in r.getMessage())
+        assert "(configured; not detected)" in line
+        # The echoed 1.00 was the giveaway that no LID ran.
+        assert "prob=1.00" not in line
+
+    def test_auto_detected_language_reports_its_probability(self, caplog):
+        import logging
+
+        engine, model = self._engine()
+        engine.language = None
+        model.transcribe.return_value = (
+            self._segments("hello"),
+            MagicMock(language="en", language_probability=0.87),
+        )
+
+        with caplog.at_level(logging.INFO, logger="voice_typer.server.transcription"):
+            engine.transcribe_with_fallback(np.full(16000 * 2, 0.05, dtype=np.float32))
+
+        line = next(r.getMessage() for r in caplog.records if "language:" in r.getMessage())
+        assert "(detected, prob=0.87)" in line
+
+    def test_silent_audio_with_no_segments_reports_no_language(self, caplog):
+        import logging
+
+        engine, model = self._engine()
+        engine.language = "en"
+        model.transcribe.return_value = ([], MagicMock(language="en", language_probability=1.0))
+
+        with caplog.at_level(logging.INFO, logger="voice_typer.server.transcription"):
+            engine.transcribe_with_fallback(np.zeros(16000 * 2, dtype=np.float32))
+
+        assert "[TRANSCRIBE] language: n/a (no speech detected)" in caplog.text
+        assert "(configured" not in caplog.text
+
+
 class TestTranscribeWords:
     def test_transcribe_words_passes_timestamp_options_and_applies_offset(self):
         import numpy as np

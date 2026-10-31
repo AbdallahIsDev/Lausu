@@ -55,15 +55,23 @@ class TestHarmlessExtractorWarnings:
     """ffmpeg-fixup noise stays out of the log, with its reason in DEBUG."""
 
     @pytest.mark.parametrize(
-        "message",
+        ("message", "label"),
         [
-            "DeZJG4Oib3b: writing DASH m4a. Only some players support this container. "
-            "Install ffmpeg to fix this automatically",
-            "Possible MPEG-TS in MP4 container or malformed AAC timestamps. Install ffmpeg to fix this automatically",
-            "Possible duplicate MOOV atoms",
+            (
+                "DeZJG4Oib3b: writing DASH m4a. Only some players support this container. "
+                "Install ffmpeg to fix this automatically",
+                "DASH m4a",
+            ),
+            (
+                "Possible MPEG-TS in MP4 container or malformed AAC timestamps. "
+                "Install ffmpeg to fix this automatically",
+                "MPEG-TS in MP4",
+            ),
+            ("Possible duplicate MOOV atoms", "duplicate MOOV"),
         ],
     )
-    def test_known_harmless_ffmpeg_fixup_lands_at_debug(self, caplog, message):
+    def test_known_harmless_ffmpeg_fixup_lands_at_debug(self, caplog, message, label):
+        """One short classification, and it never reads as a call to action."""
         with caplog.at_level(logging.DEBUG, logger="voice_typer.server.media_ingest.ytdlp_log"):
             YtdlpLogAdapter().warning(message)
 
@@ -71,8 +79,13 @@ class TestHarmlessExtractorWarnings:
         assert len(records) == 1, caplog.text
         assert records[0].levelno == logging.DEBUG
         text = records[0].getMessage()
-        assert "(harmless)" in text
-        assert message[:20] in text
+        assert label in text
+        assert "harmless" in text
+        assert len(text) <= 90, text
+        # yt-dlp's own sentence (and its "Install ffmpeg" tail) stays out of
+        # OUR line: the ffmpeg fixup is unnecessary for a libav decoder.
+        assert "Install ffmpeg" not in text
+        assert message not in text
 
     def test_unrelated_extractor_warning_stays_a_warning(self, caplog):
         """A table that swallows every warning would hide real extractor news."""
