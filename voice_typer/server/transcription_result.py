@@ -178,12 +178,17 @@ def transcribe_unlocked(
         peak,
         silence_pct,
     )
-    if rms < 0.001:
-        log.warning(
-            "[TRANSCRIBE] Near-silence input (RMS=%.6f). Speech detection is unlikely.",
-            rms,
-        )
+    # Digital zero and "very quiet" are different readings: calling a track of
+    # pure zeros "near-silence" suggested audio the file never had.
+    if peak == 0.0 or rms == 0.0:
+        log.warning("[TRANSCRIBE] Silence input (no audio energy at all): RMS=%.6f", rms)
+    elif rms < 0.001:
+        log.warning("[TRANSCRIBE] Near-silence input (very quiet audio): RMS=%.6f", rms)
 
+    # The language handed to the decode, read BEFORE it runs: passing one makes
+    # faster-whisper skip LID and report prob=1.00, so this is the only fact
+    # that tells a configured reading apart from a detected one.
+    configured_language = getattr(engine, "language", None)
     # NOTE: ``best_of`` is deliberately NOT passed, faster-whisper only
     # Batched on long CUDA audio (identical params, parallel windows),
     # sequential otherwise. See _decode_segments.
@@ -257,16 +262,25 @@ def transcribe_unlocked(
                         _safe_seg_text,
                     )
 
-    log.info(
-        "[TRANSCRIBE] VAD result: language=%s (prob=%.2f) | "
-        "segments=%d, text_segments=%d | avg_logprob=%s, no_speech_prob=%s",
-        info.language,
-        info.language_probability,
-        segment_count,
-        len(text_parts),
-        format_optional_mean(avg_logprobs),
-        format_optional_mean(no_speech_probs),
+    # Language provenance: faster-whisper echoes the CONFIGURED language with
+    # prob=1.00 whenever one was passed in, so an unqualified reading claimed a
+    # detection the engine never performed.
+    _stats = (
+        f"segments={segment_count}, text_segments={len(text_parts)} | "
+        f"avg_logprob={format_optional_mean(avg_logprobs)}, "
+        f"no_speech_prob={format_optional_mean(no_speech_probs)}"
     )
+    if segment_count == 0 and rms < 0.001:
+        log.info("[TRANSCRIBE] language: n/a (no speech detected)")
+    elif configured_language:
+        log.info("[TRANSCRIBE] language: %s (configured; not detected) | %s", info.language, _stats)
+    else:
+        log.info(
+            "[TRANSCRIBE] language: %s (detected, prob=%.2f) | %s",
+            info.language,
+            info.language_probability,
+            _stats,
+        )
 
     # Compact quality summary for the dictation pipeline → renderer
     engine.last_quality_summary = build_quality_summary(avg_logprobs, no_speech_probs)

@@ -48,9 +48,7 @@ def _fw_model():
 
 
 def _seg(text="hello", start=1.0, end=2.0):
-    return types.SimpleNamespace(
-        start=start, end=end, text=text, avg_logprob=-0.2, no_speech_prob=0.01
-    )
+    return types.SimpleNamespace(start=start, end=end, text=text, avg_logprob=-0.2, no_speech_prob=0.01)
 
 
 def _info():
@@ -159,6 +157,28 @@ class TestDecodeSegments:
         assert seen[1]["beam_size"] == 1
         assert seen[1]["temperature"] == (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
         assert seen[1]["without_timestamps"] is True
+
+    def test_window_line_states_the_cap_and_the_count(self, monkeypatch, caplog):
+        """``windows=1`` is one super-chunk, not a broken chunker: the cap is 120 s."""
+        import logging
+
+        engine = _make_engine()
+        engine._model = _fw_model()
+
+        class FakePipeline:
+            def __init__(self, model):
+                pass
+
+            def transcribe(self, audio, **kwargs):
+                return ([_seg(text="chunk")], _info())
+
+        monkeypatch.setattr("faster_whisper.BatchedInferencePipeline", FakePipeline)
+        with caplog.at_level(logging.INFO, logger="voice_typer.server.transcription"):
+            _decode_segments(engine, _loud_audio(61), True, 61.0)
+
+        line = next(r.getMessage() for r in caplog.records if "batched decode:" in r.getMessage())
+        assert "windows=1" in line
+        assert "61.0s of <=120s each" in line
 
     def test_vad_off_stays_sequential(self, monkeypatch):
         """VAD-off audio must not reach the batched pipeline: it needs the filter

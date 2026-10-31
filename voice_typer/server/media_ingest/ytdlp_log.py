@@ -46,22 +46,10 @@ def redact_extractor_message(message: object) -> str:
 # (PyAV) decodes natively, and we ship no ffmpeg on purpose. Matched on a
 # stable substring, never by level — a blanket demotion would hide real ones.
 _HARMLESS_MESSAGES: Final[tuple[tuple[str, str], ...]] = (
-    (
-        "writing DASH m4a",
-        "m4a_dash decodes natively with PyAV, so the ffmpeg fixup is unnecessary",
-    ),
-    (
-        "Only some players support this container",
-        "the m4a_dash container warning: libav reads it natively",
-    ),
-    (
-        "Possible MPEG-TS in MP4 container or malformed AAC timestamps",
-        "libav demuxes the stream as-is; the ffmpeg timestamp fixup is unnecessary",
-    ),
-    (
-        "Possible duplicate MOOV atoms",
-        "harmless container quirk: libav ignores the extra atom",
-    ),
+    ("writing DASH m4a", "DASH m4a"),
+    ("Only some players support this container", "DASH m4a container"),
+    ("Possible MPEG-TS in MP4 container or malformed AAC timestamps", "MPEG-TS in MP4"),
+    ("Possible duplicate MOOV atoms", "duplicate MOOV"),
 )
 
 
@@ -85,8 +73,9 @@ class YtdlpLogAdapter:
       (``no_media_url``, ``login_required``, ...), and that verdict is the line
       that carries the real severity. An ERROR here meant two ERROR lines plus
       a traceback for what is really user input.
-    * a short table of ffmpeg-fixup warnings goes to ``debug`` with its reason
-      (see ``_HARMLESS_MESSAGES``): libav decodes that container natively.
+    * a short table of ffmpeg-fixup warnings goes to ``debug`` as one fixed
+      classification (see ``_HARMLESS_MESSAGES``): libav decodes those
+      containers natively, so no fixup and no ffmpeg is needed.
     """
 
     def __init__(self, logger: logging.Logger | None = None) -> None:
@@ -102,9 +91,9 @@ class YtdlpLogAdapter:
         text = redact_extractor_message(msg)
         reason = harmless_reason(text)
         if reason is not None:
-            # One DEBUG line per downgrade: a reader sees WHY it is not
-            # actionable instead of wondering where the warning went.
-            self._logger.debug("%s(harmless) %s: %s", _PREFIX, reason, text)
+            # One fixed short line per downgrade. Echoing yt-dlp's sentence
+            # (and its "Install ffmpeg" tail) read as action the user must take.
+            self._logger.debug("%scontainer note: %s (harmless, no ffmpeg needed)", _PREFIX, reason)
             return
         self._logger.warning("%s%s", _PREFIX, text)
 

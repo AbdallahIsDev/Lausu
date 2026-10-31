@@ -181,10 +181,11 @@ def _decode_segments(engine: Any, audio: Any, use_vad_filter: bool, duration: fl
         return engine._model.transcribe(audio, **kwargs)
     chunks = _split_on_silence(audio, _WHISPER_SAMPLE_RATE)
     log.info(
-        "[TRANSCRIBE] batched decode: batch_size=%d, %d super-chunks (%.0fs audio)",
+        "[TRANSCRIBE] batched decode: batch_size=%d, windows=%d (%.1fs of <=%ds each)",
         _BATCHED_BATCH_SIZE,
         len(chunks),
         duration,
+        _BATCHED_SUPER_CHUNK_S,
     )
     # Decode the first piece eagerly so a REAL info object is available
     # immediately (the caller logs info.language after the loop). The rest
