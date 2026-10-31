@@ -90,6 +90,12 @@ class MediaJob:
     # Why the job was cancelled (e.g. the model changed under it), so the
     # cancellation is explained rather than silent.
     cancel_reason: str | None = None
+    # Real media title from the resolver (None for a local file, so the
+    # renderer falls back to the source label).
+    title: str | None = None
+    # Inline preview image (``data:<mime>;base64,...``): the CSP allows data
+    # images only, so the backend ships bytes, never a remote URL.
+    thumbnail_data_url: str | None = None
 
 
 _OnEvent = Callable[[dict], None]
@@ -167,14 +173,17 @@ class MediaJobManager:
                 job.status = "cancelled" if job.cancel_event.is_set() else "completed"
                 job.phase = "done"
                 result = job.result or {}
+                # Two labelled fields, never a "-" placeholder: an unconditional
+                # reason= made every clean completion read as a cancellation.
+                reason = f" reason={job.cancel_reason}" if job.cancel_reason else ""
                 log.info(
-                    "[MEDIA] job %s: id=%s row_id=%s chars=%s reason=%s%s",
+                    "[MEDIA] job %s: id=%s row_id=%s chars=%s elapsed=%s%s",
                     job.status,
                     job.job_id,
                     result.get("row_id"),
                     result.get("chars"),
-                    job.cancel_reason or "-",
-                    format_duration(time.perf_counter() - started_at),
+                    format_duration(time.perf_counter() - started_at).strip(),
+                    reason,
                 )
             except MediaIngestError as exc:
                 # A taxonomy verdict is user input (this link is a playlist,

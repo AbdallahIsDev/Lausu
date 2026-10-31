@@ -194,6 +194,45 @@ class TestMultiItemClassification:
 
 
 class TestDownloaderOptions:
+    def test_logs_the_extractor_verdict_proving_audio_only(self, caplog):
+        """``vcodec=none`` is the auditable proof that no video was fetched."""
+        from voice_typer.server.media_ingest import downloader
+
+        captured: dict = {}
+
+        class _DL:
+            def __init__(self, options):
+                captured.update(options)
+
+            def extract_info(self, url, download=True):
+                out_dir = Path(str(captured["outtmpl"])).parent
+                (out_dir / "media.mp4").write_bytes(b"audio-bytes")
+                return {
+                    "requested_downloads": [
+                        {
+                            "format_id": "hls-audio-128000-Audio",
+                            "ext": "mp4",
+                            "vcodec": "none",
+                            "acodec": "aac",
+                        }
+                    ]
+                }
+
+        with (
+            caplog.at_level(logging.INFO, logger="voice_typer.server.media_ingest.downloader"),
+            downloader.temp_audio_download("https://x", factory=lambda o: _DL(o)) as path,
+        ):
+            # The extractor names every HLS rendition ``.mp4``, audio-only
+            # included: the name proves nothing, the verdict does.
+            assert path.name == "media.mp4"
+
+        lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("[MEDIA] download:")]
+        assert len(lines) == 1, caplog.text
+        assert "format=hls-audio-128000-Audio" in lines[0]
+        assert "ext=mp4" in lines[0]
+        assert "vcodec=none" in lines[0]
+        assert f"bytes={len(b'audio-bytes')}" in lines[0]
+
     def test_fixed_outtmpl_and_retry_budget(self, tmp_path):
         from voice_typer.server.media_ingest import downloader
 
