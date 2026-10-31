@@ -50,7 +50,7 @@ TS unions: `types/ipc/push_events.ts` + `types/ipc/requests.ts`. Parity: `tests/
 | `paste_deferred` | `{reason, message}` | e.g. macOS Secure Input |
 | `tray_fallback_notification` | `{"data":{title,message}}` | Nested under `data` |
 | `media_transcribe_progress` | `{job_id, client_id, progress, phase, eta_seconds, duration_seconds}` | ADR-0023 chunked job progress (`phase` ∈ `downloading`/`loading_model`/`transcribing`; `client_id` echoes the start request's token) |
-| `media_transcribe_complete` | `{job_id, client_id, row_id, chars, partial}` | ADR-0023 job completion (`row_id: null` = nothing persisted, `partial: true` = cancelled job's saved partial) |
+| `media_transcribe_complete` | `{job_id, client_id, row_id, chars, partial, tier, quality, note, title, thumbnail_data_url}` | ADR-0023 job completion (`row_id: null` = nothing persisted, `partial: true` = cancelled job's saved partial, `chars: 0` on a non-partial job = no speech, `title: null` = unknown/local file, `thumbnail_data_url: null` = no preview; a `data:` URL, never a remote link) |
 | `media_transcribe_error` | `{job_id, client_id, code, message}` | ADR-0023 job failure |
 | `media_jobs_cancelled_for_model_change` | `{count}` | A model switch cancelled the jobs it could not wait out; each one completes as a partial (`note: model_changed`) |
 | `media_model_switch_refused` | `{count}` | A model switch was refused: that many jobs still hold the engine, so the current model stays loaded |

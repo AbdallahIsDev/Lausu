@@ -280,6 +280,13 @@ Rationale: The engine is one shared object, so a switch during a job freed the m
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-MEDIA-5
+Rule: Do NOT send a media window the decoder already measured as silent to the model or the ASR lane. `engine_loop`'s `_flush()` gates every window with `validation.is_total_silence` before `_decode` and before `lane()`; the dictation path keeps its own behaviour.
+Rationale: A file with no audio track paid a full model call plus a lane turn to return "" (694k float32 samples shipped to the worker), while the decode-side readings that prove silence were already in hand (2026-10-31).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Focus Indicators & Keyboard Accessibility
@@ -631,6 +638,13 @@ Rationale: The session `sounddevice` mock lost `query_devices`/`InputStream` aft
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-TEST-16
+Rule: Do NOT assert a cross-thread state transition with a fixed short wait (`time.sleep`, `event.wait(timeout=1.0)`) and treat the miss as the negative outcome. Wait for the state with a deadline generous enough to outlive a loaded CI runner, capture the worker thread's exception so "never reached" and "not reached yet" are distinguishable, and prove the negative by the worker still being in-flight (not by elapsed time).
+Rationale: The lock-release test spent a 1 s budget on a hotkey-thread → model-load handshake and flaked on a 2-vCPU Windows runner as "ensure_active_engine_loaded was never called"; its `sleep(0.05)` also papered over a second race where the start thread still held `_toggle_lock` for a few instructions after spawning the worker (2026-10-31).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Code Style & Naming
@@ -696,6 +710,13 @@ Applies to: All agents, all modes, all sub-agents.
 C-LOG-5
 Rule: Do NOT leave a background job's outcome only in an ephemeral UI notification (toast). The job owner logs exactly one start line and one outcome line (`completed`/`cancelled` with the result ids and char count, `failed` with the error code and cause), each with the C-LOG-2 duration suffix, so the file log is the durable record.
 Rationale: When the only failure report was the toast, a local transcription failure ("The media could not be decoded") left no trace of why — the user asked for success AND failure lines (owner report 2026-10-27).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-LOG-6
+Rule: Do NOT print a placeholder for an absent optional field (`reason=-`) or an unlabelled number; log only fields that exist, each with its name and unit (`elapsed=22.2s`), and never report a measurement the code did not take (a configured language is logged `(configured; not detected)`, never with a probability).
+Rationale: `[MEDIA] job completed: … reason=- 22.2s` made every clean completion read as a cancellation and left the duration unattributed; `language=en (prob=1.00)` on pure silence claimed a detection faster-whisper never ran (2026-10-31).
 Applies to: All agents, all modes, all sub-agents.
 ```
 

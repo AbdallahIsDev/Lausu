@@ -436,3 +436,41 @@ no model selected → `no_model` (Open Models); a load in flight → wait up to
 (retryable copy, no Open Models); a failed load → `failed` with the real reason
 in the log and retry copy. Media must never set `_pending_dictation`: pinning it
 would fire a phantom dictation when the load completed.
+
+## Addendum (2026-10-31): silence is decided before the model, and every log line
+says what it measured
+
+Diagnosed on the owner's silent-video run (a video with no audio track at all).
+Five findings, each fixed at its cause rather than in the message:
+
+* **A silent window never reaches the model or the ASR lane.** The decoder has
+already measured the audio, so `engine_loop`'s `_flush()` checks the window with
+the SAME definition validation uses (`validation.is_total_silence`) before
+`_decode(audio)` and before the lane is acquired; a silent window is counted in
+`WindowsState.skipped_silent_windows` and skipped. Consequence to preserve: an
+all-silent job still ends as `no_speech` / `chars=0` / `row_id=null` with the
+`media_transcribe_complete` event published (the completion event is the UI's
+signal either way), and a mixed job's transcript stays byte-identical. The
+microphone path is untouched — `transcribe_unlocked` must not start
+short-circuiting dictation.
+* **Window sizes are stated, not implied.** `WINDOW_SECONDS =
+_BATCHED_SUPER_CHUNK_S = 120.0` is the CAP; 30 s (`_BATCHED_MIN_DURATION_S`) is
+the batched-pipeline threshold above which a window is decoded in one batched
+call, and VAD splits inside that window. One 43 s file is therefore
+`windows=1`, not a chunking bug.
+* **The language line names its source.** faster-whisper skips detection and
+reports `language_probability = 1` whenever a language is passed in, so a
+configured-language run must log `(configured; not detected)` and only a real
+LID run may log `(detected, prob=...)`. Zero segments on silent audio prints
+`n/a (no speech detected)`, never a reading.
+* **Silence and near-silence are different words.** Digital zero logs `Silence
+input (no audio energy at all)`; anything above zero but below the near-silence
+threshold logs `Near-silence input (very quiet audio)`. Same level, same
+numbers.
+* **The yt-dlp fixup note is one short classification**, e.g. `container note:
+MPEG-TS in MP4 (harmless, no ffmpeg needed)` — the extractor's own sentence
+(which instructs the user to install ffmpeg) never reaches our log.
+* **ffmpeg is deliberately NOT bundled.** PyAV/libav already decodes `m4a_dash`
+and MPEG-TS, so the fixup that yt-dlp's optional ffmpeg step performs buys no
+decoding capability: the download line's `vcodec=none` plus the decoder's
+`video=0` inventory are the proof that no video bytes were fetched.
