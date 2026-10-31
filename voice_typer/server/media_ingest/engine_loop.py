@@ -10,6 +10,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from voice_typer.server.media_ingest.validation import is_total_silence
 from voice_typer.server.transcription_batching import _BATCHED_SUPER_CHUNK_S
 
 log = logging.getLogger(__name__)
@@ -50,9 +51,14 @@ class WindowsState:
     # not), so the renderer can tell "confident" from "unknown".
     avg_logprob: float | None = None
     no_speech_prob: float | None = None
+    # Windows the silence short-circuit kept away from the model (and, for a
+    # wholly silent job, off the ASR lane).
+    skipped_silent_windows: int = 0
+    skipped_silent_seconds: float = 0.0
     _sum_sq: float = 0.0
     _samples: int = 0
     _silent_samples: int = 0
+    _silence_skip_logged: bool = False
 
     @property
     def text(self) -> str:
@@ -99,6 +105,21 @@ ProgressCallback = Callable[[float, float | None], None]
 LaneFactory = Callable[[], Any]
 
 _WORKER_WINDOW_TIMEOUT_S = 300.0
+
+
+def _window_silence(chunk: Any) -> tuple[float, float, float]:
+    """One window's ``(peak, rms, silence_pct)`` on the engine's own formulas."""
+    import numpy as np
+
+    from voice_typer.server.vad_policy import _SILENCE_AMP_FLOOR
+
+    samples = int(chunk.shape[0])
+    if samples <= 0:
+        return 0.0, 0.0, 100.0
+    peak = float(np.max(np.abs(chunk)))
+    rms = float(np.sqrt(np.mean(np.square(chunk, dtype=np.float64))))
+    silent = int(np.count_nonzero(np.abs(chunk) < _SILENCE_AMP_FLOOR))
+    return peak, rms, silent / samples * 100.0
 
 
 def _accepts_scoped_abort(backend: Any) -> bool:
@@ -277,6 +298,19 @@ def transcribe_windows(
         audio = np.concatenate(window).astype(np.float32, copy=False)
         window = []
         window_samples = 0
+        peak, rms, silence_pct = _window_silence(audio)
+        if is_total_silence(rms, silence_pct):
+            # A silent window would only cost a model call whose VAD finds no
+            # speech, and (with a lane) a turn on the shared engine. Skip it
+            # before either, while keeping the job-wide readings from
+            # ``add_audio`` so the whole-file outcome is unchanged.
+            seconds = float(audio.shape[0]) / TARGET_SAMPLE_RATE
+            acc.skipped_silent_windows += 1
+            acc.skipped_silent_seconds += seconds
+            if not acc._silence_skip_logged:
+                acc._silence_skip_logged = True
+                log.info("[MEDIA] skip ASR: silent window (peak=%.6f, %.1fs of audio)", peak, seconds)
+            return
         if lane is None:
             _decode(audio)
             acc.record_quality(backend)
@@ -321,6 +355,12 @@ def transcribe_windows(
         _flush()
         if on_progress is not None:
             on_progress(1.0, 0.0)
+    if acc.skipped_silent_windows > 1:
+        log.info(
+            "[MEDIA] skip ASR: %d silent windows, %.1fs of audio never decoded",
+            acc.skipped_silent_windows,
+            acc.skipped_silent_seconds,
+        )
     return acc
 
 
