@@ -10,8 +10,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from voice_typer.server.media_ingest.validation import is_total_silence
 from voice_typer.server.transcription_batching import _BATCHED_SUPER_CHUNK_S
+from voice_typer.server.vad_policy import _SILENCE_AMP_FLOOR
 
 log = logging.getLogger(__name__)
 
@@ -85,8 +85,6 @@ class WindowsState:
         """Accumulate one chunk into the job-wide RMS / silence readings."""
         import numpy as np
 
-        from voice_typer.server.vad_policy import _SILENCE_AMP_FLOOR
-
         samples = int(chunk.shape[0])
         if samples <= 0:
             return
@@ -110,8 +108,6 @@ _WORKER_WINDOW_TIMEOUT_S = 300.0
 def _window_silence(chunk: Any) -> tuple[float, float, float]:
     """One window's ``(peak, rms, silence_pct)`` on the engine's own formulas."""
     import numpy as np
-
-    from voice_typer.server.vad_policy import _SILENCE_AMP_FLOOR
 
     samples = int(chunk.shape[0])
     if samples <= 0:
@@ -298,8 +294,13 @@ def transcribe_windows(
         audio = np.concatenate(window).astype(np.float32, copy=False)
         window = []
         window_samples = 0
-        peak, rms, silence_pct = _window_silence(audio)
-        if is_total_silence(rms, silence_pct):
+        peak = _window_silence(audio)[0]
+        # Skip only a window with NO energy at all: every sample under the
+        # silence floor. `is_total_silence` is a whole-JOB verdict (rms < 0.01 AND
+        # >= 95% of samples under the floor) and drops a 120 s window holding a few
+        # seconds of quiet speech (measured: 4 s of speech at -20 dBFS peaks ->
+        # window rms 0.0036, 96.8% under the floor -> skipped, transcript lost).
+        if peak < _SILENCE_AMP_FLOOR:
             # A silent window would only cost a model call whose VAD finds no
             # speech, and (with a lane) a turn on the shared engine. Skip it
             # before either, while keeping the job-wide readings from
