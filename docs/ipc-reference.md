@@ -42,7 +42,7 @@ host-dispatched / host-only set (`heartbeat`, `relaunch_ack`,
 `allowed_commands()` are host-internal (invoked by the Rust host via
 `dispatch_inner` or host-supervised shutdown), never by the renderer.
 
-## Commands (90 total: 86 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
+## Commands (93 total: 89 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
 
 Grouped by namespace. "✓" in the Allowlist column means the command is
 in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
@@ -123,6 +123,17 @@ in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
 | `resume_model_download` | `_handle_resume_model_download` | ✓ |  |
 | `test_cloud_connection` | `_handle_test_cloud_connection` | ✓ | Cloud ASR/LLM endpoint reachability probe: invoked from Settings → Models → Cloud "Test connection" button. Handler: `cloud_test_handlers.py`. |
 | `add_trusted_endpoint` | `_handle_add_trusted_endpoint` | ✓ | ADR-0017 §"Runtime Extensions": extends the per-process URL allowlist at runtime so users can configure self-hosted ASR/LLM endpoints. Handler: `config_handlers.py`. |
+
+### Text-to-speech (local TTS engines)
+
+Both engines run natively from a `nemo-speech` binary (no Python/ONNX model
+runtime). Packs live under `<HF cache>/tts/{bin,models}/<engine>`.
+
+| Command | Handler | Allowlist | Notes |
+|---------|---------|-----------|-------|
+| `tts_status` | `_handle_tts_status` | ✓ | Models page TTS card: per-engine `{ available, path, reason }` for the installed packs. Read-only. |
+| `tts_prepare` | `_handle_tts_prepare` | ✓ | Loads the selected engine (spawns/attaches the engine process). Payload `{ engine }`; idempotent. |
+| `tts_speak` | `_handle_tts_speak` | ✓ | Synthesizes one utterance and returns the WAV. Payload `{ text, engine? }`; requires that engine to be prepared (otherwise `server.internal_error: engine not configured`). |
 
 ### Offline transcription (runtime-pack worker)
 
@@ -247,6 +258,14 @@ this page find the canonical "this command does not exist" answer:
 > was restored the same day (addendum 2nd half) as a RE-IMPLEMENTATION
 > It re-runs the worker's warm phase in-process via
 > `prewarm.status.run_prewarm_now()` (no deleted-subprocess spawn).
+
+> Note: `tts_compare` was added with the first TTS wiring and REMOVED the
+> same day — an A/B comparison is not a feature this app needs. The Models
+> page drives TTS with the same per-row Download → Select / Active + Test
+> actions as the local ASR models, so the A/B machinery (server method,
+> registry entry, allowlist entry, renderer call, i18n string) is gone. Do
+> not re-add it; the three surviving commands are `tts_status`,
+> `tts_prepare` and `tts_speak` (table above).
 
 The corresponding host-side workflows (vocabulary automation pipeline,
 GDPR export/delete, diagnostics export, LLM

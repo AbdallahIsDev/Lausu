@@ -58,6 +58,8 @@ _READONLY_COMMANDS: frozenset[str] = frozenset(
         "onboarding_get_hotkey_presets",
         "onboarding_check_permissions",
         "screenshot_get_status",
+        # TTS engine/pack inventory (Models page rows); filesystem probe only.
+        "tts_status",
     }
 )
 
@@ -205,6 +207,10 @@ _COMMAND_REGISTRY: dict[str, str] = {
     "screenshot_clear_cycle": "_handle_screenshot_clear_cycle",
     "screenshot_get_status": "_handle_screenshot_get_status",
     "screenshot_set_consent": "_handle_screenshot_set_consent",
+    # Local text-to-speech (Audio8 + MagpieTTS) — Models page engine rows.
+    "tts_status": "_handle_tts_status",
+    "tts_prepare": "_handle_tts_prepare",
+    "tts_speak": "_handle_tts_speak",
 }
 
 

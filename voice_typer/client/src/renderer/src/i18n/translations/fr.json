@@ -2255,5 +2255,18 @@
 		"cpu": "CPU",
 		"gpu": "GPU",
 		"ariaLabel": "Unité de calcul"
+	},
+	"tts": {
+		"title": "Réponses parlées",
+		"description": "Synthèse vocale locale. Les deux moteurs s'exécutent nativement, sans environnement Python.",
+		"testVoice": "Tester la voix",
+		"prepare": "Télécharger",
+		"ready": "Prêt",
+		"missing": "Non téléchargé",
+		"voice": "Voix",
+		"language": "Langue",
+		"sampleText": "Voici ce que donne votre texte dicté lorsqu'il est lu à voix haute.",
+		"working": "Génération de la voix…",
+		"failed": "Échec de la synthèse vocale"
 	}
 }

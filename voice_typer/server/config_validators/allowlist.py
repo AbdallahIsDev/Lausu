@@ -160,6 +160,10 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
         str,
         _make_enum_validator(frozenset({"whisper", "qwen", "parakeet", "cloud"})),
     ),
+    # Local TTS engine toggle (Models page) + voice/language selection.
+    "tts_engine": (str, _make_enum_validator(frozenset({"off", "audio8", "magpie"}))),
+    "tts_voice": (str, _make_str_validator(max_len=64)),
+    "tts_language": (str, _make_str_validator(max_len=16)),
     "text_cleanup_enabled": (bool, _bool_validator),
     "auto_punctuation": (bool, _bool_validator),
     "log_transcriptions": (bool, _bool_validator),

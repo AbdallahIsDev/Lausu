@@ -16,6 +16,7 @@ from voice_typer.server.handlers.microphone_test_handlers import (
     MicrophoneTestHandlersMixin,
 )
 from voice_typer.server.handlers.model_handlers import ModelHandlersMixin
+from voice_typer.server.handlers.tts_handlers import TtsHandlersMixin
 from voice_typer.server.handlers.onboarding_handlers import OnboardingHandlersMixin
 from voice_typer.server.handlers.plugin_handlers import PluginHandlersMixin
 from voice_typer.server.handlers.privacy_handlers import PrivacyHandlersMixin
@@ -45,6 +46,7 @@ __all__ = [
     "MediaHandlersMixin",
     "MicVolumeHandlersMixin",
     "ModelHandlersMixin",
+    "TtsHandlersMixin",
     "SystemHandlersMixin",
     "VocabularyAutomationHandlersMixin",
     "PrivacyHandlersMixin",

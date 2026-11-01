@@ -2255,5 +2255,18 @@
 		"cpu": "CPU",
 		"gpu": "GPU",
 		"ariaLabel": "Compute device"
+	},
+	"tts": {
+		"title": "Spoken replies",
+		"description": "Local text-to-speech. Both engines run natively with no Python model runtime.",
+		"testVoice": "Test voice",
+		"prepare": "Download",
+		"ready": "Ready",
+		"missing": "Not downloaded",
+		"voice": "Voice",
+		"language": "Language",
+		"sampleText": "This is what your dictated text sounds like when spoken back to you.",
+		"working": "Generating speech…",
+		"failed": "Speech failed"
 	}
 }

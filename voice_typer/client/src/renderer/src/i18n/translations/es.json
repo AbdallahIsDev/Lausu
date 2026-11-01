@@ -2255,5 +2255,18 @@
 		"cpu": "CPU",
 		"gpu": "GPU",
 		"ariaLabel": "Dispositivo de cálculo"
+	},
+	"tts": {
+		"title": "Respuestas habladas",
+		"description": "Voz local. Ambos motores se ejecutan de forma nativa, sin entorno Python para el modelo.",
+		"testVoice": "Probar la voz",
+		"prepare": "Descargar",
+		"ready": "Listo",
+		"missing": "No descargado",
+		"voice": "Voz",
+		"language": "Idioma",
+		"sampleText": "Así suena tu texto dictado cuando se lee en voz alta.",
+		"working": "Generando voz…",
+		"failed": "Falló la síntesis de voz"
 	}
 }
