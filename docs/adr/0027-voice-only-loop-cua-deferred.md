@@ -128,6 +128,26 @@ Neutral:
   thresholds (approve ≥ 0.9 / block ≤ 0.1 / else review per Jev
   gate-tool-calls cookbook).
 
+## Amendment 2026-10-31: TTS engine choice (owner decision)
+
+The TTS slot ships **two** local engines instead of the Piper/Kokoro pair, both
+behind the existing on-demand pack pattern and stored under the app's Hugging
+Face folder (`<config dir>/huggingface/tts/`), beside the ASR weights:
+
+1. **MagpieTTS Multilingual 357M** (v2607 F16, 568.7 MB, + NanoCodec 78.8 MB)
+   served by NeMo-Speech.cpp — the same binary that hosts the Nemotron ASR
+   backends. Fits the ≤ 1 GB budget. Covers Arabic on v2607 only
+   (`ar-AE`, `ar-SA`, `ar-MSA`); no Egyptian (`ar-EG`) in the training mix.
+2. **Audio8-TTS-Realistic-0.6B** (BF16 GGUF, **1.89 GB**) served by audio.cpp.
+   **This exceeds the ≤ 1 GB budget in this ADR.** The owner accepted the size
+   explicitly ("I'm okay with its size"); the reason to carry it anyway is
+   zero-shot voice cloning, which MagpieTTS removed in v2607.
+
+Both runtimes are torch-free (native GGML) and expose the OpenAI-compatible
+`POST /v1/audio/speech` route, so the sidecar talks to them through one client.
+The ≤ 1 GB figure remains the guidance for the *default* pack; Audio8 is the
+documented, owner-approved exception rather than a silent budget overrun.
+
 ## References
 
 - https://cua.ai/cua-driver

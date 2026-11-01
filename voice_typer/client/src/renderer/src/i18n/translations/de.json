@@ -2255,5 +2255,18 @@
 		"cpu": "CPU",
 		"gpu": "GPU",
 		"ariaLabel": "Rechengerät"
+	},
+	"tts": {
+		"title": "Gesprochene Antworten",
+		"description": "Lokale Sprachausgabe. Beide Engines laufen nativ, ohne Python-Modelllaufzeit.",
+		"testVoice": "Stimme testen",
+		"prepare": "Herunterladen",
+		"ready": "Bereit",
+		"missing": "Nicht heruntergeladen",
+		"voice": "Stimme",
+		"language": "Sprache",
+		"sampleText": "So klingt dein diktiertes Textstück, wenn es dir vorgelesen wird.",
+		"working": "Sprache wird erzeugt…",
+		"failed": "Sprachausgabe fehlgeschlagen"
 	}
 }

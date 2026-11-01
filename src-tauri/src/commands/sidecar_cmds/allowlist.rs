@@ -146,6 +146,11 @@ pub(crate) fn allowed_commands() -> &'static HashSet<&'static str> {
             "screenshot_clear_cycle",
             "screenshot_get_status",
             "screenshot_set_consent",
+            // Local text-to-speech (Audio8 + MagpieTTS): inventory, pack
+            // download, and speak.
+            "tts_status",
+            "tts_prepare",
+            "tts_speak",
         ];
         HashSet::from_iter(cmds.iter().copied())
     })

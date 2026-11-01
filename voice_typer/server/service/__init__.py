@@ -11,6 +11,7 @@ from voice_typer.server.service.microphone_test import MicrophoneTestMixin
 from voice_typer.server.service.model import _MODEL_STATUS_CACHE_TTL_S, ModelMixin
 from voice_typer.server.service.onboarding import OnboardingMixin
 from voice_typer.server.service.status import StatusMixin
+from voice_typer.server.service.tts import TtsMixin
 from voice_typer.server.service.template import TemplateMixin
 from voice_typer.server.service.vocabulary import VocabularyMixin
 
@@ -53,6 +54,7 @@ class ForceCancelResult(TypedDict):
 class LausuService(
     HistoryMixin,
     ModelMixin,
+    TtsMixin,
     OnboardingMixin,
     MicrophoneTestMixin,
     VocabularyMixin,

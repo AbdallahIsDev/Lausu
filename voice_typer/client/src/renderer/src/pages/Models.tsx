@@ -39,6 +39,7 @@ import PageHeading from "@/components/common/PageHeading";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { CloudProvidersPanel } from "@/components/models/CloudProvidersPanel";
 import { LocalModelsPanel } from "@/components/models/LocalModelsPanel";
+import { TtsPanel } from "@/components/models/TtsPanel";
 import { Button } from "@/components/ui/button";
 import { useModelLifecycle } from "@/hooks/useModelLifecycle";
 import { t } from "@/i18n/i18n";
@@ -360,6 +361,7 @@ export default function ModelsPage() {
 							aria-label={t("models.localModels")}
 							className="flex flex-col gap-4 scroll-mt-32"
 						>
+							<TtsPanel />
 							<LocalModelsPanel
 								modelFamilies={modelFamilies}
 								modelCatalog={lifecycle.modelCatalog}

@@ -63,6 +63,12 @@ const COMMAND_TIMEOUTS: Record<string, number> = {
 	// `DISPATCH_TIMEOUT_SECS` budget for the same command (see
 	// `_LONG_RUNNING_COMMANDS` in `dispatch.rs`), so the renderer
 	// surfaces the command-specific timeout first (house convention).
+	// Local TTS: `tts_prepare` installs the runtime archive (tens of MB)
+	// plus the model pack (up to 1.9 GB), so it shares the download-scale
+	// budget. Speak adds a cold runtime start (~15s) before the first
+	// render, which a 30s default would cut off.
+	tts_prepare: 3_595_000,
+	tts_speak: 115_000,
 	media_transcribe_start: 115_000,
 };
 

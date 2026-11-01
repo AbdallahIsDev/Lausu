@@ -126,6 +126,7 @@ from voice_typer.server.handlers.microphone_test_handlers import (  # noqa: E402
     MicrophoneTestHandlersMixin,
 )
 from voice_typer.server.handlers.model_handlers import ModelHandlersMixin  # noqa: E402
+from voice_typer.server.handlers.tts_handlers import TtsHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.onboarding_handlers import OnboardingHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.plugin_handlers import PluginHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.repaste_handlers import RepasteHandlersMixin  # noqa: E402
@@ -173,6 +174,7 @@ class IPCServer(
     MediaHandlersMixin,
     MicVolumeHandlersMixin,
     ModelHandlersMixin,
+    TtsHandlersMixin,
     SystemHandlersMixin,
     VocabularyAutomationHandlersMixin,
     RepasteHandlersMixin,

@@ -2255,5 +2255,18 @@
 		"cpu": "CPU",
 		"gpu": "GPU",
 		"ariaLabel": "计算设备"
+	},
+	"tts": {
+		"title": "语音回复",
+		"description": "本地语音合成。两个引擎均原生运行，不需要 Python 模型运行时。",
+		"testVoice": "测试语音",
+		"prepare": "下载",
+		"ready": "就绪",
+		"missing": "未下载",
+		"voice": "音色",
+		"language": "语言",
+		"sampleText": "这就是你听写的文字被朗读出来的效果。",
+		"working": "正在生成语音…",
+		"failed": "语音生成失败"
 	}
 }

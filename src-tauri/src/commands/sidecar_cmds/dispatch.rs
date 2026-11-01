@@ -35,11 +35,16 @@ const _LONG_RUNNING_COMMANDS: &[&str] = &[
     "pause_model_download",
     "resume_model_download",
     "media_transcribe_start",
+    // Local TTS renders a full paragraph: the first call of a session
+    // also pays the runtime's model load (~15s for Audio8).
+    "tts_speak",
 ];
 
 // Multi-GB transfer commands get the 1h download-scale cap
 // (sidecar keeps downloading after a host timeout).
-const _DOWNLOAD_COMMANDS: &[&str] = &["download_model", "import_model"];
+// `tts_prepare` belongs here: it installs the engine runtime (tens of MB)
+// AND its model pack (up to 1.9 GB for Audio8).
+const _DOWNLOAD_COMMANDS: &[&str] = &["download_model", "import_model", "tts_prepare"];
 
 /// WS envelope headroom subtracted from `MAX_FRAME_BYTES` for the data cap.
 pub(crate) const ENVELOPE_HEADROOM_BYTES: usize = 256;

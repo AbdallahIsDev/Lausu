@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import math
+from typing import Any
 
 from voice_typer.server._lazy_import import lazy_module
 
@@ -36,6 +37,9 @@ _RNNOISE_FRAME_SIZE: int = 480
 
 # GTCRN (the bundled ONNX streaming model) is native 16 kHz and
 _GTCRN_HOP_SIZE: int = 256
+
+# DPDFNet aliases users can reach through hand-edited config files.
+_DPDFNET_ALIASES: frozenset[str] = frozenset({"dpdfnet", "dpdfnet2"})
 
 # float32 -> int16 conversion constants. ``_FLOAT_TO_INT16_MAX`` is the
 _FLOAT_TO_INT16_MAX: float = float(2**15 - 1)  # 32767.0
@@ -83,6 +87,11 @@ class NoiseSuppressor(AudioFilter):
         # pre-allocated float32 output buffer for the concatenated GTCRN
         self._result_16k_buf: np.ndarray | None = None
 
+        # DPDFNet model weights download in the background after startup
+        # (C-START-1), so a chain built before that finishes serves the
+        # rnnoise fallback. This flag lets the next reset() promote it.
+        self._dpdfnet_pending: bool = False
+
         self._init_backend()
 
     def _init_backend(self) -> None:
@@ -96,6 +105,8 @@ class NoiseSuppressor(AudioFilter):
             self._init_rnnoise()
         elif method == "gtcrn":
             self._init_gtcrn()
+        elif method in _DPDFNET_ALIASES:
+            self._init_dpdfnet()
         elif method == "deepfilternet":
             # Legacy config value: the DeepFilterNet backend was replaced
             if not self._quiet:
@@ -188,6 +199,69 @@ class NoiseSuppressor(AudioFilter):
             if not self._quiet:
                 _log_backend_ready_once("gtcrn", "[NOISE-SUPPRESS] GTCRN backend ready (bundled ONNX streaming model)")
 
+    def _init_dpdfnet(self) -> None:
+        """Initialize the DPDFNet backend (DeepFilterNet2 streaming ONNX).
+
+        The model download + session build run on a startup daemon thread, so
+        this can legitimately find no runtime yet. That is a degraded (not
+        fatal) state: serve rnnoise for now and retry at the next reset().
+        """
+        reason = ""
+        try:
+            from voice_typer.server.audio_filters.dpdfnet_backend import DpdfnetBackend
+
+            self._backend = DpdfnetBackend(sample_rate=self._source_sample_rate)
+        except Exception as exc:
+            reason = f"dpdfnet unavailable: {exc}"
+        else:
+            if not self._quiet:
+                _log_backend_ready_once(
+                    "dpdfnet",
+                    "[NOISE-SUPPRESS] DPDFNet backend ready (DeepFilterNet2 streaming ONNX)",
+                )
+            return
+
+        if not self._quiet:
+            log.debug("[NOISE-SUPPRESS] %s, serving rnnoise until it is ready", reason)
+        self._degraded = True
+        self._dpdfnet_pending = True
+        self._method = "rnnoise"
+        self._init_rnnoise()
+        if self._method == "none":
+            rnnoise_reason = self._degraded_reason
+            self._degraded_reason = f"{reason}; rnnoise fallback also unavailable: {rnnoise_reason}"
+            return
+        self._degraded = True
+        self._degraded_reason = f"{reason}, serving rnnoise instead"
+
+    def _promote_dpdfnet(self) -> None:
+        """Swap the rnnoise fallback for DPDFNet once its runtime has landed.
+
+        Called from ``reset()`` (recording start), never from ``process()``: a
+        session build must not run on the audio callback. Uses the already
+        cached runtime only, so a failed/slow preload costs nothing.
+        """
+        if not self._dpdfnet_pending or self._method != "rnnoise":
+            return
+        try:
+            from voice_typer.server.audio_filters import dpdfnet_backend
+
+            if dpdfnet_backend._cached_runtime() is None:
+                return
+            backend = dpdfnet_backend.DpdfnetBackend(sample_rate=self._source_sample_rate)
+        except Exception:
+            return
+        self._backend = backend
+        self._method = "dpdfnet"
+        self._dpdfnet_pending = False
+        self._degraded = False
+        self._degraded_reason = ""
+        if not self._quiet:
+            _log_backend_ready_once(
+                "dpdfnet",
+                "[NOISE-SUPPRESS] DPDFNet backend ready (DeepFilterNet2 streaming ONNX)",
+            )
+
     def process(self, audio: np.ndarray, sample_rate: int) -> np.ndarray | None:
         if self._method == "none" or self._backend is None or audio.size == 0:
             return audio
@@ -199,6 +273,8 @@ class NoiseSuppressor(AudioFilter):
             return self._process_rnnoise(samples, sample_rate, original_shape)
         if self._method == "gtcrn":
             return self._process_gtcrn(samples, sample_rate, original_shape)
+        if self._method == "dpdfnet":
+            return self._process_dpdfnet(samples, sample_rate, original_shape)
         #  defensive guard: ``_init_backend`` is supposed to
         if not self._degraded:
             self._degraded = True
@@ -397,7 +473,34 @@ class NoiseSuppressor(AudioFilter):
 
         return result.astype(np.float32, copy=False).reshape(original_shape)
 
+    def _process_dpdfnet(
+        self,
+        samples: Any,
+        sample_rate: int,
+        original_shape: tuple,
+    ) -> Any:
+        """Process through DPDFNet; the backend already returns exact length.
+
+        ``Any`` here is truthful, not a shortcut: ``_backend`` is an untyped
+        object (the optional package ships no stubs), so the exact-length
+        contract is enforced by the check below rather than by the signature.
+        """
+        assert self._backend is not None
+        backend: Any = self._backend
+        try:
+            result = backend.process_chunk(samples, sample_rate)
+        except Exception as exc:
+            # Never kill the recording on a model hiccup: pass the raw chunk.
+            log.debug("[NOISE-SUPPRESS] DPDFNet chunk failed: %s", exc)
+            return samples.astype(np.float32, copy=False).reshape(original_shape)
+        if len(result) == len(samples):
+            return result.reshape(original_shape)
+        return samples.astype(np.float32, copy=False).reshape(original_shape)
+
     def reset(self) -> None:
+        # A recording is starting: use the configured backend if its
+        # background preload finished since the chain was built.
+        self._promote_dpdfnet()
         # zero the existing state array BEFORE replacing it
         if self._carry.size > 0:
             self._carry.fill(0)
@@ -424,6 +527,9 @@ class NoiseSuppressor(AudioFilter):
             self._gtcrn_upsampler.reset()
         if self._gtcrn_downsampler is not None:
             self._gtcrn_downsampler.reset()
+        # DPDFNet state: RNN state, STFT buffers, overlap-add + pre-roll FIFO
+        if self._method == "dpdfnet" and self._backend is not None:
+            self._backend.reset()
 
     def _resampler_pair_delay_ms(self, native_rate: int) -> float:
         """Round-trip group delay (ms) of this suppressor's streaming resampler pair."""
@@ -443,6 +549,9 @@ class NoiseSuppressor(AudioFilter):
             return 10.0 + self._resampler_pair_delay_ms(RNNOISE_SAMPLE_RATE)
         if self._method == "gtcrn":
             return 16.0 + self._resampler_pair_delay_ms(WHISPER_SAMPLE_RATE)
+        if self._method == "dpdfnet" and self._backend is not None:
+            # The backend owns its own resampler pair, so no extra term.
+            return float(getattr(self._backend, "latency_ms", 0.0))
         return 0.0
 
     @property

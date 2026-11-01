@@ -1,17 +1,17 @@
-import {
-	Cancel01Icon,
-	CircleIcon,
-	Delete01Icon,
-	Download01Icon,
-	Loading03Icon,
-	Tick02Icon,
-} from "@hugeicons/core-free-icons";
+import { Cancel01Icon, Delete01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { ReactNode } from "react";
 import { memo } from "react";
+import {
+	ACTION_BUTTON_ALIGN,
+	ACTION_BUTTON_WIDTH,
+	ACTION_ICON_CLASS,
+	ActiveActionButton,
+	DownloadActionButton,
+	SelectActionButton,
+} from "@/components/models/ModelActionButtons";
 import { Button } from "@/components/ui/button";
 import { t } from "@/i18n/i18n";
-import { cn } from "@/lib/utils";
 import { formatModelSize, type ModelInfo } from "@/lib/utils/models";
 
 // ── Fixed width for model-size download buttons ───────────────────────
@@ -22,13 +22,13 @@ import { formatModelSize, type ModelInfo } from "@/lib/utils/models";
 // text begin at the same left position in every row (the Button base
 // centers its content by default). (2026-08-28): width widened to 96px
 // (w-24), gap bumped to gap-2, and the text size dropped to text-xs.
-export const DOWNLOAD_SIZE_BUTTON_WIDTH = "w-24";
+export const DOWNLOAD_SIZE_BUTTON_WIDTH = ACTION_BUTTON_WIDTH;
 // Content is left-aligned (icon + size text share one start position
 // across all model rows) instead of centered inside the fixed width.
-export const DOWNLOAD_CONTENT_ALIGNMENT = "justify-start";
+export const DOWNLOAD_CONTENT_ALIGNMENT = ACTION_BUTTON_ALIGN;
 // Compact download icon that visually matches the 11px size text
 // height (16px `h-4` dominated the button; 12px reads proportional).
-export const DOWNLOAD_ICON_CLASS = "h-3 w-3";
+export const DOWNLOAD_ICON_CLASS = ACTION_ICON_CLASS;
 
 export interface ModelCardActionsProps {
 	model: ModelInfo;
@@ -113,20 +113,9 @@ export const ModelCardActions = memo(function ModelCardActions({
 		return (
 			<div className="flex items-center gap-2 shrink-0">
 				<DeleteButton model={model} onDelete={onDelete} />
-				<Button
-					variant="secondary"
-					size="sm"
-					className="gap-2 cursor-default opacity-60 h-fit px-3 py-1.5 text-xs whitespace-nowrap w-24 justify-start"
-					disabled
-					aria-label={t("models.card.activeAria", { name: model.name })}
-				>
-					<HugeiconsIcon
-						icon={Tick02Icon}
-						strokeWidth={2}
-						className="h-3 w-3"
-					/>
-					{t("models.active")}
-				</Button>
+				<ActiveActionButton
+					ariaLabel={t("models.card.activeAria", { name: model.name })}
+				/>
 			</div>
 		);
 	}
@@ -172,75 +161,22 @@ export const ModelCardActions = memo(function ModelCardActions({
 		return (
 			<div className="flex items-center gap-2 shrink-0">
 				<DisabledHintTooltip hint={downloadHint}>
-					<Button
-						variant="outline"
-						size="sm"
-						// Fixed, identical width for every model-size
-						// Download button at REST (see DOWNLOAD_SIZE_BUTTON_WIDTH
-						// above), "75 MB" / "3 GB" / "809 MB" all render the same
-						// button width + alignment. The content is left-aligned
-						// (justify-start) so the icon + size text begin at the same
-						// horizontal position in every model row.
-						// (2026-09-03): the IN-FLIGHT state drops the fixed width —
-						// the label swaps to the localized "Downloading…" so a
-						// content-fitted width is used for that state (user request:
-						// no truncated size text inside a disabled spinner button).
-						// The QUEUED state is also a label swap ("Queued"), not a
-						// size, same content-fitted treatment.
-						className={cn(
-							"gap-2 text-xs whitespace-nowrap",
-							!isDownloadingThis && !isQueued && DOWNLOAD_SIZE_BUTTON_WIDTH,
-							DOWNLOAD_CONTENT_ALIGNMENT,
-						)}
-						onClick={() => onDownload(model)}
+					<DownloadActionButton
+						sizeLabel={formatModelSize(model.size)}
+						busy={isDownloadingThis}
+						queued={isQueued}
+						queuedLabel={queuedLabel}
 						disabled={downloadDisabled}
-						aria-busy={isDownloadingThis}
-						aria-label={
+						ariaLabel={
 							isDownloadingThis
 								? t("models.downloading")
 								: isQueued
-									? queuedLabel
+									? (queuedLabel ?? t("models.download.queued"))
 									: t("models.card.downloadAria", { name: model.name })
 						}
-						// Explain why the button is disabled
-						// (one download at a time) so users don't think the
-						// button is broken. Skip the tooltip when THIS
-						// is the in-flight download (the button is showing
-						// "Downloading…", the "one at a time" hint would be
-						// contradictory). Queued models show their position
-						// tooltip instead (the request IS accepted, it is
-						// waiting its turn).
 						title={isQueued ? queuedLabel : downloadHint}
-					>
-						<HugeiconsIcon
-							// In-flight presentation: a LOADING spinner glyph
-							// (spinning) replaces the download glyph, the
-							// static download icon spinning around itself read
-							// as broken. At rest the compact download icon
-							// matches the text-xs size.
-							icon={isDownloadingThis ? Loading03Icon : Download01Icon}
-							strokeWidth={2}
-							className={cn(
-								isDownloadingThis ? "h-3.5 w-3.5" : DOWNLOAD_ICON_CLASS,
-								isDownloadingThis && "animate-spin",
-							)}
-						/>
-						{/* At rest: download icon + model size only (the icon
-                                                    communicates "download", see the 2026-08-20 overhaul,
-                                                    point 7). In-flight: the localized "Downloading…" label
-                                                    replaces the size (a frozen size number inside a
-                                                    disabled spinner button misreads as "downloaded").
-                                                    Queued: the localized "Queued" label replaces the
-                                                    size, the request is accepted and waiting, not
-                                                    transferring. */}
-						{isDownloadingThis ? (
-							t("models.downloading")
-						) : isQueued ? (
-							t("models.download.queued")
-						) : (
-							<span className="font-medium">{formatModelSize(model.size)}</span>
-						)}
-					</Button>
+						onClick={() => onDownload(model)}
+					/>
 				</DisabledHintTooltip>
 				{isQueued && onCancelQueued && (
 					// Cancel affordance for the QUEUED state: removes this
@@ -278,37 +214,11 @@ export const ModelCardActions = memo(function ModelCardActions({
 	return (
 		<div className="flex items-center gap-2 shrink-0">
 			<DeleteButton model={model} onDelete={onDelete} />
-			<Button
-				variant={isSelectingThis ? "secondary" : "outline"}
-				size="sm"
-				// The fixed w-24 keeps the width stable when the spinner swaps in.
-				className="gap-2 text-xs whitespace-nowrap w-24"
+			<SelectActionButton
+				busy={isSelectingThis}
+				ariaLabel={selectAriaLabel(model, isSelectingThis)}
 				onClick={() => onSelect(model)}
-				disabled={isSelectingThis}
-				// Announce the in-flight selection state
-				// to assistive-tech users via aria-busy + a label swap.
-				aria-busy={isSelectingThis}
-				aria-label={selectAriaLabel(model, isSelectingThis)}
-			>
-				{/* At rest: a plain circle outline — a neutral, not-yet-chosen
-				    marker. It can never be misread as "already selected"
-				    (which is what the old tick did). In-flight the spinner
-				    replaces it. */}
-				{isSelectingThis ? (
-					<HugeiconsIcon
-						icon={Loading03Icon}
-						strokeWidth={2}
-						className="h-3 w-3 animate-spin"
-					/>
-				) : (
-					<HugeiconsIcon
-						icon={CircleIcon}
-						strokeWidth={2}
-						className="h-3 w-3"
-					/>
-				)}
-				{isSelectingThis ? t("models.selecting") : t("models.select")}
-			</Button>
+			/>
 		</div>
 	);
 });

@@ -87,6 +87,12 @@ class _ConfigSchema:
 
     # ASR backend selection
     asr_backend: Literal["whisper", "qwen", "parakeet", "cloud"] = "whisper"
+
+    # Local text-to-speech. "off" keeps both native runtimes unloaded; the
+    # packs live under the Hugging Face folder like every other model.
+    tts_engine: Literal["off", "audio8", "magpie"] = "off"
+    tts_voice: str = "Aria"
+    tts_language: str = "en-US"
     qwen_model_path: str | None = None  # local path to Qwen3-ASR weights
     parakeet_model_path: str | None = None  # local override for Parakeet weights (None = HF cache)
 
