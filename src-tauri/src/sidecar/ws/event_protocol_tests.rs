@@ -116,6 +116,7 @@ fn test_allowlist_is_exact_canonical_set() {
         // as `mic_level` but NOT coalesced: every frame is playback data.
         "live_preview_audio",
         "llm_polish_failed",
+        "filter_collapse",
         "device_lost",
         "asr_backend_disabled",
         "asr_last_resort_unloaded",
@@ -155,6 +156,11 @@ fn test_allowlist_is_exact_canonical_set() {
         "worker_unloaded",
         "transcribe_offline",
         "transcribe_offline_result",
+        // Local ONNX text provider model-load lifecycle (ADR-0028).
+        "provider_local_onnx_state",
+        // TTS playback lifecycle (playing / stopped / finished) so the model
+        // row's single control returns to idle without polling (2026-11-03).
+        "tts_playback_state",
     ]
     .into_iter()
     .collect();

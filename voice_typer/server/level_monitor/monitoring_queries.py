@@ -9,9 +9,12 @@ Extracted from ``monitoring.py``.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import time
 import types
+
+from voice_typer.server.audio_filters.effective_backend import effective_noise_suppression
 
 from ._state import _state
 
@@ -60,18 +63,21 @@ def get_level_diagnostics() -> dict:
     }
 
 
+def _effective_label(processor: object) -> str:
+    """Denoiser actually serving this chain, for log lines (C-UI-15)."""
+    try:
+        return str(effective_noise_suppression(processor)["effective"])
+    except Exception:
+        return "unknown"
+
+
 def update_level_processor(config_dict: dict) -> None:
-    """Create or update the audio processor for the live level bar."""
+    """Create, converge, or bypass the audio processor behind the live meter."""
     try:
         new_config: dict | None = dict(config_dict)
     except Exception:
         new_config = None
 
-    # The worker reads this flag off _state to pick the filtered vs raw RMS path.
-    # Default True: no producer writes the key (to_filter_dict never includes it);
-    # the choke-point default makes the bar follow the preset without touching
-    # the three seeding sites. Explicit False remains the escape hatch.
-    level_bar_filtered = bool(config_dict.get("level_bar_filtered", True))
     filter_enabled = bool(config_dict.get("noise_filter_enabled", True))
 
     # One page open reaches here 2-3x with the same effective config (post-restart
@@ -79,16 +85,25 @@ def update_level_processor(config_dict: dict) -> None:
     # transition only. The presence term keeps a FAILED construction retryable.
     with _state._monitor_lock:
         sample_rate = _state._monitor_sample_rate
-        if (
+        unchanged = (
             _state._level_processor_config == new_config
             and _state._level_processor_sample_rate == sample_rate
-            and _state._level_bar_filtered == level_bar_filtered
             and (_state._level_processor is not None) == filter_enabled
-        ):
-            return
-        _state._level_processor_config = new_config
-        _state._level_bar_filtered = level_bar_filtered
-        _state._level_processor_sample_rate = sample_rate
+        )
+        existing = _state._level_processor if unchanged else None
+        if not unchanged:
+            _state._level_processor_config = new_config
+            _state._level_processor_sample_rate = sample_rate
+
+    if unchanged:
+        # Identical config, but the denoiser that is READY can change after the
+        # chain was built (the DPDFNet preload lands seconds later, and the
+        # gtcrn substitute otherwise pinned the session to it). Converge the
+        # live chain in place rather than rebuilding another model.
+        with contextlib.suppress(Exception):
+            if existing is not None and existing.refresh_backends():
+                log.info("[LEVEL-MON] Level processor backend promoted: effective=%s", _effective_label(existing))
+        return
 
     if not filter_enabled:
         with _state._monitor_lock:
@@ -110,10 +125,11 @@ def update_level_processor(config_dict: dict) -> None:
             _state._level_processor = new_processor
 
         log.info(
-            "[LEVEL-MON] Level processor updated: highpass=%s, gate=%s, method=%s",
+            "[LEVEL-MON] Level processor updated: highpass=%s, gate=%s, method=%s, effective=%s",
             config_dict.get("noise_filter_highpass", True),
             config_dict.get("noise_filter_gate", True),
             config_dict.get("noise_suppression_method", "rnnoise"),
+            _effective_label(new_processor),
         )
     except Exception as exc:
         log.warning("[LEVEL-MON] Failed to create level processor: %s", exc)

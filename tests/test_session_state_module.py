@@ -85,6 +85,8 @@ def _make_recorder(
     # STATE-OWNERSHIP: the buffer bookkeeping state
     rec._audio_pipeline = SimpleNamespace(
         _buffer=collections.deque(maxlen=1000),
+        # Filter-divergence latch created by AudioPipeline.__init__
+        _filter_fallback=MagicMock(name="FilterFallback"),
         _chunk_count=999,  # sentinel: reset must zero
         _total_buffered_samples=999,  # sentinel: reset must zero
         _buffer_sr=99999,  # sentinel: reset to None

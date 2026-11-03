@@ -400,7 +400,22 @@ class TestNoiseGateBufferLifecycle:
         assert np.all(g._attenuation_buf == 0)
         assert np.all(g._output_f64_buf == 0)
         assert np.all(g._output_f32_buf == 0)
-        assert np.all(g._i_arr_buf == 0)
+
+    def test_reset_restores_index_ramp(self) -> None:
+        """The cached ``np.arange`` is not audio: reset must restore it, not zero it.
+
+        Zeroing it made every later ramp ``0 * decay``, so the peak-hold
+        envelope never rose again and recordings #2+ cut harder than #1
+        (docs/microphone-filter-failures.md §1.4).
+        """
+        g = NoiseGate(sample_rate=_SR, open_threshold_db=-26.0, close_threshold_db=-32.0)
+        chunk = _sine_chunk(1024)
+        first = g.process(chunk, _SR).copy()
+        g.reset()
+        assert np.array_equal(g._i_arr_buf, np.arange(g._i_arr_buf.shape[0]))
+        assert np.array_equal(g.process(chunk, _SR), first), (
+            "a reset gate must attenuate the same chunk exactly like a fresh one"
+        )
 
     def test_reset_before_process_does_not_crash(self) -> None:
         g = NoiseGate(sample_rate=_SR)

@@ -98,6 +98,8 @@ export const PAGE_LOADERS = {
 	models: () => loadChunk("models", () => import("@/pages/Models")),
 	onboarding: () => loadChunk("onboarding", () => import("@/pages/Onboarding")),
 	plugins: () => loadChunk("plugins", () => import("@/pages/plugins/Plugins")),
+	providers: () =>
+		loadChunk("providers", () => import("@/pages/providers/Providers")),
 	// The settings hub and ALL section-page literals resolve to the
 	// SAME Settings chunk, one entry covers them.
 	settings: () => loadChunk("settings", () => import("@/pages/Settings")),
@@ -117,6 +119,7 @@ export const LAZY_PAGES = {
 	models: lazy(PAGE_LOADERS.models),
 	onboarding: lazy(PAGE_LOADERS.onboarding),
 	plugins: lazy(PAGE_LOADERS.plugins),
+	providers: lazy(PAGE_LOADERS.providers),
 	settings: lazy(PAGE_LOADERS.settings),
 	templates: lazy(PAGE_LOADERS.templates),
 	vocabulary: lazy(PAGE_LOADERS.vocabulary),

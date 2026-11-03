@@ -139,6 +139,13 @@ def _make_enum_validator(allowed: frozenset[str]) -> ValidatorFn:
     return _validate
 
 
+# Single source of truth for the suppressor enum: the IPC allowlist entry,
+# the saved-preset values (below) and the TS `noise_suppression_method`
+# union all mirror this set. `allowlist.py` re-exports it for the public
+# import path, so adding a backend here is a one-line change.
+NOISE_SUPPRESSION_METHODS: frozenset[str] = frozenset({"dpdfnet", "rnnoise", "gtcrn", "none"})
+
+
 def _make_custom_presets_validator() -> ValidatorFn:
     """Validate the user-saved microphone preset list.
 
@@ -209,7 +216,7 @@ def _make_custom_presets_validator() -> ValidatorFn:
                 if key not in filter_keys:
                     return f"preset #{i} has unknown filter key {key!r}"
                 if key == "noise_suppression_method":
-                    if val not in ("rnnoise", "gtcrn", "none"):
+                    if val not in NOISE_SUPPRESSION_METHODS:
                         return f"preset #{i} has bad suppression method {val!r}"
                 elif key in bool_keys:
                     if not isinstance(val, bool):
@@ -221,9 +228,23 @@ def _make_custom_presets_validator() -> ValidatorFn:
     return _validate
 
 
+#: One logical colour per ``custom_theme`` slot. Each slot accepts its CURRENT
+#: token name plus the pre-consolidation alias that ``themes.ts``
+#: (``normalizeThemeVars``) translates: ``--bg-subtle`` -> ``--surface-subtle``
+#: and ``--text-muted`` -> ``--muted-foreground``. The renderer only writes the
+#: current names; configs saved before the token consolidation keep validating.
+CUSTOM_THEME_COLOR_SLOTS: tuple[tuple[str, ...], ...] = (
+    ("--background",),
+    ("--foreground",),
+    ("--primary",),
+    ("--surface-subtle", "--bg-subtle"),
+    ("--border",),
+    ("--muted-foreground", "--text-muted"),
+)
+
+
 def _make_custom_theme_validator() -> ValidatorFn:
     """``IPC_CONFIG_ALLOWLIST["custom_theme"]`` entry is also widened to"""
-    key_keys = {"--background", "--foreground", "--primary", "--bg-subtle", "--border", "--text-muted"}
 
     def _validate(v: object) -> str | None:
         # ``None`` is the canonical "clear custom theme" value —
@@ -242,7 +263,12 @@ def _make_custom_theme_validator() -> ValidatorFn:
             # bound the per-mode dict size.  The legitimate
             if len(mode_dict) > 64:
                 return f"{mode} has too many keys"
-            for key in key_keys:
+            # Resolve each slot to the alias actually present; a missing slot
+            # falls back to its canonical name so ``get`` yields None and the
+            # error below names the token the renderer should have written.
+            for key in [
+                next((name for name in slot if name in mode_dict), slot[0]) for slot in CUSTOM_THEME_COLOR_SLOTS
+            ]:
                 val = mode_dict.get(key)
                 if not isinstance(val, str):
                     return f"{mode}.{key} must be a string, got {type(val).__name__}"
@@ -323,6 +349,7 @@ def _make_plugin_id_validator() -> ValidatorFn:
         return None
 
     return _validate
+
 
 def _make_url_validator(
     *,

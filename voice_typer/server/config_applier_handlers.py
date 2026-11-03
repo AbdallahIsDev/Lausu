@@ -429,8 +429,12 @@ class _AudioPresetHandler:
             # Set individual filter toggles from the preset
             for k, v in preset_filters.items():
                 setattr(config, k, v)
-            # Sync the legacy noise_filter_enabled flag so downstream
-            config.noise_filter_enabled = preset != "off"
+            # ``apply_preset`` owns the preset fields AND the legacy
+            # ``noise_filter_enabled`` flag (the meter/test chain's on/off
+            # switch), so the load path and this one cannot disagree.
+            from voice_typer.server.audio_presets import apply_preset
+
+            apply_preset(preset, config)
             # Log the preset NAME only, the full ``preset_filters`` dict
             log.info("[SERVICE] Applied audio preset '%s'", preset)
         except Exception as e:

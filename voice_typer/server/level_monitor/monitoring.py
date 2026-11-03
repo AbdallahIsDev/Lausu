@@ -160,6 +160,61 @@ def _level_stream_finished() -> None:
     _emit_device_lost("stream_finished")
 
 
+# A preload that lands AFTER the meter chain was built must take over without
+# waiting for the user to touch a setting (C-UI-15, issue B2). Bounded: one
+# daemon per monitoring session, dies with the session, gives up on its own.
+_BACKEND_WATCH_TIMEOUT_SEC: float = 15.0
+_BACKEND_WATCH_INTERVAL_SEC: float = 0.2
+
+
+def _watch_pending_backend(epoch: int) -> None:
+    """Promote a pending denoiser in the live meter chain once it lands.
+
+    ``update_level_processor`` only converges when something calls it again
+    (a config change or a monitor restart), so a page opened before the
+    DPDFNet preload finished kept serving GTCRN for its whole lifetime while
+    the selector said DPDFNet. One daemon per session, no new IPC.
+    """
+    from voice_typer.server.audio_filters import dpdfnet_backend
+
+    deadline = time.monotonic() + _BACKEND_WATCH_TIMEOUT_SEC
+    while time.monotonic() < deadline:
+        with _state._monitor_lock:
+            if _state._monitor_epoch != epoch or not _state._monitor_active:
+                return
+            processor = _state._level_processor
+        if processor is None:
+            return
+        try:
+            if processor.refresh_backends():
+                log.info(
+                    "[LEVEL-MON] Level processor promoted after preload: effective=%s",
+                    getattr(processor, "filter_names", "?"),
+                )
+                return
+        except Exception:
+            log.debug("[LEVEL-MON] backend watch refresh failed", exc_info=True)
+            return
+        if dpdfnet_backend.has_runtime():
+            # Runtime is up but this chain refused it (RTF gate, init
+            # failure). Retrying cannot change that.
+            return
+        time.sleep(_BACKEND_WATCH_INTERVAL_SEC)
+
+
+def _spawn_backend_watch(epoch: int) -> None:
+    """Start the bounded preload watcher when the chain is actually waiting."""
+    processor = _state._level_processor
+    if processor is None or not getattr(processor, "is_degraded", False):
+        return
+    threading.Thread(
+        target=_watch_pending_backend,
+        args=(epoch,),
+        name="level-monitor-backend-watch",
+        daemon=True,  # RACE-008: bounded helper must never block exit
+    ).start()
+
+
 def start_monitoring(mic_id: str | None = None) -> dict:
     """Start continuous real-time audio level monitoring.
 
@@ -195,6 +250,16 @@ def start_monitoring(mic_id: str | None = None) -> dict:
         # Mark this open attempt so a racing switch or stop is detected at commit.
         _state._monitor_epoch += 1
         opening_epoch = _state._monitor_epoch
+
+    # A monitoring session starts here: arm the divergence guard, and let a
+    # denoiser whose preload landed since the chain was built take over (the
+    # chain is otherwise pinned to the startup fallback for the session).
+    from .divergence import begin_session
+
+    begin_session()
+    if _state._level_processor is not None:
+        with contextlib.suppress(Exception):
+            _state._level_processor.refresh_backends()
 
     # Close old stream (if any) without holding the lock.
     if old_stream is not None:
@@ -360,6 +425,10 @@ def start_monitoring(mic_id: str | None = None) -> dict:
                 "[LEVEL-MON] post-restart update_level_processor failed",
                 exc_info=True,
             )
+
+    # Last, because ``update_level_processor`` above may have rebuilt the chain
+    # at the new native rate: the rebuilt processor is the one to watch.
+    _spawn_backend_watch(opening_epoch)
 
     return {"success": True, "message": "Monitoring active", "sample_rate": native_rate}
 

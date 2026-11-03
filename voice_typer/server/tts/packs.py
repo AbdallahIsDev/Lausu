@@ -39,8 +39,7 @@ def verify_gguf(path: Path, *, expected_size: int | None = None) -> Path:
     if expected_size is not None:
         if actual != expected_size:
             raise TtsError(
-                f"artifact incomplete: {path.name} is {actual} bytes, expected {expected_size} "
-                "(download finished?)"
+                f"artifact incomplete: {path.name} is {actual} bytes, expected {expected_size} (download finished?)"
             )
     elif actual < MIN_PLAUSIBLE_GGUF_BYTES:
         # No pinned size: fall back to a heuristic so an error page saved as a

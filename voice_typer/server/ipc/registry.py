@@ -60,6 +60,9 @@ _READONLY_COMMANDS: frozenset[str] = frozenset(
         "screenshot_get_status",
         # TTS engine/pack inventory (Models page rows); filesystem probe only.
         "tts_status",
+        # Provider registry + catalogues: config/cache reads only.
+        "provider_list",
+        "provider_models",
     }
 )
 
@@ -97,7 +100,7 @@ _SELF_SERIALIZED_COMMANDS: frozenset[str] = frozenset(
 # Host-only commands: registered here, never invoked by the renderer
 _PYTHON_ONLY_COMMANDS: frozenset[str] = frozenset({"shutdown", "tray_click"})
 
-# Maps IPC command name → handler method on IPCServer. Count pinned at 90
+# Maps IPC command name → handler method on IPCServer. Count pinned at 100
 _COMMAND_REGISTRY: dict[str, str] = {
     "get_status": "_handle_get_status",
     "toggle_dictation": "_handle_toggle_dictation",
@@ -211,6 +214,16 @@ _COMMAND_REGISTRY: dict[str, str] = {
     "tts_status": "_handle_tts_status",
     "tts_prepare": "_handle_tts_prepare",
     "tts_speak": "_handle_tts_speak",
+    # Stops the clip the icon-only Test control is playing (no payload).
+    "tts_stop": "_handle_tts_stop",
+    # Model providers: registry/catalogue reads, key management, and the
+    # per-domain (asr / tts / llm) selection write.
+    "provider_list": "_handle_provider_list",
+    "provider_models": "_handle_provider_models",
+    "provider_test": "_handle_provider_test",
+    "provider_set_key": "_handle_provider_set_key",
+    "provider_clear_key": "_handle_provider_clear_key",
+    "provider_set_domain": "_handle_provider_set_domain",
 }
 
 

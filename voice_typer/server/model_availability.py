@@ -67,11 +67,10 @@ def _download_in_flight() -> bool:
     fn = _download_active_impl
     if fn is None:
         try:
-            from voice_typer.server.asr_setup import (
-                is_download_active as fn,
-            )
+            from voice_typer.server.asr_setup import is_download_active
         except Exception:
             return False
+        fn = is_download_active
         _download_active_impl = fn
     try:
         return bool(fn())

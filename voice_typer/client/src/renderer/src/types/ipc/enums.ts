@@ -41,6 +41,7 @@ export type Page =
 	| "media"
 	| "plugins"
 	| "models"
+	| "providers"
 	| "microphone"
 	| "analytics"
 	| "settings"
@@ -118,6 +119,15 @@ export type ErrorCodes =
 	// generic `server.internal_error` toast.
 	| "server.recording_resample_failed"
 	| "server.recording_resample_unavailable"
+	// Provider layer (model_providers/errors.py): typed failures the
+	// Providers page renders without string matching.
+	| "server.provider_unknown"
+	| "server.provider_model_unknown"
+	| "server.provider_unsupported_domain"
+	| "server.provider_consent_required"
+	| "server.provider_auth_required"
+	| "server.provider_unavailable"
+	| "server.provider_runtime_error"
 	// Renderer-synthesized codes (from Tauri host supervisor events)
 	| "respawn_exhausted"
 	// Rust-host dispatch cap codes. The Tauri `#[tauri::command]`

@@ -101,8 +101,7 @@ class RuntimeServer:
         while time.monotonic() < deadline:
             if self.process is not None and self.process.poll() is not None:
                 raise TtsError(
-                    f"{self.spec.name}: runtime exited {self.process.returncode} during startup\n"
-                    f"{self._log_tail()}"
+                    f"{self.spec.name}: runtime exited {self.process.returncode} during startup\n{self._log_tail()}"
                 )
             try:
                 with urlopen(url, timeout=2.0) as response:  # noqa: S310 - loopback

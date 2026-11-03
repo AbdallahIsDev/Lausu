@@ -15,6 +15,7 @@ class _Config:
         self.tts_engine = engine
         self.tts_voice = "Aria"
         self.tts_language = "en-US"
+        self.tts_enabled = True
 
 
 def test_status_reports_both_engines_and_missing_packs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -24,10 +25,26 @@ def test_status_reports_both_engines_and_missing_packs(tmp_path: Path, monkeypat
     status = TtsManager(config=_Config()).status()
 
     assert status["engine"] == "off"
+    assert status["enabled"] is True
     assert status["engines"]["audio8"]["available"] is False
     assert status["engines"]["magpie"]["available"] is False
     assert status["engines"]["audio8"]["download_bytes"] > 0
     assert "ar-MSA" in status["languages"]
+    assert "hi-IN" in status["languages"]
+    assert set(status["sample_cached"]) == {"audio8", "magpie"}
+
+
+def test_status_normalizes_an_unadvertised_language() -> None:
+    class _Junk(_Config):
+        def __init__(self) -> None:
+            super().__init__("magpie")
+            self.tts_language = "xx-XX"
+            self.tts_voice = "Klingon"
+
+    status = TtsManager(config=_Junk()).status()
+
+    assert status["language"] == "en-US"
+    assert status["voice"] == "Aria"
 
 
 def test_speak_refuses_when_engine_is_off() -> None:

@@ -34,6 +34,10 @@ _SECRET_FIELD_NAMES_FALLBACK: frozenset[str] = frozenset(
         "gemini_api_key",
         "cloud_api_key",
         "llm_api_key",
+        "openrouter_api_key",
+        "ollama_api_key",
+        "lmstudio_api_key",
+        "custom_tts_api_key",
     }
 )
 

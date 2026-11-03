@@ -274,7 +274,7 @@ export interface LausuConfig {
 	noise_filter_rnnoise: boolean; // RUNTIME (server-controlled, not IPC-settable per ADR 0009)
 	//ADR 0009: RUNTIME (server-controlled, not IPC-settable
 	noise_filter_post_capture: boolean; // RUNTIME (server-controlled, not IPC-settable per ADR 0009)
-	noise_suppression_method: "rnnoise" | "gtcrn" | "none";
+	noise_suppression_method: "dpdfnet" | "rnnoise" | "gtcrn" | "none";
 	noise_filter_eq: boolean;
 	noise_filter_eq_low_db: number;
 	noise_filter_eq_mid_db: number;

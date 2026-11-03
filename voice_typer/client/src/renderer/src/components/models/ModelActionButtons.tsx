@@ -17,6 +17,7 @@ import {
 	Download01Icon,
 	Loading03Icon,
 	PlayIcon,
+	StopIcon,
 	Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -151,34 +152,50 @@ export function ActiveActionButton({ ariaLabel }: ActiveActionButtonProps) {
 	);
 }
 
+/** The three states of the one voice-test control. */
+export type TestActionState = "idle" | "generating" | "playing";
+
 export interface TestActionButtonProps {
-	/** Sample render in flight: spinner + localized "Generating speech…". */
-	busy?: boolean;
+	/** idle = play, generating = spinner, playing = stop. */
+	state?: TestActionState;
 	disabled?: boolean;
 	onClick: () => void;
 }
 
+/**
+ * Icon-only voice test: play → spinner → stop. No visible label (the row already
+ * says which engine this is); `aria-label` + `title` carry the state, and the
+ * hover title is the only place the "Generating…" word appears.
+ */
 export function TestActionButton({
-	busy = false,
+	state = "idle",
 	disabled,
 	onClick,
 }: TestActionButtonProps) {
+	const label = state === "playing" ? t("tts.stopVoice") : t("tts.testVoice");
 	return (
 		<Button
 			variant="outline"
-			size="sm"
-			className="gap-2 text-xs whitespace-nowrap"
+			size="icon-sm"
 			onClick={onClick}
-			disabled={disabled || busy}
-			aria-busy={busy}
-			aria-label={t("tts.testVoice")}
+			disabled={disabled}
+			aria-busy={state === "generating"}
+			aria-label={label}
+			title={state === "generating" ? t("tts.generating") : label}
 		>
-			<HugeiconsIcon
-				icon={busy ? Loading03Icon : PlayIcon}
-				strokeWidth={2}
-				className={cn(ACTION_ICON_CLASS, busy && "animate-spin")}
-			/>
-			{busy ? t("tts.working") : t("tts.testVoice")}
+			{state === "generating" ? (
+				<HugeiconsIcon
+					icon={Loading03Icon}
+					strokeWidth={2}
+					className="h-3.5 w-3.5 animate-spin"
+				/>
+			) : (
+				<HugeiconsIcon
+					icon={state === "playing" ? StopIcon : PlayIcon}
+					strokeWidth={2}
+					className="h-3.5 w-3.5"
+				/>
+			)}
 		</Button>
 	);
 }

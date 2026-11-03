@@ -215,7 +215,6 @@ class TestHeavyWorkOutsideLock:
         lm._level_processor = slow_processor
         # Cosmetic-bar mode (the default) SKIPS the filter chain entirely,
         lm._level_processor_config = None
-        lm._level_bar_filtered = True
 
         lm.start_monitoring(mic_id=None)
         try:
@@ -257,7 +256,6 @@ class TestHeavyWorkOutsideLock:
         slow_processor.process_chunk.side_effect = slow_filter
         lm._level_processor = slow_processor
         lm._level_processor_config = None
-        lm._level_bar_filtered = True
 
         lm.start_monitoring(mic_id=None)
         try:
@@ -426,7 +424,6 @@ class TestHeavyWorkOutsideLock:
         processor.process_chunk.side_effect = slow_filter
         lm._level_processor = processor
         lm._level_processor_config = None
-        lm._level_bar_filtered = True
 
         lm.start_monitoring(mic_id=None)
         try:
@@ -1229,3 +1226,24 @@ class TestZeroChunkDetectorUsesRawAudio:
         while time.perf_counter() < deadline and not emitted:
             time.sleep(0.01)
         assert emitted == ["zero_chunks"], "raw-zero input must still emit device_lost"
+
+
+class TestPreloadWatcherWiring:
+    """A preload that lands mid-session needs a watcher on the COMMITTED chain."""
+
+    def test_start_monitoring_spawns_the_backend_watch_with_the_committed_epoch(self, monkeypatch):
+        import voice_typer.server.level_monitor as lm
+        from voice_typer.server.level_monitor import monitoring as mon
+
+        _wire_stream_with_callback_capture(monkeypatch)
+        spawned: list[int] = []
+        monkeypatch.setattr(mon, "_spawn_backend_watch", spawned.append)
+
+        try:
+            result = lm.start_monitoring()
+            assert result["success"] is True
+            assert spawned == [lm._monitor_epoch], (
+                "the watcher must be told which session owns it, after the epoch commits"
+            )
+        finally:
+            lm.stop_monitoring()

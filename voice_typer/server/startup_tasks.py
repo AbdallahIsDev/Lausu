@@ -37,6 +37,18 @@ def _a11y_regrant_message(bundle_id: str | None) -> str:
     )
 
 
+def bind_provider_layer(app: AppProtocol) -> None:
+    """Bind the provider layer's config accessor to the live app config.
+
+    Client factories resolve provider/model/key at CALL time, so they need a
+    getter, not a snapshot: a provider can be keyed or brought online later.
+    """
+    try:
+        from voice_typer.server.model_providers.builtin import install_config_getter
+
+        install_config_getter(lambda: app.config)
+    except Exception:
+        log.debug("[STARTUP] provider config getter binding failed", exc_info=True)
 
 
 def sync_prewarm_task(app: AppProtocol, shutdown_event: threading.Event | None = None) -> dict:
@@ -44,14 +56,6 @@ def sync_prewarm_task(app: AppProtocol, shutdown_event: threading.Event | None =
     _ = app  # unused, kept for signature backward-compat
     _ = shutdown_event  # unused, kept for signature backward-compat
     return {"registered": False, "error": None}
-
-
-
-
-
-
-
-
 
 
 def _reconcile_configured_microphone(app: AppProtocol, mics: list[dict]) -> None:
@@ -134,8 +138,6 @@ def _reconcile_configured_microphone(app: AppProtocol, mics: list[dict]) -> None
             "retry at next startup.",
             mic_id,
         )
-
-
 
 
 def reconcile_configured_device(app: AppProtocol) -> bool:

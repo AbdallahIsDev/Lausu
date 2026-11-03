@@ -13,6 +13,7 @@ import numpy as np
 from voice_typer.server._audio_constants import AUDIO_CLIPPING_THRESHOLD, AUDIO_SILENCE_RMS
 
 from ._state import _state
+from .divergence import observe_level_divergence
 
 if TYPE_CHECKING:
     from typing import Any
@@ -336,10 +337,11 @@ def _process_level_chunk(indata: np.ndarray, status: Any) -> None:
     sample_rate_for_preview = _state._monitor_sample_rate
     preview_wanted = _state._live_preview_active
     if len(flat) > 0:
-        # Filtered by default (``_level_bar_filtered`` defaults True, see
-        # ``update_level_processor``); raw path only on explicit opt-out.
+        # The bar follows the SELECTED signal (owner spec): a processor means a
+        # preset is on; its absence (filter off) means raw RMS. Test mode needs
+        # no extra term — the preset selector always installs a processor.
         processor = _state._level_processor
-        run_filter_chain = processor is not None and (test_mode or _state._level_bar_filtered)
+        run_filter_chain = processor is not None
         if run_filter_chain:
             filtered = processor.process_chunk(indata.reshape(-1, 1))
             # ``process_chunk`` may return ``None`` to pass-through
@@ -348,6 +350,12 @@ def _process_level_chunk(indata: np.ndarray, status: Any) -> None:
                 rms = float(np.sqrt(np.dot(flat_filtered, flat_filtered) / flat_filtered.size))
             else:
                 rms = 0.0
+            # A chain that deletes the speech must never show a dead bar with no
+            # explanation (A1): same criterion as the dictation guard, and on
+            # the trip this chunk AND the rest of the session read raw.
+            if observe_level_divergence(flat, rms, _state._monitor_sample_rate):
+                flat_filtered = flat
+                rms = float(np.sqrt(np.dot(flat, flat) / flat.size))
             # Capture EVERY test-mode chunk for the Enhanced timeline:
             # filtered spans append post-chain audio; the chain is stateful
             # (RNNoise/GTCRN carry recurrent state), so off-spans splice RAW

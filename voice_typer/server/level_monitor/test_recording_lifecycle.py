@@ -168,6 +168,11 @@ def _begin_test_locked(duration: float, filters: dict | None) -> dict:
     Shared by both ``start_test_recording`` paths: the monitor already on
     the right device, and the restart path after ``start_monitoring``.
     """
+    # A test is its own divergence session: re-arm the latch so a chain that
+    # starves this take is reported again (never on a config change).
+    from .divergence import begin_session
+
+    begin_session()
     _state._test_mode = True
     _state._test_start_time = time.perf_counter()
     _state._test_duration = max(1.0, min(30.0, duration))

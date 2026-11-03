@@ -23,6 +23,7 @@ import { ActiveMicrophoneCard } from "./microphone/components/ActiveMicrophoneCa
 import { AvailableMicrophonesList } from "./microphone/components/AvailableMicrophonesList";
 import { MicrophonePermissionBanner } from "./microphone/components/MicrophonePermissionBanner";
 import { MicrophoneSkeleton } from "./microphone/components/MicrophoneSkeleton";
+import { useDenoiserFallbackNote } from "./microphone/hooks/useDenoiserFallbackNote";
 import { useLiveListen } from "./microphone/hooks/useLiveListen";
 import { useLiveSpeakerOffer } from "./microphone/hooks/useLiveSpeakerOffer";
 import { useMicrophoneData } from "./microphone/hooks/useMicrophoneData";
@@ -59,6 +60,12 @@ export default function MicrophonePage() {
 	} = useMicrophoneData({ selectMicrophoneRef });
 
 	const { micPermission } = useMicrophonePermission();
+
+	// Names the denoiser that is actually serving when it differs from the
+	// selected method (C-UI-15); null in the normal case.
+	const denoiserNote = useDenoiserFallbackNote(
+		config?.noise_suppression_method,
+	);
 
 	// Device-lost state, written ONCE by the App-level
 	// ``useDeviceLostToast`` subscriber (single event → single mechanism:
@@ -351,6 +358,7 @@ export default function MicrophonePage() {
 						onStopPlayback={stopPlayback}
 						onPresetChange={handlePresetChange}
 						onConfigChange={handleConfigChange}
+						denoiserNote={denoiserNote}
 					/>
 				</div>
 

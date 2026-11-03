@@ -23,6 +23,7 @@ from voice_typer.server._lazy_import import lazy_module
 
 from . import (
     buffer as _buffer_mod,  # owning module of the secure-clear helpers (C-ARCH-2)
+    filter_divergence,
     recording_buffer,
 )
 from .exceptions import ResampleError
@@ -253,6 +254,13 @@ def stop_recording(recorder: Recorder) -> np.ndarray:
     recorder._stop_device_health_checker(timeout=0.0)
 
     # snapshot the buffer under the lock, then release the lock BEFORE
+    # Filter-divergence guard (§2.3 rule 4): a take that provably had speech
+    # must never be delivered blank because the chain ate it.
+    _fallback = recorder._audio_pipeline._filter_fallback
+    _fallback_reason = _fallback.finalize(recorder)
+    if _fallback_reason is not None:
+        filter_divergence.report_fallback(recorder, _fallback, _fallback_reason)
+
     concat_started = time.perf_counter()
     with recorder._audio_pipeline._lock:
         if not recorder._audio_pipeline._buffer:
@@ -343,11 +351,17 @@ def stop_recording(recorder: Recorder) -> np.ndarray:
     # AUDIO-PROC: post-capture spectral noise reduction (offline,
 
     total_ms = (time.perf_counter() - stop_started) * 1000
+    _guard = _fallback.summary_fields()
+    _config = getattr(recorder, "config", None)
+    _preset = str(getattr(_config, "audio_preset", "unknown"))
+    _method = str(getattr(_config, "noise_suppression_method", "unknown"))
     if len(audio) > 0:
         log.info(
             "[RECORDING] Audio stopped: duration=%.1fs, sr=%d, samples=%d | "
             "RMS=%.6f, peak=%.6f, silence=%.1f%% | "
-            "stream=%.0fms, concat=%.0fms, resample=%.0fms, total=%.0fms",
+            "stream=%.0fms, concat=%.0fms, resample=%.0fms, total=%.0fms | "
+            "guard=%s raw_db=%.1f filtered_db=%.1f delta_db=%.1f "
+            "preset=%s method=%s",
             duration,
             effective_sr,
             len(audio),
@@ -358,6 +372,12 @@ def stop_recording(recorder: Recorder) -> np.ndarray:
             concat_ms,
             resample_ms,
             total_ms,
+            _guard["guard"],
+            _guard["raw_db"],
+            _guard["filtered_db"],
+            _guard["delta_db"],
+            _preset,
+            _method,
         )
         if rms < 0.001:
             log.warning(

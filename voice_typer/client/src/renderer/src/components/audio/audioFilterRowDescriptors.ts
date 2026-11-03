@@ -143,8 +143,12 @@ export const audioFilterRowDescriptors: readonly AudioFilterRowDescriptor[] = [
 		kind: "select",
 		infoKey: "settings.audioEnhancement.noiseSuppressionInfo",
 		ariaKey: "settings.audioEnhancement.noiseSuppressionAria",
-		defaultValue: "rnnoise",
+		defaultValue: "dpdfnet",
 		options: [
+			// DPDFNet2 (DeepFilterNet2 + dual-path RNN), bundled ONNX
+			// streaming denoiser: causal, 16 kHz native, keeps speech
+			// level intact.
+			{ value: "dpdfnet", label: "DPDFNet" },
 			{ value: "rnnoise", label: "RNNoise" },
 			// GTCRN, the bundled ONNX streaming denoiser
 			// shipped with the app (no extra install, runs

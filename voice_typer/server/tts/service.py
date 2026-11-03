@@ -16,12 +16,9 @@ from voice_typer.server.tts.local_client import LocalSpeechClient
 from voice_typer.server.tts.packs import verify_model
 from voice_typer.server.tts.runtime_server import RuntimeServer
 from voice_typer.server.tts.types import TtsError, TtsRequest, TtsResult
+from voice_typer.server.tts.voices import default_voice, normalize_language, voice_gender, wire_voice
 
 log = logging.getLogger(__name__)
-
-#: Per-engine default voice. Audio8 clones only when a reference is supplied,
-#: otherwise it uses the checkpoint's built-in voice; Magpie needs a named one.
-MAGPIE_DEFAULT_VOICE = "Aria"
 
 
 @dataclass
@@ -88,18 +85,30 @@ class TtsService:
             # voice name makes the runtime look for a cached clone reference
             # it does not have (HTTP 500), and the model is English-only, so
             # both the voice and the language hint are dropped for this engine.
-            return client.speech(
-                replace(request, voice=None, language=None), output_wav, model=AUDIO8_MODEL_ID
-            )
+            return client.speech(replace(request, voice=None, language=None), output_wav, model=AUDIO8_MODEL_ID)
+        chosen = request.voice or default_voice("magpie")
+        language = normalize_language("magpie", request.language) or None
+        # The selector is the model's speaker index: the runtime's name table is
+        # out of order, so logging it is what makes a wrong voice visible.
+        selector = wire_voice("magpie", chosen)
+        log.debug(
+            "[TTS] render engine=magpie voice=%s(%s) speaker=%s language=%s",
+            chosen,
+            voice_gender("magpie", chosen) or "?",
+            selector or "-",
+            language or "default",
+        )
         return client.speech(
-            request,
+            replace(request, voice=selector, language=language),
             output_wav,
             model=MAGPIE_MODEL_ID,
-            voice=request.voice or MAGPIE_DEFAULT_VOICE,
         )
 
     def stop(self) -> None:
-        """Stop every runtime this service started."""
+        """Stop playback + every runtime this service started."""
+        from voice_typer.server.tts.playback import shutdown_playback
+
+        shutdown_playback()
         for name, server in list(self._servers.items()):
             try:
                 server.stop()

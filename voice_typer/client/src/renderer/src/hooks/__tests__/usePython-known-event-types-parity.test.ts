@@ -82,6 +82,8 @@ const _PARITY = {
 	microphone_permission_revoked: true,
 	microphone_disconnected: true,
 	microphone_volume_lowered: true,
+	// Filter divergence: the chain removed speech, take delivered raw.
+	filter_collapse: true,
 	cloud_fallback_used: true,
 	dictation_suppressed: true,
 	media_transcribe_progress: true,
@@ -93,6 +95,8 @@ const _PARITY = {
 	history_fts5_rebuild_failed: true,
 	paste_deferred: true,
 	tray_fallback_notification: true,
+	provider_local_onnx_state: true,
+	tts_playback_state: true,
 } satisfies Record<PythonPushEvent["type"], true>;
 
 describe("UE-39: KNOWN_EVENT_TYPES parity with PythonPushEvent type union", () => {

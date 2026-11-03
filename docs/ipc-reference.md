@@ -42,7 +42,7 @@ host-dispatched / host-only set (`heartbeat`, `relaunch_ack`,
 `allowed_commands()` are host-internal (invoked by the Rust host via
 `dispatch_inner` or host-supervised shutdown), never by the renderer.
 
-## Commands (93 total: 89 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
+## Commands (100 total: 96 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
 
 Grouped by namespace. "✓" in the Allowlist column means the command is
 in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
@@ -54,7 +54,7 @@ in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
 |---------|---------|-----------|-------|
 | `get_config` | `_handle_get_config` | ✓ |  |
 | `get_defaults` | `_handle_get_defaults` | ✓ |  |
-| `get_status` | `_handle_get_status` | ✓ |  |
+| `get_status` | `_handle_get_status` | ✓ | Also carries the denoiser truth (`C-UI-15`): `noise_suppression` for the dictation chain and `level_monitor_noise_suppression` for the level-meter/mic-test chain, each `{enabled, requested, effective, degraded, reason_code}` or `null` (see `audio_filters/effective_backend.py`). |
 | `heartbeat` | `_handle_heartbeat` | — | Host-dispatched watchdog tick via `dispatch_inner`. Kept out of the renderer allowlist so a compromised WebView cannot spoof ticks. |
 | `relaunch_ack` | `_handle_relaunch_ack` | — | Host-dispatched PERF-005 relaunch ack (fire-and-forget). Kept out of the renderer allowlist so a compromised WebView cannot race the restart-wait event. |
 | `open_mic_settings` | `_handle_open_mic_settings` | ✓ | Opens the OS microphone-privacy settings page (the recovery path when the input device grant is missing). |
@@ -131,9 +131,21 @@ runtime). Packs live under `<HF cache>/tts/{bin,models}/<engine>`.
 
 | Command | Handler | Allowlist | Notes |
 |---------|---------|-----------|-------|
-| `tts_status` | `_handle_tts_status` | ✓ | Models page TTS card: per-engine `{ available, path, reason }` for the installed packs. Read-only. |
-| `tts_prepare` | `_handle_tts_prepare` | ✓ | Loads the selected engine (spawns/attaches the engine process). Payload `{ engine }`; idempotent. |
-| `tts_speak` | `_handle_tts_speak` | ✓ | Synthesizes one utterance and returns the WAV. Payload `{ text, engine? }`; requires that engine to be prepared (otherwise `server.internal_error: engine not configured`). |
+| `tts_status` | `_handle_tts_status` | ✓ | Models page TTS card: `{ engine, enabled, voice, language, voices, languages, sample_cached, engines }` where `sample_cached` is `engine → voice → language → bool` computed from the sample resolver without rendering. Read-only. |
+| `tts_prepare` | `_handle_tts_prepare` | ✓ | Downloads one engine's runtime + pack. Payload `{ engine }`; idempotent. |
+| `tts_speak` | `_handle_tts_speak` | ✓ | Renders a clip (or plays the cached sample) and starts playback, returning as soon as audio STARTS: `{ ok: true, engine, voice, duration_s, cached, ... }`. A failure is `{ ok: false, error }` where `error` ∈ `not_installed` / `no_output` / `generic` (the renderer maps it to plain-language copy; the raw engine message, HTTP status and body tail stay in the log). Payload `{ text?, engine?, voice?, sample? }`. |
+| `tts_stop` | `_handle_tts_stop` | ✓ | Interrupts the clip that is playing. No payload; response `{ stopped: bool }`. |
+
+### Model providers (registry, keys, per-domain routing)
+
+| Command | Handler | Allowlist | Notes |
+|---------|---------|-----------|-------|
+| `provider_list` | `_handle_provider_list` | ✓ | Provider rows (capability badges, masked key status) plus the three domain selections. Read-only. |
+| `provider_models` | `_handle_provider_models` | ✓ | `{ provider, domain?, refresh? }` → catalogue from the persisted TTL cache (stale entries still list the selected model). |
+| `provider_test` | `_handle_provider_test` | ✓ | Real connection probe. A keyed provider runs its authenticated probe (`openrouter` → `GET /api/v1/key`, because `/models` is public and cannot prove a key), so a revoked key returns `server.provider_auth_required`; the response carries `auth` with the probe result. Typed provider envelope on failure. |
+| `provider_set_key` | `_handle_provider_set_key` | ✓ | `{ provider, key }` → stored in the credential store, never echoed (masked read only). Invalidates that provider's catalogue. |
+| `provider_clear_key` | `_handle_provider_clear_key` | ✓ | Deletes one provider key without touching the others. |
+| `provider_set_domain` | `_handle_provider_set_domain` | ✓ | `{ domain, provider?, model_id?, enabled?, consent? }` → persists through the validated `set_config` path (SEC-002); rejects an unknown provider, an unadvertised domain or a model the catalogue does not list. |
 
 ### Offline transcription (runtime-pack worker)
 
@@ -281,7 +293,7 @@ restored `get_prewarm_status` / `run_prewarm` (worker status file +
 in-process warm pass), not the old
 `sentinel` / `PID`-file probe.
 
-## Push events (67 typed)
+## Push events (70 typed)
 
 Push events flow server to renderer via `window.python.onEvent(callback)`.
 The `PythonPushEvent` union in `types/ipc/push_events.ts` is the canonical
@@ -323,6 +335,7 @@ list: events not in the union fall through to the `string` overload of
 | `asr_backend_disabled` | `AsrBackendDisabledEvent` | `{ backend: string, reason: string, ... }` Emitted from `asr_registry._record_failure` when a backend trips its failure threshold. |
 | `asr_last_resort_unloaded` | `AsrLastResortUnloadedEvent` | `{ backend: string, reason: string, ... }` Emitted when the last-resort ASR backend is force-unloaded. |
 | `llm_polish_failed` | `LlmPolishFailedEvent` | `{ reason: string, ... }` Emitted when LLM polishing fails so the UI can fall back to raw transcription. |
+| `provider_local_onnx_state` | `ProviderLocalOnnxStateEvent` | `{ model: string, state: string, error?: string }` Model-load lifecycle of the local ONNX text provider (`loading` / `ready` / `failed`), published by `model_providers/local_onnx/client.py`; the Providers page renders the "loading model…" state from it. |
 | `reconnecting` | `ReconnectingEvent` | `{ reason: string }` |
 | `reconnected` | `ReconnectedEvent` | `{ reason: string }` |
 | `mic_level` | `MicLevelEvent` | `{ rms: number, peak: number, active: boolean }` Continuous level monitor stream for the Settings microphone level meter. |
@@ -349,6 +362,8 @@ list: events not in the union fall through to the `string` overload of
 | `microphone_volume_lowered` | `MicrophoneVolumeLoweredEvent` | `{ level: number, restored: boolean, can_set: boolean }` Mic guard (S5): an outside write moved the OS capture gain off 100%. `restored: true` means the guard already wrote it back (renderer stays silent); otherwise the renderer shows the sticky `[Back to 100%]` note, with the button only when `can_set` (a device with no writable gain gets the message alone). |
 | `cloud_fallback_used` | `CloudFallbackUsedEvent` | `{ provider: string, kind: "key" \| "provider" \| "network", reason: string }` A cloud ASR provider failed and the pipeline fell back (typed in the union; renderer consumer optional). |
 | `dictation_suppressed` | `DictationSuppressedEvent` | `{ duration: number, recorded_rms: number, reason: string }` A dictation was suppressed before transcription (typed in the union; renderer consumer optional). |
+| `tts_playback_state` | `TtsPlaybackStateEvent` | `{ engine: string, voice: string, state: "playing" \| "stopped" \| "finished", cached: boolean }` Local TTS playback transition, published by `server/tts/manager.py` on start, on `tts_stop`, and on natural end, so the icon-only control returns to play without polling. |
+| `filter_collapse` | `FilterCollapseEvent` | `{ reason: "collapse" \| "silent_take" \| "monitor_collapse", raw_db: number, filtered_db: number, delta_db: number, preset: string, method: string }` The microphone filter chain provably removed the speech. `collapse` / `silent_take` (`recording/filter_divergence.py`, once per process per reason): that take is delivered UNFILTERED (`set_filter_bypass` + raw-shadow swap) instead of arriving blank. `monitor_collapse` (`level_monitor/divergence.py`, once per monitoring or test session): the level meter and mic test bypass the chain and read the raw device for the rest of the session. The renderer shows one toast naming the state and offering the Microphone page, while `preset` / `method` / the dB values stay in the log line. |
 | `history_corrupted` | `HistoryCorruptedEvent` | `{ path: string, db_path: string, recovered_count: number }` History DB corruption was detected and recovered (typed in the union; renderer consumer optional). |
 | `paste_deferred` | `PasteDeferredEvent` | `{ reason: string, message?: string }` Paste was deferred (e.g. clipboard safety validation held it back; typed in the union; renderer consumer optional). |
 | `tray_fallback_notification` | `TrayFallbackNotificationEvent` | `{ title?: string, message?: string }` Tray notification fallback path fired (headless / pystray-only runtimes; Tauri host owns the tray). Generic toast consumer. |

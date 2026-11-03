@@ -2054,9 +2054,9 @@ class TestRegistryExtraction:
         assert registry._COMMAND_REGISTRY["set_output_volume"] == "_handle_set_output_volume"
         # Listen-Live filtered preview (2026-10-17): renderer-callable stream toggle.
         assert registry._COMMAND_REGISTRY["live_preview"] == "_handle_live_preview"
-        assert len(registry._COMMAND_REGISTRY) == 90, (
-            f"registry._COMMAND_REGISTRY must contain 90 entries "
-            f"(86 forwarded in the Rust allowlist + shutdown + "
+        assert len(registry._COMMAND_REGISTRY) == 100, (
+            f"registry._COMMAND_REGISTRY must contain 100 entries "
+            f"(96 forwarded in the Rust allowlist + shutdown + "
             f"tray_click python-only + heartbeat + relaunch_ack host-dispatched); got "
             f"{len(registry._COMMAND_REGISTRY)}. "
             f"If the count drifted, update this test together with the "
@@ -2107,6 +2107,10 @@ class TestRegistryExtraction:
                 "get_download_queue",
                 "microphone_test_get_level",
                 "microphone_test_status",
+                # Provider registry + catalogue reads (config/cache only).
+                "tts_status",
+                "provider_list",
+                "provider_models",
                 # Mic guard: capture-gain read only (the write is a mutator).
                 "get_microphone_volume",
                 "onboarding_is_first_run",

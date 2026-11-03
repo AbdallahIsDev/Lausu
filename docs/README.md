@@ -27,6 +27,7 @@ audiences: [`README.md`](../README.md), [`CONTRIBUTING.md`](../CONTRIBUTING.md),
 | [cloud-asr-batch-vs-realtime.md](cloud-asr-batch-vs-realtime.md) | Why some cloud ASR models (OpenAI realtime, Gemini Live, Deepgram Flux) cannot be served by a batch dictation app — the evidence, and the three options for adding them. |
 | [ruff-ratchet.md](ruff-ratchet.md) | How the ruff lint ratchet works (`ruff-baseline.json` + `scripts/ruff_ratchet_check.py`). |
 | [native-hotkey-architecture-plan.md](native-hotkey-architecture-plan.md) | **Historical plan** for the cross-platform native-hotkey rewrite. See ADR-0007 for what shipped. |
+| [plan-voice-conversation-mode.md](plan-voice-conversation-mode.md) | Gap list + implementation plan for a conversational voice mode (STT → LLM → TTS). Planning only — no chat surface exists yet. |
 | [auto-update-feature.md](auto-update-feature.md) | Runtime-pack auto-update (IMPLEMENTED 2026-08-13; Python-side pack manifest + downloader + `useNetworkOnline` trigger). |
 | [modules/](modules/) | Per-module deep dives: [_index.md](modules/_index.md), [audio_quality_controller.md](modules/audio_quality_controller.md), [sidecar_ws.md](modules/sidecar_ws.md), [shutdown_controller.md](modules/shutdown_controller.md). |
 | [architecture/](architecture/) | Cross-cutting architecture contracts: [error-envelope-contract.md](architecture/error-envelope-contract.md). |

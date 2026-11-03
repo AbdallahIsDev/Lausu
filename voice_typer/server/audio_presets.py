@@ -12,13 +12,20 @@ PRESET_OFF = "off"
 PRESET_CUSTOM = "custom"
 
 # Preset → filter settings + optional per-preset parameter overrides.
+#
+# ``auto`` and ``noisy_room`` are deliberately SHORT: high-pass +
+# one neural suppressor + the brick-wall limiter. Every extra stage moves
+# the transcript further from "what the microphone heard", and the measured
+# failures (docs/microphone-filter-failures.md §1.1, §1.6) came from the
+# gate/EQ/compressor shaping a healthy signal. The gate and the compressor
+# remain available per-field under ``custom``.
 PRESETS: dict[str, dict[str, Any]] = {
     PRESET_AUTO: {
         "noise_filter_highpass": True,
-        "noise_suppression_method": "rnnoise",
-        "noise_filter_gate": True,
-        "noise_filter_eq": True,
-        "noise_filter_compressor": True,
+        "noise_suppression_method": "dpdfnet",
+        "noise_filter_gate": False,
+        "noise_filter_eq": False,
+        "noise_filter_compressor": False,
         "noise_filter_limiter": True,
         "noise_filter_notch": False,
     },
@@ -33,16 +40,13 @@ PRESETS: dict[str, dict[str, Any]] = {
     },
     PRESET_NOISY_ROOM: {
         "noise_filter_highpass": True,
-        # GTCRN, the bundled ONNX streaming denoiser (higher quality
-        "noise_suppression_method": "gtcrn",  # best quality
-        "noise_filter_gate": True,
-        "noise_filter_eq": True,
-        "noise_filter_compressor": True,
+        "noise_suppression_method": "dpdfnet",
+        "noise_filter_gate": False,
+        "noise_filter_eq": False,
+        "noise_filter_compressor": False,
         "noise_filter_limiter": True,
         "noise_filter_notch": True,
         "noise_filter_highpass_cutoff_hz": 100.0,  # default 80; strip HVAC rumble
-        "noise_filter_gate_open_threshold_db": -22.0,  # default -26; less sensitive
-        "noise_filter_compressor_ratio": 4.0,  # default 3.0; stiffer for transients
     },
     PRESET_OFF: {
         "noise_filter_highpass": False,
@@ -59,12 +63,19 @@ PRESETS: dict[str, dict[str, Any]] = {
 
 def apply_preset(preset: str, config: Any) -> None:
     """Apply a named preset to a config object in-place."""
+    # The legacy flag is the meter/test chain's on/off switch
+    # (``update_level_processor``). The config applier used to be its only
+    # writer, so a config LOADED with ``audio_preset: "off"`` kept the flag True
+    # and built a pass-through processor. One writer, both paths.
     if preset == PRESET_CUSTOM:
-        return  # no automatic changes
+        # Custom keeps the individual toggles, which need the chain running.
+        config.noise_filter_enabled = True
+        return
     if preset not in PRESETS:
         return
     for key, value in PRESETS[preset].items():
         setattr(config, key, value)
+    config.noise_filter_enabled = preset != PRESET_OFF
 
 
 def get_preset_filters(preset: str) -> dict[str, Any]:

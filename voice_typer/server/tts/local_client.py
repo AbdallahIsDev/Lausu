@@ -72,10 +72,27 @@ class LocalSpeechClient:
                 audio = response.read()
         except HTTPError as exc:
             detail = exc.read().decode("utf-8", "replace").strip()
+            # Developer detail stays in the log; the renderer only ever sees a
+            # mapped, plain-language message.
+            log.warning(
+                "[TTS] %s HTTP %d voice=%s language=%s body=%s",
+                self._engine,
+                exc.code,
+                chosen_voice or "-",
+                chosen_language or "-",
+                detail[:_ERROR_BODY_CHARS],
+            )
             raise TtsError(
                 f"{self._engine}: HTTP {exc.code} from /v1/audio/speech\n{detail[:_ERROR_BODY_CHARS]}"
             ) from exc
         except URLError as exc:
+            log.warning(
+                "[TTS] %s unreachable voice=%s language=%s reason=%s",
+                self._engine,
+                chosen_voice or "-",
+                chosen_language or "-",
+                exc.reason,
+            )
             raise TtsError(f"{self._engine}: cannot reach {self._base_url}: {exc.reason}") from exc
         wall = time.perf_counter() - started
 
@@ -89,11 +106,13 @@ class LocalSpeechClient:
         output_wav.write_bytes(audio)
         duration, sample_rate = probe_wav(output_wav)
         log.debug(
-            "[TTS] %s rendered %.2fs audio in %.2fs (RTF %.2f) -> %s",
+            "[TTS] %s rendered %.2fs audio in %.2fs (RTF %.2f) voice=%s language=%s -> %s",
             self._engine,
             duration,
             wall,
             duration / wall if wall else 0.0,
+            chosen_voice or "-",
+            chosen_language or "-",
             output_wav,
         )
         return TtsResult(

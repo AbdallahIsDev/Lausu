@@ -82,6 +82,8 @@ export interface ActiveMicrophoneCardProps {
 	onStopPlayback: () => void;
 	onPresetChange: (preset: AudioPreset) => void;
 	onConfigChange: (updates: Partial<LausuConfig>) => void;
+	/** Plain-language note when the chain serves another denoiser (C-UI-15). */
+	denoiserNote?: string | null;
 }
 
 export function ActiveMicrophoneCard({
@@ -120,6 +122,7 @@ export function ActiveMicrophoneCard({
 	onStopPlayback,
 	onPresetChange,
 	onConfigChange,
+	denoiserNote = null,
 }: ActiveMicrophoneCardProps) {
 	return (
 		<div className="flex flex-col overflow-hidden rounded-lg border border-border/8 bg-surface-subtle">
@@ -249,6 +252,16 @@ export function ActiveMicrophoneCard({
 				onPlayOriginal={onPlayOriginal}
 				onStop={onStopPlayback}
 			/>
+
+			{denoiserNote && (
+				<p
+					className="border-t border-border/8 px-4 py-2.5 text-xs text-muted-foreground"
+					role="status"
+					data-testid="mic-denoiser-fallback"
+				>
+					{denoiserNote}
+				</p>
+			)}
 
 			{config && (
 				<MemoizedPresetAccordionSelector

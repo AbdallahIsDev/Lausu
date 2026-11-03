@@ -89,8 +89,12 @@ export function ModelGroupContent({
 // ── Single model/plan row ─────────────────────────────────────────────
 
 export interface ModelVariantRowProps {
-	/** Row heading (the model/plan display name). Rendered as an <h4>. */
+	/** Row heading (the model/plan display name). Rendered as an <h4>
+	 *  unless the caller's section heading is an <h2> (a TTS panel sitting
+	 *  at page level), where <h3> keeps the heading order valid. */
 	name: string;
+	/** Heading element level, 4 by default (models accordion rows). */
+	headingLevel?: 3 | 4;
 	/** Optional badges rendered inline next to the heading. */
 	headingExtra?: ReactNode;
 	/** Metadata line: `MetadataPair` values + icon-only metadata chips. */
@@ -101,20 +105,22 @@ export interface ModelVariantRowProps {
 
 export function ModelVariantRow({
 	name,
+	headingLevel = 4,
 	headingExtra,
 	meta,
 	actions,
 }: ModelVariantRowProps) {
+	const Heading = headingLevel === 3 ? "h3" : "h4";
 	return (
 		<div className="flex items-center gap-3 px-4 py-2.5">
 			<div className="flex min-w-0 flex-1 flex-col gap-1">
 				<div className="flex items-center gap-2">
-					<h4
+					<Heading
 						className="truncate text-sm font-medium text-foreground"
 						title={name}
 					>
 						{name}
-					</h4>
+					</Heading>
 					{headingExtra}
 				</div>
 				{meta && (

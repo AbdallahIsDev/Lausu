@@ -57,6 +57,8 @@ export function PageSwitch({
 				return <RouteChunk page="microphone" />;
 			case "plugins":
 				return <RouteChunk page="plugins" />;
+			case "providers":
+				return <RouteChunk page="providers" />;
 			case "analytics":
 				return <RouteChunk page="analytics" />;
 			// The Settings surface is HUB + nested section pages. "settings"

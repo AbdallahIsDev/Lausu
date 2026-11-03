@@ -538,14 +538,20 @@ class TestPresets:
     def test_custom_not_in_presets(self):
         assert PRESET_CUSTOM not in PRESETS
 
-    def test_auto_preset_enables_all(self):
+    def test_auto_preset_is_minimal_and_neural(self):
+        """Auto = high-pass + one neural suppressor + limiter, nothing else.
+
+        The gate/EQ/compressor measured failures (§1.1, §1.3, §1.6 of
+        docs/microphone-filter-failures.md) came from shaping a healthy
+        signal; they stay available per-field under ``custom``.
+        """
         filters = PRESETS[PRESET_AUTO]
         assert filters["noise_filter_highpass"] is True
-        assert filters["noise_filter_gate"] is True
-        assert filters["noise_filter_eq"] is True
-        assert filters["noise_filter_compressor"] is True
+        assert filters["noise_filter_gate"] is False
+        assert filters["noise_filter_eq"] is False
+        assert filters["noise_filter_compressor"] is False
         assert filters["noise_filter_limiter"] is True
-        assert filters["noise_suppression_method"] == "rnnoise"
+        assert filters["noise_suppression_method"] == "dpdfnet"
 
     def test_off_preset_disables_all(self):
         filters = PRESETS[PRESET_OFF]
@@ -562,25 +568,29 @@ class TestPresets:
         assert filters["noise_filter_gate"] is False
         assert filters["noise_filter_eq"] is True
 
-    def test_noisy_room_uses_gtcrn(self):
+    def test_noisy_room_uses_dpdfnet(self):
         filters = PRESETS[PRESET_NOISY_ROOM]
-        assert filters["noise_suppression_method"] == "gtcrn"
+        assert filters["noise_suppression_method"] == "dpdfnet"
         assert filters["noise_filter_notch"] is True
+        assert filters["noise_filter_gate"] is False
 
     def test_apply_preset_auto(self):
         class FakeConfig:
             noise_filter_highpass = False
-            noise_filter_gate = False
-            noise_filter_eq = False
-            noise_filter_compressor = False
+            noise_filter_gate = True
+            noise_filter_eq = True
+            noise_filter_compressor = True
             noise_filter_limiter = False
-            noise_filter_notch = False
-            noise_suppression_method = "none"
+            noise_filter_notch = True
+            noise_suppression_method = "rnnoise"
 
         cfg = FakeConfig()
         apply_preset(PRESET_AUTO, cfg)
         assert cfg.noise_filter_highpass is True
-        assert cfg.noise_filter_gate is True
+        assert cfg.noise_filter_gate is False
+        assert cfg.noise_filter_compressor is False
+        assert cfg.noise_filter_limiter is True
+        assert cfg.noise_suppression_method == "dpdfnet"
 
     def test_apply_preset_custom_does_nothing(self):
         class FakeConfig:

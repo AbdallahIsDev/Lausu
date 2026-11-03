@@ -147,13 +147,14 @@ describe("XZ-CFG-06: TS audio_preset / noise_suppression_method / llm_preset mat
 		expect(_guard).toBe(false);
 	});
 
-	it("noise_suppression_method includes all 3 Python-allowed values", () => {
+	it("noise_suppression_method includes all 4 Python-allowed values", () => {
 		const values: LausuConfig["noise_suppression_method"][] = [
+			"dpdfnet",
 			"rnnoise",
 			"gtcrn",
 			"none",
 		];
-		expect(values).toHaveLength(3);
+		expect(values).toHaveLength(4);
 	});
 
 	it("llm_preset accepts any string (widened from 4-value union for flexibility)", () => {

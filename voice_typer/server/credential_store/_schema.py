@@ -32,6 +32,11 @@ PROVIDER_TO_CONFIG_FIELD: dict[str, str] = {
     "gemini": "gemini_api_key",
     "cloud": "cloud_api_key",
     "llm": "llm_api_key",
+    # One entry per provider id (WP8): rotating one never touches another.
+    "openrouter": "openrouter_api_key",
+    "ollama": "ollama_api_key",
+    "lmstudio": "lmstudio_api_key",
+    "custom": "custom_tts_api_key",
 }
 
 #: Reverse lookup: Config dataclass field name -> provider name.

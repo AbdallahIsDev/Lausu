@@ -31,19 +31,45 @@ class TtsMixin(ServiceMixinBase):
 
     def get_tts_status(self) -> dict[str, object]:
         """Engines, selection, and pack availability for the Models page."""
-        return self._get_tts_manager().status()
+        status: dict[str, object] = self._get_tts_manager().status()
+        return status
 
     def tts_prepare(self, engine: str) -> dict[str, object]:
         """Download one engine's pack into the Hugging Face folder."""
         log.info("[TTS] preparing pack for %s", engine)
-        return self._get_tts_manager().prepare(engine)
+        result: dict[str, object] = self._get_tts_manager().prepare(engine)
+        return result
 
-    def tts_speak(self, text: str, engine: str | None = None) -> dict[str, object]:
-        """Render and play one utterance with ``engine`` (default: configured)."""
-        return self._get_tts_manager().speak(text, engine)
+    def tts_speak(
+        self,
+        text: str,
+        engine: str | None = None,
+        *,
+        voice: str | None = None,
+        sample: bool = False,
+    ) -> dict[str, object]:
+        """Render one utterance, or play a voice sample from the cache.
+
+        ``sample=True`` ignores ``text`` and reuses the shipped/cached clip, so
+        pressing Test never re-synthesizes the same sentence.
+        """
+        manager = self._get_tts_manager()
+        result: dict[str, object] = manager.speak_sample(engine, voice) if sample else manager.speak(text, engine)
+        return result
+
+    def tts_stop(self) -> dict[str, object]:
+        """Stop the clip that is playing (the control's stop state)."""
+        stopped = bool(self._get_tts_manager().stop_playback())
+        log.info("[TTS] playback stop requested stopped=%s", stopped)
+        return {"stopped": stopped}
+
+    def tts_prewarm(self, engine: str) -> bool:
+        """Start ``engine``'s runtime in the background (post-ready startup)."""
+        started: bool = self._get_tts_manager().prewarm(engine)
+        return started
 
     def stop_tts(self) -> None:
-        """Stop every TTS runtime (shutdown path)."""
+        """Stop playback + every TTS runtime (shutdown path)."""
         manager = getattr(self, "_tts_manager", None)
         if manager is not None:
             manager.shutdown()

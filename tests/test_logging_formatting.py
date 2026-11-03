@@ -60,6 +60,7 @@ def test_audio_log_topics_have_color_entries() -> None:
         "AUDIO_QUALITY": "38;5;215",
         "VOLUME": "38;5;111",
         "VAD": "38;5;245",
+        "TTS": "38;5;213",
     }
 
     for topic, color_code in expected.items():

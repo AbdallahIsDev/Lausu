@@ -455,8 +455,23 @@ class TestProviderMapping:
         assert len(credential_store.CONFIG_FIELD_TO_PROVIDER) == len(credential_store.PROVIDER_TO_CONFIG_FIELD)
 
     def test_expected_providers_are_present(self):
-        """The six known providers (openai / groq / deepgram / gemini / cloud / llm)"""
-        expected = {"openai", "groq", "deepgram", "gemini", "cloud", "llm"}
+        """Every provider id the app can hold a key for.
+
+        The four provider-registry ids (openrouter / ollama / lmstudio / custom)
+        each own an independent key so rotating one never touches another.
+        """
+        expected = {
+            "openai",
+            "groq",
+            "deepgram",
+            "gemini",
+            "cloud",
+            "llm",
+            "openrouter",
+            "ollama",
+            "lmstudio",
+            "custom",
+        }
         assert set(credential_store.PROVIDER_TO_CONFIG_FIELD.keys()) == expected
 
     def test_reference_token_format(self):

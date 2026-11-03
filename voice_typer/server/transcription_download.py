@@ -101,7 +101,7 @@ def probe_cache(
                 "probe_cache",
                 repo_id,
                 exc,
-                "[MODEL] HF cache probe miss for %s: %s",
+                "[MODEL] %s is not in the local model cache: %s",
             )
         else:
             log.debug("[MODEL] HF cache probe failed, will attempt download", exc_info=True)
@@ -206,10 +206,10 @@ def whisper_size_cached(engine, model_size: str) -> bool:
                 "whisper_size_cached",
                 model_size,
                 exc,
-                "[MODEL] whisper_size_cached probe miss for %s: %s",
+                "[MODEL] cached weights missing for %s: %s",
             )
         else:
-            log.debug("[MODEL] whisper_size_cached probe miss for %s", model_size, exc_info=True)
+            log.debug("[MODEL] cache check failed for %s", model_size, exc_info=True)
         return False
 
 
@@ -274,8 +274,8 @@ def is_model_snapshot_complete(repo_id: str) -> bool:
                 "is_model_snapshot_complete",
                 repo_id,
                 exc,
-                "[MODEL] is_model_snapshot_complete probe miss for %s: %s",
+                "[MODEL] snapshot incomplete or missing for %s: %s",
             )
         else:
-            log.debug("[MODEL] is_model_snapshot_complete probe miss for %s", repo_id, exc_info=True)
+            log.debug("[MODEL] snapshot check failed for %s", repo_id, exc_info=True)
         return False

@@ -36,3 +36,15 @@ acknowledged here.
 - **Use:** Optional external JavaScript runtime shipped with the offline
   runtime pack; executes yt-dlp's JavaScript solver scripts for YouTube
   extraction.
+
+## DPDFNet2 (bundled noise-suppression model)
+
+- **Homepage:** https://github.com/ceva-ip/DPDFNet (weights:
+  https://huggingface.co/Ceva-IP/DPDFNet)
+- **License:** Apache-2.0
+- **Bundled file:** `voice_typer/server/dpdfnet2.onnx` (official 16 kHz
+  streaming ONNX export, `onnx/dpdfnet2.onnx`, revision `dd6818d0`)
+- **Use:** Neural microphone denoising in the audio filter chain. The adapter
+  in `voice_typer/server/audio_filters/dpdfnet_backend.py` reimplements the
+  Apache-2.0 `dpdfnet` package's session/state bootstrap so the app can ship
+  the weights without that package's librosa/numba dependency tree.

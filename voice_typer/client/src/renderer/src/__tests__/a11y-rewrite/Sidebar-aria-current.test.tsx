@@ -158,6 +158,7 @@ describe("BG-R19 #11: Sidebar keyboard navigation (roving tabindex) + aria-keysh
 		"history",
 		"analytics",
 		"models",
+		"providers",
 		"templates",
 		"vocabulary",
 		"media",

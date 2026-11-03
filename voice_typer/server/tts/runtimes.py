@@ -161,10 +161,7 @@ def install(engine: str) -> Path:
     if existing.is_file():
         return existing
     if os.name != "nt":
-        raise TtsError(
-            f"no prebuilt {engine} runtime for this platform; "
-            "set the binary path env var instead"
-        )
+        raise TtsError(f"no prebuilt {engine} runtime for this platform; set the binary path env var instead")
     asset = _latest_asset(release)
     archive = dest / f".{asset['name']}"
     try:

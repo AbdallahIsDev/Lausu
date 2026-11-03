@@ -46,50 +46,41 @@ def _mock_sounddevice(monkeypatch):
 class TestLightweightLevelBarMode:
     """The bar reads filtered audio by default; the raw path is an opt-out."""
 
-    def test_filter_chain_skipped_when_opted_out_of_cosmetic_bar(self, _mock_sounddevice):
-        """``_test_mode`` is False and the flag is opted out, the filter chain MUST NOT be invoked"""
+    def test_no_processor_reads_the_raw_meter(self, _mock_sounddevice):
+        """Filter off = no processor; the bar must still move (raw RMS)."""
         import voice_typer.server.level_monitor as lm
 
-        processor = MagicMock()
-        processor.process_chunk.side_effect = lambda x: x
-        lm._level_processor = processor
+        lm._level_processor = None
         lm._level_processor_config = None
-        # Explicit opt-out (legacy cosmetic-only raw meter)
-        lm._level_bar_filtered = False
-        # Not in test mode
         lm._test_mode = False
+        lm._monitor_level = 0.0
 
         lm.start_monitoring(mic_id=None)
         try:
             chunk = np.ones((512, 1), dtype=np.float32) * 0.25
             _mock_sounddevice["callback"](chunk, 512, None, None)
 
-            # Wait for the worker to process.
             deadline = time.perf_counter() + 1.0
             while time.perf_counter() < deadline:
                 if lm._monitor_level > 0:
                     break
                 time.sleep(0.01)
 
-            processor.process_chunk.assert_not_called()
-            # The RMS should still be computed (on raw audio) so the bar
-            assert lm._monitor_level > 0, (
-                "even with the filter chain skipped, the cosmetic bar "
-                "must still show a non-zero level (RMS computed on raw audio)"
+            # Raw RMS 0.25 -> EMA ~0.1. A stalled bar would sit at 0.
+            assert lm._monitor_level > 0.07, (
+                f"level={lm._monitor_level} should be the raw RMS, not a stalled bar"
             )
         finally:
             lm.stop_monitoring()
 
-    def test_filter_chain_runs_when_level_bar_filtered_opted_in(self, _mock_sounddevice):
-        """When ``_level_bar_filtered`` is True (user opted in), the"""
+    def test_filter_chain_runs_when_a_processor_is_installed(self, _mock_sounddevice):
+        """A processor (preset on) is the whole decision: the bar is filtered."""
         import voice_typer.server.level_monitor as lm
 
         processor = MagicMock()
         processor.process_chunk.side_effect = lambda x: x
         lm._level_processor = processor
         lm._level_processor_config = None
-        # Opt in to filtered bar
-        lm._level_bar_filtered = True
         lm._test_mode = False
 
         lm.start_monitoring(mic_id=None)
@@ -108,16 +99,14 @@ class TestLightweightLevelBarMode:
         finally:
             lm.stop_monitoring()
 
-    def test_filter_chain_runs_in_test_mode_regardless_of_flag(self, _mock_sounddevice):
-        """When ``_test_mode`` is True, the filter chain runs EVEN IF"""
+    def test_filter_chain_runs_in_test_mode(self, _mock_sounddevice):
+        """A mic test always runs the chain so Enhanced is the real capture."""
         import voice_typer.server.level_monitor as lm
 
         processor = MagicMock()
         processor.process_chunk.side_effect = lambda x: x
         lm._level_processor = processor
         lm._level_processor_config = None
-        lm._level_bar_filtered = False
-        # In test mode, filter chain must run regardless
         lm._test_mode = True
 
         lm.start_monitoring(mic_id=None)
@@ -139,36 +128,26 @@ class TestLightweightLevelBarMode:
             lm.stop_monitoring()
 
 
-class TestUpdateLevelProcessorPropagatesFlag:
-    """``update_level_processor`` must propagate the"""
+class TestUpdateLevelProcessorOwnsTheMeterMode:
+    """``update_level_processor`` is the only mode switch: processor or ``None``."""
 
-    def test_update_level_processor_sets_flag_true_by_default(self):
-        """When ``level_bar_filtered`` is NOT in the config dict, the"""
+    def test_legacy_flag_key_is_inert(self, monkeypatch):
+        """A stale ``level_bar_filtered`` key must not bypass an enabled chain."""
+        import voice_typer.server.audio_processor as ap
         import voice_typer.server.level_monitor as lm
 
-        # Reset to the OLD default so the flip is actually exercised
-        lm._level_bar_filtered = False
-        # Call update_level_processor with a config dict that doesn't
-        lm.update_level_processor({"noise_filter_enabled": False})
-        assert lm._level_bar_filtered is True, "update_level_processor must default _level_bar_filtered to True"
+        processor = MagicMock()
+        monkeypatch.setattr(ap, "AudioProcessor", lambda *a, **k: processor)
+        lm._level_processor_config = None
+        lm.update_level_processor({"noise_filter_enabled": True, "level_bar_filtered": False})
+        assert lm._level_processor is processor
 
-    def test_update_level_processor_sets_flag_false_when_opted_out(self):
-        """When ``level_bar_filtered=False`` is explicitly in the config dict, the"""
+    def test_filter_off_leaves_no_processor(self):
         import voice_typer.server.level_monitor as lm
 
-        lm.update_level_processor({"noise_filter_enabled": False, "level_bar_filtered": False})
-        assert lm._level_bar_filtered is False, (
-            "update_level_processor must set _level_bar_filtered=False when the config dict opts out"
-        )
-
-    def test_update_level_processor_sets_flag_true_when_opted_in(self):
-        """When ``level_bar_filtered=True`` is in the config dict, the"""
-        import voice_typer.server.level_monitor as lm
-
-        lm.update_level_processor({"noise_filter_enabled": False, "level_bar_filtered": True})
-        assert lm._level_bar_filtered is True, (
-            "update_level_processor must set _level_bar_filtered=True when the config dict opts in"
-        )
+        lm._level_processor_config = None
+        lm.update_level_processor({"noise_filter_enabled": False, "audio_preset": "off"})
+        assert lm._level_processor is None
 
     def test_idle_bar_reads_filtered_after_update_with_filter_enabled(self, _mock_sounddevice, monkeypatch):
         """A filter-enabled config (no ``level_bar_filtered`` key) seeds the"""
@@ -179,7 +158,6 @@ class TestUpdateLevelProcessorPropagatesFlag:
         processor.process_chunk.side_effect = lambda x: x * 0.5
         monkeypatch.setattr(ap, "AudioProcessor", lambda *a, **k: processor)
         lm.update_level_processor({"noise_filter_enabled": True, "noise_filter_highpass": True})
-        assert lm._level_bar_filtered is True
         assert lm._level_processor is processor
 
         lm._level_processor_config = None
@@ -206,7 +184,6 @@ class TestUpdateLevelProcessorPropagatesFlag:
 
         lm.update_level_processor({"noise_filter_enabled": False})
         assert lm._level_processor is None
-        assert lm._level_bar_filtered is True
 
         lm.start_monitoring(mic_id=None)
         try:
@@ -235,7 +212,6 @@ class TestUpdateLevelProcessorPropagatesFlag:
         monkeypatch.setattr(ap, "AudioProcessor", lambda *a, **k: processor)
         lm.update_level_processor({"noise_filter_enabled": True, "audio_preset": "noisy_room"})
         assert lm._level_processor is processor
-        assert lm._level_bar_filtered is True
 
         lm._level_processor_config = None
         lm.start_monitoring(mic_id=None)
@@ -279,7 +255,6 @@ class TestUpdateLevelProcessorPropagatesFlag:
 
         lm._monitor_active = True
         lm._test_mode = False
-        lm._level_bar_filtered = True
         lm._consecutive_zero_chunks = 0
         lm._device_lost_emitted = False
 
@@ -304,7 +279,6 @@ class TestUpdateLevelProcessorPropagatesFlag:
 
         lm._monitor_active = True
         lm._test_mode = False
-        lm._level_bar_filtered = True
         lm._consecutive_zero_chunks = 0
         lm._device_lost_emitted = False
 

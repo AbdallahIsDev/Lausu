@@ -183,6 +183,9 @@ class StatusMixin(ServiceMixinBase):
             config_dir = str(app.config.config_dir)
         except Exception:
             log.debug("[SERVICE] could not read config_dir", exc_info=True)
+        # Which denoiser is really serving, so no surface can print the
+        # requested name over a chain that fell back (C-UI-15).
+        audio = self.get_audio_status()
         return {
             "status": status_str,
             "message": message,
@@ -190,6 +193,8 @@ class StatusMixin(ServiceMixinBase):
             "loaded_via": loaded_via,
             "config_dir": config_dir,
             "offline_pack": self._get_offline_pack_status(),
+            "noise_suppression": audio["noise_suppression"],
+            "level_monitor_noise_suppression": audio["level_monitor"]["noise_suppression"],
         }
 
     def _read_output_level(self) -> float | None:
@@ -344,10 +349,48 @@ class StatusMixin(ServiceMixinBase):
             return {"ok": False, "level": None}
         return {"ok": ok, "level": target}
 
+    def _level_monitor_chain(self) -> tuple[object | None, dict]:
+        """The live meter/test chain plus the config it was built from."""
+        try:
+            from voice_typer.server.level_monitor._state import _state
+
+            return _state._level_processor, dict(_state._level_processor_config or {})
+        except Exception:
+            log.debug("[SERVICE] level monitor chain unavailable", exc_info=True)
+            return None, {}
+
+    @staticmethod
+    def _noise_status(processor: object | None, requested: str, enabled: bool) -> dict[str, object] | None:
+        """Requested vs effective denoiser for one built chain (or ``None``)."""
+        if processor is None:
+            return None
+        try:
+            from voice_typer.server.audio_filters.effective_backend import effective_noise_suppression
+
+            return effective_noise_suppression(processor, requested, enabled=enabled)
+        except Exception:
+            log.debug("[SERVICE] noise suppression status unavailable", exc_info=True)
+            return None
+
     def get_audio_status(self) -> dict:
-        """Return the audio filter chain status (ADR 0007)."""
+        """Return the audio filter chain status (ADR 0007).
+
+        Both chains are reported: the dictation processor AND the live
+        meter/test processor, because they are built independently and can
+        disagree about which denoiser is actually serving (C-UI-15).
+        """
         app = self._app
         processor = getattr(app, "_audio_processor", None)
+        requested = str(getattr(app.config, "noise_suppression_method", "") or "")
+        enabled = bool(getattr(app.config, "noise_filter_enabled", True))
+        level_processor, level_config = self._level_monitor_chain()
+        level_noise = self._noise_status(
+            level_processor,
+            str(level_config.get("noise_suppression_method", requested)),
+            bool(level_config.get("noise_filter_enabled", True)),
+        )
+        noise = self._noise_status(processor, requested, enabled)
+        monitor = {"noise_suppression": level_noise}
         if processor is not None:
             return {
                 "filter_chain": processor.filter_names,
@@ -356,6 +399,8 @@ class StatusMixin(ServiceMixinBase):
                 "latency_ms": processor.total_latency_ms,
                 "vad_backend": "silero" if app.config.use_silero_vad else "rms",
                 "sample_rate": app.config.sample_rate,
+                "noise_suppression": noise,
+                "level_monitor": monitor,
             }
         return {
             "filter_chain": [],
@@ -364,4 +409,6 @@ class StatusMixin(ServiceMixinBase):
             "latency_ms": 0.0,
             "vad_backend": "rms",
             "sample_rate": WHISPER_SAMPLE_RATE,
+            "noise_suppression": noise,
+            "level_monitor": monitor,
         }

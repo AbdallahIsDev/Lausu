@@ -470,4 +470,11 @@ class LatePhases:
                 getattr(app, "_thread_registry", None),
             )
 
+        # Post-ready only (C-START-1): TTS prewarm is best-effort warm-up and
+        # must never sit in front of the ready marker above.
+        with contextlib.suppress(Exception):
+            from voice_typer.server.tts.prewarm import start_prewarm
+
+            start_prewarm(app)
+
         return StageResult(success=True)

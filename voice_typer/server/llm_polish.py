@@ -78,6 +78,12 @@ _PRESETS = {
     ),
 }
 
+
+def system_prompt(preset: str) -> str:
+    """Public accessor for a preset's system prompt (provider routing path)."""
+    return _PRESETS.get(preset, _PRESETS["professional"])
+
+
 # canonical LLM endpoint + model defaults live in
 _DEFAULT_URL = DEFAULT_LLM_API_URL
 _DEFAULT_MODEL = DEFAULT_LLM_MODEL

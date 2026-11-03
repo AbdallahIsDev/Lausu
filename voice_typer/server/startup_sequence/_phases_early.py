@@ -90,6 +90,12 @@ class EarlyPhases:
         app = self._app
         log.info("[STARTUP] Initializing: autostart, microphones, hotkey, model...")
 
+        # Bind the provider layer's config accessor once, early: client
+        # factories resolve provider/model/key at call time.
+        from voice_typer.server import startup_tasks
+
+        startup_tasks.bind_provider_layer(app)
+
         # eagerly preload + warm the Silero VAD model on a
         try:
             from voice_typer.server import vad
@@ -158,6 +164,16 @@ class EarlyPhases:
                 ).start()
         except Exception:
             log.debug("[STARTUP] could not spawn gtcrn-preload thread", exc_info=True)
+
+        # Preload DPDFNet2 (the shipped default suppressor). ``preload()`` is
+        # already fire-and-forget on its own daemon thread, so it never sits in
+        # front of the handshake; this site just starts the warm-up early.
+        try:
+            from voice_typer.server.audio_filters import dpdfnet_backend
+
+            dpdfnet_backend.preload()
+        except Exception:
+            log.debug("[STARTUP] dpdfnet preload could not start", exc_info=True)
 
         return StageResult(success=True)
 

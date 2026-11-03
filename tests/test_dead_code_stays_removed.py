@@ -866,3 +866,24 @@ class TestLegacyConfigDirRemoved:
             "config._config_dir must still be importable (the dead-code removal "
             "only deleted the dead _legacy_config_dir, not _config_dir)"
         )
+
+
+class TestBackendFingerprintStaysRemoved:
+    """``backend_fingerprint`` was defined twice and read nowhere."""
+
+    def test_filter_chain_has_no_backend_fingerprint(self) -> None:
+        from voice_typer.server.audio_filters.base import FilterChain
+
+        assert not hasattr(FilterChain, "backend_fingerprint"), (
+            "backend_fingerprint had no reader: convergence goes through "
+            "refresh_backends() (which returns whether anything changed), so a "
+            "rebuild decision must keep using the live converge call."
+        )
+
+    def test_audio_processor_has_no_backend_fingerprint(self) -> None:
+        from voice_typer.server.audio_processor import AudioProcessor
+
+        assert not hasattr(AudioProcessor, "backend_fingerprint"), (
+            "AudioProcessor.backend_fingerprint was a thin delegate nothing read; "
+            "keep the converge-on-refresh path instead of a parallel key."
+        )

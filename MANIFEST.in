@@ -50,6 +50,18 @@ include voice_typer/server/silero_vad.onnx
 # (mix[1,257,1,2] in, enh + 3 recurrent caches out). Line re-enabled.
 include voice_typer/server/gtcrn_simple.onnx
 
+# The bundled DPDFNet denoiser (voice_typer/server/dpdfnet2.onnx, ~9.7 MB),
+# the default neural noise-suppression backend
+# (voice_typer/server/audio_filters/dpdfnet_backend.py). DPDFNet2 is
+# DeepFilterNet2 + dual-path RNN, 16 kHz streaming, Apache-2.0; weights
+# fetched from the official Ceva-IP/DPDFNet HF repo (onnx/dpdfnet2.onnx,
+# revision dd6818d0, sha256 4F0EE289...4DC94C). Bundling it (instead of
+# downloading on first use) keeps the filter offline-first and keeps the
+# runtime dependency tree free of librosa/numba, which the upstream `dpdfnet`
+# package would drag in. Both the sdist (this line) and the frozen builds
+# (--include-package-data=voice_typer.server / lausu.spec datas) need it.
+include voice_typer/server/dpdfnet2.onnx
+
 # Corrections data + reserved-hotkey table + model integrity hashes.
 # All three JSON files are read by voice_typer/server/ modules at
 # runtime (config_validators._load_reserved_data, security.verify_model_integrity,

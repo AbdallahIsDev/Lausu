@@ -27,6 +27,10 @@ class _FakeConfig:
     deepgram_api_key: str | None = None
     gemini_api_key: str | None = None
     llm_api_key: str | None = None
+    openrouter_api_key: str | None = None
+    ollama_api_key: str | None = None
+    lmstudio_api_key: str | None = None
+    custom_tts_api_key: str | None = None
 
 
 class TestSecretFieldsRedacted:

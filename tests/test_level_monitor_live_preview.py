@@ -280,8 +280,9 @@ class TestWorkerIntegration:
 
         lm._monitor_active = True
         lm._monitor_sample_rate = 16000
-        lm._level_processor = self._HalvingProcessor()
-        lm._level_bar_filtered = filtered
+        # Filtering ON installs the chain; OFF means no processor at all, which
+        # is the only mode switch the meter has (there is no separate flag).
+        lm._level_processor = self._HalvingProcessor() if filtered else None
         set_live_preview_enabled(True)
 
         _process_level_chunk(np.full((4, 1), 0.8, dtype=np.float32), None)
@@ -314,7 +315,6 @@ class TestWorkerIntegration:
         lm._monitor_active = True
         lm._monitor_sample_rate = 16000
         lm._level_processor = self._HalvingProcessor()
-        lm._level_bar_filtered = True
 
         _process_level_chunk(np.full((4, 1), 0.8, dtype=np.float32), None)
 
@@ -339,7 +339,6 @@ class TestWorkerIntegration:
         lm._monitor_active = True
         lm._monitor_sample_rate = 16000
         lm._level_processor = self._HalvingProcessor()
-        lm._level_bar_filtered = True
         set_live_preview_enabled(True)
 
         _process_level_chunk(np.full((4, 1), 0.8, dtype=np.float32), None)

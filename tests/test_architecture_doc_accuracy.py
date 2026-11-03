@@ -27,15 +27,21 @@ def _read(path: Path) -> str:
 
 
 def test_event_bus_count_matches_doc_and_code():
-    """Doc must say \"55-event bus\" and ``EVENT_TYPES`` must have 55 entries."""
+    """Doc must say \"58-event bus\" and ``EVENT_TYPES`` must have 58 entries."""
     doc = _read(ARCH_DOC)
-    assert "55-event bus" in doc, "ARCHITECTURE.md must describe the bus as '55-event bus' ."
+    assert "58-event bus" in doc, "ARCHITECTURE.md must describe the bus as '58-event bus' ."
+    assert "57-event bus" not in doc, "Stale '57-event bus' must not appear in ARCHITECTURE.md ."
+    assert "56-event bus" not in doc, "Stale '56-event bus' must not appear in ARCHITECTURE.md ."
+    assert "55-event bus" not in doc, "Stale '55-event bus' must not appear in ARCHITECTURE.md ."
     assert "54-event bus" not in doc, "Stale '54-event bus' must not appear in ARCHITECTURE.md ."
     assert "53-event bus" not in doc, "Stale '53-event bus' must not appear in ARCHITECTURE.md ."
     assert "52-event bus" not in doc, "Stale '52-event bus' must not appear in ARCHITECTURE.md ."
     assert "51-event bus" not in doc, "Stale '51-event bus' must not appear in ARCHITECTURE.md ."
-    # And the IPC-contract section's frozen-surface count must also say 90 / 55.
-    assert "90 commands / 55 events" in doc, "IPC contract section must say '90 commands / 55 events'."
+    # And the IPC-contract section's frozen-surface count must also say 100 / 58.
+    assert "100 commands / 58 events" in doc, "IPC contract section must say '100 commands / 58 events'."
+    assert "99 commands / 57 events" not in doc, "Stale '99 commands / 57 events' must not appear in ARCHITECTURE.md ."
+    assert "90 commands / 56 events" not in doc, "Stale '90 commands / 56 events' must not appear in ARCHITECTURE.md ."
+    assert "90 commands / 55 events" not in doc, "Stale '90 commands / 55 events' must not appear in ARCHITECTURE.md ."
     assert "90 commands / 54 events" not in doc, "Stale '90 commands / 54 events' must not appear in ARCHITECTURE.md ."
     assert "90 commands / 53 events" not in doc, "Stale '90 commands / 53 events' must not appear in ARCHITECTURE.md ."
     assert "89 commands / 52 events" not in doc, "Stale '89 commands / 52 events' must not appear in ARCHITECTURE.md ."
@@ -43,8 +49,8 @@ def test_event_bus_count_matches_doc_and_code():
 
     from voice_typer.server.event_bus import EVENT_TYPES
 
-    assert len(EVENT_TYPES) == 55, (
-        f"EVENT_TYPES in voice_typer/server/event_bus.py must have 55 "
+    assert len(EVENT_TYPES) == 58, (
+        f"EVENT_TYPES in voice_typer/server/event_bus.py must have 58 "
         f"entries (actual: {len(EVENT_TYPES)}). Update doc + test together."
     )
 
@@ -292,7 +298,7 @@ def test_module_paths_use_package_form():
     crash_files = list((ROOT / "voice_typer/server/crash_handler").glob("*.py"))
     assert len(crash_files) == 8, f"crash_handler/ must be an 8-file package (actual: {len(crash_files)})."
     level_files = list((ROOT / "voice_typer/server/level_monitor").glob("*.py"))
-    assert len(level_files) == 11, f"level_monitor/ must be an 11-file package (actual: {len(level_files)})."
+    assert len(level_files) == 12, f"level_monitor/ must be a 12-file package (actual: {len(level_files)})."
     cts_files = list((ROOT / "voice_typer/server/clipboard_target_safety").glob("*.py"))
     assert len(cts_files) == 5, f"clipboard_target_safety/ must be a 5-file package (actual: {len(cts_files)})."
 

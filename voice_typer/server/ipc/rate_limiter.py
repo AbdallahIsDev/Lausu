@@ -78,6 +78,18 @@ COMMAND_COSTS: dict[str, int] = {
     "media_transcribe_cancel": 1,  # ADR-0023: cooperative cancel flag
     "media_transcribe_status": 1,  # ADR-0023: job snapshot read
     "check_offline_pack_update": 1,  # auto-update pack check, rare, network-bound
+    # Provider layer: a connection test performs a real remote/catalogue probe.
+    "provider_test": 5,
+    "provider_set_key": 2,  # one credential-store write (+ catalogue invalidation)
+    "provider_clear_key": 2,  # one credential-store delete
+    "provider_set_domain": 2,  # one validated config write
+    "provider_list": 1,  # registry + key-status read
+    "provider_models": 3,  # may fetch a remote catalogue
+    # TTS engine pack download / synthesis.
+    "tts_prepare": 50,  # multi-GB runtime + pack download
+    "tts_speak": 20,  # subprocess synthesis (+ playback)
+    "tts_stop": 1,  # one sd.stop() call, no I/O of its own
+    "tts_status": 1,  # filesystem probe
     "restart_app": 100,  # was 10, full process restart
     "quit_app": 100,  # was 5, full process teardown
     "resume_model_download": 10,

@@ -151,6 +151,16 @@ pub(crate) fn allowed_commands() -> &'static HashSet<&'static str> {
             "tts_status",
             "tts_prepare",
             "tts_speak",
+            // Stops the clip the icon-only Test control is playing.
+            "tts_stop",
+            // Model providers: registry/catalogue reads, key management and
+            // the per-domain selection write (Python `_COMMAND_REGISTRY`).
+            "provider_list",
+            "provider_models",
+            "provider_test",
+            "provider_set_key",
+            "provider_clear_key",
+            "provider_set_domain",
         ];
         HashSet::from_iter(cmds.iter().copied())
     })

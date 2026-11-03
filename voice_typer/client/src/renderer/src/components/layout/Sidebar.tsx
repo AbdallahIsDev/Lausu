@@ -40,6 +40,7 @@ type NavLeafId = Extract<
 	| "history"
 	| "analytics"
 	| "models"
+	| "providers"
 	| "templates"
 	| "vocabulary"
 	| "media"
@@ -88,6 +89,7 @@ const MAIN_NAV_ITEMS: NavItem[] = [
 	{ id: "history", icon: HistoryIcon },
 	{ id: "analytics", icon: Analytics01Icon },
 	{ id: "models", icon: AiBrain03Icon },
+	{ id: "providers", icon: AiBrain03Icon },
 	{ id: "templates", icon: File02Icon },
 	{ id: "vocabulary", icon: BookOpen02Icon },
 	{ id: "media", icon: Film01Icon },

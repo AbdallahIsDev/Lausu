@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import Callable
 from math import gcd
@@ -117,6 +118,11 @@ class AudioProcessor:
         self._resample_warned_pairs: set[tuple[int, int]] = set()
         self._resample_degraded: bool = False
         self._resample_degraded_reason: str = ""
+        # Session-level chain bypass. Set by the filter-divergence guard when
+        # the chain provably ate the speech (docs/microphone-filter-failures.md
+        # §2.3): rate conversion + the quality probe still run, only the filter
+        # stages are skipped, so the recovered take stays at the buffer rate.
+        self._filter_bypass: bool = False
         # Zero-frame prewarm: run a short silence buffer through the
         self._prewarm_chain()
         # No duplicate line here: the single choke-point is
@@ -159,6 +165,7 @@ class AudioProcessor:
     def reset(self) -> None:
         """Reset all filter states for a new recording session."""
         self._chain.reset()
+        self._filter_bypass = False
         # Clear the latched resample-degraded flag, a new
         self._resample_degraded = False
         self._resample_degraded_reason = ""
@@ -187,6 +194,15 @@ class AudioProcessor:
     def set_quality_callback(self, cb: QualityCallback) -> None:
         """Wire a quality detector callback."""
         self._quality_callback = cb
+
+    def set_filter_bypass(self, bypassed: bool) -> None:
+        """Skip the filter stages (the chain lied; deliver the take unfiltered)."""
+        self._filter_bypass = bool(bypassed)
+
+    @property
+    def filter_bypassed(self) -> bool:
+        """True while the filter chain is bypassed for this session."""
+        return self._filter_bypass
 
     def process_chunk(self, chunk: np.ndarray, input_sample_rate: int | None = None) -> np.ndarray | None:
         """Apply the filter chain to a single audio chunk.
@@ -260,7 +276,7 @@ class AudioProcessor:
         if self._quality_callback is not None:
             self._run_quality_check(chunk)
 
-        result = self._chain.process(chunk, self._sample_rate)
+        result = self._chain.process(chunk, self._sample_rate) if not self._filter_bypass else chunk
 
         # Option B (E.1 fix, Round 0 forward-port): propagate the filtered
         return result if result is not None else chunk
@@ -315,6 +331,23 @@ class AudioProcessor:
     def is_degraded(self) -> bool:
         """True if any filter is in degraded mode (missing library, etc.)."""
         return self._chain.is_degraded or self._resample_degraded
+
+    def refresh_backends(self) -> bool:
+        """Promote pending backends in place; True when any backend changed.
+
+        The chain is built from config, but the EFFECTIVE denoiser depends on
+        what is ready at build time. A preload that lands afterwards must be
+        able to take over the live chain without rebuilding a model, or the
+        meter/test path keeps serving the fallback for the session (C-UI-15).
+        """
+        changed = False
+        for filter_ in self._chain.filters:
+            refresh = getattr(filter_, "refresh_backend", None)
+            if refresh is None:
+                continue
+            with contextlib.suppress(Exception):
+                changed = bool(refresh()) or changed
+        return changed
 
     @property
     def degraded_reasons(self) -> list[str]:

@@ -17,7 +17,7 @@ _LOGGER = "voice_typer.server.transcription"
 
 
 def _miss_records(caplog: pytest.LogCaptureFixture) -> list:
-    return [r for r in caplog.records if "probe miss" in r.message or "probe failed" in r.message]
+    return [r for r in caplog.records if r.getMessage().startswith("[MODEL]")]
 
 
 class TestProbeCacheQuietMiss:
@@ -169,3 +169,46 @@ class TestRepeatedOfflineMissDedupe:
 
         assert results == [(None, False), (None, False)]
         assert len(_miss_records(caplog)) == 1
+
+
+class TestProbeMissLinesSurviveLogRedaction:
+    """A 20+ char identifier in the fixed text must not render as ``***``.
+
+    The generic bare-secret catch-all masks any 20+ char ``[A-Za-z0-9_]``
+    run, so printing ``is_model_snapshot_complete`` produced
+    ``[MODEL] *** probe miss ...`` and read like a leaked key.
+    """
+
+    def test_snapshot_miss_message_is_not_masked(self, tmp_config_dir, monkeypatch, caplog):
+        from voice_typer.server.config import _config_dir
+        from voice_typer.server.security import redact_secret
+
+        repo_dir = _config_dir() / "huggingface" / "hub" / "models--test--redaction"
+        repo_dir.mkdir(parents=True)
+
+        def fake_snapshot(**kwargs):
+            raise LocalEntryNotFoundError("no cached snapshot")
+
+        monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
+        with caplog.at_level(logging.DEBUG, logger=_LOGGER):
+            assert td.is_model_snapshot_complete("test/redaction") is False
+
+        records = _miss_records(caplog)
+        assert len(records) == 1
+        rendered = records[0].getMessage()
+        assert "***" not in rendered
+        assert redact_secret(rendered) == rendered
+
+    def test_probe_cache_miss_message_is_not_masked(self, caplog):
+        from voice_typer.server.security import redact_secret
+
+        def fake_snapshot(**kwargs):
+            raise LocalEntryNotFoundError("no cached snapshot")
+
+        with caplog.at_level(logging.DEBUG, logger=_LOGGER):
+            td.probe_cache(object(), fake_snapshot, "test/redaction-probe", "main", [], "tiny")
+
+        rendered = _miss_records(caplog)[0].getMessage()
+        assert "***" not in rendered
+        assert redact_secret(rendered) == rendered
+

@@ -369,7 +369,6 @@ def _validate_dict_payload(
     return validated, None
 
 
-
 __all__ = [
     "_validate_dict_payload",
     "_error_response",

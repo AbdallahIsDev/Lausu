@@ -36,6 +36,25 @@ def _install_failing_gtcrn(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(_gtcrn_module, "GtcrnBackend", _FailingGtcrnBackend)
 
 
+def _install_fake_dpdfnet(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Swap ``DpdfnetBackend`` for a lightweight fake (happy path)."""
+
+    class _FakeDpdfnetBackend:
+        def __init__(self, sample_rate: int = 16000) -> None:
+            self.sample_rate = sample_rate
+            self.latency_ms = 20.0
+
+        def process_chunk(self, chunk, sample_rate=None):  # noqa: ANN001
+            return np.asarray(chunk, dtype=np.float32) * 0.5
+
+        def reset(self) -> None:
+            pass
+
+    from voice_typer.server.audio_filters import dpdfnet_backend as _dpdfnet_module
+
+    monkeypatch.setattr(_dpdfnet_module, "DpdfnetBackend", _FakeDpdfnetBackend)
+
+
 def _install_fake_pyrnnoise(monkeypatch: pytest.MonkeyPatch) -> None:
     """Inject a stub ``pyrnnoise`` module so ``_init_rnnoise``'s import succeeds."""
     fake_pyrnnoise = types.ModuleType("pyrnnoise")
@@ -174,16 +193,16 @@ class TestGtcrnInitFallback:
             "failure is a permanent degradation, not a one-time signal"
         )
 
-    def test_noisy_room_preset_selects_gtcrn(self, monkeypatch: pytest.MonkeyPatch):
-        """End-to-end: the ``noisy_room`` preset picks the live GTCRN"""
-        _install_fake_gtcrn(monkeypatch)
+    def test_noisy_room_preset_selects_dpdfnet(self, monkeypatch: pytest.MonkeyPatch):
+        """End-to-end: the ``noisy_room`` preset picks the live DPDFNet"""
+        _install_fake_dpdfnet(monkeypatch)
         _install_fake_pyrnnoise(monkeypatch)
 
         from voice_typer.server.audio_filters.noise_suppressor import NoiseSuppressor
         from voice_typer.server.audio_presets import PRESET_NOISY_ROOM, get_preset_filters
 
         preset_filters = get_preset_filters(PRESET_NOISY_ROOM)
-        assert preset_filters["noise_suppression_method"] == "gtcrn"
+        assert preset_filters["noise_suppression_method"] == "dpdfnet"
 
         ns = NoiseSuppressor(
             method=preset_filters["noise_suppression_method"],
@@ -191,9 +210,9 @@ class TestGtcrnInitFallback:
         )
         # Critical assertion: the suppressor runs the selected backend.
         assert ns.is_degraded is False, (
-            "the noisy_room preset selects the bundled GTCRN model; a healthy init must not be marked degraded"
+            "the noisy_room preset selects the bundled DPDFNet model; a healthy init must not be marked degraded"
         )
-        assert ns._method == "gtcrn", "the noisy_room preset must actually run GTCRN (not a fallback)"
+        assert ns._method == "dpdfnet", "the noisy_room preset must actually run DPDFNet (not a fallback)"
 
 
 class _FakeConfig:

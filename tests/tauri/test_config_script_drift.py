@@ -201,6 +201,11 @@ IMPORT_TIME_DATA_FILES = [
     "voice_typer/server/model_hashes.json",
     "voice_typer/server/native/binaries.json",
     "voice_typer/server/silero_vad.onnx",
+    # Bundled ONNX denoisers read at runtime by audio_filters/{gtcrn,dpdfnet}_backend.py
+    # (MODEL_PATH = Path(__file__).parent.parent / "<file>"); a frozen build
+    # without them degrades the suppressor to RNNoise.
+    "voice_typer/server/gtcrn_simple.onnx",
+    "voice_typer/server/dpdfnet2.onnx",
 ]
 
 

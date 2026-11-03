@@ -11,8 +11,8 @@ from voice_typer.server.service.microphone_test import MicrophoneTestMixin
 from voice_typer.server.service.model import _MODEL_STATUS_CACHE_TTL_S, ModelMixin
 from voice_typer.server.service.onboarding import OnboardingMixin
 from voice_typer.server.service.status import StatusMixin
-from voice_typer.server.service.tts import TtsMixin
 from voice_typer.server.service.template import TemplateMixin
+from voice_typer.server.service.tts import TtsMixin
 from voice_typer.server.service.vocabulary import VocabularyMixin
 
 from .config_service import ConfigMutationMixin
@@ -39,6 +39,11 @@ class StatusResponse(TypedDict):
     loaded_via: str
     config_dir: str
     offline_pack: dict[str, object]
+    # Requested vs EFFECTIVE denoiser for the dictation chain / the live
+    # meter-test chain (``None`` when no meter chain is built). C-UI-15: the
+    # renderer must print what is actually serving, never the request.
+    noise_suppression: dict[str, object]
+    level_monitor_noise_suppression: dict[str, object] | None
 
 
 # the four ``DownloadXxx`` TypedDicts + ``DownloadResult`` union

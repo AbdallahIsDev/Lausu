@@ -135,8 +135,8 @@ New tags: add here + link `CONTRIBUTING.md` or a rationale comment at first occu
 
 ## Working protocols
 
-**Validation pipeline (in order; fix root causes, never leak to CI):** `ruff check … --fix` → `pytest --import-mode=importlib --co -q` → `pyrefly check` → `pip-audit --strict --require-hashes` → `sync_versions.py --check` → `check_branding.py` → client `npm ci && typecheck:ci && lint:fix:unsafe && format:check && test:coverage && build` → `generate_beeps.py --check` → full pytest (`-n auto --dist=loadgroup`, `--cov-fail-under=78`, split, background if needed — C-TEST-6 gate: green full suite on final state, no ship without it) → `coverage_ratchet_check.py` + `ruff_ratchet_check.py` → `cargo check` (even if Rust untouched) → wiring audit (every `#[tauri::command]` in `generate_handler!`, every `mod` declared, every route/IPC channel registered both sides).
-**One full-suite run per code state.** The forbidden pattern is running the suite twice to learn failures the first run already printed. Canonical single run: redirect the ENTIRE output, tracebacks included, to a file — `pytest tests/ -n auto --dist=loadgroup -q --no-cov --tb=short > pytest-run.txt 2>&1` (any run: repeat the redirect, never a pipe into `tail`/`head`/`grep`, so the file always holds the full evidence). Every investigation — failure names, tracebacks, counts — reads that file (Read/Grep it, read any offset); never re-run the suite to rediscover what the file already contains. `--lf` (failed-only replay) or targeted per-file runs are for iterating on fixes only; post-fix verification is a new code state (fresh full run per C-TEST-6).
+**Validation pipeline (in order; fix root causes, never leak to CI):** `ruff check … --fix` → `pytest --import-mode=importlib --co -q` → `pyrefly check` → `pip-audit --strict --require-hashes` → `sync_versions.py --check` → `check_branding.py` → client `npm ci && typecheck:ci && lint:fix:unsafe && format:check && test:coverage && build` → `generate_beeps.py --check` → full pytest (**ORCHESTRATOR-ONLY**: a worker session must never run it — C-AGENT-1; `-n auto --dist=loadgroup`, `--cov-fail-under=78`, split, background if needed — C-TEST-6 gate: green full suite on final state, no ship without it) → `coverage_ratchet_check.py` + `ruff_ratchet_check.py` → `cargo check` (even if Rust untouched) → wiring audit (every `#[tauri::command]` in `generate_handler!`, every `mod` declared, every route/IPC channel registered both sides).
+**One full-suite run per code state.** The forbidden pattern is running the suite twice to learn failures the first run already printed. Canonical single run: redirect the ENTIRE output, tracebacks included, to a file — `pytest tests/ -n auto --dist=loadgroup -q --no-cov --tb=short > pytest-run.txt 2>&1` (any run: repeat the redirect, never a pipe into `tail`/`head`/`grep`, so the file always holds the full evidence). Every investigation — failure names, tracebacks, counts — reads that file (Read/Grep it, read any offset); never re-run the suite to rediscover what the file already contains. `--lf` (failed-only replay) or targeted per-file runs are for iterating on fixes only; post-fix verification is a new code state (fresh full run per C-TEST-6). **A worker session never runs the full suite at all** (C-AGENT-1): it runs the scoped files for what it touched, re-runs only the failing node ids after a fix, and reports. The full suite belongs to the orchestrator (C-AGENT-4).
 **Manual verification (mandatory before packaging).** Boot like a user (`npm run tauri:dev`, `xvfb-run` if headless), drive the UI like a tester, screenshot evidence. No evidence = not verified. Record in `worklog.md` (`## Validation Performed`); if the GUI truly can't run, record the exact error under `## Known Limitations` and cover via suite.
 **Browser automation:** drive the running app as a manual tester (launch, click main flows, screenshot). No "manual verification passed" without evidence.
 
@@ -249,6 +249,13 @@ Applies to: All agents, all modes, all sub-agents.
 C-UI-14
 Rule: Do NOT leave an accepted value in the input that submitted it. Clear the field on a SUCCESSFUL submit (the queued row carries the value from then on) and keep it only when the submit was refused, so the primary button is disabled by an empty field instead of re-firing the same work on the next click.
 Rationale: The Media page kept the picked path / pasted link after a job completed, so pressing Transcribe again re-transcribed the same file, repeatedly (owner report 2026-10-27).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-UI-15
+Rule: Do NOT render a value, name, or state that differs from what the running system is actually using. Every displayed setting is read from the same source of truth that produced the effect (the engine/backend/model actually serving), so a deferred load, a silent fallback, or a degraded substitute is displayed as what it is — never as the requested value.
+Rationale: The Microphone page offered DPDFNet while a cold-start chain silently served GTCRN at −10.6 dB with the level bar at 2% (2026-11-03); the UI asserted a capability the process did not have, and the user had no way to tell which one was really running.
 Applies to: All agents, all modes, all sub-agents.
 ```
 
@@ -559,6 +566,78 @@ Rationale: The overlay pill was positioned solely by the main window's `get_conf
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+## Category: Agent Roles & Session Budget (worker vs orchestrator)
+
+```
+C-AGENT-1
+Rule (WORKER): A worker session MUST NOT run the full pytest suite. Never `pytest tests/`, never `-n auto --dist=loadgroup` over `tests/` — not at task start, not after a fix, not "to be sure". Allowed: the individual test files the change touches, one or a few at a time, with `-k`/`-q`/`--no-cov`/`--lf`, plus `pytest <path>::<Class>::<test>` for a failing node id.
+Rationale: measured here — the full suite is ~18-20 min; a worker that runs it twice around a one-line fix burns 40 of a 60-minute session on a task whose code took 5 minutes, leaving no session for the orchestrator's follow-up (2026-11-02).
+Applies to: Worker agents (any session driven by a relay-orchestrator prompt).
+```
+
+```
+C-AGENT-2
+Rule (WORKER): Test the change, not the tree. Run the scoped files for the code you touched; after a fix re-run ONLY the previously failing node ids. The FULL vitest suite and `cargo check` / `cargo test` are allowed at any time (cheap); the ban is specifically the full pytest suite.
+Rationale: pytest is the expensive suite; vitest (~5 min) and cargo (~seconds) do not need the same restriction, and a per-file vitest result equals the full-run result for that file.
+Applies to: Worker agents.
+```
+
+```
+C-AGENT-3
+Rule (WORKER): Do NOT run any test suite before starting the task, and do not treat a dirty worktree as a reason to establish a baseline. Read the files, implement, then test what you touched. Other agents' uncommitted work is not yours to validate.
+Rationale: a baseline run costs the same 18-20 min as verification, is never attributable to the worker, and the orchestrator already owns tree state.
+Applies to: Worker agents.
+```
+
+```
+C-AGENT-4
+Rule (ORCHESTRATOR): Only the orchestrator (or the owner) runs the full pytest suite, ONCE per code state, and only when the change warrants it — cross-cutting contract/packaging/IPC/i18n work, anything about to be committed or pushed, or a verdict that genuinely needs "is the whole tree green". A single-file fix already pinned by scoped tests does not warrant it: scoped evidence is the correct evidence. When it runs, redirect the whole output to a file, read the summary from that file, and run it in the background while reviewing the next item.
+Rationale: one full run per committed state keeps C-TEST-6 honest without paying 20 minutes per micro-task; only the orchestrator sees the whole session budget.
+Applies to: Orchestrator agents (relay-orchestrator skill), owner sessions.
+```
+
+```
+C-AGENT-5
+Rule (ROLES): An orchestrator prompt handed to a worker MUST open by declaring the role — "You are the Worker Agent." — and MUST close with a "Prohibited in this session" block repeating the worker bans (no full pytest suite, no pre-task test run, no >1 GB download without approval, no deletions outside scope). An agent must never infer it is the orchestrator from having read this file.
+Rationale: this file is read by every agent; without an explicit role line a worker can read C-TEST-6 and conclude it must run the full suite — exactly the waste C-AGENT-1 forbids.
+Applies to: Orchestrator agents (writing prompts) and worker agents (receiving them).
+```
+
+```
+C-AGENT-6
+Rule (WORKER): When a scoped run leaves a failure you believe belongs to another agent's uncommitted work, do NOT widen your scope and do NOT run the full suite to find out. Name the failing test ids, the file they exercise, and why it is not yours, in the final report.
+Rationale: the orchestrator attributes failures from the report; a worker widening its own scope is how unrelated subsystems get edited.
+Applies to: Worker agents.
+```
+
+```
+C-AGENT-7
+Rule: Do NOT download anything larger than 1 GB from the internet without explicit user approval — model weights, runtime packs, datasets, wheels. State the exact size, what it is for, and the alternatives (smaller variant, a copy already on disk, or not doing it), then wait for a yes. Never silently retry a large download, and never fetch "just a few shards" of one.
+Rationale: a 5-10 GB re-download can exhaust a metered connection or the remaining disk; that trade belongs to the user, not the agent (owner rule 2026-11-02).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-AGENT-8
+Rule: Do NOT delete, move, overwrite or "clean up" any artifact you did not create in the current task — model files, runtime packs, caches, logs, screenshots, the user's own downloads — not even to free disk space. If space blocks the task, stop and ask.
+Rationale: an agent deleted a user-downloaded 1.8 GB model to make room and it could not be restored offline (2026-11-02); the correct move was to report the constraint.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-AGENT-9
+Rule: Do NOT idle on a long-running command. Anything expected to take minutes (the full pytest suite, a big build, a pack install, a stress run) MUST be started detached with its whole output redirected to a file, and the agent MUST immediately do useful work instead of waiting, sleeping, or re-checking progress in a loop. Useful means either task-coupled read-only work (read the code the next step needs, review the diff, draft the report, prepare the follow-up) or a task-independent audit of the application. Check the job only at natural boundaries — when the parallel work item finishes, or by reading the redirected file once — never poll. The final message must state what was done while it ran ("while the suite was running I audited X and found …") plus the path of the audit file.
+Rationale: a 20-minute full run spent watching a cursor is 20 minutes of a fixed session budget; the same 20 minutes can produce a reviewable improvement list at zero extra cost (owner rule 2026-11-02).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-AGENT-10
+Rule: While a full test run is in flight, treat the tree under test as FROZEN: audit only, no edits to source, tests, config, fixtures, build files or anything the run reads. A concurrent edit invalidates the green-on-final-state guarantee the run exists to provide (C-TEST-6), because the suite is then certifying a state that no longer exists. Permitted writes during a run: a NEW report file under `docs/audit/<topic>-YYYY-MM-DD.md` (gitignored), an append to `worklog.md`, and anything outside the repo. Anything the audit finds worth changing becomes a listed follow-up item, never a mid-run edit or commit.
+Rationale: the point of the freeze is that "green" must mean the exact state being shipped; an agent that audits by editing turns its own evidence into a lie.
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ## Category: Testing & Baselines
 
 ```
@@ -570,7 +649,7 @@ Applies to: All agents, all modes, all sub-agents.
 
 ```
 C-TEST-6
-Rule (CLOUD-SANDBOX AGENT RULE): Do NOT package (`changes.zip`), close, or complete while the code state lacks a recorded GREEN full run: entire pytest + vitest suites plus `cargo check` + `typecheck:ci` + `pytest --collect-only`, 0 failed/errors, at exactly (1) session baseline, (2) every Implementation-Wave merge, (3) FINAL DELIVERY GATE on the exact final state (any edit voids it). 10-min ceiling is no excuse: background/detach with log redirect, or per-domain chunks whose collected counts sum to the `pytest --co` total. Sub-agents run focused tests only; the orchestrator aggregates. No manufactured green (skips/xfail/deletes/exclusions) — fix root causes. Record every run in `worklog.md` (command, counts, failing IDs or `0 failed`, OS). One full run per unchanged state (see the one-run rule above); re-run only on state change.
+Rule (CLOUD-SANDBOX AGENT RULE): Do NOT package (`changes.zip`), close, or complete while the code state lacks a recorded GREEN full run: entire pytest + vitest suites plus `cargo check` + `typecheck:ci` + `pytest --collect-only`, 0 failed/errors, at exactly (1) session baseline, (2) every Implementation-Wave merge, (3) FINAL DELIVERY GATE on the exact final state (any edit voids it). 10-min ceiling is no excuse: background/detach with log redirect, or per-domain chunks whose collected counts sum to the `pytest --co` total. Sub-agents and worker sessions run focused tests only; the orchestrator aggregates, and the '(1) session baseline' full run is the orchestrator's job (C-AGENT-4), never a worker's. No manufactured green (skips/xfail/deletes/exclusions) — fix root causes. Record every run in `worklog.md` (command, counts, failing IDs or `0 failed`, OS). One full run per unchanged state (see the one-run rule above); re-run only on state change.
 Rationale: Cloud sessions shipped "success" with red suites visible only in full runs the agent never executed.
 Applies to: All agents, all modes, all sub-agents.
 ```
@@ -1375,6 +1454,52 @@ Applies to: All agents, all modes, all sub-agents.
 C-START-2
 Rule: Do NOT score "not serving yet" as "dead". A client startup probe classifies the pre-bind transport shape (`sidecar not connected` / not-yet-listening) with the timeout shape, and bounds that patience with an explicit startup window; verdict shapes (auth, protocol, unknown command) still fail fast outside it.
 Rationale: The mount probe burned its whole budget in ~10s on the normal cold-boot state and parked the app on the failure screen while the backend was still starting.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+---
+
+## Category: User-Facing Errors & Diagnostics
+
+```
+C-UXERR-1
+Rule: Do NOT expose debug information, internal model/runtime details, raw exception text, HTTP statuses, file paths or developer-facing messages to end users.
+Rationale: A user cannot act on a stack trace or an engine's 500; it only makes a solvable problem look broken.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-UXERR-2
+Rule: Do NOT render an in-app notification for anything that is not a real user-facing error or an action the user must take.
+Rationale: Toasts that narrate success or internal progress train users to dismiss the ones that matter.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-UXERR-3
+Rule: Do NOT write a user-facing error in technical language. Say what happened and what to do, in the user's own terms (e.g. "No audio output device was found. Check your speakers.").
+Rationale: Plain copy is the difference between a fixable problem and a support ticket.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-UXERR-4
+Rule: Do NOT ship an error surface without a recovery action whenever one exists (retry, restart, open settings/models).
+Rationale: An error the user cannot act on is a dead end; the action is part of the message, not polish.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-UXERR-5
+Rule: Do NOT move detail out of the logs when you simplify the copy. Keep the full error, warning, info and debug trail in the developer logs.
+Rationale: Plain UI copy and diagnosable logs are complementary, never a trade-off.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-UXERR-6
+Rule: Do NOT log a failure without the context needed to fix it from the log alone (subsystem, engine/model, the inputs that matter, HTTP status and response tail).
+Rationale: "It failed" forces a round-trip with the user; context makes the next question unnecessary.
 Applies to: All agents, all modes, all sub-agents.
 ```
 

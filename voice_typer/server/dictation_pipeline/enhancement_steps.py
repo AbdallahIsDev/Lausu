@@ -67,6 +67,10 @@ class _EnhancementStepsMixin:
     # transcripts above this word count skip LLM polish
     _LLM_POLISH_WORD_LIMIT: int = 1500
 
+    #: Providers served by the chunked local path. A small local model copies
+    #: its input past ~150 words, so the length limit must NOT apply here.
+    _LOCAL_LLM_PROVIDERS: frozenset[str] = frozenset({"local_onnx", "ollama", "lmstudio"})
+
     def _call_polish_with_timeout(self, polisher: Any, text: str) -> str:
         """Run ``polisher.polish(text)`` in a side-thread with a hard timeout.
 
@@ -92,10 +96,128 @@ class _EnhancementStepsMixin:
             return text
         # NO ``executor.shutdown(wait=False)`` here, the
 
+    def _cycle_abort_token(self) -> Any:
+        """Scoped abort for chunked local polish (stops at a chunk boundary)."""
+        app = self._app
+        cycle_id = self._cycle_id
+
+        class _CycleAbort:
+            def is_set(self) -> bool:
+                from voice_typer.server.cycle_guard import is_cycle_live
+
+                return not is_cycle_live(app, cycle_id)
+
+        return _CycleAbort()
+
+    def _polish_with_provider(self, text: str) -> str:
+        """Polish through the resolved provider: chunked local, single-call remote."""
+        from voice_typer.server.model_providers import resolve_llm
+        from voice_typer.server.model_providers.errors import ProviderError
+
+        try:
+            resolved = resolve_llm(self._app.config)
+        except ProviderError as exc:
+            # Typed, user-renderable failure: never silently switch provider.
+            log.warning(
+                "[LLM_POLISH] provider resolution failed (code=%s provider=%s): %s; raw transcript returned (cycle=%s)",
+                getattr(exc, "code", "server.provider_error"),
+                getattr(exc, "provider", ""),
+                redact_secret(str(exc)),
+                self._cycle_id,
+            )
+            return text
+
+        provider_id = resolved.provider.id
+        model_id = resolved.model_id or "default"
+        if provider_id in self._LOCAL_LLM_PROVIDERS:
+            from voice_typer.server.llm_polish import system_prompt
+            from voice_typer.server.model_providers.local_onnx.chunked import polish_chunked
+            from voice_typer.server.model_providers.local_onnx.chunker import chunk_sentences
+
+            polished = polish_chunked(
+                resolved.client(),
+                text,
+                system_prompt(self._app.config.llm_preset),
+                abort_event=self._cycle_abort_token(),
+            )
+            log.info(
+                "[LLM_POLISH] provider=%s model=%s chunks=%d words=%d (cycle=%s)",
+                provider_id,
+                model_id,
+                len(chunk_sentences(text)),
+                len(text.split()),
+                self._cycle_id,
+            )
+            return polished
+
+        _word_count = len(text.split())
+        if _word_count > self._LLM_POLISH_WORD_LIMIT:
+            log.info(
+                "[LLM_POLISH] Skipping polish for long transcript "
+                "(word_count=%d > limit=%d), preserves 4s pipeline "
+                "budget for short utterances; raw transcript returned. "
+                "(cycle=%s)",
+                _word_count,
+                self._LLM_POLISH_WORD_LIMIT,
+                self._cycle_id,
+            )
+            return text
+        if self._app._llm_polisher is None:
+            from voice_typer.server.llm_polish import LLMPolisher
+
+            self._app._llm_polisher = LLMPolisher(
+                api_key=self._app.config.llm_api_key or getattr(self._app.config, "openai_api_key", ""),
+                api_url=self._app.config.llm_api_url or None,
+                model=self._app.config.llm_model or None,
+                preset=self._app.config.llm_preset,
+                enabled=True,
+            )
+        out = self._call_polish_with_timeout(self._app._llm_polisher, text)
+        log.info(
+            "[LLM_POLISH] provider=%s model=%s chunks=1 words=%d (cycle=%s)",
+            provider_id,
+            model_id,
+            _word_count,
+            self._cycle_id,
+        )
+        return out
+
+    def _llm_polish_gates(self) -> tuple[bool, bool]:
+        """``(has_credential, consented)`` for the configured Polish provider.
+
+        Mirrors ``model_providers.routing.resolve`` so a provider selected in the
+        UI (its key in the vault) is not re-gated by the legacy ``llm_api_key``
+        field, while an on-device provider needs neither key nor remote consent.
+        """
+        config = self._app.config
+        raw = getattr(config, "llm_provider", "")
+        provider_id = raw.strip() if isinstance(raw, str) else ""
+        if not provider_id or provider_id == "cloud_direct":
+            legacy_key = config.llm_api_key or getattr(config, "openai_api_key", "")
+            return bool(legacy_key), bool(getattr(config, "llm_polish_consent", False))
+
+        from voice_typer.server.model_providers.descriptor import Domain
+        from voice_typer.server.model_providers.registry import get_registry
+        from voice_typer.server.model_providers.routing import (
+            effective_consent,
+            provider_key,
+            provider_requires_consent,
+        )
+
+        descriptor = get_registry().maybe_get(provider_id)
+        if descriptor is None:
+            # Let ``resolve_llm`` raise the typed ProviderNotFoundError instead.
+            return True, True
+        remote = provider_requires_consent(config, provider_id, descriptor)
+        needs_key = remote and descriptor.auth.value == "api_key"
+        has_credential = not needs_key or bool(provider_key(config, provider_id))
+        consented = not remote or effective_consent(config, Domain.LLM, provider_id)
+        return has_credential, consented
+
     def _apply_llm_polish(self, text: str) -> str:
         """Step 7: Apply LLM polishing (if consented)."""
-        effective_llm_key = self._app.config.llm_api_key or getattr(self._app.config, "openai_api_key", "")
-        if self._app.config.llm_polish and effective_llm_key and getattr(self._app.config, "llm_polish_consent", False):
+        has_credential, consented = self._llm_polish_gates()
+        if self._app.config.llm_polish and has_credential and consented:
             # privacy NOTICE when templates were applied
             if self._templates_applied:
                 log.info(
@@ -119,30 +241,7 @@ class _EnhancementStepsMixin:
                     )
                     return text
             try:
-                if self._app._llm_polisher is None:
-                    from voice_typer.server.llm_polish import LLMPolisher
-
-                    self._app._llm_polisher = LLMPolisher(
-                        api_key=effective_llm_key,
-                        api_url=self._app.config.llm_api_url or None,
-                        model=self._app.config.llm_model or None,
-                        preset=self._app.config.llm_preset,
-                        enabled=True,
-                    )
-                # skip polish for long transcripts. The 4 s
-                _word_count = len(text.split())
-                if _word_count > self._LLM_POLISH_WORD_LIMIT:
-                    log.info(
-                        "[LLM_POLISH] Skipping polish for long transcript "
-                        "(word_count=%d > limit=%d), preserves 4s pipeline "
-                        "budget for short utterances; raw transcript returned. "
-                        "(cycle=%s)",
-                        _word_count,
-                        self._LLM_POLISH_WORD_LIMIT,
-                        self._cycle_id,
-                    )
-                else:
-                    text = self._call_polish_with_timeout(self._app._llm_polisher, text)
+                text = self._polish_with_provider(text)
             except Exception as exc:
                 # redact the exception message before
                 log.warning("[LLM_POLISH] Polish failed: %s", redact_secret(str(exc)))
@@ -158,11 +257,9 @@ class _EnhancementStepsMixin:
                     from voice_typer.server import event_bus
 
                     event_bus.publish({"type": "llm_polish_failed"})
-        elif (
-            self._app.config.llm_polish
-            and effective_llm_key
-            and not getattr(self._app.config, "llm_polish_consent", False)
-        ) and not getattr(self._app, "_llm_consent_warned", False):
+        elif (self._app.config.llm_polish and has_credential and not consented) and not getattr(
+            self._app, "_llm_consent_warned", False
+        ):
             log.info("[LLM_POLISH] llm_polish is enabled but llm_polish_consent is False, skipping polish.")
             self._app._llm_consent_warned = True
             # Surface the silent skip: publish a ``consent_required``

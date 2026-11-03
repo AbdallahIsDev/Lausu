@@ -81,6 +81,15 @@ class ErrorCodes:
     # for ``_dispatch_lock`` (holder stuck). The caller retries shortly;
     # readonly commands keep flowing on their reserved pool.
     SERVER_BUSY = "server.busy"
+    # Provider layer (model_providers/errors.py maps every subclass onto
+    # one of these, so the renderer renders shared copy).
+    PROVIDER_UNKNOWN = "server.provider_unknown"
+    PROVIDER_MODEL_UNKNOWN = "server.provider_model_unknown"
+    PROVIDER_UNSUPPORTED_DOMAIN = "server.provider_unsupported_domain"
+    PROVIDER_CONSENT_REQUIRED = "server.provider_consent_required"
+    PROVIDER_AUTH_REQUIRED = "server.provider_auth_required"
+    PROVIDER_UNAVAILABLE = "server.provider_unavailable"
+    PROVIDER_RUNTIME_ERROR = "server.provider_runtime_error"
 
 
 class LegacyErrorCodes:

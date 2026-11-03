@@ -184,6 +184,35 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         # renderer-supplied value, so the toggle cannot be used as a
         # general device-write primitive.
         "mic_guard_enabled",
+        # Added 2026-11-02 (provider layer, WP1/WP2). Reviewed per key group
+        # below in TestAllowlistSnapshot.test_allowlist_size_unchanged.
+        "asr_provider",
+        "asr_model_id",
+        "asr_provider_consent",
+        "asr_provider_fallback",
+        "llm_provider",
+        "llm_model_id",
+        "llm_provider_consent",
+        "llm_provider_fallback",
+        "tts_provider",
+        "tts_model_id",
+        "tts_voice_id",
+        "tts_provider_consent",
+        "tts_provider_fallback",
+        "tts_enabled",
+        "tts_engine",
+        "tts_voice",
+        "tts_language",
+        "tts_api_url",
+        "custom_tts_api_key",
+        "ollama_base_url",
+        "ollama_api_key",
+        "lmstudio_base_url",
+        "lmstudio_api_key",
+        "openrouter_base_url",
+        "openrouter_api_key",
+        "local_onnx_model_dir",
+        "local_onnx_model_id",
     }
 )
 
@@ -192,12 +221,43 @@ class TestAllowlistSnapshot:
     """SEC-002 byte-for-byte parity for ``IPC_CONFIG_ALLOWLIST``."""
 
     def test_allowlist_size_unchanged(self) -> None:
-        """The allowlist must still contain exactly 139 keys."""
-        assert len(IPC_CONFIG_ALLOWLIST) == 139, (
-            f"IPC_CONFIG_ALLOWLIST size drifted: expected 139, got {len(IPC_CONFIG_ALLOWLIST)}. "
+        """The allowlist must still contain exactly 166 keys."""
+        assert len(IPC_CONFIG_ALLOWLIST) == 166, (
+            f"IPC_CONFIG_ALLOWLIST size drifted: expected 166, got {len(IPC_CONFIG_ALLOWLIST)}. "
             "SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a "
             "security-sensitive change that must be reviewed explicitly. "
-            "Latest reviewed growth: 137 → 139, `live_listen_level` + "
+            "Latest growth 165 → 166: `tts_enabled`, a bool that only skips "
+            "startup warm-up (it cannot start, stop or address a device; the "
+            "engine it gates must already be installed and selected). "
+            "Latest reviewed growth: 139 → 165, the provider layer "
+            "(WP1/WP2). Three groups. (1) Per-domain selection: "
+            "`asr_provider`/`asr_model_id`, `llm_provider`/`llm_model_id`, "
+            "`tts_provider`/`tts_model_id`/`tts_voice_id` are enum- and "
+            "length-capped-string validated (`_provider_id_validator`, "
+            "`_VALIDATOR_LLM_MODEL`), so a renderer can name a registered "
+            "provider or a bounded model id but cannot inject a URL, a "
+            "header, or a path. (2) Consent + fallback per domain: the three "
+            "`*_provider_consent` flags are bool-validated and only ever "
+            "GATE egress that `cross_field` already gates; the three "
+            "`*_provider_fallback` values are enum ('off' or 'local'), so "
+            "they cannot create a remote→remote chain. (3) Endpoint/key "
+            "material for the new providers: `ollama_base_url`, "
+            "`lmstudio_base_url`, `openrouter_base_url`, `tts_api_url` all go "
+            "through `_VALIDATOR_API_URL` (scheme + host allowlist, no "
+            "userinfo, no fragment), and `ollama_api_key`, "
+            "`lmstudio_api_key`, `openrouter_api_key`, `custom_tts_api_key` "
+            "through `_VALIDATOR_API_KEY` (non-empty bounded token, never "
+            "logged). `local_onnx_model_dir` is a path-validated model "
+            "directory (no execution, read-only load); `local_onnx_model_id` "
+            "is a slug. `tts_engine`/`tts_voice`/`tts_language` were already "
+            "Config fields with server-side validators and are allowlisted "
+            "now so the Speech block can write them through `set_config` "
+            "instead of a bespoke command. None of the 26 can redirect an "
+            "existing key to an arbitrary host or carry a secret out: the "
+            "key fields are write-only outbound (SEC-003 redaction) and the "
+            "URL fields are checked against the same host policy as "
+            "`llm_api_url`. "
+            "Prior 137 → 139 growth: `live_listen_level` + "
             "`mic_guard_enabled` (Listen Live preview-tap volume, float "
             "clamped [0,1], and the mic-guard master toggle, bool; neither "
             "can address the capture device or the speakers with a "

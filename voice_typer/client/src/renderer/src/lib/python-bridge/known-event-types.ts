@@ -90,6 +90,9 @@ export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
 	// The request counterpart `transcribe_offline` is a command,
 	// NOT a push event, see `PythonRequest`.
 	"transcribe_offline_result",
+	// Local ONNX LLM warm-up state (provider layer); consumed by the
+	// Providers page's Polish block.
+	"provider_local_onnx_state",
 	// events (each is published by the Python sidecar; the
 	// per-interface docstrings in types/ipc/push_events.ts name the
 	// emitters). Pinned by tests/test_event_types_parity.py in both
@@ -103,6 +106,9 @@ export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
 	"microphone_disconnected",
 	// Mic guard (S5): an outside write moved the OS capture knob.
 	"microphone_volume_lowered",
+	// Filter divergence: the chain removed speech, take delivered raw
+	// (`recording/filter_divergence.py`).
+	"filter_collapse",
 	// Engine / pipeline degradation observability:
 	"cloud_fallback_used",
 	"dictation_suppressed",
@@ -125,4 +131,7 @@ export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
 	// A model switch cancelled running media jobs (explained, not silent).
 	"media_jobs_cancelled_for_model_change",
 	"media_model_switch_refused",
+	// Local TTS playback transitions (playing / stopped / finished), so the
+	// icon-only control returns to play on a natural end without polling.
+	"tts_playback_state",
 ]);

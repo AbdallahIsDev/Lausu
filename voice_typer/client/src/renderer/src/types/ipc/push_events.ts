@@ -686,6 +686,32 @@ export interface MicrophoneVolumeLoweredEvent {
 }
 
 /**
+ * Pushed by the recording pipeline's filter-divergence guard
+ * (`recording/filter_divergence.py`) when the microphone filter chain
+ * provably removed the speech: raw audio carried speech while the filtered
+ * signal sat > 25 dB below it for more than 500 ms, or the take ended silent
+ * after filtering. The take is delivered from the raw (unfiltered) audio and
+ * filtering is bypassed for the rest of the recording, so the event is a
+ * degradation notice, never a failure. `reason` is `"collapse"` (mid
+ * recording), `"silent_take"` (stop-time fallback) or `"monitor_collapse"`
+ * (the level meter / mic test bypassed the chain and read the raw device for
+ * the rest of the session, `level_monitor/divergence.py`); the dB values are
+ * the chunk levels that tripped it; `preset` / `method` name the configuration
+ * that produced the state.
+ */
+export interface FilterCollapseEvent {
+	type: "filter_collapse";
+	data: {
+		reason: string;
+		raw_db: number;
+		filtered_db: number;
+		delta_db: number;
+		preset: string;
+		method: string;
+	};
+}
+
+/**
  * Pushed by `cloud/_engine.py` when a cloud ASR provider fails and the
  * local engine takes over for that transcription. `reason` is the
  * truncated exception message (max 200 chars). `kind` names the cause:
@@ -744,6 +770,33 @@ export interface PasteDeferredEvent {
 export interface TrayFallbackNotificationEvent {
 	type: "tray_fallback_notification";
 	data: { title?: string; message?: string };
+}
+
+/**
+ * Local ONNX LLM warm-up state. Published by
+ * `voice_typer/server/model_providers/local_onnx/client.py` when the session
+ * starts loading (`loading`), becomes usable (`ready`), fails (`failed`, with
+ * the actionable runtime message) or is dropped (`unloaded`). Session creation
+ * costs 16-45 s, so the Providers page renders a "loading model" state from it.
+ */
+export interface ProviderLocalOnnxStateEvent {
+	type: "provider_local_onnx_state";
+	data: { model: string; state: string; error: string | null };
+}
+
+/**
+ * Local TTS playback transition, published by `server/tts/manager.py` on start,
+ * on a stop request, and on natural end. The icon-only control derives its
+ * three states from this stream, never from a poll.
+ */
+export interface TtsPlaybackStateEvent {
+	type: "tts_playback_state";
+	data: {
+		engine: string;
+		voice: string;
+		state: "playing" | "stopped" | "finished";
+		cached: boolean;
+	};
 }
 
 export type PythonPushEvent =
@@ -819,12 +872,15 @@ export type PythonPushEvent =
 	| MicrophonePermissionRevokedEvent
 	| MicrophoneDisconnectedEvent
 	| MicrophoneVolumeLoweredEvent
+	| FilterCollapseEvent
 	| CloudFallbackUsedEvent
 	| DictationSuppressedEvent
 	| HistoryCorruptedEvent
 	| HistoryFts5RebuildFailedEvent
 	| PasteDeferredEvent
-	| TrayFallbackNotificationEvent;
+	| TrayFallbackNotificationEvent
+	| ProviderLocalOnnxStateEvent
+	| TtsPlaybackStateEvent;
 
 // (`src-tauri/src/sidecar/ws.rs`) both pin the current constant
 //   - Rust:   `src-tauri/src/sidecar/ws.rs:EXPECTED_PROTOCOL_VERSION`

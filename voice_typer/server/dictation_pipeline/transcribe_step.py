@@ -135,11 +135,37 @@ class _TranscribeStepMixin:
             )
         return engine
 
+    def _transcribe_with_provider(self) -> str | None:
+        """Transcribe through an explicitly selected remote ASR provider.
+
+        ``local`` and ``cloud_direct`` keep the pre-existing engine paths. A
+        typed consent/auth/runtime error propagates: silently falling back to
+        the local engine would hide a misconfigured provider.
+        """
+        from voice_typer.server.model_providers import resolve_asr
+
+        resolved = resolve_asr(self._app.config)
+        if resolved.provider.id in ("local", "cloud_direct"):
+            return None
+        client = resolved.client()
+        log.info(
+            "[TRANSCRIBE] provider=%s model=%s",
+            resolved.provider.id,
+            resolved.model_id or "default",
+        )
+        self._quality_summary = None
+        self._device_info = f"{resolved.provider.id} ASR"
+        return str(client.transcribe(self._audio))
+
     def _transcribe(self) -> str:
         """Step 1: Get transcription via streaming finalize or direct.
 
         Returns the transcript from the active streaming session (if one
         """
+        provider_text = self._transcribe_with_provider()
+        if provider_text is not None:
+            return provider_text
+
         #  capture the active transcriber ONCE, the
         active = self._app.models.active_transcriber()
         if active is None:

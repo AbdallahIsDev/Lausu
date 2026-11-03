@@ -38,12 +38,16 @@ class _State:
         # device rate equals, so the first apply always differs. A device switch
         # changes the rate alone, so it must stay part of the dedupe key.
         self._level_processor_sample_rate: int = 0
-        # Lightweight level-bar mode. When True (default), the cosmetic
-        # bar runs the filter chain (follows the audio preset). False opts
-        # out to a raw-RMS meter. First update_level_processor call sets it;
-        # this default only governs the pre-seed window (processor is None
-        # there, so the worker reads raw regardless).
-        self._level_bar_filtered: bool = True
+        # The bar follows the SELECTED signal (owner spec 2026-11-03): the
+        # processor's presence is the whole decision (``None`` = filter off =
+        # raw RMS), so there is no separate mode flag.
+        #
+        # Guard for the monitor/test chain (A1). The dictation path fails open
+        # when a chain deletes voiced speech; the meter ran the same chain with
+        # no guard, so a starving chain showed a dead bar and explained nothing.
+        # Armed per monitoring/mic-test session, never on a config change.
+        self._level_guard: Any | None = None
+        self._level_guard_tripped: bool = False
 
         # ──  (c-review PERF-03): SPSC ring buffer + worker ──
         self._LEVEL_RING_BUFFER_CAPACITY: int = 64

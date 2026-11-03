@@ -45,6 +45,8 @@ TS unions: `types/ipc/push_events.ts` + `types/ipc/requests.ts`. Parity: `tests/
 | `dictation_lost` | `{message, cycle_id, recoverable, recovery_type}` | Crash-interrupted dictation (crash recovery) |
 | `cloud_fallback_used` | `{provider, kind, reason}` | Cloud ASR failed → local |
 | `dictation_suppressed` | `{duration, recorded_rms, reason}` | Near-silent UX silence |
+| `tts_playback_state` | `{engine, voice, state, cached}` | Local TTS playback transition (`state` ∈ `playing`/`stopped`/`finished`); published by `tts/manager.py` on start, on `tts_stop`, and on natural end, so the icon-only control returns to play without polling |
+| `filter_collapse` | `{reason, raw_db, filtered_db, delta_db, preset, method}` | Filter-divergence guard failed open; `reason` ∈ `collapse`/`silent_take` (once per process per reason, `recording/filter_divergence.py`) or `monitor_collapse` (once per monitoring/test session, `level_monitor/divergence.py`) |
 | `history_corrupted` | `{path, db_path, recovered_count}` | Rebuilt after corruption |
 | `history_fts5_rebuild_failed` | `{db_path, deleted, error, source}` | |
 | `paste_deferred` | `{reason, message}` | e.g. macOS Secure Input |
@@ -78,6 +80,7 @@ Schema: `OFFLINE_PACK_EVENT_TYPES` in `voice_typer/server/service/offline_pack.p
 | `worker_unloaded` | `{reason}` |
 | `transcribe_offline` | REQUEST `{audio_path, sample_rate, language}` → ack `{queued:True}`; result via push |
 | `transcribe_offline_result` | PUSH `{text, latency_ms}` |
+| `provider_local_onnx_state` | `{model, state, error}` | Local ONNX LLM warm-up (`model_providers/local_onnx/client.py`): `state` is `loading` / `ready` / `failed` / `unloaded`; `error` carries the actionable runtime message on `failed`. Consumed by the Providers page's Polish block. |
 
 ## IPCServer.push only (not on the bus)
 

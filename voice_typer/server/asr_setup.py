@@ -381,7 +381,9 @@ def download_parakeet_weights(
         local_dir = snapshot_download(
             repo_id=repo_id,
             revision=parakeet_revision,
-            allow_patterns=_HF_ALLOW_PATTERNS_PARAKEET_ONNX,
+            # ``snapshot_download`` declares ``list[str] | str | None``; a
+            # frozenset is accepted at runtime but rejected by the overloads.
+            allow_patterns=list(_HF_ALLOW_PATTERNS_PARAKEET_ONNX),
             local_files_only=True,
         )
         # allow_patterns is a superset of the pinned manifest files;
@@ -461,7 +463,9 @@ def download_parakeet_weights(
             delays=tuple(2**i for i in range(_MAX_DOWNLOAD_ATTEMPTS)),  # keep exponential backoff
             repo_id=repo_id,
             revision=parakeet_revision,
-            allow_patterns=_HF_ALLOW_PATTERNS_PARAKEET_ONNX,
+            # ``snapshot_download`` declares ``list[str] | str | None``; a
+            # frozenset is accepted at runtime but rejected by the overloads.
+            allow_patterns=list(_HF_ALLOW_PATTERNS_PARAKEET_ONNX),
             # Segmented fast lane owns the big files, exclude them here.
             ignore_patterns=seg_names or None,
             # pause/abort gate: see get_download_tqdm_class.

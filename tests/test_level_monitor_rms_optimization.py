@@ -309,7 +309,6 @@ class TestProcessLevelChunkEndToEnd:
         processor = MagicMock()
         processor.process_chunk.side_effect = lambda x: x
         lm._level_processor = processor
-        lm._level_bar_filtered = True
 
         lm.start_monitoring(mic_id=None)
         assert callable(holder["callback"]), "start_monitoring did not open a stream"

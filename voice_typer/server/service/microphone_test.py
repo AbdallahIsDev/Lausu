@@ -239,6 +239,18 @@ class MicrophoneTestMixin(ServiceMixinBase):
                 "[SERVICE] level_monitor_start: update_level_processor failed",
                 exc_info=True,
             )
+        # The dictation chain was built at startup too: a preload that landed
+        # since then must take over here as well (C-UI-15), not at the next
+        # recording.
+        try:
+            processor = getattr(self._app, "_audio_processor", None)
+            if processor is not None:
+                processor.refresh_backends()
+        except Exception:
+            log.debug(
+                "[SERVICE] level_monitor_start: dictation backend refresh failed",
+                exc_info=True,
+            )
         return result
 
     def level_monitor_stop(self) -> dict[str, object]:

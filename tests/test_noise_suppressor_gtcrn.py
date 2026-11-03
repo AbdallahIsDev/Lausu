@@ -374,7 +374,7 @@ class TestNoiseSuppressionMethodParity:
         from voice_typer.server.config_validators import NOISE_SUPPRESSION_METHODS
 
         literal_args = set(typing.get_args(typing.get_type_hints(Config)["noise_suppression_method"]))
-        assert literal_args == {"rnnoise", "gtcrn", "none"}
+        assert literal_args == {"dpdfnet", "rnnoise", "gtcrn", "none"}
         assert set(NOISE_SUPPRESSION_METHODS) == literal_args, (
             "NOISE_SUPPRESSION_METHODS (IPC validator allowlist) must match the "
             "Config schema Literal, a drift silently rejects valid IPC values"

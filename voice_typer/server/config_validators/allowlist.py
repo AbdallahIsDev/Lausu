@@ -16,9 +16,9 @@ has its own focused home.  It owns:
   :data:`model_registry.MODEL_REGISTRY` at import time so the two
   cannot drift.
 * :data:`NOISE_SUPPRESSION_METHODS`: the canonical noise-suppression
-  backend enum (``"rnnoise" | "gtcrn" | "none"``); imported by
-  ``audio_filters/noise_suppressor.py`` and re-exported via
-  ``config/__init__.py``.
+  backend enum (``"dpdfnet" | "rnnoise" | "gtcrn" | "none"``); defined in
+  :mod:`.scalar` and imported by ``audio_filters/noise_suppressor.py``
+  and re-exported via ``config/__init__.py``.
 * The pre-built ``_VALIDATOR_*`` instances used inside
   :data:`IPC_CONFIG_ALLOWLIST`.
 * :data:`IPC_CONFIG_ALLOWLIST`: the explicit, reviewed map of fields
@@ -48,6 +48,7 @@ from voice_typer.server.config_validators.hotkey import _validate_hotkey
 from voice_typer.server.config_validators.language import _validate_language
 from voice_typer.server.config_validators.scalar import (
     _MAX_API_KEY_LEN,
+    NOISE_SUPPRESSION_METHODS,  # re-exported: public import path stays in this module
     FieldSpec,
     _bool_validator,
     _make_custom_presets_validator,
@@ -69,6 +70,7 @@ from voice_typer.server.model_registry import (
     MODEL_REGISTRY as _MODEL_REGISTRY_FOR_ALLOWLIST,
     NO_MODEL_SIZE as _NO_MODEL_SIZE,
 )
+from voice_typer.server.tts.voices import ALL_LANGUAGES as _TTS_LANGUAGES, ALL_VOICES as _TTS_VOICES
 
 # canonical bounds + default for ``max_recording_time_seconds``.
 MAX_RECORDING_TIME_SECONDS_DEFAULT: int = 900  # 15 minutes
@@ -85,8 +87,9 @@ STREAMING_RIGHT_GUARD_SECONDS_MIN: float = 1.5
 ALLOWED_USER_MODELS: frozenset[str] = frozenset(_MODEL_REGISTRY_FOR_ALLOWLIST.keys())
 
 
-# canonical noise-suppression backend enum.
-NOISE_SUPPRESSION_METHODS: frozenset[str] = frozenset({"rnnoise", "gtcrn", "none"})
+# canonical noise-suppression backend enum. Defined in ``scalar.py`` (the
+# saved-preset validator consumes it too) and re-exported here so the public
+# import path ``config_validators.NOISE_SUPPRESSION_METHODS`` stays put.
 
 
 # `IPC_CONFIG_ALLOWLIST` is the explicit, reviewed list of fields the
@@ -103,6 +106,24 @@ _VALIDATOR_MICROPHONE = _make_optional_str_validator(max_len=512)
 _VALIDATOR_PUSH_TO_TALK_HOTKEY = _validate_hotkey
 _VALIDATOR_CLOUD_MODEL = _make_str_validator(max_len=256)
 _VALIDATOR_TRUSTED_HOSTS = _validate_trusted_extra_hosts
+_VALIDATOR_PROVIDER_ID = _make_enum_validator(
+    frozenset(
+        {
+            "",
+            "local",
+            "cloud_direct",
+            "openrouter",
+            "ollama",
+            "lmstudio",
+            "local_onnx",
+            "openai",
+            "custom",
+        }
+    )
+)
+_VALIDATOR_PROVIDER_MODEL = _make_str_validator(max_len=256)
+_VALIDATOR_PROVIDER_FALLBACK = _make_enum_validator(frozenset({"off", "local"}))
+_VALIDATOR_LOCAL_DIR = _make_str_validator(max_len=1024)
 
 
 # typed as ``dict[str, FieldSpec]`` (previously a bare ``dict``)
@@ -160,10 +181,13 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
         str,
         _make_enum_validator(frozenset({"whisper", "qwen", "parakeet", "cloud"})),
     ),
-    # Local TTS engine toggle (Models page) + voice/language selection.
+    # Local TTS engine toggle (Models page) + voice/language selection. The
+    # voice/language enums are the union of the engine catalogues, so a value
+    # no runtime advertises is rejected here instead of failing a render.
+    "tts_enabled": (bool, _bool_validator),
     "tts_engine": (str, _make_enum_validator(frozenset({"off", "audio8", "magpie"}))),
-    "tts_voice": (str, _make_str_validator(max_len=64)),
-    "tts_language": (str, _make_str_validator(max_len=16)),
+    "tts_voice": (str, _make_enum_validator(_TTS_VOICES | {""})),
+    "tts_language": (str, _make_enum_validator(_TTS_LANGUAGES | {""})),
     "text_cleanup_enabled": (bool, _bool_validator),
     "auto_punctuation": (bool, _bool_validator),
     "log_transcriptions": (bool, _bool_validator),
@@ -192,6 +216,31 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "llm_api_url": (str, _VALIDATOR_LLM_API_URL),
     "llm_model": (str, _VALIDATOR_LLM_MODEL),
     "llm_preset": (str, _make_enum_validator(frozenset({"professional", "casual", "email", "code"}))),
+    # Per-domain provider routing (WP2): provider choice, model id, consent
+    # and fallback policy are four independent fields per domain.
+    "asr_provider": (str, _VALIDATOR_PROVIDER_ID),
+    "asr_model_id": (str, _VALIDATOR_PROVIDER_MODEL),
+    "asr_provider_consent": (bool, _bool_validator),
+    "asr_provider_fallback": (str, _VALIDATOR_PROVIDER_FALLBACK),
+    "tts_provider": (str, _VALIDATOR_PROVIDER_ID),
+    "tts_model_id": (str, _VALIDATOR_PROVIDER_MODEL),
+    "tts_voice_id": (str, _make_str_validator(max_len=128)),
+    "tts_api_url": (str, _VALIDATOR_API_URL),
+    "tts_provider_consent": (bool, _bool_validator),
+    "tts_provider_fallback": (str, _VALIDATOR_PROVIDER_FALLBACK),
+    "llm_provider": (str, _VALIDATOR_PROVIDER_ID),
+    "llm_model_id": (str, _VALIDATOR_PROVIDER_MODEL),
+    "llm_provider_consent": (bool, _bool_validator),
+    "llm_provider_fallback": (str, _VALIDATOR_PROVIDER_FALLBACK),
+    "openrouter_api_key": (str, _VALIDATOR_API_KEY),
+    "openrouter_base_url": (str, _VALIDATOR_API_URL),
+    "ollama_api_key": (str, _VALIDATOR_API_KEY),
+    "ollama_base_url": (str, _VALIDATOR_API_URL),
+    "lmstudio_api_key": (str, _VALIDATOR_API_KEY),
+    "lmstudio_base_url": (str, _VALIDATOR_API_URL),
+    "custom_tts_api_key": (str, _VALIDATOR_API_KEY),
+    "local_onnx_model_dir": (str, _VALIDATOR_LOCAL_DIR),
+    "local_onnx_model_id": (str, _VALIDATOR_PROVIDER_MODEL),
     # Consent flag is user-tunable (the consent dialog
     "llm_polish_consent": (bool, _bool_validator),
     # 006/009: privacy consent flags.  All user-tunable

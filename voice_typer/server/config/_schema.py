@@ -90,6 +90,9 @@ class _ConfigSchema:
 
     # Local text-to-speech. "off" keeps both native runtimes unloaded; the
     # packs live under the Hugging Face folder like every other model.
+    # ``tts_enabled`` is the master switch: with it off no runtime is started
+    # at launch (and startup prewarm is skipped) even if an engine is selected.
+    tts_enabled: bool = False
     tts_engine: Literal["off", "audio8", "magpie"] = "off"
     tts_voice: str = "Aria"
     tts_language: str = "en-US"
@@ -157,6 +160,40 @@ class _ConfigSchema:
     llm_api_url: str = DEFAULT_LLM_API_URL
     llm_model: str = DEFAULT_LLM_MODEL
     llm_preset: str = "professional"  # professional/casual/email/code
+
+    # Per-domain provider routing (WP2). "" means "follow the legacy
+    # single-provider fields above", so an untouched config reproduces the
+    # pre-provider behaviour byte for byte. Resolution happens at call time.
+    asr_provider: str = ""
+    asr_model_id: str = ""
+    asr_provider_consent: bool = False
+    asr_provider_fallback: Literal["off", "local"] = "local"
+
+    tts_provider: str = ""
+    tts_model_id: str = ""
+    tts_voice_id: str = ""
+    tts_api_url: str = ""
+    tts_provider_consent: bool = False
+    tts_provider_fallback: Literal["off", "local"] = "off"
+
+    llm_provider: str = ""
+    llm_model_id: str = ""
+    llm_provider_consent: bool = False
+    llm_provider_fallback: Literal["off", "local"] = "off"
+
+    # One key per provider id (WP8). Stored through credential_store, never
+    # through plain config writes.
+    openrouter_api_key: str = ""
+    openrouter_base_url: str = ""
+    ollama_api_key: str = ""
+    ollama_base_url: str = ""
+    lmstudio_api_key: str = ""
+    lmstudio_base_url: str = ""
+    custom_tts_api_key: str = ""
+
+    # Local ONNX text provider (WP6): directory holding verified model dirs.
+    local_onnx_model_dir: str = ""
+    local_onnx_model_id: str = ""
 
     # Explicit user consent that text may leave the
     llm_polish_consent: bool = False
@@ -355,7 +392,10 @@ class _ConfigSchema:
     noise_filter_post_capture: bool = True  # runtime switch, see ADR 0009
 
     # ADR 0007 §5.1: New filter chain fields
-    noise_suppression_method: Literal["rnnoise", "gtcrn", "none"] = "rnnoise"
+    # ``dpdfnet`` = bundled DPDFNet2 (DeepFilterNet2 + dual-path RNN, 16 kHz
+    # streaming ONNX). It is the default because it is causal, keeps speech
+    # level intact (no ducking) and needs no download at runtime.
+    noise_suppression_method: Literal["dpdfnet", "rnnoise", "gtcrn", "none"] = "dpdfnet"
 
     # NoiseGate (OBS-style, replaces single threshold)
     noise_filter_gate_open_threshold_db: float = -26.0

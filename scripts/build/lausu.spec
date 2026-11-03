@@ -88,6 +88,10 @@ _hotkey_reserved_json = str(_PROJECT_ROOT / "voice_typer" / "server" / "hotkey_r
 _model_hashes_json = str(_PROJECT_ROOT / "voice_typer" / "server" / "model_hashes.json")
 # MEM-03: bundled Silero VAD ONNX model (loaded by vad.py via ORT InferenceSession)
 _silero_vad_onnx = str(_PROJECT_ROOT / "voice_typer" / "server" / "silero_vad.onnx")
+# Bundled ONNX denoisers, loaded by audio_filters/{gtcrn,dpdfnet}_backend.py
+# next to this module (MODEL_PATH = Path(__file__).parent.parent / "<file>").
+_gtcrn_onnx = str(_PROJECT_ROOT / "voice_typer" / "server" / "gtcrn_simple.onnx")
+_dpdfnet_onnx = str(_PROJECT_ROOT / "voice_typer" / "server" / "dpdfnet2.onnx")
 _icon_path = _PROJECT_ROOT / "scripts" / "build" / "lausu.ico"
 
 # NATIVE-001: native key-listener binaries.
@@ -249,6 +253,8 @@ a = Analysis(
         (_hotkey_reserved_json, "voice_typer/server"),
         (_model_hashes_json, "voice_typer/server"),
         (_silero_vad_onnx, "voice_typer/server"),
+        (_gtcrn_onnx, "voice_typer/server"),
+        (_dpdfnet_onnx, "voice_typer/server"),
     ]
     + _linux_scripts,
     hiddenimports=_hiddenimports,

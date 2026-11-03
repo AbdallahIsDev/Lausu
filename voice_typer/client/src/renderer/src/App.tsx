@@ -17,6 +17,7 @@ import { useConnectionToasts } from "@/hooks/useConnectionToasts";
 import { useConsentRequiredEvent } from "@/hooks/useConsentRequiredEvent";
 import { useDeviceLostToast } from "@/hooks/useDeviceLostToast";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useFilterCollapseToast } from "@/hooks/useFilterCollapseToast";
 import { useGlobalKeyboardShortcuts } from "@/hooks/useGlobalKeyboardShortcuts";
 import { useHelpOverlayShortcut } from "@/hooks/useHelpOverlayShortcut";
 import { useHistoryIntegrityToast } from "@/hooks/useHistoryIntegrityToast";
@@ -172,6 +173,9 @@ export default function App() {
 	// Mic guard: sticky [Back to 100%] note when an outside write lowered the
 	// OS capture knob and the backend could not put it back itself.
 	useMicGuardToast(t);
+	// Filter divergence: the chain removed speech and the take was delivered
+	// unfiltered. Owner report 2026-11-01.
+	useFilterCollapseToast(t, () => navigate("microphone"));
 	useConsentRequiredEvent({ call });
 
 	const connectingProgress = useConnectingProgress(connectionStatus);

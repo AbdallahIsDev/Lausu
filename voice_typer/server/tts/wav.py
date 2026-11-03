@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import soundfile as sf
+import soundfile as sf  # type: ignore[import-untyped]
 
 from voice_typer.server.tts.types import TtsError
 

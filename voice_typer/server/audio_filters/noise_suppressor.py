@@ -133,6 +133,10 @@ class NoiseSuppressor(AudioFilter):
         except Exception:
             return False
         self._method = "gtcrn"
+        # The display name follows the EFFECTIVE method (C-UI-15): leaving it
+        # as "NoiseSuppressor(dpfnnet)" is how a gtcrn chain reached the UI
+        # labelled DPDFNet.
+        self.name = f"NoiseSuppressor({self._method})"
         if not self._quiet:
             _log_backend_ready_once(
                 "gtcrn-substitute", "[NOISE-SUPPRESS] rnnoise unavailable, serving bundled gtcrn instead"
@@ -235,24 +239,27 @@ class NoiseSuppressor(AudioFilter):
         self._degraded_reason = f"{reason}, serving rnnoise instead"
 
     def _promote_dpdfnet(self) -> None:
-        """Swap the rnnoise fallback for DPDFNet once its runtime has landed.
+        """Swap whatever is serving for DPDFNet once its runtime has landed.
 
-        Called from ``reset()`` (recording start), never from ``process()``: a
-        session build must not run on the audio callback. Uses the already
-        cached runtime only, so a failed/slow preload costs nothing.
+        Gated on ``_dpdfnet_pending`` alone: the fallback is usually the gtcrn
+        substitute (pyrnnoise is not installed), so requiring ``_method ==
+        "rnnoise"`` pinned a whole session to gtcrn while the label said
+        DPDFNet. Called from ``reset()`` / ``refresh_backend()``, never from
+        ``process()``: a session build must not run on the audio callback.
         """
-        if not self._dpdfnet_pending or self._method != "rnnoise":
+        if not self._dpdfnet_pending:
             return
         try:
             from voice_typer.server.audio_filters import dpdfnet_backend
 
-            if dpdfnet_backend._cached_runtime() is None:
+            if not dpdfnet_backend.has_runtime():
                 return
             backend = dpdfnet_backend.DpdfnetBackend(sample_rate=self._source_sample_rate)
         except Exception:
             return
         self._backend = backend
         self._method = "dpdfnet"
+        self.name = "NoiseSuppressor(dpdfnet)"
         self._dpdfnet_pending = False
         self._degraded = False
         self._degraded_reason = ""
@@ -561,3 +568,23 @@ class NoiseSuppressor(AudioFilter):
     @property
     def degraded_reason(self) -> str:
         return self._degraded_reason
+
+    @property
+    def effective_method(self) -> str:
+        """The backend actually serving audio (``self._method`` after fallbacks)."""
+        return self._method
+
+    @property
+    def backend_signature(self) -> tuple[str, str]:
+        """(effective method, backend class) — changes when a fallback promotes."""
+        return (self._method, type(self._backend).__name__ if self._backend is not None else "")
+
+    def refresh_backend(self) -> bool:
+        """Promote a pending backend in place; True when the backend changed.
+
+        Safe from any non-audio thread (builds a session, never runs audio), so
+        the level/meter chain can converge to reality without a full rebuild.
+        """
+        before = self.backend_signature
+        self._promote_dpdfnet()
+        return self.backend_signature != before

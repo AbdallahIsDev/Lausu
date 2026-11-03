@@ -40,6 +40,33 @@ export interface GetStatusRequest {
 	type: "get_status";
 }
 
+/** Local TTS engine/pack inventory + the active voice/language + cache map. */
+export interface TtsStatusRequest {
+	type: "tts_status";
+}
+
+/** Download one engine's runtime + model pack (idempotent). */
+export interface TtsPrepareRequest {
+	type: "tts_prepare";
+	data: { engine: string };
+}
+
+/**
+ * Render a clip (or play the cached voice sample) and START playback.
+ * The call returns as soon as audio starts; `tts_playback_state` drives the
+ * control from then on. Failures arrive as `{ok: false, error: <code>}` so the
+ * renderer can show plain-language copy instead of an engine message.
+ */
+export interface TtsSpeakRequest {
+	type: "tts_speak";
+	data: { text?: string; engine?: string; voice?: string; sample?: boolean };
+}
+
+/** Interrupt the clip that is playing (no payload). */
+export interface TtsStopRequest {
+	type: "tts_stop";
+}
+
 export interface LevelMonitorStartRequest {
 	type: "level_monitor_start";
 	data: { mic_id: string };
@@ -532,4 +559,9 @@ export type PythonRequest =
 	| ScreenshotCaptureRequest
 	| ScreenshotClearCycleRequest
 	| ScreenshotGetStatusRequest
-	| ScreenshotSetConsentRequest;
+	| ScreenshotSetConsentRequest
+	// Local text-to-speech (Models page engine rows + the icon-only control).
+	| TtsStatusRequest
+	| TtsPrepareRequest
+	| TtsSpeakRequest
+	| TtsStopRequest;

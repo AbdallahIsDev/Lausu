@@ -445,6 +445,8 @@ class NoiseGate(AudioFilter):
         ):
             if buf is not None:
                 buf.fill(0)
-        # _i_arr_buf holds [0, 1, 2, ...] (not audio-derived), no PII,
+        # _i_arr_buf holds [0, 1, 2, ...] (not audio-derived), no PII, and it
+        # is a CACHE: zeroing it turns every later ramp into 0 and the gate
+        # then attenuates a healthy signal from the first sample on.
         if self._i_arr_buf is not None:
-            self._i_arr_buf.fill(0)
+            self._i_arr_buf = np.arange(self._i_arr_buf.shape[0], dtype=np.float64)

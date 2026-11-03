@@ -145,6 +145,21 @@ _PUBLIC_ENV_VAR_NAMES: frozenset[str] = frozenset(
         "VOICE_TYPER_LOG_LEVEL_MODULES",
         "VOICE_TYPER_SKIP_ACCESSIBILITY_CHECK",
         "VOICE_TYPER_DEFER_MODEL_LOAD",
+        "VOICE_TYPER_SESSION_ID",
+        "VOICE_TYPER_VERBOSE",
+        # Runtime/model surface (names are public; the values still redact).
+        "VOICE_TYPER_AUDIO8_BACKEND",
+        "VOICE_TYPER_AUDIO8_BIN",
+        "VOICE_TYPER_NEMO_SPEECH_BIN",
+        "VOICE_TYPER_NATIVE_BINARY",
+        "VOICE_TYPER_NATIVE_TRUST",
+        "VOICE_TYPER_PLUGINS_DIR",
+        "VOICE_TYPER_RING_BUFFER_SECONDS",
+        "VT_PACK_MANIFEST_URL",
+        # Early server-started mode (``ipc/entrypoint_args.py``): logged as
+        # ``[IPC] early server-started mode (VT_EARLY_SERVER_STARTED=1)`` —
+        # 22 chars, so the generic catch-all masked the NAME as ``***``.
+        "VT_EARLY_SERVER_STARTED",
         # Hugging Face
         "HUGGING_FACE_HUB_TOKEN",
         "HF_HOME",

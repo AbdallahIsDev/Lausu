@@ -136,9 +136,22 @@ EXPECTED_COMMANDS: frozenset[str] = frozenset(
         "get_microphone_volume",
         "set_microphone_volume",
         "set_output_volume",
+        # ADR-0020 §16 addendum (2026-11-02, ADR-0028 provider registry):
+        # the per-domain model-provider surface — registry/catalogue reads,
+        # masked key management and the per-domain selection write. Each has
+        # a real `_handle_*` mixin in `handlers/provider_handlers.py`, a
+        # `_COMMAND_REGISTRY` entry with an explicit `COMMAND_COSTS` tier, a
+        # Rust allowlist entry, a `docs/ipc-reference.md` row and its own
+        # handler/parity tests.
+        "provider_list",
+        "provider_models",
+        "provider_test",
+        "provider_set_key",
+        "provider_clear_key",
+        "provider_set_domain",
     }
 )
-assert len(EXPECTED_COMMANDS) == 78, (
+assert len(EXPECTED_COMMANDS) == 84, (
     "ADR-0020 §2 freezes the command table. 69 = post-cleanup baseline "
     "after ZR-45 + the Tauri/Rust allowlist narrowing (+ ``onboarding_set_backend``, "
     "§16 addendum 2026-08-06; + ``reset_macos_accessibility``, "
@@ -222,6 +235,17 @@ KNOWN_UNDOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         # reported here rather than blessed into the frozen table. Do NOT
         # move it into EXPECTED_COMMANDS without the (b) paperwork.
         "microphone_test_status",
+        # TTS playback trio (2026-11, TTS feature work): real handlers in
+        # `handlers/tts_handlers.py`, Rust allowlist entries and
+        # `docs/ipc-reference.md` rows, but the §16 addendum + schemas are
+        # still owned by that feature; recorded here as an explicit gap
+        # rather than blessed into the frozen table.
+        "tts_prepare",
+        "tts_speak",
+        "tts_status",
+        # Owned by the same TTS feature: ``tts_stop`` backs the model row's
+        # stop glyph (the second half of the non-blocking playback pair).
+        "tts_stop",
     }
 )
 

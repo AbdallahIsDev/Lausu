@@ -92,6 +92,12 @@ pub(super) const ALLOWED_EVENT_TYPES: &[&str] = &[
     "history_fts5_rebuild_failed",
     // Mic guard (S5): an outside write moved the OS capture knob.
     "microphone_volume_lowered",
+    // Filter divergence: the chain removed speech, take delivered raw.
+    "filter_collapse",
+    // Local ONNX LLM warm-up state (provider layer).
+    "provider_local_onnx_state",
+    // Local TTS playback transitions (playing / stopped / finished).
+    "tts_playback_state",
     // Clipboard paste safety (paste keystroke dropped / deferred).
     "paste_deferred",
     // Pack + worker IPC events (runtime-pack split). Parity pinned by

@@ -63,7 +63,9 @@ Events emitted via ``event_bus.publish`` (the modern path):
   ``llm_polish_failed``, ``error``.
 * Model-load lifecycle: ``asr_backend_ready``,
   ``asr_backend_load_failed``, ``asr_backend_disabled``,
-  ``asr_last_resort_unloaded``.
+  ``asr_last_resort_unloaded``, and the provider layer's
+  ``provider_local_onnx_state`` (``{model, state, error}`` for the local
+  ONNX LLM warm-up, so the UI can show "loading model").
 * Pipeline / device observability: ``dictation_suppressed``,
   ``dictation_lost``, ``device_lost``, ``mic_level``.
 * Live-preview audio (Part 2 of the listen-live work): the level
@@ -86,6 +88,16 @@ Events emitted via ``event_bus.publish`` (the modern path):
   capture knob off 100%; ``restored`` tells the renderer whether the
   guard already put it back or the user must press ``[Back to 100%]``,
   and ``can_set`` says whether that press can work at all).
+* Filter divergence (docs/microphone-filter-failures.md §2.3):
+  ``filter_collapse`` (``{reason, raw_db, filtered_db, delta_db,
+  preset, method}``) once per process when the microphone chain provably
+  removed the speech and the take was delivered unfiltered instead
+  (``recording/filter_divergence.py``).
+* Local TTS playback: ``tts_playback_state``
+  (``{engine, voice, state, cached}``; ``state`` ∈ ``playing`` /
+  ``stopped`` / ``finished``) published by ``tts/manager.py`` on start, on
+  a stop request, and on natural end so the icon-only control returns to
+  play without polling.
 
 Master plan §7.4, runtime-pack / worker IPC events (13 event
 types introduced by the slim-core / runtime-pack split, plus the PK-1
@@ -137,7 +149,7 @@ server):
   former is a per-transition signal with just ``status``; the latter
   is the connect-time snapshot with a ``message`` field.
 
-Total: 55 events, the live count is ``len(EVENT_TYPES)`` and this
+Total: 58 events, the live count is ``len(EVENT_TYPES)`` and this
 sentence is kept in lockstep with it by
 ``tests/test_event_bus.py::TestCanonicalCatalogue
 ::test_catalogue_total_count_updated``. Update this docstring whenever
@@ -188,6 +200,8 @@ EVENT_TYPES: frozenset[str] = frozenset(
         "history_changed",
         "microphone_test_complete",
         "microphones_changed",
+        # Local TTS playback transitions (start / stop / natural end).
+        "tts_playback_state",
         "audio_clip",
         "recording_started",
         "recording_stopped",
@@ -243,9 +257,13 @@ EVENT_TYPES: frozenset[str] = frozenset(
         "media_model_switch_refused",
         # Mic guard (S5): an outside write moved the OS capture knob.
         "microphone_volume_lowered",
+        # Filter divergence: the chain removed speech, take delivered raw.
+        "filter_collapse",
         # Live listen preview: post-chain frames streamed to the renderer
         # (level_monitor/preview_stream.py).
         "live_preview_audio",
+        # Local ONNX LLM warm-up state (model_providers/local_onnx/client.py).
+        "provider_local_onnx_state",
     }
 )
 

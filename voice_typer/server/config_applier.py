@@ -19,6 +19,7 @@ import logging
 from typing import Any
 
 from voice_typer.server import i18n
+from voice_typer.server.audio_presets import PRESETS as AUDIO_PRESETS
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.config_applier_handlers import (  # noqa: F401  # facade re-export
     _FILTER_CHAIN_KEYS,
@@ -82,7 +83,10 @@ def _json_dumps_sorted(obj: Any) -> str:
 
 
 # NOTE: see docs/code-notes/security-config.md#config-preset-handlers
-_PRESET_OVERRIDE_KEYS: frozenset[str] = frozenset(
+# A preset owns every key it writes, so editing one of those keys while a
+# stock preset is active has to move the preset to "custom": `Config.load()`
+# re-applies the preset on every start and would otherwise revert the edit.
+_BASE_PRESET_OVERRIDE_KEYS: frozenset[str] = frozenset(
     {
         "noise_filter_highpass",
         "noise_suppression_method",
@@ -92,6 +96,10 @@ _PRESET_OVERRIDE_KEYS: frozenset[str] = frozenset(
         "noise_filter_limiter",
         "noise_filter_notch",
     }
+)
+
+_PRESET_OVERRIDE_KEYS: frozenset[str] = _BASE_PRESET_OVERRIDE_KEYS | frozenset(
+    key for preset_values in AUDIO_PRESETS.values() for key in preset_values
 )
 
 _AUDIO_FILTER_KEYS = (

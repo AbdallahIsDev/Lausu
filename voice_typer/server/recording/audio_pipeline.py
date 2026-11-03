@@ -13,7 +13,7 @@ import math
 import os
 import threading
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from voice_typer.server._audio_constants import (
     AUDIO_SILENCE_RMS,
@@ -21,11 +21,11 @@ from voice_typer.server._audio_constants import (
     WHISPER_SAMPLE_RATE,
 )
 from voice_typer.server._lazy_import import lazy_module
-from voice_typer.server.recording import resampling as _resampling_mod
+from voice_typer.server.recording import filter_divergence, resampling as _resampling_mod
 from voice_typer.server.recording.audio_pipeline_telemetry import (  # noqa: F401
     AudioPipelineTelemetryMixin,
 )
-from voice_typer.server.recording.format import ensure_mono
+from voice_typer.server.recording.format import ensure_mono, resample_chunk
 from voice_typer.server.recording.vad_helpers import refresh_vad_caches, vad_auto_calibrate, vad_update
 from voice_typer.server.vad import compute_vad_prob
 from voice_typer.server.vad_processor import VadState
@@ -104,6 +104,8 @@ class AudioPipeline(AudioPipelineTelemetryMixin):
         self._clip_count: int = 0
         self._peak: float = 0.0
         self._last_clip_log_time: float = 0.0
+        # Filter-divergence guard (§2.3): raw shadow + fail-open latch.
+        self._filter_fallback = filter_divergence.FilterFallback()
 
     def detect_device_disconnect(self, indata: np.ndarray) -> bool:
         """Detect a USB/BT device disconnect via zero-filled input (HOTKEY-CRASH).
@@ -175,6 +177,12 @@ class AudioPipeline(AudioPipelineTelemetryMixin):
         """Convert multi-channel input to mono and apply the real-time filter chain."""
         recorder = self._recorder
         indata_mono = ensure_mono(recorder, indata)
+        fallback = self._filter_fallback
+        _proc = recorder._audio_processor
+        # The divergence guard needs a RAW copy of everything the chain sees,
+        # so the shadow has to exist before the first chunk is judged (§2.3).
+        if _proc is not None and not fallback.swapped:
+            fallback.ensure_shadow(recorder, _proc, recorder._effective_sr)
         # Near-silence fast path: skip the filter chain for chunks that
         if indata_mono.size:
             _should_bypass = False
@@ -193,22 +201,73 @@ class AudioPipeline(AudioPipelineTelemetryMixin):
                 # old inf-fallback outcomes on every failure path.
                 _should_bypass = False
             if _should_bypass:
-                _proc = recorder._audio_processor
                 _proc_sr = getattr(_proc, "_sample_rate", None) if _proc is not None else None
                 if _proc is None or _proc_sr == recorder._effective_sr:
                     self._buffer_sr = recorder._effective_sr
-                    return np.zeros_like(indata_mono)
-        if recorder._audio_processor is not None:
+                    # Pass the chunk through untouched (own the memory: a 1-D
+                    # PortAudio view is recycled after the callback). Zeroing
+                    # it here deleted real audio from a low-gain mic that sat
+                    # under the bypass floor, which is the blank-transcript
+                    # failure in docs/microphone-filter-failures.md §1.5.
+                    _raw = np.array(indata_mono, dtype=np.float32, copy=True)
+                    fallback.append_raw(_raw)
+                    return _raw
+        if _proc is not None:
             # etc. all allocate). The defensive copy was duplicating
-            filtered = recorder._audio_processor.process_chunk(indata_mono, input_sample_rate=recorder._effective_sr)
+            filtered = _proc.process_chunk(indata_mono, input_sample_rate=recorder._effective_sr)
             # Critical: the AudioProcessor resamples each chunk to its
-            proc_sr = getattr(recorder._audio_processor, "_sample_rate", None)
+            proc_sr = getattr(_proc, "_sample_rate", None)
             self._buffer_sr = int(proc_sr) if proc_sr is not None else recorder._effective_sr
         else:
             filtered = indata_mono
             # Critical: no processor → no resampling happened, so the
             self._buffer_sr = recorder._effective_sr
+        if fallback.active() and indata_mono.size and filtered.size:
+            self._check_filter_divergence(recorder, indata_mono, filtered, fallback)
+            if fallback.swapped:
+                # The take was just swapped to the raw shadow; the current
+                # chunk is not in that shadow yet, so deliver it raw.
+                return self._raw_chunk_for_buffer(recorder, indata_mono)
+            fallback.append_raw(indata_mono)
         return filtered
+
+    def _raw_chunk_for_buffer(self, recorder: Any, raw_mono: np.ndarray) -> np.ndarray:
+        """Own a raw chunk at the buffer's rate (the rate the chain would emit)."""
+        chunk = np.array(raw_mono, dtype=np.float32, copy=True)
+        buffer_sr = self._buffer_sr or recorder._effective_sr
+        if buffer_sr and buffer_sr != recorder._effective_sr:
+            chunk = resample_chunk(recorder, chunk, recorder._effective_sr, buffer_sr)
+        return chunk
+
+    def _check_filter_divergence(
+        self,
+        recorder: Any,
+        raw_mono: np.ndarray,
+        filtered: np.ndarray,
+        fallback: Any,
+    ) -> None:
+        """Feed the guard the raw chunk + filtered level; fail open on a trip (§2.3)."""
+        _f_flat = filtered.reshape(-1)
+        _filtered_rms = float(np.sqrt(np.dot(_f_flat, _f_flat) / _f_flat.size))
+        # Duration + pitch come from the RAW chunk: it is the device-rate audio
+        # the guard reasons about, and its seconds are the same as the filtered
+        # chunk's by contract (the processor preserves length).
+        _raw_sr = int(recorder._effective_sr or 0)
+        _duration = raw_mono.size / float(_raw_sr) if _raw_sr else 0.0
+        if not fallback.observe(raw_mono, _filtered_rms, _duration, _raw_sr):
+            return
+        self._on_filter_collapse(recorder, fallback)
+
+    def _on_filter_collapse(self, recorder: Any, fallback: Any) -> None:
+        """Guard tripped: bypass the chain and swap the take to raw audio."""
+        _proc = recorder._audio_processor
+        _set_bypass = getattr(_proc, "set_filter_bypass", None)
+        if callable(_set_bypass):
+            with contextlib.suppress(Exception):
+                _set_bypass(True)
+        _sr = self._buffer_sr or recorder._effective_sr
+        fallback.swap_to_raw(recorder, filter_divergence.REASON_COLLAPSE, _sr)
+        filter_divergence.report_fallback(recorder, fallback, filter_divergence.REASON_COLLAPSE)
 
     def append_to_buffer_locked(self, filtered: np.ndarray) -> tuple[int, int]:
         """Append ``filtered`` to ``_buffer`` under the lock; return ``(chunk_count, buffer_len)``.
@@ -349,6 +408,12 @@ class AudioPipeline(AudioPipelineTelemetryMixin):
         # VAD state machine with hysteresis
         chunk_rms_db = 20.0 * math.log10(chunk_rms) if chunk_rms > 0 else -90.0
         vad_state = vad_update(recorder, chunk_rms_db, vad_prob=vad_prob)
+
+        # §2.3 rule 3: silence the FILTER invented must never warn or
+        # auto-stop. The guard latches as soon as raw is speaking and filtered
+        # is not, so the user cannot be stopped mid-sentence by a lying chain.
+        if self._filter_fallback.suspend_silence():
+            vad_state = VadState.SPEECH
 
         if vad_state == VadState.SILENCE:
             if recorder._silence_start_time is None:
@@ -501,4 +566,9 @@ class AudioPipeline(AudioPipelineTelemetryMixin):
                     )
 
 
-np = lazy_module("numpy")
+if TYPE_CHECKING:
+    # ``np.ndarray`` annotations need a real module symbol; the runtime proxy
+    # stays lazy so importing this module never pulls numpy in (PERF-COLDSTART-001).
+    import numpy as np
+else:
+    np = lazy_module("numpy")

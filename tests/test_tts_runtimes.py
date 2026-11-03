@@ -78,9 +78,7 @@ def test_install_rejects_archive_without_executable(tmp_path: Path) -> None:
         runtimes.install_from_archive(archive, tmp_path / "bin", exe_name="tool.exe")
 
 
-def test_install_is_idempotent_and_skips_the_network(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_install_is_idempotent_and_skips_the_network(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     dest = tmp_path / "bin"
     dest.mkdir()
     (dest / "audiocpp_server.exe").write_bytes(b"MZ")

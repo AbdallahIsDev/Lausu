@@ -187,11 +187,36 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 					/>
 				</SettingRow>
 			)}
-			{/*How long the ASR model stays loaded after the last dictation.
-                Values are minutes; "Never" writes 0, which is the backend's
-                "don't arm the timer at all" sentinel. Normalising the value
-                matters: a value outside the offered set (hand-edited config,
-                older sidecar) would otherwise leave the Select showing blank. */}
+			{isVisible(
+				STREAMING_TRANSCRIPTION_LABEL,
+				STREAMING_TRANSCRIPTION_INFO,
+				generalSectionTitle,
+			) && (
+				<SettingRow
+					label={STREAMING_TRANSCRIPTION_LABEL}
+					info={STREAMING_TRANSCRIPTION_INFO}
+				>
+					<Switch
+						checked={config.streaming_transcription ?? true}
+						onCheckedChange={handleStreamingTranscriptionChange}
+						aria-label={STREAMING_TRANSCRIPTION_LABEL}
+					/>
+				</SettingRow>
+			)}
+			{isVisible(
+				NOTIFICATIONS_LABEL,
+				NOTIFICATIONS_INFO,
+				generalSectionTitle,
+			) && (
+				<SettingRow label={NOTIFICATIONS_LABEL} info={NOTIFICATIONS_INFO}>
+					<Switch
+						checked={config.show_notifications}
+						onCheckedChange={handleNotificationsChange}
+						aria-label={NOTIFICATIONS_LABEL}
+					/>
+				</SettingRow>
+			)}
+			{/*How long the ASR model stays loaded after the last dictation. */}
 			{isVisible(
 				MODEL_IDLE_UNLOAD_LABEL,
 				MODEL_IDLE_UNLOAD_INFO,
@@ -224,27 +249,6 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 				</SettingRow>
 			)}
 			{isVisible(
-				STREAMING_TRANSCRIPTION_LABEL,
-				STREAMING_TRANSCRIPTION_INFO,
-				generalSectionTitle,
-			) && (
-				<SettingRow
-					label={STREAMING_TRANSCRIPTION_LABEL}
-					info={STREAMING_TRANSCRIPTION_INFO}
-				>
-					<Switch
-						checked={config.streaming_transcription ?? true}
-						onCheckedChange={handleStreamingTranscriptionChange}
-						aria-label={STREAMING_TRANSCRIPTION_LABEL}
-					/>
-				</SettingRow>
-			)}
-			{/*App Language selector, distinct from the spoken-language
-                                selector in Post-Processing. This controls the app UI
-                                language via the i18n framework. The choice is persisted to
-                                localStorage so it survives restarts, and pushed to the
-                                Python backend so the tray menu labels also switch language. */}
-			{isVisible(
 				APP_LANGUAGE_LABEL,
 				APP_LANGUAGE_INFO,
 				generalSectionTitle,
@@ -254,28 +258,17 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 						value={getLocale()}
 						onValueChange={(v) => {
 							setLocale(v as Locale);
-							// Persist to localStorage so the choice survives restarts
 							try {
 								localStorage.setItem("lausu-ui-locale", v);
 							} catch (e) {
-								// localStorage may be unavailable in some contexts
-								// (SSR, sandboxed renderer, quota exceeded).
 								console.warn(
 									"[renderer:GeneralSettingsSection] setItem locale failed:",
 									e,
 								);
 							}
-							// Delegate tray-locale dispatch to the i18n module's
-							// `pushLocaleToPythonBackend` helper so this component
-							// does not invoke the Python bridge directly
-							// (the PythonBridge type only exposes `call` and
-							// `onEvent`, direct calls bypass the i18n contract
-							// and re-introduce the delegation-boundary violation).
 							try {
 								pushLocaleToPythonBackend(v as Locale);
 							} catch (e) {
-								// IPC may not be available during startup or the
-								// backend may not yet have registered the route.
 								console.warn(
 									"[renderer:GeneralSettingsSection] set_tray_locale IPC failed:",
 									e,
@@ -294,19 +287,6 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 							))}
 						</SelectContent>
 					</Select>
-				</SettingRow>
-			)}
-			{isVisible(
-				NOTIFICATIONS_LABEL,
-				NOTIFICATIONS_INFO,
-				generalSectionTitle,
-			) && (
-				<SettingRow label={NOTIFICATIONS_LABEL} info={NOTIFICATIONS_INFO}>
-					<Switch
-						checked={config.show_notifications}
-						onCheckedChange={handleNotificationsChange}
-						aria-label={NOTIFICATIONS_LABEL}
-					/>
 				</SettingRow>
 			)}
 			{isVisible(TRAY_CLICK_LABEL, TRAY_CLICK_INFO, generalSectionTitle) && (

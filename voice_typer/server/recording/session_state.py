@@ -110,6 +110,8 @@ class SessionState:
         """Reset per-session state (a ``SessionState`` method invoked"""
         recorder._audio_pipeline._buffer.clear()
         recorder._audio_pipeline._chunk_count = 0
+        # New recording => new take: drop the raw shadow + divergence latch.
+        recorder._audio_pipeline._filter_fallback.reset(recorder)
         # PERF: zero the running buffered-samples counter so the next
         recorder._audio_pipeline._total_buffered_samples = 0
         recorder._cached_resampled = np.array([], dtype=np.float32)

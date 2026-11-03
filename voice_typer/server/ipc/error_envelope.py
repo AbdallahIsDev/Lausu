@@ -34,7 +34,6 @@ class _ErrorEnvelopeRequired(TypedDict):
     data: ErrorData
 
 
-
 class ErrorEnvelope(_ErrorEnvelopeRequired, total=False):
     """Canonical IPC error envelope.
 

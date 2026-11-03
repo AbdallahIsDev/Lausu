@@ -47,14 +47,18 @@ class TestNearSilenceBypass:
         assert not np.any(out)
         assert pipeline._buffer_sr == 44100
 
-    def test_idle_noise_floor_skips_chain(self):
-        """A muted-device floor (tiny but nonzero) also bypasses."""
+    def test_idle_noise_floor_skips_chain_but_survives(self):
+        """A muted-device floor (tiny but nonzero) bypasses the chain intact.
+
+        The bypass skips the DSP work; it must never erase the samples.
+        """
         recorder, pipeline = _pipeline_stub(effective_sr=44100, processor=_chain_processor(44100))
         floor = np.full(1411, 1e-4, dtype=np.float32)
         assert float(np.abs(floor).max()) < _NEAR_SILENCE_BYPASS_PEAK
         out = pipeline.apply_filter_chain(floor)
         recorder._audio_processor.process_chunk.assert_not_called()
-        assert not np.any(out)
+        assert np.array_equal(out, floor), "the near-silence bypass must pass the chunk through, not zero it"
+        assert out is not floor, "the bypass must own its output (PortAudio recycles 1-D input views)"
         assert pipeline._buffer_sr == 44100
 
     def test_speech_runs_chain(self):
@@ -107,7 +111,7 @@ class TestNearSilenceBypass:
         out = pipeline.apply_filter_chain(chunk)
         recorder._audio_processor.process_chunk.assert_not_called()
         assert out.shape == (512,)
-        assert not np.any(out)
+        assert np.array_equal(out, chunk), "quiet audio must reach the buffer unchanged"
         assert pipeline._buffer_sr == 16000
 
     def test_quiet_speech_onset_runs_chain(self):
@@ -139,12 +143,12 @@ class TestNearSilenceBypass:
         recorder._audio_processor.process_chunk.assert_called_once()
 
     def test_rms_arm_without_processor(self):
-        """No processor → bypass still zeros and tags the native rate."""
+        """No processor → bypass keeps the audio and tags the native rate."""
         chunk = np.zeros(512, dtype=np.float32)
         chunk[:2] = 0.003
         recorder, pipeline = _pipeline_stub(effective_sr=16000, processor=None)
         out = pipeline.apply_filter_chain(chunk)
-        assert not np.any(out)
+        assert np.array_equal(out, chunk)
         assert pipeline._buffer_sr == 16000
 
 
