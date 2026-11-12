@@ -1,0 +1,14 @@
+{
+  "hotkey": "ctrl+shift+space",
+  "profileDir": "C:/Users/11/AppData/Local/voice-typer-internal-plugins/google-stt-profile",
+  "chromeChannel": "chrome",
+  "locale": "en",
+  "visible": true,
+  "pollMs": 200,
+  "stableMs": 800,
+  "stableWindows": 2,
+  "startTimeoutMs": 3000,
+  "timeoutMs": 15000,
+  "geminiUrl": "https://gemini.google.com/app",
+  "notify": true
+}

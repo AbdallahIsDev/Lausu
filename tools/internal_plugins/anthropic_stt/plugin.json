@@ -1,0 +1,55 @@
+{
+  "id": "anthropic_stt",
+  "name": "Anthropic STT",
+  "vendor": "Anthropic",
+  "icon": "anthropic",
+  "description": "Dictates through the Claude web microphone in your own Chrome window instead of the local model. The window and the Claude session are yours; the plugin only clicks the page's own dictation controls.",
+  "settings": [
+    {
+      "key": "pollMs",
+      "type": "int",
+      "label": "Transcript poll interval",
+      "default": 200,
+      "min": 50,
+      "max": 1000,
+      "unit": "ms",
+      "description": "How often the prompt box is read while waiting for the transcript after you stop. Lower reacts sooner; higher is gentler on the browser."
+    },
+    {
+      "key": "stableWindows",
+      "type": "int",
+      "label": "Stable reads before accepting",
+      "default": 2,
+      "min": 1,
+      "max": 6,
+      "description": "How many identical reads in a row count as finished text. Higher avoids grabbing a half-written transcript."
+    },
+    {
+      "key": "stableMs",
+      "type": "int",
+      "label": "Wait between stable reads",
+      "default": 800,
+      "min": 200,
+      "max": 3000,
+      "unit": "ms",
+      "description": "How long each stability read waits while the text is still changing."
+    },
+    {
+      "key": "timeoutMs",
+      "type": "int",
+      "label": "Transcript wait after stop",
+      "default": 15000,
+      "min": 3000,
+      "max": 60000,
+      "unit": "ms",
+      "description": "How long to wait for the transcript once you stop, before reporting that none arrived. This is not the recording length: Claude ends a dictation by itself after 10 minutes, and the plugin then delivers whatever it captured."
+    },
+    {
+      "key": "notify",
+      "type": "bool",
+      "label": "Notifications",
+      "default": true,
+      "description": "Show a notification when the plugin cannot start or returns an empty transcript."
+    }
+  ]
+}

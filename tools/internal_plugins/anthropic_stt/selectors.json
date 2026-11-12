@@ -1,0 +1,15 @@
+{
+  "locale": "en",
+  "note": "Claude web composer (2026-11): the trailing area stacks [data-cds-part=send-slot] and [data-cds-part=idle-slot]; the idle slot holds the Dictate split button and goes inert while the box has text, so the box must be clean before clicking. Dictation streams into the ProseMirror composer while you speak; the toggle label flips to Stop and the placeholder reads Listening (help center). Fix here after a Claude redesign, then run tools/build-extension.js; probe.js re-verifies every entry.",
+  "claudeUrl": "https://claude.ai/new",
+  "idleSlot": "[data-cds-part=\"idle-slot\"]",
+  "composer": "div.ProseMirror[contenteditable=\"true\"], [data-testid=\"composer-input\"], div[contenteditable=\"true\"][data-placeholder], div[contenteditable=\"true\"][aria-label*=\"Claude\" i]",
+  "micSelector": "button[aria-label*=\"dictate\" i]:not([aria-label*=\"option\" i]), button[aria-label*=\"start dictation\" i]",
+  "stopSelector": "button[aria-label*=\"finish dictation\" i], button[aria-label*=\"stop dictation\" i], button[aria-label*=\"stop recording\" i], button[aria-label*=\"stop listening\" i]",
+  "cancelSelector": "button[aria-label*=\"cancel dictation\" i], button[aria-label*=\"discard dictation\" i]",
+  "micButton": "button \"Dictate\" (idle-slot split button)",
+  "recordingIndicator": "button \"Finish dictation\" (commit) plus \"Cancel dictation\" (discard) while recording",
+  "stopButton": "button \"Finish dictation\" -- the COMMIT control; clicking the sibling \"Cancel dictation\" discards the transcript",
+  "promptBox": "textbox \"Reply to Claude...\"",
+  "newChatNames": ["New chat", "Start new chat"]
+}

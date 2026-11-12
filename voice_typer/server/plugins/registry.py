@@ -1,10 +1,11 @@
 """Discovery of installed plugins.
 
-Plugins live OUTSIDE the package (``tools/internal_plugins/<id>/``) and are
-gitignored: a public build ships none of them, so discovery returns an empty
-list and the app behaves exactly as before. Nothing here imports a plugin - a
-plugin is described by its ``plugin.json`` manifest, and the manifest is the
-only thing the shipped app reads.
+Plugins live OUTSIDE the package (``tools/internal_plugins/<id>/``). Their
+source is tracked in the repository, but every packaging input excludes it:
+a public build ships none of them, so discovery returns an empty list and the
+app behaves exactly as before. Nothing here imports a plugin - a plugin is
+described by its ``plugin.json`` manifest, and the manifest is the only thing
+the app reads.
 """
 
 from __future__ import annotations

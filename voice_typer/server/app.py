@@ -88,9 +88,8 @@ class LausuApp(AppLazyHub, AppDictation, AppAdmin, AppRecordingInit, AppConstruc
         self._init_history_crash_volume()
         self._init_misc_backings()
         # Internal-plugin STT seam (in-development plugins, selected via
-        # config.active_plugin). No-op
-        # unless the plugin gate is open (env flag +
-        # tools/internal_plugins/PLUGINS_ENABLED + not frozen): a frozen
+        # config.active_plugin). No-op unless the plugin gate is open
+        # (workspace/env opt-in + PLUGINS_ENABLED + not frozen): a frozen
         # build never reaches the import. Must run before
         # `hotkeys.register()` (startup_sequence/_phases_late.py) so the
         # PTT release callback captures the wrapped bound method.

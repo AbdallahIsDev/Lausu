@@ -1,12 +1,13 @@
-"""Proof-of-absence: the internal plugins and their app seam never ship.
+"""Proof-of-exclusion: internal plugin source is tracked, never packaged.
 
 Plan: docs/plan-internal-plugin-google-stt.md. Static source/JSON
 assertions only (no process launches), wired into the same drift spirit
 as the C-CI-7 gates.
 
 Two directions are pinned:
-1. ``tools/internal_plugins`` (the in-development plugin workspace) is
-   absent from every packaging input: Nuitka scripts, tauri.conf.json.
+1. ``tools/internal_plugins`` source is tracked and visible in the repo,
+   but excluded from every packaging input: Nuitka scripts, tauri.conf.json,
+   MANIFEST.in.
 2. The product-side seam ``voice_typer/server/internal_plugin_hook.py``
    is inert when the plugin gate is closed, so the shipped app behaves
    as before.
@@ -22,6 +23,7 @@ import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _PLUGINS_DIR = _REPO_ROOT / "tools" / "internal_plugins"
+_MANIFEST = _REPO_ROOT / "MANIFEST.in"
 _TAURI_CONF = _REPO_ROOT / "src-tauri" / "tauri.conf.json"
 _HOOK = _REPO_ROOT / "voice_typer" / "server" / "internal_plugin_hook.py"
 _APP_PY = _REPO_ROOT / "voice_typer" / "server" / "app.py"
@@ -57,10 +59,13 @@ class TestInternalPluginToolsAbsentFromPackaging:
         hits = [tok for tok in _BUNDLE_TOKENS if tok in blob]
         assert hits == [], f"bundle must not reference plugin tools: {hits}"
 
+    def test_sdist_prunes_plugin_tools(self) -> None:
+        text = _MANIFEST.read_text(encoding="utf-8")
+        assert "prune tools" in text, "MANIFEST.in must prune the plugin workspace from sdist"
+
     def test_gitignore_covers_plugin_artifacts(self) -> None:
         gi_path = _PLUGINS_DIR / ".gitignore"
-        if not gi_path.is_file():
-            pytest.skip("plugin workspace absent from this checkout (gitignored nested repo)")
+        assert gi_path.is_file(), "the plugin workspace .gitignore must be tracked"
         gi = gi_path.read_text(encoding="utf-8")
         for entry in ("PLUGINS_ENABLED", "config.json", "debug/", "last_error.json"):
             assert entry in gi, f"{entry} must stay gitignored"
@@ -104,14 +109,12 @@ class TestPluginSeamIsInertWhenClosed:
         assert internal_plugin_hook.install(object()) is False
 
 
-class TestInternalPluginToolsNotInMainRepo:
-    """The plugin workspace must live outside the main repo's history.
+class TestInternalPluginToolsSourceIsTrackedButUnpackaged:
+    """Source lives in the public repo; only packaging is forbidden.
 
-    Backed up by its own nested repository
-    (tools/internal_plugins/backup.ps1) to a PRIVATE remote, never this
-    one. These two assertions are the CI tripwire for a plugin leak: the
-    folder must be ignored by the parent repo AND have zero tracked files
-    in it.
+    The workspace is no longer gitignored: it is tracked so the code is
+    visible on GitHub. The exclusion is enforced by the packaging assertions
+    above; this class pins the other half - source tracked, runtime state not.
     """
 
     def _git(self, *args: str) -> tuple[int, str]:
@@ -127,37 +130,54 @@ class TestInternalPluginToolsNotInMainRepo:
         )
         return proc.returncode, (proc.stdout + proc.stderr).strip()
 
-    def test_root_gitignore_covers_plugin_tools(self) -> None:
-        # --no-index: git deliberately reports TRACKED paths as
-        # "not ignored" regardless of the pattern; this asserts the
-        # RULE exists (the tracked-vs-ignored state is test 2).
-        # Trailing slash: a directory-only pattern matches the path only
-        # when git is told it is a directory. The nested plugin repo is
-        # gitignored, so on CI the folder does not exist and the
-        # slash-less form reports "not ignored".
+    def test_root_gitignore_does_not_hide_plugin_sources(self) -> None:
         code, out = self._git(
-            "check-ignore", "--no-index", "-q", "tools/internal_plugins/"
+            "check-ignore",
+            "--no-index",
+            "-q",
+            "tools/internal_plugins/anthropic_stt/plugin.json",
         )
-        assert code == 0, (
-            "tools/internal_plugins must be listed in the root .gitignore "
-            f"(git check-ignore said: {out or 'not ignored'})"
+        assert code == 1, (
+            "tools/internal_plugins source must be visible in the repo, not ignored "
+            f"(git check-ignore said: {out or 'ignored'})"
         )
 
-    def test_no_tracked_files_under_plugin_tools(self) -> None:
+    def test_plugin_sources_are_tracked(self) -> None:
+        code, out = self._git("ls-files", "tools/internal_plugins")
+        assert code == 0, f"git ls-files failed: {out}"
+        tracked = {line for line in out.splitlines() if line.strip()}
+        for rel in (
+            "tools/internal_plugins/anthropic_stt/plugin.json",
+            "tools/internal_plugins/anthropic_stt/plugin.py",
+            "tools/internal_plugins/google_stt/plugin.json",
+        ):
+            assert rel in tracked, f"{rel} must be tracked in the parent repo"
+
+    def test_runtime_state_is_not_tracked(self) -> None:
         code, out = self._git("ls-files", "tools/internal_plugins")
         assert code == 0, f"git ls-files failed: {out}"
         tracked = [line for line in out.splitlines() if line.strip()]
-        assert tracked == [], (
-            "Plugin files are tracked in the main repo. Run:\n"
-            "  git rm -r --cached tools/internal_plugins\n"
-            "  git commit -m 'chore: untrack internal plugin workspace'\n"
-            f"Tracked: {tracked}"
-        )
+        forbidden = ("PLUGINS_ENABLED", "config.json", "settings.json")
+        leaked = [p for p in tracked if p.rsplit("/", 1)[-1] in forbidden]
+        assert leaked == [], f"runtime state must stay untracked: {leaked}"
+
+    def test_runtime_state_stays_ignored(self) -> None:
+        for rel in (
+            "tools/internal_plugins/PLUGINS_ENABLED",
+            "tools/internal_plugins/anthropic_stt/config.json",
+            "tools/internal_plugins/anthropic_stt/settings.json",
+            "tools/internal_plugins/google_stt/config.json",
+            "tools/internal_plugins/google_stt/settings.json",
+            "tools/internal_plugins/anthropic_stt/extension/generated/config.js",
+        ):
+            code, out = self._git("check-ignore", "--no-index", "-q", rel)
+            assert code == 0, (
+                f"{rel} must stay gitignored "
+                f"(git check-ignore said: {out or 'not ignored'})"
+            )
 
 
 @pytest.mark.parametrize("js_file", ["run.js", "playwright_runner.js"])
 def test_plugin_js_files_stay_inside_the_plugin_workspace(js_file: str) -> None:
-    if not _PLUGINS_DIR.is_dir():
-        pytest.skip("plugin workspace absent from this checkout (gitignored nested repo)")
     target = _PLUGINS_DIR / "google_stt" / js_file
     assert target.exists(), f"{js_file} must live under tools/internal_plugins/google_stt"

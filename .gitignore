@@ -124,15 +124,13 @@ sub-worklog-*.md
 # Local ASR weights used by bench/media_concurrency_stress.py (not shipped).
 .tmp-tiny-model/
 
-# INTERNAL PLUGINS (experimental, still in development; never ship).
-# tools/internal_plugins is its OWN git repository, backed up to a
-# private remote; see tools/internal_plugins/README.md. The folder still
-# has files tracked in the parent repo until it is untracked with
-# `git rm -r --cached tools/internal_plugins` (E18: agents must not run
-# `git rm`);
-# tests/tauri/test_internal_plugin_tools_absent.py::TestInternalPluginToolsNotInMainRepo
-# fails while any remain tracked.
-tools/internal_plugins/
+# INTERNAL PLUGINS (experimental; source is tracked, never packaged).
+# The source is visible in this repository, but every packaging input
+# excludes it, so a built app ships none of it. Runtime state stays
+# ignored by tools/internal_plugins/.gitignore; the exclusion guard is
+# tests/tauri/test_internal_plugin_tools_absent.py.
+# Local archive of the retired nested plugin repo's .git directory.
+.internal-plugins-git-archive/
 
 # Agent-tooling directories are local development infrastructure, not
 # product. Untracked so the shipped repo contains only product code

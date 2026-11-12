@@ -1,0 +1,11 @@
+{
+  "claudeUrl": "https://claude.ai/new",
+  "profileDir": "C:/Users/11/AppData/Local/voice-typer-internal-plugins/google-stt-profile",
+  "pollMs": 200,
+  "stableMs": 800,
+  "stableWindows": 2,
+  "startTimeoutMs": 5000,
+  "timeoutMs": 15000,
+  "notify": true,
+  "relayToken": ""
+}

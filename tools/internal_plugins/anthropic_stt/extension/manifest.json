@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Anthropic STT bridge (internal)",
+  "version": "1.0.0",
+  "description": "Drives the Claude web dictation controls for the in-house dictation plugin. Internal use only.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:17875/*",
+    "https://claude.ai/*"
+  ],
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://claude.ai/*"
+      ],
+      "js": [
+        "generated/config.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "Anthropic STT bridge",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  }
+}

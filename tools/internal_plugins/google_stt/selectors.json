@@ -1,0 +1,10 @@
+{
+  "locale": "en",
+  "note": "Discovered live Phase 1 (2026-09-29, burner Google account). Mic toggles Dictate<->Stop dictation (^ShiftD); stop-square = same toggle. recordingIndicator = toggle label swap. waveformClass = composer .textarea-wrapper class present only while the platform captures audio (probe_dom.js idle-vs-recording diff) — never chip on when absent.",
+  "loginChip": "link \"Google Account: <account display name> (<burner gmail address>)\"",
+  "micButton": "button \"Dictate (^⇧D)\"",
+  "recordingIndicator": "button \"Stop dictation (^⇧D)\"",
+  "promptBox": "textbox \"Enter a prompt for Gemini\"",
+  "stopButton": "button \"Stop dictation (^⇧D)\" (same toggle as micButton)",
+  "waveformClass": "dictation-hidden"
+}

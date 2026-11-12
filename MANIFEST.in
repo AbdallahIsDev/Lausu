@@ -80,3 +80,8 @@ include voice_typer/server/model_hashes.json
 # the Vite renderer build output directory is `voice_typer/client/out/`
 # (not `build/`), and the renderer is built separately by CI / Tauri,
 # not shipped with the Python sdist.
+
+# Internal plugin source is tracked for development only; never ship it in
+# the sdist. Nuitka and Tauri exclude it separately (see
+# tests/tauri/test_internal_plugin_tools_absent.py).
+prune tools

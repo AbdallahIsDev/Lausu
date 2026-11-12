@@ -1,0 +1,59 @@
+{
+  "id": "google_stt",
+  "name": "Google STT",
+  "vendor": "Google",
+  "icon": "google",
+  "description": "Dictates through the Google Gemini web microphone instead of the local model. Faster to first word, and the platform handles noise handling and post-processing itself.",
+  "settings": [
+    {
+      "key": "visible",
+      "type": "bool",
+      "label": "Show the browser window",
+      "default": true,
+      "description": "On: the Chrome window is visible while dictating. Off: it is parked off-screen and runs silently in the background."
+    },
+    {
+      "key": "pollMs",
+      "type": "int",
+      "label": "Response delay",
+      "default": 200,
+      "min": 50,
+      "max": 1000,
+      "description": "How often the transcript is checked after you stop. Lower is faster, higher is gentler on the browser."
+    },
+    {
+      "key": "stableWindows",
+      "type": "int",
+      "label": "Stability checks",
+      "default": 2,
+      "min": 1,
+      "max": 6,
+      "description": "How many consecutive identical reads are required before a transcript is accepted. Higher avoids catching half-written text."
+    },
+    {
+      "key": "stableMs",
+      "type": "int",
+      "label": "Stability interval",
+      "default": 800,
+      "min": 200,
+      "max": 3000,
+      "description": "How long each stability check waits when the text is still changing."
+    },
+    {
+      "key": "timeoutMs",
+      "type": "int",
+      "label": "Transcript timeout",
+      "default": 15000,
+      "min": 3000,
+      "max": 60000,
+      "description": "How long to wait for a transcript before reporting that none arrived."
+    },
+    {
+      "key": "notify",
+      "type": "bool",
+      "label": "Notifications",
+      "default": true,
+      "description": "Show a desktop notification when the plugin fails to start or returns an empty transcript."
+    }
+  ]
+}

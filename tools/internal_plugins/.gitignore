@@ -1,0 +1,16 @@
+PLUGINS_ENABLED
+google-stt-profile/
+google_stt/debug/
+google_stt/last_error.json
+google_stt/config.json
+google_stt/settings.json
+google_stt/STOP
+anthropic_stt/debug/
+anthropic_stt/last_error.json
+anthropic_stt/config.json
+anthropic_stt/settings.json
+anthropic_stt/extension/generated/
+anthropic_stt/STOP
+__pycache__/
+*.pyc
+

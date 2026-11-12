@@ -169,9 +169,9 @@ class TestPluginGate:
         The gate used to ALSO require ``VOICE_TYPER_INTERNAL_PLUGINS=1``, and
         nothing in the repo ever set it: activating a plugin in the Plugins
         page silently kept the local model on every hotkey press, with no
-        visible reason. The workspace (gitignored, never packaged) plus the
-        plugin's own PLUGINS_ENABLED marker are the deliberate opt-ins, and a
-        frozen build still never runs a plugin.
+        visible reason. The workspace (tracked source, never packaged) plus
+        the plugin's own PLUGINS_ENABLED marker are the deliberate opt-ins,
+        and a frozen build still never runs a plugin.
         """
         monkeypatch.delenv("VOICE_TYPER_INTERNAL_PLUGINS", raising=False)
         monkeypatch.setattr(hook, "internal_surface_enabled", lambda: True)
@@ -314,8 +314,8 @@ class TestPluginsUiVisibility:
     def test_owner_workspace_exposes_the_surface(self, workspace: Path) -> None:
         """A developer checkout (which HAS the workspace) exposes the surface.
 
-        The workspace is created here rather than assumed present: it is
-        gitignored, so a CI checkout never has it — that is exactly what
+        The workspace is created here rather than assumed present: a shipped
+        build never packages it — that is exactly what
         ``test_workspace_is_never_packaged`` pins. Asserting against the
         ambient repo made this pass locally and fail on every CI leg.
         """
@@ -343,10 +343,20 @@ class TestPluginsUiVisibility:
         monkeypatch.setattr(hook, "requested_plugin_id", lambda app=None: "")
         assert hook.internal_surface_enabled() is True
 
-    def test_workspace_is_never_packaged(self) -> None:
-        """The discriminator is a gitignored path, so it cannot ship."""
-        ignore = Path(__file__).resolve().parents[2] / ".gitignore"
-        assert "tools/internal_plugins/" in ignore.read_text(encoding="utf-8")
+    def test_workspace_source_is_tracked_but_runtime_is_ignored(self) -> None:
+        """The source is visible; only local runtime state is gitignored."""
+        root = Path(__file__).resolve().parents[2]
+        ignored = {
+            line.strip()
+            for line in (root / ".gitignore").read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        }
+        assert "tools/internal_plugins/" not in ignored
+        nested = (root / "tools" / "internal_plugins" / ".gitignore").read_text(
+            encoding="utf-8"
+        )
+        assert "PLUGINS_ENABLED" in nested
+        assert "config.json" in nested
 
 
 class TestPluginModuleRouting:

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Anthropic STT bridge</title>
+    <style>
+      :root {
+        color-scheme: dark light;
+        --bg: #1b1b1d;
+        --surface: #232326;
+        --border: rgba(255, 255, 255, 0.1);
+        --fg: #f2f2f3;
+        --muted: #a1a1a6;
+        --accent: #d97757;
+        --ok: #4ade80;
+        --warn: #fbbf24;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #faf9f7;
+          --surface: #ffffff;
+          --border: rgba(0, 0, 0, 0.1);
+          --fg: #1b1b1d;
+          --muted: #6b6b70;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        width: 288px;
+        padding: 14px;
+        background: var(--bg);
+        color: var(--fg);
+        font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      h1 {
+        margin: 0 0 2px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .sub { margin: 0 0 12px; color: var(--muted); font-size: 11px; }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+      }
+      .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .row + .row { margin-top: 8px; }
+      .label { font-size: 12px; }
+      .value { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+      .dot {
+        display: inline-block;
+        width: 7px; height: 7px;
+        border-radius: 50%;
+        margin-inline-end: 6px;
+        background: var(--muted);
+      }
+      .dot.ok { background: var(--ok); }
+      .dot.warn { background: var(--warn); }
+      .switch { position: relative; width: 38px; height: 22px; flex: none; }
+      .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+      .track {
+        position: absolute; inset: 0;
+        background: rgba(255, 255, 255, 0.16);
+        border-radius: 999px;
+        transition: background 120ms ease;
+        pointer-events: none;
+      }
+      .track::after {
+        content: "";
+        position: absolute; top: 3px; left: 3px;
+        width: 16px; height: 16px;
+        border-radius: 50%;
+        background: #fff;
+        transition: transform 120ms ease;
+      }
+      .switch input:checked + .track { background: var(--accent); }
+      .switch input:checked + .track::after { transform: translateX(16px); }
+      .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .hint { margin: 0; color: var(--muted); font-size: 11px; }
+      .hint strong { color: var(--fg); font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <h1>Anthropic STT bridge</h1>
+    <p class="sub">Drives Claude's own dictation from the app's hotkey.</p>
+
+    <div class="card">
+      <div class="row">
+        <label class="label" for="enabled">Enabled in this profile</label>
+        <span class="switch">
+          <input id="enabled" type="checkbox" />
+          <span class="track"></span>
+        </span>
+      </div>
+      <p class="hint" style="margin-top: 8px">
+        Turn this off in a profile you do not dictate from. Two enabled profiles
+        both answer the app, and the newest one wins.
+      </p>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -4,9 +4,9 @@ Single gated seam: ``install(app)`` wraps the product dictation entry
 points (toggle / stop / cancel) so the plugin selected in ``config``
 reuses the product hotkey, bubble, sound cues, clipboard and history
 paths. Every call falls through to the original product method unless
-``internal_plugin_hook.plugins_enabled(app)`` is true (config +
-env flag + PLUGINS_ENABLED marker + not frozen), so the shipped build
-behaves exactly as before.
+``internal_plugin_hook.plugins_enabled(app)`` is true (selected plugin +
+workspace/env opt-in + PLUGINS_ENABLED marker + not frozen), so the
+shipped build behaves exactly as before.
 
 The selection is resolved on EVERY press, not at install time: the Pages
 UI writes ``active_plugin`` through ``set_config`` and the very next
@@ -59,11 +59,11 @@ def internal_surface_enabled() -> bool:
     ``active_plugin``: the UI has to be reachable in order to turn a plugin
     on in the first place.
 
-    The discriminator is the plugin workspace, which is gitignored and never
-    packaged (``.gitignore``: ``tools/internal_plugins/``). Only a developer
-    running from source has it, so every shipped build answers False. The
-    env flag is honoured as a second way in, for testing the surface without
-    the workspace present.
+    The discriminator is the plugin workspace. Its source is tracked in the
+    repository (visible for review), but every packaging input excludes it,
+    so a built app never contains it and answers False. The env flag is
+    honoured as a second way in, for testing the surface without the
+    workspace present.
     """
     import os
     import sys
@@ -89,8 +89,8 @@ def plugins_enabled(app: Any | None = None) -> bool:
     ``VOICE_TYPER_INTERNAL_PLUGINS=1`` on top of everything else, and nothing
     in the repo ever set that variable — so a developer with the workspace
     present could switch a plugin to Active in the UI and still get the local
-    model on every hotkey press. The workspace (gitignored, never packaged)
-    plus the plugin's own marker are already deliberate opt-ins.
+    model on every hotkey press. The workspace (tracked source, never
+    packaged) plus the plugin's own marker are already deliberate opt-ins.
     """
     if requested_plugin_id(app) == "":
         return False
