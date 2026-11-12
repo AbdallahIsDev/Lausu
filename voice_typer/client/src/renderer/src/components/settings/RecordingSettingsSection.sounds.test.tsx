@@ -220,7 +220,7 @@ describe("RecordingSettingsSection, sound volume slider + Test Sound", () => {
 	});
 });
 
-describe("RecordingSettingsSection, paste-safety rows", () => {
+describe("RecordingSettingsSection, paste-safety row", () => {
 	beforeEach(() => {
 		sliderInstances.length = 0;
 	});
@@ -229,55 +229,33 @@ describe("RecordingSettingsSection, paste-safety rows", () => {
 		cleanup();
 	});
 
-	it("renders switches for unsafe_paste_on_unknown_focus / warn_elevated_paste / warn_password_paste", () => {
+	it("renders the password-paste switch and no removed paste switches", () => {
 		render(
 			<RecordingSettingsSection
-				config={makeConfig({
-					unsafe_paste_on_unknown_focus: false,
-					warn_elevated_paste: true,
-					warn_password_paste: true,
-				})}
+				config={makeConfig({ warn_password_paste: true })}
 				updateConfig={noopUpdate}
 				updateConfigDebounced={noopUpdate}
 				isVisible={alwaysVisible}
 			/>,
 		);
-		// New-row labels are PENDING i18n keys (translations not editable
-		// this wave), assert via stable testids.
-		expect(screen.getByTestId("unsafe-paste-switch")).toBeTruthy();
-		expect(screen.getByTestId("warn-elevated-paste-switch")).toBeTruthy();
 		expect(screen.getByTestId("warn-password-paste-switch")).toBeTruthy();
+		expect(screen.queryByTestId("warn-elevated-paste-switch")).toBeNull();
+		expect(screen.queryByTestId("unsafe-paste-switch")).toBeNull();
 	});
 
-	it("persists warn_elevated_paste = false via updateConfig", () => {
+	it("persists warn_password_paste = false via updateConfig", () => {
 		const updateConfig = vi.fn();
 		render(
 			<RecordingSettingsSection
-				config={makeConfig({ warn_elevated_paste: true })}
+				config={makeConfig({ warn_password_paste: true })}
 				updateConfig={updateConfig}
 				updateConfigDebounced={noopUpdate}
 				isVisible={alwaysVisible}
 			/>,
 		);
-		fireEvent.click(screen.getByTestId("warn-elevated-paste-switch"));
+		fireEvent.click(screen.getByTestId("warn-password-paste-switch"));
 		expect(updateConfig).toHaveBeenCalledWith(
-			expect.objectContaining({ warn_elevated_paste: false }),
-		);
-	});
-
-	it("persists unsafe_paste_on_unknown_focus = true via updateConfig", () => {
-		const updateConfig = vi.fn();
-		render(
-			<RecordingSettingsSection
-				config={makeConfig({ unsafe_paste_on_unknown_focus: false })}
-				updateConfig={updateConfig}
-				updateConfigDebounced={noopUpdate}
-				isVisible={alwaysVisible}
-			/>,
-		);
-		fireEvent.click(screen.getByTestId("unsafe-paste-switch"));
-		expect(updateConfig).toHaveBeenCalledWith(
-			expect.objectContaining({ unsafe_paste_on_unknown_focus: true }),
+			expect.objectContaining({ warn_password_paste: false }),
 		);
 	});
 });

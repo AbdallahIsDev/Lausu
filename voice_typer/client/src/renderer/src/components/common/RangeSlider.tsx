@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Slider } from "@/components/ui/slider";
+import { useEffect, useRef, useState } from "react";
+import { InlineSlider } from "@/components/ui/inline-slider";
 import { cn } from "@/lib/utils";
 
 interface RangeSliderProps {
@@ -30,120 +30,58 @@ export function RangeSlider({
 	disabled = false,
 	deferApply = false,
 }: RangeSliderProps) {
-	// Local "display" value used while `deferApply` is on.  During a drag
-	// the shadcn Slider moves the thumb on its own (its own internal state),
-	// but our React `value` prop is the *committed* value, so if we don't
-	// shadow it with a local state, the thumb snaps back to the last
-	// committed value on every re-render.  The local state lets the thumb
-	// follow the drag while the real `onChange` is deferred to pointer-up.
+	// The visible label belongs to the surrounding SettingRow, so the slider
+	// renders only its value readout instead of repeating the row title.
 	const [displayValue, setDisplayValue] = useState(value);
 	const dirtyRef = useRef(false);
-	// Track whether a drag is in progress to defer the commit until release.
-	const isDraggingRef = useRef(false);
+	const pendingRef = useRef({ value, displayValue, onChange, deferApply });
+	pendingRef.current = { value, displayValue, onChange, deferApply };
 
-	// Sync local display state when the external committed value changes
-	// (e.g. config reload, Ctrl+Plus keyboard shortcut, parent prop update).
+	// Sync the shadow value when the committed config changes (reload,
+	// keyboard shortcut, parent reset).
 	useEffect(() => {
-		if (!dirtyRef.current) {
-			setDisplayValue(value);
-		}
+		if (!dirtyRef.current) setDisplayValue(value);
 	}, [value]);
 
-	const commit = useCallback(() => {
-		if (!dirtyRef.current) return;
-		dirtyRef.current = false;
-		isDraggingRef.current = false;
-		if (displayValue !== value) {
-			onChange(displayValue);
-		}
-	}, [displayValue, value, onChange]);
-
-	// if the component unmounts while a deferred drag is in
-	// progress (dirtyRef === true), commit the pending value so the
-	// parent's `onChange` actually fires. Without this, navigating
-	// away mid-drag silently drops the user's last value.
-	// We use a ref-to-latest-commit pattern (commitRef) so the
-	// unmount cleanup can read the freshest `displayValue` / `value`
-	// without re-binding the effect on every render. Re-binding on
-	// every render would fire the cleanup on each state change
-	// (e.g. mid-drag) and prematurely reset `dirtyRef` / `isDraggingRef`.
-	// With the ref pattern, the cleanup is registered once and only
-	// runs when the component truly unmounts.
-	const commitRef = useRef(commit);
-	commitRef.current = commit;
+	// Navigating away mid-drag must not drop the last value.
 	useEffect(() => {
 		return () => {
-			if (dirtyRef.current) {
-				commitRef.current();
+			const pending = pendingRef.current;
+			if (pending.deferApply && dirtyRef.current) {
+				pending.onChange(pending.displayValue);
 			}
 		};
 	}, []);
 
-	const renderedValue = deferApply ? displayValue : value;
-
-	const handleValueChange = (vals: number[]) => {
-		// noUncheckedIndexedAccess: `vals[0]` is `number | undefined`;
-		// the slider always emits at least one value, so guard + early
-		// return keeps `setDisplayValue`/`onChange` happy.
-		const next = vals[0];
-		if (next === undefined) return;
+	const handleValueChange = (next: number) => {
+		setDisplayValue(next);
 		if (deferApply) {
 			dirtyRef.current = true;
-			isDraggingRef.current = true;
-			setDisplayValue(next);
-		} else {
-			onChange(next);
+			return;
 		}
+		onChange(next);
 	};
 
-	const handleCommit = () => {
-		if (deferApply && isDraggingRef.current) {
-			commit();
-		}
+	const handleValueCommit = (next: number) => {
+		if (!deferApply) return;
+		dirtyRef.current = false;
+		if (next !== value) onChange(next);
 	};
 
 	return (
-		<div className={cn("flex items-center gap-2", className)}>
-			<span
-				className="w-12 shrink-0 text-xs tabular-nums text-muted-foreground"
-				aria-hidden="true"
-			>
-				{min}
-			</span>
-			<Slider
-				value={[renderedValue]}
-				onValueChange={handleValueChange}
-				onPointerUp={handleCommit}
-				onBlur={handleCommit}
-				min={min}
-				max={max}
-				step={step}
-				aria-label={ariaLabel}
-				// The slider's ARIA value contract lives on the THUMB
-				// (role="slider"), which Radix derives automatically from
-				// these very min/max/value props, aria-valuenow/min/max
-				// must NOT be duplicated on the root span: the root has no
-				// role, and value attributes on a role-less element are
-				// axe `aria-allowed-attr` violations.
-				// Thumb-level valuetext ("value + unit"), the focused thumb
-				// is the ARIA surface screen readers read; a root-level
-				// aria-valuetext is ignored or double-announced by Radix.
-				getThumbAriaValueText={(thumbValue) => `${thumbValue}${suffix}`}
-				disabled={disabled}
-				className="w-24 py-3"
-				trackClassName="h-2"
-				thumbClassName="w-6 bg-white shadow-md"
-			/>
-			<span className="w-14 shrink-0 text-end text-sm tabular-nums text-muted-foreground">
-				{renderedValue}
-				{suffix}
-			</span>
-			<span
-				className="w-12 shrink-0 text-xs tabular-nums text-muted-foreground"
-				aria-hidden="true"
-			>
-				{max}
-			</span>
-		</div>
+		<InlineSlider
+			value={deferApply ? displayValue : value}
+			min={min}
+			max={max}
+			step={step}
+			disabled={disabled}
+			aria-label={ariaLabel}
+			label=""
+			format={(next) => `${next}${suffix}`}
+			formatValueText={(next) => `${next}${suffix}`}
+			onValueChange={handleValueChange}
+			onValueCommit={handleValueCommit}
+			className={cn("w-52", className)}
+		/>
 	);
 }

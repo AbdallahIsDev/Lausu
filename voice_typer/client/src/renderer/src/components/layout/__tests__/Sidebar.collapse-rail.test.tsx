@@ -99,7 +99,7 @@ describe("Sidebar, collapse rail geometry & transition model", () => {
 					"aside button[data-nav-item='true']",
 				),
 			);
-			expect(buttons.length).toBe(12);
+			expect(buttons.length).toBe(13);
 			for (const btn of buttons) {
 				// The single anchored icon column: identical start padding
 				// in both states (container p-2 + button px-2 = 16px from
@@ -139,8 +139,8 @@ describe("Sidebar, collapse rail geometry & transition model", () => {
 				// excluded here so this suite keeps asserting the label
 				// contract (label max-width, blur endpoints) only.
 				.filter((s) => s.getAttribute("data-testid") !== "nav-new-badge");
-		// 12 nav items, every leaf + the Settings parent.
-		expect(labelSpans().length).toBe(12);
+		// 13 nav items, every leaf + the Settings parent.
+		expect(labelSpans().length).toBe(13);
 		for (const span of labelSpans()) {
 			expect(span.className).toContain("opacity-100");
 			expect(span.className).toContain("blur-[0px]");
@@ -244,7 +244,7 @@ describe("Sidebar, collapse rail geometry & transition model", () => {
 		expect(kbdTexts).toContain(",");
 	});
 
-	it("rapid collapse/expand toggling keeps all 12 nav buttons mounted with classes flipping cleanly", () => {
+	it("rapid collapse/expand toggling keeps all 13 nav buttons mounted with classes flipping cleanly", () => {
 		const { rerender } = renderWithProviders(<Sidebar {...baseProps} />);
 		const countButtons = () =>
 			document.querySelectorAll<HTMLButtonElement>(
@@ -256,13 +256,13 @@ describe("Sidebar, collapse rail geometry & transition model", () => {
 					<Sidebar {...baseProps} collapsed />
 				</TooltipProvider>,
 			);
-			expect(countButtons()).toBe(12);
+			expect(countButtons()).toBe(13);
 			rerender(
 				<TooltipProvider delayDuration={200} skipDelayDuration={500}>
 					<Sidebar {...baseProps} />
 				</TooltipProvider>,
 			);
-			expect(countButtons()).toBe(12);
+			expect(countButtons()).toBe(13);
 		}
 		// After the toggle storm the expanded tree is intact: labels,
 		// active state, and the Settings submenu contract all survive.

@@ -104,8 +104,6 @@ describe("RecordingSettingsSection, in-section search filtering", () => {
 		expect(screen.queryByText("Stop on Silence")).toBeNull();
 		expect(screen.queryByText("ESC to Cancel")).toBeNull();
 		expect(screen.queryByText("Auto-Paste")).toBeNull();
-		expect(screen.queryByText("Paste into Unidentified Windows")).toBeNull();
-		expect(screen.queryByText("Confirm Paste into Admin Windows")).toBeNull();
 		expect(screen.queryByText("Confirm Paste into Password Fields")).toBeNull();
 		expect(screen.queryByText("Sound Feedback")).toBeNull();
 		expect(screen.queryByText("Sound Volume")).toBeNull();

@@ -125,6 +125,14 @@ class LifecycleController:
         # _push_event_now() MUST be called BEFORE _shutting_down is set
         from voice_typer.server import event_bus
 
+        # Clear a stale ack before publishing so a fast ack cannot be
+        # wiped by the wait's clear (lost-ack race).
+        try:
+            ipc_server = getattr(app, "_ipc_server", None)
+            if ipc_server is not None and hasattr(ipc_server, "_relaunch_ack_event"):
+                ipc_server._relaunch_ack_event.clear()
+        except Exception:
+            pass
         try:
             event_bus.publish({"type": "relaunch_app"})
             log.info("[RESTART] relaunch_app pushed to host via event_bus")
@@ -180,16 +188,20 @@ class LifecycleController:
             timeout,
         )
         acked = False
-        # Delegate to the IPC server's ack-wait primitive, but tolerate
+        # Delegate to the IPC server's ack-wait primitive. The event
+        # was already cleared before publishing (restart_app), so
+        # do not clear again here or a fast ack would be wiped.
         if not hasattr(ipc_server, "wait_for_relaunch_ack"):
             ack_event = getattr(ipc_server, "_relaunch_ack_event", None)
             if ack_event is None:
                 log.debug("[RESTART] IPC server has no relaunch_ack event; skipping wait")
                 return False
-            ack_event.clear()
             acked = ack_event.wait(timeout=timeout)
         else:
-            acked = ipc_server.wait_for_relaunch_ack(timeout=timeout)
+            try:
+                acked = ipc_server.wait_for_relaunch_ack(timeout=timeout, clear_first=False)
+            except TypeError:
+                acked = ipc_server.wait_for_relaunch_ack(timeout=timeout)
         if not acked:
             log.debug(
                 "[RESTART] relaunch_ack timed out after %.3fs, host may be dead or slow; proceeding with cleanup",

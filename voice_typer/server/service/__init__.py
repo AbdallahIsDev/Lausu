@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, TypedDict
 
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.config_applier import ConfigApplier  # noqa: F401  -- re-exported for back-compat
+from voice_typer.server.service.chat import ChatMixin
 from voice_typer.server.service.dictation import DictationMixin
 from voice_typer.server.service.history import HistoryMixin
 from voice_typer.server.service.microphone_test import MicrophoneTestMixin
@@ -68,6 +69,7 @@ class LausuService(
     DictationMixin,
     PrivacyMixin,
     ConfigMutationMixin,
+    ChatMixin,
 ):
     """Service facade over LausuApp.
 
@@ -79,7 +81,7 @@ class LausuService(
     (``HistoryMixin``, ``ModelMixin``, ``OnboardingMixin``,
     ``MicrophoneTestMixin``, ``VocabularyMixin``, ``TemplateMixin``,
     ``StatusMixin``, ``DictationMixin``, ``PrivacyMixin``,
-    ``ConfigMutationMixin``). This class owns
+    ``ConfigMutationMixin``, ``ChatMixin``). This class owns
     ONLY ``__init__``, ``restart``, and ``quit``: config-mutation,
     GDPR, and every other domain surface resolve via
     MRO to the mixin copies, which are the single source of truth

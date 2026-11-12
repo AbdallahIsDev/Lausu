@@ -12,9 +12,9 @@ use crate::error::LausuError;
 use crate::state::SidecarState;
 
 use super::math::{
-    bubble_position_in_work_area, clamp_resize_height, clamp_resize_width, compute_move_by_new_pos,
-    edge_margin_physical, rect_contains_point, round_f64_to_i32_saturating,
-    round_f64_to_u32_saturating, RectPx,
+    anchor_moved, bubble_position_in_work_area, clamp_resize_height, clamp_resize_width,
+    compute_move_by_new_pos, edge_margin_physical, rect_contains_point, resize_is_noop,
+    round_f64_to_i32_saturating, round_f64_to_u32_saturating, RectPx,
 };
 use super::placement::{
     bubble_edge_for_reanchor, note_bubble_configured_edge, note_bubble_edge_position,
@@ -254,22 +254,35 @@ pub async fn bubble_resize(
     let h = round_f64_to_u32_saturating(height);
     let capped_w = clamp_resize_width(w);
     let capped_h = clamp_resize_height(h);
-    use tauri::PhysicalSize;
-    window
-        .set_size(PhysicalSize::new(capped_w, capped_h))
+    // The renderer re-measures on every layout pass and asks for the size the
+    // pill already has; replaying `set_size` + the chrome strip for those is
+    // pure churn (measured: the same 71x47 request up to 50 times a second).
+    let current = window
+        .outer_size()
         .map_err(|e| LausuError::Host(e.to_string()))?;
-    // Mode changes resize constantly; keep the chrome stripped no
-    // matter which tao path last touched the window. Idempotent.
-    super::window::harden_bubble_chrome(&window, true);
+    if !resize_is_noop(current.width, current.height, capped_w, capped_h) {
+        use tauri::PhysicalSize;
+        window
+            .set_size(PhysicalSize::new(capped_w, capped_h))
+            .map_err(|e| LausuError::Host(e.to_string()))?;
+        // Mode changes resize constantly; keep the chrome stripped no
+        // matter which tao path last touched the window. Idempotent.
+        super::window::harden_bubble_chrome(&window, true);
+    }
     // Edge-anchored pills must stay centered: the initial placement was
     // measured on the pre-content size, and every mode/button change
     // resizes around a stale top-left. Re-anchor on the remembered edge
     // with the NEW size; user-dragged pills keep their position.
     if let Some(edge) = bubble_edge_for_reanchor() {
         match reanchor_bubble_after_resize(&app, &window, &edge) {
-            Ok((px, py)) => log::info!(
-                "[BUBBLE] re-anchored at ({px},{py}) edge={edge} after resize {capped_w}x{capped_h}"
-            ),
+            Ok((before, after)) => {
+                if anchor_moved(before, after) {
+                    let (px, py) = after;
+                    log::info!(
+                        "[BUBBLE] re-anchored at ({px},{py}) edge={edge} after resize {capped_w}x{capped_h}"
+                    );
+                }
+            }
             Err(e) => log::warn!("[BUBBLE] re-anchor after resize failed: {}", e),
         }
     }
@@ -279,11 +292,14 @@ pub async fn bubble_resize(
 /// Re-center an edge-anchored bubble after an auto-fit resize, on the
 /// monitor holding its current top-left (never the cursor's monitor:
 /// the cursor may have moved away since placement).
+///
+/// Returns the position before and after; an unchanged pair is a no-op the
+/// caller must not log or re-apply.
 fn reanchor_bubble_after_resize(
     app: &tauri::AppHandle,
     window: &tauri::WebviewWindow,
     edge: &str,
-) -> Result<(i32, i32), String> {
+) -> Result<((i32, i32), (i32, i32)), String> {
     let pos = window.outer_position().map_err(|e| e.to_string())?;
     let monitor = resolve_monitor_at_point(app, pos.x as f64, pos.y as f64)?;
     let wa = monitor.work_area();
@@ -293,10 +309,12 @@ fn reanchor_bubble_after_resize(
     let bubble_h = i32::try_from(size.height).unwrap_or(i32::MAX);
     let margin = edge_margin_physical(monitor.scale_factor());
     let (px, py) = bubble_position_in_work_area(edge, &wa_rect, bubble_w, bubble_h, margin)?;
-    window
-        .set_position(PhysicalPosition::new(px, py))
-        .map_err(|e| e.to_string())?;
-    Ok((px, py))
+    if anchor_moved((pos.x, pos.y), (px, py)) {
+        window
+            .set_position(PhysicalPosition::new(px, py))
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(((pos.x, pos.y), (px, py)))
 }
 
 /// Bubble mic-button toggle. First sanctioned dispatch-allowlist bypass (SEC-026):

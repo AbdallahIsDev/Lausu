@@ -43,6 +43,8 @@ export function PageSwitch({
 		switch (page) {
 			case "home":
 				return <Home />;
+			case "chat":
+				return <RouteChunk page="chat" />;
 			case "history":
 				return <RouteChunk page="history" />;
 			case "templates":

@@ -76,7 +76,7 @@ class TestFallbackPublishesBeforeReload:
             f"unexpected call order: {order}"
         )
         assert len(published) == 2
-        assert published[0] == {"type": "config_changed", "data": {"device": "cpu"}}
+        assert published[0] == {"type": "config_changed", "data": {"device": "cpu", "active_device": "cpu"}}
         event = published[1]
         assert event["type"] == "gpu_cpu_fallback"
         assert event["data"]["device"] == "cpu"
@@ -102,7 +102,7 @@ class TestFallbackPublishesBeforeReload:
             with_gpu_fallback(engine, always_failing, b"audio")
 
         assert len(recorded_publish) == 2
-        assert recorded_publish[0] == {"type": "config_changed", "data": {"device": "cpu"}}
+        assert recorded_publish[0] == {"type": "config_changed", "data": {"device": "cpu", "active_device": "cpu"}}
         assert recorded_publish[1]["data"]["reason"] == long_message[:200]
 
     def test_non_gpu_error_never_publishes(self, recorded_publish):

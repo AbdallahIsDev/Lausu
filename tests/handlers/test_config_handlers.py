@@ -263,3 +263,55 @@ class TestMissingConfigLockWarning:
             r for r in caplog.records if r.levelno == logging.WARNING and "_config_mutation_lock" in r.getMessage()
         ]
         assert not warnings, "DE-37: when the lock is present, no warning should fire"
+
+
+class TestSetConfigEndpointHosts:
+    """Provider base URLs are checked against the URL allowlist at save time.
+
+    Verifying only on the first request turned a bad host into an opaque
+    provider failure (and, before the typed-error fix, ``internal_error``).
+    """
+
+    def test_untrusted_endpoint_host_is_rejected_before_persisting(self, ipc_server, fake_service):
+        resp = ipc_server._handle_set_config({"openrouter_base_url": "https://evil.example.com/v1"}, {})
+
+        assert resp["type"] == "error"
+        assert resp["data"]["code"] == "invalid_field"
+        assert "evil.example.com" in resp["data"]["message"]
+        fake_service.apply_config.assert_not_called()
+
+    def test_allowlisted_endpoint_host_is_accepted(self, ipc_server, fake_service):
+        resp = ipc_server._handle_set_config({"openrouter_base_url": "https://openrouter.ai/api/v1"}, {})
+
+        assert resp["type"] == "ack"
+        assert fake_service.apply_config.call_args[0][0] == {
+            "openrouter_base_url": "https://openrouter.ai/api/v1"
+        }
+
+    def test_host_trusted_in_the_same_payload_is_accepted(self, ipc_server, fake_service):
+        from voice_typer.server.security.url_allowlist import _user_extensions
+
+        host = "vllm.internal.example"
+        try:
+            resp = ipc_server._handle_set_config(
+                {
+                    "trusted_extra_hosts": [host],
+                    "llm_api_url": f"https://{host}/v1/chat/completions",
+                },
+                {},
+            )
+
+            assert resp["type"] == "ack", resp
+            applied = fake_service.apply_config.call_args[0][0]
+            assert applied["llm_api_url"] == f"https://{host}/v1/chat/completions"
+        finally:
+            _user_extensions.discard(host)
+
+    def test_unchanged_legacy_endpoint_value_does_not_block_a_save(self, ipc_server, fake_app):
+        """A config written by an older build must stay editable elsewhere."""
+        legacy = "https://legacy.example.com/v1"
+        fake_app.config.cloud_api_url = legacy
+
+        resp = ipc_server._handle_set_config({"cloud_api_url": legacy, "hotkey": "<f3>"}, {})
+
+        assert resp["type"] == "ack", resp

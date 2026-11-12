@@ -7,8 +7,11 @@
 // `isVisible` prop and the section-level "hide if no items match" check.
 
 import { memo } from "react";
+import { Skeleton } from "skullet/react";
 import { SettingRow } from "@/components/common/SettingRow";
 import { SettingsSection } from "@/components/common/SettingsSection";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
+import { SAMPLE_CONFIG } from "@/components/skullet/sampleConfig";
 import {
 	Select,
 	SelectContent,
@@ -31,7 +34,6 @@ import {
 	MODEL_IDLE_UNLOAD_OPTIONS,
 	normalizeModelIdleUnloadMinutes,
 } from "@/lib/utils/modelIdleUnload";
-import { SettingsSkeleton } from "./SettingsSkeleton";
 
 import type { SettingsSectionSharedProps } from "./types";
 
@@ -72,236 +74,223 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 	// F-3: subscribe to locale changes so this section repaints in the
 	// new language without a full page reload.
 	const t = useT();
-
-	if (!config) return <SettingsSkeleton rows={3} />;
-
-	// body so they follow the current locale. Module-level consts
-	// froze them at import time.
-	const LAUNCH_AT_LOGIN_LABEL = t("settings.launchAtLogin");
-	const LAUNCH_AT_LOGIN_INFO = t("settings.launchAtLoginDescription");
-	const NOTIFICATIONS_LABEL = t("settings.notifications");
-	const NOTIFICATIONS_INFO = t("settings.notificationsDescription");
-	const TRAY_CLICK_LABEL = t("settings.trayClick");
-	const TRAY_CLICK_INFO = t("settings.trayClickDescription");
-	const APP_LANGUAGE_LABEL = t("settings.appLanguage");
-	const APP_LANGUAGE_INFO = t("settings.appLanguageDescription");
-	//prewarm / fast_startup toggle. Lives under General because
-	// it's a startup-behaviour setting alongside "Launch at Login".
-	// Defaults ON.
-	const FAST_STARTUP_LABEL = t("settings.fastStartup");
-	const FAST_STARTUP_INFO = t("settings.fastStartupDescription");
-	// How long the ASR model stays loaded after the last dictation. Lives
-	// under General next to Fast Startup: both are "what does the app do
-	// with its memory / its warm-up" settings, not transcription output
-	// settings. The option list is shared with its test via
-	// `modelIdleUnload.ts` so the floor/ceiling/order can't drift.
-	const MODEL_IDLE_UNLOAD_LABEL = t("settings.modelIdleUnload");
-	const MODEL_IDLE_UNLOAD_INFO = t("settings.modelIdleUnloadDescription");
-	// Live transcription during recording (streaming windows) vs one
-	// full decode at stop. Lives next to the model-memory rows: all
-	// three decide how transcription compute is spent. Defaults ON.
-	const STREAMING_TRANSCRIPTION_LABEL = t("settings.streamingTranscription");
-	const STREAMING_TRANSCRIPTION_INFO = t(
-		"settings.streamingTranscriptionDescription",
-	);
-
-	//section-level visibility check for the General section. The title
-	// constant feeds BOTH the `<SettingsSection title>` prop AND the
-	// `isVisible` third parameter, so search matches the heading the
-	// user actually sees.
-	const generalSectionTitle = t("settings.general");
-	const generalItems = [
-		{ label: LAUNCH_AT_LOGIN_LABEL, info: LAUNCH_AT_LOGIN_INFO },
-		{ label: APP_LANGUAGE_LABEL, info: APP_LANGUAGE_INFO },
-		{ label: NOTIFICATIONS_LABEL, info: NOTIFICATIONS_INFO },
-		{ label: TRAY_CLICK_LABEL, info: TRAY_CLICK_INFO },
-		{ label: FAST_STARTUP_LABEL, info: FAST_STARTUP_INFO },
-		{ label: MODEL_IDLE_UNLOAD_LABEL, info: MODEL_IDLE_UNLOAD_INFO },
-		{
-			label: STREAMING_TRANSCRIPTION_LABEL,
-			info: STREAMING_TRANSCRIPTION_INFO,
-		},
-	];
-	const generalVisible = generalItems.some((item) =>
-		isVisible(item.label, item.info, generalSectionTitle),
-	);
-
-	// ── Inline handler extraction ─────────────────────────────────
-	const handleAutostartChange = (checked: boolean) =>
-		updateConfig({ autostart: checked });
-	const handleFastStartupChange = (checked: boolean) =>
-		updateConfig({ fast_startup: checked });
-	const handleNotificationsChange = (checked: boolean) =>
-		updateConfig({ show_notifications: checked });
-	const handleTrayClickChange = (v: string) =>
-		updateConfig({
-			tray_left_click_action: v as "open_app" | "toggle_dictation",
-		});
-	const handleModelIdleUnloadChange = (v: string) =>
-		updateConfig({ model_idle_unload_minutes: Number(v) });
-	const handleStreamingTranscriptionChange = (checked: boolean) =>
-		updateConfig({ streaming_transcription: checked });
-
-	if (!generalVisible) return null;
-
 	return (
-		<SettingsSection
-			title={generalSectionTitle}
-			description={t("settings.generalDescription")}
-			// Default tooltip mode: the description collapses into the ?
-			// icon beside the title, matching every other section card
-			// and reclaiming the subtitle's line above the card.
+		<Skeleton
+			data={config}
+			sample={SAMPLE_CONFIG}
+			id="settings-general"
+			label={skeletonLoadingLabel()}
 		>
-			{isVisible(
-				LAUNCH_AT_LOGIN_LABEL,
-				LAUNCH_AT_LOGIN_INFO,
-				generalSectionTitle,
-			) && (
-				<SettingRow label={LAUNCH_AT_LOGIN_LABEL} info={LAUNCH_AT_LOGIN_INFO}>
-					<Switch
-						checked={config.autostart}
-						onCheckedChange={handleAutostartChange}
-						aria-label={LAUNCH_AT_LOGIN_LABEL}
-					/>
-				</SettingRow>
-			)}
-			{/*Fast Startup (prewarm) toggle, defaults ON.
-                                Disabling saves ~6 GB of disk reads at boot for users who
-                                don't want the prewarm process (gamers, low-RAM machines).
-                                : the "Run Prewarm Now" button lives in
-                                Settings → Advanced → Cache Status
-                                (PrewarmAndUpdates.tsx), NOT on the About page. The
-                                `fastStartupDescription` i18n string now points users at
-                                "Settings → Advanced → Cache Status" across all
-                                8 locale files (en/ar/de/es/fr/hi/ru/zh). */}
-			{isVisible(
-				FAST_STARTUP_LABEL,
-				FAST_STARTUP_INFO,
-				generalSectionTitle,
-			) && (
-				<SettingRow label={FAST_STARTUP_LABEL} info={FAST_STARTUP_INFO}>
-					<Switch
-						checked={config.fast_startup ?? true}
-						onCheckedChange={handleFastStartupChange}
-						aria-label={FAST_STARTUP_LABEL}
-					/>
-				</SettingRow>
-			)}
-			{isVisible(
-				STREAMING_TRANSCRIPTION_LABEL,
-				STREAMING_TRANSCRIPTION_INFO,
-				generalSectionTitle,
-			) && (
-				<SettingRow
-					label={STREAMING_TRANSCRIPTION_LABEL}
-					info={STREAMING_TRANSCRIPTION_INFO}
-				>
-					<Switch
-						checked={config.streaming_transcription ?? true}
-						onCheckedChange={handleStreamingTranscriptionChange}
-						aria-label={STREAMING_TRANSCRIPTION_LABEL}
-					/>
-				</SettingRow>
-			)}
-			{isVisible(
-				NOTIFICATIONS_LABEL,
-				NOTIFICATIONS_INFO,
-				generalSectionTitle,
-			) && (
-				<SettingRow label={NOTIFICATIONS_LABEL} info={NOTIFICATIONS_INFO}>
-					<Switch
-						checked={config.show_notifications}
-						onCheckedChange={handleNotificationsChange}
-						aria-label={NOTIFICATIONS_LABEL}
-					/>
-				</SettingRow>
-			)}
-			{/*How long the ASR model stays loaded after the last dictation. */}
-			{isVisible(
-				MODEL_IDLE_UNLOAD_LABEL,
-				MODEL_IDLE_UNLOAD_INFO,
-				generalSectionTitle,
-			) && (
-				<SettingRow
-					label={MODEL_IDLE_UNLOAD_LABEL}
-					info={MODEL_IDLE_UNLOAD_INFO}
-				>
-					<Select
-						value={String(
-							normalizeModelIdleUnloadMinutes(config.model_idle_unload_minutes),
+			{(cfg) => {
+				const LAUNCH_AT_LOGIN_LABEL = t("settings.launchAtLogin");
+				const LAUNCH_AT_LOGIN_INFO = t("settings.launchAtLoginDescription");
+				const NOTIFICATIONS_LABEL = t("settings.notifications");
+				const NOTIFICATIONS_INFO = t("settings.notificationsDescription");
+				const TRAY_CLICK_LABEL = t("settings.trayClick");
+				const TRAY_CLICK_INFO = t("settings.trayClickDescription");
+				const APP_LANGUAGE_LABEL = t("settings.appLanguage");
+				const APP_LANGUAGE_INFO = t("settings.appLanguageDescription");
+				const FAST_STARTUP_LABEL = t("settings.fastStartup");
+				const FAST_STARTUP_INFO = t("settings.fastStartupDescription");
+				const MODEL_IDLE_UNLOAD_LABEL = t("settings.modelIdleUnload");
+				const MODEL_IDLE_UNLOAD_INFO = t("settings.modelIdleUnloadDescription");
+				const STREAMING_TRANSCRIPTION_LABEL = t(
+					"settings.streamingTranscription",
+				);
+				const STREAMING_TRANSCRIPTION_INFO = t(
+					"settings.streamingTranscriptionDescription",
+				);
+				const generalSectionTitle = t("settings.general");
+				const generalItems = [
+					{ label: LAUNCH_AT_LOGIN_LABEL, info: LAUNCH_AT_LOGIN_INFO },
+					{ label: APP_LANGUAGE_LABEL, info: APP_LANGUAGE_INFO },
+					{ label: NOTIFICATIONS_LABEL, info: NOTIFICATIONS_INFO },
+					{ label: TRAY_CLICK_LABEL, info: TRAY_CLICK_INFO },
+					{ label: FAST_STARTUP_LABEL, info: FAST_STARTUP_INFO },
+					{ label: MODEL_IDLE_UNLOAD_LABEL, info: MODEL_IDLE_UNLOAD_INFO },
+					{
+						label: STREAMING_TRANSCRIPTION_LABEL,
+						info: STREAMING_TRANSCRIPTION_INFO,
+					},
+				];
+				const generalVisible = generalItems.some((item) =>
+					isVisible(item.label, item.info, generalSectionTitle),
+				);
+				const handleAutostartChange = (checked: boolean) =>
+					updateConfig({ autostart: checked });
+				const handleFastStartupChange = (checked: boolean) =>
+					updateConfig({ fast_startup: checked });
+				const handleNotificationsChange = (checked: boolean) =>
+					updateConfig({ show_notifications: checked });
+				const handleTrayClickChange = (v: string) =>
+					updateConfig({
+						tray_left_click_action: v as "open_app" | "toggle_dictation",
+					});
+				const handleModelIdleUnloadChange = (v: string) =>
+					updateConfig({ model_idle_unload_minutes: Number(v) });
+				const handleStreamingTranscriptionChange = (checked: boolean) =>
+					updateConfig({ streaming_transcription: checked });
+				if (!generalVisible) return null;
+				return (
+					<SettingsSection
+						title={generalSectionTitle}
+						description={t("settings.generalDescription")}
+					>
+						{isVisible(
+							LAUNCH_AT_LOGIN_LABEL,
+							LAUNCH_AT_LOGIN_INFO,
+							generalSectionTitle,
+						) && (
+							<SettingRow
+								label={LAUNCH_AT_LOGIN_LABEL}
+								info={LAUNCH_AT_LOGIN_INFO}
+							>
+								<Switch
+									checked={cfg.autostart}
+									onCheckedChange={handleAutostartChange}
+									aria-label={LAUNCH_AT_LOGIN_LABEL}
+								/>
+							</SettingRow>
 						)}
-						onValueChange={handleModelIdleUnloadChange}
-					>
-						<SelectTrigger
-							className="w-44"
-							aria-label={MODEL_IDLE_UNLOAD_LABEL}
-						>
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{MODEL_IDLE_UNLOAD_OPTIONS.map((opt) => (
-								<SelectItem key={opt.value} value={String(opt.value)}>
-									<span>{t(opt.labelKey)}</span>
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</SettingRow>
-			)}
-			{isVisible(
-				APP_LANGUAGE_LABEL,
-				APP_LANGUAGE_INFO,
-				generalSectionTitle,
-			) && (
-				<SettingRow label={APP_LANGUAGE_LABEL} info={APP_LANGUAGE_INFO}>
-					<Select
-						value={getLocale()}
-						onValueChange={(v) => {
-							setLocale(v as Locale);
-							try {
-								localStorage.setItem("lausu-ui-locale", v);
-							} catch (e) {
-								console.warn(
-									"[renderer:GeneralSettingsSection] setItem locale failed:",
-									e,
-								);
-							}
-							try {
-								pushLocaleToPythonBackend(v as Locale);
-							} catch (e) {
-								console.warn(
-									"[renderer:GeneralSettingsSection] set_tray_locale IPC failed:",
-									e,
-								);
-							}
-						}}
-					>
-						<SelectTrigger className="w-44" aria-label={APP_LANGUAGE_LABEL}>
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{LOCALE_OPTIONS.map((opt) => (
-								<SelectItem key={opt.value} value={opt.value}>
-									<span>{opt.label}</span>
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</SettingRow>
-			)}
-			{isVisible(TRAY_CLICK_LABEL, TRAY_CLICK_INFO, generalSectionTitle) && (
-				<SettingRow label={TRAY_CLICK_LABEL} info={TRAY_CLICK_INFO}>
-					<ToggleGroup
-						options={TRAY_CLICK_OPTIONS.map((opt) => ({
-							value: opt.value,
-							label: t(opt.labelKey),
-						}))}
-						value={config.tray_left_click_action ?? "open_app"}
-						onChange={handleTrayClickChange}
-						ariaLabel={TRAY_CLICK_LABEL}
-					/>
-				</SettingRow>
-			)}
-		</SettingsSection>
+						{isVisible(
+							FAST_STARTUP_LABEL,
+							FAST_STARTUP_INFO,
+							generalSectionTitle,
+						) && (
+							<SettingRow label={FAST_STARTUP_LABEL} info={FAST_STARTUP_INFO}>
+								<Switch
+									checked={cfg.fast_startup ?? true}
+									onCheckedChange={handleFastStartupChange}
+									aria-label={FAST_STARTUP_LABEL}
+								/>
+							</SettingRow>
+						)}
+						{isVisible(
+							STREAMING_TRANSCRIPTION_LABEL,
+							STREAMING_TRANSCRIPTION_INFO,
+							generalSectionTitle,
+						) && (
+							<SettingRow
+								label={STREAMING_TRANSCRIPTION_LABEL}
+								info={STREAMING_TRANSCRIPTION_INFO}
+							>
+								<Switch
+									checked={cfg.streaming_transcription ?? true}
+									onCheckedChange={handleStreamingTranscriptionChange}
+									aria-label={STREAMING_TRANSCRIPTION_LABEL}
+								/>
+							</SettingRow>
+						)}
+						{isVisible(
+							NOTIFICATIONS_LABEL,
+							NOTIFICATIONS_INFO,
+							generalSectionTitle,
+						) && (
+							<SettingRow label={NOTIFICATIONS_LABEL} info={NOTIFICATIONS_INFO}>
+								<Switch
+									checked={cfg.show_notifications}
+									onCheckedChange={handleNotificationsChange}
+									aria-label={NOTIFICATIONS_LABEL}
+								/>
+							</SettingRow>
+						)}
+						{isVisible(
+							MODEL_IDLE_UNLOAD_LABEL,
+							MODEL_IDLE_UNLOAD_INFO,
+							generalSectionTitle,
+						) && (
+							<SettingRow
+								label={MODEL_IDLE_UNLOAD_LABEL}
+								info={MODEL_IDLE_UNLOAD_INFO}
+							>
+								<Select
+									value={String(
+										normalizeModelIdleUnloadMinutes(
+											cfg.model_idle_unload_minutes,
+										),
+									)}
+									onValueChange={handleModelIdleUnloadChange}
+								>
+									<SelectTrigger
+										className="w-44"
+										aria-label={MODEL_IDLE_UNLOAD_LABEL}
+									>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{MODEL_IDLE_UNLOAD_OPTIONS.map((opt) => (
+											<SelectItem key={opt.value} value={String(opt.value)}>
+												<span>{t(opt.labelKey)}</span>
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</SettingRow>
+						)}
+						{isVisible(
+							APP_LANGUAGE_LABEL,
+							APP_LANGUAGE_INFO,
+							generalSectionTitle,
+						) && (
+							<SettingRow label={APP_LANGUAGE_LABEL} info={APP_LANGUAGE_INFO}>
+								<Select
+									value={getLocale()}
+									onValueChange={(v) => {
+										setLocale(v as Locale);
+										try {
+											localStorage.setItem("lausu-ui-locale", v);
+										} catch (e) {
+											console.warn(
+												"[renderer:GeneralSettingsSection] setItem locale failed:",
+												e,
+											);
+										}
+										try {
+											pushLocaleToPythonBackend(v as Locale);
+										} catch (e) {
+											console.warn(
+												"[renderer:GeneralSettingsSection] set_tray_locale IPC failed:",
+												e,
+											);
+										}
+									}}
+								>
+									<SelectTrigger
+										className="w-44"
+										aria-label={APP_LANGUAGE_LABEL}
+									>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{LOCALE_OPTIONS.map((opt) => (
+											<SelectItem key={opt.value} value={opt.value}>
+												<span>{opt.label}</span>
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</SettingRow>
+						)}
+						{isVisible(
+							TRAY_CLICK_LABEL,
+							TRAY_CLICK_INFO,
+							generalSectionTitle,
+						) && (
+							<SettingRow label={TRAY_CLICK_LABEL} info={TRAY_CLICK_INFO}>
+								<ToggleGroup
+									options={TRAY_CLICK_OPTIONS.map((opt) => ({
+										value: opt.value,
+										label: t(opt.labelKey),
+									}))}
+									value={cfg.tray_left_click_action ?? "open_app"}
+									onChange={handleTrayClickChange}
+									ariaLabel={TRAY_CLICK_LABEL}
+								/>
+							</SettingRow>
+						)}
+					</SettingsSection>
+				);
+			}}
+		</Skeleton>
 	);
 });

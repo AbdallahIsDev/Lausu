@@ -10,12 +10,12 @@ Source: `voice_typer/server/ipc/registry.py`. Parity contract: CONTRIBUTING.md
 lockstep. Host-dispatched commands (`shutdown`, `tray_click`, `heartbeat`,
 `relaunch_ack`) are intentionally absent from the Rust renderer allowlist.
 
-Pinned sets (counts verified against code: 90-entry `_COMMAND_REGISTRY`
-minus the 4 host-dispatched commands = 86-entry Rust allowlist):
-- `_COMMAND_REGISTRY` — 90 keys (tests/test_ipc_server.py).
-- `allowed_commands()` (Rust renderer allowlist) — 86 keys; the registry minus
+Pinned sets (counts verified against code: 108-entry `_COMMAND_REGISTRY`
+minus the 4 host-dispatched commands = 104-entry Rust allowlist):
+- `_COMMAND_REGISTRY` — 108 keys (tests/test_ipc_server.py).
+- `allowed_commands()` (Rust renderer allowlist) — 104 keys; the registry minus
   the four host-dispatched commands (SECURITY.md, `sidecar_cmds_tests.rs`).
-- `_READONLY_COMMANDS` — 28 pure-read commands (full set in
+- `_READONLY_COMMANDS` — 33 pure-read commands (full set in
   `voice_typer/server/ipc/registry.py`): `get_status`, `get_config`,
   `get_model_catalog`, `heartbeat`, `get_defaults`, `get_history`,
   `get_history_count`, `get_today_stats`, `get_favorites`,
@@ -23,25 +23,28 @@ minus the 4 host-dispatched commands = 86-entry Rust allowlist):
   `get_plugins`, `get_volume_backend_status`, `get_model_status`,
   `get_prewarm_status`, `get_vocabulary`, `get_correction_usage`,
   `get_templates`, `get_download_queue`, `microphone_test_get_level`,
-  `microphone_test_status`,
+  `microphone_test_status`, `chat_state`,
   `onboarding_is_first_run`, `onboarding_get_microphones`,
   `onboarding_get_model_options`, `onboarding_get_hotkey_presets`,
-  `onboarding_check_permissions`, `screenshot_get_status`.
+  `onboarding_check_permissions`, `screenshot_get_status`, `tts_status`,
+  `provider_list`, `provider_models`, `get_gpu_capability`.
   WS/stdin dispatcher bypasses `_dispatch_lock` for these (pure reads).
 - `_PYTHON_ONLY_COMMANDS` — `{shutdown, tray_click}`. Renderer must never
   invoke them (spoofing / DoS).
 - `_INSTANT_CONTROL_COMMANDS` — `{pause_model_download, resume_model_download,
-  cancel_model_download}`. Bypass dispatch lock: mutation is a single atomic
-  flag under the download locks. Safety: no network/disk I/O, idempotent,
-  never starts a long operation.
-- `_SELF_SERIALIZED_COMMANDS` — `{download_model}`. Bypass dispatch lock:
-  holding it for a multi-GB transfer wedges every later command behind the
-  give-up budget (duplicate/retry `download_model` then fails with spurious
-  `server.busy` while the real transfer still runs). Safety: service
-  single-flight + FIFO queue + per-download cancel events + transfer gate;
-  queue-drain threads already call `service.download_model` lock-free, so
-  the dispatch lock never actually serialized this path. Membership
-  requires the handler's own concurrency guards.
+  cancel_model_download, cancel_cuda_download}`. Bypass dispatch lock: mutation
+  is a single atomic flag under the download locks. Safety: no network/disk
+  I/O, idempotent, never starts a long operation.
+- `_SELF_SERIALIZED_COMMANDS` — `{download_model, start_cuda_download}`.
+  Bypass dispatch lock: holding it for a multi-GB transfer wedges every later
+  command behind the give-up budget (duplicate/retry `download_model` then
+  fails with spurious `server.busy` while the real transfer still runs).
+  Safety: service single-flight + FIFO queue + per-download cancel events +
+  transfer gate; queue-drain threads already call `service.download_model`
+  lock-free, so the dispatch lock never actually serialized this path.
+  `start_cuda_download` follows the same shape: `CudaInstallService.start()`
+  returns the live snapshot for a second caller instead of a second transfer.
+  Membership requires the handler's own concurrency guards.
 
 ### Registry history
 

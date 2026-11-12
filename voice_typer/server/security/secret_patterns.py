@@ -126,6 +126,28 @@ def _public_worker_event_names() -> frozenset[str]:
     return cached
 
 
+# ONNX Runtime provider names are public runtime vocabulary, never secrets.
+# They are 20+ chars, so the generic catch-all would otherwise mask them
+# as "***" in every provider log line.
+_PUBLIC_ORT_PROVIDER_NAMES: frozenset[str] = frozenset(
+    {
+        "CUDAExecutionProvider",
+        "CPUExecutionProvider",
+        "CoreMLExecutionProvider",
+        "TensorrtExecutionProvider",
+        "QNNExecutionProvider",
+        "DMLExecutionProvider",
+        "AzureExecutionProvider",
+        "OpenVINOExecutionProvider",
+        "VitisAIExecutionProvider",
+        "NNAPIExecutionProvider",
+        "XNNPACKExecutionProvider",
+        "RocmExecutionProvider",
+        "ArmComputeExecutionProvider",
+        "WebGpuExecutionProvider",
+    }
+)
+
 # Env-var NAMES are public (documented in docs, ADRs, source code, and
 _PUBLIC_ENV_VAR_NAMES: frozenset[str] = frozenset(
     {
@@ -147,6 +169,11 @@ _PUBLIC_ENV_VAR_NAMES: frozenset[str] = frozenset(
         "VOICE_TYPER_DEFER_MODEL_LOAD",
         "VOICE_TYPER_SESSION_ID",
         "VOICE_TYPER_VERBOSE",
+        "VOICE_TYPER_SIDECAR_DEV",
+        "VOICE_TYPER_BOOT_EPOCH_MS",
+        "VOICE_TYPER_SPAWN_EPOCH_MS",
+        "VOICE_TYPER_PARENT_PID",
+        "VOICE_TYPER_PACK_VERSION",
         # Runtime/model surface (names are public; the values still redact).
         "VOICE_TYPER_AUDIO8_BACKEND",
         "VOICE_TYPER_AUDIO8_BIN",
@@ -178,6 +205,52 @@ _PUBLIC_ENV_VAR_NAMES: frozenset[str] = frozenset(
         "GEMINI_API_KEY",
         "DEEPGRAM_API_KEY",
         "GROQ_API_KEY",
+    }
+)
+
+# IPC error-code names are public protocol vocabulary, never secrets.
+# 20+ char codes (sidecar_disconnected etc.) would otherwise log as "***".
+_PUBLIC_ERROR_CODE_NAMES: frozenset[str] = frozenset(
+    {
+        "sidecar_disconnected",
+        "protocol_version_mismatch",
+        "max_connections_reached",
+        "duplicate_connection",
+        "onboarding_already_complete",
+        "payload_too_large",
+        "model_switch_failed",
+        "cloud_auth_failed",
+        "cloud_rate_limited",
+        "cloud_server_error",
+        "cloud_network_error",
+        "cloud_config_error",
+        "cloud_engine_error",
+        "recording_resample_failed",
+        "recording_resample_unavailable",
+        "provider_model_unknown",
+        "provider_unsupported_domain",
+        "provider_consent_required",
+        "provider_auth_required",
+        "provider_unavailable",
+        "provider_runtime_error",
+        "unknown_tray_item",
+        "server.internal_error",
+        "server.handler_error",
+        "server.file_locked",
+        "server.model_switch_failed",
+        "server.shutting_down",
+        "server.unknown_command",
+        "server.unknown_tray_item",
+        "server.not_found",
+        "server.max_connections_reached",
+        "server.duplicate_connection",
+        "server.not_initialized",
+        "server.no_model",
+        "server.job_busy",
+        "server.not_supported",
+        "server.model_loading",
+        "server.model_changed",
+        "server.consent_required",
     }
 )
 

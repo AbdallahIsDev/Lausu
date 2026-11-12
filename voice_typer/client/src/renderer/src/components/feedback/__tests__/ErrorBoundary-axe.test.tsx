@@ -57,8 +57,8 @@ describe("F-17: axe-core WCAG scan, ErrorBoundary fallback UI", () => {
 		);
 		// The fallback renders a role="alert" region with a heading,
 		// description, the raw error message in a <pre>, and a row of
-		// recovery buttons (Reset settings / Try again / Reload App /
-		// Copy error / Open logs). axe scans the whole region.
+		// recovery buttons (Try again / Reload App / Copy error). axe
+		// scans the whole region.
 		await expectNoAxeViolations(container);
 	});
 });

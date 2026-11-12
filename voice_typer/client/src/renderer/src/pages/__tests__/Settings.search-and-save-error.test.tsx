@@ -148,10 +148,11 @@ describe("Settings, cross-tab search results", () => {
 	});
 });
 
-describe("Settings, save-error banner", () => {
+describe("Settings, save-error notification", () => {
 	beforeEach(() => {
 		mockCall.mockReset();
 		mockPythonEvent.mockReset();
+		stableMocks.toastError.mockClear();
 		localStorage.clear();
 		vi.resetModules();
 	});
@@ -160,8 +161,8 @@ describe("Settings, save-error banner", () => {
 		cleanup();
 	});
 
-	it("renders a destructive aria-live banner carrying the hook's error text", async () => {
-		// set_config rejects → useSettingsConfig sets `error`.
+	it("raises an error toast carrying the hook's error text, with no inline block", async () => {
+		// set_config rejects → useSettingsConfig toasts and sets `error`.
 		mockCall.mockImplementation((type: string) => {
 			if (type === "get_config") return Promise.resolve(baseConfig);
 			if (type === "set_config")
@@ -184,17 +185,17 @@ describe("Settings, save-error banner", () => {
 		const sw = screen.getByRole("switch", { name: "Crash Recovery" });
 		fireEvent.click(sw);
 
-		const banner = await waitFor(() =>
-			screen.getByTestId("settings-save-error"),
+		await waitFor(() => expect(stableMocks.toastError).toHaveBeenCalled());
+		const calls = stableMocks.toastError.mock.calls;
+		expect(String(calls[calls.length - 1]?.[0] ?? "")).toContain(
+			"history_max_entries",
 		);
-		// A failed save is data-loss-risk: it must announce assertively
-		// (role="alert"), with no explicit aria-live overriding that.
-		expect(banner.getAttribute("role")).toBe("alert");
-		expect(banner.getAttribute("aria-live")).toBeNull();
-		expect(banner.textContent).toContain("history_max_entries");
+		// The failure is a notification only: no element is inserted into
+		// the page flow, so a rejected save never pushes the content down.
+		expect(screen.queryByTestId("settings-save-error")).toBeNull();
 	});
 
-	it("renders no banner while saves succeed", async () => {
+	it("raises no error toast while saves succeed", async () => {
 		happyCallMock();
 		const { default: SettingsPage } = await import("@/pages/Settings");
 		// Switches live on the section pages now, mount on Privacy.
@@ -211,6 +212,7 @@ describe("Settings, save-error banner", () => {
 				expect.anything(),
 			);
 		});
+		expect(stableMocks.toastError).not.toHaveBeenCalled();
 		expect(screen.queryByTestId("settings-save-error")).toBeNull();
 	});
 });

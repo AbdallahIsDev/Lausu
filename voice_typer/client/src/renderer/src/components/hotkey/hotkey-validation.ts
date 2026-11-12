@@ -17,6 +17,11 @@ export const RESERVED_SHORTCUTS: Record<string, string[]> =
 	hotkeyReserved.per_platform_reserved as Record<string, string[]>;
 export const BLOCKED_CTRL_LETTERS: readonly string[] =
 	hotkeyReserved.blocked_ctrl_letters;
+export const BLOCKED_TOGGLE_KEYS: readonly string[] =
+	hotkeyReserved.blocked_toggle_keys;
+export const BLOCKED_EDITING_KEYS: readonly string[] =
+	hotkeyReserved.blocked_editing_keys;
+export const MOUSE_BUTTONS: readonly string[] = hotkeyReserved.mouse_buttons;
 export const MODIFIER_KEYS_SHARED: readonly string[] = hotkeyReserved.modifiers;
 
 export const KEY_ALIASES: Readonly<Record<string, string>> =
@@ -43,6 +48,9 @@ export type ValidationCode =
 	| "altgr"
 	| "fn_platform"
 	| "key_not_delivered"
+	| "toggle_key"
+	| "editing_key"
+	| "mouse_combo"
 	| "ptt_modifier_only"
 	| "ptt_caps_lock";
 
@@ -168,6 +176,7 @@ const _MESSAGE_SPECIAL_LABELS: Readonly<Record<string, string>> = {
 	scroll_lock: "Scroll Lock",
 	print_screen: "Print Screen",
 	pause: "Pause",
+	mouse_middle: "Middle Mouse Button",
 	insert: "Insert",
 	delete: "Delete",
 	home: "Home",
@@ -190,6 +199,11 @@ function _formatForMessage(parts: readonly string[]): string {
 			return part.charAt(0).toUpperCase() + part.slice(1);
 		})
 		.join("+");
+}
+
+/** Message-form label (the text the `{label}` placeholders embed). */
+export function formatHotkeyForMessage(hotkey: string): string {
+	return _formatForMessage(_parseParts(hotkey));
 }
 
 function _failure(code: ValidationCode, reason: string): ValidationResult {
@@ -364,6 +378,39 @@ export function validateHotkey(
 				t("hotkeyValidation.keyNotDelivered", { key }),
 			);
 		}
+	}
+
+	// Pressing a toggle key (Num Lock) flips a keyboard state that no
+	// listener suppresses, so any spec that uses one is refused.
+	for (const key of nonMods) {
+		if (BLOCKED_TOGGLE_KEYS.includes(key)) {
+			return _failure(
+				"toggle_key",
+				t("hotkeyValidation.toggleKeyBlocked", {
+					key: _formatForMessage([key]),
+				}),
+			);
+		}
+	}
+
+	// Delete and the arrow cluster edit text or move the caret, so a spec
+	// that uses one would damage the document on every press.
+	for (const key of nonMods) {
+		if (BLOCKED_EDITING_KEYS.includes(key)) {
+			return _failure(
+				"editing_key",
+				t("hotkeyValidation.editingKeyBlocked", {
+					key: _formatForMessage([key]),
+				}),
+			);
+		}
+	}
+
+	// The mouse listener never reports keyboard modifiers, so a mouse
+	// button is a whole trigger: a combo containing one could not match.
+	const mouseButton = nonMods.find((key) => MOUSE_BUTTONS.includes(key));
+	if (mouseButton !== undefined && parts.length > 1) {
+		return _failure("mouse_combo", t("hotkeyValidation.mouseButtonAlone"));
 	}
 
 	// Push-to-talk needs a delivered release. The macOS Fn/Globe key has its

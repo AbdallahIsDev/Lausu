@@ -339,8 +339,64 @@ class TestIsPasswordFieldWindows:
             result = _is_password_field()
         assert result is True
         mock_log.warning.assert_called()
-        # Verify UIA was queried for the password property (id 30022).
-        fake_focused.GetCurrentPropertyValue.assert_called_with(30022)
+        # UIA_IsPasswordPropertyId = 30019 (30022 is IsOffscreen).
+        fake_focused.GetCurrentPropertyValue.assert_called_with(30019)
+
+    def test_offscreen_but_not_password_is_allowed(self, fake_win32):
+        """Regression: IsOffscreen must never be read as IsPassword.
+
+        Chromium/Electron renderer nodes and some WinUI custom controls answer
+        TRUE to ``UIA_IsOffscreenPropertyId`` (30022) while being focused and
+        visible. The old code read 30022 and refused every dictation into such
+        a field with "password field detected".
+        """
+        fake_uia_mod = MagicMock(name="UIA_module")
+        fake_uia = MagicMock(name="uia_instance")
+        fake_focused = MagicMock(name="focused_element")
+        fake_focused.GetCurrentPropertyValue.side_effect = lambda pid: {
+            30019: False,  # IsPassword — the field is a normal text input
+            30022: True,  # IsOffscreen — the old, wrong read
+            30003: 50004,  # ControlType: Edit
+        }.get(pid, False)
+        fake_uia.GetFocusedElement.return_value = fake_focused
+        fake_comtypes = MagicMock(name="comtypes")
+        fake_comtypes_client = MagicMock(name="comtypes.client")
+        fake_comtypes.client = fake_comtypes_client
+        fake_comtypes_client.GetModule.return_value = fake_uia_mod
+        fake_comtypes.CoCreateInstance.return_value = fake_uia
+
+        with (
+            patch.dict(
+                sys.modules,
+                {"comtypes": fake_comtypes, "comtypes.client": fake_comtypes_client},
+            ),
+            patch.object(clip_mod, "log"),
+        ):
+            result = _is_password_field()
+        assert result is False
+
+    def test_non_boolean_password_property_fails_closed(self, fake_win32):
+        """An unreadable IsPassword value must not be assumed safe."""
+        fake_uia_mod = MagicMock(name="UIA_module")
+        fake_uia = MagicMock(name="uia_instance")
+        fake_focused = MagicMock(name="focused_element")
+        fake_focused.GetCurrentPropertyValue.return_value = "unexpected"
+        fake_uia.GetFocusedElement.return_value = fake_focused
+        fake_comtypes = MagicMock(name="comtypes")
+        fake_comtypes_client = MagicMock(name="comtypes.client")
+        fake_comtypes.client = fake_comtypes_client
+        fake_comtypes_client.GetModule.return_value = fake_uia_mod
+        fake_comtypes.CoCreateInstance.return_value = fake_uia
+
+        with (
+            patch.dict(
+                sys.modules,
+                {"comtypes": fake_comtypes, "comtypes.client": fake_comtypes_client},
+            ),
+            patch.object(clip_mod, "log"),
+        ):
+            result = _is_password_field()
+        assert result is True
 
     def test_returns_false_for_non_password_edit(self, fake_win32):
         """When UIA reports IsPassword=False → False."""

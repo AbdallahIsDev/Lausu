@@ -134,4 +134,8 @@ export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
 	// Local TTS playback transitions (playing / stopped / finished), so the
 	// icon-only control returns to play on a natural end without polling.
 	"tts_playback_state",
+	// Push-to-talk voice conversation turn (phase + user/assistant text).
+	"chat_turn",
+	// CUDA install job progress for the device-switch flow.
+	"cuda_progress",
 ]);

@@ -8,6 +8,7 @@ selection is persisted through ``set_config`` so the SEC-002 allowlist and
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Any
 
 from voice_typer.server.handlers._base import HandlerBase
@@ -23,6 +24,10 @@ from voice_typer.server.model_providers import (
     store_provider_key,
 )
 from voice_typer.server.model_providers.errors import ProviderAuthRequiredError
+from voice_typer.server.model_providers.local_catalogue import (
+    clear_local_catalogue,
+    force_local_catalogue,
+)
 from voice_typer.server.model_providers.routing import DOMAIN_FIELDS, effective_consent, provider_requires_consent
 
 #: Commands whose payload is a provider id only.
@@ -119,11 +124,17 @@ class ProviderHandlersMixin(HandlerBase):
                 stale = snapshot.stale
             else:
                 models = []
-                for model in descriptor.models(domain):
-                    entry = model.to_dict()
-                    if domain is not None:
-                        entry["domains"] = [domain.value]
-                    models.append(entry)
+                if refresh:
+                    # An explicit refresh must dial the server, not answer from the
+                    # short local-catalogue window.
+                    clear_local_catalogue(provider)
+                forced = force_local_catalogue() if refresh else contextlib.nullcontext()
+                with forced:
+                    for model in descriptor.models(domain):
+                        entry = model.to_dict()
+                        if domain is not None:
+                            entry["domains"] = [domain.value]
+                        models.append(entry)
                 if models and descriptor.auth.value == "api_key":
                     cache.write(provider, models)
             if domain is not None:
@@ -154,7 +165,11 @@ class ProviderHandlersMixin(HandlerBase):
             # remote 401; answer it locally instead of sending a request.
             if descriptor.auth.value == "api_key" and not provider_key_status(provider).get("configured"):
                 raise ProviderAuthRequiredError(f"{provider} has no API key configured", provider=provider)
-            models = descriptor.models()
+            # An explicit test must dial a local server even when no config points
+            # at it, and must not answer from the short local-catalogue window.
+            clear_local_catalogue(provider)
+            with force_local_catalogue():
+                models = descriptor.models()
             # A public catalogue says nothing about the stored key, so keyed
             # providers run an authenticated probe and fail on a bad key.
             probe = descriptor.probe()

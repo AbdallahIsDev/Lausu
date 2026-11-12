@@ -88,6 +88,7 @@ const hugeiconsMock = {
 	Loading03Icon: make("Loading03Icon"),
 	LockIcon: make("LockIcon"),
 	LockKeyIcon: make("LockKeyIcon"),
+	MessageMultiple01Icon: make("MessageMultiple01Icon"),
 	Mic01Icon: make("Mic01Icon"),
 	Mic02Icon: make("Mic02Icon"),
 	MicOff01Icon: make("MicOff01Icon"),

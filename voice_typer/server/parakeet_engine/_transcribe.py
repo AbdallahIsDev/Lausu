@@ -30,6 +30,7 @@ class TranscribeMixin:
     _active_inference: int
     _inference_cond: threading.Condition
     _abort_event: threading.Event
+    _effective_providers: list[str]
     device: str
     language: str
 
@@ -300,8 +301,13 @@ class TranscribeMixin:
         """User-facing compute device for tray status lines ("GPU"/"CPU")."""
         from voice_typer.server.tray_models import describe_device
 
+        providers = getattr(self, "_effective_providers", None)
+        if providers:
+            return "GPU" if "CUDAExecutionProvider" in providers else "CPU"
         return describe_device(self.device)
 
     @property
     def loaded_via(self) -> str:
-        return f"parakeet/{self.device}/{_PARAKERT_ONNX_REPO_ID}"
+        providers = getattr(self, "_effective_providers", None)
+        effective = ("cuda" if "CUDAExecutionProvider" in providers else "cpu") if providers else self.device
+        return f"parakeet/{effective}/{_PARAKERT_ONNX_REPO_ID}"

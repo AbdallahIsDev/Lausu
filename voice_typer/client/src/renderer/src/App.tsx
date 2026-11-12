@@ -6,6 +6,7 @@ import { configHotkeyLabels } from "@/components/hotkey/hotkey-utils";
 import { ConnectionStatusScreen } from "@/components/layout/ConnectionStatusScreen";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TitleBar } from "@/components/layout/TitleBar";
+import { AppSkulletProvider } from "@/components/skullet/AppSkulletProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAsrBackendDisabledToast } from "@/hooks/useAsrBackendDisabledToast";
@@ -15,6 +16,7 @@ import { useConnectingProgress } from "@/hooks/useConnectingProgress";
 import { useConnection } from "@/hooks/useConnection";
 import { useConnectionToasts } from "@/hooks/useConnectionToasts";
 import { useConsentRequiredEvent } from "@/hooks/useConsentRequiredEvent";
+import { useCudaInstallToast } from "@/hooks/useCudaInstallToast";
 import { useDeviceLostToast } from "@/hooks/useDeviceLostToast";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useFilterCollapseToast } from "@/hooks/useFilterCollapseToast";
@@ -170,6 +172,9 @@ export default function App() {
 	usePasteDeferredToast(t);
 	useLastResortUnloadedToast(t, () => navigate("models"));
 	usePackUpdateToast(t, () => navigate("aboutAndPrivacy"));
+	// GPU switch: the sticky CUDA-install toast plus the automatic respawn
+	// and GPU confirmation that follows a finished download.
+	useCudaInstallToast(t);
 	// Mic guard: sticky [Back to 100%] note when an outside write lowered the
 	// OS capture knob and the backend could not put it back itself.
 	useMicGuardToast(t);
@@ -255,24 +260,27 @@ export default function App() {
 							// chrome is hidden (boot/error cards).
 							className={cn(
 								"flex-1 overflow-y-auto bg-background focus:outline-none",
-								sidebarVisible && "rounded-l-lg border border-border/8",
+								sidebarVisible &&
+									"rounded-l-lg border-t border-l border-border/8",
 							)}
 							style={{ scrollbarGutter: "stable" }}
 						>
-							{connectionStatus === "connected" ? (
-								<PageSwitch
-									page={currentPage}
-									navigate={navigate}
-									onOnboardingComplete={handleOnboardingComplete}
-								/>
-							) : (
-								<ConnectionStatusScreen
-									status={connectionStatus}
-									lastError={lastError}
-									onRetry={handleRetryConnection}
-									connectingProgress={connectingProgress}
-								/>
-							)}
+							<AppSkulletProvider>
+								{connectionStatus === "connected" ? (
+									<PageSwitch
+										page={currentPage}
+										navigate={navigate}
+										onOnboardingComplete={handleOnboardingComplete}
+									/>
+								) : (
+									<ConnectionStatusScreen
+										status={connectionStatus}
+										lastError={lastError}
+										onRetry={handleRetryConnection}
+										connectingProgress={connectingProgress}
+									/>
+								)}
+							</AppSkulletProvider>
 						</main>
 					</div>
 				</div>

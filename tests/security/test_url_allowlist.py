@@ -10,6 +10,7 @@ from voice_typer.server import _secrets
 from voice_typer.server._secrets import (
     assert_url_allowed,
     extend_url_allowlist,
+    is_url_allowed,
 )
 from voice_typer.server.security.url_allowlist import (
     _is_ip_literal,
@@ -293,3 +294,40 @@ class TestAssertUrlAllowedSsrfDefense:
         assert _is_private_ip("fe80::1") is True
         assert _is_private_ip("8.8.8.8") is False
         assert _is_private_ip("1.1.1.1") is False
+
+
+class TestBuiltinProviderEndpointsAreTrusted:
+    """ADR-0017: an integrated provider whose host is missing from the
+    default allowlist fails at runtime (``provider_test``: "host ... is not
+    in the trusted allowlist"). Pin every built-in endpoint.
+    """
+
+    def test_every_builtin_provider_base_url_is_allowlisted(self):
+        from voice_typer.server.model_providers.hosted_tts import OPENAI_TTS_BASE
+        from voice_typer.server.model_providers.lmstudio import LMSTUDIO_DEFAULT_BASE
+        from voice_typer.server.model_providers.ollama import OLLAMA_CLOUD_BASE, OLLAMA_LOCAL_BASE
+        from voice_typer.server.model_providers.openrouter import OPENROUTER_BASE_URL
+
+        for base in (
+            OPENAI_TTS_BASE,
+            OPENROUTER_BASE_URL,
+            OLLAMA_CLOUD_BASE,
+            OLLAMA_LOCAL_BASE,
+            LMSTUDIO_DEFAULT_BASE,
+        ):
+            assert is_url_allowed(base), f"{base} must be in the default URL allowlist"
+
+    def test_rejection_message_survives_log_redaction(self):
+        """The fix hint must not be masked to ``***`` by SEC-003."""
+        from voice_typer.server._secrets import redact_secret
+
+        with pytest.raises(ValueError) as exc_info:
+            assert_url_allowed(
+                "https://evil.example.com/v1",
+                field_name="provider_api_url",
+                client_name="openrouter",
+            )
+
+        logged = redact_secret(str(exc_info.value))
+        assert "***" not in logged, logged
+        assert "trusted_extra_hosts" in logged

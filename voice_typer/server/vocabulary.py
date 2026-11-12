@@ -167,6 +167,7 @@ class VocabularyManager(VocabularyPersistenceMixin, VocabularyApplyMixin):
         old_value: Any = None
         cat_data: Any = None
         tombstoned = False
+        auto_dropped: str | None = None
         with self._lock:
             cat_data = self._data.get(category)
             if isinstance(cat_data, dict) and key in cat_data:
@@ -179,7 +180,6 @@ class VocabularyManager(VocabularyPersistenceMixin, VocabularyApplyMixin):
                     tombstoned = True
                 # A deleted entry loses its auto-apply origin mark.
                 auto_marks = self._auto_applied.get(category)
-                auto_dropped: str | None = None
                 if isinstance(auto_marks, dict) and key in auto_marks:
                     auto_dropped = auto_marks.pop(key)
                     if not auto_marks:

@@ -22,10 +22,10 @@ use super::commands::{
     translate_pill_rect_to_screen, PillCaptureRect,
 };
 use super::math::{
-    bubble_position_in_work_area, centered_x_in_work_area, clamp_f64_to_i32, clamp_resize_height,
-    clamp_resize_width, compute_move_by_new_pos, edge_margin_physical, keyword_edge_y_in_work_area,
-    rect_contains_point, round_f64_to_i32_saturating, round_f64_to_u32_saturating, RectPx,
-    MAX_BUBBLE_H, MAX_BUBBLE_W, MIN_BUBBLE_H, MIN_BUBBLE_W,
+    anchor_moved, bubble_position_in_work_area, centered_x_in_work_area, clamp_f64_to_i32,
+    clamp_resize_height, clamp_resize_width, compute_move_by_new_pos, edge_margin_physical,
+    keyword_edge_y_in_work_area, rect_contains_point, resize_is_noop, round_f64_to_i32_saturating,
+    round_f64_to_u32_saturating, RectPx, MAX_BUBBLE_H, MAX_BUBBLE_W, MIN_BUBBLE_H, MIN_BUBBLE_W,
 };
 use super::parse::parse_position;
 use super::window::{
@@ -1165,4 +1165,35 @@ fn test_is_active_bubble_state_reshows_on_recording_and_transcribing() {
         !is_active_bubble_state("bubble_show", &json!({"state": "recording"})),
         "other events must NOT re-show, even with an active state"
     );
+}
+
+// An auto-fit resize that asks for the size the window already has must be a
+// no-op: the renderer re-measures on every layout pass, and replaying
+// set_size + the chrome strip + a position write + an INFO line for it was
+// measured at tens of calls a second on an idle pill.
+#[test]
+fn resize_is_noop_when_the_size_is_unchanged() {
+    assert!(resize_is_noop(71, 47, 71, 47));
+    assert!(!resize_is_noop(71, 47, 72, 48));
+    assert!(!resize_is_noop(71, 47, 71, 48));
+    assert!(!resize_is_noop(71, 47, 72, 47));
+}
+
+#[test]
+fn resize_is_noop_compares_the_capped_request() {
+    // An out-of-range request lands on the pill bounds, so an already-capped
+    // window is a no-op even though the raw request differed.
+    let capped_w = clamp_resize_width(MAX_BUBBLE_W + 500);
+    let capped_h = clamp_resize_height(1);
+    assert_eq!(capped_w, MAX_BUBBLE_W);
+    assert_eq!(capped_h, MIN_BUBBLE_H);
+    assert!(resize_is_noop(MAX_BUBBLE_W, MIN_BUBBLE_H, capped_w, capped_h));
+    assert!(!resize_is_noop(MIN_BUBBLE_W, MIN_BUBBLE_H, capped_w, capped_h));
+}
+
+#[test]
+fn anchor_moved_only_reports_real_geometry_changes() {
+    assert!(!anchor_moved((924, 945), (924, 945)));
+    assert!(anchor_moved((924, 945), (926, 945)));
+    assert!(anchor_moved((924, 945), (924, 947)));
 }

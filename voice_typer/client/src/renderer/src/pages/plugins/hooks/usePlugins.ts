@@ -65,6 +65,12 @@ export interface UsePluginsResult {
 	loadError: string | null;
 	loadPlugins: (isCancelled?: () => boolean) => Promise<void>;
 	setActivePlugin: (pluginId: string) => void;
+	/** Persist one manifest-declared setting; false when the backend refused. */
+	setPluginSetting: (
+		pluginId: string,
+		key: string,
+		value: unknown,
+	) => Promise<boolean>;
 }
 
 export function usePlugins(): UsePluginsResult {
@@ -196,6 +202,20 @@ export function usePlugins(): UsePluginsResult {
 		[call],
 	);
 
+	// Settings live in the plugin workspace (settings.json), so the write is
+	// validated and persisted server-side; the caller reverts its optimistic
+	// value when this resolves false.
+	const setPluginSetting = useCallback(
+		(pluginId: string, key: string, value: unknown): Promise<boolean> =>
+			call("set_plugin_setting", { plugin_id: pluginId, key, value })
+				.then(() => true)
+				.catch((err) => {
+					console.warn("[renderer:usePlugins] set_plugin_setting failed:", err);
+					return false;
+				}),
+		[call],
+	);
+
 	return {
 		plugins,
 		activePluginId,
@@ -203,5 +223,6 @@ export function usePlugins(): UsePluginsResult {
 		loadError,
 		loadPlugins,
 		setActivePlugin,
+		setPluginSetting,
 	};
 }

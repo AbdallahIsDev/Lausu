@@ -32,6 +32,27 @@ def _quoted_backend_names() -> str:
     return ", ".join(f"'{name}'" for name in ASR_BACKEND_NAMES)
 
 
+def _friendly_model_label(model_size: str, backend: str) -> str:
+    """User-facing model name for switch logs (never the raw id alone)."""
+    if not model_size or model_size == NO_MODEL_SIZE:
+        return "no model"
+    try:
+        from voice_typer.server.model_registry import get_model_metadata
+
+        meta = get_model_metadata(model_size)
+        if meta is not None:
+            if meta.display_name:
+                return meta.display_name
+            if meta.backend in ("whisper", "distil-whisper"):
+                return f"Whisper {' '.join(part[:1].upper() + part[1:] for part in model_size.split('-') if part)}"
+            return meta.name
+    except Exception:
+        pass
+    if backend in ("whisper", "distil-whisper"):
+        return f"Whisper {' '.join(part[:1].upper() + part[1:] for part in model_size.split('-') if part)}"
+    return model_size
+
+
 class ChangeMixin(ChangeEventsMixin):
     # Members provided by the composed ``ModelManager`` (manager.py):
     _app: LausuApp
@@ -83,7 +104,7 @@ class ChangeMixin(ChangeEventsMixin):
                 "pending": {"backend": new_backend, "model_size": model_size},
             }
         # spawn background daemon thread for the full cycle.
-        self._change_model_background(model_size)
+        self._change_model_background(model_size, old_backend=old_backend, old_model_size=old_model_size)
         return {
             "status": "loading",
             "previous": {"backend": old_backend, "model_size": old_model_size},
@@ -98,11 +119,17 @@ class ChangeMixin(ChangeEventsMixin):
             return False
         return engine is not None and bool(getattr(engine, "is_loaded", False))
 
-    def _change_model_background(self, model_size: str) -> None:
+    def _change_model_background(
+        self,
+        model_size: str,
+        *,
+        old_backend: str | None = None,
+        old_model_size: str | None = None,
+    ) -> None:
         """Spawn a daemon thread to run ``_change_model_blocking``."""
         thread = threading.Thread(
             target=self._change_model_blocking,
-            args=(model_size,),
+            args=(model_size, old_backend, old_model_size),
             name="ModelChange",
             daemon=True,
         )
@@ -123,7 +150,12 @@ class ChangeMixin(ChangeEventsMixin):
                 exc_info=True,
             )
 
-    def _change_model_blocking(self, model_size: str) -> None:
+    def _change_model_blocking(
+        self,
+        model_size: str,
+        old_backend: str | None = None,
+        old_model_size: str | None = None,
+    ) -> None:
         """Synchronous model change (for test compat and direct callers)."""
         # cancel any pending idle-unload timer before starting
         self.cancel_idle_unload_timer()
@@ -136,7 +168,11 @@ class ChangeMixin(ChangeEventsMixin):
                 return
             # Step 1: setattr + save + unload-old under config lock.
             with self._app._config_mutation_lock:
-                new_backend, old_backend, deferred = self._change_model_setattr_phase(model_size)
+                new_backend, old_backend, deferred = self._change_model_setattr_phase(
+                    model_size,
+                    old_backend=old_backend,
+                    old_model_size=old_model_size,
+                )
                 if deferred:
                     # Recording in progress, config saved, deferred
                     return
@@ -157,19 +193,31 @@ class ChangeMixin(ChangeEventsMixin):
                 failure_reason=failure_reason,
             )
 
-    def _change_model_setattr_phase(self, model_size: str) -> tuple[str, str, bool]:
+    def _change_model_setattr_phase(
+        self,
+        model_size: str,
+        *,
+        old_backend: str | None = None,
+        old_model_size: str | None = None,
+    ) -> tuple[str, str, bool]:
         """Step 1a: determine backend, setattr + save config.
 
         Returns ``(new_backend, old_backend, deferred)``. ``deferred`` is True when
         """
         new_backend: AsrBackendName = _backend_for_model_size(model_size)
 
-        old_backend = self._app.config.asr_backend
+        # Captured synchronously in change_model() before the config can
+        # be overwritten by a racing set_config apply; fall back to the
+        # live config for direct (synchronous) callers.
+        if old_backend is None:
+            old_backend = self._app.config.asr_backend
+        if old_model_size is None:
+            old_model_size = getattr(self._app.config, "model_size", "")
         log.info(
             "[MODEL] Changing model: %s (%s) -> %s (%s)",
-            self._app.config.model_size,
+            _friendly_model_label(old_model_size, old_backend),
             old_backend,
-            model_size,
+            _friendly_model_label(model_size, new_backend),
             new_backend,
         )
 
@@ -181,7 +229,7 @@ class ChangeMixin(ChangeEventsMixin):
         if self._app.recorder.recording or not self._app._busy_event.is_set():
             log.info(
                 "[CONFIG] Model changed to %s (%s); applying after active work",
-                model_size,
+                _friendly_model_label(model_size, new_backend),
                 new_backend,
             )
             # capture the request so the next _start_dictation

@@ -29,6 +29,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeConfig } from "@/__tests__/helpers/fixtures";
+import { getLiveByTestId, getLiveByText } from "@/__tests__/helpers/liveDom";
 import {
 	hugeiconsCoreMock,
 	hugeiconsReactMock,
@@ -106,7 +107,7 @@ describe("Microphone page, Start Test consent gate (GDPR Art. 9)", () => {
 	it("opens the consent gate instead of calling microphone_test_start when consent is off", async () => {
 		await renderMicrophonePage({ voice_biometric_consent: false });
 
-		fireEvent.click(screen.getByText("Start Test"));
+		fireEvent.click(getLiveByText("Start Test"));
 
 		const startCalls = mockCall.mock.calls.filter(
 			(c) => c[0] === "microphone_test_start",
@@ -130,7 +131,7 @@ describe("Microphone page, Start Test consent gate (GDPR Art. 9)", () => {
 	it("retries the blocked test start when the consent dialog's Allow fires", async () => {
 		await renderMicrophonePage({ voice_biometric_consent: false });
 
-		fireEvent.click(screen.getByText("Start Test"));
+		fireEvent.click(getLiveByText("Start Test"));
 		const { useConsentGateStore } = await import("@/lib/consentGate");
 		const req = useConsentGateStore.getState().request;
 		expect(req).toBeTruthy();
@@ -147,7 +148,7 @@ describe("Microphone page, Start Test consent gate (GDPR Art. 9)", () => {
 	it("starts directly and never prompts when consent IS granted", async () => {
 		await renderMicrophonePage({ voice_biometric_consent: true });
 
-		fireEvent.click(screen.getByText("Start Test"));
+		fireEvent.click(getLiveByText("Start Test"));
 
 		await waitFor(() => {
 			const startCalls = mockCall.mock.calls.filter(
@@ -194,7 +195,7 @@ describe("Microphone page, unified radio mic list", () => {
 
 		// Row click (NOT on the radio control) must route through the same
 		// handler.
-		fireEvent.click(screen.getByTestId("system-default-row"));
+		fireEvent.click(getLiveByTestId("system-default-row"));
 
 		await waitFor(() => {
 			expect(mockCall).toHaveBeenCalledWith("set_config", {

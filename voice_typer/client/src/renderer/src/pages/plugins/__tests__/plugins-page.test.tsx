@@ -3,9 +3,10 @@
 // Covers the user-visible contract only: the empty state names the actual
 // state (no plugins installed), cards open the detail view, the detail
 // page shows the activation toggle FIRST and writes `active_plugin`
-// (plugin id on, "" off), and the generic settings controls render per
-// declared type. Persistence of individual settings is deliberately not
-// asserted: no `set_plugin_setting` command exists yet.
+// (plugin id on, "" off), the generic settings controls render per
+// declared type, and a setting change is persisted through
+// `set_plugin_setting` (never `set_config`: plugin settings are not
+// app-config fields).
 //
 // Strings are asserted against the real English catalogue (no `t()` mock,
 // so the assertions also prove the keys resolve), read from en.json so a
@@ -14,6 +15,7 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getLiveByTestId, getLiveByText } from "@/__tests__/helpers/liveDom";
 import {
 	hugeiconsCoreMock,
 	hugeiconsReactMock,
@@ -101,14 +103,19 @@ describe("Plugins page", () => {
 		const { Page } = await mountPage();
 		renderPage(Page);
 
+		// The loading sample is the same empty state (the shipped build has
+		// no plugin workspace), so the copy exists twice until the reveal
+		// pane exits in a real browser.
 		await waitFor(() => {
-			expect(screen.getByText(COPY.emptyTitle)).toBeTruthy();
+			expect(screen.getAllByText(COPY.emptyTitle).length).toBeGreaterThan(0);
 		});
 		// C-UI-2: the copy states that no plugins are installed, it does
 		// not say "no data available". Matched on the fragment because the
 		// `{appName}` placeholder is substituted at i18n load time, so the
 		// rendered text differs from the raw catalogue value.
-		expect(screen.getByText(/ships with no plugins installed/)).toBeTruthy();
+		expect(
+			screen.getAllByText(/ships with no plugins installed/).length,
+		).toBeGreaterThan(0);
 		expect(screen.queryByTestId("plugin-card-gemini")).toBeNull();
 	});
 
@@ -118,7 +125,7 @@ describe("Plugins page", () => {
 		renderPage(Page);
 
 		await waitFor(() => {
-			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
 		});
 		expect(screen.getByText("Gemini")).toBeTruthy();
 		expect(screen.getByText(COPY.statusInactive)).toBeTruthy();
@@ -130,7 +137,7 @@ describe("Plugins page", () => {
 		renderPage(Page);
 
 		await waitFor(() => {
-			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
 		});
 		expect(screen.getByText("Gemini")).toBeTruthy();
 		// The card is a compact two-line row; the description is owned by
@@ -147,7 +154,7 @@ describe("Plugins page", () => {
 		renderPage(Page);
 
 		await waitFor(() => {
-			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
 		});
 		expect(
 			screen
@@ -162,7 +169,7 @@ describe("Plugins page", () => {
 		renderPage(Page);
 
 		await waitFor(() => {
-			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
 		});
 		// The app's neutral status-dot tone (PrewarmAndUpdates' "off" dot),
 		// never a bare --border dot which reads as plain white in dark.
@@ -179,14 +186,14 @@ describe("Plugins page", () => {
 		renderPage(Page);
 
 		await waitFor(() => {
-			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
 		});
-		const img = screen.getByTestId("plugin-card-gemini").querySelector("img");
+		const img = getLiveByTestId("plugin-card-gemini").querySelector("img");
 		expect(img?.getAttribute("src")).toBe("/plugin-icons/google.svg");
 		// Decorative: the tile is aria-hidden and the name sits beside it.
 		expect(img?.getAttribute("alt")).toBe("");
 		// A real logo sits bare — no chip fill or border behind it.
-		const tile = screen.getByTestId("plugin-card-gemini").querySelector("span");
+		const tile = getLiveByTestId("plugin-card-gemini").querySelector("span");
 		expect(tile?.className).not.toContain("bg-surface");
 		expect(tile?.className).not.toContain("border");
 	});
@@ -199,9 +206,9 @@ describe("Plugins page", () => {
 		renderPage(Page);
 
 		await waitFor(() => {
-			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
 		});
-		const card = screen.getByTestId("plugin-card-gemini");
+		const card = getLiveByTestId("plugin-card-gemini");
 		expect(card.querySelector("img")).toBeNull();
 		// The icon tile (the card's first span) holds the initial instead,
 		// framed by the chip fill + border.
@@ -218,12 +225,12 @@ describe("Plugins page", () => {
 		renderPage(Page);
 
 		await waitFor(() => {
-			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
 		});
-		await user.click(screen.getByTestId("plugin-card-gemini"));
+		await user.click(getLiveByTestId("plugin-card-gemini"));
 
 		await waitFor(() => {
-			expect(screen.getByTestId("plugin-activate-switch")).toBeTruthy();
+			expect(getLiveByTestId("plugin-activate-switch")).toBeTruthy();
 		});
 	});
 
@@ -259,7 +266,7 @@ describe("Plugins page", () => {
 		await user.click(screen.getByText(COPY.retry));
 
 		await waitFor(() => {
-			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
 		});
 	});
 
@@ -286,7 +293,7 @@ describe("Plugins page", () => {
 		});
 
 		await waitFor(() => {
-			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
 		});
 	});
 });
@@ -298,14 +305,14 @@ describe("Plugin detail activation", () => {
 		selection.usePluginSelection.setState({ selectedPluginId: "gemini" });
 		renderPage(Page);
 		await waitFor(() => {
-			expect(screen.getByTestId("plugin-activate-switch")).toBeTruthy();
+			expect(getLiveByTestId("plugin-activate-switch")).toBeTruthy();
 		});
 	}
 
 	it("writes the plugin id when switched on", async () => {
 		const user = userEvent.setup();
 		await openDetail([SAMPLE]);
-		await user.click(screen.getByTestId("plugin-activate-switch"));
+		await user.click(getLiveByTestId("plugin-activate-switch"));
 
 		await waitFor(() => {
 			expect(stableMocks.mockCall).toHaveBeenCalledWith("set_config", {
@@ -317,7 +324,7 @@ describe("Plugin detail activation", () => {
 	it("writes an empty id when switched off, restoring the built-in local model", async () => {
 		const user = userEvent.setup();
 		await openDetail([SAMPLE], "gemini");
-		await user.click(screen.getByTestId("plugin-activate-switch"));
+		await user.click(getLiveByTestId("plugin-activate-switch"));
 
 		await waitFor(() => {
 			expect(stableMocks.mockCall).toHaveBeenCalledWith("set_config", {
@@ -329,10 +336,10 @@ describe("Plugin detail activation", () => {
 	it("offers a Back to plugins control that returns to the list", async () => {
 		const user = userEvent.setup();
 		await openDetail([SAMPLE]);
-		await user.click(screen.getByText(COPY.back));
+		await user.click(getLiveByText(COPY.back));
 
 		await waitFor(() => {
-			expect(screen.getByTestId("plugin-card-gemini")).toBeTruthy();
+			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
 		});
 	});
 
@@ -378,20 +385,67 @@ describe("Plugin detail activation", () => {
 		renderPage(Page);
 
 		await waitFor(() => {
-			expect(screen.getByTestId("plugin-setting-flag")).toBeTruthy();
+			expect(getLiveByTestId("plugin-setting-flag")).toBeTruthy();
 		});
 		// The DECLARED type picks the control and nothing else does: `bool`
 		// is the app's toggle, `enum` is the dropdown. A two-choice enum is
 		// therefore still a Select — a plugin that wants a toggle declares
 		// `bool`, it does not get one by narrowing its choices to two.
-		expect(screen.getByTestId("plugin-setting-flag").getAttribute("role")).toBe(
+		expect(getLiveByTestId("plugin-setting-flag").getAttribute("role")).toBe(
 			"switch",
 		);
-		expect(screen.getByTestId("plugin-setting-mode").getAttribute("role")).toBe(
+		expect(getLiveByTestId("plugin-setting-mode").getAttribute("role")).toBe(
 			"combobox",
 		);
-		expect(screen.getByTestId("plugin-setting-count")).toBeTruthy();
-		expect(screen.getByTestId("plugin-setting-name")).toBeTruthy();
+		expect(getLiveByTestId("plugin-setting-count")).toBeTruthy();
+		expect(getLiveByTestId("plugin-setting-name")).toBeTruthy();
+	});
+
+	it("renders a ranged numeric setting as the shared slider, not a number box", async () => {
+		// A declared min+max means the value is a knob: the owner should not have
+		// to select-all and retype a number to change it.
+		stubCalls([
+			{
+				...SAMPLE,
+				settings: [
+					{
+						key: "timeoutMs",
+						type: "int",
+						label: "Transcript wait",
+						description: "",
+						default: 15000,
+						min: 3000,
+						max: 60000,
+						unit: "ms",
+					},
+				],
+				values: { timeoutMs: 15000 },
+			},
+		]);
+		const { Page, selection } = await mountPage();
+		selection.usePluginSelection.setState({ selectedPluginId: "gemini" });
+		renderPage(Page);
+
+		const slider = await screen.findByRole("slider", {
+			name: "Transcript wait",
+		});
+		expect(slider.getAttribute("aria-valuenow")).toBe("15000");
+		// The number box is gone for ranged settings.
+		expect(screen.queryByRole("spinbutton")).toBeNull();
+	});
+
+	it("persists a setting change through set_plugin_setting", async () => {
+		const user = userEvent.setup();
+		await openDetail([SAMPLE]);
+		await user.click(getLiveByTestId("plugin-setting-verbose"));
+
+		await waitFor(() => {
+			expect(stableMocks.mockCall).toHaveBeenCalledWith("set_plugin_setting", {
+				plugin_id: "gemini",
+				key: "verbose",
+				value: true,
+			});
+		});
 	});
 
 	it("shows the not-found state with a Back control for an unknown id", async () => {
@@ -403,6 +457,6 @@ describe("Plugin detail activation", () => {
 		await waitFor(() => {
 			expect(screen.getByText(COPY.notFoundTitle)).toBeTruthy();
 		});
-		expect(screen.getByText(COPY.back)).toBeTruthy();
+		expect(getLiveByText(COPY.back)).toBeTruthy();
 	});
 });

@@ -48,25 +48,25 @@ class SpeechAnalysis:
     vad_used: bool
 
 
-def _rms(audio: ArrayLike) -> float:
+def _rms(audio: np.ndarray) -> float:
     if audio.size == 0:
         return 0.0
     return float(np.sqrt(np.mean(np.square(audio, dtype=np.float32))))
 
 
-def _peak(audio: ArrayLike) -> float:
+def _peak(audio: np.ndarray) -> float:
     if audio.size == 0:
         return 0.0
     return float(np.max(np.abs(audio)))
 
 
-def _vad_probabilities(audio: ArrayLike, sample_rate: int) -> list[float] | None:
+def _vad_probabilities(audio: np.ndarray, sample_rate: int) -> list[float] | None:
     from voice_typer.server.vad import compute_speech_probabilities
 
     return compute_speech_probabilities(audio, sample_rate)
 
 
-def _resample_for_vad(audio: ArrayLike, sample_rate: int) -> tuple[ArrayLike, int] | None:
+def _resample_for_vad(audio: np.ndarray, sample_rate: int) -> tuple[np.ndarray, int] | None:
     if sample_rate == WHISPER_SAMPLE_RATE:
         return audio, WHISPER_SAMPLE_RATE
     if sample_rate in SILERO_VAD_SAMPLE_RATES:

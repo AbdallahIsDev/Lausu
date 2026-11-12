@@ -28,9 +28,13 @@ def log_launch_timeline(logger: logging.Logger) -> None:
     now_s = time.time()
     parts: list[str] = []
     boot = _epoch_delta_s(BOOT_EPOCH_ENV, now_s)
-    if boot is not None:
-        parts.append(f"host boot{format_duration(boot)} (host start to backend first log)")
     spawn = _epoch_delta_s(SPAWN_EPOCH_ENV, now_s)
+    # On a respawn the host is much older than this backend instance;
+    # "host boot 78m" would read as restart time. Keep only the backend
+    # init segment in that case (cold boot shows both).
+    is_respawn = boot is not None and spawn is not None and boot > 60.0 and spawn < boot - 30.0
+    if boot is not None and not is_respawn:
+        parts.append(f"host boot{format_duration(boot)} (host start to backend first log)")
     if spawn is not None:
         parts.append(f"backend init{format_duration(spawn)} (backend spawn to first log)")
     if parts:

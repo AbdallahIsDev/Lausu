@@ -76,8 +76,11 @@ class AsrBackendRegistry(RegistryCore):
     _MAX_CONSECUTIVE_FAILURES = 3
 
     # Maps backend name -> (module_path, class_name) for lazy import.
-    # C7: "whisper" is worker-backed (no faster_whisper in this process);
-    # parakeet/qwen keep their in-process ONNX engines.
+    # C7: "whisper" is worker-backed (no faster_whisper in this process).
+    # parakeet/qwen keep their in-process ONNX engines as the fallback;
+    # the worker-first hook below serves them from the pack worker when
+    # one is connected (the model then lives in the worker across
+    # sidecar restarts).
     _BACKEND_SPECS: dict[str, tuple[str, str]] = {
         "whisper": ("voice_typer.server.worker_backed_asr", "WorkerBackedAsr"),
         "qwen": ("voice_typer.server.qwen_engine", "QwenEngine"),
@@ -105,6 +108,10 @@ class AsrBackendRegistry(RegistryCore):
         if backend is None:
             log.warning("[ASR_REGISTRY] no active backend to load")
             return None
+        # Worker-first for the ONNX backends (server/worker_proxy_asr.py).
+        worker_engine = self._try_worker_backend_fallback(self.active_name)
+        if worker_engine is not None:
+            return worker_engine
         try:
             backend.load(progress_callback=_cb)
             log.info("[ASR_REGISTRY] loaded active backend: %s", self.active_name)
@@ -133,6 +140,35 @@ class AsrBackendRegistry(RegistryCore):
                     exc_info=True,
                 )
             return None
+
+    def _try_worker_backend_fallback(self, name: str) -> AsrBackend | None:
+        """Serve parakeet/qwen from the pack worker first (sidecar keeps no model).
+
+        The worker is owned by the Tauri host and survives a sidecar
+        restart, so the model stays loaded across it. Returns ``None``
+        when no worker is connected (no pack = no worker) or the worker
+        refuses, so the caller falls through to the in-process ONNX
+        engine (the sidecar fallback).
+        """
+        if name not in ("parakeet", "qwen"):
+            return None
+        try:
+            from voice_typer.server.worker_proxy_asr import try_load_worker_parakeet, try_load_worker_qwen
+
+            if name == "parakeet":
+                engine = try_load_worker_parakeet(self._config)
+            else:
+                engine = try_load_worker_qwen(self._config)
+            source = "pack worker"
+        except Exception:
+            log.debug("[ASR_REGISTRY] worker %s attempt failed", name, exc_info=True)
+            return None
+        if engine is None:
+            return None
+        self.register(name, engine)
+        self._record_success(name)
+        log.info("[ASR_REGISTRY] serving %s from %s", name, source)
+        return engine
 
     def unregister(self, name: str) -> None:
         """Unregister a backend by name."""

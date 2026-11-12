@@ -50,7 +50,12 @@ pub(crate) fn create_tray(app: &AppHandle) -> tauri::Result<()> {
             tauri::async_runtime::spawn(async move {
                 let state: tauri::State<'_, Arc<SidecarState>> = app.state();
                 if let Err(e) = dispatch_inner(args, state.inner().clone()).await {
-                    log::warn!("[TRAY] tray_click dispatch failed: {}", e);
+                    let msg = e.to_string();
+                    if msg.contains("sidecar_disconnected") {
+                        log::debug!("[TRAY] tray_click dispatch failed (expected during restart): {}", e);
+                    } else {
+                        log::warn!("[TRAY] tray_click dispatch failed: {}", e);
+                    }
                 }
             });
         })

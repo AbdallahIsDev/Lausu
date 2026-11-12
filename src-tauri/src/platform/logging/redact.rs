@@ -318,6 +318,60 @@ fn try_match_flag_or_bare_key(rest: &str, input: &str, pos: usize) -> Option<(us
     None
 }
 
+fn is_public_token(token: &str) -> bool {
+    // Public runtime vocabulary: env-var names, IPC error codes, and
+    // ORT provider names are 20+ chars but never secrets. Without this
+    // they log as "***" (or "[PHONE]" never applies here).
+    matches!(
+        token,
+        "VOICE_TYPER_SIDECAR_DEV"
+            | "VOICE_TYPER_BOOT_EPOCH_MS"
+            | "VOICE_TYPER_SPAWN_EPOCH_MS"
+            | "VOICE_TYPER_CONFIG_DIR"
+            | "VOICE_TYPER_IPC_TOKEN"
+            | "VOICE_TYPER_SESSION_ID"
+            | "VOICE_TYPER_PARENT_PID"
+            | "VOICE_TYPER_NATIVE_DIR"
+            | "VOICE_TYPER_PACK_VERSION"
+            | "sidecar_disconnected"
+            | "protocol_version_mismatch"
+            | "max_connections_reached"
+            | "duplicate_connection"
+            | "onboarding_already_complete"
+            | "payload_too_large"
+            | "model_switch_failed"
+            | "cloud_auth_failed"
+            | "cloud_rate_limited"
+            | "cloud_server_error"
+            | "cloud_network_error"
+            | "cloud_config_error"
+            | "cloud_engine_error"
+            | "recording_resample_failed"
+            | "recording_resample_unavailable"
+            | "provider_model_unknown"
+            | "provider_unsupported_domain"
+            | "provider_consent_required"
+            | "provider_auth_required"
+            | "provider_unavailable"
+            | "provider_runtime_error"
+            | "unknown_tray_item"
+            | "CUDAExecutionProvider"
+            | "CPUExecutionProvider"
+            | "CoreMLExecutionProvider"
+            | "TensorrtExecutionProvider"
+            | "QNNExecutionProvider"
+            | "DMLExecutionProvider"
+            | "AzureExecutionProvider"
+            | "OpenVINOExecutionProvider"
+            | "VitisAIExecutionProvider"
+            | "NNAPIExecutionProvider"
+            | "XNNPACKExecutionProvider"
+            | "RocmExecutionProvider"
+            | "ArmComputeExecutionProvider"
+            | "WebGpuExecutionProvider"
+    )
+}
+
 fn try_match_long_alphanumeric_run(rest: &str, input: &str, pos: usize) -> Option<usize> {
     let bytes = rest.as_bytes();
     if bytes.is_empty() {
@@ -332,6 +386,9 @@ fn try_match_long_alphanumeric_run(rest: &str, input: &str, pos: usize) -> Optio
         greedy_len += 1;
     }
     if greedy_len < 20 {
+        return None;
+    }
+    if is_public_token(&rest[..greedy_len]) {
         return None;
     }
     if !word_boundary_before(input, pos) {

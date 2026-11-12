@@ -18,6 +18,42 @@ from voice_typer.server.ipc.validation import (  # noqa: F401
 # ``_config_mutation_lock`` case. The handler runs on every ``set_config``
 _CONFIG_LOCK_MISSING_WARNED: bool = False
 
+# Provider endpoint hosts must be trusted when the value is SAVED, not on the
+# first request: a persisted URL the allowlist rejects can only fail later as
+# an opaque provider error. ``trusted_extra_hosts`` in the same payload counts.
+_ENDPOINT_URL_FIELDS: tuple[str, ...] = (
+    "cloud_api_url",
+    "llm_api_url",
+    "tts_api_url",
+    "openrouter_base_url",
+)
+
+
+def _untrusted_endpoint_rejection(validated: dict, current: object) -> str | None:
+    """Return the first CHANGED endpoint field whose host is not allowlisted.
+
+    An unchanged value is skipped: a config written by an older build must not
+    block an unrelated save, and only a new host is a save-time decision.
+    """
+    from urllib.parse import urlparse
+
+    from voice_typer.server.security.url_allowlist import _normalize_host, get_url_allowlist
+
+    allowed = set(get_url_allowlist())
+    pending = validated.get("trusted_extra_hosts")
+    if isinstance(pending, list):
+        allowed.update(_normalize_host(host) for host in pending if isinstance(host, str))
+    for field in _ENDPOINT_URL_FIELDS:
+        value = validated.get(field)
+        if not isinstance(value, str) or not value.strip():
+            continue
+        if value == getattr(current, field, None):
+            continue
+        host = (urlparse(value).hostname or "").lower()
+        if host and host not in allowed:
+            return f"{field}: host {host!r} is not a trusted endpoint; add it to trusted_extra_hosts first"
+    return None
+
 
 class ConfigHandlersMixin(HandlerBase):
     """Mixin: config-related IPC handlers (get_config / get_defaults / set_config)."""
@@ -66,9 +102,37 @@ class ConfigHandlersMixin(HandlerBase):
                 "errors": list(errors),
             }
             return None, resp, [], []
+        endpoint_rejection = _untrusted_endpoint_rejection(validated, self.app.config)
+        if endpoint_rejection is not None:
+            log.warning("[IPC] set_config rejected: %s", endpoint_rejection)
+            resp["type"] = "error"
+            resp["data"] = {
+                "code": LegacyErrorCodes.INVALID_FIELD,
+                "message": endpoint_rejection,
+                "errors": [endpoint_rejection],
+            }
+            return None, resp, [], []
         if "bubble_position" in validated:
             validated.setdefault("bubble_x", None)
             validated.setdefault("bubble_y", None)
+        # CPU-retention guard (GPU switch + CUDA install flow): a
+        # `device: "cuda"` request is refused while the install job runs
+        # or the CUDA stack is not proven ready. The renderer gates the
+        # same states, this is the backend half of the contract — a
+        # persisted `cuda` that no backend can serve is the C-UI-15 lie.
+        from voice_typer.server.handlers.cuda_handlers import (
+            device_request_rejection,
+        )
+
+        rejection = device_request_rejection(validated, self.app.config)
+        if rejection is not None:
+            log.warning("[IPC] set_config device=cuda refused: %s", rejection)
+            resp["type"] = "error"
+            resp["data"] = {
+                "code": rejection,
+                "message": rejection,
+            }
+            return None, resp, [], []
         accepted_keys = list(validated.keys())
         rejected_keys = [k for k in data if k not in validated]
         return validated, None, accepted_keys, rejected_keys
@@ -180,6 +244,24 @@ class ConfigHandlersMixin(HandlerBase):
         return to_persist
 
     def _run_set_config_side_effects(self, validated: dict, to_persist: dict) -> None:
+        # Selecting a plugin has to have an immediate effect: the plugin owns
+        # dictation from that moment, so its browser has to come up (or go
+        # away) now rather than on the next hotkey press. Off-thread — a cold
+        # Chrome boot takes seconds and must not stall the IPC response.
+        if "active_plugin" in validated:
+            try:
+                import threading
+
+                from voice_typer.server import internal_plugin_hook
+
+                threading.Thread(
+                    target=internal_plugin_hook.sync_selection,
+                    args=(self.app,),
+                    name="plugin-selection-sync",
+                    daemon=True,
+                ).start()
+            except Exception:
+                log.debug("[IPC] plugin selection sync failed", exc_info=True)
         try:
             from voice_typer.server.tray_models import invalidate_model_availability_cache
 

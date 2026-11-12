@@ -638,6 +638,7 @@ export function useOnboardingWizard(
  *  the whole wizard. */
 interface RawCatalogEntry {
 	name?: unknown;
+	display_name?: unknown;
 	size?: unknown;
 	speed?: unknown;
 	description?: unknown;
@@ -648,6 +649,7 @@ interface RawCatalogEntry {
 	required_vram_mb?: unknown;
 	supported_languages?: unknown;
 	backend?: unknown;
+	recommended?: unknown;
 }
 
 function formatCatalogSize(downloadSizeMb: unknown): string {
@@ -692,11 +694,15 @@ function normalizeCatalogEntry(raw: RawCatalogEntry): ModelOption | null {
 		size,
 		speed,
 		description: typeof raw.description === "string" ? raw.description : "",
+		...(typeof raw.display_name === "string" && raw.display_name.length > 0
+			? { display_name: raw.display_name }
+			: {}),
 		...(typeof raw.backend === "string" && raw.backend.length > 0
 			? { backend: raw.backend }
 			: {}),
 		...(vramGb !== undefined ? { vram_gb: vramGb } : {}),
 		...(languages !== undefined ? { languages } : {}),
+		...(raw.recommended === true ? { recommended: true } : {}),
 	};
 }
 

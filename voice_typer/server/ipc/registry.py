@@ -60,9 +60,13 @@ _READONLY_COMMANDS: frozenset[str] = frozenset(
         "screenshot_get_status",
         # TTS engine/pack inventory (Models page rows); filesystem probe only.
         "tts_status",
+        # Chat page reattach snapshot (messages/busy/phase read only).
+        "chat_state",
         # Provider registry + catalogues: config/cache reads only.
         "provider_list",
         "provider_models",
+        # GPU stack snapshot: OS/DLL probes only, no persistence.
+        "get_gpu_capability",
     }
 )
 
@@ -74,6 +78,8 @@ _INSTANT_CONTROL_COMMANDS: frozenset[str] = frozenset(
         "pause_model_download",
         "resume_model_download",
         "cancel_model_download",
+        # One atomic flag write on the install job's cancel event.
+        "cancel_cuda_download",
     }
 )
 
@@ -94,13 +100,16 @@ _INSTANT_CONTROL_COMMANDS: frozenset[str] = frozenset(
 _SELF_SERIALIZED_COMMANDS: frozenset[str] = frozenset(
     {
         "download_model",
+        # CudaInstallService single-flights the job: a second start returns the
+        # live snapshot instead of opening a second transfer.
+        "start_cuda_download",
     }
 )
 
 # Host-only commands: registered here, never invoked by the renderer
 _PYTHON_ONLY_COMMANDS: frozenset[str] = frozenset({"shutdown", "tray_click"})
 
-# Maps IPC command name → handler method on IPCServer. Count pinned at 100
+# Maps IPC command name → handler method on IPCServer. Count pinned at 109
 _COMMAND_REGISTRY: dict[str, str] = {
     "get_status": "_handle_get_status",
     "toggle_dictation": "_handle_toggle_dictation",
@@ -127,8 +136,10 @@ _COMMAND_REGISTRY: dict[str, str] = {
     "set_microphone_volume": "_handle_set_microphone_volume",
     # S1 [Lower to 75%] offer — the only user-pressed speaker-knob write.
     "set_output_volume": "_handle_set_output_volume",
-    # Plugins page: installed-plugin discovery (read-only).
+    # Plugins page: installed-plugin discovery (read-only) + one validated
+    # setting write persisted beside the manifest (never in app config).
     "get_plugins": "_handle_get_plugins",
+    "set_plugin_setting": "_handle_set_plugin_setting",
     "get_volume_backend_status": "_handle_get_volume_backend_status",
     "get_model_status": "_handle_get_model_status",
     # About-page Cache Status card (worker warm phase; not subprocess spawn).
@@ -224,6 +235,17 @@ _COMMAND_REGISTRY: dict[str, str] = {
     "provider_set_key": "_handle_provider_set_key",
     "provider_clear_key": "_handle_provider_clear_key",
     "provider_set_domain": "_handle_provider_set_domain",
+    # Voice conversation (push-to-talk STT → LLM → TTS).
+    "chat_listen_start": "_handle_chat_listen_start",
+    "chat_listen_stop": "_handle_chat_listen_stop",
+    "chat_state": "_handle_chat_state",
+    "chat_reset": "_handle_chat_reset",
+    # User-level CUDA stack (device switch flow): capability read, install job,
+    # its cancel control, and the activation-failure acknowledgement.
+    "get_gpu_capability": "_handle_get_gpu_capability",
+    "start_cuda_download": "_handle_start_cuda_download",
+    "cancel_cuda_download": "_handle_cancel_cuda_download",
+    "ack_cuda_activation": "_handle_ack_cuda_activation",
 }
 
 

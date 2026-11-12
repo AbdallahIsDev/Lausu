@@ -55,6 +55,23 @@ and 0.76x on a busy box while every correctness check passed).
 no sample media. This script needs both (it loads a real checkpoint and decodes
 a real 240 s clip), so it is deliberately outside that glob and runs on demand.
 
+## Parakeet ORT arena retention A/B
+
+`parakeet_mem_bench.py` measures the CPU-arena fix for the Parakeet
+engine: one arm per process (fresh allocator state), load the cached
+model, decode the same 45 s clip twice, and report RSS/private bytes
+after load and after each decode. `--arm arena-on` restores ORT's
+default arena for comparison; the app itself always runs `arena-off`.
+
+```bash
+.venv/Scripts/python.exe bench/parakeet_mem_bench.py --arm arena-off
+.venv/Scripts/python.exe bench/parakeet_mem_bench.py --arm arena-on
+```
+
+It needs the real cached weights and `bench-out/speech.wav`, so it is
+deliberately outside the `bench_*.py` CI smoke glob. The recorded
+numbers live on the MEM-1 entry in `review.md`.
+
 ## Metrics measured
 
 1. **Full transcription latency**: time from audio input to complete text

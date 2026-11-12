@@ -1,3 +1,98 @@
+/**
+ * The four states the GPU affordance branches on. Mirrors
+ * `voice_typer/server/gpu_capability.py` constants.
+ *
+ * * `no_nvidia_gpu` — nothing to offer; the sidebar control stays hidden.
+ * * `driver_missing` — an NVIDIA adapter is enumerated but the OS driver
+ *   is not installed; only the vendor installer can fix that, so the
+ *   dialog explains and links out instead of offering a download.
+ * * `gpu_present_cuda_missing` — driver works, the user-level CUDA
+ *   runtime is absent; this is the state the download modal exists for.
+ * * `gpu_ready` — at least one local backend can serve GPU right now.
+ */
+export type GpuCapabilityState =
+	| "no_nvidia_gpu"
+	| "driver_missing"
+	| "gpu_present_cuda_missing"
+	| "gpu_ready";
+
+/** One local backend's GPU readiness ("GPU works" is not global). */
+export interface GpuBackendCapability {
+	name: string;
+	local: boolean;
+	gpu_capable: boolean;
+	gpu_ready: boolean;
+	/** `ready` / `cuda_missing` / `no_gpu` / `cpu_only_backend` / `not_local`. */
+	detail: string;
+}
+
+/** The install job's lifecycle, as published on `cuda_progress`. */
+export type CudaInstallStatus =
+	| "idle"
+	| "downloading"
+	| "verifying"
+	| "installing"
+	| "completed"
+	| "failed"
+	| "cancelled";
+
+/** One `cuda_progress` payload (also returned by the install commands). */
+export interface CudaInstallProgress {
+	status: CudaInstallStatus;
+	artifact: string | null;
+	artifact_index: number;
+	artifact_count: number;
+	bytes_done: number;
+	bytes_total: number;
+	percent: number;
+	speed_bps: number;
+	eta_seconds: number | null;
+	error: string | null;
+}
+
+/**
+ * READ-ONLY computed capability report attached to `get_config` (and
+ * returned verbatim by `get_gpu_capability`). Absent on older sidecars,
+ * in which case the renderer keeps the GPU affordance hidden.
+ */
+export interface GpuCapability {
+	state: GpuCapabilityState;
+	hardware_present: boolean;
+	driver_present: boolean;
+	gpu_names: string[];
+	/**
+	 * Historical "ANY gpu-capable local backend is ready". Kept for the
+	 * coarse four-state verdict only — NEVER gate on it: on a machine where
+	 * CTranslate2 sees the GPU but the installed `onnxruntime` is the
+	 * CPU-only wheel it is true while Parakeet/Qwen cannot serve at all.
+	 */
+	cuda_ready: boolean;
+	/**
+	 * EVERY gpu-capable LOCAL backend is ready (both the CTranslate2 path
+	 * and the ORT path). The signal an install must satisfy before the app
+	 * may persist `device: "cuda"`.
+	 */
+	stack_complete: boolean;
+	backends: GpuBackendCapability[];
+	download: {
+		/** True only on Windows with a pinned wheel set for this Python. */
+		supported: boolean;
+		/** `unsupported_platform` / `unsupported_python` / `no_gpu` / null. */
+		reason: string | null;
+		total_bytes: number;
+		python: string;
+		installed: boolean;
+		progress: CudaInstallProgress;
+	};
+	/** Pending/failed activation record, or null when nothing is staged. */
+	activation: { state: "pending" | "failed"; reason?: string | null } | null;
+	/** Vendor driver download page (the `driver_missing` branch). */
+	driver_url: string;
+	active_backend?: string;
+	/** True when the ACTIVE backend can serve GPU right now. */
+	active_backend_gpu_ready?: boolean;
+}
+
 // Must mirror Python `ALLOWED_USER_MODELS` (derived from
 export type ModelSize =
 	| ""
@@ -61,6 +156,16 @@ export interface LausuConfig {
 	language: string;
 	device: "cuda" | "cpu";
 	/**
+	 * READ-ONLY computed device the LOADED engine actually runs on,
+	 * attached to every `get_config` response and pushed with
+	 * `config_changed` when a load or a fallback changes it. `device` is
+	 * the persisted REQUEST and can differ (CPU-only onnxruntime build,
+	 * forced-CPU load, worker fallback); surfaces display this one so
+	 * they never claim a GPU that is not serving. Optional: absent on
+	 * older sidecars and `null` while no engine is loaded.
+	 */
+	active_device?: "cpu" | "cuda" | null;
+	/**
 	 * Minutes of dictation inactivity before the ASR model is dropped from
 	 * memory. `0` means "never unload" (keep it loaded while the app is
 	 * open). Only ever changed by the user through the Settings → General
@@ -75,6 +180,27 @@ export interface LausuConfig {
 	 * treats absence as GPU-less and stays hidden.
 	 */
 	gpu_available?: boolean;
+	/**
+	 * READ-ONLY computed GPU capability report attached to every
+	 * `get_config` response (NOT persisted): the four-state verdict,
+	 * per-backend readiness, install progress and the activation record.
+	 * Absent on older sidecars; `null` when the probe itself failed, which
+	 * the UI treats the same as absent (no GPU affordance).
+	 */
+	gpu_capability?: GpuCapability | null;
+	/**
+	 * READ-ONLY computed flag (NOT persisted): an NVIDIA display adapter is
+	 * enumerated. Unlike `gpu_available` this is true on a driver-less
+	 * machine, which is exactly the `driver_missing` branch.
+	 */
+	gpu_hardware_present?: boolean;
+	/**
+	 * READ-ONLY computed label (NOT persisted): the manifest name of the
+	 * plugin that owns dictation (`""` when the local model does). The
+	 * sidebar caption and the tray show this instead of the model name,
+	 * because the model is not what is transcribing.
+	 */
+	active_plugin_name?: string;
 	beam_size: number;
 	best_of: number;
 	/**
@@ -115,12 +241,11 @@ export interface LausuConfig {
 	parakeet_model_path: string | null;
 
 	text_cleanup_enabled: boolean;
-	unsafe_paste_on_unknown_focus: boolean;
 	corrections_path: string | null;
 	log_transcriptions: boolean;
 
-	// password fields. OPTIONAL on the TS side for backward compat
-	warn_elevated_paste?: boolean;
+	// Password-field confirmation gate. OPTIONAL on the TS side for
+	// backward compat with older sidecars (absence means `true`).
 	warn_password_paste?: boolean;
 
 	recording_mode: "toggle" | "push_to_talk";

@@ -6,6 +6,7 @@
 /** Declared icon id → asset served from `src/renderer/public`. */
 const PLUGIN_ICON_SRC: Record<string, string> = {
 	google: "/plugin-icons/google.svg",
+	anthropic: "/plugin-icons/anthropic.svg",
 };
 
 /**

@@ -141,3 +141,18 @@ pub(super) fn bubble_position_in_work_area(
     let y = keyword_edge_y_in_work_area(position, wa, bubble_h, margin)?;
     Ok((x, y))
 }
+
+/// Whether a resize request asks for the size the window already has.
+///
+/// True means the whole resize body is a no-op: no `set_size`, no chrome
+/// re-harden, no position write, no log line. The renderer re-measures on
+/// every layout pass, so it legitimately asks for the current size over and
+/// over; each replay used to re-apply the same geometry and log it.
+pub(super) fn resize_is_noop(current_w: u32, current_h: u32, capped_w: u32, capped_h: u32) -> bool {
+    current_w == capped_w && current_h == capped_h
+}
+
+/// Whether an edge re-anchor moved the pill at all.
+pub(super) fn anchor_moved(before: (i32, i32), after: (i32, i32)) -> bool {
+    before != after
+}

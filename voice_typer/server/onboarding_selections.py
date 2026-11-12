@@ -108,14 +108,17 @@ class _OnboardingSelectionsMixin:
             "backend": "whisper",
         },
         # NVIDIA Parakeet RNN-T model, fast, accurate, multilingual.
+        # Parakeet Ultra (Moondream post-train, ONNX int8 ~670 MB).
         {
             "name": "parakeet",
-            "size": "~1.2GB",
+            "display_name": "Parakeet Ultra",
+            "size": "~670MB",
             "speed": "Fast",
-            "description": "NVIDIA Parakeet, fast & accurate, multilingual",
+            "description": "Parakeet Ultra, fast & accurate, 25 languages",
             "vram_gb": 2.0,
             "languages": None,
             "backend": "parakeet",
+            "recommended": True,
         },
     ]
 

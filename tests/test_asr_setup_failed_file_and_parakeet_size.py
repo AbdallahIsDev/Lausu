@@ -172,12 +172,12 @@ class TestModelSizeMbIncludesParakeet:
             "lookup fell through to the 500 MB default."
         )
 
-    def test_parakeet_size_at_least_1000_mb(self):
-        """The Parakeet estimate must be at least 1000 MB (the lower"""
+    def test_parakeet_size_at_least_600_mb(self):
+        """The Parakeet estimate must be at least 600 MB (the lower"""
         assert "parakeet" in _MODEL_SIZE_MB, "AP-43: missing 'parakeet' key"
-        assert _MODEL_SIZE_MB["parakeet"] >= 1000, (
-            "AP-43: _MODEL_SIZE_MB['parakeet'] must be >= 1000 (the ONNX "
-            "fp16 export is ~1.28 GB uncompressed); got "
+        assert _MODEL_SIZE_MB["parakeet"] >= 600, (
+            "AP-43: _MODEL_SIZE_MB['parakeet'] must be >= 600 (the ONNX "
+            "int8 export is ~670 MB uncompressed); got "
             f"{_MODEL_SIZE_MB['parakeet']} MB."
         )
 
@@ -194,7 +194,7 @@ class TestModelSizeMbIncludesParakeet:
             f"vs registry={meta.download_size_mb}."
         )
 
-    def test_parakeet_pre_check_requires_1775mb_free(self, monkeypatch, tmp_path):
+    def test_parakeet_pre_check_requires_1170mb_free(self, monkeypatch, tmp_path):
         """End-to-end: ``_check_disk_space_for_download(repo, 'parakeet')``"""
         import shutil
 
@@ -207,17 +207,17 @@ class TestModelSizeMbIncludesParakeet:
             type("FakeHF", (), {"constants": fake_hf_constants})(),
         )
 
-        # Simulate ~1.5 GB free (1536 MB), must RAISE (1775 MB required).
-        usage_1_5gb = shutil._ntuple_diskusage(0, 0, 1536 * 1024 * 1024)
-        monkeypatch.setattr(shutil, "disk_usage", lambda _p: usage_1_5gb)
+        # Simulate ~1 GB free (1024 MB), must RAISE (1170 MB required).
+        usage_1gb = shutil._ntuple_diskusage(0, 0, 1024 * 1024 * 1024)
+        monkeypatch.setattr(shutil, "disk_usage", lambda _p: usage_1gb)
 
         with pytest.raises(RuntimeError) as excinfo:
             _check_disk_space_for_download("nvidia/parakeet-tdt-0.6b-v3", "parakeet")
 
         msg = str(excinfo.value)
         assert "Insufficient disk space" in msg
-        assert "1275 MB" in msg, (
-            f"AP-43: error message must show the 1275 MB parakeet estimate (not the 500 MB default); got: {msg!r}"
+        assert "670 MB" in msg, (
+            f"AP-43: error message must show the 670 MB parakeet estimate (not the 500 MB default); got: {msg!r}"
         )
 
         # And with ~2 GB free (2048 MB), the check must PASS.

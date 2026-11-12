@@ -3,6 +3,7 @@
 // Input, string → text Input). Values live in the parent page's state,
 // seeded from the payload and reset when the plugin changes.
 
+import { RangeSlider } from "@/components/common/RangeSlider";
 import { SettingRow } from "@/components/common/SettingRow";
 import { Input } from "@/components/ui/input";
 import {
@@ -82,6 +83,27 @@ export function PluginSettingRow({
 
 	if (spec.type === "int" || spec.type === "float") {
 		const step = spec.type === "int" ? 1 : "any";
+		// A declared range means the value is a knob, not free text: the shared
+		// slider beats a number box the user has to select-all and retype.
+		if (spec.min !== undefined && spec.max !== undefined) {
+			return (
+				<SettingRow label={spec.label} info={spec.description || undefined}>
+					<RangeSlider
+						value={
+							typeof value === "number"
+								? value
+								: Number(spec.default) || spec.min
+						}
+						min={spec.min}
+						max={spec.max}
+						step={spec.type === "int" ? 1 : 0.1}
+						suffix={spec.unit ?? ""}
+						ariaLabel={spec.label}
+						onChange={(next) => onChange(next)}
+					/>
+				</SettingRow>
+			);
+		}
 		return (
 			<SettingRow
 				label={spec.label}

@@ -799,6 +799,58 @@ export interface TtsPlaybackStateEvent {
 	};
 }
 
+/**
+ * One push-to-talk conversation turn, published by `server/service/chat.py`
+ * from `ChatManager`'s sink. `phase` drives the Chat page's indicator and is
+ * the ONLY source of truth for it (the page never infers a phase from a
+ * command reply). `role` + `text` accompany the `thinking` (user transcript)
+ * and `speaking` (assistant reply) phases so the list appends exactly once
+ * per turn; `error_code` is a namespaced IPC code, never an exception string.
+ */
+export interface ChatTurnEvent {
+	type: "chat_turn";
+	data: {
+		phase:
+			| "listening"
+			| "transcribing"
+			| "thinking"
+			| "speaking"
+			| "idle"
+			| "error";
+		role?: "user" | "assistant";
+		text?: string;
+		error_code?: string;
+	};
+}
+
+/**
+ * CUDA install job progress, published by `server/cuda_install/service.py`.
+ * The renderer's sticky toast renders this snapshot directly (it never
+ * polls); `status` is the job lifecycle and `error` is a namespaced code.
+ */
+export interface CudaProgressEvent {
+	type: "cuda_progress";
+	data: {
+		status:
+			| "idle"
+			| "downloading"
+			| "verifying"
+			| "installing"
+			| "completed"
+			| "failed"
+			| "cancelled";
+		artifact: string | null;
+		artifact_index: number;
+		artifact_count: number;
+		bytes_done: number;
+		bytes_total: number;
+		percent: number;
+		speed_bps: number;
+		eta_seconds: number | null;
+		error: string | null;
+	};
+}
+
 export type PythonPushEvent =
 	| StatusChangeEvent
 	| ErrorEvent
@@ -880,7 +932,9 @@ export type PythonPushEvent =
 	| PasteDeferredEvent
 	| TrayFallbackNotificationEvent
 	| ProviderLocalOnnxStateEvent
-	| TtsPlaybackStateEvent;
+	| TtsPlaybackStateEvent
+	| ChatTurnEvent
+	| CudaProgressEvent;
 
 // (`src-tauri/src/sidecar/ws.rs`) both pin the current constant
 //   - Rust:   `src-tauri/src/sidecar/ws.rs:EXPECTED_PROTOCOL_VERSION`

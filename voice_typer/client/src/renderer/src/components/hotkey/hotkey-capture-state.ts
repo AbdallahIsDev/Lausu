@@ -41,9 +41,10 @@ export function validateHotkey(
 //   - status: idle → capturing → committed | cancelled (→ error is unused
 //     in practice because validation failures keep the user in capture
 //     mode; kept in the union for future use)
-//   - error: the localized error string shown under the picker
+//   - error: the localized message surfaced as an in-app notification
 //   - secondsRemaining: the 30s capture countdown
-//   - heldModifiersLabel: the live "Holding: …" label
+//   - heldModifiersLabel: in-progress modifiers, exposed to AT through
+//     aria-keyshortcuts on the capture button (never rendered as text)
 // The hook retains refs for genuine mutable state NOT in the reducer
 // (held/session key sets, ESC-pressed flag, timer IDs, container DOM
 // ref, unsupported-combo label).

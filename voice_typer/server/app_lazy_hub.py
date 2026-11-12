@@ -344,7 +344,10 @@ class AppLazyHub:
     @property
     def _microphones(self) -> list[dict]:
         """Snapshot of the cached microphone list owned by MicrophoneRegistry."""
-        return self._microphone_registry.list()
+        registry = getattr(self, "_microphone_registry", None)
+        if registry is None:
+            return []
+        return registry.list()
 
     @_microphones.setter
     def _microphones(self, mics: list[dict]) -> None:

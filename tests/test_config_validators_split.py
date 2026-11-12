@@ -129,7 +129,6 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "theme_preset",
         "tray_left_click_action",
         "trusted_extra_hosts",
-        "unsafe_paste_on_unknown_focus",
         "use_silero_vad",
         "vad_auto_calibrate",
         "vad_filter_enabled",
@@ -144,7 +143,6 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "volume_duck_fade_ms",
         "volume_duck_level",
         "volume_duck_smart_poll_interval_ms",
-        "warn_elevated_paste",
         "warn_password_paste",
         "waveform_bubble",
         # Added 2026-10-04 (Plugins page). Slug-validated; "" = local model.
@@ -213,6 +211,15 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "openrouter_api_key",
         "local_onnx_model_dir",
         "local_onnx_model_id",
+        # Added 2026-11-03 (voice conversation, Chat page). `chat_history_turns`
+        # is an int clamped to 1..32 — it only shortens the replay window the
+        # manager builds, so it cannot change a model, an endpoint or a
+        # credential. `chat_system_prompt` is a plain text string capped at
+        # 2000 chars; it is prepended to the LLM messages as a `system` role
+        # and never interpreted as a URL, header, path or shell fragment.
+        # Neither key can redirect an endpoint or leak a secret.
+        "chat_history_turns",
+        "chat_system_prompt",
     }
 )
 
@@ -226,6 +233,18 @@ class TestAllowlistSnapshot:
             f"IPC_CONFIG_ALLOWLIST size drifted: expected 166, got {len(IPC_CONFIG_ALLOWLIST)}. "
             "SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a "
             "security-sensitive change that must be reviewed explicitly. "
+            "Latest shrink 168 → 166 (2026-11-06): `unsafe_paste_on_unknown_focus` "
+            "and `warn_elevated_paste` were removed; neither had a runtime "
+            "consumer (unknown focus already pastes, and elevated targets are "
+            "hard-blocked by `clipboard/safety.py`), so both switches were dead. "
+            "Latest growth 166 → 168 (2026-11-03, voice conversation): "
+            "`chat_history_turns` (int, clamped 1..32 — bounds the replay "
+            "window only) and `chat_system_prompt` (str, ≤2000 chars — plain "
+            "text prepended as a `system` message). Neither can redirect an "
+            "endpoint (no URL field, no provider field) and neither can leak "
+            "a secret (the prompt is user-authored text sent to the provider "
+            "the user already selected; it is never read back into a "
+            "credential field, and SEC-003 redaction still applies to logs). "
             "Latest growth 165 → 166: `tts_enabled`, a bool that only skips "
             "startup warm-up (it cannot start, stop or address a device; the "
             "engine it gates must already be installed and selected). "

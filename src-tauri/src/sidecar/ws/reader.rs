@@ -244,14 +244,14 @@ pub(super) fn spawn_reader_task(
                 // Reject in-flight dispatches immediately (don't wait 120s).
                 let count = drain_pending_with_disconnect_error(&state_for_cleanup).await;
                 if count > 0 {
-                    log::warn!("[WS-READER] drained {} pending dispatch requests", count);
+                    log::info!("[WS-READER] drained {} pending dispatch requests", count);
                 }
             }
             if !state_for_cleanup.shutting_down.load(Ordering::SeqCst) {
                 // UI banner immediately at disconnect start.
                 let _ = app_for_cleanup
                     .emit("supervisor_relaunching", json!({"reason": "disconnected"}));
-                log::warn!("[WS-READER] unexpected close, triggering supervisor");
+                log::info!("[WS-READER] sidecar closed the connection, triggering supervisor respawn");
                 // C-WS-3: pass Some(my_generation); the supervisor's
                 // std-thread bridge keeps respawns serialized.
                 trigger_respawn_off_thread(

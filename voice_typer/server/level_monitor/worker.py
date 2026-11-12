@@ -428,6 +428,17 @@ def _process_level_chunk(indata: np.ndarray, status: Any) -> None:
                     _state._test_silence_blocks += 1
                 if raw_peak_for_quality >= AUDIO_CLIPPING_THRESHOLD:
                     _state._test_clip_count += 1
+        # Chat capture is a SEPARATE buffer: it must never touch the mic
+        # test's raw/filtered timelines or its quality counters. The 30s
+        # hard cap stops capture on overflow and keeps what was captured.
+        if _state._chat_capture_active and len(flat) > 0:
+            if len(_state._chat_capture_chunks) >= _state._TEST_MAX_CHUNKS_CAP:
+                _state._chat_capture_active = False
+                if not _state._chat_capture_cap_warned:
+                    _state._chat_capture_cap_warned = True
+                    log.warning("[CHAT] capture reached the 30s cap; keeping what was captured")
+            else:
+                _state._chat_capture_chunks.append(indata.copy())
         # Disconnect detection MUST see RAW input, never filtered output:
         # a closed noise gate legitimately emits exact zeros while the
         # device is alive (test mode and the default filtered bar both run

@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 
@@ -77,88 +76,6 @@ describe("Switch, dev-mode a11y warn", () => {
 		render(<Switch aria-labelledby="captions-label" />);
 		expect(warn).not.toHaveBeenCalled();
 		warn.mockRestore();
-	});
-});
-
-describe("Slider, dev-mode a11y warn", () => {
-	it("warns when no aria-label / aria-labelledby / thumbLabels is provided", () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-		render(<Slider defaultValue={[50]} />);
-		expect(warn).toHaveBeenCalledTimes(1);
-		expect(warn.mock.calls[0]?.[0]).toMatch(
-			/\[renderer:Slider\] no `aria-label`/,
-		);
-		warn.mockRestore();
-	});
-
-	it("does NOT warn when aria-label is provided (single-thumb)", () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-		render(<Slider aria-label="Volume" defaultValue={[50]} />);
-		expect(warn).not.toHaveBeenCalled();
-		warn.mockRestore();
-	});
-
-	it("does NOT warn when thumbLabels is provided (multi-thumb)", () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-		render(
-			<Slider defaultValue={[20, 80]} thumbLabels={["Minimum", "Maximum"]} />,
-		);
-		expect(warn).not.toHaveBeenCalled();
-		warn.mockRestore();
-	});
-
-	it("forwards thumbLabels[i] as aria-label on each thumb", () => {
-		render(
-			<Slider
-				defaultValue={[20, 80]}
-				thumbLabels={["Minimum", "Maximum"]}
-				aria-label="ignored-because-thumbLabels-present"
-			/>,
-		);
-		const thumbs = document.querySelectorAll('[data-slot="slider-thumb"]');
-		expect(thumbs).toHaveLength(2);
-		expect(thumbs[0]).toHaveAttribute("aria-label", "Minimum");
-		expect(thumbs[1]).toHaveAttribute("aria-label", "Maximum");
-	});
-
-	it("forwards getThumbAriaValueText as aria-valuetext on each thumb", () => {
-		render(
-			<Slider
-				defaultValue={[3, 7]}
-				aria-label="range"
-				getThumbAriaValueText={(v) => `${v} decibels`}
-			/>,
-		);
-		const thumbs = document.querySelectorAll('[data-slot="slider-thumb"]');
-		expect(thumbs).toHaveLength(2);
-		expect(thumbs[0]).toHaveAttribute("aria-valuetext", "3 decibels");
-		expect(thumbs[1]).toHaveAttribute("aria-valuetext", "7 decibels");
-	});
-
-	it("forwards the root aria-label to each thumb when thumbLabels is absent", () => {
-		// Without this fallback, the focusable thumb elements are nameless
-		// to SRs even though the dev set ``aria-label`` on the slider root:
-		// Radix Slider's root aria-label does not propagate to the thumb.
-		render(<Slider aria-label="Volume" defaultValue={[50]} />);
-		const thumbs = document.querySelectorAll('[data-slot="slider-thumb"]');
-		expect(thumbs).toHaveLength(1);
-		expect(thumbs[0]).toHaveAttribute("aria-label", "Volume");
-	});
-
-	it("thumbLabels still takes precedence over a root aria-label", () => {
-		// Multi-thumb sliders need distinct per-thumb names ("Minimum" /
-		// "Maximum"); the root aria-label must NOT clobber them.
-		render(
-			<Slider
-				defaultValue={[20, 80]}
-				aria-label="range"
-				thumbLabels={["Minimum", "Maximum"]}
-			/>,
-		);
-		const thumbs = document.querySelectorAll('[data-slot="slider-thumb"]');
-		expect(thumbs).toHaveLength(2);
-		expect(thumbs[0]).toHaveAttribute("aria-label", "Minimum");
-		expect(thumbs[1]).toHaveAttribute("aria-label", "Maximum");
 	});
 });
 

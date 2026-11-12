@@ -34,9 +34,11 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Skeleton } from "skullet/react";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import PageHeading from "@/components/common/PageHeading";
 import { EmptyState } from "@/components/feedback/EmptyState";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { CloudProvidersPanel } from "@/components/models/CloudProvidersPanel";
 import { LocalModelsPanel } from "@/components/models/LocalModelsPanel";
 import { TtsPanel } from "@/components/models/TtsPanel";
@@ -50,7 +52,11 @@ import {
 	isNoModelSelected,
 } from "@/lib/utils/models";
 import { useModelsTab } from "@/stores/useModelsTab";
-import { ModelsSkeleton } from "./models/components/ModelsSkeleton";
+import {
+	MODELS_SAMPLE_CONFIG,
+	SAMPLE_MODEL_CATALOG,
+	SAMPLE_MODELS,
+} from "./models/lib/sample";
 
 export default function ModelsPage() {
 	const lifecycle = useModelLifecycle();
@@ -75,9 +81,17 @@ export default function ModelsPage() {
 	);
 
 	// Memoize the family grouping so we don't re-group on every render.
+	// While the model list is empty (initial load) the sample list
+	// stands in so the measured skeleton matches the real cards.
+	const panelModels =
+		lifecycle.models.length > 0 ? lifecycle.models : SAMPLE_MODELS;
+	const panelCatalog =
+		Object.keys(lifecycle.modelCatalog).length > 0
+			? lifecycle.modelCatalog
+			: SAMPLE_MODEL_CATALOG;
 	const modelFamilies = useMemo(
-		() => groupModelsByFamily(lifecycle.models),
-		[lifecycle.models],
+		() => groupModelsByFamily(panelModels),
+		[panelModels],
 	);
 
 	// Initial open-accordion value: expand the family that contains the
@@ -186,40 +200,29 @@ export default function ModelsPage() {
 		isNoModelSelected(lifecycle.config) &&
 		!noModelBannerDismissed;
 
-	// Show a full-page spinner until the first `get_config` resolves.
-	// Replaces the original `if (!_cachedConfig && !config)` check.
-	// When the initial load FAILED, render the load-failure EmptyState
-	// (variant="error" + Retry) instead, without it, a rejected
-	// `get_config` left the page spinning forever with no recovery
-	// path. Mirrors the History page's established error EmptyState.
-	// Revisit case: `config` is non-null (SWR seed) while `loadError`
-	// reports the revalidation failure, the stale seed still renders
-	// (better than a blank page) but the failure is surfaced via the
-	// banner below so it is never silently silent.
-	if (!lifecycle.config) {
-		if (lifecycle.loadError) {
-			return (
-				// Same page shell as the loaded page below (and as the
-				// Analytics error screen). Without it the card was the only
-				// full-bleed surface in the app: `h-full` + `justify-center`
-				// with no `mx-auto max-w-4xl` and no `px-16` stretched it
-				// edge-to-edge across the pane, so the 8% border touched the
-				// window chrome and the measure ignored the page's column.
-				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-4 px-16 pt-20 pb-6">
-					<EmptyState
-						variant="error"
-						icon={AlertCircleIcon}
-						title={t("models.loadFailedTitle")}
-						description={t("models.loadFailedDescription")}
-						actionLabel={t("models.retry")}
-						onAction={() => {
-							void lifecycle.loadConfig();
-						}}
-					/>
-				</div>
-			);
-		}
-		return <ModelsSkeleton />;
+	// Cold-start load failure (config never arrived): the error
+	// EmptyState with Retry, outside the measured wrap.
+	if (!lifecycle.config && lifecycle.loadError) {
+		return (
+			// Same page shell as the loaded page below (and as the
+			// Analytics error screen). Without it the card was the only
+			// full-bleed surface in the app: `h-full` + `justify-center`
+			// with no `mx-auto max-w-4xl` and no `px-16` stretched it
+			// edge-to-edge across the pane, so the 8% border touched the
+			// window chrome and the measure ignored the page's column.
+			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-4 px-16 pt-20 pb-6">
+				<EmptyState
+					variant="error"
+					icon={AlertCircleIcon}
+					title={t("models.loadFailedTitle")}
+					description={t("models.loadFailedDescription")}
+					actionLabel={t("models.retry")}
+					onAction={() => {
+						void lifecycle.loadConfig();
+					}}
+				/>
+			</div>
+		);
 	}
 	return (
 		<>
@@ -355,62 +358,75 @@ export default function ModelsPage() {
 				    leaving the old markup would have produced.
 				    A `<section>` with an accessible name IS `role="region"`,
 				    so the native element carries the role for free. */}
-				<div className="flex flex-col gap-4">
-					{activeTab === "local" ? (
-						<section
-							aria-label={t("models.localModels")}
-							className="flex flex-col gap-4 scroll-mt-32"
-						>
-							<TtsPanel />
-							<LocalModelsPanel
-								modelFamilies={modelFamilies}
-								modelCatalog={lifecycle.modelCatalog}
-								selectingModel={lifecycle.selectingModel}
-								downloadingModel={lifecycle.downloadingModel}
-								downloadProgress={lifecycle.downloadProgress}
-								downloadStatus={lifecycle.downloadStatus}
-								isPaused={lifecycle.isPaused}
-								downloadedBytes={lifecycle.downloadedBytes}
-								totalBytes={lifecycle.totalBytes}
-								speedBps={lifecycle.speedBps}
-								etaSeconds={lifecycle.etaSeconds}
-								failedDownload={lifecycle.failedDownload}
-								onSelectModel={lifecycle.selectModel}
-								//(overhaul point 4): route downloads through the
-								// just-in-time HuggingFace-consent gate.
-								onDownloadModel={lifecycle.handleDownloadModel}
-								onDeleteModel={lifecycle.requestDeleteModel}
-								onTogglePause={lifecycle.handleTogglePause}
-								onCancelDownload={lifecycle.handleCancelDownload}
-								onRetryDownload={lifecycle.retryDownload}
-								diskInfo={lifecycle.diskInfo}
-								modelsFolderSupported={lifecycle.modelsFolderSupported}
-								onOpenModelsFolder={lifecycle.handleOpenModelsFolder}
-								accordionValue={effectiveAccordionValue}
-								onAccordionValueChange={setUserAccordionValue}
-							/>
-						</section>
-					) : (
-						<section
-							aria-label={t("models.cloudModels")}
-							className="flex flex-col gap-4 scroll-mt-32"
-						>
-							<CloudProvidersPanel
-								config={lifecycle.config}
-								cloudProviders={lifecycle.cloudProviders}
-								apiKeys={lifecycle.apiKeys}
-								testingProviders={lifecycle.testingProviders}
-								selectingCloudModel={lifecycle.selectingCloudModel}
-								onApiKeyChange={handleApiKeyChange}
-								onSaveApiKey={lifecycle.saveApiKey}
-								onTestConnection={lifecycle.testConnection}
-								onActivateModel={lifecycle.activateCloudModel}
-								accordionValue={effectiveCloudAccordionValue}
-								onAccordionValueChange={setUserCloudAccordionValue}
-							/>
-						</section>
+				{/* Measured wrap over the panel body only: heading action,
+				    banners and tab switcher stay mounted during load, and
+				    the no-model banner (which needs real config) stays
+				    outside. */}
+				<Skeleton
+					data={lifecycle.config}
+					sample={MODELS_SAMPLE_CONFIG}
+					id="models"
+					label={skeletonLoadingLabel()}
+				>
+					{(config) => (
+						<div className="flex flex-col gap-4">
+							{activeTab === "local" ? (
+								<section
+									aria-label={t("models.localModels")}
+									className="flex flex-col gap-4 scroll-mt-32"
+								>
+									<TtsPanel />
+									<LocalModelsPanel
+										modelFamilies={modelFamilies}
+										modelCatalog={panelCatalog}
+										selectingModel={lifecycle.selectingModel}
+										downloadingModel={lifecycle.downloadingModel}
+										downloadProgress={lifecycle.downloadProgress}
+										downloadStatus={lifecycle.downloadStatus}
+										isPaused={lifecycle.isPaused}
+										downloadedBytes={lifecycle.downloadedBytes}
+										totalBytes={lifecycle.totalBytes}
+										speedBps={lifecycle.speedBps}
+										etaSeconds={lifecycle.etaSeconds}
+										failedDownload={lifecycle.failedDownload}
+										onSelectModel={lifecycle.selectModel}
+										//(overhaul point 4): route downloads through the
+										// just-in-time HuggingFace-consent gate.
+										onDownloadModel={lifecycle.handleDownloadModel}
+										onDeleteModel={lifecycle.requestDeleteModel}
+										onTogglePause={lifecycle.handleTogglePause}
+										onCancelDownload={lifecycle.handleCancelDownload}
+										onRetryDownload={lifecycle.retryDownload}
+										diskInfo={lifecycle.diskInfo}
+										modelsFolderSupported={lifecycle.modelsFolderSupported}
+										onOpenModelsFolder={lifecycle.handleOpenModelsFolder}
+										accordionValue={effectiveAccordionValue}
+										onAccordionValueChange={setUserAccordionValue}
+									/>
+								</section>
+							) : (
+								<section
+									aria-label={t("models.cloudModels")}
+									className="flex flex-col gap-4 scroll-mt-32"
+								>
+									<CloudProvidersPanel
+										config={config}
+										cloudProviders={lifecycle.cloudProviders}
+										apiKeys={lifecycle.apiKeys}
+										testingProviders={lifecycle.testingProviders}
+										selectingCloudModel={lifecycle.selectingCloudModel}
+										onApiKeyChange={handleApiKeyChange}
+										onSaveApiKey={lifecycle.saveApiKey}
+										onTestConnection={lifecycle.testConnection}
+										onActivateModel={lifecycle.activateCloudModel}
+										accordionValue={effectiveCloudAccordionValue}
+										onAccordionValueChange={setUserCloudAccordionValue}
+									/>
+								</section>
+							)}
+						</div>
 					)}
-				</div>
+				</Skeleton>
 			</div>
 
 			{/*

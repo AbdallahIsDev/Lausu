@@ -71,6 +71,14 @@ class _State:
         self._test_chunks: collections.deque = collections.deque(
             maxlen=self._TEST_MAX_CHUNKS_CAP,
         )
+        # Push-to-talk conversation capture: separate buffer, never shares
+        # the mic-test timeline (C-MIC-18 keeps ``_test_*`` semantics fixed).
+        self._chat_capture_active: bool = False
+        self._chat_capture_chunks: collections.deque = collections.deque(
+            maxlen=self._TEST_MAX_CHUNKS_CAP,
+        )
+        # Latch so the 30s hard-cap WARNING fires once per capture.
+        self._chat_capture_cap_warned: bool = False
         self._test_raw_chunks: collections.deque = collections.deque(
             maxlen=self._TEST_MAX_CHUNKS_CAP,
         )

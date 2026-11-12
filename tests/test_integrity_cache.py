@@ -51,8 +51,8 @@ def _override_cache_path(tmp_path, monkeypatch):
     monkeypatch.setattr(security, "_integrity_cache_path_override", None)
 
 
-def test_integrity_verdict_rehashes_on_second_load(tmp_path):
-    """The load verdict always reads bytes; unchanged mtime+size MUST NOT skip the hash."""
+def test_integrity_verdict_uses_cache_on_second_load(tmp_path):
+    """Unchanged mtime+size with cached sha == pin skips the re-hash."""
     from voice_typer.server import security
 
     model_dir, repo_id, _, config_sha256 = _setup_repo(tmp_path)
@@ -70,24 +70,24 @@ def test_integrity_verdict_rehashes_on_second_load(tmp_path):
         with patch.object(security, "compute_file_sha256", side_effect=_counting_compute):
             result1 = security.verify_model_integrity(str(model_dir), repo_id)
             assert result1 is True
-            assert call_count == 1, (
-                f"First call should compute the hash exactly once (got {call_count} calls to compute_file_sha256)."
-            )
+            assert call_count == 1, f"First call should compute the hash exactly once (got {call_count} calls)."
 
-            # Second call, metadata unchanged, verdict still re-hashes.
+            # Second call, metadata unchanged and cache file present:
+            # the verdict must skip hashing the 670 MB-class payload.
             call_count = 0
             result2 = security.verify_model_integrity(str(model_dir), repo_id)
             assert result2 is True
-            assert call_count == 1, (
-                "The verdict path MUST re-hash file bytes on every call "
-                f"(got {call_count} calls). A metadata-only cache hit lets a "
-                "user-privileged writer substitute bytes while preserving "
-                "mtime+size and pass verification without reading the file."
+            assert call_count == 0, (
+                "Second load with unchanged mtime+size and cached sha "
+                f"== pin must skip compute_file_sha256 (got {call_count} calls). "
+                "Re-hashing every load is the 1-6s cost this cache exists to avoid."
             )
 
 
-def test_integrity_verdict_ignores_forged_cache_entry(tmp_path):
-    """A forged cache entry (matching mtime/size, pinned sha) MUST NOT pass tampered bytes."""
+def test_integrity_verdict_forged_cache_entry_documents_residual_risk(tmp_path):
+    """A forged cache entry (matching mtime/size, pinned sha) passes;
+    the same tamper without a forged cache fails. Same-user writers
+    who control both files and metadata are the accepted residual."""
     import os
 
     from voice_typer.server import security
@@ -131,12 +131,189 @@ def test_integrity_verdict_ignores_forged_cache_entry(tmp_path):
 
         with patch.object(security, "compute_file_sha256", side_effect=_counting_compute):
             result = security.verify_model_integrity(str(model_dir), repo_id)
-            assert result is False, (
-                "The verdict MUST read file bytes and fail on tampered "
-                "content even when a forged cache entry matches mtime+size "
-                "and carries the pinned sha."
+            # Accepted residual (see docs/code-notes/security-config.md):
+            # mtime+size preserved and the cache file forged to carry
+            # the pinned sha, so the verdict trusts the cache entry
+            # and skips re-hashing. A writer who can do both has
+            # already defeated every local check.
+            assert result is True
+            assert call_count == 0
+
+        # Same tampered bytes, cache file deleted: full re-hash, fails.
+        cache_path.unlink()
+        call_count = 0
+        with patch.object(security, "compute_file_sha256", side_effect=_counting_compute):
+            result2 = security.verify_model_integrity(str(model_dir), repo_id)
+            assert result2 is False
+            assert call_count == 1
+
+
+def test_integrity_verdict_mtime_alone_never_hits_when_size_differs(tmp_path):
+    """Same mtime, different size must miss: mtime alone never decides."""
+    import os
+
+    from voice_typer.server import security
+
+    model_dir, repo_id, _, _ = _setup_repo(tmp_path)
+    config_path = model_dir / "config.json"
+
+    # First verify populates the cache for the original bytes.
+    original_bytes = config_path.read_bytes()
+    original_sha = hashlib.sha256(original_bytes).hexdigest()
+    with _patch_manifest(repo_id, original_sha):
+        assert security.verify_model_integrity(str(model_dir), repo_id) is True
+        st = config_path.stat()
+        orig_mtime_ns = st.st_mtime_ns
+
+    new_bytes = b'{"model_type": "ab8-test-longer"}'
+    new_sha = hashlib.sha256(new_bytes).hexdigest()
+    assert len(new_bytes) != len(original_bytes)
+    config_path.write_bytes(new_bytes)
+    os.utime(config_path, ns=(orig_mtime_ns, orig_mtime_ns))
+
+    with _patch_manifest(repo_id, new_sha):
+        call_count = 0
+        original_compute = security.compute_file_sha256
+
+        def _counting_compute(path: Path) -> str:
+            nonlocal call_count
+            call_count += 1
+            return original_compute(path)
+
+        with patch.object(security, "compute_file_sha256", side_effect=_counting_compute):
+            result = security.verify_model_integrity(str(model_dir), repo_id)
+            assert result is True
+            assert call_count == 1, (
+                "Size differs while mtime matches: the verdict must "
+                f"re-hash (got {call_count} calls). Trusting mtime "
+                "alone would compare the stale cached sha to the new pin."
             )
-            assert call_count == 1, "The verdict MUST hash bytes, not trust the cache entry."
+
+
+def test_integrity_verdict_missing_cache_file_forces_rehash(tmp_path):
+    """No cache file on disk means no verdict hit, even if hashes matched before."""
+    from voice_typer.server import security
+
+    model_dir, repo_id, _, config_sha256 = _setup_repo(tmp_path)
+
+    with _patch_manifest(repo_id, config_sha256):
+        assert security.verify_model_integrity(str(model_dir), repo_id) is True
+        cache_path = security._integrity_cache_path()
+        assert cache_path.exists()
+        cache_path.unlink()
+
+        call_count = 0
+        original_compute = security.compute_file_sha256
+
+        def _counting_compute(path: Path) -> str:
+            nonlocal call_count
+            call_count += 1
+            return original_compute(path)
+
+        with patch.object(security, "compute_file_sha256", side_effect=_counting_compute):
+            assert security.verify_model_integrity(str(model_dir), repo_id) is True
+            assert call_count == 1, (
+                "Deleted cache file must force a full re-hash; a hit "
+                "without a present cache file would be unverifiable state."
+            )
+
+
+def test_integrity_verdict_wrong_cached_sha_forces_rehash_and_fails_tamper(tmp_path):
+    """Cached sha != pin must miss, re-hash bytes, and fail tampered content."""
+    from voice_typer.server import security
+
+    model_dir, repo_id, _, config_sha256 = _setup_repo(tmp_path)
+    config_path = model_dir / "config.json"
+    tampered = b'{"model_type": "tampered!"}'
+    config_path.write_bytes(tampered)
+    st = config_path.stat()
+
+    stale_cache = {
+        "version": 1,
+        "repos": {
+            repo_id: {
+                "config.json": {
+                    "mtime_ns": st.st_mtime_ns,
+                    "size": st.st_size,
+                    "sha256": "0" * 64,
+                }
+            }
+        },
+    }
+    cache_path = security._integrity_cache_path()
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text(json.dumps(stale_cache))
+
+    with _patch_manifest(repo_id, config_sha256):
+        call_count = 0
+        original_compute = security.compute_file_sha256
+
+        def _counting_compute(path: Path) -> str:
+            nonlocal call_count
+            call_count += 1
+            return original_compute(path)
+
+        with patch.object(security, "compute_file_sha256", side_effect=_counting_compute):
+            assert security.verify_model_integrity(str(model_dir), repo_id) is False
+            assert call_count == 1
+
+
+def test_integrity_verdict_hit_covers_all_pinned_files(tmp_path, monkeypatch):
+    """Every pinned file hits on reload: zero hashes for a multi-file repo."""
+    from voice_typer.server import security
+
+    model_dir = tmp_path / "model"
+    model_dir.mkdir()
+    config_bytes = b'{"model_type": "multi-file"}'
+    weights_bytes = b"\x01" * 5000
+    (model_dir / "config.json").write_bytes(config_bytes)
+    (model_dir / "model.onnx").write_bytes(weights_bytes)
+    repo_id = "test/multi-file-repo"
+    fake_manifest = {
+        repo_id: {
+            "revision": "abc123def4567890abc123def4567890abc123de",
+            "files": {
+                "config.json": hashlib.sha256(config_bytes).hexdigest(),
+                "model.onnx": hashlib.sha256(weights_bytes).hexdigest(),
+            },
+        }
+    }
+    monkeypatch.setattr(security, "MODEL_HASHES", fake_manifest)
+
+    assert security.verify_model_integrity(str(model_dir), repo_id) is True
+
+    call_count = 0
+    original_compute = security.compute_file_sha256
+
+    def _counting_compute(path: Path) -> str:
+        nonlocal call_count
+        call_count += 1
+        return original_compute(path)
+
+    with patch.object(security, "compute_file_sha256", side_effect=_counting_compute):
+        assert security.verify_model_integrity(str(model_dir), repo_id) is True
+        assert call_count == 0, (
+            f"Both pinned files should hit (got {call_count} hash calls); one miss would re-hash that file."
+        )
+
+
+def test_verdict_cache_hit_predicate_requires_all_signals():
+    """Unit-pin the leaf predicate: mtime, size, and pin must all agree."""
+    from voice_typer.server.security.integrity_verdict_cache import verdict_cache_hit
+
+    entry = {"mtime_ns": 100, "size": 42, "sha256": "a" * 64}
+    assert verdict_cache_hit(entry, mtime_ns=100, size=42, expected_hash="a" * 64) is True
+    # mtime matches, size differs: never a hit.
+    assert verdict_cache_hit(entry, mtime_ns=100, size=43, expected_hash="a" * 64) is False
+    # size matches, mtime differs: miss.
+    assert verdict_cache_hit(entry, mtime_ns=101, size=42, expected_hash="a" * 64) is False
+    # cached sha differs from the pin: miss.
+    assert verdict_cache_hit(entry, mtime_ns=100, size=42, expected_hash="b" * 64) is False
+    # size zero, bool-as-int, and non-dict entries never hit.
+    assert verdict_cache_hit(entry, mtime_ns=100, size=0, expected_hash="a" * 64) is False
+    bool_entry = {"mtime_ns": True, "size": 42, "sha256": "a" * 64}
+    assert verdict_cache_hit(bool_entry, mtime_ns=100, size=42, expected_hash="a" * 64) is False
+    assert verdict_cache_hit(None, mtime_ns=100, size=42, expected_hash="a" * 64) is False
 
 
 def test_integrity_cache_persists_across_module_reloads(tmp_path):
@@ -575,7 +752,8 @@ def test_failed_verify_persists_computed_hashes(tmp_path):
 
 
 def test_asr_setup_failure_details_hit_cache_not_rehash(tmp_path):
-    """The verdict re-hashes bytes; the failure-details pass then hits the cache it refreshed."""
+    """Cached tamper digest != pin, so the verdict re-hashes once;
+    the failure-details pass then hits the cache the verdict refreshed."""
     from voice_typer.server import security
     from voice_typer.server.asr_setup import _verify_model_integrity
 
@@ -586,8 +764,9 @@ def test_asr_setup_failure_details_hit_cache_not_rehash(tmp_path):
         assert ok is False
         assert details["failed_file"] == "config.json"
 
-        # Second details pass over the SAME bytes: the verdict re-hashes
-        # once, the details path adds zero further compute calls.
+        # Second details pass over the SAME tampered bytes: the cached
+        # digest differs from the pin, so the verdict re-hashes once,
+        # the details path adds zero further compute calls.
         calls: list = []
         original_compute = security.compute_file_sha256
 

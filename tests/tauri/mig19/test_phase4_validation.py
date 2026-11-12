@@ -149,9 +149,21 @@ EXPECTED_COMMANDS: frozenset[str] = frozenset(
         "provider_set_key",
         "provider_clear_key",
         "provider_set_domain",
+        # ADR-0020 §16 addendum (2026-11-03, voice conversation):
+        # push-to-talk STT → LLM → TTS. Arm/disarm capture on the level
+        # monitor's single InputStream, the read-only reattach snapshot and
+        # the conversation reset. Real `_handle_*` mixins in
+        # `handlers/chat_handlers.py`, a `ChatMixin` in `service/chat.py`,
+        # Rust allowlist entries, `docs/ipc-reference.md` rows and
+        # `tests/conversation/` coverage; the addendum closes the gap that
+        # had them parked in KNOWN_UNDOCUMENTED_COMMANDS.
+        "chat_listen_start",
+        "chat_listen_stop",
+        "chat_state",
+        "chat_reset",
     }
 )
-assert len(EXPECTED_COMMANDS) == 84, (
+assert len(EXPECTED_COMMANDS) == 88, (
     "ADR-0020 §2 freezes the command table. 69 = post-cleanup baseline "
     "after ZR-45 + the Tauri/Rust allowlist narrowing (+ ``onboarding_set_backend``, "
     "§16 addendum 2026-08-06; + ``reset_macos_accessibility``, "
@@ -190,7 +202,10 @@ assert len(EXPECTED_COMMANDS) == 84, (
     "``media_transcribe_start`` / ``media_transcribe_cancel`` / "
     "``media_transcribe_status`` §16 addendum 2026-09-24 (ADR-0023 universal "
     "media-to-text); + ``live_preview`` §16 addendum 2026-10-17 "
-    "(Listen-Live filtered preview stream). Update this "
+    "(Listen-Live filtered preview stream); + 4 "
+    "``chat_listen_start`` / ``chat_listen_stop`` / ``chat_state`` / "
+    "``chat_reset`` §16 addendum 2026-11-03 (voice conversation: "
+    "push-to-talk STT → LLM → TTS). Update this "
     "set + the ADR addendum together "
     "(§16). Note: ``relaunch_ack`` and ``tray_click`` are tracked "
     "separately in KNOWN_UNDOCUMENTED_COMMANDS, not here."
@@ -204,6 +219,11 @@ KNOWN_UNDOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         # frozen-contract ADR addendum for the Plugins feature is not
         # written yet; the command itself is fully wired and documented.
         "get_plugins",
+        # Plugins page (plugin_handlers.py): the one manifest-validated
+        # plugin-setting write. Real handler + Rust allowlist entry +
+        # ipc-reference.md row + its own store tests; same pending-ADR gap
+        # as `get_plugins`.
+        "set_plugin_setting",
         # PERF-005 (ipc_server.py:1710-1712): predecessor acks receipt of
         "relaunch_ack",
         # ``ipc_server.py``). Listed here so the frozen-contract gate

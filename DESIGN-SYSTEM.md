@@ -378,6 +378,24 @@ accent is the disc only — never a card-wide red fill.
 | fill | `#ffffff` (gray-50, `bg-surface`) | `#1b1b1b` (gray-700, `bg-surface`) |
 | border | `#000000`/8 → `#ebebeb` | `#ffffff`/8 → `#2d2d2d` |
 
+**GPU request dialog** (`components/gpu/GpuRequestDialog.tsx`) — the plain
+`Dialog` shell above, **no new tokens**. Footer is `sm:justify-between`: the
+explanatory link (ghost, e.g. "Open the NVIDIA driver page") sits at the start,
+the decision pair (`Stay on CPU` ghost + `Download` default) at the end with a
+`gap-2` flex row. It is a `Dialog`, never an `AlertDialog`: refusing is
+non-destructive, so backdrop/Escape must dismiss exactly like "Stay on CPU".
+When a branch has no link the start slot keeps an empty `<span />` so the
+decision pair stays right-aligned instead of drifting.
+
+**Sticky progress toast** (sonner, `useSnackbar({ persistent: true })`) — one
+toast per job, fixed id, replaced in place on every progress tick and **never
+auto-dismissed** (`duration: Infinity`). Description is a single `·`-joined line
+(status · artifact index/count · percent · bytes done/total · speed · ETA) so it
+never grows past the toast's 360px measure; unknown fields are omitted, not
+rendered as placeholders. The action slot carries the job's own control
+(`Cancel`); the global close button always dismisses. The toast is cleared only
+on a terminal outcome, so a running job can never look finished.
+
 **Data pages (incl. Settings)** — max width 896px, 64px side padding, 80px top,
 24px bottom, 24px gap between stacked blocks. That is the one page shell, used
 verbatim by every data page and every page-level state screen:

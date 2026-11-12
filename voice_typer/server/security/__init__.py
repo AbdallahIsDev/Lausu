@@ -13,6 +13,7 @@ from .file_io import (  # noqa: F401
     _windows_fsync_directory,
 )
 from .http_safety import build_secure_opener  # noqa: F401
+from .integrity_verdict_cache import verdict_cache_hit  # noqa: F401
 from .model_integrity import (  # noqa: F401
     _INTEGRITY_CACHE_VERSION,
     ALLOW_PATTERNS_PARAKEET,
@@ -96,6 +97,7 @@ __all__ = [
     "ALLOW_PATTERNS_WHISPER",
     "MODEL_HASHES",
     "compute_file_sha256",
+    "verdict_cache_hit",
     "verify_model_integrity",
     # win32_dacl
     "_create_restrictive_security_attributes",

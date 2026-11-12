@@ -1,5 +1,6 @@
 """IPC handler mixins for :class:`IPCServer`."""
 
+from voice_typer.server.handlers.chat_handlers import ChatHandlersMixin
 from voice_typer.server.handlers.cloud_test_handlers import (
     CloudTestHandlersMixin,
 )
@@ -33,6 +34,7 @@ from voice_typer.server.handlers.vocabulary_handlers import VocabularyHandlersMi
 
 __all__ = [
     "CloudTestHandlersMixin",
+    "ChatHandlersMixin",
     "ConfigHandlersMixin",
     "StatusHandlersMixin",
     "DictationHandlersMixin",

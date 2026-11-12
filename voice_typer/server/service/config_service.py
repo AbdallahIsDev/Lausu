@@ -60,6 +60,42 @@ class ConfigMutationMixin(ServiceMixinBase):
         except Exception:  # snapshot must never break get_config
             log.debug("[SERVICE] get_config: gpu_available probe failed", exc_info=True)
             sanitized["gpu_available"] = False
+        try:
+            from voice_typer.server import gpu_capability
+
+            backend = getattr(self._app.config, "asr_backend", None)
+            capability = gpu_capability.snapshot(
+                active_backend=backend if isinstance(backend, str) else None
+            )
+            sanitized["gpu_capability"] = capability
+            sanitized["gpu_hardware_present"] = capability["hardware_present"]
+        except Exception:  # snapshot must never break get_config
+            log.debug("[SERVICE] get_config: gpu_capability probe failed", exc_info=True)
+            sanitized["gpu_capability"] = None
+            sanitized["gpu_hardware_present"] = False
+        try:
+            from voice_typer.server.active_device import resolve_active_device
+
+            # READ-ONLY computed device: what the LOADED engine reports, not
+            # the persisted request in `device` (they differ on a silent
+            # fallback, e.g. a CPU-only onnxruntime build). C-UI-15.
+            sanitized["active_device"] = resolve_active_device(self._app)
+        except Exception:  # snapshot must never break get_config
+            log.debug("[SERVICE] get_config: active_device probe failed", exc_info=True)
+            sanitized["active_device"] = None
+        try:
+            from voice_typer.server import internal_plugin_hook
+
+            # READ-ONLY computed plugin label: the manifest name of the
+            # plugin that owns dictation ("" when the local model does). The
+            # sidebar caption and the tray show this instead of the model
+            # name, because the model is not what is transcribing.
+            sanitized["active_plugin_name"] = (
+                internal_plugin_hook.plugin_display_name_for(self._app.config)
+            )
+        except Exception:  # snapshot must never break get_config
+            log.debug("[SERVICE] get_config: plugin name probe failed", exc_info=True)
+            sanitized["active_plugin_name"] = ""
         return sanitized
 
     def get_defaults(self) -> dict[str, object]:

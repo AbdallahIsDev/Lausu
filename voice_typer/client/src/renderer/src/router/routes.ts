@@ -6,6 +6,7 @@ export interface RouteDef {
 
 export const ROUTES: Record<Page, RouteDef> = {
 	home: { page: "home" },
+	chat: { page: "chat" },
 	history: { page: "history" },
 	microphone: { page: "microphone" },
 	models: { page: "models" },

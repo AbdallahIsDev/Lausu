@@ -26,6 +26,7 @@ export interface MicrophoneOption {
 
 export interface ModelOption {
 	name: string;
+	display_name?: string;
 	size: string;
 	speed: string;
 	description: string;
@@ -40,6 +41,12 @@ export interface ModelOption {
 	// Optional so an older backend that omits it still type-checks; the
 	// wizard falls back to "whisper" for those entries.
 	backend?: string;
+	// Single recommended entry for the onboarding Model step
+	// (`MODEL_OPTIONS` carries `recommended: true` on exactly one
+	// entry). Optional so older backends / test mocks without the
+	// flag still type-check; the wizard shows the legacy full
+	// accordion when no entry is flagged.
+	recommended?: boolean;
 }
 
 // `PermissionsResult` (and its `instructions` shape) is consolidated

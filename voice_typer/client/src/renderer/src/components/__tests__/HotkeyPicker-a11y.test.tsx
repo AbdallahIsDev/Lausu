@@ -1,8 +1,21 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { sonnerMock, stableMocks } from "@/__tests__/helpers/stableMocks";
 import { HotkeyPicker } from "../hotkey/HotkeyPicker";
+
+// Capture errors are in-app notifications, not inline text.
+vi.mock("sonner", () => sonnerMock());
+
+// The toast title is a React node (the copy plus the keycap chips), so read
+// its message prop to assert the copy.
+function toastMessage(node: unknown): string {
+	if (typeof node === "string") return node;
+	return (
+		(node as { props?: { message?: string } } | undefined)?.props?.message ?? ""
+	);
+}
 
 // Disable color-contrast, the test environment doesn't load the full
 // Tailwind stylesheet, so axe's computed contrast values would be
@@ -68,6 +81,7 @@ function renderPicker(
 describe("HotkeyPicker, Accessibility (ARIA runtime verification)", () => {
 	afterEach(() => {
 		cleanup();
+		stableMocks.toastError.mockClear();
 	});
 
 	// ── Initial render (not recording) ─────────────────────────────────
@@ -171,8 +185,8 @@ describe("HotkeyPicker, Accessibility (ARIA runtime verification)", () => {
 	});
 
 	// ── Error state (live region with full combo) ──────────────────────
-	describe("Error state (HOTKEY-FULLMSG-001 full-combo live region)", () => {
-		it("role='alert' live region appears with full attempted combo 'Shift+Z' when Shift+Z pressed in single mode", async () => {
+	describe("Error state (HOTKEY-FULLMSG-001 full-combo toast)", () => {
+		it("toast shows the full attempted combo 'Shift+Z' when Shift+Z is pressed in single mode", async () => {
 			const user = userEvent.setup();
 			renderPicker();
 
@@ -200,14 +214,16 @@ describe("HotkeyPicker, Accessibility (ARIA runtime verification)", () => {
 				type: "keyup",
 			});
 
-			// role="alert" is an assertive live region: screen readers
-			// announce it immediately, interrupting any in-progress speech.
-			const alert = await screen.findByRole("alert");
-			expect(alert).toBeInTheDocument();
-			// The error message MUST include the full attempted combo
-			// ("Shift+Z"), not just the bare key ("Z"). This is the
-			// runtime screen-reader equivalent of HOTKEY-FULLMSG-001.
-			expect(alert.textContent ?? "").toMatch(/Shift\+Z/);
+			// The capture error is delivered as an in-app notification
+			// (sonner renders toasts in a live region), never as inline
+			// text that reflows the settings row.
+			await waitFor(() => expect(stableMocks.toastError).toHaveBeenCalled());
+			const calls = stableMocks.toastError.mock.calls;
+			const message = toastMessage(calls[calls.length - 1]?.[0]);
+			// The message MUST include the full attempted combo
+			// ("Shift+Z"), not just the bare key ("Z"):
+			// HOTKEY-FULLMSG-001.
+			expect(message).toMatch(/Shift\+Z/);
 		});
 	});
 
@@ -317,8 +333,8 @@ describe("HotkeyPicker, Accessibility (ARIA runtime verification)", () => {
 			await user.click(recordBtn);
 			await screen.findByRole("button", { name: /cancel recording/i });
 
-			// Trigger the Shift+Z error path so the role="alert" live
-			// region is present during the axe scan.
+			// Trigger the Shift+Z error path (the toast lives in a
+			// portal outside the scanned container).
 			dispatchKey({ code: "ShiftLeft", key: "Shift", type: "keydown" });
 			dispatchKey({
 				code: "KeyZ",
@@ -332,7 +348,7 @@ describe("HotkeyPicker, Accessibility (ARIA runtime verification)", () => {
 				shiftKey: true,
 				type: "keyup",
 			});
-			await screen.findByRole("alert");
+			await waitFor(() => expect(stableMocks.toastError).toHaveBeenCalled());
 
 			const results = await axe.run(container, AXE_OPTIONS);
 			const violations = results.violations.filter(

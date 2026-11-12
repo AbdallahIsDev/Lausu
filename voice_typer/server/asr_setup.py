@@ -344,7 +344,7 @@ def download_parakeet_weights(
     config: Any = None,
     force: bool = False,
 ) -> tuple[bool, str, tuple[type, BaseException, Any] | None]:
-    """Download Parakeet TDT v3 model weights via huggingface_hub."""
+    """Download Parakeet Ultra model weights via huggingface_hub."""
     # defense-in-depth consent gate with safe default.
     if not force and (config is None or not bool(getattr(config, "huggingface_consent", False))):
         if progress_callback:
@@ -365,7 +365,7 @@ def download_parakeet_weights(
         return (False, "huggingface_hub_missing", None)
 
     # The engine is ONNX-only post-migration (parakeet_engine.py). The
-    repo_id = "grikdotnet/parakeet-tdt-0.6b-fp16"
+    repo_id = "Masterx/parakeet-tdt-0.6b-ultra-onnx"
 
     # SEC-audit-005: Use pinned revision from MODEL_HASHES manifest
     from voice_typer.server.security import MODEL_HASHES
@@ -434,7 +434,7 @@ def download_parakeet_weights(
         # If the canonical check can't be imported, log and
         log.debug("[ASR_SETUP] canonical disk space check unavailable, proceeding: %s", e)
 
-    msg = "Downloading Parakeet TDT v3 model..."
+    msg = "Downloading Parakeet Ultra model..."
     log.info("[ASR_SETUP] %s", msg)
     if progress_callback:
         progress_callback(msg)

@@ -669,8 +669,7 @@ describe("axe-core automated WCAG scan, interactive surfaces", () => {
 		// RangeSlider's former root-level aria attributes (the reason
 		// settingsHotkeys was once excluded here) are fixed at the
 		// shared wrapper + RangeSlider level: naming attrs and value
-		// attrs now live only on the thumb (role="slider"), which
-		// Radix derives automatically.
+		// attrs live only on the focusable handle (role="slider").
 		for (const sectionPage of SETTINGS_SECTION_PAGES) {
 			const { container, unmount } = renderPage(
 				<SettingsPage page={sectionPage} />,
@@ -687,7 +686,7 @@ describe("axe-core automated WCAG scan, interactive surfaces", () => {
 	// set aria-label + aria-valuenow/min/max on the slider ROOT span
 	// (role-less), axe aria-prohibited-attr / aria-allowed-attr. Fixed by
 	// moving the slider's naming + value ARIA contract to the thumb
-	// (role="slider") in ui/slider.tsx + RangeSlider.tsx. The hotkeys
+	// (role="slider") in InlineSlider + RangeSlider.tsx. The hotkeys
 	// section is now part of the green cycle above; this scan stays as an
 	// explicit guard so a future wrapper regression cannot silently
 	// re-exclude it from the cycle.

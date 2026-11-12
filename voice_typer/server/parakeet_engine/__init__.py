@@ -1,4 +1,4 @@
-"""Parakeet TDT v3 ASR engine package."""
+"""Parakeet Ultra ASR engine package."""
 
 from ._constants import (
     _CHUNK_OVERLAP_SECONDS,
@@ -6,7 +6,6 @@ from ._constants import (
     _MAX_BOUNDARY_SKIP_WORDS,
     _NON_LATIN_RATIO_LIMIT,
     _OVERLAP_DEDUP_WINDOW,
-    _PARAKERT_MODEL_ID,
     _PARAKERT_ONNX_CACHE_DIR,
     _PARAKERT_ONNX_MODEL_NAME,
     _PARAKERT_ONNX_REPO_ID,
@@ -28,7 +27,6 @@ __all__ = [
     "_is_latin_char",
     "_is_likely_english",
     "_NON_LATIN_RATIO_LIMIT",
-    "_PARAKERT_MODEL_ID",
     "_PARAKERT_ONNX_REPO_ID",
     "_PARAKERT_ONNX_CACHE_DIR",
     "_PARAKERT_ONNX_MODEL_NAME",

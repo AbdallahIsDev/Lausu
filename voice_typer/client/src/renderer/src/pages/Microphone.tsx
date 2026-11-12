@@ -13,16 +13,17 @@ import { useCallback, useRef, useState } from "react";
 import { filterFactoryDefaults } from "@/components/audio/audioFilterRowDescriptors";
 import PageHeading from "@/components/common/PageHeading";
 import { EmptyState } from "@/components/feedback/EmptyState";
+import { MeasuredSkeleton } from "@/components/feedback/MeasuredSkeleton";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
 import { VOICE_BIOMETRIC_CONSENT_FIELD } from "@/lib/consent";
 import { consentBodyKey, openConsentGate } from "@/lib/consentGate";
 import { useDeviceLostStore } from "@/stores/deviceLostStore";
-import type { LausuConfig } from "@/types/config";
+import type { LausuConfig, MicrophoneDevice } from "@/types/config";
 import { ActiveMicrophoneCard } from "./microphone/components/ActiveMicrophoneCard";
 import { AvailableMicrophonesList } from "./microphone/components/AvailableMicrophonesList";
 import { MicrophonePermissionBanner } from "./microphone/components/MicrophonePermissionBanner";
-import { MicrophoneSkeleton } from "./microphone/components/MicrophoneSkeleton";
 import { useDenoiserFallbackNote } from "./microphone/hooks/useDenoiserFallbackNote";
 import { useLiveListen } from "./microphone/hooks/useLiveListen";
 import { useLiveSpeakerOffer } from "./microphone/hooks/useLiveSpeakerOffer";
@@ -30,6 +31,12 @@ import { useMicrophoneData } from "./microphone/hooks/useMicrophoneData";
 import { useMicrophonePermission } from "./microphone/hooks/useMicrophonePermission";
 import { useMicrophoneTest } from "./microphone/hooks/useMicrophoneTest";
 import { snapshotFilterValues } from "./microphone/lib/filterSnapshot";
+import { MICROPHONE_SAMPLE } from "./microphone/lib/sample";
+
+interface MicrophonePageData {
+	microphones: MicrophoneDevice[];
+	config: LausuConfig | null;
+}
 
 export default function MicrophonePage() {
 	// ref-to-latest-selectMicrophone so the
@@ -179,11 +186,6 @@ export default function MicrophonePage() {
 	// to Advanced later shows whatever the selected preset holds —
 	// no separate "last saved" state exists anywhere.
 	const { showSnack } = useSnackbar();
-	const customs = config?.custom_presets ?? [];
-	const activeCustomPresetId =
-		config?.audio_preset === "custom"
-			? (config?.active_custom_preset ?? null)
-			: null;
 
 	const selectCustomPreset = useCallback(
 		(id: string) => {
@@ -255,22 +257,16 @@ export default function MicrophonePage() {
 	});
 	// One-time offer to lower loud speakers when the preview starts (S1).
 	useLiveSpeakerOffer(liveListening);
-	const liveListenDisabled =
-		testRunning ||
-		testStarting ||
-		playingEnhanced ||
-		playingOriginal ||
-		microphones.length === 0;
 
 	// ── Render ────────────────────────────────────────────────────
 
-	// On first visit (no cached data + still loading), show the full
-	// spinner. On re-visit, the module-level caches in
-	// ``useMicrophoneData`` populate the initial state so we render the
-	// page immediately (the spinner would flash stale-then-real).
-	if (!microphones.length && !config && loading) {
-		return <MicrophoneSkeleton />;
-	}
+	// Measured-skeleton bundle: null only while the first load is still
+	// in flight, so Skullet measures the sample render. Once any data
+	// exists (including an empty device list) the real content shows.
+	const pageData: MicrophonePageData | null =
+		loading && microphones.length === 0 && config === null
+			? null
+			: { microphones, config };
 
 	//distinguish "backend failed to load" from "no microphones
 	// found" so the user knows to retry instead of being told to connect
@@ -306,68 +302,108 @@ export default function MicrophonePage() {
 			/>
 
 			<div className="flex flex-col gap-4">
+				{/* Permission banner stays outside the measured wrap: it is
+				    not data, and consent-gated starts must keep working while
+				    devices load. */}
 				<MicrophonePermissionBanner micPermission={micPermission} />
 
-				{/* ``meterRef`` wrapper. The level monitor's rAF
-					loop queries inside this div for the ``LevelBar``'s fill
-					node (``[role="progressbar"] > div``) and imperatively
-					writes the latest level (scaleX transform) at ≤60 Hz —
-					bypassing
-					React's re-render cycle so a 30 Hz ``mic_level`` push
-					no longer re-renders the entire Microphone page subtree.
-					The wrapper itself is a no-op layout element (no extra
-					className) so the visual structure is unchanged. */}
-				<div ref={meterRef}>
-					<ActiveMicrophoneCard
-						activeMicName={activeMicName}
-						isSystemDefault={isSystemDefault}
-						canTest={microphones.length > 0}
-						testRunning={testRunning}
-						testStarting={testStarting}
-						testElapsed={testElapsed}
-						testDurationMs={testDurationMs}
-						level={level}
-						micMonitoring={micMonitoring}
-						testAudioBase64={testAudioBase64}
-						rawAudioBase64={rawAudioBase64}
-						testQuality={testQuality}
-						testTranscription={testTranscription}
-						testTranscriptionUnavailable={testTranscriptionUnavailable}
-						enhancementActive={config?.audio_preset !== "off"}
-						playing={playingEnhanced || playingOriginal}
-						playingOriginal={playingOriginal}
-						config={config}
-						customPresets={customs}
-						activeCustomPresetId={activeCustomPresetId}
-						onSelectCustomPreset={selectCustomPreset}
-						onSaveCustomPreset={saveCustomPreset}
-						onRestoreMicDefaults={restoreMicDefaults}
-						liveListening={liveListening}
-						liveStarting={liveStarting}
-						liveListenError={liveListenError}
-						liveListenDisabled={liveListenDisabled}
-						onToggleLiveListen={toggleLiveListen}
-						onStartTest={startTest}
-						onStopTest={stopTest}
-						onPlayEnhanced={() =>
-							testAudioBase64 && playAudio(testAudioBase64, true)
-						}
-						onPlayOriginal={() =>
-							rawAudioBase64 ? playAudio(rawAudioBase64, false) : undefined
-						}
-						onStopPlayback={stopPlayback}
-						onPresetChange={handlePresetChange}
-						onConfigChange={handleConfigChange}
-						denoiserNote={denoiserNote}
-					/>
-				</div>
+				{/* Measured wrap: the test card + preset + device list render
+				    from the sample while the bundle is null. */}
+				<MeasuredSkeleton
+					stackClassName="gap-4"
+					data={pageData}
+					sample={MICROPHONE_SAMPLE}
+					id="microphone"
+					label={skeletonLoadingLabel()}
+				>
+					{(data) => {
+						const activeMicId = data.config?.microphone ?? null;
+						const isSystemDefault = activeMicId === null;
+						const activeMicName =
+							activeMicId === null
+								? t("microphone.systemDefault")
+								: (data.microphones.find(
+										(m) => (m.id ?? String(m.index)) === activeMicId,
+									)?.name ?? t("microphone.unknown"));
+						const customs = data.config?.custom_presets ?? [];
+						const activeCustomPresetId =
+							data.config?.audio_preset === "custom"
+								? (data.config?.active_custom_preset ?? null)
+								: null;
+						const liveListenDisabled =
+							testRunning ||
+							testStarting ||
+							playingEnhanced ||
+							playingOriginal ||
+							data.microphones.length === 0;
+						return (
+							<>
+								{/* ``meterRef`` wrapper. The level monitor's rAF
+								    loop queries inside this div for the ``LevelBar``'s fill
+								    node (``[role="progressbar"] > div``) and imperatively
+								    writes the latest level (scaleX transform) at ≤60 Hz —
+								    bypassing
+								    React's re-render cycle so a 30 Hz ``mic_level`` push
+								    no longer re-renders the entire Microphone page subtree.
+								    The wrapper itself is a no-op layout element (no extra
+								    className) so the visual structure is unchanged. */}
+								<div ref={meterRef}>
+									<ActiveMicrophoneCard
+										activeMicName={activeMicName}
+										isSystemDefault={isSystemDefault}
+										canTest={data.microphones.length > 0}
+										testRunning={testRunning}
+										testStarting={testStarting}
+										testElapsed={testElapsed}
+										testDurationMs={testDurationMs}
+										level={level}
+										micMonitoring={micMonitoring}
+										testAudioBase64={testAudioBase64}
+										rawAudioBase64={rawAudioBase64}
+										testQuality={testQuality}
+										testTranscription={testTranscription}
+										testTranscriptionUnavailable={testTranscriptionUnavailable}
+										enhancementActive={data.config?.audio_preset !== "off"}
+										playing={playingEnhanced || playingOriginal}
+										playingOriginal={playingOriginal}
+										config={data.config}
+										customPresets={customs}
+										activeCustomPresetId={activeCustomPresetId}
+										onSelectCustomPreset={selectCustomPreset}
+										onSaveCustomPreset={saveCustomPreset}
+										onRestoreMicDefaults={restoreMicDefaults}
+										liveListening={liveListening}
+										liveStarting={liveStarting}
+										liveListenError={liveListenError}
+										liveListenDisabled={liveListenDisabled}
+										onToggleLiveListen={toggleLiveListen}
+										onStartTest={startTest}
+										onStopTest={stopTest}
+										onPlayEnhanced={() =>
+											testAudioBase64 && playAudio(testAudioBase64, true)
+										}
+										onPlayOriginal={() =>
+											rawAudioBase64
+												? playAudio(rawAudioBase64, false)
+												: undefined
+										}
+										onStopPlayback={stopPlayback}
+										onPresetChange={handlePresetChange}
+										onConfigChange={handleConfigChange}
+										denoiserNote={denoiserNote}
+									/>
+								</div>
 
-				<AvailableMicrophonesList
-					microphones={microphones}
-					activeMicId={activeMicId}
-					testRunning={testRunning}
-					onSelectMicrophone={selectMicrophone}
-				/>
+								<AvailableMicrophonesList
+									microphones={data.microphones}
+									activeMicId={activeMicId}
+									testRunning={testRunning}
+									onSelectMicrophone={selectMicrophone}
+								/>
+							</>
+						);
+					}}
+				</MeasuredSkeleton>
 			</div>
 		</div>
 	);

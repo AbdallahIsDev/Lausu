@@ -410,6 +410,23 @@ describe("shell-key spellings and table format parity", () => {
 	});
 });
 
+describe("mouse button hotkeys", () => {
+	it("accepts the middle mouse button on every platform", () => {
+		for (const platform of ["win32", "darwin", "linux"]) {
+			const result = validateHotkey("<mouse_middle>", platform);
+			expect(result.valid).toBe(true);
+		}
+	});
+
+	it("refuses a mouse button combined with keys or modifiers", () => {
+		for (const spec of ["<ctrl>+<mouse_middle>", "<alt>+<mouse_middle>"]) {
+			const result = validateHotkey(spec, "win32");
+			expect(result.valid).toBe(false);
+			expect(result.code).toBe("mouse_combo");
+		}
+	});
+});
+
 describe("app-reserved and uninterceptable shortcuts", () => {
 	// Esc cancels dictation and exits hotkey capture: it can never be a
 	// trigger, so the shared table blocks it on every platform.
@@ -423,10 +440,12 @@ describe("app-reserved and uninterceptable shortcuts", () => {
 
 	// Ctrl+Alt+Del is the Windows secure-attention sequence: low-level
 	// hooks never see it, so the hotkey would be silently dead.
-	it("rejects Ctrl+Alt+Delete on Windows but not on Linux", () => {
+	it("rejects Ctrl+Alt+Delete on every platform", () => {
 		expect(validateHotkey("<ctrl>+<alt>+<delete>", "win32").valid).toBe(false);
 		expect(validateHotkey("<ctrl>+<alt>+<del>", "win32").valid).toBe(false);
-		expect(validateHotkey("<ctrl>+<alt>+<delete>", "linux").valid).toBe(true);
+		const linux = validateHotkey("<ctrl>+<alt>+<delete>", "linux");
+		expect(linux.valid).toBe(false);
+		expect(linux.code).toBe("editing_key");
 	});
 });
 

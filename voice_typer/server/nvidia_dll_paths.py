@@ -175,6 +175,18 @@ class _NvidiaDllPathManager:
         if os.path.isdir(venv_sp) and venv_sp not in roots:
             roots.append(venv_sp)
 
+        # User-level CUDA install (download flow). It is a real site-packages
+        # tree, so the filter below keeps it; adding it here is what makes the
+        # stack visible to the frozen sidecar too.
+        try:
+            from voice_typer.server.cuda_install.paths import install_dir
+
+            user_cuda_sp = str(install_dir())
+            if os.path.isdir(user_cuda_sp) and user_cuda_sp not in roots:
+                roots.append(user_cuda_sp)
+        except Exception:
+            log.debug("[CUDA-DLL] user CUDA install root unavailable", exc_info=True)
+
         # Base interpreter site-packages (covers system site-packages when
         # running inside a venv; resolves python311/312/313 dynamically).
         base_sp = os.path.join(sys.base_prefix, "Lib", "site-packages")
@@ -292,6 +304,23 @@ def _invalidate_cuda_availability_cache() -> None:
     """
     global _cuda_availability_checked
     _cuda_availability_checked = False
+
+
+def reset_configuration() -> None:
+    """Clear the one-shot configure latch so the next call re-scans roots.
+
+    The user-level CUDA install can appear after this process already
+    latched (download → respawn, or an in-process re-probe); without the
+    reset the new ``nvidia/*/bin`` dirs would never reach the loader path.
+    """
+    from voice_typer.server import transcription as _t
+
+    try:
+        _t._nvidia_dll_paths.free_handles()
+    except Exception:
+        log.debug("[CUDA-DLL] freeing handles during reset failed", exc_info=True)
+    _t._nvidia_dll_paths.configured = False
+    _invalidate_cuda_availability_cache()
 
 
 # The CUDA runtime DLLs (cuBLAS / cuLt / cuDNN) ship with the

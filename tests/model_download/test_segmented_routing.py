@@ -160,7 +160,7 @@ class TestParakeetRouting:
 
         plan = [
             segdl.PlannedFile(
-                filename="encoder-model.fp16.onnx",
+                filename="encoder-model.int8.onnx",
                 size=800_000_000,
                 blob_id="d" * 64,
                 sha256="d" * 64,
@@ -207,6 +207,6 @@ class TestParakeetRouting:
         result = download_parakeet_weights(config=None, progress_callback=messages.append, force=True)
         assert result[0] is True, f"expected success, got: {result}"
         phase_a = next(c for c in snapshot_calls if c.get("ignore_patterns"))
-        assert phase_a.get("ignore_patterns") == ["encoder-model.fp16.onnx"]
+        assert phase_a.get("ignore_patterns") == ["encoder-model.int8.onnx"]
         assert len(phase_calls) == 1
         assert phase_calls[0]["seg_plan"] == plan

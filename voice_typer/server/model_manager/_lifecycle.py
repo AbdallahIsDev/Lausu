@@ -224,6 +224,10 @@ class LifecycleMixin:
             "[MODEL] idle-unload: unloading active backend '%s' after idle period",
             active_name,
         )
+        try:
+            device_info = getattr(engine, "device_info", "") or ""
+        except Exception:
+            device_info = ""
         # Deliberate unload, the model IS on disk, so the last-resort
         self._mark_deliberately_unloaded(active_name)
         # Unload via the registry (which calls engine.unload() on the
@@ -262,7 +266,10 @@ class LifecycleMixin:
             )
         # Tray state transition: "Idle, model unloaded" (reuses
         try:
-            self._app.tray.set_state(AppState.IDLE, i18n.t("state.model_unloaded_idle"))
+            message = i18n.t("state.model_unloaded_idle")
+            if device_info:
+                message = f"{message} - {device_info}"
+            self._app.tray.set_state(AppState.IDLE, message)
         except Exception:
             log.debug(
                 "[MODEL] tray.set_state failed (non-fatal)",

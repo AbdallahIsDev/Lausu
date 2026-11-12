@@ -10,10 +10,41 @@ function setConfigSnapshot(config: Record<string, unknown> | null) {
 
 afterEach(() => {
 	cleanup();
-	useAppStore.setState({ config: null });
+	// `recordingState` is process-wide: a test that drives the live-state
+	// suffix must not leave the next test's caption reading "· recording".
+	useAppStore.setState({ config: null, recordingState: "idle" });
 });
 
 describe("SidebarActiveModel", () => {
+	it("names the active PLUGIN instead of the local model", () => {
+		// A selected plugin owns dictation: the model is not transcribing, so
+		// showing "Parakeet Ultra" would be a lie about what is running.
+		setConfigSnapshot({
+			asr_backend: "parakeet",
+			model_size: "large-v3",
+			active_plugin: "anthropic_stt",
+			active_plugin_name: "Anthropic STT",
+		});
+		render(<SidebarActiveModel />);
+
+		const label = screen.getByTestId("sidebar-active-model");
+		expect(label.textContent).toBe("Anthropic STT");
+	});
+
+	it("appends the live recording state while the plugin is dictating", () => {
+		setConfigSnapshot({
+			asr_backend: "parakeet",
+			active_plugin: "anthropic_stt",
+			active_plugin_name: "Anthropic STT",
+		});
+		useAppStore.setState({ recordingState: "recording" });
+		render(<SidebarActiveModel />);
+
+		expect(screen.getByTestId("sidebar-active-model").textContent).toBe(
+			"Anthropic STT · recording",
+		);
+	});
+
 	it("renders the local active model as a truncated 12px caption", () => {
 		setConfigSnapshot({ asr_backend: "whisper", model_size: "large-v3" });
 		render(<SidebarActiveModel />);
@@ -35,7 +66,7 @@ describe("SidebarActiveModel", () => {
 		render(<SidebarActiveModel />);
 
 		expect(screen.getByTestId("sidebar-active-model").textContent).toBe(
-			"Parakeet",
+			"Parakeet Ultra",
 		);
 	});
 

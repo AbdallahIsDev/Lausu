@@ -39,7 +39,7 @@ class TestTooltipModelLabel:
         assert tooltip_model_label(_cfg(model_size="large-v3-turbo")) == "Whisper Large V3 Turbo"
 
     def test_backends_use_registry_display_names(self):
-        assert tooltip_model_label(_cfg(asr_backend="parakeet", model_size="")) == "Parakeet-TDT-0.6b-V3"
+        assert tooltip_model_label(_cfg(asr_backend="parakeet", model_size="")) == "Parakeet Ultra"
         assert tooltip_model_label(_cfg(asr_backend="qwen", model_size="")) == "qwen3 1.7B"
         assert tooltip_model_label(_cfg(asr_backend="qwen", model_size="qwen3-0.6b")) == "qwen3 0.6B"
 

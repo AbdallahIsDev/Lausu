@@ -77,6 +77,9 @@ class WorkerTranscriber:
         self._registry = None
         self._engine = None
         self._engine_language: str | None = None
+        # Backend the cached engine serves ("whisper"/"parakeet"/"qwen");
+        # the explicit load_* commands key their cache check on it.
+        self._engine_backend: str | None = None
 
     # ── engine construction ──────────────────────────────────────────
 
@@ -149,6 +152,7 @@ class WorkerTranscriber:
             self._registry = registry
             self._engine = backend
             self._engine_language = language
+            self._engine_backend = getattr(config, "asr_backend", "whisper") or "whisper"
             log.info(
                 "[WORKER] offline ASR engine ready: backend=%s language=%s",
                 getattr(config, "asr_backend", "whisper"),
@@ -186,6 +190,7 @@ class WorkerTranscriber:
                 self._engine = engine
                 self._registry = None
                 self._engine_language = language
+                self._engine_backend = "whisper"
                 log.info("[WORKER] whisper model loaded: size=%s language=%s", model_size, language)
                 return {
                     "loaded": True,
@@ -196,6 +201,104 @@ class WorkerTranscriber:
             except Exception as exc:  # noqa: BLE001, structured error result
                 log.warning("[WORKER] whisper model load failed: %s", exc)
                 return {"loaded": False, "backend": "whisper", "device_info": None, "error": str(exc)}
+
+    def load_parakeet_model(
+        self, device: str | None = None, language: str | None = None
+    ) -> dict:
+        """Load the parakeet model with explicit args; never raises."""
+        with self._lock:
+            try:
+                if (
+                    self._engine is not None
+                    and self._engine_language == language
+                    and self._engine_backend == "parakeet"
+                ):
+                    try:
+                        if bool(self._engine.is_loaded):
+                            info = self._backend_device_info(self._engine)
+                            return {"loaded": True, "backend": "parakeet", "device_info": info, "error": None}
+                    except Exception:
+                        pass
+                from voice_typer.server.config import Config
+                from voice_typer.server.parakeet_engine import ParakeetEngine
+
+                config = Config.load()
+                engine = ParakeetEngine(
+                    device=device if device is not None else "auto",
+                    language=language if language is not None else config.language,
+                    config=config,
+                )
+                if engine.load() is False:
+                    return {
+                        "loaded": False,
+                        "backend": "parakeet",
+                        "device_info": None,
+                        "error": "parakeet model load failed",
+                    }
+                self._engine = engine
+                self._registry = None
+                self._engine_language = language
+                self._engine_backend = "parakeet"
+                log.info("[WORKER] parakeet model loaded: language=%s", language)
+                return {
+                    "loaded": True,
+                    "backend": "parakeet",
+                    "device_info": self._backend_device_info(engine),
+                    "error": None,
+                }
+            except Exception as exc:  # noqa: BLE001, structured error result
+                log.warning("[WORKER] parakeet model load failed: %s", exc)
+                return {"loaded": False, "backend": "parakeet", "device_info": None, "error": str(exc)}
+
+    def load_qwen_model(
+        self, model_path: str, device: str | None = None, language: str | None = None
+    ) -> dict:
+        """Load the qwen model with explicit args; never raises."""
+        with self._lock:
+            try:
+                if (
+                    self._engine is not None
+                    and self._engine_language == language
+                    and self._engine_backend == "qwen"
+                    and getattr(self._engine, "model_path", None) == model_path
+                ):
+                    try:
+                        if bool(self._engine.is_loaded):
+                            info = self._backend_device_info(self._engine)
+                            return {"loaded": True, "backend": "qwen", "device_info": info, "error": None}
+                    except Exception:
+                        pass
+                from voice_typer.server.config import Config
+                from voice_typer.server.qwen_engine import QwenEngine
+
+                config = Config.load()
+                engine = QwenEngine(
+                    model_path=model_path,
+                    device=device if device is not None else "auto",
+                    language=language if language is not None else config.language,
+                    config=config,
+                )
+                if engine.load() is False:
+                    return {
+                        "loaded": False,
+                        "backend": "qwen",
+                        "device_info": None,
+                        "error": "qwen model load failed",
+                    }
+                self._engine = engine
+                self._registry = None
+                self._engine_language = language
+                self._engine_backend = "qwen"
+                log.info("[WORKER] qwen model loaded: language=%s", language)
+                return {
+                    "loaded": True,
+                    "backend": "qwen",
+                    "device_info": self._backend_device_info(engine),
+                    "error": None,
+                }
+            except Exception as exc:  # noqa: BLE001, structured error result
+                log.warning("[WORKER] qwen model load failed: %s", exc)
+                return {"loaded": False, "backend": "qwen", "device_info": None, "error": str(exc)}
 
     def transcribe_file(self, audio_path: str, sample_rate: int | None, language: str | None) -> dict:
         """Transcribe a WAV file; return the ``transcribe_offline_result`` payload.

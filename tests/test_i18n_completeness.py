@@ -22,6 +22,12 @@ ALLOWED_UNTRANSLATED = {
     "computeDevice.gpu",  # "GPU", universal hardware acronym
     "settings.languageHindi",  # "Hindi", proper noun
     "nav.microphone",  # "Microphone", technical term
+    # "Chat" is the standard computing term in German and Spanish, spelled
+    # identically (same class as "Plugins" above). The page title reuses it.
+    "nav.chat",  # "Chat"
+    "chat.title",  # "Chat"
+    # "Assistant" is the same word in French.
+    "chat.assistant",  # "Assistant"
     # "Plugins" is the standard computing term in German/French/Spanish,
     # spelled identically (same class as the "Notifications" cognate).
     "nav.plugins",  # "Plugins"
@@ -50,7 +56,7 @@ ALLOWED_UNTRANSLATED = {
     "models.providers.deepgram.label",  # "Deepgram"
     "models.providers.gemini.label",  # "Google"
     # Parakeet label is a product name, kept identical.
-    "models.card.parakeetLabel",  # "NVIDIA Parakeet TDT v3  ·  "
+    "models.card.parakeetLabel",  # "Parakeet Ultra  ·  "
     # Em-dash placeholder for missing data, identical glyph across locales.
     "about.unknown",  # "—"
     # Version number format: "v{version}" is universally identical.

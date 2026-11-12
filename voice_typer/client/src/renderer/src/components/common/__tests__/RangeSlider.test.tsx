@@ -1,54 +1,65 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-// Capture the props RangeSlider passes to Slider. Individual tests can
-// inspect these to verify the wiring (e.g. that deferApply=true still
-// passes the deferred display value, not the committed value).
-let sliderProps: Record<string, unknown> | null = null;
-
-vi.mock("@/components/ui/slider", () => ({
-	Slider: (props: Record<string, unknown>) => {
-		sliderProps = props;
-		const value = (props.value as number[] | undefined)?.[0] ?? 0;
-		return (
-			<input
-				type="range"
-				data-slot="slider"
-				data-testid="mock-slider"
-				value={value}
-				min={props.min as number}
-				max={props.max as number}
-				step={props.step as number}
-				aria-label={props["aria-label"] as string}
-				aria-valuetext={props["aria-valuetext"] as string}
-				onChange={(e) => {
-					const next = Number(e.target.value);
-					(props.onValueChange as (v: number[]) => void)?.([next]);
-				}}
-				onPointerUp={props.onPointerUp as React.PointerEventHandler}
-				onBlur={props.onBlur as React.FocusEventHandler}
-			/>
-		);
-	},
-}));
-
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { RangeSlider } from "@/components/common/RangeSlider";
 
-function getSlider(): HTMLInputElement {
-	return screen.getByTestId("mock-slider") as HTMLInputElement;
+function handle(): HTMLElement {
+	return screen.getByRole("slider");
 }
 
-describe("RangeSlider, BG-R11 (deferApply commit contract)", () => {
+function track(): HTMLElement {
+	const element = handle().parentElement;
+	if (!element) throw new Error("slider track missing");
+	return element;
+}
+
+const TRACK_RECT = {
+	left: 0,
+	top: 0,
+	right: 208,
+	bottom: 40,
+	width: 208,
+	height: 40,
+	x: 0,
+	y: 0,
+	toJSON: () => ({}),
+} as DOMRect;
+
+describe("RangeSlider", () => {
 	afterEach(() => {
-		sliderProps = null;
 		cleanup();
+		vi.restoreAllMocks();
 	});
 
-	beforeEach(() => {
-		sliderProps = null;
+	it("renders one focusable slider with the formatted value and no duplicate label", () => {
+		render(
+			<RangeSlider
+				value={50}
+				min={0}
+				max={100}
+				step={1}
+				suffix="%"
+				ariaLabel="Volume"
+				onChange={vi.fn()}
+			/>,
+		);
+
+		const slider = handle();
+		expect(slider).toHaveAttribute("aria-label", "Volume");
+		expect(slider).toHaveAttribute("aria-valuenow", "50");
+		expect(slider).toHaveAttribute("aria-valuetext", "50%");
+		expect(screen.getByText("50%")).toBeInTheDocument();
+		// The surrounding SettingRow already shows "Volume"; the slider must
+		// not repeat it inside the track.
+		expect(screen.queryByText("Volume")).toBeNull();
 	});
 
-	it("deferApply=false: onChange fires immediately on every value change", () => {
+	it("commits arrow-key changes immediately when deferApply is off", () => {
 		const onChange = vi.fn();
 		render(
 			<RangeSlider
@@ -61,13 +72,14 @@ describe("RangeSlider, BG-R11 (deferApply commit contract)", () => {
 				onChange={onChange}
 			/>,
 		);
-		const slider = getSlider();
-		fireEvent.change(slider, { target: { value: "55" } });
+
+		fireEvent.keyDown(handle(), { key: "ArrowRight" });
+
 		expect(onChange).toHaveBeenCalledTimes(1);
-		expect(onChange).toHaveBeenCalledWith(55);
+		expect(onChange.mock.calls[0]?.[0]).toBeGreaterThan(50);
 	});
 
-	it("deferApply=true: value change updates display but does NOT fire onChange", () => {
+	it("End jumps to the maximum", () => {
 		const onChange = vi.fn();
 		render(
 			<RangeSlider
@@ -77,19 +89,16 @@ describe("RangeSlider, BG-R11 (deferApply commit contract)", () => {
 				step={1}
 				suffix="%"
 				ariaLabel="Volume"
-				deferApply={true}
 				onChange={onChange}
 			/>,
 		);
-		// Two successive changes (simulating a drag).
-		fireEvent.change(getSlider(), { target: { value: "51" } });
-		fireEvent.change(getSlider(), { target: { value: "52" } });
-		expect(onChange).not.toHaveBeenCalled();
-		// The display value next to the thumb mirrors the local state.
-		expect(screen.getByText("52%")).toBeInTheDocument();
+
+		fireEvent.keyDown(handle(), { key: "End" });
+
+		expect(onChange).toHaveBeenCalledWith(100);
 	});
 
-	it("deferApply=true: pointerup commits the pending value via onChange exactly once", () => {
+	it("keeps the readout live during a deferred drag and commits once on release", async () => {
 		const onChange = vi.fn();
 		render(
 			<RangeSlider
@@ -99,19 +108,26 @@ describe("RangeSlider, BG-R11 (deferApply commit contract)", () => {
 				step={1}
 				suffix="%"
 				ariaLabel="Volume"
-				deferApply={true}
+				deferApply
 				onChange={onChange}
 			/>,
 		);
-		fireEvent.change(getSlider(), { target: { value: "52" } });
+		const element = track();
+		vi.spyOn(element, "getBoundingClientRect").mockReturnValue(TRACK_RECT);
+
+		fireEvent.pointerDown(element, { clientX: 20, pointerId: 1, button: 0 });
+		fireEvent.pointerMove(element, { clientX: 170, pointerId: 1 });
+
+		await waitFor(() => expect(screen.queryByText("50%")).toBeNull());
 		expect(onChange).not.toHaveBeenCalled();
-		// pointerup on the slider root commits.
-		fireEvent.pointerUp(getSlider());
+
+		fireEvent.pointerUp(element, { clientX: 170, pointerId: 1 });
+
 		expect(onChange).toHaveBeenCalledTimes(1);
-		expect(onChange).toHaveBeenCalledWith(52);
+		expect(onChange.mock.calls[0]?.[0]).toBeGreaterThan(50);
 	});
 
-	it("deferApply=true: blur commits the pending value via onChange exactly once", () => {
+	it("does not fire for a disabled slider", () => {
 		const onChange = vi.fn();
 		render(
 			<RangeSlider
@@ -121,19 +137,21 @@ describe("RangeSlider, BG-R11 (deferApply commit contract)", () => {
 				step={1}
 				suffix="%"
 				ariaLabel="Volume"
-				deferApply={true}
+				disabled
 				onChange={onChange}
 			/>,
 		);
-		fireEvent.change(getSlider(), { target: { value: "52" } });
+
+		const slider = handle();
+		expect(slider).toHaveAttribute("aria-disabled", "true");
+		expect(slider.tabIndex).toBe(-1);
+
+		fireEvent.keyDown(slider, { key: "ArrowRight" });
+
 		expect(onChange).not.toHaveBeenCalled();
-		fireEvent.blur(getSlider());
-		expect(onChange).toHaveBeenCalledTimes(1);
-		expect(onChange).toHaveBeenCalledWith(52);
 	});
 
-	it("deferApply=true: external value prop change mirrors to display without firing onChange", () => {
-		const onChange = vi.fn();
+	it("syncs the readout when the committed value changes", () => {
 		const { rerender } = render(
 			<RangeSlider
 				value={50}
@@ -142,11 +160,10 @@ describe("RangeSlider, BG-R11 (deferApply commit contract)", () => {
 				step={1}
 				suffix="%"
 				ariaLabel="Volume"
-				deferApply={true}
-				onChange={onChange}
+				onChange={vi.fn()}
 			/>,
 		);
-		expect(screen.getByText("50%")).toBeInTheDocument();
+
 		rerender(
 			<RangeSlider
 				value={75}
@@ -155,95 +172,10 @@ describe("RangeSlider, BG-R11 (deferApply commit contract)", () => {
 				step={1}
 				suffix="%"
 				ariaLabel="Volume"
-				deferApply={true}
-				onChange={onChange}
+				onChange={vi.fn()}
 			/>,
 		);
+
 		expect(screen.getByText("75%")).toBeInTheDocument();
-		expect(onChange).not.toHaveBeenCalled();
-	});
-
-	it("deferApply=true: no commit when nothing was changed (dirtyRef guard)", () => {
-		const onChange = vi.fn();
-		render(
-			<RangeSlider
-				value={50}
-				min={0}
-				max={100}
-				step={1}
-				suffix="%"
-				ariaLabel="Volume"
-				deferApply={true}
-				onChange={onChange}
-			/>,
-		);
-		fireEvent.pointerUp(getSlider());
-		expect(onChange).not.toHaveBeenCalled();
-		fireEvent.blur(getSlider());
-		expect(onChange).not.toHaveBeenCalled();
-	});
-
-	it("passes getThumbAriaValueText (value + unit) for the THUMB, not root aria-valuetext, for SR users", () => {
-		render(
-			<RangeSlider
-				value={42}
-				min={0}
-				max={100}
-				step={1}
-				suffix="ms"
-				ariaLabel="Delay"
-				onChange={vi.fn()}
-			/>,
-		);
-		const slider = getSlider();
-		// The root no longer carries aria-valuetext, it is generated
-		// per-thumb via getThumbAriaValueText so SRs announce it at the
-		// focused thumb (the root-level attribute was dropped).
-		expect(slider).not.toHaveAttribute("aria-valuetext");
-		expect(typeof sliderProps?.getThumbAriaValueText).toBe("function");
-		const fn = sliderProps?.getThumbAriaValueText as (
-			v: number,
-			i: number,
-		) => string;
-		expect(fn(42, 0)).toBe("42ms");
-	});
-
-	it("deferApply=true: passes the local display value (not the committed value) to the underlying Slider", () => {
-		const onChange = vi.fn();
-		render(
-			<RangeSlider
-				value={50}
-				min={0}
-				max={100}
-				step={1}
-				suffix="%"
-				ariaLabel="Volume"
-				deferApply={true}
-				onChange={onChange}
-			/>,
-		);
-		// Initially the slider's value prop matches the committed value.
-		expect((sliderProps?.value as number[])?.[0]).toBe(50);
-		// After a drag, the slider's value prop follows the local
-		// display state, not the committed value (which is still 50).
-		fireEvent.change(getSlider(), { target: { value: "70" } });
-		expect((sliderProps?.value as number[])?.[0]).toBe(70);
-		// onChange still hasn't fired (deferred to pointerup / blur).
-		expect(onChange).not.toHaveBeenCalled();
-	});
-
-	it("forwards aria-label to the underlying slider", () => {
-		render(
-			<RangeSlider
-				value={0}
-				min={0}
-				max={100}
-				step={1}
-				suffix="%"
-				ariaLabel="Brightness"
-				onChange={vi.fn()}
-			/>,
-		);
-		expect(getSlider()).toHaveAttribute("aria-label", "Brightness");
 	});
 });

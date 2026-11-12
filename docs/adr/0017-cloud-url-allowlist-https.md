@@ -38,6 +38,8 @@ A `frozenset` of trusted cloud provider hostnames, populated with known-good def
 | Deepgram | `api.deepgram.com` |
 | Anthropic (Claude) | `api.anthropic.com` |
 | Google Gemini/Vertex | `generativelanguage.googleapis.com` |
+| OpenRouter | `openrouter.ai` |
+| Ollama (hosted cloud) | `ollama.com` |
 | Local development | `localhost`, `127.0.0.1`, `::1` |
 
 ### Runtime Extensions

@@ -145,7 +145,7 @@ class TestWeightFileProbe:
             tmp_path,
             {
                 "model.bin": b"\x00" * (8 * 1024 * 1024),
-                "encoder-model.fp16.onnx": b"\x00" * (4 * 1024 * 1024),
+                "encoder-model.int8.onnx": b"\x00" * (4 * 1024 * 1024),
             },
         )
         monkeypatch.setattr(prewarm_status, "_status_file_path", lambda: tmp_path / "prewarm-status.json")

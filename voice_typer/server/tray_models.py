@@ -15,8 +15,8 @@ _hf_env_ensured: bool = False
 # Qwen's HuggingFace repo id, informational only: the backend
 _QWEN_REPO_ID = "andrewleech/qwen3-asr-1.7b-onnx"
 
-# Parakeet's ONNX export repo (fp16, torch-free), informational
-_PARAKEET_REPO_ID = "grikdotnet/parakeet-tdt-0.6b-fp16"
+# Parakeet Ultra's ONNX export repo (int8, torch-free), informational
+_PARAKEET_REPO_ID = "Masterx/parakeet-tdt-0.6b-ultra-onnx"
 
 # Native tray menus are text-only: pystray's ``MenuItem`` has no image
 _FAMILY_MENU_GLYPHS: dict[str, str] = {
@@ -84,6 +84,17 @@ def tooltip_model_label(config) -> str:
     (none selected, unknown backend), so the tooltip shows no segment.
     """
     from voice_typer.server.model_registry import NO_MODEL_SIZE, get_model_metadata
+
+    # A selected plugin owns dictation: the local model is not transcribing,
+    # so the tray names the plugin instead (same rule as the sidebar caption).
+    try:
+        from voice_typer.server import internal_plugin_hook
+
+        plugin_name = internal_plugin_hook.plugin_display_name_for(config)
+    except Exception:
+        plugin_name = ""
+    if plugin_name:
+        return plugin_name
 
     backend = getattr(config, "asr_backend", "whisper") or "whisper"
     if backend in ("qwen", "parakeet"):

@@ -110,10 +110,12 @@ def _get_rate_limiter(server: "object") -> _RateLimiter:
 
 # Per-command _handle_* methods live in handlers/ mixins (no circular imports
 
+from voice_typer.server.handlers.chat_handlers import ChatHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.cloud_test_handlers import (  # noqa: E402
     CloudTestHandlersMixin,
 )
 from voice_typer.server.handlers.config_handlers import ConfigHandlersMixin  # noqa: E402
+from voice_typer.server.handlers.cuda_handlers import CudaHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.dictation_handlers import DictationHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.history_handlers import HistoryHandlersMixin  # noqa: E402
 from voice_typer.server.handlers.level_monitor_handlers import (  # noqa: E402
@@ -162,6 +164,7 @@ class IPCServer(
     DispatcherMixin,
     LifecycleMixin,
     ConfigHandlersMixin,
+    CudaHandlersMixin,
     StatusHandlersMixin,
     DictationHandlersMixin,
     HistoryHandlersMixin,
@@ -177,6 +180,7 @@ class IPCServer(
     ModelHandlersMixin,
     TtsHandlersMixin,
     ProviderHandlersMixin,
+    ChatHandlersMixin,
     SystemHandlersMixin,
     VocabularyAutomationHandlersMixin,
     RepasteHandlersMixin,

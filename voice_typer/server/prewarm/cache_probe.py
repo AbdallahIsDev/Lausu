@@ -375,9 +375,9 @@ def _active_model_cache_dirs() -> list[Path]:
 
         if active_backend == "parakeet":
             try:
-                from voice_typer.server.parakeet_engine import _PARAKERT_MODEL_ID
+                from voice_typer.server.parakeet_engine import _PARAKERT_ONNX_REPO_ID
 
-                target_repo_ids.add(_PARAKERT_MODEL_ID)
+                target_repo_ids.add(_PARAKERT_ONNX_REPO_ID)
             except Exception:
                 # Previously a bare ``except Exception: pass``. Log at
                 log.debug(

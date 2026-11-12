@@ -88,6 +88,7 @@ file. The most useful tags for debugging:
 | `[SEC]` / `[SECURITY]` | Security-related events (token, allowlist, file perms). |
 | `[ENV]` | Env-var validation at startup. |
 | `[FATAL]` / `[ATEXIT]` | Fatal error + atexit cleanup paths. |
+| `[TIMEOUT-UTILS]` | Worker-thread joins, deadline teardowns, interpreter-finalization inline work. |
 
 Filter live with:
 

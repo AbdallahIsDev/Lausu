@@ -14,8 +14,17 @@ LMSTUDIO_PROVIDER_ID = "lmstudio"
 LMSTUDIO_DEFAULT_BASE = "http://localhost:1234/v1"
 
 
-def list_models(base_url: str = LMSTUDIO_DEFAULT_BASE, *, opener: Any = None) -> list[ModelDescriptor]:
-    """Return the models LM Studio currently serves."""
+def list_models(
+    base_url: str = LMSTUDIO_DEFAULT_BASE,
+    *,
+    opener: Any = None,
+    timeout_s: float = 15.0,
+) -> list[ModelDescriptor]:
+    """Return the models LM Studio currently serves.
+
+    ``timeout_s`` is the caller's budget: a catalogue probe passes a short one so
+    an unreachable server cannot block an IPC read for the full 15 s.
+    """
     client = ListingChatClient(
         provider_id=LMSTUDIO_PROVIDER_ID,
         model_id="",
@@ -23,7 +32,7 @@ def list_models(base_url: str = LMSTUDIO_DEFAULT_BASE, *, opener: Any = None) ->
         opener=opener,
     )
     out: list[ModelDescriptor] = []
-    for model_id in client.list_models():
+    for model_id in client.list_models(timeout_s=timeout_s):
         out.append(
             ModelDescriptor(
                 id=model_id,

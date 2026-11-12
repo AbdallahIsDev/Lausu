@@ -27,12 +27,11 @@
 # containing "/"), or a TYPE name (`nemo-conformer-tdt` etc.) when a
 # local `path` is given. `path` points at a directory containing the
 # model files; when set, the resolver loads entirely from disk
-# (offline) and does NOT need `config.json` when a type name is
-# passed. `quantization` selects the variant files inside the repo via
-# a single-char glob (`encoder-model?fp16.onnx` matches
-# `encoder-model.fp16.onnx`); the grikdotnet fp16 export ships
-# `"fp16"` files, istupakov's base export ships no `"fp16"` variant
-# (use `None` there).
+# (offline) and requires config.json plus the exact
+# `encoder-model.<quant>.onnx` / `decoder_joint-model.<quant>.onnx`
+# filenames `_get_model_files` builds from `quantization` (glob with
+# the literal suffix, not a wildcard class). The Ultra int8 export
+# ships those exact files.
 #
 # All symbols are typed `Any` because the surrounding code is wrapped
 # in `try/except ImportError` and we do not need pyrefly to verify the

@@ -39,6 +39,7 @@ const _RENDERER_CALLED_COMMANDS = {
 	get_config: true,
 	get_microphones: true,
 	get_plugins: true,
+	set_plugin_setting: true,
 	toggle_dictation: true,
 	get_history: true,
 	delete_history: true,
@@ -179,8 +180,10 @@ const _SERVER_REGISTRY_MINUS_PYTHON_ONLY = {
 	get_history_count: true,
 	get_transcription_text: true,
 	get_microphones: true,
-	// Plugins page: installed-plugin discovery (read-only).
+	// Plugins page: installed-plugin discovery (read-only) + one
+	// manifest-validated setting write.
 	get_plugins: true,
+	set_plugin_setting: true,
 	get_volume_backend_status: true,
 	get_model_status: true,
 	get_vocabulary: true,
@@ -260,6 +263,17 @@ const _SERVER_REGISTRY_MINUS_PYTHON_ONLY = {
 	tts_prepare: true,
 	tts_speak: true,
 	tts_stop: true,
+	// Push-to-talk voice conversation (Chat page).
+	chat_listen_start: true,
+	chat_listen_stop: true,
+	chat_state: true,
+	chat_reset: true,
+	// GPU switch + CUDA install flow (2026-11-09): capability snapshot,
+	// single-flight install job, cancel, activation-failure acknowledgement.
+	get_gpu_capability: true,
+	start_cuda_download: true,
+	cancel_cuda_download: true,
+	ack_cuda_activation: true,
 	heartbeat: true,
 	relaunch_ack: true,
 	// NOTE: ``tray_click`` and ``shutdown`` are intentionally

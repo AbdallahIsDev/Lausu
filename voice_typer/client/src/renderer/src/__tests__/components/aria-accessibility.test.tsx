@@ -9,7 +9,6 @@ import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
 import { InfoTooltip } from "@/components/feedback/InfoTooltip";
 import { Spinner } from "@/components/feedback/Spinner";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import { Toaster } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -78,9 +77,9 @@ describe("XA-8-H1: EmptyState role", () => {
 // Test 2, ErrorBoundary renders localized strings
 // Mock the i18n surface so every t() call returns a stable marker that
 // encodes the key. ErrorBoundary's fallback UI uses several t() calls
-// (title / description / copyError / openLogs / resetSettings / tryAgain
-// / reloadApp), asserting each marker appears proves every string flows
-// through t() rather than being a hard-coded English literal.
+// (title / description / copyError / tryAgain / reloadApp), asserting each
+// marker appears proves every string flows through t() rather than being a
+// hard-coded English literal.
 const ERROR_BOUNDARY_MARKER = "T(errorBoundary.title)";
 vi.mock("@/i18n/i18n", () => ({
 	t: (key: string) => `T(${key})`,
@@ -118,7 +117,7 @@ describe("XA-8-M2: ErrorBoundary renders localized strings", () => {
 		expect(screen.getByText(ERROR_BOUNDARY_MARKER)).toBeInTheDocument();
 	});
 
-	it("renders the localized button labels (Copy error / Open logs / Reset settings)", () => {
+	it("renders the localized Copy error button label", () => {
 		shouldThrow = true;
 		render(
 			<ErrorBoundary>
@@ -127,12 +126,6 @@ describe("XA-8-M2: ErrorBoundary renders localized strings", () => {
 		);
 		expect(
 			screen.getByRole("button", { name: "T(errorBoundary.copyError)" }),
-		).toBeInTheDocument();
-		expect(
-			screen.getByRole("button", { name: "T(errorBoundary.openLogs)" }),
-		).toBeInTheDocument();
-		expect(
-			screen.getByRole("button", { name: "T(errorBoundary.resetSettings)" }),
 		).toBeInTheDocument();
 	});
 
@@ -233,18 +226,8 @@ describe("XA-8-M6: sonner Toaster localized aria-labels", () => {
 	});
 });
 
-// Test 5, Slider / Switch / Button dev-mode a11y warn
-describe("XA-8-L1/L2/L3: Slider / Switch / Button dev-mode a11y warn", () => {
-	it("Slider warns when aria-label / aria-labelledby / thumbLabels are all absent", () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-		render(<Slider defaultValue={[50]} />);
-		const sliderWarns = warn.mock.calls.filter((c) =>
-			String(c[0]).includes("[renderer:Slider]"),
-		);
-		expect(sliderWarns).toHaveLength(1);
-		warn.mockRestore();
-	});
-
+// Test 5, Switch / Button dev-mode a11y warn
+describe("XA-8-L1/L2/L3: Switch / Button dev-mode a11y warn", () => {
 	it("Switch warns when no aria-label / aria-labelledby is provided", () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		render(<Switch />);

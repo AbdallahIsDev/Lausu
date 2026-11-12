@@ -11,7 +11,7 @@ import pytest
 
 _REPO_TINY = "Systran/faster-whisper-tiny"
 _REPO_TURBO = "dropbox-dash/faster-whisper-large-v3-turbo"
-_REPO_PARKEET = "grikdotnet/parakeet-tdt-0.6b-fp16"
+_REPO_PARKEET = "Masterx/parakeet-tdt-0.6b-ultra-onnx"
 
 
 def _hf_cache_dir_name(repo_id: str) -> str:

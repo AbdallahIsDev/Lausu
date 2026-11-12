@@ -370,7 +370,7 @@ class TestSnapshotCompletenessProbe:
         import voice_typer.server.transcription_download as td
         from voice_typer.server.config import _config_dir
 
-        repo_dir = _config_dir() / "huggingface" / "hub" / "models--grikdotnet--parakeet-tdt-0.6b-fp16"
+        repo_dir = _config_dir() / "huggingface" / "hub" / "models--Masterx--parakeet-tdt-0.6b-ultra-onnx"
         repo_dir.mkdir(parents=True)
 
         captured: list = []
@@ -380,5 +380,10 @@ class TestSnapshotCompletenessProbe:
             return "/cache/path"
 
         monkeypatch.setattr("huggingface_hub.snapshot_download", fake_snapshot)
-        assert td.is_model_snapshot_complete("grikdotnet/parakeet-tdt-0.6b-fp16") is True
-        assert "*.onnx" in str(captured[0]["allow_patterns"])
+        assert td.is_model_snapshot_complete("Masterx/parakeet-tdt-0.6b-ultra-onnx") is True
+        assert set(captured[0]["allow_patterns"]) == {
+            "encoder-model.int8.onnx",
+            "decoder_joint-model.int8.onnx",
+            "config.json",
+            "vocab.txt",
+        }

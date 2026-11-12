@@ -8,13 +8,16 @@
 import { PlayIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { Skeleton } from "skullet/react";
 import { RangeSlider } from "@/components/common/RangeSlider";
 import { SettingsSection } from "@/components/common/SettingsSection";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { HotkeyPicker } from "@/components/hotkey/HotkeyPicker";
 import {
 	getComboPresets,
 	getSingleKeyPresets,
 } from "@/components/hotkey/hotkey-utils";
+import { SAMPLE_CONFIG } from "@/components/skullet/sampleConfig";
 import { Button } from "@/components/ui/button";
 import { NumberInputStepper } from "@/components/ui/number-input-stepper";
 import {
@@ -35,7 +38,6 @@ import {
 	setSoundFeedbackEnabled,
 	setSoundVolume,
 } from "@/lib/sound-manager";
-import { SettingsSkeleton } from "./SettingsSkeleton";
 import { anyRowVisible, GatedSettingRow } from "./settingsRowGating";
 
 import type { SettingsSectionSharedProps } from "./types";
@@ -165,12 +167,6 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 	const handleAutoPasteChange = (checked: boolean) =>
 		updateConfig({ paste_on_stop: checked });
 
-	const handleUnsafePasteChange = (checked: boolean) =>
-		updateConfig({ unsafe_paste_on_unknown_focus: checked });
-
-	const handleWarnElevatedPasteChange = (checked: boolean) =>
-		updateConfig({ warn_elevated_paste: checked });
-
 	const handleWarnPasswordPasteChange = (checked: boolean) =>
 		updateConfig({ warn_password_paste: checked });
 
@@ -227,8 +223,6 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 
 	const t = useT();
 
-	if (!config) return <SettingsSkeleton rows={3} />;
-
 	// IMPL-C: resolve translated labels/info/aria once per render.
 	const dictationKeyLabel = t("settings.hotkeySection.dictationKey");
 	const dictationKeyInfoSearch = t(
@@ -257,14 +251,6 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 	const soundVolumeInfoSearch = t("settings.hotkeySection.soundVolumeInfo");
 	const testStartSoundLabel = t("settings.hotkeySection.testStartSound");
 	const testStopSoundLabel = t("settings.hotkeySection.testStopSound");
-	const unsafePasteLabel = t("settings.hotkeySection.unsafePaste");
-	const unsafePasteInfoSearch = t(
-		"settings.hotkeySection.unsafePasteInfoSearch",
-	);
-	const warnElevatedLabel = t("settings.hotkeySection.warnElevatedPaste");
-	const warnElevatedInfoSearch = t(
-		"settings.hotkeySection.warnElevatedPasteInfoSearch",
-	);
 	const warnPasswordLabel = t("settings.hotkeySection.warnPasswordPaste");
 	const warnPasswordInfoSearch = t(
 		"settings.hotkeySection.warnPasswordPasteInfoSearch",
@@ -280,7 +266,7 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 		"settings.hotkeySection.maxRecordingTimeInfoSearch",
 	);
 	const maxRecordingMinutes = Math.round(
-		config.max_recording_time_seconds / 60,
+		(config?.max_recording_time_seconds ?? 900) / 60,
 	);
 	const recordingModeOptions: ToggleGroupOption<"toggle" | "push_to_talk">[] =
 		RECORDING_MODE_OPTION_KEYS.map((opt) => ({
@@ -304,8 +290,6 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 		{ label: stopOnSilenceLabel, info: stopOnSilenceInfoSearch },
 		{ label: escToCancelLabel, info: escToCancelInfoSearch },
 		{ label: autoPasteLabel, info: autoPasteInfoSearch },
-		{ label: unsafePasteLabel, info: unsafePasteInfoSearch },
-		{ label: warnElevatedLabel, info: warnElevatedInfoSearch },
 		{ label: warnPasswordLabel, info: warnPasswordInfoSearch },
 		{ label: soundFeedbackLabel, info: soundFeedbackInfoSearch },
 		{ label: soundVolumeLabel, info: soundVolumeInfoSearch },
@@ -321,363 +305,332 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 	);
 
 	return (
-		<>
-			{/* ── SECTION: Recording ─────────────────────────────────── */}
-			{recordingVisible && (
-				<SettingsSection
-					title={recordingTitle}
-					description={t("settings.hotkeySection.recordingDescription")}
-				>
-					{/* ── Dropdowns ──────────────────────────────────────── */}
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={dictationKeyLabel}
-						info={t("settings.hotkeySection.dictationKeyInfo")}
-						searchInfo={dictationKeyInfoSearch}
-					>
-						<HotkeyPicker
-							value={config.hotkey}
-							onChange={handleDictationChange}
-							mode="single"
-							pushToTalk={config.recording_mode === "push_to_talk"}
-							presets={dictationKeyPresets}
-							occupiedHotkeys={
-								config.repaste_hotkey ? [config.repaste_hotkey] : undefined
-							}
-							aria-label={t("settings.hotkeySection.dictationKeyAria")}
-							onCaptureStart={handleHotkeyCaptureStart}
-							onCaptureEnd={handleHotkeyCaptureEnd}
-						/>
-					</GatedSettingRow>
-
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={recordingModeLabel}
-						//use the corrected tooltip text that
-						// names the visible ToggleGroup labels
-						// ("Tap to Record" / "Push to Talk") instead of
-						// the legacy "Toggle" wording that didn't match.
-						info={t("settings.hotkeySection.recordingModeInfoSearch")}
-					>
-						<ToggleGroup
-							options={recordingModeOptions}
-							value={config.recording_mode ?? "toggle"}
-							onChange={handleRecordingModeChange}
-							ariaLabel={t("settings.hotkeySection.recordingModeAria")}
-						/>
-					</GatedSettingRow>
-
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={stopOnSilenceLabel}
-						info={t("settings.hotkeySection.stopOnSilenceInfo")}
-						searchInfo={stopOnSilenceInfoSearch}
-					>
-						<Select
-							value={String(config.stop_on_silence_seconds ?? 60)}
-							onValueChange={handleStopOnSilenceChange}
+		<Skeleton
+			data={config}
+			sample={SAMPLE_CONFIG}
+			id="settings-recording"
+			label={skeletonLoadingLabel()}
+		>
+			{(cfg) => (
+				<>
+					{/* ── SECTION: Recording ─────────────────────────────────── */}
+					{recordingVisible && (
+						<SettingsSection
+							title={recordingTitle}
+							description={t("settings.hotkeySection.recordingDescription")}
 						>
-							<SelectTrigger
-								className="w-36"
-								aria-label={t("settings.hotkeySection.stopOnSilenceAria")}
+							{/* ── Keys & choices ───────────────────────── */}
+							<GatedSettingRow
+								isVisible={isVisible}
+								sectionTitle={recordingTitle}
+								label={dictationKeyLabel}
+								info={t("settings.hotkeySection.dictationKeyInfo")}
+								searchInfo={dictationKeyInfoSearch}
 							>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{autoStopOptions.map((opt) => (
-									<SelectItem key={opt.value} value={String(opt.value)}>
-										{opt.label}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</GatedSettingRow>
-
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={repasteKeyLabel}
-						info={t("settings.hotkeySection.repasteKeyInfo")}
-						searchInfo={repasteKeyInfoSearch}
-					>
-						<HotkeyPicker
-							value={config.repaste_hotkey ?? "<ctrl>+<alt>+v"}
-							onChange={handleRepasteChange}
-							mode="combo"
-							presets={repasteKeyPresets}
-							occupiedHotkeys={config.hotkey ? [config.hotkey] : undefined}
-							aria-label={t("settings.hotkeySection.repasteKeyAria")}
-							onCaptureStart={handleHotkeyCaptureStart}
-							onCaptureEnd={handleHotkeyCaptureEnd}
-						/>
-					</GatedSettingRow>
-
-					{/* ── Switches ───────────────────────────────────────── */}
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={escToCancelLabel}
-						info={t("settings.hotkeySection.escToCancelInfo")}
-					>
-						<Switch
-							checked={config.esc_cancel_enabled ?? false}
-							onCheckedChange={handleEscCancelChange}
-							aria-label={t("settings.hotkeySection.escToCancelAria")}
-						/>
-					</GatedSettingRow>
-
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={autoPasteLabel}
-						info={t("settings.hotkeySection.autoPasteInfo")}
-					>
-						<Switch
-							checked={config.paste_on_stop}
-							onCheckedChange={handleAutoPasteChange}
-							aria-label={t("settings.hotkeySection.autoPasteAria")}
-						/>
-					</GatedSettingRow>
-
-					{/*Paste-safety rows (previously config.json-only
-                                            fields, now user-tunable). unsafe_paste_on_unknown_focus is
-                                            an escape hatch (paste into unidentified windows); the two
-                                            warn_* toggles gate the confirmation dialogs for elevated
-                                            (admin) windows and password fields. */}
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={unsafePasteLabel}
-						info={t("settings.hotkeySection.unsafePasteInfoSearch")}
-					>
-						<Switch
-							checked={config.unsafe_paste_on_unknown_focus ?? false}
-							onCheckedChange={handleUnsafePasteChange}
-							aria-label={t("settings.hotkeySection.unsafePasteAria")}
-							data-testid="unsafe-paste-switch"
-						/>
-					</GatedSettingRow>
-
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={warnElevatedLabel}
-						info={t("settings.hotkeySection.warnElevatedPasteInfoSearch")}
-					>
-						<Switch
-							checked={config.warn_elevated_paste ?? true}
-							onCheckedChange={handleWarnElevatedPasteChange}
-							aria-label={t("settings.hotkeySection.warnElevatedPasteAria")}
-							data-testid="warn-elevated-paste-switch"
-						/>
-					</GatedSettingRow>
-
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={warnPasswordLabel}
-						info={t("settings.hotkeySection.warnPasswordPasteInfoSearch")}
-					>
-						<Switch
-							checked={config.warn_password_paste ?? true}
-							onCheckedChange={handleWarnPasswordPasteChange}
-							aria-label={t("settings.hotkeySection.warnPasswordPasteAria")}
-							data-testid="warn-password-paste-switch"
-						/>
-					</GatedSettingRow>
-
-					{/*Audio cue on record start/stop for accessibility
-                                        and confirmation.  Especially useful for blind users who
-                                        can't see the visual indicator change. */}
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={soundFeedbackLabel}
-						info={t("settings.hotkeySection.soundFeedbackInfo")}
-						searchInfo={soundFeedbackInfoSearch}
-					>
-						<Switch
-							checked={config.sound_feedback_enabled ?? true}
-							onCheckedChange={handleSoundFeedbackChange}
-							aria-label={t("settings.hotkeySection.soundFeedbackAria")}
-						/>
-					</GatedSettingRow>
-
-					{/*Volume multiplier for the cues above + a one-click
-                                            preview. Both rows are disabled while sound feedback is off —
-                                            the cues (and the preview) are no-ops then anyway. */}
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={soundVolumeLabel}
-						info={t("settings.hotkeySection.soundVolumeInfoSearch")}
-						searchInfo={soundVolumeInfoSearch}
-					>
-						<RangeSlider
-							value={Math.round((config.sound_volume ?? 1) * 100)}
-							min={0}
-							max={100}
-							step={5}
-							onChange={handleSoundVolumeChange}
-							ariaLabel={t("settings.hotkeySection.soundVolumeAria")}
-							disabled={!(config.sound_feedback_enabled ?? true)}
-							suffix="%"
-						/>
-					</GatedSettingRow>
-
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={testStartSoundLabel}
-						info={t("settings.hotkeySection.soundVolumeInfoSearch")}
-						searchInfo={soundVolumeInfoSearch}
-					>
-						<Button
-							variant="outline"
-							size="sm"
-							className="gap-2"
-							onClick={handleTestStartSound}
-							disabled={!(config.sound_feedback_enabled ?? true)}
-							aria-label={t("settings.hotkeySection.testStartSoundAria")}
-							data-testid="test-start-sound-button"
-						>
-							<HugeiconsIcon
-								icon={PlayIcon}
-								strokeWidth={2}
-								className="h-4 w-4"
-							/>
-							{testStartSoundLabel}
-						</Button>
-					</GatedSettingRow>
-
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={testStopSoundLabel}
-						info={t("settings.hotkeySection.soundVolumeInfoSearch")}
-						searchInfo={soundVolumeInfoSearch}
-					>
-						<Button
-							variant="outline"
-							size="sm"
-							className="gap-2"
-							onClick={handleTestStopSound}
-							disabled={!(config.sound_feedback_enabled ?? true)}
-							aria-label={t("settings.hotkeySection.testStopSoundAria")}
-							data-testid="test-stop-sound-button"
-						>
-							<HugeiconsIcon
-								icon={PlayIcon}
-								strokeWidth={2}
-								className="h-4 w-4"
-							/>
-							{testStopSoundLabel}
-						</Button>
-					</GatedSettingRow>
-
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={silenceWarningLabel}
-						info={t("settings.hotkeySection.silenceWarningInfo")}
-					>
-						<div className="flex flex-col items-end gap-1">
-							<div className="flex items-center gap-2">
-								<NumberInputStepper
-									min={3}
-									max={30}
-									step={1}
-									value={String(config.silence_warning_seconds)}
-									onChange={handleSilenceWarningChange}
-									// surface parse / range errors via inline
-									// message + helper text. The NumberInputStepper
-									// still sets aria-invalid internally for SR + visual.
-									onInvalid={setSilenceInvalidReason}
-									className="w-20 text-center"
-									aria-label={t("settings.hotkeySection.silenceWarningAria")}
+								<HotkeyPicker
+									value={cfg.hotkey}
+									onChange={handleDictationChange}
+									mode="single"
+									pushToTalk={cfg.recording_mode === "push_to_talk"}
+									presets={dictationKeyPresets}
+									occupiedHotkeys={
+										cfg.repaste_hotkey ? [cfg.repaste_hotkey] : undefined
+									}
+									aria-label={t("settings.hotkeySection.dictationKeyAria")}
+									onCaptureStart={handleHotkeyCaptureStart}
+									onCaptureEnd={handleHotkeyCaptureEnd}
 								/>
-								<span className="text-sm text-muted-foreground">
-									{t("settings.hotkeySection.secondsSuffix")}
-								</span>
-							</div>
-							{/* Helper text: valid range. Always shown so the user
+							</GatedSettingRow>
+							<GatedSettingRow
+								isVisible={isVisible}
+								sectionTitle={recordingTitle}
+								label={repasteKeyLabel}
+								info={t("settings.hotkeySection.repasteKeyInfo")}
+								searchInfo={repasteKeyInfoSearch}
+							>
+								<HotkeyPicker
+									value={cfg.repaste_hotkey ?? "<ctrl>+<alt>+v"}
+									onChange={handleRepasteChange}
+									mode="combo"
+									presets={repasteKeyPresets}
+									occupiedHotkeys={cfg.hotkey ? [cfg.hotkey] : undefined}
+									aria-label={t("settings.hotkeySection.repasteKeyAria")}
+									onCaptureStart={handleHotkeyCaptureStart}
+									onCaptureEnd={handleHotkeyCaptureEnd}
+								/>
+							</GatedSettingRow>
+							<GatedSettingRow
+								isVisible={isVisible}
+								sectionTitle={recordingTitle}
+								label={recordingModeLabel}
+								//use the corrected tooltip text that
+								// names the visible ToggleGroup labels
+								// ("Tap to Record" / "Push to Talk") instead of
+								// the legacy "Toggle" wording that didn't match.
+								info={t("settings.hotkeySection.recordingModeInfoSearch")}
+							>
+								<ToggleGroup
+									options={recordingModeOptions}
+									value={cfg.recording_mode ?? "toggle"}
+									onChange={handleRecordingModeChange}
+									ariaLabel={t("settings.hotkeySection.recordingModeAria")}
+								/>
+							</GatedSettingRow>
+							<GatedSettingRow
+								isVisible={isVisible}
+								sectionTitle={recordingTitle}
+								label={stopOnSilenceLabel}
+								info={t("settings.hotkeySection.stopOnSilenceInfo")}
+								searchInfo={stopOnSilenceInfoSearch}
+							>
+								<Select
+									value={String(cfg.stop_on_silence_seconds ?? 60)}
+									onValueChange={handleStopOnSilenceChange}
+								>
+									<SelectTrigger
+										className="w-36"
+										aria-label={t("settings.hotkeySection.stopOnSilenceAria")}
+									>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{autoStopOptions.map((opt) => (
+											<SelectItem key={opt.value} value={String(opt.value)}>
+												{opt.label}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</GatedSettingRow>
+
+							{/* ── Switches ─────────────────────────────────────── */}
+							<GatedSettingRow
+								isVisible={isVisible}
+								sectionTitle={recordingTitle}
+								label={escToCancelLabel}
+								info={t("settings.hotkeySection.escToCancelInfo")}
+							>
+								<Switch
+									checked={cfg.esc_cancel_enabled ?? false}
+									onCheckedChange={handleEscCancelChange}
+									aria-label={t("settings.hotkeySection.escToCancelAria")}
+								/>
+							</GatedSettingRow>
+							<GatedSettingRow
+								isVisible={isVisible}
+								sectionTitle={recordingTitle}
+								label={autoPasteLabel}
+								info={t("settings.hotkeySection.autoPasteInfo")}
+							>
+								<Switch
+									checked={cfg.paste_on_stop}
+									onCheckedChange={handleAutoPasteChange}
+									aria-label={t("settings.hotkeySection.autoPasteAria")}
+								/>
+							</GatedSettingRow>
+							{/* Password-field confirmation gate. */}
+							<GatedSettingRow
+								isVisible={isVisible}
+								sectionTitle={recordingTitle}
+								label={warnPasswordLabel}
+								info={t("settings.hotkeySection.warnPasswordPasteInfoSearch")}
+							>
+								<Switch
+									checked={cfg.warn_password_paste ?? true}
+									onCheckedChange={handleWarnPasswordPasteChange}
+									aria-label={t("settings.hotkeySection.warnPasswordPasteAria")}
+									data-testid="warn-password-paste-switch"
+								/>
+							</GatedSettingRow>
+							{/* Audio cue on record start/stop (accessibility +
+					    confirmation). */}
+							<GatedSettingRow
+								isVisible={isVisible}
+								sectionTitle={recordingTitle}
+								label={soundFeedbackLabel}
+								info={t("settings.hotkeySection.soundFeedbackInfo")}
+								searchInfo={soundFeedbackInfoSearch}
+							>
+								<Switch
+									checked={cfg.sound_feedback_enabled ?? true}
+									onCheckedChange={handleSoundFeedbackChange}
+									aria-label={t("settings.hotkeySection.soundFeedbackAria")}
+								/>
+							</GatedSettingRow>
+
+							{/* ── Sound volume & preview ──────────────────────────── */}
+							<GatedSettingRow
+								isVisible={isVisible}
+								sectionTitle={recordingTitle}
+								label={soundVolumeLabel}
+								info={t("settings.hotkeySection.soundVolumeInfoSearch")}
+								searchInfo={soundVolumeInfoSearch}
+							>
+								<RangeSlider
+									value={Math.round((cfg.sound_volume ?? 1) * 100)}
+									min={0}
+									max={100}
+									step={5}
+									onChange={handleSoundVolumeChange}
+									ariaLabel={t("settings.hotkeySection.soundVolumeAria")}
+									disabled={!(cfg.sound_feedback_enabled ?? true)}
+									suffix="%"
+								/>
+							</GatedSettingRow>
+							<GatedSettingRow
+								isVisible={isVisible}
+								sectionTitle={recordingTitle}
+								label={testStartSoundLabel}
+								info={t("settings.hotkeySection.soundVolumeInfoSearch")}
+								searchInfo={soundVolumeInfoSearch}
+							>
+								<Button
+									variant="outline"
+									size="sm"
+									className="gap-2"
+									onClick={handleTestStartSound}
+									disabled={!(cfg.sound_feedback_enabled ?? true)}
+									aria-label={t("settings.hotkeySection.testStartSoundAria")}
+									data-testid="test-start-sound-button"
+								>
+									<HugeiconsIcon
+										icon={PlayIcon}
+										strokeWidth={2}
+										className="h-4 w-4"
+									/>
+									{testStartSoundLabel}
+								</Button>
+							</GatedSettingRow>
+							<GatedSettingRow
+								isVisible={isVisible}
+								sectionTitle={recordingTitle}
+								label={testStopSoundLabel}
+								info={t("settings.hotkeySection.soundVolumeInfoSearch")}
+								searchInfo={soundVolumeInfoSearch}
+							>
+								<Button
+									variant="outline"
+									size="sm"
+									className="gap-2"
+									onClick={handleTestStopSound}
+									disabled={!(cfg.sound_feedback_enabled ?? true)}
+									aria-label={t("settings.hotkeySection.testStopSoundAria")}
+									data-testid="test-stop-sound-button"
+								>
+									<HugeiconsIcon
+										icon={PlayIcon}
+										strokeWidth={2}
+										className="h-4 w-4"
+									/>
+									{testStopSoundLabel}
+								</Button>
+							</GatedSettingRow>
+
+							{/* ── Recording limits ────────────────────────────── */}
+							<GatedSettingRow
+								isVisible={isVisible}
+								sectionTitle={recordingTitle}
+								label={silenceWarningLabel}
+								info={t("settings.hotkeySection.silenceWarningInfo")}
+							>
+								<div className="flex flex-col items-end gap-1">
+									<div className="flex items-center gap-2">
+										<NumberInputStepper
+											min={3}
+											max={30}
+											step={1}
+											value={String(cfg.silence_warning_seconds)}
+											onChange={handleSilenceWarningChange}
+											// surface parse / range errors via inline
+											// message + helper text. The NumberInputStepper
+											// still sets aria-invalid internally for SR + visual.
+											onInvalid={setSilenceInvalidReason}
+											className="w-20 text-center"
+											aria-label={t(
+												"settings.hotkeySection.silenceWarningAria",
+											)}
+										/>
+										<span className="text-sm text-muted-foreground">
+											{t("settings.hotkeySection.secondsSuffix")}
+										</span>
+									</div>
+									{/* Helper text: valid range. Always shown so the user
                                                                 knows the bounds before they type. */}
-							{/*i18n the range hint + inline parse/range errors
+									{/*i18n the range hint + inline parse/range errors
                                                                 (previously hardcoded English literals). */}
-							<span className="text-xs text-muted-foreground">
-								{t("settings.hotkeySection.rangeHintSeconds", {
-									min: "3",
-									max: "30",
-								})}
-							</span>
-							{silenceInvalidReason && (
-								<span role="alert" className="text-xs text-destructive">
-									{silenceInvalidReason === "parse"
-										? t("settings.hotkeySection.parseError")
-										: t("settings.hotkeySection.rangeErrorSeconds", {
-												min: "3",
-												max: "30",
-											})}
-								</span>
-							)}
-						</div>
-					</GatedSettingRow>
-
-					<GatedSettingRow
-						isVisible={isVisible}
-						sectionTitle={recordingTitle}
-						label={maxRecordingTimeLabel}
-						info={t("settings.hotkeySection.maxRecordingTimeInfo")}
-						searchInfo={maxRecordingTimeInfoSearch}
-					>
-						<div className="flex flex-col items-end gap-1">
-							<div className="flex items-center gap-2">
-								<NumberInputStepper
-									min={5}
-									max={60}
-									step={1}
-									value={String(maxRecordingMinutes)}
-									onChange={handleMaxRecordingTimeChange}
-									// surface parse / range errors via inline
-									// message + helper text.
-									onInvalid={setMaxRecordingInvalidReason}
-									className="w-20 text-center"
-									aria-label={t("settings.hotkeySection.maxRecordingTimeAria")}
-								/>
-								<span className="text-sm text-muted-foreground">
-									{t("settings.hotkeySection.minutesSuffix")}
-								</span>
-							</div>
-							{/*i18n the range hint + inline parse/range errors
+									<span className="text-xs text-muted-foreground">
+										{t("settings.hotkeySection.rangeHintSeconds", {
+											min: "3",
+											max: "30",
+										})}
+									</span>
+									{silenceInvalidReason && (
+										<span role="alert" className="text-xs text-destructive">
+											{silenceInvalidReason === "parse"
+												? t("settings.hotkeySection.parseError")
+												: t("settings.hotkeySection.rangeErrorSeconds", {
+														min: "3",
+														max: "30",
+													})}
+										</span>
+									)}
+								</div>
+							</GatedSettingRow>
+							<GatedSettingRow
+								isVisible={isVisible}
+								sectionTitle={recordingTitle}
+								label={maxRecordingTimeLabel}
+								info={t("settings.hotkeySection.maxRecordingTimeInfo")}
+								searchInfo={maxRecordingTimeInfoSearch}
+							>
+								<div className="flex flex-col items-end gap-1">
+									<div className="flex items-center gap-2">
+										<NumberInputStepper
+											min={5}
+											max={60}
+											step={1}
+											value={String(maxRecordingMinutes)}
+											onChange={handleMaxRecordingTimeChange}
+											// surface parse / range errors via inline
+											// message + helper text.
+											onInvalid={setMaxRecordingInvalidReason}
+											className="w-20 text-center"
+											aria-label={t(
+												"settings.hotkeySection.maxRecordingTimeAria",
+											)}
+										/>
+										<span className="text-sm text-muted-foreground">
+											{t("settings.hotkeySection.minutesSuffix")}
+										</span>
+									</div>
+									{/*i18n the range hint + inline parse/range errors
                                                                 (previously hardcoded English literals). */}
-							<span className="text-xs text-muted-foreground">
-								{t("settings.hotkeySection.rangeHintMinutes", {
-									min: "5",
-									max: "60",
-								})}
-							</span>
-							{maxRecordingInvalidReason && (
-								<span role="alert" className="text-xs text-destructive">
-									{maxRecordingInvalidReason === "parse"
-										? t("settings.hotkeySection.parseError")
-										: t("settings.hotkeySection.rangeErrorMinutes", {
-												min: "5",
-												max: "60",
-											})}
-								</span>
-							)}
-						</div>
-					</GatedSettingRow>
-
-					{/*dead_air_timeout setting REMOVED. It was redundant with
+									<span className="text-xs text-muted-foreground">
+										{t("settings.hotkeySection.rangeHintMinutes", {
+											min: "5",
+											max: "60",
+										})}
+									</span>
+									{maxRecordingInvalidReason && (
+										<span role="alert" className="text-xs text-destructive">
+											{maxRecordingInvalidReason === "parse"
+												? t("settings.hotkeySection.parseError")
+												: t("settings.hotkeySection.rangeErrorMinutes", {
+														min: "5",
+														max: "60",
+													})}
+										</span>
+									)}
+								</div>
+							</GatedSettingRow>
+							{/*dead_air_timeout setting REMOVED. It was redundant with
                                             stop_on_silence_seconds, auto-stop already resets on every speech
                                             detection, so "silence after speech" needs no separate control.
                                             Do NOT re-add this setting. */}
-				</SettingsSection>
+						</SettingsSection>
+					)}
+				</>
 			)}
-		</>
+		</Skeleton>
 	);
 });

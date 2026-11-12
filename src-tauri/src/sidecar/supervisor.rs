@@ -66,9 +66,7 @@ pub(super) fn read_restart_counter() -> u32 {
             let now = now_unix_secs();
             if now < ts || now - ts > COUNTER_STALE_SECS {
                 log::info!(
-                    "[SUPERVISOR] restart counter stale (ts={}, now={}, age={}s > {}s): resetting to 0",
-                    ts,
-                    now,
+                    "[SUPERVISOR] restart counter stale (age={}s > {}s): resetting to 0",
                     now.saturating_sub(ts),
                     COUNTER_STALE_SECS
                 );
@@ -103,11 +101,14 @@ pub(crate) fn write_restart_counter(count: u32) {
 /// Never call from supervisor exhaustion — that would defeat the breaker.
 /// Callers: `sidecar/lifecycle.rs::on_relaunch_app` (production + dev).
 pub(crate) fn clear_restart_counter_for_user_restart(_state: &Arc<SidecarState>) {
-    log::info!(
-        "[SUPERVISOR] user-initiated restart requested: clearing persisted restart counter \
-         (was {}) so the next respawn gets a fresh attempt budget",
-        read_restart_counter()
-    );
+    let was = read_restart_counter();
+    if was != 0 {
+        log::info!(
+            "[SUPERVISOR] user-initiated restart requested: clearing persisted restart counter \
+             (was {}) so the next respawn gets a fresh attempt budget",
+            was
+        );
+    }
     write_restart_counter(0);
 }
 
@@ -314,7 +315,7 @@ pub(crate) async fn respawn_inner(
             state.respawn_in_progress.store(false, Ordering::SeqCst);
             return Ok(());
         }
-        log::warn!(
+        log::info!(
             "[SUPERVISOR] respawn attempt {} after {}ms",
             attempt + 1,
             delay_ms
@@ -360,8 +361,17 @@ pub(crate) async fn respawn_inner(
             let _ = old.kill_tree().await;
         }
 
-        // Fresh auth token per spawn.
-        let new_token = generate_token();
+        // Stable per-launch token: the runtime-pack worker was spawned
+        // once with this token and must keep authenticating new
+        // sidecars; a fresh token per spawn breaks the worker hop.
+        let new_token = match state.auth_token.get() {
+            Some(t) => t.clone(),
+            None => {
+                let generated = generate_token();
+                let _ = state.auth_token.set(generated.clone());
+                generated
+            }
+        };
         // shutting_down flag lets the stdout-read loop short-circuit mid-handshake.
         match spawn_sidecar_and_get_port_with_shutdown(app, &new_token, &state.shutting_down).await
         {

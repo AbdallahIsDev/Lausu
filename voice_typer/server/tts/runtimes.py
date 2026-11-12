@@ -81,7 +81,10 @@ def _latest_asset(release: RuntimeRelease) -> dict[str, object]:
 def _download(asset: dict[str, object], target: Path) -> Path:
     """Download ``asset`` to ``target``, verifying the publisher's byte count."""
     url = str(asset["browser_download_url"])
-    expected = int(asset["size"])
+    size_value = asset.get("size")
+    if not isinstance(size_value, int) or isinstance(size_value, bool):
+        raise TtsError(f"runtime asset {asset.get('name', '?')} has no usable size")
+    expected = size_value
     partial = target.with_suffix(target.suffix + ".partial")
     # The engine's bin directory may not exist yet on a fresh install.
     target.parent.mkdir(parents=True, exist_ok=True)

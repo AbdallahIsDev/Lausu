@@ -11,17 +11,30 @@ import { useCallback, useEffect, useState } from "react";
 import PageHeading from "@/components/common/PageHeading";
 import { SettingRow } from "@/components/common/SettingRow";
 import { EmptyState } from "@/components/feedback/EmptyState";
+import { MeasuredSkeleton } from "@/components/feedback/MeasuredSkeleton";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useT } from "@/i18n/i18n";
-import { settingValue } from "@/types/plugins";
+import {
+	type PluginInfo,
+	type PluginSettingSpec,
+	settingValue,
+} from "@/types/plugins";
 import { PluginSettingRow } from "./components/PluginSettingRow";
 import { usePlugins } from "./hooks/usePlugins";
+import { SAMPLE_PLUGIN_DETAIL } from "./lib/sample";
 import { usePluginSelection } from "./lib/usePluginSelection";
 
 export default function PluginDetail() {
 	const t = useT();
-	const { plugins, activePluginId, setActivePlugin } = usePlugins();
+	const {
+		plugins,
+		activePluginId,
+		setActivePlugin,
+		setPluginSetting,
+		loading,
+	} = usePlugins();
 	const selectedPluginId = usePluginSelection((s) => s.selectedPluginId);
 	const clearSelection = usePluginSelection((s) => s.clearSelection);
 	const plugin =
@@ -43,13 +56,20 @@ export default function PluginDetail() {
 
 	const goBack = useCallback(() => clearSelection(), [clearSelection]);
 
-	const handleSettingChange = useCallback((specKey: string, next: unknown) => {
-		setValues((prev) => ({ ...prev, [specKey]: next }));
-		// TODO: persistence needs a new `set_plugin_setting` IPC command,
-		// which does not exist yet. Until it does these edits are
-		// session-local and are deliberately NOT written to app config:
-		// plugin settings are not app-config fields.
-	}, []);
+	// Optimistic, but not fire-and-forget: the backend validates the value
+	// against the manifest and persists it beside the manifest, so a refusal
+	// reverts the control instead of showing a value nothing stored.
+	const handleSettingChange = useCallback(
+		(plugin: PluginInfo, spec: PluginSettingSpec, next: unknown) => {
+			const previous = plugin.values[spec.key] ?? spec.default;
+			setValues((prev) => ({ ...prev, [spec.key]: next }));
+			void setPluginSetting(plugin.id, spec.key, next).then((ok) => {
+				if (ok) return;
+				setValues((prev) => ({ ...prev, [spec.key]: previous }));
+			});
+		},
+		[setPluginSetting],
+	);
 
 	const backButton = (
 		<Button
@@ -67,8 +87,10 @@ export default function PluginDetail() {
 		</Button>
 	);
 
-	// Nothing selected: the page still offers the way back to the list.
-	if (!plugin) {
+	// Nothing selected (or unknown id once loaded): the page still
+	// offers the way back to the list. While still loading, the
+	// measured wrap below shows the skeleton instead of this.
+	if (!plugin && !loading) {
 		return (
 			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 				{backButton}
@@ -81,53 +103,63 @@ export default function PluginDetail() {
 		);
 	}
 
-	const isActive = activePluginId === plugin.id;
-
 	return (
 		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
 			{backButton}
-
-			<PageHeading title={plugin.name} description={plugin.description} />
-
-			<div className="flex flex-col gap-4">
-				<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle">
-					<SettingRow
-						label={t("plugins.activateLabel")}
-						info={t("plugins.activateDescription")}
-					>
-						<Switch
-							checked={isActive}
-							// ON points at this plugin; OFF writes "" which
-							// restores the built-in local model.
-							onCheckedChange={(checked) =>
-								setActivePlugin(checked ? plugin.id : "")
-							}
-							aria-label={t("plugins.activateAria")}
-							data-testid="plugin-activate-switch"
-						/>
-					</SettingRow>
-				</div>
-
-				{plugin.settings.length > 0 && (
-					<div className="flex flex-col gap-2">
-						<p className="px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-							{t("plugins.settingsSection")}
-						</p>
-						<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle">
-							<div className="divide-y divide-border/8">
-								{plugin.settings.map((spec) => (
-									<PluginSettingRow
-										key={spec.key}
-										spec={spec}
-										value={values[spec.key]}
-										onChange={(next) => handleSettingChange(spec.key, next)}
+			<MeasuredSkeleton
+				stackClassName="gap-4"
+				data={plugin ?? null}
+				sample={SAMPLE_PLUGIN_DETAIL}
+				id="plugin-detail"
+				label={skeletonLoadingLabel()}
+			>
+				{(p) => (
+					<>
+						<PageHeading title={p.name} description={p.description} />
+						<div className="flex flex-col gap-4">
+							<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle">
+								<SettingRow
+									label={t("plugins.activateLabel")}
+									info={t("plugins.activateDescription")}
+								>
+									<Switch
+										checked={activePluginId === p.id}
+										// ON points at this plugin; OFF writes "" which
+										// restores the built-in local model.
+										onCheckedChange={(checked) =>
+											setActivePlugin(checked ? p.id : "")
+										}
+										aria-label={t("plugins.activateAria")}
+										data-testid="plugin-activate-switch"
 									/>
-								))}
+								</SettingRow>
 							</div>
+
+							{p.settings.length > 0 && (
+								<div className="flex flex-col gap-2">
+									<p className="px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+										{t("plugins.settingsSection")}
+									</p>
+									<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle">
+										<div className="divide-y divide-border/8">
+											{p.settings.map((spec) => (
+												<PluginSettingRow
+													key={spec.key}
+													spec={spec}
+													value={values[spec.key] ?? settingValue(p, spec)}
+													onChange={(next) =>
+														handleSettingChange(p, spec, next)
+													}
+												/>
+											))}
+										</div>
+									</div>
+								</div>
+							)}
 						</div>
-					</div>
+					</>
 				)}
-			</div>
+			</MeasuredSkeleton>
 		</div>
 	);
 }

@@ -116,7 +116,7 @@ def check_model_sizes() -> dict[str, int]:
         "tiny.en": "Systran/faster-whisper-tiny.en",
         "small.en": "Systran/faster-whisper-small.en",
         "medium.en": "Systran/faster-whisper-medium.en",
-        "parakeet": "nvidia/parakeet-tdt-0.6b-v3",
+        "parakeet": "Masterx/parakeet-tdt-0.6b-ultra-onnx",
     }
 
     sizes: dict[str, int] = {}

@@ -109,13 +109,14 @@ describe("useSettingsSearch, auto-switch navigation", () => {
 		rerender({ query: "text polish", activeSection: "settingsGeneral" });
 		expect(nav).toHaveBeenCalledTimes(1);
 		const [page] = nav.mock.calls[0] ?? [];
-		expect(page).toBe("settingsAdvanced");
+		// Text Polish lives on the Text Enhancement page (settingsTranscription).
+		expect(page).toBe("settingsTranscription");
 
 		// The legacy "LLM Polish" alias routes to the same page.
 		rerender({ query: "llm polish", activeSection: "settingsGeneral" });
 		expect(nav).toHaveBeenCalledTimes(2);
 		const [aliasPage] = nav.mock.calls[1] ?? [];
-		expect(aliasPage).toBe("settingsAdvanced");
+		expect(aliasPage).toBe("settingsTranscription");
 	});
 
 	it("does NOT navigate when the query is shorter than 2 characters", () => {

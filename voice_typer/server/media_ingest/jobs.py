@@ -33,6 +33,7 @@ from typing import Any, Final
 
 from voice_typer.server.duration import format_duration
 from voice_typer.server.media_ingest.errors import MediaIngestError
+from voice_typer.server.media_ingest.lifecycle import JobPhase, JobStatus
 
 log = logging.getLogger(__name__)
 
@@ -50,9 +51,9 @@ class MediaJob:
 
     job_id: str
     source: str
-    status: str = "running"
+    status: JobStatus = JobStatus.RUNNING
     # Coarse stage the renderer shows before its first progress push.
-    phase: str = "starting"
+    phase: JobPhase = JobPhase.STARTING
     progress: float = 0.0
     # Renderer-generated correlation token, echoed on every event this job
     # publishes. It is what lets the renderer bind a push to the exact row
@@ -126,7 +127,7 @@ class MediaJobManager:
 
     def running_count(self) -> int:
         with self._lock:
-            return sum(1 for job in self._jobs.values() if job.status == "running")
+            return sum(1 for job in self._jobs.values() if job.status == JobStatus.RUNNING)
 
     def has_capacity(self) -> bool:
         return self.running_count() < self._max_jobs
@@ -150,7 +151,7 @@ class MediaJobManager:
         from voice_typer.server.media_ingest.errors import JOB_BUSY
 
         with self._lock:
-            running = sum(1 for job in self._jobs.values() if job.status == "running")
+            running = sum(1 for job in self._jobs.values() if job.status == JobStatus.RUNNING)
             if running >= self._max_jobs:
                 raise MediaIngestError(JOB_BUSY, f"{self._max_jobs} transcription jobs are already running")
             job = MediaJob(
@@ -170,8 +171,8 @@ class MediaJobManager:
             log.info("[MEDIA] job start: id=%s source=%s", job.job_id, job.source)
             try:
                 job.result = runner(job)
-                job.status = "cancelled" if job.cancel_event.is_set() else "completed"
-                job.phase = "done"
+                job.status = JobStatus.CANCELLED if job.cancel_event.is_set() else JobStatus.COMPLETED
+                job.phase = JobPhase.DONE
                 result = job.result or {}
                 # Two labelled fields, never a "-" placeholder: an unconditional
                 # reason= made every clean completion read as a cancellation.
@@ -189,8 +190,8 @@ class MediaJobManager:
                 # A taxonomy verdict is user input (this link is a playlist,
                 # that file is DRM), not a crash: one line, no traceback. The
                 # verdict itself carries the severity.
-                job.status = "failed"
-                job.phase = "error"
+                job.status = JobStatus.FAILED
+                job.phase = JobPhase.ERROR
                 job.error = str(exc)
                 verdict_code = str(exc.code)
                 job.error_code = verdict_code
@@ -206,8 +207,8 @@ class MediaJobManager:
                 )
                 self._publish_failure(job, verdict_code, details)
             except Exception as exc:  # noqa: BLE001, captured into job state
-                job.status = "failed"
-                job.phase = "error"
+                job.status = JobStatus.FAILED
+                job.phase = JobPhase.ERROR
                 job.error = str(exc)
                 code = getattr(exc, "code", None)
                 if code is None:
@@ -292,7 +293,7 @@ class MediaJobManager:
             targets = [
                 job
                 for job in self._jobs.values()
-                if job.status == "running" and (job_id is None or job.job_id == job_id)
+                if job.status == JobStatus.RUNNING and (job_id is None or job.job_id == job_id)
             ]
             for job in targets:
                 if reason:
@@ -303,7 +304,7 @@ class MediaJobManager:
     def snapshots(self) -> list[dict[str, Any]]:
         """Running-job snapshots in start order (finished jobs are not kept)."""
         with self._lock:
-            jobs = [job for job in self._jobs.values() if job.status == "running"]
+            jobs = [job for job in self._jobs.values() if job.status == JobStatus.RUNNING]
         return [
             {
                 "job_id": job.job_id,
@@ -322,7 +323,9 @@ class MediaJobManager:
     def export_path_in_use(self, export_path: str) -> bool:
         """True when a RUNNING job already writes to ``export_path``."""
         with self._lock:
-            return any(job.status == "running" and job.export_path == export_path for job in self._jobs.values())
+            return any(
+                job.status == JobStatus.RUNNING and job.export_path == export_path for job in self._jobs.values()
+            )
 
     def _publish_failure(self, job: MediaJob, code: str, details: dict[str, Any] | None) -> None:
         """Publish ``media_transcribe_error``; a dead subscriber cannot kill the job."""

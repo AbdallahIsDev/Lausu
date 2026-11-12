@@ -482,9 +482,14 @@ describe("Home keeps exactly ONE live region across pill / timer / dynamic line"
 		// count only regions that can actually announce: polite /
 		// assertive live regions plus the implicit-live status/alert
 		// roles.
-		const liveRegions = document.querySelectorAll(
-			'[aria-live="polite"], [aria-live="assertive"], [role="status"], [role="alert"]',
-		);
+		// Skeleton ghosts render their sample content inside an `inert`
+		// `aria-hidden` subtree, so anything there is not announced and
+		// does not count as a live region.
+		const liveRegions = Array.from(
+			document.querySelectorAll(
+				'[aria-live="polite"], [aria-live="assertive"], [role="status"], [role="alert"]',
+			),
+		).filter((el) => el.closest('[inert], [aria-hidden="true"]') === null);
 		expect(liveRegions.length).toBe(1);
 		expect(liveRegions[0]?.getAttribute("aria-live")).toBe("polite");
 		expect(liveRegions[0]?.tagName).toBe("OUTPUT");

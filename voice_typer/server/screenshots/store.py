@@ -8,7 +8,6 @@ import logging
 import time
 from pathlib import Path
 
-from voice_typer.server.branding import APP_NAME
 from voice_typer.server.screenshots import paths as _paths
 
 log = logging.getLogger(__name__)
@@ -155,5 +154,5 @@ def prune_screenshots(*, base: Path | None = None, now: float | None = None) -> 
         with contextlib.suppress(OSError):
             if cycle.is_dir() and not any(cycle.iterdir()):
                 cycle.rmdir()
-    log.info("[%s] screenshot prune removed=%d", APP_NAME, removed)
+    log.info("[SCREENSHOT] screenshot prune removed=%d", removed)
     return {"removed": removed, "bytes": total}

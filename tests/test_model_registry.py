@@ -89,7 +89,7 @@ class TestGetModelMetadataReturnsCorrectFields:
 
     def test_display_name_sets_detailed_model_names(self):
         """The Models page shows a detailed name under the family header:"""
-        assert get_model_metadata("parakeet").display_name == "Parakeet-TDT-0.6b-V3"
+        assert get_model_metadata("parakeet").display_name == "Parakeet Ultra"
         assert get_model_metadata("qwen3-1.7b").display_name == "qwen3 1.7B"
         assert get_model_metadata("qwen3-0.6b").display_name == "qwen3 0.6B"
         for name in ("tiny", "large-v3", "large-v3-turbo"):
@@ -98,7 +98,7 @@ class TestGetModelMetadataReturnsCorrectFields:
     def test_to_dict_carries_display_name(self):
         """``to_dict()`` (the ``get_model_catalog`` IPC payload) includes"""
         d = get_model_metadata("parakeet").to_dict()
-        assert d["display_name"] == "Parakeet-TDT-0.6b-V3"
+        assert d["display_name"] == "Parakeet Ultra"
 
     def test_wer_is_published_benchmark_data_for_every_entry(self):
         """Real-world representative WER for every entry (lower is
@@ -107,7 +107,7 @@ class TestGetModelMetadataReturnsCorrectFields:
             "tiny": 12.3,
             "large-v3": 5.0,
             "large-v3-turbo": 5.5,
-            "parakeet": 6.34,
+            "parakeet": 5.8,
             "qwen3-1.7b": 5.76,
         }
         for name, wer in expected.items():
@@ -363,3 +363,43 @@ class TestRegistryRepoIdsMatchIntegrityManifest:
             assert revision and revision != "main", (
                 f"{name}: repo {meta.repo_id!r} must pin a commit revision, got {revision!r}"
             )
+
+
+class TestLanguageCapabilities:
+    """Auto stays offered for models that detect language without a hint.
+
+    Parakeet and Qwen take the audio alone and detect the spoken language
+    themselves, so Auto is valid for them even though they accept no
+    language hint. A hint-taking model that cannot detect must not claim
+    detection, otherwise Auto would silently become a hint.
+    """
+
+    _NO_HINT_DETECTORS = ("parakeet", "qwen3-1.7b", "qwen3-0.6b")
+
+    def test_no_hint_models_still_support_auto(self):
+        """The no-hint families detect the language themselves."""
+        for name in self._NO_HINT_DETECTORS:
+            meta = get_model_metadata(name)
+            assert meta is not None, f"{name} missing from registry"
+            assert meta.accepts_language_hint is False, f"{name}: expected no language hint"
+            assert meta.supports_language_detection is True, (
+                f"{name}: a no-hint model detects the language itself, so Auto must stay offered"
+            )
+
+    def test_whisper_takes_a_hint_and_detects(self):
+        """Whisper accepts a hint and detects when the hint is Auto."""
+        for name in _EXPECTED_WHISPER_VARIANTS:
+            meta = get_model_metadata(name)
+            assert meta is not None, f"{name} missing from registry"
+            assert meta.accepts_language_hint is True, f"{name}: Whisper takes a decode hint"
+            assert meta.supports_language_detection is True, (
+                f"{name}: Whisper detects when the hint is Auto"
+            )
+
+    def test_catalog_payload_carries_language_capabilities(self):
+        """``to_dict()`` transports the flags with the model catalog."""
+        meta = get_model_metadata("parakeet")
+        assert meta is not None
+        payload = meta.to_dict()
+        assert payload["accepts_language_hint"] is False
+        assert payload["supports_language_detection"] is True

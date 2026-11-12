@@ -4,14 +4,19 @@
 // (`check_offline_pack_update` on launch + on reconnect); the user
 // otherwise never learns a voice-pack update is downloading. This
 // hook is the ONLY transient pack surface (the Home hint line and the
-// Microphone preparing banner were removed): it surfaces every
-// non-ready state as ONE sticky toast (fixed sonner id, replaced in
-// place, never auto-dismissed):
-//   - downloading / verifying / verified / worker-starting / missing:
-//     info toast (live percent while downloading), Details action
-//     jumps to the About page (pack status + update outcome).
+// Microphone preparing banner were removed): it surfaces WORK and
+// PROBLEMS as ONE sticky toast (fixed sonner id, replaced in place,
+// never auto-dismissed):
+//   - downloading / verifying: info toast (live percent while
+//     downloading), Details action jumps to the About page.
 //   - outdated (stale pack refused at launch): warning toast, same
 //     Details action; a fresh download replaces it when it starts.
+//   - missing: a NON-persistent info line (the download toast takes
+//     over the moment a transfer starts).
+// Routine startup lifecycle is deliberately silent: `offline_pack_verified`
+// (background checksum pass) and `worker_started` (worker spawn) fire on
+// every launch of a healthy install, and a sticky "Preparing offline
+// engine…" for them made a normal start look broken.
 // Terminal states clear the sticky toast and show a normal toast:
 // ready → success, failed / corrupt / worker-crashed → error,
 // worker-unloaded (benign RAM unload) → plain info. The close button
@@ -119,29 +124,25 @@ export function usePackUpdateToast(
 		return undefined;
 	});
 
-	const showPreparing = (): void => {
+	// A missing pack is the only startup state worth a line: the download
+	// toast replaces this the moment a transfer starts. NOT persistent —
+	// when no download is allowed it must not sit on screen forever
+	// claiming to "prepare" something that is not happening.
+	usePythonEvent("offline_pack_missing", (): (() => void) | undefined => {
 		showSnack(t("pack.updateTitle"), "info", {
 			id: PACK_UPDATE_TOAST_ID,
 			description: t("pack.preparingOfflineEngine"),
-			persistent: true,
 			action: detailsAction,
 		});
-	};
-
-	usePythonEvent("offline_pack_missing", (): (() => void) | undefined => {
-		showPreparing();
 		return undefined;
 	});
 
-	usePythonEvent("offline_pack_verified", (): (() => void) | undefined => {
-		showPreparing();
-		return undefined;
-	});
-
-	usePythonEvent("worker_started", (): (() => void) | undefined => {
-		showPreparing();
-		return undefined;
-	});
+	// `offline_pack_verified` (background checksum pass) and `worker_started`
+	// (worker spawn) fire on EVERY launch of a healthy install. They used to
+	// raise a sticky "Preparing offline engine…" toast that never went away,
+	// which made a normal start look like something was wrong. They are
+	// background work and stay silent; a real download, a failure or an
+	// outdated pack still surface below.
 
 	usePythonEvent("worker_crashed", (): (() => void) | undefined => {
 		fail(t("pack.packStateWorkerCrashed"));

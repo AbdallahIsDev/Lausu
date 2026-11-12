@@ -62,6 +62,30 @@ def build_load_whisper_frame(model_size: str, device: str | None, language: str 
     )
 
 
+def build_load_parakeet_frame(device: str | None, language: str | None, request_id: int) -> str:
+    """Forward envelope for one worker-side parakeet model load."""
+    return json.dumps(
+        {
+            "cmd": "load_parakeet_model",
+            "id": int(request_id),
+            "data": {"device": device, "language": language},
+        }
+    )
+
+
+def build_load_qwen_frame(
+    model_path: str, device: str | None, language: str | None, request_id: int
+) -> str:
+    """Forward envelope for one worker-side qwen model load."""
+    return json.dumps(
+        {
+            "cmd": "load_qwen_model",
+            "id": int(request_id),
+            "data": {"model_path": model_path, "device": device, "language": language},
+        }
+    )
+
+
 def build_heartbeat_frame() -> str:
     """Liveness ping; the worker answers ``heartbeat_ack`` (plan §7.2)."""
     return json.dumps({"type": "heartbeat"})
@@ -177,6 +201,25 @@ def route_frame(frame: dict, publish: Any, on_result: Any = None) -> str:
         result = {
             "loaded": bool(payload.get("loaded")),
             "backend": str(payload.get("backend") or "whisper"),
+            "device_info": str(payload.get("device_info") or ""),
+            "error": str(error) if error is not None else None,
+        }
+        if on_result is not None:
+            request_id = frame.get("id")
+            if isinstance(request_id, int) and not isinstance(request_id, bool):
+                try:
+                    on_result(request_id, result)
+                except Exception:  # noqa: BLE001, a bad resolver must not drop the result
+                    log.debug("[WORKER] result resolver failed for id=%s", request_id, exc_info=True)
+        return "load_result"
+    if ftype in ("load_parakeet_model_result", "load_qwen_model_result"):
+        backend = "parakeet" if ftype == "load_parakeet_model_result" else "qwen"
+        raw = frame.get("data")
+        payload = raw if isinstance(raw, dict) else {}
+        error = payload.get("error")
+        result = {
+            "loaded": bool(payload.get("loaded")),
+            "backend": str(payload.get("backend") or backend),
             "device_info": str(payload.get("device_info") or ""),
             "error": str(error) if error is not None else None,
         }

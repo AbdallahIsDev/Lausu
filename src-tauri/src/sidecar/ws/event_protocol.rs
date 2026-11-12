@@ -98,6 +98,10 @@ pub(super) const ALLOWED_EVENT_TYPES: &[&str] = &[
     "provider_local_onnx_state",
     // Local TTS playback transitions (playing / stopped / finished).
     "tts_playback_state",
+    // Push-to-talk voice conversation turn (phase + user/assistant text).
+    "chat_turn",
+    // CUDA install job progress for the device-switch flow.
+    "cuda_progress",
     // Clipboard paste safety (paste keystroke dropped / deferred).
     "paste_deferred",
     // Pack + worker IPC events (runtime-pack split). Parity pinned by

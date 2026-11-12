@@ -763,18 +763,27 @@ function renderStatus(){
  return sec(`<h2>Status, pills & toasts</h2><p>Status tokens (<code>--success/-warning/-info/-destructive</code>) drive pill/ toast icon colours.
   Toast surface = <code>--surface</code>, description = <code>--muted-foreground</code>, action = solid primary, cancel = muted fill (index.css sonner block).
   Corners = the shared <code>rounded-lg</code> squircle — the class, not a bare <code>border-radius</code>, is what the corner-shape gate shapes.
-  Layout is stacked — <strong>title → description → action</strong>. The action never sits beside the copy; index.css overrides sonner's single flex row with a 2-column grid (icon · content) so the action lands on the content column's second row.</p>`,
+  Layout is stacked — <strong>title → description → action</strong>. The action never sits beside the copy; index.css overrides sonner's single flex row with a 2-column grid (icon · content) so the action lands on the content column's second row.
+  <strong>Sticky progress toast</strong>: one toast per long job, fixed id, replaced in place, <code>persistent: true</code> → <code>duration: Infinity</code> (never auto-dismissed), cleared only on a terminal outcome.
+  Its description is one <code>·</code>-joined line (status · artifact index/count · percent · bytes · speed · ETA) so it stays inside the 360px measure.</p>`,
  `<div class="stack"><div class="row">${pills}</div>
   <div class="row" style="align-items:flex-start;gap:12px">
    ${toast("success","✓","Model downloaded","fastest-mini.en was installed successfully.",
     `<span class="t-actions"><button type="button" class="t-btn">Open Models</button><button type="button" class="t-btn cancel">Dismiss</button></span>`)}
    ${toast("error","✕","Transcription failed","Cloud provider returned 401 — check your API key.","")}
    ${toast("info","ℹ","Update available","Version 2.4.0 is ready to install.","")}
+  </div>
+  <div class="row" style="align-items:flex-start;gap:12px">
+   ${toast("info","⏳","Setting up GPU support","Downloading · cublas · 2 of 5 · 15% · 238 MB of 1.6 GB · 12.5 MB/s · 1m 54s remaining",
+    `<span class="t-actions"><button type="button" class="t-btn cancel">Cancel</button></span>`)}
   </div></div>`);
 }
 function renderDialog(){
  return sec(`<h2>Dialog (ConfirmDialog)</h2><p>Surface = <code>--surface</code> + <code>border-border/8</code>, enters with scaleIn 160ms.
-  Cancel is tertiary: <code>text-muted-foreground</code> → hover foreground/5 + primary text. Confirm (destructive) is solid red + near-white label.</p>`,
+  Cancel is tertiary: <code>text-muted-foreground</code> → hover foreground/5 + primary text. Confirm (destructive) is solid red + near-white label.
+  <strong>GPU request dialog</strong> (<code>GpuRequestDialog.tsx</code>) reuses this shell with NO new tokens: footer <code>sm:justify-between</code>, explanatory link (ghost) at the start,
+  the decision pair <code>Stay on CPU</code> (ghost) + <code>Download</code> (default) at the end in a <code>gap-2</code> row. Plain <code>Dialog</code>, not <code>AlertDialog</code> —
+  refusing is non-destructive, so backdrop/Escape must dismiss exactly like the ghost button.</p>`,
  `<div class="dlg-demo"><div class="dlg" role="alertdialog" aria-label="Demo confirm dialog">
   <h3>Delete history?</h3>
   <p>This permanently removes all 128 transcriptions. This action cannot be undone.</p>

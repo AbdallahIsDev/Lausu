@@ -11,14 +11,13 @@
  *      action-progress indicators (e.g. the History "Load More" button)
  *     , page-content loading uses skeletons.
  *   2. The 5 first-load-only pages (History / Microphone / Templates /
- *      Vocabulary / Models) mount into a page-shaped Skeleton
- *      composition (``pages/<page>/components/*Skeleton.tsx``, built
- *      from the shared primitives in
- *      ``components/feedback/skeletons.tsx``): an
- *      ``<output aria-busy="true">`` region whose accessible name is
- *      the generic ``a11y.loading`` key (verified behaviorally by
- *      mounting each page in its first-load state, not by scanning
- *      source text).
+ *      Vocabulary / Models) mount into a measured Skullet skeleton:
+ *      the reveal carries ``aria-busy`` while the sample stands in
+ *      for data, ``label`` renders as the ``skullet-status`` text read
+ *      in place of the skeleton, and the sample itself lives in the
+ *      inert ``skullet-loading`` pane (aria-hidden, out of the tab
+ *      order). Verified behaviorally by mounting each page in its
+ *      first-load state, not by scanning source text.
  *   3. The ``X.loading`` i18n keys exist in ALL 8 locale files.
  *      ``history.loading`` labels the History load-more button; the
  *      remaining keys are retained in the catalogues (unused by pages
@@ -32,6 +31,7 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderWithProviders } from "@/__tests__/helpers/render";
 import ar from "@/i18n/translations/ar.json";
 import de from "@/i18n/translations/de.json";
 import en from "@/i18n/translations/en.json";
@@ -98,9 +98,8 @@ const LOADING_KEYS = [
 	"history.loading",
 ] as const;
 // `models.loading` was REMOVED from the catalogue, the Models page
-// renders a page-shaped ModelsSkeleton (no Spinner label), so the key
-// was dead surface (deleted across all 8 locales with the dead-key
-// cleanup).
+// renders a measured skeleton (no Spinner label), so the key was dead
+// surface (deleted across all 8 locales with the dead-key cleanup).
 
 // Resolve a dot-separated key path against a nested JSON object.
 // Returns true if the path exists.
@@ -163,14 +162,12 @@ describe("Spinner labeled variant", () => {
 	});
 });
 
-describe("first-load-only pages mount into a page-shaped Skeleton", () => {
+describe("first-load-only pages mount into a measured skeleton", () => {
 	// Each case dynamically imports the page so vi.mock registrations
 	// above apply, then mounts it in its FIRST-LOAD state: every data
 	// hook starts ``loading === true`` synchronously and the shared
-	// ``call`` mock below never resolves, so the page-shaped skeleton
-	// composition stays on screen for the assertion. The skeleton
-	// renders as an <output> region (implicit role "status") with
-	// aria-busy="true" and the localized a11y.loading accessible name.
+	// ``call`` mock below never resolves, so the measured skeleton
+	// stays on screen for the assertion.
 	const PAGE_CASES: Array<{
 		name: string;
 		load: () => Promise<{ default: React.ComponentType<object> }>;
@@ -210,22 +207,29 @@ describe("first-load-only pages mount into a page-shaped Skeleton", () => {
 	});
 
 	it.each(PAGE_CASES)(
-		"$name renders a first-load Skeleton region (aria-busy, a11y.loading name)",
+		"$name renders a busy measured skeleton with the loading label",
 		async ({ load }) => {
 			const mod = await load();
 			const Page = mod.default;
-			render(<Page />);
+			// The app root provides the tooltip context every page expects.
+			renderWithProviders(<Page />);
 
-			// The skeleton's accessible name is the generic loading
-			// message and it carries aria-busy, the single loading
-			// contract shared by every page composition.
-			const status = screen.getByRole("status", {
-				name: "[t]a11y.loading",
-			});
-			expect(status).toHaveAttribute("aria-busy", "true");
-			// A real skeleton shape is on screen (pulsing placeholder
-			// blocks), not a spinner glyph.
-			expect(document.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+			// The measured wrap IS the loading contract: the reveal is
+			// busy while the sample stands in for data, and `label` is
+			// rendered as the status text read in place of the skeleton.
+			const reveal = document.querySelector(
+				"[skullet-reveal][aria-busy='true']",
+			);
+			expect(reveal).not.toBeNull();
+			const label = reveal?.querySelector("[skullet-status]");
+			expect(label).not.toBeNull();
+			expect(label).toHaveTextContent("[t]a11y.loading");
+			// The sample is REAL page markup measured unseen, kept out of
+			// the accessibility tree and tab order while it stands in.
+			const pane = reveal?.querySelector("[skullet-loading]");
+			expect(pane).not.toBeNull();
+			expect(pane).toHaveAttribute("aria-hidden", "true");
+			expect((pane?.childElementCount ?? 0) > 1).toBe(true);
 		},
 	);
 });

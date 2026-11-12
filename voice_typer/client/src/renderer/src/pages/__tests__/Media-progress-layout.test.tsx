@@ -46,18 +46,20 @@ beforeEach(() => {
 describe("Media page progress layout", () => {
 	it("keeps only the percent above the bar, left/duration below it", async () => {
 		const { default: MediaPage } = await import("@/pages/Media");
-		const { container, getByPlaceholderText, getByRole, getByTestId } =
-			renderWithProviders(<MediaPage />);
+		const { container, getByPlaceholderText, getByRole } = renderWithProviders(
+			<MediaPage />,
+		);
 
 		fireEvent.change(getByPlaceholderText(/example\.com/), {
 			target: { value: "https://example.com/v" },
 		});
 		fireEvent.click(getByRole("button", { name: /transcribe/i }));
-
-		const bar = await waitFor(() => {
-			const el = container.querySelector('[role="progressbar"]');
-			if (!el) throw new Error("progressbar not rendered yet");
-			return el as HTMLElement;
+		// Let the start ack add the job row; the progress push below only
+		// reaches a row that already exists.
+		await waitFor(() => {
+			if (!container.querySelector('[role="progressbar"]')) {
+				throw new Error("job row not rendered yet");
+			}
 		});
 
 		act(() => {
@@ -70,15 +72,34 @@ describe("Media page progress layout", () => {
 			});
 		});
 
-		// Percent is the ONLY readout above the bar.
-		const percent = getByTestId("media-progress-percent");
+		// The row that received the progress event: its percent reads 12%
+		// (the skeleton sample has its own value), so this is the live row
+		// even while skullet still marks the reveal pane inert.
+		const percent = await waitFor(() => {
+			const el = Array.from(
+				container.querySelectorAll<HTMLElement>(
+					'[data-testid="media-progress-percent"]',
+				),
+			).find((node) => node.textContent === "12%");
+			if (!el) throw new Error("progress row not rendered yet");
+			return el;
+		});
+		// The row container is the nearest ancestor that also holds the bar.
+		let row = percent.parentElement;
+		while (row && !row.querySelector('[role="progressbar"]')) {
+			row = row.parentElement;
+		}
+		if (!row) throw new Error("progress row container not found");
+		const bar = row.querySelector<HTMLElement>('[role="progressbar"]');
+		if (!bar) throw new Error("progress bar not rendered");
+		const meta = row.querySelector<HTMLElement>(
+			'[data-testid="media-progress-meta"]',
+		);
+		if (!meta) throw new Error("progress meta not rendered");
 		expect(percent.textContent).toBe("12%");
 		expect(
 			percent.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy();
-
-		// Left + duration read below the bar.
-		const meta = getByTestId("media-progress-meta");
 		expect(meta.textContent).toMatch(/08:11 left/);
 		expect(meta.textContent).toContain("Duration");
 		expect(meta.textContent).toContain("17:03");

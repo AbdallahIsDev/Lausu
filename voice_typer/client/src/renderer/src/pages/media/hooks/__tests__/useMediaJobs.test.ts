@@ -627,4 +627,27 @@ describe("useMediaJobs", () => {
 		await result.current.cancelAll();
 		expect(callMock).toHaveBeenLastCalledWith("media_transcribe_cancel");
 	});
+
+	it("keeps the row phase when a push carries an unknown phase", async () => {
+		const { result } = renderHook(() => useMediaJobs());
+		await actStart(result, "a.mp3", "j1");
+
+		fire("media_transcribe_progress", {
+			job_id: "j1",
+			client_id: null,
+			progress: 0.4,
+			phase: "teleporting",
+		});
+		expect(result.current.jobs[0]?.phase).toBe("starting");
+		expect(result.current.jobs[0]?.progress).toBe(0.4);
+
+		fire("media_transcribe_progress", {
+			job_id: "j1",
+			client_id: null,
+			progress: 0.6,
+			phase: "transcribing",
+		});
+		expect(result.current.jobs[0]?.phase).toBe("transcribing");
+		expect(result.current.jobs[0]?.progress).toBe(0.6);
+	});
 });

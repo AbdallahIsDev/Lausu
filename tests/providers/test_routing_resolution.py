@@ -32,6 +32,7 @@ class Cfg:
     tts_model_id: str = ""
     tts_provider_consent: bool = False
     tts_provider_fallback: str = "off"
+    tts_api_url: str = ""
     llm_provider: str = ""
     llm_model_id: str = ""
     llm_provider_consent: bool = False
@@ -40,6 +41,7 @@ class Cfg:
     ollama_api_key: str = ""
     lmstudio_api_key: str = ""
     openai_api_key: str = ""
+    custom_tts_api_key: str = ""
     llm_api_key: str = ""
     local_onnx_model_dir: str = ""
     local_onnx_model_id: str = ""
@@ -105,14 +107,15 @@ def test_three_domains_are_independent() -> None:
         asr_provider_consent=True,
         asr_model_id="asr-model",
         openrouter_api_key="sk-test",
-        tts_provider="openai",
+        tts_provider="custom",
         tts_provider_consent=True,
-        openai_api_key="sk-tts",
+        tts_api_url="https://api.openai.com/v1",
+        custom_tts_api_key="sk-tts",
         llm_provider="ollama",
         llm_provider_consent=True,
     )
     assert resolve_asr(cfg).provider.id == "openrouter"
-    assert resolve_tts(cfg).provider.id == "openai"
+    assert resolve_tts(cfg).provider.id == "custom"
     assert resolve_llm(cfg).provider.id == "ollama"
 
 

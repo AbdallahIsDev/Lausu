@@ -81,7 +81,9 @@ function sectionSummary(
 		case "settingsPrivacy":
 			return null;
 		case "settingsAdvanced":
-			return config.llm_polish ? t("settings.hub.on") : t("settings.hub.off");
+			// Text Polish moved to the Text Enhancement page; nothing on this
+			// page has a one-value summary.
+			return null;
 	}
 }
 

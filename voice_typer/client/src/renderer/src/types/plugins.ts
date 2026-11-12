@@ -17,6 +17,8 @@ export interface PluginSettingSpec {
 	choices?: string[];
 	min?: number;
 	max?: number;
+	/** Unit suffix for the slider readout (e.g. "ms"). */
+	unit?: string;
 }
 
 /** One discovered plugin. */

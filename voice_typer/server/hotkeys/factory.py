@@ -5,10 +5,12 @@ Split out from the original ``hotkeys.py`` module
 import sys
 
 from voice_typer.server import hotkeys as _hotkeys_pkg
+from voice_typer.server.hotkey_spec import MOUSE_BUTTONS, parse_hotkey
 from voice_typer.server.platform_utils import is_wayland_session
 from voice_typer.server.tray_hotkey import format_hotkey_label
 
 from .base import HotkeyBackend, log
+from .mouse_backend import MouseHotkey
 from .native_adapter import _NativeBackendAdapter
 from .pynput_backend import PynputHotkey
 from .wayland import WaylandHotkey
@@ -28,6 +30,21 @@ def create_hotkey_backend(hotkey_str: str, role: str | None = None) -> HotkeyBac
     """``GetAsyncKeyState`` polling at ~125 Hz (8 ms cadence via
     ``kernel32.Sleep(8)`` with ``timeBeginPeriod(8)``, see
     """
+    # Mouse buttons never reach the keyboard listeners, so a mouse spec
+    # gets its own in-process pynput mouse listener.
+    if any(key in MOUSE_BUTTONS for key in parse_hotkey(hotkey_str).keys):
+        if is_linux() and is_wayland_session():
+            log.warning(
+                "[HOTKEY] Wayland may not deliver global mouse clicks; "
+                "the middle-button hotkey can stay silent in a native Wayland session"
+            )
+        log.info(
+            "[HOTKEY] %s uses a mouse button -> MouseHotkey (role=%s)",
+            format_hotkey_label(hotkey_str),
+            role,
+        )
+        return MouseHotkey(hotkey_str)
+
     # try the native subprocess backend first. It supports
     try:
         from voice_typer.server.native_hotkeys import create_native_backend

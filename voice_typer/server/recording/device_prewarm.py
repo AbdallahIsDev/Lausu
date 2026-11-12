@@ -200,7 +200,7 @@ class DevicePrewarm:
                     with contextlib.suppress(Exception):
                         prewarm_stream.close()
                 log.info(
-                    "[RECORDING] Input stream prewarm succeeded: device=[%s] samplerate=%d",
+                    "[RECORDING] Input stream prewarm succeeded: device=%s samplerate=%d",
                     device if device is not None else "default",
                     candidate_sr,
                 )

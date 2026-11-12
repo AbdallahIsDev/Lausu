@@ -9,6 +9,7 @@ import sys
 
 from voice_typer.server.hotkeys.base import HotkeyBackend
 from voice_typer.server.hotkeys.factory import create_hotkey_backend
+from voice_typer.server.hotkeys.mouse_backend import MouseHotkey
 from voice_typer.server.hotkeys.native_adapter import _NativeBackendAdapter
 
 # CRITICAL, DO NOT REMOVE (2026-07-20)
@@ -36,6 +37,7 @@ __all__ = [
     "sys",
     "HotkeyBackend",
     "create_hotkey_backend",
+    "MouseHotkey",
     "PynputHotkey",
     "_parse_hotkey_to_pynput",
     "WindowsNativeHotkey",

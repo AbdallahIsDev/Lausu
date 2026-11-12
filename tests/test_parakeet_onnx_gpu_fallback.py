@@ -53,7 +53,7 @@ def _reset_parakeet_engine_class_state(monkeypatch, tmp_path):
     # load() verifies every snapshot under snapshot_search_dirs; point the
     # search at a tmp snapshot and treat it as verified, so tests never
     # touch the real HF cache (which may be absent/incomplete here).
-    snap = tmp_path / "models--grikdotnet--parakeet-tdt-0.6b-fp16" / "snapshots" / "test123"
+    snap = tmp_path / "models--Masterx--parakeet-tdt-0.6b-ultra-onnx" / "snapshots" / "test123"
     snap.mkdir(parents=True)
     (snap / "model.onnx").write_bytes(b"fake-onnx")
     monkeypatch.setattr(
@@ -92,6 +92,9 @@ def _make_engine_with_cuda_loaded(recognize_return_value: str = "hello world"):
         ParakeetEngine._ensure_imports()
         with patch.object(type(engine), "_is_cached", return_value=True):
             engine.load()
+        # load() primes the session with one silence decode; the tests below
+        # count only the decodes they trigger themselves.
+        engine._model.recognize.reset_mock()
     return engine, mock_onnx_asr, mock_onnxruntime
 
 

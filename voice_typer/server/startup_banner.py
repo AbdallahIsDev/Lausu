@@ -55,7 +55,7 @@ def emit_app_starting_banner(config) -> None:
             APP_NAME,
             model_desc,
             display_hotkey(config.hotkey),
-            config.microphone or "default",
+            config.microphone or "System Default",
             config.sample_rate,
         )
         _emitted = True

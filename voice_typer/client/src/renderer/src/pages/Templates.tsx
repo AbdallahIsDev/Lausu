@@ -12,6 +12,7 @@
 // all rendering lives in the components. Behaviour is preserved
 import { AlertCircleIcon, File02Icon } from "@hugeicons/core-free-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Skeleton } from "skullet/react";
 
 import { CollectionBulkBar } from "@/components/common/CollectionBulkBar";
 import { CollectionListHeader } from "@/components/common/CollectionListHeader";
@@ -20,16 +21,17 @@ import ConfirmDialog from "@/components/common/ConfirmDialog";
 import PageHeading from "@/components/common/PageHeading";
 import { ShowMoreButton } from "@/components/common/ShowMoreButton";
 import { EmptyState } from "@/components/feedback/EmptyState";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { usePython } from "@/hooks/usePython";
 import { useSnackbar } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
 import { TemplateDialog } from "./templates/components/TemplateDialog";
 import { TemplateListRow } from "./templates/components/TemplateListRow";
-import { TemplatesSkeleton } from "./templates/components/TemplatesSkeleton";
 import { useTemplateDialog } from "./templates/hooks/useTemplateDialog";
 import { useTemplateImportExport } from "./templates/hooks/useTemplateImportExport";
 import { useTemplateSelection } from "./templates/hooks/useTemplateSelection";
 import { useTemplates } from "./templates/hooks/useTemplates";
+import { SAMPLE_TEMPLATE_ROWS } from "./templates/lib/sample";
 import { saveTemplates } from "./templates/lib/storage";
 import { rowsToTemplates } from "./templates/lib/transform";
 import type { TemplateRow } from "./templates/lib/types";
@@ -121,10 +123,6 @@ export default function TemplatesPage() {
 		}
 	}, [call, loadRows, showSnack]);
 
-	if (loading) {
-		return <TemplatesSkeleton />;
-	}
-
 	//distinguish "no templates exist" (valid empty array from
 	// backend) from "load failed" (backend unreachable or returned
 	// malformed data). When the load genuinely failed AND we have no
@@ -153,130 +151,146 @@ export default function TemplatesPage() {
 
 	return (
 		<>
-			<div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
-				{/* Heading, then the toolbar on its OWN full-width row BELOW
+			<Skeleton
+				data={loading ? null : { templates, filteredSortedTemplates }}
+				sample={{
+					templates: SAMPLE_TEMPLATE_ROWS,
+					filteredSortedTemplates: SAMPLE_TEMPLATE_ROWS,
+				}}
+				id="templates"
+				label={skeletonLoadingLabel()}
+			>
+				{(loaded) => (
+					<>
+						<div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
+							{/* Heading, then the toolbar on its OWN full-width row BELOW
                                     it (not inside PageHeading's children slot), mirrors
                                     the Vocabulary page layout exactly. */}
-				<PageHeading
-					title={t("templates.title")}
-					description={t("templates.description")}
-				/>
-				<div className="flex flex-col gap-4">
-					{/* Shared collection toolbar shell, the page injects
+							<PageHeading
+								title={t("templates.title")}
+								description={t("templates.description")}
+							/>
+							<div className="flex flex-col gap-4">
+								{/* Shared collection toolbar shell, the page injects
                                                 every label key + the drift-decision values (Add is
                                                 never disabled, the dialog owns its own save
                                                 gating; JSON-only import accept because the
                                                 templates parser reads JSON only). The hidden file
                                                 input for Import renders inside the shell and
                                                 re-uses the page hook's ref. */}
-					<CollectionToolbar
-						importInputRef={importInputRef}
-						importAccept="application/json,.json"
-						onImportClick={handleImportClick}
-						onImportFile={handleImportFile}
-						importAriaLabelKey="common.importAria"
-						importLabelKey="common.import"
-						importTitleKey="templates.importFormatHint"
-						onExport={doExport}
-						exportDisabled={templates.length === 0}
-						onClearAll={() => setShowClearAllConfirm(true)}
-						clearAllDisabled={templates.length === 0}
-						clearAllAriaLabelKey="templates.clearAllAria"
-						clearAllLabelKey="templates.clearAll"
-						addAriaLabelKey="templates.addNewAria"
-						addLabelKey="templates.addTemplate"
-						onAdd={openAddDialog}
-						sortOrder={sortOrder}
-						onSortOrderChange={setSortOrder}
-						hasEntries={templates.length > 0}
-					/>
+								<CollectionToolbar
+									importInputRef={importInputRef}
+									importAccept="application/json,.json"
+									onImportClick={handleImportClick}
+									onImportFile={handleImportFile}
+									importAriaLabelKey="common.importAria"
+									importLabelKey="common.import"
+									importTitleKey="templates.importFormatHint"
+									onExport={doExport}
+									exportDisabled={loaded.templates.length === 0}
+									onClearAll={() => setShowClearAllConfirm(true)}
+									clearAllDisabled={loaded.templates.length === 0}
+									clearAllAriaLabelKey="templates.clearAllAria"
+									clearAllLabelKey="templates.clearAll"
+									addAriaLabelKey="templates.addNewAria"
+									addLabelKey="templates.addTemplate"
+									onAdd={openAddDialog}
+									sortOrder={sortOrder}
+									onSortOrderChange={setSortOrder}
+									hasEntries={loaded.templates.length > 0}
+								/>
 
-					<div className="flex flex-col gap-3">
-						{templates.length === 0 ? (
-							<EmptyState
-								icon={File02Icon}
-								title={t("templates.emptyTitle")}
-								description={t("templates.emptyDescription")}
-								actionLabel={t("templates.createFirst")}
-								onAction={openAddDialog}
-							/>
-						) : filteredSortedTemplates.length === 0 ? (
-							//search returned no matches, use the dedicated
-							// templates.noResults / templates.noResultsDescription
-							// keys instead of borrowing history.noResultsDescription
-							// (cross-module coupling) and the misleading
-							// templates.emptyTitle ("No templates yet").
-							<EmptyState
-								icon={File02Icon}
-								title={t("templates.noResults")}
-								description={t("templates.noResultsDescription")}
-							/>
-						) : (
-							<>
-								<div className="overflow-clip rounded-lg border border-border/8 bg-surface-subtle">
-									{/* Shared column-header shell, keys + the
+								<div className="flex flex-col gap-3">
+									{loaded.templates.length === 0 ? (
+										<EmptyState
+											icon={File02Icon}
+											title={t("templates.emptyTitle")}
+											description={t("templates.emptyDescription")}
+											actionLabel={t("templates.createFirst")}
+											onAction={openAddDialog}
+										/>
+									) : loaded.filteredSortedTemplates.length === 0 ? (
+										//search returned no matches, use the dedicated
+										// templates.noResults / templates.noResultsDescription
+										// keys instead of borrowing history.noResultsDescription
+										// (cross-module coupling) and the misleading
+										// templates.emptyTitle ("No templates yet").
+										<EmptyState
+											icon={File02Icon}
+											title={t("templates.noResults")}
+											description={t("templates.noResultsDescription")}
+										/>
+									) : (
+										<>
+											<div className="overflow-clip rounded-lg border border-border/8 bg-surface-subtle">
+												{/* Shared column-header shell, keys + the
                                                                                 page-unique testid are injected.
                                                                                 visibleIds is capped at displayCount to
                                                                                 mirror the rows actually mounted. */}
-									<CollectionListHeader
-										testId="template-list-header"
-										visibleIds={filteredSortedTemplates
-											.slice(0, displayCount)
-											.map((r) => r.id)}
-										selectedIds={selection.selectedIds}
-										onSelectAll={selection.setSelectMany}
-										selectAllAriaKey="templates.selectAll"
-										primaryColumnKey="templates.columnTrigger"
-										secondaryColumnKey="templates.columnOutput"
-										actionsColumnKey="templates.columnActions"
-									/>
-									<div className="divide-y divide-border/8">
-										{filteredSortedTemplates
-											.slice(0, displayCount)
-											.map((row) => (
-												<TemplateListRow
-													key={row.id}
-													row={row}
-													selected={selection.selectedIds.has(row.id)}
-													onToggleSelect={selection.toggleSelect}
-													onEdit={handleEdit}
-													onDelete={instantDeleteTemplate}
+												<CollectionListHeader
+													testId="template-list-header"
+													visibleIds={loaded.filteredSortedTemplates
+														.slice(0, displayCount)
+														.map((r) => r.id)}
+													selectedIds={selection.selectedIds}
+													onSelectAll={selection.setSelectMany}
+													selectAllAriaKey="templates.selectAll"
+													primaryColumnKey="templates.columnTrigger"
+													secondaryColumnKey="templates.columnOutput"
+													actionsColumnKey="templates.columnActions"
 												/>
-											))}
-									</div>
+												<div className="divide-y divide-border/8">
+													{loaded.filteredSortedTemplates
+														.slice(0, displayCount)
+														.map((row) => (
+															<TemplateListRow
+																key={row.id}
+																row={row}
+																selected={selection.selectedIds.has(row.id)}
+																onToggleSelect={selection.toggleSelect}
+																onEdit={handleEdit}
+																onDelete={instantDeleteTemplate}
+															/>
+														))}
+												</div>
+											</div>
+											{loaded.filteredSortedTemplates.length > displayCount && (
+												<ShowMoreButton
+													testid="templates-show-more"
+													onClick={() =>
+														setDisplayCount((c) => c + DISPLAY_CAP)
+													}
+												/>
+											)}
+										</>
+									)}
 								</div>
-								{filteredSortedTemplates.length > displayCount && (
-									<ShowMoreButton
-										testid="templates-show-more"
-										onClick={() => setDisplayCount((c) => c + DISPLAY_CAP)}
-									/>
-								)}
-							</>
-						)}
-					</div>
-				</div>
+							</div>
 
-				{/* Floating bulk bar, appears when templates are
+							{/* Floating bulk bar, appears when templates are
                                     selected; rendered through the shared shell (keys +
                                     the page-unique testid are injected). Direct child
                                     of the page column (sticky bottom-4) so it stays
                                     pinned near the viewport bottom. */}
-				{selection.selectedCount > 0 && (
-					<CollectionBulkBar
-						testId="template-bulk-bar"
-						selectedCount={selection.selectedCount}
-						selectedCountKey="templates.selectedCount"
-						onDeleteSelected={selection.bulkDeleteSelected}
-						deleteLabelKey="templates.bulkDelete"
-						exportSelectedKey="templates.exportSelected"
-						onExportSelected={(format) =>
-							doExport(format, selection.selectedRows)
-						}
-						deselectAllKey="templates.deselectAll"
-						onClearSelection={selection.clearSelection}
-					/>
+							{selection.selectedCount > 0 && (
+								<CollectionBulkBar
+									testId="template-bulk-bar"
+									selectedCount={selection.selectedCount}
+									selectedCountKey="templates.selectedCount"
+									onDeleteSelected={selection.bulkDeleteSelected}
+									deleteLabelKey="templates.bulkDelete"
+									exportSelectedKey="templates.exportSelected"
+									onExportSelected={(format) =>
+										doExport(format, selection.selectedRows)
+									}
+									deselectAllKey="templates.deselectAll"
+									onClearSelection={selection.clearSelection}
+								/>
+							)}
+						</div>
+					</>
 				)}
-			</div>
+			</Skeleton>
 
 			{/* Add/Edit Dialog, migrated to shared Modal (F-3) */}
 			<TemplateDialog

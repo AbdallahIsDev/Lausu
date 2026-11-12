@@ -729,8 +729,8 @@ export function useDashboardData({
 	// F4: manual refresh handler for the LastUpdatedIndicator button.
 	// Wraps `refreshData()` so we can flip a `refreshing` flag for the
 	// button's spinner state without disturbing the page's main
-	// loading state (which is unused in Dashboard, the page renders
-	// a full-page skeleton via `if (!data) return <DashboardSkeleton />`).
+	// loading state (which is unused in Dashboard, the page measures
+	// the sample body inside its `<Skeleton data sample>` wrap).
 	const handleManualRefresh = useCallback(async () => {
 		setRefreshing(true);
 		try {

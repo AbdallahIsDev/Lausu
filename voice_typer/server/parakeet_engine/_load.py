@@ -12,6 +12,7 @@ from typing import Any
 from voice_typer.server.duration import format_duration
 
 from ._constants import (
+    _CHUNK_SECONDS,
     _PARAKERT_ONNX_MODEL_NAME,
     _PARAKERT_ONNX_REPO_ID,
     _PARAKERT_QUANTIZATION,
@@ -20,6 +21,12 @@ from ._constants import (
 
 log = logging.getLogger(__name__)
 
+# ORT builds its CUDA/cuDNN state on the FIRST Run, not at session creation:
+# a 141s dictation spent 17s in chunk 1/7 and ~1.5s in every chunk after it.
+# Priming at load moves that cost off the dictation path. GPU primes with the
+# real chunk shape; CPU has no shape plan to build, so a short buffer is enough.
+_WARMUP_CPU_SECONDS = 0.5
+
 
 class LoadMixin:
     # Members owned by ParakeetEngine (engine.py):
@@ -27,6 +34,24 @@ class LoadMixin:
     _lock: threading.RLock
     _model: Any
     device: str
+
+    def _make_sess_options(self) -> Any | None:
+        """Build ORT SessionOptions with the CPU arena off.
+
+        ORT enables the CPU arena by default and never returns its peak,
+        so one warm decode pins process RSS for the process lifetime.
+        arena-off makes allocations direct and reclaimed per inference.
+        """
+        ort = getattr(self, "_ort", None)
+        if ort is None:
+            return None
+        try:
+            options = ort.SessionOptions()
+            options.enable_cpu_mem_arena = False
+            return options
+        except Exception:
+            log.debug("[PARAKEET] SessionOptions unavailable, using ORT defaults", exc_info=True)
+            return None
 
     @classmethod
     def _ensure_imports(cls) -> bool:
@@ -80,9 +105,12 @@ class LoadMixin:
                 available = []
             if "CUDAExecutionProvider" in available:
                 return ["CUDAExecutionProvider", "CPUExecutionProvider"]
-            log.warning(
-                "[PARAKEET] CUDAExecutionProvider not in available providers (%s), using CPU",
-                available,
+            # AzureExecutionProvider is present in CPU builds but needs
+            # config to run; don't list it as an available fallback.
+            have = [p for p in available if p != "AzureExecutionProvider"]
+            log.info(
+                "[PARAKEET] CUDAExecutionProvider not available (have: %s), using CPU only",
+                ", ".join(have) if have else "none",
             )
             return ["CPUExecutionProvider"]
         return ["CPUExecutionProvider"]
@@ -133,6 +161,7 @@ class LoadMixin:
 
     def load(self, progress_callback: Callable[[str], None] | None = None) -> bool:
         """Load the Parakeet ONNX model via ``onnx_asr.load_model(...)``."""
+        _total_t0 = time.perf_counter()
         log.info("[PARAKEET] load() entered, importing onnx-asr if needed")
         if not self._ensure_imports():
             if progress_callback:
@@ -177,6 +206,8 @@ class LoadMixin:
             model_dir = snapshot_search_dirs(_config_dir(), _PARAKERT_ONNX_REPO_ID)[0]
             verified = False
             verify_exc: Exception | None = None
+            verify_elapsed = 0.0
+            _verify_t0 = time.perf_counter()
             try:
                 for candidate in snapshot_search_dirs(_config_dir(), _PARAKERT_ONNX_REPO_ID):
                     if not candidate.is_dir():
@@ -190,13 +221,15 @@ class LoadMixin:
                         break
             except OSError as exc:
                 verify_exc = exc
+            verify_elapsed = time.perf_counter() - _verify_t0
             if not verified:
                 log.error(
                     "[PARAKEET] Model integrity check failed%s for %s at %s. "
-                    "Refusing to load tampered model. To fix: delete it from the Models page.",
+                    "Refusing to load tampered model. To fix: delete it from the Models page.%s",
                     f" (OSError: {verify_exc})" if verify_exc else "",
                     _PARAKERT_ONNX_REPO_ID,
                     model_dir,
+                    format_duration(verify_elapsed),
                 )
                 if progress_callback:
                     progress_callback("Model integrity check failed; delete and re-download from the Models page.")
@@ -213,14 +246,21 @@ class LoadMixin:
             # Load ONNX model via onnx_asr.load_model(...), by TYPE
             try:
                 if progress_callback:
-                    progress_callback("Loading Parakeet TDT v3 ONNX model...")
+                    progress_callback("Loading Parakeet Ultra ONNX model...")
 
-                log.info("[PARAKEET] Loading ONNX model (device=%s)...", self.device)
-                effective_device = self.device
+                requested_device = self.device
+                effective_device = requested_device
                 if effective_device == "cuda" and self._should_force_cpu():
                     effective_device = "cpu"
 
                 providers = self._select_providers(effective_device)
+                effective_label = "GPU" if "CUDAExecutionProvider" in providers else "CPU"
+                log.info(
+                    "[PARAKEET] Loading Parakeet Ultra ONNX model on %s (requested=%s, providers=%s)...",
+                    effective_label,
+                    requested_device,
+                    ", ".join(providers),
+                )
                 _load_start = time.perf_counter()
 
                 # onnx-asr 0.12.0 exports ``load_model(...)``: there is
@@ -230,6 +270,7 @@ class LoadMixin:
                     path=verified_snapshot,
                     quantization=_PARAKERT_QUANTIZATION,
                     providers=providers,
+                    sess_options=self._make_sess_options(),
                 )
 
                 _elapsed = time.perf_counter() - _load_start
@@ -237,14 +278,24 @@ class LoadMixin:
                 # C-LOG-2: measured duration + throughput are the whole
                 # warm/cold signal; a wall-time threshold would mislabel.
                 log.info(
-                    "[PARAKEET] ONNX model loaded (%.0f MB/s)%s",
+                    "[PARAKEET] Parakeet Ultra ONNX model loaded on %s (%s) (%.0f MB/s)%s",
+                    effective_label,
+                    ", ".join(providers),
                     _read_speed_mbs,
                     format_duration(_elapsed),
                 )
-                if progress_callback:
-                    progress_callback("Parakeet model ready")
                 # Stash the effective providers so the GPU→CPU fallback
                 self._effective_providers = providers
+                _warm_elapsed = self._warm_session(providers)
+                log.info(
+                    "[PARAKEET] load timing: integrity%s, onnx load%s, warm%s, total%s",
+                    format_duration(verify_elapsed),
+                    format_duration(_elapsed),
+                    format_duration(_warm_elapsed),
+                    format_duration(time.perf_counter() - _total_t0),
+                )
+                if progress_callback:
+                    progress_callback("Parakeet model ready")
                 return True
 
             except ImportError as exc:
@@ -263,6 +314,31 @@ class LoadMixin:
                     progress_callback(f"Model load failed: {exc}")
                 return False
 
+    def _warm_session(self, providers: list[str]) -> float:
+        """Prime ORT's first-Run init so the first dictation does not pay it.
+
+        Returns the warm duration in seconds; never raises (a failed warm
+        must not fail the load, the first real decode just pays the init).
+        """
+        t0 = time.perf_counter()
+        model = self._model
+        if model is None:
+            return 0.0
+        seconds = _CHUNK_SECONDS if "CUDAExecutionProvider" in providers else _WARMUP_CPU_SECONDS
+        try:
+            import numpy as np
+
+            from voice_typer.server._audio_constants import WHISPER_SAMPLE_RATE
+
+            silence = np.zeros(int(seconds * WHISPER_SAMPLE_RATE), dtype=np.float32)
+            model.recognize(silence, sample_rate=WHISPER_SAMPLE_RATE)
+        except Exception:
+            log.warning(
+                "[PARAKEET] warm decode failed (non-fatal; the first dictation pays the init)",
+                exc_info=True,
+            )
+        return time.perf_counter() - t0
+
     def _load_impl(self, *, providers: list[str]) -> bool:
         """Re-create the ONNX session (``onnx_asr.load_model``) with the given providers.
 
@@ -276,6 +352,7 @@ class LoadMixin:
                 path=self._onnx_model_dir,
                 quantization=_PARAKERT_QUANTIZATION,
                 providers=providers,
+                sess_options=self._make_sess_options(),
             )
             self._effective_providers = providers
             return True

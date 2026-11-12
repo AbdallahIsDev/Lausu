@@ -161,9 +161,34 @@ class TestPluginGate:
         assert hook.requested_plugin_id(object()) == ""
         assert hook.plugins_enabled(object()) is False
 
-    def test_env_flag_still_required(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A selected plugin is not enough on its own - the gate still rules."""
+    def test_selection_is_enough_when_the_workspace_exists(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A selected plugin owns dictation once the workspace is there.
+
+        The gate used to ALSO require ``VOICE_TYPER_INTERNAL_PLUGINS=1``, and
+        nothing in the repo ever set it: activating a plugin in the Plugins
+        page silently kept the local model on every hotkey press, with no
+        visible reason. The workspace (gitignored, never packaged) plus the
+        plugin's own PLUGINS_ENABLED marker are the deliberate opt-ins, and a
+        frozen build still never runs a plugin.
+        """
         monkeypatch.delenv("VOICE_TYPER_INTERNAL_PLUGINS", raising=False)
+        monkeypatch.setattr(hook, "internal_surface_enabled", lambda: True)
+        monkeypatch.setattr(
+            hook,
+            "_plugin",
+            lambda app=None: type(
+                "_P", (), {"plugins_enabled": staticmethod(lambda: True)}
+            )(),
+        )
+        assert hook.plugins_enabled(self._app("google_stt")) is True
+
+    def test_no_workspace_still_means_local_model(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Without the workspace the local model always keeps dictation."""
+        monkeypatch.setattr(hook, "internal_surface_enabled", lambda: False)
         assert hook.plugins_enabled(self._app("google_stt")) is False
 
     def test_frozen_builds_never_run_a_plugin(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -186,6 +211,52 @@ class TestGetPluginsCommand:
         """Discovery reads manifests only; the plugin code stays untouched."""
         source = Path(registry.__file__).read_text(encoding="utf-8")
         assert "importlib" not in source
+
+
+class TestSetPluginSettingCommand:
+    """The one plugin-setting write, end to end through the dispatcher."""
+
+    def test_registered_as_a_mutator_not_a_read(self) -> None:
+        assert _COMMAND_REGISTRY["set_plugin_setting"] == "_handle_set_plugin_setting"
+        assert "set_plugin_setting" not in _READONLY_COMMANDS
+
+    def test_persists_a_declared_setting_and_reads_it_back(self, workspace: Path) -> None:
+        from tests.fixtures.ipc_test_helpers import make_ipc_server_with_fakes
+
+        _write_manifest(workspace / "acme_stt")
+        ipc, _app, _service = make_ipc_server_with_fakes()
+        resp = ipc._dispatch(
+            {
+                "type": "set_plugin_setting",
+                "data": {"plugin_id": "acme_stt", "key": "visible", "value": False},
+            }
+        )
+        assert resp is not None
+        assert resp["type"] == "plugin_setting"
+        assert resp["data"] == {"plugin_id": "acme_stt", "key": "visible", "value": False}
+
+        stored = json.loads((workspace / "acme_stt" / "settings.json").read_text(encoding="utf-8"))
+        assert stored == {"visible": False}
+
+        listing = ipc._dispatch({"type": "get_plugins"})
+        assert listing is not None
+        assert listing["data"]["plugins"][0]["values"] == {"visible": False}
+
+    def test_rejects_an_undeclared_key_without_writing(self, workspace: Path) -> None:
+        from tests.fixtures.ipc_test_helpers import make_ipc_server_with_fakes
+
+        _write_manifest(workspace / "acme_stt")
+        ipc, _app, _service = make_ipc_server_with_fakes()
+        resp = ipc._dispatch(
+            {
+                "type": "set_plugin_setting",
+                "data": {"plugin_id": "acme_stt", "key": "nope", "value": True},
+            }
+        )
+        assert resp is not None
+        assert resp["type"] == "error"
+        assert resp["data"]["code"] == "client.invalid_field"
+        assert not (workspace / "acme_stt" / "settings.json").exists()
 
 
 class TestGetPluginsEndToEnd:
@@ -276,3 +347,111 @@ class TestPluginsUiVisibility:
         """The discriminator is a gitignored path, so it cannot ship."""
         ignore = Path(__file__).resolve().parents[2] / ".gitignore"
         assert "tools/internal_plugins/" in ignore.read_text(encoding="utf-8")
+
+
+class TestPluginModuleRouting:
+    """The seam must pick the module the selected id names, never one fixed
+    plugin: otherwise selecting a second plugin would silently drive the
+    first plugin's page."""
+
+    def _app(self, active: str) -> object:
+        class _Config:
+            active_plugin = active
+
+        class _App:
+            config = _Config()
+
+        return _App()
+
+    def test_module_table_covers_both_installed_plugins(self) -> None:
+        assert hook.PLUGIN_MODULES["google_stt"] == "tools.internal_plugins.google_stt.plugin"
+        assert hook.PLUGIN_MODULES["anthropic_stt"] == "tools.internal_plugins.anthropic_stt.plugin"
+
+    def test_unknown_id_resolves_to_no_module(self) -> None:
+        """A stale/uninstalled id must not import anything (fails closed)."""
+        assert hook._plugin(self._app("not_installed")) is None
+        assert hook.plugins_enabled(self._app("not_installed")) is False
+
+    def test_install_resolves_the_selection_on_every_press(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Selection changes apply to the NEXT press, with no restart.
+
+        The wrapper is installed once (when the developer-only surface
+        exists) and must read ``active_plugin`` at press time; freezing the
+        module at install time would make the Plugins toggle a no-op until
+        the app relaunches.
+        """
+        import types
+
+        monkeypatch.setenv("VOICE_TYPER_INTERNAL_PLUGINS", "1")
+        calls: list[str] = []
+
+        class _Session:
+            def __init__(self, name: str) -> None:
+                self.name = name
+                self.active = False
+
+            def toggle(self) -> None:
+                calls.append(self.name)
+                self.active = True
+
+            def stop(self) -> None:
+                calls.append(self.name + ":stop")
+                self.active = False
+
+            def cancel(self) -> bool:
+                calls.append(self.name + ":cancel")
+                was_active = self.active
+                self.active = False
+                return was_active
+
+        def _stub(name: str) -> types.ModuleType:
+            module = types.ModuleType(f"tools.internal_plugins.{name}.plugin")
+            module.plugins_enabled = lambda: True
+            module.attach = lambda app: _Session(name)
+            monkeypatch.setitem(sys.modules, module.__name__, module)
+            monkeypatch.setitem(hook.PLUGIN_MODULES, name, module.__name__)
+            return module
+
+        _stub("alpha_stt")
+        _stub("beta_stt")
+
+        class _Config:
+            active_plugin = "beta_stt"
+
+        class _App:
+            config = _Config
+            _internal_plugin_wrapped = False
+
+            def toggle_dictation(self) -> None:
+                calls.append("local:toggle")
+
+            def _stop_dictation(self) -> None:
+                calls.append("local:stop")
+
+            def _cancel_dictation(self) -> None:
+                calls.append("local:cancel")
+
+        app = _App()
+        assert hook.install(app) is True
+        # Already wrapped: a second install must not nest the wrappers.
+        assert hook.install(app) is False
+
+        app.toggle_dictation()
+        assert calls == ["beta_stt"]
+
+        # Switching mid-recording cancels the old owner before starting the
+        # newly selected plugin on the very next press.
+        app.config.active_plugin = "alpha_stt"
+        app.toggle_dictation()
+        assert calls == ["beta_stt", "beta_stt:cancel", "alpha_stt"]
+
+        # Stop routes to the session that owns the in-flight cycle.
+        app._stop_dictation()
+        assert calls[-1] == "alpha_stt:stop"
+
+        # Clearing the selection restores the local model immediately.
+        app.config.active_plugin = ""
+        app.toggle_dictation()
+        assert calls[-2:] == ["alpha_stt:stop", "local:toggle"]

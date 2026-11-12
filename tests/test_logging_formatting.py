@@ -77,3 +77,23 @@ def test_audio_log_topics_have_color_entries() -> None:
         )
         formatted = _ColorFormatter().format(record)
         assert f"\033[{color_code}m" in formatted
+
+
+def test_timeout_utils_topic_has_color_entry() -> None:
+    """`[TIMEOUT-UTILS]` must not fall back to the uncoloured terminal body."""
+    color_code = _TOPIC_COLOR["TIMEOUT-UTILS"]
+    assert color_code == "38;5;110"
+
+    # INFO and DEBUG take the topic-colour path; WARNING is full-line yellow.
+    for level in (logging.INFO, logging.DEBUG):
+        record = logging.LogRecord(
+            name="voice_typer",
+            level=level,
+            pathname=__file__,
+            lineno=1,
+            msg="[TIMEOUT-UTILS] join_leaked_workers: sample",
+            args=(),
+            exc_info=None,
+        )
+        formatted = _ColorFormatter().format(record)
+        assert f"\033[{color_code}m" in formatted

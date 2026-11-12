@@ -29,8 +29,9 @@ class TrayController(Protocol):
 
     recording: "RecordingController"
 
-    # build_tray_menu_model reads controller._microphones via getattr.
-    microphones: list[dict]
+    # build_tray_menu_model reads controller._microphones via getattr
+    # (legacy private name; LausuApp exposes it as a property).
+    _microphones: list[dict]
 
     def toggle_dictation(self) -> None: ...
     def change_microphone(self, mic_id: str | None) -> None: ...

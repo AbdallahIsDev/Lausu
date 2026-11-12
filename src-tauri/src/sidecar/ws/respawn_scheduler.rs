@@ -78,7 +78,7 @@ fn spawn_oneshot_respawn_thread(
                 if let Some(gen) = expected_generation {
                     let current = state.ws_generation.load(Ordering::SeqCst);
                     if current != gen {
-                        log::info!(
+                        log::debug!(
                             "[SUPERVISOR] dropping STALE one-shot respawn request \
                              (request gen={}, current gen={}): a newer WS connection \
                              owns the link; killing it would ping-pong respawns",
@@ -128,7 +128,7 @@ fn respawn_supervisor_sender() -> Option<std::sync::mpsc::SyncSender<RespawnRequ
                 if let Some(gen) = expected_gen {
                     let current = state.ws_generation.load(Ordering::SeqCst);
                     if current != gen {
-                        log::info!(
+                        log::debug!(
                             "[SUPERVISOR] dropping STALE respawn request \
                              (request gen={}, current gen={}): a newer WS \
                              connection owns the link",

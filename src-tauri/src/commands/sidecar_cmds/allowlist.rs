@@ -58,8 +58,10 @@ pub(crate) fn allowed_commands() -> &'static HashSet<&'static str> {
             "get_microphone_volume",
             "set_microphone_volume",
             "set_output_volume",
-            // Plugins page: installed-plugin discovery (read-only).
+            // Plugins page: installed-plugin discovery (read-only) + one
+            // manifest-validated setting write.
             "get_plugins",
+            "set_plugin_setting",
             "restart_app",
             "quit_app",
             "get_templates",
@@ -161,6 +163,19 @@ pub(crate) fn allowed_commands() -> &'static HashSet<&'static str> {
             "provider_set_key",
             "provider_clear_key",
             "provider_set_domain",
+            // Voice conversation (push-to-talk STT → LLM → TTS): arm/disarm
+            // capture on the level monitor's single stream, the reattach
+            // snapshot, and the conversation reset.
+            "chat_listen_start",
+            "chat_listen_stop",
+            "chat_state",
+            "chat_reset",
+            // User-level CUDA stack (device switch flow): capability read,
+            // install job, its cancel control, activation-failure ack.
+            "get_gpu_capability",
+            "start_cuda_download",
+            "cancel_cuda_download",
+            "ack_cuda_activation",
         ];
         HashSet::from_iter(cmds.iter().copied())
     })

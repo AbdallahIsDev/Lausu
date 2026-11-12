@@ -89,7 +89,6 @@ export const DEFAULT_CONFIG: LausuConfig = {
 	parakeet_model_path: null,
 
 	text_cleanup_enabled: true,
-	unsafe_paste_on_unknown_focus: false,
 	corrections_path: null,
 	log_transcriptions: false,
 

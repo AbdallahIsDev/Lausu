@@ -39,6 +39,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import type { CSSProperties } from "react";
 import { useMemo } from "react";
+import { Skeleton } from "skullet/react";
 import { LastUpdatedIndicator } from "@/components/common/LastUpdatedIndicator";
 import PageHeading from "@/components/common/PageHeading";
 import { ShareStatsDialog } from "@/components/dashboard/ShareStatsDialog";
@@ -46,12 +47,14 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { formatCompactNumber } from "@/components/dashboard/StatCards";
 import { StatsShareImage } from "@/components/dashboard/StatsShareImage";
 import { EmptyState } from "@/components/feedback/EmptyState";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { HotkeyChips } from "@/components/hotkey/HotkeyChips";
 import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 // amber banner shown when the OS has not granted the
 // keyboard-monitoring (Accessibility / input-group) permission. Mirrors
 // the MicrophonePermissionBanner placement on the Microphone page.
 import { KeyboardPermissionBanner } from "@/components/KeyboardPermissionBanner";
+import { SAMPLE_CONFIG } from "@/components/skullet/sampleConfig";
 import { useNavigation } from "@/hooks/useNavigation";
 import { usePython } from "@/hooks/usePython";
 import {
@@ -65,12 +68,9 @@ import { useThemePalette } from "@/lib/theme-palette";
 import { formatDevice, formatModel } from "@/lib/utils/configDisplay";
 import { computeTrend } from "@/pages/dashboard/lib/trend";
 import { ActivityHeatmap } from "./dashboard/components/ActivityHeatmap";
-import {
-	DashboardSkeleton,
-	DashboardSkeletonBody,
-} from "./dashboard/components/DashboardSkeleton";
 import { ActivityChart } from "./dashboard/components/SevenDayActivityChart";
 import { useDashboardData } from "./dashboard/hooks/useDashboardData";
+import { SAMPLE_DASHBOARD } from "./dashboard/lib/sample";
 
 // Hidden share-image capture target container style.
 // Hoisted to a module-level constant so the object identity is stable
@@ -147,8 +147,8 @@ export default function DashboardPage() {
 	// agoLabel changes). Without this, every Dashboard re-render
 	// produced a fresh `computeShareStats(...)` return value,
 	// defeating the React.memo wrapper on StatsShareImage.
-	// Declared BEFORE the `if (!data)` early return so the hook
-	// order is stable across renders (rules-of-hooks).
+	// Declared with the other top-level hooks so the hook order is
+	// stable across renders (rules-of-hooks).
 	const shareStats = useMemo(
 		() =>
 			data && configRaw
@@ -200,67 +200,42 @@ export default function DashboardPage() {
 			totalCount: data?.totalCount ?? 0,
 		});
 
-	// Skeleton shown only on FIRST load (when `!data`); revisits seed
-	// from the snapshot cache and skip it. A custom window with no
-	// rows yet skeletonizes too (its fetch rides outside `data`).
-	// When `fetchError` is set and `data` is null, the first fetch failed —
-	// render an error state with a Retry button instead of the skeleton.
-	// A custom window with no synced rows lands here too: loading shows
-	// the skeleton, a failed fetch shows the error (zeros would read as
-	// "no activity" instead of "load failed").
-	if (!data || (range === "custom" && !customReady)) {
-		if (fetchError) {
-			return (
-				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-4 px-16 pt-20 pb-6">
-					<EmptyState
-						variant="error"
-						icon={AlertCircleIcon}
-						title={t("analytics.refreshFailed")}
-						description={t("analytics.refreshFailedHint")}
-						actionLabel={t("analytics.retry")}
-						onAction={handleManualRefresh}
-					/>
-				</div>
-			);
-		}
-		// First load renders the REAL heading (Share mounted + disabled)
-		// above the skeleton body: actions never vanish mid-load, and the
-		// heading keeps zero live regions (no LastUpdatedIndicator here).
-		if (!data) {
-			return (
-				<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
-					<PageHeading
-						title={t("analytics.title")}
-						description={t("analytics.description")}
-					>
-						<ShareStatsDialog
-							actions={shareActions}
-							stats={shareStats}
-							palette={themePalette}
-							disabled
-						/>
-					</PageHeading>
-					<DashboardSkeletonBody />
-				</div>
-			);
-		}
-		return <DashboardSkeleton />;
+	// Measured wrap covers the stat + chart + heatmap body only: the
+	// heading stays mounted outside (C-CACHE-6), errors and the
+	// first-run empty state stay bespoke outside the wrap.
+	const isCustomLoading = range === "custom" && !customReady;
+	if ((!data || isCustomLoading) && fetchError) {
+		return (
+			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col items-center justify-center gap-4 px-16 pt-20 pb-6">
+				<EmptyState
+					variant="error"
+					icon={AlertCircleIcon}
+					title={t("analytics.refreshFailed")}
+					description={t("analytics.refreshFailedHint")}
+					actionLabel={t("analytics.retry")}
+					onAction={handleManualRefresh}
+				/>
+			</div>
+		);
 	}
-
-	const d = data;
-	const isFirstRun = d.totalCount === 0; // Empty-state CTA
-	// Average speaking speed for the selected window (words per minute
-	// of recorded audio). Null when the window has no recorded audio:
-	// the card then shows "—" and carries no trend instead of
-	// presenting a number the data cannot support.
-	const wpm =
-		period.duration > 0
-			? Math.round(period.wordCount / (period.duration / 60))
+	const bodyData =
+		data && !isCustomLoading
+			? {
+					data,
+					period,
+					activity,
+					heatmap,
+					correctionStats,
+					range,
+					customCapped,
+					customWindowLabel,
+					configRaw: configRaw ?? SAMPLE_CONFIG,
+				}
 			: null;
-	const prevWpm =
-		period.prev !== null && period.prev.duration > 0
-			? Math.round(period.prev.wordCount / (period.prev.duration / 60))
-			: null;
+	// First-run shows its own empty state once loaded; while loading
+	// the wrap shows the sample instead of claiming empty.
+	const isFirstRunLoaded =
+		data !== null && data.totalCount === 0 && !isCustomLoading;
 
 	return (
 		<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
@@ -268,11 +243,15 @@ export default function DashboardPage() {
 				title={t("analytics.title")}
 				description={t("analytics.description")}
 			>
-				<LastUpdatedIndicator
-					agoLabel={agoLabel}
-					onRefresh={handleManualRefresh}
-					refreshing={refreshing}
-				/>
+				{/* First paint keeps zero live regions: the freshness
+					indicator joins only once data exists (C-CACHE-6). */}
+				{data !== null && (
+					<LastUpdatedIndicator
+						agoLabel={agoLabel}
+						onRefresh={handleManualRefresh}
+						refreshing={refreshing}
+					/>
+				)}
 				<ShareStatsDialog
 					actions={shareActions}
 					stats={shareStats}
@@ -288,7 +267,7 @@ export default function DashboardPage() {
 				unchanged on platforms where the banner doesn't apply. */}
 			<KeyboardPermissionBanner />
 
-			{isFirstRun ? (
+			{isFirstRunLoaded ? (
 				<EmptyState
 					icon={Mic02Icon}
 					title={t("analytics.noDataTitle")}
@@ -301,17 +280,45 @@ export default function DashboardPage() {
 					onAction={() => navigate("home")}
 				/>
 			) : (
-				<div className="flex flex-col gap-4">
-					{/* ONE merged card, not six separate ones: the shared
+				<Skeleton
+					data={bodyData}
+					sample={SAMPLE_DASHBOARD}
+					id="dashboard"
+					label={skeletonLoadingLabel()}
+				>
+					{(p) => {
+						const d = p.data;
+						const period = p.period;
+						const activity = p.activity;
+						const heatmap = p.heatmap;
+						const correctionStats = p.correctionStats;
+						const range = p.range;
+						const customCapped = p.customCapped;
+						const customWindowLabel = p.customWindowLabel;
+						// WHY: same "—" contract as before, computed from
+						// the measured payload so the sample shows speeds.
+						const wpm =
+							period.duration > 0
+								? Math.round(period.wordCount / (period.duration / 60))
+								: null;
+						const prevWpm =
+							period.prev !== null && period.prev.duration > 0
+								? Math.round(
+										period.prev.wordCount / (period.prev.duration / 60),
+									)
+								: null;
+						return (
+							<div className="flex flex-col gap-4">
+								{/* ONE merged card, not six separate ones: the shared
 					    container owns the radius/border/background and 1px
 					    rules separate the cells, so there is no gap between
 					    them (C-DESIGN-2). Each row is its own divided grid,
 					    stacked cells on narrow windows and three columns
 					    from md up, with the row rule (border-t) spanning
 					    both layouts. */}
-					<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle">
-						<div className="grid grid-cols-1 divide-y divide-border/8 md:grid-cols-3 md:divide-x md:divide-y-0">
-							{/* Single dictations card, DATA-CONSISTENCY fix: the
+								<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle">
+									<div className="grid grid-cols-1 divide-y divide-border/8 md:grid-cols-3 md:divide-x md:divide-y-0">
+										{/* Single dictations card, DATA-CONSISTENCY fix: the
 							    old "Dictations" card (window count from the
 							    500-row history sample) and the range-blind
 							    "Total Dictations" card (true all-time row count
@@ -324,115 +331,125 @@ export default function DashboardPage() {
 							    always inside the DESC-ordered sample); for All
 							    Time the true count is used so the card is never
 							    sample-capped. */}
-							<StatCard
-								inGroup
-								// Plain label (no range suffix), the title bar's
-								// range control + the chart's subtitle already
-								// state the active window; the suffix made this
-								// the only truncating label in the row
-								// ("Total Dictations (7 D…").
-								label={t("analytics.totalDictations")}
-								value={
-									range === "all" ? String(d.totalCount) : String(period.count)
-								}
-								icon={SpeechToTextIcon}
-								trend={computeTrend(period.count, period.prev?.count)}
-							/>
-							<StatCard
-								inGroup
-								label={t("analytics.recordingTime")}
-								value={formatDuration(period.duration)}
-								icon={Time02Icon}
-								trend={computeTrend(period.duration, period.prev?.duration)}
-							/>
-							{/* Words, reuses the Home StatCards compact formatter
+										<StatCard
+											inGroup
+											// Plain label (no range suffix), the title bar's
+											// range control + the chart's subtitle already
+											// state the active window; the suffix made this
+											// the only truncating label in the row
+											// ("Total Dictations (7 D…").
+											label={t("analytics.totalDictations")}
+											value={
+												range === "all"
+													? String(d.totalCount)
+													: String(period.count)
+											}
+											icon={SpeechToTextIcon}
+											trend={computeTrend(period.count, period.prev?.count)}
+										/>
+										<StatCard
+											inGroup
+											label={t("analytics.recordingTime")}
+											value={formatDuration(period.duration)}
+											icon={Time02Icon}
+											trend={computeTrend(
+												period.duration,
+												period.prev?.duration,
+											)}
+										/>
+										{/* Words, reuses the Home StatCards compact formatter
 							    (formatCompactNumber) so the K-abbreviation +
 							    rounding config carries over unchanged. The value
 							    is the exact word count summed over the window: the
 							    renderer never re-counts text (list previews are
 							    truncated) and chars/5 would only approximate it. */}
-							<StatCard
-								inGroup
-								label={t("analytics.wordsLabel")}
-								value={formatCompactNumber(period.wordCount)}
-								icon={TextIcon}
-								trend={computeTrend(period.wordCount, period.prev?.wordCount)}
-							/>
-							{/* Active Days is deliberately NOT a cell here: it
+										<StatCard
+											inGroup
+											label={t("analytics.wordsLabel")}
+											value={formatCompactNumber(period.wordCount)}
+											icon={TextIcon}
+											trend={computeTrend(
+												period.wordCount,
+												period.prev?.wordCount,
+											)}
+										/>
+										{/* Active Days is deliberately NOT a cell here: it
 							    measures the heatmap's whole-year window, not the
 							    selected range, so it lives in the heatmap header
 							    below. */}
-						</div>
-						<div className="grid grid-cols-1 divide-y divide-border/8 border-t border-border/8 md:grid-cols-3 md:divide-x md:divide-y-0">
-							{/* Average speed: words ÷ recorded minutes; "—" and no
+									</div>
+									<div className="grid grid-cols-1 divide-y divide-border/8 border-t border-border/8 md:grid-cols-3 md:divide-x md:divide-y-0">
+										{/* Average speed: words ÷ recorded minutes; "—" and no
 							    trend when the window has no recorded audio, so an
 							    empty window never claims a speed. */}
-							<StatCard
-								inGroup
-								label={t("analytics.avgSpeedLabel")}
-								value={wpm !== null ? `${wpm} WPM` : "—"}
-								icon={Mic02Icon}
-								trend={wpm !== null ? computeTrend(wpm, prevWpm) : null}
-							/>
-							<StatCard
-								inGroup
-								// Stopwatch (not a clock), the top-row Recording Time
-								// card already uses Time02Icon; a stopwatch reads as
-								// "longest single session" at a glance.
-								icon={StopWatchIcon}
-								label={t("analytics.longestLabel")}
-								value={formatDuration(period.longestSession)}
-								// Compares against the previous window's longest
-								// single session — the like-for-like baseline.
-								// Absent under "All Time" (no prior period).
-								trend={computeTrend(
-									period.longestSession,
-									period.prev?.longestSession,
-								)}
-							/>
-							<StatCard
-								inGroup
-								label={t("analytics.corrections")}
-								value={compactNumber(correctionStats.corrections)}
-								icon={CheckmarkCircle02Icon}
-								// Vocabulary corrections APPLIED inside the window.
-								// More is the feature working, so the shared
-								// up = green convention holds here unchanged.
-								trend={computeTrend(
-									correctionStats.corrections,
-									correctionStats.prevCorrections,
-								)}
-							/>
-						</div>
-					</div>
+										<StatCard
+											inGroup
+											label={t("analytics.avgSpeedLabel")}
+											value={wpm !== null ? `${wpm} WPM` : "—"}
+											icon={Mic02Icon}
+											trend={wpm !== null ? computeTrend(wpm, prevWpm) : null}
+										/>
+										<StatCard
+											inGroup
+											// Stopwatch (not a clock), the top-row Recording Time
+											// card already uses Time02Icon; a stopwatch reads as
+											// "longest single session" at a glance.
+											icon={StopWatchIcon}
+											label={t("analytics.longestLabel")}
+											value={formatDuration(period.longestSession)}
+											// Compares against the previous window's longest
+											// single session — the like-for-like baseline.
+											// Absent under "All Time" (no prior period).
+											trend={computeTrend(
+												period.longestSession,
+												period.prev?.longestSession,
+											)}
+										/>
+										<StatCard
+											inGroup
+											label={t("analytics.corrections")}
+											value={compactNumber(correctionStats.corrections)}
+											icon={CheckmarkCircle02Icon}
+											// Vocabulary corrections APPLIED inside the window.
+											// More is the feature working, so the shared
+											// up = green convention holds here unchanged.
+											trend={computeTrend(
+												correctionStats.corrections,
+												correctionStats.prevCorrections,
+											)}
+										/>
+									</div>
+								</div>
 
-					{/* NOTE: no "no dictations in this period" caption here —
+								{/* NOTE: no "no dictations in this period" caption here —
 						the empty chart already communicates "no data". */}
 
-					<ActivityChart
-						range={range}
-						activity={activity}
-						customWindowLabel={customWindowLabel}
-					/>
-					{/* Custom windows that hit the page cap serve sampled
+								<div skullet-block="">
+									<ActivityChart
+										range={range}
+										activity={activity}
+										customWindowLabel={customWindowLabel}
+									/>
+								</div>
+								{/* Custom windows that hit the page cap serve sampled
 				    stats: say so under the chart, next to the numbers
 				    it qualifies. The animator (C-ANIM-1) smooths the
 				    line's arrival once the window fetch lands — the
 				    wrapper stays mounted for the whole custom range so
 				    the toggle (not a remount) is what animates. */}
-					{range === "custom" && (
-						<div className="collapse-root" data-open={customCapped}>
-							<div>
-								<p className="text-center text-xs text-muted-foreground">
-									{t("analytics.customRangeCapped", {
-										count: String(period.count),
-									})}
-								</p>
-							</div>
-						</div>
-					)}
+								{range === "custom" && (
+									<div className="collapse-root" data-open={customCapped}>
+										<div>
+											<p className="text-center text-xs text-muted-foreground">
+												{t("analytics.customRangeCapped", {
+													count: String(period.count),
+												})}
+											</p>
+										</div>
+									</div>
+								)}
 
-					{/* Long-window consistency view. Placed AFTER the
+								{/* Long-window consistency view. Placed AFTER the
 						range-aware block (cards → chart → heatmap) so
 						the selected range's analysis stays contiguous. The
 						card states its own covered range in its subtitle
@@ -441,8 +458,16 @@ export default function DashboardPage() {
 						reason: both count the whole history, not the selected
 						window, so they must not sit next to range-aware
 						numbers. */}
-					<ActivityHeatmap heatmap={heatmap} currentStreak={d.currentStreak} />
-				</div>
+								<div skullet-block="">
+									<ActivityHeatmap
+										heatmap={heatmap}
+										currentStreak={d.currentStreak}
+									/>
+								</div>
+							</div>
+						);
+					}}
+				</Skeleton>
 			)}
 
 			{/* Hidden share-image capture target (no clipPath, EXPORT-FIX). */}

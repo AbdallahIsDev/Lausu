@@ -15,7 +15,13 @@ import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import { HotkeyChips } from "./HotkeyChips";
 import { formatHotkeyLabel, tryCommitHotkey } from "./hotkey-utils";
+import { formatHotkeyForMessage } from "./hotkey-validation";
 import { useHotkeyCapture } from "./useHotkeyCapture";
+
+// The resting pill is sized by the 22px keycap chip, while the capture label
+// is a shorter text line, so the control shrank the moment capture began.
+// Pinning the chip-row height keeps both states the same box.
+const CAPTURE_BUTTON_SIZE = "min-h-9";
 
 interface HotkeyPickerProps {
 	value: string;
@@ -47,7 +53,6 @@ export function HotkeyPicker({
 }: HotkeyPickerProps) {
 	const {
 		recording,
-		error,
 		secondsRemaining,
 		heldModifiersLabel,
 		startRecording,
@@ -88,7 +93,7 @@ export function HotkeyPicker({
 					variant={recording ? "default" : "outline"}
 					size="sm"
 					onClick={recording ? cancelRecording : startRecording}
-					className={cn("gap-2 font-mono", className)}
+					className={cn(CAPTURE_BUTTON_SIZE, "gap-2 font-mono", className)}
 					aria-label={
 						recording
 							? t("hotkeyPicker.cancelRecordingAria", { label: ariaLabel })
@@ -185,7 +190,7 @@ export function HotkeyPicker({
 											resetSession: false,
 										});
 										if (!r.ok) {
-											setError(r.error);
+											setError(r.error, formatHotkeyForMessage(newValue));
 											return;
 										}
 										setError(null);
@@ -241,14 +246,12 @@ export function HotkeyPicker({
 				)}
 			</div>
 			{recording && (
+				// No max-width: the hint sizes to its own content so the
+				// instruction stays on ONE line instead of wrapping.
 				<output
-					// max-w-72 + break-words keeps the capture hint from
-					// widening the row when a long modifier label is held
-					// (same wrap guard as the error <p> below).
-					className="max-w-72 break-words text-xs text-muted-foreground"
-					// live-region role so
-					// screen readers announce countdown ticks and the
-					// "Holding: …" line as they update.
+					className="text-xs text-muted-foreground"
+					// Polite live region: screen readers announce the
+					// countdown ticks as they update.
 					aria-live="polite"
 				>
 					{t("hotkeyPicker.assignHint")}
@@ -263,24 +266,7 @@ export function HotkeyPicker({
 					>
 						({secondsRemaining}s)
 					</span>
-					{/* live modifier indicator. Mirrors
-                                        the ``aria-keyshortcuts`` attribute on the
-                                        capture button so visual users get the same
-                                        in-progress feedback screen readers do. */}
-					{heldModifiersLabel && (
-						<span className="ms-2">
-							{t("hotkeyValidation.holding")}: {heldModifiersLabel}
-						</span>
-					)}
 				</output>
-			)}
-			{error && (
-				<p
-					className="max-w-72 break-words text-xs text-destructive"
-					role="alert"
-				>
-					{error}
-				</p>
 			)}
 		</div>
 	);

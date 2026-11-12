@@ -54,6 +54,7 @@ function getKeyLabelAlias(): Readonly<Record<string, string>> {
 		scroll_lock: t("hotkeyKeys.scrollLock"),
 		print_screen: t("hotkeyKeys.printScreen"),
 		pause: t("hotkeyKeys.pause"),
+		mouse_middle: t("hotkeyKeys.mouseMiddle"),
 		insert: t("hotkeyKeys.insert"),
 		delete: t("hotkeyKeys.delete"),
 		home: t("hotkeyKeys.home"),

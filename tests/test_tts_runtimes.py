@@ -92,6 +92,15 @@ def test_install_is_idempotent_and_skips_the_network(tmp_path: Path, monkeypatch
     assert runtimes.install("audio8") == dest / "audiocpp_server.exe"
 
 
+def test_download_rejects_asset_without_size(tmp_path: Path) -> None:
+    """A malformed release asset is a typed error, not a bare TypeError."""
+    with pytest.raises(TtsError, match="no usable size"):
+        runtimes._download(
+            {"browser_download_url": "https://example.invalid/x.zip", "name": "x.zip"},
+            tmp_path / "x.zip",
+        )
+
+
 def test_install_rejects_unknown_engine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(runtimes, "bin_dir", lambda engine: tmp_path / engine)
 

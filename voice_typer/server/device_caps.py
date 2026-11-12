@@ -126,8 +126,8 @@ def _probe() -> bool:
 def publish_device_cpu_fallback(reason: str) -> None:
     """Broadcast a session-scoped GPU->CPU switch to the renderer.
 
-    Emits ``config_changed`` with ``{"device": "cpu"}`` so every
-    consumer of the shared config snapshot (sidebar toggle, model
+    Emits ``config_changed`` with ``{"device": "cpu", "active_device": "cpu"}``
+    so every consumer of the shared config snapshot (sidebar toggle, model
     pages) shifts to CPU without a ``get_config`` round-trip. The
     on-disk config is intentionally untouched: a transient error
     (OOM, missing DLL at first use) must not pin the machine to CPU
@@ -136,7 +136,7 @@ def publish_device_cpu_fallback(reason: str) -> None:
     try:
         from voice_typer.server import event_bus as _event_bus
 
-        _event_bus.publish({"type": "config_changed", "data": {"device": "cpu"}})
+        _event_bus.publish({"type": "config_changed", "data": {"device": "cpu", "active_device": "cpu"}})
     except Exception:
         log.debug("[DEVICE] config_changed fallback publish failed", exc_info=True)
     log.info("[DEVICE] GPU transcription failed (%s), session continues on CPU", reason)

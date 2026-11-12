@@ -161,6 +161,8 @@ fn test_allowlist_is_exact_canonical_set() {
         // TTS playback lifecycle (playing / stopped / finished) so the model
         // row's single control returns to idle without polling (2026-11-03).
         "tts_playback_state",
+        // Push-to-talk voice conversation turn (phase + user/assistant text).
+        "chat_turn",
     ]
     .into_iter()
     .collect();

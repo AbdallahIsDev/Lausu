@@ -7,7 +7,8 @@ import {
 	StarIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Skeleton } from "skullet/react";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import ExportFormatMenu from "@/components/common/ExportFormatMenu";
 import { LastUpdatedIndicator } from "@/components/common/LastUpdatedIndicator";
@@ -16,6 +17,7 @@ import { SortSelect } from "@/components/common/SortSelect";
 import ActivityList from "@/components/dashboard/ActivityList";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { Spinner } from "@/components/feedback/Spinner";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { Button } from "@/components/ui/button";
 import { useLatestRef } from "@/hooks/useLatestRef";
 import { useNavigation } from "@/hooks/useNavigation";
@@ -23,7 +25,6 @@ import { usePython } from "@/hooks/usePython";
 import { getLocale, t } from "@/i18n/i18n";
 import { MOUNT_RERACE_FAST_WINDOW_MS } from "@/lib/snapshotCache";
 import { useGlobalSearch } from "@/stores/useGlobalSearch";
-import { HistorySkeleton } from "./history/components/HistorySkeleton";
 import {
 	HISTORY_PAGE_SIZE,
 	isHistoryCacheFresh,
@@ -35,6 +36,7 @@ import { useHistoryEventRefresh } from "./history/hooks/useHistoryEventRefresh";
 import { useHistoryExport } from "./history/hooks/useHistoryExport";
 import { useHistoryRecordActions } from "./history/hooks/useHistoryRecordActions";
 import { useHistorySearchReload } from "./history/hooks/useHistorySearchReload";
+import { SAMPLE_HISTORY_LIST } from "./history/lib/sample";
 import {
 	type HistorySortOrder,
 	sortRecords,
@@ -222,14 +224,8 @@ export default function HistoryPage() {
 		favoritesOnly,
 	});
 
-	// Sorted view of the loaded records, applied client-side so the
-	// user can re-order the displayed list (and the export) without an
-	// extra backend round-trip.
-	const sortedRecords = useMemo(
-		() => sortRecords(records, sortOrder),
-		[records, sortOrder],
-	);
-
+	// Sorted view happens inside the measured wrap (sample + real
+	// share the same sort call).
 	const groupByDate = sortOrder === "newest" || sortOrder === "oldest";
 
 	return (
@@ -316,9 +312,9 @@ export default function HistoryPage() {
 						</div>
 					</div>
 
-					{loading && records.length === 0 ? (
-						<HistorySkeleton />
-					) : loadError && records.length === 0 ? (
+					{/* Measured wrap covers the list only: heading, toolbar,
+					    errors and empty states stay outside (bespoke UI). */}
+					{loadError && records.length === 0 && !loading ? (
 						<EmptyState
 							variant="error"
 							icon={AlertCircleIcon}
@@ -327,7 +323,7 @@ export default function HistoryPage() {
 							actionLabel={t("history.retry")}
 							onAction={() => runLoad()}
 						/>
-					) : records.length === 0 ? (
+					) : records.length === 0 && !loading ? (
 						<EmptyState
 							icon={HistoryIcon}
 							title={
@@ -357,66 +353,79 @@ export default function HistoryPage() {
 							}
 						/>
 					) : (
-						<div className="flex flex-col gap-4">
-							<ActivityList
-								// Visible window: at most `visibleCount` rows of the
-								// loaded cache are mounted (starts at one page;
-								// "Load More" widens it). The hard cap below keeps
-								// the window from ever exceeding the display limit.
-								items={sortedRecords.slice(
-									0,
-									Math.min(visibleCount, HISTORY_DISPLAY_CAP),
-								)}
-								lineClamp={3}
-								onDelete={handleDelete}
-								onToggleFavorite={handleToggleFavorite}
-								groupByDate={groupByDate}
-								onFetchFullText={handleFetchFullText}
-								hideHeader
-							/>
+						<Skeleton
+							data={loading && records.length === 0 ? null : { records, stats }}
+							sample={SAMPLE_HISTORY_LIST}
+							id="history-list"
+							label={skeletonLoadingLabel()}
+						>
+							{(p) => {
+								const sorted = sortRecords(p.records, sortOrder);
+								return (
+									<div className="flex flex-col gap-4">
+										<ActivityList
+											// Visible window: at most `visibleCount` rows of the
+											// loaded cache are mounted (starts at one page;
+											// "Load More" widens it). The hard cap below keeps
+											// the window from ever exceeding the display limit.
+											items={sorted.slice(
+												0,
+												Math.min(visibleCount, HISTORY_DISPLAY_CAP),
+											)}
+											lineClamp={3}
+											onDelete={handleDelete}
+											onToggleFavorite={handleToggleFavorite}
+											groupByDate={groupByDate}
+											onFetchFullText={handleFetchFullText}
+											hideHeader
+										/>
 
-							{records.length >= HISTORY_DISPLAY_CAP &&
-							visibleCount >= records.length &&
-							hasMore ? (
-								<p className="text-center text-xs text-muted-foreground">
-									{t("history.showingCap", {
-										shown: String(HISTORY_DISPLAY_CAP),
-										// While the count loads (or if the count fetch
-										// fails) render the ellipsis placeholder, the
-										// point of the line (list is capped, use search)
-										// stays readable without a broken "N+" value.
-										total: historyCount !== null ? String(historyCount) : "…",
-									})}
-								</p>
-							) : hasMore ? (
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => {
-										void loadMore();
-										setVisibleCount((c) => c + HISTORY_PAGE_SIZE);
-									}}
-									disabled={loadingMore}
-									className="w-full gap-2 text-xs rounded-lg border border-dashed border-border/8"
-								>
-									{loadingMore ? (
-										<>
-											<Spinner className="border-current" />
-											{t("history.loading")}
-										</>
-									) : (
-										<>
-											<HugeiconsIcon
-												icon={ArrowDown01Icon}
-												strokeWidth={2}
-												className="h-4 w-4"
-											/>
-											{t("history.loadMore")}
-										</>
-									)}
-								</Button>
-							) : null}
-						</div>
+										{p.records.length >= HISTORY_DISPLAY_CAP &&
+										visibleCount >= records.length &&
+										hasMore ? (
+											<p className="text-center text-xs text-muted-foreground">
+												{t("history.showingCap", {
+													shown: String(HISTORY_DISPLAY_CAP),
+													// While the count loads (or if the count fetch
+													// fails) render the ellipsis placeholder, the
+													// point of the line (list is capped, use search)
+													// stays readable without a broken "N+" value.
+													total:
+														historyCount !== null ? String(historyCount) : "…",
+												})}
+											</p>
+										) : hasMore ? (
+											<Button
+												variant="outline"
+												size="default"
+												onClick={() => {
+													void loadMore();
+													setVisibleCount((c) => c + HISTORY_PAGE_SIZE);
+												}}
+												disabled={loadingMore}
+												className="w-full gap-2 text-xs rounded-lg border border-dashed border-border/8"
+											>
+												{loadingMore ? (
+													<>
+														<Spinner className="border-current" />
+														{t("history.loading")}
+													</>
+												) : (
+													<>
+														<HugeiconsIcon
+															icon={ArrowDown01Icon}
+															strokeWidth={2}
+															className="h-4 w-4"
+														/>
+														{t("history.loadMore")}
+													</>
+												)}
+											</Button>
+										) : null}
+									</div>
+								);
+							}}
+						</Skeleton>
 					)}
 				</div>
 			</div>

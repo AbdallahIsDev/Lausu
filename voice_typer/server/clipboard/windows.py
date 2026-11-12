@@ -227,10 +227,38 @@ class KEYBDINPUT(ctypes.Structure):
     KEYUP = 0x0002
 
 
-class InputUnion(ctypes.Union):
-    """Win32 INPUT union, only the keyboard branch is populated."""
+class MOUSEINPUT(ctypes.Structure):
+    """Win32 MOUSEINPUT. Never populated -- it exists so the union is 32 bytes.
 
-    _fields_ = (("ki", KEYBDINPUT),)
+    ``SendInput`` validates ``cbSize`` against ITS ``sizeof(INPUT)`` (40 on
+    x64) and returns 0 with ``ERROR_INVALID_PARAMETER`` for anything else. A
+    keyboard-only union is 24 bytes, which made every paste a silent no-op.
+    """
+
+    _fields_ = (
+        ("dx", wintypes.LONG),
+        ("dy", wintypes.LONG),
+        ("mouseData", wintypes.DWORD),
+        ("dwFlags", wintypes.DWORD),
+        ("time", wintypes.DWORD),
+        ("dwExtraInfo", _ULONG_PTR),
+    )
+
+
+class HARDWAREINPUT(ctypes.Structure):
+    """Win32 HARDWAREINPUT, the union's smallest branch (size parity only)."""
+
+    _fields_ = (
+        ("uMsg", wintypes.DWORD),
+        ("wParamL", wintypes.WORD),
+        ("wParamH", wintypes.WORD),
+    )
+
+
+class InputUnion(ctypes.Union):
+    """Win32 INPUT union: all three branches, as the OS defines it."""
+
+    _fields_ = (("mi", MOUSEINPUT), ("ki", KEYBDINPUT), ("hi", HARDWAREINPUT))
 
 
 class INPUT(ctypes.Structure):

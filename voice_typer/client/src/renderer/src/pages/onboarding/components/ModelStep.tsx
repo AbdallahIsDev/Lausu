@@ -1,4 +1,6 @@
-import type { Ref } from "react";
+import { ChevronDownIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { type Ref, useState } from "react";
 import { FamilyLogo } from "@/components/models/FamilyLogo";
 import {
 	DOWNLOAD_CONTENT_ALIGNMENT,
@@ -95,6 +97,12 @@ function languageBadgeKey(
 		: "onboarding.multilingualBadge";
 }
 
+function displayNameFor(model: ModelOption): string {
+	return model.display_name && model.display_name.length > 0
+		? model.display_name
+		: model.name;
+}
+
 /** Small info chip used for the VRAM / language badges on a model row. */
 function ModelBadge({ children }: { children: string }) {
 	return (
@@ -122,11 +130,20 @@ export function ModelStep({
 }: ModelStepProps) {
 	const isDownloading = downloadingModel !== null;
 	const progressPct = Math.round(downloadProgress);
+	const [allModelsOpen, setAllModelsOpen] = useState(false);
+
+	// Single recommended model (backend ``recommended: true``, exactly
+	// one entry). The recommended card satisfies the step's
+	// one-model gate on its own; the rest stays behind All Models.
+	const recommended = modelOptions.find((m) => m.recommended === true) ?? null;
+	const restOptions = recommended
+		? modelOptions.filter((m) => m.name !== recommended.name)
+		: modelOptions;
 
 	// Group the offered local models by family for the accordion.
 	// Families appear in first-seen order (whisper, qwen, parakeet).
 	const families: { id: string; models: ModelOption[] }[] = [];
-	for (const m of modelOptions) {
+	for (const m of restOptions) {
 		const id = familyForModel(m);
 		let bucket = families.find((f) => f.id === id);
 		if (!bucket) {
@@ -140,6 +157,106 @@ export function ModelStep({
 		{ value: "local", label: t("onboarding.backendLocalLabel") },
 		{ value: "cloud", label: t("onboarding.backendCloudLabel") },
 	];
+
+	const renderModelRow = (m: ModelOption) => {
+		const langKey = languageBadgeKey(m.languages);
+		const isSelected = selectedModel === m.name;
+		const isDownloadingThis = downloadingModel === m.name;
+		const displayName = displayNameFor(m);
+		return (
+			<div
+				key={m.name}
+				className="flex flex-wrap items-center justify-between gap-2 py-2.5"
+				data-testid={`onboarding-model-item-${m.name}`}
+			>
+				{/* Row-select button (toggle pattern): the
+				    name + badges are one selectable unit;
+				    the Download button is a SIBLING, never
+				    nested (invalid DOM inside a button).
+				    aria-pressed conveys the selection state
+				    (a native <input type=radio> cannot carry
+				    the badge layout inside the row). */}
+				<button
+					type="button"
+					aria-pressed={isSelected}
+					onClick={() => setSelectedModel(m.name)}
+					className="flex min-w-0 flex-1 flex-col items-start gap-1 rounded-lg p-1 text-start outline-none focus-visible:ring-1 focus-visible:ring-ring"
+					aria-label={t("onboarding.modelSelectAria", {
+						name: displayName,
+					})}
+					data-testid={`onboarding-model-select-${m.name}`}
+				>
+					<span
+						className={`text-sm font-medium ${isSelected ? "text-accent" : "text-foreground"}`}
+					>
+						{displayName}
+						{isSelected ? " ✓" : ""}
+					</span>
+					<span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+						<span>
+							{m.description ?? ""}
+							{m.description && m.size ? ", " : ""}
+							{m.size ?? ""}
+							{(() => {
+								const speedLabel = formatModelSpeed(m.speed);
+								return speedLabel ? ` (${speedLabel})` : "";
+							})()}
+						</span>
+						{m.vram_gb != null && (
+							<ModelBadge>
+								{t("onboarding.vramBadge", {
+									vram: formatVram(m.vram_gb * 1024),
+								})}
+							</ModelBadge>
+						)}
+						{langKey != null && <ModelBadge>{t(langKey)}</ModelBadge>}
+					</span>
+				</button>
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					// Same fixed-width, left-aligned, compact-icon
+					// tokens as the Models page download buttons
+					// (C-MODELS-2), imported (no duplication).
+					className={`gap-2 text-xs whitespace-nowrap ${DOWNLOAD_SIZE_BUTTON_WIDTH} ${DOWNLOAD_CONTENT_ALIGNMENT}`}
+					onClick={() => onDownload(m.name)}
+					disabled={isDownloading}
+					aria-busy={isDownloadingThis}
+					aria-label={t("onboarding.modelSizeDownloadAria", {
+						name: displayName,
+					})}
+					data-testid={`onboarding-download-button-${m.name}`}
+				>
+					{isDownloadingThis ? (
+						<>
+							<span
+								className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+								role="presentation"
+							/>
+							{progressPct}%
+						</>
+					) : (
+						t("onboarding.downloadModel")
+					)}
+				</Button>
+			</div>
+		);
+	};
+
+	const recommendedIsFast = (() => {
+		if (!recommended) return false;
+		const speed = (recommended.speed ?? "").toLowerCase();
+		return speed === "fast" || speed === "fastest";
+	})();
+	const recommendedIsMultilingual =
+		recommended != null &&
+		languageBadgeKey(recommended.languages) === "onboarding.multilingualBadge";
+	const recommendedIsSelected =
+		recommended != null && selectedModel === recommended.name;
+	const recommendedIsDownloadingThis =
+		recommended != null && downloadingModel === recommended.name;
+	const recommendedDisplayName = recommended ? displayNameFor(recommended) : "";
 
 	return (
 		<>
@@ -176,124 +293,176 @@ export function ModelStep({
 					aria-labelledby="onboarding-backend-tab-local"
 					className="flex flex-col gap-3"
 				>
-					{/* Family accordion — the Models-page structure: one
-					    AccordionItem per provider family (the shared
-					    right→down disclosure chevron), each model item shows its
-					    VRAM / language badges and carries its OWN download
-					    button on the right (the standalone blue Download
-					    button + duplicate HF consent checkbox were removed
-					    2026-09-14). Selecting a model = clicking its row. */}
-					<Accordion
-						type="multiple"
-						// The first family (whisper) starts expanded, matching the
-						// Models page's expand-the-active-family default.
-						defaultValue={families[0] ? [families[0].id] : []}
-						className="rounded-lg border border-border/10 bg-surface-subtle"
-						data-testid="onboarding-model-accordion"
-					>
-						{families.map((family) => (
-							<AccordionItem key={family.id} value={family.id}>
-								<AccordionTrigger className="px-4 hover:no-underline">
-									<div className="flex items-center gap-2">
-										<FamilyLogo family={family.id} />
-										<span className="text-sm font-medium text-foreground">
-											{FAMILY_LABELS[family.id] ?? family.id}
+					{recommended ? (
+						<div
+							className="flex flex-col gap-2 rounded-lg border border-border/8 bg-surface-subtle p-4"
+							data-testid="onboarding-recommended-card"
+						>
+							<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+								<ModelBadge>
+									{t("onboarding.models.badgeRecommended")}
+								</ModelBadge>
+								{recommendedIsFast && (
+									<ModelBadge>{t("onboarding.models.badgeFast")}</ModelBadge>
+								)}
+								{recommendedIsMultilingual && (
+									<ModelBadge>
+										{t("onboarding.models.badgeLanguages")}
+									</ModelBadge>
+								)}
+							</div>
+							<div
+								className="flex flex-wrap items-center justify-between gap-2"
+								data-testid={`onboarding-model-item-${recommended.name}`}
+							>
+								<button
+									type="button"
+									aria-pressed={recommendedIsSelected}
+									onClick={() => setSelectedModel(recommended.name)}
+									className="flex min-w-0 flex-1 flex-col items-start gap-1 rounded-lg p-1 text-start outline-none focus-visible:ring-1 focus-visible:ring-ring"
+									aria-label={t("onboarding.modelSelectAria", {
+										name: recommendedDisplayName,
+									})}
+									data-testid={`onboarding-model-select-${recommended.name}`}
+								>
+									<span
+										className={`text-sm font-medium ${recommendedIsSelected ? "text-accent" : "text-foreground"}`}
+									>
+										{recommendedDisplayName}
+										{recommendedIsSelected ? " ✓" : ""}
+									</span>
+									<span className="text-xs text-muted-foreground">
+										{recommended.description ?? ""}
+										{recommended.description && recommended.size ? ", " : ""}
+										{recommended.size ?? ""}
+										{(() => {
+											const speedLabel = formatModelSpeed(recommended.speed);
+											return speedLabel ? ` (${speedLabel})` : "";
+										})()}
+									</span>
+									{recommended.vram_gb != null && (
+										<span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+											<ModelBadge>
+												{t("onboarding.vramBadge", {
+													vram: formatVram(recommended.vram_gb * 1024),
+												})}
+											</ModelBadge>
 										</span>
-									</div>
-								</AccordionTrigger>
-								<AccordionContent className="px-4 pb-2">
-									<div className="flex flex-col divide-y divide-border/8">
-										{family.models.map((m) => {
-											const langKey = languageBadgeKey(m.languages);
-											const isSelected = selectedModel === m.name;
-											const isDownloadingThis = downloadingModel === m.name;
-											return (
-												<div
-													key={m.name}
-													className="flex flex-wrap items-center justify-between gap-2 py-2.5"
-													data-testid={`onboarding-model-item-${m.name}`}
-												>
-													{/* Row-select button (toggle pattern): the
-													    name + badges are one selectable unit;
-													    the Download button is a SIBLING, never
-													    nested (invalid DOM inside a button).
-													    aria-pressed conveys the selection state
-													    (a native <input type=radio> cannot carry
-													    the badge layout inside the row). */}
-													<button
-														type="button"
-														aria-pressed={isSelected}
-														onClick={() => setSelectedModel(m.name)}
-														className="flex min-w-0 flex-1 flex-col items-start gap-1 rounded-lg p-1 text-start outline-none focus-visible:ring-1 focus-visible:ring-ring"
-														aria-label={t("onboarding.modelSelectAria", {
-															name: m.name,
-														})}
-														data-testid={`onboarding-model-select-${m.name}`}
-													>
-														<span
-															className={`text-sm font-medium ${isSelected ? "text-accent" : "text-foreground"}`}
-														>
-															{m.name}
-															{isSelected ? " ✓" : ""}
-														</span>
-														<span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-															<span>
-																{m.description ?? ""}
-																{m.description && m.size ? ", " : ""}
-																{m.size ?? ""}
-																{(() => {
-																	const speedLabel = formatModelSpeed(m.speed);
-																	return speedLabel ? ` (${speedLabel})` : "";
-																})()}
+									)}
+								</button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className={`gap-2 text-xs whitespace-nowrap ${DOWNLOAD_SIZE_BUTTON_WIDTH} ${DOWNLOAD_CONTENT_ALIGNMENT}`}
+									onClick={() => onDownload(recommended.name)}
+									disabled={isDownloading}
+									aria-busy={recommendedIsDownloadingThis}
+									aria-label={t("onboarding.modelSizeDownloadAria", {
+										name: recommendedDisplayName,
+									})}
+									data-testid={`onboarding-download-button-${recommended.name}`}
+								>
+									{recommendedIsDownloadingThis ? (
+										<>
+											<span
+												className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+												role="presentation"
+											/>
+											{progressPct}%
+										</>
+									) : (
+										t("onboarding.downloadModel")
+									)}
+								</Button>
+							</div>
+						</div>
+					) : null}
+
+					{recommended ? (
+						<div className="flex flex-col gap-2">
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="w-full justify-between px-4"
+								aria-expanded={allModelsOpen}
+								aria-controls="onboarding-all-models-panel"
+								onClick={() => setAllModelsOpen((v) => !v)}
+								data-testid="onboarding-all-models-toggle"
+							>
+								<span className="text-sm font-medium text-foreground">
+									{t("onboarding.models.allModels")}
+								</span>
+								<HugeiconsIcon
+									icon={ChevronDownIcon}
+									strokeWidth={1.8}
+									aria-hidden="true"
+									className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${allModelsOpen ? "rotate-180" : ""}`}
+								/>
+							</Button>
+							<div className="collapse-root" data-open={allModelsOpen}>
+								<div
+									id="onboarding-all-models-panel"
+									className="flex flex-col gap-2"
+								>
+									{allModelsOpen ? (
+										<Accordion
+											type="multiple"
+											defaultValue={families[0] ? [families[0].id] : []}
+											className="rounded-lg border border-border/8 bg-surface-subtle"
+											data-testid="onboarding-model-accordion"
+										>
+											{families.map((family) => (
+												<AccordionItem key={family.id} value={family.id}>
+													<AccordionTrigger className="px-4 hover:no-underline">
+														<div className="flex items-center gap-2">
+															<FamilyLogo family={family.id} />
+															<span className="text-sm font-medium text-foreground">
+																{FAMILY_LABELS[family.id] ?? family.id}
 															</span>
-															{m.vram_gb != null && (
-																<ModelBadge>
-																	{t("onboarding.vramBadge", {
-																		vram: formatVram(m.vram_gb * 1024),
-																	})}
-																</ModelBadge>
-															)}
-															{langKey != null && (
-																<ModelBadge>{t(langKey)}</ModelBadge>
-															)}
-														</span>
-													</button>
-													<Button
-														type="button"
-														variant="outline"
-														size="sm"
-														// Same fixed-width, left-aligned, compact-icon
-														// tokens as the Models page download buttons
-														// (C-MODELS-2), imported (no duplication).
-														className={`gap-2 text-xs whitespace-nowrap ${DOWNLOAD_SIZE_BUTTON_WIDTH} ${DOWNLOAD_CONTENT_ALIGNMENT}`}
-														onClick={() => onDownload(m.name)}
-														disabled={isDownloading}
-														aria-busy={isDownloadingThis}
-														aria-label={t("onboarding.modelSizeDownloadAria", {
-															name: m.name,
-														})}
-														data-testid={`onboarding-download-button-${m.name}`}
-													>
-														{isDownloadingThis ? (
-															<>
-																<span
-																	className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
-																	role="presentation"
-																/>
-																{progressPct}%
-															</>
-														) : (
-															t("onboarding.downloadModel")
-														)}
-													</Button>
-												</div>
-											);
-										})}
-									</div>
-								</AccordionContent>
-							</AccordionItem>
-						))}
-					</Accordion>
+														</div>
+													</AccordionTrigger>
+													<AccordionContent className="px-4 pb-2">
+														<div className="flex flex-col divide-y divide-border/8">
+															{family.models.map((m) => renderModelRow(m))}
+														</div>
+													</AccordionContent>
+												</AccordionItem>
+											))}
+										</Accordion>
+									) : null}
+								</div>
+							</div>
+						</div>
+					) : (
+						<Accordion
+							type="multiple"
+							// The first family (whisper) starts expanded, matching the
+							// Models page's expand-the-active-family default.
+							defaultValue={families[0] ? [families[0].id] : []}
+							className="rounded-lg border border-border/10 bg-surface-subtle"
+							data-testid="onboarding-model-accordion"
+						>
+							{families.map((family) => (
+								<AccordionItem key={family.id} value={family.id}>
+									<AccordionTrigger className="px-4 hover:no-underline">
+										<div className="flex items-center gap-2">
+											<FamilyLogo family={family.id} />
+											<span className="text-sm font-medium text-foreground">
+												{FAMILY_LABELS[family.id] ?? family.id}
+											</span>
+										</div>
+									</AccordionTrigger>
+									<AccordionContent className="px-4 pb-2">
+										<div className="flex flex-col divide-y divide-border/8">
+											{family.models.map((m) => renderModelRow(m))}
+										</div>
+									</AccordionContent>
+								</AccordionItem>
+							))}
+						</Accordion>
+					)}
 
 					{/* Inline download-failure hint. The per-item button is
 					    the retry affordance (click Download again); the old

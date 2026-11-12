@@ -244,7 +244,7 @@ def load_microphones(app: AppProtocol, shutdown_event: threading.Event | None = 
         elif len(mics) != len(old_ids):
             log.info("[RECORDING] Microphone count changed: %d -> %d", len(old_ids), len(mics))
         # AUDIO-MIC: push a device-change IPC event if the device
-        if (old_ids and old_ids != new_ids) or (not old_ids and new_ids):
+        if old_ids and old_ids != new_ids:
             added = new_ids - old_ids
             removed = old_ids - new_ids
             log.info(

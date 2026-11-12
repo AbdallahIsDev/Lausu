@@ -131,7 +131,6 @@ class TestExactlyOneNonModifierStillAllowed:
             "<f6>",
             "<f7>",
             "<caps_lock>",
-            "<delete>",
             "<insert>",
             "<home>",
             "<end>",

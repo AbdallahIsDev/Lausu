@@ -142,7 +142,7 @@ describe("ErrorBoundary", () => {
 		expect(card).toBeTruthy();
 		expect(card?.className).toContain("max-w-lg");
 		expect(card?.className).toContain("rounded-lg");
-		expect(card?.className).toContain("border-border/10");
+		expect(card?.className).toContain("border-border/8");
 		// Destructive icon disc: rounded-full bg-destructive/10 wrapper.
 		const disc = Array.from(alert.querySelectorAll("div")).find((el) =>
 			el.className.includes("bg-destructive/10"),

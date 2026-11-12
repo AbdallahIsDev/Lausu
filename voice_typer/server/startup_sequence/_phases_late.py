@@ -358,6 +358,15 @@ class LatePhases:
         try:
             from voice_typer.server import startup_tasks
 
+            # A finished CUDA install flips the device only after the stack is
+            # proven; it must run before reconciliation, which forces CPU when
+            # no GPU is available.
+            try:
+                from voice_typer.server.cuda_install import apply_pending_activation
+
+                apply_pending_activation(app)
+            except Exception:
+                log.debug("[STARTUP] pending CUDA activation failed", exc_info=True)
             startup_tasks.reconcile_configured_device(app)
             startup_tasks.reconcile_configured_model(app)
         except Exception:

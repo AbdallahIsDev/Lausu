@@ -9,10 +9,13 @@
 // parent doesn't need to know about it).
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { Skeleton } from "skullet/react";
 import { AudioFilterChain } from "@/components/audio/AudioFilterChain";
 import { RangeSlider } from "@/components/common/RangeSlider";
 import { SettingRow } from "@/components/common/SettingRow";
 import { SettingsSection } from "@/components/common/SettingsSection";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
+import { SAMPLE_CONFIG } from "@/components/skullet/sampleConfig";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -33,7 +36,6 @@ import {
 	type HallucinationFilterMode,
 } from "@/lib/utils/audioPresets";
 import type { LausuConfig } from "@/types/config";
-import { SettingsSkeleton } from "./SettingsSkeleton";
 import type { SettingsSectionSharedProps } from "./types";
 
 export const AudioSettingsSection = memo(function AudioSettingsSection({
@@ -116,8 +118,6 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 	}, [config?.audio_preset]);
 
 	const t = useT();
-
-	if (!config) return <SettingsSkeleton rows={3} />;
 
 	// IMPL-C: resolve the translated search-visible labels once per render so
 	// the section-level isVisible check and the rendered SettingRow labels
@@ -278,7 +278,7 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 			updateConfig({ audio_preset: lastNonOffPresetRef.current });
 			return;
 		}
-		const current = config.audio_preset ?? "auto";
+		const current = config?.audio_preset ?? "auto";
 		if (current !== "off") {
 			lastNonOffPresetRef.current = current;
 		}
@@ -292,8 +292,8 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 
 	// The preset currently driving the filter chain ("off" disables
 	// it, see the enable-Switch above).
-	const activePreset = config.audio_preset ?? "auto";
-	const qualityEnabled = activePreset !== "off";
+	const activePreset = config?.audio_preset ?? "auto";
+	const qualityEnabled = config != null && activePreset !== "off";
 	// Select options exclude "off": disabling is the Switch's job, so
 	// the dropdown only offers real presets. While disabled, the Select
 	// displays the stashed preset (what enabling will restore).
@@ -304,68 +304,79 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
 	// Backend default is "balanced"; fall back the same way for a config
 	// written before the field existed so the Select never renders empty.
 	const hallucinationMode: HallucinationFilterMode =
-		config.hallucination_filter_mode ?? "balanced";
+		config?.hallucination_filter_mode ?? "balanced";
 
+	// Measured wrap: while config is null the section renders from
+	// SAMPLE_CONFIG unseen and Skullet measures it in place.
 	return (
-		<SettingsSection
-			title={audioSectionTitle}
-			description={t("settings.audioEnhancement.description")}
+		<Skeleton
+			data={config}
+			sample={SAMPLE_CONFIG}
+			id="settings-audio"
+			label={skeletonLoadingLabel()}
 		>
-			{/*per-row visibility filtering so a search query
+			{(cfg) => (
+				<SettingsSection
+					title={audioSectionTitle}
+					description={t("settings.audioEnhancement.description")}
+				>
+					{/*per-row visibility filtering so a search query
                                 only highlights the rows whose label/info matches —
                                 previously the section-level check showed the entire
                                 section (including all rows) when ANY row matched,
                                 which defeated the purpose of in-section search. */}
-			<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/8">
-				{/* ── ADR 0007: Microphone Quality master Switch (first row) ──
+					<div className="animate-fade-in flex flex-col gap-0 divide-y divide-border/8">
+						{/* ── ADR 0007: Microphone Quality master Switch (first row) ──
                                     Enabling unlocks the preset picker row below;
                                     "off" lives ONLY behind this Switch, never in
                                     the preset dropdown. */}
-				{isVisible(
-					microphoneQualityLabel,
-					microphoneQualityInfoSearch,
-					audioSectionTitle,
-				) && (
-					<SettingRow
-						label={microphoneQualityLabel}
-						info={t("settings.audioEnhancement.microphoneQualityInfo")}
-					>
-						<Switch
-							checked={qualityEnabled}
-							onCheckedChange={handleQualityEnabledChange}
-							aria-label={t(
-								"settings.audioEnhancement.microphoneQualityEnableAria",
-							)}
-							data-testid="microphone-quality-switch"
-						/>
-					</SettingRow>
-				)}
+						{isVisible(
+							microphoneQualityLabel,
+							microphoneQualityInfoSearch,
+							audioSectionTitle,
+						) && (
+							<SettingRow
+								label={microphoneQualityLabel}
+								info={t("settings.audioEnhancement.microphoneQualityInfo")}
+							>
+								<Switch
+									checked={qualityEnabled}
+									onCheckedChange={handleQualityEnabledChange}
+									aria-label={t(
+										"settings.audioEnhancement.microphoneQualityEnableAria",
+									)}
+									data-testid="microphone-quality-switch"
+								/>
+							</SettingRow>
+						)}
 
-				{/* ── ADR 0007: Quality preset picker (locked while disabled) ── */}
-				{isVisible(
-					qualityPresetLabel,
-					microphoneQualityInfoSearch,
-					audioSectionTitle,
-				) && (
-					<SettingRow
-						label={qualityPresetLabel}
-						info={t("settings.audioEnhancement.microphoneQualityInfoSearch")}
-					>
-						<Select
-							value={activePreset}
-							disabled={!qualityEnabled}
-							onValueChange={handleAudioPresetChange}
-						>
-							<SelectTrigger
-								className="w-48"
-								aria-label={t(
-									"settings.audioEnhancement.microphoneQualityAria",
+						{/* ── ADR 0007: Quality preset picker (locked while disabled) ── */}
+						{isVisible(
+							qualityPresetLabel,
+							microphoneQualityInfoSearch,
+							audioSectionTitle,
+						) && (
+							<SettingRow
+								label={qualityPresetLabel}
+								info={t(
+									"settings.audioEnhancement.microphoneQualityInfoSearch",
 								)}
 							>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{/* Options come from the shared preset
+								<Select
+									value={activePreset}
+									disabled={!qualityEnabled}
+									onValueChange={handleAudioPresetChange}
+								>
+									<SelectTrigger
+										className="w-48"
+										aria-label={t(
+											"settings.audioEnhancement.microphoneQualityAria",
+										)}
+									>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{/* Options come from the shared preset
                                                                         registry (lib/utils/audioPresets.ts), the
                                                                         SAME source the Microphone page's accordion
                                                                         consumes, so the two surfaces can never
@@ -374,163 +385,173 @@ export const AudioSettingsSection = memo(function AudioSettingsSection({
                                                                         (useT) so a locale switch re-renders them.
                                                                         "off" is intentionally excluded: disabling
                                                                         is the enable-Switch's job. */}
-								{selectablePresets.map((option) => (
-									<SelectItem key={option.value} value={option.value}>
-										{t(option.labelKey)}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</SettingRow>
-				)}
+										{selectablePresets.map((option) => (
+											<SelectItem key={option.value} value={option.value}>
+												{t(option.labelKey)}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</SettingRow>
+						)}
 
-				{/* ── Voice activity filtering ── */}
-				{isVisible(vadFilterLabel, vadFilterInfoSearch, audioSectionTitle) && (
-					<SettingRow
-						label={vadFilterLabel}
-						info={t("settings.audioEnhancement.vadFilterInfo")}
-					>
-						<Switch
-							checked={config.vad_filter_enabled ?? true}
-							onCheckedChange={handleVadFilterChange}
-							aria-label={t("settings.audioEnhancement.vadFilterAria")}
-							data-testid="vad-filter-switch"
-						/>
-					</SettingRow>
-				)}
+						{/* ── Voice activity filtering ── */}
+						{isVisible(
+							vadFilterLabel,
+							vadFilterInfoSearch,
+							audioSectionTitle,
+						) && (
+							<SettingRow
+								label={vadFilterLabel}
+								info={t("settings.audioEnhancement.vadFilterInfo")}
+							>
+								<Switch
+									checked={cfg.vad_filter_enabled ?? true}
+									onCheckedChange={handleVadFilterChange}
+									aria-label={t("settings.audioEnhancement.vadFilterAria")}
+									data-testid="vad-filter-switch"
+								/>
+							</SettingRow>
+						)}
 
-				{/* ── Hallucination filtering (discards decoder artifacts
+						{/* ── Hallucination filtering (discards decoder artifacts
 				        emitted on near-silence). Sits directly below the VAD
 				        row because it is the same concern: what the app does
 				        with silent/empty audio. */}
-				{isVisible(
-					hallucinationModeLabel,
-					hallucinationModeInfoSearch,
-					audioSectionTitle,
-				) && (
-					<SettingRow
-						label={hallucinationModeLabel}
-						info={t("settings.audioEnhancement.hallucinationFilterInfo")}
-					>
-						<Select
-							value={hallucinationMode}
-							onValueChange={handleHallucinationModeChange}
-						>
-							<SelectTrigger
-								className="w-48"
-								aria-label={t(
-									"settings.audioEnhancement.hallucinationFilterAria",
-								)}
-								data-testid="hallucination-filter-select"
+						{isVisible(
+							hallucinationModeLabel,
+							hallucinationModeInfoSearch,
+							audioSectionTitle,
+						) && (
+							<SettingRow
+								label={hallucinationModeLabel}
+								info={t("settings.audioEnhancement.hallucinationFilterInfo")}
 							>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{HALLUCINATION_FILTER_MODE_OPTIONS.map((option) => (
-									<SelectItem key={option.value} value={option.value}>
-										{t(option.labelKey)}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</SettingRow>
-				)}
+								<Select
+									value={hallucinationMode}
+									onValueChange={handleHallucinationModeChange}
+								>
+									<SelectTrigger
+										className="w-48"
+										aria-label={t(
+											"settings.audioEnhancement.hallucinationFilterAria",
+										)}
+										data-testid="hallucination-filter-select"
+									>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{HALLUCINATION_FILTER_MODE_OPTIONS.map((option) => (
+											<SelectItem key={option.value} value={option.value}>
+												{t(option.labelKey)}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</SettingRow>
+						)}
 
-				{/* ── Volume Backend status ── */}
-				{isVisible(
-					volumeBackendLabel,
-					volumeBackendInfoSearch,
-					audioSectionTitle,
-				) && (
-					<SettingRow
-						label={volumeBackendLabel}
-						info={t("settings.audioEnhancement.volumeBackendInfo")}
-					>
-						<span className="text-sm text-muted-foreground tabular-nums">
-							{volumeBackend
-								? volumeBackend.available
-									? volumeBackend.name
-									: t("settings.audioEnhancement.unavailableSuffix", {
-											name: volumeBackend.name,
-										})
-								: t("settings.audioEnhancement.detecting")}
-						</span>
-					</SettingRow>
-				)}
+						{/* ── Volume Backend status ── */}
+						{isVisible(
+							volumeBackendLabel,
+							volumeBackendInfoSearch,
+							audioSectionTitle,
+						) && (
+							<SettingRow
+								label={volumeBackendLabel}
+								info={t("settings.audioEnhancement.volumeBackendInfo")}
+							>
+								<span className="text-sm text-muted-foreground tabular-nums">
+									{volumeBackend
+										? volumeBackend.available
+											? volumeBackend.name
+											: t("settings.audioEnhancement.unavailableSuffix", {
+													name: volumeBackend.name,
+												})
+										: t("settings.audioEnhancement.detecting")}
+								</span>
+							</SettingRow>
+						)}
 
-				{/* ── Auto Duck Volume ── */}
-				{isVisible(
-					autoDuckVolumeLabel,
-					autoDuckVolumeInfoSearch,
-					audioSectionTitle,
-				) && (
-					<SettingRow
-						label={autoDuckVolumeLabel}
-						info={t("settings.audioEnhancement.autoDuckVolumeInfo")}
-					>
-						<Switch
-							checked={config.volume_duck_enabled ?? true}
-							onCheckedChange={handleAutoDuckChange}
-							aria-label={t("settings.audioEnhancement.autoDuckVolumeAria")}
-						/>
-					</SettingRow>
-				)}
-				{isVisible(duckLevelLabel, duckLevelInfoSearch, audioSectionTitle) && (
-					<SettingRow
-						label={duckLevelLabel}
-						info={t("settings.audioEnhancement.duckLevelInfo")}
-					>
-						<RangeSlider
-							value={config.volume_duck_level ?? 0.2}
-							min={0}
-							max={0.5}
-							step={0.05}
-							onChange={handleDuckLevelChange}
-							ariaLabel={t("settings.audioEnhancement.duckLevelAria")}
-							suffix="%"
-							// Disable the Duck Level slider when Auto Duck
-							// Volume is off, adjusting the duck level has no effect
-							// when ducking is disabled, and a stale value persisted
-							// here would silently apply if the user later re-enables
-							// ducking.
-							disabled={!config.volume_duck_enabled}
-						/>
-					</SettingRow>
-				)}
+						{/* ── Auto Duck Volume ── */}
+						{isVisible(
+							autoDuckVolumeLabel,
+							autoDuckVolumeInfoSearch,
+							audioSectionTitle,
+						) && (
+							<SettingRow
+								label={autoDuckVolumeLabel}
+								info={t("settings.audioEnhancement.autoDuckVolumeInfo")}
+							>
+								<Switch
+									checked={cfg.volume_duck_enabled ?? true}
+									onCheckedChange={handleAutoDuckChange}
+									aria-label={t("settings.audioEnhancement.autoDuckVolumeAria")}
+								/>
+							</SettingRow>
+						)}
+						{isVisible(
+							duckLevelLabel,
+							duckLevelInfoSearch,
+							audioSectionTitle,
+						) && (
+							<SettingRow
+								label={duckLevelLabel}
+								info={t("settings.audioEnhancement.duckLevelInfo")}
+							>
+								<RangeSlider
+									value={cfg.volume_duck_level ?? 0.2}
+									min={0}
+									max={0.5}
+									step={0.05}
+									onChange={handleDuckLevelChange}
+									ariaLabel={t("settings.audioEnhancement.duckLevelAria")}
+									suffix="%"
+									// Disable the Duck Level slider when Auto Duck
+									// Volume is off, adjusting the duck level has no effect
+									// when ducking is disabled, and a stale value persisted
+									// here would silently apply if the user later re-enables
+									// ducking.
+									disabled={!cfg.volume_duck_enabled}
+								/>
+							</SettingRow>
+						)}
 
-				{/* ── ADR 0007: Custom filter controls (locked unless preset === 'custom') ── */}
-				{/*F-1: filter chain extracted to shared <AudioFilterChain />.
+						{/* ── ADR 0007: Custom filter controls (locked unless preset === 'custom') ── */}
+						{/*F-1: filter chain extracted to shared <AudioFilterChain />.
                                         : the filter chain rows themselves are search-filtered
                                         inside <AudioFilterChain> via its own isVisible checks (it
                                         receives the same `isVisible` prop through `sectionProps`).
                                         The chain is ALWAYS rendered and locked unless
                                         preset==="custom", so the individual filters stay
                                         discoverable and unlock when the custom preset is picked. */}
-				<AudioFilterChain
-					config={config}
-					onConfigChange={updateConfig}
-					disabled={config.audio_preset !== "custom"}
-				/>
+						<AudioFilterChain
+							config={cfg}
+							onConfigChange={updateConfig}
+							disabled={cfg.audio_preset !== "custom"}
+						/>
 
-				{/* ── Test microphone (cross-link row to the Microphone page) ── */}
-				{isVisible(
-					testMicrophoneLabel,
-					testMicrophoneInfo,
-					audioSectionTitle,
-				) && (
-					<SettingRow label={testMicrophoneLabel} info={testMicrophoneInfo}>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={handleGoToMicrophone}
-							aria-label={goToMicrophoneLabel}
-						>
-							{goToMicrophoneLabel}
-						</Button>
-					</SettingRow>
-				)}
-			</div>
-		</SettingsSection>
+						{/* ── Test microphone (cross-link row to the Microphone page) ── */}
+						{isVisible(
+							testMicrophoneLabel,
+							testMicrophoneInfo,
+							audioSectionTitle,
+						) && (
+							<SettingRow label={testMicrophoneLabel} info={testMicrophoneInfo}>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={handleGoToMicrophone}
+									aria-label={goToMicrophoneLabel}
+								>
+									{goToMicrophoneLabel}
+								</Button>
+							</SettingRow>
+						)}
+					</div>
+				</SettingsSection>
+			)}
+		</Skeleton>
 	);
 });

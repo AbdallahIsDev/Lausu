@@ -181,6 +181,8 @@ class TestReconcileConfiguredDevice:
         assert startup_tasks.reconcile_configured_device(app) is True
         assert app.config.device == "cpu"
         assert saves == [True]
+        # Startup reconciliation only persists the REQUEST; no engine has
+        # reported an effective device yet.
         assert {"type": "config_changed", "data": {"device": "cpu"}} in published
 
     def test_hand_edited_gpu_value_healed(self, monkeypatch) -> None:
@@ -213,7 +215,7 @@ class TestFallbackBroadcast:
             lambda event: published.append(event),
         )
         device_caps.publish_device_cpu_fallback("cublas boom")
-        assert {"type": "config_changed", "data": {"device": "cpu"}} in published
+        assert {"type": "config_changed", "data": {"device": "cpu", "active_device": "cpu"}} in published
 
     def test_system_whisper_fallback_broadcasts(self, monkeypatch) -> None:
         import numpy as np
@@ -233,4 +235,4 @@ class TestFallbackBroadcast:
         )
         result = engine.transcribe_with_fallback(np.ones(16000, dtype=np.float32))
         assert result == "hi"
-        assert {"type": "config_changed", "data": {"device": "cpu"}} in published
+        assert {"type": "config_changed", "data": {"device": "cpu", "active_device": "cpu"}} in published

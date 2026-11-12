@@ -1,6 +1,10 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { sonnerMock, stableMocks } from "@/__tests__/helpers/stableMocks";
 import { HotkeyPicker } from "../hotkey/HotkeyPicker";
+
+// Capture errors are in-app notifications, not inline text.
+vi.mock("sonner", () => sonnerMock());
 
 interface DispatchOpts {
 	code: string;
@@ -30,6 +34,17 @@ function dispatchKey(opts: DispatchOpts) {
 	});
 }
 
+function dispatchMouse(type: "mousedown" | "mouseup", button = 1) {
+	const ev = new MouseEvent(type, {
+		button,
+		bubbles: true,
+		cancelable: true,
+	});
+	act(() => {
+		window.dispatchEvent(ev);
+	});
+}
+
 async function enterCaptureMode() {
 	const btn = screen.getByRole("button", { name: /record new hotkey/i });
 	await act(async () => {
@@ -40,9 +55,19 @@ async function enterCaptureMode() {
 	await screen.findByRole("button", { name: /cancel recording/i });
 }
 
+// The toast title is a React node (the copy plus the keycap chips), so read
+// its message prop: the copy stays the contract under test.
+function toastMessage(node: unknown): string {
+	if (typeof node === "string") return node;
+	return (
+		(node as { props?: { message?: string } } | undefined)?.props?.message ?? ""
+	);
+}
+
 async function waitForError(): Promise<string> {
-	const alert = await screen.findByRole("alert");
-	return alert.textContent ?? "";
+	await waitFor(() => expect(stableMocks.toastError).toHaveBeenCalled());
+	const calls = stableMocks.toastError.mock.calls;
+	return toastMessage(calls[calls.length - 1]?.[0]);
 }
 
 // The picker captures ONE non-modifier key plus modifiers. A combo with two
@@ -53,9 +78,28 @@ async function waitForError(): Promise<string> {
 describe("HotkeyPicker, single-key capture contract", () => {
 	afterEach(() => {
 		cleanup();
+		stableMocks.toastError.mockClear();
 	});
 
-	it("captures a single non-modifier key in single mode (Delete)", async () => {
+	it("captures a single non-modifier key in single mode (Insert)", async () => {
+		const onChange = vi.fn();
+		render(
+			<HotkeyPicker
+				value=""
+				onChange={onChange}
+				mode="single"
+				aria-label="Dictation key"
+			/>,
+		);
+		await enterCaptureMode();
+
+		dispatchKey({ code: "Insert", key: "Insert", type: "keydown" });
+		dispatchKey({ code: "Insert", key: "Insert", type: "keyup" });
+
+		expect(onChange).toHaveBeenCalledWith("<insert>");
+	});
+
+	it("refuses Delete, which would delete text on every press", async () => {
 		const onChange = vi.fn();
 		render(
 			<HotkeyPicker
@@ -70,7 +114,27 @@ describe("HotkeyPicker, single-key capture contract", () => {
 		dispatchKey({ code: "Delete", key: "Delete", type: "keydown" });
 		dispatchKey({ code: "Delete", key: "Delete", type: "keyup" });
 
-		expect(onChange).toHaveBeenCalledWith("<delete>");
+		expect(onChange).not.toHaveBeenCalled();
+		const err = await waitForError();
+		expect(err).toMatch(/editing/i);
+	});
+
+	it("captures the middle mouse button", async () => {
+		const onChange = vi.fn();
+		render(
+			<HotkeyPicker
+				value=""
+				onChange={onChange}
+				mode="single"
+				aria-label="Dictation key"
+			/>,
+		);
+		await enterCaptureMode();
+
+		dispatchMouse("mousedown");
+		dispatchMouse("mouseup");
+
+		expect(onChange).toHaveBeenCalledWith("<mouse_middle>");
 	});
 
 	it("captures a single modifier in single mode (Alt alone)", async () => {
@@ -216,6 +280,11 @@ describe("HotkeyPicker, single-key capture contract", () => {
 		expect(onChange).not.toHaveBeenCalled();
 		const err = await waitForError();
 		expect(err).toMatch(/Shift\+Z/);
+		const calls = stableMocks.toastError.mock.calls;
+		const node = calls[calls.length - 1]?.[0] as {
+			props?: { hotkeyLabel?: string };
+		};
+		expect(node.props?.hotkeyLabel).toBe("Shift+Z");
 	});
 
 	it("HOTKEY-FULLMSG-001: shows full combo in error when unsupported key pressed with modifiers", async () => {
@@ -288,6 +357,85 @@ describe("HotkeyPicker, single-key capture contract", () => {
 	});
 });
 
+// Notifications render in their own portal on <body>, outside the picker,
+// so a naive click-away check aborted capture on the first toast click.
+describe("HotkeyPicker, click-away handling", () => {
+	afterEach(() => {
+		cleanup();
+	});
+
+	it("keeps capture open when a notification is clicked, still cancels on a real outside click", async () => {
+		const onChange = vi.fn();
+		render(
+			<HotkeyPicker
+				value=""
+				onChange={onChange}
+				mode="single"
+				aria-label="Dictation key"
+			/>,
+		);
+		await enterCaptureMode();
+
+		const toaster = document.createElement("section");
+		toaster.setAttribute("data-sonner-toaster", "");
+		const toast = document.createElement("li");
+		toaster.appendChild(toast);
+		document.body.appendChild(toaster);
+
+		try {
+			act(() => {
+				toast.dispatchEvent(
+					new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+				);
+			});
+			// Still capturing, the notification click only dismissed a toast.
+			expect(
+				screen.getByRole("button", { name: /cancel recording/i }),
+			).toBeInTheDocument();
+
+			act(() => {
+				document.body.dispatchEvent(
+					new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+				);
+			});
+			expect(
+				await screen.findByRole("button", { name: /record new hotkey/i }),
+			).toBeInTheDocument();
+		} finally {
+			toaster.remove();
+		}
+	});
+});
+
+// Chrome sizes the pill from its content: the resting state holds a keycap
+// chip, the capture state a shorter text line, so without a pinned floor the
+// blue button came out visibly shorter than the button it replaced.
+describe("HotkeyPicker, capture button geometry", () => {
+	afterEach(() => {
+		cleanup();
+	});
+
+	it("keeps the capture button's box identical to the resting button", async () => {
+		render(
+			<HotkeyPicker
+				value="<caps_lock>"
+				onChange={vi.fn()}
+				mode="single"
+				aria-label="Dictation key"
+			/>,
+		);
+		const resting = screen.getByRole("button", { name: /record new hotkey/i });
+		expect(resting.className).toContain("min-h-9");
+
+		await enterCaptureMode();
+
+		const recording = screen.getByRole("button", {
+			name: /cancel recording/i,
+		});
+		expect(recording.className).toBe(resting.className);
+	});
+});
+
 // Push-to-talk is a cross-field rule (mode + key), so the picker must show
 // the incompatibility at capture time instead of letting `set_config`
 // reject the pair after the user has already committed it.
@@ -330,9 +478,9 @@ describe("HotkeyPicker, push-to-talk contract", () => {
 		);
 		await enterCaptureMode();
 
-		dispatchKey({ code: "Delete", key: "Delete", type: "keydown" });
-		dispatchKey({ code: "Delete", key: "Delete", type: "keyup" });
+		dispatchKey({ code: "Insert", key: "Insert", type: "keydown" });
+		dispatchKey({ code: "Insert", key: "Insert", type: "keyup" });
 
-		expect(onChange).toHaveBeenCalledWith("<delete>");
+		expect(onChange).toHaveBeenCalledWith("<insert>");
 	});
 });

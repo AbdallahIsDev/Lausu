@@ -184,7 +184,7 @@ def test_zu_fix_22_priority_translations_completed(locale_flats: dict[str, dict[
         "microphone.loading",
         "vocabulary.loading",
         "templates.loading",
-        "hotkeyValidation.holding",
+        "hotkeyPicker.holdingPrefix",
     ]
     for locale in ("zh", "ru"):
         loc = locale_flats[locale]

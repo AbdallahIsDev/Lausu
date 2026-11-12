@@ -90,6 +90,12 @@ COMMAND_COSTS: dict[str, int] = {
     "tts_speak": 20,  # subprocess synthesis (+ playback)
     "tts_stop": 1,  # one sd.stop() call, no I/O of its own
     "tts_status": 1,  # filesystem probe
+    # Voice conversation (push-to-talk). listen_start opens the mic stream;
+    # listen_stop flips a flag + spawns the turn worker; state/reset are cheap.
+    "chat_listen_start": 20,
+    "chat_listen_stop": 2,
+    "chat_state": 1,
+    "chat_reset": 2,
     "restart_app": 100,  # was 10, full process restart
     "quit_app": 100,  # was 5, full process teardown
     "resume_model_download": 10,
@@ -103,6 +109,7 @@ COMMAND_COSTS: dict[str, int] = {
     # Small file writes / single-row mutations (cost 10).
     "save_vocabulary": 10,  # was 2, writes vocabulary file
     "save_templates": 10,  # was 2, writes templates file
+    "set_plugin_setting": 10,  # validates + rewrites one plugin settings file
     "force_cancel_transcription": 10,  # was 2, interrupts ASR pipeline
     "delete_history": 2,
     "restore_history": 2,

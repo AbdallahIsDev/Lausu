@@ -55,6 +55,10 @@ export interface ModelMetadata {
 	 * voice_typer/server/model_registry.py.
 	 */
 	wer?: number | null;
+	/** A selected language is forwarded to the model as a decode hint. */
+	accepts_language_hint?: boolean;
+	/** Auto yields real detection, so it is offered for this model. */
+	supports_language_detection?: boolean;
 }
 
 export interface ModelFamily {
@@ -114,7 +118,8 @@ export const INITIAL_MODELS: ModelInfo[] = [
 	},
 	{
 		name: "parakeet",
-		size: "2.5 GB",
+		displayName: "Parakeet Ultra",
+		size: "670 MB",
 		speed: "Fast",
 		backend: "parakeet",
 		downloaded: false,

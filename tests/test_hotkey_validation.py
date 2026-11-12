@@ -15,7 +15,6 @@ from voice_typer.server.config_validators import (
 ALLOWED_HOTKEYS = [
     "<caps_lock>",
     "<f2>",
-    "<delete>",
     "<insert>",
     "<home>",
     "<end>",
@@ -234,7 +233,7 @@ class TestValidateHotkeySingleLetterRejection:
 
     def test_allows_single_special_key(self) -> None:
         """Non-letter, non-digit single keys are still valid (F-keys, Caps Lock, etc.)."""
-        for key in ("<f2>", "<caps_lock>", "<delete>", "<insert>", "<home>", "<end>"):
+        for key in ("<f2>", "<caps_lock>", "<insert>", "<home>", "<end>"):
             result = _validate_hotkey(key)
             assert result is None, f"{key} should be allowed as a single key"
 
@@ -426,6 +425,68 @@ class TestMultiKeyComboRejected:
         assert "3" in result, f"Error message should include the count '3'; got: {result!r}"
 
 
+class TestNumLockBlocked:
+    """Num Lock flips the numeric keypad state with no listener suppressor."""
+
+    @pytest.mark.parametrize("platform", ["win32", "linux"])
+    def test_num_lock_rejected_where_delivered(self, platform: str, monkeypatch: pytest.MonkeyPatch) -> None:
+        from voice_typer.server.config_validators import hotkey as hotkey_validators
+
+        monkeypatch.setattr(hotkey_validators, "_platform_key", lambda: platform)
+        code, message = hotkey_validators._validate_hotkey_code("<num_lock>")
+        assert code == "toggle_key", message
+
+    def test_num_lock_combo_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from voice_typer.server.config_validators import hotkey as hotkey_validators
+
+        monkeypatch.setattr(hotkey_validators, "_platform_key", lambda: "win32")
+        code, _ = hotkey_validators._validate_hotkey_code("<ctrl>+<num_lock>")
+        assert code == "toggle_key"
+
+
+class TestEditingKeysBlocked:
+    """Delete and the arrow cluster edit text or move the caret on every press."""
+
+    @pytest.mark.parametrize("hotkey", ["<delete>", "<up>", "<down>", "<left>", "<right>"])
+    def test_single_editing_key_rejected(self, hotkey: str, monkeypatch: pytest.MonkeyPatch) -> None:
+        from voice_typer.server.config_validators import hotkey as hotkey_validators
+
+        monkeypatch.setattr(hotkey_validators, "_platform_key", lambda: "win32")
+        code, message = hotkey_validators._validate_hotkey_code(hotkey)
+        assert code == "editing_key", message
+
+    def test_editing_key_combo_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from voice_typer.server.config_validators import hotkey as hotkey_validators
+
+        monkeypatch.setattr(hotkey_validators, "_platform_key", lambda: "linux")
+        code, _ = hotkey_validators._validate_hotkey_code("<ctrl>+<right>")
+        assert code == "editing_key"
+
+
+class TestMouseButtonHotkeys:
+    """The middle mouse button is a whole trigger, never part of a combo."""
+
+    @pytest.mark.parametrize("platform", ["win32", "darwin", "linux"])
+    def test_single_mouse_button_allowed(self, platform: str, monkeypatch: pytest.MonkeyPatch) -> None:
+        from voice_typer.server.config_validators import hotkey as hotkey_validators
+
+        monkeypatch.setattr(hotkey_validators, "_platform_key", lambda: platform)
+        code, message = hotkey_validators._validate_hotkey_code("<mouse_middle>")
+        assert code is None, message
+
+    @pytest.mark.parametrize("hotkey", ["<ctrl>+<mouse_middle>", "<alt>+<mouse_middle>"])
+    def test_mouse_button_combo_rejected(self, hotkey: str) -> None:
+        from voice_typer.server.config_validators.hotkey import _validate_hotkey_code
+
+        code, message = _validate_hotkey_code(hotkey)
+        assert code == "mouse_combo", message
+
+    def test_mouse_button_supports_push_to_talk(self) -> None:
+        from voice_typer.server.config_validators.hotkey import _check_push_to_talk
+
+        assert _check_push_to_talk("<mouse_middle>")[0] is None
+
+
 class TestCapsLockNotAModifier:
     """XE-12-1 (Medium): ``caps_lock`` and ``capslock`` were previously"""
 
@@ -549,12 +610,14 @@ class TestReservedMatchingIsFormatAndAliasAgnostic:
         assert result is not None
         assert "reserved" in result.lower(), result
 
-    def test_ctrl_alt_delete_is_windows_secure_attention_only(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_ctrl_alt_delete_is_blocked_everywhere(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(sys, "platform", "win32")
         for spelling in ("<ctrl>+<alt>+<delete>", "<ctrl>+<alt>+<del>"):
             assert _validate_hotkey(spelling) is not None, spelling
         monkeypatch.setattr(sys, "platform", "linux")
-        assert _validate_hotkey("<ctrl>+<alt>+<delete>") is None
+        # Editing keys are blocked inside combos too, so the Linux X-server
+        # restart shortcut is refused by the same rule as a bare Delete.
+        assert _validate_hotkey("<ctrl>+<alt>+<delete>") is not None
 
     def test_modifier_order_matches_the_renderer_rule(self) -> None:
         assert _validate_hotkey("<ctrl>+v+<alt>") is not None

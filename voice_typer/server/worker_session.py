@@ -77,15 +77,18 @@ async def connect_loop(client: Any, generation: int) -> None:
                     return
                 elapsed = format_duration(time.perf_counter() - t0)
                 log.info("[WORKER] connected to worker at %s:%s%s", LOOPBACK_HOST, client.port, elapsed)
-                attempt = 0
                 await client._run_session(ws, generation)
+                # Session ended without raising (clean close): healthy,
+                # reset the backoff for the next outage.
+                attempt = 0
         except Exception:
             if not client._is_current(generation):
                 return
             delay = backoff_delay(attempt)
             # WARN once per outage, then DEBUG: a worker that never comes
-            # up repeated the same line every ~32 s for the whole session
-            # (``attempt`` resets to 0 after a healthy connect).
+            # up repeated the same line every ~32 s for the whole session.
+            # The counter only resets after a healthy session, so an
+            # auth-failure hot loop backs off instead of spinning at 0.5s.
             if attempt == 0:
                 log.warning("[WORKER] worker connection lost: retrying%s", format_duration(delay))
             else:

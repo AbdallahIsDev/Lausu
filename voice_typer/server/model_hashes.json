@@ -1,5 +1,5 @@
 {
-    "_comment": "SEC-audit-005 manifest. See security.py::_load_model_hashes docstring for full schema. revision = HF commit SHA (immutable); files = {relative_path: sha256_hex}. verify_model_integrity() hard-fails on any pinned-file hash mismatch. Qwen3-ASR int4 ONNX entries (2026-10-23) pin the andrewleech exports by LFS oid so the app downloads them from HuggingFace; the legacy local-only qwen repo key is gone (override dirs are never hashed). SHAs fetched 2026-07-10. Parakeet ONNX entry re-pinned 2026-08-20 to grikdotnet/parakeet-tdt-0.6b-fp16 (revision dc9871ec, the upstream original of the fp16 export; ships a real config.json byte-identical to the previously synthesized file; decoder/nemo128/vocab unchanged, encoder hash refreshed from the HF LFS oid). Whisper live entries (2026-09-13): Systran/faster-whisper-tiny (multilingual tiny, revision d90ca5fe, hashes verified against local HF cache) + dropbox-dash/faster-whisper-large-v3-turbo (canonical HF org, renamed from mobiuslabsgmbh; revision 0a363e91). Legacy tiny.en/small.en/medium.en pins kept for backward compat with pre-2026-08-15 caches.",
+    "_comment": "SEC-audit-005 manifest. See security.py::_load_model_hashes docstring for full schema. revision = HF commit SHA (immutable); files = {relative_path: sha256_hex}. verify_model_integrity() hard-fails on any pinned-file hash mismatch. Qwen3-ASR int4 ONNX entries (2026-10-23) pin the andrewleech exports by LFS oid so the app downloads them from HuggingFace; the legacy local-only qwen repo key is gone (override dirs are never hashed). SHAs fetched 2026-07-10. Parakeet ONNX entry re-pinned 2026-11-06 to Masterx/parakeet-tdt-0.6b-ultra-onnx (revision 99b09f03; int8 encoder+decoder_joint, hashes = HF LFS oids, vocab/config byte-identical to the v3 pins). Ultra replaces the grikdotnet fp16 build. Whisper live entries (2026-09-13): Systran/faster-whisper-tiny (multilingual tiny, revision d90ca5fe, hashes verified against local HF cache) + dropbox-dash/faster-whisper-large-v3-turbo (canonical HF org, renamed from mobiuslabsgmbh; revision 0a363e91). Legacy tiny.en/small.en/medium.en pins kept for backward compat with pre-2026-08-15 caches.",
     "Systran/faster-whisper-tiny": {
         "revision": "d90ca5fe260221311c53c58e660288d3deb8d356",
         "files": {
@@ -29,13 +29,12 @@
             "tokenizer_config.json": "0b2fe0037599ee335f0b972fa682bf0ece74e4ccfec755cb7daa3405d3d3e874"
         }
     },
-    "grikdotnet/parakeet-tdt-0.6b-fp16": {
-        "revision": "dc9871ec5ad84a420940077e76e8741b3609bf8b",
+    "Masterx/parakeet-tdt-0.6b-ultra-onnx": {
+        "revision": "99b09f030a5a6efeaa13cf2cf54592100ce2c3f1",
         "files": {
             "config.json": "666903c76b9798caf2c210afd4f6cd60b08a8dbf9800ec8d7a3bc0d2148ac466",
-            "encoder-model.fp16.onnx": "a2bdeeb99cb7e5548818e823127b33854dd0c26f5d0c8da91effdd895ea0e717",
-            "decoder_joint-model.fp16.onnx": "b33a73b7c1d71b9d5a0911f5cb478be3dcbf79f53355c531ab1cd1dcd68ad8ef",
-            "nemo128.onnx": "a9fde1486ebfcc08f328d75ad4610c67835fea58c73ba57e3209a6f6cf019e9f",
+            "encoder-model.int8.onnx": "46e78f85f1ae43b43bd359889c966da5c7ca401df60a42eeffc2e7699b357ba6",
+            "decoder_joint-model.int8.onnx": "2276a335d4c8dc48686e931475a634595954956427d485830e1214c0d1a18d07",
             "vocab.txt": "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d"
         }
     },

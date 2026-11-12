@@ -29,7 +29,8 @@
 // unmount. The init effect lives in `./onboarding/hooks/useOnboardingWizard.ts`.
 
 import { useEffect, useRef } from "react";
-import { Spinner } from "@/components/feedback/Spinner";
+import { Skeleton } from "skullet/react";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { formatHotkey } from "@/components/hotkey/hotkey-format";
 import { Button } from "@/components/ui/button";
 import { t } from "@/i18n/i18n";
@@ -44,6 +45,11 @@ import {
 	HOTKEY_DEFAULT,
 	STEP_TITLE_KEY,
 } from "./onboarding/lib/constants";
+import {
+	SAMPLE_CONSENTS,
+	SAMPLE_MODEL_OPTIONS,
+	SAMPLE_STEP,
+} from "./onboarding/lib/sample";
 
 export default function OnboardingPage({
 	onComplete,
@@ -100,8 +106,71 @@ export default function OnboardingPage({
 	// ── Render: loading ────────────────────────────────────────────
 	if (loading) {
 		return (
-			<div className="flex h-full items-center justify-center">
-				<Spinner />
+			<div className="mx-auto flex min-h-full w-full max-w-xl flex-col items-center gap-8 px-6 pt-20 pb-6">
+				<Skeleton
+					data={null}
+					sample={SAMPLE_STEP}
+					id="onboarding"
+					label={skeletonLoadingLabel()}
+				>
+					{(s) => (
+						<div className="flex w-full flex-col gap-4 rounded-lg border border-border/8 bg-surface p-8">
+							<div className="flex w-full flex-col gap-2">
+								<div className="text-xs text-muted-foreground">
+									{t("onboarding.stepProgress", {
+										current: String(s.step + 1),
+										total: String(s.total_steps),
+									})}
+								</div>
+								<div
+									className="h-1.5 w-full rounded-full bg-surface-subtle"
+									role="progressbar"
+									aria-valuenow={s.step + 1}
+									aria-valuemin={1}
+									aria-valuemax={s.total_steps}
+									aria-label={t("onboarding.progressAria", {
+										current: String(s.step + 1),
+										total: String(s.total_steps),
+									})}
+								>
+									<div
+										className="h-1.5 rounded-full bg-accent transition-all duration-300"
+										style={{
+											width: `${((s.step + 1) / s.total_steps) * 100}%`,
+										}}
+									/>
+								</div>
+							</div>
+							<ModelStep
+								headingRef={headingRef}
+								modelOptions={SAMPLE_MODEL_OPTIONS}
+								selectedModel="tiny"
+								setSelectedModel={setSelectedModel}
+								selectedBackend="local"
+								setSelectedBackend={setSelectedBackend}
+								downloadingModel={null}
+								downloadProgress={0}
+								downloadFailed={false}
+								onDownload={handleDownload}
+								cloudProvider="openai"
+								setCloudProvider={setCloudProvider}
+								cloudApiKey=""
+								setCloudApiKey={setCloudApiKey}
+							/>
+							{/* Consent grid: same rows as ConsentStep, fed with
+							    the sample so the card measures at full height. The real
+							    ConsentStep only mounts once data arrives. */}
+							<div className="flex flex-col gap-4">
+								<ConsentStep
+									headingRef={headingRef}
+									consents={SAMPLE_CONSENTS}
+									onToggleConsent={setConsentField}
+									onAgreeToAll={handleAgreeToAll}
+								/>
+							</div>
+						</div>
+					)}
+				</Skeleton>
 			</div>
 		);
 	}

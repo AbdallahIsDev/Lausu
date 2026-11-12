@@ -106,6 +106,8 @@ _VALIDATOR_MICROPHONE = _make_optional_str_validator(max_len=512)
 _VALIDATOR_PUSH_TO_TALK_HOTKEY = _validate_hotkey
 _VALIDATOR_CLOUD_MODEL = _make_str_validator(max_len=256)
 _VALIDATOR_TRUSTED_HOSTS = _validate_trusted_extra_hosts
+# "openai" is accepted only for configs written while the OpenAI speech card
+# existed, so an old config stays savable; the registry no longer serves it.
 _VALIDATOR_PROVIDER_ID = _make_enum_validator(
     frozenset(
         {
@@ -158,7 +160,6 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "streaming_silence_threshold": (float, _make_float_validator(lo=0.0, hi=1.0)),
     "autostart": (bool, _bool_validator),
     "paste_on_stop": (bool, _bool_validator),
-    "unsafe_paste_on_unknown_focus": (bool, _bool_validator),
     "show_notifications": (bool, _bool_validator),
     # prewarm scheduled-task master toggle. Surfaced in Settings →
     "fast_startup": (bool, _bool_validator),
@@ -232,6 +233,10 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "llm_model_id": (str, _VALIDATOR_PROVIDER_MODEL),
     "llm_provider_consent": (bool, _bool_validator),
     "llm_provider_fallback": (str, _VALIDATOR_PROVIDER_FALLBACK),
+    # Voice conversation (Chat page): a bounded replay window and a plain
+    # text system prompt. Neither can address an endpoint or carry a secret.
+    "chat_history_turns": (int, _make_int_validator(lo=1, hi=32)),
+    "chat_system_prompt": (str, _make_str_validator(max_len=2000)),
     "openrouter_api_key": (str, _VALIDATOR_API_KEY),
     "openrouter_base_url": (str, _VALIDATOR_API_URL),
     "ollama_api_key": (str, _VALIDATOR_API_KEY),
@@ -343,7 +348,6 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     # AUDIO-PRE: pre-roll buffer
     "pre_roll_buffer_seconds": (float, _make_float_validator(lo=0.0, hi=30.0)),
     # normalize_audio / normalize_target_peak REMOVED from the IPC
-    "warn_elevated_paste": (bool, _bool_validator),
     "warn_password_paste": (bool, _bool_validator),
     "volume_duck_enabled": (bool, _bool_validator),
     "volume_duck_level": (float, _make_float_validator(lo=0.0, hi=1.0)),

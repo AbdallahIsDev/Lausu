@@ -86,17 +86,18 @@ describe("Home page", () => {
 		expect(screen.queryByText("caps_lock")).toBeNull();
 	});
 
-	it("shows a spinner while initial data is loading", async () => {
+	it("shows measured skeletons while initial data is loading", async () => {
 		// A never-resolving promise keeps `initialLoading` true forever,
-		// so the spinner sections stay mounted.
+		// so the stats and recent-activity skeletons stay mounted.
 		mockCall.mockImplementation(() => new Promise(() => {}));
 		const { default: Home } = await import("@/pages/Home");
 		render(<TooltipProvider>{<Home />}</TooltipProvider>);
 
-		// The stats spinner section exposes an aria-label.
-		expect(screen.getByLabelText("Loading today's stats")).toBeTruthy();
-		// The recent-activity spinner section also exposes an aria-label.
-		expect(screen.getByLabelText("Loading recent activity")).toBeTruthy();
+		// Both measured wraps announce the shared loading label.
+		expect(screen.getAllByText("Loading")).toHaveLength(2);
+		expect(
+			document.querySelectorAll('[skullet-reveal][aria-busy="true"]'),
+		).toHaveLength(2);
 	});
 
 	it("renders StatCards when today's stats are provided via cache", async () => {
@@ -131,8 +132,6 @@ describe("Home page", () => {
 		).toBeTruthy();
 		// The "Today's Stats" heading is shown above the cards.
 		expect(screen.getByText(/Today's Stats/i)).toBeTruthy();
-		// No spinner should be visible because cached stats exist.
-		expect(screen.queryByLabelText("Loading today's stats")).toBeNull();
 	});
 
 	it("navigates to 'history' when the View all button is clicked", async () => {
@@ -217,9 +216,6 @@ describe("Home page", () => {
 		// "No recent activity" hint AND the "View all" link.
 		expect(screen.getByText("No recent activity")).toBeTruthy();
 		expect(screen.getByText("View all")).toBeTruthy();
-		// No spinner should be visible because we're not in the
-		// initialLoading && recent.length === 0 case.
-		expect(screen.queryByLabelText("Loading recent activity")).toBeNull();
 	});
 
 	// ── BG-10 (partial): Share Stats button uses canShareStats helper ──

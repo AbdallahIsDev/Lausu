@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { usePythonEvent } from "@/hooks/usePython";
 import { t } from "@/i18n/i18n";
+import { isToasterTarget } from "@/lib/toaster-target";
 import {
 	CANONICAL_MOD_ORDER,
 	CAPTURE_TIMEOUT_SECONDS,
@@ -14,6 +15,11 @@ import {
 	resolveCharKey,
 	tryCommitHotkey,
 } from "./hotkey-utils";
+import { formatHotkeyForMessage } from "./hotkey-validation";
+import {
+	dismissHotkeyErrorToast,
+	showHotkeyErrorToast,
+} from "./hotkeyErrorToast";
 
 // hoist the per-platform modifier-code lookup table to module
 // scope. `getModifierCodeMap` returns a fresh 8-key object literal on
@@ -23,6 +29,9 @@ import {
 // process), so the map can be computed once at import time and shared
 // by both handlers.
 const MODIFIER_CODE_MAP: Record<string, string> = getModifierCodeMap(IS_MAC);
+
+// DOM MouseEvent.button value for the wheel click.
+const MIDDLE_MOUSE_BUTTON = 1;
 
 export interface UseHotkeyCaptureParams {
 	value: string;
@@ -37,12 +46,11 @@ export interface UseHotkeyCaptureParams {
 
 export interface UseHotkeyCaptureResult {
 	recording: boolean;
-	error: string | null;
 	secondsRemaining: number;
 	heldModifiersLabel: string;
 	startRecording: () => void;
 	cancelRecording: () => void;
-	setError: (error: string | null) => void;
+	setError: (error: string | null, hotkeyLabel?: string) => void;
 	containerRef: RefObject<HTMLDivElement | null>;
 }
 
@@ -99,6 +107,16 @@ export function useHotkeyCapture({
 	//mirror (the pre- pattern).
 	const commitModifierOnlyRef = useRef<() => void>(() => {});
 	const commitFullComboRef = useRef<() => void>(() => {});
+
+	// Validation failures surface as an in-app notification, never as
+	// inline text that reflows the settings row.
+	const showError = useCallback(
+		(error: string | null, hotkeyLabel?: string) => {
+			dispatch({ type: "SetError", error });
+			if (error) showHotkeyErrorToast(error, hotkeyLabel);
+		},
+		[],
+	);
 
 	// ── Helpers (defined first; referenced by handlers / commit fns) ──
 
@@ -203,12 +221,10 @@ export function useHotkeyCapture({
 		// combo and stay in capture mode.
 		if (mode === "single" && mods.length > 1) {
 			const label = formatHotkeyLabel(mods.map((m) => `<${m}>`).join("+"));
-			dispatch({
-				type: "SetError",
-				error: t("hotkeyValidation.dictationKeyMustBeSingle", {
-					label,
-				}),
-			});
+			showError(
+				t("hotkeyValidation.dictationKeyMustBeSingle", { label }),
+				label,
+			);
 			// Reset the held+session modifiers so the next attempt starts
 			// fresh, but DON'T call full resetCaptureSession, the user
 			// is still in capture mode and the countdown should keep
@@ -228,13 +244,14 @@ export function useHotkeyCapture({
 			resetSession: true,
 		});
 		if (!r.ok) {
-			dispatch({ type: "SetError", error: r.error });
+			showError(r.error, formatHotkeyForMessage(newHotkey));
 			resetCaptureSession();
 			return;
 		}
 		onChange(newHotkey);
 		resetCaptureSession();
 		dispatch({ type: "CommitSuccess" });
+		dismissHotkeyErrorToast();
 	};
 
 	commitFullComboRef.current = () => {
@@ -249,12 +266,10 @@ export function useHotkeyCapture({
 		// attempted combo.
 		if (mode === "single" && parts.length > 1) {
 			const label = formatHotkeyLabel(parts.map((p) => `<${p}>`).join("+"));
-			dispatch({
-				type: "SetError",
-				error: t("hotkeyValidation.dictationKeyMustBeSingle", {
-					label,
-				}),
-			});
+			showError(
+				t("hotkeyValidation.dictationKeyMustBeSingle", { label }),
+				label,
+			);
 			resetCaptureSession();
 			return;
 		}
@@ -269,13 +284,14 @@ export function useHotkeyCapture({
 			resetSession: true,
 		});
 		if (!r.ok) {
-			dispatch({ type: "SetError", error: r.error });
+			showError(r.error, formatHotkeyForMessage(newHotkey));
 			resetCaptureSession();
 			return;
 		}
 		onChange(newHotkey);
 		resetCaptureSession();
 		dispatch({ type: "CommitSuccess" });
+		dismissHotkeyErrorToast();
 	};
 
 	// ── Public actions ───────────────────────────────────────────────
@@ -289,17 +305,17 @@ export function useHotkeyCapture({
 		// resetCaptureSession unconditionally to clear any stale refs.
 		resetCaptureSession();
 		dispatch({ type: "OutsideClick" });
+		dismissHotkeyErrorToast();
 	}, [resetCaptureSession]);
 
 	const startRecording = useCallback(() => {
 		resetCaptureSession();
 		dispatch({ type: "Start" });
 		startCountdown();
+		dismissHotkeyErrorToast();
 	}, [resetCaptureSession, startCountdown]);
 
-	const setError = useCallback((error: string | null) => {
-		dispatch({ type: "SetError", error });
-	}, []);
+	const setError = showError;
 
 	// ── Keydown handler (stable, only depends on stable helpers) ────
 	// each pressed key is added to the appropriate
@@ -362,12 +378,10 @@ export function useHotkeyCapture({
 				// attempted shortcut.
 				const attemptedCombo = buildAttemptedComboLabel(e.key);
 				unsupportedComboRef.current = attemptedCombo;
-				dispatch({
-					type: "SetError",
-					error: t("hotkeyValidation.keyNotSupported", {
-						label: attemptedCombo,
-					}),
-				});
+				showError(
+					t("hotkeyValidation.keyNotSupported", { label: attemptedCombo }),
+					attemptedCombo,
+				);
 				return;
 			}
 
@@ -375,10 +389,10 @@ export function useHotkeyCapture({
 			sessionNonModifiersRef.current.add(pynputName);
 			// Clear any prior error so the user sees the candidate is
 			// pending.
-			dispatch({ type: "SetError", error: null });
+			showError(null);
 			unsupportedComboRef.current = null;
 		},
-		[snapshotModifiers, buildAttemptedComboLabel],
+		[snapshotModifiers, buildAttemptedComboLabel, showError],
 	);
 
 	// ── Keyup handler (stable, reads commit fns via refs) ───────────
@@ -444,6 +458,35 @@ export function useHotkeyCapture({
 		[resetCaptureSession],
 	);
 
+	// ── Mouse capture ────────────────────────────────────────────────
+	// The wheel click is captured like a single key: pressing arms it,
+	// releasing commits. Committing on release keeps the same
+	// capture-triggers-recording guarantee the keyboard path has.
+	const handleMouseDown = useCallback(
+		(e: MouseEvent) => {
+			if (!capturingRef.current || e.button !== MIDDLE_MOUSE_BUTTON) return;
+			e.preventDefault();
+			e.stopPropagation();
+			heldNonModifiersRef.current.add("mouse_middle");
+			sessionNonModifiersRef.current.add("mouse_middle");
+			showError(null);
+		},
+		[showError],
+	);
+
+	const handleMouseUp = useCallback((e: MouseEvent) => {
+		if (!capturingRef.current || e.button !== MIDDLE_MOUSE_BUTTON) return;
+		e.preventDefault();
+		e.stopPropagation();
+		heldNonModifiersRef.current.delete("mouse_middle");
+		if (
+			heldNonModifiersRef.current.size === 0 &&
+			sessionNonModifiersRef.current.size > 0
+		) {
+			commitFullComboRef.current();
+		}
+	}, []);
+
 	// ── Transition effect: fire onCaptureStart / onCaptureEnd on
 	// status changes. Also clears the countdown when leaving "capturing".
 	// The parent passes stable ``useCallback`` callbacks for
@@ -465,13 +508,19 @@ export function useHotkeyCapture({
 	useEffect(() => {
 		const onKeyDown = (e: KeyboardEvent) => handleKeyDown(e);
 		const onKeyUp = (e: KeyboardEvent) => handleKeyUp(e);
+		const onMouseDown = (e: MouseEvent) => handleMouseDown(e);
+		const onMouseUp = (e: MouseEvent) => handleMouseUp(e);
 		window.addEventListener("keydown", onKeyDown, true);
 		window.addEventListener("keyup", onKeyUp, true);
+		window.addEventListener("mousedown", onMouseDown, true);
+		window.addEventListener("mouseup", onMouseUp, true);
 		return () => {
 			window.removeEventListener("keydown", onKeyDown, true);
 			window.removeEventListener("keyup", onKeyUp, true);
+			window.removeEventListener("mousedown", onMouseDown, true);
+			window.removeEventListener("mouseup", onMouseUp, true);
 		};
-	}, [handleKeyDown, handleKeyUp]);
+	}, [handleKeyDown, handleKeyUp, handleMouseDown, handleMouseUp]);
 
 	// listen for backend-triggered
 	// capture cancel events. The backend pushes
@@ -510,6 +559,9 @@ export function useHotkeyCapture({
 			const target = e.target as Node | null;
 			if (!target) return;
 			if (containerRef.current?.contains(target)) return;
+			// A notification is not a click-away: clicking it dismisses
+			// only the toast, never the capture in progress.
+			if (isToasterTarget(target)) return;
 			cancelRecording();
 		};
 		document.addEventListener("pointerdown", onPointerDown, true);
@@ -520,7 +572,6 @@ export function useHotkeyCapture({
 
 	return {
 		recording: state.status === "capturing",
-		error: state.error,
 		secondsRemaining: state.secondsRemaining,
 		heldModifiersLabel: state.heldModifiersLabel,
 		startRecording,

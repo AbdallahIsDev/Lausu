@@ -14,10 +14,13 @@
 
 import { Moon02Icon, Sun03Icon } from "@hugeicons/core-free-icons";
 import { memo } from "react";
+import { Skeleton } from "skullet/react";
 import { RangeSlider } from "@/components/common/RangeSlider";
 import { SettingRow } from "@/components/common/SettingRow";
 import { SettingsSection } from "@/components/common/SettingsSection";
 import { SunMoonIcon } from "@/components/common/SunMoonIcon";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
+import { SAMPLE_CONFIG } from "@/components/skullet/sampleConfig";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -45,7 +48,6 @@ import {
 	THEMES,
 } from "@/themes";
 import type { LausuConfig } from "@/types/config";
-import { SettingsSkeleton } from "./SettingsSkeleton";
 import type { SettingsSectionSharedProps } from "./types";
 import {
 	_getThemeNameKey,
@@ -222,8 +224,6 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 
 	const t = useT();
 
-	if (!config) return <SettingsSkeleton rows={3} />;
-
 	// Read the resolved dark-mode flag ONCE per render and thread it
 	// dropdown item IIFE re-read ``document.documentElement.classList``
 	// on every render (3+ DOM reads per render for the same value).
@@ -275,54 +275,61 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
 	}
 
 	return (
-		<SettingsSection
-			title={sectionTitle}
-			description={t("settings.appearance.description")}
+		<Skeleton
+			data={config}
+			sample={SAMPLE_CONFIG}
+			id="settings-appearance"
+			label={skeletonLoadingLabel()}
 		>
-			{/* ── Color Scheme (light / dark / system) ───────────── */}
-			{isVisible(colorSchemeLabel, colorSchemeInfoSearch, sectionTitle) && (
-				<SettingRow
-					label={colorSchemeLabel}
-					info={t("settings.appearance.colorSchemeInfo")}
+			{(cfg) => (
+				<SettingsSection
+					title={sectionTitle}
+					description={t("settings.appearance.description")}
 				>
-					<ToggleGroup
-						options={themeOptions}
-						value={themeModeProp ?? config.theme_mode}
-						onChange={handleColorSchemeChange}
-						ariaLabel={t("settings.appearance.colorSchemeAria")}
-					/>
-				</SettingRow>
-			)}
-
-			{/* ── Theme Preset selector with hover preview ──────── */}
-			{isVisible(themePresetLabel, themePresetInfoSearch, sectionTitle) && (
-				<SettingRow
-					label={themePresetLabel}
-					info={t("settings.appearance.themePresetInfoRendered")}
-				>
-					<Select
-						value={effectivePreset}
-						onValueChange={handleThemePresetChange}
-						onOpenChange={handleSelectOpenChange}
-					>
-						<SelectTrigger
-							className="w-44"
-							aria-label={t("settings.appearance.themePresetAria")}
+					{/* ── Color Scheme (light / dark / system) ───────────── */}
+					{isVisible(colorSchemeLabel, colorSchemeInfoSearch, sectionTitle) && (
+						<SettingRow
+							label={colorSchemeLabel}
+							info={t("settings.appearance.colorSchemeInfo")}
 						>
-							<ThemePresetTriggerPreview
-								presetId={effectivePreset}
-								isDark={isDark}
-								customDraft={customDraft}
-								t={t}
+							<ToggleGroup
+								options={themeOptions}
+								value={themeModeProp ?? cfg.theme_mode}
+								onChange={handleColorSchemeChange}
+								ariaLabel={t("settings.appearance.colorSchemeAria")}
 							/>
-						</SelectTrigger>
-						<SelectContent
-							position="popper"
-							align="start"
-							onMouseMove={handleSelectMouseMove}
-							onMouseLeave={revertToSavedPreset}
+						</SettingRow>
+					)}
+
+					{/* ── Theme Preset selector with hover preview ──────── */}
+					{isVisible(themePresetLabel, themePresetInfoSearch, sectionTitle) && (
+						<SettingRow
+							label={themePresetLabel}
+							info={t("settings.appearance.themePresetInfoRendered")}
 						>
-							{/* render a DISABLED "Custom (use toggle below)" SelectItem
+							<Select
+								value={effectivePreset}
+								onValueChange={handleThemePresetChange}
+								onOpenChange={handleSelectOpenChange}
+							>
+								<SelectTrigger
+									className="w-44"
+									aria-label={t("settings.appearance.themePresetAria")}
+								>
+									<ThemePresetTriggerPreview
+										presetId={effectivePreset}
+										isDark={isDark}
+										customDraft={customDraft}
+										t={t}
+									/>
+								</SelectTrigger>
+								<SelectContent
+									position="popper"
+									align="start"
+									onMouseMove={handleSelectMouseMove}
+									onMouseLeave={revertToSavedPreset}
+								>
+									{/* render a DISABLED "Custom (use toggle below)" SelectItem
                                                                         when the saved preset is 'custom'.  Without this, the
                                                                         dropdown's trigger showed a blank value when the preset
                                                                         was 'custom' (the SelectItem list filtered 'custom' out),
@@ -331,288 +338,300 @@ export const ThemeSettingsSection = memo(function ThemeSettingsSection({
                                                                         the switch below the dropdown.  Always rendered so the
                                                                         trigger's selected value always has a matching SelectItem
                                                                         (Radix Select otherwise warns about a missing value). */}
-							<CustomDisabledSelectItem
-								isDark={isDark}
-								customDraft={customDraft}
-								t={t}
-							/>
-							{/* Built-in presets (excluding 'custom', handled by the
+									<CustomDisabledSelectItem
+										isDark={isDark}
+										customDraft={customDraft}
+										t={t}
+									/>
+									{/* Built-in presets (excluding 'custom', handled by the
                                                                         disabled item above). */}
-							{THEMES.filter((th) => th.id !== "custom").map((theme) => {
-								const { bg, fg } = getThemePreviewColors(
-									theme.id,
-									isDark,
-									customDraft,
-								);
-								const nameKey = _getThemeNameKey(theme);
-								const displayName = nameKey ? t(nameKey) : theme.name;
-								return (
-									<SelectItem
-										key={theme.id}
-										value={theme.id}
-										onMouseEnter={handleThemeHover(theme.id)}
-									>
-										<ThemeSwatch
-											bg={bg}
-											fg={fg}
-											label={displayName}
-											labelClassName="text-sm font-medium"
-											gap="gap-2.5"
-										/>
-									</SelectItem>
-								);
-							})}
-						</SelectContent>
-					</Select>
-				</SettingRow>
-			)}
+									{THEMES.filter((th) => th.id !== "custom").map((theme) => {
+										const { bg, fg } = getThemePreviewColors(
+											theme.id,
+											isDark,
+											customDraft,
+										);
+										const nameKey = _getThemeNameKey(theme);
+										const displayName = nameKey ? t(nameKey) : theme.name;
+										return (
+											<SelectItem
+												key={theme.id}
+												value={theme.id}
+												onMouseEnter={handleThemeHover(theme.id)}
+											>
+												<ThemeSwatch
+													bg={bg}
+													fg={fg}
+													label={displayName}
+													labelClassName="text-sm font-medium"
+													gap="gap-2.5"
+												/>
+											</SelectItem>
+										);
+									})}
+								</SelectContent>
+							</Select>
+						</SettingRow>
+					)}
 
-			{/* ── Custom Theme toggle ────────────────────────────── */}
-			{/* A switch that enables/disables the custom color editor.
+					{/* ── Custom Theme toggle ────────────────────────────── */}
+					{/* A switch that enables/disables the custom color editor.
                                         When ON, theme_preset is forced to 'custom' and the color
                                         picker appears.  When OFF, the preset reverts to the
                                         previously-selected preset. */}
-			{isVisible(customThemeLabel, customThemeInfoSearch, sectionTitle) && (
-				<SettingRow
-					label={customThemeLabel}
-					info={t("settings.appearance.customThemeInfoRendered")}
-				>
-					<Switch
-						checked={effectivePreset === "custom"}
-						onCheckedChange={handleCustomThemeToggle}
-						aria-label={t("settings.appearance.customThemeAria")}
-					/>
-				</SettingRow>
-			)}
+					{isVisible(customThemeLabel, customThemeInfoSearch, sectionTitle) && (
+						<SettingRow
+							label={customThemeLabel}
+							info={t("settings.appearance.customThemeInfoRendered")}
+						>
+							<Switch
+								checked={effectivePreset === "custom"}
+								onCheckedChange={handleCustomThemeToggle}
+								aria-label={t("settings.appearance.customThemeAria")}
+							/>
+						</SettingRow>
+					)}
 
-			{/* ── Custom Theme color Picker ─────────────────────── */}
-			{/* Always rendered (locked while the custom theme is off) so the
+					{/* ── Custom Theme color Picker ─────────────────────── */}
+					{/* Always rendered (locked while the custom theme is off) so the
 			    editor stays discoverable instead of appearing only once the
 			    switch is on. */}
-			{customDraft && (
-				<div
-					className={cn(
-						"animate-fade-in flex flex-col gap-3 p-4",
-						customLocked && "opacity-50",
-					)}
-				>
-					{/* Light / Dark mode tabs */}
-					<div className="flex gap-1 rounded-lg bg-surface-subtle p-0.5">
-						<button
-							type="button"
-							disabled={customLocked}
-							onClick={handleSetLightMode}
-							className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all disabled:cursor-not-allowed ${
-								customEditorMode === "light"
-									? "bg-surface text-foreground shadow-xs"
-									: "text-muted-foreground hover:text-foreground"
-							}`}
+					{customDraft && (
+						<div
+							className={cn(
+								"animate-fade-in flex flex-col gap-3 p-4",
+								customLocked && "opacity-50",
+							)}
 						>
-							{t("settings.appearance.light")}
-						</button>
-						<button
-							type="button"
-							disabled={customLocked}
-							onClick={handleSetDarkMode}
-							className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all disabled:cursor-not-allowed ${
-								customEditorMode === "dark"
-									? "bg-surface text-foreground shadow-xs"
-									: "text-muted-foreground hover:text-foreground"
-							}`}
-						>
-							{t("settings.appearance.dark")}
-						</button>
-					</div>
-
-					{/* Color swatch grid, 6 core colors */}
-					<div className="grid grid-cols-2 gap-2.5">
-						{CUSTOM_COLOR_KEYS.map(({ var: varName, label, description }) => {
-							const currentHex =
-								customDraft[customEditorMode]?.[varName] ??
-								(customEditorMode === "light"
-									? DEFAULT_CUSTOM_LIGHT[varName]
-									: DEFAULT_CUSTOM_DARK[varName]);
-							// the text input reads from ``hexDrafts`` (the
-							// local partial-typing state) and falls back to the
-							// committed hex when no draft is present.
-							// ``isHexInvalid`` drives the red-border error state.
-							const hexDraftValue = hexDrafts[varName] ?? currentHex ?? "";
-							const isHexInvalid =
-								hexDraftValue !== "" && !HEX_STRICT_RE.test(hexDraftValue);
-
-							// Compute the WCAG contrast ratio for the colour pair
-							// most relevant to this row.  Returns ``null`` for the
-							// ``ratio`` / ``ratioRounded`` fields when no pair
-							// applies (e.g. the border row), in which case no
-							// warning is shown.
-							const { ratioRounded, showWarning: showContrastWarning } =
-								computeRowContrast(varName, customDraft, customEditorMode);
-
-							return (
-								<div
-									key={varName}
-									className="flex items-center gap-2.5 rounded-lg border border-border/8 bg-surface p-2"
+							{/* Light / Dark mode tabs */}
+							<div className="flex gap-1 rounded-lg bg-surface-subtle p-0.5">
+								<button
+									type="button"
+									disabled={customLocked}
+									onClick={handleSetLightMode}
+									className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all disabled:cursor-not-allowed ${
+										customEditorMode === "light"
+											? "bg-surface text-foreground shadow-xs"
+											: "text-muted-foreground hover:text-foreground"
+									}`}
 								>
-									<div className="relative shrink-0">
-										<Input
-											type="color"
-											value={currentHex}
-											disabled={customLocked}
-											onChange={handleColorInputChange(varName)}
-											className="absolute inset-0 h-full w-full cursor-pointer opacity-0 p-0 border-none"
-											aria-label={t("settings.appearance.colorAria", { label })}
-										/>
-										<div
-											className="h-8 w-8 rounded-lg border border-border/8 shadow-xs"
-											style={{ backgroundColor: currentHex }}
-										/>
-									</div>
-									<div className="min-w-0 flex-1">
-										<span className="block text-xs font-medium text-foreground">
-											{label}
-										</span>
-										<p className="truncate text-xs text-muted-foreground">
-											{description}
-										</p>
-									</div>
-									{/* contrast warning icon, shown when the row's
+									{t("settings.appearance.light")}
+								</button>
+								<button
+									type="button"
+									disabled={customLocked}
+									onClick={handleSetDarkMode}
+									className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all disabled:cursor-not-allowed ${
+										customEditorMode === "dark"
+											? "bg-surface text-foreground shadow-xs"
+											: "text-muted-foreground hover:text-foreground"
+									}`}
+								>
+									{t("settings.appearance.dark")}
+								</button>
+							</div>
+
+							{/* Color swatch grid, 6 core colors */}
+							<div className="grid grid-cols-2 gap-2.5">
+								{CUSTOM_COLOR_KEYS.map(
+									({ var: varName, label, description }) => {
+										const currentHex =
+											customDraft[customEditorMode]?.[varName] ??
+											(customEditorMode === "light"
+												? DEFAULT_CUSTOM_LIGHT[varName]
+												: DEFAULT_CUSTOM_DARK[varName]);
+										// the text input reads from ``hexDrafts`` (the
+										// local partial-typing state) and falls back to the
+										// committed hex when no draft is present.
+										// ``isHexInvalid`` drives the red-border error state.
+										const hexDraftValue =
+											hexDrafts[varName] ?? currentHex ?? "";
+										const isHexInvalid =
+											hexDraftValue !== "" &&
+											!HEX_STRICT_RE.test(hexDraftValue);
+
+										// Compute the WCAG contrast ratio for the colour pair
+										// most relevant to this row.  Returns ``null`` for the
+										// ``ratio`` / ``ratioRounded`` fields when no pair
+										// applies (e.g. the border row), in which case no
+										// warning is shown.
+										const { ratioRounded, showWarning: showContrastWarning } =
+											computeRowContrast(
+												varName,
+												customDraft,
+												customEditorMode,
+											);
+
+										return (
+											<div
+												key={varName}
+												className="flex items-center gap-2.5 rounded-lg border border-border/8 bg-surface p-2"
+											>
+												<div className="relative shrink-0">
+													<Input
+														type="color"
+														value={currentHex}
+														disabled={customLocked}
+														onChange={handleColorInputChange(varName)}
+														className="absolute inset-0 h-full w-full cursor-pointer opacity-0 p-0 border-none"
+														aria-label={t("settings.appearance.colorAria", {
+															label,
+														})}
+													/>
+													<div
+														className="h-8 w-8 rounded-lg border border-border/8 shadow-xs"
+														style={{ backgroundColor: currentHex }}
+													/>
+												</div>
+												<div className="min-w-0 flex-1">
+													<span className="block text-xs font-medium text-foreground">
+														{label}
+													</span>
+													<p className="truncate text-xs text-muted-foreground">
+														{description}
+													</p>
+												</div>
+												{/* contrast warning icon, shown when the row's
                                                                                         relevant colour pair falls below the WCAG AA 4.5:1
                                                                                         threshold.  Tooltip shows the actual ratio and the AA
                                                                                         requirement. */}
-									{showContrastWarning && ratioRounded !== null && (
-										<TooltipProvider delayDuration={200}>
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<button
-														type="button"
-														className="shrink-0 text-warning focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-full"
-														aria-label={t(
-															"settings.appearance.contrastWarning",
-															{ ratio: String(ratioRounded) },
-														)}
-													>
-														<svg
-															width="14"
-															height="14"
-															viewBox="0 0 16 16"
-															fill="none"
-															xmlns="http://www.w3.org/2000/svg"
-															aria-hidden="true"
-														>
-															<path
-																d="M8 1.5L0.5 14.5H15.5L8 1.5Z"
-																stroke="currentColor"
-																strokeWidth="1.5"
-																strokeLinejoin="round"
-																fill="currentColor"
-																fillOpacity="0.15"
-															/>
-															<path
-																d="M8 6V9.5"
-																stroke="currentColor"
-																strokeWidth="1.5"
-																strokeLinecap="round"
-															/>
-															<circle
-																cx="8"
-																cy="12"
-																r="0.85"
-																fill="currentColor"
-															/>
-														</svg>
-													</button>
-												</TooltipTrigger>
-												<TooltipContent
-													side="top"
-													align="center"
-													className="max-w-64"
-												>
-													{t("settings.appearance.contrastWarning", {
-														ratio: String(ratioRounded),
+												{showContrastWarning && ratioRounded !== null && (
+													<TooltipProvider delayDuration={200}>
+														<Tooltip>
+															<TooltipTrigger asChild>
+																<button
+																	type="button"
+																	className="shrink-0 text-warning focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-full"
+																	aria-label={t(
+																		"settings.appearance.contrastWarning",
+																		{ ratio: String(ratioRounded) },
+																	)}
+																>
+																	<svg
+																		width="14"
+																		height="14"
+																		viewBox="0 0 16 16"
+																		fill="none"
+																		xmlns="http://www.w3.org/2000/svg"
+																		aria-hidden="true"
+																	>
+																		<path
+																			d="M8 1.5L0.5 14.5H15.5L8 1.5Z"
+																			stroke="currentColor"
+																			strokeWidth="1.5"
+																			strokeLinejoin="round"
+																			fill="currentColor"
+																			fillOpacity="0.15"
+																		/>
+																		<path
+																			d="M8 6V9.5"
+																			stroke="currentColor"
+																			strokeWidth="1.5"
+																			strokeLinecap="round"
+																		/>
+																		<circle
+																			cx="8"
+																			cy="12"
+																			r="0.85"
+																			fill="currentColor"
+																		/>
+																	</svg>
+																</button>
+															</TooltipTrigger>
+															<TooltipContent
+																side="top"
+																align="center"
+																className="max-w-64"
+															>
+																{t("settings.appearance.contrastWarning", {
+																	ratio: String(ratioRounded),
+																})}
+															</TooltipContent>
+														</Tooltip>
+													</TooltipProvider>
+												)}
+												<Input
+													type="text"
+													value={hexDraftValue}
+													disabled={customLocked}
+													onChange={handleHexInputChange(varName)}
+													onBlur={handleHexInputBlur(varName, currentHex ?? "")}
+													className={cn(
+														"w-18 shrink-0 text-center text-[11px] font-mono text-foreground",
+														// red border when the draft value is non-empty and
+														// doesn't match the strict ``#rrggbb`` regex.
+														// ``border-destructive`` is the existing design-system
+														// token for error borders (used by form validation
+														// throughout the app).
+														isHexInvalid &&
+															"border-destructive focus-visible:ring-destructive/30",
+													)}
+													spellCheck={false}
+													aria-label={t("settings.appearance.hexValueAria", {
+														label,
 													})}
-												</TooltipContent>
-											</Tooltip>
-										</TooltipProvider>
-									)}
-									<Input
-										type="text"
-										value={hexDraftValue}
-										disabled={customLocked}
-										onChange={handleHexInputChange(varName)}
-										onBlur={handleHexInputBlur(varName, currentHex ?? "")}
-										className={cn(
-											"w-18 shrink-0 text-center text-[11px] font-mono text-foreground",
-											// red border when the draft value is non-empty and
-											// doesn't match the strict ``#rrggbb`` regex.
-											// ``border-destructive`` is the existing design-system
-											// token for error borders (used by form validation
-											// throughout the app).
-											isHexInvalid &&
-												"border-destructive focus-visible:ring-destructive/30",
-										)}
-										spellCheck={false}
-										aria-label={t("settings.appearance.hexValueAria", {
-											label,
-										})}
-										// expose the invalid state to assistive tech via
-										// aria-invalid so screen-reader users hear "invalid
-										// entry" when focused on a bad hex.
-										aria-invalid={isHexInvalid || undefined}
-										title={
-											isHexInvalid
-												? t("settings.appearance.hexInvalid")
-												: undefined
-										}
-									/>
-								</div>
-							);
-						})}
-					</div>
+													// expose the invalid state to assistive tech via
+													// aria-invalid so screen-reader users hear "invalid
+													// entry" when focused on a bad hex.
+													aria-invalid={isHexInvalid || undefined}
+													title={
+														isHexInvalid
+															? t("settings.appearance.hexInvalid")
+															: undefined
+													}
+												/>
+											</div>
+										);
+									},
+								)}
+							</div>
 
-					{/* Reset to defaults.
+							{/* Reset to defaults.
                                                         Part C5: the previously-broken "#888" 3-digit hex in
                                                         DEFAULT_CUSTOM_DARK["--muted-foreground"] is now "#888888" (6-digit)
                                                         so the validator accepts the payload, no more "Failed to
                                                         save settings" toast.
                                                         Part C6: button is disabled while the draft already matches
                                                         the defaults (re-enables the moment the user edits a color). */}
-					<button
-						type="button"
-						disabled={customDraftIsDefault || customLocked}
-						onClick={handleResetCustomColors}
-						className="w-full rounded-lg border border-border/8 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
-					>
-						{t("settings.appearance.resetToDefaultColors")}
-					</button>
-				</div>
-			)}
+							<button
+								type="button"
+								disabled={customDraftIsDefault || customLocked}
+								onClick={handleResetCustomColors}
+								className="w-full rounded-lg border border-border/8 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+							>
+								{t("settings.appearance.resetToDefaultColors")}
+							</button>
+						</div>
+					)}
 
-			{/* ── Text Size ──────────────────────────────────────── */}
-			{isVisible(textSizeLabel, textSizeInfoSearch, sectionTitle) && (
-				<SettingRow
-					label={textSizeLabel}
-					info={t("settings.appearance.textSizeInfoRendered")}
-				>
-					<div className="flex items-center gap-3 w-44">
-						<RangeSlider
-							value={config.text_size ?? 14}
-							onChange={handleTextSizeChange}
-							min={10}
-							max={20}
-							step={1}
-							ariaLabel={t("settings.appearance.textSizeAria")}
-							suffix="px"
-							// UX (Task ID 5): defer the IPC write until the user releases
-							// the slider thumb.  Without this, each pixel of drag fires a
-							// separate updateConfig({ text_size }) IPC call, flooding the
-							// backend with set_config writes and re-rendering the entire
-							// UI on every step (the --font-scale CSS var propagates to
-							// rem-based sizes).
-							deferApply
-						/>
-					</div>
-				</SettingRow>
+					{/* ── Text Size ──────────────────────────────────────── */}
+					{isVisible(textSizeLabel, textSizeInfoSearch, sectionTitle) && (
+						<SettingRow
+							label={textSizeLabel}
+							info={t("settings.appearance.textSizeInfoRendered")}
+						>
+							<div className="flex items-center gap-3 w-52">
+								<RangeSlider
+									value={cfg.text_size ?? 14}
+									onChange={handleTextSizeChange}
+									min={10}
+									max={20}
+									step={1}
+									ariaLabel={t("settings.appearance.textSizeAria")}
+									suffix="px"
+									// UX (Task ID 5): defer the IPC write until the user releases
+									// the slider thumb.  Without this, each pixel of drag fires a
+									// separate updateConfig({ text_size }) IPC call, flooding the
+									// backend with set_config writes and re-rendering the entire
+									// UI on every step (the --font-scale CSS var propagates to
+									// rem-based sizes).
+									deferApply
+								/>
+							</div>
+						</SettingRow>
+					)}
+				</SettingsSection>
 			)}
-		</SettingsSection>
+		</Skeleton>
 	);
 });

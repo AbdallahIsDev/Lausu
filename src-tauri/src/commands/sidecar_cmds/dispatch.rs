@@ -270,13 +270,23 @@ async fn dispatch_frame(
                     .and_then(|d| d.get("message"))
                     .and_then(|m| m.as_str())
                     .unwrap_or("server error");
-                log::warn!(
-                    "[dispatch] id={} cmd={} server error [{}]: {}",
-                    id,
-                    cmd,
-                    code,
-                    msg
-                );
+                if code == "sidecar_disconnected" {
+                    log::debug!(
+                        "[dispatch] id={} cmd={} server error [{}]: {}",
+                        id,
+                        cmd,
+                        code,
+                        msg
+                    );
+                } else {
+                    log::warn!(
+                        "[dispatch] id={} cmd={} server error [{}]: {}",
+                        id,
+                        cmd,
+                        code,
+                        msg
+                    );
+                }
                 // Pass data VERBATIM so renderer fields (errors[], consent_field, …) survive.
                 let data = response
                     .get_mut("data")

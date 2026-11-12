@@ -5,12 +5,14 @@
 
 import { AlertCircleIcon, PuzzleIcon } from "@hugeicons/core-free-icons";
 import { useCallback } from "react";
+import { Skeleton } from "skullet/react";
 import PageHeading from "@/components/common/PageHeading";
 import { EmptyState } from "@/components/feedback/EmptyState";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { useT } from "@/i18n/i18n";
 import { PluginCard } from "./components/PluginCard";
-import { PluginsSkeleton } from "./components/PluginsSkeleton";
 import { usePlugins } from "./hooks/usePlugins";
+import { SAMPLE_PLUGINS } from "./lib/sample";
 import { usePluginSelection } from "./lib/usePluginSelection";
 import PluginDetail from "./PluginDetail";
 
@@ -29,7 +31,6 @@ export default function PluginsPage() {
 	// detail page owns its own "Back to plugins" affordance.
 	if (selectedPluginId !== null) return <PluginDetail />;
 
-	if (loading) return <PluginsSkeleton />;
 	if (loadError) {
 		return (
 			<div className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 px-16 pt-20 pb-6">
@@ -55,25 +56,37 @@ export default function PluginsPage() {
 				title={t("plugins.title")}
 				description={t("plugins.description")}
 			/>
-
-			{plugins.length === 0 ? (
-				/* The shipped build has no plugin workspace, so an empty list
+			<Skeleton
+				data={loading ? null : plugins}
+				sample={SAMPLE_PLUGINS}
+				id="plugins"
+				label={skeletonLoadingLabel()}
+			>
+				{(items) =>
+					items.length === 0 ? (
+						/* The shipped build has no plugin workspace, so an empty list
 				   is the NORMAL state, not a failure: the copy states exactly
 				   that no plugins are installed (C-UI-2). */
-				<EmptyState
-					icon={PuzzleIcon}
-					title={t("plugins.emptyTitle")}
-					description={t("plugins.emptyDescription")}
-					actionLabel={t("plugins.retry")}
-					onAction={() => void loadPlugins()}
-				/>
-			) : (
-				<div className="grid grid-cols-2 gap-4">
-					{plugins.map((plugin) => (
-						<PluginCard key={plugin.id} plugin={plugin} onOpen={openPlugin} />
-					))}
-				</div>
-			)}
+						<EmptyState
+							icon={PuzzleIcon}
+							title={t("plugins.emptyTitle")}
+							description={t("plugins.emptyDescription")}
+							actionLabel={t("plugins.retry")}
+							onAction={() => void loadPlugins()}
+						/>
+					) : (
+						<div className="grid grid-cols-2 gap-4">
+							{items.map((plugin) => (
+								<PluginCard
+									key={plugin.id}
+									plugin={plugin}
+									onOpen={openPlugin}
+								/>
+							))}
+						</div>
+					)
+				}
+			</Skeleton>
 		</div>
 	);
 }

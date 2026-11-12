@@ -622,7 +622,7 @@ describe("Settings search auto-switch navigation", () => {
 		useGlobalSearch.getState().setQuery("text polish");
 		await waitFor(() => {
 			expect(mockNavigate).toHaveBeenCalledWith(
-				"settingsAdvanced",
+				"settingsTranscription",
 				expect.objectContaining({
 					settingsScrollTarget: expect.objectContaining({
 						rowHint: expect.any(String),
@@ -633,5 +633,49 @@ describe("Settings search auto-switch navigation", () => {
 		await waitFor(() => {
 			expect(screen.queryByText(/No settings match/)).toBeNull();
 		});
+	});
+});
+
+describe("Settings section placement, Text Polish", () => {
+	beforeEach(() => {
+		resetStableMocks();
+		localStorage.clear();
+		vi.resetModules();
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	const renderSection = async (
+		page: "settingsTranscription" | "settingsAdvanced",
+	) => {
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_config") return Promise.resolve(baseConfig);
+			if (type === "set_config") return Promise.resolve({ success: true });
+			return Promise.resolve({});
+		});
+		const { default: SettingsPage } = await import("@/pages/Settings");
+		renderWithProviders(<SettingsPage page={page} />);
+	};
+
+	it("renders Text Polish under the Text Enhancement section card", async () => {
+		await renderSection("settingsTranscription");
+		const enhancement = await screen.findByRole("heading", {
+			name: "Text Enhancement",
+		});
+		const polish = screen.getByRole("heading", { name: "Text Polish (Beta)" });
+		expect(
+			enhancement.compareDocumentPosition(polish) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+	});
+
+	it("is no longer on the Advanced page", async () => {
+		await renderSection("settingsAdvanced");
+		await screen.findByRole("heading", { name: "Troubleshooting" });
+		expect(
+			screen.queryByRole("heading", { name: "Text Polish (Beta)" }),
+		).toBeNull();
 	});
 });

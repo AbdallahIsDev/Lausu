@@ -131,3 +131,47 @@ def _minimal_wav() -> bytes:
         handle.setframerate(16000)
         handle.writeframes(b"\x00\x00" * 1600)
     return buffer.getvalue()
+
+
+def test_openai_compatible_provider_serves_every_domain(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``custom`` is a general OpenAI-compatible endpoint, not TTS-only."""
+    from voice_typer.server.model_providers import builtin, get_registry
+    from voice_typer.server.model_providers.descriptor import Domain
+    from voice_typer.server.model_providers.legacy import CloudAsrAdapter
+    from voice_typer.server.model_providers.openai_compat import OpenAiCompatibleChatClient
+
+    endpoint = "https://llm.internal.example/v1"
+    cfg = _config(
+        cloud_api_url=f"{endpoint}/audio/transcriptions",
+        cloud_model="whisper-1",
+        language="en",
+        asr_provider_consent=True,
+        tts_api_url=endpoint,
+        llm_api_url=endpoint,
+        custom_tts_api_key="sk-test",
+    )
+    monkeypatch.setattr(builtin, "_config_getter", lambda: cfg)
+    descriptor = get_registry().get("custom")
+
+    assert descriptor.label == "OpenAI-compatible"
+    assert all(descriptor.supports(domain) for domain in Domain)
+    assert descriptor.config_fields[Domain.ASR] == "cloud_api_url"
+
+    assert isinstance(descriptor.client(Domain.ASR, "whisper-1"), CloudAsrAdapter)
+    assert isinstance(descriptor.client(Domain.TTS, "tts-1"), HostedTtsClient)
+    llm = descriptor.client(Domain.LLM, "chat-model")
+    assert isinstance(llm, OpenAiCompatibleChatClient)
+    assert llm.chat_url == f"{endpoint}/chat/completions"
+
+
+def test_openai_compatible_endpoint_must_be_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An empty endpoint is refused, never silently sent to OpenAI's host."""
+    from voice_typer.server.model_providers import builtin, get_registry
+    from voice_typer.server.model_providers.descriptor import Domain
+    from voice_typer.server.model_providers.errors import ProviderRuntimeError
+
+    monkeypatch.setattr(builtin, "_config_getter", lambda: _config(cloud_api_url=""))
+    descriptor = get_registry().get("custom")
+
+    with pytest.raises(ProviderRuntimeError):
+        descriptor.client(Domain.ASR, "whisper-1")

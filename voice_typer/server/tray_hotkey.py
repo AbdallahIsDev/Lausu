@@ -36,6 +36,7 @@ _DISPLAY_MAP: dict[str, str] = {
     "scroll_lock": "Scroll Lock",
     "print_screen": "Print Screen",
     "pause": "Pause",
+    "mouse_middle": "Middle Mouse Button",
     "insert": "Insert",
     "delete": "Delete",
     "home": "Home",

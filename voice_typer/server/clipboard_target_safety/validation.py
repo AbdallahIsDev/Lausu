@@ -41,6 +41,32 @@ from typing import Any  # noqa: F401  (used in type hints)
 # Call-time _pkg lookups (C-ARCH-2): package is partial at module load.
 import voice_typer.server.clipboard_target_safety as _pkg
 
+# ``UIA_IsPasswordPropertyId`` = 30019 (VT_BOOL, default FALSE).
+# https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-automation-element-propids
+#
+# This MUST be 30019. The id used to be 30022, which is
+# ``UIA_IsOffscreenPropertyId``: a focused element whose provider reports an
+# empty bounding rectangle (Chromium/Electron renderer nodes, some WinUI
+# custom controls) answers TRUE there while being perfectly visible, so every
+# dictation into such a field was refused as "password field detected".
+UIA_IS_PASSWORD_PROPERTY_ID = 30019
+
+
+def _uia_flag(value: Any) -> bool | None:
+    """Normalise a UIA ``VT_BOOL`` property value to a real bool.
+
+    comtypes unwraps the VARIANT, so this is a plain ``bool`` in practice
+    (verified against ``UIAutomationCore.dll`` on Windows 11). The ``int``
+    branch keeps an alternative binding's 0/1 from reading as "not a
+    password"; anything else is UNKNOWN, which callers must treat as unsafe
+    rather than assume a safe target.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return bool(value)
+    return None
+
 
 def _warn_paste_safety_once(key: str, fn_name: str, exc: BaseException) -> None:
     """Emit a one-shot DEBUG log for a per-paste safety-check failure.
@@ -104,9 +130,21 @@ def _is_password_field(focused: Any = None, hwnd: int | None = None) -> bool:
                 if focused is None:
                     focused = _pkg._get_uia_focused_element()
                 if focused is not None:
-                    # UIA_IsPasswordPropertyId = 30022
-                    is_password = focused.GetCurrentPropertyValue(30022)
-                    if is_password:
+                    flag = _uia_flag(
+                        focused.GetCurrentPropertyValue(UIA_IS_PASSWORD_PROPERTY_ID)
+                    )
+                    if flag is None:
+                        # Property read succeeded but returned something that
+                        # is not a boolean: the field's state is UNKNOWN, so
+                        # treat the target as unsafe (fail closed) instead of
+                        # assuming "not a password".
+                        _pkg._log().warning(
+                            "[CLIPBOARD] UIA IsPassword returned a non-boolean "
+                            "value, treating the focused field as unsafe "
+                            "(auto-paste suppressed; text stays on the clipboard)"
+                        )
+                        return True
+                    if flag:
                         _pkg._log().warning(
                             "[CLIPBOARD] Password field detected, "
                             "dictation into password fields is disabled for security"

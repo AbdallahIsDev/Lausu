@@ -47,7 +47,7 @@ class _ConfigSchema:
     # plugin id, otherwise the local model stays in charge (fail-closed).
     active_plugin: str = ""
     language: str = "en"
-    device: str = "cuda"  # cuda, cpu
+    device: str = "cpu"  # cuda, cpu
     beam_size: int = 1  # 1 = fastest greedy decoding; higher values trade speed for accuracy
     best_of: int = 1
     condition_on_previous_text: bool = False
@@ -72,11 +72,7 @@ class _ConfigSchema:
     # Behavior
     autostart: bool = True
     paste_on_stop: bool = True
-    # client-side field now has a server counterpart
-    unsafe_paste_on_unknown_focus: bool = False  # paste even when focus detection fails
     show_notifications: bool = True
-    # warn when pasting into an elevated process from non-elevated
-    warn_elevated_paste: bool = True
     # warn when pasting into a password field
     warn_password_paste: bool = True
     # Master toggle for the OS-level prewarm scheduled task.
@@ -180,6 +176,12 @@ class _ConfigSchema:
     llm_model_id: str = ""
     llm_provider_consent: bool = False
     llm_provider_fallback: Literal["off", "local"] = "off"
+
+    # Voice conversation (Chat page). ``chat_history_turns`` bounds how many
+    # exchanges are replayed to the LLM (2 × N messages); an empty
+    # ``chat_system_prompt`` keeps the built-in spoken-reply prompt.
+    chat_history_turns: int = 8
+    chat_system_prompt: str = ""
 
     # One key per provider id (WP8). Stored through credential_store, never
     # through plain config writes.

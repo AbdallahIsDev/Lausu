@@ -930,7 +930,9 @@
 
 /* Title carries the type signal (no glyph). Error = destructive,
    warning = warning, everything else = foreground. */
-.toaster [data-sonner-toast][data-styled="true"][data-type="error"] .title {
+.toaster
+	[data-sonner-toast][data-styled="true"][data-type="error"]
+	[data-title] {
 	color: var(--destructive);
 }
 
@@ -964,11 +966,13 @@
 	align-self: flex-start;
 }
 
-.toaster [data-sonner-toast][data-styled="true"][data-type="warning"] .title {
+.toaster
+	[data-sonner-toast][data-styled="true"][data-type="warning"]
+	[data-title] {
 	color: var(--warning);
 }
 
-.toaster [data-sonner-toast][data-styled="true"] .title {
+.toaster [data-sonner-toast][data-styled="true"] [data-title] {
 	color: var(--foreground);
 }
 

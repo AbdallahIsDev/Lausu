@@ -27,6 +27,12 @@ class ModelMetadata:
     network_behavior: str = "local-only"
     # User-facing display name shown on the model card. ``None`` means
     display_name: str | None = None
+    # A selected language is forwarded to the model as a decode hint.
+    accepts_language_hint: bool = True
+    # Auto (``config.language == ""``) actually yields detection. A
+    # no-hint model detects by construction; a hint-taking model needs an
+    # engine detection path. Auto is only offered when this is true.
+    supports_language_detection: bool = True
 
     def to_dict(self) -> dict:
         """Serialize to a JSON-safe dict for IPC transport."""
@@ -49,6 +55,10 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         backend="whisper",
         multilingual=True,
         supported_languages=None,
+        # Whisper takes the selected language as a decode hint and detects
+        # the language itself when the hint is Auto.
+        accepts_language_hint=True,
+        supports_language_detection=True,
         description="Fastest multilingual model. Low accuracy, good for testing.",
         network_behavior="downloads-on-first-use-consent-gated",
         repo_id="Systran/faster-whisper-tiny",
@@ -67,6 +77,10 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         backend="whisper",
         multilingual=True,
         supported_languages=None,
+        # Whisper takes the selected language as a decode hint and detects
+        # the language itself when the hint is Auto.
+        accepts_language_hint=True,
+        supports_language_detection=True,
         description="Highest-accuracy Whisper model. Slow on CPU; GPU strongly recommended.",
         network_behavior="downloads-on-first-use-consent-gated",
         repo_id="Systran/faster-whisper-large-v3",
@@ -86,6 +100,10 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         backend="whisper",
         multilingual=True,
         supported_languages=None,
+        # Whisper takes the selected language as a decode hint and detects
+        # the language itself when the hint is Auto.
+        accepts_language_hint=True,
+        supports_language_detection=True,
         description="Turbo model, near-large-v3 accuracy at 8x speed. Recommended for most users.",
         network_behavior="downloads-on-first-use-consent-gated",
         # Canonical HF org (renamed from mobiuslabsgmbh; faster-whisper
@@ -100,20 +118,25 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
     # added to registry so get_model_status() can resolve the
     "parakeet": ModelMetadata(
         name="parakeet",
-        display_name="Parakeet-TDT-0.6b-V3",
-        download_size_mb=1275,
-        required_vram_mb=3072,
+        display_name="Parakeet Ultra",
+        download_size_mb=670,
+        required_vram_mb=2048,
         backend="parakeet",
         multilingual=True,
         supported_languages=None,
-        description="NVIDIA Parakeet TDT 0.6b v3. ONNX fp16 export (grikdotnet), fast CPU/GPU ASR without PyTorch.",
+        # No language input: the multilingual head detects the spoken
+        # language itself, so Auto is offered. The language argument only
+        # drives the English-only junk filter, never the decode.
+        accepts_language_hint=False,
+        supports_language_detection=True,
+        description="Parakeet Ultra (NVIDIA Parakeet TDT 0.6b, post-trained by Moondream). ONNX int8, 25 languages.",
         network_behavior="downloads-on-first-use-consent-gated",
-        repo_id="grikdotnet/parakeet-tdt-0.6b-fp16",
+        repo_id="Masterx/parakeet-tdt-0.6b-ultra-onnx",
         speed_rating="fast",
         accuracy_rating="high",
-        # WER 6.34% real-world representative: official NVIDIA model-card
-        # OpenASR average (LS clean 1.93% understates everyday errors).
-        wer=6.34,
+        # OpenASR avg 5.80 vs 6.26 for the base v3; self-reported by
+        # Moondream (Photon on B200), treat as directional.
+        wer=5.8,
     ),
     # Qwen3-ASR ships as two sizes with separate ONNX exports.
     "qwen3-1.7b": ModelMetadata(
@@ -125,6 +148,10 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         backend="qwen",
         multilingual=True,
         supported_languages=None,
+        # Qwen3-ASR takes the audio alone and detects the spoken language
+        # itself; the ONNX export ignores the language argument.
+        accepts_language_hint=False,
+        supports_language_detection=True,
         description="Qwen3-ASR 1.7B (ONNX int4). Multilingual ASR without PyTorch.",
         network_behavior="downloads-on-first-use-consent-gated",
         repo_id="andrewleech/qwen3-asr-1.7b-onnx",
@@ -143,6 +170,10 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         backend="qwen",
         multilingual=True,
         supported_languages=None,
+        # Qwen3-ASR takes the audio alone and detects the spoken language
+        # itself; the ONNX export ignores the language argument.
+        accepts_language_hint=False,
+        supports_language_detection=True,
         description="Qwen3-ASR 0.6B (ONNX int4). Smaller, faster multilingual ASR without PyTorch.",
         network_behavior="downloads-on-first-use-consent-gated",
         repo_id="andrewleech/qwen3-asr-0.6b-onnx",

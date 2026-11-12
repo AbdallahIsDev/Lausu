@@ -7,8 +7,10 @@ the faster_whisper engine class it replaces
 (``transcription.TranscriptionEngine``) is deleted, which is what lets
 the Nuitka sidecar exclude ``faster_whisper``/``ctranslate2``.
 
-``parakeet``/``qwen`` keep their in-process ONNX engines; only
-``whisper`` is worker-backed. There is deliberately no
+``parakeet``/``qwen`` run in-process by default with a worker-first
+hook in the registry (served from the pack worker when one is
+connected, falling back to these ONNX engines when it is not) — see
+``worker_proxy_asr.py``. There is deliberately no
 ``transcribe_words`` here: word-level streaming goes through the C6
 worker session (the coordinator checks for this class), never through
 an in-process engine that no longer exists.

@@ -4,6 +4,9 @@
     "universal_reserved": "Array of hotkey strings blocked on EVERY platform. Stored lowercase with angle brackets, e.g. \"<alt>+<tab>\". Entries are compared after canonicalization, so <win>, <super> and <cmd> all match.",
     "per_platform_reserved": "Object mapping platform key (win32/darwin/linux) to array of hotkey strings blocked on that platform only. win32 also carries Ctrl+Alt+Delete (both spellings), the secure-attention sequence low-level hooks never see.",
     "blocked_ctrl_letters": "Array of single lowercase letters blocked when the hotkey is PURE Ctrl+<letter> (no other modifier). Covers Copy/Paste/Undo/Save/Select All/etc.",
+    "blocked_toggle_keys": "Array of key tokens rejected everywhere: pressing them flips a keyboard state (e.g. Num Lock) that no listener suppresses.",
+    "blocked_editing_keys": "Array of key tokens rejected everywhere: pressing them deletes text or moves the caret, so a hotkey would damage the document.",
+    "mouse_buttons": "Array of non-modifier key tokens that are mouse buttons. They fire from the mouse listener instead of the keyboard listener and can only be used alone: the mouse listener never reports keyboard modifiers, so a combo containing one could not match.",
     "modifiers": "Array of modifier key names AND their alias spellings recognized in hotkey strings (pynput-style, lowercase). hotkey_spec.MODIFIER_ALIASES is derived from this list: the renderer and backend must classify a raw token the same way, so a missing alias makes the two count a combo's keys differently.",
     "key_aliases": "Object mapping non-canonical non-modifier key spellings to their canonical token. Applied by the shared parser (hotkey_spec.parse_hotkey and the renderer's normalizeKeyToken) before matching, duplicate detection, or display.",
     "keys": "Object mapping every canonical non-modifier key token to {wire, platforms}. wire is the name the native listeners emit; platforms lists where the token is deliverable. A token absent from keys is unknown_key; a token whose platforms excludes the current platform is key_not_delivered. Modifier tokens are not listed here (see modifiers)."
@@ -83,6 +86,9 @@
     "c", "v", "x", "z", "a", "s", "y", "w", "f", "p", "n", "o", "t",
     "l", "r", "h", "j", "k", "b", "i", "u", "d", "e", "g", "m"
   ],
+  "blocked_toggle_keys": ["num_lock"],
+  "blocked_editing_keys": ["delete", "up", "down", "left", "right"],
+  "mouse_buttons": ["mouse_middle"],
   "modifiers": [
     "ctrl", "ctrl_l", "ctrl_r", "control",
     "shift", "shift_l", "shift_r",
@@ -199,6 +205,7 @@
     "scroll_lock": { "wire": "ScrollLock", "platforms": ["win32", "linux"] },
     "print_screen": { "wire": "PrintScreen", "platforms": ["win32", "linux"] },
     "pause": { "wire": "Pause", "platforms": ["win32", "linux"] },
+    "mouse_middle": { "wire": "MouseMiddle", "platforms": ["win32", "darwin", "linux"] },
     "up": { "wire": "Up", "platforms": ["win32", "darwin", "linux"] },
     "down": { "wire": "Down", "platforms": ["win32", "darwin", "linux"] },
     "left": { "wire": "Left", "platforms": ["win32", "darwin", "linux"] },

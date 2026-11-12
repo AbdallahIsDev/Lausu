@@ -22,6 +22,8 @@ from voice_typer.worker._auth import _authenticate, _send_auth_failed_and_close
 from voice_typer.worker._ws_commands import (
     _CommandHandles,
     handle_abort_request,
+    handle_load_parakeet_model_async,
+    handle_load_qwen_model_async,
     handle_load_whisper_model_async,
     handle_transcribe_offline,
     handle_transcribe_samples,
@@ -244,6 +246,12 @@ async def _handle_connection(  # noqa: ANN001 - websockets type is imported lazi
                 continue
             if cmd == "load_whisper_model":
                 await handle_load_whisper_model_async(frame, handles)
+                continue
+            if cmd == "load_parakeet_model":
+                await handle_load_parakeet_model_async(frame, handles)
+                continue
+            if cmd == "load_qwen_model":
+                await handle_load_qwen_model_async(frame, handles)
                 continue
             if cmd == "streaming_session_open":
                 # ADR-0025 C6: additive open; ack carries the id echo.

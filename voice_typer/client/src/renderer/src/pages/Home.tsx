@@ -30,12 +30,14 @@
 // it stays here in the composition root rather than moving into a hook.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Skeleton } from "skullet/react";
 import { LastUpdatedIndicator } from "@/components/common/LastUpdatedIndicator";
 import ActivityList from "@/components/dashboard/ActivityList";
 import { ShareStatsDialog } from "@/components/dashboard/ShareStatsDialog";
 import StatCards from "@/components/dashboard/StatCards";
 import { StatsShareImage } from "@/components/dashboard/StatsShareImage";
-import { Spinner } from "@/components/feedback/Spinner";
+import { MeasuredSkeleton } from "@/components/feedback/MeasuredSkeleton";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { HotkeyChips } from "@/components/hotkey/HotkeyChips";
 import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 import { useLastUpdated } from "@/hooks/useLastUpdated";
@@ -70,6 +72,7 @@ import {
 	persistStats,
 } from "./home/lib/cache";
 import { DEFAULT_STATUS_COLOR, STATUS_COLORS } from "./home/lib/constants";
+import { SAMPLE_HOME_RECENT, SAMPLE_TODAY_STATS } from "./home/lib/sample";
 import { statusKeyFor, statusLabelFor } from "./home/lib/status";
 
 export default function Home() {
@@ -599,47 +602,48 @@ export default function Home() {
 				)}
 			</output>
 
-			{stats && (
-				<div className="flex w-full flex-col gap-3">
-					<div className="flex items-end justify-between">
-						<span className="text-xs font-medium text-muted-foreground capitalize tracking-wide">
-							{t("home.todayStats")}
-						</span>
-						<div className="flex items-center gap-2">
-							<LastUpdatedIndicator
-								agoLabel={agoLabel}
-								onRefresh={handleManualRefresh}
-								refreshing={refreshing}
-							/>
-							<ShareStatsDialog
-								actions={shareActions}
-								stats={shareImageStats}
-								palette={themePalette}
-								disabled={
-									!cfg ||
-									!canShareStats({
-										todayCount: stats.count,
-										totalCount: recent.length > 0 ? 1 : 0,
-									})
-								}
-							/>
-						</div>
-					</div>
-					<StatCards stats={stats} />
-				</div>
-			)}
-
-			{!stats && initialLoading && (
-				<section
-					className="w-full flex items-center justify-center py-6"
-					aria-label={t("home.loadingTodayStatsAria")}
+			{/* Measured wrap: the stats header + cards render from the sample
+				while stats is null. Share stays mounted (disabled) via
+				C-CACHE-6 since it must never unmount with the data. */}
+			{(stats || initialLoading) && (
+				<MeasuredSkeleton
+					className="w-full"
+					stackClassName="gap-3"
+					data={stats}
+					sample={SAMPLE_TODAY_STATS}
+					id="home-stats"
+					label={skeletonLoadingLabel()}
 				>
-					{/* Decorative, the wrapping <section aria-label>
-                                            already supplies the accessible name; the bare
-                                            Spinner's own role="img" aria-label="Loading" would
-                                            compete with it. */}
-					<Spinner decorative />
-				</section>
+					{(d) => (
+						<>
+							<div className="flex items-end justify-between">
+								<span className="text-xs font-medium text-muted-foreground capitalize tracking-wide">
+									{t("home.todayStats")}
+								</span>
+								<div className="flex items-center gap-2">
+									<LastUpdatedIndicator
+										agoLabel={agoLabel}
+										onRefresh={handleManualRefresh}
+										refreshing={refreshing}
+									/>
+									<ShareStatsDialog
+										actions={shareActions}
+										stats={shareImageStats}
+										palette={themePalette}
+										disabled={
+											!cfg ||
+											!canShareStats({
+												todayCount: d.count,
+												totalCount: recent.length > 0 ? 1 : 0,
+											})
+										}
+									/>
+								</div>
+							</div>
+							<StatCards stats={d} />
+						</>
+					)}
+				</MeasuredSkeleton>
 			)}
 
 			<div
@@ -659,24 +663,25 @@ export default function Home() {
 				)}
 			</div>
 
-			{initialLoading && recent.length === 0 ? (
-				<section
-					className="w-full flex items-center justify-center py-6"
-					aria-label={t("home.loadingRecentAria")}
-				>
-					{/* Decorative, same reasoning as the
-                                            today-stats section above. */}
-					<Spinner decorative />
-				</section>
-			) : (
-				<ActivityList
-					items={recent}
-					lineClamp={2}
-					title={t("home.recentActivity")}
-					showViewAll
-					onViewAll={handleViewAllHistory}
-				/>
-			)}
+			{/* Measured wrap: null only while the first load is in flight with
+				nothing cached, so a loaded-but-empty list still shows its
+				empty state instead of a skeleton. */}
+			<Skeleton
+				data={initialLoading && recent.length === 0 ? null : recent}
+				sample={SAMPLE_HOME_RECENT}
+				id="home-recent"
+				label={skeletonLoadingLabel()}
+			>
+				{(d) => (
+					<ActivityList
+						items={d}
+						lineClamp={2}
+						title={t("home.recentActivity")}
+						showViewAll
+						onViewAll={handleViewAllHistory}
+					/>
+				)}
+			</Skeleton>
 		</div>
 	);
 }

@@ -622,3 +622,245 @@ describe("Model step activation parity with the Models page (ONB-6)", () => {
 		});
 	});
 });
+
+describe("Model step recommended card (ONB-1)", () => {
+	const RECOMMENDED_OPTIONS = [
+		{
+			name: "tiny",
+			size: "~75MB",
+			speed: "Fastest",
+			description: "Multilingual, best for quick notes",
+			vram_gb: 0.5,
+			languages: null,
+		},
+		{
+			name: "large-v3-turbo",
+			size: "~809MB",
+			speed: "Fast",
+			description: "Multilingual, near-large-v3 accuracy",
+			vram_gb: 2.0,
+			languages: null,
+		},
+		{
+			name: "parakeet",
+			display_name: "Parakeet Ultra",
+			size: "~670MB",
+			speed: "Fast",
+			description: "Parakeet Ultra, fast & accurate, 25 languages",
+			vram_gb: 2.0,
+			languages: null,
+			backend: "parakeet",
+			recommended: true,
+		},
+	];
+
+	function mockRecommendedStartAtStep(
+		stepIndex: number,
+		extraConfig: Record<string, unknown> = {},
+	) {
+		let current = stepIndex;
+		mockCall.mockImplementation((type: string) => {
+			switch (type) {
+				case "onboarding_start":
+					return Promise.resolve({
+						step: stepIndex,
+						total_steps: 4,
+						step_name: STEP_NAMES[stepIndex],
+					});
+				case "onboarding_next_step":
+					current = Math.min(current + 1, STEP_NAMES.length - 1);
+					return Promise.resolve({
+						step: current,
+						total_steps: 4,
+						step_name: STEP_NAMES[current],
+					});
+				case "onboarding_prev_step":
+					current = Math.max(current - 1, 0);
+					return Promise.resolve({
+						step: current,
+						total_steps: 4,
+						step_name: STEP_NAMES[current],
+					});
+				case "get_config":
+					return Promise.resolve({
+						hotkey: "<caps_lock>",
+						model_size: "",
+						microphone: null,
+						huggingface_consent: true,
+						...extraConfig,
+					});
+				case "onboarding_get_microphones":
+					return Promise.resolve({ microphones: [] });
+				case "onboarding_get_hotkey_presets":
+					return Promise.resolve({ presets: ["<caps_lock>", "<f2>"] });
+				case "onboarding_get_model_options":
+					return Promise.resolve({ models: RECOMMENDED_OPTIONS });
+				case "get_model_catalog":
+					return Promise.resolve({ models: [] });
+				case "onboarding_check_permissions":
+					return Promise.resolve({
+						platform: "windows",
+						state: "unknown",
+						needed: false,
+						instructions: null,
+					});
+				case "onboarding_set_model":
+				case "onboarding_set_backend":
+				case "onboarding_set_hotkey":
+				case "onboarding_apply":
+				case "set_config":
+					return Promise.resolve({});
+				default:
+					return Promise.resolve({});
+			}
+		});
+	}
+
+	beforeEach(() => {
+		mockCall.mockReset();
+		mockShowSnack.mockReset();
+		useConsentGateStore.setState({ request: null });
+	});
+	afterEach(() => {
+		useConsentGateStore.setState({ request: null });
+		cleanup();
+	});
+
+	it("shows exactly one visible model by default with Recommended + Fast + languages badges", () => {
+		renderWithProviders(
+			<ModelStep
+				headingRef={{ current: null }}
+				modelOptions={RECOMMENDED_OPTIONS}
+				selectedModel=""
+				setSelectedModel={() => {}}
+				selectedBackend="local"
+				setSelectedBackend={() => {}}
+				downloadingModel={null}
+				downloadProgress={0}
+				downloadFailed={false}
+				onDownload={() => {}}
+				cloudProvider="openai"
+				setCloudProvider={() => {}}
+				cloudApiKey=""
+				setCloudApiKey={() => {}}
+			/>,
+		);
+
+		expect(screen.getByTestId("onboarding-recommended-card")).toBeTruthy();
+		expect(screen.getByTestId("onboarding-model-select-parakeet")).toBeTruthy();
+		// The other models are hidden until All Models is opened.
+		expect(screen.queryByTestId("onboarding-model-select-tiny")).toBeNull();
+		expect(
+			screen.queryByTestId("onboarding-model-select-large-v3-turbo"),
+		).toBeNull();
+		// Badges: recommended + fast + languages (not English-only).
+		expect(screen.getByText("Recommended")).toBeTruthy();
+		expect(screen.getAllByText("Fast").length).toBeGreaterThan(0);
+		expect(screen.getByText("25 languages")).toBeTruthy();
+		expect(screen.queryByText("English only")).toBeNull();
+		expect(screen.queryByText("English-only")).toBeNull();
+	});
+
+	it("All Models toggle reveals the rest of the catalog", async () => {
+		renderWithProviders(
+			<ModelStep
+				headingRef={{ current: null }}
+				modelOptions={RECOMMENDED_OPTIONS}
+				selectedModel=""
+				setSelectedModel={() => {}}
+				selectedBackend="local"
+				setSelectedBackend={() => {}}
+				downloadingModel={null}
+				downloadProgress={0}
+				downloadFailed={false}
+				onDownload={() => {}}
+				cloudProvider="openai"
+				setCloudProvider={() => {}}
+				cloudApiKey=""
+				setCloudApiKey={() => {}}
+			/>,
+		);
+
+		const toggle = screen.getByTestId("onboarding-all-models-toggle");
+		expect(toggle.textContent).toContain("All Models");
+		expect(toggle.getAttribute("aria-expanded")).toBe("false");
+		expect(screen.queryByTestId("onboarding-model-select-tiny")).toBeNull();
+
+		fireEvent.click(toggle);
+		expect(toggle.getAttribute("aria-expanded")).toBe("true");
+		expect(screen.getByTestId("onboarding-model-select-tiny")).toBeTruthy();
+		expect(
+			screen.getByTestId("onboarding-model-select-large-v3-turbo"),
+		).toBeTruthy();
+		// The collapse wrapper stays mounted and flips data-open.
+		const root = document.querySelector(".collapse-root");
+		expect(root?.getAttribute("data-open")).toBe("true");
+	});
+
+	it("choosing the Ultra card enables Continue and persists the parakeet pair", async () => {
+		mockRecommendedStartAtStep(2, { model_size: "" });
+		renderWithProviders(<OnboardingPage onComplete={() => {}} />);
+
+		await screen.findByText("Step 3 of 4");
+		const continueBtn = await screen.findByRole("button", {
+			name: "Continue",
+		});
+		expect(continueBtn.hasAttribute("disabled")).toBe(true);
+
+		fireEvent.click(screen.getByTestId("onboarding-model-select-parakeet"));
+		await waitFor(() => {
+			expect(continueBtn.hasAttribute("disabled")).toBe(false);
+		});
+
+		fireEvent.click(continueBtn);
+		await waitFor(() => {
+			const activation = mockCall.mock.calls.find(
+				(c: unknown[]) =>
+					c[0] === "set_config" &&
+					(c[1] as { model_size?: string } | undefined)?.model_size ===
+						"parakeet",
+			);
+			expect(activation?.[1]).toEqual({
+				asr_backend: "parakeet",
+				model_size: "parakeet",
+			});
+		});
+		// No auto-download fired on select.
+		expect(
+			mockCall.mock.calls.some((c: unknown[]) => c[0] === "download_model"),
+		).toBe(false);
+	});
+
+	it("download waits for HF consent and does not fire download_model first", async () => {
+		mockRecommendedStartAtStep(2, {
+			model_size: "",
+			huggingface_consent: false,
+		});
+		renderWithProviders(<OnboardingPage onComplete={() => {}} />);
+
+		await screen.findByText("Step 3 of 4");
+		fireEvent.click(screen.getByTestId("onboarding-download-button-parakeet"));
+
+		await waitFor(() => {
+			expect(useConsentGateStore.getState().request).not.toBeNull();
+		});
+		expect(
+			mockCall.mock.calls.some((c: unknown[]) => c[0] === "download_model"),
+		).toBe(false);
+	});
+
+	it("back navigation preserves the recommended selection", async () => {
+		mockRecommendedStartAtStep(2, { model_size: "" });
+		renderWithProviders(<OnboardingPage onComplete={() => {}} />);
+
+		await screen.findByText("Step 3 of 4");
+		fireEvent.click(screen.getByTestId("onboarding-model-select-parakeet"));
+		fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+		await screen.findByText("Step 4 of 4");
+
+		fireEvent.click(screen.getByRole("button", { name: "Go back" }));
+		await screen.findByText("Step 3 of 4");
+		const select = screen.getByTestId("onboarding-model-select-parakeet");
+		expect(select.getAttribute("aria-pressed")).toBe("true");
+	});
+});

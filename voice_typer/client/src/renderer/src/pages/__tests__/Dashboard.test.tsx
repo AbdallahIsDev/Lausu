@@ -214,14 +214,18 @@ describe("BG-10: Dashboard Share button always mounted, disabled without data (C
 		expect(DASHBOARD_SRC).not.toMatch(/data\.todayCount\s*>\s*0\s*&&\s*\(/);
 	});
 
-	it("first-load path renders the real heading + disabled Share above the skeleton body", () => {
-		// Actions never vanish mid-load; the body (not the full
-		// skeleton with its heading placeholder) renders below.
-		expect(DASHBOARD_SRC).toMatch(/DashboardSkeletonBody/);
-		const earlyReturn = DASHBOARD_SRC.slice(
-			DASHBOARD_SRC.indexOf("if (!data) {"),
+	it("first-load path renders the real heading + disabled Share above the measured body", () => {
+		// Actions never vanish mid-load: the heading (with Share) is
+		// unconditional and only the BODY rides the measured wrap.
+		expect(DASHBOARD_SRC).toMatch(
+			/<PageHeading[\s\S]*?<ShareStatsDialog[\s\S]*?disabled=\{shareDisabled\}[\s\S]*?<\/PageHeading>/,
 		);
-		expect(earlyReturn).toMatch(/<ShareStatsDialog[\s\S]*?disabled[\s\S]*?\/>/);
+		expect(DASHBOARD_SRC).toMatch(
+			/<Skeleton[\s\S]*?data=\{bodyData\}[\s\S]*?sample=\{SAMPLE_DASHBOARD\}/,
+		);
+		// The full-page early return (heading placeholder + skeleton)
+		// is gone: the real heading always mounts.
+		expect(DASHBOARD_SRC).not.toMatch(/DashboardSkeletonBody/);
 	});
 });
 
@@ -516,8 +520,10 @@ describe("Top stat cards: merged dictation card + range-aware values", () => {
 		// numbers are rendered by the heatmap header instead.
 		expect(DASHBOARD_SRC).not.toMatch(/Calendar01Icon/);
 		expect(DASHBOARD_SRC).not.toMatch(/analytics\.activeDays/);
+		// Whitespace-tolerant: JSX wraps long attribute lists, and the
+		// contract is the props, not their line placement.
 		expect(DASHBOARD_SRC).toMatch(
-			/<ActivityHeatmap heatmap=\{heatmap\} currentStreak=\{d\.currentStreak\} \/>/,
+			/<ActivityHeatmap[\s\S]*?heatmap=\{heatmap\}[\s\S]*?currentStreak=\{d\.currentStreak\}[\s\S]*?\/>/,
 		);
 		// The streak line survives — as the heatmap's, not a card's.
 		expect(DASHBOARD_SRC).not.toMatch(/analytics\.noStreak/);
@@ -675,22 +681,18 @@ describe("Range + refresh controls live outside the scrolling body", () => {
 		);
 	});
 
-	it("the skeleton mirrors the heading actions and reserves no range row", () => {
-		const skeletonSrc = fs.readFileSync(
-			path.resolve(
-				__dirname,
-				"..",
-				"dashboard",
-				"components",
-				"DashboardSkeleton.tsx",
-			),
-			"utf8",
+	it("the measured body sits below the real heading and reserves no range row", () => {
+		// No separate skeleton tree exists to drift from the page: the
+		// sample IS the dashboard payload rendered through the real
+		// body, so it mirrors the heading actions by construction.
+		expect(DASHBOARD_SRC).toMatch(/sample=\{SAMPLE_DASHBOARD\}/);
+		expect(DASHBOARD_SRC.indexOf("<Skeleton")).toBeGreaterThan(
+			DASHBOARD_SRC.indexOf("<PageHeading"),
 		);
-		expect(skeletonSrc).toMatch(/<HeadingSkeleton[\s\S]*?action=\{/);
 		// The pill row is what the old range skeleton looked like; the
 		// control is in the title bar now, so nothing pill-shaped is
 		// left to reserve space for.
-		expect(skeletonSrc).not.toMatch(/rounded-full/);
+		expect(DASHBOARD_SRC).not.toMatch(/rounded-full/);
 	});
 });
 

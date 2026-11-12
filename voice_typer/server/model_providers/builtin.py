@@ -129,15 +129,36 @@ def _openrouter_probe() -> dict[str, Any]:
     return probe_key(api_key, base_url=base)
 
 
+def _selected_providers() -> set[str]:
+    """Provider ids the three domains currently point at."""
+    cfg = _config()
+    return {
+        str(getattr(cfg, field, "") or "").strip() for field in ("asr_provider", "tts_provider", "llm_provider")
+    }
+
+
 def _ollama_models() -> list[ModelDescriptor]:
+    from voice_typer.server.model_providers.local_catalogue import (
+        cached_local_catalogue,
+        local_catalogue_wanted,
+    )
     from voice_typer.server.model_providers.ollama import OLLAMA_LOCAL_BASE, list_local_models
 
     try:
-        base = str(getattr(_config(), "ollama_base_url", "") or OLLAMA_LOCAL_BASE)
-        return list_local_models(base, timeout_s=2.0)
+        custom_base = str(getattr(_config(), "ollama_base_url", "") or "")
+        selected = _selected_providers()
     except Exception as exc:
         log.debug("[PROVIDERS] ollama catalogue unavailable: %s", exc)
         return []
+    if not local_catalogue_wanted("ollama", custom_base, selected):
+        return []
+    models, error = cached_local_catalogue(
+        "ollama",
+        lambda: list_local_models(custom_base or OLLAMA_LOCAL_BASE, timeout_s=2.0),
+    )
+    if error is not None:
+        log.debug("[PROVIDERS] ollama catalogue unavailable: %s", error)
+    return models
 
 
 def _ollama_client(domain: Domain, model_id: str) -> Any:
@@ -159,13 +180,26 @@ def _ollama_client(domain: Domain, model_id: str) -> Any:
 
 def _lmstudio_models() -> list[ModelDescriptor]:
     from voice_typer.server.model_providers.lmstudio import LMSTUDIO_DEFAULT_BASE, list_models
+    from voice_typer.server.model_providers.local_catalogue import (
+        cached_local_catalogue,
+        local_catalogue_wanted,
+    )
 
     try:
-        base = str(getattr(_config(), "lmstudio_base_url", "") or LMSTUDIO_DEFAULT_BASE)
-        return list_models(base)
+        custom_base = str(getattr(_config(), "lmstudio_base_url", "") or "")
+        selected = _selected_providers()
     except Exception as exc:
         log.debug("[PROVIDERS] lm studio catalogue unavailable: %s", exc)
         return []
+    if not local_catalogue_wanted("lmstudio", custom_base, selected):
+        return []
+    models, error = cached_local_catalogue(
+        "lmstudio",
+        lambda: list_models(custom_base or LMSTUDIO_DEFAULT_BASE, timeout_s=2.0),
+    )
+    if error is not None:
+        log.debug("[PROVIDERS] lm studio catalogue unavailable: %s", error)
+    return models
 
 
 def _lmstudio_client(domain: Domain, model_id: str) -> Any:
@@ -191,31 +225,81 @@ def _local_onnx_client(domain: Domain, model_id: str) -> Any:
     return LocalOnnxLlmClient(config=_config(), model_id=model_id)
 
 
-def _openai_tts_client(domain: Domain, model_id: str) -> Any:
-    from voice_typer.server.model_providers.hosted_tts import OPENAI_TTS_BASE, OPENAI_TTS_MODEL, HostedTtsClient
-    from voice_typer.server.model_providers.routing import provider_key
-
-    cfg = _config()
-    return HostedTtsClient(
-        provider_id="openai",
-        model_id=model_id or OPENAI_TTS_MODEL,
-        base_url=str(getattr(cfg, "tts_api_url", "") or OPENAI_TTS_BASE),
-        api_key=provider_key(cfg, "openai"),
-    )
+def _llm_chat_url(endpoint: str) -> str:
+    """Accept a base URL or a full chat-completions URL (legacy configs)."""
+    url = endpoint.rstrip("/")
+    return url if url.endswith("/chat/completions") else f"{url}/chat/completions"
 
 
-def _custom_tts_client(domain: Domain, model_id: str) -> Any:
+def _openai_compatible_client(domain: Domain, model_id: str) -> Any:
+    """One user-supplied OpenAI-compatible endpoint, serving all three domains.
+
+    Each domain reads its own endpoint field, so a user can point dictation,
+    speech and polish at different servers. An empty endpoint is refused here
+    instead of silently falling back to OpenAI's own host.
+    """
+    from voice_typer.server.model_providers._http import bearer
     from voice_typer.server.model_providers.hosted_tts import HostedTtsClient
-    from voice_typer.server.model_providers.routing import provider_key
+    from voice_typer.server.model_providers.openai_compat import OpenAiCompatibleChatClient
+    from voice_typer.server.model_providers.routing import effective_consent, provider_key
 
     cfg = _config()
-    return HostedTtsClient(
-        provider_id="custom",
-        model_id=model_id,
-        base_url=str(getattr(cfg, "tts_api_url", "") or ""),
-        api_key=provider_key(cfg, "custom"),
-        voices=(),
-        languages=(),
+    key = provider_key(cfg, "custom")
+    if domain is Domain.ASR:
+        api_url = str(getattr(cfg, "cloud_api_url", "") or "")
+        if not api_url:
+            raise ProviderRuntimeError(
+                "OpenAI-compatible dictation needs an endpoint URL (cloud_api_url)",
+                provider="custom",
+                domain=domain.value,
+            )
+        from voice_typer.server.cloud._engine import CloudEngine
+        from voice_typer.server.model_providers.legacy import CloudAsrAdapter
+
+        return CloudAsrAdapter(
+            CloudEngine(
+                provider="openai",
+                api_key=key,
+                api_url=api_url,
+                model=model_id or str(getattr(cfg, "cloud_model", "") or "") or None,
+                language=str(getattr(cfg, "language", "en") or "en"),
+                consent_given=effective_consent(cfg, Domain.ASR, "custom"),
+            )
+        )
+    if domain is Domain.TTS:
+        api_url = str(getattr(cfg, "tts_api_url", "") or "")
+        if not api_url:
+            raise ProviderRuntimeError(
+                "OpenAI-compatible speech needs an endpoint URL (tts_api_url)",
+                provider="custom",
+                domain=domain.value,
+            )
+        return HostedTtsClient(
+            provider_id="custom",
+            model_id=model_id,
+            base_url=api_url,
+            api_key=key,
+            voices=(),
+            languages=(),
+        )
+    if domain is Domain.LLM:
+        api_url = str(getattr(cfg, "llm_api_url", "") or "")
+        if not api_url:
+            raise ProviderRuntimeError(
+                "OpenAI-compatible chat needs an endpoint URL (llm_api_url)",
+                provider="custom",
+                domain=domain.value,
+            )
+        return OpenAiCompatibleChatClient(
+            provider_id="custom",
+            model_id=model_id,
+            chat_url=_llm_chat_url(api_url),
+            headers=bearer(key),
+        )
+    raise ProviderRuntimeError(  # pragma: no cover - Domain is exhaustive
+        f"openai-compatible does not serve the {domain.value} domain",
+        provider="custom",
+        domain=domain.value,
     )
 
 
@@ -254,7 +338,7 @@ def register_all(registry: ProviderRegistry) -> None:
             ],
             client_factory=_cloud_direct_client,
             free_form_models=True,
-            unsupported_reason={Domain.TTS: "Hosted TTS uses the openai or custom provider."},
+            unsupported_reason={Domain.TTS: "Hosted TTS uses the openai or OpenAI-compatible provider."},
         )
     )
     registry.register(
@@ -315,23 +399,18 @@ def register_all(registry: ProviderRegistry) -> None:
     )
     registry.register(
         ProviderDescriptor(
-            id="openai",
-            label="OpenAI",
-            domains=frozenset({Domain.TTS}),
-            auth=AuthKind.API_KEY,
-            model_list=_static_models(Domain.TTS, [("gpt-4o-mini-tts", "gpt-4o-mini-tts")]),
-            client_factory=_openai_tts_client,
-        )
-    )
-    registry.register(
-        ProviderDescriptor(
             id="custom",
-            label="Custom OpenAI-compatible TTS",
-            domains=frozenset({Domain.TTS}),
+            label="OpenAI-compatible",
+            domains=frozenset({Domain.ASR, Domain.TTS, Domain.LLM}),
             auth=AuthKind.API_KEY,
             model_list=lambda: [],
-            client_factory=_custom_tts_client,
+            client_factory=_openai_compatible_client,
             free_form_models=True,
+            config_fields={
+                Domain.ASR: "cloud_api_url",
+                Domain.TTS: "tts_api_url",
+                Domain.LLM: "llm_api_url",
+            },
         )
     )
 

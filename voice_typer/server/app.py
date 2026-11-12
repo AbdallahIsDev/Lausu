@@ -87,7 +87,8 @@ class LausuApp(AppLazyHub, AppDictation, AppAdmin, AppRecordingInit, AppConstruc
         self._init_state_flags()
         self._init_history_crash_volume()
         self._init_misc_backings()
-        # Internal-plugin STT seam (Google STT, in development). No-op
+        # Internal-plugin STT seam (in-development plugins, selected via
+        # config.active_plugin). No-op
         # unless the plugin gate is open (env flag +
         # tools/internal_plugins/PLUGINS_ENABLED + not frozen): a frozen
         # build never reaches the import. Must run before

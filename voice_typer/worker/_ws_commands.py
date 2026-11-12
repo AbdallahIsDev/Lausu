@@ -203,6 +203,102 @@ async def handle_load_whisper_model_async(frame: dict, handles: _CommandHandles)
     _asyncio.ensure_future(_do())
 
 
+async def _handle_load_async(
+    frame: dict,
+    handles: _CommandHandles,
+    *,
+    backend: str,
+    result_type: str,
+    run: Callable[[], dict],
+    missing_error: str | None = None,
+) -> None:
+    """Shared tail for the explicit model-load commands.
+
+    Validates the id, short-circuits a missing required field with a
+    structured error frame, and runs the (blocking) load in a thread so
+    heartbeats keep flowing; the request always resolves with a result.
+    """
+    request_id = _valid_request_id(frame.get("id"))
+    if request_id is None:
+        log.warning("[WORKER] %s without a numeric id: ignoring", result_type.removesuffix("_result"))
+        return
+    if missing_error is not None:
+        with contextlib.suppress(Exception):
+            await handles.websocket.send(
+                json.dumps(
+                    {
+                        "type": result_type,
+                        "id": request_id,
+                        "data": {"loaded": False, "backend": backend, "device_info": "", "error": missing_error},
+                    }
+                )
+            )
+        return
+
+    import asyncio as _asyncio
+
+    async def _do() -> None:
+        try:
+            result = await _asyncio.to_thread(run)
+        except Exception as exc:  # noqa: BLE001, never leave the request hanging
+            log.exception("[WORKER] %s model thread raised: %s", backend, exc)
+            result = {"loaded": False, "backend": backend, "device_info": None, "error": f"internal error: {exc}"}
+        with contextlib.suppress(Exception):
+            await handles.websocket.send(json.dumps({"type": result_type, "id": request_id, "data": result}))
+
+    _asyncio.ensure_future(_do())
+
+
+async def handle_load_parakeet_model_async(frame: dict, handles: _CommandHandles) -> None:
+    """Load the parakeet model in the worker; answer ``load_parakeet_model_result``."""
+    data = frame.get("data") if isinstance(frame.get("data"), dict) else {}
+    device = data.get("device")
+    language = data.get("language")
+
+    def _run(_device: object = device, _lang: object = language) -> dict:
+        from voice_typer.worker._transcribe import get_transcriber
+
+        return get_transcriber().load_parakeet_model(
+            str(_device) if _device is not None else None,
+            str(_lang) if _lang is not None else None,
+        )
+
+    await _handle_load_async(
+        frame, handles, backend="parakeet", result_type="load_parakeet_model_result", run=_run
+    )
+
+
+async def handle_load_qwen_model_async(frame: dict, handles: _CommandHandles) -> None:
+    """Load the qwen model in the worker; answer ``load_qwen_model_result``."""
+    data = frame.get("data") if isinstance(frame.get("data"), dict) else {}
+    model_path = data.get("model_path")
+    device = data.get("device")
+    language = data.get("language")
+    missing_error = None if isinstance(model_path, str) and model_path else "missing model_path"
+
+    def _run(
+        _path: str = model_path if isinstance(model_path, str) else "",
+        _device: object = device,
+        _lang: object = language,
+    ) -> dict:
+        from voice_typer.worker._transcribe import get_transcriber
+
+        return get_transcriber().load_qwen_model(
+            _path,
+            str(_device) if _device is not None else None,
+            str(_lang) if _lang is not None else None,
+        )
+
+    await _handle_load_async(
+        frame,
+        handles,
+        backend="qwen",
+        result_type="load_qwen_model_result",
+        run=_run,
+        missing_error=missing_error,
+    )
+
+
 async def handle_abort_request(frame: dict, handles: _CommandHandles) -> None:
     """ADR-0025 C4: best-effort cooperative abort.
 

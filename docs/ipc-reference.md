@@ -42,7 +42,7 @@ host-dispatched / host-only set (`heartbeat`, `relaunch_ack`,
 `allowed_commands()` are host-internal (invoked by the Rust host via
 `dispatch_inner` or host-supervised shutdown), never by the renderer.
 
-## Commands (100 total: 96 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
+## Commands (109 total: 105 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
 
 Grouped by namespace. "✓" in the Allowlist column means the command is
 in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
@@ -198,7 +198,8 @@ runtime). Packs live under `<HF cache>/tts/{bin,models}/<engine>`.
 | Command | Handler | Allowlist | Notes |
 |---------|---------|-----------|-------|
 | `get_microphones` | `_handle_get_microphones` | ✓ |  |
-| `get_plugins` | `_handle_get_plugins` | ✓ | Installed plugins, their manifests, and each one's active flag. |
+| `get_plugins` | `_handle_get_plugins` | ✓ | Installed plugins, their manifests, each one's active flag, and its persisted setting values. |
+| `set_plugin_setting` | `_handle_set_plugin_setting` | ✓ | Persists one manifest-declared setting. Payload `{plugin_id, key, value}`; the key must exist in that plugin's manifest and the value must match its declared type/range. Stored in the plugin workspace (`settings.json`), never app config. |
 
 ### Microphone test (start, stop, cancel, level)
 
@@ -235,6 +236,24 @@ runtime). Packs live under `<HF cache>/tts/{bin,models}/<engine>`.
 | Command | Handler | Allowlist | Notes |
 |---------|---------|-----------|-------|
 | `set_esc_cancel_paused` | `_handle_set_esc_cancel_paused` | ✓ | Pauses ESC-cancel while the UI is capturing a custom hotkey. |
+
+### Voice conversation (push-to-talk STT → LLM → TTS)
+
+| Command | Handler | Allowlist | Notes |
+|---------|---------|-----------|-------|
+| `chat_listen_start` | `_handle_chat_listen_start` | ✓ | Arms capture on the level monitor's single `InputStream` (never a second stream). Refused while a turn is in flight (`{started: false, sample_rate: 0}`). Gated by `voice_biometric_consent`, like dictation and the mic test. Response `{started: bool, sample_rate: int}`; publishes `chat_turn` with `phase: "listening"` on success. |
+| `chat_listen_stop` | `_handle_chat_listen_stop` | ✓ | Disarms capture and starts the turn on a daemon thread; returns `{accepted: bool}` immediately. A capture nobody released (page unmounted mid-hold) is auto-finished at the 30 s cap. |
+| `chat_state` | `_handle_chat_state` | ✓ | Read-only reattach snapshot: `{messages: [{role, text}], busy: bool, phase: str}`. |
+| `chat_reset` | `_handle_chat_reset` | ✓ | Aborts any in-flight turn, clears the message list and cancels capture; publishes `phase: "idle"`. Response `{ok: bool}`. |
+
+### GPU / CUDA install (device switch)
+
+| Command | Handler | Allowlist | Notes |
+|---------|---------|-----------|-------|
+| `get_gpu_capability` | `_handle_get_gpu_capability` | ✓ | Read-only capability snapshot: `{state, hardware_present, driver_present, gpu_names, cuda_ready, stack_complete, backends: [{name, local, gpu_capable, gpu_ready, detail}], download: {supported, reason, total_bytes, python, installed, progress}, driver_url, activation, active_backend, active_backend_gpu_ready}`. **Two readiness signals, deliberately different.** `cuda_ready` = ANY gpu-capable local backend is ready — coarse, kept for the state verdict, and **never** a gate. `stack_complete` = EVERY gpu-capable local backend is ready (CTranslate2 **and** ORT) — the signal an install must satisfy before `device: "cuda"` is persisted, and what `set_config` + activation require. `active_backend_gpu_ready` = the backend named by `asr_backend` can serve GPU; always a boolean (falls back to `stack_complete` when no backend is known) and the signal the sidebar toggle and the request dialog use. `state` is the four-value coarse verdict (`no_nvidia_gpu` / `driver_missing` / `gpu_present_cuda_missing` / `gpu_ready`) and **may be `gpu_ready` while `stack_complete` is false** — a machine where CTranslate2 sees the GPU but the installed `onnxruntime` is the CPU-only wheel. Hardware presence is an OS probe; per-backend readiness is the DLL/provider check. |
+| `start_cuda_download` | `_handle_start_cuda_download` | ✓ | Starts the single-flight install job (pinned CUDA 12 wheels + the CUDA-12 ONNX Runtime wheel). Returns the live job snapshot; a second call while running returns the same snapshot instead of opening a second transfer. Never writes `config.device`. |
+| `cancel_cuda_download` | `_handle_cancel_cuda_download` | ✓ | Instant control: sets the job's cancel event, stops at the next chunk boundary. Returns the snapshot. |
+| `ack_cuda_activation` | `_handle_ack_cuda_activation` | ✓ | Clears a recorded activation failure after the renderer has shown it. Response `{ok: bool}`. |
 
 ### Removed / never-existed commands (documented for searchability, do NOT re-add)
 
@@ -293,7 +312,7 @@ restored `get_prewarm_status` / `run_prewarm` (worker status file +
 in-process warm pass), not the old
 `sentinel` / `PID`-file probe.
 
-## Push events (70 typed)
+## Push events (72 typed)
 
 Push events flow server to renderer via `window.python.onEvent(callback)`.
 The `PythonPushEvent` union in `types/ipc/push_events.ts` is the canonical
@@ -363,6 +382,8 @@ list: events not in the union fall through to the `string` overload of
 | `cloud_fallback_used` | `CloudFallbackUsedEvent` | `{ provider: string, kind: "key" \| "provider" \| "network", reason: string }` A cloud ASR provider failed and the pipeline fell back (typed in the union; renderer consumer optional). |
 | `dictation_suppressed` | `DictationSuppressedEvent` | `{ duration: number, recorded_rms: number, reason: string }` A dictation was suppressed before transcription (typed in the union; renderer consumer optional). |
 | `tts_playback_state` | `TtsPlaybackStateEvent` | `{ engine: string, voice: string, state: "playing" \| "stopped" \| "finished", cached: boolean }` Local TTS playback transition, published by `server/tts/manager.py` on start, on `tts_stop`, and on natural end, so the icon-only control returns to play without polling. |
+| `chat_turn` | `ChatTurnEvent` | `{ phase: "listening" \| "transcribing" \| "thinking" \| "speaking" \| "idle" \| "error", role?: "user" \| "assistant", text?: string, error_code?: string }` Push-to-talk conversation turn (`conversation/manager.py` → `service/chat.py`). `phase` drives the Chat page's indicator; `role`+`text` ride the `thinking` (user transcript) and `speaking` (assistant reply) phases; `error_code` is a namespaced IPC code (`no_speech`, `no_engine_loaded`, `transcription_failed`, `server.internal_error`, or a `ProviderError.code`), never a raw exception string. |
+| `cuda_progress` | `CudaProgressEvent` | `{ status: "idle" \| "downloading" \| "verifying" \| "installing" \| "completed" \| "failed" \| "cancelled", artifact: string \| null, artifact_index: number, artifact_count: number, bytes_done: number, bytes_total: number, percent: number, speed_bps: number, eta_seconds: number \| null, error: string \| null }` CUDA install job progress (`cuda_install/service.py`, state changes plus at most 10 Hz while bytes move). The renderer's sticky toast renders this snapshot and never polls; `error` is a namespaced job code (`insufficient_disk`, `unsupported_python`, `unsupported_platform`, `download_failed`, `checksum_mismatch`, `install_failed`, `internal`). |
 | `filter_collapse` | `FilterCollapseEvent` | `{ reason: "collapse" \| "silent_take" \| "monitor_collapse", raw_db: number, filtered_db: number, delta_db: number, preset: string, method: string }` The microphone filter chain provably removed the speech. `collapse` / `silent_take` (`recording/filter_divergence.py`, once per process per reason): that take is delivered UNFILTERED (`set_filter_bypass` + raw-shadow swap) instead of arriving blank. `monitor_collapse` (`level_monitor/divergence.py`, once per monitoring or test session): the level meter and mic test bypass the chain and read the raw device for the rest of the session. The renderer shows one toast naming the state and offering the Microphone page, while `preset` / `method` / the dB values stay in the log line. |
 | `history_corrupted` | `HistoryCorruptedEvent` | `{ path: string, db_path: string, recovered_count: number }` History DB corruption was detected and recovered (typed in the union; renderer consumer optional). |
 | `paste_deferred` | `PasteDeferredEvent` | `{ reason: string, message?: string }` Paste was deferred (e.g. clipboard safety validation held it back; typed in the union; renderer consumer optional). |

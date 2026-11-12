@@ -67,6 +67,62 @@ export interface TtsStopRequest {
 	type: "tts_stop";
 }
 
+/**
+ * Voice conversation (Chat page): arm capture on the level monitor's single
+ * stream. `started: false` means a turn is already in flight or the capture
+ * could not open; the page keeps its current phase in that case.
+ */
+export interface ChatListenStartRequest {
+	type: "chat_listen_start";
+}
+
+/** Disarm capture and run the turn on a worker (returns immediately). */
+export interface ChatListenStopRequest {
+	type: "chat_listen_stop";
+}
+
+/** Reattach snapshot: `{messages, busy, phase}`. */
+export interface ChatStateRequest {
+	type: "chat_state";
+}
+
+/** Abort any in-flight turn and clear the conversation. */
+export interface ChatResetRequest {
+	type: "chat_reset";
+}
+
+/**
+ * GPU capability snapshot (read-only): hardware / driver / stack state,
+ * per-backend readiness, install progress and the activation record.
+ * Re-read after a respawn before letting the device pill move to GPU.
+ */
+export interface GetGpuCapabilityRequest {
+	type: "get_gpu_capability";
+}
+
+/**
+ * Start the pinned CUDA 12 install job (single-flight: calling again while
+ * a job is live returns its snapshot instead of starting a second one).
+ * The response carries the same shape as `cuda_progress`.
+ */
+export interface StartCudaDownloadRequest {
+	type: "start_cuda_download";
+}
+
+/** Ask the running install job to stop at the next chunk boundary. */
+export interface CancelCudaDownloadRequest {
+	type: "cancel_cuda_download";
+}
+
+/**
+ * Clear a shown `activation.state == "failed"` record. Called once the
+ * renderer has surfaced the reason, so the failure is not re-reported on
+ * every capability read.
+ */
+export interface AckCudaActivationRequest {
+	type: "ack_cuda_activation";
+}
+
 export interface LevelMonitorStartRequest {
 	type: "level_monitor_start";
 	data: { mic_id: string };
@@ -100,6 +156,13 @@ export interface GetMicrophonesRequest {
 // the `plugins` payload normalized by `pages/plugins/lib/pluginTypes.ts`.
 export interface GetPluginsRequest {
 	type: "get_plugins";
+}
+
+// Plugins page: persist ONE manifest-declared setting. The backend rejects
+// an unknown plugin/key or a value that does not match the declared type.
+export interface SetPluginSettingRequest {
+	type: "set_plugin_setting";
+	data: { plugin_id: string; key: string; value: unknown };
 }
 
 export interface ToggleDictationRequest {
@@ -477,6 +540,7 @@ export type PythonRequest =
 	| GetConfigRequest
 	| GetMicrophonesRequest
 	| GetPluginsRequest
+	| SetPluginSettingRequest
 	| ToggleDictationRequest
 	| GetHistoryRequest
 	| DeleteHistoryRequest
@@ -564,4 +628,15 @@ export type PythonRequest =
 	| TtsStatusRequest
 	| TtsPrepareRequest
 	| TtsSpeakRequest
-	| TtsStopRequest;
+	| TtsStopRequest
+	// Push-to-talk voice conversation (Chat page).
+	| ChatListenStartRequest
+	| ChatListenStopRequest
+	| ChatStateRequest
+	| ChatResetRequest
+	// GPU switch + CUDA install flow (capability read, single-flight
+	// install job, cancel, activation-failure acknowledgement).
+	| GetGpuCapabilityRequest
+	| StartCudaDownloadRequest
+	| CancelCudaDownloadRequest
+	| AckCudaActivationRequest;

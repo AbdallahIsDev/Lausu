@@ -20,6 +20,20 @@ def _configured_engine(config: Any) -> str:
     return engine if engine in ("audio8", "magpie") else ""
 
 
+def _prewarm_callable(app: Any) -> Any:
+    """The TTS service lives on the IPC server, not on the app.
+
+    ``LausuApp`` owns subsystems (config, models, tray); the service mixins —
+    including ``TtsMixin.tts_prewarm`` — are composed into ``LausuService``,
+    which the IPC server holds as ``.service`` and registers back onto the app
+    as ``._ipc_server`` in ``IPCServer.start()``. Calling ``app.service`` raised
+    ``AttributeError`` on every startup and was swallowed into a debug line, so
+    the warm-up silently never ran.
+    """
+    server = getattr(app, "_ipc_server", None)
+    return getattr(getattr(server, "service", None), "tts_prewarm", None)
+
+
 def start_prewarm(app: Any) -> threading.Thread | None:
     """Start the prewarm thread when TTS is enabled; return it (tests/teardown)."""
     try:
@@ -35,8 +49,14 @@ def start_prewarm(app: Any) -> threading.Thread | None:
         return None
 
     def _run() -> None:
+        prewarm = _prewarm_callable(app)
+        if not callable(prewarm):
+            # Startup order is a legitimate reason for this (the phase runs
+            # post-ready, but a test or a headless boot may have no server).
+            log.debug("[TTS] prewarm skipped: TTS service not attached yet")
+            return
         try:
-            app.service.tts_prewarm(engine)
+            prewarm(engine)
         except Exception:
             log.debug("[TTS] prewarm failed engine=%s", engine, exc_info=True)
 

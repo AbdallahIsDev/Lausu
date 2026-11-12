@@ -134,6 +134,18 @@ Pinned by ``tests/test_event_types_parity.py``.
   and ``transcribe_offline_result`` (PUSH, worker → slim core →
   renderer; ``{text, latency_ms}``); the request resolves to
   ``{type:"ack", data:{queued:True}}``.
+* Voice conversation: ``chat_turn`` (published by
+  ``server/service/chat.py`` from the manager's sink). Payload:
+  ``{phase: "listening"|"transcribing"|"thinking"|"speaking"|"idle"|"error",
+  role?: "user"|"assistant", text?: str, error_code?: str}``. ``phase``
+  drives the Chat page's indicator and message list; ``error_code`` is a
+  namespaced IPC code, never a raw exception string.
+* CUDA install job: ``cuda_progress`` (published by
+  ``server/cuda_install/service.py`` on every state change and at most
+  10 Hz while bytes move). Payload is the job snapshot
+  ``{status, artifact, artifact_index, artifact_count, bytes_done,
+  bytes_total, percent, speed_bps, eta_seconds, error}``; the renderer's
+  sticky toast renders it and never polls.
 
 Events emitted via ``IPCServer.push`` (NOT through ``event_bus.publish``
 — they bypass the bus because they are wired into the IPC accept loop
@@ -149,7 +161,7 @@ server):
   former is a per-transition signal with just ``status``; the latter
   is the connect-time snapshot with a ``message`` field.
 
-Total: 58 events, the live count is ``len(EVENT_TYPES)`` and this
+Total: 60 events, the live count is ``len(EVENT_TYPES)`` and this
 sentence is kept in lockstep with it by
 ``tests/test_event_bus.py::TestCanonicalCatalogue
 ::test_catalogue_total_count_updated``. Update this docstring whenever
@@ -264,6 +276,12 @@ EVENT_TYPES: frozenset[str] = frozenset(
         "live_preview_audio",
         # Local ONNX LLM warm-up state (model_providers/local_onnx/client.py).
         "provider_local_onnx_state",
+        # Push-to-talk voice conversation turn (service/chat.py): phase +
+        # the user/assistant text the Chat page renders.
+        "chat_turn",
+        # CUDA install job progress (cuda_install/service.py): sticky toast
+        # contract for the device-switch flow.
+        "cuda_progress",
     }
 )
 

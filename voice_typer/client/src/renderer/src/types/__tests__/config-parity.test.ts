@@ -281,11 +281,9 @@ describe("XZ-CFG-03: bubble_x / bubble_y / bubble_scale / test_duration_seconds,
 			qwen_model_path: null,
 			parakeet_model_path: null,
 			text_cleanup_enabled: true,
-			unsafe_paste_on_unknown_focus: false,
 			corrections_path: null,
 			log_transcriptions: false,
-			//(/014): paste-safety toggles.
-			warn_elevated_paste: true,
+			//(/014): paste-safety toggle.
 			warn_password_paste: true,
 			recording_mode: "toggle",
 			esc_cancel_enabled: true,
@@ -390,24 +388,21 @@ describe("XZ-CFG-03: bubble_x / bubble_y / bubble_scale / test_duration_seconds,
 		// deprecated fields are absent from the literal:
 		expect(minimal.bubble_scale).toBeUndefined();
 		expect(minimal.test_duration_seconds).toBeUndefined();
-		//optional paste-safety toggles are present in this fixture.
-		expect(minimal.warn_elevated_paste).toBe(true);
+		//optional paste-safety toggle is present in this fixture.
 		expect(minimal.warn_password_paste).toBe(true);
 	});
 });
 
-describe("GT-37: warn_elevated_paste / warn_password_paste, optional paste-safety toggles", () => {
-	it("both fields are declared on LausuConfig (compile-time presence guard)", () => {
+describe("GT-37: warn_password_paste, optional paste-safety toggle", () => {
+	it("the field is declared on LausuConfig (compile-time presence guard)", () => {
 		// type `LausuConfig` must type-check. If a future
-		// contributor removes either field from the interface, the
+		// contributor removes the field from the interface, the
 		// property access below fails to compile and CI catches it.
-		// The fields are OPTIONAL (`boolean | undefined`) for back-compat
-		//with older sidecars that predate ; the renderer treats
-		// absence as `true` (the Python default).
+		// The field is OPTIONAL (`boolean | undefined`) for back-compat
+		// with older sidecars; the renderer treats absence as `true`
+		// (the Python default).
 		const cfg = {} as LausuConfig;
-		const _elevated: boolean | undefined = cfg.warn_elevated_paste;
 		const _password: boolean | undefined = cfg.warn_password_paste;
-		expect(_elevated).toBeUndefined();
 		expect(_password).toBeUndefined();
 	});
 });

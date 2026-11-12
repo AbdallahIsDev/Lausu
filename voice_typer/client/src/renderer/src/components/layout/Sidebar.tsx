@@ -6,6 +6,7 @@ import {
 	Film01Icon,
 	HistoryIcon,
 	Home04Icon,
+	MessageMultiple01Icon,
 	Mic02Icon,
 	PuzzleIcon,
 	Settings01Icon,
@@ -37,6 +38,7 @@ import type { Page } from "@/types/ipc";
 type NavLeafId = Extract<
 	Page,
 	| "home"
+	| "chat"
 	| "history"
 	| "analytics"
 	| "models"
@@ -86,6 +88,8 @@ interface NavItem {
 // from the destinations above it through the `mt-auto` bottom pin.
 const MAIN_NAV_ITEMS: NavItem[] = [
 	{ id: "home", icon: Home04Icon },
+	// Voice conversation: a primary destination (hold, speak, hear the reply).
+	{ id: "chat", icon: MessageMultiple01Icon },
 	{ id: "history", icon: HistoryIcon },
 	{ id: "analytics", icon: Analytics01Icon },
 	{ id: "models", icon: AiBrain03Icon },

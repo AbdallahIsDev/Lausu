@@ -81,7 +81,7 @@ pub(super) fn spawn_writer_task(
                 ) {
                     log::warn!("[WS-WRITER] failed to emit supervisor_relaunching: {}", e);
                 }
-                log::warn!("[WS-WRITER] write half closed, triggering supervisor respawn");
+                log::info!("[WS-WRITER] write half closed, triggering supervisor respawn");
                 trigger_respawn_off_thread(
                     app_for_cleanup.clone(),
                     state_for_cleanup.clone(),

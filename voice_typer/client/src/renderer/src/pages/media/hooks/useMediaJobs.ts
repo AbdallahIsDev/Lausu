@@ -34,13 +34,23 @@ import {
 } from "../lib/mediaErrorCopy";
 import { describeMediaSource } from "../lib/sourceLabel";
 
-export type MediaJobPhase =
-	| "starting"
-	| "preparing"
-	| "loading_model"
-	| "downloading"
-	| "transcribing"
-	| "done";
+export const MEDIA_JOB_PHASES = [
+	"starting",
+	"preparing",
+	"loading_model",
+	"downloading",
+	"transcribing",
+	"done",
+] as const;
+
+export type MediaJobPhase = (typeof MEDIA_JOB_PHASES)[number];
+
+const MEDIA_JOB_PHASE_SET: ReadonlySet<string> = new Set(MEDIA_JOB_PHASES);
+
+/** A push phase is a contract value; an unknown one keeps the row's phase. */
+export function isMediaJobPhase(value: unknown): value is MediaJobPhase {
+	return typeof value === "string" && MEDIA_JOB_PHASE_SET.has(value);
+}
 
 /** Engine quality readings for a finished job (absent when unavailable). */
 export interface MediaJobQuality {
@@ -79,7 +89,6 @@ export interface StartManyResult {
 	/** The sources that did NOT start, in input order (capacity + refusals). */
 	refused: string[];
 }
-
 const RUNNING_PHASES: ReadonlySet<MediaJobPhase> = new Set([
 	"starting",
 	"preparing",
@@ -499,7 +508,7 @@ export function useMediaJobs(): UseMediaJobsResult {
 			isFinished(row.phase)
 				? {}
 				: {
-						phase: data.phase,
+						phase: isMediaJobPhase(data.phase) ? data.phase : row.phase,
 						progress:
 							typeof data.progress === "number" ? data.progress : row.progress,
 						etaSeconds: data.eta_seconds ?? null,
@@ -627,7 +636,7 @@ export function useMediaJobs(): UseMediaJobsResult {
 								job.client_id || mintClientIdRef.current(),
 								job.job_id,
 							),
-							phase: (job.phase as MediaJobPhase) ?? "transcribing",
+							phase: isMediaJobPhase(job.phase) ? job.phase : "transcribing",
 							progress: typeof job.progress === "number" ? job.progress : 0,
 						}));
 					return restored.length > 0 ? [...restored, ...prev] : prev;

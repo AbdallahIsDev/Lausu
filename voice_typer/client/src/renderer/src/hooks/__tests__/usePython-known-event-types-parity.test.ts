@@ -97,6 +97,10 @@ const _PARITY = {
 	tray_fallback_notification: true,
 	provider_local_onnx_state: true,
 	tts_playback_state: true,
+	chat_turn: true,
+	// GPU switch + CUDA install flow: one sticky progress channel for the
+	// download → verify → install → activation job.
+	cuda_progress: true,
 } satisfies Record<PythonPushEvent["type"], true>;
 
 describe("UE-39: KNOWN_EVENT_TYPES parity with PythonPushEvent type union", () => {

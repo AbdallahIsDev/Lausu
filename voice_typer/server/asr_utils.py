@@ -23,8 +23,8 @@ _MODEL_SIZE_MB = {
     # ``large-v3-turbo`` is the fast multilingual model released by
     # OpenAI (fp16 CTranslate2 weights, ~1.62 GB on HuggingFace).
     "large-v3-turbo": 1618,
-    # Parakeet TDT 0.6b v3 ONNX fp16 export is ~1.28 GB uncompressed
-    "parakeet": 1275,
+    # Parakeet Ultra int8 ONNX export is ~0.67 GB uncompressed
+    "parakeet": 670,
 }
 # Extra margin for temporary files, metadata, tokenizer, etc.
 _DISK_SPACE_MARGIN_MB = 500

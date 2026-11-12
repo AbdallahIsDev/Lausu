@@ -51,10 +51,20 @@ Do not re-inline literals.
 ## model-integrity-cache
 
 `security/model_integrity.py` caches SHA-256 by
-`(repo_id, relpath, st_mtime_ns, st_size)` for the reporting-only
-failure-details path. The load verdict always re-hashes file bytes:
-mtime/size and the user-writable cache are forgeable by any
-user-privileged writer, so a cache hit never decides pass/fail.
+`(repo_id, relpath, st_mtime_ns, st_size)`. The load verdict re-hashes
+on any miss; a hit requires ALL of: cache file present and loaded,
+mtime_ns equal, size equal (mtime alone never hits), size > 0, and
+cached sha256 equal to the pinned manifest hash
+(`security/integrity_verdict_cache.py::verdict_cache_hit`). The
+reporting-only failure-details path (`hash_file_cached`) keeps its
+mtime+size hit.
+
+Security trade-off (accepted, not a full skip): a same-user writer
+who rewrites a model file AND the cache file while preserving
+mtime+size can forge a verdict hit. Tampering that changes size or
+mtime, or that leaves the cache alone so its sha differs from the
+pin, still re-hashes and fails. Deleting
+`cache/integrity_cache.json` forces a full re-hash on the next load.
 Local models (`revision: "local"`) hard-fail when `files` is
 empty — there is no upstream commit pin.
 

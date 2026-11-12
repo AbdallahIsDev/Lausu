@@ -1,15 +1,27 @@
-import type * as React from "react";
+import { SkeletonBox, type SkeletonBoxProps } from "skullet/react";
 
-import { cn } from "#utils";
-
-function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
+// One placeholder box, drawn by Skullet. Every bar joins the page's
+// single shimmer (one document-clock phase, however late it mounts)
+// and follows the provider theme + reduced-motion, instead of the old
+// per-div `animate-pulse` which never synced. Width/height/radius are
+// explicit (Skullet draws them as inline geometry measured from the
+// real component) - size Tailwind classes do NOT apply, a SkeletonBox
+// size class is ignored by the inline style, so callers pass the
+// dimension props.
+export function Skeleton({
+	width,
+	height,
+	radius,
+	className,
+	style,
+}: SkeletonBoxProps) {
 	return (
-		<div
-			data-slot="skeleton"
-			className={cn("animate-pulse rounded-lg bg-surface-subtle", className)}
-			{...props}
+		<SkeletonBox
+			width={width}
+			height={height}
+			radius={radius}
+			className={className}
+			style={style}
 		/>
 	);
 }
-
-export { Skeleton };

@@ -53,6 +53,31 @@ describe("ErrorBoundary fallback behavior", () => {
 		expect(screen.queryByText("Something went wrong")).toBeNull();
 	});
 
+	it("Try Again stays enabled after a failed retry and reports it", () => {
+		shouldThrow = true;
+		render(
+			<ErrorBoundary>
+				<Thrower message="still-broken" />
+			</ErrorBoundary>,
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Try Again" }));
+
+		// The child threw again: the same fallback is back, Try Again is
+		// still clickable, and the failure is stated instead of silent.
+		const tryAgain = screen.getByRole("button", {
+			name: "Try Again",
+		}) as HTMLButtonElement;
+		expect(tryAgain.disabled).toBe(false);
+		expect(
+			screen.getByText("Retrying didn't help. Reload the app to recover."),
+		).toBeTruthy();
+
+		// A later retry still recovers once the underlying cause is gone.
+		shouldThrow = false;
+		fireEvent.click(tryAgain);
+		expect(screen.getByTestId("child-content")).toBeTruthy();
+	});
+
 	it("Reload App calls window.location.reload", () => {
 		shouldThrow = true;
 		const reloadSpy = vi.fn();

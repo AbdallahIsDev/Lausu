@@ -904,6 +904,38 @@ class TestWatchdogRespawnRace:
             f"when _shutdown_requested is False; got start_calls={start_calls}"
         )
 
+    def test_stop_on_the_watchdog_thread_does_not_join_itself(self, monkeypatch):
+        """The respawn path calls ``stop()`` from the watchdog thread itself."""
+        import threading
+
+        from voice_typer.server import native_hotkeys
+
+        monkeypatch.setattr(native_hotkeys, "is_linux", lambda: True)
+        monkeypatch.setattr(native_hotkeys, "is_macos", lambda: False)
+        monkeypatch.setattr(native_hotkeys, "is_windows", lambda: False)
+        monkeypatch.setattr(sys, "platform", "linux")
+        from voice_typer.server.native_hotkeys import LinuxEvdevHotkey
+
+        b = LinuxEvdevHotkey("<caps_lock>")
+        errors: list[BaseException] = []
+
+        def watchdog_thread_body() -> None:
+            # Production shape: ``_watchdog_thread`` IS the running thread.
+            b._watchdog_thread = threading.current_thread()
+            try:
+                b.stop(shutdown=False)
+            except BaseException as exc:  # noqa: BLE001 - the exception is the assertion
+                errors.append(exc)
+
+        thread = threading.Thread(target=watchdog_thread_body, name="watchdog-stop-test")
+        thread.start()
+        thread.join(timeout=5.0)
+
+        assert not thread.is_alive(), "stop() must return on the watchdog thread, not deadlock"
+        assert errors == [], f"stop() must not raise on the watchdog thread; got {errors!r}"
+        assert b._watchdog_thread is None, "the stopped watchdog reference must be cleared"
+        assert b._stop_event.is_set(), "the backend must still be torn down"
+
 
 class TestMultiSpecPooling:
     """

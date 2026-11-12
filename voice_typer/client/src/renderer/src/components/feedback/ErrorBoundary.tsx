@@ -1,35 +1,15 @@
-// ErrorBoundary, catches render errors so a single bad
-// config or component crash doesn't white-screen the entire app.
-// field with an unexpected type that causes a TypeError when the
-// component tries to render it) would crash the entire renderer
-// process, leaving the user with a blank white window and no way to
-// recover short of killing the app.
-// Usage: wrap the top-level <App /> in <ErrorBoundary> in main.tsx.
-// The fallback now exposes three recovery affordances in
-// addition to the existing "Try Again" / "Reload App" buttons:
-//   - "Copy error", copies the error name, message, and component
-//     stack to the clipboard so users can paste it into a bug report
-//     without having to dig through log files.  The button label
-//     briefly flips to "Copied!" for affirmative feedback (the
-//     toast system can't be relied on here, the same render crash
-//     that triggered the boundary may have broken the toaster).
-//   - "Open logs", invokes the main process's ``window:open-logs``
-//     IPC handler so the user can attach the full log file to a
-//     support request.  Same path as Settings → Troubleshooting →
-//     Open Log Folder.
-//   - "Reset settings", escape hatch for the common case where a
-//     bad config value (e.g. a malformed theme token, an out-of-range
-//     number field) is what crashed the renderer.  Asks the Python
-//     backend to re-publish its default Config dataclass, applies it
-//     via ``set_config``, clears any renderer-side localStorage that
-//     might also be poisoned, and reloads.  This mirrors the
-//     Settings → Reset to Defaults flow but is callable from the
-//     error UI without needing the Settings page to render.
-// ``componentDidCatch`` forwards the caught error to the host for
-// explicit persistence in the host file log (separate from the console
-// path so React's ``componentStack`` is preserved: ``console.error``
-// serializes ``errorInfo`` to a string and loses the structured
-// component-tree trace).
+// ErrorBoundary, catches render errors so a single bad config or
+// component crash doesn't white-screen the entire app (wired around
+// <App /> in main.tsx).
+//
+// Recovery actions: "Try Again" re-mounts the children (staying
+// enabled, and reporting when the retry crashed too), "Reload App"
+// reloads the window, "Copy error" puts the error + React component
+// stack on the clipboard for a bug report.
+//
+// ``componentDidCatch`` also forwards the error to the host so it lands
+// in the file log (React's ``componentStack`` would be lost if only the
+// console path existed).
 
 import { Alert02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -47,37 +27,18 @@ interface ErrorBoundaryState {
 	error: Error | null;
 	errorInfo: ErrorInfo | null;
 	copied: boolean;
-	resetting: boolean;
-	resetFailed: boolean;
-	// Loop guard. ``handleReset`` clears React error state
-	// but NOT the underlying poisoned state (localStorage, malformed
-	// theme token) that caused the render crash. Without this guard,
-	// clicking "Try Again" re-mounts the children against the same
-	// poisoned state → same crash → same error UI → user clicks "Try
-	// Again" again → infinite loop. We cap the count at 1: after the
-	// first failed retry, the "Try Again" button is disabled and the
-	// user is steered to "Reset settings" (which DOES clear poisoned
-	// state via ``localStorage.clear()`` + backend ``get_defaults``).
-	// A successful ``handleResetSettings`` resets the counter to 0
-	// (because the underlying state is now clean and "Try Again"
-	// becomes safe again).
-	tryAgainCount: number;
+	// Failed retries so far. Drives the "retry didn't help" hint; it
+	// never disables Try Again, re-clicking is the user's call.
+	retryCount: number;
 }
 
 export class ErrorBoundary extends Component<
 	ErrorBoundaryProps,
 	ErrorBoundaryState
 > {
-	// Ref to the primary recovery button ("Reset settings") in the
-	// fallback UI. We programmatically focus it when the boundary
-	// triggers so keyboard / SR users land on the recommended
-	// recovery affordance instead of being stranded at the top of
-	// a long alert region. ``componentDidUpdate`` performs the focus
-	// when ``hasError`` transitions from false → true (focusing in
-	// ``componentDidCatch`` directly would be too early, the
-	// fallback render hasn't committed yet so the button ref is
-	// still null).
-	resetButtonRef = createRef<HTMLButtonElement>();
+	// Primary recovery button ("Try Again"), focused when the fallback
+	// appears so keyboard / SR users land on the actionable control.
+	primaryButtonRef = createRef<HTMLButtonElement>();
 
 	constructor(props: ErrorBoundaryProps) {
 		super(props);
@@ -86,9 +47,7 @@ export class ErrorBoundary extends Component<
 			error: null,
 			errorInfo: null,
 			copied: false,
-			resetting: false,
-			resetFailed: false,
-			tryAgainCount: 0,
+			retryCount: 0,
 		};
 	}
 
@@ -97,25 +56,14 @@ export class ErrorBoundary extends Component<
 	}
 
 	componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-		// Log to console for debugging. The host does NOT capture the
-		// webview console into the file log, so this `console.error`
-		// only reaches DevTools; the explicit `logError` forward below
-		// is what persists the crash to the host log.
+		// DevTools-only: the host does not capture the webview console,
+		// the `logError` forward below is what reaches the file log.
 		console.error(
 			"[renderer:ErrorBoundary] Caught render error:",
 			error,
 			errorInfo,
 		);
 
-		// Forward the caught error to the host for explicit
-		// persistence in the host file log (separate from the console
-		// path so React's `componentStack` is preserved: the
-		// console.error above serializes `errorInfo` to a string,
-		// losing the structured component tree trace). The call is
-		// fire-and-forget: if the bridge doesn't expose `logError` or
-		// the host is unreachable, the `.catch` swallow is acceptable
-		// because the console.error above already surfaced the error
-		// to DevTools.
 		try {
 			window.window_
 				?.logError?.({
@@ -125,78 +73,47 @@ export class ErrorBoundary extends Component<
 					componentStack: errorInfo.componentStack ?? undefined,
 				})
 				.catch((err: unknown) => {
-					// Best-effort: never let the persistence
-					// path crash the ErrorBoundary itself.
 					console.warn("[renderer:ErrorBoundary] logError IPC failed:", err);
 				});
 		} catch (err) {
-			// Synchronous throw (e.g. `window.window_` is
-			// undefined and `?.` short-circuit didn't fire
-			// for some reason). Same swallow rationale.
 			console.warn("[renderer:ErrorBoundary] logError call failed:", err);
 		}
 
-		// Persist errorInfo in state so the "Copy error" button
-		// can include the React component stack in
-		// the pasted bug-report blob.
+		// Kept in state so "Copy error" can include the component stack.
 		this.setState({ errorInfo });
 	}
 
 	componentDidMount(): void {
-		// If the boundary triggered during the initial render (a child
-		// threw on first mount), the fallback UI has just committed and
-		// we need to move focus to the Reset button here —
-		// ``componentDidUpdate`` is NOT called for the initial mount,
-		// so without this branch the focus-management logic in
-		// ``focusResetButton`` would never fire for the "crashed on
-		// first paint" case (which is the most common ErrorBoundary
-		// scenario in practice).
-		this.focusResetButton();
+		// ``componentDidUpdate`` does not run for a crash on first paint,
+		// which is the common case.
+		this.focusPrimaryButton();
 	}
 
 	componentDidUpdate(
 		_prevProps: ErrorBoundaryProps,
 		prevState: ErrorBoundaryState,
 	): void {
-		// When the boundary just triggered (hasError false → true),
-		// move focus to the primary recovery button. Without this,
-		// keyboard / SR users are stranded at the top of the alert
-		// region and must Tab through the whole description + <pre>
-		// before reaching any actionable control. Focusing the
-		// recommended "Reset settings" button mirrors the ARIA
-		// Authoring Practices guidance for error dialogs: surface
-		// the primary recovery affordance first.
 		if (!prevState.hasError && this.state.hasError) {
-			this.focusResetButton();
+			this.focusPrimaryButton();
+		} else if (prevState.hasError && !this.state.hasError) {
+			// The retry committed cleanly: forget the failed attempts so
+			// their hint cannot leak onto a later, unrelated crash.
+			this.setState({ retryCount: 0 });
 		}
 	}
 
-	private focusResetButton(): void {
+	private focusPrimaryButton(): void {
 		if (!this.state.hasError) return;
-		const btn = document.querySelector<HTMLButtonElement>(
-			'button[aria-describedby="error-boundary-reset-hint"]',
-		);
-		if (btn && typeof btn.focus === "function") {
-			btn.focus();
-		}
+		this.primaryButtonRef.current?.focus();
 	}
 
 	handleReset = (): void => {
-		// Increment the loop-guard counter so the
-		// "Try Again" button is disabled after the first failed
-		// retry (see ``tryAgainCount`` field docstring). The user
-		// must then use "Reset settings" (which clears poisoned
-		// localStorage state) before "Try Again" becomes safe to
-		// retry. The counter is reset to 0 by ``handleResetSettings``
-		// on a successful backend reset.
 		this.setState((prev) => ({
 			hasError: false,
 			error: null,
 			errorInfo: null,
 			copied: false,
-			resetting: false,
-			resetFailed: false,
-			tryAgainCount: prev.tryAgainCount + 1,
+			retryCount: prev.retryCount + 1,
 		}));
 	};
 
@@ -206,8 +123,6 @@ export class ErrorBoundary extends Component<
 
 	handleCopyError = (): void => {
 		const { error, errorInfo } = this.state;
-		// Build a structured report so the pasted blob is useful to
-		// maintainers without the user having to assemble anything.
 		const lines: string[] = [];
 		if (error) {
 			lines.push(`${error.name}: ${error.message}`);
@@ -216,19 +131,13 @@ export class ErrorBoundary extends Component<
 			lines.push(t("errorBoundary.unknownError"));
 		}
 		if (errorInfo?.componentStack) {
-			// route the label through the i18n catalog so it adapts to
-			// `"\nComponent stack:"`). Preserve the leading newline so the
-			// pasted bug-report blob keeps the same visual separation between
+			// Leading newline keeps the pasted blob's separation between
 			// the JS stack and the React component tree.
 			lines.push(`\n${t("errorBoundary.componentStackLabel")}`);
 			lines.push(String(errorInfo.componentStack));
 		}
 		const payload = lines.join("\n");
 		try {
-			// ``navigator.clipboard.writeText`` is available in all
-			// modern Chromium builds (predecessor included).  Fall back
-			// to a textarea-select hack if it throws (e.g. clipboard
-			// API denied by a sandboxed context).
 			if (navigator?.clipboard?.writeText) {
 				navigator.clipboard
 					.writeText(payload)
@@ -255,8 +164,7 @@ export class ErrorBoundary extends Component<
 			document.body.removeChild(ta);
 			this.flashCopied();
 		} catch (e) {
-			// Last-resort: leave the error text on screen so the
-			// user can manually select + copy from the <pre>.
+			// Last resort: the error text stays on screen for manual copy.
 			console.warn(
 				"[renderer:ErrorBoundary] clipboard fallback copy failed:",
 				e,
@@ -264,10 +172,7 @@ export class ErrorBoundary extends Component<
 		}
 	};
 
-	// Tracks the "copied" flash timer so a second flashCopied clears the
-	// previous timer before arming a new one, and componentWillUnmount
-	// can cancel a pending timer (no setState-after-unmount warnings +
-	// no leaked timer keeping the crash screen's lifecycle alive).
+	// "Copied!" flash timer, cancelled on unmount.
 	copiedTimer: number | null = null;
 
 	flashCopied = (): void => {
@@ -288,76 +193,6 @@ export class ErrorBoundary extends Component<
 		}
 	}
 
-	handleOpenLogs = (): void => {
-		// Best-effort: invoke the main process's ``window:open-logs``
-		// IPC handler (same path as Settings → Troubleshooting).  The
-		// main process opens the OS file manager at the log folder.
-		// Errors are swallowed because there's no UI to surface them
-		// from inside a crashed renderer, the user can still copy
-		// the error text manually as a fallback.
-		try {
-			void window.window_?.openLogs?.();
-		} catch (err) {
-			console.error("[renderer:ErrorBoundary] Failed to open logs:", err);
-		}
-	};
-
-	handleResetSettings = (): void => {
-		// Escape hatch: try to reset the backend Config to defaults
-		// (which often clears whatever bad value crashed the render),
-		// then unconditionally clear renderer-side localStorage (which
-		// may also hold poisoned state like a malformed custom theme),
-		// then reload the window so the renderer re-mounts against
-		// the freshly-defaulted config.
-		this.setState({ resetting: true, resetFailed: false });
-		const tryReset = async (): Promise<void> => {
-			let backendResetOk = false;
-			try {
-				const defaults = (await window.python?.call({
-					type: "get_defaults",
-				})) as Record<string, unknown> | undefined;
-				if (defaults && typeof defaults === "object") {
-					const REDACTED_RE = /^<redacted.*>$/i;
-					const safe: Record<string, unknown> = {};
-					for (const [k, v] of Object.entries(defaults)) {
-						if (typeof v === "string" && REDACTED_RE.test(v)) continue;
-						if (
-							[
-								"schema_version",
-								"wayland_warned",
-								"onboarding_completed",
-							].includes(k)
-						)
-							continue;
-						safe[k] = v;
-					}
-					await window.python?.call({
-						type: "set_config",
-						data: safe,
-					});
-				}
-				backendResetOk = true;
-			} catch (err) {
-				console.error(
-					"[renderer:ErrorBoundary] Backend reset failed, falling back to localStorage clear + reload:",
-					err,
-				);
-				this.setState({ resetFailed: true });
-			}
-			if (backendResetOk) {
-				this.setState({ tryAgainCount: 0 });
-			}
-			try {
-				localStorage.clear();
-			} catch (e) {
-				// Ignore, some sandboxed contexts disable localStorage.
-				console.warn("[renderer:ErrorBoundary] localStorage.clear failed:", e);
-			}
-			window.location.reload();
-		};
-		void tryReset();
-	};
-
 	render(): ReactNode {
 		if (this.state.hasError) {
 			if (this.props.fallback) {
@@ -366,6 +201,7 @@ export class ErrorBoundary extends Component<
 
 			const errorMessage =
 				this.state.error?.message ?? t("errorBoundary.unknownError");
+			const retryFailed = this.state.retryCount > 0;
 
 			return (
 				<div
@@ -373,7 +209,7 @@ export class ErrorBoundary extends Component<
 					role="alert"
 					aria-live="assertive"
 				>
-					<div className="flex w-full max-w-lg flex-col items-center gap-4 rounded-lg border border-border/10 bg-surface px-6 py-8 text-center">
+					<div className="flex w-full max-w-lg flex-col items-center gap-4 rounded-lg border border-border/8 bg-surface px-6 py-8 text-center">
 						<div className="flex rounded-full bg-destructive/10 p-3">
 							<HugeiconsIcon
 								icon={Alert02Icon}
@@ -388,64 +224,15 @@ export class ErrorBoundary extends Component<
 						<p className="text-sm text-muted-foreground">
 							{t("errorBoundary.description")}
 						</p>
-						{/* user-friendly summary placed ABOVE the technical <pre>
-                                                    so non-developer users see the recommended recovery path
-                                                    before the raw error message. The raw stack trace below is
-                                                    preserved for bug-report copy-paste but is no longer the
-                                                    first thing the user reads. */}
-						<p className="text-sm text-muted-foreground">
-							{t("errorBoundary.configCrashHint")}
-						</p>
-						<pre className="w-full overflow-auto rounded-lg border border-border/10 bg-muted p-4 font-mono text-start text-xs text-muted-foreground">
+						<pre className="w-full overflow-auto rounded-lg border border-border/8 bg-muted p-4 font-mono text-start text-xs text-muted-foreground">
 							{errorMessage}
 						</pre>
-						{/* sr-only hint wired to the Reset settings button via
-                                            aria-describedby so screen-reader / keyboard users hear
-                                            the rationale when the button receives focus. The `title`
-                                            attribute alone is not reliably announced by all SRs. */}
-						<p id="error-boundary-reset-hint" className="sr-only">
-							{t("errorBoundary.resetSettingsHint")}
-						</p>
 						<div className="flex flex-wrap items-center justify-center gap-2">
-							{/* "Reset settings" is rendered FIRST and visually
-                                                    highlighted as the recommended recovery action, most
-                                                    render crashes stem from a bad config value, so this
-                                                    affordance has the highest expected payoff. The
-                                                    destructive tint + soft background visually separate
-                                                    it from the secondary Try Again / Reload App actions. */}
-							<Button
-								type="button"
-								variant="destructive"
-								onClick={this.handleResetSettings}
-								disabled={this.state.resetting}
-								title={t("errorBoundary.resetSettingsHint")}
-								aria-describedby="error-boundary-reset-hint"
-								// Attach the focus-target ref so
-								// ``componentDidUpdate`` can move focus
-								// here when the boundary triggers. This
-								// is the recommended recovery action so
-								// it gets the initial focus.
-								ref={this.resetButtonRef}
-							>
-								{this.state.resetting
-									? t("errorBoundary.resetting")
-									: t("errorBoundary.resetSettings")}
-							</Button>
 							<Button
 								type="button"
 								variant="default"
 								onClick={this.handleReset}
-								// Disable after the first failed retry so the
-								// user cannot loop on "Try Again" against poisoned state.
-								// The hint routes them to "Reset settings" instead.
-								// Re-enabled when ``handleResetSettings`` clears the
-								// counter on a successful backend reset.
-								disabled={this.state.tryAgainCount >= 1}
-								title={
-									this.state.tryAgainCount >= 1
-										? t("errorBoundary.resetSettingsHint")
-										: undefined
-								}
+								ref={this.primaryButtonRef}
 							>
 								{t("errorBoundary.tryAgain")}
 							</Button>
@@ -465,17 +252,10 @@ export class ErrorBoundary extends Component<
 									? t("errorBoundary.copied")
 									: t("errorBoundary.copyError")}
 							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={this.handleOpenLogs}
-							>
-								{t("errorBoundary.openLogs")}
-							</Button>
 						</div>
-						{this.state.resetFailed && (
-							<p className="text-xs text-destructive">
-								{t("errorBoundary.resetFailedNotice")}
+						{retryFailed && (
+							<p className="text-xs text-muted-foreground">
+								{t("errorBoundary.retryFailed")}
 							</p>
 						)}
 					</div>

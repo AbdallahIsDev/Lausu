@@ -54,14 +54,13 @@ def _load_model_hashes() -> dict[str, dict[str, Any]]:
                 "tokenizer_config.json": "0b2fe0037599ee335f0b972fa682bf0ece74e4ccfec755cb7daa3405d3d3e874",
             },
         },
-        # Upstream fp16 ONNX export; hashes pin real shipped bytes.
-        "grikdotnet/parakeet-tdt-0.6b-fp16": {
-            "revision": "dc9871ec5ad84a420940077e76e8741b3609bf8b",
+        # Ultra int8 ONNX export; hashes pin the real shipped bytes.
+        "Masterx/parakeet-tdt-0.6b-ultra-onnx": {
+            "revision": "99b09f030a5a6efeaa13cf2cf54592100ce2c3f1",
             "files": {
                 "config.json": "666903c76b9798caf2c210afd4f6cd60b08a8dbf9800ec8d7a3bc0d2148ac466",
-                "encoder-model.fp16.onnx": "a2bdeeb99cb7e5548818e823127b33854dd0c26f5d0c8da91effdd895ea0e717",
-                "decoder_joint-model.fp16.onnx": "b33a73b7c1d71b9d5a0911f5cb478be3dcbf79f53355c531ab1cd1dcd68ad8ef",
-                "nemo128.onnx": "a9fde1486ebfcc08f328d75ad4610c67835fea58c73ba57e3209a6f6cf019e9f",
+                "encoder-model.int8.onnx": "46e78f85f1ae43b43bd359889c966da5c7ca401df60a42eeffc2e7699b357ba6",
+                "decoder_joint-model.int8.onnx": "2276a335d4c8dc48686e931475a634595954956427d485830e1214c0d1a18d07",
                 "vocab.txt": "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d",
             },
         },
@@ -275,8 +274,9 @@ def _hash_one_file(cache: dict[str, Any], repo_id: str, file_path: Path, relpath
 def hash_file_cached(repo_id: str, file_path: Path, relpath: str) -> str:
     """Hash one file, reusing + updating the on-disk integrity cache.
 
-    Reporting-only helper for the failure-details path; it must never
-    gate a load decision (the verdict path always re-hashes bytes).
+    Reporting-only helper for the failure-details path. The load
+    verdict lives in ``verify_model_integrity`` and applies the
+    stricter verdict-cache predicate there.
     """
     cache = _load_integrity_cache()
     digest, dirty = _hash_one_file(cache, repo_id, file_path, relpath)
@@ -289,7 +289,9 @@ def hash_file_cached(repo_id: str, file_path: Path, relpath: str) -> str:
 def verify_model_integrity(local_dir: str, repo_id: str) -> bool:
     """SEC-audit-005: Verify downloaded model files against the manifest.
 
-    Returns
+    Pinned files re-hash on any cache miss; a hit requires mtime,
+    size, and cached sha == pin (never mtime alone). See the
+    model-integrity-cache note for the residual forgery trade-off.
     """
     model_path = Path(local_dir)
     if not model_path.exists():
@@ -343,10 +345,10 @@ def verify_model_integrity(local_dir: str, repo_id: str) -> bool:
         cache = _load_integrity_cache()
     cache_dirty = False
 
-    def _hash_with_cache(file_path: Path, relpath: str) -> str:
-        # Verdict always reads bytes: mtime/size and the cache are
-        # forgeable, so a hit never decides pass/fail. Fresh digests
-        # still refresh the cache for the reporting-only details path.
+    def _hash_with_cache(file_path: Path, relpath: str, expected_hash: str | None = None) -> str:
+        # Pinned verdict: skip re-hash only on a full verdict-cache
+        # hit (mtime AND size AND cached sha == pin; see leaf module).
+        # Any miss re-hashes bytes and refreshes the cache entry.
         nonlocal cache_dirty
         try:
             st = file_path.stat()
@@ -354,6 +356,12 @@ def verify_model_integrity(local_dir: str, repo_id: str) -> bool:
             size = st.st_size
         except OSError:
             return _security_pkg().compute_file_sha256(file_path)
+        if expected_hash is not None:
+            repos = cache.setdefault("repos", {})
+            repo_entries = repos.get(repo_id)
+            entry = repo_entries.get(relpath) if isinstance(repo_entries, dict) else None
+            if _security_pkg().verdict_cache_hit(entry, mtime_ns=mtime_ns, size=size, expected_hash=expected_hash):
+                return expected_hash
         digest = _security_pkg().compute_file_sha256(file_path)
         repos = cache.setdefault("repos", {})
         repo_entries = repos.setdefault(repo_id, {})
@@ -385,7 +393,7 @@ def verify_model_integrity(local_dir: str, repo_id: str) -> bool:
                     local_dir,
                 )
                 return False
-            actual_hash = _hash_with_cache(file_path, filename)
+            actual_hash = _hash_with_cache(file_path, filename, expected_hash)
             if not hmac.compare_digest(actual_hash, expected_hash):
                 log.warning(
                     "[SECURITY] Model integrity: hash mismatch for %s in %s "
@@ -487,15 +495,15 @@ ALLOW_PATTERNS_PARAKEET: list[str] = [
     "*.model",
 ]
 
-# ONNX Runtime migration (PLAN_ONNX_INTEGRATION.md §3.5.4): allowlist
+# ONNX Runtime models: exact leaf names only (no globs). The Ultra repo
+# also ships fp16/fp32 twins and a 2.4 GB external-data file; a `*.onnx`
+# glob pulled ~2 GB of weights the app never loads.
 ALLOW_PATTERNS_PARAKEET_ONNX: frozenset[str] = frozenset(
     {
-        "*.onnx",
+        "encoder-model.int8.onnx",
+        "decoder_joint-model.int8.onnx",
         "config.json",
-        "tokenizer.json",
         "vocab.txt",
-        "special_tokens_map.json",
-        "generation_config.json",
     }
 )
 

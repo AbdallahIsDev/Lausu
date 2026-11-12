@@ -148,25 +148,6 @@ These items are the highest-priority remaining work for the project. They block 
 **Implementation Difficulty:** 🟢 Easy
 **Severity:** 🟡 Medium
 
-### MP-1 — Model providers: implement the local + hosted provider plan end to end
-**Status:** ✅ Fixed (2026-11-02). All 5 follow-up items landed: `provider_local_onnx_state` registered in Python EVENT_TYPES + Rust ALLOWED_EVENT_TYPES + TS union + KNOWN_EVENT_TYPES + a live Providers-page consumer + event docs; IPC_CONFIG_ALLOWLIST snapshot 139→165 with a dated per-key-group SEC-002 review note and the credential-count test updated (6→10); the seven `server.provider_*` codes registered in `ipc/error_codes.py`; `resolve_tts` wired into `tts/manager.py::speak` and `resolve_asr` into `dictation_pipeline/transcribe_step.py` (local paths untouched, typed errors propagate); P8 complete — 6 `provider_*` commands with handler map + COMMAND_COSTS + Rust allowlist, `pages/providers/Providers.tsx` (+5 vitest), 25 i18n keys × 8 locales, ADR `model-provider-registry-and-routing.md`, plan-doc table all EXISTS with evidence. Gates: pytest 18472 passed / 846 skipped / 1 failed (`test_audio_callback.py::test_all_queued_events_are_eventually_published_on_stop` — passes solo, no provider imports, audio-timing flake under `-n auto`, owned by the recording work), targeted provider+parity 218 passed, ruff clean, tsc 0, biome clean, cargo fmt 0 + 773 passed, no CRLF.
-**Description:** The owner wants the app to stop being single-provider. Today each model domain has exactly one hard-wired provider slot: speech-to-text has 5 local models plus ONE cloud provider at a time (single `cloud_api_key`/`cloud_api_url`/`cloud_model`), text-to-speech has only the two local engines, and LLM polish has ONE OpenAI-compatible endpoint. Missing entirely: OpenRouter (one key that must unlock ASR + TTS + LLM independently, with per-domain model choice, free-model surfacing and paid-domain warnings), Ollama (local + cloud), LM Studio, a local ONNX text model provider, per-domain provider/model routing with independent enable/disable, a multi-provider key vault, the providers UI, and a local LLM that can run without any network.
-**User Impact:** A user with an OpenRouter key still has to choose between dictation, speech and polish; a user with Ollama or LM Studio cannot connect it at all; the freshly downloaded local ONNX model cannot be used; and a user can only mix providers by editing config files.
-**Root Cause:** The provider abstraction was never built — each domain grew its own single-provider config slot and call path.
-**Progress:** Planning document written and verified against the code on 2026-11-01 (`docs/plan-model-providers-local-and-hosted.md`, WP1-WP10, with an EXISTS/PARTIAL/MISSING table). Nothing implemented yet.
-**Related Files:**
-- `docs/plan-model-providers-local-and-hosted.md` (source of truth)
-- `voice_typer/server/config/_schema.py`, `config_validators/{allowlist,cross_field}.py`
-- `voice_typer/server/cloud/_providers/`, `cloud/_engine.py`
-- `voice_typer/server/tts/{engines,manager,local_client}.py`
-- `voice_typer/server/llm_polish.py`, `dictation_pipeline/enhancement_steps.py`
-- `voice_typer/server/ipc/registry.py`, `server/handlers/`, `docs/ipc-reference.md`
-- `voice_typer/client/src/renderer/src/pages/`, `stores/`, `i18n/translations/*.json`, `types/ipc/`
-**Fix:** Implement WP1-WP10 from the plan doc completely (registry + domain contracts, routing, OpenRouter, Ollama, LM Studio, local ONNX LLM provider, hosted TTS, key vault, UI, docs/tests), keeping every existing single-provider path working as the default.
-**Implementation Difficulty:** 🔴 High (cross-cutting: config, three domains, IPC contract, UI, i18n, tests)
-**Severity:** 🔴 High
-**Priority:** P0
-
 ### TTS-1 — TTS test cards: drop the stats line, colour the [TTS] log topic, expose voice + language
 **Status:** ❌ Not Fixed
 **Description:** Three things on the text-to-speech surface. (1) After clicking "Test voice" the card prints a technical line at its bottom — "magpie: cached sample, 4.272s audio" (or the rendered/wall/realtime variant) — which is irrelevant to the user; testing should just play the audio. (2) The `[TTS]` log labels print in the default white colour instead of a topic colour like the other subsystems. (3) The owner was told the TTS models were configurable (language, voice, speaking style, male/female, older/younger) but the Models page only shows "Test voice" and "Select": no voice picker, no language picker, no style control. Also the "Test voice" button should become icon-only (play glyph).
@@ -193,16 +174,3 @@ These items are the highest-priority remaining work for the project. They block 
 
 Scope expanded by the owner: icon-only play/stop control with distinct generate vs playback states, errors as user-facing toasts with a recovery action (details logs-only), a TTS enable/disable setting, a non-blocking startup prewarm, and six general UI/logging principles added to `AGENTS.md`.
 
-### CHAT-1 — Voice conversation: speak to the app, hear a spoken reply, keep the thread
-**Status:** ❌ Not Fixed
-**Description:** The owner's words: "We currently have a working text-to-speech model. When I press the test button, it works and speaks a sample, so I can simply hear the voice. But now I want to be able to speak to it, have it respond to me, and continue interacting with it like a conversation." So: press a button, talk, let go, hear an answer out loud, then talk again and have it remember the thread. The owner has chosen OpenRouter free models as the brain for now (`dots-studio/dots-3-note-preview:free` for the test run — a test model, not a shipped default), with a local brain as a later step. The surface is a new page in the sidebar.
-**User Impact:** The app can hear the user and can speak, but it cannot hold a conversation, and there is no chat surface anywhere in the app.
-**Progress:** None. `docs/adr/0027-voice-only-loop-cua-deferred.md` describes this loop and is marked Proposed with no code behind it.
-**Related Files:**
-- `docs/adr/0027-voice-only-loop-cua-deferred.md`
-- `voice_typer/server/model_providers/` (LLM contract + routing already exist)
-- `voice_typer/server/tts/manager.py` (`speak(text)` already accepts arbitrary text)
-- `voice_typer/server/level_monitor/` (the only microphone capture path)
-**Implementation Difficulty:** 🔴 High (new IPC commands, new event, new page, 8-locale strings, turn manager)
-**Severity:** 🟡 Medium
-**Priority:** P1

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import re
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -34,7 +36,7 @@ def _reset_parakeet_engine_class_state(monkeypatch, tmp_path):
     # load() verifies every snapshot under snapshot_search_dirs; point the
     # search at a tmp snapshot and treat it as verified, so tests never
     # touch the real HF cache (which may be absent/incomplete here).
-    snap = tmp_path / "models--grikdotnet--parakeet-tdt-0.6b-fp16" / "snapshots" / "test123"
+    snap = tmp_path / "models--Masterx--parakeet-tdt-0.6b-ultra-onnx" / "snapshots" / "test123"
     snap.mkdir(parents=True)
     (snap / "model.onnx").write_bytes(b"fake-onnx")
     monkeypatch.setattr(
@@ -168,8 +170,26 @@ class TestParakeetOnnxLoad:
         call_args, call_kwargs = mock_onnx_asr.load_model.call_args
         # First positional arg is the onnx-asr TYPE name
         assert call_args[0] == "nemo-conformer-tdt"
-        assert call_kwargs.get("quantization") == "fp16"
+        assert call_kwargs.get("quantization") == "int8"
         assert call_kwargs.get("providers") == ["CPUExecutionProvider"]
+
+    def test_load_logs_integrity_vs_onnx_timing(self, caplog):
+        """Successful load logs the integrity / onnx-load / total split."""
+        engine, _, _ = _make_engine_with_mocks(device="cpu")
+        with (
+            patch.object(type(engine), "_is_cached", return_value=True),
+            caplog.at_level(logging.INFO, logger="voice_typer.server.parakeet_engine._load"),
+        ):
+            result = engine.load()
+        assert result is True
+        timing = [r for r in caplog.records if "load timing:" in r.getMessage()]
+        assert len(timing) == 1, f"expected one timing line, got: {[r.getMessage() for r in caplog.records]}"
+        msg = timing[0].getMessage()
+        assert "integrity" in msg
+        assert "onnx load" in msg
+        assert "warm" in msg
+        assert "total" in msg
+        assert re.search(r"\d+(?:m \d+)?\.\ds$", msg), f"timing line must end with a C-LOG-2 duration: {msg!r}"
 
     def test_load_cuda_uses_cuda_provider_when_available(self):
         """device='cuda' + CUDAExecutionProvider available → providers"""
@@ -278,7 +298,7 @@ class TestParakeetOnnxInit:
     def test_loaded_via_includes_model_id(self):
         engine = _make_engine(device="cuda")
         assert "parakeet/cuda/" in engine.loaded_via
-        assert "grikdotnet/parakeet-tdt-0.6b-fp16" in engine.loaded_via
+        assert "Masterx/parakeet-tdt-0.6b-ultra-onnx" in engine.loaded_via
 
 
 class TestParakeetOnnxSelectProviders:

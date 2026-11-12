@@ -34,6 +34,17 @@ _UNIVERSAL_RESERVED_HOTKEYS = frozenset(_RESERVED_DATA["universal_reserved"])
 # Common Ctrl+<letter> shortcuts that are universally expected by users.
 _BLOCKED_CTRL_LETTERS = frozenset(_RESERVED_DATA["blocked_ctrl_letters"])
 
+# Keys rejected everywhere: pressing them flips a keyboard toggle that no
+# listener suppresses (Num Lock).
+_BLOCKED_TOGGLE_KEYS = frozenset(_RESERVED_DATA["blocked_toggle_keys"])
+
+# Keys rejected everywhere: pressing them deletes text or moves the caret
+# (Delete and the arrow cluster).
+_BLOCKED_EDITING_KEYS = frozenset(_RESERVED_DATA["blocked_editing_keys"])
+
+# Mouse buttons fire from the mouse listener and are a complete trigger.
+_MOUSE_BUTTONS = frozenset(_RESERVED_DATA["mouse_buttons"])
+
 # Modifier spellings recognized in a hotkey string (pynput-style, lowercase).
 _HOTKEY_MODIFIERS = frozenset(_RESERVED_DATA["modifiers"])
 
@@ -229,6 +240,34 @@ def _check_key_delivery(keys: list[str], platform: str) -> tuple[str | None, str
     return None, None
 
 
+def _check_toggle_keys(keys: list[str]) -> tuple[str | None, str | None]:
+    """Stage 14: toggle keys flip keyboard state with no listener suppression."""
+    for key in keys:
+        if key in _BLOCKED_TOGGLE_KEYS:
+            return "toggle_key", f"'{key}' toggles a keyboard state; choose another key"
+    return None, None
+
+
+def _check_editing_keys(keys: list[str]) -> tuple[str | None, str | None]:
+    """Stage 15: editing keys delete text or move the caret on every press."""
+    for key in keys:
+        if key in _BLOCKED_EDITING_KEYS:
+            return "editing_key", f"'{key}' is an editing key; choose another key"
+    return None, None
+
+
+def _check_mouse_button(parts: list[str]) -> tuple[str | None, str | None]:
+    """Stage 16: a mouse button is a whole trigger, never part of a combo."""
+    if not any(part in _MOUSE_BUTTONS for part in parts):
+        return None, None
+    if len(parts) != 1:
+        return (
+            "mouse_combo",
+            "a mouse button can't be combined with other keys or modifiers; use it on its own",
+        )
+    return None, None
+
+
 def _check_push_to_talk(value: object, platform: str | None = None) -> tuple[str | None, str | None]:
     """Push-to-talk needs a key that reports a release after its press.
 
@@ -313,6 +352,9 @@ def _validate_hotkey_code(value: object) -> tuple[str | None, str | None]:
         lambda: _check_ctrl_letter(parts),
         lambda: _check_shift_letter(parts),
         lambda: _check_key_delivery(list(spec.keys), platform),
+        lambda: _check_toggle_keys(list(spec.keys)),
+        lambda: _check_editing_keys(list(spec.keys)),
+        lambda: _check_mouse_button(parts),
     ):
         code, message = check()
         if code is not None:
@@ -333,6 +375,9 @@ __all__ = [
     "_RESERVED_HOTKEYS",
     "_UNIVERSAL_RESERVED_HOTKEYS",
     "_BLOCKED_CTRL_LETTERS",
+    "_BLOCKED_TOGGLE_KEYS",
+    "_BLOCKED_EDITING_KEYS",
+    "_MOUSE_BUTTONS",
     "_HOTKEY_MODIFIERS",
     "_KEY_ALIASES",
     "_KEY_VOCABULARY",
@@ -353,6 +398,9 @@ __all__ = [
     "_check_ctrl_letter",
     "_check_shift_letter",
     "_check_key_delivery",
+    "_check_toggle_keys",
+    "_check_editing_keys",
+    "_check_mouse_button",
     "_check_push_to_talk",
     "_ptt_fallback_hotkey",
     "_validate_hotkey_code",

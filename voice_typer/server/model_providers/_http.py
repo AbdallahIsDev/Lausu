@@ -24,6 +24,7 @@ from voice_typer.server.asr_errors import (
     CloudRateLimitError,
     CloudServerError,
 )
+from voice_typer.server.model_providers.errors import ProviderRuntimeError
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +38,29 @@ Opener = Any
 
 def secure_opener() -> Opener:
     return _default_opener
+
+
+def _validate_provider_url(
+    url: str,
+    *,
+    provider: str,
+    field_name: str,
+    allow_loopback_http: bool,
+) -> None:
+    """Reject an unusable endpoint as a typed provider error.
+
+    A bare ``ValueError`` here would reach the dispatcher's catch-all and be
+    reported as ``server.internal_error`` with no actionable message.
+    """
+    try:
+        assert_url_allowed(
+            url,
+            field_name=field_name,
+            client_name=provider,
+            allow_loopback_http=allow_loopback_http,
+        )
+    except ValueError as exc:
+        raise ProviderRuntimeError(str(exc), provider=provider) from exc
 
 
 def read_capped(resp: Any, max_bytes: int = MAX_RESPONSE_BYTES) -> bytes:
@@ -76,10 +100,10 @@ def request_json(
     allow_loopback_http: bool = True,
 ) -> Any:
     """Perform one JSON request against a validated provider URL."""
-    assert_url_allowed(
+    _validate_provider_url(
         url,
+        provider=provider,
         field_name=field_name,
-        client_name=provider,
         allow_loopback_http=allow_loopback_http,
     )
     payload = json.dumps(body).encode("utf-8") if body is not None else None
@@ -140,10 +164,10 @@ def open_stream(
     field_name: str = "provider_api_url",
 ) -> Any:
     """Open a streaming request and return the live response object."""
-    assert_url_allowed(
+    _validate_provider_url(
         url,
+        provider=provider,
         field_name=field_name,
-        client_name=provider,
         allow_loopback_http=True,
     )
     payload = json.dumps(body).encode("utf-8") if body is not None else None

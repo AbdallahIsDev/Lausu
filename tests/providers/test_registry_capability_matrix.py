@@ -18,14 +18,13 @@ def test_every_provider_advertises_only_domains_it_can_serve() -> None:
     assert matrix["ollama"] == ["llm"]
     assert matrix["lmstudio"] == ["llm"]
     assert matrix["local_onnx"] == ["llm"]
-    assert matrix["openai"] == ["tts"]
-    assert matrix["custom"] == ["tts"]
+    assert matrix["custom"] == ["asr", "llm", "tts"]
 
 
 def test_domain_listing_is_filtered_by_capability() -> None:
     registry = get_registry()
     llm_ids = {p.id for p in registry.for_domain(Domain.LLM)}
-    assert llm_ids == {"cloud_direct", "openrouter", "ollama", "lmstudio", "local_onnx"}
+    assert llm_ids == {"cloud_direct", "openrouter", "ollama", "lmstudio", "local_onnx", "custom"}
     assert "local" not in llm_ids
 
 

@@ -11,8 +11,11 @@
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { memo } from "react";
+import { Skeleton } from "skullet/react";
 import { SettingRow } from "@/components/common/SettingRow";
 import { SettingsSection } from "@/components/common/SettingsSection";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
+import { SAMPLE_CONFIG } from "@/components/skullet/sampleConfig";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -25,7 +28,6 @@ import { Switch } from "@/components/ui/switch";
 import { useT } from "@/i18n/i18n";
 import { LANGUAGE_OPTIONS } from "@/lib/utils/languages";
 import type { Page } from "@/types/ipc";
-import { SettingsSkeleton } from "./SettingsSkeleton";
 import type { SettingsSectionSharedProps } from "./types";
 
 export const PostProcessingSettingsSection = memo(
@@ -39,8 +41,6 @@ export const PostProcessingSettingsSection = memo(
 		onNavigate?: (page: Page) => void;
 	}) {
 		const t = useT();
-
-		if (!config) return <SettingsSkeleton rows={3} />;
 
 		// ── Inline handler extraction ─────────────────────────────────
 		const handleLanguageChange = (v: string) =>
@@ -92,127 +92,136 @@ export const PostProcessingSettingsSection = memo(
 		if (!postProcessingVisible) return null;
 
 		return (
-			<SettingsSection
-				title={postProcessingTitle}
-				description={t("settings.postProcessingDescription")}
+			<Skeleton
+				data={config}
+				sample={SAMPLE_CONFIG}
+				id="settings-post-processing"
+				label={skeletonLoadingLabel()}
 			>
-				{isVisible(
-					t("settings.transcriptionLanguage"),
-					t("settings.transcriptionLanguageDescription"),
-					postProcessingTitle,
-				) && (
-					<SettingRow
-						label={t("settings.transcriptionLanguage")}
-						info={t("settings.transcriptionLanguageDescription")}
+				{(cfg) => (
+					<SettingsSection
+						title={postProcessingTitle}
+						description={t("settings.postProcessingDescription")}
 					>
-						<Select
-							value={config.language || "auto"}
-							onValueChange={handleLanguageChange}
-						>
-							<SelectTrigger
-								className="w-44"
-								aria-label={t("settings.transcriptionLanguage")}
+						{isVisible(
+							t("settings.transcriptionLanguage"),
+							t("settings.transcriptionLanguageDescription"),
+							postProcessingTitle,
+						) && (
+							<SettingRow
+								label={t("settings.transcriptionLanguage")}
+								info={t("settings.transcriptionLanguageDescription")}
 							>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{LANGUAGE_OPTIONS.map((lang) => (
-									<SelectItem key={lang.value} value={lang.value}>
-										<span>{t(lang.labelKey)}</span>
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</SettingRow>
-				)}
+								<Select
+									value={cfg.language || "auto"}
+									onValueChange={handleLanguageChange}
+								>
+									<SelectTrigger
+										className="w-44"
+										aria-label={t("settings.transcriptionLanguage")}
+									>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{LANGUAGE_OPTIONS.map((lang) => (
+											<SelectItem key={lang.value} value={lang.value}>
+												<span>{t(lang.labelKey)}</span>
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</SettingRow>
+						)}
 
-				{isVisible(
-					t("settings.autoPunctuation"),
-					t("settings.autoPunctuationInfo"),
-					postProcessingTitle,
-				) && (
-					<SettingRow
-						label={t("settings.autoPunctuation")}
-						info={t("settings.autoPunctuationInfo")}
-					>
-						<Switch
-							checked={config.auto_punctuation ?? false}
-							onCheckedChange={handleAutoPunctuationChange}
-							aria-label={t("settings.autoPunctuation")}
-						/>
-					</SettingRow>
-				)}
-
-				{isVisible(
-					t("settings.textCleanupLabel"),
-					t("settings.textCleanupInfo"),
-					postProcessingTitle,
-				) && (
-					<SettingRow
-						label={t("settings.textCleanupLabel")}
-						info={t("settings.textCleanupInfo")}
-					>
-						<Switch
-							checked={config.text_cleanup_enabled}
-							onCheckedChange={handleTextCleanupChange}
-							aria-label={t("settings.textCleanupLabel")}
-						/>
-					</SettingRow>
-				)}
-
-				{isVisible(
-					t("settings.textSnippets"),
-					t("settings.textSnippetsInfo"),
-					postProcessingTitle,
-				) && (
-					<SettingRow
-						label={t("settings.textSnippets")}
-						info={t("settings.textSnippetsInfo")}
-					>
-						<div className="flex items-center gap-2">
-							<Button
-								variant="outline"
-								size="sm"
-								className="gap-1.5"
-								onClick={() => onNavigate?.("templates")}
-								aria-label={t("settings.openTemplates")}
-								title={t("settings.textSnippetsInfo")}
-								data-testid="open-templates-button"
+						{isVisible(
+							t("settings.autoPunctuation"),
+							t("settings.autoPunctuationInfo"),
+							postProcessingTitle,
+						) && (
+							<SettingRow
+								label={t("settings.autoPunctuation")}
+								info={t("settings.autoPunctuationInfo")}
 							>
-								<HugeiconsIcon
-									icon={ArrowRight01Icon}
-									strokeWidth={2}
-									className="size-4"
-									aria-hidden="true"
+								<Switch
+									checked={cfg.auto_punctuation ?? false}
+									onCheckedChange={handleAutoPunctuationChange}
+									aria-label={t("settings.autoPunctuation")}
 								/>
-								{t("settings.openTemplates")}
-							</Button>
-							<Switch
-								checked={config.templates_enabled ?? true}
-								onCheckedChange={handleTextSnippetsChange}
-								aria-label={t("settings.textSnippets")}
-							/>
-						</div>
-					</SettingRow>
-				)}
+							</SettingRow>
+						)}
 
-				{isVisible(
-					t("settings.vocabAutomation.title"),
-					t("settings.vocabAutomation.enableInfo"),
-					postProcessingTitle,
-				) && (
-					<SettingRow
-						label={t("settings.vocabAutomation.title")}
-						info={t("settings.vocabAutomation.enableInfo")}
-					>
-						<Switch
-							checked={config.vocabulary_automation_enabled ?? false}
-							onCheckedChange={handleVocabAutomationChange}
-							aria-label={t("settings.vocabAutomation.title")}
-						/>
-					</SettingRow>
+						{isVisible(
+							t("settings.textCleanupLabel"),
+							t("settings.textCleanupInfo"),
+							postProcessingTitle,
+						) && (
+							<SettingRow
+								label={t("settings.textCleanupLabel")}
+								info={t("settings.textCleanupInfo")}
+							>
+								<Switch
+									checked={cfg.text_cleanup_enabled}
+									onCheckedChange={handleTextCleanupChange}
+									aria-label={t("settings.textCleanupLabel")}
+								/>
+							</SettingRow>
+						)}
+
+						{isVisible(
+							t("settings.textSnippets"),
+							t("settings.textSnippetsInfo"),
+							postProcessingTitle,
+						) && (
+							<SettingRow
+								label={t("settings.textSnippets")}
+								info={t("settings.textSnippetsInfo")}
+							>
+								<div className="flex items-center gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										className="gap-1.5"
+										onClick={() => onNavigate?.("templates")}
+										aria-label={t("settings.openTemplates")}
+										title={t("settings.textSnippetsInfo")}
+										data-testid="open-templates-button"
+									>
+										<HugeiconsIcon
+											icon={ArrowRight01Icon}
+											strokeWidth={2}
+											className="size-4"
+											aria-hidden="true"
+										/>
+										{t("settings.openTemplates")}
+									</Button>
+									<Switch
+										checked={cfg.templates_enabled ?? true}
+										onCheckedChange={handleTextSnippetsChange}
+										aria-label={t("settings.textSnippets")}
+									/>
+								</div>
+							</SettingRow>
+						)}
+
+						{isVisible(
+							t("settings.vocabAutomation.title"),
+							t("settings.vocabAutomation.enableInfo"),
+							postProcessingTitle,
+						) && (
+							<SettingRow
+								label={t("settings.vocabAutomation.title")}
+								info={t("settings.vocabAutomation.enableInfo")}
+							>
+								<Switch
+									checked={cfg.vocabulary_automation_enabled ?? false}
+									onCheckedChange={handleVocabAutomationChange}
+									aria-label={t("settings.vocabAutomation.title")}
+								/>
+							</SettingRow>
+						)}
+					</SettingsSection>
 				)}
-			</SettingsSection>
+			</Skeleton>
 		);
 	},
 );

@@ -34,6 +34,10 @@ _DEFAULT_ALLOWED_HOSTS = frozenset(
         "api.anthropic.com",
         # Google Gemini / Vertex
         "generativelanguage.googleapis.com",
+        # OpenRouter (ASR/TTS/LLM through one key)
+        "openrouter.ai",
+        # Ollama hosted cloud mode (local mode is loopback)
+        "ollama.com",
         # Local self-hosted endpoints, explicitly allowed for development
         "localhost",
         "127.0.0.1",
@@ -253,9 +257,12 @@ def assert_url_allowed(
     if not host:
         raise ValueError(f"{client_name}: {field_name} has no hostname")
     if host not in get_url_allowlist():
+        # No bare 20+ char identifier in this message: the secret-redaction
+        # catch-all would mask it as ``***`` in the log.
         raise ValueError(
             f"{client_name}: {field_name} host {host!r} is not in the "
-            f"trusted allowlist.  Call extend_url_allowlist() to add it."
+            f"trusted allowlist. Add it to trusted_extra_hosts or set "
+            f"{_ENV_TRUSTED_HOSTS_VAR}."
         )
     # enforce HTTPS for non-loopback hosts to prevent
     is_loopback = host in _LOOPBACK_HOSTS  # was per-call frozenset literal

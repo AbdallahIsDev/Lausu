@@ -21,6 +21,8 @@ from voice_typer.server.security.secret_patterns import (
     _MIN_REDACT_LEN,
     _PROPSET_LABEL_RE,
     _PUBLIC_ENV_VAR_NAMES,
+    _PUBLIC_ERROR_CODE_NAMES,
+    _PUBLIC_ORT_PROVIDER_NAMES,
     _TEARDOWN_LABEL_RE,
     _THREAD_LABEL_RE,
     _flag_sub,
@@ -188,6 +190,10 @@ def redact_api_keys(text: str, *, replacement: str = "***") -> str:
     def _generic_sub(m: re.Match[str]) -> str:
         token = m.group()
         if token in _PUBLIC_ENV_VAR_NAMES:
+            return token
+        if token in _PUBLIC_ORT_PROVIDER_NAMES:
+            return token
+        if token in _PUBLIC_ERROR_CODE_NAMES:
             return token
         # Config field NAMES are public schema vocabulary (same
         if token in _public_config_field_names():

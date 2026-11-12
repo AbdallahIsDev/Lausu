@@ -35,6 +35,7 @@ export type RecordingState =
 // hub that links to them.
 export type Page =
 	| "home"
+	| "chat"
 	| "history"
 	| "templates"
 	| "vocabulary"

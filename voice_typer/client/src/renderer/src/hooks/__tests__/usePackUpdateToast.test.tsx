@@ -51,8 +51,6 @@ describe("usePackUpdateToast", () => {
 			"offline_pack_corrupt",
 			"offline_pack_outdated",
 			"offline_pack_missing",
-			"offline_pack_verified",
-			"worker_started",
 			"worker_crashed",
 			"worker_unloaded",
 		]) {
@@ -110,16 +108,18 @@ describe("usePackUpdateToast", () => {
 		expect(toast.error).toHaveBeenCalledTimes(1);
 	});
 
-	it("shows the sticky preparing toast with Details when the pack is missing", () => {
+	it("shows a NON-persistent line with Details when the pack is missing", () => {
 		renderHook(() => usePackUpdateToast(mockT, onViewDetails));
 		fire("offline_pack_missing");
 
 		expect(toast.info).toHaveBeenCalledTimes(1);
 		const [, opts] =
 			(toast.info as ReturnType<typeof vi.fn>).mock.calls[0] ?? [];
+		// Not sticky: a missing pack must not sit on screen forever when no
+		// download is allowed. 4000 ms is the info default.
 		expect(opts).toMatchObject({
 			id: PACK_UPDATE_TOAST_ID,
-			duration: Number.POSITIVE_INFINITY,
+			duration: 4000,
 		});
 		const action = (opts as { action?: { label: string; onClick: () => void } })
 			.action;
@@ -128,18 +128,17 @@ describe("usePackUpdateToast", () => {
 		expect(onViewDetails).toHaveBeenCalledTimes(1);
 	});
 
-	it("shows the sticky preparing toast on verified and worker-started", () => {
+	it("stays silent on the routine startup lifecycle", () => {
+		// A healthy launch verifies the pack in the background and spawns the
+		// worker. Both used to raise a sticky "Preparing offline engine…"
+		// toast that never went away, so every start looked like a problem.
 		renderHook(() => usePackUpdateToast(mockT, onViewDetails));
-		fire("offline_pack_verified");
-		fire("worker_started");
-
-		expect(toast.info).toHaveBeenCalledTimes(2);
-		for (const call of (toast.info as ReturnType<typeof vi.fn>).mock.calls) {
-			expect(call[1]).toMatchObject({
-				id: PACK_UPDATE_TOAST_ID,
-				duration: Number.POSITIVE_INFINITY,
-			});
-		}
+		expect(registered.has("offline_pack_verified")).toBe(false);
+		expect(registered.has("worker_started")).toBe(false);
+		expect(toast.info).not.toHaveBeenCalled();
+		expect(toast.success).not.toHaveBeenCalled();
+		expect(toast.warning).not.toHaveBeenCalled();
+		expect(toast.error).not.toHaveBeenCalled();
 	});
 
 	it("clears the sticky toast and shows an error when the worker crashes", () => {

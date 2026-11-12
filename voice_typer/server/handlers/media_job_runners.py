@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from voice_typer.server.handlers._base import HandlerBase
 from voice_typer.server.handlers._log import log
+from voice_typer.server.media_ingest.lifecycle import JobPhase, parse_job_phase
 
 # ADR-0023 E9 tier-0 budget: first stream open plus retry room for one
 # re-resolve (URL_EXPIRED) / seek-resume (STREAM_STALLED) before the
@@ -193,7 +194,7 @@ class MediaJobRunnersMixin(HandlerBase):
 
     def _publish_media_phase(self, job) -> None:
         """First phase: ``loading_model`` only when a load must happen."""
-        phase = "preparing" if self._media_engine_ready() else "loading_model"
+        phase = JobPhase.PREPARING if self._media_engine_ready() else JobPhase.LOADING_MODEL
         self._publish_media_progress(job, 0.0, phase)
 
     def _transcribe_file(self, path, backend, manager, job, expected: float | None):
@@ -205,7 +206,7 @@ class MediaJobRunnersMixin(HandlerBase):
             chunks,
             backend,
             cancel_event=job.cancel_event,
-            on_progress=lambda frac, eta: self._publish_media_progress(job, frac, "transcribing", eta, expected),
+            on_progress=lambda frac, eta: self._publish_media_progress(job, frac, JobPhase.TRANSCRIBING, eta, expected),
             total_seconds=expected,
             lane=manager.asr_lane,
         )
@@ -320,11 +321,11 @@ class MediaJobRunnersMixin(HandlerBase):
             runtime as _runtime,
         )
 
-        self._publish_media_progress(job, 0.0, "downloading", None, expected)
+        self._publish_media_progress(job, 0.0, JobPhase.DOWNLOADING, None, expected)
         with _downloader.temp_audio_download(
             resolved.webpage_url or resolved.audio_url,
             js_runtimes=_runtime.js_runtime_options(runtime),
-            on_progress=lambda frac: self._publish_media_progress(job, frac, "downloading", None, expected),
+            on_progress=lambda frac: self._publish_media_progress(job, frac, JobPhase.DOWNLOADING, None, expected),
         ) as tmp_path:
             # An Instagram-style resolver reports duration=None: probe the
             # file that was actually ingested so percent/ETA (and the
@@ -441,7 +442,7 @@ class MediaJobRunnersMixin(HandlerBase):
                 stream_duration = resolved.duration or expected
 
                 def _on_stream_progress(frac: float, eta: float | None, _d: float | None = stream_duration) -> None:
-                    self._publish_media_progress(job, frac, "transcribing", eta, _d)
+                    self._publish_media_progress(job, frac, JobPhase.TRANSCRIBING, eta, _d)
 
                 state = _loop.transcribe_windows(
                     chunks,
@@ -498,13 +499,18 @@ class MediaJobRunnersMixin(HandlerBase):
         self,
         job,
         fraction: float,
-        phase: str,
+        phase: JobPhase | str,
         eta_seconds: float | None = None,
         duration_seconds: float | None = None,
     ) -> None:
         """Best-effort progress event carrying the phase + ETA (ADR-0023 E16)."""
         from voice_typer.server import event_bus
 
+        parsed = parse_job_phase(phase)
+        if parsed is None:
+            log.warning("[MEDIA] ignoring unknown progress phase %r", phase)
+            return
+        phase = parsed
         job.progress = fraction
         job.phase = phase
         try:

@@ -17,6 +17,9 @@ import { memo, type ReactNode, useState } from "react";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { SettingRow } from "@/components/common/SettingRow";
 import { SettingsSection } from "@/components/common/SettingsSection";
+import { MeasuredSkeleton } from "@/components/feedback/MeasuredSkeleton";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
+import { SAMPLE_CONFIG } from "@/components/skullet/sampleConfig";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { usePython } from "@/hooks/usePython";
@@ -25,7 +28,6 @@ import { useT } from "@/i18n/i18n";
 import type { TranslationKey } from "@/i18n/translation-keys";
 import { cn } from "@/lib/utils";
 import type { LausuConfig } from "@/types/config";
-import { SettingsSkeleton } from "./SettingsSkeleton";
 
 import type { SettingsSectionSharedProps } from "./types";
 
@@ -240,8 +242,6 @@ export const PrivacySettingsSection = memo(function PrivacySettingsSection({
 	// consents via the toggles below.
 	const [showAgreeConfirm, setShowAgreeConfirm] = useState(false);
 
-	if (!config) return <SettingsSkeleton rows={3} />;
-
 	// One handler factory replaces the nine verbatim per-field
 	// `(checked) => updateConfig({ key: checked })` closures.
 	// `configKey` is a non-literal union, so the computed key widens
@@ -312,43 +312,53 @@ export const PrivacySettingsSection = memo(function PrivacySettingsSection({
 	// Agree-to-All banner state, derived from the same descriptor
 	// subset as the granted payload (see handleConfirmAgreeToAll).
 	const grantedConsentCount = AGREE_TO_ALL_FIELDS.filter(
-		(field) => config[field.configKey],
+		(field) => config?.[field.configKey],
 	).length;
 	const allConsentsGranted = AGREE_TO_ALL_FIELDS.every(
-		(field) => config[field.configKey],
+		(field) => config?.[field.configKey],
 	);
 
 	return (
-		<>
-			{/* ── SECTION: Audio & Recovery ─────────────────────────── */}
-			{audioRecoveryVisible && (
-				<SettingsSection
-					title={audioRecoveryTitle}
-					description={t("settings.privacy.audioRecoveryDescription")}
-				>
-					{consentRows
-						.filter((row) => row.field.section === "audioRecovery")
-						.map(({ field, label }) => (
-							<SettingRow
-								key={field.configKey}
-								label={label}
-								info={t(field.infoKey)}
-							>
-								{" "}
-								<Switch
-									checked={config[field.configKey] ?? field.defaultValue}
-									onCheckedChange={makeConsentChangeHandler(field.configKey)}
-									aria-label={t(field.ariaKey)}
-								/>
-							</SettingRow>
-						))}
-				</SettingsSection>
-			)}
-
-			{/* ── SECTION: Privacy & Consent ─────────────────────────── */}
-			{privacyVisible && (
+		<MeasuredSkeleton
+			stackClassName="gap-12"
+			data={config}
+			sample={SAMPLE_CONFIG}
+			id="settings-privacy"
+			label={skeletonLoadingLabel()}
+		>
+			{(cfg) => (
 				<>
-					{/*006/009: centralized consent management —
+					{/* ── SECTION: Audio & Recovery ─────────────────────────── */}
+					{audioRecoveryVisible && (
+						<SettingsSection
+							title={audioRecoveryTitle}
+							description={t("settings.privacy.audioRecoveryDescription")}
+						>
+							{consentRows
+								.filter((row) => row.field.section === "audioRecovery")
+								.map(({ field, label }) => (
+									<SettingRow
+										key={field.configKey}
+										label={label}
+										info={t(field.infoKey)}
+									>
+										{" "}
+										<Switch
+											checked={cfg[field.configKey] ?? field.defaultValue}
+											onCheckedChange={makeConsentChangeHandler(
+												field.configKey,
+											)}
+											aria-label={t(field.ariaKey)}
+										/>
+									</SettingRow>
+								))}
+						</SettingsSection>
+					)}
+
+					{/* ── SECTION: Privacy & Consent ─────────────────────────── */}
+					{privacyVisible && (
+						<>
+							{/*006/009: centralized consent management —
                                         see the CONSENT_FIELDS registry comments for
                                         the enforcement/revocation rationale.
 
@@ -358,209 +368,217 @@ export const PrivacySettingsSection = memo(function PrivacySettingsSection({
                                         False (privacy-by-default); the button is purely a UX
                                         convenience, not an implicit grant.  Individual toggles
                                         below remain for granular control / revocation. */}
-					<SettingsSection
-						title={privacyTitle}
-						description={t("settings.privacy.privacyDescription")}
-					>
-						{/* PRIV-AGREE-ALL: header banner + Agree to All button.
+							<SettingsSection
+								title={privacyTitle}
+								description={t("settings.privacy.privacyDescription")}
+							>
+								{/* PRIV-AGREE-ALL: header banner + Agree to All button.
                                         Explains what "agreeing" means in plain language so
                                         the user can make an informed decision before
                                         clicking.  The banner sits inside the same
                                         bordered container as the toggles (visually grouped
                                         with them) but uses a slightly different background
                                         to distinguish it from per-flag rows. */}
-						<div className="flex flex-col gap-3 p-4">
-							<div className="flex items-start gap-2">
-								<HugeiconsIcon
-									icon={InformationCircleIcon}
-									strokeWidth={2}
-									className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground"
-								/>
-								<div className="flex min-w-0 flex-col gap-2 text-sm text-muted-foreground">
-									<p>{t("settings.privacy.consentBannerDesc")}</p>
-									<ul className="list-disc ps-4 flex flex-col gap-0.5 text-xs">
-										<li>{t("settings.privacy.huggingFaceItem")}</li>
-										<li>{t("settings.privacy.cloudAsrItem")}</li>
-										<li>{t("settings.privacy.llmPolishItem")}</li>
-										<li>{t("settings.privacy.voiceBiometricItem")}</li>
-									</ul>
-									<p className="text-xs">
-										{t("settings.privacy.revokeNotice")}
-									</p>
-								</div>
-							</div>
-							<div className="flex items-center justify-between gap-3">
-								<div className="text-xs text-muted-foreground">
-									{t("settings.privacy.consentsGranted", {
-										granted: String(grantedConsentCount),
-									})}
-								</div>
-								<Button
-									variant="default"
-									size="sm"
-									className="gap-2"
-									onClick={handleAgreeToAll}
-									disabled={allConsentsGranted}
-									aria-label={t("settings.privacy.agreeToAllAria")}
-									title={t("settings.privacy.agreeToAllHint")}
-								>
-									<HugeiconsIcon
-										icon={CheckmarkCircle01Icon}
-										strokeWidth={2}
-										className="h-4 w-4"
-									/>
-									{t("settings.privacy.agreeToAll")}
-								</Button>
-							</div>
-						</div>
-
-						{consentRows
-							.filter((row) => row.field.section === "privacy")
-							.map(({ field, label, info }) =>
-								isVisible(label, info, privacyTitle) ? (
-									field.consentRow ? (
-										<ConsentRow
-											key={field.configKey}
-											field={field.configKey}
-											highlighted={consentFocusField === field.configKey}
+								<div className="flex flex-col gap-3 p-4">
+									<div className="flex items-start gap-2">
+										<HugeiconsIcon
+											icon={InformationCircleIcon}
+											strokeWidth={2}
+											className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground"
+										/>
+										<div className="flex min-w-0 flex-col gap-2 text-sm text-muted-foreground">
+											<p>{t("settings.privacy.consentBannerDesc")}</p>
+											<ul className="list-disc ps-4 flex flex-col gap-0.5 text-xs">
+												<li>{t("settings.privacy.huggingFaceItem")}</li>
+												<li>{t("settings.privacy.cloudAsrItem")}</li>
+												<li>{t("settings.privacy.llmPolishItem")}</li>
+												<li>{t("settings.privacy.voiceBiometricItem")}</li>
+											</ul>
+											<p className="text-xs">
+												{t("settings.privacy.revokeNotice")}
+											</p>
+										</div>
+									</div>
+									<div className="flex items-center justify-between gap-3">
+										<div className="text-xs text-muted-foreground">
+											{t("settings.privacy.consentsGranted", {
+												granted: String(grantedConsentCount),
+											})}
+										</div>
+										<Button
+											variant="default"
+											size="sm"
+											className="gap-2"
+											onClick={handleAgreeToAll}
+											disabled={allConsentsGranted}
+											aria-label={t("settings.privacy.agreeToAllAria")}
+											title={t("settings.privacy.agreeToAllHint")}
 										>
-											<SettingRow label={label} info={info}>
-												<Switch
-													checked={
-														config[field.configKey] ?? field.defaultValue
-													}
-													onCheckedChange={makeConsentChangeHandler(
-														field.configKey,
-													)}
-													aria-label={t(field.ariaKey)}
-												/>
-											</SettingRow>
-										</ConsentRow>
-									) : (
-										<SettingRow key={field.configKey} label={label} info={info}>
-											<Switch
-												checked={config[field.configKey] ?? field.defaultValue}
-												onCheckedChange={makeConsentChangeHandler(
-													field.configKey,
-												)}
-												aria-label={t(field.ariaKey)}
-												data-testid={field.testId}
+											<HugeiconsIcon
+												icon={CheckmarkCircle01Icon}
+												strokeWidth={2}
+												className="h-4 w-4"
 											/>
-										</SettingRow>
-									)
-								) : null,
-							)}
+											{t("settings.privacy.agreeToAll")}
+										</Button>
+									</div>
+								</div>
 
-						{/*GDPR right-to-export (Art. 15/20).
+								{consentRows
+									.filter((row) => row.field.section === "privacy")
+									.map(({ field, label, info }) =>
+										isVisible(label, info, privacyTitle) ? (
+											field.consentRow ? (
+												<ConsentRow
+													key={field.configKey}
+													field={field.configKey}
+													highlighted={consentFocusField === field.configKey}
+												>
+													<SettingRow label={label} info={info}>
+														<Switch
+															checked={
+																cfg[field.configKey] ?? field.defaultValue
+															}
+															onCheckedChange={makeConsentChangeHandler(
+																field.configKey,
+															)}
+															aria-label={t(field.ariaKey)}
+														/>
+													</SettingRow>
+												</ConsentRow>
+											) : (
+												<SettingRow
+													key={field.configKey}
+													label={label}
+													info={info}
+												>
+													<Switch
+														checked={cfg[field.configKey] ?? field.defaultValue}
+														onCheckedChange={makeConsentChangeHandler(
+															field.configKey,
+														)}
+														aria-label={t(field.ariaKey)}
+														data-testid={field.testId}
+													/>
+												</SettingRow>
+											)
+										) : null,
+									)}
+
+								{/*GDPR right-to-export (Art. 15/20).
                                         Previously only history + vocabulary were exportable.
                                         Templates and config are also user data and must be
                                         exportable on request.  The handlers live in
                                         main/index.ts (templates:export, config:export) and
                                         are exposed via the preload bridge. */}
-						<SettingRow
-							label={exportAllDataLabel}
-							info={t("settings.privacy.exportAllDataInfo")}
-						>
-							<div className="flex gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={async () => {
-										try {
-											const templates = await call("get_templates");
-											const result = await (
-												window.window_ as {
-													exportTemplates?: (data: unknown) => Promise<{
-														success: boolean;
-														path?: string;
-														error?: string;
-													}>;
-												}
-											).exportTemplates?.(templates);
-											if (result?.success) {
-												showSnack(
-													t("settings.privacy.templatesExported", {
-														filename:
-															result.path?.split(/[\\/]/).pop() ??
-															t("settings.privacy.fileFallback"),
-													}),
-													"success",
-												);
-											} else if (result?.error) {
-												showSnack(
-													t("settings.privacy.exportFailedError", {
-														error: result.error,
-													}),
-													"error",
-												);
-											}
-										} catch (err) {
-											showSnack(
-												t("settings.privacy.exportFailedError", {
-													error:
-														err instanceof Error ? err.message : String(err),
-												}),
-												"error",
-											);
-										}
-									}}
-									aria-label={t("settings.privacy.exportTemplatesAria")}
+								<SettingRow
+									label={exportAllDataLabel}
+									info={t("settings.privacy.exportAllDataInfo")}
 								>
-									{t("settings.privacy.exportTemplates")}
-								</Button>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={async () => {
-										try {
-											const cfg = await call("get_config");
-											const result = await (
-												window.window_ as {
-													exportConfig?: (data: unknown) => Promise<{
-														success: boolean;
-														path?: string;
-														error?: string;
-													}>;
+									<div className="flex gap-2">
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={async () => {
+												try {
+													const templates = await call("get_templates");
+													const result = await (
+														window.window_ as {
+															exportTemplates?: (data: unknown) => Promise<{
+																success: boolean;
+																path?: string;
+																error?: string;
+															}>;
+														}
+													).exportTemplates?.(templates);
+													if (result?.success) {
+														showSnack(
+															t("settings.privacy.templatesExported", {
+																filename:
+																	result.path?.split(/[\\/]/).pop() ??
+																	t("settings.privacy.fileFallback"),
+															}),
+															"success",
+														);
+													} else if (result?.error) {
+														showSnack(
+															t("settings.privacy.exportFailedError", {
+																error: result.error,
+															}),
+															"error",
+														);
+													}
+												} catch (err) {
+													showSnack(
+														t("settings.privacy.exportFailedError", {
+															error:
+																err instanceof Error
+																	? err.message
+																	: String(err),
+														}),
+														"error",
+													);
 												}
-											).exportConfig?.(cfg);
-											if (result?.success) {
-												showSnack(
-													t("settings.privacy.configExported", {
-														filename:
-															result.path?.split(/[\\/]/).pop() ??
-															t("settings.privacy.fileFallback"),
-													}),
-													"success",
-												);
-											} else if (result?.error) {
-												showSnack(
-													t("settings.privacy.exportFailedError", {
-														error: result.error,
-													}),
-													"error",
-												);
-											}
-										} catch (err) {
-											showSnack(
-												t("settings.privacy.exportFailedError", {
-													error:
-														err instanceof Error ? err.message : String(err),
-												}),
-												"error",
-											);
-										}
-									}}
-									aria-label={t("settings.privacy.exportConfigAria")}
-								>
-									{t("settings.privacy.exportConfig")}
-								</Button>
-							</div>
-						</SettingRow>
-					</SettingsSection>
-				</>
-			)}
+											}}
+											aria-label={t("settings.privacy.exportTemplatesAria")}
+										>
+											{t("settings.privacy.exportTemplates")}
+										</Button>
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={async () => {
+												try {
+													const cfg = await call("get_config");
+													const result = await (
+														window.window_ as {
+															exportConfig?: (data: unknown) => Promise<{
+																success: boolean;
+																path?: string;
+																error?: string;
+															}>;
+														}
+													).exportConfig?.(cfg);
+													if (result?.success) {
+														showSnack(
+															t("settings.privacy.configExported", {
+																filename:
+																	result.path?.split(/[\\/]/).pop() ??
+																	t("settings.privacy.fileFallback"),
+															}),
+															"success",
+														);
+													} else if (result?.error) {
+														showSnack(
+															t("settings.privacy.exportFailedError", {
+																error: result.error,
+															}),
+															"error",
+														);
+													}
+												} catch (err) {
+													showSnack(
+														t("settings.privacy.exportFailedError", {
+															error:
+																err instanceof Error
+																	? err.message
+																	: String(err),
+														}),
+														"error",
+													);
+												}
+											}}
+											aria-label={t("settings.privacy.exportConfigAria")}
+										>
+											{t("settings.privacy.exportConfig")}
+										</Button>
+									</div>
+								</SettingRow>
+							</SettingsSection>
+						</>
+					)}
 
-			{/*confirmation dialog for "Agree to All". Discloses the
+					{/*confirmation dialog for "Agree to All". Discloses the
                                 scope of the action (which 6 consents will be granted and what
                                 each enables) so the user can make an informed decision before
                                 clicking. Uses variant="destructive" because granting all cloud
@@ -568,16 +586,18 @@ export const PrivacySettingsSection = memo(function PrivacySettingsSection({
                                 privacy action (revocation requires toggling each one off).
                                 Title and message are localised via t("settings.privacy.agreeConfirm*")
                                , native translations exist in all 8 locale JSON files. */}
-			<ConfirmDialog
-				open={showAgreeConfirm}
-				title={t("settings.privacy.agreeConfirmTitle")}
-				message={t("settings.privacy.agreeConfirmMessage")}
-				confirmLabel={t("settings.privacy.agreeToAll")}
-				cancelLabel={t("common.cancel")}
-				variant="destructive"
-				onConfirm={handleConfirmAgreeToAll}
-				onCancel={() => setShowAgreeConfirm(false)}
-			/>
-		</>
+					<ConfirmDialog
+						open={showAgreeConfirm}
+						title={t("settings.privacy.agreeConfirmTitle")}
+						message={t("settings.privacy.agreeConfirmMessage")}
+						confirmLabel={t("settings.privacy.agreeToAll")}
+						cancelLabel={t("common.cancel")}
+						variant="destructive"
+						onConfirm={handleConfirmAgreeToAll}
+						onCancel={() => setShowAgreeConfirm(false)}
+					/>
+				</>
+			)}
+		</MeasuredSkeleton>
 	);
 });

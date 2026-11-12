@@ -266,9 +266,15 @@ class SubprocessHotkeyBackend(_SpawnMixin, _ReaderMixin, _WatchdogMixin, _Matchi
 
         # signal the watchdog to exit BEFORE we kill the
         self._watchdog_stop_event.set()
-        if self._watchdog_thread is not None and self._watchdog_thread.is_alive():
+        # The watchdog's own respawn path calls stop() FROM the watchdog thread;
+        # joining that thread from itself raises and aborts the respawn.
+        if (
+            self._watchdog_thread is not None
+            and self._watchdog_thread is not threading.current_thread()
+            and self._watchdog_thread.is_alive()
+        ):
             self._watchdog_thread.join(timeout=1.0)
-            self._watchdog_thread = None
+        self._watchdog_thread = None
 
         if self._process is not None:
             try:

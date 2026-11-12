@@ -11,7 +11,7 @@ const meta: Meta<typeof RangeSlider> = {
 		docs: {
 			description: {
 				component:
-					"Labeled `<input type='range'>` with a tabular-nums value readout. Used by every numeric setting in the Settings page (VAD aggressiveness, silence duration, noise gate, etc.). The unit `suffix` is appended to the displayed value (e.g. `ms`, `%`, `Hz`).",
+					"Inline pill slider with an inset fill, tick stops and a tabular-nums value readout. Used by every numeric setting in the Settings page (VAD aggressiveness, silence duration, noise gate, etc.). The unit `suffix` is appended to the displayed value (e.g. `ms`, `%`, `Hz`).",
 			},
 		},
 	},
@@ -123,7 +123,7 @@ export const RtlLayout: Story = {
 		docs: {
 			description: {
 				story:
-					'Rendered inside a `dir="rtl"` wrapper, native range inputs flip their fill direction with the document direction, and the label/value row must mirror.',
+					'Rendered inside a `dir="rtl"` wrapper, the value readout must stay readable and the thumb must stay reachable.',
 			},
 		},
 	},

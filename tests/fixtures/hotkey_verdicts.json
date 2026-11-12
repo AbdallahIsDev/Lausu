@@ -905,37 +905,37 @@
       "hotkey": "<delete>",
       "platform": "win32",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<delete>",
       "platform": "win32",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<delete>",
       "platform": "darwin",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<delete>",
       "platform": "darwin",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<delete>",
       "platform": "linux",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<delete>",
       "platform": "linux",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<home>",
@@ -1085,145 +1085,145 @@
       "hotkey": "<up>",
       "platform": "win32",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<up>",
       "platform": "win32",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<up>",
       "platform": "darwin",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<up>",
       "platform": "darwin",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<up>",
       "platform": "linux",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<up>",
       "platform": "linux",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<down>",
       "platform": "win32",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<down>",
       "platform": "win32",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<down>",
       "platform": "darwin",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<down>",
       "platform": "darwin",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<down>",
       "platform": "linux",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<down>",
       "platform": "linux",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<left>",
       "platform": "win32",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<left>",
       "platform": "win32",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<left>",
       "platform": "darwin",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<left>",
       "platform": "darwin",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<left>",
       "platform": "linux",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<left>",
       "platform": "linux",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<right>",
       "platform": "win32",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<right>",
       "platform": "win32",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<right>",
       "platform": "darwin",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<right>",
       "platform": "darwin",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<right>",
       "platform": "linux",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<right>",
       "platform": "linux",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<print_screen>",
@@ -1301,13 +1301,13 @@
       "hotkey": "<num_lock>",
       "platform": "win32",
       "pushToTalk": false,
-      "code": null
+      "code": "toggle_key"
     },
     {
       "hotkey": "<num_lock>",
       "platform": "win32",
       "pushToTalk": true,
-      "code": null
+      "code": "toggle_key"
     },
     {
       "hotkey": "<num_lock>",
@@ -1325,13 +1325,13 @@
       "hotkey": "<num_lock>",
       "platform": "linux",
       "pushToTalk": false,
-      "code": null
+      "code": "toggle_key"
     },
     {
       "hotkey": "<num_lock>",
       "platform": "linux",
       "pushToTalk": true,
-      "code": null
+      "code": "toggle_key"
     },
     {
       "hotkey": "<scroll_lock>",
@@ -2105,25 +2105,25 @@
       "hotkey": "<ctrl>+<alt>+<delete>",
       "platform": "darwin",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<ctrl>+<alt>+<delete>",
       "platform": "darwin",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<ctrl>+<alt>+<delete>",
       "platform": "linux",
       "pushToTalk": false,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<ctrl>+<alt>+<delete>",
       "platform": "linux",
       "pushToTalk": true,
-      "code": null
+      "code": "editing_key"
     },
     {
       "hotkey": "<cmd>+<space>",
@@ -2988,6 +2988,78 @@
       "platform": "linux",
       "pushToTalk": true,
       "code": null
+    },
+    {
+      "hotkey": "<mouse_middle>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<mouse_middle>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<mouse_middle>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<mouse_middle>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<mouse_middle>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": null
+    },
+    {
+      "hotkey": "<mouse_middle>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": null
+    },
+    {
+      "hotkey": "<ctrl>+<mouse_middle>",
+      "platform": "win32",
+      "pushToTalk": false,
+      "code": "mouse_combo"
+    },
+    {
+      "hotkey": "<ctrl>+<mouse_middle>",
+      "platform": "win32",
+      "pushToTalk": true,
+      "code": "mouse_combo"
+    },
+    {
+      "hotkey": "<ctrl>+<mouse_middle>",
+      "platform": "darwin",
+      "pushToTalk": false,
+      "code": "mouse_combo"
+    },
+    {
+      "hotkey": "<ctrl>+<mouse_middle>",
+      "platform": "darwin",
+      "pushToTalk": true,
+      "code": "mouse_combo"
+    },
+    {
+      "hotkey": "<ctrl>+<mouse_middle>",
+      "platform": "linux",
+      "pushToTalk": false,
+      "code": "mouse_combo"
+    },
+    {
+      "hotkey": "<ctrl>+<mouse_middle>",
+      "platform": "linux",
+      "pushToTalk": true,
+      "code": "mouse_combo"
     }
   ]
 }

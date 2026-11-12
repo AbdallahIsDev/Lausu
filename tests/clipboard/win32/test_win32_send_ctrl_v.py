@@ -205,3 +205,47 @@ class TestModifierReleaseExceptBranches:
             type(mock_key).ctrl = PropertyMock(side_effect=RuntimeError("ctrl access broke"))
             # Should not raise, outer except swallows.
             cm._release_stuck_modifiers()
+
+
+class TestInputStructLayout:
+    """The struct we hand ``SendInput`` must be the struct Windows validates.
+
+    ``SendInput`` compares the ``cbSize`` argument against its own
+    ``sizeof(INPUT)`` (40 bytes on x64, 28 on x86) and rejects anything else
+    with ``ERROR_INVALID_PARAMETER``, delivering zero events. A keyboard-only
+    union is 24 bytes, so ``INPUT`` came out at 32 and every paste was a
+    silent no-op (``SendInput returned 0 (expected 4)`` in the log, clipboard
+    kept the text, nothing reached the focused field).
+    """
+
+    def test_input_union_carries_all_three_branches(self):
+        from voice_typer.server.clipboard.windows import InputUnion
+
+        assert ctypes.sizeof(InputUnion) == 32, (
+            "the INPUT union must be as wide as MOUSEINPUT (32 bytes on x64); "
+            f"got {ctypes.sizeof(InputUnion)} -- SendInput rejects the batch"
+        )
+
+    def test_input_size_matches_win32(self):
+        from voice_typer.server.clipboard.windows import INPUT
+
+        expected = 40 if ctypes.sizeof(ctypes.c_void_p) == 8 else 28
+        assert ctypes.sizeof(INPUT) == expected, (
+            f"sizeof(INPUT) must be {expected} on this pointer width; "
+            f"got {ctypes.sizeof(INPUT)} -- SendInput returns 0"
+        )
+
+    def test_sendinput_receives_the_real_struct_size(self, fake_win32):
+        from voice_typer.server.clipboard.windows import INPUT
+
+        from tests.fixtures.clipboard_helpers import make_clipboard_manager
+
+        cm = make_clipboard_manager()
+        mock_user32 = fake_win32["user32"]
+        mock_user32.SendInput.return_value = 4
+        with patch.object(clip_mod, "_Key") as mock_key:
+            mock_key.ctrl = "ctrl_key"
+            cm._send_ctrl_v_win32()
+        _args, _kwargs = mock_user32.SendInput.call_args
+        assert mock_user32.SendInput.call_args[0][2] == ctypes.sizeof(INPUT)
+        assert mock_user32.SendInput.call_args[0][2] == (40 if ctypes.sizeof(ctypes.c_void_p) == 8 else 28)

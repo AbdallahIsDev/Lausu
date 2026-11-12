@@ -6,9 +6,11 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Skeleton } from "skullet/react";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import PageHeading from "@/components/common/PageHeading";
 import { EmptyState } from "@/components/feedback/EmptyState";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { configHotkeyLabels } from "@/components/hotkey/hotkey-format";
 // amber banner shown when the OS has not granted the
@@ -46,11 +48,11 @@ import { t } from "@/i18n/i18n";
 import { useGlobalSearch } from "@/stores/useGlobalSearch";
 import type { LausuConfig } from "@/types/config";
 import type { Page } from "@/types/ipc";
-import { SettingsPageSkeleton } from "./settings/components/SettingsPageSkeleton";
 import { useSettingsDeepLinks } from "./settings/hooks/useSettingsDeepLinks";
 import { useSettingsReset } from "./settings/hooks/useSettingsReset";
 import { useSettingsSearch } from "./settings/hooks/useSettingsSearch";
 import { useSettingsSurfaceScroll } from "./settings/hooks/useSettingsSurfaceScroll";
+import { SETTINGS_SAMPLE_CONFIG } from "./settings/lib/sample";
 
 function SectionBackButton({ onBack }: { onBack: () => void }) {
 	return (
@@ -102,7 +104,6 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 		loadConfig,
 		loadConfigOnMount,
 		loadError,
-		error: saveError,
 		mergeExternalConfig,
 	} = useSettingsConfig();
 	const { call } = usePython();
@@ -267,49 +268,56 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 
 	// Which section page's cards render, a single data-driven switch so
 	// the hub/section split stays declarative. Top-level (not inline in
-	// JSX) so no component types are re-created during render.
-	const renderSectionCards = (active: SettingsSectionPage) => {
+	// JSX) so no component types are re-created during render. The
+	// section props arrive as a parameter so the measured wrap can feed
+	// the sample config while the real one is still null.
+	const renderSectionCards = (
+		active: SettingsSectionPage,
+		props: typeof sectionProps,
+	) => {
 		switch (active) {
 			case "settingsGeneral":
-				return <GeneralSettingsSection {...sectionProps} />;
+				return <GeneralSettingsSection {...props} />;
 			case "settingsOverlay":
-				return <OverlaySettingsSection {...sectionProps} />;
+				return <OverlaySettingsSection {...props} />;
 			case "settingsHotkeys":
-				return <RecordingSettingsSection {...sectionProps} />;
+				return <RecordingSettingsSection {...props} />;
 			case "settingsTranscription":
 				return (
-					<PostProcessingSettingsSection
-						{...sectionProps}
-						onNavigate={navigate}
-					/>
+					<>
+						<PostProcessingSettingsSection {...props} onNavigate={navigate} />
+						{/* Text Polish belongs with the text-enhancement controls it
+						    feeds (it is the AI pass after cleanup/punctuation), not
+						    on the troubleshooting page. */}
+						<LlmPolishingSettingsSection {...props} />
+					</>
 				);
 			case "settingsAudio":
-				return <AudioSettingsSection {...sectionProps} />;
+				return <AudioSettingsSection {...props} />;
 			case "settingsAppearance":
 				return (
 					<>
 						<ThemeSettingsSection
-							{...sectionProps}
+							{...props}
 							themeModeProp={themeModeProp}
 							onThemeChange={handleThemeChangeLocal}
 						/>
 						{/* Linux-only (returns null elsewhere): the frameless
                                                     title bar's window-button layout, follow the desktop's
                                                     button-layout or pick a custom side/visibility. */}
-						<LinuxWindowButtonsSettingsSection {...sectionProps} />
+						<LinuxWindowButtonsSettingsSection {...props} />
 					</>
 				);
 			case "settingsPrivacy":
 				return (
 					<PrivacySettingsSection
-						{...sectionProps}
+						{...props}
 						consentFocusField={focusedConsentField}
 					/>
 				);
 			case "settingsAdvanced":
 				return (
 					<>
-						<LlmPolishingSettingsSection {...sectionProps} />
 						<TroubleshootingSettingsSection
 							isVisible={_filter_settings}
 							updateConfig={updateConfig}
@@ -325,7 +333,7 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 		}
 	};
 
-	if (!config) {
+	if (!config && loadError) {
 		// Initial-load failure: render the load-failure EmptyState
 		// (variant="error" + Retry) instead of an endless "Loading…"
 		// spinner. Mirrors the History/Models load-failure pattern.
@@ -354,8 +362,9 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 				</div>
 			);
 		}
-		return <SettingsPageSkeleton />;
 	}
+	// While config is null the hub/sections render from the sample
+	// inside the measured wrap below.
 
 	// The empty banner only applies on section pages when the query
 	// matched NOTHING anywhere, if other section pages have matches, the
@@ -391,25 +400,6 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
                                     banner doesn't apply (Windows). */}
 				<KeyboardPermissionBanner />
 
-				{/* Save-failure banner, the REAL save-status surface.
-                                    useSettingsConfig auto-saves silently (no success
-                                    indicator, by design), but a failed write must not be
-                                    invisible: the hook's per-flush `error` carries the
-                                    backend's specific validator text and is shown here
-                                    until the next successful save clears it. role="alert"
-                                    (assertive) so screen readers announce the failure
-                                    immediately, matching Home's error convention.
-                                    data-testid pins the contract for tests. */}
-				{saveError && (
-					<div
-						role="alert"
-						data-testid="settings-save-error"
-						className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
-					>
-						{saveError}
-					</div>
-				)}
-
 				{/* Empty-state banner (section pages only, the hub renders
                                     its own inside SettingsHub) via the shared EmptyState
                                     component (variant="info") so the visual treatment
@@ -439,89 +429,108 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
                                     section rows. SECTION PAGE: the cross-section search
                                     results card (when a query matches elsewhere) followed
                                     by the page's own section cards. */}
-				{page === "settings" ? (
-					<>
-						<SettingsHub
-							config={config}
-							onNavigateSection={(sectionPage) => navigate(sectionPage)}
-						/>
-						{/* Settings-wide destructive action. It sits at the
+				<Skeleton
+					data={config}
+					sample={SETTINGS_SAMPLE_CONFIG}
+					id="settings"
+					label={skeletonLoadingLabel()}
+				>
+					{(cfg) => (
+						<>
+							{page === "settings" ? (
+								// The outer `gap-4` only spaces the Skeleton's single
+								// child, so the hub card keeps its own stack to hold the
+								// reset action off the card's bottom edge.
+								<div className="flex w-full flex-1 flex-col gap-4">
+									<SettingsHub
+										config={cfg}
+										onNavigateSection={(sectionPage) => navigate(sectionPage)}
+									/>
+									{/* Settings-wide destructive action. It sits at the
 						    foot of the Settings landing page rather than
 						    inside a section card: a factory reset is not a
 						    per-section setting. Ghost keeps it borderless and
 						    unfilled, and the muted label keeps a dangerous
 						    control quiet until it is hovered — the
 						    ConfirmDialog carries the warning. */}
-						<div className="mt-auto flex justify-center">
-							<Button
-								variant="ghost"
-								className="gap-2 text-muted-foreground"
-								onClick={() => setShowResetDialog(true)}
-								aria-label={t("settings.resetToDefaultsAria")}
-								title={t("settings.resetToDefaultsDescription")}
-							>
-								<HugeiconsIcon
-									icon={RefreshIcon}
-									strokeWidth={2}
-									className="h-4 w-4"
-								/>
-								{t("settings.resetToDefaults")}
-							</Button>
-						</div>
-					</>
-				) : (
-					activeSection !== null && (
-						// Card-to-card rhythm. The root's 4px is the
-						// heading→first-card gap; a section page renders
-						// 1-4 cards (Advanced has four), and a bare
-						// fragment would flatten them into the root's 4
-						// and pack them together. The cross-section search
-						// results card is a card too, so it stacks here as
-						// well rather than sitting 4px off its neighbour.
-						<div className="flex w-full flex-col gap-12">
-							{otherSectionGroups.length > 0 && (
-								<section
-									aria-label={t("settings.otherTabsResults")}
-									data-testid="settings-other-tabs-results"
-									className="rounded-lg border border-border/10 bg-surface-subtle px-3.5 py-3"
-								>
-									<h2 className="text-sm font-medium text-foreground">
-										{t("settings.otherTabsResults")}
-									</h2>
-									<div className="flex flex-col gap-2">
-										{otherSectionGroups.map((group) => (
-											<div
-												key={group.sectionPage}
-												className="flex flex-col gap-1"
+									<div className="mt-auto flex justify-center">
+										<Button
+											variant="ghost"
+											className="gap-2 text-muted-foreground"
+											onClick={() => setShowResetDialog(true)}
+											aria-label={t("settings.resetToDefaultsAria")}
+											title={t("settings.resetToDefaultsDescription")}
+										>
+											<HugeiconsIcon
+												icon={RefreshIcon}
+												strokeWidth={2}
+												className="h-4 w-4"
+											/>
+											{t("settings.resetToDefaults")}
+										</Button>
+									</div>
+								</div>
+							) : (
+								activeSection !== null && (
+									// Card-to-card rhythm. The root's 4px is the
+									// heading→first-card gap; a section page renders
+									// 1-4 cards (Advanced has four), and a bare
+									// fragment would flatten them into the root's 4
+									// and pack them together. The cross-section search
+									// results card is a card too, so it stacks here as
+									// well rather than sitting 4px off its neighbour.
+									<div className="flex w-full flex-col gap-12">
+										{otherSectionGroups.length > 0 && (
+											<section
+												aria-label={t("settings.otherTabsResults")}
+												data-testid="settings-other-tabs-results"
+												className="rounded-lg border border-border/10 bg-surface-subtle px-3.5 py-3"
 											>
-												<p className="text-xs font-medium text-muted-foreground">
-													{t(SECTION_TITLE_BY_PAGE[group.sectionPage])}
-												</p>
-												<div className="flex flex-wrap gap-2">
-													{group.labels.map((label) => (
-														<button
-															key={`${group.sectionPage}-${label}`}
-															type="button"
-															className="rounded-lg border border-border/10 bg-surface px-2 py-1 text-xs text-foreground transition-colors hover:bg-foreground/5 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-															onClick={() =>
-																navigate(group.sectionPage, {
-																	settingsScrollTarget: { rowHint: label },
-																})
-															}
+												<h2 className="text-sm font-medium text-foreground">
+													{t("settings.otherTabsResults")}
+												</h2>
+												<div className="flex flex-col gap-2">
+													{otherSectionGroups.map((group) => (
+														<div
+															key={group.sectionPage}
+															className="flex flex-col gap-1"
 														>
-															{label}
-														</button>
+															<p className="text-xs font-medium text-muted-foreground">
+																{t(SECTION_TITLE_BY_PAGE[group.sectionPage])}
+															</p>
+															<div className="flex flex-wrap gap-2">
+																{group.labels.map((label) => (
+																	<button
+																		key={`${group.sectionPage}-${label}`}
+																		type="button"
+																		className="rounded-lg border border-border/10 bg-surface px-2 py-1 text-xs text-foreground transition-colors hover:bg-foreground/5 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+																		onClick={() =>
+																			navigate(group.sectionPage, {
+																				settingsScrollTarget: {
+																					rowHint: label,
+																				},
+																			})
+																		}
+																	>
+																		{label}
+																	</button>
+																))}
+															</div>
+														</div>
 													))}
 												</div>
-											</div>
-										))}
+											</section>
+										)}
+										{renderSectionCards(activeSection, {
+											...sectionProps,
+											config: cfg,
+										})}
 									</div>
-								</section>
+								)
 							)}
-							{renderSectionCards(activeSection)}
-						</div>
-					)
-				)}
+						</>
+					)}
+				</Skeleton>
 			</div>
 
 			{/* Reset-confirm + bug-report composer + page-level help overlay.

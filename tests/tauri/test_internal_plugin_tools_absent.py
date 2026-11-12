@@ -84,8 +84,9 @@ class TestPluginSeamIsInertWhenClosed:
         # The seam must not be duplicated across the constructor.
         assert text.count("internal_plugin_hook.install") == 1
 
-    def test_hook_install_is_noop_outside_the_gate(self) -> None:
-        import os
+    def test_hook_install_is_noop_outside_the_gate(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         import sys
 
         sys.path.insert(0, str(_REPO_ROOT))
@@ -94,13 +95,13 @@ class TestPluginSeamIsInertWhenClosed:
             sys.modules.pop(mod, None)
         from voice_typer.server import internal_plugin_hook
 
-        prev = os.environ.pop("VOICE_TYPER_INTERNAL_PLUGINS", None)
-        try:
-            assert internal_plugin_hook.plugins_enabled() is False
-            assert internal_plugin_hook.install(object()) is False
-        finally:
-            if prev is not None:
-                os.environ["VOICE_TYPER_INTERNAL_PLUGINS"] = prev
+        # Simulate a shipped install: no env flag AND no plugin workspace,
+        # which is what `internal_surface_enabled()` discriminates. The
+        # developer checkout this test runs in DOES have the workspace.
+        monkeypatch.delenv("VOICE_TYPER_INTERNAL_PLUGINS", raising=False)
+        monkeypatch.setenv("VOICE_TYPER_PLUGINS_DIR", str(_REPO_ROOT / "tools" / "absent-plugins"))
+        assert internal_plugin_hook.plugins_enabled() is False
+        assert internal_plugin_hook.install(object()) is False
 
 
 class TestInternalPluginToolsNotInMainRepo:

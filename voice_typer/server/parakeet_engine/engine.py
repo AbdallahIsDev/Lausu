@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 
 class ParakeetEngine(LoadMixin, TranscribeMixin):
-    """Wraps NVIDIA Parakeet TDT v3 ASR model via ONNX Runtime."""
+    """Wraps Parakeet Ultra (Moondream post-train of NVIDIA Parakeet TDT 0.6b) via ONNX Runtime."""
 
     # Lazily-populated references to the onnx_asr + onnxruntime modules.
     _imports_loaded: bool = False

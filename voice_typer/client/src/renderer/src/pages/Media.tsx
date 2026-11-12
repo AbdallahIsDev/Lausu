@@ -21,10 +21,12 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { Skeleton } from "skullet/react";
 import { toast } from "sonner";
 import PageHeading from "@/components/common/PageHeading";
 import { SettingRow } from "@/components/common/SettingRow";
 import { Spinner } from "@/components/feedback/Spinner";
+import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -34,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { useMediaSourceStore } from "@/stores/mediaSourceStore";
 import { MediaJobRowView } from "./media/components/MediaJobRow";
 import { reportBatchLimited, useMediaJobs } from "./media/hooks/useMediaJobs";
+import { SAMPLE_MEDIA_JOB } from "./media/lib/sample";
 import { splitSources } from "./media/lib/splitSources";
 
 export default function MediaPage() {
@@ -296,14 +299,27 @@ export default function MediaPage() {
 			{jobs.length > 0 && (
 				<div className="flex flex-col rounded-lg border border-border/10 bg-surface-subtle">
 					{jobs.map((job, index) => (
-						<MediaJobRowView
+						// Measured wrap per row: jobs is always an array (no
+						// first-load null), so only the no-progress "starting"
+						// phase needs the skeleton; the Start button's Spinner
+						// stays, it is an inline action state.
+						<Skeleton
 							key={job.clientId}
-							job={job}
-							first={index === 0}
-							onCancel={() => void cancel(job.jobId)}
-							onDismiss={() => dismiss(job.clientId)}
-							onOpenHistory={() => navigate("history")}
-						/>
+							data={job.phase === "starting" ? null : job}
+							sample={SAMPLE_MEDIA_JOB}
+							id={`media-job-${job.clientId}`}
+							label={skeletonLoadingLabel()}
+						>
+							{(d) => (
+								<MediaJobRowView
+									job={d}
+									first={index === 0}
+									onCancel={() => void cancel(job.jobId)}
+									onDismiss={() => dismiss(job.clientId)}
+									onOpenHistory={() => navigate("history")}
+								/>
+							)}
+						</Skeleton>
 					))}
 				</div>
 			)}

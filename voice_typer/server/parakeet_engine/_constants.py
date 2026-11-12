@@ -13,21 +13,20 @@ from voice_typer.server.asr_utils import (
 
 # (``_NON_LATIN_RATIO_LIMIT``: the maximum allowed ratio of non-Latin-
 
-# HuggingFace repo ID of the *original* torch/safetensors Parakeet
-_PARAKERT_MODEL_ID = "nvidia/parakeet-tdt-0.6b-v3"
-
-# ONNX Runtime FP16 export of Parakeet TDT v3 (USER-selected repo,
-_PARAKERT_ONNX_REPO_ID = "grikdotnet/parakeet-tdt-0.6b-fp16"
+# ONNX export of the Moondream Parakeet Ultra post-train (base: NVIDIA
+# parakeet-tdt-0.6b-v3). int8 = ORT quantize_dynamic, per-tensor QUInt8;
+# graphs are the istupakov v3 export with Ultra weights substituted.
+_PARAKERT_ONNX_REPO_ID = "Masterx/parakeet-tdt-0.6b-ultra-onnx"
 _PARAKERT_ONNX_CACHE_DIR = f"models--{_PARAKERT_ONNX_REPO_ID.replace('/', '--')}"
 
 # onnx-asr TYPE name (NOT a repo name). ``nemo-conformer-tdt`` selects
 _PARAKERT_ONNX_MODEL_NAME = "nemo-conformer-tdt"
 
-# Selects the ``.fp16.`` variant files inside the repo (onnx-asr 0.12.0
-_PARAKERT_QUANTIZATION = "fp16"
+# Selects the ``.int8.`` variant files inside the repo (onnx-asr 0.12.0
+_PARAKERT_QUANTIZATION = "int8"
 
-# Approximate ONNX weight size in MB for MB/s read-speed logging.
-_PARAKERT_WEIGHTS_MB = 1275
+# int8 encoder (652 MB) + decoder_joint (18 MB), for MB/s read-speed logging.
+_PARAKERT_WEIGHTS_MB = 670
 
 # Parakeet's Conformer encoder has a practical limit of ~30s of audio.
 _CHUNK_SECONDS = 25

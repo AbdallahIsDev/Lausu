@@ -65,6 +65,11 @@ coverage.xml
 .tox/
 .pytype/
 
+# Regenerable Vite dependency pre-bundle cache (.cache/vite-evidence/deps/*)
+# that some tooling emits at the repo root when a build runs with
+# cacheDir pointed here; never shipped.
+.cache/
+
 .env
 .env.*
 !.env.example
@@ -144,3 +149,5 @@ tools/internal_plugins/
 # a 2,830-file duplicate checkout un-ignored doubles every filesystem-wide
 # grep/tool result without showing up in `git status`.
 .kilo/
+
+website/

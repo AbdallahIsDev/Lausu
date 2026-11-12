@@ -130,21 +130,37 @@ class LoadingMixin:
             log.warning("[PERF] LRU tracking failed (non-fatal)", exc_info=True)
         self._clear_deliberately_unloaded(backend_name)
         active = self._registry.get_active()
-        name = self._registry.active_name
-        if name == "whisper" and active is not None:
-            self._app.tray.set_state(
-                AppState.IDLE,
-                i18n.t(
-                    "state.model_manager.ready_whisper",
-                    device_info=active.device_info,
-                ),
-            )
-        else:
-            # Non-whisper backends report plain readiness here; the
-            self._app.tray.set_state(
-                AppState.IDLE,
-                i18n.t("state.ready"),
-            )
+        if active is not None:
+            # The engine that just loaded may run somewhere other than the
+            # requested device (CPU-only ORT build, forced-CPU load): push
+            # the effective value so the sidebar switch never claims a GPU
+            # that is not serving (C-UI-15).
+            try:
+                from voice_typer.server.active_device import (
+                    engine_active_device,
+                    publish_active_device,
+                )
+
+                publish_active_device(engine_active_device(active))
+            except Exception:
+                log.debug("[MODEL] active device publish failed", exc_info=True)
+            try:
+                device_info = getattr(active, "device_info", "") or ""
+            except Exception:
+                device_info = ""
+            if device_info:
+                self._app.tray.set_state(
+                    AppState.IDLE,
+                    i18n.t(
+                        "state.model_manager.ready_whisper",
+                        device_info=device_info,
+                    ),
+                )
+                return
+        self._app.tray.set_state(
+            AppState.IDLE,
+            i18n.t("state.ready"),
+        )
 
     def load_background(self) -> None:
         """Background worker: create + load the transcription engine."""

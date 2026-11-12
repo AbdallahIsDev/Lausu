@@ -31,6 +31,8 @@ def _canonical_modifier(alias: str) -> str:
 
 MODIFIER_ALIASES: dict[str, str] = {alias: _canonical_modifier(alias) for alias in _RESERVED_DATA["modifiers"]}
 KEY_ALIASES: dict[str, str] = dict(_RESERVED_DATA["key_aliases"])
+# Tokens delivered by the mouse listener; the keyboard backends never see them.
+MOUSE_BUTTONS: frozenset[str] = frozenset(_RESERVED_DATA["mouse_buttons"])
 
 
 @dataclass(frozen=True)
@@ -93,6 +95,7 @@ def parse_hotkey(spec: str) -> HotkeySpec:
 __all__ = [
     "KEY_ALIASES",
     "MODIFIER_ALIASES",
+    "MOUSE_BUTTONS",
     "HotkeySpec",
     "parse_hotkey",
 ]

@@ -10,6 +10,7 @@ import {
 	screen,
 	waitFor,
 } from "@testing-library/react";
+import { getLiveByText } from "@/__tests__/helpers/liveDom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const renderWithProviders = (ui: React.ReactElement) =>
@@ -75,7 +76,6 @@ const MINIMAL_CONFIG: LausuConfig = {
 	qwen_model_path: null,
 	parakeet_model_path: null,
 	text_cleanup_enabled: true,
-	unsafe_paste_on_unknown_focus: false,
 	corrections_path: null,
 	log_transcriptions: false,
 	recording_mode: "toggle",
@@ -212,7 +212,9 @@ describe("R7-F8: Onboarding init effect uses cancelled-flag guard", () => {
 		};
 
 		try {
-			const { unmount } = render(<OnboardingPage onComplete={() => {}} />);
+			const { unmount } = renderWithProviders(
+				<OnboardingPage onComplete={() => {}} />,
+			);
 			unmount();
 			for (const resolve of pendingResolvers) {
 				resolve({ step: 0, total_steps: 6, step_name: "welcome" });
@@ -300,7 +302,7 @@ describe("R7-F10: Vocabulary + Templates, no dead ConfirmDialog", () => {
 
 		renderWithProviders(<VocabularyPage />);
 		await waitFor(() => {
-			expect(screen.getByText(t("vocabulary.addWord"))).toBeTruthy();
+			expect(getLiveByText(t("vocabulary.addWord"))).toBeTruthy();
 		});
 		expect(screen.queryByRole("alertdialog")).toBeNull();
 	});
@@ -314,7 +316,7 @@ describe("R7-F10: Vocabulary + Templates, no dead ConfirmDialog", () => {
 
 		renderWithProviders(<TemplatesPage />);
 		await waitFor(() => {
-			expect(screen.getByText(t("templates.addTemplate"))).toBeTruthy();
+			expect(getLiveByText(t("templates.addTemplate"))).toBeTruthy();
 		});
 		expect(screen.queryByRole("alertdialog")).toBeNull();
 	});
@@ -349,10 +351,10 @@ describe("R7-F11: Vocabulary + Templates, i18n placeholders", () => {
 
 		renderWithProviders(<VocabularyPage />);
 		await waitFor(() => {
-			expect(screen.getByText(t("vocabulary.addWord"))).toBeTruthy();
+			expect(getLiveByText(t("vocabulary.addWord"))).toBeTruthy();
 		});
 
-		fireEvent.click(screen.getByText(t("vocabulary.addWord")));
+		fireEvent.click(getLiveByText(t("vocabulary.addWord")));
 
 		const triggerInput = screen.getByLabelText(t("vocabulary.whatYouSay"), {
 			selector: "input",
@@ -386,10 +388,10 @@ describe("R7-F11: Vocabulary + Templates, i18n placeholders", () => {
 
 		renderWithProviders(<TemplatesPage />);
 		await waitFor(() => {
-			expect(screen.getByText(t("templates.addTemplate"))).toBeTruthy();
+			expect(getLiveByText(t("templates.addTemplate"))).toBeTruthy();
 		});
 
-		fireEvent.click(screen.getByText(t("templates.addTemplate")));
+		fireEvent.click(getLiveByText(t("templates.addTemplate")));
 		const dialogTrigger = (await screen.findByLabelText(
 			t("templates.triggerPhrase"),
 			{ selector: "input" },
@@ -680,9 +682,12 @@ describe("Settings.tsx, hub + section pages render model", () => {
 		// (48px: the wider card rhythm the Settings page uses, per the
 		// user's call on 2026-10-10 — it is deliberately looser than the
 		// 24px a data page's own `gap-6` shell gives its stacked blocks.)
-		const stack = Array.from(root?.children ?? []).find((el) =>
-			(el as HTMLElement).className.includes("gap-12"),
-		) as HTMLElement | undefined;
+		// Skullet reveals through panes, so the cards' stack is a descendant
+		// of the page root, not one of its direct children. Take the live
+		// copy: the outgoing ghost keeps its own inert stack during reveal.
+		const stack = Array.from(
+			root?.querySelectorAll<HTMLElement>(".flex-col.gap-12") ?? [],
+		).find((el) => el.closest("[inert]") === null);
 		expect(stack).toBeTruthy();
 		expect(stack?.className).toContain("flex-col");
 		expect(stack?.textContent).toContain("Troubleshooting");

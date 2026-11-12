@@ -1,4 +1,4 @@
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { Component } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,7 +23,7 @@ class Thrower extends Component<ThrowerProps> {
 	}
 }
 
-// Stub the i18n ``t()`` function so the Reset button's label resolves
+// Stub the i18n ``t()`` function so the Try Again button's label resolves
 // to the stable catalog key (no dependency on the full i18n catalog).
 vi.mock("@/i18n/i18n", () => ({
 	t: (key: string) => key,
@@ -39,24 +39,23 @@ afterEach(() => {
 });
 
 describe("ErrorBoundary, focus management on trigger", () => {
-	it("moves focus to the Reset settings button when a child throws", () => {
+	it("moves focus to the Try Again button when a child throws", () => {
 		shouldThrow = true;
 		render(
 			<ErrorBoundary>
 				<Thrower message="focus-test" />
 			</ErrorBoundary>,
 		);
-		// The Reset button is the primary recovery affordance and the
-		// first button in the recovery row. After the boundary commits
-		// the fallback UI, ``componentDidUpdate`` focuses it.
-		const resetBtn = document.querySelector(
-			'button[aria-describedby="error-boundary-reset-hint"]',
-		) as HTMLButtonElement | null;
-		expect(resetBtn).toBeTruthy();
-		expect(document.activeElement).toBe(resetBtn);
+		// Try Again is the primary recovery affordance and the first
+		// button in the recovery row; the boundary focuses it after the
+		// fallback UI commits.
+		const tryAgainBtn = screen.getByRole("button", {
+			name: "errorBoundary.tryAgain",
+		});
+		expect(document.activeElement).toBe(tryAgainBtn);
 	});
 
-	it("does NOT render a reset button when the boundary has not triggered", () => {
+	it("does NOT render a recovery button when the boundary has not triggered", () => {
 		// Render a non-throwing child, the boundary never enters the
 		// error state, so no fallback UI is rendered.
 		shouldThrow = false;
@@ -65,9 +64,8 @@ describe("ErrorBoundary, focus management on trigger", () => {
 				<Thrower message="never-thrown" />
 			</ErrorBoundary>,
 		);
-		const resetBtn = document.querySelector(
-			'button[aria-describedby="error-boundary-reset-hint"]',
-		);
-		expect(resetBtn).toBeNull();
+		expect(
+			screen.queryByRole("button", { name: "errorBoundary.tryAgain" }),
+		).toBeNull();
 	});
 });

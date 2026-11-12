@@ -5,32 +5,7 @@ import type * as React from "react";
 import { useRef } from "react";
 import { cn } from "#utils";
 import { t } from "@/i18n/i18n";
-
-// Sonner renders the toaster as a portaled <section data-sonner-toaster>
-// on <body>, carrying the `toaster group` classes (see components/ui/sonner.tsx)
-// that scope every toaster rule in index.css. Used below to recognise a
-// pointerdown that belongs to a notification rather than to the backdrop.
-const TOASTER_SELECTOR = "[data-sonner-toaster]";
-
-/**
- * True when the pointerdown landed inside the Sonner toaster.
- *
- * Why this exists: Radix's modal DismissableLayer locks the page with
- * `document.body.style.pointerEvents = "none"` while a Dialog is open, and
- * sonner's stylesheet never opts the toaster back in. index.css re-enables
- * pointer events on `.toaster` so the click actually reaches the toast; this
- * guard is the other half — without it Radix would still read that same
- * interaction as POINTER_DOWN_OUTSIDE and dismiss the dialog, so the user's
- * first click on a notification would be spent closing the modal. Note the
- * toaster lives outside the dialog's React tree (its own portal target is
- * <body>), so Radix's `DismissableLayerBranch` escape hatch cannot be used
- * here — DismissableLayerContext is a module-level default with no provider
- * reachable from that portal.
- */
-function isToasterTarget(target: EventTarget | null): boolean {
-	if (!(target instanceof Node)) return false;
-	return document.querySelector(TOASTER_SELECTOR)?.contains(target) ?? false;
-}
+import { isToasterTarget } from "@/lib/toaster-target";
 
 function Dialog({
 	...props

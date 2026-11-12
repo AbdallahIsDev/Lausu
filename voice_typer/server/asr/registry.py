@@ -145,7 +145,10 @@ class RegistryCore:
                 whisper = self._backends.get("whisper")
                 if whisper is not None and self._is_ready(whisper):
                     if name != "whisper":
-                        log.info("[ASR_REGISTRY] %s backend not ready, falling back to whisper", name)
+                        log.debug(
+                            "[ASR_REGISTRY] %s not loaded yet; whisper still loaded (probe during load)",
+                            name,
+                        )
                     self._breaker.clear_last_resort_notified()
                     return whisper
 
@@ -239,14 +242,11 @@ class RegistryCore:
             time.sleep(min(2.0, remaining))
 
     def _try_system_whisper_fallback(self) -> AsrBackend | None:
-        """Serve whisper from the worker or system libraries when the pack is absent.
+        """Serve whisper from worker/system libraries when the pack is absent.
 
-        Tries the pack worker first (its cached model needs no in-process
-        load), then the system-library loader. Registers the winning engine
-        under ``"whisper"`` (replacing the worker shim) so every downstream
-        consumer keeps working unchanged. Returns ``None`` when neither
-        source can serve; the caller then propagates the original
-        pack-missing refusal.
+        Worker first (cached model, no in-process load), then the
+        system-library loader; the winner replaces the worker shim; ``None``
+        propagates the refusal.
         """
         engine: AsrBackend | None
         try:
@@ -315,6 +315,9 @@ class RegistryCore:
             with self._lock:
                 backend = self._backends.get(name)
             if backend is not None:
+                worker_engine = cast("AsrBackendRegistry", self)._try_worker_backend_fallback(name)
+                if worker_engine is not None:
+                    return worker_engine
                 try:
                     if self._attempt_load(backend, name, _cb, record_breaker=True):
                         log.info("[ASR_REGISTRY] loaded backend: %s", name)

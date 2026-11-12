@@ -342,17 +342,17 @@ class LifecycleMixin:
         self._relaunch_ack_event.set()
         return None
 
-    def wait_for_relaunch_ack(self, timeout: float) -> bool:
+    def wait_for_relaunch_ack(self, timeout: float, *, clear_first: bool = True) -> bool:
         """Wait for the predecessor's ``relaunch_ack`` signal (PERF-005).
 
         Public wrapper around the private ``_relaunch_ack_event`` so
         :class:`voice_typer.server.app.lausuApp` does not have to
         reach into IPC-server private state during ``restart_app``.
 
-        The event is cleared before waiting so a stale ack from a prior
-        restart cycle cannot satisfy a fresh one. Returns ``True`` if the
-        ack was signalled within ``timeout`` seconds, ``False`` on
-        timeout.
+        The event is cleared before waiting by default so a stale ack
+        from a prior restart cycle cannot satisfy a fresh one; the
+        restart path clears BEFORE publishing and passes
+        ``clear_first=False`` so a fast ack is not wiped by the wait.
 
         Parameters
         ----------
@@ -360,7 +360,8 @@ class LifecycleMixin:
             Maximum seconds to wait for the ack (mirrors the original
             ``2.0`` hardcoded value used by ``restart_app``).
         """
-        self._relaunch_ack_event.clear()
+        if clear_first:
+            self._relaunch_ack_event.clear()
         return self._relaunch_ack_event.wait(timeout=timeout)
 
     def _hook_tray_set_state(self) -> None:
