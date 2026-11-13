@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="en" data-type="software" data-radius="soft" data-ground="sky" data-buttons="solid" data-motion>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lausu — Offline voice-to-text for your desktop</title>
+<meta name="description" content="Hold Caps Lock, speak, release. Lausu transcribes voice offline on Windows, macOS, and Linux in 25+ languages via local ONNX weights and nine-pass cleanup.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Lausu — Offline voice-to-text for your desktop">
+<meta property="og:description" content="Local ONNX speech recognition, nine-pass text cleanup, and searchable SQLite history for Windows, macOS, and Linux. Free and MIT licensed.">
+<meta property="og:image" content="share.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#f8f9fb">
+<!-- <link rel="canonical" href="https://lausu.example/"> -->
+<meta name="site-kind" content="software">
+<meta name="page-type" content="software">
+<link rel="preload" href="fonts/chivo.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/chivo-mono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/system.css">
+<link rel="stylesheet" href="assets/ui/cards.css">
+<link rel="stylesheet" href="assets/motion/motion.css">
+<link rel="stylesheet" href="assets/backgrounds/backgrounds.css">
+<link rel="stylesheet" href="assets/layout/layout.css">
+<link rel="stylesheet" href="assets/icons/icon.css">
+<style>
+  @font-face {
+    font-family: "Chivo";
+    src: url("fonts/chivo.woff2") format("woff2");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "Chivo Mono";
+    src: url("fonts/chivo-mono.woff2") format("woff2");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+  }
+  :root {
+    --p-bg: #f8f9fb; --p-surface: #eef1f6; --p-ink: #131313; --p-muted: #4a4d55;
+    --p-accent: #1447e6; --p-accent-ink: #f8f9fb; --p-action: #1447e6; --p-action-ink: #f8f9fb;
+    --p-inv-bg: #131313; --p-inv-surface: #202020; --p-inv-ink: #f8f9fb; --p-inv-muted: #979899;
+    --p-inv-accent: #f8f9fb; --p-inv-accent-ink: #131313; --p-inv-action: #f8f9fb; --p-inv-action-ink: #131313;
+    --font-display: "Chivo", system-ui, sans-serif;
+    --font-text: "Chivo", system-ui, sans-serif;
+    --font-mono: "Chivo Mono", ui-monospace, monospace;
+    --display-weight: 400;
+    --display-tracking: -0.03em;
+    --display-tracking-xl: -0.04em;
+    --ly-scale: 0.96;
+  }
+</style>
+<link rel="stylesheet" href="assets/ui/base.css">
+<link rel="stylesheet" href="assets/ui/voice/fragment.css">
+<link rel="stylesheet" href="assets/ui/window/fragment.css">
+<link rel="stylesheet" href="assets/ui/doc/fragment.css">
+<link rel="stylesheet" href="assets/ui/chat/fragment.css">
+<link rel="stylesheet" href="assets/ui/files/fragment.css">
+<link rel="stylesheet" href="assets/ui/toggles/fragment.css">
+<link rel="stylesheet" href="assets/ui/terminal-run/fragment.css">
+<link rel="stylesheet" href="assets/ui/checklist/fragment.css">
+<link rel="stylesheet" href="assets/ui/search/fragment.css">
+<link rel="stylesheet" href="assets/ui/integrations/fragment.css">
+<link rel="stylesheet" href="assets/ui/notify/fragment.css">
+<link rel="stylesheet" href="assets/diagrams/diagram.css">
+<link rel="stylesheet" href="assets/moments/counter-rolls/moment.css">
+<script>document.documentElement.classList.add('m-enter');setTimeout(()=>document.documentElement.classList.add('m-enter-done'),700)</script>
+<script src="assets/backgrounds/backgrounds.js"></script>
+<script>document.documentElement.classList.add('mo-js');setTimeout(()=>document.documentElement.classList.add('mo-safe'),2500)</script>
+<link rel="modulepreload" href="assets/moments/moments.js">
+<link rel="modulepreload" href="assets/moments/lib.js">
+<link rel="modulepreload" href="assets/moments/counter-rolls/moment.js">
+<style>
+  /* Diagrams held at rest: zero scroll-in transitions */
+  .dg[data-dg-still], .dg[data-dg-still] * {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  /* Lit sky ground on frames holding UI mocks */
+  #models .tab-stage,
+  #numbers .bench-frame {
+    background-color: var(--ground-bg);
+    background-image:
+      radial-gradient(70% 90% at 12% 0%, color-mix(in oklab, var(--ground-surface) 92%, white), transparent 70%),
+      radial-gradient(80% 80% at 88% 100%, color-mix(in oklab, var(--ground-accent) 18%, var(--ground-bg)), transparent 75%);
+    border: 1px solid var(--line);
+  }
+  #features .ui-files {
+    background: var(--u-bg, #fff);
+    border: 1px solid var(--u-border, var(--line));
+    border-radius: var(--u-r, var(--r-md));
+    padding: var(--s-4);
+  }
+  /* Match active tab pill to the primary action colour */
+  .tab[aria-selected="true"] { background: var(--action); color: var(--action-ink); border-color: var(--action); }
+  html:not([data-motion="off"]) .tabs.m-has-ind .tab[aria-selected="true"] { background: transparent; border-color: transparent; color: var(--action-ink); }
+  .m-tab-ind { background: var(--action); }
+
+  @media (max-width: 1023px) {
+    .nav__toggle { background: var(--surface); border-color: var(--line-strong); }
+  }
+
+  /* Hero visual stage */
+  .hero--split .hero__media {
+    background: var(--ground-bg);
+    border: 1px solid var(--line);
+  }
+
+  /* App-frame recipe (sections-library.md): list pane + open note pane */
+  .app.ui {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    margin-top: var(--s-6);
+    overflow: hidden;
+    background: var(--u-bg, #fff);
+    border: 1px solid var(--u-border, var(--line));
+    border-radius: var(--u-r, var(--r-lg));
+    box-shadow: var(--u-shadow, none);
+  }
+  .app > .app__pane { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+  .app > .app__pane + .app__pane { border-left: 1px solid var(--u-line, var(--line)); }
+  .app > .app__pane > .ui-panel,
+  .app > .app__pane > .ui-doc { width: 100%; border: 0; border-radius: 0; box-shadow: none; }
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    .app.ui { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); }
+  }
+  @media (max-width: 1023px) {
+    .app.ui { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); min-height: 560px; }
+    .app > .app__pane--list { max-height: 248px; }
+    .app > .app__pane--list::after { display: none; }
+    .app .ui-win__side { display: none; }
+    .app .ui-win__body { grid-template-columns: minmax(0, 1fr); }
+    .app > .app__pane + .app__pane { border-left: 0; border-top: 1px solid var(--u-line, var(--line)); }
+  }
+  @media (max-width: 639px) {
+    .app.ui { grid-template-rows: minmax(0, 1fr); min-height: 440px; }
+    .app > .app__pane--list { display: none; }
+    .app > .app__pane + .app__pane { border-top: 0; }
+  }
+
+  /* Feature 2x2 in two .group rows: each row fills its screen cleanly */
+  #features .panel { --p-h: 280px; margin-top: var(--s-5); }
+  .panel:has(> .dg),
+  .frame:has(> .dg) {
+    background: var(--bg) !important;
+    background-image: none !important;
+    border: 1px solid var(--line);
+  }
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    #features .section-head { margin-bottom: var(--s-5); }
+    #features .card { --c-pad: 22px; }
+    #features .panel { --p-h: 196px; margin-top: var(--s-4); }
+  }
+  @media (min-width: 640px) and (max-width: 1023px) {
+    #features .panel { --p-h: 220px; }
+  }
+  @media (max-width: 639px) {
+    #features .section-head { margin-bottom: var(--s-4); }
+    #features .card { --c-pad: 15px; }
+    #features .panel { --p-h: 154px; margin-top: var(--s-3); }
+    #features .panel:has(> .dg) { min-height: 154px; }
+    #features .ui-files { padding: var(--s-2) var(--s-3); }
+    #features .ui-notify__list > li:nth-child(n+3),
+    #features .ui-toggles__list > li:nth-child(n+3),
+    #features .ui-files__grid > li:nth-child(n+3),
+    #features .ui-chat .ui-head { display: none; }
+  }
+
+  /* Models tabs & Privacy split frame: fill vertical screen rhythm */
+  #models .tabs { margin-top: var(--s-5); }
+  #models .tab-stage { min-height: 620px; }
+  #privacy .frame--split { min-height: 620px; }
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    #models .tab-stage { min-height: 520px; }
+    #privacy .frame--split { min-height: 520px; }
+  }
+  @media (min-width: 640px) and (max-width: 1023px) {
+    #models .tab-stage { min-height: 400px; margin-top: var(--s-5); }
+    #privacy .frame--split { min-height: 400px; margin-top: var(--s-5); }
+  }
+  @media (max-width: 639px) {
+    #models .tab-stage { min-height: 300px; margin-top: var(--s-5); }
+    #privacy .frame--split { min-height: 320px; margin-top: var(--s-5); }
+  }
+
+  /* Numbers section: borderless stats row + real benchmark terminal frame */
+  #numbers .stats { margin-top: var(--s-4); }
+  #numbers .stats .t-stat {
+    font-size: clamp(28px, 3.2vw, 46px);
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+  #numbers .bench-frame {
+    margin-top: var(--s-6);
+    min-height: 360px;
+  }
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    #numbers .bench-frame { min-height: 300px; }
+  }
+  @media (max-width: 639px) {
+    #numbers .bench-frame { min-height: 270px; margin-top: var(--s-5); }
+  }
+
+  /* Platform download cards: solid UI surface inside lit panel */
+  #downloads .card__link { margin-bottom: var(--s-5); }
+  #downloads .panel { --p-h: 248px; }
+  .os-card {
+    display: grid;
+    gap: var(--s-2);
+    padding: var(--s-4) var(--s-5);
+    width: calc(100% - 48px);
+    max-width: 300px;
+  }
+  .os-card__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+  }
+  .os-card__top img { width: 32px; height: 32px; }
+  .os-card__arch {
+    font: 500 12px/1 var(--font-mono);
+    padding: 5px 8px;
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .os-card__meta {
+    font: 500 13px/1.4 var(--font-mono);
+    color: var(--ink);
+  }
+  .os-card__req {
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--muted);
+  }
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    #downloads .panel { --p-h: 136px; }
+    .os-card__req { display: none; }
+  }
+  @media (min-width: 640px) and (max-width: 1023px) {
+    #downloads .panel { --p-h: 148px; }
+    .os-card__req { display: none; }
+  }
+  @media (max-width: 639px) {
+    #downloads .section-head { margin-bottom: var(--s-4); }
+    #downloads .grid { row-gap: var(--s-3); }
+    #downloads .card { --c-pad: 14px; }
+    #downloads .card > p { font-size: 15px; line-height: 21px; }
+    #downloads .card__link { margin-top: 8px; margin-bottom: var(--s-2); }
+    #downloads .panel { --p-h: 88px; }
+    .os-card { width: calc(100% - 28px); padding: var(--s-2) var(--s-3); gap: 4px; }
+    .os-card__top img { width: 22px; height: 22px; }
+    .os-card__req { display: none; }
+  }
+
+  /* FAQ split: questions left, provider visual right */
+  #faq .faq { margin-top: var(--s-5); }
+  #faq .faq-visual { min-height: 600px; }
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    #faq .faq-visual { min-height: 500px; }
+  }
+  @media (max-width: 1023px) {
+    #faq .faq-visual { min-height: 360px; margin-top: var(--s-5); }
+  }
+  @media (max-width: 639px) {
+    #faq .faq-visual { min-height: 320px; margin-top: var(--s-5); }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav__bar">
+    <a class="skip-link" href="#top">Skip to content</a>
+    <a class="nav__logo" href="#top">
+      <img class="mark" src="favicon.svg" alt="" width="24" height="24">
+      Lausu
+    </a>
+    <nav class="nav__links" aria-label="Main">
+      <div class="nav__item"><a class="nav__link" href="#workspace">Every dictation</a></div>
+      <div class="nav__item"><a class="nav__link" href="#features">Four voice tools</a></div>
+      <div class="nav__item"><a class="nav__link" href="#models">3 speech model families</a></div>
+      <div class="nav__item"><a class="nav__link" href="#privacy">Local privacy</a></div>
+      <div class="nav__item"><a class="nav__link" href="#downloads">Lausu 1.0 downloads</a></div>
+    </nav>
+    <div class="nav__actions">
+      <a class="nav__link" href="https://github.com/AbdallahIsDev/lausu" target="_blank" rel="noopener">GitHub</a>
+      <a class="btn btn--primary" href="#downloads">Download Lausu</a>
+    </div>
+    <button class="nav__toggle" type="button" data-nav-toggle aria-expanded="false" aria-label="Menu">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M2.5 5.5h13M2.5 12.5h13"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- 1. HERO: hero--split (dealt) + fluted-glass (WebGL 1) + centred voice fragment -->
+  <section class="hero hero--split" data-enter>
+    <div class="wrap">
+      <div class="hero-text grid">
+        <div class="hero__text span-5">
+          <p class="hero__kicker"><span class="dot" aria-hidden="true"></span> v1.0 · MIT · Windows, macOS &amp; Linux</p>
+          <h1>Offline voice-to-text for your desktop</h1>
+          <p class="hero__lead muted">Hold Caps Lock, speak, and release. Lausu transcribes on your CPU via local ONNX weights, cleans fillers in nine passes, and pastes clean text anywhere.</p>
+          <div class="btn-row">
+            <a class="btn btn--primary" href="#downloads">Download Lausu<svg class="m-arrow" viewBox="0 0 12 12" aria-hidden="true"><path class="m-arrow__stem" d="M1 6h8"/><path class="m-arrow__head" d="M4.5 2.5 8 6l-3.5 3.5"/></svg></a>
+            <a class="btn btn--secondary" href="https://github.com/AbdallahIsDev/lausu" target="_blank" rel="noopener">View source on GitHub</a>
+          </div>
+        </div>
+        <div class="hero__media span-6 start-7" data-fx="fluted-glass" data-fx-opts='{"flutes":38,"frost":0.06,"refract":0.06,"bevel":0.08,"chroma":0.004,"speed":0.35,"tint":"#d6e0e9"}'>
+          <div class="stage">
+            <div class="at-center" style="--w:420px">
+              <div class="ui ui-panel ui-voice" data-ui="voice">
+                <div class="ui-voice__top">
+                  <span class="ui-chip ui-chip--live"><span class="ui-dot"></span> Caps Lock · Recording</span>
+                  <span class="ui-voice__time">00:18</span>
+                </div>
+                <div class="ui-voice__wave" data-voice-wave aria-hidden="true"></div>
+                <div class="ui-voice__cap" data-voice-cap>Ship the Tauri build after SQLite migrations pass on Ubuntu and Windows.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. APP FRAME (1H): Searchable SQLite history (window) + cleaned Markdown note (doc) -->
+  <section class="section ground-surface" id="workspace" aria-labelledby="workspace-h">
+    <div class="wrap">
+      <div class="section-head max-copy">
+        <h2 id="workspace-h">Every dictation, cleaned and searchable</h2>
+        <p class="muted">Lausu stores transcripts locally in SQLite for 90&nbsp;days with instant full-text search, custom technical vocabulary, and one-click Markdown or JSON export.</p>
+      </div>
+      <div class="ui app fill" role="img" aria-label="Lausu SQLite dictation history beside an open cleaned transcript" data-ui-pause-host>
+        <div class="app__pane app__pane--list">
+          <div class="ui ui-panel ui-win" data-ui="window" data-ui-still data-open="Cleaned" data-work="Media" data-done="Exported">
+            <div class="ui-win__bar">
+              <span class="ui-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="ui-win__crumb">History <i>/</i> <b>90&nbsp;days</b></span>
+              <span class="ui-spacer"></span>
+              <span class="ui-win__search" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><span class="ui-win__ph">Search</span><span class="ui-kbd">/</span></span>
+            </div>
+            <div class="ui-win__body">
+              <nav class="ui-win__side" aria-hidden="true">
+                <span class="ui-win__nav is-on">Today<em>14</em></span>
+                <span class="ui-win__nav">Pinned<em>4</em></span>
+                <span class="ui-win__nav">Media<em>3</em></span>
+                <span class="ui-win__label">Dictionaries</span>
+                <span class="ui-win__nav"><span class="ui-win__hash">#</span>Rust</span>
+                <span class="ui-win__nav"><span class="ui-win__hash">#</span>Specs</span>
+              </nav>
+              <div class="ui-win__main">
+                <div class="ui-win__cols" aria-hidden="true"><span>App</span><span>Transcript</span><span>Status</span><span>Age</span></div>
+                <ul class="ui-win__rows">
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="1">VS</span><span class="ui-win__who">VS Code</span><span class="ui-win__sub">ONNX sidecar release checklist</span><span class="ui-win__st is-done" data-st>Cleaned</span><span class="ui-win__age">2m</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="3">SL</span><span class="ui-win__who">Slack</span><span class="ui-win__sub">Wayland clipboard restore fix</span><span class="ui-win__st is-done" data-st>Cleaned</span><span class="ui-win__age">9m</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="4">NT</span><span class="ui-win__who">Notion</span><span class="ui-win__sub">SQLite retention architecture</span><span class="ui-win__st" data-st>Exported</span><span class="ui-win__age">18m</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="2">GH</span><span class="ui-win__who">GitHub</span><span class="ui-win__sub">Parakeet Ultra int8 benchmark</span><span class="ui-win__st is-done" data-st>Cleaned</span><span class="ui-win__age">34m</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="5">AU</span><span class="ui-win__who">Media</span><span class="ui-win__sub">Customer interview · 42m WAV</span><span class="ui-win__st is-you" data-st>Whisper</span><span class="ui-win__age">1h</span></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="app__pane app__pane--open">
+          <div class="ui ui-doc" data-ui="doc" data-ui-still>
+            <article class="ui-doc__page">
+              <div class="ui-doc__label">VS Code · Parakeet Ultra · 9-pass cleanup (14&nbsp;ms)</div>
+              <div class="ui-doc__title">ONNX sidecar release checklist</div>
+              <div class="ui-doc__text">Verify that the bundled <mark class="ui-doc__mark is-on">onnxruntime int8</mark> worker boots in under 400&nbsp;ms on cold start without loading PyTorch or opening external sockets.</div>
+              <div class="ui-doc__text">Custom vocabulary matched <b>Parakeet Ultra</b>, <b>SQLite</b>, and <b>Tauri v2</b> across six active domain dictionaries before pasting into the active editor.</div>
+              <div class="ui-doc__text">Spoken self-corrections like “ship Monday, scratch that, Tuesday” resolved deterministically to <b>ship Tuesday</b> with punctuation and list formatting intact.</div>
+              <div class="ui-doc__text">Raw PCM audio buffers are dropped as soon as transcription finishes; export any history entry to Markdown, JSON, or plain text.</div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. FEATURES 2x2 (2H): Two .group children so Screen 1 and Screen 2 each fill their screen -->
+  <section class="section g2" id="features" aria-labelledby="features-h">
+    <div class="wrap">
+      <div class="group">
+        <div class="section-head max-copy">
+          <h2 id="features-h">Four voice tools in one tray app</h2>
+          <p class="muted">Lausu pairs push-to-talk dictation with local voice chat, drag-and-drop media transcription, deterministic nine-pass cleanup, and per-feature network gates.</p>
+        </div>
+        <div class="grid">
+          <article class="card card--row span-6">
+            <h3>Local voice chat</h3>
+            <p>Ask questions aloud via Ollama or your own key and hear spoken replies offline through Kokoro, KittenTTS, or Piper.</p>
+            <div class="panel" data-fx="painterly-landscape" data-fx-opts='{"drift":0,"sun":0.22,"haze":0.28,"brush":0.35,"relief":0.38}'>
+              <div class="stage">
+                <div class="at-center" style="--w:420px">
+                  <div class="ui ui-panel ui-chat" data-ui="chat" data-ui-still>
+                    <div class="ui-head">
+                      <span class="ui-agent" aria-hidden="true"></span>
+                      <div class="ui-title">Lausu Voice</div>
+                      <span class="ui-chat__online">Kokoro 82M</span>
+                    </div>
+                    <div class="ui-chat__body">
+                      <div class="ui-msg ui-msg--me" data-chat-q>
+                        <span class="ui-msg__text">Summarize today’s standup notes.</span>
+                      </div>
+                      <div class="ui-msg ui-msg--bot" data-chat-a>
+                        <span class="ui-agent ui-msg__av" aria-hidden="true"></span>
+                        <span class="ui-msg__col">
+                          <span class="ui-chat__answer">Tag <b>v1.0.0</b> after local ONNX tests pass.</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card card--row span-6">
+            <h3>Batch dictation for media files</h3>
+            <p>Drop WAV, MP3, M4A, or MP4 recordings or paste a media link through yt-dlp to export clean Markdown or JSON.</p>
+            <div class="panel" data-fx="painterly-landscape" data-fx-opts='{"drift":0,"sun":0.58,"haze":0.32,"brush":0.35,"relief":0.34}'>
+              <div class="stage">
+                <div class="at-center" style="--w:440px">
+                  <div class="ui ui-panel ui-files" data-ui="files" data-ui-still>
+                    <div class="ui-files__status"><span class="ui-dot"></span><span data-files-status>4 media transcripts exported</span></div>
+                    <ul class="ui-files__grid">
+                      <li class="ui-file is-done">
+                        <span class="ui-file__icon"><img src="assets/icons/audio.svg" alt="" width="24" height="24" loading="lazy" decoding="async"></span>
+                        <span class="ui-file__name">standup-apr.wav</span>
+                        <span class="ui-file__kind">WAV · 14m</span>
+                        <span class="ui-file__bar"><i></i></span>
+                        <span class="ui-file__check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 8.2 2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                      </li>
+                      <li class="ui-file is-done">
+                        <span class="ui-file__icon"><img src="assets/icons/md.svg" alt="" width="24" height="24" loading="lazy" decoding="async"></span>
+                        <span class="ui-file__name">design-review.md</span>
+                        <span class="ui-file__kind">Markdown</span>
+                        <span class="ui-file__bar"><i></i></span>
+                        <span class="ui-file__check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 8.2 2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                      </li>
+                      <li class="ui-file is-done">
+                        <span class="ui-file__icon"><img src="assets/icons/json.svg" alt="" width="24" height="24" loading="lazy" decoding="async"></span>
+                        <span class="ui-file__name">segments.json</span>
+                        <span class="ui-file__kind">Timestamps</span>
+                        <span class="ui-file__bar"><i></i></span>
+                        <span class="ui-file__check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 8.2 2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                      </li>
+                      <li class="ui-file is-done">
+                        <span class="ui-file__icon"><img src="assets/icons/txt.svg" alt="" width="24" height="24" loading="lazy" decoding="async"></span>
+                        <span class="ui-file__name">keynote-clean.txt</span>
+                        <span class="ui-file__kind">Plain text</span>
+                        <span class="ui-file__bar"><i></i></span>
+                        <span class="ui-file__check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 8.2 2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="grid">
+          <article class="card card--row span-6">
+            <h3>9-pass dictation cleanup</h3>
+            <p>Spoken fillers, stutters, self-corrections, numbers, and punctuation are repaired locally before text hits your cursor.</p>
+            <div class="panel">
+              <div class="stage">
+                <div class="at-center" style="--w:420px">
+                  <div class="ui ui-notify" data-ui="notify" data-ui-still>
+                    <ul class="ui-notify__list" data-notify-list>
+                      <li class="ui-note"><span class="ui-note__ico"><svg class="ui-icon" viewBox="0 0 16 16"><path d="m3.5 8.4 2.8 2.8 6.2-6.4"/></svg></span><span class="ui-note__text"><span class="ui-note__title">Self-correction<time>4&nbsp;ms</time></span><span class="ui-note__body">“Monday, scratch that, Tuesday” to Tuesday</span></span></li>
+                      <li class="ui-note"><span class="ui-avatar ui-note__av" data-tone="3">9P</span><span class="ui-note__text"><span class="ui-note__title">Vocab matched<time>9&nbsp;ms</time></span><span class="ui-note__body">Parakeet Ultra, SQLite, Tauri v2</span></span></li>
+                      <li class="ui-note"><span class="ui-avatar ui-note__av" data-tone="1">FM</span><span class="ui-note__text"><span class="ui-note__title">Spoken formatting<time>14&nbsp;ms</time></span><span class="ui-note__body">Punctuation, numbers, and bullet lists</span></span></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card card--row span-6">
+            <h3>Privacy switches per feature</h3>
+            <p>Telemetry does not exist. Optional cloud rewrite and transcription stay locked behind separate switches and your OS keyring.</p>
+            <div class="panel">
+              <div class="stage">
+                <div class="at-center" style="--w:400px">
+                  <div class="ui ui-panel ui-toggles" data-ui="toggles" data-ui-still>
+                    <ul class="ui-toggles__list">
+                      <li class="ui-tg"><span class="ui-tg__text"><span class="ui-tg__label">Offline ONNX engine</span><span class="ui-tg__sub">Audio stays in RAM</span></span><button class="ui-switch is-on" type="button" role="switch" aria-checked="true" aria-label="Offline ONNX engine"></button></li>
+                      <li class="ui-tg"><span class="ui-tg__text"><span class="ui-tg__label">OS keyring vault</span><span class="ui-tg__sub">Credential Manager &amp; Keychain</span></span><button class="ui-switch is-on" type="button" role="switch" aria-checked="true" aria-label="OS keyring vault"></button></li>
+                      <li class="ui-tg"><span class="ui-tg__text"><span class="ui-tg__label">Cloud audio upload</span><span class="ui-tg__sub">Disabled by default</span></span><button class="ui-switch" type="button" role="switch" aria-checked="false" aria-label="Cloud audio upload"></button></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. MODELS TABS (1H): Three local ONNX ASR model families -->
+  <section class="section ground-surface" id="models" aria-labelledby="models-h">
+    <div class="wrap grid">
+      <div class="span-5">
+        <h2 id="models-h">3 speech model families for your CPU</h2>
+        <p class="muted">Download quantized int8 ONNX models inside the app with automatic SHA-256 verification. Switch between ultra-light 75&nbsp;MB Whisper, 25-language Parakeet Ultra, or Qwen3-ASR.</p>
+        <div class="tabs" role="tablist" aria-label="Speech recognition engines">
+          <button class="tab" type="button" role="tab" id="tab-btn-1" aria-selected="true" aria-controls="tab-1">Parakeet</button>
+          <button class="tab" type="button" role="tab" id="tab-btn-2" aria-selected="false" aria-controls="tab-2" tabindex="-1">Whisper</button>
+          <button class="tab" type="button" role="tab" id="tab-btn-3" aria-selected="false" aria-controls="tab-3" tabindex="-1">Qwen3</button>
+        </div>
+        <div class="stack" style="--gap: var(--s-3); margin-top: var(--s-6)">
+          <p class="t-small muted">Runs on standard x64 and Apple Silicon CPUs with zero CUDA or PyTorch dependency.</p>
+          <p><a class="link" href="#numbers">See CPU benchmarks</a></p>
+        </div>
+      </div>
+      <div class="span-6 start-7">
+        <div id="tab-1" role="tabpanel" aria-labelledby="tab-btn-1">
+          <div class="panel tab-stage" style="border-radius: var(--r-lg)">
+            <div class="stage" id="screen-1">
+              <div class="at-center" style="--w:540px">
+                <div class="ui ui-panel ui-search" data-ui="search" data-ui-still>
+                  <div class="ui-search__bar"><span class="ui-search__q" data-search-q>onnx int8</span><span class="ui-kbd">SHA-256</span></div>
+                  <ul class="ui-search__list">
+                    <li class="ui-search__row is-on"><span class="ui-search__t"><b>Parakeet</b> Ultra 0.6B</span><span class="ui-meta">670&nbsp;MB · 5.8% WER</span></li>
+                    <li class="ui-search__row"><span class="ui-search__t">Whisper <b>turbo</b> · local</span><span class="ui-meta">1.6&nbsp;GB · 5.5% WER</span></li>
+                    <li class="ui-search__row"><span class="ui-search__t">Qwen3-ASR 0.6B · <b>local</b></span><span class="ui-meta">600&nbsp;MB · 52 langs</span></li>
+                    <li class="ui-search__row"><span class="ui-search__t">Qwen3-ASR 1.7B · <b>local</b></span><span class="ui-meta">1.7&nbsp;GB · 52 langs</span></li>
+                    <li class="ui-search__row"><span class="ui-search__t">Whisper small · <b>local</b></span><span class="ui-meta">466&nbsp;MB · 99 langs</span></li>
+                    <li class="ui-search__row"><span class="ui-search__t">Whisper tiny · <b>local</b></span><span class="ui-meta">75&nbsp;MB · 32x speed</span></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="tab-2" role="tabpanel" aria-labelledby="tab-btn-2" hidden>
+          <div class="panel tab-stage" style="border-radius: var(--r-lg)">
+            <div class="stage">
+              <div class="at-center" style="--w:540px">
+                <div class="ui ui-panel ui-checks" data-ui="checklist" data-ui-still>
+                  <div class="ui-checks__head">
+                    <div class="ui-title">Whisper ONNX tiers</div>
+                    <span class="ui-spacer"></span>
+                    <div class="ui-meta" data-checks-count>4 verified</div>
+                  </div>
+                  <div class="ui-checks__bar"><i data-checks-bar style="--k:1"></i></div>
+                  <ul class="ui-checks__list">
+                    <li class="ui-check is-done"><span class="ui-check__box"><svg viewBox="0 0 16 16"><path d="m4.5 8.2 2.3 2.3 4.7-5"/></svg></span><span class="ui-check__label">tiny · 75&nbsp;MB · 512&nbsp;MB RAM · 32x</span></li>
+                    <li class="ui-check is-done"><span class="ui-check__box"><svg viewBox="0 0 16 16"><path d="m4.5 8.2 2.3 2.3 4.7-5"/></svg></span><span class="ui-check__label">base · 142&nbsp;MB · everyday notes · 16x</span></li>
+                    <li class="ui-check is-done"><span class="ui-check__box"><svg viewBox="0 0 16 16"><path d="m4.5 8.2 2.3 2.3 4.7-5"/></svg></span><span class="ui-check__label">small · 466&nbsp;MB · 99 languages · 6x</span></li>
+                    <li class="ui-check is-done"><span class="ui-check__box"><svg viewBox="0 0 16 16"><path d="m4.5 8.2 2.3 2.3 4.7-5"/></svg></span><span class="ui-check__label">large-v3-turbo · 1,618&nbsp;MB · 5.5% WER</span></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="tab-3" role="tabpanel" aria-labelledby="tab-btn-3" hidden>
+          <div class="panel tab-stage" style="border-radius: var(--r-lg)">
+            <div class="stage">
+              <div class="at-center" style="--w:540px">
+                <div class="ui ui-panel ui-checks" data-ui="checklist" data-ui-still>
+                  <div class="ui-checks__head">
+                    <div class="ui-title">Qwen3-ASR int8 weights</div>
+                    <span class="ui-spacer"></span>
+                    <div class="ui-meta" data-checks-count>52 langs</div>
+                  </div>
+                  <div class="ui-checks__bar"><i data-checks-bar style="--k:1"></i></div>
+                  <ul class="ui-checks__list">
+                    <li class="ui-check is-done"><span class="ui-check__box"><svg viewBox="0 0 16 16"><path d="m4.5 8.2 2.3 2.3 4.7-5"/></svg></span><span class="ui-check__label">Qwen3-ASR 0.6B · ~600&nbsp;MB ONNX</span></li>
+                    <li class="ui-check is-done"><span class="ui-check__box"><svg viewBox="0 0 16 16"><path d="m4.5 8.2 2.3 2.3 4.7-5"/></svg></span><span class="ui-check__label">Qwen3-ASR 1.7B · ~1.7&nbsp;GB ONNX</span></li>
+                    <li class="ui-check is-done"><span class="ui-check__box"><svg viewBox="0 0 16 16"><path d="m4.5 8.2 2.3 2.3 4.7-5"/></svg></span><span class="ui-check__label">Code-switching &amp; regional accents</span></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. PRIVACY & LOCAL ARCHITECTURE (1H): Layered diagram on calm drawing board -->
+  <section class="section" id="privacy" aria-labelledby="privacy-h">
+    <div class="wrap grid">
+      <div class="span-5">
+        <h2 id="privacy-h">Local privacy architecture, zero telemetry</h2>
+        <p class="muted">Lausu splits a native Rust Tauri shell from an isolated local ONNX worker over loopback IPC. Audio buffers stay in memory, transcripts live in local SQLite, and provider keys never touch plaintext JSON.</p>
+        <ul class="checks" style="margin-top: var(--s-6)">
+          <li>Zero analytics SDKs, crash beacons, or background pings</li>
+          <li>Windows Credential Manager, macOS Keychain, and Linux Secret Service</li>
+          <li>Opt-in cloud providers gated by explicit consent toggles</li>
+        </ul>
+      </div>
+      <div class="frame frame--split span-6 start-7">
+        <div data-diagram data-dg-still>
+          <script type="application/json">
+          {
+            "layout": "tree",
+            "motion": { "pulse": "none" },
+            "alt": "Desktop architecture from Tauri Rust shell to local ONNX worker, SQLite database, Ollama, and encrypted OS keyring",
+            "root": {
+              "label": "Tauri v2",
+              "sub": "Rust shell",
+              "icon": "assets/icons/tauri.svg",
+              "children": [
+                {
+                  "label": "ONNX ASR",
+                  "sub": "Local sidecar",
+                  "icon": "assets/icons/python.svg",
+                  "children": [
+                    { "label": "SQLite", "icon": "assets/icons/file-sqlite.svg" },
+                    { "label": "Ollama", "icon": "assets/icons/ollama.svg" }
+                  ]
+                },
+                {
+                  "label": "OS Keyring",
+                  "sub": "Encrypted keys",
+                  "icon": "assets/icons/rust.svg",
+                  "children": [
+                    { "label": "OpenAI", "icon": "assets/icons/openai.svg" },
+                    { "label": "Claude", "icon": "assets/icons/claude.svg" }
+                  ]
+                }
+              ]
+            }
+          }
+          </script>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. NUMBERS & BENCHMARKS (1H): Dealt counter-rolls moment + ONNX terminal benchmark -->
+  <section class="section ground-surface" id="numbers" aria-labelledby="numbers-h">
+    <div class="wrap">
+      <div class="section-head max-copy">
+        <h2 id="numbers-h">4 benchmarks on CPU hardware</h2>
+        <p class="muted">Quantized int8 inference delivers low word-error rates on everyday laptops across English, Arabic, German, Japanese, Spanish, French, Chinese, and 20+ more languages.</p>
+      </div>
+      <dl class="stats" data-moment="counter-rolls" data-moment-opts='{"duration":1400}'>
+        <div><dt class="t-small muted">Smallest Whisper tiny download</dt><dd class="t-stat">75 MB</dd></div>
+        <div><dt class="t-small muted">English WER on Whisper turbo</dt><dd class="t-stat">5.5%</dd></div>
+        <div><dt class="t-small muted">Languages in Parakeet Ultra</dt><dd class="t-stat">25+</dd></div>
+        <div><dt class="t-small muted">Searchable SQLite retention</dt><dd class="t-stat">90d</dd></div>
+      </dl>
+      <div class="panel bench-frame fill" style="border-radius: var(--r-lg)">
+        <div class="stage">
+          <div class="at-center" style="--w:620px">
+            <div class="ui ui-panel ui-term" data-ui="terminal-run" data-ui-still>
+              <div class="ui-term__head">
+                <span class="ui-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span class="ui-term__title">lausu</span>
+                <span class="ui-meta">onnx</span>
+                <span class="ui-spacer"></span>
+                <span class="ui-chip ui-chip--plain ui-term__branch">v1.0</span>
+              </div>
+              <div class="ui-term__screen" data-term-screen>
+                <div class="ui-term__track" data-term-track>
+                  <div class="ui-term__ln ui-term__cmd"><span class="ui-term__cwd">~</span><span class="ui-term__sig">$</span><span class="ui-term__typed" data-term-cmd>lausu --check</span></div>
+                  <div class="ui-term__ln ui-term__log" data-term-out data-term-step><svg class="ui-term__tick" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 8.4 2.8 2.8 6.2-6.4"/></svg><span class="ui-term__path">parakeet-0.6b</span><span class="ui-term__n">25l</span><span class="ui-term__t">5.8%</span></div>
+                  <div class="ui-term__ln ui-term__log" data-term-out data-term-step><svg class="ui-term__tick" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 8.4 2.8 2.8 6.2-6.4"/></svg><span class="ui-term__path">whisper-turbo</span><span class="ui-term__n">99l</span><span class="ui-term__t">5.5%</span></div>
+                  <div class="ui-term__ln ui-term__log" data-term-out data-term-step><svg class="ui-term__tick" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 8.4 2.8 2.8 6.2-6.4"/></svg><span class="ui-term__path">qwen3-0.6b</span><span class="ui-term__n">52l</span><span class="ui-term__t">int8</span></div>
+                  <div class="ui-term__ln ui-term__done" data-term-out data-term-done><span class="ui-term__ok"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 8.3 2.4 2.4 4.6-5"/></svg></span><b>Ready</b><span class="ui-term__dim">offline CPU</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. PLATFORM DOWNLOADS (1H): Windows, macOS, and Linux installers -->
+  <section class="section" id="downloads" aria-labelledby="downloads-h">
+    <div class="wrap">
+      <div class="section-head max-copy">
+        <h2 id="downloads-h">Lausu 1.0 desktop downloads</h2>
+        <p class="muted">Free forever under the MIT License. Native installers bundle the Tauri shell and local ONNX runtime with no account required.</p>
+      </div>
+      <div class="grid">
+        <article class="card card--row span-4">
+          <h3>Lausu for Windows</h3>
+          <p>Native global Caps Lock hook, system tray overlay, and Windows Credential Manager keyring storage.</p>
+          <a class="card__link" href="https://github.com/AbdallahIsDev/lausu/releases" target="_blank" rel="noopener">Download Windows installer <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6h8M6.5 2.5 10 6l-3.5 3.5"/></svg></a>
+          <div class="panel">
+            <div class="stage">
+              <div class="at-center">
+                <div class="ui ui-panel os-card">
+                  <div class="os-card__top">
+                    <img src="assets/icons/windows.svg" alt="" width="32" height="32" loading="lazy" decoding="async">
+                    <span class="os-card__arch">x64</span>
+                  </div>
+                  <div class="os-card__meta">Lausu-Setup-1.0.0.exe · .msi</div>
+                  <div class="os-card__req">Windows 10 &amp; 11 · 512&nbsp;MB RAM</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card card--row span-4">
+          <h3>Lausu for macOS</h3>
+          <p>Menu bar dictation pill, CoreAudio noise suppression, and encrypted macOS Keychain credential vault.</p>
+          <a class="card__link" href="https://github.com/AbdallahIsDev/lausu/releases" target="_blank" rel="noopener">Download macOS disk image <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6h8M6.5 2.5 10 6l-3.5 3.5"/></svg></a>
+          <div class="panel">
+            <div class="stage">
+              <div class="at-center">
+                <div class="ui ui-panel os-card">
+                  <div class="os-card__top">
+                    <img src="assets/icons/apple.svg" alt="" width="32" height="32" loading="lazy" decoding="async">
+                    <span class="os-card__arch">Universal</span>
+                  </div>
+                  <div class="os-card__meta">Lausu-1.0.0-universal.dmg</div>
+                  <div class="os-card__req">macOS 13 Ventura+ · Apple Silicon</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card card--row span-4">
+          <h3>Lausu for Linux</h3>
+          <p>Works across X11 and Wayland desktops via wl-clipboard, xclip, wtype, and Secret Service.</p>
+          <a class="card__link" href="https://github.com/AbdallahIsDev/lausu/releases" target="_blank" rel="noopener">Download Linux packages <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6h8M6.5 2.5 10 6l-3.5 3.5"/></svg></a>
+          <div class="panel">
+            <div class="stage">
+              <div class="at-center">
+                <div class="ui ui-panel os-card">
+                  <div class="os-card__top">
+                    <img src="assets/icons/linux-tux.svg" alt="" width="32" height="32" loading="lazy" decoding="async">
+                    <span class="os-card__arch">x86_64</span>
+                  </div>
+                  <div class="os-card__meta">Lausu-1.0.0.AppImage · .deb</div>
+                  <div class="os-card__req">Ubuntu 22.04+ · X11 &amp; Wayland</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. FAQ (1H): Concise open answers (<85 words) left + real provider integrations right -->
+  <section class="section ground-surface" id="faq" aria-labelledby="faq-h">
+    <div class="wrap grid">
+      <div class="span-5">
+        <h2 id="faq-h">Dictation questions</h2>
+        <div class="faq">
+          <div class="faq__item">
+            <h3>Does Lausu need internet or a GPU?</h3>
+            <p>No. Dictation and nine-pass cleanup run offline on standard CPUs. Whisper tiny uses 512&nbsp;MB RAM; Parakeet Ultra uses 2&nbsp;GB RAM.</p>
+          </div>
+          <div class="faq__item">
+            <h3>Where do audio and API keys live?</h3>
+            <p>Audio stays in RAM and drops after transcription. History stays in local SQLite for 90&nbsp;days; optional keys stay in your OS keyring.</p>
+          </div>
+          <div class="faq__item">
+            <h3>Is Lausu free for commercial work?</h3>
+            <p>Yes. Lausu ships under the MIT License for Windows, macOS, and Linux (X11 &amp; Wayland) with zero subscriptions or telemetry.</p>
+          </div>
+        </div>
+      </div>
+      <div class="panel faq-visual span-6 start-7" style="border-radius: var(--r-lg)">
+        <div class="stage">
+          <div class="at-center" style="--w:420px">
+            <div class="ui ui-panel ui-apps" data-ui="integrations" data-ui-still>
+              <div class="ui-head">
+                <div class="ui-title">Voice &amp; AI backends</div>
+                <span class="ui-spacer"></span>
+                <div class="ui-meta" data-apps-count>Local first</div>
+              </div>
+              <ul class="ui-apps__list">
+                <li class="ui-app is-on">
+                  <span class="ui-logo ui-logo--sm"><img src="assets/icons/ollama.svg" alt="" width="18" height="18" loading="lazy" decoding="async"></span>
+                  <span class="ui-app__text"><span class="ui-app__name">Ollama</span><span class="ui-app__sub">Offline local rewrite &amp; chat</span></span>
+                  <span class="ui-app__state"><span class="ui-chip ui-app__on">Local</span></span>
+                </li>
+                <li class="ui-app is-on">
+                  <span class="ui-logo ui-logo--sm"><img src="assets/icons/openai.svg" alt="" width="18" height="18" loading="lazy" decoding="async"></span>
+                  <span class="ui-app__text"><span class="ui-app__name">OpenAI</span><span class="ui-app__sub">Opt-in keyring API key</span></span>
+                  <span class="ui-app__state"><span class="ui-chip ui-app__on">Gated</span></span>
+                </li>
+                <li class="ui-app is-on">
+                  <span class="ui-logo ui-logo--sm"><img src="assets/icons/gemini.svg" alt="" width="18" height="18" loading="lazy" decoding="async"></span>
+                  <span class="ui-app__text"><span class="ui-app__name">Gemini</span><span class="ui-app__sub">Opt-in keyring API key</span></span>
+                  <span class="ui-app__state"><span class="ui-chip ui-app__on">Gated</span></span>
+                </li>
+                <li class="ui-app is-on">
+                  <span class="ui-logo ui-logo--sm"><img src="assets/icons/claude.svg" alt="" width="18" height="18" loading="lazy" decoding="async"></span>
+                  <span class="ui-app__text"><span class="ui-app__name">Claude</span><span class="ui-app__sub">Opt-in keyring API key</span></span>
+                  <span class="ui-app__state"><span class="ui-chip ui-app__on">Gated</span></span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- 9. CLOSING + FOOTER (1H): footer-dark + closing-type (dealt) -->
+<footer class="footer closing footer--dark ground-inverse" id="contact" aria-labelledby="close-h">
+  <div class="wrap">
+    <div class="closing__cta close--type">
+      <div class="section-head">
+        <h2 id="close-h">Dictate locally on your desktop</h2>
+        <p>Free forever under the MIT License for Windows, macOS, and Linux.</p>
+      </div>
+      <a class="btn btn--primary btn--xl" href="https://github.com/AbdallahIsDev/lausu/releases" target="_blank" rel="noopener">Download Lausu<svg class="m-arrow" viewBox="0 0 12 12" aria-hidden="true"><path class="m-arrow__stem" d="M1 6h8"/><path class="m-arrow__head" d="M4.5 2.5 8 6l-3.5 3.5"/></svg></a>
+    </div>
+    <div class="closing__links">
+      <div class="grid">
+        <div class="span-4 stack-4">
+          <a class="nav__logo" href="#top"><img class="mark" src="favicon.svg" alt="" width="24" height="24" loading="lazy" decoding="async">Lausu</a>
+          <p class="footer__lede muted">Offline desktop voice-to-text built with Rust, Tauri, and ONNX Runtime.</p>
+        </div>
+        <div class="footer__col span-2 start-7">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="#workspace">Every dictation</a></li>
+            <li><a href="#features">Four voice tools</a></li>
+            <li><a href="#models">3 speech model families</a></li>
+            <li><a href="#downloads">Lausu 1.0 downloads</a></li>
+          </ul>
+        </div>
+        <div class="footer__col span-2">
+          <h3>Architecture</h3>
+          <ul>
+            <li><a href="#privacy">Local privacy</a></li>
+            <li><a href="#numbers">4 benchmarks</a></li>
+            <li><a href="#faq">Dictation questions</a></li>
+          </ul>
+        </div>
+        <div class="footer__col span-2">
+          <h3>Open source</h3>
+          <ul>
+            <li><a href="https://github.com/AbdallahIsDev/lausu" target="_blank" rel="noopener">GitHub repository</a></li>
+            <li><a href="https://github.com/AbdallahIsDev/lausu/releases" target="_blank" rel="noopener">Release notes</a></li>
+            <li><a href="https://github.com/AbdallahIsDev/lausu/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer__legal">
+        <span>&copy; 2026 Lausu contributors &nbsp; <a href="privacy.html">Privacy</a> &nbsp; <a href="terms.html">Terms</a></span>
+        <span>Icons via Simple Icons &amp; Lucide</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script type="module" src="assets/system.js"></script>
+<script type="module" src="assets/motion/motion.js"></script>
+<script type="module" src="assets/layout/layout.js"></script>
+<script type="module" src="assets/diagrams/mount.js"></script>
+</body>
+</html>
