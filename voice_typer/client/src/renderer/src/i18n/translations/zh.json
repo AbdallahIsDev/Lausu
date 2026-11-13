@@ -1327,7 +1327,9 @@
 		"activateAria": "使用此插件进行听写",
 		"settingsSection": "设置",
 		"statusActive": "已启用",
-		"statusInactive": "未启用"
+		"statusInactive": "未启用",
+		"unlocked": "插件已解锁。",
+		"unlockFailed": "无法解锁插件。请重试。"
 	},
 	"models": {
 		"loadFailedTitle": "无法加载模型",

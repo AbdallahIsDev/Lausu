@@ -1327,7 +1327,9 @@
 		"activateAria": "श्रुतलेख के लिए इस प्लगइन का उपयोग करें",
 		"settingsSection": "सेटिंग",
 		"statusActive": "सक्रिय",
-		"statusInactive": "निष्क्रिय"
+		"statusInactive": "निष्क्रिय",
+		"unlocked": "प्लगइन अनलॉक हो गए।",
+		"unlockFailed": "प्लगइन अनलॉक नहीं हो सके। कृपया फिर से प्रयास करें।"
 	},
 	"models": {
 		"loadFailedTitle": "मॉडल लोड नहीं हो सके",

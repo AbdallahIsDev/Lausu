@@ -430,7 +430,10 @@ describe("App-wide shortcuts, zoom via the mounted App (keydown + wheel)", () =>
 		});
 
 		expect(stable.setTextSize).not.toHaveBeenCalled();
-		expect(mockCall).not.toHaveBeenCalled();
+		// Zoom never writes config directly; the debounced save in useTheme
+		// (stubbed here) owns the single backend write. Other mount-time
+		// reads (e.g. the CUDA toast reattach) are not this test's subject.
+		expect(mockCall).not.toHaveBeenCalledWith("set_config", expect.anything());
 	});
 
 	it("Ctrl+wheel failure path stays silent (no toast) through the mounted App", async () => {

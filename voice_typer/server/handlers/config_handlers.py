@@ -244,6 +244,21 @@ class ConfigHandlersMixin(HandlerBase):
         return to_persist
 
     def _run_set_config_side_effects(self, validated: dict, to_persist: dict) -> None:
+        # Unlocking the developer surface must prepare the workspace and arm
+        # the dictation seam BEFORE the renderer is told the flag changed:
+        # the Plugins page it now offers resolves the plugin directory, and a
+        # packaged build has no writable one until this seeds it. Turning the
+        # flag off closes the surface and stops whatever a plugin was doing.
+        if "developer_mode" in validated:
+            try:
+                from voice_typer.server import internal_plugin_hook
+
+                if to_persist.get("developer_mode"):
+                    internal_plugin_hook.install(self.app)
+                else:
+                    internal_plugin_hook.teardown(self.app)
+            except Exception:
+                log.warning("[IPC] developer mode switch failed", exc_info=True)
         # Selecting a plugin has to have an immediate effect: the plugin owns
         # dictation from that moment, so its browser has to come up (or go
         # away) now rather than on the next hotkey press. Off-thread — a cold

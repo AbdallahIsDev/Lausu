@@ -45,26 +45,53 @@ hotkey #2  → stop mic → wait for stable transcript → restore focus → pas
 
 ## 4. Hard ship gates (must all hold)
 
-1. Code lives under `tools/internal_plugins/` — **not** in `voice_typer/`, **not** in Nuitka inputs, **not** in `tauri.conf.json` bundle/externalBin/resources.
-2. Enabled only when **all** of:
-   - env `VOICE_TYPER_INTERNAL_PLUGINS=1`, **and**
-   - gitignored `tools/internal_plugins/PLUGINS_ENABLED` exists, **and**
-   - process is not a frozen/release sidecar.
-3. No new `IPC_CONFIG_ALLOWLIST` / `set_config` / renderer / i18n / tray surface.
-4. **Proof-of-absence test** `tests/tauri/test_internal_plugin_tools_absent.py` (wired into the C-CI-7 drift set) asserts:
-   - `tools/internal_plugins` appears in no Nuitka `--include` / package list
-   - not in `tauri.conf.json` externalBin/resources
-   - not in NSIS/MSI file lists
-   - gitignore covers `PLUGINS_ENABLED`, `google-stt-profile/`, `debug/`, `last_error.json`
+**Reversal (2026-11-13, owner decision).** Plugin *source* now ships inside the
+compiled app so the feature exists in the installed build; the surface and the
+plugin stay inert until the owner unlocks them. Only source + manifest are
+embedded — every runtime artifact stays per-user.
+
+1. Code lives under `tools/internal_plugins/` — **not** in `voice_typer/`. It is
+   embedded in the frozen sidecar as data files only:
+   `scripts/build/stage_internal_plugins.py` stages a curated tree into
+   `build/internal_plugins_bundle/tools/internal_plugins`, and each
+   `build_sidecar_*.sh` passes
+   `--include-data-dir="$STAGE/tools/internal_plugins=tools/internal_plugins"`.
+   Staging is a denylist: `config.json`, `settings.json`, `PLUGINS_ENABLED`,
+   `debug/`, `generated/`, Chrome profiles, `node_modules`, `__pycache__`,
+   tests and dotfiles are never copied.
+2. Frozen builds read the embedded tree from the Nuitka extraction dir
+   (`__main__.__file__`) and **seed** it into
+   `<config dir>/developer_plugins/tools/internal_plugins` on unlock. All
+   runtime state (config, settings, debug, extension, profiles) is written only
+   there, never back into the bundle.
+3. Enabled only when **all** of:
+   - `config.developer_mode` is `true` (default `false`; renderer-only secret
+     unlock `ctrl+shift+alt+d` ×3), **or** env
+     `VOICE_TYPER_INTERNAL_PLUGINS=1` as a developer breakglass, **and**
+   - a usable workspace resolves (bundled/seeded tree or a checked-out
+     `tools/internal_plugins`), **and**
+   - `PLUGINS_ENABLED` exists in that workspace.
+4. No new `IPC_CONFIG_ALLOWLIST` / `set_config` / tray surface beyond the
+   persisted `developer_mode` flag and the existing plugin commands. While
+   locked, `get_plugins` answers `available: false` with an empty list and
+   `set_plugin_setting` answers `client.not_found` / `unknown plugin`.
+5. **Packaging test** `tests/tauri/test_internal_plugin_packaging.py` (wired
+   into the C-CI-7 drift set) asserts:
+   - each `build_sidecar_*.sh` stages the tree and embeds it as data
+   - the staged output carries source only (no state dirs, tests, `node_modules`)
+   - `resolve_plugins_dir()` is inert while the surface is locked
+   - `tauri.conf.json` externalBin/resources stay free of plugin entries
+   - gitignore covers `PLUGINS_ENABLED`, `google-stt-profile/`, `debug/`,
+     `last_error.json`
    - no root/client `package.json` script references `internal_plugins`
-5. Node/Playwright deps install to `%LOCALAPPDATA%/voice-typer-internal-plugins/node-deps` — **never** repo-root `node_modules`.
-6. Profile dir: `%LOCALAPPDATA%/voice-typer-internal-plugins/google-stt-profile` — never `~/.lausu`.
-7. Network egress is **C-DATA-1**-justified: plugin-configured, plugin-initiated, gated to internal test builds, browser navigation to Google only (not product code paths). Documented here so future agents do not “clean it up” as telemetry.
+6. Node/Playwright deps install to `%LOCALAPPDATA%/voice-typer-internal-plugins/node-deps` — **never** repo-root `node_modules`.
+7. Profile dir: `%LOCALAPPDATA%/voice-typer-internal-plugins/google-stt-profile` — never `~/.lausu`.
+8. Network egress is **C-DATA-1**-justified: plugin-configured, plugin-initiated, gated to internal test builds/unlocked developer mode, browser navigation to Google only (not product code paths). Documented here so future agents do not “clean it up” as telemetry.
 
 ## 5. Architecture
 
 ```
-tools/internal_plugins/google_stt/     (never packaged)
+tools/internal_plugins/google_stt/     (source ships as embedded data; state stays per-user)
   run.js                    entry (node, NODE_PATH → %LOCALAPPDATA%/voice-typer-internal-plugins/node-deps)
   playwright_runner.js      persistent Chrome channel, selectors.json, scrape
   controller.py             hotkey, hwnd capture/restore, product paste import
@@ -72,6 +99,11 @@ tools/internal_plugins/google_stt/     (never packaged)
   selectors.json            data-only UI map (locale-scoped)
   config.example.json
 ```
+
+The workspace the daemon actually writes to is resolved by
+`voice_typer/server/plugins/workspace.py`: a checked-out `tools/internal_plugins`
+in dev, the embedded tree extracted by Nuitka, or the per-user copy seeded from
+the bundle on unlock (`<config dir>/developer_plugins/tools/internal_plugins`).
 
 **Paste (plugin decision: import product):**
 `controller.py` imports the existing clipboard manager paste path
@@ -295,6 +327,14 @@ Even if the spike is perfect:
 
 No public experimental toggle. Not in README/CHANGELOG.
 
+The 2026-11-13 bundling decision does not change this: the plugin source is
+inside the installed app, but the Plugins page and nav item are hidden for every
+user by default (`developer_mode: false`). The owner reveals them with an
+undocumented in-app key sequence (`ctrl+shift+alt+d` pressed three times within
+1.5 s), Android developer-options style. That trigger is a discoverability
+gate, not a security boundary — the renderer is inspectable — which is why the
+backend repeats the check on every plugin IPC call.
+
 ## 13. Review disposition (rev 2)
 
 | Review item | Disposition |
@@ -303,7 +343,7 @@ No public experimental toggle. Not in README/CHANGELOG.
 | B2 Focus choreography | Taken. hwnd capture / off-screen / SetForegroundWindow / fail-closed. |
 | B3 Clipboard restore | Taken. Import product `ClipboardSnapshot` path. |
 | B4 Node deps leak | Taken. `%LOCALAPPDATA%/voice-typer-internal-plugins/node-deps`. |
-| B5 Absence test | Taken. `tests/tauri/test_internal_plugin_tools_absent.py` in drift set. |
+| B5 Absence test | Superseded 2026-11-13. `tests/tauri/test_internal_plugin_packaging.py` pins what is embedded (source only), what is never embedded (state, tests, deps), and the locked gate. |
 | H1 Interim text | Taken. two stability windows + length floor. |
 | H2 Mic contention | Taken. refuse while product recording. |
 | H3 UIPI/elevated | Taken via product paste gates. |
@@ -389,13 +429,22 @@ can persist, which is safe because the gate fails closed on it.
 `internal_plugin_hook.plugins_enabled(app)` requires ALL of:
 
 1. `config.active_plugin` is non-empty;
-2. `VOICE_TYPER_INTERNAL_PLUGINS=1`;
-3. the process is not frozen;
+2. the surface is enabled: `config.developer_mode is True`, or
+   `VOICE_TYPER_INTERNAL_PLUGINS=1` (developer breakglass);
+3. a usable plugin workspace resolves;
 4. the plugin's own `plugins_enabled()` (env + `PLUGINS_ENABLED` marker).
 
-Any failure means the built-in local model keeps dictation. With no plugin
-selected — the default — the local pipeline (VAD, noise processing, LLM
+`developer_mode` is read with `is True`, so a missing or mocked attribute fails
+closed. Any failure means the built-in local model keeps dictation. With no
+plugin selected — the default — the local pipeline (VAD, noise processing, LLM
 polish) runs exactly as before.
+
+The renderer mirrors the same flag (`usePluginsAvailable()` reads
+`config.developer_mode === true`) but only for presentation: the nav item stays
+hidden, a persisted `plugins` route is redirected to Home, and `getPlugins` never
+runs. Flipping the flag off calls `internal_plugin_hook.teardown(app)` (cancel a
+live session, deactivate the plugin); the wrappers stay installed and fall
+through to local dictation.
 
 - Background: Gemini voice input is context-aware — a leading spoken
   instruction (e.g. "translate everything to English") steers the whole

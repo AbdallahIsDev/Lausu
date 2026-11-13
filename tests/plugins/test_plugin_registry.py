@@ -138,14 +138,19 @@ class TestActivePluginConfig:
 class TestPluginGate:
     """The gate decides who owns dictation; it must fail closed everywhere."""
 
-    def _app(self, active: str) -> object:
+    def _app(self, active: str, developer_mode: bool = False) -> object:
         class _Config:
             active_plugin = active
 
-        class _App:
-            config = _Config()
+        config = _Config()
+        config.developer_mode = developer_mode
 
-        return _App()
+        class _App:
+            pass
+
+        app = _App()
+        app.config = config
+        return app
 
     def test_local_model_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """No selection means the local model, even with the env flag on."""
@@ -161,40 +166,54 @@ class TestPluginGate:
         assert hook.requested_plugin_id(object()) == ""
         assert hook.plugins_enabled(object()) is False
 
-    def test_selection_is_enough_when_the_workspace_exists(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """A selected plugin owns dictation once the workspace is there.
+    def test_selection_is_enough_when_the_workspace_exists(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A selected plugin owns dictation once the surface is unlocked.
 
         The gate used to ALSO require ``VOICE_TYPER_INTERNAL_PLUGINS=1``, and
         nothing in the repo ever set it: activating a plugin in the Plugins
         page silently kept the local model on every hotkey press, with no
-        visible reason. The workspace (tracked source, never packaged) plus
-        the plugin's own PLUGINS_ENABLED marker are the deliberate opt-ins,
-        and a frozen build still never runs a plugin.
+        visible reason. Developer mode plus the plugin's own PLUGINS_ENABLED
+        marker are the deliberate opt-ins now.
         """
         monkeypatch.delenv("VOICE_TYPER_INTERNAL_PLUGINS", raising=False)
-        monkeypatch.setattr(hook, "internal_surface_enabled", lambda: True)
+        monkeypatch.setattr(hook, "internal_surface_enabled", lambda config=None: True)
         monkeypatch.setattr(
             hook,
             "_plugin",
-            lambda app=None: type(
-                "_P", (), {"plugins_enabled": staticmethod(lambda: True)}
-            )(),
+            lambda app=None: type("_P", (), {"plugins_enabled": staticmethod(lambda: True)})(),
         )
-        assert hook.plugins_enabled(self._app("google_stt")) is True
+        assert hook.plugins_enabled(self._app("google_stt", developer_mode=True)) is True
 
-    def test_no_workspace_still_means_local_model(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_workspace_still_means_local_model(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Without the workspace the local model always keeps dictation."""
-        monkeypatch.setattr(hook, "internal_surface_enabled", lambda: False)
+        monkeypatch.setattr(hook, "internal_surface_enabled", lambda config=None: False)
         assert hook.plugins_enabled(self._app("google_stt")) is False
 
-    def test_frozen_builds_never_run_a_plugin(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("VOICE_TYPER_INTERNAL_PLUGINS", "1")
-        monkeypatch.setattr(sys, "frozen", True, raising=False)
+    def test_developer_mode_off_keeps_the_local_model(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A locked install never runs a plugin, marker or not."""
+        monkeypatch.delenv("VOICE_TYPER_INTERNAL_PLUGINS", raising=False)
+        monkeypatch.setattr(
+            hook,
+            "_plugin",
+            lambda app=None: type("_P", (), {"plugins_enabled": staticmethod(lambda: True)})(),
+        )
         assert hook.plugins_enabled(self._app("google_stt")) is False
+
+    def test_frozen_build_runs_a_plugin_once_unlocked(self, workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Frozen is no longer a refusal: the marker + flag are the opt-ins.
+
+        The surface ships inside the binary but stays closed until the owner
+        unlocks developer mode, at which point the seeded workspace carries
+        the PLUGINS_ENABLED marker.
+        """
+        monkeypatch.delenv("VOICE_TYPER_INTERNAL_PLUGINS", raising=False)
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        monkeypatch.setattr(
+            hook,
+            "_plugin",
+            lambda app=None: type("_P", (), {"plugins_enabled": staticmethod(lambda: True)})(),
+        )
+        assert hook.plugins_enabled(self._app("google_stt", developer_mode=True)) is True
 
 
 class TestGetPluginsCommand:
@@ -225,6 +244,7 @@ class TestSetPluginSettingCommand:
 
         _write_manifest(workspace / "acme_stt")
         ipc, _app, _service = make_ipc_server_with_fakes()
+        _app.config.developer_mode = True
         resp = ipc._dispatch(
             {
                 "type": "set_plugin_setting",
@@ -247,6 +267,7 @@ class TestSetPluginSettingCommand:
 
         _write_manifest(workspace / "acme_stt")
         ipc, _app, _service = make_ipc_server_with_fakes()
+        _app.config.developer_mode = True
         resp = ipc._dispatch(
             {
                 "type": "set_plugin_setting",
@@ -258,6 +279,25 @@ class TestSetPluginSettingCommand:
         assert resp["data"]["code"] == "client.invalid_field"
         assert not (workspace / "acme_stt" / "settings.json").exists()
 
+    def test_is_refused_like_an_unknown_plugin_when_locked(self, workspace: Path) -> None:
+        """A locked install must not confirm which plugins it ships."""
+        from tests.fixtures.ipc_test_helpers import make_ipc_server_with_fakes
+
+        _write_manifest(workspace / "acme_stt")
+        ipc, _app, _service = make_ipc_server_with_fakes()
+        assert _app.config.developer_mode is not True
+        resp = ipc._dispatch(
+            {
+                "type": "set_plugin_setting",
+                "data": {"plugin_id": "acme_stt", "key": "visible", "value": False},
+            }
+        )
+        assert resp is not None
+        assert resp["type"] == "error"
+        assert resp["data"]["code"] == "client.not_found"
+        assert resp["data"]["message"] == "unknown plugin"
+        assert not (workspace / "acme_stt" / "settings.json").exists()
+
 
 class TestGetPluginsEndToEnd:
     """The command as the renderer actually receives it."""
@@ -267,6 +307,7 @@ class TestGetPluginsEndToEnd:
 
         _write_manifest(workspace / "acme_stt")
         ipc, _app, _service = make_ipc_server_with_fakes()
+        _app.config.developer_mode = True
         resp = ipc._dispatch({"type": "get_plugins"})
         assert resp is not None
         assert resp["type"] == "plugins"
@@ -279,9 +320,7 @@ class TestGetPluginsEndToEnd:
         # Nothing selected -> nothing is active.
         assert payload["plugins"][0]["active"] is False
 
-    def test_no_plugins_is_an_empty_array_not_an_error(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_plugins_is_an_empty_array_not_an_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """A build with the surface available but nothing installed."""
         from tests.fixtures.ipc_test_helpers import make_ipc_server_with_fakes
 
@@ -289,14 +328,13 @@ class TestGetPluginsEndToEnd:
         workspace.mkdir()
         monkeypatch.setenv("VOICE_TYPER_PLUGINS_DIR", str(workspace))
         ipc, _app, _service = make_ipc_server_with_fakes()
+        _app.config.developer_mode = True
         resp = ipc._dispatch({"type": "get_plugins"})
         assert resp is not None
         assert resp["data"]["plugins"] == []
         assert resp["data"]["available"] is True
 
-    def test_hidden_install_answers_available_false(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_hidden_install_answers_available_false(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """A shipped install reports available=False with an empty list."""
         from tests.fixtures.ipc_test_helpers import make_ipc_server_with_fakes
 
@@ -309,39 +347,48 @@ class TestGetPluginsEndToEnd:
 
 
 class TestPluginsUiVisibility:
-    """The Plugins nav is developer-only: hidden from every shipped build."""
+    """The Plugins nav is developer-only: hidden until the owner unlocks it."""
+
+    class _Config:
+        def __init__(self, developer_mode: bool = True) -> None:
+            self.developer_mode = developer_mode
 
     def test_owner_workspace_exposes_the_surface(self, workspace: Path) -> None:
         """A developer checkout (which HAS the workspace) exposes the surface.
 
-        The workspace is created here rather than assumed present: a shipped
-        build never packages it — that is exactly what
-        ``test_workspace_is_never_packaged`` pins. Asserting against the
-        ambient repo made this pass locally and fail on every CI leg.
+        The workspace is created here rather than assumed present: a packaged
+        install seeds it on unlock instead of shipping local state.
         """
         assert workspace.is_dir()
-        assert hook.internal_surface_enabled() is True
+        assert hook.internal_surface_enabled(self._Config()) is True
+
+    def test_developer_mode_off_hides_it(self, workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The flag, not the workspace, is what every end user lacks."""
+        monkeypatch.delenv("VOICE_TYPER_INTERNAL_PLUGINS", raising=False)
+        assert workspace.is_dir()
+        assert hook.internal_surface_enabled(self._Config(False)) is False
 
     def test_missing_workspace_hides_it(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("VOICE_TYPER_PLUGINS_DIR", str(tmp_path / "absent"))
         monkeypatch.delenv("VOICE_TYPER_INTERNAL_PLUGINS", raising=False)
-        assert hook.internal_surface_enabled() is False
+        assert hook.internal_surface_enabled(self._Config()) is False
 
-    def test_frozen_build_never_exposes_it(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_frozen_build_exposes_it_once_unlocked(self, workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The source ships in the binary; the flag decides visibility."""
+        monkeypatch.delenv("VOICE_TYPER_INTERNAL_PLUGINS", raising=False)
         monkeypatch.setattr(sys, "frozen", True, raising=False)
-        monkeypatch.setenv("VOICE_TYPER_INTERNAL_PLUGINS", "1")
-        assert hook.internal_surface_enabled() is False
+        assert workspace.is_dir()
+        assert hook.internal_surface_enabled(self._Config()) is True
 
-    def test_env_flag_alone_exposes_it(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("VOICE_TYPER_PLUGINS_DIR", str(tmp_path / "absent"))
+    def test_env_flag_alone_exposes_it(self, workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("VOICE_TYPER_INTERNAL_PLUGINS", "1")
-        assert hook.internal_surface_enabled() is True
+        assert hook.internal_surface_enabled(self._Config(False)) is True
 
     def test_visibility_ignores_the_active_plugin(self, workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The UI must be reachable BEFORE a plugin is ever selected."""
         assert workspace.is_dir()
         monkeypatch.setattr(hook, "requested_plugin_id", lambda app=None: "")
-        assert hook.internal_surface_enabled() is True
+        assert hook.internal_surface_enabled(self._Config()) is True
 
     def test_workspace_source_is_tracked_but_runtime_is_ignored(self) -> None:
         """The source is visible; only local runtime state is gitignored."""
@@ -352,9 +399,7 @@ class TestPluginsUiVisibility:
             if line.strip() and not line.lstrip().startswith("#")
         }
         assert "tools/internal_plugins/" not in ignored
-        nested = (root / "tools" / "internal_plugins" / ".gitignore").read_text(
-            encoding="utf-8"
-        )
+        nested = (root / "tools" / "internal_plugins" / ".gitignore").read_text(encoding="utf-8")
         assert "PLUGINS_ENABLED" in nested
         assert "config.json" in nested
 
@@ -382,9 +427,7 @@ class TestPluginModuleRouting:
         assert hook._plugin(self._app("not_installed")) is None
         assert hook.plugins_enabled(self._app("not_installed")) is False
 
-    def test_install_resolves_the_selection_on_every_press(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_install_resolves_the_selection_on_every_press(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Selection changes apply to the NEXT press, with no restart.
 
         The wrapper is installed once (when the developer-only surface

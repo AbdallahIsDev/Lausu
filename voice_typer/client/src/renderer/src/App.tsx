@@ -17,6 +17,7 @@ import { useConnection } from "@/hooks/useConnection";
 import { useConnectionToasts } from "@/hooks/useConnectionToasts";
 import { useConsentRequiredEvent } from "@/hooks/useConsentRequiredEvent";
 import { useCudaInstallToast } from "@/hooks/useCudaInstallToast";
+import { useDeveloperModeUnlock } from "@/hooks/useDeveloperModeUnlock";
 import { useDeviceLostToast } from "@/hooks/useDeviceLostToast";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useFilterCollapseToast } from "@/hooks/useFilterCollapseToast";
@@ -37,6 +38,7 @@ import { useOnboardingRouteGuard } from "@/hooks/useOnboardingRouteGuard";
 import { usePackUpdateToast } from "@/hooks/usePackUpdateToast";
 import { usePasteDeferredToast } from "@/hooks/usePasteDeferredToast";
 import { usePasteFailedToast } from "@/hooks/usePasteFailedToast";
+import { usePluginsAvailable } from "@/hooks/usePluginCatalog";
 import { usePython } from "@/hooks/usePython";
 import { useRendererHeartbeat } from "@/hooks/useRendererHeartbeat";
 import { useRouteChangeFocus } from "@/hooks/useRouteChangeFocus";
@@ -121,6 +123,18 @@ export default function App() {
 	const { showHelpOverlay, openHelp, closeHelp } = useHelpOverlayShortcut();
 	const { sidebarCollapsed, setSidebarCollapsed } = useSidebarAutoCollapse();
 	const { call } = usePython();
+
+	// Hidden owner unlock (Ctrl+Shift+Alt+D x3). Undocumented by design; the
+	// Plugins surface stays out of every user's navigation until it is typed.
+	useDeveloperModeUnlock(call);
+	const pluginsAvailable = usePluginsAvailable();
+
+	// A page persisted from a previous session (or a stale in-app route) must
+	// not keep the hidden surface reachable once the flag is off. The nav item
+	// is hidden separately; this covers the route itself.
+	useEffect(() => {
+		if (!pluginsAvailable && currentPage === "plugins") replace("home");
+	}, [currentPage, pluginsAvailable, replace]);
 
 	const {
 		themeMode,

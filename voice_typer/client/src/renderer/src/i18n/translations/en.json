@@ -1332,7 +1332,9 @@
 		"activateAria": "Use this plugin for dictation",
 		"settingsSection": "Settings",
 		"statusActive": "Active",
-		"statusInactive": "Inactive"
+		"statusInactive": "Inactive",
+		"unlocked": "Plugins unlocked.",
+		"unlockFailed": "Couldn't unlock plugins. Please try again."
 	},
 	"models": {
 		"loadFailedTitle": "Couldn't load models",

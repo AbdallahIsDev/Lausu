@@ -1327,7 +1327,9 @@
 		"activateAria": "Dieses Plugin für Diktat verwenden",
 		"settingsSection": "Einstellungen",
 		"statusActive": "Aktiv",
-		"statusInactive": "Inaktiv"
+		"statusInactive": "Inaktiv",
+		"unlocked": "Plugins freigeschaltet.",
+		"unlockFailed": "Plugins konnten nicht freigeschaltet werden. Bitte erneut versuchen."
 	},
 	"models": {
 		"loadFailedTitle": "Modelle konnten nicht geladen werden",

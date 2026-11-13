@@ -1327,7 +1327,9 @@
 		"activateAria": "Usar este plugin para el dictado",
 		"settingsSection": "Ajustes",
 		"statusActive": "Activo",
-		"statusInactive": "Inactivo"
+		"statusInactive": "Inactivo",
+		"unlocked": "Plugins desbloqueados.",
+		"unlockFailed": "No se pudieron desbloquear los plugins. Inténtalo de nuevo."
 	},
 	"models": {
 		"loadFailedTitle": "No se pudieron cargar los modelos",

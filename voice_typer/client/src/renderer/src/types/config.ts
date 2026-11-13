@@ -153,6 +153,9 @@ export interface LausuConfig {
 	model_size: ModelSize;
 	/** Installed plugin that currently owns dictation ("" = local model). */
 	active_plugin: string;
+	/** Owner-only unlock for the internal Plugins surface. Optional for
+	 *  wire tolerance; absent means hidden. */
+	developer_mode?: boolean;
 	language: string;
 	device: "cuda" | "cpu";
 	/**

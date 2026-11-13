@@ -137,6 +137,13 @@ if [[ -z "${NUITKA_JOBS:-}" ]]; then
     fi
 fi
 echo "[build_sidecar_macos] Nuitka --jobs=$NUITKA_JOBS"
+
+# Internal plugin source (developer-mode surface): staged as data, never
+# imported from the binary. The packaged app seeds a writable per-user
+# workspace from this copy on the first unlock.
+PLUGINS_STAGE="$PROJECT_ROOT/build/internal_plugins_bundle"
+"$PYBS_PYTHON" "$PROJECT_ROOT/scripts/build/stage_internal_plugins.py" --output "$PLUGINS_STAGE" \
+    || { echo "ERROR: internal plugin staging failed" >&2; exit 1; }
 echo "[build_sidecar_macos] Running Nuitka..."
 NUITKA_ARGS=(
     --standalone --onefile
@@ -166,6 +173,10 @@ NUITKA_ARGS=(
     --include-package=av
     --include-package-data=yt_dlp
     --include-package-data=voice_typer.server
+    # Internal plugin source (developer-mode surface): shipped as data, never
+    # imported from the binary. The packaged app seeds a writable per-user
+    # workspace from this copy on the first unlock.
+    --include-data-dir="$PLUGINS_STAGE/tools/internal_plugins=tools/internal_plugins"
     --macos-create-app-bundle
     --macos-app-name=LausuSidecar
     --macos-signed-app-name=com.Lausu.sidecar

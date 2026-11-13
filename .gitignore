@@ -124,11 +124,10 @@ sub-worklog-*.md
 # Local ASR weights used by bench/media_concurrency_stress.py (not shipped).
 .tmp-tiny-model/
 
-# INTERNAL PLUGINS (experimental; source is tracked, never packaged).
-# The source is visible in this repository, but every packaging input
-# excludes it, so a built app ships none of it. Runtime state stays
-# ignored by tools/internal_plugins/.gitignore; the exclusion guard is
-# tests/tauri/test_internal_plugin_tools_absent.py.
+# INTERNAL PLUGINS (experimental; source is tracked, shipped only as sidecar
+# data behind the developer-mode gate). Runtime state stays ignored by
+# tools/internal_plugins/.gitignore; the packaging guard is
+# tests/tauri/test_internal_plugin_packaging.py.
 # Local archive of the retired nested plugin repo's .git directory.
 .internal-plugins-git-archive/
 

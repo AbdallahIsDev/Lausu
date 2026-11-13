@@ -1327,7 +1327,9 @@
 		"activateAria": "Использовать этот плагин для диктовки",
 		"settingsSection": "Настройки",
 		"statusActive": "Активен",
-		"statusInactive": "Неактивен"
+		"statusInactive": "Неактивен",
+		"unlocked": "Плагины разблокированы.",
+		"unlockFailed": "Не удалось разблокировать плагины. Попробуйте снова."
 	},
 	"models": {
 		"loadFailedTitle": "Не удалось загрузить модели",

@@ -1327,7 +1327,9 @@
 		"activateAria": "استخدام هذه الإضافة للإملاء",
 		"settingsSection": "الإعدادات",
 		"statusActive": "نشط",
-		"statusInactive": "غير نشط"
+		"statusInactive": "غير نشط",
+		"unlocked": "تم فتح الإضافات.",
+		"unlockFailed": "تعذّر فتح الإضافات. حاول مرة أخرى."
 	},
 	"models": {
 		"loadFailedTitle": "تعذّر تحميل النماذج",

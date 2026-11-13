@@ -196,6 +196,14 @@ jobs:
           # .pyd twin Python prefers, so the helper deletes only those.
           & $PYBS scripts/build/strip_av_cython_shims.py
           if ($LASTEXITCODE -ne 0) { Write-Error "av shim strip failed"; exit 1 }
+          # Internal plugin source (developer-mode surface): staged as data,
+          # never imported from the binary. The packaged app seeds a writable
+          # per-user workspace from this copy on the first unlock, and runtime
+          # state (config, settings, debug, generated extension config) is
+          # excluded by the staging script.
+          & $PYBS scripts/build/stage_internal_plugins.py --output build/internal_plugins_bundle
+          if ($LASTEXITCODE -ne 0) { Write-Error "internal plugin staging failed"; exit 1 }
+          $pluginsDataFlag = "--include-data-dir=build/internal_plugins_bundle/tools/internal_plugins=tools/internal_plugins"
           # ADR-0025 C7: ASR lives in the pack worker — the ctranslate2
           # DLL/data-dir plumbing below was deleted in the same change
           # (mirrors scripts/build/build_sidecar_windows.sh); the WORKER
@@ -265,6 +273,7 @@ jobs:
               --include-package=av `
               --include-package-data=yt_dlp `
               --include-package-data=voice_typer.server `
+              $pluginsDataFlag `
               $($dataDirFlag) `
               --windows-console-mode=disable `
               --onefile-tempdir-spec="{CACHE_DIR}/lausu/onefile-tmp" `

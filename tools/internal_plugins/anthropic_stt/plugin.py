@@ -1,8 +1,10 @@
-"""Internal Anthropic STT plugin. NEVER SHIPS.
+"""Internal Anthropic STT plugin. Bundled but gated.
 
 Loaded by the tiny gated hook in ``voice_typer/server/internal_plugin_hook.py`` only
-when ``plugins_enabled()`` is true (env flag + tools/internal_plugins/PLUGINS_ENABLED +
-not frozen). Everything it touches is a product path:
+when ``plugins_enabled()`` is true (the plugin workspace's PLUGINS_ENABLED
+marker, which developer mode writes). The source ships inside the packaged
+app; the marker and the developer-mode flag are the opt-ins. Everything it
+touches is a product path:
 bubble_show/hide + recording_started/stopped (bubble + sound cues),
 app.clipboard copy+paste, app.history_db.add_transcription.
 
@@ -19,6 +21,7 @@ import json
 import logging
 import os
 import subprocess
+import sys
 import threading
 import time
 import urllib.error
@@ -74,14 +77,11 @@ class BridgeError(RuntimeError):
 def plugins_enabled() -> bool:
     """Whether this plugin may own dictation.
 
-    The PLUGINS_ENABLED marker in the (gitignored, never packaged) plugin
-    workspace is the switch. The old extra ``VOICE_TYPER_INTERNAL_PLUGINS=1``
-    requirement was set by nothing in the repo, so selecting the plugin in
-    the UI left the local model in charge with no visible reason why.
+    The PLUGINS_ENABLED marker in the plugin workspace is the switch. It is
+    written when the owner unlocks developer mode, so a packaged build stays
+    inert until then; the marker's presence is the whole gate.
     """
-    if not (PLUGINS_DIR / "PLUGINS_ENABLED").exists():
-        return False
-    return not bool(getattr(__import__("sys"), "frozen", False))
+    return (PLUGINS_DIR / "PLUGINS_ENABLED").is_file()
 
 
 def _post(path: str, timeout: float = 60.0) -> dict:
@@ -469,6 +469,20 @@ class PluginSession:
             log.debug("[PLUGIN] notify failed", exc_info=True)
 
 
+def _node_deps_root() -> str:
+    """Per-user directory the plugin's Node dependencies are installed into."""
+    override = os.environ.get("PLUGINS_NODE_DEPS")
+    if override:
+        return override
+    if os.name == "nt":
+        base = os.environ.get("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Local")
+    elif sys.platform == "darwin":
+        base = os.path.join(os.path.expanduser("~"), "Library", "Application Support")
+    else:
+        base = os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
+    return os.path.join(base, "voice-typer-internal-plugins", "node-deps")
+
+
 def _daemon_env() -> dict[str, str]:
     """Environment for the Node daemon.
 
@@ -478,11 +492,7 @@ def _daemon_env() -> dict[str, str]:
     them.
     """
     env = dict(os.environ)
-    deps_root = os.environ.get(
-        "PLUGINS_NODE_DEPS",
-        "C:/Users/11/AppData/Local/voice-typer-internal-plugins/node-deps",
-    )
-    env["NODE_PATH"] = deps_root + os.pathsep + env.get("NODE_PATH", "")
+    env["NODE_PATH"] = _node_deps_root() + os.pathsep + env.get("NODE_PATH", "")
     for key, fallback in (
         ("PROGRAMFILES", r"C://Program Files"),
         ("PROGRAMFILES(X86)", r"C://Program Files (x86)"),

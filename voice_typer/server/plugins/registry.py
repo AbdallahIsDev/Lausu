@@ -1,18 +1,18 @@
 """Discovery of installed plugins.
 
-Plugins live OUTSIDE the package (``tools/internal_plugins/<id>/``). Their
-source is tracked in the repository, but every packaging input excludes it:
-a public build ships none of them, so discovery returns an empty list and the
-app behaves exactly as before. Nothing here imports a plugin - a plugin is
-described by its ``plugin.json`` manifest, and the manifest is the only thing
-the app reads.
+Plugins live OUTSIDE the package (``tools/internal_plugins/<id>/``): the
+source is tracked in the repository, and a packaged build ships that same
+tree as data files while keeping the surface locked (a developer-mode flag
+the owner unlocks in-app). ``resolve_plugins_dir`` owns where the workspace
+actually is - checkout, seeded per-user copy, or an override. Nothing here
+imports a plugin: a plugin is described by its ``plugin.json`` manifest, and
+the manifest is the only thing the app reads.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -86,27 +86,19 @@ class PluginInfo:
 
 
 def plugins_dir() -> Path | None:
-    """The plugin workspace, or ``None`` when this build has none."""
-    override = os.environ.get("VOICE_TYPER_PLUGINS_DIR")
-    if override:
-        # A missing override is still "no workspace": returning the path
-        # unconditionally would make the visibility gate report a workspace
-        # that cannot exist.
-        candidate = Path(override)
-        return candidate if candidate.is_dir() else None
-    # voice_typer/server/plugins/registry.py -> repo root is three levels up.
-    repo_root = Path(__file__).resolve().parents[3]
-    candidate = repo_root / "tools" / "internal_plugins"
-    return candidate if candidate.is_dir() else None
+    """The plugin workspace, or ``None`` when this install has none.
+
+    Resolution (checkout vs packaged, and the writable per-user copy a
+    packaged build seeds on unlock) lives in
+    :mod:`voice_typer.server.plugins.workspace`.
+    """
+    from voice_typer.server.plugins.workspace import resolve_plugins_dir
+
+    return resolve_plugins_dir()
 
 
 def _valid_id(value: object) -> bool:
-    return (
-        isinstance(value, str)
-        and bool(value)
-        and set(value) <= _PLUGIN_ID_CHARS
-        and len(value) <= 64
-    )
+    return isinstance(value, str) and bool(value) and set(value) <= _PLUGIN_ID_CHARS and len(value) <= 64
 
 
 def _parse_setting(raw: object) -> PluginSetting | None:
@@ -171,8 +163,9 @@ def _read_manifest(plugin_dir: Path) -> PluginInfo | None:
 def discover() -> list[PluginInfo]:
     """Every plugin installed on this machine, sorted by display name.
 
-    Returns ``[]`` for a build with no plugin workspace, which is the normal
-    shipped case. A single broken manifest never hides the others.
+    Returns ``[]`` when there is no usable workspace - a packaged install
+    that was never unlocked has none. A single broken manifest never hides
+    the others.
     """
     workspace = plugins_dir()
     if workspace is None or not workspace.is_dir():

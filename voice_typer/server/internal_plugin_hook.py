@@ -1,18 +1,21 @@
-"""Internal-plugin STT seam. Ships as dead code, never active.
+"""Internal-plugin STT seam. Gated behind the owner's developer mode.
 
 Single gated seam: ``install(app)`` wraps the product dictation entry
 points (toggle / stop / cancel) so the plugin selected in ``config``
 reuses the product hotkey, bubble, sound cues, clipboard and history
 paths. Every call falls through to the original product method unless
 ``internal_plugin_hook.plugins_enabled(app)`` is true (selected plugin +
-workspace/env opt-in + PLUGINS_ENABLED marker + not frozen), so the
-shipped build behaves exactly as before.
+``config.developer_mode`` + a usable workspace + PLUGINS_ENABLED marker),
+so an install nobody unlocked behaves exactly as before.
 
-The selection is resolved on EVERY press, not at install time: the Pages
+The selection is resolved on EVERY press, not at install time: the Plugins
 UI writes ``active_plugin`` through ``set_config`` and the very next
 hotkey uses it, with no restart. The wrappers are only installed when the
-developer-only plugin surface exists at all (``internal_surface_enabled``),
-which a frozen/shipped build never satisfies.
+developer-only plugin surface is enabled at all
+(``internal_surface_enabled``): the owner unlocks it with the in-app key
+sequence, and the flag is persisted. The renderer hides the page while the
+flag is off, but this module is the boundary that decides - a UI that
+forgot to hide cannot make a plugin run.
 
 Why instance-level wrapping: the hotkey backends capture bound methods
 at registration time, so patching after ``HotkeyDispatcher.__init__``
@@ -23,9 +26,11 @@ Which plugin runs is ``config.active_plugin``; an id with no entry in
 ``PLUGIN_MODULES`` selects nothing and the local model stays in charge.
 Plan: docs/plan-internal-plugin-google-stt.md.
 """
+
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from typing import Any
 
@@ -52,26 +57,28 @@ def requested_plugin_id(app: Any | None = None) -> str:
     return str(getattr(config, "active_plugin", "") or "")
 
 
-def internal_surface_enabled() -> bool:
+def _developer_mode_on(config: Any | None) -> bool:
+    # `is True`, not truthiness: a mock/partial config must fail CLOSED, and a
+    # MagicMock attribute is truthy without ever being the persisted boolean.
+    return os.environ.get(ENV_FLAG) == "1" or getattr(config, "developer_mode", False) is True
+
+
+def internal_surface_enabled(config: Any | None = None) -> bool:
     """Whether this install may show the Plugins UI at all.
 
     This is the VISIBILITY gate, and it is deliberately independent of
     ``active_plugin``: the UI has to be reachable in order to turn a plugin
     on in the first place.
 
-    The discriminator is the plugin workspace. Its source is tracked in the
-    repository (visible for review), but every packaging input excludes it,
-    so a built app never contains it and answers False. The env flag is
-    honoured as a second way in, for testing the surface without the
-    workspace present.
+    The discriminator is the owner's ``developer_mode`` flag (persisted, set
+    by the in-app key sequence) together with a usable workspace. A packaged
+    install ships the plugin source but keeps the flag off until the owner
+    unlocks it, so every end user sees the product with no Plugins surface.
+    ``VOICE_TYPER_INTERNAL_PLUGINS=1`` stays as a developer escape hatch for
+    exercising the surface without the flag.
     """
-    import os
-    import sys
-
-    if bool(getattr(sys, "frozen", False)):
+    if not _developer_mode_on(config):
         return False
-    if os.environ.get(ENV_FLAG) == "1":
-        return True
     from voice_typer.server.plugins import plugins_dir
 
     return plugins_dir() is not None
@@ -81,20 +88,20 @@ def plugins_enabled(app: Any | None = None) -> bool:
     """Whether a plugin should own dictation right now.
 
     Fail-closed at every step: no selected plugin means the local model, an
-    unknown id has no module, a frozen build never imports the plugin, and
-    the plugin's own gate (PLUGINS_ENABLED marker + not frozen) has the final
-    say so that switch stays the single source of truth.
+    unknown id has no module, an un-unlocked (or workspace-less) install
+    never reaches the import, and the plugin's own gate (PLUGINS_ENABLED
+    marker in the workspace) has the final say so that marker stays the
+    single switch for "the daemon side is allowed to run".
 
     The VISIBILITY gate is reused here on purpose. It used to require
     ``VOICE_TYPER_INTERNAL_PLUGINS=1`` on top of everything else, and nothing
-    in the repo ever set that variable — so a developer with the workspace
-    present could switch a plugin to Active in the UI and still get the local
-    model on every hotkey press. The workspace (tracked source, never
-    packaged) plus the plugin's own marker are already deliberate opt-ins.
+    in the repo ever set that variable — so a developer could switch a plugin
+    to Active in the UI and still get the local model on every hotkey press.
+    Developer mode plus the plugin's own marker are the deliberate opt-ins.
     """
     if requested_plugin_id(app) == "":
         return False
-    if not internal_surface_enabled():
+    if not internal_surface_enabled(getattr(app, "config", None)):
         return False
     plugin = _plugin(app)
     return bool(plugin is not None and plugin.plugins_enabled())
@@ -107,11 +114,18 @@ def _plugin_for(plugin_id: str) -> Any | None:
     try:
         import importlib
         import sys
-        from pathlib import Path
 
-        root = str(Path(__file__).resolve().parents[2])
-        if root not in sys.path:
-            sys.path.insert(0, root)
+        from voice_typer.server.plugins.workspace import plugin_import_root
+
+        # The dotted path is rooted at <root>/tools/internal_plugins, which is
+        # the checkout in a dev run and the seeded per-user copy in a packaged
+        # one. Both put the SAME module names on sys.path, so a plugin never
+        # needs to know which shape it runs in.
+        root = plugin_import_root()
+        if root is not None:
+            entry = str(root)
+            if entry not in sys.path:
+                sys.path.insert(0, entry)
         return importlib.import_module(module_path)
     except Exception:
         log.warning("[PLUGIN] import failed for %s", plugin_id, exc_info=True)
@@ -166,7 +180,7 @@ def plugin_display_name_for(config: Any | None) -> str:
     showing the model name in that case.
     """
     plugin_id = str(getattr(config, "active_plugin", "") or "")
-    if not plugin_id or not internal_surface_enabled():
+    if not plugin_id or not internal_surface_enabled(config):
         return ""
     plugin = _plugin_for(plugin_id)
     if plugin is None or not plugin.plugins_enabled():
@@ -196,7 +210,7 @@ def sync_selection(app: Any) -> bool:
     the first hotkey press. Idempotent: syncing the same selection twice
     does nothing.
     """
-    if not internal_surface_enabled():
+    if not internal_surface_enabled(getattr(app, "config", None)):
         return False
     plugin_id = requested_plugin_id(app)
     previous = str(getattr(app, "_internal_plugin_selected_id", "") or "")
@@ -237,9 +251,39 @@ def _deactivate_plugin(plugin_id: str) -> None:
     _shutdown_plugin_daemon(plugin_id)
 
 
+def teardown(app: Any) -> bool:
+    """Close the developer surface: stop the active cycle and its plugin.
+
+    The dictation wrappers stay wrapped (they fall through to the product on
+    every press while the gate is closed), so this only has to abandon the
+    in-flight session and shut the plugin we were using down.
+    """
+    session = getattr(app, "_internal_plugin_active_session", None)
+    if session is not None:
+        try:
+            session.cancel()
+        except Exception:
+            log.debug("[PLUGIN] cancel on teardown failed", exc_info=True)
+    app._internal_plugin_active_session = None
+    app._internal_plugin_active_id = ""
+    selected = str(getattr(app, "_internal_plugin_selected_id", "") or "")
+    app._internal_plugin_selected_id = ""
+    if selected:
+        _deactivate_plugin(selected)
+    return True
+
+
 def install(app: Any) -> bool:
-    """Wrap the product dictation entry points when the surface exists."""
-    if not internal_surface_enabled():
+    """Wrap the product dictation entry points when the surface is enabled."""
+    config = getattr(app, "config", None)
+    if _developer_mode_on(config):
+        # Unlock-time work, never a normal launch: a packaged install gets
+        # its writable workspace here (cheap no-op once seeded), so the
+        # owner can switch a plugin on without restarting the app.
+        from voice_typer.server.plugins.workspace import ensure_developer_workspace
+
+        ensure_developer_workspace()
+    if not internal_surface_enabled(config):
         return False
     if getattr(app, "_internal_plugin_wrapped", False):
         # Already wrapped: a second pass would nest the wrappers and handle

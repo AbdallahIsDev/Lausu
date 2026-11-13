@@ -6,9 +6,7 @@
 // never import from a page, so the shell's consumer sits on the neutral
 // side of that boundary and the page reads the same cache.
 
-import { useEffect, useRef, useState } from "react";
-import { useLatestRef } from "@/hooks/useLatestRef";
-import { type PythonCall, usePython } from "@/hooks/usePython";
+import type { PythonCall } from "@/hooks/usePython";
 import { useAppStore } from "@/stores/appStore";
 import { type PluginCatalog, toPluginCatalog } from "@/types/plugins";
 
@@ -51,55 +49,10 @@ export function loadPluginCatalog(call: PythonCall): Promise<PluginCatalog> {
 /**
  * Whether this install may show the Plugins UI.
  *
- * `false` until the backend answers, so the nav item is absent on first
- * paint rather than flashing into view on a shipped build.
+ * The persisted developer-mode flag is the ONLY renderer gate. The backend
+ * still refuses `get_plugins` unless the same flag is set, so hiding the nav
+ * here is a presentation guarantee, not the security boundary.
  */
 export function usePluginsAvailable(): boolean {
-	const { call } = usePython();
-	const [available, setAvailable] = useState(
-		() => _catalog?.available ?? false,
-	);
-
-	// callRef mirror: keeps this effect's deps free of `call`, which is
-	// recreated on every bridge change and would re-probe on each one.
-	const callRef = useLatestRef(call);
-
-	// callRef is a useLatestRef mirror; reading .current in a stale closure
-	// is the hook's documented contract, .current must NOT become a dep.
-	useEffect(() => {
-		let cancelled = false;
-		void loadPluginCatalog(callRef.current).then((catalog) => {
-			if (!cancelled) setAvailable(catalog.available);
-		});
-		return () => {
-			cancelled = true;
-		};
-	}, [callRef]);
-
-	// Same reconnect refetch as the page hook: a probe that failed during
-	// a backend outage is no longer cached (see fetchCatalog), so a
-	// transition back to "connected" with no cached answer re-probes and
-	// reveals the nav item without requiring a remount.
-	const connectionStatus = useAppStore((s) => s.connectionStatus);
-	const prevStatusRef = useRef(connectionStatus);
-	useEffect(() => {
-		const prev = prevStatusRef.current;
-		prevStatusRef.current = connectionStatus;
-		if (
-			connectionStatus === "connected" &&
-			prev !== "connected" &&
-			_catalog === null
-		) {
-			let cancelled = false;
-			void loadPluginCatalog(callRef.current).then((catalog) => {
-				if (!cancelled) setAvailable(catalog.available);
-			});
-			return () => {
-				cancelled = true;
-			};
-		}
-		return undefined;
-	}, [connectionStatus, callRef]);
-
-	return available;
+	return useAppStore((s) => s.config?.developer_mode === true);
 }

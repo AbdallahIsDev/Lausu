@@ -1,18 +1,30 @@
-# tools/internal_plugins — in-house plugin experiments. NEVER SHIP.
+# tools/internal_plugins — in-house plugin experiments. HIDDEN BY DEFAULT.
 
-This is an internal plugin the team is testing in-house. It is experimental,
-not released, and not wired into the UI, Settings or the tray. Accidentally
-shipping it is a P0 incident.
+This is an internal plugin the team is testing in-house. It is experimental and
+released only behind an undocumented owner unlock; neither the Plugins nav item
+nor the page exists for a normal user.
 
-Gate: the plugin workspace (or `VOICE_TYPER_INTERNAL_PLUGINS=1`) +
-`tools/internal_plugins/PLUGINS_ENABLED` + never frozen.
+The plugin SOURCE is embedded in the compiled app as data files (reversal of the
+previous "never packaged" rule, 2026-11-13). Only source + manifests ship:
+runtime state is staged out and is written per-user at runtime.
+
+Gate (all of): `config.developer_mode` is `true` — the owner presses
+`ctrl+shift+alt+d` three times within 1.5 s, or the breakglass env
+`VOICE_TYPER_INTERNAL_PLUGINS=1` — plus a usable workspace plus
+`PLUGINS_ENABLED` in that workspace.
 `PLUGINS_ENABLED` is gitignored; create it deliberately, never commit it.
 
-## Source location and backups
+## Source location, bundling and backups
 
-This folder IS tracked by the parent repository: the source is visible on
-GitHub, but every packaging input excludes it, so a built app ships none of
-it. The guard is `tests/tauri/test_internal_plugin_tools_absent.py`.
+This folder IS tracked by the parent repository. At build time
+`scripts/build/stage_internal_plugins.py` copies a curated tree into
+`build/internal_plugins_bundle/tools/internal_plugins`, and the
+`build_sidecar_*.sh` scripts embed it with
+`--include-data-dir=...=tools/internal_plugins`. Staging skips runtime state,
+tests, `node_modules` and dotfiles. On unlock, `voice_typer/server/plugins/workspace.py`
+seeds that tree into `<config dir>/developer_plugins/tools/internal_plugins`, so
+the daemon never writes into the extracted bundle. The guard is
+`tests/tauri/test_internal_plugin_packaging.py`.
 
 Runtime state stays gitignored: `PLUGINS_ENABLED`, `config.json`,
 `settings.json`, `debug/`, `last_error.json`, `extension/generated/`, and
@@ -85,8 +97,11 @@ Playwright and will report `profile-busy` while that window is open.)
    ```powershell
    powershell -File tools\internal_plugins\anthropic_stt\setup\occlusion.ps1
    ```
-7. Enable the in-app gate (`tools/internal_plugins/PLUGINS_ENABLED`) and start
-   the app normally.
+7. Unlock the hidden Plugins page: in the app press `ctrl+shift+alt+d` three
+   times within 1.5 s (persists `developer_mode: true`), then create
+   `tools/internal_plugins/PLUGINS_ENABLED` if the app has not seeded a copy
+   yet. A packaged build seeds the embedded tree into
+   `<config dir>/developer_plugins/tools/internal_plugins` on unlock.
 8. Select Anthropic STT on the Plugins page.
 9. Press the product hotkey (Settings -> Hotkey) in any app. The bubble shows,
    Claude records, and the transcript is pasted when you press the hotkey
@@ -153,8 +168,8 @@ a Chrome restart. Nothing else in the profile is touched.
 ## google_stt (plan: `docs/plan-internal-plugin-google-stt.md`)
 
 Burner Gmail only. Ban risk sits on that account. Automating the Google web
-UI is a ToS gray area — in-house experiment, never in a release
-(P0 incident if it ships).
+UI is a ToS gray area — in-house experiment, hidden behind the owner unlock in
+every build. Never document it in a release note or README outside this folder.
 
 ### How it runs now (in-app)
 
@@ -167,9 +182,12 @@ Google session, and the app's own bubble + sound cues + clipboard +
 history are used. Changing the hotkey in Settings is picked up
 automatically (the backend re-registers and the wrappers stay in place).
 
-The plugin is active while `tools/internal_plugins/PLUGINS_ENABLED` exists.
-Rename or delete that file to get normal local dictation back; re-create it
-for the Google STT plugin.
+The plugin is active while `developer_mode` is on AND the workspace's
+`PLUGINS_ENABLED` exists AND a plugin is selected on the Plugins page. In a
+checkout the workspace is this folder; a packaged build seeds a copy into
+`<config dir>/developer_plugins/tools/internal_plugins`, so its marker lives
+there. Delete the marker (or turn developer mode off in Settings once visible)
+to get normal local dictation back; re-create it for the Google STT plugin.
 
 ### Pieces
 
@@ -194,7 +212,10 @@ for the Google STT plugin.
 
 ### Setup once
 
-1. `setx VOICE_TYPER_INTERNAL_PLUGINS 1` (or export it in your dev shell).
+1. Unlock the hidden surface: press `ctrl+shift+alt+d` three times within 1.5 s
+   in the app. That persists `developer_mode: true` and seeds the workspace if
+   the build is packaged. (`setx VOICE_TYPER_INTERNAL_PLUGINS 1` remains a
+   breakglass override for a dev shell.)
 2. `New-Item tools/internal_plugins/PLUGINS_ENABLED` (gitignored marker).
 3. Install Playwright deps outside the repo:
    `%LOCALAPPDATA%/voice-typer-internal-plugins/node-deps`.

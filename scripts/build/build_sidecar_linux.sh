@@ -248,6 +248,13 @@ if [[ -z "${NUITKA_JOBS:-}" ]]; then
     NUITKA_JOBS="$(nproc 2>/dev/null || echo 1)"
 fi
 echo "[build_sidecar_linux] Nuitka --jobs=$NUITKA_JOBS"
+
+# Internal plugin source (developer-mode surface): staged as data, never
+# imported from the binary. The packaged app seeds a writable per-user
+# workspace from this copy on the first unlock.
+PLUGINS_STAGE="$PROJECT_ROOT/build/internal_plugins_bundle"
+"$PYBS_PYTHON" "$PROJECT_ROOT/scripts/build/stage_internal_plugins.py" --output "$PLUGINS_STAGE" \
+    || { echo "ERROR: internal plugin staging failed" >&2; exit 1; }
 NUITKA_ARGS=(
     --standalone --onefile
     --assume-yes-for-downloads
@@ -276,6 +283,10 @@ NUITKA_ARGS=(
     --include-package=av
     --include-package-data=yt_dlp
     --include-package-data=voice_typer.server
+    # Internal plugin source (developer-mode surface): shipped as data, never
+    # imported from the binary. The packaged app seeds a writable per-user
+    # workspace from this copy on the first unlock.
+    --include-data-dir="$PLUGINS_STAGE/tools/internal_plugins=tools/internal_plugins"
     --include-package=numpy
     --onefile-tempdir-spec="$ONEFILE_TEMPDIR"
     --output-dir="$OUTPUT_DIR"

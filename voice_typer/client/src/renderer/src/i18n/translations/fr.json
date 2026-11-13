@@ -820,7 +820,9 @@
 		"activateAria": "Utiliser ce plugin pour la dictée",
 		"settingsSection": "Paramètres",
 		"statusActive": "Actif",
-		"statusInactive": "Inactif"
+		"statusInactive": "Inactif",
+		"unlocked": "Plugins débloqués.",
+		"unlockFailed": "Impossible de débloquer les plugins. Réessayez."
 	},
 	"models": {
 		"loadFailedTitle": "Impossible de charger les modèles",
