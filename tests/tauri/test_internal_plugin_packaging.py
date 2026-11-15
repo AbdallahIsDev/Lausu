@@ -128,12 +128,6 @@ class TestPluginSeamIsInertWhileLocked:
         assert text.count("internal_plugin_hook.install") == 1
 
     def test_hook_install_is_noop_outside_the_gate(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        import sys
-
-        sys.path.insert(0, str(_REPO_ROOT))
-        prefix = "voice_typer.server.internal_plugin_hook"
-        for mod in [m for m in list(sys.modules) if m.startswith(prefix)]:
-            sys.modules.pop(mod, None)
         from voice_typer.server import internal_plugin_hook
 
         # Simulate a locked install: no developer flag, no env flag and no

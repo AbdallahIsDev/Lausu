@@ -433,12 +433,18 @@ def test_supervisor_emits_reconnected_event_on_success(supervisor_source: str) -
     )
 
 
-def test_supervisor_rotates_token_on_each_respawn_attempt(supervisor_source: str) -> None:
-    """Each respawn attempt must rotate the bearer token (via"""
+def test_supervisor_token_is_generated_once_and_reused(supervisor_source: str) -> None:
+    """The bearer token is established once per launch.
+
+    ADR-0020 §3 originally rotated it per respawn; the runtime-pack split
+    (worker authenticates with a process-lifetime token) made that unsafe, so
+    the supervisor now generates it only when `state.auth_token` is still
+    empty and reuses it for every subsequent respawn.
+    """
     assert "generate_token()" in supervisor_source, (
-        "supervisor must call generate_token() on each respawn attempt, the token rotates per respawn (ADR-0020 §3)"
+        "supervisor must call generate_token() when state.auth_token is unset (first respawn)"
     )
-    assert "new_token" in supervisor_source, "supervisor must use a `new_token` local for the rotated token"
+    assert "new_token" in supervisor_source, "supervisor must use a `new_token` local for the per-launch token"
 
 
 def test_supervisor_no_persistent_crash_counter_field_on_state(state_source: str) -> None:
@@ -657,7 +663,7 @@ def test_supervisor_respawn_inner_calls_reconnect_ws(supervisor_source: str) -> 
     """Each respawn attempt must call ``reconnect_ws`` to re-establish"""
     assert "reconnect_ws(app, state, port, &new_token)" in supervisor_source, (
         "supervisor must call reconnect_ws(app, state, port, &new_token) "
-        "after each spawn, re-auth with the rotated token is mandatory"
+        "after each spawn; re-auth with the per-launch token is mandatory"
     )
 
 
@@ -676,7 +682,7 @@ def test_supervisor_respawn_inner_handles_reconnect_failure(supervisor_source: s
     # The reconnect-error arm must `continue` (retry with backoff).
     assert "continue;" in supervisor_source, (
         "supervisor must `continue` to the next backoff attempt on "
-        "reconnect failure (token rotates fresh on the next attempt)"
+        "reconnect failure (the per-launch token is re-read on the next attempt)"
     )
 
 
@@ -688,12 +694,21 @@ def test_supervisor_respawn_inner_swaps_child_handle_under_lock(supervisor_sourc
         "Mutex (legacy .lock().unwrap() or new mutex_lock helper), kill_children "
         "needs the latest PID"
     )
-    assert "let new_token = generate_token();" in supervisor_source, (
-        "supervisor must roll a fresh auth token per respawn attempt "
-        "(generate_token), the token is threaded through spawn + reconnect_ws"
+    assert "let new_token = match state.auth_token.get()" in supervisor_source, (
+        "supervisor must read the per-launch auth token (OnceLock) before a respawn: the "
+        "runtime-pack worker authenticates to the sidecar with a process-lifetime token, so "
+        "rotating it per spawn would strand the worker. Generate one only when unset."
+    )
+    assert "let generated = generate_token();" in supervisor_source, (
+        "supervisor must generate the auth token (generate_token) when the OnceLock is still "
+        "empty, and store it so later respawns reuse the SAME token"
+    )
+    assert "state.auth_token.set(generated.clone())" in supervisor_source, (
+        "supervisor must persist the generated token in state.auth_token (OnceLock contract: "
+        "first set wins, so the worker and every later sidecar agree)"
     )
     assert "reconnect_ws(app, state, port, &new_token)" in supervisor_source, (
-        "supervisor must pass the fresh token into reconnect_ws for re-auth"
+        "supervisor must pass the per-launch token into reconnect_ws for re-auth"
     )
     assert "state.child_exit_rx.lock().await" in supervisor_source, (
         "supervisor must rotate the child_exit_rx (CR-2) so the next "

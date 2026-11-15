@@ -42,7 +42,7 @@ import os
 import site
 import sys
 import time
-from typing import Any
+from typing import Any, cast
 
 from voice_typer.server.duration import format_duration
 from voice_typer.server.platform_utils import is_windows
@@ -103,12 +103,12 @@ class _NvidiaDllPathManager:
     @property
     def handles(self) -> list[Any]:
         """The list of open DLL-directory handles (mutable)."""
-        return self._get("_nvidia_dll_path_handles")
+        return cast("list[Any]", self._get("_nvidia_dll_path_handles"))
 
     @property
     def configured(self) -> bool:
         """One-shot latch: True once configuration has run successfully."""
-        return self._get("_nvidia_dll_paths_configured")
+        return cast(bool, self._get("_nvidia_dll_paths_configured"))
 
     @configured.setter
     def configured(self, value: bool) -> None:
@@ -351,11 +351,7 @@ def _cuda_dll_probe_names() -> tuple[str, ...]:
             continue
         for name in names:
             lower = name.lower()
-            if (
-                lower.startswith(("cublas64_", "cublaslt64_"))
-                and lower.endswith(".dll")
-                and name not in found
-            ):
+            if lower.startswith(("cublas64_", "cublaslt64_")) and lower.endswith(".dll") and name not in found:
                 found.append(name)
     if found:
         return tuple(sorted(found))

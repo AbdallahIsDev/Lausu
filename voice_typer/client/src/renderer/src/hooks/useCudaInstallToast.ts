@@ -33,6 +33,7 @@ import type { TranslateFn } from "@/i18n/translate-types";
 import { formatBytes, formatSpeed } from "@/lib/format";
 import { useAppStore } from "@/stores/appStore";
 import type { CudaInstallProgress, GpuCapability } from "@/types/config";
+import { useLatestRef } from "./useLatestRef";
 import { useSnackbar } from "./useSnackbar";
 
 /** Sonner id: every install state replaces this one toast. */
@@ -143,6 +144,9 @@ type RespawnResult = { ok: boolean; reason?: string };
 export function useCudaInstallToast(t: TranslateFn): void {
 	const { showSnack, clearSnack } = useSnackbar();
 	const { call } = usePython();
+	// Latest-ref mirror: every callback below runs from effects/event handlers,
+	// so call must not be a dependency (the OOM-loop class the AST guard pins).
+	const callRef = useLatestRef(call);
 
 	// One flow at a time: a second `completed` (or a remount during the
 	// respawn) must not start a parallel restart/poll chain.
@@ -164,7 +168,7 @@ export function useCudaInstallToast(t: TranslateFn): void {
 							action: {
 								label: t("gpuSwitch.cancelDownload"),
 								onClick: () => {
-									void call("cancel_cuda_download").catch((err) => {
+									void callRef.current("cancel_cuda_download").catch((err) => {
 										console.warn(
 											"[renderer:useCudaInstallToast] cancel_cuda_download failed:",
 											err,
@@ -176,7 +180,7 @@ export function useCudaInstallToast(t: TranslateFn): void {
 					: {}),
 			});
 		},
-		[showSnack, t, call],
+		[callRef, showSnack, t],
 	);
 
 	const finish = useCallback(
@@ -197,7 +201,8 @@ export function useCudaInstallToast(t: TranslateFn): void {
 	 */
 	const refreshConfig = useCallback(async () => {
 		try {
-			const config = await call<Record<string, unknown>>("get_config");
+			const config =
+				await callRef.current<Record<string, unknown>>("get_config");
 			if (config && typeof config === "object") {
 				// `mergeConfig` is a plain zustand action, not a hook: the store
 				// stays the single source for `device` / `active_device`, and the
@@ -212,7 +217,7 @@ export function useCudaInstallToast(t: TranslateFn): void {
 			);
 		}
 		return null;
-	}, [call]);
+	}, [callRef]);
 
 	const acknowledgeFailure = useCallback(
 		(reason: string | null | undefined) => {
@@ -224,14 +229,14 @@ export function useCudaInstallToast(t: TranslateFn): void {
 				}),
 				"error",
 			);
-			void call("ack_cuda_activation").catch((err) => {
+			void callRef.current("ack_cuda_activation").catch((err) => {
 				console.warn(
 					"[renderer:useCudaInstallToast] ack_cuda_activation failed:",
 					err,
 				);
 			});
 		},
-		[t, finish, call],
+		[callRef, t, finish],
 	);
 
 	const confirmGpu = useCallback(async () => {
@@ -239,7 +244,8 @@ export function useCudaInstallToast(t: TranslateFn): void {
 		try {
 			for (let attempt = 0; attempt < CONFIRM_ATTEMPTS; attempt += 1) {
 				try {
-					const capability = await call<GpuCapability>("get_gpu_capability");
+					const capability =
+						await callRef.current<GpuCapability>("get_gpu_capability");
 					if (capability?.activation?.state === "failed") {
 						acknowledgeFailure(capability.activation.reason);
 						await refreshConfig();
@@ -285,7 +291,7 @@ export function useCudaInstallToast(t: TranslateFn): void {
 			// later install can still switch the device.
 			switchingRef.current = false;
 		}
-	}, [showSticky, t, call, finish, acknowledgeFailure, refreshConfig]);
+	}, [acknowledgeFailure, callRef, finish, refreshConfig, showSticky, t]);
 
 	const restartAndConfirm = useCallback(async () => {
 		if (switchingRef.current) return;
@@ -352,7 +358,8 @@ export function useCudaInstallToast(t: TranslateFn): void {
 		let cancelled = false;
 		const reattach = async () => {
 			try {
-				const capability = await call<GpuCapability>("get_gpu_capability");
+				const capability =
+					await callRef.current<GpuCapability>("get_gpu_capability");
 				if (cancelled || !capability) return;
 				if (capability.activation?.state === "failed") {
 					acknowledgeFailure(capability.activation.reason);
@@ -378,5 +385,5 @@ export function useCudaInstallToast(t: TranslateFn): void {
 		// useCallbacks), so this runs once per mount while still satisfying
 		// the exhaustive-deps rule. Later capability reads are driven by
 		// `cuda_progress`.
-	}, [acknowledgeFailure, call, showSticky, t]);
+	}, [acknowledgeFailure, callRef, showSticky, t]);
 }

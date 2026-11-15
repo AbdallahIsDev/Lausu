@@ -266,6 +266,15 @@ KNOWN_UNDOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         # Owned by the same TTS feature: ``tts_stop`` backs the model row's
         # stop glyph (the second half of the non-blocking playback pair).
         "tts_stop",
+        # User-level CUDA stack (2026-11-14, device switch flow): real
+        # handlers in `handlers/cuda_handlers.py`, Rust allowlist entries and
+        # their own tests, but the ADR-0020 §16 addendum + payload schemas are
+        # still owned by that feature. Recorded as an explicit gap instead of
+        # widening the frozen table without the (b) paperwork.
+        "get_gpu_capability",
+        "start_cuda_download",
+        "cancel_cuda_download",
+        "ack_cuda_activation",
     }
 )
 

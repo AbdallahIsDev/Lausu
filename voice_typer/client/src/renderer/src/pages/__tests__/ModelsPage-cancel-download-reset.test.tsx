@@ -26,6 +26,10 @@ vi.mock("@hugeicons/react", () => hugeiconsReactMock({ spreadProps: true }));
 vi.mock("@hugeicons/core-free-icons", () => hugeiconsCoreMock());
 vi.mock("sonner", () => sonnerMock({ errorTo: "mockToastError" }));
 
+// Model cards mount hover/focus tooltips; the App root owns the single
+// TooltipProvider (per-caller providers are forbidden), so an isolated
+// page render must supply one — same wrapper as ModelsPage.test.tsx.
+import { TooltipProvider } from "@/components/ui/tooltip";
 import en from "@/i18n/translations/en.json";
 import ModelsPage from "@/pages/Models";
 
@@ -60,7 +64,11 @@ async function renderPage() {
 		if (type === "get_model_catalog") return Promise.resolve({ models: [] });
 		return Promise.resolve(MOCK_CONFIG);
 	});
-	render(<ModelsPage />);
+	render(
+		<TooltipProvider delayDuration={200}>
+			<ModelsPage />
+		</TooltipProvider>,
+	);
 	await waitFor(() => {
 		expect(screen.queryByRole("heading", { name: /Models/i })).toBeTruthy();
 	});

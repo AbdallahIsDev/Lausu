@@ -231,14 +231,12 @@ class TestInputStructLayout:
 
         expected = 40 if ctypes.sizeof(ctypes.c_void_p) == 8 else 28
         assert ctypes.sizeof(INPUT) == expected, (
-            f"sizeof(INPUT) must be {expected} on this pointer width; "
-            f"got {ctypes.sizeof(INPUT)} -- SendInput returns 0"
+            f"sizeof(INPUT) must be {expected} on this pointer width; got {ctypes.sizeof(INPUT)} -- SendInput returns 0"
         )
 
     def test_sendinput_receives_the_real_struct_size(self, fake_win32):
-        from voice_typer.server.clipboard.windows import INPUT
-
         from tests.fixtures.clipboard_helpers import make_clipboard_manager
+        from voice_typer.server.clipboard.windows import INPUT
 
         cm = make_clipboard_manager()
         mock_user32 = fake_win32["user32"]

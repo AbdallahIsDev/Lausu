@@ -3,7 +3,7 @@
 **Status:** Phase 0 exit passed (24h survival) — Phase 3 core loop verified
 live 2026-10-02 (record → transcribe → clipboard → paste into the focused app).
 Phase 4 (break detection) not started.
-**Audience:** in-house testing. **Experimental plugin — never ship to users.**
+**Audience:** in-house testing. **Experimental plugin - hidden from users by default.**
 **Date:** 2026-09-28 (rev 2) + plugin update 2026-09-29 (Phase 1 note + §14 future plugin settings)
 
 ## 1. Goal
@@ -30,7 +30,9 @@ hotkey #2  → stop mic → wait for stable transcript → restore focus → pas
 | Toast/email body containing transcript | Privacy — speech is sensitive |
 | `tools/internal_plugins` in any repo `package.json` script | Discoverability leak |
 
-**Release rule:** accidental ship = P0 incident.
+**Release rule:** accidental exposure (visible surface, active plugin, or leaked
+runtime state) = P0 incident. The source itself rides inside the sidecar behind
+the developer-mode gate (see §4).
 
 ## 3. Decisions (locked)
 
@@ -40,7 +42,7 @@ hotkey #2  → stop mic → wait for stable transcript → restore focus → pas
 | Account | Burner Gmail only (ban = that account). |
 | Paste | **Import product paste** (`voice_typer.server.clipboard` manager path — snapshot/restore, target gates, RDP delay, UIPI fail-closed). No reimplementation. |
 | Alerts | **Desktop toast + local log only.** No email/webhook. Toasts never include dictated text. |
-| Isolation | `tools/internal_plugins/` process; not wired into Tauri until spike passes §11. |
+| Isolation | `tools/internal_plugins/` outside the package; wired into the sidecar as a gated seam (developer mode), UI hidden until unlock. |
 | Toolchain | Node deps **outside repo** (see §4). |
 
 ## 4. Hard ship gates (must all hold)
@@ -285,7 +287,7 @@ Spike **refuses** to start if product recording is active (Phase 3.6). Product w
 
 - Burner ban/lockout; possible phone-verification demand.
 - Google redesign / captcha / rate-limit downtime; no SLA; maintenance labor.
-- ToS gray area of automating the web UI (internal test builds, never shipped).
+- ToS gray area of automating the web UI (internal use only, gated behind developer mode).
 - Transcript bytes at rest in profile + `debug/` on the test machine.
 - Chrome channel may still be fingerprint-flagged; isolation ≠ invisibility.
 
@@ -302,7 +304,9 @@ Spike **refuses** to start if product recording is active (Phase 3.6). Product w
 - [ ] Elevated/unsafe target → paste blocked, text on clipboard (product gates).
       Not cleanly exercised: see the 2026-10-02 note — SendInput warned "failed" yet the
       pynput fallback actually delivered the paste.
-- [x] `test_internal_plugin_tools_absent.py` green; `tools/internal_plugins` absent from release/CI lists.
+- [x] Packaging guard green: source ships as sidecar data, runtime state never does
+      (`test_internal_plugin_packaging.py`; superseded the old "absent from release/CI lists"
+      criterion on 2026-11-13).
 - [x] No i18n / Settings / tray / `set_config` changes.
 
 ## 11. Decision checkpoints + trial log

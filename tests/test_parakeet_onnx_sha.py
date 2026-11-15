@@ -40,26 +40,34 @@ class TestAllowPatternsParakeetOnnx:
             f"specifies frozenset to document immutability + dedup intent."
         )
 
-    def test_includes_onnx_glob(self):
-        """``*.onnx`` must be in the allowlist, the ONNX encoder /"""
-        assert "*.onnx" in ALLOW_PATTERNS_PARAKEET_ONNX, (
-            "*.onnx must be in ALLOW_PATTERNS_PARAKEET_ONNX, the ONNX encoder/decoder/joint graphs ship as .onnx files."
-        )
+    def test_pins_exact_int8_graphs_instead_of_an_onnx_glob(self):
+        """The allowlist names the two int8 graphs instead of ``*.onnx``.
 
-    def test_includes_required_json_configs(self):
-        """minimum set per §3.5.4:"""
-        required = {
-            "config.json",
-            "tokenizer.json",
-            "vocab.txt",
-            "special_tokens_map.json",
-            "generation_config.json",
-        }
+        Verified against the live Hub listing (2026-11-14): the repo ships
+        ``encoder-model.onnx`` + ``encoder-model.onnx.data`` (fp32, ~2.4 GB
+        external data) and fp16 twins next to the int8 graphs. A ``*.onnx``
+        glob downloads all of them, which the app never loads.
+        """
+        assert "encoder-model.int8.onnx" in ALLOW_PATTERNS_PARAKEET_ONNX
+        assert "decoder_joint-model.int8.onnx" in ALLOW_PATTERNS_PARAKEET_ONNX
+        assert "*.onnx" not in ALLOW_PATTERNS_PARAKEET_ONNX, (
+            "*.onnx must NOT be in the ONNX allowlist: the repo also ships fp16/fp32 graphs "
+            "plus encoder-model.onnx.data, and the glob pulls them all."
+        )
+        for unneeded in ("encoder-model.onnx", "encoder-model.onnx.data", "encoder-model.fp16.onnx"):
+            assert unneeded not in ALLOW_PATTERNS_PARAKEET_ONNX
+
+    def test_includes_the_files_the_repo_actually_ships(self):
+        """Only config.json + vocab.txt ride along with the int8 graphs.
+
+        The Hub listing for ``Masterx/parakeet-tdt-0.6b-ultra-onnx`` has no
+        tokenizer.json / special_tokens_map.json / generation_config.json,
+        and onnx-asr's ``nemo-conformer-tdt`` loader reads ``vocab.txt``.
+        """
+        required = {"config.json", "vocab.txt"}
         missing = required - ALLOW_PATTERNS_PARAKEET_ONNX
         assert not missing, (
-            f"ALLOW_PATTERNS_PARAKEET_ONNX is missing required patterns: "
-            f"{sorted(missing)}. PLAN_ONNX_INTEGRATION.md §3.5.4 specifies "
-            f"these 5 JSON files + *.onnx."
+            f"ALLOW_PATTERNS_PARAKEET_ONNX is missing required patterns: {sorted(missing)}."
         )
 
     def test_does_not_include_bin_or_safetensors(self):

@@ -132,8 +132,10 @@ class TestRestartLogTruth:
 
         src = inspect.getsource(startup_tasks.load_microphones)
         # First load is already covered by the Found line; the
-        # Device set changed event is only for later changes.
-        assert "if old_ids and old_ids != new_ids:" in src
+        # "Device set changed" log is only for later changes, while the
+        # publish itself covers empty -> non-empty (boot-race recovery).
+        assert "if old_ids != new_ids:" in src
+        assert "if old_ids:\n                log.info(" in src
 
     def test_env_var_and_error_codes_survive_redaction(self):
         from voice_typer.server.security.secret_redaction import redact_secret

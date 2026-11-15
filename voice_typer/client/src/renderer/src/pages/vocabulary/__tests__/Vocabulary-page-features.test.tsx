@@ -460,6 +460,11 @@ describe("Vocabulary page, inline quick add", () => {
 		});
 
 		// "Add Word" opens the inline quick-add row, the list stays visible.
+		// The measured wrap crossfades its fallback out; wait for the settled
+		// toolbar so the aria-hidden fading pane cannot match this text.
+		await waitFor(() =>
+			expect(screen.getAllByText("Add Word")).toHaveLength(1),
+		);
 		fireEvent.click(screen.getByText("Add Word"));
 		const quickAdd = screen.getByTestId("vocab-quick-add");
 		expect(quickAdd).toBeTruthy();
@@ -497,6 +502,11 @@ describe("Vocabulary page, inline quick add", () => {
 			expect(screen.getByText("recieve")).toBeTruthy();
 		});
 
+		// The measured wrap crossfades its fallback out; wait for the settled
+		// toolbar so the aria-hidden fading pane cannot match this text.
+		await waitFor(() =>
+			expect(screen.getAllByText("Add Word")).toHaveLength(1),
+		);
 		fireEvent.click(screen.getByText("Add Word"));
 		const quickAdd = screen.getByTestId("vocab-quick-add");
 		fireEvent.change(

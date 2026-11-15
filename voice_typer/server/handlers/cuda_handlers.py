@@ -2,6 +2,7 @@
 
 from voice_typer.server.handlers._base import HandlerBase
 from voice_typer.server.handlers._log import log
+from voice_typer.server.ipc.validation import ResponseEnvelope
 
 # Refusal reasons surfaced to the renderer as `set_config` error codes.
 REJECT_DOWNLOAD_RUNNING = "cuda_download_in_progress"
@@ -72,7 +73,7 @@ def device_request_rejection(updates: dict, config: object | None = None) -> str
 class CudaHandlersMixin(HandlerBase):
     """Mixin: GPU capability reads and the user-level CUDA install job."""
 
-    def _handle_get_gpu_capability(self, data: object | None, resp: dict) -> dict:
+    def _handle_get_gpu_capability(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
         """Handle the ``get_gpu_capability`` IPC command (read-only)."""
         try:
             from voice_typer.server import gpu_capability
@@ -88,7 +89,7 @@ class CudaHandlersMixin(HandlerBase):
             self._respond_with_error(resp, exc, "get_gpu_capability")
         return resp
 
-    def _handle_start_cuda_download(self, data: object | None, resp: dict) -> dict:
+    def _handle_start_cuda_download(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
         """Handle the ``start_cuda_download`` IPC command (single-flight)."""
         try:
             from voice_typer.server.cuda_install.service import get_service
@@ -100,7 +101,7 @@ class CudaHandlersMixin(HandlerBase):
             self._respond_with_error(resp, exc, "start_cuda_download")
         return resp
 
-    def _handle_cancel_cuda_download(self, data: object | None, resp: dict) -> dict:
+    def _handle_cancel_cuda_download(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
         """Handle the ``cancel_cuda_download`` IPC command (instant control)."""
         try:
             from voice_typer.server.cuda_install.service import get_service
@@ -112,7 +113,7 @@ class CudaHandlersMixin(HandlerBase):
             self._respond_with_error(resp, exc, "cancel_cuda_download")
         return resp
 
-    def _handle_ack_cuda_activation(self, data: object | None, resp: dict) -> dict:
+    def _handle_ack_cuda_activation(self, data: object | None, resp: ResponseEnvelope) -> ResponseEnvelope | None:
         """Handle ``ack_cuda_activation``: clear a shown activation failure."""
         try:
             from voice_typer.server.cuda_install import activation

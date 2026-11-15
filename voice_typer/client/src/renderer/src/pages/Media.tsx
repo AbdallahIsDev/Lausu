@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 import { useMediaSourceStore } from "@/stores/mediaSourceStore";
 import { MediaJobRowView } from "./media/components/MediaJobRow";
 import { reportBatchLimited, useMediaJobs } from "./media/hooks/useMediaJobs";
-import { SAMPLE_MEDIA_JOB } from "./media/lib/sample";
+import { mediaJobSample } from "./media/lib/sample";
 import { splitSources } from "./media/lib/splitSources";
 
 export default function MediaPage() {
@@ -299,14 +299,14 @@ export default function MediaPage() {
 			{jobs.length > 0 && (
 				<div className="flex flex-col rounded-lg border border-border/10 bg-surface-subtle">
 					{jobs.map((job, index) => (
-						// Measured wrap per row: jobs is always an array (no
-						// first-load null), so only the no-progress "starting"
-						// phase needs the skeleton; the Start button's Spinner
-						// stays, it is an inline action state.
+						// Measured wrap per row: the fallback reserves the running
+						// row's geometry from the job's own identity, so nothing
+						// invented (source/percent) is ever painted in place of the
+						// link the user just pasted.
 						<Skeleton
 							key={job.clientId}
 							data={job.phase === "starting" ? null : job}
-							sample={SAMPLE_MEDIA_JOB}
+							sample={mediaJobSample(job)}
 							id={`media-job-${job.clientId}`}
 							label={skeletonLoadingLabel()}
 						>

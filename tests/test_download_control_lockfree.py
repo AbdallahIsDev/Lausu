@@ -14,7 +14,7 @@ from tests.fixtures.ipc_test_helpers import make_ipc_server_with_fakes
 
 
 class TestInstantControlMembership:
-    """The bypass set holds exactly the three download-control commands."""
+    """The bypass set holds exactly the download-control commands."""
 
     def test_membership_is_exact(self) -> None:
         assert (
@@ -23,6 +23,8 @@ class TestInstantControlMembership:
                     "pause_model_download",
                     "resume_model_download",
                     "cancel_model_download",
+                    # CUDA install job: one atomic flag write, no I/O.
+                    "cancel_cuda_download",
                 }
             )
             == _INSTANT_CONTROL_COMMANDS
@@ -33,11 +35,12 @@ class TestInstantControlMembership:
         assert not (_INSTANT_CONTROL_COMMANDS & _READONLY_COMMANDS)
 
     def test_self_serialized_membership_is_exact(self) -> None:
-        """Only ``download_model`` carries its own serialization (service
-        single-flight + FIFO queue). It must bypass the dispatch lock so
-        a multi-GB transfer never wedges later commands behind the 30s
-        give-up, and it must stay out of the readonly set (it mutates)."""
-        assert frozenset({"download_model"}) == _SELF_SERIALIZED_COMMANDS
+        """Only the model + CUDA downloads carry their own serialization
+        (service single-flight + FIFO queue). They must bypass the dispatch
+        lock so a multi-GB transfer never wedges later commands behind the
+        30s give-up, and they must stay out of the readonly set (they
+        mutate)."""
+        assert frozenset({"download_model", "start_cuda_download"}) == _SELF_SERIALIZED_COMMANDS
         assert not (_SELF_SERIALIZED_COMMANDS & _READONLY_COMMANDS)
         assert not (_SELF_SERIALIZED_COMMANDS & _INSTANT_CONTROL_COMMANDS)
 

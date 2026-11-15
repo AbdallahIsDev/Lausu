@@ -13,10 +13,17 @@ from voice_typer.server.asr_setup import (
 )
 
 
-def _install_hf_stub():
-    """Install a package-shaped stub ``huggingface_hub`` so imports succeed."""
-    if "huggingface_hub" in sys.modules:
-        return
+def _install_hf_stub(monkeypatch):
+    """Install a package-shaped ``huggingface_hub`` stub for this test.
+
+    Installed unconditionally: the real package is importable here, and
+    its ``snapshot_download(local_files_only=True)`` probe would answer
+    from the REAL user cache (a cache no test may touch, C-TEST-8).
+    That made the download-failure path unreachable whenever an earlier
+    test had imported the real library first (C-TEST-9: patch the seam
+    the code actually calls, never depend on what happens to be
+    importable). ``monkeypatch`` restores the real module afterwards.
+    """
 
     def fake_snapshot(*args, **kwargs):
         return None
@@ -24,11 +31,11 @@ def _install_hf_stub():
     stub = types.ModuleType("huggingface_hub")
     stub.snapshot_download = fake_snapshot
     stub.__path__ = []  # mark as package so submodule imports resolve
-    sys.modules["huggingface_hub"] = stub
+    monkeypatch.setitem(sys.modules, "huggingface_hub", stub)
 
     utils = types.ModuleType("huggingface_hub.utils")
     utils.__path__ = []
-    sys.modules["huggingface_hub.utils"] = utils
+    monkeypatch.setitem(sys.modules, "huggingface_hub.utils", utils)
 
     hf_tqdm = types.ModuleType("huggingface_hub.utils.tqdm")
 
@@ -44,7 +51,7 @@ def _install_hf_stub():
             pass
 
     hf_tqdm.tqdm = _StubTqdm
-    sys.modules["huggingface_hub.utils.tqdm"] = hf_tqdm
+    monkeypatch.setitem(sys.modules, "huggingface_hub.utils.tqdm", hf_tqdm)
 
 
 @pytest.fixture(autouse=True)
@@ -93,7 +100,7 @@ class TestDownloadParakeetWeightsCapturesTraceback:
     """download-failure path captures ``sys.exc_info()`` and"""
 
     def test_return_shape_is_three_tuple(self, monkeypatch):
-        _install_hf_stub()
+        _install_hf_stub(monkeypatch)
 
         def fake_download_with_retry(*args, **kwargs):
             raise RuntimeError("simulated HF 429 rate-limit")
@@ -122,7 +129,7 @@ class TestDownloadParakeetWeightsCapturesTraceback:
         assert exc_info[2] is not None
 
     def test_log_error_uses_exc_info_true(self, monkeypatch, caplog):
-        _install_hf_stub()
+        _install_hf_stub(monkeypatch)
 
         def fake_download_with_retry(*args, **kwargs):
             raise RuntimeError("simulated network failure for log test")
@@ -156,7 +163,7 @@ class TestDownloadParakeetWeightsIntegrityCheckLogsDetails:
     """GT-B2-4: integrity-check failure logs the diagnostic details at"""
 
     def test_integrity_check_failure_logs_failed_file(self, monkeypatch, caplog, tmp_path):
-        _install_hf_stub()
+        _install_hf_stub(monkeypatch)
 
         monkeypatch.setattr(
             "voice_typer.server.transcription._download_with_retry",

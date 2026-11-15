@@ -100,7 +100,6 @@ describe("samples never leak into role queries", () => {
 			"ollama",
 			"lmstudio",
 			"local_onnx",
-			"openai",
 			"custom",
 		]);
 	});

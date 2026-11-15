@@ -117,6 +117,11 @@ class RecorderInitMixin:
     :meth:`_setup_device_state_and_collaborators`.
     """
 
+    if TYPE_CHECKING:
+        # Provided by the composed ``Recorder`` (a device_prewarm delegator);
+        # declared here so the mixin type-checks without the host class.
+        def _prewarm_device_cache(self) -> None: ...
+
     def _setup_device_state_and_collaborators(self) -> None:
         """Initialize device / disconnect-handler state + construct collaborators.
 

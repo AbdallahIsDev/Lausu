@@ -20,7 +20,10 @@ class TestConfigDefaults:
         assert c.microphone is None
         assert c.model_size == DEFAULT_MODEL_SIZE
         assert c.language == "en"
-        assert c.device == "cuda"
+        # CPU-retention: a fresh install has no user-level CUDA pack, so the
+        # default is CPU and `device: "cuda"` is refused until the install
+        # completes (cuda_handlers.device_request_rejection).
+        assert c.device == "cpu"
         assert c.beam_size == 1
         assert c.best_of == 1
         assert c.condition_on_previous_text is False

@@ -119,9 +119,14 @@ describe("media row phase copy", () => {
 		const { container, getByTestId } = await startOneJob();
 		pushProgress({ phase: "downloading", progress: 0.3 });
 		const row = await waitFor(() => {
-			const el = container.querySelector('[role="progressbar"]')?.parentElement;
-			if (!el) throw new Error("row gone");
-			return el;
+			// The measured wrap fades the starting fallback out, so wait for
+			// the single settled row before reading it.
+			const bars = container.querySelectorAll('[role="progressbar"]');
+			const bar = bars[0];
+			if (bars.length !== 1 || !bar) throw new Error("row not settled");
+			const settled = bar.parentElement;
+			if (!settled) throw new Error("row has no parent");
+			return settled;
 		});
 		expect(row.textContent).toContain("Preparing");
 		expect(row.textContent).not.toContain("Loading model");
@@ -134,9 +139,15 @@ describe("media row phase copy", () => {
 		const { container } = await startOneJob();
 		pushProgress({ phase: "transcribing", progress: 0.55 });
 		const row = await waitFor(() => {
-			const el = container.querySelector('[role="progressbar"]')?.parentElement;
-			if (!el) throw new Error("row gone");
-			return el;
+			const bars = container.querySelectorAll('[role="progressbar"]');
+			const bar = bars[0];
+			if (bars.length !== 1 || !bar) throw new Error("row not settled");
+			const settled = bar.parentElement;
+			if (!settled) throw new Error("row has no parent");
+			if (!settled.textContent?.includes("Transcribing")) {
+				throw new Error("row still shows the starting fallback");
+			}
+			return settled;
 		});
 		expect(row.textContent).toContain("Transcribing");
 		expect(row.textContent).not.toContain("Preparing");

@@ -45,7 +45,11 @@ class TestEndToEndSmoke:
         # Set up HF cache with multiple model dirs
         hf_cache = temp_config / "huggingface" / "hub"
         hf_cache.mkdir(parents=True)
-        (hf_cache / "models--nvidia--parakeet-tdt-0.6b-v3" / "snapshots" / "abc").mkdir(parents=True)
+        # Parakeet's ONNX export (the backend the app actually loads since
+        # the ONNX migration) plus the retired safetensors repo.
+        onnx_repo = "Masterx/parakeet-tdt-0.6b-ultra-onnx"
+        (hf_cache / f"models--{onnx_repo.replace('/', '--')}" / "snapshots" / "abc").mkdir(parents=True)
+        (hf_cache / "models--nvidia--parakeet-tdt-0.6b-v3" / "snapshots" / "old").mkdir(parents=True)
         (hf_cache / "models--Systran--faster-whisper-tiny" / "snapshots" / "def").mkdir(parents=True)
         # Inactive Whisper variants (removed from the catalog)
         (hf_cache / "models--Systran--faster-whisper-small.en" / "snapshots" / "ghi").mkdir(parents=True)
@@ -57,7 +61,8 @@ class TestEndToEndSmoke:
         )
         dirs = prewarm._active_model_cache_dirs()
         names = [d.name for d in dirs]
-        assert "models--nvidia--parakeet-tdt-0.6b-v3" in names
+        assert f"models--{onnx_repo.replace('/', '--')}" in names
+        assert "models--nvidia--parakeet-tdt-0.6b-v3" not in names
         assert "models--Systran--faster-whisper-tiny" in names
         assert "models--Systran--faster-whisper-small.en" not in names
         assert "models--Systran--faster-whisper-medium.en" not in names

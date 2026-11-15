@@ -220,6 +220,12 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         # Neither key can redirect an endpoint or leak a secret.
         "chat_history_turns",
         "chat_system_prompt",
+        # Added 2026-11-13 (owner unlock for the hidden Plugins surface).
+        # Bool-validated. It reveals the renderer's Plugins page only: the
+        # backend still requires a selected plugin, a usable workspace and
+        # the plugin's own PLUGINS_ENABLED marker before a plugin may run,
+        # and the flag carries no secret and addresses no device/endpoint.
+        "developer_mode",
     }
 )
 
@@ -228,11 +234,17 @@ class TestAllowlistSnapshot:
     """SEC-002 byte-for-byte parity for ``IPC_CONFIG_ALLOWLIST``."""
 
     def test_allowlist_size_unchanged(self) -> None:
-        """The allowlist must still contain exactly 166 keys."""
-        assert len(IPC_CONFIG_ALLOWLIST) == 166, (
-            f"IPC_CONFIG_ALLOWLIST size drifted: expected 166, got {len(IPC_CONFIG_ALLOWLIST)}. "
+        """The allowlist must still contain exactly 167 keys."""
+        assert len(IPC_CONFIG_ALLOWLIST) == 167, (
+            f"IPC_CONFIG_ALLOWLIST size drifted: expected 167, got {len(IPC_CONFIG_ALLOWLIST)}. "
             "SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a "
             "security-sensitive change that must be reviewed explicitly. "
+            "Latest growth 166 → 167 (2026-11-13): `developer_mode`, a "
+            "bool-validated owner unlock for the hidden internal Plugins "
+            "surface. It cannot run a plugin by itself — the backend also "
+            "needs a selected plugin, a usable workspace and the plugin's "
+            "PLUGINS_ENABLED marker — carries no secret, and addresses no "
+            "device or endpoint. "
             "Latest shrink 168 → 166 (2026-11-06): `unsafe_paste_on_unknown_focus` "
             "and `warn_elevated_paste` were removed; neither had a runtime "
             "consumer (unknown focus already pastes, and elevated targets are "

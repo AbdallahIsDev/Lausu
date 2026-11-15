@@ -9,6 +9,7 @@ plumbing fails loudly here (and in test_nuitka_asr_exclusions.py).
 
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -84,7 +85,13 @@ def test_windows_has_no_ct2_native_lib_plumbing(windows_text: str):
     """C7: no ctranslate2 data-dir/DLL plumbing may remain (worker owns it)."""
     for token in ("CT2_DATA_DIR_SRC", "CT2_DLL", "CT2_LIBS_DIR", "CT2_LIB_DIR", "CT2_DIR"):
         assert token not in windows_text, f"build_sidecar_windows.sh still references {token}"
-    assert "--include-data-dir" not in windows_text, "slim Windows build must not --include-data-dir anything"
+    # One data dir is allowed: the gated internal-plugin source (2026-11-13).
+    # Any other embedded directory would put native libs back in the slim build.
+    data_dirs = re.findall(r'--include-data-dir="?([^\s"]+)', windows_text)
+    assert data_dirs == ["$PLUGINS_STAGE/tools/internal_plugins=tools/internal_plugins"], (
+        "slim Windows build may only embed the gated internal-plugin source; "
+        f"native-lib data dirs belong to the worker freeze, got {data_dirs}"
+    )
 
 
 def test_macos_has_no_ct2_native_lib_plumbing(macos_text: str):

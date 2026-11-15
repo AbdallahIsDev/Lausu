@@ -196,7 +196,7 @@ class TestLogStartupBanner:
         assert any(
             record.message.startswith(f"{APP_NAME} starting | model=")
             and "hotkey=Ctrl+Shift+D" in record.message
-            and "mic=default" in record.message
+            and "mic=System Default" in record.message
             and "sample_rate=16000" in record.message
             for record in caplog.records
             if record.name == "voice_typer.server.app"

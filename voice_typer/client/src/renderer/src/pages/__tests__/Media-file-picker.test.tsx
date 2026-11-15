@@ -389,6 +389,11 @@ describe("Media page result card", () => {
 		await startOne();
 		complete("job-1", { title: null, thumbnail_data_url: null });
 
+		// The measured wrap fades the starting fallback out; wait for the
+		// single settled row before asserting on its text.
+		await waitFor(() =>
+			expect(screen.getAllByText("example.com/v")).toHaveLength(1),
+		);
 		expect(screen.getByText("example.com/v")).toBeTruthy();
 		expect(screen.queryByTestId("media-preview-thumbnail")).toBeNull();
 	});
@@ -397,6 +402,9 @@ describe("Media page result card", () => {
 		await startOne();
 		complete("job-1", {});
 
+		await waitFor(() =>
+			expect(screen.getAllByText("example.com/v")).toHaveLength(1),
+		);
 		const icon = screen
 			.getByText("example.com/v")
 			.parentElement?.querySelector("svg");

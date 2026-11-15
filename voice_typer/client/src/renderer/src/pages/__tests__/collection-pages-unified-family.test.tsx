@@ -152,6 +152,12 @@ describe("Add button accessible name, both pages (a11y)", () => {
 	it("Vocabulary's Add button carries an aria-label matching its visible label", async () => {
 		seedVocabulary();
 		await renderVocabularyPage();
+		// The measured wrap crossfades its fallback out, so wait for the
+		// single settled toolbar before querying text (the fading pane is
+		// aria-hidden and therefore not part of the accessible surface).
+		await waitFor(() =>
+			expect(screen.getAllByText("Add Word")).toHaveLength(1),
+		);
 		// Visible label stays (speech-input / getByText contracts).
 		expect(screen.getByText("Add Word")).toBeTruthy();
 		// The accessible name resolves from the aria-label key, whose
@@ -165,6 +171,9 @@ describe("Add button accessible name, both pages (a11y)", () => {
 	it("Templates's Add button keeps its aria-label next to its visible label", async () => {
 		seedTemplates();
 		await renderTemplatesPage();
+		await waitFor(() =>
+			expect(screen.getAllByText("Add Template")).toHaveLength(1),
+		);
 		expect(screen.getByText("Add Template")).toBeTruthy();
 		expect(
 			screen.getByRole("button", { name: "Add new template" }),

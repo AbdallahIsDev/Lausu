@@ -1,4 +1,4 @@
-' Internal plugin hotkey + Google STT daemon launcher (hidden window). NEVER SHIP.
+' Internal plugin hotkey + Google STT daemon launcher (hidden window). Developer helper.
 ' Sits in the user's Startup folder; runs the internal plugin in the project venv.
 Set shell = CreateObject("WScript.Shell")
 shell.Environment("Process")("VOICE_TYPER_INTERNAL_PLUGINS") = "1"

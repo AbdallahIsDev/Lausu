@@ -2054,9 +2054,14 @@ class TestRegistryExtraction:
         assert registry._COMMAND_REGISTRY["set_output_volume"] == "_handle_set_output_volume"
         # Listen-Live filtered preview (2026-10-17): renderer-callable stream toggle.
         assert registry._COMMAND_REGISTRY["live_preview"] == "_handle_live_preview"
-        assert len(registry._COMMAND_REGISTRY) == 105, (
-            f"registry._COMMAND_REGISTRY must contain 105 entries "
-            f"(101 forwarded in the Rust allowlist + shutdown + "
+        # User-level CUDA stack (device switch flow, 2026-11-14).
+        assert registry._COMMAND_REGISTRY["get_gpu_capability"] == "_handle_get_gpu_capability"
+        assert registry._COMMAND_REGISTRY["start_cuda_download"] == "_handle_start_cuda_download"
+        assert registry._COMMAND_REGISTRY["cancel_cuda_download"] == "_handle_cancel_cuda_download"
+        assert registry._COMMAND_REGISTRY["ack_cuda_activation"] == "_handle_ack_cuda_activation"
+        assert len(registry._COMMAND_REGISTRY) == 109, (
+            f"registry._COMMAND_REGISTRY must contain 109 entries "
+            f"(105 forwarded in the Rust allowlist + shutdown + "
             f"tray_click python-only + heartbeat + relaunch_ack host-dispatched); got "
             f"{len(registry._COMMAND_REGISTRY)}. "
             f"If the count drifted, update this test together with the "
@@ -2121,6 +2126,8 @@ class TestRegistryExtraction:
                 "onboarding_get_hotkey_presets",
                 "onboarding_check_permissions",
                 "screenshot_get_status",
+                # GPU capability probe: OS/DLL reads only, no persistence.
+                "get_gpu_capability",
             }
         )
         assert expected == registry._READONLY_COMMANDS, (

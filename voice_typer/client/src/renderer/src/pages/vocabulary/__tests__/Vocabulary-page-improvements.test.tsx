@@ -550,6 +550,11 @@ describe("Vocabulary page, duplicate detection on save", () => {
 		).length;
 
 		// Open the inline quick-add row.
+		// The measured wrap crossfades its fallback out; wait for the settled
+		// toolbar so the aria-hidden fading pane cannot match this text.
+		await waitFor(() =>
+			expect(screen.getAllByText("Add Word")).toHaveLength(1),
+		);
 		fireEvent.click(screen.getByText("Add Word"));
 
 		const triggerInput = await screen.findByPlaceholderText(
@@ -613,6 +618,11 @@ describe("Vocabulary page, duplicate detection on save", () => {
 			expect(screen.getByText("recieve")).toBeTruthy();
 		});
 
+		// The measured wrap crossfades its fallback out; wait for the settled
+		// toolbar so the aria-hidden fading pane cannot match this text.
+		await waitFor(() =>
+			expect(screen.getAllByText("Add Word")).toHaveLength(1),
+		);
 		fireEvent.click(screen.getByText("Add Word"));
 
 		const triggerInput = await screen.findByPlaceholderText(
@@ -677,6 +687,11 @@ describe("Vocabulary page, duplicate detection on save", () => {
 			expect(screen.getByText("teh")).toBeTruthy();
 		});
 
+		// The measured wrap crossfades its fallback out; wait for the settled
+		// toolbar so the aria-hidden fading pane cannot match this text.
+		await waitFor(() =>
+			expect(screen.getAllByText("Add Word")).toHaveLength(1),
+		);
 		fireEvent.click(screen.getByText("Add Word"));
 		const triggerInput = await screen.findByPlaceholderText(
 			"treat three, mynameis",

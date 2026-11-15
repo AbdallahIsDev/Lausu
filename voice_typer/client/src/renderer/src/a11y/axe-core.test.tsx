@@ -249,6 +249,7 @@ vi.mock("@/hooks/useModelLifecycle", () => ({
 	useModelLifecycle: () => ({
 		config: STUB_CONFIG,
 		models: [],
+		modelCatalog: {},
 		localModels: [],
 		cloudProviders: [],
 		activeModelId: null,

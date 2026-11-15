@@ -355,7 +355,7 @@ class TestChangeModelAckShape:
         assert ack["previous"] == {"backend": "whisper", "model_size": "tiny"}
         assert ack["pending"] == {"backend": "parakeet", "model_size": "parakeet"}
         # Background spawn invoked exactly once.
-        mm._change_model_background.assert_called_once_with("parakeet")
+        mm._change_model_background.assert_called_once_with("parakeet", old_backend="whisper", old_model_size="tiny")
 
     def test_change_model_size_routing(self):
         """``change_model`` routes ``model_size`` to a backend name:"""
@@ -402,7 +402,7 @@ class TestChangeModelNoop:
         ack = mm.change_model("tiny")
 
         assert ack["status"] == "loading"
-        mm._change_model_background.assert_called_once_with("tiny")
+        mm._change_model_background.assert_called_once_with("tiny", old_backend="whisper", old_model_size="tiny")
 
     def test_different_size_proceeds_despite_loaded_engine(self):
         """A different size on the same backend still reloads (fresh"""
@@ -415,7 +415,7 @@ class TestChangeModelNoop:
         ack = mm.change_model("base.en")
 
         assert ack["status"] == "loading"
-        mm._change_model_background.assert_called_once_with("base.en")
+        mm._change_model_background.assert_called_once_with("base.en", old_backend="whisper", old_model_size="tiny")
 
 
 class TestLRUEviction:

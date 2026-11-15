@@ -187,6 +187,13 @@ COMMAND_COSTS: dict[str, int] = {
     "screenshot_clear_cycle": 2,
     "screenshot_set_consent": 2,
     "screenshot_get_status": 1,
+    # User-level CUDA stack (device switch flow). The probe is a subprocess
+    # (nvidia-smi) plus an ORT provider import; the install pulls a
+    # multi-GB runtime pack; the cancel/ack pair is an atomic flag write.
+    "get_gpu_capability": 10,
+    "start_cuda_download": 50,
+    "cancel_cuda_download": 1,
+    "ack_cuda_activation": 1,
 }
 DEFAULT_COST = 1
 
