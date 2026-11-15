@@ -52,7 +52,10 @@ pub(crate) fn create_tray(app: &AppHandle) -> tauri::Result<()> {
                 if let Err(e) = dispatch_inner(args, state.inner().clone()).await {
                     let msg = e.to_string();
                     if msg.contains("sidecar_disconnected") {
-                        log::debug!("[TRAY] tray_click dispatch failed (expected during restart): {}", e);
+                        log::debug!(
+                            "[TRAY] tray_click dispatch failed (expected during restart): {}",
+                            e
+                        );
                     } else {
                         log::warn!("[TRAY] tray_click dispatch failed: {}", e);
                     }

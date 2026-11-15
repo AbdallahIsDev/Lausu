@@ -251,7 +251,9 @@ pub(super) fn spawn_reader_task(
                 // UI banner immediately at disconnect start.
                 let _ = app_for_cleanup
                     .emit("supervisor_relaunching", json!({"reason": "disconnected"}));
-                log::info!("[WS-READER] sidecar closed the connection, triggering supervisor respawn");
+                log::info!(
+                    "[WS-READER] sidecar closed the connection, triggering supervisor respawn"
+                );
                 // C-WS-3: pass Some(my_generation); the supervisor's
                 // std-thread bridge keeps respawns serialized.
                 trigger_respawn_off_thread(

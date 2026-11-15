@@ -1187,8 +1187,18 @@ fn resize_is_noop_compares_the_capped_request() {
     let capped_h = clamp_resize_height(1);
     assert_eq!(capped_w, MAX_BUBBLE_W);
     assert_eq!(capped_h, MIN_BUBBLE_H);
-    assert!(resize_is_noop(MAX_BUBBLE_W, MIN_BUBBLE_H, capped_w, capped_h));
-    assert!(!resize_is_noop(MIN_BUBBLE_W, MIN_BUBBLE_H, capped_w, capped_h));
+    assert!(resize_is_noop(
+        MAX_BUBBLE_W,
+        MIN_BUBBLE_H,
+        capped_w,
+        capped_h
+    ));
+    assert!(!resize_is_noop(
+        MIN_BUBBLE_W,
+        MIN_BUBBLE_H,
+        capped_w,
+        capped_h
+    ));
 }
 
 #[test]
