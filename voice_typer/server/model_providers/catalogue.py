@@ -39,7 +39,10 @@ class CatalogueSnapshot:
 
     @property
     def stale(self) -> bool:
-        return self.age_seconds > self.ttl_seconds
+        # Fresh only while the age is strictly BELOW the TTL: a zero TTL
+        # means "never fresh", and the same-tick case (age == 0.0) must not
+        # read as fresh on a coarse clock.
+        return self.age_seconds >= self.ttl_seconds
 
     def model_ids(self) -> list[str]:
         return [str(m.get("id", "")) for m in self.models if m.get("id")]

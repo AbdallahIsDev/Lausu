@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import ctypes
 from collections.abc import Callable
-from ctypes import wintypes
 
 from voice_typer.server import clipboard as _cb
 
@@ -209,6 +208,14 @@ def _win32_exclude_clipboard_from_monitoring() -> bool:
 
 # Win32 INPUT / KEYBDINPUT structures defined inline via
 
+# Fixed-width Win32 scalars. ``ctypes.wintypes`` aliases the HOST's
+# ``c_ulong``/``c_long`` (8 bytes on LP64), so the layout was only correct
+# when imported on Windows; these hold the real Win32 widths everywhere
+# and keep the sizeof pins meaningful off-Windows.
+_WORD = ctypes.c_uint16
+_DWORD = ctypes.c_uint32
+_LONG = ctypes.c_int32
+
 # ULONG_PTR is pointer-sized: 4 bytes on 32-bit Windows, 8 bytes on
 _ULONG_PTR = ctypes.c_uint64 if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_uint32
 
@@ -217,10 +224,10 @@ class KEYBDINPUT(ctypes.Structure):
     """Win32 KEYBDINPUT: payload for a keyboard INPUT event."""
 
     _fields_ = (
-        ("wVk", wintypes.WORD),
-        ("wScan", wintypes.WORD),
-        ("dwFlags", wintypes.DWORD),
-        ("time", wintypes.DWORD),
+        ("wVk", _WORD),
+        ("wScan", _WORD),
+        ("dwFlags", _DWORD),
+        ("time", _DWORD),
         ("dwExtraInfo", _ULONG_PTR),
     )
     # KEYBDINPUT.KEYUP constant from pynput._util.win32
@@ -236,11 +243,11 @@ class MOUSEINPUT(ctypes.Structure):
     """
 
     _fields_ = (
-        ("dx", wintypes.LONG),
-        ("dy", wintypes.LONG),
-        ("mouseData", wintypes.DWORD),
-        ("dwFlags", wintypes.DWORD),
-        ("time", wintypes.DWORD),
+        ("dx", _LONG),
+        ("dy", _LONG),
+        ("mouseData", _DWORD),
+        ("dwFlags", _DWORD),
+        ("time", _DWORD),
         ("dwExtraInfo", _ULONG_PTR),
     )
 
@@ -249,9 +256,9 @@ class HARDWAREINPUT(ctypes.Structure):
     """Win32 HARDWAREINPUT, the union's smallest branch (size parity only)."""
 
     _fields_ = (
-        ("uMsg", wintypes.DWORD),
-        ("wParamL", wintypes.WORD),
-        ("wParamH", wintypes.WORD),
+        ("uMsg", _DWORD),
+        ("wParamL", _WORD),
+        ("wParamH", _WORD),
     )
 
 
@@ -265,7 +272,7 @@ class INPUT(ctypes.Structure):
     """Win32 INPUT structure (keyboard variant)."""
 
     _fields_ = (
-        ("type", wintypes.DWORD),
+        ("type", _DWORD),
         # Named ``ki`` to match the production code's
         ("ki", InputUnion),
     )
@@ -285,8 +292,8 @@ def _resolve_send_input():
         hosts where ``ctypes.windll`` doesn't exist.
     """
     send_input = ctypes.windll.user32.SendInput
-    send_input.argtypes = [wintypes.UINT, ctypes.c_void_p, ctypes.c_int]
-    send_input.restype = wintypes.UINT
+    send_input.argtypes = [_DWORD, ctypes.c_void_p, ctypes.c_int]
+    send_input.restype = _DWORD
     return send_input
 
 

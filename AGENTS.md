@@ -452,6 +452,20 @@ Rationale: The user reads these to know whether logon autostart fired and why it
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-CROSS-7
+Rule: Do NOT type a Win32 struct whose layout is asserted off-Windows with `ctypes.wintypes` aliases; use fixed-width ctypes types (`c_uint16`/`c_uint32`/`c_int32` plus a `c_void_p`-sized `ULONG_PTR`).
+Rationale: `wintypes.WORD`/`DWORD`/`LONG` follow the HOST's `c_ushort`/`c_ulong`/`c_long`, which are 8 bytes on LP64, so `InputUnion`/`INPUT` measured 48/56 bytes on the ubuntu CI legs instead of Win32's 32/40 and `SendInput` rejected every batch (2026-11-15).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-CROSS-8
+Rule: Do NOT validate an archive member name with the unpacking host's `Path` rules alone; reject an absolute or `..` name in BOTH `PurePosixPath` and `PureWindowsPath`.
+Rationale: `Path(name).is_absolute()` answers with the host's semantics, so a zip entry named `C:/Windows/evil.exe` was accepted on POSIX while Windows resolves it absolutely (2026-11-15, `tests/test_tts_runtimes.py`).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 General lesson: cross-platform helpers with platform-specific semantics must stay platform-gated; "hardening" one OS blind breaks the others. Autostart changes must keep Windows (list2cmdline) / Linux (.desktop Exec) / macOS (LaunchAgent args) output shapes intact with `test_autostart*.py`, the mig15 installer tests, and `test_e2e_regression.py` green.
 
 ---

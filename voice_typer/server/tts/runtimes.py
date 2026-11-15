@@ -16,7 +16,7 @@ import re
 import shutil
 import zipfile
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -55,10 +55,16 @@ RELEASES: dict[str, RuntimeRelease] = {
 
 
 def _safe_member(name: str) -> bool:
-    """Reject archive entries that could land outside the staging directory."""
-    path = Path(name)
-    return not path.is_absolute() and ".." not in path.parts
+    """Reject archive entries that could land outside the staging directory.
 
+    Zip entry names are POSIX, but Windows resolves a drive-qualified
+    (``C:/...``) or UNC (``\\\\host\\share``) name absolutely, so both path
+    flavours are checked no matter which host unpacks the archive.
+    """
+    return all(
+        not path.is_absolute() and ".." not in path.parts
+        for path in (PurePosixPath(name), PureWindowsPath(name))
+    )
 
 def _latest_asset(release: RuntimeRelease) -> dict[str, object]:
     """Resolve the newest matching release asset for ``release``."""
