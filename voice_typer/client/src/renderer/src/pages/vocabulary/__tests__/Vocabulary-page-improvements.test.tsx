@@ -242,9 +242,9 @@ describe("Vocabulary page, Clear All + ConfirmDialog", () => {
 		});
 
 		// The Clear All button is rendered and enabled.
-		const clearAllButton = screen.getByLabelText(
-			"Clear all vocabulary entries",
-		);
+		const clearAllButton = screen.getByRole("button", {
+			name: "Clear all vocabulary entries",
+		});
 		expect(clearAllButton).toBeTruthy();
 		expect(clearAllButton.hasAttribute("disabled")).toBe(false);
 	});
@@ -272,7 +272,9 @@ describe("Vocabulary page, Clear All + ConfirmDialog", () => {
 		expect(screen.queryByRole("alertdialog")).toBeNull();
 
 		// Click Clear All.
-		fireEvent.click(screen.getByLabelText("Clear all vocabulary entries"));
+		fireEvent.click(
+			screen.getByRole("button", { name: "Clear all vocabulary entries" }),
+		);
 
 		// The ConfirmDialog appears with the clear-all title + message.
 		await waitFor(() => {
@@ -306,7 +308,9 @@ describe("Vocabulary page, Clear All + ConfirmDialog", () => {
 		});
 
 		// Open the confirm dialog.
-		fireEvent.click(screen.getByLabelText("Clear all vocabulary entries"));
+		fireEvent.click(
+			screen.getByRole("button", { name: "Clear all vocabulary entries" }),
+		);
 		await waitFor(() => {
 			expect(screen.getByText("Clear All Vocabulary")).toBeTruthy();
 		});
@@ -348,7 +352,9 @@ describe("Vocabulary page, Clear All + ConfirmDialog", () => {
 		});
 
 		// Open the confirm dialog.
-		fireEvent.click(screen.getByLabelText("Clear all vocabulary entries"));
+		fireEvent.click(
+			screen.getByRole("button", { name: "Clear all vocabulary entries" }),
+		);
 		await waitFor(() => {
 			expect(screen.getByText("Clear All Vocabulary")).toBeTruthy();
 		});
@@ -414,11 +420,13 @@ describe("Vocabulary page, Clear All + ConfirmDialog", () => {
 		});
 
 		// Select every row → the floating bulk bar appears.
-		fireEvent.click(screen.getByLabelText("Select all"));
+		fireEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
 		expect(screen.queryByTestId("vocab-bulk-bar")).toBeTruthy();
 
 		// Open Clear All + confirm.
-		fireEvent.click(screen.getByLabelText("Clear all vocabulary entries"));
+		fireEvent.click(
+			screen.getByRole("button", { name: "Clear all vocabulary entries" }),
+		);
 		await waitFor(() => {
 			expect(screen.getByText("Clear All Vocabulary")).toBeTruthy();
 		});

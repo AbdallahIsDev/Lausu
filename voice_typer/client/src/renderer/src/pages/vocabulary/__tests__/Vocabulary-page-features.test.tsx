@@ -371,7 +371,7 @@ describe("Vocabulary page, bulk selection", () => {
 		await waitFor(() => {
 			expect(screen.getByText("recieve")).toBeTruthy();
 		});
-		fireEvent.click(screen.getByLabelText("Select all"));
+		fireEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
 		const bulkBar = screen.getByTestId("vocab-bulk-bar");
 		expect(within(bulkBar).getByText("3 selected")).toBeTruthy();
 	});
@@ -424,13 +424,15 @@ describe("Vocabulary page, bulk selection", () => {
 		fireEvent.click(screen.getByLabelText("Select recieve"));
 		expect(screen.getByTestId("vocab-bulk-bar")).toBeTruthy();
 
-		fireEvent.click(screen.getByLabelText("Deselect all"));
+		fireEvent.click(screen.getByRole("button", { name: "Deselect all" }));
 		expect(screen.queryByTestId("vocab-bulk-bar")).toBeNull();
 		// No rows selected → the header checkbox is unchecked too (the
 		// design-system checkbox is a Radix button exposing aria-checked,
 		// not a native input).
 		expect(
-			screen.getByLabelText("Select all").getAttribute("aria-checked"),
+			screen
+				.getByRole("checkbox", { name: "Select all" })
+				.getAttribute("aria-checked"),
 		).toBe("false");
 	});
 });
@@ -899,7 +901,7 @@ describe("Vocabulary page, search + sort interactions", () => {
 		// Open the sort select via keyboard (Radix Select opens on
 		// ArrowDown when the trigger is focused; pointer events are
 		// unreliable in jsdom, hasPointerCapture isn't implemented).
-		const sortTrigger = screen.getByLabelText("Sort order");
+		const sortTrigger = screen.getByRole("combobox", { name: "Sort order" });
 		sortTrigger.focus();
 		fireEvent.keyDown(sortTrigger, { key: "ArrowDown" });
 		const az = await screen.findByText("A → Z");
@@ -912,7 +914,7 @@ describe("Vocabulary page, search + sort interactions", () => {
 		});
 
 		// Flip to Z → A, the order reverses.
-		const sortTrigger2 = screen.getByLabelText("Sort order");
+		const sortTrigger2 = screen.getByRole("combobox", { name: "Sort order" });
 		sortTrigger2.focus();
 		fireEvent.keyDown(sortTrigger2, { key: "ArrowDown" });
 		const za = await screen.findByText("Z → A");

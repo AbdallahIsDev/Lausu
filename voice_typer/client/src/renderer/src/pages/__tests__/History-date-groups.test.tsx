@@ -97,6 +97,13 @@ function localIso(offsetDays: number, hour: number): string {
 	return d.toISOString();
 }
 
+// Role, not text: the crossfade's fading pane is aria-hidden + inert yet draws
+// its own sample date headers, so getByText("Today") matches two nodes mid-fade.
+// Role queries read the accessibility tree, which excludes that pane.
+function dateHeading(label: string) {
+	return screen.getByRole("heading", { name: label });
+}
+
 beforeEach(() => {
 	resetStableMocks();
 	localStorage.clear();
@@ -125,12 +132,13 @@ describe("History date-grouped list", () => {
 		render(<HistoryPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("entry 1")).toBeTruthy();
+			expect(dateHeading(t("analytics.today"))).toBeTruthy();
 		});
 
 		// Date section headers render; each entry appears exactly once.
-		expect(screen.getByText(t("analytics.today"))).toBeTruthy();
-		expect(screen.getByText(t("analytics.yesterday"))).toBeTruthy();
+		expect(dateHeading(t("analytics.today"))).toBeTruthy();
+		expect(dateHeading(t("analytics.yesterday"))).toBeTruthy();
+		expect(screen.getByText("entry 1")).toBeTruthy();
 		expect(screen.getByText("entry 2")).toBeTruthy();
 		expect(screen.getByText("entry 3")).toBeTruthy();
 	});
@@ -151,7 +159,7 @@ describe("History date-grouped list", () => {
 		render(<HistoryPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText(t("analytics.today"))).toBeTruthy();
+			expect(dateHeading(t("analytics.today"))).toBeTruthy();
 		});
 
 		// Switch the sort to A → Z via the shared SortSelect.
@@ -162,8 +170,12 @@ describe("History date-grouped list", () => {
 
 		await waitFor(() => {
 			// No date headers in flat mode.
-			expect(screen.queryByText(t("analytics.today"))).toBeNull();
-			expect(screen.queryByText(t("analytics.yesterday"))).toBeNull();
+			expect(
+				screen.queryByRole("heading", { name: t("analytics.today") }),
+			).toBeNull();
+			expect(
+				screen.queryByRole("heading", { name: t("analytics.yesterday") }),
+			).toBeNull();
 		});
 		// Both rows still render.
 		expect(screen.getByText("entry 1")).toBeTruthy();

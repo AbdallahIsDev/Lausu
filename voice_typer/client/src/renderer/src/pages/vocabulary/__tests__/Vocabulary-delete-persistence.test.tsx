@@ -318,7 +318,9 @@ describe("Vocabulary page, delete/edit persistence across reload (fake-deletion 
 		renderPage();
 		await screen.findByText("recieve");
 
-		fireEvent.click(screen.getByLabelText("Clear all vocabulary entries"));
+		fireEvent.click(
+			screen.getByRole("button", { name: "Clear all vocabulary entries" }),
+		);
 		await waitFor(() =>
 			expect(screen.getByText("Clear All Vocabulary")).toBeTruthy(),
 		);

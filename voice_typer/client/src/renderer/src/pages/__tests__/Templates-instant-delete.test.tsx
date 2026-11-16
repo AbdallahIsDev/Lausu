@@ -208,7 +208,9 @@ describe("Templates page, Clear All + single-row toolbar", () => {
 		});
 
 		// Click the Clear All toolbar button (aria-label distinguishes it)
-		fireEvent.click(screen.getByLabelText("Clear all templates"));
+		fireEvent.click(
+			screen.getByRole("button", { name: "Clear all templates" }),
+		);
 
 		// Confirmation dialog appears
 		await waitFor(() => {
@@ -248,7 +250,9 @@ describe("Templates page, Clear All + single-row toolbar", () => {
 			expect(screen.getByText("No templates yet")).toBeTruthy();
 		});
 		// The Clear All button should be disabled
-		const clearAllButton = screen.getByLabelText("Clear all templates");
+		const clearAllButton = screen.getByRole("button", {
+			name: "Clear all templates",
+		});
 		expect(clearAllButton.getAttribute("disabled")).not.toBeNull();
 	});
 });
