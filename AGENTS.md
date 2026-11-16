@@ -794,6 +794,13 @@ Rationale: `test_ctrl_c_still_routes_to_quit` existed in two files, and only the
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-TEST-18
+Rule: Do NOT query a page's chrome (buttons, checkboxes, comboboxes, headings, toolbar controls) with DOM-level queries (`getByText`, `getByLabelText`) when that page's body sits inside the shared `Skeleton`. Its outgoing sample pane is `aria-hidden` + `inert` yet renders the same chrome from the `sample` payload, so a DOM query matches twice while a crossfade is in flight; a "wait until count is 1" guard does not fix it, because the pane returns on every later data commit. Query chrome by ROLE (`getByRole`), which resolves from the accessibility tree and excludes the fading pane at all times; keep text queries for data the sample does not contain.
+Rationale: `History-date-groups` failed CI with "Found multiple elements with the text: Today" (two identical `<h2 id="history-date-...">`) and `Vocabulary-page-improvements` failed with "Found multiple elements with the text of: Clear all vocabulary entries" — both were the sample pane's copy, and a probe measured the duplicates at 2 while the role queries resolved to exactly 1 (2026-11-16).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Code Style & Naming
