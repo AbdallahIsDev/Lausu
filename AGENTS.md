@@ -787,6 +787,13 @@ Rationale: The lock-release test spent a 1 s budget on a hotkey-thread → model
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-TEST-17
+Rule: Do NOT fix a defect in one copy of a duplicated test and leave its siblings; grep for the same test name/body and fix every copy in the same change, or collapse the copies onto one shared helper.
+Rationale: `test_ctrl_c_still_routes_to_quit` existed in two files, and only the `test_shutdown_logoff_cleanup.py` copy had grown a wait for the RACE-016 daemon-thread dispatch, so the other copy failed windows-2022 CI with "Expected 'mock' to have been called once. Called 0 times" (2026-11-16).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Code Style & Naming
