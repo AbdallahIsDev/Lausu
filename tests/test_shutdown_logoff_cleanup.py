@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import os
 import threading
-import time
 from unittest.mock import MagicMock
 
 import pytest
 from voice_typer.server.shutdown_controller import ShutdownController
+
+from tests.fixtures.wait_helpers import wait_until
 
 
 @pytest.fixture(autouse=True)
@@ -320,10 +321,10 @@ class TestWin32RoutingFastCleanup:  # noqa: N801
             controller._do_fast_cleanup.reset_mock()
             result = win32_console_handler(controller, ctrl_type)
             assert result is True, f"win32_console_handler must return True for ctrl_type={ctrl_type}"
-            # daemon thread (RACE-016), so the call may not have landed
-            deadline = time.monotonic() + 2.0
-            while controller.quit.call_count == 0 and time.monotonic() < deadline:
-                time.sleep(0.01)
+            # daemon thread (RACE-016), so the call may not have landed yet.
+            assert wait_until(lambda: controller.quit.call_count > 0, timeout=5.0), (
+                f"ctrl_type={ctrl_type} must route to controller.quit (still uncalled after 5s)"
+            )
             (
                 controller.quit.assert_called_once_with(),
                 (f"ctrl_type={ctrl_type} must route to controller.quit (unchanged)"),

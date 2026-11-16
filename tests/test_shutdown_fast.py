@@ -9,6 +9,8 @@ from unittest.mock import MagicMock
 import pytest
 from voice_typer.server.shutdown_controller import ShutdownController
 
+from tests.fixtures.wait_helpers import wait_until
+
 _FAST_CLEANUP_BODY_PATH = os.path.join(
     os.path.dirname(__file__),
     "..",
@@ -207,19 +209,25 @@ class TestWin32RoutingFastCleanup:
         from voice_typer.server.signal_handlers import win32_console_handler
 
         controller, _ = _make_controller_with_app()
-        controller.quit = MagicMock()  # type: ignore[assignment]
-        controller._do_fast_cleanup = MagicMock()  # type: ignore[assignment]
 
         for ctrl_type in (0, 1):
-            controller.quit.reset_mock()
-            controller._do_fast_cleanup.reset_mock()
+            quit_mock = MagicMock()
+            fast_cleanup_mock = MagicMock()
+            controller.quit = quit_mock  # type: ignore[assignment]
+            controller._do_fast_cleanup = fast_cleanup_mock  # type: ignore[assignment]
+
             result = win32_console_handler(controller, ctrl_type)
+
             assert result is True, f"win32_console_handler must return True for ctrl_type={ctrl_type}"
-            controller.quit.assert_called_once_with()
-            (
-                controller._do_fast_cleanup.assert_not_called(),
-                (f"ctrl_type={ctrl_type} must NOT route to _do_fast_cleanup"),
+            # RACE-016 dispatches quit() on a daemon thread so the console
+            # callback returns inside Windows' deadline, so the call lands
+            # AFTER the handler returns: wait for it (C-TEST-16), never
+            # assume it has already run.
+            assert wait_until(lambda mock=quit_mock: mock.call_count > 0, timeout=5.0), (
+                f"ctrl_type={ctrl_type} must route to controller.quit (still uncalled after 5s)"
             )
+            quit_mock.assert_called_once_with()
+            assert fast_cleanup_mock.call_count == 0, f"ctrl_type={ctrl_type} must NOT route to _do_fast_cleanup"
 
 
 # POSIX SIGTERM intentionally NOT routed to fast cleanup ────
