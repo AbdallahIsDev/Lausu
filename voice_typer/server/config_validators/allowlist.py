@@ -312,7 +312,6 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "history_max_entries": (int, _make_int_validator(lo=0, hi=1_000_000)),
     "screenshot_beta_enabled": (bool, _bool_validator),
     "screenshot_consent": (bool, _bool_validator),
-    "tray_left_click_action": (str, _make_enum_validator(frozenset({"open_app", "toggle_dictation"}))),
     "theme_mode": (str, _make_enum_validator(frozenset({"system", "light", "dark"}))),
     "theme_preset": (
         str,

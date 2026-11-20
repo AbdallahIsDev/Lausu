@@ -408,7 +408,6 @@ function makeStubConfig(): LausuConfig {
 		history_retention_count: 100,
 		history_max_entries: 1000,
 		onboarding_completed: true,
-		tray_left_click_action: "open_app",
 		theme_mode: "system",
 		theme_preset: "default",
 		custom_theme: { light: {}, dark: {} },

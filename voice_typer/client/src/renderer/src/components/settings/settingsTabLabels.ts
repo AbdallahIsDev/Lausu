@@ -19,7 +19,6 @@ export function getSectionLabels(): Record<SettingsSectionPage, string[]> {
 			t("settings.fastStartup"),
 			t("settings.appLanguage"),
 			t("settings.notifications"),
-			t("settings.trayClick"),
 		],
 		settingsOverlay: [
 			t("settings.overlay"),

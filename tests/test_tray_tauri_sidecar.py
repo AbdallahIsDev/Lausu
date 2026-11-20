@@ -10,7 +10,6 @@ def _make_tray(monkeypatch) -> TrayIcon:
     """Build a TrayIcon with minimal fakes, no real pystray, no IPC."""
     config = SimpleNamespace(
         hotkey="<caps_lock>",
-        tray_left_click_action="open_app",
         microphone=None,
     )
     controller = SimpleNamespace(

@@ -1,6 +1,6 @@
 // GeneralSettingsSection, the General section of the Settings surface.
 // SettingsSection block: "General" (Launch at Login, Fast Startup,
-// Offline Engine Pack, App Language, Notifications, Tray Click).
+// Offline Engine Pack, App Language, Notifications).
 // component (OverlaySettingsSection.tsx) and its own section page
 // (settingsOverlay). Behaviour is identical to the previous combined
 // implementation, including the per-row search-filter visibility via the
@@ -20,7 +20,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ToggleGroup } from "@/components/ui/toggle-group";
 import {
 	getLocale,
 	getLocaleLabel,
@@ -38,11 +37,6 @@ import {
 import type { SettingsSectionSharedProps } from "./types";
 
 type GeneralSettingsSectionProps = SettingsSectionSharedProps;
-
-const TRAY_CLICK_OPTIONS = [
-	{ value: "toggle_dictation", labelKey: "settings.trayClickToggleDictation" },
-	{ value: "open_app", labelKey: "settings.trayClickOpenApp" },
-] as const;
 
 // Locale selector options, derived from SUPPORTED_LOCALES so adding a
 // new locale in i18n.ts automatically appears here. The labels are
@@ -86,8 +80,6 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 				const LAUNCH_AT_LOGIN_INFO = t("settings.launchAtLoginDescription");
 				const NOTIFICATIONS_LABEL = t("settings.notifications");
 				const NOTIFICATIONS_INFO = t("settings.notificationsDescription");
-				const TRAY_CLICK_LABEL = t("settings.trayClick");
-				const TRAY_CLICK_INFO = t("settings.trayClickDescription");
 				const APP_LANGUAGE_LABEL = t("settings.appLanguage");
 				const APP_LANGUAGE_INFO = t("settings.appLanguageDescription");
 				const FAST_STARTUP_LABEL = t("settings.fastStartup");
@@ -99,7 +91,6 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 					{ label: LAUNCH_AT_LOGIN_LABEL, info: LAUNCH_AT_LOGIN_INFO },
 					{ label: APP_LANGUAGE_LABEL, info: APP_LANGUAGE_INFO },
 					{ label: NOTIFICATIONS_LABEL, info: NOTIFICATIONS_INFO },
-					{ label: TRAY_CLICK_LABEL, info: TRAY_CLICK_INFO },
 					{ label: FAST_STARTUP_LABEL, info: FAST_STARTUP_INFO },
 					{ label: MODEL_IDLE_UNLOAD_LABEL, info: MODEL_IDLE_UNLOAD_INFO },
 				];
@@ -112,10 +103,6 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 					updateConfig({ fast_startup: checked });
 				const handleNotificationsChange = (checked: boolean) =>
 					updateConfig({ show_notifications: checked });
-				const handleTrayClickChange = (v: string) =>
-					updateConfig({
-						tray_left_click_action: v as "open_app" | "toggle_dictation",
-					});
 				const handleModelIdleUnloadChange = (v: string) =>
 					updateConfig({ model_idle_unload_minutes: Number(v) });
 				if (!generalVisible) return null;
@@ -241,23 +228,6 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 										))}
 									</SelectContent>
 								</Select>
-							</SettingRow>
-						)}
-						{isVisible(
-							TRAY_CLICK_LABEL,
-							TRAY_CLICK_INFO,
-							generalSectionTitle,
-						) && (
-							<SettingRow label={TRAY_CLICK_LABEL} info={TRAY_CLICK_INFO}>
-								<ToggleGroup
-									options={TRAY_CLICK_OPTIONS.map((opt) => ({
-										value: opt.value,
-										label: t(opt.labelKey),
-									}))}
-									value={cfg.tray_left_click_action ?? "open_app"}
-									onChange={handleTrayClickChange}
-									ariaLabel={TRAY_CLICK_LABEL}
-								/>
 							</SettingRow>
 						)}
 					</SettingsSection>

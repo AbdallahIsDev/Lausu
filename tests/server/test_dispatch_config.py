@@ -478,15 +478,17 @@ class TestDispatchSetConfigAllowlist:
         )
         assert result["type"] == "error"
 
-    def test_rejects_invalid_tray_left_click_action(self, real_server, real_config):
+    def test_removed_tray_left_click_action_is_not_writable(self, real_server, real_config):
+        """SEC-002: the removed setting is outside the allowlist and not written."""
         result = real_server._dispatch(
             {
                 "id": 1,
                 "type": "set_config",
-                "data": {"tray_left_click_action": "do_nothing"},
+                "data": {"tray_left_click_action": "toggle_dictation"},
             }
         )
-        assert result["type"] == "error"
+        assert result["type"] == "ack"
+        assert not hasattr(real_config, "tray_left_click_action")
 
     def test_rejects_invalid_bubble_position(self, real_server, real_config):
         result = real_server._dispatch(

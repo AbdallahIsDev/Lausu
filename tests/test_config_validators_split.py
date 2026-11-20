@@ -133,7 +133,6 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "translation_model_path",
         "translation_runtime_path",
         "translation_target_language",
-        "tray_left_click_action",
         "trusted_extra_hosts",
         "use_silero_vad",
         "vad_auto_calibrate",
@@ -240,12 +239,15 @@ class TestAllowlistSnapshot:
     """SEC-002 byte-for-byte parity for ``IPC_CONFIG_ALLOWLIST``."""
 
     def test_allowlist_size_unchanged(self) -> None:
-        """The allowlist must still contain exactly 173 keys."""
-        assert len(IPC_CONFIG_ALLOWLIST) == 173, (
-            f"IPC_CONFIG_ALLOWLIST size drifted: expected 173, got {len(IPC_CONFIG_ALLOWLIST)}. "
+        """The allowlist must still contain exactly 172 keys."""
+        assert len(IPC_CONFIG_ALLOWLIST) == 172, (
+            f"IPC_CONFIG_ALLOWLIST size drifted: expected 172, got {len(IPC_CONFIG_ALLOWLIST)}. "
             "SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a "
             "security-sensitive change that must be reviewed explicitly. "
-            "Latest shrink 174 → 173 (2026-11-20): `streaming_transcription` was "
+            "Latest shrink 173 → 172 (2026-11-20): `tray_left_click_action` was "
+            "removed with the setting itself — left-click always opens the app "
+            "on every OS. The enum carried no secret and addressed no device or endpoint. "
+            "Prior shrink 174 → 173 (2026-11-20): `streaming_transcription` was "
             "removed with the setting itself — streaming is fixed ON on every "
             "platform (only the developer VOICE_TYPER_STREAMING=0 kill-switch "
             "remains). The bool carried no secret and addressed no device or endpoint. "

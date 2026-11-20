@@ -188,9 +188,6 @@ const arMore = {
 	"settings.textCleanupDescription": "إصلاح أخطاء النسخ الشائعة تلقائياً",
 	"settings.recordingMode": "وضع التسجيل",
 	"settings.recordingModeDescription": "كيف يتم تشغيل الإملاء",
-	"settings.trayLeftClick": "نقر يسار على علبة النظام",
-	"settings.trayLeftClickDescription":
-		"ماذا يحدث عند النقر يساراً على أيقونة علبة النظام",
 	"settings.recording": "تسجيل",
 	"settings.modelSize": "حجم النموذج",
 	"settings.modelSizeDescription": "النماذج الأكبر أكثر دقة ولكنها أبطأ",
@@ -289,9 +286,6 @@ const arMore = {
 	"settings.notifications": "الإشعارات",
 	"settings.notificationsDescription":
 		"عرض إشعار سطح المكتب عند اكتمال النسخ أو حدوث خطأ.",
-	"settings.trayClick": "نقر علبة النظام",
-	"settings.trayClickDescription":
-		"ماذا يحدث عند النقر يساراً على أيقونة Lausu في علبة النظام.",
 	"settings.generalDescription":
 		"تكوين كيفية بدء Lausu، وسلوكه عند تسجيل الدخول، وتفاعله مع نظامك.",
 
@@ -358,8 +352,6 @@ const arMore = {
 		"أسلوب الكتابة للتطبيق, مهني، غير رسمي، بريد إلكتروني، أو كود.",
 	"settings.show": "إظهار",
 	"settings.hide": "إخفاء",
-	"settings.trayClickOpenApp": "فتح التطبيق",
-	"settings.trayClickToggleDictation": "تبديل الإملاء",
 	"settings.bubblePositionTop": "أعلى المنتصف",
 	"settings.bubblePositionBottom": "أسفل المنتصف",
 	"settings.bubbleBehaviorShowOnRecord": "الإظهار عند التسجيل",

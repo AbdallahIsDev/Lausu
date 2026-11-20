@@ -32,13 +32,10 @@ pub(crate) fn create_tray(app: &AppHandle) -> tauri::Result<()> {
     let icon = load_tray_icon(app, "idle").or_else(|| app.default_window_icon().cloned());
     let menu = empty_menu(app)?;
 
-    // macOS: left-click opens menu by convention; Windows/Linux: right-click.
-    let show_menu_on_left_click = cfg!(target_os = "macos");
-
     let mut builder = TrayIconBuilder::with_id(TRAY_ID)
         .tooltip(TRAY_TOOLTIP)
         .menu(&menu)
-        .show_menu_on_left_click(show_menu_on_left_click)
+        .show_menu_on_left_click(false)
         .on_menu_event(|app, event| {
             // dispatch_inner: tray_click is Rust-only; public dispatch would
             // reject it via the renderer allowlist.
@@ -64,10 +61,6 @@ pub(crate) fn create_tray(app: &AppHandle) -> tauri::Result<()> {
         })
         .on_tray_icon_event(|tray, event| {
             log::debug!("[TRAY] icon click event: {:?}", event);
-            // macOS: menu already opened on left-click; show+focus would steal it.
-            if cfg!(target_os = "macos") {
-                return;
-            }
             // Left-click only → raise main window (shared raise path).
             if is_focus_main_window_event(&event) {
                 crate::host_events::show_main_window(tray.app_handle());

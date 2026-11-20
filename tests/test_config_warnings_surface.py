@@ -185,8 +185,8 @@ class TestLoadResetsInvalidEnumFields:
             f"to last_load_warnings. Got: {cfg.last_load_warnings!r}"
         )
 
-    def test_invalid_tray_left_click_action_reset_to_default(self, isolated_config_dir: Path) -> None:
-        """A hand-edited ``tray_left_click_action=\"open_menu\"`` (not"""
+    def test_removed_tray_left_click_action_is_ignored_on_load(self, isolated_config_dir: Path) -> None:
+        """A stale hand-edited value stays inert; the field no longer exists."""
         config_file = isolated_config_dir / "config.json"
         config_file.write_text(
             json.dumps(
@@ -200,11 +200,11 @@ class TestLoadResetsInvalidEnumFields:
 
         cfg = Config.load()
 
-        assert cfg.tray_left_click_action == "open_app"
-        reset_warnings = [w for w in (cfg.last_load_warnings or []) if "tray_left_click_action" in w and "reset" in w]
-        assert reset_warnings, (
-            "AP-22: a reset warning for tray_left_click_action must be "
-            f"appended to last_load_warnings. Got: {cfg.last_load_warnings!r}"
+        assert not hasattr(cfg, "tray_left_click_action")
+        reset_warnings = [w for w in (cfg.last_load_warnings or []) if "tray_left_click_action" in w]
+        assert reset_warnings == [], (
+            "a removed field must not produce a reset warning "
+            f"Got: {cfg.last_load_warnings!r}"
         )
 
     def test_invalid_theme_preset_reset_to_default(self, isolated_config_dir: Path) -> None:
@@ -253,7 +253,6 @@ class TestLoadResetsInvalidEnumFields:
                     "recording_mode": "push_to_talk",
                     "bubble_position": "top",
                     "bubble_behavior": "always_visible",
-                    "tray_left_click_action": "toggle_dictation",
                     "theme_preset": "dracula",
                 }
             ),
@@ -268,7 +267,6 @@ class TestLoadResetsInvalidEnumFields:
         assert cfg.recording_mode == "push_to_talk"
         assert cfg.bubble_position == "top"
         assert cfg.bubble_behavior == "always_visible"
-        assert cfg.tray_left_click_action == "toggle_dictation"
         assert cfg.theme_preset == "dracula"
         # No reset warnings for any of these fields.
         reset_warnings = [
@@ -283,7 +281,6 @@ class TestLoadResetsInvalidEnumFields:
                     "recording_mode",
                     "bubble_position",
                     "bubble_behavior",
-                    "tray_left_click_action",
                     "theme_preset",
                 )
             )

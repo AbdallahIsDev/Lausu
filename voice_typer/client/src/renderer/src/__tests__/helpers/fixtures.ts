@@ -143,8 +143,6 @@ export const DEFAULT_CONFIG: LausuConfig = {
 
 	onboarding_completed: true,
 
-	tray_left_click_action: "open_app",
-
 	theme_mode: "system",
 	theme_preset: "default",
 	custom_theme: null,

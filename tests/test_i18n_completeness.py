@@ -231,8 +231,6 @@ PRE_EXISTING_UNTRANSLATED = {
     "settings.transcriptionLanguage",
     "settings.transcriptionLanguageDescription",
     "settings.notificationsDescription",
-    "settings.trayClick",
-    "settings.trayClickDescription",
     "settings.launchAtLogin",
     "settings.launchAtLoginDescription",
     "settings.bubbleBehaviorLabel",

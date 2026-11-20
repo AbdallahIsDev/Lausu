@@ -65,7 +65,6 @@ function baseConfig(): LausuConfig {
 		active_plugin: "",
 		fast_startup: true,
 		show_notifications: true,
-		tray_left_click_action: "toggle_dictation",
 	} as unknown as LausuConfig;
 }
 

@@ -299,9 +299,6 @@ class _ConfigSchema:
     # marks that onboarding was force-completed after repeated
     onboarding_failed: bool = False
 
-    # Tray icon left-click behavior
-    tray_left_click_action: Literal["open_app", "toggle_dictation"] = "open_app"
-
     # Theme mode (system/light/dark)
     theme_mode: Literal["system", "light", "dark"] = "system"
     # Theme preset, a built-in colour scheme applied on top of the

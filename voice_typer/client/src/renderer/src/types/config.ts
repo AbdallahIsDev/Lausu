@@ -329,8 +329,6 @@ export interface LausuConfig {
 	// during guided setup). OPTIONAL because older sidecars
 	onboarding_failed?: boolean;
 
-	tray_left_click_action: "open_app" | "toggle_dictation";
-
 	theme_mode: "system" | "light" | "dark";
 	theme_preset:
 		| "default"
