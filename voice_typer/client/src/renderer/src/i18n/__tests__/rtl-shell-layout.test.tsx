@@ -116,13 +116,17 @@ describe("RTL shell layout: sidebar stays on the physical left", () => {
 		expect(mainColumn).toBeTruthy();
 		expect(mainColumn?.getAttribute("dir")).toBe("rtl");
 
-		// (d) Logical border/radius classes mirror with the column direction.
+		// (d) The frame is PHYSICAL, not logical: the row is LTR-pinned and
+		// the sidebar is always the physical left child, so the seam facing
+		// it stays on the main column's left edge even when the column's
+		// text direction is RTL. jsdom cannot resolve logical→physical
+		// sides, so pin the concrete classes that actually land there.
 		const main = mainColumn?.querySelector("main");
 		expect(main).toBeTruthy();
-		expect(main?.classList.contains("rounded-s-lg")).toBe(true);
-		expect(main?.classList.contains("border-s")).toBe(true);
-		expect(main?.classList.contains("rounded-l-lg")).toBe(false);
-		expect(main?.classList.contains("border-l")).toBe(false);
+		expect(main?.classList.contains("rounded-l-lg")).toBe(true);
+		expect(main?.classList.contains("border-l")).toBe(true);
+		expect(main?.classList.contains("rounded-s-lg")).toBe(false);
+		expect(main?.classList.contains("border-s")).toBe(false);
 	});
 
 	it("keeps the row LTR and the sidebar first even in an LTR locale", async () => {

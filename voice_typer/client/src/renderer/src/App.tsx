@@ -280,7 +280,7 @@ export default function App() {
 							className={cn(
 								"flex-1 overflow-y-auto bg-background focus:outline-none",
 								sidebarVisible &&
-									"rounded-s-lg border-t border-s border-border/8",
+									"rounded-l-lg border-t border-l border-border/8",
 							)}
 							style={{ scrollbarGutter: "stable" }}
 						>

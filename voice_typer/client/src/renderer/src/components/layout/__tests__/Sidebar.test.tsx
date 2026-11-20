@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@hugeicons/react", () => ({
@@ -33,6 +33,7 @@ vi.mock("@/hooks/usePluginCatalog", () => ({
 
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ensureLocaleLoaded, setLocale } from "@/i18n/i18n";
 import { useAppStore } from "@/stores/appStore";
 
 // Sidebar renders real Radix Tooltips (via HotkeyTooltip on the nav
@@ -367,5 +368,45 @@ describe("Sidebar", () => {
 	it("SIDEBAR-BRANDING: no theme switch renders inside the sidebar (moved to the TitleBar)", () => {
 		renderWithProviders(<Sidebar {...baseProps} />);
 		expect(screen.queryByLabelText(/^Current theme:/)).toBeNull();
+	});
+});
+
+describe("Sidebar inner nav direction follows the active locale", () => {
+	beforeEach(async () => {
+		await act(async () => {
+			setLocale("en");
+			await ensureLocaleLoaded("ar");
+		});
+	});
+
+	afterEach(() => {
+		act(() => {
+			setLocale("en");
+		});
+		cleanup();
+	});
+
+	it("is ltr in English and rtl in Arabic while the rail itself stays unpinned", async () => {
+		const props = { currentPage: "home" as const, onNavigate: vi.fn() };
+		const { rerender } = renderWithProviders(<Sidebar {...props} />);
+		const nav = screen.getByRole("navigation", { name: "Main navigation" });
+		const navContainer = nav.parentElement;
+		const aside = nav.closest("aside");
+
+		// English must stay LTR: a hardcoded rtl container would right-align
+		// the nav labels and break the 17px-from-physical-left icon column.
+		expect(navContainer?.getAttribute("dir")).toBe("ltr");
+		expect(aside?.getAttribute("dir")).toBeNull();
+
+		await act(async () => {
+			setLocale("ar");
+		});
+		rerender(
+			<TooltipProvider delayDuration={200} skipDelayDuration={500}>
+				<Sidebar {...props} />
+			</TooltipProvider>,
+		);
+		expect(navContainer?.getAttribute("dir")).toBe("rtl");
+		expect(aside?.getAttribute("dir")).toBeNull();
 	});
 });

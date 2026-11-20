@@ -30,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { useDebugPrefs } from "@/hooks/useDebugPrefs";
 import { usePluginsAvailable } from "@/hooks/usePluginCatalog";
 import { usePluginsNewBadge } from "@/hooks/usePluginsNewBadge";
-import { t, useT } from "@/i18n/i18n";
+import { getLocale, isRtlLocale, t, useT } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import { prefetchPage } from "@/router/prefetch";
 import type { Page } from "@/types/ipc";
@@ -376,9 +376,12 @@ function SidebarInner({
 			    nav is the sidebar's only content, it fills the full
 			    height now that the branding header and the ThemeSwitch
 			    row have moved out of the sidebar. */}
-			{/* The row is pinned LTR to hold the rail on the physical left;
-			    the nav keeps its own RTL flow for stable logical spacing. */}
-			<div className="min-h-0 flex-1 overflow-y-auto p-2" dir="rtl">
+			{/* The row is pinned LTR so the rail keeps its physical left
+			    edge; only the nav's text direction follows the locale. */}
+			<div
+				className="min-h-0 flex-1 overflow-y-auto p-2"
+				dir={isRtlLocale(getLocale()) ? "rtl" : "ltr"}
+			>
 				<nav
 					ref={navRef}
 					aria-label={t("a11y.mainNavigation")}
