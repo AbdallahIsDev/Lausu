@@ -408,3 +408,38 @@ describe("GeneralSettingsSection, streaming transcription is fixed ON", () => {
 		);
 	});
 });
+
+describe("GeneralSettingsSection, tray click is fixed to open the app", () => {
+	beforeEach(() => {
+		act(() => {
+			setLocale("en" as Locale);
+		});
+	});
+
+	afterEach(() => {
+		act(() => {
+			setLocale("en" as Locale);
+		});
+		cleanup();
+	});
+
+	it("renders no tray click row and never writes the removed key", () => {
+		const config = makeConfig();
+		const updateConfig = vi.fn();
+		renderWithProviders(
+			<GeneralSettingsSection
+				config={config}
+				updateConfig={updateConfig}
+				updateConfigDebounced={vi.fn()}
+				isVisible={alwaysVisible}
+			/>,
+		);
+
+		// Plain string keeps this assertion valid after the i18n key is gone.
+		const removedLabelKey: string = "settings.trayClick";
+		expect(screen.queryByText(t(removedLabelKey))).toBeNull();
+		expect(updateConfig).not.toHaveBeenCalledWith(
+			expect.objectContaining({ tray_left_click_action: expect.anything() }),
+		);
+	});
+});

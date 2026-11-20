@@ -141,6 +141,10 @@ ALLOWED_UNTRANSLATED = {
     "theme.preset.solarized",  # "Solarized"
     # HTTP status format: "HTTP {status}" is a universal format string
     "about.httpError",  # "HTTP {status}"
+    # Placeholders and an arrow only — no words to translate.
+    "theme.switchTitle",  # "{mode} → {next}"
+    # Platform brand name, identical in every locale.
+    "media.metaYoutube",  # "YouTube"
     # (UI/UX overhaul 2026-08-20): "VRAM" and "WER" are universal
     "models.card.vramLabel",  # "VRAM"
     # Same metadata line, CPU-only branch: the SAME figure is labelled "RAM"

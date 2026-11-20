@@ -183,29 +183,34 @@ class TestBuildMenuForTray:
             "open_app",
             "toggle_dictation",
             "models",
+            "model:tiny",
+            "more_models",
             "microphones",
+            "mic:0",
+            "refresh_mics",
+            "more_microphones",
             "settings",
             "history",
             "help",
             "restart",
             "quit",
         }
-        ids = {i["id"] for i in model if not i["separator"]}
-        assert expected <= ids, ids
+
+        def all_ids(items):
+            out = set()
+            for item in items:
+                if item["separator"]:
+                    continue
+                out.add(item["id"])
+                if item["submenu"]:
+                    out |= all_ids(item["submenu"])
+            return out
+
+        ids = all_ids(model)
+        assert ids == expected, ids
         # Parent submenu items carry no callback; every leaf does.
         actions = expected - {"models", "microphones"}
         assert all(callable(id_map[i]) for i in actions)
-
-
-def test_tray_menu_module_ignores_removed_left_click_setting():
-    """The removed setting is not read anywhere in tray_menu.py."""
-    from pathlib import Path
-
-    import voice_typer.server.tray_menu as tray_menu_mod
-
-    src = Path(tray_menu_mod.__file__).read_text(encoding="utf-8")
-    assert "tray_left_click_action" not in src
-    assert "left_click_action" not in src
 
     def test_menu_result_is_cached(self, monkeypatch):
         """A second render with a valid cache returns the cached tuple."""
@@ -217,6 +222,17 @@ def test_tray_menu_module_ignores_removed_left_click_setting():
         tray._menu_cache_valid = True
         second = build_menu_for_tray(tray)
         assert second is first
+
+
+def test_tray_menu_module_ignores_removed_left_click_setting():
+    """The removed setting is not read anywhere in tray_menu.py."""
+    from pathlib import Path
+
+    import voice_typer.server.tray_menu as tray_menu_mod
+
+    src = Path(tray_menu_mod.__file__).read_text(encoding="utf-8")
+    assert "tray_left_click_action" not in src
+    assert "left_click_action" not in src
 
 
 """Regression tests for NEW-PERF-004: tray models submenu caching.

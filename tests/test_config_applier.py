@@ -28,7 +28,6 @@ def fake_app() -> MagicMock:
     app.config.repaste_hotkey = None
     app.config.show_notifications = True
     app.config.bubble_behavior = "always_visible"
-    app.config.tray_left_click_action = "toggle_dictation"
     app.config.active_audio_preset = "auto"
     app.config.noise_filter_enabled = True
     app.config.active_model = "small.en"
@@ -124,15 +123,6 @@ def test_extraction_preserves_esc_hotkey_unregister(fake_app) -> None:
     svc = LausuService(fake_app)
     svc.apply_config_side_effects({"esc_cancel_enabled": False})
     fake_app.hotkeys.unregister_esc.assert_called()
-
-
-def test_extraction_preserves_tray_invalidation(fake_app) -> None:
-    """``tray_left_click_action`` change must invalidate tray menu cache."""
-    from voice_typer.server.service import LausuService
-
-    svc = LausuService(fake_app)
-    svc.apply_config_side_effects({"tray_left_click_action": "open_settings"})
-    fake_app.tray.invalidate_menu_cache.assert_called()
 
 
 def test_extraction_preserves_notifications_toggle(fake_app) -> None:

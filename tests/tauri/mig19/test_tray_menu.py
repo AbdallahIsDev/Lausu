@@ -182,7 +182,7 @@ def test_tray_rs_left_click_opens_app_on_all_platforms() -> None:
         quit_app=_noop,
     )
     ids = {i["id"] for i in model if not i["separator"]}
-    assert {"open_app", "toggle_dictation", "restart", "quit"} <= ids, ids
+    assert ids == {"open_app", "toggle_dictation", "models", "restart", "quit"}, ids
 
 
 def test_tray_menu_toggle_dictation_includes_hotkey_label(

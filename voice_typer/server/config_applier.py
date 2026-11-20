@@ -37,7 +37,6 @@ from voice_typer.server.config_applier_handlers import (  # noqa: F401  # facade
     _notify_side_effect_failure,
     _PrewarmSyncHandler,
     _RepasteHotkeyHandler,
-    _TrayLeftClickHandler,
     _VolumeDuckPollHandler,
     to_filter_dict,
 )
@@ -128,7 +127,6 @@ class ConfigApplier:
             _EscHotkeyHandler(),
             _RepasteHotkeyHandler(),
             _DictationHotkeyHandler(),
-            _TrayLeftClickHandler(),
             _NotificationsHandler(),
             _BubbleBehaviorHandler(),
             _VolumeDuckPollHandler(),

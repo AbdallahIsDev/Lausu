@@ -71,8 +71,29 @@ def test_tray_rs_left_click_always_opens_app() -> None:
 
     # Right-click menu ids are unchanged by the left-click behavior change.
     model, _id_map = _make_model()
-    ids = {i["id"] for i in model if not i["separator"]}
-    assert {"open_app", "toggle_dictation", "restart", "quit"} <= ids, ids
+
+    def all_ids(items):
+        out = set()
+        for item in items:
+            if item["separator"]:
+                continue
+            out.add(item["id"])
+            if item["submenu"]:
+                out |= all_ids(item["submenu"])
+        return out
+
+    ids = all_ids(model)
+    assert ids == {
+        "open_app",
+        "toggle_dictation",
+        "models",
+        "more_models",
+        "settings",
+        "history",
+        "help",
+        "restart",
+        "quit",
+    }, ids
 
 
 def test_build_tray_menu_model_returns_well_formed_items():

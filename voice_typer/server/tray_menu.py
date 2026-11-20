@@ -103,7 +103,6 @@ def build_tray_menu_model(
             "accelerator": None,
         }
 
-    # Open App is always the default (bold) action on every platform.
     items.append(_item("open_app", localize("open_app"), callback=open_app))
 
     # Toggle/Stop Dictation, the label switches to "Stop Dictation"
