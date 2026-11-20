@@ -1,0 +1,8 @@
+{
+  "extensionRelativePath": "voice-typer-internal-plugins/extension",
+  "extensionId": "kkinikdljfdmbeibhhgkgmljahmfgecg",
+  "profileRelativePath": "voice-typer-internal-plugins/google-stt-profile",
+  "profileDirectory": "Default",
+  "relayPort": 17875,
+  "note": "One authority for the stable install path and shared identities. Derived from LOCALAPPDATA by both the Node sync step and the Python verifier; never duplicated as a literal in either language."
+}

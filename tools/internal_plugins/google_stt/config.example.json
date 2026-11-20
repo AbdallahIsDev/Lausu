@@ -4,11 +4,16 @@
   "chromeChannel": "chrome",
   "locale": "en",
   "visible": true,
-  "pollMs": 200,
-  "stableMs": 800,
+  "pollMs": 150,
+  "stableMs": 500,
   "stableWindows": 2,
   "startTimeoutMs": 3000,
   "timeoutMs": 15000,
   "geminiUrl": "https://gemini.google.com/app",
-  "notify": true
+  "notify": true,
+  "platform": "gemini",
+  "url": "https://gemini.google.com/app",
+  "port": 17875,
+  "selectorsRef": "../_common/bridge/selectors/gemini.json",
+  "relayToken": ""
 }

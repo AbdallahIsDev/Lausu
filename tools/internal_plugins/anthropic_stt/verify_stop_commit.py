@@ -38,7 +38,8 @@ def check(name: str, ok: bool, detail: str = "") -> None:
     print(f"{'PASS' if ok else 'FAIL'}  {name}{'  -- ' + detail if detail else ''}")
 
 
-SELECTORS = json.loads((PLUGIN_DIR / "selectors.json").read_text(encoding="utf-8"))
+SELECTORS_PATH = PLUGIN_DIR.parent / "_common" / "bridge" / "selectors" / "claude.json"
+SELECTORS = json.loads(SELECTORS_PATH.read_text(encoding="utf-8"))
 
 
 def label_matchers(selector: str) -> list[str]:
@@ -71,7 +72,7 @@ check(
     or "finish dictation" in SELECTORS["recordingIndicator"].lower(),
 )
 
-CONTENT = (PLUGIN_DIR / "extension" / "content.js").read_text(encoding="utf-8")
+CONTENT = (PLUGIN_DIR.parent / "_common" / "bridge" / "extension" / "content.js").read_text(encoding="utf-8")
 stop_body = CONTENT.split("async function stop(")[1].split("async function cancel(")[0]
 cancel_body = CONTENT.split("async function cancel(")[1].split("async function clean(")[0]
 check("stop() clicks the commit control", "stopButtons()" in stop_body and "cancelButtons" not in stop_body)

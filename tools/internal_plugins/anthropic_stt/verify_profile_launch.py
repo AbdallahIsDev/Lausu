@@ -14,6 +14,7 @@ import importlib.util
 import os
 import pathlib
 import sys
+import tempfile
 import types
 
 PLUGIN_DIR = pathlib.Path(__file__).resolve().parent
@@ -22,8 +23,11 @@ sys.path.insert(0, str(ROOT))
 
 _spec = importlib.util.spec_from_file_location("anthropic_stt_plugin", PLUGIN_DIR / "plugin.py")
 plugin = importlib.util.module_from_spec(_spec)
+# plugin.py calls session.bind_entry(sys.modules[__name__]) at import time,
+# so the module must be registered before exec_module (C-ARCH-2).
+sys.modules[_spec.name] = plugin
 _spec.loader.exec_module(plugin)
-chrome = importlib.import_module("tools.internal_plugins.anthropic_stt.chrome_profile")
+chrome = importlib.import_module("tools.internal_plugins._common.bridge.chrome_profile")
 
 _failed = 0
 
@@ -74,7 +78,7 @@ captured: list[tuple[list[str], dict]] = []
 
 def fake_popen(command, **kwargs):
     captured.append((command, kwargs))
-    return object()
+    return types.SimpleNamespace(pid=4242)
 
 
 original_popen = chrome._popen
@@ -90,6 +94,28 @@ check(
     "the child gets the browser environment without a shell",
     bool(captured) and captured[0][1].get("shell") is None and bool(captured[0][1].get("env")),
 )
+
+# Hidden mode changes NO launch argument (no automation fingerprint) and only
+# toggles the window via the injected Win32 seam.
+visibility_calls = []
+original_visibility = chrome._set_window_visible_fn
+chrome._set_window_visible_fn = lambda pid, visible, wait: visibility_calls.append((pid, visible, wait)) or True
+# The launcher records the WMI-resolved chrome pid, not Popen's pid.
+original_resolver = chrome.resolve_browser_pid
+chrome.resolve_browser_pid = lambda _profile: 4242
+workspace = pathlib.Path(tempfile.mkdtemp(prefix="anthropic-stt-visibility-"))
+chromium_stub = chrome._popen
+chrome._popen = fake_popen
+try:
+    hidden = chrome.launch(PROFILE, URL, chrome_path=EXE, visible=False, plugin_dir=str(workspace))
+finally:
+    chrome._set_window_visible_fn = original_visibility
+    chrome.resolve_browser_pid = original_resolver
+    chrome._popen = chromium_stub
+check("a hidden launch still spawns Chrome", hidden)
+check("hidden mode hides without extra flags", visibility_calls == [(4242, False, 5.0)], str(visibility_calls))
+check("the launched pid is recorded for live toggling", chrome._read_pid(str(workspace)) == 4242)
+check("no automation switch reached the command line", captured[-1][0] == [EXE, *ARGS])
 
 original_find = chrome.find_chrome
 chrome.find_chrome = lambda: None

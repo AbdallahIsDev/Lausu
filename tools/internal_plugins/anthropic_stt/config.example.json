@@ -1,11 +1,16 @@
 {
   "claudeUrl": "https://claude.ai/new",
   "profileDir": "C:/Users/11/AppData/Local/voice-typer-internal-plugins/google-stt-profile",
-  "pollMs": 200,
-  "stableMs": 800,
+  "pollMs": 150,
+  "stableMs": 500,
   "stableWindows": 2,
   "startTimeoutMs": 5000,
   "timeoutMs": 15000,
+  "visible": true,
   "notify": true,
-  "relayToken": ""
+  "relayToken": "",
+  "platform": "claude",
+  "url": "https://claude.ai/new",
+  "port": 17875,
+  "selectorsRef": "../_common/bridge/selectors/claude.json"
 }

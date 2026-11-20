@@ -1,0 +1,17 @@
+{
+  "locale": "en",
+  "note": "Gemini web composer (measured live 2026-11-20 on the dictation profile, signed in): clicking Dictate turns the SAME control into 'Stop dictation (^shift+D)' and the composer area is replaced for the duration of the capture, so the toggle label is the only reliable recording signal (there is no separate discard control and no 'Listening' placeholder). Fix here after a Gemini redesign, then re-run tools/build-extension.js + sync_extension.js and reload the extension; probe.js re-verifies every entry.",
+  "geminiUrl": "https://gemini.google.com/app",
+  "idleSlot": "div[data-node-type=\"speech_dictation_mic_button\"], speech-dictation-mic-button",
+  "composer": "div[role=\"textbox\"][contenteditable=\"true\"][aria-label=\"Enter a prompt for Gemini\"]",
+  "micSelector": "button[aria-label^=\"Dictate\"]",
+  "stopSelector": "button[aria-label^=\"Stop dictation\"]",
+  "cancelSelector": "",
+  "micButton": "button \"Dictate (^shift+D)\" -- measured live, aria-pressed=false at idle",
+  "recordingIndicator": "the mic control re-labels to \"Stop dictation (^shift+D)\" while Gemini captures; the composer is not exposed during capture and no aria-live 'listening' node exists (measured live)",
+  "stopButton": "button \"Stop dictation (^shift+D)\" -- the SAME toggle that started the capture; it commits the transcript into the composer. Gemini offers no cancel/discard control, so cancelSelector stays empty",
+  "promptBox": "textbox \"Enter a prompt for Gemini\"",
+  "newChatNames": [
+    "New chat"
+  ]
+}

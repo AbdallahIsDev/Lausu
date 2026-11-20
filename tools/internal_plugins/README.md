@@ -34,202 +34,150 @@ The earlier private mirror is optional. `backup.ps1` still works from a
 checkout that has the nested `.git` directory; a normal clone of the parent
 repo does not have one.
 
-## anthropic_stt (Chrome-extension transport)
+## Chrome-extension bridge (both platforms)
 
-Drives the Claude web composer from a normal Chrome window on the dictation
-profile, through a small MV3 extension. No DevTools endpoint, no Playwright, no
-automation switches: the browser is an ordinary session, and the extension only
-clicks the platform's own controls. The profile is started by
-`chrome_profile.py` (activation, or the first hotkey press when it is closed)
-with exactly `--user-data-dir`, `--profile-directory` and the Claude URL.
+`anthropic_stt` and `google_stt` share ONE MV3 extension, ONE loopback relay,
+ONE relay token and ONE Chrome profile. There is no Playwright path any more:
+`playwright_runner.js` and Google's old `run.js` are deleted. Playwright's
+`launchPersistentContext` forces `--disable-extensions` into Chromium's default
+arguments, which is why the Anthropic extension disappeared whenever Google
+STT was selected — both plugins now use the same normal Chrome session.
 
-Same hotkey, bubble, sound cues, clipboard, paste and History as the local
-model. The daemon listens on `127.0.0.1:17875`; the extension connects back to
-it over a token-authenticated WebSocket on `/extension`. The shared Chrome
-profile is still the one both internal plugins use, so keep the Claude window
-open while dictating. (The Google STT plugin still launches Chrome with
-Playwright and will report `profile-busy` while that window is open.)
+- Shared home: `tools/internal_plugins/_common/bridge/`
+  - `run.js` — wiring: config -> generated config -> relay -> HTTP control plane.
+  - `relay.js` — loopback WebSocket, extension Origin + token handshake, deadlines.
+  - `control_plane.js` — `/start`, `/stop`, `/cancel`, `/status`, `/config`,
+    `/warm`, `/probe`, `/shutdown`, all scoped to the owning plugin's platform.
+  - `config_store.js` — one config authority: one token, one port, one profile.
+  - `extension/` — the SOURCE of truth for ONE MV3 service worker and ONE
+    content script, matching both `https://claude.ai/*` and
+    `https://gemini.google.com/*`.
+  - `install.json` — the ONE authority for the stable install path, extension
+    id, profile relative path and port. `install_paths.js` / `install_paths.py`
+    resolve it from `LOCALAPPDATA`; no second literal exists.
+  - `sync_extension.js` — copies the source into the stable app-data install
+    path on every daemon boot and settings change, removing stale files.
+  - `selectors/claude.json`, `selectors/gemini.json` — per-platform selectors.
+  - `tools/build-extension.js` — compiles both selector sets + the token into
+    `extension/generated/config.js`; `--check` fails on drift.
+  - `verify_extension_install.py` — one read-only command that prints the
+    stable install path, the registration target and the exact next step.
+  - `chrome_profile.py` — the only browser launcher: plain flags only
+    (`--user-data-dir`, `--profile-directory`, URL); verified by
+    `verify_profile_launch.py`.
+  - `session.py`, `keepalive.py`, `daemon_client.py` — shared state machine,
+    wake-up keepalive and HTTP client.
+- Each plugin directory keeps only `plugin.json`, `plugin.py` (hotkey seam,
+  bubble/cues, paste/history), `config.json`, `config.example.json` and its
+  `copy.py`. Its `config.json` is a platform descriptor: `platform`
+  (`claude` | `gemini`), `url`, `port` (17875), `profileDir`, `relayToken`.
 
-### Pieces
+### Invariants
 
-- `plugin.py` — in-app session: hotkey seam, bubble/cues, paste, history.
-- `run.js` — wiring: config -> relay -> HTTP control plane.
-- `relay.js` — loopback WebSocket, handshake/token/origin checks, deadlines.
-- `control_plane.js` — the `/start`, `/stop`, `/cancel`, `/status`, `/warm`,
-  `/probe`, `/shutdown` shapes `plugin.py` consumes.
-- `config_store.js` — one authority for `config.json` (token generated once) and for merging the Plugins page's `settings.json` over it.
-- `tools/build-extension.js` — compiles `selectors.json` + token into
-  `extension/generated/config.js`; `--check` fails on drift.
-- `extension/` — MV3 service worker + content script.
-- `chrome_profile.py` — the only code allowed to start a browser: plain flags
-  only, refused otherwise (`verify_profile_launch.py`).
-- `setup/occlusion.ps1` — Chrome policy values for covered-window capture.
-- `setup/launch-claude-profile.ps1` — starts plain Chrome on the profile.
-- `setup/install-shortcut.ps1` — puts "Claude Dictation" in the Start menu with
-  the same argument shape.
-- `probe.js` — PASS/FAIL selector check through the running bridge.
+- **One token.** `_common/bridge/token.json` (gitignored) is the authority. On
+  first use it adopts the existing Claude token so a loaded extension keeps
+  working; no rotation. Both generated config and both daemons read it.
+- **One port.** 17875. Only one plugin is active at a time; the old Google
+  daemon's 17874 is retired. A warm/start request from Google never drives a
+  Claude tab: the daemon sends `platform` with every command, the service
+  worker resolves only that platform's tab, and the content script refuses a
+  command for the other platform with `wrong-platform`.
+- **One profile.** `C:/Users/11/AppData/Local/voice-typer-internal-plugins/google-stt-profile`.
+  The name is deliberate — it is already registered and signed in.
+- **Install path is stable and outside the repo.** Chrome registers unpacked
+  extensions by ABSOLUTE PATH: moving or deleting the registered directory
+  silently removes the extension. The daemon therefore syncs the source into
+  the path printed by the verifier (derived from `install.json` +
+  `LOCALAPPDATA`) and never asks Chrome to load from the git tree. A registration
+  pointing into the repo is detected and reported with the fix. Branded Chrome
+  137+ refuses `--load-extension`
+  (https://developer.chrome.com/blog/extension-news-june-2025), so do not try it
+  and do not smuggle in `--disable-features=DisableLoadExtensionCommandLineSwitch`.
+- **Generated config is runtime state.** Staging skips `generated/` and
+  `token.json`; the daemon regenerates `extension/generated/config.js` on each
+  boot and after a settings change. `--check` still catches drift.
+- **Plain flags only.** The bridge never uses Playwright, CDP, DevTools,
+  `--remote-debugging` or automation switches. The extension only clicks the
+  platform's own controls; commit and discard keep distinct selectors (C-ASR-4).
 
-### One-time setup, in this order
+### One-time setup
 
-1. Install the Node dependency outside the repo (this is the `NODE_PATH` the
-   app passes to the daemon):
+1. Install the one Node dependency outside the repo:
    ```powershell
    npm install --prefix "$env:LOCALAPPDATA/voice-typer-internal-plugins/node-deps" ws
    ```
-2. Generate the extension config (creates `config.json` and the gitignored
-   `extension/generated/config.js`):
+   (Only `ws`. Playwright is no longer installed by this project.)
+2. Check the install (read-only) and copy the path it prints:
    ```powershell
-   node tools\internal_plugins\anthropic_stt\tools\build-extension.js
+   .venv\Scripts\python.exe tools\internal_plugins\_common\bridge\verify_extension_install.py
    ```
-3. Open `chrome://extensions` **in the dictation profile** -> enable Developer
-   mode -> Load unpacked -> `tools\internal_plugins\anthropic_stt\extension`.
-   Confirm the service worker is active and reload the Claude tab once.
-   (If no Chrome window is open yet, run step 4 first, then return here.)
-4. Put the profile in the Start menu once, so you never hunt for the path:
+   Start the app once first so the daemon has synced the extension into that
+   stable app-data path. The verifier prints it, confirms the files and
+   generated config, and says whether Chrome is registered there.
+3. In the dictation profile open `chrome://extensions` -> Developer mode ->
+   Load unpacked -> **the stable path printed by the verifier** (never a path
+   inside this repository). Confirm the service worker is active, then reload
+   the Claude and Gemini tabs. (If no window is open yet, run step 4 first.)
+   The single manifest covers both origins; one load serves both plugins.
+4. Optional Start-menu shortcut for the profile (Claude-oriented, but the same
+   profile serves both sites):
    ```powershell
    powershell -File tools\internal_plugins\anthropic_stt\setup\install-shortcut.ps1
    ```
-   Searching "Claude Dictation" then opens the profile as a normal browser.
-   (`setup/launch-claude-profile.ps1` does the same from a shell.)
-5. Sign in to `claude.ai` by hand. Finish any security check by hand. When
-   Chrome asks for the microphone, allow it. Leave the window open.
-6. Apply the occlusion policy, then restart Chrome once:
+5. Sign in to both sites by hand. Finish any security check by hand. Allow the
+   microphone when Chrome asks. Leave the window open.
+6. Apply the occlusion policy and restart Chrome once (Windows capture):
    ```powershell
    powershell -File tools\internal_plugins\anthropic_stt\setup\occlusion.ps1
    ```
-7. Unlock the hidden Plugins page: in the app press `ctrl+shift+alt+d` three
-   times within 1.5 s (persists `developer_mode: true`), then create
-   `tools/internal_plugins/PLUGINS_ENABLED` if the app has not seeded a copy
-   yet. A packaged build seeds the embedded tree into
-   `<config dir>/developer_plugins/tools/internal_plugins` on unlock.
-8. Select Anthropic STT on the Plugins page.
-9. Press the product hotkey (Settings -> Hotkey) in any app. The bubble shows,
-   Claude records, and the transcript is pasted when you press the hotkey
-   again.
-
-Remapping the hotkey in Settings needs no restart and no plugin change; the
-product hotkey is the only trigger.
+7. Unlock the hidden Plugins page (three `ctrl+shift+alt+d` presses in 1.5 s),
+   create `tools/internal_plugins/PLUGINS_ENABLED` if needed, then select either
+   Anthropic STT or Google STT. Selecting one shuts the other's bridge down.
 
 ### Everyday use
 
-Keep the extension loaded. The window does not have to be in front (covered by
-another app is fine after step 6): the plugin opens the profile itself when it
-is closed — on activation and on the first hotkey press — and waits up to 15 s
-for the tab to answer. One launch per 30 s window, so a dead extension cannot
-spawn a tab on every press; the press then fails honestly with
-`browser-not-open`. The knobs on the Plugins page apply on the next hotkey
-press — no daemon restart.
+The product hotkey drives whichever plugin is selected. The bubble, sound
+cues, clipboard/paste (including first-letter case and separator), history and
+live level meter are the same for both. `visible` hides/shows the profile
+window without launching flags; `notify` controls error toasts. One launch per
+30 s cooldown prevents a dead extension from spawning tabs on every press.
 
-### What this design does and does not guarantee
+### Gemini-specific state
 
-- It removes the automation flags, the DevTools-pipe control and Playwright's
-  plugin-owned cold browser. The platform sees a normal Chrome session on the
-  owner's own profile, started the way a shortcut starts it.
-- It does not make automating the platform UI compliant with Anthropic's
-  terms, and detection is probabilistic rather than a boolean. A challenge can
-  still appear; when it does, the tab stops and a human must finish it in that
-  window.
-- It does not change Claude's own dictation lifecycle. A covered or off-screen
-  window and a background tab can still stop capture; window placement and the
-  occlusion policy are the owner's knobs, not the plugin's.
+Both selector sets are live-verified (Gemini measured 2026-11-20 in the
+dictation profile). Gemini exposes NO separate discard control: the Dictate
+button relabels itself to `Stop dictation` while it captures, so
+`cancelSelector` is intentionally empty and cancel degrades to "stop, then
+discard the text". A discard control is therefore OPTIONAL in the shared
+content script — requiring one made Google permanently answer
+`selectors-missing`. Never reuse the commit control as a cancel target
+(C-ASR-4), and never add a selector from memory: measure it on the live page
+and re-run the probe.
 
 ### Troubleshooting
 
-- **"The Claude browser window is closed, or the dictation extension is not
-  loaded."** The plugin could not reach the tab (a launch inside the 30 s
-  cooldown, or a profile that never answered). Open "Claude Dictation" from the
-  Start menu, check `chrome://extensions` for the unpacked extension, and press
-  the hotkey again.
+- **Extension missing / bridge not connected.** Check `chrome://extensions` in
+  the dictation profile and reload it from the shared path. The daemon
+  regenerates `generated/config.js` on boot; if you changed `config.json` or
+  selectors, re-run the build and reload the extension.
+- **Token drift.** Re-run the build and reload the extension. Never delete
+  `token.json` unless you intend to rotate and reload.
+- **Selector drift.** Run `node tools/internal_plugins/_common/bridge/probe.js`
+  with the app running and the extension connected. It prints PASS/FAIL per
+  selector and a redacted composer dump. Update `selectors/<platform>.json`,
+  re-run the build and reload the extension.
 - **Signed out / security check.** Finish it by hand in that window.
-- **Selectors drifted after a Claude redesign.** Run `node probe.js` (app must
-  be running and the extension connected). It prints PASS/FAIL per selector
-  and writes a redacted composer dump to `debug/probe-composer.html`; update
-  `selectors.json`, then re-run `tools/build-extension.js` and reload the
-  extension.
-- **Token drift.** The token lives in `config.json` and in
-  `extension/generated/config.js`. Re-run `tools/build-extension.js` and
-  reload the extension in `chrome://extensions`.
+- **`wrong-platform`.** The wrong site's tab is connected; open the platform
+  matching the selected plugin and press again.
 
 ### Undo
 
 ```powershell
 powershell -File tools\internal_plugins\anthropic_stt\setup\occlusion.ps1 -Revert
 # remove the unpacked extension in chrome://extensions
-# close the dictation-profile Chrome window
 powershell -File tools\internal_plugins\anthropic_stt\setup\install-shortcut.ps1 -Remove
-Remove-Item tools\internal_plugins\anthropic_stt\extension\generated\config.js
-Remove-Item tools\internal_plugins\anthropic_stt\config.json   # rotates the token
-Remove-Item tools\internal_plugins\PLUGINS_ENABLED             # back to the local model
+Remove-Item tools\internal_plugins\PLUGINS_ENABLED
 ```
 
-`occlusion.ps1 -Revert` removes exactly the three values it added and asks for
-a Chrome restart. Nothing else in the profile is touched.
-
-## google_stt (plan: `docs/plan-internal-plugin-google-stt.md`)
-
-Burner Gmail only. Ban risk sits on that account. Automating the Google web
-UI is a ToS gray area — in-house experiment, hidden behind the owner unlock in
-every build. Never document it in a release note or README outside this folder.
-
-### How it runs now (in-app)
-
-The plugin lives INSIDE the app. `voice_typer/server/internal_plugin_hook.py`
-is a gated seam called from `LausuApp.__init__`; when the gate is closed it
-does nothing (import-level check, no side effects). When open, it wraps
-`app.toggle_dictation` / `_stop_dictation` / `_cancel_dictation` so the
-app's own hotkey (caps lock, or whatever you set in Settings) drives the
-Google session, and the app's own bubble + sound cues + clipboard +
-history are used. Changing the hotkey in Settings is picked up
-automatically (the backend re-registers and the wrappers stay in place).
-
-The plugin is active while `developer_mode` is on AND the workspace's
-`PLUGINS_ENABLED` exists AND a plugin is selected on the Plugins page. In a
-checkout the workspace is this folder; a packaged build seeds a copy into
-`<config dir>/developer_plugins/tools/internal_plugins`, so its marker lives
-there. Delete the marker (or turn developer mode off in Settings once visible)
-to get normal local dictation back; re-create it for the Google STT plugin.
-
-### Pieces
-
-- `plugin.py` — in-app session: daemon control, bubble/cues via
-  event_bus, paste via app.clipboard, history via app.history_db.
-- `run.js` / `playwright_runner.js` — Node daemon: persistent Chrome
-  profile, mic toggle, stable transcript scrape, prompt-box cleanup
-  (`New chat` after every successful copy), toast-free error records.
-- `selectors.json` — data-only UI map. Fix after a Google redesign here;
-  no code changes needed.
-- `config.example.json` — copy to `config.json` (gitignored) and edit:
-  `visible: false` parks the browser off-screen (silent background);
-  `true` shows the window so you can watch/click it.
-- `check.js` — one-shot: is the session still logged in?
-- `login.js` — one-shot manual login into the isolated profile.
-- `probe.js` — one-shot selector re-verification: loads the page, clicks the
-  mic toggle, asserts every selector in `selectors.json` still resolves
-  (idle → recording → idle). Redacted aria snapshots land in `debug/`.
-- `app_test.py` — harness: boots the app with the gate open, toggles
-  start/stop without the GUI (writes a STOP marker file to end).
-- `debug/` — screenshots, aria snapshots, daemon logs (gitignored).
-
-### Setup once
-
-1. Unlock the hidden surface: press `ctrl+shift+alt+d` three times within 1.5 s
-   in the app. That persists `developer_mode: true` and seeds the workspace if
-   the build is packaged. (`setx VOICE_TYPER_INTERNAL_PLUGINS 1` remains a
-   breakglass override for a dev shell.)
-2. `New-Item tools/internal_plugins/PLUGINS_ENABLED` (gitignored marker).
-3. Install Playwright deps outside the repo:
-   `%LOCALAPPDATA%/voice-typer-internal-plugins/node-deps`.
-4. Run the app normally (`cd voice_typer/client && npm run tauri:dev`).
-   The daemon auto-starts with the app.
-
-### Caveats
-
-- Google hears your SPEAKERS. Mute or close media before dictating, or
-  it will transcribe what is playing.
-- Modes: one thing at a time. While the Google STT session runs, the local
-  recorder stays idle; press ESC (or your cancel key) to abort without
-  pasting.
-- Reset profile: close Chrome, delete
-  `%LOCALAPPDATA%/voice-typer-internal-plugins/google-stt-profile`, rerun
-  `login.js`, log in again.
-
+Runtime state (`config.json`, `token.json`, `extension/generated/`, `debug/`,
+the profile) is never committed and is never deleted by a build.

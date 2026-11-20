@@ -14,11 +14,14 @@ import importlib.util
 import io
 import json
 import pathlib
+import sys
 import urllib.error
 
 PLUGIN_PATH = pathlib.Path(__file__).with_name("plugin.py")
 _spec = importlib.util.spec_from_file_location("google_stt_plugin", PLUGIN_PATH)
 plugin = importlib.util.module_from_spec(_spec)
+sys.path.insert(0, str(PLUGIN_PATH.parents[3]))
+sys.modules[_spec.name] = plugin
 _spec.loader.exec_module(plugin)
 
 _failed = 0
@@ -40,7 +43,7 @@ def _raise(exc: BaseException):
 
 
 def _stub_urlopen(exc: BaseException) -> None:
-    plugin.urllib.request.urlopen = lambda *a, **k: _raise(exc)
+    plugin.daemon_client.urllib.request.urlopen = lambda *a, **k: _raise(exc)
 
 
 # 1. The exact body the daemon sends when the browser died.
@@ -67,7 +70,7 @@ except Exception as e:  # noqa: BLE001
     check("non-JSON body degrades gracefully", str(e) == "not json at all", f'reason="{e}"')
 
 # 3. Daemon not listening at all.
-plugin.urllib.request.urlopen = lambda *a, **k: _raise(urllib.error.URLError("connection refused"))
+plugin.daemon_client.urllib.request.urlopen = lambda *a, **k: _raise(urllib.error.URLError("connection refused"))
 try:
     plugin._post("/start")
     check("unreachable daemon is readable", False, "no exception raised")
