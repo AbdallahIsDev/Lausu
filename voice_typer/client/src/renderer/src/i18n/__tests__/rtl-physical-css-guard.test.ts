@@ -93,12 +93,8 @@ function collectSourceFiles(): { rel: string; src: string }[] {
 			}
 			// Only scan .ts / .tsx source files (not .json, .css, .svg).
 			if (!/\.(ts|tsx)$/.test(name)) continue;
-			// Skip test files, stories, and declaration files.
-			if (
-				name.includes(".test.") ||
-				name.includes(".stories.") ||
-				name.endsWith(".d.ts")
-			) {
+			// Skip test files and declaration files.
+			if (name.includes(".test.") || name.endsWith(".d.ts")) {
 				continue;
 			}
 			let src: string;

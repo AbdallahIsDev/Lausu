@@ -3,7 +3,7 @@
 		"light": "Hell",
 		"dark": "Dunkel",
 		"system": "System",
-		"switchTitle": "{mode}-Modus: Klicken zum Wechseln",
+		"switchTitle": "{mode} → {next}",
 		"switchAriaLabel": "Aktuelles Design: {mode}. Klicken zum Wechseln zu {next}.",
 		"preset": {
 			"default": "Standard",
@@ -42,19 +42,17 @@
 	},
 	"media": {
 		"title": "Medientranskription",
-		"description": "Verwandle jedes Video oder jede Audiodatei in Text — füge einen Link ein oder lege eine Datei ab.",
+		"description": "Verwandle jedes Video oder jede Audiodatei in Text. Füge einen Link ein oder lege eine Datei ab.",
 		"sourceLabel": "Link oder Dateipfad",
 		"sourcePlaceholder": "https://example.com/video.mp4 oder ein Pfad auf diesem Gerät",
 		"dropHint": "Ziehe eine Mediendatei hierher oder füge oben einen Link ein.",
-		"useSubtitlesLabel": "Untertitel verwenden, wenn verfügbar",
-		"useSubtitlesInfo": "Sofort und kostenlos: nutzt die von der Seite bereitgestellten Untertitel (von ihren Autoren geschrieben, können vom Audio abweichen). Sonst wird wie üblich das Audio transkribiert.",
 		"start": "Transkribieren",
 		"cancel": "Abbrechen",
 		"phaseLoadingModel": "Modell wird geladen…",
 		"phaseDownloading": "Audio wird heruntergeladen…",
 		"phaseTranscribing": "Wird transkribiert…",
 		"phasePreparing": "Vorbereitung…",
-		"streamFallbackNote": "Der Audio-Download ist fehlgeschlagen — aus dem Stream transkribiert.",
+		"streamFallbackNote": "Der Audio-Download ist fehlgeschlagen. Aus dem Stream transkribiert.",
 		"lowConfidence": "Geringe Sicherheit",
 		"errorTooShort": "In diesem Medium wurde kein Audio gefunden.",
 		"errorTruncated": "Nur ein Teil dieses Mediums konnte gelesen werden. Versuche es erneut.",
@@ -70,10 +68,10 @@
 		"percent": "{percent} %",
 		"eta": "noch ca. {time}",
 		"duration": "Dauer {time}",
-		"longMediaNotice": "Lange Medien: Die Transkription dauert entsprechend länger — die Restzeit aktualisiert sich laufend.",
+		"longMediaNotice": "Lange Medien: Die Transkription dauert entsprechend länger. Die Restzeit aktualisiert sich laufend.",
 		"completeTitle": "In Chronik gespeichert",
 		"completeDescription": "{chars} Zeichen wurden zu deiner Chronik hinzugefügt.",
-		"partialDescription": "Abgebrochen — der unvollständige Transkript ({chars} Zeichen) wurde in der Chronik gespeichert.",
+		"partialDescription": "Abgebrochen. Der unvollständige Transkript ({chars} Zeichen) wurde in der Chronik gespeichert.",
 		"openHistory": "Chronik öffnen",
 		"errorTitle": "Transkription fehlgeschlagen",
 		"errorGeneric": "Die Medien konnten nicht transkribiert werden.",
@@ -83,7 +81,7 @@
 		"errorLoginRequired": "Dieser Link erfordert eine Anmeldung oder zeigt auf private Inhalte. Verwende einen öffentlichen Link.",
 		"errorGeoBlocked": "Diese Medien sind in deiner Region nicht verfügbar.",
 		"errorPlaylist": "Das sieht nach einer Playlist aus. Füge einen einzelnen Video- oder Audiolink ein.",
-		"errorDecode": "Die Medien konnten nicht dekodiert werden — die Datei ist möglicherweise beschädigt oder wird nicht unterstützt.",
+		"errorDecode": "Die Medien konnten nicht dekodiert werden. Die Datei ist möglicherweise beschädigt oder wird nicht unterstützt.",
 		"errorResolve": "Der Link konnte nicht gelesen werden. Prüfe, ob er auf eine unterstützte Seite zeigt.",
 		"errorUrlExpired": "Der Medienlink ist während des Auftrags abgelaufen. Starte erneut.",
 		"errorDownloadFailed": "Das Herunterladen des Audios ist fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.",
@@ -95,7 +93,7 @@
 		"browseFile": "Dateien durchsuchen",
 		"orLink": "oder Link einfügen",
 		"atCapacity": "Alle {max} Plätze sind belegt. Bricht einen Job ab oder wartet, bis einer fertig ist.",
-		"batchLimited": "{accepted} von {total} hinzugefügt — {max} Plätze sind belegt",
+		"batchLimited": "{accepted} von {total} hinzugefügt. {max} Plätze sind belegt",
 		"pickerUnavailable": "Dateiauswahl ist hier nicht verfügbar. Ziehe die Datei stattdessen auf die Seite.",
 		"cancelAll": "Alle abbrechen",
 		"dismiss": "Verwerfen",
@@ -103,7 +101,19 @@
 		"duplicateDescription": "Diese Datei oder dieser Link wird bereits transkribiert.",
 		"noSpeech": "In diesem Medium wurde keine Sprache gefunden.",
 		"noSpeechTitle": "Keine Sprache gefunden",
-		"clearInput": "Leeren"
+		"clearInput": "Leeren",
+		"errorModelLanguage": "Das ausgewählte Modell unterstützt die gewählte Sprache nicht. Wähle auf der Seite Modelle eines, das sie unterstützt.",
+		"dropRelease": "Loslassen zum Transkribieren",
+		"paste": "Aus Zwischenablage einfügen",
+		"invalidSource": "Gib einen gültigen Link (http:// oder https://) oder den Pfad zu einer vorhandenen Datei ein.",
+		"wordsAdded": "{count} Wörter zu deinem Verlauf hinzugefügt",
+		"wordAdded": "1 Wort zu deinem Verlauf hinzugefügt",
+		"metaYoutube": "YouTube",
+		"metaWebsite": "Webseite",
+		"metaLocalFile": "Lokale Datei",
+		"metaSubtitles": "Untertitel",
+		"metaTranscription": "Audio-Transkription",
+		"elapsed": "Vergangen {time}"
 	},
 	"providers": {
 		"title": "Modellanbieter",
@@ -791,6 +801,14 @@
 		"appLanguageDescription": "Wählen Sie die Oberflächensprache für {appName}.",
 		"transcriptionLanguage": "Transkriptionssprache",
 		"transcriptionLanguageDescription": "Gesprochene Sprache automatisch erkennen oder eine Sprache für bessere Genauigkeit auswählen.",
+		"translationEnable": "Ausgabe übersetzen",
+		"translationTarget": "Ziel der Ausgabe",
+		"translationTargetInfo": "Text in diese Sprache übersetzen. „Wie gesprochen“ behält den Originaltext.",
+		"translationSameAsSpoken": "Wie gesprochen",
+		"translationGpu": "GPU für Übersetzung verwenden",
+		"translationGpuInfo": "Lokales Übersetzungsmodell über Vulkan auf einer kompatiblen GPU ausführen – ohne CUDA-Download.",
+		"translationGlossary": "Terminologie",
+		"translationGlossaryInfo": "Ein Begriff pro Zeile als Quelle => Übersetzung. Produkt- und UI-Namen bleiben unverändert.",
 		"launchAtLogin": "Beim Anmelden starten",
 		"launchAtLoginDescription": "{appName} automatisch starten, wenn Sie sich bei Windows anmelden.",
 		"notifications": "Benachrichtigungen",
@@ -897,10 +915,6 @@
 			"testStartSound": "Startton testen",
 			"testStopSoundAria": "Den Stopton der Aufnahme abspielen",
 			"testStopSound": "Stopton testen",
-			"soundVolumeAria": "Lautstärke der Hinweistöne",
-			"soundVolumeInfo": "Legt fest, wie laut die Start- und Stoptöne der Aufnahme wiedergegeben werden, von stumm (0) bis voll (1).",
-			"soundVolumeInfoSearch": "Lautstärke der Start-/Stopp-Töne",
-			"soundVolume": "Sound-Lautstärke",
 			"hotkeyTitle": "Tastenkombination",
 			"hotkeyDescription": "Taste zum Starten und Stoppen des Diktats.",
 			"dictationKey": "Diktiertaste",
@@ -1114,6 +1128,9 @@
 			"clipboardSaveRestoreAria": "Zwischenablage sichern und wiederherstellen",
 			"clipboardSaveRestoreInfo": "Merkt sich den Inhalt der Zwischenablage vor dem Einfügen und stellt ihn danach wieder her.",
 			"clipboardSaveRestoreLabel": "Zwischenablage sichern und wiederherstellen",
+			"clipboardHistoryExcludeAria": "Diktate aus dem Zwischenablageverlauf heraushalten",
+			"clipboardHistoryExcludeInfo": "Markiert jedes Diktat, damit der Zwischenablageverlauf des Systems (Win+V) es nicht speichert. Ausschalten, um Transkripte im Verlauf zu behalten.",
+			"clipboardHistoryExcludeLabel": "Diktate aus dem Zwischenablageverlauf heraushalten",
 			"logTranscriptionsAria": "Transkriptionen protokollieren",
 			"logTranscriptionsInfo": "Schreibt jedes Transkript zur Fehlerdiagnose in die Protokolldatei der App. Der Text bleibt auf diesem Gerät.",
 			"logTranscriptionsLabel": "Transkriptionen protokollieren",
@@ -1329,6 +1346,7 @@
 		"statusActive": "Aktiv",
 		"statusInactive": "Inaktiv",
 		"unlocked": "Plugins freigeschaltet.",
+		"hidden": "Plugins ausgeblendet.",
 		"unlockFailed": "Plugins konnten nicht freigeschaltet werden. Bitte erneut versuchen."
 	},
 	"models": {
@@ -1659,7 +1677,10 @@
 		"charsSuffix_two": " ({count} Zeichen)",
 		"charsSuffix_few": " ({count} Zeichen)",
 		"charsSuffix_many": " ({count} Zeichen)",
-		"charsSuffix_other": " ({count} Zeichen)"
+		"charsSuffix_other": " ({count} Zeichen)",
+		"mediaBadge": "Medien",
+		"dictationBadge": "Diktat",
+		"viewTranscript": "Transkript ansehen"
 	},
 	"onboarding": {
 		"applyFailedTitle": "Einrichtung konnte nicht abgeschlossen werden",
@@ -1706,9 +1727,9 @@
 		"models": {
 			"allModels": "Alle Modelle",
 			"badgeRecommended": "Empfohlen",
-			"badgeFast": "Schnell",
-			"badgeLanguages": "25 Sprachen"
-		}
+			"badgeFast": "Schnell"
+		},
+		"languageCountBadge": "{count} Sprachen"
 	},
 	"titleBar": {
 		"minimize": "Minimieren",
@@ -2156,6 +2177,9 @@
 			"auto_punctuation_failed": "Automatische Zeichensetzung fehlgeschlagen. Details in der Protokolldatei.",
 			"no_speech_detected": "Keine Sprache erkannt, Audio war nahezu stumm.\nDein Mikrofon nimmt möglicherweise keinen Ton auf.\nPrüfe, ob das richtige Mikrofon ausgewählt und aktiv ist.",
 			"no_transcription_produced": "Audio wurde aufgenommen, es kam aber zu keiner Transkription.\nDas kann an einer Fehlkonfiguration des Modells oder unklarer Audioqualität liegen. Versuche es erneut oder prüfe die Protokolldatei."
+		},
+		"model_language": {
+			"unsupported": "{model} unterstützt {language} nicht."
 		}
 	},
 	"error": {
@@ -2242,7 +2266,9 @@
 		"pasteDeferredHint": "Die Einfügen-Tastatureingabe konnte nicht an die Ziel-App gesendet werden. Fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein.",
 		"pasteDeferredHintSecureInput": "In der Ziel-App ist Secure Input aktiviert (z. B. ein Passwortfeld), was synthetische Tastatureingaben blockiert. Fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein.",
 		"pasteDeferredHintIme": "Eine IME-Texteingabe war in Bearbeitung, daher wurde die Einfügen-Tastatureingabe übersprungen. Fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein.",
-		"pasteDeferredHintNoTextField": "Es war kein Textfeld fokussiert, daher wurde die Einfügen-Tastatureingabe übersprungen. Fokussieren Sie ein Textfeld und fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein."
+		"pasteDeferredHintNoTextField": "Es war kein Textfeld fokussiert, daher wurde die Einfügen-Tastatureingabe übersprungen. Fokussieren Sie ein Textfeld und fügen Sie den Text selbst mit Ihrer üblichen Einfügen-Kombination ein.",
+		"modelLanguageUnsupported": "{model} unterstützt {language} nicht.",
+		"modelLanguageUnsupportedHint": "Wähle auf der Seite Modelle ein Modell, das diese Sprache unterstützt."
 	},
 	"trayState": {
 		"idle": "bereit",
@@ -2382,5 +2408,18 @@
 		"errorUnsupported": "GPU-Unterstützung kann auf diesem System nicht installiert werden.",
 		"errorInternal": "Bei der GPU-Einrichtung ist ein Fehler aufgetreten.",
 		"statusDownloading": "Download läuft"
+	},
+	"debug": {
+		"title": "Debug-Bereich",
+		"statsLayout": "Layout der heutigen Statistik",
+		"separated": "Getrennt",
+		"joined": "Verbunden",
+		"badgeColor": "Farbe des Plugins-Abzeichens",
+		"red": "Rot",
+		"green": "Grün",
+		"primary": "Primär",
+		"reset": "Auf Standard zurücksetzen",
+		"open": "Debug-Bereich öffnen",
+		"close": "Debug-Bereich einklappen"
 	}
 }

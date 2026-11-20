@@ -202,7 +202,7 @@ export function usePlugins(): UsePluginsResult {
 		[call],
 	);
 
-	// Settings live in the plugin workspace (settings.json), so the write is
+	// Settings live in the plugin's own config.json, so the write is
 	// validated and persisted server-side; the caller reverts its optimistic
 	// value when this resolves false.
 	const setPluginSetting = useCallback(

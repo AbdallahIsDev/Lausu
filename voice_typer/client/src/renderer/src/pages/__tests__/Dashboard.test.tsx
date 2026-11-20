@@ -165,8 +165,8 @@ describe("BG-9: formatDuration shared via lib/format.ts + i18n keys", () => {
 		expect(formatDuration(3900)).toBe("1h 5m");
 	});
 
-	it("formatDuration(5235) returns '1h 27m' (StatCards storybook snapshot)", () => {
-		// StatCards.stories.tsx documents 5235s → "1h 27m", preserve
+	it("formatDuration(5235) returns '1h 27m' (dashboard stat-card contract)", () => {
+		// The dashboard stat cards document 5235s → "1h 27m"; preserve
 		// that contract through the i18n refactor.
 		setLocale("en");
 		expect(formatDuration(5235)).toBe("1h 27m");
@@ -194,11 +194,14 @@ describe("BG-10: Dashboard Share button always mounted, disabled without data (C
 		);
 	});
 
-	it("ShareStatsDialog is always rendered with a disabled prop (never &&-gated)", () => {
+	it("the joined share action is always rendered with a disabled prop (never &&-gated)", () => {
 		// The trigger must stay mounted while loading and flip to
 		// enabled when data lands: no conditional wrapper around it.
-		expect(DASHBOARD_SRC).toMatch(/<ShareStatsDialog[\s\S]*?disabled=\{/);
-		expect(DASHBOARD_SRC).not.toMatch(/&& \(\s*<ShareStatsDialog/);
+		// The pair now lives in ONE shared component on every surface.
+		expect(DASHBOARD_SRC).toMatch(
+			/<RefreshShareActions[\s\S]*?shareDisabled=\{/,
+		);
+		expect(DASHBOARD_SRC).not.toMatch(/&& \(\s*<RefreshShareActions/);
 	});
 
 	it("disabled derives from missing data/config or !canShareStats(...)", () => {
@@ -218,7 +221,7 @@ describe("BG-10: Dashboard Share button always mounted, disabled without data (C
 		// Actions never vanish mid-load: the heading (with Share) is
 		// unconditional and only the BODY rides the measured wrap.
 		expect(DASHBOARD_SRC).toMatch(
-			/<PageHeading[\s\S]*?<ShareStatsDialog[\s\S]*?disabled=\{shareDisabled\}[\s\S]*?<\/PageHeading>/,
+			/<PageHeading[\s\S]*?<RefreshShareActions[\s\S]*?shareDisabled=\{shareDisabled\}[\s\S]*?<\/PageHeading>/,
 		);
 		expect(DASHBOARD_SRC).toMatch(
 			/<Skeleton[\s\S]*?data=\{bodyData\}[\s\S]*?sample=\{SAMPLE_DASHBOARD\}/,
@@ -673,8 +676,8 @@ describe("Range + refresh controls live outside the scrolling body", () => {
 		const heading = headings[headings.length - 1];
 
 		expect(heading).toBeTruthy();
-		expect(heading).toContain("<ShareStatsDialog");
-		expect(heading).toContain("<LastUpdatedIndicator");
+		expect(heading).toContain("<RefreshShareActions");
+		expect(heading).toContain("showRefresh={data !== null}");
 		// …and the old standalone row is gone.
 		expect(DASHBOARD_SRC).not.toMatch(
 			/flex flex-wrap items-center justify-between gap-3 pb-2/,

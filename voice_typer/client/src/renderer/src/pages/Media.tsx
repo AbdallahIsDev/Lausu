@@ -10,6 +10,7 @@
 
 import {
 	Cancel01Icon,
+	ClipboardListIcon,
 	PlayCircleIcon,
 	Upload01Icon,
 } from "@hugeicons/core-free-icons";
@@ -24,12 +25,10 @@ import {
 import { Skeleton } from "skullet/react";
 import { toast } from "sonner";
 import PageHeading from "@/components/common/PageHeading";
-import { SettingRow } from "@/components/common/SettingRow";
 import { Spinner } from "@/components/feedback/Spinner";
 import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useT } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
@@ -38,6 +37,20 @@ import { MediaJobRowView } from "./media/components/MediaJobRow";
 import { reportBatchLimited, useMediaJobs } from "./media/hooks/useMediaJobs";
 import { mediaJobSample } from "./media/lib/sample";
 import { splitSources } from "./media/lib/splitSources";
+
+const _URL_RE = /^https?:\/\/\S+$/i;
+const _WIN_PATH_RE = /^[a-z]:[\\/]/i;
+const _UNC_PATH_RE = /^\\\\/;
+const _POSIX_PATH_RE = /^\//;
+
+function _looksLikeSource(value: string): boolean {
+	return (
+		_URL_RE.test(value) ||
+		_WIN_PATH_RE.test(value) ||
+		_UNC_PATH_RE.test(value) ||
+		_POSIX_PATH_RE.test(value)
+	);
+}
 
 export default function MediaPage() {
 	const t = useT();
@@ -59,11 +72,13 @@ export default function MediaPage() {
 	const setSource = useMediaSourceStore((state) => state.setSource);
 	const clearSource = useMediaSourceStore((state) => state.clear);
 	const inputRef = useRef<HTMLInputElement>(null);
-	const [useSubtitles, setUseSubtitles] = useState(true);
 	const [dragOver, setDragOver] = useState(false);
+	const [showInvalid, setShowInvalid] = useState(false);
+	const running = activeCount > 0;
 
 	const onClear = useCallback(() => {
 		clearSource();
+		setShowInvalid(false);
 		// Focus stays in the field so the next paste needs no extra click.
 		inputRef.current?.focus();
 	}, [clearSource]);
@@ -78,24 +93,46 @@ export default function MediaPage() {
 			if (!Array.isArray(paths)) return;
 			const usable = paths.filter((p): p is string => Boolean(p));
 			if (usable.length === 0) return;
-			if (atCapacity) {
+			if (atCapacity || running) {
 				reportBatchLimited(0, usable.length, maxJobs);
 				return;
 			}
-			void startMany(usable, useSubtitles);
+			void startMany(usable, true);
 		});
-	}, [atCapacity, maxJobs, startMany, useSubtitles]);
+	}, [atCapacity, running, maxJobs, startMany]);
 
 	const trimmed = source.trim();
-	const canStart = trimmed.length > 0 && !atCapacity && !starting;
+	const inputInvalid = trimmed.length > 0 && !_looksLikeSource(trimmed);
+	const canStart = trimmed.length > 0 && !atCapacity && !starting && !running;
+
+	const onPasteFromClipboard = useCallback(async () => {
+		try {
+			const text = await navigator.clipboard.readText();
+			if (text) setSource(text.trim());
+			setShowInvalid(false);
+			inputRef.current?.focus();
+		} catch {
+			// The webview can deny clipboard reads; leave the field focused so
+			// the user can paste with the keyboard instead.
+			inputRef.current?.focus();
+		}
+	}, [setSource]);
 
 	const handleStart = useCallback(async () => {
 		if (!canStart) return;
+		// Validate on submit only: typing or pasting never nags the user.
+		if (inputInvalid) {
+			setShowInvalid(true);
+			toast.error(t("media.invalidSource"));
+			return;
+		}
+		setShowInvalid(false);
 		// One field can name several sources: a pasted list of links becomes
 		// one job per link, while a local path with spaces stays ONE source.
 		const sources = splitSources(source);
 		if (sources.length === 0) return;
-		const { accepted, refused } = await startMany(sources, useSubtitles);
+		// Subtitles are always preferred now; the backend contract is unchanged.
+		const { accepted, refused } = await startMany(sources, true);
 		if (accepted === 0) {
 			// Nothing started (at the cap, or every source failed): keep the
 			// text so a retry is one click.
@@ -109,7 +146,7 @@ export default function MediaPage() {
 		// joining with "\n" would glue the refused list into one string that
 		// neither the field nor the next split can tell apart.
 		setSource(refused.length > 0 ? refused.join(" ") : "");
-	}, [canStart, source, setSource, startMany, useSubtitles]);
+	}, [canStart, inputInvalid, source, setSource, startMany, t]);
 
 	// Browse goes through the HOST picker: a webview file input hands the
 	// renderer only `file.name`, which the backend cannot open (drag-drop is
@@ -118,7 +155,7 @@ export default function MediaPage() {
 	// `<input type="file">` fallback — submitting bare file names was the
 	// `decode_failed` bug this picker exists to fix.
 	const onPickFiles = useCallback(async () => {
-		if (atCapacity) return;
+		if (atCapacity || running) return;
 		const api = window.window_;
 		if (!api?.pickMediaFiles) {
 			toast.info(t("media.pickerUnavailable"), {
@@ -128,9 +165,9 @@ export default function MediaPage() {
 		}
 		const picked = await api.pickMediaFiles();
 		if (!picked.canceled && picked.paths && picked.paths.length > 0) {
-			await startMany(picked.paths, useSubtitles);
+			await startMany(picked.paths, true);
 		}
-	}, [atCapacity, startMany, t, useSubtitles]);
+	}, [atCapacity, running, startMany, t]);
 
 	// A single-line `<input>` STRIPS newlines, so a one-link-per-line paste
 	// arrives glued together ("…/aaahttps://…/bbb") and resolves as one bogus
@@ -147,7 +184,7 @@ export default function MediaPage() {
 				return;
 			}
 			void (async () => {
-				const { accepted, refused } = await startMany(sources, useSubtitles);
+				const { accepted, refused } = await startMany(sources, true);
 				if (accepted === 0) {
 					// Nothing started (at the cap, or every link failed): put
 					// the paste back so a retry is one click. Re-joined with
@@ -159,7 +196,7 @@ export default function MediaPage() {
 				setSource(refused.length > 0 ? refused.join(" ") : "");
 			})();
 		},
-		[atCapacity, maxJobs, setSource, startMany, useSubtitles],
+		[atCapacity, maxJobs, setSource, startMany],
 	);
 
 	return (
@@ -175,17 +212,17 @@ export default function MediaPage() {
 					<button
 						type="button"
 						aria-label={t("media.dropZoneAria")}
-						aria-disabled={atCapacity}
+						aria-disabled={atCapacity || running}
 						onClick={() => void onPickFiles()}
 						onDragOver={(e) => {
 							e.preventDefault();
-							if (!atCapacity) setDragOver(true);
+							if (!atCapacity && !running) setDragOver(true);
 						}}
 						onDragLeave={() => setDragOver(false)}
 						onDrop={(e) => {
 							e.preventDefault();
 							setDragOver(false);
-							if (atCapacity) return;
+							if (atCapacity || running) return;
 							const path =
 								e.dataTransfer.getData("text/uri-list") ||
 								e.dataTransfer.getData("text/plain");
@@ -194,8 +231,8 @@ export default function MediaPage() {
 						className={cn(
 							"flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-6 py-12 transition-colors",
 							"border-border/10 bg-background focus-visible:ring-1 focus-visible:ring-ring",
-							dragOver && "border-primary/40 bg-primary/5",
-							atCapacity && "cursor-not-allowed opacity-50",
+							dragOver && "border-primary bg-primary/10",
+							(atCapacity || running) && "cursor-not-allowed opacity-50",
 						)}
 					>
 						<HugeiconsIcon
@@ -204,7 +241,7 @@ export default function MediaPage() {
 							className="h-8 w-8 text-muted-foreground"
 						/>
 						<span className="text-sm text-foreground">
-							{t("media.dropZoneTitle")}
+							{dragOver ? t("media.dropRelease") : t("media.dropZoneTitle")}
 						</span>
 						<span className="text-xs text-muted-foreground">
 							{t("media.browseFile")}
@@ -220,38 +257,71 @@ export default function MediaPage() {
 					</div>
 
 					<div className="flex flex-wrap items-center gap-2">
-						<div className="relative min-w-0 flex-1">
-							<Input
-								id="media-source"
-								ref={inputRef}
-								value={source}
-								onChange={(e) => setSource(e.target.value)}
-								onPaste={onPaste}
-								placeholder={t("media.sourcePlaceholder")}
-								disabled={atCapacity}
-								// Trailing room for the in-field clear button.
-								className={cn("min-w-0 w-full", source !== "" && "pe-9")}
-								onKeyDown={(e) => {
-									if (e.key === "Enter") void handleStart();
-								}}
-							/>
-							{source !== "" && (
-								<button
-									type="button"
-									aria-label={t("media.clearInput")}
-									title={t("media.clearInput")}
-									onClick={onClear}
-									disabled={atCapacity}
-									className="absolute inset-y-0 end-2 my-auto flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-									data-testid="media-source-clear"
-								>
-									<HugeiconsIcon
-										icon={Cancel01Icon}
-										strokeWidth={2}
-										className="h-3.5 w-3.5"
-									/>
-								</button>
-							)}
+						<div className="min-w-0 flex-1">
+							<div className="relative">
+								<Input
+									id="media-source"
+									name="mediaSourceField"
+									type="text"
+									ref={inputRef}
+									value={source}
+									onChange={(e) => {
+										setSource(e.target.value);
+										setShowInvalid(false);
+									}}
+									onPaste={onPaste}
+									placeholder={t("media.sourcePlaceholder")}
+									disabled={atCapacity || running}
+									aria-invalid={showInvalid}
+									// WebView autofill ignores autocomplete=off on some
+									// platforms; manager hints and CSS are the cross-platform backstop.
+									autoComplete="off"
+									autoCorrect="off"
+									autoCapitalize="off"
+									spellCheck={false}
+									data-lpignore="true"
+									data-1p-ignore="true"
+									data-form-type="other"
+									// Only one trailing control is shown at a time.
+									className="min-w-0 w-full pe-9"
+									onKeyDown={(e) => {
+										if (e.key === "Enter") void handleStart();
+									}}
+								/>
+								{source === "" ? (
+									<button
+										type="button"
+										aria-label={t("media.paste")}
+										title={t("media.paste")}
+										onClick={() => void onPasteFromClipboard()}
+										disabled={atCapacity || running}
+										className="absolute inset-y-0 end-2 my-auto flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+										data-testid="media-source-paste"
+									>
+										<HugeiconsIcon
+											icon={ClipboardListIcon}
+											strokeWidth={2}
+											className="h-3.5 w-3.5"
+										/>
+									</button>
+								) : (
+									<button
+										type="button"
+										aria-label={t("media.clearInput")}
+										title={t("media.clearInput")}
+										onClick={onClear}
+										disabled={atCapacity || running}
+										className="absolute inset-y-0 end-2 my-auto flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+										data-testid="media-source-clear"
+									>
+										<HugeiconsIcon
+											icon={Cancel01Icon}
+											strokeWidth={2}
+											className="h-3.5 w-3.5"
+										/>
+									</button>
+								)}
+							</div>
 						</div>
 						<Button onClick={() => void handleStart()} disabled={!canStart}>
 							{starting ? (
@@ -281,18 +351,6 @@ export default function MediaPage() {
 						</p>
 					)}
 				</div>
-				<div className="border-t border-border/10">
-					<SettingRow
-						label={t("media.useSubtitlesLabel")}
-						info={t("media.useSubtitlesInfo")}
-					>
-						<Switch
-							checked={useSubtitles}
-							onCheckedChange={setUseSubtitles}
-							aria-label={t("media.useSubtitlesLabel")}
-						/>
-					</SettingRow>
-				</div>
 			</div>
 
 			{/* One row per job: same progress card for link and local sources. */}
@@ -316,7 +374,15 @@ export default function MediaPage() {
 									first={index === 0}
 									onCancel={() => void cancel(job.jobId)}
 									onDismiss={() => dismiss(job.clientId)}
-									onOpenHistory={() => navigate("history")}
+									onOpenHistory={() => {
+										if (job.rowId !== null) {
+											sessionStorage.setItem(
+												"lausu.history.highlight",
+												String(job.rowId),
+											);
+										}
+										navigate("history");
+									}}
 								/>
 							)}
 						</Skeleton>

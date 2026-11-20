@@ -17,6 +17,10 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { RouteSkeleton } from "@/components/feedback/skeletons";
 import { AppSkulletProvider } from "@/components/skullet/AppSkulletProvider";
+import {
+	SETTINGS_SECTION_PAGES,
+	settingsSkeletonId,
+} from "@/components/settings/settingsSections";
 import { INITIAL_MODELS } from "@/lib/utils/modelCatalog";
 import { SAMPLE_HISTORY_LIST } from "@/pages/history/lib/sample";
 import { SAMPLE_MODEL_CATALOG, SAMPLE_MODELS } from "@/pages/models/lib/sample";
@@ -114,7 +118,7 @@ describe("Skeleton ids are stable and unique (remembered shapes)", () => {
 			"templates",
 			"models",
 			"microphone",
-			"settings",
+			"settings-hub",
 			"settings-general",
 			"settings-overlay",
 			"settings-post-processing",
@@ -135,6 +139,26 @@ describe("Skeleton ids are stable and unique (remembered shapes)", () => {
 		expect(new Set(ids).size).toBe(ids.length);
 		for (const id of ids) {
 			expect(id.trim()).not.toBe("");
+		}
+	});
+
+	it("each Settings surface remembers its own shape", () => {
+		// The outer wrap used to share `id="settings"` across the hub and
+		// every section page. Skullet recalls a shape per id, so entering a
+		// section page after the hub measured its remembered hub shape and
+		// warned about the jump on reveal.
+		const surfaceIds = [
+			settingsSkeletonId("settings"),
+			...SETTINGS_SECTION_PAGES.map(settingsSkeletonId),
+		];
+		expect(new Set(surfaceIds).size).toBe(surfaceIds.length);
+		for (const id of surfaceIds) expect(id.trim()).not.toBe("");
+		// Section components have their own ids; the page-level wrap must
+		// never collide with them.
+		for (const id of surfaceIds) {
+			expect(id.startsWith("settings-page-") || id === "settings-hub").toBe(
+				true,
+			);
 		}
 	});
 

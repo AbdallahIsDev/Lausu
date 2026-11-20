@@ -31,19 +31,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Skeleton } from "skullet/react";
-import { LastUpdatedIndicator } from "@/components/common/LastUpdatedIndicator";
 import ActivityList from "@/components/dashboard/ActivityList";
-import { ShareStatsDialog } from "@/components/dashboard/ShareStatsDialog";
+import { RefreshShareActions } from "@/components/common/RefreshShareActions";
 import StatCards from "@/components/dashboard/StatCards";
 import { StatsShareImage } from "@/components/dashboard/StatsShareImage";
 import { MeasuredSkeleton } from "@/components/feedback/MeasuredSkeleton";
 import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { HotkeyChips } from "@/components/hotkey/HotkeyChips";
+import { useDebugPrefs } from "@/hooks/useDebugPrefs";
 import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 import { useLastUpdated } from "@/hooks/useLastUpdated";
 import { useLatestRef } from "@/hooks/useLatestRef";
 import { useNavigation } from "@/hooks/useNavigation";
-
 import { usePython, usePythonEvent } from "@/hooks/usePython";
 import {
 	canShareStats,
@@ -135,6 +134,7 @@ export default function Home() {
 		markUpdatedRef.current = markUpdated;
 	}, [markUpdated]);
 	const [refreshing, setRefreshing] = useState(false);
+	const { statsLayout } = useDebugPrefs();
 
 	// Pack progress is NOT rendered here: local whisper / Parakeet
 	// transcription degrades silently to "silent download starts,
@@ -620,27 +620,25 @@ export default function Home() {
 								<span className="text-xs font-medium text-muted-foreground capitalize tracking-wide">
 									{t("home.todayStats")}
 								</span>
-								<div className="flex items-center gap-2">
-									<LastUpdatedIndicator
-										agoLabel={agoLabel}
-										onRefresh={handleManualRefresh}
-										refreshing={refreshing}
-									/>
-									<ShareStatsDialog
-										actions={shareActions}
-										stats={shareImageStats}
-										palette={themePalette}
-										disabled={
-											!cfg ||
-											!canShareStats({
-												todayCount: d.count,
-												totalCount: recent.length > 0 ? 1 : 0,
-											})
-										}
-									/>
-								</div>
+								{/* One control, two actions: the shared component owns
+								    the group surface + radius and both actions. */}
+								<RefreshShareActions
+									agoLabel={agoLabel}
+									onRefresh={handleManualRefresh}
+									refreshing={refreshing}
+									actions={shareActions}
+									stats={shareImageStats}
+									palette={themePalette}
+									shareDisabled={
+										!cfg ||
+										!canShareStats({
+											todayCount: d.count,
+											totalCount: recent.length > 0 ? 1 : 0,
+										})
+									}
+								/>
 							</div>
-							<StatCards stats={d} />
+							<StatCards stats={d} variant={statsLayout} />
 						</>
 					)}
 				</MeasuredSkeleton>
@@ -667,6 +665,7 @@ export default function Home() {
 				nothing cached, so a loaded-but-empty list still shows its
 				empty state instead of a skeleton. */}
 			<Skeleton
+				className="w-full"
 				data={initialLoading && recent.length === 0 ? null : recent}
 				sample={SAMPLE_HOME_RECENT}
 				id="home-recent"

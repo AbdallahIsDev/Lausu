@@ -302,6 +302,27 @@ export interface ASRBackendDisabledEvent {
 }
 
 /**
+ * Pushed by `voice_typer/server/model_language_gate.py` when the pinned
+ * spoken language is outside the active model's own published language
+ * list (for example Parakeet Ultra, which has no Arabic). The start was
+ * refused before any audio was captured; the renderer shows the
+ * actionable toast and the OS notification area got the same message.
+ */
+export interface ModelLanguageUnsupportedEvent {
+	type: "model_language_unsupported";
+	data: {
+		/**
+		 * Display name of the model that cannot decode the language.
+		 */
+		model: string;
+		/**
+		 * ISO language code the user pinned (e.g. `"ar"`).
+		 */
+		language: string;
+	};
+}
+
+/**
  * Pushed by `voice_typer/server/asr_registry.py:361-372` when the
  * LAST-RESORT ASR backend is unloaded, i.e. no ASR backend is
  * available until the user manually restarts the app or reconfigures.
@@ -589,6 +610,20 @@ export interface MediaTranscribeCompleteEvent {
 		 * extractor offered none or the fetch failed. The CSP allows `data:`
 		 * images only, so a remote URL is never sent. */
 		thumbnail_data_url: string | null;
+		// Optional provenance/timing metadata mirroring the History row
+		// (schema v6). OPTIONAL for older backends; null when not provided.
+		word_count?: number;
+		source_label?: string | null;
+		media_duration_seconds?: number | null;
+		processing_seconds?: number | null;
+		download_seconds?: number | null;
+		source_type?: "youtube" | "url" | "file" | null;
+		source_title?: string | null;
+		source_url?: string | null;
+		file_name?: string | null;
+		thumbnail_url?: string | null;
+		model_name?: string | null;
+		method?: "subtitles" | "transcription" | null;
 	};
 }
 
@@ -885,6 +920,7 @@ export type PythonPushEvent =
 	| ParakeetCpuFallbackEvent
 	// See the per-interface docstrings for the wire shape (all three
 	| ASRBackendDisabledEvent
+	| ModelLanguageUnsupportedEvent
 	| ASRLastResortUnloadedEvent
 	| LLMPolishFailedEvent
 	// recorder emitters). See `DeviceLostEvent` above for the wire shape.

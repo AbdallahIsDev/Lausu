@@ -74,8 +74,6 @@ export default defineConfig({
 			exclude: [
 				"**/*.test.{ts,tsx}",
 				"**/*.spec.{ts,tsx}",
-				// Storybook stories are visual fixtures, not unit-testable code.
-				"**/*.stories.tsx",
 				// Test helpers / fixtures are imported only by tests; counting
 				// them against production coverage would penalize the threshold
 				// for code that never ships.

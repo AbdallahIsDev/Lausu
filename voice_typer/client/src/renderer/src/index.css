@@ -342,6 +342,29 @@
 		@apply text-foreground;
 	}
 
+	/* WebView2 "Saved info" and other native autofill can repaint a text
+	   input with OS colors on hover, ignoring autocomplete=off. Keep the
+	   app tokens on every shared Input without touching its focus ring
+	   or error border (no box-shadow override). */
+	input[data-slot="input"]:-webkit-autofill,
+	input[data-slot="input"]:-webkit-autofill:hover,
+	input[data-slot="input"]:-webkit-autofill:focus,
+	input[data-slot="input"]:-webkit-autofill:active,
+	input[data-slot="input"]:autofill {
+		background-color: color-mix(
+			in oklch,
+			var(--color-border) 10%,
+			var(--color-surface-subtle)
+		);
+		-webkit-text-fill-color: var(--color-foreground);
+		transition: background-color 9999s ease-in-out 0s;
+	}
+
+	input[data-slot="input"]:-webkit-autofill::placeholder,
+	input[data-slot="input"]:autofill::placeholder {
+		-webkit-text-fill-color: var(--color-muted-foreground);
+	}
+
 	html {
 		@apply font-sans;
 		/* Window corner radius is owned by the Tauri shell, not the DOM. */
@@ -640,27 +663,9 @@
 	}
 }
 
-/* Recording pulse ring (used behind the record button when active). */
-@keyframes pulseRing {
-	0% {
-		transform: scale(1);
-		opacity: 0.5;
-	}
-
-	100% {
-		transform: scale(2.2);
-		opacity: 0;
-	}
-}
-
-.animate-pulse-ring {
-	animation: pulseRing 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Subtle glow pulse for the mic button idle state. Painted in the
-   brand accent (`--primary`), NOT `--destructive`: red is reserved
-   for the recording state (C-UI-12), and the idle button carries the
-   app's CTA colour.
+/* Subtle glow pulse for the mic button. One keyframe pair, two colour
+   variants: `--primary` while idle and `--destructive` while recording,
+   so the surround always matches the fill it sits behind (C-UI-12).
    Compositor-only implementation: the original keyframes animated
    `box-shadow` directly, which forces the browser to re-rasterize the
    shadow (paint) on EVERY frame of the infinite loop. The glow is now
@@ -677,19 +682,32 @@
    disabled (prefers-reduced-motion block below finishes them in
    0.01ms) the pseudo-element falls back to this static dim glow
    instead of flashing full strength. */
-.animate-glow-pulse {
+.animate-glow-pulse,
+.animate-glow-pulse-destructive {
 	position: relative;
 }
 
-.animate-glow-pulse::after {
+.animate-glow-pulse::after,
+.animate-glow-pulse-destructive::after {
 	content: "";
 	position: absolute;
 	inset: 0;
 	border-radius: inherit;
 	pointer-events: none;
 	opacity: 0.5;
-	box-shadow: 0 0 32px color-mix(in oklch, var(--primary) 40%, transparent);
 	animation: glowPulse 2.5s ease-in-out infinite;
+}
+
+/* Idle: the brand accent glow. */
+.animate-glow-pulse::after {
+	box-shadow: 0 0 32px color-mix(in oklch, var(--primary) 40%, transparent);
+}
+
+/* Recording: the SAME glow, in the recording fill's own colour. The state
+   changes background + shadow together and nothing else, so the button does
+   not grow an expanding halo (or any extra box) when a cycle starts. */
+.animate-glow-pulse-destructive::after {
+	box-shadow: 0 0 32px color-mix(in oklch, var(--destructive) 40%, transparent);
 }
 
 @keyframes glowPulse {

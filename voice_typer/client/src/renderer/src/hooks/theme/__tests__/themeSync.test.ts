@@ -165,6 +165,24 @@ describe("themeSync, reloadThemeFromConfig", () => {
 		warnSpy.mockRestore();
 	});
 
+	it("does not warn about the pre-bind get_config failure", async () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+		armBridge();
+		callMock.mockRejectedValueOnce(new Error("sidecar not connected"));
+
+		await reloadThemeFromConfig();
+
+		expect(warnSpy).not.toHaveBeenCalled();
+		expect(debugSpy).toHaveBeenCalledWith(
+			"[renderer:useTheme] get_config failed:",
+			expect.any(Error),
+		);
+		expect(useThemeStore.getState().hasInitialReloadCompleted).toBe(true);
+		warnSpy.mockRestore();
+		debugSpy.mockRestore();
+	});
+
 	it("is a no-op without a registered bridge", async () => {
 		await reloadThemeFromConfig();
 		expect(callMock).not.toHaveBeenCalled();

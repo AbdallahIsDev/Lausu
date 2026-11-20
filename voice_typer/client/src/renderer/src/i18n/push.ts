@@ -12,6 +12,8 @@
 // the renderer-known tray-menu label keys against the current locale,
 // falling back to English per the standard ``t`` lookup path.
 
+import { logIpcFailure } from "@/hooks/connectionStatus";
+import { LANGUAGE_OPTIONS } from "@/lib/utils/languages";
 import type { Locale } from "./locale";
 import { t } from "./translate";
 
@@ -474,6 +476,7 @@ export function trayLabelsForLocale(): Record<string, string> {
 			"notify.recording_controller.consent_not_verified",
 			"notify.recording_controller.consent_not_verified",
 		],
+		["notify.model_language.unsupported", "notify.model_language.unsupported"],
 	];
 	for (const [key, labelKey] of entries) {
 		const value = t(labelKey);
@@ -482,6 +485,16 @@ export function trayLabelsForLocale(): Record<string, string> {
 		// English, so the backend should keep its default.
 		if (value !== labelKey) {
 			labels[key] = value;
+		}
+	}
+	// Language names for the "<model> does not support <language>" refusal:
+	// the models use the renderer's own language labels rather than keeping
+	// a second translation table in Python.
+	for (const { value: code, labelKey } of LANGUAGE_OPTIONS) {
+		if (code === "auto") continue;
+		const name = t(labelKey);
+		if (name !== labelKey) {
+			labels[`model_language.${code}`] = name;
 		}
 	}
 	return labels;
@@ -517,13 +530,10 @@ export function pushLocaleToPythonBackend(locale: Locale): void {
 		});
 		if (result && typeof (result as Promise<unknown>).then === "function") {
 			(result as Promise<unknown>).catch((e: unknown) => {
-				console.warn(
-					"[renderer:i18n] setLocale Python-backend push failed:",
-					e,
-				);
+				logIpcFailure("i18n", "setLocale Python-backend push failed:", e, true);
 			});
 		}
 	} catch (e: unknown) {
-		console.warn("[renderer:i18n] setLocale Python-backend push failed:", e);
+		logIpcFailure("i18n", "setLocale Python-backend push failed:", e, true);
 	}
 }

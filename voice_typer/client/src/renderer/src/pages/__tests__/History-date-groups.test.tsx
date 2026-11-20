@@ -182,7 +182,7 @@ describe("History date-grouped list", () => {
 		expect(screen.getByText("entry 2")).toBeTruthy();
 	});
 
-	it("expanding a truncated row calls get_transcription_text with the record id", async () => {
+	it("opening a truncated row's transcript calls get_transcription_text with the record id", async () => {
 		mockCall.mockImplementation((type: string, data?: unknown) => {
 			if (type === "get_history")
 				return Promise.resolve([
@@ -210,8 +210,8 @@ describe("History date-grouped list", () => {
 			expect(screen.getByText(/word word/)).toBeTruthy();
 		});
 
-		// Click the collapsed disclosure control (the text block).
-		fireEvent.click(screen.getByTestId("activity-row-text-toggle"));
+		// Clicking the transcript preview opens the lazy full-text modal.
+		fireEvent.click(screen.getByTestId("activity-row-preview"));
 
 		await waitFor(() => {
 			expect(mockCall).toHaveBeenCalledWith(

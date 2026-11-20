@@ -17,7 +17,7 @@
 		"allowImportingTsExtensions": true,
 		"emitDeclarationOnly": true,
 		"outDir": "./out",
-		"types": [],
+		"types": ["node"],
 		"paths": {
 			"@/*": ["./src/renderer/src/*"],
 			"#utils": ["./src/renderer/src/lib/utils.ts"]

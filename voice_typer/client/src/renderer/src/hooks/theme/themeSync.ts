@@ -1,3 +1,4 @@
+import { logIpcFailure } from "@/hooks/connectionStatus";
 import { setSoundFeedbackEnabled } from "@/lib/sound-manager";
 import {
 	LS_CUSTOM_THEME,
@@ -86,7 +87,10 @@ export function reloadThemeFromConfig(): Promise<void> {
 			}
 		})
 		.catch((e) => {
-			console.warn("[renderer:useTheme] get_config failed:", e);
+			// The theme still falls back to the cached localStorage values
+			// (theme-bootstrap applied them before first paint), so a
+			// pre-bind failure is an expected cold-boot state, not a warning.
+			logIpcFailure("useTheme", "get_config failed:", e, true);
 		})
 		.finally(() => {
 			// FLASH-FIX: regardless of success/failure, flip the

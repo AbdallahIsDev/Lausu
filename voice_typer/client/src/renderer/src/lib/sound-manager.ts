@@ -9,9 +9,15 @@ let _sharedAudioContext: AudioContext | null = null;
 let _initAttempted = false; // True ONLY after successful construction
 let _initSucceeded = false;
 let _enabled: boolean = true; // Mirror of config.sound_feedback_enabled
-let _volume: number = 1;
 let _gestureListenerInstalled = false;
 let _resumeOnceHandler: (() => void) | null = null;
+
+/**
+ * Fixed cue volume (no setting). A loud cue came out of the speakers, was
+ * picked up by the microphone and made volume ducking treat the cue as
+ * background playback, so the whole recording ran with the speakers down.
+ */
+export const SOUND_CUE_VOLUME = 0.3;
 
 const STORAGE_KEY = "vt_sound_feedback_enabled";
 
@@ -29,22 +35,6 @@ export function setSoundFeedbackEnabled(enabled: boolean): void {
 			e,
 		);
 	}
-}
-
-/**
- * Update the in-memory sound-volume multiplier (mirror of
- * config.sound_volume). Values are clamped to [0, 1]; non-finite
- */
-export function setSoundVolume(volume: number): void {
-	_volume = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 1;
-}
-
-/**
- * Read the current volume multiplier (test + debug surface; the
- * production paths read the module state directly).
- */
-export function getSoundVolume(): number {
-	return _volume;
 }
 
 /**
@@ -327,7 +317,7 @@ function playViaAudioContext(kind: SoundCueKind): boolean {
 		const osc = ctx.createOscillator();
 		const gain = ctx.createGain();
 		const master = ctx.createGain();
-		master.gain.value = _volume;
+		master.gain.value = SOUND_CUE_VOLUME;
 
 		osc.type = spec.oscillatorType;
 		for (const step of spec.steps) {
@@ -406,7 +396,7 @@ function playViaHtmlAudio(kind: SoundCueKind): boolean {
 		} else {
 			audio.src = STOP_BEEP_WAV;
 		}
-		audio.volume = Math.min(1, Math.max(0, 0.15 * _volume));
+		audio.volume = Math.min(1, Math.max(0, 0.15 * SOUND_CUE_VOLUME));
 		audio.currentTime = 0;
 		const p = audio.play();
 		if (p && typeof p.then === "function") {
@@ -463,7 +453,6 @@ export function _resetSoundManagerForTests(): void {
 	_initAttempted = false;
 	_initSucceeded = false;
 	_enabled = true;
-	_volume = 1;
 	_gestureListenerInstalled = false;
 	_fallbackAudio = null;
 }

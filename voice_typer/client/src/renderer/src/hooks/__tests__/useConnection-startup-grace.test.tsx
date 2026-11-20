@@ -144,6 +144,8 @@ describe("useConnection, initial-probe startup grace", () => {
 		// of burning the 5-attempt budget in ~10s and parking the app on
 		// the failure screen while the sidecar is still starting.
 		vi.useFakeTimers();
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 		mockCall.mockImplementation((type: string) => {
 			if (type === "get_config")
 				return Promise.reject(new Error("sidecar not connected"));
@@ -155,6 +157,13 @@ describe("useConnection, initial-probe startup grace", () => {
 			await vi.advanceTimersByTimeAsync(15_000);
 		});
 		expect(readStatus()).not.toBe("disconnected");
+		expect(warnSpy).not.toHaveBeenCalled();
+		expect(debugSpy).toHaveBeenCalledWith(
+			expect.stringContaining("get_config connection probe failed"),
+			expect.any(Error),
+		);
+		warnSpy.mockRestore();
+		debugSpy.mockRestore();
 	});
 
 	it("still fails fast on a poison error (not a boot state)", async () => {

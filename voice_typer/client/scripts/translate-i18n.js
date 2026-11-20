@@ -955,6 +955,106 @@ translations.zh["models.snack.realtimeOnlyBlocked"] =
 // deep section translations. I'll add a few representative ones per locale
 // and the script will handle only those that are still English.
 
+// ADR-0021 Stage B settings. Added to every locale at once so a re-run of
+// this script cannot drop the keys or silently replace them with English.
+const translationMore = {
+	ar: {
+		"settings.translationEnable": "ترجمة المخرجات",
+		"settings.translationTarget": "لغة المخرجات",
+		"settings.translationTargetInfo":
+			"تُترجم النصوص إلى هذه اللغة. «كما هي» تحتفظ بالنص الأصلي.",
+		"settings.translationSameAsSpoken": "كما هي",
+		"settings.translationGpu": "استخدام GPU للترجمة",
+		"settings.translationGpuInfo":
+			"تشغيل نموذج الترجمة المحلي على GPU متوافق عبر Vulkan دون تنزيل CUDA.",
+		"settings.translationGlossary": "المصطلحات",
+		"settings.translationGlossaryInfo":
+			"مصطلح واحد في كل سطر بصيغة المصدر => الترجمة. تبقى أسماء المنتجات والواجهات كما هي.",
+	},
+	de: {
+		"settings.translationEnable": "Ausgabe übersetzen",
+		"settings.translationTarget": "Ziel der Ausgabe",
+		"settings.translationTargetInfo":
+			"Text in diese Sprache übersetzen. „Wie gesprochen“ behält den Originaltext.",
+		"settings.translationSameAsSpoken": "Wie gesprochen",
+		"settings.translationGpu": "GPU für Übersetzung verwenden",
+		"settings.translationGpuInfo":
+			"Lokales Übersetzungsmodell über Vulkan auf einer kompatiblen GPU ausführen – ohne CUDA-Download.",
+		"settings.translationGlossary": "Terminologie",
+		"settings.translationGlossaryInfo":
+			"Ein Begriff pro Zeile als Quelle => Übersetzung. Produkt- und UI-Namen bleiben unverändert.",
+	},
+	es: {
+		"settings.translationEnable": "Traducir salida",
+		"settings.translationTarget": "Idioma de salida",
+		"settings.translationTargetInfo":
+			"Traduce el texto a este idioma. «Igual que el hablado» conserva el texto original.",
+		"settings.translationSameAsSpoken": "Igual que el hablado",
+		"settings.translationGpu": "Usar GPU para traducir",
+		"settings.translationGpuInfo":
+			"Ejecuta el modelo local en una GPU compatible con Vulkan, sin descargar CUDA.",
+		"settings.translationGlossary": "Terminología",
+		"settings.translationGlossaryInfo":
+			"Un término por línea como origen => traducción. Los nombres de producto y UI se mantienen.",
+	},
+	fr: {
+		"settings.translationEnable": "Traduire la sortie",
+		"settings.translationTarget": "Langue de sortie",
+		"settings.translationTargetInfo":
+			"Traduire le texte dans cette langue. « Comme parlé » conserve le texte d’origine.",
+		"settings.translationSameAsSpoken": "Comme parlé",
+		"settings.translationGpu": "Utiliser le GPU pour la traduction",
+		"settings.translationGpuInfo":
+			"Exécuter le modèle local sur un GPU compatible via Vulkan, sans téléchargement CUDA.",
+		"settings.translationGlossary": "Terminologie",
+		"settings.translationGlossaryInfo":
+			"Un terme par ligne au format source => traduction. Les noms de produits et d’interface restent inchangés.",
+	},
+	hi: {
+		"settings.translationEnable": "आउटपुट का अनुवाद करें",
+		"settings.translationTarget": "आउटपुट भाषा",
+		"settings.translationTargetInfo":
+			"पाठ का इस भाषा में अनुवाद करें। 'जैसे बोला गया' मूल पाठ रखता है।",
+		"settings.translationSameAsSpoken": "जैसे बोला गया",
+		"settings.translationGpu": "अनुवाद के लिए GPU का उपयोग करें",
+		"settings.translationGpuInfo":
+			"बिना CUDA डाउनलोड के Vulkan के माध्यम से संगत GPU पर स्थानीय मॉडल चलाएँ।",
+		"settings.translationGlossary": "शब्दावली",
+		"settings.translationGlossaryInfo":
+			"प्रत्येक पंक्ति में एक शब्द स्रोत => अनुवाद। उत्पाद और UI नाम वैसे ही रहते हैं।",
+	},
+	ru: {
+		"settings.translationEnable": "Переводить вывод",
+		"settings.translationTarget": "Язык вывода",
+		"settings.translationTargetInfo":
+			"Переводить текст на этот язык. «Как сказано» сохраняет исходный текст.",
+		"settings.translationSameAsSpoken": "Как сказано",
+		"settings.translationGpu": "Использовать GPU для перевода",
+		"settings.translationGpuInfo":
+			"Запускать локальную модель на совместимом GPU через Vulkan без загрузки CUDA.",
+		"settings.translationGlossary": "Терминология",
+		"settings.translationGlossaryInfo":
+			"Один термин на строку в формате источник => перевод. Названия продуктов и интерфейса остаются без изменений.",
+	},
+	zh: {
+		"settings.translationEnable": "翻译输出",
+		"settings.translationTarget": "输出语言",
+		"settings.translationTargetInfo":
+			"将文本翻译成该语言。选择“与原语言相同”会保留原文。",
+		"settings.translationSameAsSpoken": "与原语言相同",
+		"settings.translationGpu": "使用 GPU 翻译",
+		"settings.translationGpuInfo":
+			"通过 Vulkan 在兼容 GPU 上运行本地翻译模型，无需下载 CUDA。",
+		"settings.translationGlossary": "术语表",
+		"settings.translationGlossaryInfo":
+			"每行一个术语，格式为 来源 => 译文。产品和界面名称保持原样。",
+	},
+};
+for (const [locale, values] of Object.entries(translationMore)) {
+	translations[locale] = translations[locale] || {};
+	Object.assign(translations[locale], values);
+}
+
 // Apply function
 function applyTranslations(locale, trans) {
 	const filePath = path.join(TRANSLATIONS_DIR, `${locale}.json`);

@@ -53,7 +53,7 @@ const hugeiconsMock = {
 	ChevronDownIcon: make("ChevronDownIcon"),
 	CircleIcon: make("CircleIcon"),
 	CircleQuestionMarkIcon: make("CircleQuestionMarkIcon"),
-	ClipboardPasteIcon: make("ClipboardPasteIcon"),
+	ClipboardListIcon: make("ClipboardListIcon"),
 	Clock01Icon: make("Clock01Icon"),
 	CloudIcon: make("CloudIcon"),
 	CodeIcon: make("CodeIcon"),

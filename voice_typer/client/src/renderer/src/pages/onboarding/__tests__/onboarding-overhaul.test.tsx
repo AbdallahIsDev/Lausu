@@ -646,9 +646,38 @@ describe("Model step recommended card (ONB-1)", () => {
 			display_name: "Parakeet Ultra",
 			size: "~670MB",
 			speed: "Fast",
-			description: "Parakeet Ultra, fast & accurate, 25 languages",
+			description: "Parakeet Ultra, fast & accurate, 25 European languages",
 			vram_gb: 2.0,
-			languages: null,
+			// The wizard now renders the DECLARED count, not a hardcoded
+			// "25 languages" literal, so a restricted list shows its own
+			// size (Parakeet has no Arabic).
+			languages: [
+				"bg",
+				"hr",
+				"cs",
+				"da",
+				"nl",
+				"en",
+				"et",
+				"fi",
+				"fr",
+				"de",
+				"el",
+				"hu",
+				"it",
+				"lv",
+				"lt",
+				"mt",
+				"pl",
+				"pt",
+				"ro",
+				"sk",
+				"sl",
+				"es",
+				"sv",
+				"ru",
+				"uk",
+			],
 			backend: "parakeet",
 			recommended: true,
 		},
@@ -756,6 +785,7 @@ describe("Model step recommended card (ONB-1)", () => {
 		// Badges: recommended + fast + languages (not English-only).
 		expect(screen.getByText("Recommended")).toBeTruthy();
 		expect(screen.getAllByText("Fast").length).toBeGreaterThan(0);
+		// Badge comes from the declared list length (25) at render time.
 		expect(screen.getByText("25 languages")).toBeTruthy();
 		expect(screen.queryByText("English only")).toBeNull();
 		expect(screen.queryByText("English-only")).toBeNull();

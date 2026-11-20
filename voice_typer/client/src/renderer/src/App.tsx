@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { A11yLiveRegions } from "@/components/common/A11yLiveRegions";
+import { DebugPanel } from "@/components/debug/DebugPanel";
 import ConsentGateDialog from "@/components/consent/ConsentGateDialog";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { configHotkeyLabels } from "@/components/hotkey/hotkey-utils";
@@ -30,6 +31,7 @@ import { useLlmPolishFailedToast } from "@/hooks/useLlmPolishFailedToast";
 import { useMicGuardToast } from "@/hooks/useMicGuardToast";
 import { useMicPermissionRevokedToast } from "@/hooks/useMicPermissionRevokedToast";
 import { useMicrophoneDisconnectedToast } from "@/hooks/useMicrophoneDisconnectedToast";
+import { useModelLanguageUnsupportedToast } from "@/hooks/useModelLanguageUnsupportedToast";
 import { useNavigateEvent } from "@/hooks/useNavigateEvent";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useNetworkOnline } from "@/hooks/useNetworkOnline";
@@ -180,6 +182,9 @@ export default function App() {
 	useAsrBackendLoadToast(t, () => navigate("models"));
 	useMicrophoneDisconnectedToast(t, () => navigate("microphone"));
 	useMicPermissionRevokedToast(t);
+	// Spoken language outside the active model's own language list: the
+	// backend refused the start, so the fix is a different model.
+	useModelLanguageUnsupportedToast(t, () => navigate("models"));
 	useTrayFallbackToast(t);
 	useCloudFallbackToast(t);
 	useHistoryIntegrityToast(t);
@@ -299,6 +304,7 @@ export default function App() {
 					</div>
 				</div>
 				<Toaster />
+				<DebugPanel />
 				<ConsentGateDialog />
 				<HelpOverlay
 					open={showHelpOverlay}

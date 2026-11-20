@@ -116,8 +116,11 @@ export default function PluginDetail() {
 				{(p) => (
 					<>
 						<PageHeading title={p.name} description={p.description} />
-						<div className="flex flex-col gap-4">
-							<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle">
+						{/* ONE surface for every control (C-UI-16): activation and
+						    plugin settings share the same card, separated by the
+						    shared divide-y rule instead of nested bordered cards. */}
+						<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle">
+							<div className="divide-y divide-border/8">
 								<SettingRow
 									label={t("plugins.activateLabel")}
 									info={t("plugins.activateDescription")}
@@ -133,29 +136,17 @@ export default function PluginDetail() {
 										data-testid="plugin-activate-switch"
 									/>
 								</SettingRow>
+								{p.settings.map((spec) => (
+									<PluginSettingRow
+										key={spec.key}
+										spec={spec}
+										value={values[spec.key] ?? settingValue(p, spec)}
+										onChange={(next) =>
+											handleSettingChange(p, spec, next)
+										}
+									/>
+								))}
 							</div>
-
-							{p.settings.length > 0 && (
-								<div className="flex flex-col gap-2">
-									<p className="px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-										{t("plugins.settingsSection")}
-									</p>
-									<div className="overflow-hidden rounded-lg border border-border/8 bg-surface-subtle">
-										<div className="divide-y divide-border/8">
-											{p.settings.map((spec) => (
-												<PluginSettingRow
-													key={spec.key}
-													spec={spec}
-													value={values[spec.key] ?? settingValue(p, spec)}
-													onChange={(next) =>
-														handleSettingChange(p, spec, next)
-													}
-												/>
-											))}
-										</div>
-									</div>
-								</div>
-							)}
 						</div>
 					</>
 				)}

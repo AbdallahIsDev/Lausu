@@ -194,6 +194,16 @@ export const CONSENT_FIELDS: readonly ConsentFieldDescriptor[] = [
 		defaultValue: true,
 		testId: "clipboard-save-restore-switch",
 	},
+	{
+		section: "privacy",
+		configKey: "clipboard_history_exclude",
+		labelKey: "settings.privacy.clipboardHistoryExcludeLabel",
+		infoKey: "settings.privacy.clipboardHistoryExcludeInfo",
+		infoSearchKey: "settings.privacy.clipboardHistoryExcludeInfo",
+		ariaKey: "settings.privacy.clipboardHistoryExcludeAria",
+		defaultValue: true,
+		testId: "clipboard-history-exclude-switch",
+	},
 ];
 
 /** The Agree-to-All subset, the six flags the banner grants at once. */

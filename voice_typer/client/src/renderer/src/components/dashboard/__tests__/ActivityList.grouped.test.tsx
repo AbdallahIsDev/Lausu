@@ -1,35 +1,21 @@
 /**
- * ActivityList, grouped-by-date rendering + click-to-expand rows.
+ * ActivityList: date grouping, per-item badges/metadata, the clamped
+ * preview + transcript modal, truncation detection, star fill and the
+ * cross-surface row highlight.
  *
- * Covers the History page's list behaviors (the Home page uses the same
- * component flat, without the new props, and must be unaffected):
- *
- *   1. ``groupByDate`` renders one SEPARATE CARD per local calendar day
- *      (card surface + header inside, clear gap between cards), and rows
- *      show only their TIME (no repeated full date).
- *   2. Rows carrying the 500-char preview (``text_truncated``) become
- *      click-to-expand: first expansion fetches the FULL text via
- *      ``onFetchFullText`` (the same row also copies the displayed
- *      text, so an expanded row copies the full transcript). The reveal
- *      affordance is INLINE, a masked "Show more" over the truncated
- *      line end (no separate button row, no hover wash behind text);
- *      expanded rows show an inline "Show less" at the end of the text.
- *   3. The text block is keyboard-operable (Enter / Space) and exposes
- *      the disclosure state via ``aria-expanded``; the inline controls
- *      are real focusable <button>s with aria-labels.
- *   4. Short, non-truncated rows stay INERT, no button role, no hover
- *      affordance (hover states only where a genuine click action
- *      exists).
+ * The Home/Dashboard surfaces use the same component flat, so every new
+ * field is optional and every test covers both `groupByDate` modes.
  */
-
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
 	screen,
 	waitFor,
+	within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
 	hugeiconsCoreMock,
@@ -38,7 +24,7 @@ import {
 	sonnerMock,
 } from "@/__tests__/helpers/stableMocks";
 
-vi.mock("@hugeicons/react", () => hugeiconsReactMock());
+vi.mock("@hugeicons/react", () => hugeiconsReactMock({ spreadProps: true }));
 vi.mock("@hugeicons/core-free-icons", () => hugeiconsCoreMock());
 vi.mock("sonner", () => sonnerMock());
 
@@ -74,22 +60,79 @@ function localIso(offsetDays: number, hour: number): string {
 	return d.toISOString();
 }
 
-/** 500-char preview + truncated flag (the backend list shape). */
-function truncatedRec(id: number, timestamp: string): HistoryRecord {
+function mediaRec(
+	id: number,
+	timestamp: string,
+	overrides: Partial<HistoryRecord> = {},
+): HistoryRecord {
 	return rec(id, timestamp, {
-		text: "word ".repeat(100).trim(), // 500 chars
-		char_count: 1200,
-		text_truncated: true,
-		text_full_length: 1200,
+		kind: "media",
+		source_type: "youtube",
+		source_title: "Conference talk",
+		thumbnail_url: "https://example.com/thumb.jpg",
+		media_duration_seconds: 754,
+		processing_seconds: 130,
+		method: "subtitles",
+		word_count: 320,
+		text: "media transcript preview ".repeat(20).trim(),
+		...overrides,
 	});
 }
 
-describe("ActivityList date grouping", () => {
-	afterEach(() => {
-		cleanup();
-		resetStableMocks();
-	});
+// ── height + ResizeObserver seams used by the truncation measure ─────
+const originalScroll = Object.getOwnPropertyDescriptor(
+	Element.prototype,
+	"scrollHeight",
+);
+const originalClient = Object.getOwnPropertyDescriptor(
+	Element.prototype,
+	"clientHeight",
+);
 
+function setHeights(scroll: number, client: number) {
+	Object.defineProperty(Element.prototype, "scrollHeight", {
+		configurable: true,
+		get: () => scroll,
+	});
+	Object.defineProperty(Element.prototype, "clientHeight", {
+		configurable: true,
+		get: () => client,
+	});
+}
+
+class ResizeObserverStub {
+	static instances: ResizeObserverStub[] = [];
+	private readonly cb: ResizeObserverCallback;
+	constructor(cb: ResizeObserverCallback) {
+		this.cb = cb;
+		ResizeObserverStub.instances.push(this);
+	}
+	observe() {}
+	unobserve() {}
+	disconnect() {}
+	fire() {
+		this.cb([], this as unknown as ResizeObserver);
+	}
+}
+
+afterEach(() => {
+	cleanup();
+	resetStableMocks();
+	vi.unstubAllGlobals();
+	ResizeObserverStub.instances = [];
+	if (originalScroll) {
+		Object.defineProperty(Element.prototype, "scrollHeight", originalScroll);
+	} else {
+		delete (Element.prototype as { scrollHeight?: number }).scrollHeight;
+	}
+	if (originalClient) {
+		Object.defineProperty(Element.prototype, "clientHeight", originalClient);
+	} else {
+		delete (Element.prototype as { clientHeight?: number }).clientHeight;
+	}
+});
+
+describe("ActivityList date grouping", () => {
 	it("renders one section per local day with localized headings; rows show time only", () => {
 		const items = [
 			rec(1, localIso(0, 12)),
@@ -98,20 +141,14 @@ describe("ActivityList date grouping", () => {
 		];
 		render(<ActivityList items={items} lineClamp={3} groupByDate />);
 
-		// Section headers: today + yesterday (analytics.* keys).
 		expect(screen.getByText("Today")).toBeTruthy();
 		expect(screen.getByText("Yesterday")).toBeTruthy();
 
-		// Rows show only time-of-day, the FULL "Mon 3 · 12:00 PM" style
-		// date+time line must NOT appear in grouped mode. The legacy
-		// formatter renders `MMM D · h:mm AM/PM`; assert no " · " date
-		// separator survives in any row meta line.
-		const metas = screen.getAllByText(/·/);
-		for (const meta of metas) {
-			// Each meta is "HH:MM AM/PM · 2 words", at most ONE separator
-			// (before the word count), never a date segment.
-			const segments = meta.textContent?.split("·").length ?? 0;
-			expect(segments).toBe(2);
+		// Grouped rows show only time-of-day, never a repeated full date.
+		for (const meta of screen.getAllByTestId("activity-row-meta")) {
+			const text = meta.textContent ?? "";
+			expect(text).not.toMatch(/[A-Z][a-z]{2}\s+\d/);
+			expect(text).toMatch(/\d{1,2}:\d{2}/);
 		}
 	});
 
@@ -125,8 +162,6 @@ describe("ActivityList date grouping", () => {
 			<ActivityList items={items} lineClamp={3} groupByDate />,
 		);
 
-		// Two date sections, each its own card surface (background +
-		// border + rounded corners, the flat list's card token).
 		const sections = container.querySelectorAll("section");
 		expect(sections).toHaveLength(2);
 		for (const section of sections) {
@@ -134,15 +169,10 @@ describe("ActivityList date grouping", () => {
 			expect(section.className).toContain("border");
 			expect(section.className).toContain("bg-surface-subtle");
 		}
-
-		// The cards are siblings under a gap parent ("new card = new
-		// day" readable without reading labels); no border-t separators
-		// between groups anymore.
 		expect(sections[0]?.parentElement).toBe(sections[1]?.parentElement);
 		expect(sections[0]?.parentElement?.className).toContain("gap-4");
 		expect(container.querySelector(".border-t")).toBeNull();
 
-		// Each date heading lives INSIDE its own card.
 		expect(screen.getByText("Today").closest("section")).toHaveTextContent(
 			"entry 1",
 		);
@@ -151,25 +181,21 @@ describe("ActivityList date grouping", () => {
 		);
 	});
 
-	it("flat mode (no groupByDate) keeps the legacy date+time line and no headers", () => {
+	it("flat mode keeps the full date+time line and no headers", () => {
 		render(<ActivityList items={[rec(1, localIso(0, 12))]} lineClamp={2} />);
 		expect(screen.queryByText("Today")).toBeNull();
 		expect(screen.queryByText("Yesterday")).toBeNull();
-		const meta = screen.getAllByText(/·/)[0];
-		expect(meta).toBeDefined();
-		// Legacy line: "MMM D · HH:MM · 2 words" → three segments.
-		expect(meta?.textContent?.split("·").length).toBe(3);
+		expect(screen.getByTestId("activity-row-meta").textContent).toMatch(
+			/[A-Z][a-z]{2}\s+\d/,
+		);
 	});
 
-	it("hideHeader suppresses the title row (History renders under its own page heading)", () => {
+	it("hideHeader suppresses the title row", () => {
 		render(<ActivityList items={[rec(1, localIso(0, 12))]} hideHeader />);
 		expect(screen.queryByText(t("home.recentActivity"))).toBeNull();
 	});
 
-	it("list root opts into automatic text wrapping for every message underneath", () => {
-		// The root holds all history messages (flat card, date-grouped
-		// cards, and the empty state alike), so [text-wrap:auto] lives
-		// here once and inherits everywhere instead of per-row.
+	it("list root opts into text wrapping and carries no margin utilities", () => {
 		for (const props of [
 			{ items: [rec(1, localIso(0, 12))] },
 			{ items: [rec(1, localIso(0, 12))], groupByDate: true },
@@ -177,441 +203,348 @@ describe("ActivityList date grouping", () => {
 		]) {
 			const { container, unmount } = render(<ActivityList {...props} />);
 			const root = container.firstElementChild;
-			expect(root).not.toBeNull();
 			expect(root?.className).toContain("[text-wrap:auto]");
-			unmount();
-		}
-	});
-
-	it("list root carries NO margin utilities, vertical rhythm comes from the parent gap", () => {
-		// Regression guard for the doubled-spacing bug: the root used
-		// to carry mt-4, which stacked with the page container's gap
-		// and pushed the card far below its section label.
-		for (const props of [
-			{ items: [rec(1, localIso(0, 12))] },
-			{ items: [rec(1, localIso(0, 12))], groupByDate: true },
-			{ items: [] as HistoryRecord[] },
-		]) {
-			const { container, unmount } = render(<ActivityList {...props} />);
-			const root = container.firstElementChild;
-			expect(root).not.toBeNull();
 			expect(root?.className).not.toMatch(/(^|\s)(m[trblxy]|space-[xy])-/);
 			unmount();
 		}
 	});
 });
 
-describe("ActivityList click-to-expand rows", () => {
-	afterEach(() => {
-		cleanup();
-		resetStableMocks();
-		vi.unstubAllGlobals();
+describe("ActivityList badges and metadata", () => {
+	it("shows a Dictation badge for regular rows and Media for media rows", () => {
+		const { rerender } = render(
+			<ActivityList items={[rec(1, localIso(0, 12))]} />,
+		);
+		const dictationBadge = screen.getByText(t("history.dictationBadge"));
+		expect(
+			dictationBadge.parentElement?.querySelector('[data-name="Mic02Icon"]'),
+		).toBeTruthy();
+
+		rerender(<ActivityList items={[mediaRec(2, localIso(0, 12))]} />);
+		const mediaBadge = screen.getByText(t("history.mediaBadge"));
+		expect(
+			mediaBadge.parentElement?.querySelector('[data-name="Film01Icon"]'),
+		).toBeTruthy();
 	});
 
-	it("expandable rows: short inert text has NO button role or hover affordance", () => {
+	it("shows the media source title and thumbnail above the preview", () => {
 		const { container } = render(
-			<ActivityList
-				items={[rec(1, localIso(0, 12), { text: "hello world" })]}
-				onFetchFullText={vi.fn()}
-			/>,
+			<ActivityList items={[mediaRec(2, localIso(0, 12))]} />,
 		);
-		// No role="button" anywhere, the text block is inert.
-		expect(container.querySelector('[role="button"]')).toBeNull();
-		// No hover/cursor classes on the TEXT container itself (the
-		// app-wide rule: hover affordances only where a genuine click
-		// action exists, the copy Button legitimately keeps its own).
-		const textContainer = container.querySelector("p")?.parentElement;
-		expect(textContainer?.className).not.toContain("cursor-pointer");
-		expect(textContainer?.className).not.toContain("hover:");
-	});
-
-	it("truncated row expands on click, fetches full text once, and collapses via Show less", async () => {
-		const fullText = "THE FULL TRANSCRIPT ".repeat(30);
-		const fetchFullText = vi.fn().mockResolvedValue(fullText);
-		render(
-			<ActivityList
-				items={[truncatedRec(7, localIso(0, 12))]}
-				onFetchFullText={fetchFullText}
-			/>,
-		);
-
-		// The text block is the disclosure control, collapsed initially.
-		const textBtn = screen.getByTestId("activity-row-text-toggle");
-		expect(textBtn.getAttribute("aria-expanded")).toBe("false");
-
-		fireEvent.click(textBtn);
-
-		// Full text fetched with the record id and rendered unclamped.
-		await waitFor(() => {
-			expect(fetchFullText).toHaveBeenCalledWith(7);
-			expect(screen.getByText(/THE FULL TRANSCRIPT/)).toBeTruthy();
-		});
-		const expanded = screen.getByTestId("activity-row-text-toggle");
-		expect(expanded.getAttribute("aria-expanded")).toBe("true");
-
-		// Show less collapses again.
-		fireEvent.click(screen.getByText(t("home.showLess")));
+		const title = screen.getByText("Conference talk");
+		expect(title.className).toContain("truncate");
+		const thumb = container.querySelector('img[alt=""]');
+		expect(thumb?.getAttribute("src")).toBe("https://example.com/thumb.jpg");
+		expect(thumb?.className).toContain("size-10");
+		expect(thumb?.className).toContain("rounded-lg");
+		// Title sits above the preview paragraph.
+		const preview = screen.getByTestId("activity-row-preview");
 		expect(
-			screen
-				.getByTestId("activity-row-text-toggle")
-				.getAttribute("aria-expanded"),
-		).toBe("false");
-
-		// Second expansion must NOT re-fetch (full text cached in-row).
-		fireEvent.click(screen.getByTestId("activity-row-text-toggle"));
-		await waitFor(() => {
-			expect(
-				screen
-					.getByTestId("activity-row-text-toggle")
-					.getAttribute("aria-expanded"),
-			).toBe("true");
-		});
-		expect(fetchFullText).toHaveBeenCalledTimes(1);
+			title.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
 	});
 
-	it("keyboard operable: Enter and Space toggle the expanded state", async () => {
-		const fetchFullText = vi.fn().mockResolvedValue("FULL KEYBOARD TEXT");
+	it("renders time, words, duration, processing, model and source, never characters", () => {
+		render(<ActivityList items={[mediaRec(2, localIso(0, 12))]} groupByDate />);
+		const meta = screen.getByTestId("activity-row-meta").textContent ?? "";
+		expect(meta).toContain(t("activityList.wordsCount", { count: "320" }));
+		expect(meta).toContain("12:34"); // media_duration_seconds = 754
+		expect(meta).toContain("2m 10s"); // processing_seconds = 130
+		expect(meta).toContain("tiny");
+		expect(meta).toContain(t("media.metaYoutube"));
+		expect(meta).toContain(t("media.metaSubtitles"));
+		expect(meta).not.toContain("haracter");
+	});
+
+	it("falls back to countWords when word_count is missing and hides unavailable pieces", () => {
 		render(
 			<ActivityList
-				items={[truncatedRec(9, localIso(0, 12))]}
-				onFetchFullText={fetchFullText}
+				items={[
+					rec(1, localIso(0, 12), {
+						word_count: undefined as unknown as number,
+						text: "alpha beta gamma delta",
+						model: "",
+					}),
+				]}
 			/>,
 		);
-		const textBtn = screen.getByTestId("activity-row-text-toggle");
-		expect(textBtn.getAttribute("aria-expanded")).toBe("false");
-
-		fireEvent.keyDown(textBtn, { key: "Enter" });
-		await waitFor(() => {
-			expect(
-				screen
-					.getByTestId("activity-row-text-toggle")
-					.getAttribute("aria-expanded"),
-			).toBe("true");
-		});
-
-		// Collapse again via Space on the still-focusable text block.
-		fireEvent.keyDown(screen.getByTestId("activity-row-text-toggle"), {
-			key: " ",
-		});
-		await waitFor(() => {
-			expect(
-				screen
-					.getByTestId("activity-row-text-toggle")
-					.getAttribute("aria-expanded"),
-			).toBe("false");
-		});
+		const meta = screen.getByTestId("activity-row-meta").textContent ?? "";
+		expect(meta).toContain(t("activityList.wordsCount", { count: "4" }));
+		expect(meta).not.toContain("tiny");
+		expect(meta).not.toContain(t("media.metaYoutube"));
 	});
 
-	it("fetch failure toasts an error and keeps the row collapsed on the preview text", async () => {
-		const fetchFullText = vi.fn().mockRejectedValue(new Error("boom"));
+	it("keeps actions at the right of the meta row", () => {
 		render(
 			<ActivityList
-				items={[truncatedRec(3, localIso(0, 12))]}
-				onFetchFullText={fetchFullText}
-			/>,
-		);
-		fireEvent.click(screen.getByTestId("activity-row-text-toggle"));
-		await waitFor(() => {
-			expect(toast.error).toHaveBeenCalledWith(
-				t("activityList.loadTextFailed"),
-			);
-		});
-		// The row stays collapsed, no phantom expanded state.
-		expect(
-			screen
-				.getByTestId("activity-row-text-toggle")
-				.getAttribute("aria-expanded"),
-		).toBe("false");
-	});
-
-	it("empty full-text sentinel (row deleted mid-flight) toasts instead of expanding", async () => {
-		const fetchFullText = vi.fn().mockResolvedValue("");
-		render(
-			<ActivityList
-				items={[truncatedRec(4, localIso(0, 12))]}
-				onFetchFullText={fetchFullText}
-			/>,
-		);
-		fireEvent.click(screen.getByTestId("activity-row-text-toggle"));
-		await waitFor(() => {
-			expect(toast.error).toHaveBeenCalledWith(
-				t("activityList.loadTextFailed"),
-			);
-		});
-		expect(
-			screen
-				.getByTestId("activity-row-text-toggle")
-				.getAttribute("aria-expanded"),
-		).toBe("false");
-	});
-
-	it("copy uses the DISPLAYED text, expanded rows copy the full transcript", async () => {
-		const writeText = vi.fn().mockResolvedValue(undefined);
-		Object.defineProperty(navigator, "clipboard", {
-			value: { writeText },
-			configurable: true,
-		});
-		const fullText = "FULL COPY TARGET TEXT ".repeat(20);
-		render(
-			<ActivityList
-				items={[truncatedRec(5, localIso(0, 12))]}
-				onFetchFullText={vi.fn().mockResolvedValue(fullText)}
-			/>,
-		);
-
-		// Copy while collapsed copies the preview text.
-		fireEvent.click(
-			screen.getByRole("button", { name: t("history.copyText") }),
-		);
-		await waitFor(() => {
-			expect(writeText).toHaveBeenCalledWith(expect.stringContaining("word"));
-		});
-		expect(writeText.mock.calls[0]?.[0]).not.toContain("FULL COPY TARGET");
-
-		// Expand, then copy, must carry the full transcript.
-		fireEvent.click(screen.getByTestId("activity-row-text-toggle"));
-		await waitFor(() => {
-			expect(
-				screen
-					.getByTestId("activity-row-text-toggle")
-					.getAttribute("aria-expanded"),
-			).toBe("true");
-		});
-		fireEvent.click(
-			screen.getByRole("button", { name: t("history.copyText") }),
-		);
-		await waitFor(() => {
-			expect(writeText).toHaveBeenLastCalledWith(fullText);
-		});
-	});
-
-	it("action button clicks never toggle the text block", async () => {
-		const onToggleFavorite = vi.fn();
-		render(
-			<ActivityList
-				items={[truncatedRec(6, localIso(0, 12))]}
-				onFetchFullText={vi.fn().mockResolvedValue("FULL")}
-				onToggleFavorite={onToggleFavorite}
-			/>,
-		);
-		fireEvent.click(
-			screen.getByRole("button", {
-				name: t("activityList.addToFavorites"),
-			}),
-		);
-		expect(onToggleFavorite).toHaveBeenCalledWith(6);
-		// The text block stayed collapsed (the click did not bubble into
-		// an expansion).
-		expect(
-			screen
-				.getByTestId("activity-row-text-toggle")
-				.getAttribute("aria-expanded"),
-		).toBe("false");
-	});
-
-	it("rows stack full-width text above a meta row with metadata start and actions end", () => {
-		// The Copy/Favorite/Delete cluster used to float vertically
-		// centered beside wrapped text. Rows are now two stacked
-		// blocks: transcript full width on top, then a meta row that
-		// spreads the timestamp/word count (inline-start) and the
-		// action cluster (far inline-end) with justify-between.
-		const { container } = render(
-			<ActivityList
-				items={[rec(1, localIso(0, 12), { text: "multi ".repeat(40).trim() })]}
+				items={[rec(1, localIso(0, 12))]}
 				onDelete={vi.fn()}
 				onToggleFavorite={vi.fn()}
 			/>,
 		);
-		const copyBtn = screen.getByRole("button", {
-			name: t("history.copyText"),
-		});
-		// Cluster lives in the spread meta row, as its last child.
-		const metaRow = copyBtn.closest("div.justify-between");
-		expect(metaRow).not.toBeNull();
+		const metaRow = screen.getByTestId("activity-row-meta").parentElement;
+		expect(metaRow?.className).toContain("justify-between");
+		const copyBtn = screen.getByRole("button", { name: t("history.copyText") });
 		expect(metaRow?.lastElementChild?.contains(copyBtn)).toBe(true);
-		// Metadata shares that row, ahead of the cluster.
-		const firstChild = metaRow?.children[0];
-		expect(firstChild?.tagName).toBe("SPAN");
-		expect(firstChild?.textContent).toContain("·");
-		// The transcript block sits above the meta row inside a
-		// stacked (flex-col) root, full width.
-		const root = metaRow?.parentElement;
-		expect(root?.className).toContain("flex-col");
-		expect(root?.firstElementChild?.querySelector("p")).not.toBeNull();
-		const transcript = container.querySelector("p");
-		expect(transcript).not.toBeNull();
-		expect(metaRow?.contains(transcript)).toBe(false);
+		const preview = screen.getByTestId("activity-row-preview");
+		expect(preview.getAttribute("dir")).toBe("auto");
+		expect(metaRow?.contains(preview)).toBe(false);
 	});
 });
 
-describe("ActivityList inline masked reveal", () => {
-	afterEach(() => {
-		cleanup();
-		resetStableMocks();
+describe("ActivityList preview and transcript modal", () => {
+	beforeEach(() => {
+		Object.defineProperty(navigator, "clipboard", {
+			value: { writeText: vi.fn().mockResolvedValue(undefined) },
+			configurable: true,
+		});
 	});
 
-	it("collapsed expandable row shows Show more floating bottom-center over the masked last line", () => {
+	it("clamps the preview to three lines with no inline expand/mask artifacts", () => {
 		const { container } = render(
+			<ActivityList items={[rec(1, localIso(0, 12))]} lineClamp={3} />,
+		);
+		const preview = screen.getByTestId("activity-row-preview");
+		expect(preview.className).toContain("line-clamp-3");
+		expect(preview.getAttribute("aria-label")).toBe(
+			t("history.viewTranscript"),
+		);
+		expect(preview.className).not.toContain("mask-b-");
+		expect(
+			container.querySelector('[role="button"][aria-expanded]'),
+		).toBeNull();
+		expect(container.querySelector(".absolute")).toBeNull();
+		expect(screen.queryByText(t("home.showLess"))).toBeNull();
+	});
+
+	it("opens the modal with the full transcript and copies it", async () => {
+		const fetchFullText = vi.fn().mockResolvedValue("THE COMPLETE TRANSCRIPT");
+		render(
 			<ActivityList
-				items={[truncatedRec(11, localIso(0, 12))]}
-				onFetchFullText={vi.fn().mockResolvedValue("FULL")}
+				items={[mediaRec(7, localIso(0, 12), { text_truncated: true })]}
+				lineClamp={3}
+				onFetchFullText={fetchFullText}
 			/>,
 		);
-		const moreBtn = screen.getByRole("button", {
+		fireEvent.click(screen.getByTestId("activity-row-preview"));
+
+		const dialog = await screen.findByRole("dialog");
+		expect(fetchFullText).toHaveBeenCalledWith(7);
+		// Media title is the modal title, not row metadata.
+		expect(within(dialog).getByText("Conference talk")).toBeTruthy();
+		const text = within(dialog).getByTestId("transcript-modal-text");
+		expect(text.textContent).toBe("THE COMPLETE TRANSCRIPT");
+		expect(text.getAttribute("dir")).toBe("auto");
+		expect(
+			dialog.querySelector('[data-testid="activity-row-meta"]'),
+		).toBeNull();
+
+		const writeText = navigator.clipboard.writeText as ReturnType<typeof vi.fn>;
+		fireEvent.click(
+			within(dialog).getByRole("button", { name: t("history.copyText") }),
+		);
+		await waitFor(() => {
+			expect(writeText).toHaveBeenCalledWith("THE COMPLETE TRANSCRIPT");
+		});
+
+		fireEvent.click(
+			within(dialog).getByRole("button", { name: t("common.close") }),
+		);
+		await waitFor(() => {
+			expect(screen.queryByRole("dialog")).toBeNull();
+		});
+	});
+
+	it("modal transcript uses auto text wrap, not the global balance", async () => {
+		// The global `html, body { text-wrap: balance }` would otherwise be
+		// inherited by the modal text. `text-wrap-auto` is NOT a Tailwind
+		// utility, so only the bracketed arbitrary form overrides it.
+		render(<ActivityList items={[rec(9, localIso(0, 12))]} lineClamp={3} />);
+		fireEvent.click(screen.getByTestId("activity-row-preview"));
+		const dialog = await screen.findByRole("dialog");
+		const text = within(dialog).getByTestId("transcript-modal-text");
+		expect(text.className).toContain("[text-wrap:auto]");
+		expect(text.className).not.toContain("text-wrap-auto");
+	});
+
+	it("uses the formatted time/date as the title for dictation rows", async () => {
+		render(<ActivityList items={[rec(1, localIso(0, 12))]} lineClamp={3} />);
+		fireEvent.click(screen.getByTestId("activity-row-preview"));
+		const dialog = await screen.findByRole("dialog");
+		expect(
+			within(dialog).getByTestId("transcript-modal-text").textContent,
+		).toBe("entry 1");
+	});
+
+	it("keyboard activation opens the modal", async () => {
+		render(<ActivityList items={[rec(1, localIso(0, 12))]} lineClamp={3} />);
+		const preview = screen.getByTestId("activity-row-preview");
+		fireEvent.keyDown(preview, { key: "Enter" });
+		expect(await screen.findByRole("dialog")).toBeTruthy();
+	});
+
+	it("a failed full-text fetch toasts and keeps the preview in the modal", async () => {
+		render(
+			<ActivityList
+				items={[
+					rec(3, localIso(0, 12), {
+						text_truncated: true,
+						text: "available preview",
+					}),
+				]}
+				onFetchFullText={vi.fn().mockRejectedValue(new Error("boom"))}
+			/>,
+		);
+		fireEvent.click(screen.getByTestId("activity-row-preview"));
+		await waitFor(() => {
+			expect(toast.error).toHaveBeenCalledWith(
+				t("activityList.loadTextFailed"),
+			);
+		});
+		expect(
+			within(screen.getByRole("dialog")).getByTestId("transcript-modal-text")
+				.textContent,
+		).toBe("available preview");
+	});
+
+	it("row action buttons never open the modal", () => {
+		render(
+			<ActivityList
+				items={[rec(1, localIso(0, 12))]}
+				onDelete={vi.fn()}
+				onToggleFavorite={vi.fn()}
+			/>,
+		);
+		fireEvent.click(
+			screen.getByRole("button", { name: t("activityList.addToFavorites") }),
+		);
+		fireEvent.click(
+			screen.getByRole("button", { name: t("history.copyText") }),
+		);
+		expect(screen.queryByRole("dialog")).toBeNull();
+	});
+
+	it("the list DOM stays mounted and unchanged while the modal is open", async () => {
+		const { container } = render(
+			<ActivityList
+				items={[
+					rec(1, localIso(0, 12)),
+					rec(2, localIso(0, 11)),
+					rec(3, localIso(1, 9)),
+				]}
+				lineClamp={3}
+				groupByDate
+			/>,
+		);
+		const before = Array.from(
+			container.querySelectorAll("[data-history-row-id]"),
+		);
+		expect(before).toHaveLength(3);
+		const firstPreview = screen.getAllByTestId("activity-row-preview")[0];
+		expect(firstPreview).toBeDefined();
+		fireEvent.click(firstPreview as HTMLElement);
+		await screen.findByRole("dialog");
+		const after = Array.from(
+			container.querySelectorAll("[data-history-row-id]"),
+		);
+		expect(after).toHaveLength(3);
+		after.forEach((row, i) => {
+			expect(before.indexOf(row)).toBe(i);
+		});
+	});
+});
+
+describe("ActivityList truncation detection", () => {
+	beforeEach(() => {
+		vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+	});
+
+	it("shows Show more only when the clamped preview actually overflows", async () => {
+		setHeights(60, 60);
+		const { rerender } = render(
+			<ActivityList items={[rec(1, localIso(0, 12))]} lineClamp={3} />,
+		);
+		expect(
+			screen.queryByRole("button", { name: t("home.showMore") }),
+		).toBeNull();
+
+		setHeights(300, 60);
+		act(() => {
+			ResizeObserverStub.instances[
+				ResizeObserverStub.instances.length - 1
+			]?.fire();
+		});
+		const more = await screen.findByRole("button", {
 			name: t("home.showMore"),
 		});
-		// A real focusable button with an explicit accessible name —
-		// not a decorative span with a click handler.
-		expect(moreBtn.tagName).toBe("BUTTON");
-		expect(moreBtn.getAttribute("aria-expanded")).toBe("false");
-		// The button floats on its own (no wrapper element),
-		// absolute bottom-center below the text block, not as a
-		// separate row below the text. The fade itself is a mask
-		// on the clamped paragraph: full-height fade (0% to 100%).
-		// out over the last line.
-		expect(moreBtn.tagName).toBe("BUTTON");
-		expect(moreBtn.className).toContain("absolute");
-		expect(moreBtn.className).toContain("-bottom-6.5");
-		expect(moreBtn.className).toContain("left-1/2");
-		// Direct child of the toggle block: no overlay wrapper
-		// sits in between.
-		expect(moreBtn.parentElement?.getAttribute("data-testid")).toBe(
-			"activity-row-text-toggle",
-		);
-		const para = container.querySelector("p");
-		expect(para?.className).toContain("mask-b-from-0%");
-		expect(para?.className).toContain("mask-b-to-100%");
-		// Collapsed text needs no reserve: the button sits on the
-		// masked fade, not on readable text.
-		expect(
-			screen.getByTestId("activity-row-text-toggle").className,
-		).not.toContain("pb-7");
-		expect(container.querySelector("button.self-start")).toBeNull();
-		// No hover wash behind the text block itself.
-		const toggle = screen.getByTestId("activity-row-text-toggle");
-		expect(toggle.className).not.toContain("hover:");
-	});
+		expect(more.className).not.toContain("absolute");
+		expect(more.className).toContain("self-start");
 
-	it("clicking the inline Show more expands exactly once (no double-toggle)", async () => {
-		const fetchFullText = vi.fn().mockResolvedValue("FULL INLINE TEXT");
-		render(
-			<ActivityList
-				items={[truncatedRec(12, localIso(0, 12))]}
-				onFetchFullText={fetchFullText}
-			/>,
-		);
-		// The inner button stops propagation: the outer toggle block
-		// must not fire a second time for the same click.
-		fireEvent.click(screen.getByRole("button", { name: t("home.showMore") }));
+		setHeights(60, 60);
+		act(() => {
+			ResizeObserverStub.instances[
+				ResizeObserverStub.instances.length - 1
+			]?.fire();
+		});
 		await waitFor(() => {
 			expect(
-				screen
-					.getByTestId("activity-row-text-toggle")
-					.getAttribute("aria-expanded"),
-			).toBe("true");
+				screen.queryByRole("button", { name: t("home.showMore") }),
+			).toBeNull();
 		});
-		expect(fetchFullText).toHaveBeenCalledTimes(1);
-		expect(screen.getByText("FULL INLINE TEXT")).toBeTruthy();
+
+		rerender(<ActivityList items={[rec(1, localIso(0, 12))]} lineClamp={3} />);
 	});
 
-	it("keyboard events on the inline button do not double-toggle via the outer block", async () => {
-		const fetchFullText = vi.fn().mockResolvedValue("FULL KB TEXT");
-		render(
+	it("Show more opens the same transcript modal", async () => {
+		setHeights(300, 60);
+		render(<ActivityList items={[rec(1, localIso(0, 12))]} lineClamp={3} />);
+		fireEvent.click(
+			await screen.findByRole("button", { name: t("home.showMore") }),
+		);
+		expect(await screen.findByRole("dialog")).toBeTruthy();
+	});
+});
+
+describe("ActivityList star fill and highlight", () => {
+	it("fills an active star solid amber and leaves an inactive star outlined", () => {
+		const { container, rerender } = render(
 			<ActivityList
-				items={[truncatedRec(13, localIso(0, 12))]}
-				onFetchFullText={fetchFullText}
+				items={[rec(1, localIso(0, 12), { favorite: 1 })]}
+				onToggleFavorite={vi.fn()}
 			/>,
 		);
-		const moreBtn = screen.getByRole("button", { name: t("home.showMore") });
-		// keyDown alone must not toggle through the outer block's
-		// handler (the inner button stops propagation; real browsers
-		// synthesize the activation click natively on <button>).
-		fireEvent.keyDown(moreBtn, { key: "Enter" });
-		expect(fetchFullText).not.toHaveBeenCalled();
-		expect(
-			screen
-				.getByTestId("activity-row-text-toggle")
-				.getAttribute("aria-expanded"),
-		).toBe("false");
-		// The native-equivalent activation expands exactly once.
-		fireEvent.click(moreBtn);
-		await waitFor(() => {
-			expect(
-				screen
-					.getByTestId("activity-row-text-toggle")
-					.getAttribute("aria-expanded"),
-			).toBe("true");
-		});
-		expect(fetchFullText).toHaveBeenCalledTimes(1);
+		const active = container.querySelector('[data-name="StarIcon"]');
+		expect(active?.getAttribute("fill")).toBe("currentColor");
+		expect(active?.className).toContain("text-warning");
+
+		rerender(
+			<ActivityList
+				items={[rec(1, localIso(0, 12), { favorite: 0 })]}
+				onToggleFavorite={vi.fn()}
+			/>,
+		);
+		const inactive = container.querySelector('[data-name="StarIcon"]');
+		expect(inactive?.getAttribute("fill")).toBe("none");
+		expect(inactive?.className).not.toContain("text-warning");
 	});
 
-	it("expanded row keeps the same floating button, relabeled to Show less", async () => {
-		render(
+	it("rings and scrolls the highlighted row into view", () => {
+		const scrollIntoView = vi.fn();
+		Object.defineProperty(Element.prototype, "scrollIntoView", {
+			configurable: true,
+			value: scrollIntoView,
+		});
+		const { container, unmount } = render(
 			<ActivityList
-				items={[truncatedRec(14, localIso(0, 12))]}
-				onFetchFullText={vi.fn().mockResolvedValue("FULL")}
+				items={[rec(7, localIso(0, 12))]}
+				lineClamp={3}
+				highlightId={7}
 			/>,
 		);
-		fireEvent.click(screen.getByTestId("activity-row-text-toggle"));
-		await waitFor(() => {
-			expect(
-				screen
-					.getByTestId("activity-row-text-toggle")
-					.getAttribute("aria-expanded"),
-			).toBe("true");
-		});
-		const lessBtn = screen.getByRole("button", { name: t("home.showLess") });
-		// SAME button, same spot: still absolute bottom-center below
-		// the toggle block, only the label flipped. No inline button
-		// inside the paragraph. Expanded text renders unmasked.
-		expect(lessBtn.className).toContain("absolute");
-		expect(lessBtn.className).toContain("-bottom-6.5");
-		expect(lessBtn.parentElement?.getAttribute("data-testid")).toBe(
-			"activity-row-text-toggle",
-		);
-		expect(
-			screen.getByTestId("activity-row-text-toggle").querySelector("p")
-				?.className,
-		).not.toContain("mask-b-");
-		// Expanded text reserves room below its last line so a long
-		// final line never runs underneath the floating button.
-		expect(screen.getByTestId("activity-row-text-toggle").className).toContain(
-			"pb-7",
-		);
-		expect(lessBtn.className).toContain("hover:text-foreground");
-		expect(
-			screen.queryByRole("button", { name: t("home.showMore") }),
-		).toBeNull();
-		// Clicking it collapses back to the masked preview.
-		fireEvent.click(lessBtn);
-		await waitFor(() => {
-			expect(
-				screen
-					.getByTestId("activity-row-text-toggle")
-					.getAttribute("aria-expanded"),
-			).toBe("false");
-		});
-		expect(
-			screen.getByRole("button", { name: t("home.showMore") }),
-		).toBeTruthy();
-	});
-
-	it("inert rows render no floating control, no inline controls, and no mask", () => {
-		const { container } = render(
-			<ActivityList
-				items={[rec(15, localIso(0, 12), { text: "hello world" })]}
-				onFetchFullText={vi.fn()}
-			/>,
-		);
-		expect(container.querySelector(".absolute")).toBeNull();
-		// Single-line text must not carry the bottom fade: the mask
-		// applies only while text is actually clamped.
-		expect(container.querySelector("p")?.className).not.toContain("mask-b-");
-		expect(
-			screen.queryByRole("button", { name: t("home.showMore") }),
-		).toBeNull();
-		expect(
-			screen.queryByRole("button", { name: t("home.showLess") }),
-		).toBeNull();
+		const row = container.querySelector('[data-history-row-id="7"]');
+		expect(row?.className).toContain("ring-primary");
+		expect(scrollIntoView).toHaveBeenCalled();
+		unmount();
+		delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
 	});
 });

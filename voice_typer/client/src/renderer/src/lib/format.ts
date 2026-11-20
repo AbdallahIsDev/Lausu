@@ -332,8 +332,8 @@ export function formatBytes(
  *   - ``formatDuration(0)`` returns ``"0"`` (was ``"0m"``): a zero
  *     duration carries no unit.
  *   - ``formatDuration(5)`` returns ``"1m"`` (was ``"5s"``), sub-
- *     minute values round UP to 1m, matching the legacy StatCards
- *     storybook snapshot.
+ *     minute values round UP to 1m, matching the dashboard stat-card
+ *     display contract.
  *   - Seconds are no longer included in the output (was ``"1h 27m 15s"``;
  *     now ``"1h 27m"``). The dashboard / stat-card surface only ever
  *     displayed hours+minutes; surfacing seconds was a UX regression.
@@ -505,4 +505,39 @@ export function formatWer(wer: number, locale?: Locale): string {
 		maximumFractionDigits: 2,
 	};
 	return `${_getCachedNumberFormat(resolveLocale(locale), opts).format(wer)}%`;
+}
+
+/**
+ * Count words the same way the backend does (``text.split()``): whitespace
+ * delimited, empty fragments ignored. Shared by the Media result card and
+ * the History word-count fixture helpers so the two surfaces never disagree.
+ */
+export function countWords(text: string | null | undefined): number {
+	if (!text) return 0;
+	return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+/** Media length: ``MM:SS`` below an hour, ``1h 02m`` past it. */
+export function formatMediaDuration(
+	seconds: number | null | undefined,
+): string {
+	if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return "—";
+	const total = Math.floor(seconds);
+	if (total < 3600) return formatClockDuration(total);
+	const h = Math.floor(total / 3600);
+	const m = Math.floor((total % 3600) / 60);
+	return `${h}h ${String(m).padStart(2, "0")}m`;
+}
+
+/** Elapsed/processing time: ``48s``, ``2m 10s``, ``1h 02m``. */
+export function formatElapsedShort(seconds: number | null | undefined): string {
+	if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return "—";
+	const total = Math.max(0, Math.round(seconds));
+	if (total < 60) return `${total}s`;
+	const m = Math.floor(total / 60);
+	const s = total % 60;
+	if (m < 60) return s === 0 ? `${m}m` : `${m}m ${s}s`;
+	const h = Math.floor(m / 60);
+	const rest = m % 60;
+	return rest === 0 ? `${h}h` : `${h}h ${String(rest).padStart(2, "0")}m`;
 }

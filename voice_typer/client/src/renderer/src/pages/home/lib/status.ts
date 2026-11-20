@@ -6,7 +6,11 @@
 // additions).
 
 import { t } from "@/i18n/i18n";
-import type { RecordingState } from "@/types/ipc";
+
+// The state→key rule moved to the shared status module when the sidebar
+// caption started rendering the same dot; re-exported so this module stays
+// the Home page's single status entry point.
+export { statusKeyFor } from "@/lib/dictationStatus";
 
 export function statusLabelFor(key: string): string {
 	switch (key) {
@@ -23,11 +27,4 @@ export function statusLabelFor(key: string): string {
 		default:
 			return t("home.ready");
 	}
-}
-
-export function statusKeyFor(state: RecordingState, hasError: boolean): string {
-	if (state === "error") {
-		return hasError ? "error" : "idle";
-	}
-	return state;
 }

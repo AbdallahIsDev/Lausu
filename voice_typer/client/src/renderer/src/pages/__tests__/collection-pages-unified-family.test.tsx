@@ -368,7 +368,15 @@ describe("bulk bar + list header render through the shells (page wiring)", () =>
 	it("both pages' column headers render through the shared shell with their own labels", async () => {
 		seedVocabulary();
 		await renderVocabularyPage();
-		const vocabHeader = screen.getByTestId("vocab-list-header");
+		// Same chrome also renders inside the outgoing sample pane during
+		// the crossfade, so wait for exactly one header node.
+		const vocabHeader = await waitFor(() => {
+			const nodes = screen.getAllByTestId("vocab-list-header");
+			const [only] = nodes;
+			if (nodes.length !== 1 || only === undefined)
+				throw new Error(`expected one vocab header, got ${nodes.length}`);
+			return only;
+		});
 		expect(within(vocabHeader).getByText("Heard as")).toBeTruthy();
 		expect(within(vocabHeader).getByText("Corrected to")).toBeTruthy();
 
@@ -378,7 +386,15 @@ describe("bulk bar + list header render through the shells (page wiring)", () =>
 
 		seedTemplates();
 		await renderTemplatesPage();
-		const templateHeader = screen.getByTestId("template-list-header");
+		// The Templates page crossfades out of a sample pane that renders the
+		// same header, so wait for the single surviving node (as above).
+		const templateHeader = await waitFor(() => {
+			const nodes = screen.getAllByTestId("template-list-header");
+			const [only] = nodes;
+			if (nodes.length !== 1 || only === undefined)
+				throw new Error(`expected one template header, got ${nodes.length}`);
+			return only;
+		});
 		expect(within(templateHeader).getByText("Trigger")).toBeTruthy();
 		expect(within(templateHeader).getByText("Output")).toBeTruthy();
 	});

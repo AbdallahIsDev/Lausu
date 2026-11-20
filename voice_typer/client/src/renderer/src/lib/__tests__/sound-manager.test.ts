@@ -215,6 +215,7 @@ type RecordedCall = { method: string; value: number; time: number };
 
 class RecordingParam {
 	calls: RecordedCall[] = [];
+	value = 0;
 	setValueAtTime(value: number, time: number): void {
 		this.calls.push({ method: "setValueAtTime", value, time });
 	}
@@ -394,9 +395,8 @@ describe("SoundManager, Web Audio synthesis matches the cue table", () => {
 			playSoundCue(kind);
 
 			expect(ctx.oscillators).toHaveLength(1);
-			// TWO gains: the cue's own envelope gain + the master volume
-			// gain node (sound_volume multiplier) inserted between the
-			// envelope and the destination.
+			// TWO gains: the cue's own envelope gain + the master cue-volume
+			// gain node inserted between the envelope and the destination.
 			expect(ctx.gains).toHaveLength(2);
 			const osc = ctx.oscillators[0];
 			const gain = ctx.gains[0];
@@ -412,7 +412,7 @@ describe("SoundManager, Web Audio synthesis matches the cue table", () => {
 			expect(osc.frequency.calls).toEqual(spec.frequency);
 			expect(gain.gain.calls).toEqual(spec.gain);
 			// The master node carries NO automation, it's a static
-			// multiplier set once at node creation (volume=1 → gain 1).
+			// multiplier set once at node creation (fixed cue volume).
 			expect(master.gain.calls).toEqual([]);
 
 			// Shared graph + lifecycle: osc → gain → master → destination
@@ -431,18 +431,18 @@ describe("SoundManager, Web Audio synthesis matches the cue table", () => {
 		});
 	}
 
-	it("the master volume node scales with sound_volume (setSoundVolume)", async () => {
+	it("the master cue-volume node is fixed at 30% (no setting)", async () => {
 		const {
 			playSoundCue,
 			setSoundFeedbackEnabled,
-			setSoundVolume,
-			getSoundVolume,
+			SOUND_CUE_VOLUME,
 			_resetSoundManagerForTests,
 		} = await import("@/lib/sound-manager");
 		_resetSoundManagerForTests();
 		setSoundFeedbackEnabled(true);
-		setSoundVolume(0.4);
-		expect(getSoundVolume()).toBe(0.4);
+		// A loud cue leaks into the microphone and makes volume ducking treat
+		// the cue as background playback, so the level is fixed, not tunable.
+		expect(SOUND_CUE_VOLUME).toBe(0.3);
 
 		const ctx = new RecordingAudioContext();
 		function VolumeAudioContextCtor() {
@@ -461,22 +461,6 @@ describe("SoundManager, Web Audio synthesis matches the cue table", () => {
 		expect(ctx.oscillators[0]?.connectCalls[1]).toBe(master);
 		expect(ctx.oscillators[0]?.connectCalls[2]).toBe(ctx.destination);
 		expect(master?.gain.calls).toEqual([]);
-	});
-
-	it("setSoundVolume clamps out-of-range and non-finite values", async () => {
-		const { setSoundVolume, getSoundVolume, _resetSoundManagerForTests } =
-			await import("@/lib/sound-manager");
-		_resetSoundManagerForTests();
-
-		setSoundVolume(2);
-		expect(getSoundVolume()).toBe(1);
-		setSoundVolume(-3);
-		expect(getSoundVolume()).toBe(0);
-		setSoundVolume(Number.NaN);
-		expect(getSoundVolume()).toBe(1);
-		setSoundVolume(Number.POSITIVE_INFINITY);
-		expect(getSoundVolume()).toBe(1);
-		setSoundVolume(0.75);
-		expect(getSoundVolume()).toBe(0.75);
+		expect(master?.gain.value).toBe(SOUND_CUE_VOLUME);
 	});
 });

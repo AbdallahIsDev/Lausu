@@ -77,6 +77,7 @@ const baseConfig: LausuConfig = {
 	show_notifications: true,
 	clipboard_save_restore: true,
 	clipboard_restore_delay_ms: 150,
+	clipboard_history_exclude: true,
 	asr_backend: "whisper",
 	qwen_model_path: null,
 	parakeet_model_path: null,
@@ -834,9 +835,9 @@ describe("useSettingsConfig, discrete-control rollback", () => {
 		// the backend again, so no stale field is re-sent.
 		rejectHotkey = false;
 		await result.current.updateConfig(
-			{ sound_volume: 0.5 },
+			{ volume_duck_level: 0.5 },
 			{ revertOnFailure: true },
 		);
-		expect(lastSetConfigPayload()).toEqual({ sound_volume: 0.5 });
+		expect(lastSetConfigPayload()).toEqual({ volume_duck_level: 0.5 });
 	});
 });

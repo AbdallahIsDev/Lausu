@@ -31,6 +31,7 @@ import {
 	isMultiItemError,
 	isNoModelError,
 	mediaErrorKey,
+	offersModelPicker,
 } from "../lib/mediaErrorCopy";
 import { describeMediaSource } from "../lib/sourceLabel";
 
@@ -81,6 +82,19 @@ export interface MediaJobRow {
 	title: string | null;
 	/** Inline preview image (`data:` URL) when the extractor offered one. */
 	thumbnailDataUrl: string | null;
+	/** Provenance/timing metadata mirrored from the completion event
+	 * (schema v6). All nullable so an older backend leaves them empty. */
+	words?: number | null;
+	mediaDurationSeconds?: number | null;
+	processingSeconds?: number | null;
+	downloadSeconds?: number | null;
+	sourceType?: "youtube" | "url" | "file" | null;
+	sourceTitle?: string | null;
+	sourceUrl?: string | null;
+	fileName?: string | null;
+	thumbnailUrl?: string | null;
+	modelName?: string | null;
+	method?: "subtitles" | "transcription" | null;
 }
 
 /** Result of a batch submit: what was enqueued and what was not. */
@@ -144,6 +158,17 @@ function makeRow(source: string, clientId: string, jobId = ""): MediaJobRow {
 		quality: null,
 		title: null,
 		thumbnailDataUrl: null,
+		words: null,
+		mediaDurationSeconds: null,
+		processingSeconds: null,
+		downloadSeconds: null,
+		sourceType: null,
+		sourceTitle: null,
+		sourceUrl: null,
+		fileName: null,
+		thumbnailUrl: null,
+		modelName: null,
+		method: null,
 	};
 }
 
@@ -249,7 +274,7 @@ function showErrorToast(
 		description: label ? `${label} — ${reason}` : reason,
 		// Two visual lines max, whatever the localized copy's length.
 		classNames: { description: "wrap-break-word line-clamp-2" },
-		...(noModel
+		...(offersModelPicker(errorCode)
 			? {
 					action: {
 						label: t("media.noModelAction"),
@@ -560,6 +585,17 @@ export function useMediaJobs(): UseMediaJobsResult {
 			quality: data.quality ?? null,
 			title: data.title ?? null,
 			thumbnailDataUrl: data.thumbnail_data_url ?? null,
+			words: data.word_count ?? null,
+			mediaDurationSeconds: data.media_duration_seconds ?? null,
+			processingSeconds: data.processing_seconds ?? null,
+			downloadSeconds: data.download_seconds ?? null,
+			sourceType: data.source_type ?? null,
+			sourceTitle: data.source_title ?? null,
+			sourceUrl: data.source_url ?? null,
+			fileName: data.file_name ?? null,
+			thumbnailUrl: data.thumbnail_url ?? null,
+			modelName: data.model_name ?? null,
+			method: data.method ?? null,
 		}));
 	});
 

@@ -1,13 +1,17 @@
 import { PanelLeftIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { memo, useEffect, useState } from "react";
-import { HotkeyTooltip } from "@/components/hotkey/HotkeyTooltip";
+import { ToolbarClusterTooltip } from "@/components/layout/titlebar/ToolbarClusterTooltip";
 import { IS_LINUX, IS_MAC, IS_WIN } from "@/components/hotkey/hotkey-utils";
 import { SHORTCUTS } from "@/components/hotkey/shortcuts";
 import { AnalyticsRangeSwitcher } from "@/components/layout/AnalyticsRangeSwitcher";
 import { GlobalSearchBar } from "@/components/layout/GlobalSearchBar";
 import { ModelsTabSwitcher } from "@/components/layout/ModelsTabSwitcher";
-import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
+import {
+	ThemeSwitch,
+	nextThemeMode,
+	themeCycleEntry,
+} from "@/components/layout/ThemeSwitch";
 import {
 	CloseIcon,
 	MaximizeIcon,
@@ -111,6 +115,15 @@ interface TitleBarProps {
 	showPageControls?: boolean;
 }
 
+/** Stable ids for the toolbar cluster's shared tooltip entries. */
+const TOOLBAR_IDS = {
+	back: "back",
+	forward: "forward",
+	sidebar: "sidebar",
+	help: "help",
+	theme: "theme",
+} as const;
+
 function TitleBarInner({
 	onToggleSidebar,
 	onGoBack,
@@ -130,6 +143,37 @@ function TitleBarInner({
 	// WHOLE title bar dims like native OS title bars (container
 	// opacity below).
 	const windowFocused = useWindowFocused();
+	// Labels for the shared toolbar tooltip. The row renders its own buttons
+	// (icons only), so the cluster needs the localized copy up front; the
+	// sidebar entry is dropped while onboarding hides that button.
+	const toolbarEntries = [
+		{
+			id: TOOLBAR_IDS.back,
+			label: t("titleBar.back"),
+			keys: SHORTCUTS.navBack.keys,
+		},
+		{
+			id: TOOLBAR_IDS.forward,
+			label: t("titleBar.forward"),
+			keys: SHORTCUTS.navForward.keys,
+		},
+		{
+			id: TOOLBAR_IDS.sidebar,
+			label: t("a11y.toggleSidebar"),
+			keys: SHORTCUTS.toggleSidebar.keys,
+		},
+		{
+			id: TOOLBAR_IDS.help,
+			label: t("help.openHelp"),
+			keys: SHORTCUTS.openHelp.keys,
+		},
+	].filter((entry) => currentPage !== "onboarding" || entry.id !== "sidebar");
+	// Compact current → next label for the cluster tooltip. The button's
+	// aria-label keeps the full sentence for screen readers.
+	const themeTooltip = t("theme.switchTitle", {
+		mode: t(themeCycleEntry(themeMode).labelKey),
+		next: t(themeCycleEntry(nextThemeMode(themeMode)).labelKey),
+	});
 	const bridge =
 		typeof window !== "undefined"
 			? (window.window_ as WindowBridge)
@@ -270,71 +314,80 @@ function TitleBarInner({
                             Hidden entirely in minimal chrome (status screens):
                             nothing up here is usable without a page behind it. */}
 			{!minimalChrome && (
-				<div className="flex items-center gap-1 p-1">
-					{/* ONB-3: the onboarding wizard is a focused, mandatory flow —
-				    the sidebar is hidden entirely for that page, so the toggle
-				    must not render (toggling would collapse a sidebar that
-				    isn't visible and desync the persisted rail state). */}
-					{currentPage !== "onboarding" && (
-						<HotkeyTooltip
-							label={t("a11y.toggleSidebar")}
-							keys={SHORTCUTS.toggleSidebar.keys}
-						>
+				// ONE tooltip for the whole row (see ToolbarClusterTooltip):
+				// the buttons keep their individual labels, but crossing from
+				// one to the next swaps the text in a tooltip that stays put
+				// instead of closing and reopening, and anchoring to the row
+				// keeps it off the window's leading edge.
+				<ToolbarClusterTooltip
+					entries={toolbarEntries}
+					className="flex items-center gap-1 p-1"
+				>
+					{(bind) => (
+						<>
+							{/* Back/Forward navigation. LEFT of the sidebar toggle:
+							    navigation reads before the layout control (owner
+							    decision 2026-11-18). */}
+							<NavChevronButton
+								tooltipLabel={t("titleBar.back")}
+								shortcutKeys={SHORTCUTS.navBack.keys}
+								ariaLabel={t("a11y.goBack")}
+								onClick={onGoBack}
+								disabled={!canGoBack}
+								path="M10 12L6 8L10 4"
+								clusterBind={bind(TOOLBAR_IDS.back)}
+							/>
+							<NavChevronButton
+								tooltipLabel={t("titleBar.forward")}
+								shortcutKeys={SHORTCUTS.navForward.keys}
+								ariaLabel={t("a11y.goForward")}
+								onClick={onGoForward}
+								disabled={!canGoForward}
+								path="M6 4L10 8L6 12"
+								clusterBind={bind(TOOLBAR_IDS.forward)}
+							/>
+
+							{/* ONB-3: the onboarding wizard is a focused, mandatory flow —
+							    the sidebar is hidden entirely for that page, so the
+							    toggle must not render (toggling would collapse a
+							    sidebar that isn't visible and desync the persisted
+							    rail state). */}
+							{currentPage !== "onboarding" && (
+								<ToolbarButton
+									onClick={onToggleSidebar}
+									ariaLabel={t("a11y.toggleSidebarWithShortcut", {
+										shortcut: SHORTCUTS.toggleSidebar.keys,
+									})}
+									ariaKeyshortcuts={SHORTCUTS.toggleSidebar.ariaKeyshortcuts}
+									{...bind(TOOLBAR_IDS.sidebar)}
+								>
+									<HugeiconsIcon
+										icon={PanelLeftIcon}
+										strokeWidth={2}
+										className="h-4 w-4"
+									/>
+								</ToolbarButton>
+							)}
+
+							{/* discoverable "?" help button. Mirrors the "?" keyboard
+							    shortcut (handled in App.tsx) so mouse users and AT
+							    users can also open the keyboard-shortcut overlay. */}
 							<ToolbarButton
-								onClick={onToggleSidebar}
-								ariaLabel={t("a11y.toggleSidebarWithShortcut", {
-									shortcut: SHORTCUTS.toggleSidebar.keys,
-								})}
-								ariaKeyshortcuts={SHORTCUTS.toggleSidebar.ariaKeyshortcuts}
+								onClick={onOpenHelp}
+								ariaLabel={t("help.openHelp")}
+								ariaKeyshortcuts={SHORTCUTS.openHelp.ariaKeyshortcuts}
+								{...bind(TOOLBAR_IDS.help)}
 							>
-								<HugeiconsIcon
-									icon={PanelLeftIcon}
-									strokeWidth={2}
-									className="h-4 w-4"
-								/>
+								<span
+									aria-hidden
+									className="text-xs-plus font-medium leading-none"
+								>
+									?
+								</span>
 							</ToolbarButton>
-						</HotkeyTooltip>
+						</>
 					)}
-
-					{/* Back/Forward navigation */}
-					<NavChevronButton
-						tooltipLabel={t("titleBar.back")}
-						shortcutKeys={SHORTCUTS.navBack.keys}
-						ariaLabel={t("a11y.goBack")}
-						onClick={onGoBack}
-						disabled={!canGoBack}
-						path="M10 12L6 8L10 4"
-					/>
-					<NavChevronButton
-						tooltipLabel={t("titleBar.forward")}
-						shortcutKeys={SHORTCUTS.navForward.keys}
-						ariaLabel={t("a11y.goForward")}
-						onClick={onGoForward}
-						disabled={!canGoForward}
-						path="M6 4L10 8L6 12"
-					/>
-
-					{/*discoverable "?" help button. Mirrors the "?"
-                            keyboard shortcut (handled in App.tsx) so mouse users and
-                            AT users can also open the keyboard-shortcut overlay. */}
-					<HotkeyTooltip
-						label={t("help.openHelp")}
-						keys={SHORTCUTS.openHelp.keys}
-					>
-						<ToolbarButton
-							onClick={onOpenHelp}
-							ariaLabel={t("help.openHelp")}
-							ariaKeyshortcuts={SHORTCUTS.openHelp.ariaKeyshortcuts}
-						>
-							<span
-								aria-hidden
-								className="text-xs-plus font-medium leading-none"
-							>
-								?
-							</span>
-						</ToolbarButton>
-					</HotkeyTooltip>
-				</div>
+				</ToolbarClusterTooltip>
 			)}
 
 			{/* Per-page controls, centered in the middle of the title bar.
@@ -370,16 +423,22 @@ function TitleBarInner({
                             window controls, the button anchors the bar's right edge
                             instead. The accessible name + hover title carry the
                             current→next theme info (no visible text). */}
-			<div className="flex items-center p-1">
-				<ThemeSwitch
-					themeMode={themeMode}
-					onThemeChange={onThemeChange}
-					className={cn(
-						"no-drag press-scale h-6 w-6 rounded-lg",
-						"text-muted-foreground hover:text-foreground",
-					)}
-				/>
-			</div>
+			<ToolbarClusterTooltip
+				entries={[{ id: TOOLBAR_IDS.theme, label: themeTooltip }]}
+				className="flex items-center p-1"
+			>
+				{(bind) => (
+					<ThemeSwitch
+						themeMode={themeMode}
+						onThemeChange={onThemeChange}
+						clusterBind={bind(TOOLBAR_IDS.theme)}
+						className={cn(
+							"no-drag press-scale h-6 w-6 rounded-lg",
+							"text-muted-foreground hover:text-foreground",
+						)}
+					/>
+				)}
+			</ToolbarClusterTooltip>
 
 			{/* Window controls, Windows/Linux only. macOS uses the native
                             traffic lights (titleBarStyle: 'hiddenInset' in the main

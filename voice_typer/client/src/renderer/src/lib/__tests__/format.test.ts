@@ -31,8 +31,11 @@ vi.mock("@/i18n/i18n", () => ({
 import { getLocale } from "@/i18n/i18n";
 import {
 	compactNumber,
+	countWords,
 	formatBytes,
 	formatDuration,
+	formatElapsedShort,
+	formatMediaDuration,
 	formatSpeed,
 	formatVram,
 } from "@/lib/format";
@@ -231,5 +234,33 @@ describe("formatVram", () => {
 	it("formats gigabyte range correctly (en)", () => {
 		expect(formatVram(1024)).toBe("1 GB");
 		expect(formatVram(1536)).toBe("1.5 GB");
+	});
+});
+
+describe("countWords", () => {
+	it("matches whitespace splitting with empty fragments ignored", () => {
+		expect(countWords("one two  three")).toBe(3);
+		expect(countWords("  leading and trailing  ")).toBe(3);
+		expect(countWords("")).toBe(0);
+		expect(countWords("   ")).toBe(0);
+		expect(countWords(null)).toBe(0);
+	});
+});
+
+describe("formatMediaDuration", () => {
+	it("uses MM:SS below an hour and 1h 02m past it", () => {
+		expect(formatMediaDuration(754)).toBe("12:34");
+		expect(formatMediaDuration(3725)).toBe("1h 02m");
+		expect(formatMediaDuration(null)).toBe("—");
+	});
+});
+
+describe("formatElapsedShort", () => {
+	it("formats seconds, minutes+seconds and hours", () => {
+		expect(formatElapsedShort(48)).toBe("48s");
+		expect(formatElapsedShort(130)).toBe("2m 10s");
+		expect(formatElapsedShort(120)).toBe("2m");
+		expect(formatElapsedShort(3725)).toBe("1h 02m");
+		expect(formatElapsedShort(undefined)).toBe("—");
 	});
 });

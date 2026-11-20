@@ -21,19 +21,17 @@
 	},
 	"media": {
 		"title": "Transcription de médias",
-		"description": "Transformez n'importe quelle vidéo ou audio en texte — collez un lien ou déposez un fichier.",
+		"description": "Transformez n'importe quelle vidéo ou audio en texte. Collez un lien ou déposez un fichier.",
 		"sourceLabel": "Lien ou chemin de fichier",
 		"sourcePlaceholder": "https://example.com/video.mp4 ou un chemin sur cet appareil",
 		"dropHint": "Déposez un fichier média ici, ou collez un lien ci-dessus.",
-		"useSubtitlesLabel": "Utiliser les sous-titres lorsqu'ils sont disponibles",
-		"useSubtitlesInfo": "Instantané et gratuit : utilise les sous-titres fournis par le site (écrits par ses auteurs, peuvent différer de l'audio). Sinon, l'audio est transcrit comme d'habitude.",
 		"start": "Transcrire",
 		"cancel": "Annuler",
 		"phaseLoadingModel": "Chargement du modèle…",
 		"phaseDownloading": "Téléchargement de l'audio…",
 		"phaseTranscribing": "Transcription en cours…",
 		"phasePreparing": "Préparation…",
-		"streamFallbackNote": "Le téléchargement de l'audio a échoué — transcription depuis le flux.",
+		"streamFallbackNote": "Le téléchargement de l'audio a échoué. Transcription depuis le flux.",
 		"lowConfidence": "Confiance faible",
 		"errorTooShort": "Aucun audio trouvé dans ce média.",
 		"errorTruncated": "Seule une partie de ce média a pu être lue. Réessayez.",
@@ -49,10 +47,10 @@
 		"percent": "{percent} %",
 		"eta": "≈ {time} restantes",
 		"duration": "Durée {time}",
-		"longMediaNotice": "Média long : la transcription prend proportionnellement plus de temps — l'estimation se met à jour en continu.",
+		"longMediaNotice": "Média long : la transcription prend proportionnellement plus de temps. L'estimation se met à jour en continu.",
 		"completeTitle": "Enregistré dans l'historique",
 		"completeDescription": "{chars} caractères ont été ajoutés à votre historique.",
-		"partialDescription": "Annulé — la transcription partielle ({chars} caractères) a été enregistrée dans l'historique.",
+		"partialDescription": "Annulé. La transcription partielle ({chars} caractères) a été enregistrée dans l'historique.",
 		"openHistory": "Ouvrir l'historique",
 		"errorTitle": "Échec de la transcription",
 		"errorGeneric": "Le média n'a pas pu être transcrit.",
@@ -62,7 +60,7 @@
 		"errorLoginRequired": "Ce lien nécessite une connexion ou pointe vers du contenu privé. Utilisez un lien public.",
 		"errorGeoBlocked": "Ce média n'est pas disponible dans votre région.",
 		"errorPlaylist": "Cela ressemble à une playlist. Collez un seul lien vidéo ou audio.",
-		"errorDecode": "Le média n'a pas pu être décodé — le fichier est peut-être corrompu ou non pris en charge.",
+		"errorDecode": "Le média n'a pas pu être décodé. Le fichier est peut-être corrompu ou non pris en charge.",
 		"errorResolve": "Le lien n'a pas pu être lu. Vérifiez qu'il pointe vers un site pris en charge.",
 		"errorUrlExpired": "Le lien du média a expiré pendant le traitement. Réessayez.",
 		"errorDownloadFailed": "Le téléchargement de l'audio a échoué. Vérifiez votre connexion et réessayez.",
@@ -74,7 +72,7 @@
 		"browseFile": "Parcourir les fichiers",
 		"orLink": "ou collez un lien",
 		"atCapacity": "Les {max} places sont occupées. Annulez une tâche ou attendez qu'une se termine.",
-		"batchLimited": "{accepted} sur {total} ajoutés — {max} emplacements sont utilisés",
+		"batchLimited": "{accepted} sur {total} ajoutés. {max} emplacements sont utilisés",
 		"pickerUnavailable": "La sélection de fichiers n'est pas disponible ici. Glissez le fichier sur la page.",
 		"cancelAll": "Tout annuler",
 		"dismiss": "Ignorer",
@@ -82,7 +80,19 @@
 		"duplicateDescription": "Ce fichier ou ce lien est déjà en cours de transcription.",
 		"noSpeech": "Aucune parole n'a été trouvée dans ce média.",
 		"noSpeechTitle": "Aucune parole trouvée",
-		"clearInput": "Effacer"
+		"clearInput": "Effacer",
+		"errorModelLanguage": "Le modèle sélectionné ne prend pas en charge la langue choisie. Ouvrez Modèles pour en choisir un qui la prend en charge.",
+		"dropRelease": "Relâchez pour transcrire",
+		"paste": "Coller depuis le presse-papiers",
+		"invalidSource": "Saisissez un lien valide (http:// ou https://) ou le chemin d'un fichier existant.",
+		"wordsAdded": "{count} mots ajoutés à l'historique",
+		"wordAdded": "1 mot ajouté à l'historique",
+		"metaYoutube": "YouTube",
+		"metaWebsite": "Site web",
+		"metaLocalFile": "Fichier local",
+		"metaSubtitles": "Sous-titres",
+		"metaTranscription": "Transcription audio",
+		"elapsed": "Écoulé {time}"
 	},
 	"providers": {
 		"title": "Fournisseurs de modèles",
@@ -187,6 +197,14 @@
 		"appLanguageDescription": "Choisissez la langue de l'interface de {appName}.",
 		"transcriptionLanguage": "Langue de transcription",
 		"transcriptionLanguageDescription": "Détecter automatiquement la langue parlée, ou choisissez-en une pour une meilleure précision.",
+		"translationEnable": "Traduire la sortie",
+		"translationTarget": "Langue de sortie",
+		"translationTargetInfo": "Traduire le texte dans cette langue. « Comme parlé » conserve le texte d’origine.",
+		"translationSameAsSpoken": "Comme parlé",
+		"translationGpu": "Utiliser le GPU pour la traduction",
+		"translationGpuInfo": "Exécuter le modèle local sur un GPU compatible via Vulkan, sans téléchargement CUDA.",
+		"translationGlossary": "Terminologie",
+		"translationGlossaryInfo": "Un terme par ligne au format source => traduction. Les noms de produits et d’interface restent inchangés.",
 		"language": "Langue",
 		"languageDescription": "Langue de reconnaissance vocale",
 		"hotkey": "Raccourci clavier",
@@ -382,10 +400,6 @@
 			"testStartSound": "Tester le son de début",
 			"testStopSoundAria": "Jouer le son de fin d'enregistrement",
 			"testStopSound": "Tester le son de fin",
-			"soundVolumeAria": "Volume des signaux sonores",
-			"soundVolumeInfo": "Définit le volume des signaux sonores de début et de fin d'enregistrement, du silence (0) au maximum (1).",
-			"soundVolumeInfoSearch": "Volume des sons de début et de fin",
-			"soundVolume": "Volume du son",
 			"hotkeyTitle": "Raccourci clavier",
 			"hotkeyDescription": "Touche pour démarrer et arrêter la dictée.",
 			"dictationKey": "Touche de dictée",
@@ -599,6 +613,9 @@
 			"clipboardSaveRestoreAria": "Enregistrer et restaurer le presse-papiers",
 			"clipboardSaveRestoreInfo": "Mémorise le contenu du presse-papiers avant le collage et le restaure ensuite.",
 			"clipboardSaveRestoreLabel": "Enregistrer et restaurer le presse-papiers",
+			"clipboardHistoryExcludeAria": "Garder les dictées hors de l'historique du presse-papiers",
+			"clipboardHistoryExcludeInfo": "Marque chaque dictée pour que l'historique du presse-papiers du système (Win+V) ne l'enregistre pas. Désactivez cette option pour conserver les transcriptions dans l'historique.",
+			"clipboardHistoryExcludeLabel": "Garder les dictées hors de l'historique du presse-papiers",
 			"logTranscriptionsAria": "Consigner les transcriptions",
 			"logTranscriptionsInfo": "Écrit chaque transcription dans le fichier journal de l'app pour le diagnostic. Le texte reste sur cet appareil.",
 			"logTranscriptionsLabel": "Consigner les transcriptions",
@@ -822,6 +839,7 @@
 		"statusActive": "Actif",
 		"statusInactive": "Inactif",
 		"unlocked": "Plugins débloqués.",
+		"hidden": "Plugins masqués.",
 		"unlockFailed": "Impossible de débloquer les plugins. Réessayez."
 	},
 	"models": {
@@ -1063,7 +1081,10 @@
 		"charsSuffix_two": " ({count} caractères)",
 		"charsSuffix_few": " ({count} caractères)",
 		"charsSuffix_many": " ({count} caractères)",
-		"charsSuffix_other": " ({count} caractères)"
+		"charsSuffix_other": " ({count} caractères)",
+		"mediaBadge": "Média",
+		"dictationBadge": "Dictée",
+		"viewTranscript": "Voir la transcription"
 	},
 	"tooltips": {
 		"toggleRecording": "Démarrer ou arrêter la dictée vocale",
@@ -1806,7 +1827,7 @@
 	"theme": {
 		"light": "Clair",
 		"dark": "Sombre",
-		"switchTitle": "Mode {mode}: cliquez pour basculer",
+		"switchTitle": "{mode} → {next}",
 		"switchAriaLabel": "Thème actuel : {mode}. Cliquez pour basculer vers {next}.",
 		"system": "Système",
 		"preset": {
@@ -1869,9 +1890,9 @@
 		"models": {
 			"allModels": "Tous les modèles",
 			"badgeRecommended": "Recommandé",
-			"badgeFast": "Rapide",
-			"badgeLanguages": "25 langues"
-		}
+			"badgeFast": "Rapide"
+		},
+		"languageCountBadge": "{count} langues"
 	},
 	"microphoneTest": {
 		"title": "Résultat du test",
@@ -2156,6 +2177,9 @@
 			"auto_punctuation_failed": "Ponctuation automatique échouée. Consultez le journal pour plus de détails.",
 			"no_speech_detected": "Aucune parole détectée et l'audio était presque silencieux.\nVotre micro capture peut-être mal le son.\nVérifiez que le bon micro est sélectionné et actif.",
 			"no_transcription_produced": "L'audio a été enregistré mais aucune transcription n'a été produite.\nCela arrive si le modèle est mal configuré ou si l'audio est peu clair. Réessayez ou consultez le journal."
+		},
+		"model_language": {
+			"unsupported": "{model} ne prend pas en charge {language}."
 		}
 	},
 	"error": {
@@ -2242,7 +2266,9 @@
 		"pasteDeferredHint": "La commande de collage n'a pas pu être envoyée à l'application cible. Collez le texte vous-même avec votre raccourci de collage habituel.",
 		"pasteDeferredHintSecureInput": "L'application cible a activé la saisie sécurisée (Secure Input, par exemple un champ de mot de passe), ce qui bloque les frappes synthétiques. Collez le texte vous-même avec votre raccourci de collage habituel.",
 		"pasteDeferredHintIme": "Une composition IME était en cours, la commande de collage a donc été ignorée. Collez le texte vous-même avec votre raccourci de collage habituel.",
-		"pasteDeferredHintNoTextField": "Aucun champ de texte n'avait le focus, la commande de collage a donc été ignorée. Placez le focus dans un champ de texte et collez le texte vous-même avec votre raccourci de collage habituel."
+		"pasteDeferredHintNoTextField": "Aucun champ de texte n'avait le focus, la commande de collage a donc été ignorée. Placez le focus dans un champ de texte et collez le texte vous-même avec votre raccourci de collage habituel.",
+		"modelLanguageUnsupported": "{model} ne prend pas en charge {language}.",
+		"modelLanguageUnsupportedHint": "Choisissez sur la page Modèles un modèle qui la prend en charge."
 	},
 	"trayState": {
 		"idle": "inactif",
@@ -2382,5 +2408,18 @@
 		"errorUnsupported": "La prise en charge du GPU ne peut pas être installée sur ce système.",
 		"errorInternal": "Une erreur est survenue pendant la configuration du GPU.",
 		"statusDownloading": "Téléchargement"
+	},
+	"debug": {
+		"title": "Panneau de débogage",
+		"statsLayout": "Disposition des statistiques du jour",
+		"separated": "Séparé",
+		"joined": "Joint",
+		"badgeColor": "Couleur du badge Plugins",
+		"red": "Rouge",
+		"green": "Vert",
+		"primary": "Primaire",
+		"reset": "Réinitialiser",
+		"open": "Ouvrir le panneau de débogage",
+		"close": "Réduire le panneau de débogage"
 	}
 }

@@ -98,6 +98,7 @@ function pushComplete(data: Record<string, unknown>) {
 			client_id: null,
 			row_id: 7,
 			chars: 12,
+			word_count: 12,
 			partial: false,
 			tier: "download",
 			quality: null,
@@ -115,12 +116,10 @@ describe("media row phase copy", () => {
 		expect(row?.textContent).not.toContain("Loading model");
 	});
 
-	it("keeps 'Preparing' during the download and names the download as detail", async () => {
-		const { container, getByTestId } = await startOneJob();
+	it("names the download as the step label while it runs", async () => {
+		const { container } = await startOneJob();
 		pushProgress({ phase: "downloading", progress: 0.3 });
 		const row = await waitFor(() => {
-			// The measured wrap fades the starting fallback out, so wait for
-			// the single settled row before reading it.
 			const bars = container.querySelectorAll('[role="progressbar"]');
 			const bar = bars[0];
 			if (bars.length !== 1 || !bar) throw new Error("row not settled");
@@ -128,11 +127,9 @@ describe("media row phase copy", () => {
 			if (!settled) throw new Error("row has no parent");
 			return settled;
 		});
-		expect(row.textContent).toContain("Preparing");
+		expect(row.textContent).toContain("Downloading audio");
 		expect(row.textContent).not.toContain("Loading model");
-		expect(getByTestId("media-phase-detail").textContent).toContain(
-			"Downloading audio",
-		);
+		expect(row.textContent).not.toContain("Preparing");
 	});
 
 	it("switches to 'Transcribing' only after the first window", async () => {

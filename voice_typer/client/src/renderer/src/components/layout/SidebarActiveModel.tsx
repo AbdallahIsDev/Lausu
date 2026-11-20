@@ -1,23 +1,10 @@
-// Active speech-engine caption for the sidebar.
-// One line, directly above the CPU/GPU switch, so the running engine is
-// identifiable from any page without opening Models. Truncated (full name
-// in `title`) to keep the rail width stable; hidden in the icon rail where
-// there is no room for text.
-//
-// A selected PLUGIN owns dictation, so the caption names the plugin instead
-// of the local model (the model is not transcribing) and appends the live
-// recording state — that is the sidebar half of "this is the engine in use".
-//
-// INDEPENDENCE CONTRACT: this caption reads ONLY speech-engine identity
-// fields (`asr_backend`, `model_size`, `cloud_provider`, `cloud_model`,
-// `active_plugin_name`) plus the recording state. It must never consult
-// `device` / `gpu_available`, and it must never be gated on DeviceToggle
-// rendering. The device switch is an optional control that can be absent
-// (no GPU), lagging (set_config round-trip), or broken; none of those states
-// say anything about which engine is running, so none of them may hide this
-// line. The caption is the sidebar half of what the tray tooltip reports.
+// Active speech-engine caption: a state DOT plus the engine name (plugin when a
+// plugin owns dictation). Reads only engine-identity fields + recording state —
+// never `device`/`gpu_available`, so a missing or broken DeviceToggle cannot
+// blank or hide it (C-UI-10).
 
 import { useT } from "@/i18n/i18n";
+import { statusColorFor } from "@/lib/dictationStatus";
 import { formatActiveModel } from "@/lib/utils/configDisplay";
 import { useAppStore } from "@/stores/appStore";
 
@@ -31,19 +18,32 @@ export function SidebarActiveModel({
 	// re-render this caption.
 	const pluginName = useAppStore((s) => s.config?.active_plugin_name ?? "");
 	const modelLabel = useAppStore((s) => formatActiveModel(s.config));
-	const recording = useAppStore((s) => s.recordingState === "recording");
+	const state = useAppStore((s) => s.recordingState);
+	const lastError = useAppStore((s) => s.lastError);
 
 	const engine = pluginName || modelLabel;
 	if (collapsed || engine === "") return null;
-	const label = recording ? `${engine} · ${t("trayState.recording")}` : engine;
+	const color = statusColorFor(state, !!lastError);
+	// The dot is decorative; the state word stays reachable for assistive
+	// tech (and on hover) instead of living in the visible row.
+	const stateLabel = t(`trayState.${state}`);
 
 	return (
-		<p
-			className="truncate px-2 py-1 text-xs text-muted-foreground"
-			title={label}
+		<div
+			className="flex items-center gap-2 px-2 py-1"
+			title={`${engine} · ${stateLabel}`}
 			data-testid="sidebar-active-model"
 		>
-			{label}
-		</p>
+			<span
+				aria-hidden
+				data-testid="sidebar-active-model-dot"
+				className="h-2 w-2 shrink-0 rounded-full transition-colors duration-300"
+				style={{ backgroundColor: color }}
+			/>
+			<span className="min-w-0 truncate text-xs text-muted-foreground">
+				{engine}
+			</span>
+			<span className="sr-only">{stateLabel}</span>
+		</div>
 	);
 }

@@ -47,6 +47,7 @@ export const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
 	"device_lost",
 	"parakeet_cpu_fallback",
 	"asr_backend_disabled",
+	"model_language_unsupported",
 	"asr_last_resort_unloaded",
 	"llm_polish_failed",
 	"reconnecting",

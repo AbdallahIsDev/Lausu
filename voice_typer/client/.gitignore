@@ -9,7 +9,6 @@ coverage/
 # re-include one file; git cannot re-include inside an excluded dir.
 src/renderer/public/*
 resources/
-storybook-static/
 # Exception: hand-written source shipped verbatim (boot-failure fallback
 # screen, referenced by index.html). Generated siblings stay ignored.
 !src/renderer/public/boot-fallback.js

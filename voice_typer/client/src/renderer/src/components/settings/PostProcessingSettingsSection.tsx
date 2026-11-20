@@ -34,6 +34,7 @@ export const PostProcessingSettingsSection = memo(
 	function PostProcessingSettingsSection({
 		config,
 		updateConfig,
+		updateConfigDebounced,
 		isVisible,
 		onNavigate,
 	}: SettingsSectionSharedProps & {
@@ -53,6 +54,12 @@ export const PostProcessingSettingsSection = memo(
 			updateConfig({ templates_enabled: checked });
 		const handleVocabAutomationChange = (checked: boolean) =>
 			updateConfig({ vocabulary_automation_enabled: checked });
+		const handleTranslationChange = (checked: boolean) =>
+			updateConfig({ translation_enabled: checked });
+		const handleTranslationTargetChange = (v: string) =>
+			updateConfig({ translation_target_language: v === "same" ? "" : v });
+		const handleTranslationGpuChange = (checked: boolean) =>
+			updateConfig({ translation_gpu_enabled: checked });
 
 		//section-level visibility check for the Post-Processing section.
 		// The title constant feeds BOTH the `<SettingsSection title>` prop
@@ -63,6 +70,22 @@ export const PostProcessingSettingsSection = memo(
 			{
 				label: t("settings.transcriptionLanguage"),
 				info: t("settings.transcriptionLanguageDescription"),
+			},
+			{
+				label: t("settings.translationEnable"),
+				info: t("settings.translationTargetInfo"),
+			},
+			{
+				label: t("settings.translationTarget"),
+				info: t("settings.translationTargetInfo"),
+			},
+			{
+				label: t("settings.translationGpu"),
+				info: t("settings.translationGpuInfo"),
+			},
+			{
+				label: t("settings.translationGlossary"),
+				info: t("settings.translationGlossaryInfo"),
 			},
 			{
 				label: t("settings.autoPunctuation"),
@@ -130,6 +153,99 @@ export const PostProcessingSettingsSection = memo(
 										))}
 									</SelectContent>
 								</Select>
+							</SettingRow>
+						)}
+
+						{isVisible(
+							t("settings.translationEnable"),
+							t("settings.translationTargetInfo"),
+							postProcessingTitle,
+						) && (
+							<SettingRow
+								label={t("settings.translationEnable")}
+								info={t("settings.translationTargetInfo")}
+							>
+								<Switch
+									checked={cfg.translation_enabled ?? false}
+									onCheckedChange={handleTranslationChange}
+									aria-label={t("settings.translationEnable")}
+								/>
+							</SettingRow>
+						)}
+
+						{isVisible(
+							t("settings.translationTarget"),
+							t("settings.translationTargetInfo"),
+							postProcessingTitle,
+						) && (
+							<SettingRow
+								label={t("settings.translationTarget")}
+								info={t("settings.translationTargetInfo")}
+							>
+								<Select
+									value={cfg.translation_target_language || "same"}
+									onValueChange={handleTranslationTargetChange}
+								>
+									<SelectTrigger
+										className="w-44"
+										aria-label={t("settings.translationTarget")}
+									>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="same">
+											<span>{t("settings.translationSameAsSpoken")}</span>
+										</SelectItem>
+										{LANGUAGE_OPTIONS.filter(
+											(lang) => lang.value !== "auto",
+										).map((lang) => (
+											<SelectItem key={lang.value} value={lang.value}>
+												<span>{t(lang.labelKey)}</span>
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</SettingRow>
+						)}
+
+						{isVisible(
+							t("settings.translationGpu"),
+							t("settings.translationGpuInfo"),
+							postProcessingTitle,
+						) && (
+							<SettingRow
+								label={t("settings.translationGpu")}
+								info={t("settings.translationGpuInfo")}
+							>
+								<Switch
+									checked={cfg.translation_gpu_enabled ?? true}
+									onCheckedChange={handleTranslationGpuChange}
+									aria-label={t("settings.translationGpu")}
+								/>
+							</SettingRow>
+						)}
+
+						{isVisible(
+							t("settings.translationGlossary"),
+							t("settings.translationGlossaryInfo"),
+							postProcessingTitle,
+						) && (
+							<SettingRow
+								label={t("settings.translationGlossary")}
+								info={t("settings.translationGlossaryInfo")}
+							>
+								<textarea
+									className="min-h-20 w-72 rounded-md border border-border bg-background px-3 py-2 text-sm"
+									value={cfg.translation_glossary ?? ""}
+									onChange={(event) =>
+										updateConfigDebounced(
+											"translation_glossary",
+											event.target.value,
+										)
+									}
+									aria-label={t("settings.translationGlossary")}
+									placeholder="hero section => الهيرو سكشن"
+								/>
 							</SettingRow>
 						)}
 

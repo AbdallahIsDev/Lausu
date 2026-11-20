@@ -122,6 +122,15 @@ export function SearchField({
 				onChange={handleChange}
 				placeholder={placeholder}
 				aria-label={resolvedAriaLabel}
+				name="freeTextSearch"
+				type="text"
+				autoComplete="off"
+				autoCorrect="off"
+				autoCapitalize="off"
+				spellCheck={false}
+				data-lpignore="true"
+				data-1p-ignore="true"
+				data-form-type="other"
 				// Muted 10% frame (same as every other border in the app) —
 				// a bare `border-border` would override the Input's
 				// transparent border with a full-opacity line.

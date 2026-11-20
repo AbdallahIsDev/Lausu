@@ -7,9 +7,8 @@
 
 import { PlayIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { Skeleton } from "skullet/react";
-import { RangeSlider } from "@/components/common/RangeSlider";
 import { SettingsSection } from "@/components/common/SettingsSection";
 import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { HotkeyPicker } from "@/components/hotkey/HotkeyPicker";
@@ -33,11 +32,7 @@ import {
 	type ToggleGroupOption,
 } from "@/components/ui/toggle-group";
 import { useT } from "@/i18n/i18n";
-import {
-	playSoundCue,
-	setSoundFeedbackEnabled,
-	setSoundVolume,
-} from "@/lib/sound-manager";
+import { playSoundCue, setSoundFeedbackEnabled } from "@/lib/sound-manager";
 import { anyRowVisible, GatedSettingRow } from "./settingsRowGating";
 
 import type { SettingsSectionSharedProps } from "./types";
@@ -175,40 +170,20 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 		setSoundFeedbackEnabled(checked);
 	};
 
-	// Volume slider → debounced config write + immediate manager sync so
-	// a Test Sound click right after a drag previews the new level even
-	// before the debounce timer fires. The config value stays the
-	// canonical 0.0..1.0 float (mirrors the server allowlist); the SLIDER
-	// works in percent units (0-100, step 5) so the readout / thumb
-	// aria-valuetext / endpoints render as "65%" instead of raw decimals.
-	const handleSoundVolumeChange = (v: number) => {
-		const clamped = Math.min(1, Math.max(0, v / 100));
-		setSoundVolume(clamped);
-		updateConfigDebounced("sound_volume", clamped);
-	};
-
-	// Preview the recording START cue at the configured volume. The
-	// manager gates on the enabled flag internally, so a disabled
-	// toggle means the preview is a no-op, matching real behavior.
-	// C-SOUND-1: there is no success/complete audio cue; start and
-	// stop are the only dictation lifecycle sounds.
+	// Preview the recording START cue. The manager gates on the enabled flag
+	// internally, so a disabled toggle means the preview is a no-op, matching
+	// real behavior. C-SOUND-1: there is no success/complete audio cue; start
+	// and stop are the only dictation lifecycle sounds. The cue volume is fixed
+	// (SOUND_CUE_VOLUME) and not a setting: a loud cue is picked up by the
+	// microphone and makes volume ducking think something is playing.
 	const handleTestStartSound = () => {
 		playSoundCue("start");
 	};
 
-	// Preview the recording STOP cue at the configured volume.
+	// Preview the recording STOP cue.
 	const handleTestStopSound = () => {
 		playSoundCue("stop");
 	};
-
-	// Keep the manager's volume mirror in sync with config pushes
-	// (config_changed events, reset-to-defaults, initial load) that
-	// didn't flow through the slider handler.
-	useEffect(() => {
-		if (typeof config?.sound_volume === "number") {
-			setSoundVolume(config.sound_volume);
-		}
-	}, [config?.sound_volume]);
 
 	// track invalid reasons for the NumberInputStepper inputs
 	// so we can surface inline error messages and helper text. The state
@@ -247,8 +222,6 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 	// New rows reuse ONE info string for both the search predicate and
 	// the tooltip (no separate InfoSearch keys), the predicate accepts
 	// the same string.
-	const soundVolumeLabel = t("settings.hotkeySection.soundVolume");
-	const soundVolumeInfoSearch = t("settings.hotkeySection.soundVolumeInfo");
 	const testStartSoundLabel = t("settings.hotkeySection.testStartSound");
 	const testStopSoundLabel = t("settings.hotkeySection.testStopSound");
 	const warnPasswordLabel = t("settings.hotkeySection.warnPasswordPaste");
@@ -292,9 +265,8 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 		{ label: autoPasteLabel, info: autoPasteInfoSearch },
 		{ label: warnPasswordLabel, info: warnPasswordInfoSearch },
 		{ label: soundFeedbackLabel, info: soundFeedbackInfoSearch },
-		{ label: soundVolumeLabel, info: soundVolumeInfoSearch },
-		{ label: testStartSoundLabel, info: soundVolumeInfoSearch },
-		{ label: testStopSoundLabel, info: soundVolumeInfoSearch },
+		{ label: testStartSoundLabel, info: soundFeedbackInfoSearch },
+		{ label: testStopSoundLabel, info: soundFeedbackInfoSearch },
 		{ label: silenceWarningLabel, info: silenceWarningInfoSearch },
 		{ label: maxRecordingTimeLabel, info: maxRecordingTimeInfoSearch },
 	];
@@ -458,31 +430,13 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 								/>
 							</GatedSettingRow>
 
-							{/* ── Sound volume & preview ──────────────────────────── */}
-							<GatedSettingRow
-								isVisible={isVisible}
-								sectionTitle={recordingTitle}
-								label={soundVolumeLabel}
-								info={t("settings.hotkeySection.soundVolumeInfoSearch")}
-								searchInfo={soundVolumeInfoSearch}
-							>
-								<RangeSlider
-									value={Math.round((cfg.sound_volume ?? 1) * 100)}
-									min={0}
-									max={100}
-									step={5}
-									onChange={handleSoundVolumeChange}
-									ariaLabel={t("settings.hotkeySection.soundVolumeAria")}
-									disabled={!(cfg.sound_feedback_enabled ?? true)}
-									suffix="%"
-								/>
-							</GatedSettingRow>
+							{/* ── Sound preview ──────────────────────────────────── */}
 							<GatedSettingRow
 								isVisible={isVisible}
 								sectionTitle={recordingTitle}
 								label={testStartSoundLabel}
-								info={t("settings.hotkeySection.soundVolumeInfoSearch")}
-								searchInfo={soundVolumeInfoSearch}
+								info={t("settings.hotkeySection.soundFeedbackInfo")}
+								searchInfo={soundFeedbackInfoSearch}
 							>
 								<Button
 									variant="outline"
@@ -505,8 +459,8 @@ export const RecordingSettingsSection = memo(function RecordingSettingsSection({
 								isVisible={isVisible}
 								sectionTitle={recordingTitle}
 								label={testStopSoundLabel}
-								info={t("settings.hotkeySection.soundVolumeInfoSearch")}
-								searchInfo={soundVolumeInfoSearch}
+								info={t("settings.hotkeySection.soundFeedbackInfo")}
+								searchInfo={soundFeedbackInfoSearch}
 							>
 								<Button
 									variant="outline"

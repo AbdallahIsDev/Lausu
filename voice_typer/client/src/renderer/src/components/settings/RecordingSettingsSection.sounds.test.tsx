@@ -15,7 +15,6 @@ vi.mock("@hugeicons/core-free-icons", async () => {
 vi.mock("@/lib/sound-manager", () => ({
 	playSoundCue: vi.fn(),
 	setSoundFeedbackEnabled: vi.fn(),
-	setSoundVolume: vi.fn(),
 }));
 
 vi.mock("@/components/hotkey/HotkeyPicker", () => ({
@@ -28,53 +27,16 @@ vi.mock("@/components/feedback/InfoTooltip", () => ({
 	),
 }));
 
-// Capture RangeSlider instances so tests can drive onChange.
-const sliderInstances: Array<{
-	ariaLabel: string;
-	value: number;
-	onChange: (v: number) => void;
-	disabled: boolean;
-}> = [];
-
-vi.mock("@/components/common/RangeSlider", () => ({
-	RangeSlider: (props: {
-		ariaLabel?: string;
-		value: number;
-		onChange: (v: number) => void;
-		disabled?: boolean;
-	}) => {
-		sliderInstances.push({
-			ariaLabel: props.ariaLabel ?? "",
-			value: props.value,
-			onChange: props.onChange,
-			disabled: props.disabled ?? false,
-		});
-		return (
-			<div
-				data-testid="range-slider"
-				data-aria-label={props.ariaLabel ?? ""}
-				data-value={props.value}
-				data-disabled={String(props.disabled ?? false)}
-			/>
-		);
-	},
-}));
-
 import { makeConfig } from "@/__tests__/helpers/fixtures";
 import { PrivacySettingsSection } from "@/components/settings/PrivacySettingsSection";
 import { RecordingSettingsSection } from "@/components/settings/RecordingSettingsSection";
-import {
-	playSoundCue,
-	setSoundFeedbackEnabled,
-	setSoundVolume,
-} from "@/lib/sound-manager";
+import { playSoundCue, setSoundFeedbackEnabled } from "@/lib/sound-manager";
 
 const alwaysVisible = () => true;
 const noopUpdate = () => {};
 
-describe("RecordingSettingsSection, sound volume slider + Test Sound", () => {
+describe("RecordingSettingsSection, fixed cue level + Test Sound", () => {
 	beforeEach(() => {
-		sliderInstances.length = 0;
 		vi.clearAllMocks();
 	});
 
@@ -82,7 +44,7 @@ describe("RecordingSettingsSection, sound volume slider + Test Sound", () => {
 		cleanup();
 	});
 
-	it("renders a volume slider bound to config.sound_volume (default 100%)", () => {
+	it("renders NO volume control: the cue level is fixed, not a setting", () => {
 		render(
 			<RecordingSettingsSection
 				config={makeConfig({ sound_feedback_enabled: true })}
@@ -91,10 +53,11 @@ describe("RecordingSettingsSection, sound volume slider + Test Sound", () => {
 				isVisible={alwaysVisible}
 			/>,
 		);
-		const slider = screen.getByTestId("range-slider");
-		expect(slider).toBeTruthy();
-		// Slider works in percent units; the config value stays 0..1.
-		expect(slider.getAttribute("data-value")).toBe("100");
+		// A loud cue is picked up by the microphone and makes volume ducking
+		// think something is playing, so the level is fixed at 30% and the
+		// slider was removed rather than left adjustable.
+		expect(screen.queryByRole("slider")).toBeNull();
+		expect(screen.queryByText("Sound Volume")).toBeNull();
 	});
 
 	it("renders the Test Start Sound and Test Stop Sound buttons", () => {
@@ -113,10 +76,7 @@ describe("RecordingSettingsSection, sound volume slider + Test Sound", () => {
 	it("Test Start Sound plays the start cue", () => {
 		render(
 			<RecordingSettingsSection
-				config={makeConfig({
-					sound_feedback_enabled: true,
-					sound_volume: 0.3,
-				})}
+				config={makeConfig({ sound_feedback_enabled: true })}
 				updateConfig={noopUpdate}
 				updateConfigDebounced={noopUpdate}
 				isVisible={alwaysVisible}
@@ -139,42 +99,7 @@ describe("RecordingSettingsSection, sound volume slider + Test Sound", () => {
 		expect(playSoundCue).toHaveBeenCalledWith("stop");
 	});
 
-	it("slider change clamps, syncs the manager, and persists via debounced set_config", () => {
-		const updateConfigDebounced = vi.fn();
-		render(
-			<RecordingSettingsSection
-				config={makeConfig({ sound_feedback_enabled: true })}
-				updateConfig={noopUpdate}
-				updateConfigDebounced={updateConfigDebounced}
-				isVisible={alwaysVisible}
-			/>,
-		);
-		const slider = sliderInstances.find((s) => s.value === 100);
-		expect(slider).toBeTruthy();
-		// Slider commit is in percent units (50%); the persisted config
-		// value stays the canonical 0..1 float.
-		slider?.onChange(50);
-
-		expect(setSoundVolume).toHaveBeenCalledWith(0.5);
-		expect(updateConfigDebounced).toHaveBeenCalledWith("sound_volume", 0.5);
-	});
-
-	it("slider change clamps out-of-range percent values to the 0..1 config domain", () => {
-		const updateConfigDebounced = vi.fn();
-		render(
-			<RecordingSettingsSection
-				config={makeConfig({ sound_feedback_enabled: true })}
-				updateConfig={noopUpdate}
-				updateConfigDebounced={updateConfigDebounced}
-				isVisible={alwaysVisible}
-			/>,
-		);
-		const slider = sliderInstances[0];
-		slider?.onChange(250);
-		expect(updateConfigDebounced).toHaveBeenCalledWith("sound_volume", 1);
-	});
-
-	it("volume slider and both test-sound buttons are disabled while sound feedback is off", () => {
+	it("both test-sound buttons are disabled while sound feedback is off", () => {
 		render(
 			<RecordingSettingsSection
 				config={makeConfig({ sound_feedback_enabled: false })}
@@ -183,9 +108,6 @@ describe("RecordingSettingsSection, sound volume slider + Test Sound", () => {
 				isVisible={alwaysVisible}
 			/>,
 		);
-		expect(
-			screen.getByTestId("range-slider").getAttribute("data-disabled"),
-		).toBe("true");
 		const startBtn = screen.getByTestId(
 			"test-start-sound-button",
 		) as HTMLButtonElement;
@@ -222,7 +144,7 @@ describe("RecordingSettingsSection, sound volume slider + Test Sound", () => {
 
 describe("RecordingSettingsSection, paste-safety row", () => {
 	beforeEach(() => {
-		sliderInstances.length = 0;
+		vi.clearAllMocks();
 	});
 
 	afterEach(() => {

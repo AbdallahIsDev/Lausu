@@ -40,9 +40,8 @@ import {
 import type { CSSProperties } from "react";
 import { useMemo } from "react";
 import { Skeleton } from "skullet/react";
-import { LastUpdatedIndicator } from "@/components/common/LastUpdatedIndicator";
+import { RefreshShareActions } from "@/components/common/RefreshShareActions";
 import PageHeading from "@/components/common/PageHeading";
-import { ShareStatsDialog } from "@/components/dashboard/ShareStatsDialog";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { formatCompactNumber } from "@/components/dashboard/StatCards";
 import { StatsShareImage } from "@/components/dashboard/StatsShareImage";
@@ -243,20 +242,15 @@ export default function DashboardPage() {
 				title={t("analytics.title")}
 				description={t("analytics.description")}
 			>
-				{/* First paint keeps zero live regions: the freshness
-					indicator joins only once data exists (C-CACHE-6). */}
-				{data !== null && (
-					<LastUpdatedIndicator
-						agoLabel={agoLabel}
-						onRefresh={handleManualRefresh}
-						refreshing={refreshing}
-					/>
-				)}
-				<ShareStatsDialog
+				<RefreshShareActions
+					agoLabel={agoLabel}
+					onRefresh={handleManualRefresh}
+					refreshing={refreshing}
+					showRefresh={data !== null}
 					actions={shareActions}
 					stats={shareStats}
 					palette={themePalette}
-					disabled={shareDisabled}
+					shareDisabled={shareDisabled}
 				/>
 			</PageHeading>
 

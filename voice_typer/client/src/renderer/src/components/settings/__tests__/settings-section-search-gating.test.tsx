@@ -46,7 +46,6 @@ vi.mock("@/components/hotkey/HotkeyPicker", () => ({
 // Keep the recording-section's sound cues silent and localStorage-free.
 vi.mock("@/lib/sound-manager", () => ({
 	setSoundFeedbackEnabled: vi.fn(),
-	setSoundVolume: vi.fn(),
 	playSoundCue: vi.fn(),
 }));
 
@@ -106,7 +105,6 @@ describe("RecordingSettingsSection, in-section search filtering", () => {
 		expect(screen.queryByText("Auto-Paste")).toBeNull();
 		expect(screen.queryByText("Confirm Paste into Password Fields")).toBeNull();
 		expect(screen.queryByText("Sound Feedback")).toBeNull();
-		expect(screen.queryByText("Sound Volume")).toBeNull();
 		expect(screen.queryByText("Test Sound")).toBeNull();
 		expect(screen.queryByText("Silence Warning")).toBeNull();
 		expect(screen.queryByText("Max Recording Time")).toBeNull();

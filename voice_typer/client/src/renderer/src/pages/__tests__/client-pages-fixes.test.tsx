@@ -80,13 +80,22 @@ describe("EC-12: Home.tsx extraction (subcomponents moved to ./home/)", () => {
 		expect(src).toContain("export function persistStats");
 	});
 
-	it("extracted status module declares statusLabelFor / statusKeyFor", async () => {
+	it("extracted status module declares statusLabelFor and re-exports statusKeyFor", async () => {
 		const fs = await import("node:fs");
 		const src = fs.readFileSync(
 			"src/renderer/src/pages/home/lib/status.ts",
 			"utf8",
 		);
 		expect(src).toContain("export function statusLabelFor");
-		expect(src).toContain("export function statusKeyFor");
+		// The state→key rule moved to the shared status module (the sidebar
+		// caption renders the same dot); this file keeps the Home-facing name
+		// resolving instead of forking a second rule.
+		expect(src).toContain("statusKeyFor");
+		const shared = fs.readFileSync(
+			"src/renderer/src/lib/dictationStatus.ts",
+			"utf8",
+		);
+		expect(shared).toContain("export function statusKeyFor");
+		expect(shared).toContain("export const STATUS_COLORS");
 	});
 });

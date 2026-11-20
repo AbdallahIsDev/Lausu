@@ -144,6 +144,8 @@ async function renderToCapFooter(): Promise<void> {
 }
 
 describe("History display-cap footer count", () => {
+	// Three sequential load-more reveals plus a dynamic import take ~9s
+	// alone; the default 10s budget flaked in a fully loaded worker.
 	it("renders the real total from get_history_count (no N+ placeholder)", async () => {
 		await renderToCapFooter();
 
@@ -157,7 +159,7 @@ describe("History display-cap footer count", () => {
 				(args: unknown[]) => args[0] === "get_history_count",
 			),
 		).toBe(true);
-	});
+	}, 30_000);
 
 	it("renders the ellipsis placeholder (never N+) while the count is loading", async () => {
 		mockCall.mockImplementation(

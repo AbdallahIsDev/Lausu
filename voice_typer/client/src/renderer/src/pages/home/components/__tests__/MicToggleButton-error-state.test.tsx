@@ -82,17 +82,21 @@ describe("MicToggleButton state-to-colour contract (C-UI-12)", () => {
 		expect(cls).not.toMatch(/\bbg-destructive\b/);
 	});
 
-	it("recording uses a solid destructive fill and keeps the pulse ring", () => {
-		renderButton({ isRecording: true, label: "Stop dictation" });
+	it("recording uses a solid destructive fill with the SAME glow in red", () => {
+		const { container } = renderButton({
+			isRecording: true,
+			label: "Stop dictation",
+		});
 		const btn = screen.getByRole("button", { name: "Stop dictation" });
 		// Solid red, NOT the translucent /15 error wash and NOT accent.
-		expect(btn.className).toMatch(/\bbg-destructive\b/);
+		expect(btn.className.split(" ")).toContain("bg-destructive");
 		expect(btn.className).not.toContain("bg-destructive/15");
 		expect(btn.className).not.toContain("bg-primary");
-		// The halo sibling is painted red so it reads in every theme.
-		const ring = document.querySelector(".animate-pulse-ring");
-		expect(ring).toBeTruthy();
-		expect(ring?.className).toContain("bg-destructive");
+		// The shadow keeps its idle rhythm and only changes colour, so a
+		// recording reads as "the same button in red", not a second halo.
+		expect(btn.className).toContain("animate-glow-pulse-destructive");
+		// The expanding wave is gone: the button is the whole control.
+		expect(container.querySelector(".animate-pulse-ring")).toBeNull();
 	});
 
 	it("error keeps the hollow destructive wash, distinct from recording", () => {

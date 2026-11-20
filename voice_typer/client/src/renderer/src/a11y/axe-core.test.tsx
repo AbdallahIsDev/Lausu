@@ -30,6 +30,7 @@ const STUB_CONFIG = {
 	// ADR-0010: clipboard borrow/restore config keys.
 	clipboard_save_restore: true,
 	clipboard_restore_delay_ms: 150,
+	clipboard_history_exclude: true,
 	text_cleanup_enabled: true,
 	recording_mode: "toggle" as const,
 	tray_left_click: "open_app" as const,

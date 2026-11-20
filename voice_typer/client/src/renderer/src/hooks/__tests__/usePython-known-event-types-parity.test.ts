@@ -44,6 +44,7 @@ const _PARITY = {
 	consent_required: true,
 	parakeet_cpu_fallback: true,
 	asr_backend_disabled: true,
+	model_language_unsupported: true,
 	asr_last_resort_unloaded: true,
 	llm_polish_failed: true,
 	device_lost: true,

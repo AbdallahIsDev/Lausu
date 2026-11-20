@@ -30,6 +30,9 @@ const MEDIA_ERROR_KEYS: Readonly<Record<string, TranslationKey>> = {
 	model_loading: "media.errorModelLoading",
 	"server.model_loading": "media.errorModelLoading",
 	model_changed: "media.errorModelChanged",
+	// The pinned spoken language is outside the model's declared list: the
+	// job never started, and the fix is a different model.
+	model_language_unsupported: "media.errorModelLanguage",
 	"server.model_changed": "media.errorModelChanged",
 };
 
@@ -39,6 +42,15 @@ export function mediaErrorKey(
 ): TranslationKey | null {
 	if (!code) return null;
 	return MEDIA_ERROR_KEYS[code] ?? null;
+}
+
+/** True when the fix is choosing a different model on the Models page.
+ *
+ * Covers "nothing selected" and "the selected model cannot serve this
+ * language": both end in the same action, with their own copy.
+ */
+export function offersModelPicker(code: string | null | undefined): boolean {
+	return isNoModelError(code) || code === "model_language_unsupported";
 }
 
 /** True when NOTHING is selected (offers Open Models).

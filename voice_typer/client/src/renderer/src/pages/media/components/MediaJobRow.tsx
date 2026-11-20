@@ -5,14 +5,21 @@
 
 import {
 	Cancel01Icon,
-	CheckmarkCircle01Icon,
+	File02Icon,
+	Film01Icon,
 	HistoryIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useEffect, useRef, useState } from "react";
 import { LevelBar } from "@/components/feedback/LevelBar";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/i18n/i18n";
-import { formatClockDuration } from "@/lib/format";
+import {
+	countWords,
+	formatClockDuration,
+	formatElapsedShort,
+	formatMediaDuration,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { isLowConfidence, type MediaJobRow } from "../hooks/useMediaJobs";
 import { describeMediaSource } from "../lib/sourceLabel";
@@ -36,6 +43,20 @@ export function MediaJobRowView({
 	onOpenHistory,
 }: MediaJobRowViewProps) {
 	const t = useT();
+	const startedAtRef = useRef<number | null>(null);
+	const [elapsedSeconds, setElapsedSeconds] = useState(0);
+	useEffect(() => {
+		if (job.phase === "done") return;
+		if (startedAtRef.current === null) startedAtRef.current = Date.now();
+		const tick = () => {
+			const start = startedAtRef.current ?? Date.now();
+			setElapsedSeconds(Math.floor((Date.now() - start) / 1000));
+		};
+		tick();
+		const timer = window.setInterval(tick, 1000);
+		return () => window.clearInterval(timer);
+	}, [job.phase]);
+
 	const percent = Math.max(0, Math.min(100, Math.round(job.progress * 100)));
 	const label = describeMediaSource(job.source);
 	// Two user states only: everything before the first window is
@@ -45,20 +66,19 @@ export function MediaJobRowView({
 	const phaseLabel =
 		job.phase === "transcribing"
 			? t("media.phaseTranscribing")
-			: t("media.phasePreparing");
-	// Secondary detail: what the pre-transcribe stage is actually doing.
+			: job.phase === "downloading"
+				? t("media.phaseDownloading")
+				: t("media.phasePreparing");
+	// Secondary detail: only a model load changes the story mid-prepare.
 	const phaseDetail =
-		job.phase === "downloading"
-			? t("media.phaseDownloading")
-			: job.phase === "loading_model"
-				? t("media.phaseLoadingModel")
-				: null;
+		job.phase === "loading_model" ? t("media.phaseLoadingModel") : null;
 	const lowConfidence = isLowConfidence(job.quality);
 	const isLongMedia =
 		job.durationSeconds !== null && job.durationSeconds > LONG_MEDIA_SECONDS;
 	// Percent owns the slot above the bar; remaining time + total length
 	// read as one caption below it (owner request 2026-10-27).
 	const progressMeta = [
+		t("media.elapsed", { time: formatClockDuration(elapsedSeconds) }),
 		job.etaSeconds !== null
 			? t("media.eta", { time: formatClockDuration(job.etaSeconds) })
 			: null,
@@ -68,88 +88,136 @@ export function MediaJobRowView({
 	].filter((part): part is string => part !== null);
 
 	if (job.phase === "done") {
-		const chars = job.chars ?? 0;
-		// The real media title first: a link's label (`host/status-id`) says
-		// nothing about the video the user just transcribed.
-		const heading = job.title ?? label;
+		const words = job.words ?? countWords(job.title ?? "");
+		const heading = job.sourceTitle ?? job.title ?? label;
+		const thumbnail = job.thumbnailDataUrl ?? job.thumbnailUrl;
+		const isFileSource =
+			job.sourceType === "file" ||
+			Boolean(job.fileName) ||
+			job.sourceType === null;
+		const source =
+			job.sourceType === "youtube"
+				? t("media.metaYoutube")
+				: job.sourceType === "file"
+					? t("media.metaLocalFile")
+					: job.sourceType === "url"
+						? label
+						: null;
+		const method =
+			job.method === "subtitles"
+				? t("media.metaSubtitles")
+				: job.method === "transcription"
+					? t("media.metaTranscription")
+					: null;
+		const metadata = [
+			job.mediaDurationSeconds != null
+				? formatMediaDuration(job.mediaDurationSeconds)
+				: null,
+			job.processingSeconds != null
+				? t("media.elapsed", {
+						time: formatElapsedShort(job.processingSeconds),
+					})
+				: null,
+			source,
+			job.modelName ?? null,
+			method,
+		].filter((part): part is string => part !== null);
+
 		return (
 			<div
 				className={cn(
-					"flex flex-col gap-2 p-4",
+					"relative flex flex-wrap items-center gap-3 p-4 pe-10",
 					!first && "border-t border-border/10",
 				)}
 			>
-				<div className="flex items-center gap-2">
-					{job.thumbnailDataUrl !== null && (
-						<img
-							src={job.thumbnailDataUrl}
-							alt=""
-							aria-hidden="true"
-							className="aspect-video w-24 shrink-0 rounded-md border border-border/8 object-cover"
-							data-testid="media-preview-thumbnail"
-						/>
-					)}
-					{/* The semantic success token, not primary: a done job is not an action. */}
-					<HugeiconsIcon
-						icon={CheckmarkCircle01Icon}
-						strokeWidth={2}
-						className="h-4 w-4 shrink-0 text-success"
+				{thumbnail !== null && thumbnail !== "" ? (
+					<img
+						src={thumbnail}
+						alt=""
+						aria-hidden="true"
+						className="aspect-video w-20 shrink-0 rounded-md border border-border/8 object-cover"
+						data-testid="media-preview-thumbnail"
 					/>
+				) : (
+					<div
+						className="flex aspect-video w-20 shrink-0 items-center justify-center rounded-md border border-border/8 bg-border/5 text-muted-foreground"
+						data-testid="media-preview-placeholder"
+						aria-hidden="true"
+					>
+						<HugeiconsIcon
+							icon={isFileSource ? File02Icon : Film01Icon}
+							strokeWidth={1.5}
+							className="h-6 w-6"
+						/>
+					</div>
+				)}
+				<div className="flex min-w-0 flex-1 flex-col gap-1">
 					<span
-						className="min-w-0 flex-1 truncate text-sm font-medium text-foreground"
-						title={job.source}
+						className="line-clamp-2 text-sm font-medium leading-snug text-foreground"
+						title={job.sourceTitle ?? heading}
+						dir="auto"
 					>
 						{heading}
 					</span>
+					<p className="text-sm text-muted-foreground" dir="auto">
+						{words === 0
+							? t("media.noSpeech")
+							: words === 1
+								? t("media.wordAdded")
+								: t("media.wordsAdded", { count: String(words) })}
+					</p>
+					{metadata.length > 0 && (
+						<p className="break-words text-xs text-muted-foreground">
+							{metadata.join(" · ")}
+						</p>
+					)}
 					{lowConfidence && (
 						<span
-							className="shrink-0 rounded-md border border-border/8 px-1.5 py-0.5 text-xs text-muted-foreground"
+							className="w-fit rounded-md border border-border/8 px-1.5 py-0.5 text-xs text-muted-foreground"
 							data-testid="media-low-confidence"
 						>
 							{t("media.lowConfidence")}
 						</span>
 					)}
+					{/* Visible degradation: the row is a success, but not a clean one. */}
+					{job.tier === "stream" && (
+						<p
+							className="text-xs text-muted-foreground"
+							data-testid="media-stream-fallback-note"
+						>
+							{t("media.streamFallbackNote")}
+						</p>
+					)}
+				</div>
+				{job.rowId !== null && (
 					<Button
-						variant="ghost"
+						variant="secondary"
 						size="sm"
-						aria-label={t("media.dismiss")}
-						onClick={onDismiss}
+						className="shrink-0"
+						onClick={onOpenHistory}
 					>
 						<HugeiconsIcon
-							icon={Cancel01Icon}
+							icon={HistoryIcon}
 							strokeWidth={2}
 							className="h-4 w-4"
 						/>
+						{t("media.openHistory")}
 					</Button>
-				</div>
-				<p className="text-sm text-muted-foreground">
-					{chars === 0
-						? t("media.noSpeech")
-						: job.partial
-							? t("media.partialDescription", { chars: String(chars) })
-							: t("media.completeDescription", { chars: String(chars) })}
-				</p>
-				{/* Visible degradation: the row is a success, but not a clean one. */}
-				{job.tier === "stream" && (
-					<p
-						className="text-xs text-muted-foreground"
-						data-testid="media-stream-fallback-note"
-					>
-						{t("media.streamFallbackNote")}
-					</p>
 				)}
-				{job.rowId !== null && (
-					<div>
-						<Button variant="outline" size="sm" onClick={onOpenHistory}>
-							<HugeiconsIcon
-								icon={HistoryIcon}
-								strokeWidth={2}
-								className="h-4 w-4"
-							/>
-							{t("media.openHistory")}
-						</Button>
-					</div>
-				)}
+				<Button
+					variant="ghost"
+					size="icon-xs"
+					aria-label={t("media.dismiss")}
+					title={t("media.dismiss")}
+					onClick={onDismiss}
+					className="absolute end-2 top-2 text-muted-foreground hover:text-foreground"
+				>
+					<HugeiconsIcon
+						icon={Cancel01Icon}
+						strokeWidth={2}
+						className="h-3.5 w-3.5"
+					/>
+				</Button>
 			</div>
 		);
 	}

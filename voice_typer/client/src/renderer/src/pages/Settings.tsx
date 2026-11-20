@@ -33,6 +33,7 @@ import { SettingsHub } from "@/components/settings/SettingsHub";
 import {
 	isSettingsSectionPage,
 	SECTION_TITLE_BY_PAGE,
+	settingsSkeletonId,
 	type SettingsSectionPage,
 } from "@/components/settings/settingsSections";
 import { ThemeSettingsSection } from "@/components/settings/ThemeSettingsSection";
@@ -432,7 +433,7 @@ export default function SettingsPage({ page = "settings" }: SettingsPageProps) {
 				<Skeleton
 					data={config}
 					sample={SETTINGS_SAMPLE_CONFIG}
-					id="settings"
+					id={settingsSkeletonId(activeSection ?? "settings")}
 					label={skeletonLoadingLabel()}
 				>
 					{(cfg) => (

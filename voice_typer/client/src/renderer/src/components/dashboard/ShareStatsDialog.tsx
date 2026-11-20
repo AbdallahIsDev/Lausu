@@ -34,6 +34,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { APP_NAME } from "@/branding";
+import { SEGMENTED_ACTION_BUTTON } from "@/components/common/ActionButtonsGroup";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -47,6 +48,7 @@ import { STATS_IMAGE_FILENAME } from "@/hooks/useStatsShare";
 import { t } from "@/i18n/i18n";
 import { openExternalUrl } from "@/lib/external-links";
 import type { StatsThemePalette } from "@/lib/theme-palette";
+import { cn } from "@/lib/utils";
 import type { ShareStats } from "@/types/stats";
 import { StatsShareImage } from "./StatsShareImage";
 
@@ -69,6 +71,8 @@ export interface ShareStatsDialogProps {
 	palette: StatsThemePalette;
 	/** Disabled when there is nothing shareable (canShareStats false). */
 	disabled?: boolean;
+	/** Render the trigger as a bare member of `ActionButtonsGroup`. */
+	segmented?: boolean;
 }
 
 /** The exported image's fixed capture dimensions (mirrors useStatsShare). */
@@ -129,6 +133,7 @@ export function ShareStatsDialog({
 	stats,
 	palette,
 	disabled,
+	segmented = false,
 }: ShareStatsDialogProps) {
 	const [open, setOpen] = useState(false);
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -223,11 +228,14 @@ export function ShareStatsDialog({
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
 				<Button
-					variant="outline"
+					variant={segmented ? "ghost" : "outline"}
 					size="icon"
 					disabled={disabled}
 					aria-label={t("stats.shareImage.shareTooltip")}
-					className="text-muted-foreground hover:text-foreground"
+					className={cn(
+						"text-muted-foreground hover:text-foreground",
+						segmented && SEGMENTED_ACTION_BUTTON,
+					)}
 				>
 					<HugeiconsIcon
 						icon={Share08Icon}

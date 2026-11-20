@@ -1,6 +1,7 @@
 import { Mic02Icon, TextIcon, Time02Icon } from "@hugeicons/core-free-icons";
 import { memo } from "react";
 import { t } from "@/i18n/i18n";
+import { cn } from "@/lib/utils";
 import { compactNumber, formatDuration } from "@/lib/format";
 import type { TodayStats } from "@/types/ipc";
 import { StatCard } from "./StatCard";
@@ -63,17 +64,32 @@ const CARDS: {
 
 interface StatCardsProps {
 	stats: TodayStats;
+	/**
+	 * `separated` (default) keeps three independent cards with gaps;
+	 * `joined` merges them into ONE bordered surface split by dividers,
+	 * zero spacing, like the reload/share pair next to the activity list.
+	 */
+	variant?: "separated" | "joined";
 }
 
-function StatCards({ stats }: StatCardsProps) {
+function StatCards({ stats, variant = "separated" }: StatCardsProps) {
+	const joined = variant === "joined";
 	return (
-		<div className="grid grid-cols-3 gap-3">
+		<div
+			className={cn(
+				"grid grid-cols-3",
+				joined
+					? "overflow-hidden rounded-lg border border-border/8 bg-surface-subtle divide-x divide-border/8"
+					: "gap-3",
+			)}
+		>
 			{CARDS.map((card) => (
 				<StatCard
 					key={card.labelKey}
 					label={t(card.labelKey)}
 					value={card.format(stats[card.key])}
 					icon={card.icon}
+					inGroup={joined}
 				/>
 			))}
 		</div>

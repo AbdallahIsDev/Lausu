@@ -41,6 +41,19 @@ export const SETTINGS_SECTION_PAGES = [
 
 export type SettingsSectionPage = (typeof SETTINGS_SECTION_PAGES)[number];
 
+/**
+ * Skullet shape key for the OUTER Settings wrap. Each surface gets its own
+ * id: the hub and a section page have different heights, and one shared id
+ * would make Skullet recall the wrong shape on the next cold start (and
+ * warn about the jump when the real content arrived). Section components
+ * carry their own `settings-*` ids, hence the `settings-page-` prefix here.
+ */
+export function settingsSkeletonId(
+	page: SettingsSectionPage | "settings",
+): string {
+	return page === "settings" ? "settings-hub" : `settings-page-${page}`;
+}
+
 export interface SettingsSectionDef {
 	page: SettingsSectionPage;
 	/** i18n key for the row title, the SAME key the nested page's

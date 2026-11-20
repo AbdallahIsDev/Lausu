@@ -371,6 +371,7 @@ function makeStubConfig(): LausuConfig {
 		show_notifications: true,
 		clipboard_save_restore: true,
 		clipboard_restore_delay_ms: 150,
+		clipboard_history_exclude: true,
 		asr_backend: "whisper",
 		qwen_model_path: null,
 		parakeet_model_path: null,

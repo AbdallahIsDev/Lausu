@@ -1,5 +1,6 @@
 import { RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { SEGMENTED_ACTION_BUTTON } from "@/components/common/ActionButtonsGroup";
 import { Button } from "@/components/ui/button";
 import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,8 @@ interface LastUpdatedIndicatorProps {
 	refreshing?: boolean;
 	/** Optional className override for the wrapping container. */
 	className?: string;
+	/** Render the trigger as a bare member of `ActionButtonsGroup`. */
+	segmented?: boolean;
 }
 
 export function LastUpdatedIndicator({
@@ -20,6 +23,7 @@ export function LastUpdatedIndicator({
 	onRefresh,
 	refreshing = false,
 	className,
+	segmented = false,
 }: LastUpdatedIndicatorProps) {
 	return (
 		<div
@@ -52,13 +56,16 @@ export function LastUpdatedIndicator({
 			    this cluster read as one row instead of two different
 			    sized boxes. */}
 			<Button
-				variant="outline"
+				variant={segmented ? "ghost" : "outline"}
 				size="icon"
 				onClick={onRefresh}
 				disabled={refreshing}
 				aria-label={t("common.refreshAria")}
 				title={`${t("common.lastUpdatedWithValue", { value: agoLabel })} · ${t("common.refreshAria")}`}
-				className="text-muted-foreground hover:text-foreground"
+				className={cn(
+					"text-muted-foreground hover:text-foreground",
+					segmented && SEGMENTED_ACTION_BUTTON,
+				)}
 			>
 				<HugeiconsIcon
 					icon={RefreshIcon}

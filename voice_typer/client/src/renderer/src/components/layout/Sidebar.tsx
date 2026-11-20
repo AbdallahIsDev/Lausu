@@ -20,10 +20,16 @@ import { HotkeyTooltip } from "@/components/hotkey/HotkeyTooltip";
 import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 import { SHORTCUTS } from "@/components/hotkey/shortcuts";
 import { DeviceToggle } from "@/components/layout/DeviceToggle";
+import {
+	PluginsNewBadge,
+	type PluginsBadgeHue,
+} from "@/components/layout/PluginsNewBadge";
 import { SidebarActiveModel } from "@/components/layout/SidebarActiveModel";
 import { isSettingsSurface } from "@/components/settings/settingsSections";
 import { Button } from "@/components/ui/button";
+import { useDebugPrefs } from "@/hooks/useDebugPrefs";
 import { usePluginsAvailable } from "@/hooks/usePluginCatalog";
+import { usePluginsNewBadge } from "@/hooks/usePluginsNewBadge";
 import { t } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import { prefetchPage } from "@/router/prefetch";
@@ -276,6 +282,10 @@ function SidebarInner({
 	// Developer-gated destinations. False until the backend answers, so a
 	// shipped build never flashes the Plugins entry into view.
 	const pluginsAvailable = usePluginsAvailable();
+	// First-run pointer to the Plugins surface; latched off for good the first
+	// time that page is opened (usePluginsNewBadge owns the marker).
+	const showNewBadge = usePluginsNewBadge(currentPage);
+	const { badgeHue } = useDebugPrefs();
 	const navGroups = visibleNavGroups(pluginsAvailable);
 	const navItems = visibleNavItems(ALL_NAV_ITEMS, pluginsAvailable);
 
@@ -437,6 +447,8 @@ function SidebarInner({
 											item={item}
 											currentPage={currentPage}
 											collapsed={collapsed}
+											showNewBadge={showNewBadge}
+											badgeHue={badgeHue}
 											onNavigate={onNavigate}
 											tabIndex={
 												navItems.findIndex((i) => i.id === item.id) ===
@@ -462,6 +474,10 @@ interface NavLeafProps {
 	collapsed: boolean;
 	onNavigate: (page: Page) => void;
 	tabIndex: number;
+	/** Whether this leaf still shows the shared "new" marker. */
+	showNewBadge: boolean;
+	/** Owner-selectable hue from the Debug Panel. */
+	badgeHue: PluginsBadgeHue;
 }
 
 // A nav item with NO children. The roving-tabindex contract is owned
@@ -479,6 +495,8 @@ function NavLeaf({
 	collapsed,
 	onNavigate,
 	tabIndex,
+	showNewBadge,
+	badgeHue,
 }: NavLeafProps) {
 	const isActive = currentPage === item.id;
 	const navLabel = t(`nav.${item.id}`);
@@ -538,24 +556,13 @@ function NavLeaf({
 					className={cn("h-4 w-4 shrink-0 transition-colors duration-200")}
 				/>
 				<span className={navTextClasses(collapsed)}>{navLabel}</span>
-				{/* Trailing "new" marker. `ms-auto` pins it to the row's
-				    inline-end edge (RTL-safe; never `ml-auto`), and it
-				    rides the SAME collapse motion as the label so the
-				    rail stays clean when collapsed. Muted text, no fill:
-				    the marker annotates the row, it does not become a
-				    chip competing with the active-leaf surface. */}
-				{item.badge && (
-					<span
-						data-testid="nav-new-badge"
-						className={cn(
-							"ms-auto shrink-0 overflow-hidden whitespace-nowrap text-xs font-medium",
-							"transition-[max-width,opacity,translate,filter] duration-200 ease-out",
-							collapsed ? "max-w-0" : "max-w-16",
-							navLabelMotion(collapsed),
-						)}
-					>
-						<span className="text-muted-foreground">{t("nav.newBadge")}</span>
-					</span>
+				{item.badge && showNewBadge && (
+					<PluginsNewBadge
+						label={t("nav.newBadge")}
+						collapsed={collapsed}
+						motionClass={navLabelMotion(collapsed)}
+						hue={badgeHue}
+					/>
 				)}
 			</Button>
 		</HotkeyTooltip>

@@ -22,9 +22,14 @@ export function RecordingStatusPill({
 				style={{ backgroundColor: statusColor }}
 				aria-hidden
 			/>
+			{/* The label carries the DOT's colour, so the word and the dot
+			    always read as one status instead of a coloured dot next to a
+			    neutral caption. `style` (not a class) because the colour comes
+			    from the status token map, not the theme's text scale. */}
 			<span
 				key={statusLabel}
-				className="text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground transition-opacity duration-200 animate-fade-in"
+				style={{ color: statusColor }}
+				className="text-[0.6875rem] font-medium uppercase tracking-wide transition-opacity duration-200 animate-fade-in"
 			>
 				{statusLabel}
 			</span>

@@ -7,6 +7,7 @@
  */
 
 import { HotkeyTooltip } from "@/components/hotkey/HotkeyTooltip";
+import type { ClusterMemberProps } from "./ToolbarClusterTooltip";
 import { IS_LINUX } from "@/components/hotkey/hotkey-utils";
 import { Button } from "@/components/ui/button";
 import { cn, focusRing } from "@/lib/utils";
@@ -192,6 +193,9 @@ interface NavChevronButtonProps {
 	disabled: boolean;
 	/** Chevron path, "back" points start-ward, "forward" end-ward. */
 	path: string;
+	/** When the button lives in the toolbar cluster, the cluster's shared
+	 *  tooltip owns the label, so this button must not render a second Root. */
+	clusterBind?: ClusterMemberProps;
 }
 
 export function NavChevronButton({
@@ -201,36 +205,44 @@ export function NavChevronButton({
 	onClick,
 	disabled,
 	path,
+	clusterBind,
 }: NavChevronButtonProps) {
+	const button = (
+		<ToolbarButton
+			onClick={onClick}
+			ariaLabel={ariaLabel}
+			disabled={disabled}
+			{...clusterBind}
+		>
+			<svg
+				width="16"
+				height="16"
+				viewBox="0 0 16 16"
+				fill="none"
+				aria-hidden="true"
+				// RTL: the chevron points "back"/"forward", mirrored under
+				// dir=rtl by the shared index.css rule so it points the
+				// semantically correct way for right-to-left locales (the bar
+				// root is pinned dir="ltr", but the [dir="rtl"] ancestor
+				// selector still matches through it).
+				className="nav-directional-icon"
+			>
+				<path
+					d={path}
+					stroke="currentColor"
+					strokeWidth="1.5"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+				/>
+			</svg>
+		</ToolbarButton>
+	);
+	// The cluster supplies its own shared tooltip; a standalone use keeps
+	// the per-button one.
+	if (clusterBind) return button;
 	return (
 		<HotkeyTooltip label={tooltipLabel} keys={shortcutKeys}>
-			<ToolbarButton
-				onClick={onClick}
-				ariaLabel={ariaLabel}
-				disabled={disabled}
-			>
-				<svg
-					width="16"
-					height="16"
-					viewBox="0 0 16 16"
-					fill="none"
-					aria-hidden="true"
-					// RTL: the chevron points "back"/"forward", mirrored under
-					// dir=rtl by the shared index.css rule so it points the
-					// semantically correct way for right-to-left locales (the bar
-					// root is pinned dir="ltr", but the [dir="rtl"] ancestor
-					// selector still matches through it).
-					className="nav-directional-icon"
-				>
-					<path
-						d={path}
-						stroke="currentColor"
-						strokeWidth="1.5"
-						strokeLinecap="round"
-						strokeLinejoin="round"
-					/>
-				</svg>
-			</ToolbarButton>
+			{button}
 		</HotkeyTooltip>
 	);
 }

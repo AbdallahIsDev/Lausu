@@ -118,8 +118,16 @@ describe("Vocabulary page, flat two-column list", () => {
 		});
 
 		// Column header row: Heard as | Corrected to | Actions, no
-		// "Category" column.
-		const header = screen.getByTestId("vocab-list-header");
+		// "Category" column. The sample pane the page crossfades out of
+		// renders the same chrome, so wait for ONE header instead of
+		// matching a duplicate while the crossfade is in flight.
+		const header = await waitFor(() => {
+			const nodes = screen.getAllByTestId("vocab-list-header");
+			const [only] = nodes;
+			if (nodes.length !== 1 || only === undefined)
+				throw new Error(`expected one vocab header, got ${nodes.length}`);
+			return only;
+		});
 		expect(within(header).getByText("Heard as")).toBeTruthy();
 		expect(within(header).getByText("Corrected to")).toBeTruthy();
 		expect(within(header).getByText("Actions")).toBeTruthy();
@@ -225,12 +233,17 @@ describe("Vocabulary page, empty state", () => {
 			expect(screen.getByText("No corrections yet")).toBeTruthy();
 		});
 		expect(screen.getByText("Add your first word")).toBeTruthy();
-		// No table, no rows.
-		expect(screen.queryByTestId("vocab-list-row")).toBeNull();
-
-		// Search + sort are NOT rendered for an empty list.
-		expect(screen.queryByPlaceholderText(/Search \d+ corrections/)).toBeNull();
-		expect(screen.queryByLabelText("Sort order")).toBeNull();
+		// No table, no rows, and no search/sort for an empty list. The pane
+		// the page crossfades out of renders its own rows from the sample
+		// payload, so wait for the empty list to be the only thing left
+		// instead of sampling one frame of the transition (C-TEST-18).
+		await waitFor(() => {
+			expect(screen.queryAllByTestId("vocab-list-row")).toHaveLength(0);
+			expect(
+				screen.queryByPlaceholderText(/Search \d+ corrections/),
+			).toBeNull();
+			expect(screen.queryByLabelText("Sort order")).toBeNull();
+		});
 
 		// The CTA starts the add flow (inline quick-add row appears).
 		fireEvent.click(screen.getByText("Add your first word"));

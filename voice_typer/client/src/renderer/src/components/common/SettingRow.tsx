@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 interface SettingRowProps {
 	label: string;
 	info?: string;
+	description?: string;
 	children: ReactNode;
 	align?: "start" | "center";
 	htmlFor?: string;
@@ -15,6 +16,7 @@ interface SettingRowProps {
 export function SettingRow({
 	label,
 	info,
+	description,
 	children,
 	align = "center",
 	htmlFor,
@@ -89,16 +91,26 @@ export function SettingRow({
 				align === "center" && "items-center",
 			)}
 		>
-			<div className="flex min-w-0 items-center gap-2">
-				<LabelTag
-					id={labelId}
-					htmlFor={htmlFor}
-					data-settings-row-label={label}
-					className="text-sm font-medium text-foreground cursor-default"
-				>
-					{label}
-				</LabelTag>
-				{info && <InfoTooltip text={info} contextLabel={label} />}
+			<div
+				className={cn(
+					"flex min-w-0",
+					description ? "flex-col gap-0.5" : "items-center gap-2",
+				)}
+			>
+				<div className="flex items-center gap-2">
+					<LabelTag
+						id={labelId}
+						htmlFor={htmlFor}
+						data-settings-row-label={label}
+						className="text-sm font-medium text-foreground cursor-default"
+					>
+						{label}
+					</LabelTag>
+					{info && <InfoTooltip text={info} contextLabel={label} />}
+				</div>
+				{description && (
+					<p className="text-xs text-muted-foreground">{description}</p>
+				)}
 			</div>
 			<div ref={childrenRef} className="shrink-0 flex">
 				{children}

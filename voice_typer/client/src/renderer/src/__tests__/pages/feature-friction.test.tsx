@@ -551,13 +551,13 @@ describe("dead preset dropdown stays deleted (one shared preset-data source)", (
 					continue;
 				}
 				if (!/\.(ts|tsx)$/.test(entry.name)) continue;
-				// Tests (and Storybook fixtures) may name the deleted
-				// component while documenting the guard itself, only
-				// production source is forbidden from referencing it.
+				// Test files may name the deleted component while
+				// documenting the guard itself, only production source
+				// is forbidden from referencing it.
 				if (entry.name.includes(".test.") || entry.name.includes(".spec.")) {
 					continue;
 				}
-				if (full.includes("__tests__") || full.includes(".stories.")) continue;
+				if (full.includes("__tests__")) continue;
 				const src = fs.readFileSync(full, "utf8");
 				if (src.includes("AudioPresetSelector")) offenders.push(full);
 			}

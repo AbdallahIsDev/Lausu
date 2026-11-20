@@ -61,7 +61,7 @@ vi.mock("@/hooks/usePython", () => pythonMock());
 vi.mock("@/hooks/useSnackbar", () => snackbarMock());
 vi.mock("@/hooks/useLastUpdated", () => lastUpdatedMock({ withRefresh: true }));
 vi.mock("@/hooks/useNavigation", () => navigationMock());
-vi.mock("@hugeicons/react", () => hugeiconsReactMock());
+vi.mock("@hugeicons/react", () => hugeiconsReactMock({ spreadProps: true }));
 vi.mock("@hugeicons/core-free-icons", () => hugeiconsCoreMock());
 vi.mock("sonner", () => sonnerMock());
 vi.mock("next-themes", () => nextThemesMock());
@@ -628,5 +628,58 @@ describe("History revisit skips the list refetch on a fresh snapshot", () => {
 		await waitFor(() => {
 			expect(listCalls("get_history").length).toBeGreaterThan(0);
 		});
+	});
+});
+
+describe("History favorites star fill", () => {
+	it("filled amber when the filter is on, outlined when off", async () => {
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_history") return Promise.resolve([sampleRecord()]);
+			if (type === "get_today_stats") return Promise.resolve(zeroStats);
+			return Promise.resolve({});
+		});
+		const { default: HistoryPage } = await import("@/pages/History");
+		render(<HistoryPage />);
+		await waitFor(() => expect(screen.getByText("hello world")).toBeTruthy());
+
+		const favBtn = screen.getByRole("button", { name: t("history.favorites") });
+		const star = favBtn.querySelector('[data-name="StarIcon"]');
+		expect(star?.getAttribute("fill")).toBe("none");
+		expect(star?.className).not.toContain("text-warning");
+
+		fireEvent.click(favBtn);
+		await waitFor(() =>
+			expect(favBtn.getAttribute("aria-pressed")).toBe("true"),
+		);
+		expect(star?.getAttribute("fill")).toBe("currentColor");
+		expect(star?.className).toContain("text-warning");
+	});
+});
+
+describe("History new-row highlight handoff", () => {
+	afterEach(() => {
+		sessionStorage.removeItem("lausu.history.highlight");
+	});
+
+	it("consumes the session key and rings the matching row once", async () => {
+		sessionStorage.setItem("lausu.history.highlight", "7");
+		mockCall.mockImplementation((type: string) => {
+			if (type === "get_history")
+				return Promise.resolve([
+					sampleRecord({ id: 7, text: "new media transcript" }),
+				]);
+			if (type === "get_today_stats") return Promise.resolve(zeroStats);
+			return Promise.resolve({});
+		});
+		const { default: HistoryPage } = await import("@/pages/History");
+		const { container } = render(<HistoryPage />);
+
+		await waitFor(() => {
+			expect(container.querySelector('[data-history-row-id="7"]')).toBeTruthy();
+		});
+		expect(
+			container.querySelector('[data-history-row-id="7"]')?.className,
+		).toContain("ring-primary");
+		expect(sessionStorage.getItem("lausu.history.highlight")).toBeNull();
 	});
 });

@@ -3,7 +3,7 @@
 		"light": "Light",
 		"dark": "Dark",
 		"system": "System",
-		"switchTitle": "{mode} mode: click to switch",
+		"switchTitle": "{mode} → {next}",
 		"switchAriaLabel": "Current theme: {mode}. Click to switch to {next}.",
 		"preset": {
 			"default": "Default",
@@ -42,19 +42,17 @@
 	},
 	"media": {
 		"title": "Media transcription",
-		"description": "Turn any video or audio into text — paste a link or drop a file.",
+		"description": "Turn any video or audio into text. Paste a link or drop a file.",
 		"sourceLabel": "Link or file path",
 		"sourcePlaceholder": "https://example.com/video.mp4 or a path on this device",
 		"dropHint": "Drag a media file here, or paste a link above.",
-		"useSubtitlesLabel": "Use Subtitles When Available",
-		"useSubtitlesInfo": "Instant and free: uses the captions provided by the site (written by its authors, may differ from the audio). Otherwise the audio is transcribed as usual.",
 		"start": "Transcribe",
 		"cancel": "Cancel",
 		"phaseLoadingModel": "Loading model…",
 		"phaseDownloading": "Downloading audio…",
 		"phaseTranscribing": "Transcribing…",
 		"phasePreparing": "Preparing…",
-		"streamFallbackNote": "The audio download failed — transcribed from the stream.",
+		"streamFallbackNote": "The audio download failed. Transcribed from the stream.",
 		"lowConfidence": "Low confidence",
 		"errorTooShort": "No audio was found in this media.",
 		"errorTruncated": "Only part of this media could be read. Try again.",
@@ -70,10 +68,10 @@
 		"percent": "{percent}%",
 		"eta": "~{time} left",
 		"duration": "Duration {time}",
-		"longMediaNotice": "Long media: transcription takes proportionally longer — the ETA updates as it progresses.",
+		"longMediaNotice": "Long media: transcription takes proportionally longer. The ETA updates as it progresses.",
 		"completeTitle": "Saved to History",
 		"completeDescription": "{chars} characters were added to your History.",
-		"partialDescription": "Cancelled — the partial transcript ({chars} characters) was saved to History.",
+		"partialDescription": "Cancelled. The partial transcript ({chars} characters) was saved to History.",
 		"openHistory": "Open History",
 		"errorTitle": "Transcription failed",
 		"errorGeneric": "The media could not be transcribed.",
@@ -83,7 +81,7 @@
 		"errorLoginRequired": "This link needs sign-in or points to private content. Use a public link.",
 		"errorGeoBlocked": "This media is not available in your region.",
 		"errorPlaylist": "This looks like a playlist. Paste a single video or audio link.",
-		"errorDecode": "The media could not be decoded — the file may be corrupt or unsupported.",
+		"errorDecode": "The media could not be decoded. The file may be corrupt or unsupported.",
 		"errorResolve": "The link could not be read. Check that it points to a supported site.",
 		"errorUrlExpired": "The media link expired mid-job. Try starting again.",
 		"errorDownloadFailed": "Downloading the audio failed. Check your connection and try again.",
@@ -95,7 +93,7 @@
 		"browseFile": "Browse files",
 		"orLink": "or paste a link",
 		"atCapacity": "All {max} slots are in use. Cancel a job or wait for one to finish.",
-		"batchLimited": "{accepted} of {total} added — {max} slots are in use",
+		"batchLimited": "{accepted} of {total} added. {max} slots are in use",
 		"pickerUnavailable": "File picking is not available here. Drag the file onto the page instead.",
 		"cancelAll": "Cancel all",
 		"dismiss": "Dismiss",
@@ -103,7 +101,19 @@
 		"duplicateDescription": "That file or link is already being transcribed.",
 		"noSpeech": "No speech was found in this media.",
 		"noSpeechTitle": "No speech found",
-		"clearInput": "Clear"
+		"clearInput": "Clear",
+		"errorModelLanguage": "The selected model does not support the language you chose. Open Models to pick one that does.",
+		"dropRelease": "Release to transcribe",
+		"paste": "Paste from clipboard",
+		"invalidSource": "Enter a valid link (http:// or https://) or a path to an existing file.",
+		"wordsAdded": "{count} words added to your History",
+		"wordAdded": "1 word added to your History",
+		"metaYoutube": "YouTube",
+		"metaWebsite": "Website",
+		"metaLocalFile": "Local file",
+		"metaSubtitles": "Subtitles",
+		"metaTranscription": "Audio transcription",
+		"elapsed": "Elapsed {time}"
 	},
 	"providers": {
 		"title": "Model providers",
@@ -799,6 +809,14 @@
 		"appLanguageDescription": "Choose the interface language for {appName}.",
 		"transcriptionLanguage": "Transcription Language",
 		"transcriptionLanguageDescription": "Auto-detect the spoken language, or pick one for better accuracy.",
+		"translationEnable": "Translate Output",
+		"translationTarget": "Output Target",
+		"translationTargetInfo": "Translate text into this language. Same as spoken keeps the original text.",
+		"translationSameAsSpoken": "Same as spoken",
+		"translationGpu": "Use GPU for Translation",
+		"translationGpuInfo": "Run the local translation model on a compatible GPU through Vulkan, with no CUDA download.",
+		"translationGlossary": "Terminology",
+		"translationGlossaryInfo": "One pinned term per line as source => translation. Product and UI names stay verbatim.",
 		"launchAtLogin": "Launch at Login",
 		"launchAtLoginDescription": "Automatically start {appName} when you log into Windows.",
 		"fastStartup": "Fast Startup (Prewarm)",
@@ -916,10 +934,6 @@
 			"testStartSound": "Test Start Sound",
 			"testStopSoundAria": "Play the recording stop sound",
 			"testStopSound": "Test Stop Sound",
-			"soundVolumeAria": "Sound feedback volume",
-			"soundVolumeInfo": "Sets how loud the recording start and stop cues play, from silent (0) to full (1).",
-			"soundVolumeInfoSearch": "Volume of the start/stop sound cues",
-			"soundVolume": "Sound Volume",
 			"hotkeyTitle": "Hotkey",
 			"hotkeyDescription": "Key to start and stop dictation.",
 			"dictationKey": "Dictation Key",
@@ -1133,6 +1147,9 @@
 			"clipboardSaveRestoreAria": "Save and restore clipboard",
 			"clipboardSaveRestoreInfo": "Remember the clipboard contents before pasting and restore them afterwards.",
 			"clipboardSaveRestoreLabel": "Save and Restore Clipboard",
+			"clipboardHistoryExcludeAria": "Keep dictations out of clipboard history",
+			"clipboardHistoryExcludeInfo": "Tag each dictation so the operating system's clipboard history (Win+V) does not store it. Turn this off to keep transcriptions in the clipboard history.",
+			"clipboardHistoryExcludeLabel": "Keep Dictations Out of Clipboard History",
 			"logTranscriptionsAria": "Log transcriptions",
 			"logTranscriptionsInfo": "Write each transcription to the app log file for troubleshooting. Text stays on this device.",
 			"logTranscriptionsLabel": "Log Transcriptions",
@@ -1334,6 +1351,7 @@
 		"statusActive": "Active",
 		"statusInactive": "Inactive",
 		"unlocked": "Plugins unlocked.",
+		"hidden": "Plugins hidden.",
 		"unlockFailed": "Couldn't unlock plugins. Please try again."
 	},
 	"models": {
@@ -1699,7 +1717,10 @@
 		"charsSuffix_two": " ({count} chars)",
 		"charsSuffix_few": " ({count} chars)",
 		"charsSuffix_many": " ({count} chars)",
-		"charsSuffix_other": " ({count} chars)"
+		"charsSuffix_other": " ({count} chars)",
+		"mediaBadge": "Media",
+		"dictationBadge": "Dictation",
+		"viewTranscript": "View transcript"
 	},
 	"onboarding": {
 		"applyFailedTitle": "Couldn't finish setup",
@@ -1746,9 +1767,9 @@
 		"models": {
 			"allModels": "All Models",
 			"badgeRecommended": "Recommended",
-			"badgeFast": "Fast",
-			"badgeLanguages": "25 languages"
-		}
+			"badgeFast": "Fast"
+		},
+		"languageCountBadge": "{count} languages"
 	},
 	"titleBar": {
 		"minimize": "Minimize",
@@ -2156,6 +2177,9 @@
 			"auto_punctuation_failed": "Auto-punctuation failed. Check the log file for details.",
 			"no_speech_detected": "No speech was detected and audio was near-silence.\nYour microphone may not be capturing audio.\nCheck that the correct mic is selected and is active.",
 			"no_transcription_produced": "Audio was recorded but no transcription was produced.\nThis can happen if the model is misconfigured or the audio is unclear. Try again, or check the log file for details."
+		},
+		"model_language": {
+			"unsupported": "{model} does not support {language}."
 		}
 	},
 	"error": {
@@ -2242,7 +2266,9 @@
 		"pasteDeferredHint": "The paste keystroke could not be sent to the target app. Paste the text yourself with your usual paste shortcut.",
 		"pasteDeferredHintSecureInput": "The target app has Secure Input enabled (for example a password field), which blocks synthesized keystrokes. Paste the text yourself with your usual paste shortcut.",
 		"pasteDeferredHintIme": "An IME text composition was in progress, so the paste keystroke was skipped. Paste the text yourself with your usual paste shortcut.",
-		"pasteDeferredHintNoTextField": "No text field was focused, so the paste keystroke was skipped. Focus a text field and paste the text yourself with your usual paste shortcut."
+		"pasteDeferredHintNoTextField": "No text field was focused, so the paste keystroke was skipped. Focus a text field and paste the text yourself with your usual paste shortcut.",
+		"modelLanguageUnsupported": "{model} does not support {language}.",
+		"modelLanguageUnsupportedHint": "Choose a model that supports it on the Models page."
 	},
 	"trayState": {
 		"idle": "idle",
@@ -2382,5 +2408,18 @@
 		"errorUnsupported": "GPU support cannot be installed on this system.",
 		"errorInternal": "Something went wrong during the GPU setup.",
 		"statusDownloading": "Downloading"
+	},
+	"debug": {
+		"title": "Debug panel",
+		"statsLayout": "Today's stats layout",
+		"separated": "Separated",
+		"joined": "Joined",
+		"badgeColor": "Plugins badge color",
+		"red": "Red",
+		"green": "Green",
+		"primary": "Primary",
+		"reset": "Reset to defaults",
+		"open": "Open debug panel",
+		"close": "Collapse debug panel"
 	}
 }

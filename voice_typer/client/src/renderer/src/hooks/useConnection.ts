@@ -19,6 +19,7 @@ import {
 	HEALTH_CHECK_MAX_RETRIES,
 	HEALTH_CHECK_RETRY_DELAY_MS,
 	isTransientStartupError,
+	logIpcFailure,
 	MANUAL_RETRY_PROBE_MAX_ATTEMPTS,
 	MAX_BACKGROUND_RECONNECTS,
 	RESPAWN_EXHAUSTED_CODE,
@@ -188,19 +189,20 @@ export function useConnection({
 					}
 				}
 			} catch (err) {
-				console.warn(
-					`[renderer:useConnection] get_config connection probe failed (attempt ${retries + 1}/${maxRetries}):`,
-					err,
-				);
-				retries++;
 				// Startup grace covers "not serving yet": a dispatch timeout
 				// or the pre-bind "sidecar not connected". Every other shape
 				// keeps the plain budget so real breakage surfaces in ~10s.
-				const transient = isTransientStartupError(err);
 				const inGrace =
 					Date.now() - probeStartTs < CONNECTION_PROBE_STARTUP_GRACE_MS;
+				logIpcFailure(
+					"useConnection",
+					`get_config connection probe failed (attempt ${retries + 1}/${maxRetries}):`,
+					err,
+					inGrace,
+				);
+				retries++;
 				const budget =
-					inGrace && transient
+					inGrace && isTransientStartupError(err)
 						? maxRetries + CONNECTION_PROBE_GRACE_EXTRA_RETRIES
 						: maxRetries;
 				if (!cancelled && retries < budget) {

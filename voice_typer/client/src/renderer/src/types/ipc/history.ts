@@ -28,6 +28,18 @@ export interface HistoryRecord {
 	// expands a row.
 	text_truncated?: boolean;
 	text_full_length?: number;
+	// Optional provenance/timing metadata (schema v6). Old rows read as
+	// kind="dictation"; the remaining fields are null when not provided.
+	kind?: "dictation" | "media";
+	source_type?: "youtube" | "url" | "file" | null;
+	source_title?: string | null;
+	source_url?: string | null;
+	file_name?: string | null;
+	thumbnail_url?: string | null;
+	media_duration_seconds?: number | null;
+	processing_seconds?: number | null;
+	download_seconds?: number | null;
+	method?: "subtitles" | "transcription" | null;
 }
 
 export interface TodayStats {

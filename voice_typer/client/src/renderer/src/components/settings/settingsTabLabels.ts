@@ -39,7 +39,6 @@ export function getSectionLabels(): Record<SettingsSectionPage, string[]> {
 			t("settings.hotkeySection.escToCancel"),
 			t("settings.hotkeySection.autoPaste"),
 			t("settings.hotkeySection.soundFeedback"),
-			t("settings.hotkeySection.soundVolume"),
 			t("settings.hotkeySection.testStartSound"),
 			t("settings.hotkeySection.testStopSound"),
 			t("settings.hotkeySection.warnPasswordPaste"),

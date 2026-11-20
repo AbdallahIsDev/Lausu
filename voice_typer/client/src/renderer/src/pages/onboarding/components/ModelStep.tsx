@@ -19,6 +19,7 @@ import {
 	type ToggleGroupOption,
 } from "@/components/ui/toggle-group";
 import { t } from "@/i18n/i18n";
+import type { TranslateFn } from "@/i18n/translate-types";
 import { formatVram } from "@/lib/format";
 import { formatModelSpeed } from "@/lib/utils/models";
 import type { BackendChoice } from "../hooks/useOnboardingWizard";
@@ -85,16 +86,21 @@ function providerLabel(provider: string): string {
 	return t("models.providers.deepgram.label");
 }
 
-function languageBadgeKey(
+function languageBadgeText(
 	languages: string[] | null | undefined,
+	t: TranslateFn,
 ): string | null {
 	if (languages === undefined) return null;
-	if (languages === null) return "onboarding.multilingualBadge";
-	if (languages.length === 0) return "onboarding.multilingualBadge";
+	if (languages === null || languages.length === 0)
+		return t("onboarding.multilingualBadge");
 	const onlyEnglish = languages.every((l) => l.toLowerCase() === "en");
-	return onlyEnglish
-		? "onboarding.englishOnlyBadge"
-		: "onboarding.multilingualBadge";
+	if (onlyEnglish) return t("onboarding.englishOnlyBadge");
+	// A model that publishes its own list is not multilingual in the
+	// everything sense (Parakeet = 25 European languages, no Arabic), so
+	// the badge states the count it actually declares.
+	return t("onboarding.languageCountBadge", {
+		count: String(languages.length),
+	});
 }
 
 function displayNameFor(model: ModelOption): string {
@@ -159,7 +165,7 @@ export function ModelStep({
 	];
 
 	const renderModelRow = (m: ModelOption) => {
-		const langKey = languageBadgeKey(m.languages);
+		const langText = languageBadgeText(m.languages, t);
 		const isSelected = selectedModel === m.name;
 		const isDownloadingThis = downloadingModel === m.name;
 		const displayName = displayNameFor(m);
@@ -209,7 +215,7 @@ export function ModelStep({
 								})}
 							</ModelBadge>
 						)}
-						{langKey != null && <ModelBadge>{t(langKey)}</ModelBadge>}
+						{langText != null && <ModelBadge>{langText}</ModelBadge>}
 					</span>
 				</button>
 				<Button
@@ -249,9 +255,7 @@ export function ModelStep({
 		const speed = (recommended.speed ?? "").toLowerCase();
 		return speed === "fast" || speed === "fastest";
 	})();
-	const recommendedIsMultilingual =
-		recommended != null &&
-		languageBadgeKey(recommended.languages) === "onboarding.multilingualBadge";
+	const recommendedLanguageBadge = languageBadgeText(recommended?.languages, t);
 	const recommendedIsSelected =
 		recommended != null && selectedModel === recommended.name;
 	const recommendedIsDownloadingThis =
@@ -305,10 +309,8 @@ export function ModelStep({
 								{recommendedIsFast && (
 									<ModelBadge>{t("onboarding.models.badgeFast")}</ModelBadge>
 								)}
-								{recommendedIsMultilingual && (
-									<ModelBadge>
-										{t("onboarding.models.badgeLanguages")}
-									</ModelBadge>
+								{recommendedLanguageBadge != null && (
+									<ModelBadge>{recommendedLanguageBadge}</ModelBadge>
 								)}
 							</div>
 							<div

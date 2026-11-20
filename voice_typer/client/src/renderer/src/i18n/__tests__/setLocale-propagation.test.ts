@@ -293,6 +293,23 @@ describe("NH-4: setLocale pushes the locale + tray labels to the Python backend"
 		);
 		warnSpy.mockRestore();
 	});
+
+	it("does not warn when the backend has not bound its listener yet", async () => {
+		pythonBridge.call.mockImplementationOnce(() =>
+			Promise.reject(new Error("sidecar not connected")),
+		);
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+		expect(() => setLocale("ar" as Locale)).not.toThrow();
+		await flushMicrotasks();
+		expect(warnSpy).not.toHaveBeenCalled();
+		expect(debugSpy).toHaveBeenCalledWith(
+			expect.stringContaining("setLocale Python-backend push failed:"),
+			expect.any(Error),
+		);
+		warnSpy.mockRestore();
+		debugSpy.mockRestore();
+	});
 });
 
 describe("NH-4: trayLabelsForLocale helper", () => {

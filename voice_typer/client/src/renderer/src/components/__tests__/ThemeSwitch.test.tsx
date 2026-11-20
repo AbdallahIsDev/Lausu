@@ -101,29 +101,43 @@ describe("ThemeSwitch", () => {
 		).toBeTruthy();
 	});
 
-	//title attribute includes the next mode (mirror aria-label) ──
+	// Standalone native title: compact current → next preview ──
 
-	it("ZU-42: title attribute includes the next mode so sighted mouse users see the same context as SR users", () => {
+	it("title shows the compact current → next preview when no cluster tooltip is bound", () => {
 		const { rerender } = render(
 			<ThemeSwitch themeMode="light" onThemeChange={vi.fn()} />,
 		);
-		// ("Light mode, click to switch") which left sighted mouse
-		// users with less context than SR users got from the
-		// aria-label. The title mirrors the aria-label so both
-		// audiences see the "current → next" preview.
 		expect(screen.getByRole("button").getAttribute("title")).toBe(
-			"Current theme: Light. Click to switch to Dark.",
+			"Light → Dark",
 		);
 
 		rerender(<ThemeSwitch themeMode="dark" onThemeChange={vi.fn()} />);
 		expect(screen.getByRole("button").getAttribute("title")).toBe(
-			"Current theme: Dark. Click to switch to System.",
+			"Dark → System",
 		);
 
 		rerender(<ThemeSwitch themeMode="system" onThemeChange={vi.fn()} />);
 		expect(screen.getByRole("button").getAttribute("title")).toBe(
-			"Current theme: System. Click to switch to Light.",
+			"System → Light",
 		);
+	});
+
+	it("drops the native title when a cluster tooltip owns hover", () => {
+		render(
+			<ThemeSwitch
+				themeMode="system"
+				onThemeChange={vi.fn()}
+				clusterBind={{
+					onMouseEnter: () => {},
+					onFocus: () => {},
+					onBlur: () => {},
+				}}
+			/>,
+		);
+		expect(screen.getByRole("button").getAttribute("title")).toBeNull();
+		expect(
+			screen.getByLabelText("Current theme: System. Click to switch to Light."),
+		).toBeTruthy();
 	});
 
 	it("accepts a host className and merges it over the base icon button styling", () => {

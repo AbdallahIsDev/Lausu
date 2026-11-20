@@ -97,7 +97,7 @@ describe("Sidebar model caption independence", () => {
 
 		// The caption survives the sibling's crash...
 		const caption = screen.getByTestId("sidebar-active-model");
-		expect(caption.textContent).toBe("Whisper Large V3");
+		expect(caption.textContent).toContain("Whisper Large V3");
 		// ...the switch itself is gone (fallback={null}), and...
 		expect(screen.queryByTestId("fake-device-toggle")).toBeNull();
 		// ...the rest of the sidebar is untouched, which is the point:
@@ -111,7 +111,7 @@ describe("Sidebar model caption independence", () => {
 	it("renders both when the switch is healthy", () => {
 		renderSidebar();
 
-		expect(screen.getByTestId("sidebar-active-model").textContent).toBe(
+		expect(screen.getByTestId("sidebar-active-model").textContent).toContain(
 			"Whisper Large V3",
 		);
 		expect(screen.getByTestId("fake-device-toggle")).toBeTruthy();
@@ -132,7 +132,7 @@ describe("Sidebar model caption independence", () => {
 		});
 		renderSidebar();
 
-		expect(screen.getByTestId("sidebar-active-model").textContent).toBe(
+		expect(screen.getByTestId("sidebar-active-model").textContent).toContain(
 			"Whisper Large V3",
 		);
 	});

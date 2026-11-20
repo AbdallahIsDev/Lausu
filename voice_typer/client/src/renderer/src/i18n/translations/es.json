@@ -3,7 +3,7 @@
 		"light": "Claro",
 		"dark": "Oscuro",
 		"system": "Sistema",
-		"switchTitle": "Modo {mode}: haz clic para cambiar",
+		"switchTitle": "{mode} → {next}",
 		"switchAriaLabel": "Tema actual: {mode}. Haz clic para cambiar a {next}.",
 		"preset": {
 			"default": "Por defecto",
@@ -42,12 +42,10 @@
 	},
 	"media": {
 		"title": "Transcripción de medios",
-		"description": "Convierte cualquier vídeo o audio en texto — pega un enlace o suelta un archivo.",
+		"description": "Convierte cualquier vídeo o audio en texto. Pega un enlace o suelta un archivo.",
 		"sourceLabel": "Enlace o ruta de archivo",
 		"sourcePlaceholder": "https://example.com/video.mp4 o una ruta en este dispositivo",
 		"dropHint": "Arrastra aquí un archivo multimedia o pega un enlace arriba.",
-		"useSubtitlesLabel": "Usar subtítulos cuando estén disponibles",
-		"useSubtitlesInfo": "Instantáneo y gratis: usa los subtítulos que proporciona el sitio (escritos por sus autores, pueden diferir del audio). Si no, se transcribe el audio como siempre.",
 		"start": "Transcribir",
 		"cancel": "Cancelar",
 		"phaseLoadingModel": "Cargando el modelo…",
@@ -70,10 +68,10 @@
 		"percent": "{percent} %",
 		"eta": "quedan ~{time}",
 		"duration": "Duración {time}",
-		"longMediaNotice": "Medios largos: la transcripción tarda proporcionalmente más — el tiempo restante se actualiza según avanza.",
+		"longMediaNotice": "Medios largos: la transcripción tarda proporcionalmente más. El tiempo restante se actualiza según avanza.",
 		"completeTitle": "Guardado en el Historial",
 		"completeDescription": "Se añadieron {chars} caracteres a tu Historial.",
-		"partialDescription": "Cancelado — la transcripción parcial ({chars} caracteres) se guardó en el Historial.",
+		"partialDescription": "Cancelado. La transcripción parcial ({chars} caracteres) se guardó en el Historial.",
 		"openHistory": "Abrir Historial",
 		"errorTitle": "La transcripción falló",
 		"errorGeneric": "No se pudo transcribir el medio.",
@@ -83,7 +81,7 @@
 		"errorLoginRequired": "Este enlace requiere iniciar sesión o apunta a contenido privado. Usa un enlace público.",
 		"errorGeoBlocked": "Este medio no está disponible en tu región.",
 		"errorPlaylist": "Esto parece una lista de reproducción. Pega un solo enlace de vídeo o audio.",
-		"errorDecode": "No se pudo decodificar el medio — el archivo puede estar dañado o no ser compatible.",
+		"errorDecode": "No se pudo decodificar el medio. El archivo puede estar dañado o no ser compatible.",
 		"errorResolve": "No se pudo leer el enlace. Comprueba que apunte a un sitio compatible.",
 		"errorUrlExpired": "El enlace del medio caducó durante el trabajo. Inténtalo de nuevo.",
 		"errorDownloadFailed": "Falló la descarga del audio. Comprueba tu conexión e inténtalo de nuevo.",
@@ -95,7 +93,7 @@
 		"browseFile": "Examinar archivos",
 		"orLink": "o pega un enlace",
 		"atCapacity": "Los {max} espacios están en uso. Cancela un trabajo o espera a que uno termine.",
-		"batchLimited": "{accepted} de {total} añadidos — hay {max} espacios en uso",
+		"batchLimited": "{accepted} de {total} añadidos. Hay {max} espacios en uso",
 		"pickerUnavailable": "Aquí no se pueden elegir archivos. Arrastra el archivo a la página.",
 		"cancelAll": "Cancelar todo",
 		"dismiss": "Descartar",
@@ -103,7 +101,19 @@
 		"duplicateDescription": "Ese archivo o enlace ya se está transcribiendo.",
 		"noSpeech": "No se encontró voz en este contenido.",
 		"noSpeechTitle": "No se encontró voz",
-		"clearInput": "Borrar"
+		"clearInput": "Borrar",
+		"errorModelLanguage": "El modelo seleccionado no admite el idioma que elegiste. Abre Modelos para elegir uno que sí lo admita.",
+		"dropRelease": "Suelta para transcribir",
+		"paste": "Pegar desde el portapapeles",
+		"invalidSource": "Introduce un enlace válido (http:// o https://) o la ruta de un archivo existente.",
+		"wordsAdded": "Se añadieron {count} palabras a tu historial",
+		"wordAdded": "Se añadió 1 palabra a tu historial",
+		"metaYoutube": "YouTube",
+		"metaWebsite": "Sitio web",
+		"metaLocalFile": "Archivo local",
+		"metaSubtitles": "Subtítulos",
+		"metaTranscription": "Transcripción de audio",
+		"elapsed": "Transcurrido {time}"
 	},
 	"providers": {
 		"title": "Proveedores de modelos",
@@ -792,6 +802,14 @@
 		"appLanguageDescription": "Elige el idioma de la interfaz para {appName}.",
 		"transcriptionLanguage": "Idioma de transcripción",
 		"transcriptionLanguageDescription": "Detecta automáticamente el idioma hablado, o elige uno para mayor precisión.",
+		"translationEnable": "Traducir salida",
+		"translationTarget": "Idioma de salida",
+		"translationTargetInfo": "Traduce el texto a este idioma. «Igual que el hablado» conserva el texto original.",
+		"translationSameAsSpoken": "Igual que el hablado",
+		"translationGpu": "Usar GPU para traducir",
+		"translationGpuInfo": "Ejecuta el modelo local en una GPU compatible con Vulkan, sin descargar CUDA.",
+		"translationGlossary": "Terminología",
+		"translationGlossaryInfo": "Un término por línea como origen => traducción. Los nombres de producto y UI se mantienen.",
 		"launchAtLogin": "Iniciar al iniciar sesión",
 		"launchAtLoginDescription": "Inicia {appName} automáticamente cuando inicies sesión en Windows.",
 		"notifications": "Notificaciones",
@@ -898,10 +916,6 @@
 			"testStartSound": "Probar sonido de inicio",
 			"testStopSoundAria": "Reproducir el sonido de parada de grabación",
 			"testStopSound": "Probar sonido de parada",
-			"soundVolumeAria": "Volumen de los avisos sonoros",
-			"soundVolumeInfo": "Define el volumen con que suenan los indicadores de inicio y parada de grabación, desde silencio (0) hasta el máximo (1).",
-			"soundVolumeInfoSearch": "Volumen de los sonidos de inicio y parada",
-			"soundVolume": "Volumen del sonido",
 			"hotkeyTitle": "Atajo de teclado",
 			"hotkeyDescription": "Tecla para iniciar y detener el dictado.",
 			"dictationKey": "Tecla de dictado",
@@ -1115,6 +1129,9 @@
 			"clipboardSaveRestoreAria": "Guardar y restaurar el portapapeles",
 			"clipboardSaveRestoreInfo": "Recuerda el contenido del portapapeles antes de pegar y lo restaura después.",
 			"clipboardSaveRestoreLabel": "Guardar y restaurar el portapapeles",
+			"clipboardHistoryExcludeAria": "Mantener los dictados fuera del historial del portapapeles",
+			"clipboardHistoryExcludeInfo": "Marca cada dictado para que el historial del portapapeles del sistema (Win+V) no lo guarde. Desactívalo para conservar las transcripciones en el historial.",
+			"clipboardHistoryExcludeLabel": "Mantener los dictados fuera del historial del portapapeles",
 			"logTranscriptionsAria": "Registrar transcripciones",
 			"logTranscriptionsInfo": "Escribe cada transcripción en el archivo de registro de la app para diagnóstico. El texto permanece en este dispositivo.",
 			"logTranscriptionsLabel": "Registrar transcripciones",
@@ -1329,6 +1346,7 @@
 		"statusActive": "Activo",
 		"statusInactive": "Inactivo",
 		"unlocked": "Plugins desbloqueados.",
+		"hidden": "Complementos ocultos.",
 		"unlockFailed": "No se pudieron desbloquear los plugins. Inténtalo de nuevo."
 	},
 	"models": {
@@ -1659,7 +1677,10 @@
 		"charsSuffix_two": " ({count} caracteres)",
 		"charsSuffix_few": " ({count} caracteres)",
 		"charsSuffix_many": " ({count} caracteres)",
-		"charsSuffix_other": " ({count} caracteres)"
+		"charsSuffix_other": " ({count} caracteres)",
+		"mediaBadge": "Multimedia",
+		"dictationBadge": "Dictado",
+		"viewTranscript": "Ver transcripción"
 	},
 	"onboarding": {
 		"applyFailedTitle": "No se pudo completar la configuración",
@@ -1706,9 +1727,9 @@
 		"models": {
 			"allModels": "Todos los modelos",
 			"badgeRecommended": "Recomendado",
-			"badgeFast": "Rápido",
-			"badgeLanguages": "25 idiomas"
-		}
+			"badgeFast": "Rápido"
+		},
+		"languageCountBadge": "{count} idiomas"
 	},
 	"titleBar": {
 		"minimize": "Minimizar",
@@ -2156,6 +2177,9 @@
 			"auto_punctuation_failed": "La puntuación automática ha fallado. Consulta el archivo de registro para más detalles.",
 			"no_speech_detected": "No se detectó voz y el audio era casi silencio.\nPuede que el micrófono no esté captando sonido.\nComprueba que el micrófono correcto esté seleccionado y activo.",
 			"no_transcription_produced": "Se grabó audio pero no se produjo transcripción.\nPuede deberse a un modelo mal configurado o a un audio poco claro. Inténtalo de nuevo o consulta el archivo de registro."
+		},
+		"model_language": {
+			"unsupported": "{model} no admite {language}."
 		}
 	},
 	"error": {
@@ -2242,7 +2266,9 @@
 		"pasteDeferredHint": "No se pudo enviar la pulsación de pegar a la aplicación de destino. Pega el texto tú mismo con tu atajo de pegar habitual.",
 		"pasteDeferredHintSecureInput": "La aplicación de destino tiene la entrada segura activada (por ejemplo, un campo de contraseña), lo que bloquea las pulsaciones sintéticas. Pega el texto tú mismo con tu atajo de pegar habitual.",
 		"pasteDeferredHintIme": "Había una composición de IME en curso, por lo que se omitió la pulsación de pegar. Pega el texto tú mismo con tu atajo de pegar habitual.",
-		"pasteDeferredHintNoTextField": "No había ningún campo de texto enfocado, por lo que se omitió la pulsación de pegar. Enfoca un campo de texto y pega el texto tú mismo con tu atajo de pegar habitual."
+		"pasteDeferredHintNoTextField": "No había ningún campo de texto enfocado, por lo que se omitió la pulsación de pegar. Enfoca un campo de texto y pega el texto tú mismo con tu atajo de pegar habitual.",
+		"modelLanguageUnsupported": "{model} no admite {language}.",
+		"modelLanguageUnsupportedHint": "Elige en la página Modelos un modelo que sí la admita."
 	},
 	"trayState": {
 		"idle": "inactivo",
@@ -2382,5 +2408,18 @@
 		"errorUnsupported": "No se puede instalar la compatibilidad con GPU en este sistema.",
 		"errorInternal": "Algo salió mal durante la configuración de la GPU.",
 		"statusDownloading": "Descargando"
+	},
+	"debug": {
+		"title": "Panel de depuración",
+		"statsLayout": "Diseño de las estadísticas de hoy",
+		"separated": "Separado",
+		"joined": "Unido",
+		"badgeColor": "Color de la insignia de Plugins",
+		"red": "Rojo",
+		"green": "Verde",
+		"primary": "Principal",
+		"reset": "Restablecer valores",
+		"open": "Abrir panel de depuración",
+		"close": "Contraer panel de depuración"
 	}
 }

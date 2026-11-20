@@ -104,6 +104,26 @@ export function isTransientStartupError(err: unknown): boolean {
 }
 
 /**
+ * Log an IPC failure on the right channel. A pre-bind failure that is
+ * EXPECTED (still inside the startup grace) is routine: the caller already
+ * retries or falls back to cached state, so a devtools warning every cold
+ * boot only buries the real errors. Verdict errors and failures outside the
+ * grace keep the warning channel.
+ */
+export function logIpcFailure(
+	scope: string,
+	message: string,
+	err: unknown,
+	expected: boolean,
+): void {
+	if (expected && isTransientStartupError(err)) {
+		console.debug(`[renderer:${scope}] ${message}`, err);
+		return;
+	}
+	console.warn(`[renderer:${scope}] ${message}`, err);
+}
+
+/**
  * Manual "Retry Connection" probe: attempts before escalating to a
  * backend kill+respawn. 3 covers a ~35s cold boot (15s timeout + 2s
  * pause per attempt); a kill mid-boot resets that clock, so patience

@@ -157,6 +157,14 @@ export interface LausuConfig {
 	 *  wire tolerance; absent means hidden. */
 	developer_mode?: boolean;
 	language: string;
+	/** ADR-0021 Stage B / ADR-0030: local text translation, off by default. */
+	translation_enabled?: boolean;
+	translation_model?: string;
+	translation_target_language?: string;
+	translation_glossary?: string;
+	translation_gpu_enabled?: boolean;
+	translation_model_path?: string;
+	translation_runtime_path?: string;
 	device: "cuda" | "cpu";
 	/**
 	 * READ-ONLY computed device the LOADED engine actually runs on,
@@ -238,6 +246,7 @@ export interface LausuConfig {
 
 	clipboard_save_restore: boolean;
 	clipboard_restore_delay_ms: number;
+	clipboard_history_exclude: boolean;
 
 	asr_backend: "whisper" | "qwen" | "parakeet" | "cloud";
 	qwen_model_path: string | null;
@@ -434,8 +443,6 @@ export interface LausuConfig {
 	screenshot_consent: boolean;
 
 	sound_feedback_enabled: boolean;
-
-	sound_volume?: number;
 
 	// must explicitly opt in via Settings → AI Enhancement.  The three
 	ai_enhancement_enabled: boolean;

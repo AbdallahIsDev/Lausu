@@ -3,7 +3,7 @@
 		"light": "浅色",
 		"dark": "深色",
 		"system": "系统",
-		"switchTitle": "{mode} 模式: 点击切换",
+		"switchTitle": "{mode} → {next}",
 		"switchAriaLabel": "当前主题：{mode}。点击切换到 {next}。",
 		"preset": {
 			"default": "默认",
@@ -42,19 +42,17 @@
 	},
 	"media": {
 		"title": "媒体转写",
-		"description": "把任意视频或音频变成文字 — 粘贴链接或拖入文件。",
+		"description": "把任意视频或音频变成文字。粘贴链接或拖入文件。",
 		"sourceLabel": "链接或文件路径",
 		"sourcePlaceholder": "https://example.com/video.mp4 或本设备上的路径",
 		"dropHint": "将媒体文件拖到此处，或在上方粘贴链接。",
-		"useSubtitlesLabel": "可用时使用字幕",
-		"useSubtitlesInfo": "即时且免费：使用网站提供的字幕（由其作者撰写，可能与音频不同）。否则照常转写音频。",
 		"start": "转写",
 		"cancel": "取消",
 		"phaseLoadingModel": "正在加载模型…",
 		"phaseDownloading": "正在下载音频…",
 		"phaseTranscribing": "正在转写…",
 		"phasePreparing": "正在准备…",
-		"streamFallbackNote": "音频下载失败——已改为从音频流转写。",
+		"streamFallbackNote": "音频下载失败。已改为从音频流转录。",
 		"lowConfidence": "置信度低",
 		"errorTooShort": "此媒体中没有音频。",
 		"errorTruncated": "只能读取此媒体的一部分。请重试。",
@@ -70,10 +68,10 @@
 		"percent": "{percent}%",
 		"eta": "约剩 {time}",
 		"duration": "时长 {time}",
-		"longMediaNotice": "超长媒体：转写耗时按比例增加 — 预计剩余时间会随进度更新。",
+		"longMediaNotice": "超长媒体：转写耗时按比例增加. 预计剩余时间会随进度更新。",
 		"completeTitle": "已保存到历史记录",
 		"completeDescription": "已将 {chars} 个字符添加到你的历史记录。",
-		"partialDescription": "已取消 — 部分转写（{chars} 个字符）已保存到历史记录。",
+		"partialDescription": "已取消. 部分转写（{chars} 个字符）已保存到历史记录。",
 		"openHistory": "打开历史记录",
 		"errorTitle": "转写失败",
 		"errorGeneric": "无法转写该媒体。",
@@ -83,7 +81,7 @@
 		"errorLoginRequired": "此链接需要登录或指向私密内容。请使用公开链接。",
 		"errorGeoBlocked": "该媒体在你所在的地区不可用。",
 		"errorPlaylist": "这看起来是播放列表。请粘贴单个视频或音频链接。",
-		"errorDecode": "无法解码该媒体 — 文件可能已损坏或不受支持。",
+		"errorDecode": "无法解码该媒体. 文件可能已损坏或不受支持。",
 		"errorResolve": "无法读取该链接。请检查它是否指向受支持的网站。",
 		"errorUrlExpired": "媒体链接在处理过程中过期。请重新开始。",
 		"errorDownloadFailed": "下载音频失败。请检查网络连接后重试。",
@@ -95,7 +93,7 @@
 		"browseFile": "浏览文件",
 		"orLink": "或粘贴链接",
 		"atCapacity": "全部 {max} 个任务位都在使用中。请取消一个任务，或等其中一个完成。",
-		"batchLimited": "已添加 {accepted}/{total} 个 — {max} 个任务槽正在使用中",
+		"batchLimited": "已添加 {accepted}/{total} 个. {max} 个任务槽正在使用中",
 		"pickerUnavailable": "此处无法打开文件选择器。请改为把文件拖到页面上。",
 		"cancelAll": "全部取消",
 		"dismiss": "关闭",
@@ -103,7 +101,19 @@
 		"duplicateDescription": "该文件或链接已在转写中。",
 		"noSpeech": "这段媒体中没有检测到语音。",
 		"noSpeechTitle": "未检测到语音",
-		"clearInput": "清除"
+		"clearInput": "清除",
+		"errorModelLanguage": "所选模型不支持你选择的语言。请打开“模型”页面选择一个支持的模型。",
+		"dropRelease": "松开以开始转录",
+		"paste": "从剪贴板粘贴",
+		"invalidSource": "请输入有效的网址（http:// 或 https://）或现有文件的路径。",
+		"wordsAdded": "已将 {count} 个词添加到历史记录",
+		"wordAdded": "已将 1 个词添加到历史记录",
+		"metaYoutube": "YouTube",
+		"metaWebsite": "网站",
+		"metaLocalFile": "本地文件",
+		"metaSubtitles": "字幕",
+		"metaTranscription": "音频转录",
+		"elapsed": "已用 {time}"
 	},
 	"providers": {
 		"title": "模型提供方",
@@ -785,6 +795,14 @@
 		"appLanguageDescription": "选择 {appName} 的界面语言。",
 		"transcriptionLanguage": "转写语言",
 		"transcriptionLanguageDescription": "自动检测口语，或选择一种以获得更好的准确度。",
+		"translationEnable": "翻译输出",
+		"translationTarget": "输出语言",
+		"translationTargetInfo": "将文本翻译成该语言。选择“与原语言相同”会保留原文。",
+		"translationSameAsSpoken": "与原语言相同",
+		"translationGpu": "使用 GPU 翻译",
+		"translationGpuInfo": "通过 Vulkan 在兼容 GPU 上运行本地翻译模型，无需下载 CUDA。",
+		"translationGlossary": "术语表",
+		"translationGlossaryInfo": "每行一个术语，格式为 来源 => 译文。产品和界面名称保持原样。",
 		"launchAtLogin": "登录时启动",
 		"launchAtLoginDescription": "登录 Windows 时自动启动 {appName}。",
 		"notifications": "通知",
@@ -891,10 +909,6 @@
 			"testStartSound": "试听开始音",
 			"testStopSoundAria": "播放录音停止提示音",
 			"testStopSound": "试听停止音",
-			"soundVolumeAria": "提示音音量",
-			"soundVolumeInfo": "设置录音开始和停止提示音的播放音量，从静音（0）到最大（1）。",
-			"soundVolumeInfoSearch": "开始/停止提示音的音量",
-			"soundVolume": "提示音音量",
 			"hotkeyTitle": "快捷键",
 			"hotkeyDescription": "用于开始和停止听写的键。",
 			"dictationKey": "听写键",
@@ -1108,6 +1122,9 @@
 			"clipboardSaveRestoreAria": "保存并恢复剪贴板",
 			"clipboardSaveRestoreInfo": "在粘贴前记住剪贴板内容，之后将其恢复。",
 			"clipboardSaveRestoreLabel": "保存并恢复剪贴板",
+			"clipboardHistoryExcludeAria": "不将听写保存在剪贴板历史中",
+			"clipboardHistoryExcludeInfo": "为每次听写打上标记，使操作系统的剪贴板历史（Win+V）不保存它。关闭此项可将转录内容保留在历史中。",
+			"clipboardHistoryExcludeLabel": "不将听写保存在剪贴板历史中",
 			"logTranscriptionsAria": "记录转写内容",
 			"logTranscriptionsInfo": "将每次转写写入应用日志文件以便排查问题。文本保留在此设备上。",
 			"logTranscriptionsLabel": "记录转写内容",
@@ -1329,6 +1346,7 @@
 		"statusActive": "已启用",
 		"statusInactive": "未启用",
 		"unlocked": "插件已解锁。",
+		"hidden": "已隐藏插件。",
 		"unlockFailed": "无法解锁插件。请重试。"
 	},
 	"models": {
@@ -1659,7 +1677,10 @@
 		"charsSuffix_many": "{count} 字符",
 		"charsSuffix_other": "{count} 字符",
 		"clearAllWithFilterMessage": "确定要删除所有符合条件的记录吗？此操作无法撤销。",
-		"exportFilteredToast": "已导出筛选后的记录"
+		"exportFilteredToast": "已导出筛选后的记录",
+		"mediaBadge": "媒体",
+		"dictationBadge": "听写",
+		"viewTranscript": "查看转录文本"
 	},
 	"onboarding": {
 		"applyFailedTitle": "无法完成设置",
@@ -1706,9 +1727,9 @@
 		"models": {
 			"allModels": "全部模型",
 			"badgeRecommended": "推荐",
-			"badgeFast": "快速",
-			"badgeLanguages": "25 种语言"
-		}
+			"badgeFast": "快速"
+		},
+		"languageCountBadge": "{count} 种语言"
 	},
 	"titleBar": {
 		"minimize": "最小化",
@@ -2156,6 +2177,9 @@
 			"auto_punctuation_failed": "自动标点失败。详情请查看日志文件。",
 			"no_speech_detected": "未检测到语音，且音频接近静音。\n麦克风可能没有采集到声音。\n请确认已选择并启用正确的麦克风。",
 			"no_transcription_produced": "已录制音频，但未生成转写文本。\n这可能是因为模型配置错误或音频不清晰。请重试，或查看日志文件了解详情。"
+		},
+		"model_language": {
+			"unsupported": "{model} 不支持 {language}。"
 		}
 	},
 	"error": {
@@ -2242,7 +2266,9 @@
 		"pasteDeferredHint": "无法向目标应用发送粘贴按键。请自行使用惯用的粘贴快捷键粘贴文本。",
 		"pasteDeferredHintSecureInput": "目标应用启用了安全输入（例如密码输入框），会阻止模拟按键。请自行使用惯用的粘贴快捷键粘贴文本。",
 		"pasteDeferredHintIme": "输入法正在组词，因此跳过了粘贴按键。请自行使用惯用的粘贴快捷键粘贴文本。",
-		"pasteDeferredHintNoTextField": "当前未聚焦文本输入框，因此跳过了粘贴按键。请先聚焦文本输入框，再自行使用惯用的粘贴快捷键粘贴文本。"
+		"pasteDeferredHintNoTextField": "当前未聚焦文本输入框，因此跳过了粘贴按键。请先聚焦文本输入框，再自行使用惯用的粘贴快捷键粘贴文本。",
+		"modelLanguageUnsupported": "{model} 不支持 {language}。",
+		"modelLanguageUnsupportedHint": "请在“模型”页面选择一个支持该语言的模型。"
 	},
 	"trayState": {
 		"idle": "空闲",
@@ -2382,5 +2408,18 @@
 		"errorUnsupported": "此系统无法安装 GPU 支持。",
 		"errorInternal": "GPU 配置过程中出现错误。",
 		"statusDownloading": "正在下载"
+	},
+	"debug": {
+		"title": "调试面板",
+		"statsLayout": "今日统计布局",
+		"separated": "分离",
+		"joined": "合并",
+		"badgeColor": "插件徽章颜色",
+		"red": "红色",
+		"green": "绿色",
+		"primary": "主色",
+		"reset": "恢复默认",
+		"open": "打开调试面板",
+		"close": "收起调试面板"
 	}
 }

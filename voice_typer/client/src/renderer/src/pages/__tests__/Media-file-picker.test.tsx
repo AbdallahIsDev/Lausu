@@ -361,6 +361,7 @@ function complete(jobId: string, data: Record<string, unknown>): void {
 			client_id: null,
 			row_id: 7,
 			chars: 12,
+			word_count: 12,
 			partial: false,
 			tier: "download",
 			quality: null,
@@ -398,18 +399,15 @@ describe("Media page result card", () => {
 		expect(screen.queryByTestId("media-preview-thumbnail")).toBeNull();
 	});
 
-	it("marks the done row with a success tone, never the primary colour", async () => {
+	it("reads as a success from the word count, with no check icon", async () => {
 		await startOne();
 		complete("job-1", {});
 
 		await waitFor(() =>
 			expect(screen.getAllByText("example.com/v")).toHaveLength(1),
 		);
-		const icon = screen
-			.getByText("example.com/v")
-			.parentElement?.querySelector("svg");
-		expect(icon?.getAttribute("class") ?? "").toContain("text-success");
-		expect(icon?.getAttribute("class") ?? "").not.toContain("text-primary");
+		expect(screen.getByText("12 words added to your History")).toBeTruthy();
+		expect(screen.queryByTestId("media-success-icon")).toBeNull();
 	});
 });
 

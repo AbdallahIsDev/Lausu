@@ -106,6 +106,19 @@ export default function HistoryPage() {
 	// off by the render cap below and the click would look like a
 	// dead-zone no-op. Reset to one page whenever a fresh load runs.
 	const [visibleCount, setVisibleCount] = useState(HISTORY_PAGE_SIZE);
+	// A just-finished media job drops its row id before navigating here.
+	// Consume it once on mount: ring + scroll that row, then forget it.
+	const [highlightId, setHighlightId] = useState<number | null>(null);
+	useEffect(() => {
+		const raw = sessionStorage.getItem("lausu.history.highlight");
+		if (raw === null) return;
+		sessionStorage.removeItem("lausu.history.highlight");
+		const id = Number(raw);
+		if (!Number.isInteger(id) || id <= 0) return;
+		setHighlightId(id);
+		const timer = setTimeout(() => setHighlightId(null), 2500);
+		return () => clearTimeout(timer);
+	}, []);
 
 	// Keep the cache hook's filter refs in sync with the page state.
 	setFilter(searchQuery, favoritesOnly);
@@ -281,6 +294,7 @@ export default function HistoryPage() {
 								<HugeiconsIcon
 									icon={StarIcon}
 									strokeWidth={2}
+									fill={favoritesOnly ? "currentColor" : "none"}
 									className={`h-4 w-4 ${favoritesOnly ? "text-warning" : ""}`}
 								/>
 								{t("history.favorites")}
@@ -373,6 +387,7 @@ export default function HistoryPage() {
 												Math.min(visibleCount, HISTORY_DISPLAY_CAP),
 											)}
 											lineClamp={3}
+											highlightId={highlightId}
 											onDelete={handleDelete}
 											onToggleFavorite={handleToggleFavorite}
 											groupByDate={groupByDate}

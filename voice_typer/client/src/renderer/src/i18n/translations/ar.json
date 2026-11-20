@@ -3,7 +3,7 @@
 		"light": "فاتح",
 		"dark": "داكن",
 		"system": "النظام",
-		"switchTitle": "سمة {mode}: انقر للتبديل",
+		"switchTitle": "{mode} → {next}",
 		"switchAriaLabel": "السمة الحالية: {mode}. انقر للتبديل إلى {next}.",
 		"preset": {
 			"default": "افتراضي",
@@ -42,19 +42,17 @@
 	},
 	"media": {
 		"title": "تفريغ الوسائط",
-		"description": "حوّل أي فيديو أو مقطع صوتي إلى نص — الصق رابطًا أو أفلت ملفًا.",
+		"description": "حوّل أي فيديو أو مقطع صوتي إلى نص. الصق رابطًا أو أفلت ملفًا.",
 		"sourceLabel": "رابط أو مسار ملف",
 		"sourcePlaceholder": "https://example.com/video.mp4 أو مسار على هذا الجهاز",
 		"dropHint": "اسحب ملف وسائط إلى هنا، أو الصق رابطًا في الأعلى.",
-		"useSubtitlesLabel": "استخدام الترجمة عند توفرها",
-		"useSubtitlesInfo": "فوري ومجاني: يستخدم الترجمة التي يوفرها الموقع (كتبه مؤلفوه وقد تختلف عن الصوت). وإلا يُفرَّغ الصوت كالمعتاد.",
 		"start": "فرَّغ",
 		"cancel": "إلغاء",
 		"phaseLoadingModel": "جارٍ تحميل النموذج…",
 		"phaseDownloading": "جارٍ تنزيل الصوت…",
 		"phaseTranscribing": "جارٍ التفريغ…",
 		"phasePreparing": "جارٍ التحضير…",
-		"streamFallbackNote": "فشل تنزيل الصوت — تم التفريغ من البث.",
+		"streamFallbackNote": "فشل تنزيل الصوت. تم التفريغ من البث.",
 		"lowConfidence": "ثقة منخفضة",
 		"errorTooShort": "لم يُعثر على صوت في هذه الوسائط.",
 		"errorTruncated": "تمت قراءة جزء من هذه الوسائط فقط. حاول مرة أخرى.",
@@ -70,10 +68,10 @@
 		"percent": "{percent}٪",
 		"eta": "متبقي ~{time}",
 		"duration": "المدة {time}",
-		"longMediaNotice": "وسائط طويلة: يستغرق التفريغ وقتًا أطول بقدر طول الملف — يُحدَّث الوقت المتبقي مع التقدم.",
+		"longMediaNotice": "وسائط طويلة: يستغرق التفريغ وقتًا أطول بقدر طول الملف. يُحدَّث الوقت المتبقي مع التقدم.",
 		"completeTitle": "حُفظ في السجل",
 		"completeDescription": "أُضيف {chars} حرفًا إلى سجلك.",
-		"partialDescription": "أُلغي — حُفظ التفريغ الجزئي ({chars} حرفًا) في السجل.",
+		"partialDescription": "أُلغي. حُفظ التفريغ الجزئي ({chars} حرفًا) في السجل.",
 		"openHistory": "فتح السجل",
 		"errorTitle": "فشل التفريغ",
 		"errorGeneric": "تعذّر تفريغ الوسائط.",
@@ -83,7 +81,7 @@
 		"errorLoginRequired": "هذا الرابط يتطلب تسجيل دخولًا أو يشير إلى محتوى خاص. استخدم رابطًا عامًا.",
 		"errorGeoBlocked": "هذه الوسائط غير متاحة في منطقتك.",
 		"errorPlaylist": "يبدو أن هذا قائمة تشغيل. الصق رابط فيديو أو صوت واحدًا.",
-		"errorDecode": "تعذّر فك ترميز الوسائط — قد يكون الملف تالفًا أو غير مدعوم.",
+		"errorDecode": "تعذّر فك ترميز الوسائط. قد يكون الملف تالفًا أو غير مدعوم.",
 		"errorResolve": "تعذّر قراءة الرابط. تأكد أنه يشير إلى موقع مدعوم.",
 		"errorUrlExpired": "انتهت صلاحية رابط الوسائط أثناء المعالجة. حاول مجددًا.",
 		"errorDownloadFailed": "فشل تنزيل الصوت. تحقق من اتصالك وحاول مجددًا.",
@@ -95,7 +93,7 @@
 		"browseFile": "تصفح الملفات",
 		"orLink": "أو الصق رابطًا",
 		"atCapacity": "جميع الأماكن الـ{max} قيد الاستخدام. ألغِ مهمة أو انتظر انتهاء إحداها.",
-		"batchLimited": "تمت إضافة {accepted} من {total} — {max} فتحات قيد الاستخدام",
+		"batchLimited": "تمت إضافة {accepted} من {total}. {max} فتحات قيد الاستخدام",
 		"pickerUnavailable": "اختيار الملفات غير متاح هنا. اسحب الملف وأفلته على الصفحة بدلاً من ذلك.",
 		"cancelAll": "إلغاء الكل",
 		"dismiss": "إغلاق",
@@ -103,7 +101,19 @@
 		"duplicateDescription": "هذا الملف أو الرابط قيد التفريغ بالفعل.",
 		"noSpeech": "لم يُعثر على كلام في هذا المحتوى.",
 		"noSpeechTitle": "لم يُعثر على كلام",
-		"clearInput": "مسح"
+		"clearInput": "مسح",
+		"errorModelLanguage": "النموذج المحدد لا يدعم اللغة التي اخترتها. افتح صفحة النماذج لاختيار نموذج يدعمها.",
+		"dropRelease": "أفلت لبدء النسخ",
+		"paste": "لصق من الحافظة",
+		"invalidSource": "أدخل رابطًا صالحًا (http:// أو https://) أو مسار ملف موجود.",
+		"wordsAdded": "تمت إضافة {count} كلمة إلى السجل",
+		"wordAdded": "تمت إضافة كلمة واحدة إلى السجل",
+		"metaYoutube": "YouTube",
+		"metaWebsite": "موقع الويب",
+		"metaLocalFile": "ملف محلي",
+		"metaSubtitles": "الترجمة",
+		"metaTranscription": "نسخ الصوت",
+		"elapsed": "المنقضي {time}"
 	},
 	"providers": {
 		"title": "مزوّدو النماذج",
@@ -791,6 +801,14 @@
 		"appLanguageDescription": "اختر لغة واجهة {appName}.",
 		"transcriptionLanguage": "لغة الكتابة",
 		"transcriptionLanguageDescription": "الكشف التلقائي عن اللغة المنطوقة، أو اختر لغة للحصول على دقة أفضل.",
+		"translationEnable": "ترجمة المخرجات",
+		"translationTarget": "لغة المخرجات",
+		"translationTargetInfo": "تُترجم النصوص إلى هذه اللغة. «كما هي» تحتفظ بالنص الأصلي.",
+		"translationSameAsSpoken": "كما هي",
+		"translationGpu": "استخدام GPU للترجمة",
+		"translationGpuInfo": "تشغيل نموذج الترجمة المحلي على GPU متوافق عبر Vulkan دون تنزيل CUDA.",
+		"translationGlossary": "المصطلحات",
+		"translationGlossaryInfo": "مصطلح واحد في كل سطر بصيغة المصدر => الترجمة. تبقى أسماء المنتجات والواجهات كما هي.",
 		"launchAtLogin": "التشغيل عند تسجيل الدخول",
 		"launchAtLoginDescription": "بدء تشغيل {appName} تلقائيًا عند تسجيل الدخول إلى Windows.",
 		"notifications": "الإشعارات",
@@ -897,10 +915,6 @@
 			"testStartSound": "اختبار صوت البدء",
 			"testStopSoundAria": "تشغيل صوت إيقاف التسجيل",
 			"testStopSound": "اختبار صوت الإيقاف",
-			"soundVolumeAria": "مستوى صوت الإشارات الصوتية",
-			"soundVolumeInfo": "يحدد مدى جهارة أصوات بدء التسجيل وإيقافه، من الصامت (0) إلى أقصى مستوى (1).",
-			"soundVolumeInfoSearch": "مستوى أصوات البدء والإيقاف",
-			"soundVolume": "مستوى الصوت",
 			"hotkeyTitle": "مفتاح الاختصار",
 			"hotkeyDescription": "مفتاح لبدء وإيقاف الإملاء.",
 			"dictationKey": "مفتاح الإملاء",
@@ -1114,6 +1128,9 @@
 			"clipboardSaveRestoreAria": "حفظ الحافظة واستعادتها",
 			"clipboardSaveRestoreInfo": "تذكّر محتوى الحافظة قبل اللصق واستعادته بعد ذلك.",
 			"clipboardSaveRestoreLabel": "حفظ الحافظة واستعادتها",
+			"clipboardHistoryExcludeAria": "إبقاء الإملاءات خارج سجل الحافظة",
+			"clipboardHistoryExcludeInfo": "ضع علامة على كل إملاء حتى لا يخزّنه سجل الحافظة في نظام التشغيل (Win+V). أوقف هذا الخيار لإبقاء النصوص في سجل الحافظة.",
+			"clipboardHistoryExcludeLabel": "إبقاء الإملاءات خارج سجل الحافظة",
 			"logTranscriptionsAria": "تسجيل النصوص المنسوخة",
 			"logTranscriptionsInfo": "كتابة كل نسخة منسوخة في ملف سجل التطبيق لاستكشاف الأخطاء. يبقى النص على هذا الجهاز.",
 			"logTranscriptionsLabel": "تسجيل النصوص المنسوخة",
@@ -1329,6 +1346,7 @@
 		"statusActive": "نشط",
 		"statusInactive": "غير نشط",
 		"unlocked": "تم فتح الإضافات.",
+		"hidden": "تم إخفاء الإضافات.",
 		"unlockFailed": "تعذّر فتح الإضافات. حاول مرة أخرى."
 	},
 	"models": {
@@ -1659,7 +1677,10 @@
 		"charsSuffix_two": " ({count} حرفان)",
 		"charsSuffix_few": " ({count} أحرف)",
 		"charsSuffix_many": " ({count} حرفاً)",
-		"charsSuffix_other": " ({count} حرف)"
+		"charsSuffix_other": " ({count} حرف)",
+		"mediaBadge": "وسائط",
+		"dictationBadge": "إملاء",
+		"viewTranscript": "عرض النص"
 	},
 	"onboarding": {
 		"applyFailedTitle": "تعذّر إكمال الإعداد",
@@ -1706,9 +1727,9 @@
 		"models": {
 			"allModels": "جميع النماذج",
 			"badgeRecommended": "موصى به",
-			"badgeFast": "سريع",
-			"badgeLanguages": "25 لغة"
-		}
+			"badgeFast": "سريع"
+		},
+		"languageCountBadge": "{count} لغة"
 	},
 	"titleBar": {
 		"minimize": "تصغير",
@@ -2156,6 +2177,9 @@
 			"auto_punctuation_failed": "فشل الترقيم التلقائي. راجع ملف السجل للتفاصيل.",
 			"no_speech_detected": "لم يتم رصد أي كلام وكان الصوت شبه صامت.\nقد لا يلتقط الميكروفون الصوت.\nتأكد من أن الميكروفون الصحيح محدد وهو نشط.",
 			"no_transcription_produced": "تم تسجيل الصوت لكن لم يُنتج أي تفريغ.\nقد يحدث ذلك إذا كان النموذج غير مضبوط أو كان الصوت غير واضح. أعد المحاولة، أو راجع ملف السجل للتفاصيل."
+		},
+		"model_language": {
+			"unsupported": "{model} لا يدعم {language}."
 		}
 	},
 	"error": {
@@ -2242,7 +2266,9 @@
 		"pasteDeferredHint": "تعذّر إرسال ضغطة اللصق إلى التطبيق الهدف. الصق النص بنفسك باستخدام اختصار اللصق المعتاد.",
 		"pasteDeferredHintSecureInput": "التطبيق الهدف يفعّل الإدخال الآمن (مثل حقل كلمة المرور)، وهو ما يمنع الضغطات المُصطنعة. الصق النص بنفسك باستخدام اختصار اللصق المعتاد.",
 		"pasteDeferredHintIme": "كان تكوين أسلوب الإدخال جاريًا، لذا تم تخطي ضغطة اللصق. الصق النص بنفسك باستخدام اختصار اللصق المعتاد.",
-		"pasteDeferredHintNoTextField": "لم يكن هناك حقل نصي في التركيز، لذلك تم تخطي ضغطة اللصق. ركّز على حقل نصي والصق النص بنفسك باستخدام اختصار اللصق المعتاد."
+		"pasteDeferredHintNoTextField": "لم يكن هناك حقل نصي في التركيز، لذلك تم تخطي ضغطة اللصق. ركّز على حقل نصي والصق النص بنفسك باستخدام اختصار اللصق المعتاد.",
+		"modelLanguageUnsupported": "{model} لا يدعم {language}.",
+		"modelLanguageUnsupportedHint": "اختر نموذجًا يدعم هذه اللغة من صفحة النماذج."
 	},
 	"trayState": {
 		"idle": "خامل",
@@ -2382,5 +2408,18 @@
 		"errorUnsupported": "لا يمكن تثبيت دعم GPU على هذا النظام.",
 		"errorInternal": "حدث خطأ أثناء إعداد GPU.",
 		"statusDownloading": "جارٍ التنزيل"
+	},
+	"debug": {
+		"title": "لوحة التصحيح",
+		"statsLayout": "تخطيط إحصائيات اليوم",
+		"separated": "منفصل",
+		"joined": "موحد",
+		"badgeColor": "لون شارة الإضافات",
+		"red": "أحمر",
+		"green": "أخضر",
+		"primary": "أساسي",
+		"reset": "إعادة الضبط",
+		"open": "فتح لوحة التصحيح",
+		"close": "طي لوحة التصحيح"
 	}
 }

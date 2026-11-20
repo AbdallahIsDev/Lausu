@@ -4,7 +4,7 @@
 	"description": "Tauri desktop shell for Lausu",
 	"private": true,
 	"//engines_note": "Node 24 is the CURRENT TARGET. Do NOT downgrade to Node 20 (deprecated on GitHub Actions 2025-09-19). If a newer LTS is available, bump this comment AND the engines.node AND .nvmrc AND all .github/workflows/*.yml files together. Node 20 deprecation also causes [DEP0040] punycode DeprecationWarning noise in CI logs.",
-	"//overrides_note": "Force-upgrades for transitive deps pulled by the remaining vite/tailwind/vitest/shadcn tooling chain. As of 2026-08-04, `npm audit` reports 0 vulnerabilities after overrides. Overrides that existed only for the retired desktop host's packaging helpers were removed with it — do not reintroduce them (see AGENTS.md, `## npm Overrides: DO NOT REMOVE`).",
+	"//overrides_note": "Force-upgrades for transitive deps in the vite/tailwind/vitest/shadcn/react-doctor tooling chain; each override has a sibling `//overrides_<pkg>` rationale. As of 2026-11-19 `npm audit --audit-level=high` and `npm audit --omit=dev` both exit 0 with 0 total advisories. Resolve any new finding by bumping the package or its floor, never by suppression. The retired component-preview toolchain was removed; overrides that existed only for it or for the retired desktop host were removed with them - do not reintroduce them (see AGENTS.md, `## npm Overrides: DO NOT REMOVE`). `@hono/node-server`, `hono` and `qs` currently have no remaining dependents after the shadcn/MCP SDK bump and are retained only by that no-removal policy.",
 	"engines": {
 		"node": ">=24"
 	},
@@ -20,7 +20,7 @@
 		"windows"
 	],
 	"author": "Abdallah IsDev",
-	"license": "MIT",
+	"license": "SEE LICENSE IN LICENSE",
 	"imports": {
 		"#ui/*": "./src/renderer/src/components/ui/*",
 		"#utils": "./src/renderer/src/lib/utils.ts"
@@ -48,9 +48,7 @@
 		"doctor": "react-doctor",
 		"doctor:ci": "react-doctor --scope changed --base main",
 		"prepare": "cd ../.. && husky",
-		"lint-staged": "lint-staged",
-		"storybook": "storybook dev -p 6006",
-		"build-storybook": "storybook build"
+		"lint-staged": "lint-staged"
 	},
 	"//overrides_annotations": "JSON has no comments, so each override's rationale lives in a sibling `//overrides_<pkg>` key (npm ignores keys starting with `//`). See //overrides_note for the chain-level rationale.",
 	"//overrides_@hono/node-server": "force-upgrade to ^2.0.11 — patches the path-traversal advisory in the static-file handler.",
@@ -63,6 +61,7 @@
 	"//overrides_browserslist": "force-upgrade to ^4.28.9 - resolves the GHSA-73wf normalizeStats crash/prototype-write advisory in browserslist<=4.28.6 pulled by vitest 5 istanbul babel chain (dev-only).",
 	"//overrides_qs": "force-upgrade to ^6.16.0 - resolves the GHSA-4mjr/x5fp qs DoS advisories in qs<6.16.0 pulled by the shadcn CLI express chain (dev-only).",
 	"//overrides_postcss-selector-parser": "force-upgrade to ^7.1.6 - resolves the GHSA-w9m9 AST-recursion DoS advisory in postcss-selector-parser<7.1.3 (dev-only).",
+	"//overrides_minimatch": "force-upgrade to ^11.0.9 - resolves the minimatch globparts-amplification DoS advisory in 7.0.0-11.0.0, pulled by @ts-morph/common (shadcn) and deslop-js (react-doctor); both declare broad ranges and npm's only other 'fix' would downgrade shadcn to 1.x.",
 	"overrides": {
 		"nanoid": "^3.3.18",
 		"@hono/node-server": "^2.0.11",
@@ -73,12 +72,11 @@
 		"postcss": "^8.5.23",
 		"browserslist": "^4.28.9",
 		"qs": "^6.16.0",
-		"postcss-selector-parser": "^7.1.6"
+		"postcss-selector-parser": "^7.1.6",
+		"minimatch": "^11.0.9"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.8",
-		"@storybook/addon-themes": "^10.4.6",
-		"@storybook/react-vite": "^10.4.6",
 		"@tailwindcss/vite": "^4.3.2",
 		"@tauri-apps/cli": "^2.9.6",
 		"@testing-library/dom": "^10.4.1",
@@ -89,25 +87,25 @@
 		"@types/react": "^19.2.17",
 		"@types/react-dom": "^19.2.3",
 		"@vitejs/plugin-react": "^6.0.3",
-		"@vitest/coverage-istanbul": "^5.0.0",
-		"@vitest/expect": "^5.0.0",
-		"@vitest/mocker": "^5.0.0",
-		"@vitest/pretty-format": "^5.0.0",
-		"@vitest/snapshot": "^5.0.0",
-		"@vitest/spy": "^5.0.0",
-		"@vitest/utils": "^5.0.0",
+		"@vitest/coverage-istanbul": "^5.0.3",
+		"@vitest/expect": "^5.0.3",
+		"@vitest/mocker": "^5.0.3",
+		"@vitest/pretty-format": "^5.0.3",
+		"@vitest/snapshot": "^5.0.3",
+		"@vitest/spy": "^5.0.3",
+		"@vitest/utils": "^5.0.3",
 		"axe-core": "^4.12.1",
+		"esbuild": "^0.28.2",
 		"husky": "^9.1.7",
 		"jsdom": "^29.1.1",
 		"lint-staged": "^17.0.8",
 		"react-doctor": "^0.7.3",
 		"shadcn": "^4.13.0",
-		"sharp": "^0.35.3",
-		"storybook": "^10.4.6",
+		"sharp": "^0.35.5",
 		"tailwindcss": "^4.3.2",
 		"typescript": "7.0.2",
-		"vite": "^8.1.4",
-		"vitest": "^5.0.0"
+		"vite": "^8.3.8",
+		"vitest": "^5.0.3"
 	},
 	"dependencies": {
 		"@hugeicons/core-free-icons": "^4.2.3",
@@ -138,6 +136,7 @@
 	},
 	"allowScripts": {
 		"esbuild@0.25.12": true,
-		"esbuild@0.28.1": true
+		"esbuild@0.28.1": true,
+		"esbuild@0.28.2": true
 	}
 }

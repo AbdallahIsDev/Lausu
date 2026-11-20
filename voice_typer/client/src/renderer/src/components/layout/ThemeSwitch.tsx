@@ -32,7 +32,7 @@ const THEME_CYCLE_FALLBACK: (typeof THEME_CYCLE)[number] = {
 };
 
 /** Get the next mode in the cycle. Light → Dark → System → Light */
-function nextMode(
+export function nextThemeMode(
 	current: LausuConfig["theme_mode"],
 ): LausuConfig["theme_mode"] {
 	const idx = THEME_CYCLE.findIndex((item) => item.mode === current);
@@ -43,46 +43,55 @@ function nextMode(
 	return next?.mode ?? THEME_CYCLE[0]?.mode ?? current;
 }
 
+/** Shared so the title-bar tooltip can name the same current/next modes. */
+export function themeCycleEntry(mode: LausuConfig["theme_mode"]) {
+	return (
+		THEME_CYCLE.find((item) => item.mode === mode) ??
+		THEME_CYCLE[0] ??
+		THEME_CYCLE_FALLBACK
+	);
+}
+
 interface ThemeSwitchProps {
 	themeMode: LausuConfig["theme_mode"];
 	onThemeChange: (mode: LausuConfig["theme_mode"]) => void;
 	className?: string;
+	/** Hover/focus handlers from a shared ToolbarClusterTooltip. */
+	clusterBind?: {
+		onMouseEnter: () => void;
+		onFocus: () => void;
+		onBlur: () => void;
+	};
 }
 export function ThemeSwitch({
 	themeMode,
 	onThemeChange,
 	className,
+	clusterBind,
 }: ThemeSwitchProps) {
-	const current =
-		THEME_CYCLE.find((item) => item.mode === themeMode) ??
-		THEME_CYCLE[0] ??
-		THEME_CYCLE_FALLBACK;
+	const current = themeCycleEntry(themeMode);
 	const label = t(current.labelKey);
 
 	// Include the NEXT mode in the aria-label so screen-reader users
 	// know what clicking will do, not just what the current state is.
 	// switch."``, ambiguous about the result of the click.  Now:
 	// ``"Current theme: Dark. Click to switch to System."`` etc.
-	const nextLabel = t(
-		(
-			THEME_CYCLE.find((item) => item.mode === nextMode(themeMode)) ??
-			THEME_CYCLE[0] ??
-			THEME_CYCLE_FALLBACK
-		).labelKey,
-	);
+	const nextLabel = t(themeCycleEntry(nextThemeMode(themeMode)).labelKey);
 
 	const handleClick = useCallback(() => {
-		onThemeChange(nextMode(themeMode));
+		onThemeChange(nextThemeMode(themeMode));
 	}, [themeMode, onThemeChange]);
 
 	return (
 		<button
 			type="button"
 			onClick={handleClick}
+			{...clusterBind}
 			className={cn(
 				// Icon-only by design: the visible UI carries the current
 				// theme's icon and NO text label. The current→next state
-				// is exposed via aria-label (SR) + title (hover tooltip).
+				// is exposed via aria-label (SR) and ONE hover tooltip
+				// (the title-bar cluster, or the native title standalone).
 				// Host className (e.g. the TitleBar's button language)
 				// overrides size/rounding/hover/text-color via twMerge.
 				"inline-flex items-center justify-center",
@@ -99,13 +108,15 @@ export function ThemeSwitch({
 				"h-7 w-7 rounded-lg",
 				className,
 			)}
-			// The title attribute mirrors the aria-label so sighted mouse
-			// users hovering the switch see the same "current → next"
-			// information screen-reader users hear.
-			title={t("theme.switchAriaLabel", {
-				mode: label,
-				next: nextLabel,
-			})}
+			// Native title is for standalone use only. In the TitleBar the
+			// button also belongs to ToolbarClusterTooltip; keeping both made
+			// TWO tooltips appear on hover. The cluster owns the compact
+			// current → next label there; aria-label keeps the full SR text.
+			title={
+				clusterBind
+					? undefined
+					: t("theme.switchTitle", { mode: label, next: nextLabel })
+			}
 			aria-label={t("theme.switchAriaLabel", {
 				mode: label,
 				next: nextLabel,

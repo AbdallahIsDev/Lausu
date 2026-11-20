@@ -13,13 +13,6 @@ export const FIRST_RECORD_CELEBRATED_KEY = "vt_first_recording_celebrated";
 
 export const FORCE_CANCEL_DELAY_MS = 5_000;
 
-export const STATUS_COLORS: Record<string, string> = {
-	idle: "var(--muted-foreground)",
-	recording: "var(--success)",
-	transcribing: "var(--info)",
-	loading: "var(--warning)",
-	cancelling: "var(--warning)",
-	error: "var(--destructive)",
-};
-
-export const DEFAULT_STATUS_COLOR = "var(--muted-foreground)";
+// Status colours live in the shared module (the sidebar dot renders the same
+// palette); re-exported so Home keeps one import surface for its constants.
+export { DEFAULT_STATUS_COLOR, STATUS_COLORS } from "@/lib/dictationStatus";
