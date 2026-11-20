@@ -446,7 +446,9 @@ class TestRecordingStartFailureReason:
         assert "microphone permission" in notify_msg.lower(), (
             f"notification must carry the permission reason, got: {notify_msg!r}"
         )
-        app._waveform_bubble.set_state.assert_called_with("permission_revoked")
+        app._waveform_bubble.apply_visibility.assert_called_with(
+            "permission_revoked", reason="permission-denied"
+        )
 
     def test_no_input_device_surfaces_reason(self) -> None:
         """The \"No input device could be opened\" RuntimeError surfaces"""
