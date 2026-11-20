@@ -25,6 +25,9 @@ const commands: GuardCommand[] = [
 renderLoopGuard({
 	id: "settings",
 	page: () => import("@/pages/Settings"),
+	// The whole renderer suite loads this page late under a saturated
+	// worker pool; 5s is the helper default and flaked in the full run.
+	timeoutMs: 15_000,
 	commands,
 	// The page renders its chrome (title) immediately; the
 	// load-completion signal is the exactly-once counter assertion.
