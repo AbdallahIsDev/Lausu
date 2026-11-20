@@ -1329,9 +1329,7 @@
 		"modelIdleUnload.minutes60": "1 hour",
 		"modelIdleUnload.minutes90": "1 hour 30 minutes",
 		"modelIdleUnload.minutes120": "2 hours",
-		"modelIdleUnload.never": "Never (keep loaded)",
-		"streamingTranscription": "Streaming Transcription",
-		"streamingTranscriptionDescription": "Transcribe while you record, so the text is ready the moment you stop. If off, the whole recording is transcribed at once at the end."
+		"modelIdleUnload.never": "Never (keep loaded)"
 	},
 	"plugins": {
 		"title": "Plugins",

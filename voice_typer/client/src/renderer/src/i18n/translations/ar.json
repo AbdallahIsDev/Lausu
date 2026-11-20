@@ -1324,9 +1324,7 @@
 		"modelIdleUnload.minutes60": "ساعة واحدة",
 		"modelIdleUnload.minutes90": "ساعة ونصف",
 		"modelIdleUnload.minutes120": "ساعتان",
-		"modelIdleUnload.never": "أبدًا (إبقاؤه محمَّلاً)",
-		"streamingTranscription": "النسخ المتدفق",
-		"streamingTranscriptionDescription": "نسخ أثناء التسجيل ليكون النص جاهزًا لحظة التوقف. عند التعطيل، تُنسخ التسجيلة كاملة دفعة واحدة في النهاية."
+		"modelIdleUnload.never": "أبدًا (إبقاؤه محمَّلاً)"
 	},
 	"plugins": {
 		"title": "الإضافات",

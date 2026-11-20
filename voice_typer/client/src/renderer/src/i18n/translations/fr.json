@@ -817,9 +817,7 @@
 		"modelIdleUnload.minutes60": "1 heure",
 		"modelIdleUnload.minutes90": "1 heure 30 minutes",
 		"modelIdleUnload.minutes120": "2 heures",
-		"modelIdleUnload.never": "Jamais (garder chargé)",
-		"streamingTranscription": "Transcription en continu",
-		"streamingTranscriptionDescription": "Transcrire pendant l'enregistrement pour un texte prêt dès l'arrêt. Sinon, l'enregistrement entier est transcrit d'un coup à la fin."
+		"modelIdleUnload.never": "Jamais (garder chargé)"
 	},
 	"plugins": {
 		"title": "Plugins",

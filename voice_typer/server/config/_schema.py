@@ -83,7 +83,6 @@ class _ConfigSchema:
     whisper_beam_size: int = 1
 
     # Hidden streaming transcription
-    streaming_transcription: bool = True
     streaming_chunk_seconds: float = 12.0
     streaming_step_seconds: float = 5.0
     streaming_left_overlap_seconds: float = 3.0

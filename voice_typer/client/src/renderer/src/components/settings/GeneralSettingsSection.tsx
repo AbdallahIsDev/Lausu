@@ -94,12 +94,6 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 				const FAST_STARTUP_INFO = t("settings.fastStartupDescription");
 				const MODEL_IDLE_UNLOAD_LABEL = t("settings.modelIdleUnload");
 				const MODEL_IDLE_UNLOAD_INFO = t("settings.modelIdleUnloadDescription");
-				const STREAMING_TRANSCRIPTION_LABEL = t(
-					"settings.streamingTranscription",
-				);
-				const STREAMING_TRANSCRIPTION_INFO = t(
-					"settings.streamingTranscriptionDescription",
-				);
 				const generalSectionTitle = t("settings.general");
 				const generalItems = [
 					{ label: LAUNCH_AT_LOGIN_LABEL, info: LAUNCH_AT_LOGIN_INFO },
@@ -108,10 +102,6 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 					{ label: TRAY_CLICK_LABEL, info: TRAY_CLICK_INFO },
 					{ label: FAST_STARTUP_LABEL, info: FAST_STARTUP_INFO },
 					{ label: MODEL_IDLE_UNLOAD_LABEL, info: MODEL_IDLE_UNLOAD_INFO },
-					{
-						label: STREAMING_TRANSCRIPTION_LABEL,
-						info: STREAMING_TRANSCRIPTION_INFO,
-					},
 				];
 				const generalVisible = generalItems.some((item) =>
 					isVisible(item.label, item.info, generalSectionTitle),
@@ -128,8 +118,6 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 					});
 				const handleModelIdleUnloadChange = (v: string) =>
 					updateConfig({ model_idle_unload_minutes: Number(v) });
-				const handleStreamingTranscriptionChange = (checked: boolean) =>
-					updateConfig({ streaming_transcription: checked });
 				if (!generalVisible) return null;
 				return (
 					<SettingsSection
@@ -162,22 +150,6 @@ export const GeneralSettingsSection = memo(function GeneralSettingsSection({
 									checked={cfg.fast_startup ?? true}
 									onCheckedChange={handleFastStartupChange}
 									aria-label={FAST_STARTUP_LABEL}
-								/>
-							</SettingRow>
-						)}
-						{isVisible(
-							STREAMING_TRANSCRIPTION_LABEL,
-							STREAMING_TRANSCRIPTION_INFO,
-							generalSectionTitle,
-						) && (
-							<SettingRow
-								label={STREAMING_TRANSCRIPTION_LABEL}
-								info={STREAMING_TRANSCRIPTION_INFO}
-							>
-								<Switch
-									checked={cfg.streaming_transcription ?? true}
-									onCheckedChange={handleStreamingTranscriptionChange}
-									aria-label={STREAMING_TRANSCRIPTION_LABEL}
 								/>
 							</SettingRow>
 						)}

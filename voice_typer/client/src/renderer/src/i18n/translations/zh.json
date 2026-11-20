@@ -1324,9 +1324,7 @@
 		"modelIdleUnload.minutes60": "1 小时",
 		"modelIdleUnload.minutes90": "1 小时 30 分钟",
 		"modelIdleUnload.minutes120": "2 小时",
-		"modelIdleUnload.never": "从不（保持加载）",
-		"streamingTranscription": "流式转写",
-		"streamingTranscriptionDescription": "边录边转写，停止时文本即就绪。关闭后将在结束时一次性转写整个录音。"
+		"modelIdleUnload.never": "从不（保持加载）"
 	},
 	"plugins": {
 		"title": "插件",

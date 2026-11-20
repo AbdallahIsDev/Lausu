@@ -158,7 +158,6 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     # Master switch for voice-activity (silence) filtering before
     "vad_filter_enabled": (bool, _bool_validator),
     "hallucination_filter_mode": (str, _make_enum_validator(frozenset(HALLUCINATION_FILTER_MODES))),
-    "streaming_transcription": (bool, _bool_validator),
     "streaming_chunk_seconds": (float, _make_float_validator(lo=0.1, hi=120.0)),
     "streaming_step_seconds": (float, _make_float_validator(lo=0.1, hi=60.0)),
     "streaming_left_overlap_seconds": (

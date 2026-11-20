@@ -66,10 +66,12 @@ class StreamingSessionCoordinator:
         pass
 
     def streaming_enabled(self, controller) -> bool:
-        """Return whether hidden streaming should run for the next recording."""
-        if os.environ.get("VOICE_TYPER_STREAMING") == "0":
-            return False
-        return controller._app.config.streaming_transcription
+        """Return whether hidden streaming should run for the next recording.
+
+        Streaming is fixed ON on every platform; only the developer
+        kill-switch can turn it off.
+        """
+        return os.environ.get("VOICE_TYPER_STREAMING") != "0"
 
     def streaming_config(self, controller) -> StreamingConfig:
         cfg = controller._app.config

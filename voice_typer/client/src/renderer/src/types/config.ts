@@ -230,7 +230,6 @@ export interface LausuConfig {
 	 */
 	hallucination_filter_mode: "strict" | "balanced" | "off";
 
-	streaming_transcription: boolean;
 	streaming_chunk_seconds: number;
 	streaming_step_seconds: number;
 	streaming_left_overlap_seconds: number;

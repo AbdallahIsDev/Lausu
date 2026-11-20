@@ -1324,9 +1324,7 @@
 		"modelIdleUnload.minutes60": "1 час",
 		"modelIdleUnload.minutes90": "1 час 30 минут",
 		"modelIdleUnload.minutes120": "2 часа",
-		"modelIdleUnload.never": "Никогда (не выгружать)",
-		"streamingTranscription": "Потоковая транскрибация",
-		"streamingTranscriptionDescription": "Транскрибировать во время записи, чтобы текст был готов сразу после остановки. Иначе вся запись транскрибируется целиком в конце."
+		"modelIdleUnload.never": "Никогда (не выгружать)"
 	},
 	"plugins": {
 		"title": "Плагины",

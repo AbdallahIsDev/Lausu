@@ -29,7 +29,7 @@ class TestConfigDefaults:
         assert c.beam_size == 1
         assert c.best_of == 1
         assert c.condition_on_previous_text is False
-        assert c.streaming_transcription is True
+        assert not hasattr(c, "streaming_transcription")
         assert c.streaming_chunk_seconds == 12.0
         assert c.streaming_step_seconds == 5.0
         assert c.streaming_left_overlap_seconds == 3.0
@@ -86,12 +86,11 @@ class TestConfigLoadSave:
         assert c.show_notifications is False
 
     def test_load_preserves_user_device_and_paste_settings(self, tmp_path, tmp_config_dir):
-        """fix: User's device, paste_on_stop, and streaming_transcription"""
+        """User's device and paste_on_stop values are preserved on load."""
         config_file = tmp_path / "config.json"
         config_file.write_text(
             json.dumps(
                 {
-                    "streaming_transcription": False,
                     "paste_on_stop": False,
                     "device": "cpu",
                 }
@@ -100,7 +99,6 @@ class TestConfigLoadSave:
 
         c = Config.load()
         # User values must be preserved, no more forced overrides
-        assert c.streaming_transcription is False
         assert c.paste_on_stop is False
         assert c.device == "cpu"
 
@@ -192,7 +190,6 @@ class TestConfigLoadSave:
             beam_size=3,
             best_of=2,
             condition_on_previous_text=True,
-            streaming_transcription=False,
             streaming_chunk_seconds=10.0,
             streaming_step_seconds=4.0,
             streaming_left_overlap_seconds=3.5,
@@ -208,10 +205,9 @@ class TestConfigLoadSave:
         assert c1.hotkey == c2.hotkey
         assert c1.microphone == c2.microphone
         assert c1.model_size == c2.model_size
-        # P1 fix: device, paste_on_stop, streaming_transcription survive round-trip
+        # device and paste_on_stop survive round-trip
         assert c2.device == "cpu"
         assert c2.paste_on_stop is False
-        assert c2.streaming_transcription is False
         assert c1.beam_size == c2.beam_size
         assert c1.best_of == c2.best_of
         assert c1.condition_on_previous_text == c2.condition_on_previous_text
@@ -525,13 +521,15 @@ class TestConfigParametrized:
         loaded = Config.load()
         assert loaded.show_notifications == show_notifications
 
-    @pytest.mark.parametrize("streaming_transcription", [True, False])
-    def test_streaming_transcription_roundtrip(self, tmp_path, tmp_config_dir, streaming_transcription):
-        """streaming_transcription flag should survive save/load roundtrip."""
-        c = Config(streaming_transcription=streaming_transcription)
+    def test_streaming_transcription_key_is_dropped_on_load_and_save(self, tmp_path, tmp_config_dir):
+        """Legacy configs carrying the removed flag load clean and never re-emit it."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps({"streaming_transcription": False}))
+
+        c = Config.load()
+        assert not hasattr(c, "streaming_transcription")
         c.save()
-        loaded = Config.load()
-        assert loaded.streaming_transcription == streaming_transcription
+        assert "streaming_transcription" not in json.loads(config_file.read_text())
 
     @pytest.mark.parametrize(
         "corrupt_content",

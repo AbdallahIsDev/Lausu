@@ -1324,9 +1324,7 @@
 		"modelIdleUnload.minutes60": "1 घंटा",
 		"modelIdleUnload.minutes90": "1 घंटा 30 मिनट",
 		"modelIdleUnload.minutes120": "2 घंटे",
-		"modelIdleUnload.never": "कभी नहीं (लोड रहने दें)",
-		"streamingTranscription": "स्ट्रीमिंग ट्रांसक्रिप्शन",
-		"streamingTranscriptionDescription": "रिकॉर्डिंग के दौरान ट्रांसक्राइब करें ताकि रुकते ही टेक्स्ट तैयार हो। बंद होने पर पूरी रिकॉर्डिंग अंत में एक साथ ट्रांसक्राइब होगी।"
+		"modelIdleUnload.never": "कभी नहीं (लोड रहने दें)"
 	},
 	"plugins": {
 		"title": "प्लगइन",

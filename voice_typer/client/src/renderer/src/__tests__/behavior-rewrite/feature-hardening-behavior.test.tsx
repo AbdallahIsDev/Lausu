@@ -182,7 +182,6 @@ const baseConfig: LausuConfig = {
 	condition_on_previous_text: false,
 	vad_filter_enabled: true,
 	hallucination_filter_mode: "balanced",
-	streaming_transcription: false,
 	streaming_chunk_seconds: 0,
 	streaming_step_seconds: 0,
 	streaming_left_overlap_seconds: 0,
