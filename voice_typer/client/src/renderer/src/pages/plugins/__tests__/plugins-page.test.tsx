@@ -13,7 +13,8 @@
 // copy edit does not silently break the suite.
 
 import { readFileSync } from "node:fs";
-import path from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -465,9 +466,9 @@ describe("Plugin detail activation", () => {
 
 /** Load a shipped internal-plugin manifest so the test reads the real label. */
 function loadManifest(id: string): WirePlugin {
-	const manifestPath = path.resolve(
-		process.cwd(),
-		"../../tools/internal_plugins",
+	const manifestPath = resolve(
+		dirname(fileURLToPath(import.meta.url)),
+		"../../../../../../../../tools/internal_plugins",
 		id,
 		"plugin.json",
 	);

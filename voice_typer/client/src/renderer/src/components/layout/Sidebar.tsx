@@ -376,12 +376,10 @@ function SidebarInner({
 			    nav is the sidebar's only content, it fills the full
 			    height now that the branding header and the ThemeSwitch
 			    row have moved out of the sidebar. */}
-			{/* The row is pinned LTR so the rail keeps its physical left
-			    edge; only the nav's text direction follows the locale. */}
-			<div
-				className="min-h-0 flex-1 overflow-y-auto p-2"
-				dir={isRtlLocale(getLocale()) ? "rtl" : "ltr"}
-			>
+			{/* The rail is left-pinned in every locale, so the nav FLOW must
+			    stay LTR or `justify-start` would right-anchor the icon column
+			    and make it jump on collapse. RTL applies to label text only. */}
+			<div className="min-h-0 flex-1 overflow-y-auto p-2" dir="ltr">
 				<nav
 					ref={navRef}
 					aria-label={t("a11y.mainNavigation")}
@@ -561,7 +559,12 @@ function NavLeaf({
 					strokeWidth={2}
 					className={cn("h-4 w-4 shrink-0 transition-colors duration-200")}
 				/>
-				<span className={navTextClasses(collapsed)}>{navLabel}</span>
+				<span
+					className={navTextClasses(collapsed)}
+					dir={isRtlLocale(getLocale()) ? "rtl" : "ltr"}
+				>
+					{navLabel}
+				</span>
 				{item.badge && showNewBadge && (
 					<PluginsNewBadge
 						label={t("nav.newBadge")}

@@ -36,11 +36,15 @@ const EN = {
 	navHome: "Home",
 	goBack: "Go back",
 	searchPlaceholder: "Search History",
+	localModels: "Local Models",
+	analyticsToday: "Today",
 };
 const AR = {
 	navHome: "الرئيسية",
 	goBack: "العودة",
 	searchPlaceholder: "ابحث في السجل...",
+	localModels: "نماذج محلية",
+	analyticsToday: "اليوم",
 };
 
 function mountChrome() {
@@ -95,5 +99,39 @@ describe("memoized chrome re-localizes live on language switch", () => {
 		expect(screen.getByText(AR.navHome)).toBe(navLabel);
 		expect(screen.getByRole("button", { name: AR.goBack })).toBe(backButton);
 		expect(screen.getByPlaceholderText(AR.searchPlaceholder)).toBe(searchInput);
+	});
+
+	it("re-localizes the Models and Analytics middle-strip switches in place", async () => {
+		function mountStrip(page: "models" | "analytics") {
+			return renderWithProviders(
+				<TitleBar
+					currentPage={page}
+					isMaximized={false}
+					onOpenHelp={() => {}}
+					themeMode="light"
+					onThemeChange={() => {}}
+				/>,
+			);
+		}
+
+		mountStrip("models");
+		const localTab = screen.getByText(EN.localModels);
+		await act(async () => {
+			setLocale("ar" as Locale);
+		});
+		expect(localTab.textContent).toBe(AR.localModels);
+		expect(screen.getByText(AR.localModels)).toBe(localTab);
+		cleanup();
+
+		await act(async () => {
+			setLocale("en" as Locale);
+		});
+		mountStrip("analytics");
+		const todayPill = screen.getByText(EN.analyticsToday);
+		await act(async () => {
+			setLocale("ar" as Locale);
+		});
+		expect(todayPill.textContent).toBe(AR.analyticsToday);
+		expect(screen.getByText(AR.analyticsToday)).toBe(todayPill);
 	});
 });

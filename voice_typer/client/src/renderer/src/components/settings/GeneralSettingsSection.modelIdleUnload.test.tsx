@@ -232,7 +232,7 @@ describe("model-idle-unload translations", () => {
 		}
 	});
 
-	it("uses the clarified keep-loaded label for the Never option in English", () => {
+	it("uses the clarified keep-loaded label for the Always/Keep-loaded option in English", () => {
 		expect(t("en", "settings.modelIdleUnload.never")).toBe(
 			"Always (Keep Loaded)",
 		);

@@ -386,17 +386,44 @@ describe("Sidebar inner nav direction follows the active locale", () => {
 		cleanup();
 	});
 
-	it("is ltr in English and rtl in Arabic while the rail itself stays unpinned", async () => {
+	it("keeps the rail and nav flow physically LTR in both locales, with RTL only on labels", async () => {
 		const props = { currentPage: "home" as const, onNavigate: vi.fn() };
 		const { rerender } = renderWithProviders(<Sidebar {...props} />);
 		const nav = screen.getByRole("navigation", { name: "Main navigation" });
 		const navContainer = nav.parentElement;
 		const aside = nav.closest("aside");
 
-		// English must stay LTR: a hardcoded rtl container would right-align
-		// the nav labels and break the 17px-from-physical-left icon column.
+		// The rail is left-pinned, so the NAV FLOW must stay LTR in every
+		// locale. An rtl flow would right-anchor `justify-start` and move
+		// the icon column on collapse (C-SIDEBAR-12). Only the label text
+		// is allowed to follow the locale.
 		expect(navContainer?.getAttribute("dir")).toBe("ltr");
 		expect(aside?.getAttribute("dir")).toBeNull();
+		let label = screen.getByText("Home");
+
+		// Collapse identity: same button + same icon node, still first
+		// child, same physical-left anchoring classes. jsdom has no layout,
+		// so these invariants stand in for the manual x-position check.
+		const expandedButton = label.closest("button");
+		const icon = expandedButton?.querySelector('[data-testid="hugeicon"]');
+		expect(icon).toBeTruthy();
+		expect(expandedButton?.firstElementChild).toBe(icon);
+		expect(expandedButton?.classList.contains("justify-start")).toBe(true);
+		expect(expandedButton?.classList.contains("px-2")).toBe(true);
+		expect(label.getAttribute("dir")).toBe("ltr");
+
+		rerender(
+			<TooltipProvider delayDuration={200} skipDelayDuration={500}>
+				<Sidebar {...props} collapsed />
+			</TooltipProvider>,
+		);
+		label = screen.getByText("Home");
+		const collapsedButton = label.closest("button");
+		expect(collapsedButton).toBe(expandedButton);
+		expect(collapsedButton?.firstElementChild).toBe(icon);
+		expect(collapsedButton?.classList.contains("justify-start")).toBe(true);
+		expect(collapsedButton?.classList.contains("px-2")).toBe(true);
+		expect(navContainer?.getAttribute("dir")).toBe("ltr");
 
 		await act(async () => {
 			setLocale("ar");
@@ -406,7 +433,26 @@ describe("Sidebar inner nav direction follows the active locale", () => {
 				<Sidebar {...props} />
 			</TooltipProvider>,
 		);
-		expect(navContainer?.getAttribute("dir")).toBe("rtl");
+		expect(navContainer?.getAttribute("dir")).toBe("ltr");
 		expect(aside?.getAttribute("dir")).toBeNull();
+
+		const arLabel = screen.getByText("الرئيسية");
+		expect(arLabel.getAttribute("dir")).toBe("rtl");
+		const arButton = arLabel.closest("button");
+		const arIcon = arButton?.querySelector('[data-testid="hugeicon"]');
+		expect(arButton?.firstElementChild).toBe(arIcon);
+		expect(arButton?.classList.contains("justify-start")).toBe(true);
+		expect(arButton?.classList.contains("px-2")).toBe(true);
+
+		rerender(
+			<TooltipProvider delayDuration={200} skipDelayDuration={500}>
+				<Sidebar {...props} collapsed />
+			</TooltipProvider>,
+		);
+		const arCollapsedLabel = screen.getByText("الرئيسية");
+		expect(screen.getByText("الرئيسية").closest("button")).toBe(arButton);
+		expect(arCollapsedLabel.getAttribute("dir")).toBe("rtl");
+		expect(arButton?.firstElementChild).toBe(arIcon);
+		expect(navContainer?.getAttribute("dir")).toBe("ltr");
 	});
 });
