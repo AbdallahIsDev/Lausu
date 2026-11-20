@@ -21,8 +21,8 @@ import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 import { SHORTCUTS } from "@/components/hotkey/shortcuts";
 import { DeviceToggle } from "@/components/layout/DeviceToggle";
 import {
-	PluginsNewBadge,
 	type PluginsBadgeHue,
+	PluginsNewBadge,
 } from "@/components/layout/PluginsNewBadge";
 import { SidebarActiveModel } from "@/components/layout/SidebarActiveModel";
 import { isSettingsSurface } from "@/components/settings/settingsSections";
@@ -375,7 +375,9 @@ function SidebarInner({
 			    nav is the sidebar's only content, it fills the full
 			    height now that the branding header and the ThemeSwitch
 			    row have moved out of the sidebar. */}
-			<div className="min-h-0 flex-1 overflow-y-auto p-2">
+			{/* The row is pinned LTR to hold the rail on the physical left;
+			    the nav keeps its own RTL flow for stable logical spacing. */}
+			<div className="min-h-0 flex-1 overflow-y-auto p-2" dir="rtl">
 				<nav
 					ref={navRef}
 					aria-label={t("a11y.mainNavigation")}
