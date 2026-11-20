@@ -233,14 +233,14 @@ NUITKA_ARGS=(
     # (matplotlib's mpl-data fonts alone are tens of MB). Zero static
     # importers anywhere in voice_typer; the sole in-tree edge
     # (noise_suppressor's lazy import) degrades via ImportError fallback,
-    # and the worker never denoises. cryptography (history at-rest
+    # and the worker never denoises. PyCryptodome (history at-rest
     # encryption, host-side only) is likewise unreachable from
-    # worker/__main__ and fails loud (unguarded imports) if ever hit.
+    # worker/__main__ and fails loud if ever hit.
     --nofollow-import-to=pyrnnoise
     --nofollow-import-to=audiolab
     --nofollow-import-to=matplotlib
     --nofollow-import-to=soundfile
-    --nofollow-import-to=cryptography
+    --nofollow-import-to=Crypto
     --include-package=voice_typer
     --include-package=onnxruntime
     --include-package=websockets

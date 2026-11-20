@@ -45,6 +45,7 @@ SKIPPED_FILES = frozenset(
         "PLUGINS_ENABLED",
         "config.json",
         "settings.json",
+        "token.json",
         "last_error.json",
         "STOP",
     }

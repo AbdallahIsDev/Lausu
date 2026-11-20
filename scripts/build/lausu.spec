@@ -223,6 +223,13 @@ _hiddenimports = [
     "ctranslate2",
     "tokenizers",
     "huggingface_hub",
+    # At-rest history encryption uses PyCryptodome AES-GCM. Its raw AES
+    # extension is loaded dynamically, so list the package, cipher module
+    # and raw extension explicitly instead of relying only on hook-Crypto.py.
+    "Crypto",
+    "Crypto.Cipher",
+    "Crypto.Cipher.AES",
+    "Crypto.Cipher._raw_aes",
 ]
 # XPLAT-03: add platform-specific hiddenimports
 if sys.platform == "win32":

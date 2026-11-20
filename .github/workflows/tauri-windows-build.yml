@@ -721,7 +721,14 @@ jobs:
         run: |
           cd src-tauri
           # XS-28 / C-CI-10: apply per-arch tauri config (--target + --config required).
-          cargo tauri build --target ${{ matrix.target }} --config ${{ matrix.tauri_config }}
+          # Signed legs merge tauri.windows-signed.json on top (RFC 7396), which
+          # restores signCommand; the base keeps it null so unsigned/local builds
+          # stay SDK-independent. No signing step is added or gated differently.
+          $signConfig = @()
+          if ($env:SIGN_ENABLED -eq 'true') {
+            $signConfig = @('--config', 'tauri.windows-signed.json')
+          }
+          cargo tauri build --target ${{ matrix.target }} --config ${{ matrix.tauri_config }} @signConfig
 
       - name: Locate + verify installer artifacts
         id: artifacts

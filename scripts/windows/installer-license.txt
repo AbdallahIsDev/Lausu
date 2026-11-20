@@ -74,3 +74,13 @@ make in violation of applicable law (see section 4).
 8. PRIVACY POLICY
 The full privacy and security policy is available at
 https://github.com/AbdallahIsDev/lausu - see SECURITY.md.
+
+9. SOFTWARE LICENSE
+Lausu is source-available software. It is licensed
+under the PolyForm Strict License 1.0.0 (LicenseRef: LicenseRef-PolyForm-Strict-1.0.0),
+Required Notice: Copyright 2026 Abdallah IsDev. The full license text
+is distributed with the application and is also in the project's root
+LICENSE file. Under these terms you may use the software for permitted
+purposes, but you may not redistribute it or distribute changes or new
+works based on it. Bundled third-party components retain their own
+licenses, listed in the project's Third-Party Notices.

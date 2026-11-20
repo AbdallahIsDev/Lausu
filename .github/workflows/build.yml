@@ -49,7 +49,7 @@ jobs:
     strategy:
       # PR: reduced matrix; push: full. BUILD-N03: macos-13 retired → macos-14 (Intel-parity x64 on PR).
       matrix:
-        ${{ github.event_name == 'pull_request' && fromJson('{"include":[{"os":"ubuntu-22.04","python-version":"3.12"},{"os":"windows-2022","python-version":"3.13"},{"os":"macos-14","python-version":"3.13","architecture":"x64"}]}') || fromJson('{"os":["windows-2022","ubuntu-22.04","macos-14"],"python-version":["3.11","3.12","3.13"]}') }}
+        ${{ github.event_name == 'pull_request' && fromJson('{"include":[{"os":"ubuntu-22.04","python-version":"3.12"},{"os":"windows-2022","python-version":"3.13"},{"os":"macos-15-intel","python-version":"3.13","architecture":"x64"}]}') || fromJson('{"os":["windows-2022","ubuntu-22.04","macos-15"],"python-version":["3.11","3.12","3.13"]}') }}
       fail-fast: false
 
     steps:
@@ -62,7 +62,7 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
-          # macos-14 is arm64; PR matrix pins architecture=x64 (Intel-parity via Rosetta).
+          # macos-15-intel is x86_64; PR matrix pins architecture=x64 (native Intel).
           architecture: ${{ matrix.architecture }}
 
       - name: Install uv
@@ -149,19 +149,26 @@ jobs:
           git fetch origin ${{ github.base_ref || '' }} 2>/dev/null || true
           # always 0 and the audit could never fire. The diff-set
           # All python reads here MUST pass encoding='utf-8' (or
+          # Authoritative floor is the BASE ref's baseline, never the PR's
+          # editable pyrefly-baseline.json — a PR that raises its own baseline
+          # must not silence newly-introduced type errors.
+          BASE_FLOOR=$(git show "$BASE_REF:pyrefly-baseline.json" 2>/dev/null | python -c "import sys,json; sys.stdin.reconfigure(encoding='utf-8'); d=json.load(sys.stdin); print(len(d.get('errors', []) if isinstance(d, dict) else d))" 2>/dev/null || echo 0)
+          OLD_COUNT="$BASE_FLOOR"
+          # The checkout baseline is read separately so a raised floor is
+          # still surfaced below; it is NOT the gate floor.
           if [ -f pyrefly-baseline.json ]; then
-            OLD_COUNT=$(python -c "import json; d=json.load(open('pyrefly-baseline.json', encoding='utf-8')); print(len(d.get('errors', []) if isinstance(d, dict) else d))" 2>/dev/null || echo 0)
+            CHECKOUT_COUNT=$(python -c "import json; d=json.load(open('pyrefly-baseline.json', encoding='utf-8')); print(len(d.get('errors', []) if isinstance(d, dict) else d))" 2>/dev/null || echo 0)
           else
-            OLD_COUNT=$(git show "$BASE_REF:pyrefly-baseline.json" 2>/dev/null | python -c "import sys,json; sys.stdin.reconfigure(encoding='utf-8'); d=json.load(sys.stdin); print(len(d.get('errors', []) if isinstance(d, dict) else d))" 2>/dev/null || echo 0)
+            CHECKOUT_COUNT="$OLD_COUNT"
           fi
           # Read the LIVE pyrefly output (not the committed
           # baseline) so newly-introduced errors actually trip the gate.
           NEW_COUNT=$(python -c "import json; d=json.load(open('pyrefly-current.json', encoding='utf-8')); print(len(d.get('errors', []) if isinstance(d, dict) else d))" 2>/dev/null || echo 0)
-          echo "Pyrefly: baseline floor = $OLD_COUNT errors, live current = $NEW_COUNT errors"
+          echo "Pyrefly: base-ref floor = $OLD_COUNT errors, checkout baseline = $CHECKOUT_COUNT errors, live current = $NEW_COUNT errors"
           # Surface a floor RAISE in the checks UI (non-blocking). A PR
-          BASE_FLOOR=$(git show "$BASE_REF:pyrefly-baseline.json" 2>/dev/null | python -c "import sys,json; sys.stdin.reconfigure(encoding='utf-8'); d=json.load(sys.stdin); print(len(d.get('errors', []) if isinstance(d, dict) else d))" 2>/dev/null || echo 0)
-          if [ "$OLD_COUNT" -gt "$BASE_FLOOR" ]; then
-            echo "::warning::Pyrefly baseline floor raised from $BASE_FLOOR (base ref) to $OLD_COUNT (this checkout) — confirm the justification in pyrefly-baseline.json _comment."
+          # raising its own baseline is visible here; it does NOT lower the gate.
+          if [ "$CHECKOUT_COUNT" -gt "$OLD_COUNT" ]; then
+            echo "::warning::Pyrefly baseline floor raised from $OLD_COUNT (base ref) to $CHECKOUT_COUNT (this checkout) — confirm the justification in pyrefly-baseline.json _comment."
           fi
           if [ "$NEW_COUNT" -gt "$OLD_COUNT" ]; then
             echo "::error::Pyrefly error count grew from $OLD_COUNT (baseline) to $NEW_COUNT (live)."
@@ -170,11 +177,9 @@ jobs:
             echo ""
             echo "Added entries (in live output, not in base-ref baseline):"
             # Workspace-relative snapshot path (not /tmp): on the
-            if [ -f pyrefly-baseline.json ]; then
-              cp pyrefly-baseline.json pyrefly-old-baseline.json
-            else
-              git show "$BASE_REF:pyrefly-baseline.json" > pyrefly-old-baseline.json 2>/dev/null || echo '[]' > pyrefly-old-baseline.json
-            fi
+            # diff must use the BASE-ref baseline (the actual gate floor),
+            # not the PR's editable copy, or a raised floor hides new errors.
+            git show "$BASE_REF:pyrefly-baseline.json" > pyrefly-old-baseline.json 2>/dev/null || echo '[]' > pyrefly-old-baseline.json
             python -c "import json;o=json.load(open('pyrefly-old-baseline.json', encoding='utf-8'));n=json.load(open('pyrefly-current.json', encoding='utf-8'));os_={(d.get('path',''),d.get('line',0),d.get('code','')) for d in (o if isinstance(o,list) else o.get('errors',[]))};ns_={(d.get('path',''),d.get('line',0),d.get('code','')) for d in (n if isinstance(n,list) else n.get('errors',[]))};[print(f'  {e[0]}:{e[1]} [{e[2]}]') for e in sorted(ns_-os_)]" 2>/dev/null || echo "  (could not diff)"
             exit 1
           fi
@@ -589,14 +594,14 @@ jobs:
     strategy:
       matrix:
         include:
-          # macOS x64 build (macos-14 = Apple Silicon runner running
-          - os: macos-14
+          # macOS x64 build (macos-15-intel = Intel runner, native x86_64)
+          - os: macos-15-intel
             platform: macos-x64
             script: bash scripts/build/compile_native.sh --arch x86_64
             binary: voice_typer/server/native/macos-key-listener
             artifact_name: macos-key-listener-x64
-          # macOS arm64 build (macos-14 = Apple Silicon).
-          - os: macos-14
+          # macOS arm64 build (macos-15 = Apple Silicon).
+          - os: macos-15
             platform: macos-arm64
             script: bash scripts/build/compile_native.sh --arch arm64
             binary: voice_typer/server/native/macos-key-listener
@@ -753,8 +758,9 @@ jobs:
     name: Notify on failure
     # `always()` so the job runs even when one of `needs` failed. Skipped
     if: always()
-    # List every job whose failure should fire a notification. jobs not
-    needs: [test, client-build, version-check, branding-check, build-native, pre-commit]
+    # Every job in this workflow is listed here. The table and failure count
+    # are generated from `needs` itself, so they cannot drift from this list.
+    needs: [test, client-build, version-check, branding-check, build-native, pre-commit, rust-lint, icons-drift, product-namespace-drift, pip-audit-weekly, ci-errors-doc, slow-tests]
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     permissions:
@@ -762,36 +768,26 @@ jobs:
     steps:
       - name: Summarize job results
         id: summarize
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        shell: bash
         run: |
           set -euo pipefail
-          # Build a Markdown summary table of every needed job's result.
-          {
-            echo "## Job results"
-            echo ""
-            echo "| Job | Result |"
-            echo "| --- | --- |"
-            echo "| test | ${{ needs.test.result }} |"
-            echo "| client-build | ${{ needs.client-build.result }} |"
-            echo "| version-check | ${{ needs.version-check.result }} |"
-            echo "| branding-check | ${{ needs.branding-check.result }} |"
-            echo "| build-native | ${{ needs.build-native.result }} |"
-            echo "| pre-commit | ${{ needs.pre-commit.result }} |"
-          } >> $GITHUB_STEP_SUMMARY
-
-          # Count only failures (skipped/cancelled are not actionable here).
-          FAILURE_COUNT=0
-          for r in \
-              "${{ needs.test.result }}" \
-              "${{ needs.client-build.result }}" \
-              "${{ needs.version-check.result }}" \
-              "${{ needs.branding-check.result }}" \
-              "${{ needs.build-native.result }}" \
-              "${{ needs.pre-commit.result }}"; do
-            if [ "$r" = "failure" ]; then
-              FAILURE_COUNT=$((FAILURE_COUNT + 1))
-            fi
-          done
-          echo "failure_count=$FAILURE_COUNT" >> $GITHUB_OUTPUT
+          # One source of truth: iterate the needs object so a new job can
+          # never be added to `needs` yet omitted from the report.
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          results = json.loads(os.environ["NEEDS_JSON"])
+          print("## Job results")
+          print()
+          print("| Job | Result |")
+          print("| --- | --- |")
+          for job in sorted(results):
+              print(f"| {job} | {results[job].get('result', 'unknown')} |")
+          PY
+          # Only 'failure' is actionable; skipped/cancelled are not.
+          FAILURE_COUNT=$(python -c 'import json, os; print(sum(v.get("result") == "failure" for v in json.loads(os.environ["NEEDS_JSON"]).values()))')
+          echo "failure_count=$FAILURE_COUNT" >> "$GITHUB_OUTPUT"
 
       - name: Emit failure annotation
         if: steps.summarize.outputs.failure_count != '0'

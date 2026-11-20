@@ -41,10 +41,10 @@ permissions:
 
 jobs:
   # ─── Job 1: Apple Silicon (aarch64-apple-darwin) ────────────────────────────
-  # Runs natively on a macos-14 runner (Apple Silicon).
+  # Runs natively on a macos-15 runner (Apple Silicon).
   build-aarch64:
     if: true  # ENABLED for Phase 0-M validation (see GATE STATUS block). Run via workflow_dispatch with sign=true to exercise codesign + notarization.
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
@@ -208,7 +208,7 @@ jobs:
   # ─── Job 2: Intel (x86_64-apple-darwin) ─────────────────────────────────────
   build-x86_64:
     if: true  # ENABLED for Phase 0-M validation (see GATE STATUS block). Run via workflow_dispatch with sign=true to exercise codesign + notarization.
-    runs-on: macos-14
+    runs-on: macos-15-intel
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
@@ -365,7 +365,7 @@ jobs:
   build-tauri-universal:
     if: true  # ENABLED for Phase 0-M validation (see GATE STATUS block above).
     needs: [build-aarch64, build-x86_64]
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 60
     # WR-17: job-level permissions widen the top-level `contents: read`
     # inputs.sign — TX-24).

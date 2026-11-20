@@ -1,0 +1,28 @@
+{
+  "component": "ffmpeg+ffprobe",
+  "platform": "win64-x86_64",
+  "license": "LGPL-2.1-or-later",
+  "version": "N-129150-g7ddf7bc8a4-20261120",
+  "ffmpeg_version": "ffmpeg version N-129150-g7ddf7bc8a4-20261120 Copyright (c) 2000-2026 the FFmpeg developers",
+  "release_tag": "autobuild-2026-11-20-12-40",
+  "release_url": "https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/tag/autobuild-2026-11-20-12-40",
+  "asset_name": "ffmpeg-N-129150-g7ddf7bc8a4-win64-lgpl.zip",
+  "download_url": "https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-11-20-12-40/ffmpeg-N-129150-g7ddf7bc8a4-win64-lgpl.zip",
+  "sha256": "0322fe632c4f6e1fb92c3a3648e100fec702bf86792c4440b4dfda22f7b95b82",
+  "archive_size_bytes": 178978135,
+  "configuration": "configuration: --prefix=/ffbuild/prefix --pkg-config-flags=--static --pkg-config=pkg-config --cross-prefix=x86_64-w64-mingw32- --arch=x86_64 --target-os=mingw32 --enable-version3 --disable-debug --disable-w32threads --enable-pthreads --enable-iconv --enable-zlib --enable-libxml2 --enable-libvmaf --enable-fontconfig --enable-libharfbuzz --enable-libfreetype --enable-libfribidi --enable-lcms2 --enable-vulkan --enable-libdav1d --enable-libvorbis --enable-librav1e --enable-librsvg --disable-libxcb --disable-xlib --disable-libpulse --enable-gmp --enable-lzma --enable-liblcevc-dec --enable-opencl --enable-amf --enable-libaom --disable-avisynth --enable-chromaprint --disable-libdavs2 --disable-libdvdread --disable-libdvdnav --disable-libfdk-aac --enable-ffnvcodec --enable-cuda-llvm --disable-frei0r --enable-libgme --enable-libkvazaar --enable-libaribb24 --enable-libaribcaption --enable-libass --enable-libbluray --enable-libcurl --enable-libjxl --enable-libmp3lame --enable-libopus --enable-libplacebo --enable-librist --enable-libssh --enable-libtheora --enable-libvpx --enable-libwebp --enable-libzmq --enable-lv2 --enable-libvpl --enable-openal --enable-liboapv --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenh264 --enable-libopenjpeg --enable-libopenmpt --disable-librubberband --enable-schannel --enable-sdl2 --enable-libsnappy --enable-libsoxr --enable-libsrt --enable-libsvtav1 --enable-libtwolame --enable-libuavs3d --disable-libdrm --enable-vaapi --enable-vapoursynth --disable-libvidstab --enable-libvvenc --disable-whisper --disable-libx264 --disable-libx265 --disable-libxavs2 --disable-libxvid --enable-libzimg --disable-libzvbi --extra-cflags=-DLIBTWOLAME_STATIC --extra-cxxflags= --extra-libs=-lgomp --extra-ldflags=-pthread --extra-ldexeflags= --cc=x86_64-w64-mingw32-gcc --cxx=x86_64-w64-mingw32-g++ --ar=x86_64-w64-mingw32-gcc-ar --ranlib=x86_64-w64-mingw32-gcc-ranlib --nm=x86_64-w64-mingw32-gcc-nm --extra-version=20261120",
+  "forbidden_config_tokens": [
+    "--enable-gpl",
+    "--enable-nonfree",
+    "--enable-libx264",
+    "--enable-libx265"
+  ],
+  "source_offer_url": "https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/tag/autobuild-2026-11-20-12-40",
+  "build_scripts_source_url": "https://github.com/FFmpeg-Builds/FFmpeg-Builds/tree/autobuild-2026-11-20-12-40",
+  "ffmpeg_source_url": "https://github.com/FFmpeg/FFmpeg/tree/7ddf7bc8a4",
+  "install_dir": "src-tauri/bin",
+  "install_names": {
+    "ffmpeg": "ffmpeg-x86_64-pc-windows-msvc.exe",
+    "ffprobe": "ffprobe-x86_64-pc-windows-msvc.exe"
+  }
+}

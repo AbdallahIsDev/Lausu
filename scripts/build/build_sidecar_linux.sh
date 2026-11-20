@@ -276,6 +276,8 @@ NUITKA_ARGS=(
     --nofollow-import-to=torch
     --include-package=voice_typer
     --include-package=websockets
+    # PyCryptodome backs at-rest history encryption in _text_crypto.py.
+    --include-package=Crypto
     # ADR-0023 packaging: media ingest lazily imports yt_dlp / yt_dlp_ejs /
     # av (decoder.py, downloader.py, subtitles.py, mini_update.py).
     --include-package=yt_dlp
@@ -283,6 +285,9 @@ NUITKA_ARGS=(
     --include-package=av
     --include-package-data=yt_dlp
     --include-package-data=voice_typer.server
+    # Native RNNoise: loaded via ctypes from a path, never via pyrnnoise's
+    # Python package (its audiolab->av.option import chain is broken on PyAV 17).
+    --include-data-file="$SITE/pyrnnoise/librnnoise.so=librnnoise.so"
     # Internal plugin source (developer-mode surface): shipped as data, never
     # imported from the binary. The packaged app seeds a writable per-user
     # workspace from this copy on the first unlock.

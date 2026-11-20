@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68.0"]
+requires = ["setuptools>=77.0.0"]
 build-backend = "setuptools.build_meta"
 # BUILD-N22: although we use setuptools as the build backend, we also
 # declare a hatch/uv compatibility hint for tools that auto-detect the
@@ -34,7 +34,8 @@ description = "Background voice-to-text utility with system tray"
 # 3.10 leg could no longer be kept patch-clean without suppressing findings.
 requires-python = ">=3.11"
 # NEW-DOC-012: added standard project metadata fields.
-license = {text = "MIT"}
+license = "LicenseRef-PolyForm-Strict-1.0.0"
+license-files = ["LICENSE"]
 readme = "README.md"
 authors = [
     {name = "Abdallah IsDev", email = "noreply@github.com"},
@@ -54,7 +55,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Win32 (MS Windows)",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: Microsoft :: Windows :: Windows 10",
     "Operating System :: Microsoft :: Windows :: Windows 11",
     "Programming Language :: Python :: 3",
@@ -322,25 +322,12 @@ dependencies = [
     # credential_store falls back to the existing plaintext-in-config.json
     # behavior with 0o600 perms on POSIX.
     "keyring>=25.0,<26.0",
-    # _text_encryption.py imports Fernet / InvalidToken from
-    # cryptography.fernet for the opt-in at-rest encryption of the
-    # history ``text`` column. The ``>=42`` floor matches the first
-    # release of the current py.typed API surface we consume
-    # (Fernet.generate_key / encrypt / decrypt + InvalidToken); no
-    # upper cap, that API has been stable across every major since.
-    # The module degrades to plaintext if the import fails, but it is
-    # a base dependency so a normal install always provides it.
-    # PLATFORM SPLIT (2026-10-11): upstream removed macOS x86_64 wheels
-    # in 49.0.0 (arm64-only since), so an Intel-Mac pip install would
-    # compile from source (needs Rust + OpenSSL for the target) and die.
-    # Intel Macs stay on 48.0.1, the last release with an x86_64 wheel.
-    # KNOWN GAP: 48.0.1 is affected by PYSEC-2026-3552/3553/3554 (fixed in
-    # 49.0.0/50.0.0). Accepted because the frozen worker never imports it
-    # (unreachable from worker/__main__; --nofollow-import-to keeps it out
-    # of the binary) and the lock's pip-audit gate skips darwin-only pins
-    # on other platforms. Revisit if upstream restores x86_64 wheels.
-    "cryptography>=42; sys_platform != 'darwin' or platform_machine != 'x86_64'",
-    "cryptography>=48.0.1,<49; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    # _text_crypto.py imports Crypto.Cipher.AES (PyCryptodome) for the
+    # opt-in AES-256-GCM encryption of the history ``text`` column. The
+    # >=4.5 floor is a cp39-abi3 wheel release covering macOS universal2
+    # (x86_64 + arm64), manylinux x86_64/aarch64 and Windows amd64/arm64;
+    # <5 caps the major. Unlike cryptography, it keeps Intel-Mac wheels.
+    "pycryptodome>=4.5,<5",
 ]
 
 [project.urls]
@@ -417,7 +404,7 @@ build = [
     # BUILD-N26: cap raised 84 -> 85 for the 84.1.0 security fix that
     # pip-audit requires; the old <84 cap was a blanket upper bound, not a
     # known incompatibility.
-    "setuptools>=68.0,<85",
+    "setuptools>=77.0.0,<85",
     # Explicit floor so `pip install .[build]` never resolves an
     # unbounded `wheel` (which has no upper bound anyway, but a floor
     # pins the bdist_wheel behavior we depend on for the installer).
