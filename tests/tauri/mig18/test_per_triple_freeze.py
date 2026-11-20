@@ -210,7 +210,7 @@ def test_tauri_conf_external_bin_uses_base_name():
 def test_slim_conf_external_bin_is_sidecar_and_media_pair_without_worker():
     """``tauri.windows-x86_64-slim.conf.json`` drops only the worker (SP-1).
 
-    The win64-only LGPL ffmpeg/ffprobe pair is declared in both Windows x64
+    The win64-only LGPL ffmpeg executable is declared in both Windows x64
     configs so media ingest works in the slim installer too.
     """
     slim_conf = PROJECT_ROOT / "src-tauri" / "tauri.windows-x86_64-slim.conf.json"
@@ -223,8 +223,11 @@ def test_slim_conf_external_bin_is_sidecar_and_media_pair_without_worker():
     assert not any("worker" in entry for entry in external_bin), (
         f"the slim config must NOT ship the worker (runtime pack owns it); got: {external_bin!r}"
     )
-    assert {"bin/ffmpeg", "bin/ffprobe"} <= set(external_bin), (
-        f"the slim config must ship the win64-only LGPL media pair; got: {external_bin!r}"
+    assert "bin/ffmpeg" in external_bin, (
+        f"the slim config must ship the win64-only LGPL ffmpeg; got: {external_bin!r}"
+    )
+    assert "bin/ffprobe" not in external_bin, (
+        f"ffprobe is not shipped; duration probing uses ffmpeg; got: {external_bin!r}"
     )
 
 

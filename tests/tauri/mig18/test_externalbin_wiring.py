@@ -31,11 +31,12 @@ EXPECTED_NATIVE_RESOURCES = [
 # : worker exe that absorbed the retired standalone prewarm binary).
 EXPECTED_WORKER_BIN_BASENAME = "bin/lausu-worker"
 
-# Windows x64 only: the LGPL ffmpeg/ffprobe pair fetched by
-# scripts/build/fetch_ffmpeg_lgpl_win64.sh (Part C). Tauri appends the target
-# triple to each base name at build time; the base + macOS/Linux configs stay
-# untouched. Listed as base names with no triple suffix (ADR-0020 §4.1 + §7).
-FFMPEG_EXTERNAL_BIN = ("bin/ffmpeg", "bin/ffprobe")
+# Windows x64 only: the LGPL ffmpeg binary fetched by
+# scripts/build/fetch_ffmpeg_lgpl_win64.sh (Part C). ffprobe is NOT shipped:
+# duration probing parses ffmpeg's stderr. Tauri appends the target triple to
+# the base name at build time; the base + macOS/Linux configs stay untouched.
+FFMPEG_EXTERNAL_BIN = ("bin/ffmpeg",)
+UNSHIPPED_FFMPEG_TOOLS = ("bin/ffprobe",)
 WINDOWS_X64_FFMPEG_CONFIGS = (
     "tauri.windows-x86_64.conf.json",
     "tauri.windows-x86_64-slim.conf.json",
@@ -328,14 +329,19 @@ class TestWindowsX64FfmpegExternalBin:
     LGPL binaries are win64-only and macOS/Linux stay byte-for-byte unchanged.
     """
 
-    def test_windows_x64_configs_declare_ffmpeg_and_ffprobe(self) -> None:
+    def test_windows_x64_configs_declare_ffmpeg(self) -> None:
         for name in WINDOWS_X64_FFMPEG_CONFIGS:
             cfg = json.loads((_SRC_TAURI / name).read_text(encoding="utf-8"))
             external_bin = cfg.get("bundle", {}).get("externalBin", [])
             for tool in FFMPEG_EXTERNAL_BIN:
                 assert tool in external_bin, (
                     f"{name} bundle.externalBin must declare {tool!r} "
-                    f"(Windows-only LGPL media pair); got: {external_bin!r}"
+                    f"(Windows-only LGPL media binary); got: {external_bin!r}"
+                )
+            for tool in UNSHIPPED_FFMPEG_TOOLS:
+                assert tool not in external_bin, (
+                    f"{name} must NOT declare {tool!r}: ffprobe is not shipped; "
+                    f"duration probing parses ffmpeg's stderr; got: {external_bin!r}"
                 )
 
     def test_windows_x64_external_bin_entries_have_no_triple_suffix(self) -> None:
@@ -383,13 +389,13 @@ class TestWindowsX64FfmpegExternalBin:
             sys.modules.pop("_vt_ffmpeg_binaries_wiring", None)
         return module
 
-    def test_frozen_sidecar_finds_bundled_pair_next_to_it(self, monkeypatch, tmp_path) -> None:
+    def test_frozen_sidecar_finds_bundled_ffmpeg_next_to_it(self, monkeypatch, tmp_path) -> None:
         """Cross-layer parity: Tauri strips -<triple> when bundling externalBin.
 
-        The installed app therefore carries ``ffmpeg.exe``/``ffprobe.exe``
-        beside the sidecar (Tauri resolves sidecars by base name). Prove the
-        frozen sidecar's resolver finds exactly those basenames in an
-        exe-adjacent dir, with no PATH fallback.
+        The installed app therefore carries ``ffmpeg.exe`` beside the sidecar
+        (Tauri resolves sidecars by base name). Prove the frozen sidecar's
+        resolver finds that basename with no PATH fallback. ffprobe is not
+        shipped: its absence must fail soft, not break media ingest.
         """
         resolver = self._load_resolver()
         for var in (resolver.ENV_FFMPEG, resolver.ENV_FFPROBE):
@@ -397,14 +403,11 @@ class TestWindowsX64FfmpegExternalBin:
         monkeypatch.setattr(resolver, "_frozen", lambda: True)
         monkeypatch.setattr(resolver, "_shipped_dirs", lambda: (tmp_path,))
 
-        expected_names = {}
-        for program in ("ffmpeg", "ffprobe"):
-            name = resolver._names(program)[0]  # bare basename Tauri ships
-            (tmp_path / name).write_bytes(b"binary")
-            expected_names[program] = name
+        ffmpeg_name = resolver._names("ffmpeg")[0]  # bare basename Tauri ships
+        (tmp_path / ffmpeg_name).write_bytes(b"binary")
 
         pair = resolver.resolve_binaries()
-        assert pair is not None, "frozen sidecar must find the bundled ffmpeg/ffprobe pair"
-        assert Path(pair.ffmpeg) == tmp_path / expected_names["ffmpeg"]
-        assert pair.ffprobe is not None
-        assert Path(pair.ffprobe) == tmp_path / expected_names["ffprobe"]
+        assert pair is not None, "frozen sidecar must find the bundled ffmpeg"
+        assert Path(pair.ffmpeg) == tmp_path / ffmpeg_name
+        assert pair.ffprobe is None, "ffprobe is not bundled; the optional field must fail soft"
+

@@ -111,3 +111,31 @@ class TestWorkflowPinsNewSteps:
         assert "actions/checkout@v5" in text
         assert "actions/setup-python@v7" in text
         assert "actions/upload-artifact@v6" in text
+
+
+class TestFfmpegBundleScopeNotLeakedToMacos:
+    """The win64-only LGPL ffmpeg must not leak into base/macOS/Linux configs."""
+
+    @staticmethod
+    def _external_bin(name: str) -> list[str]:
+        cfg = json.loads((SRC_TAURI / name).read_text(encoding="utf-8"))
+        return cfg.get("bundle", {}).get("externalBin", [])
+
+    def test_media_binaries_are_windows_x64_only(self) -> None:
+        for name in (
+            "tauri.conf.json",
+            "tauri.macos.conf.json",
+            "tauri.linux-x86_64.conf.json",
+            "tauri.linux-aarch64.conf.json",
+            "tauri.windows-aarch64.conf.json",
+        ):
+            path = SRC_TAURI / name
+            if not path.is_file():
+                continue
+            leaked = [e for e in self._external_bin(name) if "ffmpeg" in e or "ffprobe" in e]
+            assert not leaked, f"{name} must not declare media binaries (Windows x64 only): {leaked}"
+
+    def test_no_config_declares_ffprobe(self) -> None:
+        for path in sorted(SRC_TAURI.glob("tauri*.conf.json")):
+            leaked = [e for e in self._external_bin(path.name) if "ffprobe" in e]
+            assert not leaked, f"{path.name} declares ffprobe but it is not shipped: {leaked}"

@@ -503,14 +503,16 @@ PER_ARCH_CONFIGS: dict[str, tuple[str, tuple[str, ...]]] = {
 # config must keep the base list verbatim.
 SLIM_PER_ARCH_CONFIGS: set[str] = {"tauri.windows-x86_64-slim.conf.json"}
 
-# Windows x64 (full + slim) additionally bundle the LGPL ffmpeg/ffprobe pair
-# fetched by scripts/build/fetch_ffmpeg_lgpl_win64.sh. Arrays replace, so these
-# configs must list the full set they need; no other config declares the pair.
+# Windows x64 (full + slim) bundle the LGPL ffmpeg binary fetched by
+# scripts/build/fetch_ffmpeg_lgpl_win64.sh. Arrays replace, so these configs
+# must list the full set they need; no other config declares ffmpeg. ffprobe
+# is NOT shipped (duration comes from ffmpeg's own stderr).
 WINDOWS_X64_FFMPEG_CONFIGS: set[str] = {
     "tauri.windows-x86_64.conf.json",
     "tauri.windows-x86_64-slim.conf.json",
 }
-FFMPEG_EXTERNAL_BIN: tuple[str, ...] = ("bin/ffmpeg", "bin/ffprobe")
+FFMPEG_EXTERNAL_BIN: tuple[str, ...] = ("bin/ffmpeg",)
+UNSHIPPED_FFMPEG_TOOLS: tuple[str, ...] = ("bin/ffprobe",)
 
 
 def _resource_relevant(resource: str, platform: str, triples: set[str]) -> bool:
@@ -593,8 +595,13 @@ class TestPerArchConfigsStayLockedToBase:
             expected = slim_external_bin if rel in SLIM_PER_ARCH_CONFIGS else base_external_bin
             if rel in WINDOWS_X64_FFMPEG_CONFIGS:
                 # The two Windows x64 configs declare the full set themselves
-                # (arrays REPLACE); the media pair is the only permitted delta.
+                # (arrays REPLACE); the LGPL ffmpeg binary is the only delta.
                 expected = expected + list(FFMPEG_EXTERNAL_BIN)
+                leaked = set(cfg_external_bin) & set(UNSHIPPED_FFMPEG_TOOLS)
+                assert not leaked, (
+                    f"{rel} declares unshipped media tools {sorted(leaked)}: "
+                    "ffprobe is not bundled; duration comes from ffmpeg's stderr."
+                )
             assert cfg_external_bin == expected, (
                 f"{rel} ({platform}) overrides bundle.externalBin: "
                 f"{cfg_external_bin} != expected {expected}. Dropping "

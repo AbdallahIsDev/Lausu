@@ -34,6 +34,19 @@ def _binaries() -> ffmpeg_binaries.BinaryPair | None:
 
 
 requires_ffmpeg = pytest.mark.skipif(_binaries() is None, reason="ffmpeg/ffprobe not available on PATH or bundle")
+def _has_ffprobe() -> bool:
+    pair = _binaries()
+    return pair is not None and pair.ffprobe is not None
+
+
+_FFPROBE_AVAILABLE = _has_ffprobe()
+
+
+def _ffprobe() -> str:
+    pair = _binaries()
+    assert pair is not None and pair.ffprobe is not None
+    return pair.ffprobe
+requires_ffprobe = pytest.mark.skipif(not _FFPROBE_AVAILABLE, reason="ffprobe parity oracle not available")
 
 
 def _write_wav(path: Path, seconds: float, rate: int = 16_000, amplitude: int = 3000) -> None:
@@ -212,27 +225,37 @@ class TestArgvContract:
         assert info.value.code == errors.DECODE_FAILED
         assert calls == []
 
-    def test_probe_argv_uses_the_same_whitelist(self, monkeypatch, tmp_path):
+    def test_duration_probe_argv_uses_the_same_whitelist(self, monkeypatch, tmp_path):
+        """Duration probing is ffmpeg-only: input-only argv, no output, no ffprobe."""
         wav = tmp_path / "clip.wav"
         _write_wav(wav, 1)
-        _fake_binaries(monkeypatch, ffprobe="ffprobe-bin")
-        seen: list[list[str]] = []
+        _fake_binaries(monkeypatch, ffprobe=None)
+        seen: list[tuple[list[str], dict]] = []
 
         def fake_run(argv, **kwargs):
-            seen.append(argv)
+            seen.append((argv, kwargs))
 
             class Done:
-                returncode = 0
-                stdout = b"1.0\n"
-                stderr = b""
+                returncode = 1  # ffmpeg has no output file: rc=1 after the header
+                stdout = b""
+                stderr = b"  Stream #0:0: Audio: pcm_s16le\n  Duration: 00:00:01.00, start: 0.000000\n"
 
             return Done()
 
         monkeypatch.setattr(decoder.subprocess, "run", fake_run)
         assert decoder.probe_duration_seconds(str(wav)) == 1.0
-        argv = seen[0]
-        assert argv[:6] == ["ffprobe-bin", "-v", "error", "-protocol_whitelist", "file", "-show_entries"]
-        assert argv[-1] == "file:" + str(wav)
+        argv, kwargs = seen[0]
+        assert argv == [
+            REAL_BIN,
+            "-hide_banner",
+            "-nostdin",
+            "-protocol_whitelist",
+            "file",
+            "-i",
+            "file:" + str(wav),
+        ]
+        assert kwargs.get("timeout") == decoder.OPEN_TIMEOUT_US / 1_000_000.0
+        assert kwargs.get("shell", False) is False
 
 
 class TestSafety:
@@ -494,28 +517,179 @@ class TestProbes:
         assert decoder.probe_duration_seconds(str(wav)) == pytest.approx(3.0, abs=0.05)
         assert decoder.probe_duration_seconds(str(tmp_path / "missing.wav")) is None
 
-    def test_probe_fails_soft_without_ffprobe(self, monkeypatch, tmp_path):
+    def test_probes_fail_soft_without_any_binary(self, monkeypatch, tmp_path):
+        """With no resolver result at all, both probes fail soft to None."""
         wav = tmp_path / "clip.wav"
         _write_wav(wav, 1)
-        monkeypatch.setattr(ffmpeg_binaries, "resolve_binaries", lambda: ffmpeg_binaries.BinaryPair("ffmpeg", None))
+        monkeypatch.setattr(ffmpeg_binaries, "resolve_binaries", lambda: None)
         assert decoder.probe_duration_seconds(str(wav)) is None
         assert decoder.probe_remote("https://cdn.example/a.mp3") is None
 
-    def test_probe_remote_reads_audio_streams_and_duration(self, monkeypatch):
-        payload = (
-            '{"streams":[{"codec_type":"audio","duration":"12.5"},{"codec_type":"video"}],"format":{"duration":"12.5"}}'
+    def test_probe_remote_reads_audio_streams_and_duration_without_ffprobe(self, monkeypatch):
+        log_text = (
+            "  Stream #0:0(und): Audio: aac (LC), 44100 Hz, stereo, fltp\n"
+            "  Stream #0:1(und): Video: h264 (High), yuv420p\n"
+            "  Duration: 00:00:12.50, start: 0.000000\n"
         )
-        monkeypatch.setattr(decoder, "_run_probe", lambda *a, **k: payload)
+        monkeypatch.setattr(decoder, "_run_duration_probe", lambda *a, **k: log_text)
         monkeypatch.setattr(
             ffmpeg_binaries,
             "resolve_binaries",
-            lambda: ffmpeg_binaries.BinaryPair("ffmpeg", "ffprobe"),
+            lambda: ffmpeg_binaries.BinaryPair(REAL_BIN, None),
         )
         probe = decoder.probe_remote("https://cdn.example/a.mp4")
         assert probe is not None
         assert probe.audio_streams == 1
         assert probe.duration_seconds == pytest.approx(12.5)
         assert decoder.probe_remote("ftp://cdn.example/a.mp4") is None
+
+
+class TestDurationParityFfprobeToFfmpeg:
+    """The retired ffprobe duration path vs the new ffmpeg stderr parser.
+
+    Both paths are called on the SAME inputs; parity is the condition for
+    dropping ffprobe from the shipped Windows binary set.
+    """
+
+    @staticmethod
+    def _old(source: str, ffprobe: str, *, remote: bool = False) -> float | None:
+        """Independent ffprobe oracle (C-TEST-10): its own argv, not production helpers."""
+        argv = [
+            ffprobe,
+            "-v",
+            "error",
+            "-protocol_whitelist",
+            "http,https,tcp,tls,crypto" if remote else "file",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            source if remote else "file:" + source,
+        ]
+        try:
+            completed = subprocess.run(
+                argv,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                timeout=(decoder.READ_TIMEOUT_US if remote else decoder.OPEN_TIMEOUT_US) / 1_000_000.0,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        if completed.returncode != 0:
+            return None
+        match = re.search(r"-?\d+(?:\.\d+)?", completed.stdout.decode("utf-8", "replace"))
+        return float(match.group(0)) if match else None
+
+    @classmethod
+    def _assert_parity(cls, source: str, ffprobe: str, *, remote: bool = False) -> tuple[float | None, float | None]:
+        old = cls._old(source, ffprobe, remote=remote)
+        new = decoder.probe_duration_seconds(source, remote=remote)
+        if old is None:
+            assert new is None, f"ffprobe={old!r} ffmpeg={new!r} for {source}"
+        else:
+            assert new is not None and new == pytest.approx(old, abs=0.02), (old, new, source)
+        return old, new
+
+    @requires_ffmpeg
+    @requires_ffprobe
+    @pytest.mark.parametrize("path", [REPO_WAV], ids=["repo_fixture"])
+    def test_repo_fixture(self, path):
+        old, new = self._assert_parity(str(path), _ffprobe())
+        assert old == new == pytest.approx(1.0, abs=0.02)
+
+    @requires_ffmpeg
+    @requires_ffprobe
+    @pytest.mark.parametrize("seconds", [1, 12])
+    def test_generated_tone(self, tmp_path, seconds):
+        wav = tmp_path / f"tone_{seconds}.wav"
+        _write_wav(wav, seconds)
+        old, new = self._assert_parity(str(wav), _ffprobe())
+        assert old == new == pytest.approx(float(seconds), abs=0.02)
+
+    @requires_ffmpeg
+    @requires_ffprobe
+    def test_truncated(self, tmp_path):
+        ogg = tmp_path / "short.ogg"
+        _ffmpeg(
+            "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=16000",
+            "-t", "5", "-c:a", "libvorbis", str(ogg),
+        )
+        raw = ogg.read_bytes()
+        ogg.write_bytes(raw[: max(64, len(raw) // 2)])
+        old, new = self._assert_parity(str(ogg), _ffprobe())
+        assert old is None and new is None
+
+    @requires_ffmpeg
+    @requires_ffprobe
+    def test_video_only(self, tmp_path):
+        avi = tmp_path / "video.avi"
+        # mpeg4 is FFmpeg's own encoder: no libx264/libx265 needed.
+        _ffmpeg(
+            "-f", "lavfi", "-i", "color=c=black:s=32x32:r=2",
+            "-frames:v", "3", "-c:v", "mpeg4", "-pix_fmt", "yuv420p",
+            "-f", "avi", str(avi),
+        )
+        old, new = self._assert_parity(str(avi), _ffprobe())
+        assert old == new == pytest.approx(1.5, abs=0.02)
+
+    @requires_ffmpeg
+    @requires_ffprobe
+    def test_corrupt(self, tmp_path):
+        bad = tmp_path / "bad.wav"
+        bad.write_bytes(b"not a wave file at all")
+        old, new = self._assert_parity(str(bad), _ffprobe())
+        assert old is None and new is None
+
+    def test_remote_mocked(self, monkeypatch):
+        """One faked 12.5 s source, both paths, identical whitelist."""
+        _fake_binaries(monkeypatch, ffprobe="ffprobe-bin")
+        seen: list[list[str]] = []
+
+        class Done:
+            returncode = 0
+
+            def __init__(self, stdout: bytes, stderr: bytes) -> None:
+                self.stdout = stdout
+                self.stderr = stderr
+
+        def fake_run(argv, **kwargs):
+            seen.append(argv)
+            if argv[0] == "ffprobe-bin":
+                return Done(b"12.5\n", b"")
+            return Done(b"", b"  Stream #0:0: Audio: aac\n  Duration: 00:00:12.50, start: 0.000000\n")
+
+        monkeypatch.setattr(decoder.subprocess, "run", fake_run)
+        old, new = self._assert_parity("https://cdn.example/a.mp3", "ffprobe-bin", remote=True)
+        assert old == new == pytest.approx(12.5)
+        assert len(seen) == 2
+        for argv in seen:
+            assert argv[argv.index("-protocol_whitelist") + 1] == "http,https,tcp,tls,crypto"
+
+    def test_duration_probe_never_needs_ffprobe(self, monkeypatch, tmp_path):
+        """Production invariant: ffprobe=None still yields a duration."""
+        wav = tmp_path / "clip.wav"
+        _write_wav(wav, 1)
+        monkeypatch.setattr(
+            ffmpeg_binaries,
+            "resolve_binaries",
+            lambda: ffmpeg_binaries.BinaryPair(REAL_BIN, None),
+        )
+        seen: list[list[str]] = []
+
+        def fake_run(argv, **kwargs):
+            seen.append(argv)
+
+            class Done:
+                returncode = 1
+                stdout = b""
+                stderr = b"  Duration: 00:00:01.00, start: 0.000000\n"
+
+            return Done()
+
+        monkeypatch.setattr(decoder.subprocess, "run", fake_run)
+        assert decoder.probe_duration_seconds(str(wav)) == 1.0
+        assert len(seen) == 1 and "ffprobe" not in seen[0]
 
 
 class TestBinaryResolver:
