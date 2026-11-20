@@ -696,7 +696,10 @@
 		"copyDiagnostics": "Copy Diagnostics",
 		"copied": "Copied!",
 		"copyFailed": "Failed to copy diagnostics",
-		"loadedViaHint": "How the speech model was loaded (bundled, downloaded, or a custom path)."
+		"loadedViaHint": "How the speech model was loaded (bundled, downloaded, or a custom path).",
+		"thirdPartyTitle": "Third-party notices",
+		"thirdPartyDesc": "The Third-Party Notices file ships with the app and lists license identifiers, copyright lines and available license texts for the bundled components. Items without local evidence are marked UNVERIFIED with an upstream URL.",
+		"viewThirdPartyNotices": "View third-party notices"
 	},
 	"settings": {
 		"apiUrlInvalid": "Enter a valid https URL",

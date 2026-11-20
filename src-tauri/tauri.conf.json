@@ -86,6 +86,7 @@
       "bin/lausu-worker"
     ],
     "resources": [
+      "../docs/THIRD_PARTY_NOTICES.md",
       "resources/native/windows-key-listener.exe",
       "resources/native/macos-key-listener",
       "resources/native/linux-key-listener",

@@ -691,7 +691,10 @@
 		"copyDiagnostics": "Diagnose kopieren",
 		"copied": "Kopiert!",
 		"copyFailed": "Diagnose konnte nicht kopiert werden",
-		"loadedViaHint": "Wie das Spracherkennungsmodell geladen wurde (gebündelt, heruntergeladen oder ein benutzerdefinierter Pfad)."
+		"loadedViaHint": "Wie das Spracherkennungsmodell geladen wurde (gebündelt, heruntergeladen oder ein benutzerdefinierter Pfad).",
+		"thirdPartyTitle": "Hinweise zu Drittanbietern",
+		"thirdPartyDesc": "Die Hinweise zu Drittanbietern werden mit der App ausgeliefert und enthalten die Lizenzkennungen, Urheberrechtszeilen und verfügbaren Lizenztexte der gebündelten Komponenten. Einträge ohne lokale Nachweise sind als „ungeprüft“ mit einer Upstream-URL gekennzeichnet.",
+		"viewThirdPartyNotices": "Drittanbieterhinweise anzeigen"
 	},
 	"settings": {
 		"apiUrlInvalid": "Gültige https-URL eingeben",

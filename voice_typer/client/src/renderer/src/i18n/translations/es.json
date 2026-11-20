@@ -691,7 +691,10 @@
 		"copyDiagnostics": "Copiar diagnóstico",
 		"copied": "¡Copiado!",
 		"copyFailed": "No se pudo copiar el diagnóstico",
-		"loadedViaHint": "Cómo se cargó el modelo de voz (integrado, descargado o una ruta personalizada)."
+		"loadedViaHint": "Cómo se cargó el modelo de voz (integrado, descargado o una ruta personalizada).",
+		"thirdPartyTitle": "Avisos de terceros",
+		"thirdPartyDesc": "El archivo de avisos de terceros se distribuye con la aplicación e incluye los identificadores de licencia, las líneas de copyright y los textos de licencia disponibles de los componentes incluidos. Los elementos sin evidencia local se marcan como «sin verificar» con una URL de origen.",
+		"viewThirdPartyNotices": "Ver avisos de terceros"
 	},
 	"settings": {
 		"apiUrlInvalid": "Introduce una URL https válida",

@@ -39,12 +39,18 @@ import { Button } from "@/components/ui/button";
 import { useLatestRef } from "@/hooks/useLatestRef";
 import { usePython } from "@/hooks/usePython";
 import { t, useT } from "@/i18n/i18n";
+import { openExternalUrl } from "@/lib/external-links";
 import pkg from "../../../../package.json";
 
 // App version, read directly from package.json (see VERSION-SOURCE-FIX
 // comment at the top of the file) so this never drifts from the
 // canonical source of truth on a release bump.
 const APP_VERSION = pkg.version as string;
+
+// The notices ship as an application resource; this link opens the hosted
+// copy in the OS browser through the single sanctioned external-link helper.
+const THIRD_PARTY_NOTICES_URL =
+	"https://github.com/AbdallahIsDev/lausu/blob/main/docs/THIRD_PARTY_NOTICES.md";
 
 /** Privacy topics, icon + existing i18n title/description keys. */
 const PRIVACY_TOPICS = [
@@ -281,6 +287,26 @@ export default function AboutAndPrivacyPage() {
 						</div>
 					</div>
 				))}
+			</div>
+
+			{/* Third-party notices ship as an application resource; this row is
+		    the in-app entry point to the hosted copy. */}
+			<div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border/8 bg-surface-subtle p-4">
+				<div className="flex min-w-0 flex-col gap-1">
+					<p className="text-sm font-medium text-foreground">
+						{t("about.thirdPartyTitle")}
+					</p>
+					<p className="max-w-prose text-xs leading-relaxed text-muted-foreground">
+						{t("about.thirdPartyDesc")}
+					</p>
+				</div>
+				<Button
+					variant="outline"
+					size="xs"
+					onClick={() => void openExternalUrl(THIRD_PARTY_NOTICES_URL)}
+				>
+					{t("about.viewThirdPartyNotices")}
+				</Button>
 			</div>
 		</div>
 	);

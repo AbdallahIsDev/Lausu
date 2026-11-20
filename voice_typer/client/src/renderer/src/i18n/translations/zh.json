@@ -691,7 +691,10 @@
 		"copyDiagnostics": "复制诊断信息",
 		"copied": "已复制！",
 		"copyFailed": "复制诊断信息失败",
-		"loadedViaHint": "语音模型是如何加载的（内置、下载或自定义路径）。"
+		"loadedViaHint": "语音模型是如何加载的（内置、下载或自定义路径）。",
+		"thirdPartyTitle": "第三方声明",
+		"thirdPartyDesc": "随应用提供的《第三方声明》文件列出所捆绑组件的许可证标识、版权行和可用的许可证全文。缺少本地证据的项目会标记为“未核实”并附上游网址。",
+		"viewThirdPartyNotices": "查看第三方声明"
 	},
 	"settings": {
 		"apiUrlInvalid": "请输入有效的 https URL",
