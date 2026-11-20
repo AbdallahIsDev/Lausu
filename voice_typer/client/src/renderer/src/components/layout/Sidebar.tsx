@@ -30,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { useDebugPrefs } from "@/hooks/useDebugPrefs";
 import { usePluginsAvailable } from "@/hooks/usePluginCatalog";
 import { usePluginsNewBadge } from "@/hooks/usePluginsNewBadge";
-import { t } from "@/i18n/i18n";
+import { t, useT } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import { prefetchPage } from "@/router/prefetch";
 import type { Page } from "@/types/ipc";
@@ -272,6 +272,7 @@ function SidebarInner({
 	onNavigate,
 	collapsed = false,
 }: SidebarProps) {
+	const t = useT();
 	// (roving tabindex): the nav is a vertical composite
 	// widget. Only one item holds tabIndex=0 (the active page, or
 	// the first item if the active page isn't in the nav); all

@@ -4,7 +4,7 @@ import {
 	isSettingsSurface,
 	SETTINGS_SECTION_PAGES,
 } from "@/components/settings/settingsSections";
-import { t } from "@/i18n/i18n";
+import { t, useT } from "@/i18n/i18n";
 import { useGlobalSearch } from "@/stores/useGlobalSearch";
 import type { Page } from "@/types/ipc";
 
@@ -49,6 +49,10 @@ interface GlobalSearchBarProps {
 export const GlobalSearchBar = memo(function GlobalSearchBar({
 	currentPage,
 }: GlobalSearchBarProps) {
+	// placeholderFor() resolves its strings through module-level t() at
+	// render time; subscribing here is what re-renders this memoized bar so
+	// those strings actually refresh on a locale change.
+	useT();
 	const query = useGlobalSearch((s) => s.query);
 	const setQuery = useGlobalSearch((s) => s.setQuery);
 	const clearQuery = useGlobalSearch((s) => s.clearQuery);

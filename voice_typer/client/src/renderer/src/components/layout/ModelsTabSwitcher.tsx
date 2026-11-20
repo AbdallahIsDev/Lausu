@@ -28,7 +28,7 @@ import {
 	ToggleGroup,
 	type ToggleGroupOption,
 } from "@/components/ui/toggle-group";
-import { t } from "@/i18n/i18n";
+import { useT } from "@/i18n/i18n";
 import { type ModelsTab, useModelsTab } from "@/stores/useModelsTab";
 import type { Page } from "@/types/ipc";
 
@@ -39,6 +39,7 @@ interface ModelsTabSwitcherProps {
 export const ModelsTabSwitcher = memo(function ModelsTabSwitcher({
 	currentPage,
 }: ModelsTabSwitcherProps) {
+	const t = useT();
 	const activeTab = useModelsTab((s) => s.activeTab);
 	const setActiveTab = useModelsTab((s) => s.setActiveTab);
 
