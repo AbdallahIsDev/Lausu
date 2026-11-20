@@ -15,7 +15,8 @@ import contextlib
 import logging
 import threading
 import time
-from typing import Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from voice_typer.server._lazy_import import lazy_module
 from voice_typer.server.asr_errors import ModelNotDownloadedError
@@ -57,11 +58,18 @@ from voice_typer.worker.whisper.native_stderr import (  # noqa: E402
     capture_native_stderr as _capture_native_stderr,
 )
 
-np = lazy_module("numpy")
+if TYPE_CHECKING:
+    # ``np.ndarray`` annotations need a real module symbol; the runtime proxy
+    # stays lazy so importing this module never pulls numpy in (PERF-COLDSTART-001).
+    import numpy as np
+else:
+    np = lazy_module("numpy")
 
 # Keep the historical logger name so log-based tests and log parsers
 # see no change from the move.
 log = logging.getLogger("voice_typer.server.transcription")
+
+_R = TypeVar("_R")
 
 
 class TranscriptionEngine:
@@ -72,7 +80,8 @@ class TranscriptionEngine:
         # Canonical default: see ``model_registry.DEFAULT_MODEL_SIZE``.
         model_size: str = DEFAULT_MODEL_SIZE,
         device: str = "auto",
-        language: str = DEFAULT_LOCALE,
+        # None = Auto (detect the spoken language). See ``asr_language_param``.
+        language: str | None = DEFAULT_LOCALE,
         # Speed-biased default of 1, ~2x faster than beam_size=3-5 at
         beam_size: int = 1,
         best_of: int = 1,
@@ -399,7 +408,9 @@ class TranscriptionEngine:
             yield
         self._run_deferred_gc()
 
-    def _with_gpu_fallback(self, inner, audio, *args, **kwargs):
+    def _with_gpu_fallback(
+        self, inner: Callable[..., _R], audio: Any, *args: Any, **kwargs: Any
+    ) -> _R:
         """Run ``inner(audio, *args, **kwargs)`` with GPU→CPU fallback."""
         return _with_gpu_fallback_impl(self, inner, audio, *args, **kwargs)
 

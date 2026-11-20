@@ -34,10 +34,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from voice_typer.server.asr_utils import asr_language_param
 from voice_typer.server.cloud._defaults import _PROVIDER_DEFAULTS
 from voice_typer.server.cloud._engine import CloudEngine
 from voice_typer.server.credential_store import PROVIDER_TO_CONFIG_FIELD
-from voice_typer.server.i18n import DEFAULT_LOCALE
 
 log = logging.getLogger(__name__)
 
@@ -100,7 +100,10 @@ class CloudAsrBackend(CloudEngine):
             api_key="",
             api_url="",
             model="",
-            language=getattr(config, "language", DEFAULT_LOCALE) or DEFAULT_LOCALE,
+            # Auto ("" in config) reaches the provider as None = omit the
+            # language field; a forced "en" would decode every language
+            # as English.
+            language=asr_language_param(getattr(config, "language", "")),
             consent_given=False,
             local_engine_factory=local_engine_factory,
         )
@@ -122,7 +125,7 @@ class CloudAsrBackend(CloudEngine):
         self.api_url = api_url
         self.model_name = model
         self.consent_given = consent
-        self.language = getattr(self._config, "language", DEFAULT_LOCALE) or DEFAULT_LOCALE
+        self.language = asr_language_param(getattr(self._config, "language", ""))
 
     def load(self, progress_callback: Any | None = None) -> None:
         """Re-resolve the target, then report readiness.

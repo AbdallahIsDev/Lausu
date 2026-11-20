@@ -19,9 +19,36 @@ def persist_result(
     model: str = "",
     device: str = "",
     partial: bool = False,
+    kind: str = "media",
+    source_type: str | None = None,
+    source_title: str | None = None,
+    source_url: str | None = None,
+    file_name: str | None = None,
+    thumbnail_url: str | None = None,
+    media_duration_seconds: float | None = None,
+    processing_seconds: float | None = None,
+    download_seconds: float | None = None,
+    method: str | None = None,
 ) -> int:
     """Save transcript to History; publish ``history_changed``; return row id."""
-    row_id = int(app.history_db.add_transcription(text, duration=duration, model=model, device=device))
+    row_id = int(
+        app.history_db.add_transcription(
+            text,
+            duration=duration,
+            model=model,
+            device=device,
+            kind=kind,
+            source_type=source_type,
+            source_title=source_title,
+            source_url=source_url,
+            file_name=file_name,
+            thumbnail_url=thumbnail_url,
+            media_duration_seconds=media_duration_seconds,
+            processing_seconds=processing_seconds,
+            download_seconds=download_seconds,
+            method=method,
+        )
+    )
     if row_id <= 0:
         raise RuntimeError("history writer unavailable")
     try:

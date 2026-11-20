@@ -293,8 +293,9 @@ class RecordingController:
         log.warning("[DICTATION] mic_permission_revoked mid-recording -- stopping stream and surfacing IPC event")
         with contextlib.suppress(Exception):
             if getattr(self._app.config, "bubble_behavior", "show_on_record") != "hidden":
-                self._app._waveform_bubble.show()
-                self._app._waveform_bubble.set_state("permission_revoked")
+                self._app._waveform_bubble.apply_visibility(
+                    "permission_revoked", reason="permission-revoked"
+                )
         from voice_typer.server.recording_lifecycle import _notify_permission_denied_with_settings
 
         if not _notify_permission_denied_with_settings(

@@ -214,8 +214,18 @@ class MediaHandlersMixin(MediaJobRunnersMixin):
 
     def _media_start_refusal(self) -> dict | None:
         """Error envelope for a start the model layer cannot honour."""
-        from voice_typer.server.media_ingest.errors import NO_ENGINE
+        from voice_typer.server.media_ingest.errors import MODEL_LANGUAGE_UNSUPPORTED, NO_ENGINE
+        from voice_typer.server.model_language_gate import language_display_name, unsupported_language
 
+        finding = unsupported_language(getattr(self.app, "config", None))
+        if finding is not None:
+            # Refuse before the download/decode: the same audio would come
+            # back as junk from a model that cannot speak the language.
+            return {
+                "code": MODEL_LANGUAGE_UNSUPPORTED,
+                "message": f"{finding.model_name} does not support "
+                f"{language_display_name(finding.language)}.",
+            }
         state, reason = self._media_model_state()
         if state == "none":
             return {

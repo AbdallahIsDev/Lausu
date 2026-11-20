@@ -39,6 +39,7 @@ def _facade():
 def start_recording(recorder: Recorder) -> None:
     """Body of :meth:`Recorder.start` (after the ``_start_lock`` permission-gate block).
 
+
     Extracted from :mod:`.recorder` to shrink the
         3772-LOC ``recorder.py`` god class. The ``with self._start_lock:``
         block (containing the recording-event check + microphone-permission
@@ -95,6 +96,9 @@ def start_recording(recorder: Recorder) -> None:
         DO NOT move device enumeration inside the callback closure.
         DO NOT re-add ``set_thread_registry``: it was merge damage.
     """
+    # Capture the focused target BEFORE any bubble/window work can move it.
+
+
     # Lazy import: ``recorder.py`` is still loading when this module
 
     # SEC-audit-008: securely zero cached

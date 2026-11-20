@@ -52,6 +52,8 @@ class _OrchestratorMixin:
         self._cycle_id = ""
         self._audio = None
         self._duration = 0.0
+        # Pipeline start clock for the History row's processing_seconds.
+        self._processing_started_at: float | None = None
         self._recorded_rms = 0.0
         self._device_info = ""
         # Throttle _check_resources to once per 60s. The values
@@ -130,6 +132,10 @@ class _OrchestratorMixin:
         # cycle's genuine silence report "ignored likely nonsense".
         self._rejection_reason = None
         _t0 = time.perf_counter()
+        # Hand the pipeline start clock to the store stage so the History row
+        # can carry end-to-end processing time without threading a new arg
+        # through every stage's run() signature.
+        self._processing_started_at = _t0
 
         # Hoist ``text = ""`` outside the try block so the
         text = ""

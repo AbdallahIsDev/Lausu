@@ -97,6 +97,10 @@ class MediaJob:
     # Inline preview image (``data:<mime>;base64,...``): the CSP allows data
     # images only, so the backend ships bytes, never a remote URL.
     thumbnail_data_url: str | None = None
+    # Wall time spent in the audio download tier (summed across retries),
+    # measured from context-manager entry to the file being ready. Decoding
+    # happens inside the same ``with`` block, so it is excluded here.
+    download_seconds: float | None = None
 
 
 _OnEvent = Callable[[dict], None]

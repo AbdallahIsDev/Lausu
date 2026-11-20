@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import time
 from typing import Any
 
 from voice_typer.server import i18n
@@ -36,11 +37,17 @@ class _StorageStepMixin:
         history_enabled = getattr(self._app.config, "history_enabled", True)
         if history_enabled:
             try:
+                started_at = getattr(self, "_processing_started_at", None)
+                processing_seconds = time.perf_counter() - float(started_at) if started_at is not None else None
                 row_id = self._app.history_db.add_transcription(
                     text,
                     duration=self._duration,
                     model=self._app.config.model_size,
                     device=self._app.config.device,
+                    kind="dictation",
+                    # recording_duration_seconds is NOT duplicated: the
+                    # existing ``duration`` column already holds it.
+                    processing_seconds=processing_seconds,
                 )
                 # add_transcription returns -1 when the writer
                 if row_id <= 0:

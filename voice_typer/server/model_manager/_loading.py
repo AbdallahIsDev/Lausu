@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-from voice_typer.server import i18n
+from voice_typer.server import i18n, internal_plugin_hook
 from voice_typer.server.asr.registry import MODEL_LOAD_TIMEOUT_SECONDS, MODEL_SLOW_LOAD_GRACE_SECONDS
 from voice_typer.server.asr_errors import ModelIntegrityError, ModelNotDownloadedError
 from voice_typer.server.asr_registry import AsrBackendRegistry
@@ -280,6 +280,13 @@ class LoadingMixin:
 
     def start_background_load(self) -> None:
         """Spawn the background model-load thread (idempotent)."""
+        # A plugin transcribes in the browser and never records locally, so
+        # warming an engine here would hold RAM (and a worker process) for a
+        # hotkey it does not serve. On-demand loads stay available.
+        owner = internal_plugin_hook.plugin_display_name(self._app)
+        if owner:
+            log.info("[MODEL] background load skipped: %s serves dictation", owner)
+            return
         if self._model_load_thread is not None and self._model_load_thread.is_alive():
             return
         with self._model_load_spawn_lock:

@@ -1,11 +1,15 @@
 """Persistence for manifest-declared plugin settings.
 
-Settings live in ``<plugin dir>/settings.json`` next to the manifest: the
-plugin workspace owns them, the app config stays free of plugin data
-(C-CONF-1), and the plugin's own ``config.json`` (daemon knobs) is never
-touched. Every write is validated against the manifest declaration first,
-so an IPC caller cannot store an unknown key or a mistyped/out-of-range
-value, and every read drops entries the manifest no longer declares.
+Settings live in ``<plugin dir>/config.json`` next to the manifest: that file
+is the single source of truth the plugin daemon itself loads, so a write from
+the Plugins page is effective without an intermediate copy. Writes are
+validated against the manifest declaration first, so an IPC caller cannot
+store an unknown key or a mistyped/out-of-range value, and reads drop entries
+the manifest no longer declares.
+
+The daemon's own keys (profileDir, relayToken, hotkeys, ...) are NOT managed
+by the manifest. Every write is a read-modify-write of the whole file, so
+those keys survive unchanged (C-CONF-1: one authority, no parallel store).
 """
 
 from __future__ import annotations
@@ -19,7 +23,7 @@ from typing import Any
 
 from voice_typer.server.plugins.registry import PluginInfo, PluginSetting
 
-SETTINGS_NAME = "settings.json"
+CONFIG_NAME = "config.json"
 MAX_SETTINGS_BYTES = 64 * 1024
 _MAX_STRING_LEN = 8192
 
@@ -31,7 +35,7 @@ class PluginSettingError(ValueError):
 
 
 def _path(info: PluginInfo) -> Path:
-    return Path(info.directory) / SETTINGS_NAME
+    return Path(info.directory) / CONFIG_NAME
 
 
 def _coerce(spec: PluginSetting, value: object) -> Any:
@@ -97,10 +101,11 @@ def set_value(info: PluginInfo, key: str, value: object) -> Any:
         raise PluginSettingError(f"unknown setting {key!r}")
     coerced = _coerce(spec, value)
     with _write_lock:
-        current = load_values(info)
+        # Read the WHOLE config so daemon-owned keys survive the rewrite.
+        current = _read_raw(info)
         current[key] = coerced
         path = _path(info)
-        tmp = path.with_name(SETTINGS_NAME + ".tmp")
+        tmp = path.with_name(CONFIG_NAME + ".tmp")
         # Atomic replace: a crash mid-write must never truncate the store.
         tmp.write_text(json.dumps(current, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         os.replace(tmp, path)

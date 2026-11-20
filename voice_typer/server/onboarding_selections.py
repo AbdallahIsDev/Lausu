@@ -12,6 +12,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from voice_typer.server.config import DEFAULT_HOTKEY
+from voice_typer.server.model_language_support import PARAKEET_LANGUAGES
 
 log = logging.getLogger(__name__)
 
@@ -114,9 +115,12 @@ class _OnboardingSelectionsMixin:
             "display_name": "Parakeet Ultra",
             "size": "~670MB",
             "speed": "Fast",
-            "description": "Parakeet Ultra, fast & accurate, 25 languages",
+            # "languages": None used to claim every language here, which
+            # read as "Parakeet does Arabic" in the wizard. It publishes 25
+            # European languages; nothing else can be promised (C-ASR-6).
+            "description": "Parakeet Ultra, fast & accurate, 25 European languages",
             "vram_gb": 2.0,
-            "languages": None,
+            "languages": list(PARAKEET_LANGUAGES),
             "backend": "parakeet",
             "recommended": True,
         },

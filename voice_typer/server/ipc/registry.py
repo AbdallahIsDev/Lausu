@@ -107,7 +107,9 @@ _SELF_SERIALIZED_COMMANDS: frozenset[str] = frozenset(
 )
 
 # Host-only commands: registered here, never invoked by the renderer
-_PYTHON_ONLY_COMMANDS: frozenset[str] = frozenset({"shutdown", "tray_click"})
+_PYTHON_ONLY_COMMANDS: frozenset[str] = frozenset(
+    {"shutdown", "tray_click", "bubble_host_hidden"}
+)
 
 # Maps IPC command name → handler method on IPCServer. Count pinned at 109
 _COMMAND_REGISTRY: dict[str, str] = {
@@ -209,6 +211,9 @@ _COMMAND_REGISTRY: dict[str, str] = {
     "relaunch_ack": "_handle_relaunch_ack",
     # Host tray click dispatch; unknown ids → unknown_tray_item.
     "tray_click": "_handle_tray_click",
+    # Host reports an out-of-band bubble hide (dismiss / renderer cleanup)
+    # so the coordinator can reconcile its mirror with the real window.
+    "bubble_host_hidden": "_handle_bubble_host_hidden",
     # Master plan §7.4 offline worker request; push pair is event_bus (not a command).
     "transcribe_offline": "_handle_transcribe_offline",
     "check_offline_pack_update": "_handle_check_offline_pack_update",

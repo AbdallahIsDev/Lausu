@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
 
 from voice_typer.server.asr_utils import is_oom_error
 
@@ -11,7 +13,16 @@ from voice_typer.server.asr_utils import is_oom_error
 log = logging.getLogger("voice_typer.server.transcription")
 
 
-def with_gpu_fallback(engine, inner, audio, *args, **kwargs):
+_R = TypeVar("_R")
+
+
+def with_gpu_fallback(
+    engine: Any,
+    inner: Callable[..., _R],
+    audio: Any,
+    *args: Any,
+    **kwargs: Any,
+) -> _R:
     """Run ``inner(audio, *args, **kwargs)`` with GPU→CPU fallback."""
     try:
         return inner(audio, *args, **kwargs)
@@ -111,4 +122,6 @@ def transcribe_with_fallback(engine, audio, audio_stats: tuple[float, float, flo
                 engine._inference_cond.notify_all()
     # perform deferred gc.collect() OUTSIDE the lock.
     engine._run_deferred_gc()
-    return result
+    # The engine is duck-typed (worker-side protocol), so mypy cannot infer
+    # the return type of its transcribe method.
+    return cast(str, result)

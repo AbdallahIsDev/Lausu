@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 #: Dedupes the one-time [HISTORY] initialized INFO line across writer +
 _announced_db_paths: set[str] = set()
 
-_CURRENT_SCHEMA_VERSION = 5
+_CURRENT_SCHEMA_VERSION = 6
 
 _MIGRATION_V2 = """
     ALTER TABLE transcriptions ADD COLUMN favorite INTEGER DEFAULT 0;
@@ -106,11 +106,28 @@ _MIGRATION_V5 = """
     COMMIT;
 """
 
+# Optional per-entry provenance/timing metadata. Plain ALTERs: a non-NULL
+# constant default backfills existing rows to "dictation" (old rows predate
+# the media source), every other field stays NULL. FTS triggers are untouched.
+_MIGRATION_V6 = """
+    ALTER TABLE transcriptions ADD COLUMN kind TEXT DEFAULT 'dictation';
+    ALTER TABLE transcriptions ADD COLUMN source_type TEXT;
+    ALTER TABLE transcriptions ADD COLUMN source_title TEXT;
+    ALTER TABLE transcriptions ADD COLUMN source_url TEXT;
+    ALTER TABLE transcriptions ADD COLUMN file_name TEXT;
+    ALTER TABLE transcriptions ADD COLUMN thumbnail_url TEXT;
+    ALTER TABLE transcriptions ADD COLUMN media_duration_seconds REAL;
+    ALTER TABLE transcriptions ADD COLUMN processing_seconds REAL;
+    ALTER TABLE transcriptions ADD COLUMN download_seconds REAL;
+    ALTER TABLE transcriptions ADD COLUMN method TEXT;
+"""
+
 _MIGRATIONS = {
     2: _MIGRATION_V2,
     3: _MIGRATION_V3,
     4: _MIGRATION_V4,
     5: _MIGRATION_V5,
+    6: _MIGRATION_V6,
 }
 
 #: Min SQLite for FTS5 trigram (V5 CJK). Older libsqlite3 → skip migration

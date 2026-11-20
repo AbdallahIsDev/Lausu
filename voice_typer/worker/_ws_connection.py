@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 from voice_typer.server._lazy_import import lazy_module
 from voice_typer.worker._auth import _authenticate, _send_auth_failed_and_close
 from voice_typer.worker._ws_commands import (
+    MODEL_LOAD_DRAIN_TIMEOUT_S,
     _CommandHandles,
     handle_abort_request,
     handle_load_parakeet_model_async,
@@ -27,6 +28,8 @@ from voice_typer.worker._ws_commands import (
     handle_load_whisper_model_async,
     handle_transcribe_offline,
     handle_transcribe_samples,
+    model_load_abort,
+    model_loads,
 )
 from voice_typer.worker._ws_samples import _SamplesBuffer, _valid_request_id, _word_to_dict
 from voice_typer.worker._ws_shutdown import _ShutdownTimer
@@ -227,13 +230,28 @@ async def _handle_connection(  # noqa: ANN001 - websockets type is imported lazi
                 # Trigger loop cancellation by closing the socket.
                 with contextlib.suppress(Exception):
                     await websocket.close()
-                # Let in-flight inference finish first (bounded model
-                # work, same exposure the inline await always had) so a
-                # shutdown mid-transcription does not orphan a thread
-                # writing to a dead loop.
-                if in_flight:
-                    with contextlib.suppress(Exception):
-                        await _asyncio.gather(*in_flight, return_exceptions=True)
+                # Signal cooperative cancellation BEFORE draining: a model
+                # load sits on a default-executor thread that task.cancel()
+                # cannot stop, and asyncio.run() joins that executor at
+                # finalization. Every load path re-checks this event.
+                model_load_abort.set()
+                # Drain transcription AND model loads under one deadline so
+                # a multi-GB load cannot hold the worker open indefinitely.
+                # On timeout wait_for cancels the tracked tasks; their
+                # cancellation outcome is logged by the load paths.
+                tracked = in_flight | model_loads
+                if tracked:
+                    try:
+                        await _asyncio.wait_for(
+                            _asyncio.gather(*tracked, return_exceptions=True),
+                            timeout=MODEL_LOAD_DRAIN_TIMEOUT_S,
+                        )
+                    except TimeoutError:
+                        log.warning(
+                            "[WORKER] shutdown drain timed out after %.1fs (%d task(s))",
+                            MODEL_LOAD_DRAIN_TIMEOUT_S,
+                            len(tracked),
+                        )
                 return
             if cmd == "transcribe_offline":
                 handle_transcribe_offline(frame, handles)

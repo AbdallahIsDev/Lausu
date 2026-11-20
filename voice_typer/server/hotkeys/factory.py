@@ -1,6 +1,4 @@
-"""Factory function :func:`create_hotkey_backend`, picks the best
-Split out from the original ``hotkeys.py`` module
-"""
+"""Cross-platform hotkey backend selection."""
 
 import sys
 
@@ -27,11 +25,15 @@ def is_linux() -> bool:
 
 
 def create_hotkey_backend(hotkey_str: str, role: str | None = None) -> HotkeyBackend:
-    """``GetAsyncKeyState`` polling at ~125 Hz (8 ms cadence via
-    ``kernel32.Sleep(8)`` with ``timeBeginPeriod(8)``, see
+    """Pick a hotkey backend for ``hotkey_str``.
+
+    Selection: native subprocess -> mouse listener -> Windows polling
+    (~125 Hz via ``Sleep(8)``) -> Wayland socket -> pynput. Mouse-button
+    specs route to the mouse listener first; keyboard specs try native
+    before the platform fallbacks. ``role`` keeps per-backend resources
+    distinct.
     """
-    # Mouse buttons never reach the keyboard listeners, so a mouse spec
-    # gets its own in-process pynput mouse listener.
+    # Keyboard listeners never see mouse buttons, so mouse specs need a dedicated listener.
     if any(key in MOUSE_BUTTONS for key in parse_hotkey(hotkey_str).keys):
         if is_linux() and is_wayland_session():
             log.warning(
@@ -45,45 +47,42 @@ def create_hotkey_backend(hotkey_str: str, role: str | None = None) -> HotkeyBac
         )
         return MouseHotkey(hotkey_str)
 
-    # try the native subprocess backend first. It supports
     try:
         from voice_typer.server.native_hotkeys import create_native_backend
 
         native = create_native_backend(hotkey_str)
         if native is not None:
-            # Wrap the native backend so it satisfies the HotkeyBackend
+            # Adapt the native backend to the HotkeyBackend interface.
             log.debug(
                 "[HOTKEY] Using native %s backend for %s (role=%s)",
                 type(native).__name__,
                 format_hotkey_label(hotkey_str),
                 role,
             )
-            # pass ``role`` through so the adapter can propagate
+            # Forward role so the adapter can propagate it to a legacy fallback.
             return _NativeBackendAdapter(native, role=role)
     except Exception as exc:
-        # native-backend unavailability is an EXPECTED fallback
+        # A missing native backend is an expected fallback, hence the broad catch.
         log.info(
             "[HOTKEY] Native backend unavailable (%s); falling back to legacy",
             exc,
         )
 
     if is_windows():
-        # this is the polling fallback. It's
         log.info(
             "[HOTKEY] Platform is win32 -> using WindowsNativeHotkey (legacy "
             "polling, native binary not built or unavailable)"
         )
         return WindowsNativeHotkey(hotkey_str)
 
-    # #4 PLAT-WAYLAND: detect Wayland and use Unix socket fallback.
     if is_linux() and is_wayland_session():
-        # Wayland compositors do NOT expose a standard global-hotkey
+        # Wayland has no standard global-hotkey protocol, so delivery is not guaranteed.
         log.warning(
             "[HOTKEY] Wayland detected, global hotkeys may not work. "
             "Consider installing wlr-which-key or using the evdev backend "
             "(requires input group)."
         )
-        # Caps Lock on Wayland CANNOT be suppressed, ``WaylandHotkey``
+        # Caps Lock cannot be suppressed on Wayland; warn before relying on it.
         if hotkey_str and "caps_lock" in hotkey_str.lower():
             log.warning(
                 "[HOTKEY] On Wayland, Caps Lock cannot be suppressed, "
@@ -95,7 +94,7 @@ def create_hotkey_backend(hotkey_str: str, role: str | None = None) -> HotkeyBac
             "[HOTKEY] Wayland detected -> using WaylandHotkey (Unix socket, legacy, role=%r)",
             role,
         )
-        # pass ``role`` so the socket filename is per-backend.
+        # Forward role so each backend gets its own socket filename.
         return WaylandHotkey(hotkey_str, role=role)
 
     log.info("[HOTKEY] Platform is %s -> using PynputHotkey (legacy)", sys.platform)

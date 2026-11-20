@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from voice_typer.server.asr_utils import asr_language_param
 from voice_typer.server.system_whisper import _WORKER_TRANSCRIBE_TIMEOUT_SECONDS
 
 log = logging.getLogger(__name__)
@@ -38,12 +39,14 @@ class WorkerProxyEngine:
         *,
         backend: str,
         device_info: str = "pack worker",
-        language: str = "en",
+        language: str | None = None,
         client: Any | None = None,
     ) -> None:
         self._backend = backend
         self._device_info = device_info or "pack worker"
-        self._language = language or "en"
+        # None = Auto (the model detects the spoken language). A forced
+        # "en" here reads as "this audio is English" downstream.
+        self._language = asr_language_param(language)
         self._client = client
         self._loaded = True
         self.last_rejection_reason: str | None = None
@@ -148,7 +151,7 @@ class WorkerParakeetProxyEngine(WorkerProxyEngine):
         self,
         *,
         device_info: str = "pack worker",
-        language: str = "en",
+        language: str | None = None,
         client: Any | None = None,
     ) -> None:
         super().__init__(backend="parakeet", device_info=device_info, language=language, client=client)
@@ -162,7 +165,7 @@ class WorkerQwenProxyEngine(WorkerProxyEngine):
         *,
         model_path: str = "",
         device_info: str = "pack worker",
-        language: str = "en",
+        language: str | None = None,
         client: Any | None = None,
     ) -> None:
         self._model_path = model_path
@@ -180,7 +183,7 @@ def try_load_worker_parakeet(config: Any, timeout: float = 300.0) -> Any | None:
     """
     try:
         device = getattr(config, "device", "auto") or "auto"
-        language = getattr(config, "language", "en") or "en"
+        language = asr_language_param(getattr(config, "language", ""))
         from voice_typer.server.worker_client import get_shared_client
 
         client = get_shared_client()
@@ -224,7 +227,7 @@ def try_load_worker_qwen(config: Any, timeout: float = 300.0) -> Any | None:
         if not model_path:
             return None
         device = getattr(config, "device", "auto") or "auto"
-        language = getattr(config, "language", "en") or "en"
+        language = asr_language_param(getattr(config, "language", ""))
         from voice_typer.server.worker_client import get_shared_client
 
         client = get_shared_client()

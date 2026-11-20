@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from voice_typer.server._paths import LOOPBACK_HOST
 from voice_typer.server.ipc.protocol_version import MAX_WS_FRAME_BYTES, PROTOCOL_VERSION
 from voice_typer.worker._parent_watch import start_parent_watch
+from voice_typer.worker._ws_commands import model_load_abort
 from voice_typer.worker._ws_connection import _handle_connection
 from voice_typer.worker._ws_samples import (  # noqa: F401 - facade re-export
     _SAMPLES_MAX_CHUNKS,
@@ -100,6 +101,9 @@ async def run_worker_server(  # noqa: ANN001 - websockets type is imported lazil
         # INFO, not WARN: routine on every clean quit (see _parent_watch).
         log.info("[WORKER] parent process gone: initiating graceful shutdown")
         shutdown_timer.start()
+        # Same cooperative abort the shutdown-command path sets: a load
+        # already on an executor thread must wind down before the loop ends.
+        model_load_abort.set()
         stop_event.set()
 
     _parent_loop = _asyncio.get_running_loop()
@@ -159,5 +163,9 @@ async def run_worker_server(  # noqa: ANN001 - websockets type is imported lazil
         # Run until SIGTERM (stop_event) or the asyncio loop is
         # cancelled by the shutdown command (which calls stop_event.set()).
         await stop_event.wait()
+        # SIGTERM and parent-gone both funnel through stop_event. Signal the
+        # abort before the loop closes so a cooperative load stops instead of
+        # holding asyncio.run()'s executor join open (no block_on on runtime).
+        model_load_abort.set()
 
     return True

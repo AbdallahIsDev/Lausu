@@ -24,6 +24,9 @@ _INITIAL_LABELS: dict[str, str] = {
     "state.cancelling": "cancelling",
     # Steady-state idle label for the tray tooltip (bare IDLE carries no
     "state.ready": "Ready",
+    # Tray tooltip while an internal plugin owns dictation: the local model is
+    # deliberately not loaded, so "Ready" would name the wrong engine.
+    "state.plugin_serves_dictation": "{name} serves dictation",
     "state.recording_controller.loading_queued": ("Loading model | your dictation will start automatically…"),
     "state.recording_controller.awaiting_model": (
         "Finishing model load | your recording is saved and will transcribe shortly"
@@ -318,7 +321,44 @@ _INITIAL_LABELS: dict[str, str] = {
         "The model is not loaded.\nOpen the models page to download a model."
     ),
     "notify.update_available_body": "{app} {version} is available (you have {current})",
+    "notify.model_language.unsupported": "{model} does not support {language}.",
 }
+
+# Language names for the refusal message, mirroring the renderer's
+# ``settings.language*`` strings (pushed under ``model_language.<code>`` on
+# every locale change). English is the pre-push fallback; a code with no
+# entry falls back to the upper-cased code in the gate.
+_LANGUAGE_NAME_LABELS_EN: dict[str, str] = {
+    "en": "English",
+    "zh": "Chinese",
+    "hi": "Hindi",
+    "es": "Spanish",
+    "ar": "Arabic",
+    "fr": "French",
+    "ru": "Russian",
+    "de": "German",
+    "pt": "Portuguese",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "it": "Italian",
+    "nl": "Dutch",
+    "pl": "Polish",
+    "tr": "Turkish",
+    "vi": "Vietnamese",
+    "th": "Thai",
+    "id": "Indonesian",
+    "sv": "Swedish",
+    "da": "Danish",
+    "fi": "Finnish",
+    "no": "Norwegian",
+    "cs": "Czech",
+    "ro": "Romanian",
+    "hu": "Hungarian",
+    "el": "Greek",
+    "he": "Hebrew",
+}
+for _lang_code, _lang_name in _LANGUAGE_NAME_LABELS_EN.items():
+    _INITIAL_LABELS[f"model_language.{_lang_code}"] = _lang_name
 
 
 def register_locale(locale: str, labels: dict[str, str]) -> None:

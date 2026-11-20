@@ -49,12 +49,9 @@ class _TranscribeStepMixin:
     _rejection_reason: str | None
 
     def _hide_or_idle_bubble(self, log_label: str = "bubble hide/set idle") -> None:
-        """Hide the waveform bubble or set it to idle (always_visible mode)."""
+        """Route teardown through the single bubble visibility policy."""
         try:
-            if self._app.config.bubble_behavior == "always_visible":
-                self._app._waveform_bubble.set_state("idle")
-            else:
-                self._app._waveform_bubble.hide()
+            self._app._waveform_bubble.apply_visibility("idle", reason=log_label)
         except Exception:
             log.debug("[PIPELINE] %s failed", log_label, exc_info=True)
 

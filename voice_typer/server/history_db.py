@@ -150,6 +150,8 @@ from voice_typer.server.history_db_internals.schema import (  # noqa: E402,F401,
     _MIGRATION_V2,
     _MIGRATION_V3,
     _MIGRATION_V4,
+    _MIGRATION_V5,
+    _MIGRATION_V6,
     _MIGRATIONS,
 )
 
@@ -270,11 +272,26 @@ class HistoryDB(HistoryDBInternals):
         model: str = "",
         device: str = "",
         language: str = "",
+        *,
+        kind: str = "dictation",
+        source_type: str | None = None,
+        source_title: str | None = None,
+        source_url: str | None = None,
+        file_name: str | None = None,
+        thumbnail_url: str | None = None,
+        media_duration_seconds: float | None = None,
+        processing_seconds: float | None = None,
+        download_seconds: float | None = None,
+        method: str | None = None,
     ) -> int:
         """Add a transcription (fire-and-forget): enqueue + placeholder row_id.
 
         Delegates to internals.crud_writes.add_transcription (writer
-        liveness guard included).
+        liveness guard included). Metadata is optional and backward
+        compatible: omitted fields stay NULL, ``kind`` defaults to
+        ``"dictation"``. The existing ``duration`` column remains the
+        generic audio/recording length (C-TRANS-2 / backward compat);
+        ``media_duration_seconds`` is the explicit media metadata.
         """
         return crud_writes.add_transcription(
             self,
@@ -283,6 +300,16 @@ class HistoryDB(HistoryDBInternals):
             model=model,
             device=device,
             language=language,
+            kind=kind,
+            source_type=source_type,
+            source_title=source_title,
+            source_url=source_url,
+            file_name=file_name,
+            thumbnail_url=thumbnail_url,
+            media_duration_seconds=media_duration_seconds,
+            processing_seconds=processing_seconds,
+            download_seconds=download_seconds,
+            method=method,
         )
 
     @_wrap_write(False, "delete transcription", "delete")

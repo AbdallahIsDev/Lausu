@@ -7,6 +7,23 @@ from collections.abc import Callable
 
 log = logging.getLogger(__name__)
 
+# States that legitimately make the pill visible in ``show_on_record`` mode.
+# ``always_visible`` ignores this set entirely.
+_ACTIVE_STATES: frozenset[str] = frozenset(
+    {
+        "recording",
+        "transcribing",
+        "loading",
+        "cancelling",
+        "permission_revoked",
+        "paste_failed",
+        "error",
+        "blocked",
+        "still_transcribing",
+        "cloud_cancel_requested",
+    }
+)
+
 
 class WaveformBubble:
     """State + listener registry for the waveform bubble overlay."""
@@ -18,6 +35,8 @@ class WaveformBubble:
         self._is_speaking: bool = False
         self._state: str = "idle"
         self._lock = threading.Lock()
+        # Injected by waveform_bubble_wiring: reads the canonical config.
+        self._behavior_provider: Callable[[], str] | None = None
 
         # Listener slots, set by app.py after IPC server is up.
         self.on_show: Callable[[], None] | None = None
@@ -33,29 +52,86 @@ class WaveformBubble:
     def visible(self) -> bool:
         return self._visible
 
-    def show(self) -> None:
+    def set_behavior_provider(self, provider: Callable[[], str]) -> None:
+        self._behavior_provider = provider
+
+    def _behavior(self) -> str:
+        if self._behavior_provider is None:
+            return "show_on_record"
+        try:
+            return self._behavior_provider() or "show_on_record"
+        except Exception:
+            return "show_on_record"
+
+    def apply_visibility(self, state: str, *, reason: str) -> None:
+        """The ONE visibility policy. Every caller routes through here.
+
+        ``_visible`` is a desired-state mirror, never proof of on-screen
+        visibility. Every decision re-asserts at the host (``force=True``)
+        so a host-side hide cannot strand the pill behind a stale mirror.
+        """
+        behavior = self._behavior()
+        if behavior == "always_visible":
+            desired = True
+        elif behavior == "hidden":
+            desired = False
+        else:
+            desired = state in _ACTIVE_STATES
+        # Python owns desired state; only the host can observe the real
+        # HWND. Never print a presumed "actual" (C-LOG-6).
+        actual = "hidden" if reason.startswith("host-") else "unknown"
+        log.info(
+            "[BUBBLE] visibility intent=%s behavior=%s state=%s reason=%s actual=%s",
+            "visible" if desired else "hidden",
+            behavior,
+            state,
+            reason,
+            actual,
+        )
+        if desired:
+            self.show(force=True)
+            self.set_state(state)
+        else:
+            self.hide(force=True)
+
+    def note_host_hidden(self, *, reason: str = "host-hide") -> None:
+        """The host hid the real window out of band; reconcile the mirror."""
         with self._lock:
-            if self._visible:
+            self._visible = False
+            state = self._state
+        self.apply_visibility(state, reason=reason)
+
+    def show(self, *, force: bool = False) -> None:
+        with self._lock:
+            if self._visible and not force:
                 return
+            was_visible = self._visible
             self._visible = True
             cb = self.on_show
-        log.info("[WAVEFORM] Bubble shown")
+        if force and was_visible:
+            log.debug("[WAVEFORM] Bubble shown (reassert)")
+        else:
+            log.info("[WAVEFORM] Bubble shown")
         if cb is not None:
             try:
                 cb()
             except Exception:
                 log.debug("[WAVEFORM] on_show callback raised", exc_info=True)
 
-    def hide(self) -> None:
+    def hide(self, *, force: bool = False) -> None:
         with self._lock:
-            if not self._visible:
+            if not self._visible and not force:
                 return
+            was_hidden = not self._visible
             self._visible = False
             self._rms_level = 0.0
             self._peak_level = 0.0
             self._is_speaking = False
             cb = self.on_hide
-        log.info("[WAVEFORM] Bubble hidden")
+        if force and was_hidden:
+            log.debug("[WAVEFORM] Bubble hidden (reassert)")
+        else:
+            log.info("[WAVEFORM] Bubble hidden")
         if cb is not None:
             try:
                 cb()

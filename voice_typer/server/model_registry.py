@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from voice_typer.server.model_language_support import PARAKEET_LANGUAGES, QWEN3_LANGUAGES
+
 
 @dataclass(frozen=True)
 class ModelMetadata:
@@ -123,7 +125,10 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         required_vram_mb=2048,
         backend="parakeet",
         multilingual=True,
-        supported_languages=None,
+        # The model's own 25-language list: Arabic is NOT in it, so a
+        # pinned ``language="ar"`` is refused before capture instead of
+        # decoded into junk (C-ASR-5).
+        supported_languages=list(PARAKEET_LANGUAGES),
         # No language input: the multilingual head detects the spoken
         # language itself, so Auto is offered. The language argument only
         # drives the English-only junk filter, never the decode.
@@ -147,7 +152,8 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         required_vram_mb=4096,
         backend="qwen",
         multilingual=True,
-        supported_languages=None,
+        # Qwen3-ASR's published 30-language list (Arabic included).
+        supported_languages=list(QWEN3_LANGUAGES),
         # Qwen3-ASR takes the audio alone and detects the spoken language
         # itself; the ONNX export ignores the language argument.
         accepts_language_hint=False,
@@ -169,7 +175,8 @@ MODEL_REGISTRY: dict[str, ModelMetadata] = {
         required_vram_mb=2048,
         backend="qwen",
         multilingual=True,
-        supported_languages=None,
+        # Qwen3-ASR's published 30-language list (Arabic included).
+        supported_languages=list(QWEN3_LANGUAGES),
         # Qwen3-ASR takes the audio alone and detects the spoken language
         # itself; the ONNX export ignores the language argument.
         accepts_language_hint=False,

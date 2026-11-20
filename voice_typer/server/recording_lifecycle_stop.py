@@ -233,10 +233,7 @@ class RecordingLifecycleStopMixin:
 
         # Hide bubble unless always_visible mode (in which case set to
         try:
-            if app.config.bubble_behavior != "always_visible":
-                app._waveform_bubble.hide()
-            else:
-                app._waveform_bubble.set_state("idle")
+            app._waveform_bubble.apply_visibility("idle", reason="cancel")
         except Exception:
             log.exception("[CANCEL] Failed to hide/set idle bubble")
 

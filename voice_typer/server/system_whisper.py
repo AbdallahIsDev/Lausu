@@ -18,6 +18,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from voice_typer.server.asr_utils import asr_language_param
 from voice_typer.server.branding import APP_NAME
 
 log = logging.getLogger(__name__)
@@ -121,7 +122,10 @@ def try_load_worker_whisper(config: Any, timeout: float = 300.0) -> Any | None:
         if not model_size:
             return None
         device = getattr(config, "device", "auto") or "auto"
-        language = getattr(config, "language", "en") or "en"
+        # Auto ("") must reach the engine as None: an empty string or a
+        # forced "en" both mean "this audio is English", which is how a
+        # non-English dictation got decoded/pinned wrong.
+        language = asr_language_param(getattr(config, "language", ""))
         from voice_typer.server.worker_client import get_shared_client
 
         client = get_shared_client()

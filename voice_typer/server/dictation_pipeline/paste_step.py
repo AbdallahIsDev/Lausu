@@ -10,6 +10,7 @@ from typing import Any
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.clipboard import ClipboardCopyError
 from voice_typer.server.clipboard.fingerprint import text_fingerprint
+from voice_typer.server.clipboard_target_safety import delivery_text_for_target
 from voice_typer.server.cycle_guard import is_cycle_live
 from voice_typer.server.i18n import t as _i18n_t
 from voice_typer.server.tray_types import AppState
@@ -43,13 +44,22 @@ class _PasteStepMixin:
             return
         # ── OPTIMIZATION (§9.2): skip the clipboard borrow entirely when
         skip_clipboard = not self._app.config.paste_on_stop and self._app.config.clipboard_save_restore
+        # Separator + first-letter case are DELIVERY concerns: the clipboard
+        # and keystroke carry them, while history, crash recovery and status
+        # counts keep the transcription exactly as decoded (C-TRANS-2).
+        paste_text = text
+        if not skip_clipboard and self._app.config.paste_on_stop:
+            paste_text = delivery_text_for_target(
+                text,
+                auto_capitalize=getattr(self._app.config, "auto_capitalize", True),
+            )
 
         pasted = False
         snapshot = None
         if not skip_clipboard:
             # ① COPY, returns snapshot (or None when save/restore is
             try:
-                snapshot = self._app.clipboard.copy(text)
+                snapshot = self._app.clipboard.copy(paste_text)
                 paste_seq = self._app.clipboard._clipboard_seq
             except ClipboardCopyError:
                 log.exception("[CLIPBOARD] Clipboard copy failed (cycle=%s)", self._cycle_id)
@@ -67,8 +77,9 @@ class _PasteStepMixin:
                     log.exception("[CLIPBOARD] Failed to write transcription to crash recovery")
                 # Surface the failure in the bubble instead of hiding it.
                 try:
-                    self._app._waveform_bubble.show()
-                    self._app._waveform_bubble.set_state("paste_failed")
+                    self._app._waveform_bubble.apply_visibility(
+                        "paste_failed", reason="paste-failed"
+                    )
 
                     def _bubble_paste_failed_to_idle() -> None:
                         self._hide_or_idle_bubble("bubble paste-failed->idle transition")
@@ -129,9 +140,9 @@ class _PasteStepMixin:
                     return
                 pasted = self._app.clipboard.paste(
                     snapshot,
-                    pasted_text=text,
+                    pasted_text=paste_text,
                     pasted_seq=paste_seq,
-                    expected_fingerprint=text_fingerprint(text),
+                    expected_fingerprint=text_fingerprint(paste_text),
                 )
             else:
                 # paste_on_stop is False + save/restore OFF: leave the

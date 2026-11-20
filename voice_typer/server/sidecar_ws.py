@@ -172,6 +172,7 @@ from voice_typer.server._paths import LOOPBACK_HOST as _LOOPBACK_HOST
 from voice_typer.server.sidecar_ws_internals import (  # C-ARCH-2 canonical call-time observers
     dispatch as _dispatch_mod,
     handshake as _handshake_mod,
+    host_watch as _host_watch_mod,
     outbound as _outbound_mod,
     read_loop as _read_loop_mod,
     stdout_banner as _stdout_banner_mod,
@@ -421,6 +422,12 @@ def run(server: IPCServer) -> int:
 
     # Install the graceful-shutdown hooks BEFORE the loop starts so the
     _attach_ws_graceful_shutdown(server)
+
+    # Orphan self-exit: under TAURI_SIDECAR=1 the IPC heartbeat watchdog is
+    # skipped (the Rust host owns liveness), so a host that dies abnormally
+    # must not leave a sidecar serving hotkeys and dictation with no UI.
+    # Disabled unless the host forwarded its PID.
+    _host_watch_mod.install_host_watch(server)
 
     async def _main() -> int:
         # ``ws_graceful_shutdown`` (invoked from a non-loop thread by

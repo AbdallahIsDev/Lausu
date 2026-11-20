@@ -29,6 +29,9 @@ from voice_typer.server.dictation_pipeline.text_steps import (
 from voice_typer.server.dictation_pipeline.transcribe_step import (
     _TranscribeStepMixin,
 )
+from voice_typer.server.dictation_pipeline.translation_steps import (
+    _TranslationStepMixin,
+)
 
 __all__ = [
     "BackendNotLoadedError",
@@ -42,11 +45,12 @@ __all__ = [
 ]
 
 
-# Compose the orchestrator + 5 step mixins into the final public class.
+# Compose the orchestrator + 6 step mixins into the final public class.
 class DictationPipeline(
     _OrchestratorMixin,
     _TranscribeStepMixin,
     _TextStepsMixin,
+    _TranslationStepMixin,
     _EnhancementStepsMixin,
     _StorageStepMixin,
     _PasteStepMixin,

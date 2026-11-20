@@ -25,6 +25,16 @@ class _BatchableInsert:
         "word_count",
         "char_count",
         "language",
+        "kind",
+        "source_type",
+        "source_title",
+        "source_url",
+        "file_name",
+        "thumbnail_url",
+        "media_duration_seconds",
+        "processing_seconds",
+        "download_seconds",
+        "method",
         "future",
     )
 
@@ -38,6 +48,16 @@ class _BatchableInsert:
         word_count: int,
         char_count: int,
         language: str,
+        kind: str = "dictation",
+        source_type: str | None = None,
+        source_title: str | None = None,
+        source_url: str | None = None,
+        file_name: str | None = None,
+        thumbnail_url: str | None = None,
+        media_duration_seconds: float | None = None,
+        processing_seconds: float | None = None,
+        download_seconds: float | None = None,
+        method: str | None = None,
         future: concurrent.futures.Future | None = None,
     ) -> None:
         self.text = text
@@ -47,4 +67,14 @@ class _BatchableInsert:
         self.word_count = word_count
         self.char_count = char_count
         self.language = language
+        self.kind = kind
+        self.source_type = source_type
+        self.source_title = source_title
+        self.source_url = source_url
+        self.file_name = file_name
+        self.thumbnail_url = thumbnail_url
+        self.media_duration_seconds = media_duration_seconds
+        self.processing_seconds = processing_seconds
+        self.download_seconds = download_seconds
+        self.method = method
         self.future = future

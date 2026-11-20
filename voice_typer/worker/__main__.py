@@ -24,6 +24,7 @@ from voice_typer.worker._single_instance import (  # noqa: F401, re-exported for
     _worker_lock_path,
     _WorkerSingleInstanceHandle,
 )
+from voice_typer.worker._ws_commands import model_load_abort
 from voice_typer.worker._ws_server import (  # noqa: F401, re-exported for back-compat
     PROTOCOL_VERSION,
     _emit_worker_started,
@@ -172,6 +173,9 @@ def run() -> int:
         log.exception("[WORKER] fatal error in run()")
         return EXIT_CRASH
     finally:
+        # Last-resort cooperative abort for exit paths that never reached
+        # run_worker_server's stop_event branch (KeyboardInterrupt / crash).
+        model_load_abort.set()
         lock_handle.release()
         log.info(
             "[SHUTDOWN] worker shutdown complete%s",

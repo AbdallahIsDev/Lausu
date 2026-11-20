@@ -46,6 +46,13 @@ _FLOAT_TO_INT16_MAX: float = float(2**15 - 1)  # 32767.0
 _INT16_SCALE: float = _FLOAT_TO_INT16_MAX
 
 
+def _make_rnnoise_backend(sample_rate: int) -> Any:
+    """Build our ctypes RNNoise backend; the one seam tests patch."""
+    from voice_typer.server.audio_filters.rnnoise_ctypes import RNNoise
+
+    return RNNoise(sample_rate=sample_rate)
+
+
 class NoiseSuppressor(AudioFilter):
     """Neural noise suppression with multiple backends."""
 
@@ -119,7 +126,7 @@ class NoiseSuppressor(AudioFilter):
             self._method = "none"
             self._backend = None
 
-    def _try_gtcrn_substitute(self) -> bool:
+    def _try_gtcrn_substitute(self, *, log_substitute: bool = True) -> bool:
         """Serve gtcrn when the configured backend is unavailable (no recursion).
 
         Used ONLY from the rnnoise-unavailable path: constructs the bundled
@@ -137,7 +144,7 @@ class NoiseSuppressor(AudioFilter):
         # as "NoiseSuppressor(dpfnnet)" is how a gtcrn chain reached the UI
         # labelled DPDFNet.
         self.name = f"NoiseSuppressor({self._method})"
-        if not self._quiet:
+        if log_substitute and not self._quiet:
             _log_backend_ready_once(
                 "gtcrn-substitute", "[NOISE-SUPPRESS] rnnoise unavailable, serving bundled gtcrn instead"
             )
@@ -145,33 +152,35 @@ class NoiseSuppressor(AudioFilter):
 
     def _init_rnnoise(self) -> None:
         try:
-            from pyrnnoise import RNNoise
+            backend = _make_rnnoise_backend(RNNOISE_SAMPLE_RATE)
+        except Exception as exc:
+            from voice_typer.server.audio_filters.rnnoise_ctypes import LibraryLoadError
 
-            self._backend = RNNoise(sample_rate=RNNOISE_SAMPLE_RATE)
-            if not self._quiet:
-                _log_backend_ready_once("rnnoise", "[NOISE-SUPPRESS] RNNoise backend ready")
-        except ImportError:
-            # pyrnnoise (or its own audiolab/av chain) is not importable:
-            # serve the bundled gtcrn model instead of running with no
-            # neural denoising while the preset advertises it.
+            if not isinstance(exc, LibraryLoadError):
+                if not self._quiet:
+                    log.warning("[NOISE-SUPPRESS] RNNoise init failed: %s, falling back to none", exc)
+                self._degraded = True
+                self._degraded_reason = f"rnnoise init failed: {exc}"
+                self._method = "none"
+                return
+
             self._degraded = True
-            rnnoise_reason = "rnnoise library not installed"
-            if self._try_gtcrn_substitute():
+            rnnoise_reason = f"rnnoise native library unavailable: {exc}"
+            if self._try_gtcrn_substitute(log_substitute=False):
+                if not self._quiet:
+                    log.warning("[NOISE-SUPPRESS] rnnoise unavailable, serving bundled gtcrn instead")
                 self._degraded_reason = f"{rnnoise_reason}, serving bundled gtcrn instead"
                 return
             if not self._quiet:
                 log.warning(
-                    "[NOISE-SUPPRESS] pyrnnoise not installed and gtcrn unavailable, falling back to none. "
-                    "Install with: pip install pyrnnoise"
+                    "[NOISE-SUPPRESS] rnnoise native library unavailable and gtcrn unavailable, falling back to none"
                 )
             self._degraded_reason = rnnoise_reason
             self._method = "none"
-        except Exception as exc:
+        else:
+            self._backend = backend
             if not self._quiet:
-                log.warning("[NOISE-SUPPRESS] RNNoise init failed: %s, falling back to none", exc)
-            self._degraded = True
-            self._degraded_reason = f"rnnoise init failed: {exc}"
-            self._method = "none"
+                _log_backend_ready_once("rnnoise", "[NOISE-SUPPRESS] RNNoise backend ready")
 
     def _init_gtcrn(self) -> None:
         """Initialize the GTCRN backend (bundled ONNX streaming model)."""
@@ -525,6 +534,12 @@ class NoiseSuppressor(AudioFilter):
             self._upsampler.reset()
         if self._downsampler is not None:
             self._downsampler.reset()
+        # RNNoise's per-instance recurrent state must forget the last
+        # recording, the same way the GTCRN/DPDFNet backends do.
+        if self._method == "rnnoise" and self._backend is not None:
+            backend_reset = getattr(self._backend, "reset", None)
+            if callable(backend_reset):
+                backend_reset()
         # GTCRN state: the model's recurrent caches + overlap-add tail
         if self._method == "gtcrn" and self._backend is not None:
             self._backend.reset()

@@ -13,6 +13,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -24,6 +25,25 @@ from voice_typer.worker._ws_samples import (
 )
 
 log = logging.getLogger("voice_typer.worker")
+
+# Cooperative shutdown abort for model loads. A threading.Event because the
+# load body runs on a default-executor thread: cancelling the asyncio task
+# alone cannot stop that thread, and asyncio.run() joins the executor at
+# finalization. Load paths re-check this so the join is bounded.
+model_load_abort = threading.Event()
+
+# Model-load tasks, registered so shutdown can drain them under a deadline.
+# Mirrors the per-connection in_flight set used for transcription launches.
+model_loads: set = set()
+
+# Ceiling on the model-load drain. A load already deep in a blocking native
+# call cannot be interrupted, so the abort event is what actually bounds exit.
+MODEL_LOAD_DRAIN_TIMEOUT_S = 5.0
+
+
+def _shutdown_load_result(backend: str) -> dict:
+    """Uniform result for a load skipped/aborted by shutdown (C-LOG-5 line)."""
+    return {"loaded": False, "backend": backend, "device_info": None, "error": "cancelled during shutdown"}
 
 
 @dataclass
@@ -146,6 +166,54 @@ async def handle_transcribe_samples(frame: dict, handles: _CommandHandles) -> No
     handles.launch(_run_samples, request_id)
 
 
+def _spawn_model_load(
+    handles: _CommandHandles,
+    *,
+    backend: str,
+    result_type: str,
+    request_id: int,
+    run: Callable[[], dict],
+) -> None:
+    """Run one model load as a TRACKED task with a cooperative abort.
+
+    Every load path funnels through here so no load coroutine escapes the
+    shutdown drain. The task registers itself in ``model_loads``, re-checks
+    ``model_load_abort`` before and after the executor call, and logs one
+    cancellation outcome (C-LOG-5) when shutdown wins the race.
+    """
+    import asyncio as _asyncio
+
+    async def _do() -> None:
+        if model_load_abort.is_set():
+            log.info("[WORKER] %s model load cancelled during shutdown (before start)", backend)
+            result = _shutdown_load_result(backend)
+        else:
+            try:
+                result = await _asyncio.to_thread(run)
+            except _asyncio.CancelledError:
+                log.info("[WORKER] %s model load cancelled during shutdown", backend)
+                raise
+            except Exception as exc:  # noqa: BLE001, never leave the request hanging
+                log.exception("[WORKER] %s model thread raised: %s", backend, exc)
+                result = {
+                    "loaded": False,
+                    "backend": backend,
+                    "device_info": None,
+                    "error": f"internal error: {exc}",
+                }
+            if model_load_abort.is_set():
+                log.info("[WORKER] %s model load cancelled during shutdown", backend)
+                result = _shutdown_load_result(backend)
+        with contextlib.suppress(Exception):
+            await handles.websocket.send(json.dumps({"type": result_type, "id": request_id, "data": result}))
+
+    # Register at creation, not inside _do: a coroutine that has not yet
+    # started must still be in the shutdown drain.
+    task = _asyncio.ensure_future(_do())
+    model_loads.add(task)
+    task.add_done_callback(model_loads.discard)
+
+
 async def handle_load_whisper_model_async(frame: dict, handles: _CommandHandles) -> None:
     """Load a whisper model in the worker; answer ``load_whisper_model_result``."""
     request_id = _valid_request_id(frame.get("id"))
@@ -179,6 +247,8 @@ async def handle_load_whisper_model_async(frame: dict, handles: _CommandHandles)
         _device: object = device,
         _lang: object = language,
     ) -> dict:
+        if model_load_abort.is_set():
+            return _shutdown_load_result("whisper")
         from voice_typer.worker._transcribe import get_transcriber
 
         return get_transcriber().load_whisper_model(
@@ -187,20 +257,13 @@ async def handle_load_whisper_model_async(frame: dict, handles: _CommandHandles)
             str(_lang) if _lang is not None else None,
         )
 
-    import asyncio as _asyncio
-
-    async def _do() -> None:
-        try:
-            result = await _asyncio.to_thread(_run)
-        except Exception as exc:  # noqa: BLE001, never leave the request hanging
-            log.exception("[WORKER] load_whisper_model thread raised: %s", exc)
-            result = {"loaded": False, "backend": "whisper", "device_info": None, "error": f"internal error: {exc}"}
-        with contextlib.suppress(Exception):
-            await handles.websocket.send(
-                json.dumps({"type": "load_whisper_model_result", "id": request_id, "data": result})
-            )
-
-    _asyncio.ensure_future(_do())
+    _spawn_model_load(
+        handles,
+        backend="whisper",
+        result_type="load_whisper_model_result",
+        request_id=request_id,
+        run=_run,
+    )
 
 
 async def _handle_load_async(
@@ -235,18 +298,13 @@ async def _handle_load_async(
             )
         return
 
-    import asyncio as _asyncio
-
-    async def _do() -> None:
-        try:
-            result = await _asyncio.to_thread(run)
-        except Exception as exc:  # noqa: BLE001, never leave the request hanging
-            log.exception("[WORKER] %s model thread raised: %s", backend, exc)
-            result = {"loaded": False, "backend": backend, "device_info": None, "error": f"internal error: {exc}"}
-        with contextlib.suppress(Exception):
-            await handles.websocket.send(json.dumps({"type": result_type, "id": request_id, "data": result}))
-
-    _asyncio.ensure_future(_do())
+    _spawn_model_load(
+        handles,
+        backend=backend,
+        result_type=result_type,
+        request_id=request_id,
+        run=run,
+    )
 
 
 async def handle_load_parakeet_model_async(frame: dict, handles: _CommandHandles) -> None:
@@ -256,6 +314,8 @@ async def handle_load_parakeet_model_async(frame: dict, handles: _CommandHandles
     language = data.get("language")
 
     def _run(_device: object = device, _lang: object = language) -> dict:
+        if model_load_abort.is_set():
+            return _shutdown_load_result("parakeet")
         from voice_typer.worker._transcribe import get_transcriber
 
         return get_transcriber().load_parakeet_model(
@@ -281,6 +341,8 @@ async def handle_load_qwen_model_async(frame: dict, handles: _CommandHandles) ->
         _device: object = device,
         _lang: object = language,
     ) -> dict:
+        if model_load_abort.is_set():
+            return _shutdown_load_result("qwen")
         from voice_typer.worker._transcribe import get_transcriber
 
         return get_transcriber().load_qwen_model(

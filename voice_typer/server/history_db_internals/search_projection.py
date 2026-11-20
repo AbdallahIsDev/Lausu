@@ -30,7 +30,17 @@ _LIST_COLUMNS_SQL = """id,
     word_count,
     char_count,
     favorite,
-    language"""
+    language,
+    kind,
+    source_type,
+    source_title,
+    source_url,
+    file_name,
+    thumbnail_url,
+    media_duration_seconds,
+    processing_seconds,
+    download_seconds,
+    method"""
 
 _LIST_COLUMNS_T_SQL = """t.id,
     SUBSTR(t.text, 1, ?) AS text,
@@ -43,7 +53,17 @@ _LIST_COLUMNS_T_SQL = """t.id,
     t.word_count,
     t.char_count,
     t.favorite,
-    t.language"""
+    t.language,
+    t.kind,
+    t.source_type,
+    t.source_title,
+    t.source_url,
+    t.file_name,
+    t.thumbnail_url,
+    t.media_duration_seconds,
+    t.processing_seconds,
+    t.download_seconds,
+    t.method"""
 
 
 def project_text_row(row: sqlite3.Row | tuple, *, preview_length: int | None = None) -> dict:
@@ -62,6 +82,10 @@ def project_text_row(row: sqlite3.Row | tuple, *, preview_length: int | None = N
     d["text_truncated"] = truncated
     d["text_full_length"] = full_length_int
     d.pop("text_is_encrypted", None)
+    # Reader-side default: any row written before this metadata existed is a
+    # dictation, even if a partially-migrated DB left ``kind`` NULL.
+    if not d.get("kind"):
+        d["kind"] = "dictation"
     return d
 
 

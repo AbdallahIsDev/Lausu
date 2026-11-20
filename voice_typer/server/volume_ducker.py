@@ -49,6 +49,12 @@ class VolumeDucker(SmartDuckMonitorMixin):
         self._lock = threading.Lock()
         self._initialized: bool = False
         self._ready: bool = False  # True only if initialize() succeeded
+        # Start-cue grace: a duck request can be deferred past the recording
+        # cue. ``_grace_token`` invalidates a worker that a restore/duck
+        # superseded, ``_grace_cancel`` wakes it immediately instead of letting
+        # it sleep out its window.
+        self._grace_token: int = 0
+        self._grace_cancel: threading.Event | None = None
 
     def _clamp_poll_interval(self, value: int) -> int:
         """apply backend ``min_poll_interval_ms`` floor on every"""
@@ -157,8 +163,90 @@ class VolumeDucker(SmartDuckMonitorMixin):
         level: float = DEFAULT_DUCK_LEVEL,
         fade_ms: int = 150,
         per_session: bool = False,
+        grace_ms: int = 0,
     ) -> bool:
-        """Reduce system volume to *level* (0.0–1.0 perceptual-linear)."""
+        """Reduce system volume to *level* (0.0–1.0 perceptual-linear).
+
+        ``grace_ms`` defers the whole decision (save state, smart-duck probe,
+        fade) past that window: dictation starts with its own cue, and ducking
+        on that cue would lower the speakers for the entire recording.
+        """
+        if not self._initialized or self._backend is None:
+            return False
+        if grace_ms > 0:
+            return self._defer_duck(level, fade_ms, per_session, grace_ms)
+        self._cancel_pending_grace()
+        return self._duck_now(level, fade_ms, per_session)
+
+    def _cancel_pending_grace(self) -> None:
+        """Invalidate + wake any duck still waiting out the start-cue grace."""
+        with self._lock:
+            if self._grace_cancel is not None:
+                self._grace_cancel.set()
+                self._grace_cancel = None
+            self._grace_token += 1
+
+    def _defer_duck(
+        self,
+        level: float,
+        fade_ms: int,
+        per_session: bool,
+        grace_ms: int,
+    ) -> bool:
+        """Schedule ``_duck_now`` for when the start-cue window closes."""
+        with self._lock:
+            already_ducked = self._saved_state is not None
+        if already_ducked:
+            # A duck is already in effect: no cue window to skip, and the
+            # older deferral must not re-apply its own level when it wakes.
+            self._cancel_pending_grace()
+            return self._duck_now(level, fade_ms, per_session)
+        with self._lock:
+            if self._grace_cancel is not None:
+                self._grace_cancel.set()
+            self._grace_token += 1
+            token = self._grace_token
+            cancel = threading.Event()
+            self._grace_cancel = cancel
+        threading.Thread(
+            target=self._duck_after_grace,
+            args=(token, cancel, level, fade_ms, per_session, grace_ms),
+            name="duck-start-grace",
+            # RACE-008: a failed recording may leave the wait in flight; it must
+            # never keep the process alive.
+            daemon=True,
+        ).start()
+        log.debug(
+            "[VOLUME] Duck deferred %dms (start-cue grace), audio checks begin after it",
+            grace_ms,
+        )
+        return True
+
+    def _duck_after_grace(
+        self,
+        token: int,
+        cancel: threading.Event,
+        level: float,
+        fade_ms: int,
+        per_session: bool,
+        grace_ms: int,
+    ) -> None:
+        """Duck once the start-cue window has passed and the duck is still wanted."""
+        if cancel.wait(grace_ms / 1000.0):
+            return
+        # The token is re-checked inside ``_duck_now``'s critical section: a
+        # restore that lands between this line and the fade would otherwise be
+        # a no-op that leaves the volume ducked after the cycle ended.
+        self._duck_now(level, fade_ms, per_session, grace_token=token)
+
+    def _duck_now(
+        self,
+        level: float = DEFAULT_DUCK_LEVEL,
+        fade_ms: int = 150,
+        per_session: bool = False,
+        grace_token: int | None = None,
+    ) -> bool:
+        """Apply the duck immediately (no start-cue grace)."""
         if not self._initialized or self._backend is None:
             return False
 
@@ -166,6 +254,11 @@ class VolumeDucker(SmartDuckMonitorMixin):
 
         # ``backend.fade_to()`` can block for up to 150 ms
         with self._lock:
+            if grace_token is not None and grace_token != self._grace_token:
+                log.debug("[VOLUME] deferred duck superseded, not ducking")
+                return False
+            if grace_token is not None:
+                self._grace_cancel = None
             if self._saved_state is None:
                 # First duck -- save current state.
                 state = self._backend.get_state()
@@ -304,6 +397,12 @@ class VolumeDucker(SmartDuckMonitorMixin):
         # stop the smart-duck background monitor INSIDE the lock.
         with self._lock:
             self._stop_smart_duck_monitor()
+            # Cancel a duck still waiting out its start-cue grace: the cycle it
+            # belonged to is over, so it must not duck after the restore.
+            if self._grace_cancel is not None:
+                self._grace_cancel.set()
+                self._grace_cancel = None
+            self._grace_token += 1
 
             if self._saved_state is None:
                 return True  # not ducked, no-op success

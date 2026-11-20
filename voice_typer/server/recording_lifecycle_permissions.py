@@ -188,10 +188,8 @@ class RecordingLifecyclePermissionsMixin:
     def _publish_permission_denied_refusal(self, app, state: str = "denied") -> None:
         """Terminal hotkey-press refusal: bubble + tray + notify + event."""
         try:
-            if getattr(app.config, "bubble_behavior", "show_on_record") != "hidden":
-                app._waveform_bubble.show()
-                app._waveform_bubble.set_state("permission_revoked")
-                self._schedule_permission_revoked_bubble_reset(app)
+            app._waveform_bubble.apply_visibility("permission_revoked", reason="permission-denied")
+            self._schedule_permission_revoked_bubble_reset(app)
         except Exception:
             log.debug("[DICTATION] permission bubble surface failed", exc_info=True)
         try:
@@ -228,10 +226,7 @@ class RecordingLifecyclePermissionsMixin:
             try:
                 if getattr(app._waveform_bubble, "state", None) != "permission_revoked":
                     return
-                if getattr(app.config, "bubble_behavior", "show_on_record") == "always_visible":
-                    app._waveform_bubble.set_state("idle")
-                else:
-                    app._waveform_bubble.hide()
+                app._waveform_bubble.apply_visibility("idle", reason="permission-reset")
             except Exception:
                 log.debug("[DICTATION] permission bubble auto-reset failed", exc_info=True)
 

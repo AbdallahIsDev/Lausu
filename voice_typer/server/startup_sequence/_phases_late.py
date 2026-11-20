@@ -9,7 +9,7 @@ import threading
 import time
 from typing import TYPE_CHECKING, cast
 
-from voice_typer.server import i18n
+from voice_typer.server import i18n, internal_plugin_hook
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.duration import format_duration
 from voice_typer.server.platform_utils import is_linux, is_macos, is_wayland_session
@@ -353,7 +353,6 @@ class LatePhases:
         self._prewarm_recorder_subsystem(app)
 
         # 4. Create transcription engine and load model -- IN THE BACKGROUND.
-        log.debug("[STARTUP] Loading model in background")
         # Root-cause reconciliation: if the configured model isn't
         try:
             from voice_typer.server import startup_tasks
@@ -374,11 +373,21 @@ class LatePhases:
                 "[STARTUP] model reconciliation failed (non-fatal, load precheck still guards)",
                 exc_info=True,
             )
-        if os.environ.get("VOICE_TYPER_DEFER_MODEL_LOAD") == "1":
+        plugin_owner = internal_plugin_hook.plugin_display_name(app)
+        if plugin_owner:
+            # The plugin transcribes in the browser, so a local engine would be
+            # warmed for nothing: no local recording, no local decode. The load
+            # stays available on demand (Media transcription, switching back).
+            log.info(
+                "[STARTUP] %s serves dictation, skipping the local model load",
+                plugin_owner,
+            )
+        elif os.environ.get("VOICE_TYPER_DEFER_MODEL_LOAD") == "1":
             # Dev-bridge sidecars skip the multi-GB background model load;
             # first dictation lazy-loads via ensure_active_engine_loaded.
             log.info("[STARTUP] VOICE_TYPER_DEFER_MODEL_LOAD=1, skipping background model load")
         else:
+            log.debug("[STARTUP] Loading model in background")
             app.models.start_background_load()
 
         # RACE-020: check for shutdown after background model load start
@@ -428,12 +437,10 @@ class LatePhases:
         # line and never resets a recording that started mid-startup.
         if app.config.bubble_behavior == "always_visible" and app.config.bubble_show_on_startup:
             try:
-                if not app._waveform_bubble.visible:
-                    app._waveform_bubble.show()
-                    app._waveform_bubble.set_state("idle")
-                    log.info("[STARTUP] Bubble shown at startup (always_visible mode)")
-                else:
-                    log.debug("[STARTUP] Bubble already visible (backend-ready show), skipping startup show")
+                # Always re-assert: the mirror can say "visible" while the
+                # host hid the real window (dismiss / renderer hideComplete).
+                app._waveform_bubble.apply_visibility("idle", reason="startup-backstop")
+                log.info("[STARTUP] Bubble shown at startup (always_visible mode)")
             except Exception as e:
                 log.warning("[STARTUP] Failed to show bubble at startup: %s", e)
 
@@ -443,16 +450,39 @@ class LatePhases:
         model_size = getattr(getattr(app, "config", None), "model_size", "") or ""
         load_thread = getattr(getattr(app, "models", None), "_model_load_thread", None)
         loading = bool(getattr(load_thread, "is_alive", lambda: False)())
-        if not model_size:
-            complete_msg = "[STARTUP] Startup complete (no speech model selected)%s"
-        elif loading:
-            complete_msg = "[STARTUP] Startup complete (model still loading in background)%s"
+        plugin_owner = internal_plugin_hook.plugin_display_name(app)
+        elapsed = format_duration(time.perf_counter() - self._t0)
+        if plugin_owner and not loading:
+            log.info(
+                "[STARTUP] Startup complete (%s serves dictation, no local model loaded)%s",
+                plugin_owner,
+                elapsed,
+            )
+            # The startup LOADING state was raised by app.start() and the
+            # local loader used to be the only thing that cleared it, so a
+            # plugin install sat on "Loading"/"Loading model…" forever with
+            # nothing loading. The dictation owner is the plugin, so IDLE is
+            # the true state; the tooltip names it.
+            try:
+                from voice_typer.server.tray_types import AppState as _PluginAppState
+
+                app.tray.set_state(
+                    _PluginAppState.IDLE,
+                    _t("state.plugin_serves_dictation", name=plugin_owner),
+                )
+            except Exception:
+                log.debug(
+                    "[STARTUP] plugin tray reconcile failed (non-fatal)",
+                    exc_info=True,
+                )
         else:
-            complete_msg = "[STARTUP] Startup complete%s"
-        log.info(
-            complete_msg,
-            format_duration(time.perf_counter() - self._t0),
-        )
+            if not model_size:
+                complete_msg = "[STARTUP] Startup complete (no speech model selected)%s"
+            elif loading:
+                complete_msg = "[STARTUP] Startup complete (model still loading in background)%s"
+            else:
+                complete_msg = "[STARTUP] Startup complete%s"
+            log.info(complete_msg, elapsed)
 
         # Terminal tray reconcile (no-model hole): with no speech model
         if not model_size and not loading and not getattr(app, "_shutting_down", False):

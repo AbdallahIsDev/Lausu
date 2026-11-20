@@ -38,7 +38,7 @@ import math
 import numbers
 import threading
 
-from voice_typer.server import i18n
+from voice_typer.server import i18n, model_language_gate
 from voice_typer.server.branding import APP_NAME
 from voice_typer.server.duration import format_duration
 from voice_typer.server.recording_lifecycle_permissions import (  # noqa: F401  # facade attrs: tests import the moved helpers from here
@@ -201,6 +201,11 @@ class RecordingLifecycle(
         if not self._gate_voice_biometric_consent(app):
             return
 
+        # A pinned spoken language the model's own language list lacks cannot
+        # decode: refuse before the mic opens and say so (in-app + OS toast).
+        if not model_language_gate.gate_dictation_language(app):
+            return
+
         try:
             from voice_typer.server import permissions as _perm_gate
 
@@ -263,9 +268,7 @@ class RecordingLifecycle(
         try:
             # Show the floating bubble once we know the stream is open,
             # unless the user hid it entirely ("hidden" behavior).
-            if getattr(app.config, "bubble_behavior", "show_on_record") != "hidden":
-                app._waveform_bubble.show()
-                app._waveform_bubble.set_state("recording")
+            app._waveform_bubble.apply_visibility("recording", reason="record-start")
         except Exception:
             log.debug("[DICTATION] instant bubble feedback failed", exc_info=True)
         try:
@@ -276,10 +279,7 @@ class RecordingLifecycle(
     def _hide_instant_start_feedback(self, app) -> None:
         """Hide the optimistic start UI after a failed recorder.start()."""
         try:
-            if getattr(app.config, "bubble_behavior", "show_on_record") == "always_visible":
-                app._waveform_bubble.set_state("idle")
-            else:
-                app._waveform_bubble.hide()
+            app._waveform_bubble.apply_visibility("idle", reason="start-failed")
         except Exception:
             log.debug("[DICTATION] instant bubble rollback failed", exc_info=True)
 
@@ -538,10 +538,7 @@ class RecordingLifecycle(
                     app._busyness.set_idle()
                     return
                 try:
-                    if getattr(app.config, "bubble_behavior", "show_on_record") == "always_visible":
-                        app._waveform_bubble.set_state("idle")
-                    else:
-                        app._waveform_bubble.hide()
+                    app._waveform_bubble.apply_visibility("idle", reason="too-short")
                 except Exception:
                     log.debug("[DICTATION] too-short bubble reset failed", exc_info=True)
                 app.tray.set_state(AppState.IDLE, i18n.t("state.recording_controller.too_short"))

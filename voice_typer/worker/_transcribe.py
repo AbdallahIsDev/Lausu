@@ -184,7 +184,9 @@ class WorkerTranscriber:
                 engine = TranscriptionEngine(
                     model_size=model_size,
                     device=device if device is not None else "auto",
-                    language=language if language is not None else "en",
+                    # None stays None: that is Auto (model detects the
+                    # language). A fallback "en" silently pins English.
+                    language=language,
                 )
                 engine.load()
                 self._engine = engine

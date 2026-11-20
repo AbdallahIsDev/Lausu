@@ -41,7 +41,9 @@ class _SendPathHost(Protocol):
     api_key: str
     provider: str
     model_name: str
-    language: str
+    # None = Auto: the provider detects the language (the parameter is
+    # omitted from the request instead of sending a forced "en").
+    language: str | None
     _GEMINI_REQUEST_TIMEOUT_SECONDS: float
 
     def _transcribe_with_retry(

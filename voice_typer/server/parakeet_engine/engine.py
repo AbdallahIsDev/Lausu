@@ -7,6 +7,7 @@ import os
 import threading
 from typing import Any
 
+from voice_typer.server.asr_utils import asr_language_param
 from voice_typer.server.i18n import DEFAULT_LOCALE
 
 from ._load import LoadMixin
@@ -31,11 +32,14 @@ class ParakeetEngine(LoadMixin, TranscribeMixin):
     def __init__(
         self,
         device: str = "cuda",
-        language: str = DEFAULT_LOCALE,
+        # None = Auto. The language is NOT fed to the decode (the model
+        # detects it); it only arms the English-only junk filter, so an
+        # Auto user must not look like a pinned-English user.
+        language: str | None = DEFAULT_LOCALE,
         config: Any = None,
     ):
         self.device = device
-        self.language = language
+        self.language = asr_language_param(language)
         # Optional Config reference consulted by ``load()`` to gate
         self.config = config
         # Loaded onnx-asr model adapter instance (or ``None`` when unloaded).

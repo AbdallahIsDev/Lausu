@@ -70,6 +70,10 @@ from voice_typer.server.model_registry import (
     MODEL_REGISTRY as _MODEL_REGISTRY_FOR_ALLOWLIST,
     NO_MODEL_SIZE as _NO_MODEL_SIZE,
 )
+from voice_typer.server.translation.catalogue import (
+    ALLOWED_TRANSLATION_MODELS as _ALLOWED_TRANSLATION_MODELS,
+    ALLOWED_TRANSLATION_TARGETS as _ALLOWED_TRANSLATION_TARGETS,
+)
 from voice_typer.server.tts.voices import ALL_LANGUAGES as _TTS_LANGUAGES, ALL_VOICES as _TTS_VOICES
 
 # canonical bounds + default for ``max_recording_time_seconds``.
@@ -136,6 +140,15 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     # ``model_size`` additionally accepts ``NO_MODEL_SIZE`` (""), the
     "model_size": (str, _make_enum_validator(ALLOWED_USER_MODELS | {_NO_MODEL_SIZE})),
     "language": (str, _VALIDATOR_LANGUAGE),
+    # ADR-0021 Stage B / ADR-0030 text translator. Separate from ASR registry;
+    # no new IPC command is needed because these ride on set_config.
+    "translation_enabled": (bool, _bool_validator),
+    "translation_model": (str, _make_enum_validator(_ALLOWED_TRANSLATION_MODELS)),
+    "translation_target_language": (str, _make_enum_validator(_ALLOWED_TRANSLATION_TARGETS)),
+    "translation_glossary": (str, _make_str_validator(max_len=4000)),
+    "translation_gpu_enabled": (bool, _bool_validator),
+    "translation_model_path": (str, _VALIDATOR_LOCAL_DIR),
+    "translation_runtime_path": (str, _VALIDATOR_LOCAL_DIR),
     "device": (str, _make_enum_validator(frozenset({"cuda", "cpu"}))),
     "beam_size": (int, _make_int_validator(lo=1, hi=10)),
     "best_of": (int, _make_int_validator(lo=1, hi=10)),
@@ -170,6 +183,8 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     # ADR-0010 §2.11 / §8.3a: these keys MUST be in the IPC allowlist
     "clipboard_save_restore": (bool, _bool_validator),
     "clipboard_restore_delay_ms": (int, _make_int_validator(lo=0, hi=2000)),
+    # Clipboard-history privacy gate (see Config.clipboard_history_exclude).
+    "clipboard_history_exclude": (bool, _bool_validator),
     # User-configured URL-allowlist extensions for self-hosted
     "trusted_extra_hosts": (list, _VALIDATOR_TRUSTED_HOSTS),
     # idle-unload timer for the active ASR backend, in minutes. 0 disables
@@ -259,8 +274,6 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     "media_url_consent": (bool, _bool_validator),
     # sound feedback toggle.
     "sound_feedback_enabled": (bool, _bool_validator),
-    # Volume multiplier for the renderer's sound-feedback cues
-    "sound_volume": (float, _make_float_validator(lo=0.0, hi=1.0)),
     "crash_recovery_enabled": (bool, _bool_validator),
     "audio_quality_warnings": (bool, _bool_validator),
     # All four toggles are user-tunable via Settings → AI Enhancement.

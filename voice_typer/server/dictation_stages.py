@@ -77,6 +77,16 @@ class EmptyCheckStage:
         return text
 
 
+class TranslationStage:
+    """Step 2b: ADR-0021 Stage B, translate Stage A text when requested."""
+
+    name = "translate"
+    timed = True
+
+    def run(self, text: str, ctx: PipelineContext) -> str:
+        return ctx.pipeline._translate(text)
+
+
 class CleanupStage:
     """Step 3: Apply text cleanup (spacing, self-corrections, capitalization)."""
 
@@ -207,13 +217,14 @@ class CancellationGuard:
 
 
 def build_default_stages() -> list[PipelineStage]:
-    """Construct the standard 10-stage dictation pipeline.
+    """Construct the standard 11-stage dictation pipeline.
 
     Returns a fresh list so callers can mutate (insert/remove stages)
     """
     return [
         TranscribeStage(),
         EmptyCheckStage(),
+        TranslationStage(),
         CleanupStage(),
         VocabularyStage(),
         TemplatesStage(),

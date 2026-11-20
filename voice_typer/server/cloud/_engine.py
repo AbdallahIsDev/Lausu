@@ -52,7 +52,6 @@ from voice_typer.server.cloud._realtime import (
 )
 from voice_typer.server.cloud._retry import _cloud_http_error_class, _parse_retry_after
 from voice_typer.server.cloud._transport import _audio_to_wav_bytes, _read_capped
-from voice_typer.server.i18n import DEFAULT_LOCALE
 from voice_typer.server.retry import delay_for_attempt, sleep_interruptible
 
 log = logging.getLogger(__name__)
@@ -86,7 +85,9 @@ class CloudEngine:
         api_key: str,
         api_url: str | None = None,
         model: str | None = None,
-        language: str = DEFAULT_LOCALE,
+        # None = Auto (detect). Never defaulted to "en": that is a decode
+        # instruction, not a neutral value.
+        language: str | None = None,
         consent_given: bool = False,
         local_engine_factory: Callable[..., Any] | None = None,
     ):

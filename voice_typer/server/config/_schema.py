@@ -50,7 +50,25 @@ class _ConfigSchema:
     # install until the in-app Ctrl+Shift+Alt+D sequence sets it; persisted so
     # the choice survives restarts. It never enables a plugin by itself.
     developer_mode: bool = False
-    language: str = "en"
+    # Spoken language pinned for the decode; "" = Auto (the model detects
+    # it). Auto is the default because a pinned wrong language is decoded as
+    # if it were right, while Auto asks the model to identify it (C-ASR-5).
+    language: str = ""
+    # ADR-0021 Stage B / ADR-0030: one separate TEXT model, never a second
+    # ASR model. "" target means "same as spoken" and skips translation.
+    translation_enabled: bool = False
+    translation_model: str = "index-translate-2b-q4-k-m"
+    translation_target_language: str = ""
+    # One pinned term per line, ``source => target``. Guarantees product/UI
+    # names survive code-switched dictations verbatim.
+    translation_glossary: str = ""
+    # The bundled llama.cpp Vulkan runtime needs no CUDA bundle. Off means
+    # explicit CPU inference on the same GGUF.
+    translation_gpu_enabled: bool = True
+    # Advanced overrides for a locally installed runtime/model. Empty means
+    # resolve from the app data dir or the LAUSU_TRANSLATION_* env vars.
+    translation_model_path: str = ""
+    translation_runtime_path: str = ""
     device: str = "cpu"  # cuda, cpu
     beam_size: int = 1  # 1 = fastest greedy decoding; higher values trade speed for accuracy
     best_of: int = 1
@@ -119,6 +137,12 @@ class _ConfigSchema:
     clipboard_restore_delay_ms: int = (
         DEFAULT_CLIPBOARD_RESTORE_DELAY_MS  # delay between paste keystroke and clipboard restore (ms)
     )
+    # Windows clipboard-history privacy gate: tag the dictated text with
+    # ``ExcludeClipboardContentFromMonitorProcessing`` so Win+V (and conforming
+    # monitors) never store it. Turning it OFF makes the dictation appear in
+    # the OS history like any other copy — the order then reads: previous
+    # content, the dictation, the restored content.
+    clipboard_history_exclude: bool = True
 
     # Push-to-talk mode (hold to record, release to stop)
     recording_mode: Literal["toggle", "push_to_talk"] = "toggle"
@@ -221,9 +245,6 @@ class _ConfigSchema:
 
     # play a short audio cue when recording starts/stops.
     sound_feedback_enabled: bool = True
-
-    # volume multiplier applied to the renderer's sound-feedback cues
-    sound_volume: float = 1.0
 
     # Crash recovery
     crash_recovery_enabled: bool = True

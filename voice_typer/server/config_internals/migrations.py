@@ -35,7 +35,7 @@ from typing import Any
 
 log = logging.getLogger("voice_typer.server.config")
 
-_CURRENT_SCHEMA_VERSION = 6
+_CURRENT_SCHEMA_VERSION = 8
 
 # _MIGRATIONS infrastructure for schema version migrations.
 _MIGRATIONS: dict[int, Callable[[dict[str, Any]], dict[str, Any]]] = {}
@@ -168,11 +168,50 @@ def _migrate_to_v6(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
+def _migrate_to_v7(data: dict[str, Any]) -> dict[str, Any]:
+    """Migrate config from schema v6 to v7 (prune the removed cue volume).
+
+    The recording-cue volume is no longer a setting: it is fixed at 30% so the
+    cue can never be loud enough for volume ducking to mistake it for playback.
+    A v6 config still carries the key, prune it instead of leaving it to the
+    unknown-key warning.
+    """
+    data.setdefault("_load_warnings", [])
+    if "sound_volume" in data:
+        log.info("[CONFIG] migrating schema v6 -> v7: pruning removed key sound_volume")
+        data["_load_warnings"].append("removed key sound_volume pruned (schema v7 migration)")
+        data.pop("sound_volume")
+    return data
+
+
+def _migrate_to_v8(data: dict[str, Any]) -> dict[str, Any]:
+    """Migrate config from schema v7 to v8 (legacy ``language="en"`` -> Auto).
+
+    ``"en"`` was this app's own default, never a deliberate pin for most
+    configs, and it is a DECODE INSTRUCTION: it arms Parakeet's English-only
+    junk guard (which deletes every non-English take and returns no text) and
+    tells Whisper/cloud providers the audio is English. Auto (``""``) decodes
+    English exactly the same way and additionally lets the model identify
+    anything else, so a config carrying the legacy default is reset here; a
+    user who wants a specific language picks it again in Settings.
+    """
+    data.setdefault("_load_warnings", [])
+    if data.get("language") == "en":
+        log.info("[CONFIG] migrating schema v7 -> v8: legacy language='en' -> Auto-detect")
+        data["_load_warnings"].append(
+            "language reset to auto-detect so other spoken languages are recognised (schema v8 migration)"
+        )
+        data["language"] = ""
+    return data
+
+
 _MIGRATIONS[2] = _migrate_to_v2
 _MIGRATIONS[3] = _migrate_to_v3
 _MIGRATIONS[4] = _migrate_to_v4
 _MIGRATIONS[5] = _migrate_to_v5
 _MIGRATIONS[6] = _migrate_to_v6
+_MIGRATIONS[7] = _migrate_to_v7
+_MIGRATIONS[8] = _migrate_to_v8
 
 
 def _run_migrations(

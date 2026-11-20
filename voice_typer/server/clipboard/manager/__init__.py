@@ -56,6 +56,9 @@ class ClipboardManager(KeyboardMixin, PasteMixin, CopyMixin):
         self._clipboard_save_restore_enabled: bool = True
         # ADR-0010 §5.6 / §5.3: cached restore delay in milliseconds. Read
         self._restore_delay_ms: int = _DEFAULT_RESTORE_DELAY_MS
+        # Win+V privacy gate: keep dictations out of the OS clipboard history
+        # unless the user turned that off (Config.clipboard_history_exclude).
+        self._clipboard_history_exclude: bool = True
 
     def refresh_config(self, config) -> None:
         """Refresh cached config flags from a Config object."""
@@ -76,6 +79,18 @@ class ClipboardManager(KeyboardMixin, PasteMixin, CopyMixin):
                 exc_info=True,
             )
             self._restore_delay_ms = _DEFAULT_RESTORE_DELAY_MS
+
+        try:
+            self._clipboard_history_exclude = bool(
+                getattr(config, "clipboard_history_exclude", True)
+            )
+        except Exception:
+            _cb.log.warning(
+                "[CLIPBOARD] refresh_config: clipboard_history_exclude lookup failed, "
+                "keeping dictations out of the OS history",
+                exc_info=True,
+            )
+            self._clipboard_history_exclude = True
 
         # §2.12: mirror paste_on_stop → paste_enabled so a runtime toggle
         try:

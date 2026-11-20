@@ -69,7 +69,9 @@ class CopyMixin:
                 _cb.log.error("[CLIPBOARD] Clipboard verification still failed after 3 retries")
 
             # ④b (Privacy): tag the clipboard with the Windows
-            if _cb.is_windows():
+            # monitor-exclusion format unless the user opted into having
+            # dictations recorded in the OS clipboard history.
+            if _cb.is_windows() and getattr(self, "_clipboard_history_exclude", True):
                 with contextlib.suppress(Exception):
                     _cb._win32_exclude_clipboard_from_monitoring()
 

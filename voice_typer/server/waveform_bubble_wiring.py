@@ -191,6 +191,11 @@ class WaveformBubbleWiring:
         app._waveform_bubble.on_level = _push_bubble_level
         app._waveform_bubble.on_set_state = _push_bubble_set_state
         app._waveform_bubble.on_config = _push_bubble_config
+        # Single visibility policy reads the canonical config through this
+        # seam; no caller keeps its own behavior branch.
+        app._waveform_bubble.set_behavior_provider(
+            lambda: getattr(app.config, "bubble_behavior", "show_on_record")
+        )
         log.info("[WAVEFORM] listeners wired on bubble coordinator")
 
     def stop(self) -> None:

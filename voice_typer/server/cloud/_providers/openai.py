@@ -10,7 +10,7 @@ def build_multipart_body(
     filename: str,
     boundary: str,
     model_name: str,
-    language: str,
+    language: str | None,
 ) -> _StreamingMultipartBody:
     """Build multipart/form-data body for OpenAI-compatible APIs."""
     parts = build_multipart_parts(wav_bytes, filename, boundary, model_name, language)
@@ -22,7 +22,9 @@ def build_multipart_parts(
     filename: str,
     boundary: str,
     model_name: str,
-    language: str,
+    # None = Auto: the language field is omitted so the API detects the
+    # spoken language itself (its own default); sending "en" is a pin.
+    language: str | None,
 ) -> list[bytes]:
     """Return the ordered list of byte chunks that compose the body."""
     parts: list[bytes] = []
@@ -40,11 +42,12 @@ def build_multipart_parts(
     parts.append(model_name.encode())
     parts.append(b"\r\n")
 
-    # language field
-    parts.append(f"--{boundary}\r\n".encode())
-    parts.append(b'Content-Disposition: form-data; name="language"\r\n\r\n')
-    parts.append(language.encode())
-    parts.append(b"\r\n")
+    # language field (omitted entirely when the caller asked for Auto)
+    if language:
+        parts.append(f"--{boundary}\r\n".encode())
+        parts.append(b'Content-Disposition: form-data; name="language"\r\n\r\n')
+        parts.append(language.encode())
+        parts.append(b"\r\n")
 
     # response_format
     parts.append(f"--{boundary}\r\n".encode())

@@ -100,6 +100,12 @@ def temp_audio_download(
         "extractor_retries": 2,
         "socket_timeout": SOCKET_TIMEOUT_SECONDS,
         "continuedl": True,
+        # yt-dlp auto-detects ffmpeg on PATH (`_determine_executables` returns
+        # bare program names when ffmpeg_location is unset) and its default
+        # `fixup=detect_or_warn` then appends FFmpegFixup* postprocessors to
+        # real downloads. With ffmpeg now shipped, that would rewrite the
+        # bytes we used to get. `never` preserves today's download verbatim.
+        "fixup": "never",
         "windowsfilenames": True,
         "restrictfilenames": False,
         "progress_hooks": [_hook],

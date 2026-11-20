@@ -8,11 +8,15 @@ History write.
 
 from __future__ import annotations
 
+import os
+import time
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 from voice_typer.server.handlers._base import HandlerBase
 from voice_typer.server.handlers._log import log
 from voice_typer.server.media_ingest.lifecycle import JobPhase, parse_job_phase
+from voice_typer.server.text_metrics import count_words
 
 # ADR-0023 E9 tier-0 budget: first stream open plus retry room for one
 # re-resolve (URL_EXPIRED) / seek-resume (STREAM_STALLED) before the
@@ -32,6 +36,29 @@ def _format_optional(value: object) -> str:
     if isinstance(value, numbers.Real) and math.isfinite(float(value)):
         return f"{float(value):.2f}"
     return "n/a"
+
+
+def _media_source_type(source: object) -> str | None:
+    """Classify a media source for the History/event ``source_type`` field."""
+    if not isinstance(source, str) or not source.strip():
+        return None
+    text = source.strip()
+    if not text.lower().startswith(("http://", "https://")):
+        return "file"
+    host = urlparse(text).netloc.lower()
+    if "youtube.com" in host or "youtu.be" in host:
+        return "youtube"
+    return "url"
+
+
+def _media_source_split(source: object) -> tuple[str | None, str | None]:
+    """Return ``(source_url, file_name)`` for a media source string."""
+    if not isinstance(source, str) or not source.strip():
+        return None, None
+    text = source.strip()
+    if text.lower().startswith(("http://", "https://")):
+        return text, None
+    return None, os.path.basename(text) or None
 
 
 class MediaJobRunnersMixin(HandlerBase):
@@ -93,6 +120,32 @@ class MediaJobRunnersMixin(HandlerBase):
             # media was rejected as invented speech): the same "no speech"
             # outcome as silence, never a "characters were added" card.
             job.note = job.note or "no_speech"
+
+        # Optional provenance/timing metadata (schema v6). getattr keeps
+        # older job stubs (tests, plugins) valid: absent fields stay NULL.
+        source = getattr(job, "source", None)
+        source_type = _media_source_type(source)
+        source_url, file_name = _media_source_split(source)
+        media_duration = decoded_seconds if decoded_seconds is not None else expected_seconds
+        if media_duration is None:
+            media_duration = duration
+        started_at = getattr(job, "started_at", None)
+        processing_seconds = time.perf_counter() - float(started_at) if started_at is not None else None
+        metadata = {
+            "kind": "media",
+            "source_type": source_type,
+            "source_title": getattr(job, "title", None),
+            "source_url": source_url,
+            "file_name": file_name,
+            "thumbnail_url": getattr(job, "thumbnail_data_url", None),
+            "media_duration_seconds": media_duration,
+            "processing_seconds": processing_seconds,
+            "download_seconds": getattr(job, "download_seconds", None),
+            "method": "subtitles" if getattr(job, "ingest_tier", None) == "subtitles" else "transcription",
+        }
+        word_count = count_words(stripped)
+        source_label = metadata["source_title"] or metadata["file_name"] or metadata["source_url"] or source
+
         row_id: int | None = None
         if stripped:
             row_id = _storage.persist_result(
@@ -102,9 +155,10 @@ class MediaJobRunnersMixin(HandlerBase):
                 # The engine this job actually ran on (leased at start), never
                 # ``config.model_size`` read now: a switch may have written the
                 # new model into config while this job was still decoding.
-                model=job.engine_label or "",
+                model=getattr(job, "engine_label", None) or "",
                 device=str(getattr(self.app.config, "device", "") or ""),
                 partial=partial,
+                **metadata,
             )
             export_path = validated.get("export_path")
             if isinstance(export_path, str) and export_path:
@@ -128,6 +182,20 @@ class MediaJobRunnersMixin(HandlerBase):
                         "note": job.note,
                         "title": job.title,
                         "thumbnail_data_url": job.thumbnail_data_url,
+                        # Metadata mirroring the History row (schema v6). All
+                        # optional/nullable so an older renderer ignores them.
+                        "word_count": word_count,
+                        "source_label": source_label,
+                        "media_duration_seconds": metadata["media_duration_seconds"],
+                        "processing_seconds": metadata["processing_seconds"],
+                        "download_seconds": metadata["download_seconds"],
+                        "source_type": metadata["source_type"],
+                        "source_title": metadata["source_title"],
+                        "source_url": metadata["source_url"],
+                        "file_name": metadata["file_name"],
+                        "thumbnail_url": metadata["thumbnail_url"],
+                        "model_name": getattr(job, "engine_label", None),
+                        "method": metadata["method"],
                     },
                 }
             )
@@ -322,11 +390,16 @@ class MediaJobRunnersMixin(HandlerBase):
         )
 
         self._publish_media_progress(job, 0.0, JobPhase.DOWNLOADING, None, expected)
+        download_started = time.perf_counter()
         with _downloader.temp_audio_download(
             resolved.webpage_url or resolved.audio_url,
             js_runtimes=_runtime.js_runtime_options(runtime),
             on_progress=lambda frac: self._publish_media_progress(job, frac, JobPhase.DOWNLOADING, None, expected),
         ) as tmp_path:
+            # Measure only the download: the decode below runs inside this
+            # same ``with`` block and must not count toward download_seconds.
+            elapsed = time.perf_counter() - download_started
+            job.download_seconds = (getattr(job, "download_seconds", None) or 0.0) + elapsed
             # An Instagram-style resolver reports duration=None: probe the
             # file that was actually ingested so percent/ETA (and the
             # truncation gate) have a real total.

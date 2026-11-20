@@ -24,6 +24,10 @@ GEO_BLOCKED = "geo_blocked"
 PLAYLIST_REJECTED = "playlist_rejected"
 DRM_REFUSED = "drm_refused"
 DECODE_FAILED = "decode_failed"
+# Environment/setup failure: the ffmpeg executable is absent. Deliberately
+# NOT in MEDIA_JOB_CODES until the renderer owns a dedicated copy key — an
+# unmapped job code would silently fall through to generic toast copy.
+FFMPEG_MISSING = "ffmpeg_missing"
 RESOLVE_FAILED = "resolve_failed"
 STREAM_STALLED = "stream_stalled"
 URL_EXPIRED = "url_expired"
@@ -43,6 +47,11 @@ NO_MEDIA_URL = "no_media_url"
 # the user asked for. Never persisted, never reported as success.
 MEDIA_TOO_SHORT = "media_too_short"
 MEDIA_TRUNCATED = "media_truncated"
+
+# The pinned spoken language is outside the active model's declared language
+# list, so the decode cannot serve this job at all. Refused before any
+# download/decode (C-ASR-6): a junk transcript costs the whole media run.
+MODEL_LANGUAGE_UNSUPPORTED = "model_language_unsupported"
 
 # Model-layer states surfaced through the same taxonomy (namespaced: these
 # two also travel in IPC error envelopes, so the canonical constants live in
@@ -85,6 +94,7 @@ MEDIA_JOB_CODES: frozenset[str] = frozenset(
         NO_MEDIA_URL,
         MEDIA_TOO_SHORT,
         MEDIA_TRUNCATED,
+        MODEL_LANGUAGE_UNSUPPORTED,
         MODEL_LOADING,
         MODEL_CHANGED,
     }

@@ -229,6 +229,19 @@ class DispatcherMixin:
 
         return {"type": "result", "data": {"ok": True}}
 
+    def _handle_bubble_host_hidden(
+        self, data: object | None, resp: ResponseEnvelope
+    ) -> ResponseEnvelope:
+        """Host hid the bubble outside the backend; reconcile + re-assert."""
+        bubble = getattr(self.app, "_waveform_bubble", None)
+        note = getattr(bubble, "note_host_hidden", None)
+        if callable(note):
+            reason = "host-dismiss"
+            if isinstance(data, dict) and isinstance(data.get("reason"), str):
+                reason = data["reason"]
+            note(reason=reason)
+        return {"type": "result", "data": {"ok": True}}
+
     def _handle_unknown_command(
         self, cmd: object | None, data: object | None, resp: ResponseEnvelope
     ) -> ResponseEnvelope:

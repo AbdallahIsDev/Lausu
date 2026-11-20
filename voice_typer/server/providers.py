@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Protocol, TypedDict, runtime_checkable
+from typing import TYPE_CHECKING, Any, NotRequired, Protocol, TypedDict, runtime_checkable
 
 log = logging.getLogger(__name__)
 
@@ -231,6 +231,19 @@ class HistoryEntry(TypedDict):
     char_count: int
     favorite: int
     language: str
+    # Optional provenance/timing metadata (schema v6). ``kind`` is always
+    # projected (old rows read as "dictation"); the rest stay NULL when the
+    # source did not provide them.
+    kind: NotRequired[str]
+    source_type: NotRequired[str | None]
+    source_title: NotRequired[str | None]
+    source_url: NotRequired[str | None]
+    file_name: NotRequired[str | None]
+    thumbnail_url: NotRequired[str | None]
+    media_duration_seconds: NotRequired[float | None]
+    processing_seconds: NotRequired[float | None]
+    download_seconds: NotRequired[float | None]
+    method: NotRequired[str | None]
 
 
 class MicrophoneEntry(TypedDict):

@@ -64,9 +64,39 @@ class HotkeyDispatchMixin:
                 return
             if getattr(self._app.config, "recording_mode", "toggle") == "push_to_talk":
                 self._start_ptt_safety_timer()
+            self._force_caps_lock_off_before_dictation()
             self._app.toggle_dictation()
 
         return _dictation_callback
+
+    def _force_caps_lock_off_before_dictation(self) -> None:
+        """Clear a leftover Caps Lock ON state before a dictation starts.
+
+        Caps Lock doubles as the dictation key, so its OS toggle is unreachable
+        by hand and a state that is ON (set before the app started, by another
+        keyboard, or by a remote session) capitalizes everything the user types
+        around the dictation. The native listener ignores injected input, so
+        this synthetic toggle reaches the OS even while the hook is armed.
+        """
+        try:
+            hotkey = str(getattr(self._app.config, "hotkey", "") or "")
+        except Exception:
+            return
+        if "caps_lock" not in hotkey.lower():
+            return
+        try:
+            import ctypes
+
+            from voice_typer.server import hotkeys as _hotkeys_pkg
+            from voice_typer.server.hotkeys.windows.caps_lock_suppressor import (
+                force_caps_lock_off,
+            )
+
+            if not _hotkeys_pkg.is_windows():
+                return
+            force_caps_lock_off(ctypes.windll.user32)
+        except Exception:
+            log.debug("[HOTKEY] caps-lock clear before dictation failed (non-fatal)", exc_info=True)
 
     def _make_ptt_release_callback(self):
         """Wrap the PTT stop so the safety timer is canceled on key-up."""

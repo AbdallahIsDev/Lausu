@@ -83,6 +83,15 @@ _MACOS_SECURE_INPUT_WARNED: bool = False
 
 # Import order: each submodule is self-contained (no inter-submodule
 
+from .caret_text import (  # noqa: E402,F401
+    _char_before_caret,
+    _linux_char_before_caret,
+    _macos_char_before_caret,
+    _tail_needs_separator,
+    _windows_char_before_caret,
+    delivery_text_for_target,
+    needs_leading_space,
+)
 from .focused_text import (  # noqa: E402,F401
     _is_text_field_focused,
     _is_text_field_focused_linux,
@@ -149,6 +158,14 @@ __all__ = [
     "_is_text_field_focused_linux",
     "_is_text_field_focused_macos",
     "_is_text_field_focused_windows",
+    # Caret context for delivery formatting (caret_text.py)
+    "_char_before_caret",
+    "_linux_char_before_caret",
+    "_macos_char_before_caret",
+    "_tail_needs_separator",
+    "_windows_char_before_caret",
+    "delivery_text_for_target",
+    "needs_leading_space",
     # Safety validation (validation.py)
     "_ax_result_value",
     "_is_password_field",

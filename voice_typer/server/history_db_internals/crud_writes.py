@@ -21,6 +21,17 @@ def add_transcription(
     model: str = "",
     device: str = "",
     language: str = "",
+    *,
+    kind: str = "dictation",
+    source_type: str | None = None,
+    source_title: str | None = None,
+    source_url: str | None = None,
+    file_name: str | None = None,
+    thumbnail_url: str | None = None,
+    media_duration_seconds: float | None = None,
+    processing_seconds: float | None = None,
+    download_seconds: float | None = None,
+    method: str | None = None,
 ) -> int:
     """Add a transcription to the write queue (fire-and-forget)."""
     # ``history_db`` module namespace.
@@ -37,7 +48,9 @@ def add_transcription(
         return -1
 
     try:
-        word_count = len(text.split())
+        from voice_typer.server.text_metrics import count_words
+
+        word_count = count_words(text)
         char_count = len(text)
         if db._shutdown.is_set():
             log.debug("[HISTORY_DB] add_transcription submitted after shutdown, dropped.")
@@ -50,6 +63,16 @@ def add_transcription(
             word_count=word_count,
             char_count=char_count,
             language=language,
+            kind=kind,
+            source_type=source_type,
+            source_title=source_title,
+            source_url=source_url,
+            file_name=file_name,
+            thumbnail_url=thumbnail_url,
+            media_duration_seconds=media_duration_seconds,
+            processing_seconds=processing_seconds,
+            download_seconds=download_seconds,
+            method=method,
             future=None,  # fire-and-forget
         )
         # PERF-5: bounded queue (maxsize=_WRITE_QUEUE_MAXSIZE). Use
@@ -118,6 +141,16 @@ def restore_row(
     word_count: int,
     char_count: int,
     favorite: int,
+    kind: str = "dictation",
+    source_type: str | None = None,
+    source_title: str | None = None,
+    source_url: str | None = None,
+    file_name: str | None = None,
+    thumbnail_url: str | None = None,
+    media_duration_seconds: float | None = None,
+    processing_seconds: float | None = None,
+    download_seconds: float | None = None,
+    method: str | None = None,
 ) -> int:
     """Re-insert a previously-deleted transcription record."""
     from voice_typer.server import _text_crypto
@@ -126,10 +159,31 @@ def restore_row(
         cursor.execute(
             """
                     INSERT INTO transcriptions
-                (text, duration, model, device, word_count, char_count, language, favorite)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (text, duration, model, device, word_count, char_count, language, favorite,
+                 kind, source_type, source_title, source_url, file_name, thumbnail_url,
+                 media_duration_seconds, processing_seconds, download_seconds, method)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (text, duration, model, device, word_count, char_count, language, favorite),
+            (
+                text,
+                duration,
+                model,
+                device,
+                word_count,
+                char_count,
+                language,
+                favorite,
+                kind,
+                source_type,
+                source_title,
+                source_url,
+                file_name,
+                thumbnail_url,
+                media_duration_seconds,
+                processing_seconds,
+                download_seconds,
+                method,
+            ),
         )
         new_id = cursor.lastrowid
         if new_id is None:
@@ -314,9 +368,15 @@ def submit_restore(db: HistoryDB, record: dict) -> int:
     model = str(record.get("model", "") or "")
     device = str(record.get("device", "") or "")
     language = str(record.get("language", "") or "")
-    word_count = int(record.get("word_count", 0) or len(text.split()))
+    from voice_typer.server.text_metrics import count_words
+
+    word_count = int(record.get("word_count", 0) or count_words(text))
     char_count = int(record.get("char_count", 0) or len(text))
     favorite = 1 if record.get("favorite") else 0
+
+    def _opt(name: str, caster):
+        value = record.get(name)
+        return None if value is None else caster(value)
 
     result = db._submit_write(
         lambda conn: restore_row(
@@ -330,6 +390,16 @@ def submit_restore(db: HistoryDB, record: dict) -> int:
             word_count=word_count,
             char_count=char_count,
             favorite=favorite,
+            kind=str(record.get("kind") or "dictation"),
+            source_type=_opt("source_type", str),
+            source_title=_opt("source_title", str),
+            source_url=_opt("source_url", str),
+            file_name=_opt("file_name", str),
+            thumbnail_url=_opt("thumbnail_url", str),
+            media_duration_seconds=_opt("media_duration_seconds", float),
+            processing_seconds=_opt("processing_seconds", float),
+            download_seconds=_opt("download_seconds", float),
+            method=_opt("method", str),
         ),
         wait=True,
     )

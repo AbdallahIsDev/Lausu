@@ -13,14 +13,14 @@ from voice_typer.server.credential_store import _dek
 
 log = logging.getLogger(__name__)
 
-# Lazy probe for cryptography; missing dep degrades to plaintext (no crash).
+# Lazy probe for PyCryptodome; missing dep degrades to plaintext (no crash).
 try:
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM as _AESGCM
+    from Crypto.Cipher import AES as _AES
 
-    _CRYPTOGRAPHY_AVAILABLE = True
+    _PYCRYPTODOME_AVAILABLE = True
 except ImportError:
-    _AESGCM = None
-    _CRYPTOGRAPHY_AVAILABLE = False
+    _AES = None
+    _PYCRYPTODOME_AVAILABLE = False
 
 #: Blob prefix, version tag for the on-disk ciphertext format.
 BLOB_PREFIX = "enc:v1:"
@@ -28,7 +28,7 @@ BLOB_PREFIX = "enc:v1:"
 #: Nonce length in bytes (96-bit, NIST SP 800-38D random-nonce budget).
 _NONCE_LENGTH = 12
 
-#: GCM tag length in bytes (128-bit, appended by ``AESGCM.encrypt``).
+#: GCM tag length in bytes (128-bit, appended to ciphertext by AES-GCM).
 _TAG_LENGTH = 16
 
 #: DEK length in bytes (AES-256).
@@ -68,18 +68,18 @@ def log_key_unavailable_error() -> None:
     )
 
 
-def _get_aesgcm(dek: bytes):
-    """Return an ``AESGCM`` instance for ``dek`` (validated for 32 bytes)."""
-    if not _CRYPTOGRAPHY_AVAILABLE or _AESGCM is None:
+def _new_cipher(dek: bytes, nonce: bytes):
+    """Return a PyCryptodome AES-GCM cipher for ``dek`` and ``nonce``."""
+    if not _PYCRYPTODOME_AVAILABLE or _AES is None:
         raise RuntimeError(
-            "cryptography package is not installed, at-rest encryption unavailable; history continues in plaintext mode"
+            "pycryptodome package is not installed, at-rest encryption unavailable; history continues in plaintext mode"
         )
     if not isinstance(dek, bytes | bytearray) or len(dek) != _DEK_LENGTH:
         raise ValueError(
             f"DEK must be {_DEK_LENGTH} bytes for AES-256 "
             f"(got {len(dek) if isinstance(dek, bytes | bytearray) else type(dek).__name__})"
         )
-    return _AESGCM(bytes(dek))
+    return _AES.new(bytes(dek), _AES.MODE_GCM, nonce=nonce, mac_len=_TAG_LENGTH)
 
 
 def is_encrypted(text: str) -> bool:
@@ -91,9 +91,10 @@ def _encrypt_with_nonce(plaintext: str, dek: bytes, nonce: bytes) -> str:
     """Encrypt with an explicit nonce (test/known-answer hook)."""
     if len(nonce) != _NONCE_LENGTH:
         raise ValueError(f"nonce must be {_NONCE_LENGTH} bytes (got {len(nonce)})")
-    aes = _get_aesgcm(dek)
-    # AESGCM.encrypt returns ciphertext || tag(16B).
-    body = aes.encrypt(nonce, plaintext.encode("utf-8"), associated_data=None)
+    cipher = _new_cipher(dek, nonce)
+    ciphertext, tag = cipher.encrypt_and_digest(plaintext.encode("utf-8"))
+    # Same wire shape as AESGCM.encrypt: ciphertext || tag(16B).
+    body = ciphertext + tag
     return BLOB_PREFIX + base64.b64encode(nonce + body).decode("ascii")
 
 
@@ -135,9 +136,9 @@ def decrypt_text(blob: str, dek: bytes) -> str:
         return DECRYPTION_FAILED_PLACEHOLDER
     nonce, body = raw[:_NONCE_LENGTH], raw[_NONCE_LENGTH:]
     try:
-        aes = _get_aesgcm(dek)
-        plaintext_bytes = aes.decrypt(nonce, body, associated_data=None)
-    except Exception as e:  # noqa: BLE001, includes InvalidTag + bad DEK
+        cipher = _new_cipher(dek, nonce)
+        plaintext_bytes = cipher.decrypt_and_verify(body[:-_TAG_LENGTH], body[-_TAG_LENGTH:])
+    except Exception as e:  # noqa: BLE001, includes MAC failure + bad DEK
         _rate_limited_log(
             logging.WARNING,
             "history:decrypt:auth",
@@ -177,7 +178,7 @@ def resolve_dek(encrypted_rows_exist: bool) -> bytes | None:
         if _dek_resolved:
             return _dek_cache
         # If the crypto backend is missing, don't load/generate a DEK —
-        if not _CRYPTOGRAPHY_AVAILABLE:
+        if not _PYCRYPTODOME_AVAILABLE:
             _dek_resolved = True
             _dek_cache = None
             if encrypted_rows_exist:
@@ -185,11 +186,11 @@ def resolve_dek(encrypted_rows_exist: bool) -> bytes | None:
                 _rate_limited_log(
                     logging.ERROR,
                     "history:crypto-missing",
-                    "[HISTORY] the 'cryptography' package is not installed in this "
+                    "[HISTORY] the 'pycryptodome' package is not installed in this "
                     "runtime, encrypted history rows cannot be decrypted and new "
                     "rows are written in plaintext. The data-encryption key is NOT "
                     "lost: reinstalling the application (or installing the "
-                    "'cryptography' package into the runtime environment) restores "
+                    "'pycryptodome' package into the runtime environment) restores "
                     "decryption on the next start.",
                 )
             return None

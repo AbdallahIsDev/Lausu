@@ -261,9 +261,9 @@ def _emit_bubble_startup_show(server: IPCServer) -> bool:
     even though the host can display it as soon as this WS is up. Firing
     here moves the first paint from worker-connect to ``ready``.
 
-    Fires at most once per process (``_bubble_startup_show_done`` under
-    ``server._lock``): reconnects never re-fire, so a mid-recording
-    respawn can't clobber the live state back to idle. Skips unless the
+    The once-per-process guard is set only AFTER a successful show, so an
+    early connect that bails (app/config not ready yet) can be retried.
+    Reconnects after a success never re-fire. Skips unless the
     config asks for ``always_visible`` + show-on-startup, the bubble
     coordinator is wired (``on_show`` set), and nothing is already
     visible or recording. Phase 8 stays as the backstop for paths where
@@ -272,7 +272,6 @@ def _emit_bubble_startup_show(server: IPCServer) -> bool:
     with server._lock:
         if getattr(server, "_bubble_startup_show_done", False):
             return False
-        server._bubble_startup_show_done = True
     try:
         app = getattr(server, "app", None)
         config = getattr(app, "config", None)
@@ -294,8 +293,9 @@ def _emit_bubble_startup_show(server: IPCServer) -> bool:
         on_config = getattr(bubble, "on_config", None)
         if on_config is not None:
             on_config(config)
-        bubble.show()
-        bubble.set_state("idle")
+        bubble.apply_visibility("idle", reason="backend-ready")
+        with server._lock:
+            server._bubble_startup_show_done = True
         log.info("[STARTUP] Bubble shown at backend-ready (always_visible mode)")
         return True
     except Exception:

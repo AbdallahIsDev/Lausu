@@ -15,6 +15,13 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+# The recording-start cue plays inside this window, and the cue itself is
+# broadband sound coming out of the speakers. Smart duck reacts to speaker
+# activity, so without this window the cue is what triggers the duck and the
+# speakers stay turned down for the whole recording.
+DUCK_START_GRACE_MS: int = 1000
+
+
 class VolumeController:
     """§5.3: extracted from ``LausuApp``. The app passes itself
     The VolumeDucker is constructed in ``LausuApp.__init__`` (NOT
@@ -54,6 +61,7 @@ class VolumeController:
                     fade_ms=getattr(app.config, "volume_duck_fade_ms", 200),
                     # per-session removed, always master-volume duck.
                     per_session=False,
+                    grace_ms=DUCK_START_GRACE_MS,
                 )
         except Exception:
             log.debug("[VOLUME] duck failed", exc_info=True)

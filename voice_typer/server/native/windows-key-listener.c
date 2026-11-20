@@ -608,6 +608,16 @@ static LRESULT CALLBACK LowLevelKeyboardProc(int nCode,
         int    vk    = (int)kb->vkCode;
         DWORD  flags = kb->flags;
 
+        /* Injected input (SendInput / keybd_event) is never a user keystroke:
+         * never report it as a hotkey press and never swallow it.
+         * LLKHF_INJECTED is the only signal that separates a synthetic event
+         * from a physical one, and the Python side injects Caps Lock to clear
+         * a leftover ON state -- swallowing that synthetic toggle left caps
+         * stuck ON for the whole session. */
+        if (flags & LLKHF_INJECTED) {
+            return CallNextHookEx(NULL, nCode, wParam, lParam);
+        }
+
         if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
             /* Modifiers and non-modifiers take different wire paths. */
             const char* mod_name = mod_name_for_vk(vk);

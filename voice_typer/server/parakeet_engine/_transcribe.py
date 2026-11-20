@@ -32,7 +32,8 @@ class TranscribeMixin:
     _abort_event: threading.Event
     _effective_providers: list[str]
     device: str
-    language: str
+    # None = Auto (detect). Only "en" arms the English-only junk filter.
+    language: str | None
 
     if TYPE_CHECKING:
         # Methods owned by LoadMixin (_load.py) at runtime.

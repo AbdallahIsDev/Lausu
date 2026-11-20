@@ -1,192 +1,340 @@
-"""PyAV decode to 16 kHz mono float32 chunks (ADR-0023 tiers 0/1/4)."""
+"""ffmpeg-backed decode to 16 kHz mono float32 chunks (ADR-0023 tiers 0/1/4).
+
+One ffmpeg process per job, stdout streamed as raw ``pcm_f32le``; the process
+is always terminated and reaped when the generator is closed or fails.
+"""
 
 from __future__ import annotations
 
+import json
 import logging
+import os
+import re
+import subprocess
+import threading
+from collections import deque
 from collections.abc import Iterator
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from voice_typer.server.autostart._spawn_env import _spawn_flags
+from voice_typer.server.media_ingest import ffmpeg_binaries
+
 log = logging.getLogger(__name__)
 
 TARGET_SAMPLE_RATE = 16_000
 CHUNK_SAMPLES = TARGET_SAMPLE_RATE * 5
+CHUNK_BYTES = CHUNK_SAMPLES * 4
+_READ_BLOCK_BYTES = CHUNK_BYTES
+_LOCAL_PROTOCOLS = "file"
+_REMOTE_PROTOCOLS = "http,https,tcp,tls,crypto"
+_STDERR_TAIL_LINES = 64
+# ffmpeg prefixes each line with "[in#0 @ HEXADDR]"; bare digit runs there
+# collide with the HTTP-status patterns in the error taxonomy.
+_LOG_CONTEXT_RE = re.compile(r"\[[^\]]*@[^\]]*\]")
+_TERM_TIMEOUT_SECONDS = 5.0
+_KILL_TIMEOUT_SECONDS = 2.0
+_DRAIN_JOIN_SECONDS = 2.0
+# Kept for callers/tests that pinned the old timeouts; ffmpeg uses seconds.
 OPEN_TIMEOUT_US = 15_000_000
 READ_TIMEOUT_US = 30_000_000
 
+_NO_AUDIO_PATTERNS = (
+    "matches no streams",
+    "no audio stream",
+    "does not contain any audio",
+)
+_EXPIRED_PATTERNS = ("403", "forbidden", "access denied")
+_STALLED_PATTERNS = (
+    "429",
+    "500",
+    "502",
+    "503",
+    "504",
+    "timed out",
+    "timeout",
+    "network is unreachable",
+    "connection reset",
+    "connection refused",
+    "temporarily unavailable",
+)
 
-def decode_chunks(source: str, *, remote: bool = False, start_seconds: float = 0.0) -> Iterator[Any]:
+
+def _protocols(remote: bool) -> str:
+    return _REMOTE_PROTOCOLS if remote else _LOCAL_PROTOCOLS
+
+
+def _input_arg(source: str, *, remote: bool) -> str:
+    """Prefix local paths with ``file:`` so a leading ``-`` is never an option."""
+    if remote:
+        return source
+    return source if source.startswith("file:") else "file:" + str(Path(source))
+
+
+def _check_remote_scheme(source: str) -> None:
+    from voice_typer.server.media_ingest.errors import DECODE_FAILED, MediaIngestError
+
+    if urlparse(source).scheme.lower() not in ("http", "https"):
+        raise MediaIngestError(DECODE_FAILED, "This media link cannot be opened. Check the link and try again.")
+
+
+def _decode_argv(ffmpeg: str, source: str, *, remote: bool, start_seconds: float) -> list[str]:
+    argv = [
+        ffmpeg,
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-nostdin",
+        "-protocol_whitelist",
+        _protocols(remote),
+    ]
+    if start_seconds > 0:
+        argv += ["-ss", f"{start_seconds:.6f}"]
+    argv += [
+        "-i",
+        _input_arg(source, remote=remote),
+        "-vn",
+        "-map",
+        "0:a:0",
+        "-ac",
+        "1",
+        "-ar",
+        str(TARGET_SAMPLE_RATE),
+        "-c:a",
+        "pcm_f32le",
+        "-f",
+        "f32le",
+        "-",
+    ]
+    return argv
+
+
+def _probe_argv(ffprobe: str, source: str, *, remote: bool, detailed: bool) -> list[str]:
+    argv = [ffprobe, "-v", "error", "-protocol_whitelist", _protocols(remote)]
+    if detailed:
+        argv += ["-show_streams", "-show_format", "-of", "json"]
+    else:
+        argv += ["-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1"]
+    argv.append(_input_arg(source, remote=remote))
+    return argv
+
+
+@contextmanager
+def _managed_process(argv: list[str]) -> Iterator[tuple[subprocess.Popen, deque[str]]]:
+    """Run ffmpeg with a bounded stderr tail; always terminate and reap."""
+    proc = subprocess.Popen(
+        argv,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        **_spawn_flags(hidden=True),
+    )
+    tail: deque[str] = deque(maxlen=_STDERR_TAIL_LINES)
+
+    def _drain() -> None:
+        try:
+            assert proc.stderr is not None
+            for raw in iter(proc.stderr.readline, b""):
+                tail.append(raw.decode("utf-8", "replace").rstrip())
+        except (OSError, ValueError):
+            pass  # the pipe was closed by teardown
+
+    # RACE-008: the bounded stderr reader must never keep the process alive;
+    # it only follows a pipe that we close in the finally block below.
+    reader = threading.Thread(target=_drain, name="media-ffmpeg-stderr", daemon=True)
+    reader.start()
+    try:
+        yield proc, tail
+    finally:
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=_TERM_TIMEOUT_SECONDS)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=_KILL_TIMEOUT_SECONDS)
+        else:
+            proc.wait()  # reap: never leave a zombie behind
+        for stream in (proc.stdout, proc.stderr):
+            if stream is not None:
+                with suppress(OSError):
+                    stream.close()
+        reader.join(timeout=_DRAIN_JOIN_SECONDS)
+
+
+def _ffmpeg_usable(path: str) -> bool:
+    """Production gate: the resolved ffmpeg must exist and be executable."""
+    candidate = Path(path)
+    try:
+        return candidate.is_file() and os.access(candidate, os.X_OK)
+    except OSError:
+        return False
+
+
+def decode_chunks(
+    source: str,
+    *,
+    remote: bool = False,
+    start_seconds: float = 0.0,
+    cancel_event: Any | None = None,
+) -> Iterator[Any]:
     """Yield mono float32 16 kHz chunks from a local file or remote URL.
 
-    ``start_seconds`` seeks past already-transcribed audio so a stalled or
-    expired stream can resume without duplicating text (E9/E10). Seek
-    failure raises STREAM_STALLED so the caller can fall back to a full
-    temp download instead of emitting a duplicated transcript.
+    ``start_seconds`` skips already-transcribed audio so a stalled stream can
+    resume without duplicating text. ``cancel_event`` is the CALLER's scoped
+    Event (never the engine-wide abort flag, C-MEDIA-2): when it flips, or the
+    consumer closes this generator, ffmpeg is terminated and reaped.
     """
     from voice_typer.server.media_ingest.errors import DECODE_FAILED, MediaIngestError
 
-    try:
-        import av
-    except ImportError as exc:
-        raise MediaIngestError(DECODE_FAILED, "audio decoder unavailable") from exc
-
-    if not remote and not Path(source).is_file():
+    if remote:
+        _check_remote_scheme(source)
+    elif not Path(source).is_file():
         raise MediaIngestError(DECODE_FAILED, f"media file not found: {source}")
 
-    options = {"open_timeout": str(OPEN_TIMEOUT_US), "read_timeout": str(READ_TIMEOUT_US)} if remote else None
-    try:
-        container = av.open(source, options=options) if options else av.open(source)
-    except Exception as exc:
-        raise _classify_stream_error(exc, context="open") from exc
+    binaries = ffmpeg_binaries.resolve_binaries()
+    if binaries is None or not _ffmpeg_usable(binaries.ffmpeg):
+        from voice_typer.server.media_ingest.errors import FFMPEG_MISSING
 
-    with container:
-        if start_seconds > 0:
-            try:
-                container.seek(int(start_seconds * 1_000_000))
-            except Exception as exc:
-                from voice_typer.server.media_ingest.errors import STREAM_STALLED
-
-                raise MediaIngestError(STREAM_STALLED, "could not resume media stream") from exc
-        streams = [s for s in container.streams if s.type == "audio"]
-        # Container inventory, once per open: a video-only fetch and an
-        # audio-only one look identical by filename alone (the extractor names
-        # every HLS rendition ``.mp4``), so ``audio=1 video=0`` is the proof.
-        log.info(
-            "[MEDIA] ingest: audio=%d video=%d (%s)",
-            len(streams),
-            sum(1 for s in container.streams if s.type == "video"),
-            "remote" if remote else "local",
+        raise MediaIngestError(
+            FFMPEG_MISSING,
+            "Audio decoding is unavailable. Reinstall the app to restore it.",
         )
-        if not streams:
-            from voice_typer.server.media_ingest.errors import NO_AUDIO
 
-            raise MediaIngestError(NO_AUDIO, "no audio track found in media")
-        stream = streams[0]
-        try:
-            resampler = av.AudioResampler(format="flt", layout="mono", rate=TARGET_SAMPLE_RATE)
-        except Exception as exc:
-            raise MediaIngestError(DECODE_FAILED, f"resampler unavailable: {exc}") from exc
-        buffer: list = []
-        buffered = 0
-        try:
-            for frame in container.decode(stream):
-                if type(frame) is not av.AudioFrame:
-                    continue
-                for out in resampler.resample(frame):
-                    samples = out.to_ndarray()[0]
-                    buffer.append(samples)
-                    buffered += samples.shape[0]
-                    while buffered >= CHUNK_SAMPLES:
-                        merged = _concat(buffer)
-                        yield merged[:CHUNK_SAMPLES]
-                        rest = merged[CHUNK_SAMPLES:]
-                        buffer = [rest] if rest.shape[0] else []
-                        buffered = rest.shape[0]
-        except MediaIngestError:
-            raise
-        except Exception as exc:
-            raise _classify_stream_error(exc, context="decode") from exc
-        finally:
-            try:
-                for out in resampler.resample(None):
-                    samples = out.to_ndarray()[0]
-                    buffer.append(samples)
-            except Exception:  # noqa: BLE001, best-effort flush
-                log.debug("[MEDIA] resampler flush failed", exc_info=True)
-        if buffer:
-            import numpy as np
+    argv = _decode_argv(binaries.ffmpeg, source, remote=remote, start_seconds=start_seconds)
+    log.info(
+        "[MEDIA] ingest: remote=%s seek=%.3f argv=%s",
+        remote,
+        start_seconds,
+        " ".join(argv[1:]),
+    )
+    import numpy as np
 
-            merged = _concat(buffer)
-            if merged.shape[0]:
-                yield merged.astype(np.float32, copy=False)
+    pending = bytearray()
+    with _managed_process(argv) as (proc, tail):
+        try:
+            while True:
+                if cancel_event is not None and cancel_event.is_set():
+                    break
+                assert proc.stdout is not None
+                block = proc.stdout.read(_READ_BLOCK_BYTES)  # bounded: never a whole-file load
+                if not block:
+                    break
+                pending.extend(block)
+                while len(pending) >= CHUNK_BYTES:
+                    raw = bytes(pending[:CHUNK_BYTES])
+                    del pending[:CHUNK_BYTES]
+                    yield np.frombuffer(raw, dtype=np.float32).copy()
+        except (OSError, ValueError):  # a closed pipe/partial read ends the stream
+            log.debug("[MEDIA] ffmpeg stdout ended early", exc_info=True)
+        # stdout EOF can precede process exit: wait before deciding success.
+        try:
+            rc = proc.wait(timeout=_TERM_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            rc = None
+        if rc not in (0, None) and not (cancel_event is not None and cancel_event.is_set()):
+            stderr = _LOG_CONTEXT_RE.sub("", "\n".join(tail))
+            raise _classify_ffmpeg_failure(rc, stderr, remote=remote)
+        usable = len(pending) - (len(pending) % 4)
+        if usable:
+            yield np.frombuffer(bytes(pending[:usable]), dtype=np.float32).copy()
+        elif pending:
+            log.warning("[MEDIA] ffmpeg emitted %d trailing bytes (not whole float32 samples)", len(pending))
 
 
 @dataclass(frozen=True)
 class RemoteProbe:
     """What a remote URL proved about itself before we streamed it.
 
-    ``audio_streams`` is the count PyAV found (a web page served as HTML has
-    none) and ``duration_seconds`` is the container-header duration, which
-    is what a stream tier needs for percent/ETA and for the truncation gate.
+    ``audio_streams`` is the count ffprobe found (a web page served as HTML
+    has none) and ``duration_seconds`` is the container-header duration,
+    which a stream tier needs for percent/ETA and the truncation gate.
     """
 
     audio_streams: int
     duration_seconds: float | None
 
 
+def _run_probe(argv: list[str], timeout: float) -> str | None:
+    try:
+        completed = subprocess.run(
+            argv,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+            **_spawn_flags(hidden=True),
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        log.debug("[MEDIA] probe failed to run", exc_info=True)
+        return None
+    if completed.returncode != 0:
+        log.debug("[MEDIA] probe exit=%d stderr=%s", completed.returncode, completed.stderr[-512:])
+        return None
+    return completed.stdout.decode("utf-8", "replace")
+
+
+def _duration_from_json(payload: str) -> float | None:
+    try:
+        data = json.loads(payload)
+        raw = (data.get("format") or {}).get("duration")
+        if raw in (None, "N/A"):
+            streams = data.get("streams") or []
+            raw = next((s.get("duration") for s in streams if s.get("duration") not in (None, "N/A")), None)
+        return float(raw) if raw not in (None, "N/A") else None
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
 def probe_remote(url: str) -> RemoteProbe | None:
     """Probe a resolved URL without decoding it; ``None`` when unusable.
 
-    Streaming is the FALLBACK tier, and a signed CDN link that expired, a
-    web page, or a non-HTTP scheme must never reach it: the failure would
-    be a silent zero-chunk "success". Cheap enough to run once per job —
-    one container open, no decode pass.
+    Streaming is the FALLBACK tier; an expired CDN link, a web page, or a
+    non-HTTP scheme must never reach it (that would be a silent zero-chunk
+    "success"). One ffprobe call, no decode pass.
     """
-    scheme = urlparse(url).scheme.lower()
-    if scheme not in ("http", "https"):
+    if urlparse(url).scheme.lower() not in ("http", "https"):
+        return None
+    binaries = ffmpeg_binaries.resolve_binaries()
+    if binaries is None or binaries.ffprobe is None:
+        return None
+    argv = _probe_argv(binaries.ffprobe, url, remote=True, detailed=True)
+    payload = _run_probe(argv, READ_TIMEOUT_US / 1_000_000.0)
+    if payload is None:
         return None
     try:
-        import av
-    except ImportError:
+        data = json.loads(payload)
+        streams = data.get("streams") or []
+        audio = sum(1 for s in streams if s.get("codec_type") == "audio")
+    except (ValueError, TypeError, AttributeError):
         return None
-    try:
-        container = av.open(url, options={"open_timeout": str(OPEN_TIMEOUT_US)})
-    except Exception as exc:  # noqa: BLE001, a probe failure IS the signal
-        log.debug("[MEDIA] remote probe failed to open (%s)", type(exc).__name__)
-        return None
-    with container:
-        audio_streams = sum(1 for s in container.streams if s.type == "audio")
-        duration = _container_duration(container)
-    return RemoteProbe(audio_streams=audio_streams, duration_seconds=duration)
-
-
-def _container_duration(container: Any) -> float | None:
-    if container.duration:
-        return float(container.duration) / 1_000_000.0
-    stream = next((s for s in container.streams if s.type == "audio"), None)
-    if stream is not None and stream.duration and stream.time_base:
-        return float(stream.duration * stream.time_base)
-    return None
+    return RemoteProbe(audio_streams=audio, duration_seconds=_duration_from_json(payload))
 
 
 def probe_duration_seconds(source: str, *, remote: bool = False) -> float | None:
-    """Container duration in seconds, or ``None`` when unknown.
+    """Container duration in seconds, or ``None`` when unknown (best effort).
 
-    Local jobs need a total to report a fraction/ETA (URL jobs get it from
-    the resolver). The container header already carries it, so this costs
-    one open, no decode pass; best-effort by design.
+    Local jobs need a total for fraction/ETA; URL jobs get it from the
+    resolver. ffprobe reads the header only — no decode pass.
     """
-    try:
-        import av
-    except ImportError:
+    if remote and urlparse(source).scheme.lower() not in ("http", "https"):
         return None
-    options = {"open_timeout": str(OPEN_TIMEOUT_US)} if remote else None
-    try:
-        container = av.open(source, options=options) if options else av.open(source)
-        with container:
-            return _container_duration(container)
-    except Exception:  # noqa: BLE001, a probe never blocks the job
-        log.debug("[MEDIA] duration probe failed", exc_info=True)
-    return None
-
-
-def _concat(parts: list):
-    import numpy as np
-
-    if len(parts) == 1:
-        return parts[0].astype(np.float32, copy=False)
-    return np.concatenate(parts).astype(np.float32, copy=False)
+    binaries = ffmpeg_binaries.resolve_binaries()
+    if binaries is None or binaries.ffprobe is None:
+        return None
+    argv = _probe_argv(binaries.ffprobe, source, remote=remote, detailed=False)
+    payload = _run_probe(argv, (READ_TIMEOUT_US if remote else OPEN_TIMEOUT_US) / 1_000_000.0)
+    if payload is None:
+        return None
+    match = re.search(r"-?\d+(?:\.\d+)?", payload)
+    return float(match.group(0)) if match else None
 
 
 def _classify_stream_error(exc: Exception, *, context: str) -> Any:
-    """Map PyAV/FFmpeg failures to the ADR-0023 stall/expiry taxonomy.
-
-    PyAV's own TimeoutError extends the builtin, so the builtin catch
-    covers both. HTTP 403 on a CDN URL means the signed link expired;
-    5xx/429 are transient stalls.
-    """
+    """Map a transport exception to the ADR-0023 stall/expiry taxonomy."""
     from voice_typer.server.media_ingest.errors import (
         DECODE_FAILED,
         STREAM_STALLED,
@@ -194,22 +342,33 @@ def _classify_stream_error(exc: Exception, *, context: str) -> Any:
         MediaIngestError,
     )
 
-    if isinstance(exc, TimeoutError):
+    text = f"{type(exc).__name__}: {exc}".lower()
+    if isinstance(exc, TimeoutError) or any(p in text for p in _STALLED_PATTERNS):
         return MediaIngestError(STREAM_STALLED, "media stream timed out")
-    try:
-        import av
-
-        forbidden = getattr(av.error, "HTTPForbiddenError", None)
-        if forbidden is not None and isinstance(exc, forbidden):
-            return MediaIngestError(URL_EXPIRED, "media link expired")
-        transient = tuple(
-            cls
-            for cls in (getattr(av.error, n, None) for n in ("HTTPTooManyRequestsError", "HTTPServerError"))
-            if isinstance(cls, type)
-        )
-        if transient and isinstance(exc, transient):
-            return MediaIngestError(STREAM_STALLED, "media server error")
-    except ImportError:  # av was importable above; defensive only
-        pass
+    if any(p in text for p in _EXPIRED_PATTERNS):
+        return MediaIngestError(URL_EXPIRED, "media link expired")
     verb = "could not open media" if context == "open" else "decode failed"
     return MediaIngestError(DECODE_FAILED, f"{verb}: {exc}")
+
+
+def _classify_ffmpeg_failure(returncode: int, stderr: str, *, remote: bool) -> Any:
+    """Map ffmpeg's exit/stderr onto the existing user-safe error codes."""
+    from voice_typer.server.media_ingest.errors import (
+        DECODE_FAILED,
+        NO_AUDIO,
+        STREAM_STALLED,
+        URL_EXPIRED,
+        MediaIngestError,
+    )
+
+    text = stderr.lower()
+    log.warning("[MEDIA] ffmpeg exit=%d remote=%s stderr=%s", returncode, remote, stderr[-1024:])
+    if any(p in text for p in _NO_AUDIO_PATTERNS):
+        return MediaIngestError(NO_AUDIO, "No audio track was found in this media. Try another file.")
+    if any(p in text for p in _EXPIRED_PATTERNS):
+        return MediaIngestError(URL_EXPIRED, "This media link has expired. Try the link again.")
+    if any(p in text for p in _STALLED_PATTERNS):
+        return MediaIngestError(STREAM_STALLED, "The media connection stalled. Check your connection and try again.")
+    return MediaIngestError(
+        DECODE_FAILED, "This media file could not be decoded. Try a different file or re-download it."
+    )

@@ -23,6 +23,7 @@ _hd = lazy_module("voice_typer.server.history_db")
 
 log = logging.getLogger(__name__)
 
+
 def _encrypt_batch_rows(
     cursor: sqlite3.Cursor,
     batch: list[Any],
@@ -55,8 +56,50 @@ def _encrypt_batch_rows(
 
 
 # Single source for the transcription INSERT SQL (multi-row batch path
-_INSERT_SQL_COLUMNS = "(text, duration, model, device, word_count, char_count, language)"
-_INSERT_SQL_ROW_PLACEHOLDERS = "(?, ?, ?, ?, ?, ?, ?)"
+_INSERT_COLUMNS = (
+    "text",
+    "duration",
+    "model",
+    "device",
+    "word_count",
+    "char_count",
+    "language",
+    "kind",
+    "source_type",
+    "source_title",
+    "source_url",
+    "file_name",
+    "thumbnail_url",
+    "media_duration_seconds",
+    "processing_seconds",
+    "download_seconds",
+    "method",
+)
+_INSERT_SQL_COLUMNS = "(" + ", ".join(_INSERT_COLUMNS) + ")"
+_INSERT_SQL_ROW_PLACEHOLDERS = "(" + ", ".join("?" for _ in _INSERT_COLUMNS) + ")"
+
+
+def _insert_params(it: Any) -> tuple[Any, ...]:
+    """Column values in ``_INSERT_COLUMNS`` order (shared by both paths)."""
+    return (
+        it.text,
+        it.duration,
+        it.model,
+        it.device,
+        it.word_count,
+        it.char_count,
+        it.language,
+        it.kind,
+        it.source_type,
+        it.source_title,
+        it.source_url,
+        it.file_name,
+        it.thumbnail_url,
+        it.media_duration_seconds,
+        it.processing_seconds,
+        it.download_seconds,
+        it.method,
+    )
 
 
 def _build_insert_sql(row_count: int) -> str:
@@ -105,17 +148,7 @@ def _drain_batchable_inserts(
                 # multi-row INSERT inside one transaction.
                 params: list[Any] = []
                 for it in batch:
-                    params.extend(
-                        (
-                            it.text,
-                            it.duration,
-                            it.model,
-                            it.device,
-                            it.word_count,
-                            it.char_count,
-                            it.language,
-                        )
-                    )
+                    params.extend(_insert_params(it))
                 # The INSERT always carries PLAINTEXT (the FTS AFTER-INSERT
                 cursor.execute(
                     _build_insert_sql(len(batch)),
@@ -142,18 +175,7 @@ def _drain_batchable_inserts(
             else:
                 # Below the batching threshold, insert each row
                 for it in batch:
-                    cursor.execute(
-                        _build_insert_sql(1),
-                        (
-                            it.text,
-                            it.duration,
-                            it.model,
-                            it.device,
-                            it.word_count,
-                            it.char_count,
-                            it.language,
-                        ),
-                    )
+                    cursor.execute(_build_insert_sql(1), _insert_params(it))
                     row_id = cursor.lastrowid
                     _encrypt_batch_rows(cursor, [it], row_id)
                     conn.commit()

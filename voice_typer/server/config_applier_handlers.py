@@ -361,29 +361,12 @@ class _BubbleBehaviorHandler:
         updates = ctx.updates
         try:
             behavior = updates["bubble_behavior"]
-            if behavior == "always_visible":
-                try:
-                    if hasattr(app, "_waveform_bubble"):
-                        app._waveform_bubble.show()
-                        is_recording = bool(getattr(getattr(app, "recorder", None), "recording", False))
-                        app._waveform_bubble.set_state("recording" if is_recording else "idle")
-                except Exception:
-                    # previously `except Exception: pass`
-                    log.debug(
-                        "[SERVICE] Failed to show waveform bubble after bubble_behavior change",
-                        exc_info=True,
-                    )
-            elif behavior in ("show_on_record", "hidden"):
-                # Hide bubble immediately when switching away from always_visible
-                try:
-                    if hasattr(app, "_waveform_bubble") and app._waveform_bubble.visible:
-                        app._waveform_bubble.hide()
-                except Exception:
-                    # same as above, log at debug so the
-                    log.debug(
-                        "[SERVICE] Failed to hide waveform bubble after bubble_behavior change",
-                        exc_info=True,
-                    )
+            if hasattr(app, "_waveform_bubble"):
+                is_recording = bool(getattr(getattr(app, "recorder", None), "recording", False))
+                state = "recording" if is_recording else "idle"
+                # One policy in the coordinator owns the decision; this
+                # handler only supplies the state and the reason.
+                app._waveform_bubble.apply_visibility(state, reason="config-change")
             log.info("[SERVICE] Bubble behavior updated to: %s", behavior)
         except Exception as e:
             log.warning("Failed to update bubble behavior: %s", e)

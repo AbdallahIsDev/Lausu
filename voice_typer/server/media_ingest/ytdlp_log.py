@@ -42,9 +42,10 @@ def redact_extractor_message(message: object) -> str:
     return redact_secret(redacted)
 
 
-# Extractor noise for THIS app: yt-dlp ffmpeg fixups for containers libav
-# (PyAV) decodes natively, and we ship no ffmpeg on purpose. Matched on a
-# stable substring, never by level — a blanket demotion would hide real ones.
+# Extractor noise for THIS app: ffmpeg-fixup warnings about containers our
+# own ffmpeg decoder reads natively. Fixups are pinned OFF in downloader.py
+# (`fixup: "never"`), so these are not actionable even when yt-dlp detects
+# a bundled ffmpeg. Matched on a stable substring, never by level.
 _HARMLESS_MESSAGES: Final[tuple[tuple[str, str], ...]] = (
     ("writing DASH m4a", "DASH m4a"),
     ("Only some players support this container", "DASH m4a container"),
@@ -74,8 +75,8 @@ class YtdlpLogAdapter:
       that carries the real severity. An ERROR here meant two ERROR lines plus
       a traceback for what is really user input.
     * a short table of ffmpeg-fixup warnings goes to ``debug`` as one fixed
-      classification (see ``_HARMLESS_MESSAGES``): libav decodes those
-      containers natively, so no fixup and no ffmpeg is needed.
+      classification (see ``_HARMLESS_MESSAGES``): our own decoder reads those
+      containers natively and yt-dlp fixups are pinned off.
     """
 
     def __init__(self, logger: logging.Logger | None = None) -> None:
@@ -93,7 +94,7 @@ class YtdlpLogAdapter:
         if reason is not None:
             # One fixed short line per downgrade. Echoing yt-dlp's sentence
             # (and its "Install ffmpeg" tail) read as action the user must take.
-            self._logger.debug("%scontainer note: %s (harmless, no ffmpeg needed)", _PREFIX, reason)
+            self._logger.debug("%scontainer note: %s (harmless, fixups disabled)", _PREFIX, reason)
             return
         self._logger.warning("%s%s", _PREFIX, text)
 

@@ -193,12 +193,18 @@ def plugin_display_name(app: Any | None = None) -> str:
 
     The sidebar caption and the tray menu show this instead of the local
     model name while a plugin is selected: the model is not what is
-    transcribing.
+    transcribing. Warm-up paths also read it: a non-empty answer means the
+    local engine serves no hotkey, so nothing should load it. Never raises —
+    a probe failure answers "" so the local path keeps its usual behaviour.
     """
-    if not plugins_enabled(app):
+    try:
+        if not plugins_enabled(app):
+            return ""
+        plugin = _plugin(app)
+        return str(getattr(plugin, "DISPLAY_NAME", "") or "") if plugin is not None else ""
+    except Exception:
+        log.debug("[PLUGIN] dictation-owner probe failed", exc_info=True)
         return ""
-    plugin = _plugin(app)
-    return str(getattr(plugin, "DISPLAY_NAME", "") or "")
 
 
 def sync_selection(app: Any) -> bool:
