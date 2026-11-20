@@ -28,21 +28,25 @@ class TestConfigWiring:
         assert app.config.paste_on_stop is False
         assert app.clipboard.paste_enabled is False
 
-    def test_streaming_preserves_user_value(self, tmp_config_dir, monkeypatch):
-        """After override removal, user's streaming_transcription=False must be preserved."""
+    def test_streaming_ignores_stale_user_value(self, tmp_config_dir, monkeypatch):
+        """A legacy streaming_transcription=False is dropped; streaming stays ON."""
         config_file = tmp_config_dir / "config.json"
         config_file.write_text(json.dumps({"streaming_transcription": False}))
 
+        monkeypatch.delenv("VOICE_TYPER_STREAMING", raising=False)
         monkeypatch.setattr("voice_typer.server.server_platform.autostart.is_autostart_enabled", lambda: False)
         monkeypatch.setattr("voice_typer.server.server_platform.autostart.enable_autostart", lambda: True)
         monkeypatch.setattr("voice_typer.server.server_platform.autostart.disable_autostart", lambda: True)
         monkeypatch.setattr("voice_typer.server.server_platform.microphone_list.list_microphones", lambda: [])
 
         from voice_typer.server.app import LausuApp
+        from voice_typer.server.streaming_session_coordinator import StreamingSessionCoordinator
 
         app = LausuApp()
 
-        assert app.config.streaming_transcription is False
+        assert not hasattr(app.config, "streaming_transcription")
+        controller = MagicMock(_app=app)
+        assert StreamingSessionCoordinator().streaming_enabled(controller) is True
 
     def test_transcription_speed_settings_wired(self, tmp_config_dir, monkeypatch):
         config_file = tmp_config_dir / "config.json"

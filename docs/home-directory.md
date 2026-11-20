@@ -132,7 +132,7 @@ This design is:
 ## File Descriptions
 
 ### `config.json`
-Serialised `Config` dataclass. Written by `Config.save()`. Schema version tracked via `schema_version` field. Fields include: `hotkey`, `microphone`, `model_size`, `device`, `language`, `streaming_transcription`, `paste_on_stop`, etc.
+Serialised `Config` dataclass. Written by `Config.save()`. Schema version tracked via `schema_version` field. Fields include: `hotkey`, `microphone`, `model_size`, `device`, `language`, `paste_on_stop`, etc. Hidden streaming transcription is always on; only its six `streaming_*` tuning fields are configurable (the `VOICE_TYPER_STREAMING=0` developer variable disables it).
 
 ### `history.db`
 SQLite database (via `voice_typer.server.history_db.HistoryDB`). Contains transcription records with timestamps, model info, audio duration.

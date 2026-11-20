@@ -52,7 +52,6 @@ def _make_app_with_mock_recorder() -> MagicMock:
     app.config = MagicMock(name="config")
     app.config.voice_biometric_consent = True
     app.config.esc_cancel_enabled = False
-    app.config.streaming_transcription = False
     app.config.microphone = None
     app.tray = MagicMock(name="tray")
     app._waveform_bubble = MagicMock(name="bubble")
@@ -225,7 +224,6 @@ class TestDispatchThreadReturnsDuringModelReload:
         """``_start_streaming_session_if_enabled`` runs in the worker"""
         app = _make_app_with_mock_recorder()
         controller = _make_controller_with_lifecycle(app)
-        app.config.streaming_transcription = True
 
         with controller._toggle_lock:
             controller._lifecycle._start_impl(controller)

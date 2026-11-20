@@ -32,7 +32,6 @@ def _make_controller() -> RecordingController:
     app.config = MagicMock()
     app.config.voice_biometric_consent = True
     app.config.sample_rate = 16000
-    app.config.streaming_transcription = False
     app.config.bubble_behavior = "auto_hide"
     app.config.show_notifications = True
     app.models = MagicMock()
