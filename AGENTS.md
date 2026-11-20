@@ -267,6 +267,20 @@ Applies to: All agents, all modes, all sub-agents.
 ```
 
 ```
+C-ASR-5
+Rule: Do NOT run two speech-recognition (ASR) models at once, and never split one dictation's audio between two ASR models. Coverage of another language comes from a DIFFERENT MODEL (switched in, the previous one unloaded), never from a "language pack" or a second resident engine; one ASR model plus at most one TEXT translation model is the locked shape (ADR-0030).
+Rationale: ASR models are the app's dominant memory/GPU cost (0.6-3 GB each on 8 GB-VRAM class machines), and per-language routing of one utterance produces two differently-tokenized transcripts with no shared context that cannot be merged correctly (owner decision 2026-11-17).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
+C-ASR-6
+Rule: Do NOT decode a pinned spoken language that the active model's own published language list does not contain, and do NOT ship a "language pack" claim. Gate it at start with `model_language_gate` (in-app toast + OS notification + tray, wording `<model> does not support <language>.`, click target = Models) and keep `config.language` defaulting to Auto (`""`).
+Rationale: Parakeet Ultra publishes 25 European languages with no Arabic, and this repo's Parakeet path deletes any non-English transcript when `language == "en"`, so Parakeet + default config + Arabic dictation returned an EMPTY transcript silently (found 2026-11-17).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+```
 C-UI-13
 Rule: Do NOT rely on a native file dialog's filter ORDER by accident: the FIRST `add_filter` entry is the one the dialog pre-selects, so a combined "everything this surface accepts" filter must be added before any per-type filter. A per-type filter added first hides every other type until the user switches filters by hand.
 Rationale: The Media page's picker registered "Audio" first, so the dialog opened in audio-only mode and every video in the folder was invisible — the owner had to flip the filter to see the .mp4 sitting next to the .mp3, and could never select one of each (2026-10-27).
@@ -1086,6 +1100,13 @@ Rationale: A success chime interrupted focus after every dictation with zero inf
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-SOUND-2
+Rule: Do NOT let the app's own recording cue drive volume ducking. The cue level is fixed (`SOUND_CUE_VOLUME = 0.3`, in `sound-manager.ts`, never a config field or a slider) and every duck request carries `DUCK_START_GRACE_MS` (1000 ms) of grace before the first speaker-activity probe, so the start cue — which comes out of the speakers — cannot be the activity that lowers the volume.
+Rationale: A user-adjustable 100%-volume start cue was picked up by the microphone and read as background playback, so smart duck retro-ducked at 10% right after every start and the whole recording ran with the speakers down (log: `[VOLUME] Audio started mid-dictation, retroactive duck -> 10%` ~1 s after each start); the setting was the enabler, so it is gone (2026-11-16).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Homepage Status Pill & Description Synchronization
@@ -1253,6 +1274,17 @@ Applies to: All agents, all modes, all sub-agents.
 C-REVIEW-2
 Rule: Do NOT file non-fixable findings in `review.md` (active queue only). Unworthy problems go to `WONT_FIX.md` with `🚫 Won't Fix` + rationale. Agents never move fixable items to Won't Fix (user reverses manually).
 Rationale: Keeps the fix queue token-cheap and re-fix-proof.
+Applies to: All agents, all modes, all sub-agents.
+```
+
+---
+
+## Category: Internal Plugins & Local Engine Ownership
+
+```
+C-PLUGIN-1
+Rule: Do NOT warm a local engine while an internal plugin owns the hotkey. Every warm path (startup phase 7, `ModelManager.start_background_load`, any future idle reload) asks `internal_plugin_hook.plugin_display_name(app)` first and skips the load when it answers with a plugin name; on-demand loads that a real user action needs (Media transcription, switching back to the local model) stay untouched.
+Rationale: A plugin transcribes in the browser and never records or decodes locally, so the startup background load spent ~12 s and a worker process on a parakeet engine the hotkey could not use — the user saw the local model load on every launch while dictating through the plugin (2026-11-16).
 Applies to: All agents, all modes, all sub-agents.
 ```
 
@@ -1624,7 +1656,34 @@ Rationale: Live text distracts while dictating; end-only delivery keeps backends
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-TRANS-2
+Rule: Do NOT persist a delivery-only formatting difference. Separators, casing or spacing that exist so the pasted text reads correctly in the focused field are computed at paste time and applied ONLY to the clipboard copy + paste keystroke; the history row, crash-recovery entry, `_last_transcription` and the `transcription_final` payload keep the decoded text byte-identical.
+Rationale: The separating space exists because of the target field's current content (which the app does not own and which changes after the paste), so storing it would leave a stray leading space in every history row and in any later re-paste (2026-11-17).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
+
+## Category: Native Input Hooks
+
+```
+C-HOOK-1
+Rule: Do NOT let a low-level keyboard hook report or swallow injected input. A `WH_KEYBOARD_LL` procedure returns `CallNextHookEx` for any event carrying `LLKHF_INJECTED` before it emits a wire message or decides to suppress the key; the app's own synthetic keystrokes (`SendInput`/`keybd_event`) are then delivered to the OS untouched, and a real hardware press stays the only thing that can trigger or be blocked by a hotkey.
+Rationale: The Caps Lock hotkey is suppressed at the hook, so the app's synthetic toggle to clear a leftover ON state was swallowed (caps stayed ON) and emitting it as a wire event fired a second dictation; the two failure modes are indistinguishable without the injected flag (2026-11-17).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+---
+
+## Category: Window Geometry
+
+```
+C-WIN-2
+Rule: Do NOT let a window be left outside the monitor WORK AREA, and never constrain it mid-drag. On a drag-settled (or keyboard/resize/show) boundary, clamp the window into `Monitor::work_area()` of the monitor holding its CENTER (Chromium's `Rect::AdjustToFit` rule: minimum move per axis, an axis that cannot fit aligns to the work-area origin); never use full-screen bounds or hardcoded offsets, and never write a position that already matches.
+Rationale: The pill could be dropped onto the taskbar, which repaints over an always-on-top window — the user could not even grab it again, and dropping it fully below the taskbar hid it for the session (owner report 2026-11-18). `work_area()` is the only cross-platform truth (Windows `rcWork`, macOS `visibleFrame`, Linux `_NET_WORKAREA`; Wayland publishes none, so it falls back to full bounds).
+Applies to: All agents, all modes, all sub-agents.
+```
 
 ## Category: Dictation Concurrency
 
@@ -1700,5 +1759,16 @@ Applies to: All agents, all modes, all sub-agents.
 C-PARITY-4
 Rule: Do NOT source a filesystem path from a webview surface that cannot produce one. `<input type="file">` and HTML5 drop data expose only `file.name`; any path-consuming flow (Media browse/drop, future imports) must take its absolute path from the host (native picker command or `onDragDropFiles`), and the value handed to the backend must be asserted by a test.
 Rationale: A perfectly good local MP3 reported `decode_failed` — "The media could not be decoded" — because only the display name reached the sidecar (owner report 2026-10-27; pinned by `Media-file-picker.test.tsx`).
+Applies to: All agents, all modes, all sub-agents.
+```
+
+---
+
+## Category: Host-Child Process Liveness
+
+```
+C-HOST-1
+Rule: Do NOT leave a spawned child able to do the user's work after its parent dies, and do NOT retire a liveness watchdog without installing its replacement in the same change. Every long-lived child (sidecar, worker, plugin runtime, key listener) keeps BOTH an OS-level kill binding (Windows job object `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, POSIX parent-exit reaper) and its own parent-PID watch (`voice_typer/server/parent_watch.py` over `VOICE_TYPER_PARENT_PID`), and every spawn path forwards that PID.
+Rationale: Under `TAURI_SIDECAR=1` the IPC heartbeat watchdog is skipped because "the Rust host owns liveness", but nothing replaced it when the host died abnormally (`lausu-rust.log` panic at 01:53, no `[EXIT-SHUTDOWN]`): the orphaned sidecar kept serving hotkeys, the Chrome bridge and dictation with no window and no tray icon (2026-11-17, ghost PIDs 6684/6856/5368 with host 19900 gone; the worker already self-exited at 13:48 via its own watch, which is what exposed the gap).
 Applies to: All agents, all modes, all sub-agents.
 ```

@@ -111,13 +111,13 @@ incompatibility.
 
 CI runner pinning (CI-10):
 - `build-windows`: `windows-2022`
-- `build-macos`: `macos-13`
+- `build-macos`: `macos-15`
 - `build-linux`: `ubuntu-22.04`
 - `build-native` (Windows): `windows-2022`
 - `build-native` (Linux): `ubuntu-22.04`
-- `build-native` (macOS x64): `macos-13`
-- `build-native` (macOS arm64): `macos-14`
-- `test` matrix: `windows-2022`, `ubuntu-22.04`, `macos-13`
+- `build-native` (macOS x64): `macos-15-intel`
+- `build-native` (macOS arm64): `macos-15`
+- `test` matrix: `windows-2022`, `ubuntu-22.04`, `macos-15` / `macos-15-intel`
 
 ## Known limitations
 

@@ -145,8 +145,9 @@ the utility. These are the resulting composite colours:
 | dark `surface-subtle` `#1f1f1f` | `#2a2a2a` | `#313131` | `#353535` | `#4c4c4c` |
 
 House style (2026-10-02): **8%** for card/panel borders and dividers, **10%** for
-standalone panels and control borders (buttons, toasts), **20%** for dashed "this is
-a mock / inactive" frames. **5%** survives only as a control *fill*
+standalone panels and control borders (buttons, toasts), **15%** for checkboxes,
+**30%** for keycaps, **20%** for dashed "this is a mock / inactive" frames.
+**5%** survives only as a control *fill*
 (`bg-border/5`, hover `bg-border/8`) — it is no longer used for any border.
 The ToggleGroup track is the one control this scale does not govern: its edge is a
 1px `#000000`/10 ring painted by a shadow, not a border (see the component entry
@@ -281,8 +282,7 @@ shadow; dialogs and popovers use `shadow-md`/`lg`.
 | `bubbleExit` | 200ms | `cubic-bezier(0.5, 0, 0.5, 1)` |
 | `bubbleShimmerSlide` | 2.2s | `linear`, infinite |
 | `bubbleDotBlink` | 1.2s | `ease-in-out`, infinite |
-| `pulseRing` | 1.8s | `cubic-bezier(0.4, 0, 0.6, 1)`, infinite |
-| `glowPulse` | 2.5s | `ease-in-out`, infinite |
+| `glowPulse` | 2.5s | `ease-in-out`, infinite (`--primary` idle / `--destructive` recording) |
 | control transitions | 150ms (colour) / 200ms (indicator slide) | `ease-out` |
 
 `prefers-reduced-motion: reduce` clamps animations to `0.01ms / 1 iteration` and
@@ -331,6 +331,13 @@ Selected: `bg-surface` + `shadow-xs` + `text-foreground` (neutral, not accent-fi
 the indicator insets 2px, carries a `border-border/10` (`dark:border-border/5`)
 hairline, and slides 200ms `ease-out`. With `value={null}` no option is selected and
 the indicator fades out where it stands instead of parking on the last option.
+
+**ActionButtonsGroup** (joined icon pair, e.g. Home's refresh + share) — the
+GROUP is the surface: radius 10px (`rounded-lg`), hairline `border-border/8`, fill
+`bg-border/5`, no gap between members, `overflow-hidden` so the outer corners are the
+only rounded ones. Members carry no border, fill or radius
+(`SEGMENTED_ACTION_BUTTON`) and are separated by a 1px `bg-border/8` divider drawn by
+the group's child rule, so a member's own `border-0` cannot cancel it.
 
 **SettingRow** — 16×8px padding, 24px gap between label and control, label 14px/500.
 
@@ -409,6 +416,37 @@ the shell gives a data page's own stacked blocks.
 `bg-surface`. Settings preview variant: 16×6px padding.
 Bubble icon buttons 24×24px, 4px inline-start margin. Recording dot 6px.
 Visualizer bars 3px wide, 3px gap, 5–22px tall. Transcribing dots 4px.
+
+### Owner variants (global components — 2026-11-19)
+
+These three live in the renderer and are documented here so the showcase and the
+shipped UI cannot drift (C-DESIGN-1).
+
+**Keycap plate** — `components/common/Kbd.tsx` exports `KBD_CHIP_CLASSES` as the
+single source of the plate: `bg-neutral-100` in light, `dark:bg-black` in dark,
+`border-border/30`, `text-foreground`, `font-mono text-xs px-2 py-0.5 rounded-md`.
+The plate lives in the BASE classes, so every keycap inherits it — `Kbd`,
+`HotkeyChips`, and `TemplateDialog` (which composes `KBD_CHIP_CLASSES` directly).
+There is no tooltip-context-only variant. Text colour is the `--foreground` token,
+which stays readable across light, dark and custom presets.
+
+**Plugins "New" badge** — `components/layout/PluginsNewBadge.tsx` renders the
+sidebar marker with `data-testid="nav-new-badge"`. Recipe: full-opacity token label,
+a 15% wash of the SAME hue, a 30% border of that hue, own padding; never `opacity-*`
+on the chip. Hues are `primary` (brand), `destructive` (red) and `success`
+(emerald-family green). **Active default: `green`** (owner's choice). The hue is
+driven by the Debug Panel through `useDebugPrefs`; one-way dismissal stays in
+`usePluginsNewBadge`.
+
+**Debug Panel** — `components/debug/DebugPanel.tsx` is an owner sandbox mounted
+once in `App.tsx`: two live switches (Today's stats layout `separated`/`joined`,
+Plugins badge color `red`/`green`/`primary`) plus Reset to defaults. It is
+**DELIBERATELY hidden by default** — neither `developer_mode` nor a dev build
+reveals it. Reveal key: `localStorage["lausu-ui-debug-panel-visible"] = "1"`;
+the key is exported as `DEBUG_PANEL_VISIBLE_KEY` from `hooks/useDebugPrefs.ts`
+(grep key: `DEBUG_PANEL_VISIBLE_KEY`). To add an exploration, extend `useDebugPrefs`
+with a preference and add one `ChoiceRow` to the panel, then reveal it with that
+key. Its statistics default is `separated`, badge hue default `green`.
 
 ## 13. Layout
 

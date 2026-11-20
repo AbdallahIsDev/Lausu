@@ -38,11 +38,11 @@ The parity tests `tests/test_ipc_command_parity.py` and
 `allowed_commands()` set is a subset of `_COMMAND_REGISTRY` and that the
 ONLY registry commands outside the Rust allowlist are the documented
 host-dispatched / host-only set (`heartbeat`, `relaunch_ack`,
-`shutdown`, `tray_click`). Commands in `_COMMAND_REGISTRY` but NOT in
+`shutdown`, `tray_click`, `bubble_host_hidden`). Commands in `_COMMAND_REGISTRY` but NOT in
 `allowed_commands()` are host-internal (invoked by the Rust host via
 `dispatch_inner` or host-supervised shutdown), never by the renderer.
 
-## Commands (109 total: 105 renderer-reachable + 4 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack)
+## Commands (110 total: 105 renderer-reachable + 5 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack, bubble_host_hidden)
 
 Grouped by namespace. "✓" in the Allowlist column means the command is
 in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
@@ -72,6 +72,7 @@ in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
 | `shutdown` | `_handle_shutdown` | — | Cooperative shutdown: handler runs identically on TCP / stdin / WS. |
 | `toggle_dictation` | `_handle_toggle_dictation` | ✓ |  |
 | `tray_click` | `_handle_tray_click` | — | Host-only: Rust tray dispatcher invokes via `dispatch_inner`, so a renderer `dispatch` call returns "unknown command". |
+| `bubble_host_hidden` | `_handle_bubble_host_hidden` | — | Host-dispatched when the host hides the bubble outside the backend (dismiss / renderer cleanup); the coordinator reconciles its mirror and re-shows in `always_visible`. |
 
 ### macOS permissions (accessibility troubleshooting)
 
@@ -312,7 +313,7 @@ restored `get_prewarm_status` / `run_prewarm` (worker status file +
 in-process warm pass), not the old
 `sentinel` / `PID`-file probe.
 
-## Push events (72 typed)
+## Push events (73 typed)
 
 Push events flow server to renderer via `window.python.onEvent(callback)`.
 The `PythonPushEvent` union in `types/ipc/push_events.ts` is the canonical
@@ -352,6 +353,7 @@ list: events not in the union fall through to the `string` overload of
 | `consent_required` | `ConsentRequiredEvent` | `{ provider: string, ... }` |
 | `parakeet_cpu_fallback` | `ParakeetCpuFallbackEvent` | `{ device: string, ... }` |
 | `asr_backend_disabled` | `AsrBackendDisabledEvent` | `{ backend: string, reason: string, ... }` Emitted from `asr_registry._record_failure` when a backend trips its failure threshold. |
+| `model_language_unsupported` | `ModelLanguageUnsupportedEvent` | `{ model: string, language: string }` Emitted from `model_language_gate.refuse` when the pinned spoken language is outside the active model's declared language list (Parakeet Ultra has no Arabic): the start was refused before any audio was captured, and the same message goes to the OS notification area (click → Models). |
 | `asr_last_resort_unloaded` | `AsrLastResortUnloadedEvent` | `{ backend: string, reason: string, ... }` Emitted when the last-resort ASR backend is force-unloaded. |
 | `llm_polish_failed` | `LlmPolishFailedEvent` | `{ reason: string, ... }` Emitted when LLM polishing fails so the UI can fall back to raw transcription. |
 | `provider_local_onnx_state` | `ProviderLocalOnnxStateEvent` | `{ model: string, state: string, error?: string }` Model-load lifecycle of the local ONNX text provider (`loading` / `ready` / `failed`), published by `model_providers/local_onnx/client.py`; the Providers page renders the "loading model…" state from it. |

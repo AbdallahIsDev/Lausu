@@ -1,5 +1,13 @@
 # Internal plugin (experimental): Google STT via Playwright
 
+> **Superseded (2026-11-20).** Google STT no longer uses Playwright. Both
+> internal plugins now share one Chrome-extension bridge at
+> `tools/internal_plugins/_common/bridge/` (one profile, one relay, one token,
+> one port). See `docs/code-notes/shared-stt-bridge.md`. The notes below are
+> the original discovery record and are kept for history only: Playwright's
+> forced `--disable-extensions` was the reason the installed extension was
+> invisible in Google's window.
+
 **Status:** Phase 0 exit passed (24h survival) — Phase 3 core loop verified
 live 2026-10-02 (record → transcribe → clipboard → paste into the focused app).
 Phase 4 (break detection) not started.

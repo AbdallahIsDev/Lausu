@@ -473,6 +473,86 @@ no new secrets need to be created.
 
 ---
 
+## Third-party license obligations
+
+This section records obligations that arise from redistributing third-party
+code inside the frozen Nuitka `--onefile` sidecar and worker binaries. It is
+the pointer referenced by the `pystray` pin comment in `pyproject.toml`.
+Nothing here changes the build; it is a decision record, and an entry is
+mirrored in [`../THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
+
+### pystray — LGPL-3.0-or-later, §4d relink obligation (PENDING)
+
+**Status: OPEN — owner/legal decision PENDING.** This is a suspected
+assessment from how the bundle is built, not a legal opinion. Do not read it
+as evidence that the obligation has been discharged.
+
+**Verified facts (official sources):**
+
+- The pin is `pystray>=0.19,<0.20` (`pyproject.toml`). The release in that
+  range is **0.19.5** (PyPI, 2023-09-17); PyPI lists its license as
+  **"GNU Lesser General Public License v3 (LGPLv3)"**, and the in-repo pin
+  comment records it as **LGPL-3.0-or-later**.
+  Sources: <https://pypi.org/project/pystray/>,
+  <https://pypi.org/project/pystray/0.19.5/>.
+- LGPL-3.0 §4 (Combined Works) permits conveyance under our own terms only
+  if §4a–§4e are also met. **§4d gives exactly two alternatives** (summary of
+  the official text at <https://www.gnu.org/licenses/lgpl-3.0.en.html>):
+  - **§4d option 0** — convey the *Minimal Corresponding Source* under
+    LGPL-3.0 **and** the *Corresponding Application Code* in a form suitable
+    for, and under terms that permit, the user to **recombine or relink** the
+    Application with a **modified version** of the Linked Version to produce
+    a modified Combined Work, as specified by GPLv3 §6.
+  - **§4d option 1** — use a **suitable shared-library mechanism**: at run
+    time it uses a copy of the Library already present on the user's system,
+    and it works with an interface-compatible modified version of the
+    Library.
+- §4e (Installation Information) is conditional: owed only to the extent
+  GPLv3 §6 would require it, and only for installing/executing a modified
+  Combined Work produced by recombining/relinking. Same GNU source.
+- A separate **LGPL-3.0-linking-exception** would waive §4d/§4e, but it is a
+  special permission granted by a library's copyright holders. pystray is
+  published as plain LGPLv3, **not** under that exception.
+  Source: <https://spdx.org/licenses/LGPL-3.0-linking-exception.html>.
+
+**Concrete §4d analysis of our bundle (suspected):**
+
+- The shipped sidecar and worker are Nuitka `--onefile` executables. pystray
+  and its platform backends are compiled into / bundled inside those
+  executables, **not** shipped as a shared library the OS loads from the
+  user's system. **§4d option 1 does not apply as built**: there is no
+  system-provided pystray shared object for a user to swap for an
+  interface-compatible modified build.
+- **§4d option 0 requires a relinkable artifact.** The onefile payload is a
+  frozen, relocatable bundle; re-linking a modified pystray into an
+  already-built sidecar/worker exe is not a supported operation, and this
+  project does not currently publish a relinkable object form or a
+  documented relink procedure. The runtime extraction to a temp directory
+  (see §"Nuitka `--onefile` self-extraction caveat" above) is transient and
+  is **not** a relinkable artifact we provide. On this reading **§4d option 0
+  is probably not satisfied by the current bundle** — the same risk flagged
+  in the `pyproject.toml` pin comment.
+- Unresolved: whether "Corresponding Application Code" can be met another
+  way (a documented relink toolchain, or a pystray-free build), and whether
+  the "or later" election changes the analysis. These need legal input.
+
+**Owner / legal decision: PENDING — safe default.** The evidence does not
+support claiming compliance, so no "satisfied" statement may be shipped
+until a decision is recorded. Options to decide between:
+
+1. Keep the LGPL-3.0 bundle and ship a relinkable package (Minimal
+   Corresponding Source + Corresponding Application Code + §4e install
+   info) with a documented rebuild/relink procedure.
+2. Replace pystray with a permissively licensed alternative that retains
+   Linux SNI support (the reason the pin comment gives for keeping it).
+3. Obtain a written legal determination that another exception or exemption
+   applies, and record its basis here.
+
+When a decision is made, update **both** this section and
+`../THIRD_PARTY_NOTICES.md` together.
+
+---
+
 ## See also
 
 - [`tauri-build-runbook.md`](./tauri-build-runbook.md): master index for

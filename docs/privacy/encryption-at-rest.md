@@ -2,20 +2,20 @@
 
 ## Status
 
-**Documented (threat model).** Implementation of application-layer
-encryption / SQLCipher is **out of scope** for this finding and tracked
-as future work (see "Roadmap" below).
+**Documented (threat model), with application-layer encryption
+implemented.** SQLCipher remains future work (see "Roadmap" below).
 
 This document satisfies the minimum-viable fix:
 *"At minimum document threat model in `docs/privacy/`."*
 
 ## Scope
 
-The dictated-text column (`transcriptions.text`) in
-`history.db` is stored in **plaintext** on disk. This document
-enumerates the threat actors, the existing defense-in-depth mitigations,
-the residual risks, and the candidate mitigations so future work can
-proceed against a fixed threat model rather than rediscovering the
+The dictated-text column (`transcriptions.text`) in `history.db` is
+encrypted at rest with AES-256-GCM when an OS keyring is available and stays
+in **plaintext** only in the documented fallback (no usable keyring). This
+document enumerates the threat actors, the existing defense-in-depth
+mitigations, the residual risks, and the candidate mitigations so future work
+can proceed against a fixed threat model rather than rediscovering the
 analysis each pass.
 
 ## Threat actors
@@ -63,12 +63,16 @@ of plaintext-at-rest:
 ## Residual risks (post-mitigation)
 
 1. **Same-user process on Windows**: any non-admin process running as
-   the same OS user can `open("history.db")` and read dictated text
-   directly. POSIX file-perm mitigations do not apply.
+   the same OS user can `open("history.db")` and read the `text` column
+   directly — ciphertext when at-rest encryption is active, plaintext in
+   the fallback (the same user can also query the OS keychain for the DEK).
+   POSIX file-perm mitigations do not apply.
 2. **Root / admin on any OS**: the file is readable regardless of
    perms. Filesystem-level encryption (FileVault / BitLocker / LUKS) is
-   the user's responsibility; the app does NOT provide
-   application-layer encryption.
+   the user's responsibility. The app DOES provide application-layer
+   AES-256-GCM (`_text_crypto.py`, PyCryptodome) on the `text` column, but
+   root can also recover the DEK from the OS keychain, so this is not a
+   root-level defense.
 3. **CoW filesystem snapshots**: `secure_delete=ON` and `os.unlink`
    overwrite / unlink the live file, but CoW snapshots may retain the
    old blocks. Documented in `gdpr-delete.md`.
@@ -77,13 +81,15 @@ of plaintext-at-rest:
    dictated text remains in `history.db-wal`. The next launch's
    `open_write_conn` will checkpoint it into the main DB on first
    write: but between the crash and the next launch, the WAL file is
-   on disk with perms 0o600 (POSIX) or default ACL (Windows).
+   on disk with perms 0o600 (POSIX) or default ACL (Windows); the `text`
+   value there is ciphertext when at-rest encryption is active.
 5. **Backup tools**: Time Machine, Windows File History, etc. will
-   happily back up `history.db` with dictated text in plaintext. The
+   happily back up `history.db` (ciphertext when encryption is active,
+   plaintext in the fallback). The
    app cannot prevent this; the user must exclude the config dir or
    use encrypted backups.
 
-## Roadmap (candidate mitigations, NOT implemented)
+## Roadmap (Option B implemented; Option A remains future work)
 
 ### Option A: SQLCipher integration (full-DB encryption)
 
@@ -100,16 +106,17 @@ key (e.g. OS keystore corruption), dictated history is unrecoverable.
 Performance: ~5-15% overhead on writes (SQLCipher AES-256-CBC per
 page). FTS5 index is also encrypted (verified) but search is slower.
 
-### Option B: Application-layer encryption of `text` column only
+### Option B: Application-layer encryption of `text` column only (IMPLEMENTED)
 
 Encrypt the `transcriptions.text` column at the Python layer using
-`cryptography.fernet` (AES-128-CBC + HMAC-SHA256) with a key from the
-OS keystore. Other columns (timestamp, model, device, etc.) stay
-plaintext: they are not personal data.
+AES-256-GCM (`Crypto.Cipher.AES`, `AES.MODE_GCM` from PyCryptodome) with a
+32-byte DEK from the OS keystore. Other columns (timestamp, model, device,
+etc.) stay plaintext: they are not personal data. `cryptography` is not a
+declared dependency: the lock keeps it Linux-only via `keyring ->
+secretstorage`; this app uses PyCryptodome on every platform.
 
-**Pros**: no native deps (`cryptography` is pure-Python with OpenSSL
-wheels). Smaller blast radius: only the dictated-text column is
-encrypted.
+**Pros**: self-contained wheels on Windows, macOS (x86_64 + arm64) and
+Linux. Smaller blast radius: only the dictated-text column is encrypted.
 **Cons**: FTS5 index would also need encryption (the FTS virtual table
 stores the indexed text in plaintext). Search would need to decrypt
 rows before re-indexing on each query, which defeats FTS5's purpose.
@@ -117,7 +124,7 @@ Mitigation: encrypt the text column but keep the FTS index unencrypted
 (accepting that search-time FTS exposes fragments). OR drop FTS5 and
 fall back to `LIKE %query%` on the decrypted text (slow).
 
-### Option C: Document-only (current state)
+### Option C: Document-only (superseded by Option B)
 
 Accept the residual risks documented above. The existing mitigations
 (POSIX perms, `secure_delete=ON`, GDPR delete, WAL checkpoint on close)
@@ -126,9 +133,9 @@ user's machine can read dictated text", the same threat model as every
 other local-first app on the user's machine (browser history, chat
 clients, note-taking apps).
 
-**Current state**: Option C. Future work should evaluate Option A
-(SQLCipher) as the strongest mitigation. Option B is a fallback if
-SQLCipher proves too heavy a dependency.
+**Current state**: Option B is implemented in `_text_crypto.py`
+(AES-256-GCM, DEK in the OS keyring). Option A (SQLCipher) remains the
+strongest future mitigation.
 
 ## Validation matrix (per-OS)
 

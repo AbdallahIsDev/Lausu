@@ -49,7 +49,7 @@ locally.
 | OS | Required system packages / toolchain |
 |----|---------------------------------------|
 | **Windows 10/11** | "Desktop development with C++" workload from Visual Studio Build Tools (for compiling `pynput` keyboard hooks and the optional `windows-key-listener.c` native helper). Run `pip install -e ".[windows]"` to pull `pycaw`, `comtypes`, and `pywin32` for volume ducking and shortcut creation. |
-| **macOS 13+** (Ventura) | Xcode Command Line Tools (`xcode-select --install`). The `pyobjc-core`, `pyobjc-framework-CoreAudio`, and `pyobjc-framework-Cocoa` deps (declared with `sys_platform == 'darwin'` markers) require a working Clang. Grant **Accessibility** permission to the terminal (or the built app) the first time you press the hotkey. The native key listener needs it. CI runners pin to `macos-13` (Intel/x64) and `macos-14` (Apple Silicon/arm64); macOS 12 may work but is not tested. |
+| **macOS 13+** (Ventura) | Xcode Command Line Tools (`xcode-select --install`). The `pyobjc-core`, `pyobjc-framework-CoreAudio`, and `pyobjc-framework-Cocoa` deps (declared with `sys_platform == 'darwin'` markers) require a working Clang. Grant **Accessibility** permission to the terminal (or the built app) the first time you press the hotkey. The native key listener needs it. CI runners pin to `macos-15-intel` (Intel/x64) and `macos-15` (Apple Silicon/arm64); macOS 12 may work but is not tested. |
 | **Linux (X11 or Wayland)** | `libxdo-dev` and `libxtst-dev` (Debian/Ubuntu: `sudo apt install libxdo-dev libxtst-dev`; Fedora: `sudo dnf install xdo-devel libXtst-devel`). Add your user to the `input` group so the native key listener can read `/dev/input/event*`: `sudo usermod -aG input $USER` then log out/in. See `scripts/linux/99-lausu.rules` and `scripts/linux/install_permissions.py` for the packaged udev/polkit story. |
 
 > **GPU users (optional):** if you want CUDA-accelerated transcription,
@@ -329,7 +329,7 @@ The Tauri v2 + Python sidecar host lives in `src-tauri/`. The React renderer (`v
 - **Rust toolchain**: install via [rustup](https://rustup.rs/). The `src-tauri/rust-toolchain.toml` file pins the channel; `rustup` reads it automatically when you `cd src-tauri`.
 - **Tauri v2 system deps** (per-OS):
   - **Linux (X11 or Wayland)**: `webkit2gtk-4.1`, `gtk-3`, `librsvg`, `libssl-dev`, `libayatana-appindicator3-dev` (Debian/Ubuntu: `sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev`). Set `PKG_CONFIG_PATH` if `cargo check` can't find `webkit2gtk-4.1`.
-  - **macOS 13+** (Ventura): Xcode Command Line Tools (already required above). CI pins to `macos-13` (Intel) and `macos-14` (Apple Silicon).
+  - **macOS 13+** (Ventura): Xcode Command Line Tools (already required above). CI pins to `macos-15-intel` (Intel) and `macos-15` (Apple Silicon).
   - **Windows 10/11**: WebView2 runtime (preinstalled on Windows 11; Windows 10 may need the Evergreen Bootstrapper from <https://developer.microsoft.com/microsoft-edge/webview2/>) + MSVC build tools (already required above).
 - **Nuitka** (only needed for `cargo tauri build`, not for `cargo tauri dev`): see [`docs/migration/tauri-build-runbook.md`](docs/migration/tauri-build-runbook.md) for the freeze workflow.
 
@@ -1034,9 +1034,6 @@ hand-rolling the React tree in component tests. Sibling files:
 - **Search is global.** The title-bar search field is the app's only
   search input; per-page search fields are removed. Consume its query
   from the shared `useGlobalSearch` store.
-- **Storybook parity.** When adding a component, add a story under
-  `stories/` covering light + dark and, where the component renders text,
-  an RTL (Arabic) variant.
 
 ---
 
@@ -1147,7 +1144,7 @@ hand-rolling the React tree in component tests. Sibling files:
   behavioral equivalent **in the same change**. AST inspection is
   allowed only for structural guarantees behavior cannot express (e.g.
   asserting a module re-exports a symbol). See
-  [`docs/adr/arch-12-source-text-test-migration.md`](docs/adr/arch-12-source-text-test-migration.md)
+  [`docs/adr/source-text-test-migration.md`](docs/adr/source-text-test-migration.md)
   for the migration playbook.
 ### 7.2 Frontend: vitest + Testing Library
 
@@ -1327,6 +1324,10 @@ received a value within `[_HISTORY_LIMIT_MIN, _HISTORY_LIMIT_MAX]`.
 ---
 
 ## 8. Submitting Changes
+
+Lausu is a **source-available** project. Pull requests are welcome; by
+submitting one you grant the project owner the right to use, modify, and
+relicense your contribution.
 
 ### 8.1 Branch & commit hygiene
 

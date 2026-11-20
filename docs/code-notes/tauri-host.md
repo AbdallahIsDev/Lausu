@@ -311,6 +311,43 @@ the edge so config frames never undo it. Drags stay session-local: the
 config edge is the only persisted placement intent, and `bubble_x` /
 `bubble_y` are cleared at startup.
 
+## Bubble work-area clamp
+
+The pill drags through the OS caption region, so it can be dropped on top of
+the taskbar — and once the taskbar is activated it repaints over an
+always-on-top window, leaving the pill unreachable (it cannot even be grabbed
+again). Reported 2026-11-18: dropping it fully below the taskbar hid it for the
+rest of the session.
+
+The rule is the one browsers use (Chromium `WindowSizer::AdjustBoundsToBeVisible-
+OnDisplay` / `gfx::Rect::AdjustToFit`): allow the drag, then constrain the window
+into the work area of the monitor it landed on. Chrome behaves exactly like this
+— you can drag under the taskbar and it snaps back the moment you release.
+
+- `commands/bubble/clamp.rs`: `clamp_bubble_into_work_area` (apply now) and
+  `schedule_work_area_clamp` (drag-settled, `DRAG_SETTLE_MS = 250`). Never clamp
+  mid-drag: the OS owns the move loop, and a write inside it fights the user.
+  The settle waiter is single-flight (`WAITING`) and generation-guarded
+  (`GENERATION`), and it reads the LIVE window position at clamp time, so the
+  final resting position of the drag is the one constrained.
+- `commands/bubble/math.rs`: `clamp_into_work_area` — pure geometry, each axis
+  moved the minimum distance in-bounds, an axis the pill cannot fit aligned to
+  the work area's origin. Unit-pinned in `clamp_tests.rs`.
+- Monitor choice uses the window CENTER (`resolve_monitor_at_point`), so a pill
+  dropped below a stacked monitor's top edge belongs to that monitor.
+- Callers: `window_events.rs` (bubble `Moved` / `Resized` /
+  `ScaleFactorChanged` → scheduled clamp), `bubble_move_by` (keyboard nudge
+  clamps its own target), the resize path when no edge re-anchor applies (a
+  grown pill can push its bottom under the taskbar), and `bubble_show` before
+  `show()` so a stale position never paints.
+- `Monitor::work_area()` is cross-platform from Tauri: Windows
+  `GetMonitorInfo`/`rcWork, macOS `NSScreen.visibleFrame` (menu bar + Dock
+  excluded), Linux `gdk_monitor.workarea()` (EWMH `_NET_WORKAREA`; the full
+  monitor on Wayland, which publishes no work area). Never hardcode full-screen
+  bounds: that is what "under the taskbar" means.
+- An unchanged position is never re-applied (C-LOG-8) and the correction logs
+  one line (`[BUBBLE] moved back into the work area at (x,y)`).
+
 ## Bubble system-menu kill + drag frame sync
 
 Right-click on the caption drag region summoned the OS system menu even

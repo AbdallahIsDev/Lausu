@@ -75,7 +75,7 @@ These items are the highest-priority remaining work for the project. They block 
 
 ### FV-31 — tests/ root holds 716 flat test files (243 already live in 26 domain subdirs)
 **Status:** ❌ Not Fixed (2026-09-21 FV session: re-confirmed 727 flat root files; the entry's own recommendation is 🟡 Defer — opportunistic migration only when a file is already being edited, since a bulk move is churn-for-churn. No bulk move performed.)
-**Description:** Newer test domains get subdirectories, but 716 legacy files still sit flat at the tests/ root. Largest sampled files are single-domain (no catch-all mixing found — the E3 violation pattern is absent), so this is navigability cost, not a correctness risk.
+**Description:** Newer test domains get subdirectories, but 716 legacy files still sit flat at the tests/ root. The largest sampled files are single-domain, but that sample missed mid-sized catch-alls: `tests/test_platform_fix_regressions.py`, `tests/test_perf_clipboard_cred_security_fixes.py`, `tests/test_service_vocab_template_privacy_fixes.py` and `tests/test_config_group_fixes.py` mix unrelated domains (see RH-18), so E3 mixing IS present — though the 🟡 Defer guidance still rules out a bulk move. Navigability and ownership cost, not a correctness risk.
 **User Impact:** None directly; contributors spend time finding the right test file in a 716-file flat directory.
 **Root Cause:** Verified — legacy files never migrated as the subdirs evolved.
 **Gain vs Trade-off:** Pure organization; risk-free if done opportunistically (migrate files only when already touched, per E1 create-first).
@@ -111,66 +111,645 @@ These items are the highest-priority remaining work for the project. They block 
 
 ---
 
-### DC-14 — Windows NSIS uninstaller leaves the Startup-folder `.bat` orphan
-**Status:** ⚠️ Partial (2026-10-13: code done — both .bat schemes enumerated in uninstaller.nsh + sweep widened + 3 new sweep pins green ON WINDOWS sandbox; live uninstall run on a real host still owed)
-**Description:** The uninstaller removes HKCU Run values, scheduled tasks, and `%APPDATA%\lausu`, but never the Startup-folder `.bat` (`com.Lausu.autostart_<hash>.bat`) — and the runtime legacy sweep only globs `Lausu*.bat`, which cannot match the current `com.Lausu.*` name. On tertiary-mechanism machines the orphan fires a deleted target at every logon after uninstall.
-**User Impact:** Uninstalled app keeps a logon entry pointing at a deleted binary (rare path: only when Task Scheduler failed).
-**Root Cause:** Verified: `scripts/windows/uninstaller.nsh:67-155` has zero Startup handling; `.bat` path `autostart_windows.py:385-392`; sweep mismatch `_autostart_windows_sweep.py:179-214` vs `_paths.py:27,32`. Linux closed (`prerm:101`); macOS tracked as S5-CR-83 (distinct, not merged).
-**Gain vs Trade-off:** A best-effort Startup-folder delete loop in `customUnInstall` closes the orphan. Script-only, no workflow touch (C-CI-2 safe), keep autostart order (C-CROSS-2).
-**If We Do It:** Uninstall removes all three autostart mechanisms.
-**If We Don't:** Orphan logon entries persist on fragile machines.
-**My Recommendation:** ✅ Implement
-**Progress:** Code done 2026-10-13 (both schemes enumerated + sweep widened + 3 sweep pins green); live uninstall host run still owed.
-**Related Files:**
-- `scripts/windows/uninstaller.nsh:67-155`
-- `voice_typer/server/server_platform/autostart_windows.py:385-392`
-**Fix:** Enumerate `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\com.Lausu.autostart_*.bat` + legacy `Lausu_*.bat` in `customUnInstall`. `VALIDATE ON WINDOWS HOST`.
-**Simplified Fix:** Make the uninstaller delete the startup-folder shortcut it currently forgets.
-**Implementation Difficulty:** 🟢 Easy
-**Severity:** 🟡 Medium
+## RH session — 2026-11-18 (Investigation, Groups 1/2/6/7)
 
-### DC-15 — per-arch Tauri confs drop base window fields (array-replace)
-**Status:** ⚠️ Partial (2026-10-13: content done — 4 confs repeat the 5 fields, drift-pinned, 87 tauri tests green ON WINDOWS sandbox; visual chrome check on real Win/macOS hosts still owed)
-**Description:** Per-arch configs re-specify `app.windows` but omit base-only `center`, `hiddenTitle`/`titleBarStyle`/`trafficLightPosition`, and `additionalBrowserArgs` (autoplay + WebOOUI hardening flags). Tauri merges `--config` per RFC 7396: arrays replace wholesale, so omitted fields fall back to defaults, not base values. No test pins these fields (0 hits in `tests/`).
-**User Impact:** Shipped Windows/macOS windows lose centering and hardening flags; macOS loses traffic-light position. Size/`decorations` deltas look intentional and stay.
-**Root Cause:** Doc-verified (v2.tauri.app configuration-files: "arrays are replaced as a whole… Repeat everything you want to keep") + field diff vs `tauri.conf.json:21-58`.
-**Gain vs Trade-off:** Repeat the dropped hardening/geometry fields per-arch (content-only JSON; C-CI-10 narrowing + assertion intact; do NOT touch workflow `--config` wiring).
-**If We Do It:** Per-arch windows match the intended chrome and flags.
-**If We Don't:** Silent divergence from the base window spec ships.
-**My Recommendation:** ✅ Implement
-**Progress:** Content done 2026-10-13 (4 confs repeat the 5 fields, drift-pinned, 87 green); visual host check still owed.
-**Related Files:**
-- `src-tauri/tauri.windows-x86_64.conf.json`
-- `src-tauri/tauri.macos.conf.json`
-- `src-tauri/tauri.conf.json:21-58`
-**Fix:** Re-add `center` / `hiddenTitle` / `titleBarStyle` / `trafficLightPosition` / `additionalBrowserArgs` per-arch where intended; document intentional deltas. `VALIDATE ON WINDOWS HOST` + `VALIDATE ON MACOS HOST`.
-**Simplified Fix:** Copy the missing window settings from the base config into each platform config.
-**Implementation Difficulty:** 🟢 Easy
-**Severity:** 🟡 Medium
+Findings were investigated by four sub-agents, audited by two independent reviewers, then RH-1..RH-10 were implemented by four disjoint sub-agents (RH-1 completed via a continuation) and re-reviewed to APPROVE. Entries RH-1..RH-10 and RH-11, RH-14, RH-16, RH-17, RH-18, RH-19, RH-20 carry `✅ Fixed` statuses (RH-11 by owner decision, the rest with platform-qualified verification); RH-12, RH-13, RH-15 and RH-21..RH-36 were `❌ Not Fixed` at the start of the 2026-11-19 decision round. Corrections from all review waves are applied below. All observations are from the current Windows working tree unless stated otherwise.
 
-### TTS-1 — TTS test cards: drop the stats line, colour the [TTS] log topic, expose voice + language
+### Wave 3 — deeper pass (IPC/config parity, lifecycle/resources, test hermeticity, packaging/docs)
+
+Wave 3 returned 21 findings. The final Review Wave dropped 2 as false claims (pack-publish API idempotency and draft rolling-tag — release-create `already_exists` is handled at `publish_pack_release.py:552-574`, `--clobber` is present at `:172,487`, the manifest is uploaded once, and `runtime-pack-publish.yml` is `workflow_dispatch`-only with intentional `draft=true`), merged 3 into one doc-drift entry, and corrected severities/numbers. 16 canonical entries follow.
+
+### RH-21 — Mic-level worker slot cleared while its thread is still alive
 **Status:** ❌ Not Fixed
-**Description:** Three things on the text-to-speech surface. (1) After clicking "Test voice" the card prints a technical line at its bottom — "magpie: cached sample, 4.272s audio" (or the rendered/wall/realtime variant) — which is irrelevant to the user; testing should just play the audio. (2) The `[TTS]` log labels print in the default white colour instead of a topic colour like the other subsystems. (3) The owner was told the TTS models were configurable (language, voice, speaking style, male/female, older/younger) but the Models page only shows "Test voice" and "Select": no voice picker, no language picker, no style control. Also the "Test voice" button should become icon-only (play glyph).
-**User Impact:** The user cannot change the voice or the language of the local TTS engines at all, cannot see where the promised options are, and sees internal diagnostics after every test.
-**Root Cause:** The voice picker renders only when an engine is already active and exposes only its voice list; the language list is exposed by the backend but never rendered; the success message is a raw technical string reused as the error channel; the `[TTS]` topic has no entry in either topic-colour table; the shared test button always renders a text label.
-**Progress:** None yet (investigation only, 2026-11-02).
+
+**Description:** `voice_typer/server/level_monitor/mic_level_push.py:118` unconditionally clears `_state._mic_level_worker_thread = None` and unregisters after a `join(timeout=1.0)`, even if the thread is still alive; `:94` then resets the shared stop bool to `False` and spawns a new worker. The two sibling paths guard correctly: `level_monitor/worker.py:128-136` returns early while the worker is alive, and `recording/capture_audio_worker.py:266-269` clears the slot only when `not is_alive()`.
+
+**User Impact:** A rapid stop→start with a slow `event_bus.publish` can leave two live consumers on the shared coalesce queue, an untracked daemon thread for the session, and a stale thread-registry entry. Level values stay correct thanks to the queue lock — this is CPU/handle hygiene, not wrong data.
+
+**Root Cause:** Verified code shape; the slow-publish reachability is suspected (needs the 1s join to expire before the 0.25s backstop).
+
+**Gain vs Trade-off:** Gain: one worker per session, deterministic cleanup. Trade-off: a generation token adds a small amount of state.
+
+**If We Do It:** A restart cannot resurrect a stopped-but-still-running worker.
+
+**If We Don't:** Repeated start/stop cycles can accumulate threads.
+
+**My Recommendation:** ✅ Implement — mirror the existing sibling pattern.
+
+**Progress:** `None yet.`
+
 **Related Files:**
-- `voice_typer/client/src/renderer/src/components/models/TtsPanel.tsx`
-- `voice_typer/client/src/renderer/src/components/models/ModelActionButtons.tsx`
-- `voice_typer/server/tts/{voices,manager,types}.py`
-- `voice_typer/server/config_validators/allowlist.py`
-- `voice_typer/server/log/formatters.py`, `src-tauri/src/platform/logging/color.rs`
-- `tests/test_logging_formatting.py`, `src-tauri/src/platform/logging_tests.rs`
-**Fix:** Remove the stats line (keep error reporting), colour the `[TTS]` topic in both tables with pins, render per-engine voice (grouped by gender) and language controls for the active engine, normalise+validate `tts_voice`/`tts_language` against the engine catalogues, and make the test action icon-only with an aria-label. Style/tone/age is NOT a capability of the two local engines (`TtsRequest` carries only text/voice/language + cloning fields) — report that instead of faking a control.
-**Implementation Difficulty:** 🟢 Easy-Medium (UI + two colour tables + one validator)
+- `voice_typer/server/level_monitor/mic_level_push.py:92-100,110-124`
+- `voice_typer/server/level_monitor/worker.py:119-143`
+- `voice_typer/server/recording/capture_audio_worker.py:253-269`
+
+**Fix:** Clear `_mic_level_worker_thread` only when `not t.is_alive()`, exactly as `worker.py:128-136` does, and give each worker a generation token checked at the loop top so a late restart cannot undo a stop. Add a stop→restart test with a deliberately slow `event_bus.publish` asserting exactly one live worker. Keep C-MIC-16/22 semantics intact.
+
+**Simplified Fix:** Do not forget an old microphone-level worker until it has actually stopped, and tag each worker so a new one cannot cancel an old stop.
+
+**Implementation Difficulty:** 🟡 Medium
+
+**Severity:** 🟢 Low
+
+---
+
+### RH-22 — Prewarm timeout bounds the waiter, not the PortAudio stream
+**Status:** ❌ Not Fixed
+
+**Description:** `voice_typer/server/recording/device_prewarm.py:213-226` spawns a nested daemon that opens/starts/stops/closes an `sd.InputStream` (close only in its own `finally`, `:197-201`). The outer thread waits `result["done"].wait(timeout=2.0)` and returns on timeout with no cancel handle. C-MIC-23 records real WASAPI opens blocking ~12s after idle.
+
+**User Impact:** On a stuck device the OS microphone indicator stays lit after the "prewarm timed out" log, and the late stream open can overlap the first dictation's own open.
+
+**Root Cause:** Verified code shape; a cancel token is absent, so the timeout only controls the observer.
+
+**Gain vs Trade-off:** Gain: no privacy-visible orphan stream. Trade-off: raising the timeout alone would hide the symptom without bounding the resource.
+
+**If We Do It:** A timed-out prewarm closes (or never starts) its stream, so the indicator goes dark.
+
+**If We Don't:** The documented worst case keeps producing an unbounded visibility window.
+
+**My Recommendation:** ✅ Implement — C-MIC-23 already supplies the motivation.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `voice_typer/server/recording/device_prewarm.py:185-226`
+- `tests/fixtures/sleep_seam.py`
+
+**Fix:** Add a cancel flag checked immediately before `stream.start()`; when the outer wait times out, set it so the inner thread closes without starting. Register the inner thread with a stop event and keep the `finally` close. Add a fake-`sd.InputStream` test whose `start()` blocks past the timeout, asserting no started/unclosed stream remains. Keep the 2s timeout unless host evidence justifies changing it.
+
+**Simplified Fix:** If prewarming the microphone takes too long, make sure the attempt is actually abandoned rather than just reporting a timeout while the stream keeps opening.
+
+**Implementation Difficulty:** 🟠 Hard
+
+**Severity:** 🟢 Low
+
+---
+
+### RH-23 — Startup daemons lack a uniform cancellation contract
+**Status:** ❌ Not Fixed
+
+**Description:** `voice_typer/server/startup_sequence/_phases_late.py:178-188,213-219,228-234,243-249,290-299,315-321` and `_phases_early.py:132-136,160-164` spawn roughly ten fire-and-forget daemon threads (autostart-sync, pack-check, extractor-refresh, probe-prewarm, desktop-shortcut, mic-guard, VAD/GTCRN preload, history-retention). Only `_pack_check_task` and `_extractor_refresh_task` receive `_shutdown_event` (`_phases_late.py:204,211,226`); the others have no stop event, no `ThreadRegistry` registration, and no join, so `ThreadRegistry.shutdown_all()` cannot signal them. RACE-020's `_shutting_down` re-checks exist between phases, not inside these threads. `_phases_early.py:388-409` registers `history-retention-apply`, proving the pattern is available but applied inconsistently.
+
+**User Impact:** Best-effort startup work (registry writes, disk sweeps, network probes) can keep mutating OS/config state after `_shutting_down` is set, racing teardown. All are daemons, so process exit is the backstop — bounded but not deterministic, and there is no shutdown log for them.
+
+**Root Cause:** Verified — per-thread ad-hoc spawning added incrementally without a uniform contract. Not a claim that RACE-020 is missing.
+
+**Gain vs Trade-off:** Gain: deterministic drain and shutdown observability. Trade-off: touching startup threads is timing-sensitive; keep the existing phase ordering and daemon semantics.
+
+**If We Do It:** Every startup worker is cancellable and bounded-joined at shutdown.
+
+**If We Don't:** The daemon backstop remains the only guarantee.
+
+**My Recommendation:** 🟡 Try and revert — startup timing changes need careful regression testing.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `voice_typer/server/startup_sequence/_phases_late.py`
+- `voice_typer/server/startup_sequence/_phases_early.py:388-409`
+- `voice_typer/server/thread_registry.py:208-218`
+
+**Fix:** Use `ThreadRegistry.spawn_and_register` (or register immediately after start) for every startup daemon, pass `_shutdown_event` uniformly, and check it at each thread's first I/O boundary. Keep the two already-signalled tasks unchanged. Add a shutdown test asserting each registered worker is signalled and bounded-joined. Preserve RACE-020 and C-START-1 ordering.
+
+**Simplified Fix:** Register all the little startup helper threads with the same shutdown tracker, so app exit can tell them to stop instead of relying on them being daemons.
+
+**Implementation Difficulty:** 🔴 Very Hard
+
+**Severity:** 🟢 Low
+
+---
+
+### RH-24 — Permission tests assert callback counts after fixed sleeps
+**Status:** ❌ Not Fixed
+
+**Description:** `tests/test_permissions.py:1014-1131` uses `time.sleep(0.10)` at 1030/1050/1082 against `Timer(interval=0.01)`, and `sleep(0.002)`/`0.05`/`0.03` at 1115/1123/1128 against `interval=0.005`. Assertions such as `assert callback.call_count == 0` (1032) and `assert timer_count["n"] == 1` (1085) depend on those sleeps; `wait_until` appears zero times in the file although `tests/fixtures/wait_helpers.py:34-40` provides it. This is an instance of C-TEST-16 ("do not assert a cross-thread transition with a fixed short wait").
+
+**User Impact:** On a loaded CI worker the 0.10s budget can expire before the Timer fires, so a cancellation-guard test passes trivially (the callback never ran) and the baseline test can flake red.
+
+**Root Cause:** Verified code shape; the false-green consequence is suspected (no reproduced flake).
+
+**Gain vs Trade-off:** Gain: a real race guard. Trade-off: instrumenting a fired-marker event is a small test change.
+
+**If We Do It:** "Not fired yet" can no longer masquerade as "the guard worked".
+
+**If We Don't:** The DE-32 cancellation guard keeps a false-green mode.
+
+**My Recommendation:** ✅ Implement — direct C-TEST-16 compliance.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `tests/test_permissions.py:1014-1131`
+- `tests/fixtures/wait_helpers.py:34-40`
+
+**Fix:** Add a `threading.Event` fired-marker set by the callback/Timer, and `wait_until(marker.is_set, timeout=5.0)` before asserting call counts. Use the same deadline helper for the positive case. Prove the negative by the worker still being in-flight (or the marker never being set after a provable fire), not by elapsed time. No production change.
+
+**Simplified Fix:** Wait for the timer to actually fire with a generous deadline before counting calls, so a slow CI machine cannot make the test pass without testing anything.
+
+**Implementation Difficulty:** 🟢 Easy
+
 **Severity:** 🟡 Medium
+
+---
+
+### RH-25 — numpy lazy-import guard is a no-op in the full suite
+**Status:** ❌ Not Fixed
+
+**Description:** `tests/test_numpy_lazy_import.py:21-22` returns `False` from `_purge_numpy_and_targets()` when `"numpy" in sys.modules`, and both guard tests gate their entire assertion on `if clean_baseline:` (`:46-49,82-92`). Full-suite collection imports numpy via `tests/fixtures/ipc_test_helpers.py:9`, itself imported by `tests/handlers/conftest.py:7-10`. Therefore under CI's `pytest tests/ -n auto` the numpy-absence assertions never execute; only an isolated single-file run activates them. This is the C-TEST-9 class (hermeticity depending on ambient import state).
+
+**User Impact:** The cold-start guard against reintroducing eager `import numpy` in the audio/transcription path is a no-op in CI; a regression can ship green.
+
+**Root Cause:** Verified.
+
+**Gain vs Trade-off:** Gain: a guard that actually runs everywhere. Trade-off: each test must own its `sys.modules` seam via monkeypatch, or use a subprocess.
+
+**If We Do It:** The import guard fails on a real eager-import regression in any run mode.
+
+**If We Don't:** The regression it was written for is unguarded in CI.
+
+**My Recommendation:** ✅ Implement — makes an existing guard real.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `tests/test_numpy_lazy_import.py:19-25,81-92`
+- `tests/fixtures/ipc_test_helpers.py:9`
+- `tests/handlers/conftest.py:7-10`
+
+**Fix:** Stop conditioning assertions on ambient import state: patch the `sys.modules` seam per test with monkeypatch `setitem`/`delitem` (restored in teardown), or run the import in a fresh subprocess. Add a self-check that seeds a deliberately eager import and asserts the guard fails, so a no-op guard cannot persist. Do not rely on `if "<pkg>" in sys.modules` skip guards (C-TEST-9).
+
+**Simplified Fix:** Make each test set up its own clean import state instead of skipping when numpy was already imported by another test during collection.
+
+**Implementation Difficulty:** 🟡 Medium
+
+**Severity:** 🟡 Medium
+
+---
+
+### RH-26 — Collection-time bare `MagicMock` modules carry a pytest-9.2 undo hazard
+**Status:** ❌ Not Fixed
+
+**Description:** `tests/conftest.py:15-23` uses `sys.modules.setdefault("pystray", _mock_pystray_collection)` with a bare `MagicMock()`, plus `MagicMock(name="collection_pynput")` for pynput/pyperclip, and mutates `_mock_pystray_collection.Menu.SEPARATOR = "SEP"` globally. `tests/test_logging_formatting.py:19-20` uses the same bare-`MagicMock` pattern. The repo already ships the correct stand-in (`tests/fixtures/mock_modules.py:20-35`, children in real `__dict__`). pytest 9.2 snapshots `target.__dict__` for undo, so patching an auto-created mock child can abort `monkeypatch.undo()` (web-confirmed: `github.com/pytest-dev/pytest/issues/15287`). This is C-TEST-15.
+
+**User Impact:** Order-dependent hermeticity — a child patch on a collection mock can poison later tests on the same xdist worker. Fixtures currently replace these mocks before test bodies, so no failure was reproduced.
+
+**Root Cause:** Verified pattern + documented mechanism; reproduced failure not observed.
+
+**Gain vs Trade-off:** Gain: stable undo semantics across pytest versions. Trade-off: none — the correct helper already exists.
+
+**If We Do It:** All stubbed third-party modules round-trip patch/undo like real modules.
+
+**If We Don't:** The exact failure class behind the 8323-failure CI incident stays reachable.
+
+**My Recommendation:** ✅ Implement — delete the duplicate pattern, use the existing helper.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `tests/conftest.py:15-23`
+- `tests/test_logging_formatting.py:12-20`
+- `tests/fixtures/mock_modules.py:20-35`
+
+**Fix:** Register `mock_module(name)` stand-ins at collection via `setdefault`, or delete the collection-time mocks and rely on `mock_heavy_imports_session` / `mock_heavy_imports` which already use `mock_module`. Remove the global `MagicMock` class mutation. Keep C-TEST-14/C-TEST-15 semantics; no `sys.modules` patch of dynamically-proxied package names.
+
+**Simplified Fix:** Use the project's proper fake-module helper at import time instead of dropping raw mock objects into `sys.modules`.
+
+**Implementation Difficulty:** 🟡 Medium
+
+**Severity:** 🟢 Low
+
+---
+
+### RH-27 — conftest is a catch-all with silently swallowed teardown errors
+**Status:** ❌ Not Fixed
+
+**Description:** `tests/conftest.py` is 632 lines mixing heavy-import mocks, env/config/HF isolation, log and event-bus state, and multiple independent teardown drainers. Six drainers use `with contextlib.suppress(Exception)` (around lines 362-431) and five more use `except Exception`; an ImportError inside a drain is silently swallowed. The diagnostic thread at `:522-527` is a `daemon=True` thread with no RACE-008 why-comment.
+
+**User Impact:** A leaked thread or failed teardown can survive into later tests without a signal; one edit fans out across unrelated concerns. No user-facing failure.
+
+**Root Cause:** Verified — one cleanup fixture added per past leaked-thread incident, never consolidated (C-STRUCT-1/3, RACE-008).
+
+**Gain vs Trade-off:** Gain: narrow error handling and a discoverable fixture layout. Trade-off: splitting conftest must keep every autouse fixture resolving via re-exports (E1 create-first).
+
+**If We Do It:** Teardown failures are visible and fixtures are organized by concern.
+
+**If We Don't:** The catch-all keeps growing and hides its own failures.
+
+**My Recommendation:** 🟡 Defer — opportunistic split only; narrow the `suppress` blocks when touching this file.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `tests/conftest.py:1-632` (drains ~356-436, diagnostic thread ~522-527)
+- `tests/fixtures/`
+
+**Fix:** Split drain/diagnostic fixtures into focused `tests/fixtures/` modules re-exported by conftest; narrow each `contextlib.suppress(Exception)` to the expected import/teardown exceptions and log anything else; add a thread-leak assertion; add the required one-line RACE-008 why-comment to the daemon snapshot thread. Do not remove protected tags or suppressions that pin real false positives without a documented reason (E13).
+
+**Simplified Fix:** Break the giant test-setup file into topic files, stop silently ignoring all teardown errors, and say why the diagnostic thread is a daemon.
+
+**Implementation Difficulty:** 🟠 Hard
+
+**Severity:** 🟢 Low
+
+---
+
+### RH-28 — Uninstall leaves the runtime pack and installer state behind
+**Status:** ❌ Not Fixed
+
+**Description:** The pack split introduced a second per-user root: `scripts/windows/installer-hooks.nsh:137-139` creates `$LOCALAPPDATA\lausu` and writes `installer-state.json`; `full-offline-installer.nsi:71,91,120-124` installs there and extracts the pack to `$LOCALAPPDATA\lausu\runtime-pack\<v>`; the authoritative pack root is `LOCALAPPDATA/lausu/runtime-pack` (`voice_typer/server/service/offline_pack/core.py:97-99`). Uninstall only removes `%APPDATA%\lausu` (`uninstaller.nsh:185-192`); `uninstall.bat:139-147` and `uninstall_permissions.py:132-136` do the same. No cleanup of `$LOCALAPPDATA\lausu` exists anywhere. Distinct from DC-14 (Startup `.bat` orphan).
+
+**User Impact:** Every uninstall leaves roughly 124 MB compressed / 450 MB unpacked pack plus `installer-state.json` (including the `pack_bundled` consent flag); a reinstall can silently reuse a stale pack.
+
+**Root Cause:** Verified — two roots were introduced by the pack split, uninstall was updated only for the Roaming one.
+
+**Gain vs Trade-off:** Gain: a clean uninstall and no stale-pack reuse. Trade-off: best-effort deletion must not remove a directory the user created independently; target the owned subpaths first.
+
+**If We Do It:** Uninstall removes both per-user roots it created.
+
+**If We Don't:** Hundreds of megabytes persist after uninstall and reinstall can inherit stale state.
+
+**My Recommendation:** ✅ Implement — clear ownership, user-visible disk cost.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `scripts/windows/uninstaller.nsh:185-192`
+- `scripts/windows/installer-hooks.nsh:137-139`
+- `scripts/windows/full-offline-installer.nsi:71,91,120-124`
+- `voice_typer/server/service/offline_pack/core.py:97-99`
+- `scripts/windows/uninstall.bat:139-147`
+
+**Fix:** Add a best-effort `RMDir /r "$LOCALAPPDATA\lausu\runtime-pack"` and `Delete "$LOCALAPPDATA\lausu\installer-state.json"` to `customUnInstall` (remove the whole root only if no other content remains), mirrored in `uninstall.bat` / `uninstall_permissions.py --purge`. Pin with an NSIS source test. Keep autostart order (C-CROSS-2) and the Win32 quoting rules (C-CROSS-1). `VALIDATE ON WINDOWS HOST`.
+
+**Simplified Fix:** Make the uninstaller also delete the separate folder where the downloaded voice pack and installer state are stored.
+
+**Implementation Difficulty:** 🟢 Easy
+
+**Severity:** 🔴 High
+
+---
+
+### RH-29 — "Torch-free" bundle gate only detects dotted module names
+**Status:** ❌ Not Fixed
+
+**Description:** `scripts/build/check_bundle_torch_free.sh:59-74` sets `PATTERNS=("torch\\.")`, a regex for a literal dot. It matches dotted forms (`torch.nn`, `torch._C`) but not Nuitka's slash-form paths such as `torch/__init__.py`, which the comment at `:59-62` says it is meant to catch. The same pattern is used by the Python fallback at `:117`. The gate is hard-fail in `tauri-windows-build.yml:308`, `tauri-macos-build.yml:141,302`, `tauri-linux-build.yml:436`.
+
+**User Impact:** A regression that reintroduces `import torch` in slash form can ship a ~150 MB larger sidecar and re-expose the NU-106 VAD degradation while CI stays green. Dotted forms are still caught, so this is partial coverage — not total blindness.
+
+**Root Cause:** Verified regex shape; the production occurrence of a slash-form path is suspected until a built-binary probe is run.
+
+**Gain vs Trade-off:** Gain: the gate matches what its own comment promises. Trade-off: none — strengthening the pattern cannot weaken the check.
+
+**If We Do It:** Both dotted and slash-form module paths fail the gate.
+
+**If We Don't:** The documented failure mode stays undetected.
+
+**My Recommendation:** ✅ Implement — one-line fix plus a unit probe.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `scripts/build/check_bundle_torch_free.sh:59-74,117`
+- `.github/workflows/tauri-windows-build.yml:308`
+- `.github/workflows/tauri-macos-build.yml:141,302`
+- `.github/workflows/tauri-linux-build.yml:436`
+
+**Fix:** Use `torch[/\\]` in the ERE path and the equivalent escaped pattern in the Python `re` path, keeping case-insensitivity; do not weaken the existing dotted match. Add a unit test feeding a synthetic binary containing `torch/__init__.py` and asserting exit 1, plus one for `torch.nn`. Keep the workflow wiring unchanged (C-CI/CD sign-off applies only if workflows change).
+
+**Simplified Fix:** Make the check look for both slash-style and dot-style torch module names, and test it with a fake binary containing each.
+
+**Implementation Difficulty:** 🟡 Medium
+
+**Severity:** 🟡 Medium
+
+---
+
+### RH-30 — Full-offline installer reports success on failed extraction or slim-core failure
+**Status:** ❌ Not Fixed
+
+**Description:** `scripts/windows/full-offline-installer.nsi:99-105` checks `Expand-Archive`'s exit code with only a `DetailPrint` warning, then deletes the zip unconditionally at `:105`. The slim-core installer's `ExecWait` exit code in `$0` is only warned about (`:146-148`), so the wrapper still exits 0. Meanwhile `installer-state.json` is written with `pack_bundled: true` (`:118-126`), telling the app to skip the silent download.
+
+**User Impact:** A corrupt/interrupted extraction leaves a partial or empty pack marked as bundled, so offline transcription is silently unavailable; a failed slim-core install still looks successful. PowerShell's non-terminating error behavior may make the exit code 0 on a corrupt zip — suspected, not confirmed.
+
+**Root Cause:** Verified non-fatal code paths; the PowerShell exit-code behavior is suspected.
+
+**Gain vs Trade-off:** Gain: honest install outcome and no premature zip deletion. Trade-off: `Abort` changes wrapper UX on genuinely recoverable warnings — restrict it to real failures.
+
+**If We Do It:** Failed extraction or slim-core install fails the wrapper and leaves the zip for retry.
+
+**If We Don't:** Broken installs look successful and offline transcription is unavailable with no download fallback.
+
+**My Recommendation:** ✅ Implement — install correctness.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `scripts/windows/full-offline-installer.nsi:99-126,144-148`
+- `voice_typer/server/service/offline_pack/core.py`
+
+**Fix:** Add `$ErrorActionPreference = 'Stop'` / `-ErrorAction Stop` to the PowerShell extraction command; `Abort` on nonzero extraction or slim-core exit; delete the zip only after extraction success plus a file/size assertion. Keep the documented autostart and quoting rules (C-CROSS-1/2). `VALIDATE ON WINDOWS HOST`.
+
+**Simplified Fix:** Treat a failed pack extraction or failed main installer as a failed install, and keep the download file until extraction is proven good.
+
+**Implementation Difficulty:** 🟡 Medium
+
+**Severity:** 🟡 Medium
+
+---
+
+### RH-31 — NSIS wrapper forwards `$CMDLINE` instead of the parameter string
+**Status:** ❌ Not Fixed
+
+**Description:** `scripts/windows/full-offline-installer.nsi:144-145` does `ExecWait '"$PLUGINSDIR\slim-core-setup.exe" $CMDLINE' $0` with a comment claiming `/S` and `/D=path` propagate. NSIS's `$CMDLINE` includes the installer executable's own path, and `/D=` is explicitly excluded from it (NSIS reference §4.2.2, web-verified).
+
+**User Impact:** A silent install with a custom directory can place the pack in `$LOCALAPPDATA\lausu` while the app lands elsewhere, so pack discovery fails — compounding RH-28.
+
+**Root Cause:** Verified — wrong NSIS variable, false comment.
+
+**Gain vs Trade-off:** Gain: correct silent/custom-dir installs. Trade-off: `/D=` cannot be forwarded via `$CMDLINE`, so it needs explicit handling or documentation.
+
+**If We Do It:** `/S` and the requested install directory reach the slim-core installer.
+
+**If We Don't:** Custom-directory silent installs keep diverging.
+
+**My Recommendation:** ✅ Implement — one-file fix.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `scripts/windows/full-offline-installer.nsi:144-145`
+- `scripts/windows/installer-hooks.nsh:137-139`
+
+**Fix:** Use `${GetParameters} $R0` (FileFunc) and forward `$R0`; handle `/D=` explicitly or document that it cannot propagate through this wrapper. Update the misleading comment. Add a source-level test asserting `$CMDLINE` is no longer forwarded. `VALIDATE ON WINDOWS HOST`.
+
+**Simplified Fix:** Pass only the installer's arguments to the inner installer, not the full command line including the wrapper's own path.
+
+**Implementation Difficulty:** 🟡 Medium
+
+**Severity:** 🟡 Medium
+
+---
+
+### RH-32 — Release and architecture docs drifted from the shipped pack flow and IPC surface
+**Status:** ❌ Not Fixed
+
+**Description:** Three related doc gaps. (1) `RELEASING.md:113-123` claims tag push triggers `build.yml` to build and upload installers, but `build.yml:38` states it is quality gates only (`docs/code-notes/ci-workflows.md:65` confirms legacy packaging jobs are retired); there is no step to dispatch `runtime-pack-publish.yml` (which is `workflow_dispatch`-only), and the `tauri-` tag wording has been stale since the 2026-09-17 cutover. (2) Six docs still cite "85-command / 51-event" (`docs/API.md:11`, `docs/README.md:23`, `docs/adr/README.md:40`, `docs/migration/tauri-sidecar-bridge.md:16,204`, `docs/cutover-playbook.md:350-351`, `docs/modules/sidecar_ws.md:13,26`); the live surface is 109 commands, 105 Rust-allowlisted, 61 events, 73 typed push events. (3) `docs/adr/README.md:51-52` skips the accepted ADR-0029, and `docs/README.md:58,63-67` links a removed ADR-0014 and says the range is `0000..0020`.
+
+**User Impact:** A release engineer following `RELEASING.md` can ship a slim installer without publishing the pack manifest/zip, leaving the silent downloader with no asset and offline transcription unavailable. Contributors get a wrong IPC surface and cannot find an accepted ADR.
+
+**Root Cause:** Verified — docs never reconciled with the approved pack split (SP-1) and the 2026-11-02/+ IPC additions. The unsubstantiated "hardcoded brand" sub-claim was removed by review.
+
+**Gain vs Trade-off:** Gain: a runbook that ships the right artifacts and docs that match code. Trade-off: none — doc-only; avoid hard-coded counts that drift again.
+
+**If We Do It:** The release flow names the real artifact workflows and the mandatory pack dispatch; docs link the canonical counts instead of restating them.
+
+**If We Don't:** Releases can omit the pack and docs keep teaching a retired flow.
+
+**My Recommendation:** ✅ Implement — doc-only, high operational value.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `RELEASING.md:4-11,113-123`
+- `docs/API.md:11`, `docs/README.md:23,58,63-67`
+- `docs/adr/README.md:40,51-52`
+- `docs/ipc-reference.md:45,315` (canonical counts)
+- `docs/code-notes/ci-workflows.md:65`
+
+**Fix:** Rewrite `RELEASING.md` §4/§9 to name `tauri-{windows,macos,linux}-build.yml` as artifact producers and add a mandatory manual `runtime-pack-publish.yml` dispatch for both the primary release and the `offline-pack` rolling tag; document slim + full-offline installers. Replace hard-coded command/event counts with links to `docs/ipc-reference.md` / `registry.py` (or update to 109/105/61/73) and add a cheap doc-count parity check. Add the ADR-0029 row, fix the range, and annotate the removed ADR-0014 link.
+
+**Simplified Fix:** Update the release guide to match the actual build and pack-publish workflows, and stop repeating old command counts in six documents.
+
+**Implementation Difficulty:** 🟢 Easy
+
+**Severity:** 🟢 Low
+
+---
+
+### RH-33 — Release publisher is a 789-line module with two transports
+**Status:** ❌ Not Fixed
+
+**Description:** `scripts/release/publish_pack_release.py:1-789` holds gh command builders (`:102-207,447-505`), a full urllib REST backend (`:218-324,508-612`), asset validation, a result dataclass, and the CLI. Two independent upload transports share only the data shape, which is above C-STRUCT-3's ~500-line budget.
+
+**User Impact:** Maintenance cost — a change to upload semantics must be made in two places. No runtime defect today.
+
+**Root Cause:** Verified — the API backend was added in place as a fallback without extraction.
+
+**Gain vs Trade-off:** Gain: one upload implementation, easier testing. Trade-off: a create-first split must keep every workflow and test import resolving via re-exports (E1).
+
+**If We Do It:** One publisher with pluggable backends; re-exports keep callers unchanged.
+
+**If We Don't:** Transport drift stays a standing risk.
+
+**My Recommendation:** 🟡 Defer — structural, no user impact; do it when the publisher is next touched.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `scripts/release/publish_pack_release.py`
+- `.github/workflows/runtime-pack-publish.yml`
+
+**Fix:** Create-first split into `release/backends/gh.py`, `release/backends/api.py`, `release/publisher.py`, `release/cli.py`; re-export all public names from `publish_pack_release.py` so workflow/test imports keep resolving (E1), verify, then trim. Pin upload semantics with a test against both backends. Do not change release behavior as part of the split.
+
+**Simplified Fix:** Split the big release-publishing script into small files — one per upload backend, one for shared logic, one for the CLI — keeping the old import path working.
+
+**Implementation Difficulty:** 🔴 Very Hard
+
+**Severity:** 🟢 Low
+
+---
+
+### RH-34 — Renderer request types lag the command allowlist
+**Status:** ❌ Not Fixed
+
+**Description:** `voice_typer/client/src/renderer/src/types/ipc/requests.ts:539-642` defines 93 typed `type:` literals while the Rust renderer allowlist (`src-tauri/src/commands/sidecar_cmds/allowlist.rs:40-179`) has 105 commands. Twelve live commands (including `set_output_volume`, `microphone_test_status`, `provider_list/models/test/set_key/clear_key/set_domain`, `quit_app`, `restart_app`) go through the loose `type: string` overload at `usePython.ts:167`. Server↔Rust IPC parity tests already exist (`tests/test_ipc_command_parity.py`, `test_rust_allowlist_parity.py`, `test_ipc_protocol_cross_language_parity.py`); the gap is only renderer type documentation, which AGENTS.md explicitly says is NOT an allowlist.
+
+**User Impact:** Command-name typos and wrong `data` shapes on those 12 calls compile clean. No runtime break — a type-safety and documentation gap, not a defect.
+
+**Root Cause:** Verified — the union grew incrementally and the loose overload silently absorbs gaps.
+
+**Gain vs Trade-off:** Gain: editor/compile-time checking for the remaining calls. Trade-off: MUST NOT create a third allowlist — parity stays server `_COMMAND_REGISTRY` ↔ Rust `allowed_commands()` only.
+
+**If We Do It:** The typed union covers all renderer-reachable commands; the loose overload remains only for the documented escape-hatch cases.
+
+**If We Don't:** Type drift continues on the 12 calls.
+
+**My Recommendation:** ✅ Implement — type-only change, no runtime behavior.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `voice_typer/client/src/renderer/src/types/ipc/requests.ts:539-642`
+- `voice_typer/client/src/renderer/src/lib/python-bridge/usePython.ts:149-167`
+- `src-tauri/src/commands/sidecar_cmds/allowlist.rs:40-179`
+
+**Fix:** Add typed request interfaces for the 12 missing commands and append them to `PythonRequest`. Add a test that parses `requests.ts` literals and asserts they cover the commands the renderer actually calls — do NOT assert equality with the Rust allowlist or introduce a new renderer-side allowlist (critical IPC contract; renderer `types/ipc/` is documentation). Keep the existing server↔Rust parity tests as the only allowlist gate.
+
+**Simplified Fix:** Give the remaining untyped renderer calls proper TypeScript request shapes, without turning the type file into a new permission list.
+
+**Implementation Difficulty:** 🟠 Hard
+
+**Severity:** 🟢 Low
+
+---
+
+### RH-35 — Config pruning runs before migrations and backup, killing legacy branches
+**Status:** ❌ Not Fixed
+
+**Description:** `voice_typer/server/config/loader.py:225` calls `_filter_unknown_keys_impl` (which returns only dataclass fields at `:163` and physically rewrites `config.json` at `:162,186`) BEFORE `_run_migrations` (`:243`) and `_backup_before_migration_impl` (`:246`). Migration source keys `sound_volume`, `push_to_talk_hotkey`, `runtime_pack_consent`, `silence_rms_threshold`, `normalize_audio` are absent from the current `Config` dataclass and from `_KNOWN_EXTERNAL_CONFIG_KEYS` (`:112-119`), so the `if key in data` branches in `_migrate_to_v3/v4/v5/v7` (`config_internals/migrations.py:99-205`) are dead on real loads. `tests/config/test_config_schema_migration.py:283-317` calls migrators directly with hand-made dicts and never asserts the load-level warning, giving false confidence. Only `offline_pack_consent` is force-healed (`:255`).
+
+**User Impact:** Users with legacy configs get the generic "ignoring N unrecognized settings" warning instead of the specific per-version explanation, and the pre-migration `.bak` contains already-pruned data, so it cannot restore the original keys. This is data-integrity adjacent and was upgraded to High by the final review.
+
+**Root Cause:** Verified — the unknown-key filter was inserted ahead of the migration runner and nothing preserves migration-source keys.
+
+**Gain vs Trade-off:** Gain: migrations actually execute and backups are meaningful. Trade-off: run migrations on raw parsed data and filter only afterwards, preserving C-CONF-5's single-profile and explicit-migration rules.
+
+**If We Do It:** Legacy configs migrate with their specific warnings and the backup captures the pre-migration file.
+
+**If We Don't:** Those migration branches remain dead code and the backup is misleading.
+
+**My Recommendation:** ✅ Implement — config data integrity.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `voice_typer/server/config/loader.py:112-119,135,162-186,225,243-255`
+- `voice_typer/server/config_internals/migrations.py:99-205`
+- `tests/config/test_config_schema_migration.py:283-317`
+
+**Fix:** Compute `unknown_keys` against `cls.__dataclass_fields__ | _KNOWN_EXTERNAL_CONFIG_KEYS | <migration-source keys>`, and run `_run_migrations` on the raw parsed dict with the backup taken before any destructive rewrite; filter only after migrations+backup. Add a load-level test asserting the v7 `_load_warnings` string for a v6 config carrying `sound_volume`, and a test that the `.bak` still contains the removed key. Respect C-CONF-5 (no runtime overwrite of valid settings without a documented reason).
+
+**Simplified Fix:** Migrate old config files before deleting settings the current version no longer knows, and make the backup copy the original file.
+
+**Implementation Difficulty:** 🟠 Hard
+
+**Severity:** 🔴 High
+
+---
+
+### RH-36 — `dictation_lost` event is published with no consumer, contradicting silent recovery
+**Status:** ❌ Not Fixed
+
+**Description:** `voice_typer/server/crash_recovery/_store.py:195-209` publishes `{"type": "dictation_lost", ...}` (triggered via `check_on_startup` at `:154` from `startup_sequence/_phases_early.py:345`). The event is registered in `event_bus.py:248`, forwarded by `src-tauri/src/sidecar/ws/event_protocol.rs:73`, and pinned by `tests/test_dictation_lost_message.py`, but grep of the renderer finds zero subscribers and no TS interface or `KNOWN_EVENT_TYPES` entry. Meanwhile `_phases_early.py:348-352` describes startup recovery as "fully silent ... no event-bus notification", and `tests/test_notifications.py:48` / `tests/test_recovery_startup_notify.py:65` pin the user-visible silence.
+
+**User Impact:** One wasted WS frame per recovery detection and a contradictory contract in code. User-visible silence is intact — this finding does NOT claim the owner's silent-recovery decision is violated.
+
+**Root Cause:** Suspected — the event/wire/test were added after the silence decision was recorded; resolution needs an owner choice.
+
+**Gain vs Trade-off:** Gain: one truth for the event. Trade-off: deleting the publish also removes its test and allowlist entry; wiring a consumer would change the silent UX and needs owner approval.
+
+**If We Do It:** Either the dead event is removed everywhere, or it is deliberately wired with a real subscriber and the startup text corrected.
+
+**If We Don't:** A no-op frame stays and maintainers read two conflicting statements.
+
+**My Recommendation:** 🟡 Try and revert — owner decision required; do not "fix" by editing only the comment.
+
+**Progress:** `None yet.`
+
+**Related Files:**
+- `voice_typer/server/crash_recovery/_store.py:154,195-209`
+- `voice_typer/server/startup_sequence/_phases_early.py:345-352`
+- `src-tauri/src/sidecar/ws/event_protocol.rs:73`
+- `tests/test_notifications.py:48`, `tests/test_recovery_startup_notify.py:65`
+
+**Fix:** Ask the owner which truth governs. If silence stands, delete the publish, its test, the Rust allowlist entry, the `EVENT_TYPES` entry, and the ipc-reference row. If the event is wanted, add a TS interface, `KNOWN_EVENT_TYPES` entry, and a real renderer subscriber, and correct the startup text. Never resolve by editing only the comment or only the test.
+
+**Simplified Fix:** Decide whether the "dictation was recovered" message should exist at all; if not, remove the dead notification end to end, and if yes, actually show it.
+
+**Implementation Difficulty:** 🟢 Easy
+
+**Severity:** 🟢 Low
+
+
+## 2026-11-19 decision round — additional notes
+
+- **RH-11:** owner decided to KEEP the soft type-check gate; no workflow or baseline change.
+- **Storybook removal:** `.storybook/`, 8 `*.stories.tsx`, story-only decorators, scripts, deps, lock entries, config references and the Storybook icon catalog entry were removed. Case-insensitive `storybook|stories` search in source files is now 0 (the only remaining hits are historical evidence under `.tmp-evidence/`). Mixed-purpose files were surgically cleaned, not deleted.
+- **License:** root `LICENSE` is the exact official PolyForm Strict 1.0.0 text (fetched from the `polyformproject/polyform-licenses` tag `1.0.0`) plus `Required Notice: Copyright 2026 Abdallah IsDev`. Declarations updated in pyproject (text form — not an official SPDX id), Cargo.toml, client package.json, README and website, installer license text and third-party notices. Project is described as **source-available**, never open source. Third-party attributions preserved.
+- **Runner migration (own note, not a review finding):** all 8 functional `macos-14` jobs moved to `macos-15` (Apple Silicon) / `macos-15-intel` (x86_64), verified against official GitHub runner docs. Risks unverified until CI: Python 3.13 on Intel, Xcode/SDK deployment target, codesign/notarize on macOS 15, and universal2 `lipo` merge across two runner types. Historical `BUILD-N03` evidence comment intentionally left untouched.
+- **License compatibility (report only):** pystray 0.19.5 (LGPL-3.0-or-later) and PyAV's bundled FFmpeg (LGPL 2.1+) carry relink/source-offer obligations that need the owner's legal review under a source-available distribution. No dependency was changed for this.
+
+
+## 2026-11-20 follow-up verification (RH-11..RH-20 round)
+
+- **RH-12 lock chain (verified):** `requirements-lock.txt` markers put `cryptography==50.0.0`, `secretstorage==3.5.0` and `jeepney==0.9.0` on Linux only (`# via keyring -> secretstorage -> {cryptography, jeepney}`). Marker evaluation for linux-x86_64 / macos-x86_64 / macos-arm64 / windows-amd64 shows `cryptography` present only on Linux; `cffi` is cross-platform because sounddevice/soundfile also need it. No macOS x86_64 set pulls cryptography >=49. OSV queries for 50.0.0/50.0.1/50.0.2 returned no advisories (3552 fixed in 50.0.0, 3553/3554 in 49.0.0); latest 50.0.2 is a wheel/toolchain refresh, not a security patch. No floor raise, no lock regeneration, no suppression; `pip-audit --strict --require-hashes -r requirements-lock.txt` exits 0.
+- **RH-12 fixtures (verified, not circular):** all four encrypted constants in `tests/test_text_crypto_compat.py` were re-derived byte-for-byte from the OLD `cryptography` AESGCM implementation retrieved with `git show HEAD:voice_typer/server/_text_crypto.py` (old module first added in af143fe1dd576af7a91a939099a0308b00b2fcfb). Preserved format: `enc:v1:` + base64(nonce[12] || ciphertext || tag[16]), AAD=None, 32-byte DEK from OS keyring. Failure behavior matches old (placeholder `<decryption failed>`; bad nonce length raises ValueError).
+- **RH-12 regression classification:** `tests/test_history_db_encryption.py` -> 1 failed / 19 passed; the only failure is the schema assertion `assert '6' == '5'` at line 407 (encryption tests pass when deselected). Same for `tests/test_history_db_trigram_cjk.py:82`. Both classified (b): the test files are unchanged from HEAD while another session's `schema.py` sets `_CURRENT_SCHEMA_VERSION = 6`. No failure caused by this round. Scoped runs: tests/server 397 passed/1 skipped, tests/packaging 2 passed, tests/tauri 1035 passed/597 skipped, crypto 70 passed.
+- **Frozen bundle (Part D):** all three sidecar Nuitka scripts use `--include-package=Crypto`; all three worker scripts use `--nofollow-import-to=Crypto`; `test_crypto_import_reachability.py` pins both boundaries and confirms no retired `cryptography` claim. Real frozen `Crypto.Cipher.AES` import remains **UNVERIFIED** (no Nuitka/PyInstaller/pybs locally; only stub binaries). CI/owner probe command recorded in worklog.
+- **License identifier (Part E):** verified against the current SPDX list that `PolyForm-Strict-1.0.0` is NOT official (spdx.org JSON 404; only PolyForm-Noncommercial and PolyForm-Small-Business exist). Project manifests now use `LicenseRef-PolyForm-Strict-1.0.0` (PEP 639 in pyproject), `SEE LICENSE IN LICENSE` (package.json), `license-file = "../LICENSE"` (Cargo.toml). Build backend floor raised to setuptools>=77; real metadata generation produced `License-Expression: LicenseRef-PolyForm-Strict-1.0.0` and `License-File: LICENSE`.
+- **Client (Part F):** clean re-run of full vitest 416 files / 4805 passed / 7 skipped; typecheck:ci, build and `npm audit --audit-level=high` all exit 0. All 11 overrides audited with `npm ls`; 3 non-Storybook orphans retained per AGENTS.md. `npm run lint` remains exit 1 (18 errors / 18 warnings), inventory in worklog; CI gate at `.github/workflows/client-ci.yml:72`.
+- **Intel runner horizon (Part G, research only):** `macos-15-intel` is scheduled to retire Aug/Fall 2027 (runner-images issue #13045; GitHub changelog 2025-09-19); `macos-26-intel` is the current newer Intel label. Moving the x64 leg to Apple Silicon needs an x86_64 python-build-standalone plus `arch -x86_64` around Nuitka, otherwise an arm64 binary could be named x86_64. No workflow changed.
+
+
+## 2026-11-20 (round 3) — runner horizon note
+
+Official GitHub sources DISAGREE on the end of Intel macOS runners: actions/runner-images issue #13045 says `macos-15-intel` is available "until August 2027" and is "the last available x86_64 image from Actions", while the GitHub changelog (2025-09-19) says x86_64 will not be supported after the macOS 15 image retires in Fall 2027, and the current runner-images README still lists newer x64 labels (`macos-26-intel`, `macos-26-large`, `macos-latest-large`). The Intel-runner plan is therefore DEFERRED — no workflow was changed this round. Keep `macos-15-intel` until the owner chooses between `macos-26-intel` and an Apple-Silicon-hosted x86_64 build (which needs an x86_64 python-build-standalone plus `arch -x86_64` around Nuitka; otherwise an arm64 binary can be named x86_64).
+
+
+## 2026-11-20 (round 4) — FFmpeg/PyAV licence settled from the binary
+
+Verified from the ACTUAL locked binary, not from websites: `av==17.1.0` (`requirements-lock.txt:11`), installed `av.__version__ = 17.1.0`, wheel `cp311-abi3-win_amd64`. All six bundled FFmpeg DLLs return `LGPL version 3 or later` verbatim from `avutil_license()`, `avcodec_license()`, `avformat_license()`, `swresample_license()`, `swscale_license()` and `avfilter_license()`, and all six report the identical configuration string (no `--enable-gpl`, no `--enable-nonfree`, but libx264/libx265 present). The authoritative licence answer is therefore **LGPL version 3 or later**; the flag/codec discrepancy is not resolvable from the binary and upstream build-documentation claims are labelled as such. `docs/THIRD_PARTY_NOTICES.md` was rewritten from these binary facts; source offer and replaceability remain **pending owner decision**. A drift test (`tests/packaging/test_third_party_notices_av_version.py`) pins the notice version to the lock. Windows runbook unsigned-build instructions and the ytdlp_log ffmpeg comment were corrected.
+
+
+## 2026-11-20 (round 5) — bundled DLL licences and PyAV dependency facts
+
+Binary/wheel facts: `av.libs` contains **25** DLLs, not 24. `av-17.1.0.dist-info/METADATA` states only PyAV's own `License-Expression: BSD-3-Clause` plus `License-File` entries; there is no per-DLL licence field and no licence text inside `av.libs/` or `av/`. Embedded DLL strings give `libav* license: LGPL version 3 or later` followed by `FFmpeg version 8.1.1`; `libx265` states `GPLv2 or commercial`; `libiconv` states LGPL in its VersionInfo comment. Upstream documentation (URLs in THIRD_PARTY_NOTICES.md) supplies the remaining licences: libx264 GPL v2, libx265 GPL v2-or-commercial, libmp3lame LGPL v2, libiconv LGPL v2.1+, the two GCC runtimes GPLv3 with Runtime Library Exception, and the rest permissive (BSD/MIT/Apache/zlib/winpthreads). Both GPL DLLs are LOAD-TIME imports of `avcodec-62` — always loaded, not lazy. Upstream pyav-ffmpeg 8.1.1-2 patches `configure` to move libx264/libx265 from the GPL list to the version3 list, which explains the LGPL v3+ string without `--enable-gpl`; patches are not echoed into the printed configuration. faster-whisper imports `av` at module scope (`faster_whisper/audio.py:15`), so av must be installed for `import faster_whisper` to work; our own Media decoder uses av lazily (`media_ingest/decoder.py:31,131,162,200`) and our ASR path accepts pre-decoded float32 (`worker/_transcribe.py:330`). No compliance claim made; source offer and replaceability **pending owner decision**.
+
+### PLUGIN-ARCH-3, A completed dictation cleared the prompt box by navigating (New chat), reloading the platform view every time
+**Status:** ✅ Fixed (2026-11-20, Orchestrator, verified live with real speech and the window in the BACKGROUND). Cause: after a delivered transcript `run.js` fires the async `clean` command, and `clean()` clicked the platform's "New chat" control — in-page navigation that reloads the platform view and discards the user's page state. A second, latent defect rode along: `content.js` carried TWO `clearComposer()` definitions (a dead sync one shadowed by the async one), and `ensureCleanComposer()` clicked New chat *before* trying to clear in place, so even the "dirty box" path navigated. Fix: ONE `clearComposer()` with a five-step ladder (`execCommand` select+delete, selectAll+delete, selectAll+insertText '', `innerHTML='<p><br></p>'` + input events, `textContent=''` + input events) and both `clean()` and `ensureCleanComposer()` try in place FIRST, New chat only as a fallback; `cancel()` also clears in place. The DOM strategies are the ones that matter in practice: `execCommand` silently does nothing when the tab does not own OS focus, and the dictation window is normally in the background while the user types in another app — measured live on Gemini (Quill `rich-textarea`): with the window focused the composer cleared at step 1, with another window focused it stayed dirty through the editing commands and cleared through the DOM path. Evidence (live, Chrome backgrounded): `POST /start` -> recording; SAPI speech -> `POST /stop` returned "background cleanup verification sentence"; 4 s later `/status` showed `has_text:false` with the URL still `https://gemini.google.com/app` (no navigation, no reload); `probe` all PASS. Pinned by `test/content_clean_in_place.test.js` (4 cases: in-place with no New chat click, unfocused DOM path, New chat fallback only when every strategy fails, already-empty no-op). Suite: node bridge 55 pass, `tests/plugins` + packaging 157 pass, `ruff check .` clean, `build-extension --check` up to date.
+**Description:** (owner report 2026-11-20) "the page is being reloaded after each dictation session is completed and the text is delivered, presumably to clear the prompt box ... clear the prompt input field programmatically without reloading the page."
+**User Impact:** Every dictation threw away the platform view (scroll position, open thread, in-progress draft) and looked like a page reload.
+**Root Cause:** `content.js::clean()` (and `ensureCleanComposer()`) used the New chat control as the clearing mechanism; the in-place clear was either shadowed by a duplicate definition or never tried first.
+**Related Files:** `tools/internal_plugins/_common/bridge/extension/content.js`, `tools/internal_plugins/_common/bridge/run.js` (async cleanup), `tools/internal_plugins/_common/bridge/test/content_clean_in_place.test.js`, `docs/code-notes/shared-stt-bridge.md`.
+**Fix:** in-place-first clearing with a focus-independent DOM ladder; navigation only as a last-resort fallback.
+**Severity:** 🟠 Medium (user-visible disruption every dictation)
 **Priority:** P1
 
-**TTS-1 addendum (2026-11-02, after owner testing):** three root causes found and one scope expansion.
-1. **Voice selection reached the model, but through a scrambled name table.** `service.py` posted `{"voice": "Sofia"}` — a bare name. `nemo-speech 0.3.0` resolves names through its own speaker table, and that table is out of order: its `--verbose` log records `voice="Sofia"` as `speaker=1`, `voice="Aria"` as `speaker=2`, `voice="John"` as `speaker=0`, while the pack's `*.nemo.speakers.json` (`speaker_map`) is `{Aria:0, Jason:1, John:2, Leo:3, Sofia:4}`. So `Sofia` spoke speaker 1 = Jason (male) — the reported failure. CLI byte-identity confirms the scramble (`--voice Sofia` == `--speaker 1`). A bare name is therefore accepted but wrong; the qualified `Magpie-Multilingual.EN-US.Sofia` was never tested against this runtime and is not needed. **Fix (done):** send the model's speaker index as a numeric string (`Aria "0", Jason "1", John "2", Leo "3", Sofia "4"`) via `wire_voice()`; a numeric string is taken as the index (`voice="4"` -> `speaker=4`) whereas a JSON *number* silently falls back to speaker 0. `SAMPLE_CACHE_VERSION` bumped 2 -> 3 (clips rendered through the name table are the wrong voice); regression tests pin the literal index payload, the runtime's resolved `speaker=N`, three distinct clips, and the `400` refusals for an unknown name / unadvertised language. Renders over HTTP are non-deterministic, so cross-render byte comparison only holds via the CLI `--seed` path.
-2. **Audio8's missing voice list is correct, not a bug.** Audio8-TTS-Realistic is 601M params (not 6.1B), a zero-shot **cloning** model with no preset speakers; `service.synthesize` deliberately drops voice/language for it. The UI must state that instead of silently hiding the control.
-3. **Magpie's real language set is 12** (ar, de, en, es, fr, **hi**, it, ja, ko, pt, vi, zh); the shipped catalogue has 11 and omits Hindi, with locale-tagged codes whose runtime acceptance is unverified.
-4. **Playback is synchronous** (`playback.py`: `sd.play(); sd.wait()` under a global lock), so `tts_speak` blocks for the whole clip — that is why the button shows "Generating…" during playback, and why there is no stop button. `stop_playback()` exists but is wired to nothing; nothing prewarms the TTS runtime at startup (`grep tts startup_*` → none), and there is no dedicated enable/disable setting.
 
-Scope expanded by the owner: icon-only play/stop control with distinct generate vs playback states, errors as user-facing toasts with a recovery action (details logs-only), a TTS enable/disable setting, a non-blocking startup prewarm, and six general UI/logging principles added to `AGENTS.md`.
+## 2026-11-20 (round 6) — decode-only claim narrowed; GGUF/noise dependency map
 
+Verified: every `av.open()` in app source is read-mode (decoder.py:40,135,167); zero `add_stream`/`OutputContainer`/`.mux(`/encoder contexts/`ffmpeg` subprocess calls in `voice_typer/**/*.py`. yt-dlp options (downloader.py:93-110, url_resolver.py:32/76-92, subtitles.py:34-43) request `bestaudio/best`, `skip_download`, no postprocessors, no `-x`/audio_format/merge_output_format/ffmpeg_location. Runtime trace of repo WAV fixture (pcm_s16le), temp mpeg4+aac MP4 and rawvideo AVI (created outside the repo with PyAV, NOT x264/x265, then deleted): every stream has `is_decoder=True`, `is_encoder=False`; `decode_chunks` ignores video and a video-only file raises `no_audio`. Verdict: PARTLY PROVEN — no code path opens libx264/libx265 (proven); the wheel still ships those DLLs as load-time imports of avcodec; stdlib `wave` writes PCM WAV in cloud/_transport.py:30, level_monitor/test_recording.py:203,212 and scripts/build/generate_beeps.py:109; live URL/YouTube behavior untested.
+Dependency map: `av` remains in S1-S4 (today; Whisper off CTranslate2; RNNoise removed; other noise removed) because pyproject.toml:112 declares it directly for decoder.py. Scenario closure removes faster-whisper+ctranslate2+setuptools in S2, +21 entries in S3, no further av requirer change in S4. Noise: DPDFNet (default) and GTCRN are bundled ONNX + onnxruntime, no av/audiolab; pyrnnoise imports audiolab.av -> av at import time (pyrnnoise/pyrnnoise.py:19-20), so removing RNNoise drops audiolab and its 17-entry closure but av survives via the direct declaration. transcribe.cpp (upstream documentation) accepts 16 kHz mono float32 raw samples in Python (`session.run(pcm_float32_16k_mono)`) and does NOT decode containers, so Media still needs a decoder.
+Read-only filesystem scan: Nuitka onefile cache `%LOCALAPPDATA%/lausu/onefile-tmp/av.libs` holds 25 DLLs, FFmpeg 8.1.2 build (different hashes from the locked 17.1.0 wheel's 8.1.1 DLLs); installed `%LOCALAPPDATA%/Voice Typer/` sidecar/worker show no av strings and no av.libs cache. No published-installer FFmpeg DLLs found.
+One doc fix: THIRD_PARTY_NOTICES.md sentence now reads `GPLv3 with the GCC Runtime Library Exception 3.1 for the two GCC runtimes`, matching the table. `pytest tests/packaging -q --no-cov` -> 3 passed.
+
+
+## 2026-11-20 (round 7) — GPL-DLL-free release planning; research only
+
+Owner decisions recorded, not reopened: replace PyAV decoder with subprocess of official LGPL-only ffmpeg; RNNoise stays; ~1 Jan 2027 release must contain no libx264/libx265/other GPL DLL; GGUF migration not guaranteed before release; yt-dlp stays.
+
+Verified: three av links into the installer — (1) our decoder.py:31,131,162,200 (only direct av imports under voice_typer/); (2) faster-whisper/audio.py:15 `import av` at module scope (only call-time uses at :37,46,87,92; our code has ZERO decode_audio calls, all transcribe paths pass np.ndarray), upstream 1.2.1 still requires av, no documented optional/release; (3) pyrnnoise/__init__.py:15 -> pyrnnoise/pyrnnoise.py:19-20 -> audiolab/av/__init__.py:17 `import av`; `import pyrnnoise.rnnoise` STILL triggers it via package __init__, but loading rnnoise.py by file path via find_spec bypasses it (probe: av/audiolab not in sys.modules, process_frame works). This also RESTORES RNNoise, which is currently broken in this venv (PyAV 17.1.0 removed av.option; audiolab 0.5.1 expects it) and silently degrades to GTCRN.
+Freeze facts: `--include-package=av` at build_sidecar_windows.sh:172, macos:175, linux:285; worker scripts already `--nofollow-import-to=pyrnnoise/audiolab` (windows:239-240, macos:241-242, linux:284-285); no --noinclude-dlls anywhere; freeze uses build-env site-packages (`$PY -m nuitka`), not requirements-lock.txt — CI installs `-e ".[dev,test]"` without the lock, so the 8.1.1-locked notice can drift from an 8.1.2-era build env. No build-time gate rejects x264/x265/avcodec today.
+Local ffmpeg 9.0.1 on this machine is GPL (`--enable-gpl --enable-libx264 --enable-libx265`, `ffmpeg -L` says GPLv3) — NOT a usable LGPL candidate. LGPL-only candidates (upstream documentation): BtbN FFmpeg-Builds LGPL win64/linux64/linuxarm64 with per-asset sha256; dfloresc macOS lgpl with SHA256SUMS; serversideup (decoder whitelist fails our formats); mt-mograph (no ffprobe). Throwaway parity prototype in TEMP (deleted): ffmpeg subprocess vs PyAV decode_chunks produced bit-exact output — 7 sources, max_abs_diff=0.0, identical chunk counts/shapes/dtype/sample counts, including 44.1 kHz stereo resample and -ss seek; no_audio and decode_failed classifications matched; truncated WAV decoded to 0.125 s and the existing validation gate rejects it.
+No code/dependency/lock/workflow changes. Source-offer and replaceability remain pending owner decisions; no legal conclusion.
+
+### PLUGIN-ARCH-4, Hotkey press steals focus (and may reveal a blank Chrome window): the profile "visibility" call shows/activates windows on every press
+**Status:** ✅ Fixed (worker implementation + orchestrator live verification; two follow-ups in Verified)
+**Description:** (owner report 2026-11-20) With the Gemini plugin selected, pressing the dictation hotkey in a Tauri/WebView target app drops the target app's active state immediately (taskbar shows nothing active, the app's own unfocused opacity kicks in), a THIRD Chrome window with a black surface appears, and at stop time the pasted text lands somewhere other than the field that was focused. Owner also reports that a field whose content already ends in a space still receives a second space.
+**User Impact:** Auto-paste is unreliable in Tauri/WebView targets (the main paste use case), the app looks broken while idle-dictating, and spacing duplications corrupt text.
+**Root Cause (partially verified by the Orchestrator; the worker must confirm each):**
+1. `_common/bridge/chrome_profile.py::set_window_visible()` enumerates EVERY top-level window of the recorded pid and calls `ShowWindow(hwnd, SW_SHOW)`. `SW_SHOW` **activates**, and the plugin calls this on every hotkey press (`plugin.py::_ensure_browser`). That is a focus thief in the dictation start path, plugin-only, and it explains why the paste (which targets the foreground window at paste time, C-PASTE-1 Option A) no longer reaches the original field.
+2. The same function shows ALL windows of that pid, including helper windows (`Chrome_WidgetWin_0`, `Base_PowerMessageWindow`, IME/CTF windows measured at 0x0 on the live instance) and any window Chrome created but never painted — the prime suspect for the blank window that appears exactly on the hotkey press and can be closed without consequence.
+3. The pid it trusts is whatever `Popen` returned, written to `<plugin>/chrome_pid.json`. Both plugins write that file for the SAME Chrome profile, and `anthropic_stt/chrome_pid.json` currently holds `4028`, which is a **dead** pid (the live dictation browser is `2300`) — a recycled pid would make `set_window_visible` show an unrelated process's window.
+4. Not yet verified: whether the Tauri **bubble** window (`src-tauri/tauri.conf.json` bubble: `visible:false`, `alwaysOnTop`, `skipTaskbar`, no `focus:false`/`focusable:false`) also activates on show. If it does, the focus theft affects every provider, not just plugins.
+5. Spacing case 3: the shared `delivery_text_for_target` DOES handle a trailing-space prefix (`verdict=trailing-space` -> no separator, lowercase first letter), so a doubled space means the caret read lost the trailing whitespace (providers trim block text) or the path bypasses the helper — the `[CLIPBOARD] delivery verdict=…` DEBUG line in `lausu.log` answers which.
+**Related Files:** `tools/internal_plugins/_common/bridge/chrome_profile.py` (`set_window_visible`, `_windows_for_pid`, `launch`, `_record_pid`), `tools/internal_plugins/*/plugin.py` (`_ensure_browser`), `tools/internal_plugins/_common/bridge/session.py`, `src-tauri/tauri.conf.json` (bubble window), `src-tauri/src/commands/bubble/*`, `voice_typer/server/clipboard_target_safety/caret_text.py`, `tools/internal_plugins/_common/delivery.py`, `voice_typer/server/dictation_pipeline/paste_step.py`, `voice_typer/server/clipboard/*`.
+**Fix:** never show/activate a window on the dictation path (hide-only at launch, `SW_SHOWNOACTIVATE` at most), identify the real browser window (class/title/rect + validated fresh pid, resolved via the profile in the command line), expire stale pid files, verify the bubble does not activate, add a bounded "restore the window captured at start" paste guard (owner request; conflicts with C-PASTE-1 Option A -> owner decision), and read the single character before the caret so trailing whitespace survives.
+**Verified (orchestrator, 2026-11-20):**
+- Spacing cases 1/2/3 proven LIVE in real Chrome inputs for English AND Arabic (verdicts `empty` / `needs-space` / `trailing-space`; field contents read back as `Dictated words`, `hello dictated words`, `hello dictated words` and the Arabic equivalents, exactly one U+0020 or none). `caret_text.py` reads the field's own `DocumentRange` first and rejects escaping blocks.
+- No window is shown or activated on a press: both `_ensure_browser` implementations only call `session.ensure_browser`; `set_window_visible` is hide-only there and uses `SW_SHOWNOACTIVATE` on a `Chrome_WidgetWin_1` frame; measured `GetForegroundWindow()` unchanged across a call; pid validation rejects a recycled pid (the owner's own Chrome fails `is_valid_browser_pid` for the dictation profile).
+- Bubble: `focus:false` + `focusable:false` plus `WS_EX_NOACTIVATE` on every show (`cargo test --bin lausu-tauri` 796 passed).
+- Suites: 378 passed / 1 skipped scoped python, 55/55 node, ruff clean, packaging 22 passed.
+- Follow-ups: (a) `_spans_document` skips its containment test for blocks <=256 chars, so a SMALL escaping block is still trusted when the field is non-empty (removing the gate breaks 8 pins that model a single-paragraph field where block == document; the real rule is control-type based, not size based); (b) `_is_browser_window` accepts a 48x48 zero-title `Chrome_WidgetWin_1` helper measured on live Chrome. The C-PASTE-1 narrowing (bounded restore of the start-time target) stays an owner decision.
+- Extension registration false FAIL fixed during this review: Chrome derives an unpacked id from the path SPELLING, so the live profile registers `flppnpcgilbgogcddcgahibcjdeflneb` while `install.json` still names `kkinik...`; `install_paths.py`/`install_paths.js` now match by PATH first (tested) and `verify_extension_install.py` reports the install healthy again.
+**Severity:** 🔴 High
+**Priority:** P0
+
+
+## 2026-11-20 (round 8) — implementation: RNNoise fix, ffmpeg subprocess decoder, Windows LGPL binary
+
+Part A: RNNoise now runs through our own minimal ctypes binding (`audio_filters/rnnoise_ctypes.py`), loading the native library from its package directory WITHOUT importing pyrnnoise/audiolab/av. Proof in this venv: `effective_method: rnnoise`, `is_degraded: False`, `pyrnnoise/audiolab/av in sys.modules: [False, False, False]`, input RMS 0.248421 -> output RMS 0.000634 (-51.86 dB). Missing library still falls back to GTCRN with one WARNING. Freeze scripts include the native library as data per platform.
+Part B: `media_ingest/decoder.py` now calls ffmpeg as a subprocess with argv `ffmpeg -hide_banner -loglevel error -nostdin -protocol_whitelist file|http,https,tcp,tls,crypto [-ss S] -i SRC -vn -map 0:a:0 -ac 1 -ar 16000 -c:a pcm_f32le -f f32le -`, bounded 64-line stderr tail, bounded stdout reads, 80,000-sample chunks, scoped cancel_event, terminate+reap on close/cancel/failure. Parity vs the retired PyAV reference: identical chunk counts/shapes/dtype/sample counts and max_abs_diff 0.0 (repo fixture, 44.1 kHz resample, 12 s, seek). yt-dlp now pins `fixup: "never"` because it auto-detects ffmpeg and would otherwise start FFmpegFixup postprocessors.
+Part C: pinned BtbN LGPL win64 static build, immutable tag `autobuild-2026-11-20-12-40`, SHA-256 `0322fe632c4f6e1fb92c3a3648e100fec702bf86792c4440b4dfda22f7b95b82`; manifest + verifying fetch script + 20 network-free tests. All 32 accepted extensions have decoders. Part D: Windows x64 full/slim Tauri configs declare ffmpeg/ffprobe externalBin; base/macOS/Linux unchanged. Part E: notices updated from verified facts.
+Verification: ruff clean on all touched Python; bash -n OK; combined scoped pytest 695 passed. `cargo check` passes with MSYS2 mingw64 bin on PATH. Full `tests/tauri` has 3 failures about `bubble_host_hidden` command parity from another workstream — not touched here. No workflow/lock/dependency edits, no commit/push.

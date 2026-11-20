@@ -83,7 +83,7 @@ nuitka --version
 The Phase 0-M gate requires this on BOTH Apple Silicon (`aarch64-apple-darwin`) and Intel (`x86_64-apple-darwin`). The build script `scripts/build/build_sidecar_macos.sh <arch>` handles the per-arch Nuitka invocation:
 
 ```bash
-# Apple Silicon build: run on a macos-14 (Apple Silicon) host.
+# Apple Silicon build: run on a macos-15 (Apple Silicon) host.
 scripts/build/build_sidecar_macos.sh aarch64
 # Expected output:
 #   [build_sidecar_macos] SUCCESS
@@ -92,7 +92,7 @@ scripts/build/build_sidecar_macos.sh aarch64
 #     Arch: aarch64 (triple aarch64-apple-darwin)
 #     File: .../python-sidecar-aarch64-apple-darwin: Mach-O 64-bit executable arm64
 
-# Intel build: run EITHER on a macos-13 (Intel) host, OR on an Apple Silicon
+# Intel build: run EITHER on a macos-15-intel (Intel) host, OR on an Apple Silicon
 # host with Rosetta 2 installed (the script auto-prepends `arch -x86_64` and
 # passes `--target-arch x86_64` to Nuitka).
 scripts/build/build_sidecar_macos.sh x86_64
@@ -130,7 +130,7 @@ kill $SIDECAR_PID
 
 **Common failures**:
 - `error: Rosetta 2 is not installed` (Apple Silicon building x86_64) → install with `softwareupdate --install-rosetta --agree-to-license`.
-- `error: cannot build aarch64 on an Intel host via Nuitka directly` → Intel hosts cannot build for Apple Silicon. Use a separate Apple Silicon host (macos-14 CI runner) and merge with `lipo` if you need a universal binary.
+- `error: cannot build aarch64 on an Intel host via Nuitka directly` → Intel hosts cannot build for Apple Silicon. Use a separate Apple Silicon host (macos-15 CI runner) and merge with `lipo` if you need a universal binary.
 - `ImportError: No module named 'pyobjc'` → add `--include-package=pyobjc` (already in the script). If sub-framework bridges fail, run the sidecar once in dev mode and watch for the missing pyobjc-framework-* package, then add `--include-package=pyobjc-framework-Cocoa` etc.
 - `dyld: Library not loaded: @rpath/libctranslate2.dylib` → the `--include-data-dir` glob for `ctranslate2/lib` failed. Verify `$SITE/ctranslate2/lib/` exists in the python-build-standalone install and contains `libctranslate2.dylib` + `libiomp5.dylib`.
 - `codesign failed: no identity` → set `MAC_SIGNING_IDENTITY="Developer ID Application: <name>"` env var, or accept ad-hoc signing for local dev.
@@ -152,7 +152,7 @@ kill $SIDECAR_PID
 Per ADR-0020 §5, the prewarm helper (entry point `voice_typer/server/prewarm/__main__.py` inside the `voice_typer/server/prewarm/` package) is frozen the same Nuitka way as the sidecar, into `prewarm-<triple>` But it is a `bundle.resource` (NOT `externalBin`) because it is launched by the macOS LaunchAgent, NOT spawned by Tauri as a managed child.
 
 ```bash
-# Apple Silicon prewarm build: run on a macos-14 (Apple Silicon) host.
+# Apple Silicon prewarm build: run on a macos-15 (Apple Silicon) host.
 scripts/build/build_prewarm_macos.sh aarch64
 # Expected output:
 #   [build_prewarm_macos] SUCCESS
@@ -161,7 +161,7 @@ scripts/build/build_prewarm_macos.sh aarch64
 #     Arch: aarch64 (triple aarch64-apple-darwin)
 #     File: .../prewarm-aarch64-apple-darwin: Mach-O 64-bit executable arm64
 
-# Intel prewarm build: run EITHER on a macos-13 (Intel) host, OR on an
+# Intel prewarm build: run EITHER on a macos-15-intel (Intel) host, OR on an
 # Apple Silicon host with Rosetta 2 installed.
 scripts/build/build_prewarm_macos.sh x86_64
 # Expected output:
@@ -540,6 +540,56 @@ pgrep -lf python-sidecar
 # Expected: no output (killed by kill_children)
 ```
 
+### Step 6.5b: Host hard-kill self-exit (C-HOST-1, BOTH arches)
+
+**VALIDATE ON MACOS HOST — extends the existing P0 "Windows/macOS host
+validation" gate in `review.md`.** Record the result under that gate in
+`worklog.md`; this is not a separate validation track.
+
+**Mechanism (already implemented — verify it, do not reimplement):** the
+Rust host attaches a kill-on-parent-exit binding to the spawned sidecar
+(macOS uses a detached POSIX reaper polling `kill -0 <parent_pid>` then
+SIGKILL — `src-tauri/src/platform/process/posix.rs`) and forwards its PID via
+`VOICE_TYPER_PARENT_PID` on every spawn path. The sidecar's host watch
+(`voice_typer/server/sidecar_ws_internals/host_watch.py`, built on the
+shared `voice_typer/server/parent_watch.py`) polls that PID every 5 s, runs
+`app.quit()`, and arms `FORCE_EXIT_GRACE_S = 30.0` as the outer bound; the
+worker runs its own parent-PID watch on the same env var.
+
+**Command:**
+
+1. Launch the app normally and note the host, sidecar and worker PIDs.
+2. Hard-kill **only** the Rust host with SIGKILL — not the window close /
+   Cmd+Q path:
+
+```bash
+kill -9 <HOST_PID>
+# SIGKILL (9) cannot be caught, blocked or ignored:
+# https://man7.org/linux/man-pages/man7/signal.7.html
+```
+
+3. Leave the children alone and poll them for up to 30 s:
+
+```bash
+pgrep -lf 'python-sidecar|voice_typer'
+# Expected after <=30s: no sidecar / worker process
+```
+
+**Expected / pass criteria:**
+- The sidecar and the worker exit on their own, well within the **30 s
+  force-exit grace** (`FORCE_EXIT_GRACE_S = 30.0`); no orphan keeps serving
+  hotkeys / dictation with no window and no menu-bar icon.
+- Either binding may win: the POSIX reaper SIGKILLs the child, or the
+  parent-PID watch logs `host process (pid=...) is gone: shutting down` and
+  quits gracefully. A missing watch log line is fine **if** the children are
+  already gone. The `os._exit(0)` guard at 30 s is a backstop, not the happy
+  path.
+- A second launch succeeds (no stale single-instance lock / no duplicate
+  sidecar).
+
+**Fail scenarios:** a child PID survives past 30 s → missing
+`VOICE_TYPER_PARENT_PID`, a failed `on_gone`, or a broken POSIX reaper.
+
 ---
 
 ### Step 6.6: Prewarm LaunchAgent (gate point 7, BOTH arches)
@@ -754,6 +804,42 @@ tail -20 "$HOME/Library/Application Support/lausu/logs/lausu.log" | grep -i bubb
 ```
 
 **Pass criteria**: All 6 `bubble_*` commands log their invocation. The bubble window appears + disappears at the right times. The bubble follows the cursor while dragging. Per ADR-0020 §9, `bubble_level` events are throttled (coalesced to ≤30Hz) so the log should NOT show more than 30 `bubble_*` events per second.
+
+#### Work-area clamp on drag-settle (C-WIN-2)
+
+**VALIDATE ON MACOS HOST — extends the existing P0 "Windows/macOS host
+validation" gate in `review.md`.** Record the result under that gate in
+`worklog.md`; this is not a separate validation track.
+
+**Mechanism (already implemented — verify it, do not reimplement):** on a
+drag-settled (or keyboard / resize / show) boundary the Rust host clamps the
+pill into `Monitor::work_area()` of the monitor holding its centre. On macOS
+that is `NSScreen.visibleFrame` — the screen area excluding the Dock and the
+menu bar, not the full `frame` — with the minimum move per axis.
+Sources: <https://developer.apple.com/documentation/appkit/nsscreen/visibleframe>,
+<https://developer.apple.com/documentation/appkit/nsscreen/frame>.
+
+**Command:**
+
+1. Start dictation so the pill is visible, then mouse-down on the pill.
+2. Drag it onto the Dock and release the pointer over it.
+3. Watch the position immediately on release. Repeat with a drag ending
+   fully below the Dock / off the bottom edge, and once onto the menu bar.
+
+**Expected / pass criteria:**
+- On pointer release the pill snaps back into the visible work area —
+  clear of the Dock and the menu bar, still grabbable. It is never left
+  beneath the Dock or under the menu bar for the rest of the session.
+- The clamp runs on release/settle, not continuously mid-drag: the window
+  follows the pointer while dragging.
+- With a second display, the clamp uses `visibleFrame` of the monitor
+  holding the pill's centre.
+
+**Fail scenarios:** the pill remains under the Dock (repainted over the
+always-on-top window) or vanishes → the clamp used full `frame` bounds or the
+wrong monitor; check the `Monitor::work_area()` use in the bubble window
+code. An auto-hiding Dock still reserves a small boundary area in
+`visibleFrame` — snapping above that is the expected behavior, not a bug.
 
 **Common failures**:
 - `invoke('bubble_show') returns "window not found"` → the bubble window label is missing from `tauri.conf.json`'s `app.windows` array. Verify the label `"bubble"` exists.
@@ -1027,7 +1113,7 @@ echo "Wrote $REPORT"
 ## Apple Silicon specific notes
 
 - **Rosetta 2 for x86_64 builds**: An Apple Silicon host can build x86_64 binaries via Rosetta 2 (`arch -x86_64` prefix). The `build_sidecar_macos.sh`, `build_prewarm_macos.sh`, and `build_native_listener_macos.sh` scripts auto-detect this and prepend the prefix when the host is `arm64` and the target arch is `x86_64`. Install Rosetta 2 with `softwareupdate --install-rosetta --agree-to-license`.
-- **Intel hosts cannot build aarch64 via Nuitka**: Nuitka has no `--target-arch arm64` flag on Intel macOS. To produce an aarch64 binary, run `build_sidecar_macos.sh aarch64` (or `build_prewarm_macos.sh aarch64`) on a separate Apple Silicon host (macos-14 CI runner).
+- **Intel hosts cannot build aarch64 via Nuitka**: Nuitka has no `--target-arch arm64` flag on Intel macOS. To produce an aarch64 binary, run `build_sidecar_macos.sh aarch64` (or `build_prewarm_macos.sh aarch64`) on a separate Apple Silicon host (macos-15 CI runner).
 - **Universal binary via `lipo`**: After building both arches separately, merge into a single universal binary. The `build_native_listener_macos.sh --universal` flag does this for the Swift listener. For the sidecar + prewarm, Nuitka cannot produce a universal binary directly, but Tauri's `externalBin` mechanism selects the right per-arch binary at runtime via `std::env::consts::ARCH`, so a universal binary is NOT required. Example for the native listener:
   ```bash
   lipo -create \

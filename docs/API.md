@@ -49,7 +49,7 @@ row matches the actual `Config` default: if you change a default in
 |-----|------|---------|-------------|
 | `recording_mode` | `str` | `"toggle"` | One of: `toggle`, `push_to_talk`. |
 | `model_size` | `str` | `""` | Model name (one of `ALLOWED_USER_MODELS` The catalog: `tiny`, `large-v3`, `large-v3-turbo`, `parakeet`, `qwen`), or `""` for the genuine "no model selected" state (`NO_MODEL_SIZE` The app loads nothing until the user picks a model). Default comes from `DEFAULT_MODEL_SIZE` in `model_registry.py`. |
-| `language` | `str` | `"en"` | ISO-639-1 language code for transcription (e.g. `"en"`, `"fr"`, `"de"`). |
+| `language` | `str` | `""` | ISO-639-1 spoken-language code pinned for the decode (`"en"`, `"fr"`, `"ar"`). Empty string = Auto: the model detects the language itself. A pinned language the selected model does not declare is refused before recording (`<model> does not support <language>.`). |
 | `paste_on_stop` | `bool` | `True` | Whether to auto-paste transcribed text when recording stops. |
 | `log_transcriptions` | `bool` | `False` | Whether to log transcription text (privacy-sensitive, see SEC-009). |
 | `silence_warning_seconds` | `float` | `20.0` | Seconds of silence before the silence-warning tray notification fires. |

@@ -223,6 +223,13 @@ body.compare #compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-
 .btn-secondary{background:var(--muted);color:var(--foreground)}
 .btn-secondary:hover{background:color-mix(in oklch,var(--muted),var(--foreground) 5%)}
 .btn-outline{border-color:color-mix(in oklch,var(--border) 8%,transparent);background:var(--background)}
+/* ActionButtonsGroup: the GROUP owns surface + radius, members are bare. */
+.btn-group{display:flex;align-items:stretch;overflow:hidden;border-radius:var(--radius-lg);
+ border:1px solid color-mix(in oklch,var(--border) 8%,transparent);
+ background:color-mix(in oklch,var(--border) 5%,transparent)}
+.btn-group>*:not(:first-child){border-left:1px solid color-mix(in oklch,var(--border) 8%,transparent)}
+.btn-group>.btn{border:0;border-radius:0;background:transparent}
+.btn-group>.btn:hover{background:color-mix(in oklch,var(--border) 8%,transparent)}
 .btn-outline:hover{background:var(--muted);color:var(--foreground)}
 :is(.dark,.tokens-dark) .btn-outline{background:transparent}
 :is(.dark,.tokens-dark) .btn-outline:hover{background:color-mix(in oklch,var(--input) 30%,transparent)}
@@ -299,7 +306,7 @@ body.compare #compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-
 .checkbox:has(input:focus-visible){border-color:var(--ring);box-shadow:0 0 0 1px var(--ring);outline:none}
 .checkbox:has(input:disabled){opacity:.5;pointer-events:none}
 /* ── Keycaps (Kbd / HotkeyChips — gap only, NEVER a "+" separator) ── */
-kbd{display:inline-block;border:1px solid color-mix(in oklch,var(--border) 15%,transparent);
+kbd{display:inline-block;border:1px solid color-mix(in oklch,var(--border) 30%,transparent);
  background:var(--surface-subtle);color:var(--foreground);border-radius:var(--radius-lg);
  padding:4px 8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
  font-size:.75rem;line-height:1.2}
@@ -443,6 +450,7 @@ kbd.in-tooltip{background:color-mix(in oklch,var(--foreground) 10%,transparent);
 .glow-demo::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
  opacity:.5;box-shadow:0 0 32px color-mix(in oklch,var(--primary) 40%,transparent);
  animation:glowPulse 2.5s ease-in-out infinite}
+.glow-demo-destructive::after{box-shadow:0 0 32px color-mix(in oklch,var(--destructive) 40%,transparent)}
 @media (prefers-reduced-motion:reduce){
  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
   transition-duration:.01ms!important;scroll-behavior:auto!important}}
@@ -532,7 +540,7 @@ const GROUPS=[
 ["Surfaces",[
 ["--background","oklch(1 0 0)","oklch(0.187 0 271.152)","Page canvas (merges old --bg / --surface-page)"],
 ["--surface","oklch(1 0 0)","oklch(0.22 0 0)","Raised panels: dialogs, popovers, active nav (merges --surface / --surface)"],
-["--surface-subtle","oklch(0.967 0.001 286.375)","oklch(0.168 0 0)","Quiet zones: cards, nav rail, keycaps, skeletons (was --surface-subtle)"],
+["--surface-subtle","oklch(0.967 0.001 286.375)","oklch(0.168 0 0)","Quiet zones: cards, nav rail, skeletons (was --surface-subtle; keycaps use their own plate)"],
 ["--surface-hover","oklch(0.93 0 0)","oklch(0.22 0 0)","Row/list hover fill"],
 ["--muted","oklch(0.967 0.001 286.375)","oklch(0.274 0.006 286.033)","Neutral fill: secondary button, ghost hover (merges --muted)"]
 ]],
@@ -549,7 +557,7 @@ const GROUPS=[
 ["--accent-muted","oklch(0.546 0.245 262.881 / 0.4)","oklch(0.546 0.245 262.881 / 0.6)","Stronger brand wash"],
 ["--ring","oklch(0.488 0.243 264.376)","oklch(0.552 0.016 285.938)","Focus ring: ring-1, full opacity (C-FOCUS-2/5)"],
 ["--input","oklch(0.62 0.004 286.32)","oklch(0.52 0.004 286.32)","Input fills, switch track"],
-["--border","oklch(0 0 0)","oklch(1 0 0)","Pure b/w; consumers add alpha (/8 default, /10 toasts + active nav, /15 keycaps)"],
+["--border","oklch(0 0 0)","oklch(1 0 0)","Pure b/w; consumers add alpha (/8 default, /10 toasts + active nav, /30 keycaps, /15 checkboxes)"],
 ]],
 ["Status",[
 ["--success","oklch(0.62 0.17 149)","oklch(0.7 0.16 149)","bg-success, toast icons"],
@@ -614,7 +622,8 @@ function renderRadius(){
  const borders=[[ "/5","color-mix(in oklch,var(--border) 5%,transparent)","control FILLS only (bg-border/5) — never a border"],
   ["/8","color-mix(in oklch,var(--border) 8%,transparent)","DEFAULT: cards, panels, dividers, chips, dialogs, track borders"],
   ["/10","color-mix(in oklch,var(--border) 10%,transparent)","exceptions: toasts, active sidebar row"],
-  ["/15","color-mix(in oklch,var(--border) 15%,transparent)","keycaps, checkboxes"]]
+  ["/15","color-mix(in oklch,var(--border) 15%,transparent)","checkboxes"],
+  ["/30","color-mix(in oklch,var(--border) 30%,transparent)","keycaps"]]
   .map(([n,v,use])=>`<div class="border-swatch" style="border:1px solid ${v}">border-border${n} · ${use}</div>`).join("");
  const comparison=`<div class="radius-comparison" aria-label="Round and squircle corner comparison">
   <div><span class="radius-comparison-box" data-corner-shape="round"></span><strong>Round</strong></div>
@@ -622,7 +631,7 @@ function renderRadius(){
  </div>`;
  return sec(`<h2>Radius & borders</h2><p>STANDARDIZED: every non-circular control and panel uses <code>rounded-lg</code> (10px, <code>--radius: 0.625rem</code>),
   including buttons and inputs. Naturally circular elements (radio, switch, pills, icon discs) keep <code>rounded-full</code>; the 16px checkbox keeps <code>rounded-sm</code>.
-  Supported engines use the <code>--corner-shape</code> superellipse curve; other engines keep round corners. Border token is pure black/white — alpha always comes from the consumer, never the token. Weight is a fixed scale by ROLE (C-DESIGN-2): <strong>8%</strong> default (cards, panels, dividers, chips, dialogs, control-track borders) · <strong>10%</strong> toasts + the active sidebar row · <strong>15%</strong> keycaps/checkboxes · <strong>20%</strong> dashed frames; <strong>5% is a FILL only</strong> (<code>bg-border/5</code> buttons, <code>bg-border/10</code> tracks).</p>`,
+  Supported engines use the <code>--corner-shape</code> superellipse curve; other engines keep round corners. Border token is pure black/white — alpha always comes from the consumer, never the token. Weight is a fixed scale by ROLE (C-DESIGN-2): <strong>8%</strong> default (cards, panels, dividers, chips, dialogs, control-track borders) · <strong>10%</strong> toasts + the active sidebar row · <strong>30%</strong> keycaps · <strong>15%</strong> checkboxes · <strong>20%</strong> dashed frames; <strong>5% is a FILL only</strong> (<code>bg-border/5</code> buttons, <code>bg-border/10</code> tracks).</p>`,
  `<div class="radius-grid">${boxes}</div>${comparison}<div class="borders">${borders}</div>`);
 }
 function renderButtons(){
@@ -637,9 +646,12 @@ function renderButtons(){
  const states=`<button type="button" class="btn btn-default" disabled>Disabled</button>
   <button type="button" class="btn btn-outline" tabindex="0">Tab to focus me</button>
   <button type="button" class="btn btn-clearall"><span class="glyph">✕</span>Clear All</button>`;
+ // Joined pair: one surface, hairline divider, no gap (Home's refresh + share).
+ const grouped=`<div class="btn-group"><button type="button" class="btn btn-icon" aria-label="Refresh">⟳</button><button type="button" class="btn btn-icon" aria-label="Share">↗</button></div>`;
  return sec(`<h2>Buttons</h2><p><code>rounded-lg</code> (10px — standardized with every other control), <code>text-sm font-medium</code>, full-opacity <code>ring-1</code> focus (C-FOCUS-2/5).
-  <code>Clear All</code> follows C-UI-9: muted at rest → solid destructive on hover (hover it).</p>`,
- `<div class="stack"><div class="row">${v}</div><div class="row">${sizes}</div><div class="row">${states}</div></div>`);
+  <code>Clear All</code> follows C-UI-9: muted at rest → solid destructive on hover (hover it).
+  A joined pair is one <code>ActionButtonsGroup</code>: the group carries border + fill + radius, its members are bare and a hairline divides them.</p>`,
+ `<div class="stack"><div class="row">${v}</div><div class="row">${sizes}</div><div class="row">${states}</div><div class="row">${grouped}</div></div>`);
 }
 function renderForms(){
  return sec(`<h2>Form controls</h2><p>Input: <code>h-8 rounded-lg bg-border/10</code>, placeholder = <code>--muted-foreground</code>.
@@ -683,7 +695,7 @@ function renderForms(){
 function renderKeycaps(){
  const chip=(keys)=>keys.split(" ").map(k=>`<kbd>${k}</kbd>`).join("");
  return sec(`<h2>Keycaps & hotkeys</h2><p><code>Kbd</code>/<code>KbdGroup</code> (components/common/Kbd.tsx): chips sit in a <code>gap-1</code> flex row —
-  never a <code>+</code> separator (C-UI-1/C-UI-8). Alternatives use a muted <code>/</code>. Tooltip variant swaps to foreground/10.</p>`,
+  never a <code>+</code> separator (C-UI-1/C-UI-8). Alternatives use a muted <code>/</code>. The plate is GLOBAL via the shared <code>KBD_CHIP_CLASSES</code> base: <code>bg-neutral-100</code> in light, <code>dark:bg-black</code> in dark, <code>border-border/30</code>, <code>text-foreground</code>, <code>font-mono text-xs px-2 py-0.5 rounded-md</code>. Every consumer inherits it — <code>Kbd</code>, <code>HotkeyChips</code>, and <code>TemplateDialog</code> (which composes <code>KBD_CHIP_CLASSES</code> directly). No tooltip-context-only variant exists.</p>`,
  `<div class="stack">
   <div class="row" style="gap:24px">
    <span class="row">${chip("Ctrl H")}</span>
@@ -694,6 +706,22 @@ function renderKeycaps(){
    <span class="row"><kbd>,</kbd><kbd>.</kbd><kbd>'</kbd> <span class="note">voice punctuation (<code>&lt;Kbd as="code"&gt;</code>)</span></span>
   </div>
  </div>`);
+}
+function renderOwnerVariants(){
+  const badge=(label,cls)=>`<span class="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-none ${cls}">${label}</span>`;
+  return sec(`<h2>Owner variants — badge hues &amp; Debug Panel</h2><p>
+   <code>components/layout/PluginsNewBadge.tsx</code> renders the sidebar's "New" marker. Recipe: full-opacity token label,
+   a 15% wash of the SAME hue, a 30% border of that hue, own padding — <strong>no <code>opacity-*</code> on the chip</strong>.
+   Hues: <code>primary</code> (brand accent), <code>destructive</code> (red), <code>success</code> (emerald-family green).
+   <strong>Active default: <code>green</code></strong>, chosen by the owner. The hue is driven by the Debug Panel through
+   <code>useDebugPrefs</code>; dismissal is still owned by <code>usePluginsNewBadge</code>, and <code>data-testid="nav-new-badge"</code> is stable.</p>`,
+  `<div class="row" style="gap:12px">${badge("New","border-primary/30 bg-primary/15 text-primary")}${badge("New","border-destructive/30 bg-destructive/15 text-destructive")}${badge("New","border-success/30 bg-success/15 text-success")}</div>
+  <p><code>components/debug/DebugPanel.tsx</code> is a deliberately hidden owner sandbox, mounted once in <code>App.tsx</code>,
+   with two live switches (Today's stats layout: <code>separated</code>/<code>joined</code>; Plugins badge color: <code>red</code>/<code>green</code>/<code>primary</code>)
+   and a Reset to shipped defaults. <strong>It is INVISIBLE BY DEFAULT</strong> — neither <code>developer_mode</code> nor a dev build reveals it.
+   Exact reveal mechanism: set <code>localStorage["lausu-ui-debug-panel-visible"] = "1"</code> (key exported as <code>DEBUG_PANEL_VISIBLE_KEY</code> from
+   <code>hooks/useDebugPrefs.ts</code>). grep key: <code>DEBUG_PANEL_VISIBLE_KEY</code>.
+   A future session adds an exploration by extending <code>useDebugPrefs</code> with one preference + one <code>ChoiceRow</code> in the panel, then revealing it with that key.</p>`);
 }
 function seg(id,labels,active){
  return `<div class="seg" role="radiogroup" aria-label="Demo segmented control" data-seg>
@@ -814,14 +842,15 @@ function renderMotion(){
   ["fadeIn","animate-fade-in","180ms ease-out","In-place content swap","anim-fade-in"],
   ["scaleIn","animate-scale-in","160ms cubic-bezier(.16,1,.3,1)","Modal/dialog enter","anim-scale-in"],
   ["slideUp","animate-slide-up","220ms cubic-bezier(.16,1,.3,1)","Snackbar slide-up","anim-fade-in"],
-  ["glowPulse","animate-glow-pulse","2.5s ease-in-out infinite","Mic idle glow in brand accent (compositor-only)","glow-demo"],
+  ["glowPulse","animate-glow-pulse / -destructive","2.5s ease-in-out infinite","Mic glow: brand accent while idle, destructive while recording (compositor-only)","glow-demo"],
   ["pulse / skeleton","animate-pulse","2s ease-in-out infinite","Skeleton shimmer",""]
  ].map(([name,cls,meta,why,extra])=>`<div class="motion-item">
   <span class="m-name">${name}</span><span class="m-meta">${cls} · ${meta}</span>
   <span class="m-box ${extra} ${cls.startsWith("anim")?cls:""}" style="${extra==="glow-demo"?"border-radius:9999px":""}">demo</span>
   <span class="m-why">${why}</span></div>`).join("");
- return sec(`<h2>Motion</h2><p>Also: <code>press-scale</code> (active → scale .95), <code>bubbleEnter/Exit</code>, <code>pulseRing</code> (1.8s recording ring),
-  collapsible up/down for the Settings submenu. <code>prefers-reduced-motion</code> collapses every animation to 0.01ms app-wide.</p>`,
+ return sec(`<h2>Motion</h2><p>Also: <code>press-scale</code> (active → scale .95), <code>bubbleEnter/Exit</code>,
+  collapsible up/down for the Settings submenu. The record button changes fill + glow colour between states and
+  has no expanding ring. <code>prefers-reduced-motion</code> collapses every animation to 0.01ms app-wide.</p>`,
  `<div class="motion-grid">${items}</div>`);
 }
 const PRESETS=[["default","var(--primary)"],["amoled","oklch(0 0 0)"],["nord","oklch(0.5 0.06 240)"],
@@ -843,7 +872,7 @@ function renderFooter(){
 }
 const SECTIONS=mode=>[
  renderTokens(mode),renderTypography(),renderRadius(),renderButtons(),renderForms(),
- renderKeycaps(),renderSegmented(),renderCards(),renderNav(),renderStatus(),renderDialog(),
+ renderKeycaps(),renderOwnerVariants(),renderSegmented(),renderCards(),renderNav(),renderStatus(),renderDialog(),
  renderFocus(),renderMotion(),renderPresets(),renderFooter()
 ].join("");
 let mode="light";

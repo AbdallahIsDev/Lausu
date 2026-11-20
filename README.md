@@ -778,4 +778,10 @@ Actively maintained. Uses proper type checking via Pyrefly. Cross-platform, stan
 
 ## License
 
-MIT
+**Source-available** software. Lausu is licensed under the
+[PolyForm Strict License 1.0.0](LICENSE) (`LicenseRef-PolyForm-Strict-1.0.0`),
+Copyright 2026 Abdallah IsDev. The full text, including the required
+notice, is in [`LICENSE`](LICENSE). Redistribution and derivative
+distribution are not permitted by these terms. Bundled third-party
+components keep their own licenses, listed in
+[Third-Party Notices](docs/THIRD_PARTY_NOTICES.md).

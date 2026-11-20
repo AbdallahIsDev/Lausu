@@ -89,6 +89,7 @@ renderer copy in `pages/media/lib/mediaErrorCopy.ts`.
 | `decode_failed` | The container/stream opened but no audio frames could be decoded. |
 | `media_too_short` | The decoded audio is under `MIN_MEDIA_SECONDS` (1.0 s): nothing was persisted, nothing reported as success. |
 | `media_truncated` | The decoder read less than the expected duration beyond tolerance (`max(2.0 s, expected × 10%)`): the ingest is refused instead of persisting a partial-looking success. |
+| `model_language_unsupported` | The pinned spoken language (`config.language`) is outside the active model's declared language list, e.g. Parakeet Ultra (25 European languages) with Arabic. Refused at job start, before any download or decode: a model that cannot speak the language would return junk, and the fix is choosing a model that declares it (`<model> does not support <language>.`). |
 | `multi_item_url` | The link expands to more than one playable item (carousel / playlist / gallery). Global rule, not per site; the message names the count and the renderer interpolates it from `details.count`. |
 | `no_media_url` | The URL is not media and has no web page result either (the extractor's raw text stays at DEBUG, never in the IPC message). |
 | `unsupported_live` | Live streams are out of scope (no finish line, no duration). |

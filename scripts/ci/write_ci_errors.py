@@ -33,12 +33,17 @@ written even when the tests themselves fail.
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 OUTPUT = Path(__file__).resolve().parents[2] / "CI-errors.md"
+
+# A cited source frame, e.g. ``tests/test_x.py:12``. Other location strings
+# ("(unknown location)", collection-error text) are not checkable and pass.
+_CITED_LOCATION_RE = re.compile(r"^(?P<path>[\w\-./\\]+\.py):(?P<line>\d+)$")
 
 # Characters illegal in XML 1.0 (https://www.w3.org/TR/xml/#charsets).
 # Everything outside these ranges must go before handing text to a
@@ -212,6 +217,43 @@ def _trim_body(body: str) -> str:
     return trimmed or "(no message)"
 
 
+def _source_sha() -> str:
+    """Commit the report was generated against, stamped for honest baselines."""
+    return os.environ.get("GITHUB_SHA", "").strip() or "unknown"
+
+
+def _location_is_current(location: str, repo_root: Path) -> bool:
+    """A cited file:line is current only if the file exists and that line has code."""
+    match = _CITED_LOCATION_RE.match(location.strip())
+    if match is None:
+        return True
+    path = repo_root / match.group("path").replace("\\", "/")
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return False
+    line_no = int(match.group("line"))
+    return 1 <= line_no <= len(lines) and bool(lines[line_no - 1].strip())
+
+
+def _header_lines() -> list[str]:
+    return [
+        "# CI Errors",
+        "",
+        "> Auto-generated from the latest GitHub Actions run via "
+        "`scripts/ci/write_ci_errors.py`. Do not edit by hand, it is "
+        "overwritten on every CI run.",
+        f"> Source SHA: `{_source_sha()}`",
+        "",
+    ]
+
+
+def _write_output(lines: list[str]) -> None:
+    # Explicit LF bytes: write_text() translates "\n" to CRLF on Windows,
+    # which the mixed-line-ending pre-commit hook then flags.
+    OUTPUT.write_bytes(("\n".join(lines).rstrip() + "\n").encode("utf-8"))
+
+
 def main(argv: list[str]) -> int:
     # Group by (class, test): one entry per failing test, legs listed.
     grouped: dict[tuple[str, str], dict] = {}
@@ -239,51 +281,54 @@ def main(argv: list[str]) -> int:
                 entry["location"] = location
                 entry["body"] = body
 
+    # A JUnit report can outlive the code it describes. Drop entries whose
+    # cited line no longer exists so a fixed failure is never presented as
+    # a current one, and record what was dropped for auditability.
+    repo_root = OUTPUT.parent
+    stale: list[str] = []
+    for key in list(order):
+        entry = grouped[key]
+        if _location_is_current(entry["location"], repo_root):
+            continue
+        classname, test_name = key
+        title = f"{classname}.{test_name}" if classname.strip() else test_name
+        stale.append(f"{title} @ {entry['location']}")
+        del grouped[key]
+        order.remove(key)
+    if stale:
+        notes.append("Stale entries dropped (cited file:line no longer in source): " + ", ".join(stale))
+
     if not grouped:
         if files_checked == 0:
-            lines = [
-                "# CI Errors",
-                "",
-                "> Auto-generated from the latest GitHub Actions run via "
-                "`scripts/ci/write_ci_errors.py`. Do not edit by hand, it is "
-                "overwritten on every CI run.",
-                "",
+            lines = _header_lines() + [
                 "NO TEST DATA — tests did not run or report. (0 JUnit files checked; this is not a green run.)",
                 "",
             ]
             if notes:
-                lines += ["Degraded inputs (no failures lost, files were empty):", ""]
+                lines += ["Notes:", ""]
                 lines += [f"- {note}" for note in notes] + [""]
-            OUTPUT.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+            _write_output(lines)
             print("CI-errors.md: no test data (0 junit files checked)")
             return 0
-        lines = [
-            "# CI Errors",
-            "",
-            "> Auto-generated from the latest GitHub Actions run via "
-            "`scripts/ci/write_ci_errors.py`. Do not edit by hand, it is "
-            "overwritten on every CI run.",
-            "",
-            f"No test failures in the latest CI run. ✅ ({files_checked} JUnit files checked)",
+        lines = _header_lines() + [
+            (
+                "No current test failures after dropping stale entries (see notes)."
+                if any(note.startswith("Stale entries dropped") for note in notes)
+                else f"No test failures in the latest CI run. ✅ ({files_checked} JUnit files checked)"
+            ),
             "",
         ]
         if notes:
-            lines += ["Degraded inputs (no failures lost, files were empty):", ""]
+            lines += ["Notes:", ""]
             lines += [f"- {note}" for note in notes] + [""]
-        OUTPUT.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+        _write_output(lines)
         print(f"CI-errors.md: no failures ({files_checked} junit files checked)")
         return 0
 
     total_legs: set[str] = set()
     for key in order:
         total_legs.update(grouped[key]["legs"])
-    lines = [
-        "# CI Errors",
-        "",
-        "> Auto-generated from the latest GitHub Actions run via "
-        "`scripts/ci/write_ci_errors.py`. Do not edit by hand, it is "
-        "overwritten on every CI run.",
-        "",
+    lines = _header_lines() + [
         f"**{len(order)} failing/errored tests** across {len(total_legs)} matrix legs.",
         "",
     ]
@@ -309,7 +354,7 @@ def main(argv: list[str]) -> int:
             "",
         ]
 
-    OUTPUT.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    _write_output(lines)
     print(f"CI-errors.md: wrote {len(order)} failures from {files_checked} files")
     return 0
 

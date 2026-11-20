@@ -2124,16 +2124,6 @@
    ]
   },
   {
-   "id": "storybook",
-   "name": "Storybook",
-   "icon": "logos:storybook-icon",
-   "tags": [
-    "dev",
-    "frontend"
-   ],
-   "knock": true
-  },
-  {
    "id": "gsap",
    "name": "GSAP",
    "icon": "logos:gsap",
@@ -8806,12 +8796,6 @@
    0,
    255.996,
    159.058
-  ],
-  "logos:storybook-icon": [
-   0,
-   0,
-   255.497,
-   318.323
   ],
   "logos:gsap": [
    0,

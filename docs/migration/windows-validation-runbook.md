@@ -980,6 +980,60 @@ Expected (in `sidecar.log`):
   `kill_children` backstop should handle this; if not, the
   `native_hotkeys/` package exit handler needs fixing.
 
+### §6.6b Host hard-kill self-exit (C-HOST-1)
+
+**VALIDATE ON WINDOWS HOST — extends the existing P0 "Windows/macOS host
+validation" gate in `review.md`.** Record the result under that gate in
+`worklog.md`; this is not a separate validation track.
+
+**Mechanism (already implemented — verify it, do not reimplement):** the
+Rust host attaches a Windows Job Object with
+`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` to the spawned sidecar
+(`src-tauri/src/platform/process/windows.rs`) and forwards its PID via
+`VOICE_TYPER_PARENT_PID` on every spawn path. The sidecar's host watch
+(`voice_typer/server/sidecar_ws_internals/host_watch.py`, built on the
+shared `voice_typer/server/parent_watch.py`) polls that PID every 5 s, runs
+the ordinary `app.quit()` teardown, and arms `FORCE_EXIT_GRACE_S = 30.0` as
+the outer bound; the worker runs its own parent-PID watch on the same env
+var.
+
+**Command:**
+
+1. Launch the app normally and note the host, sidecar and worker PIDs.
+2. Hard-kill **only** the Rust host — do NOT use the window-close or tray
+   quit path:
+
+```powershell
+taskkill /F /PID <HOST_PID>
+```
+
+3. Leave the children alone and poll them for up to 30 s:
+
+```powershell
+tasklist | findstr /I "python-sidecar lausu"
+```
+
+**Expected / pass criteria:**
+- The sidecar and the worker exit on their own, well within the **30 s
+  force-exit grace** (`FORCE_EXIT_GRACE_S = 30.0`). No orphan keeps serving
+  hotkeys / the Chrome bridge / dictation with no window and no tray icon.
+- Either liveness binding may win the race: the Job Object
+  (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) kills children when the host dies,
+  or the parent-PID watch logs `host process (pid=...) is gone: shutting
+  down` at WARNING and quits gracefully. A missing watch log line is fine
+  **if** the children are already gone. If the guard fires, `sidecar.log`
+  shows `still alive 30.0s after host loss, calling os._exit(0)` — a pass
+  only if the process is then gone; the guard is a backstop, not the happy
+  path.
+- A second launch succeeds (no stale single-instance lock / no duplicate
+  sidecar).
+
+**Fail scenarios:** a sidecar or worker PID survives past 30 s → the
+parent-PID watch never started (missing `VOICE_TYPER_PARENT_PID`) or its
+`on_gone` handler failed; also check the Job Object attach path. On Windows,
+`taskkill /F` (force) is required — a cooperative close would exercise
+§6.6, not this path.
+
 ### §6.7 Prewarm `LogonTrigger` — HISTORICAL, DO NOT RUN
 
 > **HISTORICAL — the binary this section registers no longer exists.**
@@ -1176,16 +1230,13 @@ NSIS installer after `cargo tauri build`.
 - `signtool.exe` (bundled with Windows SDK; installed with VS Build
   Tools §0.3).
 
-> **Unsigned local builds still need `signtool.exe` on PATH.**
-> ``tauri.conf.json`` sets ``bundle.windows.signCommand``
-> (``scripts/tauri-sign.cmd``), and Tauri's NSIS bundler locates
-> ``signtool.exe`` on PATH *before* invoking the wrapper, even when no
-> cert is configured: so on a host without the Windows SDK the bundle
-> step fails with ``failed to bundle project: SignTool not found``. On
-> such a host, either install the SDK signing tools, or temporarily
-> remove ``signCommand`` from ``tauri.conf.json`` for the unsigned
-> local build (CI's windows-2022 image has signtool preinstalled, so
-> the workflow is unaffected).
+> **Unsigned local builds do not need `signtool.exe`.**
+> `src-tauri/tauri.conf.json:136` sets `bundle.windows.signCommand` to
+> `null`, so a plain `cargo tauri build` has no custom sign command and
+> the NSIS bundler never searches for `signtool.exe`. The SDK requirement
+> applies only when the signed overlay `tauri.windows-signed.json` is
+> applied on signed CI legs. Nothing needs to be removed from the base
+> config for an unsigned build.
 
 ### §7.1 Set up the cert (skip if you already have one)
 
@@ -1582,6 +1633,39 @@ prevent disk fill, only `DEBUG`-level or suppressed entirely).
   `main.rs`.
 - `bubble_level` spam in `sidecar.log` → the §11 exclusion isn't
   applied; fix `log.py` to drop `bubble_level` from the file handler.
+
+#### Work-area clamp on drag-settle (C-WIN-2)
+
+**VALIDATE ON WINDOWS HOST — extends the existing P0 "Windows/macOS host
+validation" gate in `review.md`.** Record the result under that gate in
+`worklog.md`; this is not a separate validation track.
+
+**Mechanism (already implemented — verify it, do not reimplement):** on a
+drag-settled (or keyboard / resize / show) boundary the Rust host clamps the
+pill into `Monitor::work_area()` of the monitor holding its centre. On
+Windows that is `MONITORINFO.rcWork` — the display area minus the taskbar,
+not the full-screen rect — with the minimum move per axis.
+
+**Command:**
+
+1. Start dictation so the pill is visible, then mouse-down on the pill.
+2. Drag it onto the taskbar and release the pointer over it.
+3. Watch the position immediately on release. Repeat with a drag that ends
+   fully below the taskbar / past the bottom screen edge.
+
+**Expected / pass criteria:**
+- On pointer release the pill snaps back into the monitor **work area** —
+  fully visible above the taskbar and still grabbable. It is never left
+  beneath or below the taskbar for the rest of the session.
+- The clamp runs on release/settle, not continuously mid-drag: the window
+  follows the pointer while dragging.
+- Repeat with the taskbar auto-hidden and with a second monitor: the clamp
+  uses the work area of the monitor holding the pill's centre.
+
+**Fail scenarios:** the pill stays under the taskbar (which repaints over an
+always-on-top window) or vanishes → the clamp used full-screen bounds or the
+wrong monitor; check the `Monitor::work_area()` use in the bubble window
+code.
 
 ---
 

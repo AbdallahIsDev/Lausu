@@ -388,6 +388,55 @@ tail -20 ~/.local/share/lausu/logs/sidecar.log | grep -E 'shutdown|kill_children
 - Sidecar lingers >5 seconds → The cooperative shutdown handshake failed. Check the log for `WS disconnected` without a preceding `shutdown` frame. The Rust host should fall back to `kill_children` after the 2.0s timeout (ADR-0020 §10).
 - `linux-key-listener` zombie → The sidecar didn't clean up its child process. Verify `kill_children` is invoked on the sidecar's process tree, not just the sidecar itself.
 
+### Step 10b: Host hard-kill self-exit (C-HOST-1)
+
+**VALIDATE ON LINUX DISPLAY HOST — extends the existing P0 "Windows/macOS
+host validation" gate in `review.md`.** Record the result under that gate in
+`worklog.md`; this is not a separate validation track.
+
+**Mechanism (already implemented — verify it, do not reimplement):** the
+Rust host attaches a kill-on-parent-exit binding to the spawned sidecar
+(Linux: a detached POSIX reaper polling `kill -0 <parent_pid>` then SIGKILL —
+`src-tauri/src/platform/process/posix.rs`) and forwards its PID via
+`VOICE_TYPER_PARENT_PID` on every spawn path. The sidecar's host watch
+(`voice_typer/server/sidecar_ws_internals/host_watch.py`, built on the shared
+`voice_typer/server/parent_watch.py`) polls that PID every 5 s, runs
+`app.quit()`, and arms `FORCE_EXIT_GRACE_S = 30.0` as the outer bound; the
+worker runs its own parent-PID watch on the same env var.
+
+**Command:**
+
+1. Launch the app normally and note the host, sidecar and worker PIDs.
+2. Hard-kill **only** the Rust host with SIGKILL — not a window close:
+
+```bash
+kill -9 <HOST_PID>
+# SIGKILL (9) cannot be caught, blocked or ignored:
+# https://man7.org/linux/man-pages/man7/signal.7.html
+```
+
+3. Leave the children alone and poll them for up to 30 s:
+
+```bash
+ps aux | grep -E 'python-sidecar|voice_typer' | grep -v grep
+# Expected after <=30s: no output
+```
+
+**Expected / pass criteria:**
+- The sidecar and the worker exit on their own, well within the **30 s
+  force-exit grace** (`FORCE_EXIT_GRACE_S = 30.0`); no orphan keeps serving
+  hotkeys / dictation with no window and no tray icon.
+- Either binding may win: the POSIX reaper SIGKILLs the child, or the
+  parent-PID watch logs `host process (pid=...) is gone: shutting down` and
+  quits gracefully. A missing watch log line is fine **if** the children are
+  already gone. The `os._exit(0)` guard at 30 s is a backstop, not the happy
+  path.
+- A second launch succeeds (no stale single-instance lock / no duplicate
+  sidecar).
+
+**Fail scenarios:** a child PID survives past 30 s → missing
+`VOICE_TYPER_PARENT_PID`, a failed `on_gone`, or a broken POSIX reaper.
+
 ---
 
 ## Step 11: Prewarm systemd user timer — HISTORICAL, DO NOT RUN
@@ -632,6 +681,44 @@ tail -50 ~/.local/share/lausu/logs/sidecar.log | grep -E 'bubble|recording'
 4. The bubble disappears within 200ms of releasing the hotkey.
 5. The sidecar log shows all 6 bubble commands firing in the expected order.
 6. On Wayland: the bubble's `alwaysOnTop` works (some Wayland compositors ignore this, Sway, for example, may not honor `alwaysOnTop` for security reasons. Document as a known Wayland limitation if the bubble appears behind other windows).
+
+#### Work-area clamp on drag-settle (C-WIN-2)
+
+**VALIDATE ON LINUX DISPLAY HOST — extends the existing P0 "Windows/macOS
+host validation" gate in `review.md`.** Record the result under that gate in
+`worklog.md`; this is not a separate validation track.
+
+**Mechanism (already implemented — verify it, do not reimplement):** on a
+drag-settled (or keyboard / resize / show) boundary the Rust host clamps the
+pill into `Monitor::work_area()` of the monitor holding its centre. On X11
+that is the `_NET_WORKAREA` root-window property — the area inside the
+panel/dock, per the freedesktop EWMH spec. Wayland publishes no such work
+area, so the clamp falls back to full monitor bounds; that fallback is an
+expected platform limitation, not a failure. Source:
+<https://specifications.freedesktop.org/wm/latest/ar01s03.html>
+
+**Command:**
+
+1. Start dictation so the pill is visible, then mouse-down on the pill.
+2. Drag it onto the desktop panel / Dock (top or bottom bar) and release the
+   pointer over it.
+3. Watch the position immediately on release. Repeat with a drag ending
+   fully below the screen edge / past the last pixel of the monitor.
+
+**Expected / pass criteria:**
+- On pointer release the pill snaps back into the monitor **work area** —
+  fully visible and still grabbable, never left beneath the panel/dock for
+  the rest of the session.
+- On Wayland, expect a snap back within the full monitor bounds instead;
+  record that as the documented fallback, not a defect.
+- The clamp runs on release/settle, not continuously mid-drag: the window
+  follows the pointer while dragging.
+- With a second monitor, the clamp uses the work area of the monitor holding
+  the pill's centre.
+
+**Fail scenarios:** on X11 the pill stays under the panel or vanishes → the
+clamp ignored `_NET_WORKAREA` or used the wrong monitor; check the
+`Monitor::work_area()` use in the bubble window code.
 
 **Common failures**:
 - Bubble doesn't appear → The `bubble` window's `visible: false` is set in `tauri.conf.json`; the Rust host must call `bubble.show()` via `bubble_show`. Verify the command is wired in `main.rs`'s `generate_handler!` macro.

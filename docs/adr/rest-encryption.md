@@ -3,7 +3,8 @@
 > **Status**: Implemented (application-layer AES-256-GCM, per-row flag
 > design). The canonical cipher module is
 > `voice_typer/server/_text_crypto.py`
-> (`AESGCM`, 32-byte DEK, 96-bit random nonce, 128-bit tag); the DEK is
+> (AES-256-GCM via PyCryptodome, 32-byte DEK, 96-bit random nonce, 128-bit
+> tag); the DEK is
 > generated/stored/loaded by `voice_typer/server/credential_store/_dek.py`
 > in the OS keyring under the existing `KEYRING_SERVICE_NAME` service
 > with the reserved `DATA_ENCRYPTION_KEY_USERNAME`
@@ -23,10 +24,10 @@
 > on-disk DEK fallback (§9.3).
 >
 > **Historical correction**: an earlier revision of this header claimed
-> a `_text_encryption.py` Fernet module with "read-side live" wiring.
-> That module never existed in the tree (verified against git history
-> during the 2026-08-25 implementation); the claim was wrong and this
-> header now describes the actually-shipped AES-256-GCM design of §4.
+> a Fernet module with "read-side live" wiring. That module never existed
+> (verified against git history during the 2026-08-25 implementation); the
+> claim was wrong and this header describes the actually-shipped
+> AES-256-GCM design of §4 in `_text_crypto.py`.
 >
 > **Date**: 2026-11 (design gate) / 2026-08-25 (implementation).
 >
@@ -72,8 +73,9 @@ options:
   and complicates the FTS5 story (FTS5 + SQLCipher has historical
   interactions).
 - **Option B: Application-layer encryption of the `text` column only.**
-  Uses `cryptography` (pure-Python wheels with OpenSSL). Smaller blast
-  radius. FTS5 index handling requires a decision (see §6).
+  Uses PyCryptodome's AES-GCM (self-contained wheels on all four
+  platforms). Smaller blast radius. FTS5 index handling requires a
+  decision (see §6).
 - **Option C: Document-only (current state).** Accept residual risks.
 
 This ADR picks **Option B** with concrete cipher, key source, migration,
@@ -140,8 +142,8 @@ associated data (AEAD).
   permits random nonces with AES-GCM up to ~2³² invocations per key;
   Lausu will not approach this within a human lifetime).
 - 128-bit authentication tag (16 bytes), appended to the ciphertext by
-  the `cryptography` library.
-- Chosen over `cryptography.fernet.Fernet` (AES-128-CBC + HMAC-SHA256):
+  AES-GCM.
+- Chosen over Fernet-style AES-128-CBC + HMAC-SHA256:
   Fernet is 128-bit; this design standardizes on 256-bit AES for
   consistency with the broader industry trend and the eventual
   Option A (SQLCipher) upgrade path (SQLCipher defaults to AES-256-CBC).
@@ -151,41 +153,44 @@ associated data (AEAD).
 
 ### 4.2 Library
 
-Use the [`cryptography`](https://cryptography.io) library, specifically
-`cryptography.hazmat.primitives.ciphers.aead.AESGCM`. The library is
-already a transitive dependency (the `keyring` library pulls it in for
-the SecretService backend on Linux), but **`cryptography>=42.0` MUST be
-promoted to an explicit top-level dependency** in `pyproject.toml` so
-that Windows and macOS installs (where `keyring` uses the native
-Credential Manager / Keychain without `cryptography`) get it too. The
-library ships manylinux / macOS / Windows wheels with bundled OpenSSL —
-no native compilation required.
+Use [PyCryptodome](https://www.pycryptodome.org/) `Crypto.Cipher.AES`
+with `AES.MODE_GCM`. It is a **direct top-level dependency** in
+`pyproject.toml`: `pycryptodome>=4.5,<5`. Its `cp39-abi3` wheels cover
+macOS x86_64 + arm64, manylinux x86_64/aarch64 and Windows amd64/arm64
+for Python 3.9+, so every supported build leg gets a prebuilt wheel —
+unlike `cryptography`, which dropped macOS x86_64 wheels in 49.0.0.
 
-API sketch (for the implementer):
+`cryptography` is **not** a declared dependency of this app: the lock keeps
+`cryptography==50.0.0` Linux-only via `keyring -> secretstorage` (marker
+`sys_platform == 'linux'`); no macOS or Windows dependency set includes it.
+OSV reports no advisory for 50.0.0 (PYSEC-2026-3552 is fixed in 50.0.0,
+3553/3554 in 49.0.0); 50.0.1/50.0.2 only refresh wheels/toolchains, so no
+dependency floor was raised.
+
+API sketch (matches the shipped `_text_crypto.py` format):
 
 ```python
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from Crypto.Cipher import AES
 import os
 
 
 def encrypt_text(plaintext: str, dek: bytes) -> bytes:
     nonce = os.urandom(12)  # 96-bit nonce, random per call
-    aes = AESGCM(dek)  # dek is 32 bytes (AES-256)
-    ct = aes.encrypt(nonce, plaintext.encode("utf-8"), associated_data=None)
-    # ct == ciphertext || tag (16 bytes), as returned by AESGCM.encrypt
-    return b"v1" + nonce + ct  # see §4.4 for on-disk format
+    cipher = AES.new(dek, AES.MODE_GCM, nonce=nonce, mac_len=16)
+    ct, tag = cipher.encrypt_and_digest(plaintext.encode("utf-8"))
+    return b"v1" + nonce + ct + tag  # see §4.4 for on-disk format
 
 
 def decrypt_text(blob: bytes, dek: bytes) -> str:
-    version, nonce, ct = _split_blob(blob)  # see §4.4
+    version, nonce, ct, tag = _split_blob(blob)  # see §4.4
     if version != b"v1":
         raise ValueError(f"unsupported ciphertext version: {version!r}")
-    aes = AESGCM(dek)
-    return aes.decrypt(nonce, ct, associated_data=None).decode("utf-8")
+    cipher = AES.new(dek, AES.MODE_GCM, nonce=nonce, mac_len=16)
+    return cipher.decrypt_and_verify(ct, tag).decode("utf-8")
 ```
 
-`AESGCM.decrypt` raises `cryptography.exceptions.InvalidTag` if the tag
-does not verify: treat as a corruption event (route through the
+`decrypt_and_verify` raises `ValueError` if the tag does not verify:
+treat as a corruption event (route through the
 existing `history_db_internals/recovery.py` corrupt-DB quarantine path).
 
 ### 4.3 Key source: DEK in the OS keychain
@@ -220,7 +225,7 @@ a new reserved username plus a small loader / generator helper.
 +---------+----------+---------------------+-------------------+
 | version | nonce    | ciphertext          | GCM tag (16 B)    |
 | 2 bytes | 12 bytes | len(plaintext)      | (appended by      |
-| "v1"    |          |                     |  AESGCM.encrypt)  |
+| "v1"    |          |                     |  AES-GCM)         |
 +---------+----------+---------------------+-------------------+
 ```
 
@@ -232,7 +237,7 @@ a new reserved username plus a small loader / generator helper.
 - `nonce` (12 bytes): random per encryption. Never reused with the
   same key.
 - `ciphertext` Same length as plaintext (GCM is a stream cipher).
-- `tag` (16 bytes): appended to the ciphertext by `AESGCM.encrypt`.
+- `tag` (16 bytes): appended to the ciphertext by AES-GCM.
 
 Storage in SQLite (**as implemented**): the blob is stored as TEXT in
 the EXISTING `transcriptions.text` column, prefixed `"enc:v1:"` with
@@ -255,7 +260,7 @@ voice_typer/server/credential_store/
                          #      generate_dek() -> bytes (os.urandom(32))
 
 voice_typer/server/secure_file_io.py
-  EncryptedColumn        # NEW: small wrapper around AESGCM with the
+  EncryptedColumn        # NEW: small wrapper around AES-GCM with the
                          # §4.4 blob format. Reuses _secure_atomic_write
                          # when persisting the (rare) re-keyed DEK to
                          # disk in the plaintext-fallback case (§9).
@@ -615,10 +620,9 @@ response action.
 
 ### 11.2 More difficult
 
-- **New top-level dependency**: `cryptography>=42.0` must be added to
-  `pyproject.toml` `[project.dependencies]`. The library is ~5 MB
-  (manylinux / macOS / Windows wheels with bundled OpenSSL). Already
-  transitively present on Linux via `keyring`'s SecretService extras.
+- **New top-level dependency**: `pycryptodome>=4.5,<5` is added to
+  `pyproject.toml` `[project.dependencies]`. Self-contained wheels cover
+  manylinux / macOS (including x86_64) / Windows; no native compilation.
 - **Schema migration v3 → v4**: non-trivial backfill (§5.2). Risk of
   partial-migration state on crash. Mitigated by the additive-column
   + verify-then-swap pattern.
@@ -648,11 +652,9 @@ response action.
   (pre-2010 Intel, pre-ARMv8) AES-256-GCM is ~10× slower (~100 MB/s
   instead of ~2 GB/s). Per-row cost rises to ~5 ms. Acceptable for
   the 100-row batch = 500 ms worst case, still under the 30s write
-  timeout. Detection: log a one-time WARNING at startup if
-  `cryptography.hazmat.backends.openssl.backend._aes_ni_supported` is
-  False.
-- **InvalidTag on read**: a single corrupted ciphertext byte raises
-  `InvalidTag`. The recovery path routes to
+  timeout. PyCryptodome selects AES-NI at runtime; no separate probe.
+- **Tag mismatch on read**: a single corrupted ciphertext byte raises
+  `ValueError` from `decrypt_and_verify`. The recovery path routes to
   `history_db_internals/recovery.py:maybe_recover_from_corruption`
   (existing): but that path assumes SQLite-level corruption, not
   ciphertext corruption. New logic needed: if a single row fails
@@ -673,7 +675,7 @@ phases so each can be independently reviewed and rolled back:
 
 | Phase | Scope | Risk | Revert path |
 |---|---|---|---|
-| **P1** | Add `cryptography>=42.0` to `pyproject.toml`. Add `credential_store/_dek.py` with `load_dek` / `store_dek` / `rotate_dek`. No DB changes. | Low (no DB writes). | Drop the new module; dependency can stay (unused). |
+| **P1** | Add `pycryptodome>=4.5,<5` to `pyproject.toml`. Add `credential_store/_dek.py` with `load_dek` / `store_dek` / `rotate_dek`. No DB changes. | Low (no DB writes). | Drop the new module; dependency can stay (unused). |
 | **P2** | Add `secure_file_io.EncryptedColumn` (encrypt/decrypt + blob format). Unit tests with fixed DEK + known ciphertext vectors. | Low (pure function). | Drop the class. |
 | **P3** | Schema v4 migration (§5). Additive column + backfill only (no column swap yet). New rows write BOTH `text` (plaintext) and `text_enc` (ciphertext). Reads still use `text`. | Medium (DB write). | Drop column `text_enc` (no data loss, `text` is still authoritative). |
 | **P4** | Flip reads to use `text_enc` (decrypt). Keep `text` as a fallback. | Medium. | Flip reads back to `text`. |
@@ -740,8 +742,11 @@ Per-OS validation (extends the matrix in
   `0o600`-protected); a future ADR may extend the DEK to wrap archive
   files.
 - `pyproject.toml` `keyring>=25.0,<26.0` already a dependency.
-  `cryptography>=42.0` must be promoted to top-level (currently
-  transitive on Linux only).
+  `pycryptodome>=4.5,<5` is the direct crypto dependency (the retired
+  `cryptography` pin lost Intel-Mac wheels). The pinned
+  `cryptography==50.0.0` is Linux-only via `keyring -> secretstorage`.
+  `cffi` is cross-platform but also comes from sounddevice/soundfile, so
+  its presence in a lock is not evidence of cryptography.
 
 ## 15. Open questions (deferred to implementation)
 

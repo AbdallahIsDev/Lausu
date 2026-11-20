@@ -2,7 +2,8 @@
 
 - **Status:** Accepted (chip-away migration in progress; content active)
 - **Date:** 2026-08-22
-- **Review.md entries:** #2 ARCH-12 + #5 S3-CR-21
+- **Review.md entries:** #2 ARCH-12 + #5 S3-CR-21 + RH-17 (the two perf
+  files named by RH-17; repo-wide migration remains incremental)
 - **Severity:** High (blocks safe refactoring of large files)
 - **Confidence:** High (R1, R14, see `review.md` lines 251-260)
 
@@ -123,6 +124,31 @@ python -m pytest tests/test_task_scheduler.py tests/test_shutdown_deadline.py \
 pin removed in test_ipc_protocol_versioning.py; the invariant it pinned
 was already behaviorally covered by the existing mismatch test).
 
+### Completed This Wave (RH-17, perf files)
+
+11 `inspect.getsource` pins in the two perf files removed; 0 remain.
+Behavioral replacements use real collaborators, never source text.
+
+| Test file | Pins removed | Replacement |
+|-----------|--------------|-------------|
+| `tests/test_perf_fixes.py` | 3 | `test_poll_walks_only_the_per_repo_subdir` spies `Path.rglob` on the real `poll_download_progress` loop; the empty-list cache pin is covered by `test_empty_list_served_from_cache`; `test_spawn_success_waits_for_ready_without_fixed_sleep` drives `launch()` to a fake Tauri spawn with module-local sleep + readiness spies. |
+| `tests/test_transcription_perf_fixes.py` | 8 | Counter/unload/parakeet pins deleted as redundant (existing behavioral tests assert counter=1 during inference, drain-before-unload, env value read per construction, and no class attribute). `test_blocking_rechecks_recording_after_lock_acquire` flips `recorder.recording` as the lock is acquired, proving the re-check runs inside the lock. The comment-wording pin was deleted (no behavior to protect). |
+
+The non-`getsource` import-hygiene check (`app.py` has no top-level numpy
+import) was left intact: it is outside RH-17's 11 `inspect.getsource` pins
+and has no cheap behavioral proxy (a subprocess import probe would observe
+transitive numpy imports, not the top-level import it guards).
+
+Validation (Windows, Python 3.13.7, pytest 9.2.0):
+
+```
+python -m pytest tests/test_perf_fixes.py tests/test_transcription_perf_fixes.py -q --no-cov
+→ 25 passed in 5.38s
+```
+
+Repo-wide `inspect.getsource` counts below are the last recorded
+measurement (2026-08-22); this wave did not re-measure unrelated files.
+
 ### Remaining sites
 
 ```
@@ -157,7 +183,8 @@ Status legend: ✅ done (this wave) · ⏳ in-progress · ⏳ pending · ⏭️ 
 | `tests/test_platform_and_config.py` | 9 | ⏳ pending | |
 | `tests/test_ipc_layer_fixes.py` → merged into `tests/test_ipc_server.py` | 9 | ⏳ pending | FZ-58 Tier-1 merge relocated the pins; source-text migration still pending. |
 | `tests/test_dead_code_stays_removed.py` | 9 | ⏳ pending | |
-| `tests/test_transcription_perf_fixes.py` | 8 | ⏳ pending | |
+| `tests/test_transcription_perf_fixes.py` | 8→0 | ✅ done (RH-17) | 8 pins removed; `test_blocking_rechecks_recording_after_lock_acquire` added. |
+| `tests/test_perf_fixes.py` | 3→0 | ✅ done (RH-17) | `Path.rglob` + `launch()` sleep/readiness spies; cache pin redundant. |
 | `tests/test_recording.py` | 8 | ⏳ pending | |
 | `tests/test_ipc_server.py` | 8 | ⏳ pending | |
 | `tests/regressions/gpu_memory_release_test.py` | 8 | ⏳ pending | |
