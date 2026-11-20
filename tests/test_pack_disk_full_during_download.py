@@ -8,6 +8,8 @@ from pathlib import Path
 import pytest
 from voice_typer.server.service import offline_pack
 
+from tests.fixtures.sleep_seam import patch_module_sleep
+
 
 def _make_normal_transport(full_body: bytes):
     """Build a fake transport that yields ``full_body`` in chunks."""
@@ -151,7 +153,9 @@ class TestDiskFullDuringDownload:
             call_count["n"] += 1
             return original_fake(url, offset=offset)
 
-        monkeypatch.setattr(offline_pack.time, "sleep", lambda s: None)
+        from voice_typer.server import retry as retry_module
+
+        patch_module_sleep(monkeypatch, retry_module)
         with pytest.raises(offline_pack.OfflinePackDiskFullError):
             offline_pack.download_offline_pack_with_resume(
                 "https://github.com/owner/repo/releases/download/v1/offline_pack.zip",

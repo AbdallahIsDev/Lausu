@@ -121,18 +121,6 @@ class TestBlobFormat:
 
 
 class TestKnownAnswer:
-    def test_known_answer_against_aesgcm_reference(self):
-        """A pinned nonce + key must reproduce the AESGCM reference bytes."""
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
-        nonce = bytes(range(12))
-        plaintext = "known answer test 🔐"
-        blob = _text_crypto._encrypt_with_nonce(plaintext, DEK, nonce)
-
-        reference = AESGCM(DEK).encrypt(nonce, plaintext.encode("utf-8"), None)
-        expected = "enc:v1:" + base64.b64encode(nonce + reference).decode("ascii")
-        assert blob == expected
-
     def test_deterministic_known_answer_bytes(self):
         """Hardcoded vector: stable across runs and library versions."""
         nonce = b"0123456789ab"
@@ -234,16 +222,16 @@ class TestDekPolicy:
         assert dek is None
         assert _text_crypto.encryption_status(dek, False) == "disabled"
 
-    def test_missing_cryptography_package_with_encrypted_rows_logs_cause(self, fake_keyring, monkeypatch, caplog):
-        """The 'cryptography' dependency missing from the runtime degrades"""
+    def test_missing_pycryptodome_package_with_encrypted_rows_logs_cause(self, fake_keyring, monkeypatch, caplog):
+        """The 'pycryptodome' dependency missing from the runtime degrades"""
         dek = _text_crypto.resolve_dek(encrypted_rows_exist=False)
         assert dek is not None
         _text_crypto.reset_dek_cache()
-        monkeypatch.setattr(_text_crypto, "_CRYPTOGRAPHY_AVAILABLE", False)
+        monkeypatch.setattr(_text_crypto, "_PYCRYPTODOME_AVAILABLE", False)
         with caplog.at_level(logging.ERROR, logger="voice_typer.server._text_crypto"):
             assert _text_crypto.resolve_dek(encrypted_rows_exist=True) is None
-        assert any("cryptography" in r.message and "NOT" in r.message for r in caplog.records), (
-            "ERROR must name the missing cryptography package (not key loss), "
+        assert any("pycryptodome" in r.message and "NOT" in r.message for r in caplog.records), (
+            "ERROR must name the missing pycryptodome package (not key loss), "
             f"got: {[r.message for r in caplog.records]}"
         )
         # The keyring DEK is untouched, no regeneration, no deletion.

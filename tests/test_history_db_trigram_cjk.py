@@ -1,8 +1,9 @@
-"""Trigram CJK index tests (schema V5)."""
+"""Trigram CJK index tests (history schema version from production)."""
 
 from __future__ import annotations
 
 import pytest
+from voice_typer.server.history_db_internals.schema import _CURRENT_SCHEMA_VERSION
 
 from tests.fixtures.history_test_helpers import history_plaintext_mode  # noqa: F401
 
@@ -79,7 +80,7 @@ class TestSchemaV5Migration:
                 version = conn.execute("SELECT value FROM schema_meta WHERE key = 'version'").fetchone()[0]
             finally:
                 conn.close()
-            assert version == "5"
+            assert version == str(_CURRENT_SCHEMA_VERSION)
             texts = [r["text"] for r in db2.search("你好吗")]
             assert any("migration probe" in t for t in texts)
         finally:

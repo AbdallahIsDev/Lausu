@@ -275,3 +275,81 @@ class TestV6QwenModelKeyRename:
         loaded = Config.load()
 
         assert loaded.model_size == "qwen3-0.6b"
+
+
+class TestV7CueVolumeRemoval:
+    """The recording-cue volume became fixed at 30%, so v7 prunes its key."""
+
+    def test_migrate_to_v7_prunes_sound_volume(self):
+        from voice_typer.server.config_internals.migrations import _migrate_to_v7
+
+        result = _migrate_to_v7({"sound_volume": 0.8, "sound_feedback_enabled": True, "_load_warnings": []})
+
+        assert "sound_volume" not in result
+        assert result["sound_feedback_enabled"] is True
+        assert any("sound_volume" in warning for warning in result["_load_warnings"])
+
+    def test_migrate_to_v7_noop_without_the_key(self):
+        from voice_typer.server.config_internals.migrations import _migrate_to_v7
+
+        result = _migrate_to_v7({"sound_feedback_enabled": False, "_load_warnings": []})
+
+        assert result["_load_warnings"] == []
+        assert result["sound_feedback_enabled"] is False
+
+    def test_load_prunes_a_v6_config_carrying_sound_volume(self, tmp_path, tmp_config_dir):
+        config_file = tmp_path / "config.json"
+        config_file.write_text(
+            json.dumps(
+                {
+                    "schema_version": 6,
+                    "hotkey": "<f9>",
+                    "sound_feedback_enabled": True,
+                    "sound_volume": 0.9,
+                }
+            )
+        )
+
+        loaded = Config.load()
+
+        assert loaded.schema_version == _CURRENT_SCHEMA_VERSION
+        assert loaded.sound_feedback_enabled is True
+        assert not hasattr(loaded, "sound_volume")
+
+
+class TestV8LegacyLanguageDefault:
+    """``language="en"`` was the app's own default, not a user decision.
+
+    Pinned as its own migration because a pinned ``en`` is a decode
+    instruction: it armed Parakeet's English-only junk guard, so every
+    Arabic take came back empty with nothing to show for it (C-ASR-6).
+    """
+
+    def test_migrate_to_v8_resets_a_legacy_english_pin(self):
+        from voice_typer.server.config_internals.migrations import _migrate_to_v8
+
+        result = _migrate_to_v8({"language": "en", "model_size": "parakeet", "_load_warnings": []})
+
+        assert result["language"] == ""
+        assert result["model_size"] == "parakeet"
+        assert any("language" in warning for warning in result["_load_warnings"])
+
+    def test_migrate_to_v8_keeps_a_deliberate_language(self):
+        from voice_typer.server.config_internals.migrations import _migrate_to_v8
+
+        for pinned in ("ar", "de", ""):
+            result = _migrate_to_v8({"language": pinned, "_load_warnings": []})
+            assert result["language"] == pinned
+            assert result["_load_warnings"] == []
+
+    def test_load_resets_a_v7_config_pinned_to_english(self, tmp_path, tmp_config_dir):
+        config_file = tmp_path / "config.json"
+        config_file.write_text(
+            json.dumps({"schema_version": 7, "hotkey": "<f9>", "model_size": "parakeet", "language": "en"})
+        )
+
+        loaded = Config.load()
+
+        assert loaded.schema_version == _CURRENT_SCHEMA_VERSION
+        assert loaded.language == ""
+        assert loaded.model_size == "parakeet"

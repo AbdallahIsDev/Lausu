@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import numpy as np
 import pytest
 from voice_typer.server._audio_constants import RNNOISE_SAMPLE_RATE
@@ -450,7 +452,7 @@ def _ns_reference_process_rnnoise(ns: NoiseSuppressor, samples: np.ndarray, samp
     if n_full == 0:
         ns._carry = combined
         return None
-    ns._backend.channels = 1
+    cast(Any, ns._backend).channels = 1
     output_frames = []
     for i in range(n_full):
         start = i * _RNNOISE_FRAME_SIZE
@@ -458,7 +460,7 @@ def _ns_reference_process_rnnoise(ns: NoiseSuppressor, samples: np.ndarray, samp
         frame_f32 = np.clip(frame, -1.0, 1.0)
         frame_f32 = frame_f32 * _FLOAT_TO_INT16_MAX
         frame_i16 = frame_f32.astype(np.int16)
-        _, cleaned_i16 = ns._backend.denoise_frame(frame_i16[np.newaxis, :])
+        _, cleaned_i16 = cast(Any, ns._backend).denoise_frame(frame_i16[np.newaxis, :])
         output_frames.append(cleaned_i16[0].astype(np.float32) / _FLOAT_TO_INT16_MAX)
     if remainder > 0:
         ns._carry = combined[n_full * _RNNOISE_FRAME_SIZE :]

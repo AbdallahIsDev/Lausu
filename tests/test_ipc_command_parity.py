@@ -26,6 +26,10 @@ HOST_DISPATCHED_COMMANDS = frozenset(
         ),
         "shutdown": ("Cooperative shutdown is host-supervised (shutdown_sidecar path), never a renderer dispatch."),
         "tray_click": ("Rust tray menu handler invokes via dispatch_inner. The renderer has no tray-menu UI."),
+        "bubble_host_hidden": (
+            "Rust reports an out-of-band bubble hide (dismiss / renderer cleanup) "
+            "via dispatch_inner so the coordinator can reconcile visibility."
+        ),
     }
 )
 

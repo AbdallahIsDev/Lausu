@@ -7,8 +7,11 @@ import time
 from pathlib import Path
 
 import pytest
+from voice_typer.server import retry as retry_module
 from voice_typer.server.service import offline_pack
 from voice_typer.server.service.offline_pack import _RateLimitedError
+
+from tests.fixtures.sleep_seam import patch_module_sleep
 
 
 def _make_rate_limited_transport(
@@ -53,9 +56,9 @@ class TestRateLimitRetry:
 
     def test_three_failures_raise_pack_rate_limit_error(self, tmp_path: Path, monkeypatch):
         """3 consecutive 403s → PackRateLimitError."""
-        # Skip the actual sleeps for test speed.
-        sleeps: list[float] = []
-        monkeypatch.setattr(offline_pack.time, "sleep", lambda s: sleeps.append(s))
+        # Skip the actual sleeps for test speed; rebind the retry module's own
+        # ``time`` so no other thread's sleeps land in this list.
+        sleeps = patch_module_sleep(monkeypatch, retry_module)
         full = b"pack-content" * 100
         fake, calls, expected = _make_rate_limited_transport(fail_count=10, reset_at=None, full_body=full)
         dest = tmp_path / "pack-v1.partial"
@@ -74,7 +77,7 @@ class TestRateLimitRetry:
 
     def test_second_attempt_succeeds(self, tmp_path: Path, monkeypatch):
         """1 failure then success → download completes on attempt 2."""
-        monkeypatch.setattr(offline_pack.time, "sleep", lambda s: None)
+        patch_module_sleep(monkeypatch, retry_module)
         full = b"pack-content" * 100
         expected = hashlib.sha256(full).hexdigest()
         fake, calls, _ = _make_rate_limited_transport(fail_count=1, reset_at=None, full_body=full)
@@ -92,8 +95,7 @@ class TestRateLimitRetry:
 
     def test_x_ratelimit_reset_extends_sleep(self, tmp_path: Path, monkeypatch):
         """When ``X-RateLimit-Reset`` is in the future, the sleep is at"""
-        sleeps: list[float] = []
-        monkeypatch.setattr(offline_pack.time, "sleep", lambda s: sleeps.append(s))
+        sleeps = patch_module_sleep(monkeypatch, retry_module)
         reset_at = time.time() + 10.0
         full = b"x" * 100
         expected = hashlib.sha256(full).hexdigest()
@@ -112,8 +114,7 @@ class TestRateLimitRetry:
 
     def test_reset_at_in_past_uses_default_backoff(self, tmp_path: Path, monkeypatch):
         """If ``X-RateLimit-Reset`` is in the past, the default backoff is used."""
-        sleeps: list[float] = []
-        monkeypatch.setattr(offline_pack.time, "sleep", lambda s: sleeps.append(s))
+        sleeps = patch_module_sleep(monkeypatch, retry_module)
         reset_at = time.time() - 100  # past
         full = b"x" * 100
         expected = hashlib.sha256(full).hexdigest()

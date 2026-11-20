@@ -190,6 +190,7 @@ def test_notch_reset_zeros_state():
     notch.process(_nonzero_chunk(1024), _SR)
 
     # Sanity: ``zi`` is non-zero BEFORE reset (the IIR carry state
+    assert notch._state is not None
     _b, _a, zi_before = notch._state
     assert zi_before is not None
     assert not np.all(zi_before == 0), "zi must be non-zero BEFORE reset (else the test is vacuous)."
@@ -231,11 +232,13 @@ def test_notch_reset_idempotent():
     notch = NotchFilter(frequency_hz=60.0, sample_rate=_SR)
     notch.process(_nonzero_chunk(1024), _SR)
     notch.reset()
+    assert notch._state is not None
     _b1, _a1, zi_after_first = notch._state
     assert zi_after_first[0] == np.float32(ANTIDENORMAL_EPSILON)
 
     # Second reset, idempotent (no accumulation, no error).
     notch.reset()
+    assert notch._state is not None
     _b2, _a2, zi_after_second = notch._state
     assert zi_after_second[0] == np.float32(ANTIDENORMAL_EPSILON)
     if zi_after_second.size > 1:

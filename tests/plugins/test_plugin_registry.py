@@ -255,7 +255,7 @@ class TestSetPluginSettingCommand:
         assert resp["type"] == "plugin_setting"
         assert resp["data"] == {"plugin_id": "acme_stt", "key": "visible", "value": False}
 
-        stored = json.loads((workspace / "acme_stt" / "settings.json").read_text(encoding="utf-8"))
+        stored = json.loads((workspace / "acme_stt" / "config.json").read_text(encoding="utf-8"))
         assert stored == {"visible": False}
 
         listing = ipc._dispatch({"type": "get_plugins"})

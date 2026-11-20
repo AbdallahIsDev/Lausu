@@ -26,7 +26,7 @@ class TestRecommendedEntry:
         parakeet = next(o for o in ctrl.MODEL_OPTIONS if o["name"] == "parakeet")
         assert parakeet["size"] == "~670MB"
         assert parakeet["speed"] == "Fast"
-        assert parakeet["description"] == "Parakeet Ultra, fast & accurate, 25 languages"
+        assert parakeet["description"] == "Parakeet Ultra, fast & accurate, 25 European languages"
         assert parakeet["vram_gb"] == 2.0
         assert parakeet["backend"] == "parakeet"
         assert parakeet["display_name"] == "Parakeet Ultra"
@@ -63,7 +63,9 @@ class TestRecommendedEntry:
 
 class TestRecommendedI18n:
     def test_models_keys_exist_in_all_locales(self):
-        keys = ["allModels", "badgeRecommended", "badgeFast", "badgeLanguages"]
+        # ``badgeLanguages`` ("25 languages") was a hardcoded claim: the
+        # wizard now renders the model's DECLARED count instead.
+        keys = ["allModels", "badgeRecommended", "badgeFast"]
         en_models = _onboarding("en")["models"]
         for locale in LOCALES:
             models = _onboarding(locale)["models"]
@@ -71,7 +73,18 @@ class TestRecommendedI18n:
                 assert key in models, f"{locale}.json missing onboarding.models.{key}"
                 assert isinstance(models[key], str) and models[key].strip()
         assert en_models["allModels"] == "All Models"
-        assert en_models["badgeLanguages"] == "25 languages"
+        assert "badgeLanguages" not in en_models, (
+            "the fixed '25 languages' badge is gone; the count comes from languages.length"
+        )
+
+    def test_language_count_badge_has_a_placeheld_translation(self):
+        for locale in LOCALES:
+            onboarding = _onboarding(locale)
+            value = onboarding.get("languageCountBadge")
+            assert isinstance(value, str) and value.strip(), (
+                f"{locale}.json missing onboarding.languageCountBadge"
+            )
+            assert "{count}" in value, f"{locale}.json languageCountBadge must interpolate {{count}}"
 
     def test_non_english_locales_are_translated(self):
         en_models = _onboarding("en")["models"]

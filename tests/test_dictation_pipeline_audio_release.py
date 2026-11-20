@@ -620,15 +620,15 @@ class TestSharedStageList:
             _OrchestratorMixin._SHARED_STAGES = original_shared
 
     def test_shared_stages_have_correct_count(self):
-        """The shared stage list must contain exactly 10 stages
+        """The shared stage list must contain exactly 11 stages
         (the"""
         original_shared = _OrchestratorMixin._SHARED_STAGES
         try:
             _OrchestratorMixin._SHARED_STAGES = None
             app = _TestApp()
             DictationPipeline(app)
-            assert len(_OrchestratorMixin._SHARED_STAGES) == 10, (
-                ": the shared stage list must contain exactly 10 stages "
+            assert len(_OrchestratorMixin._SHARED_STAGES) == 11, (
+                ": the shared stage list must contain exactly 11 stages "
                 "(the standard dictation pipeline). Got: "
                 f"{len(_OrchestratorMixin._SHARED_STAGES)}"
             )

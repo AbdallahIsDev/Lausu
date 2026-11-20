@@ -22,20 +22,20 @@ def _repo_root() -> Path:
 
 def test_recording_start_pushes_recording_state() -> None:
     src = (_repo_root() / "voice_typer" / "server" / "recording_lifecycle.py").read_text()
-    show_idx = src.find("app._waveform_bubble.show()")
-    assert show_idx != -1
-    tail = src[show_idx : show_idx + 500]
-    assert 'set_state("recording")' in tail
+    idx = src.find('apply_visibility("recording", reason="record-start")')
+    assert idx != -1, "recording start must route through the single policy"
+    tail = src[idx : idx + 300]
+    assert "set_state" not in tail, "the single policy owns the visual state"
 
 
 def test_startup_always_visible_pushes_idle() -> None:
     src = (
         _repo_root() / "voice_typer" / "server" / "startup_sequence" / "_phases_late.py"
     ).read_text()
-    show_idx = src.find("app._waveform_bubble.show()")
-    assert show_idx != -1
-    tail = src[show_idx : show_idx + 500]
-    assert 'set_state("idle")' in tail
+    idx = src.find('apply_visibility("idle", reason="startup-backstop")')
+    assert idx != -1, "phase 8 must route through the single policy"
+    tail = src[idx : idx + 300]
+    assert "set_state" not in tail, "the single policy owns the visual state"
 
 
 def _behavior_ctx(app: MagicMock, behavior: str = "always_visible") -> MagicMock:
@@ -52,7 +52,10 @@ def _behavior_ctx(app: MagicMock, behavior: str = "always_visible") -> MagicMock
 def test_behavior_switch_to_always_visible_pushes_idle_when_not_recording() -> None:
     from voice_typer.server.config_applier import _BubbleBehaviorHandler
 
+    from tests.fixtures.bubble_policy_fixture import attach_policy
+
     bubble = MagicMock()
+    attach_policy(bubble, "always_visible")
     recorder = MagicMock()
     recorder.recording = False
     app = MagicMock()
@@ -66,7 +69,10 @@ def test_behavior_switch_to_always_visible_pushes_idle_when_not_recording() -> N
 def test_behavior_switch_to_always_visible_pushes_recording_when_recording() -> None:
     from voice_typer.server.config_applier import _BubbleBehaviorHandler
 
+    from tests.fixtures.bubble_policy_fixture import attach_policy
+
     bubble = MagicMock()
+    attach_policy(bubble, "always_visible")
     recorder = MagicMock()
     recorder.recording = True
     app = MagicMock()
@@ -80,8 +86,11 @@ def test_behavior_switch_to_always_visible_pushes_recording_when_recording() -> 
 def test_behavior_switch_to_hidden_hides_visible_bubble() -> None:
     from voice_typer.server.config_applier import _BubbleBehaviorHandler
 
+    from tests.fixtures.bubble_policy_fixture import attach_policy
+
     bubble = MagicMock()
     bubble.visible = True
+    attach_policy(bubble, "hidden")
     app = MagicMock()
     app._waveform_bubble = bubble
     _BubbleBehaviorHandler().apply(_behavior_ctx(app, "hidden"))
@@ -92,11 +101,10 @@ def test_behavior_switch_to_hidden_hides_visible_bubble() -> None:
 
 def test_recording_start_skips_bubble_when_hidden() -> None:
     src = (_repo_root() / "voice_typer" / "server" / "recording_lifecycle.py").read_text()
-    gate_idx = src.find('bubble_behavior", "show_on_record") != "hidden"')
-    assert gate_idx != -1, "recording start must gate bubble show on hidden behavior"
-    tail = src[gate_idx : gate_idx + 400]
-    assert "app._waveform_bubble.show()" in tail
-    assert 'set_state("recording")' in tail
+    idx = src.find('apply_visibility("recording", reason="record-start")')
+    assert idx != -1, "policy must decide visibility for the hidden behavior"
+    tail = src[idx : idx + 300]
+    assert "set_state" not in tail, "the single policy owns the visual state"
 
 
 def test_bubble_config_push_carries_timer_flag() -> None:
@@ -111,16 +119,17 @@ def _ready_show_server(
     wired: bool = True,
 ) -> SimpleNamespace:
     """Fake WS server whose app carries a real bubble coordinator."""
+    config = SimpleNamespace(
+        bubble_behavior=behavior,
+        bubble_show_on_startup=show_on_startup,
+    )
     bubble = WaveformBubble()
+    bubble.set_behavior_provider(lambda: config.bubble_behavior)
     fired: list = []
     if wired:
         bubble.on_show = lambda: fired.append("show")
         bubble.on_set_state = lambda state: fired.append(("state", state))
         bubble.on_config = lambda cfg: fired.append(("config", cfg))
-    config = SimpleNamespace(
-        bubble_behavior=behavior,
-        bubble_show_on_startup=show_on_startup,
-    )
     app = SimpleNamespace(config=config, _waveform_bubble=bubble)
     server = SimpleNamespace(_lock=threading.RLock(), app=app)
     server.fired = fired  # type: ignore[attr-defined]
@@ -175,20 +184,13 @@ def test_backend_ready_show_skipped_when_unwired_or_busy() -> None:
     assert busy.fired == []  # type: ignore[attr-defined]
 
 
-def test_phase_8_skips_show_when_already_visible(monkeypatch) -> None:
-    """Backend-ready show makes phase 8 a config-only backstop, never a reset."""
+def test_phase_8_reasserts_show_even_when_mirror_says_visible(monkeypatch) -> None:
+    """The mirror can lie: phase 8 must re-assert at the host, not skip."""
     import time
 
     from voice_typer.server.startup_sequence import StartupSequence
 
     monkeypatch.delenv("VOICE_TYPER_RESTART", raising=False)
-    bubble = WaveformBubble()
-    pushed: list = []
-    bubble.on_show = lambda: pushed.append("show")
-    bubble.on_set_state = lambda state: pushed.append(("state", state))
-    bubble.on_config = lambda cfg: pushed.append("config")
-    bubble.show()
-    pushed.clear()
     config = SimpleNamespace(
         bubble_x=None,
         bubble_y=None,
@@ -197,6 +199,14 @@ def test_phase_8_skips_show_when_already_visible(monkeypatch) -> None:
         model_size="tiny",
         save=MagicMock(),
     )
+    bubble = WaveformBubble()
+    bubble.set_behavior_provider(lambda: config.bubble_behavior)
+    pushed: list = []
+    bubble.on_show = lambda: pushed.append("show")
+    bubble.on_set_state = lambda state: pushed.append(("state", state))
+    bubble.on_config = lambda cfg: pushed.append("config")
+    bubble.show()
+    pushed.clear()
     app = MagicMock()
     app.config = config
     app._waveform_bubble = bubble
@@ -205,7 +215,7 @@ def test_phase_8_skips_show_when_already_visible(monkeypatch) -> None:
     seq = StartupSequence(app)
     seq._t0 = time.perf_counter()
     seq._phase_8_finalize_and_signal()
-    assert pushed == ["config"]
+    assert pushed == ["config", "show", ("state", "idle")]
     assert bubble.state == "idle"
 
 
@@ -216,11 +226,6 @@ def test_phase_8_shows_when_not_yet_visible(monkeypatch) -> None:
     from voice_typer.server.startup_sequence import StartupSequence
 
     monkeypatch.delenv("VOICE_TYPER_RESTART", raising=False)
-    bubble = WaveformBubble()
-    pushed: list = []
-    bubble.on_show = lambda: pushed.append("show")
-    bubble.on_set_state = lambda state: pushed.append(("state", state))
-    bubble.on_config = lambda cfg: pushed.append("config")
     config = SimpleNamespace(
         bubble_x=None,
         bubble_y=None,
@@ -229,6 +234,12 @@ def test_phase_8_shows_when_not_yet_visible(monkeypatch) -> None:
         model_size="tiny",
         save=MagicMock(),
     )
+    bubble = WaveformBubble()
+    bubble.set_behavior_provider(lambda: config.bubble_behavior)
+    pushed: list = []
+    bubble.on_show = lambda: pushed.append("show")
+    bubble.on_set_state = lambda state: pushed.append(("state", state))
+    bubble.on_config = lambda cfg: pushed.append("config")
     app = MagicMock()
     app.config = config
     app._waveform_bubble = bubble
@@ -269,6 +280,7 @@ async def test_ws_bubble_show_follows_ready_on_first_auth(
     app.config.bubble_behavior = "always_visible"
     app.config.bubble_show_on_startup = True
     bubble = WaveformBubble()
+    bubble.set_behavior_provider(lambda: "always_visible")
     bubble.on_show = lambda: event_bus.publish({"type": "bubble_show"})
     bubble.on_set_state = lambda state: event_bus.publish(
         {"type": "bubble_set_state", "data": {"state": state}}

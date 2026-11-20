@@ -115,7 +115,7 @@ def test_single_row_insert_uses_batch_path(db, monkeypatch):
         assert len(insert_sqls) == 1, f"expected 1 INSERT for N=1 batch; got {len(insert_sqls)}: {insert_sqls}"
         assert "VALUES" in insert_sqls[0].upper()
         # Count placeholder tuples: should be exactly 1 for N=1.
-        placeholder_tuples = insert_sqls[0].count("(?, ?, ?, ?, ?, ?, ?)")
+        placeholder_tuples = insert_sqls[0].count("(" + ", ".join("?" for _ in range(17)) + ")")
         assert placeholder_tuples == 1, f"expected 1 placeholder tuple for N=1 batch; got {placeholder_tuples}"
 
         # Exactly one commit for the batch.
@@ -190,8 +190,10 @@ class TestInsertSqlSingleSource:
 
         assert _build_insert_sql(1) == (
             "INSERT INTO transcriptions "
-            "(text, duration, model, device, word_count, char_count, language) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)"
+            "(text, duration, model, device, word_count, char_count, language, kind, "
+            "source_type, source_title, source_url, file_name, thumbnail_url, "
+            "media_duration_seconds, processing_seconds, download_seconds, method) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
 
     def test_multi_row_sql_shape(self):
@@ -199,10 +201,12 @@ class TestInsertSqlSingleSource:
 
         assert _build_insert_sql(3) == (
             "INSERT INTO transcriptions "
-            "(text, duration, model, device, word_count, char_count, language) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?),"
-            "(?, ?, ?, ?, ?, ?, ?),"
-            "(?, ?, ?, ?, ?, ?, ?)"
+            "(text, duration, model, device, word_count, char_count, language, kind, "
+            "source_type, source_title, source_url, file_name, thumbnail_url, "
+            "media_duration_seconds, processing_seconds, download_seconds, method) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
 
     def test_batch_and_fallback_paths_share_one_sql_source(self, db, monkeypatch):

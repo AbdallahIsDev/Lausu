@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from tests.fixtures.wait_helpers import wait_for_busy_clear
+from tests.fixtures.wait_helpers import wait_for_busy_clear, wait_until
 
 # These must be in place before LausuApp is imported, so we apply
 
@@ -147,6 +147,13 @@ def app_with_fake_ducker(tmp_config_dir, monkeypatch):
     return instance, backend
 
 
+def _wait_for_fade(backend, timeout: float = 5.0) -> None:
+    """Wait for the deferred duck (start-cue grace) to reach the backend."""
+    assert wait_until(lambda: bool(backend.fade_calls), timeout=timeout), (
+        "the deferred duck never reached the backend fade_to()"
+    )
+
+
 class TestStartDictationDucksVolume:
     """§7.2: _start_dictation() must duck system volume AFTER recorder.start()."""
 
@@ -164,8 +171,10 @@ class TestStartDictationDucksVolume:
         assert start_event is not None
         assert start_event.wait(timeout=5.0), "start worker must complete so the duck lands"
 
-        # Duck should have called fade_to(0.25, 200)
-        assert (0.25, 200) in backend.fade_calls
+        # The duck waits out the start-cue grace, then calls fade_to(0.25, 200).
+        assert wait_until(lambda: (0.25, 200) in backend.fade_calls, timeout=5.0), (
+            f"duck never applied to the configured level, fades={backend.fade_calls}"
+        )
         assert app._volume_ducker.is_ducked
 
     def test_start_does_not_duck_when_disabled(self, app_with_fake_ducker):
@@ -209,6 +218,9 @@ class TestStartDictationDucksVolume:
         assert start_event is not None
         assert start_event.wait(timeout=5.0), "start worker must complete so the duck lands"
 
+        assert wait_until(lambda: "volume.duck" in call_order, timeout=5.0), (
+            f"the deferred duck never ran, order={call_order}"
+        )
         assert call_order.index("recorder.start") < call_order.index("volume.duck"), (
             "recorder.start() must happen BEFORE volume.duck()"
         )
@@ -495,8 +507,8 @@ class TestPerSessionDuckGatedOnSupport:
         assert start_event.wait(timeout=5.0), "start worker must complete so the duck lands"
 
         # Duck happened, but no per-session calls because backend doesn't support it
+        _wait_for_fade(backend)
         assert backend.duck_session_calls == []
-        assert backend.fade_calls  # fell back to master-volume fade
 
     def test_per_session_attempted_when_supported(self, monkeypatch, tmp_config_dir):
         """supports it AND the config says True, the app must NOT attempt"""
@@ -535,8 +547,8 @@ class TestPerSessionDuckGatedOnSupport:
         assert start_event is not None
         assert start_event.wait(timeout=5.0), "start worker must complete so the duck lands"
 
+        _wait_for_fade(backend)
         assert backend.duck_session_calls == [], "per-session ducking was removed (UX-2); master fade should be used"
-        assert len(backend.fade_calls) > 0, "master fade_to should have been called"
 
 
 class TestDuckCrashRecoveryPersistsOnDuck:

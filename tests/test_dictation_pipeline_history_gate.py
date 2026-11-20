@@ -40,6 +40,8 @@ class TestHistoryEnabledGate:
             duration=1.0,
             model="tiny.en",
             device="cpu",
+            kind="dictation",
+            processing_seconds=None,
         )
         # The row is enqueued fire-and-forget, NO blocking
         app.history_db.flush.assert_not_called()

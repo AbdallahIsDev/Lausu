@@ -503,6 +503,15 @@ PER_ARCH_CONFIGS: dict[str, tuple[str, tuple[str, ...]]] = {
 # config must keep the base list verbatim.
 SLIM_PER_ARCH_CONFIGS: set[str] = {"tauri.windows-x86_64-slim.conf.json"}
 
+# Windows x64 (full + slim) additionally bundle the LGPL ffmpeg/ffprobe pair
+# fetched by scripts/build/fetch_ffmpeg_lgpl_win64.sh. Arrays replace, so these
+# configs must list the full set they need; no other config declares the pair.
+WINDOWS_X64_FFMPEG_CONFIGS: set[str] = {
+    "tauri.windows-x86_64.conf.json",
+    "tauri.windows-x86_64-slim.conf.json",
+}
+FFMPEG_EXTERNAL_BIN: tuple[str, ...] = ("bin/ffmpeg", "bin/ffprobe")
+
 
 def _resource_relevant(resource: str, platform: str, triples: set[str]) -> bool:
     """True if ``resource`` (from the base config) matters to the platform."""
@@ -575,24 +584,23 @@ class TestPerArchConfigsStayLockedToBase:
             )
 
     def test_per_arch_external_bin_never_changes_sidecar(self) -> None:
-        """Overrides may not alter or drop the ``externalBin`` sidecar list."""
+        """Overrides may not drop sidecar/worker; only Windows x64 adds ffmpeg duo."""
         base_external_bin = _tauri_conf()["bundle"].get("externalBin", [])
         slim_external_bin = _stub_module().SLIM_EXTERNAL_BIN
         for rel, (platform, _triples) in PER_ARCH_CONFIGS.items():
             cfg = json.loads((SRC_TAURI / rel).read_text(encoding="utf-8"))
             cfg_external_bin = cfg["bundle"].get("externalBin", base_external_bin)
-            if rel in SLIM_PER_ARCH_CONFIGS:
-                assert cfg_external_bin == slim_external_bin, (
-                    f"{rel} ({platform}) is the registered slim config: its "
-                    f"bundle.externalBin must be exactly {slim_external_bin} "
-                    f"(sidecar-only, no worker); got: {cfg_external_bin}"
-                )
-                continue
-            assert cfg_external_bin == base_external_bin, (
+            expected = slim_external_bin if rel in SLIM_PER_ARCH_CONFIGS else base_external_bin
+            if rel in WINDOWS_X64_FFMPEG_CONFIGS:
+                # The two Windows x64 configs declare the full set themselves
+                # (arrays REPLACE); the media pair is the only permitted delta.
+                expected = expected + list(FFMPEG_EXTERNAL_BIN)
+            assert cfg_external_bin == expected, (
                 f"{rel} ({platform}) overrides bundle.externalBin: "
-                f"{cfg_external_bin} != base {base_external_bin}, dropping "
-                "bin/python-sidecar silently unbundles the ASR sidecar for "
-                "that platform."
+                f"{cfg_external_bin} != expected {expected}. Dropping "
+                "bin/python-sidecar silently unbundles the ASR sidecar; "
+                "dropping bin/lausu-worker breaks the full installer; "
+                "adding other entries is a Windows-x64-only privilege."
             )
 
     def test_per_arch_main_window_keeps_create_false(self) -> None:

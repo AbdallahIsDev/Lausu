@@ -985,3 +985,51 @@ class TestFallbackKindClassification:
         assert result == ""
         local_engine.transcribe.assert_not_called()
         assert not [e for e in received if e.get("type") == "cloud_fallback_used"]
+
+
+class TestAutoLanguageRequestShaping:
+    """Auto (``config.language == ""``) must not become a forced ``en`` hint.
+
+    Deepgram's ``language`` default is ``en``, so simply omitting the
+    parameter would still mean English: Auto asks for detection instead.
+    OpenAI-compatible APIs auto-detect when the field is absent.
+    """
+
+    def test_deepgram_auto_asks_for_detection_and_never_sends_english(self):
+        from voice_typer.server.cloud._providers.deepgram import build_listen_url
+
+        url = build_listen_url("https://api.deepgram.com/v1/listen", "nova-3", None)
+        assert "detect_language=true" in url
+        # `detect_language=true` contains the substring "language=", so the
+        # pin is checked on the parsed query, not the raw URL.
+        from urllib.parse import parse_qs, urlparse
+
+        query = parse_qs(urlparse(url).query)
+        assert "language" not in query, f"Auto must not pin a language: {url}"
+
+    def test_deepgram_pinned_language_is_sent_verbatim(self):
+        from voice_typer.server.cloud._providers.deepgram import build_listen_url
+
+        url = build_listen_url("https://api.deepgram.com/v1/listen", "nova-3", "ar")
+        assert "language=ar" in url
+        assert "detect_language" not in url
+
+    def test_openai_auto_omits_the_language_field(self):
+        from voice_typer.server.cloud._providers.openai import build_multipart_parts
+
+        body = b"".join(build_multipart_parts(b"RIFF", "a.wav", "BOUND", "whisper-1", None))
+        assert b'name="language"' not in body
+        assert b'name="model"' in body, "the rest of the form must be untouched"
+
+    def test_openai_pinned_language_is_sent(self):
+        from voice_typer.server.cloud._providers.openai import build_multipart_parts
+
+        body = b"".join(build_multipart_parts(b"RIFF", "a.wav", "BOUND", "whisper-1", "ar"))
+        assert b'name="language"' in body
+        assert b"\r\nar\r\n" in body
+
+    def test_cloud_engine_auto_language_is_none_and_typed(self):
+        from voice_typer.server.cloud_engines import CloudEngine
+
+        engine = CloudEngine(provider="deepgram", api_key="k", api_url="https://api.deepgram.com/v1/listen")
+        assert engine.language is None, "CloudEngine must default to Auto, not a forced 'en'"

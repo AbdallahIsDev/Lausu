@@ -10,6 +10,7 @@ from email.utils import formatdate
 from unittest.mock import MagicMock, patch
 
 import pytest
+from voice_typer.server import retry as retry_module
 from voice_typer.server.retry import (
     RetryAbortedError,
     delay_for_attempt,
@@ -17,6 +18,8 @@ from voice_typer.server.retry import (
     run_with_retry,
     sleep_interruptible,
 )
+
+from tests.fixtures.sleep_seam import patch_module_sleep
 
 
 class TestParseRetryAfter:
@@ -203,7 +206,7 @@ class TestAsrDownloadRetryMigrated:
     def test_retries_plain_errors_then_succeeds(self, monkeypatch):
         from voice_typer.server.asr_utils import _download_with_retry
 
-        monkeypatch.setattr(time, "sleep", lambda s: None)
+        patch_module_sleep(monkeypatch, retry_module)
         attempts = []
 
         def _flaky(**kwargs):
@@ -232,7 +235,7 @@ class TestAsrDownloadRetryMigrated:
     def test_give_up_logs_real_exception_with_traceback(self, caplog, monkeypatch):
         from voice_typer.server.asr_utils import _download_with_retry
 
-        monkeypatch.setattr(time, "sleep", lambda s: None)
+        patch_module_sleep(monkeypatch, retry_module)
 
         def _always_fails(**kwargs):
             raise ConnectionError("[Errno 11001] getaddrinfo failed")
@@ -443,8 +446,7 @@ class TestOfflinePackRetryMigrated:
 
         from voice_typer.server.service import offline_pack
 
-        sleeps = []
-        monkeypatch.setattr(offline_pack.time, "sleep", sleeps.append)
+        sleeps = patch_module_sleep(monkeypatch, retry_module)
         full = b"pack-content" * 100
         expected = hashlib.sha256(full).hexdigest()
         calls = {"n": 0}
@@ -474,8 +476,7 @@ class TestOfflinePackRetryMigrated:
     def test_future_reset_extends_wait(self, tmp_path, monkeypatch):
         from voice_typer.server.service import offline_pack
 
-        sleeps = []
-        monkeypatch.setattr(offline_pack.time, "sleep", sleeps.append)
+        sleeps = patch_module_sleep(monkeypatch, retry_module)
         reset_at = time.time() + 5.0
 
         def _fake(url, *, offset=0):
@@ -500,7 +501,7 @@ class TestVocabularySaveRetryMigrated:
         return VocabularyManager(config_dir=tmp_path)
 
     def test_transient_permission_error_then_success(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(time, "sleep", lambda s: None)
+        patch_module_sleep(monkeypatch, retry_module)
         calls = {"n": 0}
 
         def _flaky(path, content, **kwargs):
@@ -526,7 +527,7 @@ class TestVocabularySaveRetryMigrated:
         assert calls["n"] == 1
 
     def test_persistent_permission_error_retried_then_raised(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(time, "sleep", lambda s: None)
+        patch_module_sleep(monkeypatch, retry_module)
         calls = {"n": 0}
 
         def _locked(path, content, **kwargs):

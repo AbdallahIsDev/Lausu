@@ -19,7 +19,9 @@ class TestConfigDefaults:
         assert c.sample_rate == 16000
         assert c.microphone is None
         assert c.model_size == DEFAULT_MODEL_SIZE
-        assert c.language == "en"
+        # Auto ("") is the default: a pinned wrong language is decoded as
+        # if it were right, while Auto asks the model to detect it.
+        assert c.language == ""
         # CPU-retention: a fresh install has no user-level CUDA pack, so the
         # default is CPU and `device: "cuda"` is refused until the install
         # completes (cuda_handlers.device_request_rejection).

@@ -160,7 +160,7 @@ class TestHighPassFilter:
         assert f._state is not None
         sos, _zi = f._state
         _z, poles, _k = sos2zpk(np.asarray(sos, dtype=np.float32))
-        max_pole = float(np.max(np.abs(poles)))
+        max_pole = float(np.max(np.abs(np.asarray(poles))))
         assert max_pole < 1.0, f"max|pole|={max_pole:.6f} >= 1 at {sample_rate} Hz"
 
     def test_unstable_design_degrades_to_passthrough(self, monkeypatch):
@@ -396,7 +396,7 @@ class TestNoiseSuppressor:
         assert ns._method == "none"
 
     def test_rnnoise_degrades_gracefully_if_missing(self):
-        """If pyrnnoise isn't installed, serve bundled gtcrn (or none if that fails too)."""
+        """If the native RNNoise library is absent, serve bundled gtcrn (or none)."""
         ns = NoiseSuppressor(method="rnnoise", sample_rate=16000)
         # Either rnnoise is installed (not degraded) or a fallback served (degraded).
         if ns._method == "rnnoise":
@@ -459,7 +459,7 @@ class TestFilterChain:
         chain = FilterChain([HighPassFilter(80.0, 16000)])
         assert len(chain.filter_names) == 1
 
-        new_filters = [HighPassFilter(100.0, 16000), NoiseGate(sample_rate=16000)]
+        new_filters: list[AudioFilter] = [HighPassFilter(100.0, 16000), NoiseGate(sample_rate=16000)]
         chain.swap(new_filters)
         assert len(chain.filter_names) == 2
 

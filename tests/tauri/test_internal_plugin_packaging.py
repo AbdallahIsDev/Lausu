@@ -85,10 +85,10 @@ class TestStageCarriesSourceOnly:
         for rel in (
             "google_stt/plugin.py",
             "google_stt/plugin.json",
-            "google_stt/run.js",
+            "_common/bridge/run.js",
             "anthropic_stt/plugin.py",
             "anthropic_stt/plugin.json",
-            "anthropic_stt/chrome_profile.py",
+            "_common/bridge/chrome_profile.py",
         ):
             assert (staged_plugins / rel).is_file(), f"{rel} must be bundled"
 
@@ -100,7 +100,7 @@ class TestStageCarriesSourceOnly:
 
     def test_generated_extension_config_never_ships(self, staged_plugins: Path) -> None:
         """The relay token is per-workspace; a build must not pin one."""
-        assert not (staged_plugins / "anthropic_stt" / "extension" / "generated").exists()
+        assert not (staged_plugins / "_common" / "bridge" / "extension" / "generated").exists()
 
     def test_caches_tests_and_verifiers_never_ship(self, staged_plugins: Path) -> None:
         files = [path.name for path in staged_plugins.rglob("*") if path.is_file()]
@@ -192,13 +192,51 @@ class TestPluginSourcesAreTrackedButStateIsNot:
             "tools/internal_plugins/anthropic_stt/settings.json",
             "tools/internal_plugins/google_stt/config.json",
             "tools/internal_plugins/google_stt/settings.json",
-            "tools/internal_plugins/anthropic_stt/extension/generated/config.js",
+            "tools/internal_plugins/_common/bridge/extension/generated/config.js",
+            "tools/internal_plugins/_common/bridge/token.json",
         ):
             code, out = self._git("check-ignore", "--no-index", "-q", rel)
             assert code == 0, f"{rel} must stay gitignored (git check-ignore said: {out or 'not ignored'})"
 
 
-@pytest.mark.parametrize("js_file", ["run.js", "playwright_runner.js"])
-def test_plugin_js_files_stay_inside_the_plugin_workspace(js_file: str) -> None:
-    target = _PLUGINS_DIR / "google_stt" / js_file
-    assert target.exists(), f"{js_file} must live under tools/internal_plugins/google_stt"
+_SHARED_PIECES = (
+    "run.js",
+    "relay.js",
+    "control_plane.js",
+    "config_store.js",
+    "tools/build-extension.js",
+    "extension/manifest.json",
+    "extension/content.js",
+    "extension/service_worker.js",
+    "selectors/claude.json",
+    "selectors/gemini.json",
+    "chrome_profile.py",
+    "session.py",
+    "keepalive.py",
+    "daemon_client.py",
+)
+
+
+def test_shared_bridge_owns_the_extension_and_transport() -> None:
+    """One architecture: the bridge owns every piece; plugins keep no copy."""
+    bridge = _PLUGINS_DIR / "_common" / "bridge"
+    for rel in _SHARED_PIECES:
+        assert (bridge / rel).is_file(), f"shared bridge is missing {rel}"
+    for plugin in ("anthropic_stt", "google_stt"):
+        root = _PLUGINS_DIR / plugin
+        for rel in (
+            "run.js", "relay.js", "control_plane.js", "config_store.js", "chrome_profile.py",
+            "session.py", "keepalive.py", "daemon_client.py", "extension", "tools",
+        ):
+            assert not (root / rel).exists(), f"{plugin} carries a second copy of {rel}"
+        assert (root / "plugin.py").is_file()
+        assert (root / "config.example.json").is_file()
+
+
+def test_google_playwright_path_is_deleted() -> None:
+    old = _PLUGINS_DIR / "google_stt"
+    for name in (
+        "playwright_runner.js", "run.js", "check.js", "probe.js", "probe_dom.js",
+        "login.js", "verify_clean_start.js", "verify_recording_state.js",
+    ):
+        assert not (old / name).exists(), f"the Playwright path must be deleted: {name}"

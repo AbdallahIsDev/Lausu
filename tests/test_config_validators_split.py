@@ -40,6 +40,7 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "bubble_x",
         "bubble_y",
         "clipboard_restore_delay_ms",
+        "clipboard_history_exclude",
         "clipboard_save_restore",
         "cloud_api_key",
         "cloud_api_url",
@@ -112,7 +113,6 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "show_notifications",
         "silence_warning_seconds",
         "sound_feedback_enabled",
-        "sound_volume",
         "stop_on_silence_seconds",
         "streaming_chunk_seconds",
         "streaming_left_overlap_seconds",
@@ -127,6 +127,13 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "text_size",
         "theme_mode",
         "theme_preset",
+        "translation_enabled",
+        "translation_glossary",
+        "translation_gpu_enabled",
+        "translation_model",
+        "translation_model_path",
+        "translation_runtime_path",
+        "translation_target_language",
         "tray_left_click_action",
         "trusted_extra_hosts",
         "use_silero_vad",
@@ -234,11 +241,25 @@ class TestAllowlistSnapshot:
     """SEC-002 byte-for-byte parity for ``IPC_CONFIG_ALLOWLIST``."""
 
     def test_allowlist_size_unchanged(self) -> None:
-        """The allowlist must still contain exactly 167 keys."""
-        assert len(IPC_CONFIG_ALLOWLIST) == 167, (
-            f"IPC_CONFIG_ALLOWLIST size drifted: expected 167, got {len(IPC_CONFIG_ALLOWLIST)}. "
+        """The allowlist must still contain exactly 174 keys."""
+        assert len(IPC_CONFIG_ALLOWLIST) == 174, (
+            f"IPC_CONFIG_ALLOWLIST size drifted: expected 174, got {len(IPC_CONFIG_ALLOWLIST)}. "
             "SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a "
             "security-sensitive change that must be reviewed explicitly. "
+            "Latest growth 167 → 174 (2026-11-19): seven `translation_*` keys "
+            "for ADR-0021 Stage B. They reach only a loopback llama-server and "
+            "local file paths; the default leaves translation OFF, and the "
+            "model/target enums reject unknown IDs. "
+            "Latest growth 166 → 167 (2026-11-18): `clipboard_history_exclude`, "
+            "a bool that only selects whether the dictated text is tagged as "
+            "excluded from the OS clipboard history (Win+V). It reaches no "
+            "device, endpoint or secret, and the default keeps dictations OUT "
+            "of the history — the user must opt in to have them recorded. "
+            "Latest shrink 167 → 166 (2026-11-16): `sound_volume` was removed "
+            "with the setting itself — the recording cues are fixed at 30% "
+            "because a loud cue leaks into the microphone and makes volume "
+            "ducking treat it as background playback. The key had no consumer "
+            "left, so nothing addressable or secret left the allowlist. "
             "Latest growth 166 → 167 (2026-11-13): `developer_mode`, a "
             "bool-validated owner unlock for the hidden internal Plugins "
             "surface. It cannot run a plugin by itself — the backend also "

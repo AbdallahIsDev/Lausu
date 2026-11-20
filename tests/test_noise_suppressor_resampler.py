@@ -236,11 +236,15 @@ class TestNoiseSuppressorResamplerIntegration:
     def test_reset_clears_resampler_state(self):
         ns = NoiseSuppressor(method="none", sample_rate=16000)
         ns._ensure_resamplers(16000)
-        ns._upsampler.process(np.random.randn(100).astype(np.float32) * 0.1)
-        assert ns._upsampler._in_total > 0
+        up = ns._upsampler
+        assert up is not None
+        up.process(np.random.randn(100).astype(np.float32) * 0.1)
+        assert up._in_total > 0
         ns.reset()
-        assert ns._upsampler._in_total == 0
-        assert ns._upsampler._out_total == 0
+        up = ns._upsampler
+        assert up is not None
+        assert up._in_total == 0
+        assert up._out_total == 0
 
 
 class TestNoiseSuppressorLatencyIncludesResampler:

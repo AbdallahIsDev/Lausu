@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 
@@ -251,6 +253,78 @@ class TestMediaModelStartGate:
         # NOT "server.no_model": the user already chose a model, so the copy
         # offers a retry rather than sending them back to the picker.
         assert resp["data"]["code"] == "no_engine_loaded"
+
+
+class TestMediaLanguageCapabilityGate:
+    """A model that cannot speak the pinned language must refuse the JOB.
+
+    C-ASR-6: the same audio through Parakeet Ultra with ``language="ar"``
+    would come back as junk (or nothing), and the run costs a full download
+    plus decode, so the refusal belongs at start.
+    """
+
+    @staticmethod
+    def _patch_job_manager(monkeypatch):
+        import voice_typer.server.media_ingest.jobs as jobs_mod
+
+        monkeypatch.setattr(jobs_mod, "_MANAGER", None)
+        started: dict[str, object] = {}
+
+        class _Mgr:
+            def start(self, source, runner, *, client_id=None, export_path=None):
+                started["source"] = source
+
+                class _J:
+                    job_id = "lang1"
+                    status = "running"
+                    client_id = None
+
+                _J.client_id = client_id
+                return _J()
+
+        monkeypatch.setattr(jobs_mod, "get_job_manager", lambda: _Mgr())
+        return started
+
+    def test_parakeet_with_arabic_refuses_the_job(self, ipc_server, fake_service, monkeypatch, tmp_path):
+        started = self._patch_job_manager(monkeypatch)
+        ipc_server.app.models.active_transcriber.return_value = None
+        ipc_server.app.models._model_downloaded_precheck.return_value = True
+        ipc_server.app.config.model_size = "parakeet"
+        ipc_server.app.config.asr_backend = "parakeet"
+        ipc_server.app.config.language = "ar"
+        f = tmp_path / "clip.wav"
+        f.write_bytes(b"RIFF")
+        resp = ipc_server._handle_media_transcribe_start({"source": str(f)}, {})
+        assert resp["type"] == "error", f"expected a refusal, got {resp!r}"
+        assert resp["data"]["code"] == "model_language_unsupported"
+        assert "Parakeet Ultra does not support Arabic." in resp["data"]["message"]
+        assert "source" not in started, "no job may be queued for an undecodable model/language pair"
+
+    def test_parakeet_with_english_still_starts(self, ipc_server, fake_service, monkeypatch, tmp_path):
+        started = self._patch_job_manager(monkeypatch)
+        ipc_server.app.models.active_transcriber.return_value = None
+        ipc_server.app.models._model_downloaded_precheck.return_value = True
+        ipc_server.app.config.model_size = "parakeet"
+        ipc_server.app.config.asr_backend = "parakeet"
+        ipc_server.app.config.language = "en"
+        f = tmp_path / "clip.wav"
+        f.write_bytes(b"RIFF")
+        resp = ipc_server._handle_media_transcribe_start({"source": str(f)}, {})
+        assert resp["type"] == "media_transcribe_result"
+        assert started["source"] == str(f)
+
+    def test_whisper_with_arabic_still_starts(self, ipc_server, fake_service, monkeypatch, tmp_path):
+        started = self._patch_job_manager(monkeypatch)
+        ipc_server.app.models.active_transcriber.return_value = None
+        ipc_server.app.models._model_downloaded_precheck.return_value = True
+        ipc_server.app.config.model_size = "large-v3"
+        ipc_server.app.config.asr_backend = "whisper"
+        ipc_server.app.config.language = "ar"
+        f = tmp_path / "clip.wav"
+        f.write_bytes(b"RIFF")
+        resp = ipc_server._handle_media_transcribe_start({"source": str(f)}, {})
+        assert resp["type"] == "media_transcribe_result"
+        assert started["source"] == str(f)
 
 
 class TestMediaValidationGate:
@@ -1111,3 +1185,108 @@ class TestLeaseCoversTheModelLoad:
         assert out == {"row_id": None, "chars": 0}
         assert downloaded == [], "a cancelled URL job still downloaded or decoded"
         assert gate.active() == 0
+
+
+class TestMediaCompletionMetadata:
+    """The completion event + History write carry the same metadata."""
+
+    @staticmethod
+    def _job(**overrides):
+        import threading
+        from types import SimpleNamespace
+
+        base = dict(
+            job_id="meta",
+            client_id="row-1",
+            source="https://www.youtube.com/watch?v=abc",
+            cancel_event=threading.Event(),
+            ingest_tier="download",
+            expected_seconds=42.0,
+            decoded_seconds=42.0,
+            note=None,
+            engine_label="whisper/small.en",
+            quality=None,
+            cancel_reason=None,
+            title="A talk",
+            thumbnail_data_url="data:image/jpeg;base64,AAAA",
+            started_at=time.perf_counter() - 5.0,
+            download_seconds=3.5,
+        )
+        base.update(overrides)
+        return SimpleNamespace(**base)
+
+    def test_youtube_job_payload_and_history_kwargs(self, ipc_server, fake_service, monkeypatch):
+        from voice_typer.server import event_bus
+        from voice_typer.server.media_ingest import storage as storage_mod
+
+        events: list[dict] = []
+        saved: dict = {}
+        monkeypatch.setattr(event_bus, "publish", lambda event: events.append(event))
+        monkeypatch.setattr(storage_mod, "persist_result", lambda *a, **k: saved.update(k) or 7)
+
+        out = ipc_server._finish_media_job(
+            self._job(),
+            "hello from a video",
+            duration=42.0,
+            decoded_seconds=42.0,
+            expected_seconds=42.0,
+            validated={"export_path": None},
+        )
+        assert out == {"row_id": 7, "chars": len("hello from a video")}
+
+        complete = [e for e in events if e["type"] == "media_transcribe_complete"]
+        assert len(complete) == 1
+        data = complete[0]["data"]
+        expected = {
+            "word_count": 4,
+            "source_type": "youtube",
+            "source_title": "A talk",
+            "source_url": "https://www.youtube.com/watch?v=abc",
+            "file_name": None,
+            "thumbnail_url": "data:image/jpeg;base64,AAAA",
+            "media_duration_seconds": 42.0,
+            "download_seconds": 3.5,
+            "model_name": "whisper/small.en",
+            "method": "transcription",
+        }
+        for key, value in expected.items():
+            assert data[key] == value, f"{key}: {data[key]!r} != {value!r}"
+        assert isinstance(data["processing_seconds"], float) and data["processing_seconds"] > 0
+        # Existing fields stay intact.
+        assert data["chars"] == len("hello from a video")
+        assert data["title"] == "A talk"
+        assert data["thumbnail_data_url"] == "data:image/jpeg;base64,AAAA"
+
+        assert saved["kind"] == "media"
+        assert saved["source_type"] == "youtube"
+        assert saved["method"] == "transcription"
+        assert saved["media_duration_seconds"] == 42.0
+        assert saved["download_seconds"] == 3.5
+        assert saved["model"] == "whisper/small.en"
+
+    def test_local_subtitle_job_marks_file_and_subtitles(self, ipc_server, fake_service, monkeypatch):
+        from voice_typer.server import event_bus
+        from voice_typer.server.media_ingest import storage as storage_mod
+
+        events: list[dict] = []
+        monkeypatch.setattr(event_bus, "publish", lambda event: events.append(event))
+        monkeypatch.setattr(storage_mod, "persist_result", lambda *a, **k: 1)
+        job = self._job(
+            source="clip.mp4",
+            title=None,
+            thumbnail_data_url=None,
+            ingest_tier="subtitles",
+            engine_label="subtitles",
+            started_at=None,
+            download_seconds=None,
+        )
+        ipc_server._finish_media_job(job, "caption text", validated={"export_path": None})
+
+        data = [e for e in events if e["type"] == "media_transcribe_complete"][0]["data"]
+        assert data["source_type"] == "file"
+        assert data["file_name"] == "clip.mp4"
+        assert data["source_url"] is None
+        assert data["method"] == "subtitles"
+        assert data["model_name"] == "subtitles"
+        assert data["processing_seconds"] is None
+        assert data["download_seconds"] is None

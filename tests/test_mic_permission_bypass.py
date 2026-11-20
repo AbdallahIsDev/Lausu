@@ -151,6 +151,10 @@ def test_denied_hotkey_press_kicks_no_model_load():
     app.config.voice_biometric_consent = True
     app.tray = MagicMock()
     app._waveform_bubble = MagicMock()
+    from tests.fixtures.bubble_policy_fixture import attach_policy as _attach_policy
+
+    _behavior = app.config.bubble_behavior
+    _attach_policy(app._waveform_bubble, _behavior if isinstance(_behavior, str) else "show_on_record")
     app._cancel_pending_timers = MagicMock()
     app._schedule_timer = MagicMock()
     app.models = MagicMock()
@@ -190,6 +194,10 @@ def test_too_short_path_resets_bubble():
     app.config.bubble_behavior = "show_on_record"
     app.tray = MagicMock()
     app._waveform_bubble = MagicMock()
+    from tests.fixtures.bubble_policy_fixture import attach_policy as _attach_policy
+
+    _behavior = app.config.bubble_behavior
+    _attach_policy(app._waveform_bubble, _behavior if isinstance(_behavior, str) else "show_on_record")
     app._busyness = MagicMock()
     app._schedule_timer = MagicMock()
     app._restore_volume = MagicMock()
@@ -200,6 +208,9 @@ def test_too_short_path_resets_bubble():
     controller._watchdog_lock = threading.Lock()
     controller._cancel_streaming_session = MagicMock()
     controller._maybe_restart_level_monitor_for_always_visible_bubble = MagicMock()
+    from tests.fixtures.bubble_policy_fixture import attach_policy
+
+    attach_policy(app._waveform_bubble, "show_on_record")
     lifecycle = RecordingLifecycle()
     lifecycle._run_stop_and_transcribe(controller, np.zeros(1600, dtype=np.float32), "#2")
     app._waveform_bubble.hide.assert_called_once_with()
@@ -264,6 +275,10 @@ def test_silent_zero_audio_routes_to_permission_refusal():
     app.config.bubble_behavior = "show_on_record"
     app.tray = MagicMock()
     app._waveform_bubble = MagicMock()
+    from tests.fixtures.bubble_policy_fixture import attach_policy as _attach_policy
+
+    _behavior = app.config.bubble_behavior
+    _attach_policy(app._waveform_bubble, _behavior if isinstance(_behavior, str) else "show_on_record")
     app._busyness = MagicMock()
     app._schedule_timer = MagicMock()
     app._restore_volume = MagicMock()
@@ -301,6 +316,10 @@ def test_short_but_audible_audio_proceeds_instead_of_idle_reset():
     app.config.bubble_behavior = "show_on_record"
     app.tray = MagicMock()
     app._waveform_bubble = MagicMock()
+    from tests.fixtures.bubble_policy_fixture import attach_policy as _attach_policy
+
+    _behavior = app.config.bubble_behavior
+    _attach_policy(app._waveform_bubble, _behavior if isinstance(_behavior, str) else "show_on_record")
     app._busyness = MagicMock()
     app._schedule_timer = MagicMock()
     app._restore_volume = MagicMock()
@@ -423,6 +442,9 @@ class TestRefusalNotificationDedup:
 
         app = MagicMock()
         app.config.bubble_behavior = "show_on_record"
+        from tests.fixtures.bubble_policy_fixture import attach_policy as _attach_policy
+
+        _attach_policy(app._waveform_bubble, "show_on_record")
         lifecycle = RecordingLifecycle()
         lifecycle._publish_permission_denied_refusal(app, "denied")
         lifecycle._publish_permission_denied_refusal(app, "denied")
@@ -442,8 +464,11 @@ class TestPermissionRevokedBubbleAutoReset:
 
     @staticmethod
     def _refusal_app(behavior: str):
+        from tests.fixtures.bubble_policy_fixture import attach_policy
+
         app = MagicMock()
         app.config.bubble_behavior = behavior
+        attach_policy(app._waveform_bubble, behavior)
         return app
 
     @staticmethod

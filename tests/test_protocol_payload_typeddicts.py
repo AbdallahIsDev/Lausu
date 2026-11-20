@@ -103,6 +103,16 @@ _HISTORY_SELECT_COLUMNS = [
     "char_count",
     "favorite",
     "language",
+    "kind",
+    "source_type",
+    "source_title",
+    "source_url",
+    "file_name",
+    "thumbnail_url",
+    "media_duration_seconds",
+    "processing_seconds",
+    "download_seconds",
+    "method",
 ]
 
 

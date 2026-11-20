@@ -3,7 +3,6 @@
 import socket
 import subprocess
 import sys
-import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -14,6 +13,8 @@ from voice_typer.server.autostart_launcher import (
     _write_pid_file,
     launch,
 )
+
+from tests.fixtures.sleep_seam import patch_module_sleep
 
 
 class TestIsPortOpen:
@@ -165,7 +166,9 @@ class TestLaunchPortOpenPath:
             "voice_typer.server.autostart_launcher._setup_logging",
             lambda: None,
         )
-        monkeypatch.setattr(time, "sleep", lambda s: None)
+        import voice_typer.server.autostart_launcher as launcher_mod
+
+        patch_module_sleep(monkeypatch, launcher_mod)
         ret = launch()
         assert ret == 0
         assert focus_called
@@ -264,7 +267,9 @@ class TestLaunchPortClosedPath:
             "voice_typer.server.autostart_launcher._wait_for_ipc_ready",
             lambda: None,
         )
-        monkeypatch.setattr(time, "sleep", lambda s: None)
+        import voice_typer.server.autostart_launcher as launcher_mod
+
+        patch_module_sleep(monkeypatch, launcher_mod)
 
         captured_env = {}
 
@@ -315,7 +320,9 @@ class TestLaunchPortClosedPath:
             "voice_typer.server.autostart_launcher._wait_for_ipc_ready",
             lambda: None,
         )
-        monkeypatch.setattr(time, "sleep", lambda s: None)
+        import voice_typer.server.autostart_launcher as launcher_mod
+
+        patch_module_sleep(monkeypatch, launcher_mod)
 
         captured_env = {}
 
@@ -377,8 +384,9 @@ class TestLegacyDelayClamp:
             "voice_typer.server.autostart_launcher._wait_for_ipc_ready",
             lambda *args, **kwargs: None,
         )
-        sleeps: list[float] = []
-        monkeypatch.setattr(time, "sleep", lambda s: sleeps.append(s))
+        import voice_typer.server.autostart_launcher as launcher_mod
+
+        sleeps = patch_module_sleep(monkeypatch, launcher_mod)
         monkeypatch.setattr(sys, "argv", ["autostart_launcher.py", "--hidden", "--delay", delay_arg])
         assert launch() == 0
         return sleeps

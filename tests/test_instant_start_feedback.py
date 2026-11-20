@@ -30,6 +30,9 @@ def test_instant_feedback_fires_before_recorder_start():
     def _recording_started():
         order.append("sound")
 
+    from tests.fixtures.bubble_policy_fixture import attach_policy
+
+    attach_policy(app._waveform_bubble, "show_on_record")
     app._waveform_bubble.show.side_effect = _bubble_show
     app.tray.set_state.side_effect = lambda *a, **k: order.append("tray")
     lifecycle._publish_recording_started_event = _recording_started  # type: ignore[method-assign]
@@ -55,7 +58,10 @@ def test_instant_feedback_fires_before_recorder_start():
 
 def test_failed_start_hides_optimistic_bubble():
     """recorder.start() failure rolls back the optimistic bubble."""
+    from tests.fixtures.bubble_policy_fixture import attach_policy
+
     lifecycle, controller, app = _make_start_app()
+    attach_policy(app._waveform_bubble, "show_on_record")
     lifecycle._gate_voice_biometric_consent = lambda app: True  # type: ignore[method-assign]
     lifecycle._wire_recorder_start_callbacks = lambda c, a: None  # type: ignore[method-assign]
     lifecycle._publish_recording_started_event = lambda: None  # type: ignore[method-assign]
@@ -70,7 +76,10 @@ def test_failed_start_hides_optimistic_bubble():
 
 def test_always_visible_failure_returns_to_idle():
     """always_visible failure returns bubble to idle instead of hide."""
+    from tests.fixtures.bubble_policy_fixture import attach_policy
+
     lifecycle, controller, app = _make_start_app(bubble_behavior="always_visible")
+    attach_policy(app._waveform_bubble, "always_visible")
     lifecycle._gate_voice_biometric_consent = lambda app: True  # type: ignore[method-assign]
     lifecycle._wire_recorder_start_callbacks = lambda c, a: None  # type: ignore[method-assign]
     lifecycle._publish_recording_started_event = lambda: None  # type: ignore[method-assign]

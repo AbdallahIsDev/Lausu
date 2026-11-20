@@ -1,8 +1,11 @@
-"""Performance fix regression tests for the model-management + transcription"""
+"""Performance fix regression tests for the model-management + transcription paths.
+
+Source-text pins were migrated to behavioral probes per
+``docs/adr/source-text-test-migration.md``.
+"""
 
 from __future__ import annotations
 
-import inspect
 import sys
 import threading
 from unittest.mock import MagicMock
@@ -171,10 +174,15 @@ class TestUnloadWaitsForInference:
 
         # Spawn unload() in a thread, it should block on the cond wait.
         unload_done = threading.Event()
+        unload_errors: list[BaseException] = []
 
         def unload_thread():
-            engine.unload()
-            unload_done.set()
+            try:
+                engine.unload()
+            except BaseException as exc:  # noqa: BLE001 - reported below, not swallowed
+                unload_errors.append(exc)
+            finally:
+                unload_done.set()
 
         t = threading.Thread(target=unload_thread, daemon=True)
         t.start()
@@ -192,55 +200,16 @@ class TestUnloadWaitsForInference:
             engine._active_inference -= 1
             engine._inference_cond.notify_all()
 
-        assert unload_done.wait(timeout=2.0), (
-            "unload() must complete promptly after _active_inference returns to 0 and the cond is notified."
+        # Generous deadline: unload() finishes with gc.collect() + GPU release, which
+        # a loaded CI runner can stretch well past a couple of seconds.
+        assert unload_done.wait(timeout=60.0), (
+            "unload() must complete after _active_inference returns to 0 and the cond is notified."
         )
+        assert unload_errors == [], unload_errors
+        t.join(timeout=5.0)
+        assert not t.is_alive(), "unload() must return once the model is released"
         # The model is now nulled.
         assert engine._model is None
-
-    def test_unload_source_uses_inference_cond(self):
-        """Source guard: ``unload()`` must use ``_inference_cond`` (NOT"""
-        from voice_typer.worker.whisper import TranscriptionEngine
-
-        src = inspect.getsource(TranscriptionEngine.unload)
-        assert "_inference_cond" in src, (
-            "unload() must acquire _inference_cond (a Condition "
-            "wrapping _lock) so wait() atomically releases the lock and "
-            "blocks; transcribe()'s finally block then notifies the cond."
-        )
-        assert "while self._active_inference > 0" in src, (
-            "unload() must wait on _inference_cond while _active_inference > 0 before nulling self._model."
-        )
-
-
-class TestTranscribeSourceReleasesLockDuringInference:
-    """Source-level guards: the transcribe methods must acquire the lock"""
-
-    def test_transcribe_source_uses_counter_pattern(self):
-        from voice_typer.worker.whisper import TranscriptionEngine
-
-        src = inspect.getsource(TranscriptionEngine.transcribe)
-        assert "self._active_inference += 1" in src, "transcribe() must increment _active_inference under the lock."
-        assert "self._inference_cond" in src, (
-            "transcribe() must decrement _active_inference under _inference_cond in a finally block."
-        )
-
-    def test_transcribe_with_fallback_source_uses_counter_pattern(self):
-        """``voice_typer.worker.whisper.fallback.transcribe_with_fallback``"""
-        from voice_typer.worker.whisper.fallback import (
-            transcribe_with_fallback as fallback_body,
-        )
-
-        src = inspect.getsource(fallback_body)
-        assert "engine._active_inference += 1" in src, "transcribe_with_fallback() must increment _active_inference."
-        assert "engine._inference_cond" in src, "transcribe_with_fallback() must decrement under _inference_cond."
-
-    def test_transcribe_words_source_uses_counter_pattern(self):
-        from voice_typer.worker.whisper import TranscriptionEngine
-
-        src = inspect.getsource(TranscriptionEngine.transcribe_words)
-        assert "self._active_inference += 1" in src, "transcribe_words() must increment _active_inference."
-        assert "self._inference_cond" in src, "transcribe_words() must decrement under _inference_cond."
 
 
 class TestParakeetBatchSizeReadAtConstruction:
@@ -288,43 +257,6 @@ class TestParakeetBatchSizeReadAtConstruction:
             "constructions must take effect (the pre-fix class-attribute "
             "form froze the value at import time)."
         )
-
-    def test_init_source_reads_env_var(self):
-        """Source guard: ``__init__`` must contain"""
-        from voice_typer.server.parakeet_engine import ParakeetEngine
-
-        src = inspect.getsource(ParakeetEngine.__init__)
-        assert 'os.environ.get("PARAKEET_BATCH_SIZE"' in src, (
-            "IN-5: __init__ must read PARAKEET_BATCH_SIZE from os.environ "
-            "at construction time (NOT rely on the class-attribute form "
-            "that evaluated once at import time)."
-        )
-
-    def test_no_class_level_inference_batch_size_attribute(self):
-        """Source guard: the class body must NOT define"""
-        from voice_typer.server.parakeet_engine import ParakeetEngine
-
-        # The class dict must NOT contain _INFERENCE_BATCH_SIZE, the
-        assert "_INFERENCE_BATCH_SIZE" not in ParakeetEngine.__dict__, (
-            "IN-5: ParakeetEngine must NOT define _INFERENCE_BATCH_SIZE "
-            "as a class attribute (the value must be read at construction "
-            "time as an instance attribute to avoid the import-time freeze)."
-        )
-        # ParakeetEngine:`` and the first ``def``) must not assign
-        src = inspect.getsource(ParakeetEngine)
-        for line in src.splitlines():
-            stripped = line.lstrip()
-            # Skip lines inside methods (indented further than class
-            if not line.startswith("    ") or line.startswith("        "):
-                continue
-            # Match a bare class-level assignment to _INFERENCE_BATCH_SIZE
-            if stripped.startswith("_INFERENCE_BATCH_SIZE") and "=" in stripped:
-                pytest.fail(
-                    "IN-5: ParakeetEngine class body must NOT assign "
-                    "_INFERENCE_BATCH_SIZE (the value must be set as an "
-                    "instance attribute in __init__ to avoid the "
-                    "import-time env-var freeze bug). Found: " + line
-                )
 
 
 class TestSetActiveBackendBlockingRechecksBusy:
@@ -441,40 +373,39 @@ class TestSetActiveBackendBlockingRechecksBusy:
         # Load was attempted.
         mm._registry.load_active.assert_called()
 
-    def test_blocking_source_contains_recheck(self):
-        """Source guard: ``_set_active_backend_blocking`` must contain"""
-        from voice_typer.server.model_manager import ModelManager
+    def test_blocking_rechecks_recording_after_lock_acquire(self):
+        """A recording starting at lock-acquire time must still defer the switch.
 
-        src = inspect.getsource(ModelManager._set_active_backend_blocking)
-        # The re-check must be INSIDE the ``with self._model_change_lock:``
-        lock_idx = src.index("with self._model_change_lock:")
-        unload_idx = src.index("_change_model_unload_phase")
-        recheck_idx = src.index("rec_now = bool(self._app.recorder.recording)")
-        assert lock_idx < recheck_idx < unload_idx, (
-            "IN-7: the recorder.recording re-check must appear BETWEEN "
-            "the _model_change_lock acquisition and the "
-            "_change_model_unload_phase call (i.e. INSIDE the lock)."
-        )
-        # The busy_event re-check must also be present inside the lock.
-        busy_recheck_idx = src.index("busy_now = not self._app._busy_event.is_set()")
-        assert lock_idx < busy_recheck_idx < unload_idx, (
-            "IN-7: the _busy_event re-check must appear BETWEEN the "
-            "_model_change_lock acquisition and the _change_model_unload_phase "
-            "call (i.e. INSIDE the lock)."
-        )
+        The state flip happens as the lock is entered: a re-check that runs
+        before the lock would see the stale (idle) value and tear down the
+        model mid-recording.
+        """
+        mm, app = self._make_mm_with_mock_backend(backend_name="whisper", recording=False, busy=False)
+        whisper_engine = MagicMock()
+        whisper_engine.is_loaded = True
+        mm._registry.get.return_value = whisper_engine
+        mm.transcriber = whisper_engine
+        real_lock = mm._model_change_lock
 
-    def test_set_active_backend_comment_is_accurate(self):
-        """background thread re-checks under the lock when it actually"""
-        from voice_typer.server.model_manager import ModelManager
+        class RecordingStartsAtLock:
+            def __enter__(self):
+                real_lock.acquire()
+                app.recorder.recording = True
+                return self
 
-        src = inspect.getsource(ModelManager.set_active_backend)
-        # The comment must mention that the background thread re-checks
-        assert "re-checks" in src or "re-check" in src, (
-            "IN-7: the set_active_backend comment must mention that the "
-            "background thread re-checks recorder.recording and "
-            "_busy_event under the lock (now that the re-check is "
-            "actually implemented in _set_active_backend_blocking)."
+            def __exit__(self, *exc):
+                real_lock.release()
+                return False
+
+        mm._model_change_lock = RecordingStartsAtLock()
+
+        mm._set_active_backend_blocking("qwen")
+
+        assert mm._pending_backend_change == "qwen", (
+            "the recorder.recording re-check must run after _model_change_lock is acquired"
         )
+        mm._registry.unload.assert_not_called()
+        mm._registry.load_active.assert_not_called()
 
 
 if __name__ == "__main__":

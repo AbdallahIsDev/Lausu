@@ -19,7 +19,7 @@ class TestHostValidationWorkflowContract:
         assert "macos-host-validation" in text
         assert "linux-host-validation" in text
         assert "runs-on: windows-2022" in text
-        assert "runs-on: macos-14" in text
+        assert "runs-on: macos-15" in text
         assert "runs-on: ubuntu-22.04" in text
 
     def test_windows_job_covers_kill_path_contracts(self) -> None:

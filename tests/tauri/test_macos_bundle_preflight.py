@@ -98,7 +98,7 @@ class TestSwiftSourceContract:
 class TestWorkflowPinsNewSteps:
     def test_workflow_contains_headless_runnable_steps(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
-        assert "runs-on: macos-14" in text
+        assert "runs-on: macos-15" in text
         assert "swiftc -O" in text
         assert "VOICE_TYPER_SKIP_ACCESSIBILITY_CHECK" in text
         assert "LISTENER_SMOKE=SKIPPED_NO_TCC" in text

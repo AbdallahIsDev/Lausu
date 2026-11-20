@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 from pathlib import Path
@@ -29,6 +30,17 @@ EXPECTED_NATIVE_RESOURCES = [
 
 # : worker exe that absorbed the retired standalone prewarm binary).
 EXPECTED_WORKER_BIN_BASENAME = "bin/lausu-worker"
+
+# Windows x64 only: the LGPL ffmpeg/ffprobe pair fetched by
+# scripts/build/fetch_ffmpeg_lgpl_win64.sh (Part C). Tauri appends the target
+# triple to each base name at build time; the base + macOS/Linux configs stay
+# untouched. Listed as base names with no triple suffix (ADR-0020 §4.1 + §7).
+FFMPEG_EXTERNAL_BIN = ("bin/ffmpeg", "bin/ffprobe")
+WINDOWS_X64_FFMPEG_CONFIGS = (
+    "tauri.windows-x86_64.conf.json",
+    "tauri.windows-x86_64-slim.conf.json",
+)
+_FFMPEG_RESOLVER = _SRC_TAURI.parent / "voice_typer" / "server" / "media_ingest" / "ffmpeg_binaries.py"
 
 EXPECTED_TARGET_TRIPLES = [
     ("x86_64", "windows", "x86_64-pc-windows-msvc"),
@@ -305,3 +317,94 @@ def test_capabilities_json_identifier_matches_filename(
         f"{EXPECTED_CAPABILITY_IDENTIFIER!r} (must match the filename stem, "
         f"ADR-0020 §7)"
     )
+
+
+class TestWindowsX64FfmpegExternalBin:
+    """Windows x64 (full + slim) bundle the LGPL ffmpeg/ffprobe pair.
+
+    Part C fetches ``bin/ffmpeg-<triple>.exe`` / ``bin/ffprobe-<triple>.exe``
+    (gitignored); these configs declare the BASE names because Tauri appends
+    the target triple itself. No other platform config may declare them — the
+    LGPL binaries are win64-only and macOS/Linux stay byte-for-byte unchanged.
+    """
+
+    def test_windows_x64_configs_declare_ffmpeg_and_ffprobe(self) -> None:
+        for name in WINDOWS_X64_FFMPEG_CONFIGS:
+            cfg = json.loads((_SRC_TAURI / name).read_text(encoding="utf-8"))
+            external_bin = cfg.get("bundle", {}).get("externalBin", [])
+            for tool in FFMPEG_EXTERNAL_BIN:
+                assert tool in external_bin, (
+                    f"{name} bundle.externalBin must declare {tool!r} "
+                    f"(Windows-only LGPL media pair); got: {external_bin!r}"
+                )
+
+    def test_windows_x64_external_bin_entries_have_no_triple_suffix(self) -> None:
+        triple_suffix_re = re.compile(
+            r"-x86_64-pc-windows-msvc|-aarch64-pc-windows-msvc"
+            r"|-x86_64-apple-darwin|-aarch64-apple-darwin"
+            r"|-x86_64-unknown-linux-gnu|-aarch64-unknown-linux-gnu"
+        )
+        for name in WINDOWS_X64_FFMPEG_CONFIGS:
+            cfg = json.loads((_SRC_TAURI / name).read_text(encoding="utf-8"))
+            for entry in cfg.get("bundle", {}).get("externalBin", []):
+                assert not triple_suffix_re.search(entry), (
+                    f"{name}: externalBin entry {entry!r} carries a target "
+                    "triple; Tauri appends it at build time."
+                )
+
+    def test_media_pair_is_windows_x64_only(self) -> None:
+        """Base + macOS/Linux/aarch64 configs must NOT declare the media pair."""
+        confs = [_TAURI_CONF] + [
+            _SRC_TAURI / name
+            for name in sorted(p.name for p in _SRC_TAURI.glob("tauri.*.conf.json"))
+            if name not in WINDOWS_X64_FFMPEG_CONFIGS and name != "tauri.dev.conf.json"
+        ]
+        for path in confs:
+            cfg = json.loads(Path(path).read_text(encoding="utf-8"))
+            external_bin = cfg.get("bundle", {}).get("externalBin", [])
+            leaked = [e for e in external_bin if any(tool in e for tool in ("ffmpeg", "ffprobe"))]
+            assert not leaked, (
+                f"{Path(path).name} must not declare ffmpeg/ffprobe externalBin "
+                f"(Windows x64 only), got: {leaked}"
+            )
+
+    @staticmethod
+    def _load_resolver():
+        spec = importlib.util.spec_from_file_location("_vt_ffmpeg_binaries_wiring", _FFMPEG_RESOLVER)
+        assert spec is not None and spec.loader is not None, f"cannot load {_FFMPEG_RESOLVER}"
+        module = importlib.util.module_from_spec(spec)
+        # @dataclass resolves annotations via sys.modules[cls.__module__] on 3.13.
+        import sys
+
+        sys.modules["_vt_ffmpeg_binaries_wiring"] = module
+        try:
+            spec.loader.exec_module(module)
+        finally:
+            sys.modules.pop("_vt_ffmpeg_binaries_wiring", None)
+        return module
+
+    def test_frozen_sidecar_finds_bundled_pair_next_to_it(self, monkeypatch, tmp_path) -> None:
+        """Cross-layer parity: Tauri strips -<triple> when bundling externalBin.
+
+        The installed app therefore carries ``ffmpeg.exe``/``ffprobe.exe``
+        beside the sidecar (Tauri resolves sidecars by base name). Prove the
+        frozen sidecar's resolver finds exactly those basenames in an
+        exe-adjacent dir, with no PATH fallback.
+        """
+        resolver = self._load_resolver()
+        for var in (resolver.ENV_FFMPEG, resolver.ENV_FFPROBE):
+            monkeypatch.delenv(var, raising=False)
+        monkeypatch.setattr(resolver, "_frozen", lambda: True)
+        monkeypatch.setattr(resolver, "_shipped_dirs", lambda: (tmp_path,))
+
+        expected_names = {}
+        for program in ("ffmpeg", "ffprobe"):
+            name = resolver._names(program)[0]  # bare basename Tauri ships
+            (tmp_path / name).write_bytes(b"binary")
+            expected_names[program] = name
+
+        pair = resolver.resolve_binaries()
+        assert pair is not None, "frozen sidecar must find the bundled ffmpeg/ffprobe pair"
+        assert Path(pair.ffmpeg) == tmp_path / expected_names["ffmpeg"]
+        assert pair.ffprobe is not None
+        assert Path(pair.ffprobe) == tmp_path / expected_names["ffprobe"]

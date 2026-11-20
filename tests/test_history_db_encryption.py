@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from voice_typer.server import _text_crypto, credential_store
+from voice_typer.server.history_db_internals.schema import _CURRENT_SCHEMA_VERSION
 
 #: Raw-SQL helper constants.
 _FLAG_SQL = "SELECT text, text_is_encrypted FROM transcriptions WHERE id = ?"
@@ -404,7 +405,7 @@ class TestMigrationAndBackfill:
             finally:
                 conn.close()
             assert "text_is_encrypted" in cols
-            assert version == "5"
+            assert version == str(_CURRENT_SCHEMA_VERSION)
             # The guarded triggers replaced the unguarded v3 set.
             assert {
                 "transcriptions_ai_fts",

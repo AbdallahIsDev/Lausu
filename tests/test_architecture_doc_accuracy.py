@@ -27,20 +27,24 @@ def _read(path: Path) -> str:
 
 
 def test_event_bus_count_matches_doc_and_code():
-    """Doc must say \"60-event bus\" and ``EVENT_TYPES`` must have 60 entries."""
+    """Doc must say \"61-event bus\" and ``EVENT_TYPES`` must have 61 entries."""
     doc = _read(ARCH_DOC)
-    assert "60-event bus" in doc, "ARCHITECTURE.md must describe the bus as '60-event bus' ."
+    assert "61-event bus" in doc, "ARCHITECTURE.md must describe the bus as '61-event bus' ."
     assert "58-event bus" not in doc, "Stale '58-event bus' must not appear in ARCHITECTURE.md ."
     assert "56-event bus" not in doc, "Stale '56-event bus' must not appear in ARCHITECTURE.md ."
     assert "55-event bus" not in doc, "Stale '55-event bus' must not appear in ARCHITECTURE.md ."
     assert "54-event bus" not in doc, "Stale '54-event bus' must not appear in ARCHITECTURE.md ."
     assert "53-event bus" not in doc, "Stale '53-event bus' must not appear in ARCHITECTURE.md ."
+    assert "60-event bus" not in doc, "Stale '60-event bus' must not appear in ARCHITECTURE.md ."
     assert "59-event bus" not in doc, "Stale '59-event bus' must not appear in ARCHITECTURE.md ."
     assert "52-event bus" not in doc, "Stale '52-event bus' must not appear in ARCHITECTURE.md ."
     assert "51-event bus" not in doc, "Stale '51-event bus' must not appear in ARCHITECTURE.md ."
-    # And the IPC-contract section's frozen-surface count must also say 109 / 60.
-    assert "109 commands / 60 events" in doc, (
-        "IPC contract section must say '109 commands / 60 events'."
+    # And the IPC-contract section's frozen-surface count must also say 109 / 61.
+    assert "109 commands / 61 events" in doc, (
+        "IPC contract section must say '109 commands / 61 events'."
+    )
+    assert "109 commands / 60 events" not in doc, (
+        "Stale '109 commands / 60 events' must not appear in ARCHITECTURE.md ."
     )
     assert "104 commands / 59 events" not in doc, (
         "Stale '104 commands / 59 events' must not appear in ARCHITECTURE.md ."
@@ -58,8 +62,8 @@ def test_event_bus_count_matches_doc_and_code():
 
     from voice_typer.server.event_bus import EVENT_TYPES
 
-    assert len(EVENT_TYPES) == 60, (
-        f"EVENT_TYPES in voice_typer/server/event_bus.py must have 60 "
+    assert len(EVENT_TYPES) == 61, (
+        f"EVENT_TYPES in voice_typer/server/event_bus.py must have 61 "
         f"entries (actual: {len(EVENT_TYPES)}). Update doc + test together."
     )
 
@@ -309,7 +313,7 @@ def test_module_paths_use_package_form():
     level_files = list((ROOT / "voice_typer/server/level_monitor").glob("*.py"))
     assert len(level_files) == 12, f"level_monitor/ must be a 12-file package (actual: {len(level_files)})."
     cts_files = list((ROOT / "voice_typer/server/clipboard_target_safety").glob("*.py"))
-    assert len(cts_files) == 5, f"clipboard_target_safety/ must be a 5-file package (actual: {len(cts_files)})."
+    assert len(cts_files) == 6, f"clipboard_target_safety/ must be a 6-file package (actual: {len(cts_files)})."
 
 
 def test_shutdown_controller_entry_points_match_code():

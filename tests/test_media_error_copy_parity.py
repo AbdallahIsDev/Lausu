@@ -28,6 +28,7 @@ NEW_CODES = (
     "no_media_url",
     "model_loading",
     "model_changed",
+    "model_language_unsupported",
 )
 
 

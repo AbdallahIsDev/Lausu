@@ -6,9 +6,7 @@ GTCRN noise-suppression backend + suppressor integration tests.
 from __future__ import annotations
 
 import json
-import sys
 import time
-import types
 from pathlib import Path
 
 import numpy as np
@@ -193,9 +191,9 @@ def fake_gtcrn_class(monkeypatch: pytest.MonkeyPatch) -> type[_FakeGtcrnBackend]
     return _FakeGtcrnBackend
 
 
-def _install_fake_pyrnnoise(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Inject a stub ``pyrnnoise`` module (same shape as the RNNoise tests)."""
-    fake_pyrnnoise = types.ModuleType("pyrnnoise")
+def _install_fake_rnnoise(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch the backend factory so ``_init_rnnoise`` builds a stub."""
+    from voice_typer.server.audio_filters import noise_suppressor as _ns
 
     class _FakeRNNoise:
         def __init__(self, sample_rate: int = RNNOISE_SAMPLE_RATE) -> None:
@@ -205,12 +203,21 @@ def _install_fake_pyrnnoise(monkeypatch: pytest.MonkeyPatch) -> None:
         def denoise_frame(self, frame_i16):
             return (0.95, frame_i16)
 
-    fake_pyrnnoise.RNNoise = _FakeRNNoise
-    monkeypatch.setitem(sys.modules, "pyrnnoise", fake_pyrnnoise)
+        def reset(self) -> None:
+            pass
+
+    monkeypatch.setattr(_ns, "_make_rnnoise_backend", lambda sample_rate: _FakeRNNoise(sample_rate))
 
 
-def _remove_module(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
-    monkeypatch.setitem(sys.modules, name, None)
+def _install_unavailable_rnnoise(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Simulate a missing native library (clean GTCRN fallback)."""
+    from voice_typer.server.audio_filters import noise_suppressor as _ns
+    from voice_typer.server.audio_filters.rnnoise_ctypes import LibraryLoadError
+
+    def _raise(sample_rate: int) -> None:
+        raise LibraryLoadError("native RNNoise library not found")
+
+    monkeypatch.setattr(_ns, "_make_rnnoise_backend", _raise)
 
 
 class TestSuppressorGtcrnIntegration:
@@ -331,7 +338,7 @@ class TestGtcrnDegradationMatrix:
 
     def test_failure_rnnoise_available_falls_back_at_init(self, monkeypatch):
         self._install_failing_backend(monkeypatch)
-        _install_fake_pyrnnoise(monkeypatch)
+        _install_fake_rnnoise(monkeypatch)
 
         ns = NoiseSuppressor(method="gtcrn", sample_rate=16000)
 
@@ -344,7 +351,7 @@ class TestGtcrnDegradationMatrix:
 
     def test_failure_rnnoise_missing_degrades_to_none(self, monkeypatch):
         self._install_failing_backend(monkeypatch)
-        _remove_module(monkeypatch, "pyrnnoise")
+        _install_unavailable_rnnoise(monkeypatch)
 
         ns = NoiseSuppressor(method="gtcrn", sample_rate=16000)
 
@@ -356,7 +363,7 @@ class TestGtcrnDegradationMatrix:
 
     def test_failure_reason_surfaces_original_exception(self, monkeypatch):
         self._install_failing_backend(monkeypatch)
-        _install_fake_pyrnnoise(monkeypatch)
+        _install_fake_rnnoise(monkeypatch)
 
         ns = NoiseSuppressor(method="gtcrn", sample_rate=16000)
         assert "model exploded" in ns.degraded_reason, (
@@ -411,9 +418,9 @@ class TestLoaderLegacyValueRemap:
         assert instance.noise_suppression_method == "gtcrn", (
             f"the legacy 'deepfilternet' value must load as 'gtcrn' (got {instance.noise_suppression_method!r})"
         )
-        assert any("deepfilternet" in w and "gtcrn" in w for w in instance.last_load_warnings), (
-            "the remap must append a load warning naming both the legacy and "
-            f"the live value; got {instance.last_load_warnings!r}"
+        warnings = getattr(instance, "last_load_warnings", [])
+        assert any("deepfilternet" in w and "gtcrn" in w for w in warnings), (
+            f"the remap must append a load warning naming both the legacy and the live value; got {warnings!r}"
         )
 
     def test_speex_loads_as_rnnoise(self, isolated_config_dir: Path):
@@ -456,8 +463,9 @@ class TestLoaderLegacyValueRemap:
         instance = Config.load()
 
         assert instance.noise_suppression_method == "gtcrn"
-        assert not any("noise_suppression_method" in w for w in instance.last_load_warnings), (
-            f"live values must not produce migration warnings; got {instance.last_load_warnings!r}"
+        warnings = getattr(instance, "last_load_warnings", [])
+        assert not any("noise_suppression_method" in w for w in warnings), (
+            f"live values must not produce migration warnings; got {warnings!r}"
         )
 
 
@@ -572,9 +580,7 @@ class TestGtcrnSharedSession:
 
         a = GtcrnBackend()
         b = GtcrnBackend()
-        assert _CountingSession.constructor_calls == 1, (
-            "two backends must share one session construction"
-        )
+        assert _CountingSession.constructor_calls == 1, "two backends must share one session construction"
         assert a._session is b._session
 
     def test_concurrent_getter_single_construction(self, monkeypatch, tmp_path):
@@ -616,9 +622,7 @@ class TestGtcrnSharedSession:
         a.process_hop(hop)
         a.process_hop(hop)
         # b never ran a hop: its caches stay zero.
-        assert all(np.all(c == 0.0) for c in b.caches), (
-            "backend B streaming state must stay independent of A"
-        )
+        assert all(np.all(c == 0.0) for c in b.caches), "backend B streaming state must stay independent of A"
         assert all(np.all(c == 2.0) for c in a.caches)
 
     def test_cache_reset_recreates(self, monkeypatch, tmp_path):

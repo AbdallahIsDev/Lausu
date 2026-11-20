@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
-_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "ci" / "write_ci_errors.py"
+_ROOT = Path(__file__).resolve().parents[1]
+_SCRIPT = _ROOT / "scripts" / "ci" / "write_ci_errors.py"
+_WORKFLOW = _ROOT / ".github" / "workflows" / "build.yml"
 
 
 def _load():
@@ -105,6 +108,7 @@ def test_rendered_file_has_no_trailing_whitespace(tmp_path: Path, monkeypatch) -
     """
     mod = _load()
     monkeypatch.setattr(mod, "OUTPUT", tmp_path / "CI-errors.md")
+    _write_source_at(tmp_path, "tests/test_x.py", 12)
     d = tmp_path / "junit" / "pytest-results-ubuntu-22.04-3.12"
     d.mkdir(parents=True)
     f = d / "pytest-results.xml"
@@ -124,3 +128,84 @@ def test_rendered_file_has_no_trailing_whitespace(tmp_path: Path, monkeypatch) -
     text = (tmp_path / "CI-errors.md").read_text(encoding="utf-8")
     offenders = [line for line in text.splitlines() if line != line.rstrip()]
     assert offenders == [], f"trailing whitespace would fail the hygiene hook: {offenders!r}"
+
+
+def _write_source_at(tmp_path: Path, path: str, line: int, text: str = "code") -> None:
+    """Create a repo-relative source file with a non-blank line at *line*."""
+    target = tmp_path / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    lines = [""] * line
+    lines[line - 1] = text
+    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _junit_dir(tmp_path: Path) -> Path:
+    d = tmp_path / "junit" / "pytest-results-ubuntu-22.04-3.12"
+    d.mkdir(parents=True)
+    return d
+
+
+def test_source_sha_is_stamped_in_generated_report(tmp_path: Path, monkeypatch) -> None:
+    """The report states which commit it describes, so a stale doc cannot masquerade as current."""
+    mod = _load()
+    monkeypatch.setattr(mod, "OUTPUT", tmp_path / "CI-errors.md")
+    monkeypatch.setenv("GITHUB_SHA", "abc123def456")
+    _write_source_at(tmp_path, "tests/test_x.py", 12)
+    f = _junit_dir(tmp_path) / "pytest-results.xml"
+    f.write_bytes(_junit(_failing_case()))
+
+    assert mod.main([str(f)]) == 0
+    text = (tmp_path / "CI-errors.md").read_text(encoding="utf-8")
+    assert "Source SHA: `abc123def456`" in text
+    assert "### 1. `tests.test_x.test_boom`" in text
+
+
+def test_stale_cited_line_is_dropped_not_reported_as_current(tmp_path: Path, monkeypatch) -> None:
+    """A cited line that is now blank belongs to a fixed failure, not the current run."""
+    mod = _load()
+    monkeypatch.setattr(mod, "OUTPUT", tmp_path / "CI-errors.md")
+    monkeypatch.setenv("GITHUB_SHA", "abc123")
+    _write_source_at(tmp_path, "tests/test_x.py", 12, text="")  # cited line now blank
+    f = _junit_dir(tmp_path) / "pytest-results.xml"
+    f.write_bytes(_junit(_failing_case()))
+
+    assert mod.main([str(f)]) == 0
+    text = (tmp_path / "CI-errors.md").read_text(encoding="utf-8")
+    assert "Stale entries dropped" in text
+    assert "tests/test_x.py:12" in text
+    assert "### 1." not in text
+
+
+def test_stale_cited_file_is_dropped(tmp_path: Path, monkeypatch) -> None:
+    """A cited file that no longer exists is stale too."""
+    mod = _load()
+    monkeypatch.setattr(mod, "OUTPUT", tmp_path / "CI-errors.md")
+    f = _junit_dir(tmp_path) / "pytest-results.xml"
+    f.write_bytes(_junit(_failing_case()))
+
+    assert mod.main([str(f)]) == 0
+    text = (tmp_path / "CI-errors.md").read_text(encoding="utf-8")
+    assert "Stale entries dropped" in text
+    assert "### 1." not in text
+
+
+def test_notify_job_depends_on_every_other_workflow_job() -> None:
+    """The failure-notification job must watch all jobs from one list, not duplicated tables."""
+    text = _WORKFLOW.read_text(encoding="utf-8")
+    jobs_section = text[text.index("\njobs:\n") + len("\njobs:\n") :]
+    every_job = set(re.findall(r"^  ([a-z][a-z0-9-]*):\s*$", jobs_section, re.MULTILINE))
+    notify_start = text.index("\n  notify:\n") + len("\n  notify:\n")
+    tail = text[notify_start:]
+    next_section = re.search(r"^\S", tail, re.MULTILINE)
+    block = tail[: next_section.start()] if next_section else tail
+
+    needs = re.search(r"^    needs: \[(?P<ids>[^\]]+)\]\s*$", block, re.MULTILINE)
+    assert needs is not None, "notify job needs an explicit needs list"
+    watched = {part.strip() for part in needs.group("ids").split(",")}
+    expected = every_job - {"notify"}
+    assert watched == expected, (
+        f"notify must watch every job; missing={sorted(expected - watched)}, extra={sorted(watched - expected)}"
+    )
+    assert "if: always()" in block
+    assert "toJSON(needs)" in block, "job results should be generated from needs so the table cannot drift"
+    assert not re.search(r"needs\.[a-z][a-z0-9-]*\.result", block), "no hard-coded per-job result rows"

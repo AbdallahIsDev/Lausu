@@ -85,10 +85,11 @@ def test_system_menu_strip_covers_mutation_paths():
     )
     assert "harden_bubble_chrome" in commands_rs
     events_rs = (PROJECT_ROOT / "src-tauri" / "src" / "window_events.rs").read_text(encoding="utf-8")
-    assert "harden_bubble_chrome" in events_rs
-    assert "ensure_bubble_msg_hook" in events_rs
-    # The geometry handler runs ON the main thread; the hook attach
-    # is synchronous there while the rest hops off-thread. The frame
-    # re-sync goes along on resizes/scales but never on Moved.
-    assert "thread::spawn" in events_rs
+    # The event arm only schedules: one generation-based single-flight
+    # coalesces pointer-rate arrivals, so no hook call and no thread
+    # spawn happens on the main thread. Structural events still request
+    # a frame re-sync; Moved never does.
+    assert "schedule_bubble_hardening" in events_rs
     assert "sync_frame" in events_rs
+    assert "thread::spawn" not in events_rs
+    assert "ensure_bubble_msg_hook" not in events_rs

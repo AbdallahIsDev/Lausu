@@ -19,9 +19,10 @@ def test_hide_or_idle_bubble_helper_exists() -> None:
 def test_hide_or_idle_bubble_helper_contains_branch_logic() -> None:
     """The helper must contain the ``always_visible`` branch + ``hide()``"""
     src = inspect.getsource(DictationPipeline._hide_or_idle_bubble)
-    assert "always_visible" in src, "_hide_or_idle_bubble must check `bubble_behavior == 'always_visible'`."
-    assert 'set_state("idle")' in src, "_hide_or_idle_bubble must call set_state('idle') for always_visible mode."
-    assert ".hide()" in src, "_hide_or_idle_bubble must call hide() for non-always_visible mode."
+    assert "apply_visibility" in src, "teardown must route through the single visibility policy"
+    assert 'apply_visibility("idle"' in src, "teardown requests the idle state"
+    assert "always_visible" not in src, "no caller may keep its own behavior branch"
+    assert ".hide()" not in src, "no caller may hide directly"
     assert "except Exception" in src, (
         "_hide_or_idle_bubble must swallow teardown exceptions so a bubble "
         "failure doesn't mask the real transcription result."
@@ -58,35 +59,43 @@ def test_copy_and_paste_uses_helper() -> None:
 
 def test_hide_or_idle_bubble_respects_always_visible() -> None:
     """helper calls ``set_state('idle')`` (NOT ``hide()``)."""
+    from tests.fixtures.bubble_policy_fixture import attach_policy
+
     app = MagicMock()
     app.config.bubble_behavior = "always_visible"
+    attach_policy(app._waveform_bubble, "always_visible")
     pipeline = DictationPipeline.__new__(DictationPipeline)
     pipeline._app = app
 
     pipeline._hide_or_idle_bubble("test")
 
-    app._waveform_bubble.set_state.assert_called_once_with("idle")
+    app._waveform_bubble.apply_visibility.assert_called_once_with("idle", reason="test")
+    app._waveform_bubble.show.assert_called_once()
     app._waveform_bubble.hide.assert_not_called()
 
 
 def test_hide_or_idle_bubble_hides_when_not_always_visible() -> None:
     """helper calls ``hide()`` (NOT ``set_state('idle')``)."""
+    from tests.fixtures.bubble_policy_fixture import attach_policy
+
     app = MagicMock()
-    app.config.bubble_behavior = "on_demand"
+    app.config.bubble_behavior = "show_on_record"
+    attach_policy(app._waveform_bubble, "show_on_record")
     pipeline = DictationPipeline.__new__(DictationPipeline)
     pipeline._app = app
 
     pipeline._hide_or_idle_bubble("test")
 
+    app._waveform_bubble.apply_visibility.assert_called_once_with("idle", reason="test")
     app._waveform_bubble.hide.assert_called_once()
-    app._waveform_bubble.set_state.assert_not_called()
+    app._waveform_bubble.show.assert_not_called()
 
 
 def test_hide_or_idle_bubble_swallows_exceptions() -> None:
     """exception (so a bubble teardown failure doesn't mask the real"""
     app = MagicMock()
     app.config.bubble_behavior = "always_visible"
-    app._waveform_bubble.set_state.side_effect = RuntimeError("bubble torn down")
+    app._waveform_bubble.apply_visibility.side_effect = RuntimeError("bubble torn down")
     pipeline = DictationPipeline.__new__(DictationPipeline)
     pipeline._app = app
 

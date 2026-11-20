@@ -11,6 +11,8 @@ from voice_typer.server._audio_constants import scaled_audio_blocksize
 from voice_typer.server.recording import stream_lifecycle as sl_module
 from voice_typer.server.recording.stream_lifecycle import StreamLifecycle
 
+from tests.fixtures.sleep_seam import patch_module_sleep, patch_module_time
+
 
 def _make_recorder_stub() -> Any:
     """Build a minimal mock Recorder suitable for StreamLifecycle tests."""
@@ -247,8 +249,6 @@ class TestTransientOpenRetry:
         return calls
 
     def test_transient_failure_retries_same_candidate(self, monkeypatch):
-        import time as _time_mod
-
         recorder = _make_recorder_stub()
         # A genuinely transient hold ("busy") earns the retry; the poisoned
         # -9999 signature goes straight to the reinit branch instead
@@ -259,8 +259,7 @@ class TestTransientOpenRetry:
             fail_first_n=1,
         )
         recorder._devices._resolve_effective_sample_rate.return_value = (16000, None)
-        sleeps: list[float] = []
-        monkeypatch.setattr(_time_mod, "sleep", lambda s: sleeps.append(s))
+        sleeps = patch_module_sleep(monkeypatch, sl_module)
         lifecycle = StreamLifecycle(recorder)
 
         selected, eff_sr, last_err = lifecycle.open_stream_for_candidates(
@@ -274,8 +273,6 @@ class TestTransientOpenRetry:
         assert lifecycle._stream is not None
 
     def test_non_transient_failure_skips_retry(self, monkeypatch):
-        import time as _time_mod
-
         recorder = _make_recorder_stub()
         calls = self._factory_with_text_error(
             monkeypatch, "fake open failure: invalid device", fail_first_n=5
@@ -284,8 +281,7 @@ class TestTransientOpenRetry:
             (16000, None),
             (16000, None),
         ]
-        sleeps: list[float] = []
-        monkeypatch.setattr(_time_mod, "sleep", lambda s: sleeps.append(s))
+        sleeps = patch_module_sleep(monkeypatch, sl_module)
         lifecycle = StreamLifecycle(recorder)
 
         selected, _, _ = lifecycle.open_stream_for_candidates(
@@ -480,9 +476,9 @@ class TestTeardownStreamBody:
             if recorder._is_in_audio_callback.is_set():
                 recorder._is_in_audio_callback.clear()
 
-        monkeypatch.setattr(sl_module.time, "sleep", fake_sleep)
+        clock = patch_module_time(monkeypatch, sl_module, sleep=fake_sleep)
         # Also patch ``perf_counter`` so the deadline math is
-        monkeypatch.setattr(sl_module.time, "perf_counter", lambda: 0.0)
+        clock.perf_counter = lambda: 0.0
         lifecycle = StreamLifecycle(recorder)
         # STATE-OWNERSHIP: the stream slot is set on the OWNING lifecycle
         lifecycle._stream = fake_stream
@@ -522,8 +518,8 @@ class TestTeardownStreamBody:
         def fake_sleep(seconds):
             sleep_calls.append(seconds)
 
-        monkeypatch.setattr(sl_module.time, "perf_counter", fake_perf_counter)
-        monkeypatch.setattr(sl_module.time, "sleep", fake_sleep)
+        clock = patch_module_time(monkeypatch, sl_module, sleep=fake_sleep)
+        clock.perf_counter = fake_perf_counter
         lifecycle = StreamLifecycle(recorder)
         # STATE-OWNERSHIP: the stream slot is set on the OWNING lifecycle.
         lifecycle._stream = fake_stream

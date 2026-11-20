@@ -9,6 +9,7 @@ import sys
 import types
 import wave
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 import pytest
@@ -46,113 +47,41 @@ class TestDecoderReal:
         assert total >= 16_000 * 11  # resampling can drop a fraction at flush
 
 
-class _FakeStream:
-    def __init__(self, kind: str = "audio"):
-        self.type = kind
+class TestErrorClassification:
+    """Transport/ffmpeg failures map onto the existing job codes, without av."""
 
+    def test_seek_failure_maps_stream_stalled(self):
+        err = decoder._classify_stream_error(TimeoutError("read timed out"), context="open")
+        assert err.code == errors_mod.STREAM_STALLED
 
-class _FakeContainer:
-    def __init__(self, streams, *, seek_error: Exception | None = None):
-        self.streams = streams
-        self._seek_error = seek_error
+    def test_open_timeout_maps_stream_stalled(self):
+        err = decoder._classify_stream_error(OSError("Connection timed out"), context="open")
+        assert err.code == errors_mod.STREAM_STALLED
 
-    def __enter__(self):
-        return self
+    def test_forbidden_maps_url_expired(self):
+        err = decoder._classify_stream_error(RuntimeError("HTTP 403 Forbidden"), context="open")
+        assert err.code == errors_mod.URL_EXPIRED
 
-    def __exit__(self, *args):
-        return False
+    def test_unknown_open_error_maps_decode_failed(self):
+        err = decoder._classify_stream_error(ValueError("garbled"), context="open")
+        assert err.code == errors_mod.DECODE_FAILED
 
-    def seek(self, offset):
-        if self._seek_error is not None:
-            raise self._seek_error
-
-    def decode(self, stream):
-        return iter(())
-
-
-class TestDecoderFakes:
-    def test_inventory_log_names_the_stream_counts(self, monkeypatch, caplog):
-        """``audio=1 video=0`` is what an audio-only HLS download opens as."""
-        import logging
-
-        import av
-
-        with caplog.at_level(logging.INFO, logger="voice_typer.server.media_ingest.decoder"):
-            monkeypatch.setattr(av, "open", lambda *a, **k: _FakeContainer([_FakeStream("audio")]))
-            list(decoder.decode_chunks("https://cdn/audio-only.mp4", remote=True))
-            monkeypatch.setattr(
-                av,
-                "open",
-                lambda *a, **k: _FakeContainer([_FakeStream("audio"), _FakeStream("video")]),
-            )
-            list(decoder.decode_chunks("https://cdn/with-video.mp4", remote=True))
-
-        lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("[MEDIA] ingest:")]
-        assert len(lines) == 2, caplog.text
-        assert "audio=1 video=0" in lines[0]
-        assert "audio=1 video=1" in lines[1]
-
-    def test_no_audio_stream_maps_no_audio(self, monkeypatch):
-        import av
-
-        fake = _FakeContainer([_FakeStream("video")])
-        monkeypatch.setattr(av, "open", lambda *a, **k: fake)
-        with pytest.raises(errors_mod.MediaIngestError) as info:
-            list(decoder.decode_chunks("whatever.mp4", remote=True))
-        assert info.value.code == errors_mod.NO_AUDIO
-
-    def test_seek_failure_maps_stream_stalled(self, monkeypatch):
-        import av
-
-        fake = _FakeContainer([_FakeStream()], seek_error=RuntimeError("boom"))
-        monkeypatch.setattr(av, "open", lambda *a, **k: fake)
-        with pytest.raises(errors_mod.MediaIngestError) as info:
-            list(decoder.decode_chunks("remote.mp4", remote=True, start_seconds=10.0))
-        assert info.value.code == errors_mod.STREAM_STALLED
-
-    def test_open_timeout_maps_stream_stalled(self, monkeypatch):
-        import av
-
-        def _raise(*a, **k):
-            raise TimeoutError("timed out")
-
-        monkeypatch.setattr(av, "open", _raise)
-        with pytest.raises(errors_mod.MediaIngestError) as info:
-            list(decoder.decode_chunks("https://cdn/x.mp4", remote=True))
-        assert info.value.code == errors_mod.STREAM_STALLED
-
-    def test_unknown_open_error_maps_decode_failed(self, monkeypatch):
-        import av
-
-        def _raise(*a, **k):
-            raise ValueError("garbled")
-
-        monkeypatch.setattr(av, "open", _raise)
-        with pytest.raises(errors_mod.MediaIngestError) as info:
-            list(decoder.decode_chunks("https://cdn/x.mp4", remote=True))
-        assert info.value.code == errors_mod.DECODE_FAILED
-
-    def test_remote_open_receives_timeouts(self, monkeypatch):
-        import av
-
-        captured = {}
-        fake = _FakeContainer([_FakeStream()])
-
-        def _open(source, options=None):
-            captured["options"] = options
-            return fake
-
-        monkeypatch.setattr(av, "open", _open)
-        list(decoder.decode_chunks("https://cdn/x.mp4", remote=True))
-        assert captured["options"] == {
-            "open_timeout": str(decoder.OPEN_TIMEOUT_US),
-            "read_timeout": str(decoder.READ_TIMEOUT_US),
-        }
+    def test_ffmpeg_stderr_maps_the_taxonomy(self):
+        assert decoder._classify_ffmpeg_failure(1, "Stream map '' matches no streams.", remote=False).code == (
+            errors_mod.NO_AUDIO
+        )
+        assert decoder._classify_ffmpeg_failure(1, "Server returned 403 Forbidden", remote=True).code == (
+            errors_mod.URL_EXPIRED
+        )
+        assert decoder._classify_ffmpeg_failure(1, "Connection timed out", remote=True).code == (
+            errors_mod.STREAM_STALLED
+        )
+        assert decoder._classify_ffmpeg_failure(1, "End of file", remote=False).code == errors_mod.DECODE_FAILED
 
 
 def _stub_yt_dlp(monkeypatch, youtube_dl_cls) -> None:
     module = types.ModuleType("yt_dlp")
-    module.YoutubeDL = youtube_dl_cls
+    cast(Any, module).YoutubeDL = youtube_dl_cls
     monkeypatch.setitem(sys.modules, "yt_dlp", module)
 
 

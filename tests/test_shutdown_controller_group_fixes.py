@@ -20,6 +20,8 @@ from voice_typer.server.shutdown_controller import (
     ShutdownController,
 )
 
+from tests.fixtures.sleep_seam import patch_module_time
+
 
 class _FakeApp:
     """Minimal duck-typed stand-in for ``LausuApp``."""
@@ -322,11 +324,13 @@ class TestForceExitOnNonMainThread:
             sleep_calls.append(duration)
 
         monkeypatch.setattr(os, "_exit", _mock_os_exit)
-        # Patch ``time.sleep`` ONLY in the shutdown_controller module
-        import voice_typer.server.shutdown_controller as _sc
+        # Rebind the watchdog module's own ``time`` (the watchdog body lives in
+        # ``shutdown.lifecycle``); patching the stdlib module would redirect
+        # every thread in the worker.
+        from voice_typer.server.shutdown import lifecycle as _shutdown_lifecycle
 
         _original_sleep = time.sleep
-        monkeypatch.setattr(_sc.time, "sleep", _mock_sleep)
+        patch_module_time(monkeypatch, _shutdown_lifecycle, sleep=_mock_sleep)
 
         # Run quit() on a NON-MAIN thread so the os._exit path fires.
         done = threading.Event()
@@ -366,9 +370,10 @@ class TestForceExitOnNonMainThread:
             blocker.wait(timeout=10.0)
 
         monkeypatch.setattr(os, "_exit", lambda code=0: blocker.set())
-        import voice_typer.server.shutdown_controller as _sc
 
-        monkeypatch.setattr(_sc.time, "sleep", _blocking_sleep)
+        from voice_typer.server.shutdown import lifecycle as _shutdown_lifecycle
+
+        patch_module_time(monkeypatch, _shutdown_lifecycle, sleep=_blocking_sleep)
 
         done = threading.Event()
         elapsed_holder: list[float] = []

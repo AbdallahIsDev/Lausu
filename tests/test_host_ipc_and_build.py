@@ -282,8 +282,11 @@ class TestTypeIgnoreBugsFixed:
     def test_volume_ducker_backend_null_check_in_duck(self):
         from voice_typer.server.volume_ducker import VolumeDucker
 
-        src = inspect.getsource(VolumeDucker.duck)
-        assert "self._backend is not None" in src
+        # ``duck`` owns the entry guard; the smart-duck conjunction that reads
+        # the backend lives in ``_duck_now`` (the start-cue grace split the
+        # decision out of the entry point).
+        assert "self._backend is None" in inspect.getsource(VolumeDucker.duck)
+        assert "self._backend is not None" in inspect.getsource(VolumeDucker._duck_now)
 
     def test_volume_backends_bare_type_ignore_fixed(self):
         # Session 1 (PVT-architecture refactor) split the monolithic

@@ -1,34 +1,77 @@
-"""XV (Performance & Resources) fix regression tests."""
+"""XV (Performance & Resources) fix regression tests.
+
+Source-text pins were migrated to behavioral probes per
+``docs/adr/source-text-test-migration.md``; the remaining structural gates
+walk real collaborators (``Path.rglob`` spy, module-local sleep spy).
+"""
 
 from __future__ import annotations
 
-import inspect
 import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
+from tests.fixtures.sleep_seam import patch_module_sleep
+
 # XV-1 deps-probe tests removed 2026-08-15: ``_check_qwen_deps`` /
 
 
 class TestDownloadPollScopedToModelDir:
-    """in-progress repo's HF cache subdir, not the entire HF cache tree."""
+    """Progress polling walks the in-progress repo subdir, not the whole cache tree."""
 
-    def test_poll_uses_per_repo_subdir_construction(self):
-        """The progress loop must construct ``model_dir = cache_dir /"""
-        from voice_typer.server.service import LausuService
+    def test_poll_walks_only_the_per_repo_subdir(self, tmp_path, monkeypatch):
+        """Drive the real poll loop and spy on which path ``rglob`` walks."""
+        from voice_typer.server import asr_setup
+        from voice_typer.server.service import _download_helpers as dh
 
-        src = inspect.getsource(LausuService.download_model)
-        # The exact construction line, keep in sync with the source.
-        assert 'model_dir = cache_dir / f"models--{repo_id.replace' in src, (
-            "XV-2: download_model must construct the per-repo subdir "
-            "via cache_dir / f\"models--{repo_id.replace('/', '--')}\" "
-            "before walking it."
+        cache_dir = tmp_path / "cache"
+        model_dir = cache_dir / "models--org--model"
+        (model_dir / "snapshots").mkdir(parents=True)
+        (model_dir / "snapshots" / "model.bin").write_bytes(b"abc")
+        (cache_dir / "unrelated.bin").write_bytes(b"def")
+
+        walked: list[Path] = []
+        real_rglob = Path.rglob
+
+        def spy_rglob(self, pattern):
+            walked.append(self)
+            return real_rglob(self, pattern)
+
+        monkeypatch.setattr(Path, "rglob", spy_rglob)
+        monkeypatch.setattr(asr_setup, "is_download_paused", lambda: False)
+        monkeypatch.setattr(asr_setup, "wait_while_paused", lambda **kwargs: None)
+
+        class FakeThread:
+            def __init__(self):
+                self._alive = True
+
+            def is_alive(self):
+                alive = self._alive
+                self._alive = False
+                return alive
+
+            def join(self, timeout=None):
+                return None
+
+        dh.poll_download_progress(
+            thread=FakeThread(),
+            target_bytes=3,
+            target_mb=1,
+            model_name="tiny.en",
+            repo_id="org/model",
+            cache_dir=cache_dir,
+            download_id="dl-1",
+            event_bus=MagicMock(),
+            is_cancelled_fn=lambda _id: False,
         )
-        assert 'model_dir.rglob("*")' in src, (
-            "XV-2: progress polling must walk model_dir (the per-repo subdir), not the whole cache_dir."
+
+        assert walked, "the poll loop must walk the cache for file sizes"
+        assert all(root == model_dir for root in walked), (
+            f"rglob must only walk the per-repo subdir, got {walked}"
         )
+        assert cache_dir not in walked, "rglob must never walk the whole HF cache root"
 
 
 class TestMicrophonesCacheEmptyList:
@@ -107,23 +150,6 @@ class TestMicrophonesCacheEmptyList:
         assert result == cached_mics
         assert call_count["n"] == 0
 
-    def test_refresh_microphones_source_uses_is_not_none(self):
-        """Source guard: the truthiness check must be ``is not None``,"""
-        from voice_typer.server.service import LausuService
-
-        src = inspect.getsource(LausuService.refresh_microphones)
-        assert "self._microphones_cache is not None" in src, (
-            "XV-5: refresh_microphones must use 'is not None' (not bare "
-            "truthiness) so an empty cached list is still served from cache."
-        )
-        # The old buggy form must NOT appear in actual code lines.
-        code_lines = [line for line in src.splitlines() if line.lstrip() and not line.lstrip().startswith("#")]
-        code_only = "\n".join(code_lines)
-        assert "if self._microphones_cache and " not in code_only, (
-            "XV-5 regression: refresh_microphones still uses bare-truthiness "
-            "cache check, this skips the cache when PortAudio returns 0 mics."
-        )
-
 
 class TestWaitForIpcReady:
     """XV-6: ``_wait_for_ipc_ready`` provides a bounded (5 s deadline)"""
@@ -135,8 +161,7 @@ class TestWaitForIpcReady:
         monkeypatch.setattr(al, "_is_port_open", lambda h, p: True)
         monkeypatch.setattr(al, "_read_ipc_port_from_pid_file", lambda: None)
         # Force the deadline path to be observable: patch sleep to fail
-        sleep_calls = []
-        monkeypatch.setattr(al.time, "sleep", lambda s: sleep_calls.append(s))
+        sleep_calls = patch_module_sleep(monkeypatch, al)
 
         result = al._wait_for_ipc_ready(deadline_s=5.0)
         assert result is True
@@ -149,7 +174,7 @@ class TestWaitForIpcReady:
         monkeypatch.setattr(al, "_is_port_open", lambda h, p: False)
         monkeypatch.setattr(al, "_read_ipc_port_from_pid_file", lambda: None)
         # Speed up the test: zero out sleep so the deadline loop spins
-        monkeypatch.setattr(al.time, "sleep", lambda s: None)
+        patch_module_sleep(monkeypatch, al)
         # Use a tiny deadline + patch monotonic so we don't actually
         start = [time.monotonic()]
 
@@ -214,29 +239,30 @@ class TestWaitForIpcReady:
         assert call_idx["n"] == 3, f"XV-6: expected 3 polls (2 fail + 1 succeed), got {call_idx['n']}"
 
 
-class TestNoFixedSleepTwoInLaunch:
-    """XV-6: the ``launch()`` function must NOT contain any"""
+class TestLaunchWaitsForIpcInsteadOfFixedSleep:
+    """The spawn-success path waits for IPC readiness, not a fixed sleep."""
 
-    def test_launch_source_has_no_fixed_sleep_two(self):
-        """``launch()`` function body (the 3 spawn-success sites must now"""
-        from voice_typer.server import autostart_launcher as al
+    def test_spawn_success_waits_for_ready_without_fixed_sleep(self, monkeypatch):
+        """Drive ``launch()`` to a successful Tauri spawn with fakes/spies."""
+        from voice_typer.server import autostart_launcher as al, backend_pid
 
-        src = inspect.getsource(al.launch)
-        # Strip comments before checking so a docstring or inline
-        code_lines = []
-        for line in src.splitlines():
-            stripped = line.lstrip()
-            if stripped.startswith("#"):
-                continue
-            code_lines.append(line)
-        code_only = "\n".join(code_lines)
-        assert "time.sleep(2)" not in code_only, (
-            "XV-6 regression: launch() still contains a fixed time.sleep(2), must use _wait_for_ipc_ready() instead."
-        )
-        # And the new helper must be called at least once.
-        assert "_wait_for_ipc_ready()" in code_only, (
-            "XV-6: launch() must call _wait_for_ipc_ready() at the spawn-success sites."
-        )
+        sleeps = patch_module_sleep(monkeypatch, al)
+        ready_calls: list[bool] = []
+        monkeypatch.setattr(al, "_setup_logging", lambda: None)
+        monkeypatch.setattr(al.sys, "argv", ["autostart_launcher.py"])
+        monkeypatch.setattr(al, "_parse_delay", lambda argv: 0.0)
+        monkeypatch.setattr(backend_pid, "_backend_pid_file", lambda: MagicMock(exists=lambda: False))
+        monkeypatch.setattr(al, "_read_ipc_port_from_pid_file", lambda: None)
+        monkeypatch.setattr(al, "_is_port_open", lambda host, port: False)
+        monkeypatch.setattr(al, "_is_tauri_mode", lambda: True)
+        monkeypatch.setattr(al, "_tauri_binary", lambda: "C:/fake/lausu.exe")
+        monkeypatch.setattr(al, "_spawn_tauri_host", lambda binary, hidden=False: MagicMock(pid=4242))
+        monkeypatch.setattr(al, "_write_pid_file", lambda *args, **kwargs: None)
+        monkeypatch.setattr(al, "_wait_for_ipc_ready", lambda: ready_calls.append(True))
+
+        assert al.launch() == 0
+        assert ready_calls == [True], "the spawn-success path must wait for IPC readiness"
+        assert sleeps == [], "no fixed sleep belongs on the spawn-success path"
 
 
 class TestNumpyDeadImportRemoved:

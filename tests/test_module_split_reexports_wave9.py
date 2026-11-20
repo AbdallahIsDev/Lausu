@@ -61,6 +61,7 @@ EXPECTED_SURFACE = {
     "_make_dictation_callback",
     "_make_ptt_release_callback",
     "_make_repaste_callback",
+    "_force_caps_lock_off_before_dictation",
     "register_esc",
     "_on_esc_release",
     "unregister_esc",
@@ -102,6 +103,7 @@ OWNED: dict[str, set[str]] = {
         "_make_ptt_release_callback",
         "_make_repaste_callback",
         "_on_esc_release",
+        "_force_caps_lock_off_before_dictation",
     },
     "voice_typer.server.hotkey_lifecycle": {
         "restart",

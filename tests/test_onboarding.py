@@ -620,6 +620,25 @@ class TestModelOptionsIncludeMultilingualAndParakeet:
         names = {opt["name"] for opt in ctrl.MODEL_OPTIONS}
         assert "parakeet" in names
 
+    def test_parakeet_entry_declares_its_real_language_list(self, ctrl):
+        """The wizard used to advertise Parakeet as every-language.
+
+        ``languages: None`` meant "all", so an Arabic-speaking user was
+        recommended a model with no Arabic. The entry now carries the
+        model's own 25-language list (C-ASR-6).
+        """
+        from voice_typer.server.model_language_support import PARAKEET_LANGUAGES
+
+        entry = next(o for o in ctrl.MODEL_OPTIONS if o["name"] == "parakeet")
+        assert entry["languages"] == list(PARAKEET_LANGUAGES)
+        assert "ar" not in entry["languages"]
+        assert "European" in entry["description"]
+
+    def test_whisper_entries_stay_unrestricted(self, ctrl):
+        for name in ("tiny", "large-v3", "large-v3-turbo"):
+            entry = next(o for o in ctrl.MODEL_OPTIONS if o["name"] == name)
+            assert entry["languages"] is None, f"{name} is multilingual Whisper (all languages)"
+
     def test_get_model_catalog_delegates_to_registry(self):
         """``get_model_catalog()`` returns the full registry"""
         from voice_typer.server.model_registry import MODEL_REGISTRY
@@ -727,12 +746,24 @@ class TestModelOptionsVramAndLanguages:
 
     def test_multilingual_variants_have_none_languages(self, ctrl):
         """the multilingual variants (tiny/small/medium without"""
-        multilingual_names = {"tiny", "small", "medium", "parakeet"}
+        multilingual_names = {"tiny", "small", "medium"}
         for opt in ctrl.MODEL_OPTIONS:
             if opt["name"] in multilingual_names:
                 assert opt["languages"] is None, (
                     f"Multilingual model {opt['name']!r} should have languages=None, got {opt['languages']!r}"
                 )
+
+    def test_parakeet_declares_its_own_list_not_all_languages(self, ctrl):
+        """Parakeet is NOT unrestricted: 25 European languages, no Arabic.
+
+        ``None`` here read as "every language" in the wizard's badge and in
+        any language filter, which is what recommended a model that cannot
+        transcribe Arabic (C-ASR-6).
+        """
+        from voice_typer.server.model_language_support import PARAKEET_LANGUAGES
+
+        entry = next(o for o in ctrl.MODEL_OPTIONS if o["name"] == "parakeet")
+        assert entry["languages"] == list(PARAKEET_LANGUAGES)
 
 
 class TestStepLayout:

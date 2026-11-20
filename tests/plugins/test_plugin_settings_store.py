@@ -1,9 +1,11 @@
 """Plugin setting persistence: validation + round-trip.
 
-Settings are written beside the manifest (``settings.json``) and never into
-app config, so these tests own the whole contract: unknown keys and mistyped
-or out-of-range values are rejected, undeclared entries are ignored on read,
-and one accepted value survives a fresh discovery.
+Settings are written into the plugin's own ``config.json`` (the same file the
+daemon loads), so a write from the Plugins page is effective without an
+intermediate copy. These tests own the whole contract: daemon-owned keys are
+preserved across writes, unknown keys and mistyped or out-of-range values are
+rejected, undeclared entries are ignored on read, and one accepted value
+survives a fresh discovery.
 """
 
 from __future__ import annotations
@@ -50,12 +52,28 @@ def test_defaults_are_absent_until_written(plugin) -> None:
     assert load_values(plugin) == {}
 
 
-def test_value_round_trips_through_the_store(plugin) -> None:
+def test_value_round_trips_into_config_json(plugin) -> None:
     assert set_value(plugin, "visible", False) is False
     assert set_value(plugin, "pollMs", 200) == 200
     assert load_values(plugin) == {"visible": False, "pollMs": 200}
-    stored = json.loads((Path(plugin.directory) / "settings.json").read_text(encoding="utf-8"))
+    stored = json.loads((Path(plugin.directory) / "config.json").read_text(encoding="utf-8"))
     assert stored == {"visible": False, "pollMs": 200}
+
+
+def test_daemon_owned_keys_survive_a_setting_write(plugin) -> None:
+    config = Path(plugin.directory) / "config.json"
+    config.write_text(
+        json.dumps({"profileDir": "/tmp/profile", "relayToken": "secret", "pollMs": 90}),
+        encoding="utf-8",
+    )
+    set_value(plugin, "visible", True)
+    stored = json.loads(config.read_text(encoding="utf-8"))
+    assert stored == {
+        "profileDir": "/tmp/profile",
+        "relayToken": "secret",
+        "pollMs": 90,
+        "visible": True,
+    }
 
 
 def test_writes_merge_instead_of_replacing(plugin) -> None:
@@ -84,7 +102,7 @@ def test_invalid_writes_are_rejected(plugin, key: str, value: object) -> None:
 
 
 def test_undeclared_and_mistyped_entries_are_ignored_on_read(plugin) -> None:
-    (Path(plugin.directory) / "settings.json").write_text(
+    (Path(plugin.directory) / "config.json").write_text(
         json.dumps({"visible": True, "removed_key": 1, "pollMs": "fast"}),
         encoding="utf-8",
     )
@@ -92,5 +110,5 @@ def test_undeclared_and_mistyped_entries_are_ignored_on_read(plugin) -> None:
 
 
 def test_corrupt_store_reads_as_empty(plugin) -> None:
-    (Path(plugin.directory) / "settings.json").write_text("{not json", encoding="utf-8")
+    (Path(plugin.directory) / "config.json").write_text("{not json", encoding="utf-8")
     assert load_values(plugin) == {}

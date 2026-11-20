@@ -1,7 +1,9 @@
 """SP-1 slice A: slim-has-no-worker + full-keeps-worker contract.
 
-Slim installer (host + sidecar only) vs full (sidecar + worker):
-- the slim ``-slim.conf.json`` narrows ``externalBin`` to the sidecar;
+Slim installer (host + sidecar + LGPL media pair) vs full (sidecar + worker +
+LGPL media pair):
+- the slim ``-slim.conf.json`` narrows ``externalBin`` by dropping the worker;
+- both Windows x64 configs add the win64-only ffmpeg/ffprobe pair;
 - the base ``tauri.conf.json`` + full per-arch conf keep the worker;
 - the Windows workflow's slim leg skips worker download/sign/bundle and
   asserts the staged bundle contains no worker binary.
@@ -40,12 +42,28 @@ def _tauri_job() -> dict:
 
 
 class TestSlimConfNarrowsWorkerOut:
-    def test_slim_external_bin_is_subset_of_base_without_worker(self) -> None:
+    def test_slim_external_bin_keeps_sidecar_and_media_pair_without_worker(self) -> None:
         slim = json.loads(SLIM_CONF.read_text(encoding="utf-8"))["bundle"]["externalBin"]
         base = json.loads(BASE_CONF.read_text(encoding="utf-8"))["bundle"]["externalBin"]
-        assert set(slim) < set(base), "slim externalBin must strictly narrow the base list"
+        assert "bin/python-sidecar" in slim, "slim must keep the sidecar"
         assert not any("worker" in entry for entry in slim), "slim must not reference the worker"
         assert any("worker" in entry for entry in base), "base (full) must keep the worker"
+        assert {"bin/ffmpeg", "bin/ffprobe"} <= set(slim), (
+            "Windows x64 slim must bundle the win64-only LGPL media pair."
+        )
+
+    def test_full_and_slim_windows_x64_declare_media_pair(self) -> None:
+        """Both Windows x64 configs list ALL externalBin entries (arrays replace)."""
+        full_conf = SRC_TAURI / "tauri.windows-x86_64.conf.json"
+        for conf in (full_conf, SLIM_CONF):
+            ext = json.loads(conf.read_text(encoding="utf-8"))["bundle"]["externalBin"]
+            assert {"bin/ffmpeg", "bin/ffprobe"} <= set(ext), (
+                f"{conf.name} must declare the ffmpeg/ffprobe pair, got: {ext}"
+            )
+        full_ext = json.loads(full_conf.read_text(encoding="utf-8"))["bundle"]["externalBin"]
+        assert {"bin/python-sidecar", "bin/lausu-worker"} <= set(full_ext), (
+            f"full Windows x64 config lost sidecar/worker: {full_ext}"
+        )
 
 
 class TestFullKeepsWorker:

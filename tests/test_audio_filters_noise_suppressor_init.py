@@ -2,39 +2,46 @@
 
 from __future__ import annotations
 
-import sys
-from unittest.mock import MagicMock
-
 import numpy as np
 import pytest
 
 scipy = pytest.importorskip("scipy.signal")  # skips the whole module if missing
 
 from voice_typer.server._audio_constants import RNNOISE_SAMPLE_RATE  # noqa: E402
+from voice_typer.server.audio_filters import noise_suppressor as _ns  # noqa: E402
 from voice_typer.server.audio_filters.noise_suppressor import (  # noqa: E402
     NoiseSuppressor,
     _StreamingResampler,
 )
+from voice_typer.server.audio_filters.rnnoise_ctypes import LibraryLoadError  # noqa: E402
 
 
 class _FakeRNNoise:
-    """Minimal stand-in for ``pyrnnoise.RNNoise``."""
+    """Minimal stand-in for our ctypes RNNoise backend."""
 
     def __init__(self, sample_rate: int = RNNOISE_SAMPLE_RATE) -> None:
         self.sample_rate = sample_rate
         self.channels = 1  # set by _process_rnnoise before denoise_frame
-        self.init_calls: list[int] = [sample_rate]
 
     def denoise_frame(self, frame_i16: np.ndarray) -> tuple[float, np.ndarray]:
         return (0.0, frame_i16)
 
+    def reset(self) -> None:
+        pass
 
-def _install_fake_pyrnnoise(monkeypatch: pytest.MonkeyPatch) -> _FakeRNNoise:
-    """Inject a fake ``pyrnnoise`` module into ``sys.modules`` so"""
-    fake_module = MagicMock()
-    fake_module.RNNoise = _FakeRNNoise
-    monkeypatch.setitem(sys.modules, "pyrnnoise", fake_module)
-    return _FakeRNNoise
+
+def _install_fake_backend(monkeypatch: pytest.MonkeyPatch, backend_cls: type = _FakeRNNoise) -> None:
+    """Patch the one seam ``_init_rnnoise`` uses to build its backend."""
+    monkeypatch.setattr(_ns, "_make_rnnoise_backend", lambda sample_rate: backend_cls(sample_rate))
+
+
+def _install_unavailable_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Simulate a missing native library (clean GTCRN fallback path)."""
+
+    def _raise(sample_rate: int) -> None:
+        raise LibraryLoadError("native RNNoise library not found")
+
+    monkeypatch.setattr(_ns, "_make_rnnoise_backend", _raise)
 
 
 class TestLazyResamplerInitMemoization:
@@ -45,12 +52,9 @@ class TestLazyResamplerInitMemoization:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Construct a NoiseSuppressor with a stubbed RNNoise backend,"""
-        _install_fake_pyrnnoise(monkeypatch)
+        _install_fake_backend(monkeypatch)
         ns = NoiseSuppressor(method="rnnoise", sample_rate=16000)
-        # The RNNoise backend was constructed (lazy import succeeded via
-        assert ns._backend is not None, (
-            "RNNoise backend must be constructed when pyrnnoise is available (fake module injected)"
-        )
+        assert ns._backend is not None, "RNNoise backend must be constructed when the native library is available"
         assert ns.is_degraded is False, "NoiseSuppressor must NOT be degraded when RNNoise init succeeds"
 
         # Spy on _StreamingResampler.__init__ to count constructions.
@@ -107,7 +111,7 @@ class TestSampleRateResamplerConstruction:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Construct a NoiseSuppressor with a stubbed RNNoise backend,"""
-        _install_fake_pyrnnoise(monkeypatch)
+        _install_fake_backend(monkeypatch)
         ns = NoiseSuppressor(method="rnnoise", sample_rate=44100)
 
         # Before process(), resamplers are NOT yet constructed (lazy).
@@ -138,7 +142,7 @@ class TestSampleRateResamplerConstruction:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """At the RNNoise native rate (48000), NO resampler is"""
-        _install_fake_pyrnnoise(monkeypatch)
+        _install_fake_backend(monkeypatch)
         ns = NoiseSuppressor(method="rnnoise", sample_rate=48000)
 
         audio = np.random.randn(480).astype(np.float32) * 0.1
@@ -162,16 +166,13 @@ class TestInitFailureClearError:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Inject a fake ``pyrnnoise`` module whose ``RNNoise``"""
-        # Inject a fake pyrnnoise whose RNNoise constructor raises.
-        fake_module = MagicMock()
+        """A non-library backend failure keeps the old clear-error path."""
 
         class _FailingRNNoise:
             def __init__(self, sample_rate: int = RNNOISE_SAMPLE_RATE) -> None:
                 raise RuntimeError("model file not found")
 
-        fake_module.RNNoise = _FailingRNNoise
-        monkeypatch.setitem(sys.modules, "pyrnnoise", fake_module)
+        _install_fake_backend(monkeypatch, _FailingRNNoise)
 
         ns = NoiseSuppressor(method="rnnoise", sample_rate=16000)
 
@@ -204,45 +205,45 @@ class TestInitFailureClearError:
             "_backend must be None when RNNoise init fails (no instance to keep, the constructor raised)"
         )
 
-    def test_import_error_degraded_reason_mentions_rnnoise(
+    def test_native_library_missing_degraded_reason_mentions_rnnoise(
         self,
         monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """When ``from pyrnnoise import RNNoise`` raises ImportError"""
+        """A missing native library serves GTCRN with ONE clear warning."""
+        import logging
 
-        # Force ImportError on ``from pyrnnoise import RNNoise`` by
-        class _ImportFailingModule:
-            def __getattr__(self, name):
-                raise ImportError(f"cannot import name {name!r} from 'pyrnnoise'")
+        _install_unavailable_backend(monkeypatch)
+        monkeypatch.setattr(_ns, "_backend_ready_logged", set())
 
-        monkeypatch.setitem(sys.modules, "pyrnnoise", _ImportFailingModule())
-
-        ns = NoiseSuppressor(method="rnnoise", sample_rate=16000)
+        with caplog.at_level(logging.WARNING, logger="voice_typer.server.audio_filters.noise_suppressor"):
+            ns = NoiseSuppressor(method="rnnoise", sample_rate=16000)
 
         assert ns.is_degraded is True, (
-            "NoiseSuppressor must be degraded when pyrnnoise import fails (ImportError caught)"
+            "NoiseSuppressor must be degraded when the native library is missing"
         )
         assert "rnnoise" in ns.degraded_reason.lower(), (
-            f"degraded_reason must mention 'rnnoise' on import failure; got {ns.degraded_reason!r}"
+            f"degraded_reason must mention 'rnnoise' on library failure; got {ns.degraded_reason!r}"
         )
         # rnnoise unavailable: the bundled gtcrn substitute serves instead
         # of silent none (real GtcrnBackend constructs in this env).
         assert ns._method == "gtcrn", (
-            f"_method must substitute bundled 'gtcrn' on pyrnnoise import failure; got {ns._method!r}"
+            f"_method must substitute bundled 'gtcrn' when the library is missing; got {ns._method!r}"
         )
         assert ns._backend is not None, "substitute backend must be live"
+        warnings = [
+            r.getMessage()
+            for r in caplog.records
+            if r.levelno == logging.WARNING and "rnnoise unavailable" in r.getMessage()
+        ]
+        assert len(warnings) == 1, f"exactly one clear WARNING expected; got {warnings}"
 
-    def test_import_error_both_missing_falls_back_to_none(
+    def test_library_missing_both_missing_falls_back_to_none(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """pyrnnoise missing AND gtcrn unloadable → method=none, degraded, both named."""
-
-        class _ImportFailingModule:
-            def __getattr__(self, name):
-                raise ImportError(f"cannot import name {name!r} from 'pyrnnoise'")
-
-        monkeypatch.setitem(sys.modules, "pyrnnoise", _ImportFailingModule())
+        """Native library absent AND gtcrn unloadable → none, degraded, both named."""
+        _install_unavailable_backend(monkeypatch)
 
         class _FailingGtcrn:
             def __init__(self) -> None:

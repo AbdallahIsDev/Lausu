@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import sys
-import types
-
 import numpy as np
 import pytest
 
@@ -55,9 +52,9 @@ def _install_fake_dpdfnet(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(_dpdfnet_module, "DpdfnetBackend", _FakeDpdfnetBackend)
 
 
-def _install_fake_pyrnnoise(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Inject a stub ``pyrnnoise`` module so ``_init_rnnoise``'s import succeeds."""
-    fake_pyrnnoise = types.ModuleType("pyrnnoise")
+def _install_fake_rnnoise(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch the backend factory so ``_init_rnnoise`` builds a stub."""
+    from voice_typer.server.audio_filters import noise_suppressor as _ns
 
     class _FakeRNNoise:
         def __init__(self, sample_rate: int = 48000) -> None:
@@ -68,14 +65,21 @@ def _install_fake_pyrnnoise(monkeypatch: pytest.MonkeyPatch) -> None:
             # Return (speech_prob, cleaned_i16), passthrough for testing.
             return (0.95, frame_i16)
 
-    fake_pyrnnoise.RNNoise = _FakeRNNoise
-    monkeypatch.setitem(sys.modules, "pyrnnoise", fake_pyrnnoise)
+        def reset(self) -> None:
+            pass
+
+    monkeypatch.setattr(_ns, "_make_rnnoise_backend", lambda sample_rate: _FakeRNNoise(sample_rate))
 
 
-def _remove_module(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
-    """Simulate ``name`` not being installed by deleting it from ``sys.modules``."""
-    # Save the current state so the auto-undo restores it.
-    monkeypatch.setitem(sys.modules, name, None)
+def _install_unavailable_rnnoise(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Simulate a missing native library (clean GTCRN fallback)."""
+    from voice_typer.server.audio_filters import noise_suppressor as _ns
+    from voice_typer.server.audio_filters.rnnoise_ctypes import LibraryLoadError
+
+    def _raise(sample_rate: int) -> None:
+        raise LibraryLoadError("native RNNoise library not found")
+
+    monkeypatch.setattr(_ns, "_make_rnnoise_backend", _raise)
 
 
 class TestGtcrnInitFallback:
@@ -84,7 +88,7 @@ class TestGtcrnInitFallback:
     def test_gtcrn_available_not_degraded(self, monkeypatch: pytest.MonkeyPatch):
         """Backend loads → method stays gtcrn, NOT degraded, backend live."""
         _install_fake_gtcrn(monkeypatch)
-        _install_fake_pyrnnoise(monkeypatch)
+        _install_fake_rnnoise(monkeypatch)
 
         from voice_typer.server.audio_filters.noise_suppressor import NoiseSuppressor
 
@@ -103,7 +107,7 @@ class TestGtcrnInitFallback:
     def test_gtcrn_failure_rnnoise_installed_falls_back_at_init(self, monkeypatch: pytest.MonkeyPatch):
         """Backend fails, RNNoise available → method=rnnoise, degraded=True, gtcrn reason."""
         _install_failing_gtcrn(monkeypatch)
-        _install_fake_pyrnnoise(monkeypatch)
+        _install_fake_rnnoise(monkeypatch)
 
         from voice_typer.server.audio_filters.noise_suppressor import NoiseSuppressor
 
@@ -126,7 +130,7 @@ class TestGtcrnInitFallback:
     def test_gtcrn_failure_rnnoise_missing_degrades_to_none(self, monkeypatch: pytest.MonkeyPatch):
         """GTCRN fails AND rnnoise missing → method=none, degraded=True,"""
         _install_failing_gtcrn(monkeypatch)
-        _remove_module(monkeypatch, "pyrnnoise")
+        _install_unavailable_rnnoise(monkeypatch)
 
         from voice_typer.server.audio_filters.noise_suppressor import NoiseSuppressor
 
@@ -142,7 +146,7 @@ class TestGtcrnInitFallback:
 
     def test_rnnoise_directly_not_degraded_when_installed(self, monkeypatch: pytest.MonkeyPatch):
         """Sanity: rnnoise alone (no gtcrn involvement) is NOT degraded."""
-        _install_fake_pyrnnoise(monkeypatch)
+        _install_fake_rnnoise(monkeypatch)
 
         from voice_typer.server.audio_filters.noise_suppressor import NoiseSuppressor
 
@@ -151,7 +155,8 @@ class TestGtcrnInitFallback:
         assert ns._method == "rnnoise"
         assert ns._backend is not None
         assert ns.is_degraded is False, (
-            "rnnoise with pyrnnoise installed must NOT be degraded, only a failed gtcrn init triggers the degraded flag"
+            "rnnoise with the native library available must NOT be degraded, "
+            "only a failed gtcrn init triggers the degraded flag"
         )
         assert ns.degraded_reason == ""
 
@@ -167,7 +172,7 @@ class TestGtcrnInitFallback:
     def test_gtcrn_failure_process_does_not_silently_passthrough(self, monkeypatch: pytest.MonkeyPatch):
         """Critical regression: process() must NOT return the input unchanged"""
         _install_failing_gtcrn(monkeypatch)
-        _install_fake_pyrnnoise(monkeypatch)
+        _install_fake_rnnoise(monkeypatch)
 
         from voice_typer.server._audio_constants import RNNOISE_SAMPLE_RATE
         from voice_typer.server.audio_filters.noise_suppressor import (
@@ -196,7 +201,7 @@ class TestGtcrnInitFallback:
     def test_noisy_room_preset_selects_dpdfnet(self, monkeypatch: pytest.MonkeyPatch):
         """End-to-end: the ``noisy_room`` preset picks the live DPDFNet"""
         _install_fake_dpdfnet(monkeypatch)
-        _install_fake_pyrnnoise(monkeypatch)
+        _install_fake_rnnoise(monkeypatch)
 
         from voice_typer.server.audio_filters.noise_suppressor import NoiseSuppressor
         from voice_typer.server.audio_presets import PRESET_NOISY_ROOM, get_preset_filters

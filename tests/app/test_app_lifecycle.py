@@ -65,9 +65,6 @@ class TestWaitForRelaunchAckNoServer:
     ) -> None:
         stub_app._ipc_server = None
 
-        sleep_calls: list[float] = []
-        monkeypatch.setattr(time, "sleep", lambda s: sleep_calls.append(s))
-
         start = time.monotonic()
         result = lifecycle._wait_for_relaunch_ack(timeout=5.0)
         elapsed = time.monotonic() - start
@@ -81,10 +78,10 @@ class TestWaitForRelaunchAckNoServer:
             f"PERF-005: _wait_for_relaunch_ack must short-circuit (0ms) "
             f"when no IPC server is attached; took {elapsed:.3f}s."
         )
-        assert sleep_calls == [], (
-            f"PERF-005: _wait_for_relaunch_ack must NOT call time.sleep "
-            f"when no IPC server is attached; got sleep_calls={sleep_calls}"
-        )
+        # A wait would have spent the full 5 s budget, so the elapsed bound
+        # above is the "did not sleep" assertion (`app_lifecycle` never reads
+        # `time`; a global `time.sleep` patch here only risked catching another
+        # thread's sleeps).
 
 
 class TestWaitForRelaunchAckTimeout:

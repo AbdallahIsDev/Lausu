@@ -3,7 +3,6 @@
 import os
 import subprocess
 import sys
-import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -15,6 +14,8 @@ from voice_typer.server.autostart_launcher import (
     _tauri_binary,
     launch,
 )
+
+from tests.fixtures.sleep_seam import patch_module_sleep
 
 
 # These tests exercise spawn *mechanics* (env, flags, fallback order)
@@ -260,7 +261,9 @@ class TestLaunchTauriFreshStart:
         )
         monkeypatch.setattr("voice_typer.server.autostart_launcher._setup_logging", lambda: None)
         monkeypatch.setattr("voice_typer.server.autostart_launcher._write_pid_file", lambda lp, cp: None)
-        monkeypatch.setattr(time, "sleep", lambda s: None)
+        import voice_typer.server.autostart_launcher as launcher_mod
+
+        patch_module_sleep(monkeypatch, launcher_mod)
 
         from voice_typer.server import backend_pid as _backend_pid_mod
 
@@ -300,7 +303,9 @@ class TestLaunchTauriFreshStart:
         )
         monkeypatch.setattr("voice_typer.server.autostart_launcher._setup_logging", lambda: None)
         monkeypatch.setattr("voice_typer.server.autostart_launcher._write_pid_file", lambda lp, cp: None)
-        monkeypatch.setattr(time, "sleep", lambda s: None)
+        import voice_typer.server.autostart_launcher as launcher_mod
+
+        patch_module_sleep(monkeypatch, launcher_mod)
 
         # Patch the OWNING module (the runtime-neutral PID-file leaf)
         from voice_typer.server import backend_pid as _backend_pid_mod
@@ -339,7 +344,9 @@ class TestLaunchWithoutTauriModeExitsOne:
         monkeypatch.setattr("voice_typer.server.autostart_launcher._is_tauri_mode", lambda: False)
         monkeypatch.setattr("voice_typer.server.autostart_launcher._setup_logging", lambda: None)
         monkeypatch.setattr("voice_typer.server.autostart_launcher._write_pid_file", lambda lp, cp: None)
-        monkeypatch.setattr(time, "sleep", lambda s: None)
+        import voice_typer.server.autostart_launcher as launcher_mod
+
+        patch_module_sleep(monkeypatch, launcher_mod)
         monkeypatch.setattr(
             "voice_typer.server.autostart.dev_console.launch_dev_console",
             lambda script="dev": 0,
@@ -380,8 +387,9 @@ class TestLaunchAlreadyRunningFocus:
         )
         monkeypatch.setattr("voice_typer.server.autostart_launcher._setup_logging", lambda: None)
 
-        sleeps: list[float] = []
-        monkeypatch.setattr(time, "sleep", lambda s: sleeps.append(s))
+        import voice_typer.server.autostart_launcher as launcher_mod
+
+        sleeps = patch_module_sleep(monkeypatch, launcher_mod)
 
         monkeypatch.setattr(sys, "argv", ["autostart_launcher.py"])
         ret = launch()

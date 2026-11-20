@@ -1,9 +1,9 @@
 """A chain built before the DPDFNet preload must still be able to promote.
 
-The shipped machine has no ``pyrnnoise``, so the cold-start fallback is the
-gtcrn substitute, and ``_promote_dpdfnet`` used to require ``_method ==
-"rnnoise"`` — every session stayed on gtcrn while the UI said DPDFNet
-(docs/microphone-filter-failures.md §3.2, issue B1).
+The shipped machine may lack the native RNNoise library, so the cold-start
+fallback is the gtcrn substitute, and ``_promote_dpdfnet`` used to require
+``_method == "rnnoise"`` — every session stayed on gtcrn while the UI said
+DPDFNet (docs/microphone-filter-failures.md §3.2, issue B1).
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ def cold_start(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _serving_gtcrn() -> noise_suppressor.NoiseSuppressor:
     sup = noise_suppressor.NoiseSuppressor("dpdfnet", sample_rate=16_000, quiet=True)
-    # Force the substitute explicitly: with pyrnnoise installed the constructor
+    # Force the substitute explicitly: with RNNoise available the constructor
     # would stop at rnnoise, and both are the same "fallback is serving" state.
     if sup.effective_method != "gtcrn":
         assert sup._try_gtcrn_substitute() is True

@@ -385,8 +385,11 @@ class TestSlimInstallerNaming:
     def test_slim_conf_exists_with_sidecar_only_external_bin(self) -> None:
         assert self.SLIM_CONF.is_file(), f"slim config missing at {self.SLIM_CONF}"
         conf = json.loads(self.SLIM_CONF.read_text(encoding="utf-8"))
-        assert conf["bundle"]["externalBin"] == ["bin/python-sidecar"], (
-            "slim config must declare sidecar-only externalBin (no worker)."
+        ext = conf["bundle"]["externalBin"]
+        assert "bin/python-sidecar" in ext, "slim config must declare the sidecar"
+        assert not any("worker" in e for e in ext), "slim config must not declare the worker"
+        assert {"bin/ffmpeg", "bin/ffprobe"} <= set(ext), (
+            "Windows x64 slim must bundle the LGPL ffmpeg/ffprobe media pair."
         )
 
     def test_slim_conf_resources_match_full_conf(self) -> None:

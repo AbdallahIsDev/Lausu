@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from voice_typer.server.volume_controller import VolumeController
+from voice_typer.server.volume_controller import DUCK_START_GRACE_MS, VolumeController
 from voice_typer.server.volume_ducker import DEFAULT_DUCK_LEVEL
 
 
@@ -63,6 +63,7 @@ class TestDuckVolume:
             level=0.25,
             fade_ms=200,
             per_session=False,
+            grace_ms=DUCK_START_GRACE_MS,
         )
 
     def test_duck_uses_defaults_when_config_attrs_missing(self, fake_app, controller):
@@ -77,6 +78,7 @@ class TestDuckVolume:
             level=DEFAULT_DUCK_LEVEL,
             fade_ms=200,
             per_session=False,
+            grace_ms=DUCK_START_GRACE_MS,
         )
         fake_app._volume_ducker.set_smart_duck_poll_interval.assert_called_once_with(500)
 
@@ -130,6 +132,22 @@ class TestDuckVolume:
 
         fake_app._volume_ducker.set_smart_duck_enabled.assert_called_once_with(True)
         fake_app._volume_ducker.duck.assert_not_called()
+
+
+class TestStartCueGrace:
+    """The start-cue window is excluded from ducking (product policy)."""
+
+    def test_grace_covers_the_start_cue(self):
+        assert DUCK_START_GRACE_MS == 1000
+
+    def test_duck_carries_the_grace_so_the_cue_cannot_trigger_it(self, fake_app, controller):
+        controller._duck_volume()
+
+        kwargs = fake_app._volume_ducker.duck.call_args.kwargs
+        assert kwargs["grace_ms"] > 0, (
+            "an immediate duck lets the recording-start cue itself trip smart duck, "
+            "which keeps the speakers down for the whole recording"
+        )
 
 
 class TestRestoreVolume:

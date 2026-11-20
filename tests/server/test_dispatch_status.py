@@ -102,7 +102,7 @@ class TestGetDefaultsIpc:
         assert data["hotkey"] == _default_hotkey_for_platform()
         # Compare against the canonical constant: since the "no default
         assert data["model_size"] == DEFAULT_MODEL_SIZE
-        assert data["language"] == "en"
+        assert data["language"] == ""  # Auto: the model detects the spoken language
         assert data["autostart"] is True
         assert data["paste_on_stop"] is True
 
