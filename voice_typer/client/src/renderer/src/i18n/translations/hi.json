@@ -1318,7 +1318,7 @@
 		"modelIdleUnload.minutes60": "1 घंटा",
 		"modelIdleUnload.minutes90": "1 घंटा 30 मिनट",
 		"modelIdleUnload.minutes120": "2 घंटे",
-		"modelIdleUnload.never": "कभी नहीं (लोड रहने दें)"
+		"modelIdleUnload.never": "हमेशा (लोड रखें)"
 	},
 	"plugins": {
 		"title": "प्लगइन",

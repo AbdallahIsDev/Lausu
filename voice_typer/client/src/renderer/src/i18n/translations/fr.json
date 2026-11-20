@@ -811,7 +811,7 @@
 		"modelIdleUnload.minutes60": "1 heure",
 		"modelIdleUnload.minutes90": "1 heure 30 minutes",
 		"modelIdleUnload.minutes120": "2 heures",
-		"modelIdleUnload.never": "Jamais (garder chargé)"
+		"modelIdleUnload.never": "Toujours (garder chargé)"
 	},
 	"plugins": {
 		"title": "Plugins",

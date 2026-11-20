@@ -1318,7 +1318,7 @@
 		"modelIdleUnload.minutes60": "1 hora",
 		"modelIdleUnload.minutes90": "1 hora y 30 minutos",
 		"modelIdleUnload.minutes120": "2 horas",
-		"modelIdleUnload.never": "Nunca (mantener cargado)"
+		"modelIdleUnload.never": "Siempre (mantener cargado)"
 	},
 	"plugins": {
 		"title": "Plugins",

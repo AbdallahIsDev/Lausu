@@ -232,6 +232,12 @@ describe("model-idle-unload translations", () => {
 		}
 	});
 
+	it("uses the clarified keep-loaded label for the Never option in English", () => {
+		expect(t("en", "settings.modelIdleUnload.never")).toBe(
+			"Always (Keep Loaded)",
+		);
+	});
+
 	it("has no English text left in a non-English locale", () => {
 		// C-I18N-2: an English string under a translated key is the #1
 		// observed downgrade. A purely numeric label would be the one

@@ -1318,7 +1318,7 @@
 		"modelIdleUnload.minutes60": "1 час",
 		"modelIdleUnload.minutes90": "1 час 30 минут",
 		"modelIdleUnload.minutes120": "2 часа",
-		"modelIdleUnload.never": "Никогда (не выгружать)"
+		"modelIdleUnload.never": "Всегда (не выгружать)"
 	},
 	"plugins": {
 		"title": "Плагины",

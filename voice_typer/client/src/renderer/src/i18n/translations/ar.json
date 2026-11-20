@@ -1318,7 +1318,7 @@
 		"modelIdleUnload.minutes60": "ساعة واحدة",
 		"modelIdleUnload.minutes90": "ساعة ونصف",
 		"modelIdleUnload.minutes120": "ساعتان",
-		"modelIdleUnload.never": "أبدًا (إبقاؤه محمَّلاً)"
+		"modelIdleUnload.never": "دائمًا (إبقاء التحميل)"
 	},
 	"plugins": {
 		"title": "الإضافات",
