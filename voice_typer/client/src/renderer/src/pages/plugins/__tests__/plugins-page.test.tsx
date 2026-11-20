@@ -12,6 +12,8 @@
 // so the assertions also prove the keys resolve), read from en.json so a
 // copy edit does not silently break the suite.
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -458,5 +460,52 @@ describe("Plugin detail activation", () => {
 			expect(screen.getByText(COPY.notFoundTitle)).toBeTruthy();
 		});
 		expect(getLiveByText(COPY.back)).toBeTruthy();
+	});
+});
+
+/** Load a shipped internal-plugin manifest so the test reads the real label. */
+function loadManifest(id: string): WirePlugin {
+	const manifestPath = path.resolve(
+		process.cwd(),
+		"../../tools/internal_plugins",
+		id,
+		"plugin.json",
+	);
+	const manifest = JSON.parse(
+		readFileSync(manifestPath, "utf-8"),
+	) as WirePlugin;
+	return {
+		...manifest,
+		active: false,
+		values: {},
+	};
+}
+
+describe.each(["anthropic_stt", "google_stt"])("%s setting labels", (id) => {
+	it("renders the visibility label in title case and keeps its toggle working", async () => {
+		const user = userEvent.setup();
+		stubCalls([loadManifest(id)]);
+		const { Page, selection } = await mountPage();
+		selection.usePluginSelection.setState({ selectedPluginId: id });
+		renderPage(Page);
+
+		// Visible label + the switch's accessible name come from the same
+		// manifest `label`, so both must read the shipped Title Case copy.
+		expect(
+			await screen.findByRole("switch", {
+				name: "Show The Browser Window",
+			}),
+		).toBeTruthy();
+		expect(getLiveByText("Show The Browser Window")).toBeTruthy();
+		expect(getLiveByText("Notifications")).toBeTruthy();
+
+		await user.click(getLiveByTestId("plugin-setting-visible"));
+		await waitFor(() => {
+			expect(stableMocks.mockCall).toHaveBeenCalledWith("set_plugin_setting", {
+				plugin_id: id,
+				key: "visible",
+				value: false,
+			});
+		});
 	});
 });
