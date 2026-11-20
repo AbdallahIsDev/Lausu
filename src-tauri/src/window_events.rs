@@ -10,7 +10,9 @@
 //!   window_close.rs`).
 //! - `ThemeChanged` → `theme_icon::apply_to_window` (theme-reactive
 //!   taskbar icon, `main` window only).
-//! - `Moved` → unhandled (bubble drags are session-local, never persisted).
+//! - `Moved` / `Resized` / `ScaleFactorChanged` on the bubble → chrome
+//!   hardening plus a drag-settled work-area clamp (a pill dropped on the
+//!   taskbar comes back into reach; nothing is persisted).
 
 use tauri::{Manager, WindowEvent};
 
@@ -55,13 +57,16 @@ pub(crate) fn handle(window: &tauri::Window, event: &WindowEvent) {
             if matches!(event, WindowEvent::Moved(_)) {
                 crate::commands::bubble::note_bubble_user_moved();
             }
-            // Queue-level backstop first, synchronously: this handler
-            // runs ON the main thread. Sync + non-blocking, then the
-            // heavier hardening hops off-thread.
-            crate::commands::bubble::ensure_bubble_msg_hook(&bubble);
-            std::thread::spawn(move || {
-                crate::commands::bubble::harden_bubble_chrome(&bubble, sync_frame);
-            });
+            // Dropping the pill on the taskbar is allowed mid-drag (the OS
+            // owns the move loop); once the drag settles it is pulled back
+            // into the monitor's work area, which is what keeps it reachable
+            // (a taskbar repaints over an always-on-top window). Debounced off
+            // the main thread so it never fights the move loop.
+            crate::commands::bubble::schedule_work_area_clamp(window.app_handle().clone());
+            // This handler runs on the main thread: never enumerate the
+            // bubble's child tree here and never spawn a thread per pointer
+            // sample. One coalesced off-thread worker covers the whole burst.
+            crate::commands::bubble::schedule_bubble_hardening(bubble, sync_frame);
         }
     }
 }

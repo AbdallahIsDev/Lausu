@@ -18,9 +18,32 @@
 //! tests in `tests/tauri/mig19/`.
 
 use super::commands::{
-    bubble_dismiss, bubble_hide_complete, bubble_request_screenshot_capture,
-    translate_pill_rect_to_screen, PillCaptureRect,
+    bubble_dismiss, bubble_hide_complete, bubble_request_screenshot_capture, post_resize_action,
+    translate_pill_rect_to_screen, PillCaptureRect, PostResizeAction,
 };
+
+#[test]
+fn bubble_presented_requires_all_three_signals() {
+    use super::window::bubble_presented;
+
+    assert!(bubble_presented(true, true, 0));
+    assert!(!bubble_presented(false, true, 0));
+    assert!(!bubble_presented(true, false, 0));
+    assert!(!bubble_presented(true, true, 1)); // DWM_CLOAKED_APP
+    assert!(!bubble_presented(true, true, 2)); // DWM_CLOAKED_SHELL
+}
+
+#[cfg(target_os = "windows")]
+#[test]
+fn bubble_style_always_includes_no_activate() {
+    // A show that activates the pill steals focus from the dictation target.
+    let flag = windows::Win32::UI::WindowsAndMessaging::WS_EX_NOACTIVATE.0 as i32;
+    assert_eq!(super::window::bubble_no_activate_style(0), flag);
+    assert_eq!(
+        super::window::bubble_no_activate_style(flag | 0x100),
+        flag | 0x100
+    );
+}
 use super::math::{
     anchor_moved, bubble_position_in_work_area, centered_x_in_work_area, clamp_f64_to_i32,
     clamp_resize_height, clamp_resize_width, compute_move_by_new_pos, edge_margin_physical,
@@ -966,7 +989,8 @@ fn test_hide_bubble_window_helper_exists() {
     // `hide_bubble_window` helper via a fn-pointer cast. If a future
     // refactor renames, removes, or changes the signature, this cast
     // fails to compile.
-    let _helper: fn(&tauri::AppHandle) -> Result<(), String> = hide_bubble_window;
+    let _helper: fn(&tauri::AppHandle, super::window::BubbleHideSource) -> Result<(), String> =
+        hide_bubble_window;
     let _ = _helper;
 }
 
@@ -1199,6 +1223,24 @@ fn resize_is_noop_compares_the_capped_request() {
         capped_w,
         capped_h
     ));
+}
+
+#[test]
+fn no_op_resize_skips_all_follow_up_geometry() {
+    // A size that did not change cannot create a stale edge anchor or push the
+    // pill under a taskbar, so the whole re-anchor/clamp read block is skipped.
+    assert_eq!(
+        post_resize_action(true, Some("bottom".into())),
+        PostResizeAction::Skip
+    );
+    assert_eq!(post_resize_action(true, None), PostResizeAction::Skip);
+    // Real resizes keep both existing behaviors: edge pills re-anchor,
+    // drag-positioned pills clamp back into the work area.
+    assert_eq!(
+        post_resize_action(false, Some("bottom".into())),
+        PostResizeAction::Reanchor("bottom".into())
+    );
+    assert_eq!(post_resize_action(false, None), PostResizeAction::Clamp);
 }
 
 #[test]

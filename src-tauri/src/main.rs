@@ -200,6 +200,8 @@ fn main() {
             // Bubble-dismiss accelerator (best-effort: refusal only costs
             // the keyboard path; the '×' button still works).
             crate::shortcuts::register_bubble_dismiss(app.handle());
+            // Level-triggered visibility backstop for the always-visible pill.
+            crate::commands::bubble::start_bubble_reconciler(app.handle().clone());
             // Renderer liveness watchdog: wry exposes no host crash event,
             // so the host watches the renderer heartbeat.
             crate::platform::renderer_watchdog::spawn_watchdog(app.handle());

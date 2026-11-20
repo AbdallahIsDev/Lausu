@@ -1841,6 +1841,20 @@ fn test_20char_run_in_sentence() {
 }
 
 #[test]
+fn test_job_object_assignment_log_is_not_masked() {
+    // C-LOG-7: the raw Win32 flag is a 20+ char bare identifier and was
+    // logged as `***`. The operator-facing wording must survive redaction.
+    let input =
+        "[process] assigned sidecar pid 1234 to process-wide Job Object (kill-on-close)";
+    assert_eq!(redact_pii(input), input);
+    let source = include_str!("process/windows.rs");
+    assert!(
+        source.contains("(kill-on-close)"),
+        "the Job Object assignment log must name the lever, not the raw Win32 flag"
+    );
+}
+
+#[test]
 fn test_no_false_positive_on_normal_paths() {
     // Normal file paths and URLs should NOT be redacted by the
     // 20+ char catch-all (they contain `/`, `:`, etc. which break

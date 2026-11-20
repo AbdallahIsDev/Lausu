@@ -142,6 +142,38 @@ pub(super) fn bubble_position_in_work_area(
     Ok((x, y))
 }
 
+/// The point that decides which monitor owns a rect: its CENTER (C-WIN-2).
+/// Shared by the drag clamp and the keyboard nudge so both inputs agree.
+pub(super) fn rect_center_point(x: i32, y: i32, w: i32, h: i32) -> (f64, f64) {
+    (
+        f64::from(x) + f64::from(w.max(0)) / 2.0,
+        f64::from(y) + f64::from(h.max(0)) / 2.0,
+    )
+}
+
+/// Nearest in-bounds top-left for a `w`x`h` rect that must stay inside `wa`.
+///
+/// Mirrors Chromium's `gfx::Rect::AdjustToFit` (the rule that makes a browser
+/// window dropped under the taskbar snap back on release): each axis is moved
+/// the minimum distance that puts the rect inside the work area, and an axis
+/// the rect is too large for is aligned to the work area's origin instead of
+/// being shoved past the far edge.
+pub(super) fn clamp_into_work_area(wa: &RectPx, x: i32, y: i32, w: i32, h: i32) -> (i32, i32) {
+    let right = wa.x.saturating_add(wa.width);
+    let bottom = wa.y.saturating_add(wa.height);
+    let cx = if w >= wa.width {
+        wa.x
+    } else {
+        x.clamp(wa.x, right.saturating_sub(w.max(0)))
+    };
+    let cy = if h >= wa.height {
+        wa.y
+    } else {
+        y.clamp(wa.y, bottom.saturating_sub(h.max(0)))
+    };
+    (cx, cy)
+}
+
 /// Whether a resize request asks for the size the window already has.
 ///
 /// True means the whole resize body is a no-op: no `set_size`, no chrome

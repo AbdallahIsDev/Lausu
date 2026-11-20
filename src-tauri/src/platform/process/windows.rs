@@ -91,9 +91,11 @@ pub(crate) fn register_kill_on_parent_exit_windows(pid: u32) -> Result<(), Strin
         let _ = CloseHandle(proc_handle);
     }
 
+    // C-LOG-7: the raw Win32 flag name is 20+ chars and would be
+    // redacted to `***`; name the lever instead.
     log::info!(
         "[process] assigned sidecar pid {} to process-wide Job Object \
-             (JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE)",
+             (kill-on-close)",
         pid
     );
     Ok(())

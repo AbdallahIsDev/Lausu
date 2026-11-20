@@ -1,5 +1,22 @@
-use serde_json::Value;
+use serde_json::{json, Value};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use tauri::{Emitter, Manager};
+
+use crate::state::SidecarState;
+
+/// Who asked for the hide. Backend-initiated hides need the renderer
+/// exit animation; host-initiated ones must NOT re-emit `bubble:hide`
+/// (that would loop back into `bubble_hide_complete` forever).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum BubbleHideSource {
+    Backend,
+    RendererComplete,
+    Dismiss,
+}
+
+#[cfg(target_os = "windows")]
+use super::coalesce::{needs_follow_up, SingleFlight};
 
 pub(crate) fn wants_bubble_show(event_type: &str) -> bool {
     event_type == "bubble_show"
@@ -30,18 +47,179 @@ pub(crate) fn is_active_bubble_state(event_type: &str, payload: &Value) -> bool 
         )
 }
 
+/// Adds `WS_EX_NOACTIVATE` to a bubble's extended style. A show that activates
+/// steals focus from the field being dictated, so the pill must never take the
+/// foreground (A4). Kept pure so the invariant can be unit-tested.
+#[cfg(target_os = "windows")]
+pub(crate) fn bubble_no_activate_style(style: i32) -> i32 {
+    use windows::Win32::UI::WindowsAndMessaging::WS_EX_NOACTIVATE;
+    style | (WS_EX_NOACTIVATE.0 as i32)
+}
+
+#[cfg(target_os = "windows")]
+fn apply_no_activate_style(window: &tauri::WebviewWindow) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE,
+    };
+
+    let raw = match window.hwnd() {
+        Ok(hwnd) => hwnd.0 as isize,
+        Err(e) => {
+            log::warn!("[BUBBLE] no-activate style skipped (no HWND): {e}");
+            return;
+        }
+    };
+    let target = HWND(raw as *mut std::ffi::c_void);
+    unsafe {
+        let style = GetWindowLongPtrW(target, GWL_EXSTYLE);
+        let updated = bubble_no_activate_style(style as i32) as isize;
+        if updated != style {
+            SetWindowLongPtrW(target, GWL_EXSTYLE, updated);
+        }
+    }
+}
+
+/// On-screen truth: Tauri state AND Win32 WS_VISIBLE AND not DWM-cloaked.
+/// IsWindowVisible alone reports "visible" for cloaked windows (different
+/// virtual desktop, minimized UWP-style presentation).
+pub(crate) fn bubble_presented(tauri_visible: bool, is_window_visible: bool, cloaked: u32) -> bool {
+    tauri_visible && is_window_visible && cloaked == 0
+}
+
+#[cfg(target_os = "windows")]
+fn is_bubble_presented(window: &tauri::WebviewWindow) -> bool {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
+    use windows::Win32::UI::WindowsAndMessaging::IsWindowVisible;
+
+    let Ok(hwnd) = window.hwnd() else {
+        return false;
+    };
+    let raw = HWND(hwnd.0 as *mut std::ffi::c_void);
+    let is_visible = unsafe { IsWindowVisible(raw).as_bool() };
+    let mut cloaked = 0u32;
+    let queried = unsafe {
+        DwmGetWindowAttribute(
+            raw,
+            DWMWA_CLOAKED,
+            &mut cloaked as *mut u32 as *mut std::ffi::c_void,
+            std::mem::size_of::<u32>() as u32,
+        )
+    }
+    .is_ok();
+    bubble_presented(
+        window.is_visible().unwrap_or(false),
+        is_visible,
+        if queried { cloaked } else { 0 },
+    )
+}
+
+pub(crate) fn reconcile_bubble_visibility(app: &tauri::AppHandle) -> bool {
+    let state: tauri::State<'_, Arc<SidecarState>> = app.state();
+    if !state.bubble_show_requested.load(Ordering::SeqCst) {
+        return false;
+    }
+    let Some(window) = app.get_webview_window("bubble") else {
+        return false;
+    };
+    #[cfg(target_os = "windows")]
+    let presented = is_bubble_presented(&window);
+    #[cfg(not(target_os = "windows"))]
+    let presented = window.is_visible().unwrap_or(false);
+    if presented {
+        return false;
+    }
+    // One line per stuck episode: a per-tick INFO would spam the log while a
+    // re-show is impossible (C-LOG-8).
+    if reassert_log_due() {
+        log::info!("[BUBBLE] visibility reassert: requested=visible actual=hidden");
+    }
+    match show_bubble_window(app) {
+        Ok(()) => true,
+        Err(e) => {
+            log::warn!("[BUBBLE] visibility reassert failed: {e}");
+            false
+        }
+    }
+}
+
+/// True at most once per 60 s, so a persistent mismatch logs one line a minute.
+fn reassert_log_due() -> bool {
+    static LAST_MS: AtomicU64 = AtomicU64::new(0);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let last = LAST_MS.load(Ordering::Relaxed);
+    if now.saturating_sub(last) < 60_000 {
+        log::debug!("[BUBBLE] visibility still hidden (reassert in progress)");
+        return false;
+    }
+    LAST_MS.store(now, Ordering::Relaxed);
+    true
+}
+
+/// Level-triggered backstop: the host owns the HWND, so it re-asserts a
+/// requested-visible bubble even if a hide notification was never sent.
+pub(crate) fn start_bubble_reconciler(app: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        let mut ticker = tokio::time::interval(std::time::Duration::from_secs(2));
+        loop {
+            ticker.tick().await;
+            reconcile_bubble_visibility(&app);
+        }
+    });
+}
+
 pub(crate) fn show_bubble_window(app: &tauri::AppHandle) -> Result<(), String> {
+    let state: tauri::State<'_, Arc<SidecarState>> = app.state();
+    state.bubble_show_requested.store(true, Ordering::SeqCst);
     let window = app
         .get_webview_window("bubble")
         .ok_or("bubble window not found")?;
+    #[cfg(target_os = "windows")]
+    apply_no_activate_style(&window);
     // Show never repositions: the pill stays where the user put it
     // across visibility and mode transitions. Initial placement runs
     // from the sidecar's `bubble_config` frame before the first show
     // (WS reader -> `apply_bubble_config_edge`); drags are session-local
-    // and are never persisted.
+    // and are never persisted. The one correction is the work-area clamp:
+    // a pill left under the taskbar (or on a monitor that has since
+    // changed) must not be shown unreachable — the clamp is a no-op when
+    // the position is already inside.
+    if let Err(e) = super::clamp::clamp_bubble_into_work_area(app) {
+        log::debug!("[BUBBLE] work-area clamp before show skipped: {e}");
+    }
     window.show().map_err(|e| e.to_string())?;
+    #[cfg(target_os = "windows")]
+    if !is_bubble_presented(&window) {
+        // tao only issues ShowWindow when its TRACKED VISIBLE flag flips, so a
+        // window hidden out of band stays hidden through `window.show()`.
+        // Force the OS call (never activating) so the pill really appears.
+        // DEBUG on purpose: a stuck window would otherwise log per 2 s tick;
+        // `reconcile_bubble_visibility` owns the rate-limited INFO line.
+        if force_show_no_activate(&window) {
+            log::debug!("[BUBBLE] forced present after window.show() reported success");
+        }
+    }
     harden_bubble_chrome(&window, true);
     Ok(())
+}
+
+/// OS-level show that never activates, for windows whose tracked visibility
+/// flag and real state disagree.
+#[cfg(target_os = "windows")]
+fn force_show_no_activate(window: &tauri::WebviewWindow) -> bool {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{IsWindowVisible, ShowWindow, SW_SHOWNOACTIVATE};
+
+    let Ok(hwnd) = window.hwnd() else {
+        return false;
+    };
+    let raw = HWND(hwnd.0 as *mut std::ffi::c_void);
+    let _ = unsafe { ShowWindow(raw, SW_SHOWNOACTIVATE) };
+    unsafe { IsWindowVisible(raw).as_bool() }
 }
 
 /// Cross-platform bubble-chrome hardening. Runs on every show
@@ -72,7 +250,9 @@ pub(crate) fn harden_bubble_chrome(window: &tauri::WebviewWindow, sync_frame: bo
     {
         strip_bubble_system_menu(window, sync_frame);
         gut_bubble_system_menu(window);
-        ensure_bubble_msg_hook(window);
+        // A structural event is the trigger to re-enumerate late-created WebView
+        // children; a pure move is not (that is the hot path we are coalescing).
+        ensure_bubble_msg_hook(window, sync_frame);
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -80,6 +260,59 @@ pub(crate) fn harden_bubble_chrome(window: &tauri::WebviewWindow, sync_frame: bo
         let _ = sync_frame;
     }
 }
+
+#[cfg(target_os = "windows")]
+static HARDEN_FLIGHT: SingleFlight = SingleFlight::new();
+#[cfg(target_os = "windows")]
+static HARDEN_SYNC_FRAME: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Coalesce geometry-event chrome hardening into one worker per settle burst.
+///
+/// The event handler runs on the main thread. Enumerating the bubble's child
+/// tree there (and spawning a fresh OS thread per pointer sample) was pure
+/// churn during a drag; one worker per burst covers the same structural work.
+#[cfg(target_os = "windows")]
+pub(crate) fn schedule_bubble_hardening(bubble: tauri::WebviewWindow, sync_frame: bool) {
+    use std::sync::atomic::Ordering;
+    use std::time::Duration;
+
+    if sync_frame {
+        HARDEN_SYNC_FRAME.store(true, Ordering::SeqCst);
+    }
+    if !HARDEN_FLIGHT.arrive() {
+        return;
+    }
+    let worker = std::thread::Builder::new()
+        .name("bubble-chrome-harden".into())
+        .spawn(move || {
+            let settle = Duration::from_millis(super::clamp::DRAG_SETTLE_MS);
+            let settled;
+            loop {
+                let seen = HARDEN_FLIGHT.generation();
+                std::thread::sleep(settle);
+                if HARDEN_FLIGHT.generation() == seen {
+                    settled = seen;
+                    break;
+                }
+            }
+            // Consume the structural flag before releasing so a Show/Resize
+            // that lands during the burst is still honored by this worker.
+            let structural = HARDEN_SYNC_FRAME.swap(false, Ordering::SeqCst);
+            HARDEN_FLIGHT.release();
+            harden_bubble_chrome(&bubble, structural);
+            if needs_follow_up(settled, HARDEN_FLIGHT.generation()) {
+                schedule_bubble_hardening(bubble, false);
+            }
+        });
+    if worker.is_err() {
+        HARDEN_FLIGHT.release();
+        log::warn!("[BUBBLE] chrome-hardening worker could not start");
+    }
+}
+
+/// Non-Windows: no caption menu, no hook, no worker to schedule.
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn schedule_bubble_hardening(_bubble: tauri::WebviewWindow, _sync_frame: bool) {}
 
 /// Strip the OS system menu from the bubble window (Windows only).
 ///
@@ -166,7 +399,7 @@ fn strip_bubble_system_menu(window: &tauri::WebviewWindow, sync_frame: bool) {
 /// (input can land on WRY_WEBVIEW, any Chrome_WidgetWin_*, the
 /// render host, or the D3D window).
 #[cfg(target_os = "windows")]
-pub(crate) fn ensure_bubble_msg_hook(window: &tauri::WebviewWindow) {
+pub(crate) fn ensure_bubble_msg_hook(window: &tauri::WebviewWindow, rescan_children: bool) {
     use std::sync::{
         atomic::{AtomicBool, Ordering},
         Mutex, OnceLock,
@@ -185,6 +418,12 @@ pub(crate) fn ensure_bubble_msg_hook(window: &tauri::WebviewWindow) {
         HOOK_HWNDS.get_or_init(|| Mutex::new(Vec::new()))
     }
     static HOOK_INSTALLED: AtomicBool = AtomicBool::new(false);
+    // Fast return BEFORE any child-tree enumeration: the hook and the watched
+    // HWND set are process-lifetime, so a pure move needs no rescan. A
+    // structural event asks for one so late-created WebView children register.
+    if HOOK_INSTALLED.load(Ordering::SeqCst) && !rescan_children {
+        return;
+    }
     // Escape hatch (drag debugging): LAUSU_NO_BUBBLE_HOOK=1 skips the
     // install entirely; the one-shot gutting in harden still runs.
     // Read once per process; the geometry handler re-runs this on
@@ -246,19 +485,21 @@ pub(crate) fn ensure_bubble_msg_hook(window: &tauri::WebviewWindow) {
         Ok(hwnd) => hwnd.0 as isize,
         Err(_) => return,
     };
-    let mut hwnds = vec![raw];
-    unsafe {
-        let top = HWND(raw as *mut std::ffi::c_void);
-        let _ = EnumChildWindows(
-            Some(top),
-            Some(enum_all),
-            LPARAM(&mut hwnds as *mut Vec<isize> as isize),
-        );
-    }
-    if let Ok(mut guard) = hook_hwnds().lock() {
-        for hwnd in hwnds {
-            if !guard.contains(&hwnd) {
-                guard.push(hwnd);
+    if rescan_children || !HOOK_INSTALLED.load(Ordering::SeqCst) {
+        let mut hwnds = vec![raw];
+        unsafe {
+            let top = HWND(raw as *mut std::ffi::c_void);
+            let _ = EnumChildWindows(
+                Some(top),
+                Some(enum_all),
+                LPARAM(&mut hwnds as *mut Vec<isize> as isize),
+            );
+        }
+        if let Ok(mut guard) = hook_hwnds().lock() {
+            for hwnd in hwnds {
+                if !guard.contains(&hwnd) {
+                    guard.push(hwnd);
+                }
             }
         }
     }
@@ -300,7 +541,7 @@ pub(crate) fn ensure_bubble_msg_hook(window: &tauri::WebviewWindow) {
 
 /// Non-Windows: no caption menu exists, nothing to hook.
 #[cfg(not(target_os = "windows"))]
-pub(crate) fn ensure_bubble_msg_hook(_window: &tauri::WebviewWindow) {}
+pub(crate) fn ensure_bubble_msg_hook(_window: &tauri::WebviewWindow, _rescan_children: bool) {}
 
 // Right-button input used to die in a subclassed wndproc here. That
 // whole layer is removed: tao rebuilds the proc under us (clicks in
@@ -356,11 +597,30 @@ fn gut_bubble_system_menu(window: &tauri::WebviewWindow) {
     log::info!("[BUBBLE] system menu gutted (Alt+Space corner covered)");
 }
 
-pub(crate) fn hide_bubble_window(app: &tauri::AppHandle) -> Result<(), String> {
-    //emit FIRST so the renderer's cleanup runs while the
-    // window is still visible.
-    app.emit_to("bubble", "bubble:hide", ())
-        .map_err(|e| e.to_string())?;
+pub(crate) fn hide_bubble_window(
+    app: &tauri::AppHandle,
+    source: BubbleHideSource,
+) -> Result<(), String> {
+    let state: tauri::State<'_, Arc<SidecarState>> = app.state();
+    if source == BubbleHideSource::Backend {
+        // The renderer needs the exit animation while the window is
+        // still visible. Its `hideComplete` then calls us again with
+        // RendererComplete, which does NOT re-emit (no feedback loop).
+        app.emit_to("bubble", "bubble:hide", ())
+            .map_err(|e| e.to_string())?;
+    } else {
+        state.bubble_show_requested.store(false, Ordering::SeqCst);
+        if source == BubbleHideSource::Dismiss {
+            let shared = state.inner().clone();
+            if let Err(e) = crate::commands::sidecar_cmds::dispatch_fire_and_forget(
+                &shared,
+                "bubble_host_hidden",
+                Some(json!({"reason": "host-dismiss"})),
+            ) {
+                log::debug!("[BUBBLE] host-hide notification skipped: {e}");
+            }
+        }
+    }
     let bubble = app
         .get_webview_window("bubble")
         .ok_or("bubble window not found")?;

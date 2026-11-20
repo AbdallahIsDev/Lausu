@@ -4,7 +4,10 @@ use std::sync::atomic::AtomicBool;
 
 use super::env_allowlist::passthrough_env_allowlist;
 use super::handshake::parse_server_started;
-use super::handshake_loop::{read_handshake_from_stdout_lines, HandshakeLabels};
+use super::handshake_loop::{
+    read_handshake_from_stdout_lines, register_kill_on_parent_exit_best_effort, HandshakeLabels,
+};
+use super::PARENT_PID_ENV_VAR;
 
 pub(crate) fn is_dev_mode() -> bool {
     match std::env::var("VOICE_TYPER_SIDECAR_DEV").ok().as_deref() {
@@ -40,6 +43,7 @@ pub(crate) async fn spawn_sidecar_dev_mode(
         .envs(super::env_allowlist::early_bind_env())
         .env("TAURI_SIDECAR", "1")
         .env("VOICE_TYPER_IPC_TOKEN", token)
+        .env(PARENT_PID_ENV_VAR, std::process::id().to_string())
         .env("KMP_DUPLICATE_LIB_OK", "TRUE")
         .env("VOICE_TYPER_SESSION_ID", crate::util::session_id())
         .env(
@@ -66,6 +70,16 @@ pub(crate) async fn spawn_sidecar_dev_mode(
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("failed to spawn dev sidecar ({}): {e}", python_bin))?;
+
+    // Defense in depth beside the sidecar's own parent watch: dev only had
+    // `kill_on_drop(true)`, which does nothing when the host dies abnormally.
+    if let Some(pid) = child.id() {
+        register_kill_on_parent_exit_best_effort(
+            "[SIDECAR-DEV]",
+            "dev sidecar will run but may be orphaned on host crash",
+            pid,
+        );
+    }
 
     let stdout = child
         .stdout

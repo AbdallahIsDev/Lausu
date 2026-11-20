@@ -14,6 +14,7 @@ use super::handshake::parse_server_started;
 use super::handshake_loop::{
     read_handshake_from_command_events, register_kill_on_parent_exit_best_effort, HandshakeLabels,
 };
+use super::PARENT_PID_ENV_VAR;
 
 pub(crate) async fn spawn_sidecar_release(
     app: &tauri::AppHandle,
@@ -43,6 +44,7 @@ pub(crate) async fn spawn_sidecar_release(
         .envs(super::env_allowlist::early_bind_env())
         .env("TAURI_SIDECAR", "1")
         .env("VOICE_TYPER_IPC_TOKEN", token)
+        .env(PARENT_PID_ENV_VAR, std::process::id().to_string())
         .env("KMP_DUPLICATE_LIB_OK", "TRUE")
         .env("VOICE_TYPER_SESSION_ID", crate::util::session_id())
         .env(

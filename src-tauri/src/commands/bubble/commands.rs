@@ -13,15 +13,17 @@ use crate::state::SidecarState;
 
 use super::math::{
     anchor_moved, bubble_position_in_work_area, clamp_resize_height, clamp_resize_width,
-    compute_move_by_new_pos, edge_margin_physical, rect_contains_point, resize_is_noop,
-    round_f64_to_i32_saturating, round_f64_to_u32_saturating, RectPx,
+    compute_move_by_new_pos, edge_margin_physical, rect_center_point, rect_contains_point,
+    resize_is_noop, round_f64_to_i32_saturating, round_f64_to_u32_saturating, RectPx,
 };
 use super::placement::{
     bubble_edge_for_reanchor, note_bubble_configured_edge, note_bubble_edge_position,
     note_bubble_user_moved,
 };
 use super::rate_limit::toggle_rate_limiter_allows;
-use super::window::{hide_bubble_window, show_bubble_window};
+use super::window::{
+    hide_bubble_window, reconcile_bubble_visibility, show_bubble_window, BubbleHideSource,
+};
 
 // Tauri commands: bubble window (ADR-0020 §9)
 //
@@ -44,6 +46,8 @@ pub async fn bubble_signal_ready(
     window: tauri::Window,
 ) -> Result<(), LausuError> {
     crate::commands::require_bubble_window(&window)?;
+    // A show that arrived before the webview was ready can be a no-op.
+    reconcile_bubble_visibility(&app);
     app.emit_to("bubble", "bubble:ready", ())
         .map_err(|e| LausuError::Host(e.to_string()))
 }
@@ -130,7 +134,7 @@ fn place_bubble_on_edge(
 /// Resolve the monitor containing a physical point (cursor or window
 /// origin): OS hit first, manual bounds hit-test for stacked/negative
 /// layouts, primary as the last resort.
-fn resolve_monitor_at_point(
+pub(super) fn resolve_monitor_at_point(
     app: &tauri::AppHandle,
     x: f64,
     y: f64,
@@ -200,7 +204,25 @@ pub async fn bubble_move_by(dx: f64, dy: f64, app: tauri::AppHandle) -> Result<V
         let dx_i32 = round_f64_to_i32_saturating(dx);
         let dy_i32 = round_f64_to_i32_saturating(dy);
         // checked_add: huge dx/dy must error, not wrap the bubble off-screen.
-        let (new_x, new_y) = compute_move_by_new_pos(pos.x, dx_i32, pos.y, dy_i32)?;
+        let (target_x, target_y) = compute_move_by_new_pos(pos.x, dx_i32, pos.y, dy_i32)?;
+        // A nudge must not walk the pill under a taskbar either: the keyboard
+        // path has no drag to settle, so it clamps its own target. Resolve the
+        // monitor from the CANDIDATE RECT'S CENTER, the same anchor the drag
+        // clamp uses (C-WIN-2) — the top-left can sit on a different monitor in
+        // stacked/negative-coordinate layouts.
+        let size = window.outer_size().map_err(|e| e.to_string())?;
+        let bubble_w = i32::try_from(size.width).unwrap_or(i32::MAX);
+        let bubble_h = i32::try_from(size.height).unwrap_or(i32::MAX);
+        let (center_x, center_y) = rect_center_point(target_x, target_y, bubble_w, bubble_h);
+        let monitor = resolve_monitor_at_point(&app, center_x, center_y)?;
+        let wa = monitor.work_area();
+        let (new_x, new_y) = super::clamp::clamp_candidate(
+            &RectPx::new(wa.position.x, wa.position.y, wa.size.width, wa.size.height),
+            target_x,
+            target_y,
+            bubble_w,
+            bubble_h,
+        );
         window
             .set_position(PhysicalPosition::new(new_x, new_y))
             .map_err(|e| e.to_string())?;
@@ -224,7 +246,7 @@ pub async fn bubble_hide_complete(
     window: tauri::Window,
 ) -> Result<(), LausuError> {
     crate::commands::require_bubble_window(&window)?;
-    hide_bubble_window(&app).map_err(LausuError::from)
+    hide_bubble_window(&app, BubbleHideSource::RendererComplete).map_err(LausuError::from)
 }
 
 /// Dismiss bubble from its own '×' button. Same hide path as hide_complete.
@@ -235,7 +257,29 @@ pub async fn bubble_dismiss(
     window: tauri::Window,
 ) -> Result<(), LausuError> {
     crate::commands::require_bubble_window(&window)?;
-    hide_bubble_window(&app).map_err(LausuError::from)
+    hide_bubble_window(&app, BubbleHideSource::Dismiss).map_err(LausuError::from)
+}
+
+/// What the resize command must do after applying a (possibly no-op) size.
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum PostResizeAction {
+    /// Size unchanged: skip every follow-up geometry read (C-LOG-8).
+    Skip,
+    /// Size changed on an edge-anchored pill: re-center on that edge.
+    Reanchor(String),
+    /// Size changed on a drag-positioned pill: clamp back into the work area.
+    Clamp,
+}
+
+/// A no-op resize cannot create a stale anchor or a new overhang, so it must
+/// return before the re-anchor/clamp geometry block; real resizes keep both
+/// existing behaviors.
+pub(super) fn post_resize_action(resize_is_noop: bool, edge: Option<String>) -> PostResizeAction {
+    match (resize_is_noop, edge) {
+        (true, _) => PostResizeAction::Skip,
+        (false, Some(edge)) => PostResizeAction::Reanchor(edge),
+        (false, None) => PostResizeAction::Clamp,
+    }
 }
 
 /// Resize bubble to (width, height) physical pixels; clamped to pill MIN/MAX.
@@ -255,12 +299,15 @@ pub async fn bubble_resize(
     let capped_w = clamp_resize_width(w);
     let capped_h = clamp_resize_height(h);
     // The renderer re-measures on every layout pass and asks for the size the
-    // pill already has; replaying `set_size` + the chrome strip for those is
-    // pure churn (measured: the same 71x47 request up to 50 times a second).
+    // pill already has; replaying `set_size` + the chrome strip (and the
+    // follow-up geometry read) for those is pure churn — the same 71x47
+    // request arrives up to 50 times a second (C-LOG-8).
     let current = window
         .outer_size()
         .map_err(|e| LausuError::Host(e.to_string()))?;
-    if !resize_is_noop(current.width, current.height, capped_w, capped_h) {
+    let no_op = resize_is_noop(current.width, current.height, capped_w, capped_h);
+    let action = post_resize_action(no_op, bubble_edge_for_reanchor());
+    if !no_op {
         use tauri::PhysicalSize;
         window
             .set_size(PhysicalSize::new(capped_w, capped_h))
@@ -269,21 +316,36 @@ pub async fn bubble_resize(
         // matter which tao path last touched the window. Idempotent.
         super::window::harden_bubble_chrome(&window, true);
     }
-    // Edge-anchored pills must stay centered: the initial placement was
-    // measured on the pre-content size, and every mode/button change
-    // resizes around a stale top-left. Re-anchor on the remembered edge
-    // with the NEW size; user-dragged pills keep their position.
-    if let Some(edge) = bubble_edge_for_reanchor() {
-        match reanchor_bubble_after_resize(&app, &window, &edge) {
-            Ok((before, after)) => {
-                if anchor_moved(before, after) {
-                    let (px, py) = after;
-                    log::info!(
-                        "[BUBBLE] re-anchored at ({px},{py}) edge={edge} after resize {capped_w}x{capped_h}"
-                    );
+    match action {
+        PostResizeAction::Skip => return Ok(()),
+        PostResizeAction::Reanchor(edge) => {
+            // Edge-anchored pills must stay centered: the initial placement
+            // was measured on the pre-content size, and every mode/button
+            // change resizes around a stale top-left. Re-anchor on the
+            // remembered edge with the NEW size; user-dragged pills keep
+            // their position.
+            match reanchor_bubble_after_resize(&app, &window, &edge) {
+                Ok((before, after)) => {
+                    if anchor_moved(before, after) {
+                        let (px, py) = after;
+                        log::info!(
+                            "[BUBBLE] re-anchored at ({px},{py}) edge={edge} after resize {capped_w}x{capped_h}"
+                        );
+                    }
                 }
+                Err(e) => log::warn!("[BUBBLE] re-anchor after resize failed: {}", e),
             }
-            Err(e) => log::warn!("[BUBBLE] re-anchor after resize failed: {}", e),
+        }
+        PostResizeAction::Clamp => {
+            // A drag-positioned pill has no edge to re-anchor to, and growing
+            // around a fixed top-left can push its bottom under the taskbar.
+            match super::clamp_bubble_into_work_area(&app) {
+                Ok(Some((x, y))) => {
+                    log::info!("[BUBBLE] pulled into the work area at ({x},{y}) after resize")
+                }
+                Ok(None) => {}
+                Err(e) => log::warn!("[BUBBLE] clamp after resize failed: {}", e),
+            }
         }
     }
     Ok(())

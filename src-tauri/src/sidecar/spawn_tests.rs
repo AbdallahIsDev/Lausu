@@ -32,6 +32,26 @@ use super::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+/// `VOICE_TYPER_LOG_JSON=1` must cross the `.env_clear()` boundary so the
+/// Python sidecar's opt-in `_JsonFormatter` is reachable under Tauri. It is
+/// a formatter-only switch (no behavior change), so forwarding is safe for
+/// every spawn path that uses `passthrough_env_allowlist()`.
+#[test]
+fn test_passthrough_env_allowlist_includes_json_logging_opt_in() {
+    let sentinel = "vt-spawn-test-json-logging-opt-in";
+    std::env::set_var("VOICE_TYPER_LOG_JSON", sentinel);
+    let envs = passthrough_env_allowlist();
+    let found = envs
+        .iter()
+        .find(|(key, _)| key == "VOICE_TYPER_LOG_JSON");
+    assert!(
+        found.is_some(),
+        "VOICE_TYPER_LOG_JSON must be in the passthrough allowlist"
+    );
+    assert_eq!(found.unwrap().1.to_str(), Some(sentinel));
+    std::env::remove_var("VOICE_TYPER_LOG_JSON");
+}
+
 /// The LINUX_GUI env-var allowlist must include `XDG_SESSION_TYPE`.
 /// Pre-fix: this var was missing, so the sidecar couldn't tell
 /// whether to use the X11 or Wayland platform plugin (Qt) under a
@@ -870,6 +890,73 @@ fn test_worker_shared_env_config_dir_is_non_empty() {
         !config_dir.is_empty(),
         "VOICE_TYPER_CONFIG_DIR must resolve to a non-empty path"
     );
+}
+
+// ── sidecar host-liveness: parent pid + orphan kill ────────────────
+//
+// Under TAURI_SIDECAR=1 the sidecar skips the IPC heartbeat watchdog (the
+// Rust host owns liveness), so a host that dies abnormally used to leave a
+// sidecar serving hotkeys + dictation with no UI. Both spawn paths forward
+// the host pid (the sidecar polls it and self-exits) and register
+// kill-on-parent-exit as the OS-level fast path. The env chains are builder
+// expressions, so this pins each module's source.
+
+#[test]
+fn test_parent_pid_env_var_is_the_python_contract() {
+    assert_eq!(
+        PARENT_PID_ENV_VAR, "VOICE_TYPER_PARENT_PID",
+        "the env var name is a cross-language contract: keep it equal to \
+         `PARENT_PID_ENV_VAR` in voice_typer/server/parent_watch.py"
+    );
+}
+
+#[test]
+fn test_every_sidecar_spawn_path_forwards_parent_pid() {
+    const MODULES: [(&str, &str); 2] = [
+        ("release_mode.rs", include_str!("spawn/release_mode.rs")),
+        ("dev_mode.rs", include_str!("spawn/dev_mode.rs")),
+    ];
+    for (name, source) in MODULES {
+        let code: String = source
+            .lines()
+            .map(|line| line.split("//").next().unwrap_or(""))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            code.contains(".env(PARENT_PID_ENV_VAR, std::process::id().to_string())"),
+            "{name} no longer forwards the host pid → the sidecar cannot \
+             notice a dead host and keeps dictating with no UI"
+        );
+        assert!(
+            code.contains("register_kill_on_parent_exit_best_effort("),
+            "{name} no longer registers kill-on-parent-exit for the sidecar"
+        );
+    }
+}
+
+#[test]
+fn test_every_child_spawn_path_registers_kill_on_parent_exit() {
+    // worker.rs holds two paths: the shared release tail and the dev spawn.
+    const MODULES: [(&str, &str, usize); 3] = [
+        ("release_mode.rs", include_str!("spawn/release_mode.rs"), 1),
+        ("dev_mode.rs", include_str!("spawn/dev_mode.rs"), 1),
+        ("worker.rs", include_str!("spawn/worker.rs"), 2),
+    ];
+    for (name, source, expected_calls) in MODULES {
+        let code: String = source
+            .lines()
+            .map(|line| line.split("//").next().unwrap_or(""))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let calls = code
+            .matches("register_kill_on_parent_exit_best_effort(")
+            .count();
+        assert_eq!(
+            calls, expected_calls,
+            "{name}: each child spawn path needs its own OS-level kill binding \
+             beside the Python parent watch"
+        );
+    }
 }
 
 // ── should_start_worker (shared cold-start/pack-verified gate) ──

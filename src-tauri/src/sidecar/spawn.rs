@@ -50,6 +50,12 @@ use futures_util::future::FutureExt;
 
 // ─── Sidecar spawn + stdout handshake (ADR-0020 §1) ───────────────────
 
+/// Parent-PID env var handed to every long-lived child (sidecar + worker).
+/// The child polls it and self-exits when this host dies without reaping
+/// it, so nothing keeps working while the app is closed. Mirrors
+/// `PARENT_PID_ENV_VAR` in `voice_typer/server/parent_watch.py`.
+pub(crate) const PARENT_PID_ENV_VAR: &str = "VOICE_TYPER_PARENT_PID";
+
 /// Pure parser for adopted-backend env pair.
 /// `None` on missing/invalid port or missing token; caller falls through
 /// to normal spawn.

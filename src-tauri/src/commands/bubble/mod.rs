@@ -4,7 +4,9 @@
 //! in [`commands`]. Pure helpers are split by concern: position
 //! parsing in [`parse`], geometry math in [`math`], the toggle
 //! rate limiter in [`rate_limit`], edge-vs-drag placement memory in
-//! [`placement`], and the shared bubble-hide helper in [`window`].
+//! [`placement`], the work-area clamp (never leave the pill under a
+//! taskbar/dock) in [`clamp`], the burst coalescer in [`coalesce`], and the
+//! shared bubble-hide helper in [`window`].
 //! Unit tests live in [`tests`]. Bubble drags are
 //! session-local by product decision (no position persistence).
 //!
@@ -13,9 +15,13 @@
 //! [`math`]: math
 //! [`rate_limit`]: rate_limit
 //! [`placement`]: placement
+//! [`clamp`]: clamp
+//! [`coalesce`]: coalesce
 //! [`window`]: window
 //! [`tests`]: tests
 
+mod clamp;
+mod coalesce;
 mod commands;
 mod math;
 mod parse;
@@ -27,8 +33,9 @@ mod window;
 // body the bubble's '×' button uses, so the keyboard path can never
 // drift from the click path (E7).
 pub(crate) use window::{
-    configured_edge_from_payload, ensure_bubble_msg_hook, harden_bubble_chrome, hide_bubble_window,
-    is_active_bubble_state, show_bubble_window, wants_bubble_show,
+    configured_edge_from_payload, harden_bubble_chrome, hide_bubble_window, is_active_bubble_state,
+    schedule_bubble_hardening, show_bubble_window, start_bubble_reconciler, wants_bubble_show,
+    BubbleHideSource,
 };
 
 pub(crate) use commands::{
@@ -38,6 +45,8 @@ pub(crate) use commands::{
 };
 
 pub(crate) use placement::note_bubble_user_moved;
+
+pub(crate) use clamp::{clamp_bubble_into_work_area, schedule_work_area_clamp};
 
 #[cfg(test)]
 mod tests;

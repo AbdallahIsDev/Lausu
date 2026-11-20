@@ -85,6 +85,9 @@ pub(crate) struct SidecarState {
     /// Used by the bubble-dismiss accelerator so an idle dismiss never
     /// Fire-and-forgets a recording START via toggle_dictation.
     pub(crate) last_tray_icon: Mutex<String>,
+    /// Last visibility REQUEST observed from the coordinator. Not a
+    /// policy: the host observes the real HWND and only re-asserts this.
+    pub(crate) bubble_show_requested: AtomicBool,
     /// The per-launch bearer token handed to the sidecar. The runtime-pack
     /// worker MUST receive this SAME token: the sidecar's worker client
     /// reads it from its own environment and presents it on the worker
@@ -115,6 +118,7 @@ impl SidecarState {
             // Idle until Python publishes tray_state; dismiss must not
             // assume recording when the host has never seen a state.
             last_tray_icon: Mutex::new("idle".to_string()),
+            bubble_show_requested: AtomicBool::new(false),
             // Set once the sidecar is spawned; the worker reuses it.
             auth_token: OnceLock::new(),
         }

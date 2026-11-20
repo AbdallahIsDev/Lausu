@@ -11,11 +11,18 @@ use std::process::Command;
 const REAPER_SCRIPT_TEMPLATE: &str = "\
 target={pid}
 orig_parent=$PPID
+# kill -0 also succeeds for an unreaped zombie host. On Linux /proc field 3
+# is 'Z' then; treat it as gone. /proc is absent on macOS (no-op there).
+parent_is_zombie() {
+    [ -r \"/proc/$1/stat\" ] || return 1
+    state=$(sed -n 's/^.*) \\([A-Za-z]\\).*/\\1/p' \"/proc/$1/stat\" 2>/dev/null)
+    [ \"$state\" = Z ]
+}
 while true; do
     if ! kill -0 \"$target\" 2>/dev/null; then
         exit 0
     fi
-    if ! kill -0 \"$orig_parent\" 2>/dev/null; then
+    if ! kill -0 \"$orig_parent\" 2>/dev/null || parent_is_zombie \"$orig_parent\"; then
         kill -9 \"$target\" 2>/dev/null
         exit 0
     fi

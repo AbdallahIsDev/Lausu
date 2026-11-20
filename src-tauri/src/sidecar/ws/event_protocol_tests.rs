@@ -119,6 +119,7 @@ fn test_allowlist_is_exact_canonical_set() {
         "filter_collapse",
         "device_lost",
         "asr_backend_disabled",
+        "model_language_unsupported",
         "asr_last_resort_unloaded",
         "audio_clip",
         "dictation_lost",
@@ -163,6 +164,8 @@ fn test_allowlist_is_exact_canonical_set() {
         "tts_playback_state",
         // Push-to-talk voice conversation turn (phase + user/assistant text).
         "chat_turn",
+        // CUDA install job progress for the device-switch flow.
+        "cuda_progress",
     ]
     .into_iter()
     .collect();

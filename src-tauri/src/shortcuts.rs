@@ -35,7 +35,10 @@ fn dismiss_bubble(app: &tauri::AppHandle) {
     } else {
         log::debug!("[SHORTCUTS] dismiss: idle/unknown tray state, hide only (no toggle)");
     }
-    if let Err(e) = crate::commands::bubble::hide_bubble_window(app) {
+    if let Err(e) = crate::commands::bubble::hide_bubble_window(
+        app,
+        crate::commands::bubble::BubbleHideSource::Dismiss,
+    ) {
         log::debug!(
             "[SHORTCUTS] dismiss hide failed (bubble may be hidden): {}",
             e

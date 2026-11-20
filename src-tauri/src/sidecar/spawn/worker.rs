@@ -46,9 +46,8 @@ pub(crate) fn worker_shared_env(token: &str) -> Vec<(&'static str, String)> {
         // Parent PID for the worker's orphan self-exit (if this host
         // dies without reaping the worker, the worker notices the dead
         // parent and shuts down instead of squatting the
-        // single-instance lock forever). Mirrors
-        // `PARENT_PID_ENV_VAR` in `voice_typer/worker/_parent_watch.py`.
-        ("VOICE_TYPER_PARENT_PID", std::process::id().to_string()),
+        // single-instance lock forever). Same env var the sidecar gets.
+        (super::PARENT_PID_ENV_VAR, std::process::id().to_string()),
         // Share the host's per-process session ID so the
         // worker's log lines correlate with the host + sidecar.
         (
@@ -238,6 +237,16 @@ pub(crate) async fn spawn_worker_dev_mode(
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("failed to spawn dev worker ({}): {e}", python_bin))?;
+
+    // Defense in depth beside the worker's own parent-PID watch: dev only had
+    // `kill_on_drop(true)`, which does nothing on an abnormal host death.
+    if let Some(pid) = child.id() {
+        register_kill_on_parent_exit_best_effort(
+            "[WORKER-DEV]",
+            "dev worker may be orphaned on host crash",
+            pid,
+        );
+    }
 
     let stdout = child
         .stdout

@@ -39,6 +39,7 @@
         "visible": true,
         "create": false,
         "label": "main",
+        "generalAutofillEnabled": false,
         "additionalBrowserArgs": "--autoplay-policy=no-user-gesture-required --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection"
       },
       {
@@ -56,6 +57,8 @@
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "visible": false,
+        "focus": false,
+        "focusable": false,
         "label": "bubble"
       }
     ],
@@ -132,7 +135,7 @@
         "uninstallerIcon": "icons/icon.ico",
         "installerHooks": "../scripts/windows/tauri-installer-hooks.nsh"
       },
-      "signCommand": "..\\scripts\\tauri-sign.cmd %1"
+      "signCommand": null
     },
     "macOS": {
       "entitlements": "entitlements.plist",

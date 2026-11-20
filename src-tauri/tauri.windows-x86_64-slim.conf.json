@@ -45,7 +45,11 @@
   },
   "bundle": {
     "targets": ["nsis", "msi"],
-    "externalBin": ["bin/python-sidecar"],
+    "externalBin": [
+      "bin/python-sidecar",
+      "bin/ffmpeg",
+      "bin/ffprobe"
+    ],
     "resources": [
       "resources/native/windows-key-listener.exe",
       "icons/tray/"

@@ -28,6 +28,17 @@ pub(crate) fn passthrough_env_allowlist() -> Vec<(std::ffi::OsString, std::ffi::
         }
     }
 
+    // Opt-in millisecond JSON logs (Python `_JsonFormatter`). Documented as
+    // `VOICE_TYPER_LOG_JSON=1` but `env_clear()` dropped it at every spawn
+    // (dev/release sidecar + worker), so the mode was unreachable under Tauri.
+    // Safe to forward: it changes only the log formatter, never behavior.
+    if let Some(val) = std::env::var_os("VOICE_TYPER_LOG_JSON") {
+        out.push((
+            std::ffi::OsString::from("VOICE_TYPER_LOG_JSON"),
+            val,
+        ));
+    }
+
     // POSIX: HOME
     #[cfg(unix)]
     if let Some(val) = std::env::var_os("HOME") {

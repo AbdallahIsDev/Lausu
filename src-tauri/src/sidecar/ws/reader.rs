@@ -13,7 +13,7 @@ use std::panic::AssertUnwindSafe;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Instant;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tokio_tungstenite::tungstenite::Message;
 
 use super::respawn_scheduler::trigger_respawn_off_thread;
@@ -168,6 +168,11 @@ pub(super) fn spawn_reader_task(
                         // hides the window without touching the sidecar
                         // coordinator, so without this a post-dismiss
                         // recording would never bring the bubble back.
+                        if event_type == "bubble_hide" {
+                            let state: tauri::State<'_, Arc<SidecarState>> =
+                                app_for_reader.state();
+                            state.bubble_show_requested.store(false, Ordering::SeqCst);
+                        }
                         if crate::commands::bubble::wants_bubble_show(event_type)
                             || crate::commands::bubble::is_active_bubble_state(
                                 event_type, &payload,
