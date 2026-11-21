@@ -86,12 +86,6 @@ def pytest_configure(config):
         "write (e.g. env-override resolution).",
     )
 
-    # pytest-benchmark warns on every xdist worker; silence it only when the
-    # plugin is loaded. A bare pytest install has no plugin and cannot import
-    # the filter's module, so the filter must not live in pyproject.toml.
-    if config.pluginmanager.hasplugin("benchmark"):
-        config.addinivalue_line("filterwarnings", "ignore::pytest_benchmark.logger.PytestBenchmarkWarning")
-
     try:
         from hypothesis import HealthCheck, settings
     except ImportError:
