@@ -201,7 +201,7 @@ RUST_COUNT="$(count_rust_allowlist)"
 PY_COUNT="$(count_python_registry)"
 
 echo "  Source counts: Rust=${RUST_COUNT}  Python=${PY_COUNT}"
-echo "  (Python = Rust + host-dispatched: tray_click, shutdown, heartbeat, relaunch_ack)"
+echo "  (Python = Rust + host-dispatched: tray_click, shutdown, heartbeat, relaunch_ack, bubble_host_hidden)"
 echo ""
 
 # ─── Touchpoint 7: SECURITY.md doc count ───────────────────────────────

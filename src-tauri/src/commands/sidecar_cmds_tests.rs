@@ -151,19 +151,19 @@ fn test_allowed_commands_set_is_nonempty() {
 #[test]
 fn test_allowed_commands_count_matches_python_registry_parity() {
     // The Rust literal is exactly the renderer-reachable subset of the
-    // Python `_COMMAND_REGISTRY`: 109 registry entries minus the four
+    // Python `_COMMAND_REGISTRY`: 110 registry entries minus the five
     // host-dispatched commands (`heartbeat`, `relaunch_ack`, `shutdown`,
-    // `tray_click`) = 105. The Python parity test
+    // `tray_click`, `bubble_host_hidden`) = 105. The Python parity test
     // `tests/test_ipc_command_parity.py::test_registry_minus_rust_equals_host_dispatched_delta`
     // asserts the entries match exactly; this Rust-side test pins the
     // COUNT so a local `cargo test` catches drift before the Python test
-    // even runs. The host-dispatched four never route through this gate
+    // even runs. The host-dispatched five never route through this gate
     // (see `dispatch_inner`), so they are intentionally ABSENT here.
     assert_eq!(
         allowed_commands().len(),
         105,
-        "must match the Python registry (109 entries) minus the 4 host-dispatched \
-         commands (heartbeat, relaunch_ack, shutdown, tray_click)"
+        "must match the Python registry (110 entries) minus the 5 host-dispatched \
+         commands (heartbeat, relaunch_ack, shutdown, tray_click, bubble_host_hidden)"
     );
 }
 
@@ -228,12 +228,13 @@ fn test_allowed_commands_exact_snapshot() {
     // entry.
     //
     // The expected list is the alphabetically-sorted union of:
-    //   - the Python `_COMMAND_REGISTRY` literal (109 entries, once the
+    //   - the Python `_COMMAND_REGISTRY` literal (110 entries, once the
     //     backend slice lands the four screenshot handlers)
-    //   - minus the four host-dispatched commands: `heartbeat`
+    //   - minus the five host-dispatched commands: `heartbeat`
     //     (Rust WS-reader task), `relaunch_ack` (Rust `relaunch_app`
     //     event handler), `shutdown` (supervised `shutdown_sidecar`
-    //     path), and `tray_click` (Rust tray handler). All four bypass
+    //     path), `tray_click` (Rust tray handler), and
+    //     `bubble_host_hidden` (bubble-hide completion). All five bypass
     //     the `dispatch` allowlist via `dispatch_inner`: see the doc
     //     comment on the `cmds` literal above for the security rationale.
     //
@@ -393,7 +394,7 @@ fn test_allowed_commands_exact_snapshot() {
         expected.len(),
         "snapshot length mismatch: actual Rust set has {} entries, snapshot expected {}. \
          If you added/removed a command, update BOTH this snapshot AND the cmds literal AND \
-         the Python `_COMMAND_REGISTRY` (= 109 entries with open_mic_settings).",
+         the Python `_COMMAND_REGISTRY` (= 110 entries with open_mic_settings).",
         actual.len(),
         expected.len()
     );

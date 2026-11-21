@@ -2059,10 +2059,11 @@ class TestRegistryExtraction:
         assert registry._COMMAND_REGISTRY["start_cuda_download"] == "_handle_start_cuda_download"
         assert registry._COMMAND_REGISTRY["cancel_cuda_download"] == "_handle_cancel_cuda_download"
         assert registry._COMMAND_REGISTRY["ack_cuda_activation"] == "_handle_ack_cuda_activation"
-        assert len(registry._COMMAND_REGISTRY) == 109, (
-            f"registry._COMMAND_REGISTRY must contain 109 entries "
+        assert len(registry._COMMAND_REGISTRY) == 110, (
+            f"registry._COMMAND_REGISTRY must contain 110 entries "
             f"(105 forwarded in the Rust allowlist + shutdown + "
-            f"tray_click python-only + heartbeat + relaunch_ack host-dispatched); got "
+            f"tray_click + bubble_host_hidden host-dispatched + heartbeat + "
+            f"relaunch_ack host-dispatched); got "
             f"{len(registry._COMMAND_REGISTRY)}. "
             f"If the count drifted, update this test together with the "
             f"registry + the TS/Rust allowlists."

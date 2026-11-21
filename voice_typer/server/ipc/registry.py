@@ -107,11 +107,9 @@ _SELF_SERIALIZED_COMMANDS: frozenset[str] = frozenset(
 )
 
 # Host-only commands: registered here, never invoked by the renderer
-_PYTHON_ONLY_COMMANDS: frozenset[str] = frozenset(
-    {"shutdown", "tray_click", "bubble_host_hidden"}
-)
+_PYTHON_ONLY_COMMANDS: frozenset[str] = frozenset({"shutdown", "tray_click", "bubble_host_hidden"})
 
-# Maps IPC command name → handler method on IPCServer. Count pinned at 109
+# Maps IPC command name → handler method on IPCServer. Count pinned at 110
 _COMMAND_REGISTRY: dict[str, str] = {
     "get_status": "_handle_get_status",
     "toggle_dictation": "_handle_toggle_dictation",

@@ -40,14 +40,15 @@ cannot invoke arbitrary commands: only the **105** commands listed in
 the Python backend. The authoritative count is enforced by CI (see
 `tests/test_security_doc_command_count.py` and
 `tests/test_ipc_command_parity.py`); update the count there if entries
-are added or removed.
+are added or removed. The full command / event surface is documented in
+[`docs/ipc-reference.md`](docs/ipc-reference.md).
 
 > predecessor main and the TCP transport are gone (ADR-0020 cutover). The
 > former TypeScript `ALLOWED_COMMANDS` Set is deleted with predecessor
 > main. The remaining two-way contract is: Python
 > `_COMMAND_REGISTRY` (`voice_typer/server/ipc/registry.py`,
-> re-exported by `ipc_server.py`) registers **109** handlers; the Rust
-> renderer allowlist exposes **105** of them. Four registry commands are
+> re-exported by `ipc_server.py`) registers **110** handlers; the Rust
+> renderer allowlist exposes **105** of them. Five registry commands are
 > intentionally absent from the Rust allowlist:
 >
 > - `tray_click` — Rust tray handler invokes via `dispatch_inner`
@@ -59,8 +60,10 @@ are added or removed.
 >   the WebView is killed.
 > - `relaunch_ack` — host relaunch listener sends this fire-and-forget;
 >   a renderer-spoofable ack would race `restart_app`'s wait event.
+> - `bubble_host_hidden` — host-dispatched bubble-hide completion;
+>   invoked by the Rust host via `dispatch_inner`, never by the renderer.
 >
-> The +4 host-delta is asserted by
+> The +5 host-delta is asserted by
 > `tests/test_ipc_command_parity.py::HOST_DISPATCHED_COMMANDS` and
 > mirrored in `_HOST_ONLY_OR_HOST_DISPATCHED` in
 > `tests/test_security_doc_command_count.py`.

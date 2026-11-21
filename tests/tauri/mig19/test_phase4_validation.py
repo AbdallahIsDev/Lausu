@@ -228,6 +228,11 @@ KNOWN_UNDOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "relaunch_ack",
         # ``ipc_server.py``). Listed here so the frozen-contract gate
         "tray_click",
+        # Host-dispatched bubble-hide completion: real handler +
+        # `docs/ipc-reference.md` row, but host-only (absent from the
+        # Rust allowlist, invoked via `dispatch_inner`). Same explicit-gap
+        # path as relaunch_ack / tray_click.
+        "bubble_host_hidden",
         # observability and violate C-DATA-1's "renderer production
         "test_cloud_connection",
         # XZ-SEC-05: ``add_trusted_endpoint``, adds a hostname to the
