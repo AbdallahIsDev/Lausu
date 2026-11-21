@@ -41,9 +41,7 @@ fn test_passthrough_env_allowlist_includes_json_logging_opt_in() {
     let sentinel = "vt-spawn-test-json-logging-opt-in";
     std::env::set_var("VOICE_TYPER_LOG_JSON", sentinel);
     let envs = passthrough_env_allowlist();
-    let found = envs
-        .iter()
-        .find(|(key, _)| key == "VOICE_TYPER_LOG_JSON");
+    let found = envs.iter().find(|(key, _)| key == "VOICE_TYPER_LOG_JSON");
     assert!(
         found.is_some(),
         "VOICE_TYPER_LOG_JSON must be in the passthrough allowlist"
