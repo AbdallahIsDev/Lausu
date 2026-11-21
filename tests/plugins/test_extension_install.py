@@ -11,9 +11,11 @@ import importlib.util
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from tests.plugins.profile_path_helpers import assert_shared_profile
 from tools.internal_plugins._common.bridge import (
     chrome_profile,
     install_paths,
@@ -32,6 +34,24 @@ verifier = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(verifier)
 
 
+@pytest.fixture
+def hermetic_source_config(monkeypatch, tmp_path):
+    """Give the verifier a generated config and skip the real Node subprocess."""
+    here = tmp_path / "source"
+    source = here / "extension" / "generated" / "config.js"
+    source.parent.mkdir(parents=True)
+    source.write_text("// hermetic test config\nself.ANTHROPIC_STT_CONFIG = {};\n", encoding="utf-8")
+    monkeypatch.setattr(verifier, "HERE", here)
+    monkeypatch.setattr(
+        verifier,
+        "subprocess",
+        SimpleNamespace(
+            run=lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout="ok", stderr="")
+        ),
+    )
+    return source.read_bytes()
+
+
 class TestInstallAuthority:
     def test_stable_path_is_outside_the_repo(self):
         target = install_paths.stable_extension_dir().resolve()
@@ -41,13 +61,12 @@ class TestInstallAuthority:
 
     @pytest.mark.parametrize("module", [anthropic, google])
     def test_one_profile_from_one_authority(self, module):
-        descriptor = json.loads((module.HERE / "config.json").read_text(encoding="utf-8"))
-        assert descriptor["profileDir"].replace("\\", "/") == str(install_paths.profile_dir()).replace("\\", "/")
-        assert descriptor["profileDir"] == chrome_profile.PROFILE_DIR
-        for config in (module.HERE / "config.json", module.HERE / "config.example.json"):
-            text = config.read_text(encoding="utf-8")
-            for value in {line.split('"')[3] for line in text.splitlines() if "google-stt-profile" in line}:
-                assert value == chrome_profile.PROFILE_DIR
+        # config.json is gitignored runtime state; the tracked example is the
+        # shipped descriptor that must agree with the one profile authority.
+        text = (module.HERE / "config.example.json").read_text(encoding="utf-8")
+        assert_shared_profile(json.loads(text)["profileDir"])
+        for value in {line.split('"')[3] for line in text.splitlines() if "google-stt-profile" in line}:
+            assert_shared_profile(value)
 
     def test_one_extension_and_no_second_copy(self):
         assert (BRIDGE / "extension" / "manifest.json").is_file()
@@ -65,8 +84,11 @@ class TestInstallAuthority:
         assert descriptor["port"] == install_paths.PORT == 17875
         assert descriptor["platform"] == platform
         assert module.DAEMON_URL.endswith(":17875")
-        assert (BRIDGE / "token.json").is_file()
         assert (BRIDGE / "install.json").is_file()
+        # token.json is gitignored runtime state; pin the single source authority.
+        store = (BRIDGE / "config_store.js").read_text(encoding="utf-8")
+        assert "const TOKEN_FILE = path.join(BRIDGE_DIR, 'token.json')" in store
+        assert store.count("'token.json'") == 1
         assert install_paths.EXTENSION_ID == "kkinikdljfdmbeibhhgkgmljahmfgecg"
 
 
@@ -182,14 +204,15 @@ class TestKeepaliveRegression:
 
 
 class TestVerifierLiveRegistration:
-    def test_live_bridge_counts_as_registered_before_chrome_flushes_prefs(self, monkeypatch, capsys, tmp_path):
+    def test_live_bridge_counts_as_registered_before_chrome_flushes_prefs(
+        self, monkeypatch, capsys, tmp_path, hermetic_source_config
+    ):
         target = tmp_path / "extension"
         for rel in verifier.REQUIRED:
             file = target / rel
             file.parent.mkdir(parents=True, exist_ok=True)
             file.write_text("x", encoding="utf-8")
-        source_cfg = BRIDGE / "extension" / "generated" / "config.js"
-        (target / "generated" / "config.js").write_bytes(source_cfg.read_bytes())
+        (target / "generated" / "config.js").write_bytes(hermetic_source_config)
         monkeypatch.setattr(verifier.paths, "stable_extension_dir", lambda: target)
         monkeypatch.setattr(verifier.paths, "registered_extension_path", lambda: None)
         monkeypatch.setattr(verifier, "_live_bridge_connected", lambda: True)
@@ -202,9 +225,11 @@ class TestVerifierLiveRegistration:
 
 
 class TestVerifierOutput:
-    def test_not_registered_case(self, monkeypatch, capsys, tmp_path):
+    def test_not_registered_case(self, monkeypatch, capsys, tmp_path, hermetic_source_config):
         target = tmp_path / "extension"
-        target.mkdir()
+        generated = target / "generated"
+        generated.mkdir(parents=True)
+        (generated / "config.js").write_bytes(hermetic_source_config)
         monkeypatch.setattr(verifier.paths, "stable_extension_dir", lambda: target)
         monkeypatch.setattr(verifier.paths, "registered_extension_path", lambda: None)
         # The live probe must never depend on a daemon running on this machine.
@@ -215,14 +240,13 @@ class TestVerifierOutput:
         assert "Chrome registration" in out and "not registered" in out
         assert "Load unpacked" in out and str(target) in out
 
-    def test_healthy_case(self, monkeypatch, capsys, tmp_path):
+    def test_healthy_case(self, monkeypatch, capsys, tmp_path, hermetic_source_config):
         target = tmp_path / "extension"
         for rel in verifier.REQUIRED:
             file = target / rel
             file.parent.mkdir(parents=True, exist_ok=True)
             file.write_text("x", encoding="utf-8")
-        source_cfg = BRIDGE / "extension" / "generated" / "config.js"
-        (target / "generated" / "config.js").write_bytes(source_cfg.read_bytes())
+        (target / "generated" / "config.js").write_bytes(hermetic_source_config)
         monkeypatch.setattr(verifier.paths, "stable_extension_dir", lambda: target)
         monkeypatch.setattr(verifier.paths, "registered_extension_path", lambda: str(target))
         monkeypatch.setattr(verifier, "_live_bridge_connected", lambda: False)

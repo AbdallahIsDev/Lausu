@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from tests.plugins.profile_path_helpers import assert_shared_profile
 from tools.internal_plugins._common import daemon as daemon_common
 from tools.internal_plugins._common.bridge import chrome_profile, daemon_client
 from tools.internal_plugins.anthropic_stt import plugin as anthropic
@@ -40,7 +41,7 @@ class TestOneSharedAuthority:
         assert descriptor["platform"] == platform
         assert descriptor["url"] == url
         assert descriptor["port"] == 17875
-        assert descriptor["profileDir"] == chrome_profile.PROFILE_DIR
+        assert_shared_profile(descriptor["profileDir"])
         assert descriptor["selectorsRef"].endswith(f"{platform}.json")
         assert module.DAEMON_URL.endswith(":17875")
         assert module._CLIENT.daemon_args == (
@@ -50,7 +51,10 @@ class TestOneSharedAuthority:
         assert Path(module._CLIENT.daemon_script) == BRIDGE / "run.js"
 
     def test_one_token_authority_and_both_selectors(self):
-        assert (BRIDGE / "token.json").is_file()
+        # token.json is gitignored runtime state; pin the single source authority.
+        store = (BRIDGE / "config_store.js").read_text(encoding="utf-8")
+        assert "const TOKEN_FILE = path.join(BRIDGE_DIR, 'token.json')" in store
+        assert store.count("'token.json'") == 1
         for name in ("claude", "gemini"):
             assert (BRIDGE / "selectors" / f"{name}.json").is_file()
         manifest = json.loads((BRIDGE / "extension" / "manifest.json").read_text(encoding="utf-8"))
