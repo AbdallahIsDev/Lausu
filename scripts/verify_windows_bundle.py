@@ -325,6 +325,7 @@ def gpl_gate(sidecar: Path, target: str, enforce: str,
     has_files = extraction_dir.is_dir() and any(
         path.is_file() for path in extraction_dir.rglob("*")
     )
+    reason = ""
     if not has_files:
         reason = (
             f"onefile extraction dir has nothing to scan: {extraction_dir}"

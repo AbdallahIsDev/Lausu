@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 
 import pytest
 from voice_typer.server.audio_filters import noise_suppressor as ns_module
@@ -24,18 +24,25 @@ def test_bundled_bin_dir_is_the_resolver_base(
     assert tmp_path / "resources" in shipped
 
 
+def _fake_sys(**attrs: object) -> ModuleType:
+    module = ModuleType("fake_sys")
+    for name, value in attrs.items():
+        setattr(module, name, value)
+    return module
+
+
 def test_is_frozen_build_detects_nuitka_and_pyinstaller() -> None:
     assert ffmpeg_binaries.is_frozen_build(
-        {"__compiled__": SimpleNamespace()}, SimpleNamespace()
+        {"__compiled__": SimpleNamespace()}, _fake_sys()
     )
     assert ffmpeg_binaries.is_frozen_build(
-        {}, SimpleNamespace(frozen=True, _MEIPASS=None)
+        {}, _fake_sys(frozen=True, _MEIPASS=None)
     )
     assert ffmpeg_binaries.is_frozen_build(
-        {}, SimpleNamespace(frozen=False, _MEIPASS="/tmp/_MEI123")
+        {}, _fake_sys(frozen=False, _MEIPASS="/tmp/_MEI123")
     )
     assert not ffmpeg_binaries.is_frozen_build(
-        {}, SimpleNamespace(frozen=False, _MEIPASS=None)
+        {}, _fake_sys(frozen=False, _MEIPASS=None)
     )
 
 
@@ -44,8 +51,8 @@ def test_bundled_bin_dir_uses_original_exe_dir_in_onefile(tmp_path: Path) -> Non
     extraction = tmp_path / "lausu" / "onefile-tmp"
     original_dir.mkdir()
     extraction.mkdir(parents=True)
-    fake_sys = SimpleNamespace(executable=str(extraction / "python.exe"))
-    g = {"__compiled__": SimpleNamespace(containing_dir=str(original_dir))}
+    fake_sys = _fake_sys(executable=str(extraction / "python.exe"))
+    g: dict[str, object] = {"__compiled__": SimpleNamespace(containing_dir=str(original_dir))}
     assert ffmpeg_binaries.bundled_bin_dir(g, fake_sys) == original_dir.resolve()
     assert (
         ffmpeg_binaries.bundled_bin_dir({}, fake_sys)
