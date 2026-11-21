@@ -1,9 +1,9 @@
 # CI Errors
 
 > Auto-generated from the latest GitHub Actions run via `scripts/ci/write_ci_errors.py`. Do not edit by hand, it is overwritten on every CI run.
-> Source SHA: `9cbbcf42e7470cdf93c4338ac60121830ec73d51`
+> Source SHA: `5ec0af0547d105a5691fc55e04eabcaade09ec75`
 
-**18 failing/errored tests** across 6 matrix legs.
+**19 failing/errored tests** across 6 matrix legs.
 
 ### 1. `tests.test_tts_local_client`
 
@@ -68,18 +68,18 @@ voice_typer/server/tts/wav.py:30: in probe_wav
 E   voice_typer.server.tts.types.TtsError: unreadable WAV at /private/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/pytest-of-runner/pytest-1/popen-gw2/test_remote_tts_provider_is_us0/tts/work/custom/speak.wav: soundfile unavailable: No module named 'soundfile'
 ```
 
-### 4. `tests.test_module_split_reexports_wave3.TestConfigApplierFacadeReexports.test_moved_symbols_resolve_to_the_sibling_modules`
+### 4. `tests.test_media_selfcheck.test_frozen_resolver_ignores_path_and_uses_original_exe_dir`
 
 - Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
-- Location: `tests/test_module_split_reexports_wave3.py:308`
+- Location: `tests/test_media_selfcheck.py:87`
 
 ```
-AttributeError: module 'voice_typer.server.config_applier' has no attribute '_TrayLeftClickHandler'
+assert None is not None
 
-AttributeError: module 'voice_typer.server.config_applier' has no attribute '_TrayLeftClickHandler'
-tests/test_module_split_reexports_wave3.py:308: in test_moved_symbols_resolve_to_the_sibling_modules
-    config_applier._TrayLeftClickHandler
-E   AttributeError: module 'voice_typer.server.config_applier' has no attribute '_TrayLeftClickHandler'
+assert None is not None
+tests/test_media_selfcheck.py:87: in test_frozen_resolver_ignores_path_and_uses_original_exe_dir
+    assert pair is not None
+E   assert None is not None
 ```
 
 ### 5. `tests.test_module_split_reexports_wave3.TestConfigApplierFacadeReexports.test_handlers_take_side_effect_context_no_facade_global`
@@ -97,7 +97,21 @@ tests/test_module_split_reexports_wave3.py:344: in test_handlers_take_side_effec
 E   AttributeError: module 'voice_typer.server.config_applier_handlers' has no attribute '_TrayLeftClickHandler'
 ```
 
-### 6. `tests.test_module_split_reexports_wave9.TestRecordingLifecycleStageOrderParity.test_pipeline_stage_order_matches_the_contract`
+### 6. `tests.test_module_split_reexports_wave3.TestConfigApplierFacadeReexports.test_moved_symbols_resolve_to_the_sibling_modules`
+
+- Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Location: `tests/test_module_split_reexports_wave3.py:308`
+
+```
+AttributeError: module 'voice_typer.server.config_applier' has no attribute '_TrayLeftClickHandler'
+
+AttributeError: module 'voice_typer.server.config_applier' has no attribute '_TrayLeftClickHandler'
+tests/test_module_split_reexports_wave3.py:308: in test_moved_symbols_resolve_to_the_sibling_modules
+    config_applier._TrayLeftClickHandler
+E   AttributeError: module 'voice_typer.server.config_applier' has no attribute '_TrayLeftClickHandler'
+```
+
+### 7. `tests.test_module_split_reexports_wave9.TestRecordingLifecycleStageOrderParity.test_pipeline_stage_order_matches_the_contract`
 
 - Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_module_split_reexports_wave9.py:659`
@@ -116,7 +130,7 @@ E   AssertionError: missing stage markers: ['app._waveform_bubble.show()', 'set_
 E   assert not ['app._waveform_bubble.show()', 'set_state("recording")']
 ```
 
-### 7. `tests.test_paste_failure_toast.TestPasteFailureBubbleState.test_bubble_shows_paste_failed_with_timed_exit`
+### 8. `tests.test_paste_failure_toast.TestPasteFailureBubbleState.test_bubble_shows_paste_failed_with_timed_exit`
 
 - Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_paste_failure_toast.py:280`
@@ -130,24 +144,6 @@ tests/test_paste_failure_toast.py:280: in test_bubble_shows_paste_failed_with_ti
 /Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:950: in assert_called_once_with
     raise AssertionError(msg)
 E   AssertionError: Expected 'show' to be called once. Called 0 times.
-```
-
-### 8. `tests.test_short_audio_energy_gate.test_boundary_matrix_is_stable[0]`
-
-- Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
-- Location: `tests/test_short_audio_energy_gate.py:161`
-
-```
-AssertionError: Expected 'hide' to have been called once. Called 0 times.
-
-AssertionError: Expected 'hide' to have been called once. Called 0 times.
-tests/test_short_audio_energy_gate.py:161: in test_boundary_matrix_is_stable
-    _assert_discarded(result)
-tests/test_short_audio_energy_gate.py:124: in _assert_discarded
-    result.app._waveform_bubble.hide.assert_called_once()
-/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:918: in assert_called_once
-    raise AssertionError(msg)
-E   AssertionError: Expected 'hide' to have been called once. Called 0 times.
 ```
 
 ### 9. `tests.test_short_audio_energy_gate.test_boundary_matrix_is_stable[1]`
@@ -168,7 +164,7 @@ tests/test_short_audio_energy_gate.py:124: in _assert_discarded
 E   AssertionError: Expected 'hide' to have been called once. Called 0 times.
 ```
 
-### 10. `tests.test_short_audio_energy_gate.test_boundary_matrix_is_stable[2]`
+### 10. `tests.test_short_audio_energy_gate.test_boundary_matrix_is_stable[0]`
 
 - Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_short_audio_energy_gate.py:161`
@@ -186,7 +182,25 @@ tests/test_short_audio_energy_gate.py:124: in _assert_discarded
 E   AssertionError: Expected 'hide' to have been called once. Called 0 times.
 ```
 
-### 11. `tests.test_short_audio_energy_gate.test_loud_word_survives_and_loud_click_is_rejected`
+### 11. `tests.test_short_audio_energy_gate.test_boundary_matrix_is_stable[2]`
+
+- Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
+- Location: `tests/test_short_audio_energy_gate.py:161`
+
+```
+AssertionError: Expected 'hide' to have been called once. Called 0 times.
+
+AssertionError: Expected 'hide' to have been called once. Called 0 times.
+tests/test_short_audio_energy_gate.py:161: in test_boundary_matrix_is_stable
+    _assert_discarded(result)
+tests/test_short_audio_energy_gate.py:124: in _assert_discarded
+    result.app._waveform_bubble.hide.assert_called_once()
+/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:918: in assert_called_once
+    raise AssertionError(msg)
+E   AssertionError: Expected 'hide' to have been called once. Called 0 times.
+```
+
+### 12. `tests.test_short_audio_energy_gate.test_loud_word_survives_and_loud_click_is_rejected`
 
 - Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_short_audio_energy_gate.py:177`
@@ -204,7 +218,7 @@ tests/test_short_audio_energy_gate.py:124: in _assert_discarded
 E   AssertionError: Expected 'hide' to have been called once. Called 0 times.
 ```
 
-### 12. `tests.test_short_audio_energy_gate.test_quiet_tap_and_long_silence_are_rejected`
+### 13. `tests.test_short_audio_energy_gate.test_quiet_tap_and_long_silence_are_rejected`
 
 - Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_short_audio_energy_gate.py:184`
@@ -222,7 +236,7 @@ tests/test_short_audio_energy_gate.py:124: in _assert_discarded
 E   AssertionError: Expected 'hide' to have been called once. Called 0 times.
 ```
 
-### 13. `tests.test_short_audio_energy_gate.TestUnusableRmsIsDiscarded.test_garbage_last_rms_discards_without_crashing[magic_mock]`
+### 14. `tests.test_short_audio_energy_gate.TestUnusableRmsIsDiscarded.test_garbage_last_rms_discards_without_crashing[none]`
 
 - Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_short_audio_energy_gate.py:313`
@@ -240,7 +254,7 @@ tests/test_short_audio_energy_gate.py:124: in _assert_discarded
 E   AssertionError: Expected 'hide' to have been called once. Called 0 times.
 ```
 
-### 14. `tests.test_short_audio_energy_gate.TestUnusableRmsIsDiscarded.test_garbage_last_rms_discards_without_crashing[string]`
+### 15. `tests.test_short_audio_energy_gate.TestUnusableRmsIsDiscarded.test_garbage_last_rms_discards_without_crashing[string]`
 
 - Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_short_audio_energy_gate.py:313`
@@ -258,7 +272,7 @@ tests/test_short_audio_energy_gate.py:124: in _assert_discarded
 E   AssertionError: Expected 'hide' to have been called once. Called 0 times.
 ```
 
-### 15. `tests.test_short_audio_energy_gate.TestUnusableRmsIsDiscarded.test_garbage_last_rms_discards_without_crashing[nan]`
+### 16. `tests.test_short_audio_energy_gate.TestUnusableRmsIsDiscarded.test_garbage_last_rms_discards_without_crashing[nan]`
 
 - Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_short_audio_energy_gate.py:313`
@@ -276,7 +290,7 @@ tests/test_short_audio_energy_gate.py:124: in _assert_discarded
 E   AssertionError: Expected 'hide' to have been called once. Called 0 times.
 ```
 
-### 16. `tests.test_short_audio_energy_gate.TestUnusableRmsIsDiscarded.test_garbage_last_rms_discards_without_crashing[none]`
+### 17. `tests.test_short_audio_energy_gate.TestUnusableRmsIsDiscarded.test_garbage_last_rms_discards_without_crashing[magic_mock]`
 
 - Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13, ubuntu-22.04-3.11, ubuntu-22.04-3.12, ubuntu-22.04-3.13
 - Location: `tests/test_short_audio_energy_gate.py:313`
@@ -294,9 +308,9 @@ tests/test_short_audio_energy_gate.py:124: in _assert_discarded
 E   AssertionError: Expected 'hide' to have been called once. Called 0 times.
 ```
 
-### 17. `tests.test_slice3_log_hygiene.TestNoiseSuppressorOncePerProcess.test_second_init_drops_to_debug`
+### 18. `tests.test_slice3_log_hygiene.TestNoiseSuppressorOncePerProcess.test_second_init_drops_to_debug`
 
-- Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13
+- Legs: macos-15-3.11, macos-15-3.12, macos-15-3.13, ubuntu-22.04-3.11
 - Location: `tests/test_slice3_log_hygiene.py:102`
 
 ```
@@ -312,30 +326,20 @@ E   assert 0 == 1
 E    +  where 0 = len([])
 ```
 
-### 18. `tests.test_tauri_e2e_checklist.TestLogCleanliness.test_happy_path_flows_are_log_clean`
+### 19. `tests.test_recording.TestStopCallbackBackoff.test_zero_ms_common_case_when_flag_already_clear`
 
-- Legs: macos-15-3.11
-- Location: `tests/test_tauri_e2e_checklist.py:753`
+- Legs: ubuntu-22.04-3.13
+- Location: `tests/test_recording.py:453`
 
 ```
-+ ]
++  where 12288 = len([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, ...])
 
-AssertionError: WARNING voice_typer.server.audio_filters.noise_suppressor: [NOISE-SUPPRESS] rnnoise unavailable, serving bundled gtcrn instead
-assert [<LogRecord: ...crn instead">] == []
-
-  Left contains one more item: <LogRecord: voice_typer.server.audio_filters.noise_suppressor, 30, /Users/runner/work/Lausu/Lausu/voice_typer/server/audio_filters/noise_suppressor.py, 171, "[NOISE-SUPPRESS] rnnoise unavailable, serving bundled gtcrn instead">
-
-[+5 more lines; full report in element text]
-tests/test_tauri_e2e_checklist.py:753: in test_happy_path_flows_are_log_clean
-    assert offenders == [], "\n".join(f"{r.levelname} {r.name}: {r.message}" for r in offenders)
-E   AssertionError: WARNING voice_typer.server.audio_filters.noise_suppressor: [NOISE-SUPPRESS] rnnoise unavailable, serving bundled gtcrn instead
-E   assert [<LogRecord: ...crn instead">] == []
-E
-E     Left contains one more item: <LogRecord: voice_typer.server.audio_filters.noise_suppressor, 30, /Users/runner/work/Lausu/Lausu/voice_typer/server/audio_filters/noise_suppressor.py, 171, "[NOISE-SUPPRESS] rnnoise unavailable, serving bundled gtcrn instead">
-E
-E     Full diff: (-: missing in left side, +: extra in left side)
-E     - []
-E     + [
-E     +     <LogRecord: voice_typer.server.audio_filters.noise_suppressor, 30, /Users/runner/work/Lausu/Lausu/voice_typer/server/audio_filters/noise_suppressor.py, 171, "[NOISE-SUPPRESS] rnnoise unavailable, serving bundled gtcrn instead">,
-E     + ]
+AssertionError: Expected 0 sleep calls (flag clear), got 12288
+assert 12288 == 0
+ +  where 12288 = len([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, ...])
+tests/test_recording.py:453: in test_zero_ms_common_case_when_flag_already_clear
+    assert len(sleep_calls) == 0, f"Expected 0 sleep calls (flag clear), got {len(sleep_calls)}"
+E   AssertionError: Expected 0 sleep calls (flag clear), got 12288
+E   assert 12288 == 0
+E    +  where 12288 = len([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, ...])
 ```
