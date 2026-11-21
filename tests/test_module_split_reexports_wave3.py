@@ -305,10 +305,6 @@ class TestConfigApplierFacadeReexports:
             is config_applier_handlers._RepasteHotkeyHandler
         )
         assert (
-            config_applier._TrayLeftClickHandler
-            is config_applier_handlers._TrayLeftClickHandler
-        )
-        assert (
             config_applier._VolumeDuckPollHandler
             is config_applier_handlers._VolumeDuckPollHandler
         )
@@ -334,7 +330,6 @@ class TestConfigApplierFacadeReexports:
             "_EscHotkeyHandler",
             "_RepasteHotkeyHandler",
             "_DictationHotkeyHandler",
-            "_TrayLeftClickHandler",
             "_NotificationsHandler",
             "_BubbleBehaviorHandler",
             "_VolumeDuckPollHandler",
