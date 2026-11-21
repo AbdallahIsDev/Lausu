@@ -62,9 +62,7 @@ def test_distinct_license_text_is_emitted_exactly_once() -> None:
     full = [key for key in module.LICENSE_TEXTS if key in module.FULL_TEXT_LICENSES]
     assert len(full) == 8, full
     for key in full:
-        body = "\n".join(
-            line.rstrip() for line in module.LICENSE_TEXTS[key].strip().splitlines()
-        )
+        body = "\n".join(line.rstrip() for line in module.LICENSE_TEXTS[key].strip().splitlines())
         assert body, f"empty license text: {key}"
         assert block.count(body) == 1, f"{key} full text emitted {block.count(body)} times"
     for key, body in module.LICENSE_TEXTS.items():
@@ -76,9 +74,10 @@ def test_artifact_is_deterministic_and_handwritten_sections_survive() -> None:
     module = _load_generator()
     text = NOTICE.read_text(encoding="utf-8")
     rendered = module.render(module.read_lockfiles(), module.read_installed_metadata())
-    assert text.split(module.BEGIN, 1)[1].split(module.END, 1)[0] == rendered.split(
-        module.BEGIN, 1
-    )[1].split(module.END, 1)[0], "committed artifact is stale; rerun the generator"
+    assert (
+        text.split(module.BEGIN, 1)[1].split(module.END, 1)[0]
+        == rendered.split(module.BEGIN, 1)[1].split(module.END, 1)[0]
+    ), "committed artifact is stale; rerun the generator"
     for section in ("## PyAV", "## FFmpeg (LGPL-only executable, Windows x64)", "## Lausu (this project)"):
         assert section in text, f"hand-written section must survive regeneration: {section}"
     assert "av==17.1.0" in text, "PyAV version pin must remain intact"

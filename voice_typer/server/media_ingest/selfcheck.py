@@ -35,11 +35,7 @@ def maybe_run_self_check(argv: list[str]) -> bool:
     if "--self-check" not in argv:
         return False
     idx = argv.index("--self-check")
-    wav = (
-        argv[idx + 1]
-        if idx + 1 < len(argv) and not argv[idx + 1].startswith("--")
-        else ""
-    )
+    wav = argv[idx + 1] if idx + 1 < len(argv) and not argv[idx + 1].startswith("--") else ""
     raise SystemExit(run(wav))
 
 
@@ -106,9 +102,7 @@ def run(wav_path: str) -> int:
         effective = suppressor.effective_method
         degraded = suppressor.is_degraded
         if effective != "rnnoise" or degraded:
-            raise AssertionError(
-                f"RNNoise not active (effective method={effective!r}, degraded={degraded})"
-            )
+            raise AssertionError(f"RNNoise not active (effective method={effective!r}, degraded={degraded})")
 
     check("frozen-build", frozen_check)
     check("no-path-fallback", no_path_check)

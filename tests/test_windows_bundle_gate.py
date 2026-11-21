@@ -58,9 +58,9 @@ def test_pinned_spec_is_per_build_and_per_product(tmp_path: Path, monkeypatch: p
     spec = gate.pinned_onefile_tempdir_spec()
     assert spec == "{CACHE_DIR}/{PRODUCT}/{VERSION}/onefile-tmp"
     assert gate.freeze_product_name() == "LausuSidecar"
-    assert gate.expand_onefile_cache_spec(
-        spec.split("/{VERSION}/")[0], r"C:\cache", "LausuSidecar"
-    ) == Path(r"C:\cache/LausuSidecar")
+    assert gate.expand_onefile_cache_spec(spec.split("/{VERSION}/")[0], r"C:\cache", "LausuSidecar") == Path(
+        r"C:\cache/LausuSidecar"
+    )
     assert gate.expand_onefile_cache_spec("{TEMP}/onefile_{PID}_{TIME}", "C:\\cache") is None
 
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
@@ -76,9 +76,7 @@ def test_gpl_gate_soft_mode_warns_and_exits_zero(
 ) -> None:
     monkeypatch.setattr(gate, "REPO_ROOT", tmp_path)
     _make_dlls(tmp_path / "extract", ["avcodec-62-xxxx.dll", "libx264-165-xxxx.dll"])
-    passed = gate.gpl_gate(
-        tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "0", tmp_path / "extract"
-    )
+    passed = gate.gpl_gate(tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "0", tmp_path / "extract")
     out = capsys.readouterr().out
     assert "exe string scan (blind to compressed onefile payloads)" in out
     assert "onefile extraction-dir name scan (authoritative" in out
@@ -88,15 +86,11 @@ def test_gpl_gate_soft_mode_warns_and_exits_zero(
     assert "2 extraction-name hit(s)" in passed[0]
 
 
-def test_gpl_gate_enforce_one_fails_on_named_dll(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_gpl_gate_enforce_one_fails_on_named_dll(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(gate, "REPO_ROOT", tmp_path)
     _make_dlls(tmp_path / "extract", ["libx264-165-xxxx.dll"])
     with pytest.raises(gate.BundleVerificationError, match="GPL DLLs found"):
-        gate.gpl_gate(
-            tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "1", tmp_path / "extract"
-        )
+        gate.gpl_gate(tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "1", tmp_path / "extract")
 
 
 def test_gpl_gate_enforce_one_clean_dir_passes(
@@ -105,9 +99,7 @@ def test_gpl_gate_enforce_one_clean_dir_passes(
     monkeypatch.setattr(gate, "REPO_ROOT", tmp_path)
     extract = tmp_path / "extract"
     _make_dlls(extract, ["rnnoise.dll"])
-    gate.gpl_gate(
-        tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "1", extract
-    )
+    gate.gpl_gate(tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "1", extract)
     assert "ENFORCE_NO_GPL_DLLS check: clean." in capsys.readouterr().out
 
 
@@ -118,9 +110,7 @@ def test_gpl_gate_empty_extraction_dir_is_inconclusive_not_clean(
     empty = tmp_path / "empty-extract"
     empty.mkdir()
     with pytest.raises(gate.BundleVerificationError, match="nothing to scan"):
-        gate.gpl_gate(
-            tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "1", empty
-        )
+        gate.gpl_gate(tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "1", empty)
     gate.gpl_gate(tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "0", empty)
     out = capsys.readouterr().out
     assert "INCONCLUSIVE, not clean" in out
@@ -133,16 +123,12 @@ def test_gpl_gate_missing_extraction_dir_warns_when_soft(
     monkeypatch.setattr(gate, "REPO_ROOT", tmp_path)
     missing = tmp_path / "absent"
     with pytest.raises(gate.BundleVerificationError, match="does not exist"):
-        gate.gpl_gate(
-            tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "1", missing
-        )
+        gate.gpl_gate(tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "1", missing)
     gate.gpl_gate(tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "0", missing)
     assert "does not exist" in capsys.readouterr().out
 
 
-def test_gpl_gate_requires_a_resolvable_extraction_dir(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_gpl_gate_requires_a_resolvable_extraction_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(gate, "REPO_ROOT", tmp_path)
     with pytest.raises(gate.BundleVerificationError, match="could not be determined"):
         gate.gpl_gate(tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "0", None)
@@ -176,8 +162,14 @@ def test_main_collects_all_failures_but_still_runs_gpl_scan_and_summary(
 
     rc = gate.main(
         [
-            "--sidecar", str(sidecar), "--wav", str(wav),
-            "--summary", str(summary), "--onefile-extract-dir", str(tmp_path / "extract"),
+            "--sidecar",
+            str(sidecar),
+            "--wav",
+            str(wav),
+            "--summary",
+            str(summary),
+            "--onefile-extract-dir",
+            str(tmp_path / "extract"),
         ]
     )
     out = capsys.readouterr().out

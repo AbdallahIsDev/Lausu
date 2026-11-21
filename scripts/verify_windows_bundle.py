@@ -123,17 +123,11 @@ def check_bundle_contents(target: str) -> list[str]:
         if any("ffprobe" in str(entry) for entry in external):
             problems.append(f"{cfg_name}: ffprobe must NOT be an externalBin ({external!r})")
         if NOTICES_CONFIG_ENTRY not in [str(entry) for entry in resources]:
-            problems.append(
-                f"{cfg_name}: bundle.resources missing {NOTICES_CONFIG_ENTRY!r} ({resources!r})"
-            )
+            problems.append(f"{cfg_name}: bundle.resources missing {NOTICES_CONFIG_ENTRY!r} ({resources!r})")
 
     # On-disk payload.
-    ffmpeg_files = _find_files(
-        roots, lambda p: p.name.lower().startswith("ffmpeg") and p.suffix.lower() == ".exe"
-    )
-    ffprobe_files = _find_files(
-        roots, lambda p: p.name.lower().startswith("ffprobe") and p.suffix.lower() == ".exe"
-    )
+    ffmpeg_files = _find_files(roots, lambda p: p.name.lower().startswith("ffmpeg") and p.suffix.lower() == ".exe")
+    ffprobe_files = _find_files(roots, lambda p: p.name.lower().startswith("ffprobe") and p.suffix.lower() == ".exe")
     if not ffmpeg_files:
         problems.append(f"no ffmpeg exe found under bundle roots: {[str(r) for r in roots]}")
     if ffprobe_files:
@@ -182,7 +176,8 @@ def run_sidecar_smoke(sidecar: Path, wav: Path, target: str) -> list[str]:
         # Strip every credential/token from the child env; the self-check
         # needs neither network nor secrets, only the staged ffmpeg + WAV.
         env = {
-            k: v for k, v in os.environ.items()
+            k: v
+            for k, v in os.environ.items()
             if k.upper() not in {"GITHUB_TOKEN", "GH_TOKEN", "LAUSU_FFMPEG", "LAUSU_FFPROBE"}
         }
         proc = subprocess.run(
@@ -264,9 +259,7 @@ def freeze_product_name(script: Path | None = None) -> str | None:
     return match.group(1) if match else None
 
 
-def expand_onefile_cache_spec(
-    spec: str, cache_dir: str, product: str | None = None
-) -> Path | None:
+def expand_onefile_cache_spec(spec: str, cache_dir: str, product: str | None = None) -> Path | None:
     """Expand the pinned spec's cache/product tokens.
 
     A spec with {PID}/{TIME}/{PROGRAM} names a throwaway dir that Nuitka
@@ -277,7 +270,7 @@ def expand_onefile_cache_spec(
     prefix = "{CACHE_DIR}"
     if not spec.startswith(prefix) or not cache_dir:
         return None
-    suffix = spec[len(prefix):].lstrip("/\\")
+    suffix = spec[len(prefix) :].lstrip("/\\")
     if "{PRODUCT}" in suffix:
         if not product:
             return None
@@ -300,9 +293,7 @@ def onefile_extraction_dir(explicit: str | None = None) -> Path | None:
         cache = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
     product = freeze_product_name()
     if "{VERSION}" in spec:
-        root = expand_onefile_cache_spec(
-            spec.split("/{VERSION}/")[0], cache, product
-        )
+        root = expand_onefile_cache_spec(spec.split("/{VERSION}/")[0], cache, product)
         if root is None or not root.is_dir():
             return None
         candidates = sorted(
@@ -336,13 +327,10 @@ def extraction_dll_scan(root: Path) -> tuple[list[ExtractionHit], list[Extractio
     return gpl, av_libs
 
 
-def gpl_gate(sidecar: Path, target: str, enforce: str,
-             extraction_dir: Path | None = None) -> list[str]:
+def gpl_gate(sidecar: Path, target: str, enforce: str, extraction_dir: Path | None = None) -> list[str]:
     """Name scan of the onefile payload is authoritative; byte scan is not."""
     worker = REPO_ROOT / "src-tauri" / "bin" / f"lausu-worker-{target}.exe"
-    loose = _find_files(
-        _bundle_roots(target), lambda p: p.suffix.lower() == ".dll"
-    )
+    loose = _find_files(_bundle_roots(target), lambda p: p.suffix.lower() == ".dll")
     rows = gpl_dll_table([sidecar, worker, *loose])
     if extraction_dir is None:
         raise BundleVerificationError(
@@ -351,9 +339,7 @@ def gpl_gate(sidecar: Path, target: str, enforce: str,
         )
     gpl_hits, av_hits = extraction_dll_scan(extraction_dir)
     enforce_on = enforce.strip() == "1"
-    has_files = extraction_dir.is_dir() and any(
-        path.is_file() for path in extraction_dir.rglob("*")
-    )
+    has_files = extraction_dir.is_dir() and any(path.is_file() for path in extraction_dir.rglob("*"))
     reason = ""
     if not has_files:
         reason = (
@@ -415,9 +401,11 @@ def gpl_gate(sidecar: Path, target: str, enforce: str,
     ]
 
 
-def write_summary(summary: Path, target: str, nsis: Path | None, msi: Path | None,
-                  sidecar: Path, wav: Path, passed: list[str]) -> None:
+def write_summary(
+    summary: Path, target: str, nsis: Path | None, msi: Path | None, sidecar: Path, wav: Path, passed: list[str]
+) -> None:
     """d. Sizes into GITHUB_STEP_SUMMARY (append, never overwrite)."""
+
     def size(p: Path | None) -> str:
         if p is None or not p.is_file():
             return "n/a"
@@ -460,9 +448,9 @@ def self_test() -> int:
         assert any(token == "avcodec" for token, _, _ in rows), rows
     spec = pinned_onefile_tempdir_spec() or ""
     assert spec == "{CACHE_DIR}/{PRODUCT}/{VERSION}/onefile-tmp", spec
-    assert expand_onefile_cache_spec(
-        spec.split("/{VERSION}/")[0], "/cache", "LausuSidecar"
-    ) == Path("/cache/LausuSidecar")
+    assert expand_onefile_cache_spec(spec.split("/{VERSION}/")[0], "/cache", "LausuSidecar") == Path(
+        "/cache/LausuSidecar"
+    )
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp) / "onefile-tmp"
         av_libs = root / "av.libs"
@@ -471,9 +459,7 @@ def self_test() -> int:
         (root / "libx264-165-xxxx.dll").write_bytes(b"")
         (av_libs / "avutil-59.dll").write_bytes(b"")
         gpl_hits, av_hits = extraction_dll_scan(root)
-        assert {hit.path.name for hit in gpl_hits} == {
-            "avcodec-62-xxxx.dll", "libx264-165-xxxx.dll"
-        }, gpl_hits
+        assert {hit.path.name for hit in gpl_hits} == {"avcodec-62-xxxx.dll", "libx264-165-xxxx.dll"}, gpl_hits
         assert {hit.path.name for hit in av_hits} == {"avutil-59.dll"}, av_hits
     with tempfile.TemporaryDirectory() as tmp:
         assert extraction_dll_scan(Path(tmp)) == ([], [])
@@ -504,8 +490,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--onefile-extract-dir",
         default=os.environ.get(ONEFILE_EXTRACT_DIR_ENV),
-        help=(f"Override the Nuitka onefile extraction dir (env: {ONEFILE_EXTRACT_DIR_ENV}). "
-              "Default: derive from the pinned --onefile-tempdir-spec."),
+        help=(
+            f"Override the Nuitka onefile extraction dir (env: {ONEFILE_EXTRACT_DIR_ENV}). "
+            "Default: derive from the pinned --onefile-tempdir-spec."
+        ),
     )
     parser.add_argument("--self-test", action="store_true", help="run pure logic checks only")
     args = parser.parse_args(argv)
@@ -531,9 +519,7 @@ def main(argv: list[str] | None = None) -> int:
         collect("frozen self-check", lambda: run_sidecar_smoke(args.sidecar, args.wav, args.target))
     else:
         print("verify_windows_bundle.py: no --sidecar supplied; frozen smoke SKIPPED", flush=True)
-    sidecar = args.sidecar or (
-        REPO_ROOT / "src-tauri" / "bin" / f"python-sidecar-{args.target}.exe"
-    )
+    sidecar = args.sidecar or (REPO_ROOT / "src-tauri" / "bin" / f"python-sidecar-{args.target}.exe")
     extraction_dir = onefile_extraction_dir(args.onefile_extract_dir)
     source = "explicit override" if args.onefile_extract_dir else "pinned spec (Nuitka cached mode)"
     print(
@@ -548,9 +534,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.summary is not None:
         collect(
             "size summary",
-            lambda: write_summary(
-                args.summary, args.target, args.nsis, args.msi, sidecar, args.wav, passed
-            ),
+            lambda: write_summary(args.summary, args.target, args.nsis, args.msi, sidecar, args.wav, passed),
         )
 
     if failed:

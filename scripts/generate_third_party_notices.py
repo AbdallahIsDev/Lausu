@@ -60,38 +60,38 @@ LICENSE_TEXTS: dict[str, str] = {
         "\n"
         "   1. Definitions.\n"
         "\n"
-        "      \"License\" shall mean the terms and conditions for use, reproduction,\n"
+        '      "License" shall mean the terms and conditions for use, reproduction,\n'
         "      and distribution as defined by Sections 1 through 9 of this document.\n"
         "\n"
-        "      \"Licensor\" shall mean the copyright owner or entity authorized by\n"
+        '      "Licensor" shall mean the copyright owner or entity authorized by\n'
         "      the copyright owner that is granting the License.\n"
         "\n"
-        "      \"Legal Entity\" shall mean the union of the acting entity and all\n"
+        '      "Legal Entity" shall mean the union of the acting entity and all\n'
         "      other entities that control, are controlled by, or are under common\n"
         "      control with that entity. For the purposes of this definition,\n"
-        "      \"control\" means (i) the power, direct or indirect, to cause the\n"
+        '      "control" means (i) the power, direct or indirect, to cause the\n'
         "      direction or management of such entity, whether by contract or\n"
         "      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n"
         "      outstanding shares, or (iii) beneficial ownership of such entity.\n"
         "\n"
-        "      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n"
+        '      "You" (or "Your") shall mean an individual or Legal Entity\n'
         "      exercising permissions granted by this License.\n"
         "\n"
-        "      \"Source\" form shall mean the preferred form for making modifications,\n"
+        '      "Source" form shall mean the preferred form for making modifications,\n'
         "      including but not limited to software source code, documentation\n"
         "      source, and configuration files.\n"
         "\n"
-        "      \"Object\" form shall mean any form resulting from mechanical\n"
+        '      "Object" form shall mean any form resulting from mechanical\n'
         "      transformation or translation of a Source form, including but\n"
         "      not limited to compiled object code, generated documentation,\n"
         "      and conversions to other media types.\n"
         "\n"
-        "      \"Work\" shall mean the work of authorship, whether in Source or\n"
+        '      "Work" shall mean the work of authorship, whether in Source or\n'
         "      Object form, made available under the License, as indicated by a\n"
         "      copyright notice that is included in or attached to the work\n"
         "      (an example is provided in the Appendix below).\n"
         "\n"
-        "      \"Derivative Works\" shall mean any work, whether in Source or Object\n"
+        '      "Derivative Works" shall mean any work, whether in Source or Object\n'
         "      form, that is based on (or derived from) the Work and for which the\n"
         "      editorial revisions, annotations, elaborations, or other modifications\n"
         "      represent, as a whole, an original work of authorship. For the purposes\n"
@@ -99,21 +99,21 @@ LICENSE_TEXTS: dict[str, str] = {
         "      separable from, or merely link (or bind by name) to the interfaces of,\n"
         "      the Work and Derivative Works thereof.\n"
         "\n"
-        "      \"Contribution\" shall mean any work of authorship, including\n"
+        '      "Contribution" shall mean any work of authorship, including\n'
         "      the original version of the Work and any modifications or additions\n"
         "      to that Work or Derivative Works thereof, that is intentionally\n"
         "      submitted to Licensor for inclusion in the Work by the copyright owner\n"
         "      or by an individual or Legal Entity authorized to submit on behalf of\n"
-        "      the copyright owner. For the purposes of this definition, \"submitted\"\n"
+        '      the copyright owner. For the purposes of this definition, "submitted"\n'
         "      means any form of electronic, verbal, or written communication sent\n"
         "      to the Licensor or its representatives, including but not limited to\n"
         "      communication on electronic mailing lists, source code control systems,\n"
         "      and issue tracking systems that are managed by, or on behalf of, the\n"
         "      Licensor for the purpose of discussing and improving the Work, but\n"
         "      excluding communication that is conspicuously marked or otherwise\n"
-        "      designated in writing by the copyright owner as \"Not a Contribution.\"\n"
+        '      designated in writing by the copyright owner as "Not a Contribution."\n'
         "\n"
-        "      \"Contributor\" shall mean Licensor and any individual or Legal Entity\n"
+        '      "Contributor" shall mean Licensor and any individual or Legal Entity\n'
         "      on behalf of whom a Contribution has been received by Licensor and\n"
         "      subsequently incorporated within the Work.\n"
         "\n"
@@ -157,7 +157,7 @@ LICENSE_TEXTS: dict[str, str] = {
         "          excluding those notices that do not pertain to any part of\n"
         "          the Derivative Works; and\n"
         "\n"
-        "      (d) If the Work includes a \"NOTICE\" text file as part of its\n"
+        '      (d) If the Work includes a "NOTICE" text file as part of its\n'
         "          distribution, then any Derivative Works that You distribute must\n"
         "          include a readable copy of the attribution notices contained\n"
         "          within such NOTICE file, excluding those notices that do not\n"
@@ -196,7 +196,7 @@ LICENSE_TEXTS: dict[str, str] = {
         "\n"
         "   7. Disclaimer of Warranty. Unless required by applicable law or\n"
         "      agreed to in writing, Licensor provides the Work (and each\n"
-        "      Contributor provides its Contributions) on an \"AS IS\" BASIS,\n"
+        '      Contributor provides its Contributions) on an "AS IS" BASIS,\n'
         "      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or\n"
         "      implied, including, without limitation, any warranties or conditions\n"
         "      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A\n"
@@ -232,24 +232,24 @@ LICENSE_TEXTS: dict[str, str] = {
         "   APPENDIX: How to apply the Apache License to your work.\n"
         "\n"
         "      To apply the Apache License to your work, attach the following\n"
-        "      boilerplate notice, with the fields enclosed by brackets \"[]\"\n"
+        '      boilerplate notice, with the fields enclosed by brackets "[]"\n'
         "      replaced with your own identifying information. (Don't include\n"
         "      the brackets!)  The text should be enclosed in the appropriate\n"
         "      comment syntax for the file format. We also recommend that a\n"
         "      file or class name and description of purpose be included on the\n"
-        "      same \"printed page\" as the copyright notice for easier\n"
+        '      same "printed page" as the copyright notice for easier\n'
         "      identification within third-party archives.\n"
         "\n"
         "   Copyright [yyyy] [name of copyright owner]\n"
         "\n"
-        "   Licensed under the Apache License, Version 2.0 (the \"License\");\n"
+        '   Licensed under the Apache License, Version 2.0 (the "License");\n'
         "   you may not use this file except in compliance with the License.\n"
         "   You may obtain a copy of the License at\n"
         "\n"
         "       http://www.apache.org/licenses/LICENSE-2.0\n"
         "\n"
         "   Unless required by applicable law or agreed to in writing, software\n"
-        "   distributed under the License is distributed on an \"AS IS\" BASIS,\n"
+        '   distributed under the License is distributed on an "AS IS" BASIS,\n'
         "   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n"
         "   See the License for the specific language governing permissions and\n"
         "   limitations under the License.\n"
@@ -273,7 +273,7 @@ LICENSE_TEXTS: dict[str, str] = {
         "      used to endorse or promote products derived from this software without\n"
         "      specific prior written permission.\n"
         "\n"
-        "THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\"\n"
+        'THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"\n'
         "AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\n"
         "IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\n"
         "DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY DIRECT,\n"
@@ -289,11 +289,11 @@ LICENSE_TEXTS: dict[str, str] = {
         "\n"
         "=======================================================================\n"
         "\n"
-        "Creative Commons Corporation (\"Creative Commons\") is not a law firm and\n"
+        'Creative Commons Corporation ("Creative Commons") is not a law firm and\n'
         "does not provide legal services or legal advice. Distribution of\n"
         "Creative Commons public licenses does not create a lawyer-client or\n"
         "other relationship. Creative Commons makes its licenses and related\n"
-        "information available on an \"as-is\" basis. Creative Commons gives no\n"
+        'information available on an "as-is" basis. Creative Commons gives no\n'
         "warranties regarding its licenses, any material licensed under their\n"
         "terms and conditions, or any related information. Creative Commons\n"
         "disclaims all liability for damages resulting from their use to the\n"
@@ -345,7 +345,7 @@ LICENSE_TEXTS: dict[str, str] = {
         "\n"
         "By exercising the Licensed Rights (defined below), You accept and agree\n"
         "to be bound by the terms and conditions of this Creative Commons\n"
-        "Attribution 4.0 International Public License (\"Public License\"). To the\n"
+        'Attribution 4.0 International Public License ("Public License"). To the\n'
         "extent this Public License may be interpreted as a contract, You are\n"
         "granted the Licensed Rights in consideration of Your acceptance of\n"
         "these terms and conditions, and the Licensor grants You such rights in\n"
@@ -671,7 +671,7 @@ LICENSE_TEXTS: dict[str, str] = {
         "material is shared under a Creative Commons public license or as\n"
         "otherwise permitted by the Creative Commons policies published at\n"
         "creativecommons.org/policies, Creative Commons does not authorize the\n"
-        "use of the trademark \"Creative Commons\" or any other trademark or logo\n"
+        'use of the trademark "Creative Commons" or any other trademark or logo\n'
         "of Creative Commons without its prior written consent including,\n"
         "without limitation, in connection with any unauthorized modifications\n"
         "to any of its public licenses or any other arrangements,\n"
@@ -703,7 +703,7 @@ LICENSE_TEXTS: dict[str, str] = {
         "with or without fee is hereby granted, provided that the above copyright notice\n"
         "and this permission notice appear in all copies.\n"
         "\n"
-        "THE SOFTWARE IS PROVIDED \"AS IS\" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH\n"
+        'THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH\n'
         "REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND\n"
         "FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,\n"
         "INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS\n"
@@ -727,7 +727,7 @@ LICENSE_TEXTS: dict[str, str] = {
         "Copyright (c) Meta Platforms, Inc. and affiliates.\n"
         "\n"
         "Permission is hereby granted, free of charge, to any person obtaining a copy\n"
-        "of this software and associated documentation files (the \"Software\"), to deal\n"
+        'of this software and associated documentation files (the "Software"), to deal\n'
         "in the Software without restriction, including without limitation the rights\n"
         "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n"
         "copies of the Software, and to permit persons to whom the Software is\n"
@@ -736,7 +736,7 @@ LICENSE_TEXTS: dict[str, str] = {
         "The above copyright notice and this permission notice shall be included in all\n"
         "copies or substantial portions of the Software.\n"
         "\n"
-        "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n"
+        'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n'
         "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n"
         "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n"
         "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n"
@@ -756,24 +756,24 @@ LICENSE_TEXTS: dict[str, str] = {
         "1. Definitions\n"
         "--------------\n"
         "\n"
-        "1.1. \"Contributor\"\n"
+        '1.1. "Contributor"\n'
         "    means each individual or legal entity that creates, contributes to\n"
         "    the creation of, or owns Covered Software.\n"
         "\n"
-        "1.2. \"Contributor Version\"\n"
+        '1.2. "Contributor Version"\n'
         "    means the combination of the Contributions of others (if any) used\n"
         "    by a Contributor and that particular Contributor's Contribution.\n"
         "\n"
-        "1.3. \"Contribution\"\n"
+        '1.3. "Contribution"\n'
         "    means Covered Software of a particular Contributor.\n"
         "\n"
-        "1.4. \"Covered Software\"\n"
+        '1.4. "Covered Software"\n'
         "    means Source Code Form to which the initial Contributor has attached\n"
         "    the notice in Exhibit A, the Executable Form of such Source Code\n"
         "    Form, and Modifications of such Source Code Form, in each case\n"
         "    including portions thereof.\n"
         "\n"
-        "1.5. \"Incompatible With Secondary Licenses\"\n"
+        '1.5. "Incompatible With Secondary Licenses"\n'
         "    means\n"
         "\n"
         "    (a) that the initial Contributor has attached the notice described\n"
@@ -783,22 +783,22 @@ LICENSE_TEXTS: dict[str, str] = {
         "        version 1.1 or earlier of the License, but not also under the\n"
         "        terms of a Secondary License.\n"
         "\n"
-        "1.6. \"Executable Form\"\n"
+        '1.6. "Executable Form"\n'
         "    means any form of the work other than Source Code Form.\n"
         "\n"
-        "1.7. \"Larger Work\"\n"
+        '1.7. "Larger Work"\n'
         "    means a work that combines Covered Software with other material, in \n"
         "    a separate file or files, that is not Covered Software.\n"
         "\n"
-        "1.8. \"License\"\n"
+        '1.8. "License"\n'
         "    means this document.\n"
         "\n"
-        "1.9. \"Licensable\"\n"
+        '1.9. "Licensable"\n'
         "    means having the right to grant, to the maximum extent possible,\n"
         "    whether at the time of the initial grant or subsequently, any and\n"
         "    all of the rights conveyed by this License.\n"
         "\n"
-        "1.10. \"Modifications\"\n"
+        '1.10. "Modifications"\n'
         "    means any of the following:\n"
         "\n"
         "    (a) any file in Source Code Form that results from an addition to,\n"
@@ -808,7 +808,7 @@ LICENSE_TEXTS: dict[str, str] = {
         "    (b) any new file in Source Code Form that contains any Covered\n"
         "        Software.\n"
         "\n"
-        "1.11. \"Patent Claims\" of a Contributor\n"
+        '1.11. "Patent Claims" of a Contributor\n'
         "    means any patent claim(s), including without limitation, method,\n"
         "    process, and apparatus claims, in any patent Licensable by such\n"
         "    Contributor that would be infringed, but for the grant of the\n"
@@ -816,20 +816,20 @@ LICENSE_TEXTS: dict[str, str] = {
         "    made, import, or transfer of either its Contributions or its\n"
         "    Contributor Version.\n"
         "\n"
-        "1.12. \"Secondary License\"\n"
+        '1.12. "Secondary License"\n'
         "    means either the GNU General Public License, Version 2.0, the GNU\n"
         "    Lesser General Public License, Version 2.1, the GNU Affero General\n"
         "    Public License, Version 3.0, or any later versions of those\n"
         "    licenses.\n"
         "\n"
-        "1.13. \"Source Code Form\"\n"
+        '1.13. "Source Code Form"\n'
         "    means the form of the work preferred for making modifications.\n"
         "\n"
-        "1.14. \"You\" (or \"Your\")\n"
+        '1.14. "You" (or "Your")\n'
         "    means an individual or a legal entity exercising rights under this\n"
-        "    License. For legal entities, \"You\" includes any entity that\n"
+        '    License. For legal entities, "You" includes any entity that\n'
         "    controls, is controlled by, or is under common control with You. For\n"
-        "    purposes of this definition, \"control\" means (a) the power, direct\n"
+        '    purposes of this definition, "control" means (a) the power, direct\n'
         "    or indirect, to cause the direction or management of such entity,\n"
         "    whether by contract or otherwise, or (b) ownership of more than\n"
         "    fifty percent (50%) of the outstanding shares or beneficial\n"
@@ -1015,7 +1015,7 @@ LICENSE_TEXTS: dict[str, str] = {
         "*  6. Disclaimer of Warranty                                           *\n"
         "*  -------------------------                                           *\n"
         "*                                                                      *\n"
-        "*  Covered Software is provided under this License on an \"as is\"       *\n"
+        '*  Covered Software is provided under this License on an "as is"       *\n'
         "*  basis, without warranty of any kind, either expressed, implied, or  *\n"
         "*  statutory, including, without limitation, warranties that the       *\n"
         "*  Covered Software is free of defects, merchantable, fit for a        *\n"
@@ -1118,10 +1118,10 @@ LICENSE_TEXTS: dict[str, str] = {
         "\n"
         "You may add additional accurate notices of copyright ownership.\n"
         "\n"
-        "Exhibit B - \"Incompatible With Secondary Licenses\" Notice\n"
+        'Exhibit B - "Incompatible With Secondary Licenses" Notice\n'
         "---------------------------------------------------------\n"
         "\n"
-        "  This Source Code Form is \"Incompatible With Secondary Licenses\", as\n"
+        '  This Source Code Form is "Incompatible With Secondary Licenses", as\n'
         "  defined by the Mozilla Public License, v. 2.0.\n"
     ),
     "MSVC-Redistrib": (
@@ -1155,22 +1155,22 @@ LICENSE_TEXTS: dict[str, str] = {
         "to any document created using the fonts or their derivatives.\n"
         "\n"
         "DEFINITIONS\n"
-        "\"Font Software\" refers to the set of files released by the Copyright\n"
+        '"Font Software" refers to the set of files released by the Copyright\n'
         "Holder(s) under this license and clearly marked as such. This may\n"
         "include source files, build scripts and documentation.\n"
         "\n"
-        "\"Reserved Font Name\" refers to any names specified as such after the\n"
+        '"Reserved Font Name" refers to any names specified as such after the\n'
         "copyright statement(s).\n"
         "\n"
-        "\"Original Version\" refers to the collection of Font Software components as\n"
+        '"Original Version" refers to the collection of Font Software components as\n'
         "distributed by the Copyright Holder(s).\n"
         "\n"
-        "\"Modified Version\" refers to any derivative made by adding to, deleting,\n"
+        '"Modified Version" refers to any derivative made by adding to, deleting,\n'
         "or substituting -- in part or in whole -- any of the components of the\n"
         "Original Version, by changing formats or by porting the Font Software to a\n"
         "new environment.\n"
         "\n"
-        "\"Author\" refers to any designer, engineer, programmer, technical\n"
+        '"Author" refers to any designer, engineer, programmer, technical\n'
         "writer or other person who contributed to the Font Software.\n"
         "\n"
         "PERMISSION & CONDITIONS\n"
@@ -1211,7 +1211,7 @@ LICENSE_TEXTS: dict[str, str] = {
         "not met.\n"
         "\n"
         "DISCLAIMER\n"
-        "THE FONT SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\n"
+        'THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,\n'
         "EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF\n"
         "MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT\n"
         "OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE\n"
@@ -1254,8 +1254,8 @@ LICENSE_TEXTS: dict[str, str] = {
         "DOWNLOAD, INSTALL, COPY, DISTRIBUTE OR USE THE DATA FILES OR SOFTWARE.\n"
         "\n"
         "Permission is hereby granted, free of charge, to any person obtaining a\n"
-        "copy of data files and any associated documentation (the \"Data Files\") or\n"
-        "software and any associated documentation (the \"Software\") to deal in the\n"
+        'copy of data files and any associated documentation (the "Data Files") or\n'
+        'software and any associated documentation (the "Software") to deal in the\n'
         "Data Files or Software without restriction, including without limitation\n"
         "the rights to use, copy, modify, merge, publish, distribute, and/or sell\n"
         "copies of the Data Files or Software, and to permit persons to whom the\n"
@@ -1264,7 +1264,7 @@ LICENSE_TEXTS: dict[str, str] = {
         "Files or Software, or (b) this copyright and permission notice appear in\n"
         "associated Documentation.\n"
         "\n"
-        "THE DATA FILES AND SOFTWARE ARE PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY\n"
+        'THE DATA FILES AND SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY\n'
         "KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\n"
         "MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF\n"
         "THIRD PARTY RIGHTS.\n"
@@ -1300,6 +1300,7 @@ LICENSE_TEXTS: dict[str, str] = {
     ),
 }
 
+
 class Component(NamedTuple):
     name: str
     version: str
@@ -1315,387 +1316,385 @@ class Component(NamedTuple):
 # means the local artifact carried no licence file. No legal conclusions.
 COMPONENTS: tuple[Component, ...] = (
     Component(
-            "Lausu (this project)",
-            "1.0.0",
-            "PolyForm Strict License 1.0.0",
-            "Copyright 2026 Abdallah IsDev",
-            "PolyForm-Strict-1.0.0",
-            detail="Own project; root LICENSE is authoritative. METADATA says MIT but the LICENSE file says "
+        "Lausu (this project)",
+        "1.0.0",
+        "PolyForm Strict License 1.0.0",
+        "Copyright 2026 Abdallah IsDev",
+        "PolyForm-Strict-1.0.0",
+        detail="Own project; root LICENSE is authoritative. METADATA says MIT but the LICENSE file says "
         "PolyForm Strict 1.0.0 \u2014 contradiction quoted verbatim, no conclusion.",
     ),
     Component(
-            "Tauri host crate graph",
-            "per Cargo.lock",
-            "mixed (MIT, Apache-2.0, Unicode-3.0, MPL-2.0, CC0-1.0, Zlib, BSL-1.0, ISC)",
-            "",
-            "MIT",
-            detail="Root crate license-file = ../LICENSE (PolyForm Strict 1.0.0). Representative: unicode-ident "
+        "Tauri host crate graph",
+        "per Cargo.lock",
+        "mixed (MIT, Apache-2.0, Unicode-3.0, MPL-2.0, CC0-1.0, Zlib, BSL-1.0, ISC)",
+        "",
+        "MIT",
+        detail="Root crate license-file = ../LICENSE (PolyForm Strict 1.0.0). Representative: unicode-ident "
         "'(MIT OR Apache-2.0) AND Unicode-3.0'; icu_* 2.2.0 'Unicode-3.0'; "
         "cssparser/selectors/option-ext/dtoa-short 'MPL-2.0'; ryu 'Apache-2.0 OR BSL-1.0'; dunce "
         "'CC0-1.0 OR MIT-0 OR Apache-2.0'; foldhash 'Zlib'.",
     ),
     Component(
-            "windows-key-listener.exe",
-            "source build",
-            "PolyForm Strict License 1.0.0",
-            "Copyright 2026 Abdallah IsDev",
-            "PolyForm-Strict-1.0.0",
-            detail="Compiled from voice_typer/server/native/windows-key-listener.c in this repository.",
+        "windows-key-listener.exe",
+        "source build",
+        "PolyForm Strict License 1.0.0",
+        "Copyright 2026 Abdallah IsDev",
+        "PolyForm-Strict-1.0.0",
+        detail="Compiled from voice_typer/server/native/windows-key-listener.c in this repository.",
     ),
     Component(
-            "av (PyAV)",
-            "17.1.0",
-            "BSD-3-Clause",
-            "Copyright retained by original committers.",
-            "BSD-3-Clause",
-            detail="Wheel cp311-abi3-win_amd64; bundled av.libs DLLs report verbatim 'LGPL version 3 or later'. "
+        "av (PyAV)",
+        "17.1.0",
+        "BSD-3-Clause",
+        "Copyright retained by original committers.",
+        "BSD-3-Clause",
+        detail="Wheel cp311-abi3-win_amd64; bundled av.libs DLLs report verbatim 'LGPL version 3 or later'. "
         "Full facts in the hand-written PyAV section.",
     ),
     Component(
-            "certifi",
-            "2026.10.19",
-            "MPL-2.0",
-            "",
-            "MPL-2.0",
-            "UNVERIFIED",
-            detail="Shipped; MPL notice text not present in the installed output. Upstream "
+        "certifi",
+        "2026.10.19",
+        "MPL-2.0",
+        "",
+        "MPL-2.0",
+        "UNVERIFIED",
+        detail="Shipped; MPL notice text not present in the installed output. Upstream "
         "https://github.com/certifi/python-certifi",
     ),
     Component(
-            "charset-normalizer",
-            "3.5.1",
-            "MIT",
-            "Copyright (c) 2025 TAHRI Ahmed R.",
-            "MIT",
+        "charset-normalizer",
+        "3.5.1",
+        "MIT",
+        "Copyright (c) 2025 TAHRI Ahmed R.",
+        "MIT",
     ),
     Component(
-            "cryptography",
-            "50.0.0",
-            "Apache-2.0 OR BSD-3-Clause",
-            "",
-            "Apache-2.0",
-            detail="Dual licensed; both identifiers quoted verbatim.",
+        "cryptography",
+        "50.0.0",
+        "Apache-2.0 OR BSD-3-Clause",
+        "",
+        "Apache-2.0",
+        detail="Dual licensed; both identifiers quoted verbatim.",
     ),
     Component(
-            "hf-xet",
-            "1.6.0",
-            "Apache-2.0",
-            "",
-            "Apache-2.0",
+        "hf-xet",
+        "1.6.0",
+        "Apache-2.0",
+        "",
+        "Apache-2.0",
     ),
     Component(
-            "MarkupSafe",
-            "3.0.3",
-            "BSD-3-Clause",
-            "",
-            "BSD-3-Clause",
+        "MarkupSafe",
+        "3.0.3",
+        "BSD-3-Clause",
+        "",
+        "BSD-3-Clause",
     ),
     Component(
-            "numpy",
-            "2.5.2",
-            "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
-            "Copyright (c) 2005-2025, NumPy Developers.",
-            "BSD-3-Clause",
-            detail="OpenBLAS DLLs carry 'GPL-3.0-or-later WITH GCC-exception-3.1'; text not shipped.",
+        "numpy",
+        "2.5.2",
+        "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+        "Copyright (c) 2005-2025, NumPy Developers.",
+        "BSD-3-Clause",
+        detail="OpenBLAS DLLs carry 'GPL-3.0-or-later WITH GCC-exception-3.1'; text not shipped.",
     ),
     Component(
-            "onnxruntime",
-            "1.29.0 (installed metadata); shipped DLL 1.28.0",
-            "MIT License",
-            "Copyright (c) Microsoft Corporation",
-            "MIT",
-            detail="Build drift: shipped onnxruntime.dll PE version 1.28.0; dist-info 1.29.0. ThirdPartyNotices not "
+        "onnxruntime",
+        "1.29.0 (installed metadata); shipped DLL 1.28.0",
+        "MIT License",
+        "Copyright (c) Microsoft Corporation",
+        "MIT",
+        detail="Build drift: shipped onnxruntime.dll PE version 1.28.0; dist-info 1.29.0. ThirdPartyNotices not "
         "shipped.",
     ),
     Component(
-            "pillow",
-            "13.0.0",
-            "MIT-CMU",
-            "",
-            "MIT",
+        "pillow",
+        "13.0.0",
+        "MIT-CMU",
+        "",
+        "MIT",
     ),
     Component(
-            "psutil",
-            "7.2.2",
-            "BSD-3-Clause",
-            "",
-            "BSD-3-Clause",
+        "psutil",
+        "7.2.2",
+        "BSD-3-Clause",
+        "",
+        "BSD-3-Clause",
     ),
     Component(
-            "pydantic-core",
-            "unknown",
-            "UNVERIFIED",
-            "",
-            "UNVERIFIED",
-            "UNVERIFIED",
-            detail="No installed dist-info; upstream hint only https://github.com/pydantic/pydantic-core",
+        "pydantic-core",
+        "unknown",
+        "UNVERIFIED",
+        "",
+        "UNVERIFIED",
+        "UNVERIFIED",
+        detail="No installed dist-info; upstream hint only https://github.com/pydantic/pydantic-core",
     ),
     Component(
-            "PyYAML",
-            "6.0.3",
-            "MIT",
-            "Copyright (c) 2017-2021 Ingy d\u00f6t Net",
-            "MIT",
+        "PyYAML",
+        "6.0.3",
+        "MIT",
+        "Copyright (c) 2017-2021 Ingy d\u00f6t Net",
+        "MIT",
     ),
     Component(
-            "regex",
-            "2026.7.19",
-            "Apache-2.0 AND CNRI-Python",
-            "",
-            "Apache-2.0",
+        "regex",
+        "2026.7.19",
+        "Apache-2.0 AND CNRI-Python",
+        "",
+        "Apache-2.0",
     ),
     Component(
-            "requests",
-            "2.34.2",
-            "Apache-2.0",
-            "",
-            "Apache-2.0",
+        "requests",
+        "2.34.2",
+        "Apache-2.0",
+        "",
+        "Apache-2.0",
     ),
     Component(
-            "scipy",
-            "1.18.0",
-            "BSD-3-Clause",
-            "Copyright (c) 2001-2002 Enthought, Inc. 2003, SciPy Developers.",
-            "BSD-3-Clause",
+        "scipy",
+        "1.18.0",
+        "BSD-3-Clause",
+        "Copyright (c) 2001-2002 Enthought, Inc. 2003, SciPy Developers.",
+        "BSD-3-Clause",
     ),
     Component(
-            "sounddevice",
-            "0.5.6",
-            "MIT",
-            "Copyright (c) 2015-2025 Matthias Geier",
-            "MIT",
+        "sounddevice",
+        "0.5.6",
+        "MIT",
+        "Copyright (c) 2015-2025 Matthias Geier",
+        "MIT",
     ),
     Component(
-            "soundfile",
-            "0.14.0",
-            "BSD 3-Clause License",
-            "Copyright (c) 2013, Bastian Bechtold",
-            "BSD-3-Clause",
+        "soundfile",
+        "0.14.0",
+        "BSD 3-Clause License",
+        "Copyright (c) 2013, Bastian Bechtold",
+        "BSD-3-Clause",
     ),
     Component(
-            "tokenizers",
-            "0.23.1",
-            "Apache-2.0",
-            "",
-            "Apache-2.0",
+        "tokenizers",
+        "0.23.1",
+        "Apache-2.0",
+        "",
+        "Apache-2.0",
     ),
     Component(
-            "tzdata",
-            "unknown",
-            "UNVERIFIED",
-            "",
-            "UNVERIFIED",
-            "UNVERIFIED",
-            detail="No local version evidence in the installed output.",
+        "tzdata",
+        "unknown",
+        "UNVERIFIED",
+        "",
+        "UNVERIFIED",
+        "UNVERIFIED",
+        detail="No local version evidence in the installed output.",
     ),
     Component(
-            "websockets",
-            "13.1",
-            "BSD-3-Clause",
-            "Copyright (c) Aymeric Augustin and contributors",
-            "BSD-3-Clause",
+        "websockets",
+        "13.1",
+        "BSD-3-Clause",
+        "Copyright (c) Aymeric Augustin and contributors",
+        "BSD-3-Clause",
     ),
     Component(
-            "wrapt",
-            "2.3.0",
-            "BSD-2-Clause",
-            "",
-            "BSD-2-Clause",
+        "wrapt",
+        "2.3.0",
+        "BSD-2-Clause",
+        "",
+        "BSD-2-Clause",
     ),
     Component(
-            "zstandard",
-            "unknown",
-            "UNVERIFIED",
-            "",
-            "UNVERIFIED",
-            "UNVERIFIED",
-            detail="Upstream hint only https://github.com/facebook/zstd",
+        "zstandard",
+        "unknown",
+        "UNVERIFIED",
+        "",
+        "UNVERIFIED",
+        "UNVERIFIED",
+        detail="Upstream hint only https://github.com/facebook/zstd",
     ),
     Component(
-            "yt-dlp",
-            "2026.8.19",
-            "Unlicense",
-            "",
-            "Unlicense",
+        "yt-dlp",
+        "2026.8.19",
+        "Unlicense",
+        "",
+        "Unlicense",
     ),
     Component(
-            "yt-dlp-ejs",
-            "unknown",
-            "Unlicense AND MIT AND ISC",
-            "",
-            "Unlicense",
-            detail="Bundles meriyah (ISC) and astring (MIT).",
+        "yt-dlp-ejs",
+        "unknown",
+        "Unlicense AND MIT AND ISC",
+        "",
+        "Unlicense",
+        detail="Bundles meriyah (ISC) and astring (MIT).",
     ),
     Component(
-            "huggingface_hub",
-            "1.28.0",
-            "Apache-2.0",
-            "",
-            "Apache-2.0",
+        "huggingface_hub",
+        "1.28.0",
+        "Apache-2.0",
+        "",
+        "Apache-2.0",
     ),
     Component(
-            "libsndfile_x64.dll",
-            "unknown",
-            "LGPL-2.1-or-later",
-            "",
-            "LGPL-2.1-or-later",
-            "UNVERIFIED",
-            detail="PRESENT in onefile cache; no licence file shipped. Local .venv COPYING: 'GNU LESSER GENERAL "
+        "libsndfile_x64.dll",
+        "unknown",
+        "LGPL-2.1-or-later",
+        "",
+        "LGPL-2.1-or-later",
+        "UNVERIFIED",
+        detail="PRESENT in onefile cache; no licence file shipped. Local .venv COPYING: 'GNU LESSER GENERAL "
         "PUBLIC LICENSE Version 2.1, February 1999'.",
     ),
     Component(
-            "PortAudio (libportaudio64bit.dll, libportaudio64bit-asio.dll)",
-            "unknown",
-            "PortAudio MIT-style",
-            "Copyright (c) 1999-2011 Ross Bencina and Phil Burk",
-            "PortAudio-MIT",
-            "UNVERIFIED",
-            detail="PRESENT; no licence file shipped. Upstream https://portaudio.com/license.html",
+        "PortAudio (libportaudio64bit.dll, libportaudio64bit-asio.dll)",
+        "unknown",
+        "PortAudio MIT-style",
+        "Copyright (c) 1999-2011 Ross Bencina and Phil Burk",
+        "PortAudio-MIT",
+        "UNVERIFIED",
+        detail="PRESENT; no licence file shipped. Upstream https://portaudio.com/license.html",
     ),
     Component(
-            "libffi-8.dll",
-            "unknown",
-            "MIT (upstream only)",
-            "",
-            "UNVERIFIED",
-            "UNVERIFIED",
-            detail="PRESENT; no version resource. Upstream https://github.com/libffi/libffi/blob/master/LICENSE",
+        "libffi-8.dll",
+        "unknown",
+        "MIT (upstream only)",
+        "",
+        "UNVERIFIED",
+        "UNVERIFIED",
+        detail="PRESENT; no version resource. Upstream https://github.com/libffi/libffi/blob/master/LICENSE",
     ),
     Component(
-            "CPython runtime (python312.dll, python3.dll, stdlib .pyd)",
-            "3.12.10",
-            "PSF-2.0",
-            "Python Software Foundation",
-            "PSF-2.0",
-            "UNVERIFIED",
-            detail="PRESENT; PE 3.12.10 differs from dev .venv 3.13.7; no licence file shipped. Upstream "
+        "CPython runtime (python312.dll, python3.dll, stdlib .pyd)",
+        "3.12.10",
+        "PSF-2.0",
+        "Python Software Foundation",
+        "PSF-2.0",
+        "UNVERIFIED",
+        detail="PRESENT; PE 3.12.10 differs from dev .venv 3.13.7; no licence file shipped. Upstream "
         "https://docs.python.org/3/license.html",
     ),
     Component(
-            "OpenSSL (libcrypto-3.dll, libssl-3.dll)",
-            "3.0.16",
-            "Apache-2.0",
-            "The OpenSSL Toolkit",
-            "Apache-2.0",
-            "UNVERIFIED",
-            detail="PRESENT; Apache-2.0 NOTICE text not shipped. Upstream "
-        "https://www.openssl.org/source/license.html",
+        "OpenSSL (libcrypto-3.dll, libssl-3.dll)",
+        "3.0.16",
+        "Apache-2.0",
+        "The OpenSSL Toolkit",
+        "Apache-2.0",
+        "UNVERIFIED",
+        detail="PRESENT; Apache-2.0 NOTICE text not shipped. Upstream https://www.openssl.org/source/license.html",
     ),
     Component(
-            "MSVC runtime (vcruntime140.dll, vcruntime140_1.dll)",
-            "unknown",
-            "Microsoft Software License Terms",
-            "",
-            "MSVC-Redistrib",
-            "UNVERIFIED",
-            detail="PRESENT; no licence file shipped. Upstream "
+        "MSVC runtime (vcruntime140.dll, vcruntime140_1.dll)",
+        "unknown",
+        "Microsoft Software License Terms",
+        "",
+        "MSVC-Redistrib",
+        "UNVERIFIED",
+        detail="PRESENT; no licence file shipped. Upstream "
         "https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files?view=msvc-170",
     ),
     Component(
-            "pywin32 binaries",
-            "unknown (312 build tag)",
-            "PSF-2.0 (upstream only)",
-            "",
-            "PSF-2.0",
-            "UNVERIFIED",
-            detail="PRESENT; no dist-info in dev venv. Upstream https://github.com/mhammond/pywin32",
+        "pywin32 binaries",
+        "unknown (312 build tag)",
+        "PSF-2.0 (upstream only)",
+        "",
+        "PSF-2.0",
+        "UNVERIFIED",
+        detail="PRESENT; no dist-info in dev venv. Upstream https://github.com/mhammond/pywin32",
     ),
     Component(
-            "_pydantic_core.pyd",
-            "unknown",
-            "MIT (upstream only)",
-            "",
-            "UNVERIFIED",
-            "UNVERIFIED",
-            detail="PRESENT; no dist-info or licence text. Upstream https://github.com/pydantic/pydantic-core",
+        "_pydantic_core.pyd",
+        "unknown",
+        "MIT (upstream only)",
+        "",
+        "UNVERIFIED",
+        "UNVERIFIED",
+        detail="PRESENT; no dist-info or licence text. Upstream https://github.com/pydantic/pydantic-core",
     ),
     Component(
-            "zstandard _cffi.pyd / backend_c.pyd",
-            "unknown",
-            "BSD-3-Clause (upstream only)",
-            "",
-            "BSD-3-Clause",
-            "UNVERIFIED",
-            detail="PRESENT; no dist-info or licence text. Upstream https://github.com/facebook/zstd",
+        "zstandard _cffi.pyd / backend_c.pyd",
+        "unknown",
+        "BSD-3-Clause (upstream only)",
+        "",
+        "BSD-3-Clause",
+        "UNVERIFIED",
+        detail="PRESENT; no dist-info or licence text. Upstream https://github.com/facebook/zstd",
     ),
     Component(
-            "OpenBLAS DLLs (numpy.libs, scipy.libs)",
-            "unknown",
-            "GPL-3.0-or-later WITH GCC-exception-3.1",
-            "Copyright (C) 2002-2017 Free Software Foundation, Inc.",
-            "GCC-exception-3.1",
-            "UNVERIFIED",
-            detail="PRESENT; exception text not shipped; hash suffixes differ from .venv RECORD, provenance "
-        "UNVERIFIED.",
+        "OpenBLAS DLLs (numpy.libs, scipy.libs)",
+        "unknown",
+        "GPL-3.0-or-later WITH GCC-exception-3.1",
+        "Copyright (C) 2002-2017 Free Software Foundation, Inc.",
+        "GCC-exception-3.1",
+        "UNVERIFIED",
+        detail="PRESENT; exception text not shipped; hash suffixes differ from .venv RECORD, provenance UNVERIFIED.",
     ),
     Component(
-            "uninstall.exe (NSIS)",
-            "unknown",
-            "Common Public License version 1.0 + LZMA exception",
-            "",
-            "UNVERIFIED",
-            "UNVERIFIED",
-            detail="PRESENT; linked modules unverified.",
+        "uninstall.exe (NSIS)",
+        "unknown",
+        "Common Public License version 1.0 + LZMA exception",
+        "",
+        "UNVERIFIED",
+        "UNVERIFIED",
+        detail="PRESENT; linked modules unverified.",
     ),
     Component(
-            "FFmpeg (Windows x64, LGPL-only build)",
-            "n9.0.2-61-gd59078794d-20261120",
-            "LGPL-2.1-or-later (LGPL-only build configuration)",
-            "Copyright (c) 2000-2026 the FFmpeg developers",
-            "LGPL-2.1-or-later",
-            detail="See dedicated FFmpeg section; manifest scripts/ffmpeg-lgpl-win64.json. No legal conclusion.",
+        "FFmpeg (Windows x64, LGPL-only build)",
+        "n9.0.2-61-gd59078794d-20261120",
+        "LGPL-2.1-or-later (LGPL-only build configuration)",
+        "Copyright (c) 2000-2026 the FFmpeg developers",
+        "LGPL-2.1-or-later",
+        detail="See dedicated FFmpeg section; manifest scripts/ffmpeg-lgpl-win64.json. No legal conclusion.",
     ),
     Component(
-            "FFmpeg libraries in av.libs (25 DLLs)",
-            "8.1.1",
-            "LGPL version 3 or later",
-            "Copyright (C) 2000-2026 FFmpeg Project",
-            "LGPL-3.0-or-later",
-            detail="Verbatim *_license() output; see PyAV section.",
+        "FFmpeg libraries in av.libs (25 DLLs)",
+        "8.1.1",
+        "LGPL version 3 or later",
+        "Copyright (C) 2000-2026 FFmpeg Project",
+        "LGPL-3.0-or-later",
+        detail="Verbatim *_license() output; see PyAV section.",
     ),
     Component(
-            "dpdfnet2.onnx",
-            "revision dd6818d0",
-            "Apache-2.0",
-            "",
-            "Apache-2.0",
-            detail="Bundled 16 kHz streaming ONNX noise-suppression model.",
+        "dpdfnet2.onnx",
+        "revision dd6818d0",
+        "Apache-2.0",
+        "",
+        "Apache-2.0",
+        detail="Bundled 16 kHz streaming ONNX noise-suppression model.",
     ),
     Component(
-            "gtcrn_simple.onnx",
-            "unknown",
-            "MIT",
-            "",
-            "MIT",
-            detail="Bundled noise-suppression model with local MIT evidence.",
+        "gtcrn_simple.onnx",
+        "unknown",
+        "MIT",
+        "",
+        "MIT",
+        detail="Bundled noise-suppression model with local MIT evidence.",
     ),
     Component(
-            "silero_vad.onnx",
-            "unknown",
-            "MIT (upstream only)",
-            "",
-            "MIT",
-            "UNVERIFIED",
-            detail="PRESENT; no licence file beside the model. Upstream "
+        "silero_vad.onnx",
+        "unknown",
+        "MIT (upstream only)",
+        "",
+        "MIT",
+        "UNVERIFIED",
+        detail="PRESENT; no licence file beside the model. Upstream "
         "https://github.com/snakers4/silero-vad/blob/master/LICENSE",
     ),
     Component(
-            "InterVariable.woff2 / InterVariable-Italic.woff2",
-            "unknown",
-            "OFL-1.1",
-            "Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)",
-            "OFL-1.1",
-            "UNVERIFIED",
-            detail="Found in stale dist/; no local OFL.txt. Upstream https://scripts.sil.org/OFL",
+        "InterVariable.woff2 / InterVariable-Italic.woff2",
+        "unknown",
+        "OFL-1.1",
+        "Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)",
+        "OFL-1.1",
+        "UNVERIFIED",
+        detail="Found in stale dist/; no local OFL.txt. Upstream https://scripts.sil.org/OFL",
     ),
     Component(
-            "parakeet-tdt-0.6b-v3 / parakeet-tdt-0.6b-ultra-onnx",
-            "unknown",
-            "CC-BY-4.0",
-            "",
-            "CC-BY-4.0",
-            "NOT-IN-INSTALLER",
-            detail="Runtime download from Hugging Face, not in the Windows installer; listed for completeness.",
+        "parakeet-tdt-0.6b-v3 / parakeet-tdt-0.6b-ultra-onnx",
+        "unknown",
+        "CC-BY-4.0",
+        "",
+        "CC-BY-4.0",
+        "NOT-IN-INSTALLER",
+        detail="Runtime download from Hugging Face, not in the Windows installer; listed for completeness.",
     ),
 )
 
@@ -1772,9 +1771,7 @@ def read_lockfiles() -> dict:
         npm.append((name, info.get("version", ""), info.get("license", "(none)")))
     npm_counts = dict(sorted(Counter(lic for _, _, lic in npm).items()))
 
-    cargo_entries = len(
-        re.findall(r"(?m)^\[\[package\]\]$", CARGO_LOCK.read_text(encoding="utf-8"))
-    )
+    cargo_entries = len(re.findall(r"(?m)^\[\[package\]\]$", CARGO_LOCK.read_text(encoding="utf-8")))
     return {
         "requirements": requirements,
         "npm": npm,

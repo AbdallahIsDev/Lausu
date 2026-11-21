@@ -14,9 +14,7 @@ from voice_typer.server.audio_filters.noise_suppressor import NoiseSuppressor
 from voice_typer.server.media_ingest import decoder, ffmpeg_binaries, selfcheck
 
 
-def test_bundled_bin_dir_is_the_resolver_base(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_bundled_bin_dir_is_the_resolver_base(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     fake_exe = tmp_path / "python-sidecar.exe"
     fake_exe.write_bytes(b"")
     monkeypatch.setattr(sys, "executable", str(fake_exe))
@@ -34,18 +32,10 @@ def _fake_sys(**attrs: object) -> ModuleType:
 
 
 def test_is_frozen_build_detects_nuitka_and_pyinstaller() -> None:
-    assert ffmpeg_binaries.is_frozen_build(
-        {"__compiled__": SimpleNamespace()}, _fake_sys()
-    )
-    assert ffmpeg_binaries.is_frozen_build(
-        {}, _fake_sys(frozen=True, _MEIPASS=None)
-    )
-    assert ffmpeg_binaries.is_frozen_build(
-        {}, _fake_sys(frozen=False, _MEIPASS="/tmp/_MEI123")
-    )
-    assert not ffmpeg_binaries.is_frozen_build(
-        {}, _fake_sys(frozen=False, _MEIPASS=None)
-    )
+    assert ffmpeg_binaries.is_frozen_build({"__compiled__": SimpleNamespace()}, _fake_sys())
+    assert ffmpeg_binaries.is_frozen_build({}, _fake_sys(frozen=True, _MEIPASS=None))
+    assert ffmpeg_binaries.is_frozen_build({}, _fake_sys(frozen=False, _MEIPASS="/tmp/_MEI123"))
+    assert not ffmpeg_binaries.is_frozen_build({}, _fake_sys(frozen=False, _MEIPASS=None))
 
 
 def test_bundled_bin_dir_uses_original_exe_dir_in_onefile(tmp_path: Path) -> None:
@@ -56,10 +46,7 @@ def test_bundled_bin_dir_uses_original_exe_dir_in_onefile(tmp_path: Path) -> Non
     fake_sys = _fake_sys(executable=str(extraction / "python.exe"))
     g: dict[str, object] = {"__compiled__": SimpleNamespace(containing_dir=str(original_dir))}
     assert ffmpeg_binaries.bundled_bin_dir(g, fake_sys) == original_dir.resolve()
-    assert (
-        ffmpeg_binaries.bundled_bin_dir({}, fake_sys)
-        == extraction.resolve()
-    )
+    assert ffmpeg_binaries.bundled_bin_dir({}, fake_sys) == extraction.resolve()
 
 
 def test_frozen_resolver_ignores_path_and_uses_original_exe_dir(
