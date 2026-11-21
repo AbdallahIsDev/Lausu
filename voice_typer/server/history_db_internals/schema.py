@@ -355,7 +355,9 @@ def init_schema(
                 sqlite3.sqlite_version,
                 ".".join(str(part) for part in _SQLITE_TRIGRAM_MIN_VERSION),
             )
-            break
+            # Continue: later migrations (v6 provenance columns) are not
+            # trigram-dependent and must still apply to this DB.
+            continue
 
         try:
             # Plain ALTER migrations: filter already-present columns, wrap

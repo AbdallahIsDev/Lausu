@@ -80,5 +80,8 @@ class TestCancellationGuardPrivacyGate:
         with pytest.raises(_PipelineAbortCancelled):
             guard.run("late text", ctx)
         app._crash_recovery.add.assert_called_once_with("late text", pasted=False, cycle_id="test-cycle")
-        # The guard's bubble teardown is folded into the shared
-        app._waveform_bubble.hide.assert_called_once()
+        # Teardown routes through the shared bubble visibility policy, not a
+        # direct hide(); the idle request must still fire on this path.
+        app._waveform_bubble.apply_visibility.assert_called_once_with(
+            "idle", reason="bubble hide on cancelled cycle"
+        )

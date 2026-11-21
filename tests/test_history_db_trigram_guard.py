@@ -49,9 +49,9 @@ class TestTrigramHelpers:
 
 
 class TestMigrationSkippedOnOldSQLite:
-    def test_v5_skipped_version_stays_below_5(self, old_sqlite, tmp_path):
-        """unicode61 schema is fully applied."""
-        from voice_typer.server.history_db import HistoryDB
+    def test_v5_skipped_later_migrations_still_apply(self, old_sqlite, tmp_path):
+        """Skipping the trigram index must not block v6 provenance columns."""
+        from voice_typer.server.history_db import _CURRENT_SCHEMA_VERSION, HistoryDB
         from voice_typer.server.history_db_internals import schema as schema_mod
 
         db = HistoryDB(db_path=tmp_path / "old-sqlite.db")
@@ -60,10 +60,14 @@ class TestMigrationSkippedOnOldSQLite:
             try:
                 row = conn.execute("SELECT value FROM schema_meta WHERE key = 'version'").fetchone()
                 assert row is not None, "schema_meta version row must exist after open"
-                assert int(row[0]) == 4, f"version must stay at 4 (V5 skipped), got {row[0]}"
+                assert int(row[0]) == _CURRENT_SCHEMA_VERSION, (
+                    f"later migrations must still apply after V5 skip, got {row[0]}"
+                )
                 assert not schema_mod.cjk_trigram_table_exists(conn), (
                     "the trigram CJK table must NOT exist when V5 was skipped"
                 )
+                cols = {r[1] for r in conn.execute("PRAGMA table_info(transcriptions)")}
+                assert "kind" in cols, "V6 provenance columns must apply even when V5 was skipped"
                 # The unicode61 FTS index (V3/V4) must still be present.
                 fts = conn.execute(
                     "SELECT name FROM sqlite_master WHERE type='table' AND name='transcriptions_fts'"
@@ -92,9 +96,9 @@ class TestMigrationSkippedOnOldSQLite:
         finally:
             db.close()
 
-    def test_modern_sqlite_still_migrates_to_v5(self, tmp_path):
-        """Sanity: without the patch, a fresh DB reaches version 5 and"""
-        from voice_typer.server.history_db import HistoryDB
+    def test_modern_sqlite_still_migrates_to_current(self, tmp_path):
+        """Without the old-SQLite patch a fresh DB reaches the current schema."""
+        from voice_typer.server.history_db import _CURRENT_SCHEMA_VERSION, HistoryDB
         from voice_typer.server.history_db_internals import schema as schema_mod
 
         if not schema_mod.sqlite_supports_trigram():
@@ -104,7 +108,7 @@ class TestMigrationSkippedOnOldSQLite:
             conn = sqlite3.connect(str(db.db_path))
             try:
                 row = conn.execute("SELECT value FROM schema_meta WHERE key = 'version'").fetchone()
-                assert int(row[0]) == 5
+                assert int(row[0]) == _CURRENT_SCHEMA_VERSION
                 assert schema_mod.cjk_trigram_table_exists(conn)
             finally:
                 conn.close()
