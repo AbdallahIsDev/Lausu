@@ -40,6 +40,13 @@ def _strip_nsis_comments(text: str) -> str:
     return "\n".join(out_lines)
 
 
+def _nsi_section(text: str, name: str) -> str:
+    """Return one NSIS Section's raw source (PowerShell `;` stays intact)."""
+    start = text.index(f'Section "{name}"')
+    end = text.index("SectionEnd", start)
+    return text[start:end]
+
+
 def _tauri_conf() -> dict:
     return json.loads((SRC_TAURI / "tauri.conf.json").read_text(encoding="utf-8"))
 
@@ -483,6 +490,87 @@ class TestFullOfflineInstallerTemplate:
             "full-offline-installer.nsi must forward $CMDLINE to the slim-core "
             "installer so silent installs (/S) and install-dir overrides (/D=path) "
             "propagate."
+        )
+
+    def test_extraction_failure_aborts_install(self) -> None:
+        """A nonzero Expand-Archive exit must fail the wrapper."""
+        text = FULL_OFFLINE_NSI.read_text(encoding="utf-8")
+        pack = _nsi_section(text, "Offline engine pack (bundled)")
+        assert "${If} $0 != 0" in pack, "the pack section must branch on the extraction exit code $0"
+        fail_start = pack.index("${If} $0 != 0")
+        fail_end = pack.index("${EndIf}", fail_start)
+        fail_branch = pack[fail_start:fail_end]
+        assert "Abort" in fail_branch, (
+            "nonzero Expand-Archive exit code must Abort the install; a warning "
+            "leaves a partial/empty pack marked as bundled."
+        )
+        assert "WARNING: Expand-Archive" not in fail_branch, (
+            "a warning-only extraction failure branch regresses failure handling."
+        )
+
+    def test_extract_uses_terminating_powershell_errors(self) -> None:
+        """Corrupt zips must yield a nonzero exit, not a silent success."""
+        text = FULL_OFFLINE_NSI.read_text(encoding="utf-8")
+        pack = _nsi_section(text, "Offline engine pack (bundled)")
+        assert "-ErrorAction Stop" in pack, (
+            "Expand-Archive needs -ErrorAction Stop so a corrupt/partial zip "
+            "produces a nonzero exit code instead of a non-terminating error."
+        )
+        # NSIS `$$` emits a literal `$` for PowerShell (NSIS string escaping),
+        # so this asserts the emitted command sets the real $ErrorActionPreference.
+        assert "$$ErrorActionPreference" in pack, (
+            "$ErrorActionPreference = 'Stop' must reach PowerShell (write it as "
+            "$$ErrorActionPreference in NSIS), not be swallowed as an NSIS variable."
+        )
+
+    def test_zip_deleted_only_after_extraction_verified(self) -> None:
+        """The archive stays on disk until extraction is proven good."""
+        text = FULL_OFFLINE_NSI.read_text(encoding="utf-8")
+        pack = _nsi_section(text, "Offline engine pack (bundled)")
+        zip_name = "lausu-runtime-pack-${PACK_VERSION}-${PRODUCT_TRIPLE}.zip"
+        delete_line = next(
+            (line for line in pack.splitlines() if line.strip().startswith("Delete ") and zip_name in line),
+            None,
+        )
+        assert delete_line is not None, "the pack zip must still be deleted after a verified extraction"
+        assert "Get-ChildItem" in pack, (
+            "extraction must be verified by inspecting the extracted files before "
+            "the archive is deleted (file assertion)."
+        )
+        aborts = [m.start() for m in re.finditer(r"\bAbort\b", pack)]
+        assert len(aborts) >= 2, (
+            "there must be both an extract-failure Abort and a verify-failure Abort."
+        )
+        assert max(aborts) < pack.index(delete_line), (
+            "the zip Delete must come after every failure Abort, so a failed "
+            "extraction leaves the archive for retry."
+        )
+
+    def test_slim_core_failure_aborts_install(self) -> None:
+        """A nonzero slim-core installer exit must fail the wrapper."""
+        text = FULL_OFFLINE_NSI.read_text(encoding="utf-8")
+        slim = _nsi_section(text, "Install slim core")
+        assert "${If} $0 != 0" in slim, "the slim-core section must branch on ExecWait's exit code $0"
+        fail_start = slim.index("${If} $0 != 0")
+        fail_end = slim.index("${EndIf}", fail_start)
+        assert "Abort" in slim[fail_start:fail_end], (
+            "nonzero slim-core installer exit code must Abort the install; a "
+            "warning makes a failed app install look successful."
+        )
+        assert "WARNING: slim-core installer" not in slim, (
+            "a warning-only slim-core failure branch regresses failure handling."
+        )
+
+    def test_state_written_only_after_successful_steps(self) -> None:
+        """pack_bundled=true is emitted only after both steps succeed."""
+        text = FULL_OFFLINE_NSI.read_text(encoding="utf-8")
+        slim_start = text.index('Section "Install slim core"')
+        state_start = text.index('Section "Write installer state"')
+        pack_start = text.index('Section "Offline engine pack (bundled)"')
+        assert pack_start < slim_start < state_start, (
+            "NSIS runs sections in source order: pack extraction, then the "
+            "slim-core installer, then installer-state.json. Writing "
+            "pack_bundled=true earlier would claim a broken install succeeded."
         )
 
 

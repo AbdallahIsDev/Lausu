@@ -96,35 +96,25 @@ Section "Offline engine pack (bundled)" SecPack
   ; native unzip via the ``unzip`` plugin OR shell out to PowerShell's
   ; ``Expand-Archive`` (built-in on Windows 10+). PowerShell is the
   ; zero-dependency choice.
-  nsExec::ExecToLog 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath $\'$LOCALAPPDATA\lausu\runtime-pack\${PACK_VERSION}\lausu-runtime-pack-${PACK_VERSION}-${PRODUCT_TRIPLE}.zip$\' -DestinationPath $\'$LOCALAPPDATA\lausu\runtime-pack\${PACK_VERSION}$\' -Force"'
+  ; -ErrorAction Stop + $ErrorActionPreference (written $$ in NSIS so a literal
+  ; $ reaches PowerShell) make a corrupt zip a nonzero exit, not a silent
+  ; non-terminating warning.
+  nsExec::ExecToLog 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$ErrorActionPreference = $\'Stop$\'; Expand-Archive -LiteralPath $\'$LOCALAPPDATA\lausu\runtime-pack\${PACK_VERSION}\lausu-runtime-pack-${PACK_VERSION}-${PRODUCT_TRIPLE}.zip$\' -DestinationPath $\'$LOCALAPPDATA\lausu\runtime-pack\${PACK_VERSION}$\' -Force -ErrorAction Stop"'
   Pop $0
   ${If} $0 != 0
-    DetailPrint "[lausu-full-offline] WARNING: Expand-Archive exit code $0, pack may be partially extracted."
+    DetailPrint "[lausu-full-offline] ERROR: Expand-Archive failed with exit code $0."
+    Abort "[lausu-full-offline] Pack extraction failed; the downloaded archive is kept for retry."
   ${EndIf}
-  ; Remove the zip after extraction (saves ~180 MB on disk).
+  ; Prove the pack extracted before deleting the archive: the version dir must
+  ; contain at least one non-archive file (file assertion).
+  nsExec::ExecToLog 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$$ErrorActionPreference = $\'Stop$\'; $$files = @(Get-ChildItem -LiteralPath $\'$LOCALAPPDATA\lausu\runtime-pack\${PACK_VERSION}$\' -File -Recurse | Where-Object { $$_.Extension -ne $\'.zip$\' }); if ($$files.Count -eq 0) { Write-Error $\'extracted pack is empty$\'; exit 1 }"'
+  Pop $0
+  ${If} $0 != 0
+    DetailPrint "[lausu-full-offline] ERROR: extracted pack failed verification (exit code $0)."
+    Abort "[lausu-full-offline] Pack extraction verification failed; the downloaded archive is kept for retry."
+  ${EndIf}
+  ; Remove the zip only after extraction is proven good (saves ~180 MB on disk).
   Delete "$LOCALAPPDATA\lausu\runtime-pack\${PACK_VERSION}\lausu-runtime-pack-${PACK_VERSION}-${PRODUCT_TRIPLE}.zip"
-SectionEnd
-
-; ─── installer-state.json write section ─────────────────────────────────
-; Signals to the slim-core app (read at first launch via
-; ``voice_typer/server/installer_state.py``) that:
-;   - The pack was bundled into this installer (``pack_bundled: true``).
-;   - The user's "Include offline engine pack" checkbox choice from the
-;     slim-core installer (which runs next) governs the silent
-;     download, but since the pack is already on disk, the slim-core
-;     app's pack resolver finds it and skips the download regardless.
-; We still write ``include_offline_engine_pack: true`` because the user
-; chose to install the full-offline variant (consent is implicit).
-Section "Write installer state" SecState
-  SectionIn RO
-  CreateDirectory "$LOCALAPPDATA\lausu"
-  ClearErrors
-  FileOpen $0 "$LOCALAPPDATA\lausu\installer-state.json" w
-  IfErrors state_done
-  FileWrite $0 `{"include_offline_engine_pack": true, "installer_version": "${APP_VERSION}", "pack_bundled": true, "pack_version": "${PACK_VERSION}"}`$\r$\n`
-  FileClose $0
-  DetailPrint "[lausu-full-offline] Wrote installer-state.json (pack_bundled=true, pack_version=${PACK_VERSION})."
-  state_done:
 SectionEnd
 
 ; ─── Slim-core installer launch section ─────────────────────────────────
@@ -144,8 +134,33 @@ Section "Install slim core" SecSlimCore
   ; Forward the original cmdline so /S and /D=path propagate.
   ExecWait '"$PLUGINSDIR\slim-core-setup.exe" $CMDLINE' $0
   ${If} $0 != 0
-    DetailPrint "[lausu-full-offline] WARNING: slim-core installer exit code $0."
+    DetailPrint "[lausu-full-offline] ERROR: slim-core installer exit code $0."
+    Abort "[lausu-full-offline] Slim-core installation failed; the full-offline install did not complete."
   ${EndIf}
+SectionEnd
+
+; ─── installer-state.json write section ─────────────────────────────────
+; Runs LAST (after extraction and slim-core succeeded) so pack_bundled=true
+; is never written for a failed install.
+; Signals to the slim-core app (read at first launch via
+; ``voice_typer/server/installer_state.py``) that:
+;   - The pack was bundled into this installer (``pack_bundled: true``).
+;   - The user's "Include offline engine pack" checkbox choice from the
+;     slim-core installer governs the silent download, but since the pack
+;     is already on disk, the slim-core app's pack resolver finds it and
+;     skips the download regardless.
+; We still write ``include_offline_engine_pack: true`` because the user
+; chose to install the full-offline variant (consent is implicit).
+Section "Write installer state" SecState
+  SectionIn RO
+  CreateDirectory "$LOCALAPPDATA\lausu"
+  ClearErrors
+  FileOpen $0 "$LOCALAPPDATA\lausu\installer-state.json" w
+  IfErrors state_done
+  FileWrite $0 `{"include_offline_engine_pack": true, "installer_version": "${APP_VERSION}", "pack_bundled": true, "pack_version": "${PACK_VERSION}"}`$\r$\n`
+  FileClose $0
+  DetailPrint "[lausu-full-offline] Wrote installer-state.json (pack_bundled=true, pack_version=${PACK_VERSION})."
+  state_done:
 SectionEnd
 
 ; ─── customInstall: no-op (handled by the sections above) ───────────────
