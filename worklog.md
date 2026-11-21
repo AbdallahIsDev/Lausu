@@ -1697,3 +1697,18 @@ Deferred: full pytest suite (owner decision to stop verification), Windows `make
 - F1 CI failure: cargo test used base config (worker externalBin) with only slim stubs; dropped `--slim` from stub generation step and removed the round-13 worker-download step. Slim build overlay still excludes the worker.
 - Scoped tests: 44 selfcheck/gate/resolver + 13 workflow tests green; gate simulated-tree checks accepted a good tree and rejected ffprobe/missing-ffmpeg/GPL-enforce defects.
 - Probe dirs `C:/Users/11/nuitka-probe` created and deleted; no large downloads kept.
+
+## 2026-11-21 — CI errors batch 2 (19 failures, 6 parallel subagents)
+
+Source: CI-errors.md SHA 5ec0af05 (state AFTER batch-1 fixes landed). Owner pasted items 4-19; full file revealed items 1-3 (two more soundfile collection errors + the probe failure).
+
+New git rule honored: worked on `main` only; main was behind 1 (CI-errors.md-only commit) → STOPPED and asked → owner approved fast-forward to 349cc26ef. No branch ops, no merge/rebase/reset/stash/clean, no push. Agents edited files only (no staging/commit) to avoid index races in the shared checkout; controller committed each domain with explicit `git add -- <paths>`. Other sessions' files (review.md, chrome_pid.json x2, untracked plans doc) untouched.
+
+- A (179c640b5): CI #1/#3 — `probe_wav` treated soundfile as mandatory; stdlib `wave` now reads headers, soundfile kept as fallback. Controller also fixed CI #2 in the same commit: `test_tts_voice_identity.py:33` module-level `import soundfile` removed (both np/sf used only by `_wav_bytes`, replaced with stdlib wave). 10+10 passed with/without soundfile, 77 TTS sweep green.
+- B (ac6cc85bb): `test_media_selfcheck` staged `ffmpeg.exe` on POSIX where `_names()` looks for `ffmpeg`; platform-aware name. 57 passed / 19 pre-existing skips.
+- C (ee59a5f90): `_TrayLeftClickHandler` pins removed — setting/handler deliberately deleted in the 2026-11-20 simplification; no equivalent, no production change. 11 wave3 + 23 source + 87 consumer tests green.
+- D (b9f3ded6e): 11 stale bubble pins across wave9/paste_failure_toast/short_audio_energy_gate aligned with shared `apply_visibility` policy; all reason strings verified against source, no weakened assertions. 69 passed + 36 policy suite.
+- E (161a9414b): log-hygiene test patched obsolete `pyrnnoise` seam; now patches real `_make_rnnoise_backend`. 5 passed + 22 xdist + 6 noise-suppressor.
+- F (a1eae059b): `voice_typer.server.recording.time` is the process-global time module, so the patch captured other threads' `sleep(0.01)` calls (12288 on ubuntu-3.13). Filter by caller thread id + explicit flag clear. 89 passed + 25 related + xdist reproduction.
+
+Final gate: scoped suite 197 passed (10 files), ruff-F clean, audio guards green, pytest collect-only 20239 items. 6 local commits ahead of origin/main, NOT pushed (no push requested).
