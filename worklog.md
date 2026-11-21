@@ -1688,3 +1688,12 @@ Final integration gate (all 6 commits): scoped Python suite 402 passed / 19 skip
 Not staged (other workstreams' uncommitted files): `review.md`, deleted screenshots, `tools/internal_plugins/*/chrome_pid.json`, `?? docs/superpowers/plans/...`, `?? review-r11.diff`, and the four Tauri icon PNGs the other workstream keeps overwriting in the worktree (HEAD bytes are canonical; fresh CI checkout passes).
 
 Deferred: full pytest suite (owner decision to stop verification), Windows `makensis` smoke tests. Local `icon --check` fails only because of that worktree overwrite, not committed state.
+
+## 2026-11-21 — rounds 13/14: frozen resolver, self-check markers, gate and CI stub fix
+- Real Nuitka 2.8.10 onefile probe corrected the round-11 conclusion: `sys.executable` is inside the extraction dir; `__compiled__.containing_dir` is the original exe dir in all four launch modes; `sys.frozen` is None.
+- `ffmpeg_binaries.py`: new `is_frozen_build()` (Nuitka `__compiled__` + PyInstaller signals) and `bundled_bin_dir()` preferring `__compiled__.containing_dir`; no PATH fallback when frozen. A byte-identical compiled copy of the resolver resolved the sibling ffmpeg and ignored a GPL ffmpeg on PATH in modes 1 and 4.
+- `selfcheck.py`: five markers (adds frozen-build, no-path-fallback); `verify_windows_bundle.py` requires all five and is fail-closed for empty/missing extraction dirs.
+- FINDING, not fixed: `voice_typer/server/autostart/tauri_spawn.py:196` has the same onefile base bug.
+- F1 CI failure: cargo test used base config (worker externalBin) with only slim stubs; dropped `--slim` from stub generation step and removed the round-13 worker-download step. Slim build overlay still excludes the worker.
+- Scoped tests: 44 selfcheck/gate/resolver + 13 workflow tests green; gate simulated-tree checks accepted a good tree and rejected ffprobe/missing-ffmpeg/GPL-enforce defects.
+- Probe dirs `C:/Users/11/nuitka-probe` created and deleted; no large downloads kept.
