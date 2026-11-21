@@ -1779,3 +1779,7 @@ Rule: Do NOT leave a spawned child able to do the user's work after its parent d
 Rationale: Under `TAURI_SIDECAR=1` the IPC heartbeat watchdog is skipped because "the Rust host owns liveness", but nothing replaced it when the host died abnormally (`lausu-rust.log` panic at 01:53, no `[EXIT-SHUTDOWN]`): the orphaned sidecar kept serving hotkeys, the Chrome bridge and dictation with no window and no tray icon (2026-11-17, ghost PIDs 6684/6856/5368 with host 19900 gone; the worker already self-exited at 13:48 via its own watch, which is what exposed the gap).
 Applies to: All agents, all modes, all sub-agents.
 ```
+
+## Git workflow for all agents
+
+All agents work on `main` in the single shared checkout; never create, switch or delete branches and never merge, rebase, reset, stash or clean without explicit owner instruction in the prompt. Before committing run `git fetch` and `git status -sb`; if `main` is behind or diverged from `origin/main`, STOP and ask. Commit only your own files with explicit `git add -- <paths>` (never `git add .` or `-A`), and describe each commit by its purpose. Never commit another session's files, runtime state files, build outputs or binaries. Commit small and often so the tree stays clean. If the tree contains changes you did not make, leave them and mention them in your report. Pushes to `main` are allowed only when the prompt says so.
