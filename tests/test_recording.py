@@ -1,6 +1,7 @@
 """Tests for recording module: device resolution."""
 
 import sys
+import threading
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -440,11 +441,23 @@ class TestStopCallbackBackoff:
         r._stream_lifecycle._stream = MagicMock()
         r._audio_pipeline._buffer = [np.array([[1.0]], dtype=np.float32)]
 
-        # Flag is cleared (default state) → loop should not sleep at all
+        # Flag is cleared explicitly → loop should not sleep at all
+        r._is_in_audio_callback.clear()
+        assert not r._is_in_audio_callback.is_set()
+
+        # ``recording.time`` is the process-global ``time`` module, so this
+        # patch also intercepts sleeps from unrelated background threads.
+        # The drain poll runs synchronously on this thread; record only its calls.
+        caller_thread = threading.get_ident()
         sleep_calls = []
+
+        def record_sleep(s):
+            if threading.get_ident() == caller_thread:
+                sleep_calls.append(s)
+
         monkeypatch.setattr(
             "voice_typer.server.recording.time.sleep",
-            lambda s: sleep_calls.append(s),
+            record_sleep,
         )
 
         r.stop()
