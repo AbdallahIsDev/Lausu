@@ -58,6 +58,11 @@ DOCUMENTED_COMMAND_ASYMMETRY: dict[frozenset[str], str] = {
     frozenset({"shutdown", "tray_click"}): (
         "host-only (cooperative shutdown / tray click); the renderer has no legitimate path to either command"
     ),
+    frozenset({"bubble_host_hidden"}): (
+        "host-dispatched bubble-hide completion: Rust reports an out-of-band "
+        "hide via dispatch_inner so the coordinator can reconcile visibility; "
+        "the renderer never invokes it"
+    ),
 }
 
 

@@ -5,9 +5,9 @@
 //! the two-layer parity; CONTRIBUTING.md §6.4). Parity tests:
 //! `tests/test_ipc_command_parity.py` /
 //! `tests/test_security_doc_command_count.py`. Host-dispatched commands
-//! (`tray_click`, `heartbeat`, `relaunch_ack`, `shutdown`) are
-//! intentionally ABSENT — they use `dispatch_inner` / fire-and-forget
-//! frames, never renderer `invoke('dispatch')`.
+//! (`tray_click`, `heartbeat`, `relaunch_ack`, `shutdown`,
+//! `bubble_host_hidden`) are intentionally ABSENT — they use `dispatch_inner`
+//! / fire-and-forget frames, never renderer `invoke('dispatch')`.
 
 use std::collections::HashSet;
 use std::sync::OnceLock;
