@@ -1665,3 +1665,9 @@ CI fix (parallel agent, reviewed clean): `soundfile` is excluded from the lock o
 - RH-33 (1b25bed8e, task-ID fix in a6677641b): publisher split into result/backends/publisher/cli with facade at the workflow-pinned path; patch targets migrated; 73 scoped tests green, no behavior change.
 - All five tasks and the CI fix have per-task reviewer approvals; review.md entries marked ✅ Fixed (verified). Final lint cleanup: ruff-formatted `tests/tauri/test_installer_naming.py` (52 tests still green); repo-wide ruff check clean.
 - Not run: full pytest suite (prior owner decision to stop verification), Windows makensis compile/install smoke tests. `cargo check` remains blocked by a pre-existing windres panic on this host.
+
+## 2026-11-21 — Whole-batch review of RH-29..33
+
+One reviewer across all 11 commits found no Critical defects and two Important gaps, both fixed in commit d981d9556: RELEASING.md no longer credits `runtime-pack-publish.yml` with producing installers (slim-core comes from tauri-*-build.yml; full-offline from a local build script; the pack workflow uploads only zip + manifest), and the guard test now asserts that producer→artifact relationship; `tests/test_ipc_server.py` host-command pin updated to the registry's 3-element set. Six minors also fixed (draft/publish guidance, stale assertion message, pytest env scrubbing, gate diagnostics, forced Python-regex/backslash tests, malformed-WAV `TtsError` translation). Deferred as product decisions: `/D=path` forwarding and real pack-integrity verification. Scoped re-review approved; one minor guard-brittleness note left deferred.
+
+Final local gate caught one more related gap: `bubble_host_hidden` was in `_COMMAND_REGISTRY` but absent from `COMMAND_COSTS`; added cost 1 in `voice_typer/server/ipc/rate_limiter.py`. `tests/test_ipc_server.py` 209 passed; ruff check repo-wide clean.

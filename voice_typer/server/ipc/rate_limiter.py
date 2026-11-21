@@ -179,6 +179,7 @@ COMMAND_COSTS: dict[str, int] = {
     "tray_click": 1,
     "undo_last": 2,  # deletes last history row
     # Commands added to _COMMAND_REGISTRY after the cost map was last audited.
+    "bubble_host_hidden": 1,  # host-to-backend state push, no I/O of its own
     "add_trusted_endpoint": 2,
     "test_cloud_connection": 10,
     "reset_macos_accessibility": 2,
