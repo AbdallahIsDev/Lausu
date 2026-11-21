@@ -222,7 +222,7 @@ sections outside these markers are preserved verbatim by regeneration.
 - `requirements-lock.txt`: 82 pinned distributions (read-only).
 - `package-lock.json`: production closure of 138 packages (licenses: 0BSD × 1, Apache-2.0 × 2, ISC × 14, MIT × 119, MIT and ISC × 1, Unlicense × 1).
 - `Cargo.lock`: 524 package entries across all targets (Windows graph audited as 310 crates).
-- Installed dist-info metadata: 148 distributions read, indicative only.
+- Installed dist-info metadata is a local cross-check only; its count depends on the machine and is deliberately omitted so this artifact is byte-identical on every OS.
 - Build drift is real: shipped python312.dll is 3.12.10 while dev .venv is 3.13.7;
   shipped onnxruntime.dll is 1.28.0 while dist-info says 1.29.0. Local metadata never
   overrides shipped-file evidence. UNVERIFIED means no local licence file was found.

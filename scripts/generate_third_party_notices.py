@@ -21,7 +21,7 @@ NOTICE = ROOT / "docs" / "THIRD_PARTY_NOTICES.md"
 REQUIREMENTS_LOCK = ROOT / "requirements-lock.txt"
 PACKAGE_LOCK = ROOT / "voice_typer" / "client" / "package-lock.json"
 CARGO_LOCK = ROOT / "src-tauri" / "Cargo.lock"
-SITE_PACKAGES = ROOT / ".venv" / "Lib" / "site-packages"
+VENV = ROOT / ".venv"
 
 BEGIN = "<!-- BEGIN GENERATED THIRD-PARTY NOTICES -->"
 END = "<!-- END GENERATED THIRD-PARTY NOTICES -->"
@@ -1700,12 +1700,18 @@ COMPONENTS: tuple[Component, ...] = (
 )
 
 
+def _site_packages_dirs() -> list[Path]:
+    """Local venv site-packages across Windows and POSIX layouts (read-only cross-check)."""
+    return [VENV / "Lib" / "site-packages", *sorted((VENV / "lib").glob("python*/site-packages"))]
+
+
 def read_installed_metadata() -> dict[str, tuple[str, str]]:
     """Read dist-info METADATA read-only; returns name -> (version, license)."""
     found: dict[str, tuple[str, str]] = {}
-    if not SITE_PACKAGES.is_dir():
+    dirs = [d for d in _site_packages_dirs() if d.is_dir()]
+    if not dirs:
         return found
-    for meta in sorted(SITE_PACKAGES.glob("*.dist-info/METADATA")):
+    for meta in sorted({m for d in dirs for m in d.glob("*.dist-info/METADATA")}):
         name = version = license_id = ""
         for line in meta.read_text(encoding="utf-8", errors="replace").splitlines():
             if line.startswith("Name:") and not name:
@@ -1802,7 +1808,8 @@ def render(facts: dict, metadata: dict) -> str:
         + ").",
         f"- `Cargo.lock`: {facts['cargo_entries']} package entries across all targets "
         "(Windows graph audited as 310 crates).",
-        f"- Installed dist-info metadata: {len(metadata)} distributions read, indicative only.",
+        "- Installed dist-info metadata is a local cross-check only; its count depends on the "
+        "machine and is deliberately omitted so this artifact is byte-identical on every OS.",
         "- Build drift is real: shipped python312.dll is 3.12.10 while dev .venv is 3.13.7;",
         "  shipped onnxruntime.dll is 1.28.0 while dist-info says 1.29.0. Local metadata never",
         "  overrides shipped-file evidence. UNVERIFIED means no local licence file was found.",
