@@ -1712,3 +1712,13 @@ New git rule honored: worked on `main` only; main was behind 1 (CI-errors.md-onl
 - F (a1eae059b): `voice_typer.server.recording.time` is the process-global time module, so the patch captured other threads' `sleep(0.01)` calls (12288 on ubuntu-3.13). Filter by caller thread id + explicit flag clear. 89 passed + 25 related + xdist reproduction.
 
 Final gate: scoped suite 197 passed (10 files), ruff-F clean, audio guards green, pytest collect-only 20239 items. 6 local commits ahead of origin/main, NOT pushed (no push requested).
+
+## 2026-11-21 — mypy fatal parse error (numpy ctypeslib)
+
+CI error: mypy 2.3.0 exit 2 at `numpy/ctypeslib/_ctypeslib.pyi:48` — `Type statement is only supported in Python 3.12 and greater [syntax]`. CQ-058 shadows numpy with local Any stubs because the project checks at `python_version = "3.11"` and real numpy 2.x stubs use PEP 695 syntax that mypy cannot parse (a parse error cannot be suppressed by ignore_errors/follow_imports). The shadow covered only `numpy`, `numpy.ma`, `numpy.typing`; `numpy.ctypeslib` fell through to the real stub. Reproduced by forcing `import numpy.ctypeslib` with the repo config.
+
+Fix (commit 71de65e73): completed the Any-shadow package — 28 new stubs mirroring numpy's top-level submodule layout (17 packages as `<sub>/__init__.pyi`, 11 modules as `<sub>.pyi`), plus `tests/test_mypy_numpy_shadow.py` which runs mypy over every shadowed submodule with the repo config in a tmp env and asserts no PEP 695 leakage / fatal exit. RED proof: hiding the ctypeslib shadow reproduces the exact CI `[syntax]` error. Fix verified count-neutral: control run with the new shadows removed gave identical ratchet counts (total 576→569, same three per-code buckets).
+
+Baseline NOT regenerated (would be fake-green). On this host (Python 3.13.7) the mypy ratchet is independently red: arg-type 36→38, attr-defined 198→199, no-any-return 75→77; these predate this fix and were masked by the fatal parse error. CI runs Python 3.12.10 with its own lock-resolved deps, where counts may differ; a local 3.12 interpreter exists but has no mypy/deps installed, so no valid CI-parity run was possible here. Flagged as follow-up: verify the ratchet on a real CI-configured 3.12 environment; if those buckets are genuinely red there, fix the underlying type errors (do not bump the baseline).
+
+Final: 1 new test passed, ruff clean, mypy parse error eliminated. 8 local commits ahead of origin/main, NOT pushed.
