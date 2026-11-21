@@ -355,7 +355,7 @@ Wave 3 returned 21 findings. The final Review Wave dropped 2 as false claims (pa
 ---
 
 ### RH-28 — Uninstall leaves the runtime pack and installer state behind
-**Status:** ❌ Not Fixed
+**Status:** ✅ Fixed (verified)
 
 **Description:** The pack split introduced a second per-user root: `scripts/windows/installer-hooks.nsh:137-139` creates `$LOCALAPPDATA\lausu` and writes `installer-state.json`; `full-offline-installer.nsi:71,91,120-124` installs there and extracts the pack to `$LOCALAPPDATA\lausu\runtime-pack\<v>`; the authoritative pack root is `LOCALAPPDATA/lausu/runtime-pack` (`voice_typer/server/service/offline_pack/core.py:97-99`). Uninstall only removes `%APPDATA%\lausu` (`uninstaller.nsh:185-192`); `uninstall.bat:139-147` and `uninstall_permissions.py:132-136` do the same. No cleanup of `$LOCALAPPDATA\lausu` exists anywhere. Distinct from DC-14 (Startup `.bat` orphan).
 
@@ -371,7 +371,7 @@ Wave 3 returned 21 findings. The final Review Wave dropped 2 as false claims (pa
 
 **My Recommendation:** ✅ Implement — clear ownership, user-visible disk cost.
 
-**Progress:** `None yet.`
+**Progress:** Fixed 2026-11-21. `uninstaller.nsh` now removes `%LOCALAPPDATA%\lausu\runtime-pack` and `installer-state.json` (then the root only if empty); `uninstall.bat` mirrors both paths on every uninstall; `uninstall_permissions.py --purge` gained `_purge_local_installer_state()` for the same two paths. Three source/behavior pins added (NSIS, batch, Python purge); 31 focused tests passed on Windows. No blanket wipe of the LOCALAPPDATA root.
 
 **Related Files:**
 - `scripts/windows/uninstaller.nsh:185-192`

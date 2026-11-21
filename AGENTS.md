@@ -1154,6 +1154,13 @@ Rationale: Live end-to-end (write → startup notify).
 Applies to: All agents, all modes, all sub-agents.
 ```
 
+```
+C-PERSIST-4
+Rule: Do NOT introduce a second per-user storage root without adding it to every uninstall/purge path in the same change; remove only the paths the installer owns, never the whole root.
+Rationale: The runtime-pack split created `%LOCALAPPDATA%\lausu` alongside `%APPDATA%\lausu`, but only the Roaming root was cleaned on uninstall — hundreds of MB and a stale consent flag survived (RH-28, fixed 2026-11-21).
+Applies to: All agents, all modes, all sub-agents.
+```
+
 ---
 
 ## Category: Microphone Selection & Consent Flow

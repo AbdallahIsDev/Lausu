@@ -593,6 +593,23 @@ class TestUninstallerNshNotRegressed:
             "per-user data dir cleanup (settings JSON, history DB, vocabularies)."
         )
 
+    def test_uninstaller_nsh_cleans_local_runtime_pack(self) -> None:
+        text = UNINSTALLER_NSH.read_text(encoding="utf-8")
+        assert r'RMDir /r "$LOCALAPPDATA\lausu\runtime-pack"' in text, (
+            "uninstaller.nsh must remove the installer-owned runtime pack from "
+            "%LOCALAPPDATA%\\lausu\\runtime-pack; the pack resolver reads that "
+            "root, and a stale pack survives every uninstall otherwise."
+        )
+        assert r'Delete "$LOCALAPPDATA\lausu\installer-state.json"' in text, (
+            "uninstaller.nsh must delete installer-state.json, which carries "
+            "the pack_bundled consent flag and can be reused by a reinstall."
+        )
+        assert 'RMDir "$LOCALAPPDATA\\lausu"' in text, (
+            "the LOCALAPPDATA root may be removed only when empty; a blanket "
+            "recursive delete would take user-created files with it."
+        )
+        assert r'RMDir /r "$LOCALAPPDATA\lausu"' not in text
+
     def test_uninstaller_nsh_cleans_startup_folder_bats(self) -> None:
         text = UNINSTALLER_NSH.read_text(encoding="utf-8")
         assert "Start Menu" in text and "Startup" in text, (

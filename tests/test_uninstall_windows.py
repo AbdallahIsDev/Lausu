@@ -425,6 +425,41 @@ class TestUninstallPermissionsScript:
         mod._purge_user_data()
 
 
+    def test_purge_removes_local_pack_and_state_only(self, monkeypatch, tmp_path):
+        import importlib.util
+
+        appdata = tmp_path / "roaming"
+        local = tmp_path / "local"
+        (appdata / "lausu").mkdir(parents=True)
+        pack = local / "lausu" / "runtime-pack" / "1.2.3"
+        pack.mkdir(parents=True)
+        (pack / "model.bin").write_bytes(b"x")
+        state = local / "lausu" / "installer-state.json"
+        state.write_text("{}", encoding="utf-8")
+        user_file = local / "lausu" / "user-note.txt"
+        user_file.write_text("keep", encoding="utf-8")
+
+        monkeypatch.setenv("APPDATA", str(appdata))
+        monkeypatch.setenv("LOCALAPPDATA", str(local))
+        monkeypatch.setattr(sys, "argv", ["uninstall_permissions.py"])
+        monkeypatch.delenv("VOICE_TYPER_PURGE", raising=False)
+
+        spec = importlib.util.spec_from_file_location(
+            "uninstall_permissions_windows_localpack", UNINSTALL_PERMISSIONS_PY
+        )
+        assert spec is not None and spec.loader is not None
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        mod._purge_user_data()
+
+        assert not pack.exists(), "runtime-pack root must be removed by --purge"
+        assert not state.exists(), "installer-state.json must be removed by --purge"
+        assert user_file.read_text(encoding="utf-8") == "keep", (
+            "unrelated files in LOCALAPPDATA\\lausu must survive"
+        )
+
+
 class TestWiring:
     """verify the .nsh / .bat / Python script are wired into"""
 
@@ -505,6 +540,19 @@ class TestWiring:
         assert UNINSTALL_BAT.is_file(), (
             f"{UNINSTALL_BAT} does not exist, tauri.conf.json's "
             "nsis.installerHooks points at a non-existent file. See S2-CR-69."
+        )
+
+    def test_uninstall_bat_cleans_local_runtime_pack(self):
+        text = UNINSTALL_BAT.read_text(encoding="utf-8")
+        assert "%LOCALAPPDATA%\\lausu\\runtime-pack" in text, (
+            "uninstall.bat must remove the installer-owned runtime pack root."
+        )
+        assert "%LOCALAPPDATA%\\lausu\\installer-state.json" in text, (
+            "uninstall.bat must remove the installer state file."
+        )
+        assert 'rmdir /s /q "%LOCALAPPDATA%\\lausu"' not in text, (
+            "never wipe the whole LOCALAPPDATA\\lausu root; it may hold "
+            "user-created files. Remove only the installer-owned subpaths."
         )
 
     def test_uninstaller_nsh_exists(self):

@@ -117,9 +117,39 @@ def _log(msg: str) -> None:
     print(f"[lausu-uninstall] {msg}", file=sys.stderr)
 
 
+def _purge_local_installer_state() -> None:
+    """Remove the installer-owned paths under ``%LOCALAPPDATA%\\lausu``.
+
+    The runtime-pack resolver reads ``%LOCALAPPDATA%\\lausu\\runtime-pack``
+    and the installers write ``installer-state.json`` beside it. Delete only
+    those two paths: the root may hold files the user created, so it is
+    removed only when empty (best-effort, like the Roaming purge).
+    """
+    localappdata = os.environ.get("LOCALAPPDATA")
+    if not localappdata:
+        _log("WARNING: --purge: LOCALAPPDATA env var not set, skipping runtime-pack purge")
+        return
+    root = Path(localappdata) / "lausu"
+    pack = root / "runtime-pack"
+    state = root / "installer-state.json"
+    if pack.is_dir():
+        try:
+            shutil.rmtree(pack)
+        except OSError as exc:
+            _log(f"WARNING: --purge: failed to remove {pack}: {exc}")
+    if state.is_file():
+        try:
+            state.unlink()
+        except OSError as exc:
+            _log(f"WARNING: --purge: failed to remove {state}: {exc}")
+    with contextlib.suppress(OSError):
+        root.rmdir()
+
+
 def _purge_user_data() -> None:
     """(): remove the per-user data directory at
-    ``%APPDATA%\\lausu``.
+    ``%APPDATA%\\lausu`` and the installer-owned paths under
+    ``%LOCALAPPDATA%\\lausu``.
 
     Mirrors the Linux purge in ``scripts/linux/uninstall_permissions.py``
     (same subpaths list, kept inline here so the script runs even when
@@ -129,6 +159,8 @@ def _purge_user_data() -> None:
 
     Best-effort: logs warnings on failure, never raises.
     """
+    _purge_local_installer_state()
+
     appdata = os.environ.get("APPDATA")
     if not appdata:
         _log("WARNING: --purge: APPDATA env var not set, skipping user-data purge")

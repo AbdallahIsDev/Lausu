@@ -190,6 +190,15 @@
   ; purged regardless of productName / data-dir name drift.
   RMDir /r "$APPDATA\lausu"
   DetailPrint "[lausu-uninstall] Removed user data directory: $APPDATA\lausu"
+
+  ; The installer-owned runtime pack lives under a SECOND per-user root:
+  ; the pack resolver reads %LOCALAPPDATA%\lausu\runtime-pack, and the
+  ; installer writes installer-state.json beside it. Remove only those
+  ; owned paths; the root itself may hold files the user created.
+  RMDir /r "$LOCALAPPDATA\lausu\runtime-pack"
+  Delete "$LOCALAPPDATA\lausu\installer-state.json"
+  RMDir "$LOCALAPPDATA\lausu"
+  DetailPrint "[lausu-uninstall] Removed local runtime pack and installer state."
 !macroend
 
 ; Tauri v2 invokes ONLY NSIS_HOOK_POSTUNINSTALL (crates/tauri-bundler
