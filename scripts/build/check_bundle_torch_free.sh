@@ -56,20 +56,17 @@ if [[ ! -f "$BIN" ]]; then
 fi
 
 # ─── Forbidden patterns ──────────────────────────────────────────────────────
-# `torch\.`: catches every Nuitka-embedded module path like
-#   `torch/__init__.py`, `torch/_utils.py`, `torch/nn/modules/...`. Nuitka
-#   records these as part of the compiled-in module graph; they survive
-#   onefile compression as printable strings.
+# `torch[./\\]`: matches dotted imports (`torch.nn`) and Nuitka's slash-form
+#   module paths (`torch/__init__.py`, `torch/nn/modules/...`), plus Windows
+#   backslash paths. These survive onefile compression as printable strings.
 # `silero_vad\.jit`: the JIT model file bundled with torch-era VAD. After
 #   Phase 1a (VAD → ONNX), the bundle must ship `silero_vad.onnx` instead;
 #   sighting the `.jit` file means a stale build env or a reverted vad.py.
 #
-# NB: we case-insensitive-grep for `torch\.` because Nuitka may emit the
-# path with mixed case on Windows (e.g. `Lib\site-packages\Torch\...`).
-# The `silero_vad.jit` pattern is case-sensitive, the file name is
-# always lowercase per MANIFEST.in + export_silero_vad_onnx.py.
+# NB: both scanners are case-insensitive (grep -i / re.IGNORECASE) because
+# Nuitka may emit mixed-case paths on Windows (e.g. `Lib\site-packages\Torch\...`).
 PATTERNS=(
-    "torch\\."
+    "torch[./\\\\]"
     "silero_vad\\.jit"
 )
 
