@@ -480,16 +480,47 @@ class TestFullOfflineInstallerTemplate:
         )
 
     def test_template_runs_slim_core_installer(self) -> None:
-        """The wrapper invokes the bundled slim-core installer."""
+        """The wrapper invokes the slim-core installer with only installer params."""
         text = FULL_OFFLINE_NSI.read_text(encoding="utf-8")
         assert "ExecWait" in text, (
             "full-offline-installer.nsi must ExecWait the bundled slim-core "
             "installer, without it, the slim-core app is never installed."
         )
-        assert "$CMDLINE" in text, (
-            "full-offline-installer.nsi must forward $CMDLINE to the slim-core "
-            "installer so silent installs (/S) and install-dir overrides (/D=path) "
-            "propagate."
+        assert "!include FileFunc.nsh" in text, (
+            "full-offline-installer.nsi must include FileFunc.nsh; its "
+            "${GetParameters} macro extracts only the installer parameters "
+            "(raw $CMDLINE includes the wrapper's own exe path)."
+        )
+        assert "${GetParameters}" in text, (
+            "full-offline-installer.nsi must use ${GetParameters} to extract "
+            "only the parameters passed to this wrapper before forwarding "
+            "them to the slim-core installer."
+        )
+        exec_lines = [
+            line
+            for line in text.splitlines()
+            if "ExecWait" in line and "slim-core-setup.exe" in line
+        ]
+        assert exec_lines, "the slim-core ExecWait line must be present"
+        exec_line = exec_lines[0]
+        assert "$CMDLINE" not in exec_line, (
+            "the slim-core ExecWait line must NOT forward raw $CMDLINE — it "
+            "contains the wrapper's own exe path and omits /D=path; forward "
+            "the ${GetParameters} result instead."
+        )
+        assert "$R0" in exec_line, (
+            "the slim-core ExecWait line must forward the ${GetParameters} "
+            "result ($R0), the installer parameters only."
+        )
+        assert "Forward the original cmdline" not in text, (
+            "the old comment falsely claimed /S and /D=path propagate via "
+            "$CMDLINE; it must be corrected."
+        )
+        assert "/D=" in text and "cannot be forwarded" in text, (
+            "the wrapper must document that /D=path cannot be forwarded "
+            "through a parameter string (NSIS consumes it as the wrapper's "
+            "own install dir), so users know to set the slim-core install "
+            "dir through its own UI/config."
         )
 
     def test_extraction_failure_aborts_install(self) -> None:

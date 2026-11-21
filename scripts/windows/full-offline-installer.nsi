@@ -65,6 +65,8 @@
 Unicode true
 ManifestDPIAware true
 SetCompressor /SOLID lzma
+; ${GetParameters} (used in the slim-core launch section) lives in FileFunc.nsh.
+!include FileFunc.nsh
 
 Name "Lausu ${APP_VERSION} (full offline)"
 OutFile "lausu-full-offline-${APP_VERSION}-${PRODUCT_TRIPLE}.exe"
@@ -118,12 +120,16 @@ Section "Offline engine pack (bundled)" SecPack
 SectionEnd
 
 ; ─── Slim-core installer launch section ─────────────────────────────────
-; Run the bundled slim-core installer .exe. NSIS args the user passed to
-; THIS wrapper are forwarded via ``$CMDLINE`` (so ``/S`` silent installs
-; propagate). The slim-core installer is invoked with ``ExecWait`` so
-; this wrapper does NOT exit until the slim-core install completes
-; (otherwise the user sees the wrapper finish before the actual app
-; install, confusing UX).
+; Run the bundled slim-core installer .exe. Only the INSTALLER PARAMETERS
+; passed to THIS wrapper are forwarded (via ``${GetParameters}``), so
+; ``/S`` silent installs propagate. Raw ``$CMDLINE`` is deliberately NOT
+; used: it contains this wrapper's own executable path and omits
+; ``/D=path``. ``/D=path`` cannot be forwarded through a parameter string
+; (NSIS consumes it as the wrapper's own install dir), so set the slim-core
+; install dir through its own installer UI/config instead.
+; The slim-core installer is invoked with ``ExecWait`` so this wrapper
+; does NOT exit until the slim-core install completes (otherwise the user
+; sees the wrapper finish before the actual app install, confusing UX).
 Section "Install slim core" SecSlimCore
   SectionIn RO
   SetOutPath "$PLUGINSDIR"
@@ -131,8 +137,9 @@ Section "Install slim core" SecSlimCore
   ; ExecWait line below doesn't have to know the source filename.
   File /oname=slim-core-setup.exe "${SLIM_CORE_EXE}"
   DetailPrint "[lausu-full-offline] Launching slim-core installer..."
-  ; Forward the original cmdline so /S and /D=path propagate.
-  ExecWait '"$PLUGINSDIR\slim-core-setup.exe" $CMDLINE' $0
+  ; ${GetParameters} extracts ONLY the installer params (no wrapper exe path).
+  ${GetParameters} $R0
+  ExecWait '"$PLUGINSDIR\slim-core-setup.exe" $R0' $0
   ${If} $0 != 0
     DetailPrint "[lausu-full-offline] ERROR: slim-core installer exit code $0."
     Abort "[lausu-full-offline] Slim-core installation failed; the full-offline install did not complete."
