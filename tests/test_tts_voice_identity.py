@@ -23,14 +23,13 @@ import re
 import subprocess
 import threading
 import time
+import wave
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.request import urlopen
 
-import numpy as np
 import pytest
-import soundfile as sf
 from voice_typer.server.tts.local_client import LocalSpeechClient
 from voice_typer.server.tts.samples import SAMPLE_TEXT
 from voice_typer.server.tts.types import TtsError, TtsRequest
@@ -51,7 +50,11 @@ MODEL_SPEAKER_INDEX: dict[str, int] = {
 
 def _wav_bytes() -> bytes:
     buffer = io.BytesIO()
-    sf.write(buffer, np.zeros(2_400, dtype=np.float32), 24_000, format="WAV")
+    with wave.open(buffer, "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(24_000)
+        handle.writeframes(b"\x00\x00" * 2_400)
     return buffer.getvalue()
 
 

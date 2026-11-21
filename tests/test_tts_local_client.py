@@ -4,22 +4,25 @@ from __future__ import annotations
 
 import io
 import json
+import sys
 import threading
+import wave
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-import numpy as np
 import pytest
-import soundfile as sf
 from voice_typer.server.tts.local_client import LocalSpeechClient
 from voice_typer.server.tts.types import TtsError, TtsRequest
 
 
 def _wav_bytes(sample_rate: int = 24_000, seconds: float = 0.25) -> bytes:
     buffer = io.BytesIO()
-    samples = np.zeros(int(sample_rate * seconds), dtype=np.float32)
-    sf.write(buffer, samples, sample_rate, format="WAV")
+    with wave.open(buffer, "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(sample_rate)
+        handle.writeframes(b"\x00\x00" * int(sample_rate * seconds))
     return buffer.getvalue()
 
 
@@ -106,3 +109,35 @@ def test_http_error_surfaces_runtime_detail(speech_server, tmp_path: Path) -> No
 
     with pytest.raises(TtsError, match="404"):
         client.speech(TtsRequest(text="hello"), tmp_path / "x.wav", model="magpie")
+
+
+def test_probe_wav_reads_valid_wav_without_soundfile(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A PCM WAV probes via stdlib wave when soundfile is unavailable."""
+    monkeypatch.setitem(sys.modules, "soundfile", None)
+
+    from voice_typer.server.tts.wav import probe_wav
+
+    wav_file = tmp_path / "speech.wav"
+    wav_file.write_bytes(_wav_bytes(sample_rate=16_000, seconds=0.1))
+    duration, sample_rate = probe_wav(wav_file)
+
+    assert sample_rate == 16_000
+    assert duration == pytest.approx(0.1)
+
+
+def test_probe_wav_rejects_bad_files_without_soundfile(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Missing, zero-byte and malformed WAVs keep their TtsError contract."""
+    monkeypatch.setitem(sys.modules, "soundfile", None)
+
+    from voice_typer.server.tts.wav import probe_wav
+
+    with pytest.raises(TtsError, match="engine produced no audio"):
+        probe_wav(tmp_path / "missing.wav")
+    empty = tmp_path / "empty.wav"
+    empty.write_bytes(b"")
+    with pytest.raises(TtsError, match="engine produced no audio"):
+        probe_wav(empty)
+    malformed = tmp_path / "malformed.wav"
+    malformed.write_bytes(b"RIFF\x00\x00\x00\x00WAVEnot-a-real-wav")
+    with pytest.raises(TtsError, match="unreadable WAV"):
+        probe_wav(malformed)
