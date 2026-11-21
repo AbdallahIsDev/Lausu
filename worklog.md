@@ -1653,3 +1653,15 @@ Verification: ruff clean; pyrefly 0; 592 passed; gate --self-test PASS. Temp 134
 - Fix: moved the owned-path cleanup above the Python/PowerShell branches, so it runs on every path. Added an order pin asserting the cleanup block precedes the first `exit /b 0` (RED confirmed: index 7015 > 3918, then GREEN).
 - Reviewer minors also closed: `review.md` progress now states the real coverage and reconciles the test count (73 initially, 76 after the two extra Python edge-case tests); added tests for missing LOCALAPPDATA and empty-root removal.
 - Validation: 76 passed across `tests/tauri/test_installer_naming.py` and `tests/test_uninstall_windows.py`; ruff clean. Scoped re-review dispatched.
+
+## 2026-11-21 — RH-29..RH-33 + bare-pytest CI failures
+
+CI fix (parallel agent, reviewed clean): `soundfile` is excluded from the lock on macOS arm64 and absent in bare-pytest Linux jobs, but `voice_typer/server/tts/wav.py` imported it at module level, killing the autouse config-dir fixture import chain (47 + 1 setup errors). Moved the import into `probe_wav()` after the filesystem checks, matching `tts/playback.py`; added hermetic absence tests and a structural guard that removed the `pytest_benchmark` filterwarnings entry (the filter itself warned when the plugin was absent). Commits f83ddf289, d1f33d758, 90d3c9dc6; 47 + 14 + 9 scoped tests green, ruff clean.
+
+- RH-29 (7a2f8c711): torch-free gate patterns now match dotted, slash and backslash forms in both GNU grep ERE and Python `re`; 5 black-box tests, bash -n/ruff clean. Workflows untouched.
+- RH-30 (acae5dbc2): full-offline installer aborts on failed extraction or slim-core failure, keeps the zip until extraction verified, writes `pack_bundled: true` only after full success; 5 new source/order pins, 52 installer tests. Windows makensis smoke test still owed.
+- RH-31 (688ee38a9): wrapper includes FileFunc.nsh and forwards `${GetParameters} $R0` instead of `$CMDLINE`; old test pin replaced; 52 installer tests. `/D=` limitation documented in NSI. NSIS semantics verified against official docs.
+- RH-32 (bfddbf315, a6677641b, 2af467012): RELEASING.md describes real artifact workflows + mandatory manual pack dispatch; counts in six docs replaced with canonical links (110 = 105 + 5, 61, 73); ADR-0029 index/range fixed; doc-count tests and checker reconciled. 120 focused tests + touchpoints 7-10 green.
+- RH-33 (1b25bed8e, task-ID fix in a6677641b): publisher split into result/backends/publisher/cli with facade at the workflow-pinned path; patch targets migrated; 73 scoped tests green, no behavior change.
+- All five tasks and the CI fix have per-task reviewer approvals; review.md entries marked ✅ Fixed (verified). Final lint cleanup: ruff-formatted `tests/tauri/test_installer_naming.py` (52 tests still green); repo-wide ruff check clean.
+- Not run: full pytest suite (prior owner decision to stop verification), Windows makensis compile/install smoke tests. `cargo check` remains blocked by a pre-existing windres panic on this host.

@@ -168,8 +168,7 @@ class TestInstallerHooksNshSection:
     def test_checkbox_label_pinned(self) -> None:
         text = INSTALLER_HOOKS_NSH.read_text(encoding="utf-8")
         assert "Include offline engine pack" in text, (
-            'installer-hooks.nsh must label the checkbox "Include offline '
-            "engine pack\" (plan §4.8 / §9.3)."
+            'installer-hooks.nsh must label the checkbox "Include offline engine pack" (plan §4.8 / §9.3).'
         )
 
     def test_checkbox_defaults_to_checked(self) -> None:
@@ -195,15 +194,13 @@ class TestInstallerHooksNshSection:
             "sections as optional."
         )
         assert "MUI_PAGE_COMPONENTS" not in text, (
-            "do not insert MUI_PAGE_COMPONENTS; it would render Tauri's "
-            "Install section as an optional checkbox."
+            "do not insert MUI_PAGE_COMPONENTS; it would render Tauri's Install section as an optional checkbox."
         )
 
     def test_checkbox_reads_nsd_state(self) -> None:
         text = INSTALLER_HOOKS_NSH.read_text(encoding="utf-8")
         assert "${NSD_GetState}" in text, (
-            "the pack-option leave handler must read the checkbox via "
-            "${NSD_GetState} (nsDialogs), not SectionGetFlags."
+            "the pack-option leave handler must read the checkbox via ${NSD_GetState} (nsDialogs), not SectionGetFlags."
         )
 
 
@@ -222,8 +219,7 @@ class TestInstallerHooksCustomInstallMacro:
     def test_custom_install_alias_still_defined(self) -> None:
         text = INSTALLER_HOOKS_NSH.read_text(encoding="utf-8")
         assert "!macro customInstall" in text, (
-            "customInstall must remain as a thin alias of "
-            "NSIS_HOOK_POSTINSTALL (older references / focused tests)."
+            "customInstall must remain as a thin alias of NSIS_HOOK_POSTINSTALL (older references / focused tests)."
         )
 
     def test_installer_state_json_path_pinned(self) -> None:
@@ -255,8 +251,7 @@ class TestInstallerHooksCustomInstallMacro:
         aborts makensis."""
         text = _strip_nsis_comments(INSTALLER_HOOKS_NSH.read_text(encoding="utf-8"))
         assert "${VERSION}" in text, (
-            "installer-state.json must embed ${VERSION} (the define Tauri's "
-            "installer.nsi sets)."
+            "installer-state.json must embed ${VERSION} (the define Tauri's installer.nsi sets)."
         )
         assert "${PRODUCT_VERSION}" not in text, (
             "${PRODUCT_VERSION} is not defined by Tauri's installer.nsi — "
@@ -496,11 +491,7 @@ class TestFullOfflineInstallerTemplate:
             "only the parameters passed to this wrapper before forwarding "
             "them to the slim-core installer."
         )
-        exec_lines = [
-            line
-            for line in text.splitlines()
-            if "ExecWait" in line and "slim-core-setup.exe" in line
-        ]
+        exec_lines = [line for line in text.splitlines() if "ExecWait" in line and "slim-core-setup.exe" in line]
         assert exec_lines, "the slim-core ExecWait line must be present"
         exec_line = exec_lines[0]
         assert "$CMDLINE" not in exec_line, (
@@ -509,12 +500,10 @@ class TestFullOfflineInstallerTemplate:
             "the ${GetParameters} result instead."
         )
         assert "$R0" in exec_line, (
-            "the slim-core ExecWait line must forward the ${GetParameters} "
-            "result ($R0), the installer parameters only."
+            "the slim-core ExecWait line must forward the ${GetParameters} result ($R0), the installer parameters only."
         )
         assert "Forward the original cmdline" not in text, (
-            "the old comment falsely claimed /S and /D=path propagate via "
-            "$CMDLINE; it must be corrected."
+            "the old comment falsely claimed /S and /D=path propagate via $CMDLINE; it must be corrected."
         )
         assert "/D=" in text and "cannot be forwarded" in text, (
             "the wrapper must document that /D=path cannot be forwarded "
@@ -569,12 +558,9 @@ class TestFullOfflineInstallerTemplate:
             "the archive is deleted (file assertion)."
         )
         aborts = [m.start() for m in re.finditer(r"\bAbort\b", pack)]
-        assert len(aborts) >= 2, (
-            "there must be both an extract-failure Abort and a verify-failure Abort."
-        )
+        assert len(aborts) >= 2, "there must be both an extract-failure Abort and a verify-failure Abort."
         assert max(aborts) < pack.index(delete_line), (
-            "the zip Delete must come after every failure Abort, so a failed "
-            "extraction leaves the archive for retry."
+            "the zip Delete must come after every failure Abort, so a failed extraction leaves the archive for retry."
         )
 
     def test_slim_core_failure_aborts_install(self) -> None:

@@ -354,44 +354,8 @@ Wave 3 returned 21 findings. The final Review Wave dropped 2 as false claims (pa
 
 ---
 
-### RH-28 — Uninstall leaves the runtime pack and installer state behind
-**Status:** ✅ Fixed (verified)
-
-**Description:** The pack split introduced a second per-user root: `scripts/windows/installer-hooks.nsh:137-139` creates `$LOCALAPPDATA\lausu` and writes `installer-state.json`; `full-offline-installer.nsi:71,91,120-124` installs there and extracts the pack to `$LOCALAPPDATA\lausu\runtime-pack\<v>`; the authoritative pack root is `LOCALAPPDATA/lausu/runtime-pack` (`voice_typer/server/service/offline_pack/core.py:97-99`). Uninstall only removes `%APPDATA%\lausu` (`uninstaller.nsh:185-192`); `uninstall.bat:139-147` and `uninstall_permissions.py:132-136` do the same. No cleanup of `$LOCALAPPDATA\lausu` exists anywhere. Distinct from DC-14 (Startup `.bat` orphan).
-
-**User Impact:** Every uninstall leaves roughly 124 MB compressed / 450 MB unpacked pack plus `installer-state.json` (including the `pack_bundled` consent flag); a reinstall can silently reuse a stale pack.
-
-**Root Cause:** Verified — two roots were introduced by the pack split, uninstall was updated only for the Roaming one.
-
-**Gain vs Trade-off:** Gain: a clean uninstall and no stale-pack reuse. Trade-off: best-effort deletion must not remove a directory the user created independently; target the owned subpaths first.
-
-**If We Do It:** Uninstall removes both per-user roots it created.
-
-**If We Don't:** Hundreds of megabytes persist after uninstall and reinstall can inherit stale state.
-
-**My Recommendation:** ✅ Implement — clear ownership, user-visible disk cost.
-
-**Progress:** Fixed 2026-11-21, verified against code. `uninstaller.nsh` removes `%LOCALAPPDATA%\lausu\runtime-pack` and `installer-state.json` (then the root only if empty); `uninstall.bat` runs the same cleanup BEFORE the Python path's early `exit /b 0`, so it reaches every uninstall; `uninstall_permissions.py --purge` gained `_purge_local_installer_state()` for the same two paths. Source/behavior pins cover NSIS, batch placement, and Python purge (including a user-file sentinel, missing LOCALAPPDATA and empty-root cases); full affected files passed 76 tests on Windows. No blanket wipe of the LOCALAPPDATA root.
-
-**Related Files:**
-- `scripts/windows/uninstaller.nsh:185-192`
-- `scripts/windows/installer-hooks.nsh:137-139`
-- `scripts/windows/full-offline-installer.nsi:71,91,120-124`
-- `voice_typer/server/service/offline_pack/core.py:97-99`
-- `scripts/windows/uninstall.bat:139-147`
-
-**Fix:** Add a best-effort `RMDir /r "$LOCALAPPDATA\lausu\runtime-pack"` and `Delete "$LOCALAPPDATA\lausu\installer-state.json"` to `customUnInstall` (remove the whole root only if no other content remains), mirrored in `uninstall.bat` / `uninstall_permissions.py --purge`. Pin with an NSIS source test. Keep autostart order (C-CROSS-2) and the Win32 quoting rules (C-CROSS-1). `VALIDATE ON WINDOWS HOST`.
-
-**Simplified Fix:** Make the uninstaller also delete the separate folder where the downloaded voice pack and installer state are stored.
-
-**Implementation Difficulty:** 🟢 Easy
-
-**Severity:** 🔴 High
-
----
-
 ### RH-29 — "Torch-free" bundle gate only detects dotted module names
-**Status:** ❌ Not Fixed
+**Status:** ✅ Fixed (verified)
 
 **Description:** `scripts/build/check_bundle_torch_free.sh:59-74` sets `PATTERNS=("torch\\.")`, a regex for a literal dot. It matches dotted forms (`torch.nn`, `torch._C`) but not Nuitka's slash-form paths such as `torch/__init__.py`, which the comment at `:59-62` says it is meant to catch. The same pattern is used by the Python fallback at `:117`. The gate is hard-fail in `tauri-windows-build.yml:308`, `tauri-macos-build.yml:141,302`, `tauri-linux-build.yml:436`.
 
@@ -407,7 +371,7 @@ Wave 3 returned 21 findings. The final Review Wave dropped 2 as false claims (pa
 
 **My Recommendation:** ✅ Implement — one-line fix plus a unit probe.
 
-**Progress:** `None yet.`
+**Progress:** Fixed 2026-11-21. `PATTERNS` now uses `torch[./\\]`, so both the GNU grep ERE scanner and the Python `re` fallback reject dotted, slash and backslash forms; the dotted match and case-insensitivity are preserved. Five black-box tests against the real script cover slash, dot and clean binaries; `bash -n`, ruff, and review clean. Workflows untouched.
 
 **Related Files:**
 - `scripts/build/check_bundle_torch_free.sh:59-74,117`
@@ -426,7 +390,7 @@ Wave 3 returned 21 findings. The final Review Wave dropped 2 as false claims (pa
 ---
 
 ### RH-30 — Full-offline installer reports success on failed extraction or slim-core failure
-**Status:** ❌ Not Fixed
+**Status:** ✅ Fixed (verified)
 
 **Description:** `scripts/windows/full-offline-installer.nsi:99-105` checks `Expand-Archive`'s exit code with only a `DetailPrint` warning, then deletes the zip unconditionally at `:105`. The slim-core installer's `ExecWait` exit code in `$0` is only warned about (`:146-148`), so the wrapper still exits 0. Meanwhile `installer-state.json` is written with `pack_bundled: true` (`:118-126`), telling the app to skip the silent download.
 
@@ -442,7 +406,7 @@ Wave 3 returned 21 findings. The final Review Wave dropped 2 as false claims (pa
 
 **My Recommendation:** ✅ Implement — install correctness.
 
-**Progress:** `None yet.`
+**Progress:** Fixed 2026-11-21. PowerShell extraction now fails hard (`-ErrorAction Stop` + `$ErrorActionPreference`), a nonzero extract or slim-core exit aborts the wrapper, and the downloaded zip is deleted only after a successful extraction check. The `pack_bundled: true` state write moved last, so it is only written on full success. OutFile name and state schema unchanged; 5 new source/order pins, 52 installer tests green, review clean. Windows `makensis` compile/install smoke test remains owed (host lacked makensis).
 
 **Related Files:**
 - `scripts/windows/full-offline-installer.nsi:99-126,144-148`
@@ -459,7 +423,7 @@ Wave 3 returned 21 findings. The final Review Wave dropped 2 as false claims (pa
 ---
 
 ### RH-31 — NSIS wrapper forwards `$CMDLINE` instead of the parameter string
-**Status:** ❌ Not Fixed
+**Status:** ✅ Fixed (verified)
 
 **Description:** `scripts/windows/full-offline-installer.nsi:144-145` does `ExecWait '"$PLUGINSDIR\slim-core-setup.exe" $CMDLINE' $0` with a comment claiming `/S` and `/D=path` propagate. NSIS's `$CMDLINE` includes the installer executable's own path, and `/D=` is explicitly excluded from it (NSIS reference §4.2.2, web-verified).
 
@@ -475,7 +439,7 @@ Wave 3 returned 21 findings. The final Review Wave dropped 2 as false claims (pa
 
 **My Recommendation:** ✅ Implement — one-file fix.
 
-**Progress:** `None yet.`
+**Progress:** Fixed 2026-11-21. The wrapper now includes `FileFunc.nsh`, calls `${GetParameters} $R0`, and forwards `$R0` (parameters only) to the slim-core installer; the false `/S`+`/D=` comment was replaced and `/D=`'s wrapper limitation documented. The old `"$CMDLINE" in text` test pin was replaced with four independent assertions blocking the old contract. NSIS semantics verified against official docs; 52 installer tests green, review clean. Windows compile/install smoke test still owed.
 
 **Related Files:**
 - `scripts/windows/full-offline-installer.nsi:144-145`
@@ -492,7 +456,7 @@ Wave 3 returned 21 findings. The final Review Wave dropped 2 as false claims (pa
 ---
 
 ### RH-32 — Release and architecture docs drifted from the shipped pack flow and IPC surface
-**Status:** ❌ Not Fixed
+**Status:** ✅ Fixed (verified)
 
 **Description:** Three related doc gaps. (1) `RELEASING.md:113-123` claims tag push triggers `build.yml` to build and upload installers, but `build.yml:38` states it is quality gates only (`docs/code-notes/ci-workflows.md:65` confirms legacy packaging jobs are retired); there is no step to dispatch `runtime-pack-publish.yml` (which is `workflow_dispatch`-only), and the `tauri-` tag wording has been stale since the 2026-09-17 cutover. (2) Six docs still cite "85-command / 51-event" (`docs/API.md:11`, `docs/README.md:23`, `docs/adr/README.md:40`, `docs/migration/tauri-sidecar-bridge.md:16,204`, `docs/cutover-playbook.md:350-351`, `docs/modules/sidecar_ws.md:13,26`); the live surface is 109 commands, 105 Rust-allowlisted, 61 events, 73 typed push events. (3) `docs/adr/README.md:51-52` skips the accepted ADR-0029, and `docs/README.md:58,63-67` links a removed ADR-0014 and says the range is `0000..0020`.
 
@@ -508,7 +472,7 @@ Wave 3 returned 21 findings. The final Review Wave dropped 2 as false claims (pa
 
 **My Recommendation:** ✅ Implement — doc-only, high operational value.
 
-**Progress:** `None yet.`
+**Progress:** Fixed 2026-11-21. RELEASING.md now names tauri-*-build.yml as artifact producers, build.yml as quality gates only, and the mandatory manual runtime-pack-publish.yml dispatch for both the release and offline-pack tags; slim/full-offline installers documented. Stale counts in six docs replaced with links to canonical `docs/ipc-reference.md` values (110 commands = 105 Rust + 5 host, 61 events, 73 typed push events); ADR-0029 row, ADR range 0000..0030 and removed-ADR-0014 note added. Doc-count tests/checker reconciled; 120 focused tests green, review clean. Workflows and historical ADR-0020 pins untouched.
 
 **Related Files:**
 - `RELEASING.md:4-11,113-123`
@@ -528,7 +492,7 @@ Wave 3 returned 21 findings. The final Review Wave dropped 2 as false claims (pa
 ---
 
 ### RH-33 — Release publisher is a 789-line module with two transports
-**Status:** ❌ Not Fixed
+**Status:** ✅ Fixed (verified)
 
 **Description:** `scripts/release/publish_pack_release.py:1-789` holds gh command builders (`:102-207,447-505`), a full urllib REST backend (`:218-324,508-612`), asset validation, a result dataclass, and the CLI. Two independent upload transports share only the data shape, which is above C-STRUCT-3's ~500-line budget.
 
@@ -544,7 +508,7 @@ Wave 3 returned 21 findings. The final Review Wave dropped 2 as false claims (pa
 
 **My Recommendation:** 🟡 Defer — structural, no user impact; do it when the publisher is next touched.
 
-**Progress:** `None yet.`
+**Progress:** Fixed 2026-11-21. `publish_pack_release.py` is now a thin facade at the workflow-pinned path; implementation split into `result.py`, `backends/gh.py`, `backends/api.py`, `publisher.py` and `cli.py`. All 14 public names plus the four private patch seams are re-exported/migrated to owning modules; identity pins and upload semantics unchanged. 73 scoped tests green, E1 imports and CLI entry verified, review clean. No workflow changes.
 
 **Related Files:**
 - `scripts/release/publish_pack_release.py`
