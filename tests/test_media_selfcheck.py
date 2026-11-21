@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -69,9 +70,12 @@ def test_frozen_resolver_ignores_path_and_uses_original_exe_dir(
     original_dir.mkdir()
     extraction.mkdir(parents=True)
     path_dir.mkdir()
-    shipped = original_dir / "ffmpeg.exe"
+    # Match the resolver's _names(): "ffmpeg" on POSIX, "ffmpeg.exe" on Windows.
+    # A Windows-only name failed on every macOS/ubuntu leg (no shipped binary).
+    ffmpeg_name = f"ffmpeg{'.exe' if os.name == 'nt' else ''}"
+    shipped = original_dir / ffmpeg_name
     shipped.write_bytes(b"real")
-    on_path = path_dir / "ffmpeg.exe"
+    on_path = path_dir / ffmpeg_name
     on_path.write_bytes(b"gpl")
     monkeypatch.setattr(
         ffmpeg_binaries,
