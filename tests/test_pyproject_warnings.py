@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
@@ -58,6 +61,40 @@ def test_no_filterwarnings_reference_optional_plugin() -> None:
             "on every test. Plugin-specific filters belong in "
             "tests/conftest.py::pytest_configure behind a hasplugin() check."
         )
+
+
+def test_bare_pytest_emits_no_benchmark_filter_warning(tmp_path: Path) -> None:
+    """A pytest that cannot import pytest_benchmark emits no PytestConfigWarning."""
+    stub = tmp_path / "pytest_benchmark"
+    stub.mkdir()
+    (stub / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "test_smoke.py").write_text("def test_ok(): pass\n", encoding="utf-8")
+    env = dict(os.environ)
+    existing = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = os.pathsep.join([str(tmp_path), existing]) if existing else str(tmp_path)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "--no-cov",
+            "-p",
+            "no:benchmark",
+            "-p",
+            "no:cacheprovider",
+            "-c",
+            str(PYPROJECT_PATH),
+            "test_smoke.py",
+        ],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "PytestConfigWarning" not in result.stdout + result.stderr
 
 
 def test_hypothesis_ci_profile_loaded_with_deadline_none() -> None:

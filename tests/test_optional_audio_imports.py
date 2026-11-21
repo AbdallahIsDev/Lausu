@@ -1,8 +1,9 @@
-"""Config imports must survive an install with no optional audio dependency.
+"""Config imports and WAV validation must survive an install without soundfile.
 
 The lock file excludes soundfile on macOS arm64 and bare-pytest guard jobs
 install only pytest. The config import chain reaches the TTS package, so no
-audio library may be imported at module import time.
+audio library may be imported at module import time; a missing file must still
+fail with the documented error before the optional import is attempted.
 """
 
 from __future__ import annotations
@@ -11,6 +12,8 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -45,8 +48,26 @@ def test_config_modules_import_without_soundfile() -> None:
     assert "config-import-ok" in result.stdout
 
 
-def test_i18n_completeness_passes_in_minimal_environment(tmp_path: Path) -> None:
-    """The CI-failing test file works with soundfile and pytest-benchmark absent."""
+def test_probe_wav_checks_file_before_importing_soundfile(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Missing/zero-byte WAVs raise TtsError even with soundfile unavailable."""
+    monkeypatch.setitem(sys.modules, "soundfile", None)
+
+    from voice_typer.server.tts.types import TtsError
+    from voice_typer.server.tts.wav import probe_wav
+
+    with pytest.raises(TtsError, match="engine produced no audio"):
+        probe_wav(tmp_path / "missing.wav")
+
+    empty = tmp_path / "empty.wav"
+    empty.write_bytes(b"")
+    with pytest.raises(TtsError, match="engine produced no audio"):
+        probe_wav(empty)
+
+
+def test_i18n_completeness_passes_without_soundfile(tmp_path: Path) -> None:
+    """The CI-failing test file passes when soundfile cannot be imported."""
     (tmp_path / "sitecustomize.py").write_text(
         "import sys\nsys.modules['soundfile'] = None\n", encoding="utf-8"
     )
@@ -62,8 +83,6 @@ def test_i18n_completeness_passes_in_minimal_environment(tmp_path: Path) -> None
             "tests/test_i18n_completeness.py",
             "--no-cov",
             "-q",
-            "-p",
-            "no:benchmark",
         ],
         cwd=REPO_ROOT,
         env=env,
@@ -71,5 +90,4 @@ def test_i18n_completeness_passes_in_minimal_environment(tmp_path: Path) -> None
         text=True,
         timeout=180,
     )
-    assert "PytestConfigWarning" not in result.stderr, result.stderr
     assert result.returncode == 0, result.stderr
