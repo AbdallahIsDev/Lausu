@@ -371,7 +371,7 @@ Wave 3 returned 21 findings. The final Review Wave dropped 2 as false claims (pa
 
 **My Recommendation:** ✅ Implement — clear ownership, user-visible disk cost.
 
-**Progress:** Fixed 2026-11-21, verified against code. `uninstaller.nsh` removes `%LOCALAPPDATA%\lausu\runtime-pack` and `installer-state.json` (then the root only if empty); `uninstall.bat` runs the same cleanup BEFORE the Python path's early `exit /b 0`, so it reaches every uninstall; `uninstall_permissions.py --purge` gained `_purge_local_installer_state()` for the same two paths. Source/behavior pins cover NSIS, batch placement, and Python purge (including a user-file sentinel, missing LOCALAPPDATA and empty-root cases); full affected files passed 73 tests on Windows. No blanket wipe of the LOCALAPPDATA root.
+**Progress:** Fixed 2026-11-21, verified against code. `uninstaller.nsh` removes `%LOCALAPPDATA%\lausu\runtime-pack` and `installer-state.json` (then the root only if empty); `uninstall.bat` runs the same cleanup BEFORE the Python path's early `exit /b 0`, so it reaches every uninstall; `uninstall_permissions.py --purge` gained `_purge_local_installer_state()` for the same two paths. Source/behavior pins cover NSIS, batch placement, and Python purge (including a user-file sentinel, missing LOCALAPPDATA and empty-root cases); full affected files passed 76 tests on Windows. No blanket wipe of the LOCALAPPDATA root.
 
 **Related Files:**
 - `scripts/windows/uninstaller.nsh:185-192`
