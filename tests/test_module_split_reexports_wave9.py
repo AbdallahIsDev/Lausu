@@ -619,8 +619,9 @@ class TestRecordingLifecycleStageOrderParity:
 
     INSTANT_START_FEEDBACK_ORDER = [
         "app.tray.set_state(AppState.RECORDING",
-        "app._waveform_bubble.show()",
-        'set_state("recording")',
+        # The bubble's direct show() + set_state("recording") collapsed into
+        # the single apply_visibility policy (show+state inside it).
+        'app._waveform_bubble.apply_visibility("recording", reason="record-start")',
         "_publish_recording_started_event",
     ]
 

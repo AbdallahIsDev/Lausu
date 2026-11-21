@@ -112,8 +112,7 @@ def _assert_proceeded(result: _GateResult, audio: np.ndarray) -> None:
     result.app.tray.set_state.assert_called_once()
     assert result.app.tray.set_state.call_args.args[0] == AppState.TRANSCRIBING
     result.controller._cancel_streaming_session.assert_not_called()
-    result.app._waveform_bubble.hide.assert_not_called()
-    result.app._waveform_bubble.set_state.assert_not_called()
+    result.app._waveform_bubble.apply_visibility.assert_not_called()
 
 
 def _assert_discarded(result: _GateResult) -> None:
@@ -121,8 +120,7 @@ def _assert_discarded(result: _GateResult) -> None:
     result.controller._cancel_streaming_session.assert_called_once()
     result.app.tray.set_state.assert_called_once()
     assert result.app.tray.set_state.call_args.args[0] == AppState.IDLE
-    result.app._waveform_bubble.hide.assert_called_once()
-    result.app._waveform_bubble.set_state.assert_not_called()
+    result.app._waveform_bubble.apply_visibility.assert_called_once_with("idle", reason="too-short")
     result.app._busyness.set_idle.assert_called_once()
 
 

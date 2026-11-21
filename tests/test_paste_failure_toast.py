@@ -277,13 +277,16 @@ class TestPasteFailureBubbleState:
 
         pipeline._copy_and_paste("hello world")
 
-        app._waveform_bubble.show.assert_called_once_with()
-        app._waveform_bubble.set_state.assert_called_once_with("paste_failed")
+        app._waveform_bubble.apply_visibility.assert_called_once_with(
+            "paste_failed", reason="paste-failed"
+        )
         delays = [delay for delay, _cb in app._scheduled]
         assert 3.0 in delays, f"bubble must schedule its 3s exit; got {delays}"
         for delay, cb in app._scheduled:
             if delay == 3.0:
                 cb()
-        # bubble_behavior is "transient" (not always_visible) so the
-        # timed exit hides the bubble.
-        app._waveform_bubble.hide.assert_called_once_with()
+        # The timed exit routes back through the same visibility policy to
+        # idle (the policy itself decides show/hide from bubble behavior).
+        app._waveform_bubble.apply_visibility.assert_called_with(
+            "idle", reason="bubble paste-failed->idle transition"
+        )
