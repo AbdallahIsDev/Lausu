@@ -86,12 +86,18 @@ class TestNoiseSuppressorOncePerProcess:
 
         class _FakeRNNoise:
             def __init__(self, sample_rate: int = 48000) -> None:
+                self.sample_rate = sample_rate
+                self.channels = 1
+
+            def denoise_frame(self, frame):
+                return 0.0, frame
+
+            def reset(self) -> None:
                 pass
 
-        import sys
-
-        fake_mod = types.SimpleNamespace(RNNoise=_FakeRNNoise)
-        monkeypatch.setitem(sys.modules, "pyrnnoise", fake_mod)
+        # _init_rnnoise builds its backend via this seam, not the old
+        # pyrnnoise package; patch it so init succeeds on every platform.
+        monkeypatch.setattr(ns, "_make_rnnoise_backend", lambda sample_rate: _FakeRNNoise(sample_rate))
 
         with caplog.at_level(logging.DEBUG, logger="voice_typer.server.audio_filters.noise_suppressor"):
             caplog.clear()
