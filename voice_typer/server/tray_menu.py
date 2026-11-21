@@ -56,7 +56,6 @@ def build_tray_menu_model(
     # Models submenu DATA provider: returns a list of
     build_models_submenu_data: Callable[[], list] = lambda: [],
     on_open_models: Callable[[], None] | None = None,
-    left_click_action: str = "open_app",
     microphones: list[dict] | None = None,
     active_mic_id: str | None = None,
     on_select_mic: Callable[[str], None] | None = None,
@@ -104,7 +103,6 @@ def build_tray_menu_model(
             "accelerator": None,
         }
 
-    # Open App (default/bold action depends on left_click_action).
     items.append(_item("open_app", localize("open_app"), callback=open_app))
 
     # Toggle/Stop Dictation, the label switches to "Stop Dictation"
@@ -244,18 +242,15 @@ def build_menu_for_tray(tray) -> tuple:
 
         hotkey_str = tray._hotkey or getattr(tray._config, "hotkey", "<caps_lock>") or "<caps_lock>"
         hotkey_label = display_hotkey(hotkey_str)
-        left_click = getattr(tray._config, "tray_left_click_action", "open_app") or "open_app"
-        dictation_default = left_click == "toggle_dictation"
-        open_app_default = left_click == "open_app"
 
         items: list = []
 
-        # Open App (first; default/bold depends on left_click_action).
+        # Open App is the unconditional default (bold) action.
         items.append(
             pystray.MenuItem(
                 _("open_app"),
                 wrap_callback(tray.open_app_window),
-                default=open_app_default,
+                default=True,
             )
         )
         # Toggle/Stop Dictation, the label switches to "Stop Dictation"
@@ -266,7 +261,6 @@ def build_menu_for_tray(tray) -> tuple:
             pystray.MenuItem(
                 f"{_(dictation_key)} ({hotkey_label})",
                 wrap_callback(tray._controller.toggle_dictation),
-                default=dictation_default,
             )
         )
         # Force Cancel Stuck Transcription, only rendered while
@@ -399,7 +393,6 @@ def maybe_publish_tray_menu(tray) -> bool:
         return False
 
     hotkey = tray._hotkey or getattr(tray._config, "hotkey", "<caps_lock>") or "<caps_lock>"
-    left_click = getattr(tray._config, "tray_left_click_action", "open_app") or "open_app"
 
     # detect attribute drift on the TrayController Protocol.
     controller_mics = getattr(controller, "_microphones", None)
@@ -430,7 +423,6 @@ def maybe_publish_tray_menu(tray) -> bool:
         build_models_submenu_data=lambda: _models_submenu_data(tray, controller),
         # "More models..." opens the app window AND navigates to the
         on_open_models=tray._open_models_page,
-        left_click_action=left_click,
         microphones=controller_mics,
         # TrayController Protocol. We keep the defensive ``getattr(..., None)``
         active_mic_id=getattr(controller, "active_microphone_id", None),

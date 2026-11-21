@@ -178,9 +178,48 @@ jobs:
           echo "PYBS=C:\tools\pybs\python\python.exe" >> $env:GITHUB_ENV
           # Install the project + Nuitka into the PYBS env (the env that
           C:\tools\pybs\python\python.exe -m pip install --upgrade --no-warn-script-location pip
+          # PART-B-PIN-1: hash-locked base deps FIRST. Static check of the lock
+          # markers for PYBS Python 3.12.8 / win x64: 66 active requirements,
+          # ALL with --hash, no bad markers (only >=3.12 / <3.15). No lock edit.
+          C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location --require-hashes -r requirements-lock.txt
+          # --no-deps: project + extras metadata only; dependency versions now
+          # come exclusively from the hash-locked requirements above.
+          C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location --no-deps -e ".[dev,test]"
+          # Nuitka + helpers are not in the base lock; install them separately.
           C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location nuitka==2.8.10 zstandard ordered-set
-          C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location -e ".[dev,test]"
           C:\tools\pybs\python\python.exe -c "import faster_whisper, ctranslate2; print('ctranslate2', ctranslate2.__version__)"
+
+      # PART-B-PIN-2: artifact evidence — exact interpreter + resolved deps.
+      # Lets a reviewer diff freeze drift without re-running the 4 h job.
+      - name: Record PYBS version + pip freeze (freeze env evidence)
+        shell: pwsh
+        run: |
+          $out = "pybs-freeze-${{ matrix.arch }}.txt"
+          "Python: $(& C:\tools\pybs\python\python.exe --version 2>&1)" | Tee-Object -FilePath $out
+          "pip: $(& C:\tools\pybs\python\python.exe -m pip --version 2>&1)" | Tee-Object -FilePath $out -Append
+          "requirements-lock.txt sha256: $((Get-FileHash requirements-lock.txt -Algorithm SHA256).Hash.ToLower())" | Tee-Object -FilePath $out -Append
+          "-- pip freeze --" | Tee-Object -FilePath $out -Append
+          & C:\tools\pybs\python\python.exe -m pip freeze | Tee-Object -FilePath $out -Append
+          Get-Content $out
+
+      - name: Upload freeze env evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: windows-pybs-freeze-${{ matrix.arch }}
+          path: pybs-freeze-${{ matrix.arch }}.txt
+          if-no-files-found: error
+
+      # PART-B-FETCH-1: verify + install the pinned LGPL ffmpeg BEFORE the
+      # sidecar freeze. The script SHA-256/size-gates BOTH sources (mirror then
+      # fallback) and rejects GPL config tokens; any mismatch exits non-zero
+      # and fails this job. GH_TOKEN comes from the automatic GITHUB_TOKEN.
+      - name: Fetch + verify LGPL ffmpeg (win x64, SHA-256 pinned)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          bash scripts/build/fetch_ffmpeg_lgpl_win64.sh
 
       - name: Build the sidecar with Nuitka (ADR-0020 §4.2)
         shell: pwsh
@@ -422,9 +461,45 @@ jobs:
           echo "PYBS=C:\tools\pybs\python\python.exe" >> $env:GITHUB_ENV
           # Install the project + Nuitka into the PYBS env (the env that
           C:\tools\pybs\python\python.exe -m pip install --upgrade --no-warn-script-location pip
+          # PART-B-PIN-1: hash-locked base deps FIRST. Static check of the lock
+          # markers for PYBS Python 3.12.8 / win x64: 66 active requirements,
+          # ALL with --hash, no bad markers (only >=3.12 / <3.15). No lock edit.
+          C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location --require-hashes -r requirements-lock.txt
+          # --no-deps: project + extras metadata only; dependency versions now
+          # come exclusively from the hash-locked requirements above.
+          C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location --no-deps -e ".[dev,test]"
+          # Nuitka + helpers are not in the base lock; install them separately.
           C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location nuitka==2.8.10 zstandard ordered-set
-          C:\tools\pybs\python\python.exe -m pip install --no-warn-script-location -e ".[dev,test]"
           C:\tools\pybs\python\python.exe -c "import faster_whisper, ctranslate2; print('ctranslate2', ctranslate2.__version__)"
+
+      # PART-B-PIN-2: artifact evidence — exact interpreter + resolved deps.
+      - name: Record PYBS version + pip freeze (freeze env evidence)
+        shell: pwsh
+        run: |
+          $out = "pybs-freeze-${{ matrix.arch }}.txt"
+          "Python: $(& C:\tools\pybs\python\python.exe --version 2>&1)" | Tee-Object -FilePath $out
+          "pip: $(& C:\tools\pybs\python\python.exe -m pip --version 2>&1)" | Tee-Object -FilePath $out -Append
+          "requirements-lock.txt sha256: $((Get-FileHash requirements-lock.txt -Algorithm SHA256).Hash.ToLower())" | Tee-Object -FilePath $out -Append
+          "-- pip freeze --" | Tee-Object -FilePath $out -Append
+          & C:\tools\pybs\python\python.exe -m pip freeze | Tee-Object -FilePath $out -Append
+          Get-Content $out
+
+      - name: Upload freeze env evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: windows-pybs-freeze-${{ matrix.arch }}
+          path: pybs-freeze-${{ matrix.arch }}.txt
+          if-no-files-found: error
+
+      # PART-B-FETCH-1: same SHA-256/LGPL verification before the worker
+      # freeze as in the sidecar leg (fail fast on hash/license mismatch).
+      - name: Fetch + verify LGPL ffmpeg (win x64, SHA-256 pinned)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          bash scripts/build/fetch_ffmpeg_lgpl_win64.sh
 
       # plan-runtime-pack-split.md §4.4 / §11.5 — Worker exe build.
       # FV-58: PYBS extracts to C:\tools\pybs\python\python.exe; the script
@@ -715,6 +790,19 @@ jobs:
       - name: Install tauri-cli (v2)
         shell: pwsh
         run: cargo install tauri-cli --version "^2.0"
+
+      # PART-B-FETCH-1: install the SHA-256-verified LGPL ffmpeg into
+      # src-tauri/bin BEFORE cargo tauri build stages externalBin. Both x64
+      # configs (full + slim) declare bin/ffmpeg; hash/license mismatch in
+      # the script exits non-zero and fails this leg. Unsigned-safe: no
+      # signing secret is needed by the fetch (public fallback allowed).
+      - name: Fetch + verify LGPL ffmpeg (win x64, SHA-256 pinned)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          bash scripts/build/fetch_ffmpeg_lgpl_win64.sh
 
       - name: Build the Tauri app (ADR-0020 §7)
         shell: pwsh
@@ -1021,6 +1109,49 @@ jobs:
           name: Lausu-Windows-SHA256SUMS
           path: SHA256SUMS.txt
           if-no-files-found: error
+
+      # PART-B-GATE: ship the license notices alongside checksums so every
+      # downloaded bundle carries its attribution file (additive; no gate).
+      - name: Upload third-party notices
+        uses: actions/upload-artifact@v6
+        with:
+          name: Lausu-Windows-Third-Party-Notices
+          path: docs/THIRD_PARTY_NOTICES.md
+          if-no-files-found: error
+
+      # PART-B-GATE: post-build verification. Hard gates fail this leg;
+      # the ONLY soft gate is ENFORCE_NO_GPL_DLLS (default '0' -> warning).
+      # Placed AFTER the installer / SHA256SUMS / notices uploads so the
+      # build evidence is archived before the gate verdict — a gate failure
+      # still fails this job (no continue-on-error, pipefail preserves rc).
+      - name: Post-build verification gate (bundle + ffmpeg + GPL DLL + summary)
+        shell: bash
+        env:
+          # Single explicit switch. Repo/org variable overrides; default 0.
+          ENFORCE_NO_GPL_DLLS: ${{ vars.ENFORCE_NO_GPL_DLLS || '0' }}
+        run: |
+          set -euo pipefail
+          # tee archives the verifier's console output; pipefail makes the
+          # pipeline exit with the verifier's code so failures still fail.
+          python scripts/verify_windows_bundle.py \
+            --target "${{ matrix.target }}" \
+            --sidecar "src-tauri/bin/python-sidecar-${{ matrix.target }}.exe" \
+            --wav "tests/fixtures/test_440hz_1s_16k.wav" \
+            --nsis "${{ steps.artifacts.outputs.nsis_path }}" \
+            --msi "${{ steps.artifacts.outputs.msi_path }}" \
+            --summary "$GITHUB_STEP_SUMMARY" \
+            --enforce-no-gpl-dlls "$ENFORCE_NO_GPL_DLLS" \
+            2>&1 | tee gate-output.txt
+
+      # always(): ship the gate log even when the gate (or a prior step)
+      # fails, so a red run still carries the verifier output for triage.
+      - name: Upload gate console output
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Lausu-Windows-Gate-Output
+          path: gate-output.txt
+          if-no-files-found: warn
 
       # launcher verifies against at login (fail-closed). TX-40: uses
       - name: Record Tauri binary SHA-256 (${{ matrix.target }})

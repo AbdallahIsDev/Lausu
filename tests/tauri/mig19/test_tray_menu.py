@@ -132,17 +132,57 @@ def test_tray_menu_has_six_required_labels_in_order(tray_menu_py_source) -> None
 
 
 def test_tray_menu_open_app_is_default_action(tray_menu_py_source) -> None:
-    """ADR-0020 §6.5 + tray_menu.py docstring: \"Open App\" is the default."""
-    assert "default=open_app_default" in tray_menu_py_source, (
-        "Open App must be the default (bold) menu item, left-click "
-        "behavior. build_menu_for_tray must pass "
-        "default=open_app_default to pystray.MenuItem for Open App."
+    """\"Open App\" is always the default (bold) menu item; no config drives it."""
+    assert "default=True" in tray_menu_py_source, (
+        "Open App must be the unconditional default (bold) menu item: "
+        "build_menu_for_tray must pass default=True to pystray.MenuItem "
+        "for Open App now that left-click always opens the app."
     )
-    assert 'getattr(tray._config, "tray_left_click_action", "open_app")' in tray_menu_py_source, (
-        "build_menu_for_tray must read tray_left_click_action from the "
-        "config (defaulting to 'open_app') so the tray opens the app "
-        "window on left-click unless the user explicitly reconfigures it."
+    assert "tray_left_click_action" not in tray_menu_py_source, (
+        "build_menu_for_tray must no longer read tray_left_click_action; "
+        "the setting was removed and left-click always opens the app."
     )
+
+
+def test_tray_rs_left_click_opens_app_on_all_platforms() -> None:
+    """Left-click raises the window on every OS; right-click menu items stay."""
+    tray_rs = PROJECT_ROOT / "src-tauri" / "src" / "tray.rs"
+    assert tray_rs.exists(), f"tray.rs not found: {tray_rs}"
+    src = tray_rs.read_text(encoding="utf-8")
+
+    assert ".show_menu_on_left_click(false)" in src, (
+        "tray.rs must call show_menu_on_left_click(false) unconditionally so "
+        "left-click reaches on_tray_icon_event on macOS too"
+    )
+    assert ".show_menu_on_left_click(show_menu_on_left_click)" not in src
+
+    marker = ".on_tray_icon_event(|tray, event| {"
+    assert marker in src
+    handler = src.split(marker, 1)[1].split("\n        });", 1)[0]
+    assert 'cfg!(target_os = "macos")' not in handler, (
+        "the macOS early return in on_tray_icon_event must be deleted"
+    )
+    assert "is_focus_main_window_event(&event)" in handler
+    assert ".on_menu_event(|app, event| {" in src, (
+        "right-click menu clicks must still be dispatched via on_menu_event"
+    )
+    assert '"tray_click"' in src
+
+    # Right-click menu ids are unchanged by the left-click change.
+    from voice_typer.server.tray_menu import build_tray_menu_model
+
+    def _noop() -> None:
+        pass
+
+    model, _id_map = build_tray_menu_model(
+        hotkey="<f2>",
+        toggle_dictation=_noop,
+        open_app=_noop,
+        restart_app=_noop,
+        quit_app=_noop,
+    )
+    ids = {i["id"] for i in model if not i["separator"]}
+    assert ids == {"open_app", "toggle_dictation", "models", "restart", "quit"}, ids
 
 
 def test_tray_menu_toggle_dictation_includes_hotkey_label(

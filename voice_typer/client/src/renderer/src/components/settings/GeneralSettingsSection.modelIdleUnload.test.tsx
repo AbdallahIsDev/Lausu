@@ -65,7 +65,6 @@ function baseConfig(): LausuConfig {
 		active_plugin: "",
 		fast_startup: true,
 		show_notifications: true,
-		tray_left_click_action: "toggle_dictation",
 	} as unknown as LausuConfig;
 }
 
@@ -231,6 +230,12 @@ describe("model-idle-unload translations", () => {
 				expect(t(locale, key), `${locale} is missing ${key}`).toBeTruthy();
 			}
 		}
+	});
+
+	it("uses the clarified keep-loaded label for the Always/Keep-loaded option in English", () => {
+		expect(t("en", "settings.modelIdleUnload.never")).toBe(
+			"Always (Keep Loaded)",
+		);
 	});
 
 	it("has no English text left in a non-English locale", () => {

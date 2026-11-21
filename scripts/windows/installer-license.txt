@@ -78,9 +78,14 @@ https://github.com/AbdallahIsDev/lausu - see SECURITY.md.
 9. SOFTWARE LICENSE
 Lausu is source-available software. It is licensed
 under the PolyForm Strict License 1.0.0 (LicenseRef: LicenseRef-PolyForm-Strict-1.0.0),
-Required Notice: Copyright 2026 Abdallah IsDev. The full license text
-is distributed with the application and is also in the project's root
-LICENSE file. Under these terms you may use the software for permitted
-purposes, but you may not redistribute it or distribute changes or new
-works based on it. Bundled third-party components retain their own
-licenses, listed in the project's Third-Party Notices.
+Required Notice: Copyright 2026 Abdallah IsDev. The full project license
+text is in the repository root LICENSE file; the installer bundles the
+Third-Party Notices file, not a copy of the project LICENSE. Under these
+terms you may use the software for permitted purposes, but you may not
+redistribute it or distribute changes or new works based on it. Bundled
+third-party components retain their own licenses: their identifiers,
+copyright lines and locally available license texts are in the Third-Party
+Notices file shipped as an application resource and reachable in the app
+from About & Privacy > Third-party notices. Where local evidence was
+absent the notices mark the item UNVERIFIED and give an upstream URL; they
+draw no legal conclusions.

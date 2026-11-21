@@ -52,6 +52,19 @@ def _names(program: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(candidates))
 
 
+def bundled_bin_dir() -> Path:
+    """Base dir for binaries shipped beside a frozen onefile executable.
+
+    Nuitka documents ``sys.executable`` as the original exe path in onefile
+    mode (``__file__`` moves into the extraction dir). Callers that verify a
+    "bundle" must use this same base as the resolver.
+    """
+    try:
+        return Path(sys.executable).resolve().parent
+    except (OSError, RuntimeError):
+        return Path(sys.executable).parent
+
+
 def _shipped_dirs() -> tuple[Path, ...]:
     """Exe-adjacent, resources, parent chain and onefile extraction dirs.
 
@@ -60,13 +73,9 @@ def _shipped_dirs() -> tuple[Path, ...]:
     directory is searched first.
     """
     dirs: list[Path] = []
-    try:
-        exe_dir = Path(sys.executable).resolve().parent
-    except (OSError, RuntimeError):
-        exe_dir = None
-    if exe_dir is not None:
-        dirs.extend((exe_dir, exe_dir / "resources"))
-        dirs.extend(list(exe_dir.parents)[:3])
+    exe_dir = bundled_bin_dir()
+    dirs.extend((exe_dir, exe_dir / "resources"))
+    dirs.extend(list(exe_dir.parents)[:3])
     meipass = getattr(sys, "_MEIPASS", None)
     if meipass:
         base = Path(meipass)

@@ -691,7 +691,10 @@
 		"copyDiagnostics": "डायग्नोस्टिक्स कॉपी करें",
 		"copied": "कॉपी हो गया!",
 		"copyFailed": "डायग्नोस्टिक्स कॉपी नहीं हो सका",
-		"loadedViaHint": "वाक् मॉडल कैसे लोड हुआ (बंडल, डाउनलोड किया हुआ, या कस्टम पथ)।"
+		"loadedViaHint": "वाक् मॉडल कैसे लोड हुआ (बंडल, डाउनलोड किया हुआ, या कस्टम पथ)।",
+		"thirdPartyTitle": "तृतीय-पक्ष सूचनाएँ",
+		"thirdPartyDesc": "तृतीय-पक्ष सूचनाएँ फ़ाइल ऐप के साथ जहाज़ होती है और इसमें बंडल किए गए घटकों के लाइसेंस पहचानकर्ता, कॉपीराइट पंक्तियाँ और उपलब्ध लाइसेंस पाठ शामिल हैं। जिनके पास स्थानीय प्रमाण नहीं है, उन्हें अपस्ट्रिम URL के साथ 'असत्यापित' चिह्नित किया गया है।",
+		"viewThirdPartyNotices": "तृतीय-पक्ष सूचनाएँ देखें"
 	},
 	"settings": {
 		"apiUrlInvalid": "मान्य https URL दर्ज करें",
@@ -715,8 +718,6 @@
 		"textCleanupDescription": "सामान्य ट्रांसक्रिप्शन त्रुटियों को स्वचालित रूप से ठीक करें",
 		"recordingMode": "रिकॉर्डिंग मोड",
 		"recordingModeDescription": "डिक्टेशन कैसे शुरू होता है",
-		"trayLeftClick": "ट्रे लेफ्ट क्लिक",
-		"trayLeftClickDescription": "ट्रे आइकन पर लेफ्ट-क्लिक करने पर क्या होता है",
 		"recording": "रिकॉर्डिंग",
 		"modelSize": "मॉडल आकार",
 		"modelSizeDescription": "बड़े मॉडल अधिक सटीक लेकिन धीमे होते हैं",
@@ -807,8 +808,6 @@
 		"launchAtLoginDescription": "जब आप Windows में लॉग इन करें तब स्वचालित रूप से {appName} शुरू करें।",
 		"notifications": "सूचनाएं",
 		"notificationsDescription": "जब ट्रांसक्रिप्शन पूरा हो या कोई त्रुटि हो तब डेस्कटॉप सूचना दिखाएं।",
-		"trayClick": "ट्रे क्लिक",
-		"trayClickDescription": "जब आप सिस्टम ट्रे में {appName} आइकन पर लेफ्ट-क्लिक करते हैं तब क्या होता है।",
 		"generalDescription": "कॉन्फ़िगर करें कि {appName} कैसे शुरू होता है, लॉगिन पर कैसे व्यवहार करता है, और आपके सिस्टम के साथ कैसे इंटरैक्ट करता है।",
 		"overlay": "ओवरले",
 		"overlayDescription": "फ्लोटिंग रिकॉर्डिंग बबल।",
@@ -845,8 +844,6 @@
 		"presetInfo": "लागू करने की लेखन शैली: पेशेवर, अनौपचारिक, ईमेल या कोड।",
 		"show": "दिखाएं",
 		"hide": "छिपाएं",
-		"trayClickOpenApp": "एप्लिकेशन खोलें",
-		"trayClickToggleDictation": "डिक्टेशन टॉगल करें",
 		"bubblePositionTop": "ऊपर केंद्र",
 		"bubblePositionBottom": "नीचे केंद्र",
 		"bubbleBehaviorShowOnRecord": "रिकॉर्ड पर दिखाएं",
@@ -1324,9 +1321,7 @@
 		"modelIdleUnload.minutes60": "1 घंटा",
 		"modelIdleUnload.minutes90": "1 घंटा 30 मिनट",
 		"modelIdleUnload.minutes120": "2 घंटे",
-		"modelIdleUnload.never": "कभी नहीं (लोड रहने दें)",
-		"streamingTranscription": "स्ट्रीमिंग ट्रांसक्रिप्शन",
-		"streamingTranscriptionDescription": "रिकॉर्डिंग के दौरान ट्रांसक्राइब करें ताकि रुकते ही टेक्स्ट तैयार हो। बंद होने पर पूरी रिकॉर्डिंग अंत में एक साथ ट्रांसक्राइब होगी।"
+		"modelIdleUnload.never": "हमेशा (लोड रखें)"
 	},
 	"plugins": {
 		"title": "प्लगइन",

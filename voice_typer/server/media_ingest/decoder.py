@@ -6,7 +6,6 @@ is always terminated and reaped when the generator is closed or fails.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re
@@ -35,6 +34,10 @@ _STDERR_TAIL_LINES = 64
 # ffmpeg prefixes each line with "[in#0 @ HEXADDR]"; bare digit runs there
 # collide with the HTTP-status patterns in the error taxonomy.
 _LOG_CONTEXT_RE = re.compile(r"\[[^\]]*@[^\]]*\]")
+# ffmpeg prints the container header (including this line) to stderr when it
+# is given an input and no output. ffprobe is NOT needed for a duration read.
+_DURATION_LINE_RE = re.compile(r"\bDuration:\s*(\d+):(\d{2}):(\d{2}(?:\.\d+)?)", re.IGNORECASE)
+_REMOTE_AUDIO_STREAM_RE = re.compile(r"^\s*Stream #\d+:\d+[^:]*: Audio:", re.MULTILINE)
 _TERM_TIMEOUT_SECONDS = 5.0
 _KILL_TIMEOUT_SECONDS = 2.0
 _DRAIN_JOIN_SECONDS = 2.0
@@ -109,16 +112,6 @@ def _decode_argv(ffmpeg: str, source: str, *, remote: bool, start_seconds: float
         "f32le",
         "-",
     ]
-    return argv
-
-
-def _probe_argv(ffprobe: str, source: str, *, remote: bool, detailed: bool) -> list[str]:
-    argv = [ffprobe, "-v", "error", "-protocol_whitelist", _protocols(remote)]
-    if detailed:
-        argv += ["-show_streams", "-show_format", "-of", "json"]
-    else:
-        argv += ["-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1"]
-    argv.append(_input_arg(source, remote=remote))
     return argv
 
 
@@ -258,7 +251,26 @@ class RemoteProbe:
     duration_seconds: float | None
 
 
-def _run_probe(argv: list[str], timeout: float) -> str | None:
+def _duration_probe_argv(ffmpeg: str, source: str, *, remote: bool) -> list[str]:
+    """Input-only ffmpeg: stderr carries the container header, no decode pass."""
+    return [
+        ffmpeg,
+        "-hide_banner",
+        "-nostdin",
+        "-protocol_whitelist",
+        _protocols(remote),
+        "-i",
+        _input_arg(source, remote=remote),
+    ]
+
+
+def _run_duration_probe(argv: list[str], timeout: float) -> str | None:
+    """Run the info-only ffmpeg probe; read stderr even on its expected non-zero exit.
+
+    ``ffmpeg -i SRC`` with no output ends with "At least one output file must
+    be specified" (rc=1) AFTER printing the Duration line, so unlike
+    ``_run_probe`` we must not discard output on a non-zero return code.
+    """
     try:
         completed = subprocess.run(
             argv,
@@ -269,23 +281,20 @@ def _run_probe(argv: list[str], timeout: float) -> str | None:
             **_spawn_flags(hidden=True),
         )
     except (OSError, subprocess.TimeoutExpired):
-        log.debug("[MEDIA] probe failed to run", exc_info=True)
+        log.debug("[MEDIA] ffmpeg duration probe failed to run", exc_info=True)
         return None
-    if completed.returncode != 0:
-        log.debug("[MEDIA] probe exit=%d stderr=%s", completed.returncode, completed.stderr[-512:])
-        return None
-    return completed.stdout.decode("utf-8", "replace")
+    return completed.stderr.decode("utf-8", "replace")
 
 
-def _duration_from_json(payload: str) -> float | None:
+def _duration_from_ffmpeg_log(log_text: str) -> float | None:
+    """Parse ``Duration: HH:MM:SS.ss`` from ffmpeg's stderr (N/A → None)."""
+    match = _DURATION_LINE_RE.search(log_text)
+    if match is None:
+        return None
+    hours, minutes, seconds = match.groups()
     try:
-        data = json.loads(payload)
-        raw = (data.get("format") or {}).get("duration")
-        if raw in (None, "N/A"):
-            streams = data.get("streams") or []
-            raw = next((s.get("duration") for s in streams if s.get("duration") not in (None, "N/A")), None)
-        return float(raw) if raw not in (None, "N/A") else None
-    except (ValueError, TypeError, AttributeError):
+        return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+    except (ValueError, OverflowError):
         return None
 
 
@@ -299,38 +308,34 @@ def probe_remote(url: str) -> RemoteProbe | None:
     if urlparse(url).scheme.lower() not in ("http", "https"):
         return None
     binaries = ffmpeg_binaries.resolve_binaries()
-    if binaries is None or binaries.ffprobe is None:
+    if binaries is None or not _ffmpeg_usable(binaries.ffmpeg):
         return None
-    argv = _probe_argv(binaries.ffprobe, url, remote=True, detailed=True)
-    payload = _run_probe(argv, READ_TIMEOUT_US / 1_000_000.0)
-    if payload is None:
+    argv = _duration_probe_argv(binaries.ffmpeg, url, remote=True)
+    log_text = _run_duration_probe(argv, READ_TIMEOUT_US / 1_000_000.0)
+    if log_text is None:
         return None
-    try:
-        data = json.loads(payload)
-        streams = data.get("streams") or []
-        audio = sum(1 for s in streams if s.get("codec_type") == "audio")
-    except (ValueError, TypeError, AttributeError):
-        return None
-    return RemoteProbe(audio_streams=audio, duration_seconds=_duration_from_json(payload))
+    audio = len(_REMOTE_AUDIO_STREAM_RE.findall(log_text))
+    return RemoteProbe(audio_streams=audio, duration_seconds=_duration_from_ffmpeg_log(log_text))
 
 
 def probe_duration_seconds(source: str, *, remote: bool = False) -> float | None:
     """Container duration in seconds, or ``None`` when unknown (best effort).
 
     Local jobs need a total for fraction/ETA; URL jobs get it from the
-    resolver. ffprobe reads the header only — no decode pass.
+    resolver. ffmpeg prints ``Duration: HH:MM:SS.ss`` while reading the
+    header, so no ffprobe binary and no decode pass are needed. The protocol
+    whitelist and timeouts are the same ones every other ffmpeg call uses.
     """
     if remote and urlparse(source).scheme.lower() not in ("http", "https"):
         return None
     binaries = ffmpeg_binaries.resolve_binaries()
-    if binaries is None or binaries.ffprobe is None:
+    if binaries is None or not binaries.ffmpeg:
         return None
-    argv = _probe_argv(binaries.ffprobe, source, remote=remote, detailed=False)
-    payload = _run_probe(argv, (READ_TIMEOUT_US if remote else OPEN_TIMEOUT_US) / 1_000_000.0)
-    if payload is None:
+    argv = _duration_probe_argv(binaries.ffmpeg, source, remote=remote)
+    stderr = _run_duration_probe(argv, (READ_TIMEOUT_US if remote else OPEN_TIMEOUT_US) / 1_000_000.0)
+    if stderr is None:
         return None
-    match = re.search(r"-?\d+(?:\.\d+)?", payload)
-    return float(match.group(0)) if match else None
+    return _duration_from_ffmpeg_log(stderr)
 
 
 def _classify_stream_error(exc: Exception, *, context: str) -> Any:

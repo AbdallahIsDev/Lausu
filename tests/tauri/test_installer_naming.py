@@ -388,9 +388,8 @@ class TestSlimInstallerNaming:
         ext = conf["bundle"]["externalBin"]
         assert "bin/python-sidecar" in ext, "slim config must declare the sidecar"
         assert not any("worker" in e for e in ext), "slim config must not declare the worker"
-        assert {"bin/ffmpeg", "bin/ffprobe"} <= set(ext), (
-            "Windows x64 slim must bundle the LGPL ffmpeg/ffprobe media pair."
-        )
+        assert "bin/ffmpeg" in ext, "Windows x64 slim must bundle the LGPL ffmpeg"
+        assert "bin/ffprobe" not in ext, "ffprobe is not shipped; duration comes from ffmpeg's stderr"
 
     def test_slim_conf_resources_match_full_conf(self) -> None:
         slim = json.loads(self.SLIM_CONF.read_text(encoding="utf-8"))["bundle"]["resources"]

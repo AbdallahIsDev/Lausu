@@ -200,6 +200,13 @@ ALLOWED_UNTRANSLATED = {
     "analytics.rangePicker.statusShown",  # "{shown}, {count}"
 }
 
+# Language-neutral values that MAY be identical in every locale, but only
+# when they match this exact value. A blank/wrong copy still fails the gate.
+LANGUAGE_NEUTRAL_VALUES: dict[str, str] = {
+    "theme.switchTitle": "{mode} → {next}",  # placeholders + arrow only
+    "media.metaYoutube": "YouTube",  # platform brand name
+}
+
 # Pre-existing untranslated settings keys documented in the directive (§6).
 PRE_EXISTING_UNTRANSLATED = {
     "settings.general",
@@ -231,8 +238,6 @@ PRE_EXISTING_UNTRANSLATED = {
     "settings.transcriptionLanguage",
     "settings.transcriptionLanguageDescription",
     "settings.notificationsDescription",
-    "settings.trayClick",
-    "settings.trayClickDescription",
     "settings.launchAtLogin",
     "settings.launchAtLoginDescription",
     "settings.bubbleBehaviorLabel",
@@ -472,6 +477,8 @@ class TestLocaleCompleteness:
             if key not in loc_flat:
                 continue  # key parity is tested separately
             loc_value = loc_flat[key]
+            if key in LANGUAGE_NEUTRAL_VALUES and loc_value == LANGUAGE_NEUTRAL_VALUES[key]:
+                continue
             if loc_value == en_value:
                 untranslated.append(f"  {key}: {en_value!r}")
         assert not untranslated, (
@@ -502,6 +509,17 @@ class TestAllowedUntranslated:
     def test_all_entries_are_dot_keys(self) -> None:
         for key in ALLOWED_UNTRANSLATED:
             assert "." in key, f"Allowed untranslated key {key!r} should be a dot-separated path"
+
+
+class TestLanguageNeutralValues:
+    """Exact-value gate for keys that are legitimately identical everywhere."""
+
+    def test_keys_are_not_blanket_skipped(self) -> None:
+        assert not (set(LANGUAGE_NEUTRAL_VALUES) & ALLOWED_UNTRANSLATED)
+
+    def test_pinned_values_match_english(self, en_flat: dict[str, str]) -> None:
+        for key, expected in LANGUAGE_NEUTRAL_VALUES.items():
+            assert en_flat[key] == expected, f"{key} English value drifted from {expected!r}"
 
 
 class TestEnJson:

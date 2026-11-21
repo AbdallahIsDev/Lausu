@@ -1,15 +1,14 @@
 import { PanelLeftIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { memo, useEffect, useState } from "react";
-import { ToolbarClusterTooltip } from "@/components/layout/titlebar/ToolbarClusterTooltip";
 import { IS_LINUX, IS_MAC, IS_WIN } from "@/components/hotkey/hotkey-utils";
 import { SHORTCUTS } from "@/components/hotkey/shortcuts";
 import { AnalyticsRangeSwitcher } from "@/components/layout/AnalyticsRangeSwitcher";
 import { GlobalSearchBar } from "@/components/layout/GlobalSearchBar";
 import { ModelsTabSwitcher } from "@/components/layout/ModelsTabSwitcher";
 import {
-	ThemeSwitch,
 	nextThemeMode,
+	ThemeSwitch,
 	themeCycleEntry,
 } from "@/components/layout/ThemeSwitch";
 import {
@@ -18,12 +17,13 @@ import {
 	MinimizeIcon,
 	RestoreIcon,
 } from "@/components/layout/titlebar/captionGlyphs";
+import { ToolbarClusterTooltip } from "@/components/layout/titlebar/ToolbarClusterTooltip";
 import {
 	NavChevronButton,
 	TitleBarButton,
 	ToolbarButton,
 } from "@/components/layout/titlebar/titleBarButtons";
-import { t } from "@/i18n/i18n";
+import { useT } from "@/i18n/i18n";
 import { isTauri } from "@/lib/tauri-bridge/detect";
 import { cn } from "@/lib/utils";
 import {
@@ -139,6 +139,7 @@ function TitleBarInner({
 	showPageControls = true,
 	minimalChrome = false,
 }: TitleBarProps) {
+	const t = useT();
 	// When the window is unfocused (user clicked another app), the
 	// WHOLE title bar dims like native OS title bars (container
 	// opacity below).
@@ -272,9 +273,8 @@ function TitleBarInner({
 			// RTL. With dir="ltr" the gutter stays physically left, the
 			// control cluster physically right, in every locale. Content
 			// inside the buttons is icon-only (no text to mirror); the
-			// Back/Forward chevrons opt INTO mirroring via the
-			// `nav-directional-icon` class, whose [dir="rtl"] ancestor
-			// selector still matches through this container.
+			// Back/Forward chevrons are physical too and deliberately opt
+			// OUT of mirroring, so they stay fixed like the caption glyphs.
 			dir="ltr"
 			{...(isTauri() ? { "data-tauri-drag-region": "" } : {})}
 			className={cn(

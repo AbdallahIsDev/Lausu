@@ -56,7 +56,6 @@ function makeConfig(overrides: Partial<LausuConfig> = {}): LausuConfig {
 		beam_size: 5,
 		best_of: 1,
 		condition_on_previous_text: false,
-		streaming_transcription: false,
 		streaming_chunk_seconds: 0,
 		streaming_step_seconds: 0,
 		streaming_left_overlap_seconds: 0,
@@ -104,7 +103,6 @@ function makeConfig(overrides: Partial<LausuConfig> = {}): LausuConfig {
 		history_retention_count: 100,
 		history_max_entries: 1000,
 		onboarding_completed: true,
-		tray_left_click_action: "open_app",
 		theme_mode: "system",
 		theme_preset: "default",
 		custom_theme: {
@@ -370,6 +368,78 @@ describe("GeneralSettingsSection, heading help affordance", () => {
 		renderSection();
 		expect(screen.getByRole("heading", { level: 2 }).textContent).toBe(
 			t("settings.general"),
+		);
+	});
+});
+
+describe("GeneralSettingsSection, streaming transcription is fixed ON", () => {
+	beforeEach(() => {
+		act(() => {
+			setLocale("en" as Locale);
+		});
+	});
+
+	afterEach(() => {
+		act(() => {
+			setLocale("en" as Locale);
+		});
+		cleanup();
+	});
+
+	it("renders no streaming row and never writes the removed key", () => {
+		const config = makeConfig();
+		delete (config as unknown as Record<string, unknown>)
+			.streaming_transcription;
+		const updateConfig = vi.fn();
+		renderWithProviders(
+			<GeneralSettingsSection
+				config={config}
+				updateConfig={updateConfig}
+				updateConfigDebounced={vi.fn()}
+				isVisible={alwaysVisible}
+			/>,
+		);
+
+		// Plain string keeps this assertion valid after the i18n key is gone.
+		const removedLabelKey: string = "settings.streamingTranscription";
+		expect(screen.queryByText(t(removedLabelKey))).toBeNull();
+		expect(updateConfig).not.toHaveBeenCalledWith(
+			expect.objectContaining({ streaming_transcription: expect.anything() }),
+		);
+	});
+});
+
+describe("GeneralSettingsSection, tray click is fixed to open the app", () => {
+	beforeEach(() => {
+		act(() => {
+			setLocale("en" as Locale);
+		});
+	});
+
+	afterEach(() => {
+		act(() => {
+			setLocale("en" as Locale);
+		});
+		cleanup();
+	});
+
+	it("renders no tray click row and never writes the removed key", () => {
+		const config = makeConfig();
+		const updateConfig = vi.fn();
+		renderWithProviders(
+			<GeneralSettingsSection
+				config={config}
+				updateConfig={updateConfig}
+				updateConfigDebounced={vi.fn()}
+				isVisible={alwaysVisible}
+			/>,
+		);
+
+		// Plain string keeps this assertion valid after the i18n key is gone.
+		const removedLabelKey: string = "settings.trayClick";
+		expect(screen.queryByText(t(removedLabelKey))).toBeNull();
+		expect(updateConfig).not.toHaveBeenCalledWith(
+			expect.objectContaining({ tray_left_click_action: expect.anything() }),
 		);
 	});
 });

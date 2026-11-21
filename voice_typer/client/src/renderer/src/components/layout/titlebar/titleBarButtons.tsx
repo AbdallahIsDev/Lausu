@@ -7,10 +7,10 @@
  */
 
 import { HotkeyTooltip } from "@/components/hotkey/HotkeyTooltip";
-import type { ClusterMemberProps } from "./ToolbarClusterTooltip";
 import { IS_LINUX } from "@/components/hotkey/hotkey-utils";
 import { Button } from "@/components/ui/button";
 import { cn, focusRing } from "@/lib/utils";
+import type { ClusterMemberProps } from "./ToolbarClusterTooltip";
 
 interface TitleBarButtonProps {
 	onClick: () => void;
@@ -214,18 +214,15 @@ export function NavChevronButton({
 			disabled={disabled}
 			{...clusterBind}
 		>
+			{/* Window-chrome navigation is physical: these chevrons stay
+			    fixed like the caption buttons, so they opt OUT of the
+			    [dir="rtl"] scaleX mirror the bar root would otherwise hit. */}
 			<svg
 				width="16"
 				height="16"
 				viewBox="0 0 16 16"
 				fill="none"
 				aria-hidden="true"
-				// RTL: the chevron points "back"/"forward", mirrored under
-				// dir=rtl by the shared index.css rule so it points the
-				// semantically correct way for right-to-left locales (the bar
-				// root is pinned dir="ltr", but the [dir="rtl"] ancestor
-				// selector still matches through it).
-				className="nav-directional-icon"
 			>
 				<path
 					d={path}

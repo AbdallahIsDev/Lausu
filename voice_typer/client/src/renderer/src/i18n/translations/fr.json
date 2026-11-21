@@ -215,10 +215,6 @@
 		"launchAtLoginDescription": "Démarrer automatiquement {appName} lorsque vous vous connectez à Windows.",
 		"notifications": "Notifications",
 		"notificationsDescription": "Afficher une notification de bureau lorsque la transcription est terminée ou qu'une erreur se produit.",
-		"trayClick": "Clic sur la barre d'état",
-		"trayClickDescription": "Ce qui se passe lorsque vous cliquez avec le bouton gauche sur l'icône {appName} dans la barre d'état système.",
-		"trayLeftClick": "Clic gauche sur la barre d'état",
-		"trayLeftClickDescription": "Ce qui se passe lors d'un clic gauche sur l'icône de la barre d'état",
 		"pasteOnStop": "Coller à l'arrêt",
 		"pasteOnStopDescription": "Coller automatiquement la transcription après l'enregistrement",
 		"showNotifications": "Afficher les notifications",
@@ -333,8 +329,6 @@
 		"presetInfo": "Le style d'écriture à appliquer: professionnel, décontracté, e-mail ou code.",
 		"show": "Afficher",
 		"hide": "Masquer",
-		"trayClickOpenApp": "Ouvrir l'application",
-		"trayClickToggleDictation": "Basculer la dictée",
 		"bubblePositionTop": "En haut au centre",
 		"bubblePositionBottom": "En bas au centre",
 		"bubbleBehaviorShowOnRecord": "Afficher lors de l'enregistrement",
@@ -817,9 +811,7 @@
 		"modelIdleUnload.minutes60": "1 heure",
 		"modelIdleUnload.minutes90": "1 heure 30 minutes",
 		"modelIdleUnload.minutes120": "2 heures",
-		"modelIdleUnload.never": "Jamais (garder chargé)",
-		"streamingTranscription": "Transcription en continu",
-		"streamingTranscriptionDescription": "Transcrire pendant l'enregistrement pour un texte prêt dès l'arrêt. Sinon, l'enregistrement entier est transcrit d'un coup à la fin."
+		"modelIdleUnload.never": "Toujours (garder chargé)"
 	},
 	"plugins": {
 		"title": "Plugins",
@@ -1659,7 +1651,10 @@
 		"copyDiagnostics": "Copier le diagnostic",
 		"copied": "Copié !",
 		"copyFailed": "Échec de la copie du diagnostic",
-		"loadedViaHint": "Comment le modèle vocal a été chargé (intégré, téléchargé ou chemin personnalisé)."
+		"loadedViaHint": "Comment le modèle vocal a été chargé (intégré, téléchargé ou chemin personnalisé).",
+		"thirdPartyTitle": "Mentions des tiers",
+		"thirdPartyDesc": "Le fichier de mentions des tiers est fourni avec l'application et répertorie les identifiants de licence, les mentions de copyright et les textes de licence disponibles pour les composants intégrés. Les éléments sans preuve locale sont marqués « non vérifiés » avec une URL amont.",
+		"viewThirdPartyNotices": "Voir les mentions des tiers"
 	},
 	"titleBar": {
 		"minimize": "Réduire",

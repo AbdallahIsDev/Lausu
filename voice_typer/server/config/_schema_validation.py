@@ -20,7 +20,6 @@ _ENUM_FIELDS_TO_RESET_ON_LOAD: frozenset[str] = frozenset(
         "theme_preset",
         "bubble_position",
         "bubble_behavior",
-        "tray_left_click_action",
         "recording_mode",
     }
 )

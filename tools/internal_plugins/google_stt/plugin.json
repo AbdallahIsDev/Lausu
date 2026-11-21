@@ -8,7 +8,7 @@
     {
       "key": "visible",
       "type": "bool",
-      "label": "Show the browser window",
+      "label": "Show The Browser Window",
       "default": true,
       "description": "Off hides the Chrome window and its taskbar icon while dictating."
     },

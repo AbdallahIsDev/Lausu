@@ -67,7 +67,6 @@ const STUB_CONFIG = {
 	llm_preset: "professional" as const,
 	crash_recovery_enabled: true,
 	onboarding_completed: true,
-	streaming_transcription: false,
 	ai_enhancement_enabled: false,
 	vocabulary_automation_enabled: false,
 	auto_punctuation: true,

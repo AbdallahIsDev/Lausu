@@ -448,7 +448,6 @@ class TestToggleLockReleasedDuringModelLoad:
         ctrl._toggle_lock = threading.RLock()
         app = MagicMock()
         app.config.voice_biometric_consent = True
-        app.config.streaming_transcription = False
         app.config.esc_cancel_enabled = False
         app.config.bubble_behavior = "hide"
         app.config.sample_rate = 16000

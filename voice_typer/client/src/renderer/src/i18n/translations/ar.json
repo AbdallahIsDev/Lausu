@@ -691,7 +691,10 @@
 		"copyDiagnostics": "نسخ معلومات التشخيص",
 		"copied": "تم النسخ!",
 		"copyFailed": "فشل نسخ معلومات التشخيص",
-		"loadedViaHint": "كيف تم تحميل نموذج الكلام (مدمج، أو مُنزَّل، أو مسار مخصص)."
+		"loadedViaHint": "كيف تم تحميل نموذج الكلام (مدمج، أو مُنزَّل، أو مسار مخصص).",
+		"thirdPartyTitle": "إشعارات الجهات الخارجية",
+		"thirdPartyDesc": "يُشحن ملف إشعارات الجهات الخارجية مع التطبيق ويسرد معرّفات التراخيص وسطور حقوق النشر ونصوص التراخيص المتاحة للمكوّنات المضمّنة. تُوسم العناصر التي تفتقر إلى دليل محلي بـ«غير مُتحقق منها» مع رابط المصدر.",
+		"viewThirdPartyNotices": "عرض إشعارات الجهات الخارجية"
 	},
 	"settings": {
 		"apiUrlInvalid": "أدخل عنوان https صالحًا",
@@ -721,8 +724,6 @@
 		"textCleanupDescription": "إصلاح أخطاء الكتابة الشائعة تلقائيًا",
 		"recordingMode": "وضع التسجيل",
 		"recordingModeDescription": "كيفية تشغيل الإملاء",
-		"trayLeftClick": "النقر الأيسر على علبة النظام",
-		"trayLeftClickDescription": "ماذا يحدث عند النقر بزر الماوس الأيسر على أيقونة علبة النظام",
 		"recording": "التسجيل",
 		"modelSize": "حجم النموذج",
 		"modelSizeDescription": "النماذج الأكبر أكثر دقة ولكنها أبطأ",
@@ -813,8 +814,6 @@
 		"launchAtLoginDescription": "بدء تشغيل {appName} تلقائيًا عند تسجيل الدخول إلى Windows.",
 		"notifications": "الإشعارات",
 		"notificationsDescription": "عرض إشعار سطح المكتب عند اكتمال الكتابة أو حدوث خطأ.",
-		"trayClick": "النقر على علبة النظام",
-		"trayClickDescription": "ماذا يحدث عند النقر بزر الماوس الأيسر على أيقونة {appName} في علبة النظام.",
 		"generalDescription": "قم بتكوين كيفية بدء تشغيل {appName} وسلوكه عند تسجيل الدخول وتفاعله مع نظامك.",
 		"overlay": "التراكب",
 		"overlayDescription": "فقاعة التسجيل العائمة.",
@@ -851,8 +850,6 @@
 		"presetInfo": "نمط الكتابة المراد تطبيقه: احترافي، غير رسمي، بريد إلكتروني، أو كود.",
 		"show": "إظهار",
 		"hide": "إخفاء",
-		"trayClickOpenApp": "فتح التطبيق",
-		"trayClickToggleDictation": "تبديل الإملاء",
 		"bubblePositionTop": "أعلى المنتصف",
 		"bubblePositionBottom": "أسفل المنتصف",
 		"bubbleBehaviorShowOnRecord": "عرض عند التسجيل",
@@ -1324,9 +1321,7 @@
 		"modelIdleUnload.minutes60": "ساعة واحدة",
 		"modelIdleUnload.minutes90": "ساعة ونصف",
 		"modelIdleUnload.minutes120": "ساعتان",
-		"modelIdleUnload.never": "أبدًا (إبقاؤه محمَّلاً)",
-		"streamingTranscription": "النسخ المتدفق",
-		"streamingTranscriptionDescription": "نسخ أثناء التسجيل ليكون النص جاهزًا لحظة التوقف. عند التعطيل، تُنسخ التسجيلة كاملة دفعة واحدة في النهاية."
+		"modelIdleUnload.never": "دائمًا (إبقاء التحميل)"
 	},
 	"plugins": {
 		"title": "الإضافات",

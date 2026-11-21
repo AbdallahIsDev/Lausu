@@ -691,7 +691,10 @@
 		"copyDiagnostics": "Copiar diagnóstico",
 		"copied": "¡Copiado!",
 		"copyFailed": "No se pudo copiar el diagnóstico",
-		"loadedViaHint": "Cómo se cargó el modelo de voz (integrado, descargado o una ruta personalizada)."
+		"loadedViaHint": "Cómo se cargó el modelo de voz (integrado, descargado o una ruta personalizada).",
+		"thirdPartyTitle": "Avisos de terceros",
+		"thirdPartyDesc": "El archivo de avisos de terceros se distribuye con la aplicación e incluye los identificadores de licencia, las líneas de copyright y los textos de licencia disponibles de los componentes incluidos. Los elementos sin evidencia local se marcan como «sin verificar» con una URL de origen.",
+		"viewThirdPartyNotices": "Ver avisos de terceros"
 	},
 	"settings": {
 		"apiUrlInvalid": "Introduce una URL https válida",
@@ -722,8 +725,6 @@
 		"textCleanupDescription": "Corregir automáticamente errores comunes de transcripción",
 		"recordingMode": "Modo de grabación",
 		"recordingModeDescription": "Cómo se activa el dictado",
-		"trayLeftClick": "Clic izquierdo en bandeja",
-		"trayLeftClickDescription": "Qué sucede al hacer clic izquierdo en el icono de la bandeja",
 		"recording": "Grabación",
 		"modelSize": "Tamaño del modelo",
 		"modelSizeDescription": "Los modelos más grandes son más precisos pero más lentos",
@@ -814,8 +815,6 @@
 		"launchAtLoginDescription": "Inicia {appName} automáticamente cuando inicies sesión en Windows.",
 		"notifications": "Notificaciones",
 		"notificationsDescription": "Muestra una notificación de escritorio cuando se completa la transcripción o ocurre un error.",
-		"trayClick": "Clic en la bandeja",
-		"trayClickDescription": "Qué sucede al hacer clic izquierdo en el icono de {appName} en la bandeja del sistema.",
 		"generalDescription": "Configura cómo {appName} se inicia, se comporta al iniciar sesión e interactúa con tu sistema.",
 		"overlay": "Superposición",
 		"overlayDescription": "Burbuja de grabación flotante.",
@@ -852,8 +851,6 @@
 		"presetInfo": "El estilo de escritura a aplicar: profesional, casual, correo o código.",
 		"show": "Mostrar",
 		"hide": "Ocultar",
-		"trayClickOpenApp": "Abrir aplicación",
-		"trayClickToggleDictation": "Alternar dictado",
 		"bubblePositionTop": "Centro superior",
 		"bubblePositionBottom": "Centro inferior",
 		"bubbleBehaviorShowOnRecord": "Mostrar al grabar",
@@ -1324,9 +1321,7 @@
 		"modelIdleUnload.minutes60": "1 hora",
 		"modelIdleUnload.minutes90": "1 hora y 30 minutos",
 		"modelIdleUnload.minutes120": "2 horas",
-		"modelIdleUnload.never": "Nunca (mantener cargado)",
-		"streamingTranscription": "Transcripción en streaming",
-		"streamingTranscriptionDescription": "Transcribe mientras grabas para tener el texto listo al detener. Si está desactivado, toda la grabación se transcribe de una vez al final."
+		"modelIdleUnload.never": "Siempre (mantener cargado)"
 	},
 	"plugins": {
 		"title": "Plugins",

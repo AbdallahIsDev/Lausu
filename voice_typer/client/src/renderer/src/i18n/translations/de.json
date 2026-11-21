@@ -691,7 +691,10 @@
 		"copyDiagnostics": "Diagnose kopieren",
 		"copied": "Kopiert!",
 		"copyFailed": "Diagnose konnte nicht kopiert werden",
-		"loadedViaHint": "Wie das Spracherkennungsmodell geladen wurde (gebündelt, heruntergeladen oder ein benutzerdefinierter Pfad)."
+		"loadedViaHint": "Wie das Spracherkennungsmodell geladen wurde (gebündelt, heruntergeladen oder ein benutzerdefinierter Pfad).",
+		"thirdPartyTitle": "Hinweise zu Drittanbietern",
+		"thirdPartyDesc": "Die Hinweise zu Drittanbietern werden mit der App ausgeliefert und enthalten die Lizenzkennungen, Urheberrechtszeilen und verfügbaren Lizenztexte der gebündelten Komponenten. Einträge ohne lokale Nachweise sind als „ungeprüft“ mit einer Upstream-URL gekennzeichnet.",
+		"viewThirdPartyNotices": "Drittanbieterhinweise anzeigen"
 	},
 	"settings": {
 		"apiUrlInvalid": "Gültige https-URL eingeben",
@@ -721,8 +724,6 @@
 		"textCleanupDescription": "Häufige Transkriptionsfehler automatisch korrigieren",
 		"recordingMode": "Aufnahmemodus",
 		"recordingModeDescription": "Wie das Diktat ausgelöst wird",
-		"trayLeftClick": "Linksklick auf Tray",
-		"trayLeftClickDescription": "Was passiert bei einem Linksklick auf das Tray-Symbol",
 		"recording": "Aufnahme",
 		"modelSize": "Modellgröße",
 		"modelSizeDescription": "Größere Modelle sind genauer, aber langsamer",
@@ -813,8 +814,6 @@
 		"launchAtLoginDescription": "{appName} automatisch starten, wenn Sie sich bei Windows anmelden.",
 		"notifications": "Benachrichtigungen",
 		"notificationsDescription": "Desktop-Benachrichtigung anzeigen, wenn die Transkription abgeschlossen ist oder ein Fehler auftritt.",
-		"trayClick": "Klick auf Tray",
-		"trayClickDescription": "Was passiert, wenn Sie mit der linken Maustaste auf das {appName}-Symbol in der Taskleiste klicken.",
 		"generalDescription": "Konfigurieren Sie, wie {appName} startet, sich beim Anmelden verhält und mit Ihrem System interagiert.",
 		"overlay": "Overlay",
 		"overlayDescription": "Schwebende Aufnahmeblase.",
@@ -851,8 +850,6 @@
 		"presetInfo": "Der anzuwendende Schreibstil: professionell, lässig, E-Mail oder Code.",
 		"show": "Anzeigen",
 		"hide": "Ausblenden",
-		"trayClickOpenApp": "App öffnen",
-		"trayClickToggleDictation": "Diktat umschalten",
 		"bubblePositionTop": "Oben mittig",
 		"bubblePositionBottom": "Unten mittig",
 		"bubbleBehaviorShowOnRecord": "Bei Aufnahme anzeigen",
@@ -1324,9 +1321,7 @@
 		"modelIdleUnload.minutes60": "1 Stunde",
 		"modelIdleUnload.minutes90": "1 Stunde 30 Minuten",
 		"modelIdleUnload.minutes120": "2 Stunden",
-		"modelIdleUnload.never": "Nie (geladen lassen)",
-		"streamingTranscription": "Streaming-Transkription",
-		"streamingTranscriptionDescription": "Transkribieren während der Aufnahme, sodass der Text beim Stoppen bereit ist. Wenn deaktiviert, wird die gesamte Aufnahme am Ende auf einmal transkribiert."
+		"modelIdleUnload.never": "Immer (geladen lassen)"
 	},
 	"plugins": {
 		"title": "Plugins",

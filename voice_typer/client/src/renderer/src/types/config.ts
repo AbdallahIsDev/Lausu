@@ -230,7 +230,6 @@ export interface LausuConfig {
 	 */
 	hallucination_filter_mode: "strict" | "balanced" | "off";
 
-	streaming_transcription: boolean;
 	streaming_chunk_seconds: number;
 	streaming_step_seconds: number;
 	streaming_left_overlap_seconds: number;
@@ -329,8 +328,6 @@ export interface LausuConfig {
 	onboarding_completed: boolean;
 	// during guided setup). OPTIONAL because older sidecars
 	onboarding_failed?: boolean;
-
-	tray_left_click_action: "open_app" | "toggle_dictation";
 
 	theme_mode: "system" | "light" | "dark";
 	theme_preset:

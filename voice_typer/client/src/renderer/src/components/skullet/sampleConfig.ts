@@ -24,7 +24,6 @@ export const SAMPLE_CONFIG: LausuConfig = {
 	vad_filter_enabled: true,
 	hallucination_filter_mode: "balanced",
 
-	streaming_transcription: false,
 	streaming_chunk_seconds: 0,
 	streaming_step_seconds: 0,
 	streaming_left_overlap_seconds: 0,
@@ -94,8 +93,6 @@ export const SAMPLE_CONFIG: LausuConfig = {
 	history_max_entries: 1000,
 
 	onboarding_completed: true,
-
-	tray_left_click_action: "open_app",
 
 	theme_mode: "system",
 	theme_preset: "default",

@@ -50,7 +50,6 @@ function makeConfig(overrides: Partial<LausuConfig> = {}): LausuConfig {
 		beam_size: 5,
 		best_of: 5,
 		condition_on_previous_text: false,
-		streaming_transcription: false,
 		streaming_chunk_seconds: 0,
 		streaming_step_seconds: 0,
 		streaming_left_overlap_seconds: 0,

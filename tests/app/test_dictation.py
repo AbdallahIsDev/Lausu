@@ -1,5 +1,6 @@
 """All heavy dependencies are mocked via the project-wide ``mock_heavy_imports``"""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -108,7 +109,12 @@ class TestStartDictationBehavior:
 
 class TestStreamingIntegration:
     def test_start_dictation_starts_streaming_session_when_enabled(self, app, monkeypatch):
-        app.config.streaming_transcription = True
+        # Streaming is fixed ON: no config attribute is required or read.
+        # Use a config stand-in with the legacy key genuinely absent (a
+        # dataclass class-level default would still resolve it).
+        app.config = SimpleNamespace(
+            **{k: v for k, v in vars(app.config).items() if k != "streaming_transcription"}
+        )
         app.recorder = MagicMock()
         app.recorder.recording = False
 
@@ -143,7 +149,6 @@ class TestStreamingIntegration:
         app.clipboard.paste.assert_not_called()
 
     def test_stop_dictation_uses_streaming_final_text(self, app):
-        app.config.streaming_transcription = True
         app.clipboard = MagicMock()
         app.clipboard.copy = MagicMock(return_value=True)
         app.clipboard.paste = MagicMock(return_value=True)
@@ -171,7 +176,6 @@ class TestStreamingIntegration:
         app.clipboard.paste.assert_called_once()
 
     def test_streaming_kill_switch_forces_batch_path(self, app, monkeypatch):
-        app.config.streaming_transcription = True
         monkeypatch.setenv("VOICE_TYPER_STREAMING", "0")
         app.recorder = MagicMock()
         app.recorder.recording = False

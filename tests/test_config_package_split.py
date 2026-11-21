@@ -86,7 +86,6 @@ class TestConfigSchemaBaseClassExtracted:
             "theme_preset",
             "bubble_position",
             "bubble_behavior",
-            "tray_left_click_action",
             "recording_mode",
         }
         assert frozenset(expected_enum) == config_schema._ENUM_FIELDS_TO_RESET_ON_LOAD

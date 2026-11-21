@@ -21,8 +21,8 @@ import { formatHotkey } from "@/components/hotkey/hotkey-utils";
 import { SHORTCUTS } from "@/components/hotkey/shortcuts";
 import { DeviceToggle } from "@/components/layout/DeviceToggle";
 import {
-	PluginsNewBadge,
 	type PluginsBadgeHue,
+	PluginsNewBadge,
 } from "@/components/layout/PluginsNewBadge";
 import { SidebarActiveModel } from "@/components/layout/SidebarActiveModel";
 import { isSettingsSurface } from "@/components/settings/settingsSections";
@@ -30,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { useDebugPrefs } from "@/hooks/useDebugPrefs";
 import { usePluginsAvailable } from "@/hooks/usePluginCatalog";
 import { usePluginsNewBadge } from "@/hooks/usePluginsNewBadge";
-import { t } from "@/i18n/i18n";
+import { getLocale, isRtlLocale, t, useT } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import { prefetchPage } from "@/router/prefetch";
 import type { Page } from "@/types/ipc";
@@ -272,6 +272,7 @@ function SidebarInner({
 	onNavigate,
 	collapsed = false,
 }: SidebarProps) {
+	const t = useT();
 	// (roving tabindex): the nav is a vertical composite
 	// widget. Only one item holds tabIndex=0 (the active page, or
 	// the first item if the active page isn't in the nav); all
@@ -375,7 +376,10 @@ function SidebarInner({
 			    nav is the sidebar's only content, it fills the full
 			    height now that the branding header and the ThemeSwitch
 			    row have moved out of the sidebar. */}
-			<div className="min-h-0 flex-1 overflow-y-auto p-2">
+			{/* The rail is left-pinned in every locale, so the nav FLOW must
+			    stay LTR or `justify-start` would right-anchor the icon column
+			    and make it jump on collapse. RTL applies to label text only. */}
+			<div className="min-h-0 flex-1 overflow-y-auto p-2" dir="ltr">
 				<nav
 					ref={navRef}
 					aria-label={t("a11y.mainNavigation")}
@@ -555,7 +559,12 @@ function NavLeaf({
 					strokeWidth={2}
 					className={cn("h-4 w-4 shrink-0 transition-colors duration-200")}
 				/>
-				<span className={navTextClasses(collapsed)}>{navLabel}</span>
+				<span
+					className={navTextClasses(collapsed)}
+					dir={isRtlLocale(getLocale()) ? "rtl" : "ltr"}
+				>
+					{navLabel}
+				</span>
 				{item.badge && showNewBadge && (
 					<PluginsNewBadge
 						label={t("nav.newBadge")}

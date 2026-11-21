@@ -125,7 +125,7 @@ describe("TitleBar, RTL pinning (window chrome keeps its physical sides)", () =>
 		expect(firstChild?.className).toContain("w-18");
 	});
 
-	it("back/forward chevrons carry nav-directional-icon so they still mirror under dir=rtl", async () => {
+	it("back/forward chevrons do NOT carry nav-directional-icon and never mirror under dir=rtl", async () => {
 		const WinTitleBar = await loadTitleBarFor(WIN_UA);
 		const bridge = makeBridge();
 		(window as unknown as { window_?: WindowBridge }).window_ = bridge;
@@ -138,16 +138,17 @@ describe("TitleBar, RTL pinning (window chrome keeps its physical sides)", () =>
 				onThemeChange={() => {}}
 			/>,
 		);
-		// The chevrons are raw SVGs inside the back/forward buttons;
-		// the [dir="rtl"] ancestor selector in index.css flips them via
-		// this class even though the bar itself is pinned dir="ltr".
-		const backSvg = container
-			.querySelector('button[aria-label="Go back"]')
-			?.querySelector("svg.nav-directional-icon");
-		const forwardSvg = container
-			.querySelector('button[aria-label="Go forward"]')
-			?.querySelector("svg.nav-directional-icon");
-		expect(backSvg).toBeTruthy();
-		expect(forwardSvg).toBeTruthy();
+		// Window-chrome arrows are physical navigation controls: just like
+		// the caption buttons, they must NOT flip when the document is RTL.
+		// The bar root stays dir="ltr" (pinned above); dropping the opt-in
+		// class keeps the [dir="rtl"] scaleX(-1) rule from reaching them.
+		for (const label of ["Go back", "Go forward"]) {
+			const svg = container
+				.querySelector(`button[aria-label="${label}"]`)
+				?.querySelector("svg");
+			expect(svg).toBeTruthy();
+			expect(svg?.classList.contains("nav-directional-icon")).toBe(false);
+			expect(svg?.getAttribute("style") ?? "").not.toContain("scaleX");
+		}
 	});
 });

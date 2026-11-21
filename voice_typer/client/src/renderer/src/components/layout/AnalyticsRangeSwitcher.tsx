@@ -69,7 +69,7 @@ import {
 	ToggleGroup,
 	type ToggleGroupOption,
 } from "@/components/ui/toggle-group";
-import { getLocale, t, tChoice } from "@/i18n/i18n";
+import { getLocale, tChoice, useT } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import {
 	ANALYTICS_RANGES,
@@ -117,6 +117,7 @@ function matchPreset(startKey: string, endKey: string): PresetRange | null {
 export const AnalyticsRangeSwitcher = memo(function AnalyticsRangeSwitcher({
 	currentPage,
 }: AnalyticsRangeSwitcherProps) {
+	const t = useT();
 	const range = useAnalyticsRange((s) => s.range);
 	const customWindow = useAnalyticsRange((s) => s.customWindow);
 	const setRange = useAnalyticsRange((s) => s.setRange);

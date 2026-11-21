@@ -83,7 +83,6 @@ class _ConfigSchema:
     whisper_beam_size: int = 1
 
     # Hidden streaming transcription
-    streaming_transcription: bool = True
     streaming_chunk_seconds: float = 12.0
     streaming_step_seconds: float = 5.0
     streaming_left_overlap_seconds: float = 3.0
@@ -299,9 +298,6 @@ class _ConfigSchema:
     onboarding_completed: bool = False
     # marks that onboarding was force-completed after repeated
     onboarding_failed: bool = False
-
-    # Tray icon left-click behavior
-    tray_left_click_action: Literal["open_app", "toggle_dictation"] = "open_app"
 
     # Theme mode (system/light/dark)
     theme_mode: Literal["system", "light", "dark"] = "system"

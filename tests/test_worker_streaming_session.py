@@ -256,7 +256,6 @@ class TestCoordinatorSwitch:
             recorder=_recorder(),
             models=SimpleNamespace(active_transcriber=lambda: transcriber),
             config=SimpleNamespace(
-                streaming_transcription=True,
                 streaming_chunk_seconds=12.0,
                 streaming_step_seconds=5.0,
                 streaming_left_overlap_seconds=3.0,

@@ -122,7 +122,8 @@ def app_with_fake_ducker(tmp_config_dir, monkeypatch):
 
     instance = LausuApp()
     instance.config.esc_cancel_enabled = False
-    instance.config.streaming_transcription = False
+    # Keep the real streaming pipeline out of this test.
+    monkeypatch.setenv("VOICE_TYPER_STREAMING", "0")
     # (revised): RecordingController.start() now enforces
     instance.config.voice_biometric_consent = True
     instance.models.transcriber = MagicMock()
@@ -521,8 +522,8 @@ class TestPerSessionDuckGatedOnSupport:
 
         instance = LausuApp()
         instance.config.esc_cancel_enabled = False
-        # Keep the real streaming pipeline out of this test (mock
-        instance.config.streaming_transcription = False
+        # Keep the real streaming pipeline out of this test.
+        monkeypatch.setenv("VOICE_TYPER_STREAMING", "0")
         # (revised): RecordingController.start() enforces
         instance.config.voice_biometric_consent = True
         instance.models.transcriber = MagicMock()

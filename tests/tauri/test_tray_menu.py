@@ -23,7 +23,6 @@ def _make_model(**overrides):
         "quit_app": _noop,
         "build_models_submenu_data": lambda: [],
         "on_open_models": _noop,
-        "left_click_action": "open_app",
         "microphones": None,
         "active_mic_id": None,
         "on_select_mic": None,
@@ -35,6 +34,66 @@ def _make_model(**overrides):
     }
     kwargs.update(overrides)
     return build_tray_menu_model(**kwargs)
+
+
+def _tray_rs_source() -> str:
+    from pathlib import Path
+
+    return (Path(__file__).resolve().parents[2] / "src-tauri" / "src" / "tray.rs").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_tray_rs_left_click_always_opens_app() -> None:
+    """Left-click raises the window on every OS; the right-click menu is unchanged."""
+    src = _tray_rs_source()
+
+    assert ".show_menu_on_left_click(false)" in src, (
+        "tray.rs must disable Tauri's built-in left-click menu so icon clicks "
+        "reach on_tray_icon_event on every platform"
+    )
+    assert ".show_menu_on_left_click(show_menu_on_left_click)" not in src, (
+        "tray.rs must not compute a platform-dependent show_menu_on_left_click"
+    )
+
+    marker = ".on_tray_icon_event(|tray, event| {"
+    assert marker in src, "tray.rs must still install an on_tray_icon_event handler"
+    handler = src.split(marker, 1)[1].split("\n        });", 1)[0]
+    assert 'cfg!(target_os = "macos")' not in handler, (
+        "on_tray_icon_event must not early-return on macOS"
+    )
+    assert "is_focus_main_window_event(&event)" in handler, (
+        "left-click must still route through show_main_window"
+    )
+    assert ".on_menu_event(|app, event| {" in src, (
+        "right-click menu clicks must still dispatch tray_click"
+    )
+
+    # Right-click menu ids are unchanged by the left-click behavior change.
+    model, _id_map = _make_model()
+
+    def all_ids(items):
+        out = set()
+        for item in items:
+            if item["separator"]:
+                continue
+            out.add(item["id"])
+            if item["submenu"]:
+                out |= all_ids(item["submenu"])
+        return out
+
+    ids = all_ids(model)
+    assert ids == {
+        "open_app",
+        "toggle_dictation",
+        "models",
+        "more_models",
+        "settings",
+        "history",
+        "help",
+        "restart",
+        "quit",
+    }, ids
 
 
 def test_build_tray_menu_model_returns_well_formed_items():
@@ -561,7 +620,7 @@ def test_refresh_config_publishes_tray_menu_and_state(monkeypatch):
     event_bus.subscribe(_on_event)
     try:
         monkeypatch.setenv("TAURI_SIDECAR", "1")
-        tray.refresh_config(SimpleNamespace(hotkey="<f5>", model_size="medium", tray_left_click_action="open_app"))
+        tray.refresh_config(SimpleNamespace(hotkey="<f5>", model_size="medium"))
         assert len(menu_events) == 1, "refresh_config must publish tray_menu"
         assert len(state_events) == 1, "refresh_config must publish tray_state"
         items = menu_events[0]["data"]["items"]

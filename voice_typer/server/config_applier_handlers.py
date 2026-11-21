@@ -296,29 +296,6 @@ class _DictationHotkeyHandler:
             log.warning("Failed to re-register hotkey after mode change: %s", e)
 
 
-class _TrayLeftClickHandler:
-    """Invalidate tray menu cache when ``tray_left_click_action`` changes."""
-
-    name = "tray_left_click_action"
-
-    def applies(self, updates: dict) -> bool:
-        return "tray_left_click_action" in updates
-
-    def apply(self, ctx: SideEffectContext) -> None:
-        app = ctx.app
-        updates = ctx.updates
-        try:
-            app.tray.invalidate_menu_cache()
-            log.info(
-                "[SERVICE] Tray left-click action updated to: %s",
-                updates["tray_left_click_action"],
-            )
-        except Exception as e:
-            log.warning("Failed to update tray left-click action: %s", e)
-            # surface the tray left-click action update
-            _notify_side_effect_failure(app, "tray_left_click_action", e)
-
-
 class _NotificationsHandler:
     """Toggle tray notifications when ``show_notifications`` changes.
 

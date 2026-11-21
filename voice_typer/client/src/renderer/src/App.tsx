@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { A11yLiveRegions } from "@/components/common/A11yLiveRegions";
-import { DebugPanel } from "@/components/debug/DebugPanel";
 import ConsentGateDialog from "@/components/consent/ConsentGateDialog";
+import { DebugPanel } from "@/components/debug/DebugPanel";
 import { HelpOverlay } from "@/components/help/HelpOverlay";
 import { configHotkeyLabels } from "@/components/hotkey/hotkey-utils";
 import { ConnectionStatusScreen } from "@/components/layout/ConnectionStatusScreen";
@@ -49,7 +49,7 @@ import { useSoundFeedback } from "@/hooks/useSoundFeedback";
 import { useTheme } from "@/hooks/useTheme";
 import { useTrayFallbackToast } from "@/hooks/useTrayFallbackToast";
 import { useWindowMaximized } from "@/hooks/useWindowMaximized";
-import { getLocale, setLocale, useT } from "@/i18n/i18n";
+import { getLocale, isRtlLocale, setLocale, useT } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import { PageSwitch } from "@/router/PageSwitch";
 import { prefetchRouteChunks } from "@/router/prefetch";
@@ -257,7 +257,9 @@ export default function App() {
 					// the main column is NOT a page.
 					minimalChrome={connectionStatus !== "connected"}
 				/>
-				<div className="flex min-h-0 flex-1">
+				{/* Pinned LTR so the sidebar keeps its physical left edge in
+					    every locale; only the main column mirrors with the UI. */}
+				<div className="flex min-h-0 flex-1" dir="ltr">
 					{sidebarVisible && (
 						<Sidebar
 							currentPage={currentPage}
@@ -266,11 +268,9 @@ export default function App() {
 						/>
 					)}
 
-					{/* dir=rtl-safe: pin LTR when the sidebar is hidden so the
-					    main column does not jump sides mid-onboarding/boot. */}
 					<div
 						className="flex min-w-0 flex-1 flex-col"
-						dir={sidebarVisible ? undefined : "ltr"}
+						dir={isRtlLocale(getLocale()) ? "rtl" : "ltr"}
 					>
 						<main
 							id="main-content"

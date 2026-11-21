@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@hugeicons/react", () => ({
@@ -33,6 +33,7 @@ vi.mock("@/hooks/usePluginCatalog", () => ({
 
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ensureLocaleLoaded, setLocale } from "@/i18n/i18n";
 import { useAppStore } from "@/stores/appStore";
 
 // Sidebar renders real Radix Tooltips (via HotkeyTooltip on the nav
@@ -367,5 +368,91 @@ describe("Sidebar", () => {
 	it("SIDEBAR-BRANDING: no theme switch renders inside the sidebar (moved to the TitleBar)", () => {
 		renderWithProviders(<Sidebar {...baseProps} />);
 		expect(screen.queryByLabelText(/^Current theme:/)).toBeNull();
+	});
+});
+
+describe("Sidebar inner nav direction follows the active locale", () => {
+	beforeEach(async () => {
+		await act(async () => {
+			setLocale("en");
+			await ensureLocaleLoaded("ar");
+		});
+	});
+
+	afterEach(() => {
+		act(() => {
+			setLocale("en");
+		});
+		cleanup();
+	});
+
+	it("keeps the rail and nav flow physically LTR in both locales, with RTL only on labels", async () => {
+		const props = { currentPage: "home" as const, onNavigate: vi.fn() };
+		const { rerender } = renderWithProviders(<Sidebar {...props} />);
+		const nav = screen.getByRole("navigation", { name: "Main navigation" });
+		const navContainer = nav.parentElement;
+		const aside = nav.closest("aside");
+
+		// The rail is left-pinned, so the NAV FLOW must stay LTR in every
+		// locale. An rtl flow would right-anchor `justify-start` and move
+		// the icon column on collapse (C-SIDEBAR-12). Only the label text
+		// is allowed to follow the locale.
+		expect(navContainer?.getAttribute("dir")).toBe("ltr");
+		expect(aside?.getAttribute("dir")).toBeNull();
+		let label = screen.getByText("Home");
+
+		// Collapse identity: same button + same icon node, still first
+		// child, same physical-left anchoring classes. jsdom has no layout,
+		// so these invariants stand in for the manual x-position check.
+		const expandedButton = label.closest("button");
+		const icon = expandedButton?.querySelector('[data-testid="hugeicon"]');
+		expect(icon).toBeTruthy();
+		expect(expandedButton?.firstElementChild).toBe(icon);
+		expect(expandedButton?.classList.contains("justify-start")).toBe(true);
+		expect(expandedButton?.classList.contains("px-2")).toBe(true);
+		expect(label.getAttribute("dir")).toBe("ltr");
+
+		rerender(
+			<TooltipProvider delayDuration={200} skipDelayDuration={500}>
+				<Sidebar {...props} collapsed />
+			</TooltipProvider>,
+		);
+		label = screen.getByText("Home");
+		const collapsedButton = label.closest("button");
+		expect(collapsedButton).toBe(expandedButton);
+		expect(collapsedButton?.firstElementChild).toBe(icon);
+		expect(collapsedButton?.classList.contains("justify-start")).toBe(true);
+		expect(collapsedButton?.classList.contains("px-2")).toBe(true);
+		expect(navContainer?.getAttribute("dir")).toBe("ltr");
+
+		await act(async () => {
+			setLocale("ar");
+		});
+		rerender(
+			<TooltipProvider delayDuration={200} skipDelayDuration={500}>
+				<Sidebar {...props} />
+			</TooltipProvider>,
+		);
+		expect(navContainer?.getAttribute("dir")).toBe("ltr");
+		expect(aside?.getAttribute("dir")).toBeNull();
+
+		const arLabel = screen.getByText("الرئيسية");
+		expect(arLabel.getAttribute("dir")).toBe("rtl");
+		const arButton = arLabel.closest("button");
+		const arIcon = arButton?.querySelector('[data-testid="hugeicon"]');
+		expect(arButton?.firstElementChild).toBe(arIcon);
+		expect(arButton?.classList.contains("justify-start")).toBe(true);
+		expect(arButton?.classList.contains("px-2")).toBe(true);
+
+		rerender(
+			<TooltipProvider delayDuration={200} skipDelayDuration={500}>
+				<Sidebar {...props} collapsed />
+			</TooltipProvider>,
+		);
+		const arCollapsedLabel = screen.getByText("الرئيسية");
+		expect(screen.getByText("الرئيسية").closest("button")).toBe(arButton);
+		expect(arCollapsedLabel.getAttribute("dir")).toBe("rtl");
+		expect(arButton?.firstElementChild).toBe(arIcon);
+		expect(navContainer?.getAttribute("dir")).toBe("ltr");
 	});
 });

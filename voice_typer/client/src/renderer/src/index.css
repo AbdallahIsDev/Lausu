@@ -479,10 +479,9 @@
 	-webkit-app-region: no-drag;
 }
 
-/* RTL: flip directional navigation icons (e.g. TitleBar Back/Forward
-   chevrons) so they point in the semantically correct direction when
-   the document language is right-to-left. The className is applied to
-   the SVGs by the TitleBar component. */
+/* RTL: opt-in mirror for directional navigation icons whose direction is
+   semantic (e.g. the Settings back chevron, which points "back" in RTL).
+   Window-chrome chevrons are physical and deliberately do NOT use it. */
 [dir="rtl"] .nav-directional-icon {
 	transform: scaleX(-1);
 }

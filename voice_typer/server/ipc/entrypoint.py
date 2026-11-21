@@ -264,6 +264,14 @@ def main() -> None:
 
     port, ws_mode = parse_ipc_args()
 
+    # CI frozen-sidecar self-check (Part B bundle gate). Inert on every normal
+    # startup path: returns False unless --self-check is on argv, in which
+    # case it prints grep-able markers and raises SystemExit. Placed here so
+    # it runs before the single-instance mutex, logging and heavy app import.
+    from voice_typer.server.media_ingest.selfcheck import maybe_run_self_check
+
+    maybe_run_self_check(sys.argv[1:])
+
     # Early server-started selection: read the env var ONCE here so the
     # launch order cannot change mid-startup.
     _ws_early_bind = _early_server_started_enabled() and ws_mode

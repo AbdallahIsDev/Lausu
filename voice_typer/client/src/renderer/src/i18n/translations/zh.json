@@ -691,7 +691,10 @@
 		"copyDiagnostics": "复制诊断信息",
 		"copied": "已复制！",
 		"copyFailed": "复制诊断信息失败",
-		"loadedViaHint": "语音模型是如何加载的（内置、下载或自定义路径）。"
+		"loadedViaHint": "语音模型是如何加载的（内置、下载或自定义路径）。",
+		"thirdPartyTitle": "第三方声明",
+		"thirdPartyDesc": "随应用提供的《第三方声明》文件列出所捆绑组件的许可证标识、版权行和可用的许可证全文。缺少本地证据的项目会标记为“未核实”并附上游网址。",
+		"viewThirdPartyNotices": "查看第三方声明"
 	},
 	"settings": {
 		"apiUrlInvalid": "请输入有效的 https URL",
@@ -715,8 +718,6 @@
 		"textCleanupDescription": "自动修正常见的转写错误",
 		"recordingMode": "录音模式",
 		"recordingModeDescription": "如何触发听写",
-		"trayLeftClick": "托盘左键点击",
-		"trayLeftClickDescription": "左键点击托盘图标时发生什么",
 		"recording": "录音",
 		"modelSize": "模型大小",
 		"modelSizeDescription": "更大的模型更准确但更慢",
@@ -807,8 +808,6 @@
 		"launchAtLoginDescription": "登录 Windows 时自动启动 {appName}。",
 		"notifications": "通知",
 		"notificationsDescription": "当转写完成或发生错误时显示桌面通知。",
-		"trayClick": "托盘点击",
-		"trayClickDescription": "左键点击系统托盘中的 {appName} 图标时发生什么。",
 		"generalDescription": "配置 {appName} 如何启动、登录时的行为以及与系统的交互方式。",
 		"overlay": "叠加层",
 		"overlayDescription": "浮动录音气泡。",
@@ -845,8 +844,6 @@
 		"presetInfo": "要应用的写作风格: 专业、休闲、电子邮件或代码。",
 		"show": "显示",
 		"hide": "隐藏",
-		"trayClickOpenApp": "打开应用",
-		"trayClickToggleDictation": "切换听写",
 		"bubblePositionTop": "顶部居中",
 		"bubblePositionBottom": "底部居中",
 		"bubbleBehaviorShowOnRecord": "录音时显示",
@@ -1324,9 +1321,7 @@
 		"modelIdleUnload.minutes60": "1 小时",
 		"modelIdleUnload.minutes90": "1 小时 30 分钟",
 		"modelIdleUnload.minutes120": "2 小时",
-		"modelIdleUnload.never": "从不（保持加载）",
-		"streamingTranscription": "流式转写",
-		"streamingTranscriptionDescription": "边录边转写，停止时文本即就绪。关闭后将在结束时一次性转写整个录音。"
+		"modelIdleUnload.never": "始终（保持加载）"
 	},
 	"plugins": {
 		"title": "插件",

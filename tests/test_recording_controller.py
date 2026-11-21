@@ -234,7 +234,7 @@ class TestLifecycleLockSerialization:
             f"GT-22: expected both stops to enter _stop_impl (serialized); got enter_count={enter_count[0]}"
         )
 
-    def test_reentrant_toggle_to_start_does_not_deadlock(self):
+    def test_reentrant_toggle_to_start_does_not_deadlock(self, monkeypatch):
         """``toggle()`` acquires ``_toggle_lock`` and then calls"""
         import threading
         from unittest.mock import MagicMock
@@ -254,7 +254,8 @@ class TestLifecycleLockSerialization:
         app._cycle_id = "#test"
         app.models._model_load_thread = None
         app.config.voice_biometric_consent = True
-        app.config.streaming_transcription = False
+        # Keep streaming out of this lock-reentrancy test.
+        monkeypatch.setenv("VOICE_TYPER_STREAMING", "0")
 
         reentrant_call_succeeded = threading.Event()
 

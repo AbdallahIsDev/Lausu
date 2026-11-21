@@ -48,18 +48,16 @@ class TestSlimConfNarrowsWorkerOut:
         assert "bin/python-sidecar" in slim, "slim must keep the sidecar"
         assert not any("worker" in entry for entry in slim), "slim must not reference the worker"
         assert any("worker" in entry for entry in base), "base (full) must keep the worker"
-        assert {"bin/ffmpeg", "bin/ffprobe"} <= set(slim), (
-            "Windows x64 slim must bundle the win64-only LGPL media pair."
-        )
+        assert "bin/ffmpeg" in slim, "Windows x64 slim must bundle the win64-only LGPL ffmpeg"
+        assert "bin/ffprobe" not in slim, "ffprobe is not shipped; duration comes from ffmpeg's stderr"
 
     def test_full_and_slim_windows_x64_declare_media_pair(self) -> None:
         """Both Windows x64 configs list ALL externalBin entries (arrays replace)."""
         full_conf = SRC_TAURI / "tauri.windows-x86_64.conf.json"
         for conf in (full_conf, SLIM_CONF):
             ext = json.loads(conf.read_text(encoding="utf-8"))["bundle"]["externalBin"]
-            assert {"bin/ffmpeg", "bin/ffprobe"} <= set(ext), (
-                f"{conf.name} must declare the ffmpeg/ffprobe pair, got: {ext}"
-            )
+            assert "bin/ffmpeg" in ext, f"{conf.name} must declare ffmpeg, got: {ext}"
+            assert "bin/ffprobe" not in ext, f"{conf.name} must NOT declare ffprobe (not shipped), got: {ext}"
         full_ext = json.loads(full_conf.read_text(encoding="utf-8"))["bundle"]["externalBin"]
         assert {"bin/python-sidecar", "bin/lausu-worker"} <= set(full_ext), (
             f"full Windows x64 config lost sidecar/worker: {full_ext}"

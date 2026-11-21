@@ -5,8 +5,12 @@ from unittest.mock import MagicMock
 import pytest
 
 
-def _make_fake_tray(hotkey="<f2>", state="idle", left_click="open_app"):
-    """A minimal fake TrayIcon satisfying build_menu_for_tray's reads."""
+def _make_fake_tray(hotkey="<f2>", state="idle", stale_left_click=None):
+    """A minimal fake TrayIcon satisfying build_menu_for_tray's reads.
+
+    ``stale_left_click`` simulates a legacy config.json value; the setting was
+    removed, so the menu builder must ignore it.
+    """
     from voice_typer.server.tray_types import AppState
 
     states = {
@@ -16,7 +20,7 @@ def _make_fake_tray(hotkey="<f2>", state="idle", left_click="open_app"):
     }
     tray = MagicMock()
     tray._hotkey = hotkey
-    tray._config = MagicMock(hotkey=hotkey, tray_left_click_action=left_click)
+    tray._config = MagicMock(hotkey=hotkey, tray_left_click_action=stale_left_click)
     tray._state = states[state]
     tray._cached_menu = None
     tray._menu_cache_valid = False
@@ -142,26 +146,71 @@ class TestBuildMenuForTray:
         toggle_label = next(it.label for it in items_created if "toggle_dictation" in it.label)
         assert "F5" in toggle_label, f"Start Dictation label should include formatted hotkey 'F5', got: {toggle_label}"
 
-    def test_toggle_dictation_is_default_action_when_configured(self, monkeypatch):
-        """The default menu item follows the configured left-click action."""
+    def test_open_app_is_always_default_action(self, monkeypatch):
+        """A stale legacy left-click value cannot change the bold menu item."""
         items_created = _install_fake_pystray(monkeypatch)
         from voice_typer.server.tray_menu import build_menu_for_tray
 
-        build_menu_for_tray(_make_fake_tray(hotkey="<f2>", left_click="toggle_dictation"))
-        default_items = [it for it in items_created if it.default]
-        assert len(default_items) == 1
-        # With left_click == toggle_dictation the dictation item is bold.
-        assert "toggle_dictation" in default_items[0].label
-
-    def test_open_app_is_default_action_when_configured(self, monkeypatch):
-        """With the default left-click action, Open App is the bold item."""
-        items_created = _install_fake_pystray(monkeypatch)
-        from voice_typer.server.tray_menu import build_menu_for_tray
-
-        build_menu_for_tray(_make_fake_tray(left_click="open_app"))
+        build_menu_for_tray(_make_fake_tray(stale_left_click="toggle_dictation"))
         default_items = [it for it in items_created if it.default]
         assert len(default_items) == 1
         assert "open_app" in default_items[0].label
+
+    def test_menu_item_ids_unchanged(self):
+        """Removing the setting leaves every right-click menu id in place."""
+        from voice_typer.server.tray_menu import build_tray_menu_model
+
+        def _noop():
+            pass
+
+        model, id_map = build_tray_menu_model(
+            hotkey="<f2>",
+            toggle_dictation=_noop,
+            open_app=_noop,
+            restart_app=_noop,
+            quit_app=_noop,
+            microphones=[{"id": "0", "name": "Default"}],
+            on_select_mic=_noop,
+            on_refresh_mics=_noop,
+            on_open_microphones=_noop,
+            on_open_settings=_noop,
+            on_open_history=_noop,
+            on_open_help=_noop,
+            on_open_models=_noop,
+            build_models_submenu_data=lambda: [("tiny", True, True, _noop)],
+        )
+        expected = {
+            "open_app",
+            "toggle_dictation",
+            "models",
+            "model:tiny",
+            "more_models",
+            "microphones",
+            "mic:0",
+            "refresh_mics",
+            "more_microphones",
+            "settings",
+            "history",
+            "help",
+            "restart",
+            "quit",
+        }
+
+        def all_ids(items):
+            out = set()
+            for item in items:
+                if item["separator"]:
+                    continue
+                out.add(item["id"])
+                if item["submenu"]:
+                    out |= all_ids(item["submenu"])
+            return out
+
+        ids = all_ids(model)
+        assert ids == expected, ids
+        # Parent submenu items carry no callback; every leaf does.
+        actions = expected - {"models", "microphones"}
+        assert all(callable(id_map[i]) for i in actions)
 
     def test_menu_result_is_cached(self, monkeypatch):
         """A second render with a valid cache returns the cached tuple."""
@@ -173,6 +222,17 @@ class TestBuildMenuForTray:
         tray._menu_cache_valid = True
         second = build_menu_for_tray(tray)
         assert second is first
+
+
+def test_tray_menu_module_ignores_removed_left_click_setting():
+    """The removed setting is not read anywhere in tray_menu.py."""
+    from pathlib import Path
+
+    import voice_typer.server.tray_menu as tray_menu_mod
+
+    src = Path(tray_menu_mod.__file__).read_text(encoding="utf-8")
+    assert "tray_left_click_action" not in src
+    assert "left_click_action" not in src
 
 
 """Regression tests for NEW-PERF-004: tray models submenu caching.
