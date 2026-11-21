@@ -15,7 +15,11 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from release import publish_pack_release as pub  # type: ignore[import-not-found]  # noqa: E402
+from release import (  # noqa: E402
+    publish_pack_release as pub,  # type: ignore[import-not-found]  # noqa: E402
+    publisher as publisher_mod,  # noqa: E402
+)
+from release.backends import api as api_backend, gh as gh_backend  # noqa: E402
 from voice_typer.server import branding  # noqa: E402
 
 
@@ -382,9 +386,9 @@ class TestPublishReleaseApiBackend:
         monkeypatch.setenv("GH_TOKEN", "fake-token-123")
         # Mock the API request to return success.
         with (
-            patch.object(pub, "_api_request"),
-            patch.object(pub, "api_create_release") as mock_create,
-            patch.object(pub, "api_upload_asset") as mock_upload,
+            patch.object(api_backend, "_api_request"),
+            patch.object(api_backend, "api_create_release") as mock_create,
+            patch.object(api_backend, "api_upload_asset") as mock_upload,
         ):
             mock_create.return_value = (
                 "https://github.com/owner/repo/releases/tag/v1.2.3",
@@ -405,8 +409,8 @@ class TestPublishReleaseApiBackend:
         """A per-asset upload failure is recorded in ``result.errors``."""
         monkeypatch.setenv("GH_TOKEN", "fake-token-123")
         with (
-            patch.object(pub, "api_create_release") as mock_create,
-            patch.object(pub, "api_upload_asset") as mock_upload,
+            patch.object(api_backend, "api_create_release") as mock_create,
+            patch.object(api_backend, "api_upload_asset") as mock_upload,
         ):
             mock_create.return_value = (
                 "https://github.com/owner/repo/releases/tag/v1.2.3",
@@ -432,7 +436,7 @@ class TestBackendAutoSelection:
         """When ``shutil.which('gh')`` finds the binary, ``gh`` is selected."""
         monkeypatch.setattr(pub.shutil, "which", lambda name: "/usr/bin/gh")
         # Patch the gh backend to avoid actually running ``gh``.
-        with patch.object(pub, "_publish_via_gh") as mock_gh:
+        with patch.object(publisher_mod, "_publish_via_gh") as mock_gh:
             mock_gh.return_value = pub.PublishResult(success=True, tag="v1.2.3", backend="gh")
             result = pub.publish_release(
                 tag="v1.2.3",
@@ -447,7 +451,7 @@ class TestBackendAutoSelection:
         """When ``shutil.which('gh')`` returns None, ``api`` is selected."""
         monkeypatch.setattr(pub.shutil, "which", lambda name: None)
         monkeypatch.setenv("GH_TOKEN", "fake-token-123")
-        with patch.object(pub, "_publish_via_api") as mock_api:
+        with patch.object(publisher_mod, "_publish_via_api") as mock_api:
             mock_api.return_value = pub.PublishResult(success=True, tag="v1.2.3", backend="api")
             result = pub.publish_release(
                 tag="v1.2.3",
@@ -546,7 +550,7 @@ class TestCli:
         """``--json`` prints the result as JSON for CI parsing."""
         runner, _ = fake_runner_success
         # Patch ``run_gh`` to use the fake runner.
-        with patch.object(pub, "run_gh", side_effect=runner):
+        with patch.object(gh_backend, "run_gh", side_effect=runner):
             exit_code = pub.main(
                 [
                     "--tag",
@@ -673,3 +677,107 @@ class TestEmittedManifestSchemaRoundTrip:
         assert loaded is not None, "publisher-emitted pack-manifest.json failed client validation"
         assert loaded["version"] == "3"
         assert loaded["sha256"] == manifest["sha256"]
+
+
+class TestPublisherModuleSplit:
+    """RH-33: facade is a pure re-export layer over the split modules."""
+
+    def test_facade_reexports_are_the_source_module_objects(self):
+        from release import cli as cli_mod, publisher as publisher_mod, result as result_mod
+        from release.backends import api as api_backend, gh as gh_backend
+
+        assert pub.PublishResult is result_mod.PublishResult
+        assert pub.publish_release is publisher_mod.publish_release
+        assert pub.validate_assets is publisher_mod.validate_assets
+        assert pub.main is cli_mod.main
+        assert pub._build_arg_parser is cli_mod._build_arg_parser
+        assert pub.run_gh is gh_backend.run_gh
+        assert pub.build_gh_create_command is gh_backend.build_gh_create_command
+        assert pub.build_gh_upload_command is gh_backend.build_gh_upload_command
+        assert pub.gh_release_exists is gh_backend.gh_release_exists
+        assert pub.gh_release_url is gh_backend.gh_release_url
+        assert pub._publish_via_gh is gh_backend._publish_via_gh
+        assert pub._api_request is api_backend._api_request
+        assert pub.api_create_release is api_backend.api_create_release
+        assert pub.api_upload_asset is api_backend.api_upload_asset
+        assert pub._publish_via_api is api_backend._publish_via_api
+        assert pub.DEFAULT_REPO is result_mod.DEFAULT_REPO
+        assert pub.DEFAULT_GH_CLI is result_mod.DEFAULT_GH_CLI
+
+    def test_gh_backend_upload_command_semantics_unchanged(self, fake_assets: dict[str, Path]):
+        from release.backends import gh as gh_backend
+
+        cmd = gh_backend.build_gh_upload_command("v1.2.3", list(fake_assets.values()), repo="owner/repo")
+        assert cmd[:4] == ["gh", "release", "upload", "v1.2.3"]
+        assert "--clobber" in cmd
+        assert "owner/repo" in cmd
+        for asset in fake_assets.values():
+            assert str(asset) in cmd
+
+    def test_gh_backend_publish_uploads_assets_with_fake_runner(
+        self,
+        fake_assets: dict[str, Path],
+        fake_runner_success,
+    ):
+        from release.backends import gh as gh_backend
+
+        runner, calls = fake_runner_success
+        result = gh_backend._publish_via_gh(
+            "v1.2.3",
+            list(fake_assets.values()),
+            repo="owner/repo",
+            notes=None,
+            notes_file=None,
+            draft=False,
+            prerelease=False,
+            target=None,
+            title=None,
+            gh_cli="gh",
+            runner=runner,
+        )
+        assert result.success is True
+        assert result.backend == "gh"
+        assert set(result.uploaded) == set(fake_assets)
+        assert any("upload" in c for c in calls)
+
+    def test_api_backend_upload_semantics_unchanged(self, fake_assets: dict[str, Path]):
+        from release.backends import api as api_backend
+
+        upload_url = "https://uploads.github.com/repos/owner/repo/releases/123/assets"
+        with patch.object(api_backend, "_api_request", return_value=(201, b"{}")) as mock_req:
+            ok, err = api_backend.api_upload_asset(upload_url, list(fake_assets.values())[0], token="t")
+        assert ok is True
+        assert err is None
+        assert mock_req.call_count == 1
+        call = mock_req.call_args
+        assert call.args[0] == "POST"
+        assert call.kwargs["content_type"] == "application/octet-stream"
+        assert call.kwargs["body"] == list(fake_assets.values())[0].read_bytes()
+
+    def test_api_backend_publish_uploads_assets(self, fake_assets: dict[str, Path]):
+        from release.backends import api as api_backend
+
+        with (
+            patch.object(api_backend, "api_create_release") as mock_create,
+            patch.object(api_backend, "api_upload_asset") as mock_upload,
+        ):
+            mock_create.return_value = (
+                "https://github.com/owner/repo/releases/tag/v1.2.3",
+                "https://uploads.github.com/repos/owner/repo/releases/123/assets",
+            )
+            mock_upload.side_effect = [(True, None)] * len(fake_assets)
+            result = api_backend._publish_via_api(
+                "v1.2.3",
+                list(fake_assets.values()),
+                repo="owner/repo",
+                notes=None,
+                draft=False,
+                prerelease=False,
+                target=None,
+                title=None,
+                token="fake",
+            )
+        assert result.success is True
+        assert result.backend == "api"
+        assert set(result.uploaded) == set(fake_assets)
+        assert mock_upload.call_count == len(fake_assets)
