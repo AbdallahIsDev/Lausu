@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import soundfile as sf  # type: ignore[import-untyped]
-
 from voice_typer.server.tts.types import TtsError
 
 
@@ -21,6 +19,11 @@ def probe_wav(path: Path) -> tuple[float, int]:
     both runtimes write a WAV even when they produce silence, so a file that
     cannot be read means the render did not actually happen.
     """
+    # soundfile is optional: the lock file excludes it on macOS arm64, and
+    # config imports pull this module in. Import at call time so a headless
+    # install can still import config without the audio stack.
+    import soundfile as sf  # type: ignore[import-untyped]
+
     if not path.is_file() or path.stat().st_size == 0:
         raise TtsError(f"engine produced no audio at {path}")
     try:

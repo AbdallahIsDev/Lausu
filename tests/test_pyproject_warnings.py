@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -44,6 +45,19 @@ def test_filterwarnings_has_voice_typer_deprecation_ratchet() -> None:
         "voice_typer-originated DeprecationWarnings into errors. "
         "Without it, a regressed deprecation passes silently."
     )
+
+
+def test_no_filterwarnings_reference_optional_plugin() -> None:
+    """No filterwarnings entry may name a module a bare pytest cannot import."""
+    data = tomllib.loads(PYPROJECT_PATH.read_text(encoding="utf-8"))
+    filters = data["tool"]["pytest"]["ini_options"]["filterwarnings"]
+    for entry in filters:
+        assert not entry.startswith("ignore::pytest_benchmark."), (
+            f"filterwarnings entry {entry!r} references pytest_benchmark, which is "
+            "absent in bare-pytest jobs; pytest then warns PytestConfigWarning "
+            "on every test. Plugin-specific filters belong in "
+            "tests/conftest.py::pytest_configure behind a hasplugin() check."
+        )
 
 
 def test_hypothesis_ci_profile_loaded_with_deadline_none() -> None:

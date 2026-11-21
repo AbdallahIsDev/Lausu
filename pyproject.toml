@@ -744,14 +744,6 @@ filterwarnings = [
     # settings filter above. RULE: when a code path that triggers a warning
     # is deleted, remove the warning filter in the same PR so pyproject.toml
     # never references code that no longer triggers it.
-    # pytest-benchmark emits a PytestBenchmarkWarning on every xdist
-    # worker startup ("Benchmarks are automatically disabled because
-    # xdist plugin is active"). The warning is informational —
-    # benchmarks are intentionally skipped under -n auto (C-TEST-3)
-    # via @pytest.mark.skipif in tests/test_benchmarks.py. Silencing
-    # the plugin's own startup warning keeps CI logs clean without
-    # hiding any real test issues.
-    "ignore::pytest_benchmark.logger.PytestBenchmarkWarning",
     # Deprecation-warning ratchet: any DeprecationWarning whose source
     # module is under ``voice_typer`` is promoted to an error. This is a
     # ratchet, once a voice_typer deprecation is fixed it can never
