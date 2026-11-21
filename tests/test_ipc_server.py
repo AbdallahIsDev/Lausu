@@ -2070,13 +2070,12 @@ class TestRegistryExtraction:
         )
 
     def test_python_only_commands_unchanged(self) -> None:
-        """``_PYTHON_ONLY_COMMANDS`` is the documented"""
+        """``_PYTHON_ONLY_COMMANDS`` pins the host-dispatched-only commands."""
         from voice_typer.server.ipc import registry
 
-        assert frozenset({"shutdown", "tray_click"}) == registry._PYTHON_ONLY_COMMANDS, (
-            f"registry._PYTHON_ONLY_COMMANDS must be "
-            f"frozenset({{'shutdown', 'tray_click'}}); got "
-            f"{registry._PYTHON_ONLY_COMMANDS!r}."
+        expected = frozenset({"shutdown", "tray_click", "bubble_host_hidden"})
+        assert expected == registry._PYTHON_ONLY_COMMANDS, (
+            f"registry._PYTHON_ONLY_COMMANDS must be {expected!r}; got {registry._PYTHON_ONLY_COMMANDS!r}."
         )
 
     def test_readonly_commands_unchanged(self) -> None:

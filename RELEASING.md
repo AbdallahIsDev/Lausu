@@ -2,11 +2,15 @@
 
 This document describes the release process for Lausu. The project
 ships per-platform installers (Windows `.exe`, macOS `.dmg`, Linux
-`.deb` / `.rpm` / `.AppImage`) built by the `tauri-*-build.yml`
-workflows, plus runtime-pack assets (zip + manifest) and the slim /
-full-offline installers published by `runtime-pack-publish.yml`.
-Neither set is produced automatically by a tag push: both require a
-manual dispatch (see §4 and §9).
+`.deb` / `.rpm` / `.AppImage`) and the **slim-core** installers built by
+the `tauri-{windows,macos,linux}-build.yml` workflows. The
+**full-offline** installer is produced locally by
+`scripts/build/build_full_offline_installer_windows.sh`; no workflow builds
+it. `runtime-pack-publish.yml` publishes ONLY the runtime-pack zips and
+`pack-manifest.json`, never an installer. None of these artifacts is
+produced automatically by a tag push: the installers and the pack require
+a manual dispatch, and the full-offline installer is a local build
+(see §4 and §9).
 
 > **TL;DR**: bump the version in `pyproject.toml` +
 > `voice_typer/client/package.json` (use `scripts/build/sync_versions.py`),
@@ -14,6 +18,7 @@ manual dispatch (see §4 and §9).
 > quality gates only; you must then dispatch the three `tauri-*-build.yml`
 > workflows and `runtime-pack-publish.yml` (for both the release tag and
 > the rolling `offline-pack` tag) to publish the installers and the pack.
+> The full-offline installer is a separate local build (§4).
 
 ---
 
@@ -132,10 +137,24 @@ Then dispatch `.github/workflows/runtime-pack-publish.yml` **by hand** —
 it is `workflow_dispatch`-only, with no tag or schedule trigger. Run it
 twice: once with `tag=vX.Y.Z` for the release, and once with
 `tag=offline-pack` for the rolling tag the silent downloader reads. It
-publishes the runtime-pack zip + `pack-manifest.json` and the
-**slim-core** and **full-offline** installers. Skipping this mandatory
-step leaves the silent downloader with no asset and offline
+publishes ONLY the runtime-pack zips (including the `pack-<version>.zip`
+alias) and `pack-manifest.json` — **no installers**. Skipping this
+mandatory step leaves the silent downloader with no asset and offline
 transcription unavailable.
+
+The workflow's `draft` input defaults to `true`: a dispatch creates a
+draft release, and `/releases/latest/download/...` stays 404 until the
+release is published and is not a prerelease. After validating the assets,
+publish the release in the GitHub UI (or re-dispatch with `draft=false`).
+The release tag must be the repo's latest release for the silent
+downloader to resolve the manifest URL.
+
+The installer producers are separate: the **slim-core** installers come
+from the `tauri-{windows,macos,linux}-build.yml` workflows (step above),
+while the **full-offline** installer is built locally with
+`bash scripts/build/build_full_offline_installer_windows.sh` and attached
+to the `vX.Y.Z` release by hand. No workflow builds the full-offline
+installer.
 
 ## 5. Release notes
 
@@ -189,8 +208,10 @@ The following gates must be green for a release to ship:
 - `tauri-{windows,macos,linux}-build.yml`: manually dispatched installer
   builds; their artifacts (with checksums) are the release bundles.
 - `runtime-pack-publish.yml`: mandatory manual `workflow_dispatch` for
-  both `vX.Y.Z` and `offline-pack`; publishes the pack zip, manifest and
-  the slim / full-offline installers. A release is not complete without it.
+  both `vX.Y.Z` and `offline-pack`; publishes only the pack zips and
+  `pack-manifest.json` — no installers. Draft by default: publish the
+  release before `/releases/latest/...` resolves. A release is not
+  complete without it. (Installer producers are listed above.)
 - `codeql.yml`: static security analysis.
 - `client-ci.yml`: frontend-only lint / typecheck / test.
 - `populate-hashes.yml`: model hash manifest regeneration (run only when

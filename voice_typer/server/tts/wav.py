@@ -24,7 +24,10 @@ def probe_wav(path: Path) -> tuple[float, int]:
     # soundfile is optional: the lock file excludes it on macOS arm64, and
     # config imports pull this module in. Import at call time so a headless
     # install can still import config without the audio stack.
-    import soundfile as sf  # type: ignore[import-untyped]
+    try:
+        import soundfile as sf  # type: ignore[import-untyped]
+    except ImportError as exc:
+        raise TtsError(f"unreadable WAV at {path}: soundfile unavailable: {exc}") from exc
 
     try:
         info = sf.info(str(path))

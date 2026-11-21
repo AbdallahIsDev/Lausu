@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.fixtures.pytest_env import scrub_pytest_env
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 _CONFIG_MODULES = (
@@ -48,9 +50,7 @@ def test_config_modules_import_without_soundfile() -> None:
     assert "config-import-ok" in result.stdout
 
 
-def test_probe_wav_checks_file_before_importing_soundfile(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_probe_wav_checks_file_before_importing_soundfile(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Missing/zero-byte WAVs raise TtsError even with soundfile unavailable."""
     monkeypatch.setitem(sys.modules, "soundfile", None)
 
@@ -66,12 +66,23 @@ def test_probe_wav_checks_file_before_importing_soundfile(
         probe_wav(empty)
 
 
+def test_probe_wav_translates_absent_soundfile_to_tts_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A non-empty WAV with soundfile absent raises TtsError, not ImportError."""
+    monkeypatch.setitem(sys.modules, "soundfile", None)
+    malformed = tmp_path / "malformed.wav"
+    malformed.write_bytes(b"RIFF\x00\x00\x00\x00WAVEnot-a-real-wav")
+
+    from voice_typer.server.tts.types import TtsError
+    from voice_typer.server.tts.wav import probe_wav
+
+    with pytest.raises(TtsError, match="unreadable WAV"):
+        probe_wav(malformed)
+
+
 def test_i18n_completeness_passes_without_soundfile(tmp_path: Path) -> None:
     """The CI-failing test file passes when soundfile cannot be imported."""
-    (tmp_path / "sitecustomize.py").write_text(
-        "import sys\nsys.modules['soundfile'] = None\n", encoding="utf-8"
-    )
-    env = dict(os.environ)
+    (tmp_path / "sitecustomize.py").write_text("import sys\nsys.modules['soundfile'] = None\n", encoding="utf-8")
+    env = scrub_pytest_env()
     env["PYTHONPATH"] = os.pathsep.join(
         [str(tmp_path), env.get("PYTHONPATH", "")] if env.get("PYTHONPATH") else [str(tmp_path)]
     )

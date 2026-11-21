@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.fixtures.pytest_env import scrub_pytest_env
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PYPROJECT_PATH = PROJECT_ROOT / "pyproject.toml"
 
@@ -58,8 +60,7 @@ def test_no_filterwarnings_reference_optional_plugin() -> None:
         assert not entry.startswith("ignore::pytest_benchmark."), (
             f"filterwarnings entry {entry!r} references pytest_benchmark, which is "
             "absent in bare-pytest jobs; pytest then warns PytestConfigWarning "
-            "on every test. Plugin-specific filters belong in "
-            "tests/conftest.py::pytest_configure behind a hasplugin() check."
+            "on every test. No plugin-specific filter; keep bare pytest importable."
         )
 
 
@@ -69,7 +70,7 @@ def test_bare_pytest_emits_no_benchmark_filter_warning(tmp_path: Path) -> None:
     stub.mkdir()
     (stub / "__init__.py").write_text("", encoding="utf-8")
     (tmp_path / "test_smoke.py").write_text("def test_ok(): pass\n", encoding="utf-8")
-    env = dict(os.environ)
+    env = scrub_pytest_env()
     existing = env.get("PYTHONPATH")
     env["PYTHONPATH"] = os.pathsep.join([str(tmp_path), existing]) if existing else str(tmp_path)
     result = subprocess.run(

@@ -502,7 +502,7 @@ def test_stale_ipc_counts_replaced_with_canonical_links():
 
 
 def test_releasing_doc_names_real_artifact_workflows_and_mandatory_pack_dispatch():
-    """RELEASING.md must describe the shipped artifact + pack-publish flow."""
+    """RELEASING.md must describe the artifact + pack-publish flow AND map each artifact to its real producer."""
     text = _read(RELEASING_DOC)
     for workflow in (
         "tauri-windows-build.yml",
@@ -515,6 +515,39 @@ def test_releasing_doc_names_real_artifact_workflows_and_mandatory_pack_dispatch
     assert "offline-pack" in text, "RELEASING.md must document the mandatory offline-pack tag dispatch."
     assert "full-offline" in text and "slim" in text, "RELEASING.md must document the slim + full-offline installers."
     assert "quality gates only" in text, "RELEASING.md must state build.yml is quality gates only."
+
+    blocks = [re.sub(r"\s+", " ", b).strip() for b in re.split(r"\n\s*\n", text)]
+    pack_blocks = [b for b in blocks if "runtime-pack-publish.yml" in b]
+    assert pack_blocks, "RELEASING.md must have a block describing runtime-pack-publish.yml."
+    # Every block that names what the pack workflow publishes must ALSO say it
+    # uploads no installers — token presence alone cannot catch a reintroduced
+    # "publishes the pack and the slim/full installers" claim.
+    for block in pack_blocks:
+        if re.search(r"\bpublish\w*\b", block, re.IGNORECASE) and "pack-manifest.json" in block:
+            assert re.search(r"\b(?:no installers|never an installer|no installer)\b", block, re.IGNORECASE), (
+                "RELEASING.md must state runtime-pack-publish.yml uploads only pack zips + "
+                f"pack-manifest.json and no installers: {block!r}"
+            )
+    for sentence in re.split(r"(?<=[.!?])\s+", " ".join(pack_blocks)):
+        if "runtime-pack-publish.yml" not in sentence:
+            continue
+        assert "slim-core" not in sentence and "full-offline" not in sentence, (
+            "RELEASING.md must not attribute slim-core/full-offline installers to "
+            f"runtime-pack-publish.yml: {sentence!r}"
+        )
+
+    slim_blocks = [b for b in blocks if "slim-core" in b]
+    assert any("tauri-" in b and "build.yml" in b for b in slim_blocks), (
+        "RELEASING.md must attribute slim-core installers to the tauri-*-build.yml workflows."
+    )
+    full_blocks = [b for b in blocks if "full-offline" in b]
+    assert any("build_full_offline_installer_windows.sh" in b for b in full_blocks), (
+        "RELEASING.md must attribute the full-offline installer to the local build script."
+    )
+    assert any(re.search(r"no workflow builds", b, re.IGNORECASE) for b in full_blocks), (
+        "RELEASING.md must state no workflow builds the full-offline installer."
+    )
+
     # Stale cutover-era claims must be gone.
     assert "Builds the Tauri installer per platform" not in text
     assert "until cutover" not in text

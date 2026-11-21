@@ -10,6 +10,7 @@ the chunked Python ``re`` fallback.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -23,6 +24,7 @@ SCRIPT = REPO_ROOT / "scripts" / "build" / "check_bundle_torch_free.sh"
 
 CLEAN_BUNDLE = b"silero_vad.onnx\nnumpy.core\n"
 SLASH_FORM = b"torch/__init__.py\n"
+BACKSLASH_FORM = b"torch\\utils\\data\\loader.py\n"
 DOTTED_FORM = b"import torch.nn\n"
 
 
@@ -65,6 +67,26 @@ def _run_gate(binary: Path, env: dict[str, str] | None = None) -> subprocess.Com
     )
 
 
+def _run_gate_python_fallback(binary: Path, tmp_path: Path) -> subprocess.CompletedProcess[str]:
+    """Force the chunked Python ``re`` path by hiding ``strings`` from PATH.
+
+    bash is resolved before the restricted env is applied; the absolute PYTHON
+    set by ``_gate_env`` keeps the fallback interpreter reachable.
+    """
+    empty_bin = tmp_path / "no-strings-bin"
+    empty_bin.mkdir(exist_ok=True)
+    env = _gate_env()
+    env["PATH"] = str(empty_bin)
+    bash = shutil.which("bash") or "bash"
+    return subprocess.run(
+        [bash, str(SCRIPT), str(binary)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        env=env,
+    )
+
+
 @pytest.mark.skipif(not bash_usable(), reason="bash not available on this host")
 class TestTorchFreeGate:
     def test_slash_form_torch_path_fails_gate(self, tmp_path: Path) -> None:
@@ -82,6 +104,15 @@ class TestTorchFreeGate:
     def test_slash_form_detected_by_ere_scanner(self, tmp_path: Path) -> None:
         env = _gate_env(ere=True, tmp_path=tmp_path)
         result = _run_gate(_write_binary(tmp_path, SLASH_FORM), env=env)
+        assert result.returncode == 1, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    def test_backslash_form_detected_by_ere_scanner(self, tmp_path: Path) -> None:
+        env = _gate_env(ere=True, tmp_path=tmp_path)
+        result = _run_gate(_write_binary(tmp_path, BACKSLASH_FORM), env=env)
+        assert result.returncode == 1, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    def test_dot_form_detected_by_python_fallback_without_strings(self, tmp_path: Path) -> None:
+        result = _run_gate_python_fallback(_write_binary(tmp_path, DOTTED_FORM), tmp_path)
         assert result.returncode == 1, f"stdout={result.stdout!r} stderr={result.stderr!r}"
 
 

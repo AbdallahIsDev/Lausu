@@ -24,7 +24,7 @@
 #   bash scripts/build/check_bundle_torch_free.sh <path-to-binary>
 #
 # Exit codes:
-#   0 , bundle is torch-free (no `torch.` import sites, no `silero_vad.jit`).
+#   0 , bundle is torch-free (no torch. / torch/ / torch\ sites, no silero_vad.jit).
 #   1 , bundle contains a forbidden torch import site or the JIT model.
 #   2 , invocation error (missing binary, missing arg, internal failure).
 #
@@ -146,10 +146,10 @@ if [[ "$SCAN_RC" -ne 0 ]]; then
     echo "$SCAN_OUTPUT" >&2
     echo "" >&2
     echo "Phase 1c gate (plan §11.3): torch must be removed from the bundle before" >&2
-    echo "this gate passes. Check vad.py / parakeet_engine.py for stale \`import torch\`" >&2
-    echo "sites, or rebuild from a clean env that does not have torch installed." >&2
+    echo "this gate passes. Check vad.py / parakeet_engine.py for stale torch imports" >&2
+    echo "in any form (torch., torch/, or torch\\), or rebuild from a clean env without torch." >&2
     exit 1
 fi
 
-echo "OK: bundle is torch-free (no \`torch.\` import sites, no \`silero_vad.jit\`)."
+echo "OK: bundle is torch-free (no torch. / torch/ / torch\\ sites, no \`silero_vad.jit\`)."
 exit 0
