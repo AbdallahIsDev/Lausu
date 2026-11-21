@@ -45,9 +45,7 @@ def test_event_bus_count_matches_doc_and_code():
     assert "docs/ipc-reference.md" in doc, (
         "IPC contract section must link docs/ipc-reference.md for the canonical command/event surface."
     )
-    assert "109 commands / 61 events" not in doc, (
-        "Stale '109 commands / 61 events' must not appear in ARCHITECTURE.md."
-    )
+    assert "109 commands / 61 events" not in doc, "Stale '109 commands / 61 events' must not appear in ARCHITECTURE.md."
     assert "109 commands / 60 events" not in doc, (
         "Stale '109 commands / 60 events' must not appear in ARCHITECTURE.md ."
     )
@@ -513,15 +511,9 @@ def test_releasing_doc_names_real_artifact_workflows_and_mandatory_pack_dispatch
         "runtime-pack-publish.yml",
     ):
         assert workflow in text, f"RELEASING.md must name {workflow}."
-    assert "workflow_dispatch" in text, (
-        "RELEASING.md must state runtime-pack-publish.yml is workflow_dispatch-only."
-    )
-    assert "offline-pack" in text, (
-        "RELEASING.md must document the mandatory offline-pack tag dispatch."
-    )
-    assert "full-offline" in text and "slim" in text, (
-        "RELEASING.md must document the slim + full-offline installers."
-    )
+    assert "workflow_dispatch" in text, "RELEASING.md must state runtime-pack-publish.yml is workflow_dispatch-only."
+    assert "offline-pack" in text, "RELEASING.md must document the mandatory offline-pack tag dispatch."
+    assert "full-offline" in text and "slim" in text, "RELEASING.md must document the slim + full-offline installers."
     assert "quality gates only" in text, "RELEASING.md must state build.yml is quality gates only."
     # Stale cutover-era claims must be gone.
     assert "Builds the Tauri installer per platform" not in text

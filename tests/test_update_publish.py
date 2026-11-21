@@ -680,7 +680,7 @@ class TestEmittedManifestSchemaRoundTrip:
 
 
 class TestPublisherModuleSplit:
-    """RH-33: facade is a pure re-export layer over the split modules."""
+    """Facade is a pure re-export layer over the split modules."""
 
     def test_facade_reexports_are_the_source_module_objects(self):
         from release import cli as cli_mod, publisher as publisher_mod, result as result_mod

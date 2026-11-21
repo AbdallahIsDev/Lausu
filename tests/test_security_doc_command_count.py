@@ -200,8 +200,7 @@ def test_host_delta_matches_ipc_reference_canonical_header() -> None:
     total, renderer, host_count = (int(m.group(i)) for i in (1, 2, 3))
     documented_host = {name.strip() for name in m.group(4).split(",")}
     assert documented_host == set(_HOST_ONLY_OR_HOST_DISPATCHED), (
-        f"host-dispatched set drift: doc={sorted(documented_host)}, "
-        f"test={sorted(_HOST_ONLY_OR_HOST_DISPATCHED)}."
+        f"host-dispatched set drift: doc={sorted(documented_host)}, test={sorted(_HOST_ONLY_OR_HOST_DISPATCHED)}."
     )
     assert host_count == len(documented_host)
     assert renderer == len(_allowed_commands_rust())
