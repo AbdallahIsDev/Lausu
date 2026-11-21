@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import math
 import os
 import struct
@@ -13,7 +14,14 @@ from typing import Any, cast
 
 import numpy as np
 import pytest
-from voice_typer.server.media_ingest import decoder, downloader, errors as errors_mod, runtime as js_runtime, subtitles
+from voice_typer.server.media_ingest import (
+    decoder,
+    downloader,
+    errors as errors_mod,
+    ffmpeg_binaries,
+    runtime as js_runtime,
+    subtitles,
+)
 
 
 def _write_wav(path: Path, seconds: float, rate: int = 16_000) -> None:
@@ -29,15 +37,52 @@ def _write_wav(path: Path, seconds: float, rate: int = 16_000) -> None:
         wf.writeframes(bytes(payload))
 
 
+def _stub_decode(monkeypatch, payload: bytes) -> None:
+    """Feed pre-decoded f32le bytes through the real decoder and chunker.
+
+    No ffmpeg needed: the binary gate and the Popen boundary are stubbed, the
+    byte-to-chunk logic under test is not.
+    """
+
+    class _Proc:
+        def __init__(self) -> None:
+            self.stdout = io.BytesIO(payload)
+            self.stderr = io.BytesIO(b"")
+            self.returncode: int | None = None
+
+        def poll(self) -> int | None:
+            return self.returncode
+
+        def wait(self, timeout: float | None = None) -> int:
+            self.returncode = 0
+            return 0
+
+        def terminate(self) -> None:
+            self.returncode = 0
+
+        def kill(self) -> None:
+            self.returncode = 0
+
+    monkeypatch.setattr(
+        ffmpeg_binaries,
+        "resolve_binaries",
+        lambda: ffmpeg_binaries.BinaryPair(sys.executable, None),
+    )
+    monkeypatch.setattr(decoder.subprocess, "Popen", lambda argv, **kwargs: _Proc())
+
+
 class TestDecoderReal:
     def test_missing_local_file_raises_decode_failed(self, tmp_path):
         with pytest.raises(errors_mod.MediaIngestError) as info:
             list(decoder.decode_chunks(str(tmp_path / "nope.wav")))
         assert info.value.code == errors_mod.DECODE_FAILED
 
-    def test_wav_yields_16k_mono_float32_chunks(self, tmp_path):
+    def test_wav_yields_16k_mono_float32_chunks(self, monkeypatch, tmp_path):
         wav = tmp_path / "clip.wav"
         _write_wav(wav, seconds=12.0)
+        with wave.open(str(wav), "rb") as wf:
+            pcm = np.frombuffer(wf.readframes(wf.getnframes()), dtype="<i2")
+        _stub_decode(monkeypatch, (pcm.astype(np.float32) / 32768.0).tobytes())
         chunks = list(decoder.decode_chunks(str(wav)))
         assert len(chunks) >= 2
         first = chunks[0]
@@ -326,18 +371,27 @@ class TestPackDenoDiscovery:
 class TestDurationProbe:
     """`probe_duration_seconds` feeds the local-job progress contract."""
 
-    def test_reads_container_duration_and_fails_soft(self, tmp_path):
-        import wave
-
-        import numpy as np
-        from voice_typer.server.media_ingest import decoder
-
+    def test_reads_container_duration_and_fails_soft(self, monkeypatch, tmp_path):
         path = tmp_path / "clip.wav"
         with wave.open(str(path), "wb") as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)
             wf.setframerate(16000)
             wf.writeframes(np.zeros(16000, dtype=np.int16).tobytes())
+
+        monkeypatch.setattr(
+            ffmpeg_binaries,
+            "resolve_binaries",
+            lambda: ffmpeg_binaries.BinaryPair(sys.executable, None),
+        )
+
+        def fake_probe(argv, timeout):
+            source = argv[argv.index("-i") + 1]
+            if not Path(source.removeprefix("file:")).is_file():
+                return None
+            return "  Duration: 00:00:01.00, start: 0.000000\n"
+
+        monkeypatch.setattr(decoder, "_run_duration_probe", fake_probe)
 
         probed = decoder.probe_duration_seconds(str(path))
         assert probed is not None

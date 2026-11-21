@@ -366,6 +366,7 @@ class TestSafety:
     def test_exception_in_consumer_still_reaps(self, monkeypatch, tmp_path):
         wav = tmp_path / "clip.wav"
         _write_wav(wav, 1)
+        _fake_binaries(monkeypatch)
         real = subprocess.Popen
         spawned: list[subprocess.Popen] = []
         script = "import sys,time; sys.stdout.buffer.write(b'\\0'*320000); sys.stdout.buffer.flush(); time.sleep(20)"
@@ -708,13 +709,13 @@ class TestBinaryResolver:
 
         for name in (ffmpeg_binaries.ENV_FFMPEG, ffmpeg_binaries.ENV_FFPROBE):
             monkeypatch.delenv(name, raising=False)
-        for name in ("ffmpeg.exe", "ffprobe.exe"):
-            (tmp_path / name).write_bytes(b"shipped")
+        ext = ".exe" if os.name == "nt" else ""
+        for program in ("ffmpeg", "ffprobe"):
+            (tmp_path / (program + ext)).write_bytes(b"shipped")
         monkeypatch.setattr(ffmpeg_binaries, "_shipped_dirs", lambda: (tmp_path,))
         monkeypatch.setattr(ffmpeg_binaries, "shutil", type("S", (), {"which": staticmethod(lambda n: "/path/" + n)})())
         with caplog.at_level(logging.WARNING, logger="voice_typer.server.media_ingest.ffmpeg_binaries"):
             pair = ffmpeg_binaries.resolve_binaries()
-        ext = ".exe" if os.name == "nt" else ""
         assert pair is not None
         assert pair.ffmpeg == str(tmp_path / ("ffmpeg" + ext))
         assert "from PATH" not in caplog.text
