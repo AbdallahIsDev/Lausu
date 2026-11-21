@@ -10,15 +10,18 @@ It is deliberately inert during normal sidecar startup: ``main()`` calls
 ``parse_known_args``, so the flag needs no argparse change and cannot alter
 the existing ``(port, ws_mode)`` contract.
 
-Three assertions, printed as grep-able markers:
-  * bundled-ffmpeg   -- resolved next to the running exe, never from PATH;
-  * decode-samples   -- decodes the 1 s / 16 kHz fixture to exactly 16000;
-  * rnnoise-active   -- the effective noise-suppression method is RNNoise,
+Five assertions, printed as grep-able markers:
+  * frozen-build      -- a Nuitka/PyInstaller build, not a dev interpreter;
+  * no-path-fallback  -- ffmpeg came from the exe-adjacent install, not PATH;
+  * bundled-ffmpeg    -- resolved next to the running exe, never from PATH;
+  * decode-samples    -- decodes the 1 s / 16 kHz fixture to exactly 16000;
+  * rnnoise-active    -- the effective noise-suppression method is RNNoise,
                         not the GTCRN substitute.
 """
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 _MARKER = "SELFCHECK"
@@ -59,16 +62,24 @@ def run(wav_path: str) -> int:
         return 2
 
     try:
+        if not ffmpeg_binaries.is_frozen_build():
+            raise AssertionError("self-check must run from a frozen sidecar build")
+        print(f"{_MARKER}: PASS frozen-build", flush=True)
+
         pair = ffmpeg_binaries.resolve_binaries()
         if pair is None or not pair.ffmpeg:
             raise AssertionError("resolve_binaries() returned no ffmpeg")
         exe_dir = ffmpeg_binaries.bundled_bin_dir()
         resolved = Path(pair.ffmpeg).resolve()
+        from_path = shutil.which("ffmpeg")
+        if from_path and Path(from_path).resolve() == resolved:
+            raise AssertionError(f"ffmpeg resolved from PATH: {from_path}")
         if resolved.parent != exe_dir:
             raise AssertionError(
                 f"ffmpeg resolved to {resolved}, not exe-adjacent {exe_dir} "
                 "(PATH fallback or missing bundled externalBin)"
             )
+        print(f"{_MARKER}: PASS no-path-fallback", flush=True)
         print(
             f"{_MARKER}: PASS bundled-ffmpeg {resolved}",
             flush=True,

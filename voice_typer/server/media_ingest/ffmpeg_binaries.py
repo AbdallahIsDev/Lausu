@@ -15,6 +15,7 @@ import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from types import ModuleType
 
 log = logging.getLogger(__name__)
 
@@ -30,8 +31,23 @@ class BinaryPair:
     ffprobe: str | None
 
 
-def _frozen() -> bool:
-    return bool(getattr(sys, "frozen", False)) or bool(getattr(sys, "_MEIPASS", None))
+def is_frozen_build(
+    module_globals: dict[str, object] | None = None,
+    sys_module: ModuleType | None = None,
+) -> bool:
+    """True for Nuitka-compiled and PyInstaller-frozen builds.
+
+    ``sys.frozen`` is a PyInstaller convention; Nuitka does not set it. The
+    compiled module instead carries a ``__compiled__`` global (proved with a
+    real Nuitka 2.8.10 onefile probe). Both signals are checked.
+    """
+    g = globals() if module_globals is None else module_globals
+    s = sys if sys_module is None else sys_module
+    return (
+        g.get("__compiled__") is not None
+        or bool(getattr(s, "frozen", False))
+        or bool(getattr(s, "_MEIPASS", None))
+    )
 
 
 def _arch() -> str:
@@ -52,17 +68,33 @@ def _names(program: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(candidates))
 
 
-def bundled_bin_dir() -> Path:
-    """Base dir for binaries shipped beside a frozen onefile executable.
+def bundled_bin_dir(
+    module_globals: dict[str, object] | None = None,
+    sys_module: ModuleType | None = None,
+) -> Path:
+    """Directory holding binaries installed beside the original executable.
 
-    Nuitka documents ``sys.executable`` as the original exe path in onefile
-    mode (``__file__`` moves into the extraction dir). Callers that verify a
-    "bundle" must use this same base as the resolver.
+    A real Nuitka 2.8.10 onefile probe (all four launch modes, including
+    spawn by a Python parent) showed ``sys.executable`` points INSIDE the
+    cached extraction dir while ``__compiled__.containing_dir`` points at the
+    original exe. Tauri installs ffmpeg beside the original exe, so using
+    ``sys.executable`` there silently broke the shipped app.
     """
+    g = globals() if module_globals is None else module_globals
+    s = sys if sys_module is None else sys_module
+    compiled = g.get("__compiled__")
+    containing = getattr(compiled, "containing_dir", None) if compiled is not None else None
+    if containing:
+        try:
+            base = Path(containing).expanduser().resolve()
+        except (OSError, RuntimeError, TypeError):
+            base = None
+        if base is not None and base.is_dir():
+            return base
     try:
-        return Path(sys.executable).resolve().parent
+        return Path(s.executable).resolve().parent
     except (OSError, RuntimeError):
-        return Path(sys.executable).parent
+        return Path(s.executable).parent
 
 
 def _shipped_dirs() -> tuple[Path, ...]:
@@ -109,7 +141,7 @@ def _shipped(program: str) -> str | None:
 
 def _dev_path(program: str) -> str | None:
     """PATH fallback, development only (never in a frozen build)."""
-    if _frozen():
+    if is_frozen_build():
         return None
     found = shutil.which(program)
     if found:
