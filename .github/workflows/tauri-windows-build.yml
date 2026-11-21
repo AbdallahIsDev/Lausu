@@ -669,8 +669,9 @@ jobs:
       # JOB SPLIT: the Nuitka freezes (sidecar + worker) run in the
       # build-sidecar-exe / build-worker-exe jobs. SP-1 SLIM: this job
       # consumes ONLY the sidecar (the worker ships in the runtime pack,
-      # not in this installer), so only the sidecar artifact is
-      # downloaded. Nothing is compiled in this job anymore.
+      # not in THIS installer). The worker STUB is still generated below
+      # because cargo test reads the base config, whose externalBin list
+      # includes the worker; the slim build overlay replaces it with ffmpeg.
 
       - name: Download sidecar binary
         uses: actions/download-artifact@v6
@@ -770,7 +771,7 @@ jobs:
       - name: Generate Tauri binary stubs
         shell: bash
         run: |
-          python scripts/gen_tauri_icons_stub.py --check --slim || python scripts/gen_tauri_icons_stub.py --slim
+          python scripts/gen_tauri_icons_stub.py --check || python scripts/gen_tauri_icons_stub.py
 
       # Fail-fast gate: verify EVERY committed file in tauri.conf.json
       - name: Verify bundle.icon icons are present + valid (fail fast)

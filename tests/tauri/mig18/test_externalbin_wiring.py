@@ -400,7 +400,7 @@ class TestWindowsX64FfmpegExternalBin:
         resolver = self._load_resolver()
         for var in (resolver.ENV_FFMPEG, resolver.ENV_FFPROBE):
             monkeypatch.delenv(var, raising=False)
-        monkeypatch.setattr(resolver, "_frozen", lambda: True)
+        monkeypatch.setattr(resolver, "is_frozen_build", lambda: True)
         monkeypatch.setattr(resolver, "_shipped_dirs", lambda: (tmp_path,))
 
         ffmpeg_name = resolver._names("ffmpeg")[0]  # bare basename Tauri ships

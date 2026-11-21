@@ -12,7 +12,8 @@ runnable locally (no network, no new dependencies):
 Hard gates (always fail the job):
   * bundle declares + ships ffmpeg, never ffprobe;
   * THIRD_PARTY_NOTICES.md is declared as a resource and present on disk;
-  * frozen-sidecar self-check (bundled ffmpeg, 16000 decoded samples, RNNoise).
+  * frozen-sidecar self-check (frozen build, no PATH fallback, bundled ffmpeg,
+    16000 decoded samples, RNNoise).
 
 The GPL gate runs after the frozen self-check and scans both the exe bytes
 (blind to compressed onefile payloads) and, authoritatively, DLL file names
@@ -199,6 +200,8 @@ def run_sidecar_smoke(sidecar: Path, wav: Path, target: str) -> list[str]:
                 f"frozen-sidecar --self-check exited {proc.returncode} (expected 0):\n{output}"
             )
         for marker in (
+            "SELFCHECK: PASS frozen-build",
+            "SELFCHECK: PASS no-path-fallback",
             "SELFCHECK: PASS bundled-ffmpeg",
             "SELFCHECK: PASS decode-samples=16000",
             "SELFCHECK: PASS rnnoise-active",
@@ -319,6 +322,17 @@ def gpl_gate(sidecar: Path, target: str, enforce: str,
         )
     gpl_hits, av_hits = extraction_dll_scan(extraction_dir)
     enforce_on = enforce.strip() == "1"
+    has_files = extraction_dir.is_dir() and any(
+        path.is_file() for path in extraction_dir.rglob("*")
+    )
+    if not has_files:
+        reason = (
+            f"onefile extraction dir has nothing to scan: {extraction_dir}"
+            if extraction_dir.is_dir()
+            else f"onefile extraction dir does not exist: {extraction_dir}"
+        )
+        if enforce_on:
+            raise BundleVerificationError(reason)
     lines = [
         "### GPL DLL scan",
         "",
@@ -351,6 +365,8 @@ def gpl_gate(sidecar: Path, target: str, enforce: str,
         lines.append("No DLLs under av.libs.")
     lines.append("")
     sightings = bool(rows or gpl_hits)
+    if not has_files:
+        lines.append(f"::warning::{reason}; extraction scan is INCONCLUSIVE, not clean.")
     if enforce_on and sightings:
         lines.append("::error::ENFORCE_NO_GPL_DLLS=1 and GPL-licensed DLLs were found.")
         print("\n".join(lines), flush=True)
@@ -360,7 +376,7 @@ def gpl_gate(sidecar: Path, target: str, enforce: str,
             "::warning::GPL-licensed DLLs present (PyAV is intentionally bundled); "
             "ENFORCE_NO_GPL_DLLS=0 so this is informational."
         )
-    else:
+    elif has_files:
         lines.append("ENFORCE_NO_GPL_DLLS check: clean.")
     print("\n".join(lines), flush=True)
     return [
@@ -429,6 +445,13 @@ def self_test() -> int:
         assert {hit.path.name for hit in av_hits} == {"avutil-59.dll"}, av_hits
     with tempfile.TemporaryDirectory() as tmp:
         assert extraction_dll_scan(Path(tmp)) == ([], [])
+        # An empty/missing extraction dir is never reported as "clean".
+        try:
+            gpl_gate(Path(tmp) / "sidecar.exe", DEFAULT_TARGET, "1", Path(tmp))
+        except BundleVerificationError:
+            pass
+        else:
+            raise AssertionError("empty extraction dir must fail under ENFORCE=1")
     print("verify_windows_bundle.py self-test: PASS", flush=True)
     return 0
 

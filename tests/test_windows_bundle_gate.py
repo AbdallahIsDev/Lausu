@@ -103,6 +103,35 @@ def test_gpl_gate_enforce_one_clean_dir_passes(
     assert "ENFORCE_NO_GPL_DLLS check: clean." in capsys.readouterr().out
 
 
+def test_gpl_gate_empty_extraction_dir_is_inconclusive_not_clean(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(gate, "REPO_ROOT", tmp_path)
+    empty = tmp_path / "empty-extract"
+    empty.mkdir()
+    with pytest.raises(gate.BundleVerificationError, match="nothing to scan"):
+        gate.gpl_gate(
+            tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "1", empty
+        )
+    gate.gpl_gate(tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "0", empty)
+    out = capsys.readouterr().out
+    assert "INCONCLUSIVE, not clean" in out
+    assert "ENFORCE_NO_GPL_DLLS check: clean." not in out
+
+
+def test_gpl_gate_missing_extraction_dir_warns_when_soft(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(gate, "REPO_ROOT", tmp_path)
+    missing = tmp_path / "absent"
+    with pytest.raises(gate.BundleVerificationError, match="does not exist"):
+        gate.gpl_gate(
+            tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "1", missing
+        )
+    gate.gpl_gate(tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "0", missing)
+    assert "does not exist" in capsys.readouterr().out
+
+
 def test_gpl_gate_requires_a_resolvable_extraction_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

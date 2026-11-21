@@ -41,6 +41,21 @@ def test_workflow_parses_as_yaml() -> None:
         assert data["jobs"][job_name]["strategy"]["matrix"]["include"][0]["runner"] == "windows-2022"
 
 
+def test_cargo_test_stub_step_covers_base_config_external_bin() -> None:
+    steps = _steps(_workflow()["jobs"]["tauri-windows-build"])
+    names = [str(s.get("name", "")) for s in steps]
+    stub = [i for i, n in enumerate(names) if n == "Generate Tauri binary stubs"]
+    cargo = [i for i, n in enumerate(names) if n.startswith("cargo test (Tauri Rust")]
+    assert len(stub) == 1 and len(cargo) == 1 and stub[0] < cargo[0]
+    run = str(steps[stub[0]].get("run", ""))
+    assert "--slim" not in run, "base-config cargo test needs the worker stub"
+    assert "gen_tauri_icons_stub.py --check ||" in run
+    # No real worker artifact is needed for the host unit tests.
+    assert not any(
+        str(s.get("with", {}).get("name", "")) == "windows-worker-exe" for s in steps
+    ), "the slim installer must not download the worker artifact"
+
+
 def test_fetch_runs_in_all_three_windows_legs_before_freeze_and_build() -> None:
     text = _text(WORKFLOW)
     assert "bash scripts/build/fetch_ffmpeg_lgpl_win64.sh" in text
