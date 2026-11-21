@@ -725,7 +725,7 @@ class TestBinaryResolver:
 
         for name in (ffmpeg_binaries.ENV_FFMPEG, ffmpeg_binaries.ENV_FFPROBE):
             monkeypatch.delenv(name, raising=False)
-        monkeypatch.setattr(ffmpeg_binaries, "_frozen", lambda: False)
+        monkeypatch.setattr(ffmpeg_binaries, "is_frozen_build", lambda: False)
         monkeypatch.setattr(ffmpeg_binaries, "_shipped", lambda program: None)
         monkeypatch.setattr(
             ffmpeg_binaries,
@@ -740,7 +740,7 @@ class TestBinaryResolver:
     def test_frozen_build_never_falls_back_to_path(self, monkeypatch):
         for name in (ffmpeg_binaries.ENV_FFMPEG, ffmpeg_binaries.ENV_FFPROBE):
             monkeypatch.delenv(name, raising=False)
-        monkeypatch.setattr(ffmpeg_binaries, "_frozen", lambda: True)
+        monkeypatch.setattr(ffmpeg_binaries, "is_frozen_build", lambda: True)
         monkeypatch.setattr(ffmpeg_binaries, "_shipped", lambda program: None)
         monkeypatch.setattr(
             ffmpeg_binaries,
