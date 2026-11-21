@@ -2,13 +2,18 @@
 
 This document describes the release process for Lausu. The project
 ships per-platform installers (Windows `.exe`, macOS `.dmg`, Linux
-`.deb` / `.rpm` / `.AppImage`) built by GitHub Actions on every `v*`
-tag push.
+`.deb` / `.rpm` / `.AppImage`) built by the `tauri-*-build.yml`
+workflows, plus runtime-pack assets (zip + manifest) and the slim /
+full-offline installers published by `runtime-pack-publish.yml`.
+Neither set is produced automatically by a tag push: both require a
+manual dispatch (see §4 and §9).
 
 > **TL;DR**: bump the version in `pyproject.toml` +
 > `voice_typer/client/package.json` (use `scripts/build/sync_versions.py`),
-> update `CHANGELOG.md`, tag with `vX.Y.Z`, push the tag. CI does the
-> rest.
+> update `CHANGELOG.md`, tag with `vX.Y.Z`, push the tag. A tag push runs
+> quality gates only; you must then dispatch the three `tauri-*-build.yml`
+> workflows and `runtime-pack-publish.yml` (for both the release tag and
+> the rolling `offline-pack` tag) to publish the installers and the pack.
 
 ---
 
@@ -110,17 +115,27 @@ git push origin main
 git push origin v1.2.0
 ```
 
-The tag push triggers `.github/workflows/build.yml` which:
+A `vX.Y.Z` tag push runs `.github/workflows/build.yml`, which is
+**quality gates only** (`docs/code-notes/ci-workflows.md`): full pytest +
+vitest + lint + typecheck. It does not build or upload installers.
 
-1. Runs the full test suite on Windows / macOS / Linux.
-2. Builds native hotkey binaries (Swift on macOS, C on Windows, C on Linux).
-3. Builds the Tauri installer per platform (NSIS / DMG / deb / rpm / AppImage).
-4. Generates SHA-256 checksums via `scripts/generate_checksums.py`.
-5. Uploads artifacts to the GitHub Release created from the tag.
+Installer artifacts come from the per-platform build workflows
+`.github/workflows/tauri-windows-build.yml`,
+`.github/workflows/tauri-macos-build.yml` and
+`.github/workflows/tauri-linux-build.yml`. Each accepts `workflow_call`
+and `workflow_dispatch` (with a `sign` input); dispatch them manually,
+collect the NSIS / DMG / deb / rpm / AppImage bundles and attach them to
+the `vX.Y.Z` GitHub Release with their SHA-256 checksums
+(`scripts/generate_checksums.py`).
 
-The Tauri build matrices (`.github/workflows/tauri-{windows,macos,linux}-build.yml`)
-also fire on tag pushes; their artifacts are uploaded to the same
-release but tagged `tauri-` until cutover (ADR-0020).
+Then dispatch `.github/workflows/runtime-pack-publish.yml` **by hand** —
+it is `workflow_dispatch`-only, with no tag or schedule trigger. Run it
+twice: once with `tag=vX.Y.Z` for the release, and once with
+`tag=offline-pack` for the rolling tag the silent downloader reads. It
+publishes the runtime-pack zip + `pack-manifest.json` and the
+**slim-core** and **full-offline** installers. Skipping this mandatory
+step leaves the silent downloader with no asset and offline
+transcription unavailable.
 
 ## 5. Release notes
 
@@ -167,16 +182,19 @@ If a release ships with a critical regression:
 
 ## 9. CI gates
 
-The following CI jobs must be green for a release to ship:
+The following gates must be green for a release to ship:
 
-- `build.yml` Full pytest + vitest + lint + typecheck + installer
-  build on all three platforms.
-- `codeql.yml` Static security analysis.
-- `client-ci.yml` Frontend-only lint / typecheck / test.
-- `populate-hashes.yml` Model hash manifest regeneration (run only
-  when model files change).
-- `tauri-*-build.yml` Tauri stack builds (the installer pipeline;
-  failures here block a release).
+- `build.yml`: full pytest + vitest + lint + typecheck — **quality gates
+  only**, no installer artifacts.
+- `tauri-{windows,macos,linux}-build.yml`: manually dispatched installer
+  builds; their artifacts (with checksums) are the release bundles.
+- `runtime-pack-publish.yml`: mandatory manual `workflow_dispatch` for
+  both `vX.Y.Z` and `offline-pack`; publishes the pack zip, manifest and
+  the slim / full-offline installers. A release is not complete without it.
+- `codeql.yml`: static security analysis.
+- `client-ci.yml`: frontend-only lint / typecheck / test.
+- `populate-hashes.yml`: model hash manifest regeneration (run only when
+  model files change).
 
 The husky `pre-push` hook (`.husky/pre-push`) is lean by design: it
 runs the cached client typecheck + the mypy ratchet only, no pytest

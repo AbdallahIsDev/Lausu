@@ -20,7 +20,7 @@ audiences: [`README.md`](../README.md), [`CONTRIBUTING.md`](../CONTRIBUTING.md),
 |------|---------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | High-level architecture: renderer ↔ Tauri host ↔ Python backend. Start here. |
 | [python-api.md](python-api.md) | Python class API reference (`LausuApp`, `Recorder`, `TranscriptionEngine`, `Config`, etc.). Kept in sync with the code by `tests/test_api_doc_accuracy.py`. |
-| [ipc-reference.md](ipc-reference.md) | IPC message reference: 85 commands (81 renderer-reachable + 4 host-only) + 51 push events grouped by namespace, with the two-allowlist contract (server registry + Rust host) and per-command notes. |
+| [ipc-reference.md](ipc-reference.md) | Canonical IPC message reference: current command / event counts (renderer-reachable + host-dispatched) and typed push events grouped by namespace, with the two-allowlist contract (server registry + Rust host) and per-command notes. Link here instead of restating counts. |
 | [API.md](API.md) | **Deprecated.** Retained only for inbound-link compat, see `python-api.md` + `ipc-reference.md` instead. |
 | [debugging.md](debugging.md) | How to read the logs, attach a debugger, and reproduce common failure modes. |
 | [cloud-transcription-setup.md](cloud-transcription-setup.md) | Cloud ASR / LLM providers: supported models, API-key formats, network requirements, per-OS quirks. |
@@ -55,13 +55,14 @@ audiences: [`README.md`](../README.md), [`CONTRIBUTING.md`](../CONTRIBUTING.md),
 | [privacy/gdpr-export.md](privacy/gdpr-export.md) | GDPR data-export bundle layout + contents. |
 | [privacy/gdpr-delete.md](privacy/gdpr-delete.md) | GDPR delete-all behavior: what is removed and what survives. |
 | [adr/0006-clipboard-security.md](adr/0006-clipboard-security.md) | Clipboard borrow/restore threat model. |
-| [adr/0014-tcp-ipc-session-token-auth.md](adr/0014-tcp-ipc-session-token-auth.md) | TCP IPC bearer-token auth (SEC-018). |
+| [adr/0014-tcp-ipc-session-token-auth.md](adr/0014-tcp-ipc-session-token-auth.md) | **Removed** (file deleted 2026-10-11; historical pointer in [adr/README.md](adr/README.md)) — TCP IPC bearer-token auth (SEC-018), superseded by the Tauri WS token. |
 | [adr/0017-cloud-url-allowlist-https.md](adr/0017-cloud-url-allowlist-https.md) | Cloud ASR / LLM URL allowlist (RELIABILITY-004). |
 
 ## Architecture Decision Records (ADRs)
 
 The full ADR index lives at [adr/README.md](adr/README.md). ADRs are
-numbered `0000`..`0020` and document irreversible design decisions
+numbered `0000`..`0030` (a few numbers are removed historical pointers)
+and document irreversible design decisions
 (hotkey backend, IPC protocol, sandbox boundaries, runtime migration,
 etc.). Read [adr/0000-adr-process.md](adr/0000-adr-process.md) for the
 process and [adr/template.md](adr/template.md) when adding a new ADR.

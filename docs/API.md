@@ -7,10 +7,11 @@
 >   (`LausuApp`, `Recorder`, `TranscriptionEngine`, `Config`, etc.).
 >   Kept in sync with the actual class signatures by
 >   `tests/test_api_doc_accuracy.py`.
-> - **[`docs/ipc-reference.md`](ipc-reference.md)**: IPC message reference
->   (the 85-command / 51-event surface, 81 renderer-reachable + 4 host-only
->   commands; 51 typed push events, grouped by namespace, with the
->   four-allowlist contract + per-command notes).
+> - **[`docs/ipc-reference.md`](ipc-reference.md)**: canonical IPC message
+>   reference — current command / event counts, the renderer-reachable vs
+>   host-dispatched split, and typed push events, grouped by namespace with
+>   the two-allowlist contract + per-command notes. Link here instead of
+>   restating counts in this file.
 >
 > New content MUST go in `docs/python-api.md` or `docs/ipc-reference.md`,
 > not here. Inbound links should be updated to point at those two files

@@ -347,7 +347,8 @@ No new entries: there is nothing left to cut over.)
 - [`signing-guide.md`](./signing-guide.md): Windows Authenticode, macOS
   Developer ID + notarization + stapling, Linux unsigned + the
   no-auto-update audit (ADR-0020 §13 + §15).
-- [`tauri-sidecar-bridge.md`](./tauri-sidecar-bridge.md): the 85-command
-  + 51-event wire contract (ADR-0020 §2 + §"Sidecar→UI Event Table").
+- [`tauri-sidecar-bridge.md`](./tauri-sidecar-bridge.md): the wire
+  contract (ADR-0020 §2 + §"Sidecar→UI Event Table"); canonical counts and
+  tables live in [`../ipc-reference.md`](../ipc-reference.md).
 - [`../adr/0020-desktop-runtime-migration-analysis.md`](../adr/0020-desktop-runtime-migration-analysis.md)
  The authoritative migration spec (Phase 5 + §"Reversibility").

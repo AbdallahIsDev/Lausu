@@ -26,6 +26,10 @@ _HOST_ONLY_OR_HOST_DISPATCHED = frozenset(
             "of the renderer gate so a compromised WebView cannot race "
             "the restart-wait event."
         ),
+        "bubble_host_hidden": (
+            "Host-dispatched bubble-hide completion. Kept out of the "
+            "renderer gate; invoked by the Rust host via dispatch_inner."
+        ),
     }
 )
 
@@ -182,3 +186,23 @@ def test_rust_allowlist_contains_key_commands() -> None:
     }
     missing = sorted(required - rust)
     assert not missing, f"Rust allowlist is missing key UI commands: {missing}"
+
+
+def test_host_delta_matches_ipc_reference_canonical_header() -> None:
+    """The host-dispatched set here must match the canonical doc header."""
+    doc = (REPO_ROOT / "docs" / "ipc-reference.md").read_text(encoding="utf-8")
+    m = re.search(
+        r"^## Commands \((\d+) total: (\d+) renderer-reachable \+ (\d+) host-dispatched: ([^)]*)\)",
+        doc,
+        re.MULTILINE,
+    )
+    assert m is not None, "ipc-reference.md command-count header is missing/unparseable."
+    total, renderer, host_count = (int(m.group(i)) for i in (1, 2, 3))
+    documented_host = {name.strip() for name in m.group(4).split(",")}
+    assert documented_host == set(_HOST_ONLY_OR_HOST_DISPATCHED), (
+        f"host-dispatched set drift: doc={sorted(documented_host)}, "
+        f"test={sorted(_HOST_ONLY_OR_HOST_DISPATCHED)}."
+    )
+    assert host_count == len(documented_host)
+    assert renderer == len(_allowed_commands_rust())
+    assert total == renderer + host_count == len(_command_registry_entries())

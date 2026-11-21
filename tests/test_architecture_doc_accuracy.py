@@ -10,6 +10,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 ARCH_DOC = ROOT / "docs" / "ARCHITECTURE.md"
+RELEASING_DOC = ROOT / "RELEASING.md"
 SHUTDOWN_DOC = ROOT / "docs" / "modules" / "shutdown_controller.md"
 AUDIO_Q_DOC = ROOT / "docs" / "modules" / "audio_quality_controller.md"
 SIDECAR_DOC = ROOT / "docs" / "modules" / "sidecar_ws.md"
@@ -39,9 +40,13 @@ def test_event_bus_count_matches_doc_and_code():
     assert "59-event bus" not in doc, "Stale '59-event bus' must not appear in ARCHITECTURE.md ."
     assert "52-event bus" not in doc, "Stale '52-event bus' must not appear in ARCHITECTURE.md ."
     assert "51-event bus" not in doc, "Stale '51-event bus' must not appear in ARCHITECTURE.md ."
-    # And the IPC-contract section's frozen-surface count must also say 109 / 61.
-    assert "109 commands / 61 events" in doc, (
-        "IPC contract section must say '109 commands / 61 events'."
+    # The IPC-contract section links the canonical surface instead of restating
+    # a count that drifts with every command addition.
+    assert "docs/ipc-reference.md" in doc, (
+        "IPC contract section must link docs/ipc-reference.md for the canonical command/event surface."
+    )
+    assert "109 commands / 61 events" not in doc, (
+        "Stale '109 commands / 61 events' must not appear in ARCHITECTURE.md."
     )
     assert "109 commands / 60 events" not in doc, (
         "Stale '109 commands / 60 events' must not appear in ARCHITECTURE.md ."
@@ -249,22 +254,24 @@ def test_tauri_command_count_in_doc_matches_code():
     assert "ONE generic `dispatch`" not in body, "stale 'ONE generic `dispatch`' phrase must be removed."
 
 
-def test_main_rs_line_count_is_269():
+def test_main_rs_line_count_matches_doc():
     """
-    Doc claims 269 lines; main.rs must actually be 269 lines.
+    Doc must match main.rs's actual line count (271).
     C-ARCH-1 / C-TOKIO-1 / C-TAURI-2 anchors kept). Still wiring-only.
 
     2026-10-27: 268 -> 269 for the ADR-0023 multi-select media picker
     registration (body stays in `commands/system_cmds/dialogs.rs`).
+    2026-11-21: 269 -> 271 (pre-existing drift on HEAD, reconciled here).
     """
     doc = _read(ARCH_DOC)
-    assert "269 lines" in doc, "Doc must claim '269 lines' for main.rs."
+    assert "271 lines" in doc, "Doc must claim '271 lines' for main.rs."
     actual = sum(1 for _ in _read(MAIN_RS).splitlines())
-    assert actual == 269, (
-        f"src-tauri/src/main.rs must be 269 lines (actual: {actual}). Update the doc + this test together."
+    assert actual == 271, (
+        f"src-tauri/src/main.rs must be 271 lines (actual: {actual}). Update the doc + this test together."
     )
     # Stale counts must NOT be in the doc. The growth note's "266→268" does
     # not contain "268 lines", so the previous value stays legal there.
+    assert "269 lines" not in doc, "Stale '269 lines' must be removed from doc."
     assert "268 lines" not in doc, "Stale '268 lines' must be removed from doc."
     assert "266 lines" not in doc, "Stale '266 lines' must be removed from doc."
     assert "261 lines" not in doc, "Stale '261 lines' must be removed from doc."
@@ -458,6 +465,67 @@ def test_prewarm_resolver_module_deleted_per_plan_p1():
         "that absorbed prewarm as a startup phase per plan-runtime-pack-"
         "split.md §6.2 P-1."
     )
+
+
+# Canonical IPC counts live in docs/ipc-reference.md; docs must link it
+# instead of restating a number that changes with every command addition.
+_STALE_COUNT_DOCS = {
+    "docs/API.md": ROOT / "docs" / "API.md",
+    "docs/README.md": ROOT / "docs" / "README.md",
+    "docs/adr/README.md": ROOT / "docs" / "adr" / "README.md",
+    "docs/migration/tauri-sidecar-bridge.md": ROOT / "docs" / "migration" / "tauri-sidecar-bridge.md",
+    "docs/migration/cutover-playbook.md": ROOT / "docs" / "migration" / "cutover-playbook.md",
+    "docs/modules/sidecar_ws.md": ROOT / "docs" / "modules" / "sidecar_ws.md",
+}
+
+_STALE_IPC_COUNTS = (
+    "85-command",
+    "85 commands",
+    "51-event",
+    "51 events",
+    "51 push events",
+    "90-command",
+    "109-command",
+    "109 commands",
+    "81 renderer-reachable",
+    "4 host-only",
+)
+
+
+def test_stale_ipc_counts_replaced_with_canonical_links():
+    """No stale command/event counts; every surface links the canonical doc."""
+    for label, path in _STALE_COUNT_DOCS.items():
+        text = _read(path)
+        for stale in _STALE_IPC_COUNTS:
+            assert stale not in text, f"{label} still cites stale IPC count '{stale}'."
+        assert "ipc-reference.md" in text, (
+            f"{label} must link docs/ipc-reference.md for the canonical command/event surface."
+        )
+
+
+def test_releasing_doc_names_real_artifact_workflows_and_mandatory_pack_dispatch():
+    """RELEASING.md must describe the shipped artifact + pack-publish flow."""
+    text = _read(RELEASING_DOC)
+    for workflow in (
+        "tauri-windows-build.yml",
+        "tauri-macos-build.yml",
+        "tauri-linux-build.yml",
+        "runtime-pack-publish.yml",
+    ):
+        assert workflow in text, f"RELEASING.md must name {workflow}."
+    assert "workflow_dispatch" in text, (
+        "RELEASING.md must state runtime-pack-publish.yml is workflow_dispatch-only."
+    )
+    assert "offline-pack" in text, (
+        "RELEASING.md must document the mandatory offline-pack tag dispatch."
+    )
+    assert "full-offline" in text and "slim" in text, (
+        "RELEASING.md must document the slim + full-offline installers."
+    )
+    assert "quality gates only" in text, "RELEASING.md must state build.yml is quality gates only."
+    # Stale cutover-era claims must be gone.
+    assert "Builds the Tauri installer per platform" not in text
+    assert "until cutover" not in text
 
 
 if __name__ == "__main__":
