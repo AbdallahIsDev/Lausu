@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -133,7 +134,20 @@ def test_selfcheck_checks_ffmpeg_against_the_shared_base(
 
     monkeypatch.setattr(ns_module, "NoiseSuppressor", _DegradedSuppressor)
     assert selfcheck.run(str(wav)) == 1
-    assert "SELFCHECK: FAIL AssertionError: RNNoise not active" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "SELFCHECK: FAIL rnnoise-active AssertionError: RNNoise not active" in out
+    for marker in (
+        "frozen-build",
+        "no-path-fallback",
+        "bundled-ffmpeg",
+        "decode-samples=16000",
+        "rnnoise-active",
+    ):
+        assert any(
+            line.startswith(f"SELFCHECK: PASS {marker}") or line.startswith(f"SELFCHECK: FAIL {marker}")
+            for line in out.splitlines()
+        ), marker
+    assert "SELFCHECK: FAILED CHECKS: rnnoise-active" in out
 
 
 def test_selfcheck_rejects_ffmpeg_outside_the_shared_base(
@@ -155,7 +169,20 @@ def test_selfcheck_rejects_ffmpeg_outside_the_shared_base(
         lambda: ffmpeg_binaries.BinaryPair(ffmpeg=str(ffmpeg), ffprobe=None),
     )
     assert selfcheck.run(str(wav)) == 1
-    assert "SELFCHECK: FAIL AssertionError: ffmpeg resolved to" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "SELFCHECK: FAIL no-path-fallback AssertionError: ffmpeg resolved to" in out
+    assert "SELFCHECK: FAILED CHECKS: no-path-fallback" in out
+    for marker in (
+        "frozen-build",
+        "no-path-fallback",
+        "bundled-ffmpeg",
+        "decode-samples",
+        "rnnoise-active",
+    ):
+        assert any(
+            line.startswith(f"SELFCHECK: PASS {marker}") or line.startswith(f"SELFCHECK: FAIL {marker}")
+            for line in out.splitlines()
+        ), marker
 
 
 def test_noise_public_accessors_are_read_only_and_truthful() -> None:
@@ -168,3 +195,39 @@ def test_noise_public_accessors_are_read_only_and_truthful() -> None:
     assert suppressor.degraded_reason == "synthetic"
     assert type(suppressor).effective_method.fset is None
     assert type(suppressor).is_degraded.fset is None
+
+
+def test_selfcheck_never_consults_path_and_accepts_cwd_containing_ffmpeg(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    base = tmp_path / "bundle"
+    base.mkdir()
+    ffmpeg = base / "ffmpeg.exe"
+    ffmpeg.write_bytes(b"")
+    wav = tmp_path / "tone.wav"
+    wav.write_bytes(b"")
+    monkeypatch.setattr(ffmpeg_binaries, "is_frozen_build", lambda: True)
+    monkeypatch.setattr(ffmpeg_binaries, "bundled_bin_dir", lambda: base)
+    monkeypatch.setattr(
+        ffmpeg_binaries,
+        "resolve_binaries",
+        lambda: ffmpeg_binaries.BinaryPair(ffmpeg=str(ffmpeg), ffprobe=None),
+    )
+    monkeypatch.setattr(decoder, "decode_chunks", lambda *_a, **_k: [b"x" * 16000])
+
+    class _FakeSuppressor:
+        def __init__(self, **_kwargs: object) -> None:
+            self.effective_method = "rnnoise"
+            self.is_degraded = False
+
+    monkeypatch.setattr(ns_module, "NoiseSuppressor", _FakeSuppressor)
+
+    def _no_which(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("self-check must not consult PATH")
+
+    monkeypatch.setattr(shutil, "which", _no_which)
+    monkeypatch.chdir(base)  # Windows which('ffmpeg') would find .\ffmpeg.EXE here
+    assert selfcheck.run(str(wav)) == 0
+    out = capsys.readouterr().out
+    assert "SELFCHECK: PASS no-path-fallback" in out
+    assert "SELFCHECK: ALL PASS" in out

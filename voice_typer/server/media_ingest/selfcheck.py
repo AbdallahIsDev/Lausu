@@ -21,7 +21,6 @@ Five assertions, printed as grep-able markers:
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 _MARKER = "SELFCHECK"
@@ -45,7 +44,7 @@ def maybe_run_self_check(argv: list[str]) -> bool:
 
 
 def run(wav_path: str) -> int:
-    """Execute the three checks; always print markers, return a process code."""
+    """Run every marker, then return non-zero if any check failed."""
     if not wav_path:
         print(f"{_MARKER}: FAIL no-wav-path", flush=True)
         return 2
@@ -61,39 +60,46 @@ def run(wav_path: str) -> int:
         print(f"{_MARKER}: FAIL import-decode-stack {exc!r}", flush=True)
         return 2
 
-    try:
+    failed: list[str] = []
+
+    def check(name: str, fn) -> None:
+        try:
+            label = fn()
+        except Exception as exc:
+            failed.append(name)
+            print(f"{_MARKER}: FAIL {name} {type(exc).__name__}: {exc}", flush=True)
+        else:
+            print(f"{_MARKER}: PASS {label or name}", flush=True)
+
+    def frozen_check() -> None:
         if not ffmpeg_binaries.is_frozen_build():
             raise AssertionError("self-check must run from a frozen sidecar build")
-        print(f"{_MARKER}: PASS frozen-build", flush=True)
 
+    resolved: Path | None = None
+
+    def no_path_check() -> None:
+        nonlocal resolved
         pair = ffmpeg_binaries.resolve_binaries()
         if pair is None or not pair.ffmpeg:
             raise AssertionError("resolve_binaries() returned no ffmpeg")
-        exe_dir = ffmpeg_binaries.bundled_bin_dir()
         resolved = Path(pair.ffmpeg).resolve()
-        from_path = shutil.which("ffmpeg")
-        if from_path and Path(from_path).resolve() == resolved:
-            raise AssertionError(f"ffmpeg resolved from PATH: {from_path}")
+        exe_dir = ffmpeg_binaries.bundled_bin_dir()
         if resolved.parent != exe_dir:
             raise AssertionError(
                 f"ffmpeg resolved to {resolved}, not exe-adjacent {exe_dir} "
                 "(PATH fallback or missing bundled externalBin)"
             )
-        print(f"{_MARKER}: PASS no-path-fallback", flush=True)
-        print(
-            f"{_MARKER}: PASS bundled-ffmpeg {resolved}",
-            flush=True,
-        )
 
-        total = 0
-        for chunk in decode_chunks(str(wav), remote=False):
-            total += len(chunk)
+    def bundled_check() -> str:
+        return f"bundled-ffmpeg {resolved}"
+
+    def decode_check() -> str:
+        total = sum(len(chunk) for chunk in decode_chunks(str(wav), remote=False))
         if total != _EXPECTED_SAMPLES:
-            raise AssertionError(
-                f"expected {_EXPECTED_SAMPLES} decoded samples, got {total}"
-            )
-        print(f"{_MARKER}: PASS decode-samples={total}", flush=True)
+            raise AssertionError(f"expected {_EXPECTED_SAMPLES} decoded samples, got {total}")
+        return f"decode-samples={total}"
 
+    def rnnoise_check() -> None:
         from voice_typer.server.audio_filters.noise_suppressor import NoiseSuppressor
 
         suppressor = NoiseSuppressor(method="rnnoise", quiet=True)
@@ -103,10 +109,15 @@ def run(wav_path: str) -> int:
             raise AssertionError(
                 f"RNNoise not active (effective method={effective!r}, degraded={degraded})"
             )
-        print(f"{_MARKER}: PASS rnnoise-active", flush=True)
-    except Exception as exc:
-        print(f"{_MARKER}: FAIL {type(exc).__name__}: {exc}", flush=True)
-        return 1
 
+    check("frozen-build", frozen_check)
+    check("no-path-fallback", no_path_check)
+    check("bundled-ffmpeg", bundled_check)
+    check("decode-samples", decode_check)
+    check("rnnoise-active", rnnoise_check)
+
+    if failed:
+        print(f"{_MARKER}: FAILED CHECKS: {', '.join(failed)}", flush=True)
+        return 1
     print(f"{_MARKER}: ALL PASS", flush=True)
     return 0

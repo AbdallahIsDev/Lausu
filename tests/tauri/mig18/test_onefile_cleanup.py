@@ -21,6 +21,8 @@ BUILD_SCRIPTS: dict[str, Path] = {
 
 PLATFORM_TEMPDIR_PATTERNS: dict[str, list[re.Pattern[str]]] = {
     "windows": [
+        # Per-product/per-build cached dir (Nuitka placeholders).
+        re.compile(r"\{CACHE_DIR\}/\{PRODUCT\}/\{VERSION\}/onefile-tmp"),
         # {CACHE_DIR}/lausu/onefile-tmp, the Nuitka-documented token
         re.compile(r"\{CACHE_DIR\}[/\\]+lausu[/\\]+onefile-tmp"),
         # {CACHE_DIR} (see the mig15 pin).
@@ -29,6 +31,8 @@ PLATFORM_TEMPDIR_PATTERNS: dict[str, list[re.Pattern[str]]] = {
         re.compile(r"\$XDG_CACHE_HOME/lausu/onefile-tmp"),
     ],
     "macos": [
+        # Per-product/per-build cached dir.
+        re.compile(r"\$HOME/Library/Caches/lausu/LausuSidecar/\$BUILD_STAMP/onefile-tmp"),
         # ~/Library/Caches/lausu/onefile-tmp
         re.compile(r"~/Library/Caches/lausu/onefile-tmp"),
         # $HOME/Library/Caches/lausu/onefile-tmp
@@ -37,6 +41,10 @@ PLATFORM_TEMPDIR_PATTERNS: dict[str, list[re.Pattern[str]]] = {
         re.compile(r"\$XDG_CACHE_HOME/lausu/onefile-tmp"),
     ],
     "linux": [
+        # Per-product/per-build cached dir.
+        re.compile(
+            r"\$\{XDG_CACHE_HOME:-\$HOME/\.cache\}/lausu/LausuSidecar/\$BUILD_STAMP/onefile-tmp"
+        ),
         # $XDG_CACHE_HOME/lausu/onefile-tmp
         re.compile(r"\$XDG_CACHE_HOME/lausu/onefile-tmp"),
         # $HOME/.cache/lausu/onefile-tmp
@@ -186,7 +194,7 @@ def test_tempdir_spec_includes_voice_tyer(script_texts: dict[str, str], platform
     text = script_texts[platform]
     spec = _extract_resolved_tempdir_spec(text)
     assert spec is not None, f"build_sidecar_{platform}.sh: could not extract --onefile-tempdir-spec value."
-    assert "lausu" in spec, (
+    assert "lausu" in spec or "{PRODUCT}" in spec, (
         f"build_sidecar_{platform}.sh --onefile-tempdir-spec value `{spec}` "
         "must include `lausu` in the path to avoid collision with "
         "other Nuitka-frozen apps (ADR-0020 §4)."

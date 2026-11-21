@@ -105,6 +105,8 @@ echo "[build_sidecar_windows] SITE=$SITE"
 mkdir -p "$SIDECAR_DIR"
 
 # ─── Run Nuitka (ADR-0020 §4.2) ──────────────────────────────────────────────
+# Cached onefile dirs keep removed payload files; isolate each build and exe.
+BUILD_STAMP="$(date -u +%Y.%m.%d.%H%M)"
 # NOTE: --onefile-tempdir-spec uses the Nuitka-documented {CACHE_DIR}
 # token, which expands to the user's AppData\Local (previously
 # %LOCALAPPDATA%, which Nuitka 2.8.10 does NOT support as a spec variable
@@ -180,7 +182,9 @@ NUITKA_ARGS=(
     # workspace from this copy on the first unlock.
     --include-data-dir="$PLUGINS_STAGE/tools/internal_plugins=tools/internal_plugins"
     --windows-disable-console
-    --onefile-tempdir-spec="{CACHE_DIR}/lausu/onefile-tmp"
+    --product-name=LausuSidecar \
+    --product-version="$BUILD_STAMP" \
+    --onefile-tempdir-spec="{CACHE_DIR}/{PRODUCT}/{VERSION}/onefile-tmp"
     --output-filename="$OUTPUT_NAME"
     --output-dir="$SIDECAR_DIR"
     "$PROJECT_ROOT/voice_typer/server/ipc_server.py"

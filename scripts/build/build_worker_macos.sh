@@ -199,6 +199,8 @@ mkdir -p "$WORKER_DIR"
 
 # ─── Run Nuitka (plan-runtime-pack-split §4.4 / §11.5) ───────────────────────
 echo "[build_worker_macos] Running Nuitka..."
+# Cached onefile dirs keep removed payload files; isolate each build.
+BUILD_STAMP="$(date -u +%Y.%m.%d.%H%M)"
 NUITKA_ARGS=(
     --standalone --onefile
     --assume-yes-for-downloads
@@ -251,7 +253,7 @@ NUITKA_ARGS=(
     --macos-app-name=LausuWorker
     --macos-signed-app-name=com.Lausu.worker
     --macos-app-mode=background
-    --onefile-tempdir-spec="$HOME/Library/Application Support/lausu/worker-onefile-tmp"
+    --onefile-tempdir-spec="$HOME/Library/Application Support/lausu/LausuWorker/$BUILD_STAMP/onefile-tmp"
     --output-filename="$OUTPUT_NAME"
     --output-dir="$WORKER_DIR"
     "$PROJECT_ROOT/voice_typer/worker/__main__.py"

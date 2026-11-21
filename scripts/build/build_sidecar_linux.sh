@@ -199,7 +199,9 @@ fi
 
 # ─── Determine onefile tempdir spec ─────────────────────────────────────────
 # ADR-0020 §4.4: pin the onefile extraction dir so stale extracts are cleanable.
-ONEFILE_TEMPDIR="${XDG_CACHE_HOME:-$HOME/.cache}/lausu/onefile-tmp"
+# Cached onefile dirs keep removed payload files; isolate each build and exe.
+BUILD_STAMP="$(date -u +%Y.%m.%d.%H%M)"
+ONEFILE_TEMPDIR="${XDG_CACHE_HOME:-$HOME/.cache}/lausu/LausuSidecar/$BUILD_STAMP/onefile-tmp"
 
 # ─── Build output paths ─────────────────────────────────────────────────────
 OUTPUT_DIR="$PROJECT_ROOT/src-tauri/bin"

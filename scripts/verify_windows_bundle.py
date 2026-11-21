@@ -58,6 +58,7 @@ _GPL_RE = re.compile("|".join(re.escape(p) for p in GPL_PATTERNS), re.IGNORECASE
 # the payload. These filename patterns run against the extraction dir instead.
 GPL_DLL_GLOBS = ("avcodec*.dll", "libx264*.dll", "libx265*.dll")
 ONEFILE_SPEC_RE = re.compile(r"--onefile-tempdir-spec=[\"']([^\"'\n]+)[\"']")
+PRODUCT_NAME_RE = re.compile(r"--product-name=[\"']?([^\"'\s]+)")
 ONEFILE_EXTRACT_DIR_ENV = "LAUSU_ONEFILE_EXTRACT_DIR"
 FREEZE_SCRIPT = REPO_ROOT / "scripts" / "build" / "build_sidecar_windows.sh"
 
@@ -254,18 +255,34 @@ def pinned_onefile_tempdir_spec(script: Path | None = None) -> str | None:
     return match.group(1) if match else None
 
 
-def expand_onefile_cache_spec(spec: str, cache_dir: str) -> Path | None:
-    """Expand the pinned spec's ``{CACHE_DIR}`` token (Nuitka user cache dir).
+def freeze_product_name(script: Path | None = None) -> str | None:
+    """Read the sidecar's --product-name from its freeze script."""
+    path = script or FREEZE_SCRIPT
+    if not path.is_file():
+        return None
+    match = PRODUCT_NAME_RE.search(path.read_text(encoding="utf-8"))
+    return match.group(1) if match else None
 
-    A spec with ``{PID}``/``{TIME}`` names a throwaway dir that Nuitka deletes
-    on exit; it cannot be inspected afterwards, so refuse to guess.
+
+def expand_onefile_cache_spec(
+    spec: str, cache_dir: str, product: str | None = None
+) -> Path | None:
+    """Expand the pinned spec's cache/product tokens.
+
+    A spec with {PID}/{TIME}/{PROGRAM} names a throwaway dir that Nuitka
+    deletes on exit; it cannot be inspected afterwards, so refuse to guess.
     """
     if any(token in spec for token in ("{PID}", "{TIME}", "{PROGRAM}")):
         return None
     prefix = "{CACHE_DIR}"
     if not spec.startswith(prefix) or not cache_dir:
         return None
-    return Path(cache_dir) / spec[len(prefix):].lstrip("/\\")
+    suffix = spec[len(prefix):].lstrip("/\\")
+    if "{PRODUCT}" in suffix:
+        if not product:
+            return None
+        suffix = suffix.replace("{PRODUCT}", product)
+    return Path(cache_dir) / suffix
 
 
 def onefile_extraction_dir(explicit: str | None = None) -> Path | None:
@@ -281,7 +298,19 @@ def onefile_extraction_dir(explicit: str | None = None) -> Path | None:
         cache = str(Path.home() / "Library" / "Caches")
     else:
         cache = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
-    return expand_onefile_cache_spec(spec, cache)
+    product = freeze_product_name()
+    if "{VERSION}" in spec:
+        root = expand_onefile_cache_spec(
+            spec.split("/{VERSION}/")[0], cache, product
+        )
+        if root is None or not root.is_dir():
+            return None
+        candidates = sorted(
+            (p for p in root.glob("*/onefile-tmp") if p.is_dir()),
+            key=lambda p: p.stat().st_mtime,
+        )
+        return candidates[-1] if candidates else None
+    return expand_onefile_cache_spec(spec, cache, product)
 
 
 def extraction_dll_scan(root: Path) -> tuple[list[ExtractionHit], list[ExtractionHit]]:
@@ -430,8 +459,10 @@ def self_test() -> int:
         rows = gpl_dll_table([p])
         assert any(token == "avcodec" for token, _, _ in rows), rows
     spec = pinned_onefile_tempdir_spec() or ""
-    assert spec == "{CACHE_DIR}/lausu/onefile-tmp", spec
-    assert expand_onefile_cache_spec(spec, "/cache") == Path("/cache/lausu/onefile-tmp")
+    assert spec == "{CACHE_DIR}/{PRODUCT}/{VERSION}/onefile-tmp", spec
+    assert expand_onefile_cache_spec(
+        spec.split("/{VERSION}/")[0], "/cache", "LausuSidecar"
+    ) == Path("/cache/LausuSidecar")
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp) / "onefile-tmp"
         av_libs = root / "av.libs"
@@ -483,30 +514,50 @@ def main(argv: list[str] | None = None) -> int:
         return self_test()
 
     passed: list[str] = []
-    try:
-        passed += check_bundle_contents(args.target)
-        if args.sidecar is not None:
-            passed += run_sidecar_smoke(args.sidecar, args.wav, args.target)
+    failed: list[str] = []
+
+    def collect(label: str, fn) -> None:
+        try:
+            result = fn()
+        except Exception as exc:
+            detail = f"{label}: {exc}"
+            failed.append(detail)
+            print(f"::error::Windows bundle verification FAILED: {detail}", flush=True)
         else:
-            print("verify_windows_bundle.py: no --sidecar supplied; frozen smoke SKIPPED", flush=True)
-        sidecar = args.sidecar or (
-            REPO_ROOT / "src-tauri" / "bin" / f"python-sidecar-{args.target}.exe"
+            passed.extend(result or [])
+
+    collect("bundle contents", lambda: check_bundle_contents(args.target))
+    if args.sidecar is not None:
+        collect("frozen self-check", lambda: run_sidecar_smoke(args.sidecar, args.wav, args.target))
+    else:
+        print("verify_windows_bundle.py: no --sidecar supplied; frozen smoke SKIPPED", flush=True)
+    sidecar = args.sidecar or (
+        REPO_ROOT / "src-tauri" / "bin" / f"python-sidecar-{args.target}.exe"
+    )
+    extraction_dir = onefile_extraction_dir(args.onefile_extract_dir)
+    source = "explicit override" if args.onefile_extract_dir else "pinned spec (Nuitka cached mode)"
+    print(
+        f"onefile extraction dir: {extraction_dir} (from {source}; "
+        "left in place — this script does not create or delete it)",
+        flush=True,
+    )
+    collect(
+        "GPL DLL scan",
+        lambda: gpl_gate(sidecar, args.target, args.enforce_no_gpl_dlls, extraction_dir),
+    )
+    if args.summary is not None:
+        collect(
+            "size summary",
+            lambda: write_summary(
+                args.summary, args.target, args.nsis, args.msi, sidecar, args.wav, passed
+            ),
         )
-        extraction_dir = onefile_extraction_dir(args.onefile_extract_dir)
-        source = "explicit override" if args.onefile_extract_dir else "pinned spec (Nuitka cached mode)"
+
+    if failed:
         print(
-            f"onefile extraction dir: {extraction_dir} (from {source}; "
-            "left in place — this script does not create or delete it)",
+            "Windows bundle verification FAILED CHECKS: " + " | ".join(failed),
             flush=True,
         )
-        passed += gpl_gate(sidecar, args.target, args.enforce_no_gpl_dlls, extraction_dir)
-        if args.summary is not None:
-            args.summary.parent.mkdir(parents=True, exist_ok=True)
-            write_summary(
-                args.summary, args.target, args.nsis, args.msi, sidecar, args.wav, passed
-            )
-    except BundleVerificationError as exc:
-        print(f"::error::Windows bundle verification FAILED: {exc}", flush=True)
         return 1
     print("Windows bundle verification gate: PASS", flush=True)
     return 0

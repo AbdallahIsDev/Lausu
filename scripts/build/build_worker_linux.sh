@@ -217,7 +217,9 @@ fi
 # ─── Determine onefile tempdir spec ─────────────────────────────────────────
 # Per-worker extraction dir so stale extracts are cleanable and don't collide
 # with the sidecar's or the prewarm's (C-CI-9, onefile-tempdir-spec stays).
-ONEFILE_TEMPDIR="${XDG_CACHE_HOME:-$HOME/.cache}/lausu/worker-onefile-tmp"
+# Cached onefile dirs keep removed payload files; isolate each build and exe.
+BUILD_STAMP="$(date -u +%Y.%m.%d.%H%M)"
+ONEFILE_TEMPDIR="${XDG_CACHE_HOME:-$HOME/.cache}/lausu/LausuWorker/$BUILD_STAMP/onefile-tmp"
 
 # ─── Build output paths ─────────────────────────────────────────────────────
 OUTPUT_DIR="$PROJECT_ROOT/src-tauri/bin"

@@ -54,13 +54,21 @@ def test_extraction_scan_clean_dir(tmp_path: Path) -> None:
     assert gate.extraction_dll_scan(tmp_path / "absent") == ([], [])
 
 
-def test_pinned_spec_expands_to_cached_extraction_dir() -> None:
+def test_pinned_spec_is_per_build_and_per_product(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     spec = gate.pinned_onefile_tempdir_spec()
-    assert spec == "{CACHE_DIR}/lausu/onefile-tmp"
-    assert gate.expand_onefile_cache_spec(spec, r"C:\cache") == Path(
-        r"C:\cache/lausu/onefile-tmp"
-    )
+    assert spec == "{CACHE_DIR}/{PRODUCT}/{VERSION}/onefile-tmp"
+    assert gate.freeze_product_name() == "LausuSidecar"
+    assert gate.expand_onefile_cache_spec(
+        spec.split("/{VERSION}/")[0], r"C:\cache", "LausuSidecar"
+    ) == Path(r"C:\cache/LausuSidecar")
     assert gate.expand_onefile_cache_spec("{TEMP}/onefile_{PID}_{TIME}", "C:\\cache") is None
+
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    old = tmp_path / "LausuSidecar" / "2026.01.01.0000" / "onefile-tmp"
+    new = tmp_path / "LausuSidecar" / "2026.11.21.1635" / "onefile-tmp"
+    old.mkdir(parents=True)
+    new.mkdir(parents=True)
+    assert gate.onefile_extraction_dir() == new
 
 
 def test_gpl_gate_soft_mode_warns_and_exits_zero(
@@ -138,3 +146,44 @@ def test_gpl_gate_requires_a_resolvable_extraction_dir(
     monkeypatch.setattr(gate, "REPO_ROOT", tmp_path)
     with pytest.raises(gate.BundleVerificationError, match="could not be determined"):
         gate.gpl_gate(tmp_path / "sidecar.exe", "x86_64-pc-windows-msvc", "0", None)
+
+
+def test_main_collects_all_failures_but_still_runs_gpl_scan_and_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(gate, "REPO_ROOT", tmp_path)
+
+    def _bad_bundle(_target: str) -> list[str]:
+        raise gate.BundleVerificationError("bundle contents: missing ffmpeg")
+
+    def _bad_selfcheck(*_args: object) -> list[str]:
+        raise gate.BundleVerificationError("frozen self-check: SELFCHECK failed")
+
+    def _gpl(*_args: object) -> list[str]:
+        print("### GPL DLL scan")
+        print("| DLL | matched |")
+        return ["GPL DLL scan: 0 token(s)"]
+
+    monkeypatch.setattr(gate, "check_bundle_contents", _bad_bundle)
+    monkeypatch.setattr(gate, "run_sidecar_smoke", _bad_selfcheck)
+    monkeypatch.setattr(gate, "onefile_extraction_dir", lambda _x=None: tmp_path / "extract")
+    monkeypatch.setattr(gate, "gpl_gate", _gpl)
+    sidecar = tmp_path / "sidecar.exe"
+    sidecar.write_bytes(b"")
+    wav = tmp_path / "tone.wav"
+    wav.write_bytes(b"")
+    summary = tmp_path / "summary.md"
+
+    rc = gate.main(
+        [
+            "--sidecar", str(sidecar), "--wav", str(wav),
+            "--summary", str(summary), "--onefile-extract-dir", str(tmp_path / "extract"),
+        ]
+    )
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "### GPL DLL scan" in out
+    assert "Wrote size summary to" in out
+    assert "Windows bundle verification FAILED CHECKS:" in out
+    assert "bundle contents: bundle contents: missing ffmpeg" in out
+    assert "frozen self-check: frozen self-check: SELFCHECK failed" in out

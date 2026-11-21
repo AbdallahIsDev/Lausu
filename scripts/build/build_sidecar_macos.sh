@@ -145,6 +145,8 @@ PLUGINS_STAGE="$PROJECT_ROOT/build/internal_plugins_bundle"
 "$PYBS_PYTHON" "$PROJECT_ROOT/scripts/build/stage_internal_plugins.py" --output "$PLUGINS_STAGE" \
     || { echo "ERROR: internal plugin staging failed" >&2; exit 1; }
 echo "[build_sidecar_macos] Running Nuitka..."
+# Cached onefile dirs keep removed payload files; isolate each build.
+BUILD_STAMP="$(date -u +%Y.%m.%d.%H%M)"
 NUITKA_ARGS=(
     --standalone --onefile
     --assume-yes-for-downloads
@@ -188,7 +190,7 @@ NUITKA_ARGS=(
     --macos-app-mode=background
     # Extract dir is purgeable cache, not user data: Application Support is
     # backed up and survives "clear caches", the frozen extract must not.
-    --onefile-tempdir-spec="$HOME/Library/Caches/lausu/onefile-tmp"
+    --onefile-tempdir-spec="$HOME/Library/Caches/lausu/LausuSidecar/$BUILD_STAMP/onefile-tmp"
     --output-filename="$OUTPUT_NAME"
     --output-dir="$SIDECAR_DIR"
     "$PROJECT_ROOT/voice_typer/server/ipc_server.py"

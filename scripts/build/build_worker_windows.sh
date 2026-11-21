@@ -191,6 +191,8 @@ echo "[build_worker_windows] nuitka=$NUITKA_VER"
 mkdir -p "$WORKER_DIR"
 
 # ─── Run Nuitka (plan-runtime-pack-split §4.4 / §11.5) ───────────────────────
+# Cached onefile dirs keep removed payload files; isolate each build and exe.
+BUILD_STAMP="$(date -u +%Y.%m.%d.%H%M)"
 # NOTE: the worker is a SEPARATE process, it has its own --onefile-tempdir-spec
 # so its self-extraction doesn't collide with the sidecar's or the prewarm's.
 # Different temp dir, different binary, different process.
@@ -246,7 +248,9 @@ NUITKA_ARGS=(
     --include-package=websockets
     --include-package-data=voice_typer.server
     --windows-console-mode=disable
-    --onefile-tempdir-spec="{CACHE_DIR}/lausu/worker-onefile-tmp"
+    --product-name=LausuWorker \
+    --product-version="$BUILD_STAMP" \
+    --onefile-tempdir-spec="{CACHE_DIR}/{PRODUCT}/{VERSION}/onefile-tmp"
     --output-filename="$OUTPUT_NAME"
     --output-dir="$WORKER_DIR"
     "$PROJECT_ROOT/voice_typer/worker/__main__.py"

@@ -62,7 +62,9 @@ def test_distinct_license_text_is_emitted_exactly_once() -> None:
     full = [key for key in module.LICENSE_TEXTS if key in module.FULL_TEXT_LICENSES]
     assert len(full) == 8, full
     for key in full:
-        body = module.LICENSE_TEXTS[key].strip()
+        body = "\n".join(
+            line.rstrip() for line in module.LICENSE_TEXTS[key].strip().splitlines()
+        )
         assert body, f"empty license text: {key}"
         assert block.count(body) == 1, f"{key} full text emitted {block.count(body)} times"
     for key, body in module.LICENSE_TEXTS.items():

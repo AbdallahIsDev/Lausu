@@ -1889,7 +1889,7 @@ def render(facts: dict, metadata: dict) -> str:
         ],
     )
     lines += ["", END]
-    return "\n".join(lines) + "\n"
+    return "\n".join(line.rstrip() for line in lines) + "\n"
 
 
 def main() -> int:
