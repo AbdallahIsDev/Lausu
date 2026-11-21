@@ -542,7 +542,9 @@ class NoiseSuppressor(AudioFilter):
                 backend_reset()
         # GTCRN state: the model's recurrent caches + overlap-add tail
         if self._method == "gtcrn" and self._backend is not None:
-            self._backend.reset()
+            backend_reset = getattr(self._backend, "reset", None)
+            if callable(backend_reset):
+                backend_reset()
         if self._result_16k_buf is not None:
             self._result_16k_buf.fill(0)
         if self._gtcrn_upsampler is not None:
@@ -551,7 +553,9 @@ class NoiseSuppressor(AudioFilter):
             self._gtcrn_downsampler.reset()
         # DPDFNet state: RNN state, STFT buffers, overlap-add + pre-roll FIFO
         if self._method == "dpdfnet" and self._backend is not None:
-            self._backend.reset()
+            backend_reset = getattr(self._backend, "reset", None)
+            if callable(backend_reset):
+                backend_reset()
 
     def _resampler_pair_delay_ms(self, native_rate: int) -> float:
         """Round-trip group delay (ms) of this suppressor's streaming resampler pair."""

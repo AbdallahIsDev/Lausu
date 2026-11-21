@@ -35,6 +35,8 @@ class JobPhase(StrEnum):
 
 def parse_job_phase(value: object) -> JobPhase | None:
     """Return the matching phase, or ``None`` for an unknown value."""
+    if not isinstance(value, str):
+        return None
     try:
         return JobPhase(value)
     except (TypeError, ValueError):

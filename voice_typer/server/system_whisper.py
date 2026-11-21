@@ -148,7 +148,7 @@ def try_load_worker_whisper(config: Any, timeout: float = 300.0) -> Any | None:
         engine = WorkerWhisperProxyEngine(
             model_size=model_size,
             device_info=device_info if isinstance(device_info, str) and device_info else "pack worker",
-            language=language,
+            language=language or "",
         )
         log.info("[MODEL] serving whisper/%s from pack worker", model_size)
         return engine

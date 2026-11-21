@@ -56,22 +56,18 @@ def _settings(secure_preferences: Path) -> dict:
         data = json.loads(secure_preferences.read_text(encoding="utf-8"))
     except (OSError, ValueError, UnicodeDecodeError):
         return {}
-    settings = (((data or {}).get("extensions") or {}).get("settings") or {})
+    settings = ((data or {}).get("extensions") or {}).get("settings") or {}
     return settings if isinstance(settings, dict) else {}
 
 
 def _same_path(left: str, right: Path) -> bool:
     try:
-        return os.path.normcase(str(Path(left).resolve())) == os.path.normcase(
-            str(right.resolve())
-        )
+        return os.path.normcase(str(Path(left).resolve())) == os.path.normcase(str(right.resolve()))
     except (OSError, ValueError):
         return False
 
 
-def read_registered_extension_path(
-    secure_preferences: Path, *, target: Path | None = None
-) -> str | None:
+def read_registered_extension_path(secure_preferences: Path, *, target: Path | None = None) -> str | None:
     """Read our registration path out of a Secure Preferences file.
 
     Chrome derives an unpacked extension's id from the path SPELLING it was
@@ -87,8 +83,9 @@ def read_registered_extension_path(
             if isinstance(path, str) and _same_path(path, target):
                 return path
     entry = settings.get(EXTENSION_ID)
-    if isinstance(entry, dict) and isinstance(entry.get("path"), str):
-        return entry["path"]
+    path = entry.get("path") if isinstance(entry, dict) else None
+    if isinstance(path, str):
+        return path
     return None
 
 
@@ -97,9 +94,7 @@ def duplicate_registration_count(secure_preferences: Path, target: Path) -> int:
     return sum(
         1
         for entry in _settings(secure_preferences).values()
-        if isinstance(entry, dict)
-        and isinstance(entry.get("path"), str)
-        and _same_path(entry["path"], target)
+        if isinstance(entry, dict) and isinstance(entry.get("path"), str) and _same_path(entry["path"], target)
     )
 
 
@@ -114,7 +109,7 @@ def registered_extension_path(profile: Path | None = None) -> str | None:
 def install_hint() -> str:
     return (
         "The dictation extension is not connected. Open chrome://extensions in the dictation "
-        "profile, enable Developer mode, choose \"Load unpacked\", and select "
+        'profile, enable Developer mode, choose "Load unpacked", and select '
         f"{stable_extension_dir()}. Then reload the tab and press the hotkey again."
     )
 

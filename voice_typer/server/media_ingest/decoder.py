@@ -272,7 +272,7 @@ def _run_duration_probe(argv: list[str], timeout: float) -> str | None:
     ``_run_probe`` we must not discard output on a non-zero return code.
     """
     try:
-        completed = subprocess.run(
+        completed: subprocess.CompletedProcess[bytes] = subprocess.run(
             argv,
             stdin=subprocess.DEVNULL,
             capture_output=True,

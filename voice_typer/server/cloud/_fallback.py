@@ -11,7 +11,7 @@ import inspect
 import logging
 import threading
 from collections.abc import Callable
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 import numpy as np
 
@@ -71,10 +71,10 @@ def _transcribe_local(
     """
     scoped = getattr(engine, "transcribe", None)
     if scoped is not None and _takes_abort_event(scoped):
-        return scoped(audio, audio_stats=audio_stats, abort_event=abort_event)
+        return cast(str, scoped(audio, audio_stats=audio_stats, abort_event=abort_event))
     richer = getattr(engine, "transcribe_with_fallback", None)
     if richer is not None and _takes_abort_event(richer):
-        return richer(audio, audio_stats=audio_stats, abort_event=abort_event)
+        return cast(str, richer(audio, audio_stats=audio_stats, abort_event=abort_event))
     return engine.transcribe(audio, audio_stats=audio_stats)
 
 
@@ -190,9 +190,7 @@ def fall_back_to_local(
                     notify_exc,
                 )
             try:
-                return _transcribe_local(
-                    resolved_local_engine, audio, audio_stats, abort_event
-                )
+                return _transcribe_local(resolved_local_engine, audio, audio_stats, abort_event)
             except Exception as local_err:
                 # Include exc_info so the local fallback
                 log.error("[CLOUD] Local fallback also failed: %s", local_err, exc_info=True)
