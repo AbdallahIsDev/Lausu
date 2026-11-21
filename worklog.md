@@ -1722,3 +1722,9 @@ Fix (commit 71de65e73): completed the Any-shadow package — 28 new stubs mirror
 Baseline NOT regenerated (would be fake-green). On this host (Python 3.13.7) the mypy ratchet is independently red: arg-type 36→38, attr-defined 198→199, no-any-return 75→77; these predate this fix and were masked by the fatal parse error. CI runs Python 3.12.10 with its own lock-resolved deps, where counts may differ; a local 3.12 interpreter exists but has no mypy/deps installed, so no valid CI-parity run was possible here. Flagged as follow-up: verify the ratchet on a real CI-configured 3.12 environment; if those buckets are genuinely red there, fix the underlying type errors (do not bump the baseline).
 
 Final: 1 new test passed, ruff clean, mypy parse error eliminated. 8 local commits ahead of origin/main, NOT pushed.
+
+## 2026-11-21 — round 17/18: frozen verification fixes and cache isolation
+- Non-fail-fast self-check/gate, notices whitespace stripped at generation, platform-neutral resolver test (other-session `ac6cc85bb`).
+- Nuitka cached-mode probes: changed/new files re-extracted; removed files survive; two exes sharing a spec mix payloads. `{PRODUCT}`/`{VERSION}` with product/version flags isolate per exe and per build while staying cached.
+- Freeze scripts (Windows/Linux/macOS sidecar + worker) now isolate extraction dirs; gate resolves the newest versioned dir.
+- Verified: scoped pytest 19 passed, gate self-test PASS, notices check PASS, bash -n clean.
