@@ -1646,3 +1646,10 @@ Verification: ruff clean; pyrefly 0; 592 passed; gate --self-test PASS. Temp 134
 - Fix: `uninstaller.nsh` and `uninstall.bat` now remove `runtime-pack` + `installer-state.json` on every uninstall and remove `%LOCALAPPDATA%\lausu` only when empty; `uninstall_permissions.py --purge` gained `_purge_local_installer_state()` for the same two paths. No blanket wipe of user files.
 - Tests: 3 new pins (NSIS source, batch source, real Python purge with a user sentinel file). RED confirmed, then GREEN. Full affected files: 73 passed. Ruff clean on touched Python files. review.md RH-28 marked ✅ Fixed (verified).
 - Learn-and-teach: added `C-PERSIST-4` — a second per-user storage root must be added to every uninstall/purge path in the same change; remove only installer-owned paths. Announced in chat; user may veto.
+
+### Review follow-up (RH-28)
+
+- Reviewer found an Important reachability bug: `uninstall.bat` exited at lines 78/90 before the new LOCALAPPDATA cleanup block, so the common Python path still left the pack behind. Verified against the file.
+- Fix: moved the owned-path cleanup above the Python/PowerShell branches, so it runs on every path. Added an order pin asserting the cleanup block precedes the first `exit /b 0` (RED confirmed: index 7015 > 3918, then GREEN).
+- Reviewer minors also closed: `review.md` progress now states the real coverage and reconciles the test count (73 initially, 76 after the two extra Python edge-case tests); added tests for missing LOCALAPPDATA and empty-root removal.
+- Validation: 76 passed across `tests/tauri/test_installer_naming.py` and `tests/test_uninstall_windows.py`; ruff clean. Scoped re-review dispatched.

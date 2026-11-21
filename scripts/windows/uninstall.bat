@@ -67,6 +67,20 @@ if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 
 set "PY_SCRIPT=%SCRIPT_DIR%\uninstall_permissions.py"
 
+REM Installer-owned runtime pack lives in a second per-user root. These two
+REM paths are created by the installers, so remove them on every uninstall,
+REM including the common Python path that exits successfully below. Never
+REM wipe the whole root, the user may have placed files there.
+if exist "%LOCALAPPDATA%\lausu\runtime-pack" (
+    rmdir /s /q "%LOCALAPPDATA%\lausu\runtime-pack"
+    echo [lausu-uninstall] Removed local runtime pack.
+)
+if exist "%LOCALAPPDATA%\lausu\installer-state.json" (
+    del /q "%LOCALAPPDATA%\lausu\installer-state.json"
+    echo [lausu-uninstall] Removed installer state.
+)
+if exist "%LOCALAPPDATA%\lausu" rmdir "%LOCALAPPDATA%\lausu" 2>nul
+
 REM ── Path 1: Python ───────────────────────────────────────────────────
 REM Try `python` first (user install), then `py` (the official Python
 REM Launcher for Windows, installed with python.org installers).
@@ -135,19 +149,6 @@ REM canonical name and the pre-rename legacy name are deleted.
 schtasks.exe /Delete /TN "com.Lausu.prewarm" /F >nul 2>nul
 schtasks.exe /Delete /TN "LausuPrewarm" /F >nul 2>nul
 echo [lausu-uninstall] Explicit prewarm task delete attempted (best-effort).
-
-REM Installer-owned runtime pack lives in a second per-user root. These two
-REM paths are created by the installers, so remove them on every uninstall;
-REM never wipe the whole root, the user may have placed files there.
-if exist "%LOCALAPPDATA%\lausu\runtime-pack" (
-    rmdir /s /q "%LOCALAPPDATA%\lausu\runtime-pack"
-    echo [lausu-uninstall] Removed local runtime pack.
-)
-if exist "%LOCALAPPDATA%\lausu\installer-state.json" (
-    del /q "%LOCALAPPDATA%\lausu\installer-state.json"
-    echo [lausu-uninstall] Removed installer state.
-)
-if exist "%LOCALAPPDATA%\lausu" rmdir "%LOCALAPPDATA%\lausu" 2>nul
 
 REM Optional --purge: remove %APPDATA%\lausu if VOICE_TYPER_PURGE=1.
 if /i "%VOICE_TYPER_PURGE%"=="1" (

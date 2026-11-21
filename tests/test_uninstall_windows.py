@@ -460,6 +460,42 @@ class TestUninstallPermissionsScript:
         )
 
 
+    def test_purge_local_state_missing_localappdata_skips(self, monkeypatch, tmp_path):
+        import importlib.util
+
+        monkeypatch.setenv("APPDATA", str(tmp_path))
+        monkeypatch.delenv("LOCALAPPDATA", raising=False)
+        monkeypatch.setattr(sys, "argv", ["uninstall_permissions.py"])
+        spec = importlib.util.spec_from_file_location(
+            "uninstall_permissions_windows_no_localappdata", UNINSTALL_PERMISSIONS_PY
+        )
+        assert spec is not None and spec.loader is not None
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        mod._purge_local_installer_state()
+
+    def test_purge_local_state_removes_empty_root(self, monkeypatch, tmp_path):
+        import importlib.util
+
+        local = tmp_path / "local"
+        root = local / "lausu"
+        (root / "runtime-pack").mkdir(parents=True)
+        (root / "installer-state.json").write_text("{}", encoding="utf-8")
+        monkeypatch.setenv("LOCALAPPDATA", str(local))
+        monkeypatch.setattr(sys, "argv", ["uninstall_permissions.py"])
+        spec = importlib.util.spec_from_file_location(
+            "uninstall_permissions_windows_empty_root", UNINSTALL_PERMISSIONS_PY
+        )
+        assert spec is not None and spec.loader is not None
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        mod._purge_local_installer_state()
+
+        assert not root.exists(), "an empty installer root should be removed"
+
+
 class TestWiring:
     """verify the .nsh / .bat / Python script are wired into"""
 
@@ -553,6 +589,17 @@ class TestWiring:
         assert 'rmdir /s /q "%LOCALAPPDATA%\\lausu"' not in text, (
             "never wipe the whole LOCALAPPDATA\\lausu root; it may hold "
             "user-created files. Remove only the installer-owned subpaths."
+        )
+
+    def test_uninstall_bat_cleans_local_pack_before_early_exit(self):
+        text = UNINSTALL_BAT.read_text(encoding="utf-8")
+        cleanup = text.find("%LOCALAPPDATA%\\lausu\\runtime-pack")
+        first_exit = text.find("exit /b 0")
+        assert cleanup != -1 and first_exit != -1, "expected both the cleanup block and an early exit"
+        assert cleanup < first_exit, (
+            "the LOCALAPPDATA cleanup must run before the Python path's "
+            "`exit /b 0`; otherwise the common case exits before it and the "
+            "pack survives a manual uninstall."
         )
 
     def test_uninstaller_nsh_exists(self):
