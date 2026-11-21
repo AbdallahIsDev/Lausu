@@ -394,6 +394,7 @@
 			/* 26px. DESIGN-SYSTEM.md §8 documents this value and
 			   design-system.html mirrors it; `index-css-corner-shape.test.ts`
 			   pins it. Do not edit this in isolation. */
+			/* biome-ignore lint/complexity/noImportantStyles: pinned squircle radius contract (C-DESIGN-5); !important must outrank utility radius declarations. */
 			--radius: 1.625rem !important;
 		}
 
@@ -945,6 +946,12 @@
 	border-color: color-mix(in srgb, var(--border) 10%, transparent);
 }
 
+/* Default title colour. The per-type overrides below carry higher
+   specificity, so they win wherever they apply. */
+.toaster [data-sonner-toast][data-styled="true"] [data-title] {
+	color: var(--foreground);
+}
+
 /* Title carries the type signal (no glyph). Error = destructive,
    warning = warning, everything else = foreground. */
 .toaster
@@ -987,10 +994,6 @@
 	[data-sonner-toast][data-styled="true"][data-type="warning"]
 	[data-title] {
 	color: var(--warning);
-}
-
-.toaster [data-sonner-toast][data-styled="true"] [data-title] {
-	color: var(--foreground);
 }
 
 /* Sonner hardcodes the description to #3f3f3f (light) / hsl(0,0%,91%)

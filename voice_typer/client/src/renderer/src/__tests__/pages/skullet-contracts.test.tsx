@@ -16,11 +16,11 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { RouteSkeleton } from "@/components/feedback/skeletons";
-import { AppSkulletProvider } from "@/components/skullet/AppSkulletProvider";
 import {
 	SETTINGS_SECTION_PAGES,
 	settingsSkeletonId,
 } from "@/components/settings/settingsSections";
+import { AppSkulletProvider } from "@/components/skullet/AppSkulletProvider";
 import { INITIAL_MODELS } from "@/lib/utils/modelCatalog";
 import { SAMPLE_HISTORY_LIST } from "@/pages/history/lib/sample";
 import { SAMPLE_MODEL_CATALOG, SAMPLE_MODELS } from "@/pages/models/lib/sample";

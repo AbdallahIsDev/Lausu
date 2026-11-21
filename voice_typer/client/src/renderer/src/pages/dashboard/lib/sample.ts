@@ -43,7 +43,7 @@ const SAMPLE_TEXTS = [
 	"Can we move the call to later this afternoon when everyone is back from lunch?",
 	"I will draft the announcement post today and share it for feedback before it goes live tomorrow morning at nine.",
 	"Remember to lock the office on your way out tonight.",
-];
+] as const;
 
 function utcStamp(daysAgo: number, hour: number, minute = 0): string {
 	const d = new Date();
@@ -78,22 +78,22 @@ function makeRecord(
 // Records across 14 days (current + previous 7-day windows) so period
 // trends have a baseline and the chart has varied bars.
 const SAMPLE_RECORDS: HistoryRecord[] = [
-	makeRecord(114, 0, 9, SAMPLE_TEXTS[1]!, 48),
-	makeRecord(113, 0, 14, SAMPLE_TEXTS[0]!, 18),
-	makeRecord(112, 0, 19, SAMPLE_TEXTS[2]!, 74),
-	makeRecord(111, 1, 10, SAMPLE_TEXTS[4]!, 36),
-	makeRecord(110, 1, 15, SAMPLE_TEXTS[3]!, 22),
-	makeRecord(109, 2, 11, SAMPLE_TEXTS[5]!, 62, 1),
-	makeRecord(108, 3, 9, SAMPLE_TEXTS[6]!, 15),
-	makeRecord(107, 3, 16, SAMPLE_TEXTS[0]!, 20),
-	makeRecord(106, 4, 13, SAMPLE_TEXTS[1]!, 44),
-	makeRecord(105, 5, 10, SAMPLE_TEXTS[2]!, 80),
-	makeRecord(104, 6, 14, SAMPLE_TEXTS[4]!, 31),
-	makeRecord(103, 7, 9, SAMPLE_TEXTS[3]!, 19),
-	makeRecord(102, 8, 15, SAMPLE_TEXTS[5]!, 58, 1),
-	makeRecord(101, 10, 11, SAMPLE_TEXTS[6]!, 12),
-	makeRecord(100, 12, 10, SAMPLE_TEXTS[1]!, 41),
-	makeRecord(99, 13, 16, SAMPLE_TEXTS[0]!, 17),
+	makeRecord(114, 0, 9, SAMPLE_TEXTS[1], 48),
+	makeRecord(113, 0, 14, SAMPLE_TEXTS[0], 18),
+	makeRecord(112, 0, 19, SAMPLE_TEXTS[2], 74),
+	makeRecord(111, 1, 10, SAMPLE_TEXTS[4], 36),
+	makeRecord(110, 1, 15, SAMPLE_TEXTS[3], 22),
+	makeRecord(109, 2, 11, SAMPLE_TEXTS[5], 62, 1),
+	makeRecord(108, 3, 9, SAMPLE_TEXTS[6], 15),
+	makeRecord(107, 3, 16, SAMPLE_TEXTS[0], 20),
+	makeRecord(106, 4, 13, SAMPLE_TEXTS[1], 44),
+	makeRecord(105, 5, 10, SAMPLE_TEXTS[2], 80),
+	makeRecord(104, 6, 14, SAMPLE_TEXTS[4], 31),
+	makeRecord(103, 7, 9, SAMPLE_TEXTS[3], 19),
+	makeRecord(102, 8, 15, SAMPLE_TEXTS[5], 58, 1),
+	makeRecord(101, 10, 11, SAMPLE_TEXTS[6], 12),
+	makeRecord(100, 12, 10, SAMPLE_TEXTS[1], 41),
+	makeRecord(99, 13, 16, SAMPLE_TEXTS[0], 17),
 ];
 
 const todayKey = dateKey(new Date().toISOString());

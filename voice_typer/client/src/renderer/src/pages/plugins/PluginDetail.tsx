@@ -141,9 +141,7 @@ export default function PluginDetail() {
 										key={spec.key}
 										spec={spec}
 										value={values[spec.key] ?? settingValue(p, spec)}
-										onChange={(next) =>
-											handleSettingChange(p, spec, next)
-										}
+										onChange={(next) => handleSettingChange(p, spec, next)}
 									/>
 								))}
 							</div>

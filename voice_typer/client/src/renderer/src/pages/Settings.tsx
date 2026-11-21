@@ -33,8 +33,8 @@ import { SettingsHub } from "@/components/settings/SettingsHub";
 import {
 	isSettingsSectionPage,
 	SECTION_TITLE_BY_PAGE,
-	settingsSkeletonId,
 	type SettingsSectionPage,
+	settingsSkeletonId,
 } from "@/components/settings/settingsSections";
 import { ThemeSettingsSection } from "@/components/settings/ThemeSettingsSection";
 import { TroubleshootingSettingsSection } from "@/components/settings/TroubleshootingSettingsSection";

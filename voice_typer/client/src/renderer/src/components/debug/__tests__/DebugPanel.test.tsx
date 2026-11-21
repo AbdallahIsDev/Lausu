@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
 	act,
 	cleanup,
@@ -5,8 +7,6 @@ import {
 	render,
 	screen,
 } from "@testing-library/react";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DebugPanel } from "@/components/debug/DebugPanel";
 import { useDebugPrefs } from "@/hooks/useDebugPrefs";

@@ -31,15 +31,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Skeleton } from "skullet/react";
-import ActivityList from "@/components/dashboard/ActivityList";
 import { RefreshShareActions } from "@/components/common/RefreshShareActions";
+import ActivityList from "@/components/dashboard/ActivityList";
 import StatCards from "@/components/dashboard/StatCards";
 import { StatsShareImage } from "@/components/dashboard/StatsShareImage";
 import { MeasuredSkeleton } from "@/components/feedback/MeasuredSkeleton";
 import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
 import { HotkeyChips } from "@/components/hotkey/HotkeyChips";
-import { useDebugPrefs } from "@/hooks/useDebugPrefs";
 import { formatHotkey } from "@/components/hotkey/hotkey-utils";
+import { useDebugPrefs } from "@/hooks/useDebugPrefs";
 import { useLastUpdated } from "@/hooks/useLastUpdated";
 import { useLatestRef } from "@/hooks/useLatestRef";
 import { useNavigation } from "@/hooks/useNavigation";

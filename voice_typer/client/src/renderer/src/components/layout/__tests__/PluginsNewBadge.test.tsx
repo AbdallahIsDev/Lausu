@@ -1,10 +1,10 @@
-import { cleanup, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-	PluginsNewBadge,
 	type PluginsBadgeHue,
+	PluginsNewBadge,
 } from "@/components/layout/PluginsNewBadge";
 
 afterEach(cleanup);

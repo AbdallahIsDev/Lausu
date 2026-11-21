@@ -6,8 +6,8 @@
 import { ActionButtonsGroup } from "@/components/common/ActionButtonsGroup";
 import { LastUpdatedIndicator } from "@/components/common/LastUpdatedIndicator";
 import {
-	ShareStatsDialog,
 	type ShareStatsActions,
+	ShareStatsDialog,
 } from "@/components/dashboard/ShareStatsDialog";
 import type { StatsThemePalette } from "@/lib/theme-palette";
 import type { ShareStats } from "@/types/stats";

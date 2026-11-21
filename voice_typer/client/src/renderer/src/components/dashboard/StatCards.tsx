@@ -1,8 +1,8 @@
 import { Mic02Icon, TextIcon, Time02Icon } from "@hugeicons/core-free-icons";
 import { memo } from "react";
 import { t } from "@/i18n/i18n";
-import { cn } from "@/lib/utils";
 import { compactNumber, formatDuration } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { TodayStats } from "@/types/ipc";
 import { StatCard } from "./StatCard";
 

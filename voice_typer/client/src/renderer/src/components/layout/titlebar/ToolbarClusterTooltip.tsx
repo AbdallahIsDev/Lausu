@@ -62,7 +62,11 @@ export function ToolbarClusterTooltip({
 	return (
 		<Tooltip open={active !== null}>
 			<TooltipTrigger asChild>
-				<div className={className} onMouseLeave={() => setActiveId(null)}>
+				<div
+					role="toolbar"
+					className={className}
+					onMouseLeave={() => setActiveId(null)}
+				>
 					{children(bind)}
 				</div>
 			</TooltipTrigger>

@@ -3,8 +3,8 @@
 // cards (C-UI-16), no animation (C-ANIM-3), real Button focus rings (C-FOCUS-1).
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import type { PluginsBadgeHue } from "@/components/layout/PluginsNewBadge";
+import { Button } from "@/components/ui/button";
 import {
 	DEBUG_PANEL_VISIBLE_KEY,
 	type StatsLayout,
@@ -31,21 +31,23 @@ function ChoiceRow({
 			<div className="mb-1 text-[11px] font-medium text-muted-foreground">
 				{label}
 			</div>
-			<div role="group" aria-label={label} className="flex flex-wrap gap-1">
-				{choices.map((choice) => (
-					<Button
-						key={choice.value}
-						size="sm"
-						variant={current === choice.value ? "secondary" : "ghost"}
-						aria-pressed={current === choice.value}
-						data-testid={choice.testId}
-						onClick={() => onSelect(choice.value)}
-						className="h-7 px-2 text-[11px]"
-					>
-						{choice.label}
-					</Button>
-				))}
-			</div>
+			<fieldset aria-label={label} className="m-0 min-w-0 border-0 p-0">
+				<div className="flex flex-wrap gap-1">
+					{choices.map((choice) => (
+						<Button
+							key={choice.value}
+							size="sm"
+							variant={current === choice.value ? "secondary" : "ghost"}
+							aria-pressed={current === choice.value}
+							data-testid={choice.testId}
+							onClick={() => onSelect(choice.value)}
+							className="h-7 px-2 text-[11px]"
+						>
+							{choice.label}
+						</Button>
+					))}
+				</div>
+			</fieldset>
 		</div>
 	);
 }
@@ -69,7 +71,6 @@ export function DebugPanel() {
 	return (
 		<section
 			data-testid="debug-panel"
-			role="region"
 			aria-label={t("debug.title")}
 			className={cn(
 				"fixed end-4 bottom-4 z-40 w-60 rounded-lg border border-border/8 bg-surface text-foreground shadow-lg",
