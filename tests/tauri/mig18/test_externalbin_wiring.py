@@ -410,4 +410,3 @@ class TestWindowsX64FfmpegExternalBin:
         assert pair is not None, "frozen sidecar must find the bundled ffmpeg"
         assert Path(pair.ffmpeg) == tmp_path / ffmpeg_name
         assert pair.ffprobe is None, "ffprobe is not bundled; the optional field must fail soft"
-
