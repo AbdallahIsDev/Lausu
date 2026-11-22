@@ -38,7 +38,7 @@ class GitHubClient:
         query = f"?{urllib.parse.urlencode(params)}" if params else ""
         url = f"{API_ROOT}{path}{query}"
         headers = {
-            "Accept": "application/vnd.github+json" if not text else "text/plain",
+            "Accept": "application/vnd.github+json",
             "User-Agent": "ci-errors-collector",
             "X-GitHub-Api-Version": "2026-03-10",
         }
