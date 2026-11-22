@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { formatSourceDisplayName } from "@/lib/utils/format";
 import {
 	formatModelDisplayName,
 	formatModelSize,
@@ -45,6 +46,27 @@ describe("formatModelDisplayName, slug → display label (display-layer only)", 
 	it("handles edge cases (empty / consecutive hyphens)", () => {
 		expect(formatModelDisplayName("")).toBe("");
 		expect(formatModelDisplayName("a--b")).toBe("A B");
+	});
+});
+
+describe("formatSourceDisplayName, history/plugin engine ids → user-facing labels", () => {
+	it("drops the internal 'web' suffix and keeps STT uppercase", () => {
+		expect(formatSourceDisplayName("google-stt-web")).toBe("Google STT");
+		expect(formatSourceDisplayName("anthropic-stt-web")).toBe("Anthropic STT");
+		expect(formatSourceDisplayName("openai-stt-web")).toBe("OpenAI STT");
+	});
+
+	it("Title-Cases other engine ids and preserves acronyms", () => {
+		expect(formatSourceDisplayName("tiny")).toBe("Tiny");
+		expect(formatSourceDisplayName("whisper-large-v3")).toBe(
+			"Whisper Large V3",
+		);
+		expect(formatSourceDisplayName(" gpt-4o ")).toBe("GPT 4o");
+	});
+
+	it("returns an empty label for a missing id", () => {
+		expect(formatSourceDisplayName("")).toBe("");
+		expect(formatSourceDisplayName(undefined)).toBe("");
 	});
 });
 

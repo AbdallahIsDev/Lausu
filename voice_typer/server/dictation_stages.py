@@ -84,7 +84,13 @@ class TranslationStage:
     timed = True
 
     def run(self, text: str, ctx: PipelineContext) -> str:
-        return ctx.pipeline._translate(text)
+        # ADR-0030: keep Stage A text for the history row even when this
+        # stage replaces it with the Stage B translation. Only record it
+        # when the model actually changed the text.
+        translated = ctx.pipeline._translate(text)
+        if translated != text:
+            ctx.extras["original_text"] = text
+        return translated
 
 
 class CleanupStage:
@@ -155,7 +161,7 @@ class StoreResultStage:
     timed = True
 
     def run(self, text: str, ctx: PipelineContext) -> str:
-        ctx.pipeline._store_result(text)
+        ctx.pipeline._store_result(text, original_text=ctx.extras.get("original_text"))
         return text
 
 

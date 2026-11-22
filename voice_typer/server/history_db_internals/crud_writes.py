@@ -32,6 +32,7 @@ def add_transcription(
     processing_seconds: float | None = None,
     download_seconds: float | None = None,
     method: str | None = None,
+    original_text: str | None = None,
 ) -> int:
     """Add a transcription to the write queue (fire-and-forget)."""
     # ``history_db`` module namespace.
@@ -73,6 +74,7 @@ def add_transcription(
             processing_seconds=processing_seconds,
             download_seconds=download_seconds,
             method=method,
+            original_text=original_text,
             future=None,  # fire-and-forget
         )
         # PERF-5: bounded queue (maxsize=_WRITE_QUEUE_MAXSIZE). Use

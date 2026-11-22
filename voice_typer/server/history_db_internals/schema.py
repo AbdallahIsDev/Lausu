@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 #: Dedupes the one-time [HISTORY] initialized INFO line across writer +
 _announced_db_paths: set[str] = set()
 
-_CURRENT_SCHEMA_VERSION = 6
+_CURRENT_SCHEMA_VERSION = 7
 
 _MIGRATION_V2 = """
     ALTER TABLE transcriptions ADD COLUMN favorite INTEGER DEFAULT 0;
@@ -122,12 +122,21 @@ _MIGRATION_V6 = """
     ALTER TABLE transcriptions ADD COLUMN method TEXT;
 """
 
+# ADR-0030 Stage B: keep the raw ASR transcription alongside the final
+# (possibly translated) ``text``. Nullable — rows written before v7 have no
+# original and legacy non-translated dictations stay NULL. Not FTS-indexed:
+# search and the 500-char preview must keep pointing at the final text.
+_MIGRATION_V7 = """
+    ALTER TABLE transcriptions ADD COLUMN original_text TEXT;
+"""
+
 _MIGRATIONS = {
     2: _MIGRATION_V2,
     3: _MIGRATION_V3,
     4: _MIGRATION_V4,
     5: _MIGRATION_V5,
     6: _MIGRATION_V6,
+    7: _MIGRATION_V7,
 }
 
 #: Min SQLite for FTS5 trigram (V5 CJK). Older libsqlite3 → skip migration
@@ -323,7 +332,8 @@ def init_schema(
             char_count INTEGER DEFAULT 0,
             favorite INTEGER DEFAULT 0,
             language TEXT DEFAULT '',
-            text_is_encrypted BOOLEAN DEFAULT 0
+            text_is_encrypted BOOLEAN DEFAULT 0,
+            original_text TEXT
         )
     """)
 

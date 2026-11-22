@@ -460,8 +460,8 @@ export default function Home() {
 		toggling ||
 		recordingState === "loading" ||
 		recordingState === "transcribing";
-	// `toggling` already shows the spinner overlay inside the button,
-	// so only `loading` / `transcribing` need a textual reason.
+	// `toggling` is a short in-flight click guard with no visual state;
+	// only `loading` / `transcribing` need a textual reason.
 	const micDisabledReason = micDisabled && !toggling ? inlineStatus : undefined;
 
 	// Single dynamic status line under the mic button, ONE element that
@@ -554,7 +554,6 @@ export default function Home() {
 
 			<MicToggleButton
 				isRecording={isRecording}
-				toggling={toggling}
 				disabled={micDisabled}
 				onClick={handleToggle}
 				label={isRecording ? t("home.stopDictation") : t("home.startDictation")}

@@ -405,16 +405,23 @@ def get_transcription_text(
         conn = db._get_read_conn()
         with contextlib.closing(conn.cursor()) as cursor:
             cursor.execute(
-                "SELECT text, text_is_encrypted FROM transcriptions WHERE id = ?",
+                "SELECT text, text_is_encrypted, original_text FROM transcriptions WHERE id = ?",
                 (transcription_id,),
             )
             row = cursor.fetchone()
         if row is None:
             return {"id": transcription_id, "text": ""}
         text = row[0] or ""
+        original = row[2] or ""
         if row[1]:
             text = _decrypt_full_text(text)
-        return {"id": transcription_id, "text": text}
+            # Same row flag protects both texts (ADR-0030). An empty original
+            # stays empty — never fabricate a duplicate of the final text.
+            original = _decrypt_full_text(original) if original else ""
+        result = {"id": transcription_id, "text": text}
+        if original:
+            result["original_text"] = original
+        return result
     except Exception as e:
         log.exception(
             "[HISTORY] Failed to get transcription text for id=%s: %s",

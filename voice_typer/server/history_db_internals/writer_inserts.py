@@ -42,9 +42,15 @@ def _encrypt_batch_rows(
     for i, it in enumerate(batch):
         row_id = last_row_id - n + 1 + i
         cipher = _text_crypto.encrypt_text(it.text, dek)
+        # ADR-0030: the raw ASR text is just as private as the final text.
+        # Encrypt it with the same DEK under the same row flag; project_text_row
+        # decrypts both when reading an encrypted row back.
+        original_cipher = (
+            _text_crypto.encrypt_text(it.original_text, dek) if getattr(it, "original_text", None) else None
+        )
         cursor.execute(
-            "UPDATE transcriptions SET text = ?, text_is_encrypted = 1 WHERE id = ?",
-            (cipher, row_id),
+            "UPDATE transcriptions SET text = ?, original_text = ?, text_is_encrypted = 1 WHERE id = ?",
+            (cipher, original_cipher, row_id),
         )
         if cursor.rowcount != 1:
             log.error(
@@ -74,6 +80,7 @@ _INSERT_COLUMNS = (
     "processing_seconds",
     "download_seconds",
     "method",
+    "original_text",
 )
 _INSERT_SQL_COLUMNS = "(" + ", ".join(_INSERT_COLUMNS) + ")"
 _INSERT_SQL_ROW_PLACEHOLDERS = "(" + ", ".join("?" for _ in _INSERT_COLUMNS) + ")"
@@ -99,6 +106,7 @@ def _insert_params(it: Any) -> tuple[Any, ...]:
         it.processing_seconds,
         it.download_seconds,
         it.method,
+        it.original_text,
     )
 
 

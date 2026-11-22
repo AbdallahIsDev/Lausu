@@ -124,3 +124,39 @@ export function formatModelDisplayName(rawId: string): string {
 		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
 		.join(" ");
 }
+
+// Words that stay uppercase when a technical id is rendered as a label, and
+// brand spellings that a simple Title Case pass would get wrong.
+const LABEL_ACRONYMS: ReadonlySet<string> = new Set([
+	"stt",
+	"tts",
+	"llm",
+	"api",
+	"ai",
+	"gpt",
+]);
+const LABEL_SPELLINGS: Record<string, string> = { openai: "OpenAI" };
+
+/**
+ * User-facing label for the engine that produced a transcription, used by
+ * History and Recent Activity. `google-stt-web` → `Google STT`: the `web`
+ * suffix is an internal marker for browser plugins and is never shown, the
+ * plugin name comes from the same words the sidebar caption uses, and
+ * acronyms keep their casing (C-UI-1).
+ */
+export function formatSourceDisplayName(
+	rawId: string | null | undefined,
+): string {
+	const trimmed = rawId?.trim();
+	if (!trimmed) return "";
+	return trimmed
+		.split(/[-\s]+/)
+		.filter((part) => part.length > 0 && part.toLowerCase() !== "web")
+		.map((part) => {
+			const lower = part.toLowerCase();
+			if (LABEL_ACRONYMS.has(lower)) return lower.toUpperCase();
+			if (LABEL_SPELLINGS[lower]) return LABEL_SPELLINGS[lower];
+			return part.charAt(0).toUpperCase() + part.slice(1);
+		})
+		.join(" ");
+}

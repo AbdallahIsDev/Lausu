@@ -119,17 +119,19 @@ def _encrypt_backfill_step(db: HistoryDB, conn: sqlite3.Connection) -> int:
     try:
         with contextlib.closing(conn.cursor()) as cursor:
             rows = cursor.execute(
-                "SELECT id, text FROM transcriptions "
+                "SELECT id, text, original_text FROM transcriptions "
                 "WHERE text_is_encrypted = 0 AND text <> '' "
                 "ORDER BY id ASC LIMIT ?",
                 (batch_size,),
             ).fetchall()
-            for row_id, text in rows:
+            for row_id, text, original in rows:
                 cipher = _text_crypto.encrypt_text(text, dek)
                 # The ``AND text_is_encrypted = 0`` guard makes the
+                original_cipher = _text_crypto.encrypt_text(original, dek) if original else None
                 cursor.execute(
-                    "UPDATE transcriptions SET text = ?, text_is_encrypted = 1 WHERE id = ? AND text_is_encrypted = 0",
-                    (cipher, row_id),
+                    "UPDATE transcriptions SET text = ?, original_text = ?, "
+                    "text_is_encrypted = 1 WHERE id = ? AND text_is_encrypted = 0",
+                    (cipher, original_cipher, row_id),
                 )
             conn.commit()
     except sqlite3.Error as e:

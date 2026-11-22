@@ -64,4 +64,7 @@ export interface HistoryCountData {
 export interface TranscriptionTextData {
 	id: number;
 	text: string;
+	// ADR-0030: raw ASR text before Stage B translation. Present only when
+	// a translator actually changed the text; omitted on older/native rows.
+	original_text?: string;
 }

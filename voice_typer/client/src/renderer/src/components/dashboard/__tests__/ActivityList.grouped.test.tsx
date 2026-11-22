@@ -7,7 +7,6 @@
  * field is optional and every test covers both `groupByDate` modes.
  */
 import {
-	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -79,57 +78,10 @@ function mediaRec(
 	});
 }
 
-// ── height + ResizeObserver seams used by the truncation measure ─────
-const originalScroll = Object.getOwnPropertyDescriptor(
-	Element.prototype,
-	"scrollHeight",
-);
-const originalClient = Object.getOwnPropertyDescriptor(
-	Element.prototype,
-	"clientHeight",
-);
-
-function setHeights(scroll: number, client: number) {
-	Object.defineProperty(Element.prototype, "scrollHeight", {
-		configurable: true,
-		get: () => scroll,
-	});
-	Object.defineProperty(Element.prototype, "clientHeight", {
-		configurable: true,
-		get: () => client,
-	});
-}
-
-class ResizeObserverStub {
-	static instances: ResizeObserverStub[] = [];
-	private readonly cb: ResizeObserverCallback;
-	constructor(cb: ResizeObserverCallback) {
-		this.cb = cb;
-		ResizeObserverStub.instances.push(this);
-	}
-	observe() {}
-	unobserve() {}
-	disconnect() {}
-	fire() {
-		this.cb([], this as unknown as ResizeObserver);
-	}
-}
-
 afterEach(() => {
 	cleanup();
 	resetStableMocks();
 	vi.unstubAllGlobals();
-	ResizeObserverStub.instances = [];
-	if (originalScroll) {
-		Object.defineProperty(Element.prototype, "scrollHeight", originalScroll);
-	} else {
-		delete (Element.prototype as { scrollHeight?: number }).scrollHeight;
-	}
-	if (originalClient) {
-		Object.defineProperty(Element.prototype, "clientHeight", originalClient);
-	} else {
-		delete (Element.prototype as { clientHeight?: number }).clientHeight;
-	}
 });
 
 describe("ActivityList date grouping", () => {
@@ -211,20 +163,48 @@ describe("ActivityList date grouping", () => {
 });
 
 describe("ActivityList badges and metadata", () => {
-	it("shows a Dictation badge for regular rows and Media for media rows", () => {
+	it("shows no badge for normal dictation and a Media badge for media rows", () => {
 		const { rerender } = render(
 			<ActivityList items={[rec(1, localIso(0, 12))]} />,
 		);
-		const dictationBadge = screen.getByText(t("history.dictationBadge"));
-		expect(
-			dictationBadge.parentElement?.querySelector('[data-name="Mic02Icon"]'),
-		).toBeTruthy();
+		expect(screen.queryByText(t("history.dictationBadge"))).toBeNull();
+		expect(screen.queryByText(t("history.mediaBadge"))).toBeNull();
 
 		rerender(<ActivityList items={[mediaRec(2, localIso(0, 12))]} />);
 		const mediaBadge = screen.getByText(t("history.mediaBadge"));
 		expect(
 			mediaBadge.parentElement?.querySelector('[data-name="Film01Icon"]'),
 		).toBeTruthy();
+	});
+
+	it("renders plugin model ids as user-facing labels", () => {
+		render(
+			<ActivityList
+				items={[rec(1, localIso(0, 12), { model: "google-stt-web" })]}
+			/>,
+		);
+		const meta = screen.getByTestId("activity-row-meta").textContent ?? "";
+		expect(meta).toContain("Google STT");
+		expect(meta).not.toContain("web");
+		expect(meta).not.toContain("google-stt");
+	});
+
+	it("puts the transcription before its metadata and action buttons", () => {
+		render(
+			<ActivityList
+				items={[rec(1, localIso(0, 12))]}
+				onDelete={vi.fn()}
+				onToggleFavorite={vi.fn()}
+			/>,
+		);
+		const preview = screen.getByTestId("activity-row-preview");
+		const meta = screen.getByTestId("activity-row-meta");
+		expect(
+			preview.compareDocumentPosition(meta) & Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+		expect(
+			screen.queryByRole("button", { name: t("home.showMore") }),
+		).toBeNull();
 	});
 
 	it("shows the media source title and thumbnail above the preview", () => {
@@ -237,10 +217,10 @@ describe("ActivityList badges and metadata", () => {
 		expect(thumb?.getAttribute("src")).toBe("https://example.com/thumb.jpg");
 		expect(thumb?.className).toContain("size-10");
 		expect(thumb?.className).toContain("rounded-lg");
-		// Title sits above the preview paragraph.
+		// Media details sit below the transcription, with the metadata.
 		const preview = screen.getByTestId("activity-row-preview");
 		expect(
-			title.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING,
+			preview.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy();
 	});
 
@@ -250,7 +230,7 @@ describe("ActivityList badges and metadata", () => {
 		expect(meta).toContain(t("activityList.wordsCount", { count: "320" }));
 		expect(meta).toContain("12:34"); // media_duration_seconds = 754
 		expect(meta).toContain("2m 10s"); // processing_seconds = 130
-		expect(meta).toContain("tiny");
+		expect(meta).toContain("Tiny");
 		expect(meta).toContain(t("media.metaYoutube"));
 		expect(meta).toContain(t("media.metaSubtitles"));
 		expect(meta).not.toContain("haracter");
@@ -451,57 +431,6 @@ describe("ActivityList preview and transcript modal", () => {
 		after.forEach((row, i) => {
 			expect(before.indexOf(row)).toBe(i);
 		});
-	});
-});
-
-describe("ActivityList truncation detection", () => {
-	beforeEach(() => {
-		vi.stubGlobal("ResizeObserver", ResizeObserverStub);
-	});
-
-	it("shows Show more only when the clamped preview actually overflows", async () => {
-		setHeights(60, 60);
-		const { rerender } = render(
-			<ActivityList items={[rec(1, localIso(0, 12))]} lineClamp={3} />,
-		);
-		expect(
-			screen.queryByRole("button", { name: t("home.showMore") }),
-		).toBeNull();
-
-		setHeights(300, 60);
-		act(() => {
-			ResizeObserverStub.instances[
-				ResizeObserverStub.instances.length - 1
-			]?.fire();
-		});
-		const more = await screen.findByRole("button", {
-			name: t("home.showMore"),
-		});
-		expect(more.className).not.toContain("absolute");
-		expect(more.className).toContain("self-start");
-
-		setHeights(60, 60);
-		act(() => {
-			ResizeObserverStub.instances[
-				ResizeObserverStub.instances.length - 1
-			]?.fire();
-		});
-		await waitFor(() => {
-			expect(
-				screen.queryByRole("button", { name: t("home.showMore") }),
-			).toBeNull();
-		});
-
-		rerender(<ActivityList items={[rec(1, localIso(0, 12))]} lineClamp={3} />);
-	});
-
-	it("Show more opens the same transcript modal", async () => {
-		setHeights(300, 60);
-		render(<ActivityList items={[rec(1, localIso(0, 12))]} lineClamp={3} />);
-		fireEvent.click(
-			await screen.findByRole("button", { name: t("home.showMore") }),
-		);
-		expect(await screen.findByRole("dialog")).toBeTruthy();
 	});
 });
 

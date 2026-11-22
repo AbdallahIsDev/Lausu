@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import type { usePython } from "@/hooks/usePython";
 import { showUndoableToast } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
-import type { HistoryRecord } from "@/types/ipc";
+import type { HistoryRecord, TranscriptionTextData } from "@/types/ipc";
 
 export interface UseHistoryRecordActionsOptions {
 	/** The Python bridge call (from usePython). */
@@ -33,6 +33,8 @@ export interface UseHistoryRecordActionsReturn {
 	handleToggleFavorite: (id: number) => Promise<void>;
 	/** Lazy full-text fetch for an expandable row (null on failure). */
 	handleFetchFullText: (id: number) => Promise<string | null>;
+	/** Same IPC call, keeping the optional pre-translation original text. */
+	handleFetchFullRecord: (id: number) => Promise<TranscriptionTextData | null>;
 }
 
 export function useHistoryRecordActions({
@@ -97,14 +99,12 @@ export function useHistoryRecordActions({
 	// Resolves with the full text, or ``null`` when the row is gone /
 	// the backend failed (the row surfaces a toast instead of expanding
 	// to a clipped preview).
-	const handleFetchFullText = useCallback(
-		async (id: number): Promise<string | null> => {
+	const handleFetchFullRecord = useCallback(
+		async (id: number) => {
 			try {
-				const data = await call<{ id: number; text: string }>(
-					"get_transcription_text",
-					{ id },
-				);
-				return data?.text ?? null;
+				return await call<TranscriptionTextData>("get_transcription_text", {
+					id,
+				});
 			} catch {
 				return null;
 			}
@@ -112,5 +112,16 @@ export function useHistoryRecordActions({
 		[call],
 	);
 
-	return { handleDelete, handleToggleFavorite, handleFetchFullText };
+	const handleFetchFullText = useCallback(
+		async (id: number): Promise<string | null> =>
+			(await handleFetchFullRecord(id))?.text ?? null,
+		[handleFetchFullRecord],
+	);
+
+	return {
+		handleDelete,
+		handleToggleFavorite,
+		handleFetchFullText,
+		handleFetchFullRecord,
+	};
 }

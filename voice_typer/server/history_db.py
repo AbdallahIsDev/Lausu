@@ -283,6 +283,7 @@ class HistoryDB(HistoryDBInternals):
         processing_seconds: float | None = None,
         download_seconds: float | None = None,
         method: str | None = None,
+        original_text: str | None = None,
     ) -> int:
         """Add a transcription (fire-and-forget): enqueue + placeholder row_id.
 
@@ -310,6 +311,7 @@ class HistoryDB(HistoryDBInternals):
             processing_seconds=processing_seconds,
             download_seconds=download_seconds,
             method=method,
+            original_text=original_text,
         )
 
     @_wrap_write(False, "delete transcription", "delete")

@@ -35,6 +35,7 @@ class _BatchableInsert:
         "processing_seconds",
         "download_seconds",
         "method",
+        "original_text",
         "future",
     )
 
@@ -58,6 +59,7 @@ class _BatchableInsert:
         processing_seconds: float | None = None,
         download_seconds: float | None = None,
         method: str | None = None,
+        original_text: str | None = None,
         future: concurrent.futures.Future | None = None,
     ) -> None:
         self.text = text
@@ -77,4 +79,5 @@ class _BatchableInsert:
         self.processing_seconds = processing_seconds
         self.download_seconds = download_seconds
         self.method = method
+        self.original_text = original_text
         self.future = future

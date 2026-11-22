@@ -23,8 +23,12 @@ class _StorageStepMixin:
     _cycle_id: str
     _duration: float
 
-    def _store_result(self, text: str) -> None:
-        """Step 8: Store in history DB and crash recovery."""
+    def _store_result(self, text: str, *, original_text: str | None = None) -> None:
+        """Step 8: Store in history DB and crash recovery.
+
+        ``original_text`` is the Stage A transcript kept alongside a Stage B
+        translation (ADR-0030); ``text`` stays the canonical final version.
+        """
         # C-CONC-2: a cancel landing after the stage guard's check must
         # still write nothing for this cycle.
         if not is_cycle_live(self._app, self._cycle_id):
@@ -48,6 +52,7 @@ class _StorageStepMixin:
                     # recording_duration_seconds is NOT duplicated: the
                     # existing ``duration`` column already holds it.
                     processing_seconds=processing_seconds,
+                    original_text=original_text,
                 )
                 # add_transcription returns -1 when the writer
                 if row_id <= 0:

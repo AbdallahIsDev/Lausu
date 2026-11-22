@@ -202,8 +202,12 @@ export default function HistoryPage() {
 	// Per-row record actions, delete-with-undo, favorite toggle, and
 	// the lazy full-text fetch for expandable rows (see
 	// useHistoryRecordActions).
-	const { handleDelete, handleToggleFavorite, handleFetchFullText } =
-		useHistoryRecordActions({ call, records, load, setRecords });
+	const {
+		handleDelete,
+		handleToggleFavorite,
+		handleFetchFullText,
+		handleFetchFullRecord,
+	} = useHistoryRecordActions({ call, records, load, setRecords });
 
 	// Clear-all flow, the filter-aware short-circuit guards, the
 	// confirmation-dialog state, and the destructive apply (see
@@ -392,6 +396,7 @@ export default function HistoryPage() {
 											onToggleFavorite={handleToggleFavorite}
 											groupByDate={groupByDate}
 											onFetchFullText={handleFetchFullText}
+											onFetchFullRecord={handleFetchFullRecord}
 											hideHeader
 										/>
 

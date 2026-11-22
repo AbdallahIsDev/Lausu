@@ -21,6 +21,10 @@ NEW_COLUMNS = (
     "method",
 )
 
+# original_text is intentionally NOT in the list projection (it can be large);
+# it is only returned by the on-demand get_transcription_text endpoint.
+ORIGINAL_TEXT_COLUMN = "original_text"
+
 
 def _columns(conn: sqlite3.Connection) -> set[str]:
     return {row[1] for row in conn.execute("PRAGMA table_info(transcriptions)").fetchall()}
@@ -67,8 +71,9 @@ class TestSchemaV6Migration:
 
         conn = sqlite3.connect(str(db_path))
         try:
-            assert _version(conn) == _CURRENT_SCHEMA_VERSION == 6
+            assert _version(conn) == _CURRENT_SCHEMA_VERSION == 7
             assert set(NEW_COLUMNS) <= _columns(conn)
+            assert ORIGINAL_TEXT_COLUMN in _columns(conn)
             triggers = {
                 row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='trigger'").fetchall()
             }
@@ -97,6 +102,7 @@ class TestSchemaV6Migration:
         try:
             assert _version(conn) == _CURRENT_SCHEMA_VERSION
             assert set(NEW_COLUMNS) <= _columns(conn)
+            assert ORIGINAL_TEXT_COLUMN in _columns(conn)
         finally:
             conn.close()
 
@@ -154,3 +160,32 @@ class TestMetadataRoundTrip:
             if name == "kind":
                 continue
             assert row[name] is None, f"{name}: {row[name]!r}"
+
+
+class TestOriginalTextRoundTrip:
+    """ADR-0030: keep raw ASR text beside the final translated text."""
+
+    def test_original_text_stored_and_returned_by_full_text_endpoint(self, tmp_path):
+        db = HistoryDB(db_path=tmp_path / "translation.db")
+        db.add_transcription(
+            "the translated text",
+            duration=2.0,
+            original_text="النص الأصلي قبل الترجمة",
+        )
+        db.flush()
+        row = db.get_recent(limit=1)[0]
+        # Not in the list projection: keeps list IPC payloads small.
+        assert "original_text" not in row
+        full = db.get_transcription_text(row["id"])
+        assert full["text"] == "the translated text"
+        assert full["original_text"] == "النص الأصلي قبل الترجمة"
+        db.close()
+
+    def test_rows_without_translation_have_no_original_key(self, tmp_path):
+        db = HistoryDB(db_path=tmp_path / "plain.db")
+        db.add_transcription("plain dictation", duration=1.0)
+        db.flush()
+        row = db.get_recent(limit=1)[0]
+        full = db.get_transcription_text(row["id"])
+        assert "original_text" not in full
+        db.close()

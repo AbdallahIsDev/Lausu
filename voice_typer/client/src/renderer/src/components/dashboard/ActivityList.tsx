@@ -2,7 +2,6 @@ import {
 	Copy01Icon,
 	Delete01Icon,
 	Film01Icon,
-	Mic02Icon,
 	StarIcon,
 	Tick02Icon,
 } from "@hugeicons/core-free-icons";
@@ -29,6 +28,7 @@ import {
 	formatElapsedShort,
 	formatMediaDuration,
 } from "@/lib/format";
+import { formatSourceDisplayName } from "@/lib/utils/format";
 import type { HistoryRecord } from "@/types/ipc";
 
 function formatTimestamp(ts: string): string {
@@ -98,7 +98,7 @@ function metaPieces(item: HistoryRecord, grouped: boolean): MetaPiece[] {
 	) {
 		push("processing", formatElapsedShort(item.processing_seconds));
 	}
-	if (item.model?.trim()) push("model", item.model);
+	if (item.model?.trim()) push("model", formatSourceDisplayName(item.model));
 	const source = sourceLabel(item);
 	if (source) push("source", source);
 	const method = methodLabel(item.method);
@@ -116,6 +116,11 @@ interface ActivityListProps {
 	onToggleFavorite?: (id: number) => void;
 	groupByDate?: boolean;
 	onFetchFullText?: (id: number) => Promise<string | null>;
+	/** Optional richer fetch that keeps the pre-translation original text. */
+	onFetchFullRecord?: (id: number) => Promise<{
+		text: string;
+		original_text?: string;
+	} | null>;
 	hideHeader?: boolean;
 	/** Row to briefly ring + scroll into view (cross-surface handoff). */
 	highlightId?: number | null;
@@ -144,29 +149,12 @@ const ActivityListRow = memo(function ActivityListRow({
 	onDelete,
 	onToggleFavorite,
 }: ActivityListRowProps) {
-	const previewRef = useRef<HTMLDivElement>(null);
 	const rowRef = useRef<HTMLDivElement>(null);
-	const [truncated, setTruncated] = useState(false);
 	const media = isMedia(item);
 	const pieces = metaPieces(item, grouped);
 	const sourceTitle = item.source_title?.trim() || item.file_name?.trim() || "";
 	const thumbnail = item.thumbnail_url?.trim() || "";
 	const clampClass = lineClamp >= 3 ? "line-clamp-3" : "line-clamp-2";
-
-	// Line-clamp doesn't expose a "was truncated" flag, measure the rendered
-	// block against its clamped box instead. ResizeObserver catches the
-	// panel/zoom changes that flip the verdict without a text change.
-	// biome-ignore lint/correctness/useExhaustiveDependencies: re-measure on transcript/clamp change
-	useEffect(() => {
-		const el = previewRef.current;
-		if (!el) return;
-		const measure = () => setTruncated(el.scrollHeight > el.clientHeight + 1);
-		measure();
-		if (typeof ResizeObserver === "undefined") return;
-		const observer = new ResizeObserver(measure);
-		observer.observe(el);
-		return () => observer.disconnect();
-	}, [item.text, clampClass]);
 
 	useEffect(() => {
 		if (highlighted) {
@@ -192,19 +180,60 @@ const ActivityListRow = memo(function ActivityListRow({
 				highlighted ? "bg-primary/5 ring-1 ring-primary" : ""
 			}`}
 		>
+			<div className="flex min-w-0 flex-col gap-1">
+				{/* biome-ignore lint/a11y/useSemanticElements: a native <button> blocks text selection inside the transcript */}
+				<div
+					dir="auto"
+					role="button"
+					tabIndex={0}
+					aria-label={t("history.viewTranscript")}
+					data-testid="activity-row-preview"
+					onClick={() => onOpen(item)}
+					onKeyDown={handlePreviewKeyDown}
+					className={`${clampClass} cursor-pointer whitespace-pre-wrap wrap-break-word text-sm leading-snug text-foreground transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden`}
+				>
+					{item.text}
+				</div>
+			</div>
+
+			{media && (sourceTitle || thumbnail) && (
+				<div className="flex min-w-0 items-center gap-2">
+					{thumbnail && (
+						<img
+							src={thumbnail}
+							alt=""
+							className="size-10 shrink-0 rounded-lg object-cover"
+							onError={(e) => {
+								e.currentTarget.hidden = true;
+							}}
+						/>
+					)}
+					{sourceTitle && (
+						<span
+							className="min-w-0 flex-1 truncate text-xs font-medium text-foreground"
+							title={sourceTitle}
+						>
+							{sourceTitle}
+						</span>
+					)}
+				</div>
+			)}
+
 			<div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1">
 				<div
 					data-testid="activity-row-meta"
 					className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground"
 				>
-					<span className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border/8 bg-surface px-1.5 py-0.5 text-[10px] font-medium leading-none text-muted-foreground">
-						<HugeiconsIcon
-							icon={media ? Film01Icon : Mic02Icon}
-							strokeWidth={2}
-							className="size-3"
-						/>
-						{media ? t("history.mediaBadge") : t("history.dictationBadge")}
-					</span>
+					{media && (
+						<span className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border/8 bg-surface px-1.5 py-0.5 text-[10px] font-medium leading-none text-muted-foreground">
+							<HugeiconsIcon
+								icon={Film01Icon}
+								strokeWidth={2}
+								className="size-3"
+							/>
+							{t("history.mediaBadge")}
+						</span>
+					)}
 					{pieces.map((piece, i) => (
 						<Fragment key={piece.key}>
 							{i > 0 && (
@@ -295,58 +324,6 @@ const ActivityListRow = memo(function ActivityListRow({
 					)}
 				</div>
 			</div>
-
-			{media && (sourceTitle || thumbnail) && (
-				<div className="flex min-w-0 items-center gap-2">
-					{thumbnail && (
-						<img
-							src={thumbnail}
-							alt=""
-							className="size-10 shrink-0 rounded-lg object-cover"
-							onError={(e) => {
-								e.currentTarget.hidden = true;
-							}}
-						/>
-					)}
-					{sourceTitle && (
-						<span
-							className="min-w-0 flex-1 truncate text-xs font-medium text-foreground"
-							title={sourceTitle}
-						>
-							{sourceTitle}
-						</span>
-					)}
-				</div>
-			)}
-
-			<div className="flex min-w-0 flex-col gap-1">
-				{/* biome-ignore lint/a11y/useSemanticElements: a native <button> blocks text selection inside the transcript */}
-				<div
-					ref={previewRef}
-					dir="auto"
-					role="button"
-					tabIndex={0}
-					aria-label={t("history.viewTranscript")}
-					data-testid="activity-row-preview"
-					onClick={() => onOpen(item)}
-					onKeyDown={handlePreviewKeyDown}
-					className={`${clampClass} cursor-pointer whitespace-pre-wrap wrap-break-word text-sm leading-snug text-foreground transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden`}
-				>
-					{item.text}
-				</div>
-				{truncated && (
-					<button
-						type="button"
-						onClick={(e) => {
-							e.stopPropagation();
-							onOpen(item);
-						}}
-						className="self-start cursor-pointer rounded-lg whitespace-nowrap text-xs leading-snug text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
-					>
-						{t("home.showMore")}
-					</button>
-				)}
-			</div>
 		</div>
 	);
 });
@@ -361,6 +338,7 @@ function ActivityListInner({
 	onToggleFavorite,
 	groupByDate = false,
 	onFetchFullText,
+	onFetchFullRecord,
 	hideHeader = false,
 	highlightId = null,
 }: ActivityListProps) {
@@ -368,6 +346,7 @@ function ActivityListInner({
 	const [viewing, setViewing] = useState<{
 		item: HistoryRecord;
 		text: string;
+		originalText?: string;
 	} | null>(null);
 	const viewerTokenRef = useRef(0);
 	const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -399,17 +378,24 @@ function ActivityListInner({
 		(item: HistoryRecord) => {
 			const token = ++viewerTokenRef.current;
 			setViewing({ item, text: item.text });
-			if (!onFetchFullText || item.text_truncated !== true) return;
-			void onFetchFullText(item.id)
+			// The richer fetch is used when available so a translated row can
+			// reveal its raw ASR text. Keep the older string-only callback for
+			// callers that never supply it (Dashboard, tests).
+			const fetcher = onFetchFullRecord ?? onFetchFullText;
+			if (!fetcher || item.text_truncated !== true) return;
+			void fetcher(item.id)
 				.then((full) => {
 					if (token !== viewerTokenRef.current) return;
-					if (full == null || full === "") {
+					if (typeof full === "string" ? full === "" : full == null) {
 						toast.error(t("activityList.loadTextFailed"));
 						return;
 					}
+					const text = typeof full === "string" ? full : full?.text || "";
+					const originalText =
+						typeof full === "string" ? undefined : full?.original_text;
 					setViewing((current) =>
 						current && token === viewerTokenRef.current
-							? { ...current, text: full }
+							? { ...current, text, originalText }
 							: current,
 					);
 				})
@@ -419,7 +405,7 @@ function ActivityListInner({
 					}
 				});
 		},
-		[onFetchFullText],
+		[onFetchFullRecord, onFetchFullText],
 	);
 
 	const copyViewerText = useCallback(() => {
@@ -448,6 +434,20 @@ function ActivityListInner({
 			>
 				{viewing?.text ?? ""}
 			</div>
+			{viewing?.originalText && (
+				<div className="mt-4 border-t border-border/8 pt-3">
+					<p className="mb-1 text-xs font-medium text-muted-foreground">
+						{t("history.originalText")}
+					</p>
+					<div
+						dir="auto"
+						data-testid="transcript-modal-original"
+						className="max-h-[35vh] overflow-y-auto whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-muted-foreground [text-wrap:auto]"
+					>
+						{viewing.originalText}
+					</div>
+				</div>
+			)}
 			<ModalFooter>
 				<Button
 					variant="outline"
