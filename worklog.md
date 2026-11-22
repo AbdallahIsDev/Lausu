@@ -1822,3 +1822,32 @@ Implementation:
 - Fixed pre-existing French `plugins.notifyLabel` i18n-completeness failure via the identical-cognate allowlist.
 
 Verification: 141 backend tests + 98 affected-batch + 53 renderer targeted pass; ruff clean; mypy clean on changed files; tsc + biome clean. Live-path E2E (real service code + fake llama-server HTTP) confirmed: mixed→translate, same-lang→skip with zero calls, URL/number preserved, short "OK"→no skip, failure→original kept + exactly one notice. Real Q4 GGUF not on disk, so no live model run.
+
+## 2026-11-22 — Translation final audit + real-model testing
+
+Independent audit found and fixed 5 real issues:
+1. TranslationService POSTs and stop() were unsynchronized — a config change mid-request could kill the runtime or leak a process. Now one re-entrant lock covers the whole request and stop().
+2. Standalone-mode failure notices never reached a user (generic event has no renderer consumer outside Tauri). Added app.tray.notify fallback via a weak app handle passed from both call sites.
+3. Settings target dropdown offered all 28 ASR languages while the backend allowlist accepts 8 — selecting e.g. Portuguese was silently rejected. Dropdown now filters to the 8 core locales.
+4. History modal fetched the full record only for truncated final text, so short translations never revealed their original. The richer fetcher now always fetches.
+5. Delete→Undo restored `text` but dropped `original_text`, and its encryption flag-flip left the original plaintext under an encrypted flag (`<decryption failed>` on read). Both fixed; renderer captures the full row before delete.
+
+Real-model testing (NOT mocked): downloaded Index-Translate-2B.Q4_K_M.gguf (1,312,164,352 bytes, sha256 044b313d…746a verified) via HF to D:/vt_hf_cache; started the real llama-server.exe from D:/polish_eval/llama (11.3s cold load, 4 slots). Ran all 12 required scenarios through the production translate_text path: AR→EN, EN→AR, EN→EN skip (0 model calls), mixed AR+EN, auto-detect, short ambiguous (OK/No/AI), empty, URLs/emails, numbers/tech/code, failure (original kept + notice), identical output, and AR→DE/EN→FR/EN→ES. All passed with real model output (e.g. "الملف اللي بعتهولي امبارح مش بيفتح" → "The file I sent you yesterday isn't opening."). Full workflow test with real History DB confirmed final text pasted/copied, both versions stored and readable, no stray notices. Logs clean.
+
+Verification: 264 backend tests, 75 renderer targeted tests, tsc web, biome, ruff, mypy on changed files — all pass.
+
+## 2026-11-22 — CI errors batch 3 (15 failures, 5 parallel subagents)
+
+Source: 15 failures from CI-errors.md, all rooted in the just-pushed unified-plugin / translation / history-v7 work. main was in sync at dispatch. New git rule honored: agents edited files only; controller committed each domain with explicit pathspecs. A concurrent actor was actively working on a CI-errors workflow in the same checkout — kept their dirty files untouched; committed with explicit paths to avoid the shared index (one stray staged CI-errors.md deletion was swept into commit 431baf67c, immediately restored in 02ba69684).
+
+- B (431baf67c): 7 history v7 stale pins — `original_text=None` kwargs + 18-column INSERT SQL (was 17). 38 passed.
+- D (558d2dd5e): chrome pid retry test was Windows-only (`_windows_for_pid`/`_window_info` seams); rewritten against the platform-neutral `resolve_browser_pid` seam; 1 passed + POSIX sim.
+- C (87483f319): added `_download_translation` to the downloads surface pin; localized the new translation-download notice key `notify.model.translation_downloaded` in server i18n + push.ts + all 8 locales. 805 passed.
+- E (0d5afa530): hotkeys cycle-2 flake — fixed 40ms release window replaced with condition-based wait on an observed release with 2s deadline + worker exception capture (C-TEST-16); exact two-fire assertion kept. 19 passed ×8.
+- A (c67957a41): registry 110→109 / Rust 105→104 (`set_plugin_setting` removed). Updated SECURITY/FEATURES/CONTRIBUTING/ARCHITECTURE/migration docs + test_ipc_server + Rust snapshot/comments. 213 passed.
+
+Final gate: 1056 passed across all 11 touched test files. ruff-F clean on project files; the only F401 is in `scripts/ci_errors/analyze.py` — a concurrent actor's untracked CI-errors workflow file, left untouched.
+
+Deferred (from Domain A report): registry.py:112 comment still says 110 (source comment, out of agent scope); scripts/check_new_command.sh touchpoint 10 conflicts with the architecture test's `109-command` ban (pytest kept authoritative); cargo check blocked by env (dlltool + disk full) — Rust edits were comment-only.
+
+6 local commits ahead of origin/main, NOT pushed (no push requested).
