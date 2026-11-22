@@ -71,3 +71,15 @@ def test_unavailable_job_log_is_not_fatal(monkeypatch) -> None:
 
     monkeypatch.setattr(client, "_request", forbidden_request)
     assert client.get_job_log(1) == "(job log unavailable: HTTP 403)"
+
+
+def test_rate_limited_job_list_is_not_fatal(monkeypatch) -> None:
+    from scripts.ci_errors.github import GitHubClient
+
+    client = GitHubClient("AbdallahIsDev/Lausu", token="unused")
+
+    def forbidden_request(*args, **kwargs):
+        raise RuntimeError("GitHub API 403 for /repos/x/actions/runs/1/jobs")
+
+    monkeypatch.setattr(client, "_request", forbidden_request)
+    assert client.list_jobs(1) == {}

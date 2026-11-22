@@ -26,6 +26,10 @@ class _SafeRedirect(urllib.request.HTTPRedirectHandler):
         return new
 
 
+def _is_rate_limit(exc: RuntimeError) -> bool:
+    return "GitHub API 403" in str(exc)
+
+
 class GitHubClient:
     """Read-only client for workflow runs, jobs and job logs."""
 
@@ -56,7 +60,12 @@ class GitHubClient:
         return body.decode("utf-8", errors="replace") if text else json.loads(body)
 
     def get_run(self, run_id: int) -> dict[str, Any]:
-        return self._request(f"/repos/{self.repo}/actions/runs/{run_id}")
+        try:
+            return self._request(f"/repos/{self.repo}/actions/runs/{run_id}")
+        except RuntimeError as exc:
+            if _is_rate_limit(exc):
+                return {}
+            raise
 
     def list_runs(self, limit: int) -> list[dict[str, Any]]:
         if limit <= 0:
@@ -65,9 +74,14 @@ class GitHubClient:
         page = 1
         per_page = min(100, limit)
         while len(runs) < limit:
-            batch = self._request(f"/repos/{self.repo}/actions/runs", {"per_page": per_page, "page": page}).get(
-                "workflow_runs", []
-            )
+            try:
+                batch = self._request(f"/repos/{self.repo}/actions/runs", {"per_page": per_page, "page": page}).get(
+                    "workflow_runs", []
+                )
+            except RuntimeError as exc:
+                if _is_rate_limit(exc):
+                    break
+                raise
             runs.extend(batch)
             if len(batch) < per_page:
                 break
@@ -75,7 +89,12 @@ class GitHubClient:
         return runs[:limit]
 
     def list_jobs(self, run_id: int) -> dict[str, Any]:
-        return self._request(f"/repos/{self.repo}/actions/runs/{run_id}/jobs", {"per_page": 100})
+        try:
+            return self._request(f"/repos/{self.repo}/actions/runs/{run_id}/jobs", {"per_page": 100})
+        except RuntimeError as exc:
+            if _is_rate_limit(exc):
+                return {}
+            raise
 
     def get_job_log(self, job_id: int) -> str:
         path = f"/repos/{self.repo}/actions/jobs/{job_id}/logs"
