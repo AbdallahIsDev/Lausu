@@ -280,6 +280,26 @@ def resolve_browser_pid(profile_dir: str) -> int | None:
     return None
 
 
+def resolve_browser_pid_after_launch(
+    profile_dir: str, *, wait_s: float = 5.0, poll_s: float = 0.15
+) -> int | None:
+    """Resolve the browser pid once Chrome has actually painted its window.
+
+    ``Popen`` returns before Chrome creates a top-level ``Chrome_WidgetWin_1``,
+    so a single ``resolve_browser_pid`` call right after launch reports a
+    false failure and leaves the per-plugin pid file stale. Poll briefly
+    instead; on a healthy start this returns on the first or second attempt.
+    """
+    deadline = time.monotonic() + wait_s
+    while True:
+        pid = resolve_browser_pid(profile_dir)
+        if pid is not None:
+            return pid
+        if time.monotonic() >= deadline:
+            return None
+        time.sleep(poll_s)
+
+
 def is_valid_browser_pid(pid: int, profile_dir: str) -> bool:
     return pid > 0 and pid in resolve_browser_pids(profile_dir)
 
@@ -349,9 +369,12 @@ def launch(
     except (OSError, ValueError):
         log.exception("[PLUGIN] opening the dictation profile failed")
         return False
-    resolved = resolve_browser_pid(profile_dir)
+    resolved = resolve_browser_pid_after_launch(profile_dir)
     if resolved is None:
-        log.warning("[PLUGIN] launched Chrome but could not resolve its profile window pid")
+        log.warning(
+            "[PLUGIN] launched Chrome but could not resolve its profile window pid (waited %.1fs)",
+            5.0,
+        )
     else:
         _record_pid(plugin_dir, resolved)
     if not visible:
