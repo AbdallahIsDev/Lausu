@@ -205,6 +205,7 @@
 		"translationGpuInfo": "Exécuter le modèle local sur un GPU compatible via Vulkan, sans téléchargement CUDA.",
 		"translationGlossary": "Terminologie",
 		"translationGlossaryInfo": "Un terme par ligne au format source => traduction. Les noms de produits et d’interface restent inchangés.",
+		"translationDownload": "Télécharger le modèle de traduction (1,31 Go)",
 		"language": "Langue",
 		"languageDescription": "Langue de reconnaissance vocale",
 		"hotkey": "Raccourci clavier",
@@ -830,6 +831,12 @@
 		"settingsSection": "Paramètres",
 		"statusActive": "Actif",
 		"statusInactive": "Inactif",
+		"sharedSettingsDescription": "S'applique à tous les plugins installés.",
+		"noActivePlugin": "Aucun plugin actif. Activez-en un ci-dessus pour le configurer.",
+		"visibleLabel": "Afficher la fenêtre du navigateur",
+		"visibleDescription": "Masque la fenêtre Chrome et son icône dans la barre des tâches pendant la dictée. Pris en compte immédiatement.",
+		"notifyLabel": "Notifications",
+		"notifyDescription": "Avertit lorsque le plugin ne démarre pas ou ne renvoie aucune transcription. Pris en compte immédiatement.",
 		"unlocked": "Plugins débloqués.",
 		"hidden": "Plugins masqués.",
 		"unlockFailed": "Impossible de débloquer les plugins. Réessayez."
@@ -1053,7 +1060,7 @@
 		"restoreEntry": "Restaurer l'entrée",
 		"favorite": "Favori",
 		"unfavorite": "Retirer des favoris",
-		"copyText": "Copier le texte",
+		"copyText": "Copier",
 		"copiedToClipboard": "Copié dans le presse-papiers",
 		"entryDetails": "Détails de l'entrée",
 		"timestamp": "Horodatage",
@@ -1076,7 +1083,8 @@
 		"charsSuffix_other": " ({count} caractères)",
 		"mediaBadge": "Média",
 		"dictationBadge": "Dictée",
-		"viewTranscript": "Voir la transcription"
+		"viewTranscript": "Voir la transcription",
+		"originalText": "Texte original (avant traduction)"
 	},
 	"tooltips": {
 		"toggleRecording": "Démarrer ou arrêter la dictée vocale",
@@ -2164,6 +2172,7 @@
 		},
 		"dictation_pipeline": {
 			"llm_polish_failed": "Lissage par LLM échoué. La transcription s'affiche telle quelle ; consultez le journal pour plus de détails.",
+			"translation_failed": "La traduction a échoué. La transcription originale a été conservée et insérée telle quelle ; consultez le journal pour plus de détails.",
 			"history_save_failed": "Impossible d'enregistrer la transcription dans l'historique. Consultez le journal pour plus de détails.",
 			"crash_recovery_save_failed": "Impossible d'enregistrer la transcription dans le tampon de récupération après incident. Consultez le journal pour plus de détails.",
 			"text_cleanup_failed": "Nettoyage du texte échoué. Consultez le journal pour plus de détails.",

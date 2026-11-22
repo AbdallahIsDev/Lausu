@@ -810,6 +810,7 @@
 		"translationGpuInfo": "تشغيل نموذج الترجمة المحلي على GPU متوافق عبر Vulkan دون تنزيل CUDA.",
 		"translationGlossary": "المصطلحات",
 		"translationGlossaryInfo": "مصطلح واحد في كل سطر بصيغة المصدر => الترجمة. تبقى أسماء المنتجات والواجهات كما هي.",
+		"translationDownload": "تنزيل نموذج الترجمة (1.31 جيجابايت)",
 		"launchAtLogin": "التشغيل عند تسجيل الدخول",
 		"launchAtLoginDescription": "بدء تشغيل {appName} تلقائيًا عند تسجيل الدخول إلى Windows.",
 		"notifications": "الإشعارات",
@@ -1340,6 +1341,12 @@
 		"settingsSection": "الإعدادات",
 		"statusActive": "نشط",
 		"statusInactive": "غير نشط",
+		"sharedSettingsDescription": "ينطبق على جميع المكوّنات المثبّتة.",
+		"noActivePlugin": "لا يوجد مكوّن نشط. فعّل واحداً أعلاه لتعديل إعداداته.",
+		"visibleLabel": "إظهار نافذة المتصفح",
+		"visibleDescription": "إخفاء نافذة Chrome وأيقونتها في شريط المهام أثناء الإملاء. يسري فوراً.",
+		"notifyLabel": "الإشعارات",
+		"notifyDescription": "إشعار عند تعذّر بدء المكوّن أو عدم إرجاعه نصاً. يسري فوراً.",
 		"unlocked": "تم فتح الإضافات.",
 		"hidden": "تم إخفاء الإضافات.",
 		"unlockFailed": "تعذّر فتح الإضافات. حاول مرة أخرى."
@@ -1652,7 +1659,7 @@
 		"restoreEntry": "استعادة الإدخال",
 		"favorite": "مفضلة",
 		"unfavorite": "إزالة من المفضلة",
-		"copyText": "نسخ النص",
+		"copyText": "نسخ",
 		"copiedToClipboard": "تم النسخ إلى الحافظة",
 		"entryDetails": "تفاصيل الإدخال",
 		"timestamp": "الطابع الزمني",
@@ -1675,7 +1682,8 @@
 		"charsSuffix_other": " ({count} حرف)",
 		"mediaBadge": "وسائط",
 		"dictationBadge": "إملاء",
-		"viewTranscript": "عرض النص"
+		"viewTranscript": "عرض النص",
+		"originalText": "النص الأصلي (قبل الترجمة)"
 	},
 	"onboarding": {
 		"applyFailedTitle": "تعذّر إكمال الإعداد",
@@ -2164,6 +2172,7 @@
 		},
 		"dictation_pipeline": {
 			"llm_polish_failed": "فشل التحسين بالذكاء الاصطناعي. النص المعروض كما هو؛ راجع ملف السجل للتفاصيل.",
+			"translation_failed": "فشلت الترجمة. تم الاحتفاظ بالنص الأصلي وإدراجه كما هو؛ راجع ملف السجل للتفاصيل.",
 			"history_save_failed": "تعذّرت حفظ التفريغ في السجل. راجع ملف السجل للتفاصيل.",
 			"crash_recovery_save_failed": "تعذّرت حفظ التفريغ في مخزن استعادة الأعطال. راجع ملف السجل للتفاصيل.",
 			"text_cleanup_failed": "فشل تنظيف النص. راجع ملف السجل للتفاصيل.",

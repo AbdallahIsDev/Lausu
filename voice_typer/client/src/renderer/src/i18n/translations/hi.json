@@ -804,6 +804,7 @@
 		"translationGpuInfo": "बिना CUDA डाउनलोड के Vulkan के माध्यम से संगत GPU पर स्थानीय मॉडल चलाएँ।",
 		"translationGlossary": "शब्दावली",
 		"translationGlossaryInfo": "प्रत्येक पंक्ति में एक शब्द स्रोत => अनुवाद। उत्पाद और UI नाम वैसे ही रहते हैं।",
+		"translationDownload": "अनुवाद मॉडल डाउनलोड करें (1.31 GB)",
 		"launchAtLogin": "लॉगिन पर लॉन्च करें",
 		"launchAtLoginDescription": "जब आप Windows में लॉग इन करें तब स्वचालित रूप से {appName} शुरू करें।",
 		"notifications": "सूचनाएं",
@@ -1340,6 +1341,12 @@
 		"settingsSection": "सेटिंग",
 		"statusActive": "सक्रिय",
 		"statusInactive": "निष्क्रिय",
+		"sharedSettingsDescription": "सभी इंस्टॉल किए गए प्लगइन पर लागू होता है।",
+		"noActivePlugin": "कोई प्लगइन सक्रिय नहीं है। कॉन्फ़िगर करने के लिए ऊपर से एक चालू करें।",
+		"visibleLabel": "ब्राउज़र विंडो दिखाएँ",
+		"visibleDescription": "डिक्टेशन के दौरान Chrome विंडो और उसका टास्कबार आइकन छिपाएँ। तुरंत लागू होता है।",
+		"notifyLabel": "सूचनाएँ",
+		"notifyDescription": "प्लगइन शुरू न हो या कोई ट्रांसक्रिप्ट न देने पर सूचित करें। तुरंत लागू होता है।",
 		"unlocked": "प्लगइन अनलॉक हो गए।",
 		"hidden": "प्लगइन छिपा दिए गए।",
 		"unlockFailed": "प्लगइन अनलॉक नहीं हो सके। कृपया फिर से प्रयास करें।"
@@ -1652,7 +1659,7 @@
 		"restoreEntry": "प्रविष्टि पुनर्स्थापित करें",
 		"favorite": "पसंदीदा",
 		"unfavorite": "पसंदीदा से हटाएँ",
-		"copyText": "टेक्स्ट कॉपी करें",
+		"copyText": "कॉपी करें",
 		"copiedToClipboard": "क्लिपबोर्ड पर कॉपी किया गया",
 		"entryDetails": "प्रविष्टि विवरण",
 		"timestamp": "समय-चिह्न",
@@ -1675,7 +1682,8 @@
 		"charsSuffix_other": " ({count} अक्षर)",
 		"mediaBadge": "मीडिया",
 		"dictationBadge": "डिक्टेशन",
-		"viewTranscript": "ट्रांसक्रिप्ट देखें"
+		"viewTranscript": "ट्रांसक्रिप्ट देखें",
+		"originalText": "मूल पाठ (अनुवाद से पहले)"
 	},
 	"onboarding": {
 		"applyFailedTitle": "सेटअप पूरा नहीं हो सका",
@@ -2164,6 +2172,7 @@
 		},
 		"dictation_pipeline": {
 			"llm_polish_failed": "LLM सुधार विफल रहा। ट्रांसक्रिप्शन ज्यों का त्यों दिखाई जा रही है; विवरण के लिए लॉग फ़ाइल देखें।",
+			"translation_failed": "अनुवाद विफल रहा। मूल ट्रांसक्रिप्शन बरकरार रखा गया और बिना बदलाव डाला गया; विवरण के लिए लॉग फ़ाइल देखें।",
 			"history_save_failed": "ट्रांसक्रिप्शन इतिहास में सहेजा नहीं जा सका। विवरण के लिए लॉग फ़ाइल देखें।",
 			"crash_recovery_save_failed": "ट्रांसक्रिप्शन क्रैश-रिकवरी बफ़र में सहेजा नहीं जा सका। विवरण के लिए लॉग फ़ाइल देखें।",
 			"text_cleanup_failed": "टेक्स्ट सफ़ाई विफल रही। विवरण के लिए लॉग फ़ाइल देखें।",

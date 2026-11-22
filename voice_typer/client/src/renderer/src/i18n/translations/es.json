@@ -811,6 +811,7 @@
 		"translationGpuInfo": "Ejecuta el modelo local en una GPU compatible con Vulkan, sin descargar CUDA.",
 		"translationGlossary": "Terminología",
 		"translationGlossaryInfo": "Un término por línea como origen => traducción. Los nombres de producto y UI se mantienen.",
+		"translationDownload": "Descargar modelo de traducción (1,31 GB)",
 		"launchAtLogin": "Iniciar al iniciar sesión",
 		"launchAtLoginDescription": "Inicia {appName} automáticamente cuando inicies sesión en Windows.",
 		"notifications": "Notificaciones",
@@ -1340,6 +1341,12 @@
 		"settingsSection": "Ajustes",
 		"statusActive": "Activo",
 		"statusInactive": "Inactivo",
+		"sharedSettingsDescription": "Se aplica a todos los complementos instalados.",
+		"noActivePlugin": "No hay ningún complemento activo. Active uno arriba para configurarlo.",
+		"visibleLabel": "Mostrar ventana del navegador",
+		"visibleDescription": "Oculta la ventana de Chrome y su icono en la barra de tareas durante la dictación. Se aplica al instante.",
+		"notifyLabel": "Notificaciones",
+		"notifyDescription": "Avisa cuando el complemento no puede iniciarse o no devuelve una transcripción. Se aplica al instante.",
 		"unlocked": "Plugins desbloqueados.",
 		"hidden": "Complementos ocultos.",
 		"unlockFailed": "No se pudieron desbloquear los plugins. Inténtalo de nuevo."
@@ -1652,7 +1659,7 @@
 		"restoreEntry": "Restaurar entrada",
 		"favorite": "Favorito",
 		"unfavorite": "Quitar de favoritos",
-		"copyText": "Copiar texto",
+		"copyText": "Copiar",
 		"copiedToClipboard": "Copiado al portapapeles",
 		"entryDetails": "Detalles de la entrada",
 		"timestamp": "Marca de tiempo",
@@ -1675,7 +1682,8 @@
 		"charsSuffix_other": " ({count} caracteres)",
 		"mediaBadge": "Multimedia",
 		"dictationBadge": "Dictado",
-		"viewTranscript": "Ver transcripción"
+		"viewTranscript": "Ver transcripción",
+		"originalText": "Texto original (antes de la traducción)"
 	},
 	"onboarding": {
 		"applyFailedTitle": "No se pudo completar la configuración",
@@ -2164,6 +2172,7 @@
 		},
 		"dictation_pipeline": {
 			"llm_polish_failed": "El suavizado con LLM ha fallado. La transcripción se muestra sin cambios; consulta el archivo de registro para más detalles.",
+			"translation_failed": "La traducción ha fallado. Se conservó la transcripción original y se insertó sin cambios; consulta el archivo de registro para más detalles.",
 			"history_save_failed": "No se pudo guardar la transcripción en el historial. Consulta el archivo de registro para más detalles.",
 			"crash_recovery_save_failed": "No se pudo guardar la transcripción en el búfer de recuperación tras fallo. Consulta el archivo de registro para más detalles.",
 			"text_cleanup_failed": "La limpieza de texto ha fallado. Consulta el archivo de registro para más detalles.",

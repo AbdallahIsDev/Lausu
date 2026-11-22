@@ -37,6 +37,7 @@ ALLOWED_UNTRANSLATED = {
     "settings.presetCode",  # "Code", technical term
     "settings.notifications",  # "Notifications", technical term
     "a11y.notifications",  # "Notifications", identical cognate in French (same word)
+    "plugins.notifyLabel",  # "Notifications", identical cognate in French (same word)
     # "Strict" is the same word in French (mode strict); every other locale
     # has a distinct translation, so only fr is identical to English here.
     "settings.audioEnhancement.hallucinationStrict",

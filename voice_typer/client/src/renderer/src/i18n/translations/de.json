@@ -810,6 +810,7 @@
 		"translationGpuInfo": "Lokales Übersetzungsmodell über Vulkan auf einer kompatiblen GPU ausführen – ohne CUDA-Download.",
 		"translationGlossary": "Terminologie",
 		"translationGlossaryInfo": "Ein Begriff pro Zeile als Quelle => Übersetzung. Produkt- und UI-Namen bleiben unverändert.",
+		"translationDownload": "Übersetzungsmodell herunterladen (1,31 GB)",
 		"launchAtLogin": "Beim Anmelden starten",
 		"launchAtLoginDescription": "{appName} automatisch starten, wenn Sie sich bei Windows anmelden.",
 		"notifications": "Benachrichtigungen",
@@ -1340,6 +1341,12 @@
 		"settingsSection": "Einstellungen",
 		"statusActive": "Aktiv",
 		"statusInactive": "Inaktiv",
+		"sharedSettingsDescription": "Gilt für alle installierten Plugins.",
+		"noActivePlugin": "Kein Plugin aktiv. Aktiviere oben eines, um es zu konfigurieren.",
+		"visibleLabel": "Browserfenster anzeigen",
+		"visibleDescription": "Chrome-Fenster und Taskbar-Symbol während des Diktats ausblenden. Wirkt sofort.",
+		"notifyLabel": "Benachrichtigungen",
+		"notifyDescription": "Benachrichtigen, wenn das Plugin nicht startet oder kein Transkript liefert. Wirkt sofort.",
 		"unlocked": "Plugins freigeschaltet.",
 		"hidden": "Plugins ausgeblendet.",
 		"unlockFailed": "Plugins konnten nicht freigeschaltet werden. Bitte erneut versuchen."
@@ -1652,7 +1659,7 @@
 		"restoreEntry": "Eintrag wiederherstellen",
 		"favorite": "Favorit",
 		"unfavorite": "Aus Favoriten entfernen",
-		"copyText": "Text kopieren",
+		"copyText": "Kopieren",
 		"copiedToClipboard": "In die Zwischenablage kopiert",
 		"entryDetails": "Eintragsdetails",
 		"timestamp": "Zeitstempel",
@@ -1675,7 +1682,8 @@
 		"charsSuffix_other": " ({count} Zeichen)",
 		"mediaBadge": "Medien",
 		"dictationBadge": "Diktat",
-		"viewTranscript": "Transkript ansehen"
+		"viewTranscript": "Transkript ansehen",
+		"originalText": "Originaltext (vor der Übersetzung)"
 	},
 	"onboarding": {
 		"applyFailedTitle": "Einrichtung konnte nicht abgeschlossen werden",
@@ -2164,6 +2172,7 @@
 		},
 		"dictation_pipeline": {
 			"llm_polish_failed": "LLM-Glättung fehlgeschlagen. Transkription wird unverändert angezeigt; Details in der Protokolldatei.",
+			"translation_failed": "Übersetzung fehlgeschlagen. Die ursprüngliche Transkription wurde beibehalten und unverändert eingefügt; Details in der Protokolldatei.",
 			"history_save_failed": "Transkription konnte nicht in den Verlauf gespeichert werden. Details in der Protokolldatei.",
 			"crash_recovery_save_failed": "Transkription konnte nicht im Absturz-Wiederherstellungspuffer gespeichert werden. Details in der Protokolldatei.",
 			"text_cleanup_failed": "Textbereinigung fehlgeschlagen. Details in der Protokolldatei.",

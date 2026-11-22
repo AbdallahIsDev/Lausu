@@ -1047,6 +1047,31 @@ for (const [locale, values] of Object.entries(translationMore)) {
 	Object.assign(translations[locale], values);
 }
 
+// ADR-0030: the raw-ASR reveal label is present in all 8 locales already.
+// Keep this map in sync when adding new keys so a re-run never drops it.
+const FIXED_KEYS = {
+	"settings.translationDownload": {
+		en: "Download translation model (1.31 GB)",
+		ar: "تنزيل نموذج الترجمة (1.31 جيجابايت)",
+		de: "Übersetzungsmodell herunterladen (1,31 GB)",
+		es: "Descargar modelo de traducción (1,31 GB)",
+		fr: "Télécharger le modèle de traduction (1,31 Go)",
+		hi: "अनुवाद मॉडल डाउनलोड करें (1.31 GB)",
+		ru: "Скачать модель перевода (1,31 ГБ)",
+		zh: "下载翻译模型（1.31 GB）",
+	},
+	"history.originalText": {
+		en: "Original text (before translation)",
+		ar: "النص الأصلي (قبل الترجمة)",
+		de: "Originaltext (vor der Übersetzung)",
+		es: "Texto original (antes de la traducción)",
+		fr: "Texte original (avant traduction)",
+		hi: "मूल पाठ (अनुवाद से पहले)",
+		ru: "Исходный текст (до перевода)",
+		zh: "原文（翻译前）",
+	},
+};
+
 // Apply function
 function applyTranslations(locale, trans) {
 	const filePath = path.join(TRANSLATIONS_DIR, `${locale}.json`);
@@ -1073,6 +1098,11 @@ function applyTranslations(locale, trans) {
 		}
 		deepSet(data, key, value);
 		applied++;
+	}
+
+	for (const [key, byLocale] of Object.entries(FIXED_KEYS)) {
+		const fixed = byLocale[locale];
+		if (fixed) deepSet(data, key, fixed);
 	}
 
 	fs.writeFileSync(filePath, `${JSON.stringify(data, null, "\t")}\n`, "utf8");

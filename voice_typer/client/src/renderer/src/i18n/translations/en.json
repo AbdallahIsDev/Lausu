@@ -818,6 +818,7 @@
 		"translationGpuInfo": "Run the local translation model on a compatible GPU through Vulkan, with no CUDA download.",
 		"translationGlossary": "Terminology",
 		"translationGlossaryInfo": "One pinned term per line as source => translation. Product and UI names stay verbatim.",
+		"translationDownload": "Download translation model (1.31 GB)",
 		"launchAtLogin": "Launch at Login",
 		"launchAtLoginDescription": "Automatically start {appName} when you log into Windows.",
 		"fastStartup": "Fast Startup (Prewarm)",
@@ -1345,6 +1346,12 @@
 		"settingsSection": "Settings",
 		"statusActive": "Active",
 		"statusInactive": "Inactive",
+		"sharedSettingsDescription": "Applies to all installed plugins.",
+		"noActivePlugin": "No plugin is active. Turn one on above to configure it.",
+		"visibleLabel": "Show Browser Window",
+		"visibleDescription": "Hide the Chrome window and its taskbar icon while dictating. Takes effect immediately.",
+		"notifyLabel": "Notifications",
+		"notifyDescription": "Notify when the plugin cannot start or returns no transcript. Takes effect immediately.",
 		"unlocked": "Plugins unlocked.",
 		"hidden": "Plugins hidden.",
 		"unlockFailed": "Couldn't unlock plugins. Please try again."
@@ -1692,7 +1699,7 @@
 		"restoreEntry": "Restore entry",
 		"favorite": "Favorite",
 		"unfavorite": "Unfavorite",
-		"copyText": "Copy text",
+		"copyText": "Copy",
 		"copiedToClipboard": "Copied to clipboard",
 		"entryDetails": "Entry details",
 		"timestamp": "Timestamp",
@@ -1715,7 +1722,8 @@
 		"charsSuffix_other": " ({count} chars)",
 		"mediaBadge": "Media",
 		"dictationBadge": "Dictation",
-		"viewTranscript": "View transcript"
+		"viewTranscript": "View transcript",
+		"originalText": "Original text (before translation)"
 	},
 	"onboarding": {
 		"applyFailedTitle": "Couldn't finish setup",
@@ -2164,6 +2172,7 @@
 		},
 		"dictation_pipeline": {
 			"llm_polish_failed": "LLM polish failed. Transcription shown raw; check the log file for details.",
+			"translation_failed": "Translation failed. Your original transcription was kept and inserted unchanged; check the log file for details.",
 			"history_save_failed": "Could not save the transcription to history. Check the log file for details.",
 			"crash_recovery_save_failed": "Could not save the transcription to the crash-recovery buffer. Check the log file for details.",
 			"text_cleanup_failed": "Text cleanup failed. Check the log file for details.",

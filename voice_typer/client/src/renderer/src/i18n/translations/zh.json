@@ -804,6 +804,7 @@
 		"translationGpuInfo": "通过 Vulkan 在兼容 GPU 上运行本地翻译模型，无需下载 CUDA。",
 		"translationGlossary": "术语表",
 		"translationGlossaryInfo": "每行一个术语，格式为 来源 => 译文。产品和界面名称保持原样。",
+		"translationDownload": "下载翻译模型（1.31 GB）",
 		"launchAtLogin": "登录时启动",
 		"launchAtLoginDescription": "登录 Windows 时自动启动 {appName}。",
 		"notifications": "通知",
@@ -1340,6 +1341,12 @@
 		"settingsSection": "设置",
 		"statusActive": "已启用",
 		"statusInactive": "未启用",
+		"sharedSettingsDescription": "适用于所有已安装的插件。",
+		"noActivePlugin": "当前没有启用插件。请先在上方启用一个。",
+		"visibleLabel": "显示浏览器窗口",
+		"visibleDescription": "听写时隐藏 Chrome 窗口及其任务栏图标。立即生效。",
+		"notifyLabel": "通知",
+		"notifyDescription": "插件无法启动或未返回转录文本时通知。立即生效。",
 		"unlocked": "插件已解锁。",
 		"hidden": "已隐藏插件。",
 		"unlockFailed": "无法解锁插件。请重试。"
@@ -1652,7 +1659,7 @@
 		"restoreEntry": "恢复条目",
 		"favorite": "收藏",
 		"unfavorite": "取消收藏",
-		"copyText": "复制文本",
+		"copyText": "复制",
 		"copiedToClipboard": "已复制到剪贴板",
 		"entryDetails": "条目详情",
 		"timestamp": "时间戳",
@@ -1675,7 +1682,8 @@
 		"exportFilteredToast": "已导出筛选后的记录",
 		"mediaBadge": "媒体",
 		"dictationBadge": "听写",
-		"viewTranscript": "查看转录文本"
+		"viewTranscript": "查看转录文本",
+		"originalText": "原文（翻译前）"
 	},
 	"onboarding": {
 		"applyFailedTitle": "无法完成设置",
@@ -2164,6 +2172,7 @@
 		},
 		"dictation_pipeline": {
 			"llm_polish_failed": "LLM 润色失败。转写文本原样显示，详情请查看日志文件。",
+			"translation_failed": "翻译失败。已保留原始转写内容并原样插入；详情请查看日志文件。",
 			"history_save_failed": "无法将转写文本保存到历史记录。详情请查看日志文件。",
 			"crash_recovery_save_failed": "无法将转写文本保存到崩溃恢复缓冲区。详情请查看日志文件。",
 			"text_cleanup_failed": "文本清理失败。详情请查看日志文件。",
