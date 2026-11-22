@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# Husky post-merge hook — pull the latest CI error digest into the worktree.
+# User-level script sourced by .husky/_/post-merge (husky v9 single-installer
+# architecture). Kept deliberately tiny: the only logic is the best-effort
+# backgrounded sync below, which can never fail or measurably slow a merge.
+
+# ── CI-errors sync (best effort, never blocks / never fails the hook) ──────
+# Backgrounded and output-discarded: adds ~0ms to the hook. The script's own
+# --timeout 3 bounds the child so no stale process lingers. Offline is silent.
+(
+  _sync_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+  cd "$_sync_root" || exit 0
+  if [ -x .venv/Scripts/python.exe ]; then
+    _sync_py=.venv/Scripts/python.exe
+  elif [ -x .venv/bin/python ]; then
+    _sync_py=.venv/bin/python
+  elif command -v python3 >/dev/null 2>&1; then
+    _sync_py=python3
+  else
+    _sync_py=python
+  fi
+  "$_sync_py" scripts/sync_ci_errors.py --timeout 3 >/dev/null 2>&1 || :
+) >/dev/null 2>&1 &

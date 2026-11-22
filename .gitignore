@@ -155,3 +155,6 @@ website/.taste-skill/
 
 # Runtime state written by the Chrome bridge per plugin; never shipped in git.
 tools/internal_plugins/*/chrome_pid.json
+
+# Generated on the ci-reports branch and synced locally by scripts/sync_ci_errors.py.
+CI-errors.md
