@@ -243,7 +243,7 @@ jobs:
 
   # workflow — GITHUB_TOKEN pushes never create a new run, so no loop).
   ci-errors-doc:
-    name: Write CI-errors.md from JUnit results
+    name: Collect pytest JUnit artifacts (CI-errors input)
     needs: test
     if: always() && github.event_name != 'schedule'
     runs-on: ubuntu-22.04
@@ -265,32 +265,6 @@ jobs:
           path: junit/
           pattern: pytest-results-*
         continue-on-error: true
-
-      - name: Write CI-errors.md
-        shell: bash
-        run: |
-          if ls junit/**/*.xml >/dev/null 2>&1; then
-            python scripts/ci/write_ci_errors.py junit/**/*.xml
-          else
-            echo "No JUnit artifacts found — writing empty CI-errors.md"
-            python scripts/ci/write_ci_errors.py
-          fi
-
-      - name: Commit and push CI-errors.md
-        # GITHUB_TOKEN pushes never retrigger workflows (no loop). Non-PR only.
-        if: github.event_name != 'pull_request'
-        shell: bash
-        continue-on-error: true
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add CI-errors.md
-          if git diff --cached --quiet; then
-            echo "CI-errors.md unchanged — nothing to commit"
-          else
-            git commit -m "docs(ci): update CI-errors.md from latest test run"
-            git push
-          fi
 
   # Icon drift check: the committed src-tauri/icons must match what a
   icons-drift:

@@ -104,7 +104,8 @@ def test_rendered_file_has_no_trailing_whitespace(tmp_path: Path, monkeypatch) -
 
     pytest pads captured lines (``E     AssertionError: ...``) and indents blank
     ones. Those landed verbatim in the fenced block, so CI failed its own
-    hygiene job on the ``CI-errors.md`` commit it had just pushed.
+    hygiene job on the generated ``CI-errors.md`` file when the old writer
+    still committed it to main.
     """
     mod = _load()
     monkeypatch.setattr(mod, "OUTPUT", tmp_path / "CI-errors.md")
