@@ -9,9 +9,10 @@ versioned cache spec) builds a green exe that fails the post-build gate.
 from __future__ import annotations
 
 import importlib.util
+import os as _os
 import re
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
 import pytest
 import yaml
@@ -120,7 +121,9 @@ def test_gate_resolves_newest_versioned_extraction_dir_without_build_stamp(
     spec.loader.exec_module(gate)
 
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
-    monkeypatch.setattr(gate.os, "name", "nt")  # exercise the same branch as CI
+    # Patch only the gate module's `os` reference; the global module must stay
+    # untouched so pytest/pathlib keep the host platform's Path flavour.
+    monkeypatch.setattr(gate, "os", SimpleNamespace(name="nt", environ=_os.environ))
     old = tmp_path / "LausuSidecar" / "2026.01.01.0000" / "onefile-tmp"
     new = tmp_path / "LausuSidecar" / "2026.11.22.1234" / "onefile-tmp"
     old.mkdir(parents=True)
