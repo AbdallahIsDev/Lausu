@@ -1084,7 +1084,11 @@
 		"mediaBadge": "Média",
 		"dictationBadge": "Dictée",
 		"viewTranscript": "Voir la transcription",
-		"originalText": "Texte original (avant traduction)"
+		"originalText": "Texte original (avant traduction)",
+		"viewFinal": "Final",
+		"viewOriginal": "Original",
+		"viewCompare": "Comparer",
+		"viewModeAria": "Version de la transcription"
 	},
 	"tooltips": {
 		"toggleRecording": "Démarrer ou arrêter la dictée vocale",

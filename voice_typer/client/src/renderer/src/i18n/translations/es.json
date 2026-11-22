@@ -1683,7 +1683,11 @@
 		"mediaBadge": "Multimedia",
 		"dictationBadge": "Dictado",
 		"viewTranscript": "Ver transcripción",
-		"originalText": "Texto original (antes de la traducción)"
+		"originalText": "Texto original (antes de la traducción)",
+		"viewFinal": "Final",
+		"viewOriginal": "Original",
+		"viewCompare": "Comparar",
+		"viewModeAria": "Versión de la transcripción"
 	},
 	"onboarding": {
 		"applyFailedTitle": "No se pudo completar la configuración",

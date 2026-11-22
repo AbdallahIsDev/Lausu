@@ -1683,7 +1683,11 @@
 		"mediaBadge": "媒体",
 		"dictationBadge": "听写",
 		"viewTranscript": "查看转录文本",
-		"originalText": "原文（翻译前）"
+		"originalText": "原文（翻译前）",
+		"viewFinal": "最终",
+		"viewOriginal": "原文",
+		"viewCompare": "对比",
+		"viewModeAria": "转写版本"
 	},
 	"onboarding": {
 		"applyFailedTitle": "无法完成设置",

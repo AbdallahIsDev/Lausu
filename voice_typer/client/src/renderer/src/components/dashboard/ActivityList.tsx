@@ -12,6 +12,7 @@ import {
 	type KeyboardEvent as ReactKeyboardEvent,
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useRef,
 	useState,
 } from "react";
@@ -22,14 +23,33 @@ import {
 	groupRecordsByDate,
 } from "@/components/dashboard/historyGroups";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 import { getLocale, t } from "@/i18n/i18n";
 import {
 	countWords,
 	formatElapsedShort,
 	formatMediaDuration,
 } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { formatSourceDisplayName } from "@/lib/utils/format";
 import type { HistoryRecord } from "@/types/ipc";
+
+/**
+ * Which version of a transcription the modal is showing.
+ *
+ * `final` is the default on every open (and every close resets to it).
+ * `original` and `compare` only exist for rows that carry a
+ * pre-translation original; the list projection reports that up front
+ * (`has_original`), so no row ever offers an empty view.
+ */
+type TranscriptView = "final" | "original" | "compare";
+
+/** Exit duration before the swap; mirrors `.history-view-out` in index.css. */
+const VIEW_EXIT_MS = 160;
+
+/** Transcript content-box clamp, as a fraction of the viewport height. */
+const MIN_BOX_VH = 0.25;
+const MAX_BOX_VH = 0.55;
 
 function formatTimestamp(ts: string): string {
 	try {
@@ -348,12 +368,114 @@ function ActivityListInner({
 		text: string;
 		originalText?: string;
 	} | null>(null);
+	// Displayed version. `view` is the content on screen; `leaving` runs
+	// the blur-out before the swap, so the outgoing text is what animates
+	// out and the incoming one animates in (no cross-fade, no opacity).
+	const [view, setView] = useState<TranscriptView>("final");
+	const [leaving, setLeaving] = useState(false);
+	// Content-box height in px, clamped to [25vh, 55vh] and animated. A
+	// MEASURED pixel height (never `auto`) is what makes it transitionable;
+	// `null` means "not measured yet" and the CSS floor/ceiling take over.
+	const [boxHeight, setBoxHeight] = useState<number | null>(null);
+	const boxRef = useRef<HTMLDivElement | null>(null);
+	const pendingViewRef = useRef<TranscriptView | null>(null);
+	const swapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const viewerTokenRef = useRef(0);
 	const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	// Track the content's own layout height and clamp it. Runs before paint
+	// so opening a row never flashes a wrong height, and a ResizeObserver
+	// catches text that arrives late (a cache miss), font swaps and window
+	// resizes. The observed node is the CONTENT, not the scroll box, so the
+	// height transition can never feed back into the measurement.
+	useLayoutEffect(() => {
+		// Nothing to measure while the dialog is closed. `viewing` also changes
+		// when a late full-record fetch replaces the text, re-running the clamp.
+		if (!viewing) return;
+		const box = boxRef.current;
+		// The content node is keyed by `view`, so it remounts on every mode
+		// switch. Re-query it here (instead of holding a stale ref) so both
+		// `view` and `viewing` are genuinely read and the observer follows the
+		// live node, including late-arriving text (cache miss).
+		if (!box) return;
+		const content = box.querySelector<HTMLElement>(`[data-view="${view}"]`);
+		if (!content) return;
+		const apply = (): void => {
+			const min = window.innerHeight * MIN_BOX_VH;
+			const max = window.innerHeight * MAX_BOX_VH;
+			// offsetHeight is layout height: unaffected by the scale/blur
+			// transform the switch animation applies. The scroll box carries
+			// p-4, so its own height must include that vertical padding or
+			// the last text line would be clipped/scrolled unnecessarily.
+			const padding =
+				parseFloat(getComputedStyle(box).paddingTop) +
+				parseFloat(getComputedStyle(box).paddingBottom);
+			const natural = content.offsetHeight + (padding || 0);
+			const next = Math.min(Math.max(natural, min), max);
+			setBoxHeight(Math.round(next));
+		};
+		apply();
+		const observer = new ResizeObserver(apply);
+		observer.observe(content);
+		window.addEventListener("resize", apply);
+		return () => {
+			observer.disconnect();
+			window.removeEventListener("resize", apply);
+		};
+	}, [view, viewing]);
+
+	const prefersReducedMotion = useCallback((): boolean => {
+		if (
+			typeof window === "undefined" ||
+			typeof window.matchMedia !== "function"
+		)
+			return false;
+		return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+	}, []);
+
+	const resetView = useCallback(() => {
+		if (swapTimerRef.current !== null) {
+			clearTimeout(swapTimerRef.current);
+			swapTimerRef.current = null;
+		}
+		pendingViewRef.current = null;
+		setLeaving(false);
+		setView("final");
+	}, []);
+
+	// Swap request. Rapid clicks retarget the pending view instead of
+	// stacking a second exit, so the content never goes stale or
+	// overlaps two animations.
+	const requestView = useCallback(
+		(next: TranscriptView) => {
+			if (prefersReducedMotion()) {
+				if (swapTimerRef.current !== null) {
+					clearTimeout(swapTimerRef.current);
+					swapTimerRef.current = null;
+				}
+				pendingViewRef.current = null;
+				setLeaving(false);
+				setView(next);
+				return;
+			}
+			pendingViewRef.current = next;
+			if (leaving) return;
+			setLeaving(true);
+			swapTimerRef.current = setTimeout(() => {
+				swapTimerRef.current = null;
+				const target = pendingViewRef.current ?? next;
+				pendingViewRef.current = null;
+				setView(target);
+				setLeaving(false);
+			}, VIEW_EXIT_MS);
+		},
+		[leaving, prefersReducedMotion],
+	);
 
 	useEffect(() => {
 		return () => {
 			if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+			if (swapTimerRef.current !== null) clearTimeout(swapTimerRef.current);
 		};
 	}, []);
 
@@ -371,18 +493,26 @@ function ActivityListInner({
 
 	const closeViewer = useCallback(() => {
 		viewerTokenRef.current += 1;
+		// Every open starts on Final, and every close returns to it.
+		resetView();
 		setViewing(null);
-	}, []);
+	}, [resetView]);
 
 	const openViewer = useCallback(
 		(item: HistoryRecord) => {
 			const token = ++viewerTokenRef.current;
+			resetView();
 			setViewing({ item, text: item.text });
 			// The richer fetch is used when available so a translated row can
 			// reveal its raw ASR text. Keep the older string-only callback for
 			// callers that never supply it (Dashboard, tests).
 			const fetcher = onFetchFullRecord ?? onFetchFullText;
-			if (!fetcher || item.text_truncated !== true) return;
+			// A translated row can have a short final text (not truncated) yet
+			// still carry a raw original worth revealing. The richer callback
+			// always fetches; the legacy string-only one keeps its old
+			// truncated-only behaviour for callers/tests that never supply it.
+			if (!fetcher) return;
+			if (!onFetchFullRecord && item.text_truncated !== true) return;
 			void fetcher(item.id)
 				.then((full) => {
 					if (token !== viewerTokenRef.current) return;
@@ -405,12 +535,23 @@ function ActivityListInner({
 					}
 				});
 		},
-		[onFetchFullRecord, onFetchFullText],
+		[onFetchFullRecord, onFetchFullText, resetView],
 	);
 
+	// Copy follows the visible selection: Final copies the processed
+	// text, Original the raw one, Compare both with explicit labels.
 	const copyViewerText = useCallback(() => {
-		if (viewing) void handleCopy({ ...viewing.item, text: viewing.text });
-	}, [viewing, handleCopy]);
+		if (!viewing) return;
+		const finalText = viewing.text;
+		const originalText = viewing.originalText ?? "";
+		const payload =
+			view === "original" && originalText !== ""
+				? originalText
+				: view === "compare" && originalText !== ""
+					? `${t("history.viewFinal")}:\n${finalText}\n\n${t("history.viewOriginal")}:\n${originalText}`
+					: finalText;
+		void handleCopy({ ...viewing.item, text: payload });
+	}, [viewing, view, handleCopy]);
 
 	const viewerTitle = viewing
 		? isMedia(viewing.item)
@@ -420,6 +561,65 @@ function ActivityListInner({
 			: formatTimestamp(viewing.item.timestamp)
 		: "";
 
+	// Original/Compare only exist when the row actually carries a raw
+	// version. `has_original` comes from the list projection, so the
+	// selector never offers an empty view (and a row without one keeps
+	// the footer at just Copy).
+	const originalText = viewing?.originalText ?? "";
+	const viewOptions: { value: TranscriptView; label: string }[] | null =
+		originalText === ""
+			? null
+			: [
+					{ value: "final", label: t("history.viewFinal") },
+					{ value: "original", label: t("history.viewOriginal") },
+					{ value: "compare", label: t("history.viewCompare") },
+				];
+
+	// One content tree per mode. Both versions use the SAME
+	// `text-foreground` colour in every mode — the version is conveyed by
+	// the label and position, never by dimming one of them.
+	const transcriptBody =
+		view === "compare" ? (
+			<div className="flex flex-col gap-4">
+				<section>
+					<p className="mb-1 text-xs font-medium text-muted-foreground">
+						{t("history.viewFinal")}
+					</p>
+					<div
+						dir="auto"
+						data-testid="transcript-modal-final"
+						className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-foreground [text-wrap:auto]"
+					>
+						{viewing?.text ?? ""}
+					</div>
+				</section>
+				<section>
+					<p className="mb-1 text-xs font-medium text-muted-foreground">
+						{t("history.viewOriginal")}
+					</p>
+					<div
+						dir="auto"
+						data-testid="transcript-modal-original"
+						className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-foreground [text-wrap:auto]"
+					>
+						{originalText}
+					</div>
+				</section>
+			</div>
+		) : (
+			<div
+				dir="auto"
+				data-testid={
+					view === "original"
+						? "transcript-modal-original"
+						: "transcript-modal-final"
+				}
+				className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-foreground [text-wrap:auto]"
+			>
+				{view === "original" ? originalText : (viewing?.text ?? "")}
+			</div>
+		);
+
 	const modal = (
 		<Modal
 			open={viewing !== null}
@@ -427,28 +627,40 @@ function ActivityListInner({
 			title={viewerTitle}
 			size="lg"
 		>
+			{/* Surface with a content-driven height clamped to [25vh, 55vh]
+			    and its OWN scrollbar: the modal header and the footer (toggle
+			    + Copy) never move, and Compare shares this same scroll area
+			    instead of growing the dialog. The measured px height animates;
+			    the outer CSS min/max are the pre-measure fallback. */}
 			<div
+				ref={boxRef}
 				dir="auto"
 				data-testid="transcript-modal-text"
-				className="max-h-[55vh] overflow-y-auto whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-foreground [text-wrap:auto]"
+				style={boxHeight === null ? undefined : { height: boxHeight }}
+				className="history-content-height min-h-[25vh] max-h-[55vh] overflow-y-auto overscroll-contain rounded-lg bg-foreground/8 p-4 [text-wrap:auto]"
 			>
-				{viewing?.text ?? ""}
-			</div>
-			{viewing?.originalText && (
-				<div className="mt-4 border-t border-border/8 pt-3">
-					<p className="mb-1 text-xs font-medium text-muted-foreground">
-						{t("history.originalText")}
-					</p>
-					<div
-						dir="auto"
-						data-testid="transcript-modal-original"
-						className="max-h-[35vh] overflow-y-auto whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-muted-foreground [text-wrap:auto]"
-					>
-						{viewing.originalText}
-					</div>
+				<div
+					key={view}
+					data-view={view}
+					className={cn(
+						"origin-center will-change-[filter,transform]",
+						leaving ? "history-view-out" : "history-view-in",
+					)}
+				>
+					{transcriptBody}
 				</div>
-			)}
-			<ModalFooter>
+			</div>
+			<ModalFooter className="sm:items-center sm:justify-between">
+				{viewOptions ? (
+					<ToggleGroup<TranscriptView>
+						options={viewOptions}
+						value={view}
+						onChange={requestView}
+						ariaLabel={t("history.viewModeAria")}
+					/>
+				) : (
+					<span aria-hidden="true" />
+				)}
 				<Button
 					variant="outline"
 					size="sm"

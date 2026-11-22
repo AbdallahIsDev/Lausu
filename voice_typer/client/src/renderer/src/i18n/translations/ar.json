@@ -1683,7 +1683,11 @@
 		"mediaBadge": "وسائط",
 		"dictationBadge": "إملاء",
 		"viewTranscript": "عرض النص",
-		"originalText": "النص الأصلي (قبل الترجمة)"
+		"originalText": "النص الأصلي (قبل الترجمة)",
+		"viewFinal": "النهائي",
+		"viewOriginal": "الأصلي",
+		"viewCompare": "مقارنة",
+		"viewModeAria": "نسخة النص"
 	},
 	"onboarding": {
 		"applyFailedTitle": "تعذّر إكمال الإعداد",
