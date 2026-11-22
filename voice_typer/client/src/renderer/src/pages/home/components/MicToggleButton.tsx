@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 
 export interface MicToggleButtonProps {
 	isRecording: boolean;
-	toggling: boolean;
 	disabled: boolean;
 	onClick: () => void;
 	label: string;
@@ -19,7 +18,6 @@ export interface MicToggleButtonProps {
 
 export function MicToggleButton({
 	isRecording,
-	toggling,
 	disabled,
 	onClick,
 	label,
@@ -107,29 +105,8 @@ export function MicToggleButton({
 						: showError
 							? "text-destructive"
 							: "text-(--primary-foreground)",
-					toggling && "opacity-30",
 				)}
 			/>
-			{toggling && (
-				<span
-					aria-hidden
-					className="pointer-events-none absolute inset-0 flex items-center justify-center"
-				>
-					{/* The spinner sits on whichever solid fill is active, so it tracks that
-						    state's paired foreground token instead of a hardcoded white (raw
-						    `text-white` ignored custom palettes entirely; W2). */}
-					<span
-						className={cn(
-							"h-7 w-7 animate-spin rounded-full border-2 border-t-transparent",
-							showError
-								? "border-destructive/80"
-								: isRecording
-									? "border-(--destructive-foreground)/80"
-									: "border-(--primary-foreground)/80",
-						)}
-					/>
-				</span>
-			)}
 		</button>
 	);
 }

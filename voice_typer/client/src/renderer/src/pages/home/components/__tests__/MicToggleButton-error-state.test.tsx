@@ -20,7 +20,6 @@ function renderButton(overrides: Record<string, unknown> = {}) {
 	return render(
 		<MicToggleButton
 			isRecording={false}
-			toggling={false}
 			disabled={false}
 			onClick={() => {}}
 			label="Start dictation"
@@ -30,6 +29,15 @@ function renderButton(overrides: Record<string, unknown> = {}) {
 }
 
 describe("MicToggleButton error state", () => {
+	it("never shows a spinner or dims the glyph while a toggle is in flight", () => {
+		renderButton();
+		const btn = screen.getByRole("button", { name: "Start dictation" });
+		expect(btn.querySelector(".animate-spin")).toBeNull();
+		expect(screen.getByTestId("hugeicon").className).not.toContain(
+			"opacity-30",
+		);
+	});
+
 	it("idle without error: alert glyph absent, no aria-live, no testid error marker", () => {
 		renderButton();
 		const btn = screen.getByRole("button", { name: "Start dictation" });

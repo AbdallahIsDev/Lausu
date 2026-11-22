@@ -76,7 +76,6 @@ describe("QV-16: MicToggleButton exposes aria-pressed matching isRecording", () 
 		render(
 			<MicToggleButton
 				isRecording={false}
-				toggling={false}
 				disabled={false}
 				onClick={() => {}}
 				label="Start dictation"
@@ -93,7 +92,6 @@ describe("QV-16: MicToggleButton exposes aria-pressed matching isRecording", () 
 		render(
 			<MicToggleButton
 				isRecording={true}
-				toggling={false}
 				disabled={false}
 				onClick={() => {}}
 				label="Stop dictation"
@@ -666,7 +664,6 @@ describe("MicToggleButton surfaces disabledReason as the accessible name when di
 		render(
 			<MicToggleButton
 				isRecording={false}
-				toggling={false}
 				disabled={true}
 				onClick={() => {}}
 				label="Start dictation"
@@ -689,7 +686,6 @@ describe("MicToggleButton surfaces disabledReason as the accessible name when di
 		render(
 			<MicToggleButton
 				isRecording={false}
-				toggling={false}
 				disabled={true}
 				onClick={() => {}}
 				label="Start dictation"
@@ -706,7 +702,6 @@ describe("MicToggleButton surfaces disabledReason as the accessible name when di
 		render(
 			<MicToggleButton
 				isRecording={false}
-				toggling={false}
 				disabled={false}
 				onClick={() => {}}
 				label="Start dictation"

@@ -12,8 +12,8 @@
 //     the consent → starts recording) instead of a dead button. The
 //     backend gate (recording_lifecycle.py) remains the enforcement
 //     backstop for hotkey/tray-triggered dictation.
-//   - `toggling`, the in-flight flag that shows the spinner overlay
-//     inside the mic button.
+//   - `toggling`, the in-flight flag Home uses to block a second click
+//     until the IPC round-trip settles. Purely behavioural: no spinner.
 
 import { useCallback, useState } from "react";
 import { toast } from "sonner";

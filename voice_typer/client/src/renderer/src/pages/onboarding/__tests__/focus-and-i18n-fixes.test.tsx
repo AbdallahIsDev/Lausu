@@ -123,7 +123,6 @@ describe("focus-ring migration ring-1 → ring-1(C-FOCUS-2/5)", () => {
 		render(
 			<MicToggleButton
 				isRecording={false}
-				toggling={false}
 				disabled={false}
 				onClick={() => {}}
 				label="Start dictation"
@@ -141,7 +140,6 @@ describe("focus-ring migration ring-1 → ring-1(C-FOCUS-2/5)", () => {
 		render(
 			<MicToggleButton
 				isRecording={false}
-				toggling={false}
 				disabled={false}
 				onClick={() => {}}
 				label="Start dictation"
