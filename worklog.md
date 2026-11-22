@@ -1723,8 +1723,102 @@ Baseline NOT regenerated (would be fake-green). On this host (Python 3.13.7) the
 
 Final: 1 new test passed, ruff clean, mypy parse error eliminated. 8 local commits ahead of origin/main, NOT pushed.
 
+
+## 2026-11-21 - worker: unified plugin system (one config, one settings UI)
+
+Owner-directed architecture change. Plugin settings are now canonical fields in the main `config.json` (`active_plugin`, `plugin_visible`, `plugin_notify`) written only through `set_config`. Removed: per-plugin settings store + tests, `set_plugin_setting` IPC (registry/allowlist/docs/tests), plugin-declared settings in both `plugin.json`s, plugin detail page, selection store, manifest setting renderer. Added `plugins/shared_settings.py` (derived projection into daemon config files + live no-activation visibility apply), `tests/plugins/test_shared_plugin_settings.py`; rewrote Plugins page/card/hook/tests; 6 i18n keys x8 locales; updated SECURITY/allowlist counts, ipc-reference, plan doc, AGENTS.md.
+
+NEW RULE announced here per Learn-and-teach: `C-PLUGIN-2` - no per-plugin settings file/command/manifest settings or plugin-specific visibility/activation logic; one main-config authority, one `set_config` interface, one shared Plugins page (owner explicitly requested the AGENTS.md update this turn).
+
+LIVE: Plugins page shows two cards with far-right toggles + one shared Settings block. Toggled Show The Browser Window off -> `plugin_visible=false` in main config, `visible=false` in both plugin config.json, dictation Chrome `IsWindowVisible=False` immediately; back on -> all true/visible. Toggled Notifications off -> `plugin_notify=false` in main config + `notify=false` in BOTH plugin configs. Restored all three values to the owner's originals (anthropic_stt/true/true); verified both plugin config files match. Card-switch live check was blocked by another session repeatedly moving/focusing windows; covered by renderer tests.
+
+Verification: ruff clean; pytest plugins+parity+config+tauri scopes 208 passed; pytest shared settings 4 passed; typecheck:ci OK; vitest plugins+types 58 passed; cargo check clean; cargo test 797 passed; branding OK; collect 20229. Note: one `git checkout -- <one file>` was used to revert my own two-line .gitignore edit; no other session's work was touched.
+
+
+## 2026-11-21 - worker: cold-start browser pid resolution warning
+
+Symptom (owner log 17:25:10): `[PLUGIN] launched Chrome but could not resolve its profile window pid`, followed by `opening the dictation profile ... pid=22856` (Popen pid, not a resolved one).
+
+Root cause (confirmed): `chrome_profile.launch()` called `resolve_browser_pid()` immediately after `Popen`, but that function requires an already painted `Chrome_WidgetWin_1`. Chrome creates its top-level window after `Popen` returns, so the single check reported a false failure and never wrote `chrome_pid.json` (live evidence: google_stt pid file was stale 34564 while the real browser was 10900; calling `resolve_browser_pid()` later returned 10900).
+
+Fix: `resolve_browser_pid_after_launch()` polls the existing resolver for up to 5s (0.15s interval) until the window is painted; `launch()` uses it. Existing `resolve_browser_pid` seam kept intact so `verify_profile_launch.py` still patches it. Added failing-first `tests/plugins/test_chrome_profile_pid_resolution.py` (window appears on the third attempt; asserts pid file written). Verification: new test 1 passed (failed before fix), tests/plugins 131 passed, verify_profile_launch all checks passed, ruff clean.
+
 ## 2026-11-21 — round 17/18: frozen verification fixes and cache isolation
 - Non-fail-fast self-check/gate, notices whitespace stripped at generation, platform-neutral resolver test (other-session `ac6cc85bb`).
 - Nuitka cached-mode probes: changed/new files re-extracted; removed files survive; two exes sharing a spec mix payloads. `{PRODUCT}`/`{VERSION}` with product/version flags isolate per exe and per build while staying cached.
 - Freeze scripts (Windows/Linux/macOS sidecar + worker) now isolate extraction dirs; gate resolves the newest versioned dir.
 - Verified: scoped pytest 19 passed, gate self-test PASS, notices check PASS, bash -n clean.
+
+
+## 2026-11-22 - worker: active-plugin UI state synchronization
+
+Owner report: switching Google -> Anthropic works in the backend (browser tab, dictation) but the sidebar caption and Plugins page revert to Google after navigating away and back.
+
+Root causes (traced, confirmed):
+1. `active_plugin_name` is computed ONLY inside `get_config` (`service/config_service.py:86-99`), but `set_config` publishes a partial `config_changed` containing only persisted fields (`handlers/config_handlers.py:305-312`). The global consumer `themeSync.ts:122-135` merges that partial into `appStore.config`; `SidebarActiveModel.tsx:19` reads `active_plugin_name` from that store and has no subscription/refetch. Model names update because they ARE persisted fields in the payload; the derived plugin label was neither persisted nor pushed.
+2. `pages/plugins/hooks/usePlugins.ts` seeded `activePluginId` from module-level `_cachedPlugins` and skipped the mount load whenever the cache existed. A switch while the page was unmounted was never seen by the page-local config_changed handler, so remount restored the cached flag.
+
+Fixes:
+- Backend: when `active_plugin` is in the effective set_config payload, publish `active_plugin_name = internal_plugin_hook.plugin_display_name_for(app.config)` with the same `config_changed` event. Still derived live from the canonical config - no new authority. Clearing the selection pushes "".
+- Renderer: `usePlugins` seeds active id + shared values from the shared `appStore.config` (updated globally by config_changed) instead of the module cache; effects follow store changes; card active flags are derived from the canonical id at render.
+- Replaced the module-cache-based optimistic `plugins[].active` writes with derived state.
+
+Failing tests first: `tests/handlers/test_config_changed_plugin_name.py` (2 tests: KeyError before fix) and a remount test in `plugins-page.test.tsx` (stale cache + fresh store: failed before fix). Both pass after.
+
+Verification: ruff clean; pytest handlers+plugins+parity+config+tauri 729 passed; typecheck:ci OK; vitest pages/plugins + SidebarActiveModel 29 passed. Live repeated-switch check could not be performed: another session's full-screen window held foreground and repeatedly moved the app window off-screen; no live claim made.
+
+
+## 2026-11-22 - worker: remove mic-button intermediate spinner
+
+Owner report: clicking the Home dictation button briefly showed a circular spinner between the mic and stop icons (and again on stop).
+
+Root cause: `MicToggleButton.tsx` rendered an `animate-spin` border ring plus dimmed the real glyph (`opacity-30`) whenever `toggling` was true. `useDictationToggle` sets that flag around the `toggle_dictation` IPC round-trip, so the spinner covered every start and stop transition.
+
+Fix: deleted the spinner overlay and the glyph dimming; removed the now-unused `toggling` prop from the button and all call sites. Kept `toggling` in the hook because Home uses it as the in-flight click guard (`micDisabled = toggling || loading || transcribing`); consent gate, IPC call and error toast unchanged. Updated the stale comment that referred to the removed overlay.
+
+Failing test first: `MicToggleButton-error-state.test.tsx` asserted no `.animate-spin` and no `opacity-30` while toggling — failed before, passes after.
+
+Verification: typecheck:ci OK; vitest pages/home + Home-recording-flow-fixes + onboarding focus tests -> 8 files, 104 tests passed. Live screenshot re-check was not possible in this shared session (another agent's window holds foreground).
+
+## 2026-11-22 — ADR-0030 storage + all-provider translation + dual-version history
+
+Owner approved four corrections: (1) translation GGUF resolves from the shared
+HF hub cache by repo id (never Ollama), downloaded via the existing
+`download_model` IPC with SHA/size verification; fixed the catalogue filename
+to the real repo artifact `Index-Translate-2B.Q4_K_M.gguf`. (2) `llama-server`
+resolves from installer-bundled dirs (`_shipped_dirs()`), app-data fallback.
+(3) translation now covers Chrome-profile STT plugins, which bypass
+`DictationPipeline`, by translating in `delivery.py` before paste. (4) history
+schema v7 adds nullable `original_text`; `text` stays canonical (search/paste
+unchanged), original revealed on demand via `get_transcription_text` and
+encrypted under the same row flag.
+
+No new IPC commands (110/105 counts untouched), no new config keys.
+
+
+## 2026-11-22 - worker: History / Recent Activity entry redesign
+
+Single shared `components/dashboard/ActivityList.tsx` drives both Home (Recent Activity) and History — no duplicate implementation.
+
+Changes:
+- Removed the Dictation badge + Mic icon from normal rows; media-only Media badge (Film01Icon) remains, gated on `item.kind === "media"`.
+- Added `formatSourceDisplayName` in `lib/utils/format.ts`: drops internal `-web` suffix, Title-Cases words, preserves STT/GPT/etc acronyms and OpenAI branding. `google-stt-web` -> `Google STT`; used for HistoryRecord.model in metadata (same convention as sidebar caption).
+- Reordered each row: transcription text first, then media thumbnail/title (when present), then metadata + action buttons. Removed the Show More button and its ResizeObserver truncation measurement entirely. Clicking the text still opens the full-transcript modal; Copy/Delete/Favorite preserved.
+- `history.copyText` i18n changed from "Copy text" to "Copy" in all 8 locales (also used as row copy button aria-label).
+
+Tests: rewrote ActivityList badge/metadata/order tests; removed obsolete truncation tests/helpers; added plugin-label formatter tests; full renderer suite green. Another agent's `onFetchFullRecord` prop in ActivityList/History was preserved.
+
+Verification: typecheck:ci OK; vitest full 417 files / 4796 passed / 7 skipped; targeted ActivityList + Home + History 8 files / 68 passed. Live screenshot of Home Recent Activity confirmed text-first layout, no Dictation badge, "Google STT" label, no Show More. History live screenshot blocked by another session's bubble overlay; covered by shared-component tests.
+
+## 2026-11-22 — Translation edge cases (confident skip, preservation, failure notice)
+
+ADR-0021 §5.2 amended (user-confirmed): the old "when in doubt SKIP translation" rule is REMOVED. Skip now happens ONLY when detection confidently says source == target. Mixed scripts, short/ambiguous text (<3 letters), and unknown sources all translate; Latin-only text skips only when a pinned Speaking Language confirms the target. Mixed text goes whole to the model (sentence-level routing removed).
+
+Implementation:
+- `server/translation/prompt.py`: script detection (`detect_source_language` → ar/hi/ru/zh confident; Latin ambiguous; URLs/emails/numbers excluded from detection so a Latin URL can't fake "mixed"); `needs_translation` rewritten around the confident-match rule.
+- `server/translation/preservation.py` (new): mask URLs / emails / backtick code / numbers as `⟦VTn⟧` before the call, restore byte-identical after; prompt names the markers so the model leaves them alone.
+- `server/translation/service.py`: protection wired into `translate()`; on failure keeps the original and publishes one generic `notification` event per process (no new IPC event type; no auto-retry; success clears the flag).
+- i18n: `notify.dictation_pipeline.translation_failed` in server + 8 renderer locales + push.ts mapping.
+- Fixed pre-existing French `plugins.notifyLabel` i18n-completeness failure via the identical-cognate allowlist.
+
+Verification: 141 backend tests + 98 affected-batch + 53 renderer targeted pass; ruff clean; mypy clean on changed files; tsc + biome clean. Live-path E2E (real service code + fake llama-server HTTP) confirmed: mixed→translate, same-lang→skip with zero calls, URL/number preserved, short "OK"→no skip, failure→original kept + exactly one notice. Real Q4 GGUF not on disk, so no live model run.
