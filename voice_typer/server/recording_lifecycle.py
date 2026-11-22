@@ -40,6 +40,11 @@ import threading
 
 from voice_typer.server import i18n, model_language_gate
 from voice_typer.server.branding import APP_NAME
+from voice_typer.server.clipboard_target_safety import (
+    StopTimeTargetSnapshot,
+    accepts_kwarg,
+    capture_stop_time_target_snapshot,
+)
 from voice_typer.server.duration import format_duration
 from voice_typer.server.recording_lifecycle_permissions import (  # noqa: F401  # facade attrs: tests import the moved helpers from here
     RecordingLifecyclePermissionsMixin,
@@ -411,7 +416,12 @@ class RecordingLifecycle(
         with controller._toggle_lock:
             self._stop_impl(controller)
 
-    def _stop_and_transcribe_worker_entry(self, controller, cycle_id: str) -> None:
+    def _stop_and_transcribe_worker_entry(
+        self,
+        controller,
+        cycle_id: str,
+        target_snapshot: StopTimeTargetSnapshot | None = None,
+    ) -> None:
         """Daemon worker-thread entry point, extracted from the former"""
         app = controller._app
         try:
@@ -438,9 +448,18 @@ class RecordingLifecycle(
             app._schedule_timer(3.0, lambda: app.tray.set_state(AppState.IDLE))
             return
 
-        self._run_stop_and_transcribe(controller, audio, cycle_id)
+        if accepts_kwarg(self._run_stop_and_transcribe, "target_snapshot"):
+            self._run_stop_and_transcribe(controller, audio, cycle_id, target_snapshot=target_snapshot)
+        else:
+            self._run_stop_and_transcribe(controller, audio, cycle_id)
 
-    def _run_stop_and_transcribe(self, controller, audio, cycle_id: str) -> None:
+    def _run_stop_and_transcribe(
+        self,
+        controller,
+        audio,
+        cycle_id: str,
+        target_snapshot: StopTimeTargetSnapshot | None = None,
+    ) -> None:
         """Transcription pipeline body, extracted from the former nested
         closure ``stop_and_transcribe_worker``.
 
@@ -475,6 +494,8 @@ class RecordingLifecycle(
         spinning up a real recorder or hotkey thread.
         """
         app = controller._app
+        if target_snapshot is None:
+            target_snapshot = capture_stop_time_target_snapshot()
 
         # Surface ring-buffer overflow detected during the recording.
         dropped = getattr(app.recorder, "_dropped_ring_chunks", 0)
@@ -575,12 +596,21 @@ class RecordingLifecycle(
 
         pipeline = DictationPipeline(app)
         # ``run()`` (sole caller always passed ``None``; RACE-013: no
-        pipeline.run(
-            audio=audio_bytes,
-            duration=duration,
-            recorded_rms=recorded_rms if recorded_rms is not None else 0.0,
-            cycle_id=cycle_id,
-        )
+        if accepts_kwarg(pipeline.run, "target_snapshot"):
+            pipeline.run(
+                audio=audio_bytes,
+                duration=duration,
+                recorded_rms=recorded_rms if recorded_rms is not None else 0.0,
+                cycle_id=cycle_id,
+                target_snapshot=target_snapshot,
+            )
+        else:
+            pipeline.run(
+                audio=audio_bytes,
+                duration=duration,
+                recorded_rms=recorded_rms if recorded_rms is not None else 0.0,
+                cycle_id=cycle_id,
+            )
         # Now that the transcription pipeline has fully returned (the
         controller._discard_cancelled_cycle_id(cycle_id)
 

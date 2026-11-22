@@ -247,3 +247,78 @@ class TestInputStructLayout:
         _args, _kwargs = mock_user32.SendInput.call_args
         assert mock_user32.SendInput.call_args[0][2] == ctypes.sizeof(INPUT)
         assert mock_user32.SendInput.call_args[0][2] == (40 if ctypes.sizeof(ctypes.c_void_p) == 8 else 28)
+
+
+class TestStopSnapshotWin32PasteDispatch:
+    def _make_cm(self):
+        from tests.fixtures.clipboard_helpers import make_clipboard_manager
+
+        return make_clipboard_manager()
+
+    def test_matching_stop_hwnd_dispatches_sendinput_without_refocus(self, fake_win32):
+        from voice_typer.server.clipboard_target_safety import StopTimeTargetSnapshot
+
+        cm = self._make_cm()
+        mock_user32 = fake_win32["user32"]
+        mock_user32.GetForegroundWindow.return_value = 0xCAFE
+        mock_user32.SendInput.return_value = 4
+        snap = StopTimeTargetSnapshot(hwnd=0xCAFE, pid=111, process_name="notepad.exe")
+
+        with (
+            patch.object(clip_mod, "_Key") as mock_key,
+            patch.object(cm, "_is_safe_paste_target", return_value=True),
+            patch.object(cm, "_check_ime_composition", return_value=True),
+        ):
+            mock_key.ctrl = "ctrl"
+            ok = cm.paste(pasted_text=" hello", target_snapshot=snap)
+
+        assert ok is True
+        mock_user32.SendInput.assert_called_once()
+        mock_user32.SetForegroundWindow.assert_not_called()
+
+    def test_terminal_process_from_stop_snapshot_uses_shift_insert(self, fake_win32):
+        from voice_typer.server.clipboard_target_safety import StopTimeTargetSnapshot
+
+        cm = self._make_cm()
+        mock_user32 = fake_win32["user32"]
+        mock_user32.GetForegroundWindow.return_value = 0xBEEF
+        mock_user32.SendInput.return_value = 4
+        snap = StopTimeTargetSnapshot(hwnd=0xBEEF, pid=222, process_name="cmd.exe")
+
+        with (
+            patch.object(clip_mod, "_Key") as mock_key,
+            patch.object(cm, "_is_safe_paste_target", return_value=True),
+            patch.object(cm, "_check_ime_composition", return_value=True),
+            patch.object(cm, "_send_shift_insert_win32", return_value=True) as mock_shift_ins,
+            patch.object(cm, "_send_ctrl_v_win32") as mock_ctrl_v,
+        ):
+            mock_key.shift = "shift"
+            mock_key.insert = "insert"
+            cm._keyboard = None
+            ok = cm.paste(pasted_text=" echo hi", target_snapshot=snap)
+
+        assert ok is True
+        mock_shift_ins.assert_called_once()
+        mock_ctrl_v.assert_not_called()
+        mock_user32.SetForegroundWindow.assert_not_called()
+
+    def test_mismatched_stop_hwnd_aborts_without_sendinput_or_refocus(self, fake_win32):
+        from voice_typer.server.clipboard_target_safety import StopTimeTargetSnapshot
+
+        cm = self._make_cm()
+        mock_user32 = fake_win32["user32"]
+        mock_user32.GetForegroundWindow.return_value = 0xBBBB  # user switched away after stop
+        snap = StopTimeTargetSnapshot(hwnd=0xAAAA, pid=111, process_name="notepad.exe")
+
+        with (
+            patch.object(clip_mod, "_Key") as mock_key,
+            patch.object(cm, "_is_safe_paste_target", return_value=True),
+            patch.object(cm, "_check_ime_composition", return_value=True),
+        ):
+            mock_key.ctrl = "ctrl"
+            ok = cm.paste(pasted_text=" hello", target_snapshot=snap)
+
+        assert ok is False
+        mock_user32.SendInput.assert_not_called()
+        mock_user32.SetForegroundWindow.assert_not_called()
+

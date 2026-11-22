@@ -1002,3 +1002,96 @@ class TestRestoreAfterDispatch:
         dispatch_mock.assert_not_called()
         spawn_mock.assert_not_called()
         assert list(clip_mod._pending_restores) == []
+
+
+class TestStopTimeTargetSnapshotGate:
+    """Stop-time snapshot matching gate in PasteMixin._attempt_paste_dispatch."""
+
+    def test_win32_hwnd_mismatch_aborts_dispatch_and_keeps_clipboard(self):
+        import contextlib
+
+        from voice_typer.server import event_bus
+        from voice_typer.server.clipboard_target_safety import StopTimeTargetSnapshot
+
+        cm = make_clipboard_manager()
+        snap = make_clipboard_snapshot()
+        stop_target = StopTimeTargetSnapshot(hwnd=0x1111, pid=101, process_name="notepad.exe")
+        events: list[dict] = []
+
+        stack = contextlib.ExitStack()
+        stack.enter_context(patch.object(clip_mod, "_Controller", object()))
+        stack.enter_context(patch.object(clip_mod, "is_windows", return_value=True))
+        stack.enter_context(patch.object(clip_mod, "is_macos", return_value=False))
+        stack.enter_context(patch.object(cm, "_recheck_seq_mismatch"))
+        stack.enter_context(patch.object(cm, "_compute_paste_delay", return_value=0.0))
+        stack.enter_context(patch.object(cm, "_is_safe_paste_target", return_value=True))
+        stack.enter_context(patch.object(cm, "_check_ime_composition", return_value=True))
+        stack.enter_context(patch.object(cm, "_capture_target_handle", return_value=(0x2222, None)))
+        stack.enter_context(patch.object(event_bus, "publish", side_effect=events.append))
+        dispatch_mock = stack.enter_context(patch.object(cm, "_dispatch_keystroke"))
+        spawn_mock = stack.enter_context(patch.object(cm, "_spawn_restore_daemon"))
+
+        with stack:
+            ok = cm.paste(snapshot=snap, pasted_text=" formatted", target_snapshot=stop_target)
+
+        assert ok is False
+        dispatch_mock.assert_not_called()
+        spawn_mock.assert_not_called()
+        assert list(clip_mod._pending_restores) == []
+        assert any(e.get("type") == "paste_deferred" for e in events)
+
+    def test_macos_pid_mismatch_aborts_dispatch_without_refocus(self):
+        import contextlib
+
+        from voice_typer.server.clipboard_target_safety import StopTimeTargetSnapshot
+
+        cm = make_clipboard_manager()
+        snap = make_clipboard_snapshot()
+        stop_target = StopTimeTargetSnapshot(hwnd=0, pid=4001, macos_pid=4001)
+
+        stack = contextlib.ExitStack()
+        stack.enter_context(patch.object(clip_mod, "_Controller", object()))
+        stack.enter_context(patch.object(clip_mod, "is_windows", return_value=False))
+        stack.enter_context(patch.object(clip_mod, "is_macos", return_value=True))
+        stack.enter_context(patch.object(cm, "_is_safe_paste_target", return_value=True))
+        stack.enter_context(patch.object(cm, "_capture_target_handle", return_value=(0, 5002)))
+        dispatch_mock = stack.enter_context(patch.object(cm, "_dispatch_keystroke"))
+        spawn_mock = stack.enter_context(patch.object(cm, "_spawn_restore_daemon"))
+
+        with stack:
+            ok = cm.paste(snapshot=snap, pasted_text=" formatted", target_snapshot=stop_target)
+
+        assert ok is False
+        dispatch_mock.assert_not_called()
+        spawn_mock.assert_not_called()
+
+    def test_uses_stop_snapshot_process_name_over_live_probe(self):
+        import contextlib
+
+        from voice_typer.server.clipboard_target_safety import StopTimeTargetSnapshot
+
+        cm = make_clipboard_manager()
+        snap = make_clipboard_snapshot()
+        stop_target = StopTimeTargetSnapshot(hwnd=0x1111, pid=101, process_name="cmd.exe")
+
+        stack = contextlib.ExitStack()
+        stack.enter_context(patch.object(clip_mod, "_Controller", object()))
+        stack.enter_context(patch.object(clip_mod, "is_windows", return_value=True))
+        stack.enter_context(patch.object(clip_mod, "is_macos", return_value=False))
+        stack.enter_context(patch.object(cm, "_recheck_seq_mismatch"))
+        stack.enter_context(patch.object(cm, "_compute_paste_delay", return_value=0.0))
+        stack.enter_context(patch.object(cm, "_is_safe_paste_target", return_value=True))
+        stack.enter_context(patch.object(cm, "_check_ime_composition", return_value=True))
+        stack.enter_context(patch.object(cm, "_capture_target_handle", return_value=(0x1111, None)))
+        detect_mock = stack.enter_context(patch.object(cm, "_detect_focused_process"))
+        dispatch_mock = stack.enter_context(patch.object(cm, "_dispatch_keystroke", return_value=True))
+        stack.enter_context(patch.object(cm, "_finalize_paste", return_value=True))
+        stack.enter_context(patch.object(cm, "_spawn_restore_daemon"))
+
+        with stack:
+            ok = cm.paste(snapshot=snap, pasted_text=" ls", target_snapshot=stop_target)
+
+        assert ok is True
+        detect_mock.assert_not_called()
+        assert dispatch_mock.call_args.args[0] is True  # is_terminal=True from stop_target.process_name
+

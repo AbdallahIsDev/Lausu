@@ -109,3 +109,37 @@ class TestGoogleBubbleLevels:
         assert not hasattr(google_plugin, "_mute_bubble_levels"), (
             "the hardcoded bubble_level publisher must be deleted, not left dormant"
         )
+
+    def test_stop_and_deliver_uses_stop_time_snapshot_before_post_stop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        app = _make_app()
+        session = google_plugin.PluginSession(app)
+        session._active = True
+        session._t0 = 1.0
+        session._cycle = 1
+        monkeypatch.setattr(session, "_stop_meter", lambda: None)
+        monkeypatch.setattr(session, "_publish_state", lambda _s: None)
+        monkeypatch.setattr(session, "_restore_volume", lambda: None)
+        monkeypatch.setattr(session, "_session_events", lambda *, start: None)
+        monkeypatch.setattr(session, "_clear_prompt_box", lambda: None)
+
+        state = {"caret": ""}
+        monkeypatch.setattr(caret_text, "_char_before_caret", lambda: state["caret"])
+
+        def _post(path: str, timeout: float = 0.0) -> dict:
+            assert path == "/stop"
+            # Caret changes while waiting for page transcript scrape.
+            state["caret"] = "unexpected window"
+            return {"text": "dictated words", "duration_s": 1.5}
+
+        monkeypatch.setattr(session, "_post", _post)
+
+        session.stop()
+
+        app.clipboard.copy.assert_called_once_with("Dictated words")
+        paste_kwargs = app.clipboard.paste.call_args.kwargs
+        assert paste_kwargs["pasted_text"] == "Dictated words"
+        assert paste_kwargs["target_snapshot"].prefix_context.verdict == "empty"
+        assert app.history_db.add_transcription.call_args.args[0] == "dictated words"
+
