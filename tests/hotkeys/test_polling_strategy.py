@@ -221,27 +221,46 @@ class TestPressHoldReleaseNoRepeat:
             thread.join(timeout=2.0)
 
     def test_two_press_cycles_fire_exactly_twice(self, mock_windll):
-        """Two independent press/release cycles must produce exactly"""
+        """Two independent press/release cycles must produce exactly two fires."""
         backend = _make_backend(mock_windll, _vk=0x71, _modifiers=0)
         mock_user32 = mock_windll.user32
 
         state = {"value": 0}
+        # Record every read of the hotkey VK. The loop only re-arms after it
+        # has OBSERVED the key go up, so a fixed sleep between cycles is not a
+        # safe handshake on a loaded runner (the poll thread can be starved
+        # past it and drop the next press). Wait on the observed release.
+        hotkey_reads: list[int] = []
 
         def fake_get_async_key_state(vk):
             if vk != 0x71:
                 return 0
-            return 0x8000 if state["value"] == 1 else 0
+            value = 0x8000 if state["value"] == 1 else 0
+            hotkey_reads.append(value)
+            return value
 
         mock_user32.GetAsyncKeyState.side_effect = fake_get_async_key_state
 
         callback = MagicMock()
-        thread = _run_in_thread_and_join(backend._run_polling_loop, args=(callback,))
+        worker_errors: list[BaseException] = []
+
+        def _tracked_loop():
+            try:
+                backend._run_polling_loop(callback)
+            except BaseException as exc:
+                worker_errors.append(exc)
+                raise
+
+        def _err():
+            return f"; worker error: {worker_errors[0]!r}" if worker_errors else ""
+
+        thread = _run_in_thread_and_join(_tracked_loop)
         try:
-            # Wait for the loop's HOTKEY-DEFER-001 seed (the first
+            # Wait for the loop's seed read (HOTKEY-DEFER-001).
             _wait_until(
                 lambda: mock_user32.GetAsyncKeyState.call_count >= 1,
                 timeout=2.0,
-                msg="Polling loop seed did not read the key state",
+                msg="Polling loop seed did not read the key state" + _err(),
             )
             for i in range(1, 3):
                 state["value"] = 1
@@ -249,10 +268,19 @@ class TestPressHoldReleaseNoRepeat:
                 _wait_until(
                     lambda _i=i: callback.call_count == _i,
                     timeout=2.0,
-                    msg=f"Callback did not fire on press (cycle {i})",
+                    msg=f"Callback did not fire on press (cycle {i})" + _err(),
                 )
                 state["value"] = 0
-                # Toggle mode must NOT fire on release. Wait 40ms and
+                # Prove the loop saw the release before issuing the next
+                # press, otherwise was_pressed stays True and the next press
+                # is silently dropped (C-TEST-16: wait on the state, not time).
+                reads_before_release = len(hotkey_reads)
+                _wait_until(
+                    lambda _start=reads_before_release: 0 in hotkey_reads[_start:],
+                    timeout=2.0,
+                    msg=f"Polling loop did not observe release (cycle {i})" + _err(),
+                )
+                # Toggle mode must NOT fire on release.
                 _count_after_press = callback.call_count
                 assert not wait_for(
                     lambda _count=_count_after_press: callback.call_count > _count,
