@@ -1,39 +1,11 @@
 # CI Errors
 
-> Generated: 2026-11-22T23:11:07Z
+> Generated: 2026-11-22T23:26:16Z
 > Data branch commit: `0573fe7`
 
 ## Currently failing
 
-### 1. Build installer — failure
-
-- Run: [45073732975](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073732975) (attempt 1)
-- Event: push · Branch: main
-- Commit: `ba43ec8` — chore(ci): normalize CI-error fixtures for hygiene hooks
-- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
-- Step: Run tests with coverage
-- Category: pytest
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
-
-### 2. Build installer — failure
-
-- Run: [45073732975](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073732975) (attempt 1)
-- Event: push · Branch: main
-- Commit: `ba43ec8` — chore(ci): normalize CI-error fixtures for hygiene hooks
-- Job: Notify on failure · Leg: ubuntu-22.04
-- Step: Emit failure annotation
-- Category: other
-
-- Error excerpt:
-
-```text
-(job log unavailable: HTTP 403)
-```
+_None._
 
 ## Recent failures
 
@@ -1089,7 +1061,39 @@
 
 ## Resolved recently
 
-### 1. CI error collector — failure
+### 1. Build installer — failure
+
+- Run: [45073732975](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073732975) (attempt 1)
+- Event: push · Branch: main
+- Commit: `ba43ec8` — chore(ci): normalize CI-error fixtures for hygiene hooks
+- Job: test (macos-15, 3.13) · Leg: macos-15, 3.13
+- Step: Run tests with coverage
+- Category: pytest
+- Fixed by: [45078001047](https://github.com/AbdallahIsDev/Lausu/actions/runs/45078001047) (success)
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 2. Build installer — failure
+
+- Run: [45073732975](https://github.com/AbdallahIsDev/Lausu/actions/runs/45073732975) (attempt 1)
+- Event: push · Branch: main
+- Commit: `ba43ec8` — chore(ci): normalize CI-error fixtures for hygiene hooks
+- Job: Notify on failure · Leg: ubuntu-22.04
+- Step: Emit failure annotation
+- Category: other
+- Fixed by: [45078001047](https://github.com/AbdallahIsDev/Lausu/actions/runs/45078001047) (success)
+
+- Error excerpt:
+
+```text
+(job log unavailable: HTTP 403)
+```
+
+### 3. CI error collector — failure
 
 - Run: [45076536525](https://github.com/AbdallahIsDev/Lausu/actions/runs/45076536525) (attempt 1)
 - Event: workflow_run · Branch: main
@@ -1105,7 +1109,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 2. Client CI — failure
+### 4. Client CI — failure
 
 - Run: [45074349566](https://github.com/AbdallahIsDev/Lausu/actions/runs/45074349566) (attempt 1)
 - Event: push · Branch: main
@@ -1121,7 +1125,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 3. Build Windows — failure
+### 5. Build Windows — failure
 
 - Run: [44937471544](https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544) (attempt 1)
 - Event: workflow_dispatch · Branch: main
@@ -1137,7 +1141,7 @@
 (job log unavailable: HTTP 403)
 ```
 
-### 4. Client CI — failure
+### 6. Client CI — failure
 
 - Run: [44809895405](https://github.com/AbdallahIsDev/Lausu/actions/runs/44809895405) (attempt 1)
 - Event: pull_request · Branch: dependabot/pip/python-deps-54bd6b4550
@@ -1153,7 +1157,7 @@
 (no job log available)
 ```
 
-### 5. Build Linux — failure
+### 7. Build Linux — failure
 
 - Run: [44844000820](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000820) (attempt 1)
 - Event: push · Branch: main
@@ -1169,7 +1173,7 @@
 (no job log available)
 ```
 
-### 6. Client CI — failure
+### 8. Client CI — failure
 
 - Run: [44844000708](https://github.com/AbdallahIsDev/Lausu/actions/runs/44844000708) (attempt 1)
 - Event: push · Branch: main
@@ -1185,7 +1189,7 @@
 (no job log available)
 ```
 
-### 7. Client CI — failure
+### 9. Client CI — failure
 
 - Run: [43929363738](https://github.com/AbdallahIsDev/Lausu/actions/runs/43929363738) (attempt 1)
 - Event: push · Branch: main
@@ -1201,7 +1205,7 @@
 (no job log available)
 ```
 
-### 8. Client CI — failure
+### 10. Client CI — failure
 
 - Run: [43461756029](https://github.com/AbdallahIsDev/Lausu/actions/runs/43461756029) (attempt 1)
 - Event: push · Branch: main
