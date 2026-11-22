@@ -28,6 +28,14 @@ export interface HistoryRecord {
 	// expands a row.
 	text_truncated?: boolean;
 	text_full_length?: number;
+	// True when the row carries a pre-translation original. Computed in
+	// the list SQL (no extra query), so the transcript modal can offer
+	// Original/Compare immediately and the hover prefetch knows which
+	// rows need a full-record fetch.
+	has_original?: boolean;
+	// Not present in list projections (privacy); populated only on the
+	// delete->undo path from a full-record fetch so Undo preserves it.
+	original_text?: string;
 	// Optional provenance/timing metadata (schema v6). Old rows read as
 	// kind="dictation"; the remaining fields are null when not provided.
 	kind?: "dictation" | "media";

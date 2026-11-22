@@ -15,6 +15,12 @@ import { showUndoableToast } from "@/hooks/useSnackbar";
 import { t } from "@/i18n/i18n";
 import type { HistoryRecord, TranscriptionTextData } from "@/types/ipc";
 
+import {
+	forgetHistoryText,
+	peekHistoryText,
+	writeHistoryText,
+} from "./useHistoryCache";
+
 export interface UseHistoryRecordActionsOptions {
 	/** The Python bridge call (from usePython). */
 	call: ReturnType<typeof usePython>["call"];
@@ -45,10 +51,29 @@ export function useHistoryRecordActions({
 }: UseHistoryRecordActionsOptions): UseHistoryRecordActionsReturn {
 	const handleDelete = useCallback(
 		async (id: number) => {
-			//capture the record before delete for Undo.
-			const deleted = records.find((r) => r.id === id);
+			// Capture the record before delete for Undo. The list projection
+			// omits original_text on purpose, so fetch the full row for a
+			// translated entry — otherwise Undo would silently lose it.
+			const listed = records.find((r) => r.id === id);
+			let deleted: HistoryRecord | undefined = listed;
+			try {
+				const full = await call<TranscriptionTextData | null>(
+					"get_transcription_text",
+					{
+						id,
+					},
+				);
+				if (listed && full)
+					deleted = { ...listed, original_text: full.original_text };
+			} catch {
+				// Best effort: undo still restores the final text.
+			}
 			try {
 				await call("delete_history", { id });
+				// The row is gone: drop its cached full text so a stale
+				// modal entry can never outlive the record. Undo restores
+				// under a NEW id, which refetches on open.
+				forgetHistoryText(id);
 				setRecords((prev) => prev.filter((r) => r.id !== id));
 				if (deleted) {
 					showUndoableToast(
@@ -94,17 +119,38 @@ export function useHistoryRecordActions({
 		[call, setRecords],
 	);
 
-	// Full-text fetch for expandable rows. The list payload carries a
-	// 500-char preview; the row calls this lazily on first expansion.
-	// Resolves with the full text, or ``null`` when the row is gone /
-	// the backend failed (the row surfaces a toast instead of expanding
-	// to a clipped preview).
+	// Full-record fetch for the transcript modal. Cache-first: the hover
+	// prefetch already stores BOTH versions (see `prefetchHistoryTexts`),
+	// so opening a row normally resolves without any IPC round-trip. A
+	// miss (direct navigation, prefetch still in flight, evicted entry)
+	// falls back to the single-row call and writes through.
 	const handleFetchFullRecord = useCallback(
 		async (id: number) => {
-			try {
-				return await call<TranscriptionTextData>("get_transcription_text", {
+			const cached = peekHistoryText(id);
+			if (cached) {
+				return {
 					id,
-				});
+					text: cached.text,
+					original_text: cached.original_text,
+				} satisfies TranscriptionTextData;
+			}
+			try {
+				const full = await call<TranscriptionTextData>(
+					"get_transcription_text",
+					{
+						id,
+					},
+				);
+				if (full) {
+					writeHistoryText(id, {
+						text: typeof full.text === "string" ? full.text : "",
+						original_text:
+							typeof full.original_text === "string"
+								? full.original_text
+								: undefined,
+					});
+				}
+				return full;
 			} catch {
 				return null;
 			}
