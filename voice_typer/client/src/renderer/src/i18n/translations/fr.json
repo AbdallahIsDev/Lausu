@@ -2159,7 +2159,8 @@
 			"delete.stale_cleared_switched": "Le modèle '{model}' n'était pas sur le disque, bascule vers '{replacement}'.",
 			"delete.stale_nothing_to_delete": "Le modèle '{model}' n'était pas sur le disque, rien à supprimer.",
 			"delete.active_refused_recording": "Arrêtez la dictée en cours avant de supprimer le modèle actif.",
-			"delete.unload_failed": "Impossible de décharger '{model}' pour la suppression. Réessayez après avoir arrêté toute dictée."
+			"delete.unload_failed": "Impossible de décharger '{model}' pour la suppression. Réessayez après avoir arrêté toute dictée.",
+			"translation_downloaded": "Modèle de traduction téléchargé avec succès"
 		},
 		"permissions": {
 			"macos_title": "{appName} nécessite une autorisation",

@@ -2159,7 +2159,8 @@
 			"delete.stale_cleared_switched": "Model '{model}' was not on disk, switched to '{replacement}'.",
 			"delete.stale_nothing_to_delete": "Model '{model}' was not on disk, nothing to delete.",
 			"delete.active_refused_recording": "Stop the current dictation before deleting the active model.",
-			"delete.unload_failed": "Could not unload '{model}' for deletion. Try again after stopping any dictation."
+			"delete.unload_failed": "Could not unload '{model}' for deletion. Try again after stopping any dictation.",
+			"translation_downloaded": "Translation model downloaded successfully"
 		},
 		"permissions": {
 			"macos_title": "{appName} needs permission",

@@ -270,6 +270,10 @@ DOWNLOAD_GROUP_OWNERS = {
         "QwenParakeetDownloadMixin",
         {"_download_qwen", "_download_parakeet"},
     ),
+    "voice_typer.server.service.model._download_translation": (
+        "TranslationDownloadMixin",
+        {"_download_translation"},
+    ),
 }
 
 EXPECTED_DOWNLOAD_SURFACE = set().union(*(owned for _, owned in DOWNLOAD_GROUP_OWNERS.values()))

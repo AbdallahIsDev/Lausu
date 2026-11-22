@@ -2159,7 +2159,8 @@
 			"delete.stale_cleared_switched": "मॉडल '{model}' डिस्क पर नहीं था, '{replacement}' पर स्विच किया गया।",
 			"delete.stale_nothing_to_delete": "मॉडल '{model}' डिस्क पर नहीं था, हटाने के लिए कुछ नहीं।",
 			"delete.active_refused_recording": "सक्रिय मॉडल हटाने से पहले वर्तमान डिक्टेशन रोकें।",
-			"delete.unload_failed": "'{model}' को हटाने के लिए अनलोड नहीं किया जा सका। कोई भी डिक्टेशन रोककर पुनः प्रयास करें।"
+			"delete.unload_failed": "'{model}' को हटाने के लिए अनलोड नहीं किया जा सका। कोई भी डिक्टेशन रोककर पुनः प्रयास करें।",
+			"translation_downloaded": "अनुवाद मॉडल सफलतापूर्वक डाउनलोड हो गया"
 		},
 		"permissions": {
 			"macos_title": "{appName} को अनुमति चाहिए",

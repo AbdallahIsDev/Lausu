@@ -2159,7 +2159,8 @@
 			"delete.stale_cleared_switched": "Modell '{model}' wurde nicht auf dem Datenträger gefunden, gewechselt zu '{replacement}'.",
 			"delete.stale_nothing_to_delete": "Modell '{model}' wurde nicht auf dem Datenträger gefunden, nichts zu löschen.",
 			"delete.active_refused_recording": "Stoppen Sie die aktuelle Diktierung, bevor Sie das aktive Modell löschen.",
-			"delete.unload_failed": "Modell '{model}' konnte zum Löschen nicht entladen werden. Versuchen Sie es nach dem Stoppen laufender Diktierungen erneut."
+			"delete.unload_failed": "Modell '{model}' konnte zum Löschen nicht entladen werden. Versuchen Sie es nach dem Stoppen laufender Diktierungen erneut.",
+			"translation_downloaded": "Übersetzungsmodell erfolgreich heruntergeladen"
 		},
 		"permissions": {
 			"macos_title": "{appName} benötigt eine Berechtigung",

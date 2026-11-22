@@ -2159,7 +2159,8 @@
 			"delete.stale_cleared_switched": "Модель '{model}' отсутствует на диске, выполнено переключение на '{replacement}'.",
 			"delete.stale_nothing_to_delete": "Модель '{model}' отсутствует на диске, удалять нечего.",
 			"delete.active_refused_recording": "Остановите текущую диктовку перед удалением активной модели.",
-			"delete.unload_failed": "Не удалось выгрузить '{model}' для удаления. Повторите попытку после остановки диктовки."
+			"delete.unload_failed": "Не удалось выгрузить '{model}' для удаления. Повторите попытку после остановки диктовки.",
+			"translation_downloaded": "Модель перевода успешно загружена"
 		},
 		"permissions": {
 			"macos_title": "{appName} требуется разрешение",

@@ -215,6 +215,7 @@ _INITIAL_LABELS: dict[str, str] = {
     "notify.model.delete.unload_failed": (
         "Could not unload '{model}' for deletion. Try again after stopping any dictation."
     ),
+    "notify.model.translation_downloaded": "Translation model downloaded successfully",
     # Distinct from the short ``state.dictation_pipeline.clipboard_unavailable``
     "notify.app.clipboard_unavailable_body": (
         "Transcription complete, but the clipboard was unavailable.\n"

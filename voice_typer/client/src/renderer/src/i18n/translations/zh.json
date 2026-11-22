@@ -2159,7 +2159,8 @@
 			"delete.stale_cleared_switched": "模型 {model} 不在磁盘上，已切换为“{replacement}”。",
 			"delete.stale_nothing_to_delete": "模型 {model} 不在磁盘上，没有可删除的内容。",
 			"delete.active_refused_recording": "删除活动模型前请先停止当前听写。",
-			"delete.unload_failed": "无法卸载 {model} 以删除，请停止听写后重试。"
+			"delete.unload_failed": "无法卸载 {model} 以删除，请停止听写后重试。",
+			"translation_downloaded": "翻译模型下载成功"
 		},
 		"permissions": {
 			"macos_title": "{appName} 需要权限",

@@ -26,7 +26,7 @@ class TranslationDownloadMixin:
 
     def _download_translation(self, model_name: str) -> DownloadOutcome:
         """Download Index-Translate Q4_K_M from its HF repo into the hub cache."""
-        from voice_typer.server import event_bus
+        from voice_typer.server import event_bus, i18n
         from voice_typer.server.asr_setup import is_download_active
         from voice_typer.server.service._download_helpers import notify, push_progress
         from voice_typer.server.translation.catalogue import INDEX_TRANSLATE_Q4
@@ -52,5 +52,5 @@ class TranslationDownloadMixin:
             return {"success": False, "error": reason, "model": model_name}
 
         push_progress(event_bus, model_name, 100, "Translation model download complete")
-        notify(self._app.tray, model_name, APP_NAME, "Translation model downloaded successfully")
+        notify(self._app.tray, model_name, APP_NAME, i18n.t("notify.model.translation_downloaded"))
         return {"success": True, "model": model_name}

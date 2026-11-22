@@ -2159,7 +2159,8 @@
 			"delete.stale_cleared_switched": "El modelo '{model}' no estaba en el disco, se cambió a '{replacement}'.",
 			"delete.stale_nothing_to_delete": "El modelo '{model}' no estaba en el disco, nada que eliminar.",
 			"delete.active_refused_recording": "Detén el dictado en curso antes de eliminar el modelo activo.",
-			"delete.unload_failed": "No se pudo liberar '{model}' para eliminarlo. Inténtalo de nuevo después de detener cualquier dictado."
+			"delete.unload_failed": "No se pudo liberar '{model}' para eliminarlo. Inténtalo de nuevo después de detener cualquier dictado.",
+			"translation_downloaded": "Modelo de traducción descargado correctamente"
 		},
 		"permissions": {
 			"macos_title": "{appName} necesita permiso",

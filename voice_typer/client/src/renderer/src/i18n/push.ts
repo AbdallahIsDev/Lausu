@@ -416,6 +416,10 @@ export function trayLabelsForLocale(): Record<string, string> {
 		],
 		["notify.model.delete.unload_failed", "notify.model.delete.unload_failed"],
 		[
+			"notify.model.translation_downloaded",
+			"notify.model.translation_downloaded",
+		],
+		[
 			"notify.dictation_pipeline.llm_polish_failed",
 			"notify.dictation_pipeline.llm_polish_failed",
 		],

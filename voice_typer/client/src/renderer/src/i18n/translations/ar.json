@@ -2159,7 +2159,8 @@
 			"delete.stale_cleared_switched": "النموذج '{model}' غير موجود على القرص، تم التبديل إلى '{replacement}'.",
 			"delete.stale_nothing_to_delete": "النموذج '{model}' غير موجود على القرص، لا يوجد ما يُحذف.",
 			"delete.active_refused_recording": "أوقف الإملاء الحالي قبل حذف النموذج النشط.",
-			"delete.unload_failed": "تعذّر إلغاء تحميل '{model}' للحذف. حاول مجددًا بعد إيقاف أي إملاء."
+			"delete.unload_failed": "تعذّر إلغاء تحميل '{model}' للحذف. حاول مجددًا بعد إيقاف أي إملاء.",
+			"translation_downloaded": "تم تنزيل نموذج الترجمة بنجاح"
 		},
 		"permissions": {
 			"macos_title": "{appName} يحتاج إلى إذن",
