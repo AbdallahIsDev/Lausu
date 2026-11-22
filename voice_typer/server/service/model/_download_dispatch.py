@@ -105,6 +105,7 @@ class DownloadDispatchMixin:
 
     if TYPE_CHECKING:
         def _download_parakeet(self, model_name: str) -> DownloadOutcome: ...
+        def _download_translation(self, model_name: str) -> DownloadOutcome: ...
         def _download_qwen(self, model_name: str) -> DownloadOutcome: ...
         def _download_whisper_family(self, model_name: str, model_meta, *, allow_patterns=None) -> DownloadOutcome: ...
         def _start_next_queued_download(self) -> None: ...
@@ -177,6 +178,15 @@ class DownloadDispatchMixin:
         rglob to walk the whole ``cache_dir``.)
         """
         try:
+            # ADR-0030: the one text-translation model is downloaded from its
+            # HF repo into the shared hub cache via the SAME IPC command, but
+            # stays out of MODEL_REGISTRY (that registry pins ASR models only).
+            from voice_typer.server.translation.catalogue import TRANSLATION_MODEL_ID
+
+            if model_name == TRANSLATION_MODEL_ID:
+                outcome = self._download_translation(model_name)
+                return dict(outcome)
+
             # consult the model registry so we support
             from voice_typer.server.model_registry import get_model_metadata
 

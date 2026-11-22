@@ -2,7 +2,8 @@
 
 # ADR-0021: Split Transcription from Translation (Points 1 + 2)
 
-Status: Accepted (locked 2026-10-07, user-confirmed Sec. 5 + Sec. 6).
+Status: Accepted (locked 2026-10-07, user-confirmed Sec. 5 + Sec. 6;
+§5.2 skip/failure/history rules amended 2026-11-22, user-confirmed).
 
 > **Completeness note (2026-10-11):** §9 "Build order" below is an empty
 > heading — no build-order content was ever written. The locked
@@ -64,8 +65,33 @@ First-look starting point (NOT approved, NOT downloaded):
 ### 5.2 Stage A → B contract (locked)
 - Stage A writes what it hears, each part in its own script. AR stays AR, mixed stays mixed. `language=` is a transcription instruction, never a translation instruction.
 - Stage A output = `{text, segments[], detected_lang + confidence}`.
-- Skip Stage B when: target is `Same as spoken`; or text already confidently matches target. Rule: when in doubt (very short text, low confidence, single words / proper nouns), SKIP translation. A mistranslation of correct text is worse than passthrough.
-- Mixed input + matching target: sentence-level routing. Only translate non-target segments (script guess AR-vs-Latin is free, no model call), splice the rest back verbatim. Never run whole mixed text through the translator.
+
+**Skip rule (amended 2026-11-22, user-confirmed — supersedes the old
+"when in doubt SKIP" rule, which is REMOVED):** skip Stage B ONLY when the
+source language is confidently detected and already equals the selected
+target. In every other case send the whole Stage A text to the model:
+
+| Detected source | Target | Action |
+| --- | --- | --- |
+| Confident match (script) | same | Skip — use original text, no model call |
+| Confident, different | other | Translate whole text |
+| Mixed scripts | any | Translate whole text (do not split) |
+| Too short / ambiguous (<3 letters) | any | Translate — never skip on uncertainty |
+| Latin script, target en/es/fr/de | same | Skip ONLY if the pinned Speaking Language equals the target |
+
+Detection is script-based (`ar`/`hi`/`ru`/`zh` are unambiguous; Latin is
+shared by en/es/fr/de so it alone never proves a match). Protected spans —
+URLs, emails, inline code, numbers, product IDs — are masked before the call
+and restored verbatim after, and the prompt names the markers so the model
+cannot rewrite them. These spans are excluded from detection, so a Latin URL
+cannot make an Arabic sentence read as mixed.
+
+Other locked points:
+- Failure (timeout, invalid response, missing runtime/model): keep the
+  original transcription, insert it unchanged, and surface one user-facing
+  notification per process. Never auto-retry; never overwrite with an empty
+  string. `original_text` and the final text are both stored; History shows
+  the final text and can reveal the original.
 - Transcription is NEVER blocked on language grounds when the model is multilingual (Whisper covers all 8). Refusal is reserved for genuine no-coverage (e.g. Parakeet + Arabic).
 
 ### 5.3 Fallback chain without a translation model (locked)

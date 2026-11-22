@@ -15,7 +15,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 TRANSLATION_MODEL_ID = "index-translate-2b-q4-k-m"
-TRANSLATION_MODEL_FILENAME = "index-translate-2b-Q4_K_M.gguf"
+# Exact filename from the HF repo (verified against SHA256SUMS.txt): the
+# lowercase alias was a dev-only Ollama blob name and must not be used for
+# the HF-cache download path.
+TRANSLATION_MODEL_FILENAME = "Index-Translate-2B.Q4_K_M.gguf"
 TRANSLATION_MODEL_SIZE_BYTES = 1_312_164_352
 TRANSLATION_MODEL_SHA256 = "044b313d29342bd3b2c77cbb64023ca0d209bd9b3247763f9d162767ef2d746a"
 TRANSLATION_MODEL_REPO_ID = "IndexTeam/Index-Translate-2B-GGUF"

@@ -118,11 +118,34 @@ option but is not the shipped default.
 
 Runtime: the 39 MB Vulkan-capable `llama-server`, **not** the 1.5 GB CUDA
 bundle. Failures are non-fatal: the dictation pipeline returns the Stage A
-text unchanged. Nothing is auto-downloaded; the model/runtime are resolved
-from `translation_model_path` / `translation_runtime_path`, then
-`LAUSU_TRANSLATION_MODEL` / `LAUSU_TRANSLATION_RUNTIME`, then the app data dir.
+text unchanged. Storage follows the app's existing architecture (owner
+decision 2026-11-22):
+
+- The GGUF lives in the **shared HuggingFace hub cache**
+  (`~/.cache/huggingface/hub`), addressed by repo id + exact filename. It is
+  installed through the existing `download_model` IPC command with SHA-256 /
+  size verification; the Settings → Post-Processing row is the UI. The two
+  env vars (`LAUSU_TRANSLATION_MODEL` / `LAUSU_TRANSLATION_RUNTIME`) and the
+  two config path fields are dev escape hatches, never the default location.
+  The model is NOT stored in an Ollama blob directory.
+- `llama-server` resolves from the installer-bundled binary search
+  (`_shipped_dirs()`: exe-adjacent, `resources/`, parent chain, onefile
+  extraction), with the writable app-data dir as the last fallback. No
+  Ollama installation and no D: dev path are required.
+- Translation runs for **every** dictation provider. Local + cloud ASR go
+  through `TranslationStage` in `DictationPipeline`; the Chrome-profile STT
+  plugins (which bypass that pipeline) translate in
+  `tools/internal_plugins/_common/delivery.py` before paste, so the final
+  translated text is what gets copied, pasted, stored and shown in History.
+- History keeps **both** versions: schema v7 adds nullable `original_text`
+  for the raw Stage A transcript. `text` stays the canonical final text, so
+  search/FTS/preview/paste are untouched; the full original is returned only
+  by `get_transcription_text` and revealed on demand in the transcript modal.
+  Original text is encrypted at rest under the same row flag as `text`.
+
 The seven `translation_*` config keys ride on the existing `set_config` IPC
-command, so the command-count allowlists are unchanged.
+command and the model download reuses `download_model`, so the command-count
+allowlists are unchanged.
 
 Still open: the shared pronoun-direction flaw (both models fail
 `اللي بعتهولي`), the exact CTranslate2-CUDA vs GGUF-Vulkan ASR speed A/B,

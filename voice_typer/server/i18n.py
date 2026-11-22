@@ -42,6 +42,10 @@ _INITIAL_LABELS: dict[str, str] = {
     "notify.dictation_pipeline.llm_polish_failed": (
         "LLM polish failed. Transcription shown raw; check the log file for details."
     ),
+    "notify.dictation_pipeline.translation_failed": (
+        "Translation failed. Your original transcription was kept and inserted unchanged; "
+        "check the log file for details."
+    ),
     "notify.dictation_pipeline.history_save_failed": (
         "Could not save the transcription to history. Check the log file for details."
     ),

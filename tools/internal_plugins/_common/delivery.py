@@ -28,6 +28,29 @@ def deliver_transcription(
     # phases so the next slow report is diagnosable from the log alone
     # (C-LOG-6); the INFO outcome line in session.py stays the durable record.
     t0 = time.perf_counter()
+    # ADR-0030 Stage B runs in the sidecar process for EVERY dictation
+    # provider. Chrome-profile STT plugins bypass DictationPipeline, so this
+    # is their translation call site. The final text drives clipboard, paste,
+    # history, crash recovery and events; the raw ASR text is kept only in
+    # ``original_text`` for review / future evaluation.
+    original_text: str | None = None
+    try:
+        from voice_typer.server.translation.service import translate_text
+
+        config = getattr(app, "config", None)
+        if config is not None and bool(getattr(config, "translation_enabled", False)):
+            translated = translate_text(
+                text,
+                config,
+                str(getattr(config, "translation_target_language", "") or ""),
+                str(getattr(config, "language", "") or ""),
+            )
+            if translated != text:
+                original_text = text
+                text = translated
+    except Exception:
+        log.exception("[PLUGIN] translation failed; delivering original text")
+    t_translate = time.perf_counter()
     paste_text = text
     try:
         from voice_typer.server.clipboard_target_safety import delivery_text_for_target
@@ -56,6 +79,7 @@ def deliver_transcription(
             kind="dictation",
             # No plugin-side timing signal reaches this helper today, so
             # processing_seconds stays NULL rather than being fabricated.
+            original_text=original_text,
         )
         if row_id <= 0:
             log.error("[PLUGIN] history add returned %s", row_id)
@@ -68,8 +92,10 @@ def deliver_transcription(
         log.exception("[PLUGIN] history store failed")
     t_history = time.perf_counter()
     log.debug(
-        "[PLUGIN] delivery phases: caret_ms=%.0f copy_paste_ms=%.0f history_ms=%.0f total_ms=%.0f",
-        (t_caret - t0) * 1000,
+        "[PLUGIN] delivery phases: translate_ms=%.0f caret_ms=%.0f copy_paste_ms=%.0f "
+        "history_ms=%.0f total_ms=%.0f",
+        (t_translate - t0) * 1000,
+        (t_caret - t_translate) * 1000,
         (t_paste - t_caret) * 1000,
         (t_history - t_paste) * 1000,
         (t_history - t0) * 1000,

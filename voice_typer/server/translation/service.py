@@ -13,26 +13,27 @@ logged with the runtime log tail available in the translation work dir.
 from __future__ import annotations
 
 import atexit
+import contextlib
 import json
 import logging
-import os
 import threading
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from voice_typer.server import i18n
 from voice_typer.server._paths import config_dir
-from voice_typer.server.platform_utils import is_windows
+from voice_typer.server.branding import APP_NAME
+from voice_typer.server.translation import paths as translation_paths
 from voice_typer.server.translation.catalogue import normalize_language_code, resolve_spec
 from voice_typer.server.translation.chat_template import CHAT_TEMPLATE
+from voice_typer.server.translation.preservation import protect_spans, restore_spans
 from voice_typer.server.translation.prompt import build_user_prompt, needs_translation
 from voice_typer.server.tts.runtime_server import RuntimeServer, RuntimeSpec
 
 log = logging.getLogger(__name__)
 
-_RUNTIME_ENV = "LAUSU_TRANSLATION_RUNTIME"
-_MODEL_ENV = "LAUSU_TRANSLATION_MODEL"
 _ALIAS = "lausu-translate"
 _REQUEST_TIMEOUT_S = 120.0
 
@@ -41,62 +42,67 @@ class TranslationError(RuntimeError):
     """Raised when the translation runtime or model cannot be used."""
 
 
+# One user-facing notice per process while translation stays broken. The text
+# is still delivered verbatim, so a repeating toast on every dictation would
+# be noise. A later success clears the flag so a new failure is reported.
+_translation_failed_notified = False
+_translation_failed_lock = threading.Lock()
+
+
+def _notify_translation_failure() -> None:
+    """Publish the existing generic ``notification`` event; never raise.
+
+    Reusing the catalogue event means no new IPC command / event type, no
+    parity files and no renderer changes. The Tauri host already turns it into
+    a native toast, and the tray fallback drains the same event.
+    """
+    global _translation_failed_notified
+    with _translation_failed_lock:
+        if _translation_failed_notified:
+            return
+        _translation_failed_notified = True
+    with contextlib.suppress(Exception):
+        from voice_typer.server import event_bus
+
+        event_bus.publish(
+            {
+                "type": "notification",
+                "data": {
+                    "title": APP_NAME,
+                    "message": i18n.t("notify.dictation_pipeline.translation_failed"),
+                    "duration_ms": 0,
+                    "critical": False,
+                },
+            }
+        )
+
+
 def work_dir() -> Path:
     """Dedicated dir for the chat template, runtime log and bundled models."""
     return config_dir() / "translation"
 
 
-def _existing_path(value: str, label: str, *, directory: bool = False) -> Path | None:
-    if not value:
-        return None
-    path = Path(value).expanduser()
-    if directory and path.is_dir():
-        return path
-    if path.is_file():
-        return path
-    raise TranslationError(f"{label} not found: {path}")
-
-
 def resolve_runtime_path(config: Any) -> Path:
-    """Resolve llama-server from config, env override, then the app data dir."""
-    configured = _existing_path(str(getattr(config, "translation_runtime_path", "") or ""), "translation runtime")
-    if configured is not None:
-        return configured
-    env_value = os.environ.get(_RUNTIME_ENV, "")
-    from_env = _existing_path(env_value, "translation runtime (env)")
-    if from_env is not None:
-        return from_env
-    name = "llama-server.exe" if is_windows() else "llama-server"
-    bundled = work_dir() / name
-    if bundled.is_file():
-        return bundled
-    raise TranslationError(
-        f"translation runtime not installed; put llama-server in {work_dir()} "
-        f"or set {_RUNTIME_ENV}"
-    )
+    """Resolve the bundled llama-server (installer dirs; dev env escape hatch)."""
+    path = translation_paths.resolve_runtime_path(config)
+    if path is None:
+        raise TranslationError(
+            f"translation runtime not installed; bundle {translation_paths.RUNTIME_BASENAME} "
+            f"with the app or set {translation_paths.RUNTIME_ENV}"
+        )
+    return path
 
 
 def resolve_model_path(config: Any) -> Path:
-    """Resolve the Q4 GGUF from config, env override, then the app data dir."""
+    """Resolve the Q4 GGUF from the shared HF cache (never an Ollama blob)."""
     spec = resolve_spec(str(getattr(config, "translation_model", "") or ""))
-    configured = _existing_path(
-        str(getattr(config, "translation_model_path", "") or ""),
-        "translation model",
-        directory=True,
-    )
-    if configured is not None:
-        return configured / spec.filename if configured.is_dir() else configured
-    env_value = os.environ.get(_MODEL_ENV, "")
-    from_env = _existing_path(env_value, "translation model (env)", directory=True)
-    if from_env is not None:
-        return from_env / spec.filename if from_env.is_dir() else from_env
-    bundled = work_dir() / "models" / spec.filename
-    if bundled.is_file():
-        return bundled
-    raise TranslationError(
-        f"{spec.label} not installed; put {spec.filename} in {work_dir() / 'models'} "
-        f"or set {_MODEL_ENV}"
-    )
+    path = translation_paths.resolve_model_path(spec, config)
+    if path is None:
+        raise TranslationError(
+            f"{spec.label} not installed; download {spec.repo_id} / {spec.filename} "
+            f"into the HuggingFace hub cache or set {translation_paths.MODEL_ENV}"
+        )
+    return path
 
 
 def _write_template(path: Path) -> None:
@@ -201,18 +207,35 @@ class TranslationService:
         return content.strip()
 
     def translate(self, text: str, target_code: str) -> str:
-        """Translate one Stage A text; returns the source unchanged on error."""
+        """Translate one Stage A text; returns the source unchanged on error.
+
+        Non-translatable spans are masked before the call and restored after,
+        so URLs, emails, inline code and numbers survive byte-identical. A
+        failure never overwrites the dictation and surfaces one user-facing
+        notice per broken episode.
+        """
+        global _translation_failed_notified
         target = normalize_language_code(target_code)
         if not target or not text.strip():
             return text
+        protected, spans = protect_spans(text)
+        markers = tuple(marker for marker, _original in spans)
         try:
-            return self._complete(build_user_prompt(text, target, self.glossary)) or text
+            result = self._complete(build_user_prompt(protected, target, self.glossary, markers))
+            if not result:
+                raise TranslationError("translation response was empty")
+            result = restore_spans(result, spans)
         except TranslationError as exc:
             log.warning("[TRANSLATE] %s; keeping original text", exc)
+            _notify_translation_failure()
             return text
         except Exception:
             log.exception("[TRANSLATE] unexpected failure; keeping original text")
+            _notify_translation_failure()
             return text
+        with _translation_failed_lock:
+            _translation_failed_notified = False
+        return result
 
     def stop(self) -> None:
         """Stop the owned runtime; safe to call more than once."""
@@ -262,17 +285,24 @@ def translate_text(text: str, config: Any, target_code: str, spoken_code: str = 
         return get_service(config).translate(text, target)
     except TranslationError as exc:
         log.warning("[TRANSLATE] %s; keeping original text", exc)
+        _notify_translation_failure()
+        return text
+    except Exception:
+        log.exception("[TRANSLATE] unexpected failure; keeping original text")
+        _notify_translation_failure()
         return text
 
 
 def shutdown() -> None:
     """Stop the cached runtime at process exit."""
-    global _SERVICE, _SERVICE_KEY
+    global _SERVICE, _SERVICE_KEY, _translation_failed_notified
     with _SERVICE_LOCK:
         if _SERVICE is not None:
             _SERVICE.stop()
         _SERVICE = None
         _SERVICE_KEY = None
+    with _translation_failed_lock:
+        _translation_failed_notified = False
 
 
 atexit.register(shutdown)

@@ -17,6 +17,7 @@ from ._download_dispatch import DownloadDispatchMixin
 from ._download_preflight import DownloadPreflightMixin
 from ._download_queue import DownloadQueueMixin
 from ._download_qwen_parakeet import QwenParakeetDownloadMixin
+from ._download_translation import TranslationDownloadMixin
 
 if TYPE_CHECKING:
     from voice_typer.server.app import LausuApp
@@ -24,7 +25,13 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-class DownloadsMixin(DownloadPreflightMixin, DownloadQueueMixin, DownloadDispatchMixin, QwenParakeetDownloadMixin):
+class DownloadsMixin(
+    DownloadPreflightMixin,
+    DownloadQueueMixin,
+    DownloadDispatchMixin,
+    QwenParakeetDownloadMixin,
+    TranslationDownloadMixin,
+):
     """Download surface of ``ModelMixin``: preflight, queue, dispatch, backends.
 
     The four concerns live in the sibling mixins composed here; this module

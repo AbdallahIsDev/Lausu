@@ -8,8 +8,10 @@ the source text. No model-as-judge, no few-shot examples, no extra prose.
 from __future__ import annotations
 
 import re
+from typing import NamedTuple
 
 from voice_typer.server.translation.catalogue import TRANSLATION_TARGETS, normalize_language_code
+from voice_typer.server.translation.preservation import unprotected_text
 
 _PROMPT = (
     "Translate the following text into {lang}. Note that you should only output "
@@ -17,12 +19,49 @@ _PROMPT = (
 )
 
 _GLOSSARY_HEADER = "Reference the following translations:"
+_PRESERVE_HEADER = (
+    "Keep the bracketed markers below EXACTLY as written; they are protected "
+    "URLs, emails, code or numbers, not text to translate:"
+)
 _BACKTICK_PIN = re.compile(r"^`(.+?)`\s+translates to\s+`(.+?)`$", re.IGNORECASE)
 _SIMPLE_PIN = re.compile(r"^(.+?)\s*(?:=>|->)\s*(.+)$")
-_SEPARATOR = re.compile(r"[\s.!?。！？]+")
 _ARABIC = re.compile(r"[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff]")
 _LATIN = re.compile(r"[a-zA-Z]")
+_DEVANAGARI = re.compile(r"[\u0900-\u097f]")
+_CYRILLIC = re.compile(r"[\u0400-\u04ff]")
+_HAN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 _MAX_GLOSSARY_TERMS = 24
+
+# Script families whose alphabet maps to ONE of the eight core targets with
+# certainty. Latin cannot: en/es/fr/de all share it, so Latin-only text is
+# ambiguous unless a pinned speaking language confirms the target.
+_SCRIPT_TO_LANGUAGE = {
+    "arabic": "ar",
+    "devanagari": "hi",
+    "cyrillic": "ru",
+    "han": "zh",
+}
+_SCRIPTS = {
+    "arabic": _ARABIC,
+    "devanagari": _DEVANAGARI,
+    "cyrillic": _CYRILLIC,
+    "han": _HAN,
+    "latin": _LATIN,
+}
+# A script is "present" only above this share of letters; stray Latin letters
+# inside an otherwise Arabic sentence (a brand name) must not read as mixed.
+_MIXED_SCRIPT_MIN_SHARE = 0.10
+# Below this many letters the script signal is too weak to skip on.
+_MIN_DETECT_LETTERS = 3
+
+
+class LanguageDetection(NamedTuple):
+    """Result of script-based source-language detection."""
+
+    code: str  # confident code, or "" when unknown/mixed/Latin
+    mixed: bool
+    confident: bool
+    letters: int  # letter count after protected spans are removed
 
 
 def parse_glossary(raw: str) -> list[tuple[str, str]]:
@@ -53,54 +92,83 @@ def parse_glossary(raw: str) -> list[tuple[str, str]]:
     return pins
 
 
-def build_user_prompt(text: str, target_code: str, glossary_raw: str = "") -> str:
-    """Render the user message sent to llama-server."""
+def build_user_prompt(
+    text: str,
+    target_code: str,
+    glossary_raw: str = "",
+    markers: tuple[str, ...] = (),
+) -> str:
+    """Render the user message sent to llama-server.
+
+    ``markers`` are the protected-span placeholders already substituted into
+    *text*; listing them explicitly stops the model from rewriting a URL or
+    a number. With no markers the output is byte-identical to the evaluated
+    prompt shape.
+    """
     target = TRANSLATION_TARGETS.get(normalize_language_code(target_code), target_code)
     blocks: list[str] = []
     pins = parse_glossary(glossary_raw)
     if pins:
         glossary_lines = "\n".join(f"`{source}` translates to `{target_text}`" for source, target_text in pins)
         blocks.append(f"{_GLOSSARY_HEADER}\n{glossary_lines}")
+    if markers:
+        blocks.append(f"{_PRESERVE_HEADER}\n" + " ".join(markers))
     blocks.append(_PROMPT.format(lang=target, src=text.strip()))
     return "\n\n".join(blocks)
 
 
-def split_for_translation(text: str, target_code: str) -> list[tuple[str, bool]]:
-    """Return ``(chunk, should_translate)`` pairs, preserving separators.
+def detect_source_language(text: str) -> LanguageDetection:
+    """Detect the source language from the script of the written text.
 
-    ADR-0021 §5.2 requires sentence-level routing when the output target is an
-    already-present script. We only run the model on chunks that are not
-    already in the target script; mixed chunks go through whole because inline
-    code-switching cannot be split safely without a second model.
+    Only Arabic / Devanagari / Cyrillic / Han map to a single core language
+    with certainty. Latin is shared by en/es/fr/de, so Latin-only text is
+    reported as unknown (never a confident match). Protected spans are removed
+    first so a URL or an email cannot inject a foreign script.
     """
-    target = normalize_language_code(target_code)
-    if not text:
-        return []
-    parts = re.split(r"((?<=[.!?。！？])\s+|\n+)", text)
-    out: list[tuple[str, bool]] = []
-    for part in parts:
-        if not part:
-            continue
-        if _SEPARATOR.fullmatch(part):
-            out.append((part, False))
-            continue
-        has_arabic = bool(_ARABIC.search(part))
-        has_latin = bool(_LATIN.search(part))
-        if target == "ar" and has_arabic and not has_latin or target == "en" and has_latin and not has_arabic:
-            out.append((part, False))
-        else:
-            out.append((part, True))
-    return out
+    cleaned = unprotected_text(text)
+    counts = {name: len(pattern.findall(cleaned)) for name, pattern in _SCRIPTS.items()}
+    total = sum(counts.values())
+    if total == 0:
+        return LanguageDetection("", mixed=False, confident=False, letters=0)
+
+    present = [
+        name
+        for name, count in counts.items()
+        if count and (count / total) >= _MIXED_SCRIPT_MIN_SHARE
+    ]
+    if len(present) > 1:
+        return LanguageDetection("", mixed=True, confident=True, letters=total)
+    if not present:
+        return LanguageDetection("", mixed=False, confident=False, letters=total)
+
+    code = _SCRIPT_TO_LANGUAGE.get(present[0], "")
+    return LanguageDetection(code, mixed=False, confident=bool(code), letters=total)
 
 
 def needs_translation(text: str, target_code: str, spoken_code: str = "") -> bool:
-    """ADR-0021 §5.2 skip rule: short text and matching language pass through."""
+    """Return True when the Stage A text must go through the text model.
+
+    Skip ONLY when detection confidently says the source already equals the
+    target. Everything else — mixed scripts, unknown/short text, a differing
+    language, or Latin text with an unconfirmed target — is translated. A
+    pinned speaking language may confirm an otherwise ambiguous Latin target,
+    but only for text long enough to carry a reliable script signal.
+    """
     target = normalize_language_code(target_code)
     if not target or not text.strip():
         return False
-    if target == normalize_language_code(spoken_code):
-        return False
-    words = text.split()
-    if len(words) <= 2 and not any(char.isdigit() for char in text):
-        return False
-    return any(should for _chunk, should in split_for_translation(text, target))
+
+    detection = detect_source_language(text)
+    if detection.mixed:
+        return True
+    if detection.confident and detection.code:
+        return detection.code != target
+
+    # Too short / ambiguous: never skip, even if a language is pinned.
+    if detection.letters < _MIN_DETECT_LETTERS:
+        return True
+
+    # Latin-only text: a pinned speaking language that equals the target is a
+    # confident same-language signal; otherwise send it to the model.
+    spoken = normalize_language_code(spoken_code)
+    return not (spoken in {"en", "es", "fr", "de"} and spoken == target)

@@ -17,9 +17,9 @@ from voice_typer.server.translation.catalogue import (
 )
 from voice_typer.server.translation.prompt import (
     build_user_prompt,
+    detect_source_language,
     needs_translation,
     parse_glossary,
-    split_for_translation,
 )
 
 
@@ -83,24 +83,30 @@ def test_prompt_keeps_the_evaluated_instruction_and_glossary_block() -> None:
     assert "without any additional explanation:\n\nالنص" in prompt
 
 
-def test_sentence_routing_preserves_target_script() -> None:
-    chunks = split_for_translation("الملف موجود. Please open it. شكراً", "ar")
-    assert [(text, translate) for text, translate in chunks if text.strip()] == [
-        ("الملف موجود.", False),
-        ("Please open it.", True),
-        ("شكراً", False),
-    ]
-    chunks_en = split_for_translation("الملف موجود. Please open it.", "en")
-    assert [(text, translate) for text, translate in chunks_en if text.strip()] == [
-        ("الملف موجود.", True),
-        ("Please open it.", False),
-    ]
+def test_mixed_scripts_are_detected_even_with_a_latin_url() -> None:
+    """A URL's Latin letters must not turn Arabic text into 'mixed'."""
+    arabic = detect_source_language("الملف موجود في https://example.com/foo")
+    assert arabic.code == "ar" and arabic.mixed is False and arabic.confident is True
+
+    mixed = detect_source_language("أنا عايز أعمل search عن this product")
+    assert mixed.mixed is True and mixed.confident is True and mixed.code == ""
 
 
-def test_skip_rule_protects_short_text_and_matching_language() -> None:
-    assert not needs_translation("hello", "en")
+def test_skip_rule_only_skips_on_confident_match() -> None:
+    # Same-language skip is now detection-based, never a blanket short-text rule.
     assert not needs_translation("الملف موجود", "ar", "ar")
+    # Arabic -> English and mixed text always translate.
     assert needs_translation("الملف اللي بعتهولي امبارح مش بيفتح", "en", "ar")
+    assert needs_translation("أنا عايز أعمل search عن this product", "en", "ar")
+    # Short/ambiguous text must NOT be skipped, even with a pinned language.
+    assert needs_translation("No", "en", "en")
+    assert needs_translation("OK", "ar", "ar")
+    # Latin text translates unless a pinned speaking language confirms the target.
+    assert needs_translation("please open the file for me", "en", "")
+    assert not needs_translation("please open the file for me", "en", "en")
+    # Empty and no-target never translate.
+    assert not needs_translation("   ", "en")
+    assert not needs_translation("الملف موجود", "")
 
 
 def test_config_fields_are_allowlisted_and_validated() -> None:
@@ -175,3 +181,330 @@ def test_translate_text_calls_llama_server_with_greedy_template_payload(
     assert body["chat_template_kwargs"] == {"enable_thinking": False}
     assert "Reference the following translations:" in body["messages"][1]["content"]
     assert (tmp_path / "index_translate_chat_template.jinja").is_file()
+
+
+def test_catalogue_filename_matches_hf_repo_artifact() -> None:
+    """The GGUF name must be the HF repo filename, not an Ollama blob alias."""
+    from voice_typer.server.translation.catalogue import TRANSLATION_MODEL_FILENAME
+
+    assert TRANSLATION_MODEL_FILENAME == "Index-Translate-2B.Q4_K_M.gguf"
+
+
+def test_model_resolves_from_shared_hf_hub_cache(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """ADR-0030 storage: shared hub first, never an Ollama folder."""
+    from voice_typer.server.translation import paths as tp
+
+    hub = tmp_path / "hub"
+    snapshot = (
+        hub
+        / "models--IndexTeam--Index-Translate-2B-GGUF"
+        / "snapshots"
+        / "deadbeef"
+    )
+    snapshot.mkdir(parents=True)
+    model = snapshot / INDEX_TRANSLATE_Q4.filename
+    model.write_bytes(b"gguf")
+
+    monkeypatch.setattr(tp, "shared_hub_dir", lambda: hub)
+    monkeypatch.setattr(tp, "config_dir", lambda: tmp_path / "app")
+    monkeypatch.delenv(tp.MODEL_ENV, raising=False)
+    config = SimpleNamespace(translation_model_path="")
+
+    assert tp.resolve_model_path(INDEX_TRANSLATE_Q4, config) == model
+    assert tp.model_is_available(INDEX_TRANSLATE_Q4, config) is True
+
+
+def test_runtime_prefers_installer_bundle_over_app_data(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The runtime comes from the shipped bundle, not a D: dev directory."""
+    from voice_typer.server.translation import paths as tp
+
+    shipped = tmp_path / "resources"
+    shipped.mkdir()
+    binary = shipped / tp.RUNTIME_BASENAME
+    binary.write_bytes(b"exe")
+
+    monkeypatch.setattr(
+        "voice_typer.server.media_ingest.ffmpeg_binaries._shipped_dirs",
+        lambda: (shipped,),
+    )
+    monkeypatch.setattr(tp, "config_dir", lambda: tmp_path / "app")
+    monkeypatch.delenv(tp.RUNTIME_ENV, raising=False)
+    config = SimpleNamespace(translation_runtime_path="")
+
+    assert tp.resolve_runtime_path(config) == binary
+
+
+def test_translation_stage_records_original_text_in_context() -> None:
+    """Translating a stage changes text and records raw Stage A text."""
+    from voice_typer.server.dictation_stages import PipelineContext, TranslationStage
+
+    calls: list[str] = []
+
+    class _Pipeline:
+        def _translate(self, text: str) -> str:
+            calls.append(text)
+            return "the file you sent me"
+
+    ctx = PipelineContext(
+        cycle_id="c1", audio=None, app=SimpleNamespace(), pipeline=_Pipeline()  # type: ignore[arg-type]
+    )
+    stage = TranslationStage()
+    result = stage.run("الملف اللي بعتهولي", ctx)
+
+    assert calls == ["الملف اللي بعتهولي"]
+    assert result == "the file you sent me"
+    assert ctx.extras["original_text"] == "الملف اللي بعتهولي"
+
+
+def test_plugin_delivery_translates_before_paste_and_stores_original(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Anthropic/Google STT plugins bypass the pipeline but still translate."""
+    from tools.internal_plugins._common import delivery
+
+    monkeypatch.setattr(
+        "voice_typer.server.translation.service.translate_text",
+        lambda text, config, target, spoken: "the translated text",
+        raising=False,
+    )
+    # delivery imports inside the function, so patch the module directly too.
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "voice_typer.server.translation.service",
+        SimpleNamespace(translate_text=lambda *a, **k: "the translated text"),
+    )
+
+    copies: list[str] = []
+    stored: dict[str, object] = {}
+
+    class _Clipboard:
+        _clipboard_seq = 1
+
+        def copy(self, text: str) -> str:
+            copies.append(text)
+            return text
+
+        def paste(self, **kwargs: object) -> None:
+            return None
+
+    class _History:
+        def add_transcription(self, text: str, **kwargs: object) -> int:
+            stored["text"] = text
+            stored.update(kwargs)
+            return 1
+
+    app = SimpleNamespace(
+        config=SimpleNamespace(
+            translation_enabled=True,
+            translation_target_language="en",
+            language="ar",
+            auto_capitalize=False,
+            device="cpu",
+        ),
+        clipboard=_Clipboard(),
+        history_db=_History(),
+    )
+    delivery.deliver_transcription(app, "النص الأصلي", 1.0, "anthropic", __import__("logging").getLogger("test"))
+
+    assert copies == ["the translated text"]
+    assert stored["text"] == "the translated text"
+    assert stored["original_text"] == "النص الأصلي"
+
+
+def test_translation_download_uses_shared_hf_cache(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Download goes through hf_hub_download with no cache_dir override."""
+    from voice_typer.server.translation import download as td
+
+    artifact = tmp_path / INDEX_TRANSLATE_Q4.filename
+    payload = b"gguf bytes"
+    artifact.write_bytes(payload)
+    # Build a spec whose pinned hash/size match the fake artifact.
+    import hashlib
+
+    from voice_typer.server.translation.catalogue import TranslationModelSpec
+
+    spec = TranslationModelSpec(
+        id=INDEX_TRANSLATE_Q4.id,
+        label=INDEX_TRANSLATE_Q4.label,
+        filename=INDEX_TRANSLATE_Q4.filename,
+        size_bytes=len(payload),
+        sha256=hashlib.sha256(payload).hexdigest(),
+        repo_id=INDEX_TRANSLATE_Q4.repo_id,
+        license=INDEX_TRANSLATE_Q4.license,
+    )
+    calls: list[dict[str, object]] = []
+
+    class _FakeHub:
+        @staticmethod
+        def hf_hub_download(**kwargs: object) -> str:
+            calls.append(kwargs)
+            return str(artifact)
+
+    monkeypatch.setattr("huggingface_hub.hf_hub_download", _FakeHub.hf_hub_download)
+    monkeypatch.setattr(td, "ensure_hf_env", lambda: None)
+
+    ok, reason, _ = td.download_translation_weights(
+        spec, config=SimpleNamespace(huggingface_consent=True), force=False
+    )
+    assert ok is True, reason
+    assert calls[0]["repo_id"] == spec.repo_id
+    assert calls[0]["filename"] == spec.filename
+    assert "cache_dir" not in calls[0]
+
+
+class TestProtectedSpans:
+    """URLs, emails, code and numbers survive the model call byte-identical."""
+
+    def test_roundtrip_preserves_all_span_kinds(self) -> None:
+        from voice_typer.server.translation.preservation import (
+            protect_spans,
+            restore_spans,
+        )
+
+        source = (
+            "ابعت الرسالة لـ ada@example.com على https://example.com/v2?x=1 "
+            "واستخدم `client_id` ثم AT-X19 و 42 كيلو"
+        )
+        protected, spans = protect_spans(source)
+        assert len(spans) >= 4
+        assert all(marker in protected for marker, _original in spans)
+        assert "https://example.com/v2?x=1" not in protected
+        # Model echoes the markers back verbatim (what a correct model does).
+        assert restore_spans(protected, spans) == source
+
+    def test_prompt_names_markers_only_when_present(self) -> None:
+        plain = build_user_prompt("النص", "en")
+        assert "Keep the bracketed markers" not in plain
+        marked = build_user_prompt("\u27e6VT0\u27e7", "en", markers=("\u27e6VT0\u27e7",))
+        assert "Keep the bracketed markers" in marked
+        assert "\u27e6VT0\u27e7" in marked
+
+    def test_detection_ignores_urls_emails_and_numbers(self) -> None:
+        from voice_typer.server.translation.prompt import detect_source_language
+
+        result = detect_source_language("راجع https://example.com أرسل لـ a@b.com الرقم 12345")
+        assert result.code == "ar"
+        assert result.mixed is False
+
+
+class TestFailureNotification:
+    """A failed translation keeps the original and tells the user once."""
+
+    @staticmethod
+    def _config() -> SimpleNamespace:
+        return SimpleNamespace(
+            translation_enabled=True,
+            translation_model="index-translate-2b-q4-k-m",
+            translation_model_path="",
+            translation_runtime_path="",
+            translation_gpu_enabled=True,
+            translation_glossary="",
+            language="ar",
+        )
+
+    def test_failure_publishes_notification_and_keeps_original(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        from urllib.error import URLError
+
+        from voice_typer.server import event_bus
+        from voice_typer.server.translation import service as svc
+
+        published: list[dict] = []
+        monkeypatch.setattr(event_bus, "publish", lambda event: published.append(event) or True)
+        monkeypatch.setattr(svc, "work_dir", lambda: tmp_path)
+        monkeypatch.setattr(
+            svc, "resolve_runtime_path", lambda _config: tmp_path / "llama-server.exe"
+        )
+        monkeypatch.setattr(svc, "resolve_model_path", lambda _config: tmp_path / "model.gguf")
+        monkeypatch.setattr(
+            svc.RuntimeServer, "start", lambda *_a, **_k: _FakeRuntime()
+        )
+
+        def _raise(_request: object, timeout: float) -> object:
+            raise URLError("boom")
+
+        monkeypatch.setattr(svc, "urlopen", _raise)
+
+        source = "الملف اللي بعتهولي امبارح مش بيفتح"
+        result = svc.translate_text(source, self._config(), "en", "ar")
+
+        assert result == source
+        notices = [e for e in published if e.get("type") == "notification"]
+        assert len(notices) == 1
+        assert "translation_failed" in notices[0]["data"]["message"] or notices[0]["data"]["message"]
+        assert notices[0]["data"]["title"]
+
+    def test_notification_is_once_until_a_success_clears_it(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        from urllib.error import URLError
+
+        from voice_typer.server import event_bus
+        from voice_typer.server.translation import service as svc
+
+        published: list[dict] = []
+        monkeypatch.setattr(event_bus, "publish", lambda event: published.append(event) or True)
+        monkeypatch.setattr(svc, "work_dir", lambda: tmp_path)
+        monkeypatch.setattr(
+            svc, "resolve_runtime_path", lambda _config: tmp_path / "llama-server.exe"
+        )
+        monkeypatch.setattr(svc, "resolve_model_path", lambda _config: tmp_path / "model.gguf")
+        monkeypatch.setattr(svc.RuntimeServer, "start", lambda *_a, **_k: _FakeRuntime())
+
+        def _raise(_request: object, timeout: float) -> object:
+            raise URLError("boom")
+
+        monkeypatch.setattr(svc, "urlopen", _raise)
+        source = "الملف اللي بعتهولي امبارح مش بيفتح"
+        for _ in range(3):
+            assert svc.translate_text(source, self._config(), "en", "ar") == source
+        assert len([e for e in published if e.get("type") == "notification"]) == 1
+
+        # A success resets the flag so a later failure is reported again.
+        monkeypatch.setattr(
+            svc,
+            "urlopen",
+            lambda _request, timeout: _FakeResponse(
+                {"choices": [{"message": {"content": "ok"}}]}
+            ),
+        )
+        assert svc.translate_text(source, self._config(), "en", "ar") == "ok"
+        monkeypatch.setattr(svc, "urlopen", _raise)
+        svc.translate_text(source, self._config(), "en", "ar")
+        assert len([e for e in published if e.get("type") == "notification"]) == 2
+
+    def test_no_notification_when_translation_is_skipped(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from voice_typer.server import event_bus
+        from voice_typer.server.translation import service as svc
+
+        published: list[dict] = []
+        monkeypatch.setattr(event_bus, "publish", lambda event: published.append(event) or True)
+        config = self._config()
+        # Confident Arabic->Arabic match: no model call, no failure notice.
+        assert svc.translate_text("الملف موجود", config, "ar", "ar") == "الملف موجود"
+        assert published == []
+
+
+class TestSameLanguageSkip:
+    """The user's opening scenario: no model request when source == target."""
+
+    def test_same_language_never_calls_the_model(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from voice_typer.server.translation import service as svc
+
+        def _fail_start(*_a: object, **_k: object) -> object:
+            raise AssertionError("model runtime must not start for a same-language skip")
+
+        monkeypatch.setattr(svc.RuntimeServer, "start", _fail_start)
+        result = svc.translate_text("الملف موجود", SimpleNamespace(translation_enabled=True), "ar", "ar")
+        assert result == "الملف موجود"
