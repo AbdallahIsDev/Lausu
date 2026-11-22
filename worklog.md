@@ -1851,3 +1851,57 @@ Final gate: 1056 passed across all 11 touched test files. ruff-F clean on projec
 Deferred (from Domain A report): registry.py:112 comment still says 110 (source comment, out of agent scope); scripts/check_new_command.sh touchpoint 10 conflicts with the architecture test's `109-command` ban (pytest kept authoritative); cargo check blocked by env (dlltool + disk full) — Rust edits were comment-only.
 
 6 local commits ahead of origin/main, NOT pushed (no push requested).
+
+## 2026-11-22 — Translation final UI verification (real app, real model)
+
+Drove the running Tauri app window directly (PrintWindow + ClientToScreen clicks), not just backend tests.
+
+UI verified in the real window:
+- Output Target dropdown lists exactly 8 languages + "Same as spoken" (the 28→8 filter fix is live).
+- Selecting English/French persists to config.json; toggling Translate Output on/off persists.
+- Translated rows appear in History with the "Index Translate 2b Q4 K M" label; the modal shows the translation plus "Original text (before translation)" with the Arabic.
+- Copy puts the translation on the clipboard (verified via Get-Clipboard); same-language row shows NO original section.
+- Delete → "Entry deleted / Undo" toast → Undo restores the row WITH original_text (new row 357 kept the Arabic).
+- Changing target to French made subsequent rows French; turning translation off produced raw Arabic rows.
+
+Quality (real Q4, longer inputs): Egyptian conversational, formal Arabic, long English paragraph, mixed AR/EN git workflow, programming text, measurements/IDs, URLs/emails — meaning and tone preserved, protected spans byte-identical.
+
+Lifecycle/concurrency: concurrent ar+fr requests no errors; 5 successive requests reused one service; GPU-flag switch mid-session fine; stop() during an in-flight POST waited for it; no leaked llama-server after shutdown.
+
+Notifications: Tauri mode = exactly 1 notification event, 0 tray calls; standalone = exactly 1 event + exactly 1 tray balloon; failure→success→failure = 2 notices. Native OS toast not visually captured (no dictation trigger).
+
+Environment fix (not product code): the dev app's default HF cache had no model and no bundled runtime, so translation could not resolve. Installed the verified GGUF via a junction into the HF hub and copied llama-server + DLLs into the app-data translation dir; production resolution now works with zero env overrides (1.7s first translation).
+
+Regression: 264 backend + 75 renderer tests, tsc, biome, ruff, mypy on changed files — all clean. No product code changed this round.
+
+## 2026-11-22 — History transcript modal: Final/Original/Compare + prefetch
+
+UI (ActivityList.tsx): replaced the always-visible original section with the existing `ToggleGroup` (the Sidebar CPU/GPU control) as a three-way selector — Final (default on every open, reset on close), Original, Compare. Footer = toggle far left, Copy far right. Both versions render in `text-foreground` (no muted original). Content sits in one `h-[55vh] overflow-y-auto rounded-lg bg-foreground/8 p-4` box (white 8% dark / black 8% light), so the dialog itself never scrolls and the header/footer stay put. Rows without an original render no toggle at all (never an empty view).
+
+Motion: `historyViewOut`/`historyViewIn` in index.css — blur 0→6px, scale 1→0.97, translateY 0→6px, NO opacity. JS runs the exit (160ms) then swaps and animates in (220ms); rapid clicks retarget the pending view instead of stacking exits. Reduced motion swaps instantly + CSS override (C-ANIM-3). Verified live: a mid-transition frame shows blurred/shrunken outgoing text.
+
+Data: list projection now returns `has_original` (one SQL expression, no extra query, no leaked original text). `prefetchHistoryData` (already fired by Sidebar hover via `prefetchPage`) now also warms a bounded full-text cache (`history.texts` in `ipcCache`, 240 entries, oldest-first eviction, `runPrefetchFlight` dedup) with BOTH versions, fetching only rows that are truncated or carry an original. `load()` warms the same cache on direct navigation. `handleFetchFullRecord` is cache-first, so opening the modal and switching views makes ZERO IPC calls; a miss falls back to one call and writes through. Invalidation: delete → forget that id, refresh → prune ids the refresh no longer returns, undo restores under a new id.
+
+Audit: every data-gated page already has a hover prefetcher (analytics/history/microphone/models/plugins/settings/templates/vocabulary). Home has its own SWR cache and is the landing route; providers/media/about/chat have no fetch gate. No extra pages changed.
+
+Verification: 193 backend + 232 renderer tests, tsc/biome/ruff/mypy clean. Live app: Final/Original/Compare in dark AND light mode, compare copy labelled, final-only copy, reset on reopen, no-toggle row, blur frame captured.
+
+
+## 2026-11-23 - worker: shared browser-plugin target-tab lifecycle
+
+Root causes verified in code before editing:
+- extension/service_worker.js answered status from cachedStatus when no tab matched, so Python saw a known page while the target tab was gone and posted /start into a missing tab.
+- Both plugins share one Chrome profile. Any non-ready bridge in plugin.activate()/ensure_browser() called launch_profile(), which opens the configured URL in the already-running profile -- a NEW TAB per switch. No layer reused an existing tab.
+
+Fix (shared infrastructure only):
+- New extension/tab_resolution.js: URL-pattern discovery (domain match, route-change safe), deterministic reuse (active match, else lowest id), create-only-when-missing, per-platform promise coalescing, one re-resolve when a tab vanishes before dispatch. No persisted tab IDs, so none can go stale.
+- service_worker.js imports the resolver; ensure-tab is a new command, start resolves before dispatch, and status reports has_tab:false with page:unknown instead of a cached page.
+- control_plane.js exposes POST /ensure-tab; relay.js gives it a 20s deadline.
+- daemon_client.browser_connected is a transport-only gate; ensure_browser and both plugins' activate() use it so a missing tab never launches Chrome. Cold-profile startup unchanged.
+- session._start() posts /ensure-tab before /start (best effort; the extension also resolves inside /start).
+
+Tests: new node:test tab-resolution suite + control-plane /ensure-tab/hasTab cases; new Python tests/plugins/test_plugin_target_tab_resolution.py; sync/packaging file lists updated. 118 scoped Python plugin tests green; 30/30 focused node tests green; 64/65 full node bridge suite green (1 pre-existing stale config_store.test.js:80 pin on removed manifest.settings). ruff clean; pytest --co 20325 collected; typecheck:ci OK. Full vitest 1/420 flake (Models-render-loop-guard 5s timeout under concurrent load), passed on isolated rerun. Full pytest was started but stopped at owner request (~10%, no summary).
+
+Live scenarios A-G NOT executed: extension service-worker changes require an owner reload at chrome://extensions (verifier confirms registration + files synced), and the plugin profile exposes no CDP port for automation.
+
+New rule: C-PLUGIN-3 (transport readiness is not resource readiness) added and announced.
