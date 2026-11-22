@@ -1,0 +1,155 @@
+name: CI error collector
+
+on:
+  workflow_run:
+    types: [completed]
+    workflows:
+      - "Build installer"
+      - "Client CI"
+      - "CodeQL"
+      - "Host Validation (Cannot-Verify close-out)"
+      - "Perf regression"
+      - "Populate model hashes"
+      - "runtime-pack-publish"
+      - "Build all platforms"
+      - "Build Linux"
+      - "Build macOS"
+      - "Build Windows ARM validation"
+      - "Build Windows"
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Ingest one existing workflow run id (empty means rebuild)"
+        required: false
+        type: string
+      rebuild:
+        description: "Rebuild the report from the last N runs"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ci-errors-writer
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  collect:
+    name: Collect CI failures into ci-reports
+    if: >-
+      !github.event.repository.fork &&
+      (github.event_name != 'workflow_run' ||
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout main tree
+        uses: actions/checkout@v5
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Prepare ci-reports branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          SEED="$(mktemp)"
+          if [ -f CI-errors.md ]; then
+            cp CI-errors.md "$SEED"
+          else
+            printf '# CI Errors\n' > "$SEED"
+          fi
+          if git ls-remote --exit-code --heads origin ci-reports >/dev/null; then
+            git fetch --no-tags origin refs/heads/ci-reports:refs/remotes/origin/ci-reports
+            git checkout -B ci-reports refs/remotes/origin/ci-reports
+          else
+            git checkout --orphan ci-reports
+            git rm -rf -- .
+            cp "$SEED" CI-errors.md
+            git add CI-errors.md
+            git commit -m "ci-reports: seed from main"
+          fi
+          rm -f "$SEED"
+
+      - name: Generate report
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: scripts
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+          INPUT_REBUILD: ${{ inputs.rebuild }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ -n "$INPUT_RUN_ID" ]; then
+            EXTRA="--run-id $INPUT_RUN_ID"
+            LABEL="dispatch#$INPUT_RUN_ID"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ] || [ "$INPUT_REBUILD" = "true" ]; then
+            EXTRA="--rebuild --limit 200"
+            LABEL="dispatch-rebuild"
+          else
+            EXTRA="--run-id $RUN_ID"
+            LABEL="$RUN_NAME#$RUN_ID"
+          fi
+          # shellcheck disable=SC2086
+          python -m scripts.ci_errors.collect --repo AbdallahIsDev/Lausu --output CI-errors.md $EXTRA
+          echo "COLLECTOR_LABEL=$LABEL" >> "$GITHUB_ENV"
+
+      - name: Commit and push with bounded retry
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: scripts
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+          INPUT_REBUILD: ${{ inputs.rebuild }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- CI-errors.md; then
+            echo "CI-errors.md unchanged — nothing to commit"
+            exit 0
+          fi
+          if [ -n "${INPUT_RUN_ID:-}" ]; then
+            LABEL="dispatch#$INPUT_RUN_ID"
+          elif [ "${INPUT_REBUILD:-false}" = "true" ]; then
+            LABEL="dispatch-rebuild"
+          else
+            LABEL="${RUN_NAME:-workflow}#${RUN_ID:-0}"
+          fi
+          for attempt in 1 2 3; do
+            if git diff --quiet -- CI-errors.md; then
+              echo "Report already current after fetch retry $attempt"
+              exit 0
+            fi
+            git add CI-errors.md
+            git commit -m "ci-reports: update from $LABEL"
+            if git push origin HEAD:ci-reports; then
+              echo "Pushed ci-reports on attempt $attempt"
+              exit 0
+            fi
+            echo "Push rejected; rebasing collector on new data-branch tip (attempt $attempt)"
+            git checkout -B ci-reports refs/remotes/origin/ci-reports 2>/dev/null || \
+              git fetch --no-tags origin refs/heads/ci-reports:refs/remotes/origin/ci-reports
+            git checkout -B ci-reports refs/remotes/origin/ci-reports
+            if [ -n "${INPUT_RUN_ID:-}" ]; then
+              EXTRA="--run-id $INPUT_RUN_ID"
+            elif [ "${INPUT_REBUILD:-false}" = "true" ]; then
+              EXTRA="--rebuild --limit 200"
+            else
+              EXTRA="--run-id ${RUN_ID:-0}"
+            fi
+            # shellcheck disable=SC2086
+            python -m scripts.ci_errors.collect --repo AbdallahIsDev/Lausu --output CI-errors.md $EXTRA
+          done
+          echo "ci-reports push failed after 3 attempts" >&2
+          exit 1

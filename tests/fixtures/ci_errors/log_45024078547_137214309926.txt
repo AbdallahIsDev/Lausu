@@ -1,0 +1,421 @@
+﻿2026-11-22T12:51:48.2183490Z Current runner version: '2.338.2'
+2026-11-22T12:51:48.2201800Z ##[group]Runner Image Provisioner
+2026-11-22T12:51:48.2202430Z Hosted Compute Agent
+2026-11-22T12:51:48.2202830Z Version: 20261111.635
+2026-11-22T12:51:48.2203250Z Commit: b8a594ea514ff44cadb5342986c68b1eac6e22ed
+2026-11-22T12:51:48.2203740Z Build Date: 2026-11-11T01:49:01Z
+2026-11-22T12:51:48.2204190Z Worker ID: {4e42292e-e6a6-436c-a111-cc1156c3a6b2}
+2026-11-22T12:51:48.2204690Z Region: westus
+2026-11-22T12:51:48.2205060Z Cloud: MacCloud
+2026-11-22T12:51:48.2205410Z ##[endgroup]
+2026-11-22T12:51:48.2206360Z ##[group]Operating System
+2026-11-22T12:51:48.2206770Z macOS
+2026-11-22T12:51:48.2207110Z 15.8.2
+2026-11-22T12:51:48.2207450Z 24H232
+2026-11-22T12:51:48.2207790Z ##[endgroup]
+2026-11-22T12:51:48.2208140Z ##[group]Runner Image
+2026-11-22T12:51:48.2208550Z Image: macos-15-arm64
+2026-11-22T12:51:48.2208930Z Version: 20261118.0550.1
+2026-11-22T12:51:48.2209880Z Included Software: https://github.com/actions/runner-images/blob/macos-15-arm64/20261118.0550/images/macos/macos-15-arm64-Readme.md
+2026-11-22T12:51:48.2210950Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-15-arm64%2F20261118.0550
+...[fixture: middle truncated]...
+2026-11-22T12:55:19.9929060Z [gw1] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_notices_and_checksums_uploaded 
+2026-11-22T12:55:20.0448540Z [gw0] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_post_build_gate_runs_after_artifact_uploads_and_still_fails_job 
+2026-11-22T12:55:20.0496390Z tests/tauri/test_windows_build_workflow.py::test_sidecar_selfcheck_is_inert_on_normal_startup 
+2026-11-22T12:55:20.0588450Z tests/tauri/test_windows_build_workflow.py::test_gate_script_self_test_and_helpers 
+2026-11-22T12:55:20.0764160Z [gw1] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_sidecar_selfcheck_is_inert_on_normal_startup 
+2026-11-22T12:55:20.0867050Z tests/tauri/test_windows_build_workflow.py::test_caller_unchanged_signing_contract 
+2026-11-22T12:55:20.0901640Z [gw0] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_gate_script_self_test_and_helpers 
+2026-11-22T12:55:20.0903210Z [gw1] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_caller_unchanged_signing_contract 
+2026-11-22T12:55:20.1242150Z tests/tauri/test_windows_freeze_drift.py::test_inline_sidecar_matches_freeze_script_on_critical_flags 
+2026-11-22T12:55:20.2435610Z tests/tauri/test_windows_freeze_drift.py::test_worker_step_delegates_to_script_and_script_has_worker_excludes 
+2026-11-22T12:55:20.2537730Z [gw0] [ 21%] PASSED tests/tauri/test_windows_freeze_drift.py::test_inline_sidecar_matches_freeze_script_on_critical_flags 
+2026-11-22T12:55:20.3006360Z tests/tauri/test_windows_freeze_drift.py::test_ffmpeg_fetch_is_present_for_both_freeze_paths 
+2026-11-22T12:55:20.3154380Z [gw1] [ 21%] PASSED tests/tauri/test_windows_freeze_drift.py::test_worker_step_delegates_to_script_and_script_has_worker_excludes 
+2026-11-22T12:55:20.4754250Z tests/tauri/test_windows_freeze_drift.py::test_gate_resolves_newest_versioned_extraction_dir_without_build_stamp 
+2026-11-22T12:55:20.4812960Z INTERNALERROR> def worker_internal_error(
+2026-11-22T12:55:20.4815200Z INTERNALERROR>         self, node: WorkerController, formatted_error: str
+2026-11-22T12:55:20.4818170Z INTERNALERROR>     ) -> None:
+2026-11-22T12:55:20.4818560Z INTERNALERROR>         """
+2026-11-22T12:55:20.4818900Z INTERNALERROR>         pytest_internalerror() was called on the worker.
+2026-11-22T12:55:20.4819230Z INTERNALERROR>     
+2026-11-22T12:55:20.4819630Z INTERNALERROR>         pytest_internalerror() arguments are an excinfo and an excrepr, which can't
+2026-11-22T12:55:20.4820130Z INTERNALERROR>         be serialized, so we go with a poor man's solution of raising an exception
+2026-11-22T12:55:20.4820700Z INTERNALERROR>         here ourselves using the formatted message.
+2026-11-22T12:55:20.4821040Z INTERNALERROR>         """
+2026-11-22T12:55:20.4821310Z INTERNALERROR>         self._active_nodes.remove(node)
+2026-11-22T12:55:20.4822480Z INTERNALERROR>         try:
+2026-11-22T12:55:20.4826750Z INTERNALERROR> >           assert False, formatted_error
+2026-11-22T12:55:20.4827160Z INTERNALERROR> E           AssertionError: Traceback (most recent call last):
+2026-11-22T12:55:20.4827830Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/main.py", line 333, in wrap_session
+2026-11-22T12:55:20.4829760Z INTERNALERROR> E                 session.exitstatus = doit(config, session) or 0
+2026-11-22T12:55:20.4830170Z INTERNALERROR> E                                      ^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4830780Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/main.py", line 387, in _main
+2026-11-22T12:55:20.4832650Z INTERNALERROR> E                 config.hook.pytest_runtestloop(session=session)
+2026-11-22T12:55:20.4833340Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_caller.py", line 197, in __call__
+2026-11-22T12:55:20.4835900Z INTERNALERROR> E                 return self._hookexec(
+2026-11-22T12:55:20.4837340Z INTERNALERROR> E                        ^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4840570Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_manager.py", line 183, in _hookexec
+2026-11-22T12:55:20.4842990Z INTERNALERROR> E                 return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+2026-11-22T12:55:20.4843500Z INTERNALERROR> E                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4844260Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 195, in _multicall
+2026-11-22T12:55:20.4844860Z INTERNALERROR> E                 raise exception
+2026-11-22T12:55:20.4845450Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:20.4846430Z INTERNALERROR> E                 teardown.throw(exception)
+2026-11-22T12:55:20.4847120Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/logging.py", line 829, in pytest_runtestloop
+2026-11-22T12:55:20.4848480Z INTERNALERROR> E                 return (yield)  # Run all the tests.
+2026-11-22T12:55:20.4849220Z INTERNALERROR> E                         ^^^^^
+2026-11-22T12:55:20.4849900Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:20.4851040Z INTERNALERROR> E                 teardown.throw(exception)
+2026-11-22T12:55:20.4857180Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/terminal.py", line 723, in pytest_runtestloop
+2026-11-22T12:55:20.4858230Z INTERNALERROR> E                 result = yield
+2026-11-22T12:55:20.4858820Z INTERNALERROR> E                          ^^^^^
+2026-11-22T12:55:20.4859940Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:20.4860590Z INTERNALERROR> E                 teardown.throw(exception)
+2026-11-22T12:55:20.4861590Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pytest_cov/plugin.py", line 348, in pytest_runtestloop
+2026-11-22T12:55:20.4862270Z INTERNALERROR> E                 result = yield
+2026-11-22T12:55:20.4862720Z INTERNALERROR> E                          ^^^^^
+2026-11-22T12:55:20.4871160Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 147, in _multicall
+2026-11-22T12:55:20.4871970Z INTERNALERROR> E                 res = hook_impl.function(*args)
+2026-11-22T12:55:20.4874730Z INTERNALERROR> E                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4875470Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/xdist/remote.py", line 206, in pytest_runtestloop
+2026-11-22T12:55:20.4876090Z INTERNALERROR> E                 self.run_one_test()
+2026-11-22T12:55:20.4876720Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/xdist/remote.py", line 227, in run_one_test
+2026-11-22T12:55:20.4877470Z INTERNALERROR> E                 self.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+2026-11-22T12:55:20.4878110Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_caller.py", line 197, in __call__
+2026-11-22T12:55:20.4878640Z INTERNALERROR> E                 return self._hookexec(
+2026-11-22T12:55:20.4878910Z INTERNALERROR> E                        ^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4879430Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_manager.py", line 183, in _hookexec
+2026-11-22T12:55:20.4880060Z INTERNALERROR> E                 return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+2026-11-22T12:55:20.4880690Z INTERNALERROR> E                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4881290Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 195, in _multicall
+2026-11-22T12:55:20.4881840Z INTERNALERROR> E                 raise exception
+2026-11-22T12:55:20.4882370Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:20.4882920Z INTERNALERROR> E                 teardown.throw(exception)
+2026-11-22T12:55:20.4883550Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/warnings.py", line 75, in pytest_runtest_protocol
+2026-11-22T12:55:20.4884160Z INTERNALERROR> E                 return (yield)
+2026-11-22T12:55:20.4884390Z INTERNALERROR> E                         ^^^^^
+2026-11-22T12:55:20.4884990Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:20.4885600Z INTERNALERROR> E                 teardown.throw(exception)
+2026-11-22T12:55:20.4887280Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/assertion/__init__.py", line 212, in pytest_runtest_protocol
+2026-11-22T12:55:20.4888830Z INTERNALERROR> E                 return (yield)
+2026-11-22T12:55:20.4889070Z INTERNALERROR> E                         ^^^^^
+2026-11-22T12:55:20.4889600Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:20.4890250Z INTERNALERROR> E                 teardown.throw(exception)
+2026-11-22T12:55:20.4890900Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 64, in run_old_style_hookwrapper
+2026-11-22T12:55:20.4891500Z INTERNALERROR> E                 return result.get_result()
+2026-11-22T12:55:20.4891850Z INTERNALERROR> E                        ^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4892430Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_result.py", line 103, in get_result
+2026-11-22T12:55:20.4893010Z INTERNALERROR> E                 raise exc.with_traceback(tb)
+2026-11-22T12:55:20.4893600Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 49, in run_old_style_hookwrapper
+2026-11-22T12:55:20.4894160Z INTERNALERROR> E                 res = yield
+2026-11-22T12:55:20.4894380Z INTERNALERROR> E                       ^^^^^
+2026-11-22T12:55:20.4894900Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:20.4895540Z INTERNALERROR> E                 teardown.throw(exception)
+2026-11-22T12:55:20.4896120Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/unittest.py", line 610, in pytest_runtest_protocol
+2026-11-22T12:55:20.4896670Z INTERNALERROR> E                 return (yield)
+2026-11-22T12:55:20.4896910Z INTERNALERROR> E                         ^^^^^
+2026-11-22T12:55:20.4897430Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:20.4897980Z INTERNALERROR> E                 teardown.throw(exception)
+2026-11-22T12:55:20.4898610Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/faulthandler.py", line 102, in pytest_runtest_protocol
+2026-11-22T12:55:20.4899360Z INTERNALERROR> E                 return (yield)
+2026-11-22T12:55:20.4899620Z INTERNALERROR> E                         ^^^^^
+2026-11-22T12:55:20.4900140Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 147, in _multicall
+2026-11-22T12:55:20.4900720Z INTERNALERROR> E                 res = hook_impl.function(*args)
+2026-11-22T12:55:20.4901030Z INTERNALERROR> E                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4901620Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/runner.py", line 118, in pytest_runtest_protocol
+2026-11-22T12:55:20.4902340Z INTERNALERROR> E                 runtestprotocol(item, nextitem=nextitem)
+2026-11-22T12:55:20.4902950Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/runner.py", line 139, in runtestprotocol
+2026-11-22T12:55:20.4904360Z INTERNALERROR> E                 reports.append(call_and_report(item, "call", log))
+2026-11-22T12:55:20.4904770Z INTERNALERROR> E                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4905360Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/runner.py", line 254, in call_and_report
+2026-11-22T12:55:20.4906040Z INTERNALERROR> E                 report: TestReport = ihook.pytest_runtest_makereport(item=item, call=call)
+2026-11-22T12:55:20.4906670Z INTERNALERROR> E                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4907270Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_caller.py", line 197, in __call__
+2026-11-22T12:55:20.4907850Z INTERNALERROR> E                 return self._hookexec(
+2026-11-22T12:55:20.4908130Z INTERNALERROR> E                        ^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4908690Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_manager.py", line 183, in _hookexec
+2026-11-22T12:55:20.4909390Z INTERNALERROR> E                 return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+2026-11-22T12:55:20.4910330Z INTERNALERROR> E                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4912300Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 195, in _multicall
+2026-11-22T12:55:20.4913860Z INTERNALERROR> E                 raise exception
+2026-11-22T12:55:20.4915430Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:20.4917060Z INTERNALERROR> E                 teardown.throw(exception)
+2026-11-22T12:55:20.4918980Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/tmpdir.py", line 385, in pytest_runtest_makereport
+2026-11-22T12:55:20.4920650Z INTERNALERROR> E                 rep = yield
+2026-11-22T12:55:20.4921350Z INTERNALERROR> E                       ^^^^^
+2026-11-22T12:55:20.4922890Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:20.4924510Z INTERNALERROR> E                 teardown.throw(exception)
+2026-11-22T12:55:20.4926230Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 54, in run_old_style_hookwrapper
+2026-11-22T12:55:20.4927980Z INTERNALERROR> E                 teardown.send(result)
+2026-11-22T12:55:20.4930430Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_hypothesis_pytestplugin.py", line 341, in pytest_runtest_makereport
+2026-11-22T12:55:20.4933130Z INTERNALERROR> E                 report = (yield).get_result()
+2026-11-22T12:55:20.4934090Z INTERNALERROR> E                          ^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4935610Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_result.py", line 103, in get_result
+2026-11-22T12:55:20.4937280Z INTERNALERROR> E                 raise exc.with_traceback(tb)
+2026-11-22T12:55:20.4939020Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 49, in run_old_style_hookwrapper
+2026-11-22T12:55:20.4940650Z INTERNALERROR> E                 res = yield
+2026-11-22T12:55:20.4941370Z INTERNALERROR> E                       ^^^^^
+2026-11-22T12:55:20.4942850Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:20.4944560Z INTERNALERROR> E                 teardown.throw(exception)
+2026-11-22T12:55:20.4946320Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 64, in run_old_style_hookwrapper
+2026-11-22T12:55:20.4947990Z INTERNALERROR> E                 return result.get_result()
+2026-11-22T12:55:20.4949550Z INTERNALERROR> E                        ^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4951070Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_result.py", line 103, in get_result
+2026-11-22T12:55:20.4952680Z INTERNALERROR> E                 raise exc.with_traceback(tb)
+2026-11-22T12:55:20.4954350Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 49, in run_old_style_hookwrapper
+2026-11-22T12:55:20.4955950Z INTERNALERROR> E                 res = yield
+2026-11-22T12:55:20.4956580Z INTERNALERROR> E                       ^^^^^
+2026-11-22T12:55:20.4958040Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:20.4959980Z INTERNALERROR> E                 teardown.throw(exception)
+2026-11-22T12:55:20.4960720Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/skipping.py", line 280, in pytest_runtest_makereport
+2026-11-22T12:55:20.4961310Z INTERNALERROR> E                 rep = yield
+2026-11-22T12:55:20.4961540Z INTERNALERROR> E                       ^^^^^
+2026-11-22T12:55:20.4962070Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 147, in _multicall
+2026-11-22T12:55:20.4962730Z INTERNALERROR> E                 res = hook_impl.function(*args)
+2026-11-22T12:55:20.4963070Z INTERNALERROR> E                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4963670Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/runner.py", line 385, in pytest_runtest_makereport
+2026-11-22T12:55:20.4965570Z INTERNALERROR> E                 return TestReport.from_item_and_call(item, call)
+2026-11-22T12:55:20.4966360Z INTERNALERROR> E                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4967100Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/reports.py", line 465, in from_item_and_call
+2026-11-22T12:55:20.4967820Z INTERNALERROR> E                 longrepr = _format_failed_longrepr(item, call, excinfo)
+2026-11-22T12:55:20.4968840Z INTERNALERROR> E                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4969510Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/reports.py", line 282, in _format_failed_longrepr
+2026-11-22T12:55:20.4970150Z INTERNALERROR> E                 longrepr = item.repr_failure(excinfo)
+2026-11-22T12:55:20.4970510Z INTERNALERROR> E                            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4971090Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/python.py", line 1840, in repr_failure
+2026-11-22T12:55:20.4971790Z INTERNALERROR> E                 return self._repr_failure_py(excinfo, style=style)
+2026-11-22T12:55:20.4972160Z INTERNALERROR> E                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4972760Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/nodes.py", line 473, in _repr_failure_py
+2026-11-22T12:55:20.4973510Z INTERNALERROR> E                 abspath = Path(os.getcwd()) != self.config.invocation_params.dir
+2026-11-22T12:55:20.4974340Z INTERNALERROR> E                           ^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:20.4977790Z INTERNALERROR> E               File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/pathlib.py", line 873, in __new__
+2026-11-22T12:55:20.4978400Z INTERNALERROR> E                 raise NotImplementedError("cannot instantiate %r on your system"
+2026-11-22T12:55:20.4979070Z INTERNALERROR> E             NotImplementedError: cannot instantiate 'WindowsPath' on your system
+2026-11-22T12:55:20.4979430Z INTERNALERROR> E           assert False
+2026-11-22T12:55:20.4979640Z INTERNALERROR> 
+2026-11-22T12:55:20.4980060Z INTERNALERROR> /Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/xdist/dsession.py:232: AssertionError
+2026-11-22T12:55:20.4980740Z [gw0] [ 21%] PASSED tests/tauri/test_windows_freeze_drift.py::test_ffmpeg_fetch_is_present_for_both_freeze_paths 
+2026-11-22T12:55:20.5193800Z tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_templates_persisted_to_json_file 
+2026-11-22T12:55:20.5330370Z [gw0] [ 21%] PASSED tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_templates_persisted_to_json_file 
+2026-11-22T12:55:20.5474280Z tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_service_save_and_get_round_trip 
+2026-11-22T12:55:20.5551270Z [gw0] [ 21%] PASSED tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_service_save_and_get_round_trip 
+2026-11-22T12:55:20.5649860Z tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_service_save_rejects_invalid_entries 
+2026-11-22T12:55:20.5766280Z [gw0] [ 21%] PASSED tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_service_save_rejects_invalid_entries 
+2026-11-22T12:55:20.5879310Z tests/test__lazy_import.py::test_lazy_module_returns_lazy_module_instance 
+2026-11-22T12:55:20.5942550Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_lazy_module_returns_lazy_module_instance 
+2026-11-22T12:55:20.6021430Z tests/test__lazy_import.py::test_lazy_module_repr_shows_module_name 
+2026-11-22T12:55:20.6344980Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_lazy_module_repr_shows_module_name 
+2026-11-22T12:55:20.6449060Z tests/test__lazy_import.py::test_lazy_module_does_not_import_on_construction 
+2026-11-22T12:55:20.6531920Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_lazy_module_does_not_import_on_construction 
+2026-11-22T12:55:20.6638530Z tests/test__lazy_import.py::test_getattr_triggers_import_on_first_access 
+2026-11-22T12:55:20.6659070Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_triggers_import_on_first_access 
+2026-11-22T12:55:20.6745740Z tests/test__lazy_import.py::test_getattr_re_resolves_on_every_access_no_caching 
+2026-11-22T12:55:20.6868190Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_re_resolves_on_every_access_no_caching 
+2026-11-22T12:55:20.6996080Z tests/test__lazy_import.py::test_getattr_reflects_sys_modules_changes_between_accesses 
+2026-11-22T12:55:20.7105210Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_reflects_sys_modules_changes_between_accesses 
+2026-11-22T12:55:20.7170700Z tests/test__lazy_import.py::test_getattr_propagates_import_error 
+2026-11-22T12:55:20.7251890Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_propagates_import_error 
+2026-11-22T12:55:20.7353210Z tests/test__lazy_import.py::test_getattr_propagates_attribute_error_from_wrapped_module 
+2026-11-22T12:55:20.7701850Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_propagates_attribute_error_from_wrapped_module 
+2026-11-22T12:55:20.7793930Z tests/test__lazy_import.py::test_getattr_for_module_name_does_not_trigger_import 
+2026-11-22T12:55:20.7897850Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_for_module_name_does_not_trigger_import 
+2026-11-22T12:55:20.8007080Z tests/test__lazy_import.py::test_setattr_delegates_to_wrapped_module 
+2026-11-22T12:55:20.8097900Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_setattr_delegates_to_wrapped_module 
+2026-11-22T12:55:20.8256070Z tests/test__lazy_import.py::test_setattr_on_module_name_delegates_to_wrapped_not_slot 
+2026-11-22T12:55:20.8319890Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_setattr_on_module_name_delegates_to_wrapped_not_slot 
+2026-11-22T12:55:20.8386910Z tests/test__lazy_import.py::test_proxy_dict_delegates_to_wrapped_module 
+2026-11-22T12:55:20.8437590Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_proxy_dict_delegates_to_wrapped_module 
+2026-11-22T12:55:20.8563210Z tests/test__lazy_import.py::test_proxy_forwards_callable_attributes 
+2026-11-22T12:55:20.8644240Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_proxy_forwards_callable_attributes 
+2026-11-22T12:55:20.8828450Z tests/test__lazy_import.py::test_delattr_delegates_to_wrapped_module 
+2026-11-22T12:55:20.8945520Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_delattr_delegates_to_wrapped_module 
+2026-11-22T12:55:20.8985930Z tests/test__lazy_import.py::test_multiple_proxies_for_different_modules_are_independent 
+2026-11-22T12:55:20.9104100Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_multiple_proxies_for_different_modules_are_independent 
+2026-11-22T12:55:20.9139130Z tests/test__lazy_import.py::test_two_proxies_for_same_module_share_state 
+2026-11-22T12:55:20.9230280Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_two_proxies_for_same_module_share_state 
+2026-11-22T12:55:20.9262610Z tests/test__lazy_import.py::test_monkeypatch_setattr_on_proxy_then_access_works 
+2026-11-22T12:55:20.9385630Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_monkeypatch_setattr_on_proxy_then_access_works 
+2026-11-22T12:55:20.9402440Z tests/test__lazy_import.py::test_xv_78_setattr_mutates_real_sys_modules_entry 
+2026-11-22T12:55:20.9483740Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_xv_78_setattr_mutates_real_sys_modules_entry 
+2026-11-22T12:55:20.9513450Z tests/test__lazy_import.py::test_xv_78_setattr_visible_to_independent_importer 
+2026-11-22T12:55:20.9596170Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_xv_78_setattr_visible_to_independent_importer 
+2026-11-22T12:55:20.9651270Z tests/test__lazy_import.py::test_xv_78_setattr_does_not_store_on_proxy_instance 
+2026-11-22T12:55:20.9771670Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::test_xv_78_setattr_does_not_store_on_proxy_instance 
+2026-11-22T12:55:20.9818480Z tests/test__lazy_import.py::TestImportErrorCaching::test_import_error_cached_so_second_access_no_reimport 
+2026-11-22T12:55:20.9903570Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestImportErrorCaching::test_import_error_cached_so_second_access_no_reimport 
+2026-11-22T12:55:21.0040870Z tests/test__lazy_import.py::TestImportErrorCaching::test_cached_error_is_same_instance 
+2026-11-22T12:55:21.0142040Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestImportErrorCaching::test_cached_error_is_same_instance 
+2026-11-22T12:55:21.0212370Z tests/test__lazy_import.py::TestImportErrorCaching::test_cached_error_does_not_affect_sibling_proxy 
+2026-11-22T12:55:21.0546830Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestImportErrorCaching::test_cached_error_does_not_affect_sibling_proxy 
+2026-11-22T12:55:21.0694190Z tests/test__lazy_import.py::TestImportErrorCaching::test_successful_import_does_not_cache_error 
+2026-11-22T12:55:21.0952570Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestImportErrorCaching::test_successful_import_does_not_cache_error 
+2026-11-22T12:55:21.1065450Z tests/test__lazy_import.py::TestResetCache::test_reset_cache_clears_cached_error 
+2026-11-22T12:55:21.1304800Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestResetCache::test_reset_cache_clears_cached_error 
+2026-11-22T12:55:21.1314270Z tests/test__lazy_import.py::TestResetCache::test_reset_cache_recovers_when_module_becomes_available 
+2026-11-22T12:55:21.1447120Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestResetCache::test_reset_cache_recovers_when_module_becomes_available 
+2026-11-22T12:55:21.1714350Z tests/test__lazy_import.py::TestResetCache::test_reset_cache_is_safe_when_no_error_cached 
+2026-11-22T12:55:21.1942350Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestResetCache::test_reset_cache_is_safe_when_no_error_cached 
+2026-11-22T12:55:21.2050310Z tests/test__security_attributes.py::TestPlatformGuard::test_returns_none_on_non_windows 
+2026-11-22T12:55:21.2267600Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestPlatformGuard::test_returns_none_on_non_windows 
+2026-11-22T12:55:21.2369740Z tests/test__security_attributes.py::TestErrorPaths::test_open_process_token_failure_returns_none 
+2026-11-22T12:55:21.2573500Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_open_process_token_failure_returns_none 
+2026-11-22T12:55:21.2645820Z tests/test__security_attributes.py::TestErrorPaths::test_get_token_information_second_call_failure_returns_none 
+2026-11-22T12:55:21.2747580Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_get_token_information_second_call_failure_returns_none 
+2026-11-22T12:55:21.2843290Z tests/test__security_attributes.py::TestErrorPaths::test_null_sid_returns_none 
+2026-11-22T12:55:21.2922840Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_null_sid_returns_none 
+2026-11-22T12:55:21.3128370Z tests/test__security_attributes.py::TestErrorPaths::test_initialize_security_descriptor_failure_returns_none 
+2026-11-22T12:55:21.3423770Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_initialize_security_descriptor_failure_returns_none 
+2026-11-22T12:55:21.3574830Z tests/test__security_attributes.py::TestErrorPaths::test_set_entries_in_acl_success_dacl_failure_returns_none 
+2026-11-22T12:55:21.3927880Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_set_entries_in_acl_success_dacl_failure_returns_none 
+2026-11-22T12:55:21.4052270Z tests/test__security_attributes.py::TestErrorPaths::test_set_entries_in_acl_failure_returns_none 
+2026-11-22T12:55:22.4880930Z /Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pytest_benchmark/logger.py:44: PytestBenchmarkWarning: Benchmarks are automatically disabled because xdist plugin is active. Benchmarks cannot be performed reliably in a parallelized environment.
+2026-11-22T12:55:22.4890550Z   warner(PytestBenchmarkWarning(text))
+2026-11-22T12:55:31.7857140Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_set_entries_in_acl_failure_returns_none 
+2026-11-22T12:55:31.7859550Z INTERNALERROR> Traceback (most recent call last):
+2026-11-22T12:55:31.7861700Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/main.py", line 333, in wrap_session
+2026-11-22T12:55:31.7865320Z INTERNALERROR>     session.exitstatus = doit(config, session) or 0
+2026-11-22T12:55:31.7872240Z INTERNALERROR>                          ^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:31.7875920Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/main.py", line 387, in _main
+2026-11-22T12:55:31.7876910Z INTERNALERROR>     config.hook.pytest_runtestloop(session=session)
+2026-11-22T12:55:31.7877920Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_caller.py", line 197, in __call__
+2026-11-22T12:55:31.7879890Z INTERNALERROR>     return self._hookexec(
+2026-11-22T12:55:31.7880770Z INTERNALERROR>            ^^^^^^^^^^^^^^^
+2026-11-22T12:55:31.7882580Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_manager.py", line 183, in _hookexec
+2026-11-22T12:55:31.7883490Z INTERNALERROR>     return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+2026-11-22T12:55:31.7884240Z INTERNALERROR>            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:31.7885400Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 195, in _multicall
+2026-11-22T12:55:31.7886420Z INTERNALERROR>     raise exception
+2026-11-22T12:55:31.7887290Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:31.7888490Z INTERNALERROR>     teardown.throw(exception)
+2026-11-22T12:55:31.7897000Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/logging.py", line 829, in pytest_runtestloop
+2026-11-22T12:55:31.7897620Z INTERNALERROR>     return (yield)  # Run all the tests.
+2026-11-22T12:55:31.7898050Z INTERNALERROR>             ^^^^^
+2026-11-22T12:55:31.7898680Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:31.7899330Z INTERNALERROR>     teardown.throw(exception)
+2026-11-22T12:55:31.7899940Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/terminal.py", line 723, in pytest_runtestloop
+2026-11-22T12:55:31.7900830Z INTERNALERROR>     result = yield
+2026-11-22T12:55:31.7901200Z INTERNALERROR>              ^^^^^
+2026-11-22T12:55:31.7901760Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 167, in _multicall
+2026-11-22T12:55:31.7902380Z INTERNALERROR>     teardown.throw(exception)
+2026-11-22T12:55:31.7903010Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pytest_cov/plugin.py", line 348, in pytest_runtestloop
+2026-11-22T12:55:31.7903630Z INTERNALERROR>     result = yield
+2026-11-22T12:55:31.7903910Z INTERNALERROR>              ^^^^^
+2026-11-22T12:55:31.7932230Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pluggy/_execution.py", line 147, in _multicall
+2026-11-22T12:55:31.7932950Z INTERNALERROR>     res = hook_impl.function(*args)
+2026-11-22T12:55:31.7933260Z INTERNALERROR>           ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-22T12:55:31.7933900Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/xdist/dsession.py", line 138, in pytest_runtestloop
+2026-11-22T12:55:31.7934470Z INTERNALERROR>     self.loop_once()
+2026-11-22T12:55:31.7935070Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/xdist/dsession.py", line 163, in loop_once
+2026-11-22T12:55:31.7935620Z INTERNALERROR>     call(**kwargs)
+2026-11-22T12:55:31.7936230Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/xdist/dsession.py", line 217, in worker_workerfinished
+2026-11-22T12:55:31.7936930Z INTERNALERROR>     assert not crashitem, (crashitem, node)
+2026-11-22T12:55:31.7938410Z INTERNALERROR> AssertionError: ('tests/tauri/test_windows_freeze_drift.py::test_gate_resolves_newest_versioned_extraction_dir_without_build_stamp', <WorkerController gw1>)
+2026-11-22T12:55:31.7939470Z INTERNALERROR> assert not 'tests/tauri/test_windows_freeze_drift.py::test_gate_resolves_newest_versioned_extraction_dir_without_build_stamp'
+2026-11-22T12:55:31.7939940Z 
+2026-11-22T12:55:31.7940150Z ===== 3909 passed, 568 skipped, 1 xfailed, 1 warning in 189.90s (0:03:09) ======
+2026-11-22T12:55:32.2224840Z ##[error]Process completed with exit code 3.
+2026-11-22T12:55:32.2528990Z ##[group]Run mikepenz/action-junit-report@v6
+2026-11-22T12:55:32.2529360Z with:
+2026-11-22T12:55:32.2529630Z   check_name: Test results
+2026-11-22T12:55:32.2529950Z   report_paths: pytest-results.xml
+2026-11-22T12:55:32.2530180Z   require_tests: false
+2026-11-22T12:55:32.2532430Z   token: ***
+2026-11-22T12:55:32.2532610Z   group_reports: true
+2026-11-22T12:55:32.2532890Z   annotate_only: false
+2026-11-22T12:55:32.2533170Z   check_annotations: true
+2026-11-22T12:55:32.2533390Z   update_check: false
+2026-11-22T12:55:32.2533660Z   fail_on_failure: false
+2026-11-22T12:55:32.2533870Z   fail_on_parse_error: false
+2026-11-22T12:55:32.2534190Z   require_passed_tests: false
+2026-11-22T12:55:32.2534430Z   include_passed: false
+2026-11-22T12:55:32.2534690Z   include_skipped: true
+2026-11-22T12:55:32.2534940Z   bread_crumb_delimiter: /
+2026-11-22T12:55:32.2535210Z   check_retries: false
+2026-11-22T12:55:32.2535730Z   transformers: []
+2026-11-22T12:55:32.2535970Z   job_summary: true
+2026-11-22T12:55:32.2536320Z   detailed_summary: false
+2026-11-22T12:55:32.2536530Z   failed_summary: true
+2026-11-22T12:55:32.2536770Z   failed_summary_logs: false
+2026-11-22T12:55:32.2537010Z   flaky_summary: false
+2026-11-22T12:55:32.2537280Z   verbose_summary: true
+2026-11-22T12:55:32.2537530Z   skip_success_summary: false
+2026-11-22T12:55:32.2537840Z   include_empty_in_summary: true
+2026-11-22T12:55:32.2538130Z   include_time_in_summary: false
+2026-11-22T12:55:32.2538380Z   simplified_summary: false
+2026-11-22T12:55:32.2538630Z   group_suite: false
+2026-11-22T12:55:32.2538770Z   comment: false
+2026-11-22T12:55:32.2539010Z   updateComment: true
+2026-11-22T12:55:32.2539210Z   annotate_notice: false
+2026-11-22T12:55:32.2539370Z   follow_symlink: false
+2026-11-22T12:55:32.2539520Z   job_name: test
+2026-11-22T12:55:32.2539670Z   truncate_stack_traces: true
+2026-11-22T12:55:32.2539850Z   resolve_ignore_classname: false
+2026-11-22T12:55:32.2540090Z   skip_comment_without_tests: false
+2026-11-22T12:55:32.2540340Z env:
+2026-11-22T12:55:32.2540640Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-22T12:55:32.2541040Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.11.9/arm64/lib/pkgconfig
+2026-11-22T12:55:32.2541500Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-22T12:55:32.2541860Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-22T12:55:32.2542280Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-22T12:55:32.2542630Z   UV_PYTHON_INSTALL_DIR: /Users/runner/work/_temp/uv-python-dir
+2026-11-22T12:55:32.2542920Z   UV_CACHE_DIR: /Users/runner/work/_temp/setup-uv-cache
+2026-11-22T12:55:32.2543140Z ##[endgroup]
+2026-11-22T12:55:33.0696940Z ##[group]📘 Reading input values
+2026-11-22T12:55:33.0699700Z ##[endgroup]
+2026-11-22T12:55:33.0700280Z ##[group]📦 Process test results
+2026-11-22T12:55:33.0700750Z Preparing 1 report as configured.
+2026-11-22T12:55:33.3384990Z pytest:1 | internal error
+2026-11-22T12:55:33.3386190Z pytest:1 | internal error
+2026-11-22T12:55:33.3423300Z ℹ️ Posting with conclusion 'failure' to refs/heads/main (sha: 9c099320dfdafb6782069a1948b2f045ecc2d102)
+2026-11-22T12:55:33.3424030Z ##[endgroup]
+2026-11-22T12:55:33.3428240Z ##[group]🚀 Publish results
+2026-11-22T12:55:33.3433330Z ℹ️ - Test results - 4481 tests run, 3911 passed, 569 skipped, 1 failed.
+2026-11-22T12:55:33.3433800Z    🧪 - pytest | internal error
+2026-11-22T12:55:33.3434040Z    🧪 - pytest | internal error
+2026-11-22T12:55:33.3451260Z ℹ️ - Test results - Creating check (Annotations: 2)
+2026-11-22T12:55:33.9714410Z ##[endgroup]
+2026-11-22T12:55:33.9901830Z ##[group]Run actions/upload-artifact@v6
+2026-11-22T12:55:33.9902530Z with:
+2026-11-22T12:55:33.9903010Z   name: pytest-results-macos-15-3.11
+2026-11-22T12:55:33.9903600Z   path: pytest-results.xml
+2026-11-22T12:55:33.9904140Z   if-no-files-found: ignore
+2026-11-22T12:55:33.9904660Z   compression-level: 6
+2026-11-22T12:55:33.9905250Z   overwrite: false
+2026-11-22T12:55:33.9905750Z   include-hidden-files: false
+2026-11-22T12:55:33.9906380Z env:
+2026-11-22T12:55:33.9907020Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-22T12:55:33.9908110Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.11.9/arm64/lib/pkgconfig
+2026-11-22T12:55:33.9909210Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-22T12:55:33.9910190Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-22T12:55:33.9911200Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.11.9/arm64
+2026-11-22T12:55:33.9912220Z   UV_PYTHON_INSTALL_DIR: /Users/runner/work/_temp/uv-python-dir
+2026-11-22T12:55:33.9913100Z   UV_CACHE_DIR: /Users/runner/work/_temp/setup-uv-cache
+2026-11-22T12:55:33.9913750Z ##[endgroup]
+2026-11-22T12:55:34.2464100Z With the provided path, there will be 1 file uploaded
+2026-11-22T12:55:34.2468710Z Artifact name is valid!
+2026-11-22T12:55:34.2470900Z Root directory input is valid!
+2026-11-22T12:55:34.6620160Z Beginning upload of artifact content to blob storage
+2026-11-22T12:55:35.0883680Z Uploaded bytes 92595
+2026-11-22T12:55:35.1627070Z Finished uploading artifact content to blob storage!
+2026-11-22T12:55:35.1629020Z SHA256 digest of uploaded artifact zip is 27a6a388ca6beb7d402d97a470ddf069a36ec4e8697f9c0a3ae903940108b9f0
+2026-11-22T12:55:35.1630720Z Finalizing artifact upload
+2026-11-22T12:55:35.6571140Z Artifact pytest-results-macos-15-3.11.zip successfully finalized. Artifact ID 14754792530
+2026-11-22T12:55:35.6598950Z Artifact pytest-results-macos-15-3.11 has been successfully uploaded! Final size is 92595 bytes. Artifact ID is 14754792530
+2026-11-22T12:55:35.6609690Z Artifact download URL: https://github.com/AbdallahIsDev/Lausu/actions/runs/45024078547/artifacts/14754792530
+2026-11-22T12:55:35.6748660Z Post job cleanup.
+2026-11-22T12:55:35.8354790Z [command]/opt/homebrew/bin/git version
+2026-11-22T12:55:35.8473100Z git version 2.56.1
+2026-11-22T12:55:35.8500050Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/27de7278-9db4-4611-befe-46533d5bd094/.gitconfig'
+2026-11-22T12:55:35.8522020Z Temporarily overriding HOME='/Users/runner/work/_temp/27de7278-9db4-4611-befe-46533d5bd094' before making global git config changes
+2026-11-22T12:55:35.8526290Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-22T12:55:35.8533370Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/Lausu/Lausu
+2026-11-22T12:55:35.8627700Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-22T12:55:35.8694290Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-22T12:55:36.0000230Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-22T12:55:36.0081340Z http.https://github.com/.extraheader
+2026-11-22T12:55:36.0089700Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-22T12:55:36.0172970Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-22T12:55:36.1078700Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-22T12:55:36.1139780Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-22T12:55:36.2225240Z Cleaning up orphan processes

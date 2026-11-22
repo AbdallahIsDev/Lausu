@@ -1,0 +1,421 @@
+﻿2026-11-21T00:28:41.9911671Z Current runner version: '2.338.2'
+2026-11-21T00:28:41.9932218Z ##[group]Runner Image Provisioner
+2026-11-21T00:28:41.9932917Z Hosted Compute Agent
+2026-11-21T00:28:41.9933533Z Version: 20261111.635
+2026-11-21T00:28:41.9934074Z Commit: b8a594ea514ff44cadb5342986c68b1eac6e22ed
+2026-11-21T00:28:41.9934732Z Build Date: 2026-11-11T01:49:01Z
+2026-11-21T00:28:41.9935348Z Worker ID: {7931dbef-fed1-4e32-b11f-66d8500a4515}
+2026-11-21T00:28:41.9935967Z Region: westus2
+2026-11-21T00:28:41.9936527Z Cloud: Azure
+2026-11-21T00:28:41.9936988Z ##[endgroup]
+2026-11-21T00:28:41.9938101Z ##[group]Operating System
+2026-11-21T00:28:41.9938658Z Ubuntu
+2026-11-21T00:28:41.9939105Z 22.04.5
+2026-11-21T00:28:41.9939616Z LTS
+2026-11-21T00:28:41.9940065Z ##[endgroup]
+2026-11-21T00:28:41.9940653Z ##[group]Runner Image
+2026-11-21T00:28:41.9941284Z Image: ubuntu-22.04
+2026-11-21T00:28:41.9941767Z Version: 20261116.365.1
+2026-11-21T00:28:41.9942893Z Included Software: https://github.com/actions/runner-images/blob/ubuntu22/20261116.365/images/ubuntu/Ubuntu2204-Readme.md
+2026-11-21T00:28:41.9944123Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu22%2F20261116.365
+...[fixture: middle truncated]...
+2026-11-21T00:30:52.1672769Z [1m[92m   Compiling[0m cargo-platform v0.1.9
+2026-11-21T00:30:52.2160039Z [1m[92m   Compiling[0m quick-xml v0.41.0
+2026-11-21T00:30:52.3332140Z [1m[92m   Compiling[0m thiserror-impl v1.0.69
+2026-11-21T00:30:52.4681950Z [1m[92m   Compiling[0m same-file v1.0.6
+2026-11-21T00:30:52.5501107Z [1m[92m   Compiling[0m dyn-clone v1.0.20
+2026-11-21T00:30:52.6250252Z [1m[92m   Compiling[0m heck v0.4.1
+2026-11-21T00:30:52.7396890Z [1m[92m   Compiling[0m base64 v0.22.1
+2026-11-21T00:30:52.7533331Z [1m[92m   Compiling[0m dunce v1.0.5
+2026-11-21T00:30:52.7910820Z [1m[92m   Compiling[0m foldhash v0.2.0
+2026-11-21T00:30:52.9141890Z [1m[92m   Compiling[0m bytes v1.12.1
+2026-11-21T00:30:52.9626790Z [1m[92m   Compiling[0m plist v1.10.0
+2026-11-21T00:30:53.1788243Z [1m[92m   Compiling[0m dom_query v0.28.0
+2026-11-21T00:30:53.4611717Z [1m[92m   Compiling[0m http v1.4.2
+2026-11-21T00:30:53.7191727Z [1m[92m   Compiling[0m glib-macros v0.18.5
+2026-11-21T00:30:54.3351774Z [1m[92m   Compiling[0m walkdir v2.5.0
+2026-11-21T00:30:54.5712183Z [1m[92m   Compiling[0m brotli v9.0.0
+2026-11-21T00:30:54.8231883Z [1m[92m   Compiling[0m cargo_metadata v0.19.2
+2026-11-21T00:30:55.1441359Z [1m[92m   Compiling[0m json-patch v4.2.0
+2026-11-21T00:30:55.9687440Z [1m[92m   Compiling[0m serde-untagged v0.1.9
+2026-11-21T00:30:56.1351870Z [1m[92m   Compiling[0m infer v0.22.0
+2026-11-21T00:30:56.2631332Z [1m[92m   Compiling[0m urlpattern v0.6.0
+2026-11-21T00:30:56.7231824Z [1m[92m    Checking[0m futures-executor v0.3.33
+2026-11-21T00:30:56.7957476Z [1m[92m   Compiling[0m serde_with v3.21.0
+2026-11-21T00:30:56.8801763Z [1m[92m    Checking[0m futures-channel v0.3.33
+2026-11-21T00:30:56.9911829Z [1m[92m   Compiling[0m glob v0.3.4
+2026-11-21T00:30:57.0531464Z [1m[92m   Compiling[0m ctor v1.0.13
+2026-11-21T00:30:57.1325563Z [1m[92m    Checking[0m glib v0.18.5
+2026-11-21T00:30:57.2431925Z [1m[92m   Compiling[0m gtk-sys v0.18.2
+2026-11-21T00:30:57.5051749Z [1m[92m   Compiling[0m generic-array v0.14.7
+2026-11-21T00:30:57.6111931Z [1m[92m   Compiling[0m gio v0.18.4
+2026-11-21T00:30:57.8591670Z [1m[92m   Compiling[0m crc32fast v1.5.0
+2026-11-21T00:30:58.0316550Z [1m[92m   Compiling[0m shlex v2.0.1
+2026-11-21T00:30:58.0645404Z [1m[92m   Compiling[0m find-msvc-tools v0.1.9
+2026-11-21T00:30:58.2484666Z [1m[92m   Compiling[0m cc v1.4.0
+2026-11-21T00:30:58.4446813Z [1m[92m   Compiling[0m tauri-utils v2.10.1
+2026-11-21T00:30:59.4061833Z [1m[92m   Compiling[0m memoffset v0.9.1
+2026-11-21T00:30:59.8231772Z [1m[92m   Compiling[0m option-ext v0.2.0
+2026-11-21T00:30:59.8621859Z [1m[92m   Compiling[0m dirs-sys v0.5.0
+2026-11-21T00:31:00.1231814Z [1m[92m   Compiling[0m embed-resource v3.0.11
+2026-11-21T00:31:00.4603612Z [1m[92m   Compiling[0m field-offset v0.3.6
+2026-11-21T00:31:00.5511889Z [1m[92m   Compiling[0m toml_edit v0.19.15
+2026-11-21T00:31:01.2601651Z [1m[92m   Compiling[0m tauri-winres v0.3.6
+2026-11-21T00:31:01.5883683Z [1m[92m   Compiling[0m dirs v7.0.0
+2026-11-21T00:31:01.6461650Z [1m[92m   Compiling[0m cargo_toml v1.0.1
+2026-11-21T00:31:03.3082398Z [1m[92m    Checking[0m cairo-rs v0.18.5
+2026-11-21T00:31:03.8051405Z [1m[92m   Compiling[0m proc-macro-crate v1.3.1
+2026-11-21T00:31:04.1821568Z [1m[92m    Checking[0m errno v0.3.14
+2026-11-21T00:31:04.2381750Z [1m[92m   Compiling[0m gtk v0.18.2
+2026-11-21T00:31:04.8651864Z [1m[92m    Checking[0m signal-hook-registry v1.4.8
+2026-11-21T00:31:05.0741803Z [1m[92m   Compiling[0m gtk3-macros v0.18.2
+2026-11-21T00:31:05.1501857Z [1m[92m    Checking[0m atk v0.18.2
+2026-11-21T00:31:05.5524406Z [1m[92m   Compiling[0m tauri-plugin v2.7.1
+2026-11-21T00:31:05.8871779Z [1m[92m   Compiling[0m tauri-build v2.7.1
+2026-11-21T00:31:07.3971774Z [1m[92m   Compiling[0m javascriptcore-rs-sys v1.1.1
+2026-11-21T00:31:07.4498627Z [1m[92m   Compiling[0m soup3-sys v0.5.0
+2026-11-21T00:31:08.2057545Z [1m[92m    Checking[0m parking v2.2.1
+2026-11-21T00:31:08.2532153Z [1m[92m   Compiling[0m simd-adler32 v0.3.10
+2026-11-21T00:31:08.7021005Z [1m[92m    Checking[0m concurrent-queue v2.5.0
+2026-11-21T00:31:08.8131926Z [1m[92m   Compiling[0m webkit2gtk-sys v2.0.2
+2026-11-21T00:31:09.0160014Z [1m[92m   Compiling[0m time-macros v0.2.32
+2026-11-21T00:31:10.1641726Z [1m[92m    Checking[0m gdk-pixbuf v0.18.5
+2026-11-21T00:31:10.6219261Z [1m[92m    Checking[0m pango v0.18.3
+2026-11-21T00:31:10.9841664Z [1m[92m   Compiling[0m x11 v2.21.0
+2026-11-21T00:31:11.1741720Z [1m[92m   Compiling[0m typenum v1.20.1
+2026-11-21T00:31:11.7815289Z [1m[92m    Checking[0m gdk v0.18.2
+2026-11-21T00:31:11.8689129Z [1m[92m   Compiling[0m adler2 v2.0.1
+2026-11-21T00:31:11.9341828Z [1m[92m   Compiling[0m getrandom v0.3.4
+2026-11-21T00:31:11.9768803Z [1m[92m   Compiling[0m rustix v1.1.4
+2026-11-21T00:31:12.3063070Z [1m[92m   Compiling[0m miniz_oxide v0.8.9
+2026-11-21T00:31:14.5171668Z [1m[92m    Checking[0m dpi v0.1.2
+2026-11-21T00:31:14.5432247Z [1m[92m   Compiling[0m gdkx11-sys v0.18.2
+2026-11-21T00:31:14.7338976Z [1m[92m    Checking[0m bitflags v1.3.2
+2026-11-21T00:31:14.7649255Z [1m[92m    Checking[0m linux-raw-sys v0.12.1
+2026-11-21T00:31:15.2981678Z [1m[92m   Compiling[0m flate2 v1.1.9
+2026-11-21T00:31:15.8538235Z [1m[92m   Compiling[0m tauri v2.12.2
+2026-11-21T00:31:16.3822038Z [1m[92m   Compiling[0m fdeflate v0.3.7
+2026-11-21T00:31:16.7442827Z [1m[92m    Checking[0m crossbeam-channel v0.5.16
+2026-11-21T00:31:16.7671377Z [1m[92m   Compiling[0m cookie v0.18.1
+2026-11-21T00:31:16.8692395Z [1m[92m   Compiling[0m libdbus-sys v0.2.7
+2026-11-21T00:31:16.9766919Z [1m[92m   Compiling[0m x11-dl v2.21.0
+2026-11-21T00:31:17.1152118Z [1m[92m    Checking[0m raw-window-handle v0.6.2
+2026-11-21T00:31:18.4472442Z [1m[92m    Checking[0m javascriptcore-rs v1.1.2
+2026-11-21T00:31:18.9500189Z [1m[92m    Checking[0m soup3 v0.5.0
+2026-11-21T00:31:18.9953755Z [1m[92m   Compiling[0m crypto-common v0.1.7
+2026-11-21T00:31:19.0523828Z [1m[92m   Compiling[0m block-buffer v0.10.4
+2026-11-21T00:31:19.1881999Z [1m[92m   Compiling[0m toml_edit v0.25.13+spec-1.1.0
+2026-11-21T00:31:19.8460807Z [1m[92m   Compiling[0m enumflags2_derive v0.7.12
+2026-11-21T00:31:20.3791637Z [1m[92m   Compiling[0m num-traits v0.2.19
+2026-11-21T00:31:20.6809606Z [1m[92m   Compiling[0m png v0.17.16
+2026-11-21T00:31:21.3712034Z [1m[92m   Compiling[0m proc-macro-crate v3.5.0
+2026-11-21T00:31:21.7291918Z [1m[92m   Compiling[0m digest v0.10.7
+2026-11-21T00:31:23.0551654Z [1m[92m    Checking[0m event-listener v5.4.1
+2026-11-21T00:31:24.2081674Z [1m[92m    Checking[0m libloading v0.7.4
+2026-11-21T00:31:24.2779927Z [1m[92m   Compiling[0m zvariant_utils v3.5.0
+2026-11-21T00:31:24.2842093Z [1m[92m   Compiling[0m dlopen2_derive v0.4.3
+2026-11-21T00:31:24.4802561Z [1m[92m   Compiling[0m cpufeatures v0.2.17
+2026-11-21T00:31:24.6196681Z [1m[92m   Compiling[0m wry v0.57.0
+2026-11-21T00:31:24.7393550Z [1m[92m   Compiling[0m byteorder v1.5.0
+2026-11-21T00:31:24.8070189Z [1m[92m   Compiling[0m muda v0.20.0
+2026-11-21T00:31:24.8511267Z [1m[92m   Compiling[0m tauri-runtime v2.12.1
+2026-11-21T00:31:24.9223464Z [1m[92m   Compiling[0m ico v0.5.0
+2026-11-21T00:31:24.9662228Z [1m[92m    Checking[0m dlopen2 v0.8.2
+2026-11-21T00:31:25.0621801Z [1m[92m   Compiling[0m zvariant_derive v5.13.1
+2026-11-21T00:31:25.7307908Z [1m[92m   Compiling[0m sha2 v0.10.9
+2026-11-21T00:31:26.0121734Z [1m[92m    Checking[0m libappindicator-sys v0.9.0
+2026-11-21T00:31:26.0209502Z [1m[92m    Checking[0m event-listener-strategy v0.5.4
+2026-11-21T00:31:26.0687800Z [1m[92m    Checking[0m png v0.18.1
+2026-11-21T00:31:26.0806797Z [1m[92m    Checking[0m dbus v0.9.12
+2026-11-21T00:31:27.2191672Z [1m[92m    Checking[0m futures-lite v2.6.1
+2026-11-21T00:31:27.2620088Z [1m[92m    Checking[0m gdkx11 v0.18.2
+2026-11-21T00:31:27.7411200Z [1m[92m    Checking[0m gdkwayland-sys v0.18.2
+2026-11-21T00:31:27.7931880Z [1m[92m    Checking[0m keyboard-types v0.8.3
+2026-11-21T00:31:28.5010590Z [1m[92m   Compiling[0m tokio-macros v2.7.1
+2026-11-21T00:31:28.6028847Z [1m[92m   Compiling[0m serde_repr v0.1.21
+2026-11-21T00:31:28.8351914Z [1m[92m    Checking[0m socket2 v0.6.5
+2026-11-21T00:31:28.9701415Z [1m[92m    Checking[0m mio v1.2.2
+2026-11-21T00:31:28.9811939Z [1m[92m    Checking[0m webkit2gtk v2.0.2
+2026-11-21T00:31:29.0701864Z [1m[92m   Compiling[0m tray-icon v0.25.1
+2026-11-21T00:31:29.1391994Z [1m[92m   Compiling[0m tauri-runtime-wry v2.12.1
+2026-11-21T00:31:29.1791851Z [1m[92m    Checking[0m pxfm v0.1.30
+2026-11-21T00:31:29.1911686Z [1m[92m    Checking[0m tokio v1.53.1
+2026-11-21T00:31:29.9251596Z [1m[92m    Checking[0m libappindicator v0.9.0
+2026-11-21T00:31:29.9701909Z [1m[92m    Checking[0m tao v0.37.1
+2026-11-21T00:31:30.6571708Z [1m[92m   Compiling[0m tauri-codegen v2.7.1
+2026-11-21T00:31:31.0070794Z [1m[92m    Checking[0m moxcms v0.8.1
+2026-11-21T00:31:32.4209494Z [1m[92m   Compiling[0m serialize-to-javascript-impl v0.1.2
+2026-11-21T00:31:32.7095639Z [1m[92m   Compiling[0m async-io v2.6.0
+2026-11-21T00:31:32.7170038Z [1m[92m   Compiling[0m zerocopy v0.8.55
+2026-11-21T00:31:32.8189159Z [1m[92m    Checking[0m bytemuck v1.25.2
+2026-11-21T00:31:32.8452350Z [1m[92m    Checking[0m byteorder-lite v0.1.0
+2026-11-21T00:31:32.9869936Z [1m[92m   Compiling[0m tauri-macros v2.7.1
+2026-11-21T00:31:33.0536585Z [1m[92m    Checking[0m serialize-to-javascript v0.1.2
+2026-11-21T00:31:33.4881648Z [1m[92m   Compiling[0m enumflags2 v0.7.12
+2026-11-21T00:31:33.5501690Z [1m[92m    Checking[0m image v0.25.10
+2026-11-21T00:31:33.6044173Z [1m[92m    Checking[0m polling v3.11.0
+2026-11-21T00:31:33.7091969Z [1m[92m    Checking[0m mime v0.3.17
+2026-11-21T00:31:34.4353119Z [1m[92m    Checking[0m async-task v4.7.1
+2026-11-21T00:31:34.4416957Z [1m[92m   Compiling[0m endi v1.1.1
+2026-11-21T00:31:34.5471869Z [1m[92m   Compiling[0m zvariant v5.13.1
+2026-11-21T00:31:35.3891674Z [1m[92m    Checking[0m async-channel v2.5.0
+2026-11-21T00:31:35.6571844Z [1m[92m    Checking[0m atomic-waker v1.1.2
+2026-11-21T00:31:35.6959214Z [1m[92m    Checking[0m piper v0.2.5
+2026-11-21T00:31:36.6921883Z [1m[92m   Compiling[0m zbus_names v4.3.4
+2026-11-21T00:31:37.2033009Z [1m[92m    Checking[0m async-signal v0.2.14
+2026-11-21T00:31:37.2104137Z [1m[92m    Checking[0m async-lock v3.4.2
+2026-11-21T00:31:37.2741876Z [1m[92m    Checking[0m rand_core v0.9.5
+2026-11-21T00:31:37.3734622Z [1m[92m   Compiling[0m tauri-plugin-fs v2.5.1
+2026-11-21T00:31:37.5021716Z [1m[92m    Checking[0m tracing-core v0.1.36
+2026-11-21T00:31:37.7362036Z [1m[92m   Compiling[0m tracing-attributes v0.1.31
+2026-11-21T00:31:38.1951884Z [1m[92m   Compiling[0m signal-hook v0.3.18
+2026-11-21T00:31:38.2590017Z [1m[92m    Checking[0m ppv-lite86 v0.2.21
+2026-11-21T00:31:38.3341655Z [1m[92m    Checking[0m async-process v2.5.0
+2026-11-21T00:31:38.5002064Z [1m[92m    Checking[0m rand_chacha v0.9.0
+2026-11-21T00:31:38.6171876Z [1m[92m   Compiling[0m zbus_macros v5.18.0
+2026-11-21T00:31:38.7721819Z [1m[92m    Checking[0m blocking v1.6.2
+2026-11-21T00:31:38.8912840Z [1m[92m    Checking[0m async-executor v1.14.0
+2026-11-21T00:31:38.9301768Z [1m[92m    Checking[0m async-broadcast v0.7.2
+2026-11-21T00:31:39.0041811Z [1m[92m   Compiling[0m async-recursion v1.1.1
+2026-11-21T00:31:39.0461603Z [1m[92m    Checking[0m ordered-stream v0.2.0
+2026-11-21T00:31:39.1561791Z [1m[92m    Checking[0m tracing v0.1.44
+2026-11-21T00:31:39.2300593Z [1m[92m   Compiling[0m async-trait v0.1.91
+2026-11-21T00:31:39.2611751Z [1m[92m   Compiling[0m httparse v1.10.1
+2026-11-21T00:31:39.4822585Z [1m[92m    Checking[0m hex v0.4.3
+2026-11-21T00:31:39.6191601Z [1m[92m    Checking[0m rand v0.9.5
+2026-11-21T00:31:39.7298639Z [1m[92m    Checking[0m gethostname v1.1.0
+2026-11-21T00:31:39.7638544Z [1m[92m   Compiling[0m tauri-plugin-notification v2.5.1 (https://github.com/tauri-apps/plugins-workspace?rev=818d2e04d92fd208f11aafdf32bb4a0605f344b2#818d2e04)
+2026-11-21T00:31:40.0125262Z [1m[92m   Compiling[0m tauri-plugin-global-shortcut v2.3.2
+2026-11-21T00:31:40.2926068Z [1m[92m   Compiling[0m tauri-plugin-dialog v2.7.2
+2026-11-21T00:31:40.3511802Z [1m[92m   Compiling[0m tauri-plugin-shell v2.3.5
+2026-11-21T00:31:40.6401739Z [1m[92m    Checking[0m is-docker v0.2.0
+2026-11-21T00:31:40.6791737Z [1m[92m    Checking[0m os_pipe v1.2.3
+2026-11-21T00:31:40.7556667Z [1m[92m    Checking[0m x11rb-protocol v0.13.2
+2026-11-21T00:31:40.8832840Z [1m[92m   Compiling[0m rfd v0.16.0
+2026-11-21T00:31:41.0248677Z [1m[92m    Checking[0m utf8parse v0.2.2
+2026-11-21T00:31:41.0605920Z [1m[92m    Checking[0m unicode-segmentation v1.13.3
+2026-11-21T00:31:41.0729089Z [1m[92m    Checking[0m anstyle-parse v1.0.0
+2026-11-21T00:31:41.1802429Z [1m[92m    Checking[0m sha1 v0.10.7
+2026-11-21T00:31:41.2681373Z [1m[92m    Checking[0m sigchld v0.2.4
+2026-11-21T00:31:41.3089923Z [1m[92m    Checking[0m keyboard-types v0.7.0
+2026-11-21T00:31:41.3157793Z [1m[92m    Checking[0m is-wsl v0.4.0
+2026-11-21T00:31:41.5138359Z [1m[92m    Checking[0m xkeysym v0.2.1
+2026-11-21T00:31:41.8681691Z [1m[92m    Checking[0m zbus v5.18.0
+2026-11-21T00:31:41.9958697Z [1m[92m    Checking[0m jiff-core v0.1.0
+2026-11-21T00:31:42.0781654Z [1m[92m    Checking[0m data-encoding v2.11.0
+2026-11-21T00:31:42.2647235Z [1m[92m    Checking[0m is_terminal_polyfill v1.70.2
+2026-11-21T00:31:42.3021365Z [1m[92m    Checking[0m anstyle-query v1.1.5
+2026-11-21T00:31:42.3361555Z [1m[92m    Checking[0m colorchoice v1.0.5
+2026-11-21T00:31:42.3721637Z [1m[92m    Checking[0m anstyle v1.0.14
+2026-11-21T00:31:42.4711626Z [1m[92m    Checking[0m utf-8 v0.7.6
+2026-11-21T00:31:42.5261644Z [1m[92m    Checking[0m tungstenite v0.27.0
+2026-11-21T00:31:42.5871629Z [1m[92m    Checking[0m jiff v0.2.35
+2026-11-21T00:31:42.8281707Z [1m[92m    Checking[0m anstream v1.0.0
+2026-11-21T00:31:42.9441548Z [1m[92m    Checking[0m open v5.4.0
+2026-11-21T00:31:43.0061971Z [1m[92m    Checking[0m shared_child v1.1.1
+2026-11-21T00:31:43.8641878Z [1m[92m   Compiling[0m lausu-tauri v1.0.0 (/home/runner/work/Lausu/Lausu/src-tauri)
+2026-11-21T00:31:44.2806982Z [1m[92m    Checking[0m env_filter v2.0.0
+2026-11-21T00:31:44.3591817Z [1m[92m    Checking[0m encoding_rs v0.8.35
+2026-11-21T00:31:44.3793235Z [1m[92m    Checking[0m x11rb v0.13.2
+2026-11-21T00:31:44.5344366Z [1m[92m    Checking[0m csv-core v0.1.13
+2026-11-21T00:31:44.6361640Z [1m[92m    Checking[0m ryu v1.0.23
+2026-11-21T00:31:44.7131642Z [1m[92m    Checking[0m csv v1.4.0
+2026-11-21T00:31:45.0622424Z [1m[92m    Checking[0m global-hotkey v0.8.0
+2026-11-21T00:31:45.0665070Z [1m[92m    Checking[0m env_logger v0.11.11
+2026-11-21T00:31:45.4061702Z [1m[92m    Checking[0m tokio-tungstenite v0.27.0
+2026-11-21T00:31:45.6197864Z [1m[92m    Checking[0m notify-rust v4.18.0
+2026-11-21T00:31:45.6198286Z [1m[92m    Checking[0m tauri-plugin-single-instance v2.4.3
+2026-11-21T00:31:47.9876301Z [1m[33mwarning[0m[1m: function `bubble_presented` is never used[0m
+2026-11-21T00:31:47.9877010Z   [1m[94m--> [0msrc/commands/bubble/window.rs:86:15
+2026-11-21T00:31:47.9877433Z    [1m[94m|[0m
+2026-11-21T00:31:47.9878164Z [1m[94m86[0m [1m[94m|[0m pub(crate) fn bubble_presented(tauri_visible: bool, is_window_visible: bool, cloaked: u32) -> bool {
+2026-11-21T00:31:47.9878970Z    [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^[0m
+2026-11-21T00:31:47.9879374Z    [1m[94m|[0m
+2026-11-21T00:31:47.9879864Z    [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+2026-11-21T00:31:47.9880239Z 
+2026-11-21T00:31:47.9880767Z [1m[33mwarning[0m[1m: function `ensure_bubble_msg_hook` is never used[0m
+2026-11-21T00:31:47.9881325Z    [1m[94m--> [0msrc/commands/bubble/window.rs:544:15
+2026-11-21T00:31:47.9881671Z     [1m[94m|[0m
+2026-11-21T00:31:47.9889833Z [1m[94m544[0m [1m[94m|[0m pub(crate) fn ensure_bubble_msg_hook(_window: &tauri::WebviewWindow, _rescan_children: bool) {}
+2026-11-21T00:31:47.9890747Z     [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^^^^^^^[0m
+2026-11-21T00:31:47.9891550Z 
+2026-11-21T00:31:47.9891870Z [1m[33mwarning[0m[1m: variant `Suspended` is never constructed[0m
+2026-11-21T00:31:47.9892415Z   [1m[94m--> [0msrc/platform/power.rs:50:5
+2026-11-21T00:31:47.9892797Z    [1m[94m|[0m
+2026-11-21T00:31:47.9893186Z [1m[94m48[0m [1m[94m|[0m pub(crate) enum PowerState {
+2026-11-21T00:31:47.9893723Z    [1m[94m|[0m                 [1m[94m----------[0m [1m[94mvariant in this enum[0m
+2026-11-21T00:31:47.9894190Z [1m[94m49[0m [1m[94m|[0m     Running = 0,
+2026-11-21T00:31:47.9894561Z [1m[94m50[0m [1m[94m|[0m     Suspended = 1,
+2026-11-21T00:31:47.9894906Z    [1m[94m|[0m     [1m[33m^^^^^^^^^[0m
+2026-11-21T00:31:47.9895200Z    [1m[94m|[0m
+2026-11-21T00:31:47.9895902Z    [1m[94m= [0m[1mnote[0m: `PowerState` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+2026-11-21T00:31:47.9896463Z 
+2026-11-21T00:31:47.9898122Z [1m[33mwarning[0m[1m: associated function `from_u8` is never used[0m
+2026-11-21T00:31:47.9898956Z   [1m[94m--> [0msrc/platform/power.rs:54:8
+2026-11-21T00:31:47.9899328Z    [1m[94m|[0m
+2026-11-21T00:31:47.9899670Z [1m[94m53[0m [1m[94m|[0m impl PowerState {
+2026-11-21T00:31:47.9900269Z    [1m[94m|[0m [1m[94m---------------[0m [1m[94massociated function in this implementation[0m
+2026-11-21T00:31:47.9901039Z [1m[94m54[0m [1m[94m|[0m     fn from_u8(v: u8) -> Self {
+2026-11-21T00:31:47.9901454Z    [1m[94m|[0m        [1m[33m^^^^^^^[0m
+2026-11-21T00:31:47.9901669Z 
+2026-11-21T00:31:47.9901926Z [1m[33mwarning[0m[1m: enum `PowerEvent` is never used[0m
+2026-11-21T00:31:47.9902354Z   [1m[94m--> [0msrc/platform/power.rs:64:17
+2026-11-21T00:31:47.9902691Z    [1m[94m|[0m
+2026-11-21T00:31:47.9903043Z [1m[94m64[0m [1m[94m|[0m pub(crate) enum PowerEvent {
+2026-11-21T00:31:47.9903460Z    [1m[94m|[0m                 [1m[33m^^^^^^^^^^[0m
+2026-11-21T00:31:47.9903698Z 
+2026-11-21T00:31:47.9903959Z [1m[33mwarning[0m[1m: enum `PowerAction` is never used[0m
+2026-11-21T00:31:47.9904411Z   [1m[94m--> [0msrc/platform/power.rs:72:17
+2026-11-21T00:31:47.9904783Z    [1m[94m|[0m
+2026-11-21T00:31:47.9905155Z [1m[94m72[0m [1m[94m|[0m pub(crate) enum PowerAction {
+2026-11-21T00:31:47.9905624Z    [1m[94m|[0m                 [1m[33m^^^^^^^^^^^[0m
+2026-11-21T00:31:47.9905885Z 
+2026-11-21T00:31:47.9906094Z [1m[33mwarning[0m[1m: field `state` is never read[0m
+2026-11-21T00:31:47.9906555Z   [1m[94m--> [0msrc/platform/power.rs:83:5
+2026-11-21T00:31:47.9906922Z    [1m[94m|[0m
+2026-11-21T00:31:47.9907304Z [1m[94m82[0m [1m[94m|[0m pub(crate) struct PowerMonitor {
+2026-11-21T00:31:47.9907903Z    [1m[94m|[0m                   [1m[94m------------[0m [1m[94mfield in this struct[0m
+2026-11-21T00:31:47.9908429Z [1m[94m83[0m [1m[94m|[0m     state: AtomicU8,
+2026-11-21T00:31:47.9908802Z    [1m[94m|[0m     [1m[33m^^^^^[0m
+2026-11-21T00:31:47.9909009Z 
+2026-11-21T00:31:47.9909278Z [1m[33mwarning[0m[1m: methods `state` and `apply` are never used[0m
+2026-11-21T00:31:47.9909739Z   [1m[94m--> [0msrc/platform/power.rs:93:19
+2026-11-21T00:31:47.9910095Z    [1m[94m|[0m
+2026-11-21T00:31:47.9910599Z [1m[94m86[0m [1m[94m|[0m impl PowerMonitor {
+2026-11-21T00:31:47.9911149Z    [1m[94m|[0m [1m[94m-----------------[0m [1m[94mmethods in this implementation[0m
+2026-11-21T00:31:47.9911630Z [1m[94m...[0m
+2026-11-21T00:31:47.9912041Z [1m[94m93[0m [1m[94m|[0m     pub(crate) fn state(&self) -> PowerState {
+2026-11-21T00:31:47.9912503Z    [1m[94m|[0m                   [1m[33m^^^^^[0m
+2026-11-21T00:31:47.9912866Z [1m[94m...[0m
+2026-11-21T00:31:47.9913352Z [1m[94m97[0m [1m[94m|[0m     pub(crate) fn apply(&self, event: PowerEvent) -> PowerAction {
+2026-11-21T00:31:47.9913910Z    [1m[94m|[0m                   [1m[33m^^^^^[0m
+2026-11-21T00:31:47.9914132Z 
+2026-11-21T00:31:47.9914419Z [1m[33mwarning[0m[1m: constant `PBT_APMSUSPEND` is never used[0m
+2026-11-21T00:31:47.9915397Z    [1m[94m--> [0msrc/platform/power.rs:185:7
+2026-11-21T00:31:47.9915756Z     [1m[94m|[0m
+2026-11-21T00:31:47.9916132Z [1m[94m185[0m [1m[94m|[0m const PBT_APMSUSPEND: u32 = 0x0004;
+2026-11-21T00:31:47.9916570Z     [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^[0m
+2026-11-21T00:31:47.9916805Z 
+2026-11-21T00:31:47.9917100Z [1m[33mwarning[0m[1m: constant `PBT_APMRESUMESUSPEND` is never used[0m
+2026-11-21T00:31:47.9917627Z    [1m[94m--> [0msrc/platform/power.rs:187:7
+2026-11-21T00:31:47.9917995Z     [1m[94m|[0m
+2026-11-21T00:31:47.9918402Z [1m[94m187[0m [1m[94m|[0m const PBT_APMRESUMESUSPEND: u32 = 0x0007;
+2026-11-21T00:31:47.9918915Z     [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^^^[0m
+2026-11-21T00:31:47.9919166Z 
+2026-11-21T00:31:47.9919495Z [1m[33mwarning[0m[1m: constant `PBT_APMRESUMEAUTOMATIC` is never used[0m
+2026-11-21T00:31:47.9920022Z    [1m[94m--> [0msrc/platform/power.rs:189:7
+2026-11-21T00:31:47.9920573Z     [1m[94m|[0m
+2026-11-21T00:31:47.9921040Z [1m[94m189[0m [1m[94m|[0m const PBT_APMRESUMEAUTOMATIC: u32 = 0x0012;
+2026-11-21T00:31:47.9921543Z     [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^^^^^[0m
+2026-11-21T00:31:47.9921781Z 
+2026-11-21T00:31:47.9922079Z [1m[33mwarning[0m[1m: constant `PBT_APMPOWERSTATUSCHANGE` is never used[0m
+2026-11-21T00:31:47.9922598Z    [1m[94m--> [0msrc/platform/power.rs:191:7
+2026-11-21T00:31:47.9922950Z     [1m[94m|[0m
+2026-11-21T00:31:47.9923364Z [1m[94m191[0m [1m[94m|[0m const PBT_APMPOWERSTATUSCHANGE: u32 = 0x000A;
+2026-11-21T00:31:47.9923871Z     [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^[0m
+2026-11-21T00:31:47.9924116Z 
+2026-11-21T00:31:47.9924399Z [1m[33mwarning[0m[1m: function `map_windows_power_wparam` is never used[0m
+2026-11-21T00:31:47.9924896Z    [1m[94m--> [0msrc/platform/power.rs:193:15
+2026-11-21T00:31:47.9925249Z     [1m[94m|[0m
+2026-11-21T00:31:47.9925776Z [1m[94m193[0m [1m[94m|[0m pub(crate) fn map_windows_power_wparam(wparam: u32) -> Option<PowerEvent> {
+2026-11-21T00:31:47.9926398Z     [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^[0m
+2026-11-21T00:31:47.9926655Z 
+2026-11-21T00:31:47.9926912Z [1m[33mwarning[0m[1m: function `mirror_power_flag` is never used[0m
+2026-11-21T00:31:47.9927409Z    [1m[94m--> [0msrc/platform/power.rs:202:15
+2026-11-21T00:31:47.9927744Z     [1m[94m|[0m
+2026-11-21T00:31:47.9928287Z [1m[94m202[0m [1m[94m|[0m pub(crate) fn mirror_power_flag(state: &Arc<SidecarState>, action: PowerAction) {
+2026-11-21T00:31:47.9929010Z     [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^^[0m
+2026-11-21T00:31:47.9929269Z 
+2026-11-21T00:31:47.9929577Z [1m[33mwarning[0m[1m: function `dispatch_power_action` is never used[0m
+2026-11-21T00:31:47.9930094Z    [1m[94m--> [0msrc/platform/power.rs:218:15
+2026-11-21T00:31:47.9930617Z     [1m[94m|[0m
+2026-11-21T00:31:47.9930998Z [1m[94m218[0m [1m[94m|[0m pub(crate) fn dispatch_power_action(
+2026-11-21T00:31:47.9931509Z     [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^^^^^^[0m
+2026-11-21T00:31:47.9931761Z 
+2026-11-21T00:31:47.9932032Z [1m[33mwarning[0m[1m: function `handle_power_event` is never used[0m
+2026-11-21T00:31:47.9932505Z    [1m[94m--> [0msrc/platform/power.rs:242:15
+2026-11-21T00:31:47.9932843Z     [1m[94m|[0m
+2026-11-21T00:31:47.9933181Z [1m[94m242[0m [1m[94m|[0m pub(crate) fn handle_power_event(
+2026-11-21T00:31:47.9933643Z     [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^^^[0m
+2026-11-21T00:31:47.9933914Z 
+2026-11-21T00:31:47.9934192Z [1m[33mwarning[0m[1m: function `stop_sidecar_for_suspend` is never used[0m
+2026-11-21T00:31:47.9934759Z    [1m[94m--> [0msrc/sidecar/supervisor.rs:121:21
+2026-11-21T00:31:47.9935135Z     [1m[94m|[0m
+2026-11-21T00:31:47.9935658Z [1m[94m121[0m [1m[94m|[0m pub(crate) async fn stop_sidecar_for_suspend(state: &Arc<SidecarState>) {
+2026-11-21T00:31:47.9936298Z     [1m[94m|[0m                     [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^[0m
+2026-11-21T00:31:47.9937017Z 
+2026-11-21T00:31:47.9937361Z [1m[33mwarning[0m[1m: function `ensure_sidecar_after_resume` is never used[0m
+2026-11-21T00:31:47.9937924Z    [1m[94m--> [0msrc/sidecar/supervisor.rs:185:21
+2026-11-21T00:31:47.9938281Z     [1m[94m|[0m
+2026-11-21T00:31:47.9939142Z [1m[94m185[0m [1m[94m|[0m pub(crate) async fn ensure_sidecar_after_resume(app: &tauri::AppHandle, state: &Arc<SidecarState>) {
+2026-11-21T00:31:47.9939903Z     [1m[94m|[0m                     [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+2026-11-21T00:31:47.9940190Z 
+2026-11-21T00:31:48.0660975Z [1m[33mwarning[0m: `lausu-tauri` (bin "lausu-tauri") generated 18 warnings
+2026-11-21T00:31:49.6246039Z [1m[33mwarning[0m[1m: function `ensure_bubble_msg_hook` is never used[0m
+2026-11-21T00:31:49.6246495Z    [1m[94m--> [0msrc/commands/bubble/window.rs:544:15
+2026-11-21T00:31:49.6246783Z     [1m[94m|[0m
+2026-11-21T00:31:49.6247505Z [1m[94m544[0m [1m[94m|[0m pub(crate) fn ensure_bubble_msg_hook(_window: &tauri::WebviewWindow, _rescan_children: bool) {}
+2026-11-21T00:31:49.6247999Z     [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^^^^^^^[0m
+2026-11-21T00:31:49.6248265Z     [1m[94m|[0m
+2026-11-21T00:31:49.6248589Z     [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+2026-11-21T00:31:49.6248825Z 
+2026-11-21T00:31:49.7522409Z [1m[33mwarning[0m: `lausu-tauri` (bin "lausu-tauri" test) generated 4 warnings (3 duplicates)
+2026-11-21T00:31:49.7538187Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 1m 29s
+2026-11-21T00:31:49.7962624Z ##[group]Run cargo fmt --check
+2026-11-21T00:31:49.7962890Z [36;1mcargo fmt --check[0m
+2026-11-21T00:31:49.8017572Z shell: /usr/bin/bash -e {0}
+2026-11-21T00:31:49.8017788Z env:
+2026-11-21T00:31:49.8017977Z   RUST_TARGET: x86_64-unknown-linux-gnu
+2026-11-21T00:31:49.8018217Z   CARGO_HOME: /home/runner/.cargo
+2026-11-21T00:31:49.8018436Z   CARGO_INCREMENTAL: 0
+2026-11-21T00:31:49.8018640Z   CARGO_TERM_COLOR: always
+2026-11-21T00:31:49.8018823Z ##[endgroup]
+2026-11-21T00:31:50.0895694Z Diff in /home/runner/work/Lausu/Lausu/src-tauri/src/platform/logging_tests.rs:1844:
+2026-11-21T00:31:50.0896133Z  fn test_job_object_assignment_log_is_not_masked() {
+2026-11-21T00:31:50.0896481Z      // C-LOG-7: the raw Win32 flag is a 20+ char bare identifier and was
+2026-11-21T00:31:50.0896844Z      // logged as `***`. The operator-facing wording must survive redaction.
+2026-11-21T00:31:50.0897133Z -    let input =
+2026-11-21T00:31:50.0897525Z -        "[process] assigned sidecar pid 1234 to process-wide Job Object (kill-on-close)";
+2026-11-21T00:31:50.0897988Z +    let input = "[process] assigned sidecar pid 1234 to process-wide Job Object (kill-on-close)";
+2026-11-21T00:31:50.0898349Z      assert_eq!(redact_pii(input), input);
+2026-11-21T00:31:50.0898612Z      let source = include_str!("process/windows.rs");
+2026-11-21T00:31:50.0898852Z      assert!(
+2026-11-21T00:31:50.1175561Z Diff in /home/runner/work/Lausu/Lausu/src-tauri/src/sidecar/spawn/env_allowlist.rs:33:
+2026-11-21T00:31:50.1176366Z      // (dev/release sidecar + worker), so the mode was unreachable under Tauri.
+2026-11-21T00:31:50.1176990Z      // Safe to forward: it changes only the log formatter, never behavior.
+2026-11-21T00:31:50.1177607Z      if let Some(val) = std::env::var_os("VOICE_TYPER_LOG_JSON") {
+2026-11-21T00:31:50.1178019Z -        out.push((
+2026-11-21T00:31:50.1178363Z -            std::ffi::OsString::from("VOICE_TYPER_LOG_JSON"),
+2026-11-21T00:31:50.1178765Z -            val,
+2026-11-21T00:31:50.1179014Z -        ));
+2026-11-21T00:31:50.1179396Z +        out.push((std::ffi::OsString::from("VOICE_TYPER_LOG_JSON"), val));
+2026-11-21T00:31:50.1179840Z      }
+2026-11-21T00:31:50.1180064Z  
+2026-11-21T00:31:50.1180280Z      // POSIX: HOME
+2026-11-21T00:31:50.1317786Z Diff in /home/runner/work/Lausu/Lausu/src-tauri/src/sidecar/spawn_tests.rs:41:
+2026-11-21T00:31:50.1318527Z      let sentinel = "vt-spawn-test-json-logging-opt-in";
+2026-11-21T00:31:50.1319625Z      std::env::set_var("VOICE_TYPER_LOG_JSON", sentinel);
+2026-11-21T00:31:50.1320127Z      let envs = passthrough_env_allowlist();
+2026-11-21T00:31:50.1320753Z -    let found = envs
+2026-11-21T00:31:50.1321077Z -        .iter()
+2026-11-21T00:31:50.1321402Z -        .find(|(key, _)| key == "VOICE_TYPER_LOG_JSON");
+2026-11-21T00:31:50.1321969Z +    let found = envs.iter().find(|(key, _)| key == "VOICE_TYPER_LOG_JSON");
+2026-11-21T00:31:50.1322434Z      assert!(
+2026-11-21T00:31:50.1322726Z          found.is_some(),
+2026-11-21T00:31:50.1323125Z          "VOICE_TYPER_LOG_JSON must be in the passthrough allowlist"
+2026-11-21T00:31:50.1791987Z ##[error]Process completed with exit code 1.
+2026-11-21T00:31:50.1895373Z Post job cleanup.
+2026-11-21T00:31:50.2645985Z [command]/usr/bin/git version
+2026-11-21T00:31:50.2684347Z git version 2.56.1
+2026-11-21T00:31:50.2719781Z Temporarily overriding HOME='/home/runner/work/_temp/267881ab-e929-4953-9abe-53fadb34bb31' before making global git config changes
+2026-11-21T00:31:50.2721197Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-21T00:31:50.2724934Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Lausu/Lausu
+2026-11-21T00:31:50.2769170Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-21T00:31:50.2805483Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-21T00:31:50.3062876Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-21T00:31:50.3097823Z http.https://github.com/.extraheader
+2026-11-21T00:31:50.3109118Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-21T00:31:50.3144707Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-21T00:31:50.3416832Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-21T00:31:50.3460242Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-21T00:31:50.3826858Z Cleaning up orphan processes

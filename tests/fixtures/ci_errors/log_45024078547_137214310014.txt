@@ -1,0 +1,295 @@
+﻿2026-11-22T12:51:45.8163667Z Current runner version: '2.338.2'
+2026-11-22T12:51:45.8177627Z ##[group]Runner Image Provisioner
+2026-11-22T12:51:45.8178357Z Hosted Compute Agent
+2026-11-22T12:51:45.8178670Z Version: 20261111.635
+2026-11-22T12:51:45.8179049Z Commit: b8a594ea514ff44cadb5342986c68b1eac6e22ed
+2026-11-22T12:51:45.8179438Z Build Date: 2026-11-11T01:49:01Z
+2026-11-22T12:51:45.8179797Z Worker ID: {c3efe471-710b-4182-aa85-272efad45759}
+2026-11-22T12:51:45.8180194Z Region: westus3
+2026-11-22T12:51:45.8180485Z Cloud: Azure
+2026-11-22T12:51:45.8180778Z ##[endgroup]
+2026-11-22T12:51:45.8181474Z ##[group]Operating System
+2026-11-22T12:51:45.8181800Z Ubuntu
+2026-11-22T12:51:45.8182092Z 22.04.5
+2026-11-22T12:51:45.8182363Z LTS
+2026-11-22T12:51:45.8182662Z ##[endgroup]
+2026-11-22T12:51:45.8182959Z ##[group]Runner Image
+2026-11-22T12:51:45.8183279Z Image: ubuntu-22.04
+2026-11-22T12:51:45.8183590Z Version: 20261116.365.1
+2026-11-22T12:51:45.8184255Z Included Software: https://github.com/actions/runner-images/blob/ubuntu22/20261116.365/images/ubuntu/Ubuntu2204-Readme.md
+2026-11-22T12:51:45.8185052Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu22%2F20261116.365
+2026-11-22T12:51:45.8185555Z ##[endgroup]
+2026-11-22T12:51:45.8186364Z ##[group]GITHUB_TOKEN Permissions
+2026-11-22T12:51:45.8187419Z Contents: read
+2026-11-22T12:51:45.8187759Z Metadata: read
+2026-11-22T12:51:45.8188255Z ##[endgroup]
+2026-11-22T12:51:45.8189424Z Secret source: Actions
+2026-11-22T12:51:45.8189958Z Cache mode: write
+2026-11-22T12:51:45.8190311Z Prepare workflow directory
+2026-11-22T12:51:45.8368872Z Prepare all required actions
+2026-11-22T12:51:45.8396838Z Getting action download info
+2026-11-22T12:51:46.0959866Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-11-22T12:51:46.2676953Z Download action repository 'actions/setup-python@v7' (SHA:6d4fd22b20465ccc0f7354476588e8df7c9ca0e0)
+2026-11-22T12:51:46.4019753Z Complete job name: Pre-commit hygiene
+2026-11-22T12:51:46.4433192Z ##[group]Run actions/checkout@v5
+2026-11-22T12:51:46.4433581Z with:
+2026-11-22T12:51:46.4433798Z   fetch-depth: 0
+2026-11-22T12:51:46.4434041Z   repository: AbdallahIsDev/Lausu
+2026-11-22T12:51:46.4436024Z   token: ***
+2026-11-22T12:51:46.4436245Z   ssh-strict: true
+2026-11-22T12:51:46.4436474Z   ssh-user: git
+2026-11-22T12:51:46.4436709Z   persist-credentials: true
+2026-11-22T12:51:46.4436963Z   clean: true
+2026-11-22T12:51:46.4437198Z   sparse-checkout-cone-mode: true
+2026-11-22T12:51:46.4437467Z   fetch-tags: false
+2026-11-22T12:51:46.4437697Z   show-progress: true
+2026-11-22T12:51:46.4438033Z   lfs: false
+2026-11-22T12:51:46.4438246Z   submodules: false
+2026-11-22T12:51:46.4438521Z   set-safe-directory: true
+2026-11-22T12:51:46.4438784Z   allow-unsafe-pr-checkout: false
+2026-11-22T12:51:46.4439127Z ##[endgroup]
+2026-11-22T12:51:46.5439378Z Syncing repository: AbdallahIsDev/Lausu
+2026-11-22T12:51:46.5440794Z ##[group]Getting Git version info
+2026-11-22T12:51:46.5441424Z Working directory is '/home/runner/work/Lausu/Lausu'
+2026-11-22T12:51:46.5442248Z [command]/usr/bin/git version
+2026-11-22T12:51:46.5444769Z git version 2.56.1
+2026-11-22T12:51:46.5455771Z ##[endgroup]
+2026-11-22T12:51:46.5463468Z Temporarily overriding HOME='/home/runner/work/_temp/85358aa8-0922-4f02-a2bc-60ad18ea608c' before making global git config changes
+2026-11-22T12:51:46.5464696Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-22T12:51:46.5466525Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Lausu/Lausu
+2026-11-22T12:51:46.5484514Z Deleting the contents of '/home/runner/work/Lausu/Lausu'
+2026-11-22T12:51:46.5486900Z ##[group]Initializing the repository
+2026-11-22T12:51:46.5489034Z [command]/usr/bin/git init /home/runner/work/Lausu/Lausu
+2026-11-22T12:51:46.5561047Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-22T12:51:46.5562056Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-22T12:51:46.5562980Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-22T12:51:46.5563874Z hint: call:
+2026-11-22T12:51:46.5564483Z hint:
+2026-11-22T12:51:46.5564983Z hint: 	git config --global init.defaultBranch <name>
+2026-11-22T12:51:46.5565498Z hint:
+2026-11-22T12:51:46.5565986Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-22T12:51:46.5566746Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-22T12:51:46.5567335Z hint:
+2026-11-22T12:51:46.5567673Z hint: 	git branch -m <name>
+2026-11-22T12:51:46.5568209Z hint:
+2026-11-22T12:51:46.5568759Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-22T12:51:46.5569567Z Initialized empty Git repository in /home/runner/work/Lausu/Lausu/.git/
+2026-11-22T12:51:46.5570610Z [command]/usr/bin/git remote add origin https://github.com/AbdallahIsDev/Lausu
+2026-11-22T12:51:46.5589799Z ##[endgroup]
+2026-11-22T12:51:46.5590458Z ##[group]Disabling automatic garbage collection
+2026-11-22T12:51:46.5592473Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-22T12:51:46.5608600Z ##[endgroup]
+2026-11-22T12:51:46.5609193Z ##[group]Setting up auth
+2026-11-22T12:51:46.5612830Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-22T12:51:46.5628469Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-22T12:51:46.5795516Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-22T12:51:46.5814805Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-22T12:51:46.5918309Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-22T12:51:46.5934216Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-22T12:51:46.6026850Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-22T12:51:46.6046036Z ##[endgroup]
+2026-11-22T12:51:46.6046433Z ##[group]Fetching the repository
+2026-11-22T12:51:46.6051411Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-11-22T12:51:49.9039747Z From https://github.com/AbdallahIsDev/Lausu
+2026-11-22T12:51:49.9041286Z  * [new branch]        arena/fb7b9d1b-lausu        -> origin/arena/fb7b9d1b-lausu
+2026-11-22T12:51:49.9043219Z  * [new branch]        dependabot/cargo/src-tauri/rust-deps-8bbbe817dd -> origin/dependabot/cargo/src-tauri/rust-deps-8bbbe817dd
+2026-11-22T12:51:49.9045777Z  * [new branch]        dependabot/github_actions/actions-deps-09c9304e0c -> origin/dependabot/github_actions/actions-deps-09c9304e0c
+2026-11-22T12:51:49.9048647Z  * [new branch]        dependabot/npm_and_yarn/voice_typer/client/npm-deps-8d426bcb3c -> origin/dependabot/npm_and_yarn/voice_typer/client/npm-deps-8d426bcb3c
+2026-11-22T12:51:49.9050777Z  * [new branch]        dependabot/pip/python-deps-54bd6b4550 -> origin/dependabot/pip/python-deps-54bd6b4550
+2026-11-22T12:51:49.9052418Z  * [new branch]        lausu/rounds-1-11-lgpl-notices-ci -> origin/lausu/rounds-1-11-lgpl-notices-ci
+2026-11-22T12:51:49.9053686Z  * [new branch]        main                        -> origin/main
+2026-11-22T12:51:49.9054732Z  * [new tag]           ffmpeg-lgpl-n9.0.2-20261120 -> ffmpeg-lgpl-n9.0.2-20261120
+2026-11-22T12:51:49.9055769Z  * [new tag]           v1.0.0                      -> v1.0.0
+2026-11-22T12:51:49.9056621Z  * [new tag]           v1.1.0                      -> v1.1.0
+2026-11-22T12:51:49.9058906Z [command]/usr/bin/git branch --list --remote origin/main
+2026-11-22T12:51:49.9063619Z   origin/main
+2026-11-22T12:51:49.9068036Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+2026-11-22T12:51:49.9078791Z 9c099320dfdafb6782069a1948b2f045ecc2d102
+2026-11-22T12:51:49.9081767Z ##[endgroup]
+2026-11-22T12:51:49.9083174Z ##[group]Determining the checkout info
+2026-11-22T12:51:49.9084920Z ##[endgroup]
+2026-11-22T12:51:49.9086044Z [command]/usr/bin/git sparse-checkout disable
+2026-11-22T12:51:49.9113006Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-22T12:51:49.9129168Z ##[group]Checking out the ref
+2026-11-22T12:51:49.9130889Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-22T12:51:50.1452408Z Switched to a new branch 'main'
+2026-11-22T12:51:50.1453711Z branch 'main' set up to track 'origin/main'.
+2026-11-22T12:51:50.1468909Z ##[endgroup]
+2026-11-22T12:51:50.1492936Z [command]/usr/bin/git log -1 --format=%H
+2026-11-22T12:51:50.1505456Z 9c099320dfdafb6782069a1948b2f045ecc2d102
+2026-11-22T12:51:50.1653168Z ##[group]Run actions/setup-python@v7
+2026-11-22T12:51:50.1653368Z with:
+2026-11-22T12:51:50.1653525Z   python-version: 3.12
+2026-11-22T12:51:50.1653696Z   check-latest: false
+2026-11-22T12:51:50.1655112Z   token: ***
+2026-11-22T12:51:50.1655325Z   mirror: https://raw.githubusercontent.com/actions/python-versions/main
+2026-11-22T12:51:50.1655604Z   update-environment: true
+2026-11-22T12:51:50.1655775Z   allow-prereleases: false
+2026-11-22T12:51:50.1655931Z   freethreaded: false
+2026-11-22T12:51:50.1656126Z ##[endgroup]
+2026-11-22T12:51:50.2290391Z ##[group]Installed versions
+2026-11-22T12:51:50.2348956Z Successfully set up CPython (3.12.16)
+2026-11-22T12:51:50.2349372Z ##[endgroup]
+2026-11-22T12:51:50.2435702Z ##[group]Run pip install pre-commit
+2026-11-22T12:51:50.2436082Z [36;1mpip install pre-commit[0m
+2026-11-22T12:51:50.2484505Z shell: /usr/bin/bash -e {0}
+2026-11-22T12:51:50.2484786Z env:
+2026-11-22T12:51:50.2485063Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T12:51:50.2485491Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib/pkgconfig
+2026-11-22T12:51:50.2485932Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T12:51:50.2486311Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T12:51:50.2486699Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T12:51:50.2487088Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib
+2026-11-22T12:51:50.2550206Z ##[endgroup]
+2026-11-22T12:51:51.4528199Z Collecting pre-commit
+2026-11-22T12:51:51.4942466Z   Downloading pre_commit-4.7.0-py2.py3-none-any.whl.metadata (1.2 kB)
+2026-11-22T12:51:51.5092266Z Collecting cfgv>=2.0.0 (from pre-commit)
+2026-11-22T12:51:51.5115269Z   Downloading cfgv-3.5.0-py2.py3-none-any.whl.metadata (8.9 kB)
+2026-11-22T12:51:51.5391738Z Collecting identify>=1.0.0 (from pre-commit)
+2026-11-22T12:51:51.5415803Z   Downloading identify-2.6.20-py2.py3-none-any.whl.metadata (4.4 kB)
+2026-11-22T12:51:51.5575308Z Collecting nodeenv>=0.11.1 (from pre-commit)
+2026-11-22T12:51:51.5599195Z   Downloading nodeenv-1.12.0-py3-none-any.whl.metadata (49 kB)
+2026-11-22T12:51:51.5958672Z Collecting pyyaml>=5.1 (from pre-commit)
+2026-11-22T12:51:51.5982924Z   Downloading pyyaml-6.0.4-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.3 kB)
+2026-11-22T12:51:51.6385230Z Collecting virtualenv>=20.10.0 (from pre-commit)
+2026-11-22T12:51:51.6411371Z   Downloading virtualenv-21.15.12-py3-none-any.whl.metadata (4.1 kB)
+2026-11-22T12:51:51.6561457Z Collecting distlib<1,>=0.4.3 (from virtualenv>=20.10.0->pre-commit)
+2026-11-22T12:51:51.6588013Z   Downloading distlib-0.4.4-py2.py3-none-any.whl.metadata (5.3 kB)
+2026-11-22T12:51:51.6799024Z Collecting filelock<5,>=3.24.2 (from virtualenv>=20.10.0->pre-commit)
+2026-11-22T12:51:51.6823937Z   Downloading filelock-4.3.0-py3-none-any.whl.metadata (2.3 kB)
+2026-11-22T12:51:51.6982720Z Collecting packaging>=26.3 (from virtualenv>=20.10.0->pre-commit)
+2026-11-22T12:51:51.7005749Z   Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+2026-11-22T12:51:51.7200322Z Collecting platformdirs<5,>=4.4 (from virtualenv>=20.10.0->pre-commit)
+2026-11-22T12:51:51.7223572Z   Downloading platformdirs-4.14.8-py3-none-any.whl.metadata (5.7 kB)
+2026-11-22T12:51:51.7374027Z Collecting python-discovery>=1.6.1 (from virtualenv>=20.10.0->pre-commit)
+2026-11-22T12:51:51.7396878Z   Downloading python_discovery-1.9.6-py3-none-any.whl.metadata (4.2 kB)
+2026-11-22T12:51:51.7464310Z Downloading pre_commit-4.7.0-py2.py3-none-any.whl (226 kB)
+2026-11-22T12:51:51.7516385Z Downloading cfgv-3.5.0-py2.py3-none-any.whl (7.4 kB)
+2026-11-22T12:51:51.7549600Z Downloading identify-2.6.20-py2.py3-none-any.whl (99 kB)
+2026-11-22T12:51:51.7584268Z Downloading nodeenv-1.12.0-py3-none-any.whl (39 kB)
+2026-11-22T12:51:51.7618589Z Downloading pyyaml-6.0.4-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (849 kB)
+2026-11-22T12:51:51.7694287Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 849.2/849.2 kB 154.8 MB/s  0:00:00
+2026-11-22T12:51:51.7720588Z Downloading virtualenv-21.15.12-py3-none-any.whl (5.8 MB)
+2026-11-22T12:51:51.8282103Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.8/5.8 MB 102.1 MB/s  0:00:00
+2026-11-22T12:51:51.8307300Z Downloading distlib-0.4.4-py2.py3-none-any.whl (472 kB)
+2026-11-22T12:51:51.8351458Z Downloading filelock-4.3.0-py3-none-any.whl (244 kB)
+2026-11-22T12:51:51.8392292Z Downloading platformdirs-4.14.8-py3-none-any.whl (94 kB)
+2026-11-22T12:51:51.8428296Z Downloading packaging-26.3-py3-none-any.whl (129 kB)
+2026-11-22T12:51:51.8465038Z Downloading python_discovery-1.9.6-py3-none-any.whl (98 kB)
+2026-11-22T12:51:51.9188498Z Installing collected packages: distlib, pyyaml, platformdirs, packaging, nodeenv, identify, filelock, cfgv, python-discovery, virtualenv, pre-commit
+2026-11-22T12:51:52.3511464Z 
+2026-11-22T12:51:52.3522453Z Successfully installed cfgv-3.5.0 distlib-0.4.4 filelock-4.3.0 identify-2.6.20 nodeenv-1.12.0 packaging-26.3 platformdirs-4.14.8 pre-commit-4.7.0 python-discovery-1.9.6 pyyaml-6.0.4 virtualenv-21.15.12
+2026-11-22T12:51:52.3959929Z ##[group]Run set -euo pipefail
+2026-11-22T12:51:52.3960136Z [36;1mset -euo pipefail[0m
+2026-11-22T12:51:52.3960260Z [36;1mfor hook in \[0m
+2026-11-22T12:51:52.3960387Z [36;1m  trailing-whitespace \[0m
+2026-11-22T12:51:52.3960527Z [36;1m  end-of-file-fixer \[0m
+2026-11-22T12:51:52.3960660Z [36;1m  check-yaml \[0m
+2026-11-22T12:51:52.3960781Z [36;1m  check-json \[0m
+2026-11-22T12:51:52.3960909Z [36;1m  check-merge-conflict \[0m
+2026-11-22T12:51:52.3961063Z [36;1m  check-added-large-files \[0m
+2026-11-22T12:51:52.3961213Z [36;1m  mixed-line-ending; do[0m
+2026-11-22T12:51:52.3961385Z [36;1m  echo "::group::pre-commit run $hook --all-files"[0m
+2026-11-22T12:51:52.3961577Z [36;1m  pre-commit run "$hook" --all-files[0m
+2026-11-22T12:51:52.3961732Z [36;1m  echo "::endgroup::"[0m
+2026-11-22T12:51:52.3961861Z [36;1mdone[0m
+2026-11-22T12:51:52.3988456Z shell: /usr/bin/bash -e {0}
+2026-11-22T12:51:52.3988587Z env:
+2026-11-22T12:51:52.3988759Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T12:51:52.3989000Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib/pkgconfig
+2026-11-22T12:51:52.3989220Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T12:51:52.3989422Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T12:51:52.3989620Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T12:51:52.3989823Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib
+2026-11-22T12:51:52.3989993Z ##[endgroup]
+2026-11-22T12:51:52.4020724Z ##[group]pre-commit run trailing-whitespace --all-files
+2026-11-22T12:51:52.6415097Z [INFO] Initializing environment for https://github.com/astral-sh/ruff-pre-commit.
+2026-11-22T12:51:53.0377233Z [INFO] Initializing environment for https://github.com/pre-commit/pre-commit-hooks.
+2026-11-22T12:51:53.4853234Z [INFO] Installing environment for https://github.com/pre-commit/pre-commit-hooks.
+2026-11-22T12:51:53.4853556Z [INFO] Once installed this environment will be reused.
+2026-11-22T12:51:53.4853908Z [INFO] This may take a few minutes...
+2026-11-22T12:51:56.2608083Z trim trailing whitespace.................................................Passed
+2026-11-22T12:51:56.2757512Z ##[endgroup]
+2026-11-22T12:51:56.2758135Z ##[group]pre-commit run end-of-file-fixer --all-files
+2026-11-22T12:51:56.7701875Z fix end of files.........................................................Failed
+2026-11-22T12:51:56.7702331Z - hook id: end-of-file-fixer
+2026-11-22T12:51:56.7702569Z - exit code: 1
+2026-11-22T12:51:56.7702698Z - files were modified by this hook
+2026-11-22T12:51:56.7702797Z 
+2026-11-22T12:51:56.7702859Z Fixing website/assets/ui/icons/gitlab.svg
+2026-11-22T12:51:56.7703051Z Fixing tools/internal_plugins/.gitignore
+2026-11-22T12:51:56.7703285Z Fixing website/assets/icons/audio.svg
+2026-11-22T12:51:56.7703505Z Fixing website/assets/ui/icons/linear.svg
+2026-11-22T12:51:56.7703731Z Fixing website/assets/icons/tauri.svg
+2026-11-22T12:51:56.7703989Z Fixing website/assets/icons/ollama.svg
+2026-11-22T12:51:56.7704235Z Fixing website/assets/ui/icons/jira.svg
+2026-11-22T12:51:56.7704489Z Fixing docs/audit/review-md-audit-2026-11-19.md
+2026-11-22T12:51:56.7704741Z Fixing website/assets/icons/slack.svg
+2026-11-22T12:51:56.7704974Z Fixing website/assets/ui/icons/calendly.svg
+2026-11-22T12:51:56.7705199Z Fixing website/assets/icons/json.svg
+2026-11-22T12:51:56.7705347Z Fixing website/assets/icons/python.svg
+2026-11-22T12:51:56.7705491Z Fixing website/assets/icons/apple.svg
+2026-11-22T12:51:56.7705647Z Fixing website/assets/ui/icons/si-mastercard.svg
+2026-11-22T12:51:56.7705813Z Fixing website/assets/icons/index.json
+2026-11-22T12:51:56.7705971Z Fixing website/assets/icons/visual-studio-code.svg
+2026-11-22T12:51:56.7706143Z Fixing website/assets/ui/icons/confluence.svg
+2026-11-22T12:51:56.7706298Z Fixing website/assets/icons/claude.svg
+2026-11-22T12:51:56.7706442Z Fixing website/assets/ui/icons/vercel.svg
+2026-11-22T12:51:56.7706589Z Fixing website/assets/ui/icons/md.svg
+2026-11-22T12:51:56.7707025Z Fixing website/assets/icons/ui-mic.svg
+2026-11-22T12:51:56.7707172Z Fixing website/assets/ui/icons/intercom.svg
+2026-11-22T12:51:56.7707327Z Fixing website/assets/ui/icons/zendesk.svg
+2026-11-22T12:51:56.7707484Z Fixing website/assets/diagrams/presets.json
+2026-11-22T12:51:56.7707636Z Fixing website/assets/ui/icons/github.svg
+2026-11-22T12:51:56.7707783Z Fixing website/assets/ui/icons/slack.svg
+2026-11-22T12:51:56.7708072Z Fixing website/assets/icons/linux-tux.svg
+2026-11-22T12:51:56.7708254Z Fixing tools/internal_plugins/anthropic_stt/chrome_pid.json
+2026-11-22T12:51:56.7708433Z Fixing website/assets/icons/github.svg
+2026-11-22T12:51:56.7708596Z Fixing website/assets/ui/icons/mastercard.svg
+2026-11-22T12:51:56.7708817Z Fixing website/assets/icons/notion.svg
+2026-11-22T12:51:56.7708964Z Fixing website/assets/icons/ui-eraser.svg
+2026-11-22T12:51:56.7709118Z Fixing website/assets/icons/file-sqlite.svg
+2026-11-22T12:51:56.7709266Z Fixing website/assets/icons/md.svg
+2026-11-22T12:51:56.7709415Z Fixing website/assets/ui/icons/git.svg
+2026-11-22T12:51:56.7709555Z Fixing website/assets/icons/openai.svg
+2026-11-22T12:51:56.7709695Z Fixing website/assets/icons/sqlite.svg
+2026-11-22T12:51:56.7709838Z Fixing website/assets/ui/icons/docker.svg
+2026-11-22T12:51:56.7709989Z Fixing website/assets/ui/icons/dropbox.svg
+2026-11-22T12:51:56.7710171Z Fixing tests/model_download/test_offline_probe_log_quiet.py
+2026-11-22T12:51:56.7710351Z Fixing website/assets/icons/windows.svg
+2026-11-22T12:51:56.7710503Z Fixing website/assets/ui/icons/asana.svg
+2026-11-22T12:51:56.7710648Z Fixing website/assets/ui/icons/visa.svg
+2026-11-22T12:51:56.7710817Z Fixing tools/internal_plugins/google_stt/chrome_pid.json
+2026-11-22T12:51:56.7711008Z Fixing website/assets/ui/icons/google-drive.svg
+2026-11-22T12:51:56.7711173Z Fixing website/assets/ui/icons/notion.svg
+2026-11-22T12:51:56.7711311Z Fixing .mcp.json
+2026-11-22T12:51:56.7711429Z Fixing website/assets/ui/icons/npm.svg
+2026-11-22T12:51:56.7711576Z Fixing website/assets/ui/icons/nodejs.svg
+2026-11-22T12:51:56.7711814Z Fixing website/assets/ui/icons/kubernetes.svg
+2026-11-22T12:51:56.7711966Z Fixing website/assets/icons/txt.svg
+2026-11-22T12:51:56.7712111Z Fixing website/assets/ui/icons/gmail.svg
+2026-11-22T12:51:56.7712261Z Fixing website/assets/ui/icons/messenger.svg
+2026-11-22T12:51:56.7712419Z Fixing website/assets/ui/icons/whatsapp.svg
+2026-11-22T12:51:56.7712570Z Fixing website/assets/ui/icons/figma.svg
+2026-11-22T12:51:56.7712712Z Fixing website/assets/icons/gemini.svg
+2026-11-22T12:51:56.7712862Z Fixing website/assets/ui/icons/typescript.svg
+2026-11-22T12:51:56.7713019Z Fixing website/assets/ui/icons/shopify.svg
+2026-11-22T12:51:56.7713167Z Fixing website/assets/icons/rust.svg
+2026-11-22T12:51:56.7713319Z Fixing website/assets/ui/icons/google-docs.svg
+2026-11-22T12:51:56.7713428Z 
+2026-11-22T12:51:56.7852429Z ##[error]Process completed with exit code 1.
+2026-11-22T12:51:56.7935794Z Post job cleanup.
+2026-11-22T12:51:56.8388697Z [command]/usr/bin/git version
+2026-11-22T12:51:56.8412386Z git version 2.56.1
+2026-11-22T12:51:56.8434704Z Temporarily overriding HOME='/home/runner/work/_temp/1591164c-90c6-45bc-8062-7595eba23cd2' before making global git config changes
+2026-11-22T12:51:56.8435139Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-22T12:51:56.8437983Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Lausu/Lausu
+2026-11-22T12:51:56.8458213Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-22T12:51:56.8475023Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-22T12:51:56.8586901Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-22T12:51:56.8605414Z http.https://github.com/.extraheader
+2026-11-22T12:51:56.8606143Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-22T12:51:56.8625870Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-22T12:51:56.8739688Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-22T12:51:56.8769977Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-22T12:51:56.8959816Z Cleaning up orphan processes

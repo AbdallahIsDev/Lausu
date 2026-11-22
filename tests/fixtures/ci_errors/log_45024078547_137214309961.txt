@@ -1,0 +1,421 @@
+﻿2026-11-22T12:51:46.4906250Z Current runner version: '2.338.2'
+2026-11-22T12:51:46.4927001Z ##[group]Runner Image Provisioner
+2026-11-22T12:51:46.4927736Z Hosted Compute Agent
+2026-11-22T12:51:46.4928228Z Version: 20261111.635
+2026-11-22T12:51:46.4929047Z Commit: b8a594ea514ff44cadb5342986c68b1eac6e22ed
+2026-11-22T12:51:46.4929758Z Build Date: 2026-11-11T01:49:01Z
+2026-11-22T12:51:46.4930417Z Worker ID: {6c79b971-b621-439a-92cf-4c0c5ac99dde}
+2026-11-22T12:51:46.4931016Z Region: westus
+2026-11-22T12:51:46.4931477Z Cloud: Azure
+2026-11-22T12:51:46.4932029Z ##[endgroup]
+2026-11-22T12:51:46.4933190Z ##[group]Operating System
+2026-11-22T12:51:46.4933779Z Ubuntu
+2026-11-22T12:51:46.4934253Z 22.04.5
+2026-11-22T12:51:46.4934706Z LTS
+2026-11-22T12:51:46.4935224Z ##[endgroup]
+2026-11-22T12:51:46.4935739Z ##[group]Runner Image
+2026-11-22T12:51:46.4936503Z Image: ubuntu-22.04
+2026-11-22T12:51:46.4937027Z Version: 20261116.365.1
+2026-11-22T12:51:46.4938152Z Included Software: https://github.com/actions/runner-images/blob/ubuntu22/20261116.365/images/ubuntu/Ubuntu2204-Readme.md
+2026-11-22T12:51:46.4939455Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu22%2F20261116.365
+...[fixture: middle truncated]...
+2026-11-22T13:01:25.1852921Z with:
+2026-11-22T13:01:25.1853099Z   files: ./coverage.xml
+2026-11-22T13:01:25.1853319Z   fail_ci_if_error: false
+2026-11-22T13:01:25.1853525Z   disable_file_fixes: false
+2026-11-22T13:01:25.1853723Z   disable_search: false
+2026-11-22T13:01:25.1853923Z   disable_safe_directory: false
+2026-11-22T13:01:25.1854130Z   disable_telem: false
+2026-11-22T13:01:25.1854315Z   dry_run: false
+2026-11-22T13:01:25.1854492Z   git_service: github
+2026-11-22T13:01:25.1854679Z   gcov_executable: gcov
+2026-11-22T13:01:25.1854877Z   handle_no_reports_found: false
+2026-11-22T13:01:25.1855097Z   recurse_submodules: false
+2026-11-22T13:01:25.1855310Z   run_command: upload-coverage
+2026-11-22T13:01:25.1855523Z   skip_validation: false
+2026-11-22T13:01:25.1855738Z   use_legacy_upload_endpoint: false
+2026-11-22T13:01:25.1856105Z   use_oidc: false
+2026-11-22T13:01:25.1856280Z   use_pypi: false
+2026-11-22T13:01:25.1856451Z   verbose: false
+2026-11-22T13:01:25.1856653Z   version: latest
+2026-11-22T13:01:25.1856835Z env:
+2026-11-22T13:01:25.1857057Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.1857606Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib/pkgconfig
+2026-11-22T13:01:25.1858244Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.1871704Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.1872154Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.1872483Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib
+2026-11-22T13:01:25.1872825Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+2026-11-22T13:01:25.1873149Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-11-22T13:01:25.1873410Z ##[endgroup]
+2026-11-22T13:01:25.1922858Z ##[start-action display=Check system dependencies;id=__codecov_codecov-action.__run]
+2026-11-22T13:01:25.1950928Z ##[group]Run missing_deps=""
+2026-11-22T13:01:25.1951209Z [36;1mmissing_deps=""[0m
+2026-11-22T13:01:25.1951409Z [36;1m[0m
+2026-11-22T13:01:25.1951622Z [36;1m# Check for always-required commands[0m
+2026-11-22T13:01:25.1951886Z [36;1mfor cmd in bash git curl; do[0m
+2026-11-22T13:01:25.1952153Z [36;1m  if ! command -v "$cmd" >/dev/null 2>&1; then[0m
+2026-11-22T13:01:25.1952553Z [36;1m    missing_deps="$missing_deps $cmd"[0m
+2026-11-22T13:01:25.1952785Z [36;1m  fi[0m
+2026-11-22T13:01:25.1952959Z [36;1mdone[0m
+2026-11-22T13:01:25.1953122Z [36;1m[0m
+2026-11-22T13:01:25.1953348Z [36;1m# Check for gpg only if validation is not being skipped[0m
+2026-11-22T13:01:25.1953644Z [36;1mif [ "false" != "true" ]; then[0m
+2026-11-22T13:01:25.1953899Z [36;1m  if ! command -v gpg >/dev/null 2>&1; then[0m
+2026-11-22T13:01:25.1954172Z [36;1m    missing_deps="$missing_deps gpg"[0m
+2026-11-22T13:01:25.1954401Z [36;1m  fi[0m
+2026-11-22T13:01:25.1954563Z [36;1mfi[0m
+2026-11-22T13:01:25.1954736Z [36;1m[0m
+2026-11-22T13:01:25.1954937Z [36;1m# Report missing required dependencies[0m
+2026-11-22T13:01:25.1955196Z [36;1mif [ -n "$missing_deps" ]; then[0m
+2026-11-22T13:01:25.1955530Z [36;1m  echo "Error: The following required dependencies are missing:$missing_deps"[0m
+2026-11-22T13:01:25.1956239Z [36;1m  echo "Please install these dependencies before using this action."[0m
+2026-11-22T13:01:25.1956560Z [36;1m  exit 1[0m
+2026-11-22T13:01:25.1956731Z [36;1mfi[0m
+2026-11-22T13:01:25.1956896Z [36;1m[0m
+2026-11-22T13:01:25.1957125Z [36;1mecho "All required system dependencies are available."[0m
+2026-11-22T13:01:25.2071721Z shell: /usr/bin/sh -e {0}
+2026-11-22T13:01:25.2071945Z env:
+2026-11-22T13:01:25.2072171Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2072538Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib/pkgconfig
+2026-11-22T13:01:25.2072881Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2073383Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2073696Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2074002Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib
+2026-11-22T13:01:25.2074340Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+2026-11-22T13:01:25.2074633Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-11-22T13:01:25.2074899Z ##[endgroup]
+2026-11-22T13:01:25.2153875Z All required system dependencies are available.
+2026-11-22T13:01:25.2164697Z ##[end-action id=__codecov_codecov-action.__run;outcome=success;conclusion=success;duration_ms=24]
+2026-11-22T13:01:25.2167040Z ##[start-action display=Action version;id=__codecov_codecov-action.__run_2]
+2026-11-22T13:01:25.2182688Z ##[group]Run CC_ACTION_VERSION=$(cat ${GITHUB_ACTION_PATH}/src/version)
+2026-11-22T13:01:25.2183078Z [36;1mCC_ACTION_VERSION=$(cat ${GITHUB_ACTION_PATH}/src/version)[0m
+2026-11-22T13:01:25.2183444Z [36;1mecho -e "\033[0;32m==>\033[0m Running Action version $CC_ACTION_VERSION"[0m
+2026-11-22T13:01:25.2234115Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-22T13:01:25.2234403Z env:
+2026-11-22T13:01:25.2234630Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2234982Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib/pkgconfig
+2026-11-22T13:01:25.2235341Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2235644Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2236074Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2236387Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib
+2026-11-22T13:01:25.2236712Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+2026-11-22T13:01:25.2237024Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-11-22T13:01:25.2237277Z ##[endgroup]
+2026-11-22T13:01:25.2318269Z [0;32m==>[0m Running Action version 5.5.5
+2026-11-22T13:01:25.2323773Z ##[end-action id=__codecov_codecov-action.__run_2;outcome=success;conclusion=success;duration_ms=15]
+2026-11-22T13:01:25.2325553Z ##[start-action display=Set safe directory;id=__codecov_codecov-action.__run_3]
+2026-11-22T13:01:25.2342894Z ##[group]Run git config --global --add safe.directory "/home/runner/work/Lausu/Lausu"
+2026-11-22T13:01:25.2343346Z [36;1mgit config --global --add safe.directory "/home/runner/work/Lausu/Lausu"[0m
+2026-11-22T13:01:25.2343853Z [36;1mgit config --global --add safe.directory "$GITHUB_WORKSPACE"[0m
+2026-11-22T13:01:25.2392522Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-22T13:01:25.2392799Z env:
+2026-11-22T13:01:25.2393031Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2393380Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib/pkgconfig
+2026-11-22T13:01:25.2393723Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2394034Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2394346Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2394655Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib
+2026-11-22T13:01:25.2394973Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+2026-11-22T13:01:25.2395382Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-11-22T13:01:25.2395641Z ##[endgroup]
+2026-11-22T13:01:25.2503343Z ##[end-action id=__codecov_codecov-action.__run_3;outcome=success;conclusion=success;duration_ms=17]
+2026-11-22T13:01:25.2506861Z ##[start-action display=Set fork;id=__codecov_codecov-action.__run_4]
+2026-11-22T13:01:25.2521755Z ##[group]Run CC_FORK="false"
+2026-11-22T13:01:25.2522001Z [36;1mCC_FORK="false"[0m
+2026-11-22T13:01:25.2522440Z [36;1mif [ -n "$GITHUB_EVENT_PULL_REQUEST_HEAD_REPO_FULL_NAME" ] && [ "$GITHUB_EVENT_PULL_REQUEST_HEAD_REPO_FULL_NAME" != "$GITHUB_REPOSITORY" ];[0m
+2026-11-22T13:01:25.2522913Z [36;1mthen[0m
+2026-11-22T13:01:25.2523129Z [36;1m  echo -e "\033[0;32m==>\033[0m Fork detected"[0m
+2026-11-22T13:01:25.2523549Z [36;1m  CC_FORK="true"[0m
+2026-11-22T13:01:25.2523743Z [36;1mfi[0m
+2026-11-22T13:01:25.2523936Z [36;1mecho "CC_FORK=$CC_FORK" >> "$GITHUB_ENV"[0m
+2026-11-22T13:01:25.2573497Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-22T13:01:25.2573785Z env:
+2026-11-22T13:01:25.2574019Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2574361Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib/pkgconfig
+2026-11-22T13:01:25.2574709Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2575019Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2575329Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2575629Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib
+2026-11-22T13:01:25.2576078Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+2026-11-22T13:01:25.2576385Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-11-22T13:01:25.2576656Z   GITHUB_EVENT_PULL_REQUEST_HEAD_LABEL: 
+2026-11-22T13:01:25.2576920Z   GITHUB_EVENT_PULL_REQUEST_HEAD_REPO_FULL_NAME: 
+2026-11-22T13:01:25.2577183Z   GITHUB_REPOSITORY: AbdallahIsDev/Lausu
+2026-11-22T13:01:25.2577402Z ##[endgroup]
+2026-11-22T13:01:25.2650540Z ##[end-action id=__codecov_codecov-action.__run_4;outcome=success;conclusion=success;duration_ms=14]
+2026-11-22T13:01:25.2653447Z ##[start-action display=Get OIDC token;id=__codecov_codecov-action.oidc]
+2026-11-22T13:01:25.2691625Z ##[group]Run actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+2026-11-22T13:01:25.2691950Z with:
+2026-11-22T13:01:25.2692435Z   script: if (process.env.CC_USE_OIDC === 'true' && process.env.CC_FORK != 'true') {
+  const id_token = await core.getIDToken(process.env.CC_OIDC_AUDIENCE)
+  return id_token
+}
+
+2026-11-22T13:01:25.2694847Z   github-token: ***
+2026-11-22T13:01:25.2695040Z   debug: false
+2026-11-22T13:01:25.2695228Z   user-agent: actions/github-script
+2026-11-22T13:01:25.2695466Z   result-encoding: json
+2026-11-22T13:01:25.2695664Z   retries: 0
+2026-11-22T13:01:25.2695863Z   retry-exempt-status-codes: 400,401,403,404,422
+2026-11-22T13:01:25.2696391Z env:
+2026-11-22T13:01:25.2696704Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2697054Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib/pkgconfig
+2026-11-22T13:01:25.2697547Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2697850Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2698159Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.2698460Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib
+2026-11-22T13:01:25.2698774Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+2026-11-22T13:01:25.2699081Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-11-22T13:01:25.2699319Z   CC_FORK: false
+2026-11-22T13:01:25.2699520Z   CC_OIDC_AUDIENCE: https://codecov.io
+2026-11-22T13:01:25.2699749Z   CC_USE_OIDC: false
+2026-11-22T13:01:25.2699945Z ##[endgroup]
+2026-11-22T13:01:25.3434952Z ##[end-action id=__codecov_codecov-action.oidc;outcome=success;conclusion=success;duration_ms=78]
+2026-11-22T13:01:25.3441164Z ##[start-action display=Get and set token;id=__codecov_codecov-action.__run_5]
+2026-11-22T13:01:25.3460202Z ##[group]Run if [ "false" == 'true' ] && [ "$CC_FORK" != 'true' ];
+2026-11-22T13:01:25.3460570Z [36;1mif [ "false" == 'true' ] && [ "$CC_FORK" != 'true' ];[0m
+2026-11-22T13:01:25.3460831Z [36;1mthen[0m
+2026-11-22T13:01:25.3461049Z [36;1m  echo "CC_TOKEN=$CC_OIDC_TOKEN" >> "$GITHUB_ENV"[0m
+2026-11-22T13:01:25.3461308Z [36;1melif [ -n "" ];[0m
+2026-11-22T13:01:25.3461510Z [36;1mthen[0m
+2026-11-22T13:01:25.3461724Z [36;1m  echo -e "\033[0;32m==>\033[0m Token set from env"[0m
+2026-11-22T13:01:25.3462008Z [36;1m    echo "CC_TOKEN=" >> "$GITHUB_ENV"[0m
+2026-11-22T13:01:25.3462249Z [36;1melse[0m
+2026-11-22T13:01:25.3462428Z [36;1m  if [ -n "" ];[0m
+2026-11-22T13:01:25.3462800Z [36;1m  then[0m
+2026-11-22T13:01:25.3463023Z [36;1m    echo -e "\033[0;32m==>\033[0m Token set from input"[0m
+2026-11-22T13:01:25.3463298Z [36;1m    CC_TOKEN=$(echo "" | tr -d '\n')[0m
+2026-11-22T13:01:25.3463575Z [36;1m    echo "CC_TOKEN=$CC_TOKEN" >> "$GITHUB_ENV"[0m
+2026-11-22T13:01:25.3463827Z [36;1m  fi[0m
+2026-11-22T13:01:25.3463984Z [36;1mfi[0m
+2026-11-22T13:01:25.3519555Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-22T13:01:25.3519850Z env:
+2026-11-22T13:01:25.3520083Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.3520435Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib/pkgconfig
+2026-11-22T13:01:25.3520787Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.3521092Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.3521396Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.3521715Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib
+2026-11-22T13:01:25.3522042Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+2026-11-22T13:01:25.3522347Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-11-22T13:01:25.3522598Z   CC_FORK: false
+2026-11-22T13:01:25.3522784Z   CC_OIDC_TOKEN: 
+2026-11-22T13:01:25.3523005Z   CC_OIDC_AUDIENCE: https://codecov.io
+2026-11-22T13:01:25.3523240Z ##[endgroup]
+2026-11-22T13:01:25.3615587Z ##[end-action id=__codecov_codecov-action.__run_5;outcome=success;conclusion=success;duration_ms=17]
+2026-11-22T13:01:25.3620543Z ##[start-action display=Override branch for forks;id=__codecov_codecov-action.__run_6]
+2026-11-22T13:01:25.3656989Z ##[group]Run if [ -z "$CC_BRANCH" ] && [ -z "$CC_TOKEN" ] && [ "$CC_FORK" == 'true' ]
+2026-11-22T13:01:25.3657554Z [36;1mif [ -z "$CC_BRANCH" ] && [ -z "$CC_TOKEN" ] && [ "$CC_FORK" == 'true' ][0m
+2026-11-22T13:01:25.3657850Z [36;1mthen[0m
+2026-11-22T13:01:25.3658202Z [36;1m  echo -e "\033[0;32m==>\033[0m Fork detected, setting branch to $GITHUB_EVENT_PULL_REQUEST_HEAD_LABEL"[0m
+2026-11-22T13:01:25.3658622Z [36;1m  TOKENLESS="$GITHUB_EVENT_PULL_REQUEST_HEAD_LABEL"[0m
+2026-11-22T13:01:25.3658923Z [36;1m  CC_BRANCH="$GITHUB_EVENT_PULL_REQUEST_HEAD_LABEL"[0m
+2026-11-22T13:01:25.3659217Z [36;1m  echo "TOKENLESS=$TOKENLESS" >> "$GITHUB_ENV"[0m
+2026-11-22T13:01:25.3659724Z [36;1mfi[0m
+2026-11-22T13:01:25.3659889Z [36;1m[0m
+2026-11-22T13:01:25.3660141Z [36;1mecho "CC_BRANCH=$CC_BRANCH" >> "$GITHUB_ENV"[0m
+2026-11-22T13:01:25.3719710Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-22T13:01:25.3720004Z env:
+2026-11-22T13:01:25.3720237Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.3720597Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib/pkgconfig
+2026-11-22T13:01:25.3720937Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.3721245Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.3721567Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.3721872Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib
+2026-11-22T13:01:25.3722197Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+2026-11-22T13:01:25.3722631Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-11-22T13:01:25.3722891Z   CC_FORK: false
+2026-11-22T13:01:25.3723059Z   CC_BRANCH: 
+2026-11-22T13:01:25.3723234Z   GITHUB_EVENT_PULL_REQUEST_HEAD_LABEL: 
+2026-11-22T13:01:25.3723490Z   GITHUB_EVENT_PULL_REQUEST_HEAD_REPO_FULL_NAME: 
+2026-11-22T13:01:25.3723743Z   GITHUB_REPOSITORY: AbdallahIsDev/Lausu
+2026-11-22T13:01:25.3723964Z ##[endgroup]
+2026-11-22T13:01:25.3803235Z ##[end-action id=__codecov_codecov-action.__run_6;outcome=success;conclusion=success;duration_ms=18]
+2026-11-22T13:01:25.3807175Z ##[start-action display=Override commits and pr for pull requests;id=__codecov_codecov-action.__run_7]
+2026-11-22T13:01:25.3822195Z ##[group]Run if [ -z "$CC_SHA" ];
+2026-11-22T13:01:25.3822639Z [36;1mif [ -z "$CC_SHA" ];[0m
+2026-11-22T13:01:25.3822853Z [36;1mthen[0m
+2026-11-22T13:01:25.3823070Z [36;1m  CC_SHA="$GITHUB_EVENT_PULL_REQUEST_HEAD_SHA"[0m
+2026-11-22T13:01:25.3823337Z [36;1mfi[0m
+2026-11-22T13:01:25.3823542Z [36;1mif [ -z "$CC_PR" ] && [ "$CC_FORK" == 'true' ];[0m
+2026-11-22T13:01:25.3823783Z [36;1mthen[0m
+2026-11-22T13:01:25.3823977Z [36;1m  CC_PR="$GITHUB_EVENT_NUMBER"[0m
+2026-11-22T13:01:25.3824190Z [36;1mfi[0m
+2026-11-22T13:01:25.3824355Z [36;1m[0m
+2026-11-22T13:01:25.3824543Z [36;1mecho "CC_SHA=$CC_SHA" >> "$GITHUB_ENV"[0m
+2026-11-22T13:01:25.3824795Z [36;1mecho "CC_PR=$CC_PR" >> "$GITHUB_ENV"[0m
+2026-11-22T13:01:25.3875076Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-22T13:01:25.3875366Z env:
+2026-11-22T13:01:25.3875604Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.3876113Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib/pkgconfig
+2026-11-22T13:01:25.3876502Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.3876813Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.3877125Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.3877441Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib
+2026-11-22T13:01:25.3877759Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+2026-11-22T13:01:25.3878076Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-11-22T13:01:25.3878326Z   CC_FORK: false
+2026-11-22T13:01:25.3878503Z   CC_BRANCH: 
+2026-11-22T13:01:25.3878670Z   CC_PR: 
+2026-11-22T13:01:25.3878827Z   CC_SHA: 
+2026-11-22T13:01:25.3879002Z   GITHUB_EVENT_NAME: push
+2026-11-22T13:01:25.3879200Z   GITHUB_EVENT_NUMBER: 
+2026-11-22T13:01:25.3879397Z   GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: 
+2026-11-22T13:01:25.3879623Z ##[endgroup]
+2026-11-22T13:01:25.3959101Z ##[end-action id=__codecov_codecov-action.__run_7;outcome=success;conclusion=success;duration_ms=15]
+2026-11-22T13:01:25.3964934Z ##[start-action display=Upload coverage to Codecov;id=__codecov_codecov-action.__run_8]
+2026-11-22T13:01:25.3980391Z ##[group]Run ${GITHUB_ACTION_PATH}/dist/codecov.sh
+2026-11-22T13:01:25.3980716Z [36;1m${GITHUB_ACTION_PATH}/dist/codecov.sh[0m
+2026-11-22T13:01:25.4029294Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-22T13:01:25.4029694Z env:
+2026-11-22T13:01:25.4029922Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.4030280Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib/pkgconfig
+2026-11-22T13:01:25.4030624Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.4030955Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.4031255Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:25.4031557Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib
+2026-11-22T13:01:25.4031881Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+2026-11-22T13:01:25.4032188Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-11-22T13:01:25.4032439Z   CC_FORK: false
+2026-11-22T13:01:25.4032614Z   CC_BRANCH: 
+2026-11-22T13:01:25.4032780Z   CC_SHA: 
+2026-11-22T13:01:25.4033034Z   CC_PR: 
+2026-11-22T13:01:25.4033196Z   CC_BASE_SHA: 
+2026-11-22T13:01:25.4033365Z   CC_BINARY: 
+2026-11-22T13:01:25.4033536Z   CC_BUILD: 
+2026-11-22T13:01:25.4033701Z   CC_BUILD_URL: 
+2026-11-22T13:01:25.4033877Z   CC_CODE: 
+2026-11-22T13:01:25.4034032Z   CC_DIR: 
+2026-11-22T13:01:25.4034203Z   CC_DISABLE_FILE_FIXES: false
+2026-11-22T13:01:25.4034412Z   CC_DISABLE_SEARCH: false
+2026-11-22T13:01:25.4034608Z   CC_DISABLE_TELEM: false
+2026-11-22T13:01:25.4034796Z   CC_DRY_RUN: false
+2026-11-22T13:01:25.4034982Z   CC_ENTERPRISE_URL: 
+2026-11-22T13:01:25.4035163Z   CC_ENV: 
+2026-11-22T13:01:25.4035321Z   CC_EXCLUDES: 
+2026-11-22T13:01:25.4035501Z   CC_FAIL_ON_ERROR: false
+2026-11-22T13:01:25.4035692Z   CC_FILES: ./coverage.xml
+2026-11-22T13:01:25.4035882Z   CC_FLAGS: 
+2026-11-22T13:01:25.4036370Z   CC_FORCE: 
+2026-11-22T13:01:25.4036535Z   CC_GCOV_ARGS: 
+2026-11-22T13:01:25.4036714Z   CC_GCOV_EXECUTABLE: gcov
+2026-11-22T13:01:25.4036902Z   CC_GCOV_IGNORE: 
+2026-11-22T13:01:25.4037083Z   CC_GCOV_INCLUDE: 
+2026-11-22T13:01:25.4037264Z   CC_GIT_SERVICE: github
+2026-11-22T13:01:25.4037468Z   CC_HANDLE_NO_REPORTS_FOUND: false
+2026-11-22T13:01:25.4037692Z   CC_JOB_CODE: 
+2026-11-22T13:01:25.4037864Z   CC_LEGACY: false
+2026-11-22T13:01:25.4038037Z   CC_NAME: 
+2026-11-22T13:01:25.4038205Z   CC_NETWORK_FILTER: 
+2026-11-22T13:01:25.4038385Z   CC_NETWORK_PREFIX: 
+2026-11-22T13:01:25.4038570Z   CC_NETWORK_ROOT_FOLDER: 
+2026-11-22T13:01:25.4038761Z   CC_OS: 
+2026-11-22T13:01:25.4038918Z   CC_PARENT_SHA: 
+2026-11-22T13:01:25.4039090Z   CC_PLUGINS: 
+2026-11-22T13:01:25.4039275Z   CC_RECURSE_SUBMODULES: false
+2026-11-22T13:01:25.4039479Z   CC_REPORT_TYPE: 
+2026-11-22T13:01:25.4039669Z   CC_RUN_CMD: upload-coverage
+2026-11-22T13:01:25.4039874Z   CC_SERVICE: github
+2026-11-22T13:01:25.4040058Z   CC_SKIP_VALIDATION: false
+2026-11-22T13:01:25.4040257Z   CC_SLUG: 
+2026-11-22T13:01:25.4040421Z   CC_SWIFT_PROJECT: 
+2026-11-22T13:01:25.4040595Z   CC_USE_PYPI: false
+2026-11-22T13:01:25.4040784Z   CC_VERBOSE: false
+2026-11-22T13:01:25.4040968Z   CC_VERSION: latest
+2026-11-22T13:01:25.4041149Z   CC_YML_PATH: 
+2026-11-22T13:01:25.4041324Z ##[endgroup]
+2026-11-22T13:01:25.4140939Z      _____          _
+2026-11-22T13:01:25.4141246Z     / ____|        | |
+2026-11-22T13:01:25.4141548Z    | |     ___   __| | ___  ___ _____   __
+2026-11-22T13:01:25.4141887Z    | |    / _ \ / _` |/ _ \/ __/ _ \ \ / /
+2026-11-22T13:01:25.4142187Z    | |___| (_) | (_| |  __/ (_| (_) \ V /
+2026-11-22T13:01:25.4142419Z     \_____\___/ \__,_|\___|\___\___/ \_/
+2026-11-22T13:01:25.4142897Z                            [0;31m Wrapper-0.2.7[0m
+2026-11-22T13:01:25.4143139Z                            
+2026-11-22T13:01:25.4196721Z [0;32m==>[0m Detected [0;36mlinux[0m
+2026-11-22T13:01:25.4197389Z [0;32m ->[0m Downloading [0;36mhttps://cli.codecov.io/latest/linux/codecov[0m
+2026-11-22T13:01:25.4254847Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+2026-11-22T13:01:25.4255492Z                                  Dload  Upload   Total   Spent    Left  Speed
+2026-11-22T13:01:25.4255868Z 
+2026-11-22T13:01:25.5610462Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+2026-11-22T13:01:25.5611483Z 100 17.6M  100 17.6M    0     0   129M      0 --:--:-- --:--:-- --:--:--  130M
+2026-11-22T13:01:25.5634473Z [0;32m==>[0m Finishing downloading [0;36mlinux:latest[0m
+2026-11-22T13:01:25.6110095Z       Version: [0;36mv11.3.2[0m
+2026-11-22T13:01:25.6110428Z  
+2026-11-22T13:01:25.6146653Z gpg: directory '/home/runner/.gnupg' created
+2026-11-22T13:01:25.6147930Z gpg: keybox '/home/runner/.gnupg/pubring.kbx' created
+2026-11-22T13:01:25.8604006Z gpg: /home/runner/.gnupg/trustdb.gpg: trustdb created
+2026-11-22T13:01:25.8604587Z gpg: key 806BB28AED779869: public key "Codecov Uploader (Codecov Uploader Verification Key) <security@codecov.io>" imported
+2026-11-22T13:01:25.8926917Z gpg: Total number processed: 1
+2026-11-22T13:01:25.8927595Z gpg:               imported: 1
+2026-11-22T13:01:25.8931843Z [0;32m==>[0m Verifying GPG signature integrity
+2026-11-22T13:01:25.8932806Z [0;32m ->[0m Downloading [0;36mhttps://cli.codecov.io/latest/linux/codecov.SHA256SUM[0m
+2026-11-22T13:01:25.8933422Z [0;32m ->[0m Downloading [0;36mhttps://cli.codecov.io/latest/linux/codecov.SHA256SUM.sig[0m
+2026-11-22T13:01:25.8933760Z  
+2026-11-22T13:01:25.9861321Z gpg: Signature made Wed Oct 28 17:39:34 2026 UTC
+2026-11-22T13:01:25.9861821Z gpg:                using RSA key 27034E7FDB850E0BBC2C62FF806BB28AED779869
+2026-11-22T13:01:25.9863400Z gpg: Good signature from "Codecov Uploader (Codecov Uploader Verification Key) <security@codecov.io>" [unknown]
+2026-11-22T13:01:25.9864131Z gpg: WARNING: This key is not certified with a trusted signature!
+2026-11-22T13:01:25.9864680Z gpg:          There is no indication that the signature belongs to the owner.
+2026-11-22T13:01:25.9865584Z Primary key fingerprint: 2703 4E7F DB85 0E0B BC2C  62FF 806B B28A ED77 9869
+2026-11-22T13:01:26.0730292Z codecov: OK
+2026-11-22T13:01:26.0740148Z [0;32m==>[0m CLI integrity verified
+2026-11-22T13:01:26.0740463Z 
+2026-11-22T13:01:26.1335353Z [0;32m ->[0m Token length: 0
+2026-11-22T13:01:26.1335762Z [0;32m==>[0m Running upload-coverage
+2026-11-22T13:01:26.1344351Z       [0;36m./codecov  upload-coverage --git-service github --file ./coverage.xml --gcov-executable gcov[0m
+2026-11-22T13:01:26.5041159Z info - 2026-11-22 13:01:26,503 -- ci service found: github-actions
+2026-11-22T13:01:26.5094930Z warning - 2026-11-22 13:01:26,509 -- No config file could be found. Ignoring config.
+2026-11-22T13:01:26.5304716Z warning - 2026-11-22 13:01:26,530 -- xcrun is not installed or can't be found.
+2026-11-22T13:01:26.6264381Z warning - 2026-11-22 13:01:26,626 -- No gcov data found.
+2026-11-22T13:01:26.6272734Z info - 2026-11-22 13:01:26,627 -- Generating coverage.xml report in /home/runner/work/Lausu/Lausu
+2026-11-22T13:01:32.2773965Z 
+2026-11-22T13:01:32.4861359Z info - 2026-11-22 13:01:32,485 -- Found 2 coverage files to report
+2026-11-22T13:01:32.4862008Z info - 2026-11-22 13:01:32,486 -- > /home/runner/work/Lausu/Lausu/coverage.xml
+2026-11-22T13:01:32.4862619Z info - 2026-11-22 13:01:32,486 -- > /home/runner/work/Lausu/Lausu/coverage-baseline.json
+2026-11-22T13:01:32.8054742Z info - 2026-11-22 13:01:32,805 -- Upload queued for processing complete
+2026-11-22T13:01:32.8055544Z error - 2026-11-22 13:01:32,805 -- Upload queued for processing failed: {"message":"Token required - not valid tokenless upload"}
+2026-11-22T13:01:32.9681904Z ##[end-action id=__codecov_codecov-action.__run_8;outcome=success;conclusion=success;duration_ms=7571]
+2026-11-22T13:01:32.9718195Z ##[group]Run python scripts/coverage_ratchet_check.py --strict
+2026-11-22T13:01:32.9718602Z [36;1mpython scripts/coverage_ratchet_check.py --strict[0m
+2026-11-22T13:01:32.9772894Z shell: /usr/bin/bash -e {0}
+2026-11-22T13:01:32.9773116Z env:
+2026-11-22T13:01:32.9773345Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:32.9773695Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib/pkgconfig
+2026-11-22T13:01:32.9774048Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:32.9774355Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:32.9774787Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.16/x64
+2026-11-22T13:01:32.9775090Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.16/x64/lib
+2026-11-22T13:01:32.9775409Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+2026-11-22T13:01:32.9775715Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+2026-11-22T13:01:32.9776164Z   CC_FORK: false
+2026-11-22T13:01:32.9776337Z   CC_BRANCH: 
+2026-11-22T13:01:32.9776500Z   CC_SHA: 
+2026-11-22T13:01:32.9776661Z   CC_PR: 
+2026-11-22T13:01:32.9776819Z ##[endgroup]
+2026-11-22T13:01:33.1019837Z Coverage ratchet comparison
+2026-11-22T13:01:33.1020290Z ===========================
+2026-11-22T13:01:33.1020636Z   Baseline file: coverage-baseline.json
+2026-11-22T13:01:33.1020987Z   Total: baseline=80.0000%  current=84.6700%  status=improved
+2026-11-22T13:01:33.1021706Z   -> Total IMPROVED. Consider regenerating the baseline to lock in the gain:
+2026-11-22T13:01:33.1022082Z        python scripts/coverage_ratchet_check.py --regenerate
+2026-11-22T13:01:33.1022289Z 
+2026-11-22T13:01:33.1022421Z PASS: ratchet holds (current 84.6700% >= baseline 80.0000%).
+2026-11-22T13:01:33.1169547Z Post job cleanup.
+2026-11-22T13:01:33.1942680Z [command]/usr/bin/git version
+2026-11-22T13:01:33.1981847Z git version 2.56.1
+2026-11-22T13:01:33.2008476Z Copying '/home/runner/.gitconfig' to '/home/runner/work/_temp/2134b579-bbd1-4498-9f39-a33d5ccdc868/.gitconfig'
+2026-11-22T13:01:33.2016882Z Temporarily overriding HOME='/home/runner/work/_temp/2134b579-bbd1-4498-9f39-a33d5ccdc868' before making global git config changes
+2026-11-22T13:01:33.2019151Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-22T13:01:33.2022336Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Lausu/Lausu
+2026-11-22T13:01:33.2064653Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-22T13:01:33.2101956Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-22T13:01:33.2406594Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-22T13:01:33.2425382Z http.https://github.com/.extraheader
+2026-11-22T13:01:33.2436922Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-22T13:01:33.2475613Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-22T13:01:33.2752428Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-22T13:01:33.2793401Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-22T13:01:33.3179527Z Cleaning up orphan processes
+2026-11-22T13:01:33.3470690Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

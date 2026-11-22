@@ -1,0 +1,421 @@
+﻿2026-11-21T19:20:29.4461188Z Current runner version: '2.338.2'
+2026-11-21T19:20:29.4478268Z ##[group]Runner Image Provisioner
+2026-11-21T19:20:29.4478759Z Hosted Compute Agent
+2026-11-21T19:20:29.4479112Z Version: 20261111.635
+2026-11-21T19:20:29.4479435Z Commit: b8a594ea514ff44cadb5342986c68b1eac6e22ed
+2026-11-21T19:20:29.4479840Z Build Date: 2026-11-11T01:49:01Z
+2026-11-21T19:20:29.4480195Z Worker ID: {f4fea31d-e0a0-441d-bedc-86bba91c2090}
+2026-11-21T19:20:29.4480614Z Region: westus2
+2026-11-21T19:20:29.4480892Z Cloud: Azure
+2026-11-21T19:20:29.4481161Z ##[endgroup]
+2026-11-21T19:20:29.4481906Z ##[group]Operating System
+2026-11-21T19:20:29.4482223Z Microsoft Windows Server 2022
+2026-11-21T19:20:29.4482585Z 10.0.20348
+2026-11-21T19:20:29.4482851Z Datacenter
+2026-11-21T19:20:29.4483113Z ##[endgroup]
+2026-11-21T19:20:29.4483423Z ##[group]Runner Image
+2026-11-21T19:20:29.4483718Z Image: windows-2022
+2026-11-21T19:20:29.4484010Z Version: 20261116.370.1
+2026-11-21T19:20:29.4484875Z Included Software: https://github.com/actions/runner-images/blob/win22/20261116.370/images/windows/Windows2022-Readme.md
+2026-11-21T19:20:29.4485652Z Image Release: https://github.com/actions/runner-images/releases/tag/win22%2F20261116.370
+...[fixture: middle truncated]...
+2026-11-21T19:35:10.9308877Z Root directory input is valid!
+2026-11-21T19:35:11.2905092Z Beginning upload of artifact content to blob storage
+2026-11-21T19:35:12.7644897Z Uploaded bytes 8388608
+2026-11-21T19:35:12.9721558Z Uploaded bytes 16777216
+2026-11-21T19:35:13.0458761Z Uploaded bytes 25165824
+2026-11-21T19:35:13.1557944Z Uploaded bytes 33554432
+2026-11-21T19:35:13.2956211Z Uploaded bytes 41943040
+2026-11-21T19:35:13.4097910Z Uploaded bytes 50331648
+2026-11-21T19:35:13.5284866Z Uploaded bytes 58720256
+2026-11-21T19:35:13.5364655Z Uploaded bytes 67108864
+2026-11-21T19:35:13.5426405Z Uploaded bytes 75497472
+2026-11-21T19:35:13.7139870Z Uploaded bytes 83886080
+2026-11-21T19:35:13.8060191Z Uploaded bytes 92274688
+2026-11-21T19:35:13.8615469Z Uploaded bytes 100663296
+2026-11-21T19:35:13.9027713Z Uploaded bytes 109051904
+2026-11-21T19:35:13.9775303Z Uploaded bytes 117440512
+2026-11-21T19:35:14.0247853Z Uploaded bytes 125829120
+2026-11-21T19:35:14.2922045Z Uploaded bytes 134217728
+2026-11-21T19:35:14.3494292Z Uploaded bytes 142606336
+2026-11-21T19:35:14.6008394Z Uploaded bytes 150994944
+2026-11-21T19:35:14.7843330Z Uploaded bytes 154970843
+2026-11-21T19:35:14.8606372Z Finished uploading artifact content to blob storage!
+2026-11-21T19:35:14.8608271Z SHA256 digest of uploaded artifact zip is cd6b943ca909fb3af38d86c5e1520f98ebf227e58f12c1599caeaf127219752e
+2026-11-21T19:35:14.8609524Z Finalizing artifact upload
+2026-11-21T19:35:15.4971687Z Artifact Lausu-Windows-Installer.zip successfully finalized. Artifact ID 14722260297
+2026-11-21T19:35:15.4972446Z Artifact Lausu-Windows-Installer has been successfully uploaded! Final size is 154970843 bytes. Artifact ID is 14722260297
+2026-11-21T19:35:15.4978580Z Artifact download URL: https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544/artifacts/14722260297
+2026-11-21T19:35:15.5192884Z ##[group]Run actions/upload-artifact@v6
+2026-11-21T19:35:15.5193089Z with:
+2026-11-21T19:35:15.5193206Z   name: Lausu-Windows-MSI
+2026-11-21T19:35:15.5193451Z   path: D:\a\Lausu\Lausu\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\msi\Lausu_1.0.0_x64_en-US.msi
+2026-11-21T19:35:15.5193710Z   if-no-files-found: warn
+2026-11-21T19:35:15.5193835Z   compression-level: 6
+2026-11-21T19:35:15.5193946Z   overwrite: false
+2026-11-21T19:35:15.5194064Z   include-hidden-files: false
+2026-11-21T19:35:15.5194188Z env:
+2026-11-21T19:35:15.5194286Z   PYBS_DATE: 20241219
+2026-11-21T19:35:15.5194393Z   PYBS_VERSION: 3.12.8
+2026-11-21T19:35:15.5194515Z   PYBS_TRIPLE: x86_64-pc-windows-msvc
+2026-11-21T19:35:15.5194660Z   RUST_TARGET: x86_64-pc-windows-msvc
+2026-11-21T19:35:15.5194795Z   WIN_CSC_LINK: 
+2026-11-21T19:35:15.5194904Z   WIN_CSC_KEY_PASSWORD: 
+2026-11-21T19:35:15.5195023Z   SIGN_ENABLED: false
+2026-11-21T19:35:15.5195130Z   CLCACHE_DISABLE: 1
+2026-11-21T19:35:15.5195316Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:15.5195569Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.12.10\x64/lib/pkgconfig
+2026-11-21T19:35:15.5195813Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:15.5196029Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:15.5196246Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:15.5196434Z   UV_TOOL_BIN_DIR: D:\a\_temp\uv-tool-bin-dir
+2026-11-21T19:35:15.5196595Z   UV_TOOL_DIR: D:\a\_temp\uv-tool-dir
+2026-11-21T19:35:15.5196748Z   UV_PYTHON_INSTALL_DIR: D:\a\_temp\uv-python-dir
+2026-11-21T19:35:15.5196914Z   UV_CACHE_DIR: D:\a\_temp\setup-uv-cache
+2026-11-21T19:35:15.5197061Z   CARGO_HOME: C:\Users\runneradmin\.cargo
+2026-11-21T19:35:15.5197203Z   CARGO_INCREMENTAL: 0
+2026-11-21T19:35:15.5197322Z   CARGO_TERM_COLOR: always
+2026-11-21T19:35:15.5197445Z ##[endgroup]
+2026-11-21T19:35:15.6357461Z With the provided path, there will be 1 file uploaded
+2026-11-21T19:35:15.6360460Z Artifact name is valid!
+2026-11-21T19:35:15.6362056Z Root directory input is valid!
+2026-11-21T19:35:16.0023985Z Beginning upload of artifact content to blob storage
+2026-11-21T19:35:17.3096198Z Uploaded bytes 8388608
+2026-11-21T19:35:17.5886466Z Uploaded bytes 16777216
+2026-11-21T19:35:17.6649754Z Uploaded bytes 25165824
+2026-11-21T19:35:17.8840559Z Uploaded bytes 33554432
+2026-11-21T19:35:17.9215952Z Uploaded bytes 41943040
+2026-11-21T19:35:17.9920407Z Uploaded bytes 50331648
+2026-11-21T19:35:18.0800793Z Uploaded bytes 58720256
+2026-11-21T19:35:18.1498512Z Uploaded bytes 67108864
+2026-11-21T19:35:18.2736278Z Uploaded bytes 75497472
+2026-11-21T19:35:18.3329033Z Uploaded bytes 83886080
+2026-11-21T19:35:18.3869722Z Uploaded bytes 92274688
+2026-11-21T19:35:18.3918326Z Uploaded bytes 100663296
+2026-11-21T19:35:18.5515350Z Uploaded bytes 109051904
+2026-11-21T19:35:18.5856687Z Uploaded bytes 117440512
+2026-11-21T19:35:18.6834174Z Uploaded bytes 125829120
+2026-11-21T19:35:18.8220251Z Uploaded bytes 134217728
+2026-11-21T19:35:18.9186695Z Uploaded bytes 142606336
+2026-11-21T19:35:19.0925801Z Uploaded bytes 150994944
+2026-11-21T19:35:19.2829591Z Uploaded bytes 159383552
+2026-11-21T19:35:19.3954423Z Uploaded bytes 167772160
+2026-11-21T19:35:19.4886377Z Uploaded bytes 168891621
+2026-11-21T19:35:19.5636103Z Finished uploading artifact content to blob storage!
+2026-11-21T19:35:19.5638186Z SHA256 digest of uploaded artifact zip is 6f8694eb8705e091966cd9c1167309da9cb3216e7e18ee01d48ff0fb52b8a264
+2026-11-21T19:35:19.5639557Z Finalizing artifact upload
+2026-11-21T19:35:20.0675304Z Artifact Lausu-Windows-MSI.zip successfully finalized. Artifact ID 14722220627
+2026-11-21T19:35:20.0675728Z Artifact Lausu-Windows-MSI has been successfully uploaded! Final size is 168891621 bytes. Artifact ID is 14722220627
+2026-11-21T19:35:20.0683459Z Artifact download URL: https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544/artifacts/14722220627
+2026-11-21T19:35:20.0896137Z ##[group]Run actions/upload-artifact@v6
+2026-11-21T19:35:20.0896336Z with:
+2026-11-21T19:35:20.0896465Z   name: Lausu-Windows-Sidecar-Binaries
+2026-11-21T19:35:20.0896775Z   path: src-tauri/bin/python-sidecar-x86_64-pc-windows-msvc.exe
+src-tauri/resources/native/windows-key-listener.exe
+
+2026-11-21T19:35:20.0897067Z   if-no-files-found: error
+2026-11-21T19:35:20.0897203Z   compression-level: 6
+2026-11-21T19:35:20.0897323Z   overwrite: false
+2026-11-21T19:35:20.0897444Z   include-hidden-files: false
+2026-11-21T19:35:20.0897574Z env:
+2026-11-21T19:35:20.0897677Z   PYBS_DATE: 20241219
+2026-11-21T19:35:20.0897793Z   PYBS_VERSION: 3.12.8
+2026-11-21T19:35:20.0897919Z   PYBS_TRIPLE: x86_64-pc-windows-msvc
+2026-11-21T19:35:20.0898069Z   RUST_TARGET: x86_64-pc-windows-msvc
+2026-11-21T19:35:20.0898204Z   WIN_CSC_LINK: 
+2026-11-21T19:35:20.0898323Z   WIN_CSC_KEY_PASSWORD: 
+2026-11-21T19:35:20.0898446Z   SIGN_ENABLED: false
+2026-11-21T19:35:20.0898570Z   CLCACHE_DISABLE: 1
+2026-11-21T19:35:20.0898750Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:20.0899001Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.12.10\x64/lib/pkgconfig
+2026-11-21T19:35:20.0899253Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:20.0899478Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:20.0899696Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:20.0899892Z   UV_TOOL_BIN_DIR: D:\a\_temp\uv-tool-bin-dir
+2026-11-21T19:35:20.0900054Z   UV_TOOL_DIR: D:\a\_temp\uv-tool-dir
+2026-11-21T19:35:20.0900222Z   UV_PYTHON_INSTALL_DIR: D:\a\_temp\uv-python-dir
+2026-11-21T19:35:20.0900386Z   UV_CACHE_DIR: D:\a\_temp\setup-uv-cache
+2026-11-21T19:35:20.0900546Z   CARGO_HOME: C:\Users\runneradmin\.cargo
+2026-11-21T19:35:20.0900691Z   CARGO_INCREMENTAL: 0
+2026-11-21T19:35:20.0900812Z   CARGO_TERM_COLOR: always
+2026-11-21T19:35:20.0900944Z ##[endgroup]
+2026-11-21T19:35:20.1971263Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-11-21T19:35:20.1972226Z The least common ancestor is D:\a\Lausu\Lausu\src-tauri. This will be the root directory of the artifact
+2026-11-21T19:35:20.1972736Z With the provided path, there will be 2 files uploaded
+2026-11-21T19:35:20.1974392Z Artifact name is valid!
+2026-11-21T19:35:20.1975826Z Root directory input is valid!
+2026-11-21T19:35:20.5479671Z Beginning upload of artifact content to blob storage
+2026-11-21T19:35:22.1950425Z Uploaded bytes 8388608
+2026-11-21T19:35:22.2467388Z Uploaded bytes 16777216
+2026-11-21T19:35:22.3085942Z Uploaded bytes 25165824
+2026-11-21T19:35:22.4301778Z Uploaded bytes 33554432
+2026-11-21T19:35:22.5465924Z Uploaded bytes 41943040
+2026-11-21T19:35:22.6366243Z Uploaded bytes 50331648
+2026-11-21T19:35:22.6687739Z Uploaded bytes 58720256
+2026-11-21T19:35:22.7744260Z Uploaded bytes 67108864
+2026-11-21T19:35:22.8742352Z Uploaded bytes 75497472
+2026-11-21T19:35:22.9448849Z Uploaded bytes 83886080
+2026-11-21T19:35:22.9931203Z Uploaded bytes 92274688
+2026-11-21T19:35:23.0406570Z Uploaded bytes 100663296
+2026-11-21T19:35:23.3145499Z Uploaded bytes 108098460
+2026-11-21T19:35:23.3898838Z Finished uploading artifact content to blob storage!
+2026-11-21T19:35:23.3901086Z SHA256 digest of uploaded artifact zip is ccc697e9692bc7cbb31dd003091b24b0a1598f2396b348a496b8d2988819f8f9
+2026-11-21T19:35:23.3902465Z Finalizing artifact upload
+2026-11-21T19:35:23.8894232Z Artifact Lausu-Windows-Sidecar-Binaries.zip successfully finalized. Artifact ID 14722365337
+2026-11-21T19:35:23.8894726Z Artifact Lausu-Windows-Sidecar-Binaries has been successfully uploaded! Final size is 108098460 bytes. Artifact ID is 14722365337
+2026-11-21T19:35:23.8899902Z Artifact download URL: https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544/artifacts/14722365337
+2026-11-21T19:35:23.9109978Z ##[group]Run $checksums = @()
+2026-11-21T19:35:23.9110266Z [36;1m$checksums = @()[0m
+2026-11-21T19:35:23.9110527Z [36;1m# TX-40: checksum paths use matrix.target so both legs emit[0m
+2026-11-21T19:35:23.9110890Z [36;1m# plan-runtime-pack-split.md §11.9 (C-CI-13): the worker exe is[0m
+2026-11-21T19:35:23.9111315Z [36;1m# SP-1 SLIM: checksums cover the slim payload only (no worker).[0m
+2026-11-21T19:35:23.9111573Z [36;1mforeach ($p in @([0m
+2026-11-21T19:35:23.9111897Z [36;1m      "D:\a\Lausu\Lausu\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\Lausu_1.0.0_x64-setup.exe",[0m
+2026-11-21T19:35:23.9112350Z [36;1m      "D:\a\Lausu\Lausu\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\msi\Lausu_1.0.0_x64_en-US.msi",[0m
+2026-11-21T19:35:23.9112746Z [36;1m      "src-tauri/bin/python-sidecar-x86_64-pc-windows-msvc.exe",[0m
+2026-11-21T19:35:23.9113052Z [36;1m      "src-tauri/resources/native/windows-key-listener.exe",[0m
+2026-11-21T19:35:23.9113435Z [36;1m      "src-tauri/target/x86_64-pc-windows-msvc/release/lausu-tauri.exe"[0m
+2026-11-21T19:35:23.9113683Z [36;1m)) {[0m
+2026-11-21T19:35:23.9113879Z [36;1m  if (Test-Path $p) {[0m
+2026-11-21T19:35:23.9114139Z [36;1m    $hash = (Get-FileHash -Path $p -Algorithm SHA256).Hash.ToLower()[0m
+2026-11-21T19:35:23.9114421Z [36;1m    $name = Split-Path -Leaf $p[0m
+2026-11-21T19:35:23.9114639Z [36;1m    $checksums += "$hash  $name"[0m
+2026-11-21T19:35:23.9114853Z [36;1m  }[0m
+2026-11-21T19:35:23.9114993Z [36;1m}[0m
+2026-11-21T19:35:23.9115221Z [36;1m$checksums | Out-File -FilePath SHA256SUMS.txt -Encoding utf8[0m
+2026-11-21T19:35:23.9115574Z [36;1mGet-Content SHA256SUMS.txt[0m
+2026-11-21T19:35:23.9139115Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-11-21T19:35:23.9139362Z env:
+2026-11-21T19:35:23.9139551Z   PYBS_DATE: 20241219
+2026-11-21T19:35:23.9139728Z   PYBS_VERSION: 3.12.8
+2026-11-21T19:35:23.9139937Z   PYBS_TRIPLE: x86_64-pc-windows-msvc
+2026-11-21T19:35:23.9140139Z   RUST_TARGET: x86_64-pc-windows-msvc
+2026-11-21T19:35:23.9140350Z   WIN_CSC_LINK: 
+2026-11-21T19:35:23.9140533Z   WIN_CSC_KEY_PASSWORD: 
+2026-11-21T19:35:23.9140725Z   SIGN_ENABLED: false
+2026-11-21T19:35:23.9140902Z   CLCACHE_DISABLE: 1
+2026-11-21T19:35:23.9141140Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:23.9141437Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.12.10\x64/lib/pkgconfig
+2026-11-21T19:35:23.9141750Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:23.9142038Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:23.9142325Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:23.9142587Z   UV_TOOL_BIN_DIR: D:\a\_temp\uv-tool-bin-dir
+2026-11-21T19:35:23.9142815Z   UV_TOOL_DIR: D:\a\_temp\uv-tool-dir
+2026-11-21T19:35:23.9143025Z   UV_PYTHON_INSTALL_DIR: D:\a\_temp\uv-python-dir
+2026-11-21T19:35:23.9143258Z   UV_CACHE_DIR: D:\a\_temp\setup-uv-cache
+2026-11-21T19:35:23.9143484Z   CARGO_HOME: C:\Users\runneradmin\.cargo
+2026-11-21T19:35:23.9143806Z   CARGO_INCREMENTAL: 0
+2026-11-21T19:35:23.9143999Z   CARGO_TERM_COLOR: always
+2026-11-21T19:35:23.9144186Z ##[endgroup]
+2026-11-21T19:35:24.5324647Z 65b3df0e62cd30527bbedb37c6b09e80dc0d6667c6b14d3e4f417400edb00a7a  Lausu_1.0.0_x64-setup.exe
+2026-11-21T19:35:24.5325664Z 4e80a10d88d3bee7690c28cd5050cce38c06f19a4b87d795c0cf63e890f53874  Lausu_1.0.0_x64_en-US.msi
+2026-11-21T19:35:24.5326345Z 0fcc59be48656e6b04b5b4c9050349ba237db63bbed38176bcb6b116f60b637c  python-sidecar-x86_64-pc-windows-msvc.exe
+2026-11-21T19:35:24.5327603Z 01891f494de72069066595ecb7eea7d918877461e5b096d3684ac25862e280b5  windows-key-listener.exe
+2026-11-21T19:35:24.5328513Z a21d06b64ddda29dcecf6c1e12bd5a13680f833dfd9a00e4ead2ac04705ef68c  lausu-tauri.exe
+2026-11-21T19:35:24.5708833Z ##[group]Run actions/upload-artifact@v6
+2026-11-21T19:35:24.5709034Z with:
+2026-11-21T19:35:24.5709158Z   name: Lausu-Windows-SHA256SUMS
+2026-11-21T19:35:24.5709301Z   path: SHA256SUMS.txt
+2026-11-21T19:35:24.5709444Z   if-no-files-found: error
+2026-11-21T19:35:24.5709575Z   compression-level: 6
+2026-11-21T19:35:24.5709697Z   overwrite: false
+2026-11-21T19:35:24.5709820Z   include-hidden-files: false
+2026-11-21T19:35:24.5709955Z env:
+2026-11-21T19:35:24.5710055Z   PYBS_DATE: 20241219
+2026-11-21T19:35:24.5710175Z   PYBS_VERSION: 3.12.8
+2026-11-21T19:35:24.5710306Z   PYBS_TRIPLE: x86_64-pc-windows-msvc
+2026-11-21T19:35:24.5710463Z   RUST_TARGET: x86_64-pc-windows-msvc
+2026-11-21T19:35:24.5710603Z   WIN_CSC_LINK: 
+2026-11-21T19:35:24.5710719Z   WIN_CSC_KEY_PASSWORD: 
+2026-11-21T19:35:24.5710844Z   SIGN_ENABLED: false
+2026-11-21T19:35:24.5710959Z   CLCACHE_DISABLE: 1
+2026-11-21T19:35:24.5711125Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:24.5711395Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.12.10\x64/lib/pkgconfig
+2026-11-21T19:35:24.5711646Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:24.5711869Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:24.5712096Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:24.5712289Z   UV_TOOL_BIN_DIR: D:\a\_temp\uv-tool-bin-dir
+2026-11-21T19:35:24.5712449Z   UV_TOOL_DIR: D:\a\_temp\uv-tool-dir
+2026-11-21T19:35:24.5712608Z   UV_PYTHON_INSTALL_DIR: D:\a\_temp\uv-python-dir
+2026-11-21T19:35:24.5712781Z   UV_CACHE_DIR: D:\a\_temp\setup-uv-cache
+2026-11-21T19:35:24.5712938Z   CARGO_HOME: C:\Users\runneradmin\.cargo
+2026-11-21T19:35:24.5713085Z   CARGO_INCREMENTAL: 0
+2026-11-21T19:35:24.5713207Z   CARGO_TERM_COLOR: always
+2026-11-21T19:35:24.5713331Z ##[endgroup]
+2026-11-21T19:35:24.6802375Z With the provided path, there will be 1 file uploaded
+2026-11-21T19:35:24.6804985Z Artifact name is valid!
+2026-11-21T19:35:24.6806318Z Root directory input is valid!
+2026-11-21T19:35:25.0300830Z Beginning upload of artifact content to blob storage
+2026-11-21T19:35:25.3244235Z Uploaded bytes 450
+2026-11-21T19:35:25.3989631Z Finished uploading artifact content to blob storage!
+2026-11-21T19:35:25.3990433Z SHA256 digest of uploaded artifact zip is fcde72d445f1366eadb0e2ba03b7d00a203ecc0ed7d0a1671c2cf68b167175f2
+2026-11-21T19:35:25.3991746Z Finalizing artifact upload
+2026-11-21T19:35:25.9262140Z Artifact Lausu-Windows-SHA256SUMS.zip successfully finalized. Artifact ID 14721728056
+2026-11-21T19:35:25.9262788Z Artifact Lausu-Windows-SHA256SUMS has been successfully uploaded! Final size is 450 bytes. Artifact ID is 14721728056
+2026-11-21T19:35:25.9266832Z Artifact download URL: https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544/artifacts/14721728056
+2026-11-21T19:35:25.9454286Z ##[group]Run actions/upload-artifact@v6
+2026-11-21T19:35:25.9454572Z with:
+2026-11-21T19:35:25.9454762Z   name: Lausu-Windows-Third-Party-Notices
+2026-11-21T19:35:25.9455018Z   path: docs/THIRD_PARTY_NOTICES.md
+2026-11-21T19:35:25.9455249Z   if-no-files-found: error
+2026-11-21T19:35:25.9455464Z   compression-level: 6
+2026-11-21T19:35:25.9455838Z   overwrite: false
+2026-11-21T19:35:25.9456033Z   include-hidden-files: false
+2026-11-21T19:35:25.9456239Z env:
+2026-11-21T19:35:25.9456395Z   PYBS_DATE: 20241219
+2026-11-21T19:35:25.9456581Z   PYBS_VERSION: 3.12.8
+2026-11-21T19:35:25.9456775Z   PYBS_TRIPLE: x86_64-pc-windows-msvc
+2026-11-21T19:35:25.9457009Z   RUST_TARGET: x86_64-pc-windows-msvc
+2026-11-21T19:35:25.9457227Z   WIN_CSC_LINK: 
+2026-11-21T19:35:25.9457404Z   WIN_CSC_KEY_PASSWORD: 
+2026-11-21T19:35:25.9457594Z   SIGN_ENABLED: false
+2026-11-21T19:35:25.9457778Z   CLCACHE_DISABLE: 1
+2026-11-21T19:35:25.9458055Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:25.9458448Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.12.10\x64/lib/pkgconfig
+2026-11-21T19:35:25.9458705Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:25.9458934Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:25.9459154Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:25.9459355Z   UV_TOOL_BIN_DIR: D:\a\_temp\uv-tool-bin-dir
+2026-11-21T19:35:25.9459518Z   UV_TOOL_DIR: D:\a\_temp\uv-tool-dir
+2026-11-21T19:35:25.9459684Z   UV_PYTHON_INSTALL_DIR: D:\a\_temp\uv-python-dir
+2026-11-21T19:35:25.9459856Z   UV_CACHE_DIR: D:\a\_temp\setup-uv-cache
+2026-11-21T19:35:25.9460018Z   CARGO_HOME: C:\Users\runneradmin\.cargo
+2026-11-21T19:35:25.9460172Z   CARGO_INCREMENTAL: 0
+2026-11-21T19:35:25.9460300Z   CARGO_TERM_COLOR: always
+2026-11-21T19:35:25.9460430Z ##[endgroup]
+2026-11-21T19:35:26.0547680Z With the provided path, there will be 1 file uploaded
+2026-11-21T19:35:26.0550285Z Artifact name is valid!
+2026-11-21T19:35:26.0551725Z Root directory input is valid!
+2026-11-21T19:35:26.4134126Z Beginning upload of artifact content to blob storage
+2026-11-21T19:35:26.7770782Z Uploaded bytes 29617
+2026-11-21T19:35:26.8515717Z Finished uploading artifact content to blob storage!
+2026-11-21T19:35:26.8516542Z SHA256 digest of uploaded artifact zip is d512cb5d16711d03aad5cd9944ccd7e8a1e09c39162145050576c3626b4c5000
+2026-11-21T19:35:26.8517885Z Finalizing artifact upload
+2026-11-21T19:35:27.3625081Z Artifact Lausu-Windows-Third-Party-Notices.zip successfully finalized. Artifact ID 14721413833
+2026-11-21T19:35:27.3625669Z Artifact Lausu-Windows-Third-Party-Notices has been successfully uploaded! Final size is 29617 bytes. Artifact ID is 14721413833
+2026-11-21T19:35:27.3629691Z Artifact download URL: https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544/artifacts/14721413833
+2026-11-21T19:35:27.3809683Z ##[group]Run set -euo pipefail
+2026-11-21T19:35:27.3809945Z [36;1mset -euo pipefail[0m
+2026-11-21T19:35:27.3810152Z [36;1m# tee archives the verifier's console output; pipefail makes the[0m
+2026-11-21T19:35:27.3810414Z [36;1m# pipeline exit with the verifier's code so failures still fail.[0m
+2026-11-21T19:35:27.3810644Z [36;1mpython scripts/verify_windows_bundle.py \[0m
+2026-11-21T19:35:27.3810845Z [36;1m  --target "x86_64-pc-windows-msvc" \[0m
+2026-11-21T19:35:27.3811100Z [36;1m  --sidecar "src-tauri/bin/python-sidecar-x86_64-pc-windows-msvc.exe" \[0m
+2026-11-21T19:35:27.3811359Z [36;1m  --wav "tests/fixtures/test_440hz_1s_16k.wav" \[0m
+2026-11-21T19:35:27.3811686Z [36;1m  --nsis "D:\a\Lausu\Lausu\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\Lausu_1.0.0_x64-setup.exe" \[0m
+2026-11-21T19:35:27.3812104Z [36;1m  --msi "D:\a\Lausu\Lausu\src-tauri\target\x86_64-pc-windows-msvc\release\bundle\msi\Lausu_1.0.0_x64_en-US.msi" \[0m
+2026-11-21T19:35:27.3812424Z [36;1m  --summary "$GITHUB_STEP_SUMMARY" \[0m
+2026-11-21T19:35:27.3812625Z [36;1m  --enforce-no-gpl-dlls "$ENFORCE_NO_GPL_DLLS" \[0m
+2026-11-21T19:35:27.3812814Z [36;1m  2>&1 | tee gate-output.txt[0m
+2026-11-21T19:35:27.3820452Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-21T19:35:27.3820671Z env:
+2026-11-21T19:35:27.3820782Z   PYBS_DATE: 20241219
+2026-11-21T19:35:27.3820910Z   PYBS_VERSION: 3.12.8
+2026-11-21T19:35:27.3821174Z   PYBS_TRIPLE: x86_64-pc-windows-msvc
+2026-11-21T19:35:27.3821333Z   RUST_TARGET: x86_64-pc-windows-msvc
+2026-11-21T19:35:27.3821479Z   WIN_CSC_LINK: 
+2026-11-21T19:35:27.3821602Z   WIN_CSC_KEY_PASSWORD: 
+2026-11-21T19:35:27.3821735Z   SIGN_ENABLED: false
+2026-11-21T19:35:27.3821861Z   CLCACHE_DISABLE: 1
+2026-11-21T19:35:27.3822036Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:27.3822295Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.12.10\x64/lib/pkgconfig
+2026-11-21T19:35:27.3822555Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:27.3822785Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:27.3823012Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:27.3823215Z   UV_TOOL_BIN_DIR: D:\a\_temp\uv-tool-bin-dir
+2026-11-21T19:35:27.3823383Z   UV_TOOL_DIR: D:\a\_temp\uv-tool-dir
+2026-11-21T19:35:27.3823553Z   UV_PYTHON_INSTALL_DIR: D:\a\_temp\uv-python-dir
+2026-11-21T19:35:27.3823729Z   UV_CACHE_DIR: D:\a\_temp\setup-uv-cache
+2026-11-21T19:35:27.3823892Z   CARGO_HOME: C:\Users\runneradmin\.cargo
+2026-11-21T19:35:27.3824047Z   CARGO_INCREMENTAL: 0
+2026-11-21T19:35:27.3824179Z   CARGO_TERM_COLOR: always
+2026-11-21T19:35:27.3824314Z   ENFORCE_NO_GPL_DLLS: 0
+2026-11-21T19:35:27.3824449Z ##[endgroup]
+2026-11-21T19:35:31.5694396Z SELFCHECK: PASS frozen-build
+2026-11-21T19:35:31.5694685Z SELFCHECK: PASS no-path-fallback
+2026-11-21T19:35:31.5695082Z SELFCHECK: PASS bundled-ffmpeg C:\Users\runneradmin\AppData\Local\Temp\lausu-sidecar-smoke-vi1a2tbn\ffmpeg.exe
+2026-11-21T19:35:31.5695404Z SELFCHECK: PASS decode-samples=16000
+2026-11-21T19:35:31.5695734Z SELFCHECK: FAIL rnnoise-active AssertionError: RNNoise not active (effective method='none', degraded=True)
+2026-11-21T19:35:31.5696031Z SELFCHECK: FAILED CHECKS: rnnoise-active
+2026-11-21T19:35:31.5696144Z 
+2026-11-21T19:35:31.5696148Z 
+2026-11-21T19:35:31.6018366Z ##[error]Windows bundle verification FAILED: frozen self-check: frozen-sidecar --self-check exited 1 (expected 0):
+2026-11-21T19:35:31.6019430Z SELFCHECK: PASS frozen-build
+2026-11-21T19:35:31.6019726Z SELFCHECK: PASS no-path-fallback
+2026-11-21T19:35:31.6020287Z SELFCHECK: PASS bundled-ffmpeg C:\Users\runneradmin\AppData\Local\Temp\lausu-sidecar-smoke-vi1a2tbn\ffmpeg.exe
+2026-11-21T19:35:31.6020806Z SELFCHECK: PASS decode-samples=16000
+2026-11-21T19:35:31.6022854Z SELFCHECK: FAIL rnnoise-active AssertionError: RNNoise not active (effective method='none', degraded=True)
+2026-11-21T19:35:31.6023407Z SELFCHECK: FAILED CHECKS: rnnoise-active
+2026-11-21T19:35:31.6023590Z 
+2026-11-21T19:35:31.6023596Z 
+2026-11-21T19:35:31.6024378Z onefile extraction dir: None (from pinned spec (Nuitka cached mode); left in place � this script does not create or delete it)
+2026-11-21T19:35:34.0894104Z ##[error]Windows bundle verification FAILED: GPL DLL scan: onefile extraction dir could not be determined; pass --onefile-extract-dir or set LAUSU_ONEFILE_EXTRACT_DIR to the pinned cached extraction dir
+2026-11-21T19:35:34.0895194Z Wrote size summary to D:\a\_temp\_runner_file_commands\step_summary_d8838684-6fb8-411c-8284-8a92c304e30c
+2026-11-21T19:35:34.0895632Z Windows bundle verification FAILED CHECKS: frozen self-check: frozen-sidecar --self-check exited 1 (expected 0):
+2026-11-21T19:35:34.0895937Z SELFCHECK: PASS frozen-build
+2026-11-21T19:35:34.0896113Z SELFCHECK: PASS no-path-fallback
+2026-11-21T19:35:34.0896469Z SELFCHECK: PASS bundled-ffmpeg C:\Users\runneradmin\AppData\Local\Temp\lausu-sidecar-smoke-vi1a2tbn\ffmpeg.exe
+2026-11-21T19:35:34.0896781Z SELFCHECK: PASS decode-samples=16000
+2026-11-21T19:35:34.0897099Z SELFCHECK: FAIL rnnoise-active AssertionError: RNNoise not active (effective method='none', degraded=True)
+2026-11-21T19:35:34.0897395Z SELFCHECK: FAILED CHECKS: rnnoise-active
+2026-11-21T19:35:34.0897508Z 
+2026-11-21T19:35:34.0897799Z  | GPL DLL scan: onefile extraction dir could not be determined; pass --onefile-extract-dir or set LAUSU_ONEFILE_EXTRACT_DIR to the pinned cached extraction dir
+2026-11-21T19:35:34.1072627Z ##[error]Process completed with exit code 1.
+2026-11-21T19:35:34.1166156Z ##[group]Run actions/upload-artifact@v6
+2026-11-21T19:35:34.1166357Z with:
+2026-11-21T19:35:34.1166487Z   name: Lausu-Windows-Gate-Output
+2026-11-21T19:35:34.1166641Z   path: gate-output.txt
+2026-11-21T19:35:34.1166774Z   if-no-files-found: warn
+2026-11-21T19:35:34.1166907Z   compression-level: 6
+2026-11-21T19:35:34.1167031Z   overwrite: false
+2026-11-21T19:35:34.1167158Z   include-hidden-files: false
+2026-11-21T19:35:34.1167294Z env:
+2026-11-21T19:35:34.1167401Z   PYBS_DATE: 20241219
+2026-11-21T19:35:34.1167528Z   PYBS_VERSION: 3.12.8
+2026-11-21T19:35:34.1167661Z   PYBS_TRIPLE: x86_64-pc-windows-msvc
+2026-11-21T19:35:34.1167818Z   RUST_TARGET: x86_64-pc-windows-msvc
+2026-11-21T19:35:34.1167962Z   WIN_CSC_LINK: 
+2026-11-21T19:35:34.1168088Z   WIN_CSC_KEY_PASSWORD: 
+2026-11-21T19:35:34.1168226Z   SIGN_ENABLED: false
+2026-11-21T19:35:34.1168350Z   CLCACHE_DISABLE: 1
+2026-11-21T19:35:34.1168521Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:34.1175948Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.12.10\x64/lib/pkgconfig
+2026-11-21T19:35:34.1176212Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:34.1176447Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:34.1176674Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-21T19:35:34.1176878Z   UV_TOOL_BIN_DIR: D:\a\_temp\uv-tool-bin-dir
+2026-11-21T19:35:34.1177051Z   UV_TOOL_DIR: D:\a\_temp\uv-tool-dir
+2026-11-21T19:35:34.1177226Z   UV_PYTHON_INSTALL_DIR: D:\a\_temp\uv-python-dir
+2026-11-21T19:35:34.1177405Z   UV_CACHE_DIR: D:\a\_temp\setup-uv-cache
+2026-11-21T19:35:34.1177572Z   CARGO_HOME: C:\Users\runneradmin\.cargo
+2026-11-21T19:35:34.1177723Z   CARGO_INCREMENTAL: 0
+2026-11-21T19:35:34.1177857Z   CARGO_TERM_COLOR: always
+2026-11-21T19:35:34.1177994Z ##[endgroup]
+2026-11-21T19:35:34.2227210Z With the provided path, there will be 1 file uploaded
+2026-11-21T19:35:34.2229856Z Artifact name is valid!
+2026-11-21T19:35:34.2231245Z Root directory input is valid!
+2026-11-21T19:35:34.5946269Z Beginning upload of artifact content to blob storage
+2026-11-21T19:35:34.8903339Z Uploaded bytes 699
+2026-11-21T19:35:34.9647957Z Finished uploading artifact content to blob storage!
+2026-11-21T19:35:34.9648717Z SHA256 digest of uploaded artifact zip is 0d2e53f67c31f68def7ff2d9b14d496a82d610b344111f617effd05fdeaf7907
+2026-11-21T19:35:34.9650107Z Finalizing artifact upload
+2026-11-21T19:35:35.4582679Z Artifact Lausu-Windows-Gate-Output.zip successfully finalized. Artifact ID 14721428972
+2026-11-21T19:35:35.4583372Z Artifact Lausu-Windows-Gate-Output has been successfully uploaded! Final size is 699 bytes. Artifact ID is 14721428972
+2026-11-21T19:35:35.4587237Z Artifact download URL: https://github.com/AbdallahIsDev/Lausu/actions/runs/44937471544/artifacts/14721428972
+2026-11-21T19:35:35.4818721Z Post job cleanup.
+2026-11-21T19:35:35.5797662Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-11-21T19:35:35.5993059Z git version 2.56.1.windows.1
+2026-11-21T19:35:35.6026529Z Temporarily overriding HOME='D:\a\_temp\2d7c5280-4385-49a7-8d33-9b958d486f22' before making global git config changes
+2026-11-21T19:35:35.6026957Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-21T19:35:35.6033062Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\Lausu\Lausu
+2026-11-21T19:35:35.6226742Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-11-21T19:35:35.6424564Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-11-21T19:35:35.9943597Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-21T19:35:36.0116524Z http.https://github.com/.extraheader
+2026-11-21T19:35:36.0138626Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+2026-11-21T19:35:36.0333400Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-11-21T19:35:36.3719346Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-21T19:35:36.3915643Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-11-21T19:35:36.8544649Z Cleaning up orphan processes
+2026-11-21T19:35:36.8739268Z Terminate orphan process: pid (3868) (vctip)
+2026-11-21T19:35:36.9302924Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/download-artifact@v6. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

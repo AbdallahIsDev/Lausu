@@ -1,0 +1,421 @@
+﻿2026-11-16T09:50:46.1273497Z Current runner version: '2.338.2'
+2026-11-16T09:50:46.1300182Z ##[group]Runner Image Provisioner
+2026-11-16T09:50:46.1301628Z Hosted Compute Agent
+2026-11-16T09:50:46.1302299Z Version: 20261103.629
+2026-11-16T09:50:46.1303077Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-16T09:50:46.1304002Z Build Date: 2026-11-03T17:26:59Z
+2026-11-16T09:50:46.1304737Z Worker ID: {ca41b397-68d7-4b7c-87de-095b3a46e78d}
+2026-11-16T09:50:46.1305593Z Region: westus
+2026-11-16T09:50:46.1306196Z Cloud: Azure
+2026-11-16T09:50:46.1306818Z ##[endgroup]
+2026-11-16T09:50:46.1308543Z ##[group]Operating System
+2026-11-16T09:50:46.1309263Z Ubuntu
+2026-11-16T09:50:46.1309932Z 22.04.5
+2026-11-16T09:50:46.1310496Z LTS
+2026-11-16T09:50:46.1311018Z ##[endgroup]
+2026-11-16T09:50:46.1312136Z ##[group]Runner Image
+2026-11-16T09:50:46.1312794Z Image: ubuntu-22.04
+2026-11-16T09:50:46.1313487Z Version: 20261111.360.2
+2026-11-16T09:50:46.1314863Z Included Software: https://github.com/actions/runner-images/blob/ubuntu22/20261111.360/images/ubuntu/Ubuntu2204-Readme.md
+2026-11-16T09:50:46.1316630Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu22%2F20261111.360
+...[fixture: middle truncated]...
+2026-11-16T09:52:46.0223070Z [1m[92m   Compiling[0m derive_more-impl v2.1.1
+2026-11-16T09:52:46.0862938Z [1m[92m   Compiling[0m futures-macro v0.3.34
+2026-11-16T09:52:46.2564096Z [1m[92m   Compiling[0m cssparser-macros v0.7.1
+2026-11-16T09:52:46.5484863Z [1m[92m   Compiling[0m indexmap v1.9.3
+2026-11-16T09:52:46.6794208Z [1m[92m   Compiling[0m camino v1.2.4
+2026-11-16T09:52:46.7914952Z [1m[92m   Compiling[0m regex-syntax v0.8.11
+2026-11-16T09:52:46.8819726Z [1m[92m    Checking[0m futures-sink v0.3.34
+2026-11-16T09:52:46.9312841Z [1m[92m    Checking[0m futures-task v0.3.34
+2026-11-16T09:52:46.9413852Z [1m[92m   Compiling[0m alloc-no-stdlib v3.0.0
+2026-11-16T09:52:47.0232060Z [1m[92m    Checking[0m futures-util v0.3.34
+2026-11-16T09:52:47.1813165Z [1m[92m   Compiling[0m alloc-stdlib v0.3.0
+2026-11-16T09:52:47.2570855Z [1m[92m   Compiling[0m derive_more v2.1.1
+2026-11-16T09:52:47.4477812Z [1m[92m   Compiling[0m cssparser v0.37.0
+2026-11-16T09:52:47.5735998Z [1m[92m   Compiling[0m markup5ever v0.39.0
+2026-11-16T09:52:47.9882777Z [1m[92m   Compiling[0m url v2.5.8
+2026-11-16T09:52:48.3212877Z [1m[92m   Compiling[0m cairo-sys-rs v0.18.2
+2026-11-16T09:52:48.4923168Z [1m[92m   Compiling[0m atk-sys v0.18.2
+2026-11-16T09:52:48.6682984Z [1m[92m   Compiling[0m regex-automata v0.4.16
+2026-11-16T09:52:48.8472873Z [1m[92m   Compiling[0m pango-sys v0.18.0
+2026-11-16T09:52:49.0273023Z [1m[92m   Compiling[0m gdk-pixbuf-sys v0.18.0
+2026-11-16T09:52:49.2633396Z [1m[92m   Compiling[0m servo_arc v0.4.3
+2026-11-16T09:52:49.2892934Z [1m[92m   Compiling[0m serde_derive_internals v0.29.1
+2026-11-16T09:52:49.3873211Z [1m[92m   Compiling[0m web-time v1.1.0
+2026-11-16T09:52:49.4392915Z [1m[92m   Compiling[0m powerfmt v0.2.0
+2026-11-16T09:52:49.4602937Z [1m[92m   Compiling[0m hashbrown v0.12.3
+2026-11-16T09:52:49.5913001Z [1m[92m   Compiling[0m crossbeam-utils v0.8.22
+2026-11-16T09:52:49.7883128Z [1m[92m   Compiling[0m bit-vec v0.8.0
+2026-11-16T09:52:49.9740943Z [1m[92m   Compiling[0m thiserror v1.0.69
+2026-11-16T09:52:49.9783174Z [1m[92m   Compiling[0m schemars v0.8.22
+2026-11-16T09:52:50.1145487Z [1m[92m   Compiling[0m rustc-hash v2.1.3
+2026-11-16T09:52:50.1587015Z [1m[92m   Compiling[0m fnv v1.0.7
+2026-11-16T09:52:50.1772532Z [1m[92m   Compiling[0m deranged v0.5.8
+2026-11-16T09:52:50.2098677Z [1m[92m   Compiling[0m cfb v0.14.0
+2026-11-16T09:52:50.9563067Z [1m[92m   Compiling[0m regex v1.13.1
+2026-11-16T09:52:51.3053121Z [1m[92m   Compiling[0m schemars_derive v0.8.22
+2026-11-16T09:52:51.3733920Z [1m[92m   Compiling[0m time v0.3.54
+2026-11-16T09:52:51.8780695Z [1m[92m   Compiling[0m bit-set v0.8.0
+2026-11-16T09:52:52.1336752Z [1m[92m   Compiling[0m html5ever v0.39.0
+2026-11-16T09:52:52.5683171Z [1m[92m   Compiling[0m brotli-decompressor v6.0.1
+2026-11-16T09:52:52.8469592Z [1m[92m   Compiling[0m jsonptr v0.7.1
+2026-11-16T09:52:53.0832862Z [1m[92m   Compiling[0m proc-macro-crate v2.0.2
+2026-11-16T09:52:53.3353163Z [1m[92m   Compiling[0m quick-xml v0.41.0
+2026-11-16T09:52:53.4993033Z [1m[92m   Compiling[0m cargo-platform v0.1.9
+2026-11-16T09:52:53.6893230Z [1m[92m   Compiling[0m thiserror-impl v1.0.69
+2026-11-16T09:52:53.7733117Z [1m[92m   Compiling[0m dyn-clone v1.0.20
+2026-11-16T09:52:53.8463137Z [1m[92m   Compiling[0m bytes v1.12.1
+2026-11-16T09:52:53.8603070Z [1m[92m   Compiling[0m same-file v1.0.6
+2026-11-16T09:52:53.9533495Z [1m[92m   Compiling[0m heck v0.4.1
+2026-11-16T09:52:54.1059556Z [1m[92m   Compiling[0m dunce v1.0.5
+2026-11-16T09:52:54.1622921Z [1m[92m   Compiling[0m base64 v0.22.1
+2026-11-16T09:52:54.3078669Z [1m[92m   Compiling[0m foldhash v0.2.0
+2026-11-16T09:52:54.4489968Z [1m[92m   Compiling[0m dom_query v0.28.0
+2026-11-16T09:52:54.4643149Z [1m[92m   Compiling[0m plist v1.10.0
+2026-11-16T09:52:54.4792884Z [1m[92m   Compiling[0m http v1.4.2
+2026-11-16T09:52:54.8553164Z [1m[92m   Compiling[0m glib-macros v0.18.5
+2026-11-16T09:52:55.4092778Z [1m[92m   Compiling[0m walkdir v2.5.0
+2026-11-16T09:52:55.6602923Z [1m[92m   Compiling[0m cargo_metadata v0.19.2
+2026-11-16T09:52:56.0992702Z [1m[92m   Compiling[0m brotli v9.0.0
+2026-11-16T09:52:56.9377533Z [1m[92m   Compiling[0m json-patch v4.2.0
+2026-11-16T09:52:57.2517417Z [1m[92m   Compiling[0m serde-untagged v0.1.9
+2026-11-16T09:52:57.6333162Z [1m[92m   Compiling[0m urlpattern v0.6.0
+2026-11-16T09:52:57.9312957Z [1m[92m   Compiling[0m infer v0.22.0
+2026-11-16T09:52:58.0083287Z [1m[92m    Checking[0m futures-executor v0.3.33
+2026-11-16T09:52:58.1022615Z [1m[92m   Compiling[0m serde_with v3.21.0
+2026-11-16T09:52:58.5002930Z [1m[92m    Checking[0m futures-channel v0.3.33
+2026-11-16T09:52:58.6543009Z [1m[92m   Compiling[0m glob v0.3.4
+2026-11-16T09:52:58.7082938Z [1m[92m   Compiling[0m ctor v1.0.13
+2026-11-16T09:52:58.8133556Z [1m[92m    Checking[0m glib v0.18.5
+2026-11-16T09:52:58.9544554Z [1m[92m   Compiling[0m gtk-sys v0.18.2
+2026-11-16T09:52:59.4813011Z [1m[92m   Compiling[0m gio v0.18.4
+2026-11-16T09:52:59.9100020Z [1m[92m   Compiling[0m crc32fast v1.5.0
+2026-11-16T09:53:00.0822782Z [1m[92m   Compiling[0m shlex v2.0.1
+2026-11-16T09:53:00.1552777Z [1m[92m   Compiling[0m tauri-utils v2.10.1
+2026-11-16T09:53:00.1662807Z [1m[92m   Compiling[0m find-msvc-tools v0.1.9
+2026-11-16T09:53:00.3523762Z [1m[92m   Compiling[0m cc v1.4.0
+2026-11-16T09:53:01.8829065Z [1m[92m   Compiling[0m memoffset v0.9.1
+2026-11-16T09:53:02.0573087Z [1m[92m   Compiling[0m option-ext v0.2.0
+2026-11-16T09:53:02.2814102Z [1m[92m   Compiling[0m dirs-sys v0.5.0
+2026-11-16T09:53:02.5393113Z [1m[92m   Compiling[0m embed-resource v3.0.11
+2026-11-16T09:53:02.9562691Z [1m[92m   Compiling[0m field-offset v0.3.6
+2026-11-16T09:53:03.0687525Z [1m[92m   Compiling[0m toml_edit v0.19.15
+2026-11-16T09:53:03.8992780Z [1m[92m   Compiling[0m tauri-winres v0.3.6
+2026-11-16T09:53:04.2273003Z [1m[92m   Compiling[0m dirs v7.0.0
+2026-11-16T09:53:04.2982924Z [1m[92m   Compiling[0m cargo_toml v1.0.1
+2026-11-16T09:53:05.7222871Z [1m[92m    Checking[0m cairo-rs v0.18.5
+2026-11-16T09:53:06.3693255Z [1m[92m   Compiling[0m proc-macro-crate v1.3.1
+2026-11-16T09:53:06.7573034Z [1m[92m   Compiling[0m gtk v0.18.2
+2026-11-16T09:53:07.4832992Z [1m[92m   Compiling[0m gtk3-macros v0.18.2
+2026-11-16T09:53:07.9123065Z [1m[92m    Checking[0m atk v0.18.2
+2026-11-16T09:53:09.4122710Z [1m[92m   Compiling[0m tauri-plugin v2.7.1
+2026-11-16T09:53:09.4934431Z [1m[92m   Compiling[0m tauri-build v2.7.2
+2026-11-16T09:53:10.0442830Z [1m[92m   Compiling[0m javascriptcore-rs-sys v1.1.1
+2026-11-16T09:53:10.2162972Z [1m[92m   Compiling[0m soup3-sys v0.5.0
+2026-11-16T09:53:10.7973853Z [1m[92m   Compiling[0m generic-array v0.14.7
+2026-11-16T09:53:11.2485101Z [1m[92m    Checking[0m parking v2.2.1
+2026-11-16T09:53:11.3143505Z [1m[92m   Compiling[0m simd-adler32 v0.3.10
+2026-11-16T09:53:11.7093141Z [1m[92m    Checking[0m concurrent-queue v2.5.0
+2026-11-16T09:53:11.8453212Z [1m[92m   Compiling[0m webkit2gtk-sys v2.0.2
+2026-11-16T09:53:12.0313198Z [1m[92m   Compiling[0m time-macros v0.2.32
+2026-11-16T09:53:14.9333111Z [1m[92m    Checking[0m errno v0.3.14
+2026-11-16T09:53:15.0123029Z [1m[92m   Compiling[0m x11 v2.21.0
+2026-11-16T09:53:15.1702643Z [1m[92m   Compiling[0m adler2 v2.0.1
+2026-11-16T09:53:15.2492622Z [1m[92m   Compiling[0m typenum v1.20.1
+2026-11-16T09:53:15.7998701Z [1m[92m    Checking[0m pango v0.18.3
+2026-11-16T09:53:15.8082802Z [1m[92m    Checking[0m gdk-pixbuf v0.18.5
+2026-11-16T09:53:16.2793236Z [1m[92m   Compiling[0m rustix v1.1.4
+2026-11-16T09:53:17.0122767Z [1m[92m   Compiling[0m tauri v2.12.2
+2026-11-16T09:53:17.2323252Z [1m[92m   Compiling[0m miniz_oxide v0.8.9
+2026-11-16T09:53:17.3485568Z [1m[92m    Checking[0m gdk v0.18.2
+2026-11-16T09:53:17.7912849Z [1m[92m    Checking[0m signal-hook-registry v1.4.8
+2026-11-16T09:53:18.7262771Z [1m[92m    Checking[0m dpi v0.1.2
+2026-11-16T09:53:18.8344506Z [1m[92m   Compiling[0m gdkx11-sys v0.18.2
+2026-11-16T09:53:19.0103152Z [1m[92m    Checking[0m linux-raw-sys v0.12.1
+2026-11-16T09:53:19.0212532Z [1m[92m    Checking[0m bitflags v1.3.2
+2026-11-16T09:53:19.2682855Z [1m[92m   Compiling[0m flate2 v1.1.9
+2026-11-16T09:53:19.7004149Z [1m[92m   Compiling[0m fdeflate v0.3.7
+2026-11-16T09:53:20.1127143Z [1m[92m    Checking[0m crossbeam-channel v0.5.16
+2026-11-16T09:53:20.4722818Z [1m[92m   Compiling[0m cookie v0.18.1
+2026-11-16T09:53:20.4902827Z [1m[92m   Compiling[0m libdbus-sys v0.2.7
+2026-11-16T09:53:20.5853067Z [1m[92m   Compiling[0m x11-dl v2.21.0
+2026-11-16T09:53:20.7343023Z [1m[92m   Compiling[0m getrandom v0.3.4
+2026-11-16T09:53:20.7563146Z [1m[92m    Checking[0m raw-window-handle v0.6.2
+2026-11-16T09:53:22.6682829Z [1m[92m    Checking[0m javascriptcore-rs v1.1.2
+2026-11-16T09:53:23.4032768Z [1m[92m    Checking[0m soup3 v0.5.0
+2026-11-16T09:53:23.5142803Z [1m[92m   Compiling[0m crypto-common v0.1.7
+2026-11-16T09:53:23.5862800Z [1m[92m   Compiling[0m block-buffer v0.10.4
+2026-11-16T09:53:24.0932816Z [1m[92m   Compiling[0m toml_edit v0.25.13+spec-1.1.0
+2026-11-16T09:53:24.8662351Z [1m[92m   Compiling[0m enumflags2_derive v0.7.12
+2026-11-16T09:53:25.3812924Z [1m[92m   Compiling[0m num-traits v0.2.19
+2026-11-16T09:53:26.1362957Z [1m[92m   Compiling[0m png v0.17.16
+2026-11-16T09:53:26.3852971Z [1m[92m   Compiling[0m proc-macro-crate v3.5.0
+2026-11-16T09:53:26.7362876Z [1m[92m   Compiling[0m digest v0.10.7
+2026-11-16T09:53:28.6292658Z [1m[92m    Checking[0m event-listener v5.4.1
+2026-11-16T09:53:29.9922859Z [1m[92m    Checking[0m libloading v0.7.4
+2026-11-16T09:53:30.0333008Z [1m[92m   Compiling[0m zvariant_utils v3.5.0
+2026-11-16T09:53:30.0833187Z [1m[92m   Compiling[0m dlopen2_derive v0.4.3
+2026-11-16T09:53:30.5573478Z [1m[92m   Compiling[0m cpufeatures v0.2.17
+2026-11-16T09:53:30.5990468Z [1m[92m   Compiling[0m tauri-runtime v2.12.1
+2026-11-16T09:53:30.7202815Z [1m[92m   Compiling[0m byteorder v1.5.0
+2026-11-16T09:53:30.7592696Z [1m[92m   Compiling[0m muda v0.20.0
+2026-11-16T09:53:30.8353105Z [1m[92m   Compiling[0m wry v0.57.0
+2026-11-16T09:53:30.9043729Z [1m[92m   Compiling[0m ico v0.5.0
+2026-11-16T09:53:31.0963358Z [1m[92m   Compiling[0m sha2 v0.10.9
+2026-11-16T09:53:31.4556848Z [1m[92m    Checking[0m dlopen2 v0.8.2
+2026-11-16T09:53:31.5933151Z [1m[92m   Compiling[0m zvariant_derive v5.13.1
+2026-11-16T09:53:31.7763108Z [1m[92m    Checking[0m libappindicator-sys v0.9.0
+2026-11-16T09:53:32.0321822Z [1m[92m    Checking[0m event-listener-strategy v0.5.4
+2026-11-16T09:53:32.1103056Z [1m[92m    Checking[0m png v0.18.1
+2026-11-16T09:53:32.5472902Z [1m[92m    Checking[0m dbus v0.9.12
+2026-11-16T09:53:33.5782820Z [1m[92m    Checking[0m futures-lite v2.6.1
+2026-11-16T09:53:34.2163018Z [1m[92m    Checking[0m gdkx11 v0.18.2
+2026-11-16T09:53:34.8932955Z [1m[92m    Checking[0m gdkwayland-sys v0.18.2
+2026-11-16T09:53:34.9653764Z [1m[92m    Checking[0m keyboard-types v0.8.3
+2026-11-16T09:53:35.5532788Z [1m[92m   Compiling[0m tokio-macros v2.7.1
+2026-11-16T09:53:35.8307766Z [1m[92m   Compiling[0m serde_repr v0.1.21
+2026-11-16T09:53:35.9762946Z [1m[92m    Checking[0m socket2 v0.6.5
+2026-11-16T09:53:36.1193104Z [1m[92m    Checking[0m mio v1.2.2
+2026-11-16T09:53:36.2043014Z [1m[92m   Compiling[0m tray-icon v0.25.1
+2026-11-16T09:53:36.2530495Z [1m[92m    Checking[0m pxfm v0.1.30
+2026-11-16T09:53:36.3246096Z [1m[92m   Compiling[0m tauri-runtime-wry v2.12.1
+2026-11-16T09:53:36.3879574Z [1m[92m    Checking[0m tokio v1.54.1
+2026-11-16T09:53:36.4892928Z [1m[92m   Compiling[0m tauri-codegen v2.7.1
+2026-11-16T09:53:38.4705174Z [1m[92m   Compiling[0m serialize-to-javascript-impl v0.1.2
+2026-11-16T09:53:38.4821583Z [1m[92m    Checking[0m moxcms v0.8.1
+2026-11-16T09:53:38.7449601Z [1m[92m   Compiling[0m async-io v2.6.0
+2026-11-16T09:53:38.8773704Z [1m[92m    Checking[0m byteorder-lite v0.1.0
+2026-11-16T09:53:39.0782685Z [1m[92m    Checking[0m bytemuck v1.25.2
+2026-11-16T09:53:39.3392621Z [1m[92m    Checking[0m serialize-to-javascript v0.1.2
+2026-11-16T09:53:39.5222785Z [1m[92m    Checking[0m webkit2gtk v2.0.2
+2026-11-16T09:53:40.5863083Z [1m[92m    Checking[0m libappindicator v0.9.0
+2026-11-16T09:53:41.3408639Z [1m[92m    Checking[0m tao v0.37.1
+2026-11-16T09:53:41.7865804Z [1m[92m    Checking[0m image v0.25.10
+2026-11-16T09:53:42.1593130Z [1m[92m   Compiling[0m tauri-macros v2.7.1
+2026-11-16T09:53:42.2050981Z [1m[92m   Compiling[0m enumflags2 v0.7.12
+2026-11-16T09:53:42.3572927Z [1m[92m    Checking[0m polling v3.11.0
+2026-11-16T09:53:43.2603428Z [1m[92m    Checking[0m async-task v4.7.1
+2026-11-16T09:53:43.4383071Z [1m[92m   Compiling[0m endi v1.1.1
+2026-11-16T09:53:43.4452420Z [1m[92m    Checking[0m mime v0.3.17
+2026-11-16T09:53:43.5322941Z [1m[92m   Compiling[0m zvariant v5.13.1
+2026-11-16T09:53:43.5423296Z [1m[92m    Checking[0m hybrid-array v0.4.15
+2026-11-16T09:53:44.1042959Z [1m[92m    Checking[0m async-channel v2.5.0
+2026-11-16T09:53:44.3513035Z [1m[92m    Checking[0m atomic-waker v1.1.2
+2026-11-16T09:53:44.3582473Z [1m[92m   Compiling[0m zerocopy v0.8.55
+2026-11-16T09:53:44.3984668Z [1m[92m    Checking[0m piper v0.2.5
+2026-11-16T09:53:44.6692885Z [1m[92m    Checking[0m async-signal v0.2.14
+2026-11-16T09:53:44.7702884Z [1m[92m    Checking[0m async-lock v3.4.2
+2026-11-16T09:53:45.1902945Z [1m[92m   Compiling[0m tauri-plugin-fs v2.7.1
+2026-11-16T09:53:45.9943093Z [1m[92m   Compiling[0m zbus_names v4.3.4
+2026-11-16T09:53:46.1990210Z [1m[92m    Checking[0m tracing-core v0.1.36
+2026-11-16T09:53:46.4582950Z [1m[92m   Compiling[0m tracing-attributes v0.1.31
+2026-11-16T09:53:46.6143000Z [1m[92m    Checking[0m cpufeatures v0.3.1
+2026-11-16T09:53:46.6592847Z [1m[92m    Checking[0m rand_core v0.10.1
+2026-11-16T09:53:46.6882831Z [1m[92m   Compiling[0m zbus_macros v5.18.0
+2026-11-16T09:53:47.1842946Z [1m[92m    Checking[0m async-process v2.5.0
+2026-11-16T09:53:47.6632624Z [1m[92m    Checking[0m tracing v0.1.44
+2026-11-16T09:53:47.8102618Z [1m[92m    Checking[0m blocking v1.6.2
+2026-11-16T09:53:47.9452749Z [1m[92m    Checking[0m crypto-common v0.2.2
+2026-11-16T09:53:48.5662865Z [1m[92m    Checking[0m block-buffer v0.12.1
+2026-11-16T09:53:48.6652837Z [1m[92m    Checking[0m async-executor v1.14.0
+2026-11-16T09:53:48.8172902Z [1m[92m    Checking[0m async-broadcast v0.7.2
+2026-11-16T09:53:48.9727675Z [1m[92m    Checking[0m ordered-stream v0.2.0
+2026-11-16T09:53:49.2242865Z [1m[92m   Compiling[0m async-recursion v1.1.1
+2026-11-16T09:53:49.5543016Z [1m[92m   Compiling[0m async-trait v0.1.91
+2026-11-16T09:53:49.6803012Z [1m[92m    Checking[0m const-oid v0.10.3
+2026-11-16T09:53:49.7972912Z [1m[92m    Checking[0m hex v0.4.3
+2026-11-16T09:53:50.0010501Z [1m[92m   Compiling[0m httparse v1.10.1
+2026-11-16T09:53:50.0393259Z [1m[92m    Checking[0m digest v0.11.3
+2026-11-16T09:53:50.1603220Z [1m[92m    Checking[0m chacha20 v0.10.2
+2026-11-16T09:53:50.3237183Z [1m[92m    Checking[0m rand_core v0.9.5
+2026-11-16T09:53:50.3915401Z [1m[92m    Checking[0m gethostname v1.1.0
+2026-11-16T09:53:50.4254017Z [1m[92m    Checking[0m zbus v5.18.0
+2026-11-16T09:53:50.4423798Z [1m[92m   Compiling[0m tauri-plugin-notification v2.5.1 (https://github.com/tauri-apps/plugins-workspace?rev=818d2e04d92fd208f11aafdf32bb4a0605f344b2#818d2e04)
+2026-11-16T09:53:50.4463389Z [1m[92m   Compiling[0m tauri-plugin-dialog v2.8.4
+2026-11-16T09:53:50.8942662Z [1m[92m   Compiling[0m tauri-plugin-shell v2.6.0
+2026-11-16T09:53:50.9033033Z [1m[92m   Compiling[0m tauri-plugin-global-shortcut v2.4.1
+2026-11-16T09:53:51.2050947Z [1m[92m    Checking[0m ppv-lite86 v0.2.21
+2026-11-16T09:53:51.2952930Z [1m[92m    Checking[0m is-docker v0.2.0
+2026-11-16T09:53:51.3496346Z [1m[92m    Checking[0m unicode-segmentation v1.13.3
+2026-11-16T09:53:51.5082898Z [1m[92m    Checking[0m utf8parse v0.2.2
+2026-11-16T09:53:51.5462799Z [1m[92m    Checking[0m x11rb-protocol v0.13.2
+2026-11-16T09:53:51.5582637Z [1m[92m   Compiling[0m rfd v0.17.2
+2026-11-16T09:53:51.7001168Z [1m[92m    Checking[0m keyboard-types v0.7.0
+2026-11-16T09:53:51.7099944Z [1m[92m    Checking[0m anstyle-parse v1.0.0
+2026-11-16T09:53:51.8152780Z [1m[92m    Checking[0m rand_chacha v0.9.0
+2026-11-16T09:53:51.9972870Z [1m[92m    Checking[0m is-wsl v0.4.0
+2026-11-16T09:53:52.1152622Z [1m[92m    Checking[0m rand v0.10.3
+2026-11-16T09:53:52.6572958Z [1m[92m    Checking[0m sha1 v0.11.0
+2026-11-16T09:53:52.7410436Z [1m[92m    Checking[0m anstyle-query v1.1.5
+2026-11-16T09:53:52.7911719Z [1m[92m    Checking[0m colorchoice v1.0.5
+2026-11-16T09:53:52.7971970Z [1m[92m    Checking[0m data-encoding v2.11.0
+2026-11-16T09:53:52.8392942Z [1m[92m    Checking[0m jiff-core v0.1.0
+2026-11-16T09:53:53.0452976Z [1m[92m    Checking[0m xkeysym v0.2.1
+2026-11-16T09:53:53.6442851Z [1m[92m    Checking[0m anstyle v1.0.14
+2026-11-16T09:53:53.7673561Z [1m[92m    Checking[0m is_terminal_polyfill v1.70.2
+2026-11-16T09:53:53.7762826Z [1m[92m    Checking[0m jiff v0.2.35
+2026-11-16T09:53:53.8148605Z [1m[92m    Checking[0m anstream v1.0.0
+2026-11-16T09:53:53.9682729Z [1m[92m    Checking[0m tungstenite v0.30.0
+2026-11-16T09:53:54.3981883Z [1m[92m    Checking[0m open v5.4.0
+2026-11-16T09:53:54.4792668Z [1m[92m    Checking[0m rand v0.9.5
+2026-11-16T09:53:55.2744044Z [1m[92m    Checking[0m notify-rust v4.18.0
+2026-11-16T09:53:55.5923868Z [1m[92m    Checking[0m env_filter v2.0.0
+2026-11-16T09:53:55.6943705Z [1m[92m   Compiling[0m lausu-tauri v1.0.0 (/home/runner/work/Lausu/Lausu/src-tauri)
+2026-11-16T09:53:55.9389541Z [1m[92m    Checking[0m encoding_rs v0.8.35
+2026-11-16T09:53:56.0912639Z [1m[92m    Checking[0m csv-core v0.1.13
+2026-11-16T09:53:56.1632894Z [1m[92m    Checking[0m os_pipe v1.2.3
+2026-11-16T09:53:56.2205682Z [1m[92m    Checking[0m shared_child v1.1.1
+2026-11-16T09:53:56.2330551Z [1m[92m    Checking[0m x11rb v0.13.2
+2026-11-16T09:53:56.2422702Z [1m[92m    Checking[0m ryu v1.0.23
+2026-11-16T09:53:56.3422929Z [1m[92m    Checking[0m csv v1.4.0
+2026-11-16T09:53:56.7312883Z [1m[92m    Checking[0m env_logger v0.11.11
+2026-11-16T09:53:56.8932690Z [1m[92m    Checking[0m tauri-plugin-single-instance v2.5.5
+2026-11-16T09:53:57.0342841Z [1m[92m    Checking[0m global-hotkey v0.8.0
+2026-11-16T09:53:57.2305895Z [1m[92m    Checking[0m tokio-tungstenite v0.30.0
+2026-11-16T09:53:57.4302797Z [1m[92m    Checking[0m base64 v0.23.1
+2026-11-16T09:53:57.9033545Z [1m[91merror[E0432][0m[1m: unresolved import `rand::RngCore`[0m
+2026-11-16T09:53:57.9034332Z  [1m[94m--> [0msrc/util/atomic_fs.rs:1:5
+2026-11-16T09:53:57.9034864Z   [1m[94m|[0m
+2026-11-16T09:53:57.9035395Z [1m[94m1[0m [1m[94m|[0m use rand::RngCore;
+2026-11-16T09:53:57.9036076Z   [1m[94m|[0m     [1m[91m^^^^^^[0m[1m[94m-------[0m
+2026-11-16T09:53:57.9036678Z   [1m[94m|[0m           [1m[94m|[0m
+2026-11-16T09:53:57.9037575Z   [1m[94m|[0m           [1m[94mno `RngCore` in the root[0m
+2026-11-16T09:53:57.9037993Z 
+2026-11-16T09:53:57.9038441Z [1m[91merror[E0432][0m[1m: unresolved import `rand::RngCore`[0m
+2026-11-16T09:53:57.9039139Z  [1m[94m--> [0msrc/util/crypto.rs:4:5
+2026-11-16T09:53:57.9039634Z   [1m[94m|[0m
+2026-11-16T09:53:57.9040119Z [1m[94m4[0m [1m[94m|[0m use rand::RngCore;
+2026-11-16T09:53:57.9040760Z   [1m[94m|[0m     [1m[91m^^^^^^[0m[1m[94m-------[0m
+2026-11-16T09:53:57.9041668Z   [1m[94m|[0m           [1m[94m|[0m
+2026-11-16T09:53:57.9042208Z   [1m[94m|[0m           [1m[94mno `RngCore` in the root[0m
+2026-11-16T09:53:57.9042491Z 
+2026-11-16T09:53:58.7177139Z [1m[91merror[E0599][0m[1m: no method named `fill_bytes` found for struct `ThreadRng` in the current scope[0m
+2026-11-16T09:53:58.7178272Z   [1m[94m--> [0msrc/util/atomic_fs.rs:13:25
+2026-11-16T09:53:58.7178803Z    [1m[94m|[0m
+2026-11-16T09:53:58.7179618Z [1m[94m13[0m [1m[94m|[0m             rand::rng().fill_bytes(&mut rng_bytes);
+2026-11-16T09:53:58.7180405Z    [1m[94m|[0m                         [1m[91m^^^^^^^^^^[0m
+2026-11-16T09:53:58.7180966Z    [1m[94m|[0m
+2026-11-16T09:53:58.7182326Z   [1m[94m::: [0m/home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rand_core-0.10.1/src/lib.rs:62:8
+2026-11-16T09:53:58.7183277Z    [1m[94m|[0m
+2026-11-16T09:53:58.7183866Z [1m[94m62[0m [1m[94m|[0m     fn fill_bytes(&mut self, dst: &mut [u8]);
+2026-11-16T09:53:58.7184869Z    [1m[94m|[0m        [1m[94m----------[0m [1m[94mthe method is available for `ThreadRng` here[0m
+2026-11-16T09:53:58.7185644Z    [1m[94m|[0m
+2026-11-16T09:53:58.7186337Z    [1m[94m= [0m[1mhelp[0m: items from traits can only be used if the trait is in scope
+2026-11-16T09:53:58.7187527Z [1m[96mhelp[0m: trait `Rng` which provides `fill_bytes` is implemented but not in scope; perhaps you want to import it
+2026-11-16T09:53:58.7188293Z    [1m[94m|[0m
+2026-11-16T09:53:58.7188675Z [1m[94m 1[0m [92m+ use rand::Rng;[0m
+2026-11-16T09:53:58.7189060Z    [1m[94m|[0m
+2026-11-16T09:53:58.7189530Z [1m[96mhelp[0m: there is a method `try_fill_bytes` with a similar name
+2026-11-16T09:53:58.7190050Z    [1m[94m|[0m
+2026-11-16T09:53:58.7190634Z [1m[94m13[0m [1m[94m| [0m            rand::rng().[92mtry_[0mfill_bytes(&mut rng_bytes);
+2026-11-16T09:53:58.7191267Z    [1m[94m|[0m                         [92m++++[0m
+2026-11-16T09:53:58.7191696Z 
+2026-11-16T09:53:58.7426215Z [1m[91merror[E0599][0m[1m: no method named `fill_bytes` found for struct `ThreadRng` in the current scope[0m
+2026-11-16T09:53:58.7427419Z   [1m[94m--> [0msrc/util/atomic_fs.rs:63:25
+2026-11-16T09:53:58.7427951Z    [1m[94m|[0m
+2026-11-16T09:53:58.7428721Z [1m[94m63[0m [1m[94m|[0m             rand::rng().fill_bytes(&mut rng_bytes);
+2026-11-16T09:53:58.7429511Z    [1m[94m|[0m                         [1m[91m^^^^^^^^^^[0m
+2026-11-16T09:53:58.7430062Z    [1m[94m|[0m
+2026-11-16T09:53:58.7431044Z   [1m[94m::: [0m/home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rand_core-0.10.1/src/lib.rs:62:8
+2026-11-16T09:53:58.7432419Z    [1m[94m|[0m
+2026-11-16T09:53:58.7433011Z [1m[94m62[0m [1m[94m|[0m     fn fill_bytes(&mut self, dst: &mut [u8]);
+2026-11-16T09:53:58.7434001Z    [1m[94m|[0m        [1m[94m----------[0m [1m[94mthe method is available for `ThreadRng` here[0m
+2026-11-16T09:53:58.7434753Z    [1m[94m|[0m
+2026-11-16T09:53:58.7435442Z    [1m[94m= [0m[1mhelp[0m: items from traits can only be used if the trait is in scope
+2026-11-16T09:53:58.7437048Z [1m[96mhelp[0m: trait `Rng` which provides `fill_bytes` is implemented but not in scope; perhaps you want to import it
+2026-11-16T09:53:58.7437901Z    [1m[94m|[0m
+2026-11-16T09:53:58.7438282Z [1m[94m 1[0m [92m+ use rand::Rng;[0m
+2026-11-16T09:53:58.7438684Z    [1m[94m|[0m
+2026-11-16T09:53:58.7439170Z [1m[96mhelp[0m: there is a method `try_fill_bytes` with a similar name
+2026-11-16T09:53:58.7439691Z    [1m[94m|[0m
+2026-11-16T09:53:58.7440411Z [1m[94m63[0m [1m[94m| [0m            rand::rng().[92mtry_[0mfill_bytes(&mut rng_bytes);
+2026-11-16T09:53:58.7441046Z    [1m[94m|[0m                         [92m++++[0m
+2026-11-16T09:53:58.7441492Z 
+2026-11-16T09:53:58.7741546Z [1m[91merror[E0599][0m[1m: no method named `fill_bytes` found for struct `ThreadRng` in the current scope[0m
+2026-11-16T09:53:58.7743340Z   [1m[94m--> [0msrc/util/crypto.rs:8:17
+2026-11-16T09:53:58.7744261Z    [1m[94m|[0m
+2026-11-16T09:53:58.7745464Z [1m[94m 8[0m [1m[94m|[0m     rand::rng().fill_bytes(&mut bytes);
+2026-11-16T09:53:58.7746826Z    [1m[94m|[0m                 [1m[91m^^^^^^^^^^[0m
+2026-11-16T09:53:58.7747749Z    [1m[94m|[0m
+2026-11-16T09:53:58.7749162Z   [1m[94m::: [0m/home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rand_core-0.10.1/src/lib.rs:62:8
+2026-11-16T09:53:58.7750530Z    [1m[94m|[0m
+2026-11-16T09:53:58.7751658Z [1m[94m62[0m [1m[94m|[0m     fn fill_bytes(&mut self, dst: &mut [u8]);
+2026-11-16T09:53:58.7752643Z    [1m[94m|[0m        [1m[94m----------[0m [1m[94mthe method is available for `ThreadRng` here[0m
+2026-11-16T09:53:58.7753302Z    [1m[94m|[0m
+2026-11-16T09:53:58.7753912Z    [1m[94m= [0m[1mhelp[0m: items from traits can only be used if the trait is in scope
+2026-11-16T09:53:58.7755076Z [1m[96mhelp[0m: trait `Rng` which provides `fill_bytes` is implemented but not in scope; perhaps you want to import it
+2026-11-16T09:53:58.7755931Z    [1m[94m|[0m
+2026-11-16T09:53:58.7756353Z [1m[94m 3[0m [92m+ use rand::Rng;[0m
+2026-11-16T09:53:58.7756791Z    [1m[94m|[0m
+2026-11-16T09:53:58.7757330Z [1m[96mhelp[0m: there is a method `try_fill_bytes` with a similar name
+2026-11-16T09:53:58.7757913Z    [1m[94m|[0m
+2026-11-16T09:53:58.7758343Z [1m[94m 8[0m [1m[94m| [0m    rand::rng().[92mtry_[0mfill_bytes(&mut bytes);
+2026-11-16T09:53:58.7758820Z    [1m[94m|[0m                 [92m++++[0m
+2026-11-16T09:53:58.7759047Z 
+2026-11-16T09:53:58.8020202Z [1m[91merror[E0599][0m[1m: no method named `fill_bytes` found for struct `ThreadRng` in the current scope[0m
+2026-11-16T09:53:58.8021692Z   [1m[94m--> [0msrc/util/crypto.rs:18:21
+2026-11-16T09:53:58.8022190Z    [1m[94m|[0m
+2026-11-16T09:53:58.8022876Z [1m[94m18[0m [1m[94m|[0m         rand::rng().fill_bytes(&mut bytes);
+2026-11-16T09:53:58.8023544Z    [1m[94m|[0m                     [1m[91m^^^^^^^^^^[0m
+2026-11-16T09:53:58.8024030Z    [1m[94m|[0m
+2026-11-16T09:53:58.8024888Z   [1m[94m::: [0m/home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rand_core-0.10.1/src/lib.rs:62:8
+2026-11-16T09:53:58.8025727Z    [1m[94m|[0m
+2026-11-16T09:53:58.8026243Z [1m[94m62[0m [1m[94m|[0m     fn fill_bytes(&mut self, dst: &mut [u8]);
+2026-11-16T09:53:58.8027124Z    [1m[94m|[0m        [1m[94m----------[0m [1m[94mthe method is available for `ThreadRng` here[0m
+2026-11-16T09:53:58.8027785Z    [1m[94m|[0m
+2026-11-16T09:53:58.8028397Z    [1m[94m= [0m[1mhelp[0m: items from traits can only be used if the trait is in scope
+2026-11-16T09:53:58.8029560Z [1m[96mhelp[0m: trait `Rng` which provides `fill_bytes` is implemented but not in scope; perhaps you want to import it
+2026-11-16T09:53:58.8030408Z    [1m[94m|[0m
+2026-11-16T09:53:58.8030819Z [1m[94m 3[0m [92m+ use rand::Rng;[0m
+2026-11-16T09:53:58.8031247Z    [1m[94m|[0m
+2026-11-16T09:53:58.8031924Z [1m[96mhelp[0m: there is a method `try_fill_bytes` with a similar name
+2026-11-16T09:53:58.8032521Z    [1m[94m|[0m
+2026-11-16T09:53:58.8033115Z [1m[94m18[0m [1m[94m| [0m        rand::rng().[92mtry_[0mfill_bytes(&mut bytes);
+2026-11-16T09:53:58.8034052Z    [1m[94m|[0m                     [92m++++[0m
+2026-11-16T09:53:58.8034355Z 
+2026-11-16T09:53:59.8749526Z [1mSome errors have detailed explanations: E0432, E0599.[0m
+2026-11-16T09:53:59.8750410Z [1mFor more information about an error, try `rustc --explain E0432`.[0m
+2026-11-16T09:53:59.8989037Z [1m[91merror[0m: could not compile `lausu-tauri` (bin "lausu-tauri") due to 6 previous errors
+2026-11-16T09:54:00.0497294Z ##[error]Process completed with exit code 101.
+2026-11-16T09:54:00.0620077Z Post job cleanup.
+2026-11-16T09:54:00.4069735Z Existing job run UUID is dfda7362-e76a-4967-9ce7-74c3394b2710.
+2026-11-16T09:54:01.0014975Z [command]/opt/hostedtoolcache/CodeQL/2.27.4/x64/codeql/codeql database export-diagnostics /home/runner/work/_temp/codeql_databases --db-cluster --format=sarif-latest --output=../codeql-failed-run.sarif --sarif-include-diagnostics -vvv
+2026-11-16T09:54:01.5299245Z Writing logs to /home/runner/work/_temp/codeql_databases/log/database-export-diagnostics-20261116.095401.526.log.
+2026-11-16T09:54:01.8505372Z Interpreting diagnostic messages...
+2026-11-16T09:54:01.8517225Z Looking for diagnostics in /home/runner/work/_temp/codeql_databases/rust/diagnostic...
+2026-11-16T09:54:01.8523041Z Looking for diagnostics in /home/runner/work/_temp/codeql_databases/rust/diagnostic/codeql-action...
+2026-11-16T09:54:01.8524714Z Found diagnostics file /home/runner/work/_temp/codeql_databases/rust/diagnostic/codeql-action/codeql-action-2026-11-16T095058.709Z-0.json.
+2026-11-16T09:54:01.8979183Z Looking for diagnostics in /home/runner/work/_temp/codeql_databases/diagnostic...
+2026-11-16T09:54:01.8992679Z Found diagnostics file /home/runner/work/_temp/codeql_databases/diagnostic/cli-diagnostics-add-20261116T095104.507Z.json.
+2026-11-16T09:54:01.9066734Z Found 2 raw diagnostic messages.
+2026-11-16T09:54:01.9268099Z Processed diagnostic messages (removed 0 due to limits, created 0 summary diagnostics for status page).
+2026-11-16T09:54:01.9287082Z Interpreted diagnostic messages (76ms).
+2026-11-16T09:54:02.0972939Z Uploading failed SARIF file ../codeql-failed-run.sarif
+2026-11-16T09:54:02.0975952Z Post-processing sarif files: ["../codeql-failed-run.sarif"]
+2026-11-16T09:54:02.0994095Z Adding fingerprints to SARIF file. See https://docs.github.com/en/code-security/reference/code-scanning/sarif-support-for-code-scanning#data-for-preventing-duplicated-alerts for more information.
+2026-11-16T09:54:02.0997305Z ##[group]Uploading code scanning results
+2026-11-16T09:54:02.1246954Z Uploading results
+2026-11-16T09:54:03.1769173Z Successfully uploaded results
+2026-11-16T09:54:03.1769855Z ##[endgroup]
+2026-11-16T09:54:03.1771204Z ##[group]Waiting for processing to finish
+2026-11-16T09:54:08.6708655Z Analysis upload status is failed.
+2026-11-16T09:54:08.6710052Z Successfully uploaded a SARIF file for the unsuccessful execution. Received expected "unsuccessful execution" processing error, and no other errors.
+2026-11-16T09:54:08.6711735Z ##[endgroup]
+2026-11-16T09:54:08.6783532Z CodeQL job status was configuration error.
+2026-11-16T09:54:08.6852442Z Sending status report for init-post step.
+2026-11-16T09:54:09.0939771Z Status report sent for init-post step.
+2026-11-16T09:54:09.1186046Z Post job cleanup.
+2026-11-16T09:54:09.2149905Z [command]/usr/bin/git version
+2026-11-16T09:54:09.2200583Z git version 2.56.1
+2026-11-16T09:54:09.2249552Z Temporarily overriding HOME='/home/runner/work/_temp/02728fa2-4c73-4e9f-9fbb-8623d40e2a7c' before making global git config changes
+2026-11-16T09:54:09.2256851Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-16T09:54:09.2257996Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Lausu/Lausu
+2026-11-16T09:54:09.2305301Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-16T09:54:09.2367217Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-16T09:54:09.2666942Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-16T09:54:09.2703057Z http.https://github.com/.extraheader
+2026-11-16T09:54:09.2723245Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-16T09:54:09.2775577Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-16T09:54:09.3088234Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-16T09:54:09.3143850Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-16T09:54:09.3585253Z Cleaning up orphan processes
