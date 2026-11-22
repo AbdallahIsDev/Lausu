@@ -118,7 +118,7 @@ class TestStoreGuardBlocksCancelledCycle:
         )
 
         assert result == "live text"
-        pipeline._store_result.assert_called_once_with("live text")
+        pipeline._store_result.assert_called_once_with("live text", original_text=None)
         pipeline._hide_or_idle_bubble.assert_not_called()
 
 

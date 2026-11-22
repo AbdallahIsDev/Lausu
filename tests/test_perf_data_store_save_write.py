@@ -325,7 +325,7 @@ class TestHistoryDBMultiRowInsertBatching:
                 f"ER-78: expected 1-2 batched INSERTs for 3 pending rows, "
                 f"got {len(insert_calls)} INSERT calls. SQL: {insert_calls}"
             )
-            placeholder_tuple = "(" + ", ".join("?" for _ in range(17)) + ")"
+            placeholder_tuple = "(" + ", ".join("?" for _ in range(18)) + ")"
             total_tuples = sum(sql.count(placeholder_tuple) for sql in insert_calls)
             assert total_tuples == 3, (
                 f"ER-78: expected total of 3 placeholder tuples across batches, got {total_tuples}. SQL: {insert_calls}"
@@ -352,7 +352,7 @@ class TestHistoryDBMultiRowInsertBatching:
 
             assert len(insert_calls) == 1, f"expected 1 INSERT for a single add_transcription, got {len(insert_calls)}"
             sql = insert_calls[0]
-            placeholder_tuple = "(" + ", ".join("?" for _ in range(17)) + ")"
+            placeholder_tuple = "(" + ", ".join("?" for _ in range(18)) + ")"
             assert sql.count(placeholder_tuple) == 1, (
                 f"single-row INSERT should have 1 placeholder tuple, got {sql.count(placeholder_tuple)}. SQL: {sql}"
             )

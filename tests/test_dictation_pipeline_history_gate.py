@@ -42,6 +42,7 @@ class TestHistoryEnabledGate:
             device="cpu",
             kind="dictation",
             processing_seconds=None,
+            original_text=None,
         )
         # The row is enqueued fire-and-forget, NO blocking
         app.history_db.flush.assert_not_called()
