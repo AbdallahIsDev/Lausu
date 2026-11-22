@@ -296,9 +296,11 @@ def onefile_extraction_dir(explicit: str | None = None) -> Path | None:
         root = expand_onefile_cache_spec(spec.split("/{VERSION}/")[0], cache, product)
         if root is None or not root.is_dir():
             return None
+        # Version dirs are zero-padded BUILD_STAMPs (YYYY.MM.DD.HHMM), so name
+        # order is chronological; mtime ties leave readdir order arbitrary.
         candidates = sorted(
             (p for p in root.glob("*/onefile-tmp") if p.is_dir()),
-            key=lambda p: p.stat().st_mtime,
+            key=lambda p: p.parent.name,
         )
         return candidates[-1] if candidates else None
     return expand_onefile_cache_spec(spec, cache, product)

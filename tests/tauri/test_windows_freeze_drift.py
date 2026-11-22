@@ -128,6 +128,10 @@ def test_gate_resolves_newest_versioned_extraction_dir_without_build_stamp(
     new = tmp_path / "LausuSidecar" / "2026.11.22.1234" / "onefile-tmp"
     old.mkdir(parents=True)
     new.mkdir(parents=True)
+    # The version stamp, not filesystem mtime, decides "newest": make the old
+    # dir look newer on disk so an mtime-based pick fails deterministically.
+    _os.utime(old, (2_000_000_000, 2_000_000_000))
+    _os.utime(new, (1_000_000_000, 1_000_000_000))
 
     assert gate.onefile_extraction_dir() == new, (
         "gate must pick the newest versioned onefile-tmp; it must not depend on "

@@ -73,6 +73,10 @@ def test_pinned_spec_is_per_build_and_per_product(tmp_path: Path, monkeypatch: p
     new = tmp_path / "LausuSidecar" / "2026.11.21.1635" / "onefile-tmp"
     old.mkdir(parents=True)
     new.mkdir(parents=True)
+    # The version stamp, not filesystem mtime, decides "newest": make the old
+    # dir look newer on disk so an mtime-based pick fails deterministically.
+    _os.utime(old, (2_000_000_000, 2_000_000_000))
+    _os.utime(new, (1_000_000_000, 1_000_000_000))
     assert gate.onefile_extraction_dir() == new
 
 
