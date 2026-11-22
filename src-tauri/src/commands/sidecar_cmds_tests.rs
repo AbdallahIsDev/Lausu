@@ -151,9 +151,9 @@ fn test_allowed_commands_set_is_nonempty() {
 #[test]
 fn test_allowed_commands_count_matches_python_registry_parity() {
     // The Rust literal is exactly the renderer-reachable subset of the
-    // Python `_COMMAND_REGISTRY`: 110 registry entries minus the five
+    // Python `_COMMAND_REGISTRY`: 109 registry entries minus the five
     // host-dispatched commands (`heartbeat`, `relaunch_ack`, `shutdown`,
-    // `tray_click`, `bubble_host_hidden`) = 105. The Python parity test
+    // `tray_click`, `bubble_host_hidden`) = 104. The Python parity test
     // `tests/test_ipc_command_parity.py::test_registry_minus_rust_equals_host_dispatched_delta`
     // asserts the entries match exactly; this Rust-side test pins the
     // COUNT so a local `cargo test` catches drift before the Python test
@@ -161,8 +161,8 @@ fn test_allowed_commands_count_matches_python_registry_parity() {
     // (see `dispatch_inner`), so they are intentionally ABSENT here.
     assert_eq!(
         allowed_commands().len(),
-        105,
-        "must match the Python registry (110 entries) minus the 5 host-dispatched \
+        104,
+        "must match the Python registry (109 entries) minus the 5 host-dispatched \
          commands (heartbeat, relaunch_ack, shutdown, tray_click, bubble_host_hidden)"
     );
 }
@@ -201,15 +201,13 @@ fn test_allowed_commands_set_contains_no_duplicates() {
     // 96 → 100: the voice-conversation commands `chat_listen_start` /
     // `chat_listen_stop` / `chat_state` / `chat_reset` (push-to-talk
     // STT → LLM → TTS, 2026-11-03).
-    // 100 → 101: `set_plugin_setting` (Plugins page: persist one
-    // manifest-declared plugin setting beside the manifest).
     // 101 → 105: `get_gpu_capability` / `start_cuda_download` /
     // `cancel_cuda_download` / `ack_cuda_activation` (GPU switch +
     // CUDA install flow, 2026-11-09).
     assert_eq!(
         set.len(),
-        105,
-        "ALLOWED_COMMANDS contains a duplicate entry: set len ({}) < literal len (105). \
+        104,
+        "ALLOWED_COMMANDS contains a duplicate entry: set len ({}) < literal len (104). \
          Check the constructor log for the duplicate name.",
         set.len()
     );
@@ -375,7 +373,6 @@ fn test_allowed_commands_exact_snapshot() {
         "set_esc_cancel_paused",
         "set_microphone_volume",
         "set_output_volume",
-        "set_plugin_setting",
         "set_tray_locale",
         "start_cuda_download",
         "test_cloud_connection",

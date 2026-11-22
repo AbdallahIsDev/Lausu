@@ -3,21 +3,5 @@
   "name": "Google STT",
   "vendor": "Google",
   "icon": "google",
-  "description": "Dictates through Gemini's microphone in your own Chrome window.",
-  "settings": [
-    {
-      "key": "visible",
-      "type": "bool",
-      "label": "Show The Browser Window",
-      "default": true,
-      "description": "Off hides the Chrome window and its taskbar icon while dictating."
-    },
-    {
-      "key": "notify",
-      "type": "bool",
-      "label": "Notifications",
-      "default": true,
-      "description": "Notify when the plugin cannot start or returns no transcript."
-    }
-  ]
+  "description": "Dictates through Gemini's microphone in your own Chrome window."
 }

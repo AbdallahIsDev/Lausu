@@ -35,7 +35,6 @@ def _write_manifest(directory: Path, **overrides: object) -> Path:
         "vendor": "Acme",
         "icon": "acme",
         "description": "A test plugin.",
-        "settings": [{"key": "visible", "type": "bool", "label": "Show window", "default": True}],
     }
     manifest.update(overrides)
     (directory / "plugin.json").write_text(json.dumps(manifest), encoding="utf-8")
@@ -57,7 +56,6 @@ class TestDiscovery:
         assert [p.id for p in found] == ["acme_stt"]
         assert found[0].name == "Acme STT"
         assert found[0].vendor == "Acme"
-        assert [s.key for s in found[0].settings] == ["visible"]
 
     def test_broken_manifest_does_not_hide_the_others(self, workspace: Path) -> None:
         _write_manifest(workspace / "acme_stt")
@@ -77,17 +75,6 @@ class TestDiscovery:
     def test_invalid_manifests_are_skipped(self, workspace: Path, overrides: dict[str, object]) -> None:
         _write_manifest(workspace / "acme_stt", **overrides)
         assert discover() == []
-
-    def test_settings_with_unknown_type_are_dropped(self, workspace: Path) -> None:
-        _write_manifest(
-            workspace / "acme_stt",
-            settings=[
-                {"key": "ok", "type": "bool", "label": "Fine"},
-                {"key": "bad", "type": "file_path", "label": "Nope"},
-                "not an object",
-            ],
-        )
-        assert [s.key for s in discover()[0].settings] == ["ok"]
 
     def test_dot_directories_are_ignored(self, workspace: Path) -> None:
         _write_manifest(workspace / ".hidden")
@@ -232,71 +219,62 @@ class TestGetPluginsCommand:
         assert "importlib" not in source
 
 
-class TestSetPluginSettingCommand:
-    """The one plugin-setting write, end to end through the dispatcher."""
+class TestNoPluginSpecificSettingsCommand:
+    """There is no per-plugin settings write: config is the one authority."""
 
-    def test_registered_as_a_mutator_not_a_read(self) -> None:
-        assert _COMMAND_REGISTRY["set_plugin_setting"] == "_handle_set_plugin_setting"
-        assert "set_plugin_setting" not in _READONLY_COMMANDS
+    def test_set_plugin_setting_is_not_registered(self) -> None:
+        assert "set_plugin_setting" not in _COMMAND_REGISTRY
 
-    def test_persists_a_declared_setting_and_reads_it_back(self, workspace: Path) -> None:
-        from tests.fixtures.ipc_test_helpers import make_ipc_server_with_fakes
+
+class TestSharedPluginSettings:
+    """One canonical value per setting, projected into every plugin daemon."""
+
+    def test_shared_fields_are_in_the_allowlist(self) -> None:
+        assert "plugin_visible" in IPC_CONFIG_ALLOWLIST
+        assert "plugin_notify" in IPC_CONFIG_ALLOWLIST
+
+    def test_projection_writes_both_plugins_without_touching_daemon_keys(
+        self, workspace: Path
+    ) -> None:
+        from voice_typer.server.config import Config
+        from voice_typer.server.plugins import shared_settings
 
         _write_manifest(workspace / "acme_stt")
-        ipc, _app, _service = make_ipc_server_with_fakes()
-        _app.config.developer_mode = True
-        resp = ipc._dispatch(
-            {
-                "type": "set_plugin_setting",
-                "data": {"plugin_id": "acme_stt", "key": "visible", "value": False},
-            }
-        )
-        assert resp is not None
-        assert resp["type"] == "plugin_setting"
-        assert resp["data"] == {"plugin_id": "acme_stt", "key": "visible", "value": False}
+        _write_manifest(workspace / "beta_stt", id="beta_stt", name="Beta STT")
+        for name in ("acme_stt", "beta_stt"):
+            (workspace / name / "config.json").write_text(
+                json.dumps({"profileDir": "/tmp/profile", "visible": True, "notify": True}),
+                encoding="utf-8",
+            )
 
+        config = Config(plugin_visible=False, plugin_notify=False)
+        shared_settings.sync_all(config)
+
+        for name in ("acme_stt", "beta_stt"):
+            stored = json.loads((workspace / name / "config.json").read_text(encoding="utf-8"))
+            assert stored == {
+                "profileDir": "/tmp/profile",
+                "visible": False,
+                "notify": False,
+            }
+
+    def test_projection_preserves_a_plugin_file_without_settings(
+        self, workspace: Path
+    ) -> None:
+        from voice_typer.server.config import Config
+        from voice_typer.server.plugins import shared_settings
+
+        _write_manifest(workspace / "acme_stt")
+        (workspace / "acme_stt" / "config.json").write_text(
+            json.dumps({"profileDir": "/tmp/profile"}), encoding="utf-8"
+        )
+        shared_settings.sync_all(Config(plugin_visible=True, plugin_notify=False))
         stored = json.loads((workspace / "acme_stt" / "config.json").read_text(encoding="utf-8"))
-        assert stored == {"visible": False}
-
-        listing = ipc._dispatch({"type": "get_plugins"})
-        assert listing is not None
-        assert listing["data"]["plugins"][0]["values"] == {"visible": False}
-
-    def test_rejects_an_undeclared_key_without_writing(self, workspace: Path) -> None:
-        from tests.fixtures.ipc_test_helpers import make_ipc_server_with_fakes
-
-        _write_manifest(workspace / "acme_stt")
-        ipc, _app, _service = make_ipc_server_with_fakes()
-        _app.config.developer_mode = True
-        resp = ipc._dispatch(
-            {
-                "type": "set_plugin_setting",
-                "data": {"plugin_id": "acme_stt", "key": "nope", "value": True},
-            }
-        )
-        assert resp is not None
-        assert resp["type"] == "error"
-        assert resp["data"]["code"] == "client.invalid_field"
-        assert not (workspace / "acme_stt" / "settings.json").exists()
-
-    def test_is_refused_like_an_unknown_plugin_when_locked(self, workspace: Path) -> None:
-        """A locked install must not confirm which plugins it ships."""
-        from tests.fixtures.ipc_test_helpers import make_ipc_server_with_fakes
-
-        _write_manifest(workspace / "acme_stt")
-        ipc, _app, _service = make_ipc_server_with_fakes()
-        assert _app.config.developer_mode is not True
-        resp = ipc._dispatch(
-            {
-                "type": "set_plugin_setting",
-                "data": {"plugin_id": "acme_stt", "key": "visible", "value": False},
-            }
-        )
-        assert resp is not None
-        assert resp["type"] == "error"
-        assert resp["data"]["code"] == "client.not_found"
-        assert resp["data"]["message"] == "unknown plugin"
-        assert not (workspace / "acme_stt" / "settings.json").exists()
+        assert stored == {
+            "profileDir": "/tmp/profile",
+            "visible": True,
+            "notify": False,
+        }
 
 
 class TestGetPluginsEndToEnd:

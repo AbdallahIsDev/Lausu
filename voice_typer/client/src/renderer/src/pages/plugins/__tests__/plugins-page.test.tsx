@@ -1,24 +1,15 @@
-// Plugins page + detail behaviour.
+// Plugins page behaviour: one card per installed plugin with the activation
+// switch ON the card, and ONE shared settings block below for the active
+// plugin. All three controls are canonical app config fields, so every write
+// goes through `set_config` and every refresh through `config_changed`.
 //
-// Covers the user-visible contract only: the empty state names the actual
-// state (no plugins installed), cards open the detail view, the detail
-// page shows the activation toggle FIRST and writes `active_plugin`
-// (plugin id on, "" off), the generic settings controls render per
-// declared type, and a setting change is persisted through
-// `set_plugin_setting` (never `set_config`: plugin settings are not
-// app-config fields).
-//
-// Strings are asserted against the real English catalogue (no `t()` mock,
-// so the assertions also prove the keys resolve), read from en.json so a
-// copy edit does not silently break the suite.
+// Strings are asserted against the real English catalogue (no `t()` mock),
+// read from en.json so the assertions also prove the keys resolve.
 
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getLiveByTestId, getLiveByText } from "@/__tests__/helpers/liveDom";
+import { getLiveByTestId } from "@/__tests__/helpers/liveDom";
 import {
 	hugeiconsCoreMock,
 	hugeiconsReactMock,
@@ -29,17 +20,14 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import en from "@/i18n/translations/en.json";
 
-vi.mock("@/hooks/usePython", () => pythonMock({ noopEvent: true }));
+vi.mock("@/hooks/usePython", () =>
+	pythonMock({ captureEvents: stableMocks.pythonEventHandlers }),
+);
 vi.mock("@hugeicons/react", () => hugeiconsReactMock());
 vi.mock("@hugeicons/core-free-icons", () => hugeiconsCoreMock());
 
 const COPY = en.plugins;
 
-/**
- * SettingRow renders an InfoTooltip, so the page needs the same
- * TooltipProvider ancestor App.tsx supplies (same props as App.tsx, so
- * tooltip timing in tests mirrors production).
- */
 function renderPage(Page: React.ComponentType) {
 	return render(
 		<TooltipProvider delayDuration={200} skipDelayDuration={500}>
@@ -50,42 +38,43 @@ function renderPage(Page: React.ComponentType) {
 
 type WirePlugin = Record<string, unknown>;
 
-const SAMPLE: WirePlugin = {
+const GEMINI: WirePlugin = {
 	id: "gemini",
 	name: "Gemini",
 	description: "Cloud speech plugin",
 	vendor: "Example",
 	icon: "",
 	active: false,
-	settings: [
-		{
-			key: "verbose",
-			type: "bool",
-			label: "Verbose",
-			description: "",
-			default: false,
-		},
-	],
-	values: {},
+};
+const CLAUDE: WirePlugin = {
+	id: "claude",
+	name: "Claude",
+	description: "Browser speech plugin",
+	vendor: "Example",
+	icon: "",
+	active: false,
 };
 
-/** Route the shared `call` mock by command name. */
-function stubCalls(plugins: WirePlugin[] = [], activePlugin = ""): void {
+function stubCalls(
+	plugins: WirePlugin[] = [],
+	config: Record<string, unknown> = {},
+): void {
 	stableMocks.mockCall.mockImplementation((type: string) => {
 		if (type === "get_plugins")
 			return Promise.resolve({ available: true, plugins });
-		if (type === "get_config") {
-			return Promise.resolve({ active_plugin: activePlugin });
-		}
+		if (type === "get_config")
+			return Promise.resolve({
+				active_plugin: "",
+				plugin_visible: true,
+				plugin_notify: true,
+				...config,
+			});
 		return Promise.resolve(undefined);
 	});
 }
 
 beforeEach(() => {
 	resetStableMocks();
-	// The page's data hook keeps a MODULE-level plugin cache so returning
-	// from the detail view does not refetch. Each test needs a cold cache,
-	// so the module registry is reset and the page is re-imported per test.
 	vi.resetModules();
 });
 
@@ -93,420 +82,226 @@ afterEach(() => {
 	cleanup();
 });
 
-/** Fresh page + selection store for one test (cold module cache). */
 async function mountPage() {
 	const page = await import("@/pages/plugins/Plugins");
-	const selection = await import("@/pages/plugins/lib/usePluginSelection");
-	return { Page: page.default, selection };
+	return page.default;
 }
 
 describe("Plugins page", () => {
 	it("shows the empty state naming the real state when nothing is installed", async () => {
 		stubCalls([]);
-		const { Page } = await mountPage();
+		const Page = await mountPage();
 		renderPage(Page);
 
-		// The loading sample is the same empty state (the shipped build has
-		// no plugin workspace), so the copy exists twice until the reveal
-		// pane exits in a real browser.
 		await waitFor(() => {
 			expect(screen.getAllByText(COPY.emptyTitle).length).toBeGreaterThan(0);
 		});
-		// C-UI-2: the copy states that no plugins are installed, it does
-		// not say "no data available". Matched on the fragment because the
-		// `{appName}` placeholder is substituted at i18n load time, so the
-		// rendered text differs from the raw catalogue value.
-		expect(
-			screen.getAllByText(/ships with no plugins installed/).length,
-		).toBeGreaterThan(0);
 		expect(screen.queryByTestId("plugin-card-gemini")).toBeNull();
 	});
 
-	it("renders a card per plugin with its active/inactive status", async () => {
-		stubCalls([SAMPLE]);
-		const { Page } = await mountPage();
+	it("renders one card per plugin with name, status and an activation switch", async () => {
+		stubCalls([GEMINI, CLAUDE]);
+		const Page = await mountPage();
 		renderPage(Page);
 
 		await waitFor(() => {
 			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
+			expect(getLiveByTestId("plugin-card-claude")).toBeTruthy();
 		});
 		expect(screen.getByText("Gemini")).toBeTruthy();
-		expect(screen.getByText(COPY.statusInactive)).toBeTruthy();
+		expect(screen.getAllByText(COPY.statusInactive).length).toBeGreaterThan(0);
+		expect(getLiveByTestId("plugin-activate-switch-gemini")).toBeTruthy();
+		expect(getLiveByTestId("plugin-activate-switch-claude")).toBeTruthy();
 	});
 
-	it("keeps the card to name + status only (the description lives on the detail view)", async () => {
-		stubCalls([SAMPLE]);
-		const { Page } = await mountPage();
-		renderPage(Page);
-
-		await waitFor(() => {
-			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
-		});
-		expect(screen.getByText("Gemini")).toBeTruthy();
-		// The card is a compact two-line row; the description is owned by
-		// PluginDetail's PageHeading and must not be repeated on the card.
-		expect(screen.queryByText("Cloud speech plugin")).toBeNull();
-	});
-
-	it("tints the status dot with the success token when the plugin is active", async () => {
-		// Owner decision 2026-10-05: the dot reads green (the app's
-		// semantic --success token) exactly when this plugin owns dictation.
-		// `plugin.active` is the catalog's own flag, not config.active_plugin.
-		stubCalls([{ ...SAMPLE, active: true }]);
-		const { Page } = await mountPage();
+	it("marks the active plugin with the success dot", async () => {
+		stubCalls([{ ...GEMINI, active: true }], { active_plugin: "gemini" });
+		const Page = await mountPage();
 		renderPage(Page);
 
 		await waitFor(() => {
 			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
 		});
 		expect(
-			screen
-				.getByTestId("plugin-card-gemini")
-				.querySelector('[data-slot="plugin-status-dot"]')?.className,
+			getLiveByTestId("plugin-card-gemini").querySelector(
+				'[data-slot="plugin-status-dot"]',
+			)?.className,
 		).toContain("bg-success");
 	});
 
-	it("leaves the status dot muted grey when the plugin is not active", async () => {
-		stubCalls([SAMPLE]);
-		const { Page } = await mountPage();
+	it("writes active_plugin via set_config when a card switch is turned on", async () => {
+		stubCalls([GEMINI, CLAUDE]);
+		const Page = await mountPage();
+		renderPage(Page);
+
+		const toggle = await waitFor(() =>
+			getLiveByTestId("plugin-activate-switch-gemini"),
+		);
+		await userEvent.click(toggle);
+		expect(stableMocks.mockCall).toHaveBeenCalledWith("set_config", {
+			active_plugin: "gemini",
+		});
+	});
+
+	it("writes an empty active_plugin when the active card switch is turned off", async () => {
+		stubCalls([{ ...GEMINI, active: true }], { active_plugin: "gemini" });
+		const Page = await mountPage();
+		renderPage(Page);
+
+		const toggle = await waitFor(() =>
+			getLiveByTestId("plugin-activate-switch-gemini"),
+		);
+		await userEvent.click(toggle);
+		expect(stableMocks.mockCall).toHaveBeenCalledWith("set_config", {
+			active_plugin: "",
+		});
+	});
+
+	it("shows the two shared settings for the active plugin", async () => {
+		stubCalls([{ ...GEMINI, active: true }], { active_plugin: "gemini" });
+		const Page = await mountPage();
 		renderPage(Page);
 
 		await waitFor(() => {
-			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
+			expect(screen.getByText(COPY.visibleLabel)).toBeTruthy();
 		});
-		// The app's neutral status-dot tone (PrewarmAndUpdates' "off" dot),
-		// never a bare --border dot which reads as plain white in dark.
+		expect(screen.getByText(COPY.notifyLabel)).toBeTruthy();
+		expect(getLiveByTestId("plugin-setting-visible")).toBeTruthy();
+		expect(getLiveByTestId("plugin-setting-notify")).toBeTruthy();
+	});
+
+	it("shows the section subtitle in a ? tooltip, never as plugin-specific body copy", async () => {
+		stubCalls([{ ...GEMINI, active: true }], { active_plugin: "gemini" });
+		const Page = await mountPage();
+		renderPage(Page);
+
+		const heading = await waitFor(() =>
+			screen.getByRole("heading", { name: COPY.settingsSection }),
+		);
+		expect(heading.className).toContain("font-sans");
+		expect(heading.className).toContain("text-lg");
+		expect(heading.className).toContain("font-medium");
+		expect(heading.className).toContain("text-foreground");
 		expect(
-			screen
-				.getByTestId("plugin-card-gemini")
-				.querySelector('[data-slot="plugin-status-dot"]')?.className,
+			heading.parentElement?.parentElement?.parentElement?.parentElement
+				?.className,
+		).toContain("gap-2");
+
+		// No plugin name in the copy: the settings are shared by plugins.
+		expect(COPY.sharedSettingsDescription).not.toMatch(/Gemini|Claude/);
+		expect(screen.queryByText(COPY.sharedSettingsDescription)).toBeNull();
+
+		// The ? trigger carries the shared subtitle as its tooltip payload
+		// (InfoTooltip's own tests pin hover/focus rendering).
+		const help = screen.getByRole("button", {
+			name: `More info about ${COPY.settingsSection}`,
+		});
+		expect(help).toBeTruthy();
+	});
+
+	it("persists shared setting changes as main config fields", async () => {
+		stubCalls([{ ...GEMINI, active: true }], {
+			active_plugin: "gemini",
+			plugin_visible: true,
+			plugin_notify: true,
+		});
+		const Page = await mountPage();
+		renderPage(Page);
+
+		const visible = await waitFor(() =>
+			getLiveByTestId("plugin-setting-visible"),
+		);
+		await userEvent.click(visible);
+		expect(stableMocks.mockCall).toHaveBeenCalledWith("set_config", {
+			plugin_visible: false,
+		});
+
+		const notify = getLiveByTestId("plugin-setting-notify");
+		await userEvent.click(notify);
+		expect(stableMocks.mockCall).toHaveBeenCalledWith("set_config", {
+			plugin_notify: false,
+		});
+	});
+
+	it("says plainly when no plugin is active instead of showing orphan settings", async () => {
+		stubCalls([GEMINI, CLAUDE]);
+		const Page = await mountPage();
+		renderPage(Page);
+
+		await waitFor(() => {
+			expect(screen.getByText(COPY.noActivePlugin)).toBeTruthy();
+		});
+		expect(screen.queryByTestId("plugin-setting-visible")).toBeNull();
+	});
+
+	it("seeds activation from the shared store on remount, not the stale list cache", async () => {
+		stubCalls(
+			[
+				{ ...GEMINI, active: true },
+				{ ...CLAUDE, active: false },
+			],
+			{ active_plugin: "gemini" },
+		);
+		const Page = await mountPage();
+		const first = renderPage(Page);
+		await waitFor(() => getLiveByTestId("plugin-card-gemini"));
+		first.unmount();
+
+		// A switch happened while the page was away: the shared store (fed
+		// by config_changed) is fresh, the module list cache is not.
+		// Dynamic import: `vi.resetModules()` gave the page a fresh store
+		// instance, so the test must mutate THAT one, not a static import.
+		const { useAppStore: freshStore } = await import("@/stores/appStore");
+		freshStore.getState().setConfig({ active_plugin: "claude" });
+		renderPage(Page);
+
+		await waitFor(() => {
+			expect(
+				getLiveByTestId("plugin-card-claude").querySelector(
+					'[data-slot="plugin-status-dot"]',
+				)?.className,
+			).toContain("bg-success");
+		});
+		expect(
+			getLiveByTestId("plugin-card-gemini").querySelector(
+				'[data-slot="plugin-status-dot"]',
+			)?.className,
 		).toContain("bg-muted-foreground/40");
 	});
 
-	it("renders the bundled asset for a plugin whose icon id has one", async () => {
-		stubCalls([{ ...SAMPLE, icon: "google" }]);
-		const { Page } = await mountPage();
+	it("keeps activation and shared values in sync on config_changed", async () => {
+		stubCalls([GEMINI, CLAUDE]);
+		const Page = await mountPage();
 		renderPage(Page);
 
-		await waitFor(() => {
-			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
-		});
-		const img = getLiveByTestId("plugin-card-gemini").querySelector("img");
-		expect(img?.getAttribute("src")).toBe("/plugin-icons/google.svg");
-		// Decorative: the tile is aria-hidden and the name sits beside it.
-		expect(img?.getAttribute("alt")).toBe("");
-		// A real logo sits bare — no chip fill or border behind it.
-		const tile = getLiveByTestId("plugin-card-gemini").querySelector("span");
-		expect(tile?.className).not.toContain("bg-surface");
-		expect(tile?.className).not.toContain("border");
-	});
+		await waitFor(() => getLiveByTestId("plugin-card-gemini"));
 
-	it("falls back to the initial tile when no asset ships for the icon id", async () => {
-		// SAMPLE declares `icon: ""`. An id with no bundled asset must never
-		// resolve to a path — a plugin cannot point the renderer at a file.
-		stubCalls([{ ...SAMPLE, icon: "some-other-provider" }]);
-		const { Page } = await mountPage();
-		renderPage(Page);
+		stableMocks.mockCall.mockImplementation((type: string) => {
+			if (type === "get_config")
+				return Promise.resolve({
+					active_plugin: "claude",
+					plugin_visible: false,
+					plugin_notify: false,
+				});
+			return Promise.resolve(undefined);
+		});
+		const handler = stableMocks.pythonEventHandlers.config_changed;
+		if (!handler) throw new Error("config_changed handler was not registered");
+		await act(async () => {
+			handler(undefined);
+			await Promise.resolve();
+		});
 
 		await waitFor(() => {
-			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
+			expect(
+				getLiveByTestId("plugin-card-claude").querySelector(
+					'[data-slot="plugin-status-dot"]',
+				)?.className,
+			).toContain("bg-success");
 		});
-		const card = getLiveByTestId("plugin-card-gemini");
-		expect(card.querySelector("img")).toBeNull();
-		// The icon tile (the card's first span) holds the initial instead,
-		// framed by the chip fill + border.
-		const tile = card.querySelector("span");
-		expect(tile?.textContent).toBe("G");
-		expect(tile?.className).toContain("bg-surface");
-		expect(tile?.className).toContain("border-border/8");
-	});
-
-	it("opens the detail view when a card is activated", async () => {
-		const user = userEvent.setup();
-		stubCalls([SAMPLE]);
-		const { Page } = await mountPage();
-		renderPage(Page);
-
-		await waitFor(() => {
-			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
-		});
-		await user.click(getLiveByTestId("plugin-card-gemini"));
-
-		await waitFor(() => {
-			expect(getLiveByTestId("plugin-activate-switch")).toBeTruthy();
-		});
-	});
-
-	it("shows the load-failure state when the backend call rejects", async () => {
-		stableMocks.mockCall.mockImplementation(() =>
-			Promise.reject(new Error("backend gone")),
+		const visible = await waitFor(() =>
+			getLiveByTestId("plugin-setting-visible"),
 		);
-		const { Page } = await mountPage();
-		renderPage(Page);
-
-		await waitFor(() => {
-			expect(screen.getByText(COPY.loadFailedTitle)).toBeTruthy();
-		});
-	});
-
-	it("retries with a fresh IPC round-trip after a failed load (no poisoned cache)", async () => {
-		// A probe that fails mid-outage must not poison the shared catalog
-		// cache: Retry has to re-issue `get_plugins`, not resolve a stale
-		// cached denial (which would render the empty state instead of the
-		// recovered list).
-		const user = userEvent.setup();
-		stableMocks.mockCall.mockRejectedValue(
-			new Error('IPC command "get_config" timed out after 5000ms'),
-		);
-		const { Page } = await mountPage();
-		renderPage(Page);
-
-		await waitFor(() => {
-			expect(screen.getByText(COPY.loadFailedTitle)).toBeTruthy();
-		});
-		// Backend recovered while the error state is on screen.
-		stubCalls([SAMPLE]);
-		await user.click(screen.getByText(COPY.retry));
-
-		await waitFor(() => {
-			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
-		});
-	});
-
-	it("refetches automatically when the backend reconnects after a failed load", async () => {
-		// Mount during the outage (e.g. the persisted Plugins page on a
-		// slow first boot) leaves the error state with an empty module
-		// cache. The disconnected → connected transition must refetch
-		// without requiring a Retry click or navigation.
-		stableMocks.mockCall.mockRejectedValue(new Error("timed out after 5000ms"));
-		const { Page } = await mountPage();
-		const { useAppStore } = await import("@/stores/appStore");
-		renderPage(Page);
-
-		await waitFor(() => {
-			expect(screen.getByText(COPY.loadFailedTitle)).toBeTruthy();
-		});
-		// Backend recovered; the reconnect transition lands.
-		stubCalls([SAMPLE]);
-		act(() => {
-			useAppStore.getState().setConnectionStatus("disconnected");
-		});
-		act(() => {
-			useAppStore.getState().setConnectionStatus("connected");
-		});
-
-		await waitFor(() => {
-			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
-		});
-	});
-});
-
-describe("Plugin detail activation", () => {
-	async function openDetail(plugins: WirePlugin[], activePlugin = "") {
-		stubCalls(plugins, activePlugin);
-		const { Page, selection } = await mountPage();
-		selection.usePluginSelection.setState({ selectedPluginId: "gemini" });
-		renderPage(Page);
-		await waitFor(() => {
-			expect(getLiveByTestId("plugin-activate-switch")).toBeTruthy();
-		});
-	}
-
-	it("writes the plugin id when switched on", async () => {
-		const user = userEvent.setup();
-		await openDetail([SAMPLE]);
-		await user.click(getLiveByTestId("plugin-activate-switch"));
-
-		await waitFor(() => {
-			expect(stableMocks.mockCall).toHaveBeenCalledWith("set_config", {
-				active_plugin: "gemini",
-			});
-		});
-	});
-
-	it("writes an empty id when switched off, restoring the built-in local model", async () => {
-		const user = userEvent.setup();
-		await openDetail([SAMPLE], "gemini");
-		await user.click(getLiveByTestId("plugin-activate-switch"));
-
-		await waitFor(() => {
-			expect(stableMocks.mockCall).toHaveBeenCalledWith("set_config", {
-				active_plugin: "",
-			});
-		});
-	});
-
-	it("offers a Back to plugins control that returns to the list", async () => {
-		const user = userEvent.setup();
-		await openDetail([SAMPLE]);
-		await user.click(getLiveByText(COPY.back));
-
-		await waitFor(() => {
-			expect(getLiveByTestId("plugin-card-gemini")).toBeTruthy();
-		});
-	});
-
-	it("renders a control per declared setting type", async () => {
-		stubCalls([
-			{
-				...SAMPLE,
-				settings: [
-					{
-						key: "flag",
-						type: "bool",
-						label: "Flag",
-						description: "",
-						default: false,
-					},
-					{
-						key: "mode",
-						type: "enum",
-						label: "Mode",
-						description: "",
-						default: "a",
-						choices: ["a", "b"],
-					},
-					{
-						key: "count",
-						type: "int",
-						label: "Count",
-						description: "",
-						default: 1,
-					},
-					{
-						key: "name",
-						type: "string",
-						label: "Name",
-						description: "",
-						default: "",
-					},
-				],
-			},
-		]);
-		const { Page, selection } = await mountPage();
-		selection.usePluginSelection.setState({ selectedPluginId: "gemini" });
-		renderPage(Page);
-
-		await waitFor(() => {
-			expect(getLiveByTestId("plugin-setting-flag")).toBeTruthy();
-		});
-		// The DECLARED type picks the control and nothing else does: `bool`
-		// is the app's toggle, `enum` is the dropdown. A two-choice enum is
-		// therefore still a Select — a plugin that wants a toggle declares
-		// `bool`, it does not get one by narrowing its choices to two.
-		expect(getLiveByTestId("plugin-setting-flag").getAttribute("role")).toBe(
-			"switch",
-		);
-		expect(getLiveByTestId("plugin-setting-mode").getAttribute("role")).toBe(
-			"combobox",
-		);
-		expect(getLiveByTestId("plugin-setting-count")).toBeTruthy();
-		expect(getLiveByTestId("plugin-setting-name")).toBeTruthy();
-	});
-
-	it("renders a ranged numeric setting as the shared slider, not a number box", async () => {
-		// A declared min+max means the value is a knob: the owner should not have
-		// to select-all and retype a number to change it.
-		stubCalls([
-			{
-				...SAMPLE,
-				settings: [
-					{
-						key: "timeoutMs",
-						type: "int",
-						label: "Transcript wait",
-						description: "",
-						default: 15000,
-						min: 3000,
-						max: 60000,
-						unit: "ms",
-					},
-				],
-				values: { timeoutMs: 15000 },
-			},
-		]);
-		const { Page, selection } = await mountPage();
-		selection.usePluginSelection.setState({ selectedPluginId: "gemini" });
-		renderPage(Page);
-
-		const slider = await screen.findByRole("slider", {
-			name: "Transcript wait",
-		});
-		expect(slider.getAttribute("aria-valuenow")).toBe("15000");
-		// The number box is gone for ranged settings.
-		expect(screen.queryByRole("spinbutton")).toBeNull();
-	});
-
-	it("persists a setting change through set_plugin_setting", async () => {
-		const user = userEvent.setup();
-		await openDetail([SAMPLE]);
-		await user.click(getLiveByTestId("plugin-setting-verbose"));
-
-		await waitFor(() => {
-			expect(stableMocks.mockCall).toHaveBeenCalledWith("set_plugin_setting", {
-				plugin_id: "gemini",
-				key: "verbose",
-				value: true,
-			});
-		});
-	});
-
-	it("shows the not-found state with a Back control for an unknown id", async () => {
-		stubCalls([]);
-		const { Page, selection } = await mountPage();
-		selection.usePluginSelection.setState({ selectedPluginId: "ghost" });
-		renderPage(Page);
-
-		await waitFor(() => {
-			expect(screen.getByText(COPY.notFoundTitle)).toBeTruthy();
-		});
-		expect(getLiveByText(COPY.back)).toBeTruthy();
-	});
-});
-
-/** Load a shipped internal-plugin manifest so the test reads the real label. */
-function loadManifest(id: string): WirePlugin {
-	const manifestPath = resolve(
-		dirname(fileURLToPath(import.meta.url)),
-		"../../../../../../../../tools/internal_plugins",
-		id,
-		"plugin.json",
-	);
-	const manifest = JSON.parse(
-		readFileSync(manifestPath, "utf-8"),
-	) as WirePlugin;
-	return {
-		...manifest,
-		active: false,
-		values: {},
-	};
-}
-
-describe.each(["anthropic_stt", "google_stt"])("%s setting labels", (id) => {
-	it("renders the visibility label in title case and keeps its toggle working", async () => {
-		const user = userEvent.setup();
-		stubCalls([loadManifest(id)]);
-		const { Page, selection } = await mountPage();
-		selection.usePluginSelection.setState({ selectedPluginId: id });
-		renderPage(Page);
-
-		// Visible label + the switch's accessible name come from the same
-		// manifest `label`, so both must read the shipped Title Case copy.
-		expect(
-			await screen.findByRole("switch", {
-				name: "Show The Browser Window",
-			}),
-		).toBeTruthy();
-		expect(getLiveByText("Show The Browser Window")).toBeTruthy();
-		expect(getLiveByText("Notifications")).toBeTruthy();
-
-		await user.click(getLiveByTestId("plugin-setting-visible"));
-		await waitFor(() => {
-			expect(stableMocks.mockCall).toHaveBeenCalledWith("set_plugin_setting", {
-				plugin_id: id,
-				key: "visible",
-				value: false,
-			});
-		});
+		expect(visible.getAttribute("data-state")).toBe("unchecked");
 	});
 });

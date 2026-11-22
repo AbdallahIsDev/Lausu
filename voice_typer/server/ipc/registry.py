@@ -136,10 +136,9 @@ _COMMAND_REGISTRY: dict[str, str] = {
     "set_microphone_volume": "_handle_set_microphone_volume",
     # S1 [Lower to 75%] offer — the only user-pressed speaker-knob write.
     "set_output_volume": "_handle_set_output_volume",
-    # Plugins page: installed-plugin discovery (read-only) + one validated
-    # setting write persisted beside the manifest (never in app config).
+    # Plugins page: installed-plugin discovery (read-only). Shared settings
+    # are ordinary app config fields written through `set_config`.
     "get_plugins": "_handle_get_plugins",
-    "set_plugin_setting": "_handle_set_plugin_setting",
     "get_volume_backend_status": "_handle_get_volume_backend_status",
     "get_model_status": "_handle_get_model_status",
     # About-page Cache Status card (worker warm phase; not subprocess spawn).

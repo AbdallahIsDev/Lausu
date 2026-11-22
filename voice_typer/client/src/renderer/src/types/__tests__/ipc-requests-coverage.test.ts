@@ -39,7 +39,6 @@ const _RENDERER_CALLED_COMMANDS = {
 	get_config: true,
 	get_microphones: true,
 	get_plugins: true,
-	set_plugin_setting: true,
 	toggle_dictation: true,
 	get_history: true,
 	delete_history: true,
@@ -183,7 +182,6 @@ const _SERVER_REGISTRY_MINUS_PYTHON_ONLY = {
 	// Plugins page: installed-plugin discovery (read-only) + one
 	// manifest-validated setting write.
 	get_plugins: true,
-	set_plugin_setting: true,
 	get_volume_backend_status: true,
 	get_model_status: true,
 	get_vocabulary: true,

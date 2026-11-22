@@ -1,35 +1,46 @@
 // Plugins page entry point (lazy route chunk target): the installed
-// plugins, one compact card per plugin in a 2-per-row grid. Data +
-// activation live in `./hooks/usePlugins`; this file is the view
-// (heading, grid, loading / empty / error states).
+// plugins as one compact card each, with the activation switch on the card,
+// and ONE shared settings block below for the active plugin. Data +
+// activation + shared settings all live in `./hooks/usePlugins`.
 
 import { AlertCircleIcon, PuzzleIcon } from "@hugeicons/core-free-icons";
 import { useCallback } from "react";
 import { Skeleton } from "skullet/react";
 import PageHeading from "@/components/common/PageHeading";
+import { SettingRow } from "@/components/common/SettingRow";
+import { SettingsSection } from "@/components/common/SettingsSection";
 import { EmptyState } from "@/components/feedback/EmptyState";
+import { MeasuredSkeleton } from "@/components/feedback/MeasuredSkeleton";
 import { skeletonLoadingLabel } from "@/components/feedback/skeletons";
+import { Switch } from "@/components/ui/switch";
 import { useT } from "@/i18n/i18n";
 import { PluginCard } from "./components/PluginCard";
 import { usePlugins } from "./hooks/usePlugins";
-import { SAMPLE_PLUGINS } from "./lib/sample";
-import { usePluginSelection } from "./lib/usePluginSelection";
-import PluginDetail from "./PluginDetail";
+import { SAMPLE_ACTIVE_PLUGIN, SAMPLE_PLUGINS } from "./lib/sample";
 
 export default function PluginsPage() {
 	const t = useT();
-	const { plugins, loading, loadError, loadPlugins } = usePlugins();
-	const selectedPluginId = usePluginSelection((s) => s.selectedPluginId);
-	const selectPlugin = usePluginSelection((s) => s.selectPlugin);
+	const {
+		plugins,
+		activePluginId,
+		shared,
+		loading,
+		loadError,
+		loadPlugins,
+		setActivePlugin,
+		setSharedSetting,
+	} = usePlugins();
 
-	const openPlugin = useCallback(
-		(pluginId: string) => selectPlugin(pluginId),
-		[selectPlugin],
+	const handleActivate = useCallback(
+		(pluginId: string, active: boolean) => {
+			// Single owner model: ON selects this plugin, OFF restores the
+			// built-in local model (""), exactly as the old detail switch did.
+			setActivePlugin(active ? pluginId : "");
+		},
+		[setActivePlugin],
 	);
 
-	// A selected plugin swaps this route's view for the detail view; the
-	// detail page owns its own "Back to plugins" affordance.
-	if (selectedPluginId !== null) return <PluginDetail />;
+	const activePlugin = plugins.find((p) => p.id === activePluginId) ?? null;
 
 	if (loadError) {
 		return (
@@ -65,8 +76,7 @@ export default function PluginsPage() {
 				{(items) =>
 					items.length === 0 ? (
 						/* The shipped build has no plugin workspace, so an empty list
-				   is the NORMAL state, not a failure: the copy states exactly
-				   that no plugins are installed (C-UI-2). */
+				   is the NORMAL state, not a failure (C-UI-2). */
 						<EmptyState
 							icon={PuzzleIcon}
 							title={t("plugins.emptyTitle")}
@@ -80,13 +90,65 @@ export default function PluginsPage() {
 								<PluginCard
 									key={plugin.id}
 									plugin={plugin}
-									onOpen={openPlugin}
+									onActivate={handleActivate}
 								/>
 							))}
 						</div>
 					)
 				}
 			</Skeleton>
+
+			{/* ONE shared settings surface for whichever plugin is active.
+			    No plugin declares or stores these itself. */}
+			<MeasuredSkeleton
+				stackClassName="gap-4"
+				data={loading ? null : (activePlugin ?? SAMPLE_ACTIVE_PLUGIN)}
+				sample={SAMPLE_ACTIVE_PLUGIN}
+				id="plugin-shared-settings"
+				label={skeletonLoadingLabel()}
+			>
+				{() =>
+					activePlugin === null ? (
+						<p className="text-sm text-muted-foreground">
+							{t("plugins.noActivePlugin")}
+						</p>
+					) : (
+						<SettingsSection
+							title={t("plugins.settingsSection")}
+							description={t("plugins.sharedSettingsDescription")}
+							descriptionMode="tooltip"
+							stackClassName="gap-2"
+						>
+							<SettingRow
+								label={t("plugins.visibleLabel")}
+								info={t("plugins.visibleDescription")}
+							>
+								<Switch
+									checked={shared.visible}
+									onCheckedChange={(value) =>
+										void setSharedSetting("visible", value)
+									}
+									aria-label={t("plugins.visibleLabel")}
+									data-testid="plugin-setting-visible"
+								/>
+							</SettingRow>
+							<SettingRow
+								label={t("plugins.notifyLabel")}
+								info={t("plugins.notifyDescription")}
+							>
+								<Switch
+									checked={shared.notify}
+									onCheckedChange={(value) =>
+										void setSharedSetting("notify", value)
+									}
+									aria-label={t("plugins.notifyLabel")}
+									data-testid="plugin-setting-notify"
+								/>
+							</SettingRow>
+						</SettingsSection>
+					)
+				}
+			</MeasuredSkeleton>
 		</div>
 	);
 }

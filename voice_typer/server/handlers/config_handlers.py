@@ -277,6 +277,20 @@ class ConfigHandlersMixin(HandlerBase):
                 ).start()
             except Exception:
                 log.debug("[IPC] plugin selection sync failed", exc_info=True)
+        if {"plugin_visible", "plugin_notify"} & validated.keys():
+            try:
+                from voice_typer.server.plugins import shared_settings
+
+                shared_settings.sync_all(self.app.config)
+                if "plugin_visible" in validated:
+                    shared_settings.apply_live_visible(self.app.config)
+                log.info(
+                    "[PLUGINS] shared settings applied: visible=%s notify=%s",
+                    bool(self.app.config.plugin_visible),
+                    bool(self.app.config.plugin_notify),
+                )
+            except Exception:
+                log.debug("[IPC] shared plugin settings apply failed", exc_info=True)
         try:
             from voice_typer.server.tray_models import invalidate_model_availability_cache
 
@@ -295,6 +309,15 @@ class ConfigHandlersMixin(HandlerBase):
                 value = getattr(self.app.config, key, None)
                 if isinstance(value, str):
                     effective[key] = value
+            if "active_plugin" in effective:
+                # Derived label, computed live from the canonical config in
+                # get_config. Push it with the switch so the sidebar caption
+                # (which never refetches) cannot keep the previous plugin.
+                from voice_typer.server import internal_plugin_hook
+
+                effective["active_plugin_name"] = (
+                    internal_plugin_hook.plugin_display_name_for(self.app.config)
+                )
             event_bus.publish({"type": "config_changed", "data": effective})
         except Exception:
             log.debug("[IPC] config_changed push failed", exc_info=True)

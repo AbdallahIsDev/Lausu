@@ -311,7 +311,7 @@ Applies to: All agents, all modes, all sub-agents.
 ```
 C-UI-17
 Rule: Do NOT expose a settings control unless the code that produces the effect reads the exact value that control persists. A write path (control -> store) without the matching read path (store -> effector) is an unfinished control, not polish: either connect the effector to that store or remove the control.
-Rationale: The Anthropic STT manifest declares pollMs/stableWindows/stableMs/timeoutMs/notify, the Plugins page persists them to `<plugin>/settings.json`, and the daemon reads only `config.json` - every knob in that panel moved and changed nothing (2026-11-11).
+Rationale: An earlier Plugins page wrote Anthropic STT knobs to `<plugin>/settings.json` while the daemon read only `config.json`, so every control moved and changed nothing (2026-11-11). The current unified system removes the gap at the source: there are no plugin-declared settings; the two shared controls persist to the canonical main `config.json` and their effectors read that same state.
 Applies to: All agents, all modes, all sub-agents.
 ```
 
@@ -1287,6 +1287,40 @@ Applies to: All agents, all modes, all sub-agents.
 ---
 
 ## Category: Internal Plugins & Local Engine Ownership
+
+### Unified plugin architecture (current)
+
+One system for every internal plugin (Anthropic STT, Google STT, and any future
+plugin). The only per-plugin differences are platform-specific behavior:
+selectors, URLs, Chrome interaction and copy, all under `_common/bridge`.
+
+- **One configuration authority**: the main `config.json`. `active_plugin`
+  (slug or `""` = local model) is the only ownership flag; `plugin_visible` and
+  `plugin_notify` are the only user-facing plugin settings. There is no
+  per-plugin settings store, no `settings.json`, no plugin-declared settings in
+  `plugin.json`, and no `set_plugin_setting` command. Everything is written
+  through `set_config` (C-CONF-1, SEC-002).
+- **One settings interface and one page**: `pages/plugins/` renders one card
+  per discovered plugin with the activation switch on the card, plus ONE
+  shared settings block for the active plugin. No individual plugin detail
+  pages and no selection store.
+- **Immediate propagation**: activation changes call
+  `internal_plugin_hook.sync_selection` (deactivate old, activate new, no
+  restart). Shared setting changes run `plugins/shared_settings.py`, which
+  projects the canonical values into each daemon's own `config.json` (a
+  derived copy, never a second authority) and applies `plugin_visible` to the
+  running browser through the no-activation window helper. `plugin_notify` is
+  read fresh on every notification. No app restart, reload or extra user
+  action is ever required (C-UI-17).
+- **Startup**: `install()` re-projects the canonical values before any browser
+  launches, so the main config always wins over a stale daemon file.
+
+```
+C-PLUGIN-2
+Rule: Do NOT add a per-plugin settings file, a plugin-specific settings command, settings declarations in `plugin.json`, or plugin-specific visibility/activation logic. One main-`config.json` authority, one `set_config` interface, one shared Plugins page; plugins contribute only platform-specific behavior.
+Rationale: Two identical settings duplicated across two manifests and two daemon config files drifted silently and made switching plugins change behavior without a user action; the unified system removes the duplication and every change takes effect immediately.
+Applies to: All agents, all modes, all sub-agents.
+```
 
 ```
 C-PLUGIN-1

@@ -158,13 +158,6 @@ export interface GetPluginsRequest {
 	type: "get_plugins";
 }
 
-// Plugins page: persist ONE manifest-declared setting. The backend rejects
-// an unknown plugin/key or a value that does not match the declared type.
-export interface SetPluginSettingRequest {
-	type: "set_plugin_setting";
-	data: { plugin_id: string; key: string; value: unknown };
-}
-
 export interface ToggleDictationRequest {
 	type: "toggle_dictation";
 }
@@ -540,7 +533,6 @@ export type PythonRequest =
 	| GetConfigRequest
 	| GetMicrophonesRequest
 	| GetPluginsRequest
-	| SetPluginSettingRequest
 	| ToggleDictationRequest
 	| GetHistoryRequest
 	| DeleteHistoryRequest

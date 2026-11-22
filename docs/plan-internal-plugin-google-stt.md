@@ -81,10 +81,11 @@ embedded — every runtime artifact stays per-user.
    - a usable workspace resolves (bundled/seeded tree or a checked-out
      `tools/internal_plugins`), **and**
    - `PLUGINS_ENABLED` exists in that workspace.
-4. No new `IPC_CONFIG_ALLOWLIST` / `set_config` / tray surface beyond the
-   persisted `developer_mode` flag and the existing plugin commands. While
-   locked, `get_plugins` answers `available: false` with an empty list and
-   `set_plugin_setting` answers `client.not_found` / `unknown plugin`.
+4. The plugin surface stays gated by `developer_mode` + a usable workspace +
+   `PLUGINS_ENABLED`. While locked, `get_plugins` answers `available: false`
+   with an empty list. Shared settings are ordinary `set_config` fields
+   (`plugin_visible`, `plugin_notify`); there is no plugin-specific settings
+   command.
 5. **Packaging test** `tests/tauri/test_internal_plugin_packaging.py` (wired
    into the C-CI-7 drift set) asserts:
    - each `build_sidecar_*.sh` stages the tree and embeds it as data

@@ -17,6 +17,10 @@ interface SettingsSectionProps {
 	/** Optional override for the card wrapper classes (e.g. a tinted /
 	 *  bordered variant to visually distinguish one section's rows). */
 	cardClassName?: string;
+	/** Overrides the heading↔card spacing. Replaces `gap-4` rather than
+	 *  stacking another gap utility (same-specificity CSS would be
+	 *  order-dependent). */
+	stackClassName?: string;
 }
 
 export function SettingsSection({
@@ -26,11 +30,15 @@ export function SettingsSection({
 	children,
 	action,
 	cardClassName,
+	stackClassName,
 }: SettingsSectionProps) {
 	// Named landmark for SR navigation (WCAG 2.4.6 / 1.3.1 / 4.1.2).
 	const headingId = useId();
 	return (
-		<section aria-labelledby={headingId} className="flex flex-col gap-4">
+		<section
+			aria-labelledby={headingId}
+			className={cn("flex flex-col", stackClassName ?? "gap-4")}
+		>
 			<div className="flex items-start justify-between gap-4">
 				<div className="flex flex-col gap-1">
 					<div className="flex items-center gap-2">

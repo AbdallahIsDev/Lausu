@@ -219,11 +219,6 @@ KNOWN_UNDOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         # frozen-contract ADR addendum for the Plugins feature is not
         # written yet; the command itself is fully wired and documented.
         "get_plugins",
-        # Plugins page (plugin_handlers.py): the one manifest-validated
-        # plugin-setting write. Real handler + Rust allowlist entry +
-        # ipc-reference.md row + its own store tests; same pending-ADR gap
-        # as `get_plugins`.
-        "set_plugin_setting",
         # PERF-005 (ipc_server.py:1710-1712): predecessor acks receipt of
         "relaunch_ack",
         # ``ipc_server.py``). Listed here so the frozen-contract gate

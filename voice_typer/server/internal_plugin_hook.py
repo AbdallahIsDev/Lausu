@@ -291,6 +291,12 @@ def install(app: Any) -> bool:
         ensure_developer_workspace()
     if not internal_surface_enabled(config):
         return False
+    # Canonical config wins at startup: project the shared values into the
+    # plugin daemons before any browser is launched. Idempotent on every
+    # install() call (including an unlock).
+    from voice_typer.server.plugins import shared_settings
+
+    shared_settings.sync_all(config)
     if getattr(app, "_internal_plugin_wrapped", False):
         # Already wrapped: a second pass would nest the wrappers and handle
         # one key press twice.

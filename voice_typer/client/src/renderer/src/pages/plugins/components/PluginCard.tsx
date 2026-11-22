@@ -1,10 +1,10 @@
-// One compact plugin card in the Plugins grid: the initial tile, then the
-// plugin name with its active/inactive status beside it. The whole card is
-// a single button so it is mouse- and keyboard-activatable; the focus ring
-// is the shared full-opacity `focus-visible:ring-1 ring-ring` contract
-// (C-FOCUS-1/2/5) and is never removed or dimmed. The card carries NO hover
-// treatment by design — only the focus ring responds.
+// One compact plugin card: icon tile, name, Active/Inactive status and the
+// activation switch on the far right. The switch is a SIBLING of the card
+// body — nesting a Radix Switch (<button>) inside a <button> would be
+// invalid markup and would swallow the click. The whole card stays a
+// non-interactive surface; activation is the only action it offers.
 
+import { Switch } from "@/components/ui/switch";
 import { useT } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import type { PluginInfo } from "@/types/plugins";
@@ -12,7 +12,7 @@ import { pluginIconSrc } from "../lib/pluginIcon";
 
 interface PluginCardProps {
 	plugin: PluginInfo;
-	onOpen: (pluginId: string) => void;
+	onActivate: (pluginId: string, active: boolean) => void;
 }
 
 /** First letter of the plugin name, used as the icon tile glyph. */
@@ -23,29 +23,20 @@ function initialOf(plugin: PluginInfo): string {
 	return (first ?? "?").toLocaleUpperCase();
 }
 
-export function PluginCard({ plugin, onOpen }: PluginCardProps) {
+export function PluginCard({ plugin, onActivate }: PluginCardProps) {
 	const t = useT();
 	const iconSrc = pluginIconSrc(plugin.icon);
 	const statusLabel = plugin.active
 		? t("plugins.statusActive")
 		: t("plugins.statusInactive");
 	return (
-		<button
-			type="button"
+		<div
 			data-testid={`plugin-card-${plugin.id}`}
-			aria-label={`${plugin.name} — ${statusLabel}`}
-			onClick={() => onOpen(plugin.id)}
-			className={cn(
-				"flex items-center gap-3 rounded-lg border border-border/8 bg-surface-subtle p-2 text-start",
-				// Full-opacity ring at the app's standard 1px thickness.
-				"focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none",
-			)}
+			className="flex items-center gap-3 rounded-lg border border-border/8 bg-surface-subtle px-2 py-2"
 		>
 			{/* Icon tile. A plugin declares an icon IDENTIFIER, not a path: when
-			    an asset ships for that id (see `../lib/pluginIcon`) it renders
-			    bare — a real logo carries its own visual weight, so the chip
-			    fill + border frame only the placeholder initial. A plugin
-			    cannot point the renderer at an arbitrary file. */}
+			    an asset ships for that id it renders bare — the chip fill and
+			    border frame only the placeholder initial. */}
 			<span
 				aria-hidden="true"
 				className={cn(
@@ -60,30 +51,31 @@ export function PluginCard({ plugin, onOpen }: PluginCardProps) {
 				)}
 			</span>
 
-			{/* Name over status. The description deliberately lives on the
-			    detail view only (PluginDetail's PageHeading) so the card
-			    stays a compact two-line row. */}
+			{/* Name over status. The description lives on the Plugins page's
+			    shared-settings section, not on the card. */}
 			<span className="flex min-w-0 flex-1 flex-col gap-1">
 				<span className="truncate text-sm font-medium text-foreground">
 					{plugin.name}
 				</span>
-				{/* Status row, same shape as the app's other status dots
-				    (DiagnosticsSettingsSection / PrewarmAndUpdates): the
-				    decorative dot first, then the state label. */}
 				<span className="flex items-center gap-2">
 					<span
 						aria-hidden="true"
 						data-slot="plugin-status-dot"
 						className={cn(
 							"size-1.5 shrink-0 rounded-full",
-							// Green means "routing dictation through this plugin";
-							// the muted grey is the untouched default.
 							plugin.active ? "bg-success" : "bg-muted-foreground/40",
 						)}
 					/>
 					<span className="text-xs text-muted-foreground">{statusLabel}</span>
 				</span>
 			</span>
-		</button>
+
+			<Switch
+				checked={plugin.active}
+				onCheckedChange={(checked) => onActivate(plugin.id, checked)}
+				aria-label={`${t("plugins.activateAria")}: ${plugin.name}`}
+				data-testid={`plugin-activate-switch-${plugin.id}`}
+			/>
+		</div>
 	);
 }

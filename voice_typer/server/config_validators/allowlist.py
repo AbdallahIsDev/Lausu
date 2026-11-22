@@ -288,6 +288,8 @@ IPC_CONFIG_ALLOWLIST: dict[str, FieldSpec] = {
     # value is a plugin id, validated against what is actually installed so a
     # stale id cannot silently take dictation away from the local model.
     "active_plugin": (str, _make_plugin_id_validator()),
+    "plugin_visible": (bool, _bool_validator),
+    "plugin_notify": (bool, _bool_validator),
     "developer_mode": (bool, _bool_validator),
     "waveform_bubble": (bool, _bool_validator),
     "bubble_position": (str, _make_enum_validator(frozenset({"top", "bottom"}))),

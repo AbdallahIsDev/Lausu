@@ -58,10 +58,9 @@ pub(crate) fn allowed_commands() -> &'static HashSet<&'static str> {
             "get_microphone_volume",
             "set_microphone_volume",
             "set_output_volume",
-            // Plugins page: installed-plugin discovery (read-only) + one
-            // manifest-validated setting write.
+            // Plugins page: discovery only. Shared settings are ordinary
+            // config fields written through `set_config`.
             "get_plugins",
-            "set_plugin_setting",
             "restart_app",
             "quit_app",
             "get_templates",

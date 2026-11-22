@@ -7,13 +7,17 @@ the owner unlocks in-app). ``resolve_plugins_dir`` owns where the workspace
 actually is - checkout, seeded per-user copy, or an override. Nothing here
 imports a plugin: a plugin is described by its ``plugin.json`` manifest, and
 the manifest is the only thing the app reads.
+
+Settings are NOT declared here. Both plugins share the same user settings in
+the main application config (``plugin_visible`` / ``plugin_notify``), so a
+manifest only describes identity, not configuration.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -29,36 +33,6 @@ MAX_MANIFEST_BYTES = 64 * 1024
 # ``active_plugin`` config validator enforces.
 _PLUGIN_ID_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz0123456789_-")
 
-_SETTING_TYPES = frozenset({"bool", "int", "float", "string", "enum"})
-
-
-@dataclass(frozen=True)
-class PluginSetting:
-    """One user-tunable option a plugin exposes on its detail page."""
-
-    key: str
-    type: str
-    label: str
-    default: Any = None
-    description: str = ""
-    choices: tuple[str, ...] = ()
-    minimum: float | None = None
-    maximum: float | None = None
-
-    def to_dict(self) -> dict[str, Any]:
-        out: dict[str, Any] = {"key": self.key, "type": self.type, "label": self.label}
-        if self.description:
-            out["description"] = self.description
-        if self.default is not None:
-            out["default"] = self.default
-        if self.choices:
-            out["choices"] = list(self.choices)
-        if self.minimum is not None:
-            out["min"] = self.minimum
-        if self.maximum is not None:
-            out["max"] = self.maximum
-        return out
-
 
 @dataclass(frozen=True)
 class PluginInfo:
@@ -69,10 +43,9 @@ class PluginInfo:
     description: str = ""
     vendor: str = ""
     icon: str = ""
-    settings: tuple[PluginSetting, ...] = field(default_factory=tuple)
     directory: str = ""
 
-    def to_dict(self, *, active: bool = False, values: dict[str, Any] | None = None) -> dict[str, Any]:
+    def to_dict(self, *, active: bool = False) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -80,8 +53,6 @@ class PluginInfo:
             "vendor": self.vendor,
             "icon": self.icon,
             "active": active,
-            "settings": [s.to_dict() for s in self.settings],
-            "values": values or {},
         }
 
 
@@ -99,28 +70,6 @@ def plugins_dir() -> Path | None:
 
 def _valid_id(value: object) -> bool:
     return isinstance(value, str) and bool(value) and set(value) <= _PLUGIN_ID_CHARS and len(value) <= 64
-
-
-def _parse_setting(raw: object) -> PluginSetting | None:
-    if not isinstance(raw, dict):
-        return None
-    key, stype, label = raw.get("key"), raw.get("type"), raw.get("label")
-    if not (isinstance(key, str) and key) or stype not in _SETTING_TYPES or not isinstance(label, str):
-        return None
-    choices = raw.get("choices", [])
-    if not isinstance(choices, list) or not all(isinstance(c, str) for c in choices):
-        return None
-    description = raw.get("description", "")
-    return PluginSetting(
-        key=key,
-        type=stype,
-        label=label,
-        default=raw.get("default"),
-        description=description if isinstance(description, str) else "",
-        choices=tuple(choices),
-        minimum=raw.get("min") if isinstance(raw.get("min"), (int, float)) else None,
-        maximum=raw.get("max") if isinstance(raw.get("max"), (int, float)) else None,
-    )
 
 
 def _text(raw: dict[str, Any], key: str) -> str:
@@ -145,17 +94,12 @@ def _read_manifest(plugin_dir: Path) -> PluginInfo | None:
     if not isinstance(name, str) or not name:
         log.warning("[PLUGINS] manifest without a name, skipping: %s", plugin_dir.name)
         return None
-    raw_settings = raw.get("settings", [])
-    settings: tuple[PluginSetting, ...] = ()
-    if isinstance(raw_settings, list):
-        settings = tuple(s for s in (_parse_setting(item) for item in raw_settings) if s is not None)
     return PluginInfo(
         id=raw["id"],
         name=name,
         description=_text(raw, "description"),
         vendor=_text(raw, "vendor"),
         icon=_text(raw, "icon"),
-        settings=settings,
         directory=str(plugin_dir),
     )
 

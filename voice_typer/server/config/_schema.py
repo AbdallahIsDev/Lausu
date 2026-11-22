@@ -46,6 +46,11 @@ class _ConfigSchema:
     # Set from the Plugins page; a non-empty value must match an installed
     # plugin id, otherwise the local model stays in charge (fail-closed).
     active_plugin: str = ""
+    # Shared plugin settings. Canonical for BOTH Anthropic STT and Google STT:
+    # one value each, projected into the plugin daemons' own config files so
+    # they take effect without a restart. No per-plugin settings store.
+    plugin_visible: bool = True
+    plugin_notify: bool = True
     # Owner-only unlock for the internal plugin surface. Hidden from every
     # install until the in-app Ctrl+Shift+Alt+D sequence sets it; persisted so
     # the choice survives restarts. It never enables a plugin by itself.

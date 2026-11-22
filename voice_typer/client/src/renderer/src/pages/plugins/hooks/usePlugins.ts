@@ -1,7 +1,7 @@
-﻿// Owns the plugin list + active-plugin config for the Plugins pages: the
-// cache that survives page navigations (so returning from a detail page
-// renders the list instantly), the mount load, and the `config_changed`
-// subscription that keeps the active-plugin flag fresh after a toggle.
+﻿// Owns the plugin list, plugin activation and the TWO shared plugin settings
+// for the Plugins page. All three are plain fields in the main config:
+// `active_plugin`, `plugin_visible`, `plugin_notify`. One write path
+// (`set_config`), one refresh path (`config_changed`), one authority.
 //
 // The catalog itself (the `get_plugins` round-trip and the developer
 // availability gate) belongs to `@/hooks/usePluginCatalog`, which the shell
@@ -57,30 +57,75 @@ export function prefetchPluginsData(call: PrefetchCall): Promise<void> {
 	});
 }
 
+export type SharedPluginSettingKey = "visible" | "notify";
+
+export interface SharedPluginSettings {
+	visible: boolean;
+	notify: boolean;
+}
+
+const CONFIG_FIELD: Record<
+	SharedPluginSettingKey,
+	"plugin_visible" | "plugin_notify"
+> = {
+	visible: "plugin_visible",
+	notify: "plugin_notify",
+};
+
+function sharedFromConfig(config: LausuConfig): SharedPluginSettings {
+	return {
+		visible: config.plugin_visible !== false,
+		notify: config.plugin_notify !== false,
+	};
+}
+
 export interface UsePluginsResult {
 	plugins: PluginInfo[];
 	/** Id of the plugin that owns dictation ("" = built-in local model). */
 	activePluginId: string;
+	shared: SharedPluginSettings;
 	loading: boolean;
 	loadError: string | null;
 	loadPlugins: (isCancelled?: () => boolean) => Promise<void>;
 	setActivePlugin: (pluginId: string) => void;
-	/** Persist one manifest-declared setting; false when the backend refused. */
-	setPluginSetting: (
-		pluginId: string,
-		key: string,
-		value: unknown,
+	/** Persist one shared setting through `set_config`; false on refusal. */
+	setSharedSetting: (
+		key: SharedPluginSettingKey,
+		value: boolean,
 	) => Promise<boolean>;
 }
 
 export function usePlugins(): UsePluginsResult {
 	const { call } = usePython();
+	// The shared store is updated by `config_changed` even while this page is
+	// unmounted. The module list cache is only an instant-render hint: never
+	// seed identity from it, or a switch that happened during navigation
+	// reappears as the old plugin on remount.
+	const storeActivePlugin = useAppStore((s) => s.config?.active_plugin);
+	const storeVisible = useAppStore((s) => s.config?.plugin_visible);
+	const storeNotify = useAppStore((s) => s.config?.plugin_notify);
 	const [plugins, setPlugins] = useState<PluginInfo[]>(_cachedPlugins ?? []);
 	const [activePluginId, setActivePluginId] = useState<string>(
-		_cachedPlugins?.find((p) => p.active)?.id ?? "",
+		typeof storeActivePlugin === "string"
+			? storeActivePlugin
+			: (_cachedPlugins?.find((p) => p.active)?.id ?? ""),
 	);
+	const [shared, setShared] = useState<SharedPluginSettings>({
+		visible: storeVisible ?? true,
+		notify: storeNotify ?? true,
+	});
 	const [loading, setLoading] = useState(_cachedPlugins === null);
 	const [loadError, setLoadError] = useState<string | null>(null);
+
+	// Follow the shared snapshot on every change, including pushes that
+	// landed while the page was away. Identity stays canonical: one config.
+	useEffect(() => {
+		if (typeof storeActivePlugin === "string")
+			setActivePluginId(storeActivePlugin);
+	}, [storeActivePlugin]);
+	useEffect(() => {
+		setShared({ visible: storeVisible ?? true, notify: storeNotify ?? true });
+	}, [storeVisible, storeNotify]);
 
 	// callRef mirror: `loadPlugins` must keep a STABLE identity so the mount
 	// effect below does not re-fire every time `call` is recreated.
@@ -103,6 +148,7 @@ export function usePlugins(): UsePluginsResult {
 			setActivePluginId(
 				typeof config.active_plugin === "string" ? config.active_plugin : "",
 			);
+			setShared(sharedFromConfig(config));
 			setLoadError(null);
 		} catch (err) {
 			if (isCancelled?.()) return;
@@ -130,13 +176,9 @@ export function usePlugins(): UsePluginsResult {
 	// Reconnect refetch: a mount during a backend outage (or a slow
 	// startup model load that trips the 5s `get_config` budget) leaves
 	// this page on its error state with an empty module cache. Every
-	// reconnect path in `useConnection` (background poll, manual retry,
-	// supervisor `reconnected`) lands `connectionStatus` on "connected"
-	// without touching this hook, so without this effect the error
-	// state sticks until the user navigates away or clicks Retry. Refetch
-	// exactly on the disconnected/transient → connected transition while
-	// the cache is still empty; a populated cache means the list already
-	// rendered and needs no refresh.
+	// reconnect path in `useConnection` lands `connectionStatus` on
+	// "connected" without touching this hook, so refetch exactly on the
+	// disconnected/transient → connected transition while the cache is empty.
 	const connectionStatus = useAppStore((s) => s.connectionStatus);
 	const prevStatusRef = useRef(connectionStatus);
 	useEffect(() => {
@@ -156,23 +198,24 @@ export function usePlugins(): UsePluginsResult {
 		return undefined;
 	}, [connectionStatus, loadPlugins]);
 
-	// Activation is persisted by the backend (`set_config` writes
-	// `active_plugin`); the push keeps the list + this page's toggle in sync
-	// no matter which surface changed it.
+	// Every plugin field is canonical config, so one subscription keeps the
+	// list, the activation switches and the shared controls in sync no matter
+	// which surface changed them (Settings, tray, another client).
 	usePythonEvent(
 		"config_changed",
 		useCallback((): (() => void) | undefined => {
 			void (async () => {
 				try {
 					const config = await call<LausuConfig>("get_config");
-					setActivePluginId(
+					const id =
 						typeof config.active_plugin === "string"
 							? config.active_plugin
-							: "",
-					);
+							: "";
+					setActivePluginId(id);
 					setPlugins((prev) =>
-						prev.map((p) => ({ ...p, active: p.id === config.active_plugin })),
+						prev.map((p) => ({ ...p, active: p.id === id })),
 					);
+					setShared(sharedFromConfig(config));
 				} catch (err) {
 					console.warn(
 						"[renderer:usePlugins] Failed to refresh config on config_changed:",
@@ -184,45 +227,58 @@ export function usePlugins(): UsePluginsResult {
 		}, [call]),
 	);
 
-	// Optimistic: flip locally, then persist. `""` restores the built-in
-	// local model, which is why the toggle writes a value, not a boolean.
+	// Optimistic flip with rollback: the card toggle is now the primary
+	// activation control, so a rejected `set_config` must not leave the UI
+	// claiming a plugin owns dictation when it does not.
 	const setActivePlugin = useCallback(
 		(pluginId: string) => {
+			const previous = activePluginId;
 			setActivePluginId(pluginId);
 			setPlugins((prev) =>
 				prev.map((p) => ({ ...p, active: p.id === pluginId })),
 			);
-			call("set_config", { active_plugin: pluginId }).catch((err) => {
+			call("set_config", { active_plugin: pluginId }).catch((err: unknown) => {
 				console.warn(
 					"[renderer:usePlugins] set_config active_plugin failed:",
 					err,
 				);
+				setActivePluginId(previous);
+				setPlugins((prev) =>
+					prev.map((p) => ({ ...p, active: p.id === previous })),
+				);
 			});
 		},
-		[call],
+		[activePluginId, call],
 	);
 
-	// Settings live in the plugin's own config.json, so the write is
-	// validated and persisted server-side; the caller reverts its optimistic
-	// value when this resolves false.
-	const setPluginSetting = useCallback(
-		(pluginId: string, key: string, value: unknown): Promise<boolean> =>
-			call("set_plugin_setting", { plugin_id: pluginId, key, value })
+	const setSharedSetting = useCallback(
+		(key: SharedPluginSettingKey, value: boolean): Promise<boolean> => {
+			const previous = shared[key];
+			setShared((prev) => ({ ...prev, [key]: value }));
+			return call("set_config", { [CONFIG_FIELD[key]]: value })
 				.then(() => true)
-				.catch((err) => {
-					console.warn("[renderer:usePlugins] set_plugin_setting failed:", err);
+				.catch((err: unknown) => {
+					console.warn(
+						"[renderer:usePlugins] set_config shared plugin setting failed:",
+						err,
+					);
+					setShared((prev) => ({ ...prev, [key]: previous }));
 					return false;
-				}),
-		[call],
+				});
+		},
+		[call, shared],
 	);
 
 	return {
-		plugins,
+		// Card status is derived from the canonical id, never from a flag
+		// frozen into the module cache at first load.
+		plugins: plugins.map((p) => ({ ...p, active: p.id === activePluginId })),
 		activePluginId,
+		shared,
 		loading,
 		loadError,
 		loadPlugins,
 		setActivePlugin,
-		setPluginSetting,
+		setSharedSetting,
 	};
 }

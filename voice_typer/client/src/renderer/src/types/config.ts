@@ -153,6 +153,10 @@ export interface LausuConfig {
 	model_size: ModelSize;
 	/** Installed plugin that currently owns dictation ("" = local model). */
 	active_plugin: string;
+	/** Shared plugin settings (one value for Anthropic STT and Google STT).
+	 *  Canonical in the main config.json; projected into plugin daemons. */
+	plugin_visible?: boolean;
+	plugin_notify?: boolean;
 	/** Owner-only unlock for the internal Plugins surface. Optional for
 	 *  wire tolerance; absent means hidden. */
 	developer_mode?: boolean;

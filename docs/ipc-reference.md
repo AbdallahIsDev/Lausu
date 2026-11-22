@@ -42,7 +42,7 @@ host-dispatched / host-only set (`heartbeat`, `relaunch_ack`,
 `allowed_commands()` are host-internal (invoked by the Rust host via
 `dispatch_inner` or host-supervised shutdown), never by the renderer.
 
-## Commands (110 total: 105 renderer-reachable + 5 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack, bubble_host_hidden)
+## Commands (109 total: 104 renderer-reachable + 5 host-dispatched: shutdown, tray_click, heartbeat, relaunch_ack, bubble_host_hidden)
 
 Grouped by namespace. "✓" in the Allowlist column means the command is
 in `allowed_commands()` (renderer-reachable); "—" means host-dispatched
@@ -199,8 +199,13 @@ runtime). Packs live under `<HF cache>/tts/{bin,models}/<engine>`.
 | Command | Handler | Allowlist | Notes |
 |---------|---------|-----------|-------|
 | `get_microphones` | `_handle_get_microphones` | ✓ |  |
-| `get_plugins` | `_handle_get_plugins` | ✓ | Installed plugins, their manifests, each one's active flag, and its persisted setting values. |
-| `set_plugin_setting` | `_handle_set_plugin_setting` | ✓ | Persists one manifest-declared setting. Payload `{plugin_id, key, value}`; the key must exist in that plugin's manifest and the value must match its declared type/range. Stored in the plugin workspace (`settings.json`), never app config. |
+| `get_plugins` | `_handle_get_plugins` | ✓ | Read-only discovery: installed plugins (id, name, vendor, icon, description) and each one's `active` flag. No plugin-specific settings — those are app config fields below. |
+
+Plugin settings are ordinary config writes: `set_config {plugin_visible: bool}` and
+`set_config {plugin_notify: bool}` are the single shared interface for both
+Anthropic STT and Google STT. The backend projects them into each plugin
+daemon's own `config.json` and applies visibility to the running browser right
+away; no plugin-specific settings command exists.
 
 ### Microphone test (start, stop, cancel, level)
 

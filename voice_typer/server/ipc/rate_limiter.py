@@ -109,7 +109,6 @@ COMMAND_COSTS: dict[str, int] = {
     # Small file writes / single-row mutations (cost 10).
     "save_vocabulary": 10,  # was 2, writes vocabulary file
     "save_templates": 10,  # was 2, writes templates file
-    "set_plugin_setting": 10,  # validates + rewrites one plugin settings file
     "force_cancel_transcription": 10,  # was 2, interrupts ASR pipeline
     "delete_history": 2,
     "restore_history": 2,

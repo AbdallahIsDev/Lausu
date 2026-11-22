@@ -152,6 +152,11 @@ _PRE_SPLIT_ALLOWLIST_KEYS: frozenset[str] = frozenset(
         "waveform_bubble",
         # Added 2026-10-04 (Plugins page). Slug-validated; "" = local model.
         "active_plugin",
+        # Shared plugin settings (2026-11-21): canonical in the main
+        # config.json, bool-validated, no secret and no endpoint. They
+        # replace the removed per-plugin settings write command.
+        "plugin_visible",
+        "plugin_notify",
         # Added by a separate in-flight change (hallucination filter).
         "hallucination_filter_mode",
         # Added 2026-10-07 (one-shot screenshot beta flags; bool-validated).
@@ -239,12 +244,17 @@ class TestAllowlistSnapshot:
     """SEC-002 byte-for-byte parity for ``IPC_CONFIG_ALLOWLIST``."""
 
     def test_allowlist_size_unchanged(self) -> None:
-        """The allowlist must still contain exactly 172 keys."""
-        assert len(IPC_CONFIG_ALLOWLIST) == 172, (
+        """The allowlist must still contain exactly 174 keys."""
+        assert len(IPC_CONFIG_ALLOWLIST) == 174, (
             f"IPC_CONFIG_ALLOWLIST size drifted: expected 172, got {len(IPC_CONFIG_ALLOWLIST)}. "
             "SEC-002 contract (AGENTS.md §6.3), adding/removing keys is a "
             "security-sensitive change that must be reviewed explicitly. "
-            "Latest shrink 173 → 172 (2026-11-20): `tray_left_click_action` was "
+            "Latest growth 172 → 174 (2026-11-21): `plugin_visible` and "
+            "`plugin_notify`, the two shared settings for the unified plugin "
+            "system. Both are bool-validated and carry no secret, endpoint or "
+            "path; they replace the removed `set_plugin_setting` IPC command so "
+            "all plugin configuration lives in the canonical app config. "
+            "Prior shrink 173 → 172 (2026-11-20): `tray_left_click_action` was "
             "removed with the setting itself — left-click always opens the app "
             "on every OS. The enum carried no secret and addressed no device or endpoint. "
             "Prior shrink 174 → 173 (2026-11-20): `streaming_transcription` was "

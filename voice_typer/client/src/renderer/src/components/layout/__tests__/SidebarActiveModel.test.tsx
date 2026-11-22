@@ -201,6 +201,34 @@ describe("SidebarActiveModel", () => {
 		);
 	});
 
+	it("follows a plugin switch merged from config_changed into the shared store", () => {
+		setConfigSnapshot({
+			active_plugin: "google_stt",
+			active_plugin_name: "Google STT",
+			model_size: "tiny",
+		});
+		render(<SidebarActiveModel />);
+		expect(screen.getByTestId("sidebar-active-model").textContent).toContain(
+			"Google STT",
+		);
+
+		// Backend pushes both the slug and the derived label with the switch
+		// (config_changed), so no get_config refetch is needed here.
+		act(() => {
+			useAppStore.getState().mergeConfig({
+				active_plugin: "anthropic_stt",
+				active_plugin_name: "Anthropic STT",
+			});
+		});
+
+		expect(screen.getByTestId("sidebar-active-model").textContent).toContain(
+			"Anthropic STT",
+		);
+		expect(
+			screen.getByTestId("sidebar-active-model").textContent,
+		).not.toContain("Google STT");
+	});
+
 	// The caption is the sidebar half of the tray tooltip's "which model is
 	// running". Nothing about the compute-device switch may gate it: a
 	// CPU-only machine, a missing GPU probe, or a garbage `device` value are

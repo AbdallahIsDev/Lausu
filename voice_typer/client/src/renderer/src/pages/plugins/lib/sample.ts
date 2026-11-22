@@ -7,30 +7,14 @@ import type { PluginInfo } from "@/types/plugins";
 // showed on first load.
 export const SAMPLE_PLUGINS: PluginInfo[] = [];
 
-// Detail sample: one full plugin with two settings so the detail page
-// measures its heading plus both setting rows while loading.
-export const SAMPLE_PLUGIN_DETAIL: PluginInfo = {
-	id: "sample-plugin-alpha",
-	name: "Alpha Dictation",
-	description: "Sample plugin for skeleton measurement.",
+// Measured-skeleton sample for the shared-settings block below the cards.
+// It reserves the exact heading + two rows while `get_config` is in flight,
+// so the page never grows when the real values land (C-SKELETON-1).
+export const SAMPLE_ACTIVE_PLUGIN: PluginInfo = {
+	id: "sample-active-plugin",
+	name: "Sample Dictation",
+	description: "Sample plugin description for skeleton measurement.",
 	vendor: "Sample Vendor",
 	icon: "",
 	active: true,
-	settings: [
-		{
-			key: "enabled",
-			type: "bool",
-			label: "Enabled",
-			description: "Turn this sample setting on.",
-			default: true,
-		},
-		{
-			key: "mode",
-			type: "string",
-			label: "Mode",
-			description: "Sample text setting.",
-			default: "standard",
-		},
-	],
-	values: { enabled: true, mode: "standard" },
 };
