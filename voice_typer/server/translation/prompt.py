@@ -8,6 +8,7 @@ the source text. No model-as-judge, no few-shot examples, no extra prose.
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import NamedTuple
 
 from voice_typer.server.translation.catalogue import TRANSLATION_TARGETS, normalize_language_code
@@ -126,7 +127,13 @@ def detect_source_language(text: str) -> LanguageDetection:
     first so a URL or an email cannot inject a foreign script.
     """
     cleaned = unprotected_text(text)
-    counts = {name: len(pattern.findall(cleaned)) for name, pattern in _SCRIPTS.items()}
+    # Count letters only. The Arabic block also contains digits and
+    # punctuation (، ؟ ٠-٩); counting those as "Arabic letters" can tip a
+    # mostly-Latin sentence into a false mixed-script reading.
+    counts = {
+        name: sum(1 for ch in pattern.findall(cleaned) if unicodedata.category(ch).startswith("L"))
+        for name, pattern in _SCRIPTS.items()
+    }
     total = sum(counts.values())
     if total == 0:
         return LanguageDetection("", mixed=False, confident=False, letters=0)

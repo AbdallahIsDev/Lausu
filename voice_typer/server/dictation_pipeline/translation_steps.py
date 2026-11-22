@@ -28,7 +28,7 @@ class _TranslationStepMixin:
 
             target = str(getattr(config, "translation_target_language", "") or "")
             spoken = str(getattr(config, "language", "") or "")
-            return translate_text(text, config, target, spoken)
+            return translate_text(text, config, target, spoken, app=app)
         except Exception:
             # Translation is an enhancement; a broken model never blocks paste.
             log.exception("[TRANSLATE] stage failed; keeping untranslated text")

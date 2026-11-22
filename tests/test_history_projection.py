@@ -163,3 +163,39 @@ class TestGetTranscriptionText:
         full = db.get_transcription_text(rec_id)
         assert full["text"][:500] == rows[0]["text"]
         assert len(full["text"]) == rows[0]["text_full_length"]
+
+
+class TestHasOriginalFlag:
+    """The list projection reports ``has_original`` without a second query.
+
+    The History transcript modal needs to know up front whether a row
+    carries a pre-translation original (to offer Original/Compare), and
+    the hover prefetch uses the same flag to skip rows that have nothing
+    extra to load.
+    """
+
+    def test_flag_true_for_translated_row(self, db):
+        db.add_transcription(
+            "The file is not opening",
+            original_text="الملف مش بيفتح",
+        )
+        db.flush()
+
+        row = db.get_recent(limit=1)[0]
+        assert row["has_original"] is True
+        # The list still does NOT leak the original text itself.
+        assert "original_text" not in row
+
+    def test_flag_false_for_plain_row(self, db):
+        db.add_transcription("plain dictation")
+        db.flush()
+
+        row = db.get_recent(limit=1)[0]
+        assert row["has_original"] is False
+
+    def test_flag_false_for_empty_original(self, db):
+        db.add_transcription("plain dictation", original_text="")
+        db.flush()
+
+        row = db.get_recent(limit=1)[0]
+        assert row["has_original"] is False

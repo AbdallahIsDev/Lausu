@@ -38,6 +38,12 @@ ALLOWED_UNTRANSLATED = {
     "settings.notifications",  # "Notifications", technical term
     "a11y.notifications",  # "Notifications", identical cognate in French (same word)
     "plugins.notifyLabel",  # "Notifications", identical cognate in French (same word)
+    # Transcript version pills. "Final" is the same word in Spanish and
+    # French, "Original" in German, Spanish and French — real cognates, not
+    # untranslated strings (the Arabic/Chinese/Hindi/Russian entries are
+    # distinct translations).
+    "history.viewFinal",  # "Final" (es/fr)
+    "history.viewOriginal",  # "Original" (de/es/fr)
     # "Strict" is the same word in French (mode strict); every other locale
     # has a distinct translation, so only fr is identical to English here.
     "settings.audioEnhancement.hallucinationStrict",
