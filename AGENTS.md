@@ -1817,3 +1817,9 @@ Applies to: All agents, all modes, all sub-agents.
 ## Git workflow for all agents
 
 All agents work on `main` in the single shared checkout; never create, switch or delete branches and never merge, rebase, reset, stash or clean without explicit owner instruction in the prompt. Before committing run `git fetch` and `git status -sb`; if `main` is behind or diverged from `origin/main`, STOP and ask. Commit only your own files with explicit `git add -- <paths>` (never `git add .` or `-A`), and describe each commit by its purpose. Never commit another session's files, runtime state files, build outputs or binaries. Commit small and often so the tree stays clean. If the tree contains changes you did not make, leave them and mention them in your report. Pushes to `main` are allowed only when the prompt says so.
+
+All agents commit via `python scripts/git_safe_commit.py -m "<message>" -- <path>...` (or an equivalent single-command stage+commit with pathspec); never leave anything staged between commands; never use `git commit -- <paths>` for deletions staged with `git rm --cached` (use `git_safe_commit.py --untrack`); verify each commit with `git show --stat HEAD`.
+
+`CI-errors.md` is generated on the `ci-reports` branch and synced locally: never edit or commit it, refresh it with `python scripts/sync_ci_errors.py`, and note that `main` no longer receives bot commits.
+
+Scratch/evidence files that an agent generates only to check its own work (logs, captured API responses, probe outputs) must be deleted before the final commit unless a test in the repo needs them; never commit them.
