@@ -280,7 +280,7 @@
 2026-11-16T09:53:57.9036076Z   [1m[94m|[0m     [1m[91m^^^^^^[0m[1m[94m-------[0m
 2026-11-16T09:53:57.9036678Z   [1m[94m|[0m           [1m[94m|[0m
 2026-11-16T09:53:57.9037575Z   [1m[94m|[0m           [1m[94mno `RngCore` in the root[0m
-2026-11-16T09:53:57.9037993Z 
+2026-11-16T09:53:57.9037993Z
 2026-11-16T09:53:57.9038441Z [1m[91merror[E0432][0m[1m: unresolved import `rand::RngCore`[0m
 2026-11-16T09:53:57.9039139Z  [1m[94m--> [0msrc/util/crypto.rs:4:5
 2026-11-16T09:53:57.9039634Z   [1m[94m|[0m
@@ -288,7 +288,7 @@
 2026-11-16T09:53:57.9040760Z   [1m[94m|[0m     [1m[91m^^^^^^[0m[1m[94m-------[0m
 2026-11-16T09:53:57.9041668Z   [1m[94m|[0m           [1m[94m|[0m
 2026-11-16T09:53:57.9042208Z   [1m[94m|[0m           [1m[94mno `RngCore` in the root[0m
-2026-11-16T09:53:57.9042491Z 
+2026-11-16T09:53:57.9042491Z
 2026-11-16T09:53:58.7177139Z [1m[91merror[E0599][0m[1m: no method named `fill_bytes` found for struct `ThreadRng` in the current scope[0m
 2026-11-16T09:53:58.7178272Z   [1m[94m--> [0msrc/util/atomic_fs.rs:13:25
 2026-11-16T09:53:58.7178803Z    [1m[94m|[0m
@@ -309,7 +309,7 @@
 2026-11-16T09:53:58.7190050Z    [1m[94m|[0m
 2026-11-16T09:53:58.7190634Z [1m[94m13[0m [1m[94m| [0m            rand::rng().[92mtry_[0mfill_bytes(&mut rng_bytes);
 2026-11-16T09:53:58.7191267Z    [1m[94m|[0m                         [92m++++[0m
-2026-11-16T09:53:58.7191696Z 
+2026-11-16T09:53:58.7191696Z
 2026-11-16T09:53:58.7426215Z [1m[91merror[E0599][0m[1m: no method named `fill_bytes` found for struct `ThreadRng` in the current scope[0m
 2026-11-16T09:53:58.7427419Z   [1m[94m--> [0msrc/util/atomic_fs.rs:63:25
 2026-11-16T09:53:58.7427951Z    [1m[94m|[0m
@@ -330,7 +330,7 @@
 2026-11-16T09:53:58.7439691Z    [1m[94m|[0m
 2026-11-16T09:53:58.7440411Z [1m[94m63[0m [1m[94m| [0m            rand::rng().[92mtry_[0mfill_bytes(&mut rng_bytes);
 2026-11-16T09:53:58.7441046Z    [1m[94m|[0m                         [92m++++[0m
-2026-11-16T09:53:58.7441492Z 
+2026-11-16T09:53:58.7441492Z
 2026-11-16T09:53:58.7741546Z [1m[91merror[E0599][0m[1m: no method named `fill_bytes` found for struct `ThreadRng` in the current scope[0m
 2026-11-16T09:53:58.7743340Z   [1m[94m--> [0msrc/util/crypto.rs:8:17
 2026-11-16T09:53:58.7744261Z    [1m[94m|[0m
@@ -351,7 +351,7 @@
 2026-11-16T09:53:58.7757913Z    [1m[94m|[0m
 2026-11-16T09:53:58.7758343Z [1m[94m 8[0m [1m[94m| [0m    rand::rng().[92mtry_[0mfill_bytes(&mut bytes);
 2026-11-16T09:53:58.7758820Z    [1m[94m|[0m                 [92m++++[0m
-2026-11-16T09:53:58.7759047Z 
+2026-11-16T09:53:58.7759047Z
 2026-11-16T09:53:58.8020202Z [1m[91merror[E0599][0m[1m: no method named `fill_bytes` found for struct `ThreadRng` in the current scope[0m
 2026-11-16T09:53:58.8021692Z   [1m[94m--> [0msrc/util/crypto.rs:18:21
 2026-11-16T09:53:58.8022190Z    [1m[94m|[0m
@@ -372,7 +372,7 @@
 2026-11-16T09:53:58.8032521Z    [1m[94m|[0m
 2026-11-16T09:53:58.8033115Z [1m[94m18[0m [1m[94m| [0m        rand::rng().[92mtry_[0mfill_bytes(&mut bytes);
 2026-11-16T09:53:58.8034052Z    [1m[94m|[0m                     [92m++++[0m
-2026-11-16T09:53:58.8034355Z 
+2026-11-16T09:53:58.8034355Z
 2026-11-16T09:53:59.8749526Z [1mSome errors have detailed explanations: E0432, E0599.[0m
 2026-11-16T09:53:59.8750410Z [1mFor more information about an error, try `rustc --explain E0432`.[0m
 2026-11-16T09:53:59.8989037Z [1m[91merror[0m: could not compile `lausu-tauri` (bin "lausu-tauri") due to 6 previous errors

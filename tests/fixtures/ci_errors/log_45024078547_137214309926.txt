@@ -19,26 +19,26 @@
 2026-11-22T12:51:48.2209880Z Included Software: https://github.com/actions/runner-images/blob/macos-15-arm64/20261118.0550/images/macos/macos-15-arm64-Readme.md
 2026-11-22T12:51:48.2210950Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-15-arm64%2F20261118.0550
 ...[fixture: middle truncated]...
-2026-11-22T12:55:19.9929060Z [gw1] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_notices_and_checksums_uploaded 
-2026-11-22T12:55:20.0448540Z [gw0] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_post_build_gate_runs_after_artifact_uploads_and_still_fails_job 
-2026-11-22T12:55:20.0496390Z tests/tauri/test_windows_build_workflow.py::test_sidecar_selfcheck_is_inert_on_normal_startup 
-2026-11-22T12:55:20.0588450Z tests/tauri/test_windows_build_workflow.py::test_gate_script_self_test_and_helpers 
-2026-11-22T12:55:20.0764160Z [gw1] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_sidecar_selfcheck_is_inert_on_normal_startup 
-2026-11-22T12:55:20.0867050Z tests/tauri/test_windows_build_workflow.py::test_caller_unchanged_signing_contract 
-2026-11-22T12:55:20.0901640Z [gw0] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_gate_script_self_test_and_helpers 
-2026-11-22T12:55:20.0903210Z [gw1] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_caller_unchanged_signing_contract 
-2026-11-22T12:55:20.1242150Z tests/tauri/test_windows_freeze_drift.py::test_inline_sidecar_matches_freeze_script_on_critical_flags 
-2026-11-22T12:55:20.2435610Z tests/tauri/test_windows_freeze_drift.py::test_worker_step_delegates_to_script_and_script_has_worker_excludes 
-2026-11-22T12:55:20.2537730Z [gw0] [ 21%] PASSED tests/tauri/test_windows_freeze_drift.py::test_inline_sidecar_matches_freeze_script_on_critical_flags 
-2026-11-22T12:55:20.3006360Z tests/tauri/test_windows_freeze_drift.py::test_ffmpeg_fetch_is_present_for_both_freeze_paths 
-2026-11-22T12:55:20.3154380Z [gw1] [ 21%] PASSED tests/tauri/test_windows_freeze_drift.py::test_worker_step_delegates_to_script_and_script_has_worker_excludes 
-2026-11-22T12:55:20.4754250Z tests/tauri/test_windows_freeze_drift.py::test_gate_resolves_newest_versioned_extraction_dir_without_build_stamp 
+2026-11-22T12:55:19.9929060Z [gw1] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_notices_and_checksums_uploaded
+2026-11-22T12:55:20.0448540Z [gw0] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_post_build_gate_runs_after_artifact_uploads_and_still_fails_job
+2026-11-22T12:55:20.0496390Z tests/tauri/test_windows_build_workflow.py::test_sidecar_selfcheck_is_inert_on_normal_startup
+2026-11-22T12:55:20.0588450Z tests/tauri/test_windows_build_workflow.py::test_gate_script_self_test_and_helpers
+2026-11-22T12:55:20.0764160Z [gw1] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_sidecar_selfcheck_is_inert_on_normal_startup
+2026-11-22T12:55:20.0867050Z tests/tauri/test_windows_build_workflow.py::test_caller_unchanged_signing_contract
+2026-11-22T12:55:20.0901640Z [gw0] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_gate_script_self_test_and_helpers
+2026-11-22T12:55:20.0903210Z [gw1] [ 21%] PASSED tests/tauri/test_windows_build_workflow.py::test_caller_unchanged_signing_contract
+2026-11-22T12:55:20.1242150Z tests/tauri/test_windows_freeze_drift.py::test_inline_sidecar_matches_freeze_script_on_critical_flags
+2026-11-22T12:55:20.2435610Z tests/tauri/test_windows_freeze_drift.py::test_worker_step_delegates_to_script_and_script_has_worker_excludes
+2026-11-22T12:55:20.2537730Z [gw0] [ 21%] PASSED tests/tauri/test_windows_freeze_drift.py::test_inline_sidecar_matches_freeze_script_on_critical_flags
+2026-11-22T12:55:20.3006360Z tests/tauri/test_windows_freeze_drift.py::test_ffmpeg_fetch_is_present_for_both_freeze_paths
+2026-11-22T12:55:20.3154380Z [gw1] [ 21%] PASSED tests/tauri/test_windows_freeze_drift.py::test_worker_step_delegates_to_script_and_script_has_worker_excludes
+2026-11-22T12:55:20.4754250Z tests/tauri/test_windows_freeze_drift.py::test_gate_resolves_newest_versioned_extraction_dir_without_build_stamp
 2026-11-22T12:55:20.4812960Z INTERNALERROR> def worker_internal_error(
 2026-11-22T12:55:20.4815200Z INTERNALERROR>         self, node: WorkerController, formatted_error: str
 2026-11-22T12:55:20.4818170Z INTERNALERROR>     ) -> None:
 2026-11-22T12:55:20.4818560Z INTERNALERROR>         """
 2026-11-22T12:55:20.4818900Z INTERNALERROR>         pytest_internalerror() was called on the worker.
-2026-11-22T12:55:20.4819230Z INTERNALERROR>     
+2026-11-22T12:55:20.4819230Z INTERNALERROR>
 2026-11-22T12:55:20.4819630Z INTERNALERROR>         pytest_internalerror() arguments are an excinfo and an excrepr, which can't
 2026-11-22T12:55:20.4820130Z INTERNALERROR>         be serialized, so we go with a poor man's solution of raising an exception
 2026-11-22T12:55:20.4820700Z INTERNALERROR>         here ourselves using the formatted message.
@@ -193,85 +193,85 @@
 2026-11-22T12:55:20.4978400Z INTERNALERROR> E                 raise NotImplementedError("cannot instantiate %r on your system"
 2026-11-22T12:55:20.4979070Z INTERNALERROR> E             NotImplementedError: cannot instantiate 'WindowsPath' on your system
 2026-11-22T12:55:20.4979430Z INTERNALERROR> E           assert False
-2026-11-22T12:55:20.4979640Z INTERNALERROR> 
+2026-11-22T12:55:20.4979640Z INTERNALERROR>
 2026-11-22T12:55:20.4980060Z INTERNALERROR> /Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/xdist/dsession.py:232: AssertionError
-2026-11-22T12:55:20.4980740Z [gw0] [ 21%] PASSED tests/tauri/test_windows_freeze_drift.py::test_ffmpeg_fetch_is_present_for_both_freeze_paths 
-2026-11-22T12:55:20.5193800Z tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_templates_persisted_to_json_file 
-2026-11-22T12:55:20.5330370Z [gw0] [ 21%] PASSED tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_templates_persisted_to_json_file 
-2026-11-22T12:55:20.5474280Z tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_service_save_and_get_round_trip 
-2026-11-22T12:55:20.5551270Z [gw0] [ 21%] PASSED tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_service_save_and_get_round_trip 
-2026-11-22T12:55:20.5649860Z tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_service_save_rejects_invalid_entries 
-2026-11-22T12:55:20.5766280Z [gw0] [ 21%] PASSED tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_service_save_rejects_invalid_entries 
-2026-11-22T12:55:20.5879310Z tests/test__lazy_import.py::test_lazy_module_returns_lazy_module_instance 
-2026-11-22T12:55:20.5942550Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_lazy_module_returns_lazy_module_instance 
-2026-11-22T12:55:20.6021430Z tests/test__lazy_import.py::test_lazy_module_repr_shows_module_name 
-2026-11-22T12:55:20.6344980Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_lazy_module_repr_shows_module_name 
-2026-11-22T12:55:20.6449060Z tests/test__lazy_import.py::test_lazy_module_does_not_import_on_construction 
-2026-11-22T12:55:20.6531920Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_lazy_module_does_not_import_on_construction 
-2026-11-22T12:55:20.6638530Z tests/test__lazy_import.py::test_getattr_triggers_import_on_first_access 
-2026-11-22T12:55:20.6659070Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_triggers_import_on_first_access 
-2026-11-22T12:55:20.6745740Z tests/test__lazy_import.py::test_getattr_re_resolves_on_every_access_no_caching 
-2026-11-22T12:55:20.6868190Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_re_resolves_on_every_access_no_caching 
-2026-11-22T12:55:20.6996080Z tests/test__lazy_import.py::test_getattr_reflects_sys_modules_changes_between_accesses 
-2026-11-22T12:55:20.7105210Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_reflects_sys_modules_changes_between_accesses 
-2026-11-22T12:55:20.7170700Z tests/test__lazy_import.py::test_getattr_propagates_import_error 
-2026-11-22T12:55:20.7251890Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_propagates_import_error 
-2026-11-22T12:55:20.7353210Z tests/test__lazy_import.py::test_getattr_propagates_attribute_error_from_wrapped_module 
-2026-11-22T12:55:20.7701850Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_propagates_attribute_error_from_wrapped_module 
-2026-11-22T12:55:20.7793930Z tests/test__lazy_import.py::test_getattr_for_module_name_does_not_trigger_import 
-2026-11-22T12:55:20.7897850Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_for_module_name_does_not_trigger_import 
-2026-11-22T12:55:20.8007080Z tests/test__lazy_import.py::test_setattr_delegates_to_wrapped_module 
-2026-11-22T12:55:20.8097900Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_setattr_delegates_to_wrapped_module 
-2026-11-22T12:55:20.8256070Z tests/test__lazy_import.py::test_setattr_on_module_name_delegates_to_wrapped_not_slot 
-2026-11-22T12:55:20.8319890Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_setattr_on_module_name_delegates_to_wrapped_not_slot 
-2026-11-22T12:55:20.8386910Z tests/test__lazy_import.py::test_proxy_dict_delegates_to_wrapped_module 
-2026-11-22T12:55:20.8437590Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_proxy_dict_delegates_to_wrapped_module 
-2026-11-22T12:55:20.8563210Z tests/test__lazy_import.py::test_proxy_forwards_callable_attributes 
-2026-11-22T12:55:20.8644240Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_proxy_forwards_callable_attributes 
-2026-11-22T12:55:20.8828450Z tests/test__lazy_import.py::test_delattr_delegates_to_wrapped_module 
-2026-11-22T12:55:20.8945520Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_delattr_delegates_to_wrapped_module 
-2026-11-22T12:55:20.8985930Z tests/test__lazy_import.py::test_multiple_proxies_for_different_modules_are_independent 
-2026-11-22T12:55:20.9104100Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_multiple_proxies_for_different_modules_are_independent 
-2026-11-22T12:55:20.9139130Z tests/test__lazy_import.py::test_two_proxies_for_same_module_share_state 
-2026-11-22T12:55:20.9230280Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_two_proxies_for_same_module_share_state 
-2026-11-22T12:55:20.9262610Z tests/test__lazy_import.py::test_monkeypatch_setattr_on_proxy_then_access_works 
-2026-11-22T12:55:20.9385630Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_monkeypatch_setattr_on_proxy_then_access_works 
-2026-11-22T12:55:20.9402440Z tests/test__lazy_import.py::test_xv_78_setattr_mutates_real_sys_modules_entry 
-2026-11-22T12:55:20.9483740Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_xv_78_setattr_mutates_real_sys_modules_entry 
-2026-11-22T12:55:20.9513450Z tests/test__lazy_import.py::test_xv_78_setattr_visible_to_independent_importer 
-2026-11-22T12:55:20.9596170Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_xv_78_setattr_visible_to_independent_importer 
-2026-11-22T12:55:20.9651270Z tests/test__lazy_import.py::test_xv_78_setattr_does_not_store_on_proxy_instance 
-2026-11-22T12:55:20.9771670Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::test_xv_78_setattr_does_not_store_on_proxy_instance 
-2026-11-22T12:55:20.9818480Z tests/test__lazy_import.py::TestImportErrorCaching::test_import_error_cached_so_second_access_no_reimport 
-2026-11-22T12:55:20.9903570Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestImportErrorCaching::test_import_error_cached_so_second_access_no_reimport 
-2026-11-22T12:55:21.0040870Z tests/test__lazy_import.py::TestImportErrorCaching::test_cached_error_is_same_instance 
-2026-11-22T12:55:21.0142040Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestImportErrorCaching::test_cached_error_is_same_instance 
-2026-11-22T12:55:21.0212370Z tests/test__lazy_import.py::TestImportErrorCaching::test_cached_error_does_not_affect_sibling_proxy 
-2026-11-22T12:55:21.0546830Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestImportErrorCaching::test_cached_error_does_not_affect_sibling_proxy 
-2026-11-22T12:55:21.0694190Z tests/test__lazy_import.py::TestImportErrorCaching::test_successful_import_does_not_cache_error 
-2026-11-22T12:55:21.0952570Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestImportErrorCaching::test_successful_import_does_not_cache_error 
-2026-11-22T12:55:21.1065450Z tests/test__lazy_import.py::TestResetCache::test_reset_cache_clears_cached_error 
-2026-11-22T12:55:21.1304800Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestResetCache::test_reset_cache_clears_cached_error 
-2026-11-22T12:55:21.1314270Z tests/test__lazy_import.py::TestResetCache::test_reset_cache_recovers_when_module_becomes_available 
-2026-11-22T12:55:21.1447120Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestResetCache::test_reset_cache_recovers_when_module_becomes_available 
-2026-11-22T12:55:21.1714350Z tests/test__lazy_import.py::TestResetCache::test_reset_cache_is_safe_when_no_error_cached 
-2026-11-22T12:55:21.1942350Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestResetCache::test_reset_cache_is_safe_when_no_error_cached 
-2026-11-22T12:55:21.2050310Z tests/test__security_attributes.py::TestPlatformGuard::test_returns_none_on_non_windows 
-2026-11-22T12:55:21.2267600Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestPlatformGuard::test_returns_none_on_non_windows 
-2026-11-22T12:55:21.2369740Z tests/test__security_attributes.py::TestErrorPaths::test_open_process_token_failure_returns_none 
-2026-11-22T12:55:21.2573500Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_open_process_token_failure_returns_none 
-2026-11-22T12:55:21.2645820Z tests/test__security_attributes.py::TestErrorPaths::test_get_token_information_second_call_failure_returns_none 
-2026-11-22T12:55:21.2747580Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_get_token_information_second_call_failure_returns_none 
-2026-11-22T12:55:21.2843290Z tests/test__security_attributes.py::TestErrorPaths::test_null_sid_returns_none 
-2026-11-22T12:55:21.2922840Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_null_sid_returns_none 
-2026-11-22T12:55:21.3128370Z tests/test__security_attributes.py::TestErrorPaths::test_initialize_security_descriptor_failure_returns_none 
-2026-11-22T12:55:21.3423770Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_initialize_security_descriptor_failure_returns_none 
-2026-11-22T12:55:21.3574830Z tests/test__security_attributes.py::TestErrorPaths::test_set_entries_in_acl_success_dacl_failure_returns_none 
-2026-11-22T12:55:21.3927880Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_set_entries_in_acl_success_dacl_failure_returns_none 
-2026-11-22T12:55:21.4052270Z tests/test__security_attributes.py::TestErrorPaths::test_set_entries_in_acl_failure_returns_none 
+2026-11-22T12:55:20.4980740Z [gw0] [ 21%] PASSED tests/tauri/test_windows_freeze_drift.py::test_ffmpeg_fetch_is_present_for_both_freeze_paths
+2026-11-22T12:55:20.5193800Z tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_templates_persisted_to_json_file
+2026-11-22T12:55:20.5330370Z [gw0] [ 21%] PASSED tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_templates_persisted_to_json_file
+2026-11-22T12:55:20.5474280Z tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_service_save_and_get_round_trip
+2026-11-22T12:55:20.5551270Z [gw0] [ 21%] PASSED tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_service_save_and_get_round_trip
+2026-11-22T12:55:20.5649860Z tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_service_save_rejects_invalid_entries
+2026-11-22T12:55:20.5766280Z [gw0] [ 21%] PASSED tests/templates/test_templates_persist.py::TestTemplatesPersistToDisk::test_service_save_rejects_invalid_entries
+2026-11-22T12:55:20.5879310Z tests/test__lazy_import.py::test_lazy_module_returns_lazy_module_instance
+2026-11-22T12:55:20.5942550Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_lazy_module_returns_lazy_module_instance
+2026-11-22T12:55:20.6021430Z tests/test__lazy_import.py::test_lazy_module_repr_shows_module_name
+2026-11-22T12:55:20.6344980Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_lazy_module_repr_shows_module_name
+2026-11-22T12:55:20.6449060Z tests/test__lazy_import.py::test_lazy_module_does_not_import_on_construction
+2026-11-22T12:55:20.6531920Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_lazy_module_does_not_import_on_construction
+2026-11-22T12:55:20.6638530Z tests/test__lazy_import.py::test_getattr_triggers_import_on_first_access
+2026-11-22T12:55:20.6659070Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_triggers_import_on_first_access
+2026-11-22T12:55:20.6745740Z tests/test__lazy_import.py::test_getattr_re_resolves_on_every_access_no_caching
+2026-11-22T12:55:20.6868190Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_re_resolves_on_every_access_no_caching
+2026-11-22T12:55:20.6996080Z tests/test__lazy_import.py::test_getattr_reflects_sys_modules_changes_between_accesses
+2026-11-22T12:55:20.7105210Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_reflects_sys_modules_changes_between_accesses
+2026-11-22T12:55:20.7170700Z tests/test__lazy_import.py::test_getattr_propagates_import_error
+2026-11-22T12:55:20.7251890Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_propagates_import_error
+2026-11-22T12:55:20.7353210Z tests/test__lazy_import.py::test_getattr_propagates_attribute_error_from_wrapped_module
+2026-11-22T12:55:20.7701850Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_propagates_attribute_error_from_wrapped_module
+2026-11-22T12:55:20.7793930Z tests/test__lazy_import.py::test_getattr_for_module_name_does_not_trigger_import
+2026-11-22T12:55:20.7897850Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_getattr_for_module_name_does_not_trigger_import
+2026-11-22T12:55:20.8007080Z tests/test__lazy_import.py::test_setattr_delegates_to_wrapped_module
+2026-11-22T12:55:20.8097900Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_setattr_delegates_to_wrapped_module
+2026-11-22T12:55:20.8256070Z tests/test__lazy_import.py::test_setattr_on_module_name_delegates_to_wrapped_not_slot
+2026-11-22T12:55:20.8319890Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_setattr_on_module_name_delegates_to_wrapped_not_slot
+2026-11-22T12:55:20.8386910Z tests/test__lazy_import.py::test_proxy_dict_delegates_to_wrapped_module
+2026-11-22T12:55:20.8437590Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_proxy_dict_delegates_to_wrapped_module
+2026-11-22T12:55:20.8563210Z tests/test__lazy_import.py::test_proxy_forwards_callable_attributes
+2026-11-22T12:55:20.8644240Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_proxy_forwards_callable_attributes
+2026-11-22T12:55:20.8828450Z tests/test__lazy_import.py::test_delattr_delegates_to_wrapped_module
+2026-11-22T12:55:20.8945520Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_delattr_delegates_to_wrapped_module
+2026-11-22T12:55:20.8985930Z tests/test__lazy_import.py::test_multiple_proxies_for_different_modules_are_independent
+2026-11-22T12:55:20.9104100Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_multiple_proxies_for_different_modules_are_independent
+2026-11-22T12:55:20.9139130Z tests/test__lazy_import.py::test_two_proxies_for_same_module_share_state
+2026-11-22T12:55:20.9230280Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_two_proxies_for_same_module_share_state
+2026-11-22T12:55:20.9262610Z tests/test__lazy_import.py::test_monkeypatch_setattr_on_proxy_then_access_works
+2026-11-22T12:55:20.9385630Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_monkeypatch_setattr_on_proxy_then_access_works
+2026-11-22T12:55:20.9402440Z tests/test__lazy_import.py::test_xv_78_setattr_mutates_real_sys_modules_entry
+2026-11-22T12:55:20.9483740Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_xv_78_setattr_mutates_real_sys_modules_entry
+2026-11-22T12:55:20.9513450Z tests/test__lazy_import.py::test_xv_78_setattr_visible_to_independent_importer
+2026-11-22T12:55:20.9596170Z [gw0] [ 21%] PASSED tests/test__lazy_import.py::test_xv_78_setattr_visible_to_independent_importer
+2026-11-22T12:55:20.9651270Z tests/test__lazy_import.py::test_xv_78_setattr_does_not_store_on_proxy_instance
+2026-11-22T12:55:20.9771670Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::test_xv_78_setattr_does_not_store_on_proxy_instance
+2026-11-22T12:55:20.9818480Z tests/test__lazy_import.py::TestImportErrorCaching::test_import_error_cached_so_second_access_no_reimport
+2026-11-22T12:55:20.9903570Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestImportErrorCaching::test_import_error_cached_so_second_access_no_reimport
+2026-11-22T12:55:21.0040870Z tests/test__lazy_import.py::TestImportErrorCaching::test_cached_error_is_same_instance
+2026-11-22T12:55:21.0142040Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestImportErrorCaching::test_cached_error_is_same_instance
+2026-11-22T12:55:21.0212370Z tests/test__lazy_import.py::TestImportErrorCaching::test_cached_error_does_not_affect_sibling_proxy
+2026-11-22T12:55:21.0546830Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestImportErrorCaching::test_cached_error_does_not_affect_sibling_proxy
+2026-11-22T12:55:21.0694190Z tests/test__lazy_import.py::TestImportErrorCaching::test_successful_import_does_not_cache_error
+2026-11-22T12:55:21.0952570Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestImportErrorCaching::test_successful_import_does_not_cache_error
+2026-11-22T12:55:21.1065450Z tests/test__lazy_import.py::TestResetCache::test_reset_cache_clears_cached_error
+2026-11-22T12:55:21.1304800Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestResetCache::test_reset_cache_clears_cached_error
+2026-11-22T12:55:21.1314270Z tests/test__lazy_import.py::TestResetCache::test_reset_cache_recovers_when_module_becomes_available
+2026-11-22T12:55:21.1447120Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestResetCache::test_reset_cache_recovers_when_module_becomes_available
+2026-11-22T12:55:21.1714350Z tests/test__lazy_import.py::TestResetCache::test_reset_cache_is_safe_when_no_error_cached
+2026-11-22T12:55:21.1942350Z [gw0] [ 22%] PASSED tests/test__lazy_import.py::TestResetCache::test_reset_cache_is_safe_when_no_error_cached
+2026-11-22T12:55:21.2050310Z tests/test__security_attributes.py::TestPlatformGuard::test_returns_none_on_non_windows
+2026-11-22T12:55:21.2267600Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestPlatformGuard::test_returns_none_on_non_windows
+2026-11-22T12:55:21.2369740Z tests/test__security_attributes.py::TestErrorPaths::test_open_process_token_failure_returns_none
+2026-11-22T12:55:21.2573500Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_open_process_token_failure_returns_none
+2026-11-22T12:55:21.2645820Z tests/test__security_attributes.py::TestErrorPaths::test_get_token_information_second_call_failure_returns_none
+2026-11-22T12:55:21.2747580Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_get_token_information_second_call_failure_returns_none
+2026-11-22T12:55:21.2843290Z tests/test__security_attributes.py::TestErrorPaths::test_null_sid_returns_none
+2026-11-22T12:55:21.2922840Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_null_sid_returns_none
+2026-11-22T12:55:21.3128370Z tests/test__security_attributes.py::TestErrorPaths::test_initialize_security_descriptor_failure_returns_none
+2026-11-22T12:55:21.3423770Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_initialize_security_descriptor_failure_returns_none
+2026-11-22T12:55:21.3574830Z tests/test__security_attributes.py::TestErrorPaths::test_set_entries_in_acl_success_dacl_failure_returns_none
+2026-11-22T12:55:21.3927880Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_set_entries_in_acl_success_dacl_failure_returns_none
+2026-11-22T12:55:21.4052270Z tests/test__security_attributes.py::TestErrorPaths::test_set_entries_in_acl_failure_returns_none
 2026-11-22T12:55:22.4880930Z /Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pytest_benchmark/logger.py:44: PytestBenchmarkWarning: Benchmarks are automatically disabled because xdist plugin is active. Benchmarks cannot be performed reliably in a parallelized environment.
 2026-11-22T12:55:22.4890550Z   warner(PytestBenchmarkWarning(text))
-2026-11-22T12:55:31.7857140Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_set_entries_in_acl_failure_returns_none 
+2026-11-22T12:55:31.7857140Z [gw0] [ 22%] PASSED tests/test__security_attributes.py::TestErrorPaths::test_set_entries_in_acl_failure_returns_none
 2026-11-22T12:55:31.7859550Z INTERNALERROR> Traceback (most recent call last):
 2026-11-22T12:55:31.7861700Z INTERNALERROR>   File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/_pytest/main.py", line 333, in wrap_session
 2026-11-22T12:55:31.7865320Z INTERNALERROR>     session.exitstatus = doit(config, session) or 0
@@ -312,7 +312,7 @@
 2026-11-22T12:55:31.7936930Z INTERNALERROR>     assert not crashitem, (crashitem, node)
 2026-11-22T12:55:31.7938410Z INTERNALERROR> AssertionError: ('tests/tauri/test_windows_freeze_drift.py::test_gate_resolves_newest_versioned_extraction_dir_without_build_stamp', <WorkerController gw1>)
 2026-11-22T12:55:31.7939470Z INTERNALERROR> assert not 'tests/tauri/test_windows_freeze_drift.py::test_gate_resolves_newest_versioned_extraction_dir_without_build_stamp'
-2026-11-22T12:55:31.7939940Z 
+2026-11-22T12:55:31.7939940Z
 2026-11-22T12:55:31.7940150Z ===== 3909 passed, 568 skipped, 1 xfailed, 1 warning in 189.90s (0:03:09) ======
 2026-11-22T12:55:32.2224840Z ##[error]Process completed with exit code 3.
 2026-11-22T12:55:32.2528990Z ##[group]Run mikepenz/action-junit-report@v6

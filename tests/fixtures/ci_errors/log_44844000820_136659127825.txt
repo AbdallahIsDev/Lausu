@@ -232,13 +232,13 @@
 2026-11-21T00:31:47.9878970Z    [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^[0m
 2026-11-21T00:31:47.9879374Z    [1m[94m|[0m
 2026-11-21T00:31:47.9879864Z    [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
-2026-11-21T00:31:47.9880239Z 
+2026-11-21T00:31:47.9880239Z
 2026-11-21T00:31:47.9880767Z [1m[33mwarning[0m[1m: function `ensure_bubble_msg_hook` is never used[0m
 2026-11-21T00:31:47.9881325Z    [1m[94m--> [0msrc/commands/bubble/window.rs:544:15
 2026-11-21T00:31:47.9881671Z     [1m[94m|[0m
 2026-11-21T00:31:47.9889833Z [1m[94m544[0m [1m[94m|[0m pub(crate) fn ensure_bubble_msg_hook(_window: &tauri::WebviewWindow, _rescan_children: bool) {}
 2026-11-21T00:31:47.9890747Z     [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^^^^^^^[0m
-2026-11-21T00:31:47.9891550Z 
+2026-11-21T00:31:47.9891550Z
 2026-11-21T00:31:47.9891870Z [1m[33mwarning[0m[1m: variant `Suspended` is never constructed[0m
 2026-11-21T00:31:47.9892415Z   [1m[94m--> [0msrc/platform/power.rs:50:5
 2026-11-21T00:31:47.9892797Z    [1m[94m|[0m
@@ -249,7 +249,7 @@
 2026-11-21T00:31:47.9894906Z    [1m[94m|[0m     [1m[33m^^^^^^^^^[0m
 2026-11-21T00:31:47.9895200Z    [1m[94m|[0m
 2026-11-21T00:31:47.9895902Z    [1m[94m= [0m[1mnote[0m: `PowerState` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
-2026-11-21T00:31:47.9896463Z 
+2026-11-21T00:31:47.9896463Z
 2026-11-21T00:31:47.9898122Z [1m[33mwarning[0m[1m: associated function `from_u8` is never used[0m
 2026-11-21T00:31:47.9898956Z   [1m[94m--> [0msrc/platform/power.rs:54:8
 2026-11-21T00:31:47.9899328Z    [1m[94m|[0m
@@ -257,19 +257,19 @@
 2026-11-21T00:31:47.9900269Z    [1m[94m|[0m [1m[94m---------------[0m [1m[94massociated function in this implementation[0m
 2026-11-21T00:31:47.9901039Z [1m[94m54[0m [1m[94m|[0m     fn from_u8(v: u8) -> Self {
 2026-11-21T00:31:47.9901454Z    [1m[94m|[0m        [1m[33m^^^^^^^[0m
-2026-11-21T00:31:47.9901669Z 
+2026-11-21T00:31:47.9901669Z
 2026-11-21T00:31:47.9901926Z [1m[33mwarning[0m[1m: enum `PowerEvent` is never used[0m
 2026-11-21T00:31:47.9902354Z   [1m[94m--> [0msrc/platform/power.rs:64:17
 2026-11-21T00:31:47.9902691Z    [1m[94m|[0m
 2026-11-21T00:31:47.9903043Z [1m[94m64[0m [1m[94m|[0m pub(crate) enum PowerEvent {
 2026-11-21T00:31:47.9903460Z    [1m[94m|[0m                 [1m[33m^^^^^^^^^^[0m
-2026-11-21T00:31:47.9903698Z 
+2026-11-21T00:31:47.9903698Z
 2026-11-21T00:31:47.9903959Z [1m[33mwarning[0m[1m: enum `PowerAction` is never used[0m
 2026-11-21T00:31:47.9904411Z   [1m[94m--> [0msrc/platform/power.rs:72:17
 2026-11-21T00:31:47.9904783Z    [1m[94m|[0m
 2026-11-21T00:31:47.9905155Z [1m[94m72[0m [1m[94m|[0m pub(crate) enum PowerAction {
 2026-11-21T00:31:47.9905624Z    [1m[94m|[0m                 [1m[33m^^^^^^^^^^^[0m
-2026-11-21T00:31:47.9905885Z 
+2026-11-21T00:31:47.9905885Z
 2026-11-21T00:31:47.9906094Z [1m[33mwarning[0m[1m: field `state` is never read[0m
 2026-11-21T00:31:47.9906555Z   [1m[94m--> [0msrc/platform/power.rs:83:5
 2026-11-21T00:31:47.9906922Z    [1m[94m|[0m
@@ -277,7 +277,7 @@
 2026-11-21T00:31:47.9907903Z    [1m[94m|[0m                   [1m[94m------------[0m [1m[94mfield in this struct[0m
 2026-11-21T00:31:47.9908429Z [1m[94m83[0m [1m[94m|[0m     state: AtomicU8,
 2026-11-21T00:31:47.9908802Z    [1m[94m|[0m     [1m[33m^^^^^[0m
-2026-11-21T00:31:47.9909009Z 
+2026-11-21T00:31:47.9909009Z
 2026-11-21T00:31:47.9909278Z [1m[33mwarning[0m[1m: methods `state` and `apply` are never used[0m
 2026-11-21T00:31:47.9909739Z   [1m[94m--> [0msrc/platform/power.rs:93:19
 2026-11-21T00:31:47.9910095Z    [1m[94m|[0m
@@ -289,67 +289,67 @@
 2026-11-21T00:31:47.9912866Z [1m[94m...[0m
 2026-11-21T00:31:47.9913352Z [1m[94m97[0m [1m[94m|[0m     pub(crate) fn apply(&self, event: PowerEvent) -> PowerAction {
 2026-11-21T00:31:47.9913910Z    [1m[94m|[0m                   [1m[33m^^^^^[0m
-2026-11-21T00:31:47.9914132Z 
+2026-11-21T00:31:47.9914132Z
 2026-11-21T00:31:47.9914419Z [1m[33mwarning[0m[1m: constant `PBT_APMSUSPEND` is never used[0m
 2026-11-21T00:31:47.9915397Z    [1m[94m--> [0msrc/platform/power.rs:185:7
 2026-11-21T00:31:47.9915756Z     [1m[94m|[0m
 2026-11-21T00:31:47.9916132Z [1m[94m185[0m [1m[94m|[0m const PBT_APMSUSPEND: u32 = 0x0004;
 2026-11-21T00:31:47.9916570Z     [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^[0m
-2026-11-21T00:31:47.9916805Z 
+2026-11-21T00:31:47.9916805Z
 2026-11-21T00:31:47.9917100Z [1m[33mwarning[0m[1m: constant `PBT_APMRESUMESUSPEND` is never used[0m
 2026-11-21T00:31:47.9917627Z    [1m[94m--> [0msrc/platform/power.rs:187:7
 2026-11-21T00:31:47.9917995Z     [1m[94m|[0m
 2026-11-21T00:31:47.9918402Z [1m[94m187[0m [1m[94m|[0m const PBT_APMRESUMESUSPEND: u32 = 0x0007;
 2026-11-21T00:31:47.9918915Z     [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^^^[0m
-2026-11-21T00:31:47.9919166Z 
+2026-11-21T00:31:47.9919166Z
 2026-11-21T00:31:47.9919495Z [1m[33mwarning[0m[1m: constant `PBT_APMRESUMEAUTOMATIC` is never used[0m
 2026-11-21T00:31:47.9920022Z    [1m[94m--> [0msrc/platform/power.rs:189:7
 2026-11-21T00:31:47.9920573Z     [1m[94m|[0m
 2026-11-21T00:31:47.9921040Z [1m[94m189[0m [1m[94m|[0m const PBT_APMRESUMEAUTOMATIC: u32 = 0x0012;
 2026-11-21T00:31:47.9921543Z     [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^^^^^[0m
-2026-11-21T00:31:47.9921781Z 
+2026-11-21T00:31:47.9921781Z
 2026-11-21T00:31:47.9922079Z [1m[33mwarning[0m[1m: constant `PBT_APMPOWERSTATUSCHANGE` is never used[0m
 2026-11-21T00:31:47.9922598Z    [1m[94m--> [0msrc/platform/power.rs:191:7
 2026-11-21T00:31:47.9922950Z     [1m[94m|[0m
 2026-11-21T00:31:47.9923364Z [1m[94m191[0m [1m[94m|[0m const PBT_APMPOWERSTATUSCHANGE: u32 = 0x000A;
 2026-11-21T00:31:47.9923871Z     [1m[94m|[0m       [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^[0m
-2026-11-21T00:31:47.9924116Z 
+2026-11-21T00:31:47.9924116Z
 2026-11-21T00:31:47.9924399Z [1m[33mwarning[0m[1m: function `map_windows_power_wparam` is never used[0m
 2026-11-21T00:31:47.9924896Z    [1m[94m--> [0msrc/platform/power.rs:193:15
 2026-11-21T00:31:47.9925249Z     [1m[94m|[0m
 2026-11-21T00:31:47.9925776Z [1m[94m193[0m [1m[94m|[0m pub(crate) fn map_windows_power_wparam(wparam: u32) -> Option<PowerEvent> {
 2026-11-21T00:31:47.9926398Z     [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^[0m
-2026-11-21T00:31:47.9926655Z 
+2026-11-21T00:31:47.9926655Z
 2026-11-21T00:31:47.9926912Z [1m[33mwarning[0m[1m: function `mirror_power_flag` is never used[0m
 2026-11-21T00:31:47.9927409Z    [1m[94m--> [0msrc/platform/power.rs:202:15
 2026-11-21T00:31:47.9927744Z     [1m[94m|[0m
 2026-11-21T00:31:47.9928287Z [1m[94m202[0m [1m[94m|[0m pub(crate) fn mirror_power_flag(state: &Arc<SidecarState>, action: PowerAction) {
 2026-11-21T00:31:47.9929010Z     [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^^[0m
-2026-11-21T00:31:47.9929269Z 
+2026-11-21T00:31:47.9929269Z
 2026-11-21T00:31:47.9929577Z [1m[33mwarning[0m[1m: function `dispatch_power_action` is never used[0m
 2026-11-21T00:31:47.9930094Z    [1m[94m--> [0msrc/platform/power.rs:218:15
 2026-11-21T00:31:47.9930617Z     [1m[94m|[0m
 2026-11-21T00:31:47.9930998Z [1m[94m218[0m [1m[94m|[0m pub(crate) fn dispatch_power_action(
 2026-11-21T00:31:47.9931509Z     [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^^^^^^[0m
-2026-11-21T00:31:47.9931761Z 
+2026-11-21T00:31:47.9931761Z
 2026-11-21T00:31:47.9932032Z [1m[33mwarning[0m[1m: function `handle_power_event` is never used[0m
 2026-11-21T00:31:47.9932505Z    [1m[94m--> [0msrc/platform/power.rs:242:15
 2026-11-21T00:31:47.9932843Z     [1m[94m|[0m
 2026-11-21T00:31:47.9933181Z [1m[94m242[0m [1m[94m|[0m pub(crate) fn handle_power_event(
 2026-11-21T00:31:47.9933643Z     [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^^^[0m
-2026-11-21T00:31:47.9933914Z 
+2026-11-21T00:31:47.9933914Z
 2026-11-21T00:31:47.9934192Z [1m[33mwarning[0m[1m: function `stop_sidecar_for_suspend` is never used[0m
 2026-11-21T00:31:47.9934759Z    [1m[94m--> [0msrc/sidecar/supervisor.rs:121:21
 2026-11-21T00:31:47.9935135Z     [1m[94m|[0m
 2026-11-21T00:31:47.9935658Z [1m[94m121[0m [1m[94m|[0m pub(crate) async fn stop_sidecar_for_suspend(state: &Arc<SidecarState>) {
 2026-11-21T00:31:47.9936298Z     [1m[94m|[0m                     [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^[0m
-2026-11-21T00:31:47.9937017Z 
+2026-11-21T00:31:47.9937017Z
 2026-11-21T00:31:47.9937361Z [1m[33mwarning[0m[1m: function `ensure_sidecar_after_resume` is never used[0m
 2026-11-21T00:31:47.9937924Z    [1m[94m--> [0msrc/sidecar/supervisor.rs:185:21
 2026-11-21T00:31:47.9938281Z     [1m[94m|[0m
 2026-11-21T00:31:47.9939142Z [1m[94m185[0m [1m[94m|[0m pub(crate) async fn ensure_sidecar_after_resume(app: &tauri::AppHandle, state: &Arc<SidecarState>) {
 2026-11-21T00:31:47.9939903Z     [1m[94m|[0m                     [1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
-2026-11-21T00:31:47.9940190Z 
+2026-11-21T00:31:47.9940190Z
 2026-11-21T00:31:48.0660975Z [1m[33mwarning[0m: `lausu-tauri` (bin "lausu-tauri") generated 18 warnings
 2026-11-21T00:31:49.6246039Z [1m[33mwarning[0m[1m: function `ensure_bubble_msg_hook` is never used[0m
 2026-11-21T00:31:49.6246495Z    [1m[94m--> [0msrc/commands/bubble/window.rs:544:15
@@ -358,7 +358,7 @@
 2026-11-21T00:31:49.6247999Z     [1m[94m|[0m               [1m[33m^^^^^^^^^^^^^^^^^^^^^^[0m
 2026-11-21T00:31:49.6248265Z     [1m[94m|[0m
 2026-11-21T00:31:49.6248589Z     [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
-2026-11-21T00:31:49.6248825Z 
+2026-11-21T00:31:49.6248825Z
 2026-11-21T00:31:49.7522409Z [1m[33mwarning[0m: `lausu-tauri` (bin "lausu-tauri" test) generated 4 warnings (3 duplicates)
 2026-11-21T00:31:49.7538187Z [1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 1m 29s
 2026-11-21T00:31:49.7962624Z ##[group]Run cargo fmt --check
@@ -390,7 +390,7 @@
 2026-11-21T00:31:50.1179014Z -        ));
 2026-11-21T00:31:50.1179396Z +        out.push((std::ffi::OsString::from("VOICE_TYPER_LOG_JSON"), val));
 2026-11-21T00:31:50.1179840Z      }
-2026-11-21T00:31:50.1180064Z  
+2026-11-21T00:31:50.1180064Z
 2026-11-21T00:31:50.1180280Z      // POSIX: HOME
 2026-11-21T00:31:50.1317786Z Diff in /home/runner/work/Lausu/Lausu/src-tauri/src/sidecar/spawn_tests.rs:41:
 2026-11-21T00:31:50.1318527Z      let sentinel = "vt-spawn-test-json-logging-opt-in";

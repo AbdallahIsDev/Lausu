@@ -177,7 +177,7 @@
 2026-11-22T12:51:51.8428296Z Downloading packaging-26.3-py3-none-any.whl (129 kB)
 2026-11-22T12:51:51.8465038Z Downloading python_discovery-1.9.6-py3-none-any.whl (98 kB)
 2026-11-22T12:51:51.9188498Z Installing collected packages: distlib, pyyaml, platformdirs, packaging, nodeenv, identify, filelock, cfgv, python-discovery, virtualenv, pre-commit
-2026-11-22T12:51:52.3511464Z 
+2026-11-22T12:51:52.3511464Z
 2026-11-22T12:51:52.3522453Z Successfully installed cfgv-3.5.0 distlib-0.4.4 filelock-4.3.0 identify-2.6.20 nodeenv-1.12.0 packaging-26.3 platformdirs-4.14.8 pre-commit-4.7.0 python-discovery-1.9.6 pyyaml-6.0.4 virtualenv-21.15.12
 2026-11-22T12:51:52.3959929Z ##[group]Run set -euo pipefail
 2026-11-22T12:51:52.3960136Z [36;1mset -euo pipefail[0m
@@ -215,7 +215,7 @@
 2026-11-22T12:51:56.7702331Z - hook id: end-of-file-fixer
 2026-11-22T12:51:56.7702569Z - exit code: 1
 2026-11-22T12:51:56.7702698Z - files were modified by this hook
-2026-11-22T12:51:56.7702797Z 
+2026-11-22T12:51:56.7702797Z
 2026-11-22T12:51:56.7702859Z Fixing website/assets/ui/icons/gitlab.svg
 2026-11-22T12:51:56.7703051Z Fixing tools/internal_plugins/.gitignore
 2026-11-22T12:51:56.7703285Z Fixing website/assets/icons/audio.svg
@@ -276,7 +276,7 @@
 2026-11-22T12:51:56.7713019Z Fixing website/assets/ui/icons/shopify.svg
 2026-11-22T12:51:56.7713167Z Fixing website/assets/icons/rust.svg
 2026-11-22T12:51:56.7713319Z Fixing website/assets/ui/icons/google-docs.svg
-2026-11-22T12:51:56.7713428Z 
+2026-11-22T12:51:56.7713428Z
 2026-11-22T12:51:56.7852429Z ##[error]Process completed with exit code 1.
 2026-11-22T12:51:56.7935794Z Post job cleanup.
 2026-11-22T12:51:56.8388697Z [command]/usr/bin/git version
