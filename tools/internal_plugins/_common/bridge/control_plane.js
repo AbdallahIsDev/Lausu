@@ -36,6 +36,7 @@ async function snapshot(relay) {
       state: 'no-page',
       browser,
       page: 'unknown',
+      hasTab: false,
       platform: platformOf(relay),
       url: '',
       installPath: paths.stableExtensionDir(),
@@ -51,6 +52,7 @@ async function snapshot(relay) {
         state: 'wrong-platform',
         browser,
         page: 'unknown',
+        hasTab: false,
         platform: status.platform,
         url: status.url || '',
       };
@@ -61,6 +63,7 @@ async function snapshot(relay) {
       state: status.recording ? 'recording' : 'idle',
       browser,
       page: status.page || 'unknown',
+      hasTab: status.has_tab !== false,
       platform: platformOf(relay),
       url: status.url || '',
     };
@@ -73,6 +76,7 @@ async function snapshot(relay) {
       state: 'unknown',
       browser,
       page: 'unknown',
+      hasTab: false,
       platform: platformOf(relay),
       url: '',
     };
@@ -124,6 +128,18 @@ async function handle(relay, method, pathname) {
       status: 200,
       body: { ok: true, browser: body.browser, page: body.page, platform: body.platform, url: body.url, state: body.state },
     };
+  }
+
+  // Resolve or recreate this platform's tab BEFORE /start. The extension owns
+  // tab identity; the daemon only sequences the request. Safe to repeat: it is
+  // a URL-pattern lookup first and creates only when no match exists.
+  if (method === 'POST' && pathname === '/ensure-tab') {
+    try {
+      const result = await relay.request('ensure-tab', scoped({ url: cfg.url }));
+      return { status: 200, body: { ok: true, ...result } };
+    } catch (err) {
+      return failure(err);
+    }
   }
 
   if (method === 'POST' && pathname === '/start') {

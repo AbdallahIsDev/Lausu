@@ -173,7 +173,7 @@ class TestSync:
             timeout=60,
         )
         assert proc.returncode == 0, proc.stderr
-        for rel in ("manifest.json", "content.js", "service_worker.js", "popup.html", "popup.js",
+        for rel in ("manifest.json", "content.js", "service_worker.js", "tab_resolution.js", "popup.html", "popup.js",
                     "icons/icon-16.png", "generated/config.js"):
             assert (target / rel).is_file(), rel
         assert not stale.exists(), "a renamed asset must not linger in the install path"

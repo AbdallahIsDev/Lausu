@@ -85,6 +85,24 @@ test('start is always scoped to the owning platform', async () => {
   assert.deepEqual(relay.lastOpts, { platform: 'claude', url: 'https://claude.ai/new', startTimeoutMs: 5000, pollMs: 200 });
 });
 
+test('POST /ensure-tab resolves a tab for the owning platform', async () => {
+  const relay = fakeRelay({ responses: { 'ensure-tab': { tabId: 42, created: false, ready: true } } });
+  const result = await handle(relay, 'POST', '/ensure-tab');
+  assert.equal(result.status, 200);
+  assert.equal(result.body.ok, true);
+  assert.deepEqual(relay.lastOpts, { platform: 'claude', url: 'https://claude.ai/new' });
+});
+
+test('GET /status reports a missing target tab without inventing a page', async () => {
+  const relay = fakeRelay({
+    responses: { status: { url: '', page: 'unknown', recording: false, has_text: false, has_tab: false } },
+  });
+  const result = await handle(relay, 'GET', '/status');
+  assert.equal(result.status, 200);
+  assert.equal(result.body.hasTab, false);
+  assert.equal(result.body.page, 'unknown');
+});
+
 test('POST /start returns ok and records the session', async () => {
   const relay = fakeRelay({ responses: { start: { ok: true } } });
   const result = await handle(relay, 'POST', '/start');

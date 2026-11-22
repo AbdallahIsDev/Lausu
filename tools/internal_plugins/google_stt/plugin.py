@@ -70,6 +70,7 @@ _daemon_status = _CLIENT.status
 _daemon_alive = _CLIENT.alive
 _daemon_config = _CLIENT.config
 _bridge_ready = daemon_client.DaemonClient.bridge_ready
+_browser_connected = daemon_client.DaemonClient.browser_connected
 
 _START_HINTS = _copy.START_HINTS
 _MODEL_LABEL = _copy.MODEL_LABEL
@@ -183,6 +184,7 @@ def _ensure_browser(timeout: float | None = None) -> bool:
         status_fn=_daemon_status,
         launch_fn=_launch_profile_if_due,
         ready_fn=_bridge_ready,
+        transport_fn=_browser_connected,
         clock=time,
         timeout=timeout,
     )
@@ -227,7 +229,7 @@ def activate(app: Any) -> bool:
         log.error("[PLUGIN] activation failed: the control daemon did not start")
         return False
     _keepalive.start()
-    if not _bridge_ready(_daemon_status()):
+    if not _browser_connected(_daemon_status()):
         _launch_profile_if_due()
         log.info(
             "[PLUGIN] %s activated; the dictation window is starting, the first hotkey press waits for it",

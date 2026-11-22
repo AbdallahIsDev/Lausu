@@ -71,16 +71,23 @@ def ensure_browser(
     ready_fn: Any,
     clock: Any,
     timeout: float | None = None,
+    transport_fn: Any | None = None,
 ) -> bool:
-    """Open the dictation profile if needed, and wait for its page to answer."""
-    if ready_fn(status_fn()):
+    """Open the dictation profile if needed, and wait for the bridge transport.
+
+    ``transport_fn`` gates the launch (browser connected vs not); ``ready_fn``
+    stays the page-level check for callers that need it. Keeping them separate
+    is what stops a closed target tab from spawning another Chrome tab.
+    """
+    connected = transport_fn or ready_fn
+    if connected(status_fn()):
         return True
     launched = launch_fn()
     default_budget = _COLD_BROWSER_START_TIMEOUT_S if launched else _BROWSER_START_TIMEOUT_S
     budget = default_budget if timeout is None else timeout
     deadline = clock.monotonic() + budget
     while clock.monotonic() < deadline:
-        if ready_fn(status_fn()):
+        if connected(status_fn()):
             return True
         clock.sleep(0.5)
     log.error("[PLUGIN] the dictation window did not answer within %.0fs", budget)
@@ -264,6 +271,13 @@ class PluginSession:
             cycle,
             self._copy.duration(time.monotonic() - t_browser),
         )
+        # Resolve the plugin's own tab BEFORE /start. Best effort here: the
+        # extension also resolves inside /start, so an older daemon that does
+        # not know this route still cannot start against a missing tab.
+        try:
+            self._post("/ensure-tab", timeout=20.0)
+        except Exception:
+            self._log.debug("[PLUGIN] target-tab pre-resolution failed", exc_info=True)
         try:
             self._post("/start", timeout=30.0)
         except BridgeError as exc:
