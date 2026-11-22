@@ -152,3 +152,6 @@ sub-worklog-*.md
 .kilo/
 
 website/.taste-skill/
+
+# Runtime state written by the Chrome bridge per plugin; never shipped in git.
+tools/internal_plugins/*/chrome_pid.json
