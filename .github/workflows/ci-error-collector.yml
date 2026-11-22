@@ -54,35 +54,12 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Prepare ci-reports branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          SEED="$(mktemp)"
-          if [ -f CI-errors.md ]; then
-            cp CI-errors.md "$SEED"
-          else
-            printf '# CI Errors\n' > "$SEED"
-          fi
-          if git ls-remote --exit-code --heads origin ci-reports >/dev/null; then
-            git fetch --no-tags origin refs/heads/ci-reports:refs/remotes/origin/ci-reports
-            git checkout -B ci-reports refs/remotes/origin/ci-reports
-          else
-            git checkout --orphan ci-reports
-            git rm -rf -- .
-            cp "$SEED" CI-errors.md
-            git add CI-errors.md
-            git commit -m "ci-reports: seed from main"
-          fi
-          rm -f "$SEED"
-
-      - name: Generate report
+      - name: Generate report from main sources
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONPATH: scripts
+          REPORT_PATH: ${{ runner.temp }}/CI-errors.md
           EVENT_NAME: ${{ github.event_name }}
           INPUT_RUN_ID: ${{ inputs.run_id }}
           INPUT_REBUILD: ${{ inputs.rebuild }}
@@ -101,14 +78,36 @@ jobs:
             LABEL="$RUN_NAME#$RUN_ID"
           fi
           # shellcheck disable=SC2086
-          python -m scripts.ci_errors.collect --repo AbdallahIsDev/Lausu --output CI-errors.md $EXTRA
+          python -m scripts.ci_errors.collect --repo AbdallahIsDev/Lausu --output "$REPORT_PATH" $EXTRA
           echo "COLLECTOR_LABEL=$LABEL" >> "$GITHUB_ENV"
+          test -s "$REPORT_PATH"
+
+      - name: Prepare ci-reports branch
+        shell: bash
+        env:
+          REPORT_PATH: ${{ runner.temp }}/CI-errors.md
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin ci-reports >/dev/null; then
+            git fetch --no-tags origin refs/heads/ci-reports:refs/remotes/origin/ci-reports
+            git checkout -B ci-reports refs/remotes/origin/ci-reports
+          else
+            git checkout --orphan ci-reports
+            git rm -rf -- .
+            cp "$REPORT_PATH" CI-errors.md
+            git add CI-errors.md
+            git commit -m "ci-reports: seed from generated report"
+          fi
+          cp "$REPORT_PATH" CI-errors.md
 
       - name: Commit and push with bounded retry
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONPATH: scripts
+          REPORT_PATH: ${{ runner.temp }}/CI-errors.md
           INPUT_RUN_ID: ${{ inputs.run_id }}
           INPUT_REBUILD: ${{ inputs.rebuild }}
           RUN_ID: ${{ github.event.workflow_run.id }}
@@ -138,9 +137,8 @@ jobs:
               exit 0
             fi
             echo "Push rejected; rebasing collector on new data-branch tip (attempt $attempt)"
-            git checkout -B ci-reports refs/remotes/origin/ci-reports 2>/dev/null || \
-              git fetch --no-tags origin refs/heads/ci-reports:refs/remotes/origin/ci-reports
             git checkout -B ci-reports refs/remotes/origin/ci-reports
+            git checkout origin/main -- scripts
             if [ -n "${INPUT_RUN_ID:-}" ]; then
               EXTRA="--run-id $INPUT_RUN_ID"
             elif [ "${INPUT_REBUILD:-false}" = "true" ]; then
@@ -149,7 +147,8 @@ jobs:
               EXTRA="--run-id ${RUN_ID:-0}"
             fi
             # shellcheck disable=SC2086
-            python -m scripts.ci_errors.collect --repo AbdallahIsDev/Lausu --output CI-errors.md $EXTRA
+            python -m scripts.ci_errors.collect --repo AbdallahIsDev/Lausu --output "$REPORT_PATH" $EXTRA
+            cp "$REPORT_PATH" CI-errors.md
           done
           echo "ci-reports push failed after 3 attempts" >&2
           exit 1
