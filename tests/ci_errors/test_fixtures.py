@@ -59,3 +59,15 @@ def test_offline_cli_is_byte_identical_and_never_uses_network(monkeypatch, tmp_p
     assert b"## Recent failures" in output.read_bytes()
     assert b"## Resolved recently" in output.read_bytes()
     assert "currently failing" in capsys.readouterr().out
+
+
+def test_unavailable_job_log_is_not_fatal(monkeypatch) -> None:
+    from scripts.ci_errors.github import GitHubClient
+
+    client = GitHubClient("AbdallahIsDev/Lausu", token="unused")
+
+    def forbidden_request(*args, **kwargs):
+        raise RuntimeError("GitHub API 403 for /repos/x/actions/jobs/1/logs")
+
+    monkeypatch.setattr(client, "_request", forbidden_request)
+    assert client.get_job_log(1) == "(job log unavailable: HTTP 403)"

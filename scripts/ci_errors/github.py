@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -77,4 +78,11 @@ class GitHubClient:
         return self._request(f"/repos/{self.repo}/actions/runs/{run_id}/jobs", {"per_page": 100})
 
     def get_job_log(self, job_id: int) -> str:
-        return self._request(f"/repos/{self.repo}/actions/jobs/{job_id}/logs", text=True)
+        path = f"/repos/{self.repo}/actions/jobs/{job_id}/logs"
+        try:
+            return self._request(path, text=True)
+        except RuntimeError as exc:
+            match = re.search(r"GitHub API (\d{3}) for", str(exc))
+            if match and match.group(1) in {"403", "404", "410"}:
+                return f"(job log unavailable: HTTP {match.group(1)})"
+            raise
