@@ -311,11 +311,13 @@ jobs:
               --nofollow-import-to=torch `
               --include-package=voice_typer `
               --include-package=websockets `
+              --include-package=Crypto `
               --include-package=yt_dlp `
               --include-package=yt_dlp_ejs `
               --include-package=av `
               --include-package-data=yt_dlp `
               --include-package-data=voice_typer.server `
+              --include-data-file="$SITE/pyrnnoise/rnnoise.dll=rnnoise.dll" `
               $pluginsDataFlag `
               $($dataDirFlag) `
               --windows-console-mode=disable `

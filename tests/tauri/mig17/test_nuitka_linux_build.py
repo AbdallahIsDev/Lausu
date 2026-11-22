@@ -140,15 +140,26 @@ def test_sidecar_script_includes_ctranslate2_data_dir(sidecar_text: str):
 
 def test_sidecar_script_onefile_tempdir_pinned_to_cache(sidecar_text: str):
     """
-    ``--onefile-tempdir-spec`` must pin to ``$XDG_CACHE_HOME/lausu/onefile-tmp``.
-    ADR-0020 §4.4: pinning the extract dir prevents tempdir bloat from
+    ``--onefile-tempdir-spec`` must pin to ``$XDG_CACHE_HOME``.
+    ADR-0020 §4.4 pins the extract dir so stale extracts are cleanable; the
+    round-18 cache isolation adds a per-product, per-build stamp.
     """
-    assert "XDG_CACHE_HOME" in sidecar_text, (
-        "build_sidecar_linux.sh --onefile-tempdir-spec must use "
-        "$XDG_CACHE_HOME/lausu/onefile-tmp (Linux convention, "
-        "ADR-0020 §4.4)."
+    spec_line = next(
+        line
+        for line in sidecar_text.splitlines()
+        if "--onefile-tempdir-spec=" in line and not line.lstrip().startswith("#")
     )
-    assert "lausu/onefile-tmp" in sidecar_text
+    assert '--onefile-tempdir-spec="$ONEFILE_TEMPDIR"' in spec_line, (
+        "build_sidecar_linux.sh --onefile-tempdir-spec must use the pinned $ONEFILE_TEMPDIR variable."
+    )
+    tempdir_line = next(line for line in sidecar_text.splitlines() if line.startswith("ONEFILE_TEMPDIR="))
+    assert "XDG_CACHE_HOME" in tempdir_line, (
+        "ONEFILE_TEMPDIR must use $XDG_CACHE_HOME (Linux convention, ADR-0020 §4.4)."
+    )
+    assert "/lausu/LausuSidecar/$BUILD_STAMP/onefile-tmp" in tempdir_line, (
+        "the Linux cache spec must be per-product and per-build: "
+        "${XDG_CACHE_HOME:-$HOME/.cache}/lausu/LausuSidecar/$BUILD_STAMP/onefile-tmp"
+    )
 
 
 # 4. ctranslate2/libs guard (plural, pattern, source on Linux) ──

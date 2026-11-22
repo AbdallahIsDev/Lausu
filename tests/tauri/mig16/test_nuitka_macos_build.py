@@ -258,15 +258,23 @@ def test_sidecar_script_uses_macos_create_bundle(sidecar_text: str):
 def test_sidecar_script_onefile_tempdir_uses_caches(sidecar_text: str):
     """
     ``--onefile-tempdir-spec`` must pin to ``$HOME/Library/Caches``.
-    ADR-0020 §4.3: pinning the extract dir keeps the frozen extract out of
-    ``$TMPDIR`` and puts it where macOS expects disposable data.
+    ADR-0020 §4.3 keeps the frozen extract in a purgeable cache dir; the
+    round-18 cache isolation adds a per-product, per-build stamp so two exes
+    or two versions never inherit stale payload files from that cache.
     """
-    assert "Library/Caches/lausu/onefile-tmp" in sidecar_text, (
-        "build_sidecar_macos.sh --onefile-tempdir-spec must use "
-        "$HOME/Library/Caches/lausu/onefile-tmp (purgeable cache dir, "
-        "ADR-0020 §4.3). Application Support is user data: it is backed up "
-        "and is not reaped by cache cleaners, so a frozen extract does not "
-        "belong there."
+    spec_line = next(
+        line
+        for line in sidecar_text.splitlines()
+        if "--onefile-tempdir-spec=" in line and not line.lstrip().startswith("#")
+    )
+    assert "$HOME/Library/Caches/lausu/LausuSidecar/$BUILD_STAMP/onefile-tmp" in spec_line, (
+        "build_sidecar_macos.sh --onefile-tempdir-spec must use the purgeable "
+        "$HOME/Library/Caches/lausu/LausuSidecar/$BUILD_STAMP/onefile-tmp "
+        "(per-product, per-build). Application Support is user data: it is "
+        "backed up and not reaped by cache cleaners."
+    )
+    assert 'onefile-tempdir-spec="$HOME/Library/Caches/lausu/onefile-tmp"' not in sidecar_text, (
+        "the old flat $HOME/Library/Caches/lausu/onefile-tmp spec is gone"
     )
 
 

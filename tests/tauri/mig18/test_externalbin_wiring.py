@@ -354,8 +354,7 @@ class TestWindowsX64FfmpegExternalBin:
             cfg = json.loads((_SRC_TAURI / name).read_text(encoding="utf-8"))
             for entry in cfg.get("bundle", {}).get("externalBin", []):
                 assert not triple_suffix_re.search(entry), (
-                    f"{name}: externalBin entry {entry!r} carries a target "
-                    "triple; Tauri appends it at build time."
+                    f"{name}: externalBin entry {entry!r} carries a target triple; Tauri appends it at build time."
                 )
 
     def test_media_pair_is_windows_x64_only(self) -> None:
@@ -370,8 +369,7 @@ class TestWindowsX64FfmpegExternalBin:
             external_bin = cfg.get("bundle", {}).get("externalBin", [])
             leaked = [e for e in external_bin if any(tool in e for tool in ("ffmpeg", "ffprobe"))]
             assert not leaked, (
-                f"{Path(path).name} must not declare ffmpeg/ffprobe externalBin "
-                f"(Windows x64 only), got: {leaked}"
+                f"{Path(path).name} must not declare ffmpeg/ffprobe externalBin (Windows x64 only), got: {leaked}"
             )
 
     @staticmethod
