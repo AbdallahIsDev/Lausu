@@ -99,6 +99,7 @@ jobs:
             cp "$REPORT_PATH" CI-errors.md
             git add CI-errors.md
             git commit -m "ci-reports: seed from generated report"
+            echo "CI_REPORTS_CREATED=true" >> "$GITHUB_ENV"
           fi
           cp "$REPORT_PATH" CI-errors.md
 
@@ -108,12 +109,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PYTHONPATH: scripts
           REPORT_PATH: ${{ runner.temp }}/CI-errors.md
+          CREATED: ${{ env.CI_REPORTS_CREATED }}
           INPUT_RUN_ID: ${{ inputs.run_id }}
           INPUT_REBUILD: ${{ inputs.rebuild }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           RUN_NAME: ${{ github.event.workflow_run.name }}
         run: |
           set -euo pipefail
+          if [ "${CREATED:-false}" = "true" ]; then
+            git push origin HEAD:ci-reports
+            echo "Pushed newly seeded ci-reports branch"
+            exit 0
+          fi
           if git diff --quiet -- CI-errors.md; then
             echo "CI-errors.md unchanged — nothing to commit"
             exit 0
