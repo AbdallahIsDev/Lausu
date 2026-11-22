@@ -230,6 +230,10 @@ jobs:
           if ($PYBS -notmatch 'python\.exe$') { $PYBS = "$PYBS\python.exe" }
           $SITE = & $PYBS -c "import site; print(site.getsitepackages()[-1])"
           Write-Host "PYBS=$PYBS  SITE=$SITE"
+          # Cache isolation must match scripts/build/build_sidecar_windows.sh:
+          # per-product and per-build so two exes or two versions never share
+          # (or inherit stale files from) the same extraction directory.
+          $BUILD_STAMP = (Get-Date).ToUniversalTime().ToString("yyyy.MM.dd.HHmm")
           # Nuitka optimizer crashes on av's Cython .py shims
           # (assert micro_passes == 0, upstream issue 3970); each has a
           # .pyd twin Python prefers, so the helper deletes only those.
@@ -315,7 +319,9 @@ jobs:
               $pluginsDataFlag `
               $($dataDirFlag) `
               --windows-console-mode=disable `
-              --onefile-tempdir-spec="{CACHE_DIR}/lausu/onefile-tmp" `
+              --product-name=LausuSidecar `
+              --product-version=$BUILD_STAMP `
+              --onefile-tempdir-spec="{CACHE_DIR}/{PRODUCT}/{VERSION}/onefile-tmp" `
               --output-filename=python-sidecar-${{ matrix.target }}.exe `
               --output-dir=src-tauri\bin `
               voice_typer\server\ipc_server.py

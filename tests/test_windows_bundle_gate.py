@@ -64,6 +64,9 @@ def test_pinned_spec_is_per_build_and_per_product(tmp_path: Path, monkeypatch: p
     assert gate.expand_onefile_cache_spec("{TEMP}/onefile_{PID}_{TIME}", "C:\\cache") is None
 
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    # The resolver branches on os.name; pin it so this derivation test checks
+    # the same cache-root logic on Windows, Linux and macOS CI legs.
+    monkeypatch.setattr(gate.os, "name", "nt")
     old = tmp_path / "LausuSidecar" / "2026.01.01.0000" / "onefile-tmp"
     new = tmp_path / "LausuSidecar" / "2026.11.21.1635" / "onefile-tmp"
     old.mkdir(parents=True)
