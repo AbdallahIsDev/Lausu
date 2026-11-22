@@ -14,4 +14,3 @@ _common/bridge/token.json
 anthropic_stt/STOP
 __pycache__/
 *.pyc
-

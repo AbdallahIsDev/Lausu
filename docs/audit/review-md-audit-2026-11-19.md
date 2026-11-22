@@ -1188,4 +1188,3 @@ work left, close or verify on a host.
 - **Host-only, no headless action:** P0, S1-CR-146, PK-3, DC-15 residual, DC-14 residual,
   RH-7/RH-15/RH-16/RH-19/RH-28/RH-30/RH-31 host checks.
 - **No code was changed.** Only this report file was created.
-

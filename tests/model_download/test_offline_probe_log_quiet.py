@@ -211,4 +211,3 @@ class TestProbeMissLinesSurviveLogRedaction:
         rendered = _miss_records(caplog)[0].getMessage()
         assert "***" not in rendered
         assert redact_secret(rendered) == rendered
-
