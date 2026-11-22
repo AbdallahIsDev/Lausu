@@ -10,7 +10,7 @@ The Python backend lives in `voice_typer/server/`:
 
 | Module | Purpose |
 |---|---|
-| `voice_typer/server/ipc_server.py` | IPC command dispatcher. Live transport is localhost WebSocket (`sidecar_ws.py`); the TCP JSON-lines path is retired. SEC-018 session-token auth, RELIABILITY-006 rate limiter, 110-command `_COMMAND_REGISTRY` (canonical surface in `docs/ipc-reference.md`), 61-event bus (see `EVENT_TYPES` in `voice_typer/server/event_bus.py`). Under `TAURI_SIDECAR=1`: heartbeat watchdog (ADR-0018) is NOT started; Win32 single-instance mutex is NOT acquired. |
+| `voice_typer/server/ipc_server.py` | IPC command dispatcher. Live transport is localhost WebSocket (`sidecar_ws.py`); the TCP JSON-lines path is retired. SEC-018 session-token auth, RELIABILITY-006 rate limiter, 109-command `_COMMAND_REGISTRY` (canonical surface in `docs/ipc-reference.md`), 61-event bus (see `EVENT_TYPES` in `voice_typer/server/event_bus.py`). Under `TAURI_SIDECAR=1`: heartbeat watchdog (ADR-0018) is NOT started; Win32 single-instance mutex is NOT acquired. |
 | `voice_typer/server/app.py` | `LausuApp` orchestrator: startup, state machine, thread safety. |
 | `voice_typer/server/recording/` + `recording_controller.py` | PortAudio capture, silence detection, session lifecycle, streaming. (Recording was decomposed into a package, see `docs/history/rw04-recording-decomposition.md`.) |
 | `voice_typer/server/transcription.py` + `asr_registry.py` + `qwen_engine.py` + `parakeet_engine.py` | ASR pipeline (Whisper / Qwen3-ASR / Parakeet, with GPU→CPU fallback). |

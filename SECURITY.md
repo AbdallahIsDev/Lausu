@@ -47,7 +47,7 @@ are added or removed. The full command / event surface is documented in
 > former TypeScript `ALLOWED_COMMANDS` Set is deleted with predecessor
 > main. The remaining two-way contract is: Python
 > `_COMMAND_REGISTRY` (`voice_typer/server/ipc/registry.py`,
-> re-exported by `ipc_server.py`) registers **110** handlers; the Rust
+> re-exported by `ipc_server.py`) registers **109** handlers; the Rust
 > renderer allowlist exposes **104** of them. Five registry commands are
 > intentionally absent from the Rust allowlist:
 >

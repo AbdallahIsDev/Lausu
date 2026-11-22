@@ -204,6 +204,8 @@ fn test_allowed_commands_set_contains_no_duplicates() {
     // 101 → 105: `get_gpu_capability` / `start_cuda_download` /
     // `cancel_cuda_download` / `ack_cuda_activation` (GPU switch +
     // CUDA install flow, 2026-11-09).
+    // 105 → 104 (2026-11): `set_plugin_setting` removed by the
+    // unified-plugin architecture.
     assert_eq!(
         set.len(),
         104,
@@ -215,18 +217,18 @@ fn test_allowed_commands_set_contains_no_duplicates() {
 
 #[test]
 fn test_allowed_commands_exact_snapshot() {
-    //Stricter parity test: pin the EXACT 105-entry set (sorted)
+    //Stricter parity test: pin the EXACT 104-entry set (sorted)
     // so any drift between the Rust literal and the Python registry is
     // caught at `cargo test` time, BEFORE the cross-layer Python
     // parity test in `tests/test_ipc_command_parity.py` runs. The
     // count-only test above catches add/remove drift but
     // MISSES a rename (e.g. `onboarding_reset` → `reset_onboarding`)
-    // that keeps the count at 105. This snapshot test catches both
+    // that keeps the count at 104. This snapshot test catches both
     // renames and any silent reordering that would mask a missing
     // entry.
     //
     // The expected list is the alphabetically-sorted union of:
-    //   - the Python `_COMMAND_REGISTRY` literal (110 entries, once the
+    //   - the Python `_COMMAND_REGISTRY` literal (109 entries, once the
     //     backend slice lands the four screenshot handlers)
     //   - minus the five host-dispatched commands: `heartbeat`
     //     (Rust WS-reader task), `relaunch_ack` (Rust `relaunch_app`
@@ -271,6 +273,8 @@ fn test_allowed_commands_exact_snapshot() {
     // + `get_gpu_capability` (stack snapshot), `start_cuda_download`
     // (single-flight install job), `cancel_cuda_download` (instant
     // control), `ack_cuda_activation` (clear a shown failure) → 105.
+    // 105 → 104 (2026-11): `set_plugin_setting` removed by the
+    // unified-plugin architecture.
     // This snapshot was the 86-entry set at that point (2026-08:
     // + microphone_test_read_audio, chunked file-reference transport
     // for mic-test WAVs; 2026-09: + get_download_queue,
@@ -391,14 +395,14 @@ fn test_allowed_commands_exact_snapshot() {
         expected.len(),
         "snapshot length mismatch: actual Rust set has {} entries, snapshot expected {}. \
          If you added/removed a command, update BOTH this snapshot AND the cmds literal AND \
-         the Python `_COMMAND_REGISTRY` (= 110 entries with open_mic_settings).",
+         the Python `_COMMAND_REGISTRY` (= 109 entries with open_mic_settings).",
         actual.len(),
         expected.len()
     );
     assert_eq!(
         actual, expected,
         "ALLOWED_COMMANDS snapshot drift: the Rust literal no longer matches the pinned \
-         105-entry snapshot. Diff the actual vs expected Vec above. If the change is \
+         104-entry snapshot. Diff the actual vs expected Vec above. If the change is \
          intentional, update this snapshot in lockstep with the cmds literal AND the \
          Python `_COMMAND_REGISTRY` (see MAINTENANCE note above)."
     );
